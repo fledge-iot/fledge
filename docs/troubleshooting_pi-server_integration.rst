@@ -1,6 +1,7 @@
 .. Images
 .. |img_001| image:: images/tshooting_pi_001.jpg
 .. |img_002| image:: images/tshooting_pi_002.jpg
+   :scale: 80
 .. |img_003| image:: images/tshooting_pi_003.jpg
 .. |img_004| image:: images/tshooting_pi_004.jpg
 .. |img_005| image:: images/tshooting_pi_005.jpg
@@ -24,7 +25,7 @@ using Fledge version >= 1.9.x and PI Web API 2019 SP1 1.13.0.6518
 - `Possible solutions to common situations`_
 
 Log files
----------
+=========
 
 Fledge logs messages at error and warning levels by default, it is possible to increase the verbosity of messages logged to include information and debug messages also. This is done by altering the minimum log level setting for the north service or task. To change the minimal log level within the graphical user interface select the north service or task, click on the advanced settings link and then select a new minimal log level from the option list presented.
 The name of the north instance should be used to extract just the logs about the PI-Server integration, as in this example:
@@ -46,7 +47,7 @@ another sample message:
     North_Readings_to_PI[20884]: WARNING: Error in retrieving the PIWebAPI version, The PI Web API server is not reachable, verify the network reachability
 
 How to check the PI Web API is installed and running
-----------------------------------------------------
+====================================================
 
 Open the URL *https://piserver_1/piwebapi* in the browser, substituting *piserver_1* with the name/address of your PI Server, to
 verify the reachability and proper installation of PI Web API.
@@ -68,7 +69,7 @@ Select the item *System* to verify the installed version:
 |img_010|
 
 Commands to check the PI WEB API
---------------------------------
+================================
 
 Open the PI Web API URL and drill drown into the Data Archive and the Asset Framework hierarchies to verify the proper configuration on the PI-Server side. Also confirm that the correct permissions have be granted to access these hierarchies.
 
@@ -101,7 +102,7 @@ following the path *AssetServers* -> Select the *Instance* -> Select the proper 
 proceed with the drill down operation up to the desired level/asset.
 
 Error messages and causes
--------------------------
+=========================
 
 Some error messages and causes:
 
@@ -119,7 +120,7 @@ Some error messages and causes:
       - Fledge is able to interact with PI Web API but there is an attempt to store data in a PI Point that does not exist.
 
 Possible solutions to common situations
----------------------------------------
+=======================================
 
 **Recreate a single or a sets of PI-Server objets and resend all the data for them to the PI Server on the Asset Framework hierarchy level**
     procedure:

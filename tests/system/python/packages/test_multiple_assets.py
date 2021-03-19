@@ -25,7 +25,7 @@ SCRIPTS_DIR_ROOT = "{}/tests/system/python/packages/data/".format(PROJECT_ROOT)
 FLEDGE_ROOT = os.environ.get('FLEDGE_ROOT')
 BENCHMARK_SOUTH_SVC_NAME = "BenchMark #"
 ASSET_NAME = "random"
-PER_BENCHMARK_ASSET_COUNT = 100
+PER_BENCHMARK_ASSET_COUNT = 150
 
 
 @pytest.fixture
@@ -60,34 +60,6 @@ def remove_and_add_pkgs(package_build_version):
         assert False, "installation of benchmark package failed"
 
 
-def post_request(fledge_url, post_url, payload):
-    conn = http.client.HTTPConnection(fledge_url)
-    conn.request("POST", post_url, json.dumps(payload))
-    res = conn.getresponse()
-    assert 200 == res.status, "ERROR! POST {} request failed".format(post_url)
-    res = res.read().decode()
-    r = json.loads(res)
-    return r
-
-
-def get_request(fledge_url, get_url):
-    con = http.client.HTTPConnection(fledge_url)
-    con.request("GET", get_url)
-    res = con.getresponse()
-    assert 200 == res.status, "ERROR! GET {} request failed".format(get_url)
-    r = json.loads(res.read().decode())
-    return r
-
-
-def put_request(fledge_url, put_url, payload = None):
-    conn = http.client.HTTPConnection(fledge_url)
-    conn.request("PUT", put_url, json.dumps(payload))
-    res = conn.getresponse()
-    assert 200 == res.status, "ERROR! PUT {} request failed".format(put_url)
-    r = json.loads(res.read().decode())
-    return r
-
-
 def add_benchmark(fledge_url, name, count):
     data = {
         "name": name,
@@ -104,19 +76,19 @@ def add_benchmark(fledge_url, name, count):
         }
     }
     post_url = "/fledge/service"
-    post_request(fledge_url, post_url, data)
+    utils.post_request(fledge_url, post_url, data)
 
 
 def verify_service_added(fledge_url, name):
     get_url = "/fledge/south"
-    result = get_request(fledge_url, get_url)
+    result = utils.get_request(fledge_url, get_url)
     assert len(result["services"])
     assert name in [s["name"] for s in result["services"]]
 
 
 def verify_ping(fledge_url):
     get_url = "/fledge/ping"
-    ping_result = get_request(fledge_url, get_url)
+    ping_result = utils.get_request(fledge_url, get_url)
     assert "dataRead" in ping_result
     assert 0 < ping_result['dataRead'], "data NOT seen in ping header"
     return ping_result
@@ -124,22 +96,22 @@ def verify_ping(fledge_url):
 
 def verify_asset(fledge_url, total_assets):
     get_url = "/fledge/asset"
-    result = get_request(fledge_url, get_url)
+    result = utils.get_request(fledge_url, get_url)
     assert len(result), "No asset found"
     assert total_assets == len(result)
 
 
-def get_asset_tracking_details(fledge_url, event=None):
-    conn = http.client.HTTPConnection(fledge_url)
-    uri = '/fledge/track'
-    if event:
-        uri += '?event={}'.format(event)
-    conn.request("GET", uri)
-    r = conn.getresponse()
-    assert 200 == r.status
-    r = r.read().decode()
-    jdoc = json.loads(r)
-    return jdoc
+def verify_asset_tracking_details(fledge_url, total_assets, total_benchmark_services, num_assets):
+    tracking_details = utils.get_asset_tracking_details(fledge_url, "Ingest")
+    assert len(tracking_details["track"]), "Failed to track Ingest event"
+    assert total_assets == len(tracking_details["track"])
+    for service_count in range(total_benchmark_services):
+        for asset_count in range(num_assets):
+            service_name = BENCHMARK_SOUTH_SVC_NAME + "{}".format(service_count + 1)
+            asset_name = ASSET_NAME + "-{}{}".format(service_count + 1, asset_count + 1)
+            assert service_name in [s["service"] for s in tracking_details["track"]]
+            assert asset_name in [s["asset"] for s in tracking_details["track"]]
+            assert "Benchmark" in [s["plugin"] for s in tracking_details["track"]]
 
 
 class TestMultiAssets:
@@ -167,23 +139,14 @@ class TestMultiAssets:
         verify_asset(fledge_url, total_assets)
 
         put_url = "/fledge/restart"
-        put_request(fledge_url, urllib.parse.quote(put_url))
+        utils.put_request(fledge_url, urllib.parse.quote(put_url))
         # Wait for fledge to restart
         time.sleep(wait_time)
 
         verify_ping(fledge_url)
         verify_asset(fledge_url, total_assets)
 
-        tracking_details = utils.get_asset_tracking_details(fledge_url, "Ingest")
-        assert len(tracking_details["track"]), "Failed to track Ingest event"
-        assert total_assets == len(tracking_details["track"])        
-        for service_count in range(total_benchmark_services):            
-            for asset_count in range(PER_BENCHMARK_ASSET_COUNT):                
-                service_name = BENCHMARK_SOUTH_SVC_NAME + "{}".format(service_count + 1)
-                asset_name = ASSET_NAME + "-{}{}".format(service_count + 1, asset_count + 1)
-                assert service_name in [s["service"] for s in tracking_details["track"]]
-                assert asset_name in [s["asset"] for s in tracking_details["track"]]
-                assert "Benchmark" in [s["plugin"] for s in tracking_details["track"]]
+        verify_asset_tracking_details(fledge_url, total_assets, total_benchmark_services, PER_BENCHMARK_ASSET_COUNT)
 
     def test_add_multiple_assets_before_after_restart(self, reset_fledge, fledge_url, wait_time):
         """ Test addition of multiple assets before and after restarting fledge.
@@ -207,19 +170,10 @@ class TestMultiAssets:
         verify_ping(fledge_url)
         verify_asset(fledge_url, total_assets)
 
-        tracking_details = utils.get_asset_tracking_details(fledge_url, "Ingest")
-        assert len(tracking_details["track"]), "Failed to track Ingest event"
-        assert total_assets == len(tracking_details["track"])        
-        for service_count in range(total_benchmark_services):            
-            for asset_count in range(PER_BENCHMARK_ASSET_COUNT):                
-                service_name = BENCHMARK_SOUTH_SVC_NAME + "{}".format(service_count + 1)
-                asset_name = ASSET_NAME + "-{}{}".format(service_count + 1, asset_count + 1)
-                assert service_name in [s["service"] for s in tracking_details["track"]]
-                assert asset_name in [s["asset"] for s in tracking_details["track"]]
-                assert "Benchmark" in [s["plugin"] for s in tracking_details["track"]]
+        verify_asset_tracking_details(fledge_url, total_assets, total_benchmark_services, PER_BENCHMARK_ASSET_COUNT)
 
         put_url = "/fledge/restart"
-        put_request(fledge_url, urllib.parse.quote(put_url))
+        utils.put_request(fledge_url, urllib.parse.quote(put_url))
         # Wait for fledge to restart
         time.sleep(wait_time * 3)
 
@@ -236,16 +190,7 @@ class TestMultiAssets:
         verify_ping(fledge_url)
         verify_asset(fledge_url, total_assets)
 
-        tracking_details = utils.get_asset_tracking_details(fledge_url, "Ingest")
-        assert len(tracking_details["track"]), "Failed to track Ingest event"
-        assert total_assets == len(tracking_details["track"])        
-        for service_count in range(total_benchmark_services * 2):            
-            for asset_count in range(PER_BENCHMARK_ASSET_COUNT):                
-                service_name = BENCHMARK_SOUTH_SVC_NAME + "{}".format(service_count + 1)
-                asset_name = ASSET_NAME + "-{}{}".format(service_count + 1, asset_count + 1)
-                assert service_name in [s["service"] for s in tracking_details["track"]]
-                assert asset_name in [s["asset"] for s in tracking_details["track"]]
-                assert "Benchmark" in [s["plugin"] for s in tracking_details["track"]]
+        verify_asset_tracking_details(fledge_url, total_assets, total_benchmark_services * 2, PER_BENCHMARK_ASSET_COUNT)
 
     def test_multiple_assets_with_reconfig(self, reset_fledge, fledge_url, wait_time):
         """ Test addition of multiple assets with reconfiguration of south service.
@@ -270,23 +215,14 @@ class TestMultiAssets:
         verify_ping(fledge_url)
         verify_asset(fledge_url, total_assets)
 
-        tracking_details = utils.get_asset_tracking_details(fledge_url, "Ingest")
-        assert len(tracking_details["track"]), "Failed to track Ingest event"
-        assert total_assets == len(tracking_details["track"])        
-        for service_count in range(total_benchmark_services):            
-            for asset_count in range(PER_BENCHMARK_ASSET_COUNT):                
-                service_name = BENCHMARK_SOUTH_SVC_NAME + "{}".format(service_count + 1)
-                asset_name = ASSET_NAME + "-{}{}".format(service_count + 1, asset_count + 1)
-                assert service_name in [s["service"] for s in tracking_details["track"]]
-                assert asset_name in [s["asset"] for s in tracking_details["track"]]
-                assert "Benchmark" in [s["plugin"] for s in tracking_details["track"]]
+        verify_asset_tracking_details(fledge_url, total_assets, total_benchmark_services, PER_BENCHMARK_ASSET_COUNT)
 
         # With reconfig, number of assets are doubled in each south service
         payload = {"numAssets": "{}".format(num_assets)}
         for count in range(total_benchmark_services):
             service_name = BENCHMARK_SOUTH_SVC_NAME + "{}".format(count + 1)
             put_url = "/fledge/category/{}".format(service_name)
-            put_request(fledge_url, urllib.parse.quote(put_url), payload)
+            utils.put_request(fledge_url, urllib.parse.quote(put_url), payload)
 
         # In reconfig number of assets are doubled
         total_assets = total_assets * 2
@@ -296,13 +232,4 @@ class TestMultiAssets:
         verify_ping(fledge_url)
         verify_asset(fledge_url, total_assets)
 
-        tracking_details = utils.get_asset_tracking_details(fledge_url, "Ingest")
-        assert len(tracking_details["track"]), "Failed to track Ingest event"
-        assert total_assets == len(tracking_details["track"])        
-        for service_count in range(total_benchmark_services):            
-            for asset_count in range(num_assets):                
-                service_name = BENCHMARK_SOUTH_SVC_NAME + "{}".format(service_count + 1)
-                asset_name = ASSET_NAME + "-{}{}".format(service_count + 1, asset_count + 1)
-                assert service_name in [s["service"] for s in tracking_details["track"]]
-                assert asset_name in [s["asset"] for s in tracking_details["track"]]
-                assert "Benchmark" in [s["plugin"] for s in tracking_details["track"]]
+        verify_asset_tracking_details(fledge_url, total_assets, total_benchmark_services, num_assets)

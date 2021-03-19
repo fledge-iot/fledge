@@ -37,11 +37,11 @@ screenshot from the Fledge GUI
 
     $ sudo cat /var/log/syslog | grep North_Readings_to_PI
 
-sample message:
+Sample message:
 
     user.info, 6,1,Mar 15 08:29:57,localhost,Fledge, North_Readings_to_PI[15506]: INFO: SendingProcess is starting
 
-another sample message:
+Another sample message:
 
     North_Readings_to_PI[20884]: WARNING: Error in retrieving the PIWebAPI version, The PI Web API server is not reachable, verify the network reachability
 
@@ -58,7 +58,7 @@ If PI Web API is configured for Basic authentication a prompt, similar to the on
 
 - *Enter the user name and password which you set in your Fledge configuration.*
 
-The *PI Web API* *OMF* plugin must be installed to allow the integration with Fledge, in this screen shot the 4th row shows the
+The *PI Web API* *OMF* plugin must be installed to allow the integration with Fledge, in this screenshot the 4th row shows the
 proper installation of the plugin:
 
 |img_001|
@@ -74,19 +74,19 @@ Open the PI Web API URL and drill drown into the Data Archive and the Asset Fram
 
 **Data Archive drill down**
 
-following the path *DataServers* -> *Points*:
+Following the path *DataServers* -> *Points*:
 
 |img_004|
 
 |img_005|
 
-you should be able to browse the *PI Points* page and see your *PI Points* if some data was already sent:
+You should be able to browse the *PI Points* page and see your *PI Points* if some data was already sent:
 
 |img_006|
 
 **Asset Framework drill down**
 
-following the path *AssetServers* -> Select the *Instance* -> Select the proper *Databases* -> drill down into the AF hierarchy up to the required level -> *Elements*:
+Following the path *AssetServers* -> Select the *Instance* -> Select the proper *Databases* -> drill down into the AF hierarchy up to the required level -> *Elements*:
 
 |img_007|
 
@@ -98,7 +98,7 @@ following the path *AssetServers* -> Select the *Instance* -> Select the proper 
 
 |img_009|
 
-proceed with the drill down operation up to the desired level/asset.
+Proceed with the drill down operation up to the desired level/asset.
 
 Error messages and causes
 =========================

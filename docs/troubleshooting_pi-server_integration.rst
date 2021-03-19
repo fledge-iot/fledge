@@ -123,7 +123,7 @@ Some error messages and causes:
       - Fledge is able to interact with PI Web API but there is an attempt to store data in a PI Point that does not exist.
 
 Possible solutions to common problems
-======================================
+=====================================
 
 **Recreate a single or a sets of PI-Server objets and resend all the data for them to the PI Server on the Asset Framework hierarchy level**
     procedure:
@@ -139,8 +139,7 @@ Possible solutions to common problems
     consideration:
         - the 2nd north instance will be used only to recreate the objects and resend the data
         - the 2nd north instance will resend all the data available for the specified *included* assets
-        - there will some data duplicated for the recreated assets because parte of the information will be managed by both the north instances.
-
+        - there will some data duplicated for the recreated assets because part of the information will be managed by both the north instances
 
 .. code:: json
 

@@ -467,8 +467,9 @@ DELETE FROM fledge.sqlite_sequence WHERE name='asset_tracker';
 DELETE FROM fledge.tasks;
 DELETE FROM fledge.statistics_history;
 DELETE FROM sqlite_sequence WHERE name='statistics_history';
-DELETE FROM fledge.log;
+DELETE FROM fledge.fledge.log;
 DELETE FROM sqlite_sequence WHERE name='log';
+DELETE FROM fledge.plugin_data;
 UPDATE fledge.streams SET last_object = 0, ts = STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'localtime');
 VACUUM;
 .quit

@@ -415,6 +415,7 @@ TRUNCATE TABLE fledge.statistics_history;
 TRUNCATE TABLE fledge.log;
 TRUNCATE TABLE fledge.readings;
 UPDATE fledge.streams SET last_object = 0, ts = now();
+TRUNCATE TABLE fledge.plugin_data;
 DO \\$alter_seq\\$
 DECLARE i TEXT;
 BEGIN

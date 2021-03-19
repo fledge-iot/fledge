@@ -143,6 +143,7 @@ Possible solutions to common problems
 
 
 .. code:: json
+
     :emphasize-lines: 5,8
     {
       "rules": [

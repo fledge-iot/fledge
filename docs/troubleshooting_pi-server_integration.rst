@@ -17,14 +17,14 @@
 Troubleshooting the PI-Server integration
 *****************************************
 
-This section describes how to trouble shoot issues with the PI-Server integration
-using Fledge version >= 1.9.x and PI Web API 2019 SP1 1.13.0.6518
+This section describes how to troubleshoot issues with the PI-Server integration
+using Fledge version >= 1.9.1 and PI Web API 2019 SP1 1.13.0.6518
 
 - `Log files`_
 - `How to check the PI Web API is installed and running`_
 - `Commands to check the PI Web API`_
 - `Error messages and causes`_
-- `Possible solutions to common situations`_
+- `Possible solutions to common problems`_
 
 Log files
 =========
@@ -122,8 +122,8 @@ Some error messages and causes:
     * - North_Readings_to_PI[24485]: ERROR: Sending JSON data error : **Container not found**. 4273005507977094880_1measurement_sin_4816_asset_1 - WIN-4M7ODKB0RH2:443 /piwebapi/omf
       - Fledge is able to interact with PI Web API but there is an attempt to store data in a PI Point that does not exist.
 
-Possible solutions to common situations
-=======================================
+Possible solutions to common problems
+======================================
 
 **Recreate a single or a sets of PI-Server objets and resend all the data for them to the PI Server on the Asset Framework hierarchy level**
     procedure:

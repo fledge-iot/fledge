@@ -141,7 +141,7 @@ Possible solutions to common problems
         - the 2nd north instance will resend all the data available for the specified *included* assets
         - there will some data duplicated for the recreated assets because part of the information will be managed by both the north instances
 
-.. code:: json
+.. code-block:: JSON
     :emphasize-lines: 5,8
 
     {

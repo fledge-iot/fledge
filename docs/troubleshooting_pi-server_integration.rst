@@ -142,7 +142,6 @@ Possible solutions to common problems
         - there will some data duplicated for the recreated assets because part of the information will be managed by both the north instances
 
 .. code-block:: JSON
-    :emphasize-lines: 5,8
 
     {
       "rules": [

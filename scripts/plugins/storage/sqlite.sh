@@ -427,8 +427,8 @@ Arguments:
  status  - Check the status of the database server
  reset   - Bring the database server to the original installation.
            WARNING: all the data stored in the server will be lost!
- init    - Database initialisation check: if Fledge database is not set it
-           will be created
+ init    - Database check: if Fledge database does not exist
+           it will be created.
  purge   - Purge all readings data and non-configuration data stored in the database.
            WARNING: all the data stored in the affected tables will be lost!
  help    - This text

@@ -377,8 +377,8 @@ Arguments:
  reset   - Bring the database server to the original installation.
            This is a synonym of init.
            WARNING: all the data stored in the server will be lost!
- init    - Database initialisation check: if Fledge database is not set it
-           will be created
+ init    - Database check: if Fledge database does not exist
+           it will be created.
  purge   - Purge all readings data and non-configuration data stored in the database.
            WARNING: all the data stored in the affected tables will be lost!
  help    - This text
@@ -399,6 +399,12 @@ pg_purge() {
         echo "Goodbye."
         # This is ok because it means that the script is called from command line
         exit 0
+    fi
+
+    if [[ "$1" == "noisy" ]]; then
+        postgres_log "info" "Purging data for the Fledge Plugin '${PLUGIN}' ..." "all" "pretty"
+    else
+        postgres_log "info" "Purging data for the Fledge Plugin '${PLUGIN}' ..." "logonly" "pretty"
     fi
 
    SQL_COMMAND=`${PG_SQL} -d fledge -b -q <<EOF

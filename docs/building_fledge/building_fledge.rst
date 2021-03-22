@@ -569,6 +569,8 @@ CentOS provides PostgreSQL 9.2. Fledge has been tested with PostgreSQL 9.5, 9.6 
   sudo yum install postgresql96
   sudo yum install postgresql96-server
   sudo yum install postgresql96-devel
+  sudo yum install rh-postgresql96
+  sudo yum install rh-postgresql96-postgresql-devel
   sudo /usr/pgsql-9.6/bin/postgresql96-setup initdb
   sudo systemctl enable postgresql-9.6
   sudo systemctl start postgresql-9.6

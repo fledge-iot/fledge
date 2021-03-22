@@ -32,10 +32,10 @@ echo "deb http://archives.fledge-iot.org/${BUILD_VERSION}/${VERSION_CODENAME}/ar
 sudo apt update
 
 time sudo -E apt install -yq fledge
-echo "==================== DONE INSTALLING Fedge =================="
+echo "==================== DONE INSTALLING Fledge =================="
 
 time sudo apt install -y fledge-gui
-echo "==================== DONE INSTALLING Fedge GUI ======================"
+echo "==================== DONE INSTALLING Fledge GUI ======================"
 
 time sudo apt install -y fledge-service-notification fledge-filter-expression fledge-filter-python35 fledge-filter-rms \
 fledge-filter-fft fledge-filter-delta fledge-filter-metadata fledge-filter-change \

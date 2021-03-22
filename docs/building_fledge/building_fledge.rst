@@ -561,12 +561,12 @@ In order to use the latest version for Fledge, add the following lines at the en
 Installing PostgreSQL 9.6
 -------------------------
 
-CentOS provides PostgreSQL 9.2. Fledge has been tested with PostgreSQL 9.5, 9.6 and 10.X. The commands to install the new version of PostgreSQL are:
+CentOS provides PostgreSQL 9.2. Fledge has been tested with PostgreSQL 9.5, 9.6 and 10.X.
+Following https://www.postgresql.org/download/ instructions, the commands to install the new version of PostgreSQL are:
 
 .. code-block:: console
 
-  sudo yum install https://download.postgresql.org/pub/repos/yum/9.6/redhat/rhel-7-x86_64/pgdg-centos96-9.6-3.noarch.rpm
-  sudo yum install postgresql96
+  sudo yum install -y https://download.postgresql.org/pub/repos/yum/reporpms/EL-7-x86_64/pgdg-redhat-repo-latest.noarch.rpm
   sudo yum install postgresql96-server
   sudo yum install postgresql96-devel
   sudo yum install rh-postgresql96

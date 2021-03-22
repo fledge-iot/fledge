@@ -108,7 +108,13 @@ On CentOS and Red Hat systems, and other RPM based distributions the command is
 
 .. code-block:: console
 
+  sudo yum install https://download.postgresql.org/pub/repos/yum/9.6/redhat/rhel-7-x86_64/pgdg-centos96-9.6-3.noarch.rpm
   sudo yum install postgresql-server postgresql
+  sudo yum install postgresql96
+  sudo yum install postgresql96-server
+  sudo yum install postgresql96-devel
+  sudo yum install rh-postgresql96
+  sudo yum install rh-postgresql96-postgresql-devel
 
 Post Installation Activities
 ----------------------------
@@ -117,8 +123,9 @@ Once installed the PostgreSQL server must be configured. Run the commands
 
 .. code-block:: console
 
-  sudo postgresql-setup initdb
-  sudo systemctl start postgresql
+  sudo /usr/pgsql-9.6/bin/postgresql96-setup initdb
+  sudo systemctl enable postgresql-9.6
+  sudo systemctl start postgresql-9.6
   sudo -u postgres createuser -d fledge
 
 SQLite Plugin Configuration

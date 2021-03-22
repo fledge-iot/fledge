@@ -471,6 +471,7 @@ DELETE FROM fledge.log;
 DELETE FROM sqlite_sequence WHERE name='log';
 DELETE FROM fledge.plugin_data;
 DELETE FROM fledge.omf_created_objects;
+DELETE FROM fledge.user_logins;
 UPDATE fledge.streams SET last_object = 0, ts = STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'localtime');
 VACUUM;
 .quit

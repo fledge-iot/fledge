@@ -164,7 +164,9 @@ async def add_service(request):
              curl -sX POST http://localhost:8081/fledge/service -d '{"name": "HT", "plugin": "http_north", "type": "north", "enabled": true, "config": {"verifySSL": {"value": "false"}}}' | jq
 
              curl -sX POST http://localhost:8081/fledge/service?action=install -d '{"format":"repository", "name": "fledge-service-notification"}'
+             curl -sX POST http://localhost:8081/fledge/service?action=install -d '{"format":"repository", "name": "fledge-service-dispatcher"}'
              curl -sX POST http://localhost:8081/fledge/service?action=install -d '{"format":"repository", "name": "fledge-service-notification", "version":"1.6.0"}'
+             curl -sX POST http://localhost:8081/fledge/service?action=install -d '{"format":"repository", "name": "fledge-service-dispatcher", "version":"1.9.1"}'
     """
 
     try:
@@ -255,8 +257,9 @@ async def add_service(request):
             raise web.HTTPBadRequest(reason='Missing type property in payload.')
 
         service_type = str(service_type).lower()
-        if service_type not in ['south', 'north', 'notification', 'management']:
-            raise web.HTTPBadRequest(reason='Only south, north, notification and management types are supported.')
+        if service_type not in ['south', 'north', 'notification', 'management', 'dispatcher']:
+            raise web.HTTPBadRequest(reason='Only south, north, notification, management and dispatcher '
+                                            'types are supported.')
         if plugin is None and service_type == 'south':
             raise web.HTTPBadRequest(reason='Missing plugin property for type south in payload.')
         if plugin is None and service_type == 'north':
@@ -306,6 +309,9 @@ async def add_service(request):
         elif service_type == 'management':
             process_name = 'management'
             script = '["services/management"]'
+        elif service_type == 'dispatcher':
+            process_name = 'dispatcher_c'
+            script = '["services/dispatcher_c"]'
         storage = connect.get_storage_async()
         config_mgr = ConfigurationManager(storage)
 
@@ -339,6 +345,12 @@ async def add_service(request):
             for ps in res['rows']:
                 if 'notification_c' in ps['process_name']:
                     raise web.HTTPBadRequest(reason='A Notification service schedule already exists.')
+        # check that dispatcher service is not already registered, right now dispatcher service LIMIT to 1
+        elif service_type == 'dipatcher':
+            res = await check_schedule_entry(storage)
+            for ps in res['rows']:
+                if 'dispatcher_c' in ps['process_name']:
+                    raise web.HTTPBadRequest(reason='A Dispatcher service schedule already exists.')
         # check that management service is not already registered, right now management service LIMIT to 1
         elif service_type == 'management':
             res = await check_schedule_entry(storage)

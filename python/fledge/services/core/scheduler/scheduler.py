@@ -1336,7 +1336,7 @@ class Scheduler(object):
         self._schedule_first_task(schedule_row, now)
 
         # Start schedule
-        await self.queue_task(schedule_id)
+        await self.queue_task(schedule_id, start_now=False)
 
         self._logger.info(
             "Enabled Schedule '%s/%s' process '%s'\n",
@@ -1348,7 +1348,7 @@ class Scheduler(object):
         await audit.information('SCHCH', { 'schedule': sch.toDict() })
         return True, "Schedule successfully enabled"
 
-    async def queue_task(self, schedule_id: uuid.UUID) -> None:
+    async def queue_task(self, schedule_id: uuid.UUID, start_now=True) -> None:
         """Requests a task to be started for a schedule
 
         Args:
@@ -1378,7 +1378,8 @@ class Scheduler(object):
             schedule_execution = self._ScheduleExecution()
             self._schedule_executions[schedule_row.id] = schedule_execution
 
-        schedule_execution.start_now = True
+        if start_now:
+            schedule_execution.start_now = True
 
         self._logger.debug("Queued schedule '%s' for execution", schedule_row.name)
         self._resume_check_schedules()

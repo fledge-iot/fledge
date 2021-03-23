@@ -470,6 +470,9 @@ Encoding and collations may differ, depending on the choices made when you insta
 
 The *-d* argument is important because the user will need to create the Fledge database.
 
+A more generic command is:
+  $ sudo -u postgres createuser -d $(whoami)
+
 Finally, you should now be able to see the list of the available databases from your current user:
 
 .. code-block:: console

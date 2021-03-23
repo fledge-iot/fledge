@@ -118,6 +118,7 @@ async def delete_service(request):
 
         config_mgr = ConfigurationManager(storage)
 
+        # TODO: 5141 - once done we need to fix for dispatcher type as well
         # In case of notification service, if notifications exists, then deletion is not allowed
         if 'notification' in result['rows'][0]['process_name']:
             notf_children = await config_mgr.get_category_child(category_name="Notifications")
@@ -160,6 +161,7 @@ async def add_service(request):
              curl -X POST http://localhost:8081/fledge/service -d '{"name": "DHT 11", "plugin": "dht11", "type": "south", "enabled": true}'
              curl -sX POST http://localhost:8081/fledge/service -d '{"name": "Sine", "plugin": "sinusoid", "type": "south", "enabled": true, "config": {"dataPointsPerSec": {"value": "10"}}}' | jq
              curl -X POST http://localhost:8081/fledge/service -d '{"name": "NotificationServer", "type": "notification", "enabled": true}' | jq
+             curl -sX POST http://localhost:8081/fledge/service -d '{"name": "DispatcherServer", "type": "dispatcher", "enabled": true}' | jq
              curl -X POST http://localhost:8081/fledge/service -d '{"name": "HTC", "plugin": "httpc", "type": "north", "enabled": true}' | jq
              curl -sX POST http://localhost:8081/fledge/service -d '{"name": "HT", "plugin": "http_north", "type": "north", "enabled": true, "config": {"verifySSL": {"value": "false"}}}' | jq
 
@@ -346,7 +348,7 @@ async def add_service(request):
                 if 'notification_c' in ps['process_name']:
                     raise web.HTTPBadRequest(reason='A Notification service schedule already exists.')
         # check that dispatcher service is not already registered, right now dispatcher service LIMIT to 1
-        elif service_type == 'dipatcher':
+        elif service_type == 'dispatcher':
             res = await check_schedule_entry(storage)
             for ps in res['rows']:
                 if 'dispatcher_c' in ps['process_name']:
@@ -495,6 +497,7 @@ async def update_service(request: web.Request) -> web.Response:
     name = request.match_info.get('name', None)
     try:
         _type = _type.lower()
+        # TODO: 5141 - once done we need to fix for dispatcher type as well
         if _type != 'notification':
             raise ValueError("Invalid service type. Must be 'notification'")
 

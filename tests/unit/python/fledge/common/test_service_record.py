@@ -33,7 +33,8 @@ class TestServiceRecord:
         assert 1234 == obj._management_port
         assert 1 == obj._status
 
-    @pytest.mark.parametrize("s_type", ["Storage", "Core", "Southbound"])
+    @pytest.mark.parametrize("s_type", [
+        "Storage", "Core", "Southbound", "Notification", "Management", "Northbound", "Dispatcher"])
     def test_init_with_valid_type(self, s_type):
         obj = ServiceRecord("some id", "aName", s_type, "http", "127.0.0.1", None, 1234)
         assert "some id" == obj._id

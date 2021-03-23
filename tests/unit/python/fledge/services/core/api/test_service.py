@@ -340,9 +340,12 @@ class TestService:
     p1 = '{"name": "NotificationServer", "type": "notification"}'
     p2 = '{"name": "NotificationServer", "type": "notification", "enabled": false}'
     p3 = '{"name": "NotificationServer", "type": "notification", "enabled": true}'
+    p4 = '{"name": "DispatcherServer", "type": "dispatcher"}'
+    p5 = '{"name": "DispatcherServer", "type": "dispatcher", "enabled": false}'
+    p6 = '{"name": "DispatcherServer", "type": "dispatcher", "enabled": true}'
 
-    @pytest.mark.parametrize("payload", [p1, p2, p3])
-    async def test_add_notification_service(self, client, payload):
+    @pytest.mark.parametrize("payload", [p1, p2, p3, p4, p5, p6])
+    async def test_add_external_service(self, client, payload):
         data = json.loads(payload)
         sch_id = '45876056-e04c-4cde-8a82-1d8dbbbe6d72'
 
@@ -365,10 +368,11 @@ class TestService:
 
                     return {'count': 0, 'rows': []}
             if table == 'scheduled_processes':
-                assert {"return": ["name"], "where": {"column": "name", "condition": "=", "value": "notification_c",
+                assert {"return": ["name"], "where": {"column": "name", "condition": "=",
+                                                      "value": "{}_c".format(data['type']),
                                                       "and": {"column": "script", "condition": "=",
-                                                              "value": "[\"services/notification_c\"]"}}
-                        } == _payload
+                                                              "value": "[\"services/{}_c\"]".format(
+                                                                  data['type'])}}} == _payload
                 return {'count': 0, 'rows': []}
 
         expected_insert_resp = {'rows_affected': 1, "response": "inserted"}
@@ -392,12 +396,15 @@ class TestService:
                         patch_save_schedule.called_once_with()
                     args, kwargs = insert_table_patch.call_args
                     assert 'scheduled_processes' == args[0]
-                    p = json.loads(args[1])
-                    assert {'name': 'notification_c', 'script': '["services/notification_c"]'} == p
+                    assert {'name': '{}_c'.format(data['type']), 'script': '["services/{}_c"]'.format(
+                        data['type'])} == json.loads(args[1])
             patch_get_cat_info.assert_called_once_with(category_name=data['name'])
 
-    async def test_dupe_notification_service_schedule(self, client):
-        payload = '{"name": "NotificationServer", "type": "notification"}'
+    @pytest.mark.parametrize("payload, svc_type", [
+        ('{"name": "NotificationServer", "type": "notification"}', "notification"),
+        ('{"name": "DispatcherServer", "type": "dispatcher"}', "dispatcher")
+    ])
+    async def test_dupe_external_service_schedule(self, client, payload, svc_type):
         data = json.loads(payload)
 
         @asyncio.coroutine
@@ -407,37 +414,38 @@ class TestService:
             if table == 'schedules':
                 if _payload['return'][0] == 'process_name':
                     assert {"return": ["process_name"]} == _payload
-                    return {'rows': [{'process_name': 'stats collector'}, {'process_name': 'notification_c'}], 'count': 2}
-
+                    return {'rows': [{'process_name': 'stats collector'}, {'process_name': '{}_c'.format(svc_type)}],
+                            'count': 2}
                 else:
                     assert {"return": ["schedule_name"], "where": {"column": "schedule_name", "condition": "=",
                                                                    "value": data['name']}} == _payload
 
                     return {'count': 0, 'rows': []}
             if table == 'scheduled_processes':
-                assert {"return": ["name"], "where": {"column": "name", "condition": "=", "value": "notification_c",
+                assert {"return": ["name"], "where": {"column": "name", "condition": "=",
+                                                      "value": "{}_c".format(svc_type),
                                                       "and": {"column": "script", "condition": "=",
-                                                              "value": "[\"services/notification_c\"]"}}
-                        } == _payload
+                                                              "value": "[\"services/{}_c\"]".format(
+                                                                  svc_type)}}} == _payload
                 return {'count': 0, 'rows': []}
 
         expected_insert_resp = {'rows_affected': 1, "response": "inserted"}
-
         server.Server.scheduler = Scheduler(None, None)
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(c_mgr, 'get_category_all_items', return_value=self.async_mock(None)) as patch_get_cat_info:
                 with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
-                    with patch.object(storage_client_mock, 'insert_into_tbl', return_value=self.async_mock(expected_insert_resp)) as insert_table_patch:
+                    with patch.object(storage_client_mock, 'insert_into_tbl', return_value=self.async_mock(
+                            expected_insert_resp)) as insert_table_patch:
                         resp = await client.post('/fledge/service', data=payload)
                         server.Server.scheduler = None
                         assert 400 == resp.status
-                        assert 'A Notification service schedule already exists.' == resp.reason
+                        assert 'A {} service schedule already exists.'.format(svc_type.capitalize()) == resp.reason
                     args, kwargs = insert_table_patch.call_args
                     assert 'scheduled_processes' == args[0]
                     p = json.loads(args[1])
-                    assert {'name': 'notification_c', 'script': '["services/notification_c"]'} == p
+                    assert {'name': '{}_c'.format(svc_type), 'script': '["services/{}_c"]'.format(svc_type)} == p
             patch_get_cat_info.assert_called_once_with(category_name=data['name'])
 
     async def test_add_service_with_config(self, client):
@@ -789,7 +797,9 @@ class TestService:
         ([(['/usr/local/fledge/services'], [], ['fledge.services.south', 'fledge.services.storage', 'fledge.services.notification'])], [], ["south", "storage", "notification"]),
         ([(['/usr/local/fledge/services'], [], ['fledge.services.south', 'fledge.services.storage'])], [(['/usr/local/fledge/python/fledge/services/management'], [], [])], ["south", "storage"]),
         ([(['/usr/local/fledge/services'], [], ['fledge.services.south', 'fledge.services.storage'])], [(['/usr/local/fledge/python/fledge/services/management'], [], ['__main__.py'])], ["south", "storage", "management"]),
-        ([(['/usr/local/fledge/services'], [], ['fledge.services.south', 'fledge.services.storage', 'fledge.services.notification'])], [(['/usr/local/fledge/python/fledge/services/management'], [], ['__main__.py'])], ["south", "storage", "notification", "management"])
+        ([(['/usr/local/fledge/services'], [], ['fledge.services.south', 'fledge.services.storage', 'fledge.services.notification'])], [(['/usr/local/fledge/python/fledge/services/management'], [], ['__main__.py'])], ["south", "storage", "notification", "management"]),
+        ([(['/usr/local/fledge/services'], [], ['fledge.services.south', 'fledge.services.storage', 'fledge.services.north'])], [], ["south", "storage", "north"]),
+        ([(['/usr/local/fledge/services'], [], ['fledge.services.south', 'fledge.services.storage', 'fledge.services.dispatcher'])], [], ["south", "storage", "dispatcher"]),
     ])
     async def test_get_service_installed(self, client, mock_value1, mock_value2, exp_result):
         with patch('os.walk', side_effect=(mock_value1, mock_value2)) as mockwalk:

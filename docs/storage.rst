@@ -117,6 +117,17 @@ On CentOS and Red Hat systems, and other RPM based distributions the command is
 Post Installation Activities
 ----------------------------
 
+Before you proceed, you must create a PostgreSQL user that matches your Linux user. Supposing that your user is *<fledge_user>*, type:
+
+.. code-block:: console
+
+  $ sudo -u postgres createuser -d <fledge_user>
+
+The *-d* argument is important because the user will need to create the Fledge database.
+
+A more generic command is:
+  $ sudo -u postgres createuser -d $(whoami)
+
 Once installed the PostgreSQL server must be configured. Run the commands
 
 .. code-block:: console

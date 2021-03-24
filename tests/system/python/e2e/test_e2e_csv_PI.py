@@ -14,6 +14,7 @@ import time
 import pytest
 from collections import Counter
 import utils
+import math
 
 __author__ = "Vaibhav Singhal"
 __copyright__ = "Copyright (c) 2019 Dianomic Systems"
@@ -127,7 +128,7 @@ class TestE2E_CSV_PI:
                 data received from PI is same as data sent"""
 
         conn = http.client.HTTPConnection(fledge_url)
-        time.sleep(wait_time * 2)
+        time.sleep(wait_time * math.ceil(15/wait_time) + 10 )
 
         ping_response = get_ping_status(fledge_url)
         assert len(CSV_DATA) == ping_response["dataRead"]

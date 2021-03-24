@@ -312,6 +312,9 @@ async def add_service(request):
             process_name = 'management'
             script = '["services/management"]'
         elif service_type == 'dispatcher':
+            if not os.path.exists(_FLEDGE_ROOT + "services/fledge.services.{}".format(service_type)):
+                msg = "{} service is not installed.".format(service_type.capitalize())
+                raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
             process_name = 'dispatcher_c'
             script = '["services/dispatcher_c"]'
         storage = connect.get_storage_async()

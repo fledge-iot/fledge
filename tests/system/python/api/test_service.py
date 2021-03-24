@@ -248,7 +248,7 @@ class TestService:
         assert 'Service {} deleted successfully.'.format(SVC_NAME_6) == jdoc['result']
 
         # verify service does not exist
-        time.sleep(wait_time)
+        time.sleep(wait_time * 2)
         jdoc = get_service(fledge_url, '/fledge/service')
         assert len(jdoc), "No data found"
         assert 3 == len(jdoc['services'])

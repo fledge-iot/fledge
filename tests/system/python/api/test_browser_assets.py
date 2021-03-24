@@ -72,7 +72,7 @@ class TestBrowserAssets:
 
     def test_get_asset_counts(self, start_south, fledge_url, wait_time):
         """Test that browsing an asset gives correct asset name and asset count"""
-        time.sleep(wait_time * 2)
+        time.sleep(wait_time * 4)
         conn = http.client.HTTPConnection(fledge_url)
         conn.request("GET", '/fledge/asset')
         r = conn.getresponse()
@@ -280,9 +280,10 @@ class TestBrowserAssets:
             assert SENSOR_VALUES[i] == jdoc[i]['max']
             assert validate_date_format(jdoc[i]['timestamp'], '%Y-%m-%d %H:%M:%S'), "timestamp format do not match"
 
-    def test_get_asset_series_query_group_min(self, fledge_url):
+    def test_get_asset_series_query_group_min(self, fledge_url, wait_time):
         """Test that browsing an asset's data point time series with minutes grouping
                          gives correct min, max and average values"""
+        time.sleep(wait_time)
         conn = http.client.HTTPConnection(fledge_url)
         conn.request("GET", '/fledge/asset/{}/{}/series{}'.format(ASSET_NAME, SENSOR, '?group=minutes'))
         r = conn.getresponse()
@@ -302,9 +303,10 @@ class TestBrowserAssets:
             assert SENSOR_VALUES[i + 1] == jdoc[i]['max']
             assert validate_date_format(jdoc[i + 1]['timestamp'], '%Y-%m-%d %H:%M'), "timestamp format do not match"
 
-    def test_get_asset_series_query_group_hrs(self, fledge_url):
+    def test_get_asset_series_query_group_hrs(self, fledge_url, wait_time):
         """Test that browsing an asset's data point time series with hour grouping
                                  gives correct min, max and average values"""
+        time.sleep(wait_time)
         conn = http.client.HTTPConnection(fledge_url)
         conn.request("GET", '/fledge/asset/{}/{}/series{}'.format(ASSET_NAME, SENSOR, '?group=hours'))
         r = conn.getresponse()

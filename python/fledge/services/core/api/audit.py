@@ -8,6 +8,7 @@ import copy
 from datetime import datetime
 from enum import IntEnum
 from aiohttp import web
+import json
 
 from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.common.storage_client.exceptions import StorageServerError

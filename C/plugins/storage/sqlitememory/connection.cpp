@@ -133,18 +133,26 @@ int Connection::SQLexec(sqlite3 *db,
 {
 int retries = 0, rc;
 
+	//# FIXME_I
+	ostringstream threadId;
+	threadId << std::this_thread::get_id();
+
 	do {
 		rc = sqlite3_exec(db, sql, callback, cbArg, errmsg);
 		retries++;
 		if (rc == SQLITE_LOCKED || rc == SQLITE_BUSY)
 		{
 			usleep(retries * 1000);	// sleep retries milliseconds
+
+			// FIXME_I:
+			Logger::getLogger()->debug("xxx5 %s - start thread  :%X: :%X: :%s: :%s:", __FUNCTION__, this->getDbHandle() ,this, threadId.str().c_str(), sql );
+
 		}
 	} while (retries < MAX_RETRIES && (rc == SQLITE_LOCKED || rc == SQLITE_BUSY));
 
 	if (rc == SQLITE_LOCKED)
 	{
-		Logger::getLogger()->error("Database still locked after maximum retries");
+		Logger::getLogger()->error("xxx5 Database still locked after maximum retries");
 	}
 	if (rc == SQLITE_BUSY)
 	{
@@ -180,11 +188,6 @@ bool Connection::fetchReadings(unsigned long id,
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();
 
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx2 %s - start thread :%s:", __FUNCTION__,  threadId.str().c_str());
-	//Logger::getLogger()->setMinLevel("warning");
-
-
 	// SQL command to extract the data from the readings.readings
 	const char *sql_cmd = R"(
 	SELECT
@@ -208,6 +211,13 @@ bool Connection::fetchReadings(unsigned long id,
 			 sql_cmd,
 			 id,
 			 blksize);
+
+
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx2 %s - start thread :%s: :%X: :%X: :%s:", __FUNCTION__,  threadId.str().c_str(), this->getDbHandle() ,this, sqlbuffer);
+	Logger::getLogger()->setMinLevel("warning");
+
+
 	logSQL("ReadingsFetch", sqlbuffer);
 	sqlite3_stmt *stmt;
 	// Prepare the SQL statement and get the result set
@@ -217,6 +227,13 @@ bool Connection::fetchReadings(unsigned long id,
 						   &stmt,
 						   NULL) != SQLITE_OK)
 	{
+
+		//# FIXME_I
+		Logger::getLogger()->setMinLevel("debug");
+		Logger::getLogger()->debug("xxx2 v1 %s - end thread :%s: :%X: :%X: :%s:", __FUNCTION__,  threadId.str().c_str(), this->getDbHandle() ,this, sqlbuffer);
+		Logger::getLogger()->setMinLevel("warning");
+
+
 		raiseError("retrieve", sqlite3_errmsg(dbHandle));
 
 		// Failure
@@ -232,7 +249,8 @@ bool Connection::fetchReadings(unsigned long id,
 
 
 		//# FIXME_I
-		Logger::getLogger()->debug("xxx2 %s - end thread :%s: cmd  %s::", __FUNCTION__,  threadId.str().c_str(), sql_cmd);
+		Logger::getLogger()->setMinLevel("debug");
+		Logger::getLogger()->debug("xxx2 v2 %s - end thread :%s: :%X: :%X: :%s:", __FUNCTION__,  threadId.str().c_str(), this->getDbHandle() ,this, sqlbuffer);
 		Logger::getLogger()->setMinLevel("warning");
 
 		// Check result set errors

@@ -3009,6 +3009,13 @@ int Connection::SQLstep(sqlite3_stmt *statement)
 {
 int retries = 0, rc;
 
+	//# FIXME_I
+	ostringstream threadId;
+	threadId << std::this_thread::get_id();
+	Logger::getLogger()->setMinLevel("debug");
+	//Logger::getLogger()->debug("xxx %s - start thread  :%X: :%X: :%s:", __FUNCTION__, this->getDbHandle() ,this, threadId.str().c_str() );
+
+
 	do {
 #if DO_PROFILE
 		ProfileItem *prof = new ProfileItem(sqlite3_sql(statement));
@@ -3022,9 +3029,20 @@ int retries = 0, rc;
 		if (rc == SQLITE_LOCKED || rc == SQLITE_BUSY)
 		{
 			int interval = (retries * RETRY_BACKOFF);
-			usleep(interval);	// sleep retries milliseconds
-			if (retries > 5) Logger::getLogger()->info("SQLStep: retry %d of %d, rc=%s, DB connection @ %p, slept for %d msecs",
+			// FIXME_I:
+			this_thread::sleep_for(chrono::milliseconds(interval));
+			//usleep(interval);	// sleep retries milliseconds
+			Logger::getLogger()->debug("xxx4 SQLStep: retry %d of %d, rc=%s, DB connection @ %p, slept for %d msecs",
+									   retries, MAX_RETRIES, (rc==SQLITE_LOCKED)?"SQLITE_LOCKED":"SQLITE_BUSY", this, interval);
+
+			Logger::getLogger()->debug("xxx4 %s - start thread  :%X: :%X: :%s:", __FUNCTION__, this->getDbHandle() ,this, threadId.str().c_str() );
+
+			if (retries > 5) {
+				Logger::getLogger()->debug("xxx4 SQLStep: retry %d of %d, rc=%s, DB connection @ %p, slept for %d msecs",
 						retries, MAX_RETRIES, (rc==SQLITE_LOCKED)?"SQLITE_LOCKED":"SQLITE_BUSY", this, interval);
+
+				Logger::getLogger()->debug("xxx4 %s - start thread  :%X: :%X: :%s:", __FUNCTION__, this->getDbHandle() ,this, threadId.str().c_str() );
+			}
 		}
 	} while (retries < MAX_RETRIES && (rc == SQLITE_LOCKED || rc == SQLITE_BUSY));
 #if DO_PROFILE_RETRIES
@@ -3046,12 +3064,15 @@ int retries = 0, rc;
 
 	if (rc == SQLITE_LOCKED)
 	{
-		Logger::getLogger()->error("Database still locked after maximum retries");
+		Logger::getLogger()->error("xxx4 Database still locked after maximum retries");
 	}
 	if (rc == SQLITE_BUSY)
 	{
-		Logger::getLogger()->error("Database still busy after maximum retries");
+		Logger::getLogger()->error("xxx4 Database still busy after maximum retries");
 	}
+
+	Logger::getLogger()->setMinLevel("warning");
+	//Logger::getLogger()->debug("xxx %s - end thread  :%X: :%X: :%s:", __FUNCTION__, this->getDbHandle() ,this, threadId.str().c_str() );
 
 	return rc;
 }

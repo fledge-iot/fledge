@@ -70,7 +70,7 @@ class TestAudit:
         ('?source=START&severity=information&limit=1', 1, 1),
         ('?source=START&severity=information&limit=1&skip=1', 1, 0)
     ])
-    def test_default_get_audit_sqlite(self, fledge_url, wait_time, request_params, total_count, audit_count, cat_name, storage_plugin):
+    def test_default_get_audit_sqlite(self, fledge_url, wait_time, request_params, total_count, audit_count, storage_plugin):
         if storage_plugin == 'postgres':
             pytest.skip('Test is for SQLite only. Storage category when with SQLite plugin, creates a child category `sqlite` hence one additional CONAD entry.')
 
@@ -106,7 +106,7 @@ class TestAudit:
         ('?source=START&severity=information&limit=1', 1, 1),
         ('?source=START&severity=information&limit=1&skip=1', 1, 0)
     ])
-    def test_default_get_audit_postgres(self, fledge_url, wait_time, request_params, total_count, audit_count, cat_name, storage_plugin):
+    def test_default_get_audit_postgres(self, fledge_url, wait_time, request_params, total_count, audit_count, storage_plugin):
         if storage_plugin == 'sqlite':
             pytest.skip('Test is for PostgreSQL only. Storage category when with SQLite plugin, creates a child category `sqlite` hence one additional CONAD entry.')
 
@@ -122,10 +122,6 @@ class TestAudit:
         assert len(jdoc), "No data found"
         assert total_count == jdoc['totalCount']
         assert audit_count == len(audit_entries)
-
-        if audit_count:
-            if audit_entries[0]['details']:
-                assert cat_name == audit_entries[0]['details']['name']
 
 
     @pytest.mark.parametrize("payload, total_count", [

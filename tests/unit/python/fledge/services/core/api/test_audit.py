@@ -210,7 +210,7 @@ class TestAudit:
 
     async def test_create_audit_entry_with_exception(self, client):
         request_data = {"source": "LMTR", "severity": "blah", "details": {"message": "Engine oil pressure low"}}
-        with patch.object(AuditLogger, "__init__", return_value=None):
+        with patch.object(AuditLogger, "__init__", return_value=""):
             resp = await client.post('/fledge/audit', data=json.dumps(request_data))
             assert 500 == resp.status
-            assert "Internal Server Error" == resp.reason
+            assert "__init__() should return None, not 'str'" == resp.reason

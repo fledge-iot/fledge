@@ -169,4 +169,4 @@ class TestAudit:
         r = r.read().decode()
         jdoc = json.loads(r)
         print(jdoc)
-        assert "Audit entry cannot not be logged" in jdoc.error
+        assert "Audit entry cannot not be logged" in jdoc['error']

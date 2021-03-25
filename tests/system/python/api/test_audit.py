@@ -53,22 +53,22 @@ class TestAudit:
         index = [idx['index'] for idx in log_severity]
         assert Counter([0, 1, 2, 4]) == Counter(index)
 
-    @pytest.mark.parametrize("request_params, total_count, audit_count, cat_name", [
-        ('', 11, 11, ''),
-        ('?limit=1', 11, 1, ''),
-        ('?skip=4', 11, 7, 'Installation'),
-        ('?limit=1&skip=8', 11, 1, 'SCHEDULER'),
-        ('?source=START', 1, 1, ''),
-        ('?source=CONAD', 10, 10, 'Utilities'),
-        ('?source=CONAD&limit=1', 10, 1, 'Utilities'),
-        ('?source=CONAD&skip=1', 10, 9, 'General'),
-        ('?source=CONAD&skip=6&limit=1', 10, 1, 'SMNTR'),
-        ('?severity=INFORMATION', 11, 11, ''),
-        ('?severity=failure', 0, 0, ''),
-        ('?source=CONAD&severity=failure', 0, 0, ''),
-        ('?source=START&severity=INFORMATION', 1, 1, ''),
-        ('?source=START&severity=information&limit=1', 1, 1, ''),
-        ('?source=START&severity=information&limit=1&skip=1', 1, 0, '')
+    @pytest.mark.parametrize("request_params, total_count, audit_count", [
+        ('', 11, 11),
+        ('?limit=1', 11, 1),
+        ('?skip=4', 11, 7),
+        ('?limit=1&skip=8', 11, 1),
+        ('?source=START', 1, 1),
+        ('?source=CONAD', 10, 10),
+        ('?source=CONAD&limit=1', 10, 1),
+        ('?source=CONAD&skip=1', 10, 9),
+        ('?source=CONAD&skip=6&limit=1', 10, 1),
+        ('?severity=INFORMATION', 11, 11),
+        ('?severity=failure', 0, 0),
+        ('?source=CONAD&severity=failure', 0, 0),
+        ('?source=START&severity=INFORMATION', 1, 1),
+        ('?source=START&severity=information&limit=1', 1, 1),
+        ('?source=START&severity=information&limit=1&skip=1', 1, 0)
     ])
     def test_default_get_audit_sqlite(self, fledge_url, wait_time, request_params, total_count, audit_count, cat_name, storage_plugin):
         if storage_plugin == 'postgres':
@@ -88,26 +88,23 @@ class TestAudit:
         assert total_count == jdoc['totalCount']
         assert audit_count == len(elems)
 
-        if audit_count:
-            if jdoc['audit'][0]['details']:
-                assert cat_name == jdoc['audit'][0]['details']['name']
 
-    @pytest.mark.parametrize("request_params, total_count, audit_count, cat_name", [
-        ('', 10, 10, ''),
-        ('?limit=1', 10, 1, ''),
-        ('?skip=4', 10, 6, 'Installation'),
-        ('?limit=1&skip=8', 10, 1, 'SCHEDULER'),
-        ('?source=START', 1, 1, ''),
-        ('?source=CONAD', 9, 9, 'Utilities'),
-        ('?source=CONAD&limit=1', 9, 1, 'Utilities'),
-        ('?source=CONAD&skip=1', 9, 8, 'General'),
-        ('?source=CONAD&skip=6&limit=1', 9, 1, 'SMNTR'),
-        ('?severity=INFORMATION', 10, 10, ''),
-        ('?severity=failure', 0, 0, ''),
-        ('?source=CONAD&severity=failure', 0, 0, ''),
-        ('?source=START&severity=INFORMATION', 1, 1, ''),
-        ('?source=START&severity=information&limit=1', 1, 1, ''),
-        ('?source=START&severity=information&limit=1&skip=1', 1, 0, '')
+    @pytest.mark.parametrize("request_params, total_count, audit_count", [
+        ('', 10, 10),
+        ('?limit=1', 10, 1),
+        ('?skip=4', 10, 6),
+        ('?limit=1&skip=8', 10, 1),
+        ('?source=START', 1, 1),
+        ('?source=CONAD', 9, 9),
+        ('?source=CONAD&limit=1', 9, 1),
+        ('?source=CONAD&skip=1', 9, 8),
+        ('?source=CONAD&skip=6&limit=1', 9, 1),
+        ('?severity=INFORMATION', 10, 10),
+        ('?severity=failure', 0, 0),
+        ('?source=CONAD&severity=failure', 0, 0),
+        ('?source=START&severity=INFORMATION', 1, 1),
+        ('?source=START&severity=information&limit=1', 1, 1),
+        ('?source=START&severity=information&limit=1&skip=1', 1, 0)
     ])
     def test_default_get_audit_postgres(self, fledge_url, wait_time, request_params, total_count, audit_count, cat_name, storage_plugin):
         if storage_plugin == 'sqlite':

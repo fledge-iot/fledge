@@ -165,7 +165,7 @@ class TestAudit:
         assert len(jdoc), "No data found"
         assert total_count == jdoc['totalCount']
 
-@pytest.mark.parametrize("payload", [
+    @pytest.mark.parametrize("payload", [
         ({"source": "LOGGN_X", "severity": "warning", "details": {"message": "Engine oil pressure low"}}),
     ])
     def test_create_nonexistent_log_code_audit_entry(self, fledge_url, payload, total_count, storage_plugin):

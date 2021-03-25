@@ -306,6 +306,9 @@ async def add_service(request):
                 _logger.exception("Failed to fetch plugin configuration. %s", str(ex))
                 raise web.HTTPInternalServerError(reason='Failed to fetch plugin configuration')
         elif service_type == 'notification':
+            if not os.path.exists(_FLEDGE_ROOT + "services/fledge.services.{}".format(service_type)):
+                msg = "{} service is not installed.".format(service_type.capitalize())
+                raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
             process_name = 'notification_c'
             script = '["services/notification_c"]'
         elif service_type == 'management':

@@ -165,9 +165,8 @@ class TestAudit:
         conn = http.client.HTTPConnection(fledge_url)
         conn.request('POST', '/fledge/audit', body=json.dumps(payload))
         r = conn.getresponse()
-        # FIXME: assert 4xx
-        assert 500 == r.status
+        assert 400 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        # print response with -vv
         print(jdoc)
+        assert "Audit entry cannot not be logged" in jdoc.error

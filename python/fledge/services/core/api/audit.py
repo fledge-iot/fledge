@@ -119,8 +119,15 @@ async def create_audit_entry(request):
         # Return error for wrong severity method
         err_msg = "severity type {} is not supported".format(severity)
         _logger.error("Error in create_audit_entry(): %s | %s", err_msg, str(e))
-        raise web.HTTPNotFound(reason=err_msg)
-    except (StorageServerError, Exception) as ex:
+        raise web.HTTPNotFound(reason=err_msg, body=json.dumps({"error": err_msg})
+    except StorageServerError as ex:
+        if int(ex.code) in range(400, 500):
+            err_msg = 'Audit entry cannot not be logged. {}'.format(json.loads(ex.error)['message'])
+            raise web.HTTPBadRequest(body=json.dumps({"error": err_msg}))
+        else:
+            err_msg = 'Failed to log audit entry. {}'.format(json.loads(ex.error)['message'])
+            raise web.HTTPInternalServerError({"error": err_msg}
+    except Exception as ex:
         raise web.HTTPInternalServerError(reason=str(ex))
     else:
         return web.json_response(message)

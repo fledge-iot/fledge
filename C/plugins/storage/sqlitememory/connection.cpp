@@ -25,6 +25,10 @@ using namespace rapidjson;
 #define PREP_CMD_RETRY_BASE 		5000    // Base time to wait for
 #define PREP_CMD_RETRY_BACKOFF		5000 	// Variable time to wait for
 
+// FIXME_I:
+// 1 enable performance tracking
+#define INSTRUMENT	1
+
 static std::atomic<int> m_writeAccessOngoing(0);
 
 static time_t connectErrorTime = 0;
@@ -172,6 +176,15 @@ bool Connection::fetchReadings(unsigned long id,
 	int rc;
 	int retrieve;
 
+	//# FIXME_I
+	ostringstream threadId;
+	threadId << std::this_thread::get_id();
+
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx2 %s - start thread :%s:", __FUNCTION__,  threadId.str().c_str());
+	//Logger::getLogger()->setMinLevel("warning");
+
+
 	// SQL command to extract the data from the readings.readings
 	const char *sql_cmd = R"(
 	SELECT
@@ -217,6 +230,11 @@ bool Connection::fetchReadings(unsigned long id,
 		// Delete result set
 		sqlite3_finalize(stmt);
 
+
+		//# FIXME_I
+		Logger::getLogger()->debug("xxx2 %s - end thread :%s: cmd  %s::", __FUNCTION__,  threadId.str().c_str(), sql_cmd);
+		Logger::getLogger()->setMinLevel("warning");
+
 		// Check result set errors
 		if (rc != SQLITE_DONE)
 		{
@@ -241,6 +259,7 @@ bool Connection::fetchReadings(unsigned long id,
 int Connection::appendReadings(const char *readings)
 {
 
+
 // Default template parameter uses UTF8 and MemoryPoolAllocator.
 	Document doc;
 	int      row = 0;
@@ -261,8 +280,12 @@ int Connection::appendReadings(const char *readings)
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();
 
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+
 #if INSTRUMENT
-	Logger::getLogger()->debug("appendReadings start thread :%s:", threadId.str().c_str());
+	// FIXME_I:
+	Logger::getLogger()->debug("xxx appendReadings start thread :%s:", threadId.str().c_str());
 
 	struct timeval	start, t1, t2, t3, t4, t5;
 #endif
@@ -445,7 +468,8 @@ int Connection::appendReadings(const char *readings)
 		timersub(&t3, &t2, &tm);
 		timeT3 = tm.tv_sec + ((double)tm.tv_usec / 1000000);
 
-		Logger::getLogger()->debug("appendReadings end   thread :%s: buffer :%10lu: count :%5d: JSON :%6.3f: inserts :%6.3f: finalize :%6.3f:",
+		// FIXME_I:
+		Logger::getLogger()->debug("xxx appendReadings end   thread :%s: buffer :%10lu: count :%5d: JSON :%6.3f: inserts :%6.3f: finalize :%6.3f:",
 								   threadId.str().c_str(),
 								   strlen(readings),
 								   row,
@@ -455,6 +479,9 @@ int Connection::appendReadings(const char *readings)
 		);
 
 #endif
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("warning");
 
 	return row;
 }
@@ -494,6 +521,15 @@ bool Connection::retrieveReadings(const string& condition, string& resultSet)
 // Extra constraints to add to where clause
 	SQLBuffer	jsonConstraints;
 	bool		isAggregate = false;
+
+	ostringstream threadId;
+	threadId << std::this_thread::get_id();
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx2 %s - start thread :%s:", __FUNCTION__,  threadId.str().c_str());
+	//Logger::getLogger()->setMinLevel("warning");
+
 
 	try {
 		if (dbHandle == NULL)
@@ -827,6 +863,11 @@ bool Connection::retrieveReadings(const string& condition, string& resultSet)
 			// Failure
 			return false;
 		}
+
+		//# FIXME_I
+		Logger::getLogger()->debug("xxx2 %s - end thread :%s: ", __FUNCTION__,  threadId.str().c_str());
+		Logger::getLogger()->setMinLevel("warning");
+
 		// Success
 		return true;
 	} catch (exception e) {

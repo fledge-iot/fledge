@@ -168,7 +168,7 @@ class TestAudit:
     @pytest.mark.parametrize("payload", [
         ({"source": "LOGGN_X", "severity": "warning", "details": {"message": "Engine oil pressure low"}}),
     ])
-    def test_create_nonexistent_log_code_audit_entry(self, fledge_url, payload, total_count, storage_plugin):
+    def test_create_nonexistent_log_code_audit_entry(self, fledge_url, payload, storage_plugin):
         conn = http.client.HTTPConnection(fledge_url)
         conn.request('POST', '/fledge/audit', body=json.dumps(payload))
         r = conn.getresponse()

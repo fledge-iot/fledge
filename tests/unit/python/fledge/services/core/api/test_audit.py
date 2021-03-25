@@ -213,4 +213,4 @@ class TestAudit:
         with patch.object(AuditLogger, "__init__", return_value=""):
             resp = await client.post('/fledge/audit', data=json.dumps(request_data))
             assert 500 == resp.status
-            assert "__init__() should return None, not 'str'" == resp.reason
+            assert "Internal Server Error" == resp.reason

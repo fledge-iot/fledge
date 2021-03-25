@@ -121,14 +121,14 @@ class TestAudit:
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        elems = jdoc['audit']
+        audit_entries = jdoc['audit']
         assert len(jdoc), "No data found"
         assert total_count == jdoc['totalCount']
-        assert audit_count == len(elems)
+        assert audit_count == len(audit_entries)
 
         if audit_count:
-            if jdoc['audit'][0]['details']:
-                assert cat_name == jdoc['audit'][0]['details']['name']
+            if audit_entries[0]['details']:
+                assert cat_name == audit_entries[0]['details']['name']
 
 
     @pytest.mark.parametrize("payload, total_count", [

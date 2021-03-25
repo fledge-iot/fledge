@@ -10,6 +10,7 @@ from enum import IntEnum
 from aiohttp import web
 
 from fledge.common.storage_client.payload_builder import PayloadBuilder
+from fledge.common.storage_client.exceptions import StorageServerError
 from fledge.services.core import connect
 from fledge.common.audit_logger import AuditLogger
 from fledge.common import logger

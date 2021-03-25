@@ -70,7 +70,49 @@ class TestAudit:
         ('?source=START&severity=information&limit=1', 1, 1, ''),
         ('?source=START&severity=information&limit=1&skip=1', 1, 0, '')
     ])
-    def test_default_get_audit(self, fledge_url, wait_time, request_params, total_count, audit_count, cat_name, storage_plugin):
+    def test_default_get_audit_sqlite(self, fledge_url, wait_time, request_params, total_count, audit_count, cat_name, storage_plugin):
+        if storage_plugin == 'postgres':
+            pytest.skip('Test is for SQLite only. Storage category when with SQLite plugin, creates a child category `sqlite` hence one additional CONAD entry.')
+
+        if request_params == '':
+            time.sleep(wait_time)
+
+        conn = http.client.HTTPConnection(fledge_url)
+        conn.request("GET", '/fledge/audit{}'.format(request_params))
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        jdoc = json.loads(r)
+        elems = jdoc['audit']
+        assert len(jdoc), "No data found"
+        assert total_count == jdoc['totalCount']
+        assert audit_count == len(elems)
+
+        if audit_count:
+            if jdoc['audit'][0]['details']:
+                assert cat_name == jdoc['audit'][0]['details']['name']
+
+    @pytest.mark.parametrize("request_params, total_count, audit_count, cat_name", [
+        ('', 10, 10, ''),
+        ('?limit=1', 10, 1, ''),
+        ('?skip=4', 10, 6, 'Installation'),
+        ('?limit=1&skip=8', 10, 1, 'SCHEDULER'),
+        ('?source=START', 1, 1, ''),
+        ('?source=CONAD', 9, 9, 'Utilities'),
+        ('?source=CONAD&limit=1', 9, 1, 'Utilities'),
+        ('?source=CONAD&skip=1', 9, 8, 'General'),
+        ('?source=CONAD&skip=6&limit=1', 9, 1, 'SMNTR'),
+        ('?severity=INFORMATION', 10, 10, ''),
+        ('?severity=failure', 0, 0, ''),
+        ('?source=CONAD&severity=failure', 0, 0, ''),
+        ('?source=START&severity=INFORMATION', 1, 1, ''),
+        ('?source=START&severity=information&limit=1', 1, 1, ''),
+        ('?source=START&severity=information&limit=1&skip=1', 1, 0, '')
+    ])
+    def test_default_get_audit_postgres(self, fledge_url, wait_time, request_params, total_count, audit_count, cat_name, storage_plugin):
+        if storage_plugin == 'sqlite':
+            pytest.skip('Test is for PostgreSQL only. Storage category when with SQLite plugin, creates a child category `sqlite` hence one additional CONAD entry.')
+
         if request_params == '':
             time.sleep(wait_time)
         conn = http.client.HTTPConnection(fledge_url)
@@ -79,19 +121,7 @@ class TestAudit:
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-
         elems = jdoc['audit']
-
-        if storage_plugin == 'postgres':
-            # sqlite has an additional entry: CONAD, INFORMATION, '{{"name":"sqlite", ...}'
-            # so total_count is being decresed in case of 'postgres' storage engine
-            # same for audit_count
-            if total_count > 1:
-                total_count = total_count -1
-
-            if audit_count > 1:
-                audit_count = audit_count -1
-
         assert len(jdoc), "No data found"
         assert total_count == jdoc['totalCount']
         assert audit_count == len(elems)
@@ -99,6 +129,7 @@ class TestAudit:
         if audit_count:
             if jdoc['audit'][0]['details']:
                 assert cat_name == jdoc['audit'][0]['details']['name']
+
 
     @pytest.mark.parametrize("payload, total_count", [
         ({"source": "LOGGN", "severity": "warning", "details": {"message": "Engine oil pressure low"}}, 12),
@@ -125,10 +156,25 @@ class TestAudit:
         r = r.read().decode()
         jdoc = json.loads(r)
 
-        # sqlite has an additional entry: CONAD, INFORMATION, '{{"name":"sqlite", ...}'
+        # Storage category when with SQLite plugin, creates a child category `sqlite` hence one additional CONAD entry.
+        # CONAD, INFORMATION, '{{"name":"sqlite", ...}'
         # so total_count is being decresed in case of 'postgres' storage engine
         if storage_plugin == 'postgres':
            total_count = total_count -1
 
         assert len(jdoc), "No data found"
         assert total_count == jdoc['totalCount']
+
+@pytest.mark.parametrize("payload", [
+        ({"source": "LOGGN_X", "severity": "warning", "details": {"message": "Engine oil pressure low"}}),
+    ])
+    def test_create_nonexistent_log_code_audit_entry(self, fledge_url, payload, total_count, storage_plugin):
+        conn = http.client.HTTPConnection(fledge_url)
+        conn.request('POST', '/fledge/audit', body=json.dumps(payload))
+        r = conn.getresponse()
+        # FIXME: assert 4xx
+        assert 500 == r.status
+        r = r.read().decode()
+        jdoc = json.loads(r)
+        # print response with -vv
+        print(jdoc)

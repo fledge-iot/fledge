@@ -1,18 +1,26 @@
 #!/bin/bash
 # Run a Fledge Storage service written in C/C++
+
+storageExec=""
+pluginScriptPath=""
+
 if [[ "${FLEDGE_ROOT}" = "" ]]; then
     if [[ ! -x /usr/local/fledge/services/fledge.services.storage ]] && [[ ! -x /usr/local/fledge/services/storage ]]; then
         logger "Unable to find Fledge storage microservice in the default location"
         exit 1
     else
+        # Set plugin script path
+	pluginScriptPath=/usr/local/fledge/scripts/plugins/storage/
+        # Set storage service exec
         if [[ -x /usr/local/fledge/services/fledge.services.storage ]]; then
             export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:/usr/local/fledge/lib
-            /usr/local/fledge/services/fledge.services.storage "$@"
+            storageExec=/usr/local/fledge/services/fledge.services.storage
         else
-            /usr/local/fledge/services/storage "$@"
+            storageExec=/usr/local/fledge/services/storage
         fi
-        logger "Fledge storage microservice in the default location: /usr/local/fledge"
-        exit 0
+	if [[ "$1" != "--plugin" ]]; then
+            logger "Fledge storage microservice in the default location: /usr/local/fledge"
+        fi
     fi
 else
     # Include common logger script code
@@ -21,13 +29,33 @@ else
         write_log "" "scripts.services.storage" "err" "Unable to find Fledge storage microservice in ${FLEDGE_ROOT}/services/storage" "logonly" ""
         exit 1
     else
+        # Set plugin script path
+	pluginScriptPath=${FLEDGE_ROOT}/scripts/plugins/storage/
+        # Set storage service exec
         if [[ -x ${FLEDGE_ROOT}/services/fledge.services.storage ]]; then
             export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${FLEDGE_ROOT}/lib:/usr/local/fledge/lib
-            ${FLEDGE_ROOT}/services/fledge.services.storage "$@"
+            storageExec=${FLEDGE_ROOT}/services/fledge.services.storage
         else
-            ${FLEDGE_ROOT}/services/storage "$@"
+            storageExec=${FLEDGE_ROOT}/services/storage
         fi
-        write_log "" "scripts.services.storage" "info" "Fledge storage microservice found in FLEDGE_ROOT location: ${FLEDGE_ROOT}" "logonly" ""
-        exit 0
+	if [[ "$1" != "--plugin" ]]; then
+            write_log "" "scripts.services.storage" "info" "Fledge storage microservice found in FLEDGE_ROOT location: ${FLEDGE_ROOT}" "logonly" ""
+	fi
     fi
 fi
+
+if [[ "$1" != "--plugin" ]]; then
+    # Get db schema
+    FLEDGE_VERSION_FILE="${FLEDGE_ROOT}/VERSION"
+    FLEDGE_SCHEMA=`cat ${FLEDGE_VERSION_FILE} | tr -d ' ' | grep -i "FLEDGE_SCHEMA=" | sed -e 's/\(.*\)=\(.*\)/\2/g'`
+    # Get storage engine
+    res=(`${storageExec} --plugin`)
+    storagePlugin=${res[0]}
+    managedEngine=${res[1]}
+    # Call plugin check: this will create database if not set yet
+   ${pluginScriptPath}/${storagePlugin}.sh init ${FLEDGE_SCHEMA} ${managedEngine}
+fi
+
+# Run storage service
+${storageExec} "$@"
+exit 0

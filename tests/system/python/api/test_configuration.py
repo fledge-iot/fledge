@@ -26,7 +26,7 @@ script_file_path = _FLEDGE_DATA + '/scripts/pub #1_item5_notify35.py' if _FLEDGE
 
 class TestConfiguration:
 
-    def test_default(self, fledge_url, reset_and_start_fledge, wait_time):
+    def test_default(self, fledge_url, reset_and_start_fledge, wait_time, storage_plugin):
         # TODO: FOGL-2349, once resolved below remove file check will be deleted
         if os.path.exists(script_file_path):
             os.remove(script_file_path)
@@ -82,6 +82,16 @@ class TestConfiguration:
              'displayName': 'Utilities', 'key': 'Utilities', 'description': 'Utilities'
              }
         ]
+
+        # With sqlite plugin we have "sqlite" child in category Storage
+        # with postgres there are no children
+        # Inject empty children array in category Storage
+        if storage_plugin == 'postgres':
+            expected_with_utilities[0]['children'][2] = {
+                        'children': [],
+                        'displayName': 'Storage', 'key': 'Storage',
+                        'description': 'Storage configuration'
+            }
 
         assert expected_with_utilities == jdoc["categories"]
 

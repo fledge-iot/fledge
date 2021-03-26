@@ -74,9 +74,6 @@ class TestAudit:
         if storage_plugin == 'postgres':
             pytest.skip('Test is for SQLite only. Storage category when with SQLite plugin, creates a child category `sqlite` hence one additional CONAD entry.')
 
-        if request_params == '':
-            time.sleep(wait_time)
-
         conn = http.client.HTTPConnection(fledge_url)
         conn.request("GET", '/fledge/audit{}'.format(request_params))
         r = conn.getresponse()
@@ -110,8 +107,6 @@ class TestAudit:
         if storage_plugin == 'sqlite':
             pytest.skip('Test is for PostgreSQL only. Storage category when with SQLite plugin, creates a child category `sqlite` hence one additional CONAD entry.')
 
-        if request_params == '':
-            time.sleep(wait_time)
         conn = http.client.HTTPConnection(fledge_url)
         conn.request("GET", '/fledge/audit{}'.format(request_params))
         r = conn.getresponse()
@@ -162,7 +157,7 @@ class TestAudit:
         ({"source": "LOGGN_X", "severity": "warning", "details": {"message": "Engine oil pressure low"}}),
         ({"source": "LOG_X", "severity": "information", "details": {"message": "Engine oil pressure is okay."}})
     ])
-    def test_create_nonexistent_log_code_audit_entry(self, fledge_url, payload, storage_plugin):
+    def test_create_nonexistent_log_code_audit_entry(self, fledge_url, payload):
         conn = http.client.HTTPConnection(fledge_url)
         conn.request('POST', '/fledge/audit', body=json.dumps(payload))
         r = conn.getresponse()

@@ -124,12 +124,12 @@ async def create_audit_entry(request):
     except StorageServerError as ex:
         if int(ex.code) in range(400, 500):
             err_msg = 'Audit entry cannot be logged. {}'.format(ex.error['message'])
-            raise web.HTTPBadRequest(body=json.dumps({"error": err_msg}))
+            raise web.HTTPBadRequest(body=json.dumps({"message": err_msg}))
         else:
             err_msg = 'Failed to log audit entry. {}'.format(ex.error['message'])
-            raise web.HTTPInternalServerError(body=json.dumps({"error": err_msg}))
+            raise web.HTTPInternalServerError(body=json.dumps({"message": err_msg}))
     except Exception as ex:
-        raise web.HTTPInternalServerError(reason=str(ex))
+        raise web.HTTPInternalServerError(reason=str(ex), body=json.dumps({"message": str(ex)}))
     else:
         return web.json_response(message)
 

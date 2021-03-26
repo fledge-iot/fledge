@@ -162,6 +162,7 @@ class TestAudit:
         conn.request('POST', '/fledge/audit', body=json.dumps(payload))
         r = conn.getresponse()
         assert 400 == r.status
+        assert 'Bad Request' in r.reason
         r = r.read().decode()
         jdoc = json.loads(r)
         print(jdoc)

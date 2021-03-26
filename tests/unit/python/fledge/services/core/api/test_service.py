@@ -338,8 +338,9 @@ class TestService:
                 patch_get_cat_info.assert_called_once_with(category_name='furnace4')
 
     p1 = '{"name": "DispatcherServer", "type": "dispatcher"}'
+    p2 = '{"name": "NotificationServer", "type": "notification"}'
 
-    @pytest.mark.parametrize("payload", [p1])
+    @pytest.mark.parametrize("payload", [p1, p2])
     async def test_bad_external_service(self, client, payload):
         data = json.loads(payload)
         with patch('os.path.exists', return_value=False):

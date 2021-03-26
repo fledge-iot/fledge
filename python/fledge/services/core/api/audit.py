@@ -8,8 +8,10 @@ import copy
 from datetime import datetime
 from enum import IntEnum
 from aiohttp import web
+import json
 
 from fledge.common.storage_client.payload_builder import PayloadBuilder
+from fledge.common.storage_client.exceptions import StorageServerError
 from fledge.services.core import connect
 from fledge.common.audit_logger import AuditLogger
 from fledge.common import logger
@@ -114,14 +116,22 @@ async def create_audit_entry(request):
                    'severity': severity,
                    'details': details
                    }
-        return web.json_response(message)
     except AttributeError as e:
         # Return error for wrong severity method
         err_msg = "severity type {} is not supported".format(severity)
         _logger.error("Error in create_audit_entry(): %s | %s", err_msg, str(e))
-        raise web.HTTPNotFound(reason=err_msg)
+        raise web.HTTPNotFound(reason=err_msg, body=json.dumps({"message": err_msg}))
+    except StorageServerError as ex:
+        if int(ex.code) in range(400, 500):
+            err_msg = 'Audit entry cannot be logged. {}'.format(ex.error['message'])
+            raise web.HTTPBadRequest(body=json.dumps({"message": err_msg}))
+        else:
+            err_msg = 'Failed to log audit entry. {}'.format(ex.error['message'])
+            raise web.HTTPInternalServerError(body=json.dumps({"message": err_msg}))
     except Exception as ex:
-        raise web.HTTPInternalServerError(reason=str(ex))
+        raise web.HTTPInternalServerError(reason=str(ex), body=json.dumps({"message": str(ex)}))
+    else:
+        return web.json_response(message)
 
 
 async def get_audit_entries(request):

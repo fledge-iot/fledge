@@ -74,6 +74,10 @@ class TestAudit:
         if storage_plugin == 'postgres':
             pytest.skip('Test is for SQLite only. Storage category when with SQLite plugin, creates a child category `sqlite` hence one additional CONAD entry.')
 
+        # wait for Fledge start, first test only, once in the iteration before start
+        if request_params == '':
+            time.sleep(wait_time)
+
         conn = http.client.HTTPConnection(fledge_url)
         conn.request("GET", '/fledge/audit{}'.format(request_params))
         r = conn.getresponse()
@@ -106,6 +110,10 @@ class TestAudit:
     def test_default_get_audit_postgres(self, fledge_url, wait_time, request_params, total_count, audit_count, storage_plugin):
         if storage_plugin == 'sqlite':
             pytest.skip('Test is for PostgreSQL only. Storage category when with SQLite plugin, creates a child category `sqlite` hence one additional CONAD entry.')
+
+        # wait for Fledge start, first test only, once in the iteration before start
+        if request_params == '':
+            time.sleep(wait_time)
 
         conn = http.client.HTTPConnection(fledge_url)
         conn.request("GET", '/fledge/audit{}'.format(request_params))

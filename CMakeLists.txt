@@ -10,6 +10,7 @@ if ( ( ${os_name} MATCHES "Red Hat" OR ${os_name} MATCHES "CentOS") AND ( ${os_v
 	add_compile_options(-D RHEL_CENTOS_7)
 	message( "System is RHEL/CentOS 7" )
 else()
+        FIND_PACKAGE(PythonLibs 3.5 EXACT REQUIRED)
 	message( "System is not RHEL/CentOS 7" )
 endif()
 

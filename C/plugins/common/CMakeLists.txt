@@ -35,6 +35,7 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/../../lib)
 add_library(${PROJECT_NAME} SHARED ${SOURCES})
 target_link_libraries(${PROJECT_NAME} ${Boost_LIBRARIES} ${NEEDED_FLEDGE_LIBS} z ssl crypto)
 target_link_libraries(${PROJECT_NAME} ${LIBCURL_LIB})
+target_link_libraries(${PROJECT_NAME} util)
 set_target_properties(${PROJECT_NAME} PROPERTIES SOVERSION 1)
 
 # Install library

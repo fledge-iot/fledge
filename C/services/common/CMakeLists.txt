@@ -23,6 +23,7 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/../../lib)
 # Create shared library
 add_library(${PROJECT_NAME} SHARED ${SOURCES})
 target_link_libraries(${PROJECT_NAME} ${DLLIB})
+target_link_libraries(${PROJECT_NAME} util)
 
 set_target_properties(${PROJECT_NAME} PROPERTIES SOVERSION 1)
 

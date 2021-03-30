@@ -46,13 +46,11 @@ class PluginHandle(object):
     """ PluginHandle -- utility class that makes converting from config to internal handle easier """
 
     typefns = {
-        "int": int,
         "integer": int,
         "float": float,
         "bool": lambda x: x == "true",
         "boolean": lambda x: x == "true",
         "string": str,
-        "str": str,
         "enumeration": str,
     }
 
@@ -73,7 +71,10 @@ class PluginHandle(object):
         def get_typed_value(k):
             # auto-convert string config entries into their appropriate type
             _t = udict[k]["type"]
-            return PluginHandle.typefns[_t](udict[k]["value"])
+            # "typefns" convert to real type; default type fn assumes identity (string, usually)
+            def ident_fn(x): return x
+            _typefn = ident_fn if _t not in PluginHandle.typefns else PluginHandle.typefns[_t]
+            return _typefn(udict[k]["value"])
 
         for k in udict.keys():
             _v = get_typed_value(k)

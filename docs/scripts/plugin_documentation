@@ -65,7 +65,7 @@ Fledge North Plugins
 
 .. toctree::
 
-    ../fledge-north-OMF
+    fledge-north-OMF/index
 EOFNORTH
 cat > plugins/filter.rst << EOFFILTER
 *********************
@@ -82,6 +82,7 @@ Fledge Notification Rule Plugins
 
 .. toctree::
 
+    fledge-rule-Threshold/index
 EOFRULE
 cat > plugins/notify.rst << EOFNOTIFY
 ************************************
@@ -104,3 +105,12 @@ do
       plugin_doc $repo $dest
   fi
 done
+
+# Deal with bultin plugin documentation 
+mkdir plugins/fledge-north-OMF
+ln -s ../../images plugins/fledge-north-OMF/images
+sed -e 's|OMF.rst|../../OMF.rst|' < fledge-north-OMF.rst > plugins/fledge-north-OMF/index.rst
+mkdir plugins/fledge-rule-Threshold
+cp -r fledge-rule-Threshold/* plugins/fledge-rule-Threshold/.
+
+ln -s plugins/fledge-south-lathe plugins/fledge-south-lathesim

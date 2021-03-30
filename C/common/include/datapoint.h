@@ -161,7 +161,7 @@ class DatapointValue {
 		/**
 		 * Return array of datapoints
 		 */
-		std::vector<Datapoint*>*& getDpVec()
+		std::vector<Datapoint*>* getDpVec() const
 		{
 			return m_value.dpa;
 		}
@@ -169,7 +169,7 @@ class DatapointValue {
 		/**
 		 * Return array of float
 		 */
-		std::vector<double>*& getDpArr()
+		std::vector<double>* getDpArr() const
 		{
 			return m_value.a;
 		}
@@ -197,6 +197,11 @@ class Datapoint {
 		Datapoint(const std::string& name, DatapointValue& value) : m_name(name), m_value(value)
 		{
 		}
+
+		/**
+		 * Copy constructor
+		 */
+		Datapoint(const Datapoint& obj);
 
 		~Datapoint()
 		{

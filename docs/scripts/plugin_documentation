@@ -37,8 +37,12 @@ function plugin_doc {
         echo "    ${repo_name}/index" >> $dest
     else
         files=`ls ${repo_name}/*.rst`
-        file=`basename $files .rst`
-        echo "    ${repo_name}/${file}" >> $dest
+    	if [ "$files" = "" ]; then
+	    echo "*** WARNING: plugin ${repo_name} is missing documentation"
+        else
+            file=`basename $files .rst`
+            echo "    ${repo_name}/${file}" >> $dest
+        fi
     fi
   fi
   rm -rf /tmp/doc.$$

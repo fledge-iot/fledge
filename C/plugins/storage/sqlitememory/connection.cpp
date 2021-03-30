@@ -25,9 +25,8 @@ using namespace rapidjson;
 #define PREP_CMD_RETRY_BASE 		5000    // Base time to wait for
 #define PREP_CMD_RETRY_BACKOFF		5000 	// Variable time to wait for
 
-// FIXME_I:
 // 1 enable performance tracking
-#define INSTRUMENT	1
+#define INSTRUMENT	0
 
 static std::atomic<int> m_writeAccessOngoing(0);
 
@@ -188,76 +187,6 @@ int retries = 0, rc;
 	return rc;
 }
 
-/**
- * SQLITE wrapper to rety statements when the database is locked
- *
- * @param	db	The open SQLite database
- * @param	sql	The SQL to execute
- * @param	callback	Callback function
- * @param	cbArg		Callback 1st argument
- * @param	errmsg		Locaiton to write error message
- */
-int Connection::SQLexecPurge(sqlite3 *db,
-						const char *sql,
-						int (*callback)(void*,int,char**,char**),
-						void *cbArg,
-						char **errmsg)
-{
-	int retries = 0, rc;
-
-	//# FIXME_I
-	ostringstream threadId;
-	threadId << std::this_thread::get_id();
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx5 %s  -  START :%s: :%X: :%X: :%s:", __FUNCTION__, sql,  this->getDbHandle() ,this, threadId.str().c_str());
-
-
-	do {
-		rc = sqlite3_exec(db, sql, callback, cbArg, errmsg);
-		retries++;
-		// FIXME_I:
-		if (rc != SQLITE_OK)
-			//if (rc == SQLITE_LOCKED || rc == SQLITE_BUSY)
-		{
-			// FIXME_I:
-			Logger::getLogger()->setMinLevel("debug");
-			Logger::getLogger()->debug("xxx5 %s  -  RETRY  before thread retries :%d: :%X: :%X: :%s: :%s:", __FUNCTION__, retries, this->getDbHandle() ,this, threadId.str().c_str(), sql );
-
-			// FIXME_I:
-			//usleep(retries * 1000);	// sleep retries milliseconds
-			this_thread::sleep_for(chrono::milliseconds(retries * 1000));
-
-			// FIXME_I:
-			//Logger::getLogger()->setMinLevel("debug");
-			//Logger::getLogger()->debug("xxx5 %s -  RETRY  after thread retries :%d: :%X: :%X: :%s: :%s:", __FUNCTION__, retries, this->getDbHandle() ,this, threadId.str().c_str(), sql );
-
-		}
-	} while (retries < MAX_RETRIES && (rc != SQLITE_OK));
-
-	if (retries >1) {
-		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("xxx5 %s - Complete - thread retries :%d: :%X: :%X: :%s: :%s:", __FUNCTION__, retries, this->getDbHandle() ,this, threadId.str().c_str(), sql );
-	}
-
-	if (rc == SQLITE_LOCKED)
-	{
-		Logger::getLogger()->error("xxx5 Database still locked after maximum retries - %s retries :%d: :%X: :%X: :%s: :%s:", __FUNCTION__, retries, this->getDbHandle() ,this, threadId.str().c_str(), sql );
-	}
-	if (rc == SQLITE_BUSY)
-	{
-		Logger::getLogger()->error("Database still busy after maximum retries");
-	}
-
-	// FIXME_I:
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx5 %s - END :%s: :%X: :%X: :%s:", __FUNCTION__, sql,  this->getDbHandle() ,this, threadId.str().c_str());
-
-
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("warning");
-
-	return rc;
-}
 
 /**
  * Fetch a block of readings from the reading table
@@ -280,7 +209,6 @@ bool Connection::fetchReadings(unsigned long id,
 	int rc;
 	int retrieve;
 
-	//# FIXME_I
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();
 
@@ -308,12 +236,6 @@ bool Connection::fetchReadings(unsigned long id,
 			 id,
 			 blksize);
 
-
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx2 %s - start thread :%s: :%X: :%X: :%s:", __FUNCTION__,  threadId.str().c_str(), this->getDbHandle() ,this, sqlbuffer);
-	Logger::getLogger()->setMinLevel("warning");
-
-
 	logSQL("ReadingsFetch", sqlbuffer);
 	sqlite3_stmt *stmt;
 	// Prepare the SQL statement and get the result set
@@ -323,15 +245,7 @@ bool Connection::fetchReadings(unsigned long id,
 						   &stmt,
 						   NULL) != SQLITE_OK)
 	{
-
-		//# FIXME_I
-		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("xxx2 v1 %s - end thread :%s: :%X: :%X: :%s:", __FUNCTION__,  threadId.str().c_str(), this->getDbHandle() ,this, sqlbuffer);
-		Logger::getLogger()->setMinLevel("warning");
-
-
 		raiseError("retrieve", sqlite3_errmsg(dbHandle));
-
 		// Failure
 		return false;
 	}
@@ -342,12 +256,6 @@ bool Connection::fetchReadings(unsigned long id,
 
 		// Delete result set
 		sqlite3_finalize(stmt);
-
-
-		//# FIXME_I
-		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("xxx2 v2 %s - end thread :%s: :%X: :%X: :%s:", __FUNCTION__,  threadId.str().c_str(), this->getDbHandle() ,this, sqlbuffer);
-		Logger::getLogger()->setMinLevel("warning");
 
 		// Check result set errors
 		if (rc != SQLITE_DONE)
@@ -394,12 +302,8 @@ int Connection::appendReadings(const char *readings)
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();
 
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-
 #if INSTRUMENT
-	// FIXME_I:
-	Logger::getLogger()->debug("xxx appendReadings start thread :%s:", threadId.str().c_str());
+	Logger::getLogger()->debug("appendReadings start thread :%s:", threadId.str().c_str());
 
 	struct timeval	start, t1, t2, t3, t4, t5;
 #endif
@@ -582,8 +486,7 @@ int Connection::appendReadings(const char *readings)
 		timersub(&t3, &t2, &tm);
 		timeT3 = tm.tv_sec + ((double)tm.tv_usec / 1000000);
 
-		// FIXME_I:
-		Logger::getLogger()->debug("xxx appendReadings end   thread :%s: buffer :%10lu: count :%5d: JSON :%6.3f: inserts :%6.3f: finalize :%6.3f:",
+		Logger::getLogger()->debug("appendReadings end   thread :%s: buffer :%10lu: count :%5d: JSON :%6.3f: inserts :%6.3f: finalize :%6.3f:",
 								   threadId.str().c_str(),
 								   strlen(readings),
 								   row,
@@ -593,9 +496,6 @@ int Connection::appendReadings(const char *readings)
 		);
 
 #endif
-
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("warning");
 
 	return row;
 }
@@ -638,12 +538,6 @@ bool Connection::retrieveReadings(const string& condition, string& resultSet)
 
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();
-
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx2 %s - start thread :%s:", __FUNCTION__,  threadId.str().c_str());
-	//Logger::getLogger()->setMinLevel("warning");
-
 
 	try {
 		if (dbHandle == NULL)
@@ -977,11 +871,6 @@ bool Connection::retrieveReadings(const string& condition, string& resultSet)
 			// Failure
 			return false;
 		}
-
-		//# FIXME_I
-		Logger::getLogger()->debug("xxx2 %s - end thread :%s: ", __FUNCTION__,  threadId.str().c_str());
-		Logger::getLogger()->setMinLevel("warning");
-
 		// Success
 		return true;
 	} catch (exception e) {
@@ -2208,7 +2097,7 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx5 %s - start :%X: :%X: :%s", __FUNCTION__, this->getDbHandle(), this,
+	Logger::getLogger()->debug("xxx5 xxx6 %s - start :%X: :%X: :%s", __FUNCTION__, this->getDbHandle(), this,
 							   threadId.str().c_str());
 	Logger::getLogger()->debug("xxx5 %s - count before", __FUNCTION__);
 
@@ -2243,7 +2132,7 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 
 	// FIXME_I:
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx5 %s - count after", __FUNCTION__);
+	Logger::getLogger()->debug("xxx5 xxx6 %s - count after 1 :%lu:", __FUNCTION__, rowcount);
 
 	rc = SQLexec(dbHandle,
 				 "select max(id) from " READINGS_DB "." READINGS_TABLE_MEM ";",
@@ -2258,90 +2147,101 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 		return 0;
 	}
 
-		numReadings = rowcount;
-		rowsAffected = 0;
-		deletedRows = 0;
-		do
+	numReadings = rowcount;
+	rowsAffected = 0;
+	deletedRows = 0;
+
+	// FIXME_I:
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx5 xxx6 %s - count after 2 :%lu:", __FUNCTION__, rowcount);
+
+	do
+	{
+		if (rowcount <= rows)
 		{
-			if (rowcount <= rows)
-			{
-				logger->info("Row count %d is less than required rows %d", rowcount, rows);
-				// FIXME_I:
-				break;
-			}
+			logger->info("Row count %d is less than required rows %d", rowcount, rows);
+			// FIXME_I:
+			break;
+		}
 
-			//###   #########################################################################################:
-			rc = SQLexec(dbHandle,
-						 "select min(id) from " READINGS_DB "." READINGS_TABLE_MEM ";",
-						 rowidCallback,
-						 &minId,
-						 &zErrMsg);
+		//###   #########################################################################################:
+		rc = SQLexec(dbHandle,
+					 "select min(id) from " READINGS_DB "." READINGS_TABLE_MEM ";",
+					 rowidCallback,
+					 &minId,
+					 &zErrMsg);
 
-			if (rc != SQLITE_OK)
+		if (rc != SQLITE_OK)
+		{
+			raiseError("purge - phaase 0, fetching minimum id", zErrMsg);
+			sqlite3_free(zErrMsg);
+			return 0;
+		}
+
+		// FIXME_I:
+		Logger::getLogger()->setMinLevel("debug");
+		Logger::getLogger()->debug("xxx5 %s - min after", __FUNCTION__);
+		//###   #########################################################################################:
+
+		deletePoint = minId + 10000;
+		if (maxId - deletePoint < rows || deletePoint > maxId)
+			deletePoint = maxId - rows;
+
+		// Do not delete
+		if ((flags & 0x01) == 0x01) {
+
+			if (limit < deletePoint)
 			{
-				raiseError("purge - phaase 0, fetching minimum id", zErrMsg);
-				sqlite3_free(zErrMsg);
-				return 0;
+				deletePoint = limit;
 			}
+		}
+		SQLBuffer sql;
+
+		// FIXME_I:
+		Logger::getLogger()->debug("xx5 %s - max after", __FUNCTION__);
+
+		logger->info("RowCount %d, Max Id %d, min Id %d, delete point %d", rowcount, maxId, minId, deletePoint);
+
+		sql.append("delete from " READINGS_DB "." READINGS_TABLE_MEM "  where id <= ");
+		sql.append(deletePoint);
+		const char *query = sql.coalesce();
+		{
+			//unique_lock<mutex> lck(db_mutex);
+//			if (m_writeAccessOngoing) db_cv.wait(lck);
+
+			// Exec DELETE query: no callback, no resultset
+			rc = SQLexec(dbHandle, query, NULL, NULL, &zErrMsg);
+			rowsAffected = sqlite3_changes(dbHandle);
+
+			// FIXME_I:
+			deletedRows += rowsAffected;
+			numReadings -= rowsAffected;
+			rowcount    -= rowsAffected;
+
 
 			// FIXME_I:
 			Logger::getLogger()->setMinLevel("debug");
-			Logger::getLogger()->debug("xxx5 %s - min after", __FUNCTION__);
-			//###   #########################################################################################:
+			logger->info("xxx6 RowCount %d, Max Id %d, min Id %d, delete point %d rowsAffected  :%d:", rowcount, maxId, minId, deletePoint, rowsAffected);
 
-			deletePoint = minId + 10000;
-			if (maxId - deletePoint < rows || deletePoint > maxId)
-				deletePoint = maxId - rows;
 
-			// Do not delete
-			if ((flags & 0x01) == 0x01) {
-
-				if (limit < deletePoint)
-				{
-					deletePoint = limit;
-				}
-			}
-			SQLBuffer sql;
-
-			// FIXME_I:
-			Logger::getLogger()->debug("xx5 %s - max after", __FUNCTION__);
-
-			logger->info("RowCount %d, Max Id %d, min Id %d, delete point %d", rowcount, maxId, minId, deletePoint);
-
-			sql.append("delete from " READINGS_DB "." READINGS_TABLE_MEM "  where id <= ");
-			sql.append(deletePoint);
-			const char *query = sql.coalesce();
+			// Release memory for 'query' var
+			delete[] query;
+			logger->debug("Deleted %d rows", rowsAffected);
+			if (rowsAffected == 0)
 			{
-				//unique_lock<mutex> lck(db_mutex);
-	//			if (m_writeAccessOngoing) db_cv.wait(lck);
-
-				// Exec DELETE query: no callback, no resultset
-				rc = SQLexec(dbHandle, query, NULL, NULL, &zErrMsg);
-				rowsAffected = sqlite3_changes(dbHandle);
-
-				// FIXME_I:
-				deletedRows += rowsAffected;
-				numReadings -= rowsAffected;
-				rowcount    -= rowsAffected;
-
-				// Release memory for 'query' var
-				delete[] query;
-				logger->debug("Deleted %d rows", rowsAffected);
-				if (rowsAffected == 0)
-				{
-					break;
-				}
-				if (limit != 0 && sent != 0)
-				{
-					unsentPurged = deletePoint - sent;
-				}
-				else if (!limit)
-				{
-					unsentPurged += rowsAffected;
-				}
+				break;
 			}
-			std::this_thread::sleep_for(std::chrono::milliseconds(1));
-		} while (rowcount > rows);
+			if (limit != 0 && sent != 0)
+			{
+				unsentPurged = deletePoint - sent;
+			}
+			else if (!limit)
+			{
+				unsentPurged += rowsAffected;
+			}
+		}
+		std::this_thread::sleep_for(std::chrono::milliseconds(1));
+	} while (rowcount > rows);
 
 
 
@@ -2361,8 +2261,8 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx5 %s - end", __FUNCTION__);
 	Logger::getLogger()->debug("xxx6 xxx5 %s - rows :%lu: flag :%x: sent :%lu:  numReadings :%lu:  rowsAffected :%u:  result :%s:", __FUNCTION__, rows, flags, sent, numReadings, rowsAffected, result.c_str() );
+	Logger::getLogger()->debug("xxx6 xxx5 %s - end", __FUNCTION__);
 	Logger::getLogger()->setMinLevel("warning");
 
 

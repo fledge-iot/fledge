@@ -541,8 +541,8 @@ static void logErrorMessage()
 }
 
 /**
- * Create a list od dict Python object (PyList) from
- * a vector of Readind pointers
+ * Create a list of dict Python object (PyList) from
+ * a vector of Reading pointers
  *
  * @param    readings	The input readings vector
  * @return		PyList object on success or NULL on errors
@@ -561,7 +561,7 @@ PyObject* createReadingsList(const std::vector<Reading *>& readings, bool change
 		PyObject* readingObject = PyDict_New();
 
 		// Create object (dict) for reading Datapoints:
-		// this will be added as vale for key 'readings'
+		// this will be added as value for key 'readings'
 		PyObject* newDataPoints = PyDict_New();
 
 		// Get all datapoints
@@ -581,7 +581,20 @@ PyObject* createReadingsList(const std::vector<Reading *>& readings, bool change
 			}
 			else
 			{
-				value = PyUnicode_FromString((*it)->getData().toString().c_str());
+				// strip enclosing double-quotes, if present, when passing string from C to Python
+				if (dataType == DatapointValue::dataTagType::T_STRING)
+				{
+					std::string s((*it)->getData().toString().c_str());
+					std::string s2;
+					if(s[0]=='"')
+						s2 = s.substr(1, s.size()-2);
+					else
+						s2 = s;
+
+					value = PyUnicode_FromString(s2.c_str());
+				}
+				else  // non-string, possibly nested object
+					value = PyUnicode_FromString((*it)->getData().toString().c_str());
 			}
 
 			// Add Datapoint: key and value

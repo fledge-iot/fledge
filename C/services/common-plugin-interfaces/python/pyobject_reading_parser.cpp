@@ -591,8 +591,6 @@ PyObject* createReadingsList(const std::vector<Reading *>& readings, bool change
 					else
 						s2 = s;
 
-					//Logger::getLogger()->error("C2Py: createReadingsList: possibly string, key=%s, slen=%d, value=%s, s=%s, s2=%s", 
-					//								(*it)->getName().c_str(), s.size(), (*it)->getData().toString().c_str(), s.c_str(), s2.c_str());
 					value = PyUnicode_FromString(s2.c_str());
 				}
 				else  // non-string, possibly nested object

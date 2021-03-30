@@ -1,11 +1,6 @@
 .. Images
 .. |south_services| image:: ../images/south_services.JPG
 .. |south_service_config| image:: ../images/south_service_config.JPG
-.. |north_services| image:: ../images/north_services.JPG
-.. |pi_plugin_config| image:: ../images/pi_plugin_config.JPG
-.. |settings| image:: ../images/settings.JPG
-.. |backup| image:: ../images/backup.JPG
-.. |support| image:: ../images/support.JPG
 
 Managing Data Sources
 =====================

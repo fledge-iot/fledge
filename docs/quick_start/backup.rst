@@ -1,3 +1,6 @@
+.. Images
+.. |backup| image:: ../images/backup.JPG
+
 Backing up and Restoring Fledge
 =================================
 +----------+

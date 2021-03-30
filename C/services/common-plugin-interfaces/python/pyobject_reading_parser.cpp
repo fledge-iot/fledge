@@ -581,7 +581,21 @@ PyObject* createReadingsList(const std::vector<Reading *>& readings, bool change
 			}
 			else
 			{
-				value = PyUnicode_FromString((*it)->getData().toString().c_str());
+				if (dataType == DatapointValue::dataTagType::T_STRING)
+				{
+					std::string s((*it)->getData().toString().c_str());
+					std::string s2;
+					if(s[0]=='"')
+						s2 = s.substr(1, s.size()-2);
+					else
+						s2 = s;
+
+					//Logger::getLogger()->error("C2Py: createReadingsList: possibly string, key=%s, slen=%d, value=%s, s=%s, s2=%s", 
+					//								(*it)->getName().c_str(), s.size(), (*it)->getData().toString().c_str(), s.c_str(), s2.c_str());
+					value = PyUnicode_FromString(s2.c_str());
+				}
+				else
+					value = PyUnicode_FromString((*it)->getData().toString().c_str());
 			}
 
 			// Add Datapoint: key and value

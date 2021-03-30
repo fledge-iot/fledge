@@ -148,13 +148,25 @@ int retries = 0, rc;
 		if (rc != SQLITE_OK)
 		//if (rc == SQLITE_LOCKED || rc == SQLITE_BUSY)
 		{
-			usleep(retries * 1000);	// sleep retries milliseconds
+			// FIXME_I:
+			Logger::getLogger()->setMinLevel("debug");
+			Logger::getLogger()->debug("xxx5 %s - V2 -  RETRY  before thread retries :%d: :%X: :%X: :%s: :%s:", __FUNCTION__, retries, this->getDbHandle() ,this, threadId.str().c_str(), sql );
+
+			//usleep(retries * 1000);	// sleep retries milliseconds
+			this_thread::sleep_for(chrono::milliseconds(retries * 1000));
 
 			// FIXME_I:
-			Logger::getLogger()->debug("xxx5 %s - RETRY  thread retries :%d: :%X: :%X: :%s: :%s:", __FUNCTION__, retries, this->getDbHandle() ,this, threadId.str().c_str(), sql );
+			Logger::getLogger()->setMinLevel("debug");
+			Logger::getLogger()->debug("xxx5 %s -  V2 -  RETRY  after thread retries :%d: :%X: :%X: :%s: :%s:", __FUNCTION__, retries, this->getDbHandle() ,this, threadId.str().c_str(), sql );
 
 		}
-	} while (retries < MAX_RETRIES && (rc == SQLITE_LOCKED || rc == SQLITE_BUSY));
+	} while (retries < MAX_RETRIES && (rc != SQLITE_OK));
+
+	if (retries >1) {
+		Logger::getLogger()->setMinLevel("debug");
+		Logger::getLogger()->debug("xxx5 %s - Complete - thread retries :%d: :%X: :%X: :%s: :%s:", __FUNCTION__, retries, this->getDbHandle() ,this, threadId.str().c_str(), sql );
+	}
+
 
 	if (rc == SQLITE_LOCKED)
 	{
@@ -165,12 +177,87 @@ int retries = 0, rc;
 		Logger::getLogger()->error("Database still busy after maximum retries");
 	}
 
+
+	// FIXME_I:
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx5 %s - END :%s: :%X: :%X: :%s:", __FUNCTION__, sql,  this->getDbHandle() ,this, threadId.str().c_str());
+
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("warning");
 
 	return rc;
 }
 
+/**
+ * SQLITE wrapper to rety statements when the database is locked
+ *
+ * @param	db	The open SQLite database
+ * @param	sql	The SQL to execute
+ * @param	callback	Callback function
+ * @param	cbArg		Callback 1st argument
+ * @param	errmsg		Locaiton to write error message
+ */
+int Connection::SQLexecPurge(sqlite3 *db,
+						const char *sql,
+						int (*callback)(void*,int,char**,char**),
+						void *cbArg,
+						char **errmsg)
+{
+	int retries = 0, rc;
+
+	//# FIXME_I
+	ostringstream threadId;
+	threadId << std::this_thread::get_id();
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx5 %s  -  START :%s: :%X: :%X: :%s:", __FUNCTION__, sql,  this->getDbHandle() ,this, threadId.str().c_str());
+
+
+	do {
+		rc = sqlite3_exec(db, sql, callback, cbArg, errmsg);
+		retries++;
+		// FIXME_I:
+		if (rc != SQLITE_OK)
+			//if (rc == SQLITE_LOCKED || rc == SQLITE_BUSY)
+		{
+			// FIXME_I:
+			Logger::getLogger()->setMinLevel("debug");
+			Logger::getLogger()->debug("xxx5 %s  -  RETRY  before thread retries :%d: :%X: :%X: :%s: :%s:", __FUNCTION__, retries, this->getDbHandle() ,this, threadId.str().c_str(), sql );
+
+			// FIXME_I:
+			//usleep(retries * 1000);	// sleep retries milliseconds
+			this_thread::sleep_for(chrono::milliseconds(retries * 1000));
+
+			// FIXME_I:
+			//Logger::getLogger()->setMinLevel("debug");
+			//Logger::getLogger()->debug("xxx5 %s -  RETRY  after thread retries :%d: :%X: :%X: :%s: :%s:", __FUNCTION__, retries, this->getDbHandle() ,this, threadId.str().c_str(), sql );
+
+		}
+	} while (retries < MAX_RETRIES && (rc != SQLITE_OK));
+
+	if (retries >1) {
+		Logger::getLogger()->setMinLevel("debug");
+		Logger::getLogger()->debug("xxx5 %s - Complete - thread retries :%d: :%X: :%X: :%s: :%s:", __FUNCTION__, retries, this->getDbHandle() ,this, threadId.str().c_str(), sql );
+	}
+
+	if (rc == SQLITE_LOCKED)
+	{
+		Logger::getLogger()->error("xxx5 Database still locked after maximum retries - %s retries :%d: :%X: :%X: :%s: :%s:", __FUNCTION__, retries, this->getDbHandle() ,this, threadId.str().c_str(), sql );
+	}
+	if (rc == SQLITE_BUSY)
+	{
+		Logger::getLogger()->error("Database still busy after maximum retries");
+	}
+
+	// FIXME_I:
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx5 %s - END :%s: :%X: :%X: :%s:", __FUNCTION__, sql,  this->getDbHandle() ,this, threadId.str().c_str());
+
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("warning");
+
+	return rc;
+}
 
 /**
  * Fetch a block of readings from the reading table
@@ -1768,6 +1855,13 @@ unsigned int  Connection::purgeReadings(unsigned long age,
 
 	Logger *logger = Logger::getLogger();
 
+	// FIXME_I:
+	ostringstream threadId;
+	threadId << std::this_thread::get_id();
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx5 %s - start :%X: :%X: :%s", __FUNCTION__, this->getDbHandle() ,this, threadId.str().c_str());
+
+
 	result = "{ \"removed\" : 0, ";
 	result += " \"unsentPurged\" : 0, ";
 	result += " \"unsentRetained\" : 0, ";
@@ -1864,6 +1958,10 @@ unsigned int  Connection::purgeReadings(unsigned long age,
 		//logger->info("%s:%d: l=%u, r=%u, sent=%u, rowidLimit=%u, minrowidLimit=%u, flags=%u", __FUNCTION__, __LINE__, l, r, sent, rowidLimit, minrowidLimit, flags);
 		if (l == r)
 		{
+			// FIXME_I:
+			Logger::getLogger()->setMinLevel("debug");
+			Logger::getLogger()->debug("xxx5 %s - end 1 :%X: :%X: :%s", __FUNCTION__, this->getDbHandle() ,this, threadId.str().c_str());
+
 			logger->info("No data to purge: min_id == max_id == %u", minrowidLimit);
 			return 0;
 		}
@@ -1919,6 +2017,11 @@ unsigned int  Connection::purgeReadings(unsigned long age,
 
 		if (minrowidLimit == rowidLimit)
 		{
+			// FIXME_I:
+			Logger::getLogger()->setMinLevel("debug");
+			Logger::getLogger()->debug("xxx5 %s - end 2 :%X: :%X: :%s", __FUNCTION__, this->getDbHandle() ,this, threadId.str().c_str());
+
+
 			logger->info("No data to purge");
 			return 0;
 		}
@@ -2062,6 +2165,11 @@ unsigned int  Connection::purgeReadings(unsigned long age,
 
 	ostringstream convert;
 
+	// FIXME_I:
+	Logger::getLogger()->setMinLevel("warning");
+	Logger::getLogger()->debug("xxx5 %s - end :%X: :%X: :%s", __FUNCTION__, this->getDbHandle() ,this, threadId.str().c_str());
+
+
 	convert << "{ \"removed\" : " << deletedRows << ", ";
 	convert << " \"unsentPurged\" : " << unsentPurged << ", ";
 	convert << " \"unsentRetained\" : " << unsentRetained << ", ";
@@ -2087,10 +2195,22 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 											  unsigned long sent,
 											  std::string& result)
 {
-	unsigned long  deletedRows = 0, unsentPurged = 0, unsentRetained = 0, numReadings = 0;
+	unsigned long deletedRows = 0, unsentPurged = 0, unsentRetained = 0, numReadings = 0;
 	unsigned long limit = 0;
 
+	unsigned long rowcount, minId, maxId;
+	unsigned long rowsAffected;
+	unsigned long deletePoint;
+
 	Logger *logger = Logger::getLogger();
+
+	//# FIXME_I
+	ostringstream threadId;
+	threadId << std::this_thread::get_id();
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx5 %s - start :%X: :%X: :%s", __FUNCTION__, this->getDbHandle(), this,
+							   threadId.str().c_str());
+	Logger::getLogger()->debug("xxx5 %s - count before", __FUNCTION__);
 
 	logger->info("Purge by Rows called");
 	if ((flags & 0x01) == 0x01)
@@ -2100,100 +2220,135 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 	}
 	logger->info("Purge by Rows called with flags %x, rows %d, limit %d", flags, rows, limit);
 	// Don't save unsent rows
-	int rowcount;
-	do {
-		char *zErrMsg = NULL;
-		int rc;
-		rc = SQLexec(dbHandle,
-					 "select count(rowid) from " READINGS_DB "." READINGS_TABLE_MEM ";",
-					 rowidCallback,
-					 &rowcount,
-					 &zErrMsg);
 
-		if (rc != SQLITE_OK)
-		{
-			raiseError("purge - phaase 0, fetching row count", zErrMsg);
-			sqlite3_free(zErrMsg);
-			return 0;
-		}
-		if (rowcount <= rows)
-		{
-			logger->info("Row count %d is less than required rows %d", rowcount, rows);
-			break;
-		}
-		int minId;
-		rc = SQLexec(dbHandle,
-					 "select min(id) from " READINGS_DB "." READINGS_TABLE_MEM ";",
-					 rowidCallback,
-					 &minId,
-					 &zErrMsg);
+	// FIXME_I:
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx5 %s - count before", __FUNCTION__);
 
-		if (rc != SQLITE_OK)
-		{
-			raiseError("purge - phaase 0, fetching minimum id", zErrMsg);
-			sqlite3_free(zErrMsg);
-			return 0;
-		}
-		int maxId;
-		rc = SQLexec(dbHandle,
-					 "select max(id) from " READINGS_DB "." READINGS_TABLE_MEM ";",
-					 rowidCallback,
-					 &maxId,
-					 &zErrMsg);
+	char *zErrMsg = NULL;
+	int rc;
+	rc = SQLexec(dbHandle,
+				 "select count(rowid) from " READINGS_DB "." READINGS_TABLE_MEM ";",
+				 rowidCallback,
+				 &rowcount,
+				 &zErrMsg);
 
-		if (rc != SQLITE_OK)
-		{
-			raiseError("purge - phaase 0, fetching maximum id", zErrMsg);
-			sqlite3_free(zErrMsg);
-			return 0;
-		}
-		int deletePoint = minId + 10000;
-		if (maxId - deletePoint < rows || deletePoint > maxId)
-			deletePoint = maxId - rows;
-		if (limit && limit > deletePoint)
-		{
-			deletePoint = limit;
-		}
-		SQLBuffer sql;
+	if (rc != SQLITE_OK)
+	{
+		raiseError("purge - phaase 0, fetching row count", zErrMsg);
+		sqlite3_free(zErrMsg);
+		return 0;
+	}
 
-		logger->info("RowCount %d, Max Id %d, min Id %d, delete point %d", rowcount, maxId, minId, deletePoint);
 
-		sql.append("delete from " READINGS_DB "." READINGS_TABLE_MEM "  where id <= ");
-		sql.append(deletePoint);
-		const char *query = sql.coalesce();
+	// FIXME_I:
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx5 %s - count after", __FUNCTION__);
+
+	rc = SQLexec(dbHandle,
+				 "select max(id) from " READINGS_DB "." READINGS_TABLE_MEM ";",
+				 rowidCallback,
+				 &maxId,
+				 &zErrMsg);
+
+	if (rc != SQLITE_OK)
+	{
+		raiseError("purge - phaase 0, fetching maximum id", zErrMsg);
+		sqlite3_free(zErrMsg);
+		return 0;
+	}
+
+		numReadings = rowcount;
+		rowsAffected = 0;
+		deletedRows = 0;
+		do
 		{
-			//unique_lock<mutex> lck(db_mutex);
-//			if (m_writeAccessOngoing) db_cv.wait(lck);
-
-			// Exec DELETE query: no callback, no resultset
-			rc = SQLexec(dbHandle, query, NULL, NULL, &zErrMsg);
-			int rowsAffected = sqlite3_changes(dbHandle);
-			deletedRows += rowsAffected;
-			numReadings = rowcount - rowsAffected;
-			// Release memory for 'query' var
-			delete[] query;
-			logger->debug("Deleted %d rows", rowsAffected);
-			if (rowsAffected == 0)
+			if (rowcount <= rows)
 			{
+				logger->info("Row count %d is less than required rows %d", rowcount, rows);
+				// FIXME_I:
 				break;
 			}
-			if (limit != 0 && sent != 0)
+
+			//###   #########################################################################################:
+			rc = SQLexec(dbHandle,
+						 "select min(id) from " READINGS_DB "." READINGS_TABLE_MEM ";",
+						 rowidCallback,
+						 &minId,
+						 &zErrMsg);
+
+			if (rc != SQLITE_OK)
 			{
-				unsentPurged = deletePoint - sent;
+				raiseError("purge - phaase 0, fetching minimum id", zErrMsg);
+				sqlite3_free(zErrMsg);
+				return 0;
 			}
-			else if (!limit)
+
+			// FIXME_I:
+			Logger::getLogger()->setMinLevel("debug");
+			Logger::getLogger()->debug("xxx5 %s - min after", __FUNCTION__);
+			//###   #########################################################################################:
+
+			deletePoint = minId + 10000;
+			if (maxId - deletePoint < rows || deletePoint > maxId)
+				deletePoint = maxId - rows;
+
+			// Do not delete
+			if ((flags & 0x01) == 0x01) {
+
+				if (limit < deletePoint)
+				{
+					deletePoint = limit;
+				}
+			}
+			SQLBuffer sql;
+
+			// FIXME_I:
+			Logger::getLogger()->debug("xx5 %s - max after", __FUNCTION__);
+
+			logger->info("RowCount %d, Max Id %d, min Id %d, delete point %d", rowcount, maxId, minId, deletePoint);
+
+			sql.append("delete from " READINGS_DB "." READINGS_TABLE_MEM "  where id <= ");
+			sql.append(deletePoint);
+			const char *query = sql.coalesce();
 			{
-				unsentPurged += rowsAffected;
+				//unique_lock<mutex> lck(db_mutex);
+	//			if (m_writeAccessOngoing) db_cv.wait(lck);
+
+				// Exec DELETE query: no callback, no resultset
+				rc = SQLexec(dbHandle, query, NULL, NULL, &zErrMsg);
+				rowsAffected = sqlite3_changes(dbHandle);
+
+				// FIXME_I:
+				deletedRows += rowsAffected;
+				numReadings -= rowsAffected;
+				rowcount    -= rowsAffected;
+
+				// Release memory for 'query' var
+				delete[] query;
+				logger->debug("Deleted %d rows", rowsAffected);
+				if (rowsAffected == 0)
+				{
+					break;
+				}
+				if (limit != 0 && sent != 0)
+				{
+					unsentPurged = deletePoint - sent;
+				}
+				else if (!limit)
+				{
+					unsentPurged += rowsAffected;
+				}
 			}
-		}
-		std::this_thread::sleep_for(std::chrono::milliseconds(1));
-	} while (rowcount > rows);
+			std::this_thread::sleep_for(std::chrono::milliseconds(1));
+		} while (rowcount > rows);
+
+
 
 	if (limit)
 	{
 		unsentRetained = numReadings - rows;
 	}
-
 
 	ostringstream convert;
 
@@ -2203,6 +2358,15 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 	convert << " \"readings\" : " << numReadings << " }";
 
 	result = convert.str();
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx5 %s - end", __FUNCTION__);
+	Logger::getLogger()->debug("xxx6 xxx5 %s - rows :%lu: flag :%x: sent :%lu:  numReadings :%lu:  rowsAffected :%u:  result :%s:", __FUNCTION__, rows, flags, sent, numReadings, rowsAffected, result.c_str() );
+	Logger::getLogger()->setMinLevel("warning");
+
+
+
 	logger->info("Purge by Rows complete: %s", result.c_str());
 	return deletedRows;
 }

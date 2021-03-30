@@ -245,9 +245,9 @@ static void loadDataThread(SendingProcess *loadData)
 			if (readings != NULL && readings->getCount())
 			{
 				//# FIXME_I
-				Logger::getLogger()->setMinLevel("debug");
-				Logger::getLogger()->debug("xxx3 %s - case 1 :%lu:", __FUNCTION__, readings->getCount());
-				Logger::getLogger()->setMinLevel("warning");
+//				Logger::getLogger()->setMinLevel("debug");
+//				Logger::getLogger()->debug("xxx3 %s - case 1 :%lu:", __FUNCTION__, readings->getCount());
+//				Logger::getLogger()->setMinLevel("warning");
 
 
 				//Update last fetched reading Id
@@ -343,9 +343,9 @@ static void loadDataThread(SendingProcess *loadData)
 				}
 
 				//# FIXME_I
-				Logger::getLogger()->setMinLevel("debug");
-				Logger::getLogger()->debug("xxx3 %s - case 2 :%d: :%d:", __FUNCTION__, sleep_num_increments , sleep_time);
-				Logger::getLogger()->setMinLevel("warning");
+//				Logger::getLogger()->setMinLevel("debug");
+//				Logger::getLogger()->debug("xxx3 %s - case 2 :%d: :%d:", __FUNCTION__, sleep_num_increments , sleep_time);
+//				Logger::getLogger()->setMinLevel("warning");
 
 				this_thread::sleep_for(chrono::milliseconds(sleep_time));
 			}

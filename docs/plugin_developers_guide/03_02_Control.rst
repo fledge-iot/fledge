@@ -1,7 +1,7 @@
 Set Point Control
 -----------------
 
-South plugins can also be used to exert control on the underlying device to which hey are connected. This is not intended for use as a substitute for real time control systems, but rather as a mechanism to make non-time critical changes to a device or to trigger an operation on the device.
+South plugins can also be used to exert control on the underlying device to which they are connected. This is not intended for use as a substitute for real time control systems, but rather as a mechanism to make non-time critical changes to a device or to trigger an operation on the device.
 
 To make a south plugin support control features there are two steps that need to be taken
 
@@ -17,17 +17,17 @@ A plugin enables control features by means of the flags in the plugin informatio
 
 .. code-block:: console
 
-  /**
-   * The plugin information structure
-   */
-  static PLUGIN_INFORMATION info = {
-          PLUGIN_NAME,              // Name
-          VERSION,                  // Version
-          SP_CONTROL,   	    // Flags - add control
-          PLUGIN_TYPE_SOUTH,        // Type
-          "1.0.0",                  // Interface version
-          CONFIG                    // Default configuration
-  };
+      /**
+       * The plugin information structure
+       */
+      static PLUGIN_INFORMATION info = {
+              PLUGIN_NAME,              // Name
+              VERSION,                  // Version
+              SP_CONTROL,   	    // Flags - add control
+              PLUGIN_TYPE_SOUTH,        // Type
+              "1.0.0",                  // Interface version
+              CONFIG                    // Default configuration
+      };
 
 Adding this flag will cause the south service to do a number of things when it loads the plugin;
 

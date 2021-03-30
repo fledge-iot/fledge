@@ -422,6 +422,8 @@ async def enable_schedule_with_name(request):
 
             if int(result['count']):
                 sch_id = result['rows'][0]['id']
+            else:
+                raise web.HTTPNotFound(reason="No Schedule with name {}".format(sch_name))
 
         if sch_id:
             try:
@@ -467,6 +469,8 @@ async def disable_schedule_with_name(request):
 
             if int(result['count']):
                 sch_id = result['rows'][0]['id']
+            else:
+                raise web.HTTPNotFound(reason="No Schedule with name {}".format(sch_name))
 
         if sch_id:
             try:

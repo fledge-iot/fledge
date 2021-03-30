@@ -120,7 +120,7 @@ The request payload is a JSON object with the audit trail entry minus the timest
 +-----------+-----------+-----------------------------------------------+---------------------------+
 | Name      | Type      | Description                                   | Example                   |
 +===========+===========+===============================================+===========================+
-| source    | string    | The source of the audit trail entry.          | LocalMonitor              |
+| source    | string    | The source of the audit trail entry.          | LOGGN                     |
 +-----------+-----------+-----------------------------------------------+---------------------------+
 | severity  | string    | The severity of the event that triggered |br| | FAILURE                   |
 |           |           | the audit trail entry to be written. |br|     |                           |
@@ -142,7 +142,7 @@ The response payload is the newly created audit trail entry.
 | timestamp | timestamp | The timestamp when the audit trail |br|       | 2018-04-16 14:33:18.215   |
 |           |           | item was written.                             |                           |
 +-----------+-----------+-----------------------------------------------+---------------------------+
-| source    | string    | The source of the audit trail entry.          | LocalMonitor              |
+| source    | string    | The source of the audit trail entry.          | LOGGN                     |
 +-----------+-----------+-----------------------------------------------+---------------------------+
 | severity  | string    | The severity of the event that triggered |br| | FAILURE                   |
 |           |           | the audit trail entry to be written. |br|     |                           |
@@ -159,8 +159,8 @@ The response payload is the newly created audit trail entry.
 .. code-block:: console
 
   $ curl -X POST http://localhost:8081/fledge/audit \
-  -d '{ "severity": "FAILURE", "details": { "message": "Internal System Error" }, "source": "LocalMonitor" }'
-  { "source": "LocalMonitor",
+  -d '{ "severity": "FAILURE", "details": { "message": "Internal System Error" }, "source": "LOGGN" }'
+  { "source": "LOGGN",
     "timestamp": "2018-04-17 11:49:55.480",
     "severity": "FAILURE",
     "details": { "message": "Internal System Error" }
@@ -169,7 +169,7 @@ The response payload is the newly created audit trail entry.
   $ curl -X GET http://localhost:8081/fledge/audit?severity=FAILURE
   { "totalCount": 1,
     "audit": [ { "timestamp": "2018-04-16 18:32:28.427",
-                 "source"   :    "LocalMonitor",
+                 "source"   :    "LOGGN",
                  "details"  : { "message": "Internal System Error" },
                  "severity" : "FAILURE" }
              ]

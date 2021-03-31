@@ -151,6 +151,7 @@ int retries = 0, rc;
 		}
 	} while (retries < MAX_RETRIES && (rc != SQLITE_OK));
 
+	// FIXME_I:
 	if (retries >1) {
 		Logger::getLogger()->setMinLevel("debug");
 		Logger::getLogger()->debug("xxx5 %s - Complete - thread retries :%d: :%X: :%X: :%s: :%s:", __FUNCTION__, retries, this->getDbHandle() ,this, threadId.str().c_str(), sql );
@@ -159,7 +160,7 @@ int retries = 0, rc;
 
 	if (rc == SQLITE_LOCKED)
 	{
-		Logger::getLogger()->error("xxx5 Database still locked after maximum retries - %s retries :%d: :%X: :%X: :%s: :%s:", __FUNCTION__, retries, this->getDbHandle() ,this, threadId.str().c_str(), sql );
+		Logger::getLogger()->error("Database still locked after maximum retries - %s retries :%d: :%X: :%X: :%s: :%s:", __FUNCTION__, retries, this->getDbHandle() ,this, threadId.str().c_str(), sql );
 	}
 	if (rc == SQLITE_BUSY)
 	{

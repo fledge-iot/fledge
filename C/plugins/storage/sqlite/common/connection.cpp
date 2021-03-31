@@ -3051,11 +3051,11 @@ int retries = 0, rc;
 
 	if (rc == SQLITE_LOCKED)
 	{
-		Logger::getLogger()->error("xxx4 Database still locked after maximum retries");
+		Logger::getLogger()->error("Database still locked after maximum retries");
 	}
 	if (rc == SQLITE_BUSY)
 	{
-		Logger::getLogger()->error("xxx4 Database still busy after maximum retries");
+		Logger::getLogger()->error("Database still busy after maximum retries");
 	}
 
 	return rc;

@@ -163,7 +163,7 @@ class TestPackages:
         # "exclude_packages_list" packages will get excluded from tests
         exclude_packages_list = exclude_packages_list.split(",")
         for pkg in exclude_packages_list:            
-            if pkg in available_pkg:
+            if pkg.strip() in available_pkg:
                 available_pkg.remove(pkg)
 
         # When "package_build_source_list" is true then it will install all available packages

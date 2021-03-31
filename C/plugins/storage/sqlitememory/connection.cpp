@@ -1814,7 +1814,14 @@ unsigned int  Connection::purgeReadings(unsigned long age,
 		char *zErrMsg = NULL;
 		int rc;
 		unsigned long l = minrowidLimit;
-		unsigned long r = ((flags & 0x01) && sent) ? min(sent, rowidLimit) : rowidLimit;
+		unsigned long r;
+		if (flags & 0x01) {
+
+			r = min(sent, rowidLimit);
+		} else {
+			r = rowidLimit;
+		}
+
 		r = max(r, l);
 		//logger->info("%s:%d: l=%u, r=%u, sent=%u, rowidLimit=%u, minrowidLimit=%u, flags=%u", __FUNCTION__, __LINE__, l, r, sent, rowidLimit, minrowidLimit, flags);
 		if (l == r)
@@ -2055,9 +2062,9 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 	if ((flags & 0x01) == 0x01)
 	{
 		limit = sent;
-		logger->info("Sent is %d", sent);
+		logger->info("Sent is %lu", sent);
 	}
-	logger->info("Purge by Rows called with flags %x, rows %d, limit %d", flags, rows, limit);
+	logger->info("Purge by Rows called with flags %x, rows %lu, limit %lu", flags, rows, limit);
 	// Don't save unsent rows
 
 	char *zErrMsg = NULL;
@@ -2127,7 +2134,7 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 		}
 		SQLBuffer sql;
 
-		logger->info("RowCount %d, Max Id %d, min Id %d, delete point %d", rowcount, maxId, minId, deletePoint);
+		logger->info("RowCount %lu, Max Id %lu, min Id %lu, delete point %lu", rowcount, maxId, minId, deletePoint);
 
 		sql.append("delete from " READINGS_DB "." READINGS_TABLE_MEM "  where id <= ");
 		sql.append(deletePoint);
@@ -2146,7 +2153,7 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 
 			// Release memory for 'query' var
 			delete[] query;
-			logger->debug("Deleted %d rows", rowsAffected);
+			logger->debug("Deleted %lu rows", rowsAffected);
 			if (rowsAffected == 0)
 			{
 				break;
@@ -2178,6 +2185,12 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 	convert << " \"readings\" : " << numReadings << " }";
 
 	result = convert.str();
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("%s - rows :%lu: flag :%x: sent :%lu:  numReadings :%lu:  rowsAffected :%u:  result :%s:", __FUNCTION__, rows, flags, sent, numReadings, rowsAffected, result.c_str() );
+	Logger::getLogger()->setMinLevel("warning");
+
 
 	logger->info("Purge by Rows complete: %s", result.c_str());
 	return deletedRows;

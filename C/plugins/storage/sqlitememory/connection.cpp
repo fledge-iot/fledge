@@ -197,9 +197,6 @@ bool Connection::fetchReadings(unsigned long id,
 	int rc;
 	int retrieve;
 
-	ostringstream threadId;
-	threadId << std::this_thread::get_id();
-
 	// SQL command to extract the data from the readings.readings
 	const char *sql_cmd = R"(
 	SELECT
@@ -286,9 +283,6 @@ int Connection::appendReadings(const char *readings)
 // Retry mechanism
 	int retries = 0;
 	int sleep_time_ms = 0;
-
-	ostringstream threadId;
-	threadId << std::this_thread::get_id();
 
 #if INSTRUMENT
 	Logger::getLogger()->debug("appendReadings start thread :%s:", threadId.str().c_str());
@@ -523,9 +517,6 @@ bool Connection::retrieveReadings(const string& condition, string& resultSet)
 // Extra constraints to add to where clause
 	SQLBuffer	jsonConstraints;
 	bool		isAggregate = false;
-
-	ostringstream threadId;
-	threadId << std::this_thread::get_id();
 
 	try {
 		if (dbHandle == NULL)

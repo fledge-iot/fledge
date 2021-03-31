@@ -159,10 +159,6 @@ class Connection {
 		int 		SQLexec(sqlite3 *db, const char *sql,
 					int (*callback)(void*,int,char**,char**),
 					void *cbArg, char **errmsg);
-		// FIXME_I:
-		int 		SQLexecPurge(sqlite3 *db, const char *sql,
-							int (*callback)(void*,int,char**,char**),
-							void *cbArg, char **errmsg);
 
 		int		SQLstep(sqlite3_stmt *statement);
 		bool		m_logSQL;

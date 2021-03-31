@@ -129,7 +129,6 @@ void applyFilters(SendingProcess* loadData,
  */
 static void loadDataThread(SendingProcess *loadData)
 {
-	// FIXME_I:
 	int sleep_num_increments, sleep_time;
 
 	unsigned int    readIdx = 0;
@@ -244,11 +243,7 @@ static void loadDataThread(SendingProcess *loadData)
 			// Data fetched from storage layer
 			if (readings != NULL && readings->getCount())
 			{
-				//# FIXME_I
-//				Logger::getLogger()->setMinLevel("debug");
-//				Logger::getLogger()->debug("xxx3 %s - case 1 :%lu:", __FUNCTION__, readings->getCount());
-//				Logger::getLogger()->setMinLevel("warning");
-
+				sleep_time = TASK_FETCH_SLEEP;
 
 				//Update last fetched reading Id
 				loadData->setLastFetchId(readings->getLastId());
@@ -321,8 +316,6 @@ static void loadDataThread(SendingProcess *loadData)
 			}
 			else
 			{
-
-
 				// Free empty result set
 				if (readings)
 				{
@@ -330,9 +323,6 @@ static void loadDataThread(SendingProcess *loadData)
 				}
 				// Error or no data read: just wait
 				// TODO: add increments from 1 to TASK_SLEEP_MAX_INCREMENTS
-
-				// FIXME_I:
-				//this_thread::sleep_for(chrono::milliseconds(TASK_FETCH_SLEEP));
 
 				sleep_num_increments += 1;
 				sleep_time *= 2;
@@ -342,14 +332,9 @@ static void loadDataThread(SendingProcess *loadData)
 					sleep_num_increments = 0;
 				}
 
-				//# FIXME_I
-//				Logger::getLogger()->setMinLevel("debug");
-//				Logger::getLogger()->debug("xxx3 %s - case 2 :%d: :%d:", __FUNCTION__, sleep_num_increments , sleep_time);
-//				Logger::getLogger()->setMinLevel("warning");
-
 				this_thread::sleep_for(chrono::milliseconds(sleep_time));
 			}
-                }
+			}
         }
 
 #if VERBOSE_LOG

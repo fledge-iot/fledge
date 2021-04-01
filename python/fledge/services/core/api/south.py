@@ -113,8 +113,8 @@ async def _services_with_assets(storage_client, cf_mgr, south_services):
 
 async def _get_tracked_plugin_assets_and_readings(storage_client, cf_mgr, svc_name):
     asset_json = []
-    plugin_value = await cf_mgr.get_category_all_items(svc_name)
-    plugin = plugin_value['plugin']['value'] if plugin_value is not None else ''
+    plugin_value = await cf_mgr.get_category_item(svc_name, 'plugin')
+    plugin = plugin_value['value'] if plugin_value is not None else ''
     payload = PayloadBuilder().SELECT(["asset", "plugin"]).WHERE(['service', '=', svc_name]).AND_WHERE(
         ['event', '=', 'Ingest']).AND_WHERE(['plugin', '=', plugin]).payload()
     try:

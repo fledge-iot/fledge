@@ -112,10 +112,12 @@ string payload;
 					service.getName().c_str(),
 					m_uuid->c_str());
 			if (doc.HasMember("bearer_token")){
-				m_logger->info("Bearer token has been issued for service %s.\n",
-						service.getName().c_str());
 				m_bearer_token = string(doc["bearer_token"].GetString());
+				m_logger->debug("Bearer token issued for service '%s': %s",
+						service.getName().c_str(),
+						m_bearer_token.c_str());
 			}
+
 			return true;
 		}
 		else if (doc.HasMember("message"))

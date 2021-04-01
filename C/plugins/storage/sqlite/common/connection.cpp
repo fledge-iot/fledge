@@ -2930,7 +2930,6 @@ int retries = 0, rc;
 		retries++;
 		if (rc != SQLITE_OK)
 		{
-
 			if (retries > LOG_AFTER_NERRORS)
 				Logger::getLogger()->warn("Connection::SQLexec - retry :%d: dbHandle :%X: cmd :%s: error :%s:", retries, this->getDbHandle(), sql, sqlite3_errmsg(dbHandle));
 
@@ -2966,6 +2965,7 @@ int retries = 0, rc;
 					sqlite3_free(zErrMsg);
 				}
 			}
+
 		}
 	} while (retries < MAX_RETRIES && (rc != SQLITE_OK));
 #if DO_PROFILE_RETRIES
@@ -3022,9 +3022,14 @@ int retries = 0, rc;
 		if (rc == SQLITE_LOCKED || rc == SQLITE_BUSY)
 		{
 			int interval = (retries * RETRY_BACKOFF);
-			usleep(interval);	// sleep retries milliseconds
-			if (retries > 5) Logger::getLogger()->info("SQLStep: retry %d of %d, rc=%s, DB connection @ %p, slept for %d msecs",
+
+			this_thread::sleep_for(chrono::milliseconds(interval));
+
+			if (retries > 5) {
+				Logger::getLogger()->debug("SQLStep: retry %d of %d, rc=%s, DB connection @ %p, slept for %d msecs",
 						retries, MAX_RETRIES, (rc==SQLITE_LOCKED)?"SQLITE_LOCKED":"SQLITE_BUSY", this, interval);
+
+			}
 		}
 	} while (retries < MAX_RETRIES && (rc == SQLITE_LOCKED || rc == SQLITE_BUSY));
 #if DO_PROFILE_RETRIES

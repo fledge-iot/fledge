@@ -129,7 +129,10 @@ void applyFilters(SendingProcess* loadData,
  */
 static void loadDataThread(SendingProcess *loadData)
 {
-        unsigned int    readIdx = 0;
+	int sleep_num_increments, sleep_time;
+
+	unsigned int    readIdx = 0;
+	sleep_time = TASK_FETCH_SLEEP;
 
 	// Read from the storage last Id already sent
 	loadData->setLastFetchId(loadData->getLastSentId());
@@ -240,6 +243,8 @@ static void loadDataThread(SendingProcess *loadData)
 			// Data fetched from storage layer
 			if (readings != NULL && readings->getCount())
 			{
+				sleep_time = TASK_FETCH_SLEEP;
+
 				//Update last fetched reading Id
 				loadData->setLastFetchId(readings->getLastId());
 
@@ -318,9 +323,18 @@ static void loadDataThread(SendingProcess *loadData)
 				}
 				// Error or no data read: just wait
 				// TODO: add increments from 1 to TASK_SLEEP_MAX_INCREMENTS
-				this_thread::sleep_for(chrono::milliseconds(TASK_FETCH_SLEEP));
+
+				sleep_num_increments += 1;
+				sleep_time *= 2;
+				if (sleep_num_increments >= TASK_SLEEP_MAX_INCREMENTS)
+				{
+					sleep_time = TASK_FETCH_SLEEP;
+					sleep_num_increments = 0;
+				}
+
+				this_thread::sleep_for(chrono::milliseconds(sleep_time));
 			}
-                }
+			}
         }
 
 #if VERBOSE_LOG

@@ -125,6 +125,8 @@ class TestE2ePiEgressWithScalesetFilter:
         assert "http-e1" == tracked_item["asset"]
         assert "http_south" == tracked_item["plugin"]
 
+        # Wait until asset tracker entry is created especially on Rpi board
+        time.sleep(wait_time * 3)
         tracking_details = utils.get_asset_tracking_details(fledge_url, "Filter")
         assert len(tracking_details["track"]), "Failed to track Filter event"
         tracked_item = tracking_details["track"][0]

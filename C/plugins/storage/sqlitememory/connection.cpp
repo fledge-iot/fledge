@@ -145,12 +145,20 @@ int retries = 0, rc;
 		{
 			this_thread::sleep_for(chrono::milliseconds(1000));
 
-			Logger::getLogger()->debug("$s - Retry :%d: :%X: :%X: :%s: :%s:", __FUNCTION__, retries, this->getDbHandle() ,this, threadId.str().c_str(), sql );
+			//# FIXME_I
+			Logger::getLogger()->setMinLevel("debug");
+			Logger::getLogger()->debug("%s - Retry :%d: :%X: :%X: :%s: :%s:", __FUNCTION__, retries, this->getDbHandle() ,this, threadId.str().c_str(), sql );
+			Logger::getLogger()->setMinLevel("warning");
+
 		}
 	} while (retries < MAX_RETRIES_SQLEXEC && (rc != SQLITE_OK));
 
 	if (retries >1) {
+		//# FIXME_I
+		Logger::getLogger()->setMinLevel("debug");
+
 		Logger::getLogger()->debug("%s - Complete :%d: :%X: :%X: :%s: :%s:", __FUNCTION__, retries, this->getDbHandle() ,this, threadId.str().c_str(), sql );
+		Logger::getLogger()->setMinLevel("warning");
 	}
 
 	if (rc == SQLITE_LOCKED)

@@ -1136,10 +1136,11 @@ class Server:
             if not registered_service_id:
                 raise web.HTTPBadRequest(reason='Service {} could not be registered'.format(service_name))
 
+            bearer_token = uuid.uuid4().hex if token is None else ""
             _response = {
                 'id': registered_service_id,
                 'message': "Service registered successfully",
-                'bearer_token': "BEARER token" # TODO: real auth bear token should return
+                'bearer_token': bearer_token
             }
             return web.json_response(_response)
 

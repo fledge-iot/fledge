@@ -155,7 +155,7 @@ int retries = 0, rc;
 
 	if (rc == SQLITE_LOCKED)
 	{
-		Logger::getLogger()->error("Database still locked after maximum retries - %s retries :%d: :%X: :%X: :%s: :%s:", __FUNCTION__, retries, this->getDbHandle() ,this, threadId.str().c_str(), sql );
+		Logger::getLogger()->error("Database still locked after maximum retries");
 	}
 	if (rc == SQLITE_BUSY)
 	{

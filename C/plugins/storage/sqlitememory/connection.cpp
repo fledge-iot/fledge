@@ -147,7 +147,7 @@ int retries = 0, rc;
 
 			//# FIXME_I
 			Logger::getLogger()->setMinLevel("debug");
-			Logger::getLogger()->debug("%s - Retry :%d: :%X: :%X: :%s: :%s:", __FUNCTION__, retries, this->getDbHandle() ,this, threadId.str().c_str(), sql );
+			Logger::getLogger()->debug("xxx %s - Retry :%d: :%X: :%X: :%s: :%s:", __FUNCTION__, retries, this->getDbHandle() ,this, threadId.str().c_str(), sql );
 			Logger::getLogger()->setMinLevel("warning");
 
 		}
@@ -157,7 +157,7 @@ int retries = 0, rc;
 		//# FIXME_I
 		Logger::getLogger()->setMinLevel("debug");
 
-		Logger::getLogger()->debug("%s - Complete :%d: :%X: :%X: :%s: :%s:", __FUNCTION__, retries, this->getDbHandle() ,this, threadId.str().c_str(), sql );
+		Logger::getLogger()->debug("xxx %s - Complete :%d: :%X: :%X: :%s: :%s:", __FUNCTION__, retries, this->getDbHandle() ,this, threadId.str().c_str(), sql );
 		Logger::getLogger()->setMinLevel("warning");
 	}
 

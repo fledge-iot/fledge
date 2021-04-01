@@ -134,7 +134,6 @@ int Connection::SQLexec(sqlite3 *db,
 {
 int retries = 0, rc;
 
-	//# FIXME_I
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();
 
@@ -146,19 +145,13 @@ int retries = 0, rc;
 		{
 			this_thread::sleep_for(chrono::milliseconds(1000));
 
-			// FIXME_I:
-			Logger::getLogger()->setMinLevel("debug");
-			Logger::getLogger()->debug("xxx5 %s -  V2 -  RETRY  after thread retries :%d: :%X: :%X: :%s: :%s:", __FUNCTION__, retries, this->getDbHandle() ,this, threadId.str().c_str(), sql );
-
+			Logger::getLogger()->debug("$s - Retry :%d: :%X: :%X: :%s: :%s:", __FUNCTION__, retries, this->getDbHandle() ,this, threadId.str().c_str(), sql );
 		}
 	} while (retries < MAX_RETRIES && (rc != SQLITE_OK));
 
-	// FIXME_I:
 	if (retries >1) {
-		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("xxx5 %s - Complete - thread retries :%d: :%X: :%X: :%s: :%s:", __FUNCTION__, retries, this->getDbHandle() ,this, threadId.str().c_str(), sql );
+		Logger::getLogger()->debug("%s - Complete :%d: :%X: :%X: :%s: :%s:", __FUNCTION__, retries, this->getDbHandle() ,this, threadId.str().c_str(), sql );
 	}
-
 
 	if (rc == SQLITE_LOCKED)
 	{
@@ -168,11 +161,6 @@ int retries = 0, rc;
 	{
 		Logger::getLogger()->error("Database still busy after maximum retries");
 	}
-
-	// FIXME_I:
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx5 %s - END :%s: :%X: :%X: :%s:", __FUNCTION__, sql,  this->getDbHandle() ,this, threadId.str().c_str());
-	Logger::getLogger()->setMinLevel("warning");
 
 	return rc;
 }
@@ -2188,11 +2176,7 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 
 	result = convert.str();
 
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("%s - rows :%lu: flag :%x: sent :%lu:  numReadings :%lu:  rowsAffected :%u:  result :%s:", __FUNCTION__, rows, flags, sent, numReadings, rowsAffected, result.c_str() );
-	Logger::getLogger()->setMinLevel("warning");
-
+	Logger::getLogger()->debug("%s - rows :%lu: flag :%x: sent :%lu: numReadings :%lu:  rowsAffected :%u:  result :%s:", __FUNCTION__, rows, flags, sent, numReadings, rowsAffected, result.c_str() );
 
 	logger->info("Purge by Rows complete: %s", result.c_str());
 	return deletedRows;

@@ -159,11 +159,12 @@ class TestPackages:
         assert 'notification' in jdoc['services']
 
     def test_install_plugin_package(self, fledge_url, package_build_source_list, package_build_list,
-                                    wait_time, retries):
-        # FIXME: FOGL-3276 Remove once we have dedicated RPi with sensehat device attached
-        #  otherwise its discovery fails
-        if 'fledge-south-sensehat' in available_pkg:
-            available_pkg.remove('fledge-south-sensehat')
+                                    exclude_packages_list, wait_time, retries):
+        # "exclude_packages_list" packages will get excluded from tests
+        exclude_packages_list = exclude_packages_list.split(",")
+        for pkg in exclude_packages_list:            
+            if pkg.strip() in available_pkg:
+                available_pkg.remove(pkg.strip())
 
         # When "package_build_source_list" is true then it will install all available packages
         # Otherwise install from list as we defined in JSON file

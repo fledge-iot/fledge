@@ -25,7 +25,7 @@ using namespace rapidjson;
 #define PREP_CMD_RETRY_BASE 		5000    // Base time to wait for
 #define PREP_CMD_RETRY_BACKOFF		5000 	// Variable time to wait for
 
-#define MAX_RETRIES			80	// Maximum no. of retries when a lock is encountered
+#define MAX_RETRIES_SQLEXEC			80	// Maximum no. of retries when a lock is encountered
 
 // 1 enable performance tracking
 #define INSTRUMENT	0
@@ -147,7 +147,7 @@ int retries = 0, rc;
 
 			Logger::getLogger()->debug("$s - Retry :%d: :%X: :%X: :%s: :%s:", __FUNCTION__, retries, this->getDbHandle() ,this, threadId.str().c_str(), sql );
 		}
-	} while (retries < MAX_RETRIES && (rc != SQLITE_OK));
+	} while (retries < MAX_RETRIES_SQLEXEC && (rc != SQLITE_OK));
 
 	if (retries >1) {
 		Logger::getLogger()->debug("%s - Complete :%d: :%X: :%X: :%s: :%s:", __FUNCTION__, retries, this->getDbHandle() ,this, threadId.str().c_str(), sql );

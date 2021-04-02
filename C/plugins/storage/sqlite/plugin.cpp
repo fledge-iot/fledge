@@ -102,6 +102,13 @@ PLUGIN_HANDLE plugin_init(ConfigCategory *category)
 {
 	ConnectionManager *manager = ConnectionManager::getInstance();
 
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx %s - multi tables", __FUNCTION__);
+	Logger::getLogger()->setMinLevel("warning");
+
+
 	STORAGE_CONFIGURATION storageConfig;
 
 	if (category->itemExists("poolSize"))

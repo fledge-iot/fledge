@@ -30,6 +30,10 @@ set_target_properties(${PROJECT_NAME} PROPERTIES SOVERSION 1)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}")
 find_package(sqlite3)
 
+# Commented out as it is the persistent storage
+#add_definitions(-DSQLITE_SPLIT_READINGS=1)
+add_definitions(-DPLUGIN_LOG_NAME="SQLite 3 lb")
+
 # Use static SQLite3 library
 if(EXISTS ${FLEDGE_SQLITE3_LIBS})
 	include_directories(${FLEDGE_SQLITE3_LIBS})

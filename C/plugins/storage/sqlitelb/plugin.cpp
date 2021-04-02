@@ -73,6 +73,12 @@ PLUGIN_HANDLE plugin_init(ConfigCategory *category)
 ConnectionManager *manager = ConnectionManager::getInstance();
 int poolSize = 5;
 
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx %s - single tables", __FUNCTION__);
+	Logger::getLogger()->setMinLevel("warning");
+
+
 	if (category->itemExists("poolSize"))
 	{
 		poolSize = strtol(category->getValue("poolSize").c_str(), NULL, 10);

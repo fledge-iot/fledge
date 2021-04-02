@@ -113,10 +113,7 @@ class TestE2ePiEgressWithScalesetFilter:
 
         self._verify_ping_and_statistics(fledge_url, count=1, skip_verify_north_interface=skip_verify_north_interface)
 
-        self._verify_ingest(fledge_url, SENSOR_VALUE, read_count=1)
-
-        if not skip_verify_north_interface:
-            self._verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries)
+        self._verify_ingest(fledge_url, SENSOR_VALUE, read_count=1)        
 
         tracking_details = utils.get_asset_tracking_details(fledge_url, "Ingest")
         assert len(tracking_details["track"]), "Failed to track Ingest event"
@@ -125,6 +122,12 @@ class TestE2ePiEgressWithScalesetFilter:
         assert "http-e1" == tracked_item["asset"]
         assert "http_south" == tracked_item["plugin"]
 
+        # wait for egress scheduled task to run and let filter make asset tracker entry
+        time.sleep(wait_time * 3)
+
+        if not skip_verify_north_interface:
+            self._verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries)
+        
         tracking_details = utils.get_asset_tracking_details(fledge_url, "Filter")
         assert len(tracking_details["track"]), "Failed to track Filter event"
         tracked_item = tracking_details["track"][0]

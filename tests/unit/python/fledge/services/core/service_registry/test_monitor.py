@@ -56,7 +56,7 @@ class TestMonitor:
         args, kwargs = log_info.call_args
         assert args[0].startswith('Registered service instance id=')
         assert args[0].endswith(': <sname1, type=Storage, protocol=protocol1, address=saddress1, service port=1, '
-                                'management port=1, status=1>')
+                                'management port=1, status=1, token=None>')
         monitor = Monitor()
         monitor._sleep_interval = Monitor._DEFAULT_SLEEP_INTERVAL
         monitor._max_attempts = Monitor._DEFAULT_MAX_ATTEMPTS

@@ -1085,7 +1085,7 @@ class Server:
             curl -d '{"type": "Storage", "name": "Storage Services", "address": "127.0.0.1", "service_port": 8090,
                 "management_port": 1090, "protocol": "https"}' -X POST http://localhost:<core mgt port>/fledge/service
             curl -d '{"type": "N1", "name": "Micro Service", "address": "127.0.0.1", "service_port": 9091,
-                "management_port": 1090, "protocol": "https", "token": "ABCDE"}' -X POST
+                "management_port": 1090, "protocol": "https", "token": "SVCNAME_ABCDE"}' -X POST
                 http://localhost:<core mgt port>/fledge/service
             service_port in payload is optional
         """
@@ -1136,7 +1136,7 @@ class Server:
             if not registered_service_id:
                 raise web.HTTPBadRequest(reason='Service {} could not be registered'.format(service_name))
 
-            bearer_token = "{}_{}".format(service_name.strip(), uuid.uuid4().hex) if token is None else ""
+            bearer_token = "{}_{}".format(service_name.strip(), uuid.uuid4().hex) if token is not None else ""
             _response = {
                 'id': registered_service_id,
                 'message': "Service registered successfully",
@@ -1148,9 +1148,6 @@ class Server:
         except ValueError as err:
             msg = str(err)
             raise web.HTTPNotFound(reason=msg, body=json.dumps(msg))
-        except Exception as ex:
-            msg = str(ex)
-            raise web.HTTPInternalServerError(reason=msg, body=json.dumps(msg))
 
     @classmethod
     async def unregister(cls, request):

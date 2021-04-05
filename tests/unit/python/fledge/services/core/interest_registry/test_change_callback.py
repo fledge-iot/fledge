@@ -226,7 +226,7 @@ class TestChangeCallback:
         assert 1 == log_info.call_count
         args, kwargs = log_info.call_args
         assert args[0].startswith('Registered service instance id=')
-        assert args[0].endswith(': <sname1, type=Storage, protocol=http, address=saddress1, service port=1, management port=1, status=1>')
+        assert args[0].endswith(': <sname1, type=Storage, protocol=http, address=saddress1, service port=1, management port=1, status=1, token=None>')
 
         i_reg = InterestRegistry(cfg_mgr)
         i_reg.register(s_id_1, 'catname1')

@@ -1121,7 +1121,7 @@ class Server:
                 try:
                     if not cls._storage_client_async is None:
                         cls._audit = AuditLogger(cls._storage_client_async)
-                        await cls._audit.information('SRVRG', { 'name' : service_name})
+                        await cls._audit.information('SRVRG', {'name': service_name})
                 except Exception as ex:
                     _logger.info("Failed to audit registration: %s", str(ex))
             except service_registry_exceptions.AlreadyExistsWithTheSameName:
@@ -1136,16 +1136,21 @@ class Server:
             if not registered_service_id:
                 raise web.HTTPBadRequest(reason='Service {} could not be registered'.format(service_name))
 
-            bearer_token = uuid.uuid4().hex if token is None else ""
+            bearer_token = "{}_{}".format(service_name.strip(), uuid.uuid4().hex) if token is None else ""
             _response = {
                 'id': registered_service_id,
                 'message': "Service registered successfully",
                 'bearer_token': bearer_token
             }
+            # _logger.exception("SERVER RESPONSE: {}".format(_response))
             return web.json_response(_response)
 
-        except ValueError as ex:
-            raise web.HTTPNotFound(reason=str(ex))
+        except ValueError as err:
+            msg = str(err)
+            raise web.HTTPNotFound(reason=msg, body=json.dumps(msg))
+        except Exception as ex:
+            msg = str(ex)
+            raise web.HTTPInternalServerError(reason=msg, body=json.dumps(msg))
 
     @classmethod
     async def unregister(cls, request):

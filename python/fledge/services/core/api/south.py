@@ -16,7 +16,6 @@ from fledge.services.core import connect
 from fledge.common.configuration_manager import ConfigurationManager
 from fledge.common.plugin_discovery import PluginDiscovery
 
-
 __author__ = "Praveen Garg"
 __copyright__ = "Copyright (c) 2018 OSIsoft, LLC"
 __license__ = "Apache 2.0"
@@ -24,7 +23,7 @@ __version__ = "${VERSION}"
 
 _help = """
     -------------------------------------------------------------------------------
-    | GET                 | /fledge/south                                        |
+    | GET                 | /fledge/south                                         |
     -------------------------------------------------------------------------------
 """
 
@@ -40,7 +39,7 @@ def _get_installed_plugins():
     return PluginDiscovery.get_plugins_installed("south", False)
 
 
-async def _services_with_assets(storage_client, south_services):
+async def _services_with_assets(storage_client, cf_mgr, south_services):
     sr_list = list()
     try:
         try:
@@ -54,8 +53,7 @@ async def _services_with_assets(storage_client, south_services):
         installed_plugins = _get_installed_plugins()
 
         for s_record in services_from_registry:
-            plugin, assets = await _get_tracked_plugin_assets_and_readings(storage_client, s_record._name)
-
+            plugin, assets = await _get_tracked_plugin_assets_and_readings(storage_client, cf_mgr, s_record._name)
             plugin_version = ''
             for p in installed_plugins:
                 if p["name"] == plugin:
@@ -82,10 +80,8 @@ async def _services_with_assets(storage_client, south_services):
                 })
         for s_name in south_services:
             south_svc = is_svc_in_service_registry(s_name)
-
             if not south_svc:
-                plugin, assets = await _get_tracked_plugin_assets_and_readings(storage_client, s_name)
-
+                plugin, assets = await _get_tracked_plugin_assets_and_readings(storage_client, cf_mgr, s_name)
                 plugin_version = ''
                 for p in installed_plugins:
                     if p["name"] == plugin:
@@ -115,18 +111,17 @@ async def _services_with_assets(storage_client, south_services):
         return sr_list
 
 
-async def _get_tracked_plugin_assets_and_readings(storage_client, svc_name):
+async def _get_tracked_plugin_assets_and_readings(storage_client, cf_mgr, svc_name):
     asset_json = []
-    payload = PayloadBuilder().SELECT(["asset", "plugin"]).WHERE(['service', '=', svc_name]).\
-        AND_WHERE(['event', '=', 'Ingest']).payload()
+    plugin_value = await cf_mgr.get_category_item(svc_name, 'plugin')
+    plugin = plugin_value['value'] if plugin_value is not None else ''
+    payload = PayloadBuilder().SELECT(["asset", "plugin"]).WHERE(['service', '=', svc_name]).AND_WHERE(
+        ['event', '=', 'Ingest']).AND_WHERE(['plugin', '=', plugin]).payload()
     try:
         result = await storage_client.query_tbl_with_payload('asset_tracker', payload)
+        # TODO: FOGL-2549
+        # old asset track entry still appears with combination of service name + plugin name + event name if exists
         asset_records = result['rows']
-
-        plugin = ''
-        if len(result['rows']):
-            plugin = result['rows'][0]['plugin']
-
         for r in asset_records:
             payload = PayloadBuilder().SELECT("value").WHERE(["key", "=", r["asset"].upper()]).payload()
             results = await storage_client.query_tbl_with_payload("statistics", payload)
@@ -161,5 +156,5 @@ async def get_south_services(request):
     except:
         return web.json_response({'services': []})
 
-    response = await _services_with_assets(storage_client, south_categories)
+    response = await _services_with_assets(storage_client, cf_mgr, south_categories)
     return web.json_response({'services': response})

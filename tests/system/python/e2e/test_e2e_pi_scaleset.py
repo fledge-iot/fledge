@@ -16,6 +16,7 @@ import json
 import time
 import pytest
 import utils
+import math
 
 
 __author__ = "Praveen Garg"
@@ -108,8 +109,8 @@ class TestE2ePiEgressWithScalesetFilter:
 
         subprocess.run(["cd $FLEDGE_ROOT/extras/python; python3 -m fogbench -t ../../data/template.json -p http; cd -"]
                        , shell=True, check=True)
-        # let the readings ingress
-        time.sleep(wait_time * 2)
+        # Time to wait until north schedule runs
+        time.sleep(wait_time * math.ceil(15/wait_time) + 15)
 
         self._verify_ping_and_statistics(fledge_url, count=1, skip_verify_north_interface=skip_verify_north_interface)
 

@@ -2918,6 +2918,13 @@ int Connection::SQLexec(sqlite3 *db, const char *sql, int (*callback)(void*,int,
 {
 int retries = 0, rc;
 
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx2 %s - sqlite multi :%s: ", __FUNCTION__, sql);
+	Logger::getLogger()->setMinLevel("warning");
+
+
 	do {
 #if DO_PROFILE
 		ProfileItem *prof = new ProfileItem(sql);

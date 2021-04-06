@@ -125,6 +125,11 @@ int Connection::SQLexec(sqlite3 *db,
 {
 int retries = 0, rc;
 
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx4 %s - memory :%s: ", __FUNCTION__, sql);
+	Logger::getLogger()->setMinLevel("warning");
+
 	do {
 		rc = sqlite3_exec(db, sql, callback, cbArg, errmsg);
 		retries++;

@@ -552,6 +552,7 @@ def pytest_addoption(parser):
     parser.addoption("--package-build-version", action="store", default="nightly", help="Package build version for http://archives.fledge-iot.org")
     parser.addoption("--package-build-list", action="store", default="p0", help="Package to build as per key defined in tests/system/python/packages/data/package_list.json and comma separated values are accepted if more than one to build with")
     parser.addoption("--package-build-source-list", action="store", default="false", help="Package to build from apt/yum sources list")
+    parser.addoption("--exclude-packages-list", action="store", default="None", help="Packages to be excluded from test e.g. --exclude-packages-list=fledge-south-sinusoid,fledge-filter-log")
 
     # GCP config
     parser.addoption("--gcp-project-id", action="store", default="nomadic-groove-264509", help="GCP Project ID")
@@ -795,6 +796,11 @@ def gcp_cert_path(request):
 @pytest.fixture
 def gcp_logger_name(request):
     return request.config.getoption("--gcp-logger-name")
+
+
+@pytest.fixture
+def exclude_packages_list(request):
+    return request.config.getoption("--exclude-packages-list")
 
 
 def pytest_itemcollected(item):

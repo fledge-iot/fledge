@@ -42,8 +42,10 @@ class TestNotificationServiceAPI:
         conn.request("GET", '/fledge/notification/plugin')
         r = conn.getresponse()
         assert 404 == r.status
+        msg = "No Notification service available."
+        assert msg == r.reason
         r = r.read().decode()
-        assert "404: No Notification service available." == r
+        assert "404: {}".format(msg) == r
 
         conn.request("GET", '/fledge/notification/type')
         r = conn.getresponse()
@@ -55,15 +57,17 @@ class TestNotificationServiceAPI:
         conn.request("POST", '/fledge/notification', json.dumps({}))
         r = conn.getresponse()
         assert 404 == r.status
+        assert msg == r.reason
         r = r.read().decode()
-        assert "404: No Notification service available." == r
+        assert "404: {}".format(msg) == r
 
         pytest.xfail("FOGL-2748")
         conn.request("GET", '/fledge/notification')
         r = conn.getresponse()
         assert 404 == r.status
+        assert msg == r.reason
         r = r.read().decode()
-        assert "404: No Notification service available." == r
+        assert "404: {}".format(msg) == r
 
     def test_notification_service_add(self, service_branch, fledge_url, wait_time, remove_directories):
         try:
@@ -234,4 +238,3 @@ class TestNotificationServiceAPI:
         r = r.read().decode()
         jdoc = json.loads(r)
         assert "Service {} deleted successfully.".format(SERVICE_NAME) == jdoc['result']
-

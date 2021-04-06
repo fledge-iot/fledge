@@ -16,6 +16,7 @@ import json
 import time
 import pytest
 import utils
+import math
 
 
 __author__ = "Praveen Garg"
@@ -91,7 +92,8 @@ class TestE2eExprPi:
                 on endpoint GET /fledge/asset/<asset_name> with applied data processing filter value
                 data received from PI is same as data sent"""
 
-        time.sleep(wait_time)
+        # Time to wait until north schedule runs
+        time.sleep(wait_time * math.ceil(15/wait_time) + 15)
 
         ping_response = self.get_ping_status(fledge_url)
         assert 0 < ping_response["dataRead"]

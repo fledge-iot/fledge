@@ -18,6 +18,7 @@ import time
 import pytest
 import utils
 import subprocess
+import math
 
 __author__ = "Vaibhav Singhal"
 __copyright__ = "Copyright (c) 2019 Dianomic Systems Inc."
@@ -123,7 +124,8 @@ class TestE2eFilterFFTThreshold:
                 on endpoint GET /fledge/asset/<asset_name> with applied data processing filter value
                 data received from PI is same as data sent"""
 
-        time.sleep(wait_time)
+        # Time to wait until north schedule runs
+        time.sleep(wait_time * math.ceil(15/wait_time) + 15)
         conn = http.client.HTTPConnection(fledge_url)
 
         self._verify_ingest(conn)

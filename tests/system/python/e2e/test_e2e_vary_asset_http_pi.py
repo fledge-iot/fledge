@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 import uuid
 import pytest
 import utils
+import math
 
 
 __author__ = "Vaibhav Singhal"
@@ -136,8 +137,8 @@ class TestE2EAssetHttpPI:
             jdoc = json.loads(r)
             assert {'result': 'success'} == jdoc
 
-        # Allow some buffer so that data is ingested before retrieval
-        time.sleep(wait_time)
+        # Time to wait until north schedule runs
+        time.sleep(wait_time * math.ceil(15/wait_time) + 15)
 
         ping_response = self.get_ping_status(fledge_url)
         assert 6 == ping_response["dataRead"]

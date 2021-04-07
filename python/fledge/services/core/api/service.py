@@ -307,16 +307,22 @@ async def add_service(request):
                 raise web.HTTPInternalServerError(reason='Failed to fetch plugin configuration')
         elif service_type == 'notification':
             if not os.path.exists(_FLEDGE_ROOT + "/services/fledge.services.{}".format(service_type)):
-                msg = "{} service is not installed.".format(service_type.capitalize())
+                msg = "{} service is not installed correctly.".format(service_type.capitalize())
                 raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
             process_name = 'notification_c'
             script = '["services/notification_c"]'
         elif service_type == 'management':
+            file_names_list = ['{}/python/fledge/services/management/__main__.py'.format(_FLEDGE_ROOT),
+                               '{}/scripts/services/management'.format(_FLEDGE_ROOT),
+                               '{}/scripts/tasks/manage'.format(_FLEDGE_ROOT)]
+            if not all(list(map(os.path.exists, file_names_list))):
+                msg = "{} service is not installed correctly.".format(service_type.capitalize())
+                raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
             process_name = 'management'
             script = '["services/management"]'
         elif service_type == 'dispatcher':
             if not os.path.exists(_FLEDGE_ROOT + "/services/fledge.services.{}".format(service_type)):
-                msg = "{} service is not installed.".format(service_type.capitalize())
+                msg = "{} service is not installed correctly.".format(service_type.capitalize())
                 raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
             process_name = 'dispatcher_c'
             script = '["services/dispatcher_c"]'

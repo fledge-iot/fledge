@@ -2815,7 +2815,6 @@ void Connection::logSQL(const char *tag, const char *stmt)
 	}
 }
 
-#ifndef SQLITE_SPLIT_READINGS
 /**
  * SQLITE wrapper to rety statements when the database is locked
  *
@@ -2910,7 +2909,7 @@ int retries = 0, rc;
 
 	return rc;
 }
-#endif
+
 
 int Connection::SQLstep(sqlite3_stmt *statement)
 {

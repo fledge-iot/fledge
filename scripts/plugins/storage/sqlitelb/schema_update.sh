@@ -23,7 +23,7 @@ FLEDGE_DB_VERSION=$1
 NEW_VERSION=$2
 SQLITE_SQL=$3
 
-PLUGIN_NAME="sqlite"
+PLUGIN_NAME="sqlitelb"
 
 echo "$@" | grep -q -- --verbose && VERBOSE="Y"
 

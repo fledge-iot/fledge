@@ -17,7 +17,6 @@ int main(int argc, char **argv) {
     return RUN_ALL_TESTS();
 }
 
-
 TEST(Sqlitelb, dummy) {
 
 	ASSERT_EQ(1, 1);

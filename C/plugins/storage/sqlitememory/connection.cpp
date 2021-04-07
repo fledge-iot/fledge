@@ -18,12 +18,6 @@
 using namespace std;
 using namespace rapidjson;
 
-#define DB_READINGS "readings"
-
-// Maximum no. of retries for a DB lock
-#define RETRY_BACKOFF 100
-#define MAX_RETRIES 10
-
 static time_t connectErrorTime = 0;
 
 /**
@@ -46,7 +40,7 @@ Connection::Connection()
 	const char *dbHandleConn = "file:?cache=shared";
 
 	// UTC time as default
-	const char * createReadings = "CREATE TABLE " DB_READINGS " .readings (" \
+	const char * createReadings = "CREATE TABLE " READINGS_DB_NAME_BASE " .readings (" \
 					"id		INTEGER			PRIMARY KEY AUTOINCREMENT," \
 					"asset_code	character varying(50)	NOT NULL," \
 					"reading	JSON			NOT NULL DEFAULT '{}'," \
@@ -85,7 +79,7 @@ Connection::Connection()
 
 		// ATTACH 'fledge' as in memory shared DB
 		rc = sqlite3_exec(dbHandle,
-				  "ATTACH DATABASE 'file::memory:?cache=shared' AS '" DB_READINGS "'",
+				  "ATTACH DATABASE 'file::memory:?cache=shared' AS '" READINGS_DB_NAME_BASE "'",
 				  NULL,
 				  NULL,
 				  NULL);

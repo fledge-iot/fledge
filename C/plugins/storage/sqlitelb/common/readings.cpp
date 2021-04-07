@@ -18,8 +18,6 @@
 // 1 enable performance tracking
 #define INSTRUMENT	0
 
-#define DB_READINGS "readings"
-
 #if INSTRUMENT
 #include <sys/time.h>
 #endif
@@ -68,8 +66,6 @@ using namespace rapidjson;
 
 #define CONNECT_ERROR_THRESHOLD		5*60	// 5 minutes
 
-#define MAX_RETRIES			40	// Maximum no. of retries when a lock is encountered
-#define RETRY_BACKOFF			100	// Multipler to backoff DB retry on lock
 
 /*
  * The following allows for conditional inclusion of code that tracks the top queries
@@ -280,7 +276,7 @@ bool Connection::aggregateQuery(const Value& payload, string& resultSet)
 	}
 
 	// Get all datapoints in 'reading' field
-	sql.append("json_each.key AS x, json_each.value AS theval FROM " DB_READINGS ".readings, json_each(readings.reading) ");
+	sql.append("json_each.key AS x, json_each.value AS theval FROM " READINGS_DB_NAME_BASE ".readings, json_each(readings.reading) ");
 
 	// Add where condition
 	sql.append("WHERE ");
@@ -404,7 +400,7 @@ int Connection::readingStream(ReadingStream **readings, bool commit)
 	struct timeval start, t1, t2, t3, t4, t5;
 #endif
 
-	const char *sql_cmd = "INSERT INTO  " DB_READINGS ".readings ( asset_code, reading, user_ts ) VALUES  (?,?,?)";
+	const char *sql_cmd = "INSERT INTO  " READINGS_DB_NAME_BASE ".readings ( asset_code, reading, user_ts ) VALUES  (?,?,?)";
 
 	if (sqlite3_prepare_v2(dbHandle, sql_cmd, strlen(sql_cmd), &stmt, NULL) != SQLITE_OK)
 	{
@@ -653,7 +649,7 @@ int sleep_time_ms = 0;
 		return -1;
 	}
 
-	const char *sql_cmd="INSERT INTO  " DB_READINGS ".readings ( user_ts, asset_code, reading ) VALUES  (?,?,?)";
+	const char *sql_cmd="INSERT INTO  " READINGS_DB_NAME_BASE ".readings ( user_ts, asset_code, reading ) VALUES  (?,?,?)";
 
 	sqlite3_prepare_v2(dbHandle, sql_cmd, strlen(sql_cmd), &stmt, NULL);
 	{
@@ -852,7 +848,7 @@ int retrieve;
 		strftime('%%Y-%%m-%%d %%H:%%M:%%S', user_ts, 'utc')  ||
 		substr(user_ts, instr(user_ts, '.'), 7) AS user_ts,
 		strftime('%%Y-%%m-%%d %%H:%%M:%%f', ts, 'utc') AS ts
-	FROM  )" DB_READINGS R"(.readings
+	FROM  )" READINGS_DB_NAME_BASE R"(.readings
 	WHERE id >= %lu
 	ORDER BY id ASC
 	LIMIT %u;
@@ -937,7 +933,7 @@ bool		isAggregate = false;
 						strftime(')" F_DATEH24_SEC R"(', user_ts, 'localtime')  ||
 						substr(user_ts, instr(user_ts, '.'), 7) AS user_ts,
 						strftime(')" F_DATEH24_MS R"(', ts, 'localtime') AS ts
-					FROM )" DB_READINGS R"(.readings)";
+					FROM )" READINGS_DB_NAME_BASE R"(.readings)";
 
 			sql.append(sql_cmd);
 		}
@@ -968,7 +964,7 @@ bool		isAggregate = false;
 				{
 					return false;
 				}
-				sql.append(" FROM  " DB_READINGS ".");
+				sql.append(" FROM  " READINGS_DB_NAME_BASE ".");
 			}
 			else if (document.HasMember("return"))
 			{
@@ -1157,7 +1153,7 @@ bool		isAggregate = false;
 					}
 					col++;
 				}
-				sql.append(" FROM  " DB_READINGS ".");
+				sql.append(" FROM  " READINGS_DB_NAME_BASE ".");
 			}
 			else
 			{
@@ -1175,7 +1171,7 @@ bool		isAggregate = false;
 						strftime(')" F_DATEH24_SEC R"(', user_ts, 'localtime')  ||
 						substr(user_ts, instr(user_ts, '.'), 7) AS user_ts,
 						strftime(')" F_DATEH24_MS R"(', ts, 'localtime') AS ts
-                    FROM  )" DB_READINGS R"(.)";
+                    FROM  )" READINGS_DB_NAME_BASE R"(.)";
 
 				sql.append(sql_cmd);
 			}
@@ -1293,7 +1289,7 @@ int blocks = 0;
 		char *zErrMsg = NULL;
 		int rc;
 		rc = SQLexec(dbHandle,
-		     "select max(rowid) from " DB_READINGS ".readings;",
+		     "select max(rowid) from " READINGS_DB_NAME_BASE ".readings;",
 	  	     rowidCallback,
 		     &rowidLimit,
 		     &zErrMsg);
@@ -1311,7 +1307,7 @@ int blocks = 0;
 		char *zErrMsg = NULL;
 		int rc;
 		rc = SQLexec(dbHandle,
-		     "select min(rowid) from " DB_READINGS ".readings;",
+		     "select min(rowid) from " READINGS_DB_NAME_BASE ".readings;",
 	  	     rowidCallback,
 		     &minrowidLimit,
 		     &zErrMsg);
@@ -1331,7 +1327,7 @@ int blocks = 0;
 		 * So set age based on the data we have and continue.
 		 */
 		SQLBuffer oldest;
-		oldest.append("SELECT (strftime('%s','now', 'utc') - strftime('%s', MIN(user_ts)))/360 FROM " DB_READINGS ".readings where rowid <= ");
+		oldest.append("SELECT (strftime('%s','now', 'utc') - strftime('%s', MIN(user_ts)))/360 FROM " READINGS_DB_NAME_BASE ".readings where rowid <= ");
 		oldest.append(rowidLimit);
 		oldest.append(';');
 		const char *query = oldest.coalesce();
@@ -1387,7 +1383,7 @@ int blocks = 0;
 
 			// e.g. select id from readings where rowid = 219867307 AND user_ts < datetime('now' , '-24 hours', 'utc');
 			SQLBuffer sqlBuffer;
-			sqlBuffer.append("select id from " DB_READINGS ".readings where rowid = ");
+			sqlBuffer.append("select id from " READINGS_DB_NAME_BASE ".readings where rowid = ");
 			sqlBuffer.append(m);
 			sqlBuffer.append(" AND user_ts < datetime('now' , '-");
 			sqlBuffer.append(age);
@@ -1440,7 +1436,7 @@ int blocks = 0;
 		int rc;
 		int lastPurgedId;
 		SQLBuffer idBuffer;
-		idBuffer.append("select id from " DB_READINGS ".readings where rowid = ");
+		idBuffer.append("select id from " READINGS_DB_NAME_BASE ".readings where rowid = ");
 		idBuffer.append(rowidLimit);
 		idBuffer.append(';');
 		const char *idQuery = idBuffer.coalesce();
@@ -1488,7 +1484,7 @@ int blocks = 0;
 			rowidMin = rowidLimit;
 		}
 		SQLBuffer sql;
-		sql.append("DELETE FROM " DB_READINGS ".readings WHERE rowid <= ");
+		sql.append("DELETE FROM " READINGS_DB_NAME_BASE ".readings WHERE rowid <= ");
 		sql.append(rowidMin);
 		sql.append(';');
 		const char *query = sql.coalesce();

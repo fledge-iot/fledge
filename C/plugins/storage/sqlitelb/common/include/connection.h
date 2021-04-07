@@ -17,6 +17,15 @@
 #include <mutex>
 #include <reading_stream.h>
 
+#define _DB_NAME                  "/fledge.db"
+#define READINGS_DB_NAME_BASE     "readings"
+#define READINGS_DB_FILE_NAME     "/" READINGS_DB_NAME_BASE ".db"
+#define READINGS_DB               READINGS_DB_NAME_BASE
+#define READINGS_TABLE            "readings"
+#define READINGS_TABLE_MEM       READINGS_TABLE
+
+#define MAX_RETRIES				80	// Maximum no. of retries when a lock is encountered
+#define RETRY_BACKOFF			100	// Multipler to backoff DB retry on lock
 
 #define LEN_BUFFER_DATE 100
 #define F_TIMEH24_S             "%H:%M:%S"

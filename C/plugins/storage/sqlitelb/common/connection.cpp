@@ -38,8 +38,6 @@ using namespace rapidjson;
 
 #define CONNECT_ERROR_THRESHOLD		5*60	// 5 minutes
 
-#define MAX_RETRIES			40	// Maximum no. of retries when a lock is encountered
-#define RETRY_BACKOFF			100	// Multipler to backoff DB retry on lock
 
 /*
  * The following allows for conditional inclusion of code that tracks the top queries
@@ -70,8 +68,6 @@ static int purgeBlockSize = PURGE_DELETE_BLOCK_SIZE;
 #define END_TIME std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now(); \
 				 auto usecs = std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count();
 
-#define _DB_NAME              	"/fledge.sqlite"
-#define READINGS_DB_NAME        "/readings.db"
 
 static time_t connectErrorTime = 0;
 
@@ -454,7 +450,7 @@ Connection::Connection()
 		// Set DB base path
 		dbPathReadings = getDataDir();
 		// Add the filename
-		dbPathReadings += READINGS_DB_NAME;
+		dbPathReadings += READINGS_DB_FILE_NAME;
 	}
 	else
 	{

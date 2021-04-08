@@ -125,7 +125,7 @@ Possible solutions to common problems
     procedure:
         - disable the 1st north instance
         - delete the objects in the PI Server, AF + Data archive, that are to be recreated or were partially sent.
-        - create a new **DISABLED** north instance using a new/unique name and having the same AF hierarchy of the 1st north instance
+        - create a new **DISABLED** north instance using a new, unique name and having the same AF hierarchy as the 1st north instance
         - install *fledge-filter-asset* on the new north instance
         - configure *fledge-filter-asset* with a rule like the following one
         - enable the 2nd north instance

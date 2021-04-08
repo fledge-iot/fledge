@@ -124,7 +124,7 @@ Possible solutions to common problems
 **Recreate a single or a sets of PI-Server objets and resend all the data for them to the PI Server on the Asset Framework hierarchy level**
     procedure:
         - disable the 1st north instance
-        - delete properly the objects on the PI Server, AF + Data archive, that we intend to recreate or were eventually partially deleted
+        - delete the objects in the PI Server, AF + Data archive, that are to be recreated or were partially sent.
         - create a new **DISABLED** north instance using a new/unique name and having the same AF hierarchy of the 1st north instance
         - install *fledge-filter-asset* on the new north instance
         - configure *fledge-filter-asset* with a rule like the following one

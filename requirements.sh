@@ -165,7 +165,6 @@ if [[ $YUM_PLATFORM = true ]]; then
 	yum install -y wget
 	yum install -y zlib-devel
 	yum install -y git
-	yum install -y cmake
 	yum install -y libuuid-devel
 	# for Kerberos authentication
 	yum install -y krb5-workstation
@@ -173,11 +172,17 @@ if [[ $YUM_PLATFORM = true ]]; then
 	# for Cmake3 installation
 	if [[ $os_name == *"CentOS"* ]]; then
 		yum install -y epel-release
-		yum update -y
-		yum install -y cmake3
-		# create symlink so that cmake points to cmake3
-		ln -s /usr/bin/cmake3 /usr/bin/cmake
+	elif [[ $os_name == *"Red Hat"* ]]; then
+		set +e
+		rpm -ivh https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+		set -e
 	fi
+	yum update
+	yum install -y cmake3
+	# create symlink so that cmake points to cmake3
+	set +e
+	ln -s /usr/bin/cmake3 /usr/bin/cmake
+	set -e
 
 	if [[ $USE_SCL = true ]]; then
 		echo "source scl_source enable rh-python36" >> /home/${SUDO_USER}/.bashrc

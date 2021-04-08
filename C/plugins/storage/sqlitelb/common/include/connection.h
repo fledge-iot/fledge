@@ -26,6 +26,7 @@
 
 #define MAX_RETRIES				80	// Maximum no. of retries when a lock is encountered
 #define RETRY_BACKOFF			100	// Multipler to backoff DB retry on lock
+#define RETRY_BACKOFF_EXEC	   1000	// Multipler to backoff DB retry on lock
 
 #define LEN_BUFFER_DATE 100
 #define F_TIMEH24_S             "%H:%M:%S"

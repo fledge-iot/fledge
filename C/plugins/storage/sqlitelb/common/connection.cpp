@@ -2891,7 +2891,7 @@ int interval;
 		threadId << std::this_thread::get_id();
 
 		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("xxx4 %s - Complete :%d: :%X:", __FUNCTION__, retries, threadId.str().c_str() );
+		Logger::getLogger()->debug("xxx3 %s - Complete :%d: :%s:", __FUNCTION__, retries, threadId.str().c_str() );
 		Logger::getLogger()->setMinLevel("warning");
 	}
 
@@ -2929,8 +2929,8 @@ int interval;
 
 int Connection::SQLstep(sqlite3_stmt *statement)
 {
-int retries = 0, rc;
-int interval;
+	int retries = 0, rc;
+	int interval;
 
 	do {
 #if DO_PROFILE
@@ -2942,7 +2942,7 @@ int interval;
 		profiler.insert(prof);
 #endif
 		retries++;
-		if (rc != SQLITE_OK)
+		if (rc == SQLITE_LOCKED || rc == SQLITE_BUSY)
 		{
 			interval = (retries * RETRY_BACKOFF);
 			std::this_thread::sleep_for(std::chrono::milliseconds(interval));
@@ -2950,13 +2950,13 @@ int interval;
 			if (retries > 5) {
 				// FIXME_I:
 				Logger::getLogger()->setMinLevel("debug");
-				Logger::getLogger()->info("xxx3 SQLstep: retry %d of %d, rc=%s, DB connection @ %p, slept for %d msecs",
-						retries, MAX_RETRIES, (rc==SQLITE_LOCKED)?"SQLITE_LOCKED":"SQLITE_BUSY", this, interval);
+				Logger::getLogger()->info("xxx4 SQLstep: retry %d of %d, rc=%s, DB connection @ %p, slept for %d msecs",
+				retries, MAX_RETRIES, (rc==SQLITE_LOCKED)?"SQLITE_LOCKED":"SQLITE_BUSY", this, interval);
 				Logger::getLogger()->setMinLevel("warning");
-
 			}
+
 		}
-	} while (retries < MAX_RETRIES  && (rc != SQLITE_OK));
+	} while (retries < MAX_RETRIES && (rc == SQLITE_LOCKED || rc == SQLITE_BUSY));
 #if DO_PROFILE_RETRIES
 	retryStats[retries-1]++;
 	if (++numStatements > 1000)
@@ -2980,10 +2980,9 @@ int interval;
 		threadId << std::this_thread::get_id();
 
 		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("xxx5 %s - Complete :%d: :%X:", __FUNCTION__, retries, threadId.str().c_str() );
+		Logger::getLogger()->debug("xxx4 %s - Complete :%d: :%s:", __FUNCTION__, retries, threadId.str().c_str() );
 		Logger::getLogger()->setMinLevel("warning");
 	}
-
 
 	if (rc == SQLITE_LOCKED)
 	{
@@ -2996,6 +2995,7 @@ int interval;
 
 	return rc;
 }
+
 
 #ifndef SQLITE_SPLIT_READINGS
 /**

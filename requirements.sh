@@ -170,6 +170,14 @@ if [[ $YUM_PLATFORM = true ]]; then
 	# for Kerberos authentication
 	yum install -y krb5-workstation
 	yum install -y curl-devel
+	# for Cmake3 installation
+	if [[ $os_name == *"CentOS"* ]]; then
+		yum install -y epel-release
+		yum update -y
+		yum install -y cmake3
+		# create symlink so that cmake points to cmake3
+		ln -s /usr/bin/cmake3 /usr/bin/cmake
+	fi
 
 	if [[ $USE_SCL = true ]]; then
 		echo "source scl_source enable rh-python36" >> /home/${SUDO_USER}/.bashrc

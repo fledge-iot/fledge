@@ -1252,6 +1252,7 @@ bool		isAggregate = false;
 		return true;
 	} catch (exception e) {
 		raiseError("retrieve", "Internal error: %s", e.what());
+		return false;
 	}
 }
 /**

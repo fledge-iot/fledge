@@ -1403,6 +1403,8 @@ unsigned int  Connection::purgeReadings(unsigned long age,
 						 &midRowId,
 						 &zErrMsg);
 
+			delete[] query;
+
 			if (rc != SQLITE_OK)
 			{
 				raiseError("purge - phase 1, fetching midRowId ", zErrMsg);

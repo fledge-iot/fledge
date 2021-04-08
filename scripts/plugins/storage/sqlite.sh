@@ -101,9 +101,9 @@ sqlite_start() {
             if [[ "$1" == "noisy" ]]; then
                 sqlite_log "info" "SQLite3 database is ready." "all" "pretty"
             else
-		if [[ "$1" != "skip" ]]; then
-                    sqlite_log "info" "SQLite3 database is ready." "logonly" "pretty"
-		fi
+                if [[ "$1" != "skip" ]]; then
+                            sqlite_log "info" "SQLite3 database is ready." "logonly" "pretty"
+                fi
             fi
             ;;
 
@@ -143,9 +143,9 @@ sqlite_start() {
             if [[ "$1" == "noisy" ]]; then
                 sqlite_log "info" "SQLite3 readings database is ready." "all" "pretty"
             else
-		if [[ "$1" != "skip" ]]; then
-                    sqlite_log "info" "SQLite3 readings database is ready." "logonly" "pretty"
-		fi
+                if [[ "$1" != "skip" ]]; then
+                            sqlite_log "info" "SQLite3 readings database is ready." "logonly" "pretty"
+                fi
             fi
             ;;
 

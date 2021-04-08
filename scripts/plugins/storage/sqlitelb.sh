@@ -85,14 +85,20 @@ fi
 sqlite_start() {
 
     # Check the status of the server
-    result=`sqlite_status "silent"`
+    if [[ "$1" != "skip" ]]; then
+        result=`sqlite_status "silent"`
+    else
+        result=`sqlite_status "skip"`
+    fi
     case "$result" in
         "0")
             # SQLilte3 DB found already running.
             if [[ "$1" == "noisy" ]]; then
                 sqlite_log "info" "SQLite3 database is ready." "all" "pretty"
             else
-                sqlite_log "info" "SQLite3 database is ready." "logonly" "pretty"
+                if [[ "$1" != "skip" ]]; then
+                    sqlite_log "info" "SQLite3 database is ready." "logonly" "pretty"
+                fi
             fi
             ;;
 
@@ -120,14 +126,21 @@ sqlite_start() {
     esac
 
     # Check the presence of the readingds.db datafile
-    result=`sqlite_status_readings "silent"`
+    if [[ "$1" != "skip" ]]; then
+        result=`sqlite_status_readings "silent"`
+    else
+        result=`sqlite_status_readings "skip"`
+    fi
+
     case "$result" in
         "0")
             # SQLilte3 DB found already running.
             if [[ "$1" == "noisy" ]]; then
                 sqlite_log "info" "SQLite3 readings database is ready." "all" "pretty"
             else
-                sqlite_log "info" "SQLite3 readings database is ready." "logonly" "pretty"
+                if [[ "$1" != "skip" ]]; then
+                    sqlite_log "info" "SQLite3 readings database is ready." "logonly" "pretty"
+                fi
             fi
             ;;
 
@@ -395,8 +408,8 @@ sqlite_schema_update() {
 sqlite_help() {
 
     echo "${USAGE}
-SQLite3 Storage Layer plugin init script. 
-The script is used to control the SQLite3 plugin as database for Fledge
+SQLite3lb (Low bandwidth) Storage Layer plugin init script.
+The script is used to control the SQLite3lb plugin as database for Fledge
 Arguments:
  start   - Start the database server (when managed)
            If the server has not been initialized, it also initialize it
@@ -405,11 +418,72 @@ Arguments:
  reset   - Bring the database server to the original installation.
            This is a synonym of init.
            WARNING: all the data stored in the server will be lost!
+ init    - Database check: if Fledge database does not exist
+           it will be created.
+ purge   - Purge all readings data and non-configuration data stored in the database.
+           WARNING: all the data stored in the affected tables will be lost!
  help    - This text
 
  managed   - The database server is embedded in Fledge
  unmanaged - The database server is not embedded in Fledge"
 
+}
+
+
+## SQLite3 purge all readings and non-configuration data
+sqlite_purge() {
+    echo "This script will remove all readings data and non-configuration data stored in the SQLite3 datafiles:"
+    echo "'${DEFAULT_SQLITE_DB_FILE}'"
+    echo "'${DEFAULT_SQLITE_DB_FILE_READINGS}'"
+    echo -n "Enter YES if you want to continue: "
+    read continue_purge
+
+    if [ "$continue_purge" != 'YES' ]; then
+        echo "Goodbye."
+        # This is ok because it means that the script is called from command line
+        exit 0
+    fi
+
+    if [[ "$1" == "noisy" ]]; then
+        sqlite_log "info" "Purging data for the Fledge Plugin '${PLUGIN}' ..." "all" "pretty"
+    else
+        sqlite_log "info" "Purging data for the Fledge Plugin '${PLUGIN}' ..." "logonly" "pretty"
+    fi
+
+    # Purge database content
+    COMMAND_OUTPUT=`${SQLITE_SQL} "${DEFAULT_SQLITE_DB_FILE}" 2>&1 <<EOF
+ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE}' AS 'fledge';
+UPDATE fledge.statistics SET value = 0, previous_value = 0, ts = STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'localtime');
+DELETE FROM fledge.asset_tracker;
+DELETE FROM fledge.sqlite_sequence WHERE name='asset_tracker';
+DELETE FROM fledge.tasks;
+DELETE FROM fledge.statistics_history;
+DELETE FROM sqlite_sequence WHERE name='statistics_history';
+DELETE FROM fledge.log;
+DELETE FROM sqlite_sequence WHERE name='log';
+DELETE FROM fledge.plugin_data;
+DELETE FROM fledge.omf_created_objects;
+DELETE FROM fledge.user_logins;
+UPDATE fledge.streams SET last_object = 0, ts = STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'localtime');
+VACUUM;
+.quit
+EOF`
+
+    RET_CODE=$?
+    if [ "${RET_CODE}" -ne 0 ]; then
+        sqlite_log "err" "Failure in purge command [${SQL_COMMAND}]: ${COMMAND_OUTPUT}. Exiting" "all" "pretty"
+        return 1
+    fi
+
+    # Log success
+    if [[ "$1" == "noisy" ]]; then
+        sqlite_log "info" "Purge complete for Fledge Plugin '${PLUGIN} in database '${DEFAULT_SQLITE_DB_FILE}'." "all" "pretty"
+    else
+        sqlite_log "info" "Purge complete for Fledge Plugin '${PLUGIN} in database '${DEFAULT_SQLITE_DB_FILE}'." "logonly" "pretty"
+    fi
+
+    # Remove all readings
+    sqlite_reset_db_readings
 }
 
 
@@ -487,6 +561,9 @@ case "$1" in
     start)
         sqlite_start "$print_output" "$2"
         ;;
+    init)
+        sqlite_start "skip" "$2"
+        ;;
     stop)
         sqlite_stop "$print_output"
         ;;
@@ -495,6 +572,9 @@ case "$1" in
         ;;
     status)
         sqlite_status "$print_output"
+        ;;
+    purge)
+        sqlite_purge "$print_output"
         ;;
     help)
         sqlite_help

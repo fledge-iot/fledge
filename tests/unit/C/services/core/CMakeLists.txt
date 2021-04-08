@@ -33,12 +33,12 @@ file(GLOB unittests "*.cpp")
  
 # Find python3.x dev/lib package
 find_package(PkgConfig REQUIRED)
-pkg_check_modules(PYTHON REQUIRED python3)
+find_package(Python COMPONENTS Interpreter Development)
 
 # Add Python 3.x header files
-include_directories(${PYTHON_INCLUDE_DIRS})
+include_directories(${Python_INCLUDE_DIRS})
 
-link_directories(${PYTHON_LIBRARY_DIRS})
+link_directories(${Python_LIBRARY_DIRS})
 
 link_directories(${PROJECT_BINARY_DIR}/../../../lib)
 
@@ -53,5 +53,5 @@ target_link_libraries(RunTests ${COMMON_LIB})
 target_link_libraries(RunTests ${SERVICE_COMMON_LIB})
 
 # Add Python 3.x library
-target_link_libraries(RunTests ${PYTHON_LIBRARIES})
+target_link_libraries(RunTests ${Python_LIBRARIES})
 

@@ -27,7 +27,7 @@ include_directories(SYSTEM ${Boost_INCLUDE_DIR})
 
 # Find python3.x dev/lib package
 find_package(PkgConfig REQUIRED)
-pkg_check_modules(PYTHON REQUIRED python3)
+find_package(Python COMPONENTS Interpreter Development)
 
 include_directories(../../../C/common/include)
 include_directories(../../../C/plugins/common/include)
@@ -38,7 +38,7 @@ include_directories(../../../C/thirdparty/Simple-Web-Server)
 include_directories(../../../C/plugins/storage/common/include)
 
 # Add Python 3.x header files
-include_directories(${PYTHON_INCLUDE_DIRS})
+include_directories(${Python_INCLUDE_DIRS})
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/../lib)
 

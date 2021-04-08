@@ -10,13 +10,13 @@ set(DLLIB -ldl)
 file(GLOB SOURCES *.cpp)
 
 # Find python3.x dev/lib package
-pkg_check_modules(PYTHON REQUIRED python3)
+find_package(Python COMPONENTS Interpreter Development)
 
 # Include header files
 include_directories(include ../../common/include ../../thirdparty/Simple-Web-Server  ../../thirdparty/rapidjson/include)
 
 # Add Python 3.x header files
-include_directories(${PYTHON_INCLUDE_DIRS})
+include_directories(${Python_INCLUDE_DIRS})
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/../../lib)
 

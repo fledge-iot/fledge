@@ -12,16 +12,16 @@ set(SERVICE_COMMON_LIB services-common-lib)
 file(GLOB SOURCES python_plugin_interface.cpp ../../common-plugin-interfaces/python/pyobject_reading_parser.cpp)
 
 # Find Python.h 3.x dev/lib package
-pkg_check_modules(PYTHON REQUIRED python3)
+find_package(Python COMPONENTS Interpreter Development)
 
 # Include header files
 include_directories(include ../../../common/include ../../../services/common/include ../../../services/north/include ../../../thirdparty/rapidjson/include)
 include_directories(../../../services/common-plugin-interfaces/python/include)
 
 # Add Python 3.x header files
-include_directories(${PYTHON_INCLUDE_DIRS})
+include_directories(${Python_INCLUDE_DIRS})
 
-link_directories(${PYTHON_LIBRARY_DIRS})
+link_directories(${Python_LIBRARY_DIRS})
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/../../../lib)
 
@@ -32,7 +32,7 @@ target_link_libraries(${PROJECT_NAME} ${COMMON_LIB})
 target_link_libraries(${PROJECT_NAME} ${SERVICE_COMMON_LIB})
 
 # Add Python 3.x library
-target_link_libraries(${PROJECT_NAME} ${PYTHON_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} ${Python_LIBRARIES})
 
 set_target_properties(${PROJECT_NAME} PROPERTIES SOVERSION 1)
 

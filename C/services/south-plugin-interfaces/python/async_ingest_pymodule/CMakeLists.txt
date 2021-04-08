@@ -13,15 +13,15 @@ file(GLOB SOURCES ingest_callback_pymodule.cpp ../../../common-plugin-interfaces
 
 # Find Python 3.5 or higher dev/lib/interp package
 #find_package(PythonInterp 3.5 REQUIRED)
-pkg_check_modules(PYTHON REQUIRED python3)
+find_package(Python COMPONENTS Interpreter Development)
 
 # Include header files
 include_directories(include ../../../../common/include ../../../../services/common/include ../../../../services/south/include ../../../../thirdparty/rapidjson/include)
 
 # Add Python 3.x header files
-include_directories(${PYTHON_INCLUDE_DIRS})
+include_directories(${Python_INCLUDE_DIRS})
 
-link_directories(${PYTHON_LIBRARY_DIRS})
+link_directories(${Python_LIBRARY_DIRS})
 link_directories(${PROJECT_BINARY_DIR}/../../../../lib)
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/../../../../../../python)
@@ -30,7 +30,7 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/../../../../../../pytho
 add_library(${PROJECT_NAME} SHARED ${SOURCES})
 
 # Add Python 3.x library
-target_link_libraries(${PROJECT_NAME} ${PYTHON_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} ${Python_LIBRARIES})
 
 target_link_libraries(${PROJECT_NAME} ${DLLIB})
 target_link_libraries(${PROJECT_NAME} ${COMMON_LIB})

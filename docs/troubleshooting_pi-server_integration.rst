@@ -179,4 +179,3 @@ Possible solutions to common problems
 
     consideration:
         - all the data stored in Fledge will be sent
-

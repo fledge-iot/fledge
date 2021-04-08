@@ -112,9 +112,9 @@ Some error messages and causes:
     * - Message
       - Cause
     * - North_Readings_to_PI[20884]: WARNING: Error in retrieving the PIWebAPI version, The **PI Web API server is not reachable**, verify the network reachability
-      - Fledge is not able to reach the machine in which PI-Server is running due to a network problem of a firewall restriction.
+      - Fledge is not able to reach the machine in which PI-Server is running due to a network problem or a firewall restriction.
     * - North_Readings_to_PI[5838]: WARNING: Error in retrieving the PIWebAPI version, **503 Service Unavailable**
-      - Fledge is capable to reach the machine in which PI-Server is executed but the PI Web API is not running.
+      - Fledge is able to reach the machine in which PI-Server is executing but the PI Web API is not running.
     * - North_Readings_to_PI[24485]: ERROR: Sending JSON data error : **Container not found**. 4273005507977094880_1measurement_sin_4816_asset_1 - WIN-4M7ODKB0RH2:443 /piwebapi/omf
       - Fledge is able to interact with PI Web API but there is an attempt to store data in a PI Point that does not exist.
 

@@ -2891,7 +2891,7 @@ int interval;
 		threadId << std::this_thread::get_id();
 
 		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("xxx3 %s - Complete :%d: :%s:", __FUNCTION__, retries, threadId.str().c_str() );
+		Logger::getLogger()->debug("xxx3 %s - Completed retries :%d: :%s:", __FUNCTION__, retries, threadId.str().c_str() );
 		Logger::getLogger()->setMinLevel("warning");
 	}
 
@@ -2980,7 +2980,7 @@ int Connection::SQLstep(sqlite3_stmt *statement)
 		threadId << std::this_thread::get_id();
 
 		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("xxx4 %s - Complete :%d: :%s:", __FUNCTION__, retries, threadId.str().c_str() );
+		Logger::getLogger()->debug("xxx4 %s - Completed retries :%d: :%s:", __FUNCTION__, retries, threadId.str().c_str() );
 		Logger::getLogger()->setMinLevel("warning");
 	}
 

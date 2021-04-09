@@ -40,7 +40,7 @@ Connection::Connection()
 	const char *dbHandleConn = "file:?cache=shared";
 
 	// UTC time as default
-	const char * createReadings = "CREATE TABLE " READINGS_DB_NAME_BASE " .readings (" \
+	const char * createReadings = "CREATE TABLE " READINGS_DB_NAME_BASE " ." READINGS_TABLE_MEM " (" \
 					"id		INTEGER			PRIMARY KEY AUTOINCREMENT," \
 					"asset_code	character varying(50)	NOT NULL," \
 					"reading	JSON			NOT NULL DEFAULT '{}'," \
@@ -48,7 +48,7 @@ Connection::Connection()
 					"ts		DATETIME 		DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f+00:00', 'NOW' ))" \
 					");";
 
-	const char * createReadingsFk = "CREATE INDEX fki_readings_fk1 ON readings (asset_code);";
+	const char * createReadingsFk = "CREATE INDEX fki_" READINGS_TABLE_MEM "_fk1 ON " READINGS_TABLE_MEM " (asset_code);";
 
 	// Allow usage of URI for filename
         sqlite3_config(SQLITE_CONFIG_URI, 1);
@@ -79,7 +79,7 @@ Connection::Connection()
 
 		// ATTACH 'fledge' as in memory shared DB
 		rc = sqlite3_exec(dbHandle,
-				  "ATTACH DATABASE 'file::memory:?cache=shared' AS '" READINGS_DB_NAME_BASE "'",
+				  "ATTACH DATABASE 'file::memory:?cache=shared' AS '" READINGS_TABLE_MEM "'",
 				  NULL,
 				  NULL,
 				  NULL);

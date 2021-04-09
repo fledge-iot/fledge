@@ -2826,11 +2826,6 @@ int Connection::SQLexec(sqlite3 *db, const char *sql, int (*callback)(void*,int,
 int retries = 0, rc;
 int interval;
 
-	//# FIXME_I
-//	Logger::getLogger()->setMinLevel("debug");
-//	Logger::getLogger()->debug("xxx3 %s - sqlite lb :%s: ", __FUNCTION__, sql);
-//	Logger::getLogger()->setMinLevel("warning");
-
 	do {
 #if DO_PROFILE
 		ProfileItem *prof = new ProfileItem(sql);
@@ -2854,13 +2849,10 @@ int interval;
 			std::this_thread::sleep_for(std::chrono::milliseconds(interval));
 			if (retries > 5)
 			{
-				// FIXME_I:
-				Logger::getLogger()->setMinLevel("debug");
 				Logger::getLogger()->info(
-					"xxx3 SQLexec: retry %d of %d, rc=%s, errmsg=%s, DB connection @ %p, slept for %d msecs",
+					"SQLexec: retry %d of %d, rc=%s, errmsg=%s, DB connection @ %p, slept for %d msecs",
 					retries, MAX_RETRIES, (rc == SQLITE_LOCKED) ? "SQLITE_LOCKED" : "SQLITE_BUSY", sqlite3_errmsg(db),
 					this, interval);
-				Logger::getLogger()->setMinLevel("warning");
 			}
 #if DO_PROFILE_RETRIES
 			m_qMutex.lock();
@@ -2886,13 +2878,10 @@ int interval;
 	} while (retries < MAX_RETRIES && (rc != SQLITE_OK));
 
 	if (retries >1) {
-		// FIXME_I:
 		ostringstream threadId;
 		threadId << std::this_thread::get_id();
 
-		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("xxx3 %s - Completed retries :%d: :%s:", __FUNCTION__, retries, threadId.str().c_str() );
-		Logger::getLogger()->setMinLevel("warning");
+		Logger::getLogger()->debug("%s - Completed retries :%d: :%s:", __FUNCTION__, retries, threadId.str().c_str() );
 	}
 
 #if DO_PROFILE_RETRIES
@@ -2948,11 +2937,8 @@ int Connection::SQLstep(sqlite3_stmt *statement)
 			std::this_thread::sleep_for(std::chrono::milliseconds(interval));
 
 			if (retries > 5) {
-				// FIXME_I:
-				Logger::getLogger()->setMinLevel("debug");
-				Logger::getLogger()->info("xxx4 SQLstep: retry %d of %d, rc=%s, DB connection @ %p, slept for %d msecs",
+				Logger::getLogger()->info("SQLstep: retry %d of %d, rc=%s, DB connection @ %p, slept for %d msecs",
 				retries, MAX_RETRIES, (rc==SQLITE_LOCKED)?"SQLITE_LOCKED":"SQLITE_BUSY", this, interval);
-				Logger::getLogger()->setMinLevel("warning");
 			}
 
 		}
@@ -2975,13 +2961,10 @@ int Connection::SQLstep(sqlite3_stmt *statement)
 #endif
 
 	if (retries >1) {
-		// FIXME_I:
 		ostringstream threadId;
 		threadId << std::this_thread::get_id();
 
-		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("xxx4 %s - Completed retries :%d: :%s:", __FUNCTION__, retries, threadId.str().c_str() );
-		Logger::getLogger()->setMinLevel("warning");
+		Logger::getLogger()->debug("%s - Completed retries :%d: :%s:", __FUNCTION__, retries, threadId.str().c_str() );
 	}
 
 	if (rc == SQLITE_LOCKED)

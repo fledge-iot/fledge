@@ -59,12 +59,6 @@ PLUGIN_HANDLE plugin_init()
 {
 ConnectionManager *manager = ConnectionManager::getInstance();
 
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx %s - memory ", __FUNCTION__);
-	Logger::getLogger()->setMinLevel("warning");
-
-
 	manager->growPool(5);
 	return manager;
 }

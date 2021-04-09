@@ -2845,7 +2845,7 @@ int interval;
 				maxQueue = m_waiting;
 			m_qMutex.unlock();
 #endif
-			interval = (RETRY_BACKOFF_EXEC);
+			interval = (1 * RETRY_BACKOFF);
 			std::this_thread::sleep_for(std::chrono::milliseconds(interval));
 			if (retries > 5)
 			{
@@ -2853,6 +2853,7 @@ int interval;
 					"SQLexec: retry %d of %d, rc=%s, errmsg=%s, DB connection @ %p, slept for %d msecs",
 					retries, MAX_RETRIES, (rc == SQLITE_LOCKED) ? "SQLITE_LOCKED" : "SQLITE_BUSY", sqlite3_errmsg(db),
 					this, interval);
+
 			}
 #if DO_PROFILE_RETRIES
 			m_qMutex.lock();

@@ -339,14 +339,15 @@ class TestService:
 
     p1 = '{"name": "DispatcherServer", "type": "dispatcher"}'
     p2 = '{"name": "NotificationServer", "type": "notification"}'
+    p3 = '{"name": "ManagementServer", "type": "management"}'
 
-    @pytest.mark.parametrize("payload", [p1, p2])
+    @pytest.mark.parametrize("payload", [p1, p2, p3])
     async def test_bad_external_service(self, client, payload):
         data = json.loads(payload)
         with patch('os.path.exists', return_value=False):
             resp = await client.post('/fledge/service', data=payload)
             assert 404 == resp.status
-            msg = '{} service is not installed.'.format(data['type'].capitalize())
+            msg = '{} service is not installed correctly.'.format(data['type'].capitalize())
             assert msg == resp.reason
             result = await resp.text()
             json_response = json.loads(result)
@@ -866,25 +867,26 @@ class TestService:
         server.Server.scheduler = Scheduler(None, None)
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
-        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(c_mgr, 'get_category_all_items', return_value=self.async_mock(None)) as patch_get_cat_info:
-                with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
-                    with patch.object(storage_client_mock, 'insert_into_tbl', return_value=self.async_mock(expected_insert_resp)) as insert_table_patch:
-                        with patch.object(server.Server.scheduler, 'save_schedule', return_value=self.async_mock("")) as patch_save_schedule:
-                            with patch.object(server.Server.scheduler, 'get_schedule_by_name', return_value=async_mock_get_schedule()) as patch_get_schedule:
-                                resp = await client.post('/fledge/service', data=payload)
-                                server.Server.scheduler = None
-                                assert 200 == resp.status
-                                result = await resp.text()
-                                json_response = json.loads(result)
-                                assert {'id': sch_id, 'name': data['name']} == json_response
-                            patch_get_schedule.assert_called_once_with(data['name'])
-                        patch_save_schedule.called_once_with()
-                    args, kwargs = insert_table_patch.call_args
-                    assert 'scheduled_processes' == args[0]
-                    p = json.loads(args[1])
-                    assert {'name': 'management', 'script': '["services/management"]'} == p
-            patch_get_cat_info.assert_called_once_with(category_name=data['name'])
+        with patch('os.path.exists', return_value=True):
+            with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+                with patch.object(c_mgr, 'get_category_all_items', return_value=self.async_mock(None)) as patch_get_cat_info:
+                    with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
+                        with patch.object(storage_client_mock, 'insert_into_tbl', return_value=self.async_mock(expected_insert_resp)) as insert_table_patch:
+                            with patch.object(server.Server.scheduler, 'save_schedule', return_value=self.async_mock("")) as patch_save_schedule:
+                                with patch.object(server.Server.scheduler, 'get_schedule_by_name', return_value=async_mock_get_schedule()) as patch_get_schedule:
+                                    resp = await client.post('/fledge/service', data=payload)
+                                    server.Server.scheduler = None
+                                    assert 200 == resp.status
+                                    result = await resp.text()
+                                    json_response = json.loads(result)
+                                    assert {'id': sch_id, 'name': data['name']} == json_response
+                                patch_get_schedule.assert_called_once_with(data['name'])
+                            patch_save_schedule.called_once_with()
+                        args, kwargs = insert_table_patch.call_args
+                        assert 'scheduled_processes' == args[0]
+                        p = json.loads(args[1])
+                        assert {'name': 'management', 'script': '["services/management"]'} == p
+                patch_get_cat_info.assert_called_once_with(category_name=data['name'])
 
     async def test_dupe_management_service_schedule(self, client):
         payload = '{"name": "FL Agent", "type": "management"}'
@@ -916,21 +918,22 @@ class TestService:
         server.Server.scheduler = Scheduler(None, None)
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
-        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(c_mgr, 'get_category_all_items',
-                              return_value=self.async_mock(None)) as patch_get_cat_info:
-                with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
-                    with patch.object(storage_client_mock, 'insert_into_tbl',
-                                      return_value=self.async_mock(expected_insert_resp)) as insert_table_patch:
-                        resp = await client.post('/fledge/service', data=payload)
-                        server.Server.scheduler = None
-                        assert 400 == resp.status
-                        assert 'A Management service schedule already exists.' == resp.reason
-                    args, kwargs = insert_table_patch.call_args
-                    assert 'scheduled_processes' == args[0]
-                    p = json.loads(args[1])
-                    assert {'name': 'management', 'script': '["services/management"]'} == p
-            patch_get_cat_info.assert_called_once_with(category_name=data['name'])
+        with patch('os.path.exists', return_value=True):
+            with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+                with patch.object(c_mgr, 'get_category_all_items',
+                                  return_value=self.async_mock(None)) as patch_get_cat_info:
+                    with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
+                        with patch.object(storage_client_mock, 'insert_into_tbl',
+                                          return_value=self.async_mock(expected_insert_resp)) as insert_table_patch:
+                            resp = await client.post('/fledge/service', data=payload)
+                            server.Server.scheduler = None
+                            assert 400 == resp.status
+                            assert 'A Management service schedule already exists.' == resp.reason
+                        args, kwargs = insert_table_patch.call_args
+                        assert 'scheduled_processes' == args[0]
+                        p = json.loads(args[1])
+                        assert {'name': 'management', 'script': '["services/management"]'} == p
+                patch_get_cat_info.assert_called_once_with(category_name=data['name'])
 
     @pytest.mark.parametrize("param", [
         "blah",

@@ -130,8 +130,9 @@ void applyFilters(SendingProcess* loadData,
 static void loadDataThread(SendingProcess *loadData)
 {
 	int sleep_num_increments, sleep_time;
-
 	unsigned int    readIdx = 0;
+
+	sleep_num_increments = 0;
 	sleep_time = TASK_FETCH_SLEEP;
 
 	// Read from the storage last Id already sent
@@ -244,6 +245,7 @@ static void loadDataThread(SendingProcess *loadData)
 			if (readings != NULL && readings->getCount())
 			{
 				sleep_time = TASK_FETCH_SLEEP;
+				sleep_num_increments = 0;
 
 				//Update last fetched reading Id
 				loadData->setLastFetchId(readings->getLastId());

@@ -128,7 +128,8 @@ class TestE2E_CSV_PI:
                 data received from PI is same as data sent"""
 
         conn = http.client.HTTPConnection(fledge_url)
-        time.sleep(wait_time * math.ceil(15/wait_time) + 10 )
+        # Time to wait until north schedule runs
+        time.sleep(wait_time * math.ceil(15/wait_time) + 15)
 
         ping_response = get_ping_status(fledge_url)
         assert len(CSV_DATA) == ping_response["dataRead"]

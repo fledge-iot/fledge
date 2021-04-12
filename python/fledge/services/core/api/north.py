@@ -4,6 +4,7 @@
 # See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
+import json
 from functools import lru_cache
 from aiohttp import web
 
@@ -66,9 +67,7 @@ async def _get_tasks_status():
     return tasks
 
 
-async def _get_north_schedules(storage_client):
-
-    cf_mgr = ConfigurationManager(storage_client)
+async def _get_north_schedules(cf_mgr):
     try:
         north_categories = await cf_mgr.get_category_child("North")
         north_schedules = [nc["key"] for nc in north_categories]
@@ -144,20 +143,6 @@ def _get_installed_plugins():
     return PluginDiscovery.get_plugins_installed("north", False)
 
 
-async def _get_tracked_plugin(storage_client, sch_name):
-    plugin = ''
-    payload = PayloadBuilder().SELECT("plugin").WHERE(['service', '=', sch_name]).\
-        AND_WHERE(['event', '=', 'Egress']).LIMIT(1).payload()
-    try:
-        result = await storage_client.query_tbl_with_payload('asset_tracker', payload)
-        if len(result['rows']):
-            plugin = result['rows'][0]['plugin']
-    except:
-        raise
-    else:
-        return plugin
-
-
 async def get_north_schedules(request):
     """
     Args:
@@ -174,24 +159,27 @@ async def get_north_schedules(request):
             _get_installed_plugins.cache_clear()
 
         storage_client = connect.get_storage_async()
-        north_schedules = await _get_north_schedules(storage_client)
+        cf_mgr = ConfigurationManager(storage_client)
+        north_schedules = await _get_north_schedules(cf_mgr)
         stats = await _get_sent_stats(storage_client)
-
         installed_plugins = _get_installed_plugins()
-
         for sch in north_schedules:
             stat = next((s for s in stats if s["key"] == sch["name"]), None)
             sch["sent"] = stat["value"] if stat else -1
-
-            tracked_plugin = await _get_tracked_plugin(storage_client, sch["name"])
+            plugin = await cf_mgr.get_category_item(sch["name"], 'plugin')
+            plugin_name = plugin['value'] if plugin is not None else ''
             plugin_version = ''
             for p in installed_plugins:
-                if p["name"] == tracked_plugin:
+                if p["name"] == plugin_name:
                     plugin_version = p["version"]
                     break
-            sch["plugin"] = {"name": tracked_plugin, "version": plugin_version}
+            sch["plugin"] = {"name": plugin_name, "version": plugin_version}
 
     except (KeyError, ValueError) as e:  # Handles KeyError of _get_sent_stats
-        return web.HTTPInternalServerError(reason=e)
+        msg = str(e)
+        return web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+    except Exception as ex:
+        msg = str(ex)
+        return web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(north_schedules)

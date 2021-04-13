@@ -177,7 +177,7 @@ if [[ $YUM_PLATFORM = true ]]; then
 		rpm -ivh https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
 		set -e
 	fi
-	yum update
+	yum update -y
 	yum install -y cmake3
 	# create symlink so that cmake points to cmake3
 	set +e

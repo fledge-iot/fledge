@@ -152,7 +152,7 @@ Possible solutions to common problems
 **Recreate all the PI-Server objets and resend all the data to the PI Server on a different Asset Framework hierarchy level**
     procedure:
         - disable the 1st north instance
-        - create a new north instance using a new/unique name and having a new AF hierarchy (North option 'Asset Framework hierarchies tree')
+        - create a new north instance using a new, unique name and having a new AF hierarchy (North option 'Asset Framework hierarchies tree')
 
     consideration:
         - this solution will create a set of new objects unrelated to the previous ones

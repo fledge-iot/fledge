@@ -165,7 +165,10 @@ class TestAudit:
         ({"source": "LOGGN_X", "severity": "warning", "details": {"message": "Engine oil pressure low"}}),
         ({"source": "LOG_X", "severity": "information", "details": {"message": "Engine oil pressure is okay."}})
     ])
-    def test_create_nonexistent_log_code_audit_entry(self, fledge_url, payload):
+    def test_create_nonexistent_log_code_audit_entry(self, fledge_url, payload, storage_plugin):
+        if storage_plugin == 'sqlite':
+            pytest.skip('TODO: FOGL-2124 Enable foreign key constraint in SQLite')
+
         conn = http.client.HTTPConnection(fledge_url)
         conn.request('POST', '/fledge/audit', body=json.dumps(payload))
         r = conn.getresponse()

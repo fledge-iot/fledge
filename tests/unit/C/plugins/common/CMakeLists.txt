@@ -43,12 +43,24 @@ file(GLOB unittests "*.cpp")
  
 # Find python3.x dev/lib package
 find_package(PkgConfig REQUIRED)
-pkg_check_modules(PYTHON REQUIRED python3)
+if(${CMAKE_VERSION} VERSION_LESS "3.12.0") 
+    pkg_check_modules(PYTHON REQUIRED python3)
+else()
+    find_package(Python COMPONENTS Interpreter Development)
+endif()
 
 # Add Python 3.x header files
-include_directories(${PYTHON_INCLUDE_DIRS})
+if(${CMAKE_VERSION} VERSION_LESS "3.12.0") 
+    include_directories(${PYTHON_INCLUDE_DIRS})
+else()
+    include_directories(${Python_INCLUDE_DIRS})
+endif()
 
-link_directories(${PYTHON_LIBRARY_DIRS})
+if(${CMAKE_VERSION} VERSION_LESS "3.12.0") 
+    link_directories(${PYTHON_LIBRARY_DIRS})
+else()
+    link_directories(${Python_LIBRARY_DIRS})
+endif()
 
 link_directories(${PROJECT_BINARY_DIR}/../../../lib)
 
@@ -66,5 +78,9 @@ target_link_libraries(RunTests ${OMF_LIB})
 target_link_libraries(RunTests ${LIBCURL_LIB})
 
 # Add Python 3.x library
-target_link_libraries(RunTests ${PYTHON_LIBRARIES})
+if(${CMAKE_VERSION} VERSION_LESS "3.12.0") 
+    target_link_libraries(RunTests ${PYTHON_LIBRARIES})
+else()
+    target_link_libraries(RunTests ${Python_LIBRARIES})
+endif()
 

@@ -37,8 +37,12 @@ function plugin_doc {
         echo "    ${repo_name}/index" >> $dest
     else
         files=`ls ${repo_name}/*.rst`
-        file=`basename $files .rst`
-        echo "    ${repo_name}/${file}" >> $dest
+    	if [ "$files" = "" ]; then
+	    echo "*** WARNING: plugin ${repo_name} is missing documentation"
+        else
+            file=`basename $files .rst`
+            echo "    ${repo_name}/${file}" >> $dest
+        fi
     fi
   fi
   rm -rf /tmp/doc.$$
@@ -65,7 +69,7 @@ Fledge North Plugins
 
 .. toctree::
 
-    ../fledge-north-OMF
+    fledge-north-OMF/index
 EOFNORTH
 cat > plugins/filter.rst << EOFFILTER
 *********************
@@ -82,6 +86,7 @@ Fledge Notification Rule Plugins
 
 .. toctree::
 
+    fledge-rule-Threshold/index
 EOFRULE
 cat > plugins/notify.rst << EOFNOTIFY
 ************************************
@@ -104,3 +109,10 @@ do
       plugin_doc $repo $dest
   fi
 done
+
+# Deal with bultin plugin documentation 
+mkdir plugins/fledge-north-OMF
+ln -s ../../images plugins/fledge-north-OMF/images
+sed -e 's|OMF.rst|../../OMF.rst|' < fledge-north-OMF.rst > plugins/fledge-north-OMF/index.rst
+mkdir plugins/fledge-rule-Threshold
+cp -r fledge-rule-Threshold/* plugins/fledge-rule-Threshold/.

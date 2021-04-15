@@ -25,6 +25,11 @@ using namespace rapidjson;
 #define PREP_CMD_RETRY_BASE 		5000    // Base time to wait for
 #define PREP_CMD_RETRY_BACKOFF		5000 	// Variable time to wait for
 
+#define MAX_RETRIES_SQLEXEC			80	// Maximum no. of retries when a lock is encountered
+
+// 1 enable performance tracking
+#define INSTRUMENT	0
+
 static std::atomic<int> m_writeAccessOngoing(0);
 
 static time_t connectErrorTime = 0;
@@ -129,14 +134,24 @@ int Connection::SQLexec(sqlite3 *db,
 {
 int retries = 0, rc;
 
+	ostringstream threadId;
+	threadId << std::this_thread::get_id();
+
 	do {
 		rc = sqlite3_exec(db, sql, callback, cbArg, errmsg);
 		retries++;
-		if (rc == SQLITE_LOCKED || rc == SQLITE_BUSY)
+
+		if (rc != SQLITE_OK)
 		{
-			usleep(retries * 1000);	// sleep retries milliseconds
+			this_thread::sleep_for(chrono::milliseconds(1000));
+
+			Logger::getLogger()->debug("%s - Retry :%d: :%X: :%X: :%s: :%s:", __FUNCTION__, retries, this->getDbHandle() ,this, threadId.str().c_str(), sql );
 		}
-	} while (retries < MAX_RETRIES && (rc == SQLITE_LOCKED || rc == SQLITE_BUSY));
+	} while (retries < MAX_RETRIES_SQLEXEC && (rc != SQLITE_OK));
+
+	if (retries >1) {
+		Logger::getLogger()->debug("%s - Complete :%d: :%X: :%X: :%s: :%s:", __FUNCTION__, retries, this->getDbHandle() ,this, threadId.str().c_str(), sql );
+	}
 
 	if (rc == SQLITE_LOCKED)
 	{
@@ -195,6 +210,7 @@ bool Connection::fetchReadings(unsigned long id,
 			 sql_cmd,
 			 id,
 			 blksize);
+
 	logSQL("ReadingsFetch", sqlbuffer);
 	sqlite3_stmt *stmt;
 	// Prepare the SQL statement and get the result set
@@ -205,7 +221,6 @@ bool Connection::fetchReadings(unsigned long id,
 						   NULL) != SQLITE_OK)
 	{
 		raiseError("retrieve", sqlite3_errmsg(dbHandle));
-
 		// Failure
 		return false;
 	}
@@ -241,6 +256,7 @@ bool Connection::fetchReadings(unsigned long id,
 int Connection::appendReadings(const char *readings)
 {
 
+
 // Default template parameter uses UTF8 and MemoryPoolAllocator.
 	Document doc;
 	int      row = 0;
@@ -257,9 +273,6 @@ int Connection::appendReadings(const char *readings)
 // Retry mechanism
 	int retries = 0;
 	int sleep_time_ms = 0;
-
-	ostringstream threadId;
-	threadId << std::this_thread::get_id();
 
 #if INSTRUMENT
 	Logger::getLogger()->debug("appendReadings start thread :%s:", threadId.str().c_str());
@@ -1791,7 +1804,14 @@ unsigned int  Connection::purgeReadings(unsigned long age,
 		char *zErrMsg = NULL;
 		int rc;
 		unsigned long l = minrowidLimit;
-		unsigned long r = ((flags & 0x01) && sent) ? min(sent, rowidLimit) : rowidLimit;
+		unsigned long r;
+		if (flags & 0x01) {
+
+			r = min(sent, rowidLimit);
+		} else {
+			r = rowidLimit;
+		}
+
 		r = max(r, l);
 		//logger->info("%s:%d: l=%u, r=%u, sent=%u, rowidLimit=%u, minrowidLimit=%u, flags=%u", __FUNCTION__, __LINE__, l, r, sent, rowidLimit, minrowidLimit, flags);
 		if (l == r)
@@ -2019,8 +2039,12 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 											  unsigned long sent,
 											  std::string& result)
 {
-	unsigned long  deletedRows = 0, unsentPurged = 0, unsentRetained = 0, numReadings = 0;
+	unsigned long deletedRows = 0, unsentPurged = 0, unsentRetained = 0, numReadings = 0;
 	unsigned long limit = 0;
+
+	unsigned long rowcount, minId, maxId;
+	unsigned long rowsAffected;
+	unsigned long deletePoint;
 
 	Logger *logger = Logger::getLogger();
 
@@ -2028,32 +2052,51 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 	if ((flags & 0x01) == 0x01)
 	{
 		limit = sent;
-		logger->info("Sent is %d", sent);
+		logger->info("Sent is %lu", sent);
 	}
-	logger->info("Purge by Rows called with flags %x, rows %d, limit %d", flags, rows, limit);
+	logger->info("Purge by Rows called with flags %x, rows %lu, limit %lu", flags, rows, limit);
 	// Don't save unsent rows
-	int rowcount;
-	do {
-		char *zErrMsg = NULL;
-		int rc;
-		rc = SQLexec(dbHandle,
-					 "select count(rowid) from " READINGS_DB "." READINGS_TABLE_MEM ";",
-					 rowidCallback,
-					 &rowcount,
-					 &zErrMsg);
 
-		if (rc != SQLITE_OK)
-		{
-			raiseError("purge - phaase 0, fetching row count", zErrMsg);
-			sqlite3_free(zErrMsg);
-			return 0;
-		}
+	char *zErrMsg = NULL;
+	int rc;
+	rc = SQLexec(dbHandle,
+				 "select count(rowid) from " READINGS_DB "." READINGS_TABLE_MEM ";",
+				 rowidCallback,
+				 &rowcount,
+				 &zErrMsg);
+
+	if (rc != SQLITE_OK)
+	{
+		raiseError("purge - phaase 0, fetching row count", zErrMsg);
+		sqlite3_free(zErrMsg);
+		return 0;
+	}
+
+	rc = SQLexec(dbHandle,
+				 "select max(id) from " READINGS_DB "." READINGS_TABLE_MEM ";",
+				 rowidCallback,
+				 &maxId,
+				 &zErrMsg);
+
+	if (rc != SQLITE_OK)
+	{
+		raiseError("purge - phaase 0, fetching maximum id", zErrMsg);
+		sqlite3_free(zErrMsg);
+		return 0;
+	}
+
+	numReadings = rowcount;
+	rowsAffected = 0;
+	deletedRows = 0;
+
+	do
+	{
 		if (rowcount <= rows)
 		{
 			logger->info("Row count %d is less than required rows %d", rowcount, rows);
 			break;
 		}
-		int minId;
+
 		rc = SQLexec(dbHandle,
 					 "select min(id) from " READINGS_DB "." READINGS_TABLE_MEM ";",
 					 rowidCallback,
@@ -2066,29 +2109,22 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 			sqlite3_free(zErrMsg);
 			return 0;
 		}
-		int maxId;
-		rc = SQLexec(dbHandle,
-					 "select max(id) from " READINGS_DB "." READINGS_TABLE_MEM ";",
-					 rowidCallback,
-					 &maxId,
-					 &zErrMsg);
 
-		if (rc != SQLITE_OK)
-		{
-			raiseError("purge - phaase 0, fetching maximum id", zErrMsg);
-			sqlite3_free(zErrMsg);
-			return 0;
-		}
-		int deletePoint = minId + 10000;
+		deletePoint = minId + 10000;
 		if (maxId - deletePoint < rows || deletePoint > maxId)
 			deletePoint = maxId - rows;
-		if (limit && limit > deletePoint)
-		{
-			deletePoint = limit;
+
+		// Do not delete
+		if ((flags & 0x01) == 0x01) {
+
+			if (limit < deletePoint)
+			{
+				deletePoint = limit;
+			}
 		}
 		SQLBuffer sql;
 
-		logger->info("RowCount %d, Max Id %d, min Id %d, delete point %d", rowcount, maxId, minId, deletePoint);
+		logger->info("RowCount %lu, Max Id %lu, min Id %lu, delete point %lu", rowcount, maxId, minId, deletePoint);
 
 		sql.append("delete from " READINGS_DB "." READINGS_TABLE_MEM "  where id <= ");
 		sql.append(deletePoint);
@@ -2099,12 +2135,15 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 
 			// Exec DELETE query: no callback, no resultset
 			rc = SQLexec(dbHandle, query, NULL, NULL, &zErrMsg);
-			int rowsAffected = sqlite3_changes(dbHandle);
+			rowsAffected = sqlite3_changes(dbHandle);
+
 			deletedRows += rowsAffected;
-			numReadings = rowcount - rowsAffected;
+			numReadings -= rowsAffected;
+			rowcount    -= rowsAffected;
+
 			// Release memory for 'query' var
 			delete[] query;
-			logger->debug("Deleted %d rows", rowsAffected);
+			logger->debug("Deleted %lu rows", rowsAffected);
 			if (rowsAffected == 0)
 			{
 				break;
@@ -2121,11 +2160,12 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 		std::this_thread::sleep_for(std::chrono::milliseconds(1));
 	} while (rowcount > rows);
 
+
+
 	if (limit)
 	{
 		unsentRetained = numReadings - rows;
 	}
-
 
 	ostringstream convert;
 
@@ -2135,6 +2175,9 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 	convert << " \"readings\" : " << numReadings << " }";
 
 	result = convert.str();
+
+	Logger::getLogger()->debug("%s - rows :%lu: flag :%x: sent :%lu: numReadings :%lu:  rowsAffected :%u:  result :%s:", __FUNCTION__, rows, flags, sent, numReadings, rowsAffected, result.c_str() );
+
 	logger->info("Purge by Rows complete: %s", result.c_str());
 	return deletedRows;
 }

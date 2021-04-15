@@ -359,13 +359,14 @@ CREATE INDEX fki_role_asset_permissions_fk2
 CREATE TABLE fledge.users (
        id                INTEGER   PRIMARY KEY AUTOINCREMENT,
        uname             character varying(80)  NOT NULL,
+       real_name         character varying(255) NOT NULL,
        role_id           integer                NOT NULL,
        description       character varying(255) NOT NULL DEFAULT '',
        pwd               character varying(255) ,
        public_key        character varying(255) ,
        enabled           boolean                NOT NULL DEFAULT 't',
        pwd_last_changed  DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'localtime')),
-       access_method     smallint               NOT NULL DEFAULT 0,
+       access_method     TEXT CHECK( access_method IN ('any','pwd','cert') )  NOT NULL DEFAULT 'any',
           CONSTRAINT users_fk1 FOREIGN KEY (role_id)
           REFERENCES roles (id) MATCH SIMPLE
                   ON UPDATE NO ACTION
@@ -598,9 +599,9 @@ INSERT INTO fledge.roles ( name, description )
 
 -- Users
 DELETE FROM fledge.users;
-INSERT INTO fledge.users ( uname, pwd, role_id, description )
-     VALUES ('admin', '39b16499c9311734c595e735cffb5d76ddffb2ebf8cf4313ee869525a9fa2c20:f400c843413d4c81abcba8f571e6ddb6', 1, 'admin user'),
-            ('user', '39b16499c9311734c595e735cffb5d76ddffb2ebf8cf4313ee869525a9fa2c20:f400c843413d4c81abcba8f571e6ddb6', 2, 'normal user');
+INSERT INTO fledge.users ( uname, real_name, pwd, role_id, description )
+     VALUES ('admin', 'Admin user', '39b16499c9311734c595e735cffb5d76ddffb2ebf8cf4313ee869525a9fa2c20:f400c843413d4c81abcba8f571e6ddb6', 1, 'admin user'),
+            ('user', 'Normal user', '39b16499c9311734c595e735cffb5d76ddffb2ebf8cf4313ee869525a9fa2c20:f400c843413d4c81abcba8f571e6ddb6', 2, 'normal user');
 
 -- User password history
 DELETE FROM fledge.user_pwd_history;

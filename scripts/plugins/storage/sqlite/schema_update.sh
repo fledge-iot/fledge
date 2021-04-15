@@ -235,9 +235,9 @@ db_downgrade()
 
                     # Call the DB script
                     COMMAND_OUTPUT=`${SQLITE_SQL} "${DEFAULT_SQLITE_DB_FILE}" 2>&1 <<EOF
-    ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE}' AS 'fledge';
-    .read '${sql_file}'
-    .quit
+ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE}' AS 'fledge';
+.read '${sql_file}'
+.quit
 EOF`
                     RET_CODE=$?
                     if [ "${RET_CODE}" -ne 0 ]; then

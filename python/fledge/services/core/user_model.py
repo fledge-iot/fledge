@@ -89,21 +89,25 @@ class User:
             return result["rows"]
 
         @classmethod
-        async def create(cls, username, password, role_id):
+        async def create(cls, username, password, role_id, access_method='any', real_name='', description=''):
             """
             Args:
                 username: user name
                 password: Password must contain at least one digit, one lowercase, one uppercase &
                           one special character and length of minimum 6 characters
                 role_id: Role (by default normal 'user' role whose id is 2)
+                access_method: User access and can be of any, pwd, cert
+                real_name: full name of user
+                description: Description for user
 
             Returns:
                    user json info
             """
 
             storage_client = connect.get_storage_async()
-            payload = PayloadBuilder().INSERT(uname=username, pwd=cls.hash_password(password),
-                                              role_id=role_id).payload()
+            payload = PayloadBuilder().INSERT(uname=username, pwd=cls.hash_password(password) if password else '',
+                                              access_method=access_method, role_id=role_id, real_name=real_name,
+                                              description=description).payload()
             try:
                 result = await storage_client.insert_into_tbl("users", payload)
             except StorageServerError as ex:
@@ -190,7 +194,8 @@ class User:
 
         @classmethod
         async def is_user_exists(cls, username, password):
-            payload = PayloadBuilder().SELECT("id", "pwd").WHERE(['uname', '=', username]).AND_WHERE(['enabled', '=', 't']).payload()
+            payload = PayloadBuilder().SELECT("id", "pwd").WHERE(['uname', '=', username]).AND_WHERE(
+                ['enabled', '=', 't']).payload()
             storage_client = connect.get_storage_async()
             result = await storage_client.query_tbl_with_payload('users', payload)
             if len(result['rows']) == 0:
@@ -204,7 +209,8 @@ class User:
         @classmethod
         async def all(cls):
             storage_client = connect.get_storage_async()
-            payload = PayloadBuilder().SELECT("id", "uname", "role_id").WHERE(['enabled', '=', 't']).payload()
+            payload = PayloadBuilder().SELECT("id", "uname", "role_id", "access_method", "real_name",
+                                              "description").WHERE(['enabled', '=', 't']).payload()
             result = await storage_client.query_tbl_with_payload('users', payload)
             return result['rows']
 
@@ -213,7 +219,8 @@ class User:
             user_id = kwargs['uid']
             user_name = kwargs['username']
 
-            q = PayloadBuilder().SELECT("id", "uname", "role_id").WHERE(['enabled', '=', 't'])
+            q = PayloadBuilder().SELECT("id", "uname", "role_id", "access_method", "real_name", "description").WHERE(
+                ['enabled', '=', 't'])
 
             if user_id is not None:
                 q = q.AND_WHERE(['id', '=', user_id])
@@ -301,7 +308,8 @@ class User:
             age = int(category_item['value'])
 
             # get user info on the basis of username
-            payload = PayloadBuilder().SELECT("pwd", "id", "role_id", "pwd_last_changed").WHERE(['uname', '=', username])\
+            payload = PayloadBuilder().SELECT("pwd", "id", "role_id", "access_method", "pwd_last_changed", "real_name", "description")\
+                .WHERE(['uname', '=', username])\
                 .ALIAS("return", ("pwd_last_changed", 'pwd_last_changed'))\
                 .FORMAT("return", ("pwd_last_changed", "YYYY-MM-DD HH24:MI:SS.MS"))\
                 .AND_WHERE(['enabled', '=', 't']).payload()

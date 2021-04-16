@@ -45,6 +45,7 @@ JWT_ALGORITHM = 'HS256'
 JWT_EXP_DELTA_SECONDS = 30*60  # 30 minutes
 
 MIN_USERNAME_LENGTH = 4
+USERNAME_REGEX_PATTERN = '^[a-zA-Z0-9_.-]+$'
 PASSWORD_REGEX_PATTERN = '((?=.*\d)(?=.*[A-Z])(?=.*\W).{6,}$)'
 PASSWORD_ERROR_MSG = 'Password must contain at least one digit, one lowercase, one uppercase & one special character ' \
                      'and length of minimum 6 characters'
@@ -220,10 +221,14 @@ async def get_user(request):
             u['userId'] = user.pop('id')
             u['userName'] = user.pop('uname')
             u['roleId'] = user.pop('role_id')
+            u["accessMethod"] = user.pop('access_method')
+            u["realName"] = user.pop('real_name')
+            u["description"] = user.pop('description')
             result = u
         except User.DoesNotExist as ex:
-            _logger.warning(str(ex))
-            raise web.HTTPNotFound(reason=str(ex))
+            msg = str(ex)
+            _logger.warning(msg)
+            raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     else:
         users = await User.Objects.all()
         res = []
@@ -232,6 +237,9 @@ async def get_user(request):
             u["userId"] = row["id"]
             u["userName"] = row["uname"]
             u["roleId"] = row["role_id"]
+            u["accessMethod"] = row["access_method"]
+            u["realName"] = row["real_name"]
+            u["description"] = row["description"]
             res.append(u)
         result = {'users': res}
 
@@ -244,51 +252,79 @@ async def create_user(request):
 
     :Example:
         curl -H "authorization: <token>" -X POST -d '{"username": "any1", "password": "User@123"}' http://localhost:8081/fledge/admin/user
-        curl -H "authorization: <token>" -X POST -d '{"username": "admin1", "password": "F0gl@mp!", "role_id": 1}' http://localhost:8081/fledge/admin/user
+        curl -H "authorization: <token>" -X POST -d '{"username": "aj.1988", "password": "User@123", "access_method": "any"}' http://localhost:8081/fledge/admin/user
+        curl -H "authorization: <token>" -X POST -d '{"username": "aj-1988", "password": "User@123", "access_method": "pwd"}' http://localhost:8081/fledge/admin/user
+        curl -H "authorization: <token>" -X POST -d '{"username": "aj_1988", "access_method": "any"}' http://localhost:8081/fledge/admin/user
+        curl -H "authorization: <token>" -X POST -d '{"username": "aj1988", "access_method": "cert"}' http://localhost:8081/fledge/admin/user
+        curl -H "authorization: <token>" -X POST -d '{"username": "ajnerd", "password": "F0gl@mp!", "role_id": 1, "real_name": "AJ", "description": "Admin user"}' http://localhost:8081/fledge/admin/user
+        curl -H "authorization: <token>" -X POST -d '{"username": "nerd", "access_method": "cert", "real_name": "AJ", "description": "Admin user"}' http://localhost:8081/fledge/admin/user
+        curl -H "authorization: <token>" -X POST -d '{"username": "nerdapp", "password": "FL)dG3", "access_method": "pwd", "real_name": "AJ", "description": "Admin user"}' http://localhost:8081/fledge/admin/user
     """
     if request.is_auth_optional:
         _logger.warning(FORBIDDEN_MSG)
         raise web.HTTPForbidden
     
     data = await request.json()
-    username = data.get('username')
+    username = data.get('username', '')
     password = data.get('password')
     role_id = data.get('role_id', DEFAULT_ROLE_ID)
+    access_method = data.get('access_method', 'any')
+    real_name = data.get('real_name', '')
+    description = data.get('description', '')
 
-    if not username or not password:
-        _logger.warning("Username and password are required to create user")
-        raise web.HTTPBadRequest(reason="Username or password is missing")
+    if not username:
+        msg = "Username is required to create user"
+        _logger.error(msg)
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
 
-    if not isinstance(password, str):
-        _logger.warning(PASSWORD_ERROR_MSG)
-        raise web.HTTPBadRequest(reason=PASSWORD_ERROR_MSG)
+    if not isinstance(username, str) or not isinstance(access_method, str) or not isinstance(real_name, str) \
+            or not isinstance(description, str):
+        msg = "Values should be passed in string"
+        _logger.error(msg)
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
 
-    if not re.match(PASSWORD_REGEX_PATTERN, password):
-        _logger.warning(PASSWORD_ERROR_MSG)
-        raise web.HTTPBadRequest(reason=PASSWORD_ERROR_MSG)
-
-    if not (await is_valid_role(role_id)):
-        _logger.warning("Create user requested with bad role id")
-        return web.HTTPBadRequest(reason="Invalid or bad role id")
-
-    # TODO: username regex? is email allowed?
-    username = username.lower().replace(" ", "")
+    username = username.lower().strip().replace(" ", "")
     if len(username) < MIN_USERNAME_LENGTH:
         msg = "Username should be of minimum 4 characters"
-        _logger.warning(msg)
-        raise web.HTTPBadRequest(reason=msg)
+        _logger.error(msg)
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+    if not re.match(USERNAME_REGEX_PATTERN, username):
+        msg = "Dot, hyphen, underscore special characters are allowed for username"
+        _logger.error(msg)
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
 
+    if access_method.lower() not in ['any', 'cert', 'pwd']:
+        msg = "Invalid access method. Must be 'any' or 'cert' or 'pwd'"
+        _logger.error(msg)
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+
+    if access_method == 'pwd' and not password:
+        msg = "Password should not be an empty"
+        _logger.error(msg)
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+
+    if access_method != 'cert':
+        if password is not None:
+            if not re.match(PASSWORD_REGEX_PATTERN, str(password)):
+                _logger.error(PASSWORD_ERROR_MSG)
+                raise web.HTTPBadRequest(reason=PASSWORD_ERROR_MSG, body=json.dumps({"message": PASSWORD_ERROR_MSG}))
+
+    if not (await is_valid_role(role_id)):
+        msg = "Invalid role id"
+        _logger.error(msg)
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     try:
         await User.Objects.get(username=username)
     except User.DoesNotExist:
         pass
     else:
-        _logger.warning("Can not create a user, username already exists")
-        raise web.HTTPConflict(reason="User with the requested username already exists")
+        msg = "Username already exists"
+        _logger.warning(msg)
+        raise web.HTTPConflict(reason=msg, body=json.dumps({"message": msg}))
 
     u = dict()
     try:
-        result = await User.Objects.create(username, password, role_id)
+        result = await User.Objects.create(username, password, role_id, access_method, real_name, description)
         if result['rows_affected']:
             # FIXME: we should not do get again!
             # we just need inserted user id; insert call should return that
@@ -296,16 +332,20 @@ async def create_user(request):
             u['userId'] = user.pop('id')
             u['userName'] = user.pop('uname')
             u['roleId'] = user.pop('role_id')
-    except ValueError as ex:
-        _logger.warning(str(ex))
-        raise web.HTTPBadRequest(reason=str(ex))
+            u["accessMethod"] = user.pop('access_method')
+            u["realName"] = user.pop('real_name')
+            u["description"] = user.pop('description')
+    except ValueError as err:
+        msg = str(err)
+        _logger.error(msg)
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except Exception as exc:
+        msg = str(exc)
         _logger.exception(str(exc))
-        raise web.HTTPInternalServerError(reason=str(exc))
-
-    _logger.info("User has been created successfully")
-
-    return web.json_response({'message': 'User has been created successfully', 'user': u})
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+    msg = "{} user has been created successfully".format(username)
+    _logger.info(msg)
+    return web.json_response({'message': msg, 'user': u})
 
 
 async def update_user(request):

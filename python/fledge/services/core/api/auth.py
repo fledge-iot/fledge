@@ -27,7 +27,7 @@ _help = """
     ------------------------------------------------------------------------------------
     | GET                        | /fledge/user                                       |
     | PUT                        | /fledge/user/{id}                                  |
-    | PUT                        | /fledge/user/{username}/password                   |     
+    | PUT                        | /fledge/user/{user_id}/password                    |     
 
     | GET                        | /fledge/user/role                                  |
     
@@ -349,25 +349,56 @@ async def create_user(request):
 
 
 async def update_user(request):
+    """ update user profile
+
+    :Example:
+             curl -X PUT -d '{"real_name": "AJ", "description": "Normal user", "role_id": "2"}' http://localhost:8081/fledge/user/<id>
+    """
     if request.is_auth_optional:
         _logger.warning(FORBIDDEN_MSG)
         raise web.HTTPForbidden
 
-    # TODO: FOGL-1226 we don't have any user profile info yet except password, role
-    raise web.HTTPNotImplemented(reason='FOGL-1226')
+    uid = request.match_info.get('id')
+    data = await request.json()
+    role_id = data.get('role_id')
+    real_name = data.get('real_name')
+    description = data.get('description')
+    try:
+        user_id = await User.Objects.get(uid=uid)
+    except Exception as exc:
+        msg = str(exc)
+        raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
+    # TODO: FOGL-1226
+    user_data = {}
+    if 'role_id' in data:
+        if role_id is not None:
+            if not (await is_valid_role(role_id)):
+                msg = "Invalid or bad role id"
+                raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+            user_data.update({'role_id': role_id})
+    if real_name is not None:
+        user_data.update({'real_name': real_name})
+    if description is not None:
+        user_data.update({'description': description})
+    user = await User.Objects.update(int(uid), user_data)
+    result = {"message": "Nothing to Update!"}
+    if user:
+        user_info = await User.Objects.get(uid=uid)
+        result = {'user_info': user_info}
+    return web.json_response(result)
 
 
 async def update_password(request):
     """ update password
 
         :Example:
-             curl -X PUT -d '{"current_password": "F0gl@mp!", "new_password": "F0gl@mp1"}' http://localhost:8081/fledge/user/<username>/password
+             curl -X PUT -d '{"current_password": "F0gl@mp!", "new_password": "F0gl@mp1"}' http://localhost:8081/fledge/user/<user_id>/password
     """
     if request.is_auth_optional:
         _logger.warning(FORBIDDEN_MSG)
         raise web.HTTPForbidden
 
-    username = request.match_info.get('username')
+    user_id = request.match_info.get('user_id')
     data = await request.json()
     current_password = data.get('current_password')
     new_password = data.get('new_password')
@@ -388,7 +419,7 @@ async def update_password(request):
         _logger.warning(msg)
         raise web.HTTPBadRequest(reason=msg)
 
-    user_id = await User.Objects.is_user_exists(username, current_password)
+    user_id = await User.Objects.is_user_exists(user_id, current_password)
     if not user_id:
         msg = 'Invalid current password'
         _logger.warning(msg)

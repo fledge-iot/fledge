@@ -260,6 +260,26 @@ class TestUserModel:
                 assert str(excinfo.value) == msg
             update_tbl_patch.assert_called_once_with('users', payload)
 
+    @pytest.mark.parametrize("user_data", [
+        {'real_name': 'MSD'}, {'description': 'Captain Cool'}, {'real_name': 'MSD', 'description': 'Captain Cool'}
+    ])
+    async def test_update_user_other_fields(self, user_data):
+        expected = {'response': 'updated', 'rows_affected': 1}
+        expected_payload = {'where': {'column': 'id', 'condition': '=', 'value': 2,
+                                      'and': {'column': 'enabled', 'condition': '=', 'value': 't'}}}
+        expected_payload.update({'values': user_data})
+        storage_client_mock = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'update_tbl', return_value=mock_coro(expected)) as update_tbl_patch:
+                with patch.object(User.Objects, 'delete_user_tokens', return_value=mock_coro()) as delete_token_patch:
+                    actual = await User.Objects.update(2, user_data)
+                    assert actual is True
+                delete_token_patch.assert_not_called()
+            args, kwargs = update_tbl_patch.call_args
+            assert 'users' == args[0]
+            p = json.loads(args[1])
+            assert expected_payload == p
+
     async def test_login_if_no_user_exists(self):
         async def mock_get_category_item():
             return {"value": "0"}

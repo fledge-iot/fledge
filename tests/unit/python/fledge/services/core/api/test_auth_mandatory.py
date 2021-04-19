@@ -269,16 +269,87 @@ class TestAuthMandatory:
             patch_validate_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
         patch_logger_info.assert_called_once_with('Received %s request for %s', 'POST', '/fledge/admin/user')
 
-    async def test_update_user(self, client, mocker):
-        patch_logger_info, patch_validate_token, patch_refresh_token, patch_user_get = self.auth_token_fixture(mocker)
-
-        resp = await client.put('/fledge/user/2', data=json.dumps({"a": 1}), headers=NORMAL_USER_HEADER)
-        assert 501 == resp.status
-        assert 'FOGL-1226' == resp.reason
-        patch_user_get.assert_called_once_with(uid=1)
+    async def test_bad_update_user(self, client, mocker):
+        u1 = {'role_id': '2', 'id': '2', 'uname': 'user', 'access_method': 'any', 'real_name': 'Normal',
+              'description': 'Normal User'}
+        msg = 'User does not exist'
+        patch_logger_info, patch_validate_token, patch_refresh_token, patch_user_get = self.auth_token_fixture(
+            mocker, is_admin=False)
+        with patch.object(User.Objects, 'get', side_effect=[mock_coro(u1), Exception(msg)]):
+            resp = await client.put('/fledge/user/blah', data=json.dumps({}), headers=NORMAL_USER_HEADER)
+            assert 404 == resp.status
+            assert msg == resp.reason
+            r = await resp.text()
+            assert {"message": msg} == json.loads(r)
         patch_refresh_token.assert_called_once_with(NORMAL_USER_HEADER['Authorization'])
         patch_validate_token.assert_called_once_with(NORMAL_USER_HEADER['Authorization'])
-        patch_logger_info.assert_called_once_with('Received %s request for %s', 'PUT', '/fledge/user/2')
+        patch_logger_info.assert_called_once_with('Received %s request for %s', 'PUT', '/fledge/user/blah')
+
+    async def test_bad_role_in_update_user(self, client, mocker):
+        u1 = {'role_id': '2', 'id': '2', 'uname': 'user', 'access_method': 'any', 'real_name': 'Normal',
+              'description': 'Normal User'}
+        msg = 'Invalid or bad role id'
+        patch_logger_info, patch_validate_token, patch_refresh_token, patch_user_get = self.auth_token_fixture(
+            mocker, is_admin=False)
+        with patch.object(User.Objects, 'get', side_effect=[mock_coro(u1), mock_coro(u1)]):
+            with patch.object(auth, 'is_valid_role', return_value=mock_coro(False)):
+                resp = await client.put('/fledge/user/blah', data=json.dumps({'role_id': 4}),
+                                        headers=NORMAL_USER_HEADER)
+                assert 400 == resp.status
+                assert msg == resp.reason
+                r = await resp.text()
+                assert {"message": msg} == json.loads(r)
+        patch_refresh_token.assert_called_once_with(NORMAL_USER_HEADER['Authorization'])
+        patch_validate_token.assert_called_once_with(NORMAL_USER_HEADER['Authorization'])
+        patch_logger_info.assert_called_once_with('Received %s request for %s', 'PUT', '/fledge/user/blah')
+
+    @pytest.mark.parametrize("payload, exp_result", [
+        ({"role_id": '1'}, {'role_id': '1', 'id': '2', 'uname': 'user', 'access_method': 'any'}),
+        ({"real_name": "Sat"}, {'role_id': '2', 'id': '2', 'uname': 'user', 'access_method': 'any',
+                                'real_name': 'Sat', 'description': 'Normal User'}),
+        ({"description": "test desc"}, {'role_id': '2', 'id': '2', 'uname': 'user', 'access_method': 'any',
+                                        'real_name': 'Normal', 'description': 'test desc'}),
+        ({"real_name": "Yamraj", "description": "test desc"}, {'role_id': '2', 'id': '2', 'uname': 'user',
+                                                               'access_method': 'any', 'real_name': 'Yamraj',
+                                                               'description': 'test desc'})
+    ])
+    async def test_update_user(self, client, mocker, payload, exp_result):
+        uid = 2
+        u1 = {'role_id': '2', 'id': str(uid), 'uname': 'user', 'access_method': 'any', 'real_name': 'Normal',
+              'description': 'Normal User'}
+        patch_logger_info, patch_validate_token, patch_refresh_token, patch_user_get = self.auth_token_fixture(
+            mocker, is_admin=False)
+        with patch.object(auth, 'is_valid_role', return_value=mock_coro(True)):
+            with patch.object(User.Objects, 'get', side_effect=[mock_coro(u1), mock_coro(u1), mock_coro(exp_result)]):
+                with patch.object(User.Objects, 'update', return_value=mock_coro(True)) as patch_update:
+                    resp = await client.put('/fledge/user/{}'.format(uid), data=json.dumps(payload),
+                                            headers=NORMAL_USER_HEADER)
+                    assert 200 == resp.status
+                    r = await resp.text()
+                    assert {"user_info": exp_result} == json.loads(r)
+                patch_update.assert_called_once_with(uid, payload)
+        patch_refresh_token.assert_called_once_with(NORMAL_USER_HEADER['Authorization'])
+        patch_validate_token.assert_called_once_with(NORMAL_USER_HEADER['Authorization'])
+        patch_logger_info.assert_called_once_with('Received %s request for %s', 'PUT', '/fledge/user/{}'.format(uid))
+
+    async def test_noting_to_update_in_update_user(self, client, mocker):
+        uid = 2
+        u1 = {'role_id': '2', 'id': str(uid), 'uname': 'user', 'access_method': 'any', 'real_name': 'Normal',
+              'description': 'Normal User'}
+        patch_logger_info, patch_validate_token, patch_refresh_token, patch_user_get = self.auth_token_fixture(
+            mocker, is_admin=False)
+        with patch.object(auth, 'is_valid_role', return_value=mock_coro(True)):
+            with patch.object(User.Objects, 'get', side_effect=[mock_coro(u1), mock_coro(u1)]):
+                with patch.object(User.Objects, 'update', return_value=mock_coro(False)) as patch_update:
+                    resp = await client.put('/fledge/user/{}'.format(uid), data=json.dumps({}),
+                                            headers=NORMAL_USER_HEADER)
+                    assert 200 == resp.status
+                    r = await resp.text()
+                    assert {"message": "Nothing to Update!"} == json.loads(r)
+                patch_update.assert_called_once_with(uid, {})
+        patch_refresh_token.assert_called_once_with(NORMAL_USER_HEADER['Authorization'])
+        patch_validate_token.assert_called_once_with(NORMAL_USER_HEADER['Authorization'])
+        patch_logger_info.assert_called_once_with('Received %s request for %s', 'PUT', '/fledge/user/{}'.format(uid))
 
     @pytest.mark.parametrize("request_data, msg", [
         ({}, "Current or new password is missing"),
@@ -293,27 +364,30 @@ class TestAuthMandatory:
         ({"current_password": "F0gl@mp", "new_password": 1}, "Password must contain at least one digit, one lowercase, one uppercase & one special character and length of minimum 6 characters")
     ])
     async def test_update_password_with_bad_data(self, client, request_data, msg):
+        uid = 2
         with patch.object(middleware._logger, 'info') as patch_logger_info:
             with patch.object(auth._logger, 'warning') as patch_logger_warning:
-                resp = await client.put('/fledge/user/aj/password', data=json.dumps(request_data))
+                resp = await client.put('/fledge/user/{}/password'.format(uid), data=json.dumps(request_data))
                 assert 400 == resp.status
                 assert msg == resp.reason
             patch_logger_warning.assert_called_once_with(msg)
-        patch_logger_info.assert_called_once_with('Received %s request for %s', 'PUT', '/fledge/user/aj/password')
+        patch_logger_info.assert_called_once_with('Received %s request for %s', 'PUT', '/fledge/user/{}/password'
+                                                  .format(uid))
 
     async def test_update_password_with_invalid_current_password(self, client):
         request_data = {"current_password": "blah", "new_password": "F0gl@mp"}
-        uname = 'aj'
+        uid = 2
         msg = 'Invalid current password'
         with patch.object(middleware._logger, 'info') as patch_logger_info:
             with patch.object(User.Objects, 'is_user_exists', return_value=mock_coro(None)) as patch_user_exists:
                 with patch.object(auth._logger, 'warning') as patch_logger_warning:
-                    resp = await client.put('/fledge/user/{}/password'.format(uname), data=json.dumps(request_data))
+                    resp = await client.put('/fledge/user/{}/password'.format(uid), data=json.dumps(request_data))
                     assert 404 == resp.status
                     assert msg == resp.reason
                 patch_logger_warning.assert_called_once_with(msg)
-            patch_user_exists.assert_called_once_with(uname, request_data['current_password'])
-        patch_logger_info.assert_called_once_with('Received %s request for %s', 'PUT', '/fledge/user/aj/password')
+            patch_user_exists.assert_called_once_with(str(uid), request_data['current_password'])
+        patch_logger_info.assert_called_once_with('Received %s request for %s', 'PUT', '/fledge/user/{}/password'
+                                                  .format(uid))
 
     @pytest.mark.parametrize("exception_name, status_code, msg", [
         (ValueError, 400, 'None'),
@@ -322,34 +396,36 @@ class TestAuthMandatory:
     ])
     async def test_update_password_exceptions(self, client, exception_name, status_code, msg):
         request_data = {"current_password": "fledge", "new_password": "F0gl@mp"}
-        uname = 'aj'
+        uid = 2
         with patch.object(middleware._logger, 'info') as patch_logger_info:
             with patch.object(User.Objects, 'is_user_exists', return_value=mock_coro(2)) as patch_user_exists:
                 with patch.object(User.Objects, 'update', side_effect=exception_name(msg)) as patch_update:
                     with patch.object(auth._logger, 'warning') as patch_logger_warning:
-                        resp = await client.put('/fledge/user/{}/password'.format(uname), data=json.dumps(request_data))
+                        resp = await client.put('/fledge/user/{}/password'.format(uid), data=json.dumps(request_data))
                         assert status_code == resp.status
                         assert msg == resp.reason
                     patch_logger_warning.assert_called_once_with(msg)
                 patch_update.assert_called_once_with(2, {'password': request_data['new_password']})
-            patch_user_exists.assert_called_once_with(uname, request_data['current_password'])
-        patch_logger_info.assert_called_once_with('Received %s request for %s', 'PUT', '/fledge/user/aj/password')
+            patch_user_exists.assert_called_once_with(str(uid), request_data['current_password'])
+        patch_logger_info.assert_called_once_with('Received %s request for %s', 'PUT', '/fledge/user/{}/password'
+                                                  .format(uid))
 
     async def test_update_password_unknown_exception(self, client):
         request_data = {"current_password": "fledge", "new_password": "F0gl@mp"}
-        uname = 'aj'
+        uid = 2
         msg = 'Something went wrong'
         with patch.object(middleware._logger, 'info') as patch_logger_info:
             with patch.object(User.Objects, 'is_user_exists', return_value=mock_coro(2)) as patch_user_exists:
                 with patch.object(User.Objects, 'update', side_effect=Exception(msg)) as patch_update:
                     with patch.object(auth._logger, 'exception') as patch_logger_exception:
-                        resp = await client.put('/fledge/user/{}/password'.format(uname), data=json.dumps(request_data))
+                        resp = await client.put('/fledge/user/{}/password'.format(uid), data=json.dumps(request_data))
                         assert 500 == resp.status
                         assert msg == resp.reason
                     patch_logger_exception.assert_called_once_with(msg)
                 patch_update.assert_called_once_with(2, {'password': request_data['new_password']})
-            patch_user_exists.assert_called_once_with(uname, request_data['current_password'])
-        patch_logger_info.assert_called_once_with('Received %s request for %s', 'PUT', '/fledge/user/aj/password')
+            patch_user_exists.assert_called_once_with(str(uid), request_data['current_password'])
+        patch_logger_info.assert_called_once_with('Received %s request for %s', 'PUT', '/fledge/user/{}/password'
+                                                  .format(uid))
 
     async def test_update_password(self, client):
         request_data = {"current_password": "fledge", "new_password": "F0gl@mp"}
@@ -361,14 +437,15 @@ class TestAuthMandatory:
             with patch.object(User.Objects, 'is_user_exists', return_value=mock_coro(user_id)) as patch_user_exists:
                 with patch.object(User.Objects, 'update', return_value=mock_coro(ret_val)) as patch_update:
                     with patch.object(auth._logger, 'info') as patch_auth_logger_info:
-                        resp = await client.put('/fledge/user/{}/password'.format(uname), data=json.dumps(request_data))
+                        resp = await client.put('/fledge/user/{}/password'.format(user_id), data=json.dumps(request_data))
                         assert 200 == resp.status
                         r = await resp.text()
                         assert {'message': msg} == json.loads(r)
                     patch_auth_logger_info.assert_called_once_with(msg)
                 patch_update.assert_called_once_with(user_id, {'password': request_data['new_password']})
-            patch_user_exists.assert_called_once_with(uname, request_data['current_password'])
-        patch_logger_info.assert_called_once_with('Received %s request for %s', 'PUT', '/fledge/user/aj/password')
+            patch_user_exists.assert_called_once_with(str(user_id), request_data['current_password'])
+        patch_logger_info.assert_called_once_with('Received %s request for %s', 'PUT', '/fledge/user/{}/password'
+                                                  .format(user_id))
 
     @pytest.mark.parametrize("request_data", [
         'blah',
@@ -742,7 +819,6 @@ class TestAuthMandatory:
             with patch.object(server.Server, "auth_method", auth_method) as patch_auth_method:
                 req_data = request_data
                 resp = await client.post('/fledge/login', data=req_data, headers=TEXT_HEADER)
-                print(resp.text)
                 assert 401 == resp.status
                 actual = await resp.text()
                 assert "401: {}".format(expected) == actual

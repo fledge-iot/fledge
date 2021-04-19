@@ -153,11 +153,15 @@ class User:
             Returns:
                   updated user info dict
             """
-
+            if not user_data:
+                return False
             kwargs = dict()
+            if 'real_name' in user_data:
+                kwargs.update({"real_name": user_data['real_name']})
+            if 'description' in user_data:
+                kwargs.update({"description": user_data['description']})
             if 'role_id' in user_data:
                 kwargs.update({"role_id": user_data['role_id']})
-
             storage_client = connect.get_storage_async()
 
             hashed_pwd = None
@@ -176,13 +180,14 @@ class User:
                 result = await storage_client.update_tbl("users", payload)
                 if result['rows_affected']:
                     # FIXME: FOGL-1226 active session delete only in case of role_id and password updation
-
-                    # delete all active sessions
-                    await cls.delete_user_tokens(user_id)
+                    if 'password' in user_data or 'role_id' in user_data:
+                        # delete all active sessions
+                        await cls.delete_user_tokens(user_id)
 
                     if 'password' in user_data:
                         # insert pwd history and delete oldest pwd if USED_PASSWORD_HISTORY_COUNT exceeds
-                        await cls._insert_pwd_history_with_oldest_pwd_deletion_if_count_exceeds(storage_client, user_id, hashed_pwd, pwd_history_list)
+                        await cls._insert_pwd_history_with_oldest_pwd_deletion_if_count_exceeds(
+                            storage_client, user_id, hashed_pwd, pwd_history_list)
 
                     return True
             except StorageServerError as ex:

@@ -128,33 +128,35 @@ Possible solutions to common problems
         - create a new **DISABLED** north instance using a new, unique name and having the same AF hierarchy as the 1st north instance
         - install *fledge-filter-asset* on the new north instance
         - configure *fledge-filter-asset* with a rule like the following one
+
+          .. code-block:: JSON
+
+              {
+                "rules": [
+                  {
+                    "asset_name": "asset_4",
+                    "action": "include"
+                  }
+                ],
+                "defaultAction": "exclude"
+              }
+
         - enable the 2nd north instance
         - let the  2nd north instance send the desired amount of data and then disable it
         - enable the 1st north instance
 
-    consideration:
+    note:
         - the 2nd north instance will be used only to recreate the objects and resend the data
         - the 2nd north instance will resend all the data available for the specified *included* assets
         - there will some data duplicated for the recreated assets because part of the information will be managed by both the north instances
 
-.. code-block:: JSON
-
-    {
-      "rules": [
-        {
-          "asset_name": "asset_4",
-          "action": "include"
-        }
-      ],
-      "defaultAction": "exclude"
-    }
 
 **Recreate all the PI-Server objets and resend all the data to the PI Server on a different Asset Framework hierarchy level**
     procedure:
         - disable the 1st north instance
         - create a new north instance using a new, unique name and having a new AF hierarchy (North option 'Asset Framework hierarchies tree')
 
-    consideration:
+    note:
         - this solution will create a set of new objects unrelated to the previous ones
         - all the data stored in Fledge will be sent
 
@@ -165,7 +167,7 @@ Possible solutions to common problems
         - stop / start PI Web API
         - create a new north instance 2nd using the same AF hierarchy (North option 'Asset Framework hierarchies tree)
 
-    consideration:
+    note:
         - all the types will be recreated on the PI-Server. If the structure of each asset, number and types of the properties, does not change the data will be accepted and laced into the PI Server without any error. PI Web API 2019 SP1 1.13.0.6518 will accept the data.
         - Using PI Web API 2019 SP1 1.13.0.6518 the PI-Server creates objects with the compression feature disabled. This will cause any data that was previously loaded and is still present in the Data Archive, to be duplicated.
 
@@ -177,6 +179,6 @@ Possible solutions to common problems
         - stop / start PI Web API
         - create a new north instance using the same AF hierarchy (North option 'Asset Framework hierarchies' tree)
 
-    consideration:
+    note:
         - all the data stored in Fledge will be sent
 

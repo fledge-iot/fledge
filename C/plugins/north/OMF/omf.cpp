@@ -3201,22 +3201,7 @@ void OMF::incrementAssetTypeIdOnly(const std::string& keyComplete)
  */
 unsigned long OMF::calcTypeShort(const Reading& row)
 {
-	union t_typeCount {
-		struct
-		{
-			unsigned char tTotal;
-			unsigned char tFloat;
-			unsigned char tString;
-			unsigned char spare0;
-
-			unsigned char spare1;
-			unsigned char spare2;
-			unsigned char spare3;
-			unsigned char spare4;
-		} cnt;
-		unsigned long valueLong = 0;
-
-	} typeCount;
+	t_typeCount typeCount;
 
 	int type;
 
@@ -3461,6 +3446,9 @@ bool OMF::getCreatedTypes(const string& keyComplete, const Reading& row, OMFHint
 	bool ret = false;
 	bool found = false;
 
+	t_typeCount typeStored;
+	t_typeCount typeNew;
+
 	if (!m_OMFDataTypes)
 	{
 		ret = false;
@@ -3501,8 +3489,13 @@ bool OMF::getCreatedTypes(const string& keyComplete, const Reading& row, OMFHint
 								datatypeStructure = (*itSuper).second;
 
 								// Check if the types are changed
-								typesDefinition = calcTypeShort(*datatypeStructure);
-								if (type.typesShort != typesDefinition)
+								typeStored.valueLong = type.typesShort;
+								typeNew.valueLong = calcTypeShort(*datatypeStructure);
+
+								if (typeNew.cnt.tTotal  > typeStored.cnt.tTotal ||
+									typeNew.cnt.tFloat  > typeStored.cnt.tFloat ||
+									typeNew.cnt.tString > typeStored.cnt.tString
+									)
 								{
 									ret = false;
 								}

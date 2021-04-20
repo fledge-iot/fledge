@@ -265,6 +265,22 @@ private:
 		bool HandleAFMapMetedata(Document& JSon);
 
 	private:
+		union t_typeCount {
+			struct
+			{
+				unsigned char tTotal;
+				unsigned char tFloat;
+				unsigned char tString;
+				unsigned char spare0;
+
+				unsigned char spare1;
+				unsigned char spare2;
+				unsigned char spare3;
+				unsigned char spare4;
+			} cnt;
+			unsigned long valueLong = 0;
+		};
+
 		std::string	        m_assetName;
 		const std::string	m_path;
 		long			    m_typeId;

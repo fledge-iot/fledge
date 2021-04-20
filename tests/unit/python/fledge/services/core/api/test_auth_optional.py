@@ -82,7 +82,6 @@ class TestAuthOptional:
         with patch.object(middleware._logger, 'info') as patch_logger_info:
             with patch.object(User.Objects, 'get', return_value=mock_coro(result)) as patch_user_obj:
                 resp = await client.get('/fledge/user{}'.format(request_params))
-                print(resp.reason)
                 assert 200 == resp.status
                 r = await resp.text()
                 actual = json.loads(r)
@@ -235,6 +234,15 @@ class TestAuthOptional:
                 assert FORBIDDEN == resp.reason
             patch_logger_warning.assert_called_once_with(WARN_MSG)
         patch_logger_info.assert_called_once_with('Received %s request for %s', 'POST', '/fledge/admin/user')
+
+    async def test_enable_user(self, client):
+        with patch.object(middleware._logger, 'info') as patch_logger_info:
+            with patch.object(auth._logger, 'warning') as patch_logger_warning:
+                resp = await client.put('/fledge/admin/2/enabled')
+                assert 403 == resp.status
+                assert FORBIDDEN == resp.reason
+            patch_logger_warning.assert_called_once_with(WARN_MSG)
+        patch_logger_info.assert_called_once_with('Received %s request for %s', 'PUT', '/fledge/admin/2/enabled')
 
     async def test_reset(self, client):
         with patch.object(middleware._logger, 'info') as patch_logger_info:

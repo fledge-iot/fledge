@@ -6,12 +6,14 @@
 
 import asyncio
 import json
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 from aiohttp import web
 import pytest
 
 from fledge.common.web import middleware
 from fledge.services.core import routes
+from fledge.services.core import connect
+from fledge.common.storage_client.storage_client import StorageClientAsync
 from fledge.services.core.user_model import User
 from fledge.services.core.api import auth
 from fledge.services.core import server
@@ -638,6 +640,84 @@ class TestAuthMandatory:
         patch_refresh_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
         patch_validate_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
         patch_logger_info.assert_called_once_with('Received %s request for %s', 'PUT', '/fledge/logout')
+
+    async def test_enable_with_super_admin_user(self, client, mocker):
+        msg = 'Restricted for Super Admin user'
+        patch_logger_info, patch_validate_token, patch_refresh_token, patch_user_get = self.auth_token_fixture(mocker)
+        with patch.object(User.Objects, 'get_role_id_by_name', return_value=mock_coro([{'id': '1'}])) as patch_role_id:
+            with patch.object(auth._logger, 'warning') as patch_logger_warning:
+                resp = await client.put('/fledge/admin/1/enabled', data=json.dumps({'role_id': 2}),
+                                        headers=ADMIN_USER_HEADER)
+                assert 406 == resp.status
+                assert msg == resp.reason
+                r = await resp.text()
+                assert {'message': msg} == json.loads(r)
+            patch_logger_warning.assert_called_once_with(msg)
+        patch_role_id.assert_called_once_with('admin')
+        patch_user_get.assert_called_once_with(uid=1)
+        patch_refresh_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
+        patch_validate_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
+        patch_logger_info.assert_called_once_with('Received %s request for %s', 'PUT', '/fledge/admin/1/enabled')
+
+    @pytest.mark.parametrize("request_data, msg", [
+        ({}, "Nothing to enable user update"),
+        ({"enable": 1}, "Nothing to enable user update"),
+        ({"enabled": 1}, "Accepted values are True/False only"),
+    ])
+    async def test_enable_with_bad_data(self, client, mocker, request_data, msg):
+        patch_logger_info, patch_validate_token, patch_refresh_token, patch_user_get = self.auth_token_fixture(mocker)
+
+        with patch.object(User.Objects, 'get_role_id_by_name', return_value=mock_coro([{'id': '1'}])) as patch_role_id:
+            with patch.object(auth._logger, 'warning') as patch_logger_warning:
+                resp = await client.put('/fledge/admin/2/enabled', data=json.dumps(request_data),
+                                        headers=ADMIN_USER_HEADER)
+                assert 400 == resp.status
+                assert msg == resp.reason
+                r = await resp.text()
+                assert {'message': msg} == json.loads(r)
+            patch_logger_warning.assert_called_once_with(msg)
+        patch_role_id.assert_called_once_with('admin')
+        patch_user_get.assert_called_once_with(uid=1)
+        patch_refresh_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
+        patch_validate_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
+        patch_logger_info.assert_called_once_with('Received %s request for %s', 'PUT', '/fledge/admin/2/enabled')
+
+    @pytest.mark.parametrize("request_data", [
+        {"enabled": 'true'}, {"enabled": 'True'}, {"enabled": 'TRUE'}, {"enabled": 'tRUe'},
+        {"enabled": 'false'}, {"enabled": 'False'}, {"enabled": 'FALSE'}, {"enabled": 'fAlSe'}
+    ])
+    async def test_enable_user(self, client, mocker, request_data):
+        uid = 2
+        user_record = {'rows': [{'id': uid, 'role_id': '1', 'uname': 'AJ'}], 'count': 1}
+        update_user_record = {'rows': [{'id': uid, 'role_id': '1', 'uname': 'AJ', 'enabled': request_data['enabled']}
+                                       ], 'count': 1}
+        _text, _enable, _payload = ('enabled', 't', '{"values": {"enabled": "t"}, '
+                                                    '"where": {"column": "id", "condition": "=", "value": "2"}}') \
+            if str(request_data['enabled']).lower() == 'true' else (
+            'disabled', 'f', '{"values": {"enabled": "f"}, "where": {"column": "id", "condition": "=", "value": "2"}}')
+        patch_logger_info, patch_validate_token, patch_refresh_token, patch_user_get = self.auth_token_fixture(mocker)
+        storage_client_mock = MagicMock(StorageClientAsync)
+        with patch.object(User.Objects, 'get_role_id_by_name', return_value=mock_coro([{'id': '1'}])) as patch_role_id:
+            with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+                with patch.object(storage_client_mock, 'query_tbl_with_payload',
+                                  side_effect=[mock_coro(user_record),
+                                               mock_coro(update_user_record)]) as query_tbl_patch:
+                    resp = await client.put('/fledge/admin/{}/enabled'.format(uid), data=json.dumps(request_data),
+                                            headers=ADMIN_USER_HEADER)
+                    assert 200 == resp.status
+                    r = await resp.text()
+                    assert {"message": "User with id:<2> has been {} successfully".format(_text)} == json.loads(r)
+                assert 2 == query_tbl_patch.call_count
+                args, kwargs = query_tbl_patch.call_args_list[0]
+                assert ('users', '{"return": ["id", "uname", "role_id", "enabled"], '
+                                 '"where": {"column": "id", "condition": "=", "value": "2"}}') == args
+                args, kwargs = query_tbl_patch.call_args_list[1]
+                assert ('users', _payload) == args
+        patch_role_id.assert_called_once_with('admin')
+        patch_user_get.assert_called_once_with(uid=1)
+        patch_refresh_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
+        patch_validate_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
+        patch_logger_info.assert_called_once_with('Received %s request for %s', 'PUT', '/fledge/admin/2/enabled')
 
     async def test_reset_super_admin(self, client, mocker):
         msg = 'Restricted for Super Admin user'

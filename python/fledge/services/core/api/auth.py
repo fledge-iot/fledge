@@ -35,6 +35,7 @@ _help = """
     | PUT                        | /fledge/{user_id}/logout                           |
     
     | POST                       | /fledge/admin/user                                 |
+    | PUT                        | /fledge/admin/{user_id}/enabled                    |
     | PUT                        | /fledge/admin/{user_id}/reset                      |
     | DELETE                     | /fledge/admin/{user_id}/delete                     |
     ------------------------------------------------------------------------------------
@@ -445,6 +446,58 @@ async def update_password(request):
     _logger.info("Password has been updated successfully for user id:<{}>".format(int(user_id)))
 
     return web.json_response({'message': 'Password has been updated successfully for user id:<{}>'.format(int(user_id))})
+
+
+@has_permission("admin")
+async def enable_user(request):
+    """ enabled/disabled user
+        :Example:
+            curl -H "authorization: <token>" -X PUT -d '{"enabled": "true"}' http://localhost:8081/fledge/admin/{user_id}/enabled
+            curl -H "authorization: <token>" -X PUT -d '{"enabled": "False"}' http://localhost:8081/fledge/admin/{user_id}/enabled
+    """
+    if request.is_auth_optional:
+        _logger.warning(FORBIDDEN_MSG)
+        raise web.HTTPForbidden
+
+    user_id = request.match_info.get('user_id')
+    if int(user_id) == 1:
+        msg = "Restricted for Super Admin user"
+        _logger.warning(msg)
+        raise web.HTTPNotAcceptable(reason=msg, body=json.dumps({"message": msg}))
+
+    data = await request.json()
+    enabled = data.get('enabled')
+    try:
+        if enabled is not None:
+            if str(enabled).lower() in ['true', 'false']:
+                user_data = {'enabled': 't' if str(enabled).lower() == 'true' else 'f'}
+                from fledge.services.core import connect
+                from fledge.common.storage_client.payload_builder import PayloadBuilder
+                payload = PayloadBuilder().SELECT("id", "uname", "role_id", "enabled").WHERE(
+                    ['id', '=', user_id]).payload()
+                storage_client = connect.get_storage_async()
+                result = await storage_client.query_tbl_with_payload('users', payload)
+                if len(result['rows']) == 0:
+                    raise User.DoesNotExist
+                payload = PayloadBuilder().SET(enabled=user_data['enabled']).WHERE(['id', '=', user_id]).payload()
+                result = await storage_client.query_tbl_with_payload('users', payload)
+                if len(result['rows']) == 0:
+                    raise ValueError('Something went wrong during update. Check Syslogs')
+                _text = 'enabled' if user_data['enabled'] == 't' else 'disabled'
+            else:
+                raise ValueError('Accepted values are True/False only')
+        else:
+            raise ValueError('Nothing to enable user update')
+    except ValueError as err:
+        msg = str(err)
+        raise web.HTTPBadRequest(reason=str(err), body=json.dumps({"message": msg}))
+    except User.DoesNotExist:
+        msg = "User with id:<{}> does not exist".format(int(user_id))
+        raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
+    except Exception as exc:
+        msg = str(exc)
+        raise web.HTTPInternalServerError(reason=str(exc), body=json.dumps({"message": msg}))
+    return web.json_response({'message': 'User with id:<{}> has been {} successfully'.format(int(user_id), _text)})
 
 
 @has_permission("admin")

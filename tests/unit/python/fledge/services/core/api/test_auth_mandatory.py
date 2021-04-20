@@ -668,14 +668,12 @@ class TestAuthMandatory:
         patch_logger_info, patch_validate_token, patch_refresh_token, patch_user_get = self.auth_token_fixture(mocker)
 
         with patch.object(User.Objects, 'get_role_id_by_name', return_value=mock_coro([{'id': '1'}])) as patch_role_id:
-            with patch.object(auth._logger, 'warning') as patch_logger_warning:
-                resp = await client.put('/fledge/admin/2/enabled', data=json.dumps(request_data),
-                                        headers=ADMIN_USER_HEADER)
-                assert 400 == resp.status
-                assert msg == resp.reason
-                r = await resp.text()
-                assert {'message': msg} == json.loads(r)
-            patch_logger_warning.assert_called_once_with(msg)
+            resp = await client.put('/fledge/admin/2/enabled', data=json.dumps(request_data),
+                                    headers=ADMIN_USER_HEADER)
+            assert 400 == resp.status
+            assert msg == resp.reason
+            r = await resp.text()
+            assert {'message': msg} == json.loads(r)
         patch_role_id.assert_called_once_with('admin')
         patch_user_get.assert_called_once_with(uid=1)
         patch_refresh_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])

@@ -20,10 +20,9 @@ UNAME=`uname -m`
 VERSION_ID=$(cat /etc/os-release | grep -w VERSION_ID | cut -f2 -d"=" |  tr -d '"')
 echo "version id is "${VERSION_ID}
 
-if [[ ${ID} = "ubuntu" && ${VERSION_ID} = "16.04" ]]; then
-    ID="ubuntu1604";
-elif [[ ${ID} = "ubuntu" && ${VERSION_ID} = "18.04" ]]; then
-    ID="ubuntu1804";
+if [[ ${ID} = "ubuntu" ]]; then
+    VERSION_ID=$(echo "${VERSION_ID//.}")
+    ID="ubuntu${VERSION_ID}";
 elif [[ ${ID} = "raspbian" ]]; then
     ID=$(cat /etc/os-release | grep VERSION_CODENAME | cut -f2 -d"=")
     UNAME="armv7l"

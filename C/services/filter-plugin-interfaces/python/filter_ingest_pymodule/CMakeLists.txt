@@ -13,7 +13,11 @@ file(GLOB SOURCES ingest_callback_pymodule.cpp ../../../common-plugin-interfaces
 
 # Find Python 3.5 or higher dev/lib/interp package
 #find_package(PythonInterp 3.5 REQUIRED)
-pkg_check_modules(PYTHON REQUIRED python3)
+if(${CMAKE_VERSION} VERSION_LESS "3.12.0") 
+    pkg_check_modules(PYTHON REQUIRED python3)
+else()
+    find_package(Python COMPONENTS Interpreter Development)
+endif()
 
 # Include header files
 include_directories(include)
@@ -23,9 +27,17 @@ include_directories(../../../../services/south/include)
 include_directories(../../../../thirdparty/rapidjson/include)
 
 # Add Python 3.x header files
-include_directories(${PYTHON_INCLUDE_DIRS})
+if(${CMAKE_VERSION} VERSION_LESS "3.12.0") 
+    include_directories(${PYTHON_INCLUDE_DIRS})
+else()
+    include_directories(${Python_INCLUDE_DIRS})
+endif()
 
-link_directories(${PYTHON_LIBRARY_DIRS})
+if(${CMAKE_VERSION} VERSION_LESS "3.12.0") 
+    link_directories(${PYTHON_LIBRARY_DIRS})
+else()
+    link_directories(${Python_LIBRARY_DIRS})
+endif()
 link_directories(${PROJECT_BINARY_DIR}/../../../../lib)
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/../../../../../../python)
@@ -34,7 +46,11 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/../../../../../../pytho
 add_library(${PROJECT_NAME} SHARED ${SOURCES})
 
 # Add Python 3.x library
-target_link_libraries(${PROJECT_NAME} ${PYTHON_LIBRARIES})
+if(${CMAKE_VERSION} VERSION_LESS "3.12.0") 
+    target_link_libraries(${PROJECT_NAME} ${PYTHON_LIBRARIES})
+else()
+    target_link_libraries(${PROJECT_NAME} ${Python_LIBRARIES})
+endif()
 
 target_link_libraries(${PROJECT_NAME} ${DLLIB})
 target_link_libraries(${PROJECT_NAME} ${COMMON_LIB})

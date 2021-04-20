@@ -1,5 +1,5 @@
 # Common - REST interface
-aiohttp==3.6.2
+aiohttp==3.7.4
 aiohttp_cors==0.7.0
 cchardet==2.1.4
 yarl==1.5.1

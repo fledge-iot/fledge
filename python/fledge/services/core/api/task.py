@@ -315,6 +315,10 @@ async def delete_task(request):
         # delete statistics key
         await delete_statistics_key(storage, north_instance)
 
+        #// FIXME_I:
+        await delete_streams(storage, north_instance)
+        await delete_plugin_data(storage, north_instance)
+
     except Exception as ex:
         raise web.HTTPInternalServerError(reason=ex)
     else:
@@ -340,6 +344,7 @@ async def check_schedules(storage, schedule_name):
 
 
 async def delete_statistics_key(storage, key):
+    _logger.error("xxx statistics {} ".format(key))
     payload = PayloadBuilder().WHERE(['key', '=', key]).payload()
     await storage.delete_from_tbl('statistics', payload)
 
@@ -347,3 +352,16 @@ async def delete_statistics_key(storage, key):
 async def delete_task_entry_with_schedule_id(storage, sch_id):
     payload = PayloadBuilder().WHERE(["schedule_id", "=", str(sch_id)]).payload()
     await storage.delete_from_tbl("tasks", payload)
+
+async def delete_streams(storage, north_instance):
+    ##// FIXME_I:
+    _logger.error("xxx delete_streams {} ".format(north_instance))
+    payload = PayloadBuilder().WHERE(["description", "=", north_instance]).payload()
+    await storage.delete_from_tbl("streams", payload)
+
+async def delete_plugin_data(storage, north_instance):
+    ##// FIXME_I:
+    _logger.error("xxx delete_plugin_data {} ".format(north_instance))
+    payload = PayloadBuilder().WHERE(["key", "=", north_instance + "OMF"]).payload()
+    #payload = PayloadBuilder().WHERE(["key", "LIKE", north_instance + "%"]).payload()
+    await storage.delete_from_tbl("plugin_data", payload)

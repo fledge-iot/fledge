@@ -687,8 +687,10 @@ class TestAuthMandatory:
     async def test_enable_user(self, client, mocker, request_data):
         uid = 2
         user_record = {'rows': [{'id': uid, 'role_id': '1', 'uname': 'AJ'}], 'count': 1}
-        update_user_record = {'rows': [{'id': uid, 'role_id': '1', 'uname': 'AJ', 'enabled': request_data['enabled']}
-                                       ], 'count': 1}
+        update_user_record = {'rows': [{'id': uid, 'role_id': '1', 'uname': 'AJ', 'enabled': request_data['enabled']}],
+                              'count': 1}
+        update_result = {"rows_affected": 1, "response": "updated"}
+        update_payload = '{"values": {"enabled": "t"}, "where": {"column": "id", "condition": "=", "value": "2"}}'
         _text, _enable, _payload = ('enabled', 't', '{"values": {"enabled": "t"}, '
                                                     '"where": {"column": "id", "condition": "=", "value": "2"}}') \
             if str(request_data['enabled']).lower() == 'true' else (
@@ -698,20 +700,23 @@ class TestAuthMandatory:
         with patch.object(User.Objects, 'get_role_id_by_name', return_value=mock_coro([{'id': '1'}])) as patch_role_id:
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
                 with patch.object(storage_client_mock, 'query_tbl_with_payload',
-                                  side_effect=[mock_coro(user_record),
-                                               mock_coro(update_user_record)]) as query_tbl_patch:
-                    resp = await client.put('/fledge/admin/{}/enabled'.format(uid), data=json.dumps(request_data),
-                                            headers=ADMIN_USER_HEADER)
-                    assert 200 == resp.status
-                    r = await resp.text()
-                    assert {"message": "User with id:<2> has been {} successfully".format(_text)} == json.loads(r)
-                assert 2 == query_tbl_patch.call_count
-                args, kwargs = query_tbl_patch.call_args_list[0]
+                                  side_effect=[mock_coro(user_record), mock_coro(update_user_record)]) as q_tbl_patch:
+                    with patch.object(storage_client_mock, 'update_tbl',
+                                      return_value=mock_coro(update_result)) as update_tbl_patch:
+                        resp = await client.put('/fledge/admin/{}/enabled'.format(uid), data=json.dumps(request_data),
+                                                headers=ADMIN_USER_HEADER)
+                        assert 200 == resp.status
+                        r = await resp.text()
+                        assert {"message": "User with id:<2> has been {} successfully".format(_text)} == json.loads(r)
+                    update_tbl_patch.assert_called_once_with('users', _payload)
+                assert 2 == q_tbl_patch.call_count
+                args, kwargs = q_tbl_patch.call_args_list[0]
                 assert ('users', '{"return": ["id", "uname", "role_id", "enabled"], '
                                  '"where": {"column": "id", "condition": "=", "value": "2"}}') == args
-                args, kwargs = query_tbl_patch.call_args_list[1]
-                assert ('users', _payload) == args
-        patch_role_id.assert_called_once_with('admin')
+                args, kwargs = q_tbl_patch.call_args_list[1]
+                assert ('users', '{"return": ["id", "uname", "role_id", "enabled"], '
+                                 '"where": {"column": "id", "condition": "=", "value": "2"}}') == args
+            patch_role_id.assert_called_once_with('admin')
         patch_user_get.assert_called_once_with(uid=1)
         patch_refresh_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
         patch_validate_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])

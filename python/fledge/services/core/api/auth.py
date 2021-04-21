@@ -400,6 +400,12 @@ async def update_password(request):
         raise web.HTTPForbidden
 
     user_id = request.match_info.get('user_id')
+    try:
+        int(user_id)
+    except ValueError:
+        msg = "User id should be in integer"
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+
     data = await request.json()
     current_password = data.get('current_password')
     new_password = data.get('new_password')
@@ -470,9 +476,9 @@ async def enable_user(request):
     try:
         if enabled is not None:
             if str(enabled).lower() in ['true', 'false']:
-                user_data = {'enabled': 't' if str(enabled).lower() == 'true' else 'f'}
                 from fledge.services.core import connect
                 from fledge.common.storage_client.payload_builder import PayloadBuilder
+                user_data = {'enabled': 't' if str(enabled).lower() == 'true' else 'f'}
                 payload = PayloadBuilder().SELECT("id", "uname", "role_id", "enabled").WHERE(
                     ['id', '=', user_id]).payload()
                 storage_client = connect.get_storage_async()
@@ -480,10 +486,16 @@ async def enable_user(request):
                 if len(result['rows']) == 0:
                     raise User.DoesNotExist
                 payload = PayloadBuilder().SET(enabled=user_data['enabled']).WHERE(['id', '=', user_id]).payload()
-                result = await storage_client.query_tbl_with_payload('users', payload)
-                if len(result['rows']) == 0:
+                result = await storage_client.update_tbl("users", payload)
+                if result['response'] == 'updated':
+                    _text = 'enabled' if user_data['enabled'] == 't' else 'disabled'
+                    payload = PayloadBuilder().SELECT("id", "uname", "role_id", "enabled").WHERE(
+                        ['id', '=', user_id]).payload()
+                    result = await storage_client.query_tbl_with_payload('users', payload)
+                    if len(result['rows']) == 0:
+                        raise User.DoesNotExist
+                else:
                     raise ValueError('Something went wrong during update. Check Syslogs')
-                _text = 'enabled' if user_data['enabled'] == 't' else 'disabled'
             else:
                 raise ValueError('Accepted values are True/False only')
         else:

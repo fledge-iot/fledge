@@ -496,24 +496,29 @@ class TestUserModel:
         delete_tbl_patch.assert_called_once_with('user_logins')
 
     async def test_no_user_exists(self):
+        expected_payload = '{"return": ["uname", "pwd"], "where": {"column": "id", "condition": "=", "value": 2, ' \
+                           '"and": {"column": "enabled", "condition": "=", "value": "t"}}}'
         storage_client_mock = MagicMock(StorageClientAsync)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=mock_coro({'rows': []})) as query_tbl_patch:
-                result = await User.Objects.is_user_exists('blah', 'blah')
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=mock_coro(
+                    {'rows': []})) as query_tbl_patch:
+                result = await User.Objects.is_user_exists(2, 'blah')
                 assert result is None
-            query_tbl_patch.assert_called_once_with('users', '{"return": ["id", "pwd"], "where": {"column": "uname", "condition": "=", "value": "blah", "and": {"column": "enabled", "condition": "=", "value": "t"}}}')
+            query_tbl_patch.assert_called_once_with('users', expected_payload)
 
     @pytest.mark.parametrize("ret_val_check_pwd, expected", [(True, 1), (False, None)])
     async def test_user_exists(self, ret_val_check_pwd, expected):
+        expected_payload = '{"return": ["uname", "pwd"], "where": {"column": "id", "condition": "=", "value": 1, ' \
+                           '"and": {"column": "enabled", "condition": "=", "value": "t"}}}'
         storage_client_mock = MagicMock(StorageClientAsync)
         ret_val = {'rows': [{'id': 1, 'pwd': 'HASHED_PWD'}]}
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=mock_coro(ret_val)) as query_tbl_patch:
                 with patch.object(User.Objects, 'check_password', return_value=ret_val_check_pwd) as check_pwd_patch:
-                    actual = await User.Objects.is_user_exists('admin', 'admin')
+                    actual = await User.Objects.is_user_exists(1, 'admin')
                     assert expected == actual
                 check_pwd_patch.assert_called_once_with(ret_val['rows'][0]['pwd'], 'admin')
-            query_tbl_patch.assert_called_once_with('users', '{"return": ["id", "pwd"], "where": {"column": "uname", "condition": "=", "value": "admin", "and": {"column": "enabled", "condition": "=", "value": "t"}}}')
+            query_tbl_patch.assert_called_once_with('users', expected_payload)
 
     async def test__get_password_history(self):
         storage_client_mock = MagicMock(StorageClientAsync)

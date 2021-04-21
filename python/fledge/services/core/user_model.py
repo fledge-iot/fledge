@@ -198,8 +198,8 @@ class User:
                 raise
 
         @classmethod
-        async def is_user_exists(cls, username, password):
-            payload = PayloadBuilder().SELECT("id", "pwd").WHERE(['uname', '=', username]).AND_WHERE(
+        async def is_user_exists(cls, uid, password):
+            payload = PayloadBuilder().SELECT("uname", "pwd").WHERE(['id', '=', uid]).AND_WHERE(
                 ['enabled', '=', 't']).payload()
             storage_client = connect.get_storage_async()
             result = await storage_client.query_tbl_with_payload('users', payload)
@@ -208,7 +208,7 @@ class User:
 
             found_user = result['rows'][0]
             is_valid_pwd = cls.check_password(found_user['pwd'], str(password))
-            return result['rows'][0]['id'] if is_valid_pwd else None
+            return uid if is_valid_pwd else None
 
         # utility
         @classmethod

@@ -315,7 +315,6 @@ async def delete_task(request):
         # delete statistics key
         await delete_statistics_key(storage, north_instance)
 
-        #// FIXME_I:
         await delete_streams(storage, north_instance)
         await delete_plugin_data(storage, north_instance)
 

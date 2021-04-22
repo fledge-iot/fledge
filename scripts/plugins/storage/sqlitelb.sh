@@ -16,16 +16,12 @@
 ## limitations under the License.
 ##--------------------------------------------------------------------
 
-# Script input parameters
-# $1 is action (start|stop|status|init|reset|purge|help)
-# $2 is db schema (i.e 35)
-
 __author__="Massimiliano Pinto"
 __version__="1.0"
 
 set -e
 
-PLUGIN="sqlite"
+PLUGIN="sqlitelb"
 
 # Set default DB file
 if [ ! "${DEFAULT_SQLITE_DB_FILE}" ]; then
@@ -34,12 +30,11 @@ fi
 
 if [ ! "${DEFAULT_SQLITE_DB_FILE_READINGS}" ]; then
     export DEFAULT_SQLITE_DB_FILE_READINGS_BASE="${FLEDGE_DATA}/readings"
-    export DEFAULT_SQLITE_DB_FILE_READINGS="${DEFAULT_SQLITE_DB_FILE_READINGS_BASE}_1.db"
-    export DEFAULT_SQLITE_DB_FILE_READINGS_SINGLE="${DEFAULT_SQLITE_DB_FILE_READINGS_BASE}.db"
+    export DEFAULT_SQLITE_DB_FILE_READINGS="${DEFAULT_SQLITE_DB_FILE_READINGS_BASE}.db"
 fi
 
 
-USAGE="Usage: `basename ${0}` {start|stop|status|init|reset|purge|help}"
+USAGE="Usage: `basename ${0}` {start|stop|status|init|reset|help}"
 
 # Check FLEDGE_ROOT
 if [ -z ${FLEDGE_ROOT+x} ]; then
@@ -70,7 +65,7 @@ fi
 
 # Logger wrapper
 sqlite_log() {
-    write_log "Storage" "script.plugin.storage.sqlite" "$1" "$2" "$3" "$4"
+    write_log "Storage" "script.plugin.storage.sqlitelb" "$1" "$2" "$3" "$4"
 }
 
 # Check first SQLite 3 with static library command line is available
@@ -102,7 +97,7 @@ sqlite_start() {
                 sqlite_log "info" "SQLite3 database is ready." "all" "pretty"
             else
                 if [[ "$1" != "skip" ]]; then
-                            sqlite_log "info" "SQLite3 database is ready." "logonly" "pretty"
+                    sqlite_log "info" "SQLite3 database is ready." "logonly" "pretty"
                 fi
             fi
             ;;
@@ -144,7 +139,7 @@ sqlite_start() {
                 sqlite_log "info" "SQLite3 readings database is ready." "all" "pretty"
             else
                 if [[ "$1" != "skip" ]]; then
-                            sqlite_log "info" "SQLite3 readings database is ready." "logonly" "pretty"
+                    sqlite_log "info" "SQLite3 readings database is ready." "logonly" "pretty"
                 fi
             fi
             ;;
@@ -180,8 +175,8 @@ sqlite_start() {
          sqlite_reset "$1" "immediate" 
     fi
 
-    # Fledge DB schema update: Fledge version is $2, $1 is log verbosity
-    sqlite_schema_update $2 $1
+    # Fledge DB schema update: Fledge version is $2
+    sqlite_schema_update $2
 }
 
 
@@ -267,6 +262,7 @@ sqlite_reset_db_readings() {
         sqlite_log "err" "Cannot drop database '${DEFAULT_SQLITE_DB_FILE_READINGS}' for the Fledge Plugin '${PLUGIN}'" "all" "pretty"
     fi
     rm -f ${DEFAULT_SQLITE_DB_FILE_READINGS}-journal ${DEFAULT_SQLITE_DB_FILE_READINGS}-wal ${DEFAULT_SQLITE_DB_FILE_READINGS}-shm
+
     # Delete all the readings databases if any
     rm -f ${DEFAULT_SQLITE_DB_FILE_READINGS_BASE}*.db
     rm -f ${DEFAULT_SQLITE_DB_FILE_READINGS_BASE}*.db-journal
@@ -276,7 +272,7 @@ sqlite_reset_db_readings() {
     # 2- Create new datafile an apply init file
     INIT_OUTPUT=`${SQLITE_SQL} "${DEFAULT_SQLITE_DB_FILE_READINGS}" 2>&1 <<EOF
 PRAGMA page_size = 4096;
-ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE_READINGS}' AS 'readings_1';
+ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE_READINGS}' AS 'readings';
 .read '${INIT_READINGS_SQL}'
 .quit
 EOF`
@@ -311,9 +307,7 @@ sqlite_status() {
         if [[ "$1" == "noisy" ]]; then
             sqlite_log "info" "SQLite 3 database '${DEFAULT_SQLITE_DB_FILE}' ready." "all" "pretty"
         else
-            if [[ "$1" != "skip" ]]; then
-                sqlite_log "info" "SQLite 3 database '${DEFAULT_SQLITE_DB_FILE}' ready." "logonly" "pretty"
-            fi
+            sqlite_log "info" "SQLite 3 database '${DEFAULT_SQLITE_DB_FILE}' ready." "logonly" "pretty"
         fi
         echo "0"
     else
@@ -338,9 +332,7 @@ sqlite_status_readings() {
         if [[ "$1" == "noisy" ]]; then
             sqlite_log "info" "SQLite 3 database '${DEFAULT_SQLITE_DB_FILE_READINGS}' ready." "all" "pretty"
         else
-            if [[ "$1" != "skip" ]]; then
-                sqlite_log "info" "SQLite 3 database '${DEFAULT_SQLITE_DB_FILE_READINGS}' ready." "logonly" "pretty"
-            fi
+            sqlite_log "info" "SQLite 3 database '${DEFAULT_SQLITE_DB_FILE_READINGS}' ready." "logonly" "pretty"
         fi
         echo "0"
     else
@@ -383,7 +375,7 @@ sqlite_schema_update() {
         ret_code=$?
 
         SET_VERSION_MSG="Fledge DB version not found in fledge.'${VERSION_TABLE}', setting version [${NEW_VERSION}]"
-        if [[ "$2" == "noisy" ]]; then
+        if [[ "$1" == "noisy" ]]; then
             sqlite_log "info" "${SET_VERSION_MSG}" "all" "pretty"
         else 
             sqlite_log "info" "${SET_VERSION_MSG}" "logonly" "pretty"
@@ -405,9 +397,7 @@ sqlite_schema_update() {
             fi
         else
             # Just log up-to-date
-            if [[ "$2" != "skip" ]]; then
-                sqlite_log "info" "Fledge DB schema is up to date to version [${CURR_VER}]" "logonly" "pretty"
-            fi
+            sqlite_log "info" "Fledge DB schema is up to date to version [${CURR_VER}]" "logonly" "pretty"
             return 0
         fi
     fi
@@ -418,14 +408,15 @@ sqlite_schema_update() {
 sqlite_help() {
 
     echo "${USAGE}
-SQLite3 Storage Layer plugin init script. 
-The script is used to control the SQLite3 plugin as database for Fledge
+SQLite3lb (Low bandwidth) Storage Layer plugin init script.
+The script is used to control the SQLite3lb plugin as database for Fledge
 Arguments:
  start   - Start the database server (when managed)
            If the server has not been initialized, it also initialize it
  stop    - Stop the database server (when managed)
  status  - Check the status of the database server
  reset   - Bring the database server to the original installation.
+           This is a synonym of init.
            WARNING: all the data stored in the server will be lost!
  init    - Database check: if Fledge database does not exist
            it will be created.
@@ -437,6 +428,7 @@ Arguments:
  unmanaged - The database server is not embedded in Fledge"
 
 }
+
 
 ## SQLite3 purge all readings and non-configuration data
 sqlite_purge() {
@@ -462,7 +454,7 @@ sqlite_purge() {
     COMMAND_OUTPUT=`${SQLITE_SQL} "${DEFAULT_SQLITE_DB_FILE}" 2>&1 <<EOF
 ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE}' AS 'fledge';
 UPDATE fledge.statistics SET value = 0, previous_value = 0, ts = STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'localtime');
-DELETE FROM fledge.asset_tracker; 
+DELETE FROM fledge.asset_tracker;
 DELETE FROM fledge.sqlite_sequence WHERE name='asset_tracker';
 DELETE FROM fledge.tasks;
 DELETE FROM fledge.statistics_history;
@@ -494,6 +486,7 @@ EOF`
     sqlite_reset_db_readings
 }
 
+
 ##################
 ### Main Logic ###
 ##################
@@ -509,15 +502,24 @@ if [[ ! -d ${FLEDGE_DATA} ]]; then
     exit 1
 fi
 
-engine_management="false"
-
+# Extract plugin
+engine_management=`get_engine_management $PLUGIN`
 # Settings if the database is managed by Fledge
 case "$engine_management" in
     "true")
 
-	# SQLite does not support managed storage. Ignore this option
-        print_output="silent"
-        MANAGED=false
+        MANAGED=true
+
+        # Check if sqlitei3 is present in the expected path
+        # We don't need to manage SQLite3 db
+        # This will be removed in next commits
+        SQLITE_SQL="$FLEDGE_ROOT/plugins/storage/sqlite/bin/psql"
+        if ! [[ -x "${SQLITE_SQL}" ]]; then
+            sqlite_log "err" "SQLite program not found: the database server cannot be managed." "all" "pretty"
+            exit 1
+        fi
+
+        print_output="noisy"
         ;;
     
     "false")
@@ -540,14 +542,14 @@ esac
 
 # Check if the init.sql file exists
 # Attempt 1: deployment path
-if [[ -e "$FLEDGE_ROOT/plugins/storage/sqlite/init.sql" ]]; then
-    INIT_SQL="$FLEDGE_ROOT/plugins/storage/sqlite/init.sql"
-    INIT_READINGS_SQL="$FLEDGE_ROOT/plugins/storage/sqlite/init_readings.sql"
+if [[ -e "$FLEDGE_ROOT/plugins/storage/sqlitelb/init.sql" ]]; then
+    INIT_SQL="$FLEDGE_ROOT/plugins/storage/sqlitelb/init.sql"
+    INIT_READINGS_SQL="$FLEDGE_ROOT/plugins/storage/sqlitelb/init_readings.sql"
 else
     # Attempt 2: development path
-    if [[ -e "$FLEDGE_ROOT/scripts/plugins/storage/sqlite/init.sql" ]]; then
-        INIT_SQL="$FLEDGE_ROOT/scripts/plugins/storage/sqlite/init.sql"
-        INIT_READINGS_SQL="$FLEDGE_ROOT/scripts/plugins/storage/sqlite/init_readings.sql"
+    if [[ -e "$FLEDGE_ROOT/scripts/plugins/storage/sqlitelb/init.sql" ]]; then
+        INIT_SQL="$FLEDGE_ROOT/scripts/plugins/storage/sqlitelb/init.sql"
+        INIT_READINGS_SQL="$FLEDGE_ROOT/scripts/plugins/storage/sqlitelb/init_readings.sql"
     else
         sqlite_log "err" "Missing plugin '${PLUGIN}' initialization file init.sql." "all" "pretty"
         exit 1

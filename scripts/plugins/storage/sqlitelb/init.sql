@@ -359,14 +359,13 @@ CREATE INDEX fki_role_asset_permissions_fk2
 CREATE TABLE fledge.users (
        id                INTEGER   PRIMARY KEY AUTOINCREMENT,
        uname             character varying(80)  NOT NULL,
-       real_name         character varying(255) NOT NULL,
        role_id           integer                NOT NULL,
        description       character varying(255) NOT NULL DEFAULT '',
        pwd               character varying(255) ,
        public_key        character varying(255) ,
        enabled           boolean                NOT NULL DEFAULT 't',
        pwd_last_changed  DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'localtime')),
-       access_method     TEXT CHECK( access_method IN ('any','pwd','cert') )  NOT NULL DEFAULT 'any',
+       access_method     smallint               NOT NULL DEFAULT 0,
           CONSTRAINT users_fk1 FOREIGN KEY (role_id)
           REFERENCES roles (id) MATCH SIMPLE
                   ON UPDATE NO ACTION
@@ -506,7 +505,7 @@ CREATE INDEX tasks_ix1
 CREATE TABLE fledge.omf_created_objects (
     configuration_key character varying(255)    NOT NULL,            -- FK to fledge.configuration
     type_id           integer                   NOT NULL,            -- Identifies the specific PI Server type
-    asset_code        character varying(255)    NOT NULL,
+    asset_code        character varying(50)     NOT NULL,
     CONSTRAINT omf_created_objects_pkey PRIMARY KEY (configuration_key,type_id, asset_code),
     CONSTRAINT omf_created_objects_fk1 FOREIGN KEY (configuration_key)
     REFERENCES configuration (key) MATCH SIMPLE
@@ -560,22 +559,6 @@ CREATE TABLE fledge.plugin_data (
 	data    JSON                      NOT NULL DEFAULT '{}',
 	CONSTRAINT plugin_data_pkey PRIMARY KEY (key) );
 
--- Create packages table
-CREATE TABLE fledge.packages (
-             id                uuid                   NOT NULL, -- PK
-             name              character varying(255) NOT NULL, -- Package name
-             action            character varying(10) NOT NULL, -- APT actions:
-                                                                -- list
-                                                                -- install
-                                                                -- purge
-                                                                -- update
-             status            INTEGER                NOT NULL, -- exit code
-                                                                -- -1       - in-progress
-                                                                --  0       - success
-                                                                -- Non-Zero - failed
-             log_file_uri      character varying(255) NOT NULL, -- Package Log file relative path
-  CONSTRAINT packages_pkey PRIMARY KEY  ( id ) );
-
 -- Create filters table
 CREATE TABLE fledge.filters (
              name        character varying(255)        NOT NULL,
@@ -599,9 +582,9 @@ INSERT INTO fledge.roles ( name, description )
 
 -- Users
 DELETE FROM fledge.users;
-INSERT INTO fledge.users ( uname, real_name, pwd, role_id, description )
-     VALUES ('admin', 'Admin user', '39b16499c9311734c595e735cffb5d76ddffb2ebf8cf4313ee869525a9fa2c20:f400c843413d4c81abcba8f571e6ddb6', 1, 'admin user'),
-            ('user', 'Normal user', '39b16499c9311734c595e735cffb5d76ddffb2ebf8cf4313ee869525a9fa2c20:f400c843413d4c81abcba8f571e6ddb6', 2, 'normal user');
+INSERT INTO fledge.users ( uname, pwd, role_id, description )
+     VALUES ('admin', '39b16499c9311734c595e735cffb5d76ddffb2ebf8cf4313ee869525a9fa2c20:f400c843413d4c81abcba8f571e6ddb6', 1, 'admin user'),
+            ('user', '39b16499c9311734c595e735cffb5d76ddffb2ebf8cf4313ee869525a9fa2c20:f400c843413d4c81abcba8f571e6ddb6', 2, 'normal user');
 
 -- User password history
 DELETE FROM fledge.user_pwd_history;
@@ -680,8 +663,6 @@ INSERT INTO fledge.scheduled_processes (name, script)   VALUES ( 'notification_c
 INSERT INTO fledge.scheduled_processes (name, script)   VALUES ( 'north_c',        '["tasks/north_c"]'           );
 INSERT INTO fledge.scheduled_processes (name, script)   VALUES ( 'north',          '["tasks/north"]'             );
 INSERT INTO fledge.scheduled_processes (name, script)   VALUES ( 'north_C',        '["services/north_C"]'        );
-INSERT INTO fledge.scheduled_processes (name, script)   VALUES ( 'dispatcher_c',   '["services/dispatcher_c"]'   );
-
 --
 -- Schedules
 --

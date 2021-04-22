@@ -56,8 +56,8 @@ class TestAuthOptional:
 
     @pytest.mark.parametrize("ret_val, exp_result", [
         ([], []),
-        ([{'uname': 'admin', 'role_id': '1', 'id': '1'}, {'uname': 'user', 'role_id': '2', 'id': '2'}],
-         [{"userId": "1", "userName": "admin", "roleId": "1"}, {"userId": "2", "userName": "user", "roleId": "2"}])
+        ([{'uname': 'admin', 'role_id': '1', 'access_method': 'any', 'id': '1', 'real_name': 'Admin', 'description': 'Admin user'}, {'uname': 'user', 'role_id': '2', 'access_method': 'any', 'id': '2', 'real_name': 'Non-admin', 'description': 'Normal user'}],
+         [{"userId": "1", "userName": "admin", "roleId": "1", "accessMethod": "any", "realName": "Admin", "description": "Admin user"}, {"userId": "2", "userName": "user", "roleId": "2", "accessMethod": "any", "realName": "Non-admin", "description": "Normal user"}])
     ])
     async def test_get_all_users(self, client, ret_val, exp_result):
         with patch.object(middleware._logger, 'info') as patch_logger_info:
@@ -70,11 +70,11 @@ class TestAuthOptional:
         patch_logger_info.assert_called_once_with('Received %s request for %s', 'GET', '/fledge/user')
 
     @pytest.mark.parametrize("request_params, exp_result, arg1, arg2", [
-        ('?id=1', {'uname': 'admin', 'role_id': '1', 'id': '1'}, 1, None),
-        ('?username=admin', {'uname': 'admin', 'role_id': '1', 'id': '1'},  None, 'admin'),
-        ('?id=1&username=admin', {'uname': 'admin', 'role_id': '1', 'id': '1'}, 1, 'admin'),
-        ('?id=1&user=admin', {'uname': 'admin', 'role_id': '1', 'id': '1'}, 1, None),
-        ('?uid=1&username=admin', {'uname': 'admin', 'role_id': '1', 'id': '1'}, None, 'admin'),
+        ('?id=1', {'uname': 'admin', 'role_id': '1', 'id': '1', 'access_method': 'any', 'real_name': 'Admin', 'description': 'Admin user'}, 1, None),
+        ('?username=admin', {'uname': 'admin', 'role_id': '1', 'id': '1', 'access_method': 'any', 'real_name': 'Admin', 'description': 'Admin user'},  None, 'admin'),
+        ('?id=1&username=admin', {'uname': 'admin', 'role_id': '1', 'id': '1', 'access_method': 'any', 'real_name': 'Admin', 'description': 'Admin user'}, 1, 'admin'),
+        ('?id=1&user=admin', {'uname': 'admin', 'role_id': '1', 'id': '1', 'access_method': 'any', 'real_name': 'Admin', 'description': 'Admin user'}, 1, None),
+        ('?uid=1&username=admin', {'uname': 'admin', 'role_id': '1', 'id': '1', 'access_method': 'any', 'real_name': 'Admin', 'description': 'Admin user'}, None, 'admin'),
     ])
     async def test_get_user_by_param(self, client, request_params, exp_result, arg1, arg2):
         result = {}
@@ -88,6 +88,9 @@ class TestAuthOptional:
                 assert actual['userId'] == exp_result['id']
                 assert actual['roleId'] == exp_result['role_id']
                 assert actual['userName'] == exp_result['uname']
+                assert actual['accessMethod'] == exp_result['access_method']
+                assert actual['realName'] == exp_result['real_name']
+                assert actual['description'] == exp_result['description']
             patch_user_obj.assert_called_once_with(arg1, arg2)
         patch_logger_info.assert_called_once_with('Received %s request for %s', 'GET', '/fledge/user')
 
@@ -198,11 +201,11 @@ class TestAuthOptional:
     async def test_update_password(self, client):
         with patch.object(middleware._logger, 'info') as patch_logger_info:
             with patch.object(auth._logger, 'warning') as patch_logger_warning:
-                resp = await client.put('/fledge/user/admin/password')
+                resp = await client.put('/fledge/user/1/password')
                 assert 403 == resp.status
                 assert FORBIDDEN == resp.reason
             patch_logger_warning.assert_called_once_with(WARN_MSG)
-        patch_logger_info.assert_called_once_with('Received %s request for %s', 'PUT', '/fledge/user/admin/password')
+        patch_logger_info.assert_called_once_with('Received %s request for %s', 'PUT', '/fledge/user/1/password')
 
     async def test_update_user(self, client):
         with patch.object(middleware._logger, 'info') as patch_logger_info:
@@ -231,6 +234,15 @@ class TestAuthOptional:
                 assert FORBIDDEN == resp.reason
             patch_logger_warning.assert_called_once_with(WARN_MSG)
         patch_logger_info.assert_called_once_with('Received %s request for %s', 'POST', '/fledge/admin/user')
+
+    async def test_enable_user(self, client):
+        with patch.object(middleware._logger, 'info') as patch_logger_info:
+            with patch.object(auth._logger, 'warning') as patch_logger_warning:
+                resp = await client.put('/fledge/admin/2/enabled')
+                assert 403 == resp.status
+                assert FORBIDDEN == resp.reason
+            patch_logger_warning.assert_called_once_with(WARN_MSG)
+        patch_logger_info.assert_called_once_with('Received %s request for %s', 'PUT', '/fledge/admin/2/enabled')
 
     async def test_reset(self, client):
         with patch.object(middleware._logger, 'info') as patch_logger_info:

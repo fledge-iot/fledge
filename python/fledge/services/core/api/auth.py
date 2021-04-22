@@ -27,7 +27,7 @@ _help = """
     ------------------------------------------------------------------------------------
     | GET                        | /fledge/user                                       |
     | PUT                        | /fledge/user/{id}                                  |
-    | PUT                        | /fledge/user/{username}/password                   |     
+    | PUT                        | /fledge/user/{user_id}/password                    |     
 
     | GET                        | /fledge/user/role                                  |
     
@@ -35,6 +35,7 @@ _help = """
     | PUT                        | /fledge/{user_id}/logout                           |
     
     | POST                       | /fledge/admin/user                                 |
+    | PUT                        | /fledge/admin/{user_id}/enabled                    |
     | PUT                        | /fledge/admin/{user_id}/reset                      |
     | DELETE                     | /fledge/admin/{user_id}/delete                     |
     ------------------------------------------------------------------------------------
@@ -45,6 +46,7 @@ JWT_ALGORITHM = 'HS256'
 JWT_EXP_DELTA_SECONDS = 30*60  # 30 minutes
 
 MIN_USERNAME_LENGTH = 4
+USERNAME_REGEX_PATTERN = '^[a-zA-Z0-9_.-]+$'
 PASSWORD_REGEX_PATTERN = '((?=.*\d)(?=.*[A-Z])(?=.*\W).{6,}$)'
 PASSWORD_ERROR_MSG = 'Password must contain at least one digit, one lowercase, one uppercase & one special character ' \
                      'and length of minimum 6 characters'
@@ -220,10 +222,14 @@ async def get_user(request):
             u['userId'] = user.pop('id')
             u['userName'] = user.pop('uname')
             u['roleId'] = user.pop('role_id')
+            u["accessMethod"] = user.pop('access_method')
+            u["realName"] = user.pop('real_name')
+            u["description"] = user.pop('description')
             result = u
         except User.DoesNotExist as ex:
-            _logger.warning(str(ex))
-            raise web.HTTPNotFound(reason=str(ex))
+            msg = str(ex)
+            _logger.warning(msg)
+            raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     else:
         users = await User.Objects.all()
         res = []
@@ -232,6 +238,9 @@ async def get_user(request):
             u["userId"] = row["id"]
             u["userName"] = row["uname"]
             u["roleId"] = row["role_id"]
+            u["accessMethod"] = row["access_method"]
+            u["realName"] = row["real_name"]
+            u["description"] = row["description"]
             res.append(u)
         result = {'users': res}
 
@@ -244,51 +253,79 @@ async def create_user(request):
 
     :Example:
         curl -H "authorization: <token>" -X POST -d '{"username": "any1", "password": "User@123"}' http://localhost:8081/fledge/admin/user
-        curl -H "authorization: <token>" -X POST -d '{"username": "admin1", "password": "F0gl@mp!", "role_id": 1}' http://localhost:8081/fledge/admin/user
+        curl -H "authorization: <token>" -X POST -d '{"username": "aj.1988", "password": "User@123", "access_method": "any"}' http://localhost:8081/fledge/admin/user
+        curl -H "authorization: <token>" -X POST -d '{"username": "aj-1988", "password": "User@123", "access_method": "pwd"}' http://localhost:8081/fledge/admin/user
+        curl -H "authorization: <token>" -X POST -d '{"username": "aj_1988", "access_method": "any"}' http://localhost:8081/fledge/admin/user
+        curl -H "authorization: <token>" -X POST -d '{"username": "aj1988", "access_method": "cert"}' http://localhost:8081/fledge/admin/user
+        curl -H "authorization: <token>" -X POST -d '{"username": "ajnerd", "password": "F0gl@mp!", "role_id": 1, "real_name": "AJ", "description": "Admin user"}' http://localhost:8081/fledge/admin/user
+        curl -H "authorization: <token>" -X POST -d '{"username": "nerd", "access_method": "cert", "real_name": "AJ", "description": "Admin user"}' http://localhost:8081/fledge/admin/user
+        curl -H "authorization: <token>" -X POST -d '{"username": "nerdapp", "password": "FL)dG3", "access_method": "pwd", "real_name": "AJ", "description": "Admin user"}' http://localhost:8081/fledge/admin/user
     """
     if request.is_auth_optional:
         _logger.warning(FORBIDDEN_MSG)
         raise web.HTTPForbidden
     
     data = await request.json()
-    username = data.get('username')
+    username = data.get('username', '')
     password = data.get('password')
     role_id = data.get('role_id', DEFAULT_ROLE_ID)
+    access_method = data.get('access_method', 'any')
+    real_name = data.get('real_name', '')
+    description = data.get('description', '')
 
-    if not username or not password:
-        _logger.warning("Username and password are required to create user")
-        raise web.HTTPBadRequest(reason="Username or password is missing")
+    if not username:
+        msg = "Username is required to create user"
+        _logger.error(msg)
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
 
-    if not isinstance(password, str):
-        _logger.warning(PASSWORD_ERROR_MSG)
-        raise web.HTTPBadRequest(reason=PASSWORD_ERROR_MSG)
+    if not isinstance(username, str) or not isinstance(access_method, str) or not isinstance(real_name, str) \
+            or not isinstance(description, str):
+        msg = "Values should be passed in string"
+        _logger.error(msg)
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
 
-    if not re.match(PASSWORD_REGEX_PATTERN, password):
-        _logger.warning(PASSWORD_ERROR_MSG)
-        raise web.HTTPBadRequest(reason=PASSWORD_ERROR_MSG)
-
-    if not (await is_valid_role(role_id)):
-        _logger.warning("Create user requested with bad role id")
-        return web.HTTPBadRequest(reason="Invalid or bad role id")
-
-    # TODO: username regex? is email allowed?
-    username = username.lower().replace(" ", "")
+    username = username.lower().strip().replace(" ", "")
     if len(username) < MIN_USERNAME_LENGTH:
         msg = "Username should be of minimum 4 characters"
-        _logger.warning(msg)
-        raise web.HTTPBadRequest(reason=msg)
+        _logger.error(msg)
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+    if not re.match(USERNAME_REGEX_PATTERN, username):
+        msg = "Dot, hyphen, underscore special characters are allowed for username"
+        _logger.error(msg)
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
 
+    if access_method.lower() not in ['any', 'cert', 'pwd']:
+        msg = "Invalid access method. Must be 'any' or 'cert' or 'pwd'"
+        _logger.error(msg)
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+
+    if access_method == 'pwd' and not password:
+        msg = "Password should not be an empty"
+        _logger.error(msg)
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+
+    if access_method != 'cert':
+        if password is not None:
+            if not re.match(PASSWORD_REGEX_PATTERN, str(password)):
+                _logger.error(PASSWORD_ERROR_MSG)
+                raise web.HTTPBadRequest(reason=PASSWORD_ERROR_MSG, body=json.dumps({"message": PASSWORD_ERROR_MSG}))
+
+    if not (await is_valid_role(role_id)):
+        msg = "Invalid role id"
+        _logger.error(msg)
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     try:
         await User.Objects.get(username=username)
     except User.DoesNotExist:
         pass
     else:
-        _logger.warning("Can not create a user, username already exists")
-        raise web.HTTPConflict(reason="User with the requested username already exists")
+        msg = "Username already exists"
+        _logger.warning(msg)
+        raise web.HTTPConflict(reason=msg, body=json.dumps({"message": msg}))
 
     u = dict()
     try:
-        result = await User.Objects.create(username, password, role_id)
+        result = await User.Objects.create(username, password, role_id, access_method, real_name, description)
         if result['rows_affected']:
             # FIXME: we should not do get again!
             # we just need inserted user id; insert call should return that
@@ -296,38 +333,79 @@ async def create_user(request):
             u['userId'] = user.pop('id')
             u['userName'] = user.pop('uname')
             u['roleId'] = user.pop('role_id')
-    except ValueError as ex:
-        _logger.warning(str(ex))
-        raise web.HTTPBadRequest(reason=str(ex))
+            u["accessMethod"] = user.pop('access_method')
+            u["realName"] = user.pop('real_name')
+            u["description"] = user.pop('description')
+    except ValueError as err:
+        msg = str(err)
+        _logger.error(msg)
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except Exception as exc:
+        msg = str(exc)
         _logger.exception(str(exc))
-        raise web.HTTPInternalServerError(reason=str(exc))
-
-    _logger.info("User has been created successfully")
-
-    return web.json_response({'message': 'User has been created successfully', 'user': u})
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+    msg = "{} user has been created successfully".format(username)
+    _logger.info(msg)
+    return web.json_response({'message': msg, 'user': u})
 
 
 async def update_user(request):
+    """ update user profile
+
+    :Example:
+             curl -X PUT -d '{"real_name": "AJ", "description": "Normal user", "role_id": "2"}' http://localhost:8081/fledge/user/<id>
+    """
     if request.is_auth_optional:
         _logger.warning(FORBIDDEN_MSG)
         raise web.HTTPForbidden
 
-    # TODO: FOGL-1226 we don't have any user profile info yet except password, role
-    raise web.HTTPNotImplemented(reason='FOGL-1226')
+    uid = request.match_info.get('id')
+    data = await request.json()
+    role_id = data.get('role_id')
+    real_name = data.get('real_name')
+    description = data.get('description')
+    try:
+        user_id = await User.Objects.get(uid=uid)
+    except Exception as exc:
+        msg = str(exc)
+        raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
+    # TODO: FOGL-1226
+    user_data = {}
+    if 'role_id' in data:
+        if role_id is not None:
+            if not (await is_valid_role(role_id)):
+                msg = "Invalid or bad role id"
+                raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+            user_data.update({'role_id': role_id})
+    if real_name is not None:
+        user_data.update({'real_name': real_name})
+    if description is not None:
+        user_data.update({'description': description})
+    user = await User.Objects.update(int(uid), user_data)
+    result = {"message": "Nothing to Update!"}
+    if user:
+        user_info = await User.Objects.get(uid=uid)
+        result = {'user_info': user_info}
+    return web.json_response(result)
 
 
 async def update_password(request):
     """ update password
 
         :Example:
-             curl -X PUT -d '{"current_password": "F0gl@mp!", "new_password": "F0gl@mp1"}' http://localhost:8081/fledge/user/<username>/password
+             curl -X PUT -d '{"current_password": "F0gl@mp!", "new_password": "F0gl@mp1"}' http://localhost:8081/fledge/user/<user_id>/password
     """
     if request.is_auth_optional:
         _logger.warning(FORBIDDEN_MSG)
         raise web.HTTPForbidden
 
-    username = request.match_info.get('username')
+    user_id = request.match_info.get('user_id')
+    try:
+        int(user_id)
+    except ValueError:
+        msg = "User id should be in integer"
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+
     data = await request.json()
     current_password = data.get('current_password')
     new_password = data.get('new_password')
@@ -348,7 +426,7 @@ async def update_password(request):
         _logger.warning(msg)
         raise web.HTTPBadRequest(reason=msg)
 
-    user_id = await User.Objects.is_user_exists(username, current_password)
+    user_id = await User.Objects.is_user_exists(user_id, current_password)
     if not user_id:
         msg = 'Invalid current password'
         _logger.warning(msg)
@@ -374,6 +452,64 @@ async def update_password(request):
     _logger.info("Password has been updated successfully for user id:<{}>".format(int(user_id)))
 
     return web.json_response({'message': 'Password has been updated successfully for user id:<{}>'.format(int(user_id))})
+
+
+@has_permission("admin")
+async def enable_user(request):
+    """ enabled/disabled user
+        :Example:
+            curl -H "authorization: <token>" -X PUT -d '{"enabled": "true"}' http://localhost:8081/fledge/admin/{user_id}/enabled
+            curl -H "authorization: <token>" -X PUT -d '{"enabled": "False"}' http://localhost:8081/fledge/admin/{user_id}/enabled
+    """
+    if request.is_auth_optional:
+        _logger.warning(FORBIDDEN_MSG)
+        raise web.HTTPForbidden
+
+    user_id = request.match_info.get('user_id')
+    if int(user_id) == 1:
+        msg = "Restricted for Super Admin user"
+        _logger.warning(msg)
+        raise web.HTTPNotAcceptable(reason=msg, body=json.dumps({"message": msg}))
+
+    data = await request.json()
+    enabled = data.get('enabled')
+    try:
+        if enabled is not None:
+            if str(enabled).lower() in ['true', 'false']:
+                from fledge.services.core import connect
+                from fledge.common.storage_client.payload_builder import PayloadBuilder
+                user_data = {'enabled': 't' if str(enabled).lower() == 'true' else 'f'}
+                payload = PayloadBuilder().SELECT("id", "uname", "role_id", "enabled").WHERE(
+                    ['id', '=', user_id]).payload()
+                storage_client = connect.get_storage_async()
+                result = await storage_client.query_tbl_with_payload('users', payload)
+                if len(result['rows']) == 0:
+                    raise User.DoesNotExist
+                payload = PayloadBuilder().SET(enabled=user_data['enabled']).WHERE(['id', '=', user_id]).payload()
+                result = await storage_client.update_tbl("users", payload)
+                if result['response'] == 'updated':
+                    _text = 'enabled' if user_data['enabled'] == 't' else 'disabled'
+                    payload = PayloadBuilder().SELECT("id", "uname", "role_id", "enabled").WHERE(
+                        ['id', '=', user_id]).payload()
+                    result = await storage_client.query_tbl_with_payload('users', payload)
+                    if len(result['rows']) == 0:
+                        raise User.DoesNotExist
+                else:
+                    raise ValueError('Something went wrong during update. Check Syslogs')
+            else:
+                raise ValueError('Accepted values are True/False only')
+        else:
+            raise ValueError('Nothing to enable user update')
+    except ValueError as err:
+        msg = str(err)
+        raise web.HTTPBadRequest(reason=str(err), body=json.dumps({"message": msg}))
+    except User.DoesNotExist:
+        msg = "User with id:<{}> does not exist".format(int(user_id))
+        raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
+    except Exception as exc:
+        msg = str(exc)
+        raise web.HTTPInternalServerError(reason=str(exc), body=json.dumps({"message": msg}))
+    return web.json_response({'message': 'User with id:<{}> has been {} successfully'.format(int(user_id), _text)})
 
 
 @has_permission("admin")

@@ -343,7 +343,6 @@ async def check_schedules(storage, schedule_name):
 
 
 async def delete_statistics_key(storage, key):
-    _logger.error("xxx statistics {} ".format(key))
     payload = PayloadBuilder().WHERE(['key', '=', key]).payload()
     await storage.delete_from_tbl('statistics', payload)
 
@@ -357,5 +356,5 @@ async def delete_streams(storage, north_instance):
     await storage.delete_from_tbl("streams", payload)
 
 async def delete_plugin_data(storage, north_instance):
-    payload = PayloadBuilder().WHERE(["key", "=", north_instance + "OMF"]).payload()
+    payload = PayloadBuilder().WHERE(["key", "like", north_instance + "%"]).payload()
     await storage.delete_from_tbl("plugin_data", payload)

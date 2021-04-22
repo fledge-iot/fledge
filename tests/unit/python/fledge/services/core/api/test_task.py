@@ -455,6 +455,9 @@ class TestTask:
                                                    return_value=asyncio.sleep(.1))
         delete_statistics_key = mocker.patch.object(task, "delete_statistics_key", return_value=asyncio.sleep(.1))
 
+        delete_streams = mocker.patch.object(task, "delete_streams", return_value=asyncio.sleep(.1))
+        delete_plugin_data = mocker.patch.object(task, "delete_plugin_data", return_value=asyncio.sleep(.1))
+
         resp = await client.delete("/fledge/scheduled/task/{}".format(sch_name))
         assert 200 == resp.status
         result = await resp.json()
@@ -482,6 +485,14 @@ class TestTask:
 
         assert 1 == delete_statistics_key.call_count
         args, kwargs = delete_statistics_key.call_args_list[0]
+        assert sch_name in args
+
+        assert 1 == delete_streams.call_count
+        args, kwargs = delete_streams.call_args_list[0]
+        assert sch_name in args
+
+        assert 1 == delete_plugin_data.call_count
+        args, kwargs = delete_plugin_data.call_args_list[0]
         assert sch_name in args
 
     async def test_delete_task_exception(self, mocker, client):

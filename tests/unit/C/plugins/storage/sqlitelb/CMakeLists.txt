@@ -1,16 +1,17 @@
 # Project configuration
 project(RunTests)
 cmake_minimum_required(VERSION 2.6)
-set(CMAKE_CXX_FLAGS "-std=c++11 -O3")
+set(CMAKE_CXX_FLAGS "-std=c++11 ")
+set(CMAKE_CXX_FLAGS_DEBUG "-O0 -ggdb")
 
-# libraries
+# External libraries
 set(LIBCURL_LIB -lcurl)
 
 # Fledge libraries
 set(COMMON_LIB              common-lib)
 set(SERVICE_COMMON_LIB      services-common-lib)
 set(PLUGINS_COMMON_LIB      plugins-common-lib)
-set(PLUGIN_SQLITEMEMORY     sqlitememory)
+set(PLUGIN_SQLITELB         sqlitelb)
 set(STORAGE_COMMON_LIB      storage-common-lib)
 
 # Locate GTest
@@ -26,9 +27,9 @@ include_directories(../../../../../../C/plugins/storage/sqlitelb/include)
 include_directories(../../../../../../C/plugins/storage/sqlitelb/common/include)
 
 # Source files
+file(GLOB TEST_SOURCES tests.cpp)
+file(GLOB COMMON_SOURCES ../sqlitelb/*.cpp)
 file(GLOB COMMON_SOURCES ../sqlitelb/common/*.cpp)
-file(GLOB COMMON_SOURCES ../sqlitememory/*.cpp)
-file(GLOB test_sources tests.cpp)
 
 # Check for SQLite3 source tree in specific location
 set(FLEDGE_SQLITE3_LIBS "/tmp/sqlite3-pkg/src" CACHE INTERNAL "")
@@ -42,13 +43,13 @@ link_directories(
         ${PROJECT_BINARY_DIR}/../../../../lib
 )
 
-add_executable(${PROJECT_NAME} ${test_sources} ${COMMON_SOURCES})
+add_executable(${PROJECT_NAME} ${TEST_SOURCES} ${COMMON_SOURCES})
 
 target_link_libraries(${PROJECT_NAME} ${COMMON_LIB})
 target_link_libraries(${PROJECT_NAME} ${SERVICE_COMMON_LIB})
 target_link_libraries(${PROJECT_NAME} ${PLUGINS_COMMON_LIB})
 
-target_link_libraries(${PROJECT_NAME} ${PLUGIN_SQLITEMEMORY})
+target_link_libraries(${PROJECT_NAME} ${PLUGIN_SQLITELB})
 target_link_libraries(${PROJECT_NAME} ${STORAGE_COMMON_LIB})
 target_link_libraries(${PROJECT_NAME} ${LIBCURL_LIB})
 

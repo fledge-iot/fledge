@@ -114,4 +114,5 @@ set_target_properties(${LIB_NAME} PROPERTIES SOVERSION 1)
 
 add_subdirectory(cmake_pg)
 add_subdirectory(cmake_sqlite)
+add_subdirectory(cmake_sqlitelb)
 add_subdirectory(cmake_sqliteM)

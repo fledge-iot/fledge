@@ -353,14 +353,9 @@ async def delete_task_entry_with_schedule_id(storage, sch_id):
     await storage.delete_from_tbl("tasks", payload)
 
 async def delete_streams(storage, north_instance):
-    ##// FIXME_I:
-    _logger.error("xxx delete_streams {} ".format(north_instance))
     payload = PayloadBuilder().WHERE(["description", "=", north_instance]).payload()
     await storage.delete_from_tbl("streams", payload)
 
 async def delete_plugin_data(storage, north_instance):
-    ##// FIXME_I:
-    _logger.error("xxx delete_plugin_data {} ".format(north_instance))
     payload = PayloadBuilder().WHERE(["key", "=", north_instance + "OMF"]).payload()
-    #payload = PayloadBuilder().WHERE(["key", "LIKE", north_instance + "%"]).payload()
     await storage.delete_from_tbl("plugin_data", payload)

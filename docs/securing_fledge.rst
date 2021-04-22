@@ -50,7 +50,7 @@ After enabling HTTPS and selecting save you must restart Fledge in order for the
 Just open a new browser tab and type the URL https://YOUR_FLEDGE_IP:1995
 
 Then follow browser instruction in order to allow the connection and close the tab.
-In the Fledge GUI you should see the green icon (Flege is running).
+In the Fledge GUI you should see the green icon (Fledge is running).
 
 +--------------------+
 | |connection_https| |

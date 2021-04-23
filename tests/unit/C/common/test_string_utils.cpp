@@ -84,8 +84,6 @@ TEST(StringReplaceAllTestClass, goodCases)
 	}
 }
 
-
-
 // Test Code
 TEST_P(StringUtilsTestClass, StringUtilsTestCase)
 {
@@ -115,3 +113,82 @@ INSTANTIATE_TEST_CASE_P(
 		Row("XX a a XX",	"a",		"b",		"XX b a XX")
 	)
 );
+
+
+// Test String trim
+TEST(StringTrim, StringTrimCases)
+{
+	ASSERT_EQ(StringRTrim("xxx") , "xxx");
+	ASSERT_EQ(StringRTrim("xxx "), "xxx");
+	ASSERT_EQ(StringRTrim("xxx   "), "xxx");
+
+	ASSERT_EQ(StringLTrim("xxx"), "xxx");
+	ASSERT_EQ(StringLTrim(" xxx"), "xxx");
+	ASSERT_EQ(StringLTrim("  xxx"), "xxx");
+
+	ASSERT_EQ(StringTrim("xxx"), "xxx");
+	ASSERT_EQ(StringTrim("  xxx"), "xxx");
+	ASSERT_EQ(StringTrim("xxx  "), "xxx");
+	ASSERT_EQ(StringTrim("  xxx  "), "xxx");
+}
+
+// Test StringStripWhiteSpacesAll
+TEST(StringStripWhiteSpacesAll, AllCases)
+{
+	ASSERT_EQ(StringStripWhiteSpacesAll("xxx") , "xxx");
+
+	ASSERT_EQ(StringStripWhiteSpacesAll(" xxx") , "xxx");
+	ASSERT_EQ(StringStripWhiteSpacesAll(" xxx ") , "xxx");
+
+	ASSERT_EQ(StringStripWhiteSpacesAll(" x x x ") , "xxx");
+
+	ASSERT_EQ(StringStripWhiteSpacesAll("Messages:[  {   MessageIndex:0") , "Messages:[{MessageIndex:0");
+
+	ASSERT_EQ(StringStripWhiteSpacesAll(" x x x ") , "xxx");
+
+	ASSERT_EQ(StringStripWhiteSpacesAll(" x x\tx ") , "xxx");
+	ASSERT_EQ(StringStripWhiteSpacesAll(" x x\nx ") , "xxx");
+	ASSERT_EQ(StringStripWhiteSpacesAll(" x x\vx ") , "xxx");
+	ASSERT_EQ(StringStripWhiteSpacesAll(" x x\fx ") , "xxx");
+	ASSERT_EQ(StringStripWhiteSpacesAll(" x x\rx ") , "xxx");
+
+}
+
+// Test StringStripWhiteSpacesAll
+TEST(StringStripWhiteSpacesLeave1Space, AllCases)
+{
+	ASSERT_EQ(StringStripWhiteSpacesExtra("xxx") , "xxx");
+
+	ASSERT_EQ(StringStripWhiteSpacesExtra(" xxx") , "xxx");
+
+	ASSERT_EQ(StringStripWhiteSpacesExtra(" xxx ") , "xxx");
+
+	ASSERT_EQ(StringStripWhiteSpacesExtra(" x x x ") , "x x x");
+
+	ASSERT_EQ(StringStripWhiteSpacesExtra(" x  x   x ") , "x x x");
+
+	ASSERT_EQ(StringStripWhiteSpacesExtra("Messages:[  {   MessageIndex:0") , "Messages:[ { MessageIndex:0");
+
+	ASSERT_EQ(StringStripWhiteSpacesExtra(" x x\tx ") , "x xx");
+	ASSERT_EQ(StringStripWhiteSpacesExtra(" x x\nx ") , "x xx");
+	ASSERT_EQ(StringStripWhiteSpacesExtra(" x x\vx ") , "x xx");
+	ASSERT_EQ(StringStripWhiteSpacesExtra(" x x\fx ") , "x xx");
+	ASSERT_EQ(StringStripWhiteSpacesExtra(" x x\rx ") , "x xx");
+
+	ASSERT_EQ(StringStripWhiteSpacesExtra(" x x\tx ") , "x xx");
+	ASSERT_EQ(StringStripWhiteSpacesExtra(" x x\n x ") , "x x x");
+	ASSERT_EQ(StringStripWhiteSpacesExtra(" x x\v  x ") , "x x x");
+	ASSERT_EQ(StringStripWhiteSpacesExtra(" x x\f   x ") , "x x x");
+	ASSERT_EQ(StringStripWhiteSpacesExtra(" x x\r    x ") , "x x x");
+
+	ASSERT_EQ(StringStripWhiteSpacesExtra(" x x \tx ") , "x x x");
+	ASSERT_EQ(StringStripWhiteSpacesExtra(" x x  \n x ") , "x x x");
+	ASSERT_EQ(StringStripWhiteSpacesExtra(" x x  \v  x ") , "x x x");
+	ASSERT_EQ(StringStripWhiteSpacesExtra(" x x  \f   x ") , "x x x");
+	ASSERT_EQ(StringStripWhiteSpacesExtra(" x x  \r    x ") , "x x x");
+}
+
+
+
+
+

@@ -22,11 +22,11 @@ include_directories(../../../../../../C/common/include)
 include_directories(../../../../../../C/services/common/include)
 include_directories(../../../../../../C/plugins/storage/common/include)
 include_directories(../../../../../../C/thirdparty/rapidjson/include)
-include_directories(../../../../../../C/plugins/storage/sqlite/include)
-include_directories(../../../../../../C/plugins/storage/sqlite/common/include)
+include_directories(../../../../../../C/plugins/storage/sqlitelb/include)
+include_directories(../../../../../../C/plugins/storage/sqlitelb/common/include)
 
 # Source files
-file(GLOB COMMON_SOURCES ../sqlite/common/*.cpp)
+file(GLOB COMMON_SOURCES ../sqlitelb/common/*.cpp)
 file(GLOB COMMON_SOURCES ../sqlitememory/*.cpp)
 file(GLOB test_sources tests.cpp)
 

@@ -22,8 +22,6 @@ __version__ = "${VERSION}"
 
 TEMPLATE_NAME = "template.json"
 SENSOR_VALUE = 12.25
-# TODO : pass package_build_version to setup script from conftest.py
-package_build_version = "nightly"
 HTTP_SOUTH_SVC_NAME = "SOUTH_HTTP"
 HTTP_SOUTH_SVC_NAME_1 = "SOUTH_HTTP_1"
 ASSET_NAME = "auth"
@@ -157,7 +155,7 @@ def reset_fledge(wait_time):
 
 
 @pytest.fixture
-def remove_and_add_fledge_pkgs():
+def remove_and_add_fledge_pkgs(package_build_version):
     try:
         subprocess.run(["cd {}/tests/system/python/scripts/package && ./remove"
                        .format(PROJECT_ROOT)], shell=True, check=True)
@@ -482,8 +480,8 @@ class TestAuthAnyWithoutTLS:
         conn = http.client.HTTPConnection(fledge_url)
         conn.request("GET", "/fledge/ping")
         r = conn.getresponse()
-        assert 403 == r.status
-        assert "Forbidden" == r.reason
+        assert 401 == r.status
+        assert "Unauthorized" == r.reason
 
     def test_ping_with_allow_ping_false_with_certificate_token(self, fledge_url):
         conn = http.client.HTTPConnection(fledge_url)
@@ -511,8 +509,8 @@ class TestAuthAnyWithoutTLS:
         conn = http.client.HTTPConnection(fledge_url)
         conn.request("GET", "/fledge/ping")
         r = conn.getresponse()
-        assert 403 == r.status
-        assert "Forbidden" == r.reason
+        assert 401 == r.status
+        assert "Unauthorized" == r.reason
 
     @pytest.mark.parametrize(("query", "expected_values"), [
         ('', {'users': [{'userId': 1, 'roleId': 1, 'userName': 'admin'},
@@ -913,8 +911,8 @@ class TestAuthPasswordWithoutTLS:
         conn = http.client.HTTPConnection(fledge_url)
         conn.request("GET", "/fledge/ping")
         r = conn.getresponse()
-        assert 403 == r.status
-        assert "Forbidden" == r.reason
+        assert 401 == r.status
+        assert "Unauthorized" == r.reason
 
     @pytest.mark.parametrize(("query", "expected_values"), [
         ('', {'users': [{'userId': 1, 'roleId': 1, 'userName': 'admin'},
@@ -1217,8 +1215,8 @@ class TestAuthCertificateWithoutTLS:
         conn = http.client.HTTPConnection(fledge_url)
         conn.request("GET", "/fledge/ping")
         r = conn.getresponse()
-        assert 403 == r.status
-        assert "Forbidden" == r.reason
+        assert 401 == r.status
+        assert "Unauthorized" == r.reason
 
     @pytest.mark.parametrize(("query", "expected_values"), [
         ('', {'users': [{'userId': 1, 'roleId': 1, 'userName': 'admin'},
@@ -1564,8 +1562,8 @@ class TestAuthAnyWithTLS:
         conn = http.client.HTTPSConnection("localhost", 1995, context=context)
         conn.request("GET", "/fledge/ping")
         r = conn.getresponse()
-        assert 403 == r.status
-        assert "Forbidden" == r.reason
+        assert 401 == r.status
+        assert "Unauthorized" == r.reason
 
     def test_ping_with_allow_ping_false_with_certificate_token(self):
         conn = http.client.HTTPSConnection("localhost", 1995, context=context)
@@ -1593,8 +1591,8 @@ class TestAuthAnyWithTLS:
         conn = http.client.HTTPSConnection("localhost", 1995, context=context)
         conn.request("GET", "/fledge/ping")
         r = conn.getresponse()
-        assert 403 == r.status
-        assert "Forbidden" == r.reason
+        assert 401 == r.status
+        assert "Unauthorized" == r.reason
 
     @pytest.mark.parametrize(("query", "expected_values"), [
         ('', {'users': [{'userId': 1, 'roleId': 1, 'userName': 'admin'},
@@ -1999,8 +1997,8 @@ class TestAuthPasswordWithTLS:
         conn = http.client.HTTPSConnection("localhost", 1995, context=context)
         conn.request("GET", "/fledge/ping")
         r = conn.getresponse()
-        assert 403 == r.status
-        assert "Forbidden" == r.reason
+        assert 401 == r.status
+        assert "Unauthorized" == r.reason
 
     @pytest.mark.parametrize(("query", "expected_values"), [
         ('', {'users': [{'userId': 1, 'roleId': 1, 'userName': 'admin'},
@@ -2306,8 +2304,8 @@ class TestAuthCertificateWithTLS:
         conn = http.client.HTTPSConnection("localhost", 1995, context=context)
         conn.request("GET", "/fledge/ping")
         r = conn.getresponse()
-        assert 403 == r.status
-        assert "Forbidden" == r.reason
+        assert 401 == r.status
+        assert "Unauthorized" == r.reason
 
     @pytest.mark.parametrize(("query", "expected_values"), [
         ('', {'users': [{'userId': 1, 'roleId': 1, 'userName': 'admin'},

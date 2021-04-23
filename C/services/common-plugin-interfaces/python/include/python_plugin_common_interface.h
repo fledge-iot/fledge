@@ -88,6 +88,8 @@ static void logErrorMessage();
 static bool numpyImportError = false;
 void setImportParameters(string& shimLayerPath, string& fledgePythonDir);
 
+PyObject* createReadingsList(const vector<Reading *>& readings, bool changeDictKeys = false);
+
 /**
  * Destructor for PythonPluginHandle
  *    - Free up owned references
@@ -529,10 +531,11 @@ static PLUGIN_HANDLE plugin_init_fn(ConfigCategory *config)
 		PySys_SetArgv(argc, argv);
 
 		Logger::getLogger()->debug("%s_plugin_init_fn, %sloading plugin '%s', "
-					   "using a new interpreter",
+					   "using a new interpreter, SHIM file is '%s'",
 					   loadPluginType.c_str(),
 					   string(reloadModule ? "re-" : "").c_str(), 
-					   pName.c_str());
+					   pName.c_str(),
+					   name.c_str());
 
 		// Import Python script
 		PyObject *newObj = PyImport_ImportModule(name.c_str());
@@ -575,8 +578,9 @@ static PLUGIN_HANDLE plugin_init_fn(ConfigCategory *config)
 		}
 	}
 
-	Logger::getLogger()->debug("filter_plugin_init_fn for '%s', pModule '%p', "
+	Logger::getLogger()->debug("%s_plugin_init_fn for '%s', pModule '%p', "
 				   "Python interpreter '%p'",
+				   loadPluginType.c_str(),
 				   module->m_name.c_str(),
 				   module->m_module,
 				   module->m_tState);
@@ -820,12 +824,23 @@ static void logErrorMessage()
 
 	PyRun_SimpleString(fcn.c_str());
 	PyObject* mod = PyImport_ImportModule("__main__");
-	PyObject* method = PyObject_GetAttrString(mod, "get_pretty_traceback");
-	PyObject* outStr = PyObject_CallObject(method, Py_BuildValue("OOO", type, value, traceback));
-	std::string pretty = PyBytes_AsString(PyUnicode_AsASCIIString(outStr));
-
-	Logger::getLogger()->fatal("%s", pretty.c_str());
-	Logger::getLogger()->printLongString(pretty.c_str());
+	if (mod != NULL) {
+		PyObject* method = PyObject_GetAttrString(mod, "get_pretty_traceback");
+		if (method != NULL) {
+			PyObject* outStr = PyObject_CallObject(method, Py_BuildValue("OOO", type, value, traceback));
+			if (outStr != NULL) {
+				PyObject* tmp = PyUnicode_AsASCIIString(outStr);
+				if (tmp != NULL) {
+					std::string pretty = PyBytes_AsString(tmp);
+					Logger::getLogger()->fatal("%s", pretty.c_str());
+					Logger::getLogger()->printLongString(pretty.c_str());
+				}
+				Py_CLEAR(tmp);
+			}
+			Py_CLEAR(outStr);
+		}
+		Py_CLEAR(method);
+	}
 
 	// Reset error
 	PyErr_Clear();
@@ -837,8 +852,6 @@ static void logErrorMessage()
 	Py_CLEAR(str_exc_value);
 	Py_CLEAR(pyExcValueStr);
 	Py_CLEAR(mod);
-	Py_CLEAR(method);
-	Py_CLEAR(outStr);
 }
 
 /**

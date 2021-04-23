@@ -79,7 +79,9 @@ static int purgeBlockSize = PURGE_DELETE_BLOCK_SIZE;
 
 static time_t connectErrorTime = 0;
 
-
+// Used to synchronize the shut down of the threads executing appendReadings
+static std::atomic<int> m_appendCount(0);
+static bool				m_shutdown=false;
 
 #ifndef SQLITE_SPLIT_READINGS
 /**
@@ -639,6 +641,25 @@ void Connection::setUsedDbId(int dbId) {
 	m_NewDbIdList.push_back(dbId);
 }
 
+/**
+ * Wait until all the threads executing the appendReadings are shutted down
+ */
+void  Connection::shutdownAppendReadings() {
+
+	ostringstream threadId;
+	threadId << std::this_thread::get_id();
+	Logger::getLogger()->debug("%s - thread Id :%s: appendReadings shutting down started", __FUNCTION__, threadId.str().c_str());
+
+	m_shutdown=true;
+
+	while (m_appendCount > 0) {
+
+		Logger::getLogger()->debug("%s - thread Id :%s: waiting threads to shut down, count :%d: ", __FUNCTION__, threadId.str().c_str(), int(m_appendCount));
+		std::this_thread::sleep_for(std::chrono::milliseconds(150));
+	}
+	Logger::getLogger()->debug("%s - thread Id :%s: appendReadings shutting down ended", __FUNCTION__, threadId.str().c_str());
+
+}
 
 #ifndef SQLITE_SPLIT_READINGS
 /**
@@ -675,6 +696,19 @@ int stmtArraySize;
 
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();
+
+	{
+		if (m_shutdown)
+		{
+			Logger::getLogger()->debug("%s - thread Id :%s: plugin is shutting down, operation cancelled", __FUNCTION__, threadId.str().c_str());
+			return -1;
+		}
+
+		m_appendCount++;
+
+		Logger::getLogger()->debug("%s - thread Id :%s: operation started , threads count :%d: ", __FUNCTION__,  threadId.str().c_str(), int(m_appendCount) );
+	}
+
 	ReadingsCatalogue *readCatalogue = ReadingsCatalogue::getInstance();
 
 	{
@@ -706,18 +740,21 @@ int stmtArraySize;
 	if (!ok)
 	{
  		raiseError("appendReadings", GetParseError_En(doc.GetParseError()));
+		m_appendCount--;
 		return -1;
 	}
 
 	if (!doc.HasMember("readings"))
 	{
  		raiseError("appendReadings", "Payload is missing a readings array");
+		m_appendCount--;
 		return -1;
 	}
 	Value &readingsValue = doc["readings"];
 	if (!readingsValue.IsArray())
 	{
 		raiseError("appendReadings", "Payload is missing the readings array");
+		m_appendCount--;
 		return -1;
 	}
 
@@ -740,6 +777,7 @@ int stmtArraySize;
 		{
 			raiseError("appendReadings","Each reading in the readings array must be an object");
 			sqlite3_exec(dbHandle, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
+			m_appendCount--;
 			return -1;
 		}
 
@@ -901,6 +939,7 @@ int stmtArraySize;
 						dbHandle);
 
 					sqlite3_exec(dbHandle, "ROLLBACK TRANSACTION", NULL, NULL, NULL);
+					m_appendCount--;
 					return -1;
 				}
 			}
@@ -961,6 +1000,8 @@ int stmtArraySize;
 		);
 
 #endif
+
+	m_appendCount--;
 
 	return row;
 }
@@ -1640,8 +1681,6 @@ vector<string>  assetCodes;
 
 	Logger *logger = Logger::getLogger();
 
-	Logger::getLogger()->debug("%s - age :%lu: flag :%x: sent :%lu: result :%s:", __FUNCTION__, age, flags, sent, result.c_str() );
-
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();
 	ReadingsCatalogue *readCatalogue = ReadingsCatalogue::getInstance();
@@ -2073,7 +2112,7 @@ vector<string>  assetCodes;
 			prevBlocks = blocks;
 			prevTotTime = totTime;
 			int deviation = abs(avg - TARGET_PURGE_BLOCK_DEL_TIME);
-			logger->debug("blocks=%d, totTime=%d usecs, prevAvg=%d usecs, currAvg=%d usecs, avg=%d usecs, TARGET_PURGE_BLOCK_DEL_TIME=%d usecs, deviation=%d usecs", 
+			logger->debug("blocks=%d, totTime=%d usecs, prevAvg=%d usecs, currAvg=%d usecs, avg=%d usecs, TARGET_PURGE_BLOCK_DEL_TIME=%d usecs, deviation=%d usecs",
 							blocks, totTime, prevAvg, currAvg, avg, TARGET_PURGE_BLOCK_DEL_TIME, deviation);
 			if (deviation > TARGET_PURGE_BLOCK_DEL_TIME/10)
 			{
@@ -2141,10 +2180,11 @@ vector<string>  assetCodes;
 	// rowidCallback expects unsigned long
 	unsigned long rowcount, minId, maxId;
 	unsigned long rowsAffected;
+	unsigned long  deletePoint;
+	char *zErrMsg = NULL;
+	int rc;
 
 	Logger *logger = Logger::getLogger();
-
-	Logger::getLogger()->debug("%s - rows :%lu: flag :%x: sent :%lu: result :%s:", __FUNCTION__, rows, flags, sent, result.c_str() );
 
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();
@@ -2172,11 +2212,9 @@ vector<string>  assetCodes;
 
 	rowsAffected = 0;
 	// Don't save unsent rows
-	do
-	{
-		char *zErrMsg = NULL;
-		int rc;
 
+
+	{ // Calc rowcount
 		// Generate a single SQL statement that using a set of UNION considers all the readings table in handling
 		{
 			// SQL - start
@@ -2213,48 +2251,9 @@ vector<string>  assetCodes;
 			sqlite3_free(zErrMsg);
 			return 0;
 		}
-		if (rowcount <= rows)
-		{
-			logger->info("Row count %lu is less than required rows %lu", rowcount, rows);
-			break;
-		}
-		// Generate a single SQL statement that using a set of UNION considers all the readings table in handling
-		{
-			// SQL - start
-			// MIN is used to ensure just 1 row is returned
-			sql_cmd = R"(
-				SELECT  MIN(rowid)
-					FROM
-					(
-				)";
+	}
 
-			// SQL - union of all the readings tables
-			string sql_cmd_base;
-			string sql_cmd_tmp;
-			sql_cmd_base = " SELECT MIN(rowid) rowid FROM _dbname_._tablename_ ";
-			ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
-			sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base, assetCodes);
-			sql_cmd += sql_cmd_tmp;
-
-			// SQL - end
-			sql_cmd += R"(
-					) as readings_1
-				)";
-		}
-
-		rc = SQLexec(dbHandle,
-					 sql_cmd.c_str(),
-					 rowidCallback,
-					 &minId,
-					 &zErrMsg);
-
-		if (rc != SQLITE_OK)
-		{
-			raiseError("purge - phaase 0, fetching minimum id", zErrMsg);
-			sqlite3_free(zErrMsg);
-			return 0;
-		}
-		// int maxId;
+	{ // Calc maxId
 		// Generate a single SQL statement that using a set of UNION considers all the readings table in handling
 		{
 			// SQL - start
@@ -2292,7 +2291,59 @@ vector<string>  assetCodes;
 			sqlite3_free(zErrMsg);
 			return 0;
 		}
+	}
+
+	numReadings = rowcount;
+	rowsAffected = 0;
+	do
+	{
+		if (rowcount <= rows)
+		{
+			logger->info("Row count %d is less than required rows %d", rowcount, rows);
+			break;
+		}
+
+		{ // Calc minId
+			// Generate a single SQL statement that using a set of UNION considers all the readings table in handling
+			{
+				// SQL - start
+				// MIN is used to ensure just 1 row is returned
+				sql_cmd = R"(
+					SELECT  MIN(rowid)
+						FROM
+						(
+					)";
+
+				// SQL - union of all the readings tables
+				string sql_cmd_base;
+				string sql_cmd_tmp;
+				sql_cmd_base = " SELECT MIN(rowid) rowid FROM _dbname_._tablename_ ";
+				ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
+				sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base, assetCodes);
+				sql_cmd += sql_cmd_tmp;
+
+				// SQL - end
+				sql_cmd += R"(
+						) as readings_1
+					)";
+			}
+
+			rc = SQLexec(dbHandle,
+						 sql_cmd.c_str(),
+						 rowidCallback,
+						 &minId,
+						 &zErrMsg);
+
+			if (rc != SQLITE_OK)
+			{
+				raiseError("purge - phaase 0, fetching minimum id", zErrMsg);
+				sqlite3_free(zErrMsg);
+				return 0;
+			}
+		}
 		unsigned long deletePoint = minId + 10000;
+
+		deletePoint = minId + 10000;
 		if (maxId - deletePoint < rows || deletePoint > maxId)
 			deletePoint = maxId - rows;
 
@@ -2315,7 +2366,6 @@ vector<string>  assetCodes;
 		{
 			ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
 
-
 			//unique_lock<mutex> lck(db_mutex);
 //			if (m_writeAccessOngoing) db_cv.wait(lck);
 
@@ -2323,7 +2373,9 @@ vector<string>  assetCodes;
 			rc = readCat->purgeAllReadings(dbHandle, query ,&zErrMsg, &rowsAffected);
 
 			deletedRows += rowsAffected;
-			numReadings = rowcount - rowsAffected;
+			numReadings -= rowsAffected;
+			rowcount    -= rowsAffected;
+
 			// Release memory for 'query' var
 			delete[] query;
 			logger->debug("Deleted :%lu: rows", rowsAffected);

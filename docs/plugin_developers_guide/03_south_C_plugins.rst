@@ -201,4 +201,6 @@ The *plugin_start* method, as with other plugin calls, is called with the plugin
           m_thread = new thread(threadWrapper, this);
   }
 
+.. include:: 03_02_Control.rst
+
 .. include:: 03_02_DHT11_C.rst

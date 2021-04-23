@@ -24,6 +24,8 @@
 #include <datapoint.h>
 #include <thread>
 
+#include <piwebapi.h>
+
 using namespace std;
 using namespace rapidjson;
 
@@ -121,8 +123,10 @@ OMFData::OMFData(const Reading& reading, const long typeId, const OMF_ENDPOINT P
 {
 	string outData;
 	string measurementId;
+	bool changed;
 
-	measurementId = to_string(typeId) + "measurement_" + reading.getAssetName();
+	measurementId = to_string(typeId) + "measurement_" +
+		OMF::ApplyPIServerNamingRulesObj(reading.getAssetName(), nullptr);
 
 	// Add the 1st level of AFHierarchy as a prefix to the name in case of PI Web API
 	if (PIServerEndpoint == ENDPOINT_PIWEB_API)
@@ -178,7 +182,7 @@ OMFData::OMFData(const Reading& reading, const long typeId, const OMF_ENDPOINT P
 		else
 		{
 			// Add datapoint Name
-			outData.append("\"" + dpName + "\": " + (*it)->getData().toString());
+			outData.append("\"" + OMF::ApplyPIServerNamingRulesObj(dpName, nullptr) + "\": " + (*it)->getData().toString());
 			outData.append(", ");
 		}
 	}
@@ -340,12 +344,10 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 					   typeData);
 		if  ( ! (res >= 200 && res <= 299) )
 		{
-			Logger::getLogger()->error("Sending JSON dataType message 'Type' "
-						   "- error: HTTP code |%d| - HostPort |%s| - path |%s| - OMF message |%s|",
+			Logger::getLogger()->error("Sending JSON dataType message 'Type', HTTP code %d - %s %s",
 						   res,
 						   m_sender.getHostPort().c_str(),
-						   m_path.c_str(),
-						   typeData.c_str() );
+						   m_path.c_str());
 			return false;
 		}
 	}
@@ -357,23 +359,24 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 			// Data type error: force type-id change
 			m_changeTypeId = true;
 		}
-                Logger::getLogger()->warn("Sending JSON dataType message 'Type', "
-					  "not blocking issue:  |%s| - message |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
-					   (m_changeTypeId ? "Data Type " : "" ),
-                                           e.what(),
-                                           m_sender.getHostPort().c_str(),
-                                           m_path.c_str(),
-                                           typeData.c_str() );
+			string errorMsg = errorMessageHandler(e.what());
+
+			Logger::getLogger()->warn("Sending dataType message 'Type', not blocking issue: %s %s - %s %s",
+				(m_changeTypeId ? "Data Type " : "" ),
+				errorMsg.c_str(),
+				m_sender.getHostPort().c_str(),
+				m_path.c_str());
+
 		return false;
 	}
 	catch (const std::exception& e)
 	{
-                Logger::getLogger()->error("Sending JSON dataType message 'Type' "
-					   "- generic error: |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
-                                           e.what(),
-                                           m_sender.getHostPort().c_str(),
-                                           m_path.c_str(),
-                                           typeData.c_str() );
+		string errorMsg = errorMessageHandler(e.what());
+
+		Logger::getLogger()->error("Sending dataType message 'Type', %s - %s %s",
+									errorMsg.c_str(),
+									m_sender.getHostPort().c_str(),
+									m_path.c_str());
 
 		return false;
 	}
@@ -395,11 +398,10 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 		if  ( ! (res >= 200 && res <= 299) )
 		{
 			Logger::getLogger()->error("Sending JSON dataType message 'Container' "
-						   "- error: HTTP code |%d| - HostPort |%s| - path |%s| - OMF message |%s|",
+						   "- error: HTTP code |%d| - %s %s",
 						   res,
 						   m_sender.getHostPort().c_str(),
-						   m_path.c_str(),
-						   typeContainer.c_str() );
+						   m_path.c_str() );
 			return false;
 		}
 	}
@@ -411,23 +413,24 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 			// Data type error: force type-id change
 			m_changeTypeId = true;
 		}
+		string errorMsg = errorMessageHandler(e.what());
+
 		Logger::getLogger()->warn("Sending JSON dataType message 'Container' "
-					   "not blocking issue: |%s| - message |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
+					   "not blocking issue: |%s| - %s - %s %s",
 					   (m_changeTypeId ? "Data Type " : "" ),
-					   e.what(),
+					   errorMsg.c_str(),
 					   m_sender.getHostPort().c_str(),
-					   m_path.c_str(),
-					   typeContainer.c_str() );
+					   m_path.c_str() );
 		return false;
 	}
 	catch (const std::exception& e)
 	{
-		Logger::getLogger()->error("Sending JSON dataType message 'Container' "
-					   "- generic error: |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
-					   e.what(),
+		string errorMsg = errorMessageHandler(e.what());
+
+		Logger::getLogger()->error("Sending JSON dataType message 'Container' - %s - %s %s",
+					   errorMsg.c_str(),
 					   m_sender.getHostPort().c_str(),
-					   m_path.c_str(),
-					   typeContainer.c_str() );
+					   m_path.c_str());
 		return false;
 	}
 
@@ -451,11 +454,10 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 			if  ( ! (res >= 200 && res <= 299) )
 			{
 				Logger::getLogger()->error("Sending JSON dataType message 'StaticData' "
-							   "- error: HTTP code |%d| - HostPort |%s| - path |%s| - OMF message |%s|",
+							   "- error: HTTP code |%d| - %s %s",
 							   res,
 							   m_sender.getHostPort().c_str(),
-							   m_path.c_str(),
-							   typeStaticData.c_str() );
+							   m_path.c_str() );
 				return false;
 			}
 		}
@@ -467,23 +469,25 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 				// Data type error: force type-id change
 				m_changeTypeId = true;
 			}
+			string errorMsg = errorMessageHandler(e.what());
+
 			Logger::getLogger()->warn("Sending JSON dataType message 'StaticData'"
-						   "not blocking issue: |%s| - message |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
+						   "not blocking issue: |%s| - %s - %s %s",
 						   (m_changeTypeId ? "Data Type " : "" ),
-						   e.what(),
+						   errorMsg.c_str(),
 						   m_sender.getHostPort().c_str(),
-						   m_path.c_str(),
-						   typeStaticData.c_str() );
+						   m_path.c_str() );
 			return false;
 		}
 		catch (const std::exception& e)
 		{
+			string errorMsg = errorMessageHandler(e.what());
+
 			Logger::getLogger()->error("Sending JSON dataType message 'StaticData'"
-						   "- generic error: |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
-						   e.what(),
+						   "- generic error: %s -  %s %s",
+						   errorMsg.c_str(),
 						   m_sender.getHostPort().c_str(),
-						   m_path.c_str(),
-						   typeStaticData.c_str() );
+						   m_path.c_str() );
 			return false;
 		}
 	}
@@ -494,7 +498,7 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 		// Create header for Link data
 		vector<pair<string, string>> resLinkData = OMF::createMessageHeader("Data");
 
-		string assetName = row.getAssetName();
+		string assetName = m_assetName;
 		string AFHierarchyLevel;
 		string prefix;
 		string objectPrefix;
@@ -529,12 +533,10 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 											   typeLinkData);
 					if (!(res >= 200 && res <= 299))
 					{
-						Logger::getLogger()->error("Sending JSON dataType message 'Data' (lynk) "
-												   "- error: HTTP code |%d| - HostPort |%s| - path |%s| - OMF message |%s|",
+						Logger::getLogger()->error("Sending JSON dataType message 'Data' (lynk) - error: HTTP code |%d| - %s %s",
 												   res,
 												   m_sender.getHostPort().c_str(),
-												   m_path.c_str(),
-												   typeLinkData.c_str());
+												   m_path.c_str());
 						return false;
 					}
 				}
@@ -546,23 +548,25 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 						// Data type error: force type-id change
 						m_changeTypeId = true;
 					}
+					string errorMsg = errorMessageHandler(e.what());
+
 					Logger::getLogger()->warn("Sending JSON dataType message 'Data' (lynk) "
-											  "not blocking issue: |%s| - message |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
+											  "not blocking issue: |%s| - %s - %s %s",
 											  (m_changeTypeId ? "Data Type " : ""),
-											  e.what(),
+											  errorMsg.c_str(),
 											  m_sender.getHostPort().c_str(),
-											  m_path.c_str(),
-											  typeLinkData.c_str());
+											  m_path.c_str() );
 					return false;
 				}
 				catch (const std::exception &e)
 				{
+					string errorMsg = errorMessageHandler(e.what());
+
 					Logger::getLogger()->error("Sending JSON dataType message 'Data' (lynk) "
-											   "- generic error: |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
-											   e.what(),
+											   "- generic error: %s - %s %s",
+											   errorMsg.c_str(),
 											   m_sender.getHostPort().c_str(),
-											   m_path.c_str(),
-											   typeLinkData.c_str());
+											   m_path.c_str() );
 					return false;
 				}
 			}
@@ -612,23 +616,19 @@ bool OMF::AFHierarchySendMessage(const string& msgType, string& jsonData)
 
 	if (! success)
 	{
+		string errorMsg = errorMessageHandler(errorMessage);
+
 		if (res != 0)
-			Logger::getLogger()->error("Sending JSON  Asset Framework hierarchy, "
-						   "- HTTP code |%d| - error message |%s| - HostPort |%s| - path |%s| message type |%s| - OMF message |%s|",
+			Logger::getLogger()->error("Sending Asset Framework hierarchy, %d %s - %s %s",
 						   res,
-						   errorMessage.c_str(),
+						   errorMsg.c_str(),
 						   m_sender.getHostPort().c_str(),
-						   m_path.c_str(),
-						   msgType.c_str(),
-						   jsonData.c_str() );
+						   m_path.c_str());
 		else
-			Logger::getLogger()->error("Sending JSON  Asset Framework hierarchy, "
-						   "- error message |%s| - HostPort |%s| - path |%s| message type |%s| - OMF message |%s|",
-						   errorMessage.c_str(),
+			Logger::getLogger()->error("Sending Asset Framework hierarchy, %s - %s %s",
+							errorMsg.c_str(),
 						   m_sender.getHostPort().c_str(),
-						   m_path.c_str(),
-						   msgType.c_str(),
-						   jsonData.c_str() );
+						   m_path.c_str());
 
 	}
 
@@ -714,7 +714,6 @@ bool OMF::handleAFHierarchySystemWide() {
 	std::string level;
 	std::string previousLevel;
 	string parentPath;
-
 	parentPath = evaluateParentPath(m_DefaultAFLocation, AFHierarchySeparator);
 	success = sendAFHierarchyLevels(parentPath, m_DefaultAFLocation, m_AFHierarchyLevel);
 
@@ -888,7 +887,16 @@ bool OMF::handleAFHierarchiesMetadataMap() {
 		for (Value::ConstMemberIterator itr = JSonExist.MemberBegin(); itr != JSonExist.MemberEnd(); ++itr)
 		{
 			name = itr->name.GetString();
-			value = itr->value.GetString();
+
+			{
+				bool changed = false;
+				value = ApplyPIServerNamingRulesPath(itr->value.GetString(), &changed);
+
+				if (changed) {
+
+					Logger::getLogger()->info("%s - AF hierarchy metadata exists rule changed to follow PI-Server naming rules from :%s: to :%s:", __FUNCTION__, itr->value.GetString(), value.c_str() );
+				}
+			}
 			Logger::getLogger()->debug("AFHierarchiesMetadataMap - exist name :%s: value :%s:", name.c_str(), value.c_str());
 
 			sendAFHierarchy(value.c_str());
@@ -902,7 +910,16 @@ bool OMF::handleAFHierarchiesMetadataMap() {
 		for (Value::ConstMemberIterator itr = JSonNonExist.MemberBegin(); itr != JSonNonExist.MemberEnd(); ++itr)
 		{
 			name = itr->name.GetString();
-			value = itr->value.GetString();
+			{
+				bool changed = false;
+				value = ApplyPIServerNamingRulesPath(itr->value.GetString(), &changed);
+
+				if (changed) {
+
+					Logger::getLogger()->info("%s - AF hierarchy metadata nonexist rule changed to follow PI-Server naming rules from :%s: to :%s:", __FUNCTION__, itr->value.GetString(), value.c_str() );
+				}
+			}
+
 			Logger::getLogger()->debug("AFHierarchiesMetadataMap - nonexist name :%s: value :%s:", name.c_str(), value.c_str());
 			sendAFHierarchy(value.c_str());
 		}
@@ -920,7 +937,15 @@ bool OMF::handleAFHierarchiesMetadataMap() {
 			for (Value::ConstMemberIterator itrL2 = itr->value.MemberBegin(); itrL2 != itr->value.MemberEnd(); ++itrL2)
 			{
 				name = itrL2->name.GetString();
-				value = itrL2->value.GetString();
+				{
+					bool changed = false;
+					value = ApplyPIServerNamingRulesPath(itr->value.GetString(), &changed);
+
+					if (changed) {
+
+						Logger::getLogger()->info("%s - AF hierarchy metadata equal rule changed to follow PI-Server naming rules from :%s: to :%s:", __FUNCTION__, itr->value.GetString(), value.c_str() );
+					}
+				}
 				Logger::getLogger()->debug("AFHierarchiesMetadataMap - equal name :%s: value :%s:", name.c_str(), value.c_str());
 				sendAFHierarchy(value.c_str());
 			}
@@ -939,7 +964,15 @@ bool OMF::handleAFHierarchiesMetadataMap() {
 			for (Value::ConstMemberIterator itrL2 = itr->value.MemberBegin(); itrL2 != itr->value.MemberEnd(); ++itrL2)
 			{
 				name = itrL2->name.GetString();
-				value = itrL2->value.GetString();
+				{
+					bool changed = false;
+					value = ApplyPIServerNamingRulesPath(itr->value.GetString(), &changed);
+
+					if (changed) {
+
+						Logger::getLogger()->info("%s - AF hierarchy metadata notequal rule changed to follow PI-Server naming rules from :%s: to :%s:", __FUNCTION__, itr->value.GetString(), value.c_str() );
+					}
+				}
 				Logger::getLogger()->debug("AFHierarchiesMetadataMap - notequal name :%s: value :%s:", name.c_str(), value.c_str());
 				sendAFHierarchy(value.c_str());
 			}
@@ -954,7 +987,7 @@ bool OMF::handleAFHierarchiesMetadataMap() {
  *
  * @param out		true if succeded
  */
-bool OMF::handleAFHierarchy()
+bool OMF::handleAFHirerarchy()
 {
 	bool success = true;
 
@@ -1049,6 +1082,20 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 	gettimeofday(&t1, NULL);
 #endif
 
+	// Applies the PI-Server naming rules to the AF hierarchy
+	{
+		bool changed = false;
+		string  origDefaultAFLocation;
+
+		origDefaultAFLocation = m_DefaultAFLocation;
+		m_DefaultAFLocation = ApplyPIServerNamingRulesPath(m_DefaultAFLocation, &changed);
+
+		if (changed) {
+
+			Logger::getLogger()->info("%s - AF hierarchy changed to follow PI-Server naming rules from :%s: to :%s:", __FUNCTION__, origDefaultAFLocation.c_str(), m_DefaultAFLocation.c_str() );
+		}
+	}
+
 	/*
 	 * Iterate over readings:
 	 * - Send/cache Types
@@ -1090,23 +1137,33 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			}
 		}
 
-		// Add into JSON string the OMF transformed Reading data
-		string assetName(reading->getAssetName());
+		// Applies the PI-Server naming rules to the AssetName
+		{
 
+			bool changed;
+			string assetNameFledge;
 
-		evaluateAFHierarchyRules(assetName, *reading);
+			assetNameFledge = reading->getAssetName();
+			m_assetName = ApplyPIServerNamingRulesObj(assetNameFledge, &changed);
+			if (changed) {
+
+				Logger::getLogger()->info("%s -  3 Asset name changed to follow PI-Server naming rules from :%s: to :%s:", __FUNCTION__, assetNameFledge.c_str(), m_assetName.c_str() );
+			}
+		}
+
+		evaluateAFHierarchyRules(m_assetName, *reading);
 
 		if (m_PIServerEndpoint == ENDPOINT_CR  ||
 			m_PIServerEndpoint == ENDPOINT_OCS ||
 			m_PIServerEndpoint == ENDPOINT_EDS
 			)
 		{
-			keyComplete = assetName;
+			keyComplete = m_assetName;
 		}
 		else if (m_PIServerEndpoint == ENDPOINT_PIWEB_API)
 		{
-			retrieveAFHierarchyPrefixAssetName(assetName, AFHierarchyPrefix, AFHierarchyLevel);
-			keyComplete = AFHierarchyPrefix + "_" + assetName;
+			retrieveAFHierarchyPrefixAssetName(m_assetName, AFHierarchyPrefix, AFHierarchyLevel);
+			keyComplete = AFHierarchyPrefix + "_" + m_assetName;
 		}
 
 		if (! usingTagHint)
@@ -1153,7 +1210,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 				OMF::clearCreatedTypes(keyComplete);
 
 				// Get the supersetDataPoints for current assetName
-				auto it = m_SuperSetDataPoints.find(assetName);
+				auto it = m_SuperSetDataPoints.find(m_assetName);
 				if (it != m_SuperSetDataPoints.end())
 				{
 					datatypeStructure = (*it).second;
@@ -1166,7 +1223,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 				// it sends the hierarchy once
 				if (sendDataTypes and ! AFHierarchySent)
 				{
-					handleAFHierarchy();
+					handleAFHirerarchy();
 
 					AFHierarchySent = true;
 				}
@@ -1205,7 +1262,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			}
 
 			// Create the key for dataTypes sending once
-			typeId = OMF::getAssetTypeId(assetName);
+			typeId = OMF::getAssetTypeId(m_assetName);
 		}
 
 		string outData = OMFData(*reading, typeId, m_PIServerEndpoint, AFHierarchyPrefix, hints ).OMFdataVal();
@@ -1265,12 +1322,12 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 					       json);
 		if  ( ! (res >= 200 && res <= 299) )
 		{
-			Logger::getLogger()->error("Sending JSON readings, "
-						   "- error: HTTP code |%d| - HostPort |%s| - path |%s| - OMF message |%s|",
+			Logger::getLogger()->error("Sending JSON readings , "
+						   "- error: HTTP code |%d| - %s %s",
 						   res,
 						   m_sender.getHostPort().c_str(),
-						   m_path.c_str(),
-						   json_not_compressed.c_str() );
+						   m_path.c_str()
+						   );
 			m_lastError = true;
 			return 0;
 		}
@@ -1328,12 +1385,14 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			// 2- Type-id is not incremented
 			// 3- Data Types cache is cleared: next sendData call
 			//    will send data types again.
+
+			string errorMsg = errorMessageHandler(e.what());
+
 			Logger::getLogger()->warn("Sending JSON readings, "
-						  "not blocking issue: |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
-						  e.what(),
+						  "not blocking issue: %s - %s %s",
+						  errorMsg.c_str(),
 						  m_sender.getHostPort().c_str(),
-						  m_path.c_str(),
-						  json_not_compressed.c_str() );
+						  m_path.c_str());
 
 			// Extract assetName from error message
 			string assetName;
@@ -1362,12 +1421,12 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 				Logger::getLogger()->warn("Sending JSON readings, "
 							  "not blocking issue: 'type-id' of assetName '%s' "
 							  "has been set to %d "
-							  "- HostPort |%s| - path |%s| - OMF message |%s|",
+							  "- %s %s",
 							  assetName.c_str(),
 							  OMF::getAssetTypeId(assetName),
 							  m_sender.getHostPort().c_str(),
-							  m_path.c_str(),
-							  json_not_compressed.c_str());
+							  m_path.c_str()
+							  );
 			}
 
 			// Reset error indicator
@@ -1379,11 +1438,13 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 		}
 		else
 		{
-			Logger::getLogger()->error("Sending JSON data error: |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
-			                           e.what(),
+			string errorMsg = errorMessageHandler(e.what());
+
+			Logger::getLogger()->error("Sending JSON data error : %s - %s %s",
+									   errorMsg.c_str(),
 			                           m_sender.getHostPort().c_str(),
-			                           m_path.c_str(),
-			                           json_not_compressed.c_str());
+			                           m_path.c_str()
+									   );
 		}
 		// Failure
 		m_lastError = true;
@@ -1391,16 +1452,40 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 	}
 	catch (const std::exception& e)
 	{
-		Logger::getLogger()->error("Sending JSON data error: |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
-					   e.what(),
-					   m_sender.getHostPort().c_str(),
-					   m_path.c_str(),
-					   json_not_compressed.c_str() );
+		string errorMsg = errorMessageHandler(e.what());
+
+		Logger::getLogger()->error("Sending JSON data error : %s - %s %s",
+						errorMsg.c_str(),
+						m_sender.getHostPort().c_str(),
+						m_path.c_str()
+						);
+
 		// Failure
 		m_lastError = true;
 		return 0;
 	}
 }
+
+/**
+ * Apply an handling on the error message in relation to the End Point
+ *
+ */
+string OMF::errorMessageHandler(const string &msg)
+{
+	string errorMsg;
+
+	if (m_PIServerEndpoint == ENDPOINT_PIWEB_API)
+	{
+		PIWebAPI piWeb;
+		errorMsg = piWeb.errorMessageHandler(msg);
+
+	} else {
+		errorMsg = msg;
+	}
+
+	return(errorMsg);
+}
+
 
 /**
  * Send all the readings to the PI Server
@@ -1436,8 +1521,9 @@ uint32_t OMF::sendToServer(const vector<Reading>& readings,
 		}
 
 		// Create the key for dataTypes sending once
-		long typeId = OMF::getAssetTypeId((*elem).getAssetName());
-		string key((*elem).getAssetName());
+		m_assetName = ApplyPIServerNamingRulesObj((*elem).getAssetName(), nullptr);
+		long typeId = OMF::getAssetTypeId(m_assetName);
+		string key(m_assetName);
 
 		sendDataTypes = (m_lastError == false && skipSentDataTypes == true) ?
 				 // Send if not already sent
@@ -1522,7 +1608,9 @@ uint32_t OMF::sendToServer(const Reading* reading,
 	ostringstream jsonData;
 	jsonData << "[";
 
-	string key(reading->getAssetName());
+	m_assetName = ApplyPIServerNamingRulesObj(reading->getAssetName(), nullptr);
+
+	string key(m_assetName);
 
 	Datapoint *hintsdp = reading->getDatapoint("OMFHint");
 	OMFHints *hints = NULL;
@@ -1536,7 +1624,7 @@ uint32_t OMF::sendToServer(const Reading* reading,
 		return 0;
 	}
 
-	long typeId = OMF::getAssetTypeId((*reading).getAssetName());
+	long typeId = OMF::getAssetTypeId(m_assetName);
 	// Add into JSON string the OMF transformed Reading data
 	jsonData << OMFData(*reading, typeId, m_PIServerEndpoint, m_AFHierarchyLevel, hints).OMFdataVal();
 	jsonData << "]";
@@ -1565,12 +1653,13 @@ uint32_t OMF::sendToServer(const Reading* reading,
 	}
 	catch (const std::exception& e)
 	{
+		string errorMsg = errorMessageHandler(e.what());
+
 		Logger::getLogger()->error("Sending JSON readings data "
-					   "- generic error: |%s| - HostPort |%s| - path |%s| - OMF message |%s|",
-					   e.what(),
+					   "- generic error: %s - %s %s",
+					   errorMsg.c_str(),
 					   m_sender.getHostPort().c_str(),
-					   m_path.c_str(),
-					   jsonData.str().c_str() );
+					   m_path.c_str() );
 
 		return false;
 	}
@@ -1617,7 +1706,7 @@ const std::string OMF::createTypeData(const Reading& reading, OMFHints *hints)
 		for (auto it = m_staticData->cbegin(); it != m_staticData->cend(); ++it)
 		{
 			tData.append("\"");
-			tData.append(it->first.c_str());
+			tData.append(ApplyPIServerNamingRulesObj(it->first.c_str(), nullptr) );
 			tData.append("\": {\"type\": \"string\"},");
 		}
 
@@ -1638,7 +1727,7 @@ const std::string OMF::createTypeData(const Reading& reading, OMFHints *hints)
 		}
 
 		// Add type_id + '_' + asset_name + '_typename_sensor'
-		OMF::setAssetTypeTag(reading.getAssetName(),
+		OMF::setAssetTypeTag(m_assetName,
 					 "typename_sensor",
 					 tData);
 
@@ -1707,7 +1796,7 @@ const std::string OMF::createTypeData(const Reading& reading, OMFHints *hints)
 			continue;
 		}
 		// Add datapoint Name
-		tData.append("\"" + dpName + "\"");
+		tData.append("\"" + ApplyPIServerNamingRulesObj(dpName, nullptr) + "\"");
 		tData.append(": {\"type\": \"");
 		// Add datapoint Type
 		tData.append(omfType);
@@ -1745,7 +1834,7 @@ const std::string OMF::createTypeData(const Reading& reading, OMFHints *hints)
 	if (!typeNameSet)
 	{
 		// Add type_id + '_' + asset_name + '__typename_measurement'
-		OMF::setAssetTypeTag(reading.getAssetName(),
+		OMF::setAssetTypeTag(m_assetName,
 				     "typename_measurement",
 				     tData);
 	}
@@ -1776,7 +1865,7 @@ const std::string OMF::createContainerData(const Reading& reading, OMFHints *hin
 	string AFHierarchyPrefix;
 	string AFHierarchyLevel;
 
-	string assetName = reading.getAssetName();
+	string assetName = m_assetName;
 
 	string measurementId;
 
@@ -1856,7 +1945,7 @@ const std::string OMF::createStaticData(const Reading& reading)
 
 	sData.append("{\"typeid\": \"");
 
-	assetName = reading.getAssetName();
+	assetName = m_assetName;
 
 	long typeId = getAssetTypeId(assetName);
 
@@ -1869,7 +1958,7 @@ const std::string OMF::createStaticData(const Reading& reading)
 	for (auto it = m_staticData->cbegin(); it != m_staticData->cend(); ++it)
 	{
 		sData.append("\"");
-		sData.append(it->first.c_str());
+		sData.append(ApplyPIServerNamingRulesObj(it->first.c_str(), nullptr) );
 		sData.append("\": \"");
 		sData.append(it->second.c_str());
 		sData.append("\", ");
@@ -1920,7 +2009,9 @@ std::string OMF::createLinkData(const Reading& reading,  std::string& AFHierarch
 	string targetTypeId;
 
 	string measurementId;
-	string assetName = reading.getAssetName();
+
+	string assetName = m_assetName;
+
 	// Build the Link data (JSON Array)
 
 	long typeId = getAssetTypeId(assetName);
@@ -2094,6 +2185,7 @@ void OMF::evaluateAFHierarchyRules(const string& assetName, const Reading& readi
 			auto it = m_NamesRules.find(assetName);
 			if (it != m_NamesRules.end())
 			{
+
 				path = it->second;
 
 				if (path.at(0) != '/')
@@ -2447,7 +2539,16 @@ bool OMF::HandleAFMapNames(Document& JSon)
 	for (Value::ConstMemberIterator itr = JsonNames.MemberBegin(); itr != JsonNames.MemberEnd(); ++itr)
 	{
 		name = itr->name.GetString();
-		value = itr->value.GetString();
+
+		{
+			bool changed = false;
+			value = ApplyPIServerNamingRulesPath(itr->value.GetString(), &changed);
+
+			if (changed) {
+
+				Logger::getLogger()->info("%s - AF hierarchy name rule changed to follow PI-Server naming rules from :%s: to :%s:", __FUNCTION__, itr->value.GetString(), value.c_str() );
+			}
+		}
 		Logger::getLogger()->debug("HandleAFMapNames - Exist name :%s: value :%s:", name.c_str(), value.c_str());
 
 		auto newMapValue = make_pair(name,value);
@@ -2481,7 +2582,15 @@ bool OMF::HandleAFMapMetedata(Document& JSon)
 		for (Value::ConstMemberIterator itr = JSonExist.MemberBegin(); itr != JSonExist.MemberEnd(); ++itr)
 		{
 			name = itr->name.GetString();
-			value = itr->value.GetString();
+			{
+				bool changed = false;
+				value = ApplyPIServerNamingRulesPath(itr->value.GetString(), &changed);
+
+				if (changed) {
+
+					Logger::getLogger()->info("%s - AF hierarchy metadata exists rule changed to follow PI-Server naming rules from :%s: to :%s:", __FUNCTION__, itr->value.GetString(), value.c_str() );
+				}
+			}
 			Logger::getLogger()->debug("HandleAFMapMetedata - Exist name :%s: value :%s:", name.c_str(), value.c_str());
 
 			auto newMapValue = make_pair(name,value);
@@ -2500,7 +2609,15 @@ bool OMF::HandleAFMapMetedata(Document& JSon)
 		for (Value::ConstMemberIterator itr = JSonNonExist.MemberBegin(); itr != JSonNonExist.MemberEnd(); ++itr)
 		{
 			name = itr->name.GetString();
-			value = itr->value.GetString();
+			{
+				bool changed = false;
+				value = ApplyPIServerNamingRulesPath(itr->value.GetString(), &changed);
+
+				if (changed) {
+
+					Logger::getLogger()->info("%s - AF hierarchy metadata nonexist rule changed to follow PI-Server naming rules from :%s: to :%s:", __FUNCTION__, itr->value.GetString(), value.c_str() );
+				}
+			}
 			Logger::getLogger()->debug("HandleAFMapMetedata - Non Exist name :%s: value :%s:", name.c_str(), value.c_str());
 
 			auto newMapValue = make_pair(name,value);
@@ -2528,7 +2645,15 @@ bool OMF::HandleAFMapMetedata(Document& JSon)
 			for (Value::ConstMemberIterator itrL2 = itr->value.MemberBegin(); itrL2 != itr->value.MemberEnd(); ++itrL2)
 			{
 				value = itrL2->name.GetString();
-				path  = itrL2->value.GetString();
+				{
+					bool changed = false;
+					path = ApplyPIServerNamingRulesPath(itrL2->value.GetString(), &changed);
+
+					if (changed) {
+
+						Logger::getLogger()->info("%s - AF hierarchy metadata equal rule changed to follow PI-Server naming rules from :%s: to :%s:", __FUNCTION__, itrL2->value.GetString(), path.c_str() );
+					}
+				}
 				Logger::getLogger()->debug("HandleAFMapMetedata - equal property :%s: name :%s: value :%s:", property.c_str() , value.c_str(), path.c_str());
 
 				auto item = make_pair(value,path);
@@ -2554,7 +2679,16 @@ bool OMF::HandleAFMapMetedata(Document& JSon)
 			for (Value::ConstMemberIterator itrL2 = itr->value.MemberBegin(); itrL2 != itr->value.MemberEnd(); ++itrL2)
 			{
 				value = itrL2->name.GetString();
-				path  = itrL2->value.GetString();
+				{
+					bool changed = false;
+					path = ApplyPIServerNamingRulesPath(itrL2->value.GetString(), &changed);
+
+					if (changed) {
+
+						Logger::getLogger()->info("%s - AF hierarchy metadata notequal rule changed to follow PI-Server naming rules from :%s: to :%s:", __FUNCTION__, itrL2->value.GetString(), path.c_str() );
+					}
+				}
+
 				Logger::getLogger()->debug("HandleAFMapMetedata - Not equal property :%s: name :%s: value :%s:", property.c_str() , value.c_str(), path.c_str());
 
 				auto item = make_pair(value,path);
@@ -2688,7 +2822,8 @@ bool OMF::handleTypeErrors(const string& keyComplete, const Reading& reading, OM
 	Logger::getLogger()->debug("handleTypeErrors keyComplete :%s:", keyComplete.c_str());
 
 	bool ret = true;
-	string assetName = reading.getAssetName();
+
+	string assetName = m_assetName;
 
 	// Reset change type-id indicator
 	m_changeTypeId = false;
@@ -2737,7 +2872,7 @@ bool OMF::handleTypeErrors(const string& keyComplete, const Reading& reading, OM
  * @param    dataSuperSet	Map to store all datapoints for an assetname
  */
 void OMF::setMapObjectTypes(const vector<Reading*>& readings,
-			    std::map<std::string, Reading*>& dataSuperSet) const
+			    std::map<std::string, Reading*>& dataSuperSet)
 {
 	// Temporary map for [asset][datapoint] = type
 	std::map<string, map<string, string>> readingAllDataPoints;
@@ -2749,7 +2884,10 @@ void OMF::setMapObjectTypes(const vector<Reading*>& readings,
 						++elem)
 	{
 		// Get asset name
-		string assetName = (**elem).getAssetName();
+		string assetName = ApplyPIServerNamingRulesObj((**elem).getAssetName(), nullptr);
+
+		//string assetName = (**elem).getAssetName();
+
 		// Get all datapoints
 		const vector<Datapoint*> data = (**elem).getReadingData();
 		// Iterate through datapoints
@@ -3063,22 +3201,7 @@ void OMF::incrementAssetTypeIdOnly(const std::string& keyComplete)
  */
 unsigned long OMF::calcTypeShort(const Reading& row)
 {
-	union t_typeCount {
-		struct
-		{
-			unsigned char tTotal;
-			unsigned char tFloat;
-			unsigned char tString;
-			unsigned char spare0;
-
-			unsigned char spare1;
-			unsigned char spare2;
-			unsigned char spare3;
-			unsigned char spare4;
-		} cnt;
-		unsigned long valueLong = 0;
-
-	} typeCount;
+	t_typeCount typeCount;
 
 	int type;
 
@@ -3141,7 +3264,7 @@ bool OMF::setCreatedTypes(const Reading& row, OMFHints *hints)
 		m_PIServerEndpoint == ENDPOINT_EDS
 		)
 	{
-		keyComplete = row.getAssetName();
+		keyComplete = m_assetName;
 	}
 	else if (m_PIServerEndpoint == ENDPOINT_PIWEB_API)
 	{
@@ -3149,7 +3272,8 @@ bool OMF::setCreatedTypes(const Reading& row, OMFHints *hints)
 		string AFHierarchyPrefix;
 		string AFHierarchyLevel;
 
-		assetName = row.getAssetName();
+		assetName = m_assetName;
+
 		retrieveAFHierarchyPrefixAssetName(assetName, AFHierarchyPrefix, AFHierarchyLevel);
 
 		keyComplete = AFHierarchyPrefix + "_" + assetName;
@@ -3322,6 +3446,9 @@ bool OMF::getCreatedTypes(const string& keyComplete, const Reading& row, OMFHint
 	bool ret = false;
 	bool found = false;
 
+	t_typeCount typeStored;
+	t_typeCount typeNew;
+
 	if (!m_OMFDataTypes)
 	{
 		ret = false;
@@ -3355,14 +3482,20 @@ bool OMF::getCreatedTypes(const string& keyComplete, const Reading& row, OMFHint
 							// Check if the defined type has changed respect the superset type
 							Reading* datatypeStructure = NULL;
 
-							auto itSuper = m_SuperSetDataPoints.find(row.getAssetName());
+							auto itSuper = m_SuperSetDataPoints.find(m_assetName);
+
 							if (itSuper != m_SuperSetDataPoints.end())
 							{
 								datatypeStructure = (*itSuper).second;
 
 								// Check if the types are changed
-								typesDefinition = calcTypeShort(*datatypeStructure);
-								if (type.typesShort != typesDefinition)
+								typeStored.valueLong = type.typesShort;
+								typeNew.valueLong = calcTypeShort(*datatypeStructure);
+
+								if (typeNew.cnt.tTotal  > typeStored.cnt.tTotal ||
+									typeNew.cnt.tFloat  > typeStored.cnt.tFloat ||
+									typeNew.cnt.tString > typeStored.cnt.tString
+									)
 								{
 									ret = false;
 								}
@@ -3395,5 +3528,186 @@ static bool isTypeSupported(DatapointValue& dataPoint)
 	{
 		return true;
 	}
+}
+
+/**
+ * Check a PI Server name and returns the proper name to use following the naming rules
+ *
+ * Invalid chars: Control characters plus: * ? ; { } [ ] | \ ` ' "
+ *
+ * @param    objName  The object name to verify
+ * @param    changed  if not null, it is set to true if a change occur
+ * @return			  Object name following the PI Server naming rules
+ */
+std::string OMF::ApplyPIServerNamingRulesInvalidChars(const std::string &objName, bool *changed)
+{
+	std::string nameFixed;
+
+	if (changed)
+		*changed = false;
+
+	nameFixed = objName;
+
+	for (size_t i = 0; i < nameFixed.length(); i++)
+	{
+		if (
+			nameFixed[i] == '*'  ||
+			nameFixed[i] == '?'  ||
+			nameFixed[i] == ';'  ||
+			nameFixed[i] == '{'  ||
+			nameFixed[i] == '}'  ||
+			nameFixed[i] == '['  ||
+			nameFixed[i] == ']'  ||
+			nameFixed[i] == '|'  ||
+			nameFixed[i] == '\\' ||
+			nameFixed[i] == '`'  ||
+			nameFixed[i] == '\'' ||
+			nameFixed[i] == '\"' ||
+			iscntrl(nameFixed[i])
+			)
+		{
+			nameFixed.replace(i, 1, "_");
+
+			if (changed)
+				*changed = true;
+		}
+
+	}
+
+	return (nameFixed);
+}
+
+/**
+ * Check a PI Server object name and returns the proper name to use following the naming rules:
+ *
+ * - Blank names are not permitted, substituted with '_'
+ * - Trailing spaces are removed
+ * - Maximum name length is 200 characters.
+ * - Valid chars
+ * - Names cannot begin with '__', These are reserved for system use, substituted with single '_'
+ *
+ * Note: Names on PI-Server side are not case sensitive
+ *
+ * @param    objName  The object name to verify
+ * @param    changed  if not null, it is set to true if a change occur
+ * @return			  Object name following the PI Server naming rules
+ */
+std::string OMF::ApplyPIServerNamingRulesObj(const std::string &objName, bool *changed)
+{
+	std::string nameFixed;
+
+	if (changed)
+		*changed = false;
+
+	nameFixed = StringTrim(objName);
+
+	Logger::getLogger()->debug("%s - original :%s: trimmed :%s:", __FUNCTION__, objName.c_str(), nameFixed.c_str());
+
+	if (nameFixed.empty ()) {
+
+		Logger::getLogger()->debug("%s - object name empty", __FUNCTION__);
+
+		nameFixed = "_";
+		if (changed)
+			*changed = true;
+
+	} else {
+		if (nameFixed.length() > 201) {
+
+			nameFixed = nameFixed.substr(0, 200);
+			if (changed)
+				*changed = true;
+
+			Logger::getLogger()->warn("%s - object name too long, truncated to :%s: ", __FUNCTION__, nameFixed.c_str() );
+		}
+	}
+
+	nameFixed = ApplyPIServerNamingRulesInvalidChars(nameFixed, changed);
+
+	/// Names cannot begin with '__'. These are reserved for system use.
+	if (
+		nameFixed[0] == '_'  &&
+		nameFixed[1] == '_'
+		)
+	{
+		nameFixed.erase(0, 1);
+		if (changed)
+			*changed = true;
+	}
+
+	Logger::getLogger()->debug("%s - final :%s: ", __FUNCTION__, nameFixed.c_str());
+
+	return (nameFixed);
+}
+
+
+/**
+ * Check a PI Server path name and returns the proper name to use following the naming rules:
+ *
+ * - Blank names are not permitted, substituted with '_'
+ * - Trailing spaces are removed
+ * - Maximum name length is 200 characters.
+ * - Valid chars
+ * - Names cannot begin with '__', These are reserved for system use, substituted with single '_'
+ *
+ * Names on PI-Server side are not case sensitive
+ *
+ * @param    objName  The object name to verify
+ * @param    changed  if not null, it is set to true if a change occur
+ * @return			  Object name following the PI Server naming rules
+ */
+std::string OMF::ApplyPIServerNamingRulesPath(const std::string &objName, bool *changed)
+{
+	std::string nameFixed;
+
+	if (changed)
+		*changed = false;
+
+	nameFixed = StringTrim(objName);
+
+	Logger::getLogger()->debug("%s - original :%s: trimmed :%s:", __FUNCTION__, objName.c_str(), nameFixed.c_str());
+
+	if (nameFixed.empty ()) {
+
+		Logger::getLogger()->debug("%s - path empty", __FUNCTION__);
+		nameFixed = "_";
+		if (changed)
+			*changed = true;
+
+	} else {
+		if (nameFixed.length() > 201) {
+
+			nameFixed = nameFixed.substr(0, 200);
+			if (changed)
+				*changed = true;
+
+			Logger::getLogger()->warn("%s - path too long, truncated to :%s: ", __FUNCTION__, nameFixed.c_str() );
+		}
+	}
+
+	nameFixed = ApplyPIServerNamingRulesInvalidChars(nameFixed, changed);
+
+	/// Names cannot begin with '__'. These are reserved for system use.
+	if (
+		nameFixed[0] == '_' &&
+		nameFixed[1] == '_'
+		)
+	{
+		nameFixed.erase(0, 1);
+		if (changed)
+			*changed = true;
+	}
+
+	if (nameFixed.find("/__") != string::npos)
+	{
+		StringReplaceAll(nameFixed,"/__","/_");
+		if (changed)
+			*changed = true;
+
+	}
+
+	Logger::getLogger()->debug("%s - final :%s: ", __FUNCTION__, nameFixed.c_str());
+
+	return (nameFixed);
 }
 

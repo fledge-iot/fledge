@@ -45,7 +45,7 @@ def setup(app):
     # user
     app.router.add_route('GET', '/fledge/user', auth.get_user)
     app.router.add_route('PUT', '/fledge/user/{id}', auth.update_user)
-    app.router.add_route('PUT', '/fledge/user/{username}/password', auth.update_password)
+    app.router.add_route('PUT', '/fledge/user/{user_id}/password', auth.update_password)
 
     # role
     app.router.add_route('GET', '/fledge/user/role', auth.get_roles)
@@ -60,6 +60,7 @@ def setup(app):
     # admin
     app.router.add_route('POST', '/fledge/admin/user', auth.create_user)
     app.router.add_route('DELETE', '/fledge/admin/{user_id}/delete', auth.delete_user)
+    app.router.add_route('PUT', '/fledge/admin/{user_id}/enabled', auth.enable_user)
     app.router.add_route('PUT', '/fledge/admin/{user_id}/reset', auth.reset)
 
     # Configuration

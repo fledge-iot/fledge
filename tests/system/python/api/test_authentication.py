@@ -82,11 +82,18 @@ class TestAuthenticationAPI:
         TOKEN = jdoc["token"]
 
     @pytest.mark.parametrize(("query", "expected_values"), [
-        ('', {'users': [{'userId': 1, 'roleId': 1, 'userName': 'admin'},
-                        {'userId': 2, 'roleId': 2, 'userName': 'user'}]}),
-        ('?id=2', {'userId': 2, 'roleId': 2, 'userName': 'user'}),
-        ('?username=admin', {'userId': 1, 'roleId': 1, 'userName': 'admin'}),
-        ('?id=1&username=admin', {'userId': 1, 'roleId': 1, 'userName': 'admin'}),
+        ('', {'users': [{'userId': 1, 'roleId': 1, 'userName': 'admin', 'accessMethod': 'any', 'realName': 'Admin user',
+                         'description': 'admin user'},
+                        {'userId': 2, 'roleId': 2, 'userName': 'user', 'accessMethod': 'any', 'realName': 'Normal user',
+                         'description': 'normal user'}]}),
+        ('?id=2', {'userId': 2, 'roleId': 2, 'userName': 'user', 'accessMethod': 'any', 'realName': 'Normal user',
+                   'description': 'normal user'}),
+        ('?username=admin',
+         {'userId': 1, 'roleId': 1, 'userName': 'admin', 'accessMethod': 'any', 'realName': 'Admin user',
+          'description': 'admin user'}),
+        ('?id=1&username=admin',
+         {'userId': 1, 'roleId': 1, 'userName': 'admin', 'accessMethod': 'any', 'realName': 'Admin user',
+          'description': 'admin user'})
     ])
     def test_get_users(self, fledge_url, query, expected_values):
         conn = http.client.HTTPConnection(fledge_url)
@@ -109,16 +116,19 @@ class TestAuthenticationAPI:
                            'id': 2, 'name': 'user'}]} == jdoc
 
     @pytest.mark.parametrize(("form_data", "expected_values"), [
-        ({"username": "any1", "password": "User@123"}, {'user': {'userName': 'any1', 'userId': 3, 'roleId': 2},
-                                                        'message': 'User has been created successfully'}),
+        ({"username": "any1", "password": "User@123", "real_name": "AJ", "description": "Nerd user"},
+         {'user': {'userName': 'any1', 'userId': 3, 'roleId': 2, 'accessMethod': 'any', 'realName': 'AJ',
+                   'description': 'Nerd user'}, 'message': 'any1 user has been created successfully'}),
         ({"username": "admin1", "password": "F0gl@mp!", "role_id": 1},
-         {'user': {'userName': 'admin1', 'userId': 4, 'roleId': 1},
-          'message': 'User has been created successfully'}),
+         {'user': {'userName': 'admin1', 'userId': 4, 'roleId': 1, 'accessMethod': 'any', 'realName': '',
+                   'description': ''}, 'message': 'admin1 user has been created successfully'}),
+        ({"username": "bogus", "password": "Fl3dG$", "role_id": 2},
+         {'user': {'userName': 'bogus', 'userId': 5, 'roleId': 2, 'accessMethod': 'any', 'realName': '',
+                   'description': ''}, 'message': 'bogus user has been created successfully'})
     ])
     def test_create_user(self, fledge_url, form_data, expected_values):
         conn = http.client.HTTPConnection(fledge_url)
-        conn.request("POST", "/fledge/admin/user", body=json.dumps(form_data),
-                     headers={"authorization": TOKEN})
+        conn.request("POST", "/fledge/admin/user", body=json.dumps(form_data), headers={"authorization": TOKEN})
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -126,25 +136,73 @@ class TestAuthenticationAPI:
         assert expected_values == jdoc
 
     def test_update_password(self, fledge_url):
+        uid = 3
+        payload = {"current_password": "User@123", "new_password": "F0gl@mp1"}
         conn = http.client.HTTPConnection(fledge_url)
-        conn.request("PUT", "/fledge/user/any1/password", body=json.dumps({"current_password": "User@123",
-                                                                            "new_password": "F0gl@mp1"}),
+        conn.request("PUT", "/fledge/user/{}/password".format(uid), body=json.dumps(payload),
                      headers={"authorization": TOKEN})
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert {'message': 'Password has been updated successfully for user id:<3>'} == jdoc
+        assert {'message': 'Password has been updated successfully for user id:<{}>'.format(uid)} == jdoc
+
+    def test_update_user(self, fledge_url):
+        uid = 5
+        conn = http.client.HTTPConnection(fledge_url)
+        payload = {"real_name": "Test Real", "description": "Test Desc"}
+        conn.request("PUT", "/fledge/user/{}".format(uid), body=json.dumps(payload), headers={"authorization": TOKEN})
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        jdoc = json.loads(r)
+        assert 'user_info' in jdoc
+        assert uid == jdoc["user_info"]["id"]
+        assert payload["real_name"] == jdoc["user_info"]["real_name"]
+        assert payload["description"] == jdoc["user_info"]["description"]
+
+    def test_enable_user(self, fledge_url):
+        uid = 5
+        # Fetch users list
+        conn = http.client.HTTPConnection(fledge_url)
+        conn.request("GET", "/fledge/user", headers={"authorization": TOKEN})
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        jdoc = json.loads(r)
+        user_list = [u['userId'] for u in jdoc['users']]
+        assert uid in user_list
+
+        # Disable user
+        payload = {"enabled": "false"}
+        conn.request("PUT", "/fledge/admin/{}/enabled".format(uid), body=json.dumps(payload),
+                     headers={"authorization": TOKEN})
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        jdoc = json.loads(r)
+        assert {'message': 'User with id:<{}> has been disabled successfully'.format(uid)} == jdoc
+
+        # Fetch users list again and check disabled user does not exist in the response
+        conn.request("GET", "/fledge/user", headers={"authorization": TOKEN})
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        jdoc = json.loads(r)
+        user_list = [u['userId'] for u in jdoc['users']]
+        assert uid not in user_list
 
     def test_reset_user(self, fledge_url):
+        uid = 3
+        payload = {"role_id": 1, "password": "F0gl@mp!"}
         conn = http.client.HTTPConnection(fledge_url)
-        conn.request("PUT", "/fledge/admin/3/reset", body=json.dumps({"role_id": 1, "password": "F0gl@mp!"}),
+        conn.request("PUT", "/fledge/admin/{}/reset".format(uid), body=json.dumps(payload),
                      headers={"authorization": TOKEN})
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert {'message': 'User with id:<3> has been updated successfully'} == jdoc
+        assert {'message': 'User with id:<{}> has been updated successfully'.format(uid)} == jdoc
 
     def test_delete_user(self, fledge_url):
         conn = http.client.HTTPConnection(fledge_url)
@@ -177,8 +235,7 @@ class TestAuthenticationAPI:
         _token = jdoc["token"]
 
         # Create User
-        conn.request("POST", "/fledge/admin/user", body=json.dumps({"username": "other",
-                                                                     "password": "User@123"}),
+        conn.request("POST", "/fledge/admin/user", body=json.dumps({"username": "other", "password": "User@123"}),
                      headers={"authorization": _token})
         r = conn.getresponse()
         assert 403 == r.status

@@ -46,6 +46,12 @@ The *Certificate Name* is the name of the certificate that will be used for encr
 
 After enabling HTTPS and selecting save you must restart Fledge in order for the change to take effect. You must also update the connection setting in the GUI to use the HTTPS transport and the correct port.
 
+*Note*: if using the default self-signed certificate you might need to authorise the browser to connect to IP:PORT.
+Just open a new browser tab and type the URL https://YOUR_FLEDGE_IP:1995
+
+Then follow browser instruction in order to allow the connection and close the tab.
+In the Fledge GUI you should see the green icon (Fledge is running).
+
 +--------------------+
 | |connection_https| |
 +--------------------+

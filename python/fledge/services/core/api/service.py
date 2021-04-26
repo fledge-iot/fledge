@@ -145,12 +145,24 @@ async def delete_service(request):
         except service_registry_exceptions.DoesNotExist:
             pass
 
+        await delete_streams(storage, svc)
+        await delete_plugin_data(storage, svc)
+
         # Delete schedule
         await server.Server.scheduler.delete_schedule(sch_id)
     except Exception as ex:
         raise web.HTTPInternalServerError(reason=str(ex))
     else:
         return web.json_response({'result': 'Service {} deleted successfully.'.format(svc)})
+
+
+async def delete_streams(storage, north_instance):
+    payload = PayloadBuilder().WHERE(["description", "=", north_instance]).payload()
+    await storage.delete_from_tbl("streams", payload)
+
+async def delete_plugin_data(storage, north_instance):
+    payload = PayloadBuilder().WHERE(["key", "like", north_instance + "%"]).payload()
+    await storage.delete_from_tbl("plugin_data", payload)
 
 
 async def add_service(request):

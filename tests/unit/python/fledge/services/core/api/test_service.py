@@ -583,6 +583,8 @@ class TestService:
         delete_configuration = mocker.patch.object(ConfigurationManager, "delete_category_and_children_recursively", return_value=asyncio.sleep(.1))
         get_registry = mocker.patch.object(ServiceRegistry, 'get', return_value=mock_registry)
         remove_registry = mocker.patch.object(ServiceRegistry, 'remove_from_registry')
+        delete_streams = mocker.patch.object(service, "delete_streams", return_value=mock_result())
+        delete_plugin_data = mocker.patch.object(service, "delete_plugin_data", return_value=mock_result())
 
         mock_registry[0]._status = ServiceRecord.Status.Shutdown
 
@@ -614,6 +616,14 @@ class TestService:
         assert 1 == remove_registry.call_count
         remove_registry_calls = [call('d607c5be-792f-4993-96b7-b513674e7d3b')]
         remove_registry.assert_has_calls(remove_registry_calls, any_order=True)
+
+        assert 1 == delete_streams.call_count
+        args, kwargs = delete_streams.call_args_list[0]
+        assert sch_name in args
+
+        assert 1 == delete_plugin_data.call_count
+        args, kwargs = delete_plugin_data.call_args_list[0]
+        assert sch_name in args
 
     async def test_delete_service_exception(self, mocker, client):
         resp = await client.delete("/fledge/service")

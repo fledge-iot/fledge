@@ -177,7 +177,15 @@ sqlite_start() {
 
     if [ ! "${FOUND_SCHEMAS}" ]; then
         # Create the Fledge database
-         sqlite_reset "$1" "immediate" 
+         sqlite_reset "$1" "immediate"
+    else
+        # Check if the readings database has been created
+        FOUND_SCHEMAS=`${SQLITE_SQL} ${DEFAULT_SQLITE_DB_FILE_READINGS} "ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE_READINGS}' AS 'readings'; SELECT name FROM sqlite_master WHERE type='table'"`
+
+        if [ ! "${FOUND_SCHEMAS}" ]; then
+            # Create the readings database
+            sqlite_reset_db_readings "$1" "immediate"
+        fi
     fi
 
     # Fledge DB schema update: Fledge version is $2, $1 is log verbosity

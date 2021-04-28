@@ -96,16 +96,28 @@ string payload;
 		doc.Parse(response.c_str());
 		if (doc.HasParseError())
 		{
-			bool httpError = (isdigit(response[0]) && isdigit(response[1]) && isdigit(response[2]) && response[3]==':');
+			bool httpError = (isdigit(response[0]) &&
+					  isdigit(response[1]) &&
+					  isdigit(response[2]) &&
+					  response[3]==':');
 			m_logger->error("%s service registration: %s\n", 
-								httpError?"HTTP error during":"Failed to parse result of", 
-								response.c_str());
+					httpError?"HTTP error during":"Failed to parse result of", 
+					response.c_str());
 			return false;
 		}
 		if (doc.HasMember("id"))
 		{
 			m_uuid = new string(doc["id"].GetString());
-			m_logger->info("Registered service %s.\n", m_uuid->c_str());
+			m_logger->info("Registered service '%s' with UUID %s.\n",
+					service.getName().c_str(),
+					m_uuid->c_str());
+			if (doc.HasMember("bearer_token")){
+				m_bearer_token = string(doc["bearer_token"].GetString());
+				m_logger->debug("Bearer token issued for service '%s': %s",
+						service.getName().c_str(),
+						m_bearer_token.c_str());
+			}
+
 			return true;
 		}
 		else if (doc.HasMember("message"))

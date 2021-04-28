@@ -567,7 +567,7 @@ class TestServer:
             assert 400 == resp.status
             assert 'Service {} could not be registered'.format(request_data['name']) == resp.reason
         args, kwargs = patch_register.call_args
-        assert (request_data['name'], request_data['type'], request_data['address'],  request_data['service_port'], request_data['management_port'], 'http') == args
+        assert (request_data['name'], request_data['type'], request_data['address'],  request_data['service_port'], request_data['management_port'], 'http', None) == args
 
     async def test_register_service(self, client):
         async def async_mock(return_value):
@@ -583,12 +583,12 @@ class TestServer:
                     assert 200 == resp.status
                     r = await resp.text()
                     json_response = json.loads(r)
-                    assert {'message': 'Service registered successfully', 'id': '1'} == json_response
+                    assert {'message': 'Service registered successfully', 'id': '1', 'bearer_token': ''} == json_response
                 args, kwargs = audit_info_patch.call_args
                 assert 'SRVRG' == args[0]
                 assert {'name': request_data['name']} == args[1]
         args, kwargs = patch_register.call_args
-        assert (request_data['name'], request_data['type'], request_data['address'], request_data['service_port'], request_data['management_port'], 'http') == args
+        assert (request_data['name'], request_data['type'], request_data['address'], request_data['service_port'], request_data['management_port'], 'http', None) == args
 
     async def test_service_not_found_when_unregister(self, client):
         with patch.object(ServiceRegistry, 'get', side_effect=service_registry_exceptions.DoesNotExist) as patch_unregister:

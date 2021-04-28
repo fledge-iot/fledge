@@ -189,7 +189,7 @@ sqlite_start() {
 
         if [ ! "${FOUND_SCHEMAS}" ]; then
             # Create the readings database
-            sqlite_reset_db_readings "$1" "immediate"
+            sqlite_create_db_readings "$1" "immediate"
         fi
     fi
 
@@ -272,20 +272,7 @@ EOF`
 
 }
 
-sqlite_reset_db_readings() {
-
-    # 1- Drop all databases in DEFAULT_SQLITE_DB_FILE_READINGS
-    if [ -f "${DEFAULT_SQLITE_DB_FILE_READINGS}" ]; then
-        rm ${DEFAULT_SQLITE_DB_FILE_READINGS} ||
-        sqlite_log "err" "Cannot drop database '${DEFAULT_SQLITE_DB_FILE_READINGS}' for the Fledge Plugin '${PLUGIN}'" "all" "pretty"
-    fi
-    rm -f ${DEFAULT_SQLITE_DB_FILE_READINGS}-journal ${DEFAULT_SQLITE_DB_FILE_READINGS}-wal ${DEFAULT_SQLITE_DB_FILE_READINGS}-shm
-
-    # Delete all the readings databases if any
-    rm -f ${DEFAULT_SQLITE_DB_FILE_READINGS_BASE}*.db
-    rm -f ${DEFAULT_SQLITE_DB_FILE_READINGS_BASE}*.db-journal
-    rm -f ${DEFAULT_SQLITE_DB_FILE_READINGS_BASE}*.db-wal
-    rm -f ${DEFAULT_SQLITE_DB_FILE_READINGS_BASE}*.db-shm
+sqlite_create_db_readings() {
 
     # 2- Create new datafile an apply init file
     INIT_OUTPUT=`${SQLITE_SQL} "${DEFAULT_SQLITE_DB_FILE_READINGS}" 2>&1 <<EOF
@@ -309,6 +296,24 @@ EOF`
         sqlite_log "info" "Build complete for Fledge Plugin '${PLUGIN} in database '${DEFAULT_SQLITE_DB_FILE_READINGS}'." "logonly" "pretty"
     fi
 
+}
+
+sqlite_reset_db_readings() {
+
+    # 1- Drop all databases in DEFAULT_SQLITE_DB_FILE_READINGS
+    if [ -f "${DEFAULT_SQLITE_DB_FILE_READINGS}" ]; then
+        rm ${DEFAULT_SQLITE_DB_FILE_READINGS} ||
+        sqlite_log "err" "Cannot drop database '${DEFAULT_SQLITE_DB_FILE_READINGS}' for the Fledge Plugin '${PLUGIN}'" "all" "pretty"
+    fi
+    rm -f ${DEFAULT_SQLITE_DB_FILE_READINGS}-journal ${DEFAULT_SQLITE_DB_FILE_READINGS}-wal ${DEFAULT_SQLITE_DB_FILE_READINGS}-shm
+
+    # Delete all the readings databases if any
+    rm -f ${DEFAULT_SQLITE_DB_FILE_READINGS_BASE}*.db
+    rm -f ${DEFAULT_SQLITE_DB_FILE_READINGS_BASE}*.db-journal
+    rm -f ${DEFAULT_SQLITE_DB_FILE_READINGS_BASE}*.db-wal
+    rm -f ${DEFAULT_SQLITE_DB_FILE_READINGS_BASE}*.db-shm
+
+    sqlite_create_db_readings
 }
 
 

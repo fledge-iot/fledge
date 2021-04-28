@@ -85,6 +85,9 @@ async def auth_middleware(app, handler):
                 pass
             elif str(handler).startswith("<function update_password"):  # when pwd expiration
                 pass
+            # FIXME: for initial testing
+            elif str(handler).startswith("<function get_auth_token"):
+                pass
             else:
                 raise web.HTTPUnauthorized()
 

@@ -32,6 +32,7 @@ from fledge.services.core.api.plugins import common
 from fledge.services.core.api.plugins import install
 from fledge.services.core.api.plugins.exceptions import *
 from fledge.common.audit_logger import AuditLogger
+from fledge.services.core.user_model import User
 
 
 __author__ = "Mark Riddoch, Ashwin Gopalakrishnan, Amarendra K Sinha"
@@ -46,6 +47,7 @@ _help = """
     | GET                 | /fledge/service/installed                            |
     | PUT                 | /fledge/service/{type}/{name}/update                 |
     | DELETE              | /fledge/service/{service_name}                       |
+    | GET                 | /fledge/service/authtoken                            |
     ------------------------------------------------------------------------------
 """
 
@@ -644,3 +646,54 @@ def do_update(http_enabled: bool, host: str, port: int, storage: connect, pkg_na
     # Restart the service which was disabled before service update
     for sch in schedules:
         loop.run_until_complete(_put_schedule(protocol, host, port, uuid.UUID(sch), True))
+
+
+async def get_auth_token(request: web.Request) -> web.Response:
+    """ get oauth token
+
+        :Example:
+            curl -X GET http://localhost:8081/fledge/service/authtoken
+    """
+    try:
+        forbidden_msg = 'Resource you were trying to reach is absolutely forbidden for some reason'
+        if request.is_auth_optional:
+            raise web.HTTPForbidden(reason=forbidden_msg, body=json.dumps({"message": forbidden_msg}))
+
+        async def cert_login():
+            from fledge.common.web.ssl_wrapper import SSLVerifier
+            from fledge.common.common import _FLEDGE_ROOT, _FLEDGE_DATA
+            certs_dir = _FLEDGE_DATA + '/etc/certs' if _FLEDGE_DATA else _FLEDGE_ROOT + "/data/etc/certs"
+            ca_cert_file = "{}/{}.cert".format(certs_dir, cert_name)
+            SSLVerifier.set_ca_cert(ca_cert_file)
+            SSLVerifier.set_user_cert(cert_name)
+            SSLVerifier.verify()  # raises OSError, SSLVerifier.VerificationError
+            username = SSLVerifier.get_subject()['commonName']
+            _uid, _token, _is_admin = await User.Objects.certificate_login(username, host)
+            return _token
+        if request.is_auth_optional is False:
+            cfg_mgr = ConfigurationManager(connect.get_storage_async())
+            category_info = await cfg_mgr.get_category_all_items('rest_api')
+            allow_ping = True if category_info['allowPing']['value'].lower() == 'true' else False
+            if allow_ping is False:
+                msg = "A valid token required to ping; as auth is mandatory & allow ping is set to false."
+                raise web.HTTPUnauthorized(reason=msg, body=json.dumps({"message": msg}))
+            auth_method = category_info['authMethod']['value']
+            cert_name = category_info['authCertificateName']['value']
+            peername = request.transport.get_extra_info('peername')
+            host = '0.0.0.0'
+            if peername is not None:
+                host, port = peername
+            if auth_method == 'certificate':
+                token = await cert_login()
+            elif auth_method == 'password':
+                # Assuming that super admin user exists on the system
+                uid, token, is_admin = await User.Objects.login("admin", "fledge", host)
+            else:
+                if cert_name:
+                    token = await cert_login()
+                else:
+                    uid, token, is_admin = await User.Objects.login("admin", "fledge", host)
+    except Exception as ex:
+        msg = str(ex)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+    return web.json_response({"token": token})

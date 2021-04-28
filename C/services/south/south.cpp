@@ -49,6 +49,7 @@ string	       coreAddress = "localhost";
 bool	       daemonMode = true;
 string	       myName = SERVICE_NAME;
 string	       logLevel = "warning";
+string         token = "";
 
 	signal(SIGSEGV, handler);
 	signal(SIGILL, handler);
@@ -78,6 +79,10 @@ string	       logLevel = "warning";
 		{
 			logLevel = &argv[i][11];
 		}
+		 else if (!strncmp(argv[i], "--token=", 8))
+		{
+			token = &argv[i][8];
+		}
 	}
 
 	if (daemonMode && makeDaemon() == -1)
@@ -86,7 +91,7 @@ string	       logLevel = "warning";
 		cout << "Failed to run as deamon - proceeding in interactive mode." << endl;
 	}
 
-	SouthService *service = new SouthService(myName);
+	SouthService *service = new SouthService(myName, token);
 	Logger::getLogger()->setMinLevel(logLevel);
 	service->start(coreAddress, corePort);
 	return 0;
@@ -191,8 +196,13 @@ void doIngestV2(Ingest *ingest, const vector<Reading *> *vec)
 /**
  * Constructor for the south service
  */
-SouthService::SouthService(const string& myName) : m_name(myName), m_shutdown(false), m_readingsPerSec(1),
-						m_throttle(false), m_throttled(false)
+SouthService::SouthService(const string& myName, const string& token) :
+				m_name(myName),
+				m_shutdown(false),
+				m_readingsPerSec(1),
+				m_throttle(false),
+				m_throttled(false),
+				m_token(token)
 {
 	logger = new Logger(myName);
 	logger->setMinLevel("warning");
@@ -234,7 +244,13 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		// Now register our service
 		// TODO proper hostname lookup
 		unsigned short managementListener = management.getListenerPort();
-		ServiceRecord record(m_name, "Southbound", "http", "localhost", sport, managementListener);
+		ServiceRecord record(m_name,			// Service name
+					"Southbound",		// Service type
+					"http",			// Protocol
+					"localhost",		// Listening address
+					sport,			// Service port
+					managementListener,	// Management port
+					m_token);		// Token
 		m_mgtClient = new ManagementClient(coreAddress, corePort);
 
 		// Create an empty South category if one doesn't exist

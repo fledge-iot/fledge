@@ -21,12 +21,14 @@ ServiceRecord::ServiceRecord(const string& name,
 			     const string& protocol,
 			     const string& address,
 			     const unsigned short port,
-			     const unsigned short managementPort) : m_name(name),
+			     const unsigned short managementPort,
+			     const string& token) : m_name(name),
 							  m_type(type),
 							  m_protocol(protocol),
 							  m_address(address),
 							  m_port(port),
-							  m_managementPort(managementPort)
+							  m_managementPort(managementPort),
+							  m_token(token)
 {
 }
 
@@ -70,9 +72,12 @@ ostringstream convert;
 	convert << "\"management_port\" : " << m_managementPort;
 	if (m_port)
 	{
-		convert << ",\"service_port\" : " << m_port << " ";
+		convert << ",\"service_port\" : " << m_port;
 	}
-	convert << "}";
+	if (m_token != "") {
+		convert << ",\"token\" : \"" << m_token << "\"";
+	}
+	convert << " }";
 
 	json = convert.str();
 }

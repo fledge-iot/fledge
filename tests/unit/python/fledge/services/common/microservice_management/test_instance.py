@@ -36,7 +36,7 @@ class TestInstance:
         args, kwargs = log_info.call_args
         assert args[0].startswith('Registered service instance id=')
         assert args[0].endswith(': <StorageService1, type=Storage, protocol=http, address=127.0.0.1, service port=9999,'
-                                ' management port=1999, status=1>')
+                                ' management port=1999, status=1, token=None>')
 
     async def test_duplicate_name_registration(self):
         with patch.object(Service._logger, 'info') as log_info:
@@ -46,7 +46,7 @@ class TestInstance:
         args, kwargs = log_info.call_args
         assert args[0].startswith('Registered service instance id=')
         assert args[0].endswith(': <StorageService1, type=Storage, protocol=http, address=127.0.0.1, service port=9999,'
-                                ' management port=1999, status=1>')
+                                ' management port=1999, status=1, token=None>')
 
         with pytest.raises(AlreadyExistsWithTheSameName) as excinfo:
             Service.register("StorageService1", "Storage", "127.0.0.1", 9999, 1999)
@@ -60,7 +60,7 @@ class TestInstance:
         args, kwargs = log_info.call_args
         assert args[0].startswith('Registered service instance id=')
         assert args[0].endswith(': <StorageService1, type=Storage, protocol=http, address=127.0.0.1, service port=9999,'
-                                ' management port=1999, status=1>')
+                                ' management port=1999, status=1, token=None>')
 
         with pytest.raises(AlreadyExistsWithTheSameAddressAndPort) as excinfo:
             Service.register("StorageService2", "Storage", "127.0.0.1", 9999, 1998)
@@ -74,7 +74,7 @@ class TestInstance:
         args, kwargs = log_info.call_args
         assert args[0].startswith('Registered service instance id=')
         assert args[0].endswith(': <StorageService1, type=Storage, protocol=http, address=127.0.0.1, service port=9999,'
-                                ' management port=1999, status=1>')
+                                ' management port=1999, status=1, token=None>')
 
         with pytest.raises(AlreadyExistsWithTheSameAddressAndManagementPort) as excinfo:
             Service.register("StorageService2", "Storage", "127.0.0.1", 9998, 1999)
@@ -104,7 +104,7 @@ class TestInstance:
         arg, kwarg = log_info.call_args
         assert arg[0].startswith('Registered service instance id=')
         assert arg[0].endswith(': <StorageService2, type=Storage, protocol=http, address=127.0.0.1, service port=8888,'
-                               ' management port=1888, status=1>')
+                               ' management port=1888, status=1, token=None>')
 
         mocker.patch.object(InterestRegistry, '__init__', return_value=None)
         mocker.patch.object(InterestRegistry, 'get', return_value=list())
@@ -117,7 +117,7 @@ class TestInstance:
         args, kwargs = log_info2.call_args
         assert args[0].startswith('Stopped service instance id=')
         assert args[0].endswith(': <StorageService2, type=Storage, protocol=http, address=127.0.0.1, '
-                                'service port=8888, management port=1888, status=2>')
+                                'service port=8888, management port=1888, status=2, token=None>')
 
         s = Service.get(idx)
         assert s[0]._status == 2  # Unregistered
@@ -168,5 +168,5 @@ class TestInstance:
             assert args[0].startswith('Registered service instance id=')
             assert args[0].endswith(
                 ': <StorageService1, type=Storage, protocol=http, address=127.0.0.1, service port=8888,'
-                ' management port=9999, status=1>')
+                ' management port=9999, status=1, token=None>')
         assert str(excinfo).endswith('DoesNotExist')

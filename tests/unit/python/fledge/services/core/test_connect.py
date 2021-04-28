@@ -37,7 +37,7 @@ class TestConnect:
         args, kwargs = log_info.call_args
         assert args[0].startswith('Registered service instance id=')
         assert args[0].endswith(': <Fledge Storage, type=Storage, protocol=http, address=127.0.0.1, service port=37449,'
-                                ' management port=37843, status=1>')
+                                ' management port=37843, status=1, token=None>')
 
     @patch('fledge.services.core.connect._logger')
     def test_exception_when_no_storage(self, mock_logger):
@@ -54,7 +54,7 @@ class TestConnect:
         args, kwargs = log_info.call_args
         assert args[0].startswith('Registered service instance id=')
         assert args[0].endswith(': <foo, type=Storage, protocol=http, address=127.0.0.1, service port=1, '
-                                'management port=2, status=1>')
+                                'management port=2, status=1, token=None>')
 
         with pytest.raises(DoesNotExist) as excinfo:
             connect.get_storage_async()

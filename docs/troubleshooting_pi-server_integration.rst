@@ -1,7 +1,7 @@
 .. Images
 .. |img_001| image:: images/tshooting_pi_001.jpg
 .. |img_002| image:: images/tshooting_pi_002.jpg
-.. |img_003| image:: images/tshooting_pi_003.jpg
+.. |img_003| image:: images/tshooting_pi_003.png
 .. |img_004| image:: images/tshooting_pi_004.jpg
 .. |img_005| image:: images/tshooting_pi_005.jpg
 .. |img_006| image:: images/tshooting_pi_006.jpg
@@ -121,7 +121,7 @@ Some error messages and causes:
 Possible solutions to common problems
 =====================================
 
-**Recreate a single or a sets of PI-Server objets and resend all the data for them to the PI Server on the Asset Framework hierarchy level**
+**Recreate a single or a sets of PI-Server objects and resend all the data for them to the PI Server on the Asset Framework hierarchy level**
     procedure:
         - disable the 1st north instance
         - delete the objects in the PI Server, AF + Data archive, that are to be recreated or were partially sent.
@@ -151,7 +151,7 @@ Possible solutions to common problems
         - there will some data duplicated for the recreated assets because part of the information will be managed by both the north instances
 
 
-**Recreate all the PI-Server objets and resend all the data to the PI Server on a different Asset Framework hierarchy level**
+**Recreate all the PI-Server objects and resend all the data to the PI Server on a different Asset Framework hierarchy level**
     procedure:
         - disable the 1st north instance
         - create a new north instance using a new, unique name and having a new AF hierarchy (North option 'Asset Framework hierarchies tree')
@@ -160,7 +160,7 @@ Possible solutions to common problems
         - this solution will create a set of new objects unrelated to the previous ones
         - all the data stored in Fledge will be sent
 
-**Recreate all the PI-Server objets and resend all the data to the PI Server on the same Asset Framework hierarchy level of the 1st North instance WITH data duplication**
+**Recreate all the PI-Server objects and resend all the data to the PI Server on the same Asset Framework hierarchy level of the 1st North instance WITH data duplication**
     procedure:
         - disable the 1st north instance
         - delete properly the objects on the PI Server, AF + Data archive, that were eventually partially deleted
@@ -172,7 +172,7 @@ Possible solutions to common problems
         - Using PI Web API 2019 SP1 1.13.0.6518 the PI-Server creates objects with the compression feature disabled. This will cause any data that was previously loaded and is still present in the Data Archive, to be duplicated.
 
 
-**Recreate all the PI-Server objets and resend all the data to the PI Server on the same Asset Framework hierarchy level of the 1st North instance WITHOUT data duplication**
+**Recreate all the PI-Server objects and resend all the data to the PI Server on the same Asset Framework hierarchy level of the 1st North instance WITHOUT data duplication**
     procedure:
         - disable the 1st north instance
         - delete all the objects on the PI Server side, both in the AF and in the Data Archive, sent by the 1st north instance

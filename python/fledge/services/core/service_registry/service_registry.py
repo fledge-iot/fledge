@@ -26,7 +26,7 @@ class ServiceRegistry:
     _logger = logger.setup(__name__, level=20)
 
     @classmethod
-    def register(cls, name, s_type, address, port, management_port,  protocol='http'):
+    def register(cls, name, s_type, address, port, management_port,  protocol='http', token=None):
         """ registers the service instance
        
         :param name: name of the service
@@ -35,6 +35,8 @@ class ServiceRegistry:
         :param port: a valid positive integer
         :param management_port: a valid positive integer for management operations e.g. ping, shutdown
         :param protocol: defaults to http
+        :param token: authentication bearer token
+
         :return: registered services' uuid
         """
 
@@ -68,7 +70,7 @@ class ServiceRegistry:
             cls.remove_from_registry(current_service_id)
 
         service_id = str(uuid.uuid4()) if new_service is True else current_service_id
-        registered_service = ServiceRecord(service_id, name, s_type, protocol, address, port, management_port)
+        registered_service = ServiceRecord(service_id, name, s_type, protocol, address, port, management_port, token)
         cls._registry.append(registered_service)
         cls._logger.info("Registered {}".format(str(registered_service)))
         return service_id

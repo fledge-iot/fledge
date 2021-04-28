@@ -1084,19 +1084,20 @@ class Server:
         :Example:
             curl -d '{"type": "Storage", "name": "Storage Services", "address": "127.0.0.1", "service_port": 8090,
                 "management_port": 1090, "protocol": "https"}' -X POST http://localhost:<core mgt port>/fledge/service
-
+            curl -d '{"type": "N1", "name": "Micro Service", "address": "127.0.0.1", "service_port": 9091,
+                "management_port": 1090, "protocol": "https", "token": "SVCNAME_ABCDE"}' -X POST
+                http://localhost:<core mgt port>/fledge/service
             service_port in payload is optional
         """
-
         try:
             data = await request.json()
-
             service_name = data.get('name', None)
             service_type = data.get('type', None)
             service_address = data.get('address', None)
             service_port = data.get('service_port', None)
             service_management_port = data.get('management_port', None)
             service_protocol = data.get('protocol', 'http')
+            token = data.get('token', None)
 
             if not (service_name.strip() or service_type.strip() or service_address.strip()
                     or service_management_port.strip() or not service_management_port.isdigit()):
@@ -1109,13 +1110,18 @@ class Server:
             if not isinstance(service_management_port, int):
                 raise web.HTTPBadRequest(reason='Service management port can be a positive integer only')
 
+            if token is not None:
+                if not isinstance(token, str):
+                    msg = 'Token can be a string only'
+                    raise web.HTTPBadRequest(reason=msg, body=json.dumps(msg))
             try:
                 registered_service_id = ServiceRegistry.register(service_name, service_type, service_address,
-                                                                   service_port, service_management_port, service_protocol)
+                                                                 service_port, service_management_port,
+                                                                 service_protocol, token)
                 try:
                     if not cls._storage_client_async is None:
                         cls._audit = AuditLogger(cls._storage_client_async)
-                        await cls._audit.information('SRVRG', { 'name' : service_name})
+                        await cls._audit.information('SRVRG', {'name': service_name})
                 except Exception as ex:
                     _logger.info("Failed to audit registration: %s", str(ex))
             except service_registry_exceptions.AlreadyExistsWithTheSameName:
@@ -1130,15 +1136,18 @@ class Server:
             if not registered_service_id:
                 raise web.HTTPBadRequest(reason='Service {} could not be registered'.format(service_name))
 
+            bearer_token = "{}_{}".format(service_name.strip(), uuid.uuid4().hex) if token is not None else ""
             _response = {
                 'id': registered_service_id,
-                'message': "Service registered successfully"
+                'message': "Service registered successfully",
+                'bearer_token': bearer_token
             }
-
+            # _logger.exception("SERVER RESPONSE: {}".format(_response))
             return web.json_response(_response)
 
-        except ValueError as ex:
-            raise web.HTTPNotFound(reason=str(ex))
+        except ValueError as err:
+            msg = str(err)
+            raise web.HTTPNotFound(reason=msg, body=json.dumps(msg))
 
     @classmethod
     async def unregister(cls, request):

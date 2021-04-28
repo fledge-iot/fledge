@@ -10,8 +10,8 @@ set(STORAGE_COMMON_LIB storage-common-lib)
 set(FLEDGE_SQLITE3_LIBS "/tmp/sqlite3-pkg/src" CACHE INTERNAL "")
 
 # Find source files
-# Add sqlite plugin common files
-file(GLOB COMMON_SOURCES ../sqlite/common/*.cpp)
+# Add sqlitelb plugin common files
+file(GLOB COMMON_SOURCES ../sqlitelb/common/*.cpp)
 # Add sqlitememory files
 file(GLOB SOURCES *.cpp)
 
@@ -20,9 +20,9 @@ include_directories(../../../common/include)
 include_directories(../../../services/common/include)
 include_directories(../common/include)
 include_directories(../../../thirdparty/rapidjson/include)
-# Add sqlite plugin header files
-include_directories(../sqlite/include)
-include_directories(../sqlite/common/include)
+# Add sqlitelb plugin header files
+include_directories(../sqlitelb/include)
+include_directories(../sqlitelb/common/include)
 
 link_directories(${PROJECT_BINARY_DIR}/../../../lib)
 

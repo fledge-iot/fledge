@@ -2374,6 +2374,8 @@ vector<string>  assetCodes;
 
 			deletedRows += rowsAffected;
 			numReadings -= rowsAffected;
+			rowcount    -= rowsAffected;
+
 			// Release memory for 'query' var
 			delete[] query;
 			logger->debug("Deleted :%lu: rows", rowsAffected);

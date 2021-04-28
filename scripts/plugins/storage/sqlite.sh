@@ -32,12 +32,22 @@ if [ ! "${DEFAULT_SQLITE_DB_FILE}" ]; then
     export DEFAULT_SQLITE_DB_FILE="${FLEDGE_DATA}/fledge.db"
 fi
 
-if [ ! "${DEFAULT_SQLITE_DB_FILE_READINGS}" ]; then
+# if the script changes the value it forces the overwrite of the value every times
+# it is needed when the storage plugin is changed
+if [ ! "${DEFAULT_SQLITE_DB_FILE_READINGS_FLAG}" ]; then
+
+    if [ ! "${DEFAULT_SQLITE_DB_FILE_READINGS}" ]; then
+
+        export DEFAULT_SQLITE_DB_FILE_READINGS_FLAG=1
+    fi
+fi
+
+if [ "${DEFAULT_SQLITE_DB_FILE_READINGS_FLAG}" ]; then
+
     export DEFAULT_SQLITE_DB_FILE_READINGS_BASE="${FLEDGE_DATA}/readings"
     export DEFAULT_SQLITE_DB_FILE_READINGS="${DEFAULT_SQLITE_DB_FILE_READINGS_BASE}_1.db"
     export DEFAULT_SQLITE_DB_FILE_READINGS_SINGLE="${DEFAULT_SQLITE_DB_FILE_READINGS_BASE}.db"
 fi
-
 
 USAGE="Usage: `basename ${0}` {start|stop|status|init|reset|purge|help}"
 

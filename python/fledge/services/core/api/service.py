@@ -33,6 +33,7 @@ from fledge.services.core.api.plugins import install
 from fledge.services.core.api.plugins.exceptions import *
 from fledge.common.audit_logger import AuditLogger
 
+
 __author__ = "Mark Riddoch, Ashwin Gopalakrishnan, Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2018 OSIsoft, LLC"
 __license__ = "Apache 2.0"

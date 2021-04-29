@@ -113,8 +113,6 @@ def setup(app):
     app.router.add_route('GET', '/fledge/service/available', service.get_available)
     app.router.add_route('GET', '/fledge/service/installed', service.get_installed)
     app.router.add_route('PUT', '/fledge/service/{type}/{name}/update', service.update_service)
-    # FIXME: We may need below route to be exposed on management routes; Here only for initial testing
-    app.router.add_route('GET', '/fledge/service/authtoken', service.get_auth_token)
 
     # Task
     app.router.add_route('POST', '/fledge/scheduled/task', task.add_task)

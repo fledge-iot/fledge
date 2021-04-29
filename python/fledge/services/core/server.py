@@ -1231,6 +1231,55 @@ class Server:
         return web.json_response({"services": services})
 
     @classmethod
+    async def get_auth_token(cls, request: web.Request) -> web.Response:
+        """ get oauth token
+
+            :Example:
+                curl -sX GET http://localhost:<core mgt port>/fledge/service/authtoken
+        """
+        async def cert_login(ca_cert):
+            certs_dir = _FLEDGE_DATA + '/etc/certs' if _FLEDGE_DATA else _FLEDGE_ROOT + "/data/etc/certs"
+            ca_cert_file = "{}/{}.cert".format(certs_dir, ca_cert)
+            SSLVerifier.set_ca_cert(ca_cert_file)
+            with open('{}/{}'.format(certs_dir, "admin.cert"), 'r') as content_file:
+                cert_content = content_file.read()
+            SSLVerifier.set_user_cert(cert_content)
+            SSLVerifier.verify()
+            username = SSLVerifier.get_subject()['commonName']
+            _uid, _token, _is_admin = await User.Objects.certificate_login(username, host)
+            return _token
+
+        try:
+            cfg_mgr = ConfigurationManager(cls._storage_client_async)
+            category_info = await cfg_mgr.get_category_all_items('rest_api')
+            is_auth_optional = True if category_info['authentication']['value'].lower() == 'optional' else False
+            if not is_auth_optional:
+                auth_method = category_info['authMethod']['value']
+                ca_cert_name = category_info['authCertificateName']['value']
+                peername = request.transport.get_extra_info('peername')
+                host = '0.0.0.0'
+                if peername is not None:
+                    host, port = peername
+                if auth_method == 'certificate':
+                    token = await cert_login(ca_cert_name)
+                elif auth_method == 'password':
+                    # Assuming that super admin user exists on the system
+                    payload = payload_builder.PayloadBuilder().SELECT("uname", "pwd").WHERE(['id', '=', 1]).payload()
+                    result = await cls._storage_client_async.query_tbl_with_payload('users', payload)
+                    uid, token, is_admin = await User.Objects.login("admin", result['rows'][0]['pwd'], host)
+                else:
+                    # For auth method "any" we can use either login with cert or password
+                    token = await cert_login(ca_cert_name)
+                    # TODO: if cert does not exist then may try with password
+            else:
+                forbidden_msg = 'Resource you were trying to reach is absolutely forbidden for some reason'
+                raise web.HTTPForbidden(reason=forbidden_msg, body=json.dumps({"message": forbidden_msg}))
+        except Exception as ex:
+            msg = str(ex)
+            raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+        return web.json_response({"token": token})
+
+    @classmethod
     async def shutdown(cls, request):
         """ Shutdown the core microservice and its components
 

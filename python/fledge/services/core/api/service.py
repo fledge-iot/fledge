@@ -32,8 +32,6 @@ from fledge.services.core.api.plugins import common
 from fledge.services.core.api.plugins import install
 from fledge.services.core.api.plugins.exceptions import *
 from fledge.common.audit_logger import AuditLogger
-from fledge.services.core.user_model import User
-
 
 __author__ = "Mark Riddoch, Ashwin Gopalakrishnan, Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2018 OSIsoft, LLC"
@@ -47,7 +45,6 @@ _help = """
     | GET                 | /fledge/service/installed                            |
     | PUT                 | /fledge/service/{type}/{name}/update                 |
     | DELETE              | /fledge/service/{service_name}                       |
-    | GET                 | /fledge/service/authtoken                            |
     ------------------------------------------------------------------------------
 """
 
@@ -646,58 +643,3 @@ def do_update(http_enabled: bool, host: str, port: int, storage: connect, pkg_na
     # Restart the service which was disabled before service update
     for sch in schedules:
         loop.run_until_complete(_put_schedule(protocol, host, port, uuid.UUID(sch), True))
-
-
-async def get_auth_token(request: web.Request) -> web.Response:
-    """ get oauth token
-
-        :Example:
-            curl -X GET http://localhost:8081/fledge/service/authtoken
-    """
-    try:
-        forbidden_msg = 'Resource you were trying to reach is absolutely forbidden for some reason'
-        if request.is_auth_optional:
-            raise web.HTTPForbidden(reason=forbidden_msg, body=json.dumps({"message": forbidden_msg}))
-
-        async def cert_login(ca_cert):
-            from fledge.common.web.ssl_wrapper import SSLVerifier
-            from fledge.common.common import _FLEDGE_ROOT, _FLEDGE_DATA
-
-            certs_dir = _FLEDGE_DATA + '/etc/certs' if _FLEDGE_DATA else _FLEDGE_ROOT + "/data/etc/certs"
-            ca_cert_file = "{}/{}.cert".format(certs_dir, ca_cert)
-            SSLVerifier.set_ca_cert(ca_cert_file)
-            with open('{}/{}'.format(certs_dir, "admin.cert"), 'r') as content_file:
-                cert_content = content_file.read()
-            SSLVerifier.set_user_cert(cert_content)
-            SSLVerifier.verify()
-            username = SSLVerifier.get_subject()['commonName']
-            _uid, _token, _is_admin = await User.Objects.certificate_login(username, host)
-            return _token
-        if request.is_auth_optional is False:
-            cfg_mgr = ConfigurationManager(connect.get_storage_async())
-            category_info = await cfg_mgr.get_category_all_items('rest_api')
-            allow_ping = True if category_info['allowPing']['value'].lower() == 'true' else False
-            # FIXME: when allow_ping is False
-            # if allow_ping is False:
-            auth_method = category_info['authMethod']['value']
-            ca_cert = category_info['authCertificateName']['value']
-            peername = request.transport.get_extra_info('peername')
-            host = '0.0.0.0'
-            if peername is not None:
-                host, port = peername
-            if auth_method == 'certificate':
-                token = await cert_login(ca_cert)
-            elif auth_method == 'password':
-                # Assuming that super admin user exists on the system
-                payload = PayloadBuilder().SELECT("uname", "pwd").WHERE(['id', '=', 1]).payload()
-                storage_client = connect.get_storage_async()
-                result = await storage_client.query_tbl_with_payload('users', payload)
-                uid, token, is_admin = await User.Objects.login("admin", result['rows'][0]['pwd'], host)
-            else:
-                # For auth method "any" we can use either login with cert or password
-                token = await cert_login(ca_cert)
-                # TODO: if cert does not exist then may try with password
-    except Exception as ex:
-        msg = str(ex)
-        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
-    return web.json_response({"token": token})

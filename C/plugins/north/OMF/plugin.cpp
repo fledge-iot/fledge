@@ -601,7 +601,10 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 	if (connInfo->PIServerEndpoint == ENDPOINT_PIWEB_API)
 	{
 		connInfo->PIWebAPIVersion = PIWebAPIGetVersion(connInfo);
+		//# FIXME_I
+		Logger::getLogger()->setMinLevel("debug");
 		Logger::getLogger()->info("PIWebAPI version :%s:" ,connInfo->PIWebAPIVersion.c_str() );
+		Logger::getLogger()->setMinLevel("warning");
 	}
 
 #if VERBOSE_LOG
@@ -691,7 +694,9 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 	 * connect_timeout and request_timeout.
 	 * Default is no timeout at all
 	 */
-	if (connInfo->PIWebAPIAuthMethod.compare("k") == 0)
+	// FIXME_I:
+	//if (connInfo->PIWebAPIAuthMethod.compare("k") == 0)
+	if (true)
 	{
 		connInfo->sender = new LibcurlHttps(connInfo->hostAndPort,
 						    connInfo->timeout,

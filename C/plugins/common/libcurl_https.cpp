@@ -168,6 +168,9 @@ void LibcurlHttps::setLibCurlOptions(CURL *sender, const string& path, const vec
 
 	// HTTP headers handling
 	m_chunk = curl_slist_append(m_chunk, "User-Agent: " HTTP_SENDER_USER_AGENT);
+	// To let PI Web API having Cross-Site Request Forgery (CSRF) enabled as by default configuration
+	// FIXME_I:
+	//m_chunk = curl_slist_append(m_chunk, "X-Requested-With: XMLHttpRequest");
 
 	for (auto it = headers.begin(); it != headers.end(); ++it)
 	{
@@ -182,6 +185,11 @@ void LibcurlHttps::setLibCurlOptions(CURL *sender, const string& path, const vec
 		httpHeader = "Basic: " + m_authBasicCredentials;
 		m_chunk = curl_slist_append(m_chunk, httpHeader.c_str());
 
+		//# FIXME_I
+		Logger::getLogger()->setMinLevel("debug");
+		Logger::getLogger()->debug("xxx %s - v2 basic :%s:", __FUNCTION__, httpHeader.c_str ());
+		Logger::getLogger()->setMinLevel("warning");
+
 		/* set user name and password for the authentication */
 		//curl_easy_setopt(m_sender, CURLOPT_USERPWD, "user:pwd");
 	}
@@ -190,6 +198,11 @@ void LibcurlHttps::setLibCurlOptions(CURL *sender, const string& path, const vec
 	// Handle Kerberos authentication
 	if (m_authMethod == "k")
 	{
+		//# FIXME_I
+		Logger::getLogger()->setMinLevel("debug");
+		Logger::getLogger()->debug("xxx %s - k ", __FUNCTION__);
+		Logger::getLogger()->setMinLevel("warning");
+
 		Logger::getLogger()->debug("Kerberos authentication - keytab file :%s: ", getenv("KRB5_CLIENT_KTNAME"));
 
 		curl_easy_setopt(m_sender, CURLOPT_HTTPAUTH, CURLAUTH_GSSNEGOTIATE);
@@ -231,6 +244,12 @@ int LibcurlHttps::sendRequest(
 		const string& payload
 )
 {
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx3 %s - LibcurlHttps", __FUNCTION__);
+	Logger::getLogger()->setMinLevel("warning");
+
+
 	// Variables definition
 	long   httpCode = 0;
 	string httpResponseText;

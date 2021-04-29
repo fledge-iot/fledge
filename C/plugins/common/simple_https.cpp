@@ -90,11 +90,12 @@ int SimpleHttps::sendRequest(
 	header.emplace("User-Agent", HTTP_SENDER_USER_AGENT);
 
 	// FIXME_I:
+	// To let PI Web API having Cross-Site Request Forgery (CSRF) enabled as by default configuration
 	header.emplace("X-Requested-With", "XMLHttpRequest");
 
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx %s - ", __FUNCTION__);
+	Logger::getLogger()->debug("xxx2 %s - SimpleHttps", __FUNCTION__);
 	Logger::getLogger()->setMinLevel("warning");
 
 

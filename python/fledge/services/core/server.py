@@ -1273,7 +1273,7 @@ class Server:
                     # TODO: if cert does not exist then may try with password
             else:
                 msg = "Forbidden"
-                return web.HTTPForbidden(reason=msg, body=json.dumps({"message": msg})
+                return web.HTTPForbidden(reason=msg, body=json.dumps({"message": msg}))
         except Exception as ex:
             msg = str(ex)
             raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))

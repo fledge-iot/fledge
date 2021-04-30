@@ -1272,8 +1272,7 @@ class Server:
                     token = await cert_login(ca_cert_name)
                     # TODO: if cert does not exist then may try with password
             else:
-                forbidden_msg = 'Resource you were trying to reach is absolutely forbidden for some reason'
-                raise web.HTTPForbidden(reason=forbidden_msg, body=json.dumps({"message": forbidden_msg}))
+                raise web.HTTPForbidden
         except Exception as ex:
             msg = str(ex)
             raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))

@@ -338,6 +338,8 @@ class User:
             # validate password
             is_valid_pwd = cls.check_password(found_user['pwd'], str(password))
             if not is_valid_pwd:
+                # Another condition to check password is ONLY for the case:
+                # when we have requested password with hashed value and this comes only with microservice to get token
                 if found_user['pwd'] != str(password):
                     raise User.PasswordDoesNotMatch('Username or Password do not match')
 

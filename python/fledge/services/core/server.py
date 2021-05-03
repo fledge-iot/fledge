@@ -1099,7 +1099,8 @@ class Server:
             service_management_port = data.get('management_port', None)
             service_protocol = data.get('protocol', 'http')
             token = data.get('token', None)
-
+            # TODO: if token then check single use token verification; if bad then return 4XX
+            # FOGL-5144
             if not (service_name.strip() or service_type.strip() or service_address.strip()
                     or service_management_port.strip() or not service_management_port.isdigit()):
                 raise web.HTTPBadRequest(reason='One or more values for type/name/address/management port missing')
@@ -1143,7 +1144,17 @@ class Server:
                 'message': "Service registered successfully",
                 'bearer_token': bearer_token
             }
-            # _logger.exception("SERVER RESPONSE: {}".format(_response))
+            _logger.debug("For service: {} SERVER RESPONSE: {}".format(service_name, _response))
+            if bearer_token:
+                # Find service name in registry and update the bearer token for that service
+                svc_record = ServiceRegistry.get(name=service_name)
+                svc = svc_record[0]
+                obj = ServiceRecord(s_id=svc._id, s_name=svc._name, s_type=svc._type, s_port=svc._port,
+                                    m_port=svc._management_port, s_address=svc._address, s_protocol=svc._protocol,
+                                    s_bearer_token=bearer_token)
+                for idx, item in enumerate(ServiceRegistry._registry):
+                    if getattr(item, "_name") == service_name:
+                        ServiceRegistry._registry[idx] = obj
             return web.json_response(_response)
 
         except ValueError as err:
@@ -1233,11 +1244,23 @@ class Server:
 
     @classmethod
     async def get_auth_token(cls, request: web.Request) -> web.Response:
-        """ get oauth token
+        """ get auth token
 
             :Example:
                 curl -sX GET http://localhost:<core mgt port>/fledge/service/authtoken
         """
+        bearer_token = request.headers.get('bearer_token', "")
+        if bearer_token:
+            services_list = ServiceRegistry.all()
+            is_bearer_token_valid = False
+            for svc in services_list:
+                if svc._token == bearer_token:
+                    is_bearer_token_valid = True
+                    break
+            if is_bearer_token_valid is False:
+                msg = "Bearer token is invalid"
+                raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+
         async def cert_login(ca_cert):
             certs_dir = _FLEDGE_DATA + '/etc/certs' if _FLEDGE_DATA else _FLEDGE_ROOT + "/data/etc/certs"
             ca_cert_file = "{}/{}.cert".format(certs_dir, ca_cert)

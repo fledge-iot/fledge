@@ -35,7 +35,7 @@ class ServiceRegistry:
         :param port: a valid positive integer
         :param management_port: a valid positive integer for management operations e.g. ping, shutdown
         :param protocol: defaults to http
-        :param token: authentication bearer token
+        :param token: single use token
 
         :return: registered services' uuid
         """

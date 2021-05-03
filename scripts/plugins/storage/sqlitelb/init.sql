@@ -584,7 +584,7 @@ INSERT INTO fledge.roles ( name, description )
 -- Users
 DELETE FROM fledge.users;
 INSERT INTO fledge.users ( uname, real_name, pwd, role_id, description )
-     VALUES ('admin', 'Admin user, '39b16499c9311734c595e735cffb5d76ddffb2ebf8cf4313ee869525a9fa2c20:f400c843413d4c81abcba8f571e6ddb6', 1, 'admin user'),
+     VALUES ('admin', 'Admin user', '39b16499c9311734c595e735cffb5d76ddffb2ebf8cf4313ee869525a9fa2c20:f400c843413d4c81abcba8f571e6ddb6', 1, 'admin user'),
             ('user', 'Normal user', '39b16499c9311734c595e735cffb5d76ddffb2ebf8cf4313ee869525a9fa2c20:f400c843413d4c81abcba8f571e6ddb6', 2, 'normal user');
 
 -- User password history

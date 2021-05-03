@@ -28,11 +28,21 @@ if [ ! "${DEFAULT_SQLITE_DB_FILE}" ]; then
     export DEFAULT_SQLITE_DB_FILE="${FLEDGE_DATA}/fledge.db"
 fi
 
-if [ ! "${DEFAULT_SQLITE_DB_FILE_READINGS}" ]; then
+# if the script changes the value it forces the overwrite of the value every times
+# it is needed when the storage plugin is changed
+if [ ! "${DEFAULT_SQLITE_DB_FILE_READINGS_FLAG}" ]; then
+
+    if [ ! "${DEFAULT_SQLITE_DB_FILE_READINGS}" ]; then
+
+        export DEFAULT_SQLITE_DB_FILE_READINGS_FLAG=1
+    fi
+fi
+
+if [ "${DEFAULT_SQLITE_DB_FILE_READINGS_FLAG}" ]; then
+
     export DEFAULT_SQLITE_DB_FILE_READINGS_BASE="${FLEDGE_DATA}/readings"
     export DEFAULT_SQLITE_DB_FILE_READINGS="${DEFAULT_SQLITE_DB_FILE_READINGS_BASE}.db"
 fi
-
 
 USAGE="Usage: `basename ${0}` {start|stop|status|init|reset|help}"
 
@@ -172,7 +182,15 @@ sqlite_start() {
 
     if [ ! "${FOUND_SCHEMAS}" ]; then
         # Create the Fledge database
-         sqlite_reset "$1" "immediate" 
+         sqlite_reset "$1" "immediate"
+    else
+        # Check if the readings database has been created
+        FOUND_SCHEMAS=`${SQLITE_SQL} ${DEFAULT_SQLITE_DB_FILE_READINGS} "ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE_READINGS}' AS 'readings'; SELECT name FROM sqlite_master WHERE type='table'"`
+
+        if [ ! "${FOUND_SCHEMAS}" ]; then
+            # Create the readings database
+            sqlite_create_db_readings "$1" "immediate"
+        fi
     fi
 
     # Fledge DB schema update: Fledge version is $2
@@ -254,20 +272,7 @@ EOF`
 
 }
 
-sqlite_reset_db_readings() {
-
-    # 1- Drop all databases in DEFAULT_SQLITE_DB_FILE_READINGS
-    if [ -f "${DEFAULT_SQLITE_DB_FILE_READINGS}" ]; then
-        rm ${DEFAULT_SQLITE_DB_FILE_READINGS} ||
-        sqlite_log "err" "Cannot drop database '${DEFAULT_SQLITE_DB_FILE_READINGS}' for the Fledge Plugin '${PLUGIN}'" "all" "pretty"
-    fi
-    rm -f ${DEFAULT_SQLITE_DB_FILE_READINGS}-journal ${DEFAULT_SQLITE_DB_FILE_READINGS}-wal ${DEFAULT_SQLITE_DB_FILE_READINGS}-shm
-
-    # Delete all the readings databases if any
-    rm -f ${DEFAULT_SQLITE_DB_FILE_READINGS_BASE}*.db
-    rm -f ${DEFAULT_SQLITE_DB_FILE_READINGS_BASE}*.db-journal
-    rm -f ${DEFAULT_SQLITE_DB_FILE_READINGS_BASE}*.db-wal
-    rm -f ${DEFAULT_SQLITE_DB_FILE_READINGS_BASE}*.db-shm
+sqlite_create_db_readings() {
 
     # 2- Create new datafile an apply init file
     INIT_OUTPUT=`${SQLITE_SQL} "${DEFAULT_SQLITE_DB_FILE_READINGS}" 2>&1 <<EOF
@@ -291,6 +296,24 @@ EOF`
         sqlite_log "info" "Build complete for Fledge Plugin '${PLUGIN} in database '${DEFAULT_SQLITE_DB_FILE_READINGS}'." "logonly" "pretty"
     fi
 
+}
+
+sqlite_reset_db_readings() {
+
+    # 1- Drop all databases in DEFAULT_SQLITE_DB_FILE_READINGS
+    if [ -f "${DEFAULT_SQLITE_DB_FILE_READINGS}" ]; then
+        rm ${DEFAULT_SQLITE_DB_FILE_READINGS} ||
+        sqlite_log "err" "Cannot drop database '${DEFAULT_SQLITE_DB_FILE_READINGS}' for the Fledge Plugin '${PLUGIN}'" "all" "pretty"
+    fi
+    rm -f ${DEFAULT_SQLITE_DB_FILE_READINGS}-journal ${DEFAULT_SQLITE_DB_FILE_READINGS}-wal ${DEFAULT_SQLITE_DB_FILE_READINGS}-shm
+
+    # Delete all the readings databases if any
+    rm -f ${DEFAULT_SQLITE_DB_FILE_READINGS_BASE}*.db
+    rm -f ${DEFAULT_SQLITE_DB_FILE_READINGS_BASE}*.db-journal
+    rm -f ${DEFAULT_SQLITE_DB_FILE_READINGS_BASE}*.db-wal
+    rm -f ${DEFAULT_SQLITE_DB_FILE_READINGS_BASE}*.db-shm
+
+    sqlite_create_db_readings
 }
 
 

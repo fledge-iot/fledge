@@ -5,9 +5,11 @@
 # FLEDGE_END
 
 import os
+import json
 
 from aiohttp import web
 
+from fledge.common.web.middleware import has_permission
 from fledge.services.core import connect
 from fledge.common.configuration_manager import ConfigurationManager
 from fledge.common.common import _FLEDGE_ROOT, _FLEDGE_DATA
@@ -137,37 +139,43 @@ async def upload(request):
     return web.json_response({"result": msg})
 
 
+@has_permission("admin")
 async def delete_certificate(request):
     """ Delete a certificate
 
     :Example:
-          curl -X DELETE http://localhost:8081/fledge/certificate/fledge.pem
-          curl -X DELETE http://localhost:8081/fledge/certificate/fledge.cert
+          curl -X DELETE http://localhost:8081/fledge/certificate/user.key
+          curl -X DELETE http://localhost:8081/fledge/certificate/user.cert
           curl -X DELETE http://localhost:8081/fledge/certificate/filename.cer
           curl -X DELETE http://localhost:8081/fledge/certificate/filename.crt
           curl -X DELETE http://localhost:8081/fledge/certificate/fledge.json?type=cert
           curl -X DELETE http://localhost:8081/fledge/certificate/fledge.pem?type=cert
-          curl -X DELETE http://localhost:8081/fledge/certificate/fledge.key
+          curl -X DELETE http://localhost:8081/fledge/certificate/fledge.pem
           curl -X DELETE http://localhost:8081/fledge/certificate/fledge.pem?type=key
     """
     file_name = request.match_info.get('name', None)
-
     valid_extensions = ('.cert', '.cer', '.crt', '.json', '.key', '.pem')
     if not file_name.endswith(valid_extensions):
-        raise web.HTTPBadRequest(reason="Accepted file extensions are {}".format(valid_extensions))
+        msg = "Accepted file extensions are {}".format(valid_extensions)
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+
+    if file_name.endswith(('admin.cert', 'admin.key')):
+        msg = "Admin certs cannot be deleted"
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
 
     # check if cert_name is currently set for 'certificateName' in config for 'rest_api'
     cf_mgr = ConfigurationManager(connect.get_storage_async())
     result = await cf_mgr.get_category_item(category_name='rest_api', item_name='certificateName')
     if file_name.split('.')[0] == result['value']:
-        raise web.HTTPConflict(reason='Certificate with name {} is already in use, you can not delete'
-                               .format(file_name))
+        msg = 'Certificate with name {} is already in use, you can not delete'.format(file_name)
+        raise web.HTTPConflict(reason=msg, body=json.dumps({"message": msg}))
 
     _type = None
     if 'type' in request.query and request.query['type'] != '':
         _type = request.query['type']
         if _type not in ['cert', 'key']:
-            raise web.HTTPBadRequest(reason="Only cert and key are allowed for the value of type param")
+            msg = "Only cert and key are allowed for the value of type param"
+            raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
 
     certs_dir = _get_certs_dir('/etc/certs/')
     is_found = False
@@ -212,7 +220,8 @@ async def delete_certificate(request):
                     cert_path.append(certs_dir + file_name)
 
     if not is_found:
-        raise web.HTTPNotFound(reason='Certificate with name {} does not exist'.format(file_name))
+        msg = 'Certificate with name {} does not exist'.format(file_name)
+        raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
 
     # Remove file
     for fp in cert_path:

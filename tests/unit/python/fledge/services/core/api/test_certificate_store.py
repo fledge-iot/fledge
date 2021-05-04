@@ -40,8 +40,6 @@ def certs_path():
 
 
 ADMIN_USER_HEADER = {'content-type': 'application/json', 'Authorization': 'admin_user_token'}
-storage_client_mock = MagicMock(StorageClientAsync)
-c_mgr = ConfigurationManager(storage_client_mock)
 
 
 @pytest.allure.feature("unit")
@@ -212,7 +210,7 @@ class TestCertificateStore:
 class TestDeleteCertStoreIfAuthenticationIsOptional:
     @pytest.fixture
     def client(self, loop, aiohttp_server, aiohttp_client):
-        app = web.Application(loop=loop,  middlewares=[middleware.optional_auth_middleware])
+        app = web.Application(loop=loop, middlewares=[middleware.optional_auth_middleware])
         # fill the routes table
         routes.setup(app)
         server = loop.run_until_complete(aiohttp_server(app))
@@ -225,15 +223,19 @@ class TestDeleteCertStoreIfAuthenticationIsOptional:
         ('rsa_private.key', 404, "Certificate with name rsa_private.key does not exist")
     ])
     async def test_bad_delete_cert_with_invalid_filename(self, client, cert_name, actual_code, actual_reason):
+        storage_client_mock = MagicMock(StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(c_mgr, 'get_category_item', return_value=mock_coro({'value': 'fledge'})) as patch_cfg:
                 resp = await client.delete('/fledge/certificate/{}'.format(cert_name))
                 assert actual_code == resp.status
                 assert actual_reason == resp.reason
+                result = await resp.text()
+                json_response = json.loads(result)
+                assert {"message": actual_reason} == json_response
             assert 1 == patch_cfg.call_count
 
     @pytest.mark.parametrize("cert_name, actual_code, actual_reason", [
-        ('', 404, "Not Found",),
         ('root.txt', 400, "Accepted file extensions are ('.cert', '.cer', '.crt', '.json', '.key', '.pem')"),
         ('admin.key', 400, "Admin certs cannot be deleted"),
         ('admin.cert', 400, "Admin certs cannot be deleted")
@@ -242,24 +244,39 @@ class TestDeleteCertStoreIfAuthenticationIsOptional:
         resp = await client.delete('/fledge/certificate/{}'.format(cert_name))
         assert actual_code == resp.status
         assert actual_reason == resp.reason
+        result = await resp.text()
+        json_response = json.loads(result)
+        assert {"message": actual_reason} == json_response
 
     async def test_bad_delete_cert_if_in_use(self, client):
+        storage_client_mock = MagicMock(StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        msg = 'Certificate with name fledge.cert is already in use, you can not delete'
         with patch('os.path.isfile', return_value=True):
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
                 with patch.object(c_mgr, 'get_category_item', return_value=mock_coro({'value': 'fledge'})) as patch_cfg:
                     resp = await client.delete('/fledge/certificate/fledge.cert')
                     assert 409 == resp.status
-                    assert 'Certificate with name fledge.cert is already in use, you can not delete' == resp.reason
+                    assert msg == resp.reason
+                    result = await resp.text()
+                    json_response = json.loads(result)
+                    assert {"message": msg} == json_response
                 assert 1 == patch_cfg.call_count
                 args, kwargs = patch_cfg.call_args
                 assert ({'item_name': 'certificateName', 'category_name': 'rest_api'}) == kwargs
 
     async def test_bad_type_delete_cert(self, client):
+        storage_client_mock = MagicMock(StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        msg = 'Only cert and key are allowed for the value of type param'
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(c_mgr, 'get_category_item', return_value=mock_coro({'value': 'fledge'})) as patch_cfg:
                 resp = await client.delete('/fledge/certificate/server.cert?type=pem')
                 assert 400 == resp.status
-                assert 'Only cert and key are allowed for the value of type param' == resp.reason
+                assert msg == resp.reason
+                result = await resp.text()
+                json_response = json.loads(result)
+                assert {"message": msg} == json_response
             assert 1 == patch_cfg.call_count
 
     @pytest.mark.parametrize("cert_name, param", [
@@ -272,6 +289,8 @@ class TestDeleteCertStoreIfAuthenticationIsOptional:
         ('rsa_private.pem', '?type=key'),
     ])
     async def test_delete_cert_with_type(self, client, cert_name, param):
+        storage_client_mock = MagicMock(StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(c_mgr, 'get_category_item', return_value=mock_coro({'value': 'foo'})):
                 with patch('os.path.isfile', return_value=True):
@@ -284,6 +303,8 @@ class TestDeleteCertStoreIfAuthenticationIsOptional:
                     assert 1 == patch_remove.call_count
 
     async def test_delete_cert(self, client, certs_path, cert_name='server.cert'):
+        storage_client_mock = MagicMock(StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
         with patch.object(certificate_store, '_get_certs_dir', return_value=str(certs_path / 'certs') + '/'):
             with patch('os.walk') as mockwalk:
                 mockwalk.return_value = [(str(certs_path / 'certs'), [], [cert_name])]
@@ -303,7 +324,7 @@ class TestDeleteCertStoreIfAuthenticationIsOptional:
 class TestDeleteCertStoreIfAuthenticationIsMandatory:
     @pytest.fixture
     def client(self, loop, aiohttp_server, aiohttp_client):
-        app = web.Application(loop=loop,  middlewares=[middleware.auth_middleware])
+        app = web.Application(loop=loop, middlewares=[middleware.auth_middleware])
         # fill the routes table
         routes.setup(app)
         server = loop.run_until_complete(aiohttp_server(app))
@@ -324,6 +345,8 @@ class TestDeleteCertStoreIfAuthenticationIsMandatory:
         ('rsa_private.key', 404, "Certificate with name rsa_private.key does not exist")
     ])
     async def test_bad_delete_cert_with_invalid_filename(self, client, mocker, cert_name, actual_code, actual_reason):
+        storage_client_mock = MagicMock(StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
         patch_logger_info, patch_validate_token, patch_refresh_token, patch_user_get = self.auth_token_fixture(mocker)
         with patch.object(User.Objects, 'get_role_id_by_name', return_value=mock_coro([{'id': '1'}])) as patch_role_id:
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
@@ -331,6 +354,9 @@ class TestDeleteCertStoreIfAuthenticationIsMandatory:
                     resp = await client.delete('/fledge/certificate/{}'.format(cert_name), headers=ADMIN_USER_HEADER)
                     assert actual_code == resp.status
                     assert actual_reason == resp.reason
+                    result = await resp.text()
+                    json_response = json.loads(result)
+                    assert {"message": actual_reason} == json_response
                 assert 1 == patch_cfg.call_count
         patch_role_id.assert_called_once_with('admin')
         patch_user_get.assert_called_once_with(uid=1)
@@ -340,7 +366,6 @@ class TestDeleteCertStoreIfAuthenticationIsMandatory:
                                                   '/fledge/certificate/{}'.format(cert_name))
 
     @pytest.mark.parametrize("cert_name, actual_code, actual_reason", [
-        ('', 404, "Not Found",),
         ('root.txt', 400, "Accepted file extensions are ('.cert', '.cer', '.crt', '.json', '.key', '.pem')"),
         ('admin.key', 400, "Admin certs cannot be deleted"),
         ('admin.cert', 400, "Admin certs cannot be deleted")
@@ -351,6 +376,9 @@ class TestDeleteCertStoreIfAuthenticationIsMandatory:
             resp = await client.delete('/fledge/certificate/{}'.format(cert_name), headers=ADMIN_USER_HEADER)
             assert actual_code == resp.status
             assert actual_reason == resp.reason
+            result = await resp.text()
+            json_response = json.loads(result)
+            assert {"message": actual_reason} == json_response
         patch_user_get.assert_called_once_with(uid=1)
         patch_refresh_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
         patch_validate_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
@@ -358,7 +386,10 @@ class TestDeleteCertStoreIfAuthenticationIsMandatory:
                                                   '/fledge/certificate/{}'.format(cert_name))
 
     async def test_bad_delete_cert_if_in_use(self, client, mocker):
+        storage_client_mock = MagicMock(StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
         cert_name = 'fledge.cert'
+        msg = 'Certificate with name fledge.cert is already in use, you can not delete'
         patch_logger_info, patch_validate_token, patch_refresh_token, patch_user_get = self.auth_token_fixture(mocker)
         with patch.object(User.Objects, 'get_role_id_by_name', return_value=mock_coro([{'id': '1'}])) as patch_role_id:
             with patch('os.path.isfile', return_value=True):
@@ -368,7 +399,10 @@ class TestDeleteCertStoreIfAuthenticationIsMandatory:
                         resp = await client.delete('/fledge/certificate/{}'.format(cert_name),
                                                    headers=ADMIN_USER_HEADER)
                         assert 409 == resp.status
-                        assert 'Certificate with name fledge.cert is already in use, you can not delete' == resp.reason
+                        assert msg == resp.reason
+                        result = await resp.text()
+                        json_response = json.loads(result)
+                        assert {"message": msg} == json_response
                     assert 1 == patch_cfg.call_count
                     args, kwargs = patch_cfg.call_args
                     assert ({'item_name': 'certificateName', 'category_name': 'rest_api'}) == kwargs
@@ -380,15 +414,22 @@ class TestDeleteCertStoreIfAuthenticationIsMandatory:
                                                   '/fledge/certificate/{}'.format(cert_name))
 
     async def test_bad_type_delete_cert(self, client, mocker):
+        storage_client_mock = MagicMock(StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
         cert_name = 'server.cert'
+        msg = 'Only cert and key are allowed for the value of type param'
         patch_logger_info, patch_validate_token, patch_refresh_token, patch_user_get = self.auth_token_fixture(mocker)
         with patch.object(User.Objects, 'get_role_id_by_name', return_value=mock_coro([{'id': '1'}])) as patch_role_id:
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-                with patch.object(c_mgr, 'get_category_item', return_value=mock_coro({'value': 'fledge'})) as patch_cfg:
+                with patch.object(c_mgr, 'get_category_item', return_value=mock_coro({'value': 'fledge'})
+                                  ) as patch_cfg:
                     resp = await client.delete('/fledge/certificate/{}?type=pem'.format(cert_name),
                                                headers=ADMIN_USER_HEADER)
                     assert 400 == resp.status
-                    assert 'Only cert and key are allowed for the value of type param' == resp.reason
+                    assert msg == resp.reason
+                    result = await resp.text()
+                    json_response = json.loads(result)
+                    assert {"message": msg} == json_response
                 assert 1 == patch_cfg.call_count
         patch_role_id.assert_called_once_with('admin')
         patch_user_get.assert_called_once_with(uid=1)
@@ -407,6 +448,8 @@ class TestDeleteCertStoreIfAuthenticationIsMandatory:
         ('rsa_private.pem', '?type=key'),
     ])
     async def test_delete_cert_with_type(self, client, mocker, cert_name, param):
+        storage_client_mock = MagicMock(StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
         patch_logger_info, patch_validate_token, patch_refresh_token, patch_user_get = self.auth_token_fixture(mocker)
         with patch.object(User.Objects, 'get_role_id_by_name', return_value=mock_coro([{'id': '1'}])) as patch_role_id:
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
@@ -428,6 +471,8 @@ class TestDeleteCertStoreIfAuthenticationIsMandatory:
                                                   '/fledge/certificate/{}'.format(cert_name))
 
     async def test_delete_cert(self, client, mocker, certs_path, cert_name='server.cert'):
+        storage_client_mock = MagicMock(StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
         patch_logger_info, patch_validate_token, patch_refresh_token, patch_user_get = self.auth_token_fixture(mocker)
         with patch.object(User.Objects, 'get_role_id_by_name', return_value=mock_coro([{'id': '1'}])) as patch_role_id:
             with patch.object(certificate_store, '_get_certs_dir', return_value=str(certs_path / 'certs') + '/'):

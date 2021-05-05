@@ -38,6 +38,7 @@ def setup(app, obj, is_core=False):
         app.router.add_route('POST', '/fledge/service', obj.register)
         app.router.add_route('DELETE', '/fledge/service/{service_id}', obj.unregister)
         app.router.add_route('GET', '/fledge/service', obj.get_service)
+        app.router.add_route('GET', '/fledge/service/authtoken', obj.get_auth_token)
 
         # Interest Registration
         app.router.add_route('POST', '/fledge/interest', obj.register_interest)

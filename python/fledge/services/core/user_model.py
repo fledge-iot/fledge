@@ -338,7 +338,10 @@ class User:
             # validate password
             is_valid_pwd = cls.check_password(found_user['pwd'], str(password))
             if not is_valid_pwd:
-                raise User.PasswordDoesNotMatch('Username or Password do not match')
+                # Another condition to check password is ONLY for the case:
+                # when we have requested password with hashed value and this comes only with microservice to get token
+                if found_user['pwd'] != str(password):
+                    raise User.PasswordDoesNotMatch('Username or Password do not match')
 
             uid, jwt_token, is_admin = await cls._get_new_token(storage_client, found_user, host)
             return uid, jwt_token, is_admin

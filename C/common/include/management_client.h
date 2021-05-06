@@ -51,7 +51,7 @@ class ManagementClient {
 		bool			addAuditEntry(const std::string& serviceName,
 						      const std::string& severity,
 						      const std::string& details);
-		std::string&		getBearerToken() { return m_bearer_token; };
+		std::string&		getRegistrationBearerToken() { return m_bearer_token; };
 
 private:
     std::ostringstream 			m_urlbase;

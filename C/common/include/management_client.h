@@ -9,7 +9,9 @@
  *
  * Author: Mark Riddoch, Massimiliano Pinto
  */
+
 #include <client_http.hpp>
+#include <server_http.hpp>
 #include <config_category.h>
 #include <service_record.h>
 #include <logger.h>
@@ -21,6 +23,7 @@
 #include <thread>
 
 using HttpClient = SimpleWeb::Client<SimpleWeb::HTTP>;
+using HttpServer = SimpleWeb::Server<SimpleWeb::HTTP>;
 using namespace rapidjson;
 
 class AssetTrackingTuple;
@@ -52,6 +55,7 @@ class ManagementClient {
 						      const std::string& severity,
 						      const std::string& details);
 		std::string&		getRegistrationBearerToken() { return m_bearer_token; };
+		bool			verifyAccessBearerToken(std::shared_ptr<HttpServer::Request> request);
 
 private:
     std::ostringstream 			m_urlbase;

@@ -1,17 +1,19 @@
 /*
  * Fledge storage service.
  *
- * Copyright (c) 2017-2018 OSisoft, LLC
+ * Copyright (c) 2021 Dianomic Systems
  *
  * Released under the Apache 2.0 Licence
  *
  * Author: Mark Riddoch, Massimiliano Pinto
  */
+
 #include <management_client.h>
 #include <rapidjson/document.h>
 #include <service_record.h>
 #include <string_utils.h>
 #include <asset_tracking.h>
+#include <bearer_token.h>
 
 using namespace std;
 using namespace rapidjson;
@@ -716,4 +718,22 @@ bool ManagementClient::addAuditEntry(const std::string& code,
 		return false;
 	}
 	return false;
+}
+
+/**
+ * Checks and validate the JWT bearer token
+ *
+ * @param request	HTTP request object
+ * @return		True on success, false otherwise
+ */
+bool ManagementClient::verifyAccessBearerToken(shared_ptr<HttpServer::Request> request)
+{
+	string bearer_token = getAccessBearerToken(request);
+
+	// TODO Check for valid JWT token claims
+	// TODO Check expiration time
+	// TODO Check token already exists in cache:
+	// TODO if it does not exist then request validation to Fledge core
+
+	return bearer_token.length() > 0;
 }

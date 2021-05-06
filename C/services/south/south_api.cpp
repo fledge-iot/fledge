@@ -6,7 +6,6 @@
  * Author: Mark Riddoch, Massimiliano Pinto
  */
 
-#include <bearer_token.h>
 #include <south_api.h>
 #include <south_service.h>
 #include <rapidjson/document.h>

@@ -1290,7 +1290,7 @@ class TestAuthCertificateWithoutTLS:
         data = {"current_password": "User@123", "new_password": "F0gl@mp1"}
         conn = http.client.HTTPConnection(fledge_url)
         conn.request("PUT", "/fledge/user/{}/password".format(uid), body=json.dumps(data),
-                     headers={"authorization": PASSWORD_TOKEN})
+                     headers={"authorization": CERT_TOKEN})
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -2407,7 +2407,7 @@ class TestAuthCertificateWithTLS:
         data = {"current_password": "User@123", "new_password": "F0gl@mp1"}
         conn = http.client.HTTPSConnection("localhost", 1995, context=context)
         conn.request("PUT", "/fledge/user/{}/password".format(uid), body=json.dumps(data),
-                     headers={"authorization": PASSWORD_TOKEN})
+                     headers={"authorization": CERT_TOKEN})
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()

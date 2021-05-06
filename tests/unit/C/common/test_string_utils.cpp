@@ -188,6 +188,15 @@ TEST(StringStripWhiteSpacesLeave1Space, AllCases)
 	ASSERT_EQ(StringStripWhiteSpacesExtra(" x x  \r    x ") , "x x x");
 }
 
+// Test IsRegex
+TEST(TestIsRegex, AllCases)
+{
+	ASSERT_EQ(IsRegex(".*") , true);
+	ASSERT_EQ(IsRegex("\\s") , true);
+	ASSERT_EQ(IsRegex("^.*(Code:)((?!2).)*$") , true);
+
+	ASSERT_EQ(IsRegex("asset_1") , false);
+}
 
 
 

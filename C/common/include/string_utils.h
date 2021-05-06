@@ -41,6 +41,7 @@ std::string StringLTrim(const std::string& str);
 std::string StringRTrim(const std::string& str);
 std::string StringTrim(const std::string& str);
 
+bool IsRegex(const string &str);
 
 
 #endif

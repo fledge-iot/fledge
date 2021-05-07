@@ -3,6 +3,8 @@ import asyncio
 from unittest.mock import MagicMock
 from unittest.mock import patch
 import pytest
+import sys
+import asyncio
 
 import aiohttp
 from fledge.services.core.service_registry.monitor import Monitor
@@ -33,13 +35,18 @@ class TestMonitor:
 
         class AsyncSessionContextManagerMock(MagicMock):
             def __init__(self, *args, **kwargs):
-                super().__init__(*args, **kwargs)
+                super().__init__(*args, **kwargs)                       
 
             async def __aenter__(self):
+                # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+                if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+                    _rv = await async_mock('{"uptime": "bla"}')
+                else:
+                    _rv =  asyncio.ensure_future(async_mock('{"uptime": "bla"}'))
+                
                 client_response_mock = MagicMock(spec=aiohttp.ClientResponse)
                 # mock response (good)
-                client_response_mock.text.side_effect = [
-                    async_mock('{"uptime": "bla"}')]
+                client_response_mock.text.side_effect = [_rv]
                 return client_response_mock
 
             async def __aexit__(self, *args):
@@ -69,6 +76,7 @@ class TestMonitor:
                 assert excinfo.type is TestMonitorException
         # service is good, so it should remain in the service registry
         assert len(ServiceRegistry.get(idx=s_id_1)) is 1
+        print(ServiceRegistry.get(idx=s_id_1)[0]._status)
         assert ServiceRegistry.get(idx=s_id_1)[0]._status is ServiceRecord.Status.Running
 
     @pytest.mark.asyncio
@@ -95,11 +103,17 @@ class TestMonitor:
         monitor._sleep_interval = Monitor._DEFAULT_SLEEP_INTERVAL
         monitor._max_attempts = Monitor._DEFAULT_MAX_ATTEMPTS
 
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv = await asyncio.sleep(0.1)
+        else:
+            _rv =  asyncio.ensure_future(asyncio.sleep(0.1))        
+        
         sleep_side_effect_list = list()
         # _MAX_ATTEMPTS is 15
         # throw exception on the 16th time sleep is called - the first 15 sleeps are used during retries
         for i in range(0, 15):
-            sleep_side_effect_list.append(asyncio.sleep(.01))
+            sleep_side_effect_list.append(_rv)
         sleep_side_effect_list.append(TestMonitorException())
         with patch.object(Monitor, '_sleep', side_effect=sleep_side_effect_list):
             with patch.object(aiohttp.ClientSession, 'get', return_value=AsyncSessionContextManagerMock()):

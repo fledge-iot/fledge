@@ -10,6 +10,7 @@ import uuid
 import time
 import json
 from unittest.mock import MagicMock, call
+import sys
 
 import copy
 import pytest
@@ -495,12 +496,19 @@ class TestScheduler:
                         "value": str(Scheduler._DEFAULT_MAX_COMPLETED_TASK_AGE_DAYS)
                     },
             }
+        
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv = await get_cat()
+        else:
+            _rv =  asyncio.ensure_future(get_cat())
+        
         # GIVEN
         scheduler = Scheduler()
         scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
         scheduler._storage_async = MockStorageAsync(core_management_host=None, core_management_port=None)
         cr_cat = mocker.patch.object(ConfigurationManager, "create_category", return_value=asyncio.ensure_future(mock_task()))
-        get_cat = mocker.patch.object(ConfigurationManager, "get_category_all_items", return_value=get_cat())
+        get_cat = mocker.patch.object(ConfigurationManager, "get_category_all_items", return_value=(_rv))
 
         # WHEN
         assert scheduler._max_running_tasks is None

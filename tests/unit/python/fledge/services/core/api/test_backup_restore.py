@@ -7,6 +7,7 @@
 import os
 import asyncio
 import json
+import sys
 
 from unittest.mock import MagicMock, patch
 from collections import Counter
@@ -28,8 +29,7 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 
-@asyncio.coroutine
-def mock_coro(*args, **kwargs):
+async def mock_coro(*args, **kwargs):
     if len(args) > 0:
         return args[0]
     else:
@@ -78,8 +78,15 @@ class TestBackup:
                      'id': 1, 'type': '1', 'status': '2',
                      'ts': '2018-02-15 15:18:41.821978+05:30',
                      'exit_code': '0'}]
+        
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv = await mock_coro(response)
+        else:
+            _rv =  asyncio.ensure_future(mock_coro(response))
+        
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(Backup, 'get_all_backups', return_value=mock_coro(response)):
+            with patch.object(Backup, 'get_all_backups', return_value=(_rv)):
                 resp = await client.get('/fledge/backup{}'.format(request_params))
                 assert 200 == resp.status
                 result = await resp.text()
@@ -110,9 +117,15 @@ class TestBackup:
         async def mock_create():
             return "running_or_failed"
 
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv = await mock_create()
+        else:
+            _rv =  asyncio.ensure_future(mock_create())
+        
         storage_client_mock = MagicMock(StorageClientAsync)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(Backup, 'create_backup', return_value=mock_create()):
+            with patch.object(Backup, 'create_backup', return_value=(_rv)):
                 resp = await client.post('/fledge/backup')
                 assert 200 == resp.status
                 assert '{"status": "running_or_failed"}' == await resp.text()
@@ -128,8 +141,15 @@ class TestBackup:
         storage_client_mock = MagicMock(StorageClientAsync)
         response = {'id': 1, 'file_name': '1.dump', 'ts': '2018-02-15 15:18:41.821978+05:30',
                     'status': '2', 'type': '1', 'exit_code': '0'}
+        
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv = await mock_coro(response)
+        else:
+            _rv =  asyncio.ensure_future(mock_coro(response))
+        
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(Backup, 'get_backup_details', return_value=mock_coro(response)):
+            with patch.object(Backup, 'get_backup_details', return_value=(_rv)):
                 resp = await client.get('/fledge/backup/{}'.format(1))
                 assert 200 == resp.status
                 result = await resp.text()
@@ -156,8 +176,15 @@ class TestBackup:
 
     async def test_delete_backup(self, client):
         storage_client_mock = MagicMock(StorageClientAsync)
+        
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv = await mock_coro(None)
+        else:
+            _rv =  asyncio.ensure_future(mock_coro(None))
+        
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(Backup, 'delete_backup', return_value=mock_coro(None)):
+            with patch.object(Backup, 'delete_backup', return_value=(_rv)):
                 resp = await client.delete('/fledge/backup/{}'.format(1))
                 assert 200 == resp.status
                 result = await resp.text()
@@ -211,9 +238,15 @@ class TestBackup:
         response = {'id': 1, 'file_name': '/usr/local/fledge/data/backup/fledge.db', 'ts': '2018-02-15 15:18:41',
                     'status': '2', 'type': '1'}
 
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv = await mock_coro(response)
+        else:
+            _rv =  asyncio.ensure_future(mock_coro(response))
+        
         with patch("aiohttp.web.FileResponse", return_value=web.FileResponse(path=os.path.realpath(__file__))) as file_res:
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-                with patch.object(Backup, 'get_backup_details', return_value=mock_coro(response)) as patch_backup_detail:
+                with patch.object(Backup, 'get_backup_details', return_value=(_rv)) as patch_backup_detail:
                     with patch('tarfile.open'):
                         resp = await client.get('/fledge/backup/{}/download'.format(1))
                         assert 200 == resp.status
@@ -238,9 +271,15 @@ class TestRestore:
         async def mock_restore():
             return "running"
 
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv = await mock_restore()
+        else:
+            _rv =  asyncio.ensure_future(mock_restore())
+        
         storage_client_mock = MagicMock(StorageClientAsync)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(Restore, 'restore_backup', return_value=mock_restore()):
+            with patch.object(Restore, 'restore_backup', return_value=(_rv)):
                 resp = await client.put('/fledge/backup/{}/restore'.format(1))
                 assert 200 == resp.status
                 r = await resp.text()

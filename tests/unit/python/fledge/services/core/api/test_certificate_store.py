@@ -7,6 +7,8 @@
 
 import json
 import pathlib
+import sys
+import asyncio
 
 from unittest.mock import MagicMock, patch
 from collections import Counter
@@ -198,8 +200,15 @@ class TestCertificateStore:
             return {'value': 'fledge'}
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
+        
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv = await async_mock()
+        else:
+            _rv =  asyncio.ensure_future(async_mock())
+        
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(c_mgr, 'get_category_item', return_value=async_mock()) as patch_cfg:
+            with patch.object(c_mgr, 'get_category_item', return_value=(_rv)) as patch_cfg:
                 resp = await client.delete('/fledge/certificate/{}'.format(cert_name))
                 assert actual_code == resp.status
                 assert actual_reason == resp.reason
@@ -220,9 +229,16 @@ class TestCertificateStore:
 
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
+        
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv = await async_mock()
+        else:
+            _rv =  asyncio.ensure_future(async_mock())
+        
         with patch('os.path.isfile', return_value=True):
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-                with patch.object(c_mgr, 'get_category_item', return_value=async_mock()) as patch_cfg:
+                with patch.object(c_mgr, 'get_category_item', return_value=(_rv)) as patch_cfg:
                     resp = await client.delete('/fledge/certificate/fledge.cert')
                     assert 409 == resp.status
                     assert 'Certificate with name fledge.cert is already in use, you can not delete' == resp.reason
@@ -235,8 +251,15 @@ class TestCertificateStore:
             return {'value': 'fledge'}
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
+        
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv = await async_mock()
+        else:
+            _rv =  asyncio.ensure_future(async_mock())
+        
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(c_mgr, 'get_category_item', return_value=async_mock()) as patch_cfg:
+            with patch.object(c_mgr, 'get_category_item', return_value=(_rv)) as patch_cfg:
                 resp = await client.delete('/fledge/certificate/server.cert?type=pem')
                 assert 400 == resp.status
                 assert 'Only cert and key are allowed for the value of type param' == resp.reason
@@ -257,8 +280,15 @@ class TestCertificateStore:
 
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
+        
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv = await async_mock()
+        else:
+            _rv =  asyncio.ensure_future(async_mock())
+        
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(c_mgr, 'get_category_item', return_value=async_mock()):
+            with patch.object(c_mgr, 'get_category_item', return_value=(_rv)):
                 with patch('os.path.isfile', return_value=True):
                     with patch('os.remove', return_value=True) as patch_remove:
                         resp = await client.delete('/fledge/certificate/{}{}'.format(cert_name, param))
@@ -274,11 +304,18 @@ class TestCertificateStore:
 
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
+        
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv = await async_mock()
+        else:
+            _rv =  asyncio.ensure_future(async_mock())
+        
         with patch.object(certificate_store, '_get_certs_dir', return_value=str(certs_path / 'certs') + '/'):
             with patch('os.walk') as mockwalk:
                 mockwalk.return_value = [(str(certs_path / 'certs'), [], [cert_name])]
                 with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-                    with patch.object(c_mgr, 'get_category_item', return_value=async_mock()):
+                    with patch.object(c_mgr, 'get_category_item', return_value=(_rv)):
                         with patch('os.remove', return_value=True) as patch_remove:
                             resp = await client.delete('/fledge/certificate/{}'.format(cert_name))
                             assert 200 == resp.status

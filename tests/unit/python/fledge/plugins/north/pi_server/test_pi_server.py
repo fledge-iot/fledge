@@ -16,7 +16,7 @@ import pytest
 import json
 import time
 import ast
-
+import sys
 import aiohttp
 
 from unittest.mock import patch, MagicMock, ANY
@@ -76,9 +76,15 @@ class MockAiohttpClientSession(MagicMock):
         self.text = args[1]
 
     async def __aenter__(self):
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _call = await mock_async_call(self.text)
+        else:
+            _call =  asyncio.ensure_future(mock_async_call(self.text))        
+        
         mock_response = MagicMock(spec=aiohttp.ClientResponse)
         mock_response.status = self.code
-        mock_response.text.side_effect = [mock_async_call(self.text)]
+        mock_response.text.side_effect = [_call]
 
         return mock_response
 
@@ -93,9 +99,15 @@ class MockAiohttpClientSessionSuccess(MagicMock):
         super().__init__(*args, **kwargs)
 
     async def __aenter__(self):
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _call = await mock_async_call('SUCCESS')
+        else:
+            _call =  asyncio.ensure_future(mock_async_call('SUCCESS'))        
+        
         mock_response = MagicMock(spec=aiohttp.ClientResponse)
         mock_response.status = 200
-        mock_response.text.side_effect = [mock_async_call('SUCCESS')]
+        mock_response.text.side_effect = [_call]
 
         return mock_response
 
@@ -110,9 +122,15 @@ class MockAiohttpClientSessionError(MagicMock):
         super().__init__(*args, **kwargs)
 
     async def __aenter__(self):
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _call = await mock_async_call('ERROR')
+        else:
+            _call =  asyncio.ensure_future(mock_async_call('ERROR'))
+        
         mock_response = MagicMock(spec=aiohttp.ClientResponse)
         mock_response.status = 400
-        mock_response.text.side_effect = [mock_async_call('ERROR')]
+        mock_response.text.side_effect = [_call]
 
         return mock_response
 
@@ -295,13 +313,24 @@ class TestPiServer:
                               'transform_in_memory_data',
                               return_value=ret_transform_in_memory_data):
 
+                if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+                    _rv = await mock_async_call()
+                else:
+                    _rv =  asyncio.ensure_future(mock_async_call())
+                
                 with patch.object(fixture_omf.PIServerNorthPlugin,
                                   'create_omf_objects',
-                                  return_value=mock_async_call()
+                                  return_value=(_rv)
                                   ) as patched_create_omf_objects:
+                    
+                    if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+                        _rv = await mock_async_call()
+                    else:
+                        _rv =  asyncio.ensure_future(mock_async_call())
+                    
                     with patch.object(fixture_omf.PIServerNorthPlugin,
                                       'send_in_memory_data_to_picromf',
-                                      return_value=mock_async_call()
+                                      return_value=(_rv)
                                       ) as patched_send_in_memory_data_to_picromf:
                         data_sent, new_position, num_sent = await fixture_omf.plugin_send(data, p_raw_data, _STREAM_ID)
 
@@ -467,10 +496,15 @@ class TestPIServerNorthPlugin:
 
             return p_data_from_storage
 
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv = await mock_query_tbl_with_payload()
+        else:
+            _rv =  asyncio.ensure_future(mock_query_tbl_with_payload())
+
         with patch.object(_payload_builder, 'PayloadBuilder', return_value=True):
             with patch.object(fixture_omf_north._sending_process_instance._storage_async,
                               'query_tbl_with_payload',
-                              return_value=mock_query_tbl_with_payload()):
+                              return_value=(_rv)):
 
                 retrieved_rows = await fixture_omf_north._retrieve_omf_types_already_created(p_configuration_key, p_type_id)
 
@@ -1039,21 +1073,29 @@ class TestPIServerNorthPlugin:
         fixture_omf_north._config_omf_types = {"type-id": {"value": type_id}}
         fixture_omf_north._config_omf_types = p_omf_objects_configuration_based
 
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv1 = await mock_async_call(p_asset_codes_already_created)
+            _rv2 = await mock_async_call()
+        else:
+            _rv1 =  asyncio.ensure_future(mock_async_call(p_asset_codes_already_created))
+            _rv2 =  asyncio.ensure_future(mock_async_call())   
+        
         if p_creation_type == "automatic":
 
             with patch.object(fixture_omf_north,
                               '_retrieve_omf_types_already_created',
-                              return_value=mock_async_call(p_asset_codes_already_created)):
+                              return_value=(_rv1)):
 
                 with patch.object(
                         fixture_omf_north,
                         '_create_omf_objects_automatic',
-                        return_value=mock_async_call()
+                        return_value=(_rv2)
                 ) as patched_create_omf_objects_automatic:
 
                     with patch.object(fixture_omf_north,
                                       '_flag_created_omf_type',
-                                      return_value=mock_async_call()
+                                      return_value=(_rv2)
                                       ) as patched_flag_created_omf_type:
 
                         await fixture_omf_north.create_omf_objects(p_data_origin, config_category_name, type_id)
@@ -1065,17 +1107,17 @@ class TestPIServerNorthPlugin:
 
             with patch.object(fixture_omf_north,
                               '_retrieve_omf_types_already_created',
-                              return_value=mock_async_call(p_asset_codes_already_created)):
+                              return_value=(_rv1)):
 
                 with patch.object(
                         fixture_omf_north,
                         '_create_omf_objects_configuration_based',
-                        return_value=mock_async_call()
+                        return_value=(_rv2)
                 ) as patched_create_omf_objects_configuration_based:
 
                     with patch.object(fixture_omf_north,
                                       '_flag_created_omf_type',
-                                      return_value=mock_async_call()
+                                      return_value=(_rv2)
                                       ) as patched_flag_created_omf_type:
                         await fixture_omf_north.create_omf_objects(p_data_origin, config_category_name, type_id)
 

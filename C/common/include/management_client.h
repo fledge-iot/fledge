@@ -57,8 +57,8 @@ class ManagementClient {
 		std::string&		getRegistrationBearerToken() { return m_bearer_token; };
 		bool			verifyAccessBearerToken(std::shared_ptr<HttpServer::Request> request);
 
-private:
-    std::ostringstream 			m_urlbase;
+	private:
+		std::ostringstream 			m_urlbase;
 		std::map<std::thread::id, HttpClient *> m_client_map;
 		HttpClient				*m_client;
 		std::string				*m_uuid;
@@ -67,6 +67,8 @@ private:
 		// Bearer token returned by service registration
 		// if the service startup token has been passed in registration payload
 		std::string				m_bearer_token;
+		// Map of received and verified access bearer tokens from other microservices
+		std::map<std::string, std::string>	m_received_tokens;
   
 	public:
 		// member template must be here and not in .cpp file

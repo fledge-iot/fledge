@@ -22,6 +22,9 @@ using HttpClient = SimpleWeb::Client<SimpleWeb::HTTP>;
 // handles m_client_map access
 std::mutex mng_mtx_client_map;
 
+// handles m_received_tokens
+std::mutex mtx_received_tokens;
+
 /**
  * Management Client constructor
  */
@@ -730,10 +733,47 @@ bool ManagementClient::verifyAccessBearerToken(shared_ptr<HttpServer::Request> r
 {
 	string bearer_token = getAccessBearerToken(request);
 
-	// TODO Check for valid JWT token claims
-	// TODO Check expiration time
-	// TODO Check token already exists in cache:
-	// TODO if it does not exist then request validation to Fledge core
+	if (bearer_token.length() == 0)
+	{
+		return false;
+	}
 
-	return bearer_token.length() > 0;
+	// TODO Check for valid JWT token claims
+	// if (not_valid)
+	//     m_received_tokens.erase(bearer_token);
+
+	// TODO Check expiration time
+	// if (expired)
+	//     m_received_tokens.erase(bearer_token);
+
+	bool ret = true;
+
+	// Check token already exists in cache:
+	std::map<std::string, std::string>::iterator item;
+	mtx_received_tokens.lock();
+
+	item = m_received_tokens.find(bearer_token);
+	if (item  == m_received_tokens.end())
+	{
+		// Token does not exist:
+		// TODO Verify it by calling Fledge new endpoint
+		bool verified = true;
+
+		if (verified)
+		{
+			// Token verified, store the token
+			m_received_tokens[bearer_token] = "added";
+		}
+		else
+		{
+			ret = false;
+			m_logger->error("Micro service bearer token '%s' not verified.", bearer_token.c_str());
+		}
+	}
+
+	mtx_received_tokens.unlock();
+
+	m_logger->error("Token verified %d", ret);
+
+	return ret;
 }

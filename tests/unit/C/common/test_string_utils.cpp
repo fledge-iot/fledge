@@ -4,6 +4,7 @@
 #include "string_utils.h"
 #include <vector>
 #include <bits/stdc++.h>
+#include <regex>
 
 using namespace std;
 
@@ -191,11 +192,18 @@ TEST(StringStripWhiteSpacesLeave1Space, AllCases)
 // Test IsRegex
 TEST(TestIsRegex, AllCases)
 {
+	ASSERT_EQ(IsRegex("^a") , true);
 	ASSERT_EQ(IsRegex(".*") , true);
 	ASSERT_EQ(IsRegex("\\s") , true);
 	ASSERT_EQ(IsRegex("^.*(Code:)((?!2).)*$") , true);
 
 	ASSERT_EQ(IsRegex("asset_1") , false);
+
+	ASSERT_EQ(std::regex_match ("sin_1_asset_1", regex("^a")), false);
+	ASSERT_EQ(std::regex_match ("sin_1_asset_1", regex("^s.*")), true);
+
+	ASSERT_EQ(std::regex_match ("sin_1_asset_1", regex("a.*")), false);
+	ASSERT_EQ(std::regex_match ("sin_1_asset_1", regex("s.*")), true);
 }
 
 

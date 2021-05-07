@@ -1,7 +1,7 @@
 /*
  * Fledge storage service.
  *
- * Copyright (c) 2021 Dianomic Systems
+ * Copyright (c) 2017-2018 OSisoft, LLC
  *
  * Released under the Apache 2.0 Licence
  *

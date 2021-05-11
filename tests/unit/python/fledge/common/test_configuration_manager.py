@@ -1996,7 +1996,7 @@ class TestConfigurationManager:
         else:
             _attr =  asyncio.ensure_future(mock_coro())
 
-        attrs = {"query_tbl_with_payload.return_value": mock_coro(), "update_tbl.return_value": _attr}
+        attrs = {"query_tbl_with_payload.return_value": _attr, "update_tbl.return_value": _attr}
         storage_client_mock = MagicMock(spec=StorageClientAsync, **attrs)
         c_mgr = ConfigurationManager(storage_client_mock)
 

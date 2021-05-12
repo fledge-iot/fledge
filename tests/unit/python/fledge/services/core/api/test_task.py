@@ -4,7 +4,7 @@
 # See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
-
+import functools
 import asyncio
 import json
 from uuid import UUID
@@ -211,8 +211,7 @@ class TestTask:
             schedule.schedule_id = '2129cc95-c841-441a-ad39-6469a87dbc8b'
             return schedule
 
-        @asyncio.coroutine
-        def q_result(*arg):
+        async def q_result(*arg):
             table = arg[0]
             payload = arg[1]
 
@@ -270,7 +269,7 @@ class TestTask:
             _rv4 =  asyncio.ensure_future(async_mock_get_schedule())
 
         
-        with patch.object(common, 'load_and_fetch_python_plugin_info', side_effect=[mock_plugin_info]):
+        with patch.object(common, 'load_and_fetch_python_plugin_info', return_value=mock_plugin_info):
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
                 with patch.object(c_mgr, 'get_category_all_items', return_value=(_rv1)) as patch_get_cat_info:
                     with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
@@ -291,7 +290,7 @@ class TestTask:
                                             assert {'id': '2129cc95-c841-441a-ad39-6469a87dbc8b',
                                                     'name': 'north bound'} == json_response
                                         patch_get_schedule.assert_called_once_with(data['name'])
-                                    patch_save_schedule.called_once_with()
+                                    patch_save_schedule.assert_called_once()
                                 patch_create_child_cat.assert_called_once_with('North', ['north bound'])
                             calls = [call(category_description='North OMF plugin', category_name='north bound',
                                           category_value={'plugin': {'description': 'North OMF plugin', 'default': 'omf',
@@ -371,7 +370,6 @@ class TestTask:
         async def q_result(*arg):
             table = arg[0]
             payload = arg[1]
-
             if table == 'scheduled_processes':
                 assert {'return': ['name'], 'where': {'column': 'name', 'condition': '=',
                                                       'value': 'north'}} == json.loads(payload)
@@ -383,6 +381,19 @@ class TestTask:
 
             if table == 'tasks':
                 return {'count': 0, 'rows': []}
+
+        # async def async_wrapper(*args, **kwargs):
+        #     r = await q_result(*args)
+        #     return r
+        
+        # def wrapper(*args, **kwargs):
+        #     r = q_result(*args)
+        #     return r
+        
+        # if asyncio.iscoroutinefunction(q_result):
+        #     wrapped = functools.update_wrapper(async_wrapper, q_result)
+        # else:
+        #     wrapped = functools.update_wrapper(wrapper, method)
 
         expected_insert_resp = {'rows_affected': 1, "response": "inserted"}
         mock_plugin_info = {
@@ -433,7 +444,7 @@ class TestTask:
             _rv3 =  asyncio.ensure_future(self.async_mock(""))
             _rv4 =  asyncio.ensure_future(async_mock_get_schedule())
         
-        with patch.object(common, 'load_and_fetch_python_plugin_info', side_effect=[mock_plugin_info]):
+        with patch.object(common, 'load_and_fetch_python_plugin_info', return_value=mock_plugin_info):
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
                 with patch.object(c_mgr, 'get_category_all_items', return_value=(_rv1)) as patch_get_cat_info:
                     with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
@@ -456,7 +467,7 @@ class TestTask:
                                                 assert {'id': '2129cc95-c841-441a-ad39-6469a87dbc8b',
                                                         'name': 'north bound'} == json_response
                                             patch_get_schedule.assert_called_once_with(data['name'])
-                                        patch_save_schedule.called_once_with()
+                                        patch_save_schedule.assert_called_once()
                                     patch_set_entry.assert_called_once_with(data['name'], 'producerToken',
                                                                             'uid=180905062754237&sig=kx5l+')
                                 patch_create_child_cat.assert_called_once_with('North', ['north bound'])
@@ -494,12 +505,13 @@ class TestTask:
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv1 = await mock_result()
-            _rv2 = await asyncio.sleep(.1)
+            _rv2 = asyncio.ensure_future(asyncio.sleep(.1))
         else:
-            _rv1 =  asyncio.ensure_future(mock_result())
-            _rv2 =  asyncio.ensure_future(asyncio.sleep(.1))
+            _rv1 = asyncio.ensure_future(mock_result())
+            _rv2 = asyncio.ensure_future(asyncio.sleep(.1))
         
-        mocker.patch.object(connect, 'get_storage_async')
+        storage_client_mock = MagicMock(StorageClientAsync)
+        mocker.patch.object(connect, 'get_storage_async', storage_client_mock)
         get_schedule = mocker.patch.object(task, "get_schedule", return_value=(_rv1))
         scheduler = mocker.patch.object(server.Server, "scheduler", MagicMock())
         delete_schedule = mocker.patch.object(scheduler, "delete_schedule", return_value=(_rv2))

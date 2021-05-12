@@ -401,7 +401,15 @@ class TestSendingProcess:
         # Tests - READINGS
         sp._config['source'] = 'readings'
 
-        with patch.object(sp, '_load_data_into_memory_readings', return_value=mock_coroutine()) \
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv1 = await mock_coroutine()
+            _rv2 = await mock_coro(True)
+        else:
+            _rv1 =  asyncio.ensure_future(mock_coroutine())
+            _rv2 =  asyncio.ensure_future(mock_coro(True))
+
+        with patch.object(sp, '_load_data_into_memory_readings', return_value=(_rv1)) \
                 as mocked_load_data_into_memory_readings:
 
             await sp._load_data_into_memory(5)
@@ -410,7 +418,7 @@ class TestSendingProcess:
         # Tests - STATISTICS
         sp._config['source'] = 'statistics'
 
-        with patch.object(sp, '_load_data_into_memory_statistics', return_value=mock_coro(True)) \
+        with patch.object(sp, '_load_data_into_memory_statistics', return_value=(_rv2)) \
                 as mocked_load_data_into_memory_statistics:
 
             await  sp._load_data_into_memory(5)
@@ -819,8 +827,15 @@ class TestSendingProcess:
                             sp = SendingProcess()
 
         sp._storage_async = MagicMock(spec=StorageClientAsync)
+        
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv = await mock_coro()
+        else:
+            _rv =  asyncio.ensure_future(mock_coro())
+        
         with patch.object(uuid, 'uuid4', return_value=uuid.UUID("ef6e1368-4182-11e8-842f-0ed5f89f718b")):
-            with patch.object(sp._storage_async, 'query_tbl_with_payload', return_value=mock_coro()):
+            with patch.object(sp._storage_async, 'query_tbl_with_payload', return_value=(_rv)):
 
                 # Checks the transformations for the Statistics especially for the 'reading' field and the fields naming/mapping
                 generated_rows = sp._transform_in_memory_data_statistics(p_rows)
@@ -1446,13 +1461,15 @@ class TestSendingProcess:
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro(0)
+            _rv2 = await mock_audit_failure()
         else:
             _rv =  asyncio.ensure_future(mock_coro(0))
+            _rv2 =  asyncio.ensure_future(mock_audit_failure())
         
         # WHEN - Starts the fetch 'task'
         with patch.object(sp, '_last_object_id_read', return_value=(_rv)):
             with patch.object(SendingProcess._logger, 'error') as patched_logger:
-                with patch.object(sp._audit, 'failure', return_value=mock_audit_failure()) as patched_audit:
+                with patch.object(sp._audit, 'failure', return_value=(_rv2)) as patched_audit:
                     with patch.object(sp, '_load_data_into_memory',
                                       side_effect=[asyncio.ensure_future(mock_retrieve_rows(x)) for x in range(0, p_num_element_to_fetch)]):
 
@@ -2148,11 +2165,19 @@ class TestSendingProcess:
         for x in range(len(p_rows)):
             fixture_sp._memory_buffer[x] = p_rows[x]
 
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv1 = await mock_async_call()
+            _rv2 = await mock_audit_failure()
+        else:
+            _rv1 =  asyncio.ensure_future(mock_async_call())
+            _rv2 =  asyncio.ensure_future(mock_audit_failure())
+        
         # WHEN - Starts the fetch 'task'
-        with patch.object(fixture_sp, '_update_position_reached', return_value=mock_async_call()):
+        with patch.object(fixture_sp, '_update_position_reached', return_value=(_rv1)):
 
             with patch.object(SendingProcess._logger, 'error') as patched_logger:
-                with patch.object(fixture_sp._audit, 'failure', return_value=mock_audit_failure()) as patched_audit:
+                with patch.object(fixture_sp._audit, 'failure', return_value=(_rv2)) as patched_audit:
 
                     with patch.object(
                             fixture_sp._plugin,
@@ -2196,9 +2221,15 @@ class TestSendingProcess:
 
         sp._audit = MagicMock(spec=AuditLogger)
 
-        with patch.object(sp, '_last_object_id_update', return_value=mock_task()) as mock_last_object_id_update:
-            with patch.object(sp, '_update_statistics', return_value=mock_task()) as mock__update_statistics:
-                with patch.object(sp._audit, 'information', return_value=mock_task()) as mock_audit_information:
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv = await mock_task()
+        else:
+            _rv =  asyncio.ensure_future(mock_task())
+
+        with patch.object(sp, '_last_object_id_update', return_value=(_rv)) as mock_last_object_id_update:
+            with patch.object(sp, '_update_statistics', return_value=(_rv)) as mock__update_statistics:
+                with patch.object(sp._audit, 'information', return_value=(_rv)) as mock_audit_information:
                     await sp._update_position_reached( 1000, 100)
 
         mock_last_object_id_update.assert_called_with(1000)

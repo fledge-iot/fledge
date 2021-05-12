@@ -388,6 +388,11 @@ class TestPiServer:
 
         data = MagicMock()
 
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv = await mock_async_call()
+        else:
+            _rv =  asyncio.ensure_future(mock_async_call())
+        
         with patch.object(fixture_omf.PIServerNorthPlugin,
                           'transform_in_memory_data',
                           return_value=ret_transform_in_memory_data
@@ -395,7 +400,7 @@ class TestPiServer:
 
             with patch.object(fixture_omf.PIServerNorthPlugin,
                               'create_omf_objects',
-                              return_value=mock_async_call()
+                              return_value=(_rv)
                               ) as patched_create_omf_objects:
 
                 with patch.object(fixture_omf.PIServerNorthPlugin,
@@ -405,7 +410,7 @@ class TestPiServer:
 
                     with patch.object(fixture_omf.PIServerNorthPlugin,
                                       'deleted_omf_types_already_created',
-                                      return_value=mock_async_call()
+                                      return_value=(_rv)
                                       ) as patched_deleted_omf_types_already_created:
 
                         with pytest.raises(Exception):
@@ -744,11 +749,15 @@ class TestPIServerNorthPlugin:
         fixture_omf_north._config["formatNumber"] = "float64"
         fixture_omf_north._config["formatInteger"] = "int64"
 
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv = await mock_async_call()
+        else:
+            _rv =  asyncio.ensure_future(mock_async_call())
 
         with patch.object(
                             fixture_omf_north,
                             'send_in_memory_data_to_picromf',
-                            return_value=mock_async_call()
+                            return_value=(_rv)
                           ) as patched_send_in_memory_data_to_picromf:
 
             typename, omf_type = await fixture_omf_north._create_omf_type_automatic(p_test_data)
@@ -862,9 +871,14 @@ class TestPIServerNorthPlugin:
 
         fixture_omf_north._config_omf_types = {"type-id": {"value": p_type_id}}
 
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv = await mock_async_call()
+        else:
+            _rv =  asyncio.ensure_future(mock_async_call())
+        
         with patch.object(fixture_omf_north,
                           'send_in_memory_data_to_picromf',
-                          return_value=mock_async_call()
+                          return_value=(_rv)
                           ) as patched_send_to_picromf:
             generated_typename, \
                 generated_omf_type = await fixture_omf_north._create_omf_type_configuration_based(p_asset_code_omf_type)

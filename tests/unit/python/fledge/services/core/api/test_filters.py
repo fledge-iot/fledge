@@ -6,7 +6,7 @@
 
 import asyncio
 import json
-from unittest.mock import MagicMock, patch, call, AsyncMock
+from unittest.mock import MagicMock, patch, call
 from aiohttp import web
 import pytest
 import sys
@@ -191,13 +191,12 @@ class TestFilters:
             get_cat_info_patch.assert_called_once_with(filter_name)
 
     async def test_get_filter_by_name_type_error(self, client):
+        storage_client_mock = MagicMock(StorageClientAsync)
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await self.async_mock(0)
-            storage_client_mock = AsyncMock(StorageClientAsync)
         else:
-            _rv =  asyncio.ensure_future(self.async_mock(0))
-            storage_client_mock = MagicMock(StorageClientAsync)
+            _rv = asyncio.ensure_future(self.async_mock(0))
         
         filter_name = "AssetFilter"        
         cf_mgr = ConfigurationManager(storage_client_mock)        
@@ -461,13 +460,12 @@ class TestFilters:
                 delete_tbl_patch.assert_called_once_with('filters', '{"where": {"column": "name", "condition": "=", "value": "AssetFilter"}}')
 
     async def test_delete_filter_value_error(self, client):
+        storage_client_mock = MagicMock(StorageClientAsync)
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = self.async_mock({'count': 0, 'rows': []})
-            storage_client_mock = AsyncMock(StorageClientAsync)
+            _rv = await self.async_mock({'count': 0, 'rows': []})
         else:
             _rv =  asyncio.ensure_future(self.async_mock({'count': 0, 'rows': []}))
-            storage_client_mock = MagicMock(StorageClientAsync)
         
         filter_name = "AssetFilter"
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):

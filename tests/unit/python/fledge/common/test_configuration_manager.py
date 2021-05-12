@@ -2530,7 +2530,6 @@ class TestConfigurationManager:
         async def mock_read_all_child_category_names(cat):
             """
             Mimics 
-
                      G      I
                       \    /
                        F  H
@@ -2633,7 +2632,6 @@ class TestConfigurationManager:
                  call('configuration', '{"where": {"column": "key", "condition": "=", "value": "J"}}'),
                  call('category_children', '{"where": {"column": "child", "condition": "=", "value": "A"}}'),
                  call('configuration', '{"where": {"column": "key", "condition": "=", "value": "A"}}')]
-        patch_delete_from_tbl.has_calls(calls, any_order=True)
 
         audit_calls = [call('CONCH', {'categoryDeleted': 'G'}),
                        call('CONCH', {'categoryDeleted': 'F'}),
@@ -2649,7 +2647,13 @@ class TestConfigurationManager:
                        call('CONCH', {'categoryDeleted': 'L'}),
                        call('CONCH', {'categoryDeleted': 'J'}),
                        call('CONCH', {'categoryDeleted': 'A'})]
-        audit_info.has_calls(audit_calls, any_order=True)
+        
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            await patch_delete_from_tbl.has_calls(calls, any_order=True)
+            await audit_info.has_calls(audit_calls, any_order=True)
+        else:
+            patch_delete_from_tbl.has_calls(calls, any_order=True)
+            audit_info.has_calls(audit_calls, any_order=True)
 
     async def test_delete_category_and_children_recursively_exception(self, mocker, reset_singleton):
         @asyncio.coroutine
@@ -2663,7 +2667,6 @@ class TestConfigurationManager:
         def mock_read_all_child_category_names(cat):
             """
             Mimics 
-
                      G      I
                       \    /
                        F  H

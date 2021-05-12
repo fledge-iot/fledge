@@ -13,6 +13,8 @@ __version__ = "${VERSION}"
 import pytest
 import json
 import logging
+import sys
+import asyncio
 
 from unittest.mock import patch, MagicMock, ANY
 
@@ -270,15 +272,21 @@ class TestOCS:
 
         data = MagicMock()
 
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv = await mock_async_call()
+        else:
+            _rv =  asyncio.ensure_future(mock_async_call())
+        
         with patch.object(fixture_ocs.OCSNorthPlugin,
                           'transform_in_memory_data',
                           return_value=ret_transform_in_memory_data) as patched_transform_in_memory_data:
             with patch.object(fixture_ocs.OCSNorthPlugin,
                               'create_omf_objects',
-                              return_value=mock_async_call()) as patched_create_omf_objects:
+                              return_value=(_rv)) as patched_create_omf_objects:
                 with patch.object(fixture_ocs.OCSNorthPlugin,
                                   'send_in_memory_data_to_picromf',
-                                  return_value=mock_async_call()) as patched_send_in_memory_data_to_picromf:
+                                  return_value=(_rv)) as patched_send_in_memory_data_to_picromf:
                     await fixture_ocs.plugin_send(data, p_raw_data, _STREAM_ID)
 
         assert patched_transform_in_memory_data.called
@@ -320,6 +328,12 @@ class TestOCS:
 
         data = MagicMock()
 
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv = await mock_async_call()
+        else:
+            _rv =  asyncio.ensure_future(mock_async_call())
+        
         with patch.object(fixture_ocs.OCSNorthPlugin,
                           'transform_in_memory_data',
                           return_value=ret_transform_in_memory_data
@@ -327,7 +341,7 @@ class TestOCS:
 
             with patch.object(fixture_ocs.OCSNorthPlugin,
                               'create_omf_objects',
-                              return_value=mock_async_call()
+                              return_value=(_rv)
                               ) as patched_create_omf_objects:
 
                 with patch.object(fixture_ocs.OCSNorthPlugin,
@@ -337,7 +351,7 @@ class TestOCS:
 
                     with patch.object(fixture_ocs.OCSNorthPlugin,
                                       'deleted_omf_types_already_created',
-                                      return_value=mock_async_call()
+                                      return_value=(_rv)
                                       ) as patched_deleted_omf_types_already_created:
 
                         with pytest.raises(Exception):
@@ -488,9 +502,15 @@ class TestOCSNorthPlugin:
         fixture_ocs_north._config["formatNumber"] = "float64"
         fixture_ocs_north._config["formatInteger"] = "int64"
 
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv = await mock_async_call()
+        else:
+            _rv =  asyncio.ensure_future(mock_async_call())
+        
         with patch.object(fixture_ocs_north,
                           'send_in_memory_data_to_picromf',
-                          return_value=mock_async_call()
+                          return_value=(_rv)
                           ) as patched_send_in_memory_data_to_picromf:
 
             typename, omf_type = await fixture_ocs_north._create_omf_type_automatic(p_test_data)

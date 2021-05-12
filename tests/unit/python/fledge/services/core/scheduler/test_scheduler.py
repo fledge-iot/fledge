@@ -48,7 +48,7 @@ class TestScheduler:
         mocker.patch.object(scheduler, '_process_scripts', return_value="North Readings to PI")
         mocker.patch.object(scheduler, '_wait_for_task_completion', return_value=asyncio.ensure_future(mock_task()))
         mocker.patch.object(scheduler, '_terminate_child_processes')
-        mocker.patch.object(asyncio, 'create_subprocess_exec', return_value=asyncio.ensure_future(mock_process()))
+        mocker.patch.object(asyncio, 'create_subprocess_exec', return_value=(await mock_process()))
 
         await scheduler._get_schedules()
 
@@ -180,7 +180,7 @@ class TestScheduler:
         await scheduler.queue_task(schedule.id)
         assert isinstance(scheduler._schedule_executions[schedule.id], scheduler._ScheduleExecution)
 
-        mocker.patch.object(asyncio, 'create_subprocess_exec', return_value=asyncio.ensure_future(mock_process()))
+        mocker.patch.object(asyncio, 'create_subprocess_exec', return_value=(await mock_process()))
         mocker.patch.object(asyncio, 'ensure_future', return_value=asyncio.ensure_future(mock_task()))
         mocker.patch.object(scheduler, '_resume_check_schedules')
         mocker.patch.object(scheduler, '_process_scripts', return_value="North Readings to PI")

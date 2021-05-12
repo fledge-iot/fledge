@@ -249,24 +249,14 @@ class TestChangeCallback:
         async def async_mock(return_value):
             return return_value
 
-        class AsyncSessionContextManagerMock(MagicMock):
-            def __init__(self, *args, **kwargs):
-                super().__init__(*args, **kwargs)
-
-            async def __aenter__(self):
-                raise Exception
-
-            async def __aexit__(self, *args):
-                return None
-
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await async_mock(None)
         else:
-            _rv =  asyncio.ensure_future(async_mock(None))
+            _rv = asyncio.ensure_future(async_mock(None))
 
         with patch.object(ConfigurationManager, 'get_category_all_items', return_value=(_rv)) as cm_get_patch:
-            with patch.object(aiohttp.ClientSession, 'post', return_value=AsyncSessionContextManagerMock()) as post_patch:
+            with patch.object(aiohttp.ClientSession, 'post', side_effect=Exception) as post_patch:
                 with patch.object(cb._LOGGER, 'exception') as exception_patch:
                     await cb.run('catname1')
                 exception_patch.assert_called_once_with(

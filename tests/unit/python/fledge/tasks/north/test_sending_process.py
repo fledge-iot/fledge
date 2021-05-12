@@ -1454,17 +1454,15 @@ class TestSendingProcess:
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro(0)
-            _rv2 = await mock_audit_failure()
             se_list = [await mock_retrieve_rows(x) for x in range(0, p_num_element_to_fetch)]
         else:
             _rv =  asyncio.ensure_future(mock_coro(0))
-            _rv2 = asyncio.ensure_future(mock_audit_failure())
             se_list = [asyncio.ensure_future(mock_retrieve_rows(x)) for x in range(0, p_num_element_to_fetch)]
         
         # WHEN - Starts the fetch 'task'
         with patch.object(sp, '_last_object_id_read', return_value=(_rv)):
             with patch.object(SendingProcess._logger, 'error') as patched_logger:
-                with patch.object(sp._audit, 'failure', return_value=(_rv2)) as patched_audit:
+                with patch.object(sp._audit, 'failure', side_effect=RuntimeError) as patched_audit:
                     with patch.object(sp, '_load_data_into_memory', side_effect=se_list):
                         # to mask - cannot reuse already awaited coroutine
                         with pytest.raises(RuntimeError):
@@ -2159,18 +2157,16 @@ class TestSendingProcess:
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv1 = await mock_async_call()
-            _rv2 = await mock_audit_failure()
             _se_list = [await mock_send_rows(x) for x in range(0, len(p_send_result))]
         else:
             _rv1 =  asyncio.ensure_future(mock_async_call())
-            _rv2 =  mock_audit_failure()
             _se_list = [asyncio.ensure_future(mock_send_rows(x)) for x in range(0, len(p_send_result))]
         
         # WHEN - Starts the fetch 'task'
         with patch.object(fixture_sp, '_update_position_reached', return_value=(_rv1)):
 
             with patch.object(SendingProcess._logger, 'error') as patched_logger:
-                with patch.object(fixture_sp._audit, 'failure', return_value=(_rv2)) as patched_audit:
+                with patch.object(fixture_sp._audit, 'failure', side_effect=RuntimeError) as patched_audit:
 
                     with patch.object(
                             fixture_sp._plugin,

@@ -10,11 +10,12 @@ __copyright__ = "Copyright (c) 2018 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
+
+import sys
 import pytest
+pytestmark = pytest.mark.skipif(sys.version_info >= (3, 8), reason="ocs north plugin is obsolete")
 import json
 import logging
-import sys
-import asyncio
 
 from unittest.mock import patch, MagicMock, ANY
 
@@ -134,11 +135,9 @@ class TestOCS:
         assert isinstance(config['StaticData'], dict)
 
     @pytest.mark.parametrize("data", [
-
             # Bad case 1 - StaticData is a python dict instead of a string containing a dict
             {
                 "stream_id": {"value": 1},
-
                 "_CONFIG_CATEGORY_NAME":  module_sp.SendingProcess._CONFIG_CATEGORY_NAME,
                 "URL": {"value": "test_URL"},
                 "producerToken": {"value": "test_producerToken"},
@@ -152,17 +151,13 @@ class TestOCS:
                             "Company": "Dianomic"
                         }
                 },
-
                 'sending_process_instance': MagicMock(spec=SendingProcess),
-
                 "formatNumber": {"value": "float64"},
                 "formatInteger": {"value": "int64"},
             },
-
             # Bad case 2 - OMFMaxRetry, bad value expected an int it is a string
             {
                 "stream_id": {"value": 1},
-
                 "_CONFIG_CATEGORY_NAME": module_sp.SendingProcess._CONFIG_CATEGORY_NAME,
                 "URL": {"value": "test_URL"},
                 "producerToken": {"value": "test_producerToken"},
@@ -177,13 +172,10 @@ class TestOCS:
                         }
                     )
                 },
-
                 'sending_process_instance': MagicMock(spec=SendingProcess),
-
                 "formatNumber": {"value": "float64"},
                 "formatInteger": {"value": "int64"},
             },
-
             # Bad case 3- formatNumber not defined
             {
                 "stream_id": {"value": 1},
@@ -207,7 +199,6 @@ class TestOCS:
     
                 "formatInteger": {"value": "int64"}
             },
-
         
             # Bad case 4 - formatInteger not defined
             {
@@ -232,7 +223,6 @@ class TestOCS:
     
                 "formatNumber": {"value": "float64"}
             }
-
     ])
     def test_plugin_init_bad(self, data):
         """Tests plugin_init using an invalid set of values"""
@@ -250,7 +240,6 @@ class TestOCS:
                 # ret_transform_in_memory_data
                 # is_data_available - new_position - num_sent
                 [True,                20,            10],
-
                 # raw_data
                 [
                     {
@@ -272,21 +261,15 @@ class TestOCS:
 
         data = MagicMock()
 
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await mock_async_call()
-        else:
-            _rv =  asyncio.ensure_future(mock_async_call())
-        
         with patch.object(fixture_ocs.OCSNorthPlugin,
                           'transform_in_memory_data',
                           return_value=ret_transform_in_memory_data) as patched_transform_in_memory_data:
             with patch.object(fixture_ocs.OCSNorthPlugin,
                               'create_omf_objects',
-                              return_value=(_rv)) as patched_create_omf_objects:
+                              return_value=mock_async_call()) as patched_create_omf_objects:
                 with patch.object(fixture_ocs.OCSNorthPlugin,
                                   'send_in_memory_data_to_picromf',
-                                  return_value=(_rv)) as patched_send_in_memory_data_to_picromf:
+                                  return_value=mock_async_call()) as patched_send_in_memory_data_to_picromf:
                     await fixture_ocs.plugin_send(data, p_raw_data, _STREAM_ID)
 
         assert patched_transform_in_memory_data.called
@@ -301,7 +284,6 @@ class TestOCS:
                 # ret_transform_in_memory_data
                 # is_data_available - new_position - num_sent
                 [True,                20,            10],
-
                 # raw_data
                 {
                     "id": 10,
@@ -310,7 +292,6 @@ class TestOCS:
                     "user_ts": '2018-04-20 09:38:50.163164+00'
                 }
              )
-
         ]
     )
     @pytest.mark.asyncio
@@ -328,12 +309,6 @@ class TestOCS:
 
         data = MagicMock()
 
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await mock_async_call()
-        else:
-            _rv =  asyncio.ensure_future(mock_async_call())
-        
         with patch.object(fixture_ocs.OCSNorthPlugin,
                           'transform_in_memory_data',
                           return_value=ret_transform_in_memory_data
@@ -341,7 +316,7 @@ class TestOCS:
 
             with patch.object(fixture_ocs.OCSNorthPlugin,
                               'create_omf_objects',
-                              return_value=(_rv)
+                              return_value=mock_async_call()
                               ) as patched_create_omf_objects:
 
                 with patch.object(fixture_ocs.OCSNorthPlugin,
@@ -351,7 +326,7 @@ class TestOCS:
 
                     with patch.object(fixture_ocs.OCSNorthPlugin,
                                       'deleted_omf_types_already_created',
-                                      return_value=(_rv)
+                                      return_value=mock_async_call()
                                       ) as patched_deleted_omf_types_already_created:
 
                         with pytest.raises(Exception):
@@ -388,16 +363,13 @@ class TestOCSNorthPlugin:
             (
                 # Origin - Sensor data
                 {"asset_code": "pressure", "asset_data": {"pressure": 921.6}},
-
                 # type_id
                 "0001",
-
                 # Static Data
                 {
                     "Location": "Palo Alto",
                     "Company": "Dianomic"
                 },
-
                 # Expected
                 'pressure_typename',
                 {
@@ -417,8 +389,6 @@ class TestOCSNorthPlugin:
                             'classification': 'dynamic',
                             'id': '0001_pressure_typename_measurement',
                             'properties': {
-
-
                                 'Time': {
                                         'isindex': True,
                                         'format': 'date-time',
@@ -438,16 +408,13 @@ class TestOCSNorthPlugin:
             (
                     # Origin - Sensor data
                     {"asset_code": "luxometer", "asset_data": {"lux": 20}},
-
                     # type_id
                     "0002",
-
                     # Static Data
                     {
                         "Location": "Palo Alto",
                         "Company": "Dianomic"
                     },
-
                     # Expected
                     'luxometer_typename',
                     {
@@ -477,9 +444,7 @@ class TestOCSNorthPlugin:
                                 }
                             ]
                     }
-
             )
-
         ]
     )
     @pytest.mark.asyncio
@@ -502,15 +467,9 @@ class TestOCSNorthPlugin:
         fixture_ocs_north._config["formatNumber"] = "float64"
         fixture_ocs_north._config["formatInteger"] = "int64"
 
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await mock_async_call()
-        else:
-            _rv =  asyncio.ensure_future(mock_async_call())
-        
         with patch.object(fixture_ocs_north,
                           'send_in_memory_data_to_picromf',
-                          return_value=(_rv)
+                          return_value=mock_async_call()
                           ) as patched_send_in_memory_data_to_picromf:
 
             typename, omf_type = await fixture_ocs_north._create_omf_type_automatic(p_test_data)

@@ -46,7 +46,6 @@ async def mock_async_call():
 
 async def mock_audit_failure():
     """ mocks audit.failure """
-
     return True
 
 
@@ -1464,7 +1463,7 @@ class TestSendingProcess:
             _rv2 = await mock_audit_failure()
         else:
             _rv =  asyncio.ensure_future(mock_coro(0))
-            _rv2 =  asyncio.ensure_future(mock_audit_failure())
+            _rv2 = mock_audit_failure()
         
         # WHEN - Starts the fetch 'task'
         with patch.object(sp, '_last_object_id_read', return_value=(_rv)):
@@ -2171,7 +2170,7 @@ class TestSendingProcess:
             _rv2 = await mock_audit_failure()
         else:
             _rv1 =  asyncio.ensure_future(mock_async_call())
-            _rv2 =  asyncio.ensure_future(mock_audit_failure())
+            _rv2 =  mock_audit_failure()
         
         # WHEN - Starts the fetch 'task'
         with patch.object(fixture_sp, '_update_position_reached', return_value=(_rv1)):

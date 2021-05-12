@@ -1117,7 +1117,7 @@ class TestSendingProcess:
         }
 
         sp._config_from_manager = {
-            'applyFilter': {'value': "FALSE"}
+            'applyFilter': {'value': "false"}
         }
 
         sp._task_fetch_data_run = True
@@ -1131,27 +1131,23 @@ class TestSendingProcess:
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro(0)
+            side_effects_list = [await retrieve_rows(x) for x in range(0, p_num_element_to_fetch)]
         else:
             _rv =  asyncio.ensure_future(mock_coro(0))
+            side_effects_list = [asyncio.ensure_future(retrieve_rows(x)) for x in range(0, p_num_element_to_fetch)]
         
-        # WHEN
+        # WHEN    
         with patch.object(sp, '_last_object_id_read', return_value=(_rv)):
-
-            with patch.object(sp, '_load_data_into_memory',
-                              side_effect=[asyncio.ensure_future(retrieve_rows(x)) for x in range(0, p_num_element_to_fetch)]):
-
-                task_id = asyncio.ensure_future(sp._task_fetch_data())
-
+            with patch.object(sp, '_load_data_into_memory', side_effect= side_effects_list):
+                t = asyncio.ensure_future(sp._task_fetch_data())
                 # Lets the _task_fetch_data to run for a while
-                await asyncio.sleep(3)
-
+                await asyncio.sleep(0.1)
                 # Tear down
                 sp._task_fetch_data_run = False
                 sp._task_fetch_data_sem.release()
                 sp._task_send_data_sem.release()
 
-                await task_id
-
+                await t
         # THEN
         assert sp._memory_buffer == expected_buffer
 
@@ -1313,19 +1309,18 @@ class TestSendingProcess:
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro(0)
+            side_effects_list = [await (retrieve_rows(x)) for x in range(0, p_num_element_to_fetch)]
         else:
             _rv =  asyncio.ensure_future(mock_coro(0))
+            side_effects_list = [asyncio.ensure_future(retrieve_rows(x)) for x in range(0, p_num_element_to_fetch)]
         
         # WHEN
         # Starts the fetch 'task'
         with patch.object(sp, '_last_object_id_read', return_value=(_rv)):
-            with patch.object(sp, '_load_data_into_memory',
-                              side_effect=[asyncio.ensure_future(retrieve_rows(x)) for x in range(0, p_num_element_to_fetch)]):
-
+            with patch.object(sp, '_load_data_into_memory', side_effect=side_effects_list):
                 task_id = asyncio.ensure_future(sp._task_fetch_data())
-
                 # Lets the _task_fetch_data to run for a while, to fill the in memory buffer
-                await asyncio.sleep(3)
+                await asyncio.sleep(0.1)
 
                 # Simulates the sent operation - so another block is loaded
                 sp._memory_buffer[0] = None
@@ -1334,14 +1329,11 @@ class TestSendingProcess:
                 sp._task_send_data_sem.release()
 
                 # Lets the _task_fetch_data to run for a while
-                await asyncio.sleep(3)
+                await asyncio.sleep(0.1)
 
                 # Tear down
                 sp._task_fetch_data_run = False
                 sp._task_send_data_sem.release()
-
-                await task_id
-
         # THEN
         assert sp._memory_buffer == expected_buffer
 
@@ -1445,7 +1437,7 @@ class TestSendingProcess:
         }
 
         sp._config_from_manager = {
-            'applyFilter': {'value': "FALSE"}
+            'applyFilter': {'value': "false"}
         }
 
         sp._task_fetch_data_run = True
@@ -1461,35 +1453,33 @@ class TestSendingProcess:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro(0)
             _rv2 = await mock_audit_failure()
+            se_list = [await mock_retrieve_rows(x) for x in range(0, p_num_element_to_fetch)]
         else:
             _rv =  asyncio.ensure_future(mock_coro(0))
-            _rv2 = mock_audit_failure()
+            _rv2 = asyncio.ensure_future(mock_audit_failure())
+            se_list = [asyncio.ensure_future(mock_retrieve_rows(x)) for x in range(0, p_num_element_to_fetch)]
         
         # WHEN - Starts the fetch 'task'
         with patch.object(sp, '_last_object_id_read', return_value=(_rv)):
             with patch.object(SendingProcess._logger, 'error') as patched_logger:
                 with patch.object(sp._audit, 'failure', return_value=(_rv2)) as patched_audit:
-                    with patch.object(sp, '_load_data_into_memory',
-                                      side_effect=[asyncio.ensure_future(mock_retrieve_rows(x)) for x in range(0, p_num_element_to_fetch)]):
-
+                    with patch.object(sp, '_load_data_into_memory', side_effect=se_list):
                         # to mask - cannot reuse already awaited coroutine
                         with pytest.raises(RuntimeError):
-                            task_id = asyncio.ensure_future(sp._task_fetch_data())
-
+                            tfd = asyncio.ensure_future(sp._task_fetch_data())
                             # Lets the _task_fetch_data to run for a while
-                            await asyncio.sleep(3)
-
+                            await asyncio.sleep(0.1)
                             # Tear down
                             sp._task_fetch_data_run = False
                             sp._task_send_data_sem.release()
-
-                            await task_id
+                            
+                            await tfd
+                            
 
         # THEN - Checks log and audit are called in case of en error and the in memory buffer is as expected
         assert patched_logger.called
         assert patched_audit.called
         patched_audit.assert_called_with(SendingProcess._AUDIT_CODE, ANY)
-
         assert sp._memory_buffer == expected_buffer
 
 
@@ -1617,7 +1607,7 @@ class TestSendingProcess:
         }
 
         sp._config_from_manager = {
-            "applyFilter": {"value": "TRUE"},
+            "applyFilter": {"value": "true"},
             "filterRule": {"value": p_jqfilter}
         }
 
@@ -1633,24 +1623,24 @@ class TestSendingProcess:
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro(0)
+            _se_list = [await mock_retrieve_rows(x) for x in range(0, p_num_element_to_fetch)]
         else:
-            _rv =  asyncio.ensure_future(mock_coro(0))        
+            _rv = asyncio.ensure_future(mock_coro(0))
+            _se_list = [asyncio.ensure_future(mock_retrieve_rows(x)) for x in range(0, p_num_element_to_fetch)]        
         
         # WHEN - Starts the fetch 'task'
         with patch.object(sp, '_last_object_id_read', return_value=(_rv)):
-            with patch.object(sp, '_load_data_into_memory',
-                              side_effect=[asyncio.ensure_future(mock_retrieve_rows(x)) for x in range(0, p_num_element_to_fetch)]):
-
-                task_id = asyncio.ensure_future(sp._task_fetch_data())
+            with patch.object(sp, '_load_data_into_memory', side_effect=_se_list):
+                t = asyncio.ensure_future(sp._task_fetch_data())
 
                 # Lets the _task_fetch_data to run for a while
-                await asyncio.sleep(3)
+                await asyncio.sleep(0.1)
 
                 # Tear down
                 sp._task_fetch_data_run = False
                 sp._task_send_data_sem.release()
 
-                await task_id
+                await t
 
         assert sp._memory_buffer == expected_buffer
 
@@ -1807,7 +1797,7 @@ class TestSendingProcess:
         }
 
         sp._config_from_manager = {
-            'applyFilter': {'value': "FALSE"}
+            'applyFilter': {'value': "false"}
         }
 
         sp._task_send_data_run = True
@@ -1825,27 +1815,27 @@ class TestSendingProcess:
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_async_call()
+            _se_list = [await mock_send_rows(x) for x in range(0, len(p_send_result))]
         else:
-            _rv =  asyncio.ensure_future(mock_async_call())        
+            _rv = asyncio.ensure_future(mock_async_call())
+            _se_list = [asyncio.ensure_future(mock_send_rows(x)) for x in range(0, len(p_send_result))]       
         
         # WHEN - Starts the fetch 'task'
         with patch.object(sp, '_update_position_reached', return_value=(_rv)) \
                 as patched_update_position_reached:
 
-            with patch.object(sp._plugin, 'plugin_send',
-                              side_effect=[asyncio.ensure_future(mock_send_rows(x)) for x in range(0, len(p_send_result))]):
+            with patch.object(sp._plugin, 'plugin_send', side_effect=_se_list):
                 with patch.object(sp._core_microservice_management_client, 'create_asset_tracker_event'):
                     task_id = asyncio.ensure_future(sp._task_send_data())
 
                     # Lets the _task_fetch_data to run for a while
-                    await asyncio.sleep(3)
+                    await asyncio.sleep(0.1)
 
                     # Tear down
                     sp._task_send_data_run = False
                     sp._task_fetch_data_sem.release()
 
                     await task_id
-
         expected_new_last_object_id = p_send_result[len(p_send_result) - 1]["new_last_object_id"]
 
         assert sp._memory_buffer == expected_buffer
@@ -2006,22 +1996,22 @@ class TestSendingProcess:
         for x in range(len(p_rows_step1)):
             sp._memory_buffer[x] = p_rows_step1[x]
 
+        if sys.version_info >= (3, 8):
+            _se_list = [await mock_async_call() for x in range(2)]
+            _se_list2 = [await mock_send_rows(x) for x in range(0, len(p_send_result))]
+        else:
+            _se_list = [asyncio.ensure_future(mock_async_call()) for x in range(2)]
+            _se_list2 = [asyncio.ensure_future(mock_send_rows(x)) for x in range(0, len(p_send_result))]
+
         # WHEN - Starts the fetch 'task'
         # 2 calls of _update_position_reached will be executed
-        with patch.object(sp,
-                          '_update_position_reached',
-                          side_effect=[asyncio.ensure_future(mock_async_call()) for x in range(2)]
-                          ) as patched_update_position_reached:
-
-            with patch.object(
-                    sp._plugin,
-                    'plugin_send',
-                    side_effect=[asyncio.ensure_future(mock_send_rows(x)) for x in range(0, len(p_send_result))]):
+        with patch.object(sp, '_update_position_reached', side_effect=_se_list) as patched_update_position_reached:
+            with patch.object(sp._plugin, 'plugin_send', side_effect=_se_list2):
                 with patch.object(sp._core_microservice_management_client, 'create_asset_tracker_event'):
-                    task_id = asyncio.ensure_future(sp._task_send_data())
+                    t = asyncio.ensure_future(sp._task_send_data())
 
                     # Lets the _task_fetch_data to run for a while
-                    await asyncio.sleep(3)
+                    await asyncio.sleep(0.1)
 
                     # THEN - Step 1
                     expected_new_last_object_id = p_rows_step1[len(p_rows_step1) - 1][0]["id"]
@@ -2037,13 +2027,13 @@ class TestSendingProcess:
 
                     # let handle step 2
                     sp._task_fetch_data_sem.release()
-                    await asyncio.sleep(3)
+                    await asyncio.sleep(0.1)
 
                     # Tear down
                     sp._task_send_data_run = False
                     sp._task_fetch_data_sem.release()
 
-                    await task_id
+                    await t
 
         # THEN - Step 2
         expected_new_last_object_id = p_rows_step2[len(p_rows_step2) - 1][0]["id"]
@@ -2168,9 +2158,11 @@ class TestSendingProcess:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv1 = await mock_async_call()
             _rv2 = await mock_audit_failure()
+            _se_list = [await mock_send_rows(x) for x in range(0, len(p_send_result))]
         else:
             _rv1 =  asyncio.ensure_future(mock_async_call())
             _rv2 =  mock_audit_failure()
+            _se_list = [asyncio.ensure_future(mock_send_rows(x)) for x in range(0, len(p_send_result))]
         
         # WHEN - Starts the fetch 'task'
         with patch.object(fixture_sp, '_update_position_reached', return_value=(_rv1)):
@@ -2181,20 +2173,19 @@ class TestSendingProcess:
                     with patch.object(
                             fixture_sp._plugin,
                             'plugin_send',
-                            side_effect=[
-                                asyncio.ensure_future(mock_send_rows(x)) for x in range(0, len(p_send_result))]):
+                            side_effect=_se_list):
                         with patch.object(fixture_sp._core_microservice_management_client, 'create_asset_tracker_event'):
                             with pytest.raises(RuntimeError):
-                                task_id = asyncio.ensure_future(fixture_sp._task_send_data())
+                                t = asyncio.ensure_future(fixture_sp._task_send_data())
 
                                 # Lets the _task_fetch_data to run for a while
-                                await asyncio.sleep(3)
+                                await asyncio.sleep(0.1)
 
                                 # Tear down
                                 fixture_sp._task_send_data_run = False
                                 fixture_sp._task_fetch_data_sem.release()
 
-                                await task_id
+                                await t
 
         # THEN - Checks log and audit are called in case of en error and the in memory buffer is as expected
         assert patched_logger.called

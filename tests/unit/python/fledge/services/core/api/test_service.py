@@ -647,10 +647,9 @@ class TestService:
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_result()
-            _rv2 = await asyncio.sleep(.1)
         else:
             _rv =  asyncio.ensure_future(mock_result())
-            _rv2 =  asyncio.ensure_future(asyncio.sleep(.1))
+        _rv2 =  asyncio.ensure_future(asyncio.sleep(.1))
         
         mocker.patch.object(connect, 'get_storage_async')
         get_schedule = mocker.patch.object(service, "get_schedule", return_value=(_rv))

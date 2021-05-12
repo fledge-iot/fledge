@@ -10,13 +10,16 @@ __copyright__ = "Copyright (c) 2018 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
+
+import sys
+import pytest
+pytestmark = pytest.mark.skipif(sys.version_info >= (3, 8), reason="ocs north plugin is obsolete")
 import asyncio
 import logging
-import pytest
 import json
 import time
 import ast
-import sys
+
 import aiohttp
 
 from unittest.mock import patch, MagicMock, ANY
@@ -76,15 +79,9 @@ class MockAiohttpClientSession(MagicMock):
         self.text = args[1]
 
     async def __aenter__(self):
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _call = await mock_async_call(self.text)
-        else:
-            _call =  asyncio.ensure_future(mock_async_call(self.text))        
-        
         mock_response = MagicMock(spec=aiohttp.ClientResponse)
         mock_response.status = self.code
-        mock_response.text.side_effect = [_call]
+        mock_response.text.side_effect = [mock_async_call(self.text)]
 
         return mock_response
 
@@ -99,15 +96,9 @@ class MockAiohttpClientSessionSuccess(MagicMock):
         super().__init__(*args, **kwargs)
 
     async def __aenter__(self):
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _call = await mock_async_call('SUCCESS')
-        else:
-            _call =  asyncio.ensure_future(mock_async_call('SUCCESS'))        
-        
         mock_response = MagicMock(spec=aiohttp.ClientResponse)
         mock_response.status = 200
-        mock_response.text.side_effect = [_call]
+        mock_response.text.side_effect = [mock_async_call('SUCCESS')]
 
         return mock_response
 
@@ -122,15 +113,9 @@ class MockAiohttpClientSessionError(MagicMock):
         super().__init__(*args, **kwargs)
 
     async def __aenter__(self):
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _call = await mock_async_call('ERROR')
-        else:
-            _call =  asyncio.ensure_future(mock_async_call('ERROR'))
-        
         mock_response = MagicMock(spec=aiohttp.ClientResponse)
         mock_response.status = 400
-        mock_response.text.side_effect = [_call]
+        mock_response.text.side_effect = [mock_async_call('ERROR')]
 
         return mock_response
 
@@ -208,11 +193,9 @@ class TestPiServer:
         assert isinstance(config['StaticData'], dict)
 
     @pytest.mark.parametrize("data", [
-
             # Bad case 1 - StaticData is a python dict instead of a string containing a dict
             {
                 "stream_id": {"value": 1},
-
                 "_CONFIG_CATEGORY_NAME":  module_sp.SendingProcess._CONFIG_CATEGORY_NAME,
                 "URL": {"value": "test_URL"},
                 "producerToken": {"value": "test_producerToken"},
@@ -226,14 +209,11 @@ class TestPiServer:
                             "Company": "Dianomic"
                         }
                 },
-
                 'sending_process_instance': MagicMock()
             },
-
             # Bad case 2 - OMFMaxRetry, bad value expected an int it is a string
             {
                 "stream_id": {"value": 1},
-
                 "_CONFIG_CATEGORY_NAME": module_sp.SendingProcess._CONFIG_CATEGORY_NAME,
                 "URL": {"value": "test_URL"},
                 "producerToken": {"value": "test_producerToken"},
@@ -248,10 +228,8 @@ class TestPiServer:
                         }
                     )
                 },
-
                 'sending_process_instance': MagicMock()
             }
-
     ])
     def test_plugin_init_bad(self, data):
         """Tests plugin_init using an invalid set of values"""
@@ -269,7 +247,6 @@ class TestPiServer:
                 # ret_transform_in_memory_data
                 # is_data_available - new_position - num_sent
                 [True,                20,            10],
-
                 # raw_data
                 {
                     "id": 10,
@@ -282,7 +259,6 @@ class TestPiServer:
                 # ret_transform_in_memory_data
                 # is_data_available - new_position - num_sent
                 [False, 20, 10],
-
                 # raw_data
                 {
                     "id": 10,
@@ -291,7 +267,6 @@ class TestPiServer:
                     "user_ts": '2018-04-20 09:38:50.163164+00'
                 }
             ),
-
         ]
     )
     @pytest.mark.asyncio
@@ -313,24 +288,13 @@ class TestPiServer:
                               'transform_in_memory_data',
                               return_value=ret_transform_in_memory_data):
 
-                if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-                    _rv = await mock_async_call()
-                else:
-                    _rv =  asyncio.ensure_future(mock_async_call())
-                
                 with patch.object(fixture_omf.PIServerNorthPlugin,
                                   'create_omf_objects',
-                                  return_value=(_rv)
+                                  return_value=mock_async_call()
                                   ) as patched_create_omf_objects:
-                    
-                    if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-                        _rv = await mock_async_call()
-                    else:
-                        _rv =  asyncio.ensure_future(mock_async_call())
-                    
                     with patch.object(fixture_omf.PIServerNorthPlugin,
                                       'send_in_memory_data_to_picromf',
-                                      return_value=(_rv)
+                                      return_value=mock_async_call()
                                       ) as patched_send_in_memory_data_to_picromf:
                         data_sent, new_position, num_sent = await fixture_omf.plugin_send(data, p_raw_data, _STREAM_ID)
 
@@ -360,7 +324,6 @@ class TestPiServer:
                 # ret_transform_in_memory_data
                 # is_data_available - new_position - num_sent
                 [True,                20,            10],
-
                 # raw_data
                 {
                     "id": 10,
@@ -369,7 +332,6 @@ class TestPiServer:
                     "user_ts": '2018-04-20 09:38:50.163164+00'
                 }
              )
-
         ]
     )
     @pytest.mark.asyncio
@@ -441,20 +403,16 @@ class TestPIServerNorthPlugin:
         "p_data_from_storage, "
         "expected_data, ",
         [
-
             # Case 1
             (
                     # p_configuration_key
                     "SEND_PR1",
-
                     # p_type_id
                     "0001",
-
                     # p_data_from_storage
                     {
                         "rows":
                             [
-
                                 {
                                     "configuration_key": "SEND_PR1",
                                     "type_id": "0001",
@@ -465,10 +423,8 @@ class TestPIServerNorthPlugin:
                                     "type_id": "0001",
                                     "asset_code": "asset_code_2"
                                 }
-
                             ]
                     },
-
                     # expected_data
                     [
                         "asset_code_1",
@@ -496,15 +452,10 @@ class TestPIServerNorthPlugin:
 
             return p_data_from_storage
 
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await mock_query_tbl_with_payload()
-        else:
-            _rv =  asyncio.ensure_future(mock_query_tbl_with_payload())
-
         with patch.object(_payload_builder, 'PayloadBuilder', return_value=True):
             with patch.object(fixture_omf_north._sending_process_instance._storage_async,
                               'query_tbl_with_payload',
-                              return_value=(_rv)):
+                              return_value=mock_query_tbl_with_payload()):
 
                 retrieved_rows = await fixture_omf_north._retrieve_omf_types_already_created(p_configuration_key, p_type_id)
 
@@ -597,16 +548,13 @@ class TestPIServerNorthPlugin:
             (
                 # Origin - Sensor data
                 {"asset_code": "pressure", "asset_data": {"pressure": 921.6}},
-
                 # type_id
                 "0001",
-
                 # Static Data
                 {
                     "Location": "Palo Alto",
                     "Company": "Dianomic"
                 },
-
                 # Expected
                 'pressure_typename',
                 {
@@ -638,16 +586,13 @@ class TestPIServerNorthPlugin:
             (
                     # Origin - Sensor data
                     {"asset_code": "luxometer", "asset_data": {"lux": 20}},
-
                     # type_id
                     "0002",
-
                     # Static Data
                     {
                         "Location": "Palo Alto",
                         "Company": "Dianomic"
                     },
-
                     # Expected
                     'luxometer_typename',
                     {
@@ -674,23 +619,18 @@ class TestPIServerNorthPlugin:
                             }
                         ]
                     }
-
             ),
-
             # Case 3 - switch / string
             (
                 # Origin - Sensor data
                 {"asset_code": "switch", "asset_data": {"button": "up"}},
-
                 # type_id
                 "0002",
-
                 # Static Data
                 {
                     "Location": "Palo Alto",
                     "Company": "Dianomic"
                 },
-
                 # Expected
                 'switch_typename',
                 {
@@ -717,9 +657,7 @@ class TestPIServerNorthPlugin:
                         }
                     ]
                 }
-
             )
-
         ]
     )
     @pytest.mark.asyncio
@@ -768,7 +706,6 @@ class TestPIServerNorthPlugin:
             (
                     # p_type_id
                     "0001",
-
                     # p_asset_code_omf_type
                     {
                         "typename": "position",
@@ -798,10 +735,8 @@ class TestPIServerNorthPlugin:
                             }
                         }
                     },
-
                     # expected_typename
                     "position",
-
                     # expected_omf_type
                     {
                         "position": [
@@ -838,10 +773,8 @@ class TestPIServerNorthPlugin:
                                     "z": {
                                         "type": "number"
                                     }
-
                                 }
                             }
-
                         ]
                     }
             )
@@ -889,19 +822,15 @@ class TestPIServerNorthPlugin:
             (
                 # p_asset
                 {"asset_code": "pressure", "asset_data": {"pressure": 921.6}},
-
                 # type_id
                 "0001",
-
                 # Static Data
                 {
                     "Location": "Palo Alto",
                     "Company": "Dianomic"
                 },
-
                 # p_typename
                 'pressure_typename',
-
                 # p_omf_type
                 {
                     'pressure_typename':
@@ -927,7 +856,6 @@ class TestPIServerNorthPlugin:
                          }
                     ]
                 },
-
                 # expected_container
                 [
                     {
@@ -935,7 +863,6 @@ class TestPIServerNorthPlugin:
                         'id': '0001measurement_pressure'
                     }
                 ],
-
                 # expected_static_data
                 [
                     {
@@ -949,7 +876,6 @@ class TestPIServerNorthPlugin:
                         ]
                     }
                 ],
-
                 # expected_link_data
                 [
                     {
@@ -966,7 +892,6 @@ class TestPIServerNorthPlugin:
                      }
                 ]
             )
-
         ]
     )
     @pytest.mark.asyncio
@@ -1009,7 +934,6 @@ class TestPIServerNorthPlugin:
             (
                 # p_creation_type
                 "automatic",
-
                 # Origin
                 [
                     {
@@ -1019,12 +943,10 @@ class TestPIServerNorthPlugin:
                         "user_ts": '2018-04-20 09:38:50.163164+00'
                     }
                 ],
-
                 # asset_codes_already_created
                 [
                     "test_none"
                 ],
-
                 # omf_objects_configuration_based
                 {"none": "none"}
             ),
@@ -1032,7 +954,6 @@ class TestPIServerNorthPlugin:
             (
                     # p_creation_type
                     "configuration",
-
                     # Origin
                     [
                         {
@@ -1042,16 +963,13 @@ class TestPIServerNorthPlugin:
                             "user_ts": '2018-04-20 09:38:50.163164+00'
                         }
                     ],
-
                     # asset_codes_already_created
                     [
                         "test_none"
                     ],
-
                     # omf_objects_configuration_based
                     {"test_asset_code": {"value": "test_asset_code"}}
             )
-
         ]
     )
     @pytest.mark.asyncio
@@ -1073,29 +991,21 @@ class TestPIServerNorthPlugin:
         fixture_omf_north._config_omf_types = {"type-id": {"value": type_id}}
         fixture_omf_north._config_omf_types = p_omf_objects_configuration_based
 
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await mock_async_call(p_asset_codes_already_created)
-            _rv2 = await mock_async_call()
-        else:
-            _rv1 =  asyncio.ensure_future(mock_async_call(p_asset_codes_already_created))
-            _rv2 =  asyncio.ensure_future(mock_async_call())   
-        
         if p_creation_type == "automatic":
 
             with patch.object(fixture_omf_north,
                               '_retrieve_omf_types_already_created',
-                              return_value=(_rv1)):
+                              return_value=mock_async_call(p_asset_codes_already_created)):
 
                 with patch.object(
                         fixture_omf_north,
                         '_create_omf_objects_automatic',
-                        return_value=(_rv2)
+                        return_value=mock_async_call()
                 ) as patched_create_omf_objects_automatic:
 
                     with patch.object(fixture_omf_north,
                                       '_flag_created_omf_type',
-                                      return_value=(_rv2)
+                                      return_value=mock_async_call()
                                       ) as patched_flag_created_omf_type:
 
                         await fixture_omf_north.create_omf_objects(p_data_origin, config_category_name, type_id)
@@ -1107,17 +1017,17 @@ class TestPIServerNorthPlugin:
 
             with patch.object(fixture_omf_north,
                               '_retrieve_omf_types_already_created',
-                              return_value=(_rv1)):
+                              return_value=mock_async_call(p_asset_codes_already_created)):
 
                 with patch.object(
                         fixture_omf_north,
                         '_create_omf_objects_configuration_based',
-                        return_value=(_rv2)
+                        return_value=mock_async_call()
                 ) as patched_create_omf_objects_configuration_based:
 
                     with patch.object(fixture_omf_north,
                                       '_flag_created_omf_type',
-                                      return_value=(_rv2)
+                                      return_value=mock_async_call()
                                       ) as patched_flag_created_omf_type:
                         await fixture_omf_north.create_omf_objects(p_data_origin, config_category_name, type_id)
 
@@ -1133,7 +1043,6 @@ class TestPIServerNorthPlugin:
         [
             # Good cases
             ('producerToken', "xxx", "good"),
-
             # Bad cases
             ('NO-producerToken', "", "exception"),
             ('producerToken', "", "exception")
@@ -1167,7 +1076,6 @@ class TestPIServerNorthPlugin:
         [
             # Good cases
             ('type-id', "xxx", "good"),
-
             # Bad cases
             ('NO-type-id', "", "exception"),
             ('type-id', "", "exception")
@@ -1203,7 +1111,6 @@ class TestPIServerNorthPlugin:
                     'dummy': 'dummy'
                 }
             ),
-
         ]
     )
     @pytest.mark.asyncio
@@ -1264,7 +1171,6 @@ class TestPIServerNorthPlugin:
                 404, 'Invalid value type for the property',
                 {'dummy': 'dummy'}
             ),
-
         ]
     )
     @pytest.mark.asyncio
@@ -1334,9 +1240,7 @@ class TestPIServerNorthPlugin:
                          }
                     ]
                 }
-
             ),
-
         ]
     )
     @pytest.mark.asyncio
@@ -1393,9 +1297,7 @@ class TestPIServerNorthPlugin:
                 {
                     'dummy': 'dummy'
                 }
-
             ),
-
         ]
     )
     @pytest.mark.asyncio
@@ -1494,7 +1396,6 @@ class TestPIServerNorthPlugin:
                     ],
                     True, 11, 1
             ),
-
             # Case 3 - 2 rows
             (
                     # Origin
@@ -1561,4 +1462,3 @@ class TestPIServerNorthPlugin:
         assert is_data_available == expected_is_data_available
         assert new_position == expected_new_position
         assert num_sent == expected_num_sent
-

@@ -361,7 +361,7 @@ class TestService:
                                             assert {'id': '2129cc95-c841-441a-ad39-6469a87dbc8b',
                                                     'name': 'furnace4'} == json_response
                                         patch_get_schedule.assert_called_once_with(data['name'])
-                                    patch_save_schedule.called_once_with()
+                                    patch_save_schedule.assert_called_once()
                                 patch_create_child_cat.assert_called_once_with('South', ['furnace4'])
                             assert 2 == patch_create_cat.call_count
                             patch_create_cat.assert_called_with('South', {}, 'South microservices', True)
@@ -457,7 +457,7 @@ class TestService:
                                     json_response = json.loads(result)
                                     assert {'id': sch_id, 'name': data['name']} == json_response
                                 patch_get_schedule.assert_called_once_with(data['name'])
-                            patch_save_schedule.called_once_with()
+                            patch_save_schedule.assert_called_once()
                         args, kwargs = insert_table_patch.call_args
                         assert 'scheduled_processes' == args[0]
                         assert {'name': '{}_c'.format(data['type']), 'script': '["services/{}_c"]'.format(
@@ -608,7 +608,7 @@ class TestService:
                                                 assert {'id': '2129cc95-c841-441a-ad39-6469a87dbc8b',
                                                         'name': data['name']} == json_response
                                             patch_get_schedule.assert_called_once_with(data['name'])
-                                        patch_save_schedule.called_once_with()
+                                        patch_save_schedule.assert_called_once()
                                     patch_set_entry.assert_called_once_with(data['name'], 'dataPointsPerSec', '10')
                                 patch_create_child_cat.assert_called_once_with('South', ['Sine'])
                             assert 2 == patch_create_cat.call_count
@@ -647,19 +647,21 @@ class TestService:
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_result()
+            _rv2 = await asyncio.sleep(.1)
         else:
             _rv =  asyncio.ensure_future(mock_result())
+            _rv2 =  asyncio.ensure_future(asyncio.sleep(.1))
         
         mocker.patch.object(connect, 'get_storage_async')
         get_schedule = mocker.patch.object(service, "get_schedule", return_value=(_rv))
         scheduler = mocker.patch.object(server.Server, "scheduler", MagicMock())
-        delete_schedule = mocker.patch.object(scheduler, "delete_schedule", return_value=asyncio.sleep(.1))
-        disable_schedule = mocker.patch.object(scheduler, "disable_schedule", return_value=asyncio.sleep(.1))
-        delete_configuration = mocker.patch.object(ConfigurationManager, "delete_category_and_children_recursively", return_value=asyncio.sleep(.1))
+        delete_schedule = mocker.patch.object(scheduler, "delete_schedule", return_value=(_rv2))
+        disable_schedule = mocker.patch.object(scheduler, "disable_schedule", return_value=(_rv2))
+        delete_configuration = mocker.patch.object(ConfigurationManager, "delete_category_and_children_recursively", return_value=(_rv2))
         get_registry = mocker.patch.object(ServiceRegistry, 'get', return_value=mock_registry)
         remove_registry = mocker.patch.object(ServiceRegistry, 'remove_from_registry')
-        delete_streams = mocker.patch.object(service, "delete_streams", return_value=mock_result())
-        delete_plugin_data = mocker.patch.object(service, "delete_plugin_data", return_value=mock_result())
+        delete_streams = mocker.patch.object(service, "delete_streams", return_value=(_rv))
+        delete_plugin_data = mocker.patch.object(service, "delete_plugin_data", return_value=(_rv))
 
         mock_registry[0]._status = ServiceRecord.Status.Shutdown
 
@@ -1022,7 +1024,7 @@ class TestService:
                                     json_response = json.loads(result)
                                     assert {'id': sch_id, 'name': data['name']} == json_response
                                 patch_get_schedule.assert_called_once_with(data['name'])
-                            patch_save_schedule.called_once_with()
+                            patch_save_schedule.assert_called_once()
                         args, kwargs = insert_table_patch.call_args
                         assert 'scheduled_processes' == args[0]
                         p = json.loads(args[1])

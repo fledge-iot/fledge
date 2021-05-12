@@ -1045,7 +1045,7 @@ class TestConfiguration:
         
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = async_mock(response)
+            _rv1 = await async_mock(response)
             _rv2 = await async_mock(result)
             _se1 = await async_mock(storage_value_entry1)
             _se2 = await async_mock(storage_value_entry2)

@@ -522,7 +522,7 @@ class TestNotification:
             _rv3 = await mock_read_category_val("")
             _rv4 = await mock_check_category()
             _rv5 = await asyncio.sleep(.1)
-            _rv6 = mock_create_child_category()
+            _rv6 = await mock_create_child_category()
             _se1 = await mock_post_url("/notification/Test Notification")
             _se2 = await mock_post_url("/notification/Test Notification/rule/threshold")
             _se3 = await mock_post_url("/notification/Test Notification/delivery/email")

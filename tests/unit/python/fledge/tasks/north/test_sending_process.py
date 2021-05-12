@@ -1318,7 +1318,7 @@ class TestSendingProcess:
         # Starts the fetch 'task'
         with patch.object(sp, '_last_object_id_read', return_value=(_rv)):
             with patch.object(sp, '_load_data_into_memory', side_effect=side_effects_list):
-                task_id = asyncio.ensure_future(sp._task_fetch_data())
+                t = asyncio.ensure_future(sp._task_fetch_data())
                 # Lets the _task_fetch_data to run for a while, to fill the in memory buffer
                 await asyncio.sleep(0.1)
 
@@ -1334,6 +1334,8 @@ class TestSendingProcess:
                 # Tear down
                 sp._task_fetch_data_run = False
                 sp._task_send_data_sem.release()
+
+                await t
         # THEN
         assert sp._memory_buffer == expected_buffer
 

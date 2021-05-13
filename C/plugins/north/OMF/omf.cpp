@@ -2872,7 +2872,7 @@ bool OMF::handleTypeErrors(const string& keyComplete, const Reading& reading, OM
  * @param    dataSuperSet	Map to store all datapoints for an assetname
  */
 void OMF::setMapObjectTypes(const vector<Reading*>& readings,
-							std::map<std::string, Reading*>& dataSuperSet)
+			    std::map<std::string, Reading*>& dataSuperSet)
 {
 	// Temporary map for [asset][datapoint] = type
 	std::map<string, map<string, string>> readingAllDataPoints;
@@ -2880,8 +2880,8 @@ void OMF::setMapObjectTypes(const vector<Reading*>& readings,
 	// Fetch ALL Reading pointers in the input vector
 	// and create a map of [assetName][datapoint1 .. datapointN] = type
 	for (vector<Reading *>::const_iterator elem = readings.begin();
-		 elem != readings.end();
-		 ++elem)
+						elem != readings.end();
+						++elem)
 	{
 		// Get asset name
 		string assetName = ApplyPIServerNamingRulesObj((**elem).getAssetName(), nullptr);
@@ -2892,8 +2892,8 @@ void OMF::setMapObjectTypes(const vector<Reading*>& readings,
 		const vector<Datapoint*> data = (**elem).getReadingData();
 		// Iterate through datapoints
 		for (vector<Datapoint*>::const_iterator it = data.begin();
-			 it != data.end();
-			 ++it)
+							it != data.end();
+							++it)
 		{
 			string omfType;
 			string datapointName = (*it)->getName();
@@ -2976,15 +2976,15 @@ void OMF::setMapObjectTypes(const vector<Reading*>& readings,
 
 	// Loop now only the elements found in the per asset types map
 	for (auto it = readingAllDataPoints.begin();
-		 it != readingAllDataPoints.end();
-		 ++it)
+		  it != readingAllDataPoints.end();
+		  ++it)
 	{
 		string assetName = (*it).first;
 		vector<Datapoint *> values;
 		// Set fake datapoints values
 		for (auto dp = (*it).second.begin();
-			 dp != (*it).second.end();
-			 ++dp)
+			  dp != (*it).second.end();
+			  ++dp)
 		{
 			if ((*dp).second.compare(OMF_TYPE_FLOAT) == 0)
 			{

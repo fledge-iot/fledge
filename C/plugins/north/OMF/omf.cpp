@@ -2872,7 +2872,7 @@ bool OMF::handleTypeErrors(const string& keyComplete, const Reading& reading, OM
  * @param    dataSuperSet	Map to store all datapoints for an assetname
  */
 void OMF::setMapObjectTypes(const vector<Reading*>& readings,
-			    std::map<std::string, Reading*>& dataSuperSet)
+							std::map<std::string, Reading*>& dataSuperSet)
 {
 	// Temporary map for [asset][datapoint] = type
 	std::map<string, map<string, string>> readingAllDataPoints;
@@ -2880,8 +2880,8 @@ void OMF::setMapObjectTypes(const vector<Reading*>& readings,
 	// Fetch ALL Reading pointers in the input vector
 	// and create a map of [assetName][datapoint1 .. datapointN] = type
 	for (vector<Reading *>::const_iterator elem = readings.begin();
-						elem != readings.end();
-						++elem)
+		 elem != readings.end();
+		 ++elem)
 	{
 		// Get asset name
 		string assetName = ApplyPIServerNamingRulesObj((**elem).getAssetName(), nullptr);
@@ -2892,77 +2892,83 @@ void OMF::setMapObjectTypes(const vector<Reading*>& readings,
 		const vector<Datapoint*> data = (**elem).getReadingData();
 		// Iterate through datapoints
 		for (vector<Datapoint*>::const_iterator it = data.begin();
-							it != data.end();
-							++it)
+			 it != data.end();
+			 ++it)
 		{
 			string omfType;
+			string datapointName = (*it)->getName();
+
 			if (!isTypeSupported((*it)->getData()))
 			{
 				omfType = OMF_TYPE_UNSUPPORTED;
+
+				//# FIXME_I
+				Logger::getLogger()->setMinLevel("debug");
+				Logger::getLogger()->debug("xxx2 v2 - The type of the datapoint " + assetName + "/" + datapointName + " is unsupported, it will be ignored");
+				Logger::getLogger()->setMinLevel("warning");
 			}
 			else
 			{
 				omfType = omfTypes[((*it)->getData()).getType()];
-			}
-			string datapointName = (*it)->getName();
 
-			// if a OMF hint is applied the type may change
-			{
-				Reading *reading = *elem;
-
-				// Fetch and parse any OMFHint for this reading
-				Datapoint *hintsdp = reading->getDatapoint("OMFHint");
-				OMFHints *hints = NULL;
-
-				if (hintsdp && (omfType == OMF_TYPE_FLOAT || omfType == OMF_TYPE_INTEGER))
+				// if a OMF hint is applied the type may change
 				{
-					hints = new OMFHints(hintsdp->getData().toString());
-					const vector<OMFHint *> omfHints = hints->getHints();
+					Reading *reading = *elem;
 
-					for (auto it = omfHints.cbegin(); it != omfHints.cend(); it++)
+					// Fetch and parse any OMFHint for this reading
+					Datapoint *hintsdp = reading->getDatapoint("OMFHint");
+					OMFHints *hints = NULL;
+
+					if (hintsdp && (omfType == OMF_TYPE_FLOAT || omfType == OMF_TYPE_INTEGER))
 					{
-						if (typeid(**it) == typeid(OMFIntegerHint))
+						hints = new OMFHints(hintsdp->getData().toString());
+						const vector<OMFHint *> omfHints = hints->getHints();
+
+						for (auto it = omfHints.cbegin(); it != omfHints.cend(); it++)
 						{
-							omfType = OMF_TYPE_INTEGER;
-							break;
+							if (typeid(**it) == typeid(OMFIntegerHint))
+							{
+								omfType = OMF_TYPE_INTEGER;
+								break;
+							}
 						}
 					}
 				}
-			}
 
-			auto itr = readingAllDataPoints.find(assetName);
-			// Asset not found in the map
-			if (itr == readingAllDataPoints.end())
-			{
-				// Set type of current datapoint for ssetName
-				readingAllDataPoints[assetName][datapointName] = omfType;
-			}
-			else
-			{
-				// Asset found
-				auto dpItr = (*itr).second.find(datapointName);
-				// Datapoint not found
-				if (dpItr == (*itr).second.end())
+				auto itr = readingAllDataPoints.find(assetName);
+				// Asset not found in the map
+				if (itr == readingAllDataPoints.end())
 				{
-					// Add datapointName/type to map with key assetName
-					(*itr).second.emplace(datapointName, omfType);
+					// Set type of current datapoint for ssetName
+					readingAllDataPoints[assetName][datapointName] = omfType;
 				}
 				else
 				{
-					if ((*dpItr).second.compare(omfType) != 0)
+					// Asset found
+					auto dpItr = (*itr).second.find(datapointName);
+					// Datapoint not found
+					if (dpItr == (*itr).second.end())
 					{
-						// Datapoint already set has changed type
-						Logger::getLogger()->info("Datapoint '" + datapointName + \
-									  "' in asset '" + assetName + \
-									  "' has changed type from '" + (*dpItr).second + \
-									  " to " + omfType);
+						// Add datapointName/type to map with key assetName
+						(*itr).second.emplace(datapointName, omfType);
 					}
+					else
+					{
+						if ((*dpItr).second.compare(omfType) != 0)
+						{
+							// Datapoint already set has changed type
+							Logger::getLogger()->info("Datapoint '" + datapointName + \
+                                          "' in asset '" + assetName + \
+                                          "' has changed type from '" + (*dpItr).second + \
+                                          " to " + omfType);
+						}
 
-					// Update datapointName/type to map with key assetName
-					// 1- remove element
-					(*itr).second.erase(dpItr);	
-					// 2- Add new value
-					readingAllDataPoints[assetName][datapointName] = omfType;
+						// Update datapointName/type to map with key assetName
+						// 1- remove element
+						(*itr).second.erase(dpItr);
+						// 2- Add new value
+						readingAllDataPoints[assetName][datapointName] = omfType;
+					}
 				}
 			}
 		}
@@ -2970,15 +2976,15 @@ void OMF::setMapObjectTypes(const vector<Reading*>& readings,
 
 	// Loop now only the elements found in the per asset types map
 	for (auto it = readingAllDataPoints.begin();
-		  it != readingAllDataPoints.end();
-		  ++it)
+		 it != readingAllDataPoints.end();
+		 ++it)
 	{
 		string assetName = (*it).first;
 		vector<Datapoint *> values;
 		// Set fake datapoints values
 		for (auto dp = (*it).second.begin();
-			  dp != (*it).second.end();
-			  ++dp)
+			 dp != (*it).second.end();
+			 ++dp)
 		{
 			if ((*dp).second.compare(OMF_TYPE_FLOAT) == 0)
 			{
@@ -2997,9 +3003,15 @@ void OMF::setMapObjectTypes(const vector<Reading*>& readings,
 			}
 			else if ((*dp).second.compare(OMF_TYPE_UNSUPPORTED) == 0)
 			{
-				std::vector<double> vData = {0};
-				DatapointValue vArray(vData);
-				values.push_back(new Datapoint((*dp).first, vArray));
+				//# FIXME_I
+				Logger::getLogger()->setMinLevel("debug");
+				Logger::getLogger()->debug("xxx3 v3 - Asset '" + assetName + " has unsupported type, those datapoint will be ignored");
+				Logger::getLogger()->setMinLevel("warning");
+
+				// FIXME_I:
+//				std::vector<double> vData = {0};
+//				DatapointValue vArray(vData);
+//				values.push_back(new Datapoint((*dp).first, vArray));
 			}
 		}
 

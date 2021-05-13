@@ -422,3 +422,14 @@ std::string StringTrim(const std::string& str)
 {
 	return StringRTrim(StringLTrim(str));
 }
+
+/**
+ * Evaluates if the input string is a regular expression
+ */
+bool IsRegex(const string &str) {
+
+	size_t nChar;
+	nChar = strcspn(str.c_str(), "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_");
+
+	return (nChar != 0);
+}

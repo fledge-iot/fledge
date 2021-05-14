@@ -2901,11 +2901,7 @@ void OMF::setMapObjectTypes(const vector<Reading*>& readings,
 			if (!isTypeSupported((*it)->getData()))
 			{
 				omfType = OMF_TYPE_UNSUPPORTED;
-
-				//# FIXME_I
-				Logger::getLogger()->setMinLevel("debug");
-				Logger::getLogger()->debug("xxx2 v2 - The type of the datapoint " + assetName + "/" + datapointName + " is unsupported, it will be ignored");
-				Logger::getLogger()->setMinLevel("warning");
+				Logger::getLogger()->debug("%s - The type of the datapoint " + assetName + "/" + datapointName + " is unsupported, it will be ignored", __FUNCTION__);
 			}
 			else
 			{
@@ -3003,15 +2999,12 @@ void OMF::setMapObjectTypes(const vector<Reading*>& readings,
 			}
 			else if ((*dp).second.compare(OMF_TYPE_UNSUPPORTED) == 0)
 			{
-				//# FIXME_I
-				Logger::getLogger()->setMinLevel("debug");
-				Logger::getLogger()->debug("xxx3 v3 - Asset '" + assetName + " has unsupported type, those datapoint will be ignored");
-				Logger::getLogger()->setMinLevel("warning");
+				Logger::getLogger()->debug("%s - The asset '" + assetName + " has a datapoint having an unsupported type, it will be ignored", __FUNCTION__);
 
-				// FIXME_I:
-//				std::vector<double> vData = {0};
-//				DatapointValue vArray(vData);
-//				values.push_back(new Datapoint((*dp).first, vArray));
+				// Avoids to handled PI-Server unsupported datapoint type
+				// std::vector<double> vData = {0};
+				// DatapointValue vArray(vData);
+				// values.push_back(new Datapoint((*dp).first, vArray));
 			}
 		}
 

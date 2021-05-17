@@ -80,7 +80,12 @@ class TestMonitor:
         if sys.version_info < (3, 8):
             assert ServiceRegistry.get(idx=s_id_1)[0]._status is ServiceRecord.Status.Running
         else:
-            # TODO: Invetigate in py3.8 ServiceRecord.Status is Unresponsive on exception 
+            # TODO: Investigate in py3.8 ServiceRecord.Status is Unresponsive on exception
+            """ =============================== warnings summary ===============================
+            tests/unit/python/fledge/services/core/service_registry/test_monitor.py::TestMonitor::()::test__monitor_good_uptime
+            /usr/lib/python3.8/unittest/mock.py:2076: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited 
+            See: https://bugs.python.org/issue40406
+            """
             print(ServiceRegistry.get(idx=s_id_1)[0]._status)
 
 

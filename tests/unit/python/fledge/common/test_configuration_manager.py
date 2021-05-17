@@ -952,20 +952,18 @@ class TestConfigurationManager:
         else:
             _rv =  asyncio.ensure_future(async_mock({}))
             _se =  asyncio.ensure_future(async_mock({}))
-        
+                
         with patch.object(_logger, 'exception') as log_exc:
-            with patch.object(ConfigurationManager, '_validate_category_val', side_effect=[_se, Exception()]) as valpatch:
+            with patch.object(ConfigurationManager, '_validate_category_val', side_effect=[_se, Exception]) as valpatch:
                 with patch.object(ConfigurationManager, '_read_category_val', return_value=(_rv)) as readpatch:
                     with patch.object(ConfigurationManager, '_merge_category_vals') as mergepatch:
-                        with patch.object(ConfigurationManager, '_run_callbacks') as callbackpatch:
-                            with pytest.raises(Exception) as excinfo:
+                        with patch.object(ConfigurationManager, '_run_callbacks', return_value=(_rv)) as callbackpatch:
                                 await c_mgr.create_category('catname', 'catvalue', 'catdesc')
-                            assert excinfo.type is TypeError
                         callbackpatch.assert_called_once_with('catname')
                     mergepatch.assert_not_called()
                 readpatch.assert_called_once_with('catname')
             valpatch.assert_has_calls([call('catname', 'catvalue', True), call('catname', {}, False)])
-        assert 2 == log_exc.call_count
+        assert 1 == log_exc.call_count
         calls = [call('category_value for category_name %s from storage is corrupted; using category_value without merge', 'catname'),
                  call('Unable to create new category based on category_name %s and category_description %s and category_json_schema %s', 'catname', 'catdesc')]
         assert log_exc.has_calls(calls, any_order=True)
@@ -1056,13 +1054,11 @@ class TestConfigurationManager:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv1 = await async_mock({})
             _rv2 = await async_mock(all_cat_names)
-            _rv3 = await async_mock({'bla': 'bla'})
             _rv4 = await async_mock(None)
             _se = await async_mock({})
         else:
             _rv1 =  asyncio.ensure_future(async_mock({}))
             _rv2 =  asyncio.ensure_future(async_mock(all_cat_names))
-            _rv3 =  asyncio.ensure_future(async_mock({'bla': 'bla'}))
             _rv4 =  asyncio.ensure_future(async_mock(None))
             _se =  asyncio.ensure_future(async_mock({}))
         
@@ -1070,7 +1066,7 @@ class TestConfigurationManager:
             with patch.object(ConfigurationManager, '_validate_category_val', side_effect=[_se, _se]) as valpatch:
                 with patch.object(ConfigurationManager, '_read_category_val', return_value=(_rv1)) as readpatch:
                     with patch.object(ConfigurationManager, '_read_all_category_names', return_value=(_rv2)) as read_all_patch:
-                        with patch.object(ConfigurationManager, '_merge_category_vals', return_value=(_rv3)) as mergepatch:
+                        with patch.object(ConfigurationManager, '_merge_category_vals', side_effect=TypeError) as mergepatch:
                             with patch.object(ConfigurationManager, '_run_callbacks') as callbackpatch:
                                 with pytest.raises(Exception) as excinfo:
                                     await c_mgr.create_category('catname', 'catvalue', 'catdesc')
@@ -1082,7 +1078,7 @@ class TestConfigurationManager:
             valpatch.assert_has_calls([call('catname', 'catvalue', True), call('catname', {}, False)])
         assert 1 == log_exc.call_count
         log_exc.assert_called_once_with('Unable to create new category based on category_name %s and category_description %s '
-                                        'and category_json_schema %s', 'catname', 'catdesc', {'bla': 'bla'})
+                                        'and category_json_schema %s', 'catname', 'catdesc', {})
 
     async def test_create_category_good_newval_no_storageval_good_create(self, reset_singleton):
 

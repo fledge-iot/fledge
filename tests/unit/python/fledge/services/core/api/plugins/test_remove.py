@@ -7,6 +7,8 @@
 import json
 from unittest.mock import patch, MagicMock
 import pytest
+import sys
+import asyncio
 
 from aiohttp import web
 
@@ -86,10 +88,16 @@ class TestPluginRemove:
                              "version": "1.8.1", "installedDirectory": "{}/http_south".format(_type),
                              "packageName": "fledge-{}-http-south".format(_type)}
                             ]
+        
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv = await async_mock([{'service_list': svc_list}])
+        else:
+            _rv = asyncio.ensure_future(async_mock([{'service_list': svc_list}]))
+        
         with patch.object(PluginDiscovery, 'get_plugins_installed', return_value=plugin_installed
                           ) as plugin_installed_patch:
-            with patch.object(plugins_remove, '_check_plugin_usage', return_value=async_mock(
-                    [{'service_list': svc_list}])) as plugin_usage_patch:
+            with patch.object(plugins_remove, '_check_plugin_usage', return_value=_rv) as plugin_usage_patch:
                 with patch.object(plugins_remove._logger, "error") as log_err_patch:
                     resp = await client.delete('/fledge/plugins/{}/{}'.format(_type, name), data=None)
                     assert 400 == resp.status
@@ -117,10 +125,16 @@ class TestPluginRemove:
                              "version": "1.8.1", "installedDirectory": "{}/{}".format(plugin_type_installed_dir,
                                                                                       plugin_installed_dirname),
                              "packageName": pkg_name}]
+        
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv = await async_mock(notify_instances_list)
+        else:
+            _rv = asyncio.ensure_future(async_mock(notify_instances_list))
+        
         with patch.object(PluginDiscovery, 'get_plugins_installed', return_value=plugin_installed
                           ) as plugin_installed_patch:
-            with patch.object(plugins_remove, '_check_plugin_usage_in_notification_instances', return_value=async_mock(
-                    notify_instances_list)) as plugin_usage_patch:
+            with patch.object(plugins_remove, '_check_plugin_usage_in_notification_instances', return_value=_rv) as plugin_usage_patch:
                 with patch.object(plugins_remove._logger, "error") as log_err_patch:
                     resp = await client.delete('/fledge/plugins/{}/{}'.format(plugin_type, plugin_installed_dirname),
                                                data=None)
@@ -161,13 +175,22 @@ class TestPluginRemove:
                              "version": "1.8.1", "installedDirectory": "{}/{}".format(_type, name),
                              "packageName": "fledge-{}-{}".format(_type, name)}
                             ]
+        
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv1 = await async_mock([])
+            _rv2 = await async_mock(select_row_resp)
+        else:
+            _rv1 = asyncio.ensure_future(async_mock([]))
+            _rv2 = asyncio.ensure_future(async_mock(select_row_resp))
+        
         with patch.object(PluginDiscovery, 'get_plugins_installed', return_value=plugin_installed
                           ) as plugin_installed_patch:
-            with patch.object(plugins_remove, '_check_plugin_usage', return_value=async_mock([])) as plugin_usage_patch:
+            with patch.object(plugins_remove, '_check_plugin_usage', return_value=_rv1) as plugin_usage_patch:
                 with patch.object(plugins_remove._logger, "info") as log_info_patch:
                     with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
                         with patch.object(storage_client_mock, 'query_tbl_with_payload',
-                                          return_value=async_mock(select_row_resp)) as query_tbl_patch:
+                                          return_value=_rv2) as query_tbl_patch:
                             resp = await client.delete('/fledge/plugins/{}/{}'.format(_type, name), data=None)
                             assert 429 == resp.status
                             assert expected_msg == resp.reason
@@ -185,8 +208,10 @@ class TestPluginRemove:
         plugin_installed_patch.assert_called_once_with(_type, False)
 
     async def test_package_when_not_in_use(self, client):
+        
         async def async_mock(return_value):
             return return_value
+        
         _type = "south"
         name = 'http_south'
         pkg_name = "fledge-south-http-south"
@@ -218,18 +243,32 @@ class TestPluginRemove:
                              "version": "1.8.1", "installedDirectory": "{}/{}".format(_type, name),
                              "packageName": "fledge-{}-{}".format(_type, name)}
                             ]
+        
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv1 = await async_mock([])
+            _rv2 = await async_mock(delete)
+            _rv3 = await async_mock(insert)
+            _se1 = await async_mock(select_row_resp)
+            _se2 = await async_mock(insert_row)
+        else:
+            _rv1 = asyncio.ensure_future(async_mock([]))
+            _rv2 = asyncio.ensure_future(async_mock(delete))
+            _rv3 = asyncio.ensure_future(async_mock(insert))
+            _se1 = asyncio.ensure_future(async_mock(select_row_resp))
+            _se2 = asyncio.ensure_future(async_mock(insert_row))
+        
         with patch.object(PluginDiscovery, 'get_plugins_installed', return_value=plugin_installed
                           ) as plugin_installed_patch:
-            with patch.object(plugins_remove, '_check_plugin_usage', return_value=async_mock([])) as plugin_usage_patch:
+            with patch.object(plugins_remove, '_check_plugin_usage', return_value=_rv1) as plugin_usage_patch:
                 with patch.object(plugins_remove._logger, "info") as log_info_patch:
                     with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
                         with patch.object(storage_client_mock, 'query_tbl_with_payload',
-                                          side_effect=[async_mock(select_row_resp),
-                                                       async_mock(insert_row)]) as query_tbl_patch:
+                                          side_effect=[_se1, _se2]) as query_tbl_patch:
                             with patch.object(storage_client_mock, 'delete_from_tbl',
-                                              return_value=async_mock(delete)) as delete_tbl_patch:
+                                              return_value=_rv2) as delete_tbl_patch:
                                 with patch.object(storage_client_mock, 'insert_into_tbl',
-                                                  return_value=async_mock(insert)) as insert_tbl_patch:
+                                                  return_value=_rv3) as insert_tbl_patch:
                                     with patch('multiprocessing.Process'):
                                         resp = await client.delete('/fledge/plugins/{}/{}'.format(_type, name),
                                                                    data=None)

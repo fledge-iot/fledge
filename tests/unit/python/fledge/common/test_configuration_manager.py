@@ -915,19 +915,17 @@ class TestConfigurationManager:
 
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv1 = await async_mock({})
-            _rv2 = await async_mock({})
+            _rv = await async_mock({})
             _se = await async_mock({})
         else:
-            _rv1 = asyncio.ensure_future(async_mock({}))
-            _rv2 = asyncio.ensure_future(async_mock({}))
+            _rv = asyncio.ensure_future(async_mock({}))
             _se = asyncio.ensure_future(async_mock({}))
         
         with patch.object(_logger, 'exception') as log_exc:
             with patch.object(ConfigurationManager, '_validate_category_val', side_effect=[_se, Exception()]) as valpatch:
-                with patch.object(ConfigurationManager, '_read_category_val', return_value=_rv1) as readpatch:
+                with patch.object(ConfigurationManager, '_read_category_val', return_value=_rv) as readpatch:
                     with patch.object(ConfigurationManager, '_merge_category_vals') as mergepatch:
-                        with patch.object(ConfigurationManager, '_run_callbacks', return_value=_rv2) as callbackpatch:
+                        with patch.object(ConfigurationManager, '_run_callbacks', return_value=_rv) as callbackpatch:
                             cat = await c_mgr.create_category('catname', 'catvalue', 'catdesc')
                             assert cat is None
                         callbackpatch.assert_called_once_with('catname')
@@ -2475,7 +2473,7 @@ class TestConfigurationManager:
         async def async_mock(return_value):
             return return_value
 
-                # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _attr = await mock_coro()
             _rv = await async_mock('blah')

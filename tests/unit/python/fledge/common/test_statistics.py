@@ -61,7 +61,6 @@ class TestStatistics:
             _rv = await mock_coro()
         else:
             _rv = asyncio.ensure_future(mock_coro())
-        # _rv = asyncio.ensure_future(mock_coro())
 
         with patch.object(statistics.Statistics, '_load_keys', return_value=_rv):
             storageMock1 = MagicMock(spec=StorageClientAsync)

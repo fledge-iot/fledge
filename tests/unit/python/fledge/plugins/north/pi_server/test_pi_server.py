@@ -13,7 +13,7 @@ __version__ = "${VERSION}"
 
 import sys
 import pytest
-pytestmark = pytest.mark.skipif(sys.version_info >= (3, 8), reason="ocs north plugin is obsolete")
+pytestmark = pytest.mark.skipif(sys.version_info >= (3, 8), reason="FOGL-3258: pi server north plugin is obsolete")
 import asyncio
 import logging
 import json

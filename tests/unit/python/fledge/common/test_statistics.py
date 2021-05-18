@@ -42,9 +42,9 @@ class TestStatistics:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro()
         else:
-            _rv =  asyncio.ensure_future(mock_coro())
+            _rv = asyncio.ensure_future(mock_coro())
 
-        with patch.object(statistics.Statistics, '_load_keys', return_value=(_rv)):
+        with patch.object(statistics.Statistics, '_load_keys', return_value=_rv):
             s = await statistics.create_statistics(storage_client_mock)
             assert isinstance(s, statistics.Statistics)
             assert isinstance(s._storage, StorageClientAsync)
@@ -63,7 +63,7 @@ class TestStatistics:
             _rv = asyncio.ensure_future(mock_coro())
         # _rv = asyncio.ensure_future(mock_coro())
 
-        with patch.object(statistics.Statistics, '_load_keys', return_value=(_rv)):
+        with patch.object(statistics.Statistics, '_load_keys', return_value=_rv):
             storageMock1 = MagicMock(spec=StorageClientAsync)
             s1 = await statistics.create_statistics(storageMock1)
 
@@ -85,10 +85,10 @@ class TestStatistics:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro()
         else:
-            _rv =  asyncio.ensure_future(mock_coro())
+            _rv = asyncio.ensure_future(mock_coro())
 
-        with patch.object(stats, '_load_keys', return_value=(_rv)):
-            with patch.object(stats._storage, 'insert_into_tbl', return_value=(_rv)) as stat_update:
+        with patch.object(stats, '_load_keys', return_value=_rv):
+            with patch.object(stats._storage, 'insert_into_tbl', return_value=_rv) as stat_update:
                 await stats.register('T1Stat', 'Test stat')
             args, kwargs = stat_update.call_args
             assert args[0] == 'statistics'
@@ -112,10 +112,10 @@ class TestStatistics:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro()
         else:
-            _rv =  asyncio.ensure_future(mock_coro())
+            _rv = asyncio.ensure_future(mock_coro())
 
-        with patch.object(stats, '_load_keys', return_value=(_rv)):
-            with patch.object(stats._storage, 'insert_into_tbl', return_value=(_rv)) as stat_insert:
+        with patch.object(stats, '_load_keys', return_value=_rv):
+            with patch.object(stats._storage, 'insert_into_tbl', return_value=_rv) as stat_insert:
                 await stats.register('T2Stat', 'Test stat')
                 await stats.register('T2Stat', 'Test stat')
             assert stat_insert.called
@@ -146,9 +146,9 @@ class TestStatistics:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro()
         else:
-            _rv =  asyncio.ensure_future(mock_coro())
+            _rv = asyncio.ensure_future(mock_coro())
 
-        with patch.object(s._storage, 'query_tbl_with_payload', return_value=(_rv)) as patch_query_tbl:
+        with patch.object(s._storage, 'query_tbl_with_payload', return_value=_rv) as patch_query_tbl:
             await s._load_keys()
             assert "K1" in s._registered_keys
         patch_query_tbl.assert_called_once_with('statistics', '{"return": ["key"]}')
@@ -166,10 +166,10 @@ class TestStatistics:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro()
         else:
-            _rv =  asyncio.ensure_future(mock_coro())
+            _rv = asyncio.ensure_future(mock_coro())
 
         with patch.object(statistics._logger, 'exception') as logger_exception:
-            with patch.object(s._storage, 'query_tbl_with_payload', return_value=(_rv)):
+            with patch.object(s._storage, 'query_tbl_with_payload', return_value=_rv):
                 await s._load_keys()
         args, kwargs = logger_exception.call_args
         assert args[0] == 'Failed to retrieve statistics keys, %s'
@@ -185,12 +185,12 @@ class TestStatistics:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro()
         else:
-            _rv =  asyncio.ensure_future(mock_coro())
+            _rv = asyncio.ensure_future(mock_coro())
 
         payload = '{"where": {"column": "key", "condition": "=", "value": "READING"}, ' \
                   '"expressions": [{"column": "value", "operator": "+", "value": 5}]}'
         expected_result = {"response": "updated", "rows_affected": 1}
-        with patch.object(s._storage, 'update_tbl', return_value=(_rv)) as stat_update:
+        with patch.object(s._storage, 'update_tbl', return_value=_rv) as stat_update:
             await s.update('READING', 5)
             assert expected_result['response'] == "updated"
         stat_update.assert_called_once_with('statistics', payload)
@@ -235,9 +235,9 @@ class TestStatistics:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro()
         else:
-            _rv =  asyncio.ensure_future(mock_coro())
+            _rv = asyncio.ensure_future(mock_coro())
 
-        with patch.object(s._storage, 'update_tbl', return_value=(_rv)) as stat_update:
+        with patch.object(s._storage, 'update_tbl', return_value=_rv) as stat_update:
             await s.add_update(stat_dict)
         stat_update.assert_called_once_with('statistics', payload)
 
@@ -253,9 +253,9 @@ class TestStatistics:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro()
         else:
-            _rv =  asyncio.ensure_future(mock_coro())
+            _rv = asyncio.ensure_future(mock_coro())
 
-        with patch.object(s._storage, 'update_tbl', return_value=(_rv)) as stat_update:
+        with patch.object(s._storage, 'update_tbl', return_value=_rv) as stat_update:
             with patch.object(statistics._logger, 'exception') as logger_exception:
                 with pytest.raises(KeyError):
                     await s.add_update(stat_dict)

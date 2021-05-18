@@ -65,9 +65,9 @@ class TestScheduledProcesses:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro()
         else:
-            _rv =  asyncio.ensure_future(mock_coro())
+            _rv = asyncio.ensure_future(mock_coro())
 
-        with patch.object(server.Server.scheduler, 'get_scheduled_processes', return_value=(_rv)):
+        with patch.object(server.Server.scheduler, 'get_scheduled_processes', return_value=_rv):
             resp = await client.get('/fledge/schedule/process')
             assert 200 == resp.status
             result = await resp.text()
@@ -83,11 +83,11 @@ class TestScheduledProcesses:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro_response(response)
         else:
-            _rv =  asyncio.ensure_future(mock_coro_response(response))
+            _rv = asyncio.ensure_future(mock_coro_response(response))
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
                 with patch.object(storage_client_mock, 'query_tbl_with_payload',
-                                  return_value=(_rv)) as mock_storage_call:
+                                  return_value=_rv) as mock_storage_call:
                     resp = await client.get('/fledge/schedule/process/purge')
                     assert 200 == resp.status
                     result = await resp.text()
@@ -103,11 +103,11 @@ class TestScheduledProcesses:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro_response(response)
         else:
-            _rv =  asyncio.ensure_future(mock_coro_response(response))
+            _rv = asyncio.ensure_future(mock_coro_response(response))
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
                 with patch.object(storage_client_mock, 'query_tbl_with_payload',
-                                  return_value=(_rv)):
+                                  return_value=_rv):
                     resp = await client.get('/fledge/schedule/process/bla')
                     assert 404 == resp.status
                     assert "No such Scheduled Process: ['bla']." == resp.reason
@@ -124,9 +124,9 @@ class TestScheduledProcesses:
             _rv2 = await mock_coro_response(ret_val)
             _rv3 = await mock_coro_response(None)
         else:
-            _rv1 =  asyncio.ensure_future(mock_coro_response(response))
-            _rv2 =  asyncio.ensure_future(mock_coro_response(ret_val))
-            _rv3 =  asyncio.ensure_future(mock_coro_response(None))
+            _rv1 = asyncio.ensure_future(mock_coro_response(response))
+            _rv2 = asyncio.ensure_future(mock_coro_response(ret_val))
+            _rv3 = asyncio.ensure_future(mock_coro_response(None))
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=(_rv1)
@@ -134,7 +134,7 @@ class TestScheduledProcesses:
                 with patch.object(storage_client_mock, 'insert_into_tbl', return_value=(_rv2)
                                   ) as insert_tbl_patch:
                     with patch.object(server.Server.scheduler, '_get_process_scripts',
-                                      return_value=(_rv3)) as get_process_script_patch:
+                                      return_value=_rv3) as get_process_script_patch:
                         resp = await client.post('/fledge/schedule/process', data=json.dumps(payload))
                         assert 200 == resp.status
                         result = await resp.text()
@@ -171,10 +171,10 @@ class TestScheduledProcesses:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro_response(response)
         else:
-            _rv =  asyncio.ensure_future(mock_coro_response(response))
+            _rv = asyncio.ensure_future(mock_coro_response(response))
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=(_rv)):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv):
                 resp = await client.post('/fledge/schedule/process', data=json.dumps(request_data))
                 assert response_code == resp.status
                 assert error_message == resp.reason
@@ -218,9 +218,9 @@ class TestSchedules:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro()
         else:
-            _rv =  asyncio.ensure_future(mock_coro())
+            _rv = asyncio.ensure_future(mock_coro())
 
-        with patch.object(server.Server.scheduler, 'get_schedules', return_value=(_rv)):
+        with patch.object(server.Server.scheduler, 'get_schedules', return_value=_rv):
             resp = await client.get('/fledge/schedule')
             assert 200 == resp.status
             result = await resp.text()
@@ -247,9 +247,9 @@ class TestSchedules:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro()
         else:
-            _rv =  asyncio.ensure_future(mock_coro())
+            _rv = asyncio.ensure_future(mock_coro())
 
-        with patch.object(server.Server.scheduler, 'get_schedule', return_value=(_rv)):
+        with patch.object(server.Server.scheduler, 'get_schedule', return_value=_rv):
             resp = await client.get('/fledge/schedule/{}'.format(self._random_uuid))
             assert 200 == resp.status
             result = await resp.text()
@@ -282,9 +282,9 @@ class TestSchedules:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro()
         else:
-            _rv =  asyncio.ensure_future(mock_coro())
+            _rv = asyncio.ensure_future(mock_coro())
 
-        with patch.object(server.Server.scheduler, 'enable_schedule', return_value=(_rv)):
+        with patch.object(server.Server.scheduler, 'enable_schedule', return_value=_rv):
             resp = await client.put('/fledge/schedule/{}/enable'.format(self._random_uuid))
             assert 200 == resp.status
             result = await resp.text()
@@ -315,9 +315,9 @@ class TestSchedules:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro()
         else:
-            _rv =  asyncio.ensure_future(mock_coro())
+            _rv = asyncio.ensure_future(mock_coro())
 
-        with patch.object(server.Server.scheduler, 'disable_schedule', return_value=(_rv)):
+        with patch.object(server.Server.scheduler, 'disable_schedule', return_value=_rv):
             resp = await client.put('/fledge/schedule/{}/disable'.format(self._random_uuid))
             assert 200 == resp.status
             result = await resp.text()
@@ -356,11 +356,11 @@ class TestSchedules:
             _rv1 = await mock_coro()
             _rv2 = await patch_queue_task(return_queue_task)
         else:
-            _rv1 =  asyncio.ensure_future(mock_coro())
-            _rv2 =  asyncio.ensure_future(patch_queue_task(return_queue_task))
+            _rv1 = asyncio.ensure_future(mock_coro())
+            _rv2 = asyncio.ensure_future(patch_queue_task(return_queue_task))
 
-        with patch.object(server.Server.scheduler, 'get_schedule', return_value=(_rv1)) as mock_get_schedule:
-            with patch.object(server.Server.scheduler, 'queue_task', return_value=(_rv2)) \
+        with patch.object(server.Server.scheduler, 'get_schedule', return_value=_rv1) as mock_get_schedule:
+            with patch.object(server.Server.scheduler, 'queue_task', return_value=_rv2) \
                     as mock_queue_task:
                 resp = await client.post('/fledge/schedule/start/{}'.format(self._random_uuid))
                 assert 200 == resp.status
@@ -460,19 +460,19 @@ class TestSchedules:
             _rv3 = await mock_schedule(request_data["type"])
             _rv4 = await mock_coro()
         else:
-            _rv1 =  asyncio.ensure_future(mock_coro_response(response))
-            _rv2 =  asyncio.ensure_future(mock_schedules())
-            _rv3 =  asyncio.ensure_future(mock_schedule(request_data["type"]))
-            _rv4 =  asyncio.ensure_future(mock_coro())
+            _rv1 = asyncio.ensure_future(mock_coro_response(response))
+            _rv2 = asyncio.ensure_future(mock_schedules())
+            _rv3 = asyncio.ensure_future(mock_schedule(request_data["type"]))
+            _rv4 = asyncio.ensure_future(mock_coro())
 
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=(_rv1)):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv1):
                 with patch.object(server.Server.scheduler, 'get_schedules',
-                                  return_value=(_rv2)) as patch_get_schedules:
+                                  return_value=_rv2) as patch_get_schedules:
                     with patch.object(server.Server.scheduler, 'get_schedule',
-                                      return_value=(_rv3)) as patch_get_schedule:
+                                      return_value=_rv3) as patch_get_schedule:
                         with patch.object(server.Server.scheduler, 'save_schedule',
-                                          return_value=(_rv4)) as patch_save_schedule:
+                                          return_value=_rv4) as patch_save_schedule:
                             resp = await client.post('/fledge/schedule', data=json.dumps(request_data))
                             assert 200 == resp.status
                             result = await resp.text()
@@ -519,10 +519,10 @@ class TestSchedules:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro_response(response)
         else:
-            _rv =  asyncio.ensure_future(mock_coro_response(response))
+            _rv = asyncio.ensure_future(mock_coro_response(response))
 
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=(_rv)):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv):
                 resp = await client.post('/fledge/schedule', data=json.dumps(request_data))
                 assert response_code == resp.status
                 assert error_message == resp.reason
@@ -568,13 +568,13 @@ class TestSchedules:
             _rv1 = await mock_coro_response(response)
             _rv2 = await mock_schedules()
         else:
-            _rv1 =  asyncio.ensure_future(mock_coro_response(response))
-            _rv2 =  asyncio.ensure_future(mock_schedules())
+            _rv1 = asyncio.ensure_future(mock_coro_response(response))
+            _rv2 = asyncio.ensure_future(mock_schedules())
 
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=(_rv1)):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv1):
                 with patch.object(server.Server.scheduler, 'get_schedules',
-                                  return_value=(_rv2)) as patch_get_schedules:
+                                  return_value=_rv2) as patch_get_schedules:
                     resp = await client.post('/fledge/schedule', data=json.dumps(request_data))
                     assert 409 == resp.status
                     assert "Duplicate schedule name entry found" == resp.reason
@@ -638,16 +638,16 @@ class TestSchedules:
             _rv2 = await mock_schedules()
             _rv3 = await mock_coro()
         else:
-            _rv1 =  asyncio.ensure_future(mock_coro_response(response))
-            _rv2 =  asyncio.ensure_future(mock_schedules())
-            _rv3 =  asyncio.ensure_future(mock_coro())
+            _rv1 = asyncio.ensure_future(mock_coro_response(response))
+            _rv2 = asyncio.ensure_future(mock_schedules())
+            _rv3 = asyncio.ensure_future(mock_coro())
 
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=(_rv1)):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv1):
                 with patch.object(server.Server.scheduler, 'get_schedules',
-                                  return_value=(_rv2)) as patch_get_schedules:
+                                  return_value=_rv2) as patch_get_schedules:
                     with patch.object(server.Server.scheduler, 'save_schedule',
-                                      return_value=(_rv3)) as patch_save_schedule:
+                                      return_value=_rv3) as patch_save_schedule:
                         with patch.object(server.Server.scheduler, 'get_schedule',
                                           side_effect=mock_schedule) as patch_get_schedule:
                             resp = await client.put('/fledge/schedule/{}'.format(self._random_uuid),
@@ -679,10 +679,10 @@ class TestSchedules:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro()
         else:
-            _rv =  asyncio.ensure_future(mock_coro())
+            _rv = asyncio.ensure_future(mock_coro())
 
         with patch.object(server.Server.scheduler, 'get_schedule',
-                          return_value=(_rv)) as patch_get_schedule:
+                          return_value=_rv) as patch_get_schedule:
             error_message = 'Schedule not found: {}'.format(self._random_uuid)
             resp = await client.put('/fledge/schedule/{}'.format(self._random_uuid), data=json.dumps({"a": 1}))
             assert 404 == resp.status
@@ -734,13 +734,13 @@ class TestSchedules:
             _rv1 = await mock_coro_response(response)
             _rv2 = await mock_coro()
         else:
-            _rv1 =  asyncio.ensure_future(mock_coro_response(response))
-            _rv2 =  asyncio.ensure_future(mock_coro())
+            _rv1 = asyncio.ensure_future(mock_coro_response(response))
+            _rv2 = asyncio.ensure_future(mock_coro())
 
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=(_rv1)):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv1):
                 with patch.object(server.Server.scheduler, 'get_schedule',
-                                  return_value=(_rv2)) as patch_get_schedule:
+                                  return_value=_rv2) as patch_get_schedule:
                     resp = await client.put('/fledge/schedule/{}'.format(self._random_uuid),
                                             data=json.dumps(request_data))
                     assert response_code == resp.status
@@ -794,15 +794,15 @@ class TestSchedules:
             _rv1 = await mock_coro_response(response)
             _rv2 = await mock_schedules()
         else:
-            _rv1 =  asyncio.ensure_future(mock_coro_response(response))
-            _rv2 =  asyncio.ensure_future(mock_schedules())
+            _rv1 = asyncio.ensure_future(mock_coro_response(response))
+            _rv2 = asyncio.ensure_future(mock_schedules())
 
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=(_rv1)):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv1):
                 with patch.object(server.Server.scheduler, 'get_schedule',
                                   side_effect=mock_schedule) as patch_get_schedule:
                     with patch.object(server.Server.scheduler, 'get_schedules',
-                                      return_value=(_rv2)) as patch_get_schedules:
+                                      return_value=_rv2) as patch_get_schedules:
                         resp = await client.put('/fledge/schedule/{}'.format(self._random_uuid),
                                                 data=json.dumps(payload))
                         assert 409 == resp.status
@@ -820,9 +820,9 @@ class TestSchedules:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro()
         else:
-            _rv =  asyncio.ensure_future(mock_coro())
+            _rv = asyncio.ensure_future(mock_coro())
 
-        with patch.object(server.Server.scheduler, 'delete_schedule', return_value=(_rv)):
+        with patch.object(server.Server.scheduler, 'delete_schedule', return_value=_rv):
             resp = await client.delete('/fledge/schedule/{}'.format(self._random_uuid))
             assert 200 == resp.status
             result = await resp.text()
@@ -895,12 +895,12 @@ class TestTasks:
             _rv1 = await mock_coro_response(response)
             _rv2 = await mock_coro()
         else:
-            _rv1 =  asyncio.ensure_future(mock_coro_response(response))
-            _rv2 =  asyncio.ensure_future(mock_coro())
+            _rv1 = asyncio.ensure_future(mock_coro_response(response))
+            _rv2 = asyncio.ensure_future(mock_coro())
 
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=(_rv1)):
-                with patch.object(server.Server.scheduler, 'get_task', return_value=(_rv2)):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv1):
+                with patch.object(server.Server.scheduler, 'get_task', return_value=_rv2):
                     resp = await client.get('/fledge/task/{}'.format(self._random_uuid))
                     assert 200 == resp.status
                     result = await resp.text()
@@ -955,12 +955,12 @@ class TestTasks:
             _rv1 = await mock_coro_response(response)
             _rv2 = await patch_get_tasks()
         else:
-            _rv1 =  asyncio.ensure_future(mock_coro_response(response))
-            _rv2 =  asyncio.ensure_future(patch_get_tasks())
+            _rv1 = asyncio.ensure_future(mock_coro_response(response))
+            _rv2 = asyncio.ensure_future(patch_get_tasks())
 
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=(_rv1)):
-                with patch.object(server.Server.scheduler, 'get_tasks', return_value=(_rv2)):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv1):
+                with patch.object(server.Server.scheduler, 'get_tasks', return_value=_rv2):
                     resp = await client.get('/fledge/task{}'.format(request_params))
                     assert 200 == resp.status
                     result = await resp.text()
@@ -992,12 +992,12 @@ class TestTasks:
             _rv1 = await mock_coro_response(response)
             _rv2 = await patch_get_tasks()
         else:
-            _rv1 =  asyncio.ensure_future(mock_coro_response(response))
-            _rv2 =  asyncio.ensure_future(patch_get_tasks())
+            _rv1 = asyncio.ensure_future(mock_coro_response(response))
+            _rv2 = asyncio.ensure_future(patch_get_tasks())
 
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=(_rv1)):
-                with patch.object(server.Server.scheduler, 'get_tasks', return_value=(_rv2)):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv1):
+                with patch.object(server.Server.scheduler, 'get_tasks', return_value=_rv2):
                     resp = await client.get('/fledge/task{}'.format('?name=bla&state=running'))
                     assert 404 == resp.status
                     assert "No Tasks found" == resp.reason
@@ -1013,10 +1013,10 @@ class TestTasks:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv1 = await mock_coro_response(response)
         else:
-            _rv1 =  asyncio.ensure_future(mock_coro_response(response))
+            _rv1 = asyncio.ensure_future(mock_coro_response(response))
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=(_rv1)):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv1):
                 resp = await client.get('/fledge/task/latest{}'.format(request_params))
                 assert 200 == resp.status
                 result = await resp.text()
@@ -1034,10 +1034,10 @@ class TestTasks:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv1 = await mock_coro_response(response)
         else:
-            _rv1 =  asyncio.ensure_future(mock_coro_response(response))
+            _rv1 = asyncio.ensure_future(mock_coro_response(response))
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=(_rv1)):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv1):
                 resp = await client.get('/fledge/task/latest{}'.format(request_params))
                 assert 404 == resp.status
                 assert "No Tasks found" == resp.reason
@@ -1050,10 +1050,10 @@ class TestTasks:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro()
         else:
-            _rv =  asyncio.ensure_future(mock_coro())
+            _rv = asyncio.ensure_future(mock_coro())
         
-        with patch.object(server.Server.scheduler, 'get_task', return_value=(_rv)):
-            with patch.object(server.Server.scheduler, 'cancel_task', return_value=(_rv)):
+        with patch.object(server.Server.scheduler, 'get_task', return_value=_rv):
+            with patch.object(server.Server.scheduler, 'cancel_task', return_value=_rv):
                 resp = await client.put('/fledge/task/{}/cancel'.format(self._random_uuid))
                 assert 200 == resp.status
                 result = await resp.text()
@@ -1079,9 +1079,9 @@ class TestTasks:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro()
         else:
-            _rv =  asyncio.ensure_future(mock_coro())
+            _rv = asyncio.ensure_future(mock_coro())
 
-        with patch.object(server.Server.scheduler, 'get_task', return_value=(_rv)):
+        with patch.object(server.Server.scheduler, 'get_task', return_value=_rv):
             with patch.object(server.Server.scheduler, 'cancel_task', side_effect=exception_name):
                 resp = await client.put('/fledge/task/{}/cancel'.format(self._random_uuid))
                 assert response_code == resp.status

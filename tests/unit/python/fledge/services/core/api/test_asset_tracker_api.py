@@ -49,10 +49,10 @@ class TestAssetTracker:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await async_mock()
         else:
-            _rv =  asyncio.ensure_future(async_mock())        
+            _rv = asyncio.ensure_future(async_mock())        
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=(_rv)) as patch_query_payload:
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv) as patch_query_payload:
                 resp = await client.get('/fledge/track')
                 assert 200 == resp.status
                 result = await resp.text()

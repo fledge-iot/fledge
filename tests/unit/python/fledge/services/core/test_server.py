@@ -92,12 +92,12 @@ class TestServer:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await async_mock([])
         else:
-            _rv =  asyncio.ensure_future(async_mock([]))
+            _rv = asyncio.ensure_future(async_mock([]))
         
         with patch.object(Server._configuration_manager, 'create_category',
-                          return_value=(_rv)) as patch_create_cat:
+                          return_value=_rv) as patch_create_cat:
             with patch.object(Server._configuration_manager, 'get_category_all_items',
-                              return_value=(_rv)) as patch_get_all_cat:
+                              return_value=_rv) as patch_get_all_cat:
                 await Server.installation_config()
             patch_get_all_cat.assert_called_once_with('Installation')
         patch_create_cat.assert_called_once_with('Installation', Server._INSTALLATION_DEFAULT_CONFIG, 'Installation',
@@ -207,12 +207,12 @@ class TestServer:
             _rv5 = await return_async_value('stopping REST server..')
             _rv6 = await return_async_value('stopping storage..')
         else:
-            _rv1 =  asyncio.ensure_future(return_async_value(None))
-            _rv2 =  asyncio.ensure_future(return_async_value('stopping scheduler..'))
-            _rv3 =  asyncio.ensure_future(return_async_value('stopping msvc..'))
-            _rv4 =  asyncio.ensure_future(return_async_value('stopping svc monitor..'))
-            _rv5 =  asyncio.ensure_future(return_async_value('stopping REST server..'))
-            _rv6 =  asyncio.ensure_future(return_async_value('stopping storage..'))
+            _rv1 = asyncio.ensure_future(return_async_value(None))
+            _rv2 = asyncio.ensure_future(return_async_value('stopping scheduler..'))
+            _rv3 = asyncio.ensure_future(return_async_value('stopping msvc..'))
+            _rv4 = asyncio.ensure_future(return_async_value('stopping svc monitor..'))
+            _rv5 = asyncio.ensure_future(return_async_value('stopping REST server..'))
+            _rv6 = asyncio.ensure_future(return_async_value('stopping storage..'))
             
         
         mocked__stop_scheduler.return_value = _rv2
@@ -224,7 +224,7 @@ class TestServer:
         mocked__remove_pid.return_value = 'removing PID..'        
 
         with patch.object(AuditLogger, '__init__', return_value=None):
-            with patch.object(AuditLogger, 'information', return_value=(_rv1)) as audit_info_patch:
+            with patch.object(AuditLogger, 'information', return_value=_rv1) as audit_info_patch:
                 await Server._stop()
             # Must write the audit log entry before we stop the storage service
             args, kwargs = audit_info_patch.call_args
@@ -279,10 +279,10 @@ class TestServer:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await async_mock()
         else:
-            _rv =  asyncio.ensure_future(async_mock())
+            _rv = asyncio.ensure_future(async_mock())
         
         result = {'categories': "test"}
-        with patch.object(conf_api, 'get_categories', return_value=(_rv)) as patch_get_all_categories:
+        with patch.object(conf_api, 'get_categories', return_value=_rv) as patch_get_all_categories:
             resp = await client.get('/fledge/service/category')
             assert 200 == resp.status
             r = await resp.text()
@@ -298,10 +298,10 @@ class TestServer:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await async_mock()
         else:
-            _rv =  asyncio.ensure_future(async_mock())
+            _rv = asyncio.ensure_future(async_mock())
         
         result = "test"
-        with patch.object(conf_api, 'get_category', return_value=(_rv)) as patch_category:
+        with patch.object(conf_api, 'get_category', return_value=_rv) as patch_category:
             resp = await client.get('/fledge/service/category/{}'.format("test_category"))
             assert 200 == resp.status
             r = await resp.text()
@@ -319,10 +319,10 @@ class TestServer:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await async_mock()
         else:
-            _rv =  asyncio.ensure_future(async_mock())
+            _rv = asyncio.ensure_future(async_mock())
         
         result = {"key": "test_name", "description": "test_category_desc", "value": "test_category_info"}
-        with patch.object(conf_api, 'create_category', return_value=(_rv)) as patch_create_category:
+        with patch.object(conf_api, 'create_category', return_value=_rv) as patch_create_category:
             resp = await client.post('/fledge/service/category')
             assert 200 == resp.status
             r = await resp.text()
@@ -338,10 +338,10 @@ class TestServer:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await async_mock()
         else:
-            _rv =  asyncio.ensure_future(async_mock())
+            _rv = asyncio.ensure_future(async_mock())
         
         result = "test"
-        with patch.object(conf_api, 'get_category_item', return_value=(_rv)) as patch_category_item:
+        with patch.object(conf_api, 'get_category_item', return_value=_rv) as patch_category_item:
             resp = await client.get('/fledge/service/category/{}/{}'.format("test_category", "test_item"))
             assert 200 == resp.status
             r = await resp.text()
@@ -357,10 +357,10 @@ class TestServer:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await async_mock()
         else:
-            _rv =  asyncio.ensure_future(async_mock())
+            _rv = asyncio.ensure_future(async_mock())
         
         result = "test"
-        with patch.object(conf_api, 'set_configuration_item', return_value=(_rv)) as patch_update_category_item:
+        with patch.object(conf_api, 'set_configuration_item', return_value=_rv) as patch_update_category_item:
             resp = await client.put('/fledge/service/category/{}/{}'.format("test_category", "test_item"))
             assert 200 == resp.status
             r = await resp.text()
@@ -376,10 +376,10 @@ class TestServer:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await async_mock()
         else:
-            _rv =  asyncio.ensure_future(async_mock())
+            _rv = asyncio.ensure_future(async_mock())
         
         result = "ok"
-        with patch.object(conf_api, 'delete_configuration_item_value', return_value=(_rv)) as patch_del_category_item:
+        with patch.object(conf_api, 'delete_configuration_item_value', return_value=_rv) as patch_del_category_item:
             resp = await client.delete('/fledge/service/category/{}/{}/value'.format("test_category", "test_item"))
             assert 200 == resp.status
             r = await resp.text()
@@ -711,7 +711,7 @@ class TestServer:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await return_async_value('stopping...')
         else:
-            _rv =  asyncio.ensure_future(return_async_value('stopping...'))
+            _rv = asyncio.ensure_future(return_async_value('stopping...'))
         
         mocked__stop = mocker.patch.object(Server, "_stop")
         mocked__stop.return_value = _rv

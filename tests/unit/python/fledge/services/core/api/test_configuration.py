@@ -55,10 +55,10 @@ class TestConfiguration:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await async_mock()
         else:
-            _rv =  asyncio.ensure_future(async_mock())
+            _rv = asyncio.ensure_future(async_mock())
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(c_mgr, 'get_all_category_names', return_value=(_rv)) as patch_get_all_items:
+            with patch.object(c_mgr, 'get_all_category_names', return_value=_rv) as patch_get_all_items:
                 resp = await client.get('/fledge/category')
                 assert 200 == resp.status
                 r = await resp.text()
@@ -83,10 +83,10 @@ class TestConfiguration:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await async_mock()
         else:
-            _rv =  asyncio.ensure_future(async_mock())
+            _rv = asyncio.ensure_future(async_mock())
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(c_mgr, 'get_all_category_names', return_value=(_rv)) as patch_get_all_items:
+            with patch.object(c_mgr, 'get_all_category_names', return_value=_rv) as patch_get_all_items:
                 resp = await client.get('/fledge/category?root={}'.format(value))
                 assert 200 == resp.status
                 r = await resp.text()
@@ -114,10 +114,10 @@ class TestConfiguration:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await async_mock()
         else:
-            _rv =  asyncio.ensure_future(async_mock())
+            _rv = asyncio.ensure_future(async_mock())
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(c_mgr, 'get_all_category_names', return_value=(_rv)) as patch_get_all_items:
+            with patch.object(c_mgr, 'get_all_category_names', return_value=_rv) as patch_get_all_items:
                 resp = await client.get('/fledge/category?root={}'.format(value))
                 assert 200 == resp.status
                 r = await resp.text()
@@ -145,10 +145,10 @@ class TestConfiguration:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await async_mock()
         else:
-            _rv =  asyncio.ensure_future(async_mock())
+            _rv = asyncio.ensure_future(async_mock())
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(c_mgr, 'get_all_category_names', return_value=(_rv)) as patch_get_all_items:
+            with patch.object(c_mgr, 'get_all_category_names', return_value=_rv) as patch_get_all_items:
                 resp = await client.get('/fledge/category?root=true&children=true')
                 assert 200 == resp.status
                 r = await resp.text()
@@ -171,10 +171,10 @@ class TestConfiguration:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await async_mock()
         else:
-            _rv =  asyncio.ensure_future(async_mock())
+            _rv = asyncio.ensure_future(async_mock())
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(c_mgr, 'get_all_category_names', return_value=(_rv)) as patch_get_all_items:
+            with patch.object(c_mgr, 'get_all_category_names', return_value=_rv) as patch_get_all_items:
                 resp = await client.get('/fledge/category?root=false&children=true')
                 assert 200 == resp.status
                 r = await resp.text()
@@ -193,10 +193,10 @@ class TestConfiguration:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await async_mock()
         else:
-            _rv =  asyncio.ensure_future(async_mock())
+            _rv = asyncio.ensure_future(async_mock())
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(c_mgr, 'get_category_all_items', return_value=(_rv)) as patch_get_all_items:
+            with patch.object(c_mgr, 'get_category_all_items', return_value=_rv) as patch_get_all_items:
                 resp = await client.get('/fledge/category/{}'.format(category_name))
                 assert 404 == resp.status
                 assert 'No such Category found for {}'.format(category_name) == resp.reason
@@ -218,10 +218,10 @@ class TestConfiguration:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await async_mock()
         else:
-            _rv =  asyncio.ensure_future(async_mock())
+            _rv = asyncio.ensure_future(async_mock())
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(c_mgr, 'get_category_all_items', return_value=(_rv)) as patch_get_all_items:
+            with patch.object(c_mgr, 'get_category_all_items', return_value=_rv) as patch_get_all_items:
                 resp = await client.get('/fledge/category/{}'.format(category_name))
                 assert 200 == resp.status
                 r = await resp.text()
@@ -242,10 +242,10 @@ class TestConfiguration:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await async_mock()
         else:
-            _rv =  asyncio.ensure_future(async_mock())
+            _rv = asyncio.ensure_future(async_mock())
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(c_mgr, 'get_category_item', return_value=(_rv)) as patch_get_cat_item:
+            with patch.object(c_mgr, 'get_category_item', return_value=_rv) as patch_get_cat_item:
                 resp = await client.get('/fledge/category/{}/{}'.format(category_name, item_name))
                 assert 404 == resp.status
                 assert 'No such Category item found for {}'.format(item_name) == resp.reason
@@ -266,10 +266,10 @@ class TestConfiguration:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await async_mock()
         else:
-            _rv =  asyncio.ensure_future(async_mock())
+            _rv = asyncio.ensure_future(async_mock())
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(c_mgr, 'get_category_item', return_value=(_rv)) as patch_get_cat_item:
+            with patch.object(c_mgr, 'get_category_item', return_value=_rv) as patch_get_cat_item:
                 resp = await client.get('/fledge/category/{}/{}'.format(category_name, item_name))
                 assert 200 == resp.status
                 r = await resp.text()
@@ -296,11 +296,11 @@ class TestConfiguration:
             _rv = await async_mock(None)
             _se = await async_mock(expected_result)
         else:
-            _rv =  asyncio.ensure_future(async_mock(None))
-            _se =  asyncio.ensure_future(async_mock(expected_result))
+            _rv = asyncio.ensure_future(async_mock(None))
+            _se = asyncio.ensure_future(async_mock(expected_result))
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(c_mgr, 'set_category_item_value_entry', return_value=(_rv)) as patch_set_entry:
+            with patch.object(c_mgr, 'set_category_item_value_entry', return_value=_rv) as patch_set_entry:
                 with patch.object(c_mgr, 'get_category_item', side_effect=[_se, _se]) as patch_get_cat_item:
                     resp = await client.put('/fledge/category/{}/{}'.format(category_name, item_name),
                                             data=json.dumps(payload))
@@ -349,12 +349,12 @@ class TestConfiguration:
             _se1 = await async_mock(storage_value_entry)
             _se2 = await async_mock(None)
         else:
-            _rv =  asyncio.ensure_future(async_mock(None))
-            _se1 =  asyncio.ensure_future(async_mock(storage_value_entry))
-            _se2 =  asyncio.ensure_future(async_mock(None))
+            _rv = asyncio.ensure_future(async_mock(None))
+            _se1 = asyncio.ensure_future(async_mock(storage_value_entry))
+            _se2 = asyncio.ensure_future(async_mock(None))
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(c_mgr, 'set_category_item_value_entry', return_value=(_rv)) as patch_set_entry:
+            with patch.object(c_mgr, 'set_category_item_value_entry', return_value=_rv) as patch_set_entry:
                 with patch.object(c_mgr, 'get_category_item', side_effect=[_se1, _se2]) as patch_get_cat_item:
                     resp = await client.put('/fledge/category/{}/{}'.format(category_name, item_name),
                                             data=json.dumps(payload))
@@ -385,10 +385,10 @@ class TestConfiguration:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await async_mock(storage_value_entry)
         else:
-            _rv =  asyncio.ensure_future(async_mock(storage_value_entry))
+            _rv = asyncio.ensure_future(async_mock(storage_value_entry))
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(c_mgr, 'get_category_item', return_value=(_rv)) as patch_get_cat:
+            with patch.object(c_mgr, 'get_category_item', return_value=_rv) as patch_get_cat:
                 resp = await client.put('/fledge/category/{}/{}'.format(category_name, item_name), data=json.dumps(payload))
                 assert 400 == resp.status
                 assert message.format(item_name) == resp.reason
@@ -415,12 +415,12 @@ class TestConfiguration:
             _rv1 = await async_mock(None)
             _rv2 = await async_mock(result)
         else:
-            _rv1 =  asyncio.ensure_future(async_mock(None))
-            _rv2 =  asyncio.ensure_future(async_mock(result))
+            _rv1 = asyncio.ensure_future(async_mock(None))
+            _rv2 = asyncio.ensure_future(async_mock(result))
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(c_mgr, 'set_optional_value_entry', return_value=(_rv1)) as patch_set_entry:
-                with patch.object(c_mgr, 'get_category_item', return_value=(_rv2)) as patch_get_cat_item:
+            with patch.object(c_mgr, 'set_optional_value_entry', return_value=_rv1) as patch_set_entry:
+                with patch.object(c_mgr, 'get_category_item', return_value=_rv2) as patch_get_cat_item:
                     resp = await client.put('/fledge/category/{}/{}'.format(category_name, item_name),
                                             data=json.dumps(payload))
                     assert 200 == resp.status
@@ -459,12 +459,12 @@ class TestConfiguration:
             _rv = await async_mock(None)
             _se = await async_mock(expected_result)
         else:
-            _rv =  asyncio.ensure_future(async_mock(None))
-            _se =  asyncio.ensure_future(async_mock(expected_result))
+            _rv = asyncio.ensure_future(async_mock(None))
+            _se = asyncio.ensure_future(async_mock(expected_result))
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(c_mgr, 'get_category_item', side_effect=[_se, _se]) as patch_get_cat_item:
-                with patch.object(c_mgr, 'set_category_item_value_entry', return_value=(_rv)) as patch_set_entry:
+                with patch.object(c_mgr, 'set_category_item_value_entry', return_value=_rv) as patch_set_entry:
                     resp = await client.delete('/fledge/category/{}/{}/value'.format(category_name, item_name))
                     assert 200 == resp.status
                     r = await resp.text()
@@ -492,7 +492,7 @@ class TestConfiguration:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _se = await async_mock()
         else:
-            _se =  asyncio.ensure_future(async_mock())
+            _se = asyncio.ensure_future(async_mock())
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(c_mgr, 'get_category_item', side_effect=[_se]) as patch_get_cat_item:
@@ -515,10 +515,10 @@ class TestConfiguration:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await async_mock()
         else:
-            _rv =  asyncio.ensure_future(async_mock())
+            _rv = asyncio.ensure_future(async_mock())
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(c_mgr, 'get_category_item', return_value=(_rv)) as patch_get_cat_item:
+            with patch.object(c_mgr, 'get_category_item', return_value=_rv) as patch_get_cat_item:
                 resp = await client.delete('/fledge/category/{}/{}/value'.format(category_name, item_name))
                 assert 404 == resp.status
                 assert "No detail found for the category_name: {} and config_item: {}".format(category_name, item_name) == resp.reason
@@ -543,13 +543,13 @@ class TestConfiguration:
             _se1 = await async_mock(result)
             _se2 = await async_mock(None)
         else:
-            _rv =  asyncio.ensure_future(async_mock(None))
-            _se1 =  asyncio.ensure_future(async_mock(result))
-            _se2 =  asyncio.ensure_future(async_mock(None))        
+            _rv = asyncio.ensure_future(async_mock(None))
+            _se1 = asyncio.ensure_future(async_mock(result))
+            _se2 = asyncio.ensure_future(async_mock(None))        
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(c_mgr, 'get_category_item', side_effect=[_se1, _se2]) as patch_get_cat_item:
-                with patch.object(c_mgr, 'set_category_item_value_entry', return_value=(_rv)) as patch_set_entry:
+                with patch.object(c_mgr, 'set_category_item_value_entry', return_value=_rv) as patch_set_entry:
                     resp = await client.delete('/fledge/category/{}/{}/value'.format(category_name, item_name))
                     assert 404 == resp.status
                     assert "No detail found for the category_name: {} and config_item: {}".format(category_name, item_name) == resp.reason
@@ -614,12 +614,12 @@ class TestConfiguration:
             _rv1 = await async_mock(None)
             _rv2 = await async_mock(new_info)
         else:
-            _rv1 =  asyncio.ensure_future(async_mock(None))
-            _rv2 =  asyncio.ensure_future(async_mock(new_info))
+            _rv1 = asyncio.ensure_future(async_mock(None))
+            _rv2 = asyncio.ensure_future(async_mock(new_info))
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(c_mgr, 'create_category', return_value=(_rv1)) as patch_create_cat:
-                with patch.object(c_mgr, 'get_category_all_items', return_value=(_rv2)) as patch_cat_all_item:
+            with patch.object(c_mgr, 'create_category', return_value=_rv1) as patch_create_cat:
+                with patch.object(c_mgr, 'get_category_all_items', return_value=_rv2) as patch_cat_all_item:
                     resp = await client.post('/fledge/category', data=json.dumps(payload))
                     assert 200 == resp.status
                     r = await resp.text()
@@ -663,12 +663,12 @@ class TestConfiguration:
             _rv1 = await async_mock_create_cat()
             _rv2 = await async_mock()
         else:
-            _rv1 =  asyncio.ensure_future(async_mock_create_cat())
-            _rv2 =  asyncio.ensure_future(async_mock())
+            _rv1 = asyncio.ensure_future(async_mock_create_cat())
+            _rv2 = asyncio.ensure_future(async_mock())
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(c_mgr, 'create_category', return_value=(_rv1)) as patch_create_cat:
-                with patch.object(c_mgr, 'get_category_all_items', return_value=(_rv2)) as patch_cat_all_item:
+            with patch.object(c_mgr, 'create_category', return_value=_rv1) as patch_create_cat:
+                with patch.object(c_mgr, 'get_category_all_items', return_value=_rv2) as patch_cat_all_item:
                     resp = await client.post('/fledge/category', data=json.dumps(payload))
                     assert 404 == resp.status
                     assert 'No such test_cat found' == resp.reason
@@ -723,10 +723,10 @@ class TestConfiguration:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await async_mock()
         else:
-            _rv =  asyncio.ensure_future(async_mock())
+            _rv = asyncio.ensure_future(async_mock())
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(c_mgr, 'get_category_all_items', return_value=(_rv)) as patch_get_all_items:
+            with patch.object(c_mgr, 'get_category_all_items', return_value=_rv) as patch_get_all_items:
                 resp = await client.post('/fledge/category/{}/{}'.format(category_name, "info"), data=json.dumps(payload))
                 assert 404 == resp.status
                 assert 'No such Category found for {}'.format(category_name) == resp.reason
@@ -745,10 +745,10 @@ class TestConfiguration:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await async_mock()
         else:
-            _rv =  asyncio.ensure_future(async_mock())
+            _rv = asyncio.ensure_future(async_mock())
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(c_mgr, 'get_category_all_items', return_value=(_rv)) as patch_get_all_items:
+            with patch.object(c_mgr, 'get_category_all_items', return_value=_rv) as patch_get_all_items:
                 resp = await client.post('/fledge/category/{}/{}'.format(category_name, "info"), data=json.dumps(payload))
                 assert 400 == resp.status
                 assert "'Config item is already in use for {}'".format(category_name) == resp.reason
@@ -781,15 +781,15 @@ class TestConfiguration:
             _rv2 = await async_mock_expected()
             _rv3 = await async_audit_mock(None)
         else:
-            _rv1 =  asyncio.ensure_future(async_mock())
-            _rv2 =  asyncio.ensure_future(async_mock_expected())
-            _rv3 =  asyncio.ensure_future(async_audit_mock(None))
+            _rv1 = asyncio.ensure_future(async_mock())
+            _rv2 = asyncio.ensure_future(async_mock_expected())
+            _rv3 = asyncio.ensure_future(async_audit_mock(None))
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(c_mgr, 'get_category_all_items', return_value=(_rv1)) as patch_get_all_items:
-                with patch.object(storage_client_mock, 'update_tbl', return_value=(_rv2)) as update_tbl_patch:
+            with patch.object(c_mgr, 'get_category_all_items', return_value=_rv1) as patch_get_all_items:
+                with patch.object(storage_client_mock, 'update_tbl', return_value=_rv2) as update_tbl_patch:
                     with patch.object(AuditLogger, '__init__', return_value=None):
-                        with patch.object(AuditLogger, 'information', return_value=(_rv3)) as audit_info_patch:
+                        with patch.object(AuditLogger, 'information', return_value=_rv3) as audit_info_patch:
                             resp = await client.post('/fledge/category/{}/{}'.format(category_name, new_config_item), data=json.dumps(data))
                             assert 200 == resp.status
                             r = await resp.text()
@@ -828,10 +828,10 @@ class TestConfiguration:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await async_mock()
         else:
-            _rv =  asyncio.ensure_future(async_mock())
+            _rv = asyncio.ensure_future(async_mock())
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(c_mgr, 'get_category_child', return_value=(_rv)) as patch_get_child_cat:
+            with patch.object(c_mgr, 'get_category_child', return_value=_rv) as patch_get_child_cat:
                 resp = await client.get('/fledge/category/south/children')
                 assert 200 == resp.status
                 r = await resp.text()
@@ -854,10 +854,10 @@ class TestConfiguration:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await async_mock()
         else:
-            _rv =  asyncio.ensure_future(async_mock())
+            _rv = asyncio.ensure_future(async_mock())
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(c_mgr, 'create_child_category', return_value=(_rv)) as patch_create_child_cat:
+            with patch.object(c_mgr, 'create_child_category', return_value=_rv) as patch_create_child_cat:
                 resp = await client.post('/fledge/category/{}/children'.format("south"), data=json.dumps(data))
                 assert 200 == resp.status
                 r = await resp.text()
@@ -877,10 +877,10 @@ class TestConfiguration:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await async_mock()
         else:
-            _rv =  asyncio.ensure_future(async_mock())
+            _rv = asyncio.ensure_future(async_mock())
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(c_mgr, 'delete_child_category', return_value=(_rv)) as patch_delete_child_cat:
+            with patch.object(c_mgr, 'delete_child_category', return_value=_rv) as patch_delete_child_cat:
                 resp = await client.delete('/fledge/category/{}/children/{}'.format("south", "coap"))
                 assert 200 == resp.status
                 r = await resp.text()
@@ -900,10 +900,10 @@ class TestConfiguration:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await async_mock()
         else:
-            _rv =  asyncio.ensure_future(async_mock())
+            _rv = asyncio.ensure_future(async_mock())
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(c_mgr, 'delete_parent_category', return_value=(_rv)) as patch_delete_parent_cat:
+            with patch.object(c_mgr, 'delete_parent_category', return_value=_rv) as patch_delete_parent_cat:
                 resp = await client.delete('/fledge/category/{}/parent'.format("south"))
                 assert 200 == resp.status
                 r = await resp.text()
@@ -935,14 +935,14 @@ class TestConfiguration:
             _rv2 = await async_mock2()
             _rv3 = await async_mock_create_cat()
         else:
-            _rv1 =  asyncio.ensure_future(async_mock())
-            _rv2 =  asyncio.ensure_future(async_mock2())
-            _rv3 =  asyncio.ensure_future(async_mock_create_cat())
+            _rv1 = asyncio.ensure_future(async_mock())
+            _rv2 = asyncio.ensure_future(async_mock2())
+            _rv3 = asyncio.ensure_future(async_mock_create_cat())
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(c_mgr, 'create_category', return_value=(_rv3)) as patch_create_cat:
-                with patch.object(c_mgr, 'get_category_all_items', return_value=(_rv1)) as patch_cat_all_item:
-                    with patch.object(c_mgr, 'create_child_category', return_value=(_rv2)) as patch_create_child:
+            with patch.object(c_mgr, 'create_category', return_value=_rv3) as patch_create_cat:
+                with patch.object(c_mgr, 'get_category_all_items', return_value=_rv1) as patch_cat_all_item:
+                    with patch.object(c_mgr, 'create_child_category', return_value=_rv2) as patch_create_child:
                         resp = await client.post('/fledge/category', data=json.dumps(payload))
                         assert 200 == resp.status
                         r = await resp.text()
@@ -989,10 +989,10 @@ class TestConfiguration:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await async_mock(None)
         else:
-            _rv =  asyncio.ensure_future(async_mock(None))
+            _rv = asyncio.ensure_future(async_mock(None))
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(c_mgr, 'get_category_item', return_value=(_rv)) as patch_get_cat_item:
+            with patch.object(c_mgr, 'get_category_item', return_value=_rv) as patch_get_cat_item:
                 resp = await client.put('/fledge/category/{}'.format(category_name), data=json.dumps(payload))
                 assert 404 == resp.status
                 assert "'{} config item not found'".format(config_item_name) == resp.reason
@@ -1016,10 +1016,10 @@ class TestConfiguration:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await async_mock(storage_value_entry)
         else:
-            _rv =  asyncio.ensure_future(async_mock(storage_value_entry))
+            _rv = asyncio.ensure_future(async_mock(storage_value_entry))
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(c_mgr, 'get_category_item', return_value=(_rv)) as patch_get_cat_item:
+            with patch.object(c_mgr, 'get_category_item', return_value=_rv) as patch_get_cat_item:
                 resp = await client.put('/fledge/category/{}'.format(category_name), data=json.dumps(payload))
                 assert 400 == resp.status
                 assert message.format(config_item_name) == resp.reason
@@ -1050,15 +1050,15 @@ class TestConfiguration:
             _se1 = await async_mock(storage_value_entry1)
             _se2 = await async_mock(storage_value_entry2)
         else:
-            _rv1 =  asyncio.ensure_future(async_mock(response))
-            _rv2 =  asyncio.ensure_future(async_mock(result))
-            _se1 =  asyncio.ensure_future(async_mock(storage_value_entry1))
-            _se2 =  asyncio.ensure_future(async_mock(storage_value_entry2))    
+            _rv1 = asyncio.ensure_future(async_mock(response))
+            _rv2 = asyncio.ensure_future(async_mock(result))
+            _se1 = asyncio.ensure_future(async_mock(storage_value_entry1))
+            _se2 = asyncio.ensure_future(async_mock(storage_value_entry2))    
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(c_mgr, 'get_category_item', side_effect=[_se1, _se2]) as patch_get_cat_item:
-                with patch.object(c_mgr, 'update_configuration_item_bulk', return_value=(_rv1)) as patch_update_bulk:
-                    with patch.object(c_mgr, 'get_category_all_items', return_value=(_rv2)) as patch_get_all_items:
+                with patch.object(c_mgr, 'update_configuration_item_bulk', return_value=_rv1) as patch_update_bulk:
+                    with patch.object(c_mgr, 'get_category_all_items', return_value=_rv2) as patch_get_all_items:
                         resp = await client.put('/fledge/category/{}'.format(category_name), data=json.dumps(payload))
                         assert 200 == resp.status
                         r = await resp.text()
@@ -1077,10 +1077,10 @@ class TestConfiguration:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await asyncio.sleep(.1)
         else:
-            _rv =  asyncio.ensure_future(asyncio.sleep(.1))
+            _rv = asyncio.ensure_future(asyncio.sleep(.1))
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(c_mgr, 'delete_category_and_children_recursively', return_value=(_rv)) as patch_delete_cat:
+            with patch.object(c_mgr, 'delete_category_and_children_recursively', return_value=_rv) as patch_delete_cat:
                 resp = await client.delete('/fledge/category/{}'.format(category_name))
                 assert 200 == resp.status
                 r = await resp.text()

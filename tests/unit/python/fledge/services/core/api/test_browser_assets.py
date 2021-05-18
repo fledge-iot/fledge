@@ -121,10 +121,10 @@ class TestBrowserAssets:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro(result)
         else:
-            _rv =  asyncio.ensure_future(mock_coro(result))
+            _rv = asyncio.ensure_future(mock_coro(result))
         
         with patch.object(connect, 'get_readings_async', return_value=readings_storage_client_mock):
-            with patch.object(readings_storage_client_mock, 'query', return_value=(_rv)) as query_patch:
+            with patch.object(readings_storage_client_mock, 'query', return_value=_rv) as query_patch:
                 resp = await client.get(request_url)
                 assert 200 == resp.status
                 r = await resp.text()
@@ -149,10 +149,10 @@ class TestBrowserAssets:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro(result)
         else:
-            _rv =  asyncio.ensure_future(mock_coro(result))        
+            _rv = asyncio.ensure_future(mock_coro(result))        
         
         with patch.object(connect, 'get_readings_async', return_value=readings_storage_client_mock):
-            with patch.object(readings_storage_client_mock, 'query', return_value=(_rv)) as query_patch:
+            with patch.object(readings_storage_client_mock, 'query', return_value=_rv) as query_patch:
                 resp = await client.get(request_url)
                 assert response_code == resp.status
                 assert result['message'] == resp.reason
@@ -187,10 +187,10 @@ class TestBrowserAssets:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro(storage_result)
         else:
-            _rv =  asyncio.ensure_future(mock_coro(storage_result))
+            _rv = asyncio.ensure_future(mock_coro(storage_result))
         
         with patch.object(connect, 'get_readings_async', return_value=readings_storage_client_mock):
-            with patch.object(readings_storage_client_mock, 'query', return_value=(_rv)) \
+            with patch.object(readings_storage_client_mock, 'query', return_value=_rv) \
                     as query_patch:
                 resp = await client.get('/fledge/asset/fogbench%2fhumidity/temperature/summary')
                 assert status_code == resp.status
@@ -217,8 +217,8 @@ class TestBrowserAssets:
             _se1 = await mock_coro(result1)
             _se2 = await mock_coro(result2)
         else:
-            _se1 =  asyncio.ensure_future(mock_coro(result1))
-            _se2 =  asyncio.ensure_future(mock_coro(result2))
+            _se1 = asyncio.ensure_future(mock_coro(result1))
+            _se2 = asyncio.ensure_future(mock_coro(result2))
         
         with patch.object(connect, 'get_readings_async', return_value=readings_storage_client_mock):
             with patch.object(readings_storage_client_mock, 'query', side_effect=[_se1, _se2]) as query_patch:
@@ -251,10 +251,10 @@ class TestBrowserAssets:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro(result)
         else:
-            _rv =  asyncio.ensure_future(mock_coro(result))
+            _rv = asyncio.ensure_future(mock_coro(result))
         
         with patch.object(connect, 'get_readings_async', return_value=readings_storage_client_mock):
-            with patch.object(readings_storage_client_mock, 'query', return_value=(_rv)) as query_patch:
+            with patch.object(readings_storage_client_mock, 'query', return_value=_rv) as query_patch:
                 resp = await client.get('fledge/asset/fogbench%2Fhumidity/temperature/series?group={}'
                                         .format(group_name))
                 assert 200 == resp.status
@@ -303,10 +303,10 @@ class TestBrowserAssets:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro({'count': 0, 'rows': []})
         else:
-            _rv =  asyncio.ensure_future(mock_coro({'count': 0, 'rows': []}))
+            _rv = asyncio.ensure_future(mock_coro({'count': 0, 'rows': []}))
         
         with patch.object(connect, 'get_readings_async', return_value=readings_storage_client_mock):
-            with patch.object(readings_storage_client_mock, 'query', return_value=(_rv)) \
+            with patch.object(readings_storage_client_mock, 'query', return_value=_rv) \
                     as query_patch:
                 resp = await client.get('fledge/asset/fogbench%2Fhumidity/temperature{}'.format(request_params))
                 assert 200 == resp.status
@@ -352,8 +352,8 @@ class TestBrowserAssets:
             _se1 = await q_result(payload1)
             _se2 = await q_result(payload2)
         else:
-            _se1 =  asyncio.ensure_future(q_result(payload1))
-            _se2 =  asyncio.ensure_future(q_result(payload2))
+            _se1 = asyncio.ensure_future(q_result(payload1))
+            _se2 = asyncio.ensure_future(q_result(payload2))
         
         with patch.object(connect, 'get_readings_async', return_value=readings_storage_client_mock):
             with patch.object(readings_storage_client_mock, 'query', side_effect=[_se1, _se2]) as patch_query:
@@ -514,10 +514,10 @@ class TestBrowserAssets:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro({'count': 0, 'rows': []})
         else:
-            _rv =  asyncio.ensure_future(mock_coro({'count': 0, 'rows': []}))
+            _rv = asyncio.ensure_future(mock_coro({'count': 0, 'rows': []}))
         
         with patch.object(connect, 'get_readings_async', return_value=readings_storage_client_mock):
-            with patch.object(readings_storage_client_mock, 'query', return_value=(_rv)) \
+            with patch.object(readings_storage_client_mock, 'query', return_value=_rv) \
                     as query_patch:
                 resp = await client.get('fledge/asset/fogbench%2Fhumidity{}'.format(request_params))
                 assert 200 == resp.status

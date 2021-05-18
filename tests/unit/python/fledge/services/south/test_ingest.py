@@ -206,8 +206,8 @@ class TestIngest:
             _rv1 = await mock_coro()
             _rv2 = await mock_create(None)
         else:
-            _rv1 =  asyncio.ensure_future(mock_coro())
-            _rv2 =  asyncio.ensure_future(mock_create(None))
+            _rv1 = asyncio.ensure_future(mock_coro())
+            _rv2 = asyncio.ensure_future(mock_create(None))
         
         # GIVEN
         mocker.patch.object(StorageClientAsync, "__init__", return_value=None)
@@ -218,10 +218,10 @@ class TestIngest:
         get_cfg = mocker.patch.object(MicroserviceManagementClient, "get_configuration_category", return_value=get_cat(Ingest.default_config))
         mocker.patch.object(MicroserviceManagementClient, "get_asset_tracker_events", return_value={'track':[]})
         mocker.patch.object(MicroserviceManagementClient, "create_child_category", return_value=None)
-        mocker.patch.object(statistics, "create_statistics", return_value=(_rv2))
+        mocker.patch.object(statistics, "create_statistics", return_value=_rv2)
         parent_service = MagicMock(_core_microservice_management_client=MicroserviceManagementClient())
-        mocker.patch.object(Ingest, "_write_statistics", return_value=(_rv1))
-        mocker.patch.object(Ingest, "_insert_readings", return_value=(_rv1))
+        mocker.patch.object(Ingest, "_write_statistics", return_value=_rv1)
+        mocker.patch.object(Ingest, "_insert_readings", return_value=_rv1)
 
         # WHEN
         await Ingest.start(parent=parent_service)
@@ -258,8 +258,8 @@ class TestIngest:
             _rv1 = await mock_coro()
             _rv2 = await mock_create(None)
         else:
-            _rv1 =  asyncio.ensure_future(mock_coro())
-            _rv2 =  asyncio.ensure_future(mock_create(None))
+            _rv1 = asyncio.ensure_future(mock_coro())
+            _rv2 = asyncio.ensure_future(mock_create(None))
         
         # GIVEN
         mocker.patch.object(StorageClientAsync, "__init__", return_value=None)
@@ -270,10 +270,10 @@ class TestIngest:
         get_cfg = mocker.patch.object(MicroserviceManagementClient, "get_configuration_category", return_value=get_cat(Ingest.default_config))
         mocker.patch.object(MicroserviceManagementClient, "get_asset_tracker_events", return_value={'track':[]})
         mocker.patch.object(MicroserviceManagementClient, "create_child_category", return_value=None)
-        mocker.patch.object(statistics, "create_statistics", return_value=(_rv2))
+        mocker.patch.object(statistics, "create_statistics", return_value=_rv2)
         parent_service = MagicMock(_core_microservice_management_client=MicroserviceManagementClient())
-        mocker.patch.object(Ingest, "_write_statistics", return_value=(_rv1))
-        mocker.patch.object(Ingest, "_insert_readings", return_value=(_rv1))
+        mocker.patch.object(Ingest, "_write_statistics", return_value=_rv1)
+        mocker.patch.object(Ingest, "_insert_readings", return_value=_rv1)
 
         # WHEN
         await Ingest.start(parent=parent_service)

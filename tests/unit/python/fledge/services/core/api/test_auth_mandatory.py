@@ -55,13 +55,13 @@ class TestAuthMandatory:
             _rv2 = await mock_coro(None)
             _rv3 = await mock_coro(user)
         else:
-            _rv1 =  asyncio.ensure_future(mock_coro(user['id']))
-            _rv2 =  asyncio.ensure_future(mock_coro(None))
-            _rv3 =  asyncio.ensure_future(mock_coro(user))
+            _rv1 = asyncio.ensure_future(mock_coro(user['id']))
+            _rv2 = asyncio.ensure_future(mock_coro(None))
+            _rv3 = asyncio.ensure_future(mock_coro(user))
         patch_logger_info = mocker.patch.object(middleware._logger, 'info')
-        patch_validate_token = mocker.patch.object(User.Objects, 'validate_token', return_value=(_rv1))
-        patch_refresh_token = mocker.patch.object(User.Objects, 'refresh_token_expiry', return_value=(_rv2))
-        patch_user_get = mocker.patch.object(User.Objects, 'get', return_value=(_rv3))
+        patch_validate_token = mocker.patch.object(User.Objects, 'validate_token', return_value=_rv1)
+        patch_refresh_token = mocker.patch.object(User.Objects, 'refresh_token_expiry', return_value=_rv2)
+        patch_user_get = mocker.patch.object(User.Objects, 'get', return_value=_rv3)
 
         return patch_logger_info, patch_validate_token, patch_refresh_token, patch_user_get
 
@@ -111,7 +111,7 @@ class TestAuthMandatory:
         else:
             _rv = asyncio.ensure_future(mock_coro([{'id': '1'}]))
         
-        with patch.object(User.Objects, 'get_role_id_by_name', return_value=(_rv)) as patch_role_id:
+        with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv) as patch_role_id:
             with patch.object(auth._logger, 'error') as patch_logger_error:
                 resp = await client.post('/fledge/admin/user', data=json.dumps(payload), headers=ADMIN_USER_HEADER)
                 assert 400 == resp.status
@@ -138,10 +138,10 @@ class TestAuthMandatory:
             _rv1 = await mock_coro([{'id': '1'}])
             _rv2 = await mock_coro(False)
         else:
-            _rv1 =  asyncio.ensure_future(mock_coro([{'id': '1'}]))
-            _rv2 =  asyncio.ensure_future(mock_coro(False))        
-        with patch.object(User.Objects, 'get_role_id_by_name', return_value=(_rv1)) as patch_role_id:
-            with patch.object(auth, 'is_valid_role', return_value=(_rv2)) as patch_role:
+            _rv1 = asyncio.ensure_future(mock_coro([{'id': '1'}]))
+            _rv2 = asyncio.ensure_future(mock_coro(False))        
+        with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv1) as patch_role_id:
+            with patch.object(auth, 'is_valid_role', return_value=_rv2) as patch_role:
                 with patch.object(auth._logger, 'error') as patch_logger_err:
                     resp = await client.post('/fledge/admin/user', data=json.dumps(request_data), headers=ADMIN_USER_HEADER)
                     assert 400 == resp.status
@@ -170,19 +170,19 @@ class TestAuthMandatory:
             _se1 = await mock_coro(valid_user)
             _se2 = await mock_coro({'role_id': '2', 'uname': 'ajtest', 'id': '2'})
         else:
-            _rv1 =  asyncio.ensure_future(mock_coro(valid_user['id']))
-            _rv2 =  asyncio.ensure_future(mock_coro(None))
-            _rv3 =  asyncio.ensure_future(mock_coro([{'id': '1'}]))
-            _rv4 =  asyncio.ensure_future(mock_coro(True))
-            _se1 =  asyncio.ensure_future(mock_coro(valid_user))
-            _se2 =  asyncio.ensure_future(mock_coro({'role_id': '2', 'uname': 'ajtest', 'id': '2'}))
+            _rv1 = asyncio.ensure_future(mock_coro(valid_user['id']))
+            _rv2 = asyncio.ensure_future(mock_coro(None))
+            _rv3 = asyncio.ensure_future(mock_coro([{'id': '1'}]))
+            _rv4 = asyncio.ensure_future(mock_coro(True))
+            _se1 = asyncio.ensure_future(mock_coro(valid_user))
+            _se2 = asyncio.ensure_future(mock_coro({'role_id': '2', 'uname': 'ajtest', 'id': '2'}))
             
         with patch.object(middleware._logger, 'info') as patch_logger_info:
-            with patch.object(User.Objects, 'validate_token', return_value=(_rv1)) as patch_validate_token:
-                with patch.object(User.Objects, 'refresh_token_expiry', return_value=(_rv2)) as patch_refresh_token:
+            with patch.object(User.Objects, 'validate_token', return_value=_rv1) as patch_validate_token:
+                with patch.object(User.Objects, 'refresh_token_expiry', return_value=_rv2) as patch_refresh_token:
                     with patch.object(User.Objects, 'get', side_effect=[_se1, _se2]) as patch_user_get:
-                        with patch.object(User.Objects, 'get_role_id_by_name', return_value=(_rv3)) as patch_role_id:
-                            with patch.object(auth, 'is_valid_role', return_value=(_rv4)) as patch_role:
+                        with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv3) as patch_role_id:
+                            with patch.object(auth, 'is_valid_role', return_value=_rv4) as patch_role:
                                 with patch.object(auth._logger, 'warning') as patch_logger_warning:
                                     resp = await client.post('/fledge/admin/user', data=json.dumps(request_data), headers=ADMIN_USER_HEADER)
                                     assert 409 == resp.status
@@ -221,20 +221,20 @@ class TestAuthMandatory:
             _se1 = await mock_coro(valid_user)
             _se2 = await mock_coro(data)
         else:
-            _rv1 =  asyncio.ensure_future(mock_coro(valid_user['id']))
-            _rv2 =  asyncio.ensure_future(mock_coro(None))
-            _rv3 =  asyncio.ensure_future(mock_coro([{'id': '1'}]))
-            _rv4 =  asyncio.ensure_future(mock_coro(True))
-            _rv5 =  asyncio.ensure_future(mock_coro(ret_val))
-            _se1 =  asyncio.ensure_future(mock_coro(valid_user))
-            _se2 =  asyncio.ensure_future(mock_coro(data))
+            _rv1 = asyncio.ensure_future(mock_coro(valid_user['id']))
+            _rv2 = asyncio.ensure_future(mock_coro(None))
+            _rv3 = asyncio.ensure_future(mock_coro([{'id': '1'}]))
+            _rv4 = asyncio.ensure_future(mock_coro(True))
+            _rv5 = asyncio.ensure_future(mock_coro(ret_val))
+            _se1 = asyncio.ensure_future(mock_coro(valid_user))
+            _se2 = asyncio.ensure_future(mock_coro(data))
         with patch.object(middleware._logger, 'info') as patch_logger_info:
-            with patch.object(User.Objects, 'validate_token', return_value=(_rv1)) as patch_validate_token:
-                with patch.object(User.Objects, 'refresh_token_expiry', return_value=(_rv2)) as patch_refresh_token:
+            with patch.object(User.Objects, 'validate_token', return_value=_rv1) as patch_validate_token:
+                with patch.object(User.Objects, 'refresh_token_expiry', return_value=_rv2) as patch_refresh_token:
                     with patch.object(User.Objects, 'get', side_effect=[_se1, User.DoesNotExist, _se2]) as patch_user_get:
-                        with patch.object(User.Objects, 'get_role_id_by_name', return_value=(_rv3)) as patch_role_id:
-                            with patch.object(auth, 'is_valid_role', return_value=(_rv4)) as patch_role:
-                                with patch.object(User.Objects, 'create', return_value=(_rv5)) as patch_create_user:
+                        with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv3) as patch_role_id:
+                            with patch.object(auth, 'is_valid_role', return_value=_rv4) as patch_role:
+                                with patch.object(User.Objects, 'create', return_value=_rv5) as patch_create_user:
                                     with patch.object(auth._logger, 'info') as patch_auth_logger_info:
                                         resp = await client.post('/fledge/admin/user', data=json.dumps(request_data), headers=ADMIN_USER_HEADER)
                                         assert 200 == resp.status
@@ -274,18 +274,18 @@ class TestAuthMandatory:
             _rv4 = await mock_coro(True)
             _se1 = await mock_coro(valid_user)
         else:
-            _rv1 =  asyncio.ensure_future(mock_coro(valid_user['id']))
-            _rv2 =  asyncio.ensure_future(mock_coro(None))
-            _rv3 =  asyncio.ensure_future(mock_coro([{'id': '1'}]))
-            _rv4 =  asyncio.ensure_future(mock_coro(True))
-            _se1 =  asyncio.ensure_future(mock_coro(valid_user))
+            _rv1 = asyncio.ensure_future(mock_coro(valid_user['id']))
+            _rv2 = asyncio.ensure_future(mock_coro(None))
+            _rv3 = asyncio.ensure_future(mock_coro([{'id': '1'}]))
+            _rv4 = asyncio.ensure_future(mock_coro(True))
+            _se1 = asyncio.ensure_future(mock_coro(valid_user))
         
         with patch.object(middleware._logger, 'info') as patch_logger_info:
-            with patch.object(User.Objects, 'validate_token', return_value=(_rv1)) as patch_validate_token:
-                with patch.object(User.Objects, 'refresh_token_expiry', return_value=(_rv2)) as patch_refresh_token:
+            with patch.object(User.Objects, 'validate_token', return_value=_rv1) as patch_validate_token:
+                with patch.object(User.Objects, 'refresh_token_expiry', return_value=_rv2) as patch_refresh_token:
                     with patch.object(User.Objects, 'get', side_effect=[_se1, User.DoesNotExist]) as patch_user_get:
-                        with patch.object(User.Objects, 'get_role_id_by_name', return_value=(_rv3)) as patch_role_id:
-                            with patch.object(auth, 'is_valid_role', return_value=(_rv4)) as patch_role:
+                        with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv3) as patch_role_id:
+                            with patch.object(auth, 'is_valid_role', return_value=_rv4) as patch_role:
                                 with patch.object(User.Objects, 'create', side_effect=Exception(exc_msg)) as patch_create_user:
                                     with patch.object(auth._logger, 'exception') as patch_audit_logger_exc:
                                         resp = await client.post('/fledge/admin/user', data=json.dumps(request_data), headers=ADMIN_USER_HEADER)
@@ -321,18 +321,18 @@ class TestAuthMandatory:
             _rv4 = await mock_coro(True)
             _se1 = await mock_coro(valid_user)
         else:
-            _rv1 =  asyncio.ensure_future(mock_coro(valid_user['id']))
-            _rv2 =  asyncio.ensure_future(mock_coro(None))
-            _rv3 =  asyncio.ensure_future(mock_coro([{'id': '1'}]))
-            _rv4 =  asyncio.ensure_future(mock_coro(True))
-            _se1 =  asyncio.ensure_future(mock_coro(valid_user))
+            _rv1 = asyncio.ensure_future(mock_coro(valid_user['id']))
+            _rv2 = asyncio.ensure_future(mock_coro(None))
+            _rv3 = asyncio.ensure_future(mock_coro([{'id': '1'}]))
+            _rv4 = asyncio.ensure_future(mock_coro(True))
+            _se1 = asyncio.ensure_future(mock_coro(valid_user))
         
         with patch.object(middleware._logger, 'info') as patch_logger_info:
-            with patch.object(User.Objects, 'validate_token', return_value=(_rv1)) as patch_validate_token:
-                with patch.object(User.Objects, 'refresh_token_expiry', return_value=(_rv2)) as patch_refresh_token:
+            with patch.object(User.Objects, 'validate_token', return_value=_rv1) as patch_validate_token:
+                with patch.object(User.Objects, 'refresh_token_expiry', return_value=_rv2) as patch_refresh_token:
                     with patch.object(User.Objects, 'get', side_effect=[_se1, User.DoesNotExist]) as patch_user_get:
-                        with patch.object(User.Objects, 'get_role_id_by_name', return_value=(_rv3)) as patch_role_id:
-                            with patch.object(auth, 'is_valid_role', return_value=(_rv4)) as patch_role:
+                        with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv3) as patch_role_id:
+                            with patch.object(auth, 'is_valid_role', return_value=_rv4) as patch_role:
                                 with patch.object(User.Objects, 'create', side_effect=ValueError(exc_msg)) as patch_create_user:
                                     with patch.object(auth._logger, 'error') as patch_audit_logger_error:
                                         resp = await client.post('/fledge/admin/user', data=json.dumps(request_data), headers=ADMIN_USER_HEADER)
@@ -366,7 +366,7 @@ class TestAuthMandatory:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _se1 = await mock_coro(u1)
         else:
-            _se1 =  asyncio.ensure_future(mock_coro(u1))
+            _se1 = asyncio.ensure_future(mock_coro(u1))
         with patch.object(User.Objects, 'get', side_effect=[_se1, Exception(msg)]):
             resp = await client.put('/fledge/user/blah', data=json.dumps({}), headers=NORMAL_USER_HEADER)
             assert 404 == resp.status
@@ -389,11 +389,11 @@ class TestAuthMandatory:
             _rv = await mock_coro(False)
             _se1 = await mock_coro(u1)
         else:
-            _rv =  asyncio.ensure_future(mock_coro(False))
-            _se1 =  asyncio.ensure_future(mock_coro(u1))
+            _rv = asyncio.ensure_future(mock_coro(False))
+            _se1 = asyncio.ensure_future(mock_coro(u1))
 
         with patch.object(User.Objects, 'get', side_effect=[_se1, _se1]):
-            with patch.object(auth, 'is_valid_role', return_value=(_rv)):
+            with patch.object(auth, 'is_valid_role', return_value=_rv):
                 resp = await client.put('/fledge/user/blah', data=json.dumps({'role_id': 4}),
                                         headers=NORMAL_USER_HEADER)
                 assert 400 == resp.status
@@ -427,13 +427,13 @@ class TestAuthMandatory:
             _se1 = await mock_coro(u1)
             _se2= await mock_coro(exp_result)
         else:
-            _rv =  asyncio.ensure_future(mock_coro(True))
-            _se1 =  asyncio.ensure_future(mock_coro(u1))
-            _se2 =  asyncio.ensure_future(mock_coro(exp_result))
+            _rv = asyncio.ensure_future(mock_coro(True))
+            _se1 = asyncio.ensure_future(mock_coro(u1))
+            _se2 = asyncio.ensure_future(mock_coro(exp_result))
 
-        with patch.object(auth, 'is_valid_role', return_value=(_rv)):
+        with patch.object(auth, 'is_valid_role', return_value=_rv):
             with patch.object(User.Objects, 'get', side_effect=[_se1, _se1, _se2]):
-                with patch.object(User.Objects, 'update', return_value=(_rv)) as patch_update:
+                with patch.object(User.Objects, 'update', return_value=_rv) as patch_update:
                     resp = await client.put('/fledge/user/{}'.format(uid), data=json.dumps(payload),
                                             headers=NORMAL_USER_HEADER)
                     assert 200 == resp.status
@@ -457,13 +457,13 @@ class TestAuthMandatory:
             _rv2 = await mock_coro(False)
             _se1 = await mock_coro(u1)
         else:
-            _rv1 =  asyncio.ensure_future(mock_coro(True))
-            _rv2 =  asyncio.ensure_future(mock_coro(False))
-            _se1 =  asyncio.ensure_future(mock_coro(u1))
+            _rv1 = asyncio.ensure_future(mock_coro(True))
+            _rv2 = asyncio.ensure_future(mock_coro(False))
+            _se1 = asyncio.ensure_future(mock_coro(u1))
 
-        with patch.object(auth, 'is_valid_role', return_value=(_rv1)):
+        with patch.object(auth, 'is_valid_role', return_value=_rv1):
             with patch.object(User.Objects, 'get', side_effect=[_se1, _se1]):
-                with patch.object(User.Objects, 'update', return_value=(_rv2)) as patch_update:
+                with patch.object(User.Objects, 'update', return_value=_rv2) as patch_update:
                     resp = await client.put('/fledge/user/{}'.format(uid), data=json.dumps({}),
                                             headers=NORMAL_USER_HEADER)
                     assert 200 == resp.status
@@ -506,10 +506,10 @@ class TestAuthMandatory:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro(None)
         else:
-            _rv =  asyncio.ensure_future(mock_coro(None))
+            _rv = asyncio.ensure_future(mock_coro(None))
         
         with patch.object(middleware._logger, 'info') as patch_logger_info:
-            with patch.object(User.Objects, 'is_user_exists', return_value=(_rv)) as patch_user_exists:
+            with patch.object(User.Objects, 'is_user_exists', return_value=_rv) as patch_user_exists:
                 with patch.object(auth._logger, 'warning') as patch_logger_warning:
                     resp = await client.put('/fledge/user/{}/password'.format(uid), data=json.dumps(request_data))
                     assert 404 == resp.status
@@ -532,10 +532,10 @@ class TestAuthMandatory:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro(2)
         else:
-            _rv =  asyncio.ensure_future(mock_coro(2))
+            _rv = asyncio.ensure_future(mock_coro(2))
         
         with patch.object(middleware._logger, 'info') as patch_logger_info:
-            with patch.object(User.Objects, 'is_user_exists', return_value=(_rv)) as patch_user_exists:
+            with patch.object(User.Objects, 'is_user_exists', return_value=_rv) as patch_user_exists:
                 with patch.object(User.Objects, 'update', side_effect=exception_name(msg)) as patch_update:
                     with patch.object(auth._logger, 'warning') as patch_logger_warning:
                         resp = await client.put('/fledge/user/{}/password'.format(uid), data=json.dumps(request_data))
@@ -556,10 +556,10 @@ class TestAuthMandatory:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro(2)
         else:
-            _rv =  asyncio.ensure_future(mock_coro(2))
+            _rv = asyncio.ensure_future(mock_coro(2))
         
         with patch.object(middleware._logger, 'info') as patch_logger_info:
-            with patch.object(User.Objects, 'is_user_exists', return_value=(_rv)) as patch_user_exists:
+            with patch.object(User.Objects, 'is_user_exists', return_value=_rv) as patch_user_exists:
                 with patch.object(User.Objects, 'update', side_effect=Exception(msg)) as patch_update:
                     with patch.object(auth._logger, 'exception') as patch_logger_exception:
                         resp = await client.put('/fledge/user/{}/password'.format(uid), data=json.dumps(request_data))
@@ -583,12 +583,12 @@ class TestAuthMandatory:
             _rv1 = await mock_coro(user_id)
             _rv2 = await mock_coro(ret_val)
         else:
-            _rv1 =  asyncio.ensure_future(mock_coro(user_id))
-            _rv2 =  asyncio.ensure_future(mock_coro(ret_val))
+            _rv1 = asyncio.ensure_future(mock_coro(user_id))
+            _rv2 = asyncio.ensure_future(mock_coro(ret_val))
         
         with patch.object(middleware._logger, 'info') as patch_logger_info:
-            with patch.object(User.Objects, 'is_user_exists', return_value=(_rv1)) as patch_user_exists:
-                with patch.object(User.Objects, 'update', return_value=(_rv2)) as patch_update:
+            with patch.object(User.Objects, 'is_user_exists', return_value=_rv1) as patch_user_exists:
+                with patch.object(User.Objects, 'update', return_value=_rv2) as patch_update:
                     with patch.object(auth._logger, 'info') as patch_auth_logger_info:
                         resp = await client.put('/fledge/user/{}/password'.format(user_id), data=json.dumps(request_data))
                         assert 200 == resp.status
@@ -612,9 +612,9 @@ class TestAuthMandatory:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro([{'id': '1'}])
         else:
-            _rv =  asyncio.ensure_future(mock_coro([{'id': '1'}]))
+            _rv = asyncio.ensure_future(mock_coro([{'id': '1'}]))
 
-        with patch.object(User.Objects, 'get_role_id_by_name', return_value=(_rv)) as patch_role_id:
+        with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv) as patch_role_id:
             with patch.object(auth._logger, 'warning') as patch_auth_logger_warn:
                 resp = await client.delete('/fledge/admin/{}/delete'.format(request_data), headers=ADMIN_USER_HEADER)
                 assert 400 == resp.status
@@ -634,9 +634,9 @@ class TestAuthMandatory:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro([{'id': '1'}])
         else:
-            _rv =  asyncio.ensure_future(mock_coro([{'id': '1'}]))
+            _rv = asyncio.ensure_future(mock_coro([{'id': '1'}]))
 
-        with patch.object(User.Objects, 'get_role_id_by_name', return_value=(_rv)) as patch_role_id:
+        with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv) as patch_role_id:
             with patch.object(auth._logger, 'warning') as patch_auth_logger_warn:
                     resp = await client.delete('/fledge/admin/1/delete', headers=ADMIN_USER_HEADER)
                     assert 406 == resp.status
@@ -656,9 +656,9 @@ class TestAuthMandatory:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro([{'id': '2'}])
         else:
-            _rv =  asyncio.ensure_future(mock_coro([{'id': '2'}]))
+            _rv = asyncio.ensure_future(mock_coro([{'id': '2'}]))
 
-        with patch.object(User.Objects, 'get_role_id_by_name', return_value=(_rv)) as patch_role_id:
+        with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv) as patch_role_id:
             with patch.object(auth._logger, 'warning') as patch_auth_logger_warn:
                     resp = await client.delete('/fledge/admin/2/delete', headers=NORMAL_USER_HEADER)
                     assert 400 == resp.status
@@ -680,12 +680,12 @@ class TestAuthMandatory:
             _rv1 = await mock_coro([{'id': '1'}])
             _rv2 = await mock_coro(ret_val)
         else:
-            _rv1 =  asyncio.ensure_future(mock_coro([{'id': '1'}]))
-            _rv2 =  asyncio.ensure_future(mock_coro(ret_val))
+            _rv1 = asyncio.ensure_future(mock_coro([{'id': '1'}]))
+            _rv2 = asyncio.ensure_future(mock_coro(ret_val))
 
-        with patch.object(User.Objects, 'get_role_id_by_name', return_value=(_rv1)) as patch_role_id:
+        with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv1) as patch_role_id:
             with patch.object(auth._logger, 'warning') as patch_auth_logger_warning:
-                    with patch.object(User.Objects, 'delete', return_value=(_rv2)) as patch_user_delete:
+                    with patch.object(User.Objects, 'delete', return_value=_rv2) as patch_user_delete:
                         resp = await client.delete('/fledge/admin/2/delete', headers=ADMIN_USER_HEADER)
                         assert 404 == resp.status
                         assert msg == resp.reason
@@ -706,12 +706,12 @@ class TestAuthMandatory:
             _rv1 = await mock_coro([{'id': '1'}])
             _rv2 = await mock_coro(ret_val)
         else:
-            _rv1 =  asyncio.ensure_future(mock_coro([{'id': '1'}]))
-            _rv2 =  asyncio.ensure_future(mock_coro(ret_val))
+            _rv1 = asyncio.ensure_future(mock_coro([{'id': '1'}]))
+            _rv2 = asyncio.ensure_future(mock_coro(ret_val))
 
-        with patch.object(User.Objects, 'get_role_id_by_name', return_value=(_rv1)) as patch_role_id:
+        with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv1) as patch_role_id:
             with patch.object(auth._logger, 'info') as patch_auth_logger_info:
-                    with patch.object(User.Objects, 'delete', return_value=(_rv2)) as patch_user_delete:
+                    with patch.object(User.Objects, 'delete', return_value=_rv2) as patch_user_delete:
                         resp = await client.delete('/fledge/admin/2/delete', headers=ADMIN_USER_HEADER)
                         assert 200 == resp.status
                         r = await resp.text()
@@ -735,9 +735,9 @@ class TestAuthMandatory:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro([{'id': '1'}])
         else:
-            _rv =  asyncio.ensure_future(mock_coro([{'id': '1'}]))
+            _rv = asyncio.ensure_future(mock_coro([{'id': '1'}]))
 
-        with patch.object(User.Objects, 'get_role_id_by_name', return_value=(_rv)) as patch_role_id:
+        with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv) as patch_role_id:
             with patch.object(auth._logger, 'warning') as patch_auth_logger_warn:
                 with patch.object(User.Objects, 'delete', side_effect=exception_name(msg)) as patch_user_delete:
                     resp = await client.delete('/fledge/admin/2/delete', headers=ADMIN_USER_HEADER)
@@ -759,9 +759,9 @@ class TestAuthMandatory:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro([{'id': '1'}])
         else:
-            _rv =  asyncio.ensure_future(mock_coro([{'id': '1'}]))
+            _rv = asyncio.ensure_future(mock_coro([{'id': '1'}]))
 
-        with patch.object(User.Objects, 'get_role_id_by_name', return_value=(_rv)) as patch_role_id:
+        with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv) as patch_role_id:
             with patch.object(auth._logger, 'exception') as patch_auth_logger_exc:
                 with patch.object(User.Objects, 'delete', side_effect=Exception(msg)) as patch_user_delete:
                     resp = await client.delete('/fledge/admin/2/delete', headers=ADMIN_USER_HEADER)
@@ -783,10 +783,10 @@ class TestAuthMandatory:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro(ret_val)
         else:
-            _rv =  asyncio.ensure_future(mock_coro(ret_val))
+            _rv = asyncio.ensure_future(mock_coro(ret_val))
 
         with patch.object(auth._logger, 'info') as patch_auth_logger_info:
-            with patch.object(User.Objects, 'delete_user_tokens', return_value=(_rv)) as patch_delete_user_token:
+            with patch.object(User.Objects, 'delete_user_tokens', return_value=_rv) as patch_delete_user_token:
                 resp = await client.put('/fledge/2/logout', headers=ADMIN_USER_HEADER)
                 assert 200 == resp.status
                 r = await resp.text()
@@ -807,9 +807,9 @@ class TestAuthMandatory:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro(ret_val)
         else:
-            _rv =  asyncio.ensure_future(mock_coro(ret_val))
+            _rv = asyncio.ensure_future(mock_coro(ret_val))
 
-        with patch.object(User.Objects, 'delete_user_tokens', return_value=(_rv)) as patch_delete_user_token:
+        with patch.object(User.Objects, 'delete_user_tokens', return_value=_rv) as patch_delete_user_token:
             with patch.object(auth._logger, 'warning') as patch_logger:
                 resp = await client.put('/fledge/{}/logout'.format(user_id), headers=ADMIN_USER_HEADER)
                 assert 404 == resp.status
@@ -828,10 +828,10 @@ class TestAuthMandatory:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro(ret_val)
         else:
-            _rv =  asyncio.ensure_future(mock_coro(ret_val))        
+            _rv = asyncio.ensure_future(mock_coro(ret_val))        
 
         with patch.object(auth._logger, 'info') as patch_auth_logger_info:
-            with patch.object(User.Objects, 'delete_token', return_value=(_rv)) as patch_delete_token:
+            with patch.object(User.Objects, 'delete_token', return_value=_rv) as patch_delete_token:
                 resp = await client.put('/fledge/logout', headers=ADMIN_USER_HEADER)
                 assert 200 == resp.status
                 r = await resp.text()
@@ -851,10 +851,10 @@ class TestAuthMandatory:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro(ret_val)
         else:
-            _rv =  asyncio.ensure_future(mock_coro(ret_val))
+            _rv = asyncio.ensure_future(mock_coro(ret_val))
 
         with patch.object(auth._logger, 'warning') as patch_auth_logger_warn:
-            with patch.object(User.Objects, 'delete_token', return_value=(_rv)) as patch_delete_token:
+            with patch.object(User.Objects, 'delete_token', return_value=_rv) as patch_delete_token:
                 resp = await client.put('/fledge/logout', headers=ADMIN_USER_HEADER)
                 assert 404 == resp.status
             patch_delete_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
@@ -872,9 +872,9 @@ class TestAuthMandatory:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro([{'id': '1'}])
         else:
-            _rv =  asyncio.ensure_future(mock_coro([{'id': '1'}]))
+            _rv = asyncio.ensure_future(mock_coro([{'id': '1'}]))
 
-        with patch.object(User.Objects, 'get_role_id_by_name', return_value=(_rv)) as patch_role_id:
+        with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv) as patch_role_id:
             with patch.object(auth._logger, 'warning') as patch_logger_warning:
                 resp = await client.put('/fledge/admin/1/enabled', data=json.dumps({'role_id': 2}),
                                         headers=ADMIN_USER_HEADER)
@@ -901,9 +901,9 @@ class TestAuthMandatory:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro([{'id': '1'}])
         else:
-            _rv =  asyncio.ensure_future(mock_coro([{'id': '1'}]))
+            _rv = asyncio.ensure_future(mock_coro([{'id': '1'}]))
 
-        with patch.object(User.Objects, 'get_role_id_by_name', return_value=(_rv)) as patch_role_id:
+        with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv) as patch_role_id:
             resp = await client.put('/fledge/admin/2/enabled', data=json.dumps(request_data),
                                     headers=ADMIN_USER_HEADER)
             assert 400 == resp.status
@@ -941,17 +941,17 @@ class TestAuthMandatory:
             _se1 = await mock_coro(user_record)
             _se2 = await mock_coro(update_user_record)
         else:
-            _rv1 =  asyncio.ensure_future(mock_coro([{'id': '1'}]))
-            _rv2 =  asyncio.ensure_future(mock_coro(update_result))
-            _se1 =  asyncio.ensure_future(mock_coro(user_record))
-            _se2 =  asyncio.ensure_future(mock_coro(update_user_record))
+            _rv1 = asyncio.ensure_future(mock_coro([{'id': '1'}]))
+            _rv2 = asyncio.ensure_future(mock_coro(update_result))
+            _se1 = asyncio.ensure_future(mock_coro(user_record))
+            _se2 = asyncio.ensure_future(mock_coro(update_user_record))
 
-        with patch.object(User.Objects, 'get_role_id_by_name', return_value=(_rv1)) as patch_role_id:
+        with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv1) as patch_role_id:
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
                 with patch.object(storage_client_mock, 'query_tbl_with_payload',
                                   side_effect=[_se1, _se2]) as q_tbl_patch:
                     with patch.object(storage_client_mock, 'update_tbl',
-                                      return_value=(_rv2)) as update_tbl_patch:
+                                      return_value=_rv2) as update_tbl_patch:
                         resp = await client.put('/fledge/admin/{}/enabled'.format(uid), data=json.dumps(request_data),
                                                 headers=ADMIN_USER_HEADER)
                         assert 200 == resp.status
@@ -979,9 +979,9 @@ class TestAuthMandatory:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro([{'id': '1'}])
         else:
-            _rv =  asyncio.ensure_future(mock_coro([{'id': '1'}]))
+            _rv = asyncio.ensure_future(mock_coro([{'id': '1'}]))
 
-        with patch.object(User.Objects, 'get_role_id_by_name', return_value=(_rv)) as patch_role_id:
+        with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv) as patch_role_id:
             with patch.object(auth._logger, 'warning') as patch_logger_warning:
                 resp = await client.put('/fledge/admin/1/reset', data=json.dumps({'role_id': 2}), headers=ADMIN_USER_HEADER)
                 assert 406 == resp.status
@@ -1006,9 +1006,9 @@ class TestAuthMandatory:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro([{'id': '1'}])
         else:
-            _rv =  asyncio.ensure_future(mock_coro([{'id': '1'}]))        
+            _rv = asyncio.ensure_future(mock_coro([{'id': '1'}]))        
 
-        with patch.object(User.Objects, 'get_role_id_by_name', return_value=(_rv)) as patch_role_id:
+        with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv) as patch_role_id:
             with patch.object(auth._logger, 'warning') as patch_logger_warning:
                 resp = await client.put('/fledge/admin/2/reset', data=json.dumps(request_data), headers=ADMIN_USER_HEADER)
                 assert 400 == resp.status
@@ -1030,11 +1030,11 @@ class TestAuthMandatory:
             _rv1 = await mock_coro([{'id': '1'}])
             _rv2 = await mock_coro(False)
         else:
-            _rv1 =  asyncio.ensure_future(mock_coro([{'id': '1'}]))
-            _rv2 =  asyncio.ensure_future(mock_coro(False))        
+            _rv1 = asyncio.ensure_future(mock_coro([{'id': '1'}]))
+            _rv2 = asyncio.ensure_future(mock_coro(False))        
 
-        with patch.object(User.Objects, 'get_role_id_by_name', return_value=(_rv1)) as patch_role_id:
-            with patch.object(auth, 'is_valid_role', return_value=(_rv2)) as patch_role:
+        with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv1) as patch_role_id:
+            with patch.object(auth, 'is_valid_role', return_value=_rv2) as patch_role:
                 with patch.object(auth._logger, 'warning') as patch_logger_warning:
                     resp = await client.put('/fledge/admin/2/reset', data=json.dumps(request_data), headers=ADMIN_USER_HEADER)
                     assert 400 == resp.status
@@ -1062,11 +1062,11 @@ class TestAuthMandatory:
             _rv1 = await mock_coro([{'id': '1'}])
             _rv2 = await mock_coro(True)
         else:
-            _rv1 =  asyncio.ensure_future(mock_coro([{'id': '1'}]))
-            _rv2 =  asyncio.ensure_future(mock_coro(True))
+            _rv1 = asyncio.ensure_future(mock_coro([{'id': '1'}]))
+            _rv2 = asyncio.ensure_future(mock_coro(True))
 
-        with patch.object(User.Objects, 'get_role_id_by_name', return_value=(_rv1)) as patch_role_id:
-            with patch.object(auth, 'is_valid_role', return_value=(_rv2)) as patch_role:
+        with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv1) as patch_role_id:
+            with patch.object(auth, 'is_valid_role', return_value=_rv2) as patch_role:
                 with patch.object(User.Objects, 'update', side_effect=exception_name(msg)) as patch_update:
                     with patch.object(auth._logger, 'warning') as patch_logger_warning:
                         resp = await client.put('/fledge/admin/{}/reset'.format(user_id), data=json.dumps(request_data), headers=ADMIN_USER_HEADER)
@@ -1092,11 +1092,11 @@ class TestAuthMandatory:
             _rv1 = await mock_coro([{'id': '1'}])
             _rv2 = await mock_coro(True)
         else:
-            _rv1 =  asyncio.ensure_future(mock_coro([{'id': '1'}]))
-            _rv2 =  asyncio.ensure_future(mock_coro(True))
+            _rv1 = asyncio.ensure_future(mock_coro([{'id': '1'}]))
+            _rv2 = asyncio.ensure_future(mock_coro(True))
 
-        with patch.object(User.Objects, 'get_role_id_by_name', return_value=(_rv1)) as patch_role_id:
-            with patch.object(auth, 'is_valid_role', return_value=(_rv2)) as patch_role:
+        with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv1) as patch_role_id:
+            with patch.object(auth, 'is_valid_role', return_value=_rv2) as patch_role:
                 with patch.object(User.Objects, 'update', side_effect=Exception(msg)) as patch_update:
                     with patch.object(auth._logger, 'exception') as patch_logger_exception:
                         resp = await client.put('/fledge/admin/{}/reset'.format(user_id), data=json.dumps(request_data), headers=ADMIN_USER_HEADER)
@@ -1124,13 +1124,13 @@ class TestAuthMandatory:
             _rv2 = await mock_coro(True)
             _rv3 = await mock_coro(ret_val)
         else:
-            _rv1 =  asyncio.ensure_future(mock_coro([{'id': '1'}]))
-            _rv2 =  asyncio.ensure_future(mock_coro(True))
-            _rv3 =  asyncio.ensure_future(mock_coro(ret_val))
+            _rv1 = asyncio.ensure_future(mock_coro([{'id': '1'}]))
+            _rv2 = asyncio.ensure_future(mock_coro(True))
+            _rv3 = asyncio.ensure_future(mock_coro(ret_val))
 
-        with patch.object(User.Objects, 'get_role_id_by_name', return_value=(_rv1)) as patch_role_id:
-            with patch.object(auth, 'is_valid_role', return_value=(_rv2)) as patch_role:
-                with patch.object(User.Objects, 'update', return_value=(_rv3)) as patch_update:
+        with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv1) as patch_role_id:
+            with patch.object(auth, 'is_valid_role', return_value=_rv2) as patch_role:
+                with patch.object(User.Objects, 'update', return_value=_rv3) as patch_update:
                     with patch.object(auth._logger, 'info') as patch_auth_logger_info:
                         resp = await client.put('/fledge/admin/{}/reset'.format(user_id), data=json.dumps(request_data), headers=ADMIN_USER_HEADER)
                         assert 200 == resp.status
@@ -1163,15 +1163,15 @@ class TestAuthMandatory:
             _rv2 = await async_mock()
             _rv3 = await async_get_user()
         else:
-            _rv1 =  asyncio.ensure_future(asyncio.sleep(.1))
-            _rv2 =  asyncio.ensure_future(async_mock())
-            _rv3 =  asyncio.ensure_future(async_get_user())
+            _rv1 = asyncio.ensure_future(asyncio.sleep(.1))
+            _rv2 = asyncio.ensure_future(async_mock())
+            _rv3 = asyncio.ensure_future(async_get_user())
         with patch.object(middleware._logger, 'info'):
             with patch.object(server.Server, "auth_method", auth_method):
                 with patch.object(SSLVerifier, 'get_subject', return_value={"commonName": "user"}):
-                    with patch.object(User.Objects, 'verify_certificate', return_value=(_rv1)):
-                        with patch.object(User.Objects, 'certificate_login', return_value=(_rv2)):
-                            with patch.object(User.Objects, 'get', return_value=(_rv3)):
+                    with patch.object(User.Objects, 'verify_certificate', return_value=_rv1):
+                        with patch.object(User.Objects, 'certificate_login', return_value=_rv2):
+                            with patch.object(User.Objects, 'get', return_value=_rv3):
                                 with patch.object(auth._logger, 'info'):
                                     req_data = request_data
                                     resp = await client.post('/fledge/login', data=req_data, headers=hdr)

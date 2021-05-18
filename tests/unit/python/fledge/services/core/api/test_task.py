@@ -103,13 +103,13 @@ class TestTask:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await self.async_mock(None)
         else:
-            _rv =  asyncio.ensure_future(self.async_mock(None))
+            _rv = asyncio.ensure_future(self.async_mock(None))
         
         with patch.object(common, 'load_and_fetch_python_plugin_info', side_effect=[mock_plugin_info]):
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
                 with patch.object(_logger, 'exception') as ex_logger:
                     with patch.object(c_mgr, 'get_category_all_items',
-                                      return_value=(_rv)) as patch_get_cat_info:
+                                      return_value=_rv) as patch_get_cat_info:
                         with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
                             with patch.object(storage_client_mock, 'insert_into_tbl', side_effect=Exception()):
                                 resp = await client.post('/fledge/scheduled/task', data=json.dumps(data))
@@ -148,11 +148,11 @@ class TestTask:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await self.async_mock(mock_plugin_info)
         else:
-            _rv =  asyncio.ensure_future(self.async_mock(mock_plugin_info))
+            _rv = asyncio.ensure_future(self.async_mock(mock_plugin_info))
         
         with patch.object(common, 'load_and_fetch_python_plugin_info', side_effect=[mock_plugin_info]):
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-                with patch.object(c_mgr, 'get_category_all_items', return_value=(_rv)) as patch_get_cat_info:
+                with patch.object(c_mgr, 'get_category_all_items', return_value=_rv) as patch_get_cat_info:
                     with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
                         resp = await client.post('/fledge/scheduled/task', data=json.dumps(data))
                         assert 400 == resp.status
@@ -194,11 +194,11 @@ class TestTask:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await self.async_mock(None)
         else:
-            _rv =  asyncio.ensure_future(self.async_mock(None))
+            _rv = asyncio.ensure_future(self.async_mock(None))
         
         with patch.object(common, 'load_and_fetch_python_plugin_info', side_effect=[mock_plugin_info]):
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-                with patch.object(c_mgr, 'get_category_all_items', return_value=(_rv)) as patch_get_cat_info:
+                with patch.object(c_mgr, 'get_category_all_items', return_value=_rv) as patch_get_cat_info:
                     with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
                         resp = await client.post('/fledge/scheduled/task', data=json.dumps(data))
                         assert 400 == resp.status
@@ -263,25 +263,25 @@ class TestTask:
             _rv3 = await self.async_mock("")
             _rv4 = await async_mock_get_schedule()
         else:
-            _rv1 =  asyncio.ensure_future(self.async_mock(None))
-            _rv2 =  asyncio.ensure_future(self.async_mock(expected_insert_resp))
-            _rv3 =  asyncio.ensure_future(self.async_mock(""))
-            _rv4 =  asyncio.ensure_future(async_mock_get_schedule())
+            _rv1 = asyncio.ensure_future(self.async_mock(None))
+            _rv2 = asyncio.ensure_future(self.async_mock(expected_insert_resp))
+            _rv3 = asyncio.ensure_future(self.async_mock(""))
+            _rv4 = asyncio.ensure_future(async_mock_get_schedule())
 
         
         with patch.object(common, 'load_and_fetch_python_plugin_info', return_value=mock_plugin_info):
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-                with patch.object(c_mgr, 'get_category_all_items', return_value=(_rv1)) as patch_get_cat_info:
+                with patch.object(c_mgr, 'get_category_all_items', return_value=_rv1) as patch_get_cat_info:
                     with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
-                        with patch.object(storage_client_mock, 'insert_into_tbl', return_value=(_rv2)) \
+                        with patch.object(storage_client_mock, 'insert_into_tbl', return_value=_rv2) \
                                 as insert_table_patch:
-                            with patch.object(c_mgr, 'create_category', return_value=(_rv1)) as patch_create_cat:
-                                with patch.object(c_mgr, 'create_child_category', return_value=(_rv1)) \
+                            with patch.object(c_mgr, 'create_category', return_value=_rv1) as patch_create_cat:
+                                with patch.object(c_mgr, 'create_child_category', return_value=_rv1) \
                                         as patch_create_child_cat:
                                     with patch.object(server.Server.scheduler, 'save_schedule',
-                                                      return_value=(_rv3)) as patch_save_schedule:
+                                                      return_value=_rv3) as patch_save_schedule:
                                         with patch.object(server.Server.scheduler, 'get_schedule_by_name',
-                                                          return_value=(_rv4)) as patch_get_schedule:
+                                                          return_value=_rv4) as patch_get_schedule:
                                             resp = await client.post('/fledge/scheduled/task', data=json.dumps(data))
                                             server.Server.scheduler = None
                                             assert 200 == resp.status
@@ -439,26 +439,26 @@ class TestTask:
             _rv3 = await self.async_mock("")
             _rv4 = await async_mock_get_schedule()
         else:
-            _rv1 =  asyncio.ensure_future(self.async_mock(None))
-            _rv2 =  asyncio.ensure_future(self.async_mock(expected_insert_resp))
-            _rv3 =  asyncio.ensure_future(self.async_mock(""))
-            _rv4 =  asyncio.ensure_future(async_mock_get_schedule())
+            _rv1 = asyncio.ensure_future(self.async_mock(None))
+            _rv2 = asyncio.ensure_future(self.async_mock(expected_insert_resp))
+            _rv3 = asyncio.ensure_future(self.async_mock(""))
+            _rv4 = asyncio.ensure_future(async_mock_get_schedule())
         
         with patch.object(common, 'load_and_fetch_python_plugin_info', return_value=mock_plugin_info):
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-                with patch.object(c_mgr, 'get_category_all_items', return_value=(_rv1)) as patch_get_cat_info:
+                with patch.object(c_mgr, 'get_category_all_items', return_value=_rv1) as patch_get_cat_info:
                     with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
-                        with patch.object(storage_client_mock, 'insert_into_tbl', return_value=(_rv2)) \
+                        with patch.object(storage_client_mock, 'insert_into_tbl', return_value=_rv2) \
                                 as insert_table_patch:
-                            with patch.object(c_mgr, 'create_category', return_value=(_rv1)) as patch_create_cat:
-                                with patch.object(c_mgr, 'create_child_category', return_value=(_rv1)) \
+                            with patch.object(c_mgr, 'create_category', return_value=_rv1) as patch_create_cat:
+                                with patch.object(c_mgr, 'create_child_category', return_value=_rv1) \
                                         as patch_create_child_cat:
                                     with patch.object(c_mgr, 'set_category_item_value_entry',
-                                                      return_value=(_rv1)) as patch_set_entry:
+                                                      return_value=_rv1) as patch_set_entry:
                                         with patch.object(server.Server.scheduler, 'save_schedule',
-                                                          return_value=(_rv3)) as patch_save_schedule:
+                                                          return_value=_rv3) as patch_save_schedule:
                                             with patch.object(server.Server.scheduler, 'get_schedule_by_name',
-                                                              return_value=(_rv4)) as patch_get_schedule:
+                                                              return_value=_rv4) as patch_get_schedule:
                                                 resp = await client.post('/fledge/scheduled/task', data=json.dumps(data))
                                                 server.Server.scheduler = None
                                                 assert 200 == resp.status
@@ -512,18 +512,18 @@ class TestTask:
         
         storage_client_mock = MagicMock(StorageClientAsync)
         mocker.patch.object(connect, 'get_storage_async', storage_client_mock)
-        get_schedule = mocker.patch.object(task, "get_schedule", return_value=(_rv1))
+        get_schedule = mocker.patch.object(task, "get_schedule", return_value=_rv1)
         scheduler = mocker.patch.object(server.Server, "scheduler", MagicMock())
-        delete_schedule = mocker.patch.object(scheduler, "delete_schedule", return_value=(_rv2))
-        disable_schedule = mocker.patch.object(scheduler, "disable_schedule", return_value=(_rv2))
+        delete_schedule = mocker.patch.object(scheduler, "delete_schedule", return_value=_rv2)
+        disable_schedule = mocker.patch.object(scheduler, "disable_schedule", return_value=_rv2)
         delete_task_entry_with_schedule_id = mocker.patch.object(task, "delete_task_entry_with_schedule_id",
-                                                                 return_value=(_rv2))
+                                                                 return_value=_rv2)
         delete_configuration = mocker.patch.object(ConfigurationManager, "delete_category_and_children_recursively",
-                                                   return_value=(_rv2))
-        delete_statistics_key = mocker.patch.object(task, "delete_statistics_key", return_value=(_rv2))
+                                                   return_value=_rv2)
+        delete_statistics_key = mocker.patch.object(task, "delete_statistics_key", return_value=_rv2)
 
-        delete_streams = mocker.patch.object(task, "delete_streams", return_value=(_rv2))
-        delete_plugin_data = mocker.patch.object(task, "delete_plugin_data", return_value=(_rv2))
+        delete_streams = mocker.patch.object(task, "delete_streams", return_value=_rv2)
+        delete_plugin_data = mocker.patch.object(task, "delete_plugin_data", return_value=_rv2)
 
         resp = await client.delete("/fledge/scheduled/task/{}".format(sch_name))
         assert 200 == resp.status
@@ -572,9 +572,9 @@ class TestTask:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_bad_result()
         else:
-            _rv =  asyncio.ensure_future(mock_bad_result())
+            _rv = asyncio.ensure_future(mock_bad_result())
 
-        mocker.patch.object(task, "get_schedule", return_value=(_rv))
+        mocker.patch.object(task, "get_schedule", return_value=_rv)
         resp = await client.delete("/fledge/scheduled/task/Test")
         assert 404 == resp.status
         assert 'Test north instance does not exist.' == resp.reason

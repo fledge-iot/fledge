@@ -87,11 +87,11 @@ class TestAudit:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await get_log_codes_async()
         else:
-            _rv =  asyncio.ensure_future(get_log_codes_async())
+            _rv = asyncio.ensure_future(get_log_codes_async())
         
         storage_client_mock = MagicMock(StorageClientAsync)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'query_tbl', return_value=(_rv)) as log_code_patch:
+            with patch.object(storage_client_mock, 'query_tbl', return_value=_rv) as log_code_patch:
                 resp = await client.get('/fledge/audit/logcode')
                 assert 200 == resp.status
                 result = await resp.text()
@@ -133,12 +133,12 @@ class TestAudit:
             _rv1 = await async_mock_log()
             _rv2 = await async_mock()
         else:
-            _rv1 =  asyncio.ensure_future(async_mock_log())
-            _rv2 =  asyncio.ensure_future(async_mock())
+            _rv1 = asyncio.ensure_future(async_mock_log())
+            _rv2 = asyncio.ensure_future(async_mock())
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'query_tbl', return_value=(_rv1)):
-                with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=(_rv2)) as log_code_patch:
+            with patch.object(storage_client_mock, 'query_tbl', return_value=_rv1):
+                with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv2) as log_code_patch:
                     resp = await client.get('/fledge/audit{}'.format(request_params))
                     assert 200 == resp.status
                     result = await resp.text()
@@ -168,11 +168,11 @@ class TestAudit:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await async_mock_log()
         else:
-            _rv =  asyncio.ensure_future(async_mock_log())
+            _rv = asyncio.ensure_future(async_mock_log())
         
         storage_client_mock = MagicMock(StorageClientAsync)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'query_tbl', return_value=(_rv)):
+            with patch.object(storage_client_mock, 'query_tbl', return_value=_rv):
                 resp = await client.get('/fledge/audit{}'.format(request_params))
                 assert response_code == resp.status
                 assert response_message == resp.reason
@@ -196,11 +196,11 @@ class TestAudit:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await async_mock()
         else:
-            _rv =  asyncio.ensure_future(async_mock())
+            _rv = asyncio.ensure_future(async_mock())
         
         storage_mock = MagicMock(spec=StorageClientAsync)
         AuditLogger(storage_mock)
-        with patch.object(storage_mock, 'insert_into_tbl', return_value=(_rv)) as insert_tbl_patch:
+        with patch.object(storage_mock, 'insert_into_tbl', return_value=_rv) as insert_tbl_patch:
             resp = await client.post('/fledge/audit', data=json.dumps(request_data))
             assert 200 == resp.status
             result = await resp.text()

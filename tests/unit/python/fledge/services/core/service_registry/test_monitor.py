@@ -42,7 +42,7 @@ class TestMonitor:
                 if sys.version_info.major == 3 and sys.version_info.minor >= 8:
                     _rv = await async_mock('{"uptime": "bla"}')
                 else:
-                    _rv =  asyncio.ensure_future(async_mock('{"uptime": "bla"}'))
+                    _rv = asyncio.ensure_future(async_mock('{"uptime": "bla"}'))
                 
                 client_response_mock = MagicMock(spec=aiohttp.ClientResponse)
                 # mock response (good)
@@ -117,7 +117,7 @@ class TestMonitor:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await asyncio.sleep(0.1)
         else:
-            _rv =  asyncio.ensure_future(asyncio.sleep(0.1))        
+            _rv = asyncio.ensure_future(asyncio.sleep(0.1))        
         
         sleep_side_effect_list = list()
         # _MAX_ATTEMPTS is 15

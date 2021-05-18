@@ -64,11 +64,11 @@ class TestPurge:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_s_update()
         else:
-            _rv =  asyncio.ensure_future(mock_s_update())
+            _rv = asyncio.ensure_future(mock_s_update())
         
         with patch.object(FledgeProcess, '__init__'):
-            with patch.object(Statistics, '_load_keys', return_value=(_rv)):
-                with patch.object(Statistics, 'update', return_value=(_rv)) as mock_stats_update:
+            with patch.object(Statistics, '_load_keys', return_value=_rv):
+                with patch.object(Statistics, 'update', return_value=_rv) as mock_stats_update:
                     with patch.object(mockAuditLogger, "__init__", return_value=None):
                         p = Purge()
                         p._storage_async = mockStorageClientAsync
@@ -88,16 +88,16 @@ class TestPurge:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_cm_return()
         else:
-            _rv =  asyncio.ensure_future(mock_cm_return())
+            _rv = asyncio.ensure_future(mock_cm_return())
         
         with patch.object(FledgeProcess, '__init__'):
             with patch.object(mockAuditLogger, "__init__", return_value=None):
                 p = Purge()
                 p._storage = MagicMock(spec=StorageClientAsync)
                 mock_cm = ConfigurationManager(p._storage)
-                with patch.object(mock_cm, 'create_category', return_value=(_rv)) as mock_create_cat:
-                    with patch.object(mock_cm, 'create_child_category', return_value=(_rv)) as mock_create_child_cat:
-                        with patch.object(mock_cm, 'get_category_all_items', return_value=(_rv)) as mock_get_cat:
+                with patch.object(mock_cm, 'create_category', return_value=_rv) as mock_create_cat:
+                    with patch.object(mock_cm, 'create_child_category', return_value=_rv) as mock_create_child_cat:
+                        with patch.object(mock_cm, 'get_category_all_items', return_value=_rv) as mock_get_cat:
                             await p.set_configuration()
                         mock_get_cat.assert_called_once_with('PURGE_READ')
                     mock_create_child_cat.assert_called_once_with('Utilities', ['PURGE_READ'])
@@ -143,8 +143,8 @@ class TestPurge:
             _rv1 = await q_result('streams')
             _rv2 = await mock_audit_info()
         else:
-            _rv1 =  asyncio.ensure_future(q_result('streams'))
-            _rv2 =  asyncio.ensure_future(mock_audit_info())
+            _rv1 = asyncio.ensure_future(q_result('streams'))
+            _rv2 = asyncio.ensure_future(mock_audit_info())
         
         with patch.object(FledgeProcess, '__init__'):
             with patch.object(mockAuditLogger, "__init__", return_value=None):
@@ -157,10 +157,10 @@ class TestPurge:
                 audit = p._audit
 
                 with patch.object(p._storage_async, "query_tbl_with_payload",
-                                  return_value=(_rv1)) as patch_storage:
+                                  return_value=_rv1) as patch_storage:
                     with patch.object(p._readings_storage_async, 'purge',
                                       side_effect=self.store_purge) as mock_storage_purge:
-                        with patch.object(audit, 'information', return_value=(_rv2)) as audit_info:
+                        with patch.object(audit, 'information', return_value=_rv2) as audit_info:
                             # Test the positive case when all if conditions in purge_data pass
                             assert expected_return == await p.purge_data(conf)
                             assert audit_info.called
@@ -189,8 +189,8 @@ class TestPurge:
             _rv1 = await q_result('streams')
             _rv2 = await mock_audit_info()
         else:
-            _rv1 =  asyncio.ensure_future(q_result('streams'))
-            _rv2 =  asyncio.ensure_future(mock_audit_info())
+            _rv1 = asyncio.ensure_future(q_result('streams'))
+            _rv2 = asyncio.ensure_future(mock_audit_info())
         
         with patch.object(FledgeProcess, '__init__'):
             with patch.object(mockAuditLogger, "__init__", return_value=None):
@@ -202,9 +202,9 @@ class TestPurge:
                 p._readings_storage_async = MagicMock(spec=ReadingsStorageClientAsync)
                 audit = p._audit
                 with patch.object(p._storage_async, "query_tbl_with_payload",
-                                  return_value=(_rv1)) as patch_storage:
+                                  return_value=_rv1) as patch_storage:
                     with patch.object(p._readings_storage_async, 'purge', side_effect=self.store_purge):
-                        with patch.object(audit, 'information', return_value=(_rv2)):
+                        with patch.object(audit, 'information', return_value=_rv2):
                             assert expected_return == await p.purge_data(conf)
                             p._logger.info.assert_called_once_with("No rows purged")
                 assert patch_storage.called
@@ -227,8 +227,8 @@ class TestPurge:
             _rv1 = await q_result('streams')
             _rv2 = await mock_audit_info()
         else:
-            _rv1 =  asyncio.ensure_future(q_result('streams'))
-            _rv2 =  asyncio.ensure_future(mock_audit_info())
+            _rv1 = asyncio.ensure_future(q_result('streams'))
+            _rv2 = asyncio.ensure_future(mock_audit_info())
         
         with patch.object(FledgeProcess, '__init__'):
             with patch.object(mockAuditLogger, "__init__", return_value=None):
@@ -240,9 +240,9 @@ class TestPurge:
                 p._readings_storage_async = MagicMock(spec=ReadingsStorageClientAsync)
                 audit = p._audit
                 with patch.object(p._storage_async, "query_tbl_with_payload",
-                                  return_value=(_rv1)) as patch_storage:
+                                  return_value=_rv1) as patch_storage:
                     with patch.object(p._readings_storage_async, 'purge', side_effect=self.store_purge):
-                        with patch.object(audit, 'information', return_value=(_rv2)):
+                        with patch.object(audit, 'information', return_value=_rv2):
                             assert expected_return == await p.purge_data(conf)
                 assert patch_storage.called
                 assert 1 == patch_storage.call_count
@@ -266,8 +266,8 @@ class TestPurge:
             _rv1 = await q_result('streams')
             _rv2 = await mock_audit_info()
         else:
-            _rv1 =  asyncio.ensure_future(q_result('streams'))
-            _rv2 =  asyncio.ensure_future(mock_audit_info())
+            _rv1 = asyncio.ensure_future(q_result('streams'))
+            _rv2 = asyncio.ensure_future(mock_audit_info())
         
         with patch.object(FledgeProcess, '__init__'):
             with patch.object(mockAuditLogger, "__init__", return_value=None):
@@ -280,9 +280,9 @@ class TestPurge:
                 audit = p._audit
 
                 with patch.object(p._storage_async, "query_tbl_with_payload",
-                                  return_value=(_rv1)) as patch_storage:
+                                  return_value=_rv1) as patch_storage:
                     with patch.object(p._readings_storage_async, 'purge', side_effect=self.store_purge):
-                        with patch.object(audit, 'information', return_value=(_rv2)):
+                        with patch.object(audit, 'information', return_value=_rv2):
                             # Test the code block when purge failed because of invalid configuration
                             await p.purge_data(conf)
                             p._logger.error.assert_called_with('Configuration item {} bla should be integer!'.
@@ -310,19 +310,19 @@ class TestPurge:
             _rv2 = await mock_purge()
             _rv3 = await async_mock()
         else:
-            _rv1 =  asyncio.ensure_future(mock_config())
-            _rv2 =  asyncio.ensure_future(mock_purge())
-            _rv3 =  asyncio.ensure_future(async_mock())
+            _rv1 = asyncio.ensure_future(mock_config())
+            _rv2 = asyncio.ensure_future(mock_purge())
+            _rv3 = asyncio.ensure_future(async_mock())
         
         with patch.object(FledgeProcess, '__init__'):
             with patch.object(mockAuditLogger, "__init__", return_value=None):
                 p = Purge()
                 p._logger.exception = MagicMock()
-                with patch.object(p, 'set_configuration', return_value=(_rv1)) as mock_set_config:
-                    with patch.object(p, 'purge_data', return_value=(_rv2)) as mock_purge_data:
-                        with patch.object(p, 'write_statistics', return_value=(_rv3)) as mock_write_stats:
-                            with patch.object(p, 'purge_stats_history', return_value=(_rv3)) as mock_purge_stats_history:
-                                with patch.object(p, 'purge_audit_trail_log', return_value=(_rv3)) as mock_purge_audit_log:
+                with patch.object(p, 'set_configuration', return_value=_rv1) as mock_set_config:
+                    with patch.object(p, 'purge_data', return_value=_rv2) as mock_purge_data:
+                        with patch.object(p, 'write_statistics', return_value=_rv3) as mock_write_stats:
+                            with patch.object(p, 'purge_stats_history', return_value=_rv3) as mock_purge_stats_history:
+                                with patch.object(p, 'purge_audit_trail_log', return_value=_rv3) as mock_purge_audit_log:
                                     await p.run()
                                     # Test the positive case when no error in try block
                                 mock_purge_audit_log.assert_called_once_with("Some config")
@@ -348,13 +348,13 @@ class TestPurge:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_config()
         else:
-            _rv =  asyncio.ensure_future(mock_config())
+            _rv = asyncio.ensure_future(mock_config())
 
         with patch.object(FledgeProcess, '__init__'):
             with patch.object(mockAuditLogger, "__init__", return_value=None):
                 p = Purge()
                 p._logger.exception = MagicMock()
-                with patch.object(p, 'set_configuration', return_value=(_rv)):
+                with patch.object(p, 'set_configuration', return_value=_rv):
                     with patch.object(p, 'purge_data', side_effect=mock_purge):
                         with patch.object(p, 'write_statistics'):
                             await p.run()

@@ -136,12 +136,12 @@ class TestPackageLog:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro()
         else:
-            _rv =  asyncio.ensure_future(mock_coro())
+            _rv = asyncio.ensure_future(mock_coro())
         
         storage_client_mock = MagicMock(StorageClientAsync)
         msg = "'No record found'"
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=(_rv)) as tbl_patch:
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv) as tbl_patch:
                 resp = await client.get('/fledge/package/{}/status'.format(action))
                 assert 404 == resp.status
                 assert msg == resp.reason
@@ -185,11 +185,11 @@ class TestPackageLog:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro()
         else:
-            _rv =  asyncio.ensure_future(mock_coro())
+            _rv = asyncio.ensure_future(mock_coro())
         
         storage_client_mock = MagicMock(StorageClientAsync)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=(_rv)) as tbl_patch:
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv) as tbl_patch:
                 resp = await client.get('/fledge/package/{}/status'.format(action))
                 assert 200 == resp.status
                 r = await resp.text()
@@ -242,11 +242,11 @@ class TestPackageLog:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro()
         else:
-            _rv =  asyncio.ensure_future(mock_coro())
+            _rv = asyncio.ensure_future(mock_coro())
         
         storage_client_mock = MagicMock(StorageClientAsync)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=(_rv)) as tbl_patch:
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv) as tbl_patch:
                 resp = await client.get('/fledge/package/{}/status?id={}'.format(action, uid))
                 assert 200 == resp.status
                 r = await resp.text()

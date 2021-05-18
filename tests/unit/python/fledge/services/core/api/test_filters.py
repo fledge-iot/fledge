@@ -50,10 +50,10 @@ class TestFilters:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await get_filters()
         else:
-            _rv =  asyncio.ensure_future(get_filters())
+            _rv = asyncio.ensure_future(get_filters())
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'query_tbl', return_value=(_rv)) as query_tbl_patch:
+            with patch.object(storage_client_mock, 'query_tbl', return_value=_rv) as query_tbl_patch:
                 resp = await client.get('/fledge/filter')
                 assert 200 == resp.status
                 result = await resp.text()
@@ -83,10 +83,10 @@ class TestFilters:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await get_filters()
         else:
-            _rv =  asyncio.ensure_future(get_filters())
+            _rv = asyncio.ensure_future(get_filters())
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'query_tbl', return_value=(_rv)) as query_tbl_patch:
+            with patch.object(storage_client_mock, 'query_tbl', return_value=_rv) as query_tbl_patch:
                 resp = await client.get('/fledge/filter')
                 assert 500 == resp.status
                 assert "'rows'" == resp.reason
@@ -119,10 +119,10 @@ class TestFilters:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await self.async_mock(cat_info)
         else:
-            _rv =  asyncio.ensure_future(self.async_mock(cat_info))
+            _rv = asyncio.ensure_future(self.async_mock(cat_info))
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(cf_mgr, 'get_category_all_items', return_value=(_rv)) as get_cat_info_patch:
+            with patch.object(cf_mgr, 'get_category_all_items', return_value=_rv) as get_cat_info_patch:
                 with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
                     resp = await client.get('/fledge/filter/{}'.format(filter_name))
                     assert 200 == resp.status
@@ -146,12 +146,12 @@ class TestFilters:
             _rv1 = await self.async_mock(cat_info)
             _rv2 = await self.async_mock(filter_result)
         else:
-            _rv1 =  asyncio.ensure_future(self.async_mock(cat_info))
-            _rv2 =  asyncio.ensure_future(self.async_mock(filter_result))
+            _rv1 = asyncio.ensure_future(self.async_mock(cat_info))
+            _rv2 = asyncio.ensure_future(self.async_mock(filter_result))
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(cf_mgr, 'get_category_all_items', return_value=(_rv1)) as get_cat_info_patch:
-                with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=(_rv2)) as query_tbl_with_payload_patch:
+            with patch.object(cf_mgr, 'get_category_all_items', return_value=_rv1) as get_cat_info_patch:
+                with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv2) as query_tbl_with_payload_patch:
                     resp = await client.get('/fledge/filter/{}'.format(filter_name))
                     assert 404 == resp.status
                     assert "No such filter '{}' found.".format(filter_name) == resp.reason
@@ -167,10 +167,10 @@ class TestFilters:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await self.async_mock(None)
         else:
-            _rv =  asyncio.ensure_future(self.async_mock(None))
+            _rv = asyncio.ensure_future(self.async_mock(None))
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(cf_mgr, 'get_category_all_items', return_value=(_rv)) as get_cat_info_patch:
+            with patch.object(cf_mgr, 'get_category_all_items', return_value=_rv) as get_cat_info_patch:
                 resp = await client.get('/fledge/filter/{}'.format(filter_name))
                 assert 404 == resp.status
                 assert "No such 'AssetFilter' category found." == resp.reason
@@ -235,10 +235,10 @@ class TestFilters:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await self.async_mock({"result": "test"})
         else:
-            _rv =  asyncio.ensure_future(self.async_mock({"result": "test"}))        
+            _rv = asyncio.ensure_future(self.async_mock({"result": "test"}))        
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(cf_mgr, 'get_category_all_items', return_value=(_rv)) as get_cat_info_patch:
+            with patch.object(cf_mgr, 'get_category_all_items', return_value=_rv) as get_cat_info_patch:
                 with patch.object(_LOGGER, 'exception') as log_exc:
                     resp = await client.post('/fledge/filter'.format("bench"), data=json.dumps({"name": "test", "plugin": "benchmark"}))
                     assert 404 == resp.status
@@ -256,10 +256,10 @@ class TestFilters:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await self.async_mock(None)
         else:
-            _rv =  asyncio.ensure_future(self.async_mock(None))
+            _rv = asyncio.ensure_future(self.async_mock(None))
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(cf_mgr, 'get_category_all_items', return_value=(_rv)) as get_cat_info_patch:
+            with patch.object(cf_mgr, 'get_category_all_items', return_value=_rv) as get_cat_info_patch:
                 with patch.object(apiutils, 'get_plugin_info', return_value=None) as api_utils_patch:
                     with patch.object(_LOGGER, 'exception') as log_exc:
                         resp = await client.post('/fledge/filter'.format("bench"), data=json.dumps({"name": "test", "plugin": plugin_name}))
@@ -279,10 +279,10 @@ class TestFilters:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await self.async_mock(None)
         else:
-            _rv =  asyncio.ensure_future(self.async_mock(None))
+            _rv = asyncio.ensure_future(self.async_mock(None))
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(cf_mgr, 'get_category_all_items', return_value=(_rv)) as get_cat_info_patch:
+            with patch.object(cf_mgr, 'get_category_all_items', return_value=_rv) as get_cat_info_patch:
                 with patch.object(apiutils, 'get_plugin_info', return_value={"config": {'plugin': {'description': 'Python 3.5 filter plugin', 'type': 'string', 'default': 'python35'}}, "type": "south"}) as api_utils_patch:
                     with patch.object(_LOGGER, 'exception') as log_exc:
                         resp = await client.post('/fledge/filter'.format("bench"), data=json.dumps({"name": "test", "plugin": plugin_name}))
@@ -303,15 +303,15 @@ class TestFilters:
             _rv1 = await self.async_mock(None)
             _rv2 = await self.async_mock({'count': 0, 'rows': []})
         else:
-            _rv1 =  asyncio.ensure_future(self.async_mock(None))
-            _rv2 =  asyncio.ensure_future(self.async_mock({'count': 0, 'rows': []}))
+            _rv1 = asyncio.ensure_future(self.async_mock(None))
+            _rv2 = asyncio.ensure_future(self.async_mock({'count': 0, 'rows': []}))
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(cf_mgr, 'get_category_all_items', return_value=(_rv1)) as get_cat_info_patch:
+            with patch.object(cf_mgr, 'get_category_all_items', return_value=_rv1) as get_cat_info_patch:
                 with patch.object(apiutils, 'get_plugin_info', return_value={"config": {'plugin': {'description': 'Python 3.5 filter plugin', 'type': 'string', 'default': 'filter'}}, "type": "filter"}) as api_utils_patch:
-                    with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=(_rv2)) as query_tbl_patch:
-                        with patch.object(storage_client_mock, 'insert_into_tbl', return_value=(_rv1)) as insert_tbl_patch:
-                            with patch.object(cf_mgr, 'create_category', return_value=(_rv1)) as create_cat_patch:
+                    with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv2) as query_tbl_patch:
+                        with patch.object(storage_client_mock, 'insert_into_tbl', return_value=_rv1) as insert_tbl_patch:
+                            with patch.object(cf_mgr, 'create_category', return_value=_rv1) as create_cat_patch:
                                 with patch.object(_LOGGER, 'exception') as log_exc:
                                     resp = await client.post('/fledge/filter'.format("bench"), data=json.dumps({"name": "test", "plugin": plugin_name, "filter_config": "blah"}))
                                     assert 404 == resp.status
@@ -340,13 +340,13 @@ class TestFilters:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await self.async_mock(None)
         else:
-            _rv =  asyncio.ensure_future(self.async_mock(None))
+            _rv = asyncio.ensure_future(self.async_mock(None))
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(cf_mgr, 'get_category_all_items', return_value=(_rv)) as get_cat_info_patch:
+            with patch.object(cf_mgr, 'get_category_all_items', return_value=_rv) as get_cat_info_patch:
                 with patch.object(apiutils, 'get_plugin_info', return_value={"config": {'plugin': {'description': 'Python 3.5 filter plugin', 'type': 'string', 'default': 'filter'}}, "type": "filter"}) as api_utils_patch:
                     with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=StorageServerError(None, None, error='something went wrong')):
-                        with patch.object(filters, '_delete_configuration_category', return_value=(_rv)) as _delete_cfg_patch:
+                        with patch.object(filters, '_delete_configuration_category', return_value=_rv) as _delete_cfg_patch:
                             with patch.object(_LOGGER, 'exception') as log_exc:
                                 resp = await client.post('/fledge/filter'.format("bench"), data=json.dumps({"name": name, "plugin": plugin_name}))
                                 assert 500 == resp.status
@@ -386,18 +386,18 @@ class TestFilters:
             _se1 = await self.async_mock(None)
             _se2 = await self.async_mock({})
         else:
-            _rv1 =  asyncio.ensure_future(self.async_mock(None))
-            _rv2 =  asyncio.ensure_future(self.async_mock({'count': 0, 'rows': []}))
-            _se1 =  asyncio.ensure_future(self.async_mock(None))
-            _se2 =  asyncio.ensure_future(self.async_mock({}))
+            _rv1 = asyncio.ensure_future(self.async_mock(None))
+            _rv2 = asyncio.ensure_future(self.async_mock({'count': 0, 'rows': []}))
+            _se1 = asyncio.ensure_future(self.async_mock(None))
+            _se2 = asyncio.ensure_future(self.async_mock({}))
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(cf_mgr, 'get_category_all_items', side_effect=[_se1, _se2]) as get_cat_info_patch:
                 with patch.object(apiutils, 'get_plugin_info', return_value={"config": {'plugin': {'description': 'Python 3.5 filter plugin', 'type': 'string', 'default': 'filter'}}, "type": "filter"}) as api_utils_patch:
-                    with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=(_rv2)) as query_tbl_patch:
-                        with patch.object(storage_client_mock, 'insert_into_tbl', return_value=(_rv1)) as insert_tbl_patch:
-                            with patch.object(cf_mgr, 'create_category', return_value=(_rv1)) as create_cat_patch:
-                                with patch.object(cf_mgr, 'update_configuration_item_bulk', return_value=(_rv1)) as update_cfg_bulk_patch:
+                    with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv2) as query_tbl_patch:
+                        with patch.object(storage_client_mock, 'insert_into_tbl', return_value=_rv1) as insert_tbl_patch:
+                            with patch.object(cf_mgr, 'create_category', return_value=_rv1) as create_cat_patch:
+                                with patch.object(cf_mgr, 'update_configuration_item_bulk', return_value=_rv1) as update_cfg_bulk_patch:
                                     resp = await client.post('/fledge/filter'.format("bench"), data=json.dumps({"name": name, "plugin": plugin_name, "filter_config": {}}))
                                     assert 200 == resp.status
                                     r = await resp.text()
@@ -439,13 +439,13 @@ class TestFilters:
             _rv1 = await self.async_mock(None)
             _rv2 = await self.async_mock(delete_result)
         else:
-            _rv1 =  asyncio.ensure_future(self.async_mock(None))
-            _rv2 =  asyncio.ensure_future(self.async_mock(delete_result))
+            _rv1 = asyncio.ensure_future(self.async_mock(None))
+            _rv2 = asyncio.ensure_future(self.async_mock(delete_result))
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
-                with patch.object(storage_client_mock, 'delete_from_tbl', return_value=(_rv2)) as delete_tbl_patch:
-                    with patch.object(filters, '_delete_configuration_category', return_value=(_rv1)) as delete_cfg_patch:
+                with patch.object(storage_client_mock, 'delete_from_tbl', return_value=_rv2) as delete_tbl_patch:
+                    with patch.object(filters, '_delete_configuration_category', return_value=_rv1) as delete_cfg_patch:
                         resp = await client.delete('/fledge/filter/{}'.format(filter_name))
                         assert 200 == resp.status
                         r = await resp.text()
@@ -461,11 +461,11 @@ class TestFilters:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await self.async_mock({'count': 0, 'rows': []})
         else:
-            _rv =  asyncio.ensure_future(self.async_mock({'count': 0, 'rows': []}))
+            _rv = asyncio.ensure_future(self.async_mock({'count': 0, 'rows': []}))
         
         filter_name = "AssetFilter"
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=(_rv)):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv):
                 resp = await client.delete('/fledge/filter/{}'.format(filter_name))
                 assert 404 == resp.status
                 assert "No such filter '{}' found".format(filter_name) == resp.reason
@@ -479,8 +479,8 @@ class TestFilters:
             _se1 = await self.async_mock({'count': 1, 'rows': [{'name': filter_name, 'plugin': 'python35'}]})
             _se2 = await self.async_mock({'count': 0, 'rows': ["Random"]})
         else:
-            _se1 =  asyncio.ensure_future(self.async_mock({'count': 1, 'rows': [{'name': filter_name, 'plugin': 'python35'}]}))
-            _se2 =  asyncio.ensure_future(self.async_mock({'count': 0, 'rows': ["Random"]}))
+            _se1 = asyncio.ensure_future(self.async_mock({'count': 1, 'rows': [{'name': filter_name, 'plugin': 'python35'}]}))
+            _se2 = asyncio.ensure_future(self.async_mock({'count': 0, 'rows': ["Random"]}))
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload',
@@ -541,10 +541,10 @@ class TestFilters:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await self.async_mock(None)
         else:
-            _rv =  asyncio.ensure_future(self.async_mock(None))
+            _rv = asyncio.ensure_future(self.async_mock(None))
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(cf_mgr, 'get_category_all_items', return_value=(_rv)) as get_cat_info_patch:
+            with patch.object(cf_mgr, 'get_category_all_items', return_value=_rv) as get_cat_info_patch:
                 with patch.object(_LOGGER, 'exception') as log_exc:
                     resp = await client.put('/fledge/filter/{}/pipeline'.format(user), data=json.dumps({"pipeline": ["AssetFilter"]}))
                     assert 404 == resp.status
@@ -561,10 +561,10 @@ class TestFilters:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await self.async_mock(None)
         else:
-            _rv =  asyncio.ensure_future(self.async_mock(None))
+            _rv = asyncio.ensure_future(self.async_mock(None))
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(cf_mgr, 'get_category_all_items', return_value=(_rv)) as get_cat_info_patch:
+            with patch.object(cf_mgr, 'get_category_all_items', return_value=_rv) as get_cat_info_patch:
                 with patch.object(_LOGGER, 'exception') as log_exc:
                     resp = await client.put('/fledge/filter/{}/pipeline'.format(user), data=json.dumps({"pipeline": ["AssetFilter"]}))
                     assert 404 == resp.status
@@ -585,12 +585,12 @@ class TestFilters:
             _rv1 = await self.async_mock(cat_info)
             _rv2 = await self.async_mock({'count': 1, 'rows': []})
         else:
-            _rv1 =  asyncio.ensure_future(self.async_mock(cat_info))
-            _rv2 =  asyncio.ensure_future(self.async_mock({'count': 1, 'rows': []}))
+            _rv1 = asyncio.ensure_future(self.async_mock(cat_info))
+            _rv2 = asyncio.ensure_future(self.async_mock({'count': 1, 'rows': []}))
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(cf_mgr, 'get_category_all_items', return_value=(_rv1)) as get_cat_info_patch:
-                with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=(_rv2)) as query_tbl_patch:
+            with patch.object(cf_mgr, 'get_category_all_items', return_value=_rv1) as get_cat_info_patch:
+                with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv2) as query_tbl_patch:
                     with patch.object(_LOGGER, 'exception') as log_exc:
                         resp = await client.put('/fledge/filter/{}/pipeline'.format(user), data=json.dumps({"pipeline": ["AssetFilter"]}))
                         assert 404 == resp.status
@@ -618,22 +618,22 @@ class TestFilters:
             _rv2 = await self.async_mock(query_tbl_payload_res)
             _rv3 = await self.async_mock(None)
         else:
-            _rv1 =  asyncio.ensure_future(self.async_mock(cat_info))
-            _rv2 =  asyncio.ensure_future(self.async_mock(query_tbl_payload_res))
-            _rv3 =  asyncio.ensure_future(self.async_mock(None))
+            _rv1 = asyncio.ensure_future(self.async_mock(cat_info))
+            _rv2 = asyncio.ensure_future(self.async_mock(query_tbl_payload_res))
+            _rv3 = asyncio.ensure_future(self.async_mock(None))
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(cf_mgr, 'get_category_all_items',
-                              return_value=(_rv1)) as get_cat_info_patch:
+                              return_value=_rv1) as get_cat_info_patch:
                 with patch.object(storage_client_mock, 'query_tbl_with_payload',
-                                  return_value=(_rv2)) as query_tbl_patch:
+                                  return_value=_rv2) as query_tbl_patch:
                     with patch.object(cf_mgr, 'set_category_item_value_entry',
-                                      return_value=(_rv3)) as set_cat_item_patch:
+                                      return_value=_rv3) as set_cat_item_patch:
                         with patch.object(filters, '_delete_child_filters',
-                                          return_value=(_rv3)) as _delete_child_patch:
+                                          return_value=_rv3) as _delete_child_patch:
                             with patch.object(filters, '_add_child_filters',
-                                              return_value=(_rv3)) as _add_child_patch:
-                                with patch.object(cf_mgr, 'get_category_item', return_value=(_rv3)) as get_cat_item_patch:
+                                              return_value=_rv3) as _add_child_patch:
+                                with patch.object(cf_mgr, 'get_category_item', return_value=_rv3) as get_cat_item_patch:
                                     with patch.object(_LOGGER, 'exception') as log_exc:
                                         resp = await client.put('/fledge/filter/{}/pipeline'.format(user),
                                                                 data=json.dumps({"pipeline": ["AssetFilter"]}))
@@ -666,10 +666,10 @@ class TestFilters:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await self.async_mock(cat_info)
         else:
-            _rv =  asyncio.ensure_future(self.async_mock(cat_info))
+            _rv = asyncio.ensure_future(self.async_mock(cat_info))
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(cf_mgr, 'get_category_all_items', return_value=(_rv)) as get_cat_info_patch:
+            with patch.object(cf_mgr, 'get_category_all_items', return_value=_rv) as get_cat_info_patch:
                 with patch.object(storage_client_mock, 'query_tbl_with_payload',  side_effect=StorageServerError(None, None, error='something went wrong')):
                     with patch.object(_LOGGER, 'exception') as log_exc:
                         resp = await client.put('/fledge/filter/{}/pipeline'.format(user), data=json.dumps({"pipeline": ["AssetFilter"]}))
@@ -697,18 +697,18 @@ class TestFilters:
             _rv3 = await self.async_mock(None)
             _rv4 = await self.async_mock(update_filter_val['filter'])
         else:
-            _rv1 =  asyncio.ensure_future(self.async_mock(cat_info))
-            _rv2 =  asyncio.ensure_future(self.async_mock(query_tbl_payload_res))
-            _rv3 =  asyncio.ensure_future(self.async_mock(None))
-            _rv4 =  asyncio.ensure_future(self.async_mock(update_filter_val['filter']))
+            _rv1 = asyncio.ensure_future(self.async_mock(cat_info))
+            _rv2 = asyncio.ensure_future(self.async_mock(query_tbl_payload_res))
+            _rv3 = asyncio.ensure_future(self.async_mock(None))
+            _rv4 = asyncio.ensure_future(self.async_mock(update_filter_val['filter']))
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(cf_mgr, 'get_category_all_items', return_value=(_rv1)) as get_cat_info_patch:
-                with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=(_rv2)) as query_tbl_patch:
-                    with patch.object(filters, '_delete_child_filters', return_value=(_rv3)) as _delete_child_patch:
-                        with patch.object(filters, '_add_child_filters', return_value=(_rv3)) as _add_child_patch:
-                            with patch.object(cf_mgr, 'set_category_item_value_entry', return_value=(_rv3)) as set_cat_item_patch:
-                                with patch.object(cf_mgr, 'get_category_item', return_value=(_rv4)) as get_cat_item_patch:
+            with patch.object(cf_mgr, 'get_category_all_items', return_value=_rv1) as get_cat_info_patch:
+                with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv2) as query_tbl_patch:
+                    with patch.object(filters, '_delete_child_filters', return_value=_rv3) as _delete_child_patch:
+                        with patch.object(filters, '_add_child_filters', return_value=_rv3) as _add_child_patch:
+                            with patch.object(cf_mgr, 'set_category_item_value_entry', return_value=_rv3) as set_cat_item_patch:
+                                with patch.object(cf_mgr, 'get_category_item', return_value=_rv4) as get_cat_item_patch:
                                     resp = await client.put('/fledge/filter/{}/pipeline'.format(user), data=json.dumps({"pipeline": ["AssetFilter"]}))
                                     assert 200 == resp.status
                                     r = await resp.text()
@@ -743,17 +743,17 @@ class TestFilters:
             _rv3 = await self.async_mock(None)
             _rv4 = await self.async_mock(new_item_val['filter'])
         else:
-            _rv1 =  asyncio.ensure_future(self.async_mock(cat_info))
-            _rv2 =  asyncio.ensure_future(self.async_mock(query_tbl_payload_res))
-            _rv3 =  asyncio.ensure_future(self.async_mock(None))
-            _rv4 =  asyncio.ensure_future(self.async_mock(new_item_val['filter']))
+            _rv1 = asyncio.ensure_future(self.async_mock(cat_info))
+            _rv2 = asyncio.ensure_future(self.async_mock(query_tbl_payload_res))
+            _rv3 = asyncio.ensure_future(self.async_mock(None))
+            _rv4 = asyncio.ensure_future(self.async_mock(new_item_val['filter']))
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(cf_mgr, 'get_category_all_items', return_value=(_rv1)) as get_cat_info_patch:
-                with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=(_rv2)) as query_tbl_patch:
-                    with patch.object(cf_mgr, 'create_category', return_value=(_rv3)) as create_cat_patch:
-                        with patch.object(filters, '_add_child_filters', return_value=(_rv3)) as _add_child_patch:
-                            with patch.object(cf_mgr, 'get_category_item', return_value=(_rv4)) as get_cat_item_patch:
+            with patch.object(cf_mgr, 'get_category_all_items', return_value=_rv1) as get_cat_info_patch:
+                with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv2) as query_tbl_patch:
+                    with patch.object(cf_mgr, 'create_category', return_value=_rv3) as create_cat_patch:
+                        with patch.object(filters, '_add_child_filters', return_value=_rv3) as _add_child_patch:
+                            with patch.object(cf_mgr, 'get_category_item', return_value=_rv4) as get_cat_item_patch:
                                 resp = await client.put('/fledge/filter/{}/pipeline'.format(user), data=json.dumps({"pipeline": ["AssetFilter"]}))
                                 assert 200 == resp.status
                                 r = await resp.text()
@@ -781,10 +781,10 @@ class TestFilters:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await self.async_mock(d)
         else:
-            _rv =  asyncio.ensure_future(self.async_mock(d))
+            _rv = asyncio.ensure_future(self.async_mock(d))
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(cf_mgr, 'get_category_all_items', return_value=(_rv)) as get_cat_info_patch:
+            with patch.object(cf_mgr, 'get_category_all_items', return_value=_rv) as get_cat_info_patch:
                 resp = await client.get('/fledge/filter/{}/pipeline'.format(user))
                 assert 200 == resp.status
                 r = await resp.text()
@@ -801,10 +801,10 @@ class TestFilters:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await self.async_mock(None)
         else:
-            _rv =  asyncio.ensure_future(self.async_mock(None))
+            _rv = asyncio.ensure_future(self.async_mock(None))
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(cf_mgr, 'get_category_all_items', return_value=(_rv)) as get_cat_info_patch:
+            with patch.object(cf_mgr, 'get_category_all_items', return_value=_rv) as get_cat_info_patch:
                 resp = await client.get('/fledge/filter/{}/pipeline'.format(user))
                 assert 404 == resp.status
                 assert "No such '{}' category found.".format(user) == resp.reason
@@ -819,10 +819,10 @@ class TestFilters:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await self.async_mock({})
         else:
-            _rv =  asyncio.ensure_future(self.async_mock({}))
+            _rv = asyncio.ensure_future(self.async_mock({}))
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(cf_mgr, 'get_category_all_items', return_value=(_rv)) as get_cat_info_patch:
+            with patch.object(cf_mgr, 'get_category_all_items', return_value=_rv) as get_cat_info_patch:
                 with patch.object(_LOGGER, 'info') as log_exc:
                     resp = await client.get('/fledge/filter/{}/pipeline'.format(user))
                     assert 404 == resp.status
@@ -878,10 +878,10 @@ class TestFilters:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await asyncio.sleep(.1)
         else:
-            _rv =  asyncio.ensure_future(asyncio.sleep(.1))
+            _rv = asyncio.ensure_future(asyncio.sleep(.1))
         
         mock_connect = mocker.patch.object(connect, 'get_storage_async', return_value=storage_client_mock)
-        delete_tbl_patch = mocker.patch.object(storage_client_mock, 'delete_from_tbl', return_value=(_rv))
+        delete_tbl_patch = mocker.patch.object(storage_client_mock, 'delete_from_tbl', return_value=_rv)
         cache_manager = mocker.patch.object(c_mgr, '_cacheManager')
         cache_remove = mocker.patch.object(cache_manager, 'remove', return_value=MagicMock())
 
@@ -1063,7 +1063,7 @@ class TestFilters:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await asyncio.sleep(.1)
         else:
-            _rv =  asyncio.ensure_future(asyncio.sleep(.1))        
+            _rv = asyncio.ensure_future(asyncio.sleep(.1))        
         
         connect_mock = mocker.patch.object(connect, 'get_storage_async', return_value=storage_client_mock)
         get_category_mock = mocker.patch.object(c_mgr_mock, 'get_category_all_items', side_effect=get_cat)
@@ -1071,10 +1071,10 @@ class TestFilters:
         create_child_category_mock = mocker.patch.object(c_mgr_mock, 'create_child_category',
                                                          return_value=create_child_cat())
         update_config_bulk_mock = mocker.patch.object(c_mgr_mock, 'update_configuration_item_bulk',
-                                                      return_value=(_rv))
+                                                      return_value=_rv)
         cache_manager = mocker.patch.object(c_mgr_mock, '_cacheManager')
         cache_remove = mocker.patch.object(cache_manager, 'remove', return_value=MagicMock())
-        insert_tbl_patch = mocker.patch.object(storage_client_mock, 'insert_into_tbl', return_value=(_rv))
+        insert_tbl_patch = mocker.patch.object(storage_client_mock, 'insert_into_tbl', return_value=_rv)
 
         # WHEN
         await filters._add_child_filters(storage_client_mock, c_mgr_mock, user_name_mock, new_list_mock, old_list_mock)

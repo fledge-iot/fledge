@@ -77,11 +77,11 @@ class TestPluginUpdate:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await async_mock(select_row_resp)
         else:
-            _rv =  asyncio.ensure_future(async_mock(select_row_resp))
+            _rv = asyncio.ensure_future(async_mock(select_row_resp))
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload',
-                              return_value=(_rv)) as query_tbl_patch:
+                              return_value=_rv) as query_tbl_patch:
                 resp = await client.put('/fledge/plugins/{}/{}/update'.format(_type, plugin_installed_dirname),
                                         data=None)
                 assert 429 == resp.status
@@ -114,10 +114,10 @@ class TestPluginUpdate:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await async_mock({'count': 0, 'rows': []})
         else:
-            _rv =  asyncio.ensure_future(async_mock({'count': 0, 'rows': []}))        
+            _rv = asyncio.ensure_future(async_mock({'count': 0, 'rows': []}))        
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=(_rv)) as query_tbl_patch:
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv) as query_tbl_patch:
                 with patch.object(PluginDiscovery, 'get_plugins_installed', return_value=plugin_installed
                                   ) as plugin_installed_patch:
                     resp = await client.put('/fledge/plugins/{}/{}/update'.format(_type, plugin_installed_dirname),
@@ -167,11 +167,11 @@ class TestPluginUpdate:
             _se1 = await async_mock({'count': 0, 'rows': []})
             _se2 = await async_mock(insert_row)
         else:
-            _rv1 =  asyncio.ensure_future(async_mock(tracked_plugins))
-            _rv2 =  asyncio.ensure_future(async_mock(sch_info))
-            _rv3 =  asyncio.ensure_future(async_mock(insert))
-            _se1 =  asyncio.ensure_future(async_mock({'count': 0, 'rows': []}))
-            _se2 =  asyncio.ensure_future(async_mock(insert_row))           
+            _rv1 = asyncio.ensure_future(async_mock(tracked_plugins))
+            _rv2 = asyncio.ensure_future(async_mock(sch_info))
+            _rv3 = asyncio.ensure_future(async_mock(insert))
+            _se1 = asyncio.ensure_future(async_mock({'count': 0, 'rows': []}))
+            _se2 = asyncio.ensure_future(async_mock(insert_row))           
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload',
@@ -179,11 +179,11 @@ class TestPluginUpdate:
                 with patch.object(PluginDiscovery, 'get_plugins_installed', return_value=plugin_installed
                                   ) as plugin_installed_patch:
                     with patch.object(plugins_update, '_get_plugin_and_sch_name_from_asset_tracker',
-                                      return_value=(_rv1)) as plugin_tracked_patch:
+                                      return_value=_rv1) as plugin_tracked_patch:
                         with patch.object(plugins_update, '_get_sch_id_and_enabled_by_name',
-                                          return_value=(_rv2)) as schedule_patch:
+                                          return_value=_rv2) as schedule_patch:
                             with patch.object(storage_client_mock, 'insert_into_tbl',
-                                              return_value=(_rv3)) as insert_tbl_patch:
+                                              return_value=_rv3) as insert_tbl_patch:
                                 with patch('multiprocessing.Process'):
                                     resp = await client.put('/fledge/plugins/{}/{}/update'.format(
                                         _type, plugin_installed_dirname), data=None)
@@ -254,29 +254,29 @@ class TestPluginUpdate:
             _se1 = await async_mock(select_row_resp)
             _se2 = await async_mock(insert_row)
         else:
-            _rv1 =  asyncio.ensure_future(async_mock(tracked_plugins))
-            _rv2 =  asyncio.ensure_future(async_mock(sch_info))
-            _rv3 =  asyncio.ensure_future(async_mock(insert))
-            _rv4 =  asyncio.ensure_future(async_mock(delete))
-            _rv5 =  asyncio.ensure_future(async_mock((True, "Schedule successfully disabled")))
-            _se1 =  asyncio.ensure_future(async_mock(select_row_resp))
-            _se2 =  asyncio.ensure_future(async_mock(insert_row))    
+            _rv1 = asyncio.ensure_future(async_mock(tracked_plugins))
+            _rv2 = asyncio.ensure_future(async_mock(sch_info))
+            _rv3 = asyncio.ensure_future(async_mock(insert))
+            _rv4 = asyncio.ensure_future(async_mock(delete))
+            _rv5 = asyncio.ensure_future(async_mock((True, "Schedule successfully disabled")))
+            _se1 = asyncio.ensure_future(async_mock(select_row_resp))
+            _se2 = asyncio.ensure_future(async_mock(insert_row))    
 
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload',
                               side_effect=[_se1, _se2]) as query_tbl_patch:
                 with patch.object(storage_client_mock, 'delete_from_tbl',
-                                  return_value=(_rv4)) as delete_tbl_patch:
+                                  return_value=_rv4) as delete_tbl_patch:
                     with patch.object(PluginDiscovery, 'get_plugins_installed', return_value=plugin_installed
                                       ) as plugin_installed_patch:
                         with patch.object(plugins_update, '_get_plugin_and_sch_name_from_asset_tracker',
-                                          return_value=(_rv1)) as plugin_tracked_patch:
+                                          return_value=_rv1) as plugin_tracked_patch:
                             with patch.object(plugins_update, '_get_sch_id_and_enabled_by_name',
-                                              return_value=(_rv2)) as schedule_patch:
-                                with patch.object(server.Server.scheduler, 'disable_schedule', return_value=(_rv5)) as disable_sch_patch:
+                                              return_value=_rv2) as schedule_patch:
+                                with patch.object(server.Server.scheduler, 'disable_schedule', return_value=_rv5) as disable_sch_patch:
                                     with patch.object(plugins_update._logger, "warning") as log_warn_patch:
                                         with patch.object(storage_client_mock, 'insert_into_tbl',
-                                                          return_value=(_rv3)) as insert_tbl_patch:
+                                                          return_value=_rv3) as insert_tbl_patch:
                                             with patch('multiprocessing.Process'):
                                                 resp = await client.put('/fledge/plugins/{}/{}/update'.format(
                                                     _type, plugin_installed_dirname), data=None)
@@ -347,12 +347,12 @@ class TestPluginUpdate:
             _se2 = await async_mock(insert_row)
             _se3 = await async_mock(filter_row)
         else:
-            _rv1 =  asyncio.ensure_future(async_mock(tracked_plugins))
-            _rv2 =  asyncio.ensure_future(async_mock(sch_info))
-            _rv3 =  asyncio.ensure_future(async_mock(insert))
-            _se1 =  asyncio.ensure_future(async_mock({'count': 0, 'rows': []}))
-            _se2 =  asyncio.ensure_future(async_mock(insert_row))
-            _se3 =  asyncio.ensure_future(async_mock(filter_row))
+            _rv1 = asyncio.ensure_future(async_mock(tracked_plugins))
+            _rv2 = asyncio.ensure_future(async_mock(sch_info))
+            _rv3 = asyncio.ensure_future(async_mock(insert))
+            _se1 = asyncio.ensure_future(async_mock({'count': 0, 'rows': []}))
+            _se2 = asyncio.ensure_future(async_mock(insert_row))
+            _se3 = asyncio.ensure_future(async_mock(filter_row))
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload',
@@ -360,11 +360,11 @@ class TestPluginUpdate:
                 with patch.object(PluginDiscovery, 'get_plugins_installed', return_value=plugin_installed
                                   ) as plugin_installed_patch:
                     with patch.object(plugins_update, '_get_plugin_and_sch_name_from_asset_tracker',
-                                      return_value=(_rv1)) as plugin_tracked_patch:
+                                      return_value=_rv1) as plugin_tracked_patch:
                         with patch.object(plugins_update, '_get_sch_id_and_enabled_by_name',
-                                          return_value=(_rv2)) as schedule_patch:
+                                          return_value=_rv2) as schedule_patch:
                             with patch.object(storage_client_mock, 'insert_into_tbl',
-                                              return_value=(_rv3)) as insert_tbl_patch:
+                                              return_value=_rv3) as insert_tbl_patch:
                                 with patch('multiprocessing.Process'):
                                     resp = await client.put('/fledge/plugins/{}/{}/update'.format(
                                         _type, plugin_installed_dirname), data=None)
@@ -434,30 +434,30 @@ class TestPluginUpdate:
             _se2 = await async_mock(insert_row)
             _se3 = await async_mock(filter_row)
         else:
-            _rv1 =  asyncio.ensure_future(async_mock(tracked_plugins))
-            _rv2 =  asyncio.ensure_future(async_mock(sch_info))
-            _rv3 =  asyncio.ensure_future(async_mock(insert))
-            _rv4 =  asyncio.ensure_future(async_mock(delete))
-            _rv5 =  asyncio.ensure_future(async_mock((True, "Schedule successfully disabled")))
-            _se1 =  asyncio.ensure_future(async_mock(select_row_resp))
-            _se2 =  asyncio.ensure_future(async_mock(insert_row))
-            _se3 =  asyncio.ensure_future(async_mock(filter_row))
+            _rv1 = asyncio.ensure_future(async_mock(tracked_plugins))
+            _rv2 = asyncio.ensure_future(async_mock(sch_info))
+            _rv3 = asyncio.ensure_future(async_mock(insert))
+            _rv4 = asyncio.ensure_future(async_mock(delete))
+            _rv5 = asyncio.ensure_future(async_mock((True, "Schedule successfully disabled")))
+            _se1 = asyncio.ensure_future(async_mock(select_row_resp))
+            _se2 = asyncio.ensure_future(async_mock(insert_row))
+            _se3 = asyncio.ensure_future(async_mock(filter_row))
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload',
                               side_effect=[_se1, _se3, _se2]) as query_tbl_patch:
                 with patch.object(storage_client_mock, 'delete_from_tbl',
-                                  return_value=(_rv4)) as delete_tbl_patch:
+                                  return_value=_rv4) as delete_tbl_patch:
                     with patch.object(PluginDiscovery, 'get_plugins_installed', return_value=plugin_installed
                                       ) as plugin_installed_patch:
                         with patch.object(plugins_update, '_get_plugin_and_sch_name_from_asset_tracker',
-                                          return_value=(_rv1)) as plugin_tracked_patch:
+                                          return_value=_rv1) as plugin_tracked_patch:
                             with patch.object(plugins_update, '_get_sch_id_and_enabled_by_name',
-                                              return_value=(_rv2)) as schedule_patch:
-                                with patch.object(server.Server.scheduler, 'disable_schedule', return_value=(_rv5)) as disable_sch_patch:
+                                              return_value=_rv2) as schedule_patch:
+                                with patch.object(server.Server.scheduler, 'disable_schedule', return_value=_rv5) as disable_sch_patch:
                                     with patch.object(plugins_update._logger, "warning") as log_warn_patch:
                                         with patch.object(storage_client_mock, 'insert_into_tbl',
-                                                          return_value=(_rv3)) as insert_tbl_patch:
+                                                          return_value=_rv3) as insert_tbl_patch:
                                             with patch('multiprocessing.Process'):
                                                 resp = await client.put('/fledge/plugins/{}/{}/update'.format(
                                                     _type, plugin_installed_dirname), data=None)
@@ -527,10 +527,10 @@ class TestPluginUpdate:
             _se2 = await async_mock(insert_row)
             _se3 = await async_mock(sch_info)
         else:
-            _rv1 =  asyncio.ensure_future(async_mock(insert))
-            _se1 =  asyncio.ensure_future(async_mock({'count': 0, 'rows': []}))
-            _se2 =  asyncio.ensure_future(async_mock(insert_row))
-            _se3 =  asyncio.ensure_future(async_mock(sch_info))
+            _rv1 = asyncio.ensure_future(async_mock(insert))
+            _se1 = asyncio.ensure_future(async_mock({'count': 0, 'rows': []}))
+            _se2 = asyncio.ensure_future(async_mock(insert_row))
+            _se3 = asyncio.ensure_future(async_mock(sch_info))
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload',
@@ -538,7 +538,7 @@ class TestPluginUpdate:
                 with patch.object(PluginDiscovery, 'get_plugins_installed', return_value=plugin_installed
                                   ) as plugin_installed_patch:
                     with patch.object(storage_client_mock, 'insert_into_tbl',
-                                      return_value=(_rv1)) as insert_tbl_patch:
+                                      return_value=_rv1) as insert_tbl_patch:
                         with patch('multiprocessing.Process'):
                             resp = await client.put('/fledge/plugins/{}/{}/update'.format(
                                 _type, plugin_installed_dirname), data=None)
@@ -616,13 +616,13 @@ class TestPluginUpdate:
             _se2 = await async_mock(insert_row)
             _se3 = await async_mock(sch_info)
         else:
-            _rv1 =  asyncio.ensure_future(async_mock(read_all_child_category_names))
-            _rv2 =  asyncio.ensure_future(async_mock(read_cat_val))
-            _rv3 =  asyncio.ensure_future(async_mock(disable_notification))
-            _rv4 =  asyncio.ensure_future(async_mock(insert))
-            _se1 =  asyncio.ensure_future(async_mock({'count': 0, 'rows': []}))
-            _se2 =  asyncio.ensure_future(async_mock(insert_row))
-            _se3 =  asyncio.ensure_future(async_mock(sch_info))        
+            _rv1 = asyncio.ensure_future(async_mock(read_all_child_category_names))
+            _rv2 = asyncio.ensure_future(async_mock(read_cat_val))
+            _rv3 = asyncio.ensure_future(async_mock(disable_notification))
+            _rv4 = asyncio.ensure_future(async_mock(insert))
+            _se1 = asyncio.ensure_future(async_mock({'count': 0, 'rows': []}))
+            _se2 = asyncio.ensure_future(async_mock(insert_row))
+            _se3 = asyncio.ensure_future(async_mock(sch_info))        
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload',
@@ -630,14 +630,14 @@ class TestPluginUpdate:
                 with patch.object(PluginDiscovery, 'get_plugins_installed', return_value=plugin_installed
                                   ) as plugin_installed_patch:
                     with patch.object(ConfigurationManager, '_read_all_child_category_names',
-                                      return_value=(_rv1)) as child_cat_patch:
+                                      return_value=_rv1) as child_cat_patch:
                         with patch.object(ConfigurationManager, '_read_category_val',
-                                          return_value=(_rv2)) as cat_value_patch:
+                                          return_value=_rv2) as cat_value_patch:
                             with patch.object(plugins_update._logger, "warning") as log_warn_patch:
                                 with patch.object(ConfigurationManager, 'set_category_item_value_entry',
-                                                  return_value=(_rv3)) as set_cat_value_patch:
+                                                  return_value=_rv3) as set_cat_value_patch:
                                     with patch.object(storage_client_mock, 'insert_into_tbl',
-                                                      return_value=(_rv4)) as insert_tbl_patch:
+                                                      return_value=_rv4) as insert_tbl_patch:
                                         with patch('multiprocessing.Process'):
                                             resp = await client.put('/fledge/plugins/{}/{}/update'.format(
                                                 _type, plugin_installed_dirname), data=None)

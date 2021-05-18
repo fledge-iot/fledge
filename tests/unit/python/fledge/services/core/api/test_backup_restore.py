@@ -83,10 +83,10 @@ class TestBackup:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro(response)
         else:
-            _rv =  asyncio.ensure_future(mock_coro(response))
+            _rv = asyncio.ensure_future(mock_coro(response))
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(Backup, 'get_all_backups', return_value=(_rv)):
+            with patch.object(Backup, 'get_all_backups', return_value=_rv):
                 resp = await client.get('/fledge/backup{}'.format(request_params))
                 assert 200 == resp.status
                 result = await resp.text()
@@ -121,11 +121,11 @@ class TestBackup:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_create()
         else:
-            _rv =  asyncio.ensure_future(mock_create())
+            _rv = asyncio.ensure_future(mock_create())
         
         storage_client_mock = MagicMock(StorageClientAsync)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(Backup, 'create_backup', return_value=(_rv)):
+            with patch.object(Backup, 'create_backup', return_value=_rv):
                 resp = await client.post('/fledge/backup')
                 assert 200 == resp.status
                 assert '{"status": "running_or_failed"}' == await resp.text()
@@ -146,10 +146,10 @@ class TestBackup:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro(response)
         else:
-            _rv =  asyncio.ensure_future(mock_coro(response))
+            _rv = asyncio.ensure_future(mock_coro(response))
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(Backup, 'get_backup_details', return_value=(_rv)):
+            with patch.object(Backup, 'get_backup_details', return_value=_rv):
                 resp = await client.get('/fledge/backup/{}'.format(1))
                 assert 200 == resp.status
                 result = await resp.text()
@@ -181,10 +181,10 @@ class TestBackup:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro(None)
         else:
-            _rv =  asyncio.ensure_future(mock_coro(None))
+            _rv = asyncio.ensure_future(mock_coro(None))
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(Backup, 'delete_backup', return_value=(_rv)):
+            with patch.object(Backup, 'delete_backup', return_value=_rv):
                 resp = await client.delete('/fledge/backup/{}'.format(1))
                 assert 200 == resp.status
                 result = await resp.text()
@@ -242,11 +242,11 @@ class TestBackup:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro(response)
         else:
-            _rv =  asyncio.ensure_future(mock_coro(response))
+            _rv = asyncio.ensure_future(mock_coro(response))
         
         with patch("aiohttp.web.FileResponse", return_value=web.FileResponse(path=os.path.realpath(__file__))) as file_res:
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-                with patch.object(Backup, 'get_backup_details', return_value=(_rv)) as patch_backup_detail:
+                with patch.object(Backup, 'get_backup_details', return_value=_rv) as patch_backup_detail:
                     with patch('tarfile.open'):
                         resp = await client.get('/fledge/backup/{}/download'.format(1))
                         assert 200 == resp.status
@@ -275,11 +275,11 @@ class TestRestore:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_restore()
         else:
-            _rv =  asyncio.ensure_future(mock_restore())
+            _rv = asyncio.ensure_future(mock_restore())
         
         storage_client_mock = MagicMock(StorageClientAsync)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(Restore, 'restore_backup', return_value=(_rv)):
+            with patch.object(Restore, 'restore_backup', return_value=_rv):
                 resp = await client.put('/fledge/backup/{}/restore'.format(1))
                 assert 200 == resp.status
                 r = await resp.text()

@@ -151,9 +151,9 @@ class TestPluginDiscoveryApi:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await async_mock((output, log_path))
         else:
-            _rv =  asyncio.ensure_future(async_mock((output, log_path)))
+            _rv = asyncio.ensure_future(async_mock((output, log_path)))
 
-        with patch.object(common, 'fetch_available_packages', return_value=((_rv))) as patch_fetch_available_package:
+        with patch.object(common, 'fetch_available_packages', return_value=(_rv)) as patch_fetch_available_package:
             resp = await client.get('/fledge/plugins/available{}'.format(param))
             assert 200 == resp.status
             r = await resp.text()

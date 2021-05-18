@@ -72,23 +72,23 @@ class TestChangeCallback:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await async_mock(None)
         else:
-            _rv =  asyncio.ensure_future(async_mock(None))
+            _rv = asyncio.ensure_future(async_mock(None))
         
-        with patch.object(ConfigurationManager, 'get_category_all_items', return_value=(_rv)) as cm_get_patch:
+        with patch.object(ConfigurationManager, 'get_category_all_items', return_value=_rv) as cm_get_patch:
             with patch.object(aiohttp.ClientSession, 'post', return_value=AsyncSessionContextManagerMock()) as post_patch:
                 await cb.run('catname1')
             post_patch.assert_has_calls([call('http://saddress1:1/fledge/change', data='{"category": "catname1", "items": null}', headers={'content-type': 'application/json'}),
                                          call('http://saddress2:2/fledge/change', data='{"category": "catname1", "items": null}', headers={'content-type': 'application/json'})])
         cm_get_patch.assert_called_once_with('catname1')
 
-        with patch.object(ConfigurationManager, 'get_category_all_items', return_value=(_rv)) as cm_get_patch:
+        with patch.object(ConfigurationManager, 'get_category_all_items', return_value=_rv) as cm_get_patch:
             with patch.object(aiohttp.ClientSession, 'post', return_value=AsyncSessionContextManagerMock()) as post_patch:
                 await cb.run('catname2')
             post_patch.assert_has_calls([call('http://saddress1:1/fledge/change', data='{"category": "catname2", "items": null}', headers={'content-type': 'application/json'}),
                                          call('http://saddress2:2/fledge/change', data='{"category": "catname2", "items": null}', headers={'content-type': 'application/json'})])
         cm_get_patch.assert_called_once_with('catname2')
 
-        with patch.object(ConfigurationManager, 'get_category_all_items', return_value=(_rv)) as cm_get_patch:
+        with patch.object(ConfigurationManager, 'get_category_all_items', return_value=_rv) as cm_get_patch:
             with patch.object(aiohttp.ClientSession, 'post', return_value=AsyncSessionContextManagerMock()) as post_patch:
                 await cb.run('catname3')
             post_patch.assert_called_once_with('http://saddress3:3/fledge/change', data='{"category": "catname3", "items": null}', headers={'content-type': 'application/json'})
@@ -218,9 +218,9 @@ class TestChangeCallback:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await async_mock(None)
         else:
-            _rv =  asyncio.ensure_future(async_mock(None))
+            _rv = asyncio.ensure_future(async_mock(None))
 
-        with patch.object(ConfigurationManager, 'get_category_all_items', return_value=(_rv)) as cm_get_patch:
+        with patch.object(ConfigurationManager, 'get_category_all_items', return_value=_rv) as cm_get_patch:
             with patch.object(aiohttp.ClientSession, 'post', return_value=AsyncSessionContextManagerMock()) as post_patch:
                 with patch.object(cb._LOGGER, 'exception') as exception_patch:
                     await cb.run('catname1')
@@ -255,7 +255,7 @@ class TestChangeCallback:
         else:
             _rv = asyncio.ensure_future(async_mock(None))
 
-        with patch.object(ConfigurationManager, 'get_category_all_items', return_value=(_rv)) as cm_get_patch:
+        with patch.object(ConfigurationManager, 'get_category_all_items', return_value=_rv) as cm_get_patch:
             with patch.object(aiohttp.ClientSession, 'post', side_effect=Exception) as post_patch:
                 with patch.object(cb._LOGGER, 'exception') as exception_patch:
                     await cb.run('catname1')

@@ -93,11 +93,11 @@ class TestPluginRemove:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await async_mock([{'service_list': svc_list}])
         else:
-            _rv =  asyncio.ensure_future(async_mock([{'service_list': svc_list}]))
+            _rv = asyncio.ensure_future(async_mock([{'service_list': svc_list}]))
         
         with patch.object(PluginDiscovery, 'get_plugins_installed', return_value=plugin_installed
                           ) as plugin_installed_patch:
-            with patch.object(plugins_remove, '_check_plugin_usage', return_value=(_rv)) as plugin_usage_patch:
+            with patch.object(plugins_remove, '_check_plugin_usage', return_value=_rv) as plugin_usage_patch:
                 with patch.object(plugins_remove._logger, "error") as log_err_patch:
                     resp = await client.delete('/fledge/plugins/{}/{}'.format(_type, name), data=None)
                     assert 400 == resp.status
@@ -130,11 +130,11 @@ class TestPluginRemove:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await async_mock(notify_instances_list)
         else:
-            _rv =  asyncio.ensure_future(async_mock(notify_instances_list))
+            _rv = asyncio.ensure_future(async_mock(notify_instances_list))
         
         with patch.object(PluginDiscovery, 'get_plugins_installed', return_value=plugin_installed
                           ) as plugin_installed_patch:
-            with patch.object(plugins_remove, '_check_plugin_usage_in_notification_instances', return_value=(_rv)) as plugin_usage_patch:
+            with patch.object(plugins_remove, '_check_plugin_usage_in_notification_instances', return_value=_rv) as plugin_usage_patch:
                 with patch.object(plugins_remove._logger, "error") as log_err_patch:
                     resp = await client.delete('/fledge/plugins/{}/{}'.format(plugin_type, plugin_installed_dirname),
                                                data=None)
@@ -181,16 +181,16 @@ class TestPluginRemove:
             _rv1 = await async_mock([])
             _rv2 = await async_mock(select_row_resp)
         else:
-            _rv1 =  asyncio.ensure_future(async_mock([]))
-            _rv2 =  asyncio.ensure_future(async_mock(select_row_resp))
+            _rv1 = asyncio.ensure_future(async_mock([]))
+            _rv2 = asyncio.ensure_future(async_mock(select_row_resp))
         
         with patch.object(PluginDiscovery, 'get_plugins_installed', return_value=plugin_installed
                           ) as plugin_installed_patch:
-            with patch.object(plugins_remove, '_check_plugin_usage', return_value=(_rv1)) as plugin_usage_patch:
+            with patch.object(plugins_remove, '_check_plugin_usage', return_value=_rv1) as plugin_usage_patch:
                 with patch.object(plugins_remove._logger, "info") as log_info_patch:
                     with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
                         with patch.object(storage_client_mock, 'query_tbl_with_payload',
-                                          return_value=(_rv2)) as query_tbl_patch:
+                                          return_value=_rv2) as query_tbl_patch:
                             resp = await client.delete('/fledge/plugins/{}/{}'.format(_type, name), data=None)
                             assert 429 == resp.status
                             assert expected_msg == resp.reason
@@ -252,23 +252,23 @@ class TestPluginRemove:
             _se1 = await async_mock(select_row_resp)
             _se2 = await async_mock(insert_row)
         else:
-            _rv1 =  asyncio.ensure_future(async_mock([]))
-            _rv2 =  asyncio.ensure_future(async_mock(delete))
-            _rv3 =  asyncio.ensure_future(async_mock(insert))
-            _se1 =  asyncio.ensure_future(async_mock(select_row_resp))
-            _se2 =  asyncio.ensure_future(async_mock(insert_row))
+            _rv1 = asyncio.ensure_future(async_mock([]))
+            _rv2 = asyncio.ensure_future(async_mock(delete))
+            _rv3 = asyncio.ensure_future(async_mock(insert))
+            _se1 = asyncio.ensure_future(async_mock(select_row_resp))
+            _se2 = asyncio.ensure_future(async_mock(insert_row))
         
         with patch.object(PluginDiscovery, 'get_plugins_installed', return_value=plugin_installed
                           ) as plugin_installed_patch:
-            with patch.object(plugins_remove, '_check_plugin_usage', return_value=(_rv1)) as plugin_usage_patch:
+            with patch.object(plugins_remove, '_check_plugin_usage', return_value=_rv1) as plugin_usage_patch:
                 with patch.object(plugins_remove._logger, "info") as log_info_patch:
                     with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
                         with patch.object(storage_client_mock, 'query_tbl_with_payload',
                                           side_effect=[_se1, _se2]) as query_tbl_patch:
                             with patch.object(storage_client_mock, 'delete_from_tbl',
-                                              return_value=(_rv2)) as delete_tbl_patch:
+                                              return_value=_rv2) as delete_tbl_patch:
                                 with patch.object(storage_client_mock, 'insert_into_tbl',
-                                                  return_value=(_rv3)) as insert_tbl_patch:
+                                                  return_value=_rv3) as insert_tbl_patch:
                                     with patch('multiprocessing.Process'):
                                         resp = await client.delete('/fledge/plugins/{}/{}'.format(_type, name),
                                                                    data=None)

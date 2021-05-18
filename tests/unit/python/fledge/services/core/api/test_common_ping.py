@@ -80,14 +80,14 @@ async def test_ping_http_allow_ping_true(aiohttp_server, aiohttp_client, loop, g
     if sys.version_info.major == 3 and sys.version_info.minor >= 8:
         _rv = await mock_coro()
     else:
-        _rv =  asyncio.ensure_future(mock_coro())
+        _rv = asyncio.ensure_future(mock_coro())
     
     host_name, ip_addresses = get_machine_detail
     attrs = {"query_tbl_with_payload.return_value": await mock_coro()}
     mock_storage_client_async = MagicMock(spec=StorageClientAsync, **attrs)
     with patch.object(middleware._logger, 'info') as logger_info:
         with patch.object(connect, 'get_storage_async', return_value=mock_storage_client_async):
-            with patch.object(mock_storage_client_async, 'query_tbl_with_payload', return_value=(_rv)) as query_patch:
+            with patch.object(mock_storage_client_async, 'query_tbl_with_payload', return_value=_rv) as query_patch:
                     app = web.Application(loop=loop, middlewares=[middleware.optional_auth_middleware])
                     # fill route table
                     routes.setup(app)
@@ -140,13 +140,13 @@ async def test_ping_http_allow_ping_false(aiohttp_server, aiohttp_client, loop, 
     if sys.version_info.major == 3 and sys.version_info.minor >= 8:
         _rv = await mock_coro()
     else:
-        _rv =  asyncio.ensure_future(mock_coro())
+        _rv = asyncio.ensure_future(mock_coro())
     
     host_name, ip_addresses = get_machine_detail
     mock_storage_client_async = MagicMock(StorageClientAsync)
     with patch.object(middleware._logger, 'info') as logger_info:
         with patch.object(connect, 'get_storage_async', return_value=mock_storage_client_async):
-            with patch.object(mock_storage_client_async, 'query_tbl_with_payload', return_value=(_rv)) as query_patch:
+            with patch.object(mock_storage_client_async, 'query_tbl_with_payload', return_value=_rv) as query_patch:
                     app = web.Application(loop=loop, middlewares=[middleware.optional_auth_middleware])
                     # fill route table
                     routes.setup(app)
@@ -202,15 +202,15 @@ async def test_ping_http_auth_required_allow_ping_true(aiohttp_server, aiohttp_c
         _rv1 = await mock_coro()
         _rv2 = await mock_get_category_item()
     else:
-        _rv1 =  asyncio.ensure_future(mock_coro())
-        _rv2 =  asyncio.ensure_future(mock_get_category_item())
+        _rv1 = asyncio.ensure_future(mock_coro())
+        _rv2 = asyncio.ensure_future(mock_get_category_item())
     
     host_name, ip_addresses = get_machine_detail
     mock_storage_client_async = MagicMock(StorageClientAsync)
     with patch.object(middleware._logger, 'info') as logger_info:
         with patch.object(connect, 'get_storage_async', return_value=mock_storage_client_async):
-            with patch.object(mock_storage_client_async, 'query_tbl_with_payload', return_value=(_rv1)) as query_patch:
-                with patch.object(ConfigurationManager, "get_category_item", return_value=(_rv2)) as mock_get_cat:
+            with patch.object(mock_storage_client_async, 'query_tbl_with_payload', return_value=_rv1) as query_patch:
+                with patch.object(ConfigurationManager, "get_category_item", return_value=_rv2) as mock_get_cat:
                     app = web.Application(loop=loop, middlewares=[middleware.auth_middleware])
                     # fill route table
                     routes.setup(app)
@@ -266,14 +266,14 @@ async def test_ping_http_auth_required_allow_ping_false(aiohttp_server, aiohttp_
         _rv1 = await mock_coro()
         _rv2 = await mock_get_category_item()
     else:
-        _rv1 =  asyncio.ensure_future(mock_coro())
-        _rv2 =  asyncio.ensure_future(mock_get_category_item())
+        _rv1 = asyncio.ensure_future(mock_coro())
+        _rv2 = asyncio.ensure_future(mock_get_category_item())
     
     mock_storage_client_async = MagicMock(StorageClientAsync)
     with patch.object(middleware._logger, 'info') as logger_info:
         with patch.object(connect, 'get_storage_async', return_value=mock_storage_client_async):
-            with patch.object(mock_storage_client_async, 'query_tbl_with_payload', return_value=(_rv1)) as query_patch:
-                with patch.object(ConfigurationManager, "get_category_item", return_value=(_rv2)) as mock_get_cat:
+            with patch.object(mock_storage_client_async, 'query_tbl_with_payload', return_value=_rv1) as query_patch:
+                with patch.object(ConfigurationManager, "get_category_item", return_value=_rv2) as mock_get_cat:
                     with patch.object(_logger, 'warning') as logger_warn:
                         app = web.Application(loop=loop, middlewares=[middleware.auth_middleware])
                         # fill route table
@@ -315,13 +315,13 @@ async def test_ping_https_allow_ping_true(aiohttp_server, ssl_ctx, aiohttp_clien
     if sys.version_info.major == 3 and sys.version_info.minor >= 8:
         _rv = await mock_coro()
     else:
-        _rv =  asyncio.ensure_future(mock_coro())
+        _rv = asyncio.ensure_future(mock_coro())
     
     host_name, ip_addresses = get_machine_detail
     mock_storage_client_async = MagicMock(StorageClientAsync)
     with patch.object(middleware._logger, 'info') as logger_info:
         with patch.object(connect, 'get_storage_async', return_value=mock_storage_client_async):
-            with patch.object(mock_storage_client_async, 'query_tbl_with_payload', return_value=(_rv)) as query_patch:
+            with patch.object(mock_storage_client_async, 'query_tbl_with_payload', return_value=_rv) as query_patch:
                     app = web.Application(loop=loop, middlewares=[middleware.optional_auth_middleware])
                     # fill route table
                     routes.setup(app)
@@ -386,13 +386,13 @@ async def test_ping_https_allow_ping_false(aiohttp_server, ssl_ctx, aiohttp_clie
     if sys.version_info.major == 3 and sys.version_info.minor >= 8:
         _rv = await mock_coro()
     else:
-        _rv =  asyncio.ensure_future(mock_coro())
+        _rv = asyncio.ensure_future(mock_coro())
     
     host_name, ip_addresses = get_machine_detail
     mock_storage_client_async = MagicMock(StorageClientAsync)
     with patch.object(middleware._logger, 'info') as logger_info:
         with patch.object(connect, 'get_storage_async', return_value=mock_storage_client_async):
-            with patch.object(mock_storage_client_async, 'query_tbl_with_payload', return_value=(_rv)) as query_patch:
+            with patch.object(mock_storage_client_async, 'query_tbl_with_payload', return_value=_rv) as query_patch:
                     app = web.Application(loop=loop, middlewares=[middleware.optional_auth_middleware])
                     # fill route table
                     routes.setup(app)
@@ -455,15 +455,15 @@ async def test_ping_https_auth_required_allow_ping_true(aiohttp_server, ssl_ctx,
         _rv1 = await mock_coro()
         _rv2 = await mock_get_category_item()
     else:
-        _rv1 =  asyncio.ensure_future(mock_coro())
-        _rv2 =  asyncio.ensure_future(mock_get_category_item())    
+        _rv1 = asyncio.ensure_future(mock_coro())
+        _rv2 = asyncio.ensure_future(mock_get_category_item())    
     
     host_name, ip_addresses = get_machine_detail
     mock_storage_client_async = MagicMock(StorageClientAsync)
     with patch.object(middleware._logger, 'info') as logger_info:
         with patch.object(connect, 'get_storage_async', return_value=mock_storage_client_async):
-            with patch.object(mock_storage_client_async, 'query_tbl_with_payload', return_value=(_rv1)) as query_patch:
-                with patch.object(ConfigurationManager, "get_category_item", return_value=(_rv2)) as mock_get_cat:
+            with patch.object(mock_storage_client_async, 'query_tbl_with_payload', return_value=_rv1) as query_patch:
+                with patch.object(ConfigurationManager, "get_category_item", return_value=_rv2) as mock_get_cat:
                     app = web.Application(loop=loop, middlewares=[middleware.auth_middleware])
                     # fill route table
                     routes.setup(app)
@@ -531,14 +531,14 @@ async def test_ping_https_auth_required_allow_ping_false(aiohttp_server, ssl_ctx
         _rv1 = await mock_coro()
         _rv2 = await mock_get_category_item()
     else:
-        _rv1 =  asyncio.ensure_future(mock_coro())
-        _rv2 =  asyncio.ensure_future(mock_get_category_item())    
+        _rv1 = asyncio.ensure_future(mock_coro())
+        _rv2 = asyncio.ensure_future(mock_get_category_item())    
     
     mock_storage_client_async = MagicMock(StorageClientAsync)
     with patch.object(middleware._logger, 'info') as logger_info:
         with patch.object(connect, 'get_storage_async', return_value=mock_storage_client_async):
-            with patch.object(mock_storage_client_async, 'query_tbl_with_payload', return_value=(_rv1)) as query_patch:
-                with patch.object(ConfigurationManager, "get_category_item", return_value=(_rv2)) as mock_get_cat:
+            with patch.object(mock_storage_client_async, 'query_tbl_with_payload', return_value=_rv1) as query_patch:
+                with patch.object(ConfigurationManager, "get_category_item", return_value=_rv2) as mock_get_cat:
                     with patch.object(_logger, 'warning') as logger_warn:
                         app = web.Application(loop=loop, middlewares=[middleware.auth_middleware])
                         # fill route table

@@ -50,10 +50,10 @@ class TestAuthOptional:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro([])
         else:
-            _rv =  asyncio.ensure_future(mock_coro([]))
+            _rv = asyncio.ensure_future(mock_coro([]))
         
         with patch.object(middleware._logger, 'info') as patch_logger_info:
-            with patch.object(User.Objects, 'get_roles', return_value=(_rv)) as patch_user_obj:
+            with patch.object(User.Objects, 'get_roles', return_value=_rv) as patch_user_obj:
                 resp = await client.get('/fledge/user/role')
                 assert 200 == resp.status
                 r = await resp.text()
@@ -72,10 +72,10 @@ class TestAuthOptional:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro(ret_val)
         else:
-            _rv =  asyncio.ensure_future(mock_coro(ret_val))
+            _rv = asyncio.ensure_future(mock_coro(ret_val))
         
         with patch.object(middleware._logger, 'info') as patch_logger_info:
-            with patch.object(User.Objects, 'all', return_value=(_rv)) as patch_user_obj:
+            with patch.object(User.Objects, 'all', return_value=_rv) as patch_user_obj:
                 resp = await client.get('/fledge/user')
                 assert 200 == resp.status
                 r = await resp.text()
@@ -98,10 +98,10 @@ class TestAuthOptional:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro(result)
         else:
-            _rv =  asyncio.ensure_future(mock_coro(result))
+            _rv = asyncio.ensure_future(mock_coro(result))
         
         with patch.object(middleware._logger, 'info') as patch_logger_info:
-            with patch.object(User.Objects, 'get', return_value=(_rv)) as patch_user_obj:
+            with patch.object(User.Objects, 'get', return_value=_rv) as patch_user_obj:
                 resp = await client.get('/fledge/user{}'.format(request_params))
                 assert 200 == resp.status
                 r = await resp.text()
@@ -172,11 +172,11 @@ class TestAuthOptional:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro([])
         else:
-            _rv =  asyncio.ensure_future(mock_coro([]))
+            _rv = asyncio.ensure_future(mock_coro([]))
         
         with patch.object(middleware._logger, 'info') as patch_logger_info:
             with patch.object(User.Objects, 'login', side_effect=exception_name(msg)) as patch_user_login:
-                with patch.object(User.Objects, 'delete_user_tokens', return_value=(_rv)) as patch_delete_token:
+                with patch.object(User.Objects, 'delete_user_tokens', return_value=_rv) as patch_delete_token:
                     with patch.object(auth._logger, 'warning') as patch_logger:
                         resp = await client.post('/fledge/login', data=json.dumps(request_data))
                         assert status_code == resp.status
@@ -203,10 +203,10 @@ class TestAuthOptional:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await async_mock()
         else:
-            _rv =  asyncio.ensure_future(async_mock())        
+            _rv = asyncio.ensure_future(async_mock())        
         
         with patch.object(middleware._logger, 'info') as patch_logger_info:
-            with patch.object(User.Objects, 'login', return_value=(_rv)) as patch_user_login:
+            with patch.object(User.Objects, 'login', return_value=_rv) as patch_user_login:
                 with patch.object(auth._logger, 'info') as patch_logger:
                     resp = await client.post('/fledge/login', data=json.dumps(request_data))
                     assert 200 == resp.status
@@ -299,9 +299,9 @@ class TestAuthOptional:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro(ret_val)
         else:
-            _rv =  asyncio.ensure_future(mock_coro(ret_val))
+            _rv = asyncio.ensure_future(mock_coro(ret_val))
 
-        with patch.object(User.Objects, 'get_roles', return_value=(_rv)) as patch_get_roles:
+        with patch.object(User.Objects, 'get_roles', return_value=_rv) as patch_get_roles:
             actual = await auth.is_valid_role(role_id)
             assert expected is actual
         patch_get_roles.assert_called_once_with()

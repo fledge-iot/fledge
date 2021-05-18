@@ -123,10 +123,10 @@ class TestBundleSupport:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_build()
         else:
-            _rv =  asyncio.ensure_future(mock_build())
+            _rv = asyncio.ensure_future(mock_build())
             
         with patch.object(SupportBuilder, "__init__", return_value=None):
-            with patch.object(SupportBuilder, "build", return_value=(_rv)):
+            with patch.object(SupportBuilder, "build", return_value=_rv):
                 resp = await client.post('/fledge/support')
                 res = await resp.text()
                 jdict = json.loads(res)

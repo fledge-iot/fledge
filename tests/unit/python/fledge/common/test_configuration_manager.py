@@ -726,7 +726,7 @@ class TestConfigurationManager:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await async_mock('CONCH')
         else:
-            _rv =  asyncio.ensure_future(async_mock('CONCH'))
+            _rv = asyncio.ensure_future(async_mock('CONCH'))
 
         storage_client_mock = MagicMock(spec=StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
@@ -768,7 +768,7 @@ class TestConfigurationManager:
             },
         }
         mocker.patch.object(AuditLogger, '__init__', return_value=None)
-        mocker.patch.object(AuditLogger, 'information', return_value=(_rv))
+        mocker.patch.object(AuditLogger, 'information', return_value=_rv)
         c_return_value = await c_mgr._merge_category_vals(test_config_new, test_config_storage,
                                                           keep_original_items=True, category_name=CAT_NAME)
         assert expected_new_value == c_return_value
@@ -893,7 +893,7 @@ class TestConfigurationManager:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _se = await async_mock(d)
         else:
-            _se =  asyncio.ensure_future(async_mock(d))
+            _se = asyncio.ensure_future(async_mock(d))
         
         with patch.object(_logger, 'exception') as log_exc:
             with patch.object(ConfigurationManager, '_validate_category_val', side_effect=[_se,
@@ -919,15 +919,15 @@ class TestConfigurationManager:
             _rv2 = await async_mock({})
             _se = await async_mock({})
         else:
-            _rv1 =  asyncio.ensure_future(async_mock({}))
-            _rv2 =  asyncio.ensure_future(async_mock({}))
-            _se =  asyncio.ensure_future(async_mock({}))
+            _rv1 = asyncio.ensure_future(async_mock({}))
+            _rv2 = asyncio.ensure_future(async_mock({}))
+            _se = asyncio.ensure_future(async_mock({}))
         
         with patch.object(_logger, 'exception') as log_exc:
             with patch.object(ConfigurationManager, '_validate_category_val', side_effect=[_se, Exception()]) as valpatch:
-                with patch.object(ConfigurationManager, '_read_category_val', return_value=(_rv1)) as readpatch:
+                with patch.object(ConfigurationManager, '_read_category_val', return_value=_rv1) as readpatch:
                     with patch.object(ConfigurationManager, '_merge_category_vals') as mergepatch:
-                        with patch.object(ConfigurationManager, '_run_callbacks', return_value=(_rv2)) as callbackpatch:
+                        with patch.object(ConfigurationManager, '_run_callbacks', return_value=_rv2) as callbackpatch:
                             cat = await c_mgr.create_category('catname', 'catvalue', 'catdesc')
                             assert cat is None
                         callbackpatch.assert_called_once_with('catname')
@@ -950,14 +950,14 @@ class TestConfigurationManager:
             _rv = await async_mock({})
             _se = await async_mock({})
         else:
-            _rv =  asyncio.ensure_future(async_mock({}))
-            _se =  asyncio.ensure_future(async_mock({}))
+            _rv = asyncio.ensure_future(async_mock({}))
+            _se = asyncio.ensure_future(async_mock({}))
                 
         with patch.object(_logger, 'exception') as log_exc:
             with patch.object(ConfigurationManager, '_validate_category_val', side_effect=[_se, Exception]) as valpatch:
-                with patch.object(ConfigurationManager, '_read_category_val', return_value=(_rv)) as readpatch:
+                with patch.object(ConfigurationManager, '_read_category_val', return_value=_rv) as readpatch:
                     with patch.object(ConfigurationManager, '_merge_category_vals') as mergepatch:
-                        with patch.object(ConfigurationManager, '_run_callbacks', return_value=(_rv)) as callbackpatch:
+                        with patch.object(ConfigurationManager, '_run_callbacks', return_value=_rv) as callbackpatch:
                                 await c_mgr.create_category('catname', 'catvalue', 'catdesc')
                         callbackpatch.assert_called_once_with('catname')
                     mergepatch.assert_not_called()
@@ -984,14 +984,14 @@ class TestConfigurationManager:
             _rv2 = await async_mock(all_cat_names)
             _se = await async_mock({})
         else:
-            _rv1 =  asyncio.ensure_future(async_mock({}))
-            _rv2 =  asyncio.ensure_future(async_mock(all_cat_names))
-            _se =  asyncio.ensure_future(async_mock({}))
+            _rv1 = asyncio.ensure_future(async_mock({}))
+            _rv2 = asyncio.ensure_future(async_mock(all_cat_names))
+            _se = asyncio.ensure_future(async_mock({}))
 
         with patch.object(ConfigurationManager, '_validate_category_val', side_effect=[_se, _se]) as valpatch:
-            with patch.object(ConfigurationManager, '_read_category_val', return_value=(_rv1)) as readpatch:
-                with patch.object(ConfigurationManager, '_read_all_category_names', return_value=(_rv2)) as read_all_patch:
-                    with patch.object(ConfigurationManager, '_merge_category_vals', return_value=(_rv1)) as mergepatch:
+            with patch.object(ConfigurationManager, '_read_category_val', return_value=_rv1) as readpatch:
+                with patch.object(ConfigurationManager, '_read_all_category_names', return_value=_rv2) as read_all_patch:
+                    with patch.object(ConfigurationManager, '_merge_category_vals', return_value=_rv1) as mergepatch:
                         with patch.object(ConfigurationManager, '_run_callbacks') as callbackpatch:
                             with patch.object(ConfigurationManager, '_update_category') as updatepatch:
                                 cat = await c_mgr.create_category('catname', 'catvalue', 'catdesc')
@@ -1020,18 +1020,18 @@ class TestConfigurationManager:
             _rv4 = await async_mock(None)
             _se = await async_mock({})
         else:
-            _rv1 =  asyncio.ensure_future(async_mock({}))
-            _rv2 =  asyncio.ensure_future(async_mock(all_cat_names))
-            _rv3 =  asyncio.ensure_future(async_mock({'bla': 'bla'}))
-            _rv4 =  asyncio.ensure_future(async_mock(None))
-            _se =  asyncio.ensure_future(async_mock({}))        
+            _rv1 = asyncio.ensure_future(async_mock({}))
+            _rv2 = asyncio.ensure_future(async_mock(all_cat_names))
+            _rv3 = asyncio.ensure_future(async_mock({'bla': 'bla'}))
+            _rv4 = asyncio.ensure_future(async_mock(None))
+            _se = asyncio.ensure_future(async_mock({}))        
         
         with patch.object(ConfigurationManager, '_validate_category_val', side_effect=[_se, _se]) as valpatch:
-            with patch.object(ConfigurationManager, '_read_category_val', return_value=(_rv1)) as readpatch:
-                with patch.object(ConfigurationManager, '_read_all_category_names', return_value=(_rv2)) as read_all_patch:
-                    with patch.object(ConfigurationManager, '_merge_category_vals', return_value=(_rv3)) as mergepatch:
-                        with patch.object(ConfigurationManager, '_run_callbacks', return_value=(_rv4)) as callbackpatch:
-                            with patch.object(ConfigurationManager, '_update_category', return_value=(_rv4)) as updatepatch:
+            with patch.object(ConfigurationManager, '_read_category_val', return_value=_rv1) as readpatch:
+                with patch.object(ConfigurationManager, '_read_all_category_names', return_value=_rv2) as read_all_patch:
+                    with patch.object(ConfigurationManager, '_merge_category_vals', return_value=_rv3) as mergepatch:
+                        with patch.object(ConfigurationManager, '_run_callbacks', return_value=_rv4) as callbackpatch:
+                            with patch.object(ConfigurationManager, '_update_category', return_value=_rv4) as updatepatch:
                                 cat = await c_mgr.create_category('catname', 'catvalue', 'catdesc')
                                 assert cat is None
                             updatepatch.assert_called_once_with('catname', {'bla': 'bla'}, 'catdesc', 'catname')
@@ -1057,15 +1057,15 @@ class TestConfigurationManager:
             _rv4 = await async_mock(None)
             _se = await async_mock({})
         else:
-            _rv1 =  asyncio.ensure_future(async_mock({}))
-            _rv2 =  asyncio.ensure_future(async_mock(all_cat_names))
-            _rv4 =  asyncio.ensure_future(async_mock(None))
-            _se =  asyncio.ensure_future(async_mock({}))
+            _rv1 = asyncio.ensure_future(async_mock({}))
+            _rv2 = asyncio.ensure_future(async_mock(all_cat_names))
+            _rv4 = asyncio.ensure_future(async_mock(None))
+            _se = asyncio.ensure_future(async_mock({}))
         
         with patch.object(_logger, 'exception') as log_exc:
             with patch.object(ConfigurationManager, '_validate_category_val', side_effect=[_se, _se]) as valpatch:
-                with patch.object(ConfigurationManager, '_read_category_val', return_value=(_rv1)) as readpatch:
-                    with patch.object(ConfigurationManager, '_read_all_category_names', return_value=(_rv2)) as read_all_patch:
+                with patch.object(ConfigurationManager, '_read_category_val', return_value=_rv1) as readpatch:
+                    with patch.object(ConfigurationManager, '_read_all_category_names', return_value=_rv2) as read_all_patch:
                         with patch.object(ConfigurationManager, '_merge_category_vals', side_effect=TypeError) as mergepatch:
                             with patch.object(ConfigurationManager, '_run_callbacks') as callbackpatch:
                                 with pytest.raises(Exception) as excinfo:
@@ -1093,13 +1093,13 @@ class TestConfigurationManager:
             _rv1 = await async_mock({})
             _rv2 = await async_mock(None)
         else:
-            _rv1 =  asyncio.ensure_future(async_mock({}))
-            _rv2 =  asyncio.ensure_future(async_mock(None))
+            _rv1 = asyncio.ensure_future(async_mock({}))
+            _rv2 = asyncio.ensure_future(async_mock(None))
 
-        with patch.object(ConfigurationManager, '_validate_category_val', return_value=(_rv1)) as valpatch:
-            with patch.object(ConfigurationManager, '_read_category_val', return_value=(_rv2)) as readpatch:
-                with patch.object(ConfigurationManager, '_create_new_category', return_value=(_rv2)) as createpatch:
-                    with patch.object(ConfigurationManager, '_run_callbacks', return_value=(_rv2)) as callbackpatch:
+        with patch.object(ConfigurationManager, '_validate_category_val', return_value=_rv1) as valpatch:
+            with patch.object(ConfigurationManager, '_read_category_val', return_value=_rv2) as readpatch:
+                with patch.object(ConfigurationManager, '_create_new_category', return_value=_rv2) as createpatch:
+                    with patch.object(ConfigurationManager, '_run_callbacks', return_value=_rv2) as callbackpatch:
                         await c_mgr.create_category('catname', 'catvalue', "catdesc")
                     callbackpatch.assert_called_once_with('catname')
                 createpatch.assert_called_once_with('catname', {}, 'catdesc', None)
@@ -1119,12 +1119,12 @@ class TestConfigurationManager:
             _rv1 = await async_mock({})
             _rv2 = await async_mock(None)
         else:
-            _rv1 =  asyncio.ensure_future(async_mock({}))
-            _rv2 =  asyncio.ensure_future(async_mock(None))
+            _rv1 = asyncio.ensure_future(async_mock({}))
+            _rv2 = asyncio.ensure_future(async_mock(None))
         
         with patch.object(_logger, 'exception') as log_exc:
-            with patch.object(ConfigurationManager, '_validate_category_val', return_value=(_rv1)) as valpatch:
-                with patch.object(ConfigurationManager, '_read_category_val', return_value=(_rv2)) as readpatch:
+            with patch.object(ConfigurationManager, '_validate_category_val', return_value=_rv1) as valpatch:
+                with patch.object(ConfigurationManager, '_read_category_val', return_value=_rv2) as readpatch:
                     with patch.object(ConfigurationManager, '_create_new_category', side_effect=StorageServerError(None, None, None)) as createpatch:
                         with patch.object(ConfigurationManager, '_run_callbacks') as callbackpatch:
                             with pytest.raises(StorageServerError):
@@ -1149,12 +1149,12 @@ class TestConfigurationManager:
             _rv1 = await async_mock({})
             _rv2 = await async_mock(None)
         else:
-            _rv1 =  asyncio.ensure_future(async_mock({}))
-            _rv2 =  asyncio.ensure_future(async_mock(None))
+            _rv1 = asyncio.ensure_future(async_mock({}))
+            _rv2 = asyncio.ensure_future(async_mock(None))
         
         with patch.object(_logger, 'exception') as log_exc:
-            with patch.object(ConfigurationManager, '_validate_category_val', return_value=(_rv1)) as valpatch:
-                with patch.object(ConfigurationManager, '_read_category_val', return_value=(_rv2)) as readpatch:
+            with patch.object(ConfigurationManager, '_validate_category_val', return_value=_rv1) as valpatch:
+                with patch.object(ConfigurationManager, '_read_category_val', return_value=_rv2) as readpatch:
                     with patch.object(ConfigurationManager, '_create_new_category', side_effect=KeyError()) as createpatch:
                         with patch.object(ConfigurationManager, '_run_callbacks') as callbackpatch:
                             with pytest.raises(KeyError):
@@ -1201,12 +1201,12 @@ class TestConfigurationManager:
             _rv1 = await async_mock(storage_value_entry)
             _rv2 = await async_mock(None)
         else:
-            _rv1 =  asyncio.ensure_future(async_mock(storage_value_entry))
-            _rv2 =  asyncio.ensure_future(async_mock(None))
+            _rv1 = asyncio.ensure_future(async_mock(storage_value_entry))
+            _rv2 = asyncio.ensure_future(async_mock(None))
 
-        with patch.object(ConfigurationManager, '_read_item_val', return_value=(_rv1)) as readpatch:
-            with patch.object(ConfigurationManager, '_update_value_val', return_value=(_rv2)) as updatepatch:
-                with patch.object(ConfigurationManager, '_run_callbacks', return_value=(_rv2)) as callbackpatch:
+        with patch.object(ConfigurationManager, '_read_item_val', return_value=_rv1) as readpatch:
+            with patch.object(ConfigurationManager, '_update_value_val', return_value=_rv2) as updatepatch:
+                with patch.object(ConfigurationManager, '_run_callbacks', return_value=_rv2) as callbackpatch:
                     await c_mgr.set_category_item_value_entry(category_name, item_name, new_value_entry)
                 callbackpatch.assert_called_once_with(category_name)
             updatepatch.assert_called_once_with(category_name, item_name, new_value_entry)
@@ -1244,10 +1244,10 @@ class TestConfigurationManager:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await async_mock()
         else:
-            _rv =  asyncio.ensure_future(async_mock())
+            _rv = asyncio.ensure_future(async_mock())
         
         with patch.object(_logger, 'exception') as log_exc:
-            with patch.object(ConfigurationManager, '_read_item_val', return_value=(_rv)) as readpatch:
+            with patch.object(ConfigurationManager, '_read_item_val', return_value=_rv) as readpatch:
                 with patch.object(ConfigurationManager, '_run_callbacks') as callbackpatch:
                     with pytest.raises(Exception) as excinfo:
                         await c_mgr.set_category_item_value_entry(category_name, item_name, new_value_entry)
@@ -1274,10 +1274,10 @@ class TestConfigurationManager:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await async_mock(None)
         else:
-            _rv =  asyncio.ensure_future(async_mock(None))
+            _rv = asyncio.ensure_future(async_mock(None))
         
         with patch.object(_logger, 'exception') as log_exc:
-            with patch.object(ConfigurationManager, '_read_item_val', return_value=(_rv)) as readpatch:
+            with patch.object(ConfigurationManager, '_read_item_val', return_value=_rv) as readpatch:
                 with patch.object(ConfigurationManager, '_update_value_val') as updatepatch:
                     with patch.object(ConfigurationManager, '_run_callbacks') as callbackpatch:
                         with pytest.raises(ValueError) as excinfo:
@@ -1305,9 +1305,9 @@ class TestConfigurationManager:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await async_mock(new_value_entry)
         else:
-            _rv =  asyncio.ensure_future(async_mock(new_value_entry))
+            _rv = asyncio.ensure_future(async_mock(new_value_entry))
 
-        with patch.object(ConfigurationManager, '_read_item_val', return_value=(_rv)) as readpatch:
+        with patch.object(ConfigurationManager, '_read_item_val', return_value=_rv) as readpatch:
             with patch.object(ConfigurationManager, '_update_value_val') as updatepatch:
                 with patch.object(ConfigurationManager, '_run_callbacks') as callbackpatch:
                     await c_mgr.set_category_item_value_entry(category_name, item_name, new_value_entry)
@@ -1329,10 +1329,10 @@ class TestConfigurationManager:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await async_mock({'value': 'test', 'description': 'Test desc', 'type': 'boolean', 'default': 'test'})
         else:
-            _rv =  asyncio.ensure_future(async_mock({'value': 'test', 'description': 'Test desc', 'type': 'boolean', 'default': 'test'}))
+            _rv = asyncio.ensure_future(async_mock({'value': 'test', 'description': 'Test desc', 'type': 'boolean', 'default': 'test'}))
         
         with patch.object(_logger, 'exception') as log_exc:
-            with patch.object(ConfigurationManager, '_read_item_val', return_value=(_rv)) as readpatch:
+            with patch.object(ConfigurationManager, '_read_item_val', return_value=_rv) as readpatch:
                 with pytest.raises(Exception) as excinfo:
                     await c_mgr.set_category_item_value_entry(category_name, item_name, new_value_entry)
                 assert excinfo.type is TypeError
@@ -1358,12 +1358,12 @@ class TestConfigurationManager:
             _rv1 = await async_mock(storage_value_entry)
             _rv2 = await async_mock(None)
         else:
-            _rv1 =  asyncio.ensure_future(async_mock(storage_value_entry))
-            _rv2 =  asyncio.ensure_future(async_mock(None))
+            _rv1 = asyncio.ensure_future(async_mock(storage_value_entry))
+            _rv2 = asyncio.ensure_future(async_mock(None))
 
-        with patch.object(ConfigurationManager, '_read_item_val', return_value=(_rv1)) as readpatch:
-            with patch.object(ConfigurationManager, '_update_value_val', return_value=(_rv2)) as updatepatch:
-                with patch.object(ConfigurationManager, '_run_callbacks', return_value=(_rv2)) as callbackpatch:
+        with patch.object(ConfigurationManager, '_read_item_val', return_value=_rv1) as readpatch:
+            with patch.object(ConfigurationManager, '_update_value_val', return_value=_rv2) as updatepatch:
+                with patch.object(ConfigurationManager, '_run_callbacks', return_value=_rv2) as callbackpatch:
                     await c_mgr.set_category_item_value_entry(category_name, item_name, new_value_entry)
                 callbackpatch.assert_called_once_with(category_name)
             updatepatch.assert_called_once_with(category_name, item_name, new_value_entry)
@@ -1387,10 +1387,10 @@ class TestConfigurationManager:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await async_mock()
         else:
-            _rv =  asyncio.ensure_future(async_mock())
+            _rv = asyncio.ensure_future(async_mock())
         
         with patch.object(_logger, 'exception') as log_exc:
-            with patch.object(ConfigurationManager, '_read_item_val', return_value=(_rv)) as readpatch:
+            with patch.object(ConfigurationManager, '_read_item_val', return_value=_rv) as readpatch:
                 with pytest.raises(Exception) as excinfo:
                     await c_mgr.set_category_item_value_entry(category_name, item_name, new_value_entry)
                 assert excinfo.type is ValueError
@@ -1413,10 +1413,10 @@ class TestConfigurationManager:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await async_mock()
         else:
-            _rv =  asyncio.ensure_future(async_mock())
+            _rv = asyncio.ensure_future(async_mock())
         
         with patch.object(_logger, 'exception') as log_exc:
-            with patch.object(ConfigurationManager, '_read_item_val', return_value=(_rv)) as readpatch:
+            with patch.object(ConfigurationManager, '_read_item_val', return_value=_rv) as readpatch:
                 with pytest.raises(Exception) as excinfo:
                     await c_mgr.set_category_item_value_entry(category_name, item_name, new_value_entry)
                 assert excinfo.type is ValueError
@@ -1436,9 +1436,9 @@ class TestConfigurationManager:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await async_mock('bla')
         else:
-            _rv =  asyncio.ensure_future(async_mock('bla'))
+            _rv = asyncio.ensure_future(async_mock('bla'))
 
-        with patch.object(ConfigurationManager, '_read_all_category_names', return_value=(_rv)) as readpatch:
+        with patch.object(ConfigurationManager, '_read_all_category_names', return_value=_rv) as readpatch:
             ret_val = await c_mgr.get_all_category_names()
             assert 'bla' == ret_val
         readpatch.assert_called_once_with()
@@ -1458,9 +1458,9 @@ class TestConfigurationManager:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await async_mock('bla')
         else:
-            _rv =  asyncio.ensure_future(async_mock('bla'))
+            _rv = asyncio.ensure_future(async_mock('bla'))
 
-        with patch.object(ConfigurationManager, '_read_all_groups', return_value=(_rv)) as readpatch:
+        with patch.object(ConfigurationManager, '_read_all_groups', return_value=_rv) as readpatch:
             ret_val = await c_mgr.get_all_category_names(root=value)
             assert 'bla' == ret_val
         readpatch.assert_called_once_with(value, False)
@@ -1491,9 +1491,9 @@ class TestConfigurationManager:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await async_mock(cat_info)
         else:
-            _rv =  asyncio.ensure_future(async_mock(cat_info))
+            _rv = asyncio.ensure_future(async_mock(cat_info))
 
-        with patch.object(ConfigurationManager, '_read_category', return_value=(_rv)) as readpatch:
+        with patch.object(ConfigurationManager, '_read_category', return_value=_rv) as readpatch:
             ret_val = await c_mgr.get_category_all_items(category_name)
             assert cat_value == ret_val
         readpatch.assert_called_once_with(category_name)
@@ -1525,11 +1525,11 @@ class TestConfigurationManager:
             _rv1 = await async_mock('bla')
             _rv2 = await async_mock(None)
         else:
-            _rv1 =  asyncio.ensure_future(async_mock('bla'))
-            _rv2 =  asyncio.ensure_future(async_mock(None))        
+            _rv1 = asyncio.ensure_future(async_mock('bla'))
+            _rv2 = asyncio.ensure_future(async_mock(None))        
 
-        with patch.object(ConfigurationManager, '_read_item_val', return_value=(_rv1)) as read_item_patch:
-            with patch.object(ConfigurationManager, '_read_category', return_value=(_rv2)) as read_cat_patch:
+        with patch.object(ConfigurationManager, '_read_item_val', return_value=_rv1) as read_item_patch:
+            with patch.object(ConfigurationManager, '_read_category', return_value=_rv2) as read_cat_patch:
                 ret_val = await c_mgr.get_category_item(category_name, item_name)
                 assert 'bla' == ret_val
             read_cat_patch.assert_called_once_with(category_name)
@@ -1562,9 +1562,9 @@ class TestConfigurationManager:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await async_mock('bla')
         else:
-            _rv =  asyncio.ensure_future(async_mock('bla'))        
+            _rv = asyncio.ensure_future(async_mock('bla'))        
 
-        with patch.object(ConfigurationManager, '_read_value_val', return_value=(_rv)) as readpatch:
+        with patch.object(ConfigurationManager, '_read_value_val', return_value=_rv) as readpatch:
             ret_val = await c_mgr.get_category_item_value_entry(category_name, item_name)
             assert 'bla' == ret_val
         readpatch.assert_called_once_with(category_name, item_name)
@@ -1599,15 +1599,15 @@ class TestConfigurationManager:
             _rv = await async_mock(None)
             _attr = await mock_coro()
         else:
-            _rv =  asyncio.ensure_future(async_mock(None))
-            _attr =  asyncio.ensure_future(mock_coro())
+            _rv = asyncio.ensure_future(async_mock(None))
+            _attr = asyncio.ensure_future(mock_coro())
 
         attrs = {"insert_into_tbl.return_value": _attr}
         storage_client_mock = MagicMock(spec=StorageClientAsync, **attrs)
         c_mgr = ConfigurationManager(storage_client_mock)      
 
         with patch.object(AuditLogger, '__init__', return_value=None):
-            with patch.object(AuditLogger, 'information', return_value=(_rv)) as auditinfopatch:
+            with patch.object(AuditLogger, 'information', return_value=_rv) as auditinfopatch:
                 with patch.object(PayloadBuilder, '__init__', return_value=None):
                     with patch.object(PayloadBuilder, 'INSERT', return_value=PayloadBuilder) as pbinsertpatch:
                         with patch.object(PayloadBuilder, 'payload', return_value=None) as pbpayloadpatch:
@@ -1661,15 +1661,15 @@ class TestConfigurationManager:
             _rv = await async_mock(None)
             _attr = await mock_coro()
         else:
-            _rv =  asyncio.ensure_future(async_mock(None))
-            _attr =  asyncio.ensure_future(mock_coro())        
+            _rv = asyncio.ensure_future(async_mock(None))
+            _attr = asyncio.ensure_future(mock_coro())        
 
         attrs = {"insert_into_tbl.return_value": _attr}
         storage_client_mock = MagicMock(spec=StorageClientAsync, **attrs)
         c_mgr = ConfigurationManager(storage_client_mock)
 
         with patch.object(AuditLogger, '__init__', return_value=None):
-            with patch.object(AuditLogger, 'information', return_value=(_rv)) as auditinfopatch:
+            with patch.object(AuditLogger, 'information', return_value=_rv) as auditinfopatch:
                 with patch.object(PayloadBuilder, '__init__', return_value=None):
                     with patch.object(PayloadBuilder, 'INSERT', return_value=PayloadBuilder) as pbinsertpatch:
                         with patch.object(PayloadBuilder, 'payload', return_value=None) as pbpayloadpatch:
@@ -1688,7 +1688,7 @@ class TestConfigurationManager:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _attr = await mock_coro()
         else:
-            _attr =  asyncio.ensure_future(mock_coro())
+            _attr = asyncio.ensure_future(mock_coro())
 
         attrs = {"query_tbl_with_payload.return_value": _attr}
         storage_client_mock = MagicMock(spec=StorageClientAsync, **attrs)
@@ -1709,7 +1709,7 @@ class TestConfigurationManager:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _attr = await mock_coro()
         else:
-            _attr =  asyncio.ensure_future(mock_coro())
+            _attr = asyncio.ensure_future(mock_coro())
 
         attrs = {"query_tbl_with_payload.return_value": _attr}
         storage_client_mock = MagicMock(spec=StorageClientAsync, **attrs)
@@ -1729,7 +1729,7 @@ class TestConfigurationManager:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _attr = await mock_coro()
         else:
-            _attr =  asyncio.ensure_future(mock_coro())
+            _attr = asyncio.ensure_future(mock_coro())
 
         attrs = {"query_tbl_with_payload.return_value": _attr }
         storage_client_mock = MagicMock(spec=StorageClientAsync, **attrs)
@@ -1749,7 +1749,7 @@ class TestConfigurationManager:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _attr = await async_mock()
         else:
-            _attr =  asyncio.ensure_future(async_mock())
+            _attr = asyncio.ensure_future(async_mock())
 
         attrs = {"query_tbl_with_payload.return_value": _attr}
         storage_client_mock = MagicMock(spec=StorageClientAsync, **attrs)
@@ -1775,7 +1775,7 @@ class TestConfigurationManager:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _attr = await async_mock()
         else:
-            _attr =  asyncio.ensure_future(async_mock())
+            _attr = asyncio.ensure_future(async_mock())
 
         attrs = {"query_tbl_with_payload.return_value": _attr}
         storage_client_mock = MagicMock(spec=StorageClientAsync, **attrs)
@@ -1822,7 +1822,7 @@ class TestConfigurationManager:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _attr = await mock_coro()
         else:
-            _attr =  asyncio.ensure_future(mock_coro())
+            _attr = asyncio.ensure_future(mock_coro())
 
         attrs = {"query_tbl_with_payload.return_value": _attr}
         storage_client_mock = MagicMock(spec=StorageClientAsync, **attrs)
@@ -1850,7 +1850,7 @@ class TestConfigurationManager:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _attr = await mock_coro()
         else:
-            _attr =  asyncio.ensure_future(mock_coro())
+            _attr = asyncio.ensure_future(mock_coro())
 
         attrs = {"query_tbl_with_payload.return_value": _attr}
         storage_client_mock = MagicMock(spec=StorageClientAsync, **attrs)
@@ -1880,7 +1880,7 @@ class TestConfigurationManager:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _attr = await mock_coro()
         else:
-            _attr =  asyncio.ensure_future(mock_coro())
+            _attr = asyncio.ensure_future(mock_coro())
 
         attrs = {"query_tbl_with_payload.return_value": _attr}
         storage_client_mock = MagicMock(spec=StorageClientAsync, **attrs)
@@ -1900,7 +1900,7 @@ class TestConfigurationManager:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _attr = await mock_coro()
         else:
-            _attr =  asyncio.ensure_future(mock_coro())
+            _attr = asyncio.ensure_future(mock_coro())
 
         attrs = {"query_tbl_with_payload.return_value": _attr}
         storage_client_mock = MagicMock(spec=StorageClientAsync, **attrs)
@@ -1920,7 +1920,7 @@ class TestConfigurationManager:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _attr = await mock_coro()
         else:
-            _attr =  asyncio.ensure_future(mock_coro())
+            _attr = asyncio.ensure_future(mock_coro())
 
         attrs = {"query_tbl_with_payload.return_value": _attr}
         storage_client_mock = MagicMock(spec=StorageClientAsync, **attrs)
@@ -1940,7 +1940,7 @@ class TestConfigurationManager:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _attr = await mock_coro()
         else:
-            _attr =  asyncio.ensure_future(mock_coro())
+            _attr = asyncio.ensure_future(mock_coro())
 
         attrs = {"query_tbl_with_payload.return_value": _attr}
         storage_client_mock = MagicMock(spec=StorageClientAsync, **attrs)
@@ -1964,15 +1964,15 @@ class TestConfigurationManager:
             _attr = await mock_coro()
             _rv = await async_mock(None)
         else:
-            _attr =  asyncio.ensure_future(mock_coro())
-            _rv =  asyncio.ensure_future(async_mock(None))      
+            _attr = asyncio.ensure_future(mock_coro())
+            _rv = asyncio.ensure_future(async_mock(None))      
 
         attrs = {"query_tbl_with_payload.return_value": _attr, "update_tbl.return_value": _attr}
         storage_client_mock = MagicMock(spec=StorageClientAsync, **attrs)
         c_mgr = ConfigurationManager(storage_client_mock)
 
         with patch.object(AuditLogger, '__init__', return_value=None):
-            with patch.object(AuditLogger, 'information', return_value=(_rv)) as auditinfopatch:
+            with patch.object(AuditLogger, 'information', return_value=_rv) as auditinfopatch:
                 await c_mgr._update_value_val(category_name, item_name, new_value_val)
         auditinfopatch.assert_called_once_with(
             'CONCH', {
@@ -1990,7 +1990,7 @@ class TestConfigurationManager:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _attr = await mock_coro()
         else:
-            _attr =  asyncio.ensure_future(mock_coro())
+            _attr = asyncio.ensure_future(mock_coro())
 
         attrs = {"query_tbl_with_payload.return_value": _attr, "update_tbl.return_value": _attr}
         storage_client_mock = MagicMock(spec=StorageClientAsync, **attrs)
@@ -2018,7 +2018,7 @@ class TestConfigurationManager:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _attr = await mock_coro()
         else:
-            _attr =  asyncio.ensure_future(mock_coro())
+            _attr = asyncio.ensure_future(mock_coro())
 
         attrs = {"query_tbl_with_payload.return_value": _attr, "update_tbl.return_value": _attr}
         storage_client_mock = MagicMock(spec=StorageClientAsync, **attrs)
@@ -2050,7 +2050,7 @@ class TestConfigurationManager:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _attr = await mock_coro()
         else:
-            _attr =  asyncio.ensure_future(mock_coro())
+            _attr = asyncio.ensure_future(mock_coro())
 
         attrs = {"update_tbl.return_value": _attr}
         storage_client_mock = MagicMock(spec=StorageClientAsync, **attrs)
@@ -2080,7 +2080,7 @@ class TestConfigurationManager:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _attr = await mock_coro()
         else:
-            _attr =  asyncio.ensure_future(mock_coro())
+            _attr = asyncio.ensure_future(mock_coro())
 
         attrs = {"update_tbl.return_value": _attr}
         storage_client_mock = MagicMock(spec=StorageClientAsync, **attrs)
@@ -2112,7 +2112,7 @@ class TestConfigurationManager:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _attr = await mock_coro()
         else:
-            _attr =  asyncio.ensure_future(mock_coro())
+            _attr = asyncio.ensure_future(mock_coro())
 
         attrs = {"update_tbl.return_value": _attr}
         storage_client_mock = MagicMock(spec=StorageClientAsync, **attrs)
@@ -2146,13 +2146,13 @@ class TestConfigurationManager:
             _rv2 = await async_mock(all_child_ret_val)
             _rv3 = await async_mock(child_info_ret_val)
         else:
-            _rv1 =  asyncio.ensure_future(async_mock('bla'))
-            _rv2 =  asyncio.ensure_future(async_mock(all_child_ret_val))
-            _rv3 =  asyncio.ensure_future(async_mock(child_info_ret_val))
+            _rv1 = asyncio.ensure_future(async_mock('bla'))
+            _rv2 = asyncio.ensure_future(async_mock(all_child_ret_val))
+            _rv3 = asyncio.ensure_future(async_mock(child_info_ret_val))
 
-        with patch.object(ConfigurationManager, '_read_category_val', return_value=(_rv1)) as patch_read_cat_val:
-            with patch.object(ConfigurationManager, '_read_all_child_category_names', return_value=(_rv2)) as patch_read_all_child:
-                with patch.object(ConfigurationManager, '_read_child_info', return_value=(_rv3)) as patch_read_child_info:
+        with patch.object(ConfigurationManager, '_read_category_val', return_value=_rv1) as patch_read_cat_val:
+            with patch.object(ConfigurationManager, '_read_all_child_category_names', return_value=_rv2) as patch_read_all_child:
+                with patch.object(ConfigurationManager, '_read_child_info', return_value=_rv3) as patch_read_child_info:
                     ret_val = await c_mgr.get_category_child(category_name)
                     assert [{'displayName': category_name, 'description': 'HTTP South Plugin', 'key': category_name}] == ret_val
                 patch_read_child_info.assert_called_once_with([{'child': category_name, 'parent': 'south'}])
@@ -2171,9 +2171,9 @@ class TestConfigurationManager:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await async_mock(None)
         else:
-            _rv =  asyncio.ensure_future(async_mock(None))
+            _rv = asyncio.ensure_future(async_mock(None))
 
-        with patch.object(ConfigurationManager, '_read_category_val', return_value=(_rv)) as patch_read_cat_val:
+        with patch.object(ConfigurationManager, '_read_category_val', return_value=_rv) as patch_read_cat_val:
             with pytest.raises(ValueError) as excinfo:
                 await c_mgr.get_category_child(category_name)
             assert 'No such {} category exist'.format(category_name) == str(excinfo.value)
@@ -2237,14 +2237,14 @@ class TestConfigurationManager:
             _rv1 = await async_mock('inserted')
             _rv2 = await async_mock(all_child_ret_val)
         else:
-            _rv1 =  asyncio.ensure_future(async_mock('inserted'))
-            _rv2 =  asyncio.ensure_future(async_mock(all_child_ret_val))    
+            _rv1 = asyncio.ensure_future(async_mock('inserted'))
+            _rv2 = asyncio.ensure_future(async_mock(all_child_ret_val))    
         
         with patch.object(ConfigurationManager, '_read_category_val', side_effect=q_result):
             with patch.object(ConfigurationManager, '_read_all_child_category_names',
-                              return_value=(_rv2)) as patch_readall_child:
+                              return_value=_rv2) as patch_readall_child:
                 with patch.object(ConfigurationManager, '_create_child',
-                                  return_value=(_rv1)) as patch_create_child:
+                                  return_value=_rv1) as patch_create_child:
                     ret_val = await c_mgr.create_child_category(cat_name, [child_name])
                     assert {'children': ['http', 'coap']} == ret_val
             patch_readall_child.assert_called_once_with(cat_name)
@@ -2272,11 +2272,11 @@ class TestConfigurationManager:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await async_mock(all_child_ret_val)
         else:
-            _rv =  asyncio.ensure_future(async_mock(all_child_ret_val))
+            _rv = asyncio.ensure_future(async_mock(all_child_ret_val))
         
         with patch.object(ConfigurationManager, '_read_category_val', side_effect=q_result):
             with patch.object(ConfigurationManager, '_read_all_child_category_names',
-                              return_value=(_rv)) as patch_readall_child:
+                              return_value=_rv) as patch_readall_child:
                 ret_val = await c_mgr.create_child_category(cat_name, [child_name])
                 assert {'children': ['coap']} == ret_val
             patch_readall_child.assert_called_once_with(cat_name)
@@ -2341,7 +2341,7 @@ class TestConfigurationManager:
             _rv = await async_mock(all_child_ret_val)
         else:
             _attr = asyncio.ensure_future(mock_coro())
-            _rv =  asyncio.ensure_future(async_mock(all_child_ret_val))
+            _rv = asyncio.ensure_future(async_mock(all_child_ret_val))
         
         attrs = {"delete_from_tbl.return_value": _attr}
         payload = {"where": {"column": "parent", "condition": "=", "value": "south", "and": {"column": "child", "condition": "=", "value": "coap"}}}
@@ -2349,7 +2349,7 @@ class TestConfigurationManager:
         c_mgr = ConfigurationManager(storage_client_mock)
         with patch.object(ConfigurationManager, '_read_category_val', side_effect=q_result):
             with patch.object(ConfigurationManager, '_read_all_child_category_names',
-                              return_value=(_rv)) as patch_read_all_child:
+                              return_value=_rv) as patch_read_all_child:
                 ret_val = await c_mgr.delete_child_category(cat_name, child_name)
                 assert [child_name] == ret_val
             patch_read_all_child.assert_called_once_with(cat_name)
@@ -2427,13 +2427,13 @@ class TestConfigurationManager:
             _rv = await async_mock('bla')
         else:
             _attr = asyncio.ensure_future(mock_coro())
-            _rv =  asyncio.ensure_future(async_mock('bla'))        
+            _rv = asyncio.ensure_future(async_mock('bla'))        
 
         attrs = {"delete_from_tbl.return_value": _attr}
         storage_client_mock = MagicMock(spec=StorageClientAsync, **attrs)
         c_mgr = ConfigurationManager(storage_client_mock)
 
-        with patch.object(ConfigurationManager, '_read_category_val', return_value=(_rv)) as patch_read_cat_val:
+        with patch.object(ConfigurationManager, '_read_category_val', return_value=_rv) as patch_read_cat_val:
             ret_val = await c_mgr.delete_parent_category("south")
             assert expected_result == ret_val
         patch_read_cat_val.assert_called_once_with('south')
@@ -2459,9 +2459,9 @@ class TestConfigurationManager:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await async_mock(None)
         else:
-            _rv =  asyncio.ensure_future(async_mock(None))
+            _rv = asyncio.ensure_future(async_mock(None))
 
-        with patch.object(ConfigurationManager, '_read_category_val', return_value=(_rv)) as patch_read_cat_val:
+        with patch.object(ConfigurationManager, '_read_category_val', return_value=_rv) as patch_read_cat_val:
             with pytest.raises(ValueError) as excinfo:
                 await c_mgr.delete_parent_category(category_name)
             assert 'No such {} category exist'.format(category_name) == str(excinfo.value)
@@ -2481,13 +2481,13 @@ class TestConfigurationManager:
             _rv = await async_mock('blah')
         else:
             _attr = asyncio.ensure_future(mock_coro())
-            _rv =  asyncio.ensure_future(async_mock('blah')) 
+            _rv = asyncio.ensure_future(async_mock('blah')) 
 
         attrs = {"delete_from_tbl.return_value": _attr}
         storage_client_mock = MagicMock(spec=StorageClientAsync, **attrs)
         c_mgr = ConfigurationManager(storage_client_mock)
 
-        with patch.object(ConfigurationManager, '_read_category_val', return_value=(_rv)) as patch_read_cat_val:
+        with patch.object(ConfigurationManager, '_read_category_val', return_value=_rv) as patch_read_cat_val:
             with pytest.raises(ValueError) as excinfo:
                 await c_mgr.delete_parent_category("south")
             assert 'blah' == str(excinfo.value)
@@ -2505,9 +2505,9 @@ class TestConfigurationManager:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await async_mock('blah')
         else:
-            _rv =  asyncio.ensure_future(async_mock('blah'))
+            _rv = asyncio.ensure_future(async_mock('blah'))
 
-        with patch.object(ConfigurationManager, '_read_category_val', return_value=(_rv)) as patch_read_cat_val:
+        with patch.object(ConfigurationManager, '_read_category_val', return_value=_rv) as patch_read_cat_val:
             with patch.object(storage_client_mock, 'delete_from_tbl', side_effect=StorageServerError(code=400,
                                                                                                      reason="blah", error=msg)):
                 with pytest.raises(ValueError) as excinfo:
@@ -2582,18 +2582,18 @@ class TestConfigurationManager:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await async_mock('bla')
         else:
-            _rv =  asyncio.ensure_future(async_mock('bla'))        
+            _rv = asyncio.ensure_future(async_mock('bla'))        
         
         c_mgr = ConfigurationManager(storage_client_mock)
         patch_read_cat_val = mocker.patch.object(ConfigurationManager, '_read_category_val',
-                                                 return_value=(_rv))
+                                                 return_value=_rv)
         mocker.patch.object(ConfigurationManager, '_read_all_child_category_names',
                             side_effect=mock_read_all_child_category_names)
         patch_fetch_descendents = mocker.patch.object(ConfigurationManager, '_fetch_descendents',
-                                                      return_value=(_rv))
+                                                      return_value=_rv)
 
         mocker.patch.object(AuditLogger, '__init__', return_value=None)
-        audit_info = mocker.patch.object(AuditLogger, 'information', return_value=(_rv))
+        audit_info = mocker.patch.object(AuditLogger, 'information', return_value=_rv)
 
         ret_val = await c_mgr.delete_category_and_children_recursively("A")
         assert expected_result == ret_val
@@ -2719,15 +2719,15 @@ class TestConfigurationManager:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await async_mock('bla')
         else:
-            _rv =  asyncio.ensure_future(async_mock('bla'))
+            _rv = asyncio.ensure_future(async_mock('bla'))
         
         c_mgr = ConfigurationManager(storage_client_mock)
-        mocker.patch.object(ConfigurationManager, '_read_category_val', return_value=(_rv))
+        mocker.patch.object(ConfigurationManager, '_read_category_val', return_value=_rv)
         mocker.patch.object(ConfigurationManager, '_read_all_child_category_names',
                             side_effect=mock_read_all_child_category_names)
 
         mocker.patch.object(AuditLogger, '__init__', return_value=None)
-        mocker.patch.object(AuditLogger, 'information', return_value=(_rv))
+        mocker.patch.object(AuditLogger, 'information', return_value=_rv)
         msg = "Reserved category found in descendents of A - ['B', 'E', 'F', 'G', 'H', 'I', 'N', 'C', 'M', 'D', " \
               "'North', 'K', 'L']"
 
@@ -2743,7 +2743,7 @@ class TestConfigurationManager:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _attr = await mock_coro()
         else:
-            _attr =  asyncio.ensure_future(mock_coro())
+            _attr = asyncio.ensure_future(mock_coro())
 
         attrs = {"query_tbl_with_payload.return_value": _attr}
         storage_client_mock = MagicMock(spec=StorageClientAsync, **attrs)
@@ -2763,7 +2763,7 @@ class TestConfigurationManager:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _attr = await mock_coro()
         else:
-            _attr =  asyncio.ensure_future(mock_coro())
+            _attr = asyncio.ensure_future(mock_coro())
 
         attrs = {"query_tbl_with_payload.return_value": _attr}
         storage_client_mock = MagicMock(spec=StorageClientAsync, **attrs)
@@ -2785,7 +2785,7 @@ class TestConfigurationManager:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _attr = await mock_coro()
         else:
-            _attr =  asyncio.ensure_future(mock_coro())
+            _attr = asyncio.ensure_future(mock_coro())
 
         attrs = {"insert_into_tbl.return_value": _attr}
         storage_client_mock = MagicMock(spec=StorageClientAsync, **attrs)
@@ -2807,7 +2807,7 @@ class TestConfigurationManager:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _attr = await mock_coro()
         else:
-            _attr =  asyncio.ensure_future(mock_coro())
+            _attr = asyncio.ensure_future(mock_coro())
 
         attrs = {"insert_into_tbl.return_value": _attr}
         storage_client_mock = MagicMock(spec=StorageClientAsync, **attrs)
@@ -2969,9 +2969,9 @@ class TestConfigurationManager:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await async_mock(cat_info)
         else:
-            _rv =  asyncio.ensure_future(async_mock(cat_info))
+            _rv = asyncio.ensure_future(async_mock(cat_info))
 
-        with patch.object(c_mgr, 'get_category_all_items', return_value=(_rv)) as patch_get_all_items:
+        with patch.object(c_mgr, 'get_category_all_items', return_value=_rv) as patch_get_all_items:
             with patch.object(_logger, 'exception') as patch_log_exc:
                 with pytest.raises(Exception) as exc_info:
                     await c_mgr.update_configuration_item_bulk(category_name, config_item_list)
@@ -3003,17 +3003,17 @@ class TestConfigurationManager:
             _rv3 = await async_mock(read_val)
             _rv4 = await async_mock(None)
         else:
-            _rv1 =  asyncio.ensure_future(async_mock(cat_info))
-            _rv2 =  asyncio.ensure_future(async_mock(update_result))
-            _rv3 =  asyncio.ensure_future(async_mock(read_val))
-            _rv4 =  asyncio.ensure_future(async_mock(None))
+            _rv1 = asyncio.ensure_future(async_mock(cat_info))
+            _rv2 = asyncio.ensure_future(async_mock(update_result))
+            _rv3 = asyncio.ensure_future(async_mock(read_val))
+            _rv4 = asyncio.ensure_future(async_mock(None))
 
-        with patch.object(c_mgr, 'get_category_all_items', return_value=(_rv1)) as patch_get_all_items:
-            with patch.object(c_mgr._storage, 'update_tbl', return_value=(_rv2)) as patch_update:
-                with patch.object(c_mgr, '_read_category_val', return_value=(_rv3)) as patch_read_val:
+        with patch.object(c_mgr, 'get_category_all_items', return_value=_rv1) as patch_get_all_items:
+            with patch.object(c_mgr._storage, 'update_tbl', return_value=_rv2) as patch_update:
+                with patch.object(c_mgr, '_read_category_val', return_value=_rv3) as patch_read_val:
                     with patch.object(AuditLogger, '__init__', return_value=None):
-                        with patch.object(AuditLogger, 'information', return_value=(_rv4)) as patch_audit:
-                            with patch.object(ConfigurationManager, '_run_callbacks', return_value=(_rv4)) \
+                        with patch.object(AuditLogger, 'information', return_value=_rv4) as patch_audit:
+                            with patch.object(ConfigurationManager, '_run_callbacks', return_value=_rv4) \
                                     as patch_callback:
                                 await c_mgr.update_configuration_item_bulk(category_name, config_item_list)
                             patch_callback.assert_called_once_with(category_name)
@@ -3037,9 +3037,9 @@ class TestConfigurationManager:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await async_mock(cat_info)
         else:
-            _rv =  asyncio.ensure_future(async_mock(cat_info))
+            _rv = asyncio.ensure_future(async_mock(cat_info))
 
-        with patch.object(c_mgr, 'get_category_all_items', return_value=(_rv)) as patch_get_all_items:
+        with patch.object(c_mgr, 'get_category_all_items', return_value=_rv) as patch_get_all_items:
             with patch.object(c_mgr._storage, 'update_tbl') as patch_update:
                 with patch.object(AuditLogger, 'information') as patch_audit:
                     with patch.object(ConfigurationManager, '_run_callbacks') as patch_callback:
@@ -3064,9 +3064,9 @@ class TestConfigurationManager:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await async_mock(cat_info)
         else:
-            _rv =  asyncio.ensure_future(async_mock(cat_info))
+            _rv = asyncio.ensure_future(async_mock(cat_info))
 
-        with patch.object(c_mgr, 'get_category_all_items', return_value=(_rv)) as patch_get_all_items:
+        with patch.object(c_mgr, 'get_category_all_items', return_value=_rv) as patch_get_all_items:
             with patch.object(c_mgr._storage, 'update_tbl') as patch_update:
                 with patch.object(AuditLogger, 'information') as patch_audit:
                     with patch.object(ConfigurationManager, '_run_callbacks') as patch_callback:
@@ -3102,17 +3102,17 @@ class TestConfigurationManager:
             _rv3 = await async_mock(read_val)
             _rv4 = await async_mock(None)
         else:
-            _rv1 =  asyncio.ensure_future(async_mock(cat_info))
-            _rv2 =  asyncio.ensure_future(async_mock(update_result))
-            _rv3 =  asyncio.ensure_future(async_mock(read_val))
-            _rv4 =  asyncio.ensure_future(async_mock(None))        
+            _rv1 = asyncio.ensure_future(async_mock(cat_info))
+            _rv2 = asyncio.ensure_future(async_mock(update_result))
+            _rv3 = asyncio.ensure_future(async_mock(read_val))
+            _rv4 = asyncio.ensure_future(async_mock(None))        
 
-        with patch.object(c_mgr, 'get_category_all_items', return_value=(_rv1)) as patch_get_all_items:
-            with patch.object(c_mgr._storage, 'update_tbl', return_value=(_rv2)) as patch_update:
-                with patch.object(c_mgr, '_read_category_val', return_value=(_rv3)) as patch_read_val:
+        with patch.object(c_mgr, 'get_category_all_items', return_value=_rv1) as patch_get_all_items:
+            with patch.object(c_mgr._storage, 'update_tbl', return_value=_rv2) as patch_update:
+                with patch.object(c_mgr, '_read_category_val', return_value=_rv3) as patch_read_val:
                     with patch.object(AuditLogger, '__init__', return_value=None):
-                        with patch.object(AuditLogger, 'information', return_value=(_rv4)):
-                            with patch.object(ConfigurationManager, '_run_callbacks', return_value=(_rv4)):
+                        with patch.object(AuditLogger, 'information', return_value=_rv4):
+                            with patch.object(ConfigurationManager, '_run_callbacks', return_value=_rv4):
                                 await c_mgr.update_configuration_item_bulk(category_name, config_item_list)
                 patch_read_val.assert_called_once_with(category_name)
             assert 1 == patch_update.call_count
@@ -3138,9 +3138,9 @@ class TestConfigurationManager:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await async_mock(cat_info)
         else:
-            _rv =  asyncio.ensure_future(async_mock(cat_info))
+            _rv = asyncio.ensure_future(async_mock(cat_info))
 
-        with patch.object(c_mgr, 'get_category_all_items', return_value=(_rv)) as patch_get_all_items:
+        with patch.object(c_mgr, 'get_category_all_items', return_value=_rv) as patch_get_all_items:
             with patch.object(_logger, 'exception') as patch_log_exc:
                 with pytest.raises(Exception) as exc_info:
                     await c_mgr.update_configuration_item_bulk(category_name, config_item_list)
@@ -3169,11 +3169,11 @@ class TestConfigurationManager:
             _se = await async_mock(storage_value_entry)
             _rv = await async_mock(update_result)
         else:
-            _se =  asyncio.ensure_future(async_mock(storage_value_entry))
-            _rv =  asyncio.ensure_future(async_mock(update_result))        
+            _se = asyncio.ensure_future(async_mock(storage_value_entry))
+            _rv = asyncio.ensure_future(async_mock(update_result))        
         
         with patch.object(ConfigurationManager, '_read_item_val', side_effect=[_se, _se]) as readpatch:
-            with patch.object(c_mgr._storage, 'update_tbl', return_value=(_rv)) as patch_update:
+            with patch.object(c_mgr._storage, 'update_tbl', return_value=_rv) as patch_update:
                 await c_mgr.set_optional_value_entry(category_name, item_name, optional_key_name, new_value_entry)
             args, kwargs = patch_update.call_args
             assert 'configuration' == args[0]
@@ -3226,10 +3226,10 @@ class TestConfigurationManager:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await async_mock(storage_value_entry)
         else:
-            _rv =  asyncio.ensure_future(async_mock(storage_value_entry))        
+            _rv = asyncio.ensure_future(async_mock(storage_value_entry))        
         
         with patch.object(_logger, "exception") as log_exc:
-            with patch.object(ConfigurationManager, '_read_item_val', return_value=(_rv)) as readpatch:
+            with patch.object(ConfigurationManager, '_read_item_val', return_value=_rv) as readpatch:
                 with pytest.raises(Exception) as excinfo:
                     await c_mgr.set_optional_value_entry(category_name, item_name, optional_key_name, new_value_entry)
                 assert excinfo.type is ValueError

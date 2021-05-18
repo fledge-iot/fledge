@@ -230,10 +230,10 @@ class TestDeleteCertStoreIfAuthenticationIsOptional:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro({'value': 'fledge'})
         else:
-            _rv =  asyncio.ensure_future(mock_coro({'value': 'fledge'}))
+            _rv = asyncio.ensure_future(mock_coro({'value': 'fledge'}))
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(c_mgr, 'get_category_item', return_value=(_rv)) as patch_cfg:
+            with patch.object(c_mgr, 'get_category_item', return_value=_rv) as patch_cfg:
                 resp = await client.delete('/fledge/certificate/{}'.format(cert_name))
                 assert actual_code == resp.status
                 assert actual_reason == resp.reason
@@ -264,11 +264,11 @@ class TestDeleteCertStoreIfAuthenticationIsOptional:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro({'value': 'fledge'})
         else:
-            _rv =  asyncio.ensure_future(mock_coro({'value': 'fledge'}))
+            _rv = asyncio.ensure_future(mock_coro({'value': 'fledge'}))
         
         with patch('os.path.isfile', return_value=True):
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-                with patch.object(c_mgr, 'get_category_item', return_value=(_rv)) as patch_cfg:
+                with patch.object(c_mgr, 'get_category_item', return_value=_rv) as patch_cfg:
                     resp = await client.delete('/fledge/certificate/fledge.cert')
                     assert 409 == resp.status
                     assert msg == resp.reason
@@ -288,10 +288,10 @@ class TestDeleteCertStoreIfAuthenticationIsOptional:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro({'value': 'fledge'})
         else:
-            _rv =  asyncio.ensure_future(mock_coro({'value': 'fledge'}))
+            _rv = asyncio.ensure_future(mock_coro({'value': 'fledge'}))
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(c_mgr, 'get_category_item', return_value=(_rv)) as patch_cfg:
+            with patch.object(c_mgr, 'get_category_item', return_value=_rv) as patch_cfg:
                 resp = await client.delete('/fledge/certificate/server.cert?type=pem')
                 assert 400 == resp.status
                 assert msg == resp.reason
@@ -317,10 +317,10 @@ class TestDeleteCertStoreIfAuthenticationIsOptional:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro({'value': 'foo'})
         else:
-            _rv =  asyncio.ensure_future(mock_coro({'value': 'foo'}))
+            _rv = asyncio.ensure_future(mock_coro({'value': 'foo'}))
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(c_mgr, 'get_category_item', return_value=(_rv)):
+            with patch.object(c_mgr, 'get_category_item', return_value=_rv):
                 with patch('os.path.isfile', return_value=True):
                     with patch('os.remove', return_value=True) as patch_remove:
                         resp = await client.delete('/fledge/certificate/{}{}'.format(cert_name, param))
@@ -338,13 +338,13 @@ class TestDeleteCertStoreIfAuthenticationIsOptional:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro({'value': 'test'})
         else:
-            _rv =  asyncio.ensure_future(mock_coro({'value': 'test'}))
+            _rv = asyncio.ensure_future(mock_coro({'value': 'test'}))
         
         with patch.object(certificate_store, '_get_certs_dir', return_value=str(certs_path / 'certs') + '/'):
             with patch('os.walk') as mockwalk:
                 mockwalk.return_value = [(str(certs_path / 'certs'), [], [cert_name])]
                 with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-                    with patch.object(c_mgr, 'get_category_item', return_value=(_rv)):
+                    with patch.object(c_mgr, 'get_category_item', return_value=_rv):
                         with patch('os.remove', return_value=True) as patch_remove:
                             resp = await client.delete('/fledge/certificate/{}'.format(cert_name))
                             assert 200 == resp.status
@@ -375,13 +375,13 @@ class TestDeleteCertStoreIfAuthenticationIsMandatory:
             _rv2 = await mock_coro(None)
             _rv3 = await mock_coro(user)
         else:
-            _rv1 =  asyncio.ensure_future(mock_coro(user['id']))
-            _rv2 =  asyncio.ensure_future(mock_coro(None))
-            _rv3 =  asyncio.ensure_future(mock_coro(user))
+            _rv1 = asyncio.ensure_future(mock_coro(user['id']))
+            _rv2 = asyncio.ensure_future(mock_coro(None))
+            _rv3 = asyncio.ensure_future(mock_coro(user))
         patch_logger_info = mocker.patch.object(middleware._logger, 'info')
-        patch_validate_token = mocker.patch.object(User.Objects, 'validate_token', return_value=(_rv1))
-        patch_refresh_token = mocker.patch.object(User.Objects, 'refresh_token_expiry', return_value=(_rv2))
-        patch_user_get = mocker.patch.object(User.Objects, 'get', return_value=(_rv3))
+        patch_validate_token = mocker.patch.object(User.Objects, 'validate_token', return_value=_rv1)
+        patch_refresh_token = mocker.patch.object(User.Objects, 'refresh_token_expiry', return_value=_rv2)
+        patch_user_get = mocker.patch.object(User.Objects, 'get', return_value=_rv3)
         return patch_logger_info, patch_validate_token, patch_refresh_token, patch_user_get
 
     @pytest.mark.parametrize("cert_name, actual_code, actual_reason", [
@@ -398,12 +398,12 @@ class TestDeleteCertStoreIfAuthenticationIsMandatory:
             _rv1 = await mock_coro([{'id': '1'}])
             _rv2 = await mock_coro({'value': 'fledge'})
         else:
-            _rv1 =  asyncio.ensure_future(mock_coro([{'id': '1'}]))
-            _rv2 =  asyncio.ensure_future(mock_coro({'value': 'fledge'}))
+            _rv1 = asyncio.ensure_future(mock_coro([{'id': '1'}]))
+            _rv2 = asyncio.ensure_future(mock_coro({'value': 'fledge'}))
         
-        with patch.object(User.Objects, 'get_role_id_by_name', return_value=(_rv1)) as patch_role_id:
+        with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv1) as patch_role_id:
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-                with patch.object(c_mgr, 'get_category_item', return_value=(_rv2)) as patch_cfg:
+                with patch.object(c_mgr, 'get_category_item', return_value=_rv2) as patch_cfg:
                     resp = await client.delete('/fledge/certificate/{}'.format(cert_name), headers=ADMIN_USER_HEADER)
                     assert actual_code == resp.status
                     assert actual_reason == resp.reason
@@ -432,7 +432,7 @@ class TestDeleteCertStoreIfAuthenticationIsMandatory:
         else:
             _rv = asyncio.ensure_future(mock_coro([{'id': '1'}]))       
         
-        with patch.object(User.Objects, 'get_role_id_by_name', return_value=(_rv)):
+        with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv):
             resp = await client.delete('/fledge/certificate/{}'.format(cert_name), headers=ADMIN_USER_HEADER)
             assert actual_code == resp.status
             assert actual_reason == resp.reason
@@ -457,10 +457,10 @@ class TestDeleteCertStoreIfAuthenticationIsMandatory:
             _rv1 = await mock_coro([{'id': '1'}])
             _rv2 = await mock_coro({'value': 'fledge'})
         else:
-            _rv1 =  asyncio.ensure_future(mock_coro([{'id': '1'}]))
-            _rv2 =  asyncio.ensure_future(mock_coro({'value': 'fledge'}))
+            _rv1 = asyncio.ensure_future(mock_coro([{'id': '1'}]))
+            _rv2 = asyncio.ensure_future(mock_coro({'value': 'fledge'}))
         
-        with patch.object(User.Objects, 'get_role_id_by_name', return_value=(_rv1)) as patch_role_id:
+        with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv1) as patch_role_id:
             with patch('os.path.isfile', return_value=True):
                 with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
                     with patch.object(c_mgr, 'get_category_item', return_value=(_rv2)
@@ -494,10 +494,10 @@ class TestDeleteCertStoreIfAuthenticationIsMandatory:
             _rv1 = await mock_coro([{'id': '1'}])
             _rv2 = await mock_coro({'value': 'fledge'})
         else:
-            _rv1 =  asyncio.ensure_future(mock_coro([{'id': '1'}]))
-            _rv2 =  asyncio.ensure_future(mock_coro({'value': 'fledge'}))
+            _rv1 = asyncio.ensure_future(mock_coro([{'id': '1'}]))
+            _rv2 = asyncio.ensure_future(mock_coro({'value': 'fledge'}))
         
-        with patch.object(User.Objects, 'get_role_id_by_name', return_value=(_rv1)) as patch_role_id:
+        with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv1) as patch_role_id:
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
                 with patch.object(c_mgr, 'get_category_item', return_value=(_rv2)
                                   ) as patch_cfg:
@@ -535,12 +535,12 @@ class TestDeleteCertStoreIfAuthenticationIsMandatory:
             _rv1 = await mock_coro([{'id': '1'}])
             _rv2 = await mock_coro({'value': 'foo'})
         else:
-            _rv1 =  asyncio.ensure_future(mock_coro([{'id': '1'}]))
-            _rv2 =  asyncio.ensure_future(mock_coro({'value': 'foo'}))
+            _rv1 = asyncio.ensure_future(mock_coro([{'id': '1'}]))
+            _rv2 = asyncio.ensure_future(mock_coro({'value': 'foo'}))
         
-        with patch.object(User.Objects, 'get_role_id_by_name', return_value=(_rv1)) as patch_role_id:
+        with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv1) as patch_role_id:
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-                with patch.object(c_mgr, 'get_category_item', return_value=(_rv2)):
+                with patch.object(c_mgr, 'get_category_item', return_value=_rv2):
                     with patch('os.path.isfile', return_value=True):
                         with patch('os.remove', return_value=True) as patch_remove:
                             resp = await client.delete('/fledge/certificate/{}{}'.format(cert_name, param),
@@ -567,15 +567,15 @@ class TestDeleteCertStoreIfAuthenticationIsMandatory:
             _rv1 = await mock_coro([{'id': '1'}])
             _rv2 = await mock_coro({'value': 'test'})
         else:
-            _rv1 =  asyncio.ensure_future(mock_coro([{'id': '1'}]))
-            _rv2 =  asyncio.ensure_future(mock_coro({'value': 'test'}))
+            _rv1 = asyncio.ensure_future(mock_coro([{'id': '1'}]))
+            _rv2 = asyncio.ensure_future(mock_coro({'value': 'test'}))
         
-        with patch.object(User.Objects, 'get_role_id_by_name', return_value=(_rv1)) as patch_role_id:
+        with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv1) as patch_role_id:
             with patch.object(certificate_store, '_get_certs_dir', return_value=str(certs_path / 'certs') + '/'):
                 with patch('os.walk') as mockwalk:
                     mockwalk.return_value = [(str(certs_path / 'certs'), [], [cert_name])]
                     with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-                        with patch.object(c_mgr, 'get_category_item', return_value=(_rv2)):
+                        with patch.object(c_mgr, 'get_category_item', return_value=_rv2):
                             with patch('os.remove', return_value=True) as patch_remove:
                                 resp = await client.delete('/fledge/certificate/{}'.format(cert_name),
                                                            headers=ADMIN_USER_HEADER)

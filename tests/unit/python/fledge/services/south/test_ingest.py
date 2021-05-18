@@ -9,6 +9,8 @@
 """
 import copy
 import pytest
+import sys
+import asyncio
 from unittest.mock import MagicMock, call
 from fledge.services.south.ingest import *
 from fledge.services.south import ingest
@@ -20,12 +22,7 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-@asyncio.coroutine
-def mock_coro():
-    yield from false_coro()
-
-
-async def false_coro():
+async def mock_coro():
     return True
 
 
@@ -204,6 +201,14 @@ class TestIngest:
         async def mock_create(storage):
             return mock_stat()
 
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv1 = await mock_coro()
+            _rv2 = await mock_create(None)
+        else:
+            _rv1 = asyncio.ensure_future(mock_coro())
+            _rv2 = asyncio.ensure_future(mock_create(None))
+        
         # GIVEN
         mocker.patch.object(StorageClientAsync, "__init__", return_value=None)
         mocker.patch.object(ReadingsStorageClientAsync, "__init__", return_value=None)
@@ -213,10 +218,10 @@ class TestIngest:
         get_cfg = mocker.patch.object(MicroserviceManagementClient, "get_configuration_category", return_value=get_cat(Ingest.default_config))
         mocker.patch.object(MicroserviceManagementClient, "get_asset_tracker_events", return_value={'track':[]})
         mocker.patch.object(MicroserviceManagementClient, "create_child_category", return_value=None)
-        mocker.patch.object(statistics, "create_statistics", return_value=mock_create(None))
+        mocker.patch.object(statistics, "create_statistics", return_value=_rv2)
         parent_service = MagicMock(_core_microservice_management_client=MicroserviceManagementClient())
-        mocker.patch.object(Ingest, "_write_statistics", return_value=mock_coro())
-        mocker.patch.object(Ingest, "_insert_readings", return_value=mock_coro())
+        mocker.patch.object(Ingest, "_write_statistics", return_value=_rv1)
+        mocker.patch.object(Ingest, "_insert_readings", return_value=_rv1)
 
         # WHEN
         await Ingest.start(parent=parent_service)
@@ -248,6 +253,14 @@ class TestIngest:
         async def mock_create(storage):
             return mock_stat()
 
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv1 = await mock_coro()
+            _rv2 = await mock_create(None)
+        else:
+            _rv1 = asyncio.ensure_future(mock_coro())
+            _rv2 = asyncio.ensure_future(mock_create(None))
+        
         # GIVEN
         mocker.patch.object(StorageClientAsync, "__init__", return_value=None)
         mocker.patch.object(ReadingsStorageClientAsync, "__init__", return_value=None)
@@ -257,10 +270,10 @@ class TestIngest:
         get_cfg = mocker.patch.object(MicroserviceManagementClient, "get_configuration_category", return_value=get_cat(Ingest.default_config))
         mocker.patch.object(MicroserviceManagementClient, "get_asset_tracker_events", return_value={'track':[]})
         mocker.patch.object(MicroserviceManagementClient, "create_child_category", return_value=None)
-        mocker.patch.object(statistics, "create_statistics", return_value=mock_create(None))
+        mocker.patch.object(statistics, "create_statistics", return_value=_rv2)
         parent_service = MagicMock(_core_microservice_management_client=MicroserviceManagementClient())
-        mocker.patch.object(Ingest, "_write_statistics", return_value=mock_coro())
-        mocker.patch.object(Ingest, "_insert_readings", return_value=mock_coro())
+        mocker.patch.object(Ingest, "_write_statistics", return_value=_rv1)
+        mocker.patch.object(Ingest, "_insert_readings", return_value=_rv1)
 
         # WHEN
         await Ingest.start(parent=parent_service)
@@ -308,10 +321,10 @@ class TestIngest:
         Ingest._readings_lists = []
         Ingest._readings_lists.append([])
         # Insert one task and leave room for more
-        Ingest._readings_lists[0].append(mock_coro())
+        Ingest._readings_lists[0].append(await mock_coro())
         log_warning = mocker.patch.object(ingest._LOGGER, "warning")
-        mocker.patch.object(Ingest, "_write_statistics", return_value=mock_coro())
-        mocker.patch.object(Ingest, "_insert_readings", return_value=mock_coro())
+        mocker.patch.object(Ingest, "_write_statistics", return_value=(await mock_coro()))
+        mocker.patch.object(Ingest, "_insert_readings", return_value=(await mock_coro()))
 
         # WHEN
         retval = Ingest.is_available()
@@ -328,11 +341,11 @@ class TestIngest:
         Ingest._current_readings_list_index = 0
         Ingest._readings_lists = []
         Ingest._readings_lists.append([])
-        Ingest._readings_lists[0].append(mock_coro())
+        Ingest._readings_lists[0].append(await mock_coro())
         log_warning = mocker.patch.object(ingest._LOGGER, "warning")
         Ingest._stop = True
-        mocker.patch.object(Ingest, "_write_statistics", return_value=mock_coro())
-        mocker.patch.object(Ingest, "_insert_readings", return_value=mock_coro())
+        mocker.patch.object(Ingest, "_write_statistics", return_value=(await mock_coro()))
+        mocker.patch.object(Ingest, "_insert_readings", return_value=(await mock_coro()))
 
         # WHEN
         retval = Ingest.is_available()
@@ -350,11 +363,11 @@ class TestIngest:
         Ingest._readings_lists = []
         Ingest._readings_lists.append([])
         # Insert two tasks
-        Ingest._readings_lists[0].append(mock_coro())
-        Ingest._readings_lists[0].append(mock_coro())
+        Ingest._readings_lists[0].append(await mock_coro())
+        Ingest._readings_lists[0].append(await mock_coro())
         log_warning = mocker.patch.object(ingest._LOGGER, "warning")
-        mocker.patch.object(Ingest, "_write_statistics", return_value=mock_coro())
-        mocker.patch.object(Ingest, "_insert_readings", return_value=mock_coro())
+        mocker.patch.object(Ingest, "_write_statistics", return_value=(await mock_coro()))
+        mocker.patch.object(Ingest, "_insert_readings", return_value=(await mock_coro()))
 
         # WHEN
         retval = Ingest.is_available()
@@ -386,8 +399,8 @@ class TestIngest:
         Ingest._readings_list_not_empty = []
         Ingest._readings_list_not_empty.append(asyncio.Event())
         Ingest._started = True
-        mocker.patch.object(Ingest, "_write_statistics", return_value=mock_coro())
-        mocker.patch.object(Ingest, "_insert_readings", return_value=mock_coro())
+        mocker.patch.object(Ingest, "_write_statistics", return_value=(await mock_coro()))
+        mocker.patch.object(Ingest, "_insert_readings", return_value=(await mock_coro()))
         mocker.patch.object(MicroserviceManagementClient, "__init__", return_value=None)
         mocker.patch.object(MicroserviceManagementClient, "create_asset_tracker_event", return_value=None)
         assert 0 == len(Ingest._readings_lists[0])
@@ -424,8 +437,8 @@ class TestIngest:
         Ingest._readings_list_not_empty.append(asyncio.Event())
         Ingest._stop = True
         log_warning = mocker.patch.object(ingest._LOGGER, "warning")
-        mocker.patch.object(Ingest, "_write_statistics", return_value=mock_coro())
-        mocker.patch.object(Ingest, "_insert_readings", return_value=mock_coro())
+        mocker.patch.object(Ingest, "_write_statistics", return_value=(await mock_coro()))
+        mocker.patch.object(Ingest, "_insert_readings", return_value=(await mock_coro()))
         assert 0 == len(Ingest._readings_lists[0])
 
         # WHEN
@@ -460,8 +473,8 @@ class TestIngest:
         Ingest._readings_list_not_empty = []
         Ingest._readings_list_not_empty.append(asyncio.Event())
         Ingest._started = False
-        mocker.patch.object(Ingest, "_write_statistics", return_value=mock_coro())
-        mocker.patch.object(Ingest, "_insert_readings", return_value=mock_coro())
+        mocker.patch.object(Ingest, "_write_statistics", return_value=(await mock_coro()))
+        mocker.patch.object(Ingest, "_insert_readings", return_value=(await mock_coro()))
         assert 0 == len(Ingest._readings_lists[0])
 
         # WHEN
@@ -495,8 +508,8 @@ class TestIngest:
         Ingest._readings_list_not_empty = []
         Ingest._readings_list_not_empty.append(asyncio.Event())
         Ingest._started = True
-        mocker.patch.object(Ingest, "_write_statistics", return_value=mock_coro())
-        mocker.patch.object(Ingest, "_insert_readings", return_value=mock_coro())
+        mocker.patch.object(Ingest, "_write_statistics", return_value=(await mock_coro()))
+        mocker.patch.object(Ingest, "_insert_readings", return_value=(await mock_coro()))
         assert 0 == len(Ingest._readings_lists[0])
 
         # WHEN
@@ -554,8 +567,8 @@ class TestIngest:
         Ingest._readings_list_batch_size_reached.append(asyncio.Event())
         Ingest._readings_list_batch_size_reached.append(asyncio.Event())
         Ingest._started = True
-        mocker.patch.object(Ingest, "_write_statistics", return_value=mock_coro())
-        mocker.patch.object(Ingest, "_insert_readings", return_value=mock_coro())
+        mocker.patch.object(Ingest, "_write_statistics", return_value=(await mock_coro()))
+        mocker.patch.object(Ingest, "_insert_readings", return_value=(await mock_coro()))
         mocker.patch.object(MicroserviceManagementClient, "__init__", return_value=None)
         mocker.patch.object(MicroserviceManagementClient, "create_asset_tracker_event", return_value=None)
 

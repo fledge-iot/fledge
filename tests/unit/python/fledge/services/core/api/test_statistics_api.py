@@ -8,6 +8,7 @@
 
 import asyncio
 import json
+import sys
 
 from unittest.mock import MagicMock, patch
 from aiohttp import web
@@ -39,13 +40,18 @@ class TestStatistics:
                            {"value": 1, "key": "READINGS", "description": "blah2"}]
                   }
 
-        @asyncio.coroutine
-        def mock_coro():
+        async def mock_coro():
             return result
 
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv = await mock_coro()
+        else:
+            _rv = asyncio.ensure_future(mock_coro())
+        
         mock_async_storage_client = MagicMock(StorageClientAsync)
         with patch.object(connect, 'get_storage_async', return_value=mock_async_storage_client):
-            with patch.object(mock_async_storage_client, 'query_tbl_with_payload', return_value=mock_coro()) as query_patch:
+            with patch.object(mock_async_storage_client, 'query_tbl_with_payload', return_value=_rv) as query_patch:
                 resp = await client.get("/fledge/statistics")
                 assert 200 == resp.status
                 r = await resp.text()
@@ -58,13 +64,18 @@ class TestStatistics:
     async def test_get_stats_exception(self, client):
         result = {"message": "error"}
 
-        @asyncio.coroutine
-        def mock_coro():
+        async def mock_coro():
             return result
 
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv = await mock_coro()
+        else:
+            _rv = asyncio.ensure_future(mock_coro())
+        
         mock_async_storage_client = MagicMock(StorageClientAsync)
         with patch.object(connect, 'get_storage_async', return_value=mock_async_storage_client):
-            with patch.object(mock_async_storage_client, 'query_tbl_with_payload', return_value=mock_coro()):
+            with patch.object(mock_async_storage_client, 'query_tbl_with_payload', return_value=_rv):
                 resp = await client.get("/fledge/statistics")
                 assert 500 == resp.status
                 assert "Internal Server Error" == resp.reason
@@ -260,12 +271,17 @@ class TestStatistics:
         mock_async_storage_client = MagicMock(StorageClientAsync)
         result = {"rows": [{"schedule_interval": "00:01:00"}]}
 
-        @asyncio.coroutine
-        def mock_coro():
+        async def mock_coro():
             return result
 
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv = await mock_coro()
+        else:
+            _rv = asyncio.ensure_future(mock_coro())
+        
         with patch.object(connect, 'get_storage_async', return_value=mock_async_storage_client):
-            with patch.object(mock_async_storage_client, 'query_tbl_with_payload', return_value=mock_coro()):
+            with patch.object(mock_async_storage_client, 'query_tbl_with_payload', return_value=_rv):
                 resp = await client.get("/fledge/statistics/history?limit={}".format(request_limit))
             assert 400 == resp.status
             assert "Limit must be a positive integer" == resp.reason

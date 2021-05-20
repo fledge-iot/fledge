@@ -116,3 +116,20 @@ unsigned long DataSender::send(ReadingSet *readings)
 	}
 	return lastSent;
 }
+
+/**
+ * Cause the data sender process to pause sending data until a corresponding release call is made.
+ *
+ * This call does not block until release is called, but does block until the current
+ * send completes.
+ */
+void DataSender::pause()
+{
+}
+
+/**
+ * Release the paused data sender thread
+ */
+void DataSender::release()
+{
+}

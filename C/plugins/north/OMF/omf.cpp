@@ -2896,73 +2896,75 @@ void OMF::setMapObjectTypes(const vector<Reading*>& readings,
 							++it)
 		{
 			string omfType;
+			string datapointName = (*it)->getName();
+
 			if (!isTypeSupported((*it)->getData()))
 			{
 				omfType = OMF_TYPE_UNSUPPORTED;
+				Logger::getLogger()->debug("%s - The type of the datapoint " + assetName + "/" + datapointName + " is unsupported, it will be ignored", __FUNCTION__);
 			}
 			else
 			{
 				omfType = omfTypes[((*it)->getData()).getType()];
-			}
-			string datapointName = (*it)->getName();
 
-			// if a OMF hint is applied the type may change
-			{
-				Reading *reading = *elem;
-
-				// Fetch and parse any OMFHint for this reading
-				Datapoint *hintsdp = reading->getDatapoint("OMFHint");
-				OMFHints *hints = NULL;
-
-				if (hintsdp && (omfType == OMF_TYPE_FLOAT || omfType == OMF_TYPE_INTEGER))
+				// if a OMF hint is applied the type may change
 				{
-					hints = new OMFHints(hintsdp->getData().toString());
-					const vector<OMFHint *> omfHints = hints->getHints();
+					Reading *reading = *elem;
 
-					for (auto it = omfHints.cbegin(); it != omfHints.cend(); it++)
+					// Fetch and parse any OMFHint for this reading
+					Datapoint *hintsdp = reading->getDatapoint("OMFHint");
+					OMFHints *hints = NULL;
+
+					if (hintsdp && (omfType == OMF_TYPE_FLOAT || omfType == OMF_TYPE_INTEGER))
 					{
-						if (typeid(**it) == typeid(OMFIntegerHint))
+						hints = new OMFHints(hintsdp->getData().toString());
+						const vector<OMFHint *> omfHints = hints->getHints();
+
+						for (auto it = omfHints.cbegin(); it != omfHints.cend(); it++)
 						{
-							omfType = OMF_TYPE_INTEGER;
-							break;
+							if (typeid(**it) == typeid(OMFIntegerHint))
+							{
+								omfType = OMF_TYPE_INTEGER;
+								break;
+							}
 						}
 					}
 				}
-			}
 
-			auto itr = readingAllDataPoints.find(assetName);
-			// Asset not found in the map
-			if (itr == readingAllDataPoints.end())
-			{
-				// Set type of current datapoint for ssetName
-				readingAllDataPoints[assetName][datapointName] = omfType;
-			}
-			else
-			{
-				// Asset found
-				auto dpItr = (*itr).second.find(datapointName);
-				// Datapoint not found
-				if (dpItr == (*itr).second.end())
+				auto itr = readingAllDataPoints.find(assetName);
+				// Asset not found in the map
+				if (itr == readingAllDataPoints.end())
 				{
-					// Add datapointName/type to map with key assetName
-					(*itr).second.emplace(datapointName, omfType);
+					// Set type of current datapoint for ssetName
+					readingAllDataPoints[assetName][datapointName] = omfType;
 				}
 				else
 				{
-					if ((*dpItr).second.compare(omfType) != 0)
+					// Asset found
+					auto dpItr = (*itr).second.find(datapointName);
+					// Datapoint not found
+					if (dpItr == (*itr).second.end())
 					{
-						// Datapoint already set has changed type
-						Logger::getLogger()->info("Datapoint '" + datapointName + \
-									  "' in asset '" + assetName + \
-									  "' has changed type from '" + (*dpItr).second + \
-									  " to " + omfType);
+						// Add datapointName/type to map with key assetName
+						(*itr).second.emplace(datapointName, omfType);
 					}
+					else
+					{
+						if ((*dpItr).second.compare(omfType) != 0)
+						{
+							// Datapoint already set has changed type
+							Logger::getLogger()->info("Datapoint '" + datapointName + \
+                                          "' in asset '" + assetName + \
+                                          "' has changed type from '" + (*dpItr).second + \
+                                          " to " + omfType);
+						}
 
-					// Update datapointName/type to map with key assetName
-					// 1- remove element
-					(*itr).second.erase(dpItr);	
-					// 2- Add new value
-					readingAllDataPoints[assetName][datapointName] = omfType;
+						// Update datapointName/type to map with key assetName
+						// 1- remove element
+						(*itr).second.erase(dpItr);
+						// 2- Add new value
+						readingAllDataPoints[assetName][datapointName] = omfType;
+					}
 				}
 			}
 		}
@@ -2997,9 +2999,12 @@ void OMF::setMapObjectTypes(const vector<Reading*>& readings,
 			}
 			else if ((*dp).second.compare(OMF_TYPE_UNSUPPORTED) == 0)
 			{
-				std::vector<double> vData = {0};
-				DatapointValue vArray(vData);
-				values.push_back(new Datapoint((*dp).first, vArray));
+				Logger::getLogger()->debug("%s - The asset '" + assetName + " has a datapoint having an unsupported type, it will be ignored", __FUNCTION__);
+
+				// Avoids to handled PI-Server unsupported datapoint type
+				// std::vector<double> vData = {0};
+				// DatapointValue vArray(vData);
+				// values.push_back(new Datapoint((*dp).first, vArray));
 			}
 		}
 
@@ -3201,22 +3206,7 @@ void OMF::incrementAssetTypeIdOnly(const std::string& keyComplete)
  */
 unsigned long OMF::calcTypeShort(const Reading& row)
 {
-	union t_typeCount {
-		struct
-		{
-			unsigned char tTotal;
-			unsigned char tFloat;
-			unsigned char tString;
-			unsigned char spare0;
-
-			unsigned char spare1;
-			unsigned char spare2;
-			unsigned char spare3;
-			unsigned char spare4;
-		} cnt;
-		unsigned long valueLong = 0;
-
-	} typeCount;
+	t_typeCount typeCount;
 
 	int type;
 
@@ -3461,6 +3451,9 @@ bool OMF::getCreatedTypes(const string& keyComplete, const Reading& row, OMFHint
 	bool ret = false;
 	bool found = false;
 
+	t_typeCount typeStored;
+	t_typeCount typeNew;
+
 	if (!m_OMFDataTypes)
 	{
 		ret = false;
@@ -3501,8 +3494,13 @@ bool OMF::getCreatedTypes(const string& keyComplete, const Reading& row, OMFHint
 								datatypeStructure = (*itSuper).second;
 
 								// Check if the types are changed
-								typesDefinition = calcTypeShort(*datatypeStructure);
-								if (type.typesShort != typesDefinition)
+								typeStored.valueLong = type.typesShort;
+								typeNew.valueLong = calcTypeShort(*datatypeStructure);
+
+								if (typeNew.cnt.tTotal  > typeStored.cnt.tTotal ||
+									typeNew.cnt.tFloat  > typeStored.cnt.tFloat ||
+									typeNew.cnt.tString > typeStored.cnt.tString
+									)
 								{
 									ret = false;
 								}

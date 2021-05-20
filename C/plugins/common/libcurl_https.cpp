@@ -169,6 +169,9 @@ void LibcurlHttps::setLibCurlOptions(CURL *sender, const string& path, const vec
 	// HTTP headers handling
 	m_chunk = curl_slist_append(m_chunk, "User-Agent: " HTTP_SENDER_USER_AGENT);
 
+	// To let PI Web API having Cross-Site Request Forgery (CSRF) enabled as by default configuration
+	m_chunk = curl_slist_append(m_chunk, "X-Requested-With: XMLHttpRequest");
+
 	for (auto it = headers.begin(); it != headers.end(); ++it)
 	{
 		httpHeader = (*it).first + ": " + (*it).second;
@@ -178,8 +181,7 @@ void LibcurlHttps::setLibCurlOptions(CURL *sender, const string& path, const vec
 	// Handle basic authentication
 	if (m_authMethod == "b")
 	{
-		// TODO : To be implemented / verified
-		httpHeader = "Basic: " + m_authBasicCredentials;
+		httpHeader = "Authorization: Basic " + m_authBasicCredentials;
 		m_chunk = curl_slist_append(m_chunk, httpHeader.c_str());
 
 		/* set user name and password for the authentication */

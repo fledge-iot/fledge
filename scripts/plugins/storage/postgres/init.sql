@@ -552,13 +552,14 @@ CREATE INDEX fki_role_asset_permissions_fk2
 CREATE TABLE fledge.users (
        id                integer                     NOT NULL DEFAULT nextval('fledge.users_id_seq'::regclass),
        uname             character varying(80)       NOT NULL COLLATE pg_catalog."default",
+       real_name         character varying(255) NOT NULL,
        role_id           integer                     NOT NULL,
        description       character varying(255)      NOT NULL DEFAULT ''::character varying COLLATE pg_catalog."default",
        pwd               character varying(255)      COLLATE pg_catalog."default",
        public_key        character varying(255)      COLLATE pg_catalog."default",
        enabled           boolean                     NOT NULL DEFAULT TRUE,
        pwd_last_changed  timestamp(6) with time zone NOT NULL DEFAULT now(),
-       access_method smallint                        NOT NULL DEFAULT 0,
+       access_method     character varying(5) CHECK( access_method IN ('any','pwd','cert') )  NOT NULL DEFAULT 'any',
           CONSTRAINT users_pkey PRIMARY KEY (id),
           CONSTRAINT users_fk1 FOREIGN KEY (role_id)
           REFERENCES fledge.roles (id) MATCH SIMPLE
@@ -804,9 +805,9 @@ INSERT INTO fledge.roles ( name, description )
 
 -- Users
 DELETE FROM fledge.users;
-INSERT INTO fledge.users ( uname, pwd, role_id, description )
-     VALUES ('admin', '39b16499c9311734c595e735cffb5d76ddffb2ebf8cf4313ee869525a9fa2c20:f400c843413d4c81abcba8f571e6ddb6', 1, 'admin user'),
-            ('user', '39b16499c9311734c595e735cffb5d76ddffb2ebf8cf4313ee869525a9fa2c20:f400c843413d4c81abcba8f571e6ddb6', 2, 'normal user');
+INSERT INTO fledge.users ( uname, real_name, pwd, role_id, description )
+     VALUES ('admin', 'Admin user', '39b16499c9311734c595e735cffb5d76ddffb2ebf8cf4313ee869525a9fa2c20:f400c843413d4c81abcba8f571e6ddb6', 1, 'admin user'),
+            ('user', 'Normal user', '39b16499c9311734c595e735cffb5d76ddffb2ebf8cf4313ee869525a9fa2c20:f400c843413d4c81abcba8f571e6ddb6', 2, 'normal user');
 
 -- User password history
 DELETE FROM fledge.user_pwd_history;

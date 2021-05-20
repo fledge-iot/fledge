@@ -1,0 +1,18 @@
+{
+  "plugin" : {
+    "value":"sqlitelb"
+  },
+  "readingPlugin" : {
+    "value":""
+  },
+  "threads":
+  {
+    "value":"2"
+  },
+  "port":    {
+    "value":"8080"
+  },
+  "managementPort": {
+    "value":"1081"
+  }
+}

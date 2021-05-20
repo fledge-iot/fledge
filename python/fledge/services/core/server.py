@@ -46,6 +46,7 @@ from fledge.common.storage_client import payload_builder
 from fledge.services.core.asset_tracker.asset_tracker import AssetTracker
 from fledge.services.core.api import asset_tracker as asset_tracker_api
 from fledge.common.web.ssl_wrapper import SSLVerifier
+from fledge.services.core.api import exceptions as api_exception
 
 __author__ = "Amarendra K. Sinha, Praveen Garg, Terris Linenbach, Massimiliano Pinto"
 __copyright__ = "Copyright (c) 2017-2018 OSIsoft, LLC"
@@ -1084,19 +1085,20 @@ class Server:
         :Example:
             curl -d '{"type": "Storage", "name": "Storage Services", "address": "127.0.0.1", "service_port": 8090,
                 "management_port": 1090, "protocol": "https"}' -X POST http://localhost:<core mgt port>/fledge/service
-
+            curl -d '{"type": "N1", "name": "Micro Service", "address": "127.0.0.1", "service_port": 9091,
+                "management_port": 1090, "protocol": "https", "token": "SVCNAME_ABCDE"}' -X POST
+                http://localhost:<core mgt port>/fledge/service
             service_port in payload is optional
         """
-
         try:
             data = await request.json()
-
             service_name = data.get('name', None)
             service_type = data.get('type', None)
             service_address = data.get('address', None)
             service_port = data.get('service_port', None)
             service_management_port = data.get('management_port', None)
             service_protocol = data.get('protocol', 'http')
+            token = data.get('token', None)
 
             if not (service_name.strip() or service_type.strip() or service_address.strip()
                     or service_management_port.strip() or not service_management_port.isdigit()):
@@ -1109,13 +1111,18 @@ class Server:
             if not isinstance(service_management_port, int):
                 raise web.HTTPBadRequest(reason='Service management port can be a positive integer only')
 
+            if token is not None:
+                if not isinstance(token, str):
+                    msg = 'Token can be a string only'
+                    raise web.HTTPBadRequest(reason=msg, body=json.dumps(msg))
             try:
                 registered_service_id = ServiceRegistry.register(service_name, service_type, service_address,
-                                                                   service_port, service_management_port, service_protocol)
+                                                                 service_port, service_management_port,
+                                                                 service_protocol, token)
                 try:
                     if not cls._storage_client_async is None:
                         cls._audit = AuditLogger(cls._storage_client_async)
-                        await cls._audit.information('SRVRG', { 'name' : service_name})
+                        await cls._audit.information('SRVRG', {'name': service_name})
                 except Exception as ex:
                     _logger.info("Failed to audit registration: %s", str(ex))
             except service_registry_exceptions.AlreadyExistsWithTheSameName:
@@ -1130,15 +1137,18 @@ class Server:
             if not registered_service_id:
                 raise web.HTTPBadRequest(reason='Service {} could not be registered'.format(service_name))
 
+            bearer_token = "{}_{}".format(service_name.strip(), uuid.uuid4().hex) if token is not None else ""
             _response = {
                 'id': registered_service_id,
-                'message': "Service registered successfully"
+                'message': "Service registered successfully",
+                'bearer_token': bearer_token
             }
-
+            # _logger.exception("SERVER RESPONSE: {}".format(_response))
             return web.json_response(_response)
 
-        except ValueError as ex:
-            raise web.HTTPNotFound(reason=str(ex))
+        except ValueError as err:
+            msg = str(err)
+            raise web.HTTPNotFound(reason=msg, body=json.dumps(msg))
 
     @classmethod
     async def unregister(cls, request):
@@ -1220,6 +1230,56 @@ class Server:
             services.append(svc)
 
         return web.json_response({"services": services})
+
+    @classmethod
+    async def get_auth_token(cls, request: web.Request) -> web.Response:
+        """ get oauth token
+
+            :Example:
+                curl -sX GET http://localhost:<core mgt port>/fledge/service/authtoken
+        """
+        async def cert_login(ca_cert):
+            certs_dir = _FLEDGE_DATA + '/etc/certs' if _FLEDGE_DATA else _FLEDGE_ROOT + "/data/etc/certs"
+            ca_cert_file = "{}/{}.cert".format(certs_dir, ca_cert)
+            SSLVerifier.set_ca_cert(ca_cert_file)
+            with open('{}/{}'.format(certs_dir, "admin.cert"), 'r') as content_file:
+                cert_content = content_file.read()
+            SSLVerifier.set_user_cert(cert_content)
+            SSLVerifier.verify()
+            username = SSLVerifier.get_subject()['commonName']
+            _uid, _token, _is_admin = await User.Objects.certificate_login(username, host)
+            return _token
+
+        try:
+            cfg_mgr = ConfigurationManager(cls._storage_client_async)
+            category_info = await cfg_mgr.get_category_all_items('rest_api')
+            is_auth_optional = True if category_info['authentication']['value'].lower() == 'optional' else False
+            if is_auth_optional:
+                raise api_exception.AuthenticationIsOptional
+            auth_method = category_info['authMethod']['value']
+            ca_cert_name = category_info['authCertificateName']['value']
+            peername = request.transport.get_extra_info('peername')
+            host = '0.0.0.0'
+            if peername is not None:
+                host, port = peername
+            if auth_method == 'certificate':
+                token = await cert_login(ca_cert_name)
+            elif auth_method == 'password':
+                # Assuming that super admin user exists on the system
+                payload = payload_builder.PayloadBuilder().SELECT("uname", "pwd").WHERE(['id', '=', 1]).payload()
+                result = await cls._storage_client_async.query_tbl_with_payload('users', payload)
+                uid, token, is_admin = await User.Objects.login("admin", result['rows'][0]['pwd'], host)
+            else:
+                # For auth method "any" we can use either login with cert or password
+                token = await cert_login(ca_cert_name)
+                # TODO: if cert does not exist then may try with password
+        except api_exception.AuthenticationIsOptional as err:
+            msg = str(err)
+            raise web.HTTPForbidden(reason=msg, body=json.dumps({"message": msg}))
+        except Exception as ex:
+            msg = str(ex)
+            raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+        return web.json_response({"token": token})
 
     @classmethod
     async def shutdown(cls, request):

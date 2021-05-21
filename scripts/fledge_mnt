@@ -1,0 +1,142 @@
+#!/bin/bash
+
+##--------------------------------------------------------------------
+## Fledge "management" - script to check/recovery fledge
+##
+## Copyright (c) 2021 Dianomic Systems
+##
+## Released under the Apache 2.0 Licence
+##
+## Author: Stefano Simonelli
+##
+##--------------------------------------------------------------------
+
+set -e
+#set -x
+
+FLEDGE_MNT_VERSION=1.0
+
+if [ "${FLEDGE_ROOT}" = "" ]; then
+	FLEDGE_ROOT=/usr/local/fledge
+fi
+
+if [ ! -d "${FLEDGE_ROOT}" ]; then
+	logger "Fledge home directory missing or incorrectly set environment"
+	exit 1
+fi
+
+#// FIXME_I:
+FLEDGE_SCRIPT="${FLEDGE_ROOT}/scripts/fledge"
+if [ ! -x "${FLEDGE_SCRIPT}" ]; then
+
+    FLEDGE_SCRIPT="${FLEDGE_ROOT}/bin/fledge"
+    if [ ! -x "${FLEDGE_SCRIPT}" ]; then
+
+	    logger "Fledge command unavailable both in deployment and development environments"
+	    exit 1
+    else
+        FLEDGE_ENV="deployment"
+    fi
+else
+    FLEDGE_ENV="development"
+fi
+
+# Check first SQLite 3 with static library command line is available
+#// FIXME_I:
+
+SQLITE_SQL="$FLEDGE_ROOT/plugins/storage/sqlite/sqlite3"
+if ! [[ -x "${SQLITE_SQL}" ]]; then
+# Check system default SQLite 3 command line is available
+    if ! [[ -x "$(command -v sqlite3)" ]]; then
+        sqlite_log "info" "The sqlite3 command cannot be found. Is SQLite3 installed?" "outonly" "pretty"
+        sqlite_log "info" "If SQLite3 is installed, check if the bin dir is in the PATH." "outonly" "pretty"
+        exit 1
+    else
+        SQLITE_SQL="$(command -v sqlite3)"
+    fi
+fi
+
+echo "Fledge management tool v${FLEDGE_MNT_VERSION}"
+echo "${FLEDGE_ENV} environment selected"
+echo "sqlite3 command ${SQLITE_SQL}"
+echo "sqlite3 version $(${SQLITE_SQL} --version)"
+
+#// FIXME_I:
+FLEDGE_DB="${FLEDGE_ROOT}/data/fledge.db"
+
+#
+# This is the startup script for fledge
+#
+USAGE="Usage: `basename ${0}` {check|shrink|recover --manual}"
+
+fledge_check() {
+
+    echo "executing check..."
+    #${FLEDGE_SCRIPT} stop
+
+    time "${SQLITE_SQL}" "${FLEDGE_DB}" "pragma integrity_check;"
+
+    #${FLEDGE_SCRIPT} start
+}
+
+fledge_shrink() {
+
+    echo "executing shrink..."
+
+    #${FLEDGE_SCRIPT} stop
+
+    time "${SQLITE_SQL}" "${FLEDGE_DB}" "pragma integrity_check;"
+
+    #${FLEDGE_SCRIPT} start
+
+}
+
+fledge_recover() {
+
+    echo "executing recovery"
+
+}
+
+
+fledge_help() {
+
+    echo "${USAGE}
+Fledge v${FLEDGE_MNT_VERSION} management script
+The script is used to check/recovery fledge
+Arguments:
+ check             - check the fledge database, it Stop and Start Fledge
+ shrink            - delete the content of the statistics_history > 3 days and shrink the database
+ recover           - attempt to recover the fledge database using the SQLITE .recover command
+ recover --manual  - a custom/manual attempt to recover the fledge database, useful if the SQLITE .recover command fail
+ help              - This text"
+}
+
+# Handle commands
+RECOVER_MODE=''
+case "$1" in
+    check)
+        fledge_check
+        ;;
+    shrink)
+        fledge_shrink
+        ;;
+    recover)
+        if [ ! -z "$2" ]; then
+            if [ $2 = "--manual" ]; then
+                RECOVER_MODE='manual'
+            else
+               echo "An invalid option has been entered: $2. Use --manual"
+               exit 1
+            fi
+        fi
+        fledge_recover
+        ;;
+    help)
+        fledge_help
+        ;;
+    *)
+        echo "${USAGE}"
+        exit 1
+esac
+
+exit $?

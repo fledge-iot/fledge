@@ -243,8 +243,7 @@ class TestDeleteCertStoreIfAuthenticationIsOptional:
             assert 1 == patch_cfg.call_count
     
     @pytest.mark.parametrize("cert_name, actual_code, actual_reason", [
-        ('root.txt', 400, "Accepted file extensions are ('.cert', '.cer', '.crt', '.json', '.key', '.pem')"),
-        ('admin.cert', 400, "Admin certs cannot be deleted")
+        ('root.txt', 400, "Accepted file extensions are ('.cert', '.cer', '.crt', '.json', '.key', '.pem')")
     ])
     async def test_bad_delete_cert(self, client, cert_name, actual_code, actual_reason):
         resp = await client.delete('/fledge/certificate/{}'.format(cert_name))
@@ -255,28 +254,16 @@ class TestDeleteCertStoreIfAuthenticationIsOptional:
         assert {"message": actual_reason} == json_response
 
     async def test_bad_delete_cert_if_in_use(self, client):
-        storage_client_mock = MagicMock(StorageClientAsync)
-        c_mgr = ConfigurationManager(storage_client_mock)
-        msg = 'Certificate with name fledge.cert is already in use, you can not delete'
-        
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await mock_coro({'certificateName':  {'value': 'fledge'},  'authCertificateName':  {'value': 'auth'}})
-        else:
-            _rv = asyncio.ensure_future(mock_coro({'certificateName':  {'value': 'fledge'},  'authCertificateName':  {'value': 'auth'}}))
-        
-        with patch('os.path.isfile', return_value=True):
-            with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-                with patch.object(c_mgr, 'get_category_all_items', return_value=_rv) as patch_cfg:
-                    resp = await client.delete('/fledge/certificate/fledge.cert')
-                    assert 409 == resp.status
-                    assert msg == resp.reason
-                    result = await resp.text()
-                    json_response = json.loads(result)
-                    assert {"message": msg} == json_response
-                assert 1 == patch_cfg.call_count
-                args, kwargs = patch_cfg.call_args
-                assert ({'item_name': 'certificateName', 'category_name': 'rest_api'}) == kwargs
+        cert_name = 'fledge.cert'
+        msg = 'Resource you were trying to reach is absolutely forbidden for some reason'
+        with patch.object(certificate_store._logger, 'warning') as patch_logger:
+            resp = await client.delete('/fledge/certificate/{}'.format(cert_name))
+            assert 403 == resp.status
+            assert msg == resp.reason
+            result = await resp.text()
+            json_response = json.loads(result)
+            assert {"message": msg} == json_response
+        patch_logger.assert_called_once_with(msg)
 
     async def test_bad_type_delete_cert(self, client):
         storage_client_mock = MagicMock(StorageClientAsync)
@@ -300,10 +287,8 @@ class TestDeleteCertStoreIfAuthenticationIsOptional:
             assert 1 == patch_cfg.call_count
 
     @pytest.mark.parametrize("cert_name, param", [
-        ('fledge.cert', '?type=cert'),
         ('fledge.json', '?type=cert'),
         ('fledge.pem', '?type=cert'),
-        ('fledge.key', '?type=key'),
         ('test.cer', '?type=cert'),
         ('test.crt', '?type=cert'),
         ('rsa_private.pem', '?type=key'),
@@ -418,8 +403,7 @@ class TestDeleteCertStoreIfAuthenticationIsMandatory:
                                                   '/fledge/certificate/{}'.format(cert_name))
 
     @pytest.mark.parametrize("cert_name, actual_code, actual_reason", [
-        ('root.txt', 400, "Accepted file extensions are ('.cert', '.cer', '.crt', '.json', '.key', '.pem')"),
-        ('admin.cert', 400, "Admin certs cannot be deleted")
+        ('root.txt', 400, "Accepted file extensions are ('.cert', '.cer', '.crt', '.json', '.key', '.pem')")
     ])
     async def test_bad_delete_cert(self, client, mocker, cert_name, actual_code, actual_reason):
         patch_logger_info, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(mocker)
@@ -447,17 +431,18 @@ class TestDeleteCertStoreIfAuthenticationIsMandatory:
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
         cert_name = 'fledge.cert'
-        msg = 'Certificate with name fledge.cert is configured for use, you can not delete but overwrite if required.'
+        msg = 'Certificate with name {} is configured for use, you can not delete but overwrite if required.'.format(
+            cert_name)
         patch_logger_info, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(mocker)
         
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        _payload = {'certificateName':  {'value': 'fledge'},  'authCertificateName':  {'value': 'auth'}}
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv1 = await mock_coro([{'id': '1'}])
-            _rv2 = await mock_coro({'certificateName':  {'value': 'fledge'},  'authCertificateName':  {'value': 'auth'}})
+            _rv2 = await mock_coro(_payload)
         else:
             _rv1 = asyncio.ensure_future(mock_coro([{'id': '1'}]))
-            _rv2 = asyncio.ensure_future(mock_coro({'certificateName':  {'value': 'fledge'},  'authCertificateName':  {'value': 'auth'}}))
-        
+            _rv2 = asyncio.ensure_future(mock_coro(_payload))
         with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv1) as patch_role_id:
             with patch('os.path.isfile', return_value=True):
                 with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
@@ -515,10 +500,8 @@ class TestDeleteCertStoreIfAuthenticationIsMandatory:
                                                   '/fledge/certificate/{}'.format(cert_name))
 
     @pytest.mark.parametrize("cert_name, param", [
-        ('fledge.cert', '?type=cert'),
         ('fledge.json', '?type=cert'),
         ('fledge.pem', '?type=cert'),
-        ('fledge.key', '?type=key'),
         ('test.cer', '?type=cert'),
         ('test.crt', '?type=cert'),
         ('rsa_private.pem', '?type=key'),

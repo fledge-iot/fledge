@@ -622,7 +622,6 @@ void DataLoad::configChange(const string& category, const string& newConfig)
 		 */
 		loadFilters(category);
 
-		// Set m_running holding the lock
 		lock_guard<mutex> guard(m_pipelineMutex);
 	}
 	else

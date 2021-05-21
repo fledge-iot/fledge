@@ -504,6 +504,8 @@ void NorthService::configChange(const string& categoryName, const string& catego
 
 		m_restartPlugin = true;
 		m_cv.notify_all();
+
+		m_dataLoad->configChange(categoryName, category);
 	}
 	if (categoryName.compare(m_name+"Advanced") == 0)
 	{
@@ -515,9 +517,22 @@ void NorthService::configChange(const string& categoryName, const string& catego
 	}
 }
 
+/**
+ * Restart the plugin with an updated confoguration.
+ * We need to do this as north plugins do not have a reconfigure method
+ *
+ * We need to make sure we are not sending data and the send data thread does not startup
+ * whilst we are doing the restart.
+ *
+ * We also need to make sure the send data thread gets the new plugin.
+ */
 void NorthService::restartPlugin()
 {
 	m_restartPlugin = false;
+
+	// Stop the send data thread
+	m_dataSender->pause();
+
 	if (m_pluginData)
 	{
 		string saveData = northPlugin->shutdownSaveData();
@@ -535,6 +550,8 @@ void NorthService::restartPlugin()
 	}
 	delete northPlugin;
 	loadPlugin();
+	m_dataSender->updatePlugin(northPlugin);
+	m_dataSender->release();
 }
 
 /**

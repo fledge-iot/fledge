@@ -40,17 +40,21 @@ def certs_path():
 
 
 ADMIN_USER_HEADER = {'content-type': 'application/json', 'Authorization': 'admin_user_token'}
+CAT_INFO = {'certificateName': {'value': 'fledge'}, 'authCertificateName': {'value': 'auth'}}
 
 
 @pytest.allure.feature("unit")
 @pytest.allure.story("api", "certificate-store")
 class TestCertificateStore:
     @pytest.fixture
-    def client(self, loop, test_client):
-        app = web.Application(loop=loop)
+    def client(self, loop, aiohttp_server, aiohttp_client):
+        app = web.Application(loop=loop, middlewares=[middleware.optional_auth_middleware])
         # fill the routes table
         routes.setup(app)
-        return loop.run_until_complete(test_client(app))
+        server = loop.run_until_complete(aiohttp_server(app))
+        loop.run_until_complete(server.start_server(loop=loop))
+        client = loop.run_until_complete(aiohttp_client(server))
+        return client
 
     async def test_get_certs(self, client, certs_path):
         response_content = {'keys': ['fledge.key', 'rsa_private.pem'],
@@ -204,20 +208,6 @@ class TestCertificateStore:
         assert excinfo.type is FileNotFoundError
         assert "No such file or directory:" in str(excinfo)
 
-
-@pytest.allure.feature("unit")
-@pytest.allure.story("api", "delete-certificate-store-with-authentication-optional")
-class TestDeleteCertStoreIfAuthenticationIsOptional:
-    @pytest.fixture
-    def client(self, loop, aiohttp_server, aiohttp_client):
-        app = web.Application(loop=loop, middlewares=[middleware.optional_auth_middleware])
-        # fill the routes table
-        routes.setup(app)
-        server = loop.run_until_complete(aiohttp_server(app))
-        loop.run_until_complete(server.start_server(loop=loop))
-        client = loop.run_until_complete(aiohttp_client(server))
-        return client
-
     @pytest.mark.parametrize("cert_name, actual_code, actual_reason", [
         ('root.pem', 404, "Certificate with name root.pem does not exist"),
         ('rsa_private.key', 404, "Certificate with name rsa_private.key does not exist")
@@ -225,13 +215,9 @@ class TestDeleteCertStoreIfAuthenticationIsOptional:
     async def test_bad_delete_cert_with_invalid_filename(self, client, cert_name, actual_code, actual_reason):
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
-        
+
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await mock_coro({'certificateName':  {'value': 'fledge'},  'authCertificateName':  {'value': 'auth'}})
-        else:
-            _rv = asyncio.ensure_future(mock_coro({'certificateName':  {'value': 'fledge'},  'authCertificateName':  {'value': 'auth'}}))
-        
+        _rv = await mock_coro(CAT_INFO) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(CAT_INFO))
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(c_mgr, 'get_category_all_items', return_value=_rv) as patch_cfg:
                 resp = await client.delete('/fledge/certificate/{}'.format(cert_name))
@@ -241,7 +227,7 @@ class TestDeleteCertStoreIfAuthenticationIsOptional:
                 json_response = json.loads(result)
                 assert {"message": actual_reason} == json_response
             assert 1 == patch_cfg.call_count
-    
+
     @pytest.mark.parametrize("cert_name, actual_code, actual_reason", [
         ('root.txt', 400, "Accepted file extensions are ('.cert', '.cer', '.crt', '.json', '.key', '.pem')")
     ])
@@ -269,13 +255,9 @@ class TestDeleteCertStoreIfAuthenticationIsOptional:
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
         msg = 'Only cert and key are allowed for the value of type param'
-        
+
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await mock_coro({'certificateName':  {'value': 'fledge'},  'authCertificateName':  {'value': 'auth'}})
-        else:
-            _rv = asyncio.ensure_future(mock_coro({'certificateName':  {'value': 'fledge'},  'authCertificateName':  {'value': 'auth'}}))
-        
+        _rv = await mock_coro(CAT_INFO) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(CAT_INFO))
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(c_mgr, 'get_category_all_items', return_value=_rv) as patch_cfg:
                 resp = await client.delete('/fledge/certificate/server.cert?type=pem')
@@ -296,13 +278,10 @@ class TestDeleteCertStoreIfAuthenticationIsOptional:
     async def test_delete_cert_with_type(self, client, cert_name, param):
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
-        
+
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await mock_coro({'certificateName':  {'value': 'foo'},  'authCertificateName':  {'value': 'auth'}})
-        else:
-            _rv = asyncio.ensure_future(mock_coro({'certificateName':  {'value': 'foo'},  'authCertificateName':  {'value': 'auth'}}))
-        
+        cat_info = {'certificateName': {'value': 'foo'}, 'authCertificateName': {'value': 'ca'}}
+        _rv = await mock_coro(cat_info) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(cat_info))
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(c_mgr, 'get_category_all_items', return_value=_rv):
                 with patch('os.path.isfile', return_value=True):
@@ -317,13 +296,9 @@ class TestDeleteCertStoreIfAuthenticationIsOptional:
     async def test_delete_cert(self, client, certs_path, cert_name='server.cert'):
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
-        
+
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await mock_coro({'certificateName':  {'value': 'test'},  'authCertificateName':  {'value': 'ca'}})
-        else:
-            _rv = asyncio.ensure_future(mock_coro({'certificateName':  {'value': 'test'},  'authCertificateName':  {'value': 'ca'}}))
-        
+        _rv = await mock_coro(CAT_INFO) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(CAT_INFO))
         with patch.object(certificate_store, '_get_certs_dir', return_value=str(certs_path / 'certs') + '/'):
             with patch('os.walk') as mockwalk:
                 mockwalk.return_value = [(str(certs_path / 'certs'), [], [cert_name])]
@@ -409,11 +384,8 @@ class TestDeleteCertStoreIfAuthenticationIsMandatory:
         patch_logger_info, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(mocker)
         
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await mock_coro([{'id': '1'}])
-        else:
-            _rv = asyncio.ensure_future(mock_coro([{'id': '1'}]))       
-        
+        _payload = [{'id': '1'}]
+        _rv = await mock_coro(_payload) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(_payload))
         with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv):
             resp = await client.delete('/fledge/certificate/{}'.format(cert_name), headers=ADMIN_USER_HEADER)
             assert actual_code == resp.status

@@ -82,7 +82,6 @@ async def upload(request):
     key_file = data.get('key')
     cert_file = data.get('cert')
     allow_overwrite = data.get('overwrite', '0')
-
     # accepted values for overwrite are '0 and 1'
     should_overwrite = False
     if allow_overwrite in ('0', '1'):
@@ -105,7 +104,7 @@ async def upload(request):
             if not request.user_is_admin:
                 msg = "admin role permissions required to overwrite the default installed auth/TLS certificates."
                 _logger.warning(msg)
-                raise web.HTTPForbidden(reason='admin role permissions required', body=json.dumps({"message": msg}))
+                raise web.HTTPForbidden(reason=msg, body=json.dumps({"message": msg}))
     # note.. We are not checking if HTTPS enabled or auth mechanism?
     # Here, in secured instance, we are simply disallowing non-admin user to overwrite/import configured TLS/CA certificates
     if request.user and not request.user_is_admin:

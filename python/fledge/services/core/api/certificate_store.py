@@ -94,8 +94,8 @@ async def upload(request):
 
     cert_filename = cert_file.filename
 
-    # default installed keys can be deleted, for matching/debugging disallow overwrite
-    if cert_filename in ['admin.cert', 'admin.key', 'user.cert', 'user.key', 'fledge.cert', 'ca.key', 'ca.cert']:
+    # default installed auth cert keys can be deleted, for matching/debugging disallow overwrite
+    if cert_filename in ['admin.cert', 'admin.key', 'user.cert', 'user.key', 'fledge.key', 'fledge.cert', 'ca.key', 'ca.cert']:
         if request.is_auth_optional:
             _logger.warning(FORBIDDEN_MSG)
             raise web.HTTPForbidden(reason=FORBIDDEN_MSG, body=json.dumps({"message": FORBIDDEN_MSG}))
@@ -185,7 +185,7 @@ async def delete_certificate(request):
         msg = "Accepted file extensions are {}".format(valid_extensions)
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     
-    if file_name in ['admin.cert', 'user.cert', 'fledge.cert', 'ca.cert']:
+    if file_name in ['admin.cert', 'user.cert', 'fledge.key', 'fledge.cert', 'ca.key', 'ca.cert']:
         if request.is_auth_optional:
             _logger.warning(FORBIDDEN_MSG)
             raise web.HTTPForbidden(reason=FORBIDDEN_MSG, body=json.dumps({"message": FORBIDDEN_MSG}))

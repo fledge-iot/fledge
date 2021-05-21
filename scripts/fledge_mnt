@@ -249,16 +249,16 @@ fledge_recover() {
 
 fledge_help() {
 
+    echo ""
     echo "${USAGE}
-Fledge v${FLEDGE_MNT_VERSION} management script
 The script is used to check/recovery fledge
 Arguments:
  info              - show information on the database/tables
- check             - check the fledge database, it Stop and Start Fledge
- shrink            - shrink the database
+ check             - check the fledge database, stops Fledge
+ shrink            - shrink the database, stops Fledge
  shrink  --table   - delete the content of the statistics_history > 3 days and shrink the database
  recover           - attempt to recover the fledge database using the SQLITE .recover command
- recover --manual  - a custom/manual attempt to recover the fledge database, useful if the SQLITE .recover command fail
+ recover --manual  - a custom/manual attempt to recover the fledge database, useful if the SQLITE .recover command fails
  help              - This text"
 }
 

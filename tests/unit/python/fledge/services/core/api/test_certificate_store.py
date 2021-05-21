@@ -83,7 +83,7 @@ class TestCertificateStore:
             mockwalk.assert_called_once_with(certs_path / 'certs')
 
     @pytest.mark.parametrize("files", [
-        [], ['fledge.txt'],
+        [], ['fledge.txt']
     ])
     async def test_get_bad_certs(self, client, certs_path, files):
         with patch.object(certificate_store, '_get_certs_dir', side_effect=[certs_path / 'certs',
@@ -107,53 +107,6 @@ class TestCertificateStore:
                 assert 2 == mocked_listdir.call_count
             mockwalk.assert_called_once_with(certs_path / 'certs')
 
-    async def test_upload(self, client, certs_path):
-        files = {'key': open(str(certs_path / 'certs/fledge.key'), 'rb'),
-                 'cert': open(str(certs_path / 'certs/fledge.cert'), 'rb')}
-        with patch.object(certificate_store, '_get_certs_dir', return_value=certs_path / 'certs'):
-            with patch.object(certificate_store, '_find_file', return_value=[]) as patch_find_file:
-                resp = await client.post('/fledge/certificate', data=files)
-                assert 200 == resp.status
-                result = await resp.text()
-                json_response = json.loads(result)
-                assert 'fledge.key and fledge.cert have been uploaded successfully' == json_response['result']
-            assert 2 == patch_find_file.call_count
-            args, kwargs = patch_find_file.call_args_list[0]
-            assert ('fledge.cert', certificate_store._get_certs_dir('/certs/')) == args
-            args, kwargs = patch_find_file.call_args_list[1]
-            assert ('fledge.key', certificate_store._get_certs_dir('/certs/')) == args
-
-    @pytest.mark.parametrize("filename", ["fledge.pem", "fledge.cert", "test.cer", "test.crt"])
-    async def test_upload_with_cert_only(self, client, certs_path, filename):
-        files = {'cert': open(str(certs_path / 'certs/{}'.format(filename)), 'rb')}
-        with patch.object(certificate_store, '_get_certs_dir', return_value=certs_path / 'certs/pem'):
-            with patch.object(certificate_store, '_find_file', return_value=[]) as patch_find_file:
-                resp = await client.post('/fledge/certificate', data=files)
-                assert 200 == resp.status
-                result = await resp.text()
-                json_response = json.loads(result)
-                assert '{} has been uploaded successfully'.format(filename) == json_response['result']
-            assert 1 == patch_find_file.call_count
-            args, kwargs = patch_find_file.call_args
-            assert (filename, certificate_store._get_certs_dir('/certs/pem')) == args
-
-    async def test_file_upload_with_overwrite(self, client, certs_path):
-        files = {'key': open(str(certs_path / 'certs/fledge.key'), 'rb'),
-                 'cert': open(str(certs_path / 'certs/fledge.cert'), 'rb'),
-                 'overwrite': '1'}
-        with patch.object(certificate_store, '_get_certs_dir', return_value=certs_path / 'certs'):
-            with patch.object(certificate_store, '_find_file', return_value=[]) as patch_find_file:
-                resp = await client.post('/fledge/certificate', data=files)
-                assert 200 == resp.status
-                result = await resp.text()
-                json_response = json.loads(result)
-                assert 'fledge.key and fledge.cert have been uploaded successfully' == json_response['result']
-            assert 2 == patch_find_file.call_count
-            args, kwargs = patch_find_file.call_args_list[0]
-            assert ('fledge.cert', certificate_store._get_certs_dir('/certs/')) == args
-            args, kwargs = patch_find_file.call_args_list[1]
-            assert ('fledge.key', certificate_store._get_certs_dir('/certs/')) == args
-
     async def test_bad_cert_file_upload(self, client, certs_path):
         files = {'bad_cert': open(str(certs_path / 'certs/fledge.cert'), 'rb'),
                  'key': open(str(certs_path / 'certs/fledge.key'), 'rb')}
@@ -169,14 +122,6 @@ class TestCertificateStore:
         assert 400 == resp.status
         assert 'Accepted file extensions are {} for cert file'.format(cert_valid_extensions) == resp.reason
 
-    async def test_bad_extension_key_file_upload(self, client, certs_path):
-        key_valid_extensions = ('.key', '.pem')
-        files = {'cert': open(str(certs_path / 'certs/fledge.cert'), 'rb'),
-                 'key': open(str(certs_path / 'certs/fledge.txt'), 'rb')}
-        resp = await client.post('/fledge/certificate', data=files)
-        assert 400 == resp.status
-        assert 'Accepted file extensions are {} for key file'.format(key_valid_extensions) == resp.reason
-
     @pytest.mark.parametrize("overwrite", ['blah', '2'])
     async def test_bad_overwrite_file_upload(self, client, certs_path, overwrite):
         files = {'cert': open(str(certs_path / 'certs/fledge.cert'), 'rb'),
@@ -185,19 +130,6 @@ class TestCertificateStore:
         resp = await client.post('/fledge/certificate', data=files)
         assert 400 == resp.status
         assert 'Accepted value for overwrite is 0 or 1' == resp.reason
-
-    async def test_upload_with_existing_and_no_overwrite(self, client, certs_path):
-        files = {'key': open(str(certs_path / 'certs/fledge.key'), 'rb'),
-                 'cert': open(str(certs_path / 'certs/fledge.cert'), 'rb')}
-        with patch.object(certificate_store, '_get_certs_dir', return_value=certs_path / 'certs'):
-            with patch.object(certificate_store, '_find_file', return_value=["v"]) as patch_file:
-                resp = await client.post('/fledge/certificate', data=files)
-                assert 400 == resp.status
-                assert 'Certificate with the same name already exists! To overwrite, set the ' \
-                       'overwrite flag' == resp.reason
-            assert 1 == patch_file.call_count
-            args, kwargs = patch_file.call_args
-            assert ('fledge.cert', certificate_store._get_certs_dir('/certs')) == args
 
     async def test_exception(self, client, certs_path):
         with pytest.raises(Exception) as excinfo:
@@ -240,15 +172,14 @@ class TestCertificateStore:
 
     async def test_bad_delete_cert_if_in_use(self, client):
         cert_name = 'fledge.cert'
-        msg = 'Resource you were trying to reach is absolutely forbidden for some reason'
         with patch.object(certificate_store._logger, 'warning') as patch_logger:
             resp = await client.delete('/fledge/certificate/{}'.format(cert_name))
             assert 403 == resp.status
-            assert msg == resp.reason
+            assert certificate_store.FORBIDDEN_MSG == resp.reason
             result = await resp.text()
             json_response = json.loads(result)
-            assert {"message": msg} == json_response
-        patch_logger.assert_called_once_with(msg)
+            assert {"message": certificate_store.FORBIDDEN_MSG} == json_response
+        patch_logger.assert_called_once_with(certificate_store.FORBIDDEN_MSG)
 
     async def test_bad_type_delete_cert(self, client):
         storage_client_mock = MagicMock(StorageClientAsync)
@@ -307,6 +238,195 @@ class TestCertificateStore:
                             json_response = json.loads(result)
                             assert '{} has been deleted successfully'.format(cert_name) == json_response['result']
                         assert 1 == patch_remove.call_count
+
+    async def test_upload(self, client, certs_path):
+        files = {'key': open(str(certs_path / 'certs/fledge.key'), 'rb'),
+                 'cert': open(str(certs_path / 'certs/fledge.cert'), 'rb')}
+        with patch.object(certificate_store._logger, 'warning') as patch_logger:
+            resp = await client.post('/fledge/certificate', data=files)
+            assert 403 == resp.status
+            assert certificate_store.FORBIDDEN_MSG == resp.reason
+            result = await resp.text()
+            json_response = json.loads(result)
+            assert {"message": certificate_store.FORBIDDEN_MSG} == json_response
+        patch_logger.assert_called_once_with(certificate_store.FORBIDDEN_MSG)
+
+
+@pytest.allure.feature("unit")
+@pytest.allure.story("api", "upload-certificate-store-with-authentication-mandatory")
+class TestUploadCertStoreIfAuthenticationIsMandatory:
+    AUTH_HEADER = {'Authorization': 'admin_user_token'}
+
+    @pytest.fixture
+    def client(self, loop, aiohttp_server, aiohttp_client):
+        app = web.Application(loop=loop, middlewares=[middleware.auth_middleware])
+        # fill the routes table
+        routes.setup(app)
+        server = loop.run_until_complete(aiohttp_server(app))
+        loop.run_until_complete(server.start_server(loop=loop))
+        client = loop.run_until_complete(aiohttp_client(server))
+        return client
+
+    async def auth_token_fixture(self, mocker, is_admin=True):
+        user = {'id': 1, 'uname': 'admin', 'role_id': '1'} if is_admin else {'id': 2, 'uname': 'user', 'role_id': '2'}
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv1 = await mock_coro(user['id'])
+            _rv2 = await mock_coro(None)
+            _rv3 = await mock_coro(user)
+        else:
+            _rv1 = asyncio.ensure_future(mock_coro(user['id']))
+            _rv2 = asyncio.ensure_future(mock_coro(None))
+            _rv3 = asyncio.ensure_future(mock_coro(user))
+        patch_logger_info = mocker.patch.object(middleware._logger, 'info')
+        patch_validate_token = mocker.patch.object(User.Objects, 'validate_token', return_value=_rv1)
+        patch_refresh_token = mocker.patch.object(User.Objects, 'refresh_token_expiry', return_value=_rv2)
+        patch_user_get = mocker.patch.object(User.Objects, 'get', return_value=_rv3)
+        return patch_logger_info, patch_validate_token, patch_refresh_token, patch_user_get
+
+    async def test_bad_upload_when_admin_role_is_required(self, client, certs_path, mocker):
+        files = {'key': open(str(certs_path / 'certs/fledge.key'), 'rb'),
+                 'cert': open(str(certs_path / 'certs/fledge.cert'), 'rb')}
+        patch_logger_info, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
+            mocker, is_admin=False)
+        msg = 'admin role permissions required to overwrite the default installed auth/TLS certificates.'
+        with patch.object(certificate_store._logger, 'warning') as patch_logger:
+            resp = await client.post('/fledge/certificate', data=files, headers=self.AUTH_HEADER)
+            assert 403 == resp.status
+            assert msg == resp.reason
+            result = await resp.text()
+            json_response = json.loads(result)
+            assert {"message": msg} == json_response
+        patch_logger.assert_called_once_with(msg)
+        patch_user_get.assert_called_once_with(uid=2)
+        patch_refresh_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
+        patch_validate_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
+        patch_logger_info.assert_called_once_with('Received %s request for %s', 'POST', '/fledge/certificate')
+
+    async def test_bad_upload_when_cert_in_use_and_with_non_admin_role(self, client, certs_path, mocker):
+        files = {'cert': open(str(certs_path / 'certs/test.cer'), 'rb')}
+        patch_logger_info, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
+            mocker, is_admin=False)
+        msg = 'Certificate with name test.cer is configured to be used, ' \
+              'An `admin` role permissions required to add/overwrite.'
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        cat_info = {'certificateName':  {'value': 'test'},  'authCertificateName':  {'value': 'foo'}}
+        _rv = await mock_coro(cat_info) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(cat_info))
+        storage_client_mock = MagicMock(StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        with patch.object(certificate_store._logger, 'warning') as patch_logger:
+            with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+                with patch.object(c_mgr, 'get_category_all_items', return_value=_rv):
+                    resp = await client.post('/fledge/certificate', data=files, headers=self.AUTH_HEADER)
+                    assert 403 == resp.status
+                    assert msg == resp.reason
+                    result = await resp.text()
+                    json_response = json.loads(result)
+                    assert {"message": msg} == json_response
+        patch_logger.assert_called_once_with(msg)
+        patch_user_get.assert_called_once_with(uid=2)
+        patch_refresh_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
+        patch_validate_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
+        patch_logger_info.assert_called_once_with('Received %s request for %s', 'POST', '/fledge/certificate')
+
+    async def test_upload(self, client, certs_path, mocker):
+        files = {'key': open(str(certs_path / 'certs/fledge.key'), 'rb'),
+                 'cert': open(str(certs_path / 'certs/fledge.cert'), 'rb')}
+        patch_logger_info, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
+            mocker)
+        with patch.object(certificate_store, '_get_certs_dir', return_value=certs_path / 'certs'):
+            with patch.object(certificate_store, '_find_file', return_value=[]) as patch_find_file:
+                resp = await client.post('/fledge/certificate', data=files, headers=self.AUTH_HEADER)
+                assert 200 == resp.status
+            result = await resp.text()
+            json_response = json.loads(result)
+            assert 'fledge.key and fledge.cert have been uploaded successfully' == json_response['result']
+            assert 2 == patch_find_file.call_count
+            args, kwargs = patch_find_file.call_args_list[0]
+            assert ('fledge.cert', certificate_store._get_certs_dir('/certs/')) == args
+            args, kwargs = patch_find_file.call_args_list[1]
+            assert ('fledge.key', certificate_store._get_certs_dir('/certs/')) == args
+        patch_user_get.assert_called_once_with(uid=1)
+        patch_refresh_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
+        patch_validate_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
+        patch_logger_info.assert_called_once_with('Received %s request for %s', 'POST', '/fledge/certificate')
+
+    @pytest.mark.parametrize("filename", ["fledge.pem", "fledge.cert", "test.cer", "test.crt"])
+    async def test_upload_with_cert_only(self, client, certs_path, mocker, filename):
+        files = {'cert': open(str(certs_path / 'certs/{}'.format(filename)), 'rb')}
+        patch_logger_info, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
+            mocker)
+        with patch.object(certificate_store, '_get_certs_dir', return_value=certs_path / 'certs/pem'):
+            with patch.object(certificate_store, '_find_file', return_value=[]) as patch_find_file:
+                resp = await client.post('/fledge/certificate', data=files, headers=self.AUTH_HEADER)
+                assert 200 == resp.status
+                result = await resp.text()
+                json_response = json.loads(result)
+                assert '{} has been uploaded successfully'.format(filename) == json_response['result']
+            assert 1 == patch_find_file.call_count
+            args, kwargs = patch_find_file.call_args
+            assert (filename, certificate_store._get_certs_dir('/certs/pem')) == args
+        patch_user_get.assert_called_once_with(uid=1)
+        patch_refresh_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
+        patch_validate_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
+        patch_logger_info.assert_called_once_with('Received %s request for %s', 'POST', '/fledge/certificate')
+
+    async def test_file_upload_with_overwrite(self, client, certs_path, mocker):
+        files = {'key': open(str(certs_path / 'certs/fledge.key'), 'rb'),
+                 'cert': open(str(certs_path / 'certs/fledge.cert'), 'rb'),
+                 'overwrite': '1'}
+        patch_logger_info, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
+            mocker)
+        with patch.object(certificate_store, '_get_certs_dir', return_value=certs_path / 'certs'):
+            with patch.object(certificate_store, '_find_file', return_value=[]) as patch_find_file:
+                resp = await client.post('/fledge/certificate', data=files, headers=self.AUTH_HEADER)
+                assert 200 == resp.status
+                result = await resp.text()
+                json_response = json.loads(result)
+                assert 'fledge.key and fledge.cert have been uploaded successfully' == json_response['result']
+            assert 2 == patch_find_file.call_count
+            args, kwargs = patch_find_file.call_args_list[0]
+            assert ('fledge.cert', certificate_store._get_certs_dir('/certs/')) == args
+            args, kwargs = patch_find_file.call_args_list[1]
+            assert ('fledge.key', certificate_store._get_certs_dir('/certs/')) == args
+        patch_user_get.assert_called_once_with(uid=1)
+        patch_refresh_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
+        patch_validate_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
+        patch_logger_info.assert_called_once_with('Received %s request for %s', 'POST', '/fledge/certificate')
+
+    async def test_bad_extension_key_file_upload(self, client, certs_path, mocker):
+        key_valid_extensions = ('.key', '.pem')
+        files = {'cert': open(str(certs_path / 'certs/fledge.cert'), 'rb'),
+                 'key': open(str(certs_path / 'certs/fledge.txt'), 'rb')}
+        patch_logger_info, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
+            mocker)
+        resp = await client.post('/fledge/certificate', data=files, headers=self.AUTH_HEADER)
+        assert 400 == resp.status
+        assert 'Accepted file extensions are {} for key file'.format(key_valid_extensions) == resp.reason
+        patch_user_get.assert_called_once_with(uid=1)
+        patch_refresh_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
+        patch_validate_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
+        patch_logger_info.assert_called_once_with('Received %s request for %s', 'POST', '/fledge/certificate')
+
+    async def test_upload_with_existing_and_no_overwrite(self, client, certs_path, mocker):
+        files = {'key': open(str(certs_path / 'certs/fledge.key'), 'rb'),
+                 'cert': open(str(certs_path / 'certs/fledge.cert'), 'rb')}
+        patch_logger_info, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
+            mocker)
+        with patch.object(certificate_store, '_get_certs_dir', return_value=certs_path / 'certs'):
+            with patch.object(certificate_store, '_find_file', return_value=["v"]) as patch_file:
+                resp = await client.post('/fledge/certificate', data=files, headers=self.AUTH_HEADER)
+                assert 400 == resp.status
+                assert 'Certificate with the same name already exists! To overwrite, set the ' \
+                       'overwrite flag' == resp.reason
+            assert 1 == patch_file.call_count
+            args, kwargs = patch_file.call_args
+            assert ('fledge.cert', certificate_store._get_certs_dir('/certs')) == args
+        patch_user_get.assert_called_once_with(uid=1)
+        patch_refresh_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
+        patch_validate_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
+        patch_logger_info.assert_called_once_with('Received %s request for %s', 'POST', '/fledge/certificate')
 
 
 @pytest.allure.feature("unit")

@@ -29,7 +29,7 @@ static void startSenderThread(void *data)
  * Constructor for the data sending class
  */
 DataSender::DataSender(NorthPlugin *plugin, DataLoad *loader, NorthService *service) :
-	m_plugin(plugin), m_loader(loader), m_service(service), m_shutdown(false)
+	m_plugin(plugin), m_loader(loader), m_service(service), m_shutdown(false), m_paused(false)
 {
 	m_logger = Logger::getLogger();
 
@@ -85,7 +85,9 @@ void DataSender::sendThread()
  */
 unsigned long DataSender::send(ReadingSet *readings)
 {
+	blockPause();
 	uint32_t sent = m_plugin->send(readings->getAllReadings());
+	releasePause();
 	unsigned long lastSent = readings->getLastId();
 	if (sent > 0)
 	{
@@ -122,14 +124,58 @@ unsigned long DataSender::send(ReadingSet *readings)
  *
  * This call does not block until release is called, but does block until the current
  * send completes.
+ *
+ * Called by external classes that want to prevent interaction
+ * with thew north plugin.
  */
 void DataSender::pause()
 {
+	unique_lock<mutex> lck(m_pauseMutex);
+	while (m_sending)
+	{
+		m_pauseCV.wait(lck);
+	}
+	m_paused = true;
 }
 
 /**
  * Release the paused data sender thread
+ *
+ * Called by external classes that want to release interaction
+ * with thew north plugin.
  */
 void DataSender::release()
 {
+	unique_lock<mutex> lck(m_pauseMutex);
+	m_paused = false;
+	m_pauseCV.notify_all();
+}
+
+/**
+ * Check if we have paused the sending of data
+ *
+ * Called before we interact with the north plugin by the
+ * DataSender class
+ */
+void DataSender::blockPause()
+{
+	unique_lock<mutex> lck(m_pauseMutex);
+	while (m_paused)
+	{
+		m_pauseCV.wait(lck);
+	}
+	m_sending = true;
+}
+
+/*
+ * Release the block on pausing the sender
+ *
+ * Called after we interact with the north plugin by the
+ * DataSender class
+ */
+void DataSender::releasePause()
+{
+	unique_lock<mutex> lck(m_pauseMutex);
+	m_sending = false;
+	m_pauseCV.notify_all();
 }

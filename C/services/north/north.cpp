@@ -504,6 +504,8 @@ void NorthService::configChange(const string& categoryName, const string& catego
 
 		m_restartPlugin = true;
 		m_cv.notify_all();
+
+		m_dataLoad->configChange(categoryName, category);
 	}
 	if (categoryName.compare(m_name+"Advanced") == 0)
 	{
@@ -522,7 +524,7 @@ void NorthService::configChange(const string& categoryName, const string& catego
  * We need to make sure we are not sending data and the send data thread does not startup
  * whilst we are doing the restart.
  *
- * We aso need to make sure the send data thread gets the new plugin.
+ * We also need to make sure the send data thread gets the new plugin.
  */
 void NorthService::restartPlugin()
 {

@@ -30,6 +30,7 @@ _help = """
 FORBIDDEN_MSG = 'Resource you were trying to reach is absolutely forbidden for some reason'
 _logger = logger.setup(__name__)
 
+
 async def get_certs(request):
     """ Get the list of certs
 
@@ -81,7 +82,6 @@ async def upload(request):
     key_file = data.get('key')
     cert_file = data.get('cert')
     allow_overwrite = data.get('overwrite', '0')
-
     # accepted values for overwrite are '0 and 1'
     should_overwrite = False
     if allow_overwrite in ('0', '1'):
@@ -95,7 +95,8 @@ async def upload(request):
     cert_filename = cert_file.filename
 
     # default installed auth cert keys can be deleted, for matching/debugging disallow overwrite
-    if cert_filename in ['admin.cert', 'admin.key', 'user.cert', 'user.key', 'fledge.key', 'fledge.cert', 'ca.key', 'ca.cert']:
+    if cert_filename in ['admin.cert', 'admin.key', 'user.cert', 'user.key', 'fledge.key', 'fledge.cert', 'ca.key',
+                         'ca.cert']:
         if request.is_auth_optional:
             _logger.warning(FORBIDDEN_MSG)
             raise web.HTTPForbidden(reason=FORBIDDEN_MSG, body=json.dumps({"message": FORBIDDEN_MSG}))
@@ -103,19 +104,19 @@ async def upload(request):
             if not request.user_is_admin:
                 msg = "admin role permissions required to overwrite the default installed auth/TLS certificates."
                 _logger.warning(msg)
-                raise web.HTTPForbidden(reason='admin role permissions required', body=json.dumps({"message": msg}))
+                raise web.HTTPForbidden(reason=msg, body=json.dumps({"message": msg}))
     # note.. We are not checking if HTTPS enabled or auth mechanism?
     # Here, in secured instance, we are simply disallowing non-admin user to overwrite/import configured TLS/CA certificates
     if request.user and not request.user_is_admin:
         cf_mgr = ConfigurationManager(connect.get_storage_async())
         cat = await cf_mgr.get_category_all_items(category_name='rest_api')
         configured_ca_and_tls_certs = [cat['certificateName']['value'], cat['authCertificateName']['value']]
-        if cert_filename and cert_filename.rpartition('.')[0] in configured_ca_and_tls_certs: # we better disallow any extension with those names instead of [1]/endswith .cert
-            msg = 'Certificate with name {} is configured to be used, An `admin` role permissions required to add/overwrite.'.format(cert_filename)
+        if cert_filename and cert_filename.rpartition('.')[0] in configured_ca_and_tls_certs:  # we better disallow any extension with those names instead of [1]/endswith .cert
+            msg = 'Certificate with name {} is configured to be used, ' \
+                  'An `admin` role permissions required to add/overwrite.'.format(cert_filename)
             _logger.warning(msg)
             raise web.HTTPForbidden(reason=msg, body=json.dumps({"message": msg}))
-    
-  
+
     key_valid_extensions = ('.key', '.pem')
     cert_valid_extensions = ('.cert', '.cer', '.crt', '.json', '.pem')
 
@@ -184,7 +185,6 @@ async def delete_certificate(request):
     if not file_name.endswith(valid_extensions):
         msg = "Accepted file extensions are {}".format(valid_extensions)
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
-    
     if file_name in ['admin.cert', 'user.cert', 'fledge.key', 'fledge.cert', 'ca.key', 'ca.cert']:
         if request.is_auth_optional:
             _logger.warning(FORBIDDEN_MSG)
@@ -192,12 +192,11 @@ async def delete_certificate(request):
     
     cf_mgr = ConfigurationManager(connect.get_storage_async())
     cat = await cf_mgr.get_category_all_items(category_name='rest_api')
-    _logger.warning("---")
-    _logger.warning(cat)
     configured_ca_and_tls_certs = [cat['certificateName']['value'], cat['authCertificateName']['value']]
     if file_name and file_name.rpartition('.')[0] in configured_ca_and_tls_certs:
-    # check if cert_name is currently set for 'certificateName' or authCertificateName in config for 'rest_api'
-        msg = 'Certificate with name {} is configured for use, you can not delete but overwrite if required.'.format(file_name)
+        # check if cert_name is currently set for 'certificateName' or authCertificateName in config for 'rest_api'
+        msg = 'Certificate with name {} is configured for use, you can not delete but overwrite if required.'.format(
+            file_name)
         raise web.HTTPConflict(reason=msg, body=json.dumps({"message": msg}))
 
     _type = None

@@ -22,7 +22,7 @@ class DataLoad : public ServiceHandler {
 	public:
 		DataLoad(const std::string& name, long streamId,
 			       	StorageClient *storage);
-		~DataLoad();
+		virtual ~DataLoad();
 
 		void			loadThread();
 		bool			setDataSource(const std::string& source);

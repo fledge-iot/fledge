@@ -80,8 +80,9 @@ fledge_stop() {
     seconds=5
     ${FLEDGE_SCRIPT} stop
 
-    echo "sleeping ${seconds} seconds before fledge kill, to ensure everything is not running"
-    sleep ${seconds}
+    #  // FIXME_I:
+    #echo "sleeping ${seconds} seconds before fledge kill, to ensure everything is not running"
+    #sleep ${seconds}
     ${FLEDGE_SCRIPT} kill
 }
 
@@ -183,19 +184,14 @@ fledge_shrink() {
     "${SQLITE_SQL}" "${FLEDGE_DB}" "pragma integrity_check;"
 }
 
-fledge_recover_sqlite3() {
+export_file_check() {
 
-    export_execute=""
-    export_sql="${FLEDGE_DB}_sql"
-    new_db="${FLEDGE_DB}_rec"
+    file_export=$1
 
-    operation_start "Executing SQLITE3 database recovery"
-    fledge_stop
-
-    if [[ -f "${export_sql}" ]]; then
+    if [[ -f "${file_export}" ]]; then
 
         echo ""
-        echo "WARNING: the export file ${export_sql} is already present "
+        echo "WARNING: the export file ${file_export} is already present "
         echo ""
         echo -n "Enter YES if you want to import this one without executing the export : "
         read user_answer
@@ -207,13 +203,31 @@ fledge_recover_sqlite3() {
     else
         export_execute="yes"
     fi
+}
+
+fledge_recover_sqlite3() {
+
+    export_execute=""
+    export_sql="${FLEDGE_DB}_sql"
+    new_db="${FLEDGE_DB}_rec"
+
+    operation_start "Executing SQLITE3 database recovery"
+    fledge_stop
+
+    time_start=$(date +%s)
+
+    ###   #########################################################################################:
+    export_execute=""
+    file_export="${export_sql}"
+    export_file_check "${file_export}"
 
     if [[ "$export_execute" == "yes" ]]; then
 
-        echo -n "exporting database to a sql file"
-        time "${SQLITE_SQL}" "${FLEDGE_DB}" ".recover" > "${export_sql}"
+        echo -n "exporting database to a sql file : ${file_export}"
+        "${SQLITE_SQL}" "${FLEDGE_DB}" ".recover" > "${file_export}"
         echo ""
     fi
+    ###   #########################################################################################:
 
     if [[ -f "${new_db}" ]]; then
 
@@ -224,23 +238,130 @@ fledge_recover_sqlite3() {
         rm ${new_db}
     fi
 
-    echo -n "Creating the new database"
-    time ${SQLITE_SQL} "${new_db}" < "${export_sql}"
+    echo -n "Creating the new database :${new_db}:"
+    ${SQLITE_SQL} "${new_db}" < "${export_sql}"
     echo ""
 
+    time_end=$(date +%s)
+    echo "Operation completed : $(date)"
+    echo "Elapsed :$(($time_end - $time_start)): seconds"
 }
 
-fledge_recover_manual() {
+fledge_recover_custom() {
 
-    operation_start "Executing MANUAL database recovery"
+    export_sql_schema="${FLEDGE_DB}_sql_schema"
+    export_sql_data="${FLEDGE_DB}_sql_data"
+    new_db="${FLEDGE_DB}_rec_custom"
+
+    operation_start "Executing CUSTOM database recovery"
     fledge_stop
+
+    time_start=$(date +%s)
+
+
+    ###   #########################################################################################:
+    export_execute=""
+    file_export="${export_sql_schema}"
+    export_file_check "${file_export}"
+
+    if [[ "$export_execute" == "yes" ]]; then
+
+        echo -n "exporting database to a sql file ${file_export}"
+        "${SQLITE_SQL}" "${FLEDGE_DB}" << EOF
+
+.output ${file_export}
+.schema STATISTICS_HISTORY
+
+EOF
+
+        echo ""
+    fi
+
+    ###   #########################################################################################:
+    export_execute=""
+    file_export="${export_sql_data}"
+    export_file_check "${file_export}"
+
+    if [[ "$export_execute" == "yes" ]]; then
+
+        echo -n "exporting database to a sql file ${file_export}"
+        "${SQLITE_SQL}" "${FLEDGE_DB}" <<  EOF
+
+.output ${file_export}
+
+.dump TASKS
+.dump SQLITE_SCHEMA
+.dump LOG
+.dump CONFIGURATION
+.dump ASSET_LINKS
+.dump ASSETS
+.dump ROLE_ASSET_PERMISSIONS
+.dump ROLE_RESOURCE_PERMISSION
+.dump USER_ASSET_PERMISSIONS
+.dump USER_RESOURCE_PERMISSIONS
+.dump ASSET_MESSAGES
+.dump ASSET_STATUS_CHANGES
+.dump ASSET_TRACKER
+.dump USERS
+.dump CATEGORY_CHILDREN
+.dump CONFIGURATION_CHANGES
+.dump FILTERS
+.dump LINKS
+.dump LOG_CODES
+.dump OMF_CREATED_OBJECTS
+.dump PACKAGES
+.dump PLUGIN_DATA
+.dump RESOURCES
+.dump ROLES
+.dump SCHEDULED_PROCESSES
+.dump SCHEDULES
+.dump STATISTICS
+.dump USER_LOGINS
+.dump USER_PWD_HISTORY
+.dump ASSET_MESSAGE_STATUS
+.dump ASSET_STATUS
+.dump ASSET_TYPES
+.dump BACKUPS
+.dump FILTER_USERS
+.dump SQLITE_SEQUENCE
+.dump STREAMS
+.dump VERSION
+EOF
+
+        echo ""
+    fi
+
+
+
+    ###   #########################################################################################:
+    if [[ -f "${new_db}" ]]; then
+
+        echo ""
+        echo "WARNING: the database ${new_db} is already present, deleting it "
+        echo ""
+
+        rm ${new_db}
+    fi
+
+    echo -n "Creating the new database :${new_db}:"
+    ${SQLITE_SQL} "${new_db}" < "${export_sql_schema}"
+    ${SQLITE_SQL} "${new_db}" < "${export_sql_data}"
+    echo ""
+
+    echo -n "Checking database consistency :${new_db}: -  "
+    "${SQLITE_SQL}" "${new_db}" "pragma integrity_check;"
+
+    time_end=$(date +%s)
+    echo "Operation completed : $(date)"
+    echo "Elapsed :$(($time_end - $time_start)): seconds"
 }
+
 
 fledge_recover() {
 
-    if [[ "${RECOVER_MODE}" == "manual" ]]; then
+    if [[ "${RECOVER_MODE}" == "custom" ]]; then
 
-        fledge_recover_manual
+        fledge_recover_custom
     else
         fledge_recover_sqlite3
     fi
@@ -258,7 +379,10 @@ Arguments:
  shrink            - shrink the database, stops Fledge
  shrink  --table   - delete the content of the statistics_history > 3 days and shrink the database
  recover           - attempt to recover the fledge database using the SQLITE .recover command
- recover --manual  - a custom/manual attempt to recover the fledge database, useful if the SQLITE .recover command fails
+                   - it creates the database fledge.db_rec
+ recover --custom  - a custom attempt to recover the fledge database, useful if the SQLITE .recover command fails
+                   - it creates the database fledge.db_rec_custom
+                   - the new database will contain an empty STATISTICS_HISTORY and all other tables
  help              - This text"
 }
 
@@ -275,7 +399,7 @@ echo "sqlite3 command : ${SQLITE_SQL}"
 echo "sqlite3 version : $(${SQLITE_SQL} --version)"
 
 
-USAGE="Usage: `basename ${0}` {info|check|shrink --table|recover --manual}"
+USAGE="Usage: `basename ${0}` {info|check|shrink --table|recover --custom}"
 
 RECOVER_MODE=''
 SHRINK_MODE=''
@@ -315,10 +439,10 @@ case "$1" in
         ;;
     recover)
         if [ ! -z "$2" ]; then
-            if [[ "${2}" == "--manual" ]]; then
-                RECOVER_MODE='manual'
+            if [[ "${2}" == "--custom" ]]; then
+                RECOVER_MODE='custom'
             else
-               echo "An invalid option has been entered: $2. Use --manual"
+               echo "An invalid option has been entered: $2. Use --custom"
                exit 1
             fi
         fi

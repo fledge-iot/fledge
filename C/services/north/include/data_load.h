@@ -34,6 +34,7 @@ class DataLoad {
 		static void		pipelineEnd(OUTPUT_HANDLE *outHandle,
 						READINGSET* readings);
 		void			shutdown();
+		void			configChange(const std::string& category, const std::string& newConfig);
 	private:
 		void			readBlock(unsigned int blockSize);
 		unsigned int		waitForReadRequest();

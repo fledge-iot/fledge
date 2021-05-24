@@ -505,7 +505,7 @@ void NorthService::configChange(const string& categoryName, const string& catego
 		m_restartPlugin = true;
 		m_cv.notify_all();
 
-		if (m_dataLoad)
+    if (m_dataLoad)
 		{
 			m_dataLoad->configChange(categoryName, category);
 		}

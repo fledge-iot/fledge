@@ -9,6 +9,7 @@ import json
 
 from aiohttp import web
 
+from fledge.common import logger
 from fledge.common.web.middleware import has_permission
 from fledge.services.core import connect
 from fledge.common.configuration_manager import ConfigurationManager
@@ -26,6 +27,8 @@ _help = """
     | DELETE           | /fledge/certificate/{name}                              |
     -------------------------------------------------------------------------------
 """
+FORBIDDEN_MSG = 'Resource you were trying to reach is absolutely forbidden for some reason'
+_logger = logger.setup(__name__)
 
 
 async def get_certs(request):
@@ -79,17 +82,41 @@ async def upload(request):
     key_file = data.get('key')
     cert_file = data.get('cert')
     allow_overwrite = data.get('overwrite', '0')
-
     # accepted values for overwrite are '0 and 1'
+    should_overwrite = False
     if allow_overwrite in ('0', '1'):
         should_overwrite = True if int(allow_overwrite) == 1 else False
     else:
         raise web.HTTPBadRequest(reason="Accepted value for overwrite is 0 or 1")
-
+    
     if not cert_file:
         raise web.HTTPBadRequest(reason="Cert file is missing")
 
     cert_filename = cert_file.filename
+
+    # default installed auth cert keys can be deleted, for matching/debugging disallow overwrite
+    if cert_filename in ['admin.cert', 'admin.key', 'user.cert', 'user.key', 'fledge.key', 'fledge.cert', 'ca.key',
+                         'ca.cert']:
+        if request.is_auth_optional:
+            _logger.warning(FORBIDDEN_MSG)
+            raise web.HTTPForbidden(reason=FORBIDDEN_MSG, body=json.dumps({"message": FORBIDDEN_MSG}))
+        else:
+            if not request.user_is_admin:
+                msg = "admin role permissions required to overwrite the default installed auth/TLS certificates."
+                _logger.warning(msg)
+                raise web.HTTPForbidden(reason=msg, body=json.dumps({"message": msg}))
+    # note.. We are not checking if HTTPS enabled or auth mechanism?
+    # Here, in secured instance, we are simply disallowing non-admin user to overwrite/import configured TLS/CA certificates
+    if request.user and not request.user_is_admin:
+        cf_mgr = ConfigurationManager(connect.get_storage_async())
+        cat = await cf_mgr.get_category_all_items(category_name='rest_api')
+        configured_ca_and_tls_certs = [cat['certificateName']['value'], cat['authCertificateName']['value']]
+        if cert_filename and cert_filename.rpartition('.')[0] in configured_ca_and_tls_certs:  # we better disallow any extension with those names instead of [1]/endswith .cert
+            msg = 'Certificate with name {} is configured to be used, ' \
+                  'An `admin` role permissions required to add/overwrite.'.format(cert_filename)
+            _logger.warning(msg)
+            raise web.HTTPForbidden(reason=msg, body=json.dumps({"message": msg}))
+
     key_valid_extensions = ('.key', '.pem')
     cert_valid_extensions = ('.cert', '.cer', '.crt', '.json', '.pem')
 
@@ -132,7 +159,7 @@ async def upload(request):
 
     # in order to bring this new cert usage into effect, make sure to
     # update config for category rest_api
-    # and reboot
+    # and restart for TLS
     msg = "{} has been uploaded successfully".format(cert_filename)
     if key_file:
         msg = "{} and {} have been uploaded successfully".format(key_filename, cert_filename)
@@ -158,16 +185,18 @@ async def delete_certificate(request):
     if not file_name.endswith(valid_extensions):
         msg = "Accepted file extensions are {}".format(valid_extensions)
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
-
-    if file_name.endswith(('admin.cert', 'admin.key')):
-        msg = "Admin certs cannot be deleted"
-        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
-
-    # check if cert_name is currently set for 'certificateName' in config for 'rest_api'
+    if file_name in ['admin.cert', 'user.cert', 'fledge.key', 'fledge.cert', 'ca.key', 'ca.cert']:
+        if request.is_auth_optional:
+            _logger.warning(FORBIDDEN_MSG)
+            raise web.HTTPForbidden(reason=FORBIDDEN_MSG, body=json.dumps({"message": FORBIDDEN_MSG}))
+    
     cf_mgr = ConfigurationManager(connect.get_storage_async())
-    result = await cf_mgr.get_category_item(category_name='rest_api', item_name='certificateName')
-    if file_name.split('.')[0] == result['value']:
-        msg = 'Certificate with name {} is already in use, you can not delete'.format(file_name)
+    cat = await cf_mgr.get_category_all_items(category_name='rest_api')
+    configured_ca_and_tls_certs = [cat['certificateName']['value'], cat['authCertificateName']['value']]
+    if file_name and file_name.rpartition('.')[0] in configured_ca_and_tls_certs:
+        # check if cert_name is currently set for 'certificateName' or authCertificateName in config for 'rest_api'
+        msg = 'Certificate with name {} is configured for use, you can not delete but overwrite if required.'.format(
+            file_name)
         raise web.HTTPConflict(reason=msg, body=json.dumps({"message": msg}))
 
     _type = None

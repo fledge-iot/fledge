@@ -148,16 +148,17 @@ class TestCertificateStore:
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        _rv = await mock_coro(REST_API_CAT_INFO) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(REST_API_CAT_INFO))
+        _rv = await mock_coro(REST_API_CAT_INFO) if sys.version_info >= (3, 8) else asyncio.ensure_future(
+            mock_coro(REST_API_CAT_INFO))
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(c_mgr, 'get_category_all_items', return_value=_rv) as patch_cfg:
+            with patch.object(c_mgr, 'get_category_all_items', return_value=_rv) as patch_get_cat_all_items:
                 resp = await client.delete('/fledge/certificate/{}'.format(cert_name))
                 assert actual_code == resp.status
                 assert actual_reason == resp.reason
                 result = await resp.text()
                 json_response = json.loads(result)
                 assert {"message": actual_reason} == json_response
-            assert 1 == patch_cfg.call_count
+            patch_get_cat_all_items.assert_called_once_with(category_name='rest_api')
 
     @pytest.mark.parametrize("cert_name, actual_code, actual_reason", [
         ('root.txt', 400, "Accepted file extensions are ('.cert', '.cer', '.crt', '.json', '.key', '.pem')")
@@ -186,16 +187,17 @@ class TestCertificateStore:
         c_mgr = ConfigurationManager(storage_client_mock)
         msg = 'Only cert and key are allowed for the value of type param'
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        _rv = await mock_coro(REST_API_CAT_INFO) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(REST_API_CAT_INFO))
+        _rv = await mock_coro(REST_API_CAT_INFO) if sys.version_info >= (3, 8) else asyncio.ensure_future(
+            mock_coro(REST_API_CAT_INFO))
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(c_mgr, 'get_category_all_items', return_value=_rv) as patch_cfg:
+            with patch.object(c_mgr, 'get_category_all_items', return_value=_rv) as patch_get_cat_all_items:
                 resp = await client.delete('/fledge/certificate/server.cert?type=pem')
                 assert 400 == resp.status
                 assert msg == resp.reason
                 result = await resp.text()
                 json_response = json.loads(result)
                 assert {"message": msg} == json_response
-            assert 1 == patch_cfg.call_count
+            patch_get_cat_all_items.assert_called_once_with(category_name='rest_api')
 
     @pytest.mark.parametrize("cert_name, param", [
         ('fledge.json', '?type=cert'),
@@ -211,7 +213,7 @@ class TestCertificateStore:
         cat_info = {'certificateName': {'value': 'foo'}, 'authCertificateName': {'value': 'ca'}}
         _rv = await mock_coro(cat_info) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(cat_info))
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(c_mgr, 'get_category_all_items', return_value=_rv):
+            with patch.object(c_mgr, 'get_category_all_items', return_value=_rv) as patch_get_cat_all_items:
                 with patch('os.path.isfile', return_value=True):
                     with patch('os.remove', return_value=True) as patch_remove:
                         resp = await client.delete('/fledge/certificate/{}{}'.format(cert_name, param))
@@ -220,17 +222,19 @@ class TestCertificateStore:
                         json_response = json.loads(result)
                         assert '{} has been deleted successfully'.format(cert_name) == json_response['result']
                     assert 1 == patch_remove.call_count
+            patch_get_cat_all_items.assert_called_once_with(category_name='rest_api')
 
     async def test_delete_cert(self, client, certs_path, cert_name='server.cert'):
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        _rv = await mock_coro(REST_API_CAT_INFO) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(REST_API_CAT_INFO))
+        _rv = await mock_coro(REST_API_CAT_INFO) if sys.version_info >= (3, 8) else asyncio.ensure_future(
+            mock_coro(REST_API_CAT_INFO))
         with patch.object(certificate_store, '_get_certs_dir', return_value=str(certs_path / 'certs') + '/'):
             with patch('os.walk') as mockwalk:
                 mockwalk.return_value = [(str(certs_path / 'certs'), [], [cert_name])]
                 with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-                    with patch.object(c_mgr, 'get_category_all_items', return_value=_rv):
+                    with patch.object(c_mgr, 'get_category_all_items', return_value=_rv) as patch_get_cat_all_items:
                         with patch('os.remove', return_value=True) as patch_remove:
                             resp = await client.delete('/fledge/certificate/{}'.format(cert_name))
                             assert 200 == resp.status
@@ -238,8 +242,9 @@ class TestCertificateStore:
                             json_response = json.loads(result)
                             assert '{} has been deleted successfully'.format(cert_name) == json_response['result']
                         assert 1 == patch_remove.call_count
+                    patch_get_cat_all_items.assert_called_once_with(category_name='rest_api')
 
-    async def test_upload(self, client, certs_path):
+    async def test_default_upload(self, client, certs_path):
         files = {'key': open(str(certs_path / 'certs/fledge.key'), 'rb'),
                  'cert': open(str(certs_path / 'certs/fledge.cert'), 'rb')}
         with patch.object(certificate_store._logger, 'warning') as patch_logger:
@@ -317,20 +322,21 @@ class TestUploadCertStoreIfAuthenticationIsMandatory:
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         with patch.object(certificate_store._logger, 'warning') as patch_logger:
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-                with patch.object(c_mgr, 'get_category_all_items', return_value=_rv):
+                with patch.object(c_mgr, 'get_category_all_items', return_value=_rv) as patch_get_cat_all_items:
                     resp = await client.post('/fledge/certificate', data=files, headers=self.AUTH_HEADER)
                     assert 403 == resp.status
                     assert msg == resp.reason
                     result = await resp.text()
                     json_response = json.loads(result)
                     assert {"message": msg} == json_response
+                patch_get_cat_all_items.assert_called_once_with(category_name='rest_api')
         patch_logger.assert_called_once_with(msg)
         patch_user_get.assert_called_once_with(uid=2)
         patch_refresh_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
         patch_validate_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
         patch_logger_info.assert_called_once_with('Received %s request for %s', 'POST', '/fledge/certificate')
 
-    async def test_upload(self, client, certs_path, mocker):
+    async def test_upload_as_admin(self, client, certs_path, mocker):
         files = {'key': open(str(certs_path / 'certs/fledge.key'), 'rb'),
                  'cert': open(str(certs_path / 'certs/fledge.cert'), 'rb')}
         patch_logger_info, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
@@ -477,14 +483,14 @@ class TestDeleteCertStoreIfAuthenticationIsMandatory:
             _rv2 = asyncio.ensure_future(mock_coro(REST_API_CAT_INFO))
         with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv1) as patch_role_id:
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-                with patch.object(c_mgr, 'get_category_all_items', return_value=_rv2) as patch_cfg:
+                with patch.object(c_mgr, 'get_category_all_items', return_value=_rv2) as patch_get_cat_all_items:
                     resp = await client.delete('/fledge/certificate/{}'.format(cert_name), headers=ADMIN_USER_HEADER)
                     assert actual_code == resp.status
                     assert actual_reason == resp.reason
                     result = await resp.text()
                     json_response = json.loads(result)
                     assert {"message": actual_reason} == json_response
-                assert 1 == patch_cfg.call_count
+                patch_get_cat_all_items.assert_called_once_with(category_name='rest_api')
         patch_role_id.assert_called_once_with('admin')
         patch_user_get.assert_called_once_with(uid=1)
         patch_refresh_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
@@ -514,7 +520,7 @@ class TestDeleteCertStoreIfAuthenticationIsMandatory:
         patch_logger_info.assert_called_once_with('Received %s request for %s', 'DELETE',
                                                   '/fledge/certificate/{}'.format(cert_name))
 
-    async def test_bad_delete_cert_if_in_use(self, client, mocker):
+    async def test_delete_cert_if_configured_to_use(self, client, mocker):
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
         cert_name = 'fledge.cert'
@@ -532,7 +538,7 @@ class TestDeleteCertStoreIfAuthenticationIsMandatory:
         with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv1) as patch_role_id:
             with patch('os.path.isfile', return_value=True):
                 with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-                    with patch.object(c_mgr, 'get_category_all_items', return_value=_rv2) as patch_cfg:
+                    with patch.object(c_mgr, 'get_category_all_items', return_value=_rv2) as patch_get_cat_all_items:
                         resp = await client.delete('/fledge/certificate/{}'.format(cert_name),
                                                    headers=ADMIN_USER_HEADER)
                         assert 409 == resp.status
@@ -540,9 +546,7 @@ class TestDeleteCertStoreIfAuthenticationIsMandatory:
                         result = await resp.text()
                         json_response = json.loads(result)
                         assert {"message": msg} == json_response
-                    assert 1 == patch_cfg.call_count
-                    args, kwargs = patch_cfg.call_args
-                    assert ({'category_name': 'rest_api'}) == kwargs
+                    patch_get_cat_all_items.assert_called_once_with(category_name='rest_api')
         patch_role_id.assert_called_once_with('admin')
         patch_user_get.assert_called_once_with(uid=1)
         patch_refresh_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
@@ -567,7 +571,7 @@ class TestDeleteCertStoreIfAuthenticationIsMandatory:
         
         with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv1) as patch_role_id:
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-                with patch.object(c_mgr, 'get_category_all_items', return_value=_rv2) as patch_cfg:
+                with patch.object(c_mgr, 'get_category_all_items', return_value=_rv2) as patch_get_cat_all_items:
                     resp = await client.delete('/fledge/certificate/{}?type=pem'.format(cert_name),
                                                headers=ADMIN_USER_HEADER)
                     assert 400 == resp.status
@@ -575,7 +579,7 @@ class TestDeleteCertStoreIfAuthenticationIsMandatory:
                     result = await resp.text()
                     json_response = json.loads(result)
                     assert {"message": msg} == json_response
-                assert 1 == patch_cfg.call_count
+                patch_get_cat_all_items.assert_called_once_with(category_name='rest_api')
         patch_role_id.assert_called_once_with('admin')
         patch_user_get.assert_called_once_with(uid=1)
         patch_refresh_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
@@ -605,7 +609,7 @@ class TestDeleteCertStoreIfAuthenticationIsMandatory:
             _rv2 = asyncio.ensure_future(mock_coro(cat_info))
         with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv1) as patch_role_id:
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-                with patch.object(c_mgr, 'get_category_all_items', return_value=_rv2):
+                with patch.object(c_mgr, 'get_category_all_items', return_value=_rv2) as patch_get_cat_all_items:
                     with patch('os.path.isfile', return_value=True):
                         with patch('os.remove', return_value=True) as patch_remove:
                             resp = await client.delete('/fledge/certificate/{}{}'.format(cert_name, param),
@@ -615,6 +619,7 @@ class TestDeleteCertStoreIfAuthenticationIsMandatory:
                             json_response = json.loads(result)
                             assert '{} has been deleted successfully'.format(cert_name) == json_response['result']
                         assert 1 == patch_remove.call_count
+                patch_get_cat_all_items.assert_called_once_with(category_name='rest_api')
         patch_role_id.assert_called_once_with('admin')
         patch_user_get.assert_called_once_with(uid=1)
         patch_refresh_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
@@ -640,7 +645,8 @@ class TestDeleteCertStoreIfAuthenticationIsMandatory:
                 with patch('os.walk') as mockwalk:
                     mockwalk.return_value = [(str(certs_path / 'certs'), [], [cert_name])]
                     with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-                        with patch.object(c_mgr, 'get_category_all_items', return_value=_rv2):
+                        with patch.object(c_mgr, 'get_category_all_items',
+                                          return_value=_rv2) as patch_get_cat_all_items:
                             with patch('os.remove', return_value=True) as patch_remove:
                                 resp = await client.delete('/fledge/certificate/{}'.format(cert_name),
                                                            headers=ADMIN_USER_HEADER)
@@ -649,6 +655,7 @@ class TestDeleteCertStoreIfAuthenticationIsMandatory:
                                 json_response = json.loads(result)
                                 assert '{} has been deleted successfully'.format(cert_name) == json_response['result']
                             assert 1 == patch_remove.call_count
+                        patch_get_cat_all_items.assert_called_once_with(category_name='rest_api')
         patch_role_id.assert_called_once_with('admin')
         patch_user_get.assert_called_once_with(uid=1)
         patch_refresh_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])

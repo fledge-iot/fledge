@@ -9,6 +9,7 @@
 #include <storage_client.h>
 #include <reading.h>
 #include <filter_pipeline.h>
+#include <service_handler.h>
 
 /**
  * A class used in the North service to load data from the buffer
@@ -17,7 +18,7 @@
  * storage service and buffering them ready for the egress thread
  * to process them.
  */
-class DataLoad {
+class DataLoad : public ServiceHandler {
 	public:
 		DataLoad(const std::string& name, long streamId,
 			       	StorageClient *storage);

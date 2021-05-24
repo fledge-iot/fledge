@@ -15,6 +15,7 @@
 #include <logger.h>
 #include <string>
 #include <map>
+#include <mutex>
 
 typedef std::multimap<std::string, ServiceHandler *> CONFIG_MAP;
 
@@ -28,6 +29,7 @@ class ConfigHandler {
 						     const std::string& config);
 		void			registerCategory(ServiceHandler *handler,
 							 const std::string& category);
+		void			unregisterCategory(ServiceHandler *handler, const std::string& category);
 		static ConfigHandler	*instance;
 	private:
 		ConfigHandler(ManagementClient *);
@@ -35,5 +37,7 @@ class ConfigHandler {
 		ManagementClient	*m_mgtClient;
 		CONFIG_MAP		m_registrations;
 		Logger			*m_logger;
+		std::mutex		m_mutex;
+		bool			m_change;
 };
 #endif

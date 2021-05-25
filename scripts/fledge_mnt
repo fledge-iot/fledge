@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ##--------------------------------------------------------------------
-## Fledge "management" - script to check/recovery fledge
+## Fledge "management" - script to check/recovery fledge database
 ##
 ## Copyright (c) 2021 Dianomic Systems
 ##
@@ -11,7 +11,7 @@
 ##
 ##--------------------------------------------------------------------
 
-FLEDGE_MNT_VERSION=1.2
+FLEDGE_MNT_VERSION=1.7
 
 #set -e
 #set -x
@@ -65,12 +65,10 @@ write_log() {
 
 }
 
-
 ## fledge_log wrapper
 fledge_log() {
     write_log "" "script.fledge_mnt" "$1" "$2" "$3" "$4"
 }
-
 
 #
 # FLEDGE_ROOT evaluation
@@ -80,7 +78,7 @@ if [ "${FLEDGE_ROOT}" = "" ]; then
 fi
 
 if [ ! -d "${FLEDGE_ROOT}" ]; then
-	fledge_log "err" "Fledge home directory missing or incorrectly set environment :${FLEDGE_ROOT}:"  "outonly" "pretty"
+	fledge_log "err" "Fledge home directory missing or incorrectly set environment !${FLEDGE_ROOT}!"  "outonly" "pretty"
 	exit 1
 fi
 
@@ -102,13 +100,10 @@ else
     FLEDGE_ENV="development"
 fi
 
-
-#// FIXME_I: identify the newer one for the recover command
 #
 # sqlite3 command selection - identify the newer one for the availability of th recover command
 #
 base_dir=$(dirname "$0")
-#echo "DBG ${base_dir}"
 #SQLITE_SQL="${HOME}/bin/sqlite3"
 SQLITE_SQL="${base_dir}/sqlite3"
 if ! [[ -x "${SQLITE_SQL}" ]]; then
@@ -130,14 +125,19 @@ fi
 export SQLITE_SQL_ANALYZER="${base_dir}/sqlite3_analyzer"
 if ! [[ -x "${SQLITE_SQL_ANALYZER}" ]]; then
 
-    fledge_log "info" "sqlite3_analyzer not available in :${SQLITE_SQL_ANALYZER}:" "outonly" "pretty"
+    fledge_log "info" "sqlite3_analyzer not available in !${SQLITE_SQL_ANALYZER}!" "outonly" "pretty"
     SQLITE_SQL_ANALYZER=""
 fi
 
 #
 # Configurations
 #
-FLEDGE_DB="${FLEDGE_ROOT}/data/fledge.db"
+if [[ "${FLEDGE_DB_NAME}" == "" ]]; then
+
+    FLEDGE_DB="${FLEDGE_ROOT}/data/fledge.db"
+else
+    FLEDGE_DB="${FLEDGE_ROOT}/data/${FLEDGE_DB_NAME}"
+fi
 
 #
 # Functions
@@ -160,11 +160,30 @@ operation_start() {
     echo "${operation}"
     echo "Operation started : $(date)"
 
+    time_start=$(date +%s)
+
 }
 
+operation_end() {
 
+    time_end=$(date +%s)
+
+    elapsed_sec=$(($time_end - $time_start))
+    if [[ $elapsed_sec -ge 60 ]]; then
+
+        elapsed_min=$(($elapsed_sec / 60))
+    fi
+    if [[ $elapsed_min -ge 60 ]]; then
+
+        elapsed_hour=$(($elapsed_min / 60))
+    fi
+
+    echo "Operation completed : $(date)"
+    echo "Elapsed - seconds/minutes/hours - ${elapsed_sec} / ${elapsed_min} / ${elapsed_hour} "
+}
 
 fledge_info_table() {
+
     fledge_table=$1
     option=$2
     execute_count=no
@@ -215,14 +234,16 @@ fledge_analyze() {
 
     if [[ "${SQLITE_SQL_ANALYZER}" == "" ]]; then
 
-        fledge_log "info" "sqlite3_analyzer not available in :${SQLITE_SQL_ANALYZER}:" "outonly" "pretty"
+        fledge_log "info" "sqlite3_analyzer not available in !${SQLITE_SQL_ANALYZER}!" "outonly" "pretty"
         exit 1
     else
         export_analyze="${FLEDGE_DB}_analyze"
 
-        operation_start "Executing sqlite3_analyzer, output :${export_analyze}: "
+        operation_start "Executing sqlite3_analyzer, output !${export_analyze}! "
 
         "${SQLITE_SQL_ANALYZER}" "${FLEDGE_DB}"   > "${export_analyze}"
+
+        operation_end
     fi
 }
 
@@ -230,17 +251,12 @@ fledge_check() {
 
     operation_start "Executing database check"
     fledge_stop
-    time_start=$(date +%s)
-
 
     echo -n "Checking database consistency : "
     "${SQLITE_SQL}" "${FLEDGE_DB}" "pragma integrity_check;"
 
-    time_end=$(date +%s)
-    echo "Operation completed : $(date)"
-    echo "Elapsed :$(($time_end - $time_start)): seconds"
+    operation_end
 }
-
 
 #
 # Comment code for debug
@@ -250,7 +266,7 @@ fledge_shrink_table_shrink() {
 
     echo "shrinking table ${fledge_table}"
 
-    #// FIXME_I:
+    #// FIXME_I: for debug
     #"${SQLITE_SQL}" "${FLEDGE_DB}" "SELECT * FROM ${fledge_table} LIMIT 10"
     #"${SQLITE_SQL}" "${FLEDGE_DB}" "UPDATE ${fledge_table} SET history_ts = date('now','-10 day') WHERE id <= 10"
     #"${SQLITE_SQL}" "${FLEDGE_DB}" "SELECT COUNT(*) FROM ${fledge_table} "
@@ -282,6 +298,8 @@ fledge_shrink() {
 
     echo -n "Checking database consistency : "
     "${SQLITE_SQL}" "${FLEDGE_DB}" "pragma integrity_check;"
+
+    operation_end
 }
 
 export_file_check() {
@@ -338,13 +356,12 @@ fledge_recover_sqlite3() {
         rm ${new_db}
     fi
 
-    echo -n "Creating the new database :${new_db}:"
+    echo -n "Creating the new database !${new_db}!"
     ${SQLITE_SQL} "${new_db}" < "${export_sql}"
     echo ""
 
-    time_end=$(date +%s)
-    echo "Operation completed : $(date)"
-    echo "Elapsed :$(($time_end - $time_start)): seconds"
+
+    operation_end
 }
 
 fledge_recover_custom() {
@@ -443,19 +460,16 @@ EOF
         rm ${new_db}
     fi
 
-    echo -n "Creating the new database :${new_db}:"
+    echo -n "Creating the new database !${new_db}!"
     ${SQLITE_SQL} "${new_db}" < "${export_sql_schema}"
     ${SQLITE_SQL} "${new_db}" < "${export_sql_data}"
     echo ""
 
-    echo -n "Checking database consistency :${new_db}: -  "
+    echo -n "Checking database consistency !${new_db}! -  "
     "${SQLITE_SQL}" "${new_db}" "pragma integrity_check;"
 
-    time_end=$(date +%s)
-    echo "Operation completed : $(date)"
-    echo "Elapsed :$(($time_end - $time_start)): seconds"
+    operation_end
 }
-
 
 fledge_recover() {
 
@@ -466,7 +480,6 @@ fledge_recover() {
         fledge_recover_sqlite3
     fi
 }
-
 
 fledge_help() {
 
@@ -480,15 +493,23 @@ Arguments:
  analyze           - generate a text file with information about the database
  check             - check the fledge database, stops Fledge
  shrink            - shrink the database, stops Fledge
- shrink  --table   - delete the content of the statistics_history > 3 days and shrink the database
+ shrink  --table   - delete the content of the statistics_history older than 3 days and shrink the database
  recover           - attempt to recover the fledge database using the SQLITE .recover command
                    - it creates the database fledge.db_rec
  recover --custom  - a custom attempt to recover the fledge database, useful if the SQLITE .recover command fails
                    - it creates the database fledge.db_rec_custom
                    - the new database will contain an empty STATISTICS_HISTORY and all other tables
- help              - This text"
-}
+ help              - This text
 
+Environments:
+
+ FLEDGE_ROOT        - fledge root directory
+ FLEDGE_DATA        - fledge data directory
+ FLEDGE_DB_NAME     - overrides the default name of the database
+"
+
+
+}
 
 #
 # Main code
@@ -525,7 +546,7 @@ case "$1" in
                 SHRINK_MODE='table'
 
                 echo ""
-                echo "WARNING: This operation will remove the rows older then 3 days in the table STATISTICS_HISTORY"
+                echo "WARNING: This operation will remove the rows older than 3 days in the table STATISTICS_HISTORY"
                 echo "'${FLEDGE_DB}'"
                 echo -n "Enter YES if you want to continue: "
                 read continue_reset

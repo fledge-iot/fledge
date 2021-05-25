@@ -241,14 +241,23 @@ class TestAuthOptional:
             patch_logger_warning.assert_called_once_with(WARN_MSG)
         patch_logger_info.assert_called_once_with('Received %s request for %s', 'PUT', '/fledge/user/1/password')
 
-    async def test_update_user(self, client):
+    async def test_update_me(self, client):
         with patch.object(middleware._logger, 'info') as patch_logger_info:
             with patch.object(auth._logger, 'warning') as patch_logger_warning:
-                resp = await client.put('/fledge/user/1')
+                resp = await client.put('/fledge/user')
                 assert 403 == resp.status
                 assert FORBIDDEN == resp.reason
             patch_logger_warning.assert_called_once_with(WARN_MSG)
-        patch_logger_info.assert_called_once_with('Received %s request for %s', 'PUT', '/fledge/user/1')
+        patch_logger_info.assert_called_once_with('Received %s request for %s', 'PUT', '/fledge/user')
+
+    async def test_update_user(self, client):
+        with patch.object(middleware._logger, 'info') as patch_logger_info:
+            with patch.object(auth._logger, 'warning') as patch_logger_warning:
+                resp = await client.put('/fledge/admin/user/1')
+                assert 403 == resp.status
+                assert FORBIDDEN == resp.reason
+            patch_logger_warning.assert_called_once_with(WARN_MSG)
+        patch_logger_info.assert_called_once_with('Received %s request for %s', 'PUT', '/fledge/admin/user/1')
 
     async def test_delete_user(self, client):
         with patch.object(middleware._logger, 'info') as patch_logger_info:
@@ -272,11 +281,11 @@ class TestAuthOptional:
     async def test_enable_user(self, client):
         with patch.object(middleware._logger, 'info') as patch_logger_info:
             with patch.object(auth._logger, 'warning') as patch_logger_warning:
-                resp = await client.put('/fledge/admin/2/enabled')
+                resp = await client.put('/fledge/admin/2/enable')
                 assert 403 == resp.status
                 assert FORBIDDEN == resp.reason
             patch_logger_warning.assert_called_once_with(WARN_MSG)
-        patch_logger_info.assert_called_once_with('Received %s request for %s', 'PUT', '/fledge/admin/2/enabled')
+        patch_logger_info.assert_called_once_with('Received %s request for %s', 'PUT', '/fledge/admin/2/enable')
 
     async def test_reset(self, client):
         with patch.object(middleware._logger, 'info') as patch_logger_info:

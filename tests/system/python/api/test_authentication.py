@@ -150,8 +150,8 @@ class TestAuthenticationAPI:
     def test_update_user(self, fledge_url):
         uid = 5
         conn = http.client.HTTPConnection(fledge_url)
-        payload = {"real_name": "Test Real", "description": "Test Desc"}
-        conn.request("PUT", "/fledge/user/{}".format(uid), body=json.dumps(payload), headers={"authorization": TOKEN})
+        payload = {"real_name": "Test Real", "description": "Test Desc", "access_method": "pwd"}
+        conn.request("PUT", "/fledge/admin/user/{}".format(uid), body=json.dumps(payload), headers={"authorization": TOKEN})
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -160,6 +160,7 @@ class TestAuthenticationAPI:
         assert uid == jdoc["user_info"]["id"]
         assert payload["real_name"] == jdoc["user_info"]["real_name"]
         assert payload["description"] == jdoc["user_info"]["description"]
+        assert payload["access_method"] == jdoc["user_info"]["access_method"]
 
     def test_enable_user(self, fledge_url):
         uid = 5
@@ -175,7 +176,7 @@ class TestAuthenticationAPI:
 
         # Disable user
         payload = {"enabled": "false"}
-        conn.request("PUT", "/fledge/admin/{}/enabled".format(uid), body=json.dumps(payload),
+        conn.request("PUT", "/fledge/admin/{}/enable".format(uid), body=json.dumps(payload),
                      headers={"authorization": TOKEN})
         r = conn.getresponse()
         assert 200 == r.status

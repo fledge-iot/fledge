@@ -353,7 +353,8 @@ class TestUserModel:
             update_tbl_patch.assert_called_once_with('users', payload)
 
     @pytest.mark.parametrize("user_data", [
-        {'real_name': 'MSD'}, {'description': 'Captain Cool'}, {'real_name': 'MSD', 'description': 'Captain Cool'}
+        {'real_name': 'MSD'}, {'description': 'Captain Cool'}, {'real_name': 'MSD', 'description': 'Captain Cool'},
+        {'access_method': 'pwd'}
     ])
     async def test_update_user_other_fields(self, user_data):
         expected = {'response': 'updated', 'rows_affected': 1}

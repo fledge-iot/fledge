@@ -1281,7 +1281,7 @@ class Server:
                 host, _ = peername
 
             # TODO: restrict host to 0.0.0.0, 127.0.0.1 or localhost?
-            
+
             if auth_method == 'certificate':
                 token = await cert_login(ca_cert_name)
             elif auth_method == 'password':
@@ -1302,7 +1302,7 @@ class Server:
                 pass
         except api_exception.AuthenticationIsOptional as err:
             msg = str(err)
-            raise web.HTTPForbidden(reason=msg, body=json.dumps({"message": msg}))
+            raise web.HTTPPreconditionFailed(reason=msg, body=json.dumps({"message": msg}))
         except Exception as ex:
             msg = str(ex)
             raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))

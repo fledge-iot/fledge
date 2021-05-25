@@ -376,6 +376,10 @@ async def update_user(request):
             if not (await is_valid_role(role_id)):
                 msg = "Invalid or bad role id"
                 raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+            if not request.user_is_admin:
+                msg = "Admin role permissions are required to change the role of user."
+                _logger.warning(msg)
+                raise web.HTTPForbidden(reason=msg, body=json.dumps({"message": msg}))
             user_data.update({'role_id': role_id})
     if real_name is not None:
         user_data.update({'real_name': real_name})

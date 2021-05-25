@@ -1301,8 +1301,11 @@ class Server:
             except Exception as ex:
                 pass
         except api_exception.AuthenticationIsOptional as err:
+            # remove file
             msg = str(err)
             raise web.HTTPPreconditionFailed(reason=msg, body=json.dumps({"message": msg}))
+        except api_exception.VerificationFailed:
+            raise web.HTTPUnauthorized(body=json.dumps({"message": 'Invalid verification code'}))
         except Exception as ex:
             msg = str(ex)
             raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))

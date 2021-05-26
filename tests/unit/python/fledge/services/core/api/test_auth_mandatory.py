@@ -443,7 +443,7 @@ class TestAuthMandatory:
 
         with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv) as patch_role_id:
             with patch.object(User.Objects, 'get', return_value=_se) as patch_get_user:
-                resp = await client.put('/fledge/admin/user/{}'.format(uid), data=json.dumps(payload),
+                resp = await client.put('/fledge/admin/{}'.format(uid), data=json.dumps(payload),
                                         headers=ADMIN_USER_HEADER)
                 assert 400 == resp.status
                 assert status_reason == resp.reason
@@ -453,7 +453,7 @@ class TestAuthMandatory:
         patch_role_id.assert_called_once_with('admin')
         patch_refresh_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
         patch_validate_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
-        patch_logger_info.assert_called_once_with('Received %s request for %s', 'PUT', '/fledge/admin/user/{}'.format(uid))
+        patch_logger_info.assert_called_once_with('Received %s request for %s', 'PUT', '/fledge/admin/{}'.format(uid))
 
     @pytest.mark.parametrize("payload, exp_result", [
         ({"real_name": "Sat"}, {'role_id': '2', 'id': '2', 'uname': 'user', 'access_method': 'any',
@@ -484,7 +484,7 @@ class TestAuthMandatory:
         with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv1) as patch_role_id:
             with patch.object(User.Objects, 'update', return_value=_rv2) as patch_update:
                 with patch.object(User.Objects, 'get', return_value=_se):
-                    resp = await client.put('/fledge/admin/user/{}'.format(uid), data=json.dumps(payload),
+                    resp = await client.put('/fledge/admin/{}'.format(uid), data=json.dumps(payload),
                                             headers=ADMIN_USER_HEADER)
                     assert 200 == resp.status
                     r = await resp.text()
@@ -493,7 +493,7 @@ class TestAuthMandatory:
         patch_role_id.assert_called_once_with('admin')
         patch_refresh_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
         patch_validate_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
-        patch_logger_info.assert_called_once_with('Received %s request for %s', 'PUT', '/fledge/admin/user/{}'.format(
+        patch_logger_info.assert_called_once_with('Received %s request for %s', 'PUT', '/fledge/admin/{}'.format(
             uid))
 
     @pytest.mark.parametrize("request_data, msg", [

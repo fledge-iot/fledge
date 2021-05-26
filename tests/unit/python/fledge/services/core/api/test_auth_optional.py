@@ -253,11 +253,11 @@ class TestAuthOptional:
     async def test_update_user(self, client):
         with patch.object(middleware._logger, 'info') as patch_logger_info:
             with patch.object(auth._logger, 'warning') as patch_logger_warning:
-                resp = await client.put('/fledge/admin/user/1')
+                resp = await client.put('/fledge/admin/1')
                 assert 403 == resp.status
                 assert FORBIDDEN == resp.reason
             patch_logger_warning.assert_called_once_with(WARN_MSG)
-        patch_logger_info.assert_called_once_with('Received %s request for %s', 'PUT', '/fledge/admin/user/1')
+        patch_logger_info.assert_called_once_with('Received %s request for %s', 'PUT', '/fledge/admin/1')
 
     async def test_delete_user(self, client):
         with patch.object(middleware._logger, 'info') as patch_logger_info:

@@ -151,7 +151,7 @@ class TestAuthenticationAPI:
         uid = 5
         conn = http.client.HTTPConnection(fledge_url)
         payload = {"real_name": "Test Real", "description": "Test Desc", "access_method": "pwd"}
-        conn.request("PUT", "/fledge/admin/user/{}".format(uid), body=json.dumps(payload),
+        conn.request("PUT", "/fledge/admin/{}".format(uid), body=json.dumps(payload),
                      headers={"authorization": TOKEN})
         r = conn.getresponse()
         assert 200 == r.status
@@ -263,7 +263,7 @@ class TestAuthenticationAPI:
         assert "403: Forbidden" == r
 
         # Update User
-        conn.request("PUT", "/fledge/admin/user/2", body=json.dumps({"access_method": 'cert'}),
+        conn.request("PUT", "/fledge/admin/2", body=json.dumps({"access_method": 'cert'}),
                      headers={"authorization": _token})
         r = conn.getresponse()
         assert 403 == r.status

@@ -35,7 +35,7 @@ _help = """
     | PUT                        | /fledge/{user_id}/logout                           |
     
     | POST                       | /fledge/admin/user                                 |
-    | PUT                        | /fledge/admin/user/{user_id}                       |
+    | PUT                        | /fledge/admin/{user_id}                            |
     | PUT                        | /fledge/admin/{user_id}/enable                     |
     | PUT                        | /fledge/admin/{user_id}/reset                      |
     | DELETE                     | /fledge/admin/{user_id}/delete                     |

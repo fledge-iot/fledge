@@ -46,11 +46,21 @@ void
 ConfigHandler::configChange(const string& category, const string& config)
 {
 	m_logger->info("Configuration change notification for %s", category.c_str());
+	std::unique_lock<std::mutex> lck(m_mutex);
 	pair<CONFIG_MAP::iterator, CONFIG_MAP::iterator> res =
 			 m_registrations.equal_range(category);
 	for (CONFIG_MAP::iterator it = res.first; it != res.second; it++)
 	{
+		// The config change call could effect the registered handlers
+		// we therefore need to guard against the map changing
+		m_change = false;
+		lck.unlock();
 		it->second->configChange(category, config);
+		lck.lock();
+		if (m_change) // Something changed
+		{
+			return;	// Call any other subscribers to this category. In reality there are no others
+		}
 	}
 }
 
@@ -84,5 +94,36 @@ ConfigHandler::registerCategory(ServiceHandler *handler, const string& category)
 	{
 		m_logger->info("Interest in %s already registered", category.c_str());
 	}
+	std::unique_lock<std::mutex> lck(m_mutex);
 	m_registrations.insert(pair<string, ServiceHandler *>(category, handler));
+	m_change = true;
+}
+
+/**
+ * Unregister a configuration category from the ConfigHandler for
+ * a particular registered ServiceHandler class
+ *
+ * @param handler The configuration handler we would call
+ * @param category	The category to remove.
+ */
+void
+ConfigHandler::unregisterCategory(ServiceHandler *handler, const string& category)
+{
+	std::unique_lock<std::mutex> lck(m_mutex);
+	pair<CONFIG_MAP::iterator, CONFIG_MAP::iterator> res =
+			 m_registrations.equal_range(category);
+	for (CONFIG_MAP::iterator it = res.first; it != res.second; it++)
+	{
+		if (it->second == handler)
+		{
+			m_registrations.erase(it);
+			break;
+		}
+	}
+	// No remaining registration for this category
+	if (m_registrations.count(category) == 0)
+	{
+		m_mgtClient->unregisterCategory(category);
+	}
+	m_change = true;
 }

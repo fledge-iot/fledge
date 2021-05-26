@@ -361,32 +361,41 @@ async def update_me(request):
     if request.is_auth_optional:
         _logger.warning(FORBIDDEN_MSG)
         raise web.HTTPForbidden
-
-    uid = request.match_info.get('user_id')
-    if not request.user_is_admin or int(request.user["id"]) != int(uid):
-        msg = "admin privileges are required to logout other user"
-        raise web.HTTPForbidden(reason=msg, body=json.dumps({"message": msg}))
-
     data = await request.json()
     real_name = data.get('real_name', '')
-    if len(real_name.strip()) == 0:
-        msg = "Real name is required"
+    if 'real_name' in data:
+        if len(real_name.strip()) == 0:
+            msg = "Real Name should not be empty"
+            raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+        else:
+            from fledge.services.core import connect
+            from fledge.common.storage_client.payload_builder import PayloadBuilder
+            payload = PayloadBuilder().SELECT("user_id").WHERE(['token', '=', request.token]).payload()
+            storage_client = connect.get_storage_async()
+            result = await storage_client.query_tbl_with_payload("user_logins", payload)
+            if len(result['rows']) == 0:
+                raise User.DoesNotExist
+            payload = PayloadBuilder().SET(real_name=real_name.strip()).WHERE(['id', '=',
+                                                                               result['rows'][0]['user_id']]).payload()
+            message = "Something went wrong"
+            try:
+                result = await storage_client.update_tbl("users", payload)
+                if result['response'] == 'updated':
+                    # TODO: FOGL-1226 At the moment only real name can update
+                    message = "Real name has been updated successfully!"
+            except User.DoesNotExist:
+                msg = "User does not exist"
+                raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
+            except ValueError as err:
+                msg = str(err)
+                raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+            except Exception as exc:
+                msg = str(exc)
+                raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+    else:
+        msg = "Nothing to update"
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
-    try:
-        user_id = await User.Objects.get(uid=uid)
-    except Exception as exc:
-        msg = str(exc)
-        raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
-    # TODO: FOGL-1226
-    user_data = {}
-    if real_name is not None:
-        user_data.update({'real_name': real_name})
-    user = await User.Objects.update(int(uid), user_data)
-    result = {"message": "Nothing to Update!"}
-    if user:
-        user_info = await User.Objects.get(uid=uid)
-        result = {'user_info': user_info}
-    return web.json_response(result)
+    return web.json_response({"message": message})
 
 
 @has_permission("admin")
@@ -418,7 +427,7 @@ async def update_user(request):
             msg = "Real Name should not be empty"
             raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
         else:
-            user_data.update({"real_name": real_name})
+            user_data.update({"real_name": real_name.strip()})
     if 'access_method' in data:
         if len(access_method.strip()) == 0:
             msg = "Access method should not be empty"
@@ -428,13 +437,9 @@ async def update_user(request):
             if access_method not in valid_access_method:
                 msg = "Accepted access method values are {}".format(valid_access_method)
                 raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
-            user_data.update({"access_method": access_method})
+            user_data.update({"access_method": access_method.strip()})
     if 'description' in data:
-        if len(description.strip()) == 0:
-            msg = "Description should not be empty"
-            raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
-        else:
-            user_data.update({"description": description})
+        user_data.update({"description": description.strip()})
     if not user_data:
         msg = "Nothing to update"
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))

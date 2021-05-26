@@ -362,8 +362,68 @@ class TestAuthMandatory:
     @pytest.mark.parametrize("payload, status_reason", [
         ({"realname": "dd"}, 'Nothing to update'),
         ({"real_name": ""}, 'Real Name should not be empty'),
+        ({"real_name": "   "}, 'Real Name should not be empty')
+    ])
+    async def test_bad_update_me(self, client, mocker, payload, status_reason):
+        patch_logger_info, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
+            mocker)
+        user_info = {'role_id': '1', 'id': '2', 'uname': 'user', 'access_method': 'any',
+                     'real_name': 'Sat', 'description': 'Normal User'}
+        rv = await mock_coro(user_info) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(user_info))
+        with patch.object(User.Objects, 'get', return_value=rv) as patch_get_user:
+            resp = await client.put('/fledge/user', data=json.dumps(payload), headers=ADMIN_USER_HEADER)
+            assert 400 == resp.status
+            assert status_reason == resp.reason
+            r = await resp.text()
+            assert {"message": status_reason} == json.loads(r)
+        patch_get_user.assert_called_once_with(uid=1)
+        patch_refresh_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
+        patch_validate_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
+        patch_logger_info.assert_called_once_with('Received %s request for %s', 'PUT', '/fledge/user')
+
+    @pytest.mark.parametrize("payload", [
+        {"real_name": "AJ"}, {"real_name": "  AJ "}, {"real_name": "AJ "}, {"real_name": "  AJ"}
+    ])
+    async def test_update_me(self, client, mocker, payload):
+        patch_logger_info, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
+            mocker)
+        user_info = {'role_id': '1', 'id': '2', 'uname': 'user', 'access_method': 'any',
+                     'real_name': 'AJ', 'description': 'Normal User'}
+        user_record = {'rows': [{'user_id': 2}], 'count': 1}
+        update_result = {"rows_affected": 1, "response": "updated"}
+        storage_client_mock = MagicMock(StorageClientAsync)
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info >= (3, 8):
+            rv1 = await mock_coro(user_info)
+            rv2 = await mock_coro(user_record)
+            rv3 = await mock_coro(update_result)
+        else:
+            rv1 = asyncio.ensure_future(mock_coro(user_info))
+            rv2 = asyncio.ensure_future(mock_coro(user_record))
+            rv3 = asyncio.ensure_future(mock_coro(update_result))
+        with patch.object(User.Objects, 'get', return_value=rv1) as patch_get_user:
+            with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+                with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=rv2) as q_tbl_patch:
+                    with patch.object(storage_client_mock, 'update_tbl', return_value=rv3) as update_tbl_patch:
+                        resp = await client.put('/fledge/user', data=json.dumps(payload), headers=ADMIN_USER_HEADER)
+                        assert 200 == resp.status
+                        r = await resp.text()
+                        assert {"message": "Real name has been updated successfully!"} == json.loads(r)
+                    update_tbl_patch.assert_called_once_with("users", '{"values": {"real_name": "AJ"}, '
+                                                                      '"where": {"column": "id", "condition": "=", '
+                                                                      '"value": 2}}')
+                    q_tbl_patch.assert_called_once_with('user_logins', '{"return": ["user_id"], '
+                                                                       '"where": {"column": "token", "condition": "=", '
+                                                                       '"value": "admin_user_token"}}')
+        patch_get_user.assert_called_once_with(uid=1)
+        patch_refresh_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
+        patch_validate_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
+        patch_logger_info.assert_called_once_with('Received %s request for %s', 'PUT', '/fledge/user')
+
+    @pytest.mark.parametrize("payload, status_reason", [
+        ({"realname": "dd"}, 'Nothing to update'),
+        ({"real_name": ""}, 'Real Name should not be empty'),
         ({"real_name": "   "}, 'Real Name should not be empty'),
-        ({"description": ""}, 'Description should not be empty'),
         ({"access_method": ""}, 'Access method should not be empty'),
         ({"access_method": "blah"}, "Accepted access method values are ('any', 'pwd', 'cert')")
     ])

@@ -577,7 +577,7 @@ void DataLoad::configChange(const string& category, const string& newConfig)
 	if (category == m_name) 
 	{
 		/**
-		 * The category that has changed is the one for the noreth service itself.
+		 * The category that has changed is the one for the north service itself.
 		 * The only item that concerns us here is the filter item that defines
 		 * the filter pipeline. We extract that item and check to see if it defines
 		 * a pipeline that is different to the one we currently have.

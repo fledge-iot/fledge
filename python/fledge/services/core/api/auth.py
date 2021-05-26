@@ -26,7 +26,7 @@ _logger = logger.setup(__name__)
 _help = """
     ------------------------------------------------------------------------------------
     | GET                        | /fledge/user                                       |
-    | PUT                        | /fledge/user/{id}                                  |
+    | PUT                        | /fledge/user                                       |
     | PUT                        | /fledge/user/{user_id}/password                    |     
 
     | GET                        | /fledge/user/role                                  |
@@ -35,7 +35,8 @@ _help = """
     | PUT                        | /fledge/{user_id}/logout                           |
     
     | POST                       | /fledge/admin/user                                 |
-    | PUT                        | /fledge/admin/{user_id}/enabled                    |
+    | PUT                        | /fledge/admin/{user_id}                            |
+    | PUT                        | /fledge/admin/{user_id}/enable                     |
     | PUT                        | /fledge/admin/{user_id}/reset                      |
     | DELETE                     | /fledge/admin/{user_id}/delete                     |
     ------------------------------------------------------------------------------------
@@ -348,45 +349,114 @@ async def create_user(request):
     _logger.info(msg)
     return web.json_response({'message': msg, 'user': u})
 
+# FIXME: Need to fix user id dependency in update_me
 
-async def update_user(request):
+
+async def update_me(request):
     """ update user profile
 
     :Example:
-             curl -X PUT -d '{"real_name": "AJ", "description": "Normal user", "role_id": "2"}' http://localhost:8081/fledge/user/<id>
+             curl -H "authorization: <token>" -X PUT -d '{"real_name": "AJ"}' http://localhost:8081/fledge/user
+    """
+    if request.is_auth_optional:
+        _logger.warning(FORBIDDEN_MSG)
+        raise web.HTTPForbidden
+    data = await request.json()
+    real_name = data.get('real_name', '')
+    if 'real_name' in data:
+        if len(real_name.strip()) == 0:
+            msg = "Real Name should not be empty"
+            raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+        else:
+            from fledge.services.core import connect
+            from fledge.common.storage_client.payload_builder import PayloadBuilder
+            payload = PayloadBuilder().SELECT("user_id").WHERE(['token', '=', request.token]).payload()
+            storage_client = connect.get_storage_async()
+            result = await storage_client.query_tbl_with_payload("user_logins", payload)
+            if len(result['rows']) == 0:
+                raise User.DoesNotExist
+            payload = PayloadBuilder().SET(real_name=real_name.strip()).WHERE(['id', '=',
+                                                                               result['rows'][0]['user_id']]).payload()
+            message = "Something went wrong"
+            try:
+                result = await storage_client.update_tbl("users", payload)
+                if result['response'] == 'updated':
+                    # TODO: FOGL-1226 At the moment only real name can update
+                    message = "Real name has been updated successfully!"
+            except User.DoesNotExist:
+                msg = "User does not exist"
+                raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
+            except ValueError as err:
+                msg = str(err)
+                raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+            except Exception as exc:
+                msg = str(exc)
+                raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+    else:
+        msg = "Nothing to update"
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+    return web.json_response({"message": message})
+
+
+@has_permission("admin")
+async def update_user(request):
+    """ access_method, description, real_name
+        :Example:
+            curl -H "authorization: <token>" -X PUT -d '{"description": "A new user"}' http://localhost:8081/fledge/admin/{user_id}
+            curl -H "authorization: <token>" -X PUT -d '{"real_name": "Admin"}' http://localhost:8081/fledge/admin/{user_id}
+            curl -H "authorization: <token>" -X PUT -d '{"access_method": "pwd"}' http://localhost:8081/fledge/admin/{user_id}
+            curl -H "authorization: <token>" -X PUT -d '{"description": "A new user", "real_name": "Admin", "access_method": "pwd"}' http://localhost:8081/fledge/admin/{user_id}
     """
     if request.is_auth_optional:
         _logger.warning(FORBIDDEN_MSG)
         raise web.HTTPForbidden
 
-    uid = request.match_info.get('id')
+    user_id = request.match_info.get('user_id')
+    if int(user_id) == 1:
+        msg = "Restricted for Super Admin user"
+        _logger.warning(msg)
+        raise web.HTTPNotAcceptable(reason=msg, body=json.dumps({"message": msg}))
+
     data = await request.json()
-    role_id = data.get('role_id')
-    real_name = data.get('real_name')
-    description = data.get('description')
+    access_method = data.get('access_method', '')
+    description = data.get('description', '')
+    real_name = data.get('real_name', '')
+    user_data = {}
+    if 'real_name' in data:
+        if len(real_name.strip()) == 0:
+            msg = "Real Name should not be empty"
+            raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+        else:
+            user_data.update({"real_name": real_name.strip()})
+    if 'access_method' in data:
+        if len(access_method.strip()) == 0:
+            msg = "Access method should not be empty"
+            raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+        else:
+            valid_access_method = ('any', 'pwd', 'cert')
+            if access_method not in valid_access_method:
+                msg = "Accepted access method values are {}".format(valid_access_method)
+                raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+            user_data.update({"access_method": access_method.strip()})
+    if 'description' in data:
+        user_data.update({"description": description.strip()})
+    if not user_data:
+        msg = "Nothing to update"
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     try:
-        user_id = await User.Objects.get(uid=uid)
+        user = await User.Objects.update(user_id, user_data)
+        if user:
+            user_info = await User.Objects.get(uid=user_id)
+    except ValueError as err:
+        msg = str(err)
+        raise web.HTTPBadRequest(reason=str(err), body=json.dumps({"message": msg}))
+    except User.DoesNotExist:
+        msg = "User with id:<{}> does not exist".format(int(user_id))
+        raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as exc:
         msg = str(exc)
-        raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
-    # TODO: FOGL-1226
-    user_data = {}
-    if 'role_id' in data:
-        if role_id is not None:
-            if not (await is_valid_role(role_id)):
-                msg = "Invalid or bad role id"
-                raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
-            user_data.update({'role_id': role_id})
-    if real_name is not None:
-        user_data.update({'real_name': real_name})
-    if description is not None:
-        user_data.update({'description': description})
-    user = await User.Objects.update(int(uid), user_data)
-    result = {"message": "Nothing to Update!"}
-    if user:
-        user_info = await User.Objects.get(uid=uid)
-        result = {'user_info': user_info}
-    return web.json_response(result)
+        raise web.HTTPInternalServerError(reason=str(exc), body=json.dumps({"message": msg}))
+    return web.json_response({'user_info': user_info})
 
 
 async def update_password(request):
@@ -456,10 +526,10 @@ async def update_password(request):
 
 @has_permission("admin")
 async def enable_user(request):
-    """ enabled/disabled user
+    """ enable/disable user
         :Example:
-            curl -H "authorization: <token>" -X PUT -d '{"enabled": "true"}' http://localhost:8081/fledge/admin/{user_id}/enabled
-            curl -H "authorization: <token>" -X PUT -d '{"enabled": "False"}' http://localhost:8081/fledge/admin/{user_id}/enabled
+            curl -H "authorization: <token>" -X PUT -d '{"enabled": "true"}' http://localhost:8081/fledge/admin/{user_id}/enable
+            curl -H "authorization: <token>" -X PUT -d '{"enabled": "False"}' http://localhost:8081/fledge/admin/{user_id}/enable
     """
     if request.is_auth_optional:
         _logger.warning(FORBIDDEN_MSG)
@@ -642,6 +712,7 @@ async def is_valid_role(role_id):
 
 def has_admin_permissions(request):
     if request.is_auth_optional is False:  # auth is mandatory
+        # TODO: we may replace with request.user_is_admin
         if int(request.user["role_id"]) != ADMIN_ROLE_ID:
             return False
     return True

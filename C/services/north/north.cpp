@@ -190,8 +190,8 @@ int	size;
 /**
  * Constructor for the north service
  */
-NorthService::NorthService(const string& myName) : m_name(myName), m_shutdown(false),
-	m_storage(NULL), m_pluginData(NULL), m_restartPlugin(false)
+NorthService::NorthService(const string& myName) : m_dataLoad(NULL), m_name(myName),
+	m_shutdown(false), m_storage(NULL), m_pluginData(NULL), m_restartPlugin(false)
 {
 	logger = new Logger(myName);
 	logger->setMinLevel("warning");
@@ -505,7 +505,10 @@ void NorthService::configChange(const string& categoryName, const string& catego
 		m_restartPlugin = true;
 		m_cv.notify_all();
 
-		m_dataLoad->configChange(categoryName, category);
+    if (m_dataLoad)
+		{
+			m_dataLoad->configChange(categoryName, category);
+		}
 	}
 	if (categoryName.compare(m_name+"Advanced") == 0)
 	{

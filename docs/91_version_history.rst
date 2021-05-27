@@ -26,6 +26,85 @@ Fledge v1
 ==========
 
 
+v1.9.1
+-------
+
+Release Date: 2021-05-27
+
+- **Fledge Core**
+
+    - New Features:
+
+       - The documentation has been updated to give more detail around the topic of self signed certificates.
+       - Support has been added for Ubuntu 20.
+       - The documentation has been improved in include the new control functionality in the south plugin developers guide.
+       - A new option has been added to the command line tool that controls the system. This option, called purge, allows all readings related data to be purged from the system whilst retaining the configuration. This allows a system to be tested and then reset without loosing the configuration.
+       - The core components have been ported to build and run on CentOS8
+       - A problem related to readings with nested data not correctly getting copied has been resolved.
+       - A nw service interface has been added to the south service that allows set point control and operations to be performed via the south interface. This is the first phase of the set point control feature in the product.
+       - An improvement has been made to the documentation layout for default plugins to make the GUI able to find the plugin documentation.
+       - Documentation describing the installation of PostgreSQL on CentOS has been updated.
+       - A bug that prevented users being created with certificate based authentication rather than password based authentication has been fixed.
+
+
+    - Bug Fix:
+
+       - A security flaw that allowed non-privileged users to update the certificate store has been resolved.
+       - An issue that caused problems if a service was deleted and then a new service was recreated using the name of the previously deleted service has been resolved.
+       - Disabling and re-enabling the backup and restore task schedules sometimes caused a restart of the system. This has now been resolved.
+       - Switching storage plugins from SQLite to PostgreSQL caused errors in some circumstances. This has now been resolved.
+       - The HTTP code returned by the ping command has been updated to correctly report 401 errors if the option to allow ping without authentication is turned off.
+       - An issue with the SQLite In Memory storage plugin that caused database locks under high load conditions has been resolved.
+       - The error message returned when schedules could; not be enabled or disabled has been improved.
+       - The HTTP error code returned when the notification service is not available has been corrected.
+
+
+- **GUI**
+
+    - New Features:
+
+       - Links to the online help have been added on a number of screen in the user interface.
+       - Improvements have been made to the user management screens of the GUI.
+
+
+    - Bug Fix:
+
+
+
+- **Plugins**
+
+    - New Features:
+
+       - Support has been added in the OPC/UA north plugin for array data. This allows FFT spectrum data to be represented in the OPC/UA server.
+       - The documentation for the OPC/UA north plugin has been updated to recommend running the plugin as a service.
+       - The OMFHint plugin has been updated to support wildcarding of asset names in the rules for the plugin.
+       - A new delivery notification plugin has been added that uses the set point control mechanism to invoke an action in the south plugin.
+       - The delta filter has been updated to allow an optional set of asset specific tolerances to be added in addition to the global tolerance used by the plugin when deciding to forward data.
+       - The Python script run by the MQTT scripted plugin now receives the topic as well as the message.
+       - A problem with OMF services being deleted and then recreated has been resolved.
+       - The OMF plugin has been updated in line with recommendations from the OMF group regarding the use of SCRF Defense.
+       - Support has been added to use RTSP video streams in the person detection plugin.
+       - A new storage plugin has been added that uses SQLite. This is designed for situation with low bandwidth sensors and stores all the readings within a single SQLite file.
+       - A new notification delivery mechanism has been implemented that uses the set point control mechanism to assert control on a south service. The plugin allows you to set the values of one or more control items on the notification triggered and set a different set of values when the notification rule clears.
+       - The description of the statistics filter was incorrect, this has now been corrected.
+       - The CSV Writer filter has been updated to support writing encrypted files.
+       - North services now support Python as well as C++ plugins.
+       - A new south plugin has been created to read data from the ABB cloud service.
+       - New documentation has been added to help in troubleshooting PI connection issues.
+
+
+    - Bug Fix:
+
+       - The OMF plugin has been updated to better deal with nested data.
+       - Some improvements to error handling have been added to the InfluxDB north plugin for version 1.x of InfluxDB.
+       - The Python 35 filter stated it used the Python version 3.5 always, in reality it uses whatever Python 3 version is installed on your system. The documentation has been updated to reflect this.
+       - The Asset Split filter plugin previously logged debug messages by default, this has now been resolved.
+       - The ABB Sensor Cloud south plugin has been updated following issues with running on CentOS 7 systems to use a different authentication layer. This plugin now works correctly on all platforms.
+       - Fix a big that treated arrays of bytes as if they were strings in the OPC/UA south plugin.
+       - The FFT2 filter used a single asset name for all output FFT's. If an incoming asset had multiple data points they would each have a separate FFT applied to them and then output with the same asset name. This caused confusion. Now if there are multiple data points each will have a unique asset name for the output FFT. This asset name is made up of the configured output asset name with the data point name appended. For example an inout asset having X, Y and Z data points with the output asset configured to be FFT will result in 3 assets, FFTX, FFTY and FFTZ.
+       - The HTTP North plugin wold not correctly shutdown, this effected reconfiguration when run as an always on service. This issue has now been resolved.
+
+
 v1.9.0
 -------
 

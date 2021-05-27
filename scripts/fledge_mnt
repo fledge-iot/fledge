@@ -11,7 +11,7 @@
 ##
 ##--------------------------------------------------------------------
 
-FLEDGE_MNT_VERSION=1.7
+FLEDGE_MNT_VERSION=1.8
 
 #set -e
 #set -x
@@ -91,8 +91,9 @@ if [ ! -x "${FLEDGE_SCRIPT}" ]; then
     FLEDGE_SCRIPT="${FLEDGE_ROOT}/bin/fledge"
     if [ ! -x "${FLEDGE_SCRIPT}" ]; then
 
-	    fledge_log "err" "Fledge command unavailable both in deployment and development environments"  "outonly" "pretty"
-	    exit 1
+	    fledge_log "warn" "WARNING: Fledge command unavailable both in deployment and development environments"  "outonly" "pretty"
+	    fledge_log "warn" "WARNING: if needed, fledge should be stopped manually before the execution"  "outonly" "pretty"
+	    FLEDGE_SCRIPT=""
     else
         FLEDGE_ENV="deployment"
     fi
@@ -136,7 +137,7 @@ if [[ "${FLEDGE_DB_NAME}" == "" ]]; then
 
     FLEDGE_DB="${FLEDGE_ROOT}/data/fledge.db"
 else
-    FLEDGE_DB="${FLEDGE_ROOT}/data/${FLEDGE_DB_NAME}"
+    FLEDGE_DB="${FLEDGE_DB_NAME}"
 fi
 
 #
@@ -144,12 +145,18 @@ fi
 #
 fledge_stop() {
 
-    seconds=5
-    ${FLEDGE_SCRIPT} stop
+    if [[ "${FLEDGE_SCRIPT}" == "" ]]; then
 
-    echo "sleeping ${seconds} seconds before fledge kill, to ensure everything is not running"
-    sleep ${seconds}
-    ${FLEDGE_SCRIPT} kill
+	    fledge_log "warn" "WARNING: Fledge command unavailable both in deployment and development environments"  "outonly" "pretty"
+	    fledge_log "warn" "WARNING: if needed, fledge should be stopped manually before the execution"  "outonly" "pretty"
+    else
+         seconds=5
+        ${FLEDGE_SCRIPT} stop
+
+        echo "sleeping ${seconds} seconds before fledge kill, to ensure everything is not running"
+        sleep ${seconds}
+        ${FLEDGE_SCRIPT} kill
+    fi
 }
 
 operation_start() {

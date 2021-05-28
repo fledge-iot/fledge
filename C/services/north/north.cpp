@@ -551,8 +551,24 @@ void NorthService::restartPlugin()
 	{
 		northPlugin->shutdown();
 	}
+
 	delete northPlugin;
 	loadPlugin();
+	// Deal with persisted data and start the plugin
+	if (northPlugin->persistData())
+	{
+		logger->debug("Plugin %s requires persisted data", m_pluginName.c_str());
+		m_pluginData = new PluginData(m_storage);
+		string key = m_name + m_pluginName;
+		string storedData = m_pluginData->loadStoredData(key);
+		logger->debug("Starting plugin with storedData: %s", storedData.c_str());
+		northPlugin->startData(storedData);
+	}
+	else
+	{
+		logger->debug("Start %s plugin", m_pluginName.c_str());
+		northPlugin->start();
+	}
 	m_dataSender->updatePlugin(northPlugin);
 	m_dataSender->release();
 }

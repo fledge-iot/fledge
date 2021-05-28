@@ -35,7 +35,7 @@ Release Date: 2021-05-27
 
     - New Features:
 
-       - The documentation has been updated to give more detail around the topic of self signed certificates.
+       - The documentation has been updated to give more detail around the topic of self-signed certificates.
        - Support has been added for Ubuntu 20.04 LTS.
        - The documentation has been improved to include the new control functionality in the south plugin developers guide.
        - A new option has been added to the command line tool that controls the system. This option, called purge, allows all readings related data to be purged from the system whilst retaining the configuration. This allows a system to be tested and then reset without losing the configuration.
@@ -90,8 +90,8 @@ Release Date: 2021-05-27
        - The OMF plugin has been updated to better deal with nested data.
        - Some improvements to error handling have been added to the InfluxDB north plugin for version 1.x of InfluxDB.
        - The Python 35 filter stated it used the Python version 3.5 always, in reality it uses whatever Python 3 version is installed on your system. The documentation has been updated to reflect this.
-       - Fixed a big that treated arrays of bytes as if they were strings in the OPC/UA south plugin.
-       - The HTTP North plugin wold not correctly shutdown, this effected reconfiguration when run as an always on service. This issue has now been resolved.
+       - Fixed a bug that treated arrays of bytes as if they were strings in the OPC/UA south plugin.
+       - The HTTP North plugin would not correctly shutdown, this effected reconfiguration when run as an always on service. This issue has now been resolved.
        - A problem with OMF services being deleted and then recreated has been resolved.
 
 

@@ -12,8 +12,11 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 # NOTE: When multiple exceptions then enable below and add new exceptions in same list
-# __all__ = ('AuthenticationIsOptional', '')
+# __all__ = ('AuthenticationIsOptional', 'VerificationFailed')
 
 
-class AuthenticationIsOptional(web.HTTPForbidden):
+class AuthenticationIsOptional(web.HTTPPreconditionFailed):
+    pass
+
+class VerificationFailed(web.HTTPUnauthorized):
     pass

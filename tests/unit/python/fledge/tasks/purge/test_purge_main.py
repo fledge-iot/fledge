@@ -7,7 +7,8 @@
 """ Test tasks/purge/__main__.py entry point
 
 """
-
+import asyncio
+import sys
 import pytest
 from unittest.mock import patch, MagicMock
 
@@ -38,9 +39,16 @@ async def _purge_instance():
 
 @pytest.allure.feature("unit")
 @pytest.allure.story("tasks", "purge")
-def test_main(_purge_instance):
+async def test_main(_purge_instance):
+    async def mock_coro():
+        return None
+    
     with patch.object(purge, "__name__", "__main__"):
         purge.purge_process = _purge_instance
-        with patch.object(Purge, 'run', return_value=None):
-            purge.purge_process.run()
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv = await mock_coro()
+        else:
+            _rv = asyncio.ensure_future(mock_coro())
+        with patch.object(Purge, 'run', return_value=_rv):
+            await purge.purge_process.run()
             purge.purge_process.run.assert_called_once_with()

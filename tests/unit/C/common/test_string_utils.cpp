@@ -4,6 +4,7 @@
 #include "string_utils.h"
 #include <vector>
 #include <bits/stdc++.h>
+#include <regex>
 
 using namespace std;
 
@@ -188,6 +189,29 @@ TEST(StringStripWhiteSpacesLeave1Space, AllCases)
 	ASSERT_EQ(StringStripWhiteSpacesExtra(" x x  \r    x ") , "x x x");
 }
 
+// Some tests are skipped on Centos
+// Centos 7.0 has gcc 4.8.5, <regex> was implemented and released in GCC 4.9.0.
+// the version available in C7 was highly experimental.
+//
+// Test IsRegex
+TEST(TestIsRegex, AllCases)
+{
+	ASSERT_EQ(IsRegex("^a") , true);
+	ASSERT_EQ(IsRegex(".*") , true);
+	ASSERT_EQ(IsRegex("\\s") , true);
+	ASSERT_EQ(IsRegex("^.*(Code:)((?!2).)*$") , true);
+
+	ASSERT_EQ(IsRegex("asset_1") , false);
+
+	ASSERT_EQ(std::regex_match ("sin_1_asset_1", regex("^a")), false);
+
+#ifndef RHEL_CENTOS_7
+	ASSERT_EQ(std::regex_match ("sin_1_asset_1", regex("^s.*")), true);
+#endif
+
+	ASSERT_EQ(std::regex_match ("sin_1_asset_1", regex("a.*")), false);
+	ASSERT_EQ(std::regex_match ("sin_1_asset_1", regex("s.*")), true);
+}
 
 
 

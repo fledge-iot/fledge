@@ -727,9 +727,11 @@ bool ManagementClient::addAuditEntry(const std::string& code,
  * Checks and validate the JWT bearer token
  *
  * @param request	HTTP request object
+ * @param claims	Map to fill with JWT public token claims
  * @return		True on success, false otherwise
  */
-bool ManagementClient::verifyAccessBearerToken(shared_ptr<HttpServer::Request> request)
+bool ManagementClient::verifyAccessBearerToken(shared_ptr<HttpServer::Request> request,
+						map<string, string>& claims)
 {
 	string bearer_token = getAccessBearerToken(request);
 

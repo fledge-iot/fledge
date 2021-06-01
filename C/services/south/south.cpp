@@ -34,6 +34,8 @@
 #include <config_handler.h>
 #include <syslog.h>
 
+#define SERVICE_TYPE "Southbound"
+
 extern int makeDaemon(void);
 extern void handler(int sig);
 
@@ -197,22 +199,15 @@ void doIngestV2(Ingest *ingest, const vector<Reading *> *vec)
  * Constructor for the south service
  */
 SouthService::SouthService(const string& myName, const string& token) :
-				m_name(myName),
 				m_shutdown(false),
 				m_readingsPerSec(1),
 				m_throttle(false),
 				m_throttled(false),
 				m_token(token)
 {
+	m_name = myName;
 	logger = new Logger(myName);
 	logger->setMinLevel("warning");
-}
-
-ManagementClient *SouthService::m_mgtClient = NULL;
-
-ManagementClient * SouthService::getMgmtClient()
-{
-	return m_mgtClient;
 }
 
 /**
@@ -245,20 +240,23 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		// TODO proper hostname lookup
 		unsigned short managementListener = management.getListenerPort();
 		ServiceRecord record(m_name,			// Service name
-					"Southbound",		// Service type
+					SERVICE_TYPE,		// Service type
 					"http",			// Protocol
 					"localhost",		// Listening address
 					sport,			// Service port
 					managementListener,	// Management port
 					m_token);		// Token
-		m_mgtClient = new ManagementClient(coreAddress, corePort);
+
+		// Allocate and save ManagementClient object
+		this->setMgmtClient(new ManagementClient(coreAddress, corePort));
 
 		// Create an empty South category if one doesn't exist
 		DefaultConfigCategory southConfig(string("South"), string("{}"));
 		southConfig.setDescription("South");
-		m_mgtClient->addCategory(southConfig, true);
+		this->getMgmtClient()->addCategory(southConfig, true);
 
-		m_config = m_mgtClient->getCategory(m_name);
+		// Get configuration for service name
+		m_config = this->getMgmtClient()->getCategory(m_name);
 		if (!loadPlugin())
 		{
 			logger->fatal("Failed to load south plugin, exiting...");
@@ -271,17 +269,19 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 			logger->info("South plugin has a control facility, adding south service API");
 		}
 
-		if (!m_mgtClient->registerService(record))
+		if (!this->getMgmtClient()->registerService(record))
 		{
 			logger->error("Failed to register service %s", m_name.c_str());
 		}
-		ConfigHandler *configHandler = ConfigHandler::getInstance(m_mgtClient);
+
+		// Register for category content changes
+		ConfigHandler *configHandler = ConfigHandler::getInstance(this->getMgmtClient());
 		configHandler->registerCategory(this, m_name);
 		configHandler->registerCategory(this, m_name+"Advanced");
 
 		// Get a handle on the storage layer
 		ServiceRecord storageRecord("Fledge Storage");
-		if (!m_mgtClient->getService(storageRecord))
+		if (!this->getMgmtClient()->getService(storageRecord))
 		{
 			logger->fatal("Unable to find storage service");
 			return;
@@ -326,11 +326,11 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 			logger->info("Defaulting to inline defaults for south configuration");
 		}
 
-		m_assetTracker = new AssetTracker(m_mgtClient, m_name);
+		m_assetTracker = new AssetTracker(this->getMgmtClient(), m_name);
 
 		{
 		// Instantiate the Ingest class
-		Ingest ingest(storage, timeout, threshold, m_name, pluginName, m_mgtClient);
+		Ingest ingest(storage, timeout, threshold, m_name, pluginName, this->getMgmtClient());
 		m_ingest = &ingest;
 
 		try {
@@ -348,6 +348,9 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 			Logger::getLogger()->fatal((errMsg + " Exiting.").c_str());
 			throw runtime_error(errMsg);
 		}
+
+		// Create default security category
+		this->createSecurityCategories(this->getMgmtClient());
 
 		// Get and ingest data
 		if (! southPlugin->isAsync())
@@ -467,7 +470,7 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		}
 		
 		// Clean shutdown, unregister the storage service
-		m_mgtClient->unregisterService();
+		this->getMgmtClient()->unregisterService();
 	}
 	management.stop();
 	logger->info("South service shutdown completed");
@@ -496,12 +499,12 @@ void SouthService::createConfigCategories(DefaultConfigCategory configCategory, 
 	defConfig.removeItemsType(ConfigCategory::ItemType::CategoryType);
 
 	// Create/Update category name (we pass keep_original_items=true)
-	m_mgtClient->addCategory(defConfig, true);
+	this->getMgmtClient()->addCategory(defConfig, true);
 
 	// Add this service under 'South' parent category
 	vector<string> children;
 	children.push_back(current_name);
-	m_mgtClient->addChildCategories(parent_name, children);
+	this->getMgmtClient()->addChildCategories(parent_name, children);
 
 	// Adds sub categories to the configuration
 	bool extracted = true;
@@ -551,7 +554,7 @@ bool SouthService::loadPlugin()
 			// the plugin
 			// Removes all the m_items already present in the category
 			m_config.removeItems();
-			m_config = m_mgtClient->getCategory(m_name);
+			m_config = this->getMgmtClient()->getCategory(m_name);
 
 			try {
 				southPlugin = new SouthPlugin(handle, m_config);
@@ -566,15 +569,15 @@ bool SouthService::loadPlugin()
 			defConfigAdvanced.setDescription(m_name+string(" advanced config params"));
 
 			// Create/Update category name (we pass keep_original_items=true)
-			m_mgtClient->addCategory(defConfigAdvanced, true);
+			this->getMgmtClient()->addCategory(defConfigAdvanced, true);
 
 			// Add this service under 'm_name' parent category
 			vector<string> children1;
 			children1.push_back(advancedCatName);
-			m_mgtClient->addChildCategories(m_name, children1);
+			this->getMgmtClient()->addChildCategories(m_name, children1);
 
 			// Must now reload the merged configuration
-			m_configAdvanced = m_mgtClient->getCategory(advancedCatName);
+			m_configAdvanced = this->getMgmtClient()->getCategory(advancedCatName);
 
 			return true;
 		}
@@ -676,6 +679,12 @@ void SouthService::configChange(const string& categoryName, const string& catego
 				m_throttle = false;
 			}
 		}
+	}
+
+	// Update the  Security category
+	if (categoryName.compare(m_name+"Security") == 0)
+	{
+		this->updateSecurityCategory(category);
 	}
 }
 

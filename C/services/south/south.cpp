@@ -1,5 +1,5 @@
 /*
- * Fledge storage service.
+ * Fledge south service.
  *
  * Copyright (c) 2018 OSisoft, LLC
  *
@@ -349,6 +349,14 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 			throw runtime_error(errMsg);
 		}
 
+		if (southPlugin->persistData())
+		{
+			m_pluginData = new PluginData(new StorageClient(storageRecord.getAddress(),
+                                                storageRecord.getPort()));
+			m_dataKey = m_name + m_config.getValue("plugin");
+		}
+
+
 		// Get and ingest data
 		if (! southPlugin->isAsync())
 		{
@@ -379,6 +387,17 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 			const char *pluginInterfaceVer = southPlugin->getInfo()->interface;
 			bool pollInterfaceV2 = (pluginInterfaceVer[0]=='2' && pluginInterfaceVer[1]=='.');
 			logger->info("pollInterfaceV2=%s", pollInterfaceV2?"true":"false");
+			if (southPlugin->persistData())
+			{
+				Logger::getLogger()->debug("Plugin persists data");
+				string pluginData = m_pluginData->loadStoredData(m_dataKey);
+				southPlugin->startData(pluginData);
+			}
+			else
+			{
+				Logger::getLogger()->debug("Plugin does not persist data");
+				southPlugin->start();
+			}
 
 			while (!m_shutdown)
 			{
@@ -442,9 +461,20 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 			while (started == false && m_shutdown == false)
 			{
 				try {
-					southPlugin->start();
+					if (southPlugin->persistData())
+					{
+						string pluginData = m_pluginData->loadStoredData(m_dataKey);
+						Logger::getLogger()->debug("Plugin persists data, %s", pluginData.c_str());
+						southPlugin->startData(pluginData);
+					}
+					else
+					{
+						Logger::getLogger()->debug("Plugin does not persist data");
+						southPlugin->start();
+					}
 					started = true;
 				} catch (...) {
+					Logger::getLogger()->debug("Plugin start raised an exception");
 					std::this_thread::sleep_for(std::chrono::milliseconds(backoff));
 					if (backoff < 60000)
 					{
@@ -463,7 +493,18 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 
 		// do plugin shutdown before destroying Ingest object on stack
 		if (southPlugin)
-			southPlugin->shutdown();
+		{
+			if (southPlugin->persistData())
+			{
+				string data = southPlugin->shutdownSaveData();
+				Logger::getLogger()->debug("Persist plugin data, '%s'", data.c_str());
+				m_pluginData->persistPluginData(m_dataKey, data);
+			}
+			else
+			{
+				southPlugin->shutdown();
+			}
+		}
 		}
 		
 		// Clean shutdown, unregister the storage service

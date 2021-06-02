@@ -83,6 +83,7 @@ Release Date: 2021-05-27
        - A new notification delivery mechanism has been implemented that uses the set point control mechanism to assert control on a south service. The plugin allows you to set the values of one or more control items on the notification triggered and set a different set of values when the notification rule clears.
        - North services now support Python as well as C++ plugins.
        - New documentation has been added to help in troubleshooting PI connection issues.
+       - The pi_server and ocs north plugins are deprecated in favour of the newer and more feature rich OMF north plugin. These deprecated plugins cannot be used in north services and are only provided for backward compatibility when run as north tasks. These plugins will be removed in a future release.
 
 
     - Bug Fix:

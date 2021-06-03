@@ -65,6 +65,9 @@ Once complete you can add the repository itself into the apt configuration file 
 
        sudo add-apt-repository ‘deb http://archives.fledge-iot.org/latest/ubuntu1804/aarch64/ / ‘
 
+  - Users with an Intel or AMD system with Ubuntu 20.04 should run
+
+       sudo add-apt-repository ‘deb http://archives.fledge-iot.org/latest/ubuntu2004/x86_64/ / ‘
 
   - Users of the Mendel operating system on a Google Coral create the file /etc/apt/sources.list.d/fledge.list and insert the following content
 

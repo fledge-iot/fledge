@@ -110,7 +110,7 @@ class TestService:
 
         southbound_svc = jdoc['services'][svc_count - 1]
         assert isinstance(southbound_svc['management_port'], int)
-        assert southbound_svc['service_port'] is None
+        assert isinstance(southbound_svc['service_port'], int)
         assert display_svc_name == southbound_svc['name']
         assert 'running' == southbound_svc['status']
         assert 'Southbound' == southbound_svc['type']
@@ -248,7 +248,7 @@ class TestService:
         assert 'Service {} deleted successfully.'.format(SVC_NAME_6) == jdoc['result']
 
         # verify service does not exist
-        time.sleep(wait_time)
+        time.sleep(wait_time * 2)
         jdoc = get_service(fledge_url, '/fledge/service')
         assert len(jdoc), "No data found"
         assert 3 == len(jdoc['services'])

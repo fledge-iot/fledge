@@ -171,7 +171,7 @@ def verify_eds_egress_asset_tracking(fledge_url):
 class TestEDS:
     def test_eds(self, check_eds_installed, reset_eds, remove_and_add_pkgs, reset_fledge, start_south_north, fledge_url,
                  wait_time):
-        time.sleep(wait_time * 2)
+        time.sleep(wait_time * 4)
 
         ping_response = get_ping_status(fledge_url)
         assert 0 < ping_response["dataRead"]

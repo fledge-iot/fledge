@@ -303,6 +303,26 @@ class Scheduler(object):
         args_to_exec.append("--address=127.0.0.1")
         args_to_exec.append("--name={}".format(schedule.name))
 
+        # interim solution for service/authtoken endpoint exposure  
+        # restrict to FogLAMP manager/poll agent service
+        if schedule.process_name == 'management':
+            import secrets
+            t = secrets.token_urlsafe(15)
+            try:
+                # better we pass as arg to scheduled process and keep this in 
+                # main memory data structure corresponding to schedule/service name
+                # and remove once assigned a jwt token...
+                fname = _FLEDGE_ROOT + "/data/.{}".format('managementtoken')
+                with open(fname,'w', encoding = 'utf-8') as f:
+                    f.write(t)
+                    self._logger.debug(fname +" written")
+            except Exception as ex:
+                self._logger.exception(ex)
+        # This should be appended as an arg and passed to process
+        # and also kept as name | (single use) token pair for verification and assigning
+        # jwt token for cross communication
+        # args_to_exec.append("--token={}".format(t))
+
         task_process = self._TaskProcess()
         task_process.start_time = time.time()
 
@@ -1336,7 +1356,7 @@ class Scheduler(object):
         self._schedule_first_task(schedule_row, now)
 
         # Start schedule
-        await self.queue_task(schedule_id)
+        await self.queue_task(schedule_id, start_now=False)
 
         self._logger.info(
             "Enabled Schedule '%s/%s' process '%s'\n",
@@ -1348,7 +1368,7 @@ class Scheduler(object):
         await audit.information('SCHCH', { 'schedule': sch.toDict() })
         return True, "Schedule successfully enabled"
 
-    async def queue_task(self, schedule_id: uuid.UUID) -> None:
+    async def queue_task(self, schedule_id: uuid.UUID, start_now=True) -> None:
         """Requests a task to be started for a schedule
 
         Args:
@@ -1378,7 +1398,8 @@ class Scheduler(object):
             schedule_execution = self._ScheduleExecution()
             self._schedule_executions[schedule_row.id] = schedule_execution
 
-        schedule_execution.start_now = True
+        if start_now:
+            schedule_execution.start_now = True
 
         self._logger.debug("Queued schedule '%s' for execution", schedule_row.name)
         self._resume_check_schedules()

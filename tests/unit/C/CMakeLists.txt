@@ -27,7 +27,11 @@ include_directories(SYSTEM ${Boost_INCLUDE_DIR})
 
 # Find python3.x dev/lib package
 find_package(PkgConfig REQUIRED)
-pkg_check_modules(PYTHON REQUIRED python3)
+if(${CMAKE_VERSION} VERSION_LESS "3.12.0") 
+    pkg_check_modules(PYTHON REQUIRED python3)
+else()
+    find_package(Python COMPONENTS Interpreter Development)
+endif()
 
 include_directories(../../../C/common/include)
 include_directories(../../../C/plugins/common/include)
@@ -38,7 +42,11 @@ include_directories(../../../C/thirdparty/Simple-Web-Server)
 include_directories(../../../C/plugins/storage/common/include)
 
 # Add Python 3.x header files
-include_directories(${PYTHON_INCLUDE_DIRS})
+if(${CMAKE_VERSION} VERSION_LESS "3.12.0") 
+    include_directories(${PYTHON_INCLUDE_DIRS})
+else()
+    include_directories(${Python_INCLUDE_DIRS})
+endif()
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/../lib)
 
@@ -106,4 +114,5 @@ set_target_properties(${LIB_NAME} PROPERTIES SOVERSION 1)
 
 add_subdirectory(cmake_pg)
 add_subdirectory(cmake_sqlite)
+add_subdirectory(cmake_sqlitelb)
 add_subdirectory(cmake_sqliteM)

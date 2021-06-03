@@ -35,7 +35,7 @@ class TestServiceRegistry:
         args, kwargs = log_info.call_args
         assert args[0].startswith('Registered service instance id=')
         assert args[0].endswith(': <A name, type=Storage, protocol=http, address=127.0.0.1, service port=1234,'
-                                ' management port=4321, status=1>')
+                                ' management port=4321, status=1, token=None>')
 
     def test_register_with_service_port_none(self):
         with patch.object(ServiceRegistry._logger, 'info') as log_info:
@@ -46,7 +46,7 @@ class TestServiceRegistry:
         args, kwargs = log_info.call_args
         assert args[0].startswith('Registered service instance id=')
         assert args[0].endswith(': <A name, type=Southbound, protocol=http, address=127.0.0.1, service port=None,'
-                                ' management port=4321, status=1>')
+                                ' management port=4321, status=1, token=None>')
 
     def test_register_with_same_name(self):
         """raise AlreadyExistsWithTheSameName"""
@@ -57,7 +57,7 @@ class TestServiceRegistry:
         args, kwargs = log_info1.call_args
         assert args[0].startswith('Registered service instance id=')
         assert args[0].endswith(': <A name, type=Storage, protocol=http, address=127.0.0.1, service port=1,'
-                                ' management port=2, status=1>')
+                                ' management port=2, status=1, token=None>')
 
         with pytest.raises(Exception) as excinfo:
             with patch.object(ServiceRegistry._logger, 'info') as log_info2:
@@ -75,7 +75,7 @@ class TestServiceRegistry:
         args, kwargs = log_info1.call_args
         assert args[0].startswith('Registered service instance id=')
         assert args[0].endswith(': <A name, type=Storage, protocol=http, address=127.0.0.1, service port=1234,'
-                                ' management port=1, status=1>')
+                                ' management port=1, status=1, token=None>')
 
         with pytest.raises(Exception) as excinfo:
             with patch.object(ServiceRegistry._logger, 'info') as log_info2:
@@ -93,7 +93,7 @@ class TestServiceRegistry:
         args, kwargs = log_info1.call_args
         assert args[0].startswith('Registered service instance id=')
         assert args[0].endswith(': <A name, type=Storage, protocol=http, address=127.0.0.1, service port=1,'
-                                ' management port=1234, status=1>')
+                                ' management port=1234, status=1, token=None>')
 
         with pytest.raises(Exception) as excinfo:
             with patch.object(ServiceRegistry._logger, 'info') as log_info2:
@@ -131,7 +131,7 @@ class TestServiceRegistry:
         arg, kwarg = log_info1.call_args
         assert arg[0].startswith('Registered service instance id=')
         assert arg[0].endswith(': <A name, type=Storage, protocol=http, address=127.0.0.1, service port=1234,'
-                               ' management port=4321, status=1>')
+                               ' management port=4321, status=1, token=None>')
 
         with patch.object(ServiceRegistry._logger, 'info') as log_info2:
             s_id = ServiceRegistry.unregister(reg_id)
@@ -143,7 +143,7 @@ class TestServiceRegistry:
         args, kwargs = log_info2.call_args
         assert args[0].startswith('Stopped service instance id=')
         assert args[0].endswith(': <A name, type=Storage, protocol=http, address=127.0.0.1, service port=1234,'
-                                ' management port=4321, status=2>')
+                                ' management port=4321, status=2, token=None>')
 
     def test_unregister_non_existing_service_record(self):
         """raise DoesNotExist"""

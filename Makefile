@@ -3,15 +3,25 @@
 ###############################################################################
 # Check RedHat || CentOS
 $(eval PLATFORM_RH=$(shell (lsb_release -ds 2>/dev/null || cat /etc/*release 2>/dev/null | head -n1 || uname -om) | egrep '(Red Hat|CentOS)'))
+$(eval OS_VERSION=$(shell grep -o '^VERSION_ID=.*' /etc/os-release | cut -f2 -d\" | sed 's/"//g'))
+# RHEL gives os full version e.g. 7.9; hence check for prefix (major) only
+$(eval OS_VERSION_PREFIX=$(shell echo $(OS_VERSION) | head -c 1))
 
 # Log Platform RedHat || CentOS
-$(if $(PLATFORM_RH), $(info Platform is $(PLATFORM_RH)))
+$(if $(PLATFORM_RH), $(info Platform is $(PLATFORM_RH) $(OS_VERSION)))
 
 # For RedHat || CentOS we need rh-python36
 ifneq ("$(PLATFORM_RH)","")
+   ifeq ("$(OS_VERSION_PREFIX)", "7")
+	# CentOS we need rh-python36 and devtoolset-7
 	PIP_INSTALL_REQUIREMENTS := source scl_source enable rh-python36 && pip3 install -Ir
 	PYTHON_BUILD_PACKAGE = source scl_source enable rh-python36 && python3 setup.py build -b ../$(PYTHON_BUILD_DIR)
-	CMAKE := source scl_source enable rh-python36 && cmake
+	CMAKE := source scl_source enable rh-python36 && source scl_source enable devtoolset-7 && cmake
+    else
+	PIP_INSTALL_REQUIREMENTS := pip3 install -Ir
+	PYTHON_BUILD_PACKAGE = python3 setup.py build -b ../$(PYTHON_BUILD_DIR)
+	CMAKE := cmake
+    endif
 else
 	PIP_INSTALL_REQUIREMENTS := pip3 install -Ir
 	PYTHON_BUILD_PACKAGE = python3 setup.py build -b ../$(PYTHON_BUILD_DIR)
@@ -85,9 +95,11 @@ FOGBENCH_PYTHON_INSTALL_DIR = $(EXTRAS_INSTALL_DIR)/python
 
 # DB schema update
 SQLITE_SCHEMA_UPDATE_SCRIPT_SRC := scripts/plugins/storage/sqlite/schema_update.sh
+SQLITELB_SCHEMA_UPDATE_SCRIPT_SRC := scripts/plugins/storage/sqlitelb/schema_update.sh
 POSTGRES_SCHEMA_UPDATE_SCRIPT_SRC := scripts/plugins/storage/postgres/schema_update.sh
 POSTGRES_SCHEMA_UPDATE_DIR := $(SCRIPTS_INSTALL_DIR)/plugins/storage/postgres
 SQLITE_SCHEMA_UPDATE_DIR := $(SCRIPTS_INSTALL_DIR)/plugins/storage/sqlite
+SQLITELB_SCHEMA_UPDATE_DIR := $(SCRIPTS_INSTALL_DIR)/plugins/storage/sqlitelb
 
 # SCRIPTS TO INSTALL IN BIN DIR
 FOGBENCH_SCRIPT_SRC        := scripts/extras/fogbench
@@ -102,6 +114,7 @@ SUDOERS_SRC_RH             := scripts/extras/fledge.sudoers_rh
 COMMON_SCRIPTS_SRC          := scripts/common
 POSTGRES_SCRIPT_SRC         := scripts/plugins/storage/postgres.sh
 SQLITE_SCRIPT_SRC           := scripts/plugins/storage/sqlite.sh
+SQLITELB_SCRIPT_SRC         := scripts/plugins/storage/sqlitelb.sh
 SOUTH_SCRIPT_SRC            := scripts/services/south
 SOUTH_C_SCRIPT_SRC          := scripts/services/south_c
 STORAGE_SERVICE_SCRIPT_SRC  := scripts/services/storage
@@ -311,6 +324,7 @@ scripts_install : $(SCRIPTS_INSTALL_DIR) \
 	install_common_scripts \
 	install_postgres_script \
 	install_sqlite_script \
+	install_sqlitelb_script \
 	install_south_script \
 	install_south_c_script \
 	install_storage_service_script \
@@ -349,6 +363,13 @@ install_sqlite_script : $(SCRIPT_PLUGINS_STORAGE_INSTALL_DIR) \
 	$(CP) $(SQLITE_SCHEMA_UPDATE_SCRIPT_SRC) $(SQLITE_SCHEMA_UPDATE_DIR)
 	$(CP_DIR) scripts/plugins/storage/sqlite/upgrade $(SQLITE_SCHEMA_UPDATE_DIR)
 	$(CP_DIR) scripts/plugins/storage/sqlite/downgrade $(SQLITE_SCHEMA_UPDATE_DIR)
+
+install_sqlitelb_script : $(SCRIPT_PLUGINS_STORAGE_INSTALL_DIR) \
+	$(SQLITELB_SCHEMA_UPDATE_DIR) $(SQLITELB_SCRIPT_SRC) $(SQLITELB_SCHEMA_UPDATE_SCRIPT_SRC)
+	$(CP) $(SQLITELB_SCRIPT_SRC) $(SCRIPT_PLUGINS_STORAGE_INSTALL_DIR)
+	$(CP) $(SQLITELB_SCHEMA_UPDATE_SCRIPT_SRC) $(SQLITELB_SCHEMA_UPDATE_DIR)
+	$(CP_DIR) scripts/plugins/storage/sqlite/upgrade $(SQLITELB_SCHEMA_UPDATE_DIR)
+	$(CP_DIR) scripts/plugins/storage/sqlite/downgrade $(SQLITELB_SCHEMA_UPDATE_DIR)
 
 install_south_script : $(SCRIPT_SERVICES_INSTALL_DIR) $(SOUTH_SCRIPT_SRC)
 	$(CP) $(SOUTH_SCRIPT_SRC) $(SCRIPT_SERVICES_INSTALL_DIR)
@@ -421,6 +442,11 @@ $(POSTGRES_SCHEMA_UPDATE_DIR) :
 	$(MKDIR_PATH) $@/downgrade
 
 $(SQLITE_SCHEMA_UPDATE_DIR) :
+	$(MKDIR_PATH) $@
+	$(MKDIR_PATH) $@/upgrade
+	$(MKDIR_PATH) $@/downgrade
+
+$(SQLITELB_SCHEMA_UPDATE_DIR) :
 	$(MKDIR_PATH) $@
 	$(MKDIR_PATH) $@/upgrade
 	$(MKDIR_PATH) $@/downgrade

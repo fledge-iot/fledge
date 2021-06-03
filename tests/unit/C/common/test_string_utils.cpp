@@ -4,6 +4,7 @@
 #include "string_utils.h"
 #include <vector>
 #include <bits/stdc++.h>
+#include <regex>
 
 using namespace std;
 
@@ -84,8 +85,6 @@ TEST(StringReplaceAllTestClass, goodCases)
 	}
 }
 
-
-
 // Test Code
 TEST_P(StringUtilsTestClass, StringUtilsTestCase)
 {
@@ -115,3 +114,105 @@ INSTANTIATE_TEST_CASE_P(
 		Row("XX a a XX",	"a",		"b",		"XX b a XX")
 	)
 );
+
+
+// Test String trim
+TEST(StringTrim, StringTrimCases)
+{
+	ASSERT_EQ(StringRTrim("xxx") , "xxx");
+	ASSERT_EQ(StringRTrim("xxx "), "xxx");
+	ASSERT_EQ(StringRTrim("xxx   "), "xxx");
+
+	ASSERT_EQ(StringLTrim("xxx"), "xxx");
+	ASSERT_EQ(StringLTrim(" xxx"), "xxx");
+	ASSERT_EQ(StringLTrim("  xxx"), "xxx");
+
+	ASSERT_EQ(StringTrim("xxx"), "xxx");
+	ASSERT_EQ(StringTrim("  xxx"), "xxx");
+	ASSERT_EQ(StringTrim("xxx  "), "xxx");
+	ASSERT_EQ(StringTrim("  xxx  "), "xxx");
+}
+
+// Test StringStripWhiteSpacesAll
+TEST(StringStripWhiteSpacesAll, AllCases)
+{
+	ASSERT_EQ(StringStripWhiteSpacesAll("xxx") , "xxx");
+
+	ASSERT_EQ(StringStripWhiteSpacesAll(" xxx") , "xxx");
+	ASSERT_EQ(StringStripWhiteSpacesAll(" xxx ") , "xxx");
+
+	ASSERT_EQ(StringStripWhiteSpacesAll(" x x x ") , "xxx");
+
+	ASSERT_EQ(StringStripWhiteSpacesAll("Messages:[  {   MessageIndex:0") , "Messages:[{MessageIndex:0");
+
+	ASSERT_EQ(StringStripWhiteSpacesAll(" x x x ") , "xxx");
+
+	ASSERT_EQ(StringStripWhiteSpacesAll(" x x\tx ") , "xxx");
+	ASSERT_EQ(StringStripWhiteSpacesAll(" x x\nx ") , "xxx");
+	ASSERT_EQ(StringStripWhiteSpacesAll(" x x\vx ") , "xxx");
+	ASSERT_EQ(StringStripWhiteSpacesAll(" x x\fx ") , "xxx");
+	ASSERT_EQ(StringStripWhiteSpacesAll(" x x\rx ") , "xxx");
+
+}
+
+// Test StringStripWhiteSpacesAll
+TEST(StringStripWhiteSpacesLeave1Space, AllCases)
+{
+	ASSERT_EQ(StringStripWhiteSpacesExtra("xxx") , "xxx");
+
+	ASSERT_EQ(StringStripWhiteSpacesExtra(" xxx") , "xxx");
+
+	ASSERT_EQ(StringStripWhiteSpacesExtra(" xxx ") , "xxx");
+
+	ASSERT_EQ(StringStripWhiteSpacesExtra(" x x x ") , "x x x");
+
+	ASSERT_EQ(StringStripWhiteSpacesExtra(" x  x   x ") , "x x x");
+
+	ASSERT_EQ(StringStripWhiteSpacesExtra("Messages:[  {   MessageIndex:0") , "Messages:[ { MessageIndex:0");
+
+	ASSERT_EQ(StringStripWhiteSpacesExtra(" x x\tx ") , "x xx");
+	ASSERT_EQ(StringStripWhiteSpacesExtra(" x x\nx ") , "x xx");
+	ASSERT_EQ(StringStripWhiteSpacesExtra(" x x\vx ") , "x xx");
+	ASSERT_EQ(StringStripWhiteSpacesExtra(" x x\fx ") , "x xx");
+	ASSERT_EQ(StringStripWhiteSpacesExtra(" x x\rx ") , "x xx");
+
+	ASSERT_EQ(StringStripWhiteSpacesExtra(" x x\tx ") , "x xx");
+	ASSERT_EQ(StringStripWhiteSpacesExtra(" x x\n x ") , "x x x");
+	ASSERT_EQ(StringStripWhiteSpacesExtra(" x x\v  x ") , "x x x");
+	ASSERT_EQ(StringStripWhiteSpacesExtra(" x x\f   x ") , "x x x");
+	ASSERT_EQ(StringStripWhiteSpacesExtra(" x x\r    x ") , "x x x");
+
+	ASSERT_EQ(StringStripWhiteSpacesExtra(" x x \tx ") , "x x x");
+	ASSERT_EQ(StringStripWhiteSpacesExtra(" x x  \n x ") , "x x x");
+	ASSERT_EQ(StringStripWhiteSpacesExtra(" x x  \v  x ") , "x x x");
+	ASSERT_EQ(StringStripWhiteSpacesExtra(" x x  \f   x ") , "x x x");
+	ASSERT_EQ(StringStripWhiteSpacesExtra(" x x  \r    x ") , "x x x");
+}
+
+// Some tests are skipped on Centos
+// Centos 7.0 has gcc 4.8.5, <regex> was implemented and released in GCC 4.9.0.
+// the version available in C7 was highly experimental.
+//
+// Test IsRegex
+TEST(TestIsRegex, AllCases)
+{
+	ASSERT_EQ(IsRegex("^a") , true);
+	ASSERT_EQ(IsRegex(".*") , true);
+	ASSERT_EQ(IsRegex("\\s") , true);
+	ASSERT_EQ(IsRegex("^.*(Code:)((?!2).)*$") , true);
+
+	ASSERT_EQ(IsRegex("asset_1") , false);
+
+	ASSERT_EQ(std::regex_match ("sin_1_asset_1", regex("^a")), false);
+
+#ifndef RHEL_CENTOS_7
+	ASSERT_EQ(std::regex_match ("sin_1_asset_1", regex("^s.*")), true);
+#endif
+
+	ASSERT_EQ(std::regex_match ("sin_1_asset_1", regex("a.*")), false);
+	ASSERT_EQ(std::regex_match ("sin_1_asset_1", regex("s.*")), true);
+}
+
+
+
+

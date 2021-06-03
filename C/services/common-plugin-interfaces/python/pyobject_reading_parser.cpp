@@ -541,13 +541,13 @@ static void logErrorMessage()
 }
 
 /**
- * Create a list od dict Python object (PyList) from
- * a vector of Readind pointers
+ * Create a list of dict Python object (PyList) from
+ * a vector of Reading pointers
  *
  * @param    readings	The input readings vector
  * @return		PyList object on success or NULL on errors
  */
-PyObject* createReadingsList(const std::vector<Reading *>& readings)
+PyObject* createReadingsList(const std::vector<Reading *>& readings, bool changeDictKeys)
 {
 	// TODO add checks to all PyList_XYZ methods
 	PyObject* readingsList = PyList_New(0);
@@ -561,7 +561,7 @@ PyObject* createReadingsList(const std::vector<Reading *>& readings)
 		PyObject* readingObject = PyDict_New();
 
 		// Create object (dict) for reading Datapoints:
-		// this will be added as vale for key 'readings'
+		// this will be added as value for key 'readings'
 		PyObject* newDataPoints = PyDict_New();
 
 		// Get all datapoints
@@ -581,7 +581,20 @@ PyObject* createReadingsList(const std::vector<Reading *>& readings)
 			}
 			else
 			{
-				value = PyUnicode_FromString((*it)->getData().toString().c_str());
+				// strip enclosing double-quotes, if present, when passing string from C to Python
+				if (dataType == DatapointValue::dataTagType::T_STRING)
+				{
+					std::string s((*it)->getData().toString().c_str());
+					std::string s2;
+					if(s[0]=='"')
+						s2 = s.substr(1, s.size()-2);
+					else
+						s2 = s;
+
+					value = PyUnicode_FromString(s2.c_str());
+				}
+				else  // non-string, possibly nested object
+					value = PyUnicode_FromString((*it)->getData().toString().c_str());
 			}
 
 			// Add Datapoint: key and value
@@ -595,11 +608,18 @@ PyObject* createReadingsList(const std::vector<Reading *>& readings)
 		}
 
 		// Add reading datapoints
-		PyDict_SetItemString(readingObject, "readings", newDataPoints);
+		if (changeDictKeys)
+			PyDict_SetItemString(readingObject, "reading", newDataPoints);
+		else
+			PyDict_SetItemString(readingObject, "readings", newDataPoints);
 
 		// Add reading asset name
 		PyObject* assetVal = PyUnicode_FromString((*elem)->getAssetName().c_str());
-		PyDict_SetItemString(readingObject, "asset", assetVal);
+
+		if (changeDictKeys)
+			PyDict_SetItemString(readingObject, "asset_code", assetVal);
+		else
+			PyDict_SetItemString(readingObject, "asset", assetVal);
 
 		/**
 		 * Set id, uuid, timestamp and user_timestamp

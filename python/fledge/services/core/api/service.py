@@ -118,6 +118,7 @@ async def delete_service(request):
 
         config_mgr = ConfigurationManager(storage)
 
+        # TODO: 5141 - once done we need to fix for dispatcher type as well
         # In case of notification service, if notifications exists, then deletion is not allowed
         if 'notification' in result['rows'][0]['process_name']:
             notf_children = await config_mgr.get_category_child(category_name="Notifications")
@@ -144,12 +145,24 @@ async def delete_service(request):
         except service_registry_exceptions.DoesNotExist:
             pass
 
+        await delete_streams(storage, svc)
+        await delete_plugin_data(storage, svc)
+
         # Delete schedule
         await server.Server.scheduler.delete_schedule(sch_id)
     except Exception as ex:
         raise web.HTTPInternalServerError(reason=str(ex))
     else:
         return web.json_response({'result': 'Service {} deleted successfully.'.format(svc)})
+
+
+async def delete_streams(storage, north_instance):
+    payload = PayloadBuilder().WHERE(["description", "=", north_instance]).payload()
+    await storage.delete_from_tbl("streams", payload)
+
+async def delete_plugin_data(storage, north_instance):
+    payload = PayloadBuilder().WHERE(["key", "like", north_instance + "%"]).payload()
+    await storage.delete_from_tbl("plugin_data", payload)
 
 
 async def add_service(request):
@@ -160,11 +173,14 @@ async def add_service(request):
              curl -X POST http://localhost:8081/fledge/service -d '{"name": "DHT 11", "plugin": "dht11", "type": "south", "enabled": true}'
              curl -sX POST http://localhost:8081/fledge/service -d '{"name": "Sine", "plugin": "sinusoid", "type": "south", "enabled": true, "config": {"dataPointsPerSec": {"value": "10"}}}' | jq
              curl -X POST http://localhost:8081/fledge/service -d '{"name": "NotificationServer", "type": "notification", "enabled": true}' | jq
+             curl -sX POST http://localhost:8081/fledge/service -d '{"name": "DispatcherServer", "type": "dispatcher", "enabled": true}' | jq
              curl -X POST http://localhost:8081/fledge/service -d '{"name": "HTC", "plugin": "httpc", "type": "north", "enabled": true}' | jq
              curl -sX POST http://localhost:8081/fledge/service -d '{"name": "HT", "plugin": "http_north", "type": "north", "enabled": true, "config": {"verifySSL": {"value": "false"}}}' | jq
 
              curl -sX POST http://localhost:8081/fledge/service?action=install -d '{"format":"repository", "name": "fledge-service-notification"}'
+             curl -sX POST http://localhost:8081/fledge/service?action=install -d '{"format":"repository", "name": "fledge-service-dispatcher"}'
              curl -sX POST http://localhost:8081/fledge/service?action=install -d '{"format":"repository", "name": "fledge-service-notification", "version":"1.6.0"}'
+             curl -sX POST http://localhost:8081/fledge/service?action=install -d '{"format":"repository", "name": "fledge-service-dispatcher", "version":"1.9.1"}'
     """
 
     try:
@@ -255,8 +271,9 @@ async def add_service(request):
             raise web.HTTPBadRequest(reason='Missing type property in payload.')
 
         service_type = str(service_type).lower()
-        if service_type not in ['south', 'north', 'notification', 'management']:
-            raise web.HTTPBadRequest(reason='Only south, north, notification and management types are supported.')
+        if service_type not in ['south', 'north', 'notification', 'management', 'dispatcher']:
+            raise web.HTTPBadRequest(reason='Only south, north, notification, management and dispatcher '
+                                            'types are supported.')
         if plugin is None and service_type == 'south':
             raise web.HTTPBadRequest(reason='Missing plugin property for type south in payload.')
         if plugin is None and service_type == 'north':
@@ -301,11 +318,26 @@ async def add_service(request):
                 _logger.exception("Failed to fetch plugin configuration. %s", str(ex))
                 raise web.HTTPInternalServerError(reason='Failed to fetch plugin configuration')
         elif service_type == 'notification':
+            if not os.path.exists(_FLEDGE_ROOT + "/services/fledge.services.{}".format(service_type)):
+                msg = "{} service is not installed correctly.".format(service_type.capitalize())
+                raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
             process_name = 'notification_c'
             script = '["services/notification_c"]'
         elif service_type == 'management':
+            file_names_list = ['{}/python/fledge/services/management/__main__.py'.format(_FLEDGE_ROOT),
+                               '{}/scripts/services/management'.format(_FLEDGE_ROOT),
+                               '{}/scripts/tasks/manage'.format(_FLEDGE_ROOT)]
+            if not all(list(map(os.path.exists, file_names_list))):
+                msg = "{} service is not installed correctly.".format(service_type.capitalize())
+                raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
             process_name = 'management'
             script = '["services/management"]'
+        elif service_type == 'dispatcher':
+            if not os.path.exists(_FLEDGE_ROOT + "/services/fledge.services.{}".format(service_type)):
+                msg = "{} service is not installed correctly.".format(service_type.capitalize())
+                raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
+            process_name = 'dispatcher_c'
+            script = '["services/dispatcher_c"]'
         storage = connect.get_storage_async()
         config_mgr = ConfigurationManager(storage)
 
@@ -339,6 +371,12 @@ async def add_service(request):
             for ps in res['rows']:
                 if 'notification_c' in ps['process_name']:
                     raise web.HTTPBadRequest(reason='A Notification service schedule already exists.')
+        # check that dispatcher service is not already registered, right now dispatcher service LIMIT to 1
+        elif service_type == 'dispatcher':
+            res = await check_schedule_entry(storage)
+            for ps in res['rows']:
+                if 'dispatcher_c' in ps['process_name']:
+                    raise web.HTTPBadRequest(reason='A Dispatcher service schedule already exists.')
         # check that management service is not already registered, right now management service LIMIT to 1
         elif service_type == 'management':
             res = await check_schedule_entry(storage)
@@ -483,6 +521,7 @@ async def update_service(request: web.Request) -> web.Response:
     name = request.match_info.get('name', None)
     try:
         _type = _type.lower()
+        # TODO: 5141 - once done we need to fix for dispatcher type as well
         if _type != 'notification':
             raise ValueError("Invalid service type. Must be 'notification'")
 

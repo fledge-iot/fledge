@@ -4,6 +4,7 @@
 # See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
+import json
 from functools import lru_cache
 from aiohttp import web
 
@@ -16,6 +17,7 @@ from fledge.services.core.scheduler.entities import Task
 from fledge.common.service_record import ServiceRecord
 from fledge.services.core.service_registry.service_registry import ServiceRegistry
 from fledge.services.core.service_registry.exceptions import DoesNotExist
+from fledge.common import logger
 
 __author__ = "Praveen Garg"
 __copyright__ = "Copyright (c) 2018 OSIsoft, LLC"
@@ -27,6 +29,7 @@ _help = """
     | GET                 | /fledge/north                                         |
     -------------------------------------------------------------------------------
 """
+_logger = logger.setup(__name__)
 
 
 async def _get_sent_stats(storage_client):
@@ -43,7 +46,8 @@ async def _get_sent_stats(storage_client):
 
 
 async def _get_tasks_status():
-    payload = PayloadBuilder().SELECT("id", "schedule_name", "process_name", "state", "start_time", "end_time", "reason", "pid", "exit_code")\
+    payload = PayloadBuilder().SELECT("id", "schedule_name", "process_name", "state", "start_time",
+                                      "end_time", "reason", "pid", "exit_code")\
         .WHERE(["process_name", "=", "north"])\
         .OR_WHERE(["process_name", "=", "north_c"])\
         .ALIAS("return", ("start_time", 'start_time'), ("end_time", 'end_time'))\
@@ -66,9 +70,7 @@ async def _get_tasks_status():
     return tasks
 
 
-async def _get_north_schedules(storage_client):
-
-    cf_mgr = ConfigurationManager(storage_client)
+async def _get_north_schedules(cf_mgr):
     try:
         north_categories = await cf_mgr.get_category_child("North")
         north_schedules = [nc["key"] for nc in north_categories]
@@ -119,8 +121,8 @@ async def _get_north_schedules(storage_client):
                             'protocol': s_record._protocol,
                             'status': ServiceRecord.Status(int(s_record._status)).name.lower()
                         }
-                # north-C service case If not in service registry
-                if sch.enabled is False:
+                # north-C service case, If not in service registry
+                if sch.enabled is False and sch.name not in [s_record._name for s_record in services_from_registry]:
                     north_sch_dict = {
                         'id': str(sch.schedule_id),
                         'name': sch.name,
@@ -136,26 +138,12 @@ async def _get_north_schedules(storage_client):
             if north_sch_dict:
                 schedules.append(north_sch_dict)
 
-    return schedules
+    return list({v['name']: v for v in schedules}.values())
 
 
 @lru_cache(maxsize=1024)
 def _get_installed_plugins():
     return PluginDiscovery.get_plugins_installed("north", False)
-
-
-async def _get_tracked_plugin(storage_client, sch_name):
-    plugin = ''
-    payload = PayloadBuilder().SELECT("plugin").WHERE(['service', '=', sch_name]).\
-        AND_WHERE(['event', '=', 'Egress']).LIMIT(1).payload()
-    try:
-        result = await storage_client.query_tbl_with_payload('asset_tracker', payload)
-        if len(result['rows']):
-            plugin = result['rows'][0]['plugin']
-    except:
-        raise
-    else:
-        return plugin
 
 
 async def get_north_schedules(request):
@@ -172,26 +160,28 @@ async def get_north_schedules(request):
     try:
         if 'cached' in request.query and request.query['cached'].lower() == 'false':
             _get_installed_plugins.cache_clear()
-
         storage_client = connect.get_storage_async()
-        north_schedules = await _get_north_schedules(storage_client)
+        cf_mgr = ConfigurationManager(storage_client)
+        north_schedules = await _get_north_schedules(cf_mgr)
         stats = await _get_sent_stats(storage_client)
-
         installed_plugins = _get_installed_plugins()
-
         for sch in north_schedules:
             stat = next((s for s in stats if s["key"] == sch["name"]), None)
             sch["sent"] = stat["value"] if stat else -1
-
-            tracked_plugin = await _get_tracked_plugin(storage_client, sch["name"])
+            plugin = await cf_mgr.get_category_item(sch["name"], 'plugin')
+            plugin_name = plugin['value'] if plugin is not None else ''
             plugin_version = ''
             for p in installed_plugins:
-                if p["name"] == tracked_plugin:
+                if p["name"] == plugin_name:
                     plugin_version = p["version"]
                     break
-            sch["plugin"] = {"name": tracked_plugin, "version": plugin_version}
+            sch["plugin"] = {"name": plugin_name, "version": plugin_version}
 
     except (KeyError, ValueError) as e:  # Handles KeyError of _get_sent_stats
-        return web.HTTPInternalServerError(reason=e)
+        msg = str(e)
+        return web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+    except Exception as ex:
+        msg = str(ex)
+        return web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(north_schedules)

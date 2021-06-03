@@ -34,7 +34,7 @@ def get_machine_detail():
 
 class TestCommon:
 
-    def do_restart(self, fledge_url):
+    def do_restart(self, fledge_url, wait_time, retries):
         conn = http.client.HTTPConnection(fledge_url)
         conn.request("PUT", '/fledge/restart')
         r = conn.getresponse()
@@ -43,6 +43,26 @@ class TestCommon:
         jdoc = json.loads(r)
         assert len(jdoc), "No data found"
         assert 'Fledge restart has been scheduled.' == jdoc['message']
+
+        time.sleep(wait_time*2)
+        tried = 2
+        ping_status = None
+        while ping_status is None and tried < retries:
+            ping_status = self.get_ping(fledge_url)            
+            tried += 1
+            time.sleep(wait_time)
+        if ping_status is None:
+            assert False, "Failed to restart in {}s.".format(wait_time * retries)
+        return ping_status
+
+    def get_ping(self, fledge_url):
+        try:
+            conn = http.client.HTTPConnection(fledge_url)
+            conn.request("GET", '/fledge/ping')
+            r = conn.getresponse()
+        except:            
+            r = None
+        return r
 
     def test_ping_default(self, reset_and_start_fledge, fledge_url):
         conn = http.client.HTTPConnection(fledge_url)
@@ -66,7 +86,7 @@ class TestCommon:
         assert jdoc['safeMode'] is False
         assert re.match(SEMANTIC_VERSIONING_REGEX, jdoc['version']) is not None
 
-    def test_ping_when_auth_mandatory_allow_ping_true(self, fledge_url, wait_time):
+    def test_ping_when_auth_mandatory_allow_ping_true(self, fledge_url, wait_time, retries):
         conn = http.client.HTTPConnection(fledge_url)
         payload = {"allowPing": "true", "authentication": "mandatory"}
         conn.request("PUT", '/fledge/category/rest_api', body=json.dumps(payload))
@@ -76,20 +96,16 @@ class TestCommon:
         jdoc = json.loads(r)
         assert len(jdoc), "No data found"
 
-        self.do_restart(fledge_url)
-
-        time.sleep(wait_time * 2)
-        conn = http.client.HTTPConnection(fledge_url)
-        conn.request("GET", '/fledge/ping')
-        r = conn.getresponse()
-        assert 200 == r.status
-        r = r.read().decode()
+        ping_status = self.do_restart(fledge_url, wait_time, retries*2)        
+        
+        assert 200 == ping_status.status
+        r = ping_status.read().decode()
         jdoc = json.loads(r)
         assert len(jdoc), "No data found"
         assert 1 < jdoc['uptime']
         assert isinstance(jdoc['uptime'], int)
 
-    def test_ping_when_auth_mandatory_allow_ping_false(self, reset_and_start_fledge, fledge_url, wait_time):
+    def test_ping_when_auth_mandatory_allow_ping_false(self, reset_and_start_fledge, fledge_url, wait_time, retries):
         # reset_and_start_fledge fixture needed to get default settings back
         conn = http.client.HTTPConnection(fledge_url)
         payload = {"allowPing": "false", "authentication": "mandatory"}
@@ -100,14 +116,10 @@ class TestCommon:
         jdoc = json.loads(r)
         assert len(jdoc), "No data found"
 
-        self.do_restart(fledge_url)
-
-        time.sleep(wait_time * 2)
-        conn = http.client.HTTPConnection(fledge_url)
-        conn.request("GET", '/fledge/ping')
-        r = conn.getresponse()
-        assert 403 == r.status
-        assert 'Forbidden' == r.reason
+        ping_status = self.do_restart(fledge_url, wait_time, retries*2)        
+        
+        assert 401 == ping_status.status
+        assert 'Unauthorized' == ping_status.reason
 
     def test_restart(self):
         assert 1, "Already verified in test_ping_when_auth_mandatory_allow_ping_true"

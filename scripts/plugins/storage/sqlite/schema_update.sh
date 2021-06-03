@@ -227,7 +227,7 @@ db_downgrade()
 
                     # Prepare command string for message reporting
                     SQL_COMMAND="${SQLITE_SQL} '${DEFAULT_SQLITE_DB_FILE}' \"ATTACH DATABASE "\
-    "'${DEFAULT_SQLITE_DB_FILE}' AS 'fledge'; .read '${sql_file}' .quit\""
+"'${DEFAULT_SQLITE_DB_FILE}' AS 'fledge'; .read '${sql_file}' .quit\""
                     if [ "${VERBOSE}" ]; then
                         schema_update_log "info" "Applying downgrade $(basename ${sql_file}) ..." "logonly" "pretty"
                         schema_update_log "info" "Calling [${SQL_COMMAND}]" "logonly" "pretty"
@@ -235,10 +235,10 @@ db_downgrade()
 
                     # Call the DB script
                     COMMAND_OUTPUT=`${SQLITE_SQL} "${DEFAULT_SQLITE_DB_FILE}" 2>&1 <<EOF
-    ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE}' AS 'fledge';
-    .read '${sql_file}'
-    .quit
-    EOF`
+ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE}' AS 'fledge';
+.read '${sql_file}'
+.quit
+EOF`
                     RET_CODE=$?
                     if [ "${RET_CODE}" -ne 0 ]; then
                         schema_update_log "err" "Failure in downgrade command [${SQL_COMMAND}]: ${COMMAND_OUTPUT}. Exiting" "all" "pretty"

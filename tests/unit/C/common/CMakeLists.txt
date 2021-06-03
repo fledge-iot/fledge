@@ -9,6 +9,14 @@ set(LIBCURL_LIB -lcurl)
 find_package(GTest REQUIRED)
 include_directories(${GTEST_INCLUDE_DIRS})
 
+EXECUTE_PROCESS( COMMAND grep -o ^NAME=.* /etc/os-release COMMAND cut -f2 -d\" COMMAND sed s/\"//g OUTPUT_VARIABLE os_name )
+EXECUTE_PROCESS( COMMAND grep -o ^VERSION_ID=.* /etc/os-release COMMAND cut -f2 -d\" COMMAND sed s/\"//g OUTPUT_VARIABLE os_version )
+
+if ( ( ${os_name} MATCHES "Red Hat" OR ${os_name} MATCHES "CentOS") AND ( ${os_version} MATCHES "7" ) )
+    add_definitions(-DRHEL_CENTOS_7=1)
+    message( "System is RHEL/CentOS 7, tests on regex are skipped" )
+endif()
+
 set(BOOST_COMPONENTS system thread)
 # Late 2017 TODO: remove the following checks and always use std::regex
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
@@ -34,12 +42,24 @@ file(GLOB unittests "*.cpp")
  
 # Find python3.x dev/lib package
 find_package(PkgConfig REQUIRED)
-pkg_check_modules(PYTHON REQUIRED python3)
+if(${CMAKE_VERSION} VERSION_LESS "3.12.0") 
+    pkg_check_modules(PYTHON REQUIRED python3)
+else()
+    find_package(Python COMPONENTS Interpreter Development)
+endif()
 
 # Add Python 3.x header files
-include_directories(${PYTHON_INCLUDE_DIRS})
+if(${CMAKE_VERSION} VERSION_LESS "3.12.0") 
+    include_directories(${PYTHON_INCLUDE_DIRS})
+else()
+    include_directories(${Python_INCLUDE_DIRS})
+endif()
 
-link_directories(${PYTHON_LIBRARY_DIRS})
+if(${CMAKE_VERSION} VERSION_LESS "3.12.0") 
+    link_directories(${PYTHON_LIBRARY_DIRS})
+else()
+    link_directories(${Python_LIBRARY_DIRS})
+endif()
 
 link_directories(${PROJECT_BINARY_DIR}/../../lib)
 
@@ -56,5 +76,9 @@ target_link_libraries(RunTests ${SERVICE_COMMON_LIB})
 target_link_libraries(RunTests ${PLUGINS_COMMON_LIB})
 
 # Add Python 3.x library
-target_link_libraries(RunTests ${PYTHON_LIBRARIES})
+if(${CMAKE_VERSION} VERSION_LESS "3.12.0") 
+    target_link_libraries(RunTests ${PYTHON_LIBRARIES})
+else()
+    target_link_libraries(RunTests ${Python_LIBRARIES})
+endif()
 

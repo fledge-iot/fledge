@@ -12,6 +12,8 @@
 #include <string>
 #include "string_utils.h"
 #include <logger.h>
+#include <stdio.h>
+#include <string.h>
 
 using namespace std;
 
@@ -93,7 +95,7 @@ std::string extractLastLevel(const std::string& path, char separator)
 
 	tmpPath = path;
 
-	if (tmpPath.length() > 1)
+	if (tmpPath.length() > 0)
 	{
 		if (tmpPath.find(separator) != string::npos)
 		{
@@ -176,6 +178,75 @@ void StringStripCRLF(std::string& StringToManage)
 	}
 
 }
+
+/**
+ * Removes all the white spaces from a string
+ *
+ */
+string StringStripWhiteSpacesAll(const  std::string& original)
+{
+	string output;
+
+	output = original;
+
+	for (size_t i = 0; i < output.length(); )
+	{
+		if (isspace(output[i]))
+		{
+			output.erase(i, 1);
+		}
+		else
+		{
+			i++;
+		}
+
+	}
+
+	return (output);
+}
+
+/**
+ * Removes all the spaces at both ends of a string and
+ * removes all the white spaces except 1 space
+ *
+ */
+string StringStripWhiteSpacesExtra(const  std::string& original)
+{
+	int cSpace;
+	string output;
+
+	output = StringRTrim(StringLTrim(original));
+	cSpace = 0;
+
+	for (size_t i = 0; i < output.length(); )
+	{
+		if (output[i] == ' ')
+		{
+			cSpace++;
+
+			if (cSpace > 1)
+			{
+				output.erase(i, 1);
+			} else {
+				i++;
+			}
+		} else
+		{
+			if (isspace(output[i]))
+			{
+				output.erase(i, 1);
+			}
+			else
+			{
+				i++;
+				cSpace = 0;
+			}
+		}
+	}
+
+	return (output);
+}
+
 
 /**
  * URL-encode a given string
@@ -291,4 +362,74 @@ void StringEscapeQuotes(std::string& str)
 		}
 
 	}
+}
+
+/**
+ * Remove space at both ends of a string
+ */
+char *trim(char *str)
+{
+	char *ptr;
+
+	while (*str && *str == ' ')
+		str++;
+
+	ptr = str + strlen(str) - 1;
+	while (ptr > str && *ptr == ' ')
+	{
+		*ptr = 0;
+		ptr--;
+	}
+	return str;
+}
+
+/**
+ * Remove spaces at the left side of a string
+ */
+std::string StringLTrim(const std::string& str)
+{
+	string output;
+	size_t pos = str.find_first_not_of(" ");
+
+	if (pos == std::string::npos)
+		output = "";
+	else
+		output = str.substr(pos);
+
+	return (output);
+}
+
+/**
+ * Remove spaces at the right side of a string
+ */
+std::string StringRTrim(const std::string& str)
+{
+	string output;
+	size_t pos = str.find_last_not_of(" ");
+
+	if (pos == std::string::npos)
+		output =  "";
+	else
+		output = str.substr(0, pos + 1);
+
+	return (output);
+}
+
+/**
+ * Remove spaces at both ends of a string
+ */
+std::string StringTrim(const std::string& str)
+{
+	return StringRTrim(StringLTrim(str));
+}
+
+/**
+ * Evaluates if the input string is a regular expression
+ */
+bool IsRegex(const string &str) {
+
+	size_t nChar;
+	nChar = strcspn(str.c_str(), "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_");
+
+	return (nChar != 0);
 }

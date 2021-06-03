@@ -274,7 +274,7 @@ processed you should disable the south services until you have connected
 the debugger to the storage system. If you have a system that is setup
 and crashes, use the --safe-mode flag to the startup of Fledge in order
 to disable all processes and services. This will allow you to disable
-servies or to run a paricular service manually.
+services or to run a particular service manually.
 
 Using strace
 ------------

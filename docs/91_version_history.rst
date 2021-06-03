@@ -35,28 +35,27 @@ Release Date: 2021-05-27
 
     - New Features:
 
-       - The documentation has been updated to give more detail around the topic of self-signed certificates.
        - Support has been added for Ubuntu 20.04 LTS.
-       - The documentation has been improved to include the new control functionality in the south plugin developers guide.
-       - A new option has been added to the command line tool that controls the system. This option, called purge, allows all readings related data to be purged from the system whilst retaining the configuration. This allows a system to be tested and then reset without losing the configuration.
        - The core components have been ported to build and run on CentOS 8
-       - A problem related to readings with nested data not correctly getting copied has been resolved.
+       - A new option has been added to the command line tool that controls the system. This option, called purge, allows all readings related data to be purged from the system whilst retaining the configuration. This allows a system to be tested and then reset without losing the configuration.
        - A new service interface has been added to the south service that allows set point control and operations to be performed via the south interface. This is the first phase of the set point control feature in the product.
+       - The documentation has been improved to include the new control functionality in the south plugin developers guide.
        - An improvement has been made to the documentation layout for default plugins to make the GUI able to find the plugin documentation.
        - Documentation describing the installation of PostgreSQL on CentOS has been updated.
+       - The documentation has been updated to give more detail around the topic of self-signed certificates.
 
 
     - Bug Fix:
 
        - A security flaw that allowed non-privileged users to update the certificate store has been resolved.
-       - An issue that caused problems if a service was deleted and then a new service was recreated using the name of the previously deleted service has been resolved.
-       - Disabling and re-enabling the backup and restore task schedules sometimes caused a restart of the system. This has now been resolved.
+       - A bug that prevented users being created with certificate based authentication rather than password based authentication has been fixed.
        - Switching storage plugins from SQLite to PostgreSQL caused errors in some circumstances. This has now been resolved.
        - The HTTP code returned by the ping command has been updated to correctly report 401 errors if the option to allow ping without authentication is turned off.
-       - An issue with the SQLite In Memory storage plugin that caused database locks under high load conditions has been resolved.
-       - The error message returned when schedules could not be enabled or disabled has been improved.
        - The HTTP error code returned when the notification service is not available has been corrected.
-       - A bug that prevented users being created with certificate based authentication rather than password based authentication has been fixed.
+       - Disabling and re-enabling the backup and restore task schedules sometimes caused a restart of the system. This has now been resolved.
+       - The error message returned when schedules could not be enabled or disabled has been improved.
+       - A problem related to readings with nested data not correctly getting copied has been resolved.
+       - An issue that caused problems if a service was deleted and then a new service was recreated using the name of the previously deleted service has been resolved.
 
 
 - **GUI**
@@ -71,17 +70,17 @@ Release Date: 2021-05-27
 
     - New Features:
 
+       - North services now support Python as well as C++ plugins.
+       - A new delivery notification plugin has been added that uses the set point control mechanism to invoke an action in the south plugin.
+       - A new notification delivery mechanism has been implemented that uses the set point control mechanism to assert control on a south service. The plugin allows you to set the values of one or more control items on the notification triggered and set a different set of values when the notification rule clears.
        - Support has been added in the OPC/UA north plugin for array data. This allows FFT spectrum data to be represented in the OPC/UA server.
        - The documentation for the OPC/UA north plugin has been updated to recommend running the plugin as a service.
-       - The OMFHint plugin has been updated to support wildcarding of asset names in the rules for the plugin.
-       - A new delivery notification plugin has been added that uses the set point control mechanism to invoke an action in the south plugin.
+       - A new storage plugin has been added that uses SQLite. This is designed for situations with low bandwidth sensors and stores all the readings within a single SQLite file.
+       - Support has been added to use RTSP video streams in the person detection plugin.
        - The delta filter has been updated to allow an optional set of asset specific tolerances to be added in addition to the global tolerance used by the plugin when deciding to forward data.
        - The Python script run by the MQTT scripted plugin now receives the topic as well as the message.
        - The OMF plugin has been updated in line with recommendations from the OMF group regarding the use of SCRF Defense.
-       - Support has been added to use RTSP video streams in the person detection plugin.
-       - A new storage plugin has been added that uses SQLite. This is designed for situations with low bandwidth sensors and stores all the readings within a single SQLite file.
-       - A new notification delivery mechanism has been implemented that uses the set point control mechanism to assert control on a south service. The plugin allows you to set the values of one or more control items on the notification triggered and set a different set of values when the notification rule clears.
-       - North services now support Python as well as C++ plugins.
+       - The OMFHint plugin has been updated to support wildcarding of asset names in the rules for the plugin.
        - New documentation has been added to help in troubleshooting PI connection issues.
        - The pi_server and ocs north plugins are deprecated in favour of the newer and more feature rich OMF north plugin. These deprecated plugins cannot be used in north services and are only provided for backward compatibility when run as north tasks. These plugins will be removed in a future release.
 
@@ -92,8 +91,8 @@ Release Date: 2021-05-27
        - Some improvements to error handling have been added to the InfluxDB north plugin for version 1.x of InfluxDB.
        - The Python 35 filter stated it used the Python version 3.5 always, in reality it uses whatever Python 3 version is installed on your system. The documentation has been updated to reflect this.
        - Fixed a bug that treated arrays of bytes as if they were strings in the OPC/UA south plugin.
-       - The HTTP North plugin would not correctly shutdown, this effected reconfiguration when run as an always on service. This issue has now been resolved.
-       - A problem with OMF services being deleted and then recreated has been resolved.
+       - The HTTP North C plugin would not correctly shutdown, this effected reconfiguration when run as an always on service. This issue has now been resolved.
+       - An issue with the SQLite In Memory storage plugin that caused database locks under high load conditions has been resolved.
 
 
 v1.9.0

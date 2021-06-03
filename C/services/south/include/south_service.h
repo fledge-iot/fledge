@@ -41,7 +41,8 @@
  */
 class SouthService : public ServiceHandler {
 	public:
-		SouthService(const std::string& name);
+		SouthService(const std::string& name,
+			const std::string& token = "");
 		void 				start(std::string& coreAddress,
 						      unsigned short corePort);
 		void 				stop();
@@ -49,6 +50,8 @@ class SouthService : public ServiceHandler {
 		void				configChange(const std::string&,
 						const std::string&);
 		static ManagementClient *	getMgmtClient();
+		bool				setPoint(const std::string& name, const std::string& value);
+		bool				operation(const std::string& name, std::vector<PLUGIN_PARAMETER *>& );
 	private:
 		void				addConfigDefaults(DefaultConfigCategory& defaults);
 		bool 				loadPlugin();
@@ -76,5 +79,6 @@ class SouthService : public ServiceHandler {
 		struct timeval			m_desiredRate;
 		struct timeval			m_currentRate;
 		int				m_timerfd;
+		const std::string		m_token;
 };
 #endif

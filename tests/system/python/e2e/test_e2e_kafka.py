@@ -14,6 +14,7 @@ import json
 import time
 import pytest
 import utils
+import math
 
 
 __author__ = "Ashish Jabble"
@@ -131,7 +132,8 @@ class TestE2EKafka:
         time.sleep(wait_time)
         subprocess.run(["cd $FLEDGE_ROOT/extras/python; python3 -m fogbench -t ../../data/{}; cd -"
                        .format(FOGBENCH_TEMPLATE)], shell=True, check=True)
-        time.sleep(wait_time)
+        # Time to wait until north schedule runs
+        time.sleep(wait_time * math.ceil(15/wait_time) + 15)
 
         ping_response = self.get_ping_status(fledge_url)
         assert 1 == ping_response["dataRead"]

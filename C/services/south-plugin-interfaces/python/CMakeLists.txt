@@ -12,16 +12,28 @@ set(SERVICE_COMMON_LIB services-common-lib)
 file(GLOB SOURCES python_plugin_interface.cpp ../../common-plugin-interfaces/python/pyobject_reading_parser.cpp)
 
 # Find Python.h 3.x dev/lib package
-pkg_check_modules(PYTHON REQUIRED python3)
+if(${CMAKE_VERSION} VERSION_LESS "3.12.0") 
+    pkg_check_modules(PYTHON REQUIRED python3)
+else()
+    find_package(Python COMPONENTS Interpreter Development)
+endif()
 
 # Include header files
 include_directories(include ../../../common/include ../../../services/common/include ../../../services/south/include ../../../thirdparty/rapidjson/include)
 include_directories(../../../services/common-plugin-interfaces/python/include)
 
 # Add Python 3.x header files
-include_directories(${PYTHON_INCLUDE_DIRS})
+if(${CMAKE_VERSION} VERSION_LESS "3.12.0") 
+    include_directories(${PYTHON_INCLUDE_DIRS})
+else()
+    include_directories(${Python_INCLUDE_DIRS})
+endif()
 
-link_directories(${PYTHON_LIBRARY_DIRS})
+if(${CMAKE_VERSION} VERSION_LESS "3.12.0") 
+    link_directories(${PYTHON_LIBRARY_DIRS})
+else()
+    link_directories(${Python_LIBRARY_DIRS})
+endif()
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/../../../lib)
 
@@ -32,7 +44,11 @@ target_link_libraries(${PROJECT_NAME} ${COMMON_LIB})
 target_link_libraries(${PROJECT_NAME} ${SERVICE_COMMON_LIB})
 
 # Add Python 3.x library
-target_link_libraries(${PROJECT_NAME} ${PYTHON_LIBRARIES})
+if(${CMAKE_VERSION} VERSION_LESS "3.12.0") 
+    target_link_libraries(${PROJECT_NAME} ${PYTHON_LIBRARIES})
+else()
+    target_link_libraries(${PROJECT_NAME} ${Python_LIBRARIES})
+endif()
 
 set_target_properties(${PROJECT_NAME} PROPERTIES SOVERSION 1)
 

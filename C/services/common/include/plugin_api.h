@@ -9,6 +9,7 @@
  *
  * Author: Mark Riddoch, Massimiliano Pinto
  */
+#include <string>
 
 #define TO_STRING(...) DEFER(TO_STRING_)(__VA_ARGS__)
 #define DEFER(x) x
@@ -30,6 +31,11 @@ typedef struct {
         bool         retryable;
 } PLUGIN_ERROR;
  
+typedef struct plugin_parameter {
+	std::string	name;
+	std::string	value;
+} PLUGIN_PARAMETER;
+
 typedef void * PLUGIN_HANDLE;
  
 /**
@@ -44,6 +50,7 @@ typedef void * PLUGIN_HANDLE;
 #define SP_GET_STORAGE		0x0040
 #define SP_DEPRECATED		0x0080
 #define SP_BUILTIN		0x0100
+#define SP_CONTROL		0x1000
 
 /**
  * Plugin types

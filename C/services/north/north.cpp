@@ -190,8 +190,8 @@ int	size;
 /**
  * Constructor for the north service
  */
-NorthService::NorthService(const string& myName) : m_name(myName), m_shutdown(false),
-	m_storage(NULL), m_pluginData(NULL), m_restartPlugin(false)
+NorthService::NorthService(const string& myName) : m_dataLoad(NULL), m_name(myName),
+	m_shutdown(false), m_storage(NULL), m_pluginData(NULL), m_restartPlugin(false)
 {
 	logger = new Logger(myName);
 	logger->setMinLevel("warning");
@@ -504,6 +504,11 @@ void NorthService::configChange(const string& categoryName, const string& catego
 
 		m_restartPlugin = true;
 		m_cv.notify_all();
+
+    if (m_dataLoad)
+		{
+			m_dataLoad->configChange(categoryName, category);
+		}
 	}
 	if (categoryName.compare(m_name+"Advanced") == 0)
 	{
@@ -515,9 +520,22 @@ void NorthService::configChange(const string& categoryName, const string& catego
 	}
 }
 
+/**
+ * Restart the plugin with an updated confoguration.
+ * We need to do this as north plugins do not have a reconfigure method
+ *
+ * We need to make sure we are not sending data and the send data thread does not startup
+ * whilst we are doing the restart.
+ *
+ * We also need to make sure the send data thread gets the new plugin.
+ */
 void NorthService::restartPlugin()
 {
 	m_restartPlugin = false;
+
+	// Stop the send data thread
+	m_dataSender->pause();
+
 	if (m_pluginData)
 	{
 		string saveData = northPlugin->shutdownSaveData();
@@ -533,8 +551,26 @@ void NorthService::restartPlugin()
 	{
 		northPlugin->shutdown();
 	}
+
 	delete northPlugin;
 	loadPlugin();
+	// Deal with persisted data and start the plugin
+	if (northPlugin->persistData())
+	{
+		logger->debug("Plugin %s requires persisted data", m_pluginName.c_str());
+		m_pluginData = new PluginData(m_storage);
+		string key = m_name + m_pluginName;
+		string storedData = m_pluginData->loadStoredData(key);
+		logger->debug("Starting plugin with storedData: %s", storedData.c_str());
+		northPlugin->startData(storedData);
+	}
+	else
+	{
+		logger->debug("Start %s plugin", m_pluginName.c_str());
+		northPlugin->start();
+	}
+	m_dataSender->updatePlugin(northPlugin);
+	m_dataSender->release();
 }
 
 /**

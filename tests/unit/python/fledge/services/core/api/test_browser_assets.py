@@ -8,6 +8,7 @@
 import asyncio
 import json
 from unittest.mock import MagicMock, patch
+import sys
 
 from aiohttp import web
 from aiohttp.web_urldispatcher import PlainResource, DynamicResource
@@ -43,8 +44,7 @@ FIXTURE_1 = [(url, payload, result) for url, payload, result in zip(URLS, PAYLOA
 FIXTURE_2 = [(url, 400, payload) for url, payload in zip(URLS, PAYLOADS)]
 
 
-@asyncio.coroutine
-def mock_coro(*args, **kwargs):
+async def mock_coro(*args, **kwargs):
     if len(args) > 0:
         return args[0]
     else:
@@ -116,8 +116,15 @@ class TestBrowserAssets:
     @pytest.mark.parametrize("request_url, payload, result", FIXTURE_1)
     async def test_end_points(self, client, request_url, payload, result):
         readings_storage_client_mock = MagicMock(ReadingsStorageClientAsync)
+        
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv = await mock_coro(result)
+        else:
+            _rv = asyncio.ensure_future(mock_coro(result))
+        
         with patch.object(connect, 'get_readings_async', return_value=readings_storage_client_mock):
-            with patch.object(readings_storage_client_mock, 'query', return_value=mock_coro(result)) as query_patch:
+            with patch.object(readings_storage_client_mock, 'query', return_value=_rv) as query_patch:
                 resp = await client.get(request_url)
                 assert 200 == resp.status
                 r = await resp.text()
@@ -135,10 +142,17 @@ class TestBrowserAssets:
 
     @pytest.mark.parametrize("request_url, response_code, payload", FIXTURE_2)
     async def test_bad_request(self, client, request_url, response_code, payload):
-        readings_storage_client_mock = MagicMock(ReadingsStorageClientAsync)
+        readings_storage_client_mock = MagicMock(ReadingsStorageClientAsync) 
         result = {'message': 'ERROR: something went wrong', 'retryable': False, 'entryPoint': 'retrieve'}
+        
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv = await mock_coro(result)
+        else:
+            _rv = asyncio.ensure_future(mock_coro(result))        
+        
         with patch.object(connect, 'get_readings_async', return_value=readings_storage_client_mock):
-            with patch.object(readings_storage_client_mock, 'query', return_value=mock_coro(result)) as query_patch:
+            with patch.object(readings_storage_client_mock, 'query', return_value=_rv) as query_patch:
                 resp = await client.get(request_url)
                 assert response_code == resp.status
                 assert result['message'] == resp.reason
@@ -168,8 +182,15 @@ class TestBrowserAssets:
     ])
     async def test_bad_summary(self, client, status_code, message, storage_result, payload):
         readings_storage_client_mock = MagicMock(ReadingsStorageClientAsync)
+        
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv = await mock_coro(storage_result)
+        else:
+            _rv = asyncio.ensure_future(mock_coro(storage_result))
+        
         with patch.object(connect, 'get_readings_async', return_value=readings_storage_client_mock):
-            with patch.object(readings_storage_client_mock, 'query', return_value=mock_coro(storage_result)) \
+            with patch.object(readings_storage_client_mock, 'query', return_value=_rv) \
                     as query_patch:
                 resp = await client.get('/fledge/asset/fogbench%2fhumidity/temperature/summary')
                 assert status_code == resp.status
@@ -190,9 +211,17 @@ class TestBrowserAssets:
         asset_payload = '{"return": ["reading"], "where": {"column": "asset_code", "condition": "=", ' \
             '"value": "fogbench/humidity"}, "limit": 1, "sort": {"column": "user_ts", "direction": "desc"}}'
         readings_storage_client_mock = MagicMock(ReadingsStorageClientAsync)
+        
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _se1 = await mock_coro(result1)
+            _se2 = await mock_coro(result2)
+        else:
+            _se1 = asyncio.ensure_future(mock_coro(result1))
+            _se2 = asyncio.ensure_future(mock_coro(result2))
+        
         with patch.object(connect, 'get_readings_async', return_value=readings_storage_client_mock):
-            with patch.object(readings_storage_client_mock, 'query', side_effect=[mock_coro(result1),
-                                                                                  mock_coro(result2)]) as query_patch:
+            with patch.object(readings_storage_client_mock, 'query', side_effect=[_se1, _se2]) as query_patch:
                 resp = await client.get('/fledge/asset/fogbench%2fhumidity/temperature/summary')
                 assert 200 == resp.status
                 r = await resp.text()
@@ -216,8 +245,16 @@ class TestBrowserAssets:
     ])
     async def test_asset_averages_with_valid_group_name(self, client, group_name, payload, result):
         readings_storage_client_mock = MagicMock(ReadingsStorageClientAsync)
+        
+        
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv = await mock_coro(result)
+        else:
+            _rv = asyncio.ensure_future(mock_coro(result))
+        
         with patch.object(connect, 'get_readings_async', return_value=readings_storage_client_mock):
-            with patch.object(readings_storage_client_mock, 'query', return_value=mock_coro(result)) as query_patch:
+            with patch.object(readings_storage_client_mock, 'query', return_value=_rv) as query_patch:
                 resp = await client.get('fledge/asset/fogbench%2Fhumidity/temperature/series?group={}'
                                         .format(group_name))
                 assert 200 == resp.status
@@ -261,8 +298,15 @@ class TestBrowserAssets:
     ])
     async def test_limit_skip_time_units_payload(self, client, request_params, payload):
         readings_storage_client_mock = MagicMock(ReadingsStorageClientAsync)
+        
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv = await mock_coro({'count': 0, 'rows': []})
+        else:
+            _rv = asyncio.ensure_future(mock_coro({'count': 0, 'rows': []}))
+        
         with patch.object(connect, 'get_readings_async', return_value=readings_storage_client_mock):
-            with patch.object(readings_storage_client_mock, 'query', return_value=mock_coro({'count': 0, 'rows': []})) \
+            with patch.object(readings_storage_client_mock, 'query', return_value=_rv) \
                     as query_patch:
                 resp = await client.get('fledge/asset/fogbench%2Fhumidity/temperature{}'.format(request_params))
                 assert 200 == resp.status
@@ -286,8 +330,7 @@ class TestBrowserAssets:
 #            query_patch.assert_called_once_with('{"return": ["reading"], "where": {"column": "asset_code", "condition": "=", "value": "fogbench_humidity"}}')
 
     async def test_asset_all_readings_summary(self, client):
-        @asyncio.coroutine
-        def q_result(*args):
+        async def q_result(*args):
             if payload1 == args[0]:
                 return {'rows': [{'reading': {'humidity': 20}}], 'count': 1}
             if payload2 == args[0]:
@@ -303,8 +346,17 @@ class TestBrowserAssets:
             "where": {"column": "asset_code", "condition": "=", "value": "fogbench_humidity"}, "limit": 20}
 
         readings_storage_client_mock = MagicMock(ReadingsStorageClientAsync)
+        
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _se1 = await q_result(payload1)
+            _se2 = await q_result(payload2)
+        else:
+            _se1 = asyncio.ensure_future(q_result(payload1))
+            _se2 = asyncio.ensure_future(q_result(payload2))
+        
         with patch.object(connect, 'get_readings_async', return_value=readings_storage_client_mock):
-            with patch.object(readings_storage_client_mock, 'query', side_effect=[q_result(payload1), q_result(payload2)]) as patch_query:
+            with patch.object(readings_storage_client_mock, 'query', side_effect=[_se1, _se2]) as patch_query:
                 resp = await client.get('fledge/asset/fogbench_humidity/summary')
                 assert 200 == resp.status
                 r = await resp.text()
@@ -457,8 +509,15 @@ class TestBrowserAssets:
     ])
     async def test_order_payload_good(self, client, request_params, payload):
         readings_storage_client_mock = MagicMock(ReadingsStorageClientAsync)
+        
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv = await mock_coro({'count': 0, 'rows': []})
+        else:
+            _rv = asyncio.ensure_future(mock_coro({'count': 0, 'rows': []}))
+        
         with patch.object(connect, 'get_readings_async', return_value=readings_storage_client_mock):
-            with patch.object(readings_storage_client_mock, 'query', return_value=mock_coro({'count': 0, 'rows': []})) \
+            with patch.object(readings_storage_client_mock, 'query', return_value=_rv) \
                     as query_patch:
                 resp = await client.get('fledge/asset/fogbench%2Fhumidity{}'.format(request_params))
                 assert 200 == resp.status

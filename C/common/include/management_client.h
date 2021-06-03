@@ -51,6 +51,7 @@ class ManagementClient {
 		bool			addAuditEntry(const std::string& serviceName,
 						      const std::string& severity,
 						      const std::string& details);
+		std::string&		getBearerToken() { return m_bearer_token; };
 
 private:
     std::ostringstream 			m_urlbase;
@@ -59,6 +60,9 @@ private:
 		std::string				*m_uuid;
 		Logger					*m_logger;
 		std::map<std::string, std::string>	m_categories;
+		// Bearer token returned by service registration
+		// if the service startup token has been passed in registration payload
+		std::string				m_bearer_token;
   
 	public:
 		// member template must be here and not in .cpp file

@@ -52,8 +52,8 @@ async def optional_auth_middleware(app, handler):
 async def auth_middleware(app, handler):
     async def middleware(request):
         # if `rest_api` config has `authentication` set to mandatory then:
-        #   request must carry auth header or should reuturn 403: Forbidden,
-        #   actual header will be checked too and if bad then 401: unauthorized will be returned
+        #   request must carry auth header,
+        #   actual value will be checked too and if bad then 401: unauthorized will be returned
         _logger.info("Received %s request for %s", request.method, request.path)
 
         request.is_auth_optional = False
@@ -74,6 +74,8 @@ async def auth_middleware(app, handler):
                 request.user = await User.Objects.get(uid=uid)
                 # set the token to request
                 request.token = token
+                # set if user is admin
+                request.user_is_admin = True if int(request.user["role_id"]) == 1 else False
             except(User.InvalidToken, User.TokenExpired) as e:
                 raise web.HTTPUnauthorized(reason=e)
             except (jwt.DecodeError, jwt.ExpiredSignatureError) as e:
@@ -86,7 +88,7 @@ async def auth_middleware(app, handler):
             elif str(handler).startswith("<function update_password"):  # when pwd expiration
                 pass
             else:
-                raise web.HTTPForbidden()
+                raise web.HTTPUnauthorized()
 
         return await handler(request)
     return middleware

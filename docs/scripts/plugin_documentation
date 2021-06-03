@@ -3,7 +3,7 @@
 # The best default branch to use develop rather than master. As new repository do not have a branch called master any more and having main branch only.
 if [[ "${DOCBRANCH}" == "" ]]; then
     # NOTE: During release time we need to replace develop with actual released version
-	export DOCBRANCH=1.9.0RC
+	export DOCBRANCH=1.9.1RC
 	echo "Default ${DOCBRANCH} used for plugin documentation"
 fi
 
@@ -37,8 +37,12 @@ function plugin_doc {
         echo "    ${repo_name}/index" >> $dest
     else
         files=`ls ${repo_name}/*.rst`
-        file=`basename $files .rst`
-        echo "    ${repo_name}/${file}" >> $dest
+    	if [ "$files" = "" ]; then
+	    echo "*** WARNING: plugin ${repo_name} is missing documentation"
+        else
+            file=`basename $files .rst`
+            echo "    ${repo_name}/${file}" >> $dest
+        fi
     fi
   fi
   rm -rf /tmp/doc.$$
@@ -65,7 +69,7 @@ Fledge North Plugins
 
 .. toctree::
 
-    ../fledge-north-OMF
+    fledge-north-OMF/index
 EOFNORTH
 cat > plugins/filter.rst << EOFFILTER
 *********************
@@ -82,6 +86,7 @@ Fledge Notification Rule Plugins
 
 .. toctree::
 
+    fledge-rule-Threshold/index
 EOFRULE
 cat > plugins/notify.rst << EOFNOTIFY
 ************************************
@@ -92,10 +97,31 @@ Fledge Notification Delivery Plugins
 
 EOFNOTIFY
 
-fledgeRepos=`curl -s  https://api.github.com/orgs/fledge-iot/repos\?page=[1-3]`
-fledgeRepos="$(echo $fledgeRepos | sed 's/\] \[/,/g')"
-REPOSITORIES=`echo $fledgeRepos | python3 -c 'import json,sys;repos=json.load(sys.stdin);fRepos = [r["name"] for r in repos];print("\n".join(fRepos))' | sort -f`
-echo ${REPOSITORIES}
+fledgeRepos=$(curl -sX GET https://api.github.com/orgs/fledge-iot/repos\?per_page=1000)
+fetchTopicReposPyScript='
+import json,sys;\
+repos=json.load(sys.stdin);\
+fRepos = [r["name"] for r in repos["items"]];\
+print("\n".join(fRepos));
+'
+fledge_wip_repos=$(curl -sX GET -H "Accept: application/vnd.github.mercy-preview+json" https://api.github.com/search/repositories?q=topic:wip+org:fledge-iot)
+fledge_poc_repos=$(curl -sX GET -H "Accept: application/vnd.github.mercy-preview+json" https://api.github.com/search/repositories?q=topic:poc+org:fledge-iot)
+fledge_internal_repos=$(curl -sX GET -H "Accept: application/vnd.github.mercy-preview+json" https://api.github.com/search/repositories?q=internal:wip+org:fledge-iot)
+fledge_wip_repos_name=$(echo ${fledge_wip_repos} | python3 -c "$fetchTopicReposPyScript" | sort -f)
+fledge_poc_repos_name=$(echo ${fledge_poc_repos} | python3 -c "$fetchTopicReposPyScript" | sort -f)
+fledge_internal_repos_name=$(echo ${fledge_internal_repos} | python3 -c "$fetchTopicReposPyScript" | sort -f)
+EXCLUDE_FLEDGE_TOPIC_REPOSITORIES=$(echo ${fledge_wip_repos_name} ${fledge_poc_repos_name} ${fledge_internal_repos_name} | sort -f)
+echo "EXCLUDED FLEDGE TOPIC REPOS..."$EXCLUDE_FLEDGE_TOPIC_REPOSITORIES
+export EXCLUDE_FLEDGE_TOPIC_REPOSITORIES=$EXCLUDE_FLEDGE_TOPIC_REPOSITORIES
+fetchFledgeReposPyScript='
+import os,json,sys;\
+repos=json.load(sys.stdin);\
+exclude_topic_packages=os.environ["EXCLUDE_FLEDGE_TOPIC_REPOSITORIES"];\
+fRepos = [r["name"] for r in repos if r["name"] not in exclude_topic_packages];\
+print("\n".join(fRepos));
+'
+REPOSITORIES=$(echo ${fledgeRepos} | python3 -c "$fetchFledgeReposPyScript" | sort -f)
+echo "REPOS LIST: "${REPOSITORIES}
 for repo in ${REPOSITORIES}
 do
   type=`echo $repo | sed -e 's/fledge-//' -e 's/foglamp-//' -e 's/-.*//'`
@@ -104,3 +130,10 @@ do
       plugin_doc $repo $dest
   fi
 done
+
+# Deal with bultin plugin documentation 
+mkdir plugins/fledge-north-OMF
+ln -s ../../images plugins/fledge-north-OMF/images
+sed -e 's|OMF.rst|../../OMF.rst|' < fledge-north-OMF.rst > plugins/fledge-north-OMF/index.rst
+mkdir plugins/fledge-rule-Threshold
+cp -r fledge-rule-Threshold/* plugins/fledge-rule-Threshold/.

@@ -433,3 +433,42 @@ TEST(OMF_AfHierarchy, HandleAFMapNamesBad)
 	// Test 02
 	ASSERT_NE(MetadataRulesExist, af_hierarchy_check03);
 }
+
+// Test PI Server naming rules for invalid chars - Control characters plus: * ? ; { } [ ] | \ ` ' "
+TEST(PiServer_NamingRules, NamingRulesCheck)
+{
+	bool changed = false;
+
+	// Dummy initializations
+	SimpleHttps sender("0.0.0.0:0", 10, 10, 10, 1);
+	OMF omf(sender, "/", 1, "ABC");
+
+	ASSERT_EQ(omf.ApplyPIServerNamingRulesInvalidChars("asset_1", &changed), "asset_1");
+	ASSERT_EQ(changed, false);
+
+	ASSERT_EQ(omf.ApplyPIServerNamingRulesInvalidChars("asset_*1", &changed), "asset__1");
+	ASSERT_EQ(changed, true);
+
+	ASSERT_EQ(omf.ApplyPIServerNamingRulesInvalidChars("asset_?1", &changed), "asset__1");
+	ASSERT_EQ(omf.ApplyPIServerNamingRulesInvalidChars("asset_;1", &changed), "asset__1");
+	ASSERT_EQ(omf.ApplyPIServerNamingRulesInvalidChars("asset_{1", &changed), "asset__1");
+	ASSERT_EQ(omf.ApplyPIServerNamingRulesInvalidChars("asset_}1", &changed), "asset__1");
+	ASSERT_EQ(omf.ApplyPIServerNamingRulesInvalidChars("asset_[1", &changed), "asset__1");
+	ASSERT_EQ(omf.ApplyPIServerNamingRulesInvalidChars("asset_]1", &changed), "asset__1");
+	ASSERT_EQ(omf.ApplyPIServerNamingRulesInvalidChars("asset_|1", &changed), "asset__1");
+	ASSERT_EQ(omf.ApplyPIServerNamingRulesInvalidChars("asset_\\1", &changed), "asset__1");
+	ASSERT_EQ(omf.ApplyPIServerNamingRulesInvalidChars("asset_`1", &changed), "asset__1");
+	ASSERT_EQ(omf.ApplyPIServerNamingRulesInvalidChars("asset_'1", &changed), "asset__1");
+	ASSERT_EQ(omf.ApplyPIServerNamingRulesInvalidChars("asset_\"1", &changed), "asset__1");
+
+	ASSERT_EQ(omf.ApplyPIServerNamingRulesInvalidChars("_asset_1", &changed), "_asset_1");
+	ASSERT_EQ(changed, false);
+
+	ASSERT_EQ(omf.ApplyPIServerNamingRulesInvalidChars("asset_\t1", &changed), "asset__1");
+	ASSERT_EQ(changed, true);
+
+	ASSERT_EQ(omf.ApplyPIServerNamingRulesInvalidChars("asset_\n1", &changed), "asset__1");
+	ASSERT_EQ(omf.ApplyPIServerNamingRulesInvalidChars("asset_\b1", &changed), "asset__1");
+	ASSERT_EQ(omf.ApplyPIServerNamingRulesInvalidChars("asset_\r1", &changed), "asset__1");
+	ASSERT_EQ(omf.ApplyPIServerNamingRulesInvalidChars("asset_\\1", &changed), "asset__1");
+}

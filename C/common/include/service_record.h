@@ -22,7 +22,8 @@ class ServiceRecord : public JSONProvider {
 			      const std::string& protocol,
 			      const std::string& address,
 			      const unsigned short port,
-			      const unsigned short managementPort);
+			      const unsigned short managementPort,
+			      const std::string& token = "");
 		void			asJSON(std::string &) const;
 		const std::string&	getName() const
 					{
@@ -72,6 +73,7 @@ class ServiceRecord : public JSONProvider {
 		std::string		m_address;
 		unsigned short		m_port;
 		unsigned short		m_managementPort;
+		std::string		m_token; // token set by core server at service start
 };
 
 #endif

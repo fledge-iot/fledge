@@ -83,6 +83,7 @@ n_passed=0
 n_unchecked=0
 
 ./testSetup.sh > /dev/null 2>&1
+sleep 5
 
 rm -f failed
 rm -rf results

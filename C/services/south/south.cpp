@@ -396,7 +396,11 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 			else
 			{
 				Logger::getLogger()->debug("Plugin does not persist data");
-				southPlugin->start();
+				try {
+					southPlugin->start();
+				} catch (...) {
+					Logger::getLogger()->debug("Plugin start raised an exception");
+				}
 			}
 
 			while (!m_shutdown)

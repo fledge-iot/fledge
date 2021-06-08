@@ -13,16 +13,33 @@
 
 #include <process.h>
 
+#define TO_STRING(...) DEFER(TO_STRING_)(__VA_ARGS__)
+#define DEFER(x) x
+#define TO_STRING_(...) #__VA_ARGS__
+#define QUOTE(...) TO_STRING(__VA_ARGS__)
+
+#define LOG_NAME                    "purge_system"
+#define CONFIG_CATEGORY_DESCRIPTION "Configuration of the Purge System"
+
 class PurgeSystem : public FledgeProcess
 {
 	public:
 		PurgeSystem(int argc, char** argv);
 		~PurgeSystem();
 
-		void     run() const;
+		void     run();
 
 	private:
-		void     processEnd() const;
+		Logger        *m_logger;
+		int            m_retainStatsHistory;
+		int            m_retainAuditLog;
+		int            m_retainTaskHistory;
+
+	private:
+		void           raiseError(const char *reason, ...);
+		void           purgeExecution();
+		void           processEnd() const;
+		ConfigCategory configurationHandling(const std::string& config);
 };
 
 #endif

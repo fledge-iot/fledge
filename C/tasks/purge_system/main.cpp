@@ -15,26 +15,33 @@ using namespace std;
 
 int main(int argc, char** argv)
 {
+	Logger *logger = new Logger(LOG_NAME);
+
+	//# FIXME_I
+	logger->setMinLevel("debug");
+
 	try
 	{
-		// Instantiate StatsHistory class
 		PurgeSystem PurgeSystem(argc, argv);
 
 		PurgeSystem.run();
-
 	}
 	catch (const std::exception& e)
 	{
-		cerr << "Exception " << e.what() << endl;
+		logger->error("An error occurred during the execution :%s: ", e.what());
 		exit(1);
 	}
 	catch (...)
 	{
 		std::exception_ptr p = std::current_exception();
 		string name = (p ? p.__cxa_exception_type()->name() : "null");
-		cerr << "Generic Exception" << name << endl;
+
+		logger->error("An error occurred during the execution :%s: ", name.c_str() );
 		exit(1);
 	}
+
+	//# FIXME_I
+	logger->setMinLevel("warning");
 
 	// Return success
 	exit(0);

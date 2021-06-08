@@ -679,6 +679,7 @@ INSERT INTO fledge.scheduled_processes (name, script)   VALUES ( 'south_c',     
 INSERT INTO fledge.scheduled_processes (name, script)   VALUES ( 'notification_c', '["services/notification_c"]' );
 INSERT INTO fledge.scheduled_processes (name, script)   VALUES ( 'north_c',        '["tasks/north_c"]'           );
 INSERT INTO fledge.scheduled_processes (name, script)   VALUES ( 'north',          '["tasks/north"]'             );
+INSERT INTO fledge.scheduled_processes (name, script)   VALUES ( 'purge_system',   '["tasks/purge_system"]'      );
 INSERT INTO fledge.scheduled_processes (name, script)   VALUES ( 'north_C',        '["services/north_C"]'        );
 INSERT INTO fledge.scheduled_processes (name, script)   VALUES ( 'dispatcher_c',   '["services/dispatcher_c"]'   );
 
@@ -705,6 +706,21 @@ INSERT INTO fledge.schedules ( id, schedule_name, process_name, schedule_type,
                 't',                                   -- exclusive
                 't'                                    -- enabled
               );
+
+-- Purge System
+-- // FIXME_I:
+INSERT INTO fledge.schedules ( id, schedule_name, process_name, schedule_type,
+                               schedule_time, schedule_interval, exclusive, enabled )
+VALUES ( 'd37265f0-c83a-11eb-b8bc-0242ac130003', -- id
+         'purge_system',                         -- schedule_name
+         'purge_system',                         -- process_name
+         3,                                      -- schedule_type (interval)
+         NULL,                                   -- schedule_time
+         '23:59:00',                             -- schedule_interval (evey 24 hours)
+         't',                                    -- exclusive
+         'f'                                     -- enabled
+       );
+
 
 -- Statistics collection
 INSERT INTO fledge.schedules ( id, schedule_name, process_name, schedule_type,

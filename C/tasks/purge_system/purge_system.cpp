@@ -11,8 +11,8 @@
 #include <purge_system.h>
 #include <logger.h>
 
-#include <stdarg.h>     /* va_list, va_start, va_arg, va_end */
-#include <stdlib.h>
+#include <cstdarg>     /* va_list, va_start, va_arg, va_end */
+#include <cstdlib>
 #include <thread>
 #include <csignal>
 
@@ -20,7 +20,7 @@ using namespace std;
 
 volatile std::sig_atomic_t signalReceived = 0;
 
-static const string defaultConfig = QUOTE({
+static const string DEFAULT_CONFIG = QUOTE({
 	"retainStatsHistory": {
 		"description": "This is the measure of how long to retain statistics history data for and should be measured in days.",
 		"type": "integer",
@@ -71,28 +71,20 @@ void PurgeSystem::raiseError(const char *reason, ...)
 
 PurgeSystem::PurgeSystem(int argc, char** argv) : FledgeProcess(argc, argv)
 {
-	m_logger = new Logger(LOG_NAME);
+	string paramName;
 
-	//# FIXME_I
-	m_logger->setMinLevel("debug");
+	paramName = getName();
 
-	//# FIXME_I
-	m_logger->info("xxx2 PurgeSystem starting - parameters name :%s:", getName().c_str() );
+	m_logger = new Logger(paramName);
+	m_logger->info("xxx2 PurgeSystem starting - parameters name :%s:", paramName.c_str() );
+
+	m_retainStatsHistory = 0;
+	m_retainAuditLog = 0;
+	m_retainTaskHistory = 0;
 }
 
 PurgeSystem::~PurgeSystem()
-{
-	//# FIXME_I
-	m_logger->setMinLevel("debug");
-
-	;
-}
-
-void PurgeSystem::purgeExecution()
-{
-	//# FIXME_I
-	m_logger->info("xxx2 PurgeSystem execution");
-}
+= default;
 
 /**
  * PurgeSystem run method, called by the base class
@@ -100,25 +92,24 @@ void PurgeSystem::purgeExecution()
  */
 void PurgeSystem::run()
 {
+	//# FIXME_I
+	m_logger->setMinLevel("debug");
+
 	// We handle these signals, add more if needed
 	std::signal(SIGINT,  signalHandler);
 	std::signal(SIGSTOP, signalHandler);
 	std::signal(SIGTERM, signalHandler);
 
-	ConfigCategory configuration = configurationHandling(defaultConfig);
-
-	m_logger->debug("xxx2 BRK 1");
+	ConfigCategory configuration = configurationHandling(DEFAULT_CONFIG);
 
 	try {
-		m_retainStatsHistory = strtoul(configuration.getValue("retainStatsHistory").c_str(), NULL, 10);
-		m_retainAuditLog     = strtoul(configuration.getValue("retainAuditLog").c_str(), NULL, 10);
-		m_retainTaskHistory  = strtoul(configuration.getValue("retainTaskHistory").c_str(), NULL, 10);
+		m_retainStatsHistory = strtoul(configuration.getValue("retainStatsHistory").c_str(), nullptr, 10);
+		m_retainAuditLog     = strtoul(configuration.getValue("retainAuditLog").c_str(), nullptr, 10);
+		m_retainTaskHistory  = strtoul(configuration.getValue("retainTaskHistory").c_str(), nullptr, 10);
 
 	} catch (const std::exception &e) {
 		raiseError ("impossible to retrieve the configuration :%s:", e.what() );
 	}
-
-	m_logger->debug("xxx2 BRK 2");
 
 	m_logger->info("xxx2 configuration retainStatsHistory :%d: retainAuditLog :%d: retainTaskHistory :%d:"
 				   ,m_retainStatsHistory
@@ -127,16 +118,9 @@ void PurgeSystem::run()
 
 	purgeExecution();
 	processEnd();
-}
 
-/**
- */
-void PurgeSystem::processEnd() const
-{
 	//# FIXME_I
 	m_logger->setMinLevel("debug");
-	m_logger->info("xxx2  PurgeSystem completed");
-	m_logger->setMinLevel("warning");
 }
 
 /**
@@ -147,23 +131,38 @@ ConfigCategory PurgeSystem::configurationHandling(const std::string& config)
 	// (received in the command line) as the key
 	string categoryName(this->getName());
 
-	//# FIXME_I
-	m_logger->setMinLevel("debug");
-	m_logger->debug("xxx2 %s - categoryName :%s:", __FUNCTION__, categoryName.c_str());
-	m_logger->setMinLevel("warning");
-
 	ConfigCategory configuration;
-	ConfigCategory advancedConfiguration;
+
+	//# FIXME_I
+	m_logger->debug("xxx2 %s - categoryName :%s:", __FUNCTION__, categoryName.c_str());
 
 	// Create category, with "default" values only
-	DefaultConfigCategory category(categoryName, config);
-	category.setDescription(CONFIG_CATEGORY_DESCRIPTION);
+	DefaultConfigCategory defaultConfig(categoryName, config);
+	defaultConfig.setDescription(CONFIG_CATEGORY_DESCRIPTION);
 
 	// Create/Update category name (we pass keep_original_items=true)
-	if (! this->getManagementClient()->addCategory(category, true))
+	if (! this->getManagementClient()->addCategory(defaultConfig, true))
 	{
 		raiseError ("Failure creating/updating configuration key :%s: ", categoryName.c_str() );
 	}
 
+	// Get the category with values and defaults
+	configuration = this->getManagementClient()->getCategory(categoryName);
+
 	return ConfigCategory(configuration);
 }
+
+void PurgeSystem::purgeExecution()
+{
+	//# FIXME_I
+	m_logger->info("xxx2 PurgeSystem execution");
+}
+
+/**
+ */
+void PurgeSystem::processEnd() const
+{
+	//# FIXME_I
+	m_logger->info("xxx2 PurgeSystem completed");
+}
+

@@ -278,6 +278,17 @@ CREATE INDEX statistics_history_ix2
 CREATE INDEX statistics_history_ix3
     ON statistics_history (history_ts);
 
+--// FIXME_I:
+CREATE TABLE fledge.statistics_history_daily (
+    year        INTEGER,
+    day         DATE DEFAULT (STRFTIME('%Y-%m-%d', 'NOW')),
+    key         character varying(56)       NOT NULL,
+    value       bigint                      NOT NULL DEFAULT 0
+);
+
+CREATE INDEX statistics_history_daily_ix1
+    ON statistics_history_daily (year);
+
 -- Resources table
 -- A resource and be anything that is available or can be done in Fledge. Examples:
 -- - Access to assets

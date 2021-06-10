@@ -40,6 +40,9 @@ class PurgeSystem : public FledgeProcess
 		void           raiseError(const char *reason, ...);
 		void           purgeExecution();
 		void           purgeTable(const std::string& tableName, const std::string& fieldName, int retentionDays);
+		void           historicizeData(int retentionDays);
+		ResultSet     *extractData(const std::string& tableName, const std::string& fieldName, int retentionDays);
+		void           storeData(const std::string& tableName, const std::string& tableDest, ResultSet *data);
 		void           processEnd() const;
 		ConfigCategory configurationHandling(const std::string& config);
 };

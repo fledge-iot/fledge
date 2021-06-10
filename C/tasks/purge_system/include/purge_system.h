@@ -31,6 +31,7 @@ class PurgeSystem : public FledgeProcess
 
 	private:
 		Logger        *m_logger;
+		StorageClient *m_storage;
 		int            m_retainStatsHistory;
 		int            m_retainAuditLog;
 		int            m_retainTaskHistory;
@@ -38,6 +39,7 @@ class PurgeSystem : public FledgeProcess
 	private:
 		void           raiseError(const char *reason, ...);
 		void           purgeExecution();
+		void           purgeTable(const std::string& tableName, const std::string& fieldName, int retentionDays);
 		void           processEnd() const;
 		ConfigCategory configurationHandling(const std::string& config);
 };

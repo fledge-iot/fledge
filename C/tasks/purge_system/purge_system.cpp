@@ -22,26 +22,26 @@ volatile std::sig_atomic_t signalReceived = 0;
 
 static const string DEFAULT_CONFIG = QUOTE({
 	"retainStatsHistory": {
-		"description": "This is the measure of how long to retain statistics history data for and should be measured in days.",
+		"description": "The number of days for which full granularity statistics history is maintained.",
 		"type": "integer",
 		"default": "7",
-		"displayName": "Retain Stats History Data (In Days)",
+		"displayName": "Statistics Retention",
 		"order": "1",
 		"minimum": "1"
 	},
 	"retainAuditLog" : {
-		"description": "This is the measure of how long to retain audit trail information for and should be measured in days.",
+		"description": "The number of days for which audit trail data is retained",
 		"type": "integer",
 		"default": "30",
-		"displayName": "Retain Audit Trail Data (In Days)",
+		"displayName": "Audit Retention",
 		"order": "2",
 		"minimum": "1"
 	},
 	"retainTaskHistory" : {
-		"description": "This is the measure of how long to retain task history information for and should be measured in days.",
+		"description": "The number of days for which task history is retained",
 		"type": "integer",
 		"default": "30",
-		"displayName": "Retain Task History Data (In Days)",
+		"displayName": "Task Retention",
 		"order": "3",
 		"minimum": "1"
 	}
@@ -81,6 +81,8 @@ PurgeSystem::PurgeSystem(int argc, char** argv) : FledgeProcess(argc, argv)
 	m_retainStatsHistory = 0;
 	m_retainAuditLog = 0;
 	m_retainTaskHistory = 0;
+
+	m_storage = this->getStorageClient();
 }
 
 PurgeSystem::~PurgeSystem()
@@ -155,7 +157,49 @@ ConfigCategory PurgeSystem::configurationHandling(const std::string& config)
 void PurgeSystem::purgeExecution()
 {
 	//# FIXME_I
-	m_logger->info("xxx2 PurgeSystem execution");
+	m_logger->info("xxx2 PurgeSystem running");
+
+	purgeTable("statistics_history", "history_ts", m_retainStatsHistory);
+
+	//purgeTable("tasks",              m_retainAuditLog);
+	///purgeTable("log",                m_retainTaskHistory);
+
+}
+
+void PurgeSystem::purgeTable(const std::string& tableName, const std::string& fieldName, int retentionDays)
+{
+	int affected;
+	string conditionValue;
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+
+	//const Condition _condition(LessThan);
+	const Condition conditionExpr(Older);
+
+	// FIXME_I:
+	//conditionDays = "datetime('now','-" + to_string(retentionDays) + " day')";
+	//conditionValue = to_string (retentionDays * 60 * 60 * 24); // the days should be expressed in seconds
+	conditionValue = to_string (retentionDays); // the days should be expressed in seconds
+	m_logger->debug("xxx2 %s - purging :%s: retention days :%d: conditionValue :%s:", __FUNCTION__, tableName.c_str(), retentionDays, conditionValue.c_str() );
+	Where *_where = new Where(fieldName, conditionExpr, conditionValue);
+
+	Query _query(_where);
+
+	try
+	{
+		affected = m_storage->deleteTable(tableName, _query);
+		if (affected == -1)
+		{
+			raiseError ("Failure purging the table :%s: ", tableName.c_str() );
+		}
+
+	} catch (const std::exception &e) {
+
+		raiseError ("Failure purging the table :%s: ", tableName.c_str() );
+	}
+
+	m_logger->debug("xxx2 %s - %s rows purged :%d:", __FUNCTION__, tableName.c_str(), affected);
 }
 
 /**

@@ -280,7 +280,7 @@ CREATE INDEX statistics_history_ix3
 
 --// FIXME_I:
 CREATE TABLE fledge.statistics_history_daily (
-    year        INTEGER,
+    year        DATE DEFAULT (STRFTIME('%Y', 'NOW')),
     day         DATE DEFAULT (STRFTIME('%Y-%m-%d', 'NOW')),
     key         character varying(56)       NOT NULL,
     value       bigint                      NOT NULL DEFAULT 0

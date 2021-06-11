@@ -172,24 +172,29 @@ void PurgeSystem::purgeExecution()
 
 void PurgeSystem::historicizeData(int retentionDays)
 {
-	string tableName;
+	string tableSource;
 	string fieldName;
 	string tableDest;
 	ResultSet *data;
 
-	tableName="statistics_history";
+	tableSource="statistics_history";
 	fieldName="history_ts";
 	tableDest="statistics_history_daily";
 
-	m_logger->debug("xxx4 %s - v2 historicizing :%s: retention days :%d: ", __FUNCTION__, tableName.c_str(), retentionDays);
+	m_logger->debug("xxx4 %s - v2 historicizing :%s: retention days :%d: ", __FUNCTION__, tableSource.c_str(), retentionDays);
 
-	data = extractData(tableName, fieldName, retentionDays);
-	storeData(tableName, tableDest, data);
+	data = extractData(tableSource, fieldName, retentionDays);
+
+	if (data != NULL && data->rowCount()) {
+		storeData(tableDest, data);
+	}
+
+
+	delete data;
 }
 
 ResultSet *PurgeSystem::extractData(const std::string& tableName, const std::string& fieldName, int retentionDays)
 {
-	int affected;
 	ResultSet *data;
 	string conditionValue;
 
@@ -204,11 +209,11 @@ ResultSet *PurgeSystem::extractData(const std::string& tableName, const std::str
 	Where *_where     = new Where(fieldName, conditionExpr, conditionValue);
 	Query _query(_where);
 
-	vector<Returns *> _returns {};
-	_returns.push_back(new Returns("strftime('%Y', history_ts)", "year") );
-	_returns.push_back(new Returns("date(history_ts)", "date") );
-	_returns.push_back(new Returns("key") );
-	_query.returns(_returns);
+//	vector<Returns *> _returns {};
+//	_returns.push_back(new Returns("strftime('%Y', history_ts)", "year") );
+//	_returns.push_back(new Returns("date(history_ts)", "date") );
+//	_returns.push_back(new Returns("key") );
+//	_query.returns(_returns);
 
 	Aggregate *_aggregate = new Aggregate("sum", "value");
 	_query.aggregate(_aggregate);
@@ -229,13 +234,59 @@ ResultSet *PurgeSystem::extractData(const std::string& tableName, const std::str
 	}
 
 	m_logger->debug("xxx4 %s - %s rows extracted :%d:", __FUNCTION__, tableName.c_str(), data->rowCount() );
+
+	return (data);
 }
 
-
-void PurgeSystem::storeData(const std::string& tableName, const std::string& tableDest, ResultSet *data)
+void PurgeSystem::storeData(const std::string& tableDest, ResultSet *data)
 {
+	string fieldYear;
+	string fieldDate;
+	string fieldKey;
+	double fieldValue;
 
-	m_logger->debug("xxx4 %s - storing %s rows :%d:", __FUNCTION__, tableDest.c_str(), data->rowCount() );
+	int affected = 0;
+
+	m_logger->debug("xxx4 %s - storing in :%s: rows :%d:", __FUNCTION__, tableDest.c_str(), data->rowCount() );
+
+	try
+	{
+
+		ResultSet::RowIterator item = data->firstRow();
+		do
+		{
+			ResultSet::Row* row = *item;
+
+			fieldDate = row->getColumn("date(history_ts)")->getString();
+			fieldYear = fieldDate.substr(0, 4);
+			fieldKey = row->getColumn("key")->getString();
+			fieldValue = row->getColumn("sum_value")->getNumber();
+
+			InsertValues values;
+			values.push_back(InsertValue("year", fieldYear) );
+			values.push_back(InsertValue("day", fieldDate) );
+			values.push_back(InsertValue("key", fieldKey) );
+			values.push_back(InsertValue("value", fieldValue) );
+
+			affected = m_storage->insertTable(tableDest, values);
+			if (affected == -1)
+			{
+				raiseError ("xxx4 Failure inserting rows into :%s: ", tableDest.c_str() );
+			}
+
+			m_logger->debug("xxx4 %s - :%s: affected :%d: inserted :%s: :%s: :%s: :%lf:  ", __FUNCTION__, tableDest.c_str()
+				, affected
+				, fieldYear.c_str()
+				, fieldDate.c_str()
+				, fieldKey.c_str()
+				, fieldValue);
+
+		} while (!data->isLastRow(item++));
+
+	} catch (const std::exception &e) {
+
+		raiseError ("xxx4Failure inserting rows into :%s: ", tableDest.c_str() );
+	}
 }
 
 

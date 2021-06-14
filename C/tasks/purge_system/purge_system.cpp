@@ -157,18 +157,27 @@ ConfigCategory PurgeSystem::configurationHandling(const std::string& config)
 
 void PurgeSystem::purgeExecution()
 {
+	string tableName;
+
 	//# FIXME_I
 	m_logger->info("xxx2 PurgeSystem running");
 
-	historicizeData(m_retainStatsHistory);
+	tableName = "statistics_history";
+	try {
+		historicizeData(m_retainStatsHistory);
+		purgeTable(tableName, "history_ts", m_retainStatsHistory);
 
-	purgeTable("statistics_history", "history_ts", m_retainStatsHistory);
+	} catch (const std::exception &e) {
+
+		raiseError ("Failure historicizing and purging table :%s: :%s:",tableName.c_str(),  e.what() );
+	}
+
 	purgeTable("tasks", "start_time", m_retainTaskHistory);
 	purgeTable("log", "ts", m_retainAuditLog);
 }
 
 
-void PurgeSystem::historicizeData(int retentionDays)
+void PurgeSystem::historicizeData(unsigned long retentionDays)
 {
 	string tableSource;
 	string fieldName;
@@ -183,17 +192,26 @@ void PurgeSystem::historicizeData(int retentionDays)
 
 	data = extractData(tableSource, fieldName, retentionDays);
 
-	if (data != NULL && data->rowCount()) {
-		storeData(tableDest, data);
+	if (data->rowCount()) {
+
+		try {
+			storeData(tableDest, data);
+
+		} catch (const std::exception &e) {
+
+			;
+		}
 	}
 
 	delete data;
 }
 
-ResultSet *PurgeSystem::extractData(const std::string& tableName, const std::string& fieldName, int retentionDays)
+ResultSet *PurgeSystem::extractData(const std::string& tableName, const std::string& fieldName, unsigned long retentionDays)
 {
 	ResultSet *data;
 	string conditionValue;
+
+	data = nullptr;
 
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
@@ -216,12 +234,12 @@ ResultSet *PurgeSystem::extractData(const std::string& tableName, const std::str
 		data = m_storage->queryTable(tableName, _query);
 		if (data == nullptr)
 		{
-			raiseError ("Failure purging the table :%s: ", tableName.c_str() );
+			raiseError ("Failure extracting data from the table :%s: ", tableName.c_str() );
 		}
 
 	} catch (const std::exception &e) {
 
-		raiseError ("Failure purging the table :%s: ", tableName.c_str() );
+		raiseError ("Failure extracting data :%s:", e.what() );
 	}
 
 	m_logger->debug("xxx4 %s - %s rows extracted :%d:", __FUNCTION__, tableName.c_str(), data->rowCount() );
@@ -234,7 +252,7 @@ void PurgeSystem::storeData(const std::string& tableDest, ResultSet *data)
 	string fieldYear;
 	string fieldDate;
 	string fieldKey;
-	double fieldValue;
+	long   fieldValue;
 
 	int affected = 0;
 
@@ -252,7 +270,7 @@ void PurgeSystem::storeData(const std::string& tableDest, ResultSet *data)
 				fieldDate = row->getColumn("date(history_ts)")->getString();
 				fieldYear = fieldDate.substr(0, 4);
 				fieldKey = row->getColumn("key")->getString();
-				fieldValue = row->getColumn("sum_value")->getNumber();
+				fieldValue = row->getColumn("sum_value")->getInteger();
 
 				InsertValues values;
 				values.push_back(InsertValue("year", fieldYear) );
@@ -266,7 +284,7 @@ void PurgeSystem::storeData(const std::string& tableDest, ResultSet *data)
 					raiseError ("xxx4 Failure inserting rows into :%s: ", tableDest.c_str() );
 				}
 
-				m_logger->debug("xxx4 %s - :%s: affected :%d: inserted :%s: :%s: :%s: :%lf:  ", __FUNCTION__, tableDest.c_str()
+				m_logger->debug("xxx4 %s - :%s: affected :%d: inserted :%s: :%s: :%s: :%ld:  ", __FUNCTION__, tableDest.c_str()
 					, affected
 					, fieldYear.c_str()
 					, fieldDate.c_str()
@@ -283,10 +301,11 @@ void PurgeSystem::storeData(const std::string& tableDest, ResultSet *data)
 }
 
 
-void PurgeSystem::purgeTable(const std::string& tableName, const std::string& fieldName, int retentionDays)
+void PurgeSystem::purgeTable(const std::string& tableName, const std::string& fieldName, unsigned long retentionDays)
 {
 	int affected;
 	string conditionValue;
+	affected = 0;
 
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");

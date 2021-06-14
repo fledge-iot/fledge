@@ -725,6 +725,7 @@ INSERT INTO fledge.schedules ( id, schedule_name, process_name, schedule_type,
 --
 -- Purge old information from the fledge database
 -- // FIXME_I:
+-- '23:50:00',                             -- schedule_interval (evey 24 hours)
 INSERT INTO fledge.schedules ( id, schedule_name, process_name, schedule_type,
                                schedule_time, schedule_interval, exclusive, enabled )
 VALUES ( 'd37265f0-c83a-11eb-b8bc-0242ac130003', -- id
@@ -732,9 +733,9 @@ VALUES ( 'd37265f0-c83a-11eb-b8bc-0242ac130003', -- id
          'purge_system',                         -- process_name
          3,                                      -- schedule_type (interval)
          NULL,                                   -- schedule_time
-         '23:50:00',                             -- schedule_interval (evey 24 hours)
+         '00:01:00',                             -- schedule_interval (evey 24 hours)
          't',                                    -- exclusive
-         'f'                                     -- enabled
+         't'                                     -- enabled
        );
 
 

@@ -32,16 +32,16 @@ class PurgeSystem : public FledgeProcess
 	private:
 		Logger        *m_logger;
 		StorageClient *m_storage;
-		int            m_retainStatsHistory;
-		int            m_retainAuditLog;
-		int            m_retainTaskHistory;
+		unsigned long  m_retainStatsHistory;
+		unsigned long  m_retainAuditLog;
+		unsigned long  m_retainTaskHistory;
 
 	private:
 		void           raiseError(const char *reason, ...);
 		void           purgeExecution();
-		void           purgeTable(const std::string& tableName, const std::string& fieldName, int retentionDays);
-		void           historicizeData(int retentionDays);
-		ResultSet     *extractData(const std::string& tableName, const std::string& fieldName, int retentionDays);
+		void           purgeTable(const std::string& tableName, const std::string& fieldName, unsigned long retentionDays);
+		void           historicizeData(unsigned long retentionDays);
+		ResultSet     *extractData(const std::string& tableName, const std::string& fieldName, unsigned long retentionDays);
 		void           storeData(const std::string& tableDest, ResultSet *data);
 		void           processEnd() const;
 		ConfigCategory configurationHandling(const std::string& config);

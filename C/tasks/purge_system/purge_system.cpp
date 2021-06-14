@@ -16,8 +16,6 @@
 #include <thread>
 #include <csignal>
 
-//# FIXME_I:
-#include <tmp_log.hpp>
 
 using namespace std;
 

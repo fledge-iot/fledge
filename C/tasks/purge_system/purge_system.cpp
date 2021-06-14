@@ -189,7 +189,6 @@ void PurgeSystem::historicizeData(int retentionDays)
 		storeData(tableDest, data);
 	}
 
-
 	delete data;
 }
 
@@ -208,12 +207,6 @@ ResultSet *PurgeSystem::extractData(const std::string& tableName, const std::str
 
 	Where *_where     = new Where(fieldName, conditionExpr, conditionValue);
 	Query _query(_where);
-
-//	vector<Returns *> _returns {};
-//	_returns.push_back(new Returns("strftime('%Y', history_ts)", "year") );
-//	_returns.push_back(new Returns("date(history_ts)", "date") );
-//	_returns.push_back(new Returns("key") );
-//	_query.returns(_returns);
 
 	Aggregate *_aggregate = new Aggregate("sum", "value");
 	_query.aggregate(_aggregate);
@@ -251,7 +244,6 @@ void PurgeSystem::storeData(const std::string& tableDest, ResultSet *data)
 
 	try
 	{
-
 		ResultSet::RowIterator item = data->firstRow();
 		do
 		{
@@ -288,7 +280,7 @@ void PurgeSystem::storeData(const std::string& tableDest, ResultSet *data)
 
 	} catch (const std::exception &e) {
 
-		raiseError ("xxx4Failure inserting rows into :%s: ", tableDest.c_str() );
+		raiseError ("xxx4 Failure inserting rows into :%s: error :%s: ", tableDest.c_str(), e.what() );
 	}
 }
 

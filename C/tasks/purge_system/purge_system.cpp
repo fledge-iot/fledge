@@ -257,29 +257,32 @@ void PurgeSystem::storeData(const std::string& tableDest, ResultSet *data)
 		{
 			ResultSet::Row* row = *item;
 
-			fieldDate = row->getColumn("date(history_ts)")->getString();
-			fieldYear = fieldDate.substr(0, 4);
-			fieldKey = row->getColumn("key")->getString();
-			fieldValue = row->getColumn("sum_value")->getNumber();
-
-			InsertValues values;
-			values.push_back(InsertValue("year", fieldYear) );
-			values.push_back(InsertValue("day", fieldDate) );
-			values.push_back(InsertValue("key", fieldKey) );
-			values.push_back(InsertValue("value", fieldValue) );
-
-			affected = m_storage->insertTable(tableDest, values);
-			if (affected == -1)
+			if (row)
 			{
-				raiseError ("xxx4 Failure inserting rows into :%s: ", tableDest.c_str() );
-			}
+				fieldDate = row->getColumn("date(history_ts)")->getString();
+				fieldYear = fieldDate.substr(0, 4);
+				fieldKey = row->getColumn("key")->getString();
+				fieldValue = row->getColumn("sum_value")->getNumber();
 
-			m_logger->debug("xxx4 %s - :%s: affected :%d: inserted :%s: :%s: :%s: :%lf:  ", __FUNCTION__, tableDest.c_str()
-				, affected
-				, fieldYear.c_str()
-				, fieldDate.c_str()
-				, fieldKey.c_str()
-				, fieldValue);
+				InsertValues values;
+				values.push_back(InsertValue("year", fieldYear) );
+				values.push_back(InsertValue("day", fieldDate) );
+				values.push_back(InsertValue("key", fieldKey) );
+				values.push_back(InsertValue("value", fieldValue) );
+
+				affected = m_storage->insertTable(tableDest, values);
+				if (affected == -1)
+				{
+					raiseError ("xxx4 Failure inserting rows into :%s: ", tableDest.c_str() );
+				}
+
+				m_logger->debug("xxx4 %s - :%s: affected :%d: inserted :%s: :%s: :%s: :%lf:  ", __FUNCTION__, tableDest.c_str()
+					, affected
+					, fieldYear.c_str()
+					, fieldDate.c_str()
+					, fieldKey.c_str()
+					, fieldValue);
+			}
 
 		} while (!data->isLastRow(item++));
 

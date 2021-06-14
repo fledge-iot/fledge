@@ -278,7 +278,9 @@ CREATE INDEX statistics_history_ix2
 CREATE INDEX statistics_history_ix3
     ON statistics_history (history_ts);
 
---// FIXME_I:
+-- Contains history data of the statistics_history table
+-- Data are historicized daily
+--
 CREATE TABLE fledge.statistics_history_daily (
     year        DATE DEFAULT (STRFTIME('%Y', 'NOW')),
     day         DATE DEFAULT (STRFTIME('%Y-%m-%d', 'NOW')),
@@ -718,7 +720,10 @@ INSERT INTO fledge.schedules ( id, schedule_name, process_name, schedule_type,
                 't'                                    -- enabled
               );
 
+--
 -- Purge System
+--
+-- Purge old information from the fledge database
 -- // FIXME_I:
 INSERT INTO fledge.schedules ( id, schedule_name, process_name, schedule_type,
                                schedule_time, schedule_interval, exclusive, enabled )
@@ -727,7 +732,7 @@ VALUES ( 'd37265f0-c83a-11eb-b8bc-0242ac130003', -- id
          'purge_system',                         -- process_name
          3,                                      -- schedule_type (interval)
          NULL,                                   -- schedule_time
-         '23:59:00',                             -- schedule_interval (evey 24 hours)
+         '23:50:00',                             -- schedule_interval (evey 24 hours)
          't',                                    -- exclusive
          'f'                                     -- enabled
        );

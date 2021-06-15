@@ -217,9 +217,7 @@ ResultSet *PurgeSystem::extractData(const std::string& tableName, const std::str
 	Logger::getLogger()->setMinLevel("debug");
 
 	const Condition conditionExpr(Older);
-	// FIXME_I:
-	//conditionValue = to_string (retentionDays * 60 * 60 * 24); // the days should be expressed in seconds
-	conditionValue = to_string (retentionDays); // the days should be expressed in seconds
+	conditionValue = to_string (retentionDays * 60 * 60 * 24); // the days should be expressed in seconds
 
 	Where *_where     = new Where(fieldName, conditionExpr, conditionValue);
 	Query _query(_where);
@@ -312,9 +310,7 @@ void PurgeSystem::purgeTable(const std::string& tableName, const std::string& fi
 
 	const Condition conditionExpr(Older);
 
-	// FIXME_I:
-	//conditionValue = to_string (retentionDays * 60 * 60 * 24); // the days should be expressed in seconds
-	conditionValue = to_string (retentionDays); // the days should be expressed in seconds
+	conditionValue = to_string (retentionDays * 60 * 60 * 24); // the days should be expressed in seconds
 	m_logger->debug("xxx2 %s - purging :%s: retention days :%d: conditionValue :%s:", __FUNCTION__, tableName.c_str(), retentionDays, conditionValue.c_str() );
 
 	Where *_where = new Where(fieldName, conditionExpr, conditionValue);

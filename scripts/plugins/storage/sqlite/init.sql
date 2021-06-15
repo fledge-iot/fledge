@@ -278,7 +278,7 @@ CREATE INDEX statistics_history_ix2
 CREATE INDEX statistics_history_ix3
     ON statistics_history (history_ts);
 
--- Contains history data of the statistics_history table
+-- Contains history of the statistics_history table
 -- Data are historicized daily
 --
 CREATE TABLE fledge.statistics_history_daily (
@@ -677,6 +677,7 @@ INSERT INTO fledge.statistics ( key, description, value, previous_value )
 -- Core Tasks
 --
 INSERT INTO fledge.scheduled_processes ( name, script ) VALUES ( 'purge',               '["tasks/purge"]'       );
+INSERT INTO fledge.scheduled_processes (name, script)   VALUES ( 'purge_system',        '["tasks/purge_system"]');
 INSERT INTO fledge.scheduled_processes ( name, script ) VALUES ( 'stats collector',     '["tasks/statistics"]'  );
 INSERT INTO fledge.scheduled_processes ( name, script ) VALUES ( 'FledgeUpdater',       '["tasks/update"]'      );
 INSERT INTO fledge.scheduled_processes ( name, script ) VALUES ( 'certificate checker', '["tasks/check_certs"]' );
@@ -692,7 +693,6 @@ INSERT INTO fledge.scheduled_processes (name, script)   VALUES ( 'south_c',     
 INSERT INTO fledge.scheduled_processes (name, script)   VALUES ( 'notification_c', '["services/notification_c"]' );
 INSERT INTO fledge.scheduled_processes (name, script)   VALUES ( 'north_c',        '["tasks/north_c"]'           );
 INSERT INTO fledge.scheduled_processes (name, script)   VALUES ( 'north',          '["tasks/north"]'             );
-INSERT INTO fledge.scheduled_processes (name, script)   VALUES ( 'purge_system',   '["tasks/purge_system"]'      );
 INSERT INTO fledge.scheduled_processes (name, script)   VALUES ( 'north_C',        '["services/north_C"]'        );
 INSERT INTO fledge.scheduled_processes (name, script)   VALUES ( 'dispatcher_c',   '["services/dispatcher_c"]'   );
 
@@ -724,8 +724,6 @@ INSERT INTO fledge.schedules ( id, schedule_name, process_name, schedule_type,
 -- Purge System
 --
 -- Purge old information from the fledge database
--- // FIXME_I:
--- '23:50:00',                             -- schedule_interval (evey 24 hours)
 INSERT INTO fledge.schedules ( id, schedule_name, process_name, schedule_type,
                                schedule_time, schedule_interval, exclusive, enabled )
 VALUES ( 'd37265f0-c83a-11eb-b8bc-0242ac130003', -- id
@@ -733,7 +731,7 @@ VALUES ( 'd37265f0-c83a-11eb-b8bc-0242ac130003', -- id
          'purge_system',                         -- process_name
          3,                                      -- schedule_type (interval)
          NULL,                                   -- schedule_time
-         '00:01:00',                             -- schedule_interval (evey 24 hours)
+         '23:50:00',                             -- schedule_interval (evey 24 hours)
          't',                                    -- exclusive
          't'                                     -- enabled
        );

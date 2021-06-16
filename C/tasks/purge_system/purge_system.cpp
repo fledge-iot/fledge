@@ -95,9 +95,6 @@ PurgeSystem::~PurgeSystem()
  */
 void PurgeSystem::run()
 {
-	//# FIXME_I
-	m_logger->setMinLevel("debug");
-
 	// We handle these signals, add more if needed
 	std::signal(SIGINT,  signalHandler);
 	std::signal(SIGSTOP, signalHandler);
@@ -121,9 +118,6 @@ void PurgeSystem::run()
 
 	purgeExecution();
 	processEnd();
-
-	//# FIXME_I
-	m_logger->setMinLevel("debug");
 }
 
 /**
@@ -136,7 +130,6 @@ ConfigCategory PurgeSystem::configurationHandling(const std::string& config)
 
 	ConfigCategory configuration;
 
-	//# FIXME_I
 	m_logger->debug("xxx2 %s - categoryName :%s:", __FUNCTION__, categoryName.c_str());
 
 	// Create category, with "default" values only
@@ -159,10 +152,8 @@ void PurgeSystem::purgeExecution()
 {
 	string tableName;
 
-	//# FIXME_I
 	m_logger->info("xxx2 PurgeSystem running");
 
-	//FIXME_I:
 	tableName = "statistics_history";
 	try {
 		historicizeData(m_retainStatsHistory);
@@ -214,29 +205,23 @@ ResultSet *PurgeSystem::extractData(const std::string& tableName, const std::str
 
 	data = nullptr;
 
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-
 	const Condition conditionExpr(Older);
-	// FIXME_I:
-	//conditionValue = to_string (retentionDays * 60 * 60 * 24); // the days should be expressed in seconds
-	conditionValue = to_string (retentionDays); // the days should be expressed in seconds
+	conditionValue = to_string (retentionDays * 60 * 60 * 24); // the days should be expressed in seconds
+	//conditionValue = to_string (retentionDays);
 
 	Where *_where     = new Where(fieldName, conditionExpr, conditionValue);
 	Query _query(_where);
 
-	// FIXME_I:
-	vector<Returns *> _returns {};
-	_returns.push_back(new Returns("date(history_ts)", "date") );
-	_returns.push_back(new Returns("key") );
-	_query.returns(_returns);
+	// Alias handling is ignored because of the presence of the group by
+	//	vector<Returns *> _returns {};
+	//	_returns.push_back(new Returns("date(history_ts)", "date") );
+	//	_returns.push_back(new Returns("key") );
+	//	_query.returns(_returns);
 
 	Aggregate *_aggregate = new Aggregate("sum", "value");
 	_query.aggregate(_aggregate);
 
-	// FIXME_I:
 	_query.group("date(history_ts), key");
-	//_query.group("history_ts");
 
 	try
 	{
@@ -278,8 +263,8 @@ void PurgeSystem::storeData(const std::string& tableDest, ResultSet *data)
 
 			if (row)
 			{
-				// FIXME_I:
-				retrieved = false;
+				// SQLite and PostgreSQL plugins behave differently, it initially tries the code for SQLite and in case
+				// of an error it executes the PostgreSQL one
 				try {
 					fieldDate = row->getColumn("date(history_ts)")->getString();
 					retrieved = true;
@@ -295,8 +280,8 @@ void PurgeSystem::storeData(const std::string& tableDest, ResultSet *data)
 				fieldYear = strtol(fieldDate.substr(0, 4).c_str(), nullptr, 10);
 				fieldKey = row->getColumn("key")->getString();
 
-				// FIXME_I:
-				retrieved = false;
+				// SQLite and PostgreSQL plugins behave differently, it initially tries the code for SQLite and in case
+				// of an error it executes the PostgreSQL one
 				try {
 					fieldValue = row->getColumn("sum_value")->getInteger();
 					retrieved = true;
@@ -309,7 +294,6 @@ void PurgeSystem::storeData(const std::string& tableDest, ResultSet *data)
 				}
 
 				InsertValues values;
-				// FIXME_I:
 				values.push_back(InsertValue("year", fieldYear) );
 				values.push_back(InsertValue("day", fieldDate) );
 				values.push_back(InsertValue("key", fieldKey) );
@@ -326,8 +310,6 @@ void PurgeSystem::storeData(const std::string& tableDest, ResultSet *data)
 				{
 					raiseError ("xxx4 Failure inserting rows into :%s: ", tableDest.c_str() );
 				}
-
-
 			}
 
 		} while (!data->isLastRow(item++));
@@ -345,14 +327,11 @@ void PurgeSystem::purgeTable(const std::string& tableName, const std::string& fi
 	string conditionValue;
 	affected = 0;
 
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-
 	const Condition conditionExpr(Older);
 
-	// FIXME_I:
-	//conditionValue = to_string (retentionDays * 60 * 60 * 24); // the days should be expressed in seconds
-	conditionValue = to_string (retentionDays); // the days should be expressed in seconds
+	conditionValue = to_string (retentionDays * 60 * 60 * 24); // the days should be expressed in seconds
+	//conditionValue = to_string (retentionDays);
+
 	m_logger->debug("xxx2 %s - purging :%s: retention days :%d: conditionValue :%s:", __FUNCTION__, tableName.c_str(), retentionDays, conditionValue.c_str() );
 
 	Where *_where = new Where(fieldName, conditionExpr, conditionValue);
@@ -377,7 +356,6 @@ void PurgeSystem::purgeTable(const std::string& tableName, const std::string& fi
  */
 void PurgeSystem::processEnd() const
 {
-	//# FIXME_I
 	m_logger->info("xxx2 PurgeSystem completed");
 }
 

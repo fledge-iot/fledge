@@ -282,10 +282,10 @@ CREATE INDEX statistics_history_ix3
 -- Data are historicized daily
 --
 CREATE TABLE fledge.statistics_history_daily (
-                                                 year        DATE DEFAULT (STRFTIME('%Y', 'NOW')),
-                                                 day         DATE DEFAULT (STRFTIME('%Y-%m-%d', 'NOW')),
-                                                 key         character varying(56)       NOT NULL,
-                                                 value       bigint                      NOT NULL DEFAULT 0
+    year        DATE DEFAULT (STRFTIME('%Y', 'NOW')),
+    day         DATE DEFAULT (STRFTIME('%Y-%m-%d', 'NOW')),
+    key         character varying(56)       NOT NULL,
+    value       bigint                      NOT NULL DEFAULT 0
 );
 
 CREATE INDEX statistics_history_daily_ix1

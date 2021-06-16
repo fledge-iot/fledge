@@ -66,7 +66,7 @@ void PurgeSystem::raiseError(const char *reason, ...)
 	vsnprintf(buffer, sizeof(buffer), reason, ap);
 	va_end(ap);
 
-	m_logger->error("%PI Web API plugin raising error: %s", buffer);
+	m_logger->error("PurgeSystem raising error: %s", buffer);
 	throw runtime_error(buffer);
 }
 
@@ -162,6 +162,7 @@ void PurgeSystem::purgeExecution()
 	//# FIXME_I
 	m_logger->info("xxx2 PurgeSystem running");
 
+	//FIXME_I:
 	tableName = "statistics_history";
 	try {
 		historicizeData(m_retainStatsHistory);
@@ -217,15 +218,25 @@ ResultSet *PurgeSystem::extractData(const std::string& tableName, const std::str
 	Logger::getLogger()->setMinLevel("debug");
 
 	const Condition conditionExpr(Older);
-	conditionValue = to_string (retentionDays * 60 * 60 * 24); // the days should be expressed in seconds
+	// FIXME_I:
+	//conditionValue = to_string (retentionDays * 60 * 60 * 24); // the days should be expressed in seconds
+	conditionValue = to_string (retentionDays); // the days should be expressed in seconds
 
 	Where *_where     = new Where(fieldName, conditionExpr, conditionValue);
 	Query _query(_where);
 
+	// FIXME_I:
+	vector<Returns *> _returns {};
+	_returns.push_back(new Returns("date(history_ts)", "date") );
+	_returns.push_back(new Returns("key") );
+	_query.returns(_returns);
+
 	Aggregate *_aggregate = new Aggregate("sum", "value");
 	_query.aggregate(_aggregate);
 
+	// FIXME_I:
 	_query.group("date(history_ts), key");
+	//_query.group("history_ts");
 
 	try
 	{
@@ -247,17 +258,19 @@ ResultSet *PurgeSystem::extractData(const std::string& tableName, const std::str
 
 void PurgeSystem::storeData(const std::string& tableDest, ResultSet *data)
 {
-	string fieldYear;
+	long   fieldYear;
 	string fieldDate;
 	string fieldKey;
-	long   fieldValue;
+	long   fieldValue = 0;
 
 	int affected = 0;
 
-	m_logger->debug("xxx4 %s - storing in :%s: rows :%d:", __FUNCTION__, tableDest.c_str(), data->rowCount() );
+	bool retrieved;
 
 	try
 	{
+		m_logger->debug("xxx5 %s - storing in :%s: rows :%d:", __FUNCTION__, tableDest.c_str(), data->rowCount() );
+
 		ResultSet::RowIterator item = data->firstRow();
 		do
 		{
@@ -265,16 +278,48 @@ void PurgeSystem::storeData(const std::string& tableDest, ResultSet *data)
 
 			if (row)
 			{
-				fieldDate = row->getColumn("date(history_ts)")->getString();
-				fieldYear = fieldDate.substr(0, 4);
+				// FIXME_I:
+				retrieved = false;
+				try {
+					fieldDate = row->getColumn("date(history_ts)")->getString();
+					retrieved = true;
+
+				} catch (...) {
+					retrieved = false;
+				}
+				if (! retrieved)
+				{
+					fieldDate = row->getColumn("date")->getString();
+				}
+
+				fieldYear = strtol(fieldDate.substr(0, 4).c_str(), nullptr, 10);
 				fieldKey = row->getColumn("key")->getString();
-				fieldValue = row->getColumn("sum_value")->getInteger();
+
+				// FIXME_I:
+				retrieved = false;
+				try {
+					fieldValue = row->getColumn("sum_value")->getInteger();
+					retrieved = true;
+				} catch (...) {
+					retrieved = false;
+				}
+				if (! retrieved)
+				{
+					fieldValue = strtol(row->getColumn("sum_value")->getString(), nullptr, 10);
+				}
 
 				InsertValues values;
+				// FIXME_I:
 				values.push_back(InsertValue("year", fieldYear) );
 				values.push_back(InsertValue("day", fieldDate) );
 				values.push_back(InsertValue("key", fieldKey) );
 				values.push_back(InsertValue("value", fieldValue) );
+
+				m_logger->debug("xxx5 %s - :%s: inserting :%ld: :%s: :%s: :%ld:  ", __FUNCTION__, tableDest.c_str()
+					, fieldYear
+					, fieldDate.c_str()
+					, fieldKey.c_str()
+					, fieldValue);
 
 				affected = m_storage->insertTable(tableDest, values);
 				if (affected == -1)
@@ -282,12 +327,7 @@ void PurgeSystem::storeData(const std::string& tableDest, ResultSet *data)
 					raiseError ("xxx4 Failure inserting rows into :%s: ", tableDest.c_str() );
 				}
 
-				m_logger->debug("xxx4 %s - :%s: affected :%d: inserted :%s: :%s: :%s: :%ld:  ", __FUNCTION__, tableDest.c_str()
-					, affected
-					, fieldYear.c_str()
-					, fieldDate.c_str()
-					, fieldKey.c_str()
-					, fieldValue);
+
 			}
 
 		} while (!data->isLastRow(item++));
@@ -310,7 +350,9 @@ void PurgeSystem::purgeTable(const std::string& tableName, const std::string& fi
 
 	const Condition conditionExpr(Older);
 
-	conditionValue = to_string (retentionDays * 60 * 60 * 24); // the days should be expressed in seconds
+	// FIXME_I:
+	//conditionValue = to_string (retentionDays * 60 * 60 * 24); // the days should be expressed in seconds
+	conditionValue = to_string (retentionDays); // the days should be expressed in seconds
 	m_logger->debug("xxx2 %s - purging :%s: retention days :%d: conditionValue :%s:", __FUNCTION__, tableName.c_str(), retentionDays, conditionValue.c_str() );
 
 	Where *_where = new Where(fieldName, conditionExpr, conditionValue);

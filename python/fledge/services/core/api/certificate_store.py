@@ -41,11 +41,12 @@ async def get_certs(request):
     keys = []
 
     key_valid_extensions = ('.key', '.pem')
+    short_cert_name_valid_extensions = ('.cert', '.cer', '.crt', '.der')
     certs_root_dir = _get_certs_dir('/etc/certs')
     for root, dirs, files in os.walk(certs_root_dir):
         if not root.endswith(("pem", "json")):
             for f in files:
-                if f.endswith('.cert') or f.endswith('.cer') or f.endswith('.crt'):
+                if f.endswith(short_cert_name_valid_extensions):
                     certs.append(f)
                 if f.endswith(key_valid_extensions):
                     keys.append(f)
@@ -75,6 +76,7 @@ async def upload(request):
         curl -F "cert=@filename.cert" http://localhost:8081/fledge/certificate
         curl -F "cert=@filename.cer" http://localhost:8081/fledge/certificate
         curl -F "cert=@filename.crt" http://localhost:8081/fledge/certificate
+        curl -F "cert=@filename.der" http://localhost:8081/fledge/certificate
         curl -F "key=@filename.key" -F "cert=@filename.cert" -F "overwrite=1" http://localhost:8081/fledge/certificate
     """
     data = await request.post()
@@ -118,7 +120,7 @@ async def upload(request):
             raise web.HTTPForbidden(reason=msg, body=json.dumps({"message": msg}))
 
     key_valid_extensions = ('.key', '.pem')
-    cert_valid_extensions = ('.cert', '.cer', '.crt', '.json', '.pem')
+    cert_valid_extensions = ('.cert', '.cer', '.crt', '.der', '.json', '.pem')
 
     key_filename = None
     if key_file:
@@ -175,13 +177,14 @@ async def delete_certificate(request):
           curl -X DELETE http://localhost:8081/fledge/certificate/user.cert
           curl -X DELETE http://localhost:8081/fledge/certificate/filename.cer
           curl -X DELETE http://localhost:8081/fledge/certificate/filename.crt
+          curl -sX DELETE http://localhost:8081/fledge/certificate/filename.der
           curl -X DELETE http://localhost:8081/fledge/certificate/fledge.json?type=cert
           curl -X DELETE http://localhost:8081/fledge/certificate/fledge.pem?type=cert
           curl -X DELETE http://localhost:8081/fledge/certificate/fledge.pem
           curl -X DELETE http://localhost:8081/fledge/certificate/fledge.pem?type=key
     """
     file_name = request.match_info.get('name', None)
-    valid_extensions = ('.cert', '.cer', '.crt', '.json', '.key', '.pem')
+    valid_extensions = ('.cert', '.cer', '.crt', '.der', '.json', '.key', '.pem')
     if not file_name.endswith(valid_extensions):
         msg = "Accepted file extensions are {}".format(valid_extensions)
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
@@ -211,7 +214,7 @@ async def delete_certificate(request):
     cert_path = list()
 
     if _type and _type == 'cert':
-        short_cert_name_valid_extensions = ('.cert', '.cer', '.crt')
+        short_cert_name_valid_extensions = ('.cert', '.cer', '.crt', '.der')
         if not file_name.endswith(short_cert_name_valid_extensions):
             if os.path.isfile(certs_dir + 'pem/' + file_name):
                 is_found = True

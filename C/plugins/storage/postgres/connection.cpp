@@ -2111,7 +2111,7 @@ bool Connection::jsonAggregates(const Value& payload,
 		}
 		else
 		{
-			// Quotes commented to allow a group by of the type : date(history_ts), key
+			// Double quotes commented to allow a group by of the type : date(history_ts), key
 			//sql.append("\"");
 			sql.append(payload["group"].GetString());
 			//sql.append("\"");
@@ -2217,7 +2217,7 @@ bool Connection::jsonModifiers(const Value& payload, SQLBuffer& sql)
 		}
 		else
 		{
-			// Quotes commented to allow a group by of the type : date(history_ts), key
+			// Double quotes commented to allow a group by of the type : date(history_ts), key
 			//sql.append("\"");
 			sql.append(payload["group"].GetString());
 			//sql.append("\"");

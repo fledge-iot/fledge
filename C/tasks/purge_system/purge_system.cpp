@@ -77,7 +77,7 @@ PurgeSystem::PurgeSystem(int argc, char** argv) : FledgeProcess(argc, argv)
 	paramName = getName();
 
 	m_logger = new Logger(paramName);
-	m_logger->info("xxx2 PurgeSystem starting - parameters name :%s:", paramName.c_str() );
+	m_logger->info("PurgeSystem starting - parameters name :%s:", paramName.c_str() );
 
 	m_retainStatsHistory = 0;
 	m_retainAuditLog = 0;
@@ -111,7 +111,7 @@ void PurgeSystem::run()
 		raiseError ("impossible to retrieve the configuration :%s:", e.what() );
 	}
 
-	m_logger->info("xxx2 configuration retainStatsHistory :%d: retainAuditLog :%d: retainTaskHistory :%d:"
+	m_logger->info("configuration retainStatsHistory :%d: retainAuditLog :%d: retainTaskHistory :%d:"
 				   ,m_retainStatsHistory
 				   ,m_retainAuditLog
 				   ,m_retainTaskHistory);
@@ -130,7 +130,7 @@ ConfigCategory PurgeSystem::configurationHandling(const std::string& config)
 
 	ConfigCategory configuration;
 
-	m_logger->debug("xxx2 %s - categoryName :%s:", __FUNCTION__, categoryName.c_str());
+	m_logger->debug("%s - categoryName :%s:", __FUNCTION__, categoryName.c_str());
 
 	// Create category, with "default" values only
 	DefaultConfigCategory defaultConfig(categoryName, config);
@@ -152,7 +152,7 @@ void PurgeSystem::purgeExecution()
 {
 	string tableName;
 
-	m_logger->info("xxx2 PurgeSystem running");
+	m_logger->info("PurgeSystem running");
 
 	tableName = "statistics_history";
 	try {
@@ -180,7 +180,7 @@ void PurgeSystem::historicizeData(unsigned long retentionDays)
 	fieldName="history_ts";
 	tableDest="statistics_history_daily";
 
-	m_logger->debug("xxx4 %s - v2 historicizing :%s: retention days :%d: ", __FUNCTION__, tableSource.c_str(), retentionDays);
+	m_logger->debug("%s - v2 historicizing :%s: retention days :%d: ", __FUNCTION__, tableSource.c_str(), retentionDays);
 
 	data = extractData(tableSource, fieldName, retentionDays);
 
@@ -236,7 +236,7 @@ ResultSet *PurgeSystem::extractData(const std::string& tableName, const std::str
 		raiseError ("Failure extracting data :%s:", e.what() );
 	}
 
-	m_logger->debug("xxx4 %s - %s rows extracted :%d:", __FUNCTION__, tableName.c_str(), data->rowCount() );
+	m_logger->debug("%s - %s rows extracted :%d:", __FUNCTION__, tableName.c_str(), data->rowCount() );
 
 	return (data);
 }
@@ -254,7 +254,7 @@ void PurgeSystem::storeData(const std::string& tableDest, ResultSet *data)
 
 	try
 	{
-		m_logger->debug("xxx5 %s - storing in :%s: rows :%d:", __FUNCTION__, tableDest.c_str(), data->rowCount() );
+		m_logger->debug("%s - storing in :%s: rows :%d:", __FUNCTION__, tableDest.c_str(), data->rowCount() );
 
 		ResultSet::RowIterator item = data->firstRow();
 		do
@@ -299,7 +299,7 @@ void PurgeSystem::storeData(const std::string& tableDest, ResultSet *data)
 				values.push_back(InsertValue("key", fieldKey) );
 				values.push_back(InsertValue("value", fieldValue) );
 
-				m_logger->debug("xxx5 %s - :%s: inserting :%ld: :%s: :%s: :%ld:  ", __FUNCTION__, tableDest.c_str()
+				m_logger->debug("%s - :%s: inserting :%ld: :%s: :%s: :%ld:  ", __FUNCTION__, tableDest.c_str()
 					, fieldYear
 					, fieldDate.c_str()
 					, fieldKey.c_str()
@@ -308,7 +308,7 @@ void PurgeSystem::storeData(const std::string& tableDest, ResultSet *data)
 				affected = m_storage->insertTable(tableDest, values);
 				if (affected == -1)
 				{
-					raiseError ("xxx4 Failure inserting rows into :%s: ", tableDest.c_str() );
+					raiseError ("Failure inserting rows into :%s: ", tableDest.c_str() );
 				}
 			}
 
@@ -316,7 +316,7 @@ void PurgeSystem::storeData(const std::string& tableDest, ResultSet *data)
 
 	} catch (const std::exception &e) {
 
-		raiseError ("xxx4 Failure inserting rows into :%s: error :%s: ", tableDest.c_str(), e.what() );
+		raiseError ("Failure inserting rows into :%s: error :%s: ", tableDest.c_str(), e.what() );
 	}
 }
 
@@ -332,7 +332,7 @@ void PurgeSystem::purgeTable(const std::string& tableName, const std::string& fi
 	conditionValue = to_string (retentionDays * 60 * 60 * 24); // the days should be expressed in seconds
 	//conditionValue = to_string (retentionDays);
 
-	m_logger->debug("xxx2 %s - purging :%s: retention days :%d: conditionValue :%s:", __FUNCTION__, tableName.c_str(), retentionDays, conditionValue.c_str() );
+	m_logger->debug("%s - purging :%s: retention days :%d: conditionValue :%s:", __FUNCTION__, tableName.c_str(), retentionDays, conditionValue.c_str() );
 
 	Where *_where = new Where(fieldName, conditionExpr, conditionValue);
 	Query _query(_where);
@@ -349,14 +349,14 @@ void PurgeSystem::purgeTable(const std::string& tableName, const std::string& fi
 		raiseError ("Failure purging the table :%s: ", tableName.c_str() );
 	}
 
-	m_logger->debug("xxx2 %s - %s rows purged :%d:", __FUNCTION__, tableName.c_str(), affected);
+	m_logger->debug("%s - %s rows purged :%d:", __FUNCTION__, tableName.c_str(), affected);
 }
 
 /**
  */
 void PurgeSystem::processEnd() const
 {
-	m_logger->info("xxx2 PurgeSystem completed");
+	m_logger->info("PurgeSystem completed");
 }
 
 

@@ -1,5 +1,5 @@
 /*
- * Fledge Statistics History
+ * Fledge Purge System - purge tables in the fledge database
  *
  * Copyright (c) 2021 Dianomic Systems
  *
@@ -15,7 +15,6 @@
 #include <cstdlib>
 #include <thread>
 #include <csignal>
-
 
 using namespace std;
 
@@ -54,7 +53,7 @@ static void signalHandler(int signal)
 }
 
 /**
- *
+ * Error handler - logs the error and raises the exception
  */
 void PurgeSystem::raiseError(const char *reason, ...)
 {
@@ -70,6 +69,9 @@ void PurgeSystem::raiseError(const char *reason, ...)
 	throw runtime_error(buffer);
 }
 
+/**
+ * Constructor for Purge system
+ */
 PurgeSystem::PurgeSystem(int argc, char** argv) : FledgeProcess(argc, argv)
 {
 	string paramName;
@@ -86,8 +88,12 @@ PurgeSystem::PurgeSystem(int argc, char** argv) : FledgeProcess(argc, argv)
 	m_storage = this->getStorageClient();
 }
 
+/**
+ *
+ */
 PurgeSystem::~PurgeSystem()
-= default;
+{
+}
 
 /**
  * PurgeSystem run method, called by the base class
@@ -121,6 +127,9 @@ void PurgeSystem::run()
 }
 
 /**
+ * Retrieves and store the configuration
+ *
+ * @param   config  Default configuration
  */
 ConfigCategory PurgeSystem::configurationHandling(const std::string& config)
 {
@@ -148,6 +157,14 @@ ConfigCategory PurgeSystem::configurationHandling(const std::string& config)
 	return ConfigCategory(configuration);
 }
 
+/**
+ * Execute the purge, store information in an historicization table and delete teh information
+ * the tables currently handled are:
+ *
+ *   - fledge.statistics_history
+ *   - fledge.tasks
+ *   - fledge.log
+ */
 void PurgeSystem::purgeExecution()
 {
 	string tableName;
@@ -168,7 +185,11 @@ void PurgeSystem::purgeExecution()
 	purgeTable("log", "ts", m_retainAuditLog);
 }
 
-
+/**
+ * Store statistics_history details information in a historicization table
+ *
+ * @param   retentionDays  Number of days to retain
+ */
 void PurgeSystem::historicizeData(unsigned long retentionDays)
 {
 	string tableSource;
@@ -180,7 +201,7 @@ void PurgeSystem::historicizeData(unsigned long retentionDays)
 	fieldName="history_ts";
 	tableDest="statistics_history_daily";
 
-	m_logger->debug("%s - v2 historicizing :%s: retention days :%d: ", __FUNCTION__, tableSource.c_str(), retentionDays);
+	m_logger->debug("%s - historicizing :%s: retention days :%d: ", __FUNCTION__, tableSource.c_str(), retentionDays);
 
 	data = extractData(tableSource, fieldName, retentionDays);
 
@@ -198,6 +219,15 @@ void PurgeSystem::historicizeData(unsigned long retentionDays)
 	delete data;
 }
 
+/**
+ * Retrieve grouped information to historicize
+ *
+ * @param   tableName      Name of the table from which the records should be extracted
+ * @param   fieldName      Timestamp on which the where condition should be based on
+ * @param   retentionDays  Number of days to retain
+ *
+ * @return  Retrieved recordset
+ */
 ResultSet *PurgeSystem::extractData(const std::string& tableName, const std::string& fieldName, unsigned long retentionDays)
 {
 	ResultSet *data;
@@ -241,6 +271,12 @@ ResultSet *PurgeSystem::extractData(const std::string& tableName, const std::str
 	return (data);
 }
 
+/**
+ * Store the content of the provided recordset in the given table
+ *
+ * @param   tableDest  Name of the table in which the recordset should be stored
+ * @param   data       recordset to store on the table tableDest
+ */
 void PurgeSystem::storeData(const std::string& tableDest, ResultSet *data)
 {
 	long   fieldYear;
@@ -320,7 +356,13 @@ void PurgeSystem::storeData(const std::string& tableDest, ResultSet *data)
 	}
 }
 
-
+/**
+ * Purge the content of the given table from the information older than a provided number of days
+ *
+ * @param   tableName      Name of the table to purge
+ * @param   fieldName      Timestamp on which the where condition should be based on
+ * @param   retentionDays  Number of days to retain
+ */
 void PurgeSystem::purgeTable(const std::string& tableName, const std::string& fieldName, unsigned long retentionDays)
 {
 	int affected;
@@ -353,10 +395,10 @@ void PurgeSystem::purgeTable(const std::string& tableName, const std::string& fi
 }
 
 /**
+ * Terminate the operation
+ *
  */
 void PurgeSystem::processEnd() const
 {
 	m_logger->info("PurgeSystem completed");
 }
-
-

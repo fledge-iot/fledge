@@ -17,9 +17,6 @@ int main(int argc, char** argv)
 {
 	Logger *logger = new Logger(LOG_NAME);
 
-	//# FIXME_I
-	logger->setMinLevel("debug");
-
 	try
 	{
 		PurgeSystem PurgeSystem(argc, argv);
@@ -39,9 +36,6 @@ int main(int argc, char** argv)
 		logger->error("An error occurred during the execution V2 :%s: ", name.c_str() );
 		exit(1);
 	}
-
-	//# FIXME_I
-	logger->setMinLevel("warning");
 
 	// Return success
 	exit(0);

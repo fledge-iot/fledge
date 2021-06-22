@@ -33,6 +33,14 @@ enum OMF_ENDPOINT {
 	ENDPOINT_EDS
 };
 
+enum NAMINGSCHEME_ENDPOINT {
+	NAMINGSCHEME_CONCISE,
+	NAMINGSCHEME_SUFFIX,
+	NAMINGSCHEME_HASH,
+	NAMINGSCHEME_COMPATIBILITY
+};
+
+
 using namespace std;
 using namespace rapidjson;
 
@@ -113,6 +121,12 @@ class OMF
 
 		// Set which PIServer component should be used for the communication
 		void setPIServerEndpoint(const OMF_ENDPOINT PIServerEndpoint);
+
+		// Set the naming sche of the objects in the endpoint
+		void setNamingScheme(const NAMINGSCHEME_ENDPOINT namingScheme) {m_NamingScheme = namingScheme;};
+
+		// FIXME_I:
+		std::string suffixType(long typeId);
 
 		// Set the first level of hierarchy in Asset Framework in which the assets will be created, PI Web API only.
 		void setDefaultAFLocation(const std::string &DefaultAFLocation);
@@ -281,12 +295,13 @@ private:
 			unsigned long valueLong = 0;
 		};
 
-		std::string	        m_assetName;
-		const std::string	m_path;
-		long			    m_typeId;
-		const std::string	m_producerToken;
-		OMF_ENDPOINT		m_PIServerEndpoint;
-		std::string		    m_DefaultAFLocation;
+		std::string	          m_assetName;
+		const std::string	  m_path;
+		long			      m_typeId;
+		const std::string	  m_producerToken;
+		OMF_ENDPOINT		  m_PIServerEndpoint;
+		NAMINGSCHEME_ENDPOINT m_NamingScheme;
+		std::string		      m_DefaultAFLocation;
 
 		bool            m_sendFullStructure;
 		// AF hierarchies handling - Metadata MAP

@@ -1939,6 +1939,13 @@ const std::string OMF::createContainerData(const Reading& reading, OMFHints *hin
  */
 const std::string OMF::createStaticData(const Reading& reading)
 {
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx3 %s - ", __FUNCTION__);
+	Logger::getLogger()->setMinLevel("warning");
+
+
 	string assetName;
 	// Build the Static data (JSON Array)
 	string sData = "[";
@@ -1985,15 +1992,41 @@ const std::string OMF::createStaticData(const Reading& reading)
 
 		retrieveAFHierarchyPrefixAssetName(assetName, AFHierarchyPrefix, AFHierarchyLevel);
 
-		sData.append(assetName + AF_TYPES_SUFFIX + to_string(typeId));
+		sData.append(assetName + suffixType(typeId));
 		sData.append("\", \"AssetId\": \"");
-		sData.append("A_" + AFHierarchyPrefix + "_" + assetName + AF_TYPES_SUFFIX + to_string(typeId));
+		sData.append("A_" + AFHierarchyPrefix + "_" + assetName + suffixType(typeId) );
 	}
 
 	sData.append("\"}]}]");
 
 	// Return JSON string
 	return sData;
+}
+
+// FIXME_I:
+std::string OMF::suffixType(long typeId)
+{
+	std::string suffix;
+
+	if (m_NamingScheme == NAMINGSCHEME_COMPATIBILITY ||
+		m_NamingScheme == NAMINGSCHEME_SUFFIX)
+	{
+		suffix = AF_TYPES_SUFFIX + to_string(typeId);
+
+	} else {
+		if (typeId > 1)
+		{
+			suffix = AF_TYPES_SUFFIX + to_string(typeId);
+		}
+
+	}
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx4 %s - NamingScheme :%d: typeId :%ld: suffix :%s:", __FUNCTION__, m_NamingScheme, typeId, suffix.c_str());
+	Logger::getLogger()->setMinLevel("warning");
+
+	return(suffix);
 }
 
 /**
@@ -2059,7 +2092,7 @@ std::string OMF::createLinkData(const Reading& reading,  std::string& AFHierarch
 		StringReplace(tmpStr, "_placeholder_src_type_", AFHierarchyPrefix + "_" + AFHierarchyLevel + "_typeid");
 		StringReplace(tmpStr, "_placeholder_src_idx_",  AFHierarchyPrefix + "_" + AFHierarchyLevel );
 		StringReplace(tmpStr, "_placeholder_tgt_type_", targetTypeId);
-		StringReplace(tmpStr, "_placeholder_tgt_idx_",  "A_" + objectPrefix + "_" + assetName + AF_TYPES_SUFFIX +  to_string(typeId));
+		StringReplace(tmpStr, "_placeholder_tgt_idx_",  "A_" + objectPrefix + "_" + assetName + suffixType(typeId) );
 
 		lData.append(tmpStr);
 		lData.append(",");
@@ -2087,7 +2120,7 @@ std::string OMF::createLinkData(const Reading& reading,  std::string& AFHierarch
 	}
 	else if (m_PIServerEndpoint == ENDPOINT_PIWEB_API)
 	{
-		lData.append("A_" + objectPrefix + "_" + assetName + AF_TYPES_SUFFIX + to_string(typeId));
+		lData.append("A_" + objectPrefix + "_" + assetName + suffixType(typeId) );
 	}
 
 	measurementId = to_string(OMF::getAssetTypeId(assetName)) + "measurement_" + assetName;

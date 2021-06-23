@@ -126,7 +126,10 @@ class OMF
 		void setNamingScheme(const NAMINGSCHEME_ENDPOINT namingScheme) {m_NamingScheme = namingScheme;};
 
 		// FIXME_I:
-		std::string suffixType(long typeId);
+		std::string generateSuffixType(long typeId);
+
+		// FIXME_I:
+		std::string generateMeasurementId(string& assetName);
 
 		// Set the first level of hierarchy in Asset Framework in which the assets will be created, PI Web API only.
 		void setDefaultAFLocation(const std::string &DefaultAFLocation);
@@ -396,7 +399,7 @@ class OMFData
 {
 	public:
 		OMFData(const Reading& reading,
-			const long typeId,
+			string measurementId,
 			const OMF_ENDPOINT PIServerEndpoint = ENDPOINT_CR,
 			const std::string& DefaultAFLocation = std::string(),
 			OMFHints *hints = NULL);

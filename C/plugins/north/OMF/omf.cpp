@@ -124,6 +124,12 @@ OMFData::OMFData(const Reading& reading, string measurementId, const OMF_ENDPOIN
 	string outData;
 	bool changed;
 
+	// FIXME_I:
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx2 %s - measurementId :%s: ", __FUNCTION__, measurementId.c_str());
+	Logger::getLogger()->setMinLevel("warning");
+
+
 	// Apply any TagName hints to modify the containerid
 	if (hints)
 	{
@@ -1157,9 +1163,6 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			keyComplete = AFHierarchyPrefix + "_" + m_assetName;
 		}
 
-		// FIXME_I:
-		measurementId = generateMeasurementId(m_assetName);
-
 		if (! usingTagHint)
 		{
 			/*
@@ -1258,6 +1261,9 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			// Create the key for dataTypes sending once
 			typeId = OMF::getAssetTypeId(m_assetName);
 		}
+
+		// FIXME_I:
+		measurementId = generateMeasurementId(m_assetName);
 
 		string outData = OMFData(*reading, measurementId, m_PIServerEndpoint, AFHierarchyPrefix, hints ).OMFdataVal();
 		if (!outData.empty())

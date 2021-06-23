@@ -27,6 +27,7 @@ north_plugin = "OMF"
 north_service_name="NorthReadingsToPI_WebAPI"
 north_schedule_id=""
 filter1_name="SF1"
+filter2_name="MD1"
 # This  gives the path of directory where fledge is cloned. test_file < packages < python < system < tests < ROOT
 PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.parent
 SCRIPTS_DIR_ROOT = "{}/tests/system/python/scripts/package/".format(PROJECT_ROOT)
@@ -45,10 +46,8 @@ def reset_fledge(wait_time):
 
 
 @pytest.fixture
-#def start_south_north(clean_setup_fledge_packages, add_south, start_north_pi_server_c_web_api_service, fledge_url, 
-#                        pi_host, pi_port, pi_admin, pi_passwd):
-def start_south_north(add_south, start_north_pi_server_c_web_api_service, fledge_url, 
-                        pi_host, pi_port, pi_admin, pi_passwd):    
+def start_south_north(clean_setup_fledge_packages, add_south, start_north_pi_server_c_web_api_service, fledge_url, 
+                        pi_host, pi_port, pi_admin, pi_passwd):
     global north_schedule_id
     
     add_south(south_plugin, None, fledge_url, service_name="{}".format(south_service_name), installation_type='package')
@@ -125,6 +124,7 @@ def verify_filter_added(fledge_url):
     result = utils.get_request(fledge_url, get_url)
     assert len(result["filters"])
     assert filter1_name in [s["name"] for s in result["filters"]]
+    return result
 
 
 def verify_asset(fledge_url):
@@ -509,7 +509,6 @@ class TestOMFNorthServicewithFilters:
         
         delete_url = "/fledge/filter/{}".format(filter1_name)
         resp = utils.delete_request(fledge_url, delete_url)
-        print (resp)
         assert "Filter {} deleted successfully".format(filter1_name) == resp['result']
         
         # Wait for service to get deleted
@@ -530,5 +529,61 @@ class TestOMFNorthServicewithFilters:
         
         new_ping_result = verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
         # Verifies whether Read and Sent readings are increasing after delete/add of north service
+        assert old_ping_result['dataRead'] < new_ping_result['dataRead']
+        assert old_ping_result['dataSent'] < new_ping_result['dataSent']
+        
+    def test_omf_service_with_filter_reorder(self, reset_fledge, start_south_north, add_configure_filter, add_filter, skip_verify_north_interface, fledge_url, wait_time, retries, pi_host, pi_port, pi_admin, pi_passwd):
+        """ Test OMF as a North service by deleting and adding north service.
+            remove_and_add_pkgs: Fixture to remove and install latest fledge packages
+            reset_fledge: Fixture to reset fledge
+            start_south_north: Adds and configures south(sinusoid) and north(OMF) service
+            Assertions:
+                on endpoint GET /fledge/south
+                on endpoint GET /fledge/ping
+                on endpoint GET /fledge/asset"""       
+        
+        # Wait until south and north services are created
+        time.sleep(wait_time)
+        
+        verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)        
+        verify_asset(fledge_url)
+        verify_service_added(fledge_url)      
+        verify_filter_added(fledge_url)  
+        verify_statistics_map(fledge_url, skip_verify_north_interface)  
+
+        # Adding second filter
+        filter_cfg_meta = {"enable": "true"}
+        resp = add_filter("metadata", None, filter2_name, filter_cfg_meta, fledge_url, north_service_name, installation_type='package')
+        
+        # Wait for filter to get added
+        time.sleep(wait_time)
+      
+        result = verify_filter_added(fledge_url)
+        assert filter2_name in [s["name"] for s in result["filters"]]
+        
+        # Verify the filter pipeline order
+        get_url = "/fledge/filter/{}/pipeline".format(north_service_name)
+        resp = utils.get_request(fledge_url, get_url)
+        assert filter1_name == resp['result']['pipeline'][0]
+        assert filter2_name == resp['result']['pipeline'][1]
+        
+        data = {"pipeline": ["{}".format(filter2_name), "{}".format(filter1_name)]}
+        put_url = "/fledge/filter/{}/pipeline?allow_duplicates=true&append_filter=false" \
+            .format(north_service_name)
+        resp = utils.put_request(fledge_url, urllib.parse.quote(put_url, safe='?,=,&,/'), data)
+        
+        # Verify the filter pipeline order
+        get_url = "/fledge/filter/{}/pipeline".format(north_service_name)
+        resp = utils.get_request(fledge_url, get_url)
+        assert filter2_name == resp['result']['pipeline'][0]
+        assert filter1_name == resp['result']['pipeline'][1]
+        
+        old_ping_result = verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
+        
+        # Wait for read and sent readings to increase
+        time.sleep(wait_time)
+        
+        new_ping_result = verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
+        # Verifies whether Read and Sent readings are increasing after reordering of filters
         assert old_ping_result['dataRead'] < new_ping_result['dataRead']
         assert old_ping_result['dataSent'] < new_ping_result['dataSent']

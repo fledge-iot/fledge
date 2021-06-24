@@ -372,7 +372,8 @@ class TestOMFNorthService:
         new_ping_result = verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
         # Verifies whether Read and Sent readings are increasing after delete/add of north service
         assert old_ping_result['dataRead'] < new_ping_result['dataRead']
-        assert old_ping_result['dataSent'] < new_ping_result['dataSent']
+        if not skip_verify_north_interface:
+            assert old_ping_result['dataSent'] == new_ping_result['dataSent']
 
         # Bad reconfiguration to check data is not sent
         data = {"PIWebAPIUserId": "Admin"}

@@ -182,6 +182,8 @@ const string two_translated_readings = "[{\"containerid\": \"" + to_string(TYPE_
 // Compare translated readings with a provided JSON value
 TEST(OMF_transation, TwoTranslationsCompareResult)
 {
+	string measurementId;
+
 	// Build a ReadingSet from JSON
 	ReadingSet readingSet(two_readings);
 
@@ -193,8 +195,10 @@ TEST(OMF_transation, TwoTranslationsCompareResult)
 							elem != readingSet.getAllReadings().end();
 							++elem)
 	{
+		measurementId = to_string(TYPE_ID) + "measurement_luxometer";
+
 		// Add into JSON string the OMF transformed Reading data
-		jsonData << OMFData(**elem, TYPE_ID).OMFdataVal() << (elem < (readingSet.getAllReadings().end() - 1 ) ? ", " : "");
+		jsonData << OMFData(**elem, measurementId).OMFdataVal() << (elem < (readingSet.getAllReadings().end() - 1 ) ? ", " : "");
 	}
 
 	jsonData << "]";
@@ -206,6 +210,8 @@ TEST(OMF_transation, TwoTranslationsCompareResult)
 // Create ONE reading, convert it and run checks
 TEST(OMF_transation, OneReading)
 {
+	string measurementId;
+
 	ostringstream jsonData;
 	string strVal("printer");
         DatapointValue value(strVal);
@@ -216,12 +222,14 @@ TEST(OMF_transation, OneReading)
 	DatapointValue id((long) 3001);
 	lab.addDatapoint(new Datapoint("id", id));
 
+	measurementId = "dummy";
+
 	// Create the OMF Json data
 	jsonData << "[";
-	jsonData << OMFData(lab, TYPE_ID).OMFdataVal();
+	jsonData << OMFData(lab, measurementId).OMFdataVal();
 	jsonData << "]";
 
-	// "values" key is in the output 
+	// "values" key is in the output
 	ASSERT_NE(jsonData.str().find(string("\"values\" : { ")), 0);
 
 	// Parse JSON of translated data
@@ -283,6 +291,8 @@ TEST(OMF_transation, SuperSet)
 // Compare translated readings with a provided JSON value
 TEST(OMF_transation, AllReadingsWithUnsupportedTypes)
 {
+	string measurementId;
+
 	// Build a ReadingSet from JSON
 	ReadingSet readingSet(all_readings_with_unsupported_datapoints_types);
 
@@ -295,7 +305,9 @@ TEST(OMF_transation, AllReadingsWithUnsupportedTypes)
 	     elem != readingSet.getAllReadings().end();
 	     ++elem)
 	{
-		string rData =  OMFData(**elem, TYPE_ID).OMFdataVal();
+		measurementId = "dummy";
+
+		string rData =  OMFData(**elem, measurementId).OMFdataVal();
 		// Add into JSON string the OMF transformed Reading data
 		if (!rData.empty())
 		{
@@ -324,6 +336,8 @@ TEST(OMF_transation, AllReadingsWithUnsupportedTypes)
 // Compare translated readings with a provided JSON value
 TEST(OMF_transation, ReadingsWithUnsupportedTypes)
 {
+	string measurementId;
+
 	// Build a ReadingSet from JSON
 	ReadingSet readingSet(readings_with_unsupported_datapoints_types);
 
@@ -336,7 +350,9 @@ TEST(OMF_transation, ReadingsWithUnsupportedTypes)
 	     elem != readingSet.getAllReadings().end();
 	     ++elem)
 	{
-		string rData =  OMFData(**elem, TYPE_ID).OMFdataVal();
+		measurementId = "dummy";
+
+		string rData =  OMFData(**elem, measurementId).OMFdataVal();
 		// Add into JSON string the OMF transformed Reading data
 		if (!rData.empty())
 		{
@@ -406,7 +422,7 @@ TEST(OMF_AfHierarchy, HandleAFMapEmpty)
 	// Dummy initializations
 	SimpleHttps sender("0.0.0.0:0", 10, 10, 10, 1);
 	OMF omf(sender, "/", 1, "ABC");
-	
+
 	// Test
 	omf.setAFMap(af_hierarchy_test02);
 
@@ -422,7 +438,7 @@ TEST(OMF_AfHierarchy, HandleAFMapNamesBad)
 	Document JSon;
 
 	map<std::string, std::string> MetadataRulesExist;
-	
+
 	// Dummy initializations
 	SimpleHttps sender("0.0.0.0:0", 10, 10, 10, 1);
 	OMF omf(sender, "/", 1, "ABC");
@@ -471,4 +487,74 @@ TEST(PiServer_NamingRules, NamingRulesCheck)
 	ASSERT_EQ(omf.ApplyPIServerNamingRulesInvalidChars("asset_\b1", &changed), "asset__1");
 	ASSERT_EQ(omf.ApplyPIServerNamingRulesInvalidChars("asset_\r1", &changed), "asset__1");
 	ASSERT_EQ(omf.ApplyPIServerNamingRulesInvalidChars("asset_\\1", &changed), "asset__1");
+}
+
+TEST(PiServer_NamingRules, Suffix)
+{
+	// Dummy initializations
+	SimpleHttps sender("0.0.0.0:0", 10, 10, 10, 1);
+	OMF omf(sender, "/", 1, "ABC");
+
+	omf.setNamingScheme(NAMINGSCHEME_CONCISE);
+	ASSERT_EQ(omf.generateSuffixType(1), "");
+	ASSERT_EQ(omf.generateSuffixType(2), "-type2");
+	ASSERT_EQ(omf.generateSuffixType(3), "-type3");
+
+	omf.setNamingScheme(NAMINGSCHEME_SUFFIX);
+	ASSERT_EQ(omf.generateSuffixType(1), "-type1");
+	ASSERT_EQ(omf.generateSuffixType(2), "-type2");
+	ASSERT_EQ(omf.generateSuffixType(3), "-type3");
+
+	omf.setNamingScheme(NAMINGSCHEME_HASH);
+	ASSERT_EQ(omf.generateSuffixType(1), "");
+	ASSERT_EQ(omf.generateSuffixType(2), "-type2");
+	ASSERT_EQ(omf.generateSuffixType(3), "-type3");
+
+	omf.setNamingScheme(NAMINGSCHEME_COMPATIBILITY);
+	ASSERT_EQ(omf.generateSuffixType(1), "-type1");
+	ASSERT_EQ(omf.generateSuffixType(2), "-type2");
+	ASSERT_EQ(omf.generateSuffixType(3), "-type3");
+}
+
+TEST(PiServer_NamingRules, Prefix)
+{
+	string asset;
+
+	// Dummy initializations
+	SimpleHttps sender("0.0.0.0:0", 10, 10, 10, 1);
+	OMF omf(sender, "/", 1, "ABC");
+
+	asset="asset_1";
+
+	{ // ENDPOINT_PIWEB_API
+
+		omf.setPIServerEndpoint(ENDPOINT_PIWEB_API);
+		omf.setNamingScheme(NAMINGSCHEME_CONCISE);
+		ASSERT_EQ(omf.generateMeasurementId(asset), asset);
+
+		omf.setNamingScheme(NAMINGSCHEME_SUFFIX);
+		ASSERT_EQ(omf.generateMeasurementId(asset), asset);
+
+		omf.setNamingScheme(NAMINGSCHEME_HASH);
+		ASSERT_EQ(omf.generateMeasurementId(asset), "_1measurement_" + asset);
+
+		omf.setNamingScheme(NAMINGSCHEME_COMPATIBILITY);
+		ASSERT_EQ(omf.generateMeasurementId(asset), "_1measurement_" + asset);
+	}
+
+	{ // ENDPOINT_EDS
+
+		omf.setPIServerEndpoint(ENDPOINT_EDS);
+		omf.setNamingScheme(NAMINGSCHEME_CONCISE);
+		ASSERT_EQ(omf.generateMeasurementId(asset), asset);
+
+		omf.setNamingScheme(NAMINGSCHEME_SUFFIX);
+		ASSERT_EQ(omf.generateMeasurementId(asset), asset);
+
+		omf.setNamingScheme(NAMINGSCHEME_HASH);
+		ASSERT_EQ(omf.generateMeasurementId(asset), "1measurement_" + asset);
+
+		omf.setNamingScheme(NAMINGSCHEME_COMPATIBILITY);
+		ASSERT_EQ(omf.generateMeasurementId(asset), "1measurement_" + asset);
+	}
 }

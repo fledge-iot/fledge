@@ -129,7 +129,7 @@ class OMF
 		std::string generateSuffixType(long typeId);
 
 		// FIXME_I:
-		std::string generateMeasurementId(string& assetName);
+		std::string generateMeasurementId(const string& assetName);
 
 		// Set the first level of hierarchy in Asset Framework in which the assets will be created, PI Web API only.
 		void setDefaultAFLocation(const std::string &DefaultAFLocation);

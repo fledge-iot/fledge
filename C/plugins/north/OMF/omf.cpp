@@ -1931,7 +1931,7 @@ const std::string OMF::createContainerData(const Reading& reading, OMFHints *hin
 }
 
 // FIXME_I:
-std::string OMF::generateMeasurementId(string& assetName)
+std::string OMF::generateMeasurementId(const string& assetName)
 {
 	std::string measurementId;
 

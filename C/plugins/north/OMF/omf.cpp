@@ -1942,18 +1942,6 @@ std::string OMF::generateMeasurementId(const string& assetName)
 
 	typeId = OMF::getAssetTypeId(assetName);
 
-	//###   #########################################################################################:
-//	measurementId = to_string(typeId) + "measurement_" + assetName;
-//
-//	// Add the 1st level of AFHierarchy as a prefix to the name in case of PI Web API
-//	if (m_PIServerEndpoint == ENDPOINT_PIWEB_API)
-//	{
-//		retrieveAFHierarchyPrefixAssetName(assetName, AFHierarchyPrefix, AFHierarchyLevel);
-//
-//		measurementId = AFHierarchyPrefix + "_" + measurementId;
-//	}
-	//###   #########################################################################################:
-
 	if (m_NamingScheme == NAMINGSCHEME_COMPATIBILITY ||
 		m_NamingScheme == NAMINGSCHEME_HASH)
 	{

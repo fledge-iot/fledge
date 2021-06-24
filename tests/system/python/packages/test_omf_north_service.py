@@ -617,7 +617,7 @@ class TestOMFNorthServicewithFilters:
                                                 read_data_from_pi_web_api,
                                                 skip_verify_north_interface, fledge_url, wait_time, retries, pi_host,
                                                 pi_port, pi_admin, pi_passwd, pi_db):
-        """ Test OMF as a North service by deleting and adding north service.
+        """ Test OMF as a North service by deleting filter attached to north service.
             reset_fledge: Fixture to reset fledge
             start_south_north: Adds and configures south(sinusoid) and north(OMF) service
             read_data_from_pi_web_api: Fixture to read data from PI web API
@@ -681,7 +681,7 @@ class TestOMFNorthServicewithFilters:
                                              read_data_from_pi_web_api,
                                              skip_verify_north_interface, fledge_url, wait_time, retries, pi_host,
                                              pi_port, pi_admin, pi_passwd, pi_db):
-        """ Test OMF as a North service by deleting and adding north service.
+        """ Test OMF as a North service by reordering filters attached to north service.
             reset_fledge: Fixture to reset fledge
             start_south_north: Adds and configures south(sinusoid) and north(OMF) service
             read_data_from_pi_web_api: Fixture to read data from PI web API

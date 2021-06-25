@@ -37,9 +37,6 @@ def reset_fledge(wait_time):
     except subprocess.CalledProcessError:
         assert False, "reset package script failed!"
 
-    # Wait for fledge server to start
-    time.sleep(wait_time)
-
 
 @pytest.fixture
 def start_south_north(add_south, start_north_omf_as_a_service, fledge_url,
@@ -189,7 +186,7 @@ class TestOMFNorthService:
                 on endpoint GET /fledge/asset
                 on endpoint GET /fledge/track"""
 
-        # Wait until south and north services are created
+        # Wait until south and north services are created and some data is loaded
         time.sleep(wait_time)
 
         verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
@@ -237,7 +234,7 @@ class TestOMFNorthService:
                 on endpoint GET /fledge/asset
                 on endpoint GET /fledge/track"""
 
-        # Wait until south and north services are created
+        # Wait until south and north services are created and some data is loaded
         time.sleep(wait_time)
 
         verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
@@ -250,9 +247,6 @@ class TestOMFNorthService:
         put_url = "/fledge/schedule/{}".format(north_schedule_id)
         resp = utils.put_request(fledge_url, urllib.parse.quote(put_url), data)
         assert False == resp['schedule']['enabled']
-
-        # Wait for service to disable
-        time.sleep(wait_time)
 
         data = {"enabled": "true"}
         put_url = "/fledge/schedule/{}".format(north_schedule_id)
@@ -294,7 +288,7 @@ class TestOMFNorthService:
 
         global north_schedule_id
 
-        # Wait until south and north services are created
+        # Wait until south and north services are created and some data is loaded
         time.sleep(wait_time)
 
         verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
@@ -306,9 +300,6 @@ class TestOMFNorthService:
         delete_url = "/fledge/service/{}".format(north_service_name)
         resp = utils.delete_request(fledge_url, delete_url)
         assert "Service {} deleted successfully.".format(north_service_name) == resp['result']
-
-        # Wait for service to get deleted
-        time.sleep(wait_time)
 
         response = start_north_omf_as_a_service(fledge_url, pi_host, pi_port, pi_user=pi_admin,
                                                            pi_pwd=pi_passwd)
@@ -346,7 +337,7 @@ class TestOMFNorthService:
                 on endpoint GET /fledge/asset
                 on endpoint GET /fledge/track"""
 
-        # Wait until south and north services are created
+        # Wait until south and north services are created and some data is loaded
         time.sleep(wait_time)
 
         verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
@@ -360,9 +351,6 @@ class TestOMFNorthService:
         put_url = "/fledge/category/{}".format(north_service_name)
         resp = utils.put_request(fledge_url, urllib.parse.quote(put_url), data)
         assert "false" == resp["SendFullStructure"]["value"]
-
-        # Wait for service reconfiguration
-        time.sleep(wait_time)
 
         old_ping_result = verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
 
@@ -380,9 +368,6 @@ class TestOMFNorthService:
         put_url = "/fledge/category/{}".format(north_service_name)
         resp = utils.put_request(fledge_url, urllib.parse.quote(put_url), data)
         assert "Admin" == resp["PIWebAPIUserId"]["value"]
-
-        # Wait for service reconfiguration
-        time.sleep(wait_time)
 
         old_ping_result = verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
 
@@ -419,7 +404,7 @@ class TestOMFNorthServicewithFilters:
                 on endpoint GET /fledge/asset
                 on endpoint GET /fledge/track"""
 
-        # Wait until south, north services and filters are created
+        # Wait until south, north services and filters are created and some data is loaded
         time.sleep(wait_time)
 
         old_ping_result = verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
@@ -460,7 +445,7 @@ class TestOMFNorthServicewithFilters:
                 on endpoint GET /fledge/asset
                 on endpoint GET /fledge/track"""
 
-        # Wait until south, north services and filters are created
+        # Wait until south, north services and filters are created and some data is loaded
         time.sleep(wait_time)
 
         verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
@@ -474,9 +459,6 @@ class TestOMFNorthServicewithFilters:
         put_url = "/fledge/category/{}_SF1".format(north_service_name)
         resp = utils.put_request(fledge_url, urllib.parse.quote(put_url), data)
         assert "false" == resp['enable']['value']
-
-        # Wait for service to disable
-        time.sleep(wait_time)
 
         data = {"enable": "true"}
         put_url = "/fledge/category/{}_SF1".format(north_service_name)
@@ -516,7 +498,7 @@ class TestOMFNorthServicewithFilters:
                 on endpoint GET /fledge/asset
                 on endpoint GET /fledge/track"""
 
-        # Wait until south, north services and filters are created
+        # Wait until south, north services and filters are created and some data is loaded
         time.sleep(wait_time)
 
         verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
@@ -530,9 +512,6 @@ class TestOMFNorthServicewithFilters:
         put_url = "/fledge/category/{}_SF1".format(north_service_name)
         resp = utils.put_request(fledge_url, urllib.parse.quote(put_url), data)
         assert "50.0" == resp['factor']['value']
-
-        # Wait for filter reconfiguration
-        time.sleep(wait_time)
 
         old_ping_result = verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
 
@@ -570,7 +549,7 @@ class TestOMFNorthServicewithFilters:
 
         global north_schedule_id
 
-        # Wait until south, north services and filters are created
+        # Wait until south, north services and filters are created and some data is loaded
         time.sleep(wait_time)
 
         verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
@@ -584,18 +563,12 @@ class TestOMFNorthServicewithFilters:
         resp = utils.delete_request(fledge_url, delete_url)
         assert "Service {} deleted successfully.".format(north_service_name) == resp['result']
 
-        # Wait for service to get deleted
-        time.sleep(wait_time)
-
         response = start_north_omf_as_a_service(fledge_url, pi_host, pi_port, pi_user=pi_admin,
                                                            pi_pwd=pi_passwd)
         north_schedule_id = response["id"]
 
         filter_cfg_scale = {"enable": "true"}
         add_filter("scale", None, "SF2", filter_cfg_scale, fledge_url, north_service_name, installation_type='package')
-
-        # Wait for service and filter to get added
-        time.sleep(wait_time)
 
         verify_service_added(fledge_url)
         verify_filter_added(fledge_url)
@@ -633,7 +606,7 @@ class TestOMFNorthServicewithFilters:
                 on endpoint GET /fledge/asset
                 on endpoint GET /fledge/track"""
 
-        # Wait until south, north services and filters are created
+        # Wait until south, north services and filters are created and some data is loaded
         time.sleep(wait_time)
 
         verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
@@ -652,15 +625,9 @@ class TestOMFNorthServicewithFilters:
         resp = utils.delete_request(fledge_url, delete_url)
         assert "Filter {} deleted successfully".format(filter1_name) == resp['result']
 
-        # Wait for filter to get deleted
-        time.sleep(wait_time)
-
         filter_cfg_scale = {"enable": "true"}
         add_filter("scale", None, filter1_name, filter_cfg_scale, fledge_url, north_service_name,
                    installation_type='package')
-
-        # Wait for filter to get added
-        time.sleep(wait_time)
 
         verify_filter_added(fledge_url)
 
@@ -697,7 +664,7 @@ class TestOMFNorthServicewithFilters:
                 on endpoint GET /fledge/asset
                 on endpoint GET /fledge/track"""
 
-        # Wait until south, north services and filters are created
+        # Wait until south, north services and filters are created and some data is loaded
         time.sleep(wait_time)
 
         verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
@@ -711,9 +678,6 @@ class TestOMFNorthServicewithFilters:
         filter_cfg_meta = {"enable": "true"}
         add_filter("metadata", None, filter2_name, filter_cfg_meta, fledge_url, north_service_name,
                    installation_type='package')
-
-        # Wait for filter to get added
-        time.sleep(wait_time)
 
         result = verify_filter_added(fledge_url)
         assert filter2_name in [s["name"] for s in result["filters"]]

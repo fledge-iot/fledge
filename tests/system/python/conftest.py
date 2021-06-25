@@ -18,6 +18,7 @@ import ssl
 import shutil
 import pytest
 from urllib.parse import quote
+from pathlib import Path
 
 __author__ = "Vaibhav Singhal"
 __copyright__ = "Copyright (c) 2019 Dianomic Systems"
@@ -30,18 +31,21 @@ sys.path.append(os.path.join(os.path.dirname(__file__)))
 
 @pytest.fixture
 def clean_setup_fledge_packages(package_build_version):
-    assert os.environ.get('FLEDGE_ROOT') is not None
+    # This  gives the path of directory where fledge is cloned. conftest_file < python < system < tests < ROOT
+    PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
+    SCRIPTS_DIR_ROOT = "{}/tests/system/python/scripts/package/".format(PROJECT_ROOT)
 
     try:
-        subprocess.run(["cd $FLEDGE_ROOT/tests/system/lab && ./remove"], shell=True, check=True)
+        subprocess.run(["cd {} && ./remove"
+                       .format(SCRIPTS_DIR_ROOT)], shell=True, check=True)    
     except subprocess.CalledProcessError:
         assert False, "remove package script failed!"
 
     try:
-        subprocess.run(["$FLEDGE_ROOT/tests/system/python/scripts/package/setup {}".format(package_build_version)],
-                       shell=True, check=True)
+        subprocess.run(["cd {} && ./setup {}"
+                       .format(SCRIPTS_DIR_ROOT, package_build_version)], shell=True, check=True)
     except subprocess.CalledProcessError:
-        assert False, "install package script failed"
+        assert False, "setup package script failed"
 
 
 @pytest.fixture
@@ -206,6 +210,38 @@ def start_north_pi_v2_web_api():
         retval = r.read().decode()
         return retval
     return _start_north_pi_server_c_web_api
+
+
+@pytest.fixture
+def start_north_omf_as_a_service():    
+    def _start_north_omf_as_a_service(fledge_url, pi_host, pi_port, pi_db="Dianomic", auth_method='basic',
+                                         pi_user=None, pi_pwd=None, north_plugin="OMF",
+                                         service_name="NorthReadingsToPI_WebAPI", start=True):
+        """Start north service"""
+
+        _enabled = True if start else False
+        conn = http.client.HTTPConnection(fledge_url)
+        data = {"name": service_name,
+                "plugin": "{}".format(north_plugin),
+                "enabled": _enabled,
+                "type": "north",
+                "config": {"PIServerEndpoint": {"value": "PI Web API"},
+                           "PIWebAPIAuthenticationMethod": {"value": auth_method},
+                           "PIWebAPIUserId":  {"value": pi_user},
+                           "PIWebAPIPassword": {"value": pi_pwd},
+                           "ServerHostname": {"value": pi_host},
+                           "ServerPort": {"value": str(pi_port)},
+                           "compression": {"value": "true"},
+                           "DefaultAFLocation": {"value": "fledge/room1/machine1"}
+                           }
+                }
+
+        conn.request("POST", '/fledge/service', json.dumps(data))
+        r = conn.getresponse()
+        assert 200 == r.status
+        retval = json.loads(r.read().decode())
+        return retval
+    return _start_north_omf_as_a_service
 
 
 start_north_pi_server_c = start_north_pi_v2
@@ -393,7 +429,7 @@ def read_data_from_pi_web_api():
 
 @pytest.fixture
 def add_filter():
-    def _add_filter(filter_plugin, filter_plugin_branch, filter_name, filter_config, fledge_url, filter_user_svc_task):
+    def _add_filter(filter_plugin, filter_plugin_branch, filter_name, filter_config, fledge_url, filter_user_svc_task, installation_type='make'):
         """
 
         :param filter_plugin: filter plugin `fledge-filter-?`
@@ -404,11 +440,21 @@ def add_filter():
         :param filter_user_svc_task: south service or north task instance name
         """
 
-        try:
-            subprocess.run(["$FLEDGE_ROOT/tests/system/python/scripts/install_c_plugin {} filter {}".format(
-                filter_plugin_branch, filter_plugin)], shell=True, check=True)
-        except subprocess.CalledProcessError:
-            assert False, "{} filter plugin installation failed".format(filter_plugin)
+        if installation_type == 'make':
+            try:
+                subprocess.run(["$FLEDGE_ROOT/tests/system/python/scripts/install_c_plugin {} filter {}".format(
+                    filter_plugin_branch, filter_plugin)], shell=True, check=True)
+            except subprocess.CalledProcessError:
+                assert False, "{} filter plugin installation failed".format(filter_plugin)
+        elif installation_type == 'package':
+            try:
+                os_platform = platform.platform()
+                pkg_mgr = 'yum' if 'centos' in os_platform or 'redhat' in os_platform else 'apt'
+                subprocess.run(["sudo {} install -y fledge-filter-{}".format(pkg_mgr, filter_plugin)], shell=True, check=True)
+            except subprocess.CalledProcessError:
+                assert False, "{} package installation failed!".format(filter_plugin)
+        else:
+            print("Skipped {} plugin installation. Installation mechanism is set to {}.".format(filter_plugin, installation_type))
 
         data = {"name": "{}".format(filter_name), "plugin": "{}".format(filter_plugin), "filter_config": filter_config}
         conn = http.client.HTTPConnection(fledge_url)

@@ -213,8 +213,8 @@ def start_north_pi_v2_web_api():
 
 
 @pytest.fixture
-def start_north_pi_v2_web_api_service():
-    def _start_north_pi_server_c_web_api_service(fledge_url, pi_host, pi_port, pi_db="Dianomic", auth_method='basic',
+def start_north_omf_as_a_service():    
+    def _start_north_omf_as_a_service(fledge_url, pi_host, pi_port, pi_db="Dianomic", auth_method='basic',
                                          pi_user=None, pi_pwd=None, north_plugin="OMF",
                                          service_name="NorthReadingsToPI_WebAPI", start=True):
         """Start north service"""
@@ -241,12 +241,11 @@ def start_north_pi_v2_web_api_service():
         assert 200 == r.status
         retval = json.loads(r.read().decode())
         return retval
-    return _start_north_pi_server_c_web_api_service
+    return _start_north_omf_as_a_service
 
 
 start_north_pi_server_c = start_north_pi_v2
 start_north_pi_server_c_web_api = start_north_pi_v2_web_api
-start_north_pi_server_c_web_api_service = start_north_pi_v2_web_api_service
 
 @pytest.fixture
 def read_data_from_pi():

@@ -42,13 +42,13 @@ def reset_fledge(wait_time):
 
 
 @pytest.fixture
-def start_south_north(add_south, start_north_pi_server_c_web_api_service, fledge_url,
+def start_south_north(add_south, start_north_omf_as_a_service, fledge_url,
                       pi_host, pi_port, pi_admin, pi_passwd):
     global north_schedule_id
 
     add_south(south_plugin, None, fledge_url, service_name="{}".format(south_service_name), installation_type='package')
 
-    response = start_north_pi_server_c_web_api_service(fledge_url, pi_host, pi_port, pi_user=pi_admin, pi_pwd=pi_passwd)
+    response = start_north_omf_as_a_service(fledge_url, pi_host, pi_port, pi_user=pi_admin, pi_pwd=pi_passwd)
     north_schedule_id = response["id"]
 
     yield start_south_north
@@ -274,7 +274,7 @@ class TestOMFNorthService:
                            south_asset_name)
 
     def test_omf_service_with_delete_add(self, reset_fledge, start_south_north, read_data_from_pi_web_api,
-                                         start_north_pi_server_c_web_api_service,
+                                         start_north_omf_as_a_service,
                                          skip_verify_north_interface, fledge_url, wait_time, retries, pi_host, pi_port,
                                          pi_admin, pi_passwd, pi_db):
         """ Test OMF as a North service by deleting and adding north service.
@@ -310,7 +310,7 @@ class TestOMFNorthService:
         # Wait for service to get deleted
         time.sleep(wait_time)
 
-        response = start_north_pi_server_c_web_api_service(fledge_url, pi_host, pi_port, pi_user=pi_admin,
+        response = start_north_omf_as_a_service(fledge_url, pi_host, pi_port, pi_user=pi_admin,
                                                            pi_pwd=pi_passwd)
         north_schedule_id = response["id"]
 
@@ -551,7 +551,7 @@ class TestOMFNorthServicewithFilters:
     @pytest.mark.skip(reason="FOGL-5215: Deleting a service doesn't delete its filter categories")
     def test_omf_service_with_delete_add(self, reset_fledge, start_south_north, add_configure_filter, add_filter,
                                          read_data_from_pi_web_api,
-                                         start_north_pi_server_c_web_api_service, skip_verify_north_interface,
+                                         start_north_omf_as_a_service, skip_verify_north_interface,
                                          fledge_url, wait_time, retries, pi_host, pi_port, pi_admin, pi_passwd, pi_db):
         """ Test OMF as a North service by deleting and adding north service.
             reset_fledge: Fixture to reset fledge
@@ -587,7 +587,7 @@ class TestOMFNorthServicewithFilters:
         # Wait for service to get deleted
         time.sleep(wait_time)
 
-        response = start_north_pi_server_c_web_api_service(fledge_url, pi_host, pi_port, pi_user=pi_admin,
+        response = start_north_omf_as_a_service(fledge_url, pi_host, pi_port, pi_user=pi_admin,
                                                            pi_pwd=pi_passwd)
         north_schedule_id = response["id"]
 

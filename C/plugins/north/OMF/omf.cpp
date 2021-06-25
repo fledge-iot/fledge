@@ -1937,13 +1937,15 @@ std::string OMF::generateMeasurementId(const string& assetName)
 
 	string AFHierarchyPrefix;
 	string AFHierarchyLevel;
-
+	long namingScheme;
 	long typeId;
 
 	typeId = OMF::getAssetTypeId(assetName);
 
-	if (m_NamingScheme == NAMINGSCHEME_COMPATIBILITY ||
-		m_NamingScheme == NAMINGSCHEME_HASH)
+	namingScheme = getNamingScheme(assetName);
+
+	if (namingScheme == NAMINGSCHEME_COMPATIBILITY ||
+		namingScheme == NAMINGSCHEME_HASH)
 	{
 		measurementId = to_string(typeId) + "measurement_" + assetName;
 
@@ -1968,19 +1970,28 @@ std::string OMF::generateMeasurementId(const string& assetName)
 
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx5 %s - NamingScheme :%d:  assetName :%s: typeId :%ld: measurementId :%s:", __FUNCTION__, m_NamingScheme, assetName.c_str(), typeId, measurementId.c_str() );
+	Logger::getLogger()->debug("xxx2 %s - mamingScheme default :%ld: namingScheme applied :%ld:  assetName :%s: typeId :%ld: measurementId :%s:",
+							   __FUNCTION__,
+							   m_NamingScheme,
+							   namingScheme,
+							   assetName.c_str(), 
+							   typeId, 
+							   measurementId.c_str() );
 	Logger::getLogger()->setMinLevel("warning");
 
 	return(measurementId);
 }
 
 // FIXME_I:
-std::string OMF::generateSuffixType(long typeId)
+std::string OMF::generateSuffixType(string &assetName, long typeId)
 {
 	std::string suffix;
+	long namingScheme;
 
-	if (m_NamingScheme == NAMINGSCHEME_COMPATIBILITY ||
-		m_NamingScheme == NAMINGSCHEME_SUFFIX)
+	namingScheme = getNamingScheme(assetName);
+
+	if (namingScheme == NAMINGSCHEME_COMPATIBILITY ||
+		namingScheme == NAMINGSCHEME_SUFFIX)
 	{
 		suffix = AF_TYPES_SUFFIX + to_string(typeId);
 
@@ -1994,7 +2005,12 @@ std::string OMF::generateSuffixType(long typeId)
 
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx6 %s - NamingScheme :%d: typeId :%ld: suffix :%s:", __FUNCTION__, m_NamingScheme, typeId, suffix.c_str());
+	Logger::getLogger()->debug("xxx2 %s - mamingScheme default :%ld: namingScheme applied :%ld: typeId :%ld: suffix :%s:",
+		__FUNCTION__, 
+		m_NamingScheme,
+		namingScheme,
+		typeId, 
+		suffix.c_str());
 	Logger::getLogger()->setMinLevel("warning");
 
 	return(suffix);
@@ -2014,7 +2030,7 @@ const std::string OMF::createStaticData(const Reading& reading)
 
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx3 %s - ", __FUNCTION__);
+	Logger::getLogger()->debug(" %s - ", __FUNCTION__);
 	Logger::getLogger()->setMinLevel("warning");
 
 
@@ -2064,9 +2080,9 @@ const std::string OMF::createStaticData(const Reading& reading)
 
 		retrieveAFHierarchyPrefixAssetName(assetName, AFHierarchyPrefix, AFHierarchyLevel);
 
-		sData.append(assetName + generateSuffixType(typeId));
+		sData.append(assetName + generateSuffixType(assetName, typeId));
 		sData.append("\", \"AssetId\": \"");
-		sData.append("A_" + AFHierarchyPrefix + "_" + assetName + generateSuffixType(typeId) );
+		sData.append("A_" + AFHierarchyPrefix + "_" + assetName + generateSuffixType(assetName, typeId) );
 	}
 
 	sData.append("\"}]}]");
@@ -2140,7 +2156,7 @@ std::string OMF::createLinkData(const Reading& reading,  std::string& AFHierarch
 		StringReplace(tmpStr, "_placeholder_src_idx_",  AFHierarchyPrefix + "_" + AFHierarchyLevel );
 		StringReplace(tmpStr, "_placeholder_tgt_type_", targetTypeId);
 		StringReplace(tmpStr, "_placeholder_tgt_idx_", "A_" + objectPrefix + "_" + assetName +
-			generateSuffixType(typeId) );
+			generateSuffixType(assetName, typeId) );
 
 		lData.append(tmpStr);
 		lData.append(",");
@@ -2168,7 +2184,7 @@ std::string OMF::createLinkData(const Reading& reading,  std::string& AFHierarch
 	}
 	else if (m_PIServerEndpoint == ENDPOINT_PIWEB_API)
 	{
-		lData.append("A_" + objectPrefix + "_" + assetName + generateSuffixType(typeId) );
+		lData.append("A_" + objectPrefix + "_" + assetName + generateSuffixType(assetName, typeId) );
 	}
 
 	// FIXME_I:
@@ -3223,6 +3239,52 @@ long OMF::getAssetTypeId(const string& assetName)
 	return typeId;
 }
 
+// FIXME_I:
+long OMF::getNamingScheme(const string& assetName)
+{
+	long namingScheme;
+	string keyComplete;
+	string AFHierarchyPrefix;
+	string AFHierarchyLevel;
+
+	// Connector relay / ODS / EDS
+	if (m_PIServerEndpoint == ENDPOINT_CR  ||
+		m_PIServerEndpoint == ENDPOINT_OCS ||
+		m_PIServerEndpoint == ENDPOINT_EDS
+		)
+	{
+		keyComplete = assetName;
+	}
+	else if (m_PIServerEndpoint == ENDPOINT_PIWEB_API)
+	{
+		retrieveAFHierarchyPrefixAssetName(assetName, AFHierarchyPrefix, AFHierarchyLevel);
+		keyComplete = AFHierarchyPrefix + "_" + assetName;
+	}
+
+
+	if (!m_OMFDataTypes)
+	{
+		// Use current value of m_typeId
+		namingScheme = m_NamingScheme;
+	}
+	else
+	{
+		auto it = m_OMFDataTypes->find(keyComplete);
+		if (it != m_OMFDataTypes->end())
+		{
+			// Set the type-id of found element
+			namingScheme = ((*it).second).namingScheme;
+		}
+		else
+		{
+			// Use current value of m_typeId
+			namingScheme = m_NamingScheme;
+		}
+	}
+
+	return namingScheme;
+}
+
 /**
  * Increment the type-id for the given asset name
  *
@@ -3473,6 +3535,14 @@ bool OMF::setCreatedTypes(const Reading& row, OMFHints *hints)
 
 	(*m_OMFDataTypes)[keyComplete].typesShort = calcTypeShort(row);
 	(*m_OMFDataTypes)[keyComplete].hintChkSum = hints ? hints->getChecksum() : 0;
+
+	(*m_OMFDataTypes)[keyComplete].namingScheme = m_NamingScheme;
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx3 %s - keyComplete :%s: m_NamingScheme :%ld: ", __FUNCTION__, keyComplete.c_str(), m_NamingScheme);
+	Logger::getLogger()->setMinLevel("warning");
+
 
 	return true;
 }

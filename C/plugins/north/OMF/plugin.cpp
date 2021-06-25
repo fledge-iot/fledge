@@ -47,6 +47,8 @@ using namespace SimpleWeb;
 #define DATA_KEY "dataTypes"
 #define DATA_KEY_SHORT "dataTypesShort"
 #define DATA_KEY_HINT "hintChecksum"
+#define NAMING_SCHEME "namingScheme"
+
 
 #define PROPERTY_TYPE   "type"
 #define PROPERTY_NUMBER "number"
@@ -627,7 +629,7 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 		}
 		//# FIXME_I
 		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("xxx4 End point naming scheme :%s: ", NamingScheme.c_str() );
+		Logger::getLogger()->debug("xxx3 End point naming scheme :%s: ", NamingScheme.c_str() );
 		Logger::getLogger()->setMinLevel("warning");
 
 	}
@@ -924,6 +926,17 @@ string saveSentDataTypes(CONNECTOR_INFO* connInfo)
 				std::string hintChecksum = hintStream.str();
 				newData << ", \"" << DATA_KEY_HINT << "\": \"0x" << hintChecksum << "\"";
 
+				// FIXME_I:
+				long NamingScheme;
+				NamingScheme = ((*it).second).namingScheme;
+				newData << ", \"" << NAMING_SCHEME << "\": " << to_string(NamingScheme) << "";
+
+				//# FIXME_I
+				Logger::getLogger()->setMinLevel("debug");
+				Logger::getLogger()->debug("xxx2 %s - NamingScheme :%ld: ", __FUNCTION__,NamingScheme );
+				Logger::getLogger()->setMinLevel("warning");
+
+
 				newData << ", \"" << DATA_KEY << "\": " <<
 					   (((*it).second).types.empty() ? "{}" : ((*it).second).types) <<
 					   "}}";
@@ -1035,8 +1048,8 @@ unsigned long calcTypeShort(const string& dataTypes)
  * all new created OMF dataTypes have type-id prefix set to the value of 1
  * while existing (loaded) OMF dataTypes will keep their type-id values.
  *
- * @param   connInfo	The CONNECTOR_INFO data scructure
- * @param   JSONData	The JSON document cotaining all saved data
+ * @param   connInfo	The CONNECTOR_INFO data structure
+ * @param   JSONData	The JSON document containing all saved data
  */
 void loadSentDataTypes(CONNECTOR_INFO* connInfo,
                         Document& JSONData)
@@ -1075,11 +1088,29 @@ void loadSentDataTypes(CONNECTOR_INFO* connInfo,
 				else
 				{
 					Logger::getLogger()->warn("%s plugin: current element '%s'" \
-								  "doesn't have '%s' property, ignoring it",
+								  " doesn't have '%s' property, ignoring it",
 								  PLUGIN_NAME,
 								  key.c_str(),
 								  TYPE_ID_KEY);
 					continue;
+				}
+
+				// FIXME_I:
+				long NamingScheme;
+				if (cachedValue.HasMember(NAMING_SCHEME) &&
+					cachedValue[NAMING_SCHEME].IsNumber())
+				{
+					NamingScheme = cachedValue[NAMING_SCHEME].GetInt();
+				}
+				else
+				{
+					// FIXME_I:
+					Logger::getLogger()->warn("xxx2 %s plugin: current element '%s'" \
+								  " doesn't have '%s' property, handling naming scheme in compatibility mode",
+											  PLUGIN_NAME,
+											  key.c_str(),
+											  NAMING_SCHEME);
+					NamingScheme = NAMINGSCHEME_COMPATIBILITY;
 				}
 
 				string dataTypes;
@@ -1095,7 +1126,7 @@ void loadSentDataTypes(CONNECTOR_INFO* connInfo,
 				else
 				{
 					Logger::getLogger()->warn("%s plugin: current element '%s'" \
-								  "doesn't have '%s' property, ignoring it",
+								  " doesn't have '%s' property, ignoring it",
 								  PLUGIN_NAME,
 								  key.c_str(),
 								  DATA_KEY);
@@ -1117,7 +1148,7 @@ void loadSentDataTypes(CONNECTOR_INFO* connInfo,
 					if (dataTypesShort == 0)
 					{
 						Logger::getLogger()->warn("%s plugin: current element '%s'" \
-                                      "doesn't have '%s' property",
+                                      " doesn't have '%s' property",
 												  PLUGIN_NAME,
 												  key.c_str(),
 												  DATA_KEY_SHORT);
@@ -1145,6 +1176,15 @@ void loadSentDataTypes(CONNECTOR_INFO* connInfo,
 				dataType.types = dataTypes;
 				dataType.typesShort = dataTypesShort;
 				dataType.hintChkSum = hintChecksum;
+				// FIXME_I:
+				dataType.namingScheme = NamingScheme;
+
+				//# FIXME_I
+				Logger::getLogger()->setMinLevel("debug");
+				Logger::getLogger()->debug("xxx2 %s - NamingScheme :%ld: ", __FUNCTION__,NamingScheme );
+				Logger::getLogger()->setMinLevel("warning");
+
+
 
 				// Add data into the map
 				connInfo->assetsDataTypes[key] = dataType;

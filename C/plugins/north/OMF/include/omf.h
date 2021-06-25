@@ -59,6 +59,8 @@ class OMFDataTypes
                 long           typeId;
                 std::string    types;
                 unsigned long  typesShort;
+				long           namingScheme;
+
 		unsigned short hintChkSum;
 };
 
@@ -126,10 +128,13 @@ class OMF
 		void setNamingScheme(const NAMINGSCHEME_ENDPOINT namingScheme) {m_NamingScheme = namingScheme;};
 
 		// FIXME_I:
-		std::string generateSuffixType(long typeId);
+		std::string generateSuffixType(string &assetName, long typeId);
 
 		// FIXME_I:
 		std::string generateMeasurementId(const string& assetName);
+
+		// FIXME_I:
+		long getNamingScheme(const string& assetName);
 
 		// Set the first level of hierarchy in Asset Framework in which the assets will be created, PI Web API only.
 		void setDefaultAFLocation(const std::string &DefaultAFLocation);

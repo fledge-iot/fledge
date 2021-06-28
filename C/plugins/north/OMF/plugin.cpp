@@ -627,10 +627,7 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 		{
 			connInfo->NamingScheme = NAMINGSCHEME_COMPATIBILITY;
 		}
-		//# FIXME_I
-		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("xxx3 End point naming scheme :%s: ", NamingScheme.c_str() );
-		Logger::getLogger()->setMinLevel("warning");
+		Logger::getLogger()->debug("End point naming scheme :%s: ", NamingScheme.c_str() );
 
 	}
 
@@ -926,16 +923,11 @@ string saveSentDataTypes(CONNECTOR_INFO* connInfo)
 				std::string hintChecksum = hintStream.str();
 				newData << ", \"" << DATA_KEY_HINT << "\": \"0x" << hintChecksum << "\"";
 
-				// FIXME_I:
 				long NamingScheme;
 				NamingScheme = ((*it).second).namingScheme;
 				newData << ", \"" << NAMING_SCHEME << "\": " << to_string(NamingScheme) << "";
 
-				//# FIXME_I
-				Logger::getLogger()->setMinLevel("debug");
-				Logger::getLogger()->debug("xxx2 %s - NamingScheme :%ld: ", __FUNCTION__,NamingScheme );
-				Logger::getLogger()->setMinLevel("warning");
-
+				Logger::getLogger()->debug("%s - NamingScheme :%ld: ", __FUNCTION__,NamingScheme );
 
 				newData << ", \"" << DATA_KEY << "\": " <<
 					   (((*it).second).types.empty() ? "{}" : ((*it).second).types) <<
@@ -1095,7 +1087,6 @@ void loadSentDataTypes(CONNECTOR_INFO* connInfo,
 					continue;
 				}
 
-				// FIXME_I:
 				long NamingScheme;
 				if (cachedValue.HasMember(NAMING_SCHEME) &&
 					cachedValue[NAMING_SCHEME].IsNumber())
@@ -1104,8 +1095,7 @@ void loadSentDataTypes(CONNECTOR_INFO* connInfo,
 				}
 				else
 				{
-					// FIXME_I:
-					Logger::getLogger()->warn("xxx2 %s plugin: current element '%s'" \
+					Logger::getLogger()->warn("%s plugin: current element '%s'" \
 								  " doesn't have '%s' property, handling naming scheme in compatibility mode",
 											  PLUGIN_NAME,
 											  key.c_str(),
@@ -1176,15 +1166,9 @@ void loadSentDataTypes(CONNECTOR_INFO* connInfo,
 				dataType.types = dataTypes;
 				dataType.typesShort = dataTypesShort;
 				dataType.hintChkSum = hintChecksum;
-				// FIXME_I:
 				dataType.namingScheme = NamingScheme;
 
-				//# FIXME_I
-				Logger::getLogger()->setMinLevel("debug");
-				Logger::getLogger()->debug("xxx2 %s - NamingScheme :%ld: ", __FUNCTION__,NamingScheme );
-				Logger::getLogger()->setMinLevel("warning");
-
-
+				Logger::getLogger()->debug("%s - NamingScheme :%ld: ", __FUNCTION__,NamingScheme );
 
 				// Add data into the map
 				connInfo->assetsDataTypes[key] = dataType;

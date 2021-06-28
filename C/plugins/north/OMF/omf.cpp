@@ -124,11 +124,7 @@ OMFData::OMFData(const Reading& reading, string measurementId, const OMF_ENDPOIN
 	string outData;
 	bool changed;
 
-	// FIXME_I:
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx2 %s - measurementId :%s: ", __FUNCTION__, measurementId.c_str());
-	Logger::getLogger()->setMinLevel("warning");
-
+	Logger::getLogger()->debug("%s - measurementId :%s: ", __FUNCTION__, measurementId.c_str());
 
 	// Apply any TagName hints to modify the containerid
 	if (hints)
@@ -1262,7 +1258,6 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			typeId = OMF::getAssetTypeId(m_assetName);
 		}
 
-		// FIXME_I:
 		measurementId = generateMeasurementId(m_assetName);
 
 		string outData = OMFData(*reading, measurementId, m_PIServerEndpoint, AFHierarchyPrefix, hints ).OMFdataVal();
@@ -1807,10 +1802,8 @@ const std::string OMF::createTypeData(const Reading& reading, OMFHints *hints)
 		// Add datapoint Type
 		tData.append(omfType);
 
-		// FIXME_I:
 		tData.append("\", \"name\": \"");
 		tData.append(ApplyPIServerNamingRulesObj(dpName, nullptr) );
-		tData.append("_v2");
 
 		// Applies a format if it is defined
 		if (! format.empty() ) {
@@ -1905,7 +1898,6 @@ const std::string OMF::createContainerData(const Reading& reading, OMFHints *hin
 				     cData);
 	}
 
-	// FIXME_I:
 	measurementId = generateMeasurementId(assetName);
 
 	// Apply any TagName hints to modify the containerid
@@ -1930,7 +1922,12 @@ const std::string OMF::createContainerData(const Reading& reading, OMFHints *hin
 	return cData;
 }
 
-// FIXME_I:
+/**
+ * Generate the container id for the given asset
+ *
+ * @param assetName  Asset for quick the container id should be generated
+ * @return           Container it for the requested asset
+ */
 std::string OMF::generateMeasurementId(const string& assetName)
 {
 	std::string measurementId;
@@ -1959,7 +1956,6 @@ std::string OMF::generateMeasurementId(const string& assetName)
 	} else {
 		if (typeId > 1)
 		{
-			// FIXME_I:
 			measurementId = to_string(typeId) + "measurement_" + assetName;
 		} else {
 
@@ -1968,21 +1964,25 @@ std::string OMF::generateMeasurementId(const string& assetName)
 
 	}
 
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx2 %s - mamingScheme default :%ld: namingScheme applied :%ld:  assetName :%s: typeId :%ld: measurementId :%s:",
+	Logger::getLogger()->debug("%s - mamingScheme default :%ld: namingScheme applied :%ld:  assetName :%s: typeId :%ld: measurementId :%s:",
 							   __FUNCTION__,
 							   m_NamingScheme,
 							   namingScheme,
 							   assetName.c_str(), 
 							   typeId, 
 							   measurementId.c_str() );
-	Logger::getLogger()->setMinLevel("warning");
 
 	return(measurementId);
 }
 
-// FIXME_I:
+
+/**
+ * Generate a suffix for the given asset in relation to the selected naming schema and the value of the type id
+ *
+ * @param assetName  Asset for quick the suffix should be generated
+ * @param typeId     TYpe id of the asset
+ * @return           Suffix to be used for the given asset
+ */
 std::string OMF::generateSuffixType(string &assetName, long typeId)
 {
 	std::string suffix;
@@ -2003,15 +2003,12 @@ std::string OMF::generateSuffixType(string &assetName, long typeId)
 
 	}
 
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx2 %s - mamingScheme default :%ld: namingScheme applied :%ld: typeId :%ld: suffix :%s:",
+	Logger::getLogger()->debug("%s - mamingScheme default :%ld: namingScheme applied :%ld: typeId :%ld: suffix :%s:",
 		__FUNCTION__, 
 		m_NamingScheme,
 		namingScheme,
 		typeId, 
 		suffix.c_str());
-	Logger::getLogger()->setMinLevel("warning");
 
 	return(suffix);
 }
@@ -2027,13 +2024,6 @@ std::string OMF::generateSuffixType(string &assetName, long typeId)
  */
 const std::string OMF::createStaticData(const Reading& reading)
 {
-
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug(" %s - ", __FUNCTION__);
-	Logger::getLogger()->setMinLevel("warning");
-
-
 	string assetName;
 	// Build the Static data (JSON Array)
 	string sData = "[";
@@ -2187,15 +2177,7 @@ std::string OMF::createLinkData(const Reading& reading,  std::string& AFHierarch
 		lData.append("A_" + objectPrefix + "_" + assetName + generateSuffixType(assetName, typeId) );
 	}
 
-	// FIXME_I:
 	measurementId = generateMeasurementId(assetName);
-	//measurementId = to_string(OMF::getAssetTypeId(assetName)) + "measurement_" + assetName;
-
-//	// Add the 1st level of AFHierarchy as a prefix to the name in case of PI Web API
-//	if (m_PIServerEndpoint == ENDPOINT_PIWEB_API)
-//	{
-//		measurementId = objectPrefix + "_" + measurementId;
-//	}
 
 	// Apply any TagName hints to modify the containerid
 	if (hints)
@@ -3239,7 +3221,13 @@ long OMF::getAssetTypeId(const string& assetName)
 	return typeId;
 }
 
-// FIXME_I:
+/**
+ * Retrieve the naming scheme for the given asset in relation to the end point selected the default naming scheme selected
+ * and the naming scheme of the asset itself
+ *
+ * @param assetName  Asset for quick the naming schema should be retrieved
+ * @return           Naming schema of the given asset
+ */
 long OMF::getNamingScheme(const string& assetName)
 {
 	long namingScheme;
@@ -3538,11 +3526,7 @@ bool OMF::setCreatedTypes(const Reading& row, OMFHints *hints)
 
 	(*m_OMFDataTypes)[keyComplete].namingScheme = m_NamingScheme;
 
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx3 %s - keyComplete :%s: m_NamingScheme :%ld: ", __FUNCTION__, keyComplete.c_str(), m_NamingScheme);
-	Logger::getLogger()->setMinLevel("warning");
-
+	Logger::getLogger()->debug("%s - keyComplete :%s: m_NamingScheme :%ld: ", __FUNCTION__, keyComplete.c_str(), m_NamingScheme);
 
 	return true;
 }

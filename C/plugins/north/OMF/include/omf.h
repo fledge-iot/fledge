@@ -124,16 +124,16 @@ class OMF
 		// Set which PIServer component should be used for the communication
 		void setPIServerEndpoint(const OMF_ENDPOINT PIServerEndpoint);
 
-		// Set the naming sche of the objects in the endpoint
+		// Set the naming scheme of the objects in the endpoint
 		void setNamingScheme(const NAMINGSCHEME_ENDPOINT namingScheme) {m_NamingScheme = namingScheme;};
 
-		// FIXME_I:
-		std::string generateSuffixType(string &assetName, long typeId);
-
-		// FIXME_I:
+		// Generate the container id for the given asset
 		std::string generateMeasurementId(const string& assetName);
 
-		// FIXME_I:
+		// Generate a suffix for the given asset in relation to the selected naming schema and the value of the type id
+		std::string generateSuffixType(string &assetName, long typeId);
+
+		// Generate a suffix for the given asset in relation to the selected naming schema and the value of the type id
 		long getNamingScheme(const string& assetName);
 
 		// Set the first level of hierarchy in Asset Framework in which the assets will be created, PI Web API only.

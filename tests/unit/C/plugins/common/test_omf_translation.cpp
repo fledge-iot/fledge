@@ -491,29 +491,32 @@ TEST(PiServer_NamingRules, NamingRulesCheck)
 
 TEST(PiServer_NamingRules, Suffix)
 {
+	string assetName;
 	// Dummy initializations
 	SimpleHttps sender("0.0.0.0:0", 10, 10, 10, 1);
 	OMF omf(sender, "/", 1, "ABC");
 
+	assetName = "asset_1";
+
 	omf.setNamingScheme(NAMINGSCHEME_CONCISE);
-	ASSERT_EQ(omf.generateSuffixType(1), "");
-	ASSERT_EQ(omf.generateSuffixType(2), "-type2");
-	ASSERT_EQ(omf.generateSuffixType(3), "-type3");
+	ASSERT_EQ(omf.generateSuffixType(assetName, 1), "");
+	ASSERT_EQ(omf.generateSuffixType(assetName, 2), "-type2");
+	ASSERT_EQ(omf.generateSuffixType(assetName, 3), "-type3");
 
 	omf.setNamingScheme(NAMINGSCHEME_SUFFIX);
-	ASSERT_EQ(omf.generateSuffixType(1), "-type1");
-	ASSERT_EQ(omf.generateSuffixType(2), "-type2");
-	ASSERT_EQ(omf.generateSuffixType(3), "-type3");
+	ASSERT_EQ(omf.generateSuffixType(assetName, 1), "-type1");
+	ASSERT_EQ(omf.generateSuffixType(assetName, 2), "-type2");
+	ASSERT_EQ(omf.generateSuffixType(assetName, 3), "-type3");
 
 	omf.setNamingScheme(NAMINGSCHEME_HASH);
-	ASSERT_EQ(omf.generateSuffixType(1), "");
-	ASSERT_EQ(omf.generateSuffixType(2), "-type2");
-	ASSERT_EQ(omf.generateSuffixType(3), "-type3");
+	ASSERT_EQ(omf.generateSuffixType(assetName, 1), "");
+	ASSERT_EQ(omf.generateSuffixType(assetName, 2), "-type2");
+	ASSERT_EQ(omf.generateSuffixType(assetName, 3), "-type3");
 
 	omf.setNamingScheme(NAMINGSCHEME_COMPATIBILITY);
-	ASSERT_EQ(omf.generateSuffixType(1), "-type1");
-	ASSERT_EQ(omf.generateSuffixType(2), "-type2");
-	ASSERT_EQ(omf.generateSuffixType(3), "-type3");
+	ASSERT_EQ(omf.generateSuffixType(assetName, 1), "-type1");
+	ASSERT_EQ(omf.generateSuffixType(assetName, 2), "-type2");
+	ASSERT_EQ(omf.generateSuffixType(assetName, 3), "-type3");
 }
 
 TEST(PiServer_NamingRules, Prefix)

@@ -33,6 +33,14 @@ enum OMF_ENDPOINT {
 	ENDPOINT_EDS
 };
 
+enum NAMINGSCHEME_ENDPOINT {
+	NAMINGSCHEME_CONCISE,
+	NAMINGSCHEME_SUFFIX,
+	NAMINGSCHEME_HASH,
+	NAMINGSCHEME_COMPATIBILITY
+};
+
+
 using namespace std;
 using namespace rapidjson;
 
@@ -51,6 +59,8 @@ class OMFDataTypes
                 long           typeId;
                 std::string    types;
                 unsigned long  typesShort;
+				long           namingScheme;
+
 		unsigned short hintChkSum;
 };
 
@@ -113,6 +123,18 @@ class OMF
 
 		// Set which PIServer component should be used for the communication
 		void setPIServerEndpoint(const OMF_ENDPOINT PIServerEndpoint);
+
+		// Set the naming scheme of the objects in the endpoint
+		void setNamingScheme(const NAMINGSCHEME_ENDPOINT namingScheme) {m_NamingScheme = namingScheme;};
+
+		// Generate the container id for the given asset
+		std::string generateMeasurementId(const string& assetName);
+
+		// Generate a suffix for the given asset in relation to the selected naming schema and the value of the type id
+		std::string generateSuffixType(string &assetName, long typeId);
+
+		// Generate a suffix for the given asset in relation to the selected naming schema and the value of the type id
+		long getNamingScheme(const string& assetName);
 
 		// Set the first level of hierarchy in Asset Framework in which the assets will be created, PI Web API only.
 		void setDefaultAFLocation(const std::string &DefaultAFLocation);
@@ -281,12 +303,13 @@ private:
 			unsigned long valueLong = 0;
 		};
 
-		std::string	        m_assetName;
-		const std::string	m_path;
-		long			    m_typeId;
-		const std::string	m_producerToken;
-		OMF_ENDPOINT		m_PIServerEndpoint;
-		std::string		    m_DefaultAFLocation;
+		std::string	          m_assetName;
+		const std::string	  m_path;
+		long			      m_typeId;
+		const std::string	  m_producerToken;
+		OMF_ENDPOINT		  m_PIServerEndpoint;
+		NAMINGSCHEME_ENDPOINT m_NamingScheme;
+		std::string		      m_DefaultAFLocation;
 
 		bool            m_sendFullStructure;
 		// AF hierarchies handling - Metadata MAP
@@ -381,7 +404,7 @@ class OMFData
 {
 	public:
 		OMFData(const Reading& reading,
-			const long typeId,
+			string measurementId,
 			const OMF_ENDPOINT PIServerEndpoint = ENDPOINT_CR,
 			const std::string& DefaultAFLocation = std::string(),
 			OMFHints *hints = NULL);

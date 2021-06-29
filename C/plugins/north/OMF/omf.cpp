@@ -119,20 +119,12 @@ const char *AF_HIERARCHY_1LEVEL_LINK = QUOTE(
 /**
  * OMFData constructor
  */
-OMFData::OMFData(const Reading& reading, const long typeId, const OMF_ENDPOINT PIServerEndpoint,const string&  AFHierarchyPrefix, OMFHints *hints)
+OMFData::OMFData(const Reading& reading, string measurementId, const OMF_ENDPOINT PIServerEndpoint,const string&  AFHierarchyPrefix, OMFHints *hints)
 {
 	string outData;
-	string measurementId;
 	bool changed;
 
-	measurementId = to_string(typeId) + "measurement_" +
-		OMF::ApplyPIServerNamingRulesObj(reading.getAssetName(), nullptr);
-
-	// Add the 1st level of AFHierarchy as a prefix to the name in case of PI Web API
-	if (PIServerEndpoint == ENDPOINT_PIWEB_API)
-	{
-		measurementId = AFHierarchyPrefix + "_" + measurementId;
-	}
+	Logger::getLogger()->debug("%s - measurementId :%s: ", __FUNCTION__, measurementId.c_str());
 
 	// Apply any TagName hints to modify the containerid
 	if (hints)
@@ -1059,6 +1051,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 	string keyComplete;
 	string AFHierarchyPrefix;
 	string AFHierarchyLevel;
+	string measurementId;
 
 #if INSTRUMENT
 	ostringstream threadId;
@@ -1265,7 +1258,9 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			typeId = OMF::getAssetTypeId(m_assetName);
 		}
 
-		string outData = OMFData(*reading, typeId, m_PIServerEndpoint, AFHierarchyPrefix, hints ).OMFdataVal();
+		measurementId = generateMeasurementId(m_assetName);
+
+		string outData = OMFData(*reading, measurementId, m_PIServerEndpoint, AFHierarchyPrefix, hints ).OMFdataVal();
 		if (!outData.empty())
 		{
 			jsonData << (pendingSeparator ? ", " : "") << outData;
@@ -1504,6 +1499,7 @@ uint32_t OMF::sendToServer(const vector<Reading>& readings,
 	 * - add OMF data to new vector
 	 */
 	ostringstream jsonData;
+	string measurementId;
 	jsonData << "[";
 
 	// Fetch Reading data
@@ -1525,6 +1521,8 @@ uint32_t OMF::sendToServer(const vector<Reading>& readings,
 		long typeId = OMF::getAssetTypeId(m_assetName);
 		string key(m_assetName);
 
+		measurementId = generateMeasurementId(m_assetName);
+
 		sendDataTypes = (m_lastError == false && skipSentDataTypes == true) ?
 				 // Send if not already sent
 				 !OMF::getCreatedTypes(key, (*elem), hints) :
@@ -1540,7 +1538,7 @@ uint32_t OMF::sendToServer(const vector<Reading>& readings,
 		}
 
 		// Add into JSON string the OMF transformed Reading data
-		jsonData << OMFData(*elem, typeId, m_PIServerEndpoint, m_AFHierarchyLevel, hints).OMFdataVal() << (elem < (readings.end() -1 ) ? ", " : "");
+		jsonData << OMFData(*elem, measurementId, m_PIServerEndpoint, m_AFHierarchyLevel, hints).OMFdataVal() << (elem < (readings.end() -1 ) ? ", " : "");
 	}
 
 	jsonData << "]";
@@ -1606,11 +1604,14 @@ uint32_t OMF::sendToServer(const Reading* reading,
 			   bool skipSentDataTypes)
 {
 	ostringstream jsonData;
+	string measurementId;
 	jsonData << "[";
 
 	m_assetName = ApplyPIServerNamingRulesObj(reading->getAssetName(), nullptr);
 
 	string key(m_assetName);
+	measurementId = generateMeasurementId(m_assetName);
+
 
 	Datapoint *hintsdp = reading->getDatapoint("OMFHint");
 	OMFHints *hints = NULL;
@@ -1626,7 +1627,7 @@ uint32_t OMF::sendToServer(const Reading* reading,
 
 	long typeId = OMF::getAssetTypeId(m_assetName);
 	// Add into JSON string the OMF transformed Reading data
-	jsonData << OMFData(*reading, typeId, m_PIServerEndpoint, m_AFHierarchyLevel, hints).OMFdataVal();
+	jsonData << OMFData(*reading, measurementId, m_PIServerEndpoint, m_AFHierarchyLevel, hints).OMFdataVal();
 	jsonData << "]";
 
 	// Build headers for Readings data
@@ -1801,6 +1802,9 @@ const std::string OMF::createTypeData(const Reading& reading, OMFHints *hints)
 		// Add datapoint Type
 		tData.append(omfType);
 
+		tData.append("\", \"name\": \"");
+		tData.append(ApplyPIServerNamingRulesObj(dpName, nullptr) );
+
 		// Applies a format if it is defined
 		if (! format.empty() ) {
 
@@ -1862,9 +1866,6 @@ const std::string OMF::createTypeData(const Reading& reading, OMFHints *hints)
  */
 const std::string OMF::createContainerData(const Reading& reading, OMFHints *hints)
 {
-	string AFHierarchyPrefix;
-	string AFHierarchyLevel;
-
 	string assetName = m_assetName;
 
 	string measurementId;
@@ -1897,15 +1898,7 @@ const std::string OMF::createContainerData(const Reading& reading, OMFHints *hin
 				     cData);
 	}
 
-	measurementId = to_string(OMF::getAssetTypeId(assetName)) + "measurement_" + assetName;
-
-	// Add the 1st level of AFHierarchy as a prefix to the name in case of PI Web API
-	if (m_PIServerEndpoint == ENDPOINT_PIWEB_API)
-	{
-		retrieveAFHierarchyPrefixAssetName(assetName, AFHierarchyPrefix, AFHierarchyLevel);
-
-		measurementId = AFHierarchyPrefix + "_" + measurementId;
-	}
+	measurementId = generateMeasurementId(assetName);
 
 	// Apply any TagName hints to modify the containerid
 	if (hints)
@@ -1928,6 +1921,98 @@ const std::string OMF::createContainerData(const Reading& reading, OMFHints *hin
 	// Return JSON string
 	return cData;
 }
+
+/**
+ * Generate the container id for the given asset
+ *
+ * @param assetName  Asset for quick the container id should be generated
+ * @return           Container it for the requested asset
+ */
+std::string OMF::generateMeasurementId(const string& assetName)
+{
+	std::string measurementId;
+
+	string AFHierarchyPrefix;
+	string AFHierarchyLevel;
+	long namingScheme;
+	long typeId;
+
+	typeId = OMF::getAssetTypeId(assetName);
+
+	namingScheme = getNamingScheme(assetName);
+
+	if (namingScheme == NAMINGSCHEME_COMPATIBILITY ||
+		namingScheme == NAMINGSCHEME_HASH)
+	{
+		measurementId = to_string(typeId) + "measurement_" + assetName;
+
+		// Add the 1st level of AFHierarchy as a prefix to the name in case of PI Web API
+		if (m_PIServerEndpoint == ENDPOINT_PIWEB_API)
+		{
+			retrieveAFHierarchyPrefixAssetName(assetName, AFHierarchyPrefix, AFHierarchyLevel);
+
+			measurementId = AFHierarchyPrefix + "_" + measurementId;
+		}
+	} else {
+		if (typeId > 1)
+		{
+			measurementId = to_string(typeId) + "measurement_" + assetName;
+		} else {
+
+			measurementId = assetName;
+		}
+
+	}
+
+	Logger::getLogger()->debug("%s - mamingScheme default :%ld: namingScheme applied :%ld:  assetName :%s: typeId :%ld: measurementId :%s:",
+							   __FUNCTION__,
+							   m_NamingScheme,
+							   namingScheme,
+							   assetName.c_str(), 
+							   typeId, 
+							   measurementId.c_str() );
+
+	return(measurementId);
+}
+
+
+/**
+ * Generate a suffix for the given asset in relation to the selected naming schema and the value of the type id
+ *
+ * @param assetName  Asset for quick the suffix should be generated
+ * @param typeId     TYpe id of the asset
+ * @return           Suffix to be used for the given asset
+ */
+std::string OMF::generateSuffixType(string &assetName, long typeId)
+{
+	std::string suffix;
+	long namingScheme;
+
+	namingScheme = getNamingScheme(assetName);
+
+	if (namingScheme == NAMINGSCHEME_COMPATIBILITY ||
+		namingScheme == NAMINGSCHEME_SUFFIX)
+	{
+		suffix = AF_TYPES_SUFFIX + to_string(typeId);
+
+	} else {
+		if (typeId > 1)
+		{
+			suffix = AF_TYPES_SUFFIX + to_string(typeId);
+		}
+
+	}
+
+	Logger::getLogger()->debug("%s - mamingScheme default :%ld: namingScheme applied :%ld: typeId :%ld: suffix :%s:",
+		__FUNCTION__, 
+		m_NamingScheme,
+		namingScheme,
+		typeId, 
+		suffix.c_str());
+
+	return(suffix);
+}
+
 
 /**
  * Creates the Static Data message for data type definition
@@ -1985,9 +2070,9 @@ const std::string OMF::createStaticData(const Reading& reading)
 
 		retrieveAFHierarchyPrefixAssetName(assetName, AFHierarchyPrefix, AFHierarchyLevel);
 
-		sData.append(assetName + AF_TYPES_SUFFIX + to_string(typeId));
+		sData.append(assetName + generateSuffixType(assetName, typeId));
 		sData.append("\", \"AssetId\": \"");
-		sData.append("A_" + AFHierarchyPrefix + "_" + assetName + AF_TYPES_SUFFIX + to_string(typeId));
+		sData.append("A_" + AFHierarchyPrefix + "_" + assetName + generateSuffixType(assetName, typeId) );
 	}
 
 	sData.append("\"}]}]");
@@ -1995,6 +2080,7 @@ const std::string OMF::createStaticData(const Reading& reading)
 	// Return JSON string
 	return sData;
 }
+
 
 /**
  * Creates the Link Data message for data type definition
@@ -2059,7 +2145,8 @@ std::string OMF::createLinkData(const Reading& reading,  std::string& AFHierarch
 		StringReplace(tmpStr, "_placeholder_src_type_", AFHierarchyPrefix + "_" + AFHierarchyLevel + "_typeid");
 		StringReplace(tmpStr, "_placeholder_src_idx_",  AFHierarchyPrefix + "_" + AFHierarchyLevel );
 		StringReplace(tmpStr, "_placeholder_tgt_type_", targetTypeId);
-		StringReplace(tmpStr, "_placeholder_tgt_idx_",  "A_" + objectPrefix + "_" + assetName + AF_TYPES_SUFFIX +  to_string(typeId));
+		StringReplace(tmpStr, "_placeholder_tgt_idx_", "A_" + objectPrefix + "_" + assetName +
+			generateSuffixType(assetName, typeId) );
 
 		lData.append(tmpStr);
 		lData.append(",");
@@ -2087,16 +2174,10 @@ std::string OMF::createLinkData(const Reading& reading,  std::string& AFHierarch
 	}
 	else if (m_PIServerEndpoint == ENDPOINT_PIWEB_API)
 	{
-		lData.append("A_" + objectPrefix + "_" + assetName + AF_TYPES_SUFFIX + to_string(typeId));
+		lData.append("A_" + objectPrefix + "_" + assetName + generateSuffixType(assetName, typeId) );
 	}
 
-	measurementId = to_string(OMF::getAssetTypeId(assetName)) + "measurement_" + assetName;
-
-	// Add the 1st level of AFHierarchy as a prefix to the name in case of PI Web API
-	if (m_PIServerEndpoint == ENDPOINT_PIWEB_API)
-	{
-		measurementId = objectPrefix + "_" + measurementId;
-	}
+	measurementId = generateMeasurementId(assetName);
 
 	// Apply any TagName hints to modify the containerid
 	if (hints)
@@ -3141,6 +3222,58 @@ long OMF::getAssetTypeId(const string& assetName)
 }
 
 /**
+ * Retrieve the naming scheme for the given asset in relation to the end point selected the default naming scheme selected
+ * and the naming scheme of the asset itself
+ *
+ * @param assetName  Asset for quick the naming schema should be retrieved
+ * @return           Naming schema of the given asset
+ */
+long OMF::getNamingScheme(const string& assetName)
+{
+	long namingScheme;
+	string keyComplete;
+	string AFHierarchyPrefix;
+	string AFHierarchyLevel;
+
+	// Connector relay / ODS / EDS
+	if (m_PIServerEndpoint == ENDPOINT_CR  ||
+		m_PIServerEndpoint == ENDPOINT_OCS ||
+		m_PIServerEndpoint == ENDPOINT_EDS
+		)
+	{
+		keyComplete = assetName;
+	}
+	else if (m_PIServerEndpoint == ENDPOINT_PIWEB_API)
+	{
+		retrieveAFHierarchyPrefixAssetName(assetName, AFHierarchyPrefix, AFHierarchyLevel);
+		keyComplete = AFHierarchyPrefix + "_" + assetName;
+	}
+
+
+	if (!m_OMFDataTypes)
+	{
+		// Use current value of m_typeId
+		namingScheme = m_NamingScheme;
+	}
+	else
+	{
+		auto it = m_OMFDataTypes->find(keyComplete);
+		if (it != m_OMFDataTypes->end())
+		{
+			// Set the type-id of found element
+			namingScheme = ((*it).second).namingScheme;
+		}
+		else
+		{
+			// Use current value of m_typeId
+			namingScheme = m_NamingScheme;
+		}
+	}
+
+	return namingScheme;
+}
+
+/**
  * Increment the type-id for the given asset name
  *
  * If cached data pointer is NULL or asset name is not set
@@ -3390,6 +3523,10 @@ bool OMF::setCreatedTypes(const Reading& row, OMFHints *hints)
 
 	(*m_OMFDataTypes)[keyComplete].typesShort = calcTypeShort(row);
 	(*m_OMFDataTypes)[keyComplete].hintChkSum = hints ? hints->getChecksum() : 0;
+
+	(*m_OMFDataTypes)[keyComplete].namingScheme = m_NamingScheme;
+
+	Logger::getLogger()->debug("%s - keyComplete :%s: m_NamingScheme :%ld: ", __FUNCTION__, keyComplete.c_str(), m_NamingScheme);
 
 	return true;
 }

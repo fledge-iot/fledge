@@ -2271,7 +2271,7 @@ void OMF::evaluateAFHierarchyRules(const string& assetName, const Reading& readi
 		if (path.at(0) != '/')
 		{
 			// relative  path
-			path = m_DefaultAFLocation + "/" + path;
+			path = "/" + path;
 		}
 		generateAFHierarchyPrefixLevel(path, prefix, AFHierarchyLevel);
 		ruleMatched = true;

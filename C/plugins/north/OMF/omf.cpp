@@ -852,6 +852,30 @@ bool OMF::handleAFHierarchiesNamesMap() {
 	return success;
 }
 
+// FIXME_I:
+bool OMF::handleOmfHintHierarchies() {
+
+	bool success = true;
+	string asset_name;
+	string hierarchy;
+
+	for (auto itr = m_OmfHintHierarchy.begin(); itr != m_OmfHintHierarchy.end(); ++itr)
+	{
+		asset_name = itr->first.c_str();
+		hierarchy = itr->second.c_str();
+
+		Logger::getLogger()->debug("%s - asset_name :%s: hierarchy :%s:"
+								   ,__FUNCTION__
+								   ,asset_name.c_str()
+								   ,hierarchy.c_str() );
+
+		success = sendAFHierarchy(hierarchy.c_str());
+	}
+
+	return success;
+}
+
+
 /**
  * Handle the AF hierarchies for the Metadata Map
  *
@@ -1151,7 +1175,11 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			}
 		}
 
-		evaluateAFHierarchyRules(m_assetName, *reading);
+		// FIXME_I:
+		//evaluateAFHierarchyRules(m_assetName, *reading, "/Sites/Orange/Suez/ADN C1");
+		evaluateAFHierarchyRules(m_assetName, *reading, "/Sites/Orange/Suez/ADNC1");
+		//evaluateAFHierarchyRules(m_assetName, *reading, "/Sites");
+		//evaluateAFHierarchyRules(m_assetName, *reading, "");
 
 		if (m_PIServerEndpoint == ENDPOINT_CR  ||
 			m_PIServerEndpoint == ENDPOINT_OCS ||
@@ -1165,6 +1193,13 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			retrieveAFHierarchyPrefixAssetName(m_assetName, AFHierarchyPrefix, AFHierarchyLevel);
 			keyComplete = AFHierarchyPrefix + "_" + m_assetName;
 		}
+
+
+		// FIXME_I:
+//		if (! m_OmfHintHierarchy.empty())
+//		{
+//			handleOmfHintHierarchies();
+//		}
 
 		if (! usingTagHint)
 		{
@@ -2168,62 +2203,86 @@ void OMF::retrieveAFHierarchyPrefixAssetName(const string& assetName, string& pr
  * @param path                   assetName to evaluate
  * @param reading		         reading row from which will be extracted the datapoint for the evaluation of the rules
  */
-void OMF::evaluateAFHierarchyRules(const string& assetName, const Reading& reading)
+void OMF::evaluateAFHierarchyRules(const string& assetName, const Reading& reading,const  string &OmfHintHierarchy)
 {
 	bool ruleMatched = false;
 	bool ruleMatchedNames = false;
 
-	// names rules - Check if there are any rules defined or not
-	if (! m_AFMapEmptyNames)
+	// FIXME_I:
+	if (! OmfHintHierarchy.empty())
 	{
-		if (m_NamesRules.size() > 0)
+		//# FIXME_I
+		Logger::getLogger()->setMinLevel("debug");
+		Logger::getLogger()->debug("xxx2 %s - OMF hint Hierarchy defined  :%s:", __FUNCTION__, OmfHintHierarchy.c_str());
+		Logger::getLogger()->setMinLevel("warning");
+
+		string path;
+		string prefix;
+		string AFHierarchyLevel;
+
+		path = OmfHintHierarchy;
+
+		// FIXME_I: ??
+		if (path.at(0) != '/')
 		{
-			string path;
-			string prefix;
-			string AFHierarchyLevel;
-
-			auto it = m_NamesRules.find(assetName);
-			if (it != m_NamesRules.end())
-			{
-
-				path = it->second;
-
-				if (path.at(0) != '/')
-				{
-					// relative  path
-					path = m_DefaultAFLocation + "/" + path;
-				}
-				generateAFHierarchyPrefixLevel(path, prefix, AFHierarchyLevel);
-				ruleMatched = true;
-				ruleMatchedNames = true;
-
-				auto item = make_pair(AFHierarchyLevel, prefix);
-				m_AssetNamePrefix[assetName].push_back(item);
-			}
+			// relative  path
+			path = m_DefaultAFLocation + "/" + path;
 		}
+		generateAFHierarchyPrefixLevel(path, prefix, AFHierarchyLevel);
+		ruleMatched = true;
+
+		// FIXME_I:
+		auto it = m_OmfHintHierarchy.find(assetName);
+		if (it == m_OmfHintHierarchy.end())
+		{
+			m_OmfHintHierarchy[assetName] = path;
+			sendAFHierarchy(path.c_str());
+
+			//# FIXME_I
+			Logger::getLogger()->setMinLevel("debug");
+			Logger::getLogger()->debug("xxx3 %s - OMF hint Hierarchy created assetName :%s: path :%s:", __FUNCTION__, assetName.c_str(), path.c_str());
+			Logger::getLogger()->setMinLevel("warning");
+
+			auto it = m_OmfHintHierarchy.find(assetName);
+			if (it == m_OmfHintHierarchy.end()) {
+
+				//# FIXME_I
+				Logger::getLogger()->setMinLevel("debug");
+				Logger::getLogger()->debug("xxx3 %s - OMF hint Hierarchy created YES END assetName :%s: path :%s:", __FUNCTION__, assetName.c_str(), path.c_str());
+				Logger::getLogger()->setMinLevel("warning");
+			}
+
+		} else {
+
+			//# FIXME_I
+			Logger::getLogger()->setMinLevel("debug");
+			Logger::getLogger()->debug("xxx4 %s - OMF hint Hierarchy ALREADY created assetName :%s: path :%s:", __FUNCTION__, assetName.c_str(), path.c_str());
+			Logger::getLogger()->setMinLevel("warning");
+
+		}
+
+		auto item = make_pair(AFHierarchyLevel, prefix);
+		m_AssetNamePrefix[assetName].push_back(item);
 	}
 
-
-	// Meta rules - Check if there are any rules defined or not
-	if (! m_AFMapEmptyMetadata && ! ruleMatchedNames)
+	// FIXME_I: overides
+	if (!ruleMatched)
 	{
-		auto values = reading.getReadingData();
-
-		// Metadata Rules - Exist
-		if (m_MetadataRulesExist.size() > 0)
+		// names rules - Check if there are any rules defined or not
+		if (!m_AFMapEmptyNames)
 		{
-			string path;
-			string propertyName;
-			string prefix;
-			string AFHierarchyLevel;
-
-			for (auto it = values.begin(); it != values.end(); it++)
+			if (m_NamesRules.size() > 0)
 			{
-				propertyName = (*it)->getName();
-				auto rule = m_MetadataRulesExist.find(propertyName);
-				if (rule != m_MetadataRulesExist.end())
+				string path;
+				string prefix;
+				string AFHierarchyLevel;
+
+				auto it = m_NamesRules.find(assetName);
+				if (it != m_NamesRules.end())
 				{
-					path = rule->second;;
+
+					path = it->second;
+
 					if (path.at(0) != '/')
 					{
 						// relative  path
@@ -2231,6 +2290,7 @@ void OMF::evaluateAFHierarchyRules(const string& assetName, const Reading& readi
 					}
 					generateAFHierarchyPrefixLevel(path, prefix, AFHierarchyLevel);
 					ruleMatched = true;
+					ruleMatchedNames = true;
 
 					auto item = make_pair(AFHierarchyLevel, prefix);
 					m_AssetNamePrefix[assetName].push_back(item);
@@ -2238,141 +2298,177 @@ void OMF::evaluateAFHierarchyRules(const string& assetName, const Reading& readi
 			}
 		}
 
-		// Metadata Rules - NonExist
-		if (m_MetadataRulesNonExist.size() > 0)
+
+		// Meta rules - Check if there are any rules defined or not
+		if (!m_AFMapEmptyMetadata && !ruleMatchedNames)
 		{
-			string path;
-			string propertyName;
-			string prefix;
-			string AFHierarchyLevel;
+			auto values = reading.getReadingData();
 
-			bool found;
-			string rule;
-			for (auto it = m_MetadataRulesNonExist.begin(); it != m_MetadataRulesNonExist.end(); it++)
+			// Metadata Rules - Exist
+			if (m_MetadataRulesExist.size() > 0)
 			{
-				found = false;
-				rule = it->first;
-				path = it->second;
-				for (auto itL2 = values.begin(); found == false && itL2 != values.end(); itL2++)
-				{
-					propertyName = (*itL2)->getName();
-					if (propertyName.compare(rule) == 0)
-					{
-						found = true;
-					}
-				}
-				if (!found)
-				{
-					if (path.at(0) != '/')
-					{
-						// relative  path
-						path = m_DefaultAFLocation + "/" + path;
-					}
-					generateAFHierarchyPrefixLevel(path, prefix, AFHierarchyLevel);
-					ruleMatched = true;
+				string path;
+				string propertyName;
+				string prefix;
+				string AFHierarchyLevel;
 
-					auto item = make_pair(AFHierarchyLevel, prefix);
-					m_AssetNamePrefix[assetName].push_back(item);
-				}
-			}
-		}
-
-		// Metadata Rules - equal
-		if (m_MetadataRulesEqual.size() > 0)
-		{
-			string path;
-			string propertyName;
-			string prefix;
-			string AFHierarchyLevel;
-
-			bool found;
-			string rule;
-			for (auto it = m_MetadataRulesEqual.begin(); it != m_MetadataRulesEqual.end(); it++)
-			{
-				found = false;
-				rule = it->first;
-				for (auto itL2 = values.begin(); found == false && itL2 != values.end(); itL2++)
+				for (auto it = values.begin(); it != values.end(); it++)
 				{
-					propertyName = (*itL2)->getName();
-					DatapointValue data = (*itL2)->getData();
-					string dataValue = data.toString();
-					if (propertyName.compare(rule) == 0)
+					propertyName = (*it)->getName();
+					auto rule = m_MetadataRulesExist.find(propertyName);
+					if (rule != m_MetadataRulesExist.end())
 					{
-						for (auto itL3 = it->second.begin(); found == false && itL3 != it->second.end(); itL3++)
+						path = rule->second;;
+						if (path.at(0) != '/')
 						{
-							auto value = itL3->first;
-							path = itL3->second;
-							if (value.compare(dataValue) == 0)
-							{
-								found = true;
-							}
+							// relative  path
+							path = m_DefaultAFLocation + "/" + path;
+						}
+						generateAFHierarchyPrefixLevel(path, prefix, AFHierarchyLevel);
+						ruleMatched = true;
+
+						auto item = make_pair(AFHierarchyLevel, prefix);
+						m_AssetNamePrefix[assetName].push_back(item);
+					}
+				}
+			}
+
+			// Metadata Rules - NonExist
+			if (m_MetadataRulesNonExist.size() > 0)
+			{
+				string path;
+				string propertyName;
+				string prefix;
+				string AFHierarchyLevel;
+
+				bool found;
+				string rule;
+				for (auto it = m_MetadataRulesNonExist.begin(); it != m_MetadataRulesNonExist.end(); it++)
+				{
+					found = false;
+					rule = it->first;
+					path = it->second;
+					for (auto itL2 = values.begin(); found == false && itL2 != values.end(); itL2++)
+					{
+						propertyName = (*itL2)->getName();
+						if (propertyName.compare(rule) == 0)
+						{
+							found = true;
 						}
 					}
-				}
-				if (found)
-				{
-					if (path.at(0) != '/')
+					if (!found)
 					{
-						// relative  path
-						path = m_DefaultAFLocation + "/" + path;
-					}
-					generateAFHierarchyPrefixLevel(path, prefix, AFHierarchyLevel);
-					ruleMatched = true;
+						if (path.at(0) != '/')
+						{
+							// relative  path
+							path = m_DefaultAFLocation + "/" + path;
+						}
+						generateAFHierarchyPrefixLevel(path, prefix, AFHierarchyLevel);
+						ruleMatched = true;
 
-					auto item = make_pair(AFHierarchyLevel, prefix);
-					m_AssetNamePrefix[assetName].push_back(item);
+						auto item = make_pair(AFHierarchyLevel, prefix);
+						m_AssetNamePrefix[assetName].push_back(item);
+					}
 				}
 			}
-		}
 
-		// Metadata Rules - Not equal
-		if (m_MetadataRulesNotEqual.size() > 0)
-		{
-			string path;
-			string propertyName;
-			string prefix;
-			string AFHierarchyLevel;
-			string rule;
-			bool NotEqual;
-
-			for (auto it = m_MetadataRulesNotEqual.begin(); it != m_MetadataRulesNotEqual.end(); it++)
+			// Metadata Rules - equal
+			if (m_MetadataRulesEqual.size() > 0)
 			{
-				NotEqual = false;
-				rule = it->first;
-				for (auto itL2 = values.begin(); NotEqual == false && itL2 != values.end(); itL2++)
-				{
-					propertyName = (*itL2)->getName();
+				string path;
+				string propertyName;
+				string prefix;
+				string AFHierarchyLevel;
 
-					if (propertyName.compare(rule) == 0)
+				bool found;
+				string rule;
+				for (auto it = m_MetadataRulesEqual.begin(); it != m_MetadataRulesEqual.end(); it++)
+				{
+					found = false;
+					rule = it->first;
+					for (auto itL2 = values.begin(); found == false && itL2 != values.end(); itL2++)
 					{
+						propertyName = (*itL2)->getName();
 						DatapointValue data = (*itL2)->getData();
 						string dataValue = data.toString();
-						StringReplaceAll(dataValue, "\"", "");
-
-						for (auto itL3 = it->second.begin(); NotEqual == false && itL3 != it->second.end(); itL3++)
+						if (propertyName.compare(rule) == 0)
 						{
-							auto value = itL3->first;
-							path = itL3->second;
-
-							if (value.compare(dataValue) != 0)
+							for (auto itL3 = it->second.begin(); found == false && itL3 != it->second.end(); itL3++)
 							{
-								NotEqual = true;
+								auto value = itL3->first;
+								path = itL3->second;
+								if (value.compare(dataValue) == 0)
+								{
+									found = true;
+								}
 							}
 						}
 					}
-				}
-				if (NotEqual)
-				{
-					if (path.at(0) != '/')
+					if (found)
 					{
-						// relative  path
-						path = m_DefaultAFLocation + "/" + path;
-					}
-					generateAFHierarchyPrefixLevel(path, prefix, AFHierarchyLevel);
-					ruleMatched = true;
+						if (path.at(0) != '/')
+						{
+							// relative  path
+							path = m_DefaultAFLocation + "/" + path;
+						}
+						generateAFHierarchyPrefixLevel(path, prefix, AFHierarchyLevel);
+						ruleMatched = true;
 
-					auto item = make_pair(AFHierarchyLevel, prefix);
-					m_AssetNamePrefix[assetName].push_back(item);
+						auto item = make_pair(AFHierarchyLevel, prefix);
+						m_AssetNamePrefix[assetName].push_back(item);
+					}
+				}
+			}
+
+			// Metadata Rules - Not equal
+			if (m_MetadataRulesNotEqual.size() > 0)
+			{
+				string path;
+				string propertyName;
+				string prefix;
+				string AFHierarchyLevel;
+				string rule;
+				bool NotEqual;
+
+				for (auto it = m_MetadataRulesNotEqual.begin(); it != m_MetadataRulesNotEqual.end(); it++)
+				{
+					NotEqual = false;
+					rule = it->first;
+					for (auto itL2 = values.begin(); NotEqual == false && itL2 != values.end(); itL2++)
+					{
+						propertyName = (*itL2)->getName();
+
+						if (propertyName.compare(rule) == 0)
+						{
+							DatapointValue data = (*itL2)->getData();
+							string dataValue = data.toString();
+							StringReplaceAll(dataValue, "\"", "");
+
+							for (auto itL3 = it->second.begin(); NotEqual == false && itL3 != it->second.end(); itL3++)
+							{
+								auto value = itL3->first;
+								path = itL3->second;
+
+								if (value.compare(dataValue) != 0)
+								{
+									NotEqual = true;
+								}
+							}
+						}
+					}
+					if (NotEqual)
+					{
+						if (path.at(0) != '/')
+						{
+							// relative  path
+							path = m_DefaultAFLocation + "/" + path;
+						}
+						generateAFHierarchyPrefixLevel(path, prefix, AFHierarchyLevel);
+						ruleMatched = true;
+
+						auto item = make_pair(AFHierarchyLevel, prefix);
+						m_AssetNamePrefix[assetName].push_back(item);
+					}
 				}
 			}
 		}
@@ -2389,6 +2485,31 @@ void OMF::evaluateAFHierarchyRules(const string& assetName, const Reading& readi
 		auto item = make_pair(AFHierarchyLevel, prefix);
 		m_AssetNamePrefix[assetName].push_back(item);
 	}
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx5 %s - Hierarchy asset start", __FUNCTION__);
+
+	// FIXME_I:
+	for (auto item=m_AssetNamePrefix.begin(); item!=m_AssetNamePrefix.end(); ++item)
+	{
+		auto v = item->second;
+		auto vi = v.cbegin();
+
+		//# FIXME_I
+		Logger::getLogger()->debug("xxx5 %s - Hierarchy asset :%s: h :%s: p :%s:", __FUNCTION__, item->first.c_str(), vi->first.c_str(), vi->second.c_str());
+	}
+
+	for (auto item=m_OmfHintHierarchy.begin(); item!=m_OmfHintHierarchy.end(); ++item)
+	{
+		//# FIXME_I
+		Logger::getLogger()->debug("xxx5 %s - m_OmfHintHierarchy asset :%s: h :%s: p :%s:", __FUNCTION__, item->first.c_str(), item->second.c_str() );
+	}
+
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("warning");
+
 }
 
 /**

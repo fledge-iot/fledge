@@ -248,6 +248,9 @@ private:
 		bool handleAFHirerarchy();
 		bool handleAFHierarchySystemWide();
 		bool handleAFHierarchiesNamesMap();
+		// FIXME_I:
+		bool handleOmfHintHierarchies();
+
 		bool handleAFHierarchiesMetadataMap();
 		bool sendAFHierarchy(std::string AFHierarchy);
 
@@ -258,7 +261,7 @@ private:
 		bool AFHierarchySendMessage(const std::string& msgType, std::string& jsonData);
 
 		std::string generateUniquePrefixId(const std::string &path);
-		void evaluateAFHierarchyRules(const string& assetName, const Reading& reading);
+		void evaluateAFHierarchyRules(const string& assetName, const Reading& reading, const string &OmfHintHierarchy);
 		void retrieveAFHierarchyPrefixAssetName(const string& assetName, string& prefix, string& AFHierarchyLevel);
 
 		bool HandleAFMapNames(Document& JSon);
@@ -295,6 +298,13 @@ private:
 		bool            m_AFMapEmptyMetadata;
 		std::string		m_AFHierarchyLevel;
 		std::string		m_prefixAFAsset;
+
+		map<std::string, std::string>  m_OmfHintHierarchy={
+
+			// Asset_name   - Asset Framework path
+			// {"",         ""}
+		};
+
 
 		map<std::string, std::string>  m_NamesRules={
 

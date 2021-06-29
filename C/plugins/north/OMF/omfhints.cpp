@@ -75,6 +75,10 @@ OMFHints::OMFHints(const string& hints)
 			{
 				m_hints.push_back(new OMFTagHint(itr->value.GetString()));
 			}
+			else if (strcmp(name, "AFLocation") == 0)
+			{
+				m_hints.push_back(new OMFAFLocationHint(itr->value.GetString()));
+			}
 			else if (strcmp(name, "datapoint") == 0)
 			{
 				const Value &child = itr->value;

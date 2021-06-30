@@ -43,7 +43,7 @@ def start_south(add_south, remove_data_file, fledge_url):
     """ This fixture
         clean_setup_fledge_packages: purge the fledge* packages and install latest for given repo url
         add_south: Fixture that adds a south service with given configuration
-        start_north_pi_server_c_web_api: Fixture that starts PI north task
+        start_north_task_omf_web_api: Fixture that starts PI north task
         remove_data_file: Fixture that remove data file created during the tests """
 
     # Define the template file for fogbench
@@ -156,14 +156,14 @@ def _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_d
 
 class TestOMFNamingScheme:
     def test_omf_with_concise_naming(self, clean_setup_fledge_packages, reset_fledge, start_south,
-                                     start_north_pi_server_c_web_api,
+                                     start_north_task_omf_web_api,
                                      read_data_from_pi_web_api, skip_verify_north_interface, fledge_url,
                                      wait_time, retries, pi_host, pi_port, pi_admin, pi_passwd, pi_db):
         """ Test OMF with concise naming scheme.
             clean_setup_fledge_packages: Fixture to remove and install latest fledge packages
             reset_fledge: Fixture to reset fledge
             start_south: Adds and configures south service
-            start_north_pi_server_c_web_api: Adds and configures north service
+            start_north_task_omf_web_api: Adds and configures north service
             read_data_from_pi_web_api: Fixture to read data from PI web API
             skip_verify_north_interface: Flag for assertion of data using PI web API
             Assertions:
@@ -175,7 +175,7 @@ class TestOMFNamingScheme:
                 on endpoint GET /fledge/asset
                 on endpoint GET /fledge/track"""
 
-        start_north_pi_server_c_web_api(fledge_url, pi_host, pi_port, pi_user=pi_admin, pi_pwd=pi_passwd,
+        start_north_task_omf_web_api(fledge_url, pi_host, pi_port, pi_user=pi_admin, pi_pwd=pi_passwd,
                                         naming_scheme="Concise")
         subprocess.run(
             ["cd {}/extras/python; python3 -m fogbench -t ../../data/{}; cd -".format(PROJECT_ROOT, TEMPLATE_NAME)],
@@ -197,14 +197,14 @@ class TestOMFNamingScheme:
             _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries,
                            recorded_datapoint, pi_asset_name)
 
-    def test_omf_with_type_suffix_naming(self, reset_fledge, start_south, start_north_pi_server_c_web_api,
+    def test_omf_with_type_suffix_naming(self, reset_fledge, start_south, start_north_task_omf_web_api,
                                          read_data_from_pi_web_api, skip_verify_north_interface, fledge_url,
                                          wait_time, retries, pi_host, pi_port, pi_admin, pi_passwd, pi_db):
         """ Test OMF with concise naming scheme.
             clean_setup_fledge_packages: Fixture to remove and install latest fledge packages
             reset_fledge: Fixture to reset fledge
             start_south: Adds and configures south service
-            start_north_pi_server_c_web_api: Adds and configures north service
+            start_north_task_omf_web_api: Adds and configures north service
             read_data_from_pi_web_api: Fixture to read data from PI web API
             skip_verify_north_interface: Flag for assertion of data using PI web API
             Assertions:
@@ -216,7 +216,7 @@ class TestOMFNamingScheme:
                 on endpoint GET /fledge/asset
                 on endpoint GET /fledge/track"""
 
-        start_north_pi_server_c_web_api(fledge_url, pi_host, pi_port, pi_user=pi_admin, pi_pwd=pi_passwd,
+        start_north_task_omf_web_api(fledge_url, pi_host, pi_port, pi_user=pi_admin, pi_pwd=pi_passwd,
                                         naming_scheme="Use Type Suffix")
         subprocess.run(
             ["cd {}/extras/python; python3 -m fogbench -t ../../data/{}; cd -".format(PROJECT_ROOT, TEMPLATE_NAME)],
@@ -239,14 +239,14 @@ class TestOMFNamingScheme:
             _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries,
                            recorded_datapoint, pi_asset_name)
 
-    def test_omf_with_attribute_hash_naming(self, reset_fledge, start_south, start_north_pi_server_c_web_api,
+    def test_omf_with_attribute_hash_naming(self, reset_fledge, start_south, start_north_task_omf_web_api,
                                             read_data_from_pi_web_api, skip_verify_north_interface, fledge_url,
                                             wait_time, retries, pi_host, pi_port, pi_admin, pi_passwd, pi_db):
         """ Test OMF with concise naming scheme.
             clean_setup_fledge_packages: Fixture to remove and install latest fledge packages
             reset_fledge: Fixture to reset fledge
             start_south: Adds and configures south service
-            start_north_pi_server_c_web_api: Adds and configures north service
+            start_north_task_omf_web_api: Adds and configures north service
             read_data_from_pi_web_api: Fixture to read data from PI web API
             skip_verify_north_interface: Flag for assertion of data using PI web API
             Assertions:
@@ -258,7 +258,7 @@ class TestOMFNamingScheme:
                 on endpoint GET /fledge/asset
                 on endpoint GET /fledge/track"""
 
-        start_north_pi_server_c_web_api(fledge_url, pi_host, pi_port, pi_user=pi_admin, pi_pwd=pi_passwd,
+        start_north_task_omf_web_api(fledge_url, pi_host, pi_port, pi_user=pi_admin, pi_pwd=pi_passwd,
                                         naming_scheme="Use Attribute Hash")
         subprocess.run(
             ["cd {}/extras/python; python3 -m fogbench -t ../../data/{}; cd -".format(PROJECT_ROOT, TEMPLATE_NAME)],
@@ -281,14 +281,14 @@ class TestOMFNamingScheme:
             _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries,
                            recorded_datapoint, pi_asset_name)
 
-    def test_omf_with_backward_compatibility_naming(self, reset_fledge, start_south, start_north_pi_server_c_web_api,
+    def test_omf_with_backward_compatibility_naming(self, reset_fledge, start_south, start_north_task_omf_web_api,
                                                     read_data_from_pi_web_api, skip_verify_north_interface, fledge_url,
                                                     wait_time, retries, pi_host, pi_port, pi_admin, pi_passwd, pi_db):
         """ Test OMF with concise naming scheme.
             clean_setup_fledge_packages: Fixture to remove and install latest fledge packages
             reset_fledge: Fixture to reset fledge
             start_south: Adds and configures south service
-            start_north_pi_server_c_web_api: Adds and configures north service
+            start_north_task_omf_web_api: Adds and configures north service
             read_data_from_pi_web_api: Fixture to read data from PI web API
             skip_verify_north_interface: Flag for assertion of data using PI web API
             Assertions:
@@ -300,7 +300,7 @@ class TestOMFNamingScheme:
                 on endpoint GET /fledge/asset
                 on endpoint GET /fledge/track"""
 
-        start_north_pi_server_c_web_api(fledge_url, pi_host, pi_port, pi_user=pi_admin,
+        start_north_task_omf_web_api(fledge_url, pi_host, pi_port, pi_user=pi_admin,
                                         pi_pwd=pi_passwd)
         subprocess.run(
             ["cd {}/extras/python; python3 -m fogbench -t ../../data/{}; cd -".format(PROJECT_ROOT, TEMPLATE_NAME)],

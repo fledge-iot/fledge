@@ -261,8 +261,10 @@ private:
 		bool AFHierarchySendMessage(const std::string& msgType, std::string& jsonData);
 
 		std::string generateUniquePrefixId(const std::string &path);
-		void evaluateAFHierarchyRules(const string& assetName, const Reading& reading, const string &OmfHintHierarchy);
+		void evaluateAFHierarchyRules(const string& assetName, const Reading& reading);
 		void retrieveAFHierarchyPrefixAssetName(const string& assetName, string& prefix, string& AFHierarchyLevel);
+
+		bool createAFHierarchyOmfHint(const string& assetName, const  string &OmfHintHierarchy);
 
 		bool HandleAFMapNames(Document& JSon);
 		bool HandleAFMapMetedata(Document& JSon);

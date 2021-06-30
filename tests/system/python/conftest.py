@@ -149,7 +149,7 @@ def add_south():
 @pytest.fixture
 def start_north_pi_v2():
     def _start_north_pi_server_c(fledge_url, pi_host, pi_port, pi_token, north_plugin="OMF",
-                                 taskname="NorthReadingsToPI", start_task=True):
+                                 taskname="NorthReadingsToPI", start_task=True, naming_scheme="Backward compatibility"):
         """Start north task"""
 
         _enabled = "true" if start_task else "false"
@@ -165,7 +165,8 @@ def start_north_pi_v2():
                 "config": {"PIServerEndpoint": {"value": "Connector Relay"},
                            "producerToken": {"value": pi_token},
                            "ServerHostname": {"value": pi_host},
-                           "ServerPort": {"value": str(pi_port)}
+                           "ServerPort": {"value": str(pi_port)},
+                           "NamingScheme": {"value": naming_scheme}
                            }
                 }
         conn.request("POST", '/fledge/scheduled/task', json.dumps(data))
@@ -177,10 +178,11 @@ def start_north_pi_v2():
 
 
 @pytest.fixture
-def start_north_pi_v2_web_api():
-    def _start_north_pi_server_c_web_api(fledge_url, pi_host, pi_port, pi_db="Dianomic", auth_method='basic',
+def start_north_task_omf_web_api():
+    def _start_north_task_omf_web_api(fledge_url, pi_host, pi_port, pi_db="Dianomic", auth_method='basic',
                                          pi_user=None, pi_pwd=None, north_plugin="OMF",
-                                         taskname="NorthReadingsToPI_WebAPI", start_task=True):
+                                         taskname="NorthReadingsToPI_WebAPI", start_task=True,
+                                         naming_scheme="Backward compatibility"):
         """Start north task"""
 
         _enabled = True if start_task else False
@@ -200,7 +202,8 @@ def start_north_pi_v2_web_api():
                            "ServerHostname": {"value": pi_host},
                            "ServerPort": {"value": str(pi_port)},
                            "compression": {"value": "true"},
-                           "DefaultAFLocation": {"value": "fledge/room1/machine1"}
+                           "DefaultAFLocation": {"value": "fledge/room1/machine1"},
+                           "NamingScheme": {"value": naming_scheme}
                            }
                 }
 
@@ -209,14 +212,15 @@ def start_north_pi_v2_web_api():
         assert 200 == r.status
         retval = r.read().decode()
         return retval
-    return _start_north_pi_server_c_web_api
+    return _start_north_task_omf_web_api
 
 
 @pytest.fixture
 def start_north_omf_as_a_service():    
     def _start_north_omf_as_a_service(fledge_url, pi_host, pi_port, pi_db="Dianomic", auth_method='basic',
-                                         pi_user=None, pi_pwd=None, north_plugin="OMF",
-                                         service_name="NorthReadingsToPI_WebAPI", start=True):
+                                      pi_user=None, pi_pwd=None, north_plugin="OMF",
+                                      service_name="NorthReadingsToPI_WebAPI", start=True,
+                                      naming_scheme="Backward compatibility"):
         """Start north service"""
 
         _enabled = True if start else False
@@ -232,7 +236,8 @@ def start_north_omf_as_a_service():
                            "ServerHostname": {"value": pi_host},
                            "ServerPort": {"value": str(pi_port)},
                            "compression": {"value": "true"},
-                           "DefaultAFLocation": {"value": "fledge/room1/machine1"}
+                           "DefaultAFLocation": {"value": "fledge/room1/machine1"},
+                           "NamingScheme": {"value": naming_scheme}
                            }
                 }
 
@@ -245,7 +250,7 @@ def start_north_omf_as_a_service():
 
 
 start_north_pi_server_c = start_north_pi_v2
-start_north_pi_server_c_web_api = start_north_pi_v2_web_api
+start_north_pi_server_c_web_api = start_north_pi_v2_web_api = start_north_task_omf_web_api
 
 @pytest.fixture
 def read_data_from_pi():

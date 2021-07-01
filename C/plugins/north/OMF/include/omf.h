@@ -60,6 +60,8 @@ class OMFDataTypes
                 std::string    types;
                 unsigned long  typesShort;
 				long           namingScheme;
+				string         afhHash;
+				string         afHierarchy;
 
 		unsigned short hintChkSum;
 };
@@ -136,6 +138,11 @@ class OMF
 		// Generate a suffix for the given asset in relation to the selected naming schema and the value of the type id
 		long getNamingScheme(const string& assetName);
 
+		// FIXME_I:
+		string getHashStored(const string& assetName);
+		// FIXME_I:
+		void moveAssetAFH(const string& assetName, const string& source, const string& dest);
+
 		// Set the first level of hierarchy in Asset Framework in which the assets will be created, PI Web API only.
 		void setDefaultAFLocation(const std::string &DefaultAFLocation);
 
@@ -193,7 +200,7 @@ private:
 		 * 'Type', 'Container', 'Data'
 		 */
 		const std::vector<std::pair<std::string, std::string>>
-			createMessageHeader(const std::string& type) const;
+			createMessageHeader(const std::string& type, const std::string& action="create") const;
 
 		// Create data for Type message for current row
 		const std::string createTypeData(const Reading& reading, OMFHints *hints);
@@ -280,7 +287,12 @@ private:
 		bool sendAFHierarchyTypes(const std::string AFHierarchyLevel, const std::string prefix);
 		bool sendAFHierarchyStatic(const std::string AFHierarchyLevel, const std::string prefix);
 		bool sendAFHierarchyLink(std::string parent, std::string child, std::string prefixIdParent, std::string prefixId);
-		bool AFHierarchySendMessage(const std::string& msgType, std::string& jsonData);
+
+		// FIXME_I:
+		bool deleteAFHierarchyLink(std::string parent, std::string child, std::string prefixIdParent, std::string prefixId);
+
+		bool AFHierarchySendMessage(const std::string& msgType, std::string& jsonData, const std::string& action="create");
+		// FIXME_I:
 
 		std::string generateUniquePrefixId(const std::string &path);
 		void evaluateAFHierarchyRules(const string& assetName, const Reading& reading);

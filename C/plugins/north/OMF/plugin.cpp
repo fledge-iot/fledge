@@ -48,6 +48,8 @@ using namespace SimpleWeb;
 #define DATA_KEY_SHORT "dataTypesShort"
 #define DATA_KEY_HINT "hintChecksum"
 #define NAMING_SCHEME "namingScheme"
+#define AFH_HASH "afhHash"
+#define AF_HIERARCHY "afHierarchy"
 
 
 #define PROPERTY_TYPE   "type"
@@ -927,6 +929,22 @@ string saveSentDataTypes(CONNECTOR_INFO* connInfo)
 				NamingScheme = ((*it).second).namingScheme;
 				newData << ", \"" << NAMING_SCHEME << "\": " << to_string(NamingScheme) << "";
 
+				// FIXME_I:
+				string AFHHash;
+				AFHHash = ((*it).second).afhHash;
+				newData << ", \"" << AFH_HASH << "\": \"" << AFHHash << "\"";
+
+				// FIXME_I:
+				string AFHierarchy;
+				AFHierarchy = ((*it).second).afHierarchy;
+				newData << ", \"" << AF_HIERARCHY << "\": \"" << AFHierarchy << "\"";
+
+				//# FIXME_I
+				Logger::getLogger()->setMinLevel("debug");
+				Logger::getLogger()->debug("xxx8 %s - AFHHash :%s: AFHierarchy :%s: ", __FUNCTION__, AFHHash.c_str(), AFHierarchy.c_str() );
+				Logger::getLogger()->setMinLevel("warning");
+
+
 				Logger::getLogger()->debug("%s - NamingScheme :%ld: ", __FUNCTION__,NamingScheme );
 
 				newData << ", \"" << DATA_KEY << "\": " <<
@@ -1103,6 +1121,42 @@ void loadSentDataTypes(CONNECTOR_INFO* connInfo,
 					NamingScheme = NAMINGSCHEME_COMPATIBILITY;
 				}
 
+
+				// FIXME_I:
+				string AFHHash;
+				if (cachedValue.HasMember(AFH_HASH) &&
+					cachedValue[AFH_HASH].IsString())
+				{
+					AFHHash = cachedValue[AFH_HASH].GetString();
+				}
+				else
+				{
+					Logger::getLogger()->warn("%s plugin: current element '%s'" \
+								  " doesn't have '%s' property",
+											  PLUGIN_NAME,
+											  key.c_str(),
+											  AFH_HASH);
+					AFHHash = "";
+				}
+
+				// FIXME_I:
+				string AFHierarchy;
+				if (cachedValue.HasMember(AF_HIERARCHY) &&
+					cachedValue[AF_HIERARCHY].IsString())
+				{
+					AFHierarchy = cachedValue[AF_HIERARCHY].GetString();
+				}
+				else
+				{
+					Logger::getLogger()->warn("%s plugin: current element '%s'" \
+								  " doesn't have '%s' property",
+											  PLUGIN_NAME,
+											  key.c_str(),
+											  AF_HIERARCHY);
+					AFHierarchy = "";
+				}
+
+
 				string dataTypes;
 				if (cachedValue.HasMember(DATA_KEY) &&
 				    cachedValue[DATA_KEY].IsObject())
@@ -1167,6 +1221,14 @@ void loadSentDataTypes(CONNECTOR_INFO* connInfo,
 				dataType.typesShort = dataTypesShort;
 				dataType.hintChkSum = hintChecksum;
 				dataType.namingScheme = NamingScheme;
+				dataType.afhHash = AFHHash;
+				dataType.afHierarchy = AFHierarchy;
+
+				//# FIXME_I
+				Logger::getLogger()->setMinLevel("debug");
+				Logger::getLogger()->debug("xxx8 %s - AFHHash :%s: AFHierarchy :%s: ", __FUNCTION__, AFHHash.c_str(), AFHierarchy.c_str() );
+				Logger::getLogger()->setMinLevel("warning");
+
 
 				Logger::getLogger()->debug("%s - NamingScheme :%ld: ", __FUNCTION__,NamingScheme );
 

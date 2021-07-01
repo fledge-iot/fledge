@@ -127,7 +127,8 @@ def start_south_north(fledge_url):
             "schedule_time": 0,
             "schedule_repeat": 30,
             "schedule_enabled": "true",
-            "config": {"PIServerEndpoint": {"value": "Edge Data Store"}}
+            "config": {"PIServerEndpoint": {"value": "Edge Data Store"},
+                       "NamingScheme": {"value": "Backward compatibility"}}
             }
     conn.request("POST", '/fledge/scheduled/task', json.dumps(data))
     r = conn.getresponse()

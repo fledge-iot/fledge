@@ -143,7 +143,11 @@ class TestNorth:
                    "config": {
                               "ServerHostname": {"value": pi_host},
                               "ServerPort": {"value": pi_port},
-                              "producerToken": {"value": pi_token}, "compression": {"value": "false"}}}
+                              "producerToken": {"value": pi_token},
+                              "compression": {"value": "false"},
+                              "NamingScheme": {"value": "Backward compatibility"}
+                              }
+                    }
         post_request(fledge_url, "/fledge/scheduled/task", payload)
 
         while retries:

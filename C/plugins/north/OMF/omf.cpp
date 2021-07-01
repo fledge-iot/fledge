@@ -26,6 +26,10 @@
 
 #include <piwebapi.h>
 
+
+//# FIXME_I:
+#include <tmp_log.hpp>
+
 using namespace std;
 using namespace rapidjson;
 
@@ -689,13 +693,14 @@ bool OMF::sendAFHierarchyLink(std::string parent, std::string child, std::string
 	StringReplace(tmpStr, "_placeholder_tgt_idx_",  prefixId + "_" + child);
 	jsonData.append(tmpStr);
 
+
 	success = AFHierarchySendMessage("Data", jsonData);
 
 	return success;
 }
 
 // FIXME_I:
-bool OMF::deleteAFHierarchyLink(std::string parent, std::string child, std::string prefixIdParent, std::string prefixId)
+bool OMF::manageAFHierarchyLink(std::string parent, std::string child, std::string prefixIdParent, std::string prefixId, std::string childFull, string action)
 {
 	bool success;
 	string jsonData;
@@ -706,13 +711,82 @@ bool OMF::deleteAFHierarchyLink(std::string parent, std::string child, std::stri
 
 	StringReplace(tmpStr, "_placeholder_src_type_", prefixIdParent + "_" + parent + "_typeid");
 	StringReplace(tmpStr, "_placeholder_src_idx_",  prefixIdParent + "_" + parent );
-	StringReplace(tmpStr, "_placeholder_tgt_type_", prefixId       + "_" + child + "_typeid");
-	StringReplace(tmpStr, "_placeholder_tgt_idx_",  prefixId + "_" + child);
+
+	if (childFull.empty()) {
+
+		StringReplace(tmpStr, "_placeholder_tgt_type_", prefixId       + "_" + child + "_typeid");
+	} else {
+		StringReplace(tmpStr, "_placeholder_tgt_type_", childFull);
+	}
+
+	// FIXME_I:
+	StringReplace(tmpStr, "_placeholder_tgt_idx_",  "A_" + prefixId + "_" + child);
 	jsonData.append(tmpStr);
 
-	success = AFHierarchySendMessage("Data", jsonData, "delete");
+	//# FIXME_I:
+	char tmp_buffer[500000];
+	snprintf (tmp_buffer,500000, "%s : action |%s| jsonData |%s| "
+		,__FUNCTION__
+		,action.c_str()
+		,jsonData.c_str()
+		);
+	tmpLogger (tmp_buffer);
+
+
+	success = AFHierarchySendMessage("Data", jsonData, action);
 
 	return success;
+}
+
+
+// FIXME_I:
+void OMF::deleteAssetAFH(const string& assetName, const string& source, const string& dest) {
+
+	std::string parent, child, parentPrefixId, childPrefixId, childFull;
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("%s - assetName :%s: source :%s: dest :%s: "
+		,__FUNCTION__
+		,assetName.c_str()
+		,source.c_str()
+		,dest.c_str()
+	);
+
+	parent="ADN C2";
+	child="Rotary_2";
+	parentPrefixId="6161612546660591064";
+	childPrefixId="6161612546660591064";
+
+	setAssetTypeTag(assetName, "typename_sensor", childFull);
+
+	manageAFHierarchyLink(parent, child, parentPrefixId, childPrefixId, childFull, "delete");
+}
+
+
+// FIXME_I:
+void OMF::createAssetAFH(const string& assetName, const string& source, const string& dest) {
+
+	std::string parent, child, parentPrefixId, childPrefixId, childFull;
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("%s - assetName :%s: source :%s: dest :%s: "
+		,__FUNCTION__
+		,assetName.c_str()
+		,source.c_str()
+		,dest.c_str()
+	);
+
+	parent="ADN C2_V2";
+	child="Rotary_2";
+	parentPrefixId="220884279795251920";
+	childPrefixId="6161612546660591064";
+
+	// FIXME_I:
+	//setAssetTypeTag(assetName, "typename_sensor", childFull);
+	childFull = "A_6161612546660591064_ADN C2_1_Rotary_2_typename_sensor";
+	manageAFHierarchyLink(parent, child, parentPrefixId, childPrefixId, childFull, "create");
 }
 
 /**
@@ -1176,7 +1250,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			{
 				//# FIXME_I
 				Logger::getLogger()->setMinLevel("debug");
-				Logger::getLogger()->debug("xxx3 %s - OMF HINT L1 ", __FUNCTION__ );
+				Logger::getLogger()->debug("%s - OMF HINT L1 ", __FUNCTION__ );
 				Logger::getLogger()->setMinLevel("warning");
 
 				if (typeid(**it) == typeid(OMFTagHint))
@@ -1192,7 +1266,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 					OMFHintAFHierarchy = (*it)->getHint();
 					//# FIXME_I
 					Logger::getLogger()->setMinLevel("debug");
-					Logger::getLogger()->debug("xxx3 %s - OMF HINT L2 :%s:", __FUNCTION__, OMFHintAFHierarchy.c_str() );
+					Logger::getLogger()->debug("%s - OMF HINT L2 :%s:", __FUNCTION__, OMFHintAFHierarchy.c_str() );
 					Logger::getLogger()->setMinLevel("warning");
 				}
 			}
@@ -1214,7 +1288,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 
 		// FIXME_I:
 		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("xxx3 %s - OMF HINT L3 m_assetName :%s: :%s:", __FUNCTION__, m_assetName.c_str() , OMFHintAFHierarchy.c_str() );
+		Logger::getLogger()->debug("%s - OMF HINT L3 m_assetName :%s: :%s:", __FUNCTION__, m_assetName.c_str() , OMFHintAFHierarchy.c_str() );
 		Logger::getLogger()->setMinLevel("warning");
 		//evaluateAFHierarchyRules(m_assetName, *reading, "/Sites/Orange/Suez/ADN C1");
 
@@ -1240,7 +1314,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 
 				//# FIXME_I
 				Logger::getLogger()->setMinLevel("debug");
-				Logger::getLogger()->debug("xxx7 %s - NAMINGSCHEME_CONCISE ", __FUNCTION__);
+				Logger::getLogger()->debug("%s - NAMINGSCHEME_CONCISE ", __FUNCTION__);
 				Logger::getLogger()->setMinLevel("warning");
 
 				keyComplete = m_assetName;
@@ -2343,21 +2417,6 @@ void OMF::retrieveAFHierarchyPrefixAssetName(const string& assetName, string& pr
 
 
 // FIXME_I:
-void OMF::moveAssetAFH(const string& assetName, const string& source, const string& dest) {
-
-
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx8 %s - assetName :%s: source :%s: dest :%s: "
-		,__FUNCTION__
-		,assetName.c_str()
-		,source.c_str()
-		,dest.c_str()
-	);
-
-}
-
-// FIXME_I:
 bool OMF::createAFHierarchyOmfHint(const string& assetName, const  string &OmfHintHierarchy)
 {
 	string path;
@@ -2370,7 +2429,7 @@ bool OMF::createAFHierarchyOmfHint(const string& assetName, const  string &OmfHi
 
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx6 %s - OmfHintHierarchy check  start - OmfHintHierarchy:%s: ", __FUNCTION__, OmfHintHierarchy.c_str() );
+	Logger::getLogger()->debug("%s - OmfHintHierarchy check  start - OmfHintHierarchy:%s: ", __FUNCTION__, OmfHintHierarchy.c_str() );
 
 	// FIXME_I:
 	if (! OmfHintHierarchy.empty())
@@ -2391,7 +2450,7 @@ bool OMF::createAFHierarchyOmfHint(const string& assetName, const  string &OmfHi
 
 		//# FIXME_I
 		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("xxx6 %s - OMF hint hierarchy defined assetName :%s: path :%s: - :%s: AFHierarchyLevel :%s: prefix :%s: prefixStored :%s: "
+		Logger::getLogger()->debug("%s - OMF hint hierarchy defined assetName :%s: path :%s: - :%s: AFHierarchyLevel :%s: prefix :%s: prefixStored :%s: "
 			,__FUNCTION__
 			,assetName.c_str()
 			,OmfHintHierarchy.c_str()
@@ -2402,56 +2461,65 @@ bool OMF::createAFHierarchyOmfHint(const string& assetName, const  string &OmfHi
 			);
 
 		// FIXME_I:
-		auto it = m_OmfHintHierarchy.find(assetName);
-		if (it->second.compare(path) != 0) {
+//		auto it = m_OmfHintHierarchy.find(assetName);
+//		if (it->second.compare(path) != 0) {
+//
+//			Logger::getLogger()->setMinLevel("debug");
+//			Logger::getLogger()->debug("%s - OMF hint Hierarchy changed origin :%s: new :%s:"
+//									   ,__FUNCTION__
+//									   ,it->second.c_str()
+//									   , path.c_str());
+//		}
 
-			Logger::getLogger()->setMinLevel("debug");
-			Logger::getLogger()->debug("xxx6 %s - OMF hint Hierarchy changed origin :%s: new :%s:"
-									   ,__FUNCTION__
-									   ,it->second.c_str()
-									   , path.c_str());
-		}
-
-
-		//if (it == m_OmfHintHierarchy.end())
-		if (1)
-		{
-			m_OmfHintHierarchy[assetName] = path;
-			sendAFHierarchy(path.c_str());
-
-			//# FIXME_I
-			Logger::getLogger()->setMinLevel("debug");
-			Logger::getLogger()->debug("xxx6 %s - OMF hint Hierarchy created assetName :%s: path :%s:", __FUNCTION__, assetName.c_str(), path.c_str());
-
-		} else {
-			//# FIXME_I
-			Logger::getLogger()->setMinLevel("debug");
-			Logger::getLogger()->debug("xxx6 %s - OMF hint Hierarchy ALREADY created assetName :%s: path :%s:", __FUNCTION__, assetName.c_str(), path.c_str());
-		}
 
 		// FIXME_I:
-		if (prefix.compare(prefixStored) != 0) {
+		if (prefixStored.compare("") == 0) {
+
+			//# FIXME_I
+			Logger::getLogger()->setMinLevel("debug");
+			Logger::getLogger()->debug("xxx4 %s - path new assetName :%s: path :%s:", __FUNCTION__, assetName.c_str(), path.c_str());
 
 			auto item = make_pair(AFHierarchyLevel, prefix);
-			// FIXME_I:
-			//m_AssetNamePrefix[assetName].pop_back();
 			m_AssetNamePrefix[assetName].push_back(item);
+			//m_OmfHintHierarchy[assetName] = path;
 
-			moveAssetAFH(assetName, prefixStored, prefix);
+			sendAFHierarchy(path.c_str());
+
 		} else {
+			if (prefix.compare(prefixStored) != 0) {
 
-			auto item = make_pair(AFHierarchyLevel, prefix);
-			m_AssetNamePrefix[assetName].push_back(item);
+				//# FIXME_I
+				Logger::getLogger()->setMinLevel("debug");
+				Logger::getLogger()->debug("xxx4 %s - path changed assetName :%s: path :%s:", __FUNCTION__, assetName.c_str(), path.c_str());
+
+				//m_OmfHintHierarchy[assetName] = path;
+				sendAFHierarchy(path.c_str());
+
+				deleteAssetAFH(assetName, prefixStored, prefix);
+
+				auto item = make_pair(AFHierarchyLevel, prefix);
+				m_AssetNamePrefix[assetName].clear();
+				m_AssetNamePrefix[assetName].push_back(item);
+
+				createAssetAFH(assetName, prefixStored, prefix);
+
+			} else {
+				//# FIXME_I
+				Logger::getLogger()->setMinLevel("debug");
+				Logger::getLogger()->debug("xxx4 %s - path current assetName :%s: path :%s:", __FUNCTION__, assetName.c_str(), path.c_str());
+
+			}
+			
 		}
 
 	}
 
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx6 %s - OmfHintHierarchy check  end ", __FUNCTION__);
+	Logger::getLogger()->debug("xxx5 %s - OmfHintHierarchy check  end ", __FUNCTION__);
 
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx6 %s - Hierarchy asset start", __FUNCTION__);
+	Logger::getLogger()->debug("xxx5 %s - Hierarchy asset start", __FUNCTION__);
 
 	// FIXME_I:
 	for (auto item=m_AssetNamePrefix.begin(); item!=m_AssetNamePrefix.end(); ++item)
@@ -2461,7 +2529,7 @@ bool OMF::createAFHierarchyOmfHint(const string& assetName, const  string &OmfHi
 		for(auto  arrayItem : v) {
 
 			//# FIXME_I
-			Logger::getLogger()->debug("xxx6 %s - Hierarchy asset :%s: h :%s: p :%s:", __FUNCTION__, item->first.c_str(), arrayItem.first.c_str(), arrayItem.second.c_str());
+			Logger::getLogger()->debug("xxx5 %s - Hierarchy asset :%s: h :%s: p :%s:", __FUNCTION__, item->first.c_str(), arrayItem.first.c_str(), arrayItem.second.c_str());
 		}
 
 	}
@@ -3517,7 +3585,7 @@ long OMF::getNamingScheme(const string& assetName)
 
 			//# FIXME_I
 			Logger::getLogger()->setMinLevel("debug");
-			Logger::getLogger()->debug("xxx7 %s - snd attemp :%s:", __FUNCTION__, keyComplete.c_str () );
+			Logger::getLogger()->debug("%s - snd attemp :%s:", __FUNCTION__, keyComplete.c_str () );
 			Logger::getLogger()->setMinLevel("warning");
 
 			auto it = m_OMFDataTypes->find(keyComplete);
@@ -3850,7 +3918,7 @@ bool OMF::setCreatedTypes(const Reading& row, OMFHints *hints)
 
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx8 %s - keyComplete :%s: m_NamingScheme :%ld: AFHierarchyPrefix :%s: AFHierarchyLevel :%s: "
+	Logger::getLogger()->debug("%s - keyComplete :%s: m_NamingScheme :%ld: AFHierarchyPrefix :%s: AFHierarchyLevel :%s: "
 				, __FUNCTION__
 				, keyComplete.c_str()
 				, m_NamingScheme

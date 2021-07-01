@@ -141,7 +141,8 @@ class OMF
 		// FIXME_I:
 		string getHashStored(const string& assetName);
 		// FIXME_I:
-		void moveAssetAFH(const string& assetName, const string& source, const string& dest);
+		void deleteAssetAFH(const string& assetName, const string& source, const string& dest);
+		void createAssetAFH(const string& assetName, const string& source, const string& dest);
 
 		// Set the first level of hierarchy in Asset Framework in which the assets will be created, PI Web API only.
 		void setDefaultAFLocation(const std::string &DefaultAFLocation);
@@ -289,7 +290,7 @@ private:
 		bool sendAFHierarchyLink(std::string parent, std::string child, std::string prefixIdParent, std::string prefixId);
 
 		// FIXME_I:
-		bool deleteAFHierarchyLink(std::string parent, std::string child, std::string prefixIdParent, std::string prefixId);
+		bool manageAFHierarchyLink(std::string parent, std::string child, std::string prefixIdParent, std::string prefixId, std::string childFull, string action);
 
 		bool AFHierarchySendMessage(const std::string& msgType, std::string& jsonData, const std::string& action="create");
 		// FIXME_I:

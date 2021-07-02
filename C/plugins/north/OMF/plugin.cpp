@@ -50,6 +50,7 @@ using namespace SimpleWeb;
 #define NAMING_SCHEME "namingScheme"
 #define AFH_HASH "afhHash"
 #define AF_HIERARCHY "afHierarchy"
+#define AF_HIERARCHY_ORIG "afHierarchyOrig"
 
 
 #define PROPERTY_TYPE   "type"
@@ -939,9 +940,15 @@ string saveSentDataTypes(CONNECTOR_INFO* connInfo)
 				AFHierarchy = ((*it).second).afHierarchy;
 				newData << ", \"" << AF_HIERARCHY << "\": \"" << AFHierarchy << "\"";
 
+				// FIXME_I:
+				string AFHierarchyOrig;
+				AFHierarchyOrig = ((*it).second).afHierarchyOrig;
+				newData << ", \"" << AF_HIERARCHY_ORIG << "\": \"" << AFHierarchyOrig << "\"";
+
 				//# FIXME_I
 				Logger::getLogger()->setMinLevel("debug");
-				Logger::getLogger()->debug("xxx8 %s - AFHHash :%s: AFHierarchy :%s: ", __FUNCTION__, AFHHash.c_str(), AFHierarchy.c_str() );
+				Logger::getLogger()->debug("xxx8 %s - AFHHash :%s: AFHierarchy     :%s: ", __FUNCTION__, AFHHash.c_str(), AFHierarchy.c_str() );
+				Logger::getLogger()->debug("xxx8 %s - AFHHash :%s: AFHierarchyOrig :%s: ", __FUNCTION__, AFHHash.c_str(), AFHierarchyOrig.c_str() );
 				Logger::getLogger()->setMinLevel("warning");
 
 
@@ -1157,6 +1164,23 @@ void loadSentDataTypes(CONNECTOR_INFO* connInfo,
 				}
 
 
+				// FIXME_I:
+				string AFHierarchyOrig;
+				if (cachedValue.HasMember(AF_HIERARCHY_ORIG) &&
+					cachedValue[AF_HIERARCHY_ORIG].IsString())
+				{
+					AFHierarchyOrig = cachedValue[AF_HIERARCHY_ORIG].GetString();
+				}
+				else
+				{
+					Logger::getLogger()->warn("%s plugin: current element '%s'" \
+								  " doesn't have '%s' property",
+											  PLUGIN_NAME,
+											  key.c_str(),
+											  AF_HIERARCHY_ORIG);
+					AFHierarchyOrig = "";
+				}
+
 				string dataTypes;
 				if (cachedValue.HasMember(DATA_KEY) &&
 				    cachedValue[DATA_KEY].IsObject())
@@ -1223,6 +1247,7 @@ void loadSentDataTypes(CONNECTOR_INFO* connInfo,
 				dataType.namingScheme = NamingScheme;
 				dataType.afhHash = AFHHash;
 				dataType.afHierarchy = AFHierarchy;
+				dataType.afHierarchyOrig = AFHierarchyOrig;
 
 				//# FIXME_I
 				Logger::getLogger()->setMinLevel("debug");

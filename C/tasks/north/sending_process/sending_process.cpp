@@ -63,6 +63,11 @@ int main(int argc, char** argv)
 {
 	try
 	{
+		//# FIXME_I
+		Logger::getLogger()->setMinLevel("debug");
+		Logger::getLogger()->debug("xxx2 %s - sendingProcess", __FUNCTION__);
+		Logger::getLogger()->setMinLevel("warning");
+
 		// Instantiate SendingProcess class
 		SendingProcess sendingProcess(argc, argv);
 

@@ -62,6 +62,7 @@ class OMFDataTypes
 				long           namingScheme;
 				string         afhHash;
 				string         afHierarchy;
+				string         afHierarchyOrig;
 
 		unsigned short hintChkSum;
 };
@@ -141,10 +142,12 @@ class OMF
 		// FIXME_I:
 		string getHashStored(const string& assetName);
 		string getPathStored(const string& assetName);
+		// FIXME_I:
+		string getPathOrigStored(const string& assetName);
 		bool setPathStored(const string& assetName, string &afHierarchy);
 		// FIXME_I:
-		void deleteAssetAFH(const string& assetName, const string& source, const string& dest);
-		void createAssetAFH(const string& assetName, const string& source, const string& dest);
+		void deleteAssetAFH(const string& assetName, string& path);
+		void createAssetAFH(const string& assetName, string& path);
 
 		// Set the first level of hierarchy in Asset Framework in which the assets will be created, PI Web API only.
 		void setDefaultAFLocation(const std::string &DefaultAFLocation);
@@ -228,6 +231,11 @@ private:
 		void setAssetTypeTag(const std::string& assetName,
 				     const std::string& tagName,
 				     std::string& data);
+
+		// FIXME_I:
+		void setAssetTypeTagNew(const std::string& assetName,
+							 const std::string& tagName,
+							 std::string& data);
 
 		// Create the OMF data types if needed
 		bool handleDataTypes(const string keyComplete,

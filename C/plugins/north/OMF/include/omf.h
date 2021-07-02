@@ -140,6 +140,8 @@ class OMF
 
 		// FIXME_I:
 		string getHashStored(const string& assetName);
+		string getPathStored(const string& assetName);
+		bool setPathStored(const string& assetName, string &afHierarchy);
 		// FIXME_I:
 		void deleteAssetAFH(const string& assetName, const string& source, const string& dest);
 		void createAssetAFH(const string& assetName, const string& source, const string& dest);
@@ -298,6 +300,8 @@ private:
 		std::string generateUniquePrefixId(const std::string &path);
 		void evaluateAFHierarchyRules(const string& assetName, const Reading& reading);
 		void retrieveAFHierarchyPrefixAssetName(const string& assetName, string& prefix, string& AFHierarchyLevel);
+		// FIXME_I:
+		void retrieveAFHierarchyFullPrefixAssetName(const string& assetName, string& prefix, string& AFHierarchy);
 
 		bool createAFHierarchyOmfHint(const string& assetName, const  string &OmfHintHierarchy);
 
@@ -337,10 +341,10 @@ private:
 		std::string		m_AFHierarchyLevel;
 		std::string		m_prefixAFAsset;
 
-		map<std::string, std::string>  m_OmfHintHierarchy={
+		vector<std::string>  m_afhHierarchyAlredyCreated={
 
-			// Asset_name   - Asset Framework path
-			// {"",         ""}
+			//  Asset Framework path
+			// {""}
 		};
 
 

@@ -45,6 +45,13 @@ OMFHints::OMFHints(const string& hints)
 		for (int i = 0; i < hintsTmp.length(); i++)
 			m_chksum += hintsTmp[i];
 	}
+
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx3 %s - hintsTmp :%s: m_chksum :%H: ", __FUNCTION__, hintsTmp.c_str(), m_chksum);
+	Logger::getLogger()->setMinLevel("warning");
+
 	if (m_doc.HasParseError())
 	{
 		Logger::getLogger()->error("Ignoring OMFHint '%s' parse error in JSON", hintsTmp.c_str());

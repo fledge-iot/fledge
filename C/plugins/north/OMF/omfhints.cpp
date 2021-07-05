@@ -24,6 +24,17 @@
 using namespace std;
 using namespace rapidjson;
 
+string OMFHints::getHintForChecksum(const string &hint) {
+
+	string hintFinal;
+
+	hintFinal = hint;
+	//hintFinal = hint + "v";
+
+	return (hintFinal);
+}
+
+
 OMFHints::OMFHints(const string& hints)
 {
 	string hintsTmp;
@@ -49,7 +60,7 @@ OMFHints::OMFHints(const string& hints)
 
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx3 %s - hintsTmp :%s: m_chksum :%H: ", __FUNCTION__, hintsTmp.c_str(), m_chksum);
+	Logger::getLogger()->debug("xxx3 %s - hintsTmp :%s: m_chksum :%X: ", __FUNCTION__, hintsTmp.c_str(), m_chksum);
 	Logger::getLogger()->setMinLevel("warning");
 
 	if (m_doc.HasParseError())

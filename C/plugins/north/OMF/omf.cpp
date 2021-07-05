@@ -31,7 +31,7 @@
 #include <iterator>
 
 //# FIXME_I:
-#include <tmp_log.hpp>
+///#include <tmp_log.hpp>
 
 using namespace std;
 using namespace rapidjson;
@@ -732,13 +732,13 @@ bool OMF::manageAFHierarchyLink(std::string parent, std::string child, std::stri
 	jsonData.append(tmpStr);
 
 	//# FIXME_I:
-	char tmp_buffer[500000];
-	snprintf (tmp_buffer,500000, "%s : action |%s| jsonData |%s| "
-		,__FUNCTION__
-		,action.c_str()
-		,jsonData.c_str()
-		);
-	tmpLogger (tmp_buffer);
+//	char tmp_buffer[500000];
+//	snprintf (tmp_buffer,500000, "%s : action |%s| jsonData |%s| "
+//		,__FUNCTION__
+//		,action.c_str()
+//		,jsonData.c_str()
+//		);
+//	tmpLogger (tmp_buffer);
 
 
 	success = AFHierarchySendMessage("Data", jsonData, action);
@@ -759,7 +759,7 @@ void OMF::deleteAssetAFH(const string& assetName, string& path) {
 
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx9 %s - assetName :%s: childPrefixId :%s: pathStored :%s: parentLastLevel :%s: parentPrefixId :%s:  childFull :%s:"
+	Logger::getLogger()->debug("%s - assetName :%s: childPrefixId :%s: pathStored :%s: parentLastLevel :%s: parentPrefixId :%s:  childFull :%s:"
 		, __FUNCTION__
 		, assetName.c_str()
 		, assetNamePrefixId.c_str()
@@ -786,7 +786,7 @@ void OMF::createAssetAFH(const string& assetName, string& path) {
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx9 %s - assetName :%s: childPrefixId :%s: pathStored :%s: pathLastLevel :%s: pathPrefixId :%s:  childFull :%s:"
+	Logger::getLogger()->debug("%s - assetName :%s: childPrefixId :%s: pathStored :%s: pathLastLevel :%s: pathPrefixId :%s:  childFull :%s:"
 		, __FUNCTION__
 		, assetName.c_str()
 		, assetNamePrefixId.c_str()
@@ -2456,7 +2456,7 @@ bool OMF::createAFHierarchyOmfHint(const string& assetName, const  string &OmfHi
 
 		//# FIXME_I
 		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("xxx3 %s - OMF hint hierarchy - assetName :%s: path :%s: pathStored :%s: prefixStored :%s: "
+		Logger::getLogger()->debug("%s - OMF hint hierarchy - assetName :%s: path :%s: pathStored :%s: prefixStored :%s: "
 			, __FUNCTION__
 			, assetName.c_str()
 			, pathNew.c_str()
@@ -2469,7 +2469,7 @@ bool OMF::createAFHierarchyOmfHint(const string& assetName, const  string &OmfHi
 		if(find(m_afhHierarchyAlredyCreated.begin(), m_afhHierarchyAlredyCreated.end(), pathNew) == m_afhHierarchyAlredyCreated.end()){
 
 			Logger::getLogger()->setMinLevel("debug");
-			Logger::getLogger()->debug("xxx4 %s - New path requested :%s:", __FUNCTION__, pathNew.c_str());
+			Logger::getLogger()->debug("%s - New path requested :%s:", __FUNCTION__, pathNew.c_str());
 
 			sendAFHierarchy(pathNew.c_str());
 			m_afhHierarchyAlredyCreated.push_back(pathNew);
@@ -2480,7 +2480,7 @@ bool OMF::createAFHierarchyOmfHint(const string& assetName, const  string &OmfHi
 		{
 			//# FIXME_I
 			Logger::getLogger()->setMinLevel("debug");
-			Logger::getLogger()->debug("xxx5 %s - path new assetName :%s: path :%s:", __FUNCTION__, assetName.c_str(), pathNew.c_str());
+			Logger::getLogger()->debug("%s - path new assetName :%s: path :%s:", __FUNCTION__, assetName.c_str(), pathNew.c_str());
 
 			auto item = make_pair(pathNew, prefix);
 			m_AssetNamePrefix[assetName].push_back(item);
@@ -2490,7 +2490,7 @@ bool OMF::createAFHierarchyOmfHint(const string& assetName, const  string &OmfHi
 
 				//# FIXME_I
 				Logger::getLogger()->setMinLevel("debug");
-				Logger::getLogger()->debug("xxx5 %s - path changed assetName :%s: path :%s: pathStored :%s:"
+				Logger::getLogger()->debug("%s - path changed assetName :%s: path :%s: pathStored :%s:"
 										   , __FUNCTION__
 										   , assetName.c_str()
 										   , pathNew.c_str()
@@ -2508,7 +2508,7 @@ bool OMF::createAFHierarchyOmfHint(const string& assetName, const  string &OmfHi
 			} else {
 				//# FIXME_I
 				Logger::getLogger()->setMinLevel("debug");
-				Logger::getLogger()->debug("xxx5 %s - path current assetName :%s: path :%s:", __FUNCTION__, assetName.c_str(), pathNew.c_str());
+				Logger::getLogger()->debug("%s - path current assetName :%s: path :%s:", __FUNCTION__, assetName.c_str(), pathNew.c_str());
 
 			}
 			
@@ -2518,10 +2518,10 @@ bool OMF::createAFHierarchyOmfHint(const string& assetName, const  string &OmfHi
 
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx6 %s - OmfHintHierarchy check  end ", __FUNCTION__);
+	Logger::getLogger()->debug("%s - OmfHintHierarchy check  end ", __FUNCTION__);
 
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx6 %s - Hierarchy asset start", __FUNCTION__);
+	Logger::getLogger()->debug("%s - Hierarchy asset start", __FUNCTION__);
 
 	// FIXME_I:
 	for (auto item=m_AssetNamePrefix.begin(); item!=m_AssetNamePrefix.end(); ++item)
@@ -2531,7 +2531,7 @@ bool OMF::createAFHierarchyOmfHint(const string& assetName, const  string &OmfHi
 		for(auto  arrayItem : v) {
 
 			//# FIXME_I
-			Logger::getLogger()->debug("xxx6 %s - Hierarchy asset :%s: h :%s: p :%s:", __FUNCTION__, item->first.c_str(), arrayItem.first.c_str(), arrayItem.second.c_str());
+			Logger::getLogger()->debug("%s - Hierarchy asset :%s: h :%s: p :%s:", __FUNCTION__, item->first.c_str(), arrayItem.first.c_str(), arrayItem.second.c_str());
 		}
 
 	}
@@ -4119,7 +4119,7 @@ bool OMF::setCreatedTypes(const Reading& row, OMFHints *hints)
 
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx8 %s - keyComplete :%s: m_NamingScheme :%ld: AFHierarchyPrefix :%s: AFHierarchy :%s: "
+	Logger::getLogger()->debug("%s - keyComplete :%s: m_NamingScheme :%ld: AFHierarchyPrefix :%s: AFHierarchy :%s: "
 				, __FUNCTION__
 				, keyComplete.c_str()
 				, m_NamingScheme

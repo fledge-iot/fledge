@@ -35,7 +35,10 @@ function table {
 
 output=$1
 rm -f $output
-fledgeRepos=$(curl -sX GET https://api.github.com/orgs/fledge-iot/repos\?per_page=1000)
+# Get total number of respository pages in fledge org.
+fledgeRepoPagesCount=`curl -sI https://api.github.com/orgs/fledge-iot/repos | grep -oP '\d+(?=>; rel="last")'`
+fledgeRepos=$(curl -sX GET https://api.github.com/orgs/fledge-iot/repos\?page=[1-$fledgeRepoPagesCount])
+fledgeRepos="$(echo $fledgeRepos | sed 's/\] \[/,/g')"
 fetchTopicReposPyScript='
 import json,sys;\
 repos=json.load(sys.stdin);\

@@ -24,20 +24,49 @@
 using namespace std;
 using namespace rapidjson;
 
+#define OMFHINTS_AFLOCATION "\"AFLocation\""
+
 string OMFHints::getHintForChecksum(const string &hint) {
 
+	size_t pos1, pos2;
 	string hintFinal;
 
 	hintFinal = hint;
-	//hintFinal = hint + "v";
 
+	pos1 = hintFinal.find(OMFHINTS_AFLOCATION);
+	if (pos1 != std::string::npos)
+	{
+		hintFinal.erase(pos1, strlen(OMFHINTS_AFLOCATION));
+
+		pos2 = hintFinal.find(",", pos1);
+		if (pos2 != std::string::npos)
+		{
+			hintFinal.erase(pos1, pos2 - pos1 + 1);
+		} else {
+
+			pos2 = hintFinal.find("}", pos1);
+			if (pos2 != std::string::npos)
+			{
+				// Remove the , and up to }
+				if (hintFinal.find(",") != std::string::npos) {
+
+					hintFinal.erase(pos1 -1, pos2 - pos1 +1);
+				} else {
+					hintFinal.erase(pos1, pos2 - pos1);
+				}
+			} else
+			{
+				hintFinal = "";
+			}
+		}
+	}
 	return (hintFinal);
 }
 
 
 OMFHints::OMFHints(const string& hints)
 {
-	string hintsTmp;
+	string hintsTmp, hintsChksum;
 
 	hintsTmp = hints;
 	StringReplaceAll(hintsTmp,"\\","");
@@ -47,21 +76,23 @@ OMFHints::OMFHints(const string& hints)
 	{
 		// Skip any enclosing "'s
 		m_doc.Parse(hintsTmp.substr(1, hintsTmp.length() - 2).c_str());
-		for (int i = 1; i < hintsTmp.length() - 1; i++)
-			m_chksum += hintsTmp[i];
+		hintsChksum = getHintForChecksum(hintsTmp);
+		for (int i = 1; i < hintsChksum.length() - 1; i++)
+			m_chksum += hintsChksum[i];
 	}
 	else
 	{
 		m_doc.Parse(hintsTmp.c_str());
-		for (int i = 0; i < hintsTmp.length(); i++)
-			m_chksum += hintsTmp[i];
+		hintsChksum = getHintForChecksum(hintsTmp);
+		for (int i = 0; i < hintsChksum.length(); i++)
+			m_chksum += hintsChksum[i];
 	}
 
-
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx3 %s - hintsTmp :%s: m_chksum :%X: ", __FUNCTION__, hintsTmp.c_str(), m_chksum);
-	Logger::getLogger()->setMinLevel("warning");
+	Logger::getLogger()->debug("xxx6 %s - hints :%s: hintsChksum :%s: m_chksum :%X: "
+		, __FUNCTION__
+		,hints.c_str()
+		,hintsChksum.c_str()
+		, m_chksum);
 
 	if (m_doc.HasParseError())
 	{

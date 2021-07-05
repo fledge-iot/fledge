@@ -4,7 +4,7 @@
 #include <omf.h>
 #include <rapidjson/document.h>
 #include <simple_https.h>
-
+#include <OMFHint.h>
 /*
  * Fledge Readings to OMF translation unit tests
  *
@@ -560,4 +560,34 @@ TEST(PiServer_NamingRules, Prefix)
 		omf.setNamingScheme(NAMINGSCHEME_COMPATIBILITY);
 		ASSERT_EQ(omf.generateMeasurementId(asset), "1measurement_" + asset);
 	}
+}
+
+TEST(OMF_hints, m_chksum)
+{
+	string asset;
+
+	ASSERT_EQ(
+		OMFHints::getHintForChecksum("{\"AFLocation\":\"/Sites/Orange/Suez/ADN C1\"}"),
+		"{}"
+	);
+
+	ASSERT_EQ(
+		OMFHints::getHintForChecksum("{\"AFLocation\":\"/Sites/Orange/Trackonomy/ADN C2\",\"number\":\"float32\"}"),
+		"{\"number\":\"float32\"}"
+	);
+
+	ASSERT_EQ(
+		OMFHints::getHintForChecksum("{\"number\":\"float32\"}"),
+		"{\"number\":\"float32\"}"
+	);
+
+	ASSERT_EQ(
+		OMFHints::getHintForChecksum("{\"number\":\"float32\",\"AFLocation\":\"/Sites/Orange/Trackonomy/ADN C2\"}"),
+		"{\"number\":\"float32\"}"
+	);
+
+	ASSERT_EQ(
+		OMFHints::getHintForChecksum("{\"number\":\"float32\",\"AFLocation\":\"/Sites/Orange/Trackonomy/ADN C2\",\"number\":\"float32\"}"),
+		"{\"number\":\"float32\",\"number\":\"float32\"}"
+	);
 }

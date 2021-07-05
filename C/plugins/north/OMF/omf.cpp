@@ -4219,9 +4219,15 @@ bool OMF::getCreatedTypes(const string& keyComplete, const Reading& row, OMFHint
 						// FIXME_I:
 						if (hints && type.hintChkSum != hints->getChecksum())
 						{
+							//# FIXME_I
+							Logger::getLogger()->setMinLevel("debug");
+							Logger::getLogger()->debug("xxx7 %s - hintChkSum", __FUNCTION__);
+							Logger::getLogger()->setMinLevel("warning");
+
+
 							// FIXME_I:
-							ret = true;
-							//ret = false;
+							//ret = true;
+							ret = false;
 						}
 						else
 						{

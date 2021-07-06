@@ -199,6 +199,10 @@ class OMF
 		static std::string ApplyPIServerNamingRulesPath(const std::string &objName, bool *changed);
 		static std::string ApplyPIServerNamingRulesInvalidChars(const std::string &objName, bool *changed);
 
+		// FIXME_I:
+		static std::string variableValueHandle(const Reading& reading, std::string &AFHierarchy);
+		static bool        extractVariable(string &strToHandle, string &variable, string &value, string &defaultValue);
+
 private:
 		/**
 		 * Builds the HTTP header to send
@@ -303,7 +307,7 @@ private:
 		bool manageAFHierarchyLink(std::string parent, std::string child, std::string prefixIdParent, std::string prefixId, std::string childFull, string action);
 
 		bool AFHierarchySendMessage(const std::string& msgType, std::string& jsonData, const std::string& action="create");
-		// FIXME_I:
+
 
 		std::string generateUniquePrefixId(const std::string &path);
 		void evaluateAFHierarchyRules(const string& assetName, const Reading& reading);

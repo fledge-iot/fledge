@@ -30,9 +30,6 @@
 #include <vector>
 #include <iterator>
 
-//# FIXME_I:
-///#include <tmp_log.hpp>
-
 using namespace std;
 using namespace rapidjson;
 
@@ -731,16 +728,6 @@ bool OMF::manageAFHierarchyLink(std::string parent, std::string child, std::stri
 	StringReplace(tmpStr, "_placeholder_tgt_idx_",  "A_" + prefixId + "_" + child);
 	jsonData.append(tmpStr);
 
-	//# FIXME_I:
-//	char tmp_buffer[500000];
-//	snprintf (tmp_buffer,500000, "%s : action |%s| jsonData |%s| "
-//		,__FUNCTION__
-//		,action.c_str()
-//		,jsonData.c_str()
-//		);
-//	tmpLogger (tmp_buffer);
-
-
 	success = AFHierarchySendMessage("Data", jsonData, action);
 
 	return success;
@@ -1159,6 +1146,10 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 	string AFHierarchyLevel;
 	string measurementId;
 
+	string varValue;
+	string varDefault;
+	bool variablePresent;
+
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
 	Logger::getLogger()->debug("xxx2 %s - START", __FUNCTION__  );
@@ -1210,6 +1201,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 	// Used for logging
 	string json_not_compressed;
 
+	string OMFHintAFHierarchyTmp;
 	string OMFHintAFHierarchy;
 
 	bool pendingSeparator = false;
@@ -1247,12 +1239,21 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 					break;
 				}
 
+				varValue="";
+				varDefault="";
+				variablePresent=false;
+
 				if (typeid(**it) == typeid(OMFAFLocationHint))
 				{
-					OMFHintAFHierarchy = (*it)->getHint();
+					OMFHintAFHierarchyTmp = (*it)->getHint();
+					OMFHintAFHierarchy = variableValueHandle(*reading, OMFHintAFHierarchyTmp);
+
 					//# FIXME_I
 					Logger::getLogger()->setMinLevel("debug");
-					Logger::getLogger()->debug("%s - OMF HINT L2 :%s:", __FUNCTION__, OMFHintAFHierarchy.c_str() );
+					Logger::getLogger()->debug("xxx4 %s - OMF AFHierarchy original value :%s: managed :%s:"
+						,__FUNCTION__
+						,OMFHintAFHierarchyTmp.c_str()
+						,OMFHintAFHierarchy.c_str() );
 					Logger::getLogger()->setMinLevel("warning");
 				}
 			}
@@ -1309,13 +1310,6 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 				keyComplete = AFHierarchyPrefix + "_" + m_assetName;
 			}
 		}
-
-
-		// FIXME_I:
-//		if (! m_OmfHintHierarchy.empty())
-//		{
-//			handleOmfHintHierarchies();
-//		}
 
 		if (! usingTagHint)
 		{
@@ -2541,6 +2535,103 @@ bool OMF::createAFHierarchyOmfHint(const string& assetName, const  string &OmfHi
 	Logger::getLogger()->setMinLevel("warning");
 
 	return (ruleMatched);
+}
+
+// FIXME_I:
+bool OMF::extractVariable(string &strToHandle, string &variable, string &value, string &defaultValue)
+{
+	bool found;
+	size_t pos1, pos2, pos3;
+
+	found = false;
+	variable ="";
+	value ="";
+	defaultValue ="";
+
+	pos1 = strToHandle.find("${");
+	if (pos1 !=std::string::npos)
+	{
+		pos2 = strToHandle.find(":", pos1);
+		if (pos2 != std::string::npos)
+		{
+			value = strToHandle.substr(pos1 + 2, (pos2 - (pos1 + 2) ) );
+
+			pos3 = strToHandle.find("}", pos2);
+			if (pos3 != std::string::npos)
+			{
+				found = true;
+
+				defaultValue = strToHandle.substr(pos2 + 1, (pos3 - (pos2 + 1)));
+				variable = strToHandle.substr(pos1, pos3 - pos1 + 1);
+			}
+		}
+	}
+
+	return(found);
+}
+
+// FIXME_I:
+std::string OMF::variableValueHandle(const Reading& reading, std::string &AFHierarchy) {
+
+	string AFHierarchyNew;
+	string propertyToSearch;
+	string propertyValue;
+	string propertyDefault;
+	string variableValue;
+	string propertyName;
+	bool found;
+
+	found = false;
+	AFHierarchyNew = AFHierarchy;
+
+	if (AFHierarchyNew.find("${") !=std::string::npos)
+	{
+
+		extractVariable(AFHierarchy, variableValue , propertyToSearch,  propertyDefault);
+		// FIXME_I:
+		//variableValue = "${site:unknown}";
+		//propertyToSearch = "site";
+		//propertyDefault = "unknown";
+
+		auto values = reading.getReadingData();
+
+		for (auto it = values.begin(); it != values.end(); it++)
+		{
+			propertyName = (*it)->getName();
+			if (propertyName.compare(propertyToSearch) == 0)
+			{
+				DatapointValue data = (*it)->getData();
+				propertyValue = data.toString();
+				found = true;
+			}
+		}
+
+		// FIXME_I:
+		if (found) {
+
+			StringReplaceAll(propertyValue, "\"", "");
+			StringReplace(AFHierarchyNew, variableValue, propertyValue);
+
+		} else {
+			StringReplaceAll(propertyValue, "\"", "");
+			StringReplace(AFHierarchyNew, variableValue, propertyDefault);
+		}
+	}
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx3 %s - found :%s: AFHierarchyNew :%s: variableValue :%s: propertyToSearch :%s: propertyValue :%s: propertyDefault :%s:"
+		,__FUNCTION__
+		,found ? "true" : "false"
+		,AFHierarchyNew.c_str()
+		,variableValue.c_str()
+		,propertyToSearch.c_str()
+		,propertyValue.c_str()
+		,propertyDefault.c_str()
+		);
+	Logger::getLogger()->setMinLevel("warning");
+
+	return (AFHierarchyNew);
 }
 
 /**
@@ -4216,17 +4307,8 @@ bool OMF::getCreatedTypes(const string& keyComplete, const Reading& row, OMFHint
 					// not in advance
 					if (m_PIServerEndpoint != ENDPOINT_CR)
 					{
-						// FIXME_I:
 						if (hints && type.hintChkSum != hints->getChecksum())
 						{
-							//# FIXME_I
-							Logger::getLogger()->setMinLevel("debug");
-							Logger::getLogger()->debug("xxx7 %s - hintChkSum", __FUNCTION__);
-							Logger::getLogger()->setMinLevel("warning");
-
-
-							// FIXME_I:
-							//ret = true;
 							ret = false;
 						}
 						else

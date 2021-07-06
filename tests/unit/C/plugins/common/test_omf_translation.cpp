@@ -171,6 +171,48 @@ const char *readings_with_unsupported_datapoints_types = R"(
 )";
 
 
+// FIXME_I:
+const char *OMFHint_readings_variable_handling_1 = R"(
+    {
+        "count" : 1, "rows" : [
+            {
+                "id": 1, "asset_code": "fogbench_luxometer",
+                "reading": { "lux": [45204.524], "site":"Suez" ,"OMFHint": {"AFLocation":"/Sites/Orange/${site:unknown}/ADN C1"} },
+                "user_ts": "2018-06-11 14:00:08.532958",
+                "ts": "2018-06-12 14:47:18.872708"
+            }
+        ]
+    }
+)";
+
+const char *OMFHint_readings_variable_handling_2 = R"(
+    {
+        "count" : 1, "rows" : [
+            {
+                "id": 1, "asset_code": "fogbench_pressure",
+                "reading": { "pressure": [951.8],"site":"Trackonomy","OMFHint": {"AFLocation":"/Sites/Orange/${site:unknown}/ADN C1"} },
+                "user_ts": "2018-06-11 14:00:08.532958",
+                "ts": "2018-06-12 14:47:18.872708"
+            }
+        ]
+    }
+)";
+
+const char *OMFHint_readings_variable_handling_3 = R"(
+    {
+        "count" : 1, "rows" : [
+            {
+                "id": 1, "asset_code": "fogbench_accelerometer",
+                "reading": { "x": [951.8], "y": [951.8] },
+                "user_ts": "2018-06-11 14:00:08.532958",
+                "ts": "2018-06-12 14:47:18.872708"
+            }
+        ]
+    }
+)";
+
+
+
 // 2 readings translated to OMF JSON text
 const string two_translated_readings = "[{\"containerid\": \"" + to_string(TYPE_ID) + \
 					"measurement_luxometer\", \"values\": [{\"lux\": "
@@ -590,4 +632,93 @@ TEST(OMF_hints, m_chksum)
 		OMFHints::getHintForChecksum("{\"number\":\"float32\",\"AFLocation\":\"/Sites/Orange/Trackonomy/ADN C2\",\"number\":\"float32\"}"),
 		"{\"number\":\"float32\",\"number\":\"float32\"}"
 	);
+}
+
+
+TEST(OMF_hints, variableHandling)
+{
+	string AFHierarchy;
+	string AFHierarchyNew;
+	vector<Reading *> readings;
+
+	// Dummy initializations
+	SimpleHttps sender("0.0.0.0:0", 10, 10, 10, 1);
+	OMF omf(sender, "/", 1, "ABC");
+
+	//
+	// Case
+	//
+	{
+		ReadingSet readingSet(OMFHint_readings_variable_handling_1);
+		vector<Reading *> readings = readingSet.getAllReadings();
+
+		AFHierarchy = "/Sites/Orange/${site:unknown}/ADN C1";
+		vector<Reading *>::const_iterator elem = readings.begin();
+		Reading *reading = *elem;
+		AFHierarchyNew = omf.variableValueHandle(*reading, AFHierarchy);
+		ASSERT_EQ (AFHierarchyNew, "/Sites/Orange/Suez/ADN C1");
+	}
+
+	//
+	// Case
+	//
+	{
+		ReadingSet readingSet(OMFHint_readings_variable_handling_2);
+		vector<Reading *> readings = readingSet.getAllReadings();
+
+		AFHierarchy = "/Sites/Orange/${site:unknown}/ADN C1";
+		vector<Reading *>::const_iterator elem = readings.begin();
+		Reading *reading = *elem;
+		AFHierarchyNew = omf.variableValueHandle(*reading, AFHierarchy);
+		ASSERT_EQ (AFHierarchyNew, "/Sites/Orange/Trackonomy/ADN C1");
+	}
+
+	//
+	// Case
+	//
+	{
+		ReadingSet readingSet(OMFHint_readings_variable_handling_3);
+		vector<Reading *> readings = readingSet.getAllReadings();
+
+		AFHierarchy = "/Sites/Orange/${site:unknown}/ADN C1";
+		vector<Reading *>::const_iterator elem = readings.begin();
+		Reading *reading = *elem;
+		AFHierarchyNew = omf.variableValueHandle(*reading, AFHierarchy);
+		ASSERT_EQ (AFHierarchyNew, "/Sites/Orange/unknown/ADN C1");
+	}
+
+}
+
+TEST(OMF_hints, variableExtract)
+{
+	bool found;
+	string AFHierarchy, variable, value, deafult;
+
+	AFHierarchy= "/Sites/Orange/${site:unknown}/ADN C1";
+	found = OMF::extractVariable(AFHierarchy, variable, value, deafult);
+	ASSERT_EQ (found, true);
+	ASSERT_EQ (variable, "${site:unknown}");
+	ASSERT_EQ (value, "site");
+	ASSERT_EQ (deafult, "unknown");
+
+	AFHierarchy= "/Sites/Orange/Trackonomy/ADN C1";
+	found = OMF::extractVariable(AFHierarchy, variable, value, deafult);
+	ASSERT_EQ (found, false);
+	ASSERT_EQ (variable, "");
+	ASSERT_EQ (value, "");
+	ASSERT_EQ (deafult, "");
+
+	AFHierarchy= "${Trackonomy:unknown1}/Sites/Orange/ADN C1";
+	found = OMF::extractVariable(AFHierarchy, variable, value, deafult);
+	ASSERT_EQ (found, true);
+	ASSERT_EQ (variable, "${Trackonomy:unknown1}");
+	ASSERT_EQ (value, "Trackonomy");
+	ASSERT_EQ (deafult, "unknown1");
+
+	AFHierarchy= "/Sites/Orange/ADN C1/${Orange:unknown12}";
+	found = OMF::extractVariable(AFHierarchy, variable, value, deafult);
+	ASSERT_EQ (found, true);
+	ASSERT_EQ (variable, "${Orange:unknown12}");
+	ASSERT_EQ (value, "Orange");
+	ASSERT_EQ (deafult, "unknown12");
 }

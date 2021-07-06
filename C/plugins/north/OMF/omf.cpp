@@ -2588,11 +2588,6 @@ std::string OMF::variableValueHandle(const Reading& reading, std::string &AFHier
 	{
 
 		extractVariable(AFHierarchy, variableValue , propertyToSearch,  propertyDefault);
-		// FIXME_I:
-		//variableValue = "${site:unknown}";
-		//propertyToSearch = "site";
-		//propertyDefault = "unknown";
-
 		auto values = reading.getReadingData();
 
 		for (auto it = values.begin(); it != values.end(); it++)
@@ -2606,7 +2601,6 @@ std::string OMF::variableValueHandle(const Reading& reading, std::string &AFHier
 			}
 		}
 
-		// FIXME_I:
 		if (found) {
 
 			StringReplaceAll(propertyValue, "\"", "");
@@ -2620,9 +2614,10 @@ std::string OMF::variableValueHandle(const Reading& reading, std::string &AFHier
 
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx3 %s - found :%s: AFHierarchyNew :%s: variableValue :%s: propertyToSearch :%s: propertyValue :%s: propertyDefault :%s:"
+	Logger::getLogger()->debug("xxx3 %s - found :%s: AFHierarchy :%s: AFHierarchyNew :%s: variableValue :%s: propertyToSearch :%s: propertyValue :%s: propertyDefault :%s:"
 		,__FUNCTION__
 		,found ? "true" : "false"
+		,AFHierarchy.c_str()
 		,AFHierarchyNew.c_str()
 		,variableValue.c_str()
 		,propertyToSearch.c_str()

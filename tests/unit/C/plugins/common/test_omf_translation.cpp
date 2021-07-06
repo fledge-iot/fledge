@@ -639,51 +639,37 @@ TEST(OMF_hints, variableHandling)
 {
 	string AFHierarchy;
 	string AFHierarchyNew;
-	vector<Reading *> readings;
 
-	// Dummy initializations
-	SimpleHttps sender("0.0.0.0:0", 10, 10, 10, 1);
-	OMF omf(sender, "/", 1, "ABC");
-
-	//
-	// Case
-	//
-	{
+	{ // Case
 		ReadingSet readingSet(OMFHint_readings_variable_handling_1);
 		vector<Reading *> readings = readingSet.getAllReadings();
 
 		AFHierarchy = "/Sites/Orange/${site:unknown}/ADN C1";
 		vector<Reading *>::const_iterator elem = readings.begin();
 		Reading *reading = *elem;
-		AFHierarchyNew = omf.variableValueHandle(*reading, AFHierarchy);
+		AFHierarchyNew = OMF::variableValueHandle(*reading, AFHierarchy);
 		ASSERT_EQ (AFHierarchyNew, "/Sites/Orange/Suez/ADN C1");
 	}
 
-	//
-	// Case
-	//
-	{
+	{ // Case
 		ReadingSet readingSet(OMFHint_readings_variable_handling_2);
 		vector<Reading *> readings = readingSet.getAllReadings();
 
 		AFHierarchy = "/Sites/Orange/${site:unknown}/ADN C1";
 		vector<Reading *>::const_iterator elem = readings.begin();
 		Reading *reading = *elem;
-		AFHierarchyNew = omf.variableValueHandle(*reading, AFHierarchy);
+		AFHierarchyNew = OMF::variableValueHandle(*reading, AFHierarchy);
 		ASSERT_EQ (AFHierarchyNew, "/Sites/Orange/Trackonomy/ADN C1");
 	}
 
-	//
-	// Case
-	//
-	{
+	{ // Case
 		ReadingSet readingSet(OMFHint_readings_variable_handling_3);
 		vector<Reading *> readings = readingSet.getAllReadings();
 
 		AFHierarchy = "/Sites/Orange/${site:unknown}/ADN C1";
 		vector<Reading *>::const_iterator elem = readings.begin();
 		Reading *reading = *elem;
-		AFHierarchyNew = omf.variableValueHandle(*reading, AFHierarchy);
+		AFHierarchyNew = OMF::variableValueHandle(*reading, AFHierarchy);
 		ASSERT_EQ (AFHierarchyNew, "/Sites/Orange/unknown/ADN C1");
 	}
 
@@ -694,6 +680,7 @@ TEST(OMF_hints, variableExtract)
 	bool found;
 	string AFHierarchy, variable, value, deafult;
 
+	// Case
 	AFHierarchy= "/Sites/Orange/${site:unknown}/ADN C1";
 	found = OMF::extractVariable(AFHierarchy, variable, value, deafult);
 	ASSERT_EQ (found, true);
@@ -701,6 +688,7 @@ TEST(OMF_hints, variableExtract)
 	ASSERT_EQ (value, "site");
 	ASSERT_EQ (deafult, "unknown");
 
+	// Case
 	AFHierarchy= "/Sites/Orange/Trackonomy/ADN C1";
 	found = OMF::extractVariable(AFHierarchy, variable, value, deafult);
 	ASSERT_EQ (found, false);
@@ -708,6 +696,7 @@ TEST(OMF_hints, variableExtract)
 	ASSERT_EQ (value, "");
 	ASSERT_EQ (deafult, "");
 
+	// Case
 	AFHierarchy= "${Trackonomy:unknown1}/Sites/Orange/ADN C1";
 	found = OMF::extractVariable(AFHierarchy, variable, value, deafult);
 	ASSERT_EQ (found, true);
@@ -715,6 +704,7 @@ TEST(OMF_hints, variableExtract)
 	ASSERT_EQ (value, "Trackonomy");
 	ASSERT_EQ (deafult, "unknown1");
 
+	// Case
 	AFHierarchy= "/Sites/Orange/ADN C1/${Orange:unknown12}";
 	found = OMF::extractVariable(AFHierarchy, variable, value, deafult);
 	ASSERT_EQ (found, true);

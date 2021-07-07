@@ -930,28 +930,19 @@ string saveSentDataTypes(CONNECTOR_INFO* connInfo)
 				NamingScheme = ((*it).second).namingScheme;
 				newData << ", \"" << NAMING_SCHEME << "\": " << to_string(NamingScheme) << "";
 
-				// FIXME_I:
 				string AFHHash;
 				AFHHash = ((*it).second).afhHash;
 				newData << ", \"" << AFH_HASH << "\": \"" << AFHHash << "\"";
 
-				// FIXME_I:
 				string AFHierarchy;
 				AFHierarchy = ((*it).second).afHierarchy;
 				newData << ", \"" << AF_HIERARCHY << "\": \"" << AFHierarchy << "\"";
 
-				// FIXME_I:
 				string AFHierarchyOrig;
 				AFHierarchyOrig = ((*it).second).afHierarchyOrig;
 				newData << ", \"" << AF_HIERARCHY_ORIG << "\": \"" << AFHierarchyOrig << "\"";
 
-				//# FIXME_I
-				Logger::getLogger()->setMinLevel("debug");
-				Logger::getLogger()->debug("xxx8 %s - AFHHash :%s: AFHierarchy     :%s: ", __FUNCTION__, AFHHash.c_str(), AFHierarchy.c_str() );
-				Logger::getLogger()->debug("xxx8 %s - AFHHash :%s: AFHierarchyOrig :%s: ", __FUNCTION__, AFHHash.c_str(), AFHierarchyOrig.c_str() );
-				Logger::getLogger()->setMinLevel("warning");
-
-
+				Logger::getLogger()->debug("%s - AFHHash :%s: AFHierarchy :%s: AFHierarchyOrig :%s:", __FUNCTION__, AFHHash.c_str(), AFHierarchy.c_str(), AFHierarchyOrig.c_str()  );
 				Logger::getLogger()->debug("%s - NamingScheme :%ld: ", __FUNCTION__,NamingScheme );
 
 				newData << ", \"" << DATA_KEY << "\": " <<
@@ -1128,8 +1119,6 @@ void loadSentDataTypes(CONNECTOR_INFO* connInfo,
 					NamingScheme = NAMINGSCHEME_COMPATIBILITY;
 				}
 
-
-				// FIXME_I:
 				string AFHHash;
 				if (cachedValue.HasMember(AFH_HASH) &&
 					cachedValue[AFH_HASH].IsString())
@@ -1146,7 +1135,6 @@ void loadSentDataTypes(CONNECTOR_INFO* connInfo,
 					AFHHash = "";
 				}
 
-				// FIXME_I:
 				string AFHierarchy;
 				if (cachedValue.HasMember(AF_HIERARCHY) &&
 					cachedValue[AF_HIERARCHY].IsString())
@@ -1163,8 +1151,6 @@ void loadSentDataTypes(CONNECTOR_INFO* connInfo,
 					AFHierarchy = "";
 				}
 
-
-				// FIXME_I:
 				string AFHierarchyOrig;
 				if (cachedValue.HasMember(AF_HIERARCHY_ORIG) &&
 					cachedValue[AF_HIERARCHY_ORIG].IsString())
@@ -1249,10 +1235,7 @@ void loadSentDataTypes(CONNECTOR_INFO* connInfo,
 				dataType.afHierarchy = AFHierarchy;
 				dataType.afHierarchyOrig = AFHierarchyOrig;
 
-				//# FIXME_I
-				Logger::getLogger()->setMinLevel("debug");
-				Logger::getLogger()->debug("xxx8 %s - AFHHash :%s: AFHierarchy :%s: ", __FUNCTION__, AFHHash.c_str(), AFHierarchy.c_str() );
-				Logger::getLogger()->setMinLevel("warning");
+				Logger::getLogger()->debug("%s - AFHHash :%s: AFHierarchy :%s: AFHierarchyOrig :%s: ", __FUNCTION__, AFHHash.c_str(), AFHierarchy.c_str() , AFHierarchyOrig.c_str() );
 
 
 				Logger::getLogger()->debug("%s - NamingScheme :%ld: ", __FUNCTION__,NamingScheme );

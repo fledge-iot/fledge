@@ -170,8 +170,6 @@ const char *readings_with_unsupported_datapoints_types = R"(
     }
 )";
 
-
-// FIXME_I:
 const char *OMFHint_readings_variable_handling_1 = R"(
     {
         "count" : 1, "rows" : [
@@ -647,58 +645,56 @@ TEST(OMF_hints, m_chksum)
 	);
 }
 
-
 TEST(OMF_hints, variableHandling)
 {
 	string AFHierarchy;
 	string AFHierarchyNew;
 
-//	{ // Case
-//		ReadingSet readingSet(OMFHint_readings_variable_handling_1);
-//		vector<Reading *> readings = readingSet.getAllReadings();
-//
-//		AFHierarchy = "/Sites/Orange/${site:unknown}/ADN C1";
-//		vector<Reading *>::const_iterator elem = readings.begin();
-//		Reading *reading = *elem;
-//		AFHierarchyNew = OMF::variableValueHandle(*reading, AFHierarchy);
-//		ASSERT_EQ (AFHierarchyNew, "/Sites/Orange/Suez/ADN C1");
-//	}
-//
-//	{ // Case
-//		ReadingSet readingSet(OMFHint_readings_variable_handling_2);
-//		vector<Reading *> readings = readingSet.getAllReadings();
-//
-//		AFHierarchy = "/Sites/Orange/${site:unknown}/ADN C1";
-//		vector<Reading *>::const_iterator elem = readings.begin();
-//		Reading *reading = *elem;
-//		AFHierarchyNew = OMF::variableValueHandle(*reading, AFHierarchy);
-//		ASSERT_EQ (AFHierarchyNew, "/Sites/Orange/Trackonomy/ADN C1");
-//	}
-//
-//	{ // Case
-//		ReadingSet readingSet(OMFHint_readings_variable_handling_3);
-//		vector<Reading *> readings = readingSet.getAllReadings();
-//
-//		AFHierarchy = "/Sites/Orange/${site:unknown}/ADN C1";
-//		vector<Reading *>::const_iterator elem = readings.begin();
-//		Reading *reading = *elem;
-//		AFHierarchyNew = OMF::variableValueHandle(*reading, AFHierarchy);
-//		ASSERT_EQ (AFHierarchyNew, "/Sites/Orange/unknown/ADN C1");
-//	}
-//
-//
-//	{ // Case
-//		ReadingSet readingSet(OMFHint_readings_variable_handling_4);
-//		vector<Reading *> readings = readingSet.getAllReadings();
-//
-//		AFHierarchy = "/${l1:Sites}/${l2:Orange}/${site:unknown}/ADN C1";
-//		vector<Reading *>::const_iterator elem = readings.begin();
-//		Reading *reading = *elem;
-//		AFHierarchyNew = OMF::variableValueHandle(*reading, AFHierarchy);
-//		ASSERT_EQ (AFHierarchyNew, "/Sites_new/Orange/Suez/ADN C1");
-//	}
+	{ // Case
+		ReadingSet readingSet(OMFHint_readings_variable_handling_1);
+		vector<Reading *> readings = readingSet.getAllReadings();
+
+		AFHierarchy = "/Sites/Orange/${site:unknown}/ADN C1";
+		vector<Reading *>::const_iterator elem = readings.begin();
+		Reading *reading = *elem;
+		AFHierarchyNew = OMF::variableValueHandle(*reading, AFHierarchy);
+		ASSERT_EQ (AFHierarchyNew, "/Sites/Orange/Suez/ADN C1");
+	}
 
 	{ // Case
+		ReadingSet readingSet(OMFHint_readings_variable_handling_2);
+		vector<Reading *> readings = readingSet.getAllReadings();
+
+		AFHierarchy = "/Sites/Orange/${site:unknown}/ADN C1";
+		vector<Reading *>::const_iterator elem = readings.begin();
+		Reading *reading = *elem;
+		AFHierarchyNew = OMF::variableValueHandle(*reading, AFHierarchy);
+		ASSERT_EQ (AFHierarchyNew, "/Sites/Orange/Trackonomy/ADN C1");
+	}
+
+	{ // Case
+		ReadingSet readingSet(OMFHint_readings_variable_handling_3);
+		vector<Reading *> readings = readingSet.getAllReadings();
+
+		AFHierarchy = "/Sites/Orange/${site:unknown}/ADN C1";
+		vector<Reading *>::const_iterator elem = readings.begin();
+		Reading *reading = *elem;
+		AFHierarchyNew = OMF::variableValueHandle(*reading, AFHierarchy);
+		ASSERT_EQ (AFHierarchyNew, "/Sites/Orange/unknown/ADN C1");
+	}
+
+	{ // Case - multiple variables
+		ReadingSet readingSet(OMFHint_readings_variable_handling_4);
+		vector<Reading *> readings = readingSet.getAllReadings();
+
+		AFHierarchy = "/${l1:Sites}/${l2:Orange}/${site:unknown}/ADN C1";
+		vector<Reading *>::const_iterator elem = readings.begin();
+		Reading *reading = *elem;
+		AFHierarchyNew = OMF::variableValueHandle(*reading, AFHierarchy);
+		ASSERT_EQ (AFHierarchyNew, "/Sites_new/Orange/Suez/ADN C1");
+	}
+
+	{ // Case - default not defined ${l3}
 		ReadingSet readingSet(OMFHint_readings_variable_handling_4);
 		vector<Reading *> readings = readingSet.getAllReadings();
 
@@ -706,7 +702,7 @@ TEST(OMF_hints, variableHandling)
 		vector<Reading *>::const_iterator elem = readings.begin();
 		Reading *reading = *elem;
 		AFHierarchyNew = OMF::variableValueHandle(*reading, AFHierarchy);
-		ASSERT_EQ (AFHierarchyNew, "/Sites_new/Orange/Suez/ADN C1");
+		ASSERT_EQ (AFHierarchyNew, "/Sites_new/Suez/ADN C1");
 	}
 
 }
@@ -747,5 +743,4 @@ TEST(OMF_hints, variableExtract)
 	ASSERT_EQ (variable, "${Orange:unknown12}");
 	ASSERT_EQ (value, "Orange");
 	ASSERT_EQ (deafult, "unknown12");
-
 }

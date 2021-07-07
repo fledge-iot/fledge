@@ -211,6 +211,19 @@ const char *OMFHint_readings_variable_handling_3 = R"(
     }
 )";
 
+const char *OMFHint_readings_variable_handling_4 = R"(
+    {
+        "count" : 1, "rows" : [
+            {
+                "id": 1, "asset_code": "fogbench_accelerometer",
+				"reading": { "lux": [45204.524], "site":"Suez" , "l1":"Sites_new" ,"OMFHint": {"AFLocation":"/${l1:Sites}/${l2:Orange}/${site:unknown}/ADN C1"} },
+
+                "user_ts": "2018-06-11 14:00:08.532958",
+                "ts": "2018-06-12 14:47:18.872708"
+            }
+        ]
+    }
+)";
 
 
 // 2 readings translated to OMF JSON text
@@ -640,37 +653,60 @@ TEST(OMF_hints, variableHandling)
 	string AFHierarchy;
 	string AFHierarchyNew;
 
+//	{ // Case
+//		ReadingSet readingSet(OMFHint_readings_variable_handling_1);
+//		vector<Reading *> readings = readingSet.getAllReadings();
+//
+//		AFHierarchy = "/Sites/Orange/${site:unknown}/ADN C1";
+//		vector<Reading *>::const_iterator elem = readings.begin();
+//		Reading *reading = *elem;
+//		AFHierarchyNew = OMF::variableValueHandle(*reading, AFHierarchy);
+//		ASSERT_EQ (AFHierarchyNew, "/Sites/Orange/Suez/ADN C1");
+//	}
+//
+//	{ // Case
+//		ReadingSet readingSet(OMFHint_readings_variable_handling_2);
+//		vector<Reading *> readings = readingSet.getAllReadings();
+//
+//		AFHierarchy = "/Sites/Orange/${site:unknown}/ADN C1";
+//		vector<Reading *>::const_iterator elem = readings.begin();
+//		Reading *reading = *elem;
+//		AFHierarchyNew = OMF::variableValueHandle(*reading, AFHierarchy);
+//		ASSERT_EQ (AFHierarchyNew, "/Sites/Orange/Trackonomy/ADN C1");
+//	}
+//
+//	{ // Case
+//		ReadingSet readingSet(OMFHint_readings_variable_handling_3);
+//		vector<Reading *> readings = readingSet.getAllReadings();
+//
+//		AFHierarchy = "/Sites/Orange/${site:unknown}/ADN C1";
+//		vector<Reading *>::const_iterator elem = readings.begin();
+//		Reading *reading = *elem;
+//		AFHierarchyNew = OMF::variableValueHandle(*reading, AFHierarchy);
+//		ASSERT_EQ (AFHierarchyNew, "/Sites/Orange/unknown/ADN C1");
+//	}
+//
+//
+//	{ // Case
+//		ReadingSet readingSet(OMFHint_readings_variable_handling_4);
+//		vector<Reading *> readings = readingSet.getAllReadings();
+//
+//		AFHierarchy = "/${l1:Sites}/${l2:Orange}/${site:unknown}/ADN C1";
+//		vector<Reading *>::const_iterator elem = readings.begin();
+//		Reading *reading = *elem;
+//		AFHierarchyNew = OMF::variableValueHandle(*reading, AFHierarchy);
+//		ASSERT_EQ (AFHierarchyNew, "/Sites_new/Orange/Suez/ADN C1");
+//	}
+
 	{ // Case
-		ReadingSet readingSet(OMFHint_readings_variable_handling_1);
+		ReadingSet readingSet(OMFHint_readings_variable_handling_4);
 		vector<Reading *> readings = readingSet.getAllReadings();
 
-		AFHierarchy = "/Sites/Orange/${site:unknown}/ADN C1";
+		AFHierarchy = "/${l1:Sites}/${l3}/${site:unknown}/ADN C1";
 		vector<Reading *>::const_iterator elem = readings.begin();
 		Reading *reading = *elem;
 		AFHierarchyNew = OMF::variableValueHandle(*reading, AFHierarchy);
-		ASSERT_EQ (AFHierarchyNew, "/Sites/Orange/Suez/ADN C1");
-	}
-
-	{ // Case
-		ReadingSet readingSet(OMFHint_readings_variable_handling_2);
-		vector<Reading *> readings = readingSet.getAllReadings();
-
-		AFHierarchy = "/Sites/Orange/${site:unknown}/ADN C1";
-		vector<Reading *>::const_iterator elem = readings.begin();
-		Reading *reading = *elem;
-		AFHierarchyNew = OMF::variableValueHandle(*reading, AFHierarchy);
-		ASSERT_EQ (AFHierarchyNew, "/Sites/Orange/Trackonomy/ADN C1");
-	}
-
-	{ // Case
-		ReadingSet readingSet(OMFHint_readings_variable_handling_3);
-		vector<Reading *> readings = readingSet.getAllReadings();
-
-		AFHierarchy = "/Sites/Orange/${site:unknown}/ADN C1";
-		vector<Reading *>::const_iterator elem = readings.begin();
-		Reading *reading = *elem;
-		AFHierarchyNew = OMF::variableValueHandle(*reading, AFHierarchy);
-		ASSERT_EQ (AFHierarchyNew, "/Sites/Orange/unknown/ADN C1");
+		ASSERT_EQ (AFHierarchyNew, "/Sites_new/Orange/Suez/ADN C1");
 	}
 
 }
@@ -711,4 +747,5 @@ TEST(OMF_hints, variableExtract)
 	ASSERT_EQ (variable, "${Orange:unknown12}");
 	ASSERT_EQ (value, "Orange");
 	ASSERT_EQ (deafult, "unknown12");
+
 }

@@ -2551,8 +2551,9 @@ bool OMF::extractVariable(string &strToHandle, string &variable, string &value, 
 	pos1 = strToHandle.find("${");
 	if (pos1 !=std::string::npos)
 	{
+		pos3 = strToHandle.find("}", pos1);
 		pos2 = strToHandle.find(":", pos1);
-		if (pos2 != std::string::npos)
+		if ( (pos2 != std::string::npos) && (pos2 < pos3) )
 		{
 			value = strToHandle.substr(pos1 + 2, (pos2 - (pos1 + 2) ) );
 
@@ -2562,6 +2563,17 @@ bool OMF::extractVariable(string &strToHandle, string &variable, string &value, 
 				found = true;
 
 				defaultValue = strToHandle.substr(pos2 + 1, (pos3 - (pos2 + 1)));
+				variable = strToHandle.substr(pos1, pos3 - pos1 + 1);
+			}
+		} else {
+			Logger::getLogger()->warn("OMF hierarchy hints doesn't have the default value in the metadata reference :%s:", strToHandle.c_str());
+
+			// No default value provided
+			if (pos3 != std::string::npos)
+			{
+				found = true;
+
+				value = strToHandle.substr(pos1 + 2, (pos3 - (pos1 + 2) ) );
 				variable = strToHandle.substr(pos1, pos3 - pos1 + 1);
 			}
 		}
@@ -2580,6 +2592,7 @@ std::string OMF::variableValueHandle(const Reading& reading, std::string &AFHier
 	string variableValue;
 	string propertyName;
 	bool found;
+	bool foundProperty;
 
 	found = false;
 	AFHierarchyNew = AFHierarchy;
@@ -2587,30 +2600,36 @@ std::string OMF::variableValueHandle(const Reading& reading, std::string &AFHier
 	if (AFHierarchyNew.find("${") !=std::string::npos)
 	{
 
-		extractVariable(AFHierarchy, variableValue , propertyToSearch,  propertyDefault);
-		auto values = reading.getReadingData();
-
-		for (auto it = values.begin(); it != values.end(); it++)
+		while (extractVariable(AFHierarchyNew, variableValue , propertyToSearch,  propertyDefault))
 		{
-			propertyName = (*it)->getName();
-			if (propertyName.compare(propertyToSearch) == 0)
+			auto values = reading.getReadingData();
+			foundProperty = false;
+
+			for (auto it = values.begin(); it != values.end(); it++)
 			{
-				DatapointValue data = (*it)->getData();
-				propertyValue = data.toString();
-				found = true;
+				propertyName = (*it)->getName();
+				if (propertyName.compare(propertyToSearch) == 0)
+				{
+					DatapointValue data = (*it)->getData();
+					propertyValue = data.toString();
+					found = true;
+					foundProperty = true;
+				}
+			}
+
+			if (foundProperty) {
+
+				StringReplaceAll(propertyValue, "\"", "");
+				StringReplace(AFHierarchyNew, variableValue, propertyValue);
+
+			} else {
+				StringReplaceAll(propertyValue, "\"", "");
+				StringReplace(AFHierarchyNew, variableValue, propertyDefault);
 			}
 		}
-
-		if (found) {
-
-			StringReplaceAll(propertyValue, "\"", "");
-			StringReplace(AFHierarchyNew, variableValue, propertyValue);
-
-		} else {
-			StringReplaceAll(propertyValue, "\"", "");
-			StringReplace(AFHierarchyNew, variableValue, propertyDefault);
-		}
 	}
+
+	StringReplaceAll(AFHierarchyNew, "//", "/");
 
 	//# FIXME_I
 	Logger::getLogger()->setMinLevel("debug");

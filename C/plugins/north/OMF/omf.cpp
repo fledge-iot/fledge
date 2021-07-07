@@ -586,9 +586,9 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
  *
  * @param msgType    message type : Type, Data
  * @param jsonData   OMF message to send
+ * @param action     action to be executed, either "create"or "delete"
 
  */
- // FIXME_I:
 bool OMF::AFHierarchySendMessage(const string& msgType, string& jsonData, const std::string& action)
 {
 	bool success = true;
@@ -704,7 +704,10 @@ bool OMF::sendAFHierarchyLink(std::string parent, std::string child, std::string
 	return success;
 }
 
-// FIXME_I:
+/**
+ *  AFHierarchy - creates or delete the link between 2 elements in the AF hierarchy in relation to the parameter action
+ *
+ */
 bool OMF::manageAFHierarchyLink(std::string parent, std::string child, std::string prefixIdParent, std::string prefixId, std::string childFull, string action)
 {
 	bool success;
@@ -724,7 +727,6 @@ bool OMF::manageAFHierarchyLink(std::string parent, std::string child, std::stri
 		StringReplace(tmpStr, "_placeholder_tgt_type_", childFull);
 	}
 
-	// FIXME_I:
 	StringReplace(tmpStr, "_placeholder_tgt_idx_",  "A_" + prefixId + "_" + child);
 	jsonData.append(tmpStr);
 
@@ -733,8 +735,10 @@ bool OMF::manageAFHierarchyLink(std::string parent, std::string child, std::stri
 	return success;
 }
 
-
-// FIXME_I:
+/**
+ *  AFHierarchy - delete the link between 2 elements in the AF hierarchy
+ *
+ */
 void OMF::deleteAssetAFH(const string& assetName, string& path) {
 
 	std::string pathLastLevel, pathPrefixId, assetNamePrefixId, assetNameFullId;
@@ -744,8 +748,6 @@ void OMF::deleteAssetAFH(const string& assetName, string& path) {
 
 	setAssetTypeTagNew(assetName, "typename_sensor", assetNameFullId);
 
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
 	Logger::getLogger()->debug("%s - assetName :%s: childPrefixId :%s: pathStored :%s: parentLastLevel :%s: parentPrefixId :%s:  childFull :%s:"
 		, __FUNCTION__
 		, assetName.c_str()
@@ -759,8 +761,10 @@ void OMF::deleteAssetAFH(const string& assetName, string& path) {
 	manageAFHierarchyLink(pathLastLevel, assetName, pathPrefixId, assetNamePrefixId, assetNameFullId, "delete");
 }
 
-
-// FIXME_I:
+/**
+ *  AFHierarchy - create the link between 2 elements in the AF hierarchy
+ *
+ */
 void OMF::createAssetAFH(const string& assetName, string& path) {
 
 	std::string pathLastLevel, pathPrefixId, assetNamePrefixId, assetNameFullId;
@@ -770,9 +774,6 @@ void OMF::createAssetAFH(const string& assetName, string& path) {
 
 	setAssetTypeTagNew(assetName, "typename_sensor", assetNameFullId);
 
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->setMinLevel("debug");
 	Logger::getLogger()->debug("%s - assetName :%s: childPrefixId :%s: pathStored :%s: pathLastLevel :%s: pathPrefixId :%s:  childFull :%s:"
 		, __FUNCTION__
 		, assetName.c_str()
@@ -1150,11 +1151,6 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 	string varDefault;
 	bool variablePresent;
 
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx2 %s - START", __FUNCTION__  );
-	Logger::getLogger()->setMinLevel("warning");
-
 #if INSTRUMENT
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();
@@ -1226,11 +1222,6 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			const vector<OMFHint *> omfHints = hints->getHints();
 			for (auto it = omfHints.cbegin(); it != omfHints.cend(); it++)
 			{
-				//# FIXME_I
-				Logger::getLogger()->setMinLevel("debug");
-				Logger::getLogger()->debug("%s - OMF HINT L1 ", __FUNCTION__ );
-				Logger::getLogger()->setMinLevel("warning");
-
 				if (typeid(**it) == typeid(OMFTagHint))
 				{
 					Logger::getLogger()->info("Using OMF Tag hint: %s", (*it)->getHint().c_str());
@@ -1248,13 +1239,10 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 					OMFHintAFHierarchyTmp = (*it)->getHint();
 					OMFHintAFHierarchy = variableValueHandle(*reading, OMFHintAFHierarchyTmp);
 
-					//# FIXME_I
-					Logger::getLogger()->setMinLevel("debug");
-					Logger::getLogger()->debug("xxx4 %s - OMF AFHierarchy original value :%s: managed :%s:"
+					Logger::getLogger()->debug("%s - OMF AFHierarchy original value :%s: new :%s:"
 						,__FUNCTION__
 						,OMFHintAFHierarchyTmp.c_str()
 						,OMFHintAFHierarchy.c_str() );
-					Logger::getLogger()->setMinLevel("warning");
 				}
 			}
 		}
@@ -1273,19 +1261,12 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			}
 		}
 
-		// FIXME_I:
-		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("%s - OMF HINT L3 m_assetName :%s: :%s:", __FUNCTION__, m_assetName.c_str() , OMFHintAFHierarchy.c_str() );
-		Logger::getLogger()->setMinLevel("warning");
-		//evaluateAFHierarchyRules(m_assetName, *reading, "/Sites/Orange/Suez/ADN C1");
-
 		// Since hints are attached to individual readings that are processed by the north plugin if an AFLocation
 		// hint is present it will override any default AFLocation or AF Location rules defined in the north plugin configuration.
 		if ( ! createAFHierarchyOmfHint(m_assetName, OMFHintAFHierarchy) ) {
 
 			evaluateAFHierarchyRules(m_assetName, *reading);
 		}
-
 
 		if (m_PIServerEndpoint == ENDPOINT_CR  ||
 			m_PIServerEndpoint == ENDPOINT_OCS ||
@@ -1296,13 +1277,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 		}
 		else if (m_PIServerEndpoint == ENDPOINT_PIWEB_API)
 		{
-			// FIXME_I:
 			if (getNamingScheme(m_assetName) == NAMINGSCHEME_CONCISE) {
-
-				//# FIXME_I
-				Logger::getLogger()->setMinLevel("debug");
-				Logger::getLogger()->debug("%s - NAMINGSCHEME_CONCISE ", __FUNCTION__);
-				Logger::getLogger()->setMinLevel("warning");
 
 				keyComplete = m_assetName;
 			} else {
@@ -1825,9 +1800,9 @@ uint32_t OMF::sendToServer(const Reading* reading,
  * Creates a vector of HTTP header to be sent to Server
  *
  * @param type    The message type ('Type', 'Container', 'Data')
+ # @param action  Action to execute, either "create"or "delete"
  * @return        A vector of HTTP Header string pairs
  */
-// FIXME_I:
 const vector<pair<string, string>> OMF::createMessageHeader(const std::string& type, const std::string& action) const
 {
 	vector<pair<string, string>> res;
@@ -2375,11 +2350,11 @@ void OMF::generateAFHierarchyPrefixLevel(string& path, string& prefix, string& A
 
 
 /**
- * Retrieve from the map the prefix and the hiererachy name from a given assetname
+ * Retrieve from the map the prefix and the last level of the hierarchy from a given assetname
  *
  * @param path                   assetName to evaluate
  * @param out/prefix		     Calculated prefix
- * @param out/AFHierarchyLevel   hiererachy name
+ * @param out/AFHierarchyLevel   Last level of the hierarchy
  */
 void OMF::retrieveAFHierarchyPrefixAssetName(const string& assetName, string& prefix, string& AFHierarchyLevel)
 {
@@ -2399,7 +2374,13 @@ void OMF::retrieveAFHierarchyPrefixAssetName(const string& assetName, string& pr
 
 }
 
-// FIXME_I:
+/**
+ * Retrieve from the map the prefix and the hierarchy name from a given assetname
+ *
+ * @param path                   assetName to evaluate
+ * @param out/prefix		     Calculated prefix
+ * @param out/AFHierarchyLevel   hierarchy name
+ */
 void OMF::retrieveAFHierarchyFullPrefixAssetName(const string& assetName, string& prefix, string& AFHierarchy)
 {
 	string path;
@@ -2414,7 +2395,14 @@ void OMF::retrieveAFHierarchyFullPrefixAssetName(const string& assetName, string
 
 }
 
-// FIXME_I:
+/**
+ * Handle the OMF hint AFLocation to defined a position of the asset into the AF hierarchy
+ *
+ * @param assetName              AssetName to handle
+ * @param OmfHintHierarchy		 Position of the asset into the AF hierarchy
+ *
+ * @return                       True if set asset will have a defined AF hierarchy position
+ */
 bool OMF::createAFHierarchyOmfHint(const string& assetName, const  string &OmfHintHierarchy)
 {
 	string pathNew;
@@ -2426,17 +2414,11 @@ bool OMF::createAFHierarchyOmfHint(const string& assetName, const  string &OmfHi
 
 	bool ruleMatched = false;
 
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("%s - OmfHintHierarchy check  start - OmfHintHierarchy:%s: ", __FUNCTION__, OmfHintHierarchy.c_str() );
-
-	// FIXME_I:
 	if (! OmfHintHierarchy.empty())
 	{
 
 		pathNew = OmfHintHierarchy;
 
-		// FIXME_I: ??
 		if (pathNew.at(0) != '/')
 		{
 			// relative  path
@@ -2448,8 +2430,6 @@ bool OMF::createAFHierarchyOmfHint(const string& assetName, const  string &OmfHi
 		prefixStored = getHashStored (assetName);
 		pathStored = getPathStored (assetName);
 
-		//# FIXME_I
-		Logger::getLogger()->setMinLevel("debug");
 		Logger::getLogger()->debug("%s - OMF hint hierarchy - assetName :%s: path :%s: pathStored :%s: prefixStored :%s: "
 			, __FUNCTION__
 			, assetName.c_str()
@@ -2458,8 +2438,6 @@ bool OMF::createAFHierarchyOmfHint(const string& assetName, const  string &OmfHi
 			, prefixStored.c_str()
 			);
 
-
-		// FIXME_I:
 		if(find(m_afhHierarchyAlredyCreated.begin(), m_afhHierarchyAlredyCreated.end(), pathNew) == m_afhHierarchyAlredyCreated.end()){
 
 			Logger::getLogger()->setMinLevel("debug");
@@ -2469,12 +2447,9 @@ bool OMF::createAFHierarchyOmfHint(const string& assetName, const  string &OmfHi
 			m_afhHierarchyAlredyCreated.push_back(pathNew);
 		}
 
-		// FIXME_I:
 		if (pathStored.compare("") == 0)
 		{
-			//# FIXME_I
-			Logger::getLogger()->setMinLevel("debug");
-			Logger::getLogger()->debug("%s - path new assetName :%s: path :%s:", __FUNCTION__, assetName.c_str(), pathNew.c_str());
+			Logger::getLogger()->debug("%s - New path for the assetName :%s: path :%s:", __FUNCTION__, assetName.c_str(), pathNew.c_str());
 
 			auto item = make_pair(pathNew, prefix);
 			m_AssetNamePrefix[assetName].push_back(item);
@@ -2482,9 +2457,7 @@ bool OMF::createAFHierarchyOmfHint(const string& assetName, const  string &OmfHi
 		} else {
 			if (OmfHintHierarchy.compare(pathStored) != 0) {
 
-				//# FIXME_I
-				Logger::getLogger()->setMinLevel("debug");
-				Logger::getLogger()->debug("%s - path changed assetName :%s: path :%s: pathStored :%s:"
+				Logger::getLogger()->debug("%s - path changed for the assetName :%s: path :%s: previous path :%s:"
 										   , __FUNCTION__
 										   , assetName.c_str()
 										   , pathNew.c_str()
@@ -2500,44 +2473,39 @@ bool OMF::createAFHierarchyOmfHint(const string& assetName, const  string &OmfHi
 				createAssetAFH(assetName, pathNew);
 
 			} else {
-				//# FIXME_I
-				Logger::getLogger()->setMinLevel("debug");
-				Logger::getLogger()->debug("%s - path current assetName :%s: path :%s:", __FUNCTION__, assetName.c_str(), pathNew.c_str());
-
+				Logger::getLogger()->debug("%s - Same path for the assetName :%s: path :%s:", __FUNCTION__, assetName.c_str(), pathNew.c_str());
 			}
 			
 		}
 
 	}
 
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("%s - OmfHintHierarchy check  end ", __FUNCTION__);
-
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("%s - Hierarchy asset start", __FUNCTION__);
-
-	// FIXME_I:
-	for (auto item=m_AssetNamePrefix.begin(); item!=m_AssetNamePrefix.end(); ++item)
-	{
-		auto v = item->second;
-
-		for(auto  arrayItem : v) {
-
-			//# FIXME_I
-			Logger::getLogger()->debug("%s - Hierarchy asset :%s: h :%s: p :%s:", __FUNCTION__, item->first.c_str(), arrayItem.first.c_str(), arrayItem.second.c_str());
-		}
-
-	}
-
-
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("warning");
+	// For debug
+//	Logger::getLogger()->debug("%s - Hierarchy asset start", __FUNCTION__);
+//	for (auto item=m_AssetNamePrefix.begin(); item!=m_AssetNamePrefix.end(); ++item)
+//	{
+//		auto v = item->second;
+//
+//		for(auto  arrayItem : v) {
+//
+//			Logger::getLogger()->debug("%s - Hierarchy asset :%s: hash :%s: path :%s:", __FUNCTION__, item->first.c_str(), arrayItem.first.c_str(), arrayItem.second.c_str());
+//		}
+//
+//	}
 
 	return (ruleMatched);
 }
 
-// FIXME_I:
+/**
+ * Extracts a variable and its elements from a string, the variable will have the shape ${room:unknown}
+ *
+ * @param strToHandle   Source string from which the variable should be extracted
+ * @param variable      Variable found in the form ${room:unknown}
+ * @param value         Value of the variable, left part , room in this case ${room:unknown}
+ * @param defaultValue  Default value of the variable, right part , unknown in this case ${room:unknown}
+ *
+ * @return                       True a variable is found in the source string
+ */
 bool OMF::extractVariable(string &strToHandle, string &variable, string &value, string &defaultValue)
 {
 	bool found;

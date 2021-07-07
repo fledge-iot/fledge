@@ -2440,7 +2440,6 @@ bool OMF::createAFHierarchyOmfHint(const string& assetName, const  string &OmfHi
 
 		if(find(m_afhHierarchyAlredyCreated.begin(), m_afhHierarchyAlredyCreated.end(), pathNew) == m_afhHierarchyAlredyCreated.end()){
 
-			Logger::getLogger()->setMinLevel("debug");
 			Logger::getLogger()->debug("%s - New path requested :%s:", __FUNCTION__, pathNew.c_str());
 
 			sendAFHierarchy(pathNew.c_str());
@@ -2550,7 +2549,14 @@ bool OMF::extractVariable(string &strToHandle, string &variable, string &value, 
 	return(found);
 }
 
-// FIXME_I:
+/**
+ * Evaulate the AF hierarchy provided and expand the variables in the form ${room:unknown}
+ *
+ * @param reading       Asset reading that should be considered from which extract the metadata values
+ * @param AFHierarchy   AF hierarchy containing the variable to be expanded
+ *
+ * @return              True if variable were found and expanded
+ */
 std::string OMF::variableValueHandle(const Reading& reading, std::string &AFHierarchy) {
 
 	string AFHierarchyNew;
@@ -2599,9 +2605,7 @@ std::string OMF::variableValueHandle(const Reading& reading, std::string &AFHier
 
 	StringReplaceAll(AFHierarchyNew, "//", "/");
 
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("xxx3 %s - found :%s: AFHierarchy :%s: AFHierarchyNew :%s: variableValue :%s: propertyToSearch :%s: propertyValue :%s: propertyDefault :%s:"
+	Logger::getLogger()->debug("%s - Variables found :%s: AFHierarchy :%s: AFHierarchyNew :%s: variableValue :%s: propertyToSearch :%s: propertyValue :%s: propertyDefault :%s:"
 		,__FUNCTION__
 		,found ? "true" : "false"
 		,AFHierarchy.c_str()
@@ -2611,14 +2615,13 @@ std::string OMF::variableValueHandle(const Reading& reading, std::string &AFHier
 		,propertyValue.c_str()
 		,propertyDefault.c_str()
 		);
-	Logger::getLogger()->setMinLevel("warning");
 
 	return (AFHierarchyNew);
 }
 
 /**
  * Evaluated the maps containing the Named and Metadata rules to fill the map m_AssetNamePrefix
- * containing for each assetname the related prefix and hierarchy name
+ * containing for each asset name the related prefix and hierarchy name
  *
  * @param path                   assetName to evaluate
  * @param reading		         reading row from which will be extracted the datapoint for the evaluation of the rules
@@ -2865,15 +2868,6 @@ void OMF::setAssetTypeTag(const string& assetName,
 	// Add the 1st level of AFHierarchy as a prefix to the name in case of PI Web API
 	if (m_PIServerEndpoint == ENDPOINT_PIWEB_API)
 	{
-		// FIXME_I: yyy
-//		if (getNamingScheme(assetName) == NAMINGSCHEME_CONCISE) {
-//
-//			keyComplete = assetName;
-//		} else {
-//			retrieveAFHierarchyPrefixAssetName (assetName, AFHierarchyPrefix, AFHierarchyLevel);
-//			keyComplete = AFHierarchyPrefix + "_" + assetName;
-//		}
-
 		retrieveAFHierarchyPrefixAssetName (assetName, AFHierarchyPrefix, AFHierarchyLevel);
 		keyComplete = AFHierarchyPrefix + "_" + assetName;
 	}
@@ -2895,6 +2889,13 @@ void OMF::setAssetTypeTag(const string& assetName,
 	data.append(AssetTypeTag);
 }
 
+/**
+ * Set the tag ID_XYZ_typename_sensor|typename_measurement using the path in which the asset was created
+ *
+ * @param assetName    The assetName
+ * @param tagName      The tagName to append
+ * @param data         The string to append result tag
+ */
 void OMF::setAssetTypeTagNew(const string& assetName,
 						  const string& tagName,
 						  string& data)
@@ -2907,17 +2908,6 @@ void OMF::setAssetTypeTagNew(const string& assetName,
 	// Add the 1st level of AFHierarchy as a prefix to the name in case of PI Web API
 	if (m_PIServerEndpoint == ENDPOINT_PIWEB_API)
 	{
-		// FIXME_I: yyy
-//		if (getNamingScheme(assetName) == NAMINGSCHEME_CONCISE) {
-//
-//			keyComplete = assetName;
-//		} else {
-//			retrieveAFHierarchyPrefixAssetName (assetName, AFHierarchyPrefix, AFHierarchyLevel);
-//			keyComplete = AFHierarchyPrefix + "_" + assetName;
-//		}
-
-		//retrieveAFHierarchyPrefixAssetName (assetName, AFHierarchyPrefix, AFHierarchyLevel);
-		//retrieveAFHierarchyPrefixAssetName (assetName, AFHierarchyPrefix, AFHierarchyLevel);
 		path=getPathOrigStored (assetName);
 		generateAFHierarchyPrefixLevel(path, assetPrefix, AFHierarchyLevel);
 		keyComplete = assetPrefix + "_" + assetName;
@@ -3622,7 +3612,6 @@ long OMF::getAssetTypeId(const string& assetName)
 	}
 	else if (m_PIServerEndpoint == ENDPOINT_PIWEB_API)
 	{
-		// FIXME_I:
 		if (getNamingScheme(assetName) == NAMINGSCHEME_CONCISE) {
 
 			keyComplete = assetName;
@@ -3700,13 +3689,7 @@ long OMF::getNamingScheme(const string& assetName)
 		}
 		else
 		{
-			// FIXME_I:
 			keyComplete = assetName;
-
-			//# FIXME_I
-			Logger::getLogger()->setMinLevel("debug");
-			Logger::getLogger()->debug("%s - snd attemp :%s:", __FUNCTION__, keyComplete.c_str () );
-			Logger::getLogger()->setMinLevel("warning");
 
 			auto it = m_OMFDataTypes->find(keyComplete);
 			if (it != m_OMFDataTypes->end())
@@ -3725,7 +3708,12 @@ long OMF::getNamingScheme(const string& assetName)
 	return namingScheme;
 }
 
-// FIXME_I:
+/**
+ * Retrieve the hash for the given asset in relation to the end point selected
+ *
+ * @param assetName  Asset for quick the hash should be retrieved
+ * @return           Hash of the given asset
+ */
 string OMF::getHashStored(const string& assetName)
 {
 	string hash;
@@ -3743,7 +3731,6 @@ string OMF::getHashStored(const string& assetName)
 	}
 	else if (m_PIServerEndpoint == ENDPOINT_PIWEB_API)
 	{
-		// FIXME_I:
 		if (getNamingScheme(assetName) == NAMINGSCHEME_CONCISE) {
 
 			keyComplete = assetName;
@@ -3775,7 +3762,12 @@ string OMF::getHashStored(const string& assetName)
 	return hash;
 }
 
-// FIXME_I:
+/**
+ * Retrieve the current AF hierarchy for the given asset
+ *
+ * @param assetName  Asset for quick the path should be retrieved
+ * @return           Path of the given asset
+ */
 string OMF::getPathStored(const string& assetName)
 {
 	string afHierarchy;
@@ -3793,7 +3785,6 @@ string OMF::getPathStored(const string& assetName)
 	}
 	else if (m_PIServerEndpoint == ENDPOINT_PIWEB_API)
 	{
-		// FIXME_I:
 		if (getNamingScheme(assetName) == NAMINGSCHEME_CONCISE) {
 
 			keyComplete = assetName;
@@ -3805,7 +3796,6 @@ string OMF::getPathStored(const string& assetName)
 
 	if (!m_OMFDataTypes)
 	{
-
 		afHierarchy = "";
 	}
 	else
@@ -3825,7 +3815,12 @@ string OMF::getPathStored(const string& assetName)
 	return afHierarchy;
 }
 
-// FIXME_I:
+/**
+ * Retrieve the AF hierarchy in which given asset was created
+ *
+ * @param assetName  Asset for quick the path should be retrieved
+ * @return           Path of the given asset
+ */
 string OMF::getPathOrigStored(const string& assetName)
 {
 	string afHierarchy;
@@ -3843,7 +3838,6 @@ string OMF::getPathOrigStored(const string& assetName)
 	}
 	else if (m_PIServerEndpoint == ENDPOINT_PIWEB_API)
 	{
-		// FIXME_I:
 		if (getNamingScheme(assetName) == NAMINGSCHEME_CONCISE) {
 
 			keyComplete = assetName;
@@ -3875,7 +3869,14 @@ string OMF::getPathOrigStored(const string& assetName)
 	return afHierarchy;
 }
 
-// FIXME_I:
+/**
+ * Stores the current AF hierarchy for the given asset
+ *
+ * @param assetName    Asset for quick the path should be retrieved
+ * @param afHierarchy  Current AF hierarchy of the asset
+ *
+ * @return             True if the operation has success
+ */
 bool OMF::setPathStored(const string& assetName, string &afHierarchy)
 {
 	bool operationExecuted;
@@ -3893,7 +3894,6 @@ bool OMF::setPathStored(const string& assetName, string &afHierarchy)
 	}
 	else if (m_PIServerEndpoint == ENDPOINT_PIWEB_API)
 	{
-		// FIXME_I:
 		if (getNamingScheme(assetName) == NAMINGSCHEME_CONCISE) {
 
 			keyComplete = assetName;
@@ -3925,9 +3925,6 @@ bool OMF::setPathStored(const string& assetName, string &afHierarchy)
 
 	return operationExecuted;
 }
-
-
-
 
 /**
  * Increment the type-id for the given asset name
@@ -4069,7 +4066,6 @@ bool OMF::setCreatedTypes(const Reading& row, OMFHints *hints)
 	}
 	else if (m_PIServerEndpoint == ENDPOINT_PIWEB_API)
 	{
-		// FIXME_I:
 		if (getNamingScheme(assetName) == NAMINGSCHEME_CONCISE) {
 
 			keyComplete = assetName;
@@ -4190,17 +4186,12 @@ bool OMF::setCreatedTypes(const Reading& row, OMFHints *hints)
 	(*m_OMFDataTypes)[keyComplete].afHierarchy      = AFHierarchy;
 	(*m_OMFDataTypes)[keyComplete].afHierarchyOrig  = AFHierarchy;
 
-	//# FIXME_I
-	Logger::getLogger()->setMinLevel("debug");
 	Logger::getLogger()->debug("%s - keyComplete :%s: m_NamingScheme :%ld: AFHierarchyPrefix :%s: AFHierarchy :%s: "
 				, __FUNCTION__
 				, keyComplete.c_str()
 				, m_NamingScheme
 				, AFHierarchyPrefix.c_str()
 				, AFHierarchy.c_str() );
-
-	Logger::getLogger()->setMinLevel("warning");
-
 
 	return true;
 }

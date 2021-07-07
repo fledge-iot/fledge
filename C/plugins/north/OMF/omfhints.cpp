@@ -26,6 +26,16 @@ using namespace rapidjson;
 
 #define OMFHINTS_AFLOCATION "\"AFLocation\""
 
+
+/**
+ *  Extracts from a complete OMF hint the part on which the checksum should be generated,
+ *  for example, it will remove the section related to the AFLocation hint to avoid the creation of a new type
+ *  when the value changes.
+ *
+ * @param hint   Original/complete OMF hint
+ *
+ * @return       OMF hint that should be considered for the calculation of the checksum
+ */
 string OMFHints::getHintForChecksum(const string &hint) {
 
 	size_t pos1, pos2;
@@ -88,7 +98,7 @@ OMFHints::OMFHints(const string& hints)
 			m_chksum += hintsChksum[i];
 	}
 
-	Logger::getLogger()->debug("xxx6 %s - hints :%s: hintsChksum :%s: m_chksum :%X: "
+	Logger::getLogger()->debug("%s - hints :%s: hintsChksum :%s: m_chksum :%X: "
 		, __FUNCTION__
 		,hints.c_str()
 		,hintsChksum.c_str()

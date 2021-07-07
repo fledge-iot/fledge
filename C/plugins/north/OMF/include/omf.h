@@ -139,13 +139,10 @@ class OMF
 		// Generate a suffix for the given asset in relation to the selected naming schema and the value of the type id
 		long getNamingScheme(const string& assetName);
 
-		// FIXME_I:
 		string getHashStored(const string& assetName);
 		string getPathStored(const string& assetName);
-		// FIXME_I:
 		string getPathOrigStored(const string& assetName);
 		bool setPathStored(const string& assetName, string &afHierarchy);
-		// FIXME_I:
 		void deleteAssetAFH(const string& assetName, string& path);
 		void createAssetAFH(const string& assetName, string& path);
 
@@ -199,7 +196,6 @@ class OMF
 		static std::string ApplyPIServerNamingRulesPath(const std::string &objName, bool *changed);
 		static std::string ApplyPIServerNamingRulesInvalidChars(const std::string &objName, bool *changed);
 
-		// FIXME_I:
 		static std::string variableValueHandle(const Reading& reading, std::string &AFHierarchy);
 		static bool        extractVariable(string &strToHandle, string &variable, string &value, string &defaultValue);
 
@@ -236,7 +232,6 @@ private:
 				     const std::string& tagName,
 				     std::string& data);
 
-		// FIXME_I:
 		void setAssetTypeTagNew(const std::string& assetName,
 							 const std::string& tagName,
 							 std::string& data);
@@ -292,7 +287,6 @@ private:
 		bool handleAFHirerarchy();
 		bool handleAFHierarchySystemWide();
 		bool handleAFHierarchiesNamesMap();
-		// FIXME_I:
 		bool handleOmfHintHierarchies();
 
 		bool handleAFHierarchiesMetadataMap();
@@ -303,7 +297,6 @@ private:
 		bool sendAFHierarchyStatic(const std::string AFHierarchyLevel, const std::string prefix);
 		bool sendAFHierarchyLink(std::string parent, std::string child, std::string prefixIdParent, std::string prefixId);
 
-		// FIXME_I:
 		bool manageAFHierarchyLink(std::string parent, std::string child, std::string prefixIdParent, std::string prefixId, std::string childFull, string action);
 
 		bool AFHierarchySendMessage(const std::string& msgType, std::string& jsonData, const std::string& action="create");
@@ -312,7 +305,6 @@ private:
 		std::string generateUniquePrefixId(const std::string &path);
 		void evaluateAFHierarchyRules(const string& assetName, const Reading& reading);
 		void retrieveAFHierarchyPrefixAssetName(const string& assetName, string& prefix, string& AFHierarchyLevel);
-		// FIXME_I:
 		void retrieveAFHierarchyFullPrefixAssetName(const string& assetName, string& prefix, string& AFHierarchy);
 
 		bool createAFHierarchyOmfHint(const string& assetName, const  string &OmfHintHierarchy);

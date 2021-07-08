@@ -29,7 +29,7 @@ Select PI Web API from the Endpoint options.
 - Basic Information
    - **Endpoint:** Select what you wish to connect to, in this case PI Web API.
    - **Send full structure:** Used to control if AF structure messages are sent to the PI server. If this is turned off then the data will not be placed in the asset framework.
-   - **Naming scheme:** Defines the naming scheme to be used when creating the PI points within the PI Server. See `Naming Scheme`.
+   - **Naming scheme:** Defines the naming scheme to be used when creating the PI points within the PI Server. See :ref:`Naming Scheme`.
    - **Server hostname:** The hostname or address of the PI Server.
    - **Server port:** The port the PI Web API OMF endpoint is listening on. Leave as 0 if you are using the default port.
    - **Data Source:** Defines which data is sent to the PI Server. The readings or Fledge's internal statistics.
@@ -67,7 +67,7 @@ Select Edge Data Store from the Endpoint options.
 
 - Basic Information
    - **Endpoint:** Select what you wish to connect to, in this case Edge Data Store.
-   - **Naming scheme:** Defines the naming scheme to be used when creating the PI points within the PI Server. See `Naming Scheme`.
+   - **Naming scheme:** Defines the naming scheme to be used when creating the PI points within the PI Server. See :ref:`Naming Scheme`.
    - **Server hostname:** The hostname or address of the PI Server. This must be the localhost for EDS.
    - **Server port:** The port the Edge Datastore is listening on. Leave as 0 if you are using the default port.
    - **Data Source:** Defines which data is sent to the PI Server. The readings or Fledge's internal statistics.
@@ -163,6 +163,8 @@ The second screen will request the following information:
    - **Integer Format:** Used to match Fledge data types to the data type configured in PI. This defaults to int64 but may be set to any OMF data type compatible with integer data, e.g. int32.
    - **Number Format:** Used to match Fledge data types to the data type configured in PI. The defaults is float64 but may be set to any OMF datatype that supports floating point values.
    - **Compression:** Compress the readings data before sending it to the PI System.
+
+.. _Naming Scheme:
 
 Naming Scheme
 -------------
@@ -333,7 +335,7 @@ in which the readings was taken, an AF location of */BuildingA/${room}*
 would put the reading in the asset framework using the value of the room
 data point. The reading
 
-.. code-block:: JSON
+.. code-block:: console
 
   "reading" : {
        "temperature" : 23.4,
@@ -342,7 +344,7 @@ data point. The reading
 
 would be put in the AF at */BuildingA/B114* whereas a reading of the form
 
-.. code-block:: JSON
+.. code-block:: console
 
   "reading" : {
        "temperature" : 24.6,
@@ -358,7 +360,7 @@ be place in */BuildingA/unknown*. If no default is given and the data
 point is missing then the level in the hierarchy is ignore. E.g. if we
 use our original location */BuildingA/${room}* and we have the reading
 
-.. code-block:: JSON
+.. code-block:: console
 
   "reading" : {
        "temperature" : 22.8,
@@ -405,7 +407,7 @@ Type Name Hints
 
 A type name hint specifies that a particular name should be used when
 defining the name of the type that will be created to store the object
-in the Asset Framework. This will override the `Naming Scheme` currently
+in the Asset Framework. This will override the :ref:`Naming Scheme` currently
 configured.
 
 .. code-block:: console

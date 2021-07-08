@@ -38,7 +38,7 @@ using namespace rapidjson;
  */
 string OMFHints::getHintForChecksum(const string &hint) {
 
-	size_t pos1, pos2;
+	size_t pos1, pos2, pos3;
 	string hintFinal;
 
 	hintFinal = hint;
@@ -46,30 +46,31 @@ string OMFHints::getHintForChecksum(const string &hint) {
 	pos1 = hintFinal.find(OMFHINTS_AFLOCATION);
 	if (pos1 != std::string::npos)
 	{
-		hintFinal.erase(pos1, strlen(OMFHINTS_AFLOCATION));
-
 		pos2 = hintFinal.find(",", pos1);
 		if (pos2 != std::string::npos)
 		{
+			// There is another hint
 			hintFinal.erase(pos1, pos2 - pos1 + 1);
 		} else {
-
-			pos2 = hintFinal.find("}", pos1);
-			if (pos2 != std::string::npos)
+			pos3 = hintFinal.find(",");
+			if (pos3 != std::string::npos)
 			{
-				// Remove the , and up to }
-				if (hintFinal.find(",") != std::string::npos) {
-
-					hintFinal.erase(pos1 -1, pos2 - pos1 +1);
-				} else {
-					hintFinal.erase(pos1, pos2 - pos1);
-				}
-			} else
-			{
-				hintFinal = "";
+				hintFinal.erase(pos3, hintFinal.length() - pos3 -1);
+			}else {
+				hintFinal.erase(pos1, hintFinal.length() - pos1 -1);
 			}
 		}
 	}
+
+	// Handle special cases
+	StringReplace(hintFinal, "{}", "");
+
+	if (hintFinal.length() == 3) {
+
+		StringReplace(hintFinal, "{", "");
+		StringReplace(hintFinal, "}", "");
+	}
+
 	return (hintFinal);
 }
 
@@ -97,8 +98,7 @@ OMFHints::OMFHints(const string& hints)
 		for (int i = 0; i < hintsChksum.length(); i++)
 			m_chksum += hintsChksum[i];
 	}
-
-	Logger::getLogger()->debug("%s - hints :%s: hintsChksum :%s: m_chksum :%X: "
+	Logger::getLogger()->debug("%s - hints original :%s: adapted :%s: chksum :%X: "
 		, __FUNCTION__
 		,hints.c_str()
 		,hintsChksum.c_str()

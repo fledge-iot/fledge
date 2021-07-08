@@ -4002,9 +4002,16 @@ unsigned long OMF::calcTypeShort(const Reading& row)
 		  isTypeSupported((*it)->getData()));
 		 ++it)
 	{
+		string dpName = (*it)->getName();
 
 		if (!isTypeSupported((*it)->getData()))
 		{
+			continue;
+		}
+
+		if (dpName.compare(OMF_HINT) == 0)
+		{
+			// We never include OMF hints in the data we send to PI
 			continue;
 		}
 
@@ -4024,6 +4031,7 @@ unsigned long OMF::calcTypeShort(const Reading& row)
 		if (type == DatapointValue::dataTagType::T_STRING)
 		{
 			typeCount.cnt.tString++;
+
 		}
 		typeCount.cnt.tTotal++;
 

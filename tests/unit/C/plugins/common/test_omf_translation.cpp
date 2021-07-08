@@ -619,9 +619,32 @@ TEST(OMF_hints, m_chksum)
 {
 	string asset;
 
+	// Case - test case having unexpected result
 	ASSERT_EQ(
 		OMFHints::getHintForChecksum("{\"AFLocation\":\"/Sites/Orange/Suez/ADN C1\"}"),
-		"{}"
+		""
+	);
+
+	// Case - single rule
+	ASSERT_EQ(
+		OMFHints::getHintForChecksum("{\"AFLocation\":123}"),
+		""
+	);
+
+	ASSERT_EQ(
+		OMFHints::getHintForChecksum("{\"AFLocation\":\"/Sites/Orange/Suez/ADN C1\"}"),
+		""
+	);
+
+	ASSERT_EQ(
+		OMFHints::getHintForChecksum("{\"number\":\"float32\"}"),
+		"{\"number\":\"float32\"}"
+	);
+
+	// Case - multi rules
+	ASSERT_EQ(
+		OMFHints::getHintForChecksum("{\"number\":\"float32\",\"AFLocation\":\"/Sites/Orange/Trackonomy/ADN C2\"}"),
+		"{\"number\":\"float32\"}"
 	);
 
 	ASSERT_EQ(
@@ -630,17 +653,28 @@ TEST(OMF_hints, m_chksum)
 	);
 
 	ASSERT_EQ(
-		OMFHints::getHintForChecksum("{\"number\":\"float32\"}"),
-		"{\"number\":\"float32\"}"
-	);
-
-	ASSERT_EQ(
-		OMFHints::getHintForChecksum("{\"number\":\"float32\",\"AFLocation\":\"/Sites/Orange/Trackonomy/ADN C2\"}"),
-		"{\"number\":\"float32\"}"
-	);
-
-	ASSERT_EQ(
 		OMFHints::getHintForChecksum("{\"number\":\"float32\",\"AFLocation\":\"/Sites/Orange/Trackonomy/ADN C2\",\"number\":\"float32\"}"),
+		"{\"number\":\"float32\",\"number\":\"float32\"}"
+	);
+
+	// Case - variables
+	ASSERT_EQ(
+		OMFHints::getHintForChecksum("{\"AFLocation\":\"/${l1:Sites}/${l2}/${site:unknown}/ADN C1\"}"),
+		""
+	);
+
+	ASSERT_EQ(
+		OMFHints::getHintForChecksum("{\"number\":\"float32\",\"AFLocation\":\"/${l1:Sites}/${l2}/${site:unknown}/ADN C1\"}"),
+		"{\"number\":\"float32\"}"
+	);
+
+	ASSERT_EQ(
+		OMFHints::getHintForChecksum("{\"AFLocation\":\"/${l1:Sites}/${l2}/${site:unknown}/ADN C1\",\"number\":\"float32\"}"),
+		"{\"number\":\"float32\"}"
+	);
+
+	ASSERT_EQ(
+		OMFHints::getHintForChecksum("{\"number\":\"float32\",\"AFLocation\":\"/${l1:Sites}/${l2}/${site:unknown}/ADN C1\",\"number\":\"float32\"}"),
 		"{\"number\":\"float32\",\"number\":\"float32\"}"
 	);
 }

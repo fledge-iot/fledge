@@ -48,6 +48,9 @@ using namespace SimpleWeb;
 #define DATA_KEY_SHORT "dataTypesShort"
 #define DATA_KEY_HINT "hintChecksum"
 #define NAMING_SCHEME "namingScheme"
+#define AFH_HASH "afhHash"
+#define AF_HIERARCHY "afHierarchy"
+#define AF_HIERARCHY_ORIG "afHierarchyOrig"
 
 
 #define PROPERTY_TYPE   "type"
@@ -927,6 +930,19 @@ string saveSentDataTypes(CONNECTOR_INFO* connInfo)
 				NamingScheme = ((*it).second).namingScheme;
 				newData << ", \"" << NAMING_SCHEME << "\": " << to_string(NamingScheme) << "";
 
+				string AFHHash;
+				AFHHash = ((*it).second).afhHash;
+				newData << ", \"" << AFH_HASH << "\": \"" << AFHHash << "\"";
+
+				string AFHierarchy;
+				AFHierarchy = ((*it).second).afHierarchy;
+				newData << ", \"" << AF_HIERARCHY << "\": \"" << AFHierarchy << "\"";
+
+				string AFHierarchyOrig;
+				AFHierarchyOrig = ((*it).second).afHierarchyOrig;
+				newData << ", \"" << AF_HIERARCHY_ORIG << "\": \"" << AFHierarchyOrig << "\"";
+
+				Logger::getLogger()->debug("%s - AFHHash :%s: AFHierarchy :%s: AFHierarchyOrig :%s:", __FUNCTION__, AFHHash.c_str(), AFHierarchy.c_str(), AFHierarchyOrig.c_str()  );
 				Logger::getLogger()->debug("%s - NamingScheme :%ld: ", __FUNCTION__,NamingScheme );
 
 				newData << ", \"" << DATA_KEY << "\": " <<
@@ -1103,6 +1119,54 @@ void loadSentDataTypes(CONNECTOR_INFO* connInfo,
 					NamingScheme = NAMINGSCHEME_COMPATIBILITY;
 				}
 
+				string AFHHash;
+				if (cachedValue.HasMember(AFH_HASH) &&
+					cachedValue[AFH_HASH].IsString())
+				{
+					AFHHash = cachedValue[AFH_HASH].GetString();
+				}
+				else
+				{
+					Logger::getLogger()->warn("%s plugin: current element '%s'" \
+								  " doesn't have '%s' property",
+											  PLUGIN_NAME,
+											  key.c_str(),
+											  AFH_HASH);
+					AFHHash = "";
+				}
+
+				string AFHierarchy;
+				if (cachedValue.HasMember(AF_HIERARCHY) &&
+					cachedValue[AF_HIERARCHY].IsString())
+				{
+					AFHierarchy = cachedValue[AF_HIERARCHY].GetString();
+				}
+				else
+				{
+					Logger::getLogger()->warn("%s plugin: current element '%s'" \
+								  " doesn't have '%s' property",
+											  PLUGIN_NAME,
+											  key.c_str(),
+											  AF_HIERARCHY);
+					AFHierarchy = "";
+				}
+
+				string AFHierarchyOrig;
+				if (cachedValue.HasMember(AF_HIERARCHY_ORIG) &&
+					cachedValue[AF_HIERARCHY_ORIG].IsString())
+				{
+					AFHierarchyOrig = cachedValue[AF_HIERARCHY_ORIG].GetString();
+				}
+				else
+				{
+					Logger::getLogger()->warn("%s plugin: current element '%s'" \
+								  " doesn't have '%s' property",
+											  PLUGIN_NAME,
+											  key.c_str(),
+											  AF_HIERARCHY_ORIG);
+					AFHierarchyOrig = "";
+				}
+
 				string dataTypes;
 				if (cachedValue.HasMember(DATA_KEY) &&
 				    cachedValue[DATA_KEY].IsObject())
@@ -1167,6 +1231,12 @@ void loadSentDataTypes(CONNECTOR_INFO* connInfo,
 				dataType.typesShort = dataTypesShort;
 				dataType.hintChkSum = hintChecksum;
 				dataType.namingScheme = NamingScheme;
+				dataType.afhHash = AFHHash;
+				dataType.afHierarchy = AFHierarchy;
+				dataType.afHierarchyOrig = AFHierarchyOrig;
+
+				Logger::getLogger()->debug("%s - AFHHash :%s: AFHierarchy :%s: AFHierarchyOrig :%s: ", __FUNCTION__, AFHHash.c_str(), AFHierarchy.c_str() , AFHierarchyOrig.c_str() );
+
 
 				Logger::getLogger()->debug("%s - NamingScheme :%ld: ", __FUNCTION__,NamingScheme );
 

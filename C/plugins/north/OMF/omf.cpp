@@ -520,6 +520,16 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 					objectPrefix = prefix;
 				}
 
+				//# FIXME_I
+				Logger::getLogger()->setMinLevel("debug");
+				Logger::getLogger()->debug("xxx3 %s - assetName :%s: AFHierarchy :%s: prefix :%s: objectPrefix :%s:  AFHierarchyLevel :%s: ", __FUNCTION__
+										   ,assetName.c_str()
+										   , AFHierarchy.c_str()
+										   , prefix.c_str()
+										   , objectPrefix.c_str()
+										   , AFHierarchyLevel.c_str() );
+				Logger::getLogger()->setMinLevel("warning");
+
 				// Create data for Static Data message
 				string typeLinkData = OMF::createLinkData(row, AFHierarchyLevel, prefix, objectPrefix, hints);
 
@@ -2663,7 +2673,7 @@ void OMF::evaluateAFHierarchyRules(const string& assetName, const Reading& readi
 
 
 	// Meta rules - Check if there are any rules defined or not
-	if (!m_AFMapEmptyMetadata && !ruleMatchedNames)
+	if (!m_AFMapEmptyMetadata)
 	{
 		auto values = reading.getReadingData();
 

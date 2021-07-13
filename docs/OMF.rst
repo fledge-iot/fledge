@@ -95,7 +95,7 @@ Select OSIsoft Cloud Services from the Endpoint options.
 
 - Basic Information
    - **Endpoint:** Select what you wish to connect to, in this case OSIsoft Cloud Services.
-   - **Naming scheme:** Defines the naming scheme to be used when creating the PI points within the PI Server. See `Naming_Scheme`.
+   - **Naming scheme:** Defines the naming scheme to be used when creating the PI points within the PI Server. See :ref:`Naming_Scheme`.
    - **Data Source:** Defines which data is sent to the PI Server. The readings or Fledge's internal statistics.
    - **Static Data:** Data to include in every reading sent to PI.  For example, you can use this to specify the location of the devices being monitored by the Fledge server.
 - Authentication

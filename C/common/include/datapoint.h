@@ -15,6 +15,7 @@
 #include <cfloat>
 #include <vector>
 #include <logger.h>
+#include <image.h>
 
 class Datapoint;
 /**
@@ -68,6 +69,15 @@ class DatapointValue {
 		}
 
 		/**
+		 * Construct with an Image
+		 */
+		DatapointValue(const Image& value)
+		{
+			m_value.image = new Image(value);
+			m_type = T_IMAGE;
+		}
+
+		/**
 		 * Copy constructor
 		 */
 		DatapointValue(const DatapointValue& obj);
@@ -105,6 +115,15 @@ class DatapointValue {
 			m_type = T_FLOAT;
 		}
 
+		/** Set the value of a datapoint to be an image
+		 * @param value The image to set in the data point
+		 */
+		void setValue(const Image& value)
+		{
+			m_value.image = new Image(value);
+			m_type = T_IMAGE;
+		}
+
 		/**
 		 * Return the value as a string
 		 */
@@ -132,7 +151,8 @@ class DatapointValue {
 			T_FLOAT,
 			T_FLOAT_ARRAY,
 			T_DP_DICT,
-			T_DP_LIST
+			T_DP_LIST,
+			T_IMAGE
 		} dataTagType;
 
 		/**
@@ -153,6 +173,7 @@ class DatapointValue {
 				case T_FLOAT_ARRAY: return std::string("FLOAT_ARRAY");
 				case T_DP_DICT: return std::string("DP_DICT");
 				case T_DP_LIST: return std::string("DP_LIST");
+				case T_IMAGE: return std::string("IMAGE");
 				default: return std::string("INVALID");
 			}
 		}
@@ -173,6 +194,11 @@ class DatapointValue {
 			return m_value.a;
 		}
 
+		Image *getImage()
+		{
+			return m_value.image;
+		}
+
 	private:
 		void deleteNestedDPV();
 		union data_t {
@@ -181,6 +207,7 @@ class DatapointValue {
 			double			f;
 			std::vector<double>*	a;
 			std::vector<Datapoint*>*	dpa;
+			Image			*image;
 			} m_value;
 		DatapointTag	m_type;
 };

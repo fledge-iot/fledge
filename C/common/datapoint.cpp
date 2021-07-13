@@ -15,6 +15,7 @@
 #include <vector>
 #include <logger.h>
 #include <datapoint.h>
+#include <exception>
 
  /**
  * Return the value as a string
@@ -80,11 +81,13 @@ std::string DatapointValue::toString() const
 		ss << ((m_type==T_DP_DICT)?'}':']');
 		return ss.str();
 	case T_STRING:
-	default:
 		ss << "\"";
 		ss << *m_value.str;
 		ss << "\"";
 		return ss.str();
+	case T_IMAGE:
+	default:
+		throw std::runtime_error("No string representation for datapoint type");
 	}
 }
 

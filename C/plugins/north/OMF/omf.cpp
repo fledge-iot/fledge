@@ -818,9 +818,10 @@ bool OMF::handleAFHierarchySystemWide() {
 
 /**
  * Creates all the AF hierarchies levels as requested by the input parameter
+ * Creates the AF hierarchy if it was not already created
  *
  * @param AFHierarchy   Hierarchies levels to be created as relative or absolute path
- * @param out		    true if succeded
+ * @param out		    true if succeeded
  */
 bool OMF::sendAFHierarchy(string AFHierarchy)
 {
@@ -829,20 +830,36 @@ bool OMF::sendAFHierarchy(string AFHierarchy)
 	string dummy;
 	string parentPath;
 
-	if (AFHierarchy.at(0) == '/')
-	{
-		// Absolute path
-		path = AFHierarchy;
-		parentPath = evaluateParentPath(path, AFHierarchySeparator);
-	}
-	else
-	{
-		// relative  path
-		path = m_DefaultAFLocation + "/" + AFHierarchy;
-		parentPath = m_DefaultAFLocation;
-	}
 
-	success = sendAFHierarchyLevels(parentPath, path, dummy);
+	if(find(m_afhHierarchyAlredyCreated.begin(), m_afhHierarchyAlredyCreated.end(), AFHierarchy) == m_afhHierarchyAlredyCreated.end()){
+
+		//# FIXME_I
+		Logger::getLogger()->setMinLevel("debug");
+		Logger::getLogger()->debug("xxx9 %s - path :%s:", __FUNCTION__, AFHierarchy.c_str() );
+		Logger::getLogger()->setMinLevel("warning");
+
+		if (AFHierarchy.at(0) == '/')
+		{
+			// Absolute path
+			path = AFHierarchy;
+			parentPath = evaluateParentPath(path, AFHierarchySeparator);
+		}
+		else
+		{
+			// relative  path
+			path = m_DefaultAFLocation + "/" + AFHierarchy;
+			parentPath = m_DefaultAFLocation;
+		}
+
+		m_afhHierarchyAlredyCreated.push_back(AFHierarchy);
+
+		success = sendAFHierarchyLevels(parentPath, path, dummy);
+	} else {
+		//# FIXME_I
+		Logger::getLogger()->setMinLevel("debug");
+		Logger::getLogger()->debug("xxx9 %s - SKIPPED path :%s:", __FUNCTION__, AFHierarchy.c_str() );
+		Logger::getLogger()->setMinLevel("warning");
+	}
 
 	return success;
 }
@@ -933,17 +950,23 @@ bool OMF::handleAFHierarchiesNamesMap() {
 	string asset_name;
 	string hierarchy;
 
-	for (auto itr = m_NamesRules.begin(); itr != m_NamesRules.end(); ++itr)
-	{
-		asset_name = itr->first.c_str();
-		hierarchy = itr->second.c_str();
 
-		Logger::getLogger()->debug("handleAFHierarchiesNamesMap - asset_name :%s: hierarchy :%s:",
-								   asset_name.c_str(),
-								   hierarchy.c_str());
-
-		success = sendAFHierarchy(hierarchy.c_str());
-	}
+	// FIXME_I:
+//	for (auto itr = m_NamesRules.begin(); itr != m_NamesRules.end(); ++itr)
+//	{
+//		asset_name = itr->first.c_str();
+//		hierarchy = itr->second.c_str();
+//
+//		//# FIXME_I
+//		Logger::getLogger()->setMinLevel("debug");
+//		Logger::getLogger()->debug("xxx6 - %s - asset_name :%s: hierarchy :%s:"
+//								   ,__FUNCTION__
+//								   ,asset_name.c_str()
+//								   ,hierarchy.c_str());
+//		Logger::getLogger()->setMinLevel("warning");
+//
+//		success = sendAFHierarchy(hierarchy.c_str());
+//	}
 
 	return success;
 }
@@ -2453,7 +2476,6 @@ bool OMF::createAFHierarchyOmfHint(const string& assetName, const  string &OmfHi
 			Logger::getLogger()->debug("%s - New path requested :%s:", __FUNCTION__, pathNew.c_str());
 
 			sendAFHierarchy(pathNew.c_str());
-			m_afhHierarchyAlredyCreated.push_back(pathNew);
 		}
 
 		if (pathStored.compare("") == 0)
@@ -2615,7 +2637,9 @@ std::string OMF::variableValueHandle(const Reading& reading, std::string &AFHier
 
 	StringReplaceAll(AFHierarchyNew, "//", "/");
 
-	Logger::getLogger()->debug("%s - Variables found :%s: AFHierarchy :%s: AFHierarchyNew :%s: variableValue :%s: propertyToSearch :%s: propertyValue :%s: propertyDefault :%s:"
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx2 %s - Variables found :%s: AFHierarchy :%s: AFHierarchyNew :%s: variableValue :%s: propertyToSearch :%s: propertyValue :%s: propertyDefault :%s:"
 		,__FUNCTION__
 		,found ? "true" : "false"
 		,AFHierarchy.c_str()
@@ -2625,6 +2649,7 @@ std::string OMF::variableValueHandle(const Reading& reading, std::string &AFHier
 		,propertyValue.c_str()
 		,propertyDefault.c_str()
 		);
+	Logger::getLogger()->setMinLevel("warning");
 
 	return (AFHierarchyNew);
 }
@@ -2640,13 +2665,17 @@ void OMF::evaluateAFHierarchyRules(const string& assetName, const Reading& readi
 {
 	bool ruleMatched = false;
 	bool ruleMatchedNames = false;
+	bool success;
 
 	// names rules - Check if there are any rules defined or not
 	if (!m_AFMapEmptyNames)
 	{
 		if (m_NamesRules.size() > 0)
 		{
+			string pathInitial;
 			string path;
+			bool changed;
+			string pathNamingRules;
 			string prefix;
 			string AFHierarchyLevel;
 
@@ -2654,25 +2683,63 @@ void OMF::evaluateAFHierarchyRules(const string& assetName, const Reading& readi
 			if (it != m_NamesRules.end())
 			{
 
-				path = it->second;
+				pathInitial = it->second;
 
-				if (path.at(0) != '/')
+				if (pathInitial.at(0) != '/')
 				{
 					// relative  path
-					path = m_DefaultAFLocation + "/" + path;
+					pathInitial = "/" + m_DefaultAFLocation + "/" + pathInitial;
 				}
+				// FIXME_I:
+				path = variableValueHandle(reading, pathInitial);
+				path = ApplyPIServerNamingRulesPath(path, &changed);
+
+				if (pathInitial.compare(path) != 0) {
+
+					it->second = path;
+				}
+
 				generateAFHierarchyPrefixLevel(path, prefix, AFHierarchyLevel);
 				ruleMatched = true;
 				ruleMatchedNames = true;
 
+				// FIXME_I:
+				auto v =  m_AssetNamePrefix[assetName];
 				auto item = make_pair(path, prefix);
-				m_AssetNamePrefix[assetName].push_back(item);
+
+				if(std::find(v.begin(), v.end(), item) == v.end())
+				{
+
+					// FIXME_I:
+					success = sendAFHierarchy(path.c_str());
+
+					m_AssetNamePrefix[assetName].push_back(item);
+
+					//# FIXME_I
+					Logger::getLogger()->setMinLevel("debug");
+					Logger::getLogger()->debug(
+						"xxx4 %s - m_NamesRules size :%d: m_AssetNamePrefix size :%d:   vector size :%d: pathInitial :%s: path :%s: stored :%s:",
+						__FUNCTION__, m_NamesRules.size(), m_AssetNamePrefix.size(), v.size(), pathInitial.c_str(),
+						path.c_str(), it->second.c_str());
+					Logger::getLogger()->setMinLevel("warning");
+				} else {
+					//# FIXME_I
+					Logger::getLogger()->setMinLevel("debug");
+					Logger::getLogger()->debug(
+						"xxx5 %s - skipped  :%d: pathInitial :%s: path :%s: stored :%s:"
+							,__FUNCTION__
+							,pathInitial.c_str()
+							,path.c_str()
+							, it->second.c_str());
+					Logger::getLogger()->setMinLevel("warning");
+				}
 			}
 		}
 	}
 
-
+	// FIXME_I:
 	// Meta rules - Check if there are any rules defined or not
+	// if (!m_AFMapEmptyMetadata && !ruleMatchedNames)
 	if (!m_AFMapEmptyMetadata)
 	{
 		auto values = reading.getReadingData();
@@ -2695,7 +2762,8 @@ void OMF::evaluateAFHierarchyRules(const string& assetName, const Reading& readi
 					if (path.at(0) != '/')
 					{
 						// relative  path
-						path = m_DefaultAFLocation + "/" + path;
+						// FIXME_I:
+						path = "/" + m_DefaultAFLocation + "/" + path;
 					}
 					generateAFHierarchyPrefixLevel(path, prefix, AFHierarchyLevel);
 					ruleMatched = true;
@@ -3044,6 +3112,9 @@ bool OMF::HandleAFMapNames(Document& JSon)
 	string name;
 	string value;
 
+	// FIXME_I:
+	m_NamesRules.clear();
+
 	Value &JsonNames = JSon["names"];
 
 	for (Value::ConstMemberIterator itr = JsonNames.MemberBegin(); itr != JsonNames.MemberEnd(); ++itr)
@@ -3051,21 +3122,42 @@ bool OMF::HandleAFMapNames(Document& JSon)
 		name = itr->name.GetString();
 
 		{
-			bool changed = false;
-			value = ApplyPIServerNamingRulesPath(itr->value.GetString(), &changed);
-
-			if (changed) {
-
-				Logger::getLogger()->info("%s - AF hierarchy name rule changed to follow PI-Server naming rules from :%s: to :%s:", __FUNCTION__, itr->value.GetString(), value.c_str() );
-			}
+			// FIXME_I:
+			//bool changed = false;
+			value = itr->value.GetString();
+//			value = ApplyPIServerNamingRulesPath(itr->value.GetString(), &changed);
+//
+//			if (changed) {
+//
+//				Logger::getLogger()->info("%s - AF hierarchy name rule changed to follow PI-Server naming rules from :%s: to :%s:", __FUNCTION__, itr->value.GetString(), value.c_str() );
+//			}
 		}
-		Logger::getLogger()->debug("HandleAFMapNames - Exist name :%s: value :%s:", name.c_str(), value.c_str());
+		// FIXME_I:
+		if (m_NamesRules.find(name) == m_NamesRules.end())
+		{
+			//# FIXME_I
+			Logger::getLogger()->setMinLevel("debug");
+			Logger::getLogger()->debug("xxx7 v2 HandleAFMapNames -m_NamesRules size :%d: Exist name :%s: value :%s:"
+									   	,m_NamesRules.size()
+									   	,name.c_str()
+									   	,value.c_str());
+			Logger::getLogger()->setMinLevel("warning");
 
-		auto newMapValue = make_pair(name,value);
+			auto newMapValue = make_pair(name, value);
 
-		m_NamesRules.insert (newMapValue);
+			m_NamesRules.insert(newMapValue);
 
-		m_AFMapEmptyNames = false;
+			m_AFMapEmptyNames = false;
+		} else {
+			//# FIXME_I
+			Logger::getLogger()->setMinLevel("debug");
+			Logger::getLogger()->debug("xxx8 v2 HandleAFMapNames - SKIIPED m_NamesRules size :%d: Exist name :%s: value :%s:"
+				,m_NamesRules.size()
+				,name.c_str()
+				,value.c_str());
+			Logger::getLogger()->setMinLevel("warning");
+
+		}
 	}
 
 	return success;

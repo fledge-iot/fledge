@@ -24,9 +24,60 @@
 using namespace std;
 using namespace rapidjson;
 
+#define OMFHINTS_AFLOCATION "\"AFLocation\""
+
+
+/**
+ *  Extracts from a complete OMF hint the part on which the checksum should be generated,
+ *  for example, it will remove the section related to the AFLocation hint to avoid the creation of a new type
+ *  when the value changes.
+ *
+ * @param hint   Original/complete OMF hint
+ *
+ * @return       OMF hint that should be considered for the calculation of the checksum
+ */
+string OMFHints::getHintForChecksum(const string &hint) {
+
+	size_t pos1, pos2, pos3;
+	string hintFinal;
+
+	hintFinal = hint;
+
+	pos1 = hintFinal.find(OMFHINTS_AFLOCATION);
+	if (pos1 != std::string::npos)
+	{
+		pos2 = hintFinal.find(",", pos1);
+		if (pos2 != std::string::npos)
+		{
+			// There is another hint
+			hintFinal.erase(pos1, pos2 - pos1 + 1);
+		} else {
+			pos3 = hintFinal.find(",");
+			if (pos3 != std::string::npos)
+			{
+				hintFinal.erase(pos3, hintFinal.length() - pos3 -1);
+			}else {
+				hintFinal.erase(pos1, hintFinal.length() - pos1 -1);
+			}
+		}
+	}
+
+	// Handle special cases
+	StringReplace(hintFinal, "{}", "");
+
+	if (hintFinal.length() == 3) {
+
+		StringReplace(hintFinal, "{", "");
+		StringReplace(hintFinal, "}", "");
+	}
+
+	return (hintFinal);
+}
+
+
 OMFHints::OMFHints(const string& hints)
 {
-	string hintsTmp;
+	string hintsTmp, hintsChksum;
 
 	hintsTmp = hints;
 	StringReplaceAll(hintsTmp,"\\","");
@@ -36,15 +87,23 @@ OMFHints::OMFHints(const string& hints)
 	{
 		// Skip any enclosing "'s
 		m_doc.Parse(hintsTmp.substr(1, hintsTmp.length() - 2).c_str());
-		for (int i = 1; i < hintsTmp.length() - 1; i++)
-			m_chksum += hintsTmp[i];
+		hintsChksum = getHintForChecksum(hintsTmp);
+		for (int i = 1; i < hintsChksum.length() - 1; i++)
+			m_chksum += hintsChksum[i];
 	}
 	else
 	{
 		m_doc.Parse(hintsTmp.c_str());
-		for (int i = 0; i < hintsTmp.length(); i++)
-			m_chksum += hintsTmp[i];
+		hintsChksum = getHintForChecksum(hintsTmp);
+		for (int i = 0; i < hintsChksum.length(); i++)
+			m_chksum += hintsChksum[i];
 	}
+	Logger::getLogger()->debug("%s - hints original :%s: adapted :%s: chksum :%X: "
+		, __FUNCTION__
+		,hints.c_str()
+		,hintsChksum.c_str()
+		, m_chksum);
+
 	if (m_doc.HasParseError())
 	{
 		Logger::getLogger()->error("Ignoring OMFHint '%s' parse error in JSON", hintsTmp.c_str());
@@ -74,6 +133,10 @@ OMFHints::OMFHints(const string& hints)
 			else if (strcmp(name, "tag") == 0)
 			{
 				m_hints.push_back(new OMFTagHint(itr->value.GetString()));
+			}
+			else if (strcmp(name, "AFLocation") == 0)
+			{
+				m_hints.push_back(new OMFAFLocationHint(itr->value.GetString()));
 			}
 			else if (strcmp(name, "datapoint") == 0)
 			{

@@ -179,6 +179,14 @@ void StringStripCRLF(std::string& StringToManage)
 
 }
 
+void StringStripQuotes(std::string& StringToManage)
+{
+	if ( ! StringToManage.empty())
+	{
+		StringReplaceAll(StringToManage, "\"", "");
+	}
+}
+
 /**
  * Removes all the white spaces from a string
  *

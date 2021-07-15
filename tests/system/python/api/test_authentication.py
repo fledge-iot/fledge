@@ -150,8 +150,9 @@ class TestAuthenticationAPI:
     def test_update_user(self, fledge_url):
         uid = 5
         conn = http.client.HTTPConnection(fledge_url)
-        payload = {"real_name": "Test Real", "description": "Test Desc"}
-        conn.request("PUT", "/fledge/user/{}".format(uid), body=json.dumps(payload), headers={"authorization": TOKEN})
+        payload = {"real_name": "Test Real", "description": "Test Desc", "access_method": "pwd"}
+        conn.request("PUT", "/fledge/admin/{}".format(uid), body=json.dumps(payload),
+                     headers={"authorization": TOKEN})
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
@@ -160,6 +161,25 @@ class TestAuthenticationAPI:
         assert uid == jdoc["user_info"]["id"]
         assert payload["real_name"] == jdoc["user_info"]["real_name"]
         assert payload["description"] == jdoc["user_info"]["description"]
+        assert payload["access_method"] == jdoc["user_info"]["access_method"]
+
+    def test_update_me(self, fledge_url):
+        conn = http.client.HTTPConnection(fledge_url)
+        payload = {"real_name": "Admin"}
+        conn.request("PUT", "/fledge/user", body=json.dumps(payload), headers={"authorization": TOKEN})
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        jdoc = json.loads(r)
+        assert 'message' in jdoc
+        assert {"message": "Real name has been updated successfully!"} == jdoc
+
+        conn.request("GET", "/fledge/user?id=1", headers={"authorization": TOKEN})
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        jdoc = json.loads(r)
+        assert payload['real_name'] == jdoc['realName']
 
     def test_enable_user(self, fledge_url):
         uid = 5
@@ -175,7 +195,7 @@ class TestAuthenticationAPI:
 
         # Disable user
         payload = {"enabled": "false"}
-        conn.request("PUT", "/fledge/admin/{}/enabled".format(uid), body=json.dumps(payload),
+        conn.request("PUT", "/fledge/admin/{}/enable".format(uid), body=json.dumps(payload),
                      headers={"authorization": TOKEN})
         r = conn.getresponse()
         assert 200 == r.status
@@ -242,6 +262,14 @@ class TestAuthenticationAPI:
         r = r.read().decode()
         assert "403: Forbidden" == r
 
+        # Update User
+        conn.request("PUT", "/fledge/admin/2", body=json.dumps({"access_method": 'cert'}),
+                     headers={"authorization": _token})
+        r = conn.getresponse()
+        assert 403 == r.status
+        r = r.read().decode()
+        assert "403: Forbidden" == r
+
         # Reset User
         conn.request("PUT", "/fledge/admin/2/reset", body=json.dumps({"role_id": 1, "password": "F0gl@p!"}),
                      headers={"authorization": _token})
@@ -252,6 +280,14 @@ class TestAuthenticationAPI:
 
         # Delete User
         conn.request("DELETE", "/fledge/admin/2/delete", headers={"authorization": _token})
+        r = conn.getresponse()
+        assert 403 == r.status
+        r = r.read().decode()
+        assert "403: Forbidden" == r
+
+        # Enable/Disable User
+        conn.request("PUT", "/fledge/admin/2/enable", body=json.dumps({"enabled": "false"}),
+                     headers={"authorization": _token})
         r = conn.getresponse()
         assert 403 == r.status
         r = r.read().decode()

@@ -7,6 +7,8 @@
 import json
 from unittest.mock import patch, MagicMock
 import pytest
+import sys
+import asyncio
 
 from aiohttp import web
 
@@ -76,7 +78,14 @@ class TestPluginInstall:
         checksum_value = "4015c2dea1cc71dbf70a23f6a203eeb6"
         url_value = "http://10.2.5.26:5000//download/c/{}".format(tar_file_name)
         param = {"url": url_value, "format": "tar", "type": "south", "checksum": checksum_value, "compressed": "true"}
-        with patch.object(plugins_install, 'download', return_value=async_mock()) as download_patch:
+
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv = await async_mock()
+        else:
+            _rv = asyncio.ensure_future(async_mock())
+
+        with patch.object(plugins_install, 'download', return_value=_rv) as download_patch:
             with patch.object(plugins_install, 'validate_checksum', return_value=False) as checksum_patch:
                 resp = await client.post('/fledge/plugins', data=json.dumps(param))
                 assert 400 == resp.status
@@ -102,7 +111,14 @@ class TestPluginInstall:
         url_value = "http://10.2.5.26:5000/download/{}".format(tar_file_name)
         msg = 'Could not find a version that satisfies the requirement pt==1.4.0'
         param = {"url": url_value, "format": "tar", "type": "south", "checksum": checksum_value}
-        with patch.object(plugins_install, 'download', return_value=async_mock([tar_file_name])) as download_patch:
+
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv = await async_mock([tar_file_name])
+        else:
+            _rv = asyncio.ensure_future(async_mock([tar_file_name]))
+
+        with patch.object(plugins_install, 'download', return_value=_rv) as download_patch:
             with patch.object(plugins_install, 'validate_checksum', return_value=True) as checksum_patch:
                 with patch.object(plugins_install, 'extract_file', return_value=sync_mock(files)) as extract_patch:
                     with patch.object(plugins_install, 'copy_file_install_requirement',
@@ -129,7 +145,14 @@ class TestPluginInstall:
         checksum_value = "4015c2dea1cc71dbf70a23f6a203eeb6"
         url_value = "http://10.2.5.26:5000/download/{}".format(tar_file_name)
         param = {"url": url_value, "format": "tar", "type": "south", "checksum": checksum_value}
-        with patch.object(plugins_install, 'download', return_value=async_mock([tar_file_name])) as download_patch:
+
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv = await async_mock([tar_file_name])
+        else:
+            _rv = asyncio.ensure_future(async_mock([tar_file_name]))
+
+        with patch.object(plugins_install, 'download', return_value=_rv) as download_patch:
             with patch.object(plugins_install, 'validate_checksum', return_value=True) as checksum_patch:
                 with patch.object(plugins_install, 'extract_file', return_value=sync_mock(files)) as extract_patch:
                     with patch.object(plugins_install, 'copy_file_install_requirement', return_value=(0, 'Success')) \
@@ -158,7 +181,14 @@ class TestPluginInstall:
         checksum_value = "2019c2dea1cc71dbf70a23f6a203fdgh"
         url_value = "http://10.2.5.26:5000/filter/download/{}".format(tar_file_name)
         param = {"url": url_value, "format": "tar", "type": "filter", "checksum": checksum_value, "compressed": "true"}
-        with patch.object(plugins_install, 'download', return_value=async_mock([tar_file_name])) as download_patch:
+
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv = await async_mock([tar_file_name])
+        else:
+            _rv = asyncio.ensure_future(async_mock([tar_file_name]))
+
+        with patch.object(plugins_install, 'download', return_value=_rv) as download_patch:
             with patch.object(plugins_install, 'validate_checksum', return_value=True) as checksum_patch:
                 with patch.object(plugins_install, 'extract_file', return_value=sync_mock(files)) as extract_patch:
                     with patch.object(plugins_install, 'copy_file_install_requirement', return_value=(0, 'Success')) \
@@ -185,7 +215,14 @@ class TestPluginInstall:
         url_value = "http://10.2.5.26:5000/download/fledge-south-{}-1.6.0.{}".format(plugin_name, file_format)
         param = {"url": url_value, "format": file_format, "type": "south", "checksum": checksum}
         pkg_mgt = 'yum' if file_format == 'rpm' else 'apt'
-        with patch.object(plugins_install, 'download', return_value=async_mock()) as download_patch:
+
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv = await async_mock()
+        else:
+            _rv = asyncio.ensure_future(async_mock())        
+
+        with patch.object(plugins_install, 'download', return_value=_rv) as download_patch:
             with patch.object(plugins_install, 'validate_checksum', return_value=True) as checksum_patch:
                 with patch.object(plugins_install, 'install_package', return_value=(0, 'Success')) \
                         as install_package_patch:
@@ -226,7 +263,13 @@ class TestPluginInstall:
                   'fledge:armhf (>= 1.6) but it is not installableE: Unable to correct problems, ' \
                   'you have held broken packages.'
 
-        with patch.object(plugins_install, 'download', return_value=async_mock()) as download_patch:
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv = await async_mock()
+        else:
+            _rv = asyncio.ensure_future(async_mock())        
+
+        with patch.object(plugins_install, 'download', return_value=_rv) as download_patch:
             with patch.object(plugins_install, 'validate_checksum', return_value=True) as checksum_patch:
                 with patch.object(plugins_install, 'install_package', return_value=(256, msg)) as install_package_patch:
                     resp = await client.post('/fledge/plugins', data=json.dumps(param))
@@ -249,13 +292,21 @@ class TestPluginInstall:
                         'packageName': 'fledge-south-randomwalk'}]
 
         storage_client_mock = MagicMock(StorageClientAsync)
+        
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv1 = await async_mock({'count': 0, 'rows': []})
+            _rv2 = await async_mock(([], 'log/190801-12-41-13.log'))
+        else:
+            _rv1 = asyncio.ensure_future(async_mock({'count': 0, 'rows': []}))
+            _rv2 = asyncio.ensure_future(async_mock(([], 'log/190801-12-41-13.log')))      
+        
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload',
-                              return_value=async_mock({'count': 0, 'rows': []})) as query_tbl_patch:
+                              return_value=_rv1) as query_tbl_patch:
                 with patch.object(PluginDiscovery, 'get_plugins_installed', return_value=plugin_list
                                   ) as plugin_installed_patch:
-                    with patch.object(common, 'fetch_available_packages', return_value=(
-                            async_mock(([], 'log/190801-12-41-13.log')))) as patch_fetch_available_package:
+                    with patch.object(common, 'fetch_available_packages', return_value=(_rv2)) as patch_fetch_available_package:
                         resp = await client.post('/fledge/plugins', data=json.dumps(param))
                         assert 404 == resp.status
                         assert "'{} plugin is not available for the configured repository'".format(plugin) == resp.reason
@@ -288,16 +339,26 @@ class TestPluginInstall:
         query_tbl_payload = {"return": ["status"], "where": {"column": "action", "condition": "=", "value": "install",
                                                              "and": {"column": "name", "condition": "=",
                                                                      "value": plugin_name}}}
+        
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv1 = await async_mock(([plugin_name, "fledge-north-http", "fledge-service-notification"],
+                                    'log/190801-12-41-13.log'))
+            _rv2 = await async_mock({"response": "inserted", "rows_affected": 1})
+            _se1 = await async_mock({'count': 0, 'rows': []})
+            _se2 = await async_mock(insert_row_resp)
+        else:
+            _rv1 = asyncio.ensure_future(async_mock(([plugin_name, "fledge-north-http", "fledge-service-notification"],
+                                    'log/190801-12-41-13.log')))
+            _rv2 = asyncio.ensure_future(async_mock({"response": "inserted", "rows_affected": 1}))
+            _se1 = asyncio.ensure_future(async_mock({'count': 0, 'rows': []}))
+            _se2 = asyncio.ensure_future(async_mock(insert_row_resp))
+        
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload',
-                              side_effect=[async_mock({'count': 0, 'rows': []}), async_mock(insert_row_resp)
-                                           ]) as query_tbl_patch:
-                with patch.object(common, 'fetch_available_packages', return_value=(
-                        async_mock(([plugin_name, "fledge-north-http", "fledge-service-notification"],
-                                    'log/190801-12-41-13.log')))) as patch_fetch_available_package:
-                    with patch.object(storage_client_mock, 'insert_into_tbl',
-                                      return_value=async_mock({"response": "inserted", "rows_affected": 1}
-                                                              )) as insert_tbl_patch:
+                              side_effect=[_se1, _se2]) as query_tbl_patch:
+                with patch.object(common, 'fetch_available_packages', return_value=(_rv1)) as patch_fetch_available_package:
+                    with patch.object(storage_client_mock, 'insert_into_tbl', return_value=_rv2) as insert_tbl_patch:
                         with patch.object(plugins_install._LOGGER, "info") as log_info:
                             with patch('multiprocessing.Process'):
                                 resp = await client.post('/fledge/plugins', data=json.dumps(param))
@@ -340,9 +401,16 @@ class TestPluginInstall:
         }]}
         msg = '{} package installation already in progress'.format(plugin_name)
         storage_client_mock = MagicMock(StorageClientAsync)
+        
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv = await async_mock(select_row_resp)
+        else:
+            _rv = asyncio.ensure_future(async_mock(select_row_resp))
+        
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload',
-                              return_value=async_mock(select_row_resp)) as query_tbl_patch:
+                              return_value=_rv) as query_tbl_patch:
                 resp = await client.post('/fledge/plugins', data=json.dumps(param))
                 assert 429 == resp.status
                 assert msg == resp.reason
@@ -365,9 +433,16 @@ class TestPluginInstall:
                         "version": "1.8.1", "installedDirectory": "south/ModbusC", "packageName": plugin_name}]
         msg = '{} package is already installed'.format(plugin_name)
         storage_client_mock = MagicMock(StorageClientAsync)
+        
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv = await async_mock({'count': 0, 'rows': []})
+        else:
+            _rv = asyncio.ensure_future(async_mock({'count': 0, 'rows': []}))
+        
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload',
-                              return_value=async_mock({'count': 0, 'rows': []})) as query_tbl_patch:
+                              return_value=_rv) as query_tbl_patch:
                 with patch.object(PluginDiscovery, 'get_plugins_installed', return_value=plugin_list
                                   ) as plugin_list_patch:
                     resp = await client.post('/fledge/plugins', data=json.dumps(param))

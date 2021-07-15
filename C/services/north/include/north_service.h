@@ -43,6 +43,8 @@ class NorthService : public ServiceHandler {
 		static ManagementClient *	getMgmtClient();
 		const std::string&		getName() { return m_name; };
 		const std::string&		getPluginName() { return m_pluginName; };
+		void				pause();
+		void				release();
 	private:
 		void				addConfigDefaults(DefaultConfigCategory& defaults);
 		bool 				loadPlugin();

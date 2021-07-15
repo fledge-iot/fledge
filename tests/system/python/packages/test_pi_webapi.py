@@ -84,12 +84,12 @@ def _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_d
 
 
 @pytest.fixture
-def start_south_north(clean_setup_fledge_packages, add_south, start_north_pi_server_c_web_api, remove_data_file,
+def start_south_north(clean_setup_fledge_packages, add_south, start_north_task_omf_web_api, remove_data_file,
                       fledge_url, pi_host, pi_port, pi_admin, pi_passwd, asset_name=ASSET):
     """ This fixture
         clean_setup_fledge_packages: purge the fledge* packages and install latest for given repo url
         add_south: Fixture that adds a south service with given configuration
-        start_north_pi_server_c_web_api: Fixture that starts PI north task
+        start_north_task_omf_web_api: Fixture that starts PI north task
         remove_data_file: Fixture that remove data file created during the tests """
 
     # Define the template file for fogbench
@@ -104,7 +104,7 @@ def start_south_north(clean_setup_fledge_packages, add_south, start_north_pi_ser
     south_plugin = "coap"
     # south_branch does not matter as these are archives.fledge-iot.org version install
     add_south(south_plugin, None, fledge_url, service_name="CoAP FOGL-2964", installation_type='package')
-    start_north_pi_server_c_web_api(fledge_url, pi_host, pi_port, pi_user=pi_admin, pi_pwd=pi_passwd)
+    start_north_task_omf_web_api(fledge_url, pi_host, pi_port, pi_user=pi_admin, pi_pwd=pi_passwd)
 
     yield start_south_north
 

@@ -130,6 +130,26 @@ void SouthPlugin::start()
 }
 
 /**
+ * Call the start method in the plugin
+ */
+void SouthPlugin::startData(const string& data)
+{
+	lock_guard<mutex> guard(mtx2);
+	try {
+		return this->pluginStartDataPtr(instance, data);
+	} catch (exception& e) {
+		Logger::getLogger()->fatal("Unhandled exception raised in south plugin start(), %s",
+			e.what());
+		throw;
+	} catch (...) {
+		std::exception_ptr p = std::current_exception();
+		Logger::getLogger()->fatal("Unhandled exception raised in south plugin start(), %s",
+			p ? p.__cxa_exception_type()->name() : "unknown exception");
+		throw;
+	}
+}
+
+/**
  * Call the poll method in the plugin
  */
 Reading SouthPlugin::poll()
@@ -203,6 +223,26 @@ void SouthPlugin::shutdown()
 	lock_guard<mutex> guard(mtx2);
 	try {
 		return this->pluginShutdownPtr(instance);
+	} catch (exception& e) {
+		Logger::getLogger()->fatal("Unhandled exception raised in south plugin shutdown(), %s",
+			e.what());
+		throw;
+	} catch (...) {
+		std::exception_ptr p = std::current_exception();
+		Logger::getLogger()->fatal("Unhandled exception raised in south plugin shutdown(), %s",
+			p ? p.__cxa_exception_type()->name() : "unknown exception");
+		throw;
+	}
+}
+
+/**
+ * Call the shutdown method in the plugin
+ */
+string SouthPlugin::shutdownSaveData()
+{
+	lock_guard<mutex> guard(mtx2);
+	try {
+		return this->pluginShutdownDataPtr(instance);
 	} catch (exception& e) {
 		Logger::getLogger()->fatal("Unhandled exception raised in south plugin shutdown(), %s",
 			e.what());

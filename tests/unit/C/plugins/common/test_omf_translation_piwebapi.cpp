@@ -76,7 +76,7 @@ TEST(PIWEBAPI_OMF_transation, TwoTranslationsCompareResult)
 	     ++elem)
 	{
 		// Add into JSON string the OMF transformed Reading data
-		jsonData << OMFData(**elem, TYPE_ID, PI_SERVER_END_POINT, AF_HIERARCHY_1LEVEL).OMFdataVal() << (elem < (readingSet.getAllReadings().end() - 1 ) ? ", " : "");
+		jsonData << OMFData(**elem, CONTAINER_ID, PI_SERVER_END_POINT, AF_HIERARCHY_1LEVEL).OMFdataVal() << (elem < (readingSet.getAllReadings().end() - 1 ) ? ", " : "");
 	}
 
 	jsonData << "]";

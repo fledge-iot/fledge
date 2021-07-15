@@ -2530,16 +2530,21 @@ void OMF::evaluateAFHierarchyRules(const string& assetName, const Reading& readi
 					m_AssetNamePrefix[assetName].push_back(item);
 
 					Logger::getLogger()->debug(
-						"%s - m_NamesRules size :%d: m_AssetNamePrefix size :%d:   vector size :%d: pathInitial :%s: path :%s: stored :%s:",
-						__FUNCTION__, m_NamesRules.size(), m_AssetNamePrefix.size(), v.size(), pathInitial.c_str(),
-						path.c_str(), it->second.c_str());
+						"%s - m_NamesRules size :%d: m_AssetNamePrefix size :%d:   vector size :%d: pathInitial :%s: path :%s: stored :%s:"
+							,__FUNCTION__
+							,m_NamesRules.size()
+							,m_AssetNamePrefix.size()
+							,v.size()
+							,pathInitial.c_str()
+							,path.c_str()
+							,it->second.c_str());
 				} else {
 					Logger::getLogger()->debug(
-						"%s - skipped  :%d: pathInitial :%s: path :%s: stored :%s:"
+						"%s - m_NamesRules skipped pathInitial :%s: path :%s: stored :%s:"
 							,__FUNCTION__
 							,pathInitial.c_str()
 							,path.c_str()
-							, it->second.c_str());
+							,it->second.c_str());
 				}
 			}
 		}

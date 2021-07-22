@@ -1,41 +1,45 @@
-#!/bin/bash
+#!/usr/bin/env bash
+
 function table {
-	list="$1"
-	title=$2
-	tableType=$3
-	echo ".. list-table:: $title" >> $output
-	echo "    :widths: 20 50" >> $output
-	echo "    :header-rows: 1" >> $output
-	echo "" >> $output
-	echo "    * - Name" >> $output
-	echo "      - Description" >> $output
-	for repo in $list
-	do
-		product=`echo $repo | sed -e 's/-.*//'`
-		if [ $product = "foglamp" ]; then
-			org=dianomic
-		else
-			org=fledge-iot
-		fi
-		type=`echo $repo | sed -e 's/fledge-//' -e 's/foglamp-//' -e 's/-.*//'`
-		name=`echo $repo | sed -e 's/fledge-//' -e 's/foglamp-//' -e "s/${type}-//"`
-		echo $repo, $name, $type >>/tmp/repos
-		if [ "$type" = "$tableType" ]; then
-			description=`echo $fledgeRepos | python3 -c 'import json,sys;repos=json.load(sys.stdin);fRepo = [r for r in repos if r["name"] == "'$repo'" ];print(fRepo[0]["description"])'`
-			echo "    * - $name" >> $output
-			echo "      - $description" >> $output
-		fi
-	done
-	if [ "$tableType" = "north" ]; then
-		echo "    * - OMF" >> $output
-		echo "      - Send data to OSIsoft PI Server, Edge Data Store or OSIsoft Cloud Services" >> $output
-	fi
-	echo "" >> $output
+  list="$1"
+  title=$2
+  tableType=$3
+  echo ".. list-table:: ${title}" >> "$output"
+  echo "    :widths: 20 50" >> "$output"
+  echo "    :header-rows: 1" >> "$output"
+  echo "" >> "$output"
+  echo "    * - Name" >> "$output"
+  echo "      - Description" >> "$output"
+  for repo in ${list}
+  do
+    product=$(echo "$repo}" | sed -e 's/-.*//')
+    org="fledge-iot"
+    if [[ ${product} == "foglamp" ]]; then org="dianomic"; fi
+    type=$(echo "${repo}" | sed -e 's/fledge-//' -e 's/foglamp-//' -e 's/-.*//')
+    name=$(echo "${repo}" | sed -e 's/fledge-//' -e 's/foglamp-//' -e "s/${type}-//")
+    echo "${repo}", "${name}", "${type}" >>/tmp/repos
+    if [[ ${type} = "$tableType" ]]; then
+      description=$(echo "$fledgeRepos" | python3 -c 'import json,sys;repos=json.load(sys.stdin);fRepo = [r for r in repos if r["name"] == "'"${repo}"'" ];print(fRepo[0]["description"])')
+      if [[ "${description}" = "None" ]]; then
+        description="A ${name} ${type} plugin"
+      fi
+      echo "    * - ${name}" >> "$output"
+      echo "      - ${description}" >> "$output"
+    fi
+  done
+  if [[ ${tableType} = "north" ]]; then
+    echo "    * - OMF" >> "$output"
+    echo "      - Send data to OSIsoft PI Server, Edge Data Store or OSIsoft Cloud Services" >> "$output"
+  fi
+  echo "" >> "$output"
 }
 
 output=$1
 rm -f $output
-fledgeRepos=$(curl -sX GET https://api.github.com/orgs/fledge-iot/repos\?per_page=1000)
+# Get total number of respository pages in fledge org.
+fledgeRepoPagesCount=`curl -sI https://api.github.com/orgs/fledge-iot/repos | grep -oP '\d+(?=>; rel="last")'`
+fledgeRepos=$(curl -sX GET https://api.github.com/orgs/fledge-iot/repos\?page=[1-$fledgeRepoPagesCount])
+fledgeRepos="$(echo $fledgeRepos | sed 's/\] \[/,/g')"
 fetchTopicReposPyScript='
 import json,sys;\
 repos=json.load(sys.stdin);\

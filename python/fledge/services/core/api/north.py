@@ -17,6 +17,7 @@ from fledge.services.core.scheduler.entities import Task
 from fledge.common.service_record import ServiceRecord
 from fledge.services.core.service_registry.service_registry import ServiceRegistry
 from fledge.services.core.service_registry.exceptions import DoesNotExist
+from fledge.common import logger
 
 __author__ = "Praveen Garg"
 __copyright__ = "Copyright (c) 2018 OSIsoft, LLC"
@@ -28,6 +29,7 @@ _help = """
     | GET                 | /fledge/north                                         |
     -------------------------------------------------------------------------------
 """
+_logger = logger.setup(__name__)
 
 
 async def _get_sent_stats(storage_client):
@@ -44,7 +46,8 @@ async def _get_sent_stats(storage_client):
 
 
 async def _get_tasks_status():
-    payload = PayloadBuilder().SELECT("id", "schedule_name", "process_name", "state", "start_time", "end_time", "reason", "pid", "exit_code")\
+    payload = PayloadBuilder().SELECT("id", "schedule_name", "process_name", "state", "start_time",
+                                      "end_time", "reason", "pid", "exit_code")\
         .WHERE(["process_name", "=", "north"])\
         .OR_WHERE(["process_name", "=", "north_c"])\
         .ALIAS("return", ("start_time", 'start_time'), ("end_time", 'end_time'))\
@@ -135,7 +138,7 @@ async def _get_north_schedules(cf_mgr):
             if north_sch_dict:
                 schedules.append(north_sch_dict)
 
-    return schedules
+    return list({v['name']: v for v in schedules}.values())
 
 
 @lru_cache(maxsize=1024)
@@ -157,7 +160,6 @@ async def get_north_schedules(request):
     try:
         if 'cached' in request.query and request.query['cached'].lower() == 'false':
             _get_installed_plugins.cache_clear()
-
         storage_client = connect.get_storage_async()
         cf_mgr = ConfigurationManager(storage_client)
         north_schedules = await _get_north_schedules(cf_mgr)

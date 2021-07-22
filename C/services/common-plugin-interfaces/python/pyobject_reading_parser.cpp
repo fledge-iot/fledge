@@ -50,7 +50,7 @@ DatapointValue *Py2C_createBasicDPV(PyObject *dValue)
 	}
 	else
 	{
-		Logger::getLogger()->info("Unable to parse dValue: Py_TYPE(dValue)=%s", (Py_TYPE(dValue))->tp_name);
+		Logger::getLogger()->warn("Unable to parse dValue: Py_TYPE(dValue)=%s", (Py_TYPE(dValue))->tp_name);
 		dpv = NULL;
 	}
 	return dpv;
@@ -95,9 +95,21 @@ DatapointValue* Py2C_createDictDPV(PyObject *data)
 		{
 			dpv = Py2C_createDictDPV(dValue);
 		}
+		else if (PyObject_CheckBuffer(dValue))
+		{
+			Logger *logger = Logger::getLogger();
+			logger->warn("Object %s supports buffer protocol %s",  std::string(PyUnicode_AsUTF8(dKey)).c_str());
+			Py_buffer view;
+			int flags = 0;
+			PyObject_GetBuffer(dValue, &view, flags);
+
+			logger->warn("Buffer is %d long, item size %d format %s", view.len, view.itemsize, view.format);
+
+			PyBuffer_Release(&view);
+		}
 		else
 		{
-			Logger::getLogger()->info("Unable to parse dValue in 'data' dict: dKey=%s, Py_TYPE(dValue)=%s", std::string(PyUnicode_AsUTF8(dKey)).c_str(), (Py_TYPE(dValue))->tp_name);
+			Logger::getLogger()->warn("Unable to parse dValue in 'data' dict: dKey=%s, Py_TYPE(dValue)=%s", std::string(PyUnicode_AsUTF8(dKey)).c_str(), (Py_TYPE(dValue))->tp_name);
 			dpv = NULL;
 		}
 		if (dpv)
@@ -260,9 +272,25 @@ Reading* Py2C_parseReadingElement(PyObject *reading, std::string assetName)
 		{
 			dataPoint = Py2C_createDictDPV(dValue);
 		}
+		else if (PyObject_CheckBuffer(dValue))
+		{
+			Logger *logger = Logger::getLogger();
+			logger->warn("Object %s supports buffer protocol",  std::string(PyUnicode_AsUTF8(dKey)).c_str());
+			Py_buffer view;
+			int flags = PyBUF_SIMPLE;
+			if (PyObject_GetBuffer(dValue, &view, flags) == 0)
+			{
+				logger->warn("Buffer is %d long, item size %d format %s, %d dimensions", view.len, view.itemsize, view.format, view.ndim);
+				for (int i = 0; i < view.ndim; i++)
+					logger->warn("Dimension: %d is %d", i, view.shape[i]);
+				PyBuffer_Release(&view);
+			}
+			else
+				logger->error("Failed to get buffer");
+		}
 		else
 		{
-			Logger::getLogger()->info("Unable to parse dValue in readings dict: dKey=%s, Py_TYPE(dValue)=%s", std::string(PyUnicode_AsUTF8(dKey)).c_str(), (Py_TYPE(dValue))->tp_name);
+			Logger::getLogger()->debug("Unable to parse dValue in readings dict: dKey=%s, Py_TYPE(dValue)=%s", std::string(PyUnicode_AsUTF8(dKey)).c_str(), (Py_TYPE(dValue))->tp_name);
 			return NULL;
 		}
 

@@ -15,7 +15,8 @@
 #include <cfloat>
 #include <vector>
 #include <logger.h>
-#include <image.h>
+#include <dpimage.h>
+#include <databuffer.h>
 
 class Datapoint;
 /**
@@ -71,10 +72,38 @@ class DatapointValue {
 		/**
 		 * Construct with an Image
 		 */
-		DatapointValue(const Image& value)
+		DatapointValue(const DPImage& value)
 		{
-			m_value.image = new Image(value);
+			m_value.image = new DPImage(value);
 			m_type = T_IMAGE;
+		}
+
+		/**
+		 * Construct with a DataBuffer
+		 */
+		DatapointValue(const DataBuffer& value)
+		{
+			m_value.dataBuffer = new DataBuffer(value);
+			m_type = T_DATABUFFER;
+		}
+
+		/**
+		 * Construct with an Image Pointer, the
+		 * image becomes owned by the datapointValue
+		 */
+		DatapointValue(DPImage *value)
+		{
+			m_value.image = value;
+			m_type = T_IMAGE;
+		}
+
+		/**
+		 * Construct with a DataBuffer
+		 */
+		DatapointValue(DataBuffer *value)
+		{
+			m_value.dataBuffer = value;
+			m_type = T_DATABUFFER;
 		}
 
 		/**
@@ -118,9 +147,9 @@ class DatapointValue {
 		/** Set the value of a datapoint to be an image
 		 * @param value The image to set in the data point
 		 */
-		void setValue(const Image& value)
+		void setValue(const DPImage& value)
 		{
-			m_value.image = new Image(value);
+			m_value.image = new DPImage(value);
 			m_type = T_IMAGE;
 		}
 
@@ -152,7 +181,8 @@ class DatapointValue {
 			T_FLOAT_ARRAY,
 			T_DP_DICT,
 			T_DP_LIST,
-			T_IMAGE
+			T_IMAGE,
+			T_DATABUFFER
 		} dataTagType;
 
 		/**
@@ -174,6 +204,7 @@ class DatapointValue {
 				case T_DP_DICT: return std::string("DP_DICT");
 				case T_DP_LIST: return std::string("DP_LIST");
 				case T_IMAGE: return std::string("IMAGE");
+				case T_DATABUFFER: return std::string("DATABUFFER");
 				default: return std::string("INVALID");
 			}
 		}
@@ -194,9 +225,20 @@ class DatapointValue {
 			return m_value.a;
 		}
 
-		Image *getImage()
+		/**
+		 * Return the Image
+		 */
+		DPImage *getImage()
 		{
 			return m_value.image;
+		}
+
+		/**
+		 * Return the DataBuffer
+		 */
+		DataBuffer *getDataBuffer()
+		{
+			return m_value.dataBuffer;
 		}
 
 	private:
@@ -206,8 +248,10 @@ class DatapointValue {
 			long			i;
 			double			f;
 			std::vector<double>*	a;
-			std::vector<Datapoint*>*	dpa;
-			Image			*image;
+			std::vector<Datapoint*>
+						*dpa;
+			DPImage			*image;
+			DataBuffer		*dataBuffer;
 			} m_value;
 		DatapointTag	m_type;
 };

@@ -1,9 +1,9 @@
-#ifndef _IMAGE_H
-#define _IMAGE_H
+#ifndef _DPIMAGE_H
+#define _DPIMAGE_H
 /*
  * Fledge
  *
- * Copyright (c) 2020 Dianomic Systems
+ * Copyright (c) 2021 Dianomic Systems
  *
  * Released under the Apache 2.0 Licence
  *
@@ -13,12 +13,12 @@
 /**
  * Base Image class that will be used within data points to store image data
  */
-class Image {
+class DPImage {
 	public:
-		Image(int width, int height, int depth, void *data);
-		Image(const Image& rhs);
-		Image& operator=(const Image& rhs);
-		~Image();
+		DPImage(int width, int height, int depth, void *data);
+		DPImage(const DPImage& rhs);
+		DPImage& operator=(const DPImage& rhs);
+		~DPImage();
 		int		getHeight() { return m_height; };
 		int		getWidth() { return m_width; };
 		int		getDepth() { return m_depth; };

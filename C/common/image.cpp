@@ -1,5 +1,5 @@
 /*
- * Fledge Image class 
+ * Fledge DPImage class 
  *
  * Copyright (c) 2020 Dianomic System
  *
@@ -7,20 +7,20 @@
  *
  * Author: Mark Riddoch
  */
-#include <image.h>
+#include <dpimage.h>
 #include <logger.h>
 
 using namespace std;
 
 /**
- * Image constructor
+ * DPImage constructor
  *
  * @param width		The image width
  * @param height	The image height
  * @param depth		The image depth
  * @param data		The actual image data
  */
-Image::Image(int width, int height, int depth, void *data) : m_width(width),
+DPImage::DPImage(int width, int height, int depth, void *data) : m_width(width),
 	m_height(height), m_depth(depth)
 {
 	// TODO deal with the data
@@ -29,9 +29,9 @@ Image::Image(int width, int height, int depth, void *data) : m_width(width),
 /**
  * Copy constructor
  *
- * @param Image		The image to copy
+ * @param DPImage		The image to copy
  */
-Image::Image(const Image& rhs)
+DPImage::DPImage(const DPImage& rhs)
 {
 	m_width = rhs.m_width;
 	m_height = rhs.m_height;
@@ -44,7 +44,7 @@ Image::Image(const Image& rhs)
  * Assignment operator
  * @param rhs	Righthand side of equals operator
  */
-Image& Image::operator=(const Image& rhs)
+DPImage& DPImage::operator=(const DPImage& rhs)
 {
 	// Free any old data
 
@@ -58,6 +58,6 @@ Image& Image::operator=(const Image& rhs)
 /**
  * Destructor for the image
  */
-Image::~Image()
+DPImage::~DPImage()
 {
 }

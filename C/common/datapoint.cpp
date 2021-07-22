@@ -16,6 +16,7 @@
 #include <logger.h>
 #include <datapoint.h>
 #include <exception>
+#include <base64databuffer.h>
 
  /**
  * Return the value as a string
@@ -85,6 +86,10 @@ std::string DatapointValue::toString() const
 		ss << *m_value.str;
 		ss << "\"";
 		return ss.str();
+	case T_DATABUFFER:
+		ss << "\""  <<((Base64DataBuffer *)m_value.dataBuffer)->encode()
+			<< "\"";
+		return ss.str();
 	case T_IMAGE:
 	default:
 		throw std::runtime_error("No string representation for datapoint type");
@@ -104,6 +109,16 @@ void DatapointValue::deleteNestedDPV()
 	else if (m_type == T_FLOAT_ARRAY)
 	{
 		delete m_value.a;
+		m_value.a = NULL;
+	}
+	else if (m_type == T_IMAGE)
+	{
+		delete m_value.image;
+		m_value.a = NULL;
+	}
+	else if (m_type == T_DATABUFFER)
+	{
+		delete m_value.dataBuffer;
 		m_value.a = NULL;
 	}
 	else if (m_type == T_DP_DICT ||
@@ -163,6 +178,12 @@ DatapointValue::DatapointValue(const DatapointValue& obj)
 			}
 
 			break;
+		case T_IMAGE:
+			m_value.image = new DPImage(*(obj.m_value.image));
+			break;
+		case T_DATABUFFER:
+			m_value.dataBuffer = new DataBuffer(*(obj.m_value.dataBuffer));
+			break;
 		default:
 			m_value = obj.m_value;
 			break;
@@ -189,6 +210,14 @@ DatapointValue& DatapointValue::operator=(const DatapointValue& rhs)
 		// Remove previous value
 		delete m_value.dpa;
 	}
+	if (m_type == T_IMAGE)
+	{
+		delete m_value.image;
+	}
+	if (m_type == T_DATABUFFER)
+	{
+		delete m_value.dataBuffer;
+	}
 
 	m_type = rhs.m_type;
 
@@ -203,6 +232,12 @@ DatapointValue& DatapointValue::operator=(const DatapointValue& rhs)
 	case T_DP_DICT:
 	case T_DP_LIST:
 		m_value.dpa = new std::vector<Datapoint*>(*(rhs.m_value.dpa));
+		break;
+	case T_IMAGE:
+		m_value.image = new DPImage(*(rhs.m_value.image));
+		break;
+	case T_DATABUFFER:
+		m_value.dataBuffer = new DataBuffer(*(rhs.m_value.dataBuffer));
 		break;
 	default:
 		m_value = rhs.m_value;

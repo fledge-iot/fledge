@@ -95,6 +95,7 @@ bool PluginData::persistPluginData(const string& key,
 	JSONData.Parse(data.c_str());
 	if (JSONData.HasParseError())
 	{
+		Logger::getLogger()->warn("Failed to persist data for %s, parse error in JSON data", key.c_str());
 		return false;
 	}	
 
@@ -125,5 +126,6 @@ bool PluginData::persistPluginData(const string& key,
 		}
 	}
 
+	Logger::getLogger()->warn("Failed to persist data for %s, unable to insert into storage", key.c_str());
 	return ret;
 }

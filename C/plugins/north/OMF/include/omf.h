@@ -286,10 +286,8 @@ private:
 
 		bool handleAFHirerarchy();
 		bool handleAFHierarchySystemWide();
-		bool handleAFHierarchiesNamesMap();
 		bool handleOmfHintHierarchies();
 
-		bool handleAFHierarchiesMetadataMap();
 		bool sendAFHierarchy(std::string AFHierarchy);
 
 		bool sendAFHierarchyLevels(std::string parentPath, std::string path, std::string &lastLevel);

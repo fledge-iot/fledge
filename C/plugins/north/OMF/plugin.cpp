@@ -213,11 +213,11 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"displayName": "Compression"
 		},
 		"DefaultAFLocation": {
-			"description": "Defines the hierarchies tree in Asset Framework in which the assets will be created, each level is separated by /, PI Web API only.",
+			"description": "Defines the default location in the Asset Framework hierarchy in which the assets will be created, each level is separated by /, PI Web API only.",
 			"type": "string",
 			"default": "/fledge/data_piwebapi/default",
 			"order": "15",
-			"displayName": "Asset Framework hierarchies tree",
+			"displayName": "Default Asset Framework Location",
 			"validity" : "PIServerEndpoint == \"PI Web API\""
 		},
 		"AFMap": {
@@ -225,8 +225,10 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"type": "JSON",
 			"default": AF_HIERARCHY_RULES,
 			"order": "16",
-			"displayName": "Asset Framework hierarchies rules",
+			"displayName": "Asset Framework hierarchy rules",
 			"validity" : "PIServerEndpoint == \"PI Web API\""
+
+
 		},
 		"notBlockingErrors": {
 			"description": "These errors are considered not blocking in the communication with the PI Server, the sending operation will proceed with the next block of data if one of these is encountered",

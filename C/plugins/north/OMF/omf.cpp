@@ -520,6 +520,13 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 					objectPrefix = prefix;
 				}
 
+				Logger::getLogger()->debug("%s - assetName :%s: AFHierarchy :%s: prefix :%s: objectPrefix :%s:  AFHierarchyLevel :%s: ", __FUNCTION__
+										   ,assetName.c_str()
+										   , AFHierarchy.c_str()
+										   , prefix.c_str()
+										   , objectPrefix.c_str()
+										   , AFHierarchyLevel.c_str() );
+
 				// Create data for Static Data message
 				string typeLinkData = OMF::createLinkData(row, AFHierarchyLevel, prefix, objectPrefix, hints);
 
@@ -808,9 +815,10 @@ bool OMF::handleAFHierarchySystemWide() {
 
 /**
  * Creates all the AF hierarchies levels as requested by the input parameter
+ * Creates the AF hierarchy if it was not already created
  *
  * @param AFHierarchy   Hierarchies levels to be created as relative or absolute path
- * @param out		    true if succeded
+ * @param out		    true if succeeded
  */
 bool OMF::sendAFHierarchy(string AFHierarchy)
 {
@@ -819,20 +827,30 @@ bool OMF::sendAFHierarchy(string AFHierarchy)
 	string dummy;
 	string parentPath;
 
-	if (AFHierarchy.at(0) == '/')
-	{
-		// Absolute path
-		path = AFHierarchy;
-		parentPath = evaluateParentPath(path, AFHierarchySeparator);
-	}
-	else
-	{
-		// relative  path
-		path = m_DefaultAFLocation + "/" + AFHierarchy;
-		parentPath = m_DefaultAFLocation;
-	}
 
-	success = sendAFHierarchyLevels(parentPath, path, dummy);
+	if(find(m_afhHierarchyAlredyCreated.begin(), m_afhHierarchyAlredyCreated.end(), AFHierarchy) == m_afhHierarchyAlredyCreated.end()){
+
+		Logger::getLogger()->debug("%s - path created :%s:", __FUNCTION__, AFHierarchy.c_str() );
+
+		if (AFHierarchy.at(0) == '/')
+		{
+			// Absolute path
+			path = AFHierarchy;
+			parentPath = evaluateParentPath(path, AFHierarchySeparator);
+		}
+		else
+		{
+			// relative  path
+			path = m_DefaultAFLocation + "/" + AFHierarchy;
+			parentPath = m_DefaultAFLocation;
+		}
+
+		m_afhHierarchyAlredyCreated.push_back(AFHierarchy);
+
+		success = sendAFHierarchyLevels(parentPath, path, dummy);
+	} else {
+		Logger::getLogger()->debug("%s - path already created :%s:", __FUNCTION__, AFHierarchy.c_str() );
+	}
 
 	return success;
 }
@@ -913,162 +931,6 @@ bool OMF::sendAFHierarchyLevels(string parentPath, string path, std::string &las
 }
 
 /**
- * Creates all the hierarcies defined in the Names map rules
- *
- * @param out		true if succeded
- */
-bool OMF::handleAFHierarchiesNamesMap() {
-
-	bool success = true;
-	string asset_name;
-	string hierarchy;
-
-	for (auto itr = m_NamesRules.begin(); itr != m_NamesRules.end(); ++itr)
-	{
-		asset_name = itr->first.c_str();
-		hierarchy = itr->second.c_str();
-
-		Logger::getLogger()->debug("handleAFHierarchiesNamesMap - asset_name :%s: hierarchy :%s:",
-								   asset_name.c_str(),
-								   hierarchy.c_str());
-
-		success = sendAFHierarchy(hierarchy.c_str());
-	}
-
-	return success;
-}
-
-/**
- * Handle the AF hierarchies for the Metadata Map
- *
- * @param out		true if succeded
- */
-bool OMF::handleAFHierarchiesMetadataMap() {
-
-	bool success = true;
-
-	Document JSon;
-	string name;
-	string value;
-
-	ParseResult ok = JSon.Parse(m_AFMap.c_str());
-	if (!ok)
-	{
-		Logger::getLogger()->error("MetadataMap - Invalid Asset Framework Map, error :%s:", GetParseError_En(JSon.GetParseError()));
-		return false;
-	}
-
-	if (!JSon.HasMember("metadata"))
-	{
-		Logger::getLogger()->debug("MetadataMap - metadata section not defined");
-		return true;
-	}
-	Value &JsonMetadata = JSon["metadata"];
-
-	// --- Handling exit section
-	if (JsonMetadata.HasMember("exist"))
-	{
-		Value &JSonExist = JsonMetadata["exist"];
-
-		for (Value::ConstMemberIterator itr = JSonExist.MemberBegin(); itr != JSonExist.MemberEnd(); ++itr)
-		{
-			name = itr->name.GetString();
-
-			{
-				bool changed = false;
-				value = ApplyPIServerNamingRulesPath(itr->value.GetString(), &changed);
-
-				if (changed) {
-
-					Logger::getLogger()->info("%s - AF hierarchy metadata exists rule changed to follow PI-Server naming rules from :%s: to :%s:", __FUNCTION__, itr->value.GetString(), value.c_str() );
-				}
-			}
-			Logger::getLogger()->debug("AFHierarchiesMetadataMap - exist name :%s: value :%s:", name.c_str(), value.c_str());
-
-			sendAFHierarchy(value.c_str());
-		}
-	}
-
-	// --- Handling nonexist section
-	if (JsonMetadata.HasMember("nonexist"))
-	{
-		Value &JSonNonExist = JsonMetadata["nonexist"];
-		for (Value::ConstMemberIterator itr = JSonNonExist.MemberBegin(); itr != JSonNonExist.MemberEnd(); ++itr)
-		{
-			name = itr->name.GetString();
-			{
-				bool changed = false;
-				value = ApplyPIServerNamingRulesPath(itr->value.GetString(), &changed);
-
-				if (changed) {
-
-					Logger::getLogger()->info("%s - AF hierarchy metadata nonexist rule changed to follow PI-Server naming rules from :%s: to :%s:", __FUNCTION__, itr->value.GetString(), value.c_str() );
-				}
-			}
-
-			Logger::getLogger()->debug("AFHierarchiesMetadataMap - nonexist name :%s: value :%s:", name.c_str(), value.c_str());
-			sendAFHierarchy(value.c_str());
-		}
-	}
-
-	// --- Handling equal section
-	if (JsonMetadata.HasMember("equal"))
-	{
-		Value &JSonEqual = JsonMetadata["equal"];
-
-		for (Value::ConstMemberIterator itr = JSonEqual.MemberBegin(); itr != JSonEqual.MemberEnd(); ++itr)
-		{
-			name = itr->name.GetString();
-
-			for (Value::ConstMemberIterator itrL2 = itr->value.MemberBegin(); itrL2 != itr->value.MemberEnd(); ++itrL2)
-			{
-				name = itrL2->name.GetString();
-				{
-					bool changed = false;
-					value = ApplyPIServerNamingRulesPath(itr->value.GetString(), &changed);
-
-					if (changed) {
-
-						Logger::getLogger()->info("%s - AF hierarchy metadata equal rule changed to follow PI-Server naming rules from :%s: to :%s:", __FUNCTION__, itr->value.GetString(), value.c_str() );
-					}
-				}
-				Logger::getLogger()->debug("AFHierarchiesMetadataMap - equal name :%s: value :%s:", name.c_str(), value.c_str());
-				sendAFHierarchy(value.c_str());
-			}
-		}
-	}
-
-	// --- Handling notequal section
-	if (JsonMetadata.HasMember("notequal"))
-	{
-		Value &JSonNotEqual = JsonMetadata["notequal"];
-
-		for (Value::ConstMemberIterator itr = JSonNotEqual.MemberBegin(); itr != JSonNotEqual.MemberEnd(); ++itr)
-		{
-			name = itr->name.GetString();
-
-			for (Value::ConstMemberIterator itrL2 = itr->value.MemberBegin(); itrL2 != itr->value.MemberEnd(); ++itrL2)
-			{
-				name = itrL2->name.GetString();
-				{
-					bool changed = false;
-					value = ApplyPIServerNamingRulesPath(itr->value.GetString(), &changed);
-
-					if (changed) {
-
-						Logger::getLogger()->info("%s - AF hierarchy metadata notequal rule changed to follow PI-Server naming rules from :%s: to :%s:", __FUNCTION__, itr->value.GetString(), value.c_str() );
-					}
-				}
-				Logger::getLogger()->debug("AFHierarchiesMetadataMap - notequal name :%s: value :%s:", name.c_str(), value.c_str());
-				sendAFHierarchy(value.c_str());
-			}
-		}
-	}
-
-	return success;
-}
-
-/**
  * Handle the creation of AF hierarchies
  *
  * @param out		true if succeded
@@ -1081,15 +943,6 @@ bool OMF::handleAFHirerarchy()
 	{
 
 		success = handleAFHierarchySystemWide();
-
-		if (success and ! m_AFMapEmptyNames)
-		{
-			success = handleAFHierarchiesNamesMap();
-		}
-		if (success and ! m_AFMapEmptyMetadata)
-		{
-			success = handleAFHierarchiesMetadataMap();
-		}
 	}
 	return success;
 }
@@ -2443,7 +2296,6 @@ bool OMF::createAFHierarchyOmfHint(const string& assetName, const  string &OmfHi
 			Logger::getLogger()->debug("%s - New path requested :%s:", __FUNCTION__, pathNew.c_str());
 
 			sendAFHierarchy(pathNew.c_str());
-			m_afhHierarchyAlredyCreated.push_back(pathNew);
 		}
 
 		if (pathStored.compare("") == 0)
@@ -2533,7 +2385,7 @@ bool OMF::extractVariable(string &strToHandle, string &variable, string &value, 
 				variable = strToHandle.substr(pos1, pos3 - pos1 + 1);
 			}
 		} else {
-			Logger::getLogger()->warn("OMF hierarchy hints doesn't have the default value in the metadata reference :%s:", strToHandle.c_str());
+			Logger::getLogger()->debug("OMF hierarchy hints doesn't have the default value in the metadata reference :%s:", strToHandle.c_str());
 
 			// No default value provided
 			if (pos3 != std::string::npos)
@@ -2630,13 +2482,19 @@ void OMF::evaluateAFHierarchyRules(const string& assetName, const Reading& readi
 {
 	bool ruleMatched = false;
 	bool ruleMatchedNames = false;
+	bool success;
+
+	string pathInitial;
+	string path;
+	bool changed;
 
 	// names rules - Check if there are any rules defined or not
 	if (!m_AFMapEmptyNames)
 	{
-		if (m_NamesRules.size() > 0)
+		if (! m_NamesRules.empty())
 		{
-			string path;
+
+			string pathNamingRules;
 			string prefix;
 			string AFHierarchyLevel;
 
@@ -2644,33 +2502,62 @@ void OMF::evaluateAFHierarchyRules(const string& assetName, const Reading& readi
 			if (it != m_NamesRules.end())
 			{
 
-				path = it->second;
+				pathInitial = it->second;
 
-				if (path.at(0) != '/')
+				if (pathInitial.at(0) != '/')
 				{
 					// relative  path
-					path = m_DefaultAFLocation + "/" + path;
+					pathInitial = "/" + m_DefaultAFLocation + "/" + pathInitial;
 				}
+				path = variableValueHandle(reading, pathInitial);
+				path = ApplyPIServerNamingRulesPath(path, &changed);
+
+				if (pathInitial.compare(path) != 0) {
+
+					it->second = path;
+				}
+
 				generateAFHierarchyPrefixLevel(path, prefix, AFHierarchyLevel);
 				ruleMatched = true;
 				ruleMatchedNames = true;
 
+				auto v =  m_AssetNamePrefix[assetName];
 				auto item = make_pair(path, prefix);
-				m_AssetNamePrefix[assetName].push_back(item);
+
+				if(v.size() == 0 ||  std::find(v.begin(), v.end(), item) == v.end())
+				{
+					success = sendAFHierarchy(path.c_str());
+					m_AssetNamePrefix[assetName].push_back(item);
+
+					Logger::getLogger()->debug(
+						"%s - m_NamesRules size :%d: m_AssetNamePrefix size :%d:   vector size :%d: pathInitial :%s: path :%s: stored :%s:"
+							,__FUNCTION__
+							,m_NamesRules.size()
+							,m_AssetNamePrefix.size()
+							,v.size()
+							,pathInitial.c_str()
+							,path.c_str()
+							,it->second.c_str());
+				} else {
+					Logger::getLogger()->debug(
+						"%s - m_NamesRules skipped pathInitial :%s: path :%s: stored :%s:"
+							,__FUNCTION__
+							,pathInitial.c_str()
+							,path.c_str()
+							,it->second.c_str());
+				}
 			}
 		}
 	}
 
-
 	// Meta rules - Check if there are any rules defined or not
-	if (!m_AFMapEmptyMetadata && !ruleMatchedNames)
+	if (!m_AFMapEmptyMetadata)
 	{
 		auto values = reading.getReadingData();
 
 		// Metadata Rules - Exist
-		if (m_MetadataRulesExist.size() > 0)
+		if (! m_MetadataRulesExist.empty() )
 		{
-			string path;
 			string propertyName;
 			string prefix;
 			string AFHierarchyLevel;
@@ -2681,25 +2568,37 @@ void OMF::evaluateAFHierarchyRules(const string& assetName, const Reading& readi
 				auto rule = m_MetadataRulesExist.find(propertyName);
 				if (rule != m_MetadataRulesExist.end())
 				{
-					path = rule->second;;
-					if (path.at(0) != '/')
+					pathInitial = rule->second;;
+					if (pathInitial.at(0) != '/')
 					{
-						// relative  path
-						path = m_DefaultAFLocation + "/" + path;
+						pathInitial = "/" + m_DefaultAFLocation + "/" + pathInitial;
 					}
+
+					path = variableValueHandle(reading, pathInitial);
+					path = ApplyPIServerNamingRulesPath(path, &changed);
+
 					generateAFHierarchyPrefixLevel(path, prefix, AFHierarchyLevel);
 					ruleMatched = true;
 
+					auto v =  m_AssetNamePrefix[assetName];
 					auto item = make_pair(path, prefix);
-					m_AssetNamePrefix[assetName].push_back(item);
+
+					if(v.size() == 0 || std::find(v.begin(), v.end(), item) == v.end())
+					{
+						success = sendAFHierarchy(path.c_str());
+						m_AssetNamePrefix[assetName].push_back(item);
+
+						Logger::getLogger()->debug("%s - m_MetadataRulesExist asset :%s: path added :%s: :%s:" , __FUNCTION__, assetName.c_str(), pathInitial.c_str()  , path.c_str() );
+					} else {
+						Logger::getLogger()->debug("%s - m_MetadataRulesExist already created asset :%s: path added :%s: :%s:" , __FUNCTION__, assetName.c_str(), pathInitial.c_str()  , path.c_str() );
+					}
 				}
 			}
 		}
 
 		// Metadata Rules - NonExist
-		if (m_MetadataRulesNonExist.size() > 0)
+		if (! m_MetadataRulesNonExist.empty() )
 		{
-			string path;
 			string propertyName;
 			string prefix;
 			string AFHierarchyLevel;
@@ -2710,7 +2609,7 @@ void OMF::evaluateAFHierarchyRules(const string& assetName, const Reading& readi
 			{
 				found = false;
 				rule = it->first;
-				path = it->second;
+				pathInitial = it->second;
 				for (auto itL2 = values.begin(); found == false && itL2 != values.end(); itL2++)
 				{
 					propertyName = (*itL2)->getName();
@@ -2721,24 +2620,37 @@ void OMF::evaluateAFHierarchyRules(const string& assetName, const Reading& readi
 				}
 				if (!found)
 				{
-					if (path.at(0) != '/')
+					if (pathInitial.at(0) != '/')
 					{
 						// relative  path
-						path = m_DefaultAFLocation + "/" + path;
+						pathInitial = "/" +m_DefaultAFLocation + "/" + pathInitial;
 					}
+					path = variableValueHandle(reading, pathInitial);
+					path = ApplyPIServerNamingRulesPath(path, &changed);
+
 					generateAFHierarchyPrefixLevel(path, prefix, AFHierarchyLevel);
 					ruleMatched = true;
 
+					auto v =  m_AssetNamePrefix[assetName];
 					auto item = make_pair(path, prefix);
-					m_AssetNamePrefix[assetName].push_back(item);
+
+
+					if(v.size() == 0 || std::find(v.begin(), v.end(), item) == v.end())
+					{
+						success = sendAFHierarchy(path.c_str());
+						m_AssetNamePrefix[assetName].push_back(item);
+
+						Logger::getLogger()->debug("%s - m_MetadataRulesNonExist - asset :%s: path added :%s: :%s:" , __FUNCTION__, assetName.c_str(), pathInitial.c_str()  , path.c_str() );
+					} else {
+						Logger::getLogger()->debug("%s - m_MetadataRulesNonExist -  already created asset :%s: path added :%s: :%s:" , __FUNCTION__, assetName.c_str(), pathInitial.c_str()  , path.c_str() );
+					}
 				}
 			}
 		}
 
 		// Metadata Rules - equal
-		if (m_MetadataRulesEqual.size() > 0)
+		if ( ! m_MetadataRulesEqual.empty() )
 		{
-			string path;
 			string propertyName;
 			string prefix;
 			string AFHierarchyLevel;
@@ -2754,12 +2666,14 @@ void OMF::evaluateAFHierarchyRules(const string& assetName, const Reading& readi
 					propertyName = (*itL2)->getName();
 					DatapointValue data = (*itL2)->getData();
 					string dataValue = data.toString();
+					StringStripQuotes(dataValue);
 					if (propertyName.compare(rule) == 0)
 					{
 						for (auto itL3 = it->second.begin(); found == false && itL3 != it->second.end(); itL3++)
 						{
-							auto value = itL3->first;
-							path = itL3->second;
+							string value = itL3->first;
+							StringStripQuotes(value);
+							pathInitial = itL3->second;
 							if (value.compare(dataValue) == 0)
 							{
 								found = true;
@@ -2769,24 +2683,39 @@ void OMF::evaluateAFHierarchyRules(const string& assetName, const Reading& readi
 				}
 				if (found)
 				{
-					if (path.at(0) != '/')
+					if (pathInitial.at(0) != '/')
 					{
 						// relative  path
-						path = m_DefaultAFLocation + "/" + path;
+						pathInitial = "/" + m_DefaultAFLocation + "/" + pathInitial;
 					}
+					
+					path = variableValueHandle(reading, pathInitial);
+					path = ApplyPIServerNamingRulesPath(path, &changed);
+					
 					generateAFHierarchyPrefixLevel(path, prefix, AFHierarchyLevel);
 					ruleMatched = true;
 
+					auto v =  m_AssetNamePrefix[assetName];
 					auto item = make_pair(path, prefix);
-					m_AssetNamePrefix[assetName].push_back(item);
+
+
+					if(v.size() == 0 || std::find(v.begin(), v.end(), item) == v.end())
+					{
+						success = sendAFHierarchy(path.c_str());
+						m_AssetNamePrefix[assetName].push_back(item);
+
+						Logger::getLogger()->debug("%s - m_MetadataRulesEqual asset :%s: path added :%s: :%s:" , __FUNCTION__, assetName.c_str(), pathInitial.c_str()  , path.c_str() );
+					} else {
+						Logger::getLogger()->debug("%s - m_MetadataRulesEqual already created asset :%s: path added :%s: :%s:" , __FUNCTION__, assetName.c_str(), pathInitial.c_str()  , path.c_str() );
+					}
+					
 				}
 			}
 		}
 
 		// Metadata Rules - Not equal
-		if (m_MetadataRulesNotEqual.size() > 0)
+		if ( ! m_MetadataRulesNotEqual.empty() )
 		{
-			string path;
 			string propertyName;
 			string prefix;
 			string AFHierarchyLevel;
@@ -2805,12 +2734,13 @@ void OMF::evaluateAFHierarchyRules(const string& assetName, const Reading& readi
 					{
 						DatapointValue data = (*itL2)->getData();
 						string dataValue = data.toString();
-						StringReplaceAll(dataValue, "\"", "");
+						StringStripQuotes(dataValue);
 
 						for (auto itL3 = it->second.begin(); NotEqual == false && itL3 != it->second.end(); itL3++)
 						{
-							auto value = itL3->first;
-							path = itL3->second;
+							string value = itL3->first;
+							pathInitial = itL3->second;
+							StringStripQuotes(value);
 
 							if (value.compare(dataValue) != 0)
 							{
@@ -2821,23 +2751,37 @@ void OMF::evaluateAFHierarchyRules(const string& assetName, const Reading& readi
 				}
 				if (NotEqual)
 				{
-					if (path.at(0) != '/')
+					if (pathInitial.at(0) != '/')
 					{
 						// relative  path
-						path = m_DefaultAFLocation + "/" + path;
+						pathInitial = "/" + m_DefaultAFLocation + "/" + pathInitial;
 					}
+					path = variableValueHandle(reading, pathInitial);
+					path = ApplyPIServerNamingRulesPath(path, &changed);
+
 					generateAFHierarchyPrefixLevel(path, prefix, AFHierarchyLevel);
 					ruleMatched = true;
 
+					auto v =  m_AssetNamePrefix[assetName];
 					auto item = make_pair(path, prefix);
-					m_AssetNamePrefix[assetName].push_back(item);
+
+
+					if(v.size() == 0 || std::find(v.begin(), v.end(), item) == v.end())
+					{
+						success = sendAFHierarchy(path.c_str());
+						m_AssetNamePrefix[assetName].push_back(item);
+
+						Logger::getLogger()->debug("%s - m_MetadataRulesNotEqual asset :%s: path added :%s: :%s:" , __FUNCTION__, assetName.c_str(), pathInitial.c_str()  , path.c_str() );
+					} else {
+						Logger::getLogger()->debug("%s - m_MetadataRulesNotEqual already created asset :%s: path added :%s: :%s:" , __FUNCTION__, assetName.c_str(), pathInitial.c_str()  , path.c_str() );
+					}
 				}
 			}
 		}
 	}
 
 	// If no rules matched se the AF default location
-	if (!ruleMatched)
+	if ( ! ruleMatched )
 	{
 		string prefix;
 		string AFHierarchyLevel;
@@ -3034,28 +2978,33 @@ bool OMF::HandleAFMapNames(Document& JSon)
 	string name;
 	string value;
 
+	m_NamesRules.clear();
+
 	Value &JsonNames = JSon["names"];
 
 	for (Value::ConstMemberIterator itr = JsonNames.MemberBegin(); itr != JsonNames.MemberEnd(); ++itr)
 	{
 		name = itr->name.GetString();
+		value = itr->value.GetString();
 
+		if (m_NamesRules.find(name) == m_NamesRules.end())
 		{
-			bool changed = false;
-			value = ApplyPIServerNamingRulesPath(itr->value.GetString(), &changed);
+			Logger::getLogger()->debug("%s - m_NamesRules size :%d: Exist name :%s: value :%s:"
+									   	,__FUNCTION__
+									   	,m_NamesRules.size()
+									   	,name.c_str()
+									   	,value.c_str());
 
-			if (changed) {
-
-				Logger::getLogger()->info("%s - AF hierarchy name rule changed to follow PI-Server naming rules from :%s: to :%s:", __FUNCTION__, itr->value.GetString(), value.c_str() );
-			}
+			auto newMapValue = make_pair(name, value);
+			m_NamesRules.insert(newMapValue);
+			m_AFMapEmptyNames = false;
+		} else {
+			Logger::getLogger()->debug("%s - skipped m_NamesRules size :%d: Exist name :%s: value :%s:"
+				,__FUNCTION__
+				,m_NamesRules.size()
+				,name.c_str()
+				,value.c_str());
 		}
-		Logger::getLogger()->debug("HandleAFMapNames - Exist name :%s: value :%s:", name.c_str(), value.c_str());
-
-		auto newMapValue = make_pair(name,value);
-
-		m_NamesRules.insert (newMapValue);
-
-		m_AFMapEmptyNames = false;
 	}
 
 	return success;
@@ -3072,6 +3021,8 @@ bool OMF::HandleAFMapMetedata(Document& JSon)
 	string name;
 	string value;
 
+	string variable, variableValue, variableDefault;
+
 	Value &JsonMetadata = JSon["metadata"];
 
 	// --- Handling Exist section
@@ -3081,21 +3032,21 @@ bool OMF::HandleAFMapMetedata(Document& JSon)
 
 		for (Value::ConstMemberIterator itr = JSonExist.MemberBegin(); itr != JSonExist.MemberEnd(); ++itr)
 		{
+			bool changed = false;
 			name = itr->name.GetString();
-			{
-				bool changed = false;
-				value = ApplyPIServerNamingRulesPath(itr->value.GetString(), &changed);
+			value = itr->value.GetString();
 
-				if (changed) {
-
-					Logger::getLogger()->info("%s - AF hierarchy metadata exists rule changed to follow PI-Server naming rules from :%s: to :%s:", __FUNCTION__, itr->value.GetString(), value.c_str() );
-				}
-			}
-			Logger::getLogger()->debug("HandleAFMapMetedata - Exist name :%s: value :%s:", name.c_str(), value.c_str());
-
+			Logger::getLogger()->debug("%s - m_MetadataRulesExist :%s: value :%s:", __FUNCTION__, name.c_str(), value.c_str());
 			auto newMapValue = make_pair(name,value);
 
 			m_MetadataRulesExist.insert (newMapValue);
+
+			extractVariable(value, variable, variableValue, variableDefault);
+			if (! variableDefault.empty()) {
+
+				m_MetadataRulesNonExist.insert (newMapValue);
+				m_AFMapEmptyMetadata = false;
+			}
 
 			m_AFMapEmptyMetadata = false;
 		}
@@ -3109,16 +3060,9 @@ bool OMF::HandleAFMapMetedata(Document& JSon)
 		for (Value::ConstMemberIterator itr = JSonNonExist.MemberBegin(); itr != JSonNonExist.MemberEnd(); ++itr)
 		{
 			name = itr->name.GetString();
-			{
-				bool changed = false;
-				value = ApplyPIServerNamingRulesPath(itr->value.GetString(), &changed);
+			value = itr->value.GetString();
 
-				if (changed) {
-
-					Logger::getLogger()->info("%s - AF hierarchy metadata nonexist rule changed to follow PI-Server naming rules from :%s: to :%s:", __FUNCTION__, itr->value.GetString(), value.c_str() );
-				}
-			}
-			Logger::getLogger()->debug("HandleAFMapMetedata - Non Exist name :%s: value :%s:", name.c_str(), value.c_str());
+			Logger::getLogger()->debug("%s - m_MetadataRulesNonExist :%s: value :%s:", __FUNCTION__, name.c_str(), value.c_str());
 
 			auto newMapValue = make_pair(name,value);
 
@@ -3145,16 +3089,9 @@ bool OMF::HandleAFMapMetedata(Document& JSon)
 			for (Value::ConstMemberIterator itrL2 = itr->value.MemberBegin(); itrL2 != itr->value.MemberEnd(); ++itrL2)
 			{
 				value = itrL2->name.GetString();
-				{
-					bool changed = false;
-					path = ApplyPIServerNamingRulesPath(itrL2->value.GetString(), &changed);
+				path = itrL2->value.GetString();
 
-					if (changed) {
-
-						Logger::getLogger()->info("%s - AF hierarchy metadata equal rule changed to follow PI-Server naming rules from :%s: to :%s:", __FUNCTION__, itrL2->value.GetString(), path.c_str() );
-					}
-				}
-				Logger::getLogger()->debug("HandleAFMapMetedata - equal property :%s: name :%s: value :%s:", property.c_str() , value.c_str(), path.c_str());
+				Logger::getLogger()->debug("%s - m_MetadataRulesEqual :%s: name :%s: value :%s:", __FUNCTION__, property.c_str() , value.c_str(), path.c_str());
 
 				auto item = make_pair(value,path);
 				m_MetadataRulesEqual[property].push_back(item);
@@ -3179,17 +3116,9 @@ bool OMF::HandleAFMapMetedata(Document& JSon)
 			for (Value::ConstMemberIterator itrL2 = itr->value.MemberBegin(); itrL2 != itr->value.MemberEnd(); ++itrL2)
 			{
 				value = itrL2->name.GetString();
-				{
-					bool changed = false;
-					path = ApplyPIServerNamingRulesPath(itrL2->value.GetString(), &changed);
+				path = itrL2->value.GetString();
 
-					if (changed) {
-
-						Logger::getLogger()->info("%s - AF hierarchy metadata notequal rule changed to follow PI-Server naming rules from :%s: to :%s:", __FUNCTION__, itrL2->value.GetString(), path.c_str() );
-					}
-				}
-
-				Logger::getLogger()->debug("HandleAFMapMetedata - Not equal property :%s: name :%s: value :%s:", property.c_str() , value.c_str(), path.c_str());
+				Logger::getLogger()->debug("%s - m_MetadataRulesNotEqual :%s: name :%s: value :%s:", __FUNCTION__, property.c_str() , value.c_str(), path.c_str());
 
 				auto item = make_pair(value,path);
 				m_MetadataRulesNotEqual[property].push_back(item);

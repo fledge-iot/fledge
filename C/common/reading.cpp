@@ -428,4 +428,5 @@ int bscount = 0;
 		}
 		rval += str[i];
 	}
+	return rval;
 }

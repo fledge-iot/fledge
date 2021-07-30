@@ -37,7 +37,7 @@ async def add_package_repo(request: web.Request) -> web.Response:
             url - Set a repository URL that used for installing packages via apt or yum
             version - Points to the package release version or any custom branch fixes
 
-        curl -sX POST http://localhost:8081/fledge/repository -d '{"url":"http://archives.fledge-iot.org"'
+        curl -sX POST http://localhost:8081/fledge/repository -d '{"url":"http://archives.fledge-iot.org"}'
         curl -sX POST http://localhost:8081/fledge/repository -d '{"url":"http://archives.fledge-iot.org", "version":"latest"}'
     """
     try:
@@ -58,6 +58,9 @@ async def add_package_repo(request: web.Request) -> web.Response:
 
         if 'x86_64-with-Ubuntu-18.04' in _platform:
             os_name = "ubuntu1804"
+            architecture = "x86_64"
+        elif 'x86_64-with-glib' in _platform:
+            os_name = "ubuntu2004"
             architecture = "x86_64"
         elif 'armv7l-with-debian' in _platform:
             os_name = "buster"

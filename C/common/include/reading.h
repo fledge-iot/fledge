@@ -65,7 +65,7 @@ class Reading {
 		void				setUserTimestamp(const std::string& timestamp);
 		void				getUserTimestamp(struct timeval *tm) { *tm = m_userTimestamp; };
 
-		typedef enum dateTimeFormat { FMT_DEFAULT, FMT_STANDARD, FMT_ISO8601 } readingTimeFormat;
+		typedef enum dateTimeFormat { FMT_DEFAULT, FMT_STANDARD, FMT_ISO8601, FMT_ISO8601MS } readingTimeFormat;
 
 		// Return Reading asset time - ts time
 		const std::string getAssetDateTime(readingTimeFormat datetimeFmt = FMT_DEFAULT, bool addMs = true) const;

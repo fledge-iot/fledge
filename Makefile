@@ -51,25 +51,27 @@ MKFILE_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))
 CURRENT_DIR := $(dir $(MKFILE_PATH))
 
 # C BUILD DIRS/FILES
-CMAKE_FILE               := $(CURRENT_DIR)/CMakeLists.txt
-CMAKE_BUILD_DIR          := cmake_build
-CMAKE_GEN_MAKEFILE       := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/Makefile
-CMAKE_SERVICES_DIR       := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/C/services
-CMAKE_TASKS_DIR          := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/C/tasks
-CMAKE_STORAGE_BINARY     := $(CMAKE_SERVICES_DIR)/storage/fledge.services.storage
-CMAKE_SOUTH_BINARY       := $(CMAKE_SERVICES_DIR)/south/fledge.services.south
-CMAKE_NORTH_SERVICE_BINARY       := $(CMAKE_SERVICES_DIR)/north/fledge.services.north
-CMAKE_NORTH_BINARY       := $(CMAKE_TASKS_DIR)/north/sending_process/sending_process
-CMAKE_PLUGINS_DIR        := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/C/plugins
-DEV_SERVICES_DIR         := $(CURRENT_DIR)/services
-DEV_TASKS_DIR            := $(CURRENT_DIR)/tasks
-SYMLINK_PLUGINS_DIR      := $(CURRENT_DIR)/plugins
-SYMLINK_STORAGE_BINARY   := $(DEV_SERVICES_DIR)/fledge.services.storage
-SYMLINK_SOUTH_BINARY     := $(DEV_SERVICES_DIR)/fledge.services.south
-SYMLINK_NORTH_SERVICE_BINARY     := $(DEV_SERVICES_DIR)/fledge.services.north
-SYMLINK_NORTH_BINARY     := $(DEV_TASKS_DIR)/sending_process
-ASYNC_INGEST_PYMODULE    := $(CURRENT_DIR)/python/async_ingest.so*
-FILTER_INGEST_PYMODULE    := $(CURRENT_DIR)/python/filter_ingest.so*
+CMAKE_FILE                    := $(CURRENT_DIR)/CMakeLists.txt
+CMAKE_BUILD_DIR               := cmake_build
+CMAKE_GEN_MAKEFILE            := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/Makefile
+CMAKE_SERVICES_DIR            := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/C/services
+CMAKE_TASKS_DIR               := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/C/tasks
+CMAKE_STORAGE_BINARY          := $(CMAKE_SERVICES_DIR)/storage/fledge.services.storage
+CMAKE_SOUTH_BINARY            := $(CMAKE_SERVICES_DIR)/south/fledge.services.south
+CMAKE_NORTH_SERVICE_BINARY    := $(CMAKE_SERVICES_DIR)/north/fledge.services.north
+CMAKE_NORTH_BINARY            := $(CMAKE_TASKS_DIR)/north/sending_process/sending_process
+CMAKE_PURGE_SYSTEM_BINARY     := $(CMAKE_TASKS_DIR)/purge_system/purge_system
+CMAKE_PLUGINS_DIR             := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/C/plugins
+DEV_SERVICES_DIR              := $(CURRENT_DIR)/services
+DEV_TASKS_DIR                 := $(CURRENT_DIR)/tasks
+SYMLINK_PLUGINS_DIR           := $(CURRENT_DIR)/plugins
+SYMLINK_STORAGE_BINARY        := $(DEV_SERVICES_DIR)/fledge.services.storage
+SYMLINK_SOUTH_BINARY          := $(DEV_SERVICES_DIR)/fledge.services.south
+SYMLINK_NORTH_SERVICE_BINARY  := $(DEV_SERVICES_DIR)/fledge.services.north
+SYMLINK_NORTH_BINARY          := $(DEV_TASKS_DIR)/sending_process
+SYMLINK_PURGE_SYSTEM_BINARY   := $(DEV_TASKS_DIR)/purge_system
+ASYNC_INGEST_PYMODULE         := $(CURRENT_DIR)/python/async_ingest.so*
+FILTER_INGEST_PYMODULE        := $(CURRENT_DIR)/python/filter_ingest.so*
 
 # PYTHON BUILD DIRS/FILES
 PYTHON_SRC_DIR := python
@@ -124,6 +126,7 @@ NORTH_C_SCRIPT_SRC          := scripts/tasks/north_c
 NORTH_SERVICE_C_SCRIPT_SRC  := scripts/services/north_C
 NOTIFICATION_C_SCRIPT_SRC   := scripts/services/notification_c
 PURGE_SCRIPT_SRC            := scripts/tasks/purge
+PURGE_C_SCRIPT_SRC          := scripts/tasks/purge_system
 STATISTICS_SCRIPT_SRC       := scripts/tasks/statistics
 BACKUP_SRC                  := scripts/tasks/backup
 RESTORE_SRC                 := scripts/tasks/restore
@@ -158,7 +161,7 @@ PACKAGE_NAME=Fledge
 # generally prepare the development tree to allow for core to be run
 default : apply_version \
 	generate_selfcertificate \
-	c_build $(SYMLINK_STORAGE_BINARY) $(SYMLINK_SOUTH_BINARY) $(SYMLINK_NORTH_SERVICE_BINARY) $(SYMLINK_NORTH_BINARY) $(SYMLINK_PLUGINS_DIR) \
+	c_build $(SYMLINK_STORAGE_BINARY) $(SYMLINK_SOUTH_BINARY) $(SYMLINK_NORTH_SERVICE_BINARY) $(SYMLINK_NORTH_BINARY) $(SYMLINK_PURGE_SYSTEM_BINARY) $(SYMLINK_PLUGINS_DIR) \
 	python_build python_requirements_user
 
 apply_version :
@@ -277,6 +280,10 @@ $(DEV_SERVICES_DIR) :
 $(SYMLINK_NORTH_BINARY) : $(DEV_TASKS_DIR)
 	$(LN) $(CMAKE_NORTH_BINARY) $(SYMLINK_NORTH_BINARY)
 
+# create symlink to purge_system binary
+$(SYMLINK_PURGE_SYSTEM_BINARY) : $(DEV_TASKS_DIR)
+	$(LN) $(CMAKE_PURGE_SYSTEM_BINARY) $(SYMLINK_PURGE_SYSTEM_BINARY)
+
 # create tasks dir
 $(DEV_TASKS_DIR) :
 	$(MKDIR_PATH) $(DEV_TASKS_DIR)
@@ -394,6 +401,7 @@ install_notification_c_script: $(SCRIPT_SERVICES_INSTALL_DIR) $(NOTIFICATION_C_S
 
 install_purge_script : $(SCRIPT_TASKS_INSTALL_DIR) $(PURGE_SCRIPT_SRC)
 	$(CP) $(PURGE_SCRIPT_SRC) $(SCRIPT_TASKS_INSTALL_DIR)
+	$(CP) $(PURGE_C_SCRIPT_SRC) $(SCRIPT_TASKS_INSTALL_DIR)
 
 install_statistics_script : $(SCRIPT_TASKS_INSTALL_DIR) $(STATISTICS_SCRIPT_SRC)
 	$(CP) $(STATISTICS_SCRIPT_SRC) $(SCRIPT_TASKS_INSTALL_DIR)

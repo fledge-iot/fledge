@@ -48,6 +48,9 @@ using namespace SimpleWeb;
 #define DATA_KEY_SHORT "dataTypesShort"
 #define DATA_KEY_HINT "hintChecksum"
 #define NAMING_SCHEME "namingScheme"
+#define AFH_HASH "afhHash"
+#define AF_HIERARCHY "afHierarchy"
+#define AF_HIERARCHY_ORIG "afHierarchyOrig"
 
 
 #define PROPERTY_TYPE   "type"
@@ -210,11 +213,11 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"displayName": "Compression"
 		},
 		"DefaultAFLocation": {
-			"description": "Defines the hierarchies tree in Asset Framework in which the assets will be created, each level is separated by /, PI Web API only.",
+			"description": "Defines the default location in the Asset Framework hierarchy in which the assets will be created, each level is separated by /, PI Web API only.",
 			"type": "string",
 			"default": "/fledge/data_piwebapi/default",
 			"order": "15",
-			"displayName": "Asset Framework hierarchies tree",
+			"displayName": "Default Asset Framework Location",
 			"validity" : "PIServerEndpoint == \"PI Web API\""
 		},
 		"AFMap": {
@@ -222,8 +225,10 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"type": "JSON",
 			"default": AF_HIERARCHY_RULES,
 			"order": "16",
-			"displayName": "Asset Framework hierarchies rules",
+			"displayName": "Asset Framework hierarchy rules",
 			"validity" : "PIServerEndpoint == \"PI Web API\""
+
+
 		},
 		"notBlockingErrors": {
 			"description": "These errors are considered not blocking in the communication with the PI Server, the sending operation will proceed with the next block of data if one of these is encountered",
@@ -927,6 +932,19 @@ string saveSentDataTypes(CONNECTOR_INFO* connInfo)
 				NamingScheme = ((*it).second).namingScheme;
 				newData << ", \"" << NAMING_SCHEME << "\": " << to_string(NamingScheme) << "";
 
+				string AFHHash;
+				AFHHash = ((*it).second).afhHash;
+				newData << ", \"" << AFH_HASH << "\": \"" << AFHHash << "\"";
+
+				string AFHierarchy;
+				AFHierarchy = ((*it).second).afHierarchy;
+				newData << ", \"" << AF_HIERARCHY << "\": \"" << AFHierarchy << "\"";
+
+				string AFHierarchyOrig;
+				AFHierarchyOrig = ((*it).second).afHierarchyOrig;
+				newData << ", \"" << AF_HIERARCHY_ORIG << "\": \"" << AFHierarchyOrig << "\"";
+
+				Logger::getLogger()->debug("%s - AFHHash :%s: AFHierarchy :%s: AFHierarchyOrig :%s:", __FUNCTION__, AFHHash.c_str(), AFHierarchy.c_str(), AFHierarchyOrig.c_str()  );
 				Logger::getLogger()->debug("%s - NamingScheme :%ld: ", __FUNCTION__,NamingScheme );
 
 				newData << ", \"" << DATA_KEY << "\": " <<
@@ -1103,6 +1121,54 @@ void loadSentDataTypes(CONNECTOR_INFO* connInfo,
 					NamingScheme = NAMINGSCHEME_COMPATIBILITY;
 				}
 
+				string AFHHash;
+				if (cachedValue.HasMember(AFH_HASH) &&
+					cachedValue[AFH_HASH].IsString())
+				{
+					AFHHash = cachedValue[AFH_HASH].GetString();
+				}
+				else
+				{
+					Logger::getLogger()->warn("%s plugin: current element '%s'" \
+								  " doesn't have '%s' property",
+											  PLUGIN_NAME,
+											  key.c_str(),
+											  AFH_HASH);
+					AFHHash = "";
+				}
+
+				string AFHierarchy;
+				if (cachedValue.HasMember(AF_HIERARCHY) &&
+					cachedValue[AF_HIERARCHY].IsString())
+				{
+					AFHierarchy = cachedValue[AF_HIERARCHY].GetString();
+				}
+				else
+				{
+					Logger::getLogger()->warn("%s plugin: current element '%s'" \
+								  " doesn't have '%s' property",
+											  PLUGIN_NAME,
+											  key.c_str(),
+											  AF_HIERARCHY);
+					AFHierarchy = "";
+				}
+
+				string AFHierarchyOrig;
+				if (cachedValue.HasMember(AF_HIERARCHY_ORIG) &&
+					cachedValue[AF_HIERARCHY_ORIG].IsString())
+				{
+					AFHierarchyOrig = cachedValue[AF_HIERARCHY_ORIG].GetString();
+				}
+				else
+				{
+					Logger::getLogger()->warn("%s plugin: current element '%s'" \
+								  " doesn't have '%s' property",
+											  PLUGIN_NAME,
+											  key.c_str(),
+											  AF_HIERARCHY_ORIG);
+					AFHierarchyOrig = "";
+				}
+
 				string dataTypes;
 				if (cachedValue.HasMember(DATA_KEY) &&
 				    cachedValue[DATA_KEY].IsObject())
@@ -1167,6 +1233,12 @@ void loadSentDataTypes(CONNECTOR_INFO* connInfo,
 				dataType.typesShort = dataTypesShort;
 				dataType.hintChkSum = hintChecksum;
 				dataType.namingScheme = NamingScheme;
+				dataType.afhHash = AFHHash;
+				dataType.afHierarchy = AFHierarchy;
+				dataType.afHierarchyOrig = AFHierarchyOrig;
+
+				Logger::getLogger()->debug("%s - AFHHash :%s: AFHierarchy :%s: AFHierarchyOrig :%s: ", __FUNCTION__, AFHHash.c_str(), AFHierarchy.c_str() , AFHierarchyOrig.c_str() );
+
 
 				Logger::getLogger()->debug("%s - NamingScheme :%ld: ", __FUNCTION__,NamingScheme );
 

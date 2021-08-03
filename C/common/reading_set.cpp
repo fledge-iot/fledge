@@ -15,6 +15,7 @@
 #include <time.h>
 #include <stdlib.h>
 #include <logger.h>
+#include <base64databuffer.h>
 
 #include <boost/algorithm/string/replace.hpp>
 
@@ -308,9 +309,25 @@ JSONReading::JSONReading(const Value& json)
 				switch (m.value.GetType()) {
 					// String
 					case (kStringType): {
-						DatapointValue value(m.value.GetString());
-						this->addDatapoint(new Datapoint(m.name.GetString(),
-										 value));
+						string str = m.value.GetString();
+						if (str[0] == '_' && str[1] == '_')
+						{
+							// special encoded type
+							size_t pos = str.find_first_of(':');
+							string tname = str.substr(2, pos - 2);
+							if (tname.compare("databuffer") == 0)
+							{
+								DataBuffer *databuffer = new Base64DataBuffer(str.substr(pos + 1));
+								DatapointValue value(databuffer);
+								this->addDatapoint(new Datapoint(m.name.GetString(), value));
+							}
+							
+						}
+						else
+						{
+							DatapointValue value(str);
+							this->addDatapoint(new Datapoint(m.name.GetString(), value));
+						}
 						break;
 					}
 

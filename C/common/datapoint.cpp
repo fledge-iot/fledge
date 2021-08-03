@@ -87,7 +87,8 @@ std::string DatapointValue::toString() const
 		ss << "\"";
 		return ss.str();
 	case T_DATABUFFER:
-		ss << "\""  <<((Base64DataBuffer *)m_value.dataBuffer)->encode()
+		ss << "\"__DATABUFFER:" 
+			<< ((Base64DataBuffer *)m_value.dataBuffer)->encode()
 			<< "\"";
 		return ss.str();
 	case T_IMAGE:

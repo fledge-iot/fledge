@@ -50,11 +50,11 @@ Base64DataBuffer::Base64DataBuffer(const string& encoded)
  */
 string Base64DataBuffer::encode()
 {
-string ret;
 
 	size_t nBytes = m_itemSize * m_len;
 	size_t encoded = 4 * ((nBytes + 2) / 3);
-	char *p = const_cast<char*>(ret.c_str());
+	char *ret = (char *)malloc(encoded + 1);
+	char *p = ret;
 	*p++ = m_itemSize + '0';
 	uint8_t *data = (uint8_t *)m_data;
 	int i;
@@ -81,5 +81,6 @@ string ret;
 		}
 		*p++ = '=';
 	}
-	return ret;
+	*p = '\0';
+	return string(ret);
 }

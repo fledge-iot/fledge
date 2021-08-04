@@ -144,14 +144,14 @@ piping the output to a program such as jq.
 Running Under a Debugger
 ------------------------
 
-If you have a C/C++ plugin that crashes you may want to run the plugin under a debugger. To build with debug symbols use the CMake option *-DBUILD_TYPE=Debug* when you create the *Makefile*.
+If you have a C/C++ plugin that crashes you may want to run the plugin under a debugger. To build with debug symbols use the CMake option *-DCMAKE_BUILD_TYPE=Debug* when you create the *Makefile*.
 
 Running a Service Under the Debugger
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: console
 
-   $ cmake -DBUILD_TYPE=Debug ..
+   $ cmake -DCMAKE_BUILD_TYPE=Debug ..
 
 
 The easiest approach to run under a debugger is 

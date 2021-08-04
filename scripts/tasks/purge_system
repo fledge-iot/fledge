@@ -1,0 +1,18 @@
+#!/bin/sh
+# Run a Fledge task written in C
+
+if [ "${FLEDGE_ROOT}" = "" ]; then
+	FLEDGE_ROOT=/usr/local/fledge
+fi
+
+if [ ! -d "${FLEDGE_ROOT}" ]; then
+	logger "Fledge home directory missing or incorrectly set environment"
+	exit 1
+fi
+
+
+# TODO: define the proper path
+cd "${FLEDGE_ROOT}"
+
+./tasks/purge_system "$@"
+

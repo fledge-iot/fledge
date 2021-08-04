@@ -158,7 +158,7 @@ std::string StringSlashFix(const std::string& stringToFix)
 }
 
 /**
- * Strips Line feed and carige return
+ * Strips Line feed and carriage return
  *
  */
 void StringStripCRLF(std::string& StringToManage)
@@ -177,6 +177,18 @@ void StringStripCRLF(std::string& StringToManage)
 		StringToManage.erase ( pos, 2 );
 	}
 
+}
+
+/**
+ * Stripes " from the string
+ *
+ */
+void StringStripQuotes(std::string& StringToManage)
+{
+	if ( ! StringToManage.empty())
+	{
+		StringReplaceAll(StringToManage, "\"", "");
+	}
 }
 
 /**

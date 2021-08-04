@@ -40,6 +40,12 @@ ostringstream json;
 	json << "\"condition\" : \"";
 	switch (m_condition)
 	{
+	case Older:
+		json << "older";
+		break;
+	case Newer:
+		json << "newer";
+		break;
 	case Equals:
 		json << "=";
 		break;
@@ -58,7 +64,12 @@ ostringstream json;
 	}
 	json << "\", ";
 
-	if (m_condition != In)
+	if ( (m_condition == Older) || (m_condition == Newer) )
+	{
+		json << "\"value\" : " << m_value << "";
+
+	}
+	else if (m_condition != In)
 	{
 		json << "\"value\" : \"" << m_value << "\"";
 	}

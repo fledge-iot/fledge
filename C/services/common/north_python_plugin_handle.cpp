@@ -71,5 +71,5 @@ NorthPythonPluginHandle::NorthPythonPluginHandle(const char *pluginName,
 	}
 
 	// Set type
-	m_type = PLUGIN_TYPE_SOUTH;
+	m_type = PLUGIN_TYPE_NORTH;
 }

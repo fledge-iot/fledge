@@ -21,6 +21,10 @@
 #define LOG_NAME                    "purge_system"
 #define CONFIG_CATEGORY_DESCRIPTION "Configuration of the Purge System"
 
+
+#define UTILITIES_CATEGORY	  "Utilities"
+
+
 class PurgeSystem : public FledgeProcess
 {
 	public:

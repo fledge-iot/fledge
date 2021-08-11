@@ -3,15 +3,6 @@
 .. |setpoint_2| image:: images/setpoint_2.jpg
 .. |setpoint_3| image:: images/setpoint_3.jpg
 
-.. Links
-.. |rule_plugins| raw:: html
-
-   <a href="fledge_plugins.html#notification-rule-plugins">Notification Rule Plugins</a>
-
-.. |delivery_plugins| raw:: html
-
-   <a href="fledge_plugins.html#notification-delivery-plugins">Notification Delivery Plugins</a>
-
 
 *****************
 Set Point Control
@@ -60,7 +51,7 @@ As an example of how edge based control might work lets consider the following e
 
 We have a machine tool that is being monitored by Fledge using the OPC/UA south plugin to read data from the machine tools controlling PLC. As part of that data we receive an asset which contains the temperature of the motor which is running the tool. We can assume this asset is called *MotorTemperature* and it contains a single data point called *temperature*. 
 
-We also have a fan unit that is able to cool that motor which is controlled via a Modbus interface. The modbus contains one a coil that toggles the fan on and off and a register that controls the speed of the fan. We configure the *fledge-south-modbus-c* as a service called *MotorFan* with a control map that will map the coil and register to a pair of set points. 
+We also have a fan unit that is able to cool that motor which is controlled via a Modbus interface. The modbus contains one a coil that toggles the fan on and off and a register that controls the speed of the fan. We configure the *fledge-south-modbus* as a service called *MotorFan* with a control map that will map the coil and register to a pair of set points. 
 
 .. code-block:: JSON
 
@@ -102,4 +93,4 @@ We select the *setpoint* delivery plugin from the list and configure it.
 
 The plugin is enabled and we go on to set the notification type to toggled, since we want to turn off the fan if the motor cools down, and set a retrigger time to prevent the fan switching on and off too quickly.
 
-If we required the fan to speed up at a higher temperature then this could be acheived with a second notificaton. In this case it would have a higher threshold value and would set the speed to a higher value in the trigger condition and set it back to 1200 in the cleared condition. Since the notification type is *toggled* the notification service will ensure that these are called in the correct order.
+If we required the fan to speed up at a higher temperature then this could be achieved with a second notification. In this case it would have a higher threshold value and would set the speed to a higher value in the trigger condition and set it back to 1200 in the cleared condition. Since the notification type is *toggled* the notification service will ensure that these are called in the correct order.

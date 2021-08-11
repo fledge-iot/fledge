@@ -137,13 +137,13 @@ Fledge is currently based on C/C++ and Python code. The packages needed to build
   $
   ...
   $
-  $ DEBIAN_FRONTEND=noninteractive sudo apt-get install -yq krb5-user
+  $ sudo DEBIAN_FRONTEND=noninteractive apt-get install -yq krb5-user
   Reading package lists... Done
   Building dependency tree
   $
   ...
   $
-  $ DEBIAN_FRONTEND=noninteractive sudo apt-get install -yq libcurl4-openssl-dev
+  $ sudo DEBIAN_FRONTEND=noninteractive apt-get install -yq libcurl4-openssl-dev
   Reading package lists... Done
   Building dependency tree
   $

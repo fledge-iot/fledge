@@ -146,6 +146,7 @@ ConfigCategory PurgeSystem::configurationHandling(const std::string& config)
 	// Create category, with "default" values only
 	DefaultConfigCategory defaultConfig(categoryName, config);
 	defaultConfig.setDescription(CONFIG_CATEGORY_DESCRIPTION);
+	defaultConfig.setDisplayName(CONFIG_CATEGORY_DISPLAY_NAME);
 
 	// Create/Update category name (we pass keep_original_items=true)
 	if (! client->addCategory(defaultConfig, true))

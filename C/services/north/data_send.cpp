@@ -79,7 +79,7 @@ void DataSender::sendThread()
 		{
 			// All the data was filtered out, update lastSent so we do
 			// not repeat the block
-			m_logger->debug("All data was filtered from the block of data");
+			m_logger->debug("No data to send - all data was filtered from the block of data");
 			m_loader->updateLastSentId(readings->getLastId());
 		}
 		delete readings;

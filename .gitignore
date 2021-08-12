@@ -8,6 +8,7 @@
 
 # IDE
 *.idea
+.vscode/
 
 # Data / cache files
 data/etc/storage.json

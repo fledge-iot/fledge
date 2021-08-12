@@ -126,6 +126,7 @@ NORTH_C_SCRIPT_SRC          := scripts/tasks/north_c
 NORTH_SERVICE_C_SCRIPT_SRC  := scripts/services/north_C
 NOTIFICATION_C_SCRIPT_SRC   := scripts/services/notification_c
 PURGE_SCRIPT_SRC            := scripts/tasks/purge
+PURGE_C_SCRIPT_SRC          := scripts/tasks/purge_system
 STATISTICS_SCRIPT_SRC       := scripts/tasks/statistics
 BACKUP_SRC                  := scripts/tasks/backup
 RESTORE_SRC                 := scripts/tasks/restore
@@ -400,6 +401,7 @@ install_notification_c_script: $(SCRIPT_SERVICES_INSTALL_DIR) $(NOTIFICATION_C_S
 
 install_purge_script : $(SCRIPT_TASKS_INSTALL_DIR) $(PURGE_SCRIPT_SRC)
 	$(CP) $(PURGE_SCRIPT_SRC) $(SCRIPT_TASKS_INSTALL_DIR)
+	$(CP) $(PURGE_C_SCRIPT_SRC) $(SCRIPT_TASKS_INSTALL_DIR)
 
 install_statistics_script : $(SCRIPT_TASKS_INSTALL_DIR) $(STATISTICS_SCRIPT_SRC)
 	$(CP) $(STATISTICS_SCRIPT_SRC) $(SCRIPT_TASKS_INSTALL_DIR)

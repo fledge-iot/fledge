@@ -46,5 +46,7 @@ sudo apt update
 time sudo DEBIAN_FRONTEND=noninteractive apt install -yq fledge
 echo "==================== DONE INSTALLING Fledge =================="
 
-time sudo apt install -y fledge-gui
-echo "==================== DONE INSTALLING Fledge GUI ======================"
+if [ "${FLEDGE_ENVIRONMENT}" != "docker" ]; then     
+    time sudo apt install -y fledge-gui
+    echo "==================== DONE INSTALLING Fledge GUI ======================"
+fi

@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
 
-time sudo apt purge -y fledge fledge-gui
+time sudo apt purge -y fledge
+# Do not remove fledge-gui if environment is Docker
+if [ "${FLEDGE_ENVIRONMENT}" != "docker" ]; then
+    time sudo apt purge -y fledge-gui
+fi
 sudo rm -rf /usr/local/fledge

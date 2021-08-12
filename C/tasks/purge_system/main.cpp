@@ -25,7 +25,7 @@ int main(int argc, char** argv)
 	}
 	catch (const std::exception& e)
 	{
-		logger->error("An error occurred during the execution v1 :%s: ", e.what());
+		logger->error("An error occurred during the execution, :%s: ", e.what());
 		exit(1);
 	}
 	catch (...)
@@ -33,7 +33,7 @@ int main(int argc, char** argv)
 		std::exception_ptr p = std::current_exception();
 		string name = (p ? p.__cxa_exception_type()->name() : "null");
 
-		logger->error("An error occurred during the execution V2 :%s: ", name.c_str() );
+		logger->error("An error occurred during the execution, :%s: ", name.c_str() );
 		exit(1);
 	}
 

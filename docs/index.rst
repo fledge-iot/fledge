@@ -17,6 +17,7 @@ Welcome to Fledge's documentation!
     storage
     tuning_fledge
     notifications
+    control
     troubleshooting_pi-server_integration
     plugin_developers_guide/index
     rest_api_guide/index

@@ -66,11 +66,21 @@ void DataSender::sendThread()
 				"Sending thread closing down after failing to fetch readings");
 			return;
 		}
-		unsigned long lastSent = send(readings);
-		if (lastSent)
+		if (readings->getCount())
 		{
-			m_loader->updateLastSentId(lastSent);
+			unsigned long lastSent = send(readings);
+			if (lastSent)
+			{
+				m_loader->updateLastSentId(lastSent);
 
+			}
+		}
+		else
+		{
+			// All the data was filtered out, update lastSent so we do
+			// not repeat the block
+			m_logger->debug("No data to send - all data was filtered from the block of data");
+			m_loader->updateLastSentId(readings->getLastId());
 		}
 		delete readings;
 	}
@@ -105,7 +115,7 @@ unsigned long DataSender::send(ReadingSet *readings)
 				if (!AssetTracker::getAssetTracker()->checkAssetTrackingCache(tuple))
 				{
 					AssetTracker::getAssetTracker()->addAssetTrackingTuple(tuple);
-					Logger::getLogger()->info("sendDataThread:  Adding new asset tracking tuple - egress: %s", tuple.assetToString().c_str());
+					m_logger->info("sendDataThread:  Adding new asset tracking tuple - egress: %s", tuple.assetToString().c_str());
 				}
 			}
 			else

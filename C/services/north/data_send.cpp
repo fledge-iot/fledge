@@ -57,9 +57,16 @@ DataSender::~DataSender()
  */
 void DataSender::sendThread()
 {
+	ReadingSet *readings = nullptr;
+	unsigned long lastSent = 0;
+
 	while (!m_shutdown)
 	{
-		ReadingSet *readings = m_loader->fetchReadings(true);
+
+		if (readings == nullptr) {
+
+			readings = m_loader->fetchReadings(true);
+		}
 		if (!readings)
 		{
 			m_logger->warn(
@@ -68,11 +75,13 @@ void DataSender::sendThread()
 		}
 		if (readings->getCount())
 		{
-			unsigned long lastSent = send(readings);
+			// Sends the new block or retries the previous one
+			lastSent = send(readings);
 			if (lastSent)
 			{
 				m_loader->updateLastSentId(lastSent);
-
+				delete readings;
+				readings = nullptr;
 			}
 		}
 		else
@@ -82,7 +91,6 @@ void DataSender::sendThread()
 			m_logger->debug("No data to send - all data was filtered from the block of data");
 			m_loader->updateLastSentId(readings->getLastId());
 		}
-		delete readings;
 	}
 	m_logger->info("Sending thread shutdown");
 }
@@ -95,12 +103,18 @@ void DataSender::sendThread()
  */
 unsigned long DataSender::send(ReadingSet *readings)
 {
+	unsigned long lastSent;
+
+
 	blockPause();
+	lastSent = 0;
 	uint32_t sent = m_plugin->send(readings->getAllReadings());
-	releasePause();
-	unsigned long lastSent = readings->getLastId();
+
 	if (sent > 0)
 	{
+		releasePause();
+		lastSent = readings->getLastId();
+
 		// Update asset tracker table/cache, if required
 		vector<Reading *> *vec = readings->getAllReadingsPtr();
 

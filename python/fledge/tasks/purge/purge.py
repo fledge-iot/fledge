@@ -33,6 +33,8 @@ from fledge.common import logger
 from fledge.common.storage_client.exceptions import *
 from fledge.common.process import FledgeProcess
 
+#// FIXME_I:
+import logging
 
 __author__ = "Ori Shadmon, Vaibhav Singhal, Mark Riddoch, Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSI Soft, LLC"
@@ -81,6 +83,13 @@ class Purge(FledgeProcess):
             "displayName": "Retain Audit Trail Data (In Days)",
             "order": "5",
             "minimum": "1"
+        },
+        "assestsExclude" : {
+            "description": "List of assest as a JSON array of strings to be excluded from purge process.",
+            "type": "JSON",
+            "default": "[]",
+            "displayName": "Assets to excluded",
+            "order": "6"
         }
     }
     _CONFIG_CATEGORY_NAME = 'PURGE_READ'
@@ -138,9 +147,18 @@ class Purge(FledgeProcess):
         else:
             last_id = 0
         flag = "purge" if config['retainUnsent']['value'].lower() == "false" else "retain"
+
+        #// FIXME_I:
+        _assestsExclude = config['assestsExclude']['value']
+
+        #// FIXME_I:
+        self._logger.setLevel(logging.DEBUG)
+        self._logger.debug("xxx3 - purge ZZZ1 -  _assestsExclude {}".format (_assestsExclude))
+        self._logger.setLevel(logging.WARN)
+
         try:
             if int(config['age']['value']) != 0:
-                result = await self._readings_storage_async.purge(age=config['age']['value'], sent_id=last_id, flag=flag)
+                result = await self._readings_storage_async.purge(age=config['age']['value'], sent_id=last_id, flag=flag, assestsExclude=_assestsExclude)
                 total_rows_removed = result['removed']
                 unsent_rows_removed = result['unsentPurged']
                 unsent_retained = result['unsentRetained']
@@ -154,7 +172,7 @@ class Purge(FledgeProcess):
 
         try:
             if int(config['size']['value']) != 0:
-                result = await self._readings_storage_async.purge(size=config['size']['value'], sent_id=last_id, flag=flag)
+                result = await self._readings_storage_async.purge(size=config['size']['value'], sent_id=last_id, flag=flag, assestsExclude=_assestsExclude)
                 total_rows_removed += result['removed']
                 unsent_rows_removed += result['unsentPurged']
                 unsent_retained += result['unsentRetained']

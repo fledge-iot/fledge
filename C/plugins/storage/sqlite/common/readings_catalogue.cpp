@@ -1946,7 +1946,7 @@ int ReadingsCatalogue::getUsedTablesDbId(int dbId)
  *
  * @return - returns SQLITE_OK if all the sql commands are properly executed
  */
-int  ReadingsCatalogue::purgeAllReadings(sqlite3 *dbHandle, const char *sqlCmdBase, char **zErrMsg, unsigned long *rowsAffected)
+int  ReadingsCatalogue::purgeAllReadings(sqlite3 *dbHandle, const char *sqlCmdBase, std::vector<std::string>  &assetCodes, char **zErrMsg, unsigned long *rowsAffected)
 {
 	string dbReadingsName;
 	string dbName;
@@ -1954,6 +1954,8 @@ int  ReadingsCatalogue::purgeAllReadings(sqlite3 *dbHandle, const char *sqlCmdBa
 	string sqlCmd;
 	bool firstRow;
 	int rc;
+	bool execPurge;
+	string assetCode;
 
 	if (m_AssetReadingCatalogue.empty())
 	{
@@ -1970,29 +1972,73 @@ int  ReadingsCatalogue::purgeAllReadings(sqlite3 *dbHandle, const char *sqlCmdBa
 
 		for (auto &item : m_AssetReadingCatalogue)
 		{
+			execPurge = false;
+
 			sqlCmdTmp = sqlCmdBase;
 
+			assetCode = item.first;
 			dbName = generateDbName(item.second.second);
 			dbReadingsName = generateReadingsName(item.second.second, item.second.first);
 
-			StringReplaceAll (sqlCmdTmp, "_assetcode_", item.first);
-			StringReplaceAll (sqlCmdTmp, "_dbname_", dbName);
-			StringReplaceAll (sqlCmdTmp, "_tablename_", dbReadingsName);
-			sqlCmd += sqlCmdTmp;
-			firstRow = false;
+			// Evaluates which tables should be referenced
+			if (assetCodes.empty()) {
 
-			rc = SQLExec(dbHandle, sqlCmdTmp.c_str(), zErrMsg);
+					execPurge = true;
+					//# FIXME_I
+					Logger::getLogger()->setMinLevel("debug");
+					Logger::getLogger()->debug("xxx8 %s - assetCodes EMPTY ", __FUNCTION__ );
+					Logger::getLogger()->setMinLevel("warning");
 
-			Logger::getLogger()->debug("purgeAllReadings:  rc :%d: cmd :%s:", rc ,sqlCmdTmp.c_str() );
+			} else {
+				// FIXME_I:
+				for (auto i = assetCodes.begin(); i != assetCodes.end(); ++i) {
 
-			if (rc != SQLITE_OK)
-			{
-				sqlite3_free(zErrMsg);
-				break;
+					//# FIXME_I
+					Logger::getLogger()->setMinLevel("debug");
+					Logger::getLogger()->debug("xxx8 %s - assetCodes :%s:", __FUNCTION__, i->c_str() );
+					Logger::getLogger()->setMinLevel("warning");
+
+				}
+
+				// FIXME_I:
+				if (std::find(assetCodes.begin(), assetCodes.end(), assetCode) == assetCodes.end()) {
+
+					execPurge = true;
+				}
+
 			}
-			if  (rowsAffected != nullptr) {
 
-				*rowsAffected += (unsigned long ) sqlite3_changes(dbHandle);
+			if (execPurge) {
+
+				StringReplaceAll (sqlCmdTmp, "_assetcode_", item.first);
+				StringReplaceAll (sqlCmdTmp, "_dbname_", dbName);
+				StringReplaceAll (sqlCmdTmp, "_tablename_", dbReadingsName);
+				sqlCmd += sqlCmdTmp;
+				firstRow = false;
+
+				rc = SQLExec(dbHandle, sqlCmdTmp.c_str(), zErrMsg);
+
+				Logger::getLogger()->debug("purgeAllReadings:  rc :%d: cmd :%s:", rc ,sqlCmdTmp.c_str() );
+
+				if (rc != SQLITE_OK)
+				{
+					sqlite3_free(zErrMsg);
+					break;
+				}
+				if  (rowsAffected != nullptr) {
+
+					*rowsAffected += (unsigned long ) sqlite3_changes(dbHandle);
+				}
+
+				//# FIXME_I
+				Logger::getLogger()->setMinLevel("debug");
+				Logger::getLogger()->debug("xxx11 %s - Asset purged - assetCode :%s: dbName  :%s: dbReadingsName :%s:", __FUNCTION__, assetCode.c_str() , dbName.c_str(), dbReadingsName.c_str() );
+				Logger::getLogger()->setMinLevel("warning");
+			}  else {
+				//# FIXME_I
+				Logger::getLogger()->setMinLevel("debug");
+				Logger::getLogger()->debug("xxx11 %s - Asset code skipped - assetCode :%s: dbName  :%s: dbReadingsName :%s:", __FUNCTION__, assetCode.c_str() , dbName.c_str(), dbReadingsName.c_str() );
+				Logger::getLogger()->setMinLevel("warning");
 			}
 
 		}
@@ -2006,8 +2052,12 @@ int  ReadingsCatalogue::purgeAllReadings(sqlite3 *dbHandle, const char *sqlCmdBa
  * Constructs a sql command from the given one consisting of a set of UNION ALL commands
  * considering all the readings tables in use
  *
+ * @param sqlCmdBase   	Sql base from which the finale sql should be generated
+ * @param assetCodes	Assets code to be included or excluded
+ * @param exclude       Define if assetCodes is the list of assets code to include or exclude
+ *
  */
-string  ReadingsCatalogue::sqlConstructMultiDb(string &sqlCmdBase, vector<string>  &assetCodes)
+string  ReadingsCatalogue::sqlConstructMultiDb(string &sqlCmdBase, vector<string>  &assetCodes, bool exclude)
 {
 	string dbReadingsName;
 	string dbName;
@@ -2047,12 +2097,23 @@ string  ReadingsCatalogue::sqlConstructMultiDb(string &sqlCmdBase, vector<string
 				addTable = true;
 			else
 			{
-				if (std::find(assetCodes.begin(), assetCodes.end(), assetCode) != assetCodes.end())
-					addTable = true;
+				if (exclude) {
+					if (std::find(assetCodes.begin(), assetCodes.end(), assetCode) == assetCodes.end())
+						addTable = true;
+
+				} else {
+					if (std::find(assetCodes.begin(), assetCodes.end(), assetCode) != assetCodes.end())
+						addTable = true;
+				}
 			}
 
 			if (addTable)
 			{
+				//# FIXME_I
+//				Logger::getLogger()->setMinLevel("debug");
+//				Logger::getLogger()->debug("xxx5 %s - assetCode :%s: ", __FUNCTION__, assetCode.c_str() );
+//				Logger::getLogger()->setMinLevel("warning");
+
 				addedOne = true;
 
 				sqlCmdTmp = sqlCmdBase;

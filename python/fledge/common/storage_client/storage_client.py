@@ -23,6 +23,9 @@ from fledge.common.service_record import ServiceRecord
 from fledge.common.storage_client.exceptions import *
 from fledge.common.storage_client.utils import Utils
 
+#// FIXME_I:
+import logging
+
 _LOGGER = logger.setup(__name__)
 
 
@@ -526,7 +529,7 @@ class ReadingsStorageClientAsync(StorageClientAsync):
 
         return jdoc
 
-    async def purge(self, age=None, sent_id=0, size=None, flag=None):
+    async def purge(self, age=None, sent_id=0, size=None, flag=None, assestsExclude=None):
         """ Purge readings based on the age of the readings
 
         :param age: the maximum age of data to retain, expressed in hours
@@ -566,10 +569,21 @@ class ReadingsStorageClientAsync(StorageClientAsync):
         except ValueError:
             raise
 
+        #// FIXME_I:
+        _assestsExclude = assestsExclude
+        #// FIXME_I: add check
+        # if type(_assestsExclude) != dict:
+        #     raise InvalidAssestsExclude
+
+        #// FIXME_I:
+        _LOGGER.setLevel(logging.DEBUG)
+        _LOGGER.debug("xxx3 - ZZZ2 storage client _assestsExclude {} {}".format (_assestsExclude, type (_assestsExclude) ))
+        _LOGGER.setLevel(logging.WARN)
+
         if age:
-            put_url = '/storage/reading/purge?age={}&sent={}'.format(_age, _sent_id)
+            put_url = '/storage/reading/purge?age={}&sent={}&assestsExclude={}'.format(_age, _sent_id ,_assestsExclude)
         if size:
-            put_url = '/storage/reading/purge?size={}&sent={}'.format(_size, _sent_id)
+            put_url = '/storage/reading/purge?size={}&sent={}&assestsExclude={}'.format(_size, _sent_id, _assestsExclude)
         if flag:
             put_url += "&flags={}".format(flag.lower())
 

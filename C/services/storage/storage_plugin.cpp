@@ -61,7 +61,7 @@ StoragePlugin::StoragePlugin(const string& name, PLUGIN_HANDLE handle) : Plugin(
 				manager->resolveSymbol(handle, "plugin_reading_fetch");
 	readingsRetrievePtr = (char * (*)(PLUGIN_HANDLE, const char *))
 				manager->resolveSymbol(handle, "plugin_reading_retrieve");
-	readingsPurgePtr = (char * (*)(PLUGIN_HANDLE, unsigned long age, unsigned int flags, unsigned long sent))
+	readingsPurgePtr = (char * (*)(PLUGIN_HANDLE, unsigned long age, unsigned int flags, unsigned long sent, std::string& assestsExclude))
 				manager->resolveSymbol(handle, "plugin_reading_purge");
 	releasePtr = (void (*)(PLUGIN_HANDLE, const char *))
 				manager->resolveSymbol(handle, "plugin_release");
@@ -144,9 +144,9 @@ char *StoragePlugin::readingsRetrieve(const string& payload)
 /**
  * Call the readings purge method in the plugin
  */
-char *StoragePlugin::readingsPurge(unsigned long age, unsigned int flags, unsigned long sent)
+char *StoragePlugin::readingsPurge(unsigned long age, unsigned int flags, unsigned long sent, std::string& assestsExclude)
 {
-	return this->readingsPurgePtr(instance, age, flags, sent);
+	return this->readingsPurgePtr(instance, age, flags, sent, assestsExclude);
 }
 
 /**

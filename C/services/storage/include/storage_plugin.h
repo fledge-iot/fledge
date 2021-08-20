@@ -43,7 +43,7 @@ public:
 	int		readingsAppend(const std::string& payload);
 	char		*readingsFetch(unsigned long id, unsigned int blksize);
 	char		*readingsRetrieve(const std::string& payload);
-	char		*readingsPurge(unsigned long age, unsigned int flags, unsigned long sent);
+	char		*readingsPurge(unsigned long age, unsigned int flags, unsigned long sent, std::string& assestsExclude);
 	long		*readingsPurge();
 	void		release(const char *response);
 	int		createTableSnapshot(const std::string& table, const std::string& id);
@@ -66,7 +66,7 @@ private:
 	int		(*readingsAppendPtr)(PLUGIN_HANDLE, const char *);
 	char		*(*readingsFetchPtr)(PLUGIN_HANDLE, unsigned long id, unsigned int blksize);
 	char		*(*readingsRetrievePtr)(PLUGIN_HANDLE, const char *payload);
-	char		*(*readingsPurgePtr)(PLUGIN_HANDLE, unsigned long age, unsigned int flags, unsigned long sent);
+	char		*(*readingsPurgePtr)(PLUGIN_HANDLE, unsigned long age, unsigned int flags, unsigned long sent, std::string& assestsExclude);
 	void		(*releasePtr)(PLUGIN_HANDLE, const char *payload);
 	int		(*createTableSnapshotPtr)(PLUGIN_HANDLE, const char *, const char *);
 	int		(*loadTableSnapshotPtr)(PLUGIN_HANDLE, const char *, const char *);

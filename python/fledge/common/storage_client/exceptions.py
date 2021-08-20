@@ -19,7 +19,7 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 __all__ = ('BadRequest', 'StorageServiceUnavailable', 'InvalidServiceInstance', 'InvalidReadingsPurgeFlagParameters',
-           'PurgeOneOfAgeAndSize', 'PurgeOnlyOneOfAgeAndSize', 'StorageServerError')
+           'PurgeOneOfAgeAndSize', 'PurgeOnlyOneOfAgeAndSize', 'StorageServerError', 'InvalidAssestsExclude')
 
 
 class StorageClientException(Exception):
@@ -87,6 +87,14 @@ class PurgeOneOfAgeAndSize(BadRequest):
         self.code = 400
         self.message = "Purge must specify one of age or size"
 
+
+class InvalidAssestsExclude(BadRequest):
+    """ 400 - Invalid params for Purge request
+    """
+
+    def __init__(self):
+        self.code = 400
+        self.message = "Purge, assestsExclude must be a JSON"
 
 class StorageServerError(Exception):
 

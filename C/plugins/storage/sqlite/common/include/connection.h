@@ -133,10 +133,14 @@ class Connection {
 						std::string& resultSet);
 		bool		retrieveReadings(const std::string& condition,
 						 std::string& resultSet);
+
+		// FIXME_I:
+		static void            fillAssetsExclude(std::vector<std::string>&  assetCodes, std::string& assetsExclude);
+
 		unsigned int	purgeReadings(unsigned long age, unsigned int flags,
-						unsigned long sent, std::string& results);
+						unsigned long sent, std::string& results, std::string& assetsExclude);
 		unsigned int	purgeReadingsByRows(unsigned long rowcount, unsigned int flags,
-						unsigned long sent, std::string& results);
+						unsigned long sent, std::string& results, std::string& assestsExclude);
 		long		tableSize(const std::string& table);
 		void		setTrace(bool);
 		bool		formatDate(char *formatted_date, size_t formatted_date_size, const char *date);

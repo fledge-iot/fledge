@@ -854,6 +854,9 @@ unsigned int  flagsMask = 0;
 string        flags;
 static std::atomic<bool> already_running(false);
 
+// FIXME_I:
+string assestsExclude;
+
 	if (already_running)
 	{
 		string payload = "{ \"error\" : \"Previous instance of purge is still running, not starting another one.\" }";
@@ -904,14 +907,26 @@ static std::atomic<bool> already_running(false);
 			}
 		}
 
+		// FIXME_I:
+		search = query.find("assestsExclude");
+		if (search != query.end())
+		{
+			assestsExclude = search->second.c_str();
+		}
+		//# FIXME_I
+		Logger::getLogger()->setMinLevel("debug");
+		Logger::getLogger()->debug("xxx3 %s - storage api - assestsExclude :%s: ", __FUNCTION__, assestsExclude.c_str() );
+		Logger::getLogger()->setMinLevel("warning");
+
+
 		char *purged = NULL;
 		if (age)
 		{
-			purged = (readingPlugin ? readingPlugin : plugin)->readingsPurge(age, flagsMask, lastSent);
+			purged = (readingPlugin ? readingPlugin : plugin)->readingsPurge(age, flagsMask, lastSent, assestsExclude);
 		}
 		else if (size)
 		{
-			purged = (readingPlugin ? readingPlugin : plugin)->readingsPurge(size, flagsMask|STORAGE_PURGE_SIZE, lastSent);
+			purged = (readingPlugin ? readingPlugin : plugin)->readingsPurge(size, flagsMask|STORAGE_PURGE_SIZE, lastSent, assestsExclude);
 		}
 		else
 		{

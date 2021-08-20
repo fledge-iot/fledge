@@ -1661,6 +1661,34 @@ vector<string>  asset_codes;
 }
 #endif
 
+// FIXME_I:
+void Connection::fillAssetsExclude(vector<string>&  assetCodes, std::string& assetsExclude)
+{
+	rapidjson::Document doc;
+	doc.Parse(assetsExclude.c_str());
+	if (!doc.HasParseError())
+	{
+		if (doc.IsArray())
+		{
+			const rapidjson::Value& values = doc;
+			string item;
+			for (rapidjson::Value::ConstValueIterator itr = values.Begin(); itr != values.End(); ++itr)
+			{
+				item = (*itr).GetString();
+				assetCodes.push_back(item);
+
+				//# FIXME_I
+				Logger::getLogger()->setMinLevel("debug");
+				Logger::getLogger()->debug("xxx5 %s - item :%s:", __FUNCTION__, item.c_str() );
+				Logger::getLogger()->setMinLevel("warning");
+
+			}
+		}
+	}
+
+}
+
+
 #ifndef SQLITE_SPLIT_READINGS
 /**
  * Purge readings from the reading table
@@ -1668,7 +1696,8 @@ vector<string>  asset_codes;
 unsigned int  Connection::purgeReadings(unsigned long age,
 					unsigned int flags,
 					unsigned long sent,
-					std::string& result)
+					std::string& result,
+					std::string& assetsExclude)
 {
 long unsentPurged = 0;
 long unsentRetained = 0;
@@ -1677,7 +1706,15 @@ unsigned long rowidLimit = 0, minrowidLimit = 0, maxrowidLimit = 0, rowidMin;
 struct timeval startTv, endTv;
 int blocks = 0;
 
-vector<string>  assetCodes;
+	// FIXME_I:
+	//return 0;
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx3 %s - assestsExclude :%s:", __FUNCTION__, assetsExclude.c_str() );
+	Logger::getLogger()->setMinLevel("warning");
+
+	vector<string>  assetCodes;
 
 	Logger *logger = Logger::getLogger();
 
@@ -1696,6 +1733,20 @@ vector<string>  assetCodes;
 		}
 		attachSync->unlock();
 	}
+
+	// FIXME_I:
+	fillAssetsExclude(assetCodes, assetsExclude);
+
+		// FIXME_I:
+	for (auto i = assetCodes.begin(); i != assetCodes.end(); ++i) {
+
+		//# FIXME_I
+		Logger::getLogger()->setMinLevel("debug");
+		Logger::getLogger()->debug("xxx6 %s - assetCodes :%s:", __FUNCTION__, i->c_str() );
+		Logger::getLogger()->setMinLevel("warning");
+
+	}
+
 
 	result = "{ \"removed\" : 0, ";
 	result += " \"unsentPurged\" : 0, ";
@@ -1729,7 +1780,7 @@ vector<string>  assetCodes;
 			string sql_cmd_tmp;
 			sql_cmd_base = " SELECT  MAX(rowid) rowid FROM _dbname_._tablename_ ";
 			ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
-			sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base, assetCodes);
+			sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base, assetCodes, true);
 			sql_cmd += sql_cmd_tmp;
 
 			// SQL - end
@@ -1751,6 +1802,12 @@ vector<string>  assetCodes;
 			return 0;
 		}
 		maxrowidLimit = rowidLimit;
+
+		//# FIXME_I
+		Logger::getLogger()->setMinLevel("debug");
+		Logger::getLogger()->debug("xxx11 %s - MAX :%s: maxrowidLimit  :%ld:", __FUNCTION__, sql_cmd.c_str() , maxrowidLimit);
+		Logger::getLogger()->setMinLevel("warning");
+
 	}
 
 	Logger::getLogger()->debug("purgeReadings rowidLimit %lu", rowidLimit);
@@ -1774,7 +1831,7 @@ vector<string>  assetCodes;
 			string sql_cmd_tmp;
 			sql_cmd_base = " SELECT  MIN(rowid) rowid FROM _dbname_._tablename_ ";
 			ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
-			sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base, assetCodes);
+			sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base, assetCodes, true);
 			sql_cmd += sql_cmd_tmp;
 
 			// SQL - end
@@ -1795,6 +1852,11 @@ vector<string>  assetCodes;
 			sqlite3_free(zErrMsg);
 			return 0;
 		}
+
+				//# FIXME_I
+		Logger::getLogger()->setMinLevel("debug");
+		Logger::getLogger()->debug("xxx11 %s - V2 MAX :%s: minrowidLimit  :%ld:", __FUNCTION__, sql_cmd.c_str() , minrowidLimit);
+		Logger::getLogger()->setMinLevel("warning");
 	}
 
 	Logger::getLogger()->debug("purgeReadings minrowidLimit %lu", minrowidLimit);
@@ -1820,7 +1882,7 @@ vector<string>  assetCodes;
 			string sql_cmd_tmp;
 			sql_cmd_base = " SELECT MIN(user_ts) user_ts FROM _dbname_._tablename_  WHERE rowid <= " + to_string(rowidLimit);
 			ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
-			sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base, assetCodes);
+			sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base, assetCodes, true);
 			sql_cmd += sql_cmd_tmp;
 
 			// SQL - end
@@ -1884,6 +1946,12 @@ vector<string>  assetCodes;
 		if (l == r)
 		{
  			logger->info("No data to purge: min_id == max_id == %u", minrowidLimit);
+
+			//# FIXME_I
+			Logger::getLogger()->setMinLevel("debug");
+			Logger::getLogger()->debug("xxx11 %s - RETURN", __FUNCTION__);
+			Logger::getLogger()->setMinLevel("warning");
+
 			return 0;
 		}
 
@@ -1914,7 +1982,7 @@ vector<string>  assetCodes;
 				string sql_cmd_tmp;
 				sql_cmd_base = " SELECT id FROM _dbname_._tablename_  WHERE rowid = " + to_string(m) + " AND user_ts < datetime('now' , '-" +to_string(age) + " hours')";
 				ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
-				sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base, assetCodes);
+				sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base, assetCodes, true);
 				sql_cmd += sql_cmd_tmp;
 
 				// SQL - end
@@ -1978,6 +2046,13 @@ vector<string>  assetCodes;
 		Logger::getLogger()->debug("purgeReadings m :%lu: rowidMin :%lu: ",m,  rowidMin);
 	}
 
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx11 %s - Next l1", __FUNCTION__,maxrowidLimit, minrowidLimit);
+	Logger::getLogger()->setMinLevel("warning");
+
+
 	//logger->info("Purge collecting unsent row count");
 	if ((flags & 0x01) == 0)
 	{
@@ -2001,7 +2076,7 @@ vector<string>  assetCodes;
 			string sql_cmd_tmp;
 			sql_cmd_base = " SELECT id FROM _dbname_._tablename_  WHERE rowid = " + to_string(rowidLimit) + " ";
 			ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
-			sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base, assetCodes);
+			sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base, assetCodes, true);
 			sql_cmd += sql_cmd_tmp;
 
 			// SQL - end
@@ -2057,6 +2132,11 @@ vector<string>  assetCodes;
 
 	ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
 
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx9 %s - V3 before Purge  maxrowidLimit :%ld: minrowidLimit  :%ld:", __FUNCTION__,maxrowidLimit, minrowidLimit);
+	Logger::getLogger()->setMinLevel("warning");
+
 	while (rowidMin < rowidLimit)
 	{
 		blocks++;
@@ -2079,7 +2159,7 @@ vector<string>  assetCodes;
 //		if (m_writeAccessOngoing) db_cv.wait(lck);
 
 		START_TIME;
-		rc = readCat->purgeAllReadings(dbHandle, query ,&zErrMsg, &rowsAffected);
+		rc = readCat->purgeAllReadings(dbHandle, query ,assetCodes, &zErrMsg, &rowsAffected);
 		END_TIME;
 
 		// Release memory for 'query' var
@@ -2170,12 +2250,21 @@ vector<string>  assetCodes;
 unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 					unsigned int flags,
 					unsigned long sent,
-					std::string& result)
+					std::string& result,
+					std::string& assestsExclude)
 {
 unsigned long  deletedRows = 0, unsentPurged = 0, unsentRetained = 0, numReadings = 0;
 unsigned long limit = 0;
 string sql_cmd;
 vector<string>  assetCodes;
+
+	// FIXME_I:
+	//return 0;
+
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx3 %s - assestsExclude :%s:", __FUNCTION__, assestsExclude.c_str() );
+	Logger::getLogger()->setMinLevel("warning");
 
 	// rowidCallback expects unsigned long
 	unsigned long rowcount, minId, maxId;
@@ -2201,6 +2290,9 @@ vector<string>  assetCodes;
 		}
 		attachSync->unlock();
 	}
+
+	// FIXME_I:
+	fillAssetsExclude(assetCodes, assestsExclude);
 
 	logger->info("Purge by Rows called");
 	if ((flags & 0x01) == 0x01)
@@ -2230,7 +2322,7 @@ vector<string>  assetCodes;
 			string sql_cmd_tmp;
 			sql_cmd_base = " select count(rowid) rowid FROM _dbname_._tablename_ ";
 			ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
-			sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base, assetCodes);
+			sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base, assetCodes, true);
 			sql_cmd += sql_cmd_tmp;
 
 			// SQL - end
@@ -2269,7 +2361,7 @@ vector<string>  assetCodes;
 			string sql_cmd_tmp;
 			sql_cmd_base = " SELECT MAX(id) id FROM _dbname_._tablename_ ";
 			ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
-			sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base, assetCodes);
+			sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base, assetCodes, true);
 			sql_cmd += sql_cmd_tmp;
 
 			// SQL - end
@@ -2292,6 +2384,11 @@ vector<string>  assetCodes;
 			return 0;
 		}
 	}
+
+		//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx10 %s - before Purge  rowcount :%ld:", __FUNCTION__,rowcount);
+	Logger::getLogger()->setMinLevel("warning");
 
 	numReadings = rowcount;
 	rowsAffected = 0;
@@ -2319,7 +2416,7 @@ vector<string>  assetCodes;
 				string sql_cmd_tmp;
 				sql_cmd_base = " SELECT MIN(rowid) rowid FROM _dbname_._tablename_ ";
 				ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
-				sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base, assetCodes);
+				sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base, assetCodes, true);
 				sql_cmd += sql_cmd_tmp;
 
 				// SQL - end
@@ -2370,7 +2467,7 @@ vector<string>  assetCodes;
 //			if (m_writeAccessOngoing) db_cv.wait(lck);
 
 			// Exec DELETE query: no callback, no resultset
-			rc = readCat->purgeAllReadings(dbHandle, query ,&zErrMsg, &rowsAffected);
+			rc = readCat->purgeAllReadings(dbHandle, query ,assetCodes, &zErrMsg, &rowsAffected);
 
 			deletedRows += rowsAffected;
 			numReadings -= rowsAffected;

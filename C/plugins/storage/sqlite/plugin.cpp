@@ -254,22 +254,28 @@ std::string results;
 /**
  * Purge readings from the buffer
  */
-char *plugin_reading_purge(PLUGIN_HANDLE handle, unsigned long param, unsigned int flags, unsigned long sent)
+char *plugin_reading_purge(PLUGIN_HANDLE handle, unsigned long param, unsigned int flags, unsigned long sent, string assestsExclude)
 {
 ConnectionManager *manager = (ConnectionManager *)handle;
 Connection        *connection = manager->allocate();
 std::string 	  results;
 unsigned long	  age, size;
 
+	//# FIXME_I
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("xxx3 %s - assestsExclude :%s:", __FUNCTION__, assestsExclude.c_str() );
+	Logger::getLogger()->setMinLevel("warning");
+
+
 	// TODO put flags in common header file
 	if (flags & 0x0002)	// Purge by size
 	{
-		(void)connection->purgeReadingsByRows(param, flags, sent, results);
+		(void)connection->purgeReadingsByRows(param, flags, sent, results, assestsExclude);
 	}
 	else
 	{
 		age = param;
-		(void)connection->purgeReadings(age, flags, sent, results);
+		(void)connection->purgeReadings(age, flags, sent, results, assestsExclude);
 	}
 	manager->release(connection);
 	return strdup(results.c_str());

@@ -72,8 +72,8 @@ public:
 	void          preallocateNewDbsRange(int dbIdStart, int dbIdEnd);
 	tyReadingReference getReadingReference(Connection *connection, const char *asset_code);
 	bool          attachDbsToAllConnections();
-	std::string   sqlConstructMultiDb(std::string &sqlCmdBase, std::vector<std::string>  &assetCodes);
-	int           purgeAllReadings(sqlite3 *dbHandle, const char *sqlCmdBase, char **errMsg = NULL, unsigned long *rowsAffected = NULL);
+	std::string   sqlConstructMultiDb(std::string &sqlCmdBase, std::vector<std::string>  &assetCodes, bool exclude = false);
+	int           purgeAllReadings(sqlite3 *dbHandle, const char *sqlCmdBase, std::vector<std::string>  &assetCodes, char **errMsg = NULL, unsigned long *rowsAffected = NULL);
 
 	bool          connectionAttachAllDbs(sqlite3 *dbHandle);
 	bool          connectionAttachDbList(sqlite3 *dbHandle, std::vector<int> &dbIdList);

@@ -35,7 +35,7 @@ const vector<string> JSON_characters_to_be_escaped = {
 /**
  * Construct an empty reading set
  */
-ReadingSet::ReadingSet() : m_count(0)
+ReadingSet::ReadingSet() : m_count(0), m_last_id(0)
 {
 }
 
@@ -52,6 +52,8 @@ ReadingSet::ReadingSet(vector<Reading *>* readings)
 	m_count = readings->size();
 	for (auto it = readings->begin(); it != readings->end(); ++it)
 	{
+		if ((*it)->getId() > m_last_id)
+			m_last_id = (*it)->getId();
 		m_readings.push_back(*it);
 	}
 }
@@ -181,6 +183,8 @@ ReadingSet::append(const vector<Reading *>& readings)
 {
 	for (auto it = readings.cbegin(); it != readings.cend(); it++)
 	{
+		if ((*it)->getId() > m_last_id)
+			m_last_id = (*it)->getId();
 		m_readings.push_back(*it);
 		m_count++;
 	}

@@ -57,9 +57,16 @@ DataSender::~DataSender()
  */
 void DataSender::sendThread()
 {
+	ReadingSet *readings = nullptr;
+	unsigned long lastSent = 0;
+
 	while (!m_shutdown)
 	{
-		ReadingSet *readings = m_loader->fetchReadings(true);
+
+		if (readings == nullptr) {
+
+			readings = m_loader->fetchReadings(true);
+		}
 		if (!readings)
 		{
 			m_logger->warn(
@@ -75,7 +82,6 @@ void DataSender::sendThread()
 
 			}
 		}
-		delete readings;
 	}
 	m_logger->info("Sending thread shutdown");
 }
@@ -88,12 +94,20 @@ void DataSender::sendThread()
  */
 unsigned long DataSender::send(ReadingSet *readings)
 {
+	unsigned long lastSent;
+
+
 	blockPause();
+	lastSent = 0;
 	uint32_t sent = m_plugin->send(readings->getAllReadings());
 	releasePause();
 	unsigned long lastSent = readings->getReadingId(sent);
+
 	if (sent > 0)
 	{
+		releasePause();
+		lastSent = readings->getLastId();
+
 		// Update asset tracker table/cache, if required
 		vector<Reading *> *vec = readings->getAllReadingsPtr();
 
@@ -108,7 +122,7 @@ unsigned long DataSender::send(ReadingSet *readings)
 				if (!AssetTracker::getAssetTracker()->checkAssetTrackingCache(tuple))
 				{
 					AssetTracker::getAssetTracker()->addAssetTrackingTuple(tuple);
-					Logger::getLogger()->info("sendDataThread:  Adding new asset tracking tuple - egress: %s", tuple.assetToString().c_str());
+					m_logger->info("sendDataThread:  Adding new asset tracking tuple - egress: %s", tuple.assetToString().c_str());
 				}
 			}
 			else

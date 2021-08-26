@@ -5,25 +5,28 @@
 # FLEDGE_END
 
 """Backup and Restore Rest API support"""
-
+import logging
 import os
 import sys
 import tarfile
+import json
 from pathlib import Path
 from aiohttp import web
 from enum import IntEnum
 from collections import OrderedDict
 
-from fledge.services.core import connect
+from fledge.common import logger
+from fledge.common.audit_logger import AuditLogger
 from fledge.common.common import _FLEDGE_ROOT, _FLEDGE_DATA
+from fledge.common.storage_client import payload_builder
+from fledge.plugins.storage.common import exceptions
+from fledge.services.core import connect
 
 if 'fledge.plugins.storage.common.backup' not in sys.modules:
     from fledge.plugins.storage.common.backup import Backup
 
 if 'fledge.plugins.storage.common.restore' not in sys.modules:
     from fledge.plugins.storage.common.restore import Restore
-
-from fledge.plugins.storage.common import exceptions
 
 __author__ = "Vaibhav Singhal, Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -34,14 +37,17 @@ __DEFAULT_LIMIT = 20
 __DEFAULT_OFFSET = 0
 
 _help = """
-    ------------------------------------------------------------------------------------
+    -----------------------------------------------------------------------------------
     | GET, POST       | /fledge/backup                                                |
+    | POST            | /fledge/backup/upload                                         |
     | GET, DELETE     | /fledge/backup/{backup-id}                                    |
     | GET             | /fledge/backup/{backup-id}/download                           |
     | PUT             | /fledge/backup/{backup-id}/restore                            |
     | GET             | /fledge/backup/status                                         |
-    ------------------------------------------------------------------------------------
+    -----------------------------------------------------------------------------------
 """
+
+_logger = logger.setup(__name__, level=logging.INFO)
 
 
 class Status(IntEnum):
@@ -241,3 +247,65 @@ async def get_backup_status(request):
         results.append(data)
 
     return web.json_response({"backupStatus": results})
+
+
+async def upload_backup(request):
+    try:
+        fl_data_path = _FLEDGE_DATA if _FLEDGE_DATA else _FLEDGE_ROOT + '/data'
+        backup_prefix = "fledge_backup_"
+        backup_path = "{}/backup".format(fl_data_path)
+        temp_path = "{}/upload".format(fl_data_path)
+        data = await request.post()
+        file_param = data.get('filename')
+        file_name = file_param.filename
+        if not str(file_name).endswith(".tar.gz"):
+            raise NameError("{} file does not have with tar gzip.".format(file_name))
+        if not str(file_name).startswith(backup_prefix):
+            raise NameError("{} backup filename is invalid. Please either check file format from FLEDGE_DATA/backup "
+                            "or create it from GUI create new backup from Backup & Restore option".format(file_name))
+        # Create temporary directory for tar extraction & backup data directory for Fledge
+        cmd = "mkdir -p {} {}".format(temp_path, backup_path)
+        os.system(cmd)
+        file_data = file_param.file
+        # Extract tar inside temporary directory
+        tar_file = tarfile.open(fileobj=file_data, mode='r:*')
+        tar_file_names = tar_file.getnames()
+        valid_extensions = ('.db', '.dump')
+        if any((item.startswith(backup_prefix) and item.endswith(valid_extensions)) for item in tar_file_names):
+            tar_file.extractall(temp_path)
+            source = "{}/{}".format(temp_path, tar_file_names[0])
+            cmd = "cp {} {}".format(source, backup_path)
+            ret_code = os.system(cmd)
+            if ret_code != 0:
+                raise OSError("{} upload failed during copy to {}".format(file_name, backup_path))
+            else:
+                # TODO: ts as per post param if given in payload
+                # insert backup record entry in db
+                full_file_name_path = "{}/{}".format(backup_path, tar_file_names[0])
+                payload = payload_builder.PayloadBuilder().INSERT(
+                    file_name=full_file_name_path, ts="now()", type=1, status=2, exit_code=0).payload()
+                # audit trail entry
+                storage = connect.get_storage_async()
+                await storage.insert_into_tbl("backups", payload)
+                audit = AuditLogger(storage)
+                await audit.information('BKEXC', {'status': 'completed', 'message': 'From upload backup'})
+                # TODO: FOGL-4239 - readings table upload
+        else:
+            raise NameError('Either {} prefix or {} suffix not found in given {} tar file'.format(
+                backup_prefix, file_name, valid_extensions))
+    except (NameError, OSError, RuntimeError) as err_msg:
+        msg = str(err_msg)
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+    except ValueError as err_msg:
+        msg = str(err_msg)
+        raise web.HTTPNotImplemented(reason=msg, body=json.dumps({"message": msg}))
+    except Exception as exc:
+        msg = str(exc)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+    else:
+        msg = "{} backup uploaded successfully.".format(file_name)
+        return web.json_response({"message": msg})
+    finally:
+        # Remove temporary directory
+        cmd = "rm -rf {}".format(temp_path)
+        os.system(cmd)

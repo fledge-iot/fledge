@@ -400,8 +400,6 @@ InsertValues streamValues;
  */
 void DataLoad::updateLastSentId(unsigned long id)
 {
-	if (id > 0xf000000)
-		abort();
 	const Condition condition(Equals);
 	Where where("id", condition, to_string(m_streamId));
 	InsertValues lastId;

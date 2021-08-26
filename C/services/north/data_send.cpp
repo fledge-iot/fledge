@@ -66,11 +66,14 @@ void DataSender::sendThread()
 				"Sending thread closing down after failing to fetch readings");
 			return;
 		}
-		unsigned long lastSent = send(readings);
-		if (lastSent)
+		if (readings->getCount() > 0)
 		{
-			m_loader->updateLastSentId(lastSent);
+			unsigned long lastSent = send(readings);
+			if (lastSent)
+			{
+				m_loader->updateLastSentId(lastSent);
 
+			}
 		}
 		delete readings;
 	}
@@ -88,7 +91,7 @@ unsigned long DataSender::send(ReadingSet *readings)
 	blockPause();
 	uint32_t sent = m_plugin->send(readings->getAllReadings());
 	releasePause();
-	unsigned long lastSent = readings->getLastId();
+	unsigned long lastSent = readings->getReadingId(sent);
 	if (sent > 0)
 	{
 		// Update asset tracker table/cache, if required
@@ -113,10 +116,10 @@ unsigned long DataSender::send(ReadingSet *readings)
 				break;
 			}
 		}
-
 		m_loader->updateStatistics(sent);
+		return lastSent;
 	}
-	return lastSent;
+	return 0;
 }
 
 /**
@@ -126,7 +129,7 @@ unsigned long DataSender::send(ReadingSet *readings)
  * send completes.
  *
  * Called by external classes that want to prevent interaction
- * with thew north plugin.
+ * with the north plugin.
  */
 void DataSender::pause()
 {

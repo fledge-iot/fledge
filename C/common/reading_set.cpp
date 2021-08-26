@@ -47,7 +47,7 @@ ReadingSet::ReadingSet() : m_count(0), m_last_id(0)
  *			of readings to be copied
  *			into m_readings vector
  */
-ReadingSet::ReadingSet(vector<Reading *>* readings)
+ReadingSet::ReadingSet(vector<Reading *>* readings) : m_last_id(0)
 {
 	m_count = readings->size();
 	for (auto it = readings->begin(); it != readings->end(); ++it)
@@ -64,7 +64,7 @@ ReadingSet::ReadingSet(vector<Reading *>* readings)
  *
  * @param json	The JSON document (as string) with readings data
  */
-ReadingSet::ReadingSet(const std::string& json)
+ReadingSet::ReadingSet(const std::string& json) : m_last_id(0)
 {
 	unsigned long rows = 0;
 	Document doc;
@@ -211,6 +211,21 @@ void
 ReadingSet::clear()
 {
 	m_readings.clear();
+}
+
+/**
+ * Return the ID of the nth reading in the reading set
+ *
+ * @param pos	The position of the reading to return the ID for
+ */
+unsigned long ReadingSet::getReadingId(uint32_t pos)
+{
+	if (pos < m_readings.size())
+	{
+		Reading *reading = m_readings[pos];
+		return reading->getId();
+	}
+	return m_last_id;
 }
 
 /**

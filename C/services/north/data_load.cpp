@@ -400,6 +400,8 @@ InsertValues streamValues;
  */
 void DataLoad::updateLastSentId(unsigned long id)
 {
+	if (id > 0xf000000)
+		abort();
 	const Condition condition(Equals);
 	Where where("id", condition, to_string(m_streamId));
 	InsertValues lastId;
@@ -500,7 +502,12 @@ void DataLoad::passToOnwardFilter(OUTPUT_HANDLE *outHandle,
 void DataLoad::pipelineEnd(OUTPUT_HANDLE *outHandle,
 			     READINGSET *readingSet)
 {
+
 	DataLoad *load = (DataLoad *)outHandle;
+	if (readingSet->getCount() == 0)	// Special case when all filtered out
+	{
+		load->updateLastSentId(load->m_lastFetched);
+	}
 
 	unique_lock<mutex> lck(load->m_qMutex);
 	load->m_queue.push_back(readingSet);

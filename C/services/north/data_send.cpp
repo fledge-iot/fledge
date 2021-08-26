@@ -58,7 +58,6 @@ DataSender::~DataSender()
 void DataSender::sendThread()
 {
 	ReadingSet *readings = nullptr;
-	unsigned long lastSent = 0;
 
 	while (!m_shutdown)
 	{
@@ -94,11 +93,7 @@ void DataSender::sendThread()
  */
 unsigned long DataSender::send(ReadingSet *readings)
 {
-	unsigned long lastSent;
-
-
 	blockPause();
-	lastSent = 0;
 	uint32_t sent = m_plugin->send(readings->getAllReadings());
 	releasePause();
 	unsigned long lastSent = readings->getReadingId(sent);

@@ -58,7 +58,6 @@ DataSender::~DataSender()
 void DataSender::sendThread()
 {
 	ReadingSet *readings = nullptr;
-	unsigned long lastSent = 0;
 
 	while (!m_shutdown)
 	{
@@ -73,23 +72,14 @@ void DataSender::sendThread()
 				"Sending thread closing down after failing to fetch readings");
 			return;
 		}
-		if (readings->getCount())
+		if (readings->getCount() > 0)
 		{
-			// Sends the new block or retries the previous one
-			lastSent = send(readings);
+			unsigned long lastSent = send(readings);
 			if (lastSent)
 			{
 				m_loader->updateLastSentId(lastSent);
-				delete readings;
-				readings = nullptr;
+
 			}
-		}
-		else
-		{
-			// All the data was filtered out, update lastSent so we do
-			// not repeat the block
-			m_logger->debug("No data to send - all data was filtered from the block of data");
-			m_loader->updateLastSentId(readings->getLastId());
 		}
 	}
 	m_logger->info("Sending thread shutdown");
@@ -103,12 +93,10 @@ void DataSender::sendThread()
  */
 unsigned long DataSender::send(ReadingSet *readings)
 {
-	unsigned long lastSent;
-
-
 	blockPause();
-	lastSent = 0;
 	uint32_t sent = m_plugin->send(readings->getAllReadings());
+	releasePause();
+	unsigned long lastSent = readings->getReadingId(sent);
 
 	if (sent > 0)
 	{
@@ -137,10 +125,10 @@ unsigned long DataSender::send(ReadingSet *readings)
 				break;
 			}
 		}
-
 		m_loader->updateStatistics(sent);
+		return lastSent;
 	}
-	return lastSent;
+	return 0;
 }
 
 /**
@@ -150,7 +138,7 @@ unsigned long DataSender::send(ReadingSet *readings)
  * send completes.
  *
  * Called by external classes that want to prevent interaction
- * with thew north plugin.
+ * with the north plugin.
  */
 void DataSender::pause()
 {

@@ -605,7 +605,14 @@ At this point, Postgres has been configured to start at boot and it should be up
   Mar 17 06:22:52 vbox-centos-test systemd[1]: Started PostgreSQL 9.6 database server.
   $
 
-Next, add the Fledge user to PostgreSQL with the command ``sudo -u postgres createuser -d <user>``, where *<user>* is your Fledge user.
+Next, add the Fledge user to PostgreSQL
+
+.. code-block:: console
+
+    sudo su - postgres
+    psql
+    useradd fledge --shell=/sbin/nologin <OR> useradd -M fledge
+    usermod -L fledge
 
 Finally, add ``/usr/pgsql-9.6/bin`` to your PATH environment variable in ``$HOME/.bash_profile``. the new PATH setting in the file should look something like this:
 

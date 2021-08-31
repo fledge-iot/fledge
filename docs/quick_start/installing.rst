@@ -1,3 +1,12 @@
+.. Links
+.. |Debian PostgreSQL| raw:: html
+
+   <a href="../building_fledge/building_fledge.html#appendix-setting-the-postgresql-database">For Debian Platform</a>
+
+.. |RPM PostgreSQL| raw:: html
+
+   <a href="../building_fledge/building_fledge.html#installing-postgresql-9-6">For RPM Platform</a>
+
 Installing Fledge
 ==================
 
@@ -179,3 +188,29 @@ Checking package installation
 To check what packages have been installed, ssh into your host system and use the dpkg command::
 
   dpkg -l | grep 'fledge'
+
+
+Run with PostgreSQL
+###################
+
+To start Fledge with PostgreSQL, first you need to install the PostgreSQL package explicitly. See the below links for setup
+
+|Debian PostgreSQL| - Make sure you have installed the postgresql package with command ``sudo apt install -y postgresql``
+
+|RPM PostgreSQL|
+
+Also you need to change the value of Storage plugin. Either via GUI (Select Configuration menu option -> Choose Advanced category -> Select Storage -> Change value in Storage Plugin config item) or with below curl command
+
+.. code-block:: console
+
+    $ curl -sX PUT localhost:8081/fledge/category/Storage/plugin -d '{"value": "postgres"}'
+    {
+      "description": "The main storage plugin to load",
+      "type": "string",
+      "order": "1",
+      "displayName": "Storage Plugin",
+      "default": "sqlite",
+      "value": "postgres"
+    }
+
+Now, it's time to restart Fledge. Thereafter you will see Fledge is running with PostgreSQL.

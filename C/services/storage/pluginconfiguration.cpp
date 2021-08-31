@@ -263,7 +263,6 @@ void StoragePluginConfiguration::updateCache()
 		}
 		else
 		{
-			m_logger->fatal("Copy Item %s", itemName.c_str());
 			Value v;
 			v.CopyFrom(d[itemName.c_str()], m_document->GetAllocator());
 			Value name;

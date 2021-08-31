@@ -38,7 +38,7 @@ extern "C" {
 
 const char *default_config = QUOTE({
 		"poolSize" : {
-			"description" : "The numebr of connections to create in the intial pool of connections",
+			"description" : "The number of connections to create in the intial pool of connections",
 			"type" : "integer",
 			"default" : "5",
 			"displayName" : "Pool Size",

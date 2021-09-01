@@ -21,7 +21,7 @@
 class BinaryPluginHandle : public PluginHandle
 {
 	public:
-		BinaryPluginHandle(const char *, const char *path) { handle = dlopen(path, RTLD_LAZY); }
+		BinaryPluginHandle(const char *, const char *path) { handle = dlopen(path, RTLD_LAZY|RTLD_GLOBAL); }
 		~BinaryPluginHandle() { if (handle) dlclose(handle); }
 		void *GetInfo() { return dlsym(handle, "plugin_info"); }
 		void *ResolveSymbol(const char* sym) { return dlsym(handle, sym); }

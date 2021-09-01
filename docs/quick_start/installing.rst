@@ -56,15 +56,22 @@ Once complete you can add the repository itself into the apt configuration file 
 
     .. code-block:: console
 
-       sudo add-apt-repository ‘deb http://archives.fledge-iot.org/latest/ubuntu1804/x86_64/ / ‘
+       sudo add-apt-repository "deb http://archives.fledge-iot.org/latest/ubuntu1804/x86_64/ / "
 
+  - Users with an Intel or AMD system with Ubuntu 20.04 should run
+
+    .. code-block:: console
+
+       sudo add-apt-repository "deb http://archives.fledge-iot.org/latest/ubuntu2004/x86_64/ / "
+
+    .. note::
+        We do not support the `aarch64` architecture with Ubuntu 20.04 yet.
 
   - Users with an Arm system with Ubuntu 18.04, such as the Odroid board, should run
 
     .. code-block:: console
 
-       sudo add-apt-repository ‘deb http://archives.fledge-iot.org/latest/ubuntu1804/aarch64/ / ‘
-
+       sudo add-apt-repository "deb http://archives.fledge-iot.org/latest/ubuntu1804/aarch64/ / "
 
   - Users of the Mendel operating system on a Google Coral create the file /etc/apt/sources.list.d/fledge.list and insert the following content
 
@@ -76,7 +83,7 @@ Once the repository has been added you must inform the package manager to go and
 
 .. code-block:: console
 
-   sudo apt update
+   sudo apt -y update
 
 You are now ready to install the Fledge packages. You do this by running the command
 
@@ -88,9 +95,7 @@ You may also install multiple packages in a single command. To install the base 
 
 .. code-block:: console
 
-   sudo apt -y install fledge fledge-gui fledge-south-sinusoid
-
-
+   sudo DEBIAN_FRONTEND=noninteractive apt -y install fledge fledge-gui fledge-south-sinusoid
 
 RedHat & CentOS
 ~~~~~~~~~~~~~~~
@@ -141,6 +146,7 @@ On RedHat 7 run the command
 .. code-block:: console
 
    sudo yum-config-manager --enable 'Red Hat Enterprise Linux Server 7 RHSCL (RPMs)'
+   sudo yum install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
 
 You can now install and upgrade fledge packages using the yum command. For example to install fledge and the fledge GUI you run the command
 
@@ -158,7 +164,7 @@ Assuming you have downloaded the packages from the download link given above. Us
 
 The key packages to install are the Fledge core and the Fledge User Interface::
 
-  sudo apt -y install ./fledge-1.8.0-armv7l.deb
+  sudo DEBIAN_FRONTEND=noninteractive apt -y install ./fledge-1.8.0-armv7l.deb
   sudo apt -y install ./fledge-gui-1.8.0.deb
 
 You will need to install one of more South plugins to acquire data.  You can either do this now or when you are adding the data source. For example, to install the plugin for the Sense HAT sensor board, type::

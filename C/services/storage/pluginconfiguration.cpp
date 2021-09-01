@@ -34,6 +34,7 @@ StoragePluginConfiguration::StoragePluginConfiguration(const string& name, Stora
 	m_document = new Document();
 	m_category = m_name;
 	readCache();
+	updateCache();
 }
 
 /**
@@ -240,4 +241,33 @@ ConfigCategory *StoragePluginConfiguration::getConfiguration()
 
 	const char *config = buffer.GetString();
 	return new ConfigCategory(m_category, config);
+}
+
+/**
+ * Update the cache with any new items found in the configuration returned
+ * by the plugin
+ */
+void StoragePluginConfiguration::updateCache()
+{
+	Document d;
+	d.Parse(m_defaultConfiguration.c_str());
+	if (d.HasParseError())
+	{
+		m_logger->error("Configuration returned by plugin_init has parse errors");
+	}
+	for (auto &item : d.GetObject())
+	{
+		string itemName = item.name.GetString();
+		if (m_document->HasMember(itemName.c_str()))
+		{
+		}
+		else
+		{
+			Value v;
+			v.CopyFrom(d[itemName.c_str()], m_document->GetAllocator());
+			Value name;
+			name.SetString(itemName.c_str(), itemName.length(), m_document->GetAllocator());
+			m_document->AddMember(name, v, m_document->GetAllocator());
+		}
+	}
 }

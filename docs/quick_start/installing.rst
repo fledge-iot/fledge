@@ -154,8 +154,8 @@ On RedHat 7 run the command
 
 .. code-block:: console
 
-   sudo yum-config-manager --enable 'Red Hat Enterprise Linux Server 7 RHSCL (RPMs)'
-   sudo yum install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+   sudo yum-config-manager --enable 'Red Hat Software Collections RPMs for Red Hat Enterprise Linux 7 Server from RHUI'
+   sudo yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
 
 You can now install and upgrade fledge packages using the yum command. For example to install fledge and the fledge GUI you run the command
 

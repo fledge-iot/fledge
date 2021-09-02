@@ -96,7 +96,7 @@ The SQLite plugin has a more complex set of configuration options that can be us
 | |sqlite_01| |
 +-------------+
 
-  - **Purge Exclusions**: This option allows the user to specify that the purge process should not be applied to particular assets. ~The user can give a comma separated list of asset names that should be excluded from the purge process. Note, it is recommended that this option is only used for extremely low bandwidth, lookup data that would otherwise be completely purged from the system when the purge process runs.
+  - **Purge Exclusions**: This option allows the user to specify that the purge process should not be applied to particular assets. The user can give a comma separated list of asset names that should be excluded from the purge process. Note, it is recommended that this option is only used for extremely low bandwidth, lookup data that would otherwise be completely purged from the system when the purge process runs.
 
   - **Pool Size**: The number of connections to create in the database connection pool.
 

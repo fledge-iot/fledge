@@ -179,6 +179,8 @@ class Scheduler(object):
         """Delete finished task rows when they become this old"""
         self._purge_tasks_task = None  # type: asyncio.Task
         """asynico task for :meth:`purge_tasks`, if scheduled to run"""
+        self._restore_backup_id = None # type: int
+        """Restore backup id and it will be used when SCHEDULE_RESTORE_ON_DEMAND runs"""
 
     @property
     def max_completed_task_age(self) -> datetime.timedelta:
@@ -302,7 +304,11 @@ class Scheduler(object):
         args_to_exec.append("--port={}".format(self._core_management_port))
         args_to_exec.append("--address=127.0.0.1")
         args_to_exec.append("--name={}".format(schedule.name))
-
+        if schedule.process_name == "restore" and self._restore_backup_id is not None:
+            # Adding backup id argument
+            args_to_exec.append("--backup-id={}".format(self._restore_backup_id))
+            # Reset restore backup id
+            self._restore_backup_id = None
         # interim solution for service/authtoken endpoint exposure  
         # restrict to FogLAMP manager/poll agent service
         if schedule.process_name == 'management':

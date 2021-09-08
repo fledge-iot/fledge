@@ -113,7 +113,8 @@ class Backup(object):
 
         if status:
             payload.WHERE(['status', '=', status])
-            
+
+        payload.ORDER_BY(['id', sort_order])
         backups_from_storage = await self._storage.query_tbl_with_payload(self.STORAGE_TABLE_BACKUPS, payload.payload())
         backups_information = backups_from_storage['rows']
 

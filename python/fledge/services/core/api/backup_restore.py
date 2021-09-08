@@ -74,6 +74,10 @@ async def get_backups(request):
         curl -sX GET http://localhost:8081/fledge/backup?status=completed
         curl -sX GET http://localhost:8081/fledge/backup?limit=2
         curl -sX GET "http://localhost:8081/fledge/backup?limit=2&status=restored"
+        curl -sX GET http://localhost:8081/fledge/backup?skip=1
+        curl -sX GET "http://localhost:8081/fledge/backup?skip=1&limit=1" | jq
+        curl -sX GET "http://localhost:8081/fledge/backup?skip=1&status=completed"
+        curl -sX GET "http://localhost:8081/fledge/backup?skip=1&status=completed&limit=1"
     """
     limit = __DEFAULT_LIMIT
     if 'limit' in request.query and request.query['limit'] != '':

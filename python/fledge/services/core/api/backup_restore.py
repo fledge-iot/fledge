@@ -69,8 +69,11 @@ def _get_status(status_code):
 async def get_backups(request):
     """ Returns a list of all backups
 
-    :Example: curl -X GET http://localhost:8081/fledge/backup
-    :Example: curl -X GET http://localhost:8081/fledge/backup?limit=2&skip=1&status=completed
+    :Example:
+        curl -sX GET http://localhost:8081/fledge/backup
+        curl -sX GET http://localhost:8081/fledge/backup?status=completed
+        curl -sX GET http://localhost:8081/fledge/backup?limit=2
+        curl -sX GET "http://localhost:8081/fledge/backup?limit=2&status=restored"
     """
     limit = __DEFAULT_LIMIT
     if 'limit' in request.query and request.query['limit'] != '':

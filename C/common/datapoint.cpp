@@ -83,7 +83,7 @@ std::string DatapointValue::toString() const
 		return ss.str();
 	case T_STRING:
 		ss << "\"";
-		ss << *m_value.str;
+		ss << escape(*m_value.str);
 		ss << "\"";
 		return ss.str();
 	case T_DATABUFFER:
@@ -246,4 +246,39 @@ DatapointValue& DatapointValue::operator=(const DatapointValue& rhs)
 	}
 
 	return *this;
+}
+
+/**
+ * Escape quotes etc to allow the string to be a property value within
+ * a JSON document
+ *
+ * @param str	The string to escape
+ * @return The escaped string
+ */
+const std::string DatapointValue::escape(const std::string& str) const
+{
+std::string rval;
+int bscount = 0;
+
+	for (size_t i = 0; i < str.length(); i++)
+	{
+		if (str[i] == '\\')
+		{
+			bscount++;
+		}
+		else if (str[i] == '\"')
+		{
+			if ((bscount & 1) == 0)	// not already escaped
+			{
+				rval += "\\";	// Add escape of "
+			}
+			bscount = 0;
+		}
+		else
+		{
+			bscount = 0;
+		}
+		rval += str[i];
+	}
+	return rval;
 }

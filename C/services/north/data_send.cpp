@@ -57,22 +57,30 @@ DataSender::~DataSender()
  */
 void DataSender::sendThread()
 {
+	ReadingSet *readings = nullptr;
+
 	while (!m_shutdown)
 	{
-		ReadingSet *readings = m_loader->fetchReadings(true);
+
+		if (readings == nullptr) {
+
+			readings = m_loader->fetchReadings(true);
+		}
 		if (!readings)
 		{
 			m_logger->warn(
 				"Sending thread closing down after failing to fetch readings");
 			return;
 		}
-		unsigned long lastSent = send(readings);
-		if (lastSent)
+		if (readings->getCount() > 0)
 		{
-			m_loader->updateLastSentId(lastSent);
+			unsigned long lastSent = send(readings);
+			if (lastSent)
+			{
+				m_loader->updateLastSentId(lastSent);
 
+			}
 		}
-		delete readings;
 	}
 	m_logger->info("Sending thread shutdown");
 }
@@ -88,9 +96,13 @@ unsigned long DataSender::send(ReadingSet *readings)
 	blockPause();
 	uint32_t sent = m_plugin->send(readings->getAllReadings());
 	releasePause();
-	unsigned long lastSent = readings->getLastId();
+	unsigned long lastSent = readings->getReadingId(sent);
+
 	if (sent > 0)
 	{
+		releasePause();
+		lastSent = readings->getLastId();
+
 		// Update asset tracker table/cache, if required
 		vector<Reading *> *vec = readings->getAllReadingsPtr();
 
@@ -105,7 +117,7 @@ unsigned long DataSender::send(ReadingSet *readings)
 				if (!AssetTracker::getAssetTracker()->checkAssetTrackingCache(tuple))
 				{
 					AssetTracker::getAssetTracker()->addAssetTrackingTuple(tuple);
-					Logger::getLogger()->info("sendDataThread:  Adding new asset tracking tuple - egress: %s", tuple.assetToString().c_str());
+					m_logger->info("sendDataThread:  Adding new asset tracking tuple - egress: %s", tuple.assetToString().c_str());
 				}
 			}
 			else
@@ -113,10 +125,10 @@ unsigned long DataSender::send(ReadingSet *readings)
 				break;
 			}
 		}
-
 		m_loader->updateStatistics(sent);
+		return lastSent;
 	}
-	return lastSent;
+	return 0;
 }
 
 /**
@@ -126,7 +138,7 @@ unsigned long DataSender::send(ReadingSet *readings)
  * send completes.
  *
  * Called by external classes that want to prevent interaction
- * with thew north plugin.
+ * with the north plugin.
  */
 void DataSender::pause()
 {

@@ -76,6 +76,7 @@ class Reading {
 		Reading() {};
 		Reading&			operator=(Reading const&);
 		void				stringToTimestamp(const std::string& timestamp, struct timeval *ts);
+		const std::string		escape(const std::string& str) const;
 		unsigned long			m_id;
 		bool				m_has_id;
 		std::string			m_asset;

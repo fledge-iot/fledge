@@ -20,10 +20,11 @@ import fnmatch
 import subprocess
 from fledge.services.core.connect import *
 from fledge.common import logger
-from fledge.services.core.api.service import get_service_records
 from fledge.common.common import _FLEDGE_ROOT, _FLEDGE_DATA
 from fledge.common.configuration_manager import ConfigurationManager
+from fledge.common.plugin_discovery import PluginDiscovery
 from fledge.common.storage_client import payload_builder
+from fledge.services.core.api.service import get_service_records, get_service_installed
 
 
 __author__ = "Amarendra K Sinha"
@@ -97,6 +98,7 @@ class SupportBuilder:
                 self.add_psinfo(pyz, file_spec)
                 self.add_script_dir_content(pyz)
                 self.add_package_log_dir_content(pyz)
+                self.add_software_list(pyz, file_spec)
             finally:
                 pyz.close()
         except Exception as ex:
@@ -263,6 +265,14 @@ class SupportBuilder:
         if os.path.exists(script_package_logs_path):
             # recursively 'true' by default and __pycache__ dir excluded
             pyz.add(script_package_logs_path, arcname='package_logs', filter=self.exclude_pycache)
+
+    def add_software_list(self, pyz, file_spec) -> None:
+        data = {
+            "plugins": PluginDiscovery.get_plugins_installed(),
+            "services": get_service_installed()
+        }
+        temp_file = self._interim_file_path + "/" + "software-{}".format(file_spec)
+        self.write_to_tar(pyz, temp_file, data)
 
     def exclude_pycache(self, tar_info):
         return None if '__pycache__' in tar_info.name else tar_info

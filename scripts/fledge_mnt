@@ -11,7 +11,10 @@
 ##
 ##--------------------------------------------------------------------
 
-FLEDGE_MNT_VERSION=1.8
+FLEDGE_MNT_VERSION=1.9.0
+
+FLEDGE_READINGS_DB_MAX=64           # Maximum number of readings db handled
+PLUGIN_DATA_KEY="xxx"               # Change this value to the proper one
 
 #set -e
 #set -x
@@ -83,6 +86,13 @@ if [ ! -d "${FLEDGE_ROOT}" ]; then
 fi
 
 #
+# FLEDGE_DATA evaluation
+#
+if [ "${FLEDGE_DATA}" = "" ]; then
+	FLEDGE_DATA="${FLEDGE_ROOT}/data"
+fi
+
+#
 # fledge command evaluation
 #
 FLEDGE_SCRIPT="${FLEDGE_ROOT}/scripts/fledge"
@@ -136,9 +146,14 @@ fi
 if [[ "${FLEDGE_DB_NAME}" == "" ]]; then
 
     FLEDGE_DB="${FLEDGE_ROOT}/data/fledge.db"
+
 else
     FLEDGE_DB="${FLEDGE_DB_NAME}"
 fi
+
+READINGS_DB="${FLEDGE_ROOT}/data/readings_1.db"
+READINGS_2_DB="${FLEDGE_ROOT}/data/readings_2.db"
+READINGS_3_DB="${FLEDGE_ROOT}/data/readings_3.db"
 
 #
 # Functions
@@ -193,6 +208,7 @@ fledge_info_table() {
 
     fledge_table=$1
     option=$2
+    timestamp_field=$3
     execute_count=no
 
     echo "Information on the table : ${fledge_table}"
@@ -211,6 +227,16 @@ fledge_info_table() {
 
         echo -en "\tMAX Id : "
         "${SQLITE_SQL}" "${FLEDGE_DB}" "SELECT max(id) FROM ${fledge_table} "
+
+
+        if [[ "${timestamp_field}" != "-" ]]; then
+
+            echo -en "\tTimestamp MIN: "
+            "${SQLITE_SQL}" "${FLEDGE_DB}" "SELECT min(${timestamp_field}) FROM ${fledge_table} "
+
+            echo -en "\tTimestamp MAX: "
+            "${SQLITE_SQL}" "${FLEDGE_DB}" "SELECT max(${timestamp_field}) FROM ${fledge_table} "
+        fi
     fi
 
     if [[ "${execute_count}" == "yes" ]]; then
@@ -219,8 +245,104 @@ fledge_info_table() {
         "${SQLITE_SQL}" "${FLEDGE_DB}" "SELECT count(*) FROM ${fledge_table} "
     fi
 
+    if [[ "${fledge_table}" == "PLUGIN_DATA" ]]; then
+
+        echo -e "\tTable - ${fledge_table}  : "
+        "${SQLITE_SQL}" -header "${FLEDGE_DB}" "SELECT * FROM ${fledge_table} "
+
+        echo ""
+    fi
+    if [[ "${fledge_table}" == "STREAMS" ]]; then
+
+        echo -e "\tNow - "$(date "+%Y-%m-%d %H:%M:%S.%3N")" - $(date) "
+
+        echo -e "\tTable - ${fledge_table}  : "
+        "${SQLITE_SQL}" -header "${FLEDGE_DB}" "SELECT * FROM ${fledge_table} "
+
+        echo ""
+        echo "Information on the READINGS tables"
+
+        echo -en "\tTable - readings_1_1 - min/max : "
+        "${SQLITE_SQL}" "${READINGS_DB}" "SELECT min(id),max(id) FROM readings_1_1"
+
+        echo -en "\tTable - readings_1_2 - min/max : "
+        "${SQLITE_SQL}" "${READINGS_DB}" "SELECT min(id),max(id) FROM readings_1_2"
+
+        echo -en "\tTable - readings_1_3 - min/max : "
+        "${SQLITE_SQL}" "${READINGS_DB}" "SELECT min(id),max(id) FROM readings_1_3"
+
+        echo ""
+        echo -e "\tTable - configuration_readings : "
+        "${SQLITE_SQL}" -header "${READINGS_DB}" "SELECT * FROM configuration_readings"
+
+        echo ""
+        echo -e "\tTable - asset_reading_catalogue : "
+        "${SQLITE_SQL}" -header "${READINGS_DB}" "SELECT * FROM asset_reading_catalogue"
+
+        echo ""
+        echo -e "\tDB - readings_1 - tables :"
+        "${SQLITE_SQL}" "${READINGS_DB}" ".tables"
+
+    fi
+
     echo ""
 }
+
+
+fledge_info_err() {
+
+    echo ""
+    echo "---- syslog - WARNING|warning|ERROR|error|FATAL|fatal -----------------------------------------------"
+    cat  /var/log/syslog | grep  -E  'WARNING|warning|ERROR|error|FATAL|fatal'
+    echo "---- syslog -----------------------------------------------------------------------------------------"
+}
+
+fledge_info_full() {
+    operation_start "Information on the database - full"
+
+    fledge_info
+    fledge_info_perf
+}
+
+fledge_info_perf() {
+
+    operation_start "Information - performance"
+
+    for i in $(seq 3); do
+        fledge_info_perf_measurement
+    done
+    echo ""
+
+    operation_end
+}
+
+fledge_info_perf_measurement() {
+
+    tmp_file=/tmp/$$
+    cfg_cpu=10024
+    cfg_disk=1024    # 1GB file
+
+    echo ""
+    echo -n "CPU  : "
+    sync;sync;sync
+    dd if=/dev/zero bs=1M count=${cfg_cpu} 2> ${tmp_file} | md5sum > /dev/null
+    cat ${tmp_file} | tail -1
+
+    echo -n "DISK : "
+    test_file="${FLEDGE_ROOT}/fledge_test_perf"
+
+    if ! [[ -e "${test_file}" ]]; then
+
+        sync;sync;sync
+        dd  bs=1M count=${cfg_disk} if=/dev/zero of="${test_file}"  2> ${tmp_file}
+        cat ${tmp_file} | tail -1
+        rm "${test_file}"
+    else
+
+        echo "ERROR : file ${test_file} already exists, delete it if not needed"
+    fi
+}
+
 
 fledge_info() {
 
@@ -230,11 +352,28 @@ fledge_info() {
     "${SQLITE_SQL}" "${FLEDGE_DB}" ".tables"
     echo ""
 
-    fledge_info_table "STATISTICS_HISTORY"
-    fledge_info_table "TASKS"              "count"
-    fledge_info_table "LOG"                "count"
-    fledge_info_table "PLUGIN_DATA"        "count_only"
-    fledge_info_table "STREAMS"            "count_only"
+    fledge_info_table "STATISTICS_HISTORY" "-"          "history_ts"
+    fledge_info_table "TASKS"              "count"      "start_time"
+    fledge_info_table "LOG"                "count"      "ts"
+    fledge_info_table "PLUGIN_DATA"        "count_only" "-"
+    fledge_info_table "STREAMS"            "count_only" "-"
+
+    echo "Data directory:"
+    ls -lha "${FLEDGE_DATA}"
+    echo ""
+}
+
+fledge_clean_plugin_data() {
+    echo "Clean operation - plugin_data : "
+
+    echo -e "\tTable - PLUGIN_DATA  : "
+    "${SQLITE_SQL}" -header "${FLEDGE_DB}" "SELECT * FROM PLUGIN_DATA "
+
+    "${SQLITE_SQL}" "${FLEDGE_DB}" "DELETE FROM PLUGIN_DATA WHERE key='"${PLUGIN_DATA_KEY}"'"
+
+    echo -e "\tTable - PLUGIN_DATA  : "
+    "${SQLITE_SQL}" -header "${FLEDGE_DB}" "SELECT * FROM PLUGIN_DATA "
+
 }
 
 fledge_analyze() {
@@ -244,11 +383,20 @@ fledge_analyze() {
         fledge_log "info" "sqlite3_analyzer not available in !${SQLITE_SQL_ANALYZER}!" "outonly" "pretty"
         exit 1
     else
-        export_analyze="${FLEDGE_DB}_analyze"
-
+        export_analyze="${FLEDGE_DB}_analyze.txt"
         operation_start "Executing sqlite3_analyzer, output !${export_analyze}! "
+        "${SQLITE_SQL_ANALYZER}" "${FLEDGE_DB}"      > "${export_analyze}"
 
-        "${SQLITE_SQL_ANALYZER}" "${FLEDGE_DB}"   > "${export_analyze}"
+        for ((loop=1; loop <= ${FLEDGE_READINGS_DB_MAX} ; loop++))
+        do
+            READINGS_DB="${FLEDGE_ROOT}/data/readings_${loop}.db"
+
+            if [[ -e "${READINGS_DB}" ]]; then
+
+                export_analyze_r="${READINGS_DB}_analyze.txt"
+                "${SQLITE_SQL_ANALYZER}" "${READINGS_DB}"  > "${export_analyze_r}"
+            fi
+        done
 
         operation_end
     fi
@@ -497,15 +645,20 @@ The script is used to check/recovery fledge
 Arguments:
 
  info              - show information on the database/tables
+ info    --full    - show a complete set of information, performance measurement also
+ info    --err     - shows errors in the syslog
  analyze           - generate a text file with information about the database
  check             - check the fledge database, stops Fledge
  shrink            - shrink the database, stops Fledge
  shrink  --table   - delete the content of the statistics_history older than 3 days and shrink the database
  recover           - attempt to recover the fledge database using the SQLITE .recover command
-                   - it creates the database fledge.db_rec
+                   - NOTE: it creates the database fledge.db_rec
  recover --custom  - a custom attempt to recover the fledge database, useful if the SQLITE .recover command fails
-                   - it creates the database fledge.db_rec_custom
+                   - NOTE: it creates the database fledge.db_rec_custom
                    - the new database will contain an empty STATISTICS_HISTORY and all other tables
+
+ clean --plugin_data - WARNING: delete the plugin_data content
+
  help              - This text
 
 Environments:
@@ -524,22 +677,68 @@ Environments:
 
 echo ""
 echo "Fledge management tool v${FLEDGE_MNT_VERSION}"
+echo "Node            : $(hostname) - $(hostnamectl status | grep 'Operating')"
 echo "Environment     : ${FLEDGE_ENV}"
+echo "FLEDGE_ROOT     : ${FLEDGE_ROOT}"
+echo "FLEDGE_DATA     : ${FLEDGE_DATA}"
 echo "Database        : ${FLEDGE_DB}"
 echo "sqlite3 command : ${SQLITE_SQL}"
 echo "sqlite3 version : $(${SQLITE_SQL} --version)"
 echo "sqlite3_analyzer: ${SQLITE_SQL_ANALYZER}"
+
+echo "fledge version  : $(head -n 1 ${FLEDGE_ROOT}/VERSION)"
+echo "fledge db ver.  : $(tail -1   ${FLEDGE_ROOT}/VERSION)"
 
 USAGE="Usage: `basename ${0}` {info|analyze|check|shrink --table|recover --custom}"
 
 RECOVER_MODE=''
 SHRINK_MODE=''
 
+
 # Handle commands
 case "$1" in
     info)
-        fledge_info
+
+        if [ ! -z "$2" ]; then
+            if [[ "$2" == "--full" ]]; then
+
+                fledge_info_full
+
+            elif [[ "$2" == "--err" ]]; then
+
+                fledge_info_err
+            fi                
+        else                
+            fledge_info
+        fi            
         ;;
+
+    clean)
+        if [ ! -z "$2" ]; then
+            if [[ "$2" == "--plugin_data" ]]; then
+
+                echo ""
+                echo "WARNING: This operation will clean fledge table"
+                echo "'${FLEDGE_DB}'"
+                echo -n "Enter YES if you want to continue: "
+                read continue_reset
+
+                if [ "$continue_reset" != 'YES' ]; then
+
+                    echo "Operation aborted."
+                    # This is ok because it means that the script is called from command line
+                    exit 0
+                fi
+                fledge_clean_plugin_data
+            fi
+        else
+            echo "ERROR: An invalid option"
+            echo ""
+            fledge_help
+            exit 1
+        fi
+        ;;
+
     analyze)
         fledge_analyze
         ;;

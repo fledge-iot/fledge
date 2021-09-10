@@ -31,6 +31,7 @@ std::string extractLastLevel(const std::string& path, char separator);
 void   StringStripCRLF(std::string& StringToManage);
 string StringStripWhiteSpacesAll(const std::string& original);
 string StringStripWhiteSpacesExtra(const  std::string& original);
+void StringStripQuotes(std::string& StringToManage);
 
 string urlEncode(const string& s);
 string urlDecode(const string& s);

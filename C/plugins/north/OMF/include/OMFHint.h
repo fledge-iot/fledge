@@ -68,6 +68,17 @@ class OMFTagNameHint : public OMFHint
 		~OMFTagNameHint() {};
 };
 
+
+/**
+ * A AFLocation hint, tells use in which Asset Framework hierarchy the asset should be created
+ */
+class OMFAFLocationHint : public OMFHint
+{
+public:
+	OMFAFLocationHint(const std::string& name) { m_hint = name; };
+	~OMFAFLocationHint() {};
+};
+
 /**
  * A set of hints for a reading
  */
@@ -81,6 +92,7 @@ class OMFHints
 		const std::vector<OMFHint *>&
 					getHints(const std::string&) const;
 		const unsigned short	getChecksum() { return m_chksum; };
+		static string          	getHintForChecksum(const string &hint);
 	private:
 		rapidjson::Document	m_doc;
 		unsigned short		m_chksum;

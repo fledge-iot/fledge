@@ -13,6 +13,8 @@
 #include <vector>
 
 typedef enum Conditional {
+	Older,
+	Newer,
 	Equals,
 	NotEquals,
 	GreaterThan,

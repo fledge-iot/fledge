@@ -137,13 +137,13 @@ Fledge is currently based on C/C++ and Python code. The packages needed to build
   $
   ...
   $
-  $ DEBIAN_FRONTEND=noninteractive sudo apt-get install -yq krb5-user
+  $ sudo DEBIAN_FRONTEND=noninteractive apt-get install -yq krb5-user
   Reading package lists... Done
   Building dependency tree
   $
   ...
   $
-  $ DEBIAN_FRONTEND=noninteractive sudo apt-get install -yq libcurl4-openssl-dev
+  $ sudo DEBIAN_FRONTEND=noninteractive apt-get install -yq libcurl4-openssl-dev
   Reading package lists... Done
   Building dependency tree
   $
@@ -570,10 +570,10 @@ Following https://www.postgresql.org/download/ instructions, the commands to ins
 .. code-block:: console
 
   sudo yum install -y https://download.postgresql.org/pub/repos/yum/reporpms/EL-7-x86_64/pgdg-redhat-repo-latest.noarch.rpm
-  sudo yum install postgresql96-server
-  sudo yum install postgresql96-devel
-  sudo yum install rh-postgresql96
-  sudo yum install rh-postgresql96-postgresql-devel
+  sudo yum install -y postgresql96-server
+  sudo yum install -y postgresql96-devel
+  sudo yum install -y rh-postgresql96
+  sudo yum install -y rh-postgresql96-postgresql-devel
   sudo /usr/pgsql-9.6/bin/postgresql96-setup initdb
   sudo systemctl enable postgresql-9.6
   sudo systemctl start postgresql-9.6
@@ -605,7 +605,12 @@ At this point, Postgres has been configured to start at boot and it should be up
   Mar 17 06:22:52 vbox-centos-test systemd[1]: Started PostgreSQL 9.6 database server.
   $
 
-Next, add the Fledge user to PostgreSQL with the command ``sudo -u postgres createuser -d <user>``, where *<user>* is your Fledge user.
+Next, you must create a PostgreSQL user that matches your Linux user.
+
+.. code-block:: console
+
+  $ sudo -u postgres createuser -d $(whoami)
+
 
 Finally, add ``/usr/pgsql-9.6/bin`` to your PATH environment variable in ``$HOME/.bash_profile``. the new PATH setting in the file should look something like this:
 

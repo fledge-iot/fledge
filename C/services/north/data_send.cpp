@@ -29,7 +29,7 @@ static void startSenderThread(void *data)
  * Constructor for the data sending class
  */
 DataSender::DataSender(NorthPlugin *plugin, DataLoad *loader, NorthService *service) :
-	m_plugin(plugin), m_loader(loader), m_service(service), m_shutdown(false)
+	m_plugin(plugin), m_loader(loader), m_service(service), m_shutdown(false), m_paused(false)
 {
 	m_logger = Logger::getLogger();
 
@@ -57,22 +57,30 @@ DataSender::~DataSender()
  */
 void DataSender::sendThread()
 {
+	ReadingSet *readings = nullptr;
+
 	while (!m_shutdown)
 	{
-		ReadingSet *readings = m_loader->fetchReadings(true);
+
+		if (readings == nullptr) {
+
+			readings = m_loader->fetchReadings(true);
+		}
 		if (!readings)
 		{
 			m_logger->warn(
 				"Sending thread closing down after failing to fetch readings");
 			return;
 		}
-		unsigned long lastSent = send(readings);
-		if (lastSent)
+		if (readings->getCount() > 0)
 		{
-			m_loader->updateLastSentId(lastSent);
+			unsigned long lastSent = send(readings);
+			if (lastSent)
+			{
+				m_loader->updateLastSentId(lastSent);
 
+			}
 		}
-		delete readings;
 	}
 	m_logger->info("Sending thread shutdown");
 }
@@ -85,10 +93,16 @@ void DataSender::sendThread()
  */
 unsigned long DataSender::send(ReadingSet *readings)
 {
+	blockPause();
 	uint32_t sent = m_plugin->send(readings->getAllReadings());
-	unsigned long lastSent = readings->getLastId();
+	releasePause();
+	unsigned long lastSent = readings->getReadingId(sent);
+
 	if (sent > 0)
 	{
+		releasePause();
+		lastSent = readings->getLastId();
+
 		// Update asset tracker table/cache, if required
 		vector<Reading *> *vec = readings->getAllReadingsPtr();
 
@@ -103,7 +117,7 @@ unsigned long DataSender::send(ReadingSet *readings)
 				if (!AssetTracker::getAssetTracker()->checkAssetTrackingCache(tuple))
 				{
 					AssetTracker::getAssetTracker()->addAssetTrackingTuple(tuple);
-					Logger::getLogger()->info("sendDataThread:  Adding new asset tracking tuple - egress: %s", tuple.assetToString().c_str());
+					m_logger->info("sendDataThread:  Adding new asset tracking tuple - egress: %s", tuple.assetToString().c_str());
 				}
 			}
 			else
@@ -111,8 +125,69 @@ unsigned long DataSender::send(ReadingSet *readings)
 				break;
 			}
 		}
-
 		m_loader->updateStatistics(sent);
+		return lastSent;
 	}
-	return lastSent;
+	return 0;
+}
+
+/**
+ * Cause the data sender process to pause sending data until a corresponding release call is made.
+ *
+ * This call does not block until release is called, but does block until the current
+ * send completes.
+ *
+ * Called by external classes that want to prevent interaction
+ * with the north plugin.
+ */
+void DataSender::pause()
+{
+	unique_lock<mutex> lck(m_pauseMutex);
+	while (m_sending)
+	{
+		m_pauseCV.wait(lck);
+	}
+	m_paused = true;
+}
+
+/**
+ * Release the paused data sender thread
+ *
+ * Called by external classes that want to release interaction
+ * with thew north plugin.
+ */
+void DataSender::release()
+{
+	unique_lock<mutex> lck(m_pauseMutex);
+	m_paused = false;
+	m_pauseCV.notify_all();
+}
+
+/**
+ * Check if we have paused the sending of data
+ *
+ * Called before we interact with the north plugin by the
+ * DataSender class
+ */
+void DataSender::blockPause()
+{
+	unique_lock<mutex> lck(m_pauseMutex);
+	while (m_paused)
+	{
+		m_pauseCV.wait(lck);
+	}
+	m_sending = true;
+}
+
+/*
+ * Release the block on pausing the sender
+ *
+ * Called after we interact with the north plugin by the
+ * DataSender class
+ */
+void DataSender::releasePause()
+{
+	unique_lock<mutex> lck(m_pauseMutex);
+	m_sending = false;
+	m_pauseCV.notify_all();
 }

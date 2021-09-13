@@ -11,7 +11,7 @@
 ##
 ##--------------------------------------------------------------------
 
-FLEDGE_MNT_VERSION=1.9.0
+FLEDGE_MNT_VERSION=1.9.6
 
 FLEDGE_READINGS_DB_MAX=64           # Maximum number of readings db handled
 PLUGIN_DATA_KEY="xxx"               # Change this value to the proper one
@@ -151,9 +151,9 @@ else
     FLEDGE_DB="${FLEDGE_DB_NAME}"
 fi
 
-READINGS_DB="${FLEDGE_ROOT}/data/readings_1.db"
-READINGS_2_DB="${FLEDGE_ROOT}/data/readings_2.db"
-READINGS_3_DB="${FLEDGE_ROOT}/data/readings_3.db"
+READINGS_DB="${FLEDGE_DATA}/readings_1.db"
+READINGS_2_DB="${FLEDGE_DATA}/readings_2.db"
+READINGS_3_DB="${FLEDGE_DATA}/readings_3.db"
 
 #
 # Functions
@@ -466,10 +466,10 @@ export_file_check() {
         echo ""
         echo "WARNING: the export file ${file_export} is already present "
         echo ""
-        echo -n "Enter YES if you want to import this one without executing the export : "
+        echo -n "Enter YES if you want to delete the file : "
         read user_answer
 
-        if [[ "$user_answer" != 'YES' ]]; then
+        if [[ "$user_answer" == 'YES' ]]; then
 
             export_execute="yes"
         fi
@@ -681,7 +681,8 @@ echo "Node            : $(hostname) - $(hostnamectl status | grep 'Operating')"
 echo "Environment     : ${FLEDGE_ENV}"
 echo "FLEDGE_ROOT     : ${FLEDGE_ROOT}"
 echo "FLEDGE_DATA     : ${FLEDGE_DATA}"
-echo "Database        : ${FLEDGE_DB}"
+echo "Fledge Db       : ${FLEDGE_DB}"
+echo "Readings Db     : ${READINGS_DB}"
 echo "sqlite3 command : ${SQLITE_SQL}"
 echo "sqlite3 version : $(${SQLITE_SQL} --version)"
 echo "sqlite3_analyzer: ${SQLITE_SQL_ANALYZER}"

@@ -14,6 +14,8 @@ class PythonReading : public Reading {
 		PyObject 		*toPython();
 		static std::string	errorMessage();
 	private:
+		PyObject		*convertDatapoint(Datapoint *dp);
+		DatapointValue		*getDatapointValue(PyObject *object);
 		void 			fixQuoting(std::string& str);
 };
 #endif

@@ -22,6 +22,7 @@ class DPImage {
 		int		getHeight() { return m_height; };
 		int		getWidth() { return m_width; };
 		int		getDepth() { return m_depth; };
+		void		*getData() { return m_pixels; };
 	private:
 		int		m_width;
 		int		m_height;

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ##--------------------------------------------------------------------
-## Fledge "management" - script to check/recovery fledge database
+## Fledge management tool- to check/recovery fledge databases
 ##
 ## Copyright (c) 2021 Dianomic Systems
 ##
@@ -11,7 +11,7 @@
 ##
 ##--------------------------------------------------------------------
 
-FLEDGE_MNT_VERSION=1.9.6
+FLEDGE_MNT_VERSION=1.9.8
 
 FLEDGE_READINGS_DB_MAX=64           # Maximum number of readings db handled
 PLUGIN_DATA_KEY="xxx"               # Change this value to the proper one
@@ -289,11 +289,19 @@ fledge_info_table() {
 }
 
 
+
 fledge_info_err() {
 
+    text='WARNING|warning|ERROR|error|FATAL|fatal'
     echo ""
-    echo "---- syslog - WARNING|warning|ERROR|error|FATAL|fatal -----------------------------------------------"
-    cat  /var/log/syslog | grep  -E  'WARNING|warning|ERROR|error|FATAL|fatal'
+    echo "---- syslog - FULL - WARNING|warning|ERROR|error|FATAL|fatal -----------------------------------------------"
+
+    cat  /var/log/syslog | grep  -E  "${text}"
+
+    echo "---- syslog - Filtered  - WARNING|warning|ERROR|error|FATAL|fatal -----------------------------------------------"
+
+    cat  /var/log/syslog | grep  -E  "${text}" | grep -v "Not all updates within transaction succeeded" | grep -v 'ERROR: Failed to register configuration category' | grep -v 'try C-plugin'
+
     echo "---- syslog -----------------------------------------------------------------------------------------"
 }
 
@@ -708,10 +716,10 @@ case "$1" in
             elif [[ "$2" == "--err" ]]; then
 
                 fledge_info_err
-            fi                
-        else                
+            fi
+        else
             fledge_info
-        fi            
+        fi
         ;;
 
     clean)

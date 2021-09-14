@@ -292,15 +292,22 @@ fledge_info_table() {
 
 fledge_info_err() {
 
+    if [[ -e /var/log/syslog ]]; then
+        syslog_file="/var/log/syslog"
+
+	elif [[ -e /var/log/messages ]]; then
+	    syslog_file="/var/log/messages"
+	fi
+
     text='WARNING|warning|ERROR|error|FATAL|fatal'
     echo ""
     echo "---- syslog - FULL - WARNING|warning|ERROR|error|FATAL|fatal -----------------------------------------------"
 
-    cat  /var/log/syslog | grep  -E  "${text}"
+    cat "${syslog_file}" | grep  -E  "${text}"
 
     echo "---- syslog - Filtered  - WARNING|warning|ERROR|error|FATAL|fatal -----------------------------------------------"
 
-    cat  /var/log/syslog | grep  -E  "${text}" | grep -v "Not all updates within transaction succeeded" | grep -v 'ERROR: Failed to register configuration category' | grep -v 'try C-plugin'
+    cat  "${syslog_file}" | grep  -E  "${text}" | grep -v "Not all updates within transaction succeeded" | grep -v 'ERROR: Failed to register configuration category' | grep -v 'try C-plugin'
 
     echo "---- syslog -----------------------------------------------------------------------------------------"
 }
@@ -685,6 +692,10 @@ Environments:
 
 echo ""
 echo "Fledge management tool v${FLEDGE_MNT_VERSION}"
+
+echo "NOTE: this versions works for sqlite multi re"
+echo ""
+
 echo "Node            : $(hostname) - $(hostnamectl status | grep 'Operating')"
 echo "Environment     : ${FLEDGE_ENV}"
 echo "FLEDGE_ROOT     : ${FLEDGE_ROOT}"

@@ -61,8 +61,7 @@ void DataSender::sendThread()
 
 	while (!m_shutdown)
 	{
-
-		if (readings == nullptr) {
+		if (readings == NULL) {
 
 			readings = m_loader->fetchReadings(true);
 		}
@@ -79,6 +78,13 @@ void DataSender::sendThread()
 			{
 				m_loader->updateLastSentId(lastSent);
 
+				// Check all readings sent
+				vector<Reading *> *vec = readings->getAllReadingsPtr();
+				if (vec->size() == 0)
+				{
+					delete readings;
+					readings = NULL;
+				}
 			}
 		}
 	}
@@ -100,13 +106,12 @@ unsigned long DataSender::send(ReadingSet *readings)
 
 	if (sent > 0)
 	{
-		releasePause();
 		lastSent = readings->getLastId();
 
 		// Update asset tracker table/cache, if required
 		vector<Reading *> *vec = readings->getAllReadingsPtr();
 
-		for (vector<Reading *>::iterator it = vec->begin(); it != vec->end(); ++it)
+		for (vector<Reading *>::iterator it = vec->begin(); it != vec->end(); )
 		{
 			Reading *reading = *it;
 
@@ -119,6 +124,13 @@ unsigned long DataSender::send(ReadingSet *readings)
 					AssetTracker::getAssetTracker()->addAssetTrackingTuple(tuple);
 					m_logger->info("sendDataThread:  Adding new asset tracking tuple - egress: %s", tuple.assetToString().c_str());
 				}
+
+				// Remove current reading
+				delete reading;
+				reading = NULL;
+
+				// Remove item and set iterator to next element
+				it = vec->erase(it);
 			}
 			else
 			{

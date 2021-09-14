@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ##--------------------------------------------------------------------
-## Fledge management tool- to check/recovery fledge databases
+## Fledge management tool- to check/recovery fledge SQLITE databases
 ##
 ## Copyright (c) 2021 Dianomic Systems
 ##
@@ -9,15 +9,24 @@
 ##
 ## Author: Stefano Simonelli
 ##
+##
+## 2.0.01 - improves "recover --custom" handling a dynamic list of tables
+## 1.9.10 - adds Centos/Redhat handling for the syslog
+##
 ##--------------------------------------------------------------------
-
-FLEDGE_MNT_VERSION=1.9.8
-
-FLEDGE_READINGS_DB_MAX=64           # Maximum number of readings db handled
-PLUGIN_DATA_KEY="xxx"               # Change this value to the proper one
 
 #set -e
 #set -x
+
+FLEDGE_MNT_VERSION=2.0.01
+FLEDGE_READINGS_DB_MAX=64           # Number of readings oer database handled
+
+#
+# Used for the command : clean --plugin_data
+#
+PLUGIN_DATA_KEY="xxx"               # Used to delete a specific row in the plugin_data table
+                                    # change this value to the proper one, use the info command
+                                    # to retrieve the current values
 
 #
 write_log() {
@@ -54,7 +63,7 @@ write_log() {
   # Log to syslog
   if [[ "$5" =~ ^(logonly|all)$ ]]; then
       tag="Fledge ${1}[${BASHPID}] ${severity}: ${2}"
-      fledge_log -t "${tag}" "${4}"
+      logger -t "${tag}" "${4}"
   fi
 
   # Log to Stdout
@@ -151,6 +160,9 @@ else
     FLEDGE_DB="${FLEDGE_DB_NAME}"
 fi
 
+#
+# TODO: handle low bandwidth storage engine
+#
 READINGS_DB="${FLEDGE_DATA}/readings_1.db"
 READINGS_2_DB="${FLEDGE_DATA}/readings_2.db"
 READINGS_3_DB="${FLEDGE_DATA}/readings_3.db"
@@ -165,6 +177,7 @@ fledge_stop() {
 	    fledge_log "warn" "WARNING: Fledge command unavailable both in deployment and development environments"  "outonly" "pretty"
 	    fledge_log "warn" "WARNING: if needed, fledge should be stopped manually before the execution"  "outonly" "pretty"
     else
+
          seconds=5
         ${FLEDGE_SCRIPT} stop
 
@@ -285,19 +298,16 @@ fledge_info_table() {
 
     fi
 
+    if [[ "${fledge_table}" == "VERSION" ]]; then
+
+        echo -en "\tTable - VERSION  : "
+        "${SQLITE_SQL}" "${FLEDGE_DB}" "SELECT * FROM version"
+    fi
+
     echo ""
 }
 
-
-
 fledge_info_err() {
-
-    if [[ -e /var/log/syslog ]]; then
-        syslog_file="/var/log/syslog"
-
-	elif [[ -e /var/log/messages ]]; then
-	    syslog_file="/var/log/messages"
-	fi
 
     text='WARNING|warning|ERROR|error|FATAL|fatal'
     echo ""
@@ -358,20 +368,23 @@ fledge_info_perf_measurement() {
     fi
 }
 
-
 fledge_info() {
 
     operation_start "Information on the database"
 
-    echo "Tables:"
+    echo "Tables from .tables :"
     "${SQLITE_SQL}" "${FLEDGE_DB}" ".tables"
     echo ""
+
+    echo "Tables from sqlite_master:"
+    "${SQLITE_SQL}" "${FLEDGE_DB}"  "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;"
 
     fledge_info_table "STATISTICS_HISTORY" "-"          "history_ts"
     fledge_info_table "TASKS"              "count"      "start_time"
     fledge_info_table "LOG"                "count"      "ts"
     fledge_info_table "PLUGIN_DATA"        "count_only" "-"
     fledge_info_table "STREAMS"            "count_only" "-"
+    fledge_info_table "VERSION"            "count_only" "-"
 
     echo "Data directory:"
     ls -lha "${FLEDGE_DATA}"
@@ -436,7 +449,7 @@ fledge_shrink_table_shrink() {
 
     echo "shrinking table ${fledge_table}"
 
-    #// FIXME_I: for debug
+    # NOTE: for debug
     #"${SQLITE_SQL}" "${FLEDGE_DB}" "SELECT * FROM ${fledge_table} LIMIT 10"
     #"${SQLITE_SQL}" "${FLEDGE_DB}" "UPDATE ${fledge_table} SET history_ts = date('now','-10 day') WHERE id <= 10"
     #"${SQLITE_SQL}" "${FLEDGE_DB}" "SELECT COUNT(*) FROM ${fledge_table} "
@@ -565,62 +578,37 @@ EOF
     fi
 
     ###   #########################################################################################:
+
     export_execute=""
     file_export="${export_sql_data}"
     export_file_check "${file_export}"
 
     if [[ "$export_execute" == "yes" ]]; then
 
-        echo -n "exporting database to a sql file ${file_export}"
-        "${SQLITE_SQL}" "${FLEDGE_DB}" <<  EOF
+        echo "exporting database to the sql file ${file_export}"
 
-.output ${file_export}
+        tables=`"${SQLITE_SQL}" "${FLEDGE_DB}"  "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name";`
 
-.dump TASKS
-.dump SQLITE_SCHEMA
-.dump LOG
-.dump CONFIGURATION
-.dump ASSET_LINKS
-.dump ASSETS
-.dump ROLE_ASSET_PERMISSIONS
-.dump ROLE_RESOURCE_PERMISSION
-.dump USER_ASSET_PERMISSIONS
-.dump USER_RESOURCE_PERMISSIONS
-.dump ASSET_MESSAGES
-.dump ASSET_STATUS_CHANGES
-.dump ASSET_TRACKER
-.dump USERS
-.dump CATEGORY_CHILDREN
-.dump CONFIGURATION_CHANGES
-.dump FILTERS
-.dump LINKS
-.dump LOG_CODES
-.dump OMF_CREATED_OBJECTS
-.dump PACKAGES
-.dump PLUGIN_DATA
-.dump RESOURCES
-.dump ROLES
-.dump SCHEDULED_PROCESSES
-.dump SCHEDULES
-.dump STATISTICS
-.dump USER_LOGINS
-.dump USER_PWD_HISTORY
-.dump ASSET_MESSAGE_STATUS
-.dump ASSET_STATUS
-.dump ASSET_TYPES
-.dump BACKUPS
-.dump FILTER_USERS
-.dump SQLITE_SEQUENCE
-.dump STREAMS
-.dump VERSION
-EOF
+        echo "" > ${file_export}
+
+        for table in $tables; do
+
+            table="${table^^}"                                  # to Uppercase
+            if [[ "${table}" == "STATISTICS_HISTORY" ]]; then
+
+                echo "skipped :${table}:"
+            else
+                echo "exported :${table}:"
+                "${SQLITE_SQL}" "${FLEDGE_DB}" ".dump ${table}" >> ${file_export}
+
+            fi
+        done
 
         echo ""
     fi
 
-
-
     ###   #########################################################################################:
+
     if [[ -f "${new_db}" ]]; then
 
         echo ""
@@ -690,13 +678,34 @@ Environments:
 # Main code
 #
 
+### Platform evaluation #######################################################################:
+
+os_name=`(grep -o '^NAME=.*' /etc/os-release | cut -f2 -d\" | sed 's/"//g')`
+os_version=`(grep -o '^VERSION_ID=.*' /etc/os-release | cut -f2 -d\" | sed 's/"//g')`
+
+USE_SCL=false
+YUM_PLATFORM=false
+
+if [[ $os_name == *"Red Hat"* || $os_name == *"CentOS"* ]]; then
+	YUM_PLATFORM=true
+	if [[ $os_version == *"7"* ]]; then
+		USE_SCL=true
+	fi
+fi
+
+if [[ $YUM_PLATFORM == true ]]; then
+
+    syslog_file="/var/log/messages"
+else
+    syslog_file="/var/log/syslog"
+fi
+
+###   #########################################################################################:
+
 echo ""
 echo "Fledge management tool v${FLEDGE_MNT_VERSION}"
-
-echo "NOTE: this versions works for sqlite multi re"
-echo ""
-
 echo "Node            : $(hostname) - $(hostnamectl status | grep 'Operating')"
+echo "Platform is     : ${os_name}, Version: ${os_version}"
 echo "Environment     : ${FLEDGE_ENV}"
 echo "FLEDGE_ROOT     : ${FLEDGE_ROOT}"
 echo "FLEDGE_DATA     : ${FLEDGE_DATA}"
@@ -746,7 +755,6 @@ case "$1" in
                 if [ "$continue_reset" != 'YES' ]; then
 
                     echo "Operation aborted."
-                    # This is ok because it means that the script is called from command line
                     exit 0
                 fi
                 fledge_clean_plugin_data
@@ -780,7 +788,6 @@ case "$1" in
                 if [ "$continue_reset" != 'YES' ]; then
 
                     echo "Operation aborted."
-                    # This is ok because it means that the script is called from command line
                     exit 0
                 fi
             else

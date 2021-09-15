@@ -1168,6 +1168,14 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 				setAFHierarchy();
 			}
 
+			// FIXME_I:
+			auto it = m_SuperSetDataPoints.find(m_assetName);
+			if (it == m_SuperSetDataPoints.end()) {
+
+				Logger::getLogger()->warn("AssetName :%s: has unsupported data", m_assetName.c_str());
+				continue;
+			}
+
 			sendDataTypes = (m_lastError == false && skipSentDataTypes == true) ?
 					 // Send if not already sent
 					 !OMF::getCreatedTypes(keyComplete, *reading, hints) :

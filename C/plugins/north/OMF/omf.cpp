@@ -1004,6 +1004,8 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 	string varDefault;
 	bool variablePresent;
 
+	std::vector <std::string> errorLogged;
+
 #if INSTRUMENT
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();
@@ -1168,11 +1170,15 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 				setAFHierarchy();
 			}
 
-			// FIXME_I:
 			auto it = m_SuperSetDataPoints.find(m_assetName);
 			if (it == m_SuperSetDataPoints.end()) {
 
-				Logger::getLogger()->warn("AssetName :%s: has unsupported data", m_assetName.c_str());
+				// The asset has only unsupported properties, so it is ignored
+				if(std::find(errorLogged.begin(), errorLogged.end(), m_assetName) == errorLogged.end())
+				{
+					errorLogged.push_back(m_assetName);
+					Logger::getLogger()->warn("AssetName :%s: has unsupported data", m_assetName.c_str());
+				}
 				continue;
 			}
 

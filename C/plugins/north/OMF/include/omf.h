@@ -33,6 +33,14 @@ enum OMF_ENDPOINT {
 	ENDPOINT_EDS
 };
 
+enum NAMINGSCHEME_ENDPOINT {
+	NAMINGSCHEME_CONCISE,
+	NAMINGSCHEME_SUFFIX,
+	NAMINGSCHEME_HASH,
+	NAMINGSCHEME_COMPATIBILITY
+};
+
+
 using namespace std;
 using namespace rapidjson;
 
@@ -51,6 +59,11 @@ class OMFDataTypes
                 long           typeId;
                 std::string    types;
                 unsigned long  typesShort;
+				long           namingScheme;
+				string         afhHash;
+				string         afHierarchy;
+				string         afHierarchyOrig;
+
 		unsigned short hintChkSum;
 };
 
@@ -114,6 +127,25 @@ class OMF
 		// Set which PIServer component should be used for the communication
 		void setPIServerEndpoint(const OMF_ENDPOINT PIServerEndpoint);
 
+		// Set the naming scheme of the objects in the endpoint
+		void setNamingScheme(const NAMINGSCHEME_ENDPOINT namingScheme) {m_NamingScheme = namingScheme;};
+
+		// Generate the container id for the given asset
+		std::string generateMeasurementId(const string& assetName);
+
+		// Generate a suffix for the given asset in relation to the selected naming schema and the value of the type id
+		std::string generateSuffixType(string &assetName, long typeId);
+
+		// Generate a suffix for the given asset in relation to the selected naming schema and the value of the type id
+		long getNamingScheme(const string& assetName);
+
+		string getHashStored(const string& assetName);
+		string getPathStored(const string& assetName);
+		string getPathOrigStored(const string& assetName);
+		bool setPathStored(const string& assetName, string &afHierarchy);
+		void deleteAssetAFH(const string& assetName, string& path);
+		void createAssetAFH(const string& assetName, string& path);
+
 		// Set the first level of hierarchy in Asset Framework in which the assets will be created, PI Web API only.
 		void setDefaultAFLocation(const std::string &DefaultAFLocation);
 
@@ -164,6 +196,9 @@ class OMF
 		static std::string ApplyPIServerNamingRulesPath(const std::string &objName, bool *changed);
 		static std::string ApplyPIServerNamingRulesInvalidChars(const std::string &objName, bool *changed);
 
+		static std::string variableValueHandle(const Reading& reading, std::string &AFHierarchy);
+		static bool        extractVariable(string &strToHandle, string &variable, string &value, string &defaultValue);
+
 private:
 		/**
 		 * Builds the HTTP header to send
@@ -171,7 +206,7 @@ private:
 		 * 'Type', 'Container', 'Data'
 		 */
 		const std::vector<std::pair<std::string, std::string>>
-			createMessageHeader(const std::string& type) const;
+			createMessageHeader(const std::string& type, const std::string& action="create") const;
 
 		// Create data for Type message for current row
 		const std::string createTypeData(const Reading& reading, OMFHints *hints);
@@ -196,6 +231,10 @@ private:
 		void setAssetTypeTag(const std::string& assetName,
 				     const std::string& tagName,
 				     std::string& data);
+
+		void setAssetTypeTagNew(const std::string& assetName,
+							 const std::string& tagName,
+							 std::string& data);
 
 		// Create the OMF data types if needed
 		bool handleDataTypes(const string keyComplete,
@@ -247,19 +286,26 @@ private:
 
 		bool handleAFHirerarchy();
 		bool handleAFHierarchySystemWide();
-		bool handleAFHierarchiesNamesMap();
-		bool handleAFHierarchiesMetadataMap();
+		bool handleOmfHintHierarchies();
+
 		bool sendAFHierarchy(std::string AFHierarchy);
 
 		bool sendAFHierarchyLevels(std::string parentPath, std::string path, std::string &lastLevel);
 		bool sendAFHierarchyTypes(const std::string AFHierarchyLevel, const std::string prefix);
 		bool sendAFHierarchyStatic(const std::string AFHierarchyLevel, const std::string prefix);
 		bool sendAFHierarchyLink(std::string parent, std::string child, std::string prefixIdParent, std::string prefixId);
-		bool AFHierarchySendMessage(const std::string& msgType, std::string& jsonData);
+
+		bool manageAFHierarchyLink(std::string parent, std::string child, std::string prefixIdParent, std::string prefixId, std::string childFull, string action);
+
+		bool AFHierarchySendMessage(const std::string& msgType, std::string& jsonData, const std::string& action="create");
+
 
 		std::string generateUniquePrefixId(const std::string &path);
 		void evaluateAFHierarchyRules(const string& assetName, const Reading& reading);
 		void retrieveAFHierarchyPrefixAssetName(const string& assetName, string& prefix, string& AFHierarchyLevel);
+		void retrieveAFHierarchyFullPrefixAssetName(const string& assetName, string& prefix, string& AFHierarchy);
+
+		bool createAFHierarchyOmfHint(const string& assetName, const  string &OmfHintHierarchy);
 
 		bool HandleAFMapNames(Document& JSon);
 		bool HandleAFMapMetedata(Document& JSon);
@@ -281,12 +327,13 @@ private:
 			unsigned long valueLong = 0;
 		};
 
-		std::string	        m_assetName;
-		const std::string	m_path;
-		long			    m_typeId;
-		const std::string	m_producerToken;
-		OMF_ENDPOINT		m_PIServerEndpoint;
-		std::string		    m_DefaultAFLocation;
+		std::string	          m_assetName;
+		const std::string	  m_path;
+		long			      m_typeId;
+		const std::string	  m_producerToken;
+		OMF_ENDPOINT		  m_PIServerEndpoint;
+		NAMINGSCHEME_ENDPOINT m_NamingScheme;
+		std::string		      m_DefaultAFLocation;
 
 		bool            m_sendFullStructure;
 		// AF hierarchies handling - Metadata MAP
@@ -295,6 +342,13 @@ private:
 		bool            m_AFMapEmptyMetadata;
 		std::string		m_AFHierarchyLevel;
 		std::string		m_prefixAFAsset;
+
+		vector<std::string>  m_afhHierarchyAlredyCreated={
+
+			//  Asset Framework path
+			// {""}
+		};
+
 
 		map<std::string, std::string>  m_NamesRules={
 
@@ -381,7 +435,7 @@ class OMFData
 {
 	public:
 		OMFData(const Reading& reading,
-			const long typeId,
+			string measurementId,
 			const OMF_ENDPOINT PIServerEndpoint = ENDPOINT_CR,
 			const std::string& DefaultAFLocation = std::string(),
 			OMFHints *hints = NULL);

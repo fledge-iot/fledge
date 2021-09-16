@@ -21,7 +21,8 @@ using namespace std;
 std::vector<std::string> Reading::m_dateTypes = {
 	DEFAULT_DATE_TIME_FORMAT,
 	COMBINED_DATE_STANDARD_FORMAT,
-	ISO8601_DATE_TIME_FORMAT
+	ISO8601_DATE_TIME_FORMAT,
+	ISO8601_DATE_TIME_FORMAT	// Version with milliseconds
 };
 
 /**
@@ -174,7 +175,7 @@ string Reading::toJSON(bool minimal) const
 ostringstream convert;
 
 	convert << "{\"asset_code\":\"";
-	convert << m_asset;
+	convert << escape(m_asset);
 	convert << "\",\"user_ts\":\"";
 
 	// Add date_time with microseconds + timezone UTC:
@@ -233,7 +234,7 @@ const string Reading::getAssetDateTime(readingTimeFormat dateFormat, bool addMS)
 {
 char date_time[DATE_TIME_BUFFER_LEN];
 char micro_s[10];
-ostringstream assetTime;
+char  assetTime[DATE_TIME_BUFFER_LEN + 20];
 
         // Populate tm structure
         struct tm timeinfo;
@@ -259,9 +260,20 @@ ostringstream assetTime;
 			 m_timestamp.tv_usec);
 
 		// Add date_time + microseconds
-		assetTime << date_time << micro_s;
-
-		return assetTime.str();
+		if (dateFormat != FMT_ISO8601MS)
+		{
+			snprintf(assetTime, sizeof(assetTime), "%s%s", date_time, micro_s);
+		}
+		else
+		{
+			string dt(date_time);
+			size_t pos = dt.find_first_of("+");
+			pos--;
+			snprintf(assetTime, sizeof(assetTime), "%s%s%s",
+					dt.substr(0, pos).c_str(),
+				       	micro_s, dt.substr(pos).c_str());
+		}
+		return string(assetTime);
 	}
 	else
 	{
@@ -279,6 +291,7 @@ const string Reading::getAssetDateUserTime(readingTimeFormat dateFormat, bool ad
 {
 	char date_time[DATE_TIME_BUFFER_LEN+10];
 	char micro_s[10];
+	char  assetTime[DATE_TIME_BUFFER_LEN + 20];
 
 	// Populate tm structure with UTC time
 	struct tm timeinfo;
@@ -299,13 +312,25 @@ const string Reading::getAssetDateUserTime(readingTimeFormat dateFormat, bool ad
 	{
 		// Add microseconds
 		snprintf(micro_s,
-				 sizeof(micro_s),
-				 ".%06lu",
-				 m_userTimestamp.tv_usec);
+			 sizeof(micro_s),
+			 ".%06lu",
+			 m_userTimestamp.tv_usec);
 
-		strcat(date_time,micro_s);
-
-		return string(date_time);
+		// Add date_time + microseconds
+		if (dateFormat != FMT_ISO8601MS)
+		{
+			snprintf(assetTime, sizeof(assetTime), "%s%s", date_time, micro_s);
+		}
+		else
+		{
+			string dt(date_time);
+			size_t pos = dt.find_first_of("+");
+			pos--;
+			snprintf(assetTime, sizeof(assetTime), "%s%s%s",
+					dt.substr(0, pos).c_str(),
+				       	micro_s, dt.substr(pos).c_str());
+		}
+		return string(assetTime);
 	}
 	else
 	{
@@ -394,4 +419,40 @@ void Reading::stringToTimestamp(const string& timestamp, struct timeval *ts)
 		sscanf(ptr, "%02d:%02d", &h, &m);
 		ts->tv_sec += sign * ((3600 * h) + (60 * m));
 	}
+
+}
+
+/**
+ * Escape quotes etc to allow the string to be a property value within
+ * a JSON document
+ *
+ * @param str	The string to escape
+ * @return The escaped string
+ */
+const string Reading::escape(const string& str) const
+{
+string rval;
+int bscount = 0;
+
+	for (size_t i = 0; i < str.length(); i++)
+	{
+		if (str[i] == '\\')
+		{
+			bscount++;
+		}
+		else if (str[i] == '\"')
+		{
+			if ((bscount & 1) == 0)	// not already escaped
+			{
+				rval += "\\";	// Add escape of "
+			}
+			bscount = 0;
+		}
+		else
+		{
+			bscount = 0;
+		}
+		rval += str[i];
+	}
+	return rval;
 }

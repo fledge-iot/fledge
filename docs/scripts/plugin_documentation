@@ -97,7 +97,10 @@ Fledge Notification Delivery Plugins
 
 EOFNOTIFY
 
-fledgeRepos=$(curl -sX GET https://api.github.com/orgs/fledge-iot/repos\?per_page=1000)
+# Get total number of respository pages in fledge org.
+fledgeRepoPagesCount=`curl -sI https://api.github.com/orgs/fledge-iot/repos | grep -oP '\d+(?=>; rel="last")'`
+fledgeRepos=$(curl -sX GET https://api.github.com/orgs/fledge-iot/repos\?page=[1-$fledgeRepoPagesCount])
+fledgeRepos="$(echo $fledgeRepos | sed 's/\] \[/,/g')"
 fetchTopicReposPyScript='
 import json,sys;\
 repos=json.load(sys.stdin);\
@@ -134,6 +137,12 @@ done
 # Deal with bultin plugin documentation 
 mkdir plugins/fledge-north-OMF
 ln -s ../../images plugins/fledge-north-OMF/images
-sed -e 's|OMF.rst|../../OMF.rst|' < fledge-north-OMF.rst > plugins/fledge-north-OMF/index.rst
+echo '.. include:: ../../fledge-north-OMF.rst' > plugins/fledge-north-OMF/index.rst
+# Append OMF.rst to the end of the file rather than including it so that we may
+# edit the links to prevent duplicates
+cat OMF.rst >> plugins/fledge-north-OMF/index.rst
+sed -i -e 's/Naming_Scheme/Naming_Scheme_plugin/' plugins/fledge-north-OMF/index.rst
+# Create the Threshold rule documentation
 mkdir plugins/fledge-rule-Threshold
-cp -r fledge-rule-Threshold/* plugins/fledge-rule-Threshold/.
+ln -s `pwd`/fledge-rule-Threshold/images plugins/fledge-rule-Threshold/images
+echo '.. include:: ../../fledge-rule-Threshold/index.rst' > plugins/fledge-rule-Threshold/index.rst

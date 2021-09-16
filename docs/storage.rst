@@ -2,6 +2,7 @@
 .. |storage_01| image:: images/storage_01.jpg
 .. |storage_02| image:: images/storage_02.jpg
 .. |storage_03| image:: images/storage_03.jpg
+.. |sqlite_01| image:: images/sqlite_storage_configuration.jpg
 
 
 
@@ -31,7 +32,9 @@ configuration.
 
 As standard Fledge comes with 3 storage plugins
 
-  - **SQLite**: A plugin that can store both configuration data and the readings data using SQLite files as the backing store.
+  - **SQLite**: A plugin that can store both configuration data and the readings data using SQLite files as the backing store. The plugin uses multiple SQLite database to store different assets, allowing for high bandwidth data at the expense of limiting the number of assets that a single instance can ingest.,
+
+  - **SQLiteLB**: A plugin that can store both configuration data and the readings data using SQLite files as the backing store. This version of the SQLite plugin uses a single readings database and is better suited for environments that do not have very high bandwidth data. It does not limit the number of distinct assets that can be ingested.
 
   - **PostgreSQL**: A plugin that can store both configuration and readings data which uses the PostgreSQL SQL server as a storage medium.
 
@@ -84,6 +87,27 @@ readings will *not* cause the data in the previous storage system to be
 migrated to the new storage system and this data may be lost if it has
 not been sent onward from Fledge.
 
+SQLite Plugin Configuration
+---------------------------
+
+The SQLite plugin has a more complex set of configuration options that can be used to configure how and when it creates more database to accommodate ore distinct assets. This plugin is designed to allow greater ingest rates for readings by separating the readings for each asset into a database table for that asset. It does however result in limiting the number of distinct assets that can be handled due to the requirement to handle large number of database files.
+
++-------------+
+| |sqlite_01| |
++-------------+
+
+  - **Purge Exclusions**: This option allows the user to specify that the purge process should not be applied to particular assets. The user can give a comma separated list of asset names that should be excluded from the purge process. Note, it is recommended that this option is only used for extremely low bandwidth, lookup data that would otherwise be completely purged from the system when the purge process runs.
+
+  - **Pool Size**: The number of connections to create in the database connection pool.
+
+  - **No. Readings per database**: This option control how many assets can be stored in a single database. Each asset will be stored in a distinct table within the database. Once all tables within a database are allocated the plugin will use more databases to store further assets.
+
+  - **No. databases allocate in advance**: This option defines how many databases are create initially by the SQLite plugin.
+
+  - **Database allocation threshold**: The number of unused databases that must exist within the system. Once the number of available databases falls below this value the system will begin the process of creating extra databases.
+
+  - **Database allocation size**: The number of databases to create when the above threshold is crossed. Database creation is a slow process and hence the tuning of these parameters can impact performance when an instance receives a large number of new asset names for which it has previously not allocated readings tables.
+
 Installing A PostgreSQL server
 ==============================
 
@@ -95,11 +119,32 @@ your system.
 Ubuntu Install
 --------------
 
-On Ubuntu or other apt based distributions the command to install postgres is
+On Ubuntu or other apt based distributions the command to install postgres:
 
 .. code-block:: console
 
-  sudo apt install postgresql postgresql-client
+  sudo apt install -y postgresql postgresql-client
+
+Now, make sure that PostgreSQL is installed and running correctly:
+
+.. code-block:: console
+
+  sudo systemctl status postgresql
+
+Before you proceed, you must create a PostgreSQL user that matches your Linux user. Supposing that user is *<fledge_user>*, type:
+
+.. code-block:: console
+
+  sudo -u postgres createuser -d <fledge_user>
+
+The *-d* argument is important because the user will need to create the Fledge database.
+
+A more generic command is:
+
+.. code-block:: console
+
+  sudo -u postgres createuser -d $(whoami)
+
 
 CentOS/Red Hat Install
 ----------------------
@@ -109,33 +154,33 @@ On CentOS and Red Hat systems, and other RPM based distributions the command is
 .. code-block:: console
 
   sudo yum install -y https://download.postgresql.org/pub/repos/yum/reporpms/EL-7-x86_64/pgdg-redhat-repo-latest.noarch.rpm
-  sudo yum install postgresql96-server
-  sudo yum install postgresql96-devel
-  sudo yum install rh-postgresql96
-  sudo yum install rh-postgresql96-postgresql-devel
-
-Post Installation Activities
-----------------------------
-
-Before you proceed, you must create a PostgreSQL user that matches your Linux user. Supposing that your user is *<fledge_user>*, type:
-
-.. code-block:: console
-
-  $ sudo -u postgres createuser -d <fledge_user>
-
-The *-d* argument is important because the user will need to create the Fledge database.
-
-A more generic command is:
-  $ sudo -u postgres createuser -d $(whoami)
-
-Once installed the PostgreSQL server must be configured. Run the commands
-
-.. code-block:: console
-
+  sudo yum install -y postgresql96-server
+  sudo yum install -y postgresql96-devel
+  sudo yum install -y rh-postgresql96
+  sudo yum install -y rh-postgresql96-postgresql-devel
   sudo /usr/pgsql-9.6/bin/postgresql96-setup initdb
   sudo systemctl enable postgresql-9.6
   sudo systemctl start postgresql-9.6
-  sudo -u postgres createuser -d fledge
+
+At this point, Postgres has been configured to start at boot and it should be up and running. You can always check the status of the database server with ``systemctl status postgresql-9.6``:
+
+.. code-block:: console
+
+  sudo systemctl status postgresql-9.6
+
+
+Next, you must create a PostgreSQL user that matches your Linux user.
+
+.. code-block:: console
+
+  sudo -u postgres createuser -d $(whoami)
+
+Finally, add ``/usr/pgsql-9.6/bin`` to your PATH environment variable in ``$HOME/.bash_profile``. the new PATH setting in the file should look something like this:
+
+.. code-block:: console
+
+  PATH=$PATH:$HOME/.local/bin:$HOME/bin:/usr/pgsql-9.6/bin
+
 
 SQLite Plugin Configuration
 ===========================

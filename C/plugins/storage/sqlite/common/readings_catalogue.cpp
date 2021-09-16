@@ -19,6 +19,7 @@
 #include <connection_manager.h>
 #include <common.h>
 #include "readings_catalogue.h"
+#include <purge_configuration.h>
 
 using namespace std;
 using namespace rapidjson;
@@ -1964,12 +1965,20 @@ int  ReadingsCatalogue::purgeAllReadings(sqlite3 *dbHandle, const char *sqlCmdBa
 	{
 		Logger::getLogger()->debug("purgeAllReadings tables defined");
 
+		PurgeConfiguration *purgeConfig = PurgeConfiguration::getInstance();
+		bool exclusions = purgeConfig->hasExclusions();
+
 		firstRow = true;
 		if  (rowsAffected != nullptr)
 			*rowsAffected = 0;
 
 		for (auto &item : m_AssetReadingCatalogue)
 		{
+			if (exclusions && purgeConfig->isExcluded(item.first))
+			{
+				Logger::getLogger()->info("Asset %s excluded from purge", item.first.c_str());
+				continue;
+			}
 			sqlCmdTmp = sqlCmdBase;
 
 			dbName = generateDbName(item.second.second);

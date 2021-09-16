@@ -20,6 +20,7 @@ import pytest
 from pathlib import Path
 import utils
 from datetime import datetime
+import platform
 
 __author__ = "Yash Tatkondawar"
 __copyright__ = "Copyright (c) 2020 Dianomic Systems, Inc."
@@ -71,7 +72,9 @@ def remove_and_add_pkgs(package_build_version):
         assert False, "setup package script failed"
 
     try:
-        subprocess.run(["sudo apt install -y fledge-south-sinusoid"], shell=True, check=True)
+        os_platform = platform.platform()
+        pkg_mgr = 'yum' if 'centos' in os_platform or 'redhat' in os_platform else 'apt'
+        subprocess.run(["sudo {} install -y fledge-south-sinusoid".format(pkg_mgr)], shell=True, check=True)
     except subprocess.CalledProcessError:
         assert False, "installation of sinusoid package failed"
 
@@ -127,7 +130,8 @@ def start_south_north(fledge_url):
             "schedule_time": 0,
             "schedule_repeat": 30,
             "schedule_enabled": "true",
-            "config": {"PIServerEndpoint": {"value": "Edge Data Store"}}
+            "config": {"PIServerEndpoint": {"value": "Edge Data Store"},
+                       "NamingScheme": {"value": "Backward compatibility"}}
             }
     conn.request("POST", '/fledge/scheduled/task', json.dumps(data))
     r = conn.getresponse()

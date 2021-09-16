@@ -82,7 +82,11 @@ class ManagementClient {
                                 std::ostringstream payload;
                                 payload << "{ \"key\" : \"" << JSONescape(t.getName());
                                 payload << "\", \"description\" : \"" << JSONescape(t.getDescription());
+                                if (! t.getDisplayName().empty() ) {
+                                	payload << "\", \"display_name\" : \"" << JSONescape(t.getDisplayName());
+                                }
                                 payload << "\", \"value\" : " << t.itemsToJSON();
+
 
 				/**
 				 * Note:

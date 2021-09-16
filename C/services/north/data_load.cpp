@@ -500,7 +500,12 @@ void DataLoad::passToOnwardFilter(OUTPUT_HANDLE *outHandle,
 void DataLoad::pipelineEnd(OUTPUT_HANDLE *outHandle,
 			     READINGSET *readingSet)
 {
+
 	DataLoad *load = (DataLoad *)outHandle;
+	if (readingSet->getCount() == 0)	// Special case when all filtered out
+	{
+		load->updateLastSentId(load->m_lastFetched);
+	}
 
 	unique_lock<mutex> lck(load->m_qMutex);
 	load->m_queue.push_back(readingSet);

@@ -16,6 +16,7 @@
 #include <config_category.h>
 #include <ingest.h>
 #include <filter_plugin.h>
+#include <plugin_data.h>
 
 #define SERVICE_NAME  "Fledge South"
 
@@ -78,5 +79,7 @@ class SouthService : public ServiceAuthHandler {
 		struct timeval			m_currentRate;
 		int				m_timerfd;
 		const std::string		m_token;
+		PluginData			*m_pluginData;
+		std::string			m_dataKey;
 };
 #endif

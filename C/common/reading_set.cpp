@@ -35,7 +35,7 @@ const vector<string> JSON_characters_to_be_escaped = {
 /**
  * Construct an empty reading set
  */
-ReadingSet::ReadingSet() : m_count(0)
+ReadingSet::ReadingSet() : m_count(0), m_last_id(0)
 {
 }
 
@@ -47,11 +47,13 @@ ReadingSet::ReadingSet() : m_count(0)
  *			of readings to be copied
  *			into m_readings vector
  */
-ReadingSet::ReadingSet(vector<Reading *>* readings)
+ReadingSet::ReadingSet(vector<Reading *>* readings) : m_last_id(0)
 {
 	m_count = readings->size();
 	for (auto it = readings->begin(); it != readings->end(); ++it)
 	{
+		if ((*it)->getId() > m_last_id)
+			m_last_id = (*it)->getId();
 		m_readings.push_back(*it);
 	}
 }
@@ -62,7 +64,7 @@ ReadingSet::ReadingSet(vector<Reading *>* readings)
  *
  * @param json	The JSON document (as string) with readings data
  */
-ReadingSet::ReadingSet(const std::string& json)
+ReadingSet::ReadingSet(const std::string& json) : m_last_id(0)
 {
 	unsigned long rows = 0;
 	Document doc;
@@ -181,6 +183,8 @@ ReadingSet::append(const vector<Reading *>& readings)
 {
 	for (auto it = readings.cbegin(); it != readings.cend(); it++)
 	{
+		if ((*it)->getId() > m_last_id)
+			m_last_id = (*it)->getId();
 		m_readings.push_back(*it);
 		m_count++;
 	}
@@ -207,6 +211,21 @@ void
 ReadingSet::clear()
 {
 	m_readings.clear();
+}
+
+/**
+ * Return the ID of the nth reading in the reading set
+ *
+ * @param pos	The position of the reading to return the ID for
+ */
+unsigned long ReadingSet::getReadingId(uint32_t pos)
+{
+	if (pos < m_readings.size())
+	{
+		Reading *reading = m_readings[pos];
+		return reading->getId();
+	}
+	return m_last_id;
 }
 
 /**

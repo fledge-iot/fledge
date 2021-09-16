@@ -145,6 +145,7 @@ def setup(app):
     # Backup & Restore - As per doc
     app.router.add_route('GET', '/fledge/backup', backup_restore.get_backups)
     app.router.add_route('POST', '/fledge/backup', backup_restore.create_backup)
+    app.router.add_route('POST', '/fledge/backup/upload', backup_restore.upload_backup)
     app.router.add_route('GET', '/fledge/backup/status', backup_restore.get_backup_status)
     app.router.add_route('GET', '/fledge/backup/{backup_id}', backup_restore.get_backup_details)
     app.router.add_route('DELETE', '/fledge/backup/{backup_id}', backup_restore.delete_backup)

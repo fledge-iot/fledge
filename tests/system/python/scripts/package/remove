@@ -1,4 +1,19 @@
 #!/usr/bin/env bash
 
-time sudo apt purge -y fledge fledge-gui
-sudo rm -rf /usr/local/fledge
+OS_NAME=`(grep -o '^NAME=.*' /etc/os-release | cut -f2 -d\" | sed 's/"//g')`
+
+if [[ ${OS_NAME} == *"Red Hat"* || ${OS_NAME} == *"CentOS"* ]]; then
+    time sudo yum remove -y fledge
+    # Do not remove fledge-gui if environment is Docker
+    if [ "${FLEDGE_ENVIRONMENT}" != "docker" ]; then
+        time sudo yum remove -y fledge-gui
+    fi
+    sudo rm -rf /usr/local/fledge
+else
+    time sudo apt purge -y fledge
+    # Do not remove fledge-gui if environment is Docker
+    if [ "${FLEDGE_ENVIRONMENT}" != "docker" ]; then
+        time sudo apt purge -y fledge-gui
+    fi
+    sudo rm -rf /usr/local/fledge
+fi

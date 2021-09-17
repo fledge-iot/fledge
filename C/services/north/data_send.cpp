@@ -71,6 +71,7 @@ void DataSender::sendThread()
 				"Sending thread closing down after failing to fetch readings");
 			return;
 		}
+		bool removeReadings = false;
 		if (readings->getCount() > 0)
 		{
 			unsigned long lastSent = send(readings);
@@ -80,12 +81,29 @@ void DataSender::sendThread()
 
 				// Check all readings sent
 				vector<Reading *> *vec = readings->getAllReadingsPtr();
-				if (vec->size() == 0)
-				{
-					delete readings;
-					readings = NULL;
-				}
+
+				// Set readings removal
+				removeReadings = vec->size() == 0;
 			}
+		} else {
+			// All readings filtered out
+			Logger::getLogger()->debug("All readings filtered out");
+
+			// Get last read item from the readings database
+			unsigned long lastRead = m_loader->getLastFetched();
+
+			// Update LastSentId in streams table
+			m_loader->updateLastSentId(lastRead);
+
+			// Set readings removal
+			removeReadings = true;
+		}
+
+		// Remove readings object if needed
+		if (removeReadings)
+		{
+			delete readings;
+			readings = NULL;
 		}
 	}
 	m_logger->info("Sending thread shutdown");

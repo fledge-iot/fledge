@@ -275,9 +275,9 @@ async def upload_backup(request: web.Request) -> web.Response:
         field = await reader.next()
         file_name = field.filename
         if not str(file_name).endswith(".tar.gz"):
-            raise NameError("{} file does not have with tar gzip.".format(file_name))
+            raise NameError("{} file should end with .tar.gz extension".format(file_name))
         if not str(file_name).startswith(backup_prefix):
-            raise NameError("{} backup filename is invalid. Please either check file format from FLEDGE_DATA/backup "
+            raise NameError("{} filename is invalid. Either check file format from FLEDGE_DATA/backup "
                             "or create it from GUI create new backup from Backup & Restore option".format(file_name))
         # Create temporary directory for tar extraction & backup data directory for Fledge
         cmd = "mkdir -p {} {}".format(temp_path, backup_path)
@@ -301,7 +301,7 @@ async def upload_backup(request: web.Request) -> web.Response:
             cmd = "cp {} {}".format(source, backup_path)
             ret_code = os.system(cmd)
             if ret_code != 0:
-                raise OSError("{} upload failed during copy to {}".format(file_name, backup_path))
+                raise OSError("{} upload failed during copy to path:{}".format(file_name, backup_path))
             else:
                 # TODO: FOGL-5876 ts as per post param if given in payload
                 # insert backup record entry in db
@@ -315,7 +315,7 @@ async def upload_backup(request: web.Request) -> web.Response:
                 await audit.information('BKEXC', {'status': 'completed', 'message': 'From upload backup'})
                 # TODO: FOGL-4239 - readings table upload
         else:
-            raise NameError('Either {} prefix or {} valid extension not found inside given tar file'.format(
+            raise NameError('Either {} prefix or {} valid extension is not found inside given tar file'.format(
                 backup_prefix, valid_extensions))
     except (NameError, OSError, RuntimeError) as err_msg:
         msg = str(err_msg)

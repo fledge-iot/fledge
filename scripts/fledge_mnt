@@ -10,6 +10,10 @@
 ## Author: Stefano Simonelli
 ##
 ##
+## 2.0.03 - added --perf
+##          avoided the check of the db before after the shrink
+##          improve shrink  --table
+## 2.0.02 - handle PLUGIN_DATA_KEY having spaces
 ## 2.0.01 - improves "recover --custom" handling a dynamic list of tables
 ## 1.9.10 - adds Centos/Redhat handling for the syslog
 ##
@@ -18,15 +22,17 @@
 #set -e
 #set -x
 
-FLEDGE_MNT_VERSION=2.0.01
+FLEDGE_MNT_VERSION=2.0.03
 FLEDGE_READINGS_DB_MAX=64           # Number of readings oer database handled
 
 #
 # Used for the command : clean --plugin_data
 #
-PLUGIN_DATA_KEY="xxx"               # Used to delete a specific row in the plugin_data table
+PLUGIN_DATA_KEY='xxx'               # Used to delete a specific row in the plugin_data table
                                     # change this value to the proper one, use the info command
                                     # to retrieve the current values
+
+
 
 #
 write_log() {
@@ -326,7 +332,11 @@ fledge_info_full() {
     operation_start "Information on the database - full"
 
     fledge_info
-    fledge_info_perf
+
+    echo ""
+    fledge_info_table "STATISTICS_HISTORY" "count"          "history_ts"
+
+    operation_end
 }
 
 fledge_info_perf() {
@@ -389,6 +399,8 @@ fledge_info() {
     echo "Data directory:"
     ls -lha "${FLEDGE_DATA}"
     echo ""
+
+    operation_end
 }
 
 fledge_clean_plugin_data() {
@@ -397,7 +409,8 @@ fledge_clean_plugin_data() {
     echo -e "\tTable - PLUGIN_DATA  : "
     "${SQLITE_SQL}" -header "${FLEDGE_DB}" "SELECT * FROM PLUGIN_DATA "
 
-    "${SQLITE_SQL}" "${FLEDGE_DB}" "DELETE FROM PLUGIN_DATA WHERE key='"${PLUGIN_DATA_KEY}"'"
+    sql_cmd="DELETE FROM PLUGIN_DATA WHERE key='"${PLUGIN_DATA_KEY}"'"
+    "${SQLITE_SQL}" "${FLEDGE_DB}" "${sql_cmd}"
 
     echo -e "\tTable - PLUGIN_DATA  : "
     "${SQLITE_SQL}" -header "${FLEDGE_DB}" "SELECT * FROM PLUGIN_DATA "
@@ -447,17 +460,33 @@ fledge_check() {
 fledge_shrink_table_shrink() {
     fledge_table=$1
 
+    echo "Before:"
+    echo -n "Table ${fledge_table} - min date: "
+    "${SQLITE_SQL}" "${FLEDGE_DB}" "SELECT min(history_ts) FROM ${fledge_table}"
+
+    echo -n "Table ${fledge_table} - max date: "
+    "${SQLITE_SQL}" "${FLEDGE_DB}" "SELECT max(history_ts) FROM ${fledge_table}"
+
+    ###   #########################################################################################:
+
     echo "shrinking table ${fledge_table}"
 
-    # NOTE: for debug
-    #"${SQLITE_SQL}" "${FLEDGE_DB}" "SELECT * FROM ${fledge_table} LIMIT 10"
-    #"${SQLITE_SQL}" "${FLEDGE_DB}" "UPDATE ${fledge_table} SET history_ts = date('now','-10 day') WHERE id <= 10"
-    #"${SQLITE_SQL}" "${FLEDGE_DB}" "SELECT COUNT(*) FROM ${fledge_table} "
-    "${SQLITE_SQL}" "${FLEDGE_DB}" "DELETE FROM STATISTICS_HISTORY WHERE  history_ts <= date('now','-3 day')"
-    #"${SQLITE_SQL}" "${FLEDGE_DB}" "SELECT COUNT(*) FROM ${fledge_table} "
+    max_date=$("${SQLITE_SQL}" "${FLEDGE_DB}" "SELECT max(history_ts) FROM ${fledge_table}")
 
+    sql_cmd="DELETE FROM ${fledge_table} WHERE  history_ts <= date('"${max_date}"','-3 day')"
+    "${SQLITE_SQL}" "${FLEDGE_DB}" "${sql_cmd}"
+
+    ###   #########################################################################################:
+
+    echo "After:"
     echo -n "Table ${fledge_table} - number of records : "
     "${SQLITE_SQL}" "${FLEDGE_DB}" "SELECT COUNT(*) FROM ${fledge_table}"
+
+    echo -n "Table ${fledge_table} - min date: "
+    "${SQLITE_SQL}" "${FLEDGE_DB}" "SELECT min(history_ts) FROM ${fledge_table}"
+
+    echo -n "Table ${fledge_table} - max date: "
+    "${SQLITE_SQL}" "${FLEDGE_DB}" "SELECT max(history_ts) FROM ${fledge_table}"
 
 }
 
@@ -467,9 +496,6 @@ fledge_shrink() {
 
     fledge_stop
 
-    echo -n "Checking database consistency : "
-    "${SQLITE_SQL}" "${FLEDGE_DB}" "pragma integrity_check;"
-
     if [[ "${SHRINK_MODE}" == "table" ]]; then
 
         fledge_shrink_table_shrink "STATISTICS_HISTORY"
@@ -478,9 +504,6 @@ fledge_shrink() {
     echo -n "Shrinking database"
     "${SQLITE_SQL}" "${FLEDGE_DB}" "VACUUM"
     echo ""
-
-    echo -n "Checking database consistency : "
-    "${SQLITE_SQL}" "${FLEDGE_DB}" "pragma integrity_check;"
 
     operation_end
 }
@@ -649,6 +672,7 @@ Arguments:
 
  info              - show information on the database/tables
  info    --full    - show a complete set of information, performance measurement also
+ info    --perf    - performance measurement
  info    --err     - shows errors in the syslog
  analyze           - generate a text file with information about the database
  check             - check the fledge database, stops Fledge
@@ -733,9 +757,14 @@ case "$1" in
 
                 fledge_info_full
 
+            elif [[ "$2" == "--perf" ]]; then
+
+                fledge_info_perf
+
             elif [[ "$2" == "--err" ]]; then
 
                 fledge_info_err
+
             fi
         else
             fledge_info
@@ -785,7 +814,7 @@ case "$1" in
                 echo -n "Enter YES if you want to continue: "
                 read continue_reset
 
-                if [ "$continue_reset" != 'YES' ]; then
+                if [[ "$continue_reset" != 'YES' ]]; then
 
                     echo "Operation aborted."
                     exit 0

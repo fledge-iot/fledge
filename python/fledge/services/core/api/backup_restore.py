@@ -270,6 +270,7 @@ async def upload_backup(request: web.Request) -> web.Response:
         backup_prefix = "fledge_backup_"
         backup_path = "{}/backup".format(fl_data_path)
         temp_path = "{}/upload".format(fl_data_path)
+        valid_extensions = ('.db', '.dump')
         reader = await request.multipart()
         # reader.next() will `yield` the fields of your form
         field = await reader.next()
@@ -294,7 +295,6 @@ async def upload_backup(request: web.Request) -> web.Response:
         # Extract tar inside temporary directory
         tar_file = tarfile.open(name="{}/{}".format(temp_path, file_name), mode='r:*')
         tar_file_names = tar_file.getnames()
-        valid_extensions = ('.db', '.dump')
         if any((item.startswith(backup_prefix) and item.endswith(valid_extensions)) for item in tar_file_names):
             tar_file.extractall(temp_path)
             source = "{}/{}".format(temp_path, tar_file_names[0])
@@ -317,6 +317,12 @@ async def upload_backup(request: web.Request) -> web.Response:
         else:
             raise NameError('Either {} prefix or {} valid extension is not found inside given tar file'.format(
                 backup_prefix, valid_extensions))
+    except tarfile.ReadError:
+        msg = "DB file is not found inside tarfile and should be with valid {} extensions".format(valid_extensions)
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+    except tarfile.CompressionError:
+        msg = "Only gzip compression is supported"
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except (NameError, OSError, RuntimeError) as err_msg:
         msg = str(err_msg)
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))

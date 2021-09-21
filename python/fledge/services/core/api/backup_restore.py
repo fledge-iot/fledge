@@ -256,37 +256,54 @@ async def get_backup_status(request):
     return web.json_response({"backupStatus": results})
 
 
-async def upload_backup(request):
+async def upload_backup(request: web.Request) -> web.Response:
+    """
+    Upload a backup file
+
+    :Example:
+        curl -F "filename=@fledge_backup_2021_08_24_13_27_08.tar.gz" localhost:8081/fledge/backup/upload
+        curl -F "filename=@fledge_backup_2021_08_25_16_37_01.dump.tar.gz" localhost:8081/fledge/backup/upload
+    """
+
     try:
         fl_data_path = _FLEDGE_DATA if _FLEDGE_DATA else _FLEDGE_ROOT + '/data'
         backup_prefix = "fledge_backup_"
         backup_path = "{}/backup".format(fl_data_path)
         temp_path = "{}/upload".format(fl_data_path)
-        data = await request.post()
-        file_param = data.get('filename')
-        file_name = file_param.filename
+        valid_extensions = ('.db', '.dump')
+        reader = await request.multipart()
+        # reader.next() will `yield` the fields of your form
+        field = await reader.next()
+        file_name = field.filename
         if not str(file_name).endswith(".tar.gz"):
-            raise NameError("{} file does not have with tar gzip.".format(file_name))
+            raise NameError("{} file should end with .tar.gz extension".format(file_name))
         if not str(file_name).startswith(backup_prefix):
-            raise NameError("{} backup filename is invalid. Please either check file format from FLEDGE_DATA/backup "
+            raise NameError("{} filename is invalid. Either check file format from FLEDGE_DATA/backup "
                             "or create it from GUI create new backup from Backup & Restore option".format(file_name))
         # Create temporary directory for tar extraction & backup data directory for Fledge
         cmd = "mkdir -p {} {}".format(temp_path, backup_path)
         os.system(cmd)
-        file_data = file_param.file
+        # You cannot rely on Content-Length if transfer is chunked
+        size = 0
+        with open("{}/{}".format(temp_path, file_name), 'wb') as temp_file:
+            while True:
+                chunk = await field.read_chunk()  # 8192 bytes by default.
+                if not chunk:
+                    break
+                size += len(chunk)
+                temp_file.write(chunk)
         # Extract tar inside temporary directory
-        tar_file = tarfile.open(fileobj=file_data, mode='r:*')
+        tar_file = tarfile.open(name="{}/{}".format(temp_path, file_name), mode='r:*')
         tar_file_names = tar_file.getnames()
-        valid_extensions = ('.db', '.dump')
         if any((item.startswith(backup_prefix) and item.endswith(valid_extensions)) for item in tar_file_names):
             tar_file.extractall(temp_path)
             source = "{}/{}".format(temp_path, tar_file_names[0])
             cmd = "cp {} {}".format(source, backup_path)
             ret_code = os.system(cmd)
             if ret_code != 0:
-                raise OSError("{} upload failed during copy to {}".format(file_name, backup_path))
+                raise OSError("{} upload failed during copy to path:{}".format(file_name, backup_path))
             else:
-                # TODO: ts as per post param if given in payload
+                # TODO: FOGL-5876 ts as per post param if given in payload
                 # insert backup record entry in db
                 full_file_name_path = "{}/{}".format(backup_path, tar_file_names[0])
                 payload = payload_builder.PayloadBuilder().INSERT(
@@ -298,8 +315,14 @@ async def upload_backup(request):
                 await audit.information('BKEXC', {'status': 'completed', 'message': 'From upload backup'})
                 # TODO: FOGL-4239 - readings table upload
         else:
-            raise NameError('Either {} prefix or {} suffix not found in given {} tar file'.format(
-                backup_prefix, file_name, valid_extensions))
+            raise NameError('Either {} prefix or {} valid extension is not found inside given tar file'.format(
+                backup_prefix, valid_extensions))
+    except tarfile.ReadError:
+        msg = "DB file is not found inside tarfile and should be with valid {} extensions".format(valid_extensions)
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+    except tarfile.CompressionError:
+        msg = "Only gzip compression is supported"
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except (NameError, OSError, RuntimeError) as err_msg:
         msg = str(err_msg)
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))

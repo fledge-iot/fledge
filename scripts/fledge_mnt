@@ -10,6 +10,7 @@
 ## Author: Stefano Simonelli
 ##
 ##
+## 2.0.04 - improved execution of min/max on tables
 ## 2.0.03 - added --perf
 ##          avoided the check of the db before after the shrink
 ##          improve shrink  --table
@@ -22,7 +23,7 @@
 #set -e
 #set -x
 
-FLEDGE_MNT_VERSION=2.0.03
+FLEDGE_MNT_VERSION=2.0.04
 FLEDGE_READINGS_DB_MAX=64           # Number of readings oer database handled
 
 #
@@ -281,14 +282,20 @@ fledge_info_table() {
         echo ""
         echo "Information on the READINGS tables"
 
-        echo -en "\tTable - readings_1_1 - min/max : "
-        "${SQLITE_SQL}" "${READINGS_DB}" "SELECT min(id),max(id) FROM readings_1_1"
+        min=$("${SQLITE_SQL}" "${READINGS_DB}" "SELECT min(id) FROM readings_1_1")
+        max=$("${SQLITE_SQL}" "${READINGS_DB}" "SELECT max(id) FROM readings_1_1")
+        echo -en "\tTable - readings_1_1 - min/max : ${min}/${max} "
+        echo ""
 
-        echo -en "\tTable - readings_1_2 - min/max : "
-        "${SQLITE_SQL}" "${READINGS_DB}" "SELECT min(id),max(id) FROM readings_1_2"
+        min=$("${SQLITE_SQL}" "${READINGS_DB}" "SELECT min(id) FROM readings_1_2")
+        max=$("${SQLITE_SQL}" "${READINGS_DB}" "SELECT max(id) FROM readings_1_2")
+        echo -en "\tTable - readings_1_2 - min/max : ${min}/${max} "
+        echo ""
 
-        echo -en "\tTable - readings_1_3 - min/max : "
-        "${SQLITE_SQL}" "${READINGS_DB}" "SELECT min(id),max(id) FROM readings_1_3"
+        min=$("${SQLITE_SQL}" "${READINGS_DB}" "SELECT min(id) FROM readings_1_3")
+        max=$("${SQLITE_SQL}" "${READINGS_DB}" "SELECT max(id) FROM readings_1_3")
+        echo -en "\tTable - readings_1_3 - min/max : ${min}/${max} "
+        echo ""
 
         echo ""
         echo -e "\tTable - configuration_readings : "
@@ -847,3 +854,4 @@ case "$1" in
 esac
 
 exit $?
+

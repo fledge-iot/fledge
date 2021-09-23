@@ -611,6 +611,41 @@ class RestoreProcess(FledgeProcess):
         else:
             raise exceptions.FledgeStartError
 
+    def insert_backup_entries(self, old_data: list, new_data: list) -> None:
+        """ Insert those backup entries from old data which are not found in new data
+
+        Args:
+            old_data: Old backup data before restore
+            new_data: New backup data after restore
+
+        Returns:
+
+        Raises:
+        """
+        self._logger.debug("Old backup data: {} - New backup data: {}".format(old_data, new_data))
+        matched_entry_to_delete = []
+        for idx, old_row in enumerate(old_data):
+            for new_row in new_data:
+                if old_row['file_name'] == new_row.strip():
+                    matched_entry_to_delete.append(old_row['file_name'])
+                    break
+        self._logger.debug("Matched entry deletion list from old backup data: {}".format(matched_entry_to_delete))
+        # Filter duplicate records between old and new backup data list
+        filtered_list = [d for d in old_data if d['file_name'] not in matched_entry_to_delete]
+        self._logger.debug("Filtered list: {}".format(filtered_list))
+        # Prepare backup multiple records with execute many operation of sqlite
+        new_backup_list = []
+        for row in filtered_list:
+            r_tuple = (row['file_name'], row['ts'], row['type'], row['status'], row['exit_code'])
+            new_backup_list.append(r_tuple)
+        if new_backup_list:
+            # Insert new backup entries which were before restored checkpoint - this way we can't loose all backups
+            # List of tuples to String
+            values = str(new_backup_list).strip('[]')
+            sql_cmd = "INSERT INTO fledge.backups (file_name, ts, type, status, exit_code) VALUES {};".format(values)
+            self._logger.debug("Insert new entries from backup list: {}".format(values))
+            self._restore_lib.psql_cmd(sql_cmd)
+
     def execute_restore(self):
         """Executes the restore operation
 
@@ -621,6 +656,10 @@ class RestoreProcess(FledgeProcess):
 
         self._logger.debug("{func}".format(func="execute_restore"))
 
+        # Fetch old backup table entries before restore
+        old_backup_entries = self._restore_lib.sl_get_all_backups()
+        self._logger.debug("{func} - old backup entries list - {backups}".format(func="execute_restore",
+                                                                                 backups=old_backup_entries))
         backup_id, file_name = self._identifies_backup_to_restore()
 
         self._logger.debug("{func} - backup to restore |{id}| - |{file}| ".format(
@@ -642,9 +681,15 @@ class RestoreProcess(FledgeProcess):
                 # Retrieve the backup-id after the restore operation
                 backup_id = self.get_backup_id_from_file_name(file_name)
 
-            # Updates the backup as restored
+            # Updates the backup status as RESTORED
             self._restore_lib.backup_status_update(backup_id, lib.BackupStatus.RESTORED)
-
+            # Fetch new backup entries after DB fully restored
+            sql_cmd = """SELECT id, file_name, ts, type, status, exit_code FROM fledge.backups;"""
+            new_backup_entries = self._restore_lib.psql_cmd(sql_cmd)
+            self._logger.debug("{func} - !!!New backup entries list - {backups}".format(func="execute_restore",
+                                                                                        backups=new_backup_entries))
+            # Insert old backup entries into newly restored Database
+            self.insert_backup_entries(old_backup_entries, new_backup_entries)
         except Exception as _ex:
             _message = self._MESSAGES_LIST["e000007"].format(_ex)
 

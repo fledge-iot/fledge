@@ -289,3 +289,63 @@ A number of flags are supported by the plugins, however a small subset are suppo
      - The plugin persists data and uses the data persistence API extensions.
    * - SP_BULTIN
      - The plugin is builtin with the Fledge core package. This should not be used for any user added plugins.
+
+A typical implementation of the *plugin_info* entry would merely return the *PLUGIN_INFORMATION* structure for the plugin.
+
+.. code-block:: C
+
+    PLUGIN_INFORMATION *plugin_info()
+    {
+        return &info;
+    }
+
+More complex implementations may tailor the content of the information returned based upon some criteria determined at run time. An example of such a scenario might be to tailor the default configuration based upon some element of discovery that occurs at run time. For example if the plugin is designed to send data to another service the *plugin_info* entry point could perform some service discovery and update a set of options for an enumerated type in the default configuration. This would allow the user interface to give the user a selection list of all the service instances that it found when the plugin was run.
+
+The plugin_init entry point
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The *plugin_init* entry point is called once the configuration of the plugin has been constructed by combining the default configuration with any stored configuration that the user has set for the plugin. The configuration is passed as a pointer to a C++ object of class ConfigCategory. This object may then be used to extract data from the configuration.
+
+The *plugin_init* call should be used to initialize the plugin itself and to extract the configuration for the *ConfigCategory* instance and store within the instance of the plugin. Details regarding the use of the *ConfigCategory* class can be found in the C++ Support Class section of the Plugin Developers Guide. Typically the north plugin will create an instance of a class that implements the functionality required, store the configuration in that class and return a pointer to that instance as the handle for the plugin. This will ensure that subsequent calls can access that class instance and the associated state, since all future calls will be passed the handle as an argument.
+
+The following is perhaps the most generic form of the *plugin_init* call. 
+
+.. code-block:: C
+
+    PLUGIN_HANDLE plugin_init(ConfigCategory *configData)
+    {
+        return (PLUGIN_HANDLE)(new myNorthPlugin(configData));
+    }
+
+In this case it assumes we have a class, *myNorthPlugin* that implements the functionality of the plugin. The constructor takes the *ConfigCategory* pointer as an argument and performs all required initialization from that configuration category.
+
+The plugin_send entry point
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The *plugin_send* entry point, as with Python plugins already describe, is the heart of a north plugin. It is called with the plugin handle and a block of readings data to be sent north. Typically the *plugin_send* will extract the object created in the *plugin_init* call from the handle and then call the functionality within that object to perform whatever translation and communication logic is required to send the reading data.
+
+.. code-block:: C
+
+   uint32_t plugin_send(PLUGIN_HANDLE handle, std::vector<Reading *>& readings)
+   {
+        myNorthPlugin *plugin = (myNorthPlugin *)handle;
+        return plugin->send(readings);
+   }
+
+The block of readings is sent as a C++ standard template library vector of pointers to instance of the Reading class, also covered above in the section on C++ Support Classes.
+
+The return from the *plugin_send* function should be a count of the number of readings sent by the plugin.
+
+The plugin_shutdown entry point
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The *plugin_shutdown* entry point is called when the plugin is no longer required. It should do any necessary cleanup required. As with other entry points, it is called with the handle that was returned by *plugin_init*. In the case of our simple plugin that might simple be to delete the C++ object that implements the plugin functionality.
+
+.. code-block:: C
+
+   uint32_t plugin_shutdown(PLUGIN_HANDLE handle)
+   {
+        myNorthPlugin *plugin = (myNorthPlugin *)handle;
+        delete plugin;
+   }
+

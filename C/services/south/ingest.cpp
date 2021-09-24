@@ -341,25 +341,40 @@ int nFullQueues;
 	}
 }
 
+/**
+ * Work out how long to wait based on age of oldest queued reading
+ * We do this in a seperaste function so that we can
+ * lock the qMutex to access the oldest element in the queue
+ *
+ * @return the tiem to wait
+ */
+long Ingest::calculateWaitTime()
+{
+	long timeout = m_timeout;
+	lock_guard<mutex> guard(m_qMutex);
+	if (!m_queue->empty())
+	{
+		Reading *reading = (*m_queue)[0];
+		struct timeval tm, now;
+		reading->getUserTimestamp(&tm);
+		gettimeofday(&now, NULL);
+		long ageMS = (now.tv_sec - tm.tv_sec) * 1000 +
+			(now.tv_usec - tm.tv_usec) / 1000;
+		timeout = m_timeout - ageMS;
+	}
+	return timeout;
+}
 
+/**
+ * Wait for a period of time to allow the queue to build
+ */
 void Ingest::waitForQueue()
 {
 	if (m_fullQueues.size() > 0 || m_resendQueues.size() > 0)
 		return;
 	if (m_running && m_queue->size() < m_queueSizeThreshold)
 	{
-		// Work out how long to wait based on age of oldest queued reading
-		long timeout = m_timeout;
-		if (!m_queue->empty())
-		{
-			Reading *reading = (*m_queue)[0];
-			struct timeval tm, now;
-			reading->getUserTimestamp(&tm);
-			gettimeofday(&now, NULL);
-			long ageMS = (now.tv_sec - tm.tv_sec) * 1000 +
-				(now.tv_usec - tm.tv_usec) / 1000;
-			timeout = m_timeout - ageMS;
-		}
+		long timeout = calculateWaitTime();
 		if (timeout > 0)
 		{
 			mutex mtx;

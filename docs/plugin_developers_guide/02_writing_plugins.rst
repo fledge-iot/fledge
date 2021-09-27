@@ -242,3 +242,55 @@ In C/C++ the *plugin_reconfigure* class is very similar, note however that the *
   }
 
 It should be noted that the *plugin_reconfigure* call may be delivered in a separate thread for a C/C++ plugin and that the plugin should implement any mutual exclusion mechanisms that are required based on the actions of the *plugin_reconfigure* method.
+
+Configuration Lifecycle
+-----------------------
+
+Fledge has a very particular way of handling configuration, there are a number of design aims that have resulted in the configuration system within Fledge.
+
+  - A desire to allow the plugins to define their own configuration elements.
+
+  - Dynamic configuration that allows for maximum uptime during configuration changes.
+
+  - A descriptive way to define the configuration such that user interfaces can be built without prior knowledge of the elements to be configured.
+
+  - A common approach that will work across many different languages.
+
+Fledge divides its configuration in categories. A category being a collection of configuration items. A category is also the smallest item of configuration that can be subscribed to by the code. This subscription mechanism is they way that Fledge facilitates dynamic reconfiguration. It allows a service to subscribe to one or more configuration categories, whenever an item within a category changes the central configuration manager will call a handler to pass the newly updated configuration category. This handler my be within a services or between services using the micro service management API that every service must support. The mechanism however is transparent to the code involved.
+
+The configuration items within a category are JSON object, the object key is the name of the configuration item, the object itself contains data about that item. As an example, if we wanted to have a configuration item called *MaxRetries* that is an integer with a default value of 5, then we would configured it using the JSON object
+
+.. code-block:: JSON
+
+   "MaxRetries" : {
+                "type" : "integer",
+                "default" : "5"
+                }
+
+We have used the properties *type* and *default* to define properties of the configuration item *MaxRetries*.  These are not the only properties that a configuration item can have, the full set of properties are
+
+.. list-table::
+   :header-rows: 1
+
+   * - Property
+     - Description
+   * - type
+     - The type of the configuration item. The list of types supported are; integer, float, string, enumeration, boolean, JSON, URL, script, code and northTask.
+   * - default
+     - The default value for the configuration item. This is always expressed as a string regardless of the type of the configuration item.
+   * - value
+     - The current value of the configuration item. This is not included when defining a set of default configuration in, for example, a plugin.
+   * - displayName
+     - The string to use in the user interface when presenting the configuration item. Generally a more user friendly form of the item name. Item names are referenced within the code.
+   * - description
+     - A description of the configuration item used in the user interface to give more details of the item. Commonly used as a mouse over help prompt.
+   * - order
+     - Used in the user interface to give an indication of how high up in the dialogue to place this item.
+   * - options
+     - Only used for enumeration type elements. This is a JSON array of string that contains the options in the enumeration.
+   * - validity
+     - An expression used to determine if the configuration item is valid. Used in the UI to gray out one value based on the value of others.
+
+Configuration data is stored by the storage service and is maintained by the configuration in the core Fledge service. When code requires configuration it would create a configuration category with a set of items as a JSON document. It would then register that configuration category with the configuration manager. The configuration manager is responsible for storing the data in the storage layer, as it does this it first checks to see if there is already a configuration category from a previous execution of the code. If one does exist then the two are merged, this merging process allows updates to the software to extend the configuration category whilst maintaining any changes in values made by the user.
+
+Dynamic reconfiguration within Fledge code is supported by allowing code to subscribe for changes in a configuration category. The services that load plugin will automatically register for the plugin configuration category and when changes are seen will call the *plugin_reconfigure* entry point of the plugin with the new configuration.

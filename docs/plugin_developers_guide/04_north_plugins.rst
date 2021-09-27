@@ -30,9 +30,9 @@ A north plugin has a limited number of entry points that it much support, these 
     * - plugin_init
       - Also part of the standard plugin interface. This call is passed the request configuration of the plugin and should be used to do any initialization of the plugin.
     * - plugin_send
-      - This entry point is the north plugin specific entry point that is used to send data from Fledge. This will be called repeatedly with blocks of readings
+      - This entry point is the north plugin specific entry point that is used to send data from Fledge. This will be called repeatedly with blocks of readings.
     * - plugin_shutdown
-      - Part of the standard plugin interface, this will be called when the plugin is no longer required and will be the final call to the plugin
+      - Part of the standard plugin interface, this will be called when the plugin is no longer required and will be the final call to the plugin.
 
 The life cycle of a plugin is very similar regardless of if it is written in Python or C/C++, the *plugin_info* call is made first to determine data about the plugin. The plugin is then initialized by calling the *plugin_init* entry point. The *plugin_send* entry point will be called multiple times to send the actual data and finally the *plugin_shutdown* entry point will be called.
 
@@ -53,6 +53,12 @@ A typical implementation for a simple north plugin simply returns a DICT as foll
 .. code-block:: python
 
     def plugin_info():
+        """ Used only once when call will be made to a plugin.
+
+            Args:
+            Returns:
+                Information about the plugin including the configuration for the plugin
+        """
         return {
             'name': 'http',
             'version': '1.9.1',
@@ -61,7 +67,6 @@ A typical implementation for a simple north plugin simply returns a DICT as foll
             'config': _DEFAULT_CONFIG
         }
 
-In the case above *_DEFAULT_CONFIG* is another Python DICT that contains the defaults for the plugin configuration and will be covered in the next section.
 
 The items in the structure returned by *plugin_info* are
 
@@ -81,67 +86,71 @@ The items in the structure returned by *plugin_info* are
     * - config
       - The DICT that defines the configuration that the plugin has as default.
 
+In the case above *_DEFAULT_CONFIG* is another Python DICT that contains the defaults for the plugin configuration and will be covered in the Configuration section.
+
 
 Configuration
 #############
 
-Configuration within Fledge is represented in a JSON structure that defines a name, value, default, type and a number of other parameters. The configuration process works by the plugins having a default configuration that they return from the plugin_init call. The Fledge configuration code will then combine this with a coy of that configuration that it holds. On the first time a service is created, with no previously held configuration, he configuration manager will take the default values and make those the actual values. The user may then update these to set non-default values. In subsequent executions of the plugin these values will be combined with the defaults to create the in use configuration that is passed to the *plugin_init* entry point. The mechanism is designed to allow initial execution of a plugin, but also to allow upgrade of a plugin to create new configuration items for the plugins whilst preserving previous configuration values set by the user.
+Configuration within Fledge is represented in a JSON structure that defines a name, value, default, type and a number of other optional parameters. The configuration process works by the plugins having a default configuration that they return from the plugin_init call. The Fledge configuration code will then combine this with a copy of that configuration that it holds. On the first time a service is created, with no previously held configuration, the configuration manager will take the default values and make those the actual values. The user may then update these to set non-default values. In subsequent executions of the plugin these values will be combined with the defaults to create the in use configuration that is passed to the *plugin_init* entry point. The mechanism is designed to allow initial execution of a plugin, but also to allow upgrade of a plugin to create new configuration items for the plugins whilst preserving previous configuration values set by the user.
 
-A sample configuration item is shown below.
+A sample default configuration of http north python based plugin is shown below.
 
 .. code-block:: json
 
-    _DEFAULT_CONFIG = {
-        'plugin': {
-             'description': 'HTTP North Plugin',
-             'type': 'string',
-             'default': 'http_north',
-             'readonly': 'true'
-        },
-        'url': {
-            'description': 'Destination URL',
-            'type': 'string',
-            'default': 'http://localhost:6683/sensor-reading',
-            'order': '1',
-            'displayName': 'URL'
-        },
-        "source": {
-             "description": "Source of data to be sent on the stream. May be either readings or statistics.",
-             "type": "enumeration",
-             "default": "readings",
-             "options": [ "readings", "statistics" ],
-             'order': '2',
-             'displayName': 'Source'
-        },
-        "verifySSL": {
-            "description": "Verify SSL certificate",
-            "type": "boolean",
-            "default": "false",
-            'order': '3',
-            'displayName': 'Verify SSL'
-        }
+    {
+    	"plugin": {
+    		"description": "HTTP North Plugin",
+    		"type": "string",
+    		"default": "http_north",
+    		"readonly": "true"
+    	},
+    	"url": {
+    		"description": "Destination URL",
+    		"type": "string",
+    		"default": "http://localhost:6683/sensor-reading",
+    		"order": "1",
+    		"displayName": "URL"
+    	},
+    	"source": {
+    		"description": "Source of data to be sent on the stream. May be either readings or statistics.",
+    		"type": "enumeration",
+    		"default": "readings",
+    		"options": ["readings", "statistics"],
+    		"order": "2",
+    		"displayName": "Source"
+    	},
+    	"verifySSL": {
+    		"description": "Verify SSL certificate",
+    		"type": "boolean",
+    		"default": "false",
+    		"order": "3",
+    		"displayName": "Verify SSL"
+    	}
     }
 
-Items marked as *"readonly" :"true"* will not be presented to the user. The *description*, *displayName* and *order* properties are only used by the user interface to display the configuration item. he type and default are used by the API to verify the input and also set the initial values when a new configuration item is created.
+Items marked as *"readonly" :"true"* will not be presented to the user. The *displayName* and *order* properties are only used by the user interface to display the configuration item. The description, type and default are used by the API to verify the input and also set the initial values when a new configuration item is created.
 
-Rules can also be given to the user interface to define the validity of configuration items based upon the values of others, for example
+Rules can also be given to the user interface to define the validity of configuration items based upon the values of others, or example
 
 .. code-block:: json
 
-    "applyFilter": {
-        "description": "Should filter be applied before processing data",
-        "type": "boolean",
-        "default": "false",
-        'order': '4',
-        'displayName': 'Apply Filter'
-    },
-    "filterRule": {
-        "description": "JQ formatted filter to apply (only applicable if applyFilter is True)",
-        "type": "string",
-        "default": ".[]",
-        'order': '5',
-        'displayName': 'Filter Rule',
-        "validity": "applyFilter == \"true\""
+    {
+        "applyFilter": {
+            "description": "Should filter be applied before processing data",
+            "type": "boolean",
+            "default": "false",
+            "order": "4",
+            "displayName": "Apply Filter"
+        },
+        "filterRule": {
+            "description": "JQ formatted filter to apply (only applicable if applyFilter is True)",
+            "type": "string",
+            "default": ".[]",
+            "order": "5",
+            "displayName": "Filter Rule",
+            "validity": "applyFilter == \"true\""
+        }
     }
 
 This will only allow entry to the *filterRule* configuration item if the *applyFilter* item has been set to true.
@@ -160,6 +169,13 @@ The *fledge-north-http* plugin implementation of *plugin_init* is shown below as
 .. code-block:: python
 
     def plugin_init(data):
+        """ Used for initialization of a plugin.
+
+        Args:
+            data - Plugin configuration
+        Returns:
+            Dictionary of a Plugin configuration
+        """
         global http_north, config
         http_north = HttpNorthPlugin()
         config = data
@@ -170,7 +186,7 @@ In this case the plugin creates an object that implements the functionality and 
 The plugin_send call
 ~~~~~~~~~~~~~~~~~~~~
 
-The *plugin_send* call is the man entry point of a north plugin, it is used to send set of readings north to the destination system. It is responsible for both the communication to that system and the translation of the internal representation of the reading data to the representation required by the external system.
+The *plugin_send* call is the main entry point of a north plugin, it is used to send set of readings north to the destination system. It is responsible for both the communication to that system and the translation of the internal representation of the reading data to the representation required by the external system.
 
 The communication performed by the *plugin_send* routine should use the Python 3 asynchronous I/O primitives, the definition of the *plugin_send* entry point must also use the *async* keyword.
 
@@ -180,7 +196,7 @@ The *plugin_send* entry point is passed 3 arguments, the plugin handle, the data
 
    async def plugin_send(handle, payload, stream_id):
 
-The handle is the opaque data returned by the call to *plugin_init* ad may be used by the plugin to store data between invocations. The *payload* is a set of readings that should be sent, see below for more details on payload handling. The stream_id is an integer that uniquely identifies the connection from this Fledge instance to the destination system. This id can be used if the plugin needs to have a unique identifier but in most cases can be ignored.
+The handle is the opaque data returned by the call to *plugin_init* and may be used by the plugin to store data between invocations. The *payload* is a set of readings that should be sent, see below for more details on payload handling. The stream_id is an integer that uniquely identifies the connection from this Fledge instance to the destination system. This id can be used if the plugin needs to have a unique identifier but in most cases can be ignored.
 
 The *plugin_send* call returns three values, a boolean that indicates if any data has been sent, the object id of the last reading sent and the number of readings sent.
 
@@ -188,8 +204,19 @@ The code below is the *plugin_send* entry point for the http north plugin.
 
 .. code-block:: python
 
-    async def plugin_send(data, payload, stream_id):
-        # stream_id (log?)
+    async def plugin_send(handle, payload, stream_id):
+        """ Used to send the readings block from north to the configured destination.
+
+        Args:
+            handle - An object which is returned by plugin_init
+            payload - A List of readings block
+            stream_id - An Integer that uniquely identifies the connection from Fledge instance to the destination system
+        Returns:
+            Tuple which consists of
+            - A Boolean that indicates if any data has been sent
+            - The object id of the last reading which has been sent
+            - Total number of readings which has been sent to the configured destination
+        """
         try:
             is_data_sent, new_last_object_id, num_sent = await http_north.send_payloads(payload)
         except asyncio.CancelledError:
@@ -200,11 +227,17 @@ The code below is the *plugin_send* entry point for the http north plugin.
 The plugin_shutdown call
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-The *plugn_shutdown* call is the final entry that is required for Python north plugin, is is called by the north service or task just prior to the task terminating or in a north service if the configuration is allowed, see reconfiguration below. The *plugin_shutdown* call is passed the plugin handle and should perform any cleanup required by the plugin.
+The *plugin_shutdown* call is the final entry that is required for Python north plugin, it is called by the north service or task just prior to the task terminating or in a north service if the configuration is allowed, see reconfiguration below. The *plugin_shutdown* call is passed the plugin handle and should perform any cleanup required by the plugin.
 
 .. code-block:: python
 
    def plugin_shutdown(handle):
+       """ Used when plugin is no longer required and will be final call to shutdown the plugin. It should do any necessary cleanup if required.
+
+       Args:
+            handle - Plugin handle which is returned by plugin_init
+       Returns:
+       """
 
 The call should not return any data. Once called the handle should no longer be regarded as valid and no further calls will be made to the plugin using this handle.
 
@@ -235,6 +268,14 @@ The payload that is passed to the *plugin_send* routine is a Python list of read
       - The timestamp when the reading was first seen by the system.
     * - user_ts
       - The timestamp of the data in the reading. This may be the same as *ts* above or in some cases may be a timestamp that has been received from the source of the data itself. This timestamp is the one that should be considered the most accurately represents the timestamp of the data.
+
+
+A sample payload is shown below.
+
+.. code-block:: python
+
+    [{'reading': {'sinusoid': 0.0}, 'asset_code': 'sinusoid', 'id': 1, 'ts': '2021-09-27 06:55:52.692000+00:00', 'user_ts': '2021-09-27 06:55:49.947058+00:00'},
+    {'reading': {'sinusoid': 0.104528463}, 'asset_code': 'sinusoid', 'id': 2, 'ts': '2021-09-27 06:55:52.692000+00:00', 'user_ts': '2021-09-27 06:55:50.947110+00:00'}]
 
 
 C/C++ Plugins
@@ -268,13 +309,13 @@ The items are
     * - Name
       - Description
     * - name
-      - The name of the plugin
+      - The name of the plugin.
     * - version
       - The version of the plugin expressed as a string. This usually but not always matches the current version of Fledge.
     * - flags
       - A bitmap of flags that give extra information about the plugin.
     * - interface
-      - The interface version, currently north plugins are at interface version 1.0.0
+      - The interface version, currently north plugins are at interface version 1.0.0.
     * - config
       - The default configuration for the plugin. In C/C++ plugins this is returned as a string containing the JSON structure.
 
@@ -287,7 +328,7 @@ A number of flags are supported by the plugins, however a small subset are suppo
      - Description
    * - SP_PERSIST_DATA
      - The plugin persists data and uses the data persistence API extensions.
-   * - SP_BULTIN
+   * - SP_BUILTIN
      - The plugin is builtin with the Fledge core package. This should not be used for any user added plugins.
 
 A typical implementation of the *plugin_info* entry would merely return the *PLUGIN_INFORMATION* structure for the plugin.

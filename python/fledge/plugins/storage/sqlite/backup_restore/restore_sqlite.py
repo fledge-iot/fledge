@@ -286,18 +286,18 @@ class RestoreProcess(FledgeProcess):
 
         return raw_data
 
-    def storage_update(self, sql_cmd):
+    def storage_update(self, sql_cmd, records=None):
         """ Executes a sql command against SQLite directly
 
         Args:
             sql_cmd: sql command to execute
+            records: to insert multiple records only if records are there otherwise default None and will treat as single execution
         Returns:
         Raises:
         """
 
-        _logger.debug("{func} - sql cmd |{cmd}| ".format(
-                                                            func="storage_update",
-                                                            cmd=sql_cmd))
+        _logger.debug("{func} - sql cmd |{cmd} | {records}|".format(func="storage_update", cmd=sql_cmd,
+                                                                    records=records))
 
         db_connection_string = "{path}/{db}".format(
                                                         path=self._restore_lib.dir_fledge_data,
@@ -307,8 +307,10 @@ class RestoreProcess(FledgeProcess):
         comm = sqlite3.connect(db_connection_string)
 
         cur = comm.cursor()
-
-        cur.execute(sql_cmd)
+        if records is None:
+            cur.execute(sql_cmd)
+        else:
+            cur.executemany(sql_cmd, records)
         comm.commit()
         comm.close()
 
@@ -603,6 +605,38 @@ class RestoreProcess(FledgeProcess):
         else:
             raise exceptions.FledgeStartError
 
+    def insert_backup_entries(self, old_data: list, new_data: list) -> None:
+        """ Insert those backup entries from old data which are not found in new data
+
+        Args:
+            old_data: Old backup data before restore
+            new_data: New backup data after restore
+
+        Returns:
+
+        Raises:
+        """
+        self._logger.debug("Old backup data: {} - New backup data: {}".format(old_data, new_data))
+        matched_entry_to_delete = []
+        for idx, old_row in enumerate(old_data):
+            for new_row in new_data:
+                if old_row['file_name'] == new_row[1]:
+                    matched_entry_to_delete.append(old_row['file_name'])
+                    break
+        self._logger.debug("Matched entry deletion list from old backup data: {}".format(matched_entry_to_delete))
+        # Filter duplicate records between old and new backup data list
+        filtered_list = [d for d in old_data if d['file_name'] not in matched_entry_to_delete]
+        self._logger.debug("Filtered list: {}".format(filtered_list))
+        # Prepare backup multiple records with execute many operation of sqlite
+        backup_list = []
+        for row in filtered_list:
+            r_tuple = (row['file_name'], row['ts'], row['type'], row['status'], row['exit_code'])
+            backup_list.append(r_tuple)
+        # Insert new backup entries which were before restored checkpoint - this way we can't loose all backups
+        sql_cmd = "INSERT INTO backups (file_name, ts, type, status, exit_code) VALUES (?, ?, ?, ?, ?)"
+        self._logger.exception("Insert new entries from backup list: {}".format(backup_list))
+        self.storage_update(sql_cmd, backup_list)
+
     def backup_status_update(self, backup_id, status):
         """ Updates the status of the backup in the Storage layer
 
@@ -635,6 +669,11 @@ class RestoreProcess(FledgeProcess):
 
         self._logger.debug("{func}".format(func="execute_restore"))
 
+        # Fetch old backup table entries before restore
+        old_backup_entries = self._restore_lib.sl_get_all_backups()
+        self._logger.debug("{func} - old backup entries list - {backups}".format(func="execute_restore",
+                                                                                 backups=old_backup_entries))
+
         backup_id, file_name = self._identifies_backup_to_restore()
 
         self._logger.debug("{func} - backup to restore |{id}| - |{file}| ".format(
@@ -655,10 +694,15 @@ class RestoreProcess(FledgeProcess):
                 # Retrieve the backup-id after the restore operation
                 backup_info = self.get_backup_details_from_file_name(file_name)
                 backup_id = backup_info[0]
-
-            # Updates the backup as restored
+            # Updates the backup status as RESTORED
             self.backup_status_update(backup_id, lib.BackupStatus.RESTORED)
-
+            # Fetch new backup entries after DB fully restored
+            sql_cmd = """SELECT id, file_name, ts, type, status, exit_code FROM backups;"""
+            new_backup_entries = self.storage_retrieve(sql_cmd)
+            self._logger.debug("{func} - !!!New backup entries list - {backups}".format(func="execute_restore",
+                                                                                        backups=new_backup_entries))
+            # Insert old backup entries into newly restored Database
+            self.insert_backup_entries(old_backup_entries, new_backup_entries)
         except Exception as _ex:
             _message = self._MESSAGES_LIST["e000007"].format(_ex)
 

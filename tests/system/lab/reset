@@ -16,6 +16,11 @@ _sqlite () {
     sudo sed -i 's/"readingPlugin":{"value":"sqlitememory"/"readingPlugin":{"value":""/g' /usr/local/fledge/data/etc/storage.json
 }
 
+_sqlitelb () {
+    sudo sed -i 's/"plugin":{"value":"sqlite"/"plugin":{"value":"sqlitelb"/g' /usr/local/fledge/data/etc/storage.json
+    sudo sed -i 's/"readingPlugin":{"value":"sqlitememory"/"readingPlugin":{"value":""/g' /usr/local/fledge/data/etc/storage.json
+}
+
 # check for storage plugin
 . ./test.config
 
@@ -25,6 +30,9 @@ then
 elif [[  ${STORAGE} == "sqlite-in-memory" ]]
 then
   _sqliteinmemory
+elif [[  ${STORAGE} == "sqlitelb" ]]
+then
+  _sqlitelb
 else
   _sqlite
 fi

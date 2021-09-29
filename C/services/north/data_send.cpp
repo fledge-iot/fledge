@@ -173,10 +173,8 @@ unsigned long DataSender::send(ReadingSet *readings)
 void DataSender::pause()
 {
 	unique_lock<mutex> lck(m_pauseMutex);
-	while (m_sending)
-	{
-		m_pauseCV.wait(lck);
-	}
+	m_pauseCV.wait(lck, [this]{ return m_sending == false; });
+
 	m_paused = true;
 }
 
@@ -188,8 +186,11 @@ void DataSender::pause()
  */
 void DataSender::release()
 {
-	unique_lock<mutex> lck(m_pauseMutex);
-	m_paused = false;
+	{
+		std::lock_guard<std::mutex> lck(m_pauseMutex);
+		m_paused = false;
+	}
+
 	m_pauseCV.notify_all();
 }
 
@@ -202,10 +203,8 @@ void DataSender::release()
 void DataSender::blockPause()
 {
 	unique_lock<mutex> lck(m_pauseMutex);
-	while (m_paused)
-	{
-		m_pauseCV.wait(lck);
-	}
+	m_pauseCV.wait(lck, [this]{ return m_paused == false; });
+
 	m_sending = true;
 }
 
@@ -217,7 +216,9 @@ void DataSender::blockPause()
  */
 void DataSender::releasePause()
 {
-	unique_lock<mutex> lck(m_pauseMutex);
-	m_sending = false;
+	{
+		std::lock_guard<std::mutex> lck(m_pauseMutex);
+		m_sending = false;
+	}
 	m_pauseCV.notify_all();
 }

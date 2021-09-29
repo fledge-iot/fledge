@@ -7,6 +7,7 @@
 """ Provides utility functions to build a Fledge Support bundle.
 """
 
+import logging
 import datetime
 import platform
 import os
@@ -32,7 +33,7 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-_LOGGER = logger.setup(__name__)
+_LOGGER = logger.setup(__name__, level=logging.INFO)
 _NO_OF_FILES_TO_RETAIN = 3
 _SYSLOG_FILE = '/var/log/syslog'
 _PATH = _FLEDGE_DATA if _FLEDGE_DATA else _FLEDGE_ROOT + '/data'
@@ -68,6 +69,7 @@ class SupportBuilder:
             tar_file_name = self._out_file_path+"/"+"support-{}.tar.gz".format(file_spec)
             pyz = tarfile.open(tar_file_name, "w:gz")
             try:
+                await self.add_fledge_version_and_schema(pyz)
                 self.add_syslog_fledge(pyz, file_spec)
                 self.add_syslog_storage(pyz, file_spec)
                 cf_mgr = ConfigurationManager(self._storage)
@@ -128,11 +130,17 @@ class SupportBuilder:
             json.dump(data, outfile, indent=4)
         pyz.add(temp_file, arcname=basename(temp_file))
 
+    async def add_fledge_version_and_schema(self, pyz):
+        temp_file = self._interim_file_path + "/" + "fledge-info"
+        with open('{}/VERSION'.format(_FLEDGE_ROOT)) as f:
+            lines = [line.rstrip() for line in f]
+        self.write_to_tar(pyz, temp_file, lines)
+
     def add_syslog_fledge(self, pyz, file_spec):
         # The fledge entries from the syslog file
         temp_file = self._interim_file_path + "/" + "syslog-{}".format(file_spec)
         try:
-            subprocess.call("grep '{}' {} > {}".format("Fledge", _SYSLOG_FILE, temp_file), shell=True)
+            subprocess.call("grep -a '{}' {} > {}".format("Fledge", _SYSLOG_FILE, temp_file), shell=True)
         except OSError as ex:
             raise RuntimeError("Error in creating {}. Error-{}".format(temp_file, str(ex)))
         pyz.add(temp_file, arcname=basename(temp_file))
@@ -141,7 +149,7 @@ class SupportBuilder:
         # The contents of the syslog file that relate to the database layer (postgres)
         temp_file = self._interim_file_path + "/" + "syslogStorage-{}".format(file_spec)
         try:
-            subprocess.call("grep '{}' {} > {}".format("Fledge Storage", _SYSLOG_FILE, temp_file), shell=True)
+            subprocess.call("grep -a '{}' {} > {}".format("Fledge Storage", _SYSLOG_FILE, temp_file), shell=True)
         except OSError as ex:
             raise RuntimeError("Error in creating {}. Error-{}".format(temp_file, str(ex)))
         pyz.add(temp_file, arcname=basename(temp_file))

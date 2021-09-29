@@ -2068,6 +2068,7 @@ vector<string>  assetCodes;
 		SQLBuffer sql;
 		sql.append("DELETE FROM  _dbname_._tablename_ WHERE rowid <= ");
 		sql.append(rowidMin);
+		sql.append(" AND user_ts < datetime('now' , '-" +to_string(age) + " hours')");
 		sql.append(';');
 		const char *query = sql.coalesce();
 

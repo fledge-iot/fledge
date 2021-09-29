@@ -26,6 +26,83 @@ Fledge v1
 ==========
 
 
+v1.9.2
+-------
+
+Release Date: 2021-09-29
+
+- **Fledge Core**
+
+    - New Features:
+
+       - A new section has been added to the documentation that discusses the tuning of the edge based control path.
+       - Notification delivery plugins now also receive the data that caused the rule to trigger. This can be used to deliver values in the notification delivery plugins.
+       - The documentation has been updated to include an approved introduction to filters.
+       - The OMF north plugin documentation has been re-organised and updated to include the latest features that have been introduced to this plugin.
+       - The ability for south plugins to persist data between executions of south services has been added for plugins written in C/C++. This follows the same model as already available for north plugins.
+
+
+    - Bug Fix:
+
+       - An issue that caused an intermittent error in the tracking of data sent north has been resoled. This only impacted north services and not north tasks.
+       - A rare race condition during ingestion of readings would cause the south service to terminate and restart. This has now been resolved.
+       - An error in the documentation for the plugin developers guide which incorrectly documented how to build debug binaries has been corrected.
+       - An optimisation has been added to prevent north plugins being sent empty data sets when the filter chain removes all the data in a reading set.
+       - It was not possible to set a notification to always retrigger as there was a limitation that there must always be 1 second between notification triggers. This restriction has now been removed and it is possible to set a retrigger time of zero.
+
+
+- **GUI**
+
+    - New Features:
+
+
+
+    - Bug Fix:
+
+       - The ability to paste into password fields has been enabled in order to allow copy/paste of keys, tokens etc into configuration of the south and north services.
+
+
+- **Plugins**
+
+    - New Features:
+
+       - The modbus south control flow has been updated to use both 0x06 and 0x10 function codes. This allows items that are split across multiple modbus registers to be written in a single write operation.
+       - The Simple Rest plugin has been updated to fix an issue when the Python scripts returned multiple readings values form a single payload.
+       - The MQTT Scripted south plugin has been updated to to allow multiple assets to be ingested in a single plugin.
+       - The MQTT Scripted south plugin has been enhanced to support MQTTS as well as MQTT.
+       - The S2OPC/UA south plugin has been updated to enable it to work with a broader range of certificates, including both certificate authority signed and self signed certificates.
+       - A new option has been added to the sqlite storage plugin only that allows assets to be excluded from consideration in the purge process.
+       - The Kafka north plugin has been updated to allow timestamps of higher granularity than 1 second, previously timestamps woudl be truncated to the previous second.
+       - The HTTP -C north plugin has been updated to allow the inclusion of customer HTTP headers.
+       - The Kafka north plugin has been enhanced to give the option of sending JSON objects as strings to Kafka, as previously the default, or sending them as JSON objects.
+       - The generic REST API south plugin has been updated to support a choice of methods to control the set of readings data that will be returned.
+       - When using the South MQTT Scripted plugin, if the Python script returned an asset name as well as a reading the asset name woudl be corrupted on second and subsequent calls. This has now been resolved.
+       - The Python35 Filter plugin did not correctly handle string type data points. This has now been resolved.
+       - A new south plugin has been added that can be used to support a number of REST based APIs. The plugin allows processing of JSON payloads or with the addition of Python scripting other payload formats may also be supported.
+       - The MQTT Scripted plugin could not previously deal with payloads that consisted of a simple negative number. This has now been corrected.
+       - The OMF Hint filter documentation has been updated to describe the use of regular expressions when defining the asset name to which the hint should be applied.
+       - The Beckhoff south plugin documentation has been updated in include detail software how to create the AMS route in a number of different scenarios.
+       - Control features have now been added to the modbus south plugin that allows the writing of registers and coils via the south service control channel.
+       - A new OPCUA south plugin has been created based on the Safe and Secure OPCUA library. This plugin supports authentication and encryption mechanisms.
+       - A new plugin has been added to fetch data from the Suez Water cloud API service.
+
+
+    - Bug Fix:
+
+       - An issue with the modbus south plugin that could cause resource starvation in the threads used for set point write operations has been resolved.
+       - A race condition in the modbus south that could cause an issue if the plugin configuration is changed during a set point operation.
+       - The S2OPCUA plugin has been updated to improve the resilience to connection failures. It now reconnects based on a backoff time when connections get lost in any circumstance.
+       - The S2OPCUA plugin has been updated to improve the robustness if the connection to the OPCUA server is lost and also to deal better in the case of reconfiguring the security policies whilst the plugin is running.
+       - The Kafka north plugin was not always able to reconnect if the Kafka service was not available when it was first started. This issue has now been resolved.
+       - An issue with string data that had quote characters embedded within the reading data has been resolved. This would cause data to be discarded with a bad formatting message in the log.
+       - The Kafka north plugin would on occasion duplicate data if a connection failed and was late reconnected. This has been been resolved.
+       - A problem with the quoting of string type data points on the North HTTP-C plugin has been fixed.
+       - String type variables in the OPC/UA north plugin were incorrectly have extra quotes added to them. This has now been resolved.
+       - The delta filter previously did not manage calculating delta values when a datapoint changed from being an integer to a floating point value or vice versa. This has now been resolved and delta values are correctly calculated when these changes occur.
+       - A number of fixes have been made to the Kafka north plugin, these include; fixing issues caused by quoted data in the Kafka payload, sending timestamps accurate to the millisecond, fixing an issue that caused data duplication and switching the the user timestamp.
+       - The example path shown in the DHT11 plugin in the developers guide was incorrect, this has now be fixed.
+
+
 v1.9.1
 -------
 

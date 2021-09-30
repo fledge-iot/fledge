@@ -890,11 +890,28 @@ static std::atomic<bool> already_running(false);
 		}
 
 		search = query.find("flags");
+
 		if (search != query.end())
 		{
 			flags = search->second;
+
+
+			// FIXME_I:
+			char *_section="xxx3";
+
+			// FIXME_I:
+			Logger::getLogger()->setMinLevel("debug");
+			Logger::getLogger()->debug("%s / %s - xxx flags :5s:", _section, __FUNCTION__, flags.c_str());
+			Logger::getLogger()->setMinLevel("warning");
+
+
+
 			// TODO Turn flags into a bitmap
-			if (flags.compare(PURGE_FLAG_RETAIN) == 0)
+			if (flags.compare(PURGE_FLAG_RETAIN_ANY) == 0)
+			{
+				flagsMask |= STORAGE_PURGE_RETAIN;
+			}
+			else if (flags.compare(PURGE_FLAG_RETAIN_ALL) == 0)
 			{
 				flagsMask |= STORAGE_PURGE_RETAIN;
 			}
@@ -902,6 +919,13 @@ static std::atomic<bool> already_running(false);
 			{
 				flagsMask &= (~STORAGE_PURGE_RETAIN);
 			}
+
+
+			// FIXME_I:
+			Logger::getLogger()->setMinLevel("debug");
+			Logger::getLogger()->debug("%s / %s - xxx flagsMask :%d:", _section, __FUNCTION__, flagsMask);
+			Logger::getLogger()->setMinLevel("warning");
+
 		}
 
 		char *purged = NULL;

@@ -16,8 +16,8 @@
 #include <reading_stream.h>
 #include <plugin_configuration.h>
 
-#define	STORAGE_PURGE_RETAIN	0x0001U
-#define STORAGE_PURGE_SIZE	0x0002U
+#define	STORAGE_PURGE_RETAIN_ANY 0x0001U
+#define STORAGE_PURGE_SIZE	     0x0002U
 
 /**
  * Class that represents a storage plugin.

@@ -541,7 +541,7 @@ class ReadingsStorageClientAsync(StorageClientAsync):
             curl -X PUT "http://0.0.0.0:<storage_service_port>/storage/reading/purge?size=1024&sent=0&flags=PURGE"
         """
 
-        valid_flags = ['retain', 'purge']
+        valid_flags = ['retainany', 'retainall', 'purge']
 
         if flag and flag.lower() not in valid_flags:
             raise InvalidReadingsPurgeFlagParameters

@@ -33,6 +33,8 @@ from fledge.common import logger
 from fledge.common.storage_client.exceptions import *
 from fledge.common.process import FledgeProcess
 
+#// FIXME_I:
+import logging
 
 __author__ = "Ori Shadmon, Vaibhav Singhal, Mark Riddoch, Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSI Soft, LLC"
@@ -60,9 +62,10 @@ class Purge(FledgeProcess):
             "order": "2"
         },
         "retainUnsent": {
-            "description": "Retain data that has not been sent to any historian yet.",
-            "type": "boolean",
-            "default": "False",
+            "description": "Retain data that has not been sent yet.",
+            "type": "enumeration",
+            "options":["purge unsent", "retain unsent to any destination", "retain unsent to all destinations"],
+            "default": "purge unsent",
             "displayName": "Retain Unsent Data",
             "order": "3"
         },
@@ -137,7 +140,22 @@ class Purge(FledgeProcess):
             last_id = 0 if last_object == '' else last_object
         else:
             last_id = 0
-        flag = "purge" if config['retainUnsent']['value'].lower() == "false" else "retain"
+
+        #// FIXME_I:
+        if config['retainUnsent']['value'].lower() == "purge unsent":
+            flag = "purge"
+
+        elif config['retainUnsent']['value'].lower() == "retain unsent to any destination":
+            flag = "retainany"
+
+        else:
+            flag = "retainall"
+
+        #// FIXME_I:
+        self._logger.setLevel(logging.DEBUG)
+        self._logger.debug("xxx2 purge_data - :{}: -".format(flag) )
+        self._logger.setLevel(logging.WARNING)
+
         try:
             if int(config['age']['value']) != 0:
                 result = await self._readings_storage_async.purge(age=config['age']['value'], sent_id=last_id, flag=flag)

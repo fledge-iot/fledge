@@ -1,12 +1,9 @@
 #include <pythonreading.h>
 #include <stdexcept>
-#include <numpy/npy_common.h>
-#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
-#include <numpy/ndarraytypes.h>
-#include <numpy/ndarrayobject.h>
 
 using namespace std;
 
+bool PythonReading::doneNumPyImport = false;
 
 /**
  * Construct a PythonReading from a DICT object returned by Pythin code.
@@ -35,7 +32,10 @@ PythonReading::PythonReading(PyObject *pyReading)
 			throw runtime_error(errorMessage());
 		}
 	}
-	m_asset = PyBytes_AsString(assetCode);
+	if (PyUnicode_Check(assetCode))
+	{
+		m_asset = PyUnicode_AsUTF8(assetCode);
+	}
 
 	// Fetch all Datapoints in 'reading' dict			
 	PyObject *dKey, *dValue;
@@ -48,7 +48,7 @@ PythonReading::PythonReading(PyObject *pyReading)
 		DatapointValue *dataPoint = getDatapointValue(dValue);
 		if (dataPoint)
 		{
-			m_values.push_back(new Datapoint(string(PyBytes_AsString(dKey)), *dataPoint));
+			m_values.push_back(new Datapoint(string(PyUnicode_AsUTF8(dKey)), *dataPoint));
 			// Remove temp objects
 			delete dataPoint;
 		}
@@ -291,21 +291,22 @@ PyObject *PythonReading::convertDatapoint(Datapoint *dp)
 	}
 	else if (dataType == DatapointValue::dataTagType::T_DATABUFFER)
 	{
+		InitNumPy();
 		DataBuffer *dbuf = dp->getData().getDataBuffer();
 		npy_intp dim = dbuf->getItemCount();
 		enum NPY_TYPES	type;
 		switch (dbuf->getItemSize())
 		{
-			case 8:
+			case 1:
 				type = NPY_BYTE;
 				break;
-			case 16:
+			case 2:
 				type = NPY_INT16;
 				break;
-			case 32:
+			case 4:
 				type = NPY_INT32;
 				break;
-			case 64:
+			case 8:
 				type = NPY_INT64;
 				break;
 			default:
@@ -323,6 +324,7 @@ PyObject *PythonReading::convertDatapoint(Datapoint *dp)
 	}
 	else if (dataType == DatapointValue::dataTagType::T_IMAGE)
 	{
+		InitNumPy();
 		DPImage *image = dp->getData().getImage();
 		npy_intp dim[2];
 		dim[0] = image->getWidth();

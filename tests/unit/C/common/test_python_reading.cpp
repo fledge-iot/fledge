@@ -6,6 +6,8 @@
 
 using namespace std;
 
+namespace {
+
 const char *script = R"(
 def count(arg):
     readings =  arg["reading"]
@@ -23,347 +25,330 @@ def returnIt(arg):
 
 def isDict(arg):
     return isinstance(arg, dict)
+
+def array_element_0(arg, key):
+    readings = arg["reading"];
+    arr = readings[key];
+    return arr[0]
+
+def array_swap(arg, key):
+    readings = arg["reading"];
+    arr = readings[key];
+    tmp = arr[0]
+    arr[0] = arr[1]
+    arr[1] = tmp
+    return arg
 )";
 
-PyObject *pModule = NULL;
+class  PythonReadingTest : public testing::Test {
+ protected:
+	void SetUp() override
+	{
+		Py_Initialize();
+	}
 
-bool definePythonFuncs(const char *python)
-{
-	PyObject *pName, *pArgs, *pValue, *pFunc;
-	PyObject *pGlobal = PyDict_New();
-	PyObject *pLocal;
+	void TearDown() override
+	{
+		Py_Finalize();
+	}
 
-	Py_Initialize();
-
-	//Create a new module object
-	pModule = PyModule_New("testpython");
-	if (!pModule)
-		return false;
-
-
-	PyModule_AddStringConstant(pModule, "__file__", "");
-
-	//Get the dictionary object from my module so I can pass this to PyRun_String
-	pLocal = PyModule_GetDict(pModule);
-
-	//Define my function in the newly created module
-	pValue = PyRun_String(python, Py_file_input, pGlobal, pLocal);
-	if (pValue == NULL) {
-		if (PyErr_Occurred()) {
-			PyErr_Print();
+   public:
+	int numpyInit()
+	{
+		if (!PyArray_API)
+		{
+			import_array();
 		}
-		return false;
-	}
-	Py_DECREF(pValue);
-	return true;
-}
+	};
 
-PyObject *callPythonFunc(const char *name, PyObject *arg)
-{
-	PyObject *pArgs, *pValue, *pFunc;
-	Logger *log = Logger::getLogger();
-
-	//Get a pointer to the function I just defined
-	pFunc = PyObject_GetAttrString(pModule, name);
-	if (!pFunc)
-		log->fatal("failed to find function %s", name);
-	if (!PyCallable_Check(pFunc))
-		log->fatal("Python functin %s is not callable", name);
-
-	//Build a tuple to hold my arguments (just the number 4 in this case)
-	pArgs = PyTuple_New(1);
-	PyTuple_SetItem(pArgs, 0, arg);
-
-	//Call my function, passing it the number four
-	// pValue = PyObject_CallFunctionObjArgs(pFunc, arg);
-	pValue = PyObject_CallObject(pFunc, pArgs);
-	//pValue = PyObject_CallFunction(pFunc, "O", arg);
-	if (PyErr_Occurred())
+	void logErrorMessage(const char *name)
 	{
-		log->fatal("Error occurred in %s", name);
-		PyErr_Print();
-	}
-	Py_DECREF(pArgs);
-	Py_XDECREF(pFunc);
-
-	return pValue;
-}
-
-PyObject *callPythonFunc2(const char *name, PyObject *arg1, PyObject *arg2)
-{
-	PyObject *pArgs, *pValue, *pFunc;
-	Logger *log = Logger::getLogger();
-
-	//Get a pointer to the function I just defined
-	pFunc = PyObject_GetAttrString(pModule, name);
-	if (!pFunc)
-		log->fatal("failed to find function %s", name);
-	if (!PyCallable_Check(pFunc))
-		log->fatal("Python functin %s is not callable", name);
-
-	//Build a tuple to hold my arguments (just the number 4 in this case)
-	pArgs = PyTuple_New(2);
-	PyTuple_SetItem(pArgs, 0, arg1);
-	PyTuple_SetItem(pArgs, 1, arg2);
-
-	//Call my function, passing it the number four
-	// pValue = PyObject_CallFunctionObjArgs(pFunc, arg);
-	pValue = PyObject_CallObject(pFunc, pArgs);
-	if (PyErr_Occurred())
-	{
-		log->fatal("Error occurred in %s", name);
-		PyErr_Print();
-	}
-	Py_DECREF(pArgs);
-	Py_XDECREF(pFunc);
-
-	return pValue;
-}
-
-static void logErrorMessage()
-{
-	PyObject* type;
-	PyObject* value;
-	PyObject* traceback;
+		PyObject* type;
+		PyObject* value;
+		PyObject* traceback;
 
 
-	PyErr_Fetch(&type, &value, &traceback);
-	PyErr_NormalizeException(&type, &value, &traceback);
+		PyErr_Fetch(&type, &value, &traceback);
+		PyErr_NormalizeException(&type, &value, &traceback);
 
-	PyObject* str_exc_value = PyObject_Repr(value);
-	PyObject* pyExcValueStr = PyUnicode_AsEncodedString(str_exc_value, "utf-8", "Error ~");
-	const char* pErrorMessage = value ?
-				    PyBytes_AsString(pyExcValueStr) :
-				    "no error description.";
-	Logger::getLogger()->fatal("logErrorMessage: Error '%s'", pErrorMessage);
-	
-	// Check for numpy/pandas import errors
-	const char *err1 = "implement_array_function method already has a docstring";
-	const char *err2 = "cannot import name 'check_array_indexer' from 'pandas.core.indexers'";
+		PyObject* str_exc_value = PyObject_Repr(value);
+		PyObject* pyExcValueStr = PyUnicode_AsEncodedString(str_exc_value, "utf-8", "Error ~");
+		const char* pErrorMessage = value ?
+					    PyBytes_AsString(pyExcValueStr) :
+					    "no error description.";
+		Logger::getLogger()->fatal("logErrorMessage: %s: Error '%s'", name, pErrorMessage);
+		
+		// Check for numpy/pandas import errors
+		const char *err1 = "implement_array_function method already has a docstring";
+		const char *err2 = "cannot import name 'check_array_indexer' from 'pandas.core.indexers'";
 
-	
-	std::string fcn = "";
-	fcn += "def get_pretty_traceback(exc_type, exc_value, exc_tb):\n";
-	fcn += "    import sys, traceback\n";
-	fcn += "    lines = []\n"; 
-	fcn += "    lines = traceback.format_exception(exc_type, exc_value, exc_tb)\n";
-	fcn += "    output = '\\n'.join(lines)\n";
-	fcn += "    return output\n";
+		
+		std::string fcn = "";
+		fcn += "def get_pretty_traceback(exc_type, exc_value, exc_tb):\n";
+		fcn += "    import sys, traceback\n";
+		fcn += "    lines = []\n"; 
+		fcn += "    lines = traceback.format_exception(exc_type, exc_value, exc_tb)\n";
+		fcn += "    output = '\\n'.join(lines)\n";
+		fcn += "    return output\n";
 
-	PyRun_SimpleString(fcn.c_str());
-	PyObject* mod = PyImport_ImportModule("__main__");
-	if (mod != NULL) {
-		PyObject* method = PyObject_GetAttrString(mod, "get_pretty_traceback");
-		if (method != NULL) {
-			PyObject* outStr = PyObject_CallObject(method, Py_BuildValue("OOO", type, value, traceback));
-			if (outStr != NULL) {
-				PyObject* tmp = PyUnicode_AsASCIIString(outStr);
-				if (tmp != NULL) {
-					std::string pretty = PyBytes_AsString(tmp);
-					Logger::getLogger()->fatal("%s", pretty.c_str());
-					Logger::getLogger()->printLongString(pretty.c_str());
+		PyRun_SimpleString(fcn.c_str());
+		PyObject* mod = PyImport_ImportModule("__main__");
+		if (mod != NULL) {
+			PyObject* method = PyObject_GetAttrString(mod, "get_pretty_traceback");
+			if (method != NULL) {
+				PyObject* outStr = PyObject_CallObject(method, Py_BuildValue("OOO", type, value, traceback));
+				if (outStr != NULL) {
+					PyObject* tmp = PyUnicode_AsASCIIString(outStr);
+					if (tmp != NULL) {
+						std::string pretty = PyBytes_AsString(tmp);
+						Logger::getLogger()->fatal("%s", pretty.c_str());
+						Logger::getLogger()->printLongString(pretty.c_str());
+					}
+					Py_CLEAR(tmp);
 				}
-				Py_CLEAR(tmp);
+				Py_CLEAR(outStr);
 			}
-			Py_CLEAR(outStr);
+			Py_CLEAR(method);
 		}
-		Py_CLEAR(method);
+
+		// Reset error
+		PyErr_Clear();
+
+		// Remove references
+		Py_CLEAR(type);
+		Py_CLEAR(value);
+		Py_CLEAR(traceback);
+		Py_CLEAR(str_exc_value);
+		Py_CLEAR(pyExcValueStr);
+		Py_CLEAR(mod);
 	}
 
-	// Reset error
-	PyErr_Clear();
-
-	// Remove references
-	Py_CLEAR(type);
-	Py_CLEAR(value);
-	Py_CLEAR(traceback);
-	Py_CLEAR(str_exc_value);
-	Py_CLEAR(pyExcValueStr);
-	Py_CLEAR(mod);
-}
-
-void pythonFinalize()
-{
-	Py_DECREF(pModule);
-	Py_Finalize();
-}
-
-TEST(PythonReadingTest, SimpleSizeLong)
-{
-	long i = 1234;
-	DatapointValue value(i);
-	Reading reading("test", new Datapoint("long", value));
-	PyObject *pyReading = ((PythonReading *)(&reading))->toPython();
-	if (definePythonFuncs(script))
+	PyObject *callPythonFunc(const char *name, PyObject *arg)
 	{
-		PyObject *obj = callPythonFunc("count", pyReading);
-		long rval = PyLong_AsLong(obj);
-		ASSERT_EQ(rval, 1);
-	}
-	else
-		ASSERT_EQ(true, false);
-	pythonFinalize();
-}
+		PyObject *rval = NULL;
+		Logger *log = Logger::getLogger();
 
-TEST(PythonReadingTest, IsDict)
-{
-	long i = 1234;
-	DatapointValue value(i);
-	Reading reading("test", new Datapoint("long", value));
-	definePythonFuncs(script);
-	PyObject *pyReading = ((PythonReading *)(&reading))->toPython();
-	ASSERT_EQ(PyDict_Check(pyReading), true);
-	pythonFinalize();
-}
-
-#if 0
-TEST(PythonReadingTest, PyIsDict)
-{
-	long i = 1234;
-	DatapointValue value(i);
-	Reading reading("test", new Datapoint("long", value));
-	definePythonFuncs(script);
-	PyObject *pyReading = ((PythonReading *)(&reading))->toPython();
-	ASSERT_EQ(PyDict_Check(pyReading), true);
-	if (definePythonFuncs(script))
-	{
-		PyObject *obj = callPythonFunc("isDict", pyReading);
-		if (obj)
+		PyRun_SimpleString(script);
+		PyObject* mod = PyImport_ImportModule("__main__");
+		if (mod != NULL)
 		{
-			int truth = PyObject_IsTrue(obj);
-			ASSERT_EQ(truth, 1);
+			PyObject* method = PyObject_GetAttrString(mod, name);
+			if (method != NULL)
+			{
+				//rval = PyObject_CallObject(method, Py_BuildValue("O", arg));
+				rval = PyObject_CallFunction(method, "O", arg);
+				if (rval == NULL)
+				{
+					if (PyErr_Occurred())
+					{
+						log->fatal("CallPythonFunc:Error occurred in %s", name);
+						logErrorMessage(name);
+						PyErr_Print();
+					}
+				}
+			}
+			else
+			{
+				log->fatal("Method '%s' not found", name);
+			}
+			Py_CLEAR(method);
 		}
 		else
-			ASSERT_EQ(true, false);
-	}
-	else
-		ASSERT_EQ(true, false);
-	pythonFinalize();
-}
-#endif
-
-TEST(PythonReadingTest, Py2IsDict)
-{
-	long i = 1234;
-	DatapointValue value(i);
-	Reading reading("test", new Datapoint("long", value));
-	definePythonFuncs(script);
-	PyObject *pyReading = ((PythonReading *)(&reading))->toPython();
-	ASSERT_EQ(PyDict_Check(pyReading), true);
-	if (definePythonFuncs(script))
-	{
-		PyObject *obj = callPythonFunc("returnIt", pyReading);
-		if (obj)
 		{
-			ASSERT_EQ(PyDict_Check(obj), true);
+			log->fatal("Failed to import module");
+		}
+
+		// Reset error
+		PyErr_Clear();
+
+		// Remove references
+		Py_CLEAR(mod);
+
+		return rval;
+	}
+
+	PyObject *callPythonFunc2(const char *name, PyObject *arg1, PyObject *arg2)
+	{
+		PyObject *rval = NULL;
+		Logger *log = Logger::getLogger();
+
+		PyRun_SimpleString(script);
+		PyObject* mod = PyImport_ImportModule("__main__");
+		if (mod != NULL)
+		{
+			PyObject* method = PyObject_GetAttrString(mod, name);
+			if (method != NULL)
+			{
+				rval = PyObject_CallFunction(method, "OO", arg1, arg2);
+				if (rval == NULL)
+				{
+					if (PyErr_Occurred())
+					{
+						log->fatal("CallPythonFunc:Error occurred in %s", name);
+						logErrorMessage(name);
+						return NULL;
+					}
+				}
+			}
+			else
+			{
+				log->fatal("Method '%s' not found", name);
+			}
+			Py_CLEAR(method);
 		}
 		else
-			ASSERT_EQ(true, false);
-	}
-	else
-		ASSERT_EQ(true, false);
-	pythonFinalize();
-}
+		{
+			log->fatal("Failed to import module");
+		}
 
-TEST(PythonReadingTest, SimpleLong)
+		// Reset error
+		PyErr_Clear();
+
+		// Remove references
+		Py_CLEAR(mod);
+
+		return rval;
+	}
+};
+
+TEST_F(PythonReadingTest, SimpleSizeLong)
 {
 	long i = 1234;
 	DatapointValue value(i);
 	Reading reading("test", new Datapoint("long", value));
 	PyObject *pyReading = ((PythonReading *)(&reading))->toPython();
-	ASSERT_EQ(PyDict_Check(pyReading), true);
+	PyObject *obj = callPythonFunc("count", pyReading);
+	long rval = PyLong_AsLong(obj);
+	EXPECT_EQ(rval, 1);
+}
+
+TEST_F(PythonReadingTest, IsDict)
+{
+	long i = 1234;
+	DatapointValue value(i);
+	Reading reading("test", new Datapoint("long", value));
+	PyObject *pyReading = ((PythonReading *)(&reading))->toPython();
+	EXPECT_EQ(PyDict_Check(pyReading), true);
+}
+
+TEST_F(PythonReadingTest, PyIsDict)
+{
+	long i = 1234;
+	DatapointValue value(i);
+	Reading reading("test", new Datapoint("long", value));
+	PyObject *pyReading = ((PythonReading *)(&reading))->toPython();
+	EXPECT_EQ(PyDict_Check(pyReading), true);
+	PyObject *obj = callPythonFunc("isDict", pyReading);
+	if (obj)
+	{
+		int truth = PyObject_IsTrue(obj);
+		EXPECT_EQ(truth, 1);
+	}
+	else
+		EXPECT_STREQ("Expected object to be returned", "");
+}
+
+TEST_F(PythonReadingTest, Py2IsDict)
+{
+	long i = 1234;
+	DatapointValue value(i);
+	Reading reading("test", new Datapoint("long", value));
+	PyObject *pyReading = ((PythonReading *)(&reading))->toPython();
+	EXPECT_EQ(PyDict_Check(pyReading), true);
+	PyObject *obj = callPythonFunc("returnIt", pyReading);
+	if (obj)
+	{
+		EXPECT_EQ(PyDict_Check(obj), true);
+	}
+	else
+		EXPECT_EQ(true, false);
+}
+
+TEST_F(PythonReadingTest, SimpleLong)
+{
+	long i = 1234;
+	DatapointValue value(i);
+	Reading reading("test", new Datapoint("long", value));
+	PyObject *pyReading = ((PythonReading *)(&reading))->toPython();
+	EXPECT_EQ(PyDict_Check(pyReading), true);
 	PyObject *element = PyUnicode_FromString("long");
-	if (definePythonFuncs(script))
-	{
-		PyObject *obj = callPythonFunc2("element", pyReading, element);
-		ASSERT_EQ(PyLong_Check(obj), true);
-		long rval = PyLong_AsLong(obj);
-		ASSERT_EQ(rval, 1234);
-	}
-	else
-		ASSERT_EQ(true, false);
-	pythonFinalize();
+	PyObject *obj = callPythonFunc2("element", pyReading, element);
+	EXPECT_EQ(PyLong_Check(obj), true);
+	long rval = PyLong_AsLong(obj);
+	EXPECT_EQ(rval, 1234);
 }
 
-TEST(PythonReadingTest, DictCheck)
+TEST_F(PythonReadingTest, SimpleDouble)
+{
+	double i = 1234.5;
+	DatapointValue value(i);
+	Reading reading("test", new Datapoint("double", value));
+	PyObject *pyReading = ((PythonReading *)(&reading))->toPython();
+	EXPECT_EQ(PyDict_Check(pyReading), true);
+	PyObject *element = PyUnicode_FromString("double");
+	PyObject *obj = callPythonFunc2("element", pyReading, element);
+	EXPECT_EQ(PyFloat_Check(obj), true);
+	double rval = PyFloat_AS_DOUBLE(obj);
+	EXPECT_EQ(rval, 1234.5);
+}
+
+TEST_F(PythonReadingTest, DictCheck)
 {
 	long i = 1234;
 	DatapointValue value(i);
 	Reading reading("test", new Datapoint("long", value));
 	PyObject *pyReading = ((PythonReading *)(&reading))->toPython();
-	ASSERT_EQ(PyDict_Check(pyReading), true);
-	PyObject *element = PyUnicode_FromString("reading");
-	if (definePythonFuncs(script))
-	{
-		PyObject *obj = callPythonFunc2("element", pyReading, element);
-		if (obj && PyDict_Check(obj))
-			ASSERT_EQ(true, true);
-		else
-			ASSERT_EQ(false, false);
-	}
-	else
-		ASSERT_EQ(true, false);
-	pythonFinalize();
+	EXPECT_EQ(PyDict_Check(pyReading), true);
 }
 
-TEST(PythonReadingTest, SimpleSizeString)
+TEST_F(PythonReadingTest, SimpleSizeString)
 {
 	DatapointValue value("just a string");
 	Reading reading("test", new Datapoint("str", value));
 	PyObject *pyReading = ((PythonReading *)(&reading))->toPython();
-	if (definePythonFuncs(script))
-	{
-		PyObject *obj = callPythonFunc("count", pyReading);
-		long rval = PyLong_AsLong(obj);
-		ASSERT_EQ(rval, 1);
-	}
-	else
-		ASSERT_EQ(true, false);
-	pythonFinalize();
+	PyObject *obj = callPythonFunc("count", pyReading);
+	long rval = PyLong_AsLong(obj);
+	EXPECT_EQ(rval, 1);
 }
 
-TEST(PythonReadingTest, SimpleString)
+TEST_F(PythonReadingTest, SimpleString)
 {
 	DatapointValue value("just a string");
 	Reading reading("test", new Datapoint("str", value));
 	PyObject *pyReading = ((PythonReading *)(&reading))->toPython();
 	PyObject *element = PyUnicode_FromString("str");
-	if (definePythonFuncs(script))
+	PyObject *obj = callPythonFunc2("element", pyReading, element);
+	if (obj)
 	{
-		PyObject *obj = callPythonFunc2("element", pyReading, element);
-		if (obj)
-		{
-			ASSERT_EQ(PyUnicode_Check(obj), true);
-			char *rval = PyUnicode_AsUTF8(obj);
-			ASSERT_EQ(strcmp(rval, "just a string"), 0);
-		}
+		EXPECT_EQ(PyUnicode_Check(obj), true);
+		char *rval = PyUnicode_AsUTF8(obj);
+		EXPECT_STREQ(rval, "just a string");
 	}
 	else
-		ASSERT_EQ(true, false);
-	pythonFinalize();
+	{
+		EXPECT_STREQ("Expected a string object", "");
+	}
 }
 
-TEST(PythonReadingTest, AssetCode)
+TEST_F(PythonReadingTest, AssetCode)
 {
 	DatapointValue value("just a string");
 	Reading reading("testAsset", new Datapoint("str", value));
 	PyObject *pyReading = ((PythonReading *)(&reading))->toPython();
-	if (definePythonFuncs(script))
+	PyObject *obj = callPythonFunc("assetCode", pyReading);
+	if (obj)
 	{
-		PyObject *obj = callPythonFunc("assetCode", pyReading);
-		if (obj)
-		{
-			ASSERT_EQ(PyUnicode_Check(obj), true);
-			char *rval = PyUnicode_AsUTF8(obj);
-			ASSERT_EQ(strcmp(rval, "testAsset"), 0);
-		}
+		EXPECT_EQ(PyUnicode_Check(obj), true);
+		char *rval = PyUnicode_AsUTF8(obj);
+		EXPECT_STREQ(rval, "testAsset");
 	}
 	else
-		ASSERT_EQ(true, false);
-	pythonFinalize();
+	{
+		EXPECT_STREQ("Expected a string object", "");
+	}
 }
 
-TEST(PythonReadingTest, TwoDataPoints)
+TEST_F(PythonReadingTest, TwoDataPoints)
 {
 	vector<Datapoint *> values;
 	DatapointValue value("just a string");
@@ -371,18 +356,35 @@ TEST(PythonReadingTest, TwoDataPoints)
 	values.push_back(new Datapoint("s2", value));
 	Reading reading("test", values);
 	PyObject *pyReading = ((PythonReading *)(&reading))->toPython();
-	if (definePythonFuncs(script))
-	{
-		PyObject *obj = callPythonFunc("count", pyReading);
-		long rval = PyLong_AsLong(obj);
-		ASSERT_EQ(rval, 2);
-	}
-	else
-		ASSERT_EQ(true, false);
-	pythonFinalize();
+	PyObject *obj = callPythonFunc("count", pyReading);
+	long rval = PyLong_AsLong(obj);
+	EXPECT_EQ(rval, 2);
 }
 
-TEST(PythonReadingTest, TwoDataPointsFetchString1)
+TEST_F(PythonReadingTest, TwoDifferentDataPoints)
+{
+	vector<Datapoint *> values;
+	DatapointValue v1("just a string");
+	DatapointValue v2((long)12345678);
+	values.push_back(new Datapoint("s", v1));
+	values.push_back(new Datapoint("l", v2));
+	Reading reading("test", values);
+	PyObject *pyReading = ((PythonReading *)(&reading))->toPython();
+	PyObject *obj = callPythonFunc("count", pyReading);
+	long rval = PyLong_AsLong(obj);
+	EXPECT_EQ(rval, 2);
+	PyObject *element = PyUnicode_FromString("s");
+	obj = callPythonFunc2("element", pyReading, element);
+	EXPECT_EQ(PyUnicode_Check(obj), true);
+	char *sval = PyUnicode_AsUTF8(obj);
+	EXPECT_STREQ(sval, "just a string");
+	element = PyUnicode_FromString("l");
+	obj = callPythonFunc2("element", pyReading, element);
+	rval = PyLong_AsLong(obj);
+	EXPECT_EQ(rval, 12345678);
+}
+
+TEST_F(PythonReadingTest, TwoDataPointsFetchString1)
 {
 	vector<Datapoint *> values;
 	DatapointValue value("just a string");
@@ -391,22 +393,20 @@ TEST(PythonReadingTest, TwoDataPointsFetchString1)
 	Reading reading("test", values);
 	PyObject *pyReading = ((PythonReading *)(&reading))->toPython();
 	PyObject *element = PyUnicode_FromString("s1");
-	if (definePythonFuncs(script))
+	PyObject *obj = callPythonFunc2("element", pyReading, element);
+	if (obj)
 	{
-		PyObject *obj = callPythonFunc2("element", pyReading, element);
-		if (obj)
-		{
-			ASSERT_EQ(PyUnicode_Check(obj), true);
-			char *rval = PyUnicode_AsUTF8(obj);
-			ASSERT_EQ(strcmp(rval, "just a string"), 0);
-		}
+		EXPECT_EQ(PyUnicode_Check(obj), true);
+		char *rval = PyUnicode_AsUTF8(obj);
+		EXPECT_STREQ(rval, "just a string");
 	}
 	else
-		ASSERT_EQ(true, false);
-	pythonFinalize();
+	{
+		EXPECT_STREQ("Expected a string object", "");
+	}
 }
 
-TEST(PythonReadingTest, TwoDataPointsFetchString2)
+TEST_F(PythonReadingTest, TwoDataPointsFetchString2)
 {
 	vector<Datapoint *> values;
 	DatapointValue value("just a string");
@@ -415,17 +415,177 @@ TEST(PythonReadingTest, TwoDataPointsFetchString2)
 	Reading reading("test", values);
 	PyObject *pyReading = ((PythonReading *)(&reading))->toPython();
 	PyObject *element = PyUnicode_FromString("s2");
-	if (definePythonFuncs(script))
+	PyObject *obj = callPythonFunc2("element", pyReading, element);
+	if (obj)
 	{
-		PyObject *obj = callPythonFunc2("element", pyReading, element);
-		if (obj)
+		EXPECT_EQ(PyUnicode_Check(obj), true);
+		char *rval = PyUnicode_AsUTF8(obj);
+		EXPECT_STREQ(rval, "just a string");
+	}
+	else
+	{
+		EXPECT_STREQ("Expected a string object", "");
+	}
+}
+
+TEST_F(PythonReadingTest, DoubleListDataPoint)
+{
+	vector<double> values;
+	values.push_back(1.4);
+	values.push_back(3.7);
+	DatapointValue value(values);
+	Reading reading("test", new Datapoint("array", value));
+	PyObject *pyReading = ((PythonReading *)(&reading))->toPython();
+	PyObject *element = PyUnicode_FromString("array");
+	PyObject *obj = callPythonFunc2("element", pyReading, element);
+	if (obj)
+	{
+		EXPECT_EQ(PyList_Check(obj), true);
+	}
+	else
+	{
+		EXPECT_STREQ("Expected a LIST object", "");
+	}
+}
+
+TEST_F(PythonReadingTest, DictDataPoint)
+{
+	vector<Datapoint *> *values = new vector<Datapoint *>;
+	DatapointValue value("just a string");
+	values->push_back(new Datapoint("s1", value));
+	values->push_back(new Datapoint("s2", value));
+	DatapointValue dict(values, true);
+	Reading reading("test", new Datapoint("child", dict));
+	PyObject *pyReading = ((PythonReading *)(&reading))->toPython();
+	PyObject *element = PyUnicode_FromString("child");
+	PyObject *obj = callPythonFunc2("element", pyReading, element);
+	if (obj)
+	{
+		EXPECT_EQ(PyDict_Check(obj), true);
+	}
+	else
+	{
+		EXPECT_STREQ("Expected a DICT object", "");
+	}
+}
+
+TEST_F(PythonReadingTest, DataBuffer)
+{
+	DataBuffer *buffer = new DataBuffer(sizeof(uint16_t), 10);
+	uint16_t *ptr = (uint16_t *)buffer->getData();
+	*ptr = 1234;
+	*(ptr + 1) = 5678;
+	DatapointValue buf(buffer);
+	Reading reading("test", new Datapoint("buffer", buf));
+	PyObject *pyReading = ((PythonReading *)(&reading))->toPython();
+	PyObject *element = PyUnicode_FromString("buffer");
+	PyObject *obj = callPythonFunc2("element", pyReading, element);
+	if (obj)
+	{
+		EXPECT_EQ(PyArray_Check(obj), true);
+	}
+	else
+	{
+		EXPECT_STREQ("Expected an array object", "");
+	}
+	obj = callPythonFunc2("array_element_0", pyReading, element);
+	if (obj)
+	{
+		EXPECT_STREQ(obj->ob_type->tp_name, "numpy.int16");
+	}
+	else
+	{
+		EXPECT_STREQ("Expected a long object", "");
+	}
+}
+
+TEST_F(PythonReadingTest, SimpleLongRoundTrip)
+{
+	long i = 1234;
+	DatapointValue value(i);
+	Reading reading("test", new Datapoint("long", value));
+	PyObject *pyReading = ((PythonReading *)(&reading))->toPython();
+	EXPECT_EQ(PyDict_Check(pyReading), true);
+	PyObject *obj = callPythonFunc("returnIt", pyReading);
+	if (obj)
+	{
+		PythonReading pyr(obj);
+		EXPECT_STREQ(pyr.getAssetName().c_str(), "test");
+		EXPECT_EQ(pyr.getDatapointCount(), 1);
+		Datapoint *dp = pyr.getDatapoint("long");
+		if (!dp)
 		{
-			ASSERT_EQ(PyUnicode_Check(obj), true);
-			char *rval = PyUnicode_AsUTF8(obj);
-			ASSERT_EQ(strcmp(rval, "just a string"), 0);
+			EXPECT_STREQ("Expected datapoint missing", "");
+		}
+		else
+		{
+			EXPECT_EQ(dp->getData().getType(), DatapointValue::dataTagType::T_INTEGER);
+			EXPECT_EQ(dp->getData().toInt(), 1234);
 		}
 	}
 	else
-		ASSERT_EQ(true, false);
-	pythonFinalize();
+	{
+		EXPECT_STREQ("Expect PythonReading object missing", "");
+	}
 }
+
+TEST_F(PythonReadingTest, SimpleStringRoundTrip)
+{
+	DatapointValue value("this is a string");
+	Reading reading("test", new Datapoint("str", value));
+	PyObject *pyReading = ((PythonReading *)(&reading))->toPython();
+	EXPECT_EQ(PyDict_Check(pyReading), true);
+	PyObject *obj = callPythonFunc("returnIt", pyReading);
+	if (obj)
+	{
+		PythonReading pyr(obj);
+		EXPECT_STREQ(pyr.getAssetName().c_str(), "test");
+		EXPECT_EQ(pyr.getDatapointCount(), 1);
+		Datapoint *dp = pyr.getDatapoint("str");
+		if (!dp)
+		{
+			EXPECT_STREQ("Expected datapoint missing", "");
+		}
+		else
+		{
+			EXPECT_EQ(dp->getData().getType(), DatapointValue::dataTagType::T_STRING);
+			EXPECT_STREQ(dp->getData().toStringValue().c_str(),
+					"this is a string");
+		}
+	}
+	else
+	{
+		EXPECT_STREQ("Expect PythonReading object missing", "");
+	}
+}
+
+TEST_F(PythonReadingTest, DataBufferSwapRoundTrip)
+{
+	DataBuffer *buffer = new DataBuffer(sizeof(uint16_t), 10);
+	uint16_t *ptr = (uint16_t *)buffer->getData();
+	*ptr = 1234;
+	*(ptr + 1) = 5678;
+	DatapointValue buf(buffer);
+	Reading reading("test", new Datapoint("buffer", buf));
+	PyObject *pyReading = ((PythonReading *)(&reading))->toPython();
+	PyObject *element = PyUnicode_FromString("buffer");
+	PyObject *obj = callPythonFunc2("array_swap", pyReading, element);
+	PythonReading pyr(obj);
+	EXPECT_STREQ(pyr.getAssetName().c_str(), "test");
+	EXPECT_EQ(pyr.getDatapointCount(), 1);
+	Datapoint *dp = pyr.getDatapoint("buffer");
+	if (!dp)
+	{
+		EXPECT_STREQ("Expected datapoint missing", "");
+	}
+	else
+	{
+		EXPECT_EQ(dp->getData().getType(), DatapointValue::dataTagType::T_DATABUFFER);
+		DataBuffer *dpbuf = dp->getData().getDataBuffer();
+		ptr = (uint16_t *)dpbuf->getData();
+	
+		EXPECT_EQ(*ptr, 5678);
+		EXPECT_EQ(*(ptr + 1), 1234);
+	}
+}
+};

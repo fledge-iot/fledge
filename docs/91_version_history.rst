@@ -40,9 +40,9 @@ Release Date: 2021-09-29
        - A new option has been added to the sqlite storage plugin only that allows assets to be excluded from consideration in the purge process.
        - A new purge process has been added to control the growth of statistics history and audit trails. This new process is known as the "System Purge" process.
        - The support bundle has been updated to include details of the packages installed.
-       - The package repository API endpoint has been updated to support Ubuntu 20 repository end point.
+       - The package repository API endpoint has been updated to support Ubuntu 20.04 repository end point.
        - The handling of updates from RPM package repositories has been improved.       
-       - The certificate store has been updated to support more formats of certificates, including DER P12 and PFX format certificates.     
+       - The certificate store has been updated to support more formats of certificates, including DER, P12 and PFX format certificates.     
        - The documentation has been updated to include an approved introduction to filters.
        - The OMF north plugin documentation has been re-organised and updated to include the latest features that have been introduced to this plugin.
        - A new section has been added to the documentation that discusses the tuning of the edge based control path.

@@ -17,6 +17,12 @@
 #include <list>
 #include <map>
 
+typedef enum PluginType
+{
+	PLUGIN_TYPE_ID_STORAGE,
+	PLUGIN_TYPE_ID_OTHER
+} tPluginType;
+
 /**
  * The manager for plugins.
  *
@@ -37,6 +43,7 @@ class PluginManager {
 				*getInfo(const PLUGIN_HANDLE);
 		void		getInstalledPlugins(const std::string& type,
 						    std::list<std::string>& plugins);
+		void setPluginType(tPluginType type);
 
 	public:
                 static PluginManager* instance;
@@ -53,6 +60,7 @@ class PluginManager {
                 std::map<PLUGIN_HANDLE, PluginHandle*>
 							pluginHandleMap;
                 Logger*					logger;
+				tPluginType				m_pluginType;
 };
 
 #endif

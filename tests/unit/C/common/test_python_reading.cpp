@@ -26,6 +26,10 @@ def returnIt(arg):
 def isDict(arg):
     return isinstance(arg, dict)
 
+def setAsset(arg, name):
+    arg["asset_code"] = name
+    return arg
+
 def array_element_0(arg, key):
     readings = arg["reading"];
     arr = readings[key];
@@ -37,6 +41,11 @@ def array_swap(arg, key):
     tmp = arr[0]
     arr[0] = arr[1]
     arr[1] = tmp
+    return arg
+
+def image_swap(arg, key):
+    readings = arg["reading"];
+    img = readings[key];
     return arg
 )";
 
@@ -586,6 +595,65 @@ TEST_F(PythonReadingTest, DataBufferSwapRoundTrip)
 	
 		EXPECT_EQ(*ptr, 5678);
 		EXPECT_EQ(*(ptr + 1), 1234);
+	}
+}
+
+TEST_F(PythonReadingTest, ImageRoundTrip)
+{
+	void *data = malloc(64 * 96);
+	DPImage  *image = new DPImage(64, 96, 8, data);
+	DatapointValue img(image);
+	Reading reading("test", new Datapoint("image", img));
+	PyObject *pyReading = ((PythonReading *)(&reading))->toPython();
+	PyObject *element = PyUnicode_FromString("image");
+	PyObject *obj = callPythonFunc2("image_swap", pyReading, element);
+	PythonReading pyr(obj);
+	EXPECT_STREQ(pyr.getAssetName().c_str(), "test");
+	EXPECT_EQ(pyr.getDatapointCount(), 1);
+	Datapoint *dp = pyr.getDatapoint("image");
+	if (!dp)
+	{
+		EXPECT_STREQ("Expected datapoint missing", "");
+	}
+	else
+	{
+		EXPECT_EQ(dp->getData().getType(), DatapointValue::dataTagType::T_IMAGE);
+		DPImage *image2 = dp->getData().getImage();
+		uint8_t *ptr = (uint8_t *)image2->getData();
+		EXPECT_EQ(image2->getWidth(), image->getWidth());
+		EXPECT_EQ(image2->getHeight(), image->getHeight());
+		EXPECT_EQ(image2->getDepth(), image->getDepth());
+	}
+}
+
+TEST_F(PythonReadingTest, UpdateAssetCode)
+{
+	long i = 1234;
+	DatapointValue value(i);
+	Reading reading("test", new Datapoint("long", value));
+	PyObject *pyReading = ((PythonReading *)(&reading))->toPython();
+	EXPECT_EQ(PyDict_Check(pyReading), true);
+	PyObject *newName = PyUnicode_FromString("shorter");
+	PyObject *obj = callPythonFunc2("setAsset", pyReading, newName);
+	if (obj)
+	{
+		PythonReading pyr(obj);
+		EXPECT_STREQ(pyr.getAssetName().c_str(), "shorter");
+		EXPECT_EQ(pyr.getDatapointCount(), 1);
+		Datapoint *dp = pyr.getDatapoint("long");
+		if (!dp)
+		{
+			EXPECT_STREQ("Expected datapoint missing", "");
+		}
+		else
+		{
+			EXPECT_EQ(dp->getData().getType(), DatapointValue::dataTagType::T_INTEGER);
+			EXPECT_EQ(dp->getData().toInt(), 1234);
+		}
+	}
+	else
+	{
+		EXPECT_STREQ("Expect PythonReading object missing", "");
 	}
 }
 };

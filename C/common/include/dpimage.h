@@ -28,6 +28,7 @@ class DPImage {
 		int		m_height;
 		int		m_depth;
 		void		*m_pixels;
+		int		m_byteSize;
 };
 
 #endif

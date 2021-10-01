@@ -90,27 +90,27 @@ PythonReading::PythonReading(PyObject *pyReading)
 DatapointValue *PythonReading::getDatapointValue(PyObject *value)
 {
 	DatapointValue *dataPoint = NULL;
-	if (PyLong_Check(value) || PyLong_Check(value))
+	if (PyLong_Check(value) || PyLong_Check(value))	// Integer
 	{
 		dataPoint = new DatapointValue((long)PyLong_AsUnsignedLongMask(value));
 	}
-	else if (PyFloat_Check(value))
+	else if (PyFloat_Check(value))		// Float
 	{
 		dataPoint = new DatapointValue(PyFloat_AS_DOUBLE(value));
 	}
-	else if (PyBytes_Check(value))
+	else if (PyBytes_Check(value))		// String
 	{
 		string str = PyBytes_AsString(value);
 		fixQuoting(str);
 		dataPoint = new DatapointValue(str);
 	}
-	else if (PyUnicode_Check(value))
+	else if (PyUnicode_Check(value))	// String
 	{
 		string str = PyUnicode_AsUTF8(value);
 		fixQuoting(str);
 		dataPoint = new DatapointValue(str);
 	}
-	else if (PyDict_Check(value))
+	else if (PyDict_Check(value))		// Nested object
 	{
 		vector<Datapoint *> *values = new vector<Datapoint *>;
 		Py_ssize_t dPos = 0;
@@ -146,7 +146,7 @@ DatapointValue *PythonReading::getDatapointValue(PyObject *value)
 			}
 			dataPoint = new DatapointValue(values);
 		}
-		else if (PyDict_Check(item0))
+		else if (PyDict_Check(item0))	// List of datapoints
 		{
 			vector<Datapoint *>* values = new vector<Datapoint *>;
 			for (Py_ssize_t i = 0; i < listSize; i++)
@@ -172,13 +172,26 @@ DatapointValue *PythonReading::getDatapointValue(PyObject *value)
 	{
 		PyArrayObject *array = (PyArrayObject *)value;
 		int item_size = PyArray_ITEMSIZE(array);
-		if (PyArray_NDIM(array) == 1)	// It's a data buffer
+		if (PyArray_NDIM(array) == 1)	// Databuffer
 		{
 			npy_intp *dims = PyArray_DIMS(array);
 			int n_items = (int)dims[0];
+			DataBuffer *buffer = new DataBuffer(item_size, n_items);
+			memcpy(buffer->getData(), PyArray_DATA(array), n_items * item_size);
 
-			// TODO get Data
+			dataPoint = new DatapointValue(buffer);
 		}
+		else if (PyArray_NDIM(array) == 2)	// Image
+		{
+			npy_intp *dims = PyArray_DIMS(array);
+			int width = (int)dims[0];
+			int height = (int)dims[1];
+			int depth = item_size * 8;	// In bits
+			DPImage *image = new DPImage(width, height, depth, PyArray_DATA(array));
+
+			dataPoint = new DatapointValue(image);
+		}
+		// TODO multi-dimensional arrays
 	}
 	else	// TODO add other datapoint types
 	{

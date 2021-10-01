@@ -9,6 +9,9 @@
  */
 #include <dpimage.h>
 #include <logger.h>
+#include <string.h>
+#include <exception>
+#include <stdexcept>
 
 using namespace std;
 
@@ -23,7 +26,16 @@ using namespace std;
 DPImage::DPImage(int width, int height, int depth, void *data) : m_width(width),
 	m_height(height), m_depth(depth)
 {
-	// TODO deal with the data
+	m_byteSize = width * height * (depth / 8);
+	m_pixels = (void *)malloc(m_byteSize);
+	if (m_pixels)
+	{
+		memcpy(m_pixels, data, m_byteSize);
+	}
+	else
+	{
+		throw runtime_error("Insufficient memory to store image");
+	}
 }
 
 /**
@@ -37,7 +49,16 @@ DPImage::DPImage(const DPImage& rhs)
 	m_height = rhs.m_height;
 	m_depth = rhs.m_depth;
 
-	// TODO deal with data
+	m_byteSize = m_width * m_height * (m_depth / 8);
+	m_pixels = (void *)malloc(m_byteSize);
+	if (m_pixels)
+	{
+		memcpy(m_pixels, rhs.m_pixels, m_byteSize);
+	}
+	else
+	{
+		throw runtime_error("Insufficient memory to store image");
+	}
 }
 
 /**
@@ -52,7 +73,16 @@ DPImage& DPImage::operator=(const DPImage& rhs)
 	m_height = rhs.m_height;
 	m_depth = rhs.m_depth;
 
-	// TODO deal with data
+	m_byteSize = m_width * m_height * (m_depth / 8);
+	m_pixels = (void *)malloc(m_byteSize);
+	if (m_pixels)
+	{
+		memcpy(m_pixels, rhs.m_pixels, m_byteSize);
+	}
+	else
+	{
+		throw runtime_error("Insufficient memory to store image");
+	}
 }
 
 /**
@@ -60,4 +90,7 @@ DPImage& DPImage::operator=(const DPImage& rhs)
  */
 DPImage::~DPImage()
 {
+	if (m_pixels)
+		free(m_pixels);
+	m_pixels = NULL;
 }

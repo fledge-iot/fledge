@@ -75,6 +75,7 @@ private:
 						std::lock_guard<std::mutex> guard(m_statsMutex);
 						m_discardedReadings++;
 					};
+	long				calculateWaitTime();
 
 	StorageClient&			m_storage;
 	long				m_timeout;

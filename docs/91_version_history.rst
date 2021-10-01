@@ -43,7 +43,7 @@ Release Date: 2021-09-29
        - The package repository API endpoint has been updated to support Ubuntu 20.04 repository end point.
        - The handling of updates from RPM package repositories has been improved.       
        - The certificate store has been updated to support more formats of certificates, including DER, P12 and PFX format certificates.     
-       - The documentation has been updated to include an approved introduction to filters.
+       - The documentation has been updated to include an improved & detailed introduction to filters.
        - The OMF north plugin documentation has been re-organised and updated to include the latest features that have been introduced to this plugin.
        - A new section has been added to the documentation that discusses the tuning of the edge based control path.
 

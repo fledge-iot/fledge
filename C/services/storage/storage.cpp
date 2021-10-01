@@ -379,6 +379,7 @@ void StorageService::stop()
 bool StorageService::loadPlugin()
 {
 	PluginManager *manager = PluginManager::getInstance();
+	manager->setPluginType(PLUGIN_TYPE_ID_STORAGE);
 
 	const char *plugin = config->getValue("plugin");
 	if (plugin == NULL)

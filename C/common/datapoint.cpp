@@ -92,6 +92,7 @@ std::string DatapointValue::toString() const
 			<< "\"";
 		return ss.str();
 	case T_IMAGE:
+		throw std::runtime_error("No string representation for Image datapoint types");
 	default:
 		throw std::runtime_error("No string representation for datapoint type");
 	}

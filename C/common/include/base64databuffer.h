@@ -35,6 +35,11 @@ static const uint8_t  decodingTable[] = {
       64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64
 };
 
+/**
+ * The Base64DataBuffer class provide functionality on top of the
+ * simple DataBuffer class that is used to encode the buffer in
+ * base64 such that it may be stored as string data.
+ */
 class Base64DataBuffer : public DataBuffer {
 
 	public:

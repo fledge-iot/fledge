@@ -12,7 +12,9 @@
 #include <unistd.h>
 
 /**
- * Buffer type for storage arbitrary buffers of data within a datapoint
+ * Buffer type for storage of arbitrary buffers of data within a datapoint.
+ * A DataBuffer is essentially a 1 dimensional array of a memory primitive of
+ * itemSize.
  */
 class DataBuffer {
 	public:
@@ -29,6 +31,9 @@ class DataBuffer {
 		 * Return the number of items in the buffer
 		 */
 		size_t		getItemCount() { return m_len; };
+		/**
+		 * Return a pointer to the raw data in the data buffer
+		 */
 		void		*getData() { return m_data; };
 	protected:
 		DataBuffer()	{};

@@ -293,7 +293,7 @@ void StorageService::start(string& coreAddress, unsigned short corePort)
 		} catch (...) {
 		}
 
-		// Regsiter for configuration chanegs to our category
+		// Regsiter for configuration changes to our category
 		ConfigHandler *configHandler = ConfigHandler::getInstance(client);
 		configHandler->registerCategory(this, STORAGE_CATEGORY);
 
@@ -310,7 +310,7 @@ void StorageService::start(string& coreAddress, unsigned short corePort)
 			children1.push_back(conf->getName());
 			client->addChildCategories(STORAGE_CATEGORY, children1);
 
-			// Regsiter for configuration chanegs to our category
+			// Regsiter for configuration changes to our category
 			ConfigHandler *configHandler = ConfigHandler::getInstance(client);
 			configHandler->registerCategory(this, conf->getName());
 
@@ -334,7 +334,7 @@ void StorageService::start(string& coreAddress, unsigned short corePort)
 					children1.push_back(conf->getName());
 					client->addChildCategories(STORAGE_CATEGORY, children1);
 
-					// Regsiter for configuration chanegs to our category
+					// Regsiter for configuration changes to our category
 					ConfigHandler *configHandler = ConfigHandler::getInstance(client);
 					configHandler->registerCategory(this, conf->getName());
 				}
@@ -379,6 +379,7 @@ void StorageService::stop()
 bool StorageService::loadPlugin()
 {
 	PluginManager *manager = PluginManager::getInstance();
+	manager->setPluginType(PLUGIN_TYPE_ID_STORAGE);
 
 	const char *plugin = config->getValue("plugin");
 	if (plugin == NULL)

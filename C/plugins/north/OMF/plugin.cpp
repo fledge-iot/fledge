@@ -47,6 +47,11 @@ using namespace SimpleWeb;
 #define DATA_KEY "dataTypes"
 #define DATA_KEY_SHORT "dataTypesShort"
 #define DATA_KEY_HINT "hintChecksum"
+#define NAMING_SCHEME "namingScheme"
+#define AFH_HASH "afhHash"
+#define AF_HIERARCHY "afHierarchy"
+#define AF_HIERARCHY_ORIG "afHierarchyOrig"
+
 
 #define PROPERTY_TYPE   "type"
 #define PROPERTY_NUMBER "number"
@@ -118,11 +123,19 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"displayName": "Send full structure",
 			"validity" : "PIServerEndpoint == \"PI Web API\""
 		},
+		"NamingScheme": {
+			"description": "Define the naming scheme of the objects in the endpoint",
+			"type": "enumeration",
+			"options":["Concise", "Use Type Suffix", "Use Attribute Hash", "Backward compatibility"],
+			"default": "Concise",
+			"order": "3",
+			"displayName": "Naming Scheme"
+		},
 		"ServerHostname": {
 			"description": "Hostname of the server running the endpoint either PI Web API or Connector Relay",
 			"type": "string",
 			"default": "localhost",
-			"order": "3",
+			"order": "4",
 			"displayName": "Server hostname",
 			"validity" : "PIServerEndpoint != \"Edge Data Store\" && PIServerEndpoint != \"OSIsoft Cloud Services\""
 		},
@@ -130,7 +143,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"description": "Port on which the endpoint either PI Web API or Connector Relay or Edge Data Store is listening, 0 will use the default one",
 			"type": "integer",
 			"default": "0",
-			"order": "4",
+			"order": "5",
 			"displayName": "Server port, 0=use the default",
 			"validity" : "PIServerEndpoint != \"OSIsoft Cloud Services\""
 		},
@@ -138,7 +151,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"description": "The producer token that represents this Fledge stream",
 			"type": "string",
 			"default": "omf_north_0001",
-			"order": "5",
+			"order": "6",
 			"displayName": "Producer Token",
 			"validity" : "PIServerEndpoint == \"Connector Relay\""
 		},
@@ -147,86 +160,88 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"type": "enumeration",
 			"options":["readings", "statistics"],
 			"default": "readings",
-			"order": "6",
+			"order": "7",
 			"displayName": "Data Source"
 		},
 		"StaticData": {
 			"description": "Static data to include in each sensor reading sent to the PI Server.",
 			"type": "string",
 			"default": "Location: Palo Alto, Company: Dianomic",
-			"order": "7",
+			"order": "8",
 			"displayName": "Static Data"
 		},
 		"OMFRetrySleepTime": {
 			"description": "Seconds between each retry for the communication with the OMF PI Connector Relay, NOTE : the time is doubled at each attempt.",
 			"type": "integer",
 			"default": "1",
-			"order": "8",
+			"order": "9",
 			"displayName": "Sleep Time Retry"
 		},
 		"OMFMaxRetry": {
 			"description": "Max number of retries for the communication with the OMF PI Connector Relay",
 			"type": "integer",
 			"default": "3",
-			"order": "9",
+			"order": "10",
 			"displayName": "Maximum Retry"
 		},
 		"OMFHttpTimeout": {
 			"description": "Timeout in seconds for the HTTP operations with the OMF PI Connector Relay",
 			"type": "integer",
 			"default": "10",
-			"order": "10",
+			"order": "11",
 			"displayName": "HTTP Timeout"
 		},
 		"formatInteger": {
 			"description": "OMF format property to apply to the type Integer",
 			"type": "string",
 			"default": "int64",
-			"order": "11",
+			"order": "12",
 			"displayName": "Integer Format"
 		},
 		"formatNumber": {
 			"description": "OMF format property to apply to the type Number",
 			"type": "string",
 			"default": "float64",
-			"order": "12",
+			"order": "13",
 			"displayName": "Number Format"
 		},
 		"compression": {
 			"description": "Compress readings data before sending to PI server",
 			"type": "boolean",
 			"default": "true",
-			"order": "13",
+			"order": "14",
 			"displayName": "Compression"
 		},
 		"DefaultAFLocation": {
-			"description": "Defines the hierarchies tree in Asset Framework in which the assets will be created, each level is separated by /, PI Web API only.",
+			"description": "Defines the default location in the Asset Framework hierarchy in which the assets will be created, each level is separated by /, PI Web API only.",
 			"type": "string",
 			"default": "/fledge/data_piwebapi/default",
-			"order": "14",
-			"displayName": "Asset Framework hierarchies tree",
+			"order": "15",
+			"displayName": "Default Asset Framework Location",
 			"validity" : "PIServerEndpoint == \"PI Web API\""
 		},
 		"AFMap": {
 			"description": "Defines a set of rules to address where assets should be placed in the AF hierarchy.",
 			"type": "JSON",
 			"default": AF_HIERARCHY_RULES,
-			"order": "15",
-			"displayName": "Asset Framework hierarchies rules",
+			"order": "16",
+			"displayName": "Asset Framework hierarchy rules",
 			"validity" : "PIServerEndpoint == \"PI Web API\""
+
+
 		},
 		"notBlockingErrors": {
 			"description": "These errors are considered not blocking in the communication with the PI Server, the sending operation will proceed with the next block of data if one of these is encountered",
 			"type": "JSON",
 			"default": NOT_BLOCKING_ERRORS_DEFAULT,
-			"order": "16" ,
+			"order": "17" ,
 			"readonly": "true"
 		},
 		"streamId": {
 			"description": "Identifies the specific stream to handle and the related information, among them the ID of the last object streamed.",
 			"type": "integer",
 			"default": "0",
-			"order": "17" ,
+			"order": "18" ,
 			"readonly": "true"
 		},
 		"PIWebAPIAuthenticationMethod": {
@@ -234,7 +249,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"type": "enumeration",
 			"options":["anonymous", "basic", "kerberos"],
 			"default": "anonymous",
-			"order": "18",
+			"order": "19",
 			"displayName": "PI Web API Authentication Method",
 			"validity" : "PIServerEndpoint == \"PI Web API\""
 		},
@@ -242,7 +257,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"description": "User id of PI Web API to be used with the basic access authentication.",
 			"type": "string",
 			"default": "user_id",
-			"order": "19",
+			"order": "20",
 			"displayName": "PI Web API User Id",
 			"validity" : "PIServerEndpoint == \"PI Web API\" && PIWebAPIAuthenticationMethod == \"basic\""
 		},
@@ -250,7 +265,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"description": "Password of the user of PI Web API to be used with the basic access authentication.",
 			"type": "password",
 			"default": "password",
-			"order": "20" ,
+			"order": "21" ,
 			"displayName": "PI Web API Password",
 			"validity" : "PIServerEndpoint == \"PI Web API\" && PIWebAPIAuthenticationMethod == \"basic\""
 		},
@@ -258,7 +273,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"description": "Keytab file name used for Kerberos authentication in PI Web API.",
 			"type": "string",
 			"default": "piwebapi_kerberos_https.keytab",
-			"order": "21" ,
+			"order": "22" ,
 			"displayName": "PI Web API Kerberos keytab file",
 			"validity" : "PIServerEndpoint == \"PI Web API\" && PIWebAPIAuthenticationMethod == \"kerberos\""
 		},
@@ -266,7 +281,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"description" : "Specifies the OCS namespace where the information are stored and it is used for the interaction with the OCS API",
 			"type" : "string",
 			"default": "name_space",
-			"order": "22",
+			"order": "23",
 			"displayName" : "OCS Namespace",
 			"validity" : "PIServerEndpoint == \"OSIsoft Cloud Services\""
 		},
@@ -274,7 +289,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"description" : "Tenant id associated to the specific OCS account",
 			"type" : "string",
 			"default": "ocs_tenant_id",
-			"order": "23",
+			"order": "24",
 			"displayName" : "OCS Tenant ID",
 			"validity" : "PIServerEndpoint == \"OSIsoft Cloud Services\""
 		},
@@ -282,7 +297,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"description" : "Client id associated to the specific OCS account, it is used to authenticate the source for using the OCS API",
 			"type" : "string",
 			"default": "ocs_client_id",
-			"order": "24",
+			"order": "25",
 			"displayName" : "OCS Client ID",
 			"validity" : "PIServerEndpoint == \"OSIsoft Cloud Services\""
 		},
@@ -290,7 +305,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"description" : "Client secret associated to the specific OCS account, it is used to authenticate the source for using the OCS API",
 			"type" : "password",
 			"default": "ocs_client_secret",
-			"order": "25",
+			"order": "26",
 			"displayName" : "OCS Client Secret",
 			"validity" : "PIServerEndpoint == \"OSIsoft Cloud Services\""
 		},
@@ -298,7 +313,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"description": "These errors are considered not blocking in the communication with the PI Web API, the sending operation will proceed with the next block of data if one of these is encountered",
 			"type": "JSON",
 			"default": NOT_BLOCKING_ERRORS_DEFAULT_PI_WEB_API,
-			"order": "26" ,
+			"order": "27" ,
 			"readonly": "true"
 		}
 	}
@@ -326,6 +341,7 @@ typedef struct
 	string		formatNumber;	        // OMF protocol Number format
 	string		formatInteger;	        // OMF protocol Integer format
 	OMF_ENDPOINT PIServerEndpoint;      // Defines which End point should be used for the communication
+	NAMINGSCHEME_ENDPOINT NamingScheme; // Define how the object names should generated
 	string		DefaultAFLocation;      // 1st hierarchy in Asset Framework, PI Web API only.
 	string		AFMap;                  // Defines a set of rules to address where assets should be placed in the AF hierarchy.
 
@@ -417,6 +433,7 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 	string ServerHostname = configData->getValue("ServerHostname");
 	string ServerPort = configData->getValue("ServerPort");
 	string url;
+	string NamingScheme = configData->getValue("NamingScheme");
 	{
 		// Translate the PIServerEndpoint configuration
 		if(PIServerEndpoint.compare("PI Web API") == 0)
@@ -597,6 +614,28 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 		}
 	} while (pos != string::npos);
 
+	{
+		// NamingScheme handling
+		if(NamingScheme.compare("Concise") == 0)
+		{
+			connInfo->NamingScheme = NAMINGSCHEME_CONCISE;
+		}
+		else if(NamingScheme.compare("Use Type Suffix") == 0)
+		{
+			connInfo->NamingScheme = NAMINGSCHEME_SUFFIX;
+		}
+		else if(NamingScheme.compare("Use Attribute Hash") == 0)
+		{
+			connInfo->NamingScheme = NAMINGSCHEME_HASH;
+		}
+		else if(NamingScheme.compare("Backward compatibility") == 0)
+		{
+			connInfo->NamingScheme = NAMINGSCHEME_COMPATIBILITY;
+		}
+		Logger::getLogger()->debug("End point naming scheme :%s: ", NamingScheme.c_str() );
+
+	}
+
 	// retrieves the Pi Web Api Version
 	if (connInfo->PIServerEndpoint == ENDPOINT_PIWEB_API)
 	{
@@ -744,6 +783,7 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 	connInfo->omf->setSendFullStructure(connInfo->sendFullStructure);
 
 	// Set PIServerEndpoint configuration
+	connInfo->omf->setNamingScheme(connInfo->NamingScheme);
 	connInfo->omf->setPIServerEndpoint(connInfo->PIServerEndpoint);
 	connInfo->omf->setDefaultAFLocation(connInfo->DefaultAFLocation);
 	connInfo->omf->setAFMap(connInfo->AFMap);
@@ -888,6 +928,25 @@ string saveSentDataTypes(CONNECTOR_INFO* connInfo)
 				std::string hintChecksum = hintStream.str();
 				newData << ", \"" << DATA_KEY_HINT << "\": \"0x" << hintChecksum << "\"";
 
+				long NamingScheme;
+				NamingScheme = ((*it).second).namingScheme;
+				newData << ", \"" << NAMING_SCHEME << "\": " << to_string(NamingScheme) << "";
+
+				string AFHHash;
+				AFHHash = ((*it).second).afhHash;
+				newData << ", \"" << AFH_HASH << "\": \"" << AFHHash << "\"";
+
+				string AFHierarchy;
+				AFHierarchy = ((*it).second).afHierarchy;
+				newData << ", \"" << AF_HIERARCHY << "\": \"" << AFHierarchy << "\"";
+
+				string AFHierarchyOrig;
+				AFHierarchyOrig = ((*it).second).afHierarchyOrig;
+				newData << ", \"" << AF_HIERARCHY_ORIG << "\": \"" << AFHierarchyOrig << "\"";
+
+				Logger::getLogger()->debug("%s - AFHHash :%s: AFHierarchy :%s: AFHierarchyOrig :%s:", __FUNCTION__, AFHHash.c_str(), AFHierarchy.c_str(), AFHierarchyOrig.c_str()  );
+				Logger::getLogger()->debug("%s - NamingScheme :%ld: ", __FUNCTION__,NamingScheme );
+
 				newData << ", \"" << DATA_KEY << "\": " <<
 					   (((*it).second).types.empty() ? "{}" : ((*it).second).types) <<
 					   "}}";
@@ -999,8 +1058,8 @@ unsigned long calcTypeShort(const string& dataTypes)
  * all new created OMF dataTypes have type-id prefix set to the value of 1
  * while existing (loaded) OMF dataTypes will keep their type-id values.
  *
- * @param   connInfo	The CONNECTOR_INFO data scructure
- * @param   JSONData	The JSON document cotaining all saved data
+ * @param   connInfo	The CONNECTOR_INFO data structure
+ * @param   JSONData	The JSON document containing all saved data
  */
 void loadSentDataTypes(CONNECTOR_INFO* connInfo,
                         Document& JSONData)
@@ -1039,11 +1098,75 @@ void loadSentDataTypes(CONNECTOR_INFO* connInfo,
 				else
 				{
 					Logger::getLogger()->warn("%s plugin: current element '%s'" \
-								  "doesn't have '%s' property, ignoring it",
+								  " doesn't have '%s' property, ignoring it",
 								  PLUGIN_NAME,
 								  key.c_str(),
 								  TYPE_ID_KEY);
 					continue;
+				}
+
+				long NamingScheme;
+				if (cachedValue.HasMember(NAMING_SCHEME) &&
+					cachedValue[NAMING_SCHEME].IsNumber())
+				{
+					NamingScheme = cachedValue[NAMING_SCHEME].GetInt();
+				}
+				else
+				{
+					Logger::getLogger()->warn("%s plugin: current element '%s'" \
+								  " doesn't have '%s' property, handling naming scheme in compatibility mode",
+											  PLUGIN_NAME,
+											  key.c_str(),
+											  NAMING_SCHEME);
+					NamingScheme = NAMINGSCHEME_COMPATIBILITY;
+				}
+
+				string AFHHash;
+				if (cachedValue.HasMember(AFH_HASH) &&
+					cachedValue[AFH_HASH].IsString())
+				{
+					AFHHash = cachedValue[AFH_HASH].GetString();
+				}
+				else
+				{
+					Logger::getLogger()->warn("%s plugin: current element '%s'" \
+								  " doesn't have '%s' property",
+											  PLUGIN_NAME,
+											  key.c_str(),
+											  AFH_HASH);
+					AFHHash = "";
+				}
+
+				string AFHierarchy;
+				if (cachedValue.HasMember(AF_HIERARCHY) &&
+					cachedValue[AF_HIERARCHY].IsString())
+				{
+					AFHierarchy = cachedValue[AF_HIERARCHY].GetString();
+				}
+				else
+				{
+					Logger::getLogger()->warn("%s plugin: current element '%s'" \
+								  " doesn't have '%s' property",
+											  PLUGIN_NAME,
+											  key.c_str(),
+											  AF_HIERARCHY);
+					AFHierarchy = "";
+				}
+
+				string AFHierarchyOrig;
+				if (cachedValue.HasMember(AF_HIERARCHY_ORIG) &&
+					cachedValue[AF_HIERARCHY_ORIG].IsString())
+				{
+					AFHierarchyOrig = cachedValue[AF_HIERARCHY_ORIG].GetString();
+				}
+				else
+				{
+					Logger::getLogger()->warn("%s plugin: current element '%s'" \
+								  " doesn't have '%s' property",
+											  PLUGIN_NAME,
+											  key.c_str(),
+											  AF_HIERARCHY_ORIG);
+					AFHierarchyOrig = "";
 				}
 
 				string dataTypes;
@@ -1059,7 +1182,7 @@ void loadSentDataTypes(CONNECTOR_INFO* connInfo,
 				else
 				{
 					Logger::getLogger()->warn("%s plugin: current element '%s'" \
-								  "doesn't have '%s' property, ignoring it",
+								  " doesn't have '%s' property, ignoring it",
 								  PLUGIN_NAME,
 								  key.c_str(),
 								  DATA_KEY);
@@ -1081,7 +1204,7 @@ void loadSentDataTypes(CONNECTOR_INFO* connInfo,
 					if (dataTypesShort == 0)
 					{
 						Logger::getLogger()->warn("%s plugin: current element '%s'" \
-                                      "doesn't have '%s' property",
+                                      " doesn't have '%s' property",
 												  PLUGIN_NAME,
 												  key.c_str(),
 												  DATA_KEY_SHORT);
@@ -1109,6 +1232,15 @@ void loadSentDataTypes(CONNECTOR_INFO* connInfo,
 				dataType.types = dataTypes;
 				dataType.typesShort = dataTypesShort;
 				dataType.hintChkSum = hintChecksum;
+				dataType.namingScheme = NamingScheme;
+				dataType.afhHash = AFHHash;
+				dataType.afHierarchy = AFHierarchy;
+				dataType.afHierarchyOrig = AFHierarchyOrig;
+
+				Logger::getLogger()->debug("%s - AFHHash :%s: AFHierarchy :%s: AFHierarchyOrig :%s: ", __FUNCTION__, AFHHash.c_str(), AFHierarchy.c_str() , AFHierarchyOrig.c_str() );
+
+
+				Logger::getLogger()->debug("%s - NamingScheme :%ld: ", __FUNCTION__,NamingScheme );
 
 				// Add data into the map
 				connInfo->assetsDataTypes[key] = dataType;

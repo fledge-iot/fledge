@@ -110,10 +110,12 @@ class Backup(object):
 
         payload = payload_builder.PayloadBuilder().SELECT("id", "status", "ts", "file_name", "type") \
             .ALIAS("return", ("ts", 'ts')).FORMAT("return", ("ts", "YYYY-MM-DD HH24:MI:SS.MS"))
-
         if status:
             payload.WHERE(['status', '=', status])
-            
+        payload.ORDER_BY(['id', sort_order])
+        payload.LIMIT(limit)
+        if skip > 0:
+            payload.OFFSET(skip)
         backups_from_storage = await self._storage.query_tbl_with_payload(self.STORAGE_TABLE_BACKUPS, payload.payload())
         backups_information = backups_from_storage['rows']
 

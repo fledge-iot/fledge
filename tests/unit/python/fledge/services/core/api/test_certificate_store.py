@@ -115,7 +115,7 @@ class TestCertificateStore:
         assert 'Cert file is missing' == resp.reason
 
     async def test_bad_extension_cert_file_upload(self, client, certs_path):
-        cert_valid_extensions = ('.cert', '.cer', '.crt', '.json', '.pem')
+        cert_valid_extensions = ('.cert', '.cer', '.csr', '.crl', '.crt', '.der', '.json', '.pem', '.p12', '.pfx')
         files = {'cert': open(str(certs_path / 'certs/fledge.txt'), 'rb'),
                  'key': open(str(certs_path / 'certs/fledge.key'), 'rb')}
         resp = await client.post('/fledge/certificate', data=files)
@@ -161,7 +161,8 @@ class TestCertificateStore:
             patch_get_cat_all_items.assert_called_once_with(category_name='rest_api')
 
     @pytest.mark.parametrize("cert_name, actual_code, actual_reason", [
-        ('root.txt', 400, "Accepted file extensions are ('.cert', '.cer', '.crt', '.json', '.key', '.pem')")
+        ('root.txt', 400, "Accepted file extensions are "
+                          "('.cert', '.cer', '.csr', '.crl', '.crt', '.der', '.json', '.key', '.pem', '.p12', '.pfx')")
     ])
     async def test_bad_delete_cert(self, client, cert_name, actual_code, actual_reason):
         resp = await client.delete('/fledge/certificate/{}'.format(cert_name))
@@ -499,7 +500,8 @@ class TestDeleteCertStoreIfAuthenticationIsMandatory:
                                                   '/fledge/certificate/{}'.format(cert_name))
 
     @pytest.mark.parametrize("cert_name, actual_code, actual_reason", [
-        ('root.txt', 400, "Accepted file extensions are ('.cert', '.cer', '.crt', '.json', '.key', '.pem')")
+        ('root.txt', 400, "Accepted file extensions are "
+                          "('.cert', '.cer', '.csr', '.crl', '.crt', '.der', '.json', '.key', '.pem', '.p12', '.pfx')")
     ])
     async def test_bad_delete_cert(self, client, mocker, cert_name, actual_code, actual_reason):
         patch_logger_info, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(

@@ -52,6 +52,8 @@ PluginManager *PluginManager::getInstance()
 PluginManager::PluginManager()
 {
   logger = Logger::getLogger();
+
+  m_pluginType = PLUGIN_TYPE_ID_OTHER;
 }
 
 enum PLUGIN_TYPE {
@@ -249,6 +251,13 @@ string findPlugin(string name, string _type, string _plugin_path, PLUGIN_TYPE ty
 }
 
 /**
+ * Set Plugin Type
+ */
+void PluginManager::setPluginType(tPluginType type) {
+	m_pluginType = type;
+}
+
+/**
  * Load a given plugin
  */
 PLUGIN_HANDLE PluginManager::loadPlugin(const string& _name, const string& type)
@@ -343,7 +352,14 @@ char		buf[MAXPATHLEN];
   strncpy(buf, path.c_str(), sizeof(buf));
   if (buf[0] && access(buf, F_OK|R_OK) == 0)
   {
-	pluginHandle = new BinaryPluginHandle(name.c_str(), buf);
+	if (m_pluginType == PLUGIN_TYPE_ID_STORAGE)
+	{
+		pluginHandle = new BinaryPluginHandle(name.c_str(), buf, PLUGIN_TYPE_ID_STORAGE);
+	} else
+	{
+		pluginHandle = new BinaryPluginHandle(name.c_str(), buf);
+	}
+
 	hndl = pluginHandle->getHandle();
     if (hndl != NULL)
     {

@@ -21,12 +21,6 @@
  * to have access to the database between blocks.
  */
 #define PURGE_SLEEP_MS 500
-#define PURGE_DELETE_BLOCK_SIZE	20
-#define TARGET_PURGE_BLOCK_DEL_TIME	(70*1000) 	// 70 msec
-#define PURGE_BLOCK_SZ_GRANULARITY	5 	// 5 rows
-#define MIN_PURGE_DELETE_BLOCK_SIZE	20
-#define MAX_PURGE_DELETE_BLOCK_SIZE	1500
-#define RECALC_PURGE_BLOCK_SIZE_NUM_BLOCKS	30	// recalculate purge block size after every 30 blocks
 
 #define PURGE_SLOWDOWN_AFTER_BLOCKS 5
 #define PURGE_SLOWDOWN_SLEEP_MS 500

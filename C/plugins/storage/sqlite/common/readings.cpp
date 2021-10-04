@@ -1679,6 +1679,16 @@ int blocks = 0;
 
 vector<string>  assetCodes;
 
+
+	// FIXME_I:
+	const char *_section="xxx4";
+
+	// FIXME_I:
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("%s / %s - xxx flags :%d:", _section, __FUNCTION__, flags);
+	Logger::getLogger()->setMinLevel("warning");
+
+
 	Logger *logger = Logger::getLogger();
 
 	ostringstream threadId;
@@ -2185,6 +2195,14 @@ vector<string>  assetCodes;
 	int rc;
 
 	Logger *logger = Logger::getLogger();
+
+		// FIXME_I:
+	const char *_section="xxx5";
+
+	// FIXME_I:
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("%s / %s - xxx flags :%d:", _section, __FUNCTION__, flags);
+	Logger::getLogger()->setMinLevel("warning");
 
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();

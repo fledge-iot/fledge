@@ -895,35 +895,34 @@ static std::atomic<bool> already_running(false);
 		{
 			flags = search->second;
 
-
 			// FIXME_I:
 			char *_section="xxx3";
 
 			// FIXME_I:
 			Logger::getLogger()->setMinLevel("debug");
-			Logger::getLogger()->debug("%s / %s - xxx flags :5s:", _section, __FUNCTION__, flags.c_str());
+			Logger::getLogger()->debug("%s / StorageApi::%s - xxx flags :%s:", _section, __FUNCTION__, flags.c_str());
 			Logger::getLogger()->setMinLevel("warning");
-
-
 
 			// TODO Turn flags into a bitmap
 			if (flags.compare(PURGE_FLAG_RETAIN_ANY) == 0)
 			{
-				flagsMask |= STORAGE_PURGE_RETAIN;
+
+				flagsMask |= STORAGE_PURGE_RETAIN_ANY;
 			}
 			else if (flags.compare(PURGE_FLAG_RETAIN_ALL) == 0)
 			{
-				flagsMask |= STORAGE_PURGE_RETAIN;
+				flagsMask |= STORAGE_PURGE_RETAIN_ALL;
 			}
 			else if (flags.compare(PURGE_FLAG_PURGE) == 0)
 			{
-				flagsMask &= (~STORAGE_PURGE_RETAIN);
+				flagsMask &= (~STORAGE_PURGE_RETAIN_ANY);
+				flagsMask &= (~STORAGE_PURGE_RETAIN_ALL);
 			}
 
 
 			// FIXME_I:
 			Logger::getLogger()->setMinLevel("debug");
-			Logger::getLogger()->debug("%s / %s - xxx flagsMask :%d:", _section, __FUNCTION__, flagsMask);
+			Logger::getLogger()->debug("%s / StorageApi :: %s - xxx flagsMask :%d:", _section, __FUNCTION__, flagsMask);
 			Logger::getLogger()->setMinLevel("warning");
 
 		}

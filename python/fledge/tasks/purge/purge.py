@@ -154,6 +154,7 @@ class Purge(FledgeProcess):
         #// FIXME_I:
         self._logger.setLevel(logging.DEBUG)
         self._logger.debug("xxx2 purge_data - :{}: -".format(flag) )
+        self._logger.error("xxx2 purge_data - :{}: -".format(flag) )
         self._logger.setLevel(logging.WARNING)
 
         try:

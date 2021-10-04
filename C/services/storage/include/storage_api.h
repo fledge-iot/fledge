@@ -34,8 +34,8 @@ using HttpServer = SimpleWeb::Server<SimpleWeb::HTTP>;
 #define DELETE_TABLE_SNAPSHOT	LOAD_TABLE_SNAPSHOT
 #define CREATE_STORAGE_STREAM	"^/storage/reading/stream$"
 
-#define PURGE_FLAG_RETAIN_ANY "retainany"
-#define PURGE_FLAG_RETAIN_ALL "retainall"
+#define PURGE_FLAG_RETAIN_ANY  "retainany"
+#define PURGE_FLAG_RETAIN_ALL  "retainall"
 #define PURGE_FLAG_PURGE       "purge"
 
 #define TABLE_NAME_COMPONENT	1

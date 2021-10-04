@@ -179,7 +179,8 @@ async def get_backup_download(request):
         file_name = str(file_name_path[1])
         dir_name = _FLEDGE_DATA + '/backup/' if _FLEDGE_DATA else _FLEDGE_ROOT + "/data/backup/"
         source = dir_name + file_name
-
+        if not os.path.isfile(source):
+            raise FileNotFoundError('{} backup file does not exist in {} directory'.format(file_name, dir_name))
         # Create tar file
         t = tarfile.open(source + ".tar.gz", "w:gz")
         t.add(source, arcname=os.path.basename(source))
@@ -187,15 +188,20 @@ async def get_backup_download(request):
 
         # Path of tar.gz file
         gz_path = Path(source + ".tar.gz")
-
+    except FileNotFoundError as err:
+        msg = str(err)
+        raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except ValueError:
-        raise web.HTTPBadRequest(reason='Invalid backup id')
+        msg = "Invalid backup id"
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except exceptions.DoesNotExist:
-        raise web.HTTPNotFound(reason='Backup id {} does not exist'.format(backup_id))
+        msg = "Backup id {} does not exist".format(backup_id)
+        raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
-        raise web.HTTPInternalServerError(reason=(str(ex)))
-
-    return web.FileResponse(path=gz_path)
+        msg = str(ex)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+    else:
+        return web.FileResponse(path=gz_path)
 
 
 async def delete_backup(request):

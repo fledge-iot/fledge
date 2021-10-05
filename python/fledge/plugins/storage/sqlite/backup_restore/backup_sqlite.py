@@ -26,6 +26,13 @@ from fledge.plugins.storage.common.backup import Backup
 import fledge.plugins.storage.common.lib as lib
 import fledge.plugins.storage.common.exceptions as exceptions
 
+import tarfile
+
+#// FIXME_I:
+import logging
+
+
+
 __author__ = "Stefano Simonelli"
 __copyright__ = "Copyright (c) 2018 OSIsoft, LLC"
 __license__ = "Apache 2.0"
@@ -194,12 +201,36 @@ class BackupProcess(FledgeProcess):
         self._purge_old_backups()
 
         backup_file = self._generate_file_name()
+        backup_file_tar = backup_file + ".tar.gz"
 
-        self._backup_lib.sl_backup_status_create(backup_file, lib.BackupType.FULL, lib.BackupStatus.RUNNING)
+        self._backup_lib.sl_backup_status_create(backup_file_tar, lib.BackupType.FULL, lib.BackupStatus.RUNNING)
+
+        #// FIXME_I:
+        _logger.setLevel(logging.DEBUG)
+        _logger.debug("xxx3 execute_backup - backup_file :{}: backup_file_tar :{}: ".format(backup_file, backup_file_tar) )
+        _logger.debug("xxx3 execute_backup - dir_fledge_data :{}: dir_fledge_data_etc :{}: ".format(self._backup_lib.dir_fledge_data, self._backup_lib.dir_fledge_data_etc) )
+
+        _logger.debug("xxx4 execute_backup - dir_fledge_data :{}: dir_fledge_data_etc :{}: ".format(self._backup_lib.dir_fledge_data, self._backup_lib.dir_fledge_data_etc) )
+        _logger.setLevel(logging.WARNING)
+
 
         status, exit_code = self._run_backup_command(backup_file)
 
-        backup_information = self._backup_lib.sl_get_backup_details_from_file_name(backup_file)
+        # Create tar file
+        t = tarfile.open(backup_file + ".tar.gz", "w:gz")
+        t.add(backup_file, arcname=os.path.basename(backup_file))
+
+        backup_path = self._backup_lib.dir_fledge_data + "/scripts"
+        if os.path.isdir(backup_path):
+            t.add(backup_path, arcname=os.path.basename(backup_path))
+
+        t.add(self._backup_lib.dir_fledge_data_etc, arcname=os.path.basename(self._backup_lib.dir_fledge_data_etc))
+        t.close()
+
+        # Delete the .db file
+        os.remove(backup_file)
+
+        backup_information = self._backup_lib.sl_get_backup_details_from_file_name(backup_file_tar)
 
         self._backup_lib.sl_backup_status_update(backup_information['id'], status, exit_code)
 

@@ -537,7 +537,7 @@ class RestoreProcess(FledgeProcess):
 
         return status
 
-    def _run_restore_command(self, backup_file):
+    def _run_restore_command(self, backup_file, restore_command):
         """ Executes the restore of the storage layer from a backup
 
         Args:
@@ -556,7 +556,7 @@ class RestoreProcess(FledgeProcess):
 
         # Prepares the restore command
         cmd = "{cmd} {file} {path}/{db} ".format(
-                                                cmd=self._restore_lib.SQLITE_RESTORE,
+                                                cmd=restore_command,
                                                 file=backup_file,
                                                 path=self._restore_lib.dir_fledge_data,
                                                 db=self._restore_lib.config['database-filename']
@@ -797,9 +797,11 @@ class RestoreProcess(FledgeProcess):
 
         if file_extension == ".db":
             file_name_db = file_name
+            restore_command=self._restore_lib.SQLITE_RESTORE_COPY
 
         elif file_extension == ".gz":
             file_name_db = self.tar_extraction(file_name)
+            restore_command=self._restore_lib.SQLITE_RESTORE_MOVE
 
         _logger.debug("xxx10 execute_restore - file_name :{}:".format(file_name) )
         _logger.debug("xxx10 execute_restore - file_name :{}:".format(file_name_db) )
@@ -813,7 +815,7 @@ class RestoreProcess(FledgeProcess):
 
         # Executes the restore and then starts Fledge
         try:
-            self._run_restore_command(file_name_db)
+            self._run_restore_command(file_name_db, restore_command)
 
             if self._force_restore:
                 # Retrieve the backup-id after the restore operation

@@ -224,8 +224,8 @@ class BackupRestoreLib(object):
     SQLITE_SQLITE = "sqlite3"
     SQLITE_BACKUP = ".backup"
     #// FIXME_I:
-    #SQLITE_RESTORE = "cp"
-    SQLITE_RESTORE = "mv"
+    SQLITE_RESTORE_COPY = "cp"
+    SQLITE_RESTORE_MOVE = "mv"
 
     # Postgres commands
     PG_COMMAND_DUMP = "pg_dump"

@@ -485,8 +485,8 @@ void NorthService::shutdown()
 	 */
 	m_shutdown = true;
 	logger->info("North service shutdown in progress.");
+
 	// Signal main thread to shutdown
-	unique_lock<mutex> lck(m_mutex);
 	m_cv.notify_all();
 }
 

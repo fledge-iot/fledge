@@ -548,7 +548,7 @@ class RestoreProcess(FledgeProcess):
         """
 
         #// FIXME_I:
-        _logger.setLevel(logging.DEBUG)
+        self._logger.setLevel(logging.DEBUG)
 
         self._logger.debug("xxx5 {func} - Restore starts - file name |{file}|".format(
                                                                     func="_run_restore_command",
@@ -563,10 +563,15 @@ class RestoreProcess(FledgeProcess):
 
         )
 
+        #// FIXME_I:
+        self._logger.debug("xxx3 {func} - Restore ends - cmd |{cmd}| ".format(
+                                    func="_run_restore_command",
+                                    cmd=cmd))
+
         # Restores the backup
         status, output = lib.exec_wait_retry(cmd, True, timeout=self._restore_lib.config['timeout'])
 
-        self._logger.debug("xxx5 {func} - Restore ends - status |{status}| - cmd |{cmd}| - output |{output}|".format(
+        self._logger.debug("xxx3 {func} - Restore ends - status |{status}| - cmd |{cmd}| - output |{output}|".format(
                                     func="_run_restore_command",
                                     status=status,
                                     cmd=cmd,
@@ -583,7 +588,7 @@ class RestoreProcess(FledgeProcess):
         status, output = lib.exec_wait_retry(cmd, True, timeout=self._restore_lib.config['timeout'])
 
         #// FIXME_I:
-        _logger.setLevel(logging.WARNING)
+        self._logger.setLevel(logging.WARNING)
 
     def _fledge_start(self):
         """ Starts Fledge after the execution of the restore
@@ -732,8 +737,12 @@ class RestoreProcess(FledgeProcess):
         #
         dir_scripts = extract_path + "/scripts"
         if os.path.isdir(dir_scripts):
+
+            target = self._restore_lib.dir_fledge_data + "/scripts"
+            if not os.path.isdir(target):
+                os.mkdir(target)
+
             source = dir_scripts
-            target = self._restore_lib.dir_fledge_data
             _logger.debug("xxx9 tar_extraction scripts - source :{}: target :{}: ".format(source, target) )
             copy_tree(source, target)
 

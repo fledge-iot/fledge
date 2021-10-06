@@ -61,9 +61,6 @@ import tarfile
 import shutil
 from distutils.dir_util import copy_tree
 
-#// FIXME_I:
-import logging
-
 __author__ = "Stefano Simonelli"
 __copyright__ = "Copyright (c) 2018 OSIsoft, LLC"
 __license__ = "Apache 2.0"
@@ -547,10 +544,7 @@ class RestoreProcess(FledgeProcess):
             RestoreError
         """
 
-        #// FIXME_I:
-        self._logger.setLevel(logging.DEBUG)
-
-        self._logger.debug("xxx5 {func} - Restore starts - file name |{file}|".format(
+        self._logger.debug("{func} - Restore starts - file name |{file}|".format(
                                                                     func="_run_restore_command",
                                                                     file=backup_file))
 
@@ -563,15 +557,10 @@ class RestoreProcess(FledgeProcess):
 
         )
 
-        #// FIXME_I:
-        self._logger.debug("xxx3 {func} - Restore ends - cmd |{cmd}| ".format(
-                                    func="_run_restore_command",
-                                    cmd=cmd))
-
         # Restores the backup
         status, output = lib.exec_wait_retry(cmd, True, timeout=self._restore_lib.config['timeout'])
 
-        self._logger.debug("xxx3 {func} - Restore ends - status |{status}| - cmd |{cmd}| - output |{output}|".format(
+        self._logger.debug("{func} - Restore ends - status |{status}| - cmd |{cmd}| - output |{output}|".format(
                                     func="_run_restore_command",
                                     status=status,
                                     cmd=cmd,
@@ -586,9 +575,6 @@ class RestoreProcess(FledgeProcess):
 
         cmd = "rm  {path}/fledge.db-wal ".format(path=self._restore_lib.dir_fledge_data)
         status, output = lib.exec_wait_retry(cmd, True, timeout=self._restore_lib.config['timeout'])
-
-        #// FIXME_I:
-        self._logger.setLevel(logging.WARNING)
 
     def _fledge_start(self):
         """ Starts Fledge after the execution of the restore
@@ -652,9 +638,8 @@ class RestoreProcess(FledgeProcess):
             backup_list.append(r_tuple)
         # Insert new backup entries which were before restored checkpoint - this way we can't loose all backups
         sql_cmd = "INSERT INTO backups (file_name, ts, type, status, exit_code) VALUES (?, ?, ?, ?, ?)"
-        #// FIXME_I:
-        #self._logger.exception("Insert new entries from backup list: {}".format(backup_list))
         self._logger.debug("Insert new entries from backup list: {}".format(backup_list))
+
         self.storage_update(sql_cmd, backup_list)
 
     def backup_status_update(self, backup_id, status):
@@ -680,23 +665,22 @@ class RestoreProcess(FledgeProcess):
         self.storage_update(sql_cmd)
 
     def tar_extraction(self, file_name):
+        """ Extracts the files from tha tar.gz backup file
 
-        #// FIXME_I:
-        _logger.setLevel(logging.DEBUG)
-
-        #// FIXME_I:
+        Args:
+            file_name: filename of the backup
+        Returns: filename of the backup
+        Raises:
+        """
         dummy, file_extension = os.path.splitext(file_name)
 
-        #// FIXME_I:
+        # Removes .db.tar.gz
         filename_base1=os.path.basename(file_name)
         filename_base2, dummy = os.path.splitext(filename_base1)
         filename_base3, dummy = os.path.splitext(filename_base2)
         filename_base, dummy = os.path.splitext(filename_base3)
-        _logger.debug("xxx8 tar_extraction - filename_base1  :{}:  ".format(filename_base1) )
-        _logger.debug("xxx8 tar_extraction - filename_base2  :{}:  ".format(filename_base2) )
-        _logger.debug("xxx8 tar_extraction - filename_base3  :{}:  ".format(filename_base3) )
-        _logger.debug("xxx8 tar_extraction - filename_base  :{}:  ".format(filename_base) )
-        _logger.debug("xxx8 tar_extraction - filename  :{}: file_extension :{}: ".format(file_name, file_extension) )
+
+        _logger.debug("tar_extraction - filename  :{}: file_extension :{}: ".format(file_name, file_extension) )
 
         extract_path = self._restore_lib.dir_fledge_backup + "/extract"
         if not os.path.isdir(extract_path):
@@ -717,20 +701,16 @@ class RestoreProcess(FledgeProcess):
         #
         file_source = extract_path + "/" + filename_base + ".db"
         file_target = self._restore_lib.dir_fledge_backup + "/" + filename_base + ".db"
-
-        _logger.debug("xxx9 tar_extraction etc - file_source  :{}: file_dest :{}: ".format(file_source, file_target) )
+        _logger.debug("tar_extraction fledge db - file_source  :{}: file_dest :{}: ".format(file_source, file_target) )
         os.rename (file_source, file_target)
 
         #
         # Etc handling
         #
-        #// FIXME_I:
         source = extract_path + "/etc"
         target = self._restore_lib.dir_fledge_data + "/etc"
-        _logger.debug("xxx9 tar_extraction etc - source :{}: target :{}: ".format(source, target) )
+        _logger.debug("tar_extraction etc - source :{}: target :{}: ".format(source, target) )
         copy_tree(source,target)
-
-        _logger.debug("xxx9 STEP 1")
 
         #
         # Scripts handling if present
@@ -743,15 +723,11 @@ class RestoreProcess(FledgeProcess):
                 os.mkdir(target)
 
             source = dir_scripts
-            _logger.debug("xxx9 tar_extraction scripts - source :{}: target :{}: ".format(source, target) )
+            _logger.debug("tar_extraction scripts - source :{}: target :{}: ".format(source, target) )
             copy_tree(source, target)
 
-        _logger.debug("xxx9 STEP 2")
-
         db_file_path = self._restore_lib.dir_fledge_backup + "/" + filename_base + ".db"
-        _logger.debug("xxx9 tar_extraction - db_file_path :{}: ".format(db_file_path))
-
-        _logger.debug("xxx9 STEP 3")
+        _logger.debug("tar_extraction - db_file_path :{}: ".format(db_file_path))
 
         return (db_file_path)
 
@@ -782,18 +758,7 @@ class RestoreProcess(FledgeProcess):
 
         self._logger.debug("{func} - Fledge is down".format(func="execute_restore"))
 
-
-        #// FIXME_I:
-        _logger.setLevel(logging.DEBUG)
-        _logger.debug("xxx5 execute_restore - backup_id :{}: file_name :{}: ".format(backup_id, file_name) )
-
-        #// FIXME_I:
         dummy, file_extension = os.path.splitext(file_name)
-
-        _logger.debug("xxx6 execute_restore 1 - compatible filename  :{}: file_extension :{}: ".format(dummy, file_extension) )
-
-        _logger.debug("xxx6 execute_restore - compatible filename  :{}: file_extension :{}: ".format(dummy, file_extension) )
-        _logger.debug("xxx10 execute_restore - file_name :{}:".format(file_name) )
 
         if file_extension == ".db":
             file_name_db = file_name
@@ -802,16 +767,6 @@ class RestoreProcess(FledgeProcess):
         elif file_extension == ".gz":
             file_name_db = self.tar_extraction(file_name)
             restore_command=self._restore_lib.SQLITE_RESTORE_MOVE
-
-        _logger.debug("xxx10 execute_restore - file_name :{}:".format(file_name) )
-        _logger.debug("xxx10 execute_restore - file_name :{}:".format(file_name_db) )
-
-        #// FIXME_I:
-        _logger.setLevel(logging.WARNING)
-
-        #// FIXME_I:
-        #file_name= "xxx";
-
 
         # Executes the restore and then starts Fledge
         try:
@@ -830,13 +785,6 @@ class RestoreProcess(FledgeProcess):
                                                                                         backups=new_backup_entries))
             # Insert old backup entries into newly restored Database
             self.insert_backup_entries(old_backup_entries, new_backup_entries)
-
-            #// FIXME_I:
-            #// FIXME_I:
-            _logger.setLevel(logging.DEBUG)
-            _logger.debug("xxx10 EXIT " )
-            _logger.setLevel(logging.WARNING)
-
 
         except Exception as _ex:
             _message = self._MESSAGES_LIST["e000007"].format(_ex)

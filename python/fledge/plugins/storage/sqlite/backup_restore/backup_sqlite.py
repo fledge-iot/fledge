@@ -28,11 +28,6 @@ import fledge.plugins.storage.common.exceptions as exceptions
 
 import tarfile
 
-#// FIXME_I:
-import logging
-
-
-
 __author__ = "Stefano Simonelli"
 __copyright__ = "Copyright (c) 2018 OSIsoft, LLC"
 __license__ = "Apache 2.0"
@@ -204,15 +199,6 @@ class BackupProcess(FledgeProcess):
         backup_file_tar = backup_file + ".tar.gz"
 
         self._backup_lib.sl_backup_status_create(backup_file_tar, lib.BackupType.FULL, lib.BackupStatus.RUNNING)
-
-        #// FIXME_I:
-        _logger.setLevel(logging.DEBUG)
-        _logger.debug("xxx3 execute_backup - backup_file :{}: backup_file_tar :{}: ".format(backup_file, backup_file_tar) )
-        _logger.debug("xxx3 execute_backup - dir_fledge_data :{}: dir_fledge_data_etc :{}: ".format(self._backup_lib.dir_fledge_data, self._backup_lib.dir_fledge_data_etc) )
-
-        _logger.debug("xxx4 execute_backup - dir_fledge_data :{}: dir_fledge_data_etc :{}: ".format(self._backup_lib.dir_fledge_data, self._backup_lib.dir_fledge_data_etc) )
-        _logger.setLevel(logging.WARNING)
-
 
         status, exit_code = self._run_backup_command(backup_file)
 

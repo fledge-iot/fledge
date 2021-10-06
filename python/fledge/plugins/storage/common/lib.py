@@ -223,7 +223,6 @@ class BackupRestoreLib(object):
     # SQLite commands
     SQLITE_SQLITE = "sqlite3"
     SQLITE_BACKUP = ".backup"
-    #// FIXME_I:
     SQLITE_RESTORE_COPY = "cp"
     SQLITE_RESTORE_MOVE = "mv"
 

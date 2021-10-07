@@ -182,8 +182,19 @@ async def get_backup_download(request):
         if not os.path.isfile(source):
             raise FileNotFoundError('{} backup file does not exist in {} directory'.format(file_name, dir_name))
 
-        # Path of tar.gz file
-        gz_path = Path(source)
+        # Download the backup file using the backward compatible way or the current one
+        dummy, file_extension = os.path.splitext(source)
+        if file_extension == ".db":
+            # Create tar file
+            t = tarfile.open(source + ".tar.gz", "w:gz")
+            t.add(source, arcname=os.path.basename(source))
+            t.close()
+
+            # Path of tar.gz file
+            gz_path = Path(source + ".tar.gz")
+
+        elif file_extension == ".gz":
+            gz_path = Path(source)
 
     except FileNotFoundError as err:
         msg = str(err)

@@ -196,14 +196,17 @@ class BackupProcess(FledgeProcess):
         self._purge_old_backups()
 
         backup_file = self._generate_file_name()
-        backup_file_tar = backup_file + ".tar.gz"
+        backup_file_tar_base, dummy = os.path.splitext(backup_file)
+        backup_file_tar = backup_file_tar_base + ".tar.gz"
+
+        self._logger.debug("execute_backup - backup_file  :{}: backup_file_tar :{}: -".format(backup_file, backup_file_tar) )
 
         self._backup_lib.sl_backup_status_create(backup_file_tar, lib.BackupType.FULL, lib.BackupStatus.RUNNING)
 
         status, exit_code = self._run_backup_command(backup_file)
 
         # Create tar file
-        t = tarfile.open(backup_file + ".tar.gz", "w:gz")
+        t = tarfile.open(backup_file_tar, "w:gz")
         t.add(backup_file, arcname=os.path.basename(backup_file))
 
         backup_path = self._backup_lib.dir_fledge_data + "/scripts"

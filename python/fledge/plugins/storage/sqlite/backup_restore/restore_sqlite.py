@@ -674,11 +674,10 @@ class RestoreProcess(FledgeProcess):
         """
         dummy, file_extension = os.path.splitext(file_name)
 
-        # Removes .db.tar.gz
+        # Removes tar.gz
         filename_base1=os.path.basename(file_name)
         filename_base2, dummy = os.path.splitext(filename_base1)
-        filename_base3, dummy = os.path.splitext(filename_base2)
-        filename_base, dummy = os.path.splitext(filename_base3)
+        filename_base, dummy = os.path.splitext(filename_base2)
 
         _logger.debug("tar_extraction - filename  :{}: file_extension :{}: ".format(file_name, file_extension) )
 

@@ -38,3 +38,10 @@ add_subdirectory(C/tasks/purge_system)
 add_subdirectory(C/plugins/utils)
 add_subdirectory(C/plugins/north/OMF)
 
+#// FIXME:
+set(CMAKE_BUILD_TYPE Debug)
+#add_subdirectory(1_links_dev/test_extra/c++)
+#add_subdirectory(1_links_dev/repos_fledge/fledge-filter-omfhint)
+#add_subdirectory(tests/unit/C/plugins/storage/sqlite)
+#add_subdirectory(tests/unit/C/common)
+#add_subdirectory(tests/unit/C/plugins/common)

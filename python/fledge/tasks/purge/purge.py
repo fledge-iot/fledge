@@ -129,7 +129,20 @@ class Purge(FledgeProcess):
         unsent_retained = 0
         start_time = time.strftime('%Y-%m-%d %H:%M:%S.%s', time.localtime(time.time()))
 
-        payload = PayloadBuilder().AGGREGATE(["min", "last_object"]).payload()
+        #// FIXME_I:
+        north_operation="min"
+        if config['retainUnsent']['value'].lower() == "purge unsent":
+            flag = "purge"
+
+        elif config['retainUnsent']['value'].lower() == "retain unsent to any destination":
+            flag = "retainany"
+            north_operation="max"
+
+        else:
+            flag = "retainall"
+            north_operation="min"
+
+        payload = PayloadBuilder().AGGREGATE([north_operation, "last_object"]).payload()
         result = await self._storage_async.query_tbl_with_payload("streams", payload)
         last_object = result["rows"][0]["min_last_object"]
         if result["count"] == 1:
@@ -142,19 +155,8 @@ class Purge(FledgeProcess):
             last_id = 0
 
         #// FIXME_I:
-        if config['retainUnsent']['value'].lower() == "purge unsent":
-            flag = "purge"
-
-        elif config['retainUnsent']['value'].lower() == "retain unsent to any destination":
-            flag = "retainany"
-
-        else:
-            flag = "retainall"
-
-        #// FIXME_I:
         self._logger.setLevel(logging.DEBUG)
-        self._logger.debug("xxx2 purge_data - :{}: -".format(flag) )
-        self._logger.error("xxx2 purge_data - :{}: -".format(flag) )
+        self._logger.debug("xxx2 purge_data - flag :{}: last_id :{}: north_operation :{}:".format(flag, last_id, north_operation) )
         self._logger.setLevel(logging.WARNING)
 
         try:

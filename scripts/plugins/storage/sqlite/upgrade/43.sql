@@ -37,8 +37,8 @@ DELETE FROM fledge.tasks WHERE start_time < datetime('now', '-30 days');
 DELETE FROM fledge.log   WHERE ts         < datetime('now', '-30 days');
 
 --- Insert purge system schedule and process entry
-DELETE FROM fledge.scheduled_processes WHERE name = 'purge_system';
 DELETE FROM fledge.schedules           WHERE id   = 'd37265f0-c83a-11eb-b8bc-0242ac130003';
+DELETE FROM fledge.scheduled_processes WHERE name = 'purge_system';
 
 INSERT INTO fledge.scheduled_processes (name, script) VALUES ('purge_system', '["tasks/purge_system"]');
 INSERT INTO fledge.schedules (id, schedule_name, process_name, schedule_type, schedule_time, schedule_interval, exclusive, enabled)

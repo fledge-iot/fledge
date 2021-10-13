@@ -109,6 +109,7 @@ FLEDGE_SCRIPT_SRC         := scripts/fledge
 FLEDGE_UPDATE_SRC         := scripts/extras/fledge_update
 UPDATE_TASK_APT_SRC        := scripts/extras/update_task.apt
 UPDATE_TASK_SNAPPY_SRC     := scripts/extras/update_task.snappy
+UPDATE_TASK_YUM_SRC        := scripts/extras/update_task.yum
 SUDOERS_SRC                := scripts/extras/fledge.sudoers
 SUDOERS_SRC_RH             := scripts/extras/fledge.sudoers_rh
 
@@ -469,6 +470,7 @@ bin_install : $(BIN_INSTALL_DIR) $(FOGBENCH_SCRIPT_SRC) $(FLEDGE_SCRIPT_SRC)
 	$(CP) $(FLEDGE_UPDATE_SRC) $(BIN_INSTALL_DIR)
 	$(CP) $(UPDATE_TASK_APT_SRC) $(BIN_INSTALL_DIR)
 	$(CP) $(UPDATE_TASK_SNAPPY_SRC) $(BIN_INSTALL_DIR)
+	$(CP) $(UPDATE_TASK_YUM_SRC) $(BIN_INSTALL_DIR)
 ifneq ("$(PLATFORM_RH)","")
 	$(CP) $(SUDOERS_SRC_RH) $(BIN_INSTALL_DIR)
 else

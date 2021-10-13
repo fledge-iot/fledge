@@ -134,6 +134,7 @@ CHECK_CERTS_TASK_SCRIPT_SRC := scripts/tasks/check_certs
 CERTIFICATES_SCRIPT_SRC     := scripts/certificates
 AUTH_CERTIFICATES_SCRIPT_SRC := scripts/auth_certificates
 PACKAGE_UPDATE_SCRIPT_SRC   := scripts/package
+FLEDGE_MNT_SCRIPT           := scripts/fledge_mnt
 
 # Custom location of SQLite3 library
 FLEDGE_HAS_SQLITE3_PATH    := /tmp/sqlite3-pkg/src
@@ -347,7 +348,8 @@ scripts_install : $(SCRIPTS_INSTALL_DIR) \
 	install_check_certificates_script \
 	install_certificates_script \
 	install_auth_certificates_script \
-	install_package_update_script
+	install_package_update_script \
+	install_fledge_mnt_script
 
 # create scripts install dir
 $(SCRIPTS_INSTALL_DIR) :
@@ -428,6 +430,9 @@ install_package_update_script : $(SCRIPT_INSTALL_DIR) $(PACKAGE_UPDATE_SCRIPT_SR
 	$(CP_DIR) $(PACKAGE_UPDATE_SCRIPT_SRC) $(SCRIPTS_INSTALL_DIR)
 	chmod -R a-w $(SCRIPTS_INSTALL_DIR)/package
 	chmod -R u+x $(SCRIPTS_INSTALL_DIR)/package
+
+install_fledge_mnt_script: $(SCRIPT_INSTALL_DIR) ${FLEDGE_MNT_SCRIPT}
+	$(CP) ${FLEDGE_MNT_SCRIPT} $(SCRIPTS_INSTALL_DIR)
 
 $(SCRIPT_COMMON_INSTALL_DIR) :
 	$(MKDIR_PATH) $@

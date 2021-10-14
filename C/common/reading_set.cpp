@@ -16,6 +16,7 @@
 #include <stdlib.h>
 #include <logger.h>
 #include <base64databuffer.h>
+#include <base64dpimage.h>
 
 #include <boost/algorithm/string/replace.hpp>
 
@@ -334,10 +335,16 @@ JSONReading::JSONReading(const Value& json)
 							// special encoded type
 							size_t pos = str.find_first_of(':');
 							string tname = str.substr(2, pos - 2);
-							if (tname.compare("databuffer") == 0)
+							if (tname.compare("DATABUFFER") == 0)
 							{
 								DataBuffer *databuffer = new Base64DataBuffer(str.substr(pos + 1));
 								DatapointValue value(databuffer);
+								this->addDatapoint(new Datapoint(m.name.GetString(), value));
+							}
+							else if (tname.compare("DPIMAGE") == 0)
+							{
+								DPImage *image = new Base64DPImage(str.substr(pos + 1));
+								DatapointValue value(image);
 								this->addDatapoint(new Datapoint(m.name.GetString(), value));
 							}
 							

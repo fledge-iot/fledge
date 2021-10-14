@@ -17,6 +17,7 @@
 #include <datapoint.h>
 #include <exception>
 #include <base64databuffer.h>
+#include <base64dpimage.h>
 
  /**
  * Return the value as a string
@@ -92,7 +93,10 @@ std::string DatapointValue::toString() const
 			<< "\"";
 		return ss.str();
 	case T_IMAGE:
-		throw std::runtime_error("No string representation for Image datapoint types");
+		ss << "\"__DPIMAGE:" 
+			<< ((Base64DPImage *)m_value.image)->encode()
+			<< "\"";
+		return ss.str();
 	default:
 		throw std::runtime_error("No string representation for datapoint type");
 	}

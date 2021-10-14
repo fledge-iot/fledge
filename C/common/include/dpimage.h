@@ -20,6 +20,7 @@
  */
 class DPImage {
 	public:
+		DPImage() : m_width(0), m_height(0), m_depth(0), m_pixels(0), m_byteSize(0) {};
 		DPImage(int width, int height, int depth, void *data);
 		DPImage(const DPImage& rhs);
 		DPImage& operator=(const DPImage& rhs);

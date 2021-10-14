@@ -2151,8 +2151,6 @@ vector<string>  assetCodes;
 
 	result = convert.str();
 
-	//logger->debug("Purge result=%s", result.c_str());
-
 	gettimeofday(&endTv, NULL);
 	unsigned long duration = (1000000 * (endTv.tv_sec - startTv.tv_sec)) + endTv.tv_usec - startTv.tv_usec;
 	logger->info("Purge process complete in %d blocks in %lduS", blocks, duration);
@@ -2320,7 +2318,7 @@ vector<string>  assetCodes;
 				string sql_cmd_tmp;
 				sql_cmd_base = " SELECT MIN(rowid) rowid FROM _dbname_._tablename_ ";
 				ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
-				sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base, assetCodes);
+				sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base, assetCodes, true);
 				sql_cmd += sql_cmd_tmp;
 
 				// SQL - end
@@ -2410,9 +2408,8 @@ vector<string>  assetCodes;
     	convert << " \"readings\" : " << numReadings << " }";
 
 	result = convert.str();
-	logger->info("Purge by Rows complete: %s", result.c_str());
 
-	Logger::getLogger()->debug("%s - rows :%lu: flag :%x: sent :%lu:  numReadings :%lu:  rowsAffected :%u:  result :%s:", __FUNCTION__, rows, flags, sent, numReadings, rowsAffected, result.c_str() );
+	Logger::getLogger()->debug("%s - Purge by Rows complete - rows :%lu: flag :%x: sent :%lu:  numReadings :%lu:  rowsAffected :%u:  result :%s:", __FUNCTION__, rows, flags, sent, numReadings, rowsAffected, result.c_str() );
 
 	return deletedRows;
 }

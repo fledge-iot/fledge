@@ -1,6 +1,14 @@
 #ifndef _BASE64_DATA_BUFFER_H_
 #define _BASE64_DATA_BUFFER_H_
-
+/*
+ * Fledge Base64DataBuffer encoding
+ *
+ * Copyright (c) 2021 Dianomic Systems
+ *
+ * Released under the Apache 2.0 Licence
+ *
+ * Author: Mark Riddoch
+ */
 #include <databuffer.h>
 #include <string>
 #include <stdexcept>

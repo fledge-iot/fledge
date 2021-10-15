@@ -49,7 +49,7 @@ class ReadingSet {
 		void				removeAll();
 		void				clear();
 
-	private:
+	protected:
 		unsigned long			m_count;
 		ReadingSet(const ReadingSet&);
 		ReadingSet&			operator=(ReadingSet const &);

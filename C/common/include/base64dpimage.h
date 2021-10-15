@@ -1,6 +1,14 @@
 #ifndef _BASE64_DPIMAGE_H_
 #define _BASE64_DPIMAGE_H_
-
+/*
+ * Fledge Base64 encoded data point image
+ *
+ * Copyright (c) 2021 Dianomic Systems
+ *
+ * Released under the Apache 2.0 Licence
+ *
+ * Author: Mark Riddoch
+ */
 #include <dpimage.h>
 #include <string>
 #include <stdexcept>

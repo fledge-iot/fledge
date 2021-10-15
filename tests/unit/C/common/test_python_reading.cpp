@@ -62,14 +62,6 @@ class  PythonReadingTest : public testing::Test {
 	}
 
    public:
-	int numpyInit()
-	{
-		if (!PyArray_API)
-		{
-			import_array();
-		}
-	};
-
 	void logErrorMessage(const char *name)
 	{
 		PyObject* type;
@@ -491,7 +483,7 @@ TEST_F(PythonReadingTest, DataBuffer)
 	PyObject *obj = callPythonFunc2("element", pyReading, element);
 	if (obj)
 	{
-		EXPECT_EQ(PyArray_Check(obj), true);
+		EXPECT_EQ(PythonReading::isArray(obj), true);
 	}
 	else
 	{

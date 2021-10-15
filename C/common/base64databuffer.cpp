@@ -1,4 +1,12 @@
-
+/*
+ * Fledge Base64 encoded DataBuffer
+ *
+ * Copyright (c) 2021 Dianomic Systems
+ *
+ * Released under the Apache 2.0 Licence
+ *
+ * Author: Mark Riddoch
+ */
 #include <base64databuffer.h>
 
 using namespace std;

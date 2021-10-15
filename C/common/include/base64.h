@@ -1,5 +1,14 @@
 #ifndef _BASE64_H_
 #define _BASE64_H_
+/*
+ * Fledge Base64 encoding and decoding tables
+ *
+ * Copyright (c) 2021 Dianomic Systems
+ *
+ * Released under the Apache 2.0 Licence
+ *
+ * Author: Mark Riddoch
+ */
 
 static const char encodingTable[] = {
       'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H',

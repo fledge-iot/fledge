@@ -1,5 +1,30 @@
+/*
+ * Fledge Python Reading
+ *
+ * Copyright (c) 2021 Dianomic Systems
+ *
+ * Released under the Apache 2.0 Licence
+ *
+ * Author: Mark Riddoch
+ *
+ * Extreme caution needs to be taken with these Python interfaces
+ * classes, especially with the use of numpy which is not written
+ * to support multiple imports of the package due to the use
+ * of global variables within numpy itself. Hence we import numpy
+ * once by use of the import_array() macro. This macro also has
+ * issues a it contians an embedded return statement.
+ */
 #include <pythonreading.h>
 #include <stdexcept>
+
+#define PY_ARRAY_UNIQUE_SYMBOL  PyArray_API_FLEDGE
+#include <numpy/npy_common.h>
+#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
+#include <numpy/ndarraytypes.h>
+#include <numpy/ndarrayobject.h>
+
+#undef NUMPY_IMPORT_ARRAY_RETVAL
+#define NUMPY_IMPORT_ARRAY_RETVAL       0
 
 using namespace std;
 
@@ -8,7 +33,7 @@ bool PythonReading::doneNumPyImport = false;
 /**
  * Construct a PythonReading from a DICT object returned by Pythin code.
  *
- * The PythonReading acts as a weapper on the Reading class to convert to and
+ * The PythonReading acts as a wrapper on the Reading class to convert to and
  * from Readings in C and Python.
  *
  * @param pyReading	The Python DICT
@@ -41,7 +66,8 @@ PythonReading::PythonReading(PyObject *pyReading)
 	PyObject *dKey, *dValue;
 	Py_ssize_t dPos = 0;
 
-	// Fetch all Datapoins in 'reading' dict
+	// Fetch all Datapoint:w
+	// s in 'reading' dict
 	// dKey and dValue are borrowed references
 	while (PyDict_Next(reading, &dPos, &dKey, &dValue))
 	{
@@ -470,4 +496,30 @@ bool escape = false;
 		newString += str[i];
 	}
 	str = newString;
+}
+
+/**
+ * Impoirt NumPy. Due to the way numpy uses global variables we must only do
+ * this ones in a single exeutable as multipel imports result in crashes.
+ */
+int PythonReading::InitNumPy()
+{
+	if (!PythonReading::doneNumPyImport)
+	{
+		PythonReading::doneNumPyImport = true;
+		// Note the following is a macro in the numpy header file that has an embedded return
+		// in the case of failure. Hence the need to return a value. Assume no code after this
+		// line is run
+		import_array();
+	}
+	return 0;
+};
+
+/**
+ * Return true of the Python object is an array. This is mostly for testing
+ * and overcomes an issue with including the numpy header files multiple times.
+ */
+bool PythonReading::isArray(PyObject *obj)
+{
+	return PyArray_Check(obj);
 }

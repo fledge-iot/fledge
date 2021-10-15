@@ -1,7 +1,7 @@
 #ifndef _DATABUFFER_H
 #define _DATABUFFER_H
 /*
- * Fledge
+ * Fledge Databuffer type for datapoints
  *
  * Copyright (c) 2021 Dianomic Systems
  *

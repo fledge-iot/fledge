@@ -1,7 +1,7 @@
 #ifndef _DPIMAGE_H
 #define _DPIMAGE_H
 /*
- * Fledge
+ * Fledge datapoint image
  *
  * Copyright (c) 2021 Dianomic Systems
  *

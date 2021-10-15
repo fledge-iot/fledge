@@ -1,4 +1,12 @@
-
+/*
+ * Fledge Base64 encoded datapoint image
+ *
+ * Copyright (c) 2021 Dianomic Systems
+ *
+ * Released under the Apache 2.0 Licence
+ *
+ * Author: Mark Riddoch
+ */
 #include <base64dpimage.h>
 
 using namespace std;

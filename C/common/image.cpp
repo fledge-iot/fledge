@@ -83,6 +83,7 @@ DPImage& DPImage::operator=(const DPImage& rhs)
 	{
 		throw runtime_error("Insufficient memory to store image");
 	}
+	return *this;
 }
 
 /**

@@ -16,6 +16,8 @@ using namespace std;
 /**
  * Construct PythonRadingSet from a python list object that contains a
  * list of readings
+ *
+ * @param set	A Python object pointer that contians a list of readings
  */
 PythonReadingSet::PythonReadingSet(PyObject *set)
 {
@@ -38,6 +40,8 @@ PythonReadingSet::PythonReadingSet(PyObject *set)
 
 /**
  * Convert the ReadingSet to a Python List
+ *
+ * @return A Python object that contains the set of readings as a Python list
  */
 PyObject *PythonReadingSet::toPython()
 {

@@ -17,6 +17,11 @@
 #include <pythonreading.h>
 #include <stdexcept>
 
+/*
+ * We have to do the following includes here rather than in the header file as we
+ * would like as if the numpy headers are included more than once this results in
+ * objects being defined multiple times.
+ */
 #define PY_ARRAY_UNIQUE_SYMBOL  PyArray_API_FLEDGE
 #include <numpy/npy_common.h>
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
@@ -112,6 +117,10 @@ PythonReading::PythonReading(PyObject *pyReading)
 }
 
 /**
+ * Given a Python value convert it into a DatapointValue
+ *
+ * @param value The python object to convert
+ * @return The converted DatapointValue or NULL if the conversion was not possible
  */
 DatapointValue *PythonReading::getDatapointValue(PyObject *value)
 {
@@ -304,6 +313,12 @@ PyObject *PythonReading::toPython()
 	return readingObject;
 }
 
+/**
+ * Convert a single datapoint into a Pythn object
+ *
+ * @param dp	The datapoint to convert
+ * @return The pointer to a converted Python Object or NULL if the conversion failed
+ */
 PyObject *PythonReading::convertDatapoint(Datapoint *dp)
 {
 	PyObject *value = NULL;
@@ -428,7 +443,7 @@ PyObject *PythonReading::convertDatapoint(Datapoint *dp)
 	}
 	else
 	{
-		Logger::getLogger()->info("Unable to convert datapoint tyoe '%s' to Python, defaulting to string representation", dp->getData().getTypeStr().c_str());
+		Logger::getLogger()->info("Unable to convert datapoint type '%s' to Python, defaulting to string representation", dp->getData().getTypeStr().c_str());
 		value = PyUnicode_FromString(dp->getData().toString().c_str());
 	}
 
@@ -503,7 +518,7 @@ bool escape = false;
 
 /**
  * Impoirt NumPy. Due to the way numpy uses global variables we must only do
- * this ones in a single exeutable as multipel imports result in crashes.
+ * this once in a single exeutable as multiple imports result in crashes.
  */
 int PythonReading::InitNumPy()
 {
@@ -521,6 +536,9 @@ int PythonReading::InitNumPy()
 /**
  * Return true of the Python object is an array. This is mostly for testing
  * and overcomes an issue with including the numpy header files multiple times.
+ *
+ * @param obj	The Pythin object to test
+ * @return true if the Python object is a numpy array
  */
 bool PythonReading::isArray(PyObject *obj)
 {

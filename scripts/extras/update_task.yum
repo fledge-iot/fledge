@@ -159,7 +159,7 @@ update_task() {
     if [ "${STORAGE}" = "postgres" ]; then
         UPDATE_SQL_QUERY="UPDATE fledge.tasks ${SQL_QUERY}"
         SQL_CMD=`psql -d fledge -t -c "${UPDATE_SQL_QUERY}"`
-    elif [ "${STORAGE}" = "sqlite" ]; then
+    elif [ "${STORAGE}" = "sqlite" ] || [ "${STORAGE}" = "sqlitelb" ]; then
         UPDATE_SQL_QUERY="UPDATE tasks ${SQL_QUERY}"
         SQL_CMD=`sqlite3 ${FLEDGE_DATA}/fledge.db "${UPDATE_SQL_QUERY}"`
     else

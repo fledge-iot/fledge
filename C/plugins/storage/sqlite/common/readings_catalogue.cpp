@@ -1992,6 +1992,9 @@ int  ReadingsCatalogue::purgeAllReadings(sqlite3 *dbHandle, const char *sqlCmdBa
 
 			rc = SQLExec(dbHandle, sqlCmdTmp.c_str(), zErrMsg);
 
+			// FIXME_I:
+			Logger::getLogger()->debug("xxx6 purgeAllReadings:  rc :%d: cmd :%s:", rc ,sqlCmdTmp.c_str() );
+
 			Logger::getLogger()->debug("purgeAllReadings:  rc :%d: cmd :%s:", rc ,sqlCmdTmp.c_str() );
 
 			if (rc != SQLITE_OK)

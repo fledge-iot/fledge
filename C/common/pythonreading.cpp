@@ -116,27 +116,27 @@ PythonReading::PythonReading(PyObject *pyReading)
 DatapointValue *PythonReading::getDatapointValue(PyObject *value)
 {
 	DatapointValue *dataPoint = NULL;
-	if (PyLong_Check(value) || PyLong_Check(value))	// Integer
+	if (PyLong_Check(value) || PyLong_Check(value))	// Integer	T_INTEGER
 	{
 		dataPoint = new DatapointValue((long)PyLong_AsUnsignedLongMask(value));
 	}
-	else if (PyFloat_Check(value))		// Float
+	else if (PyFloat_Check(value))		// Float		T_FLOAT
 	{
 		dataPoint = new DatapointValue(PyFloat_AS_DOUBLE(value));
 	}
-	else if (PyBytes_Check(value))		// String
+	else if (PyBytes_Check(value))		// String		T_STRING
 	{
 		string str = PyBytes_AsString(value);
 		fixQuoting(str);
 		dataPoint = new DatapointValue(str);
 	}
-	else if (PyUnicode_Check(value))	// String
+	else if (PyUnicode_Check(value))	// String		T_STRING
 	{
 		string str = PyUnicode_AsUTF8(value);
 		fixQuoting(str);
 		dataPoint = new DatapointValue(str);
 	}
-	else if (PyDict_Check(value))		// Nested object
+	else if (PyDict_Check(value))		// Nested object	T_DP_DICT
 	{
 		vector<Datapoint *> *values = new vector<Datapoint *>;
 		Py_ssize_t dPos = 0;
@@ -153,7 +153,7 @@ DatapointValue *PythonReading::getDatapointValue(PyObject *value)
 		}
 		dataPoint = new DatapointValue(values, true);
 	}
-	else if (PyList_Check(value))
+	else if (PyList_Check(value))	// List of data points or flaots
 	{
 		Py_ssize_t listSize = PyList_Size(value);
 		// Find out what the list contains
@@ -162,7 +162,7 @@ DatapointValue *PythonReading::getDatapointValue(PyObject *value)
 		{
 			return NULL;
 		}
-		if (PyFloat_Check(item0))	// List of floats
+		if (PyFloat_Check(item0))	// List of floats	T_FLOAT_ARRAY
 		{
 			vector<double> values;
 			for (Py_ssize_t i = 0; i < listSize; i++)
@@ -172,7 +172,7 @@ DatapointValue *PythonReading::getDatapointValue(PyObject *value)
 			}
 			dataPoint = new DatapointValue(values);
 		}
-		else if (PyDict_Check(item0))	// List of datapoints
+		else if (PyDict_Check(item0))	// List of datapoints	T_DP_LIST
 		{
 			vector<Datapoint *>* values = new vector<Datapoint *>;
 			for (Py_ssize_t i = 0; i < listSize; i++)
@@ -194,11 +194,11 @@ DatapointValue *PythonReading::getDatapointValue(PyObject *value)
 			dataPoint = new DatapointValue(values, false);
 		}
 	}
-	else if (PyArray_Check(value))
+	else if (PyArray_Check(value))	// Numpy array
 	{
 		PyArrayObject *array = (PyArrayObject *)value;
 		int item_size = PyArray_ITEMSIZE(array);
-		if (PyArray_NDIM(array) == 1)	// Databuffer
+		if (PyArray_NDIM(array) == 1)	// Databuffer	T_DATABUFFER
 		{
 			npy_intp *dims = PyArray_DIMS(array);
 			int n_items = (int)dims[0];
@@ -207,7 +207,7 @@ DatapointValue *PythonReading::getDatapointValue(PyObject *value)
 
 			dataPoint = new DatapointValue(buffer);
 		}
-		else if (PyArray_NDIM(array) == 2)	// Image
+		else if (PyArray_NDIM(array) == 2)	// Image	T_IMAGE
 		{
 			npy_intp *dims = PyArray_DIMS(array);
 			int width = (int)dims[0];
@@ -217,9 +217,12 @@ DatapointValue *PythonReading::getDatapointValue(PyObject *value)
 
 			dataPoint = new DatapointValue(image);
 		}
-		// TODO multi-dimensional arrays
+		else
+		{
+			Logger::getLogger()->error("Encountered a numpy array with more than 2 dimensions in a Python data point %s. This is currently not supported");
+		}
 	}
-	else	// TODO add other datapoint types
+	else
 	{
 		PyTypeObject *type = value->ob_type;
 		Logger::getLogger()->error("Encountered an unsupported type '%s' when create a reading from Python", type->tp_name);

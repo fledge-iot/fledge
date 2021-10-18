@@ -67,11 +67,7 @@ Select Edge Data Store from the Endpoint options.
 
 - Basic Information
    - **Endpoint:** Select what you wish to connect to, in this case Edge Data Store.
-<<<<<<< HEAD
    - **Naming scheme:** Defines the naming scheme to be used when creating the PI points within the PI Server. See :ref:`Naming Scheme`.
-=======
-   - **Naming scheme:** Defines the naming scheme to be used when creating the PI points within the PI Server. See :ref:`Naming_Scheme`.
->>>>>>> develop
    - **Server hostname:** The hostname or address of the PI Server. This must be the localhost for EDS.
    - **Server port:** The port the Edge Datastore is listening on. Leave as 0 if you are using the default port.
    - **Data Source:** Defines which data is sent to the PI Server. The readings or Fledge's internal statistics.
@@ -99,11 +95,7 @@ Select OSIsoft Cloud Services from the Endpoint options.
 
 - Basic Information
    - **Endpoint:** Select what you wish to connect to, in this case OSIsoft Cloud Services.
-<<<<<<< HEAD
    - **Naming scheme:** Defines the naming scheme to be used when creating the PI points within the PI Server. See `Naming Scheme`.
-=======
-   - **Naming scheme:** Defines the naming scheme to be used when creating the PI points within the PI Server. See :ref:`Naming_Scheme`.
->>>>>>> develop
    - **Data Source:** Defines which data is sent to the PI Server. The readings or Fledge's internal statistics.
    - **Static Data:** Data to include in every reading sent to PI.  For example, you can use this to specify the location of the devices being monitored by the Fledge server.
 - Authentication
@@ -172,11 +164,7 @@ The second screen will request the following information:
    - **Number Format:** Used to match Fledge data types to the data type configured in PI. The defaults is float64 but may be set to any OMF datatype that supports floating point values.
    - **Compression:** Compress the readings data before sending it to the PI System.
 
-<<<<<<< HEAD
-.. _Naming Scheme:
-=======
 .. _Naming_Scheme:
->>>>>>> develop
 
 Naming Scheme
 -------------
@@ -419,11 +407,7 @@ Type Name Hints
 
 A type name hint specifies that a particular name should be used when
 defining the name of the type that will be created to store the object
-<<<<<<< HEAD
 in the Asset Framework. This will override the :ref:`Naming Scheme` currently
-=======
-in the Asset Framework. This will override the :ref:`Naming_Scheme` currently
->>>>>>> develop
 configured.
 
 .. code-block:: console

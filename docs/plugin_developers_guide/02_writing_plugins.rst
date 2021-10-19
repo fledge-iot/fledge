@@ -260,7 +260,7 @@ Fledge divides its configuration in categories. A category being a collection of
 
 The configuration items within a category are JSON object, the object key is the name of the configuration item, the object itself contains data about that item. As an example, if we wanted to have a configuration item called *MaxRetries* that is an integer with a default value of 5, then we would configured it using the JSON object
 
-.. code-block:: JSON
+.. code-block:: console
 
    "MaxRetries" : {
                 "type" : "integer",
@@ -274,22 +274,38 @@ We have used the properties *type* and *default* to define properties of the con
 
    * - Property
      - Description
-   * - type
-     - The type of the configuration item. The list of types supported are; integer, float, string, enumeration, boolean, JSON, URL, script, code and northTask.
    * - default
      - The default value for the configuration item. This is always expressed as a string regardless of the type of the configuration item.
-   * - value
-     - The current value of the configuration item. This is not included when defining a set of default configuration in, for example, a plugin.
-   * - displayName
-     - The string to use in the user interface when presenting the configuration item. Generally a more user friendly form of the item name. Item names are referenced within the code.
+   * - deprecated
+     - A boolean flag to indicate that this item is no longer used and will be removed in a future release.
    * - description
      - A description of the configuration item used in the user interface to give more details of the item. Commonly used as a mouse over help prompt.
-   * - order
-     - Used in the user interface to give an indication of how high up in the dialogue to place this item.
+   * - displayName
+     - The string to use in the user interface when presenting the configuration item. Generally a more user friendly form of the item name. Item names are referenced within the code.
+   * - length
+     - The maximum length of the string value of the item.
+   * - mandatory
+     - A boolean flag to indicate that this item can not be left blank.
+   * - maximum
+     - The maximum value for a numeric configuration item.
+   * - minimum
+     - The minimum value for a numeric configuration item.
    * - options
      - Only used for enumeration type elements. This is a JSON array of string that contains the options in the enumeration.
+   * - order
+     - Used in the user interface to give an indication of how high up in the dialogue to place this item.
+   * - readonly
+     - A boolean property that can be used to include items that can not be altered by the API.
+   * - rule
+     - A validation rule that will be run against the value. This must evaluate to true for the new value to be accepted by the API
+   * - type
+     - The type of the configuration item. The list of types supported are; integer, float, string, password, enumeration, boolean, JSON, URL, IPV4, IPV6, script, code, X509 certificate and northTask.
    * - validity
      - An expression used to determine if the configuration item is valid. Used in the UI to gray out one value based on the value of others.
+   * - value
+     - The current value of the configuration item. This is not included when defining a set of default configuration in, for example, a plugin.
+
+Of the above properties of a configuration item *type*, *default* and *description* are mandatory, all other may be omitted.
 
 Configuration data is stored by the storage service and is maintained by the configuration in the core Fledge service. When code requires configuration it would create a configuration category with a set of items as a JSON document. It would then register that configuration category with the configuration manager. The configuration manager is responsible for storing the data in the storage layer, as it does this it first checks to see if there is already a configuration category from a previous execution of the code. If one does exist then the two are merged, this merging process allows updates to the software to extend the configuration category whilst maintaining any changes in values made by the user.
 

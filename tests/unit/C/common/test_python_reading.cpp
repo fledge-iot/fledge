@@ -322,7 +322,7 @@ TEST_F(PythonReadingTest, SimpleString)
 	if (obj)
 	{
 		EXPECT_EQ(PyUnicode_Check(obj), true);
-		char *rval = PyUnicode_AsUTF8(obj);
+		const char *rval = PyUnicode_AsUTF8(obj);
 		EXPECT_STREQ(rval, "just a string");
 	}
 	else
@@ -340,7 +340,7 @@ TEST_F(PythonReadingTest, AssetCode)
 	if (obj)
 	{
 		EXPECT_EQ(PyUnicode_Check(obj), true);
-		char *rval = PyUnicode_AsUTF8(obj);
+		const char *rval = PyUnicode_AsUTF8(obj);
 		EXPECT_STREQ(rval, "testAsset");
 	}
 	else
@@ -377,7 +377,7 @@ TEST_F(PythonReadingTest, TwoDifferentDataPoints)
 	PyObject *element = PyUnicode_FromString("s");
 	obj = callPythonFunc2("element", pyReading, element);
 	EXPECT_EQ(PyUnicode_Check(obj), true);
-	char *sval = PyUnicode_AsUTF8(obj);
+	const char *sval = PyUnicode_AsUTF8(obj);
 	EXPECT_STREQ(sval, "just a string");
 	element = PyUnicode_FromString("l");
 	obj = callPythonFunc2("element", pyReading, element);
@@ -398,7 +398,7 @@ TEST_F(PythonReadingTest, TwoDataPointsFetchString1)
 	if (obj)
 	{
 		EXPECT_EQ(PyUnicode_Check(obj), true);
-		char *rval = PyUnicode_AsUTF8(obj);
+		const char *rval = PyUnicode_AsUTF8(obj);
 		EXPECT_STREQ(rval, "just a string");
 	}
 	else
@@ -420,7 +420,7 @@ TEST_F(PythonReadingTest, TwoDataPointsFetchString2)
 	if (obj)
 	{
 		EXPECT_EQ(PyUnicode_Check(obj), true);
-		char *rval = PyUnicode_AsUTF8(obj);
+		const char *rval = PyUnicode_AsUTF8(obj);
 		EXPECT_STREQ(rval, "just a string");
 	}
 	else

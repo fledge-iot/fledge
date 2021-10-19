@@ -1,3 +1,4 @@
+DROP INDEX IF EXISTS fledge.statistics_history_daily_ix1;
 DROP TABLE IF EXISTS fledge.statistics_history_daily;
 
 DELETE FROM fledge.schedules WHERE process_name = 'purge_system';

@@ -5,6 +5,8 @@
 # FLEDGE_END
 
 """Common Definitions"""
+import sys
+import types
 import logging
 import os
 import platform
@@ -30,13 +32,14 @@ _logger = logger.setup(__name__, level=logging.INFO)
 _NO_OF_FILES_TO_RETAIN = 10
 
 
-def load_python_plugin(plugin_module_path: str, plugin: str, _type: str) -> Dict:
+def load_python_plugin(plugin_module_path: str, plugin: str, _type: str) -> types.ModuleType:
     _plugin = None
-    module_name = "fledge.plugins.{}.{}".format(_type, plugin)
+    module_name = "fledge.plugins.{}.{}.{}".format(_type, plugin, plugin)
     try:
         spec = importlib.util.spec_from_file_location(module_name, "{}/{}.py".format(plugin_module_path, plugin))
         _plugin = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(_plugin)
+        sys.modules[module_name] = _plugin
     except FileNotFoundError:
         if _FLEDGE_PLUGIN_PATH:
             plugin_paths = _FLEDGE_PLUGIN_PATH.split(";")
@@ -47,18 +50,27 @@ def load_python_plugin(plugin_module_path: str, plugin: str, _type: str) -> Dict
                         plugin_module_path, plugin))
                     _plugin = importlib.util.module_from_spec(spec)
                     spec.loader.exec_module(_plugin)
-
+                    sys.modules[module_name] = _plugin
     return _plugin
 
 
 def load_and_fetch_python_plugin_info(plugin_module_path: str, plugin: str, _type: str) -> Dict:
-    _plugin = load_python_plugin(plugin_module_path, plugin, _type)
-    # Fetch configuration from the configuration defined in the plugin
+    module_name = "fledge.plugins.{}.{}.{}".format(_type, plugin, plugin)
     try:
-        plugin_info = _plugin.plugin_info()
-        if plugin_info['type'] != _type:
-            msg = "Plugin of {} type is not supported".format(plugin_info['type'])
-            raise TypeError(msg)
+        if module_name not in sys.modules:
+            _plugin_module = load_python_plugin(plugin_module_path, plugin, _type)
+            # Fetch configuration from the configuration defined in the plugin
+            try:
+                plugin_info = _plugin_module.plugin_info()
+                if plugin_info['type'] != _type:
+                    msg = "Plugin of {} type is not supported".format(plugin_info['type'])
+                    raise TypeError(msg)
+            except Exception as ex:
+                _logger.warning("Python plugin not found......{}, try C-plugin".format(ex))
+                raise FileNotFoundError
+        else:
+            _plugin = sys.modules[module_name]
+            plugin_info = _plugin.plugin_info()
     except Exception as ex:
         _logger.warning("Python plugin not found......{}, try C-plugin".format(ex))
         raise FileNotFoundError

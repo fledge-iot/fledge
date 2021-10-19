@@ -301,6 +301,18 @@ class StorageClientAsync(AbstractStorage):
         put_url = '/storage/table/{tbl_name}/query'.format(tbl_name=tbl_name)
 
         url = 'http://' + self.base_url + put_url
+
+        #// FIXME_I:
+        if tbl_name == "streams":
+            import logging
+
+
+            #// FIXME_I:
+            _LOGGER.setLevel(logging.DEBUG)
+            _LOGGER.debug("xxx2 query_tbl_with_payload- url :{}: query_payload :{}: ".format(url, query_payload) )
+            _LOGGER.setLevel(logging.WARNING)
+
+
         async with aiohttp.ClientSession() as session:
             async with session.put(url, data=query_payload) as resp:
                 status_code = resp.status

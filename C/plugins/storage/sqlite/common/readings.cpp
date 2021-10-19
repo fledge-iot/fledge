@@ -1894,9 +1894,15 @@ vector<string>  assetCodes;
 		//if (flags & 0x01) {
 		if (flag_retain) {
 
+			// FIXME_I:
+			logger->debug ("xxx7 %s line %d - flag_retain YES", __FUNCTION__, __LINE__);
+
 			r = min(sent, rowidLimit);
 		} else {
 			r = rowidLimit;
+
+			// FIXME_I:
+			logger->debug ("xxx7 %s line %d - flag_retain NO", __FUNCTION__, __LINE__);
 		}
 
 		r = max(r, l);

@@ -309,7 +309,7 @@ Of the above properties of a configuration item *type*, *default* and *descripti
 
 Configuration data is stored by the storage service and is maintained by the configuration in the core Fledge service. When code requires configuration it would create a configuration category with a set of items as a JSON document. It would then register that configuration category with the configuration manager. The configuration manager is responsible for storing the data in the storage layer, as it does this it first checks to see if there is already a configuration category from a previous execution of the code. If one does exist then the two are merged, this merging process allows updates to the software to extend the configuration category whilst maintaining any changes in values made by the user.
 
-Dynamic reconfiguration within Fledge code is supported by allowing code to subscribe for changes in a configuration category. The services that load plugin will automatically register for the plugin configuration category and when changes are seen will call the *plugin_reconfigure* entry point of the plugin with the new configuration. This allows the plugins to receive the updated configuration and take what actions it must in order to honour the changes to configuration. This allows allows for configuration to be changed without the need to stop and restart the services, however some plugins may need to close connections and reopen them, which may cause a slight interruption in the process of gathering data. That choice is up to the developers of the individual plugins.
+Dynamic reconfiguration within Fledge code is supported by allowing code to subscribe for changes in a configuration category. The services that load plugin will automatically register for the plugin configuration category and when changes are seen will call the *plugin_reconfigure* entry point of the plugin with the new configuration. This allows the plugins to receive the updated configuration and take what actions it must in order to honour the changes to configuration. This allows for configuration to be changed without the need to stop and restart the services, however some plugins may need to close connections and reopen them, which may cause a slight interruption in the process of gathering data. That choice is up to the developers of the individual plugins.
 
 Discovery
 ~~~~~~~~~
@@ -334,7 +334,7 @@ An example of the *plugin_info* entry point that does this might be as follows
             return &info;
     }
 
-The configuration in *default_config* is assumed to have ab enumeration item called *discovered*
+The configuration in *default_config* is assumed to have an enumeration item called *discovered*
 
 .. code-block:: console
 
@@ -357,7 +357,7 @@ The configuration in *default_config* is assumed to have ab enumeration item cal
                 "validity" : "discovered == \"Manual\""
                 },
 
-Note the use of the *Mnaual* option to allow entry of devices that could not be discovered.
+Note the use of the *Manual* option to allow entry of devices that could not be discovered.
 
 The *discover* method does the actually discovery and manipulates the JSON configuration to add the the *options* element of the configuration item.
 

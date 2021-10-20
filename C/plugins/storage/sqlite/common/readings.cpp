@@ -1774,7 +1774,7 @@ vector<string>  assetCodes;
 			string sql_cmd_tmp;
 			sql_cmd_base = " SELECT  MIN(rowid) rowid FROM _dbname_._tablename_ ";
 			ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
-			sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base, assetCodes);
+			sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base, assetCodes, true);
 			sql_cmd += sql_cmd_tmp;
 
 			// SQL - end
@@ -1782,6 +1782,8 @@ vector<string>  assetCodes;
 				) as readings_1
 			)";
 		}
+
+		Logger::getLogger()->debug("%s - SELECT MIN - :%s:", __FUNCTION__,  sql_cmd.c_str() );
 
 		rc = SQLexec(dbHandle,
 					 sql_cmd.c_str(),
@@ -1820,7 +1822,7 @@ vector<string>  assetCodes;
 			string sql_cmd_tmp;
 			sql_cmd_base = " SELECT MIN(user_ts) user_ts FROM _dbname_._tablename_  WHERE rowid <= " + to_string(rowidLimit);
 			ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
-			sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base, assetCodes);
+			sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base, assetCodes, true);
 			sql_cmd += sql_cmd_tmp;
 
 			// SQL - end
@@ -1880,7 +1882,7 @@ vector<string>  assetCodes;
 		}
 
 		r = max(r, l);
-		logger->debug ("s:%d: l=%u, r=%u, sent=%u, rowidLimit=%u, minrowidLimit=%u, flags=%u", __FUNCTION__, __LINE__, l, r, sent, rowidLimit, minrowidLimit, flags);
+		logger->debug ("%s %d - l=%u, r=%u, sent=%u, rowidLimit=%u, minrowidLimit=%u, flags=%u", __FUNCTION__, __LINE__, l, r, sent, rowidLimit, minrowidLimit, flags);
 		if (l == r)
 		{
  			logger->info("No data to purge: min_id == max_id == %u", minrowidLimit);
@@ -2083,6 +2085,8 @@ vector<string>  assetCodes;
 		rc = readCat->purgeAllReadings(dbHandle, query ,&zErrMsg, &rowsAffected);
 		END_TIME;
 
+		logger->debug("%s - DELETE - query :%s: rowsAffected :%ld:",  __FUNCTION__, query ,rowsAffected);
+
 		// Release memory for 'query' var
 		delete[] query;
 
@@ -2130,7 +2134,7 @@ vector<string>  assetCodes;
 			}
 			std::this_thread::sleep_for(std::chrono::milliseconds(100));
 		}
-		//Logger::getLogger()->debug("Purge delete block #%d with %d readings", blocks, rowsAffected);
+		Logger::getLogger()->debug("Purge delete block #%d with %d readings", blocks, rowsAffected);
 	} while (rowidMin  < rowidLimit);
 
 	unsentRetained = maxrowidLimit - rowidLimit;
@@ -2150,8 +2154,6 @@ vector<string>  assetCodes;
     	convert << " \"readings\" : " << numReadings << " }";
 
 	result = convert.str();
-
-	//logger->debug("Purge result=%s", result.c_str());
 
 	gettimeofday(&endTv, NULL);
 	unsigned long duration = (1000000 * (endTv.tv_sec - startTv.tv_sec)) + endTv.tv_usec - startTv.tv_usec;
@@ -2320,13 +2322,15 @@ vector<string>  assetCodes;
 				string sql_cmd_tmp;
 				sql_cmd_base = " SELECT MIN(rowid) rowid FROM _dbname_._tablename_ ";
 				ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
-				sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base, assetCodes);
+				sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base, assetCodes, true);
 				sql_cmd += sql_cmd_tmp;
 
 				// SQL - end
 				sql_cmd += R"(
 						) as readings_1
 					)";
+
+				logger->debug("%s - SELECT MIN - sql_cmd :%s: ", __FUNCTION__, sql_cmd.c_str() );
 			}
 
 			rc = SQLexec(dbHandle,
@@ -2373,6 +2377,8 @@ vector<string>  assetCodes;
 			// Exec DELETE query: no callback, no resultset
 			rc = readCat->purgeAllReadings(dbHandle, query ,&zErrMsg, &rowsAffected);
 
+			logger->debug("%s - DELETE - query :%s: rowsAffected :%ld:", __FUNCTION__, query ,rowsAffected);
+
 			deletedRows += rowsAffected;
 			numReadings -= rowsAffected;
 			rowcount    -= rowsAffected;
@@ -2410,9 +2416,8 @@ vector<string>  assetCodes;
     	convert << " \"readings\" : " << numReadings << " }";
 
 	result = convert.str();
-	logger->info("Purge by Rows complete: %s", result.c_str());
 
-	Logger::getLogger()->debug("%s - rows :%lu: flag :%x: sent :%lu:  numReadings :%lu:  rowsAffected :%u:  result :%s:", __FUNCTION__, rows, flags, sent, numReadings, rowsAffected, result.c_str() );
+	Logger::getLogger()->debug("%s - Purge by Rows complete - rows :%lu: flag :%x: sent :%lu:  numReadings :%lu:  rowsAffected :%u:  result :%s:", __FUNCTION__, rows, flags, sent, numReadings, rowsAffected, result.c_str() );
 
 	return deletedRows;
 }

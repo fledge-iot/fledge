@@ -7,18 +7,28 @@
 # manually via /usr/local/fledge/bin/fledge_update script.
 #
 # Pre-requisites:
-# 1. Add the repository key to your apt key list:
-#        wget -q -O - http://archives.fledge-iot.org/KEY.gpg | sudo apt-key add -
+# 1. To add the fledge repository to the yum package manager run the command:
+#        sudo rpm --import http://archives.fledge-iot.org/RPM-GPG-KEY-fledge
 # 2. Add the repository location to your sources list.
-#    Add the following lines to your "/etc/apt/sources.list" or separate /etc/apt/sources.list.d/fledge.list file.
-#        Below example for ubuntu18.04 64bit machine
-#        echo "deb http://archives.fledge-iot.org/latest/ubuntu1804/x86_64/ / " > /etc/apt/sources.list.d/fledge.list
+#   a) Create a file called fledge.repo in the directory /etc/yum.repos.d and add the following content:
+#        Below example for CentOS 64bit machine
+#        [fledge]
+#        name=fledge Repository
+#        baseurl=http://archives.fledge-iot.org/latest/centos7/x86_64/
+#        enabled=1
+#        gpgkey=http://archives.fledge-iot.org/RPM-GPG-KEY-fledge
+#        gpgcheck=1
+#   b) There are a few more pre-requisites that need to be installed
+#        sudo yum install -y centos-release-scl-rh
+#        sudo yum install -y epel-release
+#
+# Similarly you can setup for Rhel. See https://fledge-iot.readthedocs.io/en/latest/quick_start/installing.html#redhat-centos
 ##
 
-__author__="Amarendra K Sinha, Ashish Jabble"
-__copyright__="Copyright (c) 2018 OSIsoft, LLC"
+__author__="Ashish Jabble"
+__copyright__="Copyright (c) 2021, Dianomic Systems Inc."
 __license__="Apache 2.0"
-__version__="1.1"
+__version__="1.0"
 
 
 # Set the default value for FLEDGE_ROOT if not set
@@ -66,7 +76,7 @@ fledge_stop() {
 # Commands for Packages to upgrade
 run_commands() {
     # Download and update the package information from all of the configured sources
-    UPDATE_CMD="sudo apt -y update"
+    UPDATE_CMD="sudo yum check-update"
     write_log "" "$0" "info" "Executing ${UPDATE_CMD} command..." "logonly"
     UPDATE_CMD_OUT=`$UPDATE_CMD`
     UPDATE_CMD_STATUS="$?"
@@ -76,12 +86,12 @@ run_commands() {
     fi
 
     # Check GUI package is installed or not
-    if ! dpkg -l | grep fledge-gui; then
-        UPGRADE_CMD="sudo apt-get -y install fledge"
+    if ! yum list installed | grep fledge-gui; then
+        UPGRADE_CMD="sudo yum -y install fledge"
         PKG_NAME="fledge"
     else
         PKG_NAME="fledge, fledge-gui"
-        UPGRADE_CMD="sudo apt-get -y install fledge fledge-gui"
+        UPGRADE_CMD="sudo yum -y install fledge fledge-gui"
     fi
 
     # Upgrade Package

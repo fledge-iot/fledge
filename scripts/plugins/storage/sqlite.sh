@@ -230,6 +230,7 @@ sqlite_reset() {
         read continue_reset
 
         if [ "$continue_reset" != 'YES' ]; then
+	    echo "The system will NOT be reset and current content remains"
             echo "Goodbye."
             # This is ok because it means that the script is called from command line
             exit 0
@@ -469,6 +470,7 @@ sqlite_purge() {
     read continue_purge
 
     if [ "$continue_purge" != 'YES' ]; then
+	echo "The system will NOT be purged of data and current content remains"
         echo "Goodbye."
         # This is ok because it means that the script is called from command line
         exit 0

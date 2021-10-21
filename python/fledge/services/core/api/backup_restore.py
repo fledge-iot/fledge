@@ -181,25 +181,18 @@ async def get_backup_download(request):
         source = dir_name + file_name
         if not os.path.isfile(source):
             raise FileNotFoundError('{} backup file does not exist in {} directory'.format(file_name, dir_name))
-
-        # Download the backup file using the backward compatible way or the current one
+        # Find the source extension
         dummy, file_extension = os.path.splitext(source)
-        _logger.debug("get_backup_download - file_extension :{}: -".format(file_extension) )
-
+        # backward compatibility (<= 1.9.2)
         if file_extension == ".db":
             # Create tar file
             t = tarfile.open(source + ".tar.gz", "w:gz")
             t.add(source, arcname=os.path.basename(source))
             t.close()
-
-            # Path of tar.gz file
             gz_path = Path(source + ".tar.gz")
-            _logger.debug("get_backup_download - backward - gz_path :{}:".format (gz_path) )
-
         else:
             gz_path = Path(source)
-            _logger.debug("get_backup_download - new - gz_path :{}:".format (gz_path) )
-
+        _logger.debug("get_backup_download - file_extension :{}: - gz_path :{}:".format(file_extension, gz_path))
     except FileNotFoundError as err:
         msg = str(err)
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
@@ -311,53 +304,35 @@ async def upload_backup(request: web.Request) -> web.Response:
                 size += len(chunk)
                 temp_file.write(chunk)
 
-        _logger.debug("upload_backup - temp_path :{}: file_name :{}: ".format(temp_path, file_name) )
-
+        _logger.debug("upload_backup - temp_path :{}: file_name :{}: ".format(temp_path, file_name))
         # Extract tar inside temporary directory
         tar_file = tarfile.open(name="{}/{}".format(temp_path, file_name), mode='r:*')
         tar_file_names = tar_file.getnames()
-
         if any((item.startswith(backup_prefix) and item.endswith(valid_extensions)) for item in tar_file_names):
-
-            backup_file_name = ""
-            success = True
             if any((item.startswith("etc") and item.endswith("etc")) for item in tar_file_names):
-
                 source = temp_path + "/" + file_name
                 backup_file_name = file_name
-                cmd = "cp {} {}".format(source, backup_path)
-                _logger.debug("upload_backup - new - source :{}: cmd :{}:cmd :{}:".format (source, cmd, backup_file_name) )
-
-                ret_code = os.system(cmd)
-                if ret_code != 0:
-                    raise OSError("{} upload failed during copy to path:{}".format(file_name, backup_path))
-                    success = False
-
+            # backward compatibility (<= 1.9.2)
             else:
                 tar_file.extractall(temp_path)
-                source = "{}/{}".format(temp_path, tar_file_names[0])
-                cmd = "cp {} {}".format(source, backup_path)
                 backup_file_name = tar_file_names[0]
-                _logger.debug("upload_backup - backward - source :{}: cmd :{}:cmd :{}:".format (source, cmd, backup_file_name) )
-
-                ret_code = os.system(cmd)
-                if ret_code != 0:
-                    raise OSError("{} upload failed during copy to path:{}".format(file_name, backup_path))
-                    success = False
-
-            if success == True:
-                # TODO: FOGL-5876 ts as per post param if given in payload
-                # insert backup record entry in db
-                full_file_name_path = "{}/{}".format(backup_path, backup_file_name)
-                payload = payload_builder.PayloadBuilder().INSERT(
-                    file_name=full_file_name_path, ts="now()", type=1, status=2, exit_code=0).payload()
-                # audit trail entry
-                storage = connect.get_storage_async()
-                await storage.insert_into_tbl("backups", payload)
-                audit = AuditLogger(storage)
-                await audit.information('BKEXC', {'status': 'completed', 'message': 'From upload backup'})
-                # TODO: FOGL-4239 - readings table upload
-
+                source = "{}/{}".format(temp_path, backup_file_name)
+            cmd = "cp {} {}".format(source, backup_path)
+            _logger.debug("upload_backup: source :{}: - cmd :{}: - filename :{}:".format(source, cmd, backup_file_name))
+            ret_code = os.system(cmd)
+            if ret_code != 0:
+                raise OSError("{} upload failed during copy to path:{}".format(file_name, backup_path))
+            # TODO: FOGL-5876 ts as per post param if given in payload
+            # insert backup record entry in db
+            full_file_name_path = "{}/{}".format(backup_path, backup_file_name)
+            payload = payload_builder.PayloadBuilder().INSERT(
+                file_name=full_file_name_path, ts="now()", type=1, status=2, exit_code=0).payload()
+            # audit trail entry
+            storage = connect.get_storage_async()
+            await storage.insert_into_tbl("backups", payload)
+            audit = AuditLogger(storage)
+            await audit.information('BKEXC', {'status': 'completed', 'message': 'From upload backup'})
+            # TODO: FOGL-4239 - readings table upload
         else:
             raise NameError('Either {} prefix or {} valid extension is not found inside given tar file'.format(
                 backup_prefix, valid_extensions))

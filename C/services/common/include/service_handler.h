@@ -31,10 +31,6 @@ class ServiceAuthHandler : public ServiceHandler
 {
 	public:
 		std::string&		getName() { return m_name; };
-		static ManagementClient*
-					getMgmtClient() { return m_mgtClient; };
-		void			setMgmtClient(ManagementClient* m) {  m_mgtClient = m; };
-
 		bool			createSecurityCategories(ManagementClient* mgtClient);
 		bool			updateSecurityCategory(const std::string& newCategory);
 		void			setInitialAuthenticatedCaller();
@@ -71,6 +67,9 @@ class ServiceAuthHandler : public ServiceHandler
 
 	protected:
 		std::string		m_name;
+		// Management client pointer
+		static ManagementClient
+					*m_mgtClient;
 
 	private:
 		// Security configuration change mutex
@@ -79,9 +78,6 @@ class ServiceAuthHandler : public ServiceHandler
 		bool			m_authentication_enabled;
 		// Security configuration
 		ConfigCategory		m_security;
-		// Management client pointer
-		static ManagementClient
-					*m_mgtClient;
 };
 
 #endif

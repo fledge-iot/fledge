@@ -775,7 +775,7 @@ bool ManagementClient::verifyAccessBearerToken(shared_ptr<HttpServer::Request> r
 
 	mtx_received_tokens.unlock();
 
-	m_logger->error("Token verified %d", ret);
+	m_logger->debug("Token verified %d", ret);
 
 	return ret;
 }

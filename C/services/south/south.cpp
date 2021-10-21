@@ -248,15 +248,15 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 					m_token);		// Token
 
 		// Allocate and save ManagementClient object
-		this->setMgmtClient(new ManagementClient(coreAddress, corePort));
+		m_mgtClient = new ManagementClient(coreAddress, corePort);
 
 		// Create an empty South category if one doesn't exist
 		DefaultConfigCategory southConfig(string("South"), string("{}"));
 		southConfig.setDescription("South");
-		this->getMgmtClient()->addCategory(southConfig, true);
+		m_mgtClient->addCategory(southConfig, true);
 
 		// Get configuration for service name
-		m_config = this->getMgmtClient()->getCategory(m_name);
+		m_config = m_mgtClient->getCategory(m_name);
 		if (!loadPlugin())
 		{
 			logger->fatal("Failed to load south plugin, exiting...");
@@ -269,19 +269,19 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 			logger->info("South plugin has a control facility, adding south service API");
 		}
 
-		if (!this->getMgmtClient()->registerService(record))
+		if (!m_mgtClient->registerService(record))
 		{
 			logger->error("Failed to register service %s", m_name.c_str());
 		}
 
 		// Register for category content changes
-		ConfigHandler *configHandler = ConfigHandler::getInstance(this->getMgmtClient());
+		ConfigHandler *configHandler = ConfigHandler::getInstance(m_mgtClient);
 		configHandler->registerCategory(this, m_name);
 		configHandler->registerCategory(this, m_name+"Advanced");
 
 		// Get a handle on the storage layer
 		ServiceRecord storageRecord("Fledge Storage");
-		if (!this->getMgmtClient()->getService(storageRecord))
+		if (!m_mgtClient->getService(storageRecord))
 		{
 			logger->fatal("Unable to find storage service");
 			return;
@@ -326,11 +326,11 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 			logger->info("Defaulting to inline defaults for south configuration");
 		}
 
-		m_assetTracker = new AssetTracker(this->getMgmtClient(), m_name);
+		m_assetTracker = new AssetTracker(m_mgtClient, m_name);
 
 		{
 		// Instantiate the Ingest class
-		Ingest ingest(storage, timeout, threshold, m_name, pluginName, this->getMgmtClient());
+		Ingest ingest(storage, timeout, threshold, m_name, pluginName, m_mgtClient);
 		m_ingest = &ingest;
 
 		try {
@@ -357,7 +357,7 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		}
 
 		// Create default security category
-		this->createSecurityCategories(this->getMgmtClient());
+		this->createSecurityCategories(m_mgtClient);
 
 		// Get and ingest data
 		if (! southPlugin->isAsync())
@@ -540,7 +540,7 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		}
 		
 		// Clean shutdown, unregister the storage service
-		this->getMgmtClient()->unregisterService();
+		m_mgtClient->unregisterService();
 	}
 	management.stop();
 	logger->info("South service shutdown completed");
@@ -569,12 +569,12 @@ void SouthService::createConfigCategories(DefaultConfigCategory configCategory, 
 	defConfig.removeItemsType(ConfigCategory::ItemType::CategoryType);
 
 	// Create/Update category name (we pass keep_original_items=true)
-	this->getMgmtClient()->addCategory(defConfig, true);
+	m_mgtClient->addCategory(defConfig, true);
 
 	// Add this service under 'South' parent category
 	vector<string> children;
 	children.push_back(current_name);
-	this->getMgmtClient()->addChildCategories(parent_name, children);
+	m_mgtClient->addChildCategories(parent_name, children);
 
 	// Adds sub categories to the configuration
 	bool extracted = true;
@@ -624,7 +624,7 @@ bool SouthService::loadPlugin()
 			// the plugin
 			// Removes all the m_items already present in the category
 			m_config.removeItems();
-			m_config = this->getMgmtClient()->getCategory(m_name);
+			m_config = m_mgtClient->getCategory(m_name);
 
 			try {
 				southPlugin = new SouthPlugin(handle, m_config);
@@ -639,15 +639,15 @@ bool SouthService::loadPlugin()
 			defConfigAdvanced.setDescription(m_name+string(" advanced config params"));
 
 			// Create/Update category name (we pass keep_original_items=true)
-			this->getMgmtClient()->addCategory(defConfigAdvanced, true);
+			m_mgtClient->addCategory(defConfigAdvanced, true);
 
 			// Add this service under 'm_name' parent category
 			vector<string> children1;
 			children1.push_back(advancedCatName);
-			this->getMgmtClient()->addChildCategories(m_name, children1);
+			m_mgtClient->addChildCategories(m_name, children1);
 
 			// Must now reload the merged configuration
-			m_configAdvanced = this->getMgmtClient()->getCategory(advancedCatName);
+			m_configAdvanced = m_mgtClient->getCategory(advancedCatName);
 
 			return true;
 		}

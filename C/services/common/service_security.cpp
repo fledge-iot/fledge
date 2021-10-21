@@ -140,7 +140,7 @@ bool ServiceAuthHandler::verifyURL(const string& path, map<string, string> claim
 	{
 		bool serviceMatched = false;
 		bool typeMatched = false;
-		Logger::getLogger()->error("There are %d URLs", arrayURL.Size());
+
 		for (Value::ConstValueIterator it = arrayURL.Begin();
 		     it != arrayURL.End();
 		     ++it)
@@ -198,8 +198,6 @@ bool ServiceAuthHandler::verifyService(string& sName, string &sType)
 	{
 		bool serviceMatched = false;
 		bool typeMatched = false;
-		Logger::getLogger()->error("There are %d services",
-			arrayService.Size());
 
 		for (Value::ConstValueIterator it = arrayService.Begin();
 		     it != arrayService.End();
@@ -212,7 +210,6 @@ bool ServiceAuthHandler::verifyService(string& sName, string &sType)
 				    (*it)["name"].IsString())
 				{
 					string name = (*it)["name"].GetString();
-					Logger::getLogger()->error("Name [%s]",  name.c_str());
 					if (name == sName)
 					{
 						serviceMatched = true;
@@ -224,7 +221,6 @@ bool ServiceAuthHandler::verifyService(string& sName, string &sType)
 				    (*it)["type"].IsString())
 				{
 					string type = (*it)["type"].GetString();
-					 Logger::getLogger()->error("Type [%s]",  type.c_str());
 					if (type == sType)
 					{
 						typeMatched = true;
@@ -267,7 +263,7 @@ void ServiceAuthHandler::AuthenticationMiddlewarePUT(shared_ptr<HttpServer::Resp
 			this->getName().c_str(),
 			acl_set);
 		map<string, string> tokenClaims;
-		bool ret = this->getMgmtClient()->verifyAccessBearerToken(request, tokenClaims);
+		bool ret = m_mgtClient->verifyAccessBearerToken(request, tokenClaims);
 		if (!ret)
 		{
 			string responsePayload = QUOTE({ "error" : "invalid service bearer token"});
@@ -303,7 +299,6 @@ void ServiceAuthHandler::AuthenticationMiddlewarePUT(shared_ptr<HttpServer::Resp
 		if (!access_granted)
 		{
 			string responsePayload = QUOTE({ "error" : "authorisation not granted to this resource"});
-			Logger::getLogger()->error("authorisation not granted to this resource");
 			this->respond(response,
 					SimpleWeb::StatusCode::client_error_unauthorized,
 					responsePayload);

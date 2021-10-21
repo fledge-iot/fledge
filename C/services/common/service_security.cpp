@@ -61,9 +61,6 @@ bool ServiceAuthHandler::updateSecurityCategory(const string& category)
 	if (m_security.itemExists("AuthenticatedCaller"))
 	{
 		string val = m_security.getValue("AuthenticatedCaller");
-		Logger::getLogger()->debug("This service %s has AuthenticatedCaller item %s",
-			m_name.c_str(),
-			val.c_str());
 		if (val[0] == 't' || val[0] == 'T')
 		{
 			acl_set = true;
@@ -82,7 +79,7 @@ void ServiceAuthHandler::setInitialAuthenticatedCaller()
 	if (m_security.itemExists("AuthenticatedCaller"))
 	{
 		string val = m_security.getValue("AuthenticatedCaller");
-		Logger::getLogger()->error("This service %s has AuthenticatedCaller item %s",
+		Logger::getLogger()->debug("This service %s has AuthenticatedCaller item %s",
 			m_name.c_str(),
 			val.c_str());
 		if (val[0] == 't' || val[0] == 'T')

@@ -60,6 +60,8 @@ class ServiceAuthHandler : public ServiceHandler
 							<<  "Content-type: application/json\r\n\r\n"
 							<< payload;
 					};
+		static ManagementClient *
+					getMgmtClient() { return m_mgtClient; };
 
 	private:
 		bool			verifyURL(const std::string& path, std::map<std::string, std::string> claims);

@@ -34,6 +34,8 @@
 #include <config_handler.h>
 #include <syslog.h>
 
+#define SERVICE_TYPE "Northbound"
+
 extern int makeDaemon(void);
 extern void handler(int sig);
 
@@ -190,9 +192,15 @@ int	size;
 /**
  * Constructor for the north service
  */
-NorthService::NorthService(const string& myName) : m_dataLoad(NULL), m_name(myName),
-	m_shutdown(false), m_storage(NULL), m_pluginData(NULL), m_restartPlugin(false)
+NorthService::NorthService(const string& myName, const string& token) :
+	m_dataLoad(NULL),
+	m_shutdown(false),
+	m_storage(NULL),
+	m_pluginData(NULL),
+	m_restartPlugin(false),
+	m_token(token)
 {
+	m_name = myName;
 	logger = new Logger(myName);
 	logger->setMinLevel("warning");
 }
@@ -204,13 +212,6 @@ NorthService::~NorthService()
 {
 	if (m_storage)
 		delete m_storage;
-}
-
-ManagementClient *NorthService::m_mgtClient = NULL;
-
-ManagementClient *NorthService::getMgmtClient()
-{
-	return m_mgtClient;
 }
 
 /**
@@ -233,7 +234,13 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 		// Now register our service
 		// TODO proper hostname lookup
 		unsigned short managementListener = management.getListenerPort();
-		ServiceRecord record(m_name, "Northbound", "http", "localhost", 0, managementListener);
+		ServiceRecord record(m_name,		// Service name
+				SERVICE_TYPE,		// Service type
+				"http",			// Protocol
+				"localhost",		// Listening address
+				0,			// Service port
+				managementListener,	// Management port
+				m_token);		// Token);
 		m_mgtClient = new ManagementClient(coreAddress, corePort);
 
 		// Create an empty North category if one doesn't exist

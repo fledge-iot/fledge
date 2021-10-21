@@ -904,12 +904,14 @@ static std::atomic<bool> already_running(false);
 			Logger::getLogger()->setMinLevel("warning");
 
 			// TODO Turn flags into a bitmap
+
 			if (flags.compare(PURGE_FLAG_RETAIN_ANY) == 0)
 			{
 
 				flagsMask |= STORAGE_PURGE_RETAIN_ANY;
 			}
-			else if (flags.compare(PURGE_FLAG_RETAIN_ALL) == 0)
+			else if ( (flags.compare(PURGE_FLAG_RETAIN)     == 0) ||  // Backward compability
+			         (flags.compare(PURGE_FLAG_RETAIN_ALL) == 0) )
 			{
 				flagsMask |= STORAGE_PURGE_RETAIN_ALL;
 			}

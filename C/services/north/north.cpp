@@ -300,6 +300,9 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 			northPlugin->start();
 		}
 
+		// Create default security category
+		this->createSecurityCategories(m_mgtClient);
+
 		// Setup the data loading
 		long streamId = 0;
 		if (m_config.itemExists("streamId"))
@@ -512,7 +515,7 @@ void NorthService::configChange(const string& categoryName, const string& catego
 		m_restartPlugin = true;
 		m_cv.notify_all();
 
-    if (m_dataLoad)
+		if (m_dataLoad)
 		{
 			m_dataLoad->configChange(categoryName, category);
 		}
@@ -524,6 +527,12 @@ void NorthService::configChange(const string& categoryName, const string& catego
 		{
 			logger->setMinLevel(m_configAdvanced.getValue("logLevel"));
 		}
+	}
+
+	// Update the  Security category
+	if (categoryName.compare(m_name+"Security") == 0)
+	{
+		this->updateSecurityCategory(category);
 	}
 }
 

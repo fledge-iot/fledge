@@ -13,7 +13,6 @@
 #include <logger.h>
 #include <north_plugin.h>
 #include <service_handler.h>
-//#include <management_client.h>
 #include <storage_client.h>
 #include <config_category.h>
 #include <filter_plugin.h>

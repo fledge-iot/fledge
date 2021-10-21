@@ -114,20 +114,22 @@ class TestPurge:
             raise StorageServerError(400, "Bla", "Some Error")
         return {"readings": 10, "removed": 1, "unsentPurged": 2, "unsentRetained": 7}
 
-    config = {"purgeAgeSize": {"retainUnsent": {"value": "False"}, "age": {"value": "72"}, "size": {"value": "20"}},
-              "purgeAge": {"retainUnsent": {"value": "False"}, "age": {"value": "72"}, "size": {"value": "0"}},
-              "purgeSize": {"retainUnsent": {"value": "False"}, "age": {"value": "0"}, "size": {"value": "100"}},
-              "retainAgeSize": {"retainUnsent": {"value": "True"}, "age": {"value": "72"}, "size": {"value": "20"}},
-              "retainAge": {"retainUnsent": {"value": "True"}, "age": {"value": "72"}, "size": {"value": "0"}},
-              "retainSize": {"retainUnsent": {"value": "True"}, "age": {"value": "0"}, "size": {"value": "100"}}}
+    config = {"purgeAgeSize": {"retainUnsent": {"value": "purge unsent"}, "age": {"value": "72"}, "size": {"value": "20"}},
+              "purgeAge": {"retainUnsent": {"value": "purge unsent"}, "age": {"value": "72"}, "size": {"value": "0"}},
+              "purgeSize": {"retainUnsent": {"value": "purge unsent"}, "age": {"value": "0"}, "size": {"value": "100"}},
+              "retainAgeSize": {"retainUnsent": {"value": "retain unsent to all destinations"}, "age": {"value": "72"}, "size": {"value": "20"}},
+              "retainAge": {"retainUnsent": {"value": "retain unsent to all destinations"}, "age": {"value": "72"}, "size": {"value": "0"}},
+              "retainSize": {"retainUnsent": {"value": "retain unsent to all destinations"}, "age": {"value": "0"}, "size": {"value": "100"}}}
 
+    #// FIXME_I:
+    @pytest.mark.this
     @pytest.mark.parametrize("conf, expected_return, expected_calls", [
         (config["purgeAgeSize"], (2, 4), {'sent_id': 0, 'size': '20', 'flag': 'purge'}),
         (config["purgeAge"], (1, 2), {'sent_id': 0, 'age': '72', 'flag': 'purge'}),
         (config["purgeSize"], (1, 2), {'sent_id': 0, 'size': '100', 'flag': 'purge'}),
-        (config["retainAgeSize"], (2, 4), {'sent_id': 0, 'size': '20', 'flag': 'retain'}),
-        (config["retainAge"], (1, 2), {'sent_id': 0, 'age': '72', 'flag': 'retain'}),
-        (config["retainSize"], (1, 2), {'sent_id': 0, 'size': '100', 'flag': 'retain'})
+        (config["retainAgeSize"], (2, 4), {'sent_id': 0, 'size': '20', 'flag': 'retainall'}),
+        (config["retainAge"], (1, 2), {'sent_id': 0, 'age': '72', 'flag': 'retainall'}),
+        (config["retainSize"], (1, 2), {'sent_id': 0, 'size': '100', 'flag': 'retainall'})
     ])
     async def test_purge_data(self, conf, expected_return, expected_calls):
         """Test that purge_data calls Storage's purge with defined configuration"""

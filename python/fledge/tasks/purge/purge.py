@@ -129,7 +129,6 @@ class Purge(FledgeProcess):
         unsent_retained = 0
         start_time = time.strftime('%Y-%m-%d %H:%M:%S.%s', time.localtime(time.time()))
 
-        #// FIXME_I:
         if config['retainUnsent']['value'].lower() == "purge unsent":
             flag = "purge"
             operation_type="min"
@@ -145,16 +144,12 @@ class Purge(FledgeProcess):
         payload = PayloadBuilder().AGGREGATE([operation_type, "last_object"]).payload()
         result = await self._storage_async.query_tbl_with_payload("streams", payload)
 
-        #// FIXME_I:
         if operation_type == "min":
             last_object = result["rows"][0]["min_last_object"]
         else:
             last_object = result["rows"][0]["max_last_object"]
 
-         #// FIXME_I:
-        self._logger.setLevel(logging.DEBUG)
-        self._logger.debug("xxx2 purge_data - last_object :{}: ".format(last_object) )
-        self._logger.setLevel(logging.WARNING)
+        #self._logger.debug("purge_data - last_object :{}: ".format(last_object) )
 
         if result["count"] == 1:
             # FIXME: Remove below check when fix from storage layer
@@ -162,23 +157,10 @@ class Purge(FledgeProcess):
             # {'rows': [{'min_last_object': ''}], 'count': 1}
             # BTW it should return integer i.e 0 not in string
             last_id = 0 if last_object == '' else last_object
-
-            #// FIXME_I:
-            self._logger.setLevel(logging.DEBUG)
-            self._logger.debug("xxx2 purge_data CASE 1" )
-            self._logger.setLevel(logging.WARNING)
         else:
             last_id = 0
-            #// FIXME_I:
-            self._logger.setLevel(logging.DEBUG)
-            self._logger.debug("xxx2 purge_data CASE 2" )
-            self._logger.setLevel(logging.WARNING)
 
-
-        #// FIXME_I:
-        self._logger.setLevel(logging.DEBUG)
-        self._logger.debug("xxx2 purge_data - flag :{}: last_id :{}: count :{}: operation_type :{}:".format(flag, last_id, result["count"],operation_type) )
-        self._logger.setLevel(logging.WARNING)
+        #self._logger.debug("purge_data - flag :{}: last_id :{}: count :{}: operation_type :{}:".format(flag, last_id, result["count"],operation_type) )
 
         try:
             if int(config['age']['value']) != 0:

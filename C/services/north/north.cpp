@@ -69,8 +69,13 @@ static bool controlWrite(char *name, char *value, ControlDestination destination
 	{
 		case DestinationAsset:
 		case DestinationService:
-			rval = service->write(name, value, destination, va_arg(ap, char *));
+		{
+			va_start(ap, destination);
+			char *arg1 = va_arg(ap, char *);
+			va_end(ap);
+			rval = service->write(name, value, destination, arg1);
 			break;
+		}
 		case DestinationBroadcast:
 			rval = service->write(name, value, destination);
 			break;

@@ -163,11 +163,11 @@ ReadingSet *readings = NULL;
 		}
 	       	catch (ReadingSetException* e)
 		{
-			Logger::getLogger()->error("North Service '%s', failed to fetch data, Exception '%s'", m_name.c_str(), e->what());
+			// Ignore, the exception has been reported in the layer below
 		}
 	       	catch (exception& e)
 		{
-			Logger::getLogger()->error("North Service '%s', failed to fetch data, Exception '%s'", m_name.c_str(), e.what());
+			// Ignore, the exception has been reported in the layer below
 		}
 		if (readings && readings->getCount())
 		{

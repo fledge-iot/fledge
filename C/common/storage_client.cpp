@@ -13,6 +13,7 @@
 #include <reading_stream.h>
 #include <rapidjson/document.h>
 #include <rapidjson/error/en.h>
+#include <management_client.h>
 #include <service_record.h>
 #include <string>
 #include <sstream>
@@ -22,6 +23,9 @@
 #include <string_utils.h>
 #include <sys/uio.h>
 #include <errno.h>
+#include <stdarg.h>
+
+#define EXCEPTION_BUFFER_SIZE 120
 
 #define INSTRUMENT	0
 
@@ -39,7 +43,7 @@ std::mutex sto_mtx_client_map;
 /**
  * Storage Client constructor
  */
-StorageClient::StorageClient(const string& hostname, const unsigned short port) : m_streaming(false)
+StorageClient::StorageClient(const string& hostname, const unsigned short port) : m_streaming(false), m_management(NULL)
 {
 	m_host = hostname;
 	m_pid = getpid();
@@ -51,7 +55,7 @@ StorageClient::StorageClient(const string& hostname, const unsigned short port) 
  * Storage Client constructor
  * stores the provided HttpClient into the map
  */
-StorageClient::StorageClient(HttpClient *client) : m_streaming(false)
+StorageClient::StorageClient(HttpClient *client) : m_streaming(false), m_management(NULL)
 {
 
 	std::thread::id thread_id = std::this_thread::get_id();
@@ -129,7 +133,7 @@ bool StorageClient::readingAppend(Reading& reading)
 		handleUnexpectedResponse("Append readings", res->status_code, resultPayload.str());
 		return false;
 	} catch (exception& ex) {
-		m_logger->error("Failed to append reading: %s", ex.what());
+		handleException(ex, "append reading");
 	}
 	return false;
 }
@@ -221,7 +225,7 @@ bool StorageClient::readingAppend(const vector<Reading *>& readings)
 		handleUnexpectedResponse("Append readings", res->status_code, resultPayload.str());
 		return false;
 	} catch (exception& ex) {
-		m_logger->error("Failed to append readings: %s", ex.what());
+		handleException(ex, "append readings");
 	}
 	return false;
 }
@@ -250,10 +254,10 @@ ResultSet *StorageClient::readingQuery(const Query& query)
 		resultPayload << res->content.rdbuf();
 		handleUnexpectedResponse("Query readings", res->status_code, resultPayload.str());
 	} catch (exception& ex) {
-		m_logger->error("Failed to query readings: %s", ex.what());
+		handleException(ex, "query readings");
 		throw;
 	} catch (exception* ex) {
-		m_logger->error("Failed to query readings: %s", ex->what());
+		handleException(*ex, "query readings");
 		delete ex;
 		throw exception();
 	}
@@ -285,10 +289,10 @@ ReadingSet *StorageClient::readingQueryToReadings(const Query& query)
 		resultPayload << res->content.rdbuf();
 		handleUnexpectedResponse("Query readings", res->status_code, resultPayload.str());
 	} catch (exception& ex) {
-		m_logger->error("Failed to query readings: %s", ex.what());
+		handleException(ex, "query readings");
 		throw;
 	} catch (exception* ex) {
-		m_logger->error("Failed to query readings: %s", ex->what());
+		handleException(*ex, "query readings");
 		delete ex;
 		throw exception();
 	}
@@ -323,10 +327,10 @@ ReadingSet *StorageClient::readingFetch(const unsigned long readingId, const uns
 		resultPayload << res->content.rdbuf();
 		handleUnexpectedResponse("Fetch readings", res->status_code, resultPayload.str());
 	} catch (exception& ex) {
-		m_logger->error("Failed to fetch readings: %s", ex.what());
+		handleException(ex, "fetch readings");
 		throw;
 	} catch (exception* ex) {
-		m_logger->error("Failed to fetch readings: %s", ex->what());
+		handleException(*ex, "fetch readings");
 		delete ex;
 		throw exception();
 	}
@@ -356,10 +360,10 @@ PurgeResult StorageClient::readingPurgeByAge(unsigned long age, unsigned long se
 		}
 		handleUnexpectedResponse("Purge by age", res->status_code, resultPayload.str());
 	} catch (exception& ex) {
-		m_logger->error("Failed to purge readings: %s", ex.what());
+		handleException(ex, "purge readings by age");
 		throw;
 	} catch (exception* ex) {
-		m_logger->error("Failed to purge readings: %s", ex->what());
+		handleException(*ex, "purge readings by age");
 		delete ex;
 		throw exception();
 	}
@@ -388,10 +392,10 @@ PurgeResult StorageClient::readingPurgeBySize(unsigned long size, unsigned long 
 			return PurgeResult(resultPayload.str());
 		}
 	} catch (exception& ex) {
-		m_logger->error("Failed to fetch readings: %s", ex.what());
+		handleException(ex, "purge readings by size");
 		throw;
 	} catch (exception* ex) {
-		m_logger->error("Failed to fetch readings: %s", ex->what());
+		handleException(*ex, "purge readings by size");
 		delete ex;
 		throw exception();
 	}
@@ -423,10 +427,10 @@ ResultSet *StorageClient::queryTable(const std::string& tableName, const Query& 
 		}
 		handleUnexpectedResponse("Query table", res->status_code, resultPayload.str());
 	} catch (exception& ex) {
-		m_logger->error("Failed to query table %s: %s", tableName.c_str(), ex.what());
+		handleException(ex, "query table %s", tableName.c_str());
 		throw;
 	} catch (exception* ex) {
-		m_logger->error("Failed to query table %s: %s", tableName.c_str(), ex->what());
+		handleException(*ex, "query table %s", tableName.c_str());
 		delete ex;
 		throw exception();
 	}
@@ -462,10 +466,10 @@ ReadingSet* StorageClient::queryTableToReadings(const std::string& tableName,
 		}
 		handleUnexpectedResponse("Query table", res->status_code, resultPayload.str());
 	} catch (exception& ex) {
-		m_logger->error("Failed to query table %s: %s", tableName.c_str(), ex.what());
+		handleException(ex, "query table %s to readings", tableName.c_str());
 		throw;
 	} catch (exception* ex) {
-		m_logger->error("Failed to query table %s: %s", tableName.c_str(), ex->what());
+		handleException(*ex, "query table %s to readings", tableName.c_str());
 		delete ex;
 		throw exception();
 	}
@@ -512,7 +516,7 @@ int StorageClient::insertTable(const string& tableName, const InsertValues& valu
 		}
 		handleUnexpectedResponse("Insert table", res->status_code, resultPayload.str());
 	} catch (exception& ex) {
-		m_logger->error("Failed to insert into table %s: %s", tableName.c_str(), ex.what());
+		handleException(ex, "insert into table %s", tableName.c_str());
 		throw;
 	}
 	return 0;
@@ -577,7 +581,7 @@ int StorageClient::updateTable(const string& tableName, const InsertValues& valu
 		resultPayload << res->content.rdbuf();
 		handleUnexpectedResponse("Update table", res->status_code, resultPayload.str());
 	} catch (exception& ex) {
-		m_logger->error("Failed to update table %s: %s", tableName.c_str(), ex.what());
+		handleException(ex, "update table %s", tableName.c_str());
 		throw;
 	}
 	return -1;
@@ -642,7 +646,7 @@ int StorageClient::updateTable(const string& tableName, const ExpressionValues& 
 		resultPayload << res->content.rdbuf();
 		handleUnexpectedResponse("Update table", res->status_code, resultPayload.str());
 	} catch (exception& ex) {
-		m_logger->error("Failed to update table %s: %s", tableName.c_str(), ex.what());
+		handleException(ex, "update table %s", tableName.c_str());
 		throw;
 	}
 	return -1;
@@ -713,7 +717,7 @@ int StorageClient::updateTable(const string& tableName, vector<pair<ExpressionVa
 		resultPayload << res->content.rdbuf();
 		handleUnexpectedResponse("Update table", res->status_code, resultPayload.str());
 	} catch (exception& ex) {
-		m_logger->error("Failed to update table %s: %s", tableName.c_str(), ex.what());
+		handleException(ex, "update table %s", tableName.c_str());
 		throw;
 	}
 	return -1;
@@ -772,7 +776,7 @@ int StorageClient::updateTable(const string& tableName, const InsertValues& valu
 		resultPayload << res->content.rdbuf();
 		handleUnexpectedResponse("Update table", res->status_code, resultPayload.str());
 	} catch (exception& ex) {
-		m_logger->error("Failed to update table %s: %s", tableName.c_str(), ex.what());
+		handleException(ex, "update table %s", tableName.c_str());
 		throw;
 	}
 	return -1;
@@ -827,7 +831,7 @@ int StorageClient::updateTable(const string& tableName, const JSONProperties& va
 		resultPayload << res->content.rdbuf();
 		handleUnexpectedResponse("Update table", res->status_code, resultPayload.str());
 	} catch (exception& ex) {
-		m_logger->error("Failed to update table %s: %s", tableName.c_str(), ex.what());
+		handleException(ex, "update table %s", tableName.c_str());
 		throw;
 	}
 	return -1;
@@ -885,7 +889,7 @@ int StorageClient::updateTable(const string& tableName, const InsertValues& valu
 		resultPayload << res->content.rdbuf();
 		handleUnexpectedResponse("Update table", res->status_code, resultPayload.str());
 	} catch (exception& ex) {
-		m_logger->error("Failed to update table %s: %s", tableName.c_str(), ex.what());
+		handleException(ex, "update table %s", tableName.c_str());
 		throw;
 	}
 	return -1;
@@ -932,7 +936,7 @@ int StorageClient::deleteTable(const std::string& tableName, const Query& query)
 		resultPayload << res->content.rdbuf();
 		handleUnexpectedResponse("Delete from table", res->status_code, resultPayload.str());
 	} catch (exception& ex) {
-		m_logger->error("Failed to delete table data %s: %s", tableName.c_str(), ex.what());
+		handleException(ex, "delete table date in %s", tableName.c_str());
 		throw;
 	}
 	return -1;
@@ -1003,9 +1007,7 @@ bool StorageClient::registerAssetNotification(const string& assetName,
 		return false;
 	} catch (exception& ex)
 	{
-		m_logger->error("Failed to register asset '%s': %s",
-				assetName.c_str(),
-				ex.what());
+		handleException(ex, "register asset '%s'", assetName.c_str());
 	}
 	return false;
 }
@@ -1044,9 +1046,7 @@ bool StorageClient::unregisterAssetNotification(const string& assetName,
 		return false;
 	} catch (exception& ex)
 	{
-		m_logger->error("Failed to unregister asset '%s': %s",
-				assetName.c_str(),
-				ex.what());
+		handleException(ex, "unregister asset '%s'", assetName.c_str());
 	}
 	return false;
 }
@@ -1122,7 +1122,7 @@ bool StorageClient::openStream()
 		handleUnexpectedResponse("Create reading stream", res->status_code, resultPayload.str());
 		return false;
 	} catch (exception& ex) {
-		m_logger->error("Failed to create reading stream: %s", ex.what());
+		handleException(ex, "create reading stream");
 	}
 	m_logger->error("Fallen through!");
 	return false;
@@ -1282,4 +1282,67 @@ string				lastAsset;
 			Logger::getLogger()->fatal("Long write %d < %d", length, n);
 	}
 	return true;
+}
+
+/**
+ * Handle exceptions encountered when communicating to the storage system
+ *
+ * @param ex	The exception we are handling
+ */
+void StorageClient::handleException(const exception& ex, const char *operation, ...)
+{
+	char buf[EXCEPTION_BUFFER_SIZE];
+	va_list ap;
+	va_start(ap, operation);
+	vsnprintf(buf, sizeof(buf), operation, ap);
+	va_end(ap);
+	// Firstly deal with not flooding the log with repeated exceptions
+	const char *what = ex.what();
+	if (m_lastException.empty())	// First exception
+	{
+		m_lastException = what;
+		m_exRepeat = 0;
+		m_backoff = SC_INITIAL_BACKOFF;
+		m_logger->error("Failed to %s: %s", buf, m_lastException.c_str());
+	}
+	else if (m_lastException.compare(what) == 0)
+	{
+		m_exRepeat++;
+		if ((m_exRepeat % m_backoff) == 0)
+		{
+			if (m_backoff < SC_MAX_BACKOFF)
+				m_backoff *= 2;
+			m_logger->error("Storage client repeated failure: %s", m_lastException.c_str());
+		}
+	}
+	else
+	{
+		m_logger->error("Storage client failure: %s repeated %d times", m_lastException.c_str(), m_exRepeat);
+		m_backoff = SC_INITIAL_BACKOFF;
+		m_lastException = what;
+		m_logger->error("Failed to %s: %s", buf, m_lastException.c_str());
+	}
+
+	// Now implement some recovery strategies
+	if (m_lastException.compare("Connection refused") == 0)
+	{
+		// This is probably because the storage service has gone down
+		if (m_management)
+		{
+			// Get a handle on the storage layer
+			ServiceRecord storageRecord("Fledge Storage");
+			if (!m_management->getService(storageRecord))
+			{
+				m_logger->fatal("Unable to find a storage service from service registry, exiting...");
+				exit(1);
+			}
+			m_urlbase << storageRecord.getAddress() << ":" << storageRecord.getPort();
+		}
+		if (m_exRepeat >= SC_INITIAL_BACKOFF * 2)
+		{
+			// We clearly tried to recover a number of times without success, simply exit at this stage
+			m_logger->fatal("Storage service appears to have failed and unable to connect to core, exiting...");
+			exit(1);
+		}
+	}
 }

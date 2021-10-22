@@ -226,7 +226,7 @@ Using a simple Python example of our sensor reading a GPIO pin, we extract the n
       return new_handle
 
 
-In C/C++ the *plugin_reconfigure* class is very similar, note however that the *plugin_reconfigure* call is passed the JSON configuration category as a string and not a *ConfigCategory*, it is easy to parse and create the C++ class however, a name for the category must be given however.
+In C/C++ the *plugin_reconfigure* method is very similar, note however that the *plugin_reconfigure* call is passed the JSON configuration category as a string and not a *ConfigCategory*, it is easy to parse and create the C++ class however, a name for the category must be given however.
 
 .. code-block:: C
 

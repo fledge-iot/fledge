@@ -25,6 +25,8 @@
 #include <errno.h>
 #include <stdarg.h>
 
+#define EXCEPTION_BUFFER_SIZE 120
+
 #define INSTRUMENT	0
 
 #if INSTRUMENT
@@ -1289,7 +1291,7 @@ string				lastAsset;
  */
 void StorageClient::handleException(const exception& ex, const char *operation, ...)
 {
-	char buf[120];
+	char buf[EXCEPTION_BUFFER_SIZE];
 	va_list ap;
 	va_start(ap, operation);
 	vsnprintf(buf, sizeof(buf), operation, ap);
@@ -1331,12 +1333,12 @@ void StorageClient::handleException(const exception& ex, const char *operation, 
 			ServiceRecord storageRecord("Fledge Storage");
 			if (!m_management->getService(storageRecord))
 			{
-				m_logger->fatal("Unable to find storage service");
+				m_logger->fatal("Unable to find a storage service from service registry, exiting...");
 				exit(1);
 			}
 			m_urlbase << storageRecord.getAddress() << ":" << storageRecord.getPort();
 		}
-		if (m_exRepeat >= SC_MAX_BACKOFF)
+		if (m_exRepeat >= SC_INITIAL_BACKOFF * 2)
 		{
 			// We clearly tried to recover a number of times without success, simply exit at this stage
 			m_logger->fatal("Storage service appears to have failed and unable to connect to core, exiting...");

@@ -326,6 +326,8 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 		m_storage = new StorageClient(storageRecord.getAddress(),
 						storageRecord.getPort());
 
+		m_storage->registerManagement(m_mgtClient);
+
 		// Fetch Confguration
 		logger->debug("Initialise the asset tracker");
 		m_assetTracker = new AssetTracker(m_mgtClient, m_name);

@@ -109,6 +109,8 @@ private:
 	std::map<std::string, int>	statsPendingEntries;  // pending stats table entries
 	bool				m_highLatency;	      // Flag to indicate we are exceeding latency request
 	int				m_failCnt;
+	bool				m_storageFailed;
+	int				m_storesFailed;
 };
 
 #endif

@@ -141,7 +141,37 @@ class Purge(FledgeProcess):
             flag = "retainall"
             operation_type="min"
 
-        payload = PayloadBuilder().AGGREGATE([operation_type, "last_object"]).payload()
+        ###   #########################################################################################:
+
+        payload_north_streams = PayloadBuilder().SELECT("description").WHERE(['active', '=', 't']).payload()
+        north_streams = await self._storage_async.query_tbl_with_payload("streams", payload_north_streams)
+        _norht_list = []
+        for item in north_streams["rows"]:
+            _norht_list.append(item["description"])
+
+        #// FIXME_I:
+        self._logger.debug("xxx7 purge_data - streams - north_streams :{}: _norht_list :{}: ".format(north_streams, _norht_list) )
+
+        ###   #########################################################################################:
+
+        payload_sched = PayloadBuilder().SELECT("schedule_name").WHERE(['schedule_name', 'in', _norht_list]).AND_WHERE(['enabled', '=', 't']).payload()
+        north_instance = await self._storage_async.query_tbl_with_payload("schedules", payload_sched)
+
+        _norht_list = []
+        for item in north_instance["rows"]:
+            _norht_list.append(item["schedule_name"])
+
+        #// FIXME_I:
+        self._logger.debug("xxx7 purge_data - north_instance - schedules - :{}: _norht_list :{}: ".format(north_instance, _norht_list) )
+
+
+        ###   #########################################################################################:
+
+        #// FIXME_I:
+        payload = PayloadBuilder().AGGREGATE([operation_type, "last_object"]).\
+                    WHERE(['description', 'in', _norht_list])\
+                    .payload()
+
         result = await self._storage_async.query_tbl_with_payload("streams", payload)
 
         if operation_type == "min":
@@ -149,7 +179,8 @@ class Purge(FledgeProcess):
         else:
             last_object = result["rows"][0]["max_last_object"]
 
-        #self._logger.debug("purge_data - last_object :{}: ".format(last_object) )
+        #// FIXME_I:
+        self._logger.debug("xxx7 purge_data - last_object :{}: ".format(last_object) )
 
         if result["count"] == 1:
             # FIXME: Remove below check when fix from storage layer

@@ -194,8 +194,8 @@ class TestPurge:
                     assert ('streams', '{"aggregate": {"operation": "min", "column": "last_object"}}') == args
 
     @pytest.mark.parametrize("conf, expected_return", [
-        ({"retainUnsent": {"value": "False"}, "age": {"value": "0"}, "size": {"value": "0"}}, (0, 0)),
-        ({"retainUnsent": {"value": "True"}, "age": {"value": "0"}, "size": {"value": "0"}}, (0, 0))
+        ({"retainUnsent": {"value": "purge unsent"}, "age": {"value": "0"}, "size": {"value": "0"}}, (0, 0)),
+        ({"retainUnsent": {"value": "retain unsent to all destinations"}, "age": {"value": "0"}, "size": {"value": "0"}}, (0, 0))
     ])
     async def test_purge_data_no_data_purged(self, conf, expected_return):
         """Test that purge_data logs message when no data was purged"""
@@ -233,7 +233,7 @@ class TestPurge:
                 assert 1 == patch_storage.call_count
 
     @pytest.mark.parametrize("conf, expected_return", [
-        ({"retainUnsent": {"value": "True"}, "age": {"value": "-1"}, "size": {"value": "-1"}}, (0, 0))
+        ({"retainUnsent": {"value": "retain unsent to all destinations"}, "age": {"value": "-1"}, "size": {"value": "-1"}}, (0, 0))
     ])
     async def test_purge_error_storage_response(self, conf, expected_return):
         """Test that purge_data logs error when storage purge returns an error response"""
@@ -270,9 +270,9 @@ class TestPurge:
                 assert 1 == patch_storage.call_count
 
     @pytest.mark.parametrize("conf, expected_error_key",
-                             [({"retainUnsent": {"value": "True"}, "age": {"value": "bla"}, "size": {"value": "0"}},
+                             [({"retainUnsent": {"value": "retain unsent to all destinations"}, "age": {"value": "bla"}, "size": {"value": "0"}},
                                "age"),
-                              ({"retainUnsent": {"value": "True"}, "age": {"value": "0"}, "size": {"value": "bla"}},
+                              ({"retainUnsent": {"value": "retain unsent to all destinations"}, "age": {"value": "0"}, "size": {"value": "bla"}},
                                "size")])
     async def test_purge_data_invalid_conf(self, conf, expected_error_key):
         """Test that purge_data raises exception when called with invalid configuration"""

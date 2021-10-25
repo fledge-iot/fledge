@@ -142,41 +142,43 @@ class Purge(FledgeProcess):
             operation_type="min"
 
         ###   #########################################################################################:
+        north_streams = []
+        north_instance = []
+        north_list = []
 
         payload_north_streams = PayloadBuilder().SELECT("description").WHERE(['active', '=', 't']).payload()
         north_streams = await self._storage_async.query_tbl_with_payload("streams", payload_north_streams)
-        _norht_list = []
         for item in north_streams["rows"]:
-            _norht_list.append(item["description"])
+            north_list.append(item["description"])
 
         #// FIXME_I:
-        self._logger.debug("xxx7 purge_data - streams - north_streams :{}: _norht_list :{}: ".format(north_streams, _norht_list) )
+        self._logger.debug("xxx7 purge_data - streams - north_streams :{}: _norht_list :{}: ".format(north_streams, north_list) )
 
         ###   #########################################################################################:
 
-        if _norht_list:
-            payload_sched = PayloadBuilder().SELECT("schedule_name").WHERE(['schedule_name', 'in', _norht_list]).AND_WHERE(['enabled', '=', 't']).payload()
+        if north_list:
+            payload_sched = PayloadBuilder().SELECT("schedule_name").WHERE(['schedule_name', 'in', north_list]).AND_WHERE(['enabled', '=', 't']).payload()
             north_instance = await self._storage_async.query_tbl_with_payload("schedules", payload_sched)
 
-            _norht_list = []
+            north_list = []
             for item in north_instance["rows"]:
-                _norht_list.append(item["schedule_name"])
+                north_list.append(item["schedule_name"])
 
         #// FIXME_I:
-        self._logger.debug("xxx7 purge_data - north_instance - schedules - :{}: _norht_list :{}: ".format(north_instance, _norht_list) )
+        self._logger.debug("xxx7 purge_data - north_instance - schedules - :{}: _norht_list :{}: ".format(north_instance, north_list) )
 
 
         ###   #########################################################################################:
 
         #// FIXME_I:
-        if _norht_list:
+        if north_list:
             #// FIXME_I:
             self._logger.setLevel(logging.DEBUG)
             self._logger.debug("xxx8 CASE 1 NOT EMPTY")
             self._logger.setLevel(logging.WARNING)
 
             payload = PayloadBuilder().AGGREGATE([operation_type, "last_object"]).\
-                        WHERE(['description', 'in', _norht_list])\
+                        WHERE(['description', 'in', north_list])\
                         .payload()
         else:
             #// FIXME_I:

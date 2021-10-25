@@ -154,12 +154,13 @@ class Purge(FledgeProcess):
 
         ###   #########################################################################################:
 
-        payload_sched = PayloadBuilder().SELECT("schedule_name").WHERE(['schedule_name', 'in', _norht_list]).AND_WHERE(['enabled', '=', 't']).payload()
-        north_instance = await self._storage_async.query_tbl_with_payload("schedules", payload_sched)
+        if _norht_list:
+            payload_sched = PayloadBuilder().SELECT("schedule_name").WHERE(['schedule_name', 'in', _norht_list]).AND_WHERE(['enabled', '=', 't']).payload()
+            north_instance = await self._storage_async.query_tbl_with_payload("schedules", payload_sched)
 
-        _norht_list = []
-        for item in north_instance["rows"]:
-            _norht_list.append(item["schedule_name"])
+            _norht_list = []
+            for item in north_instance["rows"]:
+                _norht_list.append(item["schedule_name"])
 
         #// FIXME_I:
         self._logger.debug("xxx7 purge_data - north_instance - schedules - :{}: _norht_list :{}: ".format(north_instance, _norht_list) )
@@ -168,9 +169,22 @@ class Purge(FledgeProcess):
         ###   #########################################################################################:
 
         #// FIXME_I:
-        payload = PayloadBuilder().AGGREGATE([operation_type, "last_object"]).\
-                    WHERE(['description', 'in', _norht_list])\
-                    .payload()
+        if _norht_list:
+            #// FIXME_I:
+            self._logger.setLevel(logging.DEBUG)
+            self._logger.debug("xxx8 CASE 1 NOT EMPTY")
+            self._logger.setLevel(logging.WARNING)
+
+            payload = PayloadBuilder().AGGREGATE([operation_type, "last_object"]).\
+                        WHERE(['description', 'in', _norht_list])\
+                        .payload()
+        else:
+            #// FIXME_I:
+            self._logger.setLevel(logging.DEBUG)
+            self._logger.debug("xxx8 CASE 2 NOT EMPTY")
+            self._logger.setLevel(logging.WARNING)
+
+            payload = PayloadBuilder().AGGREGATE([operation_type, "last_object"]).payload()
 
         result = await self._storage_async.query_tbl_with_payload("streams", payload)
 

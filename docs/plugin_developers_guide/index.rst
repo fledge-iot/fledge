@@ -6,6 +6,7 @@ Plugin Developer Guide
 
 .. toctree::
 
+    00_source_code_doc.rst
     01_Fledge_plugins
     02_writing_plugins
     03_south_plugins

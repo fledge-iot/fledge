@@ -39,9 +39,6 @@ from fledge.common import logger
 from fledge.common.storage_client.exceptions import *
 from fledge.common.process import FledgeProcess
 
-#// FIXME_I:
-import logging
-
 __author__ = "Ori Shadmon, Vaibhav Singhal, Mark Riddoch, Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSI Soft, LLC"
 __license__ = "Apache 2.0"
@@ -158,7 +155,8 @@ class Purge(FledgeProcess):
         payload_north_streams = PayloadBuilder().SELECT("description").WHERE(['active', '=', 't']).payload()
         north_streams = await self._storage_async.query_tbl_with_payload("streams", payload_north_streams)
         for item in north_streams["rows"]:
-            north_list.append(item["description"])
+            if "description" in north_list:
+                north_list.append(item["description"])
 
         self._logger.debug("purge_data - north configured :{}: north active :{}: ".format(north_streams, north_list) )
 
@@ -168,7 +166,8 @@ class Purge(FledgeProcess):
 
             north_list = []
             for item in north_instance["rows"]:
-                north_list.append(item["schedule_name"])
+                if "schedule_name" in north_list:
+                    north_list.append(item["schedule_name"])
 
         self._logger.debug("purge_data - north schedules - schedules - :{}: north enabled :{}: ".format(north_instance, north_list) )
 

@@ -170,6 +170,7 @@ class TestPurge:
                 p._logger = logger
                 p._logger.info = MagicMock()
                 p._logger.error = MagicMock()
+                p._logger.debug  = MagicMock()
                 p._storage_async = MagicMock(spec=StorageClientAsync)
                 p._readings_storage_async = MagicMock(spec=ReadingsStorageClientAsync)
                 audit = p._audit
@@ -186,7 +187,7 @@ class TestPurge:
                             args, kwargs = mock_storage_purge.call_args
                             assert kwargs == expected_calls
                 assert patch_storage.called
-                assert 2 == patch_storage.call_count
+                assert 4 == patch_storage.call_count
                 args, kwargs = patch_storage.call_args
                 if expected_calls["flag"] == "retainany":
                     assert ('streams', '{"aggregate": {"operation": "max", "column": "last_object"}}') == args
@@ -230,7 +231,7 @@ class TestPurge:
                             assert expected_return == await p.purge_data(conf)
                             p._logger.info.assert_called_once_with("No rows purged")
                 assert patch_storage.called
-                assert 1 == patch_storage.call_count
+                assert 2 == patch_storage.call_count
 
     @pytest.mark.parametrize("conf, expected_return", [
         ({"retainUnsent": {"value": "retain unsent to all destinations"}, "age": {"value": "-1"}, "size": {"value": "-1"}}, (0, 0))
@@ -267,7 +268,7 @@ class TestPurge:
                         with patch.object(audit, 'information', return_value=_rv2):
                             assert expected_return == await p.purge_data(conf)
                 assert patch_storage.called
-                assert 1 == patch_storage.call_count
+                assert 2 == patch_storage.call_count
 
     @pytest.mark.parametrize("conf, expected_error_key",
                              [({"retainUnsent": {"value": "retain unsent to all destinations"}, "age": {"value": "bla"}, "size": {"value": "0"}},
@@ -310,7 +311,7 @@ class TestPurge:
                             p._logger.error.assert_called_with('Configuration item {} bla should be integer!'.
                                                                format(expected_error_key))
                 assert patch_storage.called
-                assert 1 == patch_storage.call_count
+                assert 2 == patch_storage.call_count
 
     async def test_run(self):
         """Test that run calls all units of purge process"""

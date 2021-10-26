@@ -15,7 +15,7 @@ else
         export ARCHIVE_BUILD=$(echo ${DOCBRANCH} | sed -e 's/RC//g')
     else
         export DOCBRANCH=${DOCBRANCH}
-        export ARCHIVE_BUILD=latest
+        export ARCHIVE_BUILD=nightly
     fi
 fi
 

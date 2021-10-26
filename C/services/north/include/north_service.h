@@ -45,12 +45,17 @@ class NorthService : public ServiceHandler {
 		const std::string&		getPluginName() { return m_pluginName; };
 		void				pause();
 		void				release();
+		bool				write(const std::string& name, const std::string& value, const ControlDestination);
+		bool				write(const std::string& name, const std::string& value, const ControlDestination, const std::string& arg);
+		int				operation(const std::string& name, int paramCount, char *parameters[], const ControlDestination);
+		int				operation(const std::string& name, int paramCount, char *parameters[], const ControlDestination, const std::string& arg);
 	private:
 		void				addConfigDefaults(DefaultConfigCategory& defaults);
 		bool 				loadPlugin();
 		void 				createConfigCategories(DefaultConfigCategory configCategory, std::string parent_name,std::string current_name);
 		void				restartPlugin();
 	private:
+		bool				sendToService(const std::string& southService, const std::string& name, const std::string& value);
 		DataLoad			*m_dataLoad;
 		DataSender			*m_dataSender;
 		NorthPlugin			*northPlugin;

@@ -1680,11 +1680,6 @@ bool flag_retain;
 
 vector<string>  assetCodes;
 
-	// FIXME_I:
-	const char *_section="xxx4";
-	// FIXME_I:
-	Logger::getLogger()->setMinLevel("debug");
-
 	Logger *logger = Logger::getLogger();
 
 	ostringstream threadId;
@@ -1709,9 +1704,7 @@ vector<string>  assetCodes;
 	{
 		flag_retain = true;
 	}
-	// FIXME_I:
-	Logger::getLogger()->debug("%s / %s - xxx flags :%X: flag_retain :%d: sent :%ld:", _section, __FUNCTION__, flags, flag_retain, sent);
-
+	Logger::getLogger()->debug("%s - flags :%X: flag_retain :%d: sent :%ld:", __FUNCTION__, flags, flag_retain, sent);
 
 	result = "{ \"removed\" : 0, ";
 	result += " \"unsentPurged\" : 0, ";
@@ -1890,25 +1883,16 @@ vector<string>  assetCodes;
 		int rc;
 		unsigned long l = minrowidLimit;
 		unsigned long r;
-		// FIXME_I:
-		//if (flags & 0x01) {
 		if (flag_retain) {
-
-			// FIXME_I:
-			logger->debug ("xxx7 %s line %d - flag_retain YES", __FUNCTION__, __LINE__);
 
 			r = min(sent, rowidLimit);
 		} else {
 			r = rowidLimit;
-
-			// FIXME_I:
-			logger->debug ("xxx7 %s line %d - flag_retain NO", __FUNCTION__, __LINE__);
 		}
 
 		r = max(r, l);
 		logger->debug ("%s line %d - l=%u, r=%u, sent=%u, rowidLimit=%u, minrowidLimit=%u, flag_retain=%u", __FUNCTION__, __LINE__, l, r, sent, rowidLimit, minrowidLimit, flag_retain);
-		// FIXME_I:
-		logger->debug ("xxx4 %s line %d - l=%u, r=%u, sent=%u, rowidLimit=%u, minrowidLimit=%u, flag_retain=%u", __FUNCTION__, __LINE__, l, r, sent, rowidLimit, minrowidLimit, flag_retain);
+
 		if (l == r)
 		{
  			logger->info("No data to purge: min_id == max_id == %u", minrowidLimit);
@@ -1993,15 +1977,10 @@ vector<string>  assetCodes;
 		rowidLimit = m;
 
 		Logger::getLogger()->debug("%s - rowidLimit :%lu: minrowidLimit :%lu: maxrowidLimit :%lu:", __FUNCTION__, rowidLimit, minrowidLimit, maxrowidLimit);
-		// FIXME_I:
-		Logger::getLogger()->debug("xxx4 %s - rowidLimit :%lu: minrowidLimit :%lu: maxrowidLimit :%lu:", __FUNCTION__, rowidLimit, minrowidLimit, maxrowidLimit);
 
 		if (minrowidLimit == rowidLimit)
 		{
 			logger->info("No data to purge");
-
-			// FIXME_I:
- 			logger->info("xxx4 No data to purge");
 			return 0;
 		}
 
@@ -2012,8 +1991,6 @@ vector<string>  assetCodes;
 
 	//logger->info("Purge collecting unsent row count");
 
-	// FIXME_I:
-	//(flags & 0x01) == 0)
 	if ( ! flag_retain )
 	{
 		char *zErrMsg = NULL;
@@ -2094,9 +2071,6 @@ vector<string>  assetCodes;
 
 	while (rowidMin < rowidLimit)
 	{
-		// FIXME_I:
-		logger->debug("xxx4 START delete");
-
 		blocks++;
 		rowidMin += purgeBlockSize;
 		if (rowidMin > rowidLimit)
@@ -2143,9 +2117,7 @@ vector<string>  assetCodes;
 
 		// Get db changes
 		deletedRows += rowsAffected;
-		logger->debug("Purge delete block #%d with %d readings", blocks, rowsAffected);
-		// FIXME_I:
-		logger->debug("xxx4 Purge delete block #%d with %d readings", blocks, rowsAffected);
+		logger->debug("%s - Purge delete block #%d with %d readings", __FUNCTION__, blocks, rowsAffected);
 
 		if(blocks % RECALC_PURGE_BLOCK_SIZE_NUM_BLOCKS == 0)
 		{
@@ -2197,11 +2169,7 @@ vector<string>  assetCodes;
 	unsigned long duration = (1000000 * (endTv.tv_sec - startTv.tv_sec)) + endTv.tv_usec - startTv.tv_usec;
 	logger->info("xxx4 Purge process complete in %d blocks in %lduS", blocks, duration);
 
-	Logger::getLogger()->debug("xxx4 %s - age :%lu: flag_retain :%x: sent :%lu: result :%s:", __FUNCTION__, age, flags, flag_retain, result.c_str() );
-
-		// FIXME_I:
-	Logger::getLogger()->setMinLevel("warning");
-
+	Logger::getLogger()->debug("%s - age :%lu: flag_retain :%x: sent :%lu: result :%s:", __FUNCTION__, age, flags, flag_retain, result.c_str() );
 
 	return deletedRows;
 }
@@ -2233,9 +2201,6 @@ bool flag_retain;
 
 	Logger *logger = Logger::getLogger();
 
-	// FIXME_I:
-	const char *_section="xxx5";
-
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();
 	ReadingsCatalogue *readCatalogue = ReadingsCatalogue::getInstance();
@@ -2259,14 +2224,10 @@ bool flag_retain;
 	{
 		flag_retain = true;
 	}
-		// FIXME_I:
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("%s / %s - xxx flags :%X: flag_retain :%d: sent :%ld:", _section, __FUNCTION__, flags, flag_retain, sent);
+	Logger::getLogger()->debug("%s - flags :%X: flag_retain :%d: sent :%ld:", __FUNCTION__, flags, flag_retain, sent);
 
 
 	logger->info("Purge by Rows called");
-	// FIXME_I:
-	//if ((flags & 0x01) == 0x01)
 	if (flag_retain)
 	{
 		limit = sent;
@@ -2363,9 +2324,6 @@ bool flag_retain;
 	{
 		if (rowcount <= rows)
 		{
-			// FIXME_I:
-			logger->info("xxx5 Row count %d is less than required rows %d", rowcount, rows);
-
 			logger->info("Row count %d is less than required rows %d", rowcount, rows);
 			break;
 		}
@@ -2417,8 +2375,6 @@ bool flag_retain;
 			deletePoint = maxId - rows;
 
 		// Do not delete
-		// FIXME_I:
-		//if ((flags & 0x01) == 0x01) {
 		if (flag_retain) {
 
 			if (limit < deletePoint)
@@ -2483,10 +2439,7 @@ bool flag_retain;
 
 	result = convert.str();
 
-	Logger::getLogger()->debug("xxx5 %s - Purge by Rows complete - rows :%lu: flag :%x: sent :%lu:  numReadings :%lu:  rowsAffected :%u:  result :%s:", __FUNCTION__, rows, flags, sent, numReadings, rowsAffected, result.c_str() );
-
-			// FIXME_I:
-	Logger::getLogger()->setMinLevel("warning");
+	Logger::getLogger()->debug("%s - Purge by Rows complete - rows :%lu: flag :%x: sent :%lu:  numReadings :%lu:  rowsAffected :%u:  result :%s:", __FUNCTION__, rows, flags, sent, numReadings, rowsAffected, result.c_str() );
 
 	return deletedRows;
 }

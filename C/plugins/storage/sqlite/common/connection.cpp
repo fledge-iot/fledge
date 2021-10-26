@@ -869,19 +869,6 @@ SQLBuffer	jsonConstraints;
 bool		isOptAggregate = false;
 vector<string>  asset_codes;
 
-	if (table.compare("streams") ==0)
-	{
-
-		// FIXME_I:
-		const char *_section="xxx6";
-
-		// FIXME_I:
-		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("%s / %s - table :%s: condition :%s:", _section, __FUNCTION__, table.c_str(), condition.c_str());
-		Logger::getLogger()->setMinLevel("warning");
-
-	}
-
 	try {
 		if (dbHandle == NULL)
 		{
@@ -1081,20 +1068,6 @@ vector<string>  asset_codes;
 
 		// Call result set mapping
 		rc = mapResultSet(stmt, resultSet);
-
-		if (table.compare("streams") ==0)
-		{
-
-			// FIXME_I:
-			const char *_section="xxx6";
-
-			// FIXME_I:
-			Logger::getLogger()->setMinLevel("debug");
-			Logger::getLogger()->debug("%s / %s - table :%s: query :%s: resultSet :%s: ", _section, __FUNCTION__, table.c_str(), query , resultSet.c_str());
-			Logger::getLogger()->setMinLevel("warning");
-
-		}
-
 
 		// Delete result set
 		sqlite3_finalize(stmt);

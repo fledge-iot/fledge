@@ -895,13 +895,7 @@ static std::atomic<bool> already_running(false);
 		{
 			flags = search->second;
 
-			// FIXME_I:
-			char *_section="xxx3";
-
-			// FIXME_I:
-			Logger::getLogger()->setMinLevel("debug");
-			Logger::getLogger()->debug("%s / StorageApi::%s - xxx flags :%s:", _section, __FUNCTION__, flags.c_str());
-			Logger::getLogger()->setMinLevel("warning");
+			Logger::getLogger()->debug("%s - flags :%s:", __FUNCTION__, flags.c_str());
 
 			// TODO Turn flags into a bitmap
 
@@ -921,11 +915,7 @@ static std::atomic<bool> already_running(false);
 				flagsMask &= (~STORAGE_PURGE_RETAIN_ALL);
 			}
 
-
-			// FIXME_I:
-			Logger::getLogger()->setMinLevel("debug");
-			Logger::getLogger()->debug("%s / StorageApi :: %s - xxx flagsMask :%d:", _section, __FUNCTION__, flagsMask);
-			Logger::getLogger()->setMinLevel("warning");
+			Logger::getLogger()->debug("%s - flagsMask :%d:", __FUNCTION__, flagsMask);
 
 		}
 

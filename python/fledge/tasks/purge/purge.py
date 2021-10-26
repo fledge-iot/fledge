@@ -9,11 +9,17 @@ Purge readings based on the age of the readings.
 Readings data that is older than the specified age will be removed from the readings store.
 
 Conditions:
-    1. If the configuration value of retainUnsent is set to True then any reading with an id value that is
-    greater than the minimum(last_object) of streams table will not be removed.
+    1. purge unsent - all readings older than the configured age | size, regardless of the minimum(last_object) of streams table will be removed.
 
-    2. If the configuration value of retainUnsent is set to False then all readings older than the configured age | size,
-    regardless of the minimum(last_object) of streams table will be removed.
+    2. retain unsent to any destination / retain unsent to all destinations
+        Allow the user the option to retain readings if they have not been sent to at least one destination or
+        retain readings if they have not been sent to all destinations.
+
+        retain unsent to any destination
+            Readings with an id value that is greater than the maximum(last_object) of streams table will not be removed.
+
+        retain unsent to all destinations
+            Readings with an id value that is greater than the minimum(last_object) of streams table will not be removed.
 
 Statistics reported by Purge process are:
     -> Readings removed
@@ -141,7 +147,10 @@ class Purge(FledgeProcess):
             flag = "retainall"
             operation_type="min"
 
-        ###   #########################################################################################:
+        #########################################################################################:
+        #
+        # Identifies the row id to use
+        #
         north_streams = []
         north_instance = []
         north_list = []
@@ -151,10 +160,7 @@ class Purge(FledgeProcess):
         for item in north_streams["rows"]:
             north_list.append(item["description"])
 
-        #// FIXME_I:
-        self._logger.debug("xxx7 purge_data - streams - north_streams :{}: _norht_list :{}: ".format(north_streams, north_list) )
-
-        ###   #########################################################################################:
+        self._logger.debug("purge_data - north configured :{}: north active :{}: ".format(north_streams, north_list) )
 
         if north_list:
             payload_sched = PayloadBuilder().SELECT("schedule_name").WHERE(['schedule_name', 'in', north_list]).AND_WHERE(['enabled', '=', 't']).payload()
@@ -164,28 +170,13 @@ class Purge(FledgeProcess):
             for item in north_instance["rows"]:
                 north_list.append(item["schedule_name"])
 
-        #// FIXME_I:
-        self._logger.debug("xxx7 purge_data - north_instance - schedules - :{}: _norht_list :{}: ".format(north_instance, north_list) )
+        self._logger.debug("purge_data - north schedules - schedules - :{}: north enabled :{}: ".format(north_instance, north_list) )
 
-
-        ###   #########################################################################################:
-
-        #// FIXME_I:
         if north_list:
-            #// FIXME_I:
-            self._logger.setLevel(logging.DEBUG)
-            self._logger.debug("xxx8 CASE 1 NOT EMPTY")
-            self._logger.setLevel(logging.WARNING)
-
             payload = PayloadBuilder().AGGREGATE([operation_type, "last_object"]).\
                         WHERE(['description', 'in', north_list])\
                         .payload()
         else:
-            #// FIXME_I:
-            self._logger.setLevel(logging.DEBUG)
-            self._logger.debug("xxx8 CASE 2 NOT EMPTY")
-            self._logger.setLevel(logging.WARNING)
-
             payload = PayloadBuilder().AGGREGATE([operation_type, "last_object"]).payload()
 
         result = await self._storage_async.query_tbl_with_payload("streams", payload)
@@ -195,8 +186,7 @@ class Purge(FledgeProcess):
         else:
             last_object = result["rows"][0]["max_last_object"]
 
-        #// FIXME_I:
-        self._logger.debug("xxx7 purge_data - last_object :{}: ".format(last_object) )
+        self._logger.debug("purge_data - last_object :{}: ".format(last_object) )
 
         if result["count"] == 1:
             # FIXME: Remove below check when fix from storage layer
@@ -207,7 +197,8 @@ class Purge(FledgeProcess):
         else:
             last_id = 0
 
-        #self._logger.debug("purge_data - flag :{}: last_id :{}: count :{}: operation_type :{}:".format(flag, last_id, result["count"],operation_type) )
+        self._logger.debug("purge_data - flag :{}: last_id :{}: count :{}: operation_type :{}:".format(flag, last_id, result["count"],operation_type) )
+        #########################################################################################:
 
         try:
             if int(config['age']['value']) != 0:

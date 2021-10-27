@@ -2095,7 +2095,7 @@ vector<string>  assetCodes;
 		rc = readCat->purgeAllReadings(dbHandle, query ,&zErrMsg, &rowsAffected);
 		END_TIME;
 
-		logger->debug("xxx4 %s - DELETE - query :%s: rowsAffected :%ld:",  __FUNCTION__, query ,rowsAffected);
+		logger->debug("%s - DELETE - query :%s: rowsAffected :%ld:",  __FUNCTION__, query ,rowsAffected);
 
 		// Release memory for 'query' var
 		delete[] query;
@@ -2144,7 +2144,7 @@ vector<string>  assetCodes;
 			}
 			std::this_thread::sleep_for(std::chrono::milliseconds(100));
 		}
-		Logger::getLogger()->debug("xxx4 Purge delete block #%d with %d readings", blocks, rowsAffected);
+		Logger::getLogger()->debug("Purge delete block #%d with %d readings", blocks, rowsAffected);
 	} while (rowidMin  < rowidLimit);
 
 	unsentRetained = maxrowidLimit - rowidLimit;
@@ -2167,7 +2167,7 @@ vector<string>  assetCodes;
 
 	gettimeofday(&endTv, NULL);
 	unsigned long duration = (1000000 * (endTv.tv_sec - startTv.tv_sec)) + endTv.tv_usec - startTv.tv_usec;
-	logger->info("xxx4 Purge process complete in %d blocks in %lduS", blocks, duration);
+	logger->info("Purge process complete in %d blocks in %lduS", blocks, duration);
 
 	Logger::getLogger()->debug("%s - age :%lu: flag_retain :%x: sent :%lu: result :%s:", __FUNCTION__, age, flags, flag_retain, result.c_str() );
 
@@ -2399,7 +2399,7 @@ bool flag_retain;
 			// Exec DELETE query: no callback, no resultset
 			rc = readCat->purgeAllReadings(dbHandle, query ,&zErrMsg, &rowsAffected);
 
-			logger->debug("xxx5  %s - DELETE - query :%s: rowsAffected :%ld:", __FUNCTION__, query ,rowsAffected);
+			logger->debug(" %s - DELETE - query :%s: rowsAffected :%ld:", __FUNCTION__, query ,rowsAffected);
 
 			deletedRows += rowsAffected;
 			numReadings -= rowsAffected;
@@ -2407,7 +2407,7 @@ bool flag_retain;
 
 			// Release memory for 'query' var
 			delete[] query;
-			logger->debug("xxx5  Deleted :%lu: rows", rowsAffected);
+			logger->debug(" Deleted :%lu: rows", rowsAffected);
 			if (rowsAffected == 0)
 			{
 				break;

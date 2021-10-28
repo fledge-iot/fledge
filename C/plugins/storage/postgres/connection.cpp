@@ -1580,6 +1580,13 @@ SQLBuffer sql;
 long unsentPurged = 0;
 long unsentRetained = 0;
 long numReadings = 0;
+bool flag_retain;
+
+	if ( (flags & STORAGE_PURGE_RETAIN_ANY) || (flags & STORAGE_PURGE_RETAIN_ALL) )
+	{
+		flag_retain = true;
+	}
+	Logger::getLogger()->debug("%s - flags :%X: flag_retain :%d: sent :%ld:", __FUNCTION__, flags, flag_retain, sent);
 
 	if (age == 0)
 	{
@@ -1605,7 +1612,8 @@ long numReadings = 0;
 			return 0;
 		}
 	}
-	if ((flags & 0x01) == 0)
+
+	if ( ! flag_retain )
 	{
 		// Get number of unsent rows we are about to remove
 		SQLBuffer unsentBuffer;
@@ -1633,7 +1641,8 @@ long numReadings = 0;
 	sql.append("DELETE FROM fledge.readings WHERE user_ts < now() - INTERVAL '");
 	sql.append(age);
 	sql.append(" hours'");
-	if ((flags & 0x01) == 0x01)	// Don't delete unsent rows
+
+	if (flag_retain) // Don't delete unsent rows
 	{
 		sql.append(" AND id < ");
 		sql.append(sent);
@@ -1689,6 +1698,8 @@ long numReadings = 0;
     	convert << " \"readings\" : " << numReadings << " }";
 
 	result = convert.str();
+
+	Logger::getLogger()->debug("%s - age :%lu: flag_retain :%x: sent :%lu: result :%s:", __FUNCTION__, age, flags, flag_retain, result.c_str() );
 
 	return deletedRows;
 }

@@ -1582,11 +1582,20 @@ long unsentRetained = 0;
 long numReadings = 0;
 bool flag_retain;
 
+	// FIXME_I:
+	const char *_section="xxx3";
+
+	// FIXME_I:
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("%s / %s - xxx ::", _section, __FUNCTION__);
+
+	flag_retain = false;
+
 	if ( (flags & STORAGE_PURGE_RETAIN_ANY) || (flags & STORAGE_PURGE_RETAIN_ALL) )
 	{
 		flag_retain = true;
 	}
-	Logger::getLogger()->debug("%s - flags :%X: flag_retain :%d: sent :%ld:", __FUNCTION__, flags, flag_retain, sent);
+	Logger::getLogger()->debug("xxx3 %s - flags :%X: flag_retain :%d: sent :%ld:", __FUNCTION__, flags, flag_retain, sent);
 
 	if (age == 0)
 	{
@@ -1613,6 +1622,9 @@ bool flag_retain;
 		}
 	}
 
+	// FIXME_I:
+	Logger::getLogger()->debug("xxx3 %s - STEP 2", __FUNCTION__);
+
 	if ( ! flag_retain )
 	{
 		// Get number of unsent rows we are about to remove
@@ -1637,7 +1649,11 @@ bool flag_retain;
 			PQclear(res);
 		}
 	}
-	
+
+		// FIXME_I:
+	Logger::getLogger()->debug("xxx3 %s - STEP 3", __FUNCTION__);
+
+
 	sql.append("DELETE FROM fledge.readings WHERE user_ts < now() - INTERVAL '");
 	sql.append(age);
 	sql.append(" hours'");
@@ -1649,6 +1665,11 @@ bool flag_retain;
 	}
 	sql.append(';');
 	const char *query = sql.coalesce();
+
+	// FIXME_I:
+	Logger::getLogger()->debug("%s / %s - query :%s:", _section, __FUNCTION__, query);
+
+
 	logSQL("ReadingsPurge", query);
 	PGresult *res = PQexec(dbConnection, query);
 	delete[] query;
@@ -1666,6 +1687,12 @@ bool flag_retain;
 	retainedBuffer.append(sent);
 	retainedBuffer.append(';');
 	const char *query1 = retainedBuffer.coalesce();
+
+	// FIXME_I:
+	Logger::getLogger()->debug("%s / %s - query1 :%s:", _section, __FUNCTION__, query1);
+
+
+
 	logSQL("ReadingsPurge", query1);
 	res = PQexec(dbConnection, query1);
 	delete[] query1;
@@ -1699,7 +1726,10 @@ bool flag_retain;
 
 	result = convert.str();
 
-	Logger::getLogger()->debug("%s - age :%lu: flag_retain :%x: sent :%lu: result :%s:", __FUNCTION__, age, flags, flag_retain, result.c_str() );
+	Logger::getLogger()->debug("xxx3 %s - age :%lu: flag_retain :%x: sent :%lu: result :%s:", __FUNCTION__, age, flags, flag_retain, result.c_str() );
+
+	// FIXME_I:
+	Logger::getLogger()->setMinLevel("warning");
 
 	return deletedRows;
 }

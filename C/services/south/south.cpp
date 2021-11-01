@@ -293,6 +293,7 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		
 		StorageClient storage(storageRecord.getAddress(),
 						storageRecord.getPort());
+		storage.registerManagement(m_mgtClient);
 		unsigned int threshold = 100;
 		long timeout = 5000;
 		std::string pluginName;

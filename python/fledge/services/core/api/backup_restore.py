@@ -184,7 +184,7 @@ async def get_backup_download(request):
         # Find the source extension
         dummy, file_extension = os.path.splitext(source)
         # backward compatibility (<= 1.9.2)
-        if file_extension == ".db":
+        if file_extension in (".db", ".dump"):
             # Create tar file
             t = tarfile.open(source + ".tar.gz", "w:gz")
             t.add(source, arcname=os.path.basename(source))

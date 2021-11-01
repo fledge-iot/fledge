@@ -256,7 +256,7 @@ Fledge has a very particular way of handling configuration, there are a number o
 
   - A common approach that will work across many different languages.
 
-Fledge divides its configuration in categories. A category being a collection of configuration items. A category is also the smallest item of configuration that can be subscribed to by the code. This subscription mechanism is they way that Fledge facilitates dynamic reconfiguration. It allows a service to subscribe to one or more configuration categories, whenever an item within a category changes the central configuration manager will call a handler to pass the newly updated configuration category. This handler my be within a services or between services using the micro service management API that every service must support. The mechanism however is transparent to the code involved.
+Fledge divides its configuration in categories. A category being a collection of configuration items. A category is also the smallest item of configuration that can be subscribed to by the code. This subscription mechanism is they way that Fledge facilitates dynamic reconfiguration. It allows a service to subscribe to one or more configuration categories, whenever an item within a category changes the central configuration manager will call a handler to pass the newly updated configuration category. This handler may be within a services or between services using the micro service management API that every service must support. The mechanism however is transparent to the code involved.
 
 The configuration items within a category are JSON object, the object key is the name of the configuration item, the object itself contains data about that item. As an example, if we wanted to have a configuration item called *MaxRetries* that is an integer with a default value of 5, then we would configured it using the JSON object
 
@@ -361,7 +361,7 @@ Note the use of the *Manual* option to allow entry of devices that could not be 
 
 The *discover* method does the actually discovery and manipulates the JSON configuration to add the the *options* element of the configuration item.
 
-The code that connects to the device should then look at the *discovered* configuration item, if it finds it set to *Manual* then it will get an IP address from the *IP* configuration item. Otherwise it uses the information in the *discovered* item to connect, note that this need not just be an IP address, you can format the data in a way that is more user friendly have have the connection code extract what it needs or create a table in the *discover* method to allow for user meaningful strings to be mapped to network addresses.
+The code that connects to the device should then look at the *discovered* configuration item, if it finds it set to *Manual* then it will get an IP address from the *IP* configuration item. Otherwise it uses the information in the *discovered* item to connect, note that this need not just be an IP address, you can format the data in a way that is more user friendly and have the connection code extract what it needs or create a table in the *discover* method to allow for user meaningful strings to be mapped to network addresses.
 
 The example here was written in C++, there is nothing that is specific to C++ however and the same approach can be taken in Python.
 

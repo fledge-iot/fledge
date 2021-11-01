@@ -33,6 +33,8 @@ A north plugin has a limited number of entry points that it much support, these 
       - This entry point is the north plugin specific entry point that is used to send data from Fledge. This will be called repeatedly with blocks of readings.
     * - plugin_shutdown
       - Part of the standard plugin interface, this will be called when the plugin is no longer required and will be the final call to the plugin.
+    * - plugin_register
+      - Register the callback function used for control writes and operations.
 
 The life cycle of a plugin is very similar regardless of if it is written in Python or C/C++, the *plugin_info* call is made first to determine data about the plugin. The plugin is then initialized by calling the *plugin_init* entry point. The *plugin_send* entry point will be called multiple times to send the actual data and finally the *plugin_shutdown* entry point will be called.
 
@@ -390,3 +392,56 @@ The *plugin_shutdown* entry point is called when the plugin is no longer require
         delete plugin;
    }
 
+The plugin_register entry point
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The *plugin_register* entry point is used to pass two function pointers to the plugin. These functions pointers are the functions that should be called when either a set point write or a set point operation is required. The plugin should store these function pointers for later use.
+
+.. code-block:: C
+
+   void plugin_register(PLUGIN_HANDLE handle, (bool ( *write)(char *name, char *value, ControlDestination destination, ...), int (* operation)(char *operation, int paramCount, char *parameters[], ControlDestination destination, ...))
+   {
+        myNorthPlugin *plugin = (myNorthPlugin *)handle;
+        plugin->setpointCallbacks(write, operation);
+   }
+
+This call will only be made if the plugin included the *SP_CONTROL* option in the flags field of the *PLUGIN_INFORMATION* structure.
+
+Set Point Control
+-----------------
+
+Fledge supports multiple paths for set point control, one of these paths allows for a north service to be bi-directional, with the north plugin receiving a trigger from the system north of Fledge to perform a set point control. This trigger may be the north plugin polling the system or a protocol response from the north.
+
+Set point control is only available for north services, it is not supported for north tasks and will be ignored.
+
+When the north plugin requires a set point write operation to be performed it calls the *write* callback that was passed to the plugin in the *plugin_register* entry point. This callback takes a number of arguments;
+
+  - The name of the set point to be written.
+
+  - The value to write to the set point. This is expressed as a string always.
+
+  - The destination of the write operation. This is passed using the *ControlDestination* enumerated type. Currently this may be one of
+
+      - **DestinationBroadcast**: send the write operation to all south services that support control.
+
+      - **DestinationAsset**: send the write request to the south service responsible for ingesting the given asset. The asset is passed as the next argument in the *write* call.
+
+      - **DestinationService**: send the write request to the named south service.
+
+For example if the north plugin wishes to write the set point called *speed* with the value *28* in the south service called *Motor Control* it would make a call as follows.
+
+.. code-block:: C
+
+       (*m_write)("speed", "28", DestinationService, "Motor Control");
+
+Assuming the member variable *m_write* was used to store the function pointer of the *write* callback.
+
+If the north plugin requires an operation to be performed, rather than a write, then it should call the *operation* called which was passed to it in the *plugin_register* call. This callback takes a set of arguments;
+
+   - The name of the operation to execute.
+
+   - The number of parameters the operation should be passed.
+
+   - An array of parameters, as strings, to pass to the operation
+
+   - The destination of the operation, this is the same set of destinations as per the write call.

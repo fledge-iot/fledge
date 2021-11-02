@@ -1676,6 +1676,7 @@ long numReadings = 0;
 unsigned long rowidLimit = 0, minrowidLimit = 0, maxrowidLimit = 0, rowidMin;
 struct timeval startTv, endTv;
 int blocks = 0;
+bool flag_retain;
 
 vector<string>  assetCodes;
 
@@ -1696,6 +1697,14 @@ vector<string>  assetCodes;
 		}
 		attachSync->unlock();
 	}
+
+	flag_retain = false;
+
+	if ( (flags & STORAGE_PURGE_RETAIN_ANY) || (flags & STORAGE_PURGE_RETAIN_ALL) )
+	{
+		flag_retain = true;
+	}
+	Logger::getLogger()->debug("%s - flags :%X: flag_retain :%d: sent :%ld:", __FUNCTION__, flags, flag_retain, sent);
 
 	result = "{ \"removed\" : 0, ";
 	result += " \"unsentPurged\" : 0, ";
@@ -1874,7 +1883,7 @@ vector<string>  assetCodes;
 		int rc;
 		unsigned long l = minrowidLimit;
 		unsigned long r;
-		if (flags & 0x01) {
+		if (flag_retain) {
 
 			r = min(sent, rowidLimit);
 		} else {
@@ -1882,7 +1891,8 @@ vector<string>  assetCodes;
 		}
 
 		r = max(r, l);
-		logger->debug ("%s %d - l=%u, r=%u, sent=%u, rowidLimit=%u, minrowidLimit=%u, flags=%u", __FUNCTION__, __LINE__, l, r, sent, rowidLimit, minrowidLimit, flags);
+		logger->debug ("%s line %d - l=%u, r=%u, sent=%u, rowidLimit=%u, minrowidLimit=%u, flag_retain=%u", __FUNCTION__, __LINE__, l, r, sent, rowidLimit, minrowidLimit, flag_retain);
+
 		if (l == r)
 		{
  			logger->info("No data to purge: min_id == max_id == %u", minrowidLimit);
@@ -1968,10 +1978,9 @@ vector<string>  assetCodes;
 
 		Logger::getLogger()->debug("%s - rowidLimit :%lu: minrowidLimit :%lu: maxrowidLimit :%lu:", __FUNCTION__, rowidLimit, minrowidLimit, maxrowidLimit);
 
-
 		if (minrowidLimit == rowidLimit)
 		{
- 			logger->info("No data to purge");
+			logger->info("No data to purge");
 			return 0;
 		}
 
@@ -1981,7 +1990,8 @@ vector<string>  assetCodes;
 	}
 
 	//logger->info("Purge collecting unsent row count");
-	if ((flags & 0x01) == 0)
+
+	if ( ! flag_retain )
 	{
 		char *zErrMsg = NULL;
 		int rc;
@@ -2107,7 +2117,7 @@ vector<string>  assetCodes;
 
 		// Get db changes
 		deletedRows += rowsAffected;
-		logger->debug("Purge delete block #%d with %d readings", blocks, rowsAffected);
+		logger->debug("%s - Purge delete block #%d with %d readings", __FUNCTION__, blocks, rowsAffected);
 
 		if(blocks % RECALC_PURGE_BLOCK_SIZE_NUM_BLOCKS == 0)
 		{
@@ -2159,7 +2169,7 @@ vector<string>  assetCodes;
 	unsigned long duration = (1000000 * (endTv.tv_sec - startTv.tv_sec)) + endTv.tv_usec - startTv.tv_usec;
 	logger->info("Purge process complete in %d blocks in %lduS", blocks, duration);
 
-	Logger::getLogger()->debug("%s - age :%lu: flag :%x: sent :%lu: result :%s:", __FUNCTION__, age, flags, sent, result.c_str() );
+	Logger::getLogger()->debug("%s - age :%lu: flag_retain :%x: sent :%lu: result :%s:", __FUNCTION__, age, flags, flag_retain, result.c_str() );
 
 	return deletedRows;
 }
@@ -2179,6 +2189,8 @@ unsigned long  deletedRows = 0, unsentPurged = 0, unsentRetained = 0, numReading
 unsigned long limit = 0;
 string sql_cmd;
 vector<string>  assetCodes;
+bool flag_retain;
+
 
 	// rowidCallback expects unsigned long
 	unsigned long rowcount, minId, maxId;
@@ -2205,13 +2217,23 @@ vector<string>  assetCodes;
 		attachSync->unlock();
 	}
 
+
+	flag_retain = false;
+
+	if ( (flags & STORAGE_PURGE_RETAIN_ANY) || (flags & STORAGE_PURGE_RETAIN_ALL) )
+	{
+		flag_retain = true;
+	}
+	Logger::getLogger()->debug("%s - flags :%X: flag_retain :%d: sent :%ld:", __FUNCTION__, flags, flag_retain, sent);
+
+
 	logger->info("Purge by Rows called");
-	if ((flags & 0x01) == 0x01)
+	if (flag_retain)
 	{
 		limit = sent;
 		logger->info("Sent is %lu", sent);
 	}
-	logger->info("Purge by Rows called with flags %x, rows %lu, limit %lu", flags, rows, limit);
+	logger->info("Purge by Rows called with flag_retain %d, rows %lu, limit %lu", flag_retain, rows, limit);
 
 	rowsAffected = 0;
 	// Don't save unsent rows
@@ -2353,7 +2375,7 @@ vector<string>  assetCodes;
 			deletePoint = maxId - rows;
 
 		// Do not delete
-		if ((flags & 0x01) == 0x01) {
+		if (flag_retain) {
 
 			if (limit < deletePoint)
 			{
@@ -2377,7 +2399,7 @@ vector<string>  assetCodes;
 			// Exec DELETE query: no callback, no resultset
 			rc = readCat->purgeAllReadings(dbHandle, query ,&zErrMsg, &rowsAffected);
 
-			logger->debug("%s - DELETE - query :%s: rowsAffected :%ld:", __FUNCTION__, query ,rowsAffected);
+			logger->debug(" %s - DELETE - query :%s: rowsAffected :%ld:", __FUNCTION__, query ,rowsAffected);
 
 			deletedRows += rowsAffected;
 			numReadings -= rowsAffected;
@@ -2385,7 +2407,7 @@ vector<string>  assetCodes;
 
 			// Release memory for 'query' var
 			delete[] query;
-			logger->debug("Deleted :%lu: rows", rowsAffected);
+			logger->debug(" Deleted :%lu: rows", rowsAffected);
 			if (rowsAffected == 0)
 			{
 				break;

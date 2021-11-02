@@ -301,6 +301,7 @@ class StorageClientAsync(AbstractStorage):
         put_url = '/storage/table/{tbl_name}/query'.format(tbl_name=tbl_name)
 
         url = 'http://' + self.base_url + put_url
+
         async with aiohttp.ClientSession() as session:
             async with session.put(url, data=query_payload) as resp:
                 status_code = resp.status
@@ -541,7 +542,7 @@ class ReadingsStorageClientAsync(StorageClientAsync):
             curl -X PUT "http://0.0.0.0:<storage_service_port>/storage/reading/purge?size=1024&sent=0&flags=PURGE"
         """
 
-        valid_flags = ['retain', 'purge']
+        valid_flags = ['retainany', 'retainall', 'purge']
 
         if flag and flag.lower() not in valid_flags:
             raise InvalidReadingsPurgeFlagParameters

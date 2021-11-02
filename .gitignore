@@ -87,3 +87,6 @@ python/fledge/plugins/south/*
 python/fledge/plugins/filter/*
 python/fledge/plugins/notificationDelivery/*
 python/fledge/plugins/notificationRule/*
+
+# doxygen build
+doxy/

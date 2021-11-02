@@ -2,10 +2,26 @@
 
 # The best default branch to use develop rather than master. As new repository do not have a branch called master any more and having main branch only.
 if [[ "${DOCBRANCH}" == "" ]]; then
-    # NOTE: During release time we need to replace develop with actual released version
-	export DOCBRANCH=develop
-	echo "Default ${DOCBRANCH} used for plugin documentation"
+    # NOTE: During release time we need to replace develop and nightly build with actual released version
+    export DOCBRANCH=develop
+    export ARCHIVE_BUILD=nightly
+else
+    # only for dev purpose
+    if [[ "${DOCBRANCH}" == FOGL-* ]]; then
+        export DOCBRANCH=${DOCBRANCH}
+        export ARCHIVE_BUILD="fixes\/${DOCBRANCH}"
+    elif [[ "${DOCBRANCH}" == *RC ]]; then
+        export DOCBRANCH=${DOCBRANCH}
+        export ARCHIVE_BUILD=$(echo ${DOCBRANCH} | sed -e 's/RC//g')
+    else
+        export DOCBRANCH=${DOCBRANCH}
+        export ARCHIVE_BUILD=nightly
+    fi
 fi
+
+echo "Default ${DOCBRANCH} branch used for plugin documentation and ${ARCHIVE_BUILD} build used for source code documentation"
+# Tweaks required in plugin developer guide to enable source code documentation
+sed -i 's/ARCHIVE_BUILD_NAME/'"${ARCHIVE_BUILD}"'/g' plugin_developers_guide/00_source_code_doc.rst
 
 function plugin_doc {
   repo_name=$1

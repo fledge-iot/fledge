@@ -22,6 +22,11 @@
 #include <atomic>
 #include <condition_variable>
 #include <sys/time.h>
+#include <connection.h>
+
+#define	STORAGE_PURGE_RETAIN_ANY 0x0001U
+#define	STORAGE_PURGE_RETAIN_ALL 0x0002U
+#define STORAGE_PURGE_SIZE	     0x0004U
 
 static std::map<std::string, std::string> sqliteDateFormat = {
                                                 {"HH24:MI:SS",

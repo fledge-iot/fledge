@@ -10,7 +10,8 @@ show_configuration () {
 	echo "Fledge unit tests for the PostgreSQL plugin"
 
 	echo "Starting storage layer      :$storage_exec:"
-	echo "timezone                    :$tz_exec:"
+	echo "PostgreSQL timezone         :$tz_exec:"
+	echo "OS timezone                 :$tz_os:"
 	echo "expected dir                :$expected_dir:"
 	echo "configuration               :$FLEDGE_DATA:"
 }
@@ -19,7 +20,7 @@ restore_tz() {
 	#Restore the initial TZ
 	psql -d fledge -c "ALTER DATABASE fledge SET timezone TO '"$tz_original"';" > /dev/null
 	tz_current=`psql -qtAX -d fledge -c "SHOW timezone ;"`
-	echo -e "\nOriginal timezone restored   :$tz_current:\n"
+	echo -e "\nOriginal PostgreSQL timezone restored   :$tz_current:\n"
 }
 
 # Set UTC as TZ for the proper execution of the tests
@@ -64,6 +65,8 @@ fi
 # Set the timezone to UTC or to the requested one
 psql -d fledge -c "ALTER DATABASE fledge SET timezone TO '"${TZ}"';" > /dev/null
 tz_exec=`psql -qtAX -d fledge -c "SHOW timezone ;"`
+
+tz_os=`cat /etc/timezone`
 
 # Converts '/' to '_' and to upper case
 step1="${TZ/\//_}"

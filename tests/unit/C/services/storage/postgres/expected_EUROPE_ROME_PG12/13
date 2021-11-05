@@ -1,0 +1,1 @@
+{ "entryPoint" : "insert", "message" : "ERROR:  column \"nonexistant\" of relation \"test\" does not existLINE 1: ...ERT INTO fledge.test (id, key, description, data, Nonexistan...                                                             ^", "retryable" : false}

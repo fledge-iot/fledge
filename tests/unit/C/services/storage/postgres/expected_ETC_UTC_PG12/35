@@ -1,0 +1,1 @@
+{ "entryPoint" : "retrieve", "message" : "ERROR:  column \"doesntexist\" does not existLINE 1: SELECT  * FROM fledge.test WHERE \"doesntexist\" = '9';                                         ^", "retryable" : false}

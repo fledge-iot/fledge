@@ -1,0 +1,1 @@
+{ "entryPoint" : "retrieve", "message" : "ERROR:  relation \"fledge.doesntexist\" does not existLINE 1: SELECT * FROM fledge.doesntexist;                      ^", "retryable" : false}

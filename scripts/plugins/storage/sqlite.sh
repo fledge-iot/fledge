@@ -23,7 +23,8 @@
 __author__="Massimiliano Pinto"
 __version__="1.0"
 
-set -e
+# Avoid to stop immediately to report/show the error/reason
+set +e
 
 PLUGIN="sqlite"
 

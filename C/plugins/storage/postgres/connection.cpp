@@ -1729,7 +1729,6 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 	bool flag_retain;
 
 	// FIXME_I:
-	// FIXME_I:
 	const char *_section="xxx3";
 
 	// FIXME_I:

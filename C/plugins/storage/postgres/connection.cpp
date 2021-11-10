@@ -1709,6 +1709,50 @@ bool flag_retain;
 }
 
 /**
+ * Purge readings from the reading table
+ */
+unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
+					unsigned int flags,
+					unsigned long sent,
+					std::string& result)
+{
+	unsigned long deletedRows = 0, unsentPurged = 0, unsentRetained = 0, numReadings = 0;
+	unsigned long limit = 0;
+	unsigned long rowcount, minId, maxId;
+	unsigned long rowsAffected;
+	unsigned long deletePoint;
+
+	string sql_cmd;
+	char *zErrMsg = NULL;
+	int rc;
+	vector<string>  assetCodes;
+	bool flag_retain;
+
+	// FIXME_I:
+	// FIXME_I:
+	const char *_section="xxx3";
+
+	// FIXME_I:
+	Logger::getLogger()->setMinLevel("debug");
+
+
+	flag_retain = false;
+
+	if ( (flags & STORAGE_PURGE_RETAIN_ANY) || (flags & STORAGE_PURGE_RETAIN_ALL) )
+	{
+		flag_retain = true;
+	}
+
+	// FIXME_I:
+	Logger::getLogger()->debug("xxx3 %s - POSTGRESS Purge by Rows complete - rows :%lu: flag :%x: sent :%lu:  numReadings :%lu:  rowsAffected :%u:  result :%s:", __FUNCTION__, rows, flags, sent, numReadings, rowsAffected, result.c_str() );
+
+	// FIXME_I:
+	Logger::getLogger()->setMinLevel("warning");
+
+	return deletedRows;
+}
+
+/**
  * Map a SQL result set to a JSON document
  */
 void Connection::mapResultSet(PGresult *res, string& resultSet)

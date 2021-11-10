@@ -32,6 +32,8 @@ class Connection {
 		int		appendReadings(const char *readings);
 		bool		fetchReadings(unsigned long id, unsigned int blksize, std::string& resultSet);
 		unsigned int	purgeReadings(unsigned long age, unsigned int flags, unsigned long sent, std::string& results);
+		unsigned int	purgeReadingsByRows(unsigned long rowcount, unsigned int flags,unsigned long sent, std::string& results);
+
 		long		tableSize(const std::string& table);
 		void		setTrace(bool flag) { m_logSQL = flag; };
     		static bool 	formatDate(char *formatted_date, size_t formatted_date_size, const char *date);

@@ -26,6 +26,7 @@
 #include <time.h>
 #include <algorithm>
 #include <math.h>
+#include <sys/time.h>
 
 using namespace std;
 using namespace rapidjson;
@@ -1576,11 +1577,21 @@ char	sqlbuffer[200];
  */
 unsigned int  Connection::purgeReadings(unsigned long age, unsigned int flags, unsigned long sent, std::string& result)
 {
-SQLBuffer sql;
-long unsentPurged = 0;
-long unsentRetained = 0;
-long numReadings = 0;
-bool flag_retain;
+	SQLBuffer sql;
+	long unsentPurged = 0;
+	long unsentRetained = 0;
+	long numReadings = 0;
+	bool flag_retain;
+	int blocks = 0;
+	struct timeval startTv{}, endTv{};
+
+	// FIXME_I:
+	const char *_section="xxx5";
+
+	Logger *logger = Logger::getLogger();
+
+	// FIXME_I:
+	Logger::getLogger()->setMinLevel("debug");
 
 	flag_retain = false;
 
@@ -1588,7 +1599,10 @@ bool flag_retain;
 	{
 		flag_retain = true;
 	}
-	Logger::getLogger()->debug("%s - flags :%X: flag_retain :%d: sent :%ld:", __FUNCTION__, flags, flag_retain, sent);
+	Logger::getLogger()->debug("xxx5 %s - flags :%X: flag_retain :%d: sent :%lu:", __FUNCTION__, flags, flag_retain, sent);
+
+	logger->info("xxx5 Purge starting...");
+	gettimeofday(&startTv, NULL);
 
 	if (age == 0)
 	{
@@ -1703,7 +1717,19 @@ bool flag_retain;
 
 	result = convert.str();
 
-	Logger::getLogger()->debug("%s - age :%lu: flag_retain :%x: sent :%lu: result :%s:", __FUNCTION__, age, flags, flag_retain, result.c_str() );
+	{ // Timing
+		unsigned long duration;
+		gettimeofday(&endTv, NULL);
+		duration = (1000000 * (endTv.tv_sec - startTv.tv_sec)) + endTv.tv_usec - startTv.tv_usec;
+		duration = duration / 1000; // milliseconds
+		logger->info("xxx5 Purge process complete in %d blocks in %ld milliseconds", blocks, duration);
+	}
+
+
+	Logger::getLogger()->debug("xxx5 %s - age :%lu: flag_retain :%x: sent :%lu: result :%s:", __FUNCTION__, age, flags, flag_retain, result.c_str() );
+
+	// FIXME_I:
+	Logger::getLogger()->setMinLevel("warning");
 
 	return deletedRows;
 }

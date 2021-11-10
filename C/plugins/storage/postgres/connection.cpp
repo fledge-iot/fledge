@@ -1709,7 +1709,55 @@ bool flag_retain;
 }
 
 /**
- * Purge readings from the reading table
+ * Execute a SQL command for the purge task
+ */
+unsigned long Connection::purgeOperation(const char *sql, const char *logSection, const char *phase, bool retrieve)
+{
+	SQLBuffer buffer;
+	const char *query;
+	unsigned long value;
+	PGresult *res;
+	bool error;
+
+	error = false;
+	value = 0;
+
+	Logger::getLogger()->debug("xxx3  %s - sql :%s: logSection :%s: phase :%s:", __FUNCTION__, sql, logSection, phase);
+
+
+	buffer.append(sql);
+	query = buffer.coalesce();
+	logSQL(logSection, query);
+	res = PQexec(dbConnection, query);
+	delete[] query;
+
+	if (retrieve) {
+		if (PQresultStatus(res) == PGRES_TUPLES_OK) {
+			value = (unsigned long)atol(PQgetvalue(res, 0, 0));
+		} else {
+			error = true;
+		}
+	} else {
+		if (PQresultStatus(res) == PGRES_COMMAND_OK) {
+			value = (unsigned long)atoi(PQcmdTuples(res));
+		} else {
+			error = true;
+		}
+	}
+
+	if (error)
+	{
+		raiseError(phase, PQerrorMessage(dbConnection));
+		value = -1;
+	}
+
+	PQclear(res);
+
+	return value;
+}
+
+/**
+ * Purge readings from the reading table leaving a number of rows equal to the parameter rows
  */
 unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 					unsigned int flags,
@@ -1719,21 +1767,20 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 	unsigned long deletedRows = 0, unsentPurged = 0, unsentRetained = 0, numReadings = 0;
 	unsigned long limit = 0;
 	unsigned long rowcount, minId, maxId;
-	unsigned long rowsAffected;
+	unsigned long rowsAffectedLastComand;
 	unsigned long deletePoint;
 
-	string sql_cmd;
-	char *zErrMsg = NULL;
-	int rc;
-	vector<string>  assetCodes;
+	string sqlCommand;
 	bool flag_retain;
 
+	const char *logSection="ReadingsPurgeByRows";
 	// FIXME_I:
 	const char *_section="xxx3";
 
 	// FIXME_I:
 	Logger::getLogger()->setMinLevel("debug");
 
+	Logger *logger = Logger::getLogger();
 
 	flag_retain = false;
 
@@ -1741,14 +1788,109 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 	{
 		flag_retain = true;
 	}
+	Logger::getLogger()->debug("xxx3  %s - flags :%X: flag_retain :%s: sent :%ld:", __FUNCTION__, flags, flag_retain ? "true" : "false", sent);
+
+	logger->info("xxx3 Purge by Rows called");
+	if (flag_retain)
+	{
+		limit = sent;
+		logger->info("xxx3 Sent is %lu", sent);
+	}
+	logger->info("xxx3 Purge by Rows called with flag_retain %X, rows %lu, limit %lu", flag_retain, rows, limit);
+
+
+	rowcount = purgeOperation("SELECT count(*) from fledge.readings;", logSection,
+							  "ReadingsPurgeByRows - phase 1, fetching row count", true);
+	if (rowcount == -1) {
+		return 0;
+	}
+
+	maxId = purgeOperation("SELECT max(id) from fledge.readings;", logSection,
+						   "ReadingsPurgeByRows - phase 1, fetching maximum id",
+						   true);
+	if (maxId == -1) {
+		return 0;
+	}
+
+	numReadings = rowcount;
+	rowsAffectedLastComand = 0;
+	deletedRows = 0;
+
+	do
+	{
+		if (rowcount <= rows)
+		{
+			logger->info("xxx3 Row count %d is less than required rows %d", rowcount, rows);
+			break;
+		}
+
+		minId = purgeOperation("SELECT min(id) from fledge.readings;", logSection,
+							   "ReadingsPurgeByRows - phase 2, fetching minimum id", true);
+		if (minId == -1) {
+			return 0;
+		}
+
+		deletePoint = minId + 10000;
+		if (maxId - deletePoint < rows || deletePoint > maxId)
+			deletePoint = maxId - rows;
+
+		// Do not delete
+		if (flag_retain) {
+
+			if (limit < deletePoint)
+			{
+				deletePoint = limit;
+			}
+		}
+
+		{
+			logger->info("xxx3 RowCount %lu, Max Id %lu, min Id %lu, delete point %lu", rowcount, maxId, minId, deletePoint);
+
+			sqlCommand = "DELETE FROM fledge.readings WHERE id <= " +  to_string(deletePoint);
+			rowsAffectedLastComand = purgeOperation(sqlCommand.c_str(), logSection, "ReadingsPurgeByRows - phase 2, deleting readings", false);
+
+			deletedRows += rowsAffectedLastComand;
+			numReadings -= rowsAffectedLastComand;
+			rowcount    -= rowsAffectedLastComand;
+
+			logger->debug("xxx3 Deleted %lu rows", rowsAffectedLastComand);
+			if (rowsAffectedLastComand == 0)
+			{
+				break;
+			}
+			if (limit != 0 && sent != 0)
+			{
+				unsentPurged = deletePoint - sent;
+			}
+			else if (!limit)
+			{
+				unsentPurged += rowsAffectedLastComand;
+			}
+		}
+	} while (rowcount > rows);
+
+	if (limit)
+	{
+		unsentRetained = numReadings - rows;
+	}
+
+	ostringstream convert;
+
+	convert << "{ \"removed\" : " << deletedRows << ", ";
+	convert << " \"unsentPurged\" : " << unsentPurged << ", ";
+	convert << " \"unsentRetained\" : " << unsentRetained << ", ";
+	convert << " \"readings\" : " << numReadings << " }";
+
+	result = convert.str();
 
 	// FIXME_I:
-	Logger::getLogger()->debug("xxx3 %s - POSTGRESS Purge by Rows complete - rows :%lu: flag :%x: sent :%lu:  numReadings :%lu:  rowsAffected :%u:  result :%s:", __FUNCTION__, rows, flags, sent, numReadings, rowsAffected, result.c_str() );
+	Logger::getLogger()->debug("xxx3 %s - Purge by Rows complete - rows :%lu: flag :%x: sent :%lu:  numReadings :%lu:  rowsAffected :%u:  result :%s:", __FUNCTION__, rows, flags, sent, numReadings, rowsAffectedLastComand, result.c_str() );
 
 	// FIXME_I:
 	Logger::getLogger()->setMinLevel("warning");
 
 	return deletedRows;
+
 }
 
 /**

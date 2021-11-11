@@ -28,15 +28,39 @@
 #include <math.h>
 #include <sys/time.h>
 
+#include <iostream>
+#include <chrono>
+#include <thread>
+
 using namespace std;
 using namespace rapidjson;
 
 static time_t connectErrorTime = 0;
 #define CONNECT_ERROR_THRESHOLD		5*60	// 5 minutes
 
+//
+// Used for the purge operation - start
+//
+#define PURGE_DELETE_BLOCK_SIZE	    10000
+#define MIN_PURGE_DELETE_BLOCK_SIZE	1000
+#define MAX_PURGE_DELETE_BLOCK_SIZE	10000
+
+#define TARGET_PURGE_BLOCK_DEL_TIME	(70*1000) 	// 70 msec
+#define PURGE_BLOCK_SZ_GRANULARITY	5 	// 5 rows
+#define RECALC_PURGE_BLOCK_SIZE_NUM_BLOCKS	30	// recalculate purge block size after every 30 blocks
+
+#define START_TIME std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
+#define END_TIME std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now(); \
+				 auto usecs = std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count();
+//
+// Used for the purge operation - end
+
+
 #define LEN_BUFFER_DATE 100
 // Format timestamp having microseconds
 #define F_DATEH24_US    	"YYYY-MM-DD HH24:MI:SS.US"
+
+static int purgeBlockSize = PURGE_DELETE_BLOCK_SIZE;
 
 const vector<string>  pg_column_reserved_words = {
 	"user"
@@ -1572,11 +1596,16 @@ char	sqlbuffer[200];
 	return false;
 }
 
+
+
 /**
  * Purge readings from the reading table
  */
 unsigned int  Connection::purgeReadings(unsigned long age, unsigned int flags, unsigned long sent, std::string& result)
 {
+	unsigned long rowidLimit = 0, minrowidLimit = 0, maxrowidLimit = 0, rowidMin;
+
+	string sqlCommand;
 	SQLBuffer sql;
 	long unsentPurged = 0;
 	long unsentRetained = 0;
@@ -1587,6 +1616,8 @@ unsigned int  Connection::purgeReadings(unsigned long age, unsigned int flags, u
 
 	// FIXME_I:
 	const char *_section="xxx5";
+
+	const char *logSection="ReadingsPurgeByAge";
 
 	Logger *logger = Logger::getLogger();
 
@@ -1604,116 +1635,223 @@ unsigned int  Connection::purgeReadings(unsigned long age, unsigned int flags, u
 	logger->info("xxx5 Purge starting...");
 	gettimeofday(&startTv, NULL);
 
+	/*
+	 * We fetch the current rowid and limit the purge process to work on just
+	 * those rows present in the database when the purge process started.
+	 * This prevents us looping in the purge process if new readings become
+	 * eligible for purging at a rate that is faster than we can purge them.
+	 */
+	//###   #########################################################################################:
+
+	rowidLimit = purgeOperation("SELECT max(id) from fledge.readings;", logSection,
+						   "ReadingsPurgeByAge - phase 1, fetching maximum id",
+						   true);
+	if (rowidLimit == -1) {
+		return 0;
+	}
+	maxrowidLimit = rowidLimit;
+
+	minrowidLimit = purgeOperation("SELECT min(id) from fledge.readings;", logSection,
+						   "ReadingsPurgeByAge - phase 1, fetching minimum id", true);
+	if (minrowidLimit == -1) {
+		return 0;
+	}
+	//###   #########################################################################################:
+
 	if (age == 0)
 	{
 		/*
 		 * An age of 0 means remove the oldest hours data.
 		 * So set age based on the data we have and continue.
 		 */
-		SQLBuffer oldest;
-		oldest.append("SELECT round(extract(epoch FROM (now() - min(user_ts)))/360) from fledge.readings;");
-		const char *query = oldest.coalesce();
-		logSQL("ReadingsPurge", query);
-		PGresult *res = PQexec(dbConnection, query);
-		delete[] query;
-		if (PQresultStatus(res) == PGRES_TUPLES_OK)
-		{
-			age = (unsigned long)atol(PQgetvalue(res, 0, 0));
-			PQclear(res);
-		}
-		else
-		{
- 			raiseError("purge", PQerrorMessage(dbConnection));
-			PQclear(res);
+
+		sqlCommand = "SELECT round(extract(epoch FROM (now() - min(user_ts)))/360) FROM fledge.readings WHERE id <=" + to_string (rowidLimit) + ";";
+		age = purgeOperation(sqlCommand.c_str() , logSection,
+					   "ReadingsPurgeByAge - phase 1, calculating age", true);
+		if (age == -1) {
 			return 0;
 		}
 	}
 
+	{
+		/*
+		 * Refine rowid limit to just those rows older than age hours.
+		 */
+		char *zErrMsg = NULL;
+		int rc;
+		unsigned long l = minrowidLimit;
+		unsigned long r;
+		if (flag_retain) {
+
+			r = min(sent, rowidLimit);
+		} else {
+			r = rowidLimit;
+		}
+
+		r = max(r, l);
+		logger->debug   ("xxx5 %s - l=%u, r=%u, sent=%u, rowidLimit=%u, minrowidLimit=%u, flags=%u", __FUNCTION__, l, r, sent, rowidLimit, minrowidLimit, flags);
+
+		if (l == r)
+		{
+			logger->info("xxx5 No data to purge: min_id == max_id == %u", minrowidLimit);
+			return 0;
+		}
+
+		unsigned long m=l;
+
+		while (l <= r)
+		{
+			unsigned long midRowId = 0;
+			unsigned long prev_m = m;
+			m = l + (r - l) / 2;
+			if (prev_m == m) break;
+
+			// e.g. select id from readings where rowid = 219867307 AND user_ts < datetime('now' , '-24 hours', 'utc');
+			sqlCommand = "SELECT id FROM fledge.readings WHERE id = " + to_string (m) + " AND user_ts < (now() - INTERVAL '" + to_string (age) + " hours');";
+			midRowId = purgeOperation(sqlCommand.c_str() , logSection, "ReadingsPurgeByAge - phase 2, fetching midRowId", true);
+			if (midRowId == -1) {
+				return 0;
+			}
+
+			if (midRowId == 0) // mid row doesn't satisfy given condition for user_ts, so discard right/later half and look in left/earlier half
+			{
+				// search in earlier/left half
+				r = m - 1;
+
+				// The m position should be skipped as midRowId is 0
+				m = r;
+			}
+			else //if (l != m)
+			{
+				// search in later/right half
+				l = m + 1;
+			}
+		}
+
+		rowidLimit = m;
+
+		if (minrowidLimit == rowidLimit)
+		{
+			logger->info("xxx5 No data to purge");
+			return 0;
+		}
+
+		rowidMin = minrowidLimit;
+	}
+
+	
 	if ( ! flag_retain )
 	{
-		// Get number of unsent rows we are about to remove
-		SQLBuffer unsentBuffer;
-		unsentBuffer.append("SELECT count(*) FROM fledge.readings WHERE  user_ts < now() - INTERVAL '");
-		unsentBuffer.append(age);
-		unsentBuffer.append(" hours' AND id > ");
-		unsentBuffer.append(sent);
-		unsentBuffer.append(';');
-		const char *query = unsentBuffer.coalesce();
-		logSQL("ReadingsPurge", query);
-		PGresult *res = PQexec(dbConnection, query);
-		delete[] query;
-		if (PQresultStatus(res) == PGRES_TUPLES_OK)
-		{
-			unsentPurged = atol(PQgetvalue(res, 0, 0));
-			PQclear(res);
+		unsigned long lastPurgedId;
+
+		sqlCommand = "SELECT id FROM fledge.readings WHERE id = " + to_string (rowidLimit) + ";";
+		lastPurgedId = purgeOperation(sqlCommand.c_str() , logSection, "ReadingsPurgeByAge - phase 2, fetching unsentPurged", true);
+		if (lastPurgedId == -1) {
+			return 0;
 		}
-		else
+
+		if (sent != 0 && lastPurgedId > sent)	// Unsent readings will be purged
 		{
- 			raiseError("retrieve", PQerrorMessage(dbConnection));
-			PQclear(res);
+			// Get number of unsent rows we are about to remove
+			unsentPurged = rowidLimit - sent;
 		}
 	}
 
-	sql.append("DELETE FROM fledge.readings WHERE user_ts < now() - INTERVAL '");
-	sql.append(age);
-	sql.append(" hours'");
+	//###   #########################################################################################:
 
-	if (flag_retain) // Don't delete unsent rows
-	{
-		sql.append(" AND id < ");
-		sql.append(sent);
-	}
-	sql.append(';');
-	const char *query = sql.coalesce();
+	unsigned int deletedRows = 0;
+	char *zErrMsg = NULL;
+	unsigned int rowsAffected, totTime=0, prevBlocks=0, prevTotTime=0;
 
-	logSQL("ReadingsPurge", query);
-	PGresult *res = PQexec(dbConnection, query);
-	delete[] query;
-	if (PQresultStatus(res) != PGRES_COMMAND_OK)
+	logger->info("xxx5 Purge about to delete readings # %ld to %ld", rowidMin, rowidLimit);
+	while (rowidMin < rowidLimit)
 	{
-		PQclear(res);
- 		raiseError("retrieve", PQerrorMessage(dbConnection));
-		return 0;
-	}
-	unsigned int deletedRows = (unsigned int)atoi(PQcmdTuples(res));
-	PQclear(res);
+		blocks++;
+		rowidMin += purgeBlockSize;
+		if (rowidMin > rowidLimit)
+		{
+			rowidMin = rowidLimit;
+		}
 
-	SQLBuffer retainedBuffer;
-	retainedBuffer.append("SELECT count(*) FROM fledge.readings WHERE id > ");
-	retainedBuffer.append(sent);
-	retainedBuffer.append(';');
-	const char *query1 = retainedBuffer.coalesce();
+		{
+			sqlCommand = "DELETE FROM fledge.readings WHERE id <=" + to_string(rowidMin);
 
-	logSQL("ReadingsPurge", query1);
-	res = PQexec(dbConnection, query1);
-	delete[] query1;
-	if (PQresultStatus(res) == PGRES_TUPLES_OK)
-	{
-		unsentRetained = atol(PQgetvalue(res, 0, 0));
-	}
-	else
-	{
- 		raiseError("retrieve", PQerrorMessage(dbConnection));
-	}
-	PQclear(res);
+			if (flag_retain) // Don't delete unsent rows
+			{
 
-	res = PQexec(dbConnection, "SELECT count(*) FROM fledge.readings;");
-	if (PQresultStatus(res) == PGRES_TUPLES_OK)
+				sqlCommand.append(" AND id < ");
+				sqlCommand.append(to_string(sent));
+			}
+			sqlCommand.append(";");
+
+			START_TIME;
+			rowsAffected = purgeOperation(sqlCommand.c_str() , logSection, "ReadingsPurgeByAge - phase 3, deleting readings", false);
+			END_TIME;
+
+			logger->debug("xxx5 %s - DELETE sql :%s: rowsAffected :%ld:",  __FUNCTION__, sqlCommand.c_str() ,rowsAffected);
+
+			if (rowsAffected == -1) {
+				return 0;
+			}
+			totTime += usecs;
+
+			if(usecs>150000)
+			{
+				std::this_thread::sleep_for(std::chrono::milliseconds(100+usecs/10000));
+			}
+		}
+
+		deletedRows += rowsAffected;
+		logger->debug("xxx5 Purge delete block #%d with %d readings", blocks, rowsAffected);
+
+		if(blocks % RECALC_PURGE_BLOCK_SIZE_NUM_BLOCKS == 0)
+		{
+			int prevAvg = prevTotTime/(prevBlocks?prevBlocks:1);
+			int currAvg = (totTime-prevTotTime)/(blocks-prevBlocks);
+			int avg = ((prevAvg?prevAvg:currAvg)*5 + currAvg*5) / 10; // 50% weightage for long term avg and 50% weightage for current avg
+			prevBlocks = blocks;
+			prevTotTime = totTime;
+			int deviation = abs(avg - TARGET_PURGE_BLOCK_DEL_TIME);
+			logger->debug("xxx5 blocks=%d, totTime=%d usecs, prevAvg=%d usecs, currAvg=%d usecs, avg=%d usecs, TARGET_PURGE_BLOCK_DEL_TIME=%d usecs, deviation=%d usecs",
+						  blocks, totTime, prevAvg, currAvg, avg, TARGET_PURGE_BLOCK_DEL_TIME, deviation);
+			if (deviation > TARGET_PURGE_BLOCK_DEL_TIME/10)
+			{
+				float ratio = (float)TARGET_PURGE_BLOCK_DEL_TIME / (float)avg;
+				if (ratio > 2.0) ratio = 2.0;
+				if (ratio < 0.5) ratio = 0.5;
+				purgeBlockSize = (float)purgeBlockSize * ratio;
+				purgeBlockSize = purgeBlockSize / PURGE_BLOCK_SZ_GRANULARITY * PURGE_BLOCK_SZ_GRANULARITY;
+				if (purgeBlockSize < MIN_PURGE_DELETE_BLOCK_SIZE)
+					purgeBlockSize = MIN_PURGE_DELETE_BLOCK_SIZE;
+				if (purgeBlockSize > MAX_PURGE_DELETE_BLOCK_SIZE)
+					purgeBlockSize = MAX_PURGE_DELETE_BLOCK_SIZE;
+				logger->debug("xxx5 Changed purgeBlockSize to %d", purgeBlockSize);
+			}
+			std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		}
+		//Logger::getLogger()->debug("Purge delete block #%d with %d readings", blocks, rowsAffected);
+	} while (rowidMin  < rowidLimit);
+
+	logger->debug   ("xxx5 %s - sent=%u, minrowidLimit=%u, maxrowidLimit=%u, rowidLimit=%u deletedRows=%u", __FUNCTION__, sent, minrowidLimit, maxrowidLimit, rowidLimit, deletedRows);
+
+	unsentRetained = maxrowidLimit - rowidLimit;
+
+	numReadings = maxrowidLimit +1 - minrowidLimit - deletedRows;
+
+	if (sent == 0)	// Special case when not north process is used
 	{
-		numReadings = atol(PQgetvalue(res, 0, 0));
+		unsentPurged = deletedRows;
 	}
-	else
-	{
- 		raiseError("retrieve", PQerrorMessage(dbConnection));
-	}
-	PQclear(res);
+
+	//### Old end  #########################################################################################:
+
 
 	ostringstream convert;
 
-	convert << "{ \"removed\" : " << deletedRows << ", ";
-	convert << " \"unsentPurged\" : " << unsentPurged << ", ";
+	convert << "{ \"removed\" : "       << deletedRows    << ", ";
+	convert << " \"unsentPurged\" : "   << unsentPurged   << ", ";
 	convert << " \"unsentRetained\" : " << unsentRetained << ", ";
-    	convert << " \"readings\" : " << numReadings << " }";
+	convert << " \"readings\" : "       << numReadings    << " }";
 
 	result = convert.str();
 
@@ -1724,7 +1862,6 @@ unsigned int  Connection::purgeReadings(unsigned long age, unsigned int flags, u
 		duration = duration / 1000; // milliseconds
 		logger->info("xxx5 Purge process complete in %d blocks in %ld milliseconds", blocks, duration);
 	}
-
 
 	Logger::getLogger()->debug("xxx5 %s - age :%lu: flag_retain :%x: sent :%lu: result :%s:", __FUNCTION__, age, flags, flag_retain, result.c_str() );
 
@@ -1739,27 +1876,42 @@ unsigned int  Connection::purgeReadings(unsigned long age, unsigned int flags, u
  */
 unsigned long Connection::purgeOperation(const char *sql, const char *logSection, const char *phase, bool retrieve)
 {
-	SQLBuffer buffer;
+	SQLBuffer sqlBuffer;
 	const char *query;
 	unsigned long value;
 	PGresult *res;
 	bool error;
+	char *PGValue {};
 
 	error = false;
 	value = 0;
 
-	Logger::getLogger()->debug("xxx3  %s - sql :%s: logSection :%s: phase :%s:", __FUNCTION__, sql, logSection, phase);
+	Logger::getLogger()->debug("xxx3 xxx5 %s - sql :%s: logSection :%s: phase :%s:", __FUNCTION__, sql, logSection, phase);
 
 
-	buffer.append(sql);
-	query = buffer.coalesce();
+	sqlBuffer.append(sql);
+	query = sqlBuffer.coalesce();
 	logSQL(logSection, query);
 	res = PQexec(dbConnection, query);
 	delete[] query;
 
+				// FIXME_I:
+			Logger::getLogger()->debug("xxx5 %s - BRK 0", __FUNCTION__);
+
 	if (retrieve) {
 		if (PQresultStatus(res) == PGRES_TUPLES_OK) {
-			value = (unsigned long)atol(PQgetvalue(res, 0, 0));
+
+			// FIXME_I:
+			Logger::getLogger()->debug("xxx5 %s - BRK 1", __FUNCTION__);
+
+			PGValue = PQgetvalue(res, 0, 0);
+			if (PGValue)
+				value = (unsigned long) atol(PGValue);
+
+			// FIXME_I:
+			Logger::getLogger()->debug("xxx5 %s - BRK 2 PGValue :%X: value :%lu:", __FUNCTION__, PGValue, value);
+
+
 		} else {
 			error = true;
 		}

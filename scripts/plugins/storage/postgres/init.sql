@@ -478,7 +478,7 @@ CREATE TABLE fledge.statistics_history_daily (
 );
 
 CREATE INDEX statistics_history_daily_ix1
-    ON statistics_history_daily (year);
+    ON fledge.statistics_history_daily (year);
 
 -- Resources table
 -- A resource and be anything that is available or can be done in Fledge. Examples:

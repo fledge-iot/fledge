@@ -88,7 +88,7 @@ The above addresses the main Fledge repository, however plugins each have
 a repository of their own which contains the code for the plugin and the
 documentation for the plugin. If you wish to work on an existing plugin
 then the process is similar to that above, just replace the fledge.git
-repository with the <plugin>.git repository, for example
+repository with the fledge-{plugin-type}-{plugin-name}.git repository, for example
 
    ```bash
    # Clone your fork of the repo into the current directory

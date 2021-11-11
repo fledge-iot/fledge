@@ -7,6 +7,7 @@
  *
  * Author: Massimiliano Pinto
  */
+#include <common.h>
 #include <connection_manager.h>
 #include <connection.h>
 #include <plugin_api.h>
@@ -283,8 +284,7 @@ Connection        *connection = manager->allocate();
 std::string 	  results;
 unsigned long	  age, size;
 
-	// TODO put flags in common header file
-	if (flags & 0x0002)	// Purge by size
+	if (flags & STORAGE_PURGE_SIZE)
 	{
 		(void)connection->purgeReadingsByRows(param, flags, sent, results);
 	}

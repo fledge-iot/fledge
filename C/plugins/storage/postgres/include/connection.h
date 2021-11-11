@@ -15,6 +15,10 @@
 #include <rapidjson/document.h>
 #include <libpq-fe.h>
 
+#define	STORAGE_PURGE_RETAIN_ANY 0x0001U
+#define	STORAGE_PURGE_RETAIN_ALL 0x0002U
+#define STORAGE_PURGE_SIZE	     0x0004U
+
 class Connection {
 	public:
 		Connection();

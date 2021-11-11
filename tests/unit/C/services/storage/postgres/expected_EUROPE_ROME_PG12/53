@@ -1,0 +1,1 @@
+{ "entryPoint" : "retrieve", "message" : "return object must have either a column or json property", "retryable" : false}

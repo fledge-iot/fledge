@@ -1641,8 +1641,6 @@ unsigned int  Connection::purgeReadings(unsigned long age, unsigned int flags, u
 	 * This prevents us looping in the purge process if new readings become
 	 * eligible for purging at a rate that is faster than we can purge them.
 	 */
-	//###   #########################################################################################:
-
 	rowidLimit = purgeOperation("SELECT max(id) from fledge.readings;", logSection,
 						   "ReadingsPurgeByAge - phase 1, fetching maximum id",
 						   true);
@@ -1673,12 +1671,13 @@ unsigned int  Connection::purgeReadings(unsigned long age, unsigned int flags, u
 		}
 	}
 
+	Logger::getLogger()->debug("xxx5 %s - rowidLimit :%lu: maxrowidLimit :%lu: maxrowidLimit :%lu: age :%lu:", __FUNCTION__, rowidLimit, maxrowidLimit, minrowidLimit, age);
+
+	//###   #########################################################################################:
 	{
 		/*
 		 * Refine rowid limit to just those rows older than age hours.
 		 */
-		char *zErrMsg = NULL;
-		int rc;
 		unsigned long l = minrowidLimit;
 		unsigned long r;
 		if (flag_retain) {
@@ -1730,6 +1729,8 @@ unsigned int  Connection::purgeReadings(unsigned long age, unsigned int flags, u
 
 		rowidLimit = m;
 
+		Logger::getLogger()->debug("xxx5 %s - rowidLimit :%lu: minrowidLimit :%lu: maxrowidLimit :%lu:", __FUNCTION__, rowidLimit, minrowidLimit, maxrowidLimit);
+
 		if (minrowidLimit == rowidLimit)
 		{
 			logger->info("xxx5 No data to purge");
@@ -1737,7 +1738,9 @@ unsigned int  Connection::purgeReadings(unsigned long age, unsigned int flags, u
 		}
 
 		rowidMin = minrowidLimit;
+		Logger::getLogger()->debug("xxx5 %s - m :%lu: rowidMin :%lu: ",__FUNCTION__ ,m,  rowidMin);
 	}
+	//###   #########################################################################################:
 
 	
 	if ( ! flag_retain )
@@ -1755,12 +1758,12 @@ unsigned int  Connection::purgeReadings(unsigned long age, unsigned int flags, u
 			// Get number of unsent rows we are about to remove
 			unsentPurged = rowidLimit - sent;
 		}
+		Logger::getLogger()->debug("xxx5 %s - lastPurgedId :%d: unsentPurged :%ld:" ,__FUNCTION__, lastPurgedId, unsentPurged);
 	}
 
 	//###   #########################################################################################:
 
 	unsigned int deletedRows = 0;
-	char *zErrMsg = NULL;
 	unsigned int rowsAffected, totTime=0, prevBlocks=0, prevTotTime=0;
 
 	logger->info("xxx5 Purge about to delete readings # %ld to %ld", rowidMin, rowidLimit);
@@ -1774,15 +1777,7 @@ unsigned int  Connection::purgeReadings(unsigned long age, unsigned int flags, u
 		}
 
 		{
-			sqlCommand = "DELETE FROM fledge.readings WHERE id <=" + to_string(rowidMin);
-
-			if (flag_retain) // Don't delete unsent rows
-			{
-
-				sqlCommand.append(" AND id < ");
-				sqlCommand.append(to_string(sent));
-			}
-			sqlCommand.append(";");
+			sqlCommand = "DELETE FROM fledge.readings WHERE id <=" + to_string(rowidMin) + ";" ;
 
 			START_TIME;
 			rowsAffected = purgeOperation(sqlCommand.c_str() , logSection, "ReadingsPurgeByAge - phase 3, deleting readings", false);
@@ -1843,8 +1838,7 @@ unsigned int  Connection::purgeReadings(unsigned long age, unsigned int flags, u
 		unsentPurged = deletedRows;
 	}
 
-	//### Old end  #########################################################################################:
-
+	//###  #########################################################################################:
 
 	ostringstream convert;
 
@@ -1888,29 +1882,18 @@ unsigned long Connection::purgeOperation(const char *sql, const char *logSection
 
 	Logger::getLogger()->debug("xxx3 xxx5 %s - sql :%s: logSection :%s: phase :%s:", __FUNCTION__, sql, logSection, phase);
 
-
 	sqlBuffer.append(sql);
 	query = sqlBuffer.coalesce();
 	logSQL(logSection, query);
 	res = PQexec(dbConnection, query);
 	delete[] query;
 
-				// FIXME_I:
-			Logger::getLogger()->debug("xxx5 %s - BRK 0", __FUNCTION__);
-
 	if (retrieve) {
 		if (PQresultStatus(res) == PGRES_TUPLES_OK) {
-
-			// FIXME_I:
-			Logger::getLogger()->debug("xxx5 %s - BRK 1", __FUNCTION__);
 
 			PGValue = PQgetvalue(res, 0, 0);
 			if (PGValue)
 				value = (unsigned long) atol(PGValue);
-
-			// FIXME_I:
-			Logger::getLogger()->debug("xxx5 %s - BRK 2 PGValue :%X: value :%lu:", __FUNCTION__, PGValue, value);
-
 
 		} else {
 			error = true;

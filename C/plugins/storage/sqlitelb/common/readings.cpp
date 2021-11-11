@@ -1580,6 +1580,11 @@ unsigned int  Connection::purgeReadings(unsigned long age,
 		unsentPurged = deletedRows;
 	}
 
+
+	// FIXME_I:
+	Logger::getLogger()->setMinLevel("debug");
+
+
 	ostringstream convert;
 
 	convert << "{ \"removed\" : " << deletedRows << ", ";
@@ -1593,9 +1598,13 @@ unsigned int  Connection::purgeReadings(unsigned long age,
 
 	gettimeofday(&endTv, NULL);
 	unsigned long duration = (1000000 * (endTv.tv_sec - startTv.tv_sec)) + endTv.tv_usec - startTv.tv_usec;
-	logger->info("Purge process complete in %d blocks in %lduS", blocks, duration);
+	logger->info("xxx7 Purge process complete in %d blocks in %lduS", blocks, duration);
 
-	Logger::getLogger()->debug("%s - age :%lu: flag_retain :%x: sent :%lu: result :%s:", __FUNCTION__, age, flags, flag_retain, result.c_str() );
+	Logger::getLogger()->debug("xxx7 %s - age :%lu: flag_retain :%x: sent :%lu: result :%s:", __FUNCTION__, age, flags, flag_retain, result.c_str() );
+
+		// FIXME_I:
+	Logger::getLogger()->setMinLevel("warning");
+
 
 	return deletedRows;
 }

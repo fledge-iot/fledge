@@ -1727,9 +1727,19 @@ unsigned int  Connection::purgeReadings(unsigned long age, unsigned int flags, u
 			}
 		}
 
+
 		rowidLimit = m;
 
-		Logger::getLogger()->debug("xxx5 %s - rowidLimit :%lu: minrowidLimit :%lu: maxrowidLimit :%lu:", __FUNCTION__, rowidLimit, minrowidLimit, maxrowidLimit);
+		Logger::getLogger()->debug("xxx6 %s - s1 rowidLimit :%lu: minrowidLimit :%lu: maxrowidLimit :%lu:", __FUNCTION__, rowidLimit, minrowidLimit, maxrowidLimit);
+
+		sqlCommand = "SELECT max(id) FROM fledge.readings WHERE id <= " + to_string (rowidLimit) + " AND user_ts < (now() - INTERVAL '" + to_string (age) + " hours');";
+		rowidLimit = purgeOperation(sqlCommand.c_str() , logSection, "ReadingsPurgeByAge - phase 2, checking rowidLimit", true);
+
+		if (rowidLimit == -1) {
+			return 0;
+		}
+
+		Logger::getLogger()->debug("xxx6 %s - s2 rowidLimit :%lu: minrowidLimit :%lu: maxrowidLimit :%lu:", __FUNCTION__, rowidLimit, minrowidLimit, maxrowidLimit);
 
 		if (minrowidLimit == rowidLimit)
 		{
@@ -1854,10 +1864,10 @@ unsigned int  Connection::purgeReadings(unsigned long age, unsigned int flags, u
 		gettimeofday(&endTv, NULL);
 		duration = (1000000 * (endTv.tv_sec - startTv.tv_sec)) + endTv.tv_usec - startTv.tv_usec;
 		duration = duration / 1000; // milliseconds
-		logger->info("xxx5 Purge process complete in %d blocks in %ld milliseconds", blocks, duration);
+		logger->info("xxx6 Purge process complete in %d blocks in %ld milliseconds", blocks, duration);
 	}
 
-	Logger::getLogger()->debug("xxx5 %s - age :%lu: flag_retain :%x: sent :%lu: result :%s:", __FUNCTION__, age, flags, flag_retain, result.c_str() );
+	Logger::getLogger()->debug("xxx6 %s - age :%lu: flag_retain :%x: sent :%lu: result :%s:", __FUNCTION__, age, flags, flag_retain, result.c_str() );
 
 	// FIXME_I:
 	Logger::getLogger()->setMinLevel("warning");

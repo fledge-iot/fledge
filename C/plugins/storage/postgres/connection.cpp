@@ -1614,15 +1614,9 @@ unsigned int  Connection::purgeReadings(unsigned long age, unsigned int flags, u
 	int blocks = 0;
 	struct timeval startTv{}, endTv{};
 
-	// FIXME_I:
-	const char *_section="xxx5";
-
 	const char *logSection="ReadingsPurgeByAge";
 
 	Logger *logger = Logger::getLogger();
-
-	// FIXME_I:
-	Logger::getLogger()->setMinLevel("debug");
 
 	flag_retain = false;
 
@@ -1630,9 +1624,9 @@ unsigned int  Connection::purgeReadings(unsigned long age, unsigned int flags, u
 	{
 		flag_retain = true;
 	}
-	Logger::getLogger()->debug("xxx5 %s - flags :%X: flag_retain :%d: sent :%lu:", __FUNCTION__, flags, flag_retain, sent);
+	Logger::getLogger()->debug("%s - flags :%X: flag_retain :%d: sent :%lu:", __FUNCTION__, flags, flag_retain, sent);
 
-	logger->info("xxx5 Purge starting...");
+	logger->info("Purge starting...");
 	gettimeofday(&startTv, NULL);
 
 	/*
@@ -1671,9 +1665,8 @@ unsigned int  Connection::purgeReadings(unsigned long age, unsigned int flags, u
 		}
 	}
 
-	Logger::getLogger()->debug("xxx5 %s - rowidLimit :%lu: maxrowidLimit :%lu: maxrowidLimit :%lu: age :%lu:", __FUNCTION__, rowidLimit, maxrowidLimit, minrowidLimit, age);
+	Logger::getLogger()->debug("%s - rowidLimit :%lu: maxrowidLimit :%lu: maxrowidLimit :%lu: age :%lu:", __FUNCTION__, rowidLimit, maxrowidLimit, minrowidLimit, age);
 
-	//###   #########################################################################################:
 	{
 		/*
 		 * Refine rowid limit to just those rows older than age hours.
@@ -1688,11 +1681,11 @@ unsigned int  Connection::purgeReadings(unsigned long age, unsigned int flags, u
 		}
 
 		r = max(r, l);
-		logger->debug   ("xxx5 %s - l=%u, r=%u, sent=%u, rowidLimit=%u, minrowidLimit=%u, flags=%u", __FUNCTION__, l, r, sent, rowidLimit, minrowidLimit, flags);
+		logger->debug   ("%s - l=%u, r=%u, sent=%u, rowidLimit=%u, minrowidLimit=%u, flags=%u", __FUNCTION__, l, r, sent, rowidLimit, minrowidLimit, flags);
 
 		if (l == r)
 		{
-			logger->info("xxx5 No data to purge: min_id == max_id == %u", minrowidLimit);
+			logger->info("V2 No data to purge: min_id == max_id == %u", minrowidLimit);
 			return 0;
 		}
 
@@ -1730,7 +1723,7 @@ unsigned int  Connection::purgeReadings(unsigned long age, unsigned int flags, u
 
 		rowidLimit = m;
 
-		Logger::getLogger()->debug("xxx6 %s - s1 rowidLimit :%lu: minrowidLimit :%lu: maxrowidLimit :%lu:", __FUNCTION__, rowidLimit, minrowidLimit, maxrowidLimit);
+		Logger::getLogger()->debug("%s - s1 rowidLimit :%lu: minrowidLimit :%lu: maxrowidLimit :%lu:", __FUNCTION__, rowidLimit, minrowidLimit, maxrowidLimit);
 
 		sqlCommand = "SELECT max(id) FROM fledge.readings WHERE id <= " + to_string (rowidLimit) + " AND user_ts < (now() - INTERVAL '" + to_string (age) + " hours');";
 		rowidLimit = purgeOperation(sqlCommand.c_str() , logSection, "ReadingsPurgeByAge - phase 2, checking rowidLimit", true);
@@ -1739,18 +1732,17 @@ unsigned int  Connection::purgeReadings(unsigned long age, unsigned int flags, u
 			return 0;
 		}
 
-		Logger::getLogger()->debug("xxx6 %s - s2 rowidLimit :%lu: minrowidLimit :%lu: maxrowidLimit :%lu:", __FUNCTION__, rowidLimit, minrowidLimit, maxrowidLimit);
+		Logger::getLogger()->debug("%s - s2 rowidLimit :%lu: minrowidLimit :%lu: maxrowidLimit :%lu:", __FUNCTION__, rowidLimit, minrowidLimit, maxrowidLimit);
 
 		if (minrowidLimit == rowidLimit)
 		{
-			logger->info("xxx5 No data to purge");
+			logger->info("No data to purge");
 			return 0;
 		}
 
 		rowidMin = minrowidLimit;
-		Logger::getLogger()->debug("xxx5 %s - m :%lu: rowidMin :%lu: ",__FUNCTION__ ,m,  rowidMin);
+		Logger::getLogger()->debug("%s - m :%lu: rowidMin :%lu: ",__FUNCTION__ ,m,  rowidMin);
 	}
-	//###   #########################################################################################:
 
 	
 	if ( ! flag_retain )
@@ -1768,15 +1760,13 @@ unsigned int  Connection::purgeReadings(unsigned long age, unsigned int flags, u
 			// Get number of unsent rows we are about to remove
 			unsentPurged = rowidLimit - sent;
 		}
-		Logger::getLogger()->debug("xxx5 %s - lastPurgedId :%d: unsentPurged :%ld:" ,__FUNCTION__, lastPurgedId, unsentPurged);
+		Logger::getLogger()->debug("%s - lastPurgedId :%d: unsentPurged :%ld:" ,__FUNCTION__, lastPurgedId, unsentPurged);
 	}
-
-	//###   #########################################################################################:
 
 	unsigned int deletedRows = 0;
 	unsigned int rowsAffected, totTime=0, prevBlocks=0, prevTotTime=0;
 
-	logger->info("xxx5 Purge about to delete readings # %ld to %ld", rowidMin, rowidLimit);
+	logger->info("Purge about to delete readings # %ld to %ld", rowidMin, rowidLimit);
 	while (rowidMin < rowidLimit)
 	{
 		blocks++;
@@ -1793,7 +1783,7 @@ unsigned int  Connection::purgeReadings(unsigned long age, unsigned int flags, u
 			rowsAffected = purgeOperation(sqlCommand.c_str() , logSection, "ReadingsPurgeByAge - phase 3, deleting readings", false);
 			END_TIME;
 
-			logger->debug("xxx5 %s - DELETE sql :%s: rowsAffected :%ld:",  __FUNCTION__, sqlCommand.c_str() ,rowsAffected);
+			logger->debug("%s - DELETE sql :%s: rowsAffected :%ld:",  __FUNCTION__, sqlCommand.c_str() ,rowsAffected);
 
 			if (rowsAffected == -1) {
 				return 0;
@@ -1807,7 +1797,7 @@ unsigned int  Connection::purgeReadings(unsigned long age, unsigned int flags, u
 		}
 
 		deletedRows += rowsAffected;
-		logger->debug("xxx5 Purge delete block #%d with %d readings", blocks, rowsAffected);
+		logger->debug("Purge delete block #%d with %d readings", blocks, rowsAffected);
 
 		if(blocks % RECALC_PURGE_BLOCK_SIZE_NUM_BLOCKS == 0)
 		{
@@ -1817,7 +1807,7 @@ unsigned int  Connection::purgeReadings(unsigned long age, unsigned int flags, u
 			prevBlocks = blocks;
 			prevTotTime = totTime;
 			int deviation = abs(avg - TARGET_PURGE_BLOCK_DEL_TIME);
-			logger->debug("xxx5 blocks=%d, totTime=%d usecs, prevAvg=%d usecs, currAvg=%d usecs, avg=%d usecs, TARGET_PURGE_BLOCK_DEL_TIME=%d usecs, deviation=%d usecs",
+			logger->debug("blocks=%d, totTime=%d usecs, prevAvg=%d usecs, currAvg=%d usecs, avg=%d usecs, TARGET_PURGE_BLOCK_DEL_TIME=%d usecs, deviation=%d usecs",
 						  blocks, totTime, prevAvg, currAvg, avg, TARGET_PURGE_BLOCK_DEL_TIME, deviation);
 			if (deviation > TARGET_PURGE_BLOCK_DEL_TIME/10)
 			{
@@ -1830,14 +1820,14 @@ unsigned int  Connection::purgeReadings(unsigned long age, unsigned int flags, u
 					purgeBlockSize = MIN_PURGE_DELETE_BLOCK_SIZE;
 				if (purgeBlockSize > MAX_PURGE_DELETE_BLOCK_SIZE)
 					purgeBlockSize = MAX_PURGE_DELETE_BLOCK_SIZE;
-				logger->debug("xxx5 Changed purgeBlockSize to %d", purgeBlockSize);
+				logger->debug("Changed purgeBlockSize to %d", purgeBlockSize);
 			}
 			std::this_thread::sleep_for(std::chrono::milliseconds(100));
 		}
 		//Logger::getLogger()->debug("Purge delete block #%d with %d readings", blocks, rowsAffected);
 	} while (rowidMin  < rowidLimit);
 
-	logger->debug   ("xxx5 %s - sent=%u, minrowidLimit=%u, maxrowidLimit=%u, rowidLimit=%u deletedRows=%u", __FUNCTION__, sent, minrowidLimit, maxrowidLimit, rowidLimit, deletedRows);
+	logger->debug   ("%s - sent=%u, minrowidLimit=%u, maxrowidLimit=%u, rowidLimit=%u deletedRows=%u", __FUNCTION__, sent, minrowidLimit, maxrowidLimit, rowidLimit, deletedRows);
 
 	unsentRetained = maxrowidLimit - rowidLimit;
 
@@ -1847,8 +1837,6 @@ unsigned int  Connection::purgeReadings(unsigned long age, unsigned int flags, u
 	{
 		unsentPurged = deletedRows;
 	}
-
-	//###  #########################################################################################:
 
 	ostringstream convert;
 
@@ -1864,13 +1852,10 @@ unsigned int  Connection::purgeReadings(unsigned long age, unsigned int flags, u
 		gettimeofday(&endTv, NULL);
 		duration = (1000000 * (endTv.tv_sec - startTv.tv_sec)) + endTv.tv_usec - startTv.tv_usec;
 		duration = duration / 1000; // milliseconds
-		logger->info("xxx6 Purge process complete in %d blocks in %ld milliseconds", blocks, duration);
+		logger->info("Purge process complete in %d blocks in %ld milliseconds", blocks, duration);
 	}
 
-	Logger::getLogger()->debug("xxx6 %s - age :%lu: flag_retain :%x: sent :%lu: result :%s:", __FUNCTION__, age, flags, flag_retain, result.c_str() );
-
-	// FIXME_I:
-	Logger::getLogger()->setMinLevel("warning");
+	Logger::getLogger()->debug("%s - age :%lu: flag_retain :%x: sent :%lu: result :%s:", __FUNCTION__, age, flags, flag_retain, result.c_str() );
 
 	return deletedRows;
 }
@@ -1890,7 +1875,7 @@ unsigned long Connection::purgeOperation(const char *sql, const char *logSection
 	error = false;
 	value = 0;
 
-	Logger::getLogger()->debug("xxx3 xxx5 %s - sql :%s: logSection :%s: phase :%s:", __FUNCTION__, sql, logSection, phase);
+	Logger::getLogger()->debug("%s - sql :%s: logSection :%s: phase :%s:", __FUNCTION__, sql, logSection, phase);
 
 	sqlBuffer.append(sql);
 	query = sqlBuffer.coalesce();
@@ -1945,11 +1930,6 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 	bool flag_retain;
 
 	const char *logSection="ReadingsPurgeByRows";
-	// FIXME_I:
-	const char *_section="xxx3";
-
-	// FIXME_I:
-	Logger::getLogger()->setMinLevel("debug");
 
 	Logger *logger = Logger::getLogger();
 
@@ -1959,15 +1939,15 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 	{
 		flag_retain = true;
 	}
-	Logger::getLogger()->debug("xxx3  %s - flags :%X: flag_retain :%s: sent :%ld:", __FUNCTION__, flags, flag_retain ? "true" : "false", sent);
+	Logger::getLogger()->debug(" %s - flags :%X: flag_retain :%s: sent :%ld:", __FUNCTION__, flags, flag_retain ? "true" : "false", sent);
 
-	logger->info("xxx3 Purge by Rows called");
+	logger->info("Purge by Rows called");
 	if (flag_retain)
 	{
 		limit = sent;
-		logger->info("xxx3 Sent is %lu", sent);
+		logger->info("Sent is %lu", sent);
 	}
-	logger->info("xxx3 Purge by Rows called with flag_retain %X, rows %lu, limit %lu", flag_retain, rows, limit);
+	logger->info("Purge by Rows called with flag_retain %X, rows %lu, limit %lu", flag_retain, rows, limit);
 
 
 	rowcount = purgeOperation("SELECT count(*) from fledge.readings;", logSection,
@@ -1991,7 +1971,7 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 	{
 		if (rowcount <= rows)
 		{
-			logger->info("xxx3 Row count %d is less than required rows %d", rowcount, rows);
+			logger->info("Row count %d is less than required rows %d", rowcount, rows);
 			break;
 		}
 
@@ -2015,7 +1995,7 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 		}
 
 		{
-			logger->info("xxx3 RowCount %lu, Max Id %lu, min Id %lu, delete point %lu", rowcount, maxId, minId, deletePoint);
+			logger->info("RowCount %lu, Max Id %lu, min Id %lu, delete point %lu", rowcount, maxId, minId, deletePoint);
 
 			sqlCommand = "DELETE FROM fledge.readings WHERE id <= " +  to_string(deletePoint);
 			rowsAffectedLastComand = purgeOperation(sqlCommand.c_str(), logSection, "ReadingsPurgeByRows - phase 2, deleting readings", false);
@@ -2024,7 +2004,7 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 			numReadings -= rowsAffectedLastComand;
 			rowcount    -= rowsAffectedLastComand;
 
-			logger->debug("xxx3 Deleted %lu rows", rowsAffectedLastComand);
+			logger->debug("Deleted %lu rows", rowsAffectedLastComand);
 			if (rowsAffectedLastComand == 0)
 			{
 				break;
@@ -2054,11 +2034,7 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 
 	result = convert.str();
 
-	// FIXME_I:
-	Logger::getLogger()->debug("xxx3 %s - Purge by Rows complete - rows :%lu: flag :%x: sent :%lu:  numReadings :%lu:  rowsAffected :%u:  result :%s:", __FUNCTION__, rows, flags, sent, numReadings, rowsAffectedLastComand, result.c_str() );
-
-	// FIXME_I:
-	Logger::getLogger()->setMinLevel("warning");
+	Logger::getLogger()->debug("%s - Purge by Rows complete - rows :%lu: flag :%x: sent :%lu:  numReadings :%lu:  rowsAffected :%u:  result :%s:", __FUNCTION__, rows, flags, sent, numReadings, rowsAffectedLastComand, result.c_str() );
 
 	return deletedRows;
 

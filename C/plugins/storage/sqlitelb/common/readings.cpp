@@ -1273,11 +1273,6 @@ unsigned int  Connection::purgeReadings(unsigned long age,
 
 	Logger *logger = Logger::getLogger();
 
-		// FIXME_I:
-	Logger::getLogger()->setMinLevel("debug");
-
-
-
 	flag_retain = false;
 
 	if ( (flags & STORAGE_PURGE_RETAIN_ANY) || (flags & STORAGE_PURGE_RETAIN_ALL) )
@@ -1442,7 +1437,7 @@ unsigned int  Connection::purgeReadings(unsigned long age,
 
 		{ // Fix the value of rowidLimit
 
-			Logger::getLogger()->debug("xxx7 %s - s1 rowidLimit :%lu: minrowidLimit :%lu: maxrowidLimit :%lu:", __FUNCTION__, rowidLimit, minrowidLimit, maxrowidLimit);
+			Logger::getLogger()->debug("%s - s1 rowidLimit :%lu: minrowidLimit :%lu: maxrowidLimit :%lu:", __FUNCTION__, rowidLimit, minrowidLimit, maxrowidLimit);
 
 			SQLBuffer sqlBuffer;
 			sqlBuffer.append("select max(id) from " READINGS_DB_NAME_BASE "." READINGS_TABLE " where rowid <= ");
@@ -1466,7 +1461,7 @@ unsigned int  Connection::purgeReadings(unsigned long age,
 				sqlite3_free(zErrMsg);
 				return 0;
 			}
-			Logger::getLogger()->debug("xxx7 %s - s2 rowidLimit :%lu: minrowidLimit :%lu: maxrowidLimit :%lu:", __FUNCTION__, rowidLimit, minrowidLimit, maxrowidLimit);
+			Logger::getLogger()->debug("%s - s2 rowidLimit :%lu: minrowidLimit :%lu: maxrowidLimit :%lu:", __FUNCTION__, rowidLimit, minrowidLimit, maxrowidLimit);
 		}
 
 		if (minrowidLimit == rowidLimit)
@@ -1627,13 +1622,9 @@ unsigned int  Connection::purgeReadings(unsigned long age,
 
 	gettimeofday(&endTv, NULL);
 	unsigned long duration = (1000000 * (endTv.tv_sec - startTv.tv_sec)) + endTv.tv_usec - startTv.tv_usec;
-	logger->info("xxx7 Purge process complete in %d blocks in %lduS", blocks, duration);
+	logger->info("Purge process complete in %d blocks in %lduS", blocks, duration);
 
-	Logger::getLogger()->debug("xxx7 %s - age :%lu: flag_retain :%x: sent :%lu: result :%s:", __FUNCTION__, age, flags, flag_retain, result.c_str() );
-
-		// FIXME_I:
-	Logger::getLogger()->setMinLevel("warning");
-
+	Logger::getLogger()->debug("%s - age :%lu: flag_retain :%x: sent :%lu: result :%s:", __FUNCTION__, age, flags, flag_retain, result.c_str() );
 
 	return deletedRows;
 }

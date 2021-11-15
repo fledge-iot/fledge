@@ -1867,7 +1867,7 @@ vector<string>  assetCodes;
 
 		Logger::getLogger()->debug("purgeReadings purge_readings :%d: age :%d:", purge_readings, age);
 	}
-	Logger::getLogger()->debug("xxx6 %s - rowidLimit :%lu: maxrowidLimit :%lu: maxrowidLimit :%lu: age :%lu:", __FUNCTION__, rowidLimit, maxrowidLimit, minrowidLimit, age);
+	Logger::getLogger()->debug("%s - rowidLimit :%lu: maxrowidLimit :%lu: maxrowidLimit :%lu: age :%lu:", __FUNCTION__, rowidLimit, maxrowidLimit, minrowidLimit, age);
 
 
 	{
@@ -1969,7 +1969,7 @@ vector<string>  assetCodes;
 
 		rowidLimit = m;
 
-		Logger::getLogger()->debug("xxx6 %s - rowidLimit :%lu: minrowidLimit :%lu: maxrowidLimit :%lu:", __FUNCTION__, rowidLimit, minrowidLimit, maxrowidLimit);
+		Logger::getLogger()->debug("%s - rowidLimit :%lu: minrowidLimit :%lu: maxrowidLimit :%lu:", __FUNCTION__, rowidLimit, minrowidLimit, maxrowidLimit);
 
 		if (minrowidLimit == rowidLimit)
 		{
@@ -1978,7 +1978,7 @@ vector<string>  assetCodes;
 		}
 
 		rowidMin = minrowidLimit;
-		Logger::getLogger()->debug("xxx6 %s - m :%lu: rowidMin :%lu: ",__FUNCTION__ ,m,  rowidMin);
+		Logger::getLogger()->debug("%s - m :%lu: rowidMin :%lu: ",__FUNCTION__ ,m,  rowidMin);
 	}
 
 	//logger->info("Purge collecting unsent row count");
@@ -2043,7 +2043,7 @@ vector<string>  assetCodes;
 			unsentPurged = unsent;
 		}
 
-		Logger::getLogger()->debug("xxx6 %s - lastPurgedId :%d: unsentPurged :%ld:",__FUNCTION__, lastPurgedId, unsentPurged);
+		Logger::getLogger()->debug("%s - lastPurgedId :%d: unsentPurged :%ld:",__FUNCTION__, lastPurgedId, unsentPurged);
 	}
 	if (m_writeAccessOngoing)
 	{
@@ -2057,7 +2057,7 @@ vector<string>  assetCodes;
 	char *zErrMsg = NULL;
 	unsigned long rowsAffected;
 	unsigned int totTime=0, prevBlocks=0, prevTotTime=0;
-	logger->info("xxx6 Purge about to delete readings # %ld to %ld", rowidMin, rowidLimit);
+	logger->info("Purge about to delete readings # %ld to %ld", rowidMin, rowidLimit);
 
 	ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
 
@@ -2148,9 +2148,6 @@ vector<string>  assetCodes;
 		unsentPurged = deletedRows;
 	}
 
-	// FIXME_I:
-	Logger::getLogger()->setMinLevel("debug");
-
 	ostringstream convert;
 
 	convert << "{ \"removed\" : " << deletedRows << ", ";
@@ -2162,13 +2159,9 @@ vector<string>  assetCodes;
 
 	gettimeofday(&endTv, NULL);
 	unsigned long duration = (1000000 * (endTv.tv_sec - startTv.tv_sec)) + endTv.tv_usec - startTv.tv_usec;
-	logger->info("xxx6 Purge process complete in %d blocks in %lduS", blocks, duration);
+	logger->info("Purge process complete in %d blocks in %lduS", blocks, duration);
 
-	Logger::getLogger()->debug("xxx6 %s - age :%lu: flag_retain :%x: sent :%lu: result :%s:", __FUNCTION__, age, flags, flag_retain, result.c_str() );
-
-
-	// FIXME_I:
-	Logger::getLogger()->setMinLevel("warning");
+	Logger::getLogger()->debug("%s - age :%lu: flag_retain :%x: sent :%lu: result :%s:", __FUNCTION__, age, flags, flag_retain, result.c_str() );
 
 	return deletedRows;
 }

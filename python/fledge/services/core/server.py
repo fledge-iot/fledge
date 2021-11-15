@@ -1142,17 +1142,18 @@ class Server:
             if not registered_service_id:
                 raise web.HTTPBadRequest(reason='Service {} could not be registered'.format(service_name))
 
-            // Set JWT bearewr token
-            // Set expiration
-            exp = datetime.now() + timedelta(seconds=JWT_EXP_DELTA_SECONDS)
-            // Add public token claims
+            # Set JWT bearewr token
+            # Set expiration
+            exp = datetime.now() + timedelta(seconds=SERVICE_JWT_EXP_DELTA_SECONDS)
+            # Add public token claims
             claims = {
-                         'aud': JWT_AUDIENCE,
+                         'aud': SERVICE_JWT_AUDIENCE,
                          'sub' : service_name,
                          'iss' : service_type,
-                         'exp': exp}
+                         'exp': exp
+                     }
 
-            // Create JWT token
+            # Create JWT token
             bearer_token = jwt.encode(claims,
                                       SERVICE_JWT_SECRET,
                                       SERVICE_JWT_ALGORITHM).decode("utf-8") if token is not None else ""

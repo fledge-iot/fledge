@@ -49,7 +49,7 @@ from fledge.common.web.ssl_wrapper import SSLVerifier
 from fledge.services.core.api import exceptions as api_exception
 
 __author__ = "Amarendra K. Sinha, Praveen Garg, Terris Linenbach, Massimiliano Pinto"
-__copyright__ = "Copyright (c) 2017-2018 OSIsoft, LLC"
+__copyright__ = "Copyright (c) 2017-2021 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
@@ -67,6 +67,10 @@ _FLEDGE_PID_FILE = "fledge.core.pid"
 
 SSL_PROTOCOLS = (asyncio.sslproto.SSLProtocol,)
 
+SERVICE_JWT_SECRET = 'f0gl@mp+Fl3dG3'
+SERVICE_JWT_ALGORITHM = 'HS256'
+SERVICE_JWT_EXP_DELTA_SECONDS = 30*60  # 30 minutes
+SERVICE_JWT_AUDIENCE = 'Fledge'
 
 def ignore_aiohttp_ssl_eror(loop):
     """Ignore aiohttp #3535 / cpython #13548 issue with SSL data after close
@@ -1138,7 +1142,21 @@ class Server:
             if not registered_service_id:
                 raise web.HTTPBadRequest(reason='Service {} could not be registered'.format(service_name))
 
-            bearer_token = "{}_{}".format(service_name.strip(), uuid.uuid4().hex) if token is not None else ""
+            // Set JWT bearewr token
+            // Set expiration
+            exp = datetime.now() + timedelta(seconds=JWT_EXP_DELTA_SECONDS)
+            // Add public token claims
+            claims = {
+                         'aud': JWT_AUDIENCE,
+                         'sub' : service_name,
+                         'iss' : service_type,
+                         'exp': exp}
+
+            // Create JWT token
+            bearer_token = jwt.encode(claims,
+                                      SERVICE_JWT_SECRET,
+                                      SERVICE_JWT_ALGORITHM).decode("utf-8") if token is not None else ""
+
             _response = {
                 'id': registered_service_id,
                 'message': "Service registered successfully",

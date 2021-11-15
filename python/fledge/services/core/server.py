@@ -1120,7 +1120,14 @@ class Server:
             if token is not None:
                 if not isinstance(token, str):
                     msg = 'Token can be a string only'
-                    raise web.HTTPBadRequest(reason=msg, body=json.dumps(msg))
+                    raise web.HTTPBadRequest(reason=msg)
+
+                # Check startup token exists
+                foundToken = cls.scheduler._startupTokens.get(service_name)
+                if foundToken is None or foundToken != token:
+                    msg = 'Token for the service was not found' 
+                    raise web.HTTPBadRequest(reason=msg)
+
             try:
                 registered_service_id = ServiceRegistry.register(service_name, service_type, service_address,
                                                                  service_port, service_management_port,

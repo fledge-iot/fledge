@@ -17,6 +17,8 @@ import os
 import subprocess
 import signal
 from typing import List
+import random
+import string
 
 from fledge.common import logger
 from fledge.common import utils as common_utils
@@ -32,7 +34,7 @@ from fledge.services.core.service_registry import exceptions as service_registry
 from fledge.services.common import utils
 
 __author__ = "Terris Linenbach, Amarendra K Sinha, Massimiliano Pinto"
-__copyright__ = "Copyright (c) 2017-2018 OSIsoft, LLC"
+__copyright__ = "Copyright (c) 2017-2021 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
@@ -127,6 +129,9 @@ class Scheduler(object):
     _core_management_port = None
     _storage = None
     _storage_async = None
+
+    # Startup tokens to pass to service or tasks being started
+    _startupTokens = dict()
 
     def __init__(self, core_management_host=None, core_management_port=None, is_safe_mode=False):
         """Constructor"""
@@ -302,6 +307,17 @@ class Scheduler(object):
         args_to_exec.append("--port={}".format(self._core_management_port))
         args_to_exec.append("--address=127.0.0.1")
         args_to_exec.append("--name={}".format(schedule.name))
+
+        # Check a service / task token exists or create a new one
+        startToken = ""
+        if self._startupTokens.get(schedule.name) is None:
+            letters = string.ascii_lowercase
+            startToken += ''.join((random.choice(string.ascii_lowercase) for x in range(32)))
+            self._startupTokens[schedule.name] = startToken
+
+        # Add startup token to args
+        if startToken is not "":
+            args_to_exec.append("--token={}".format(startToken))
 
         task_process = self._TaskProcess()
         task_process.start_time = time.time()

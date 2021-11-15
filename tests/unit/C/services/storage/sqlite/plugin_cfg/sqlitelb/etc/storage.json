@@ -1,1 +1,18 @@
-{"plugin":{"value":"sqlitelb","default":"sqlitelb","description":"The main storage plugin to load","type":"string","displayName":"Storage Plugin","order":"1"},"readingPlugin":{"value":"","default":"","description":"The storage plugin to load for readings data. If blank the main storage plugin is used.","type":"string","displayName":"Readings Plugin","order":"2"},"threads":{"value":"2","default":"1","description":"The number of threads to run","type":"integer","displayName":"Database threads","order":"3"},"managedStatus":{"value":"false","default":"false","description":"Control if Fledge should manage the storage provider","type":"boolean","displayName":"Manage Storage","order":"4"},"port":{"value":"8080","default":"0","description":"The port to listen on","type":"integer","displayName":"Service Port","order":"5"},"managementPort":{"value":"1081","default":"0","description":"The management port to listen on.","type":"integer","displayName":"Management Port","order":"6"},"logLevel":{"value":"warning","default":"warning","description":"Minimum level of messages to log","type":"enumeration","displayName":"Log Level","options":["error","warning","info","debug"],"order":"7"}}
+{
+  "plugin" : {
+    "value":"sqlitelb"
+  },
+  "readingPlugin" : {
+    "value":""
+  },
+  "threads":
+  {
+    "value":"2"
+  },
+  "port":    {
+    "value":"8080"
+  },
+  "managementPort": {
+    "value":"1081"
+  }
+}

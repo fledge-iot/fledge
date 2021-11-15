@@ -224,7 +224,7 @@ database. One database is reserved for the configuration data.
 Storage Management
 ==================
 
-Fledge manages the amount of storage used by means of purge processes that run periodically to remove older data and thus limit the growth of storage use. Thre purging operations are implemented as Fledge tasks that can be scheduled to run periodically. There are two distinct tasks that are run
+Fledge manages the amount of storage used by means of purge processes that run periodically to remove older data and thus limit the growth of storage use. The purging operations are implemented as Fledge tasks that can be scheduled to run periodically. There are two distinct tasks that are run
 
   - **purge**: This task is responsible for limiting the readings that are maintained within the Fledge buffer.
 
@@ -233,7 +233,7 @@ Fledge manages the amount of storage used by means of purge processes that run p
 Purge Task
 ----------
 
-The purge task is run via a scheduled called *purge*, the default for this schedule is to run the purge task every 10 minutes. This can be modified via the user interface in the *Schedules* menu entry or via the REST API by updating the schedule.
+The purge task is run via a scheduled called *purge*, the default for this schedule is to run the purge task every hour. This can be modified via the user interface in the *Schedules* menu entry or via the REST API by updating the schedule.
 
 The purge task has two metrics it takes into consideration, the age of the readings within the system and the number of readings in the system. These can be configured to control how much data is retained within the system. Note however that this does not mean that there will never be data older than specified or more rows than specified as purge runs periodically and between executions of the purge task the readings buffered will continue to grow.
 
@@ -260,11 +260,15 @@ The configuration of the purge task can be found in the *Configuration* menu ite
     - **retain unset to all destinations**: Data will be retained until it has been sent to all north destinations that are enabled at the time the purge process runs. Disabled north destinations are not included in order to prevent them from stopping all data from being purged.
 
 
+Note: This configuration category will not appear until after the purge process has run for the first time. By default this will be 1 hour after the Fledge instance is started for the first time.
+
 
 System Purge Task
 -----------------
 
 The system purge task is run via a scheduled called *system_purge*, the default for this schedule is to run the system purge task every 23 hours and 50 minutes. This can be modified via the user interface in the *Schedules* menu entry or via the REST API by updating the schedule.
+
+The configuration category for the system purge can be found in the *Configuration* menu item under the *Utilities* section.
 
 +------------+
 | |purge_03| |
@@ -275,3 +279,5 @@ The system purge task is run via a scheduled called *system_purge*, the default 
   - **Audit Retention**: This defines the number of day for which the audit log entries will be retained. Once the entries reach this age they will be removed from the system.
 
   - **Task Retention**: This defines the number of days for which history if task execution within Fledge is maintained.
+
+Note: This configuration category will not appear until after the system purge process has run for the first time.

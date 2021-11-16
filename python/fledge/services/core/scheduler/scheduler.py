@@ -291,6 +291,9 @@ class Scheduler(object):
         # is used by stop() to determine whether the scheduler can stop.
         del self._task_processes[task_process.task_id]
 
+        # Delete startup token
+        self._startupTokens.pop(schedule.name, None)
+
     async def _start_task(self, schedule: _ScheduleRow) -> None:
         """Starts a task process
 
@@ -309,14 +312,13 @@ class Scheduler(object):
         args_to_exec.append("--name={}".format(schedule.name))
 
         # Check a service / task token exists or create a new one
-        startToken = ""
-        if self._startupTokens.get(schedule.name) is None:
+        startToken = self._startupTokens.get(schedule.name, None)
+        if startToken is None:
             letters = string.ascii_lowercase
             startToken += ''.join((random.choice(string.ascii_lowercase) for x in range(32)))
             self._startupTokens[schedule.name] = startToken
 
-        # Add startup token to args
-        if startToken is not "":
+            # Add startup token to args
             args_to_exec.append("--token={}".format(startToken))
 
         task_process = self._TaskProcess()
@@ -1303,6 +1305,9 @@ class Scheduler(object):
                 if task_future.cancel() is True:
                     await self._wait_for_task_completion(task_process)
 
+        # Delete startup token
+        self._startupTokens.pop(schedule.name, None)
+
         self._logger.info(
             "Disabled Schedule '%s/%s' process '%s'\n",
             schedule.name,
@@ -1592,6 +1597,9 @@ class Scheduler(object):
 
         if task_process.future.cancel() is True:
             await self._wait_for_task_completion(task_process)
+
+        # Delete startup token
+        self._startupTokens.pop(schedule.name, None)
 
     def _terminate_child_processes(self, parent_id):
         ps_command = subprocess.Popen("ps -o pid --ppid {} --noheaders".format(parent_id), shell=True,

@@ -538,7 +538,37 @@ async def _hit_delete_url(delete_url, data=None):
 
 
 async def get_delivery_channels(request: web.Request) -> web.Response:
-    pass
+    """ Retrieve a list of all the additional notification channels for the given notification
+
+    :Example:
+        curl -sX GET http://localhost:8081/fledge/notification/overspeed/delivery
+    """
+    try:
+        notification_instance_name = request.match_info.get('notification_name', None)
+        if notification_instance_name is None:
+            raise ValueError("Notification name is required")
+        storage = connect.get_storage_async()
+        config_mgr = ConfigurationManager(storage)
+        notification_config = await config_mgr._read_category_val(notification_instance_name)
+        if notification_config:
+            all_categories = await config_mgr.get_all_category_names()
+            prefix = "{}_channel_".format(notification_instance_name)
+            categories = [c[0] for c in all_categories if c[0].startswith(prefix)]
+            channels = []
+            if categories:
+                for ch in categories:
+                    if ch.startswith(prefix):
+                        channels.append(ch[len(prefix):])
+        else:
+            raise ValueError("{} notification instance does not exist".format(notification_instance_name))
+    except ValueError as err:
+        msg = str(err)
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+    except Exception as ex:
+        msg = str(ex)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+    else:
+        return web.json_response({"channels": channels})
 
 
 async def post_delivery_channel(request: web.Request) -> web.Response:
@@ -577,7 +607,7 @@ async def post_delivery_channel(request: web.Request) -> web.Response:
             # Create parent-child relationship
             await config_mgr.create_child_category(notification_instance_name, [channel_name])
         else:
-            raise ValueError("{} notification instance does not exist.".format(notification_instance_name))
+            raise ValueError("{} notification instance does not exist".format(notification_instance_name))
     except (LookupError, ValueError) as err:
         msg = str(err)
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))

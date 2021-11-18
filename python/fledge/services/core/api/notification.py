@@ -25,10 +25,12 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 _help = """
-    -------------------------------------------------------------------------------
-    | GET                            | /fledge/notification/plugin               |
-    | GET POST PUT DELETE            | /fledge/notification                      |
-    -------------------------------------------------------------------------------
+    -----------------------------------------------------------------------------------------------------
+    | GET                            | /fledge/notification/plugin                                      |
+    | GET POST PUT DELETE            | /fledge/notification                                             |
+    | GET POST                       | /fledge/notification/{name}/delivery                             |
+    | GET DELETE                     | /fledge/notification/{notification_name}/delivery/{channel_name} |
+    -----------------------------------------------------------------------------------------------------
 """
 
 _logger = logger.setup()
@@ -534,3 +536,18 @@ async def _hit_delete_url(delete_url, data=None):
     else:
         return jdoc
 
+
+async def get_delivery_channels(request: web.Request) -> web.Response:
+    pass
+
+
+async def post_delivery_channel(request: web.Request) -> web.Response:
+    pass
+
+
+async def get_delivery_channel_configuration(request: web.Request) -> web.Response:
+    pass
+
+
+async def delete_delivery_channel(request: web.Request) -> web.Response:
+    pass

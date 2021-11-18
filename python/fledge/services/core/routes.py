@@ -197,6 +197,13 @@ def setup(app):
     app.router.add_route('POST', '/fledge/notification', notification.post_notification)
     app.router.add_route('PUT', '/fledge/notification/{notification_name}', notification.put_notification)
     app.router.add_route('DELETE', '/fledge/notification/{notification_name}', notification.delete_notification)
+    app.router.add_route('GET', '/fledge/notification/{notification_name}/delivery', notification.get_delivery_channels)
+    app.router.add_route('POST', '/fledge/notification/{notification_name}/delivery',
+                         notification.post_delivery_channel)
+    app.router.add_route('GET', '/fledge/notification/{notification_name}/delivery/{channel_name}',
+                         notification.get_delivery_channel_configuration)
+    app.router.add_route('DELETE', '/fledge/notification/{notification_name}/delivery/{channel_name}',
+                         notification.delete_delivery_channel)
 
     # Snapshot plugins
     app.router.add_route('GET', '/fledge/snapshot/plugins', snapshot_plugins.get_snapshot)

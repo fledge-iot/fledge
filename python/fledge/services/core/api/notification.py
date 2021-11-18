@@ -655,4 +655,33 @@ async def get_delivery_channel_configuration(request: web.Request) -> web.Respon
 
 
 async def delete_delivery_channel(request: web.Request) -> web.Response:
-    pass
+    """ Remove a delivery channel
+
+    :Example:
+        curl -sX DELETE http://localhost:8081/fledge/notification/overspeed/delivery/coolant
+    """
+    notification_instance_name = request.match_info.get('notification_name', None)
+    channel_name = request.match_info.get('channel_name', None)
+    storage = connect.get_storage_async()
+    config_mgr = ConfigurationManager(storage)
+    try:
+        category_name = "{}_channel_{}".format(notification_instance_name, channel_name)
+        notification_config = await config_mgr._read_category_val(notification_instance_name)
+        if notification_config:
+            channels = await _get_channels(config_mgr, notification_instance_name)
+            if channel_name in channels:
+                await config_mgr.delete_category_and_children_recursively(category_name)
+                # Get channels list again as relation gets deleted above
+                channels = await _get_channels(config_mgr, notification_instance_name)
+            else:
+                raise NotFoundError("{} channel does not exist".format(channel_name))
+        else:
+            raise NotFoundError("{} notification instance does not exist".format(notification_instance_name))
+    except NotFoundError as err:
+        msg = str(err)
+        raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
+    except Exception as ex:
+        msg = str(ex)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+    else:
+        return web.json_response({"channels": channels})

@@ -542,7 +542,51 @@ async def get_delivery_channels(request: web.Request) -> web.Response:
 
 
 async def post_delivery_channel(request: web.Request) -> web.Response:
-    pass
+    """ Add a new delivery channel to an existing notification
+        :Example:
+            curl -sX POST http://localhost:8081/fledge/notification/overspeed/delivery -d '{"name": "coolant", "config": {"action": {"description": "Perform a control action to turn pump", "type": "boolean", "default": "false"}}}'
+        """
+    try:
+        notification_instance_name = request.match_info.get('notification_name', None)
+        if notification_instance_name is None:
+            raise ValueError("Notification name is required.")
+        data = await request.json()
+        channel_name = data.get('name', None)
+        channel_description = data.get('description', "{} delivery channel".format(channel_name))
+        channel_config = data.get('config', {})
+        if channel_name is None:
+            raise ValueError('Missing name property in payload')
+        channel_name = channel_name.strip()
+        if channel_name == "":
+            raise ValueError('Name should not be empty')
+        if utils.check_reserved(channel_name) is False:
+            raise ValueError('name should not use reserved words')
+        if not isinstance(channel_config, dict):
+            raise ValueError('config must be a valid JSON')
+        storage = connect.get_storage_async()
+        config_mgr = ConfigurationManager(storage)
+        notification_config = await config_mgr._read_category_val(notification_instance_name)
+        if notification_config:
+            channel_name = "{}_channel_{}".format(notification_instance_name, channel_name)
+            # Create category
+            await config_mgr.create_category(category_name=channel_name, category_description=channel_description,
+                                             category_value=channel_config)
+            category_info = await config_mgr.get_category_all_items(category_name=channel_name)
+            if category_info is None:
+                raise ValueError('No such {} found'.format(channel_name))
+            # Create parent-child relationship
+            await config_mgr.create_child_category(notification_instance_name, [channel_name])
+        else:
+            raise ValueError("{} notification instance does not exist.".format(notification_instance_name))
+    except (LookupError, ValueError) as err:
+        msg = str(err)
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+    except Exception as ex:
+        msg = str(ex)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+    else:
+        return web.json_response({"category": channel_name, "description": channel_description,
+                                  "config": channel_config})
 
 
 async def get_delivery_channel_configuration(request: web.Request) -> web.Response:

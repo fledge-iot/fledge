@@ -283,6 +283,10 @@ async def mock_read_category_val(key):
         return notification_config
     if key.endswith("overspeed"):
         return delivery_channel_config
+    if key.endswith("foo"):
+        return {}
+    if key.endswith("bar"):
+        return []
 
 
 async def mock_read_all_child_category_names():
@@ -795,7 +799,6 @@ class TestNotification:
         assert "Test Notification" in args
 
         assert 1 == audit_logger.call_count
-        print(audit_logger.call_args_list)
         audit_logger_calls = [call('NTFDL', {'name': 'Test Notification'})]
         audit_logger.assert_has_calls(audit_logger_calls, any_order=True)
 
@@ -888,7 +891,7 @@ class TestNotification:
         mocker.patch.object(ConfigurationManager, '_read_category_val', side_effect=[_se])
 
         resp = await client.get('/fledge/notification/{}/delivery'.format(notification_instance_name))
-        assert 400 == resp.status
+        assert 404 == resp.status
         assert message == resp.reason
         result = await resp.text()
         json_response = json.loads(result)
@@ -919,3 +922,27 @@ class TestNotification:
         result = await resp.text()
         json_response = json.loads(result)
         assert exp_channel == json_response['channels']
+
+    @pytest.mark.parametrize("notification_instance_name, channel_name, message", [
+        ("foo", "bar", "foo notification instance does not exist"),
+        ("Test Notification", "bar", "bar channel does not exist")
+    ])
+    async def test_bad_get_delivery_channel_configuration(self, mocker, client, notification_instance_name,
+                                                          channel_name, message):
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info >= (3, 8):
+            _se1 = await mock_read_category_val(notification_instance_name)
+            _se2 = await mock_read_category_val(channel_name)
+        else:
+            _se1 = asyncio.ensure_future(mock_read_category_val(notification_instance_name))
+            _se2 = asyncio.ensure_future(mock_read_category_val(channel_name))
+        mocker.patch.object(connect, 'get_storage_async')
+        mocker.patch.object(ConfigurationManager, '__init__', return_value=None)
+        mocker.patch.object(ConfigurationManager, '_read_category_val', side_effect=[_se1])
+        mocker.patch.object(notification, '_get_channels', side_effect=[_se2])
+        resp = await client.get('/fledge/notification/{}/delivery/{}'.format(notification_instance_name, channel_name))
+        assert 404 == resp.status
+        assert message == resp.reason
+        result = await resp.text()
+        json_response = json.loads(result)
+        assert {"message": message} == json_response

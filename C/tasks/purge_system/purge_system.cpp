@@ -154,6 +154,7 @@ ConfigCategory PurgeSystem::configurationHandling(const std::string& config)
 		raiseError ("Failure creating/updating configuration key :%s: ", categoryName.c_str() );
 	}
 
+	// FIXME_I:
 	// Purge system category as child of Utilities
 	{
 		vector<string> children;

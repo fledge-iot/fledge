@@ -1659,10 +1659,10 @@ class Server:
                 return web.json_response(ret)
             else:
                 msg = ret['error']
-                raise web.HTTPBadRequest(reason=msg, body="{\"'error\": \"" +  msg + "\"}")
+                raise web.HTTPBadRequest(reason=msg, body="{\"error\": \"" +  msg + "\"}")
         else:
             msg = 'bearer token parameter is missing'
-            raise web.HTTPBadRequest(reason=msg, body="{\"'error\": \"" +  msg + "\"}")
+            raise web.HTTPBadRequest(reason=msg, body="{\"error\": \"" +  msg + "\"}")
 
     @classmethod
     def validate_token(cls, token):

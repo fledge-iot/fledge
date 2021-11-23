@@ -1706,11 +1706,6 @@ vector<string>  assetCodes;
 	}
 	Logger::getLogger()->debug("%s - flags :%X: flag_retain :%d: sent :%ld:", __FUNCTION__, flags, flag_retain, sent);
 
-	result = "{ \"removed\" : 0, ";
-	result += " \"unsentPurged\" : 0, ";
-	result += " \"unsentRetained\" : 0, ";
-	result += " \"readings\" : 0 }";
-
 	logger->info("Purge starting...");
 	gettimeofday(&startTv, NULL);
 	/*
@@ -1872,7 +1867,7 @@ vector<string>  assetCodes;
 
 		Logger::getLogger()->debug("purgeReadings purge_readings :%d: age :%d:", purge_readings, age);
 	}
-	Logger::getLogger()->debug("purgeReadings: purge_readings %d", age);
+	Logger::getLogger()->debug("%s - rowidLimit :%lu: maxrowidLimit :%lu: maxrowidLimit :%lu: age :%lu:", __FUNCTION__, rowidLimit, maxrowidLimit, minrowidLimit, age);
 
 
 	{
@@ -1905,7 +1900,7 @@ vector<string>  assetCodes;
 		{
 			unsigned long midRowId = 0;
 			unsigned long prev_m = m;
-		    	m = l + (r - l) / 2;
+			m = l + (r - l) / 2;
 			if (prev_m == m) break;
 
 			// e.g. select id from readings where rowid = 219867307 AND user_ts < datetime('now' , '-24 hours', 'utc');
@@ -1968,10 +1963,8 @@ vector<string>  assetCodes;
 			else //if (l != m)
 			{
 				// search in later/right half
-		        	l = m + 1;
+				l = m + 1;
 			}
-
-			Logger::getLogger()->debug("%s - rowidLimit :%lu: minrowidLimit :%lu: midRowId :%lu:", __FUNCTION__, rowidLimit, minrowidLimit, midRowId);
 		}
 
 		rowidLimit = m;
@@ -1985,8 +1978,7 @@ vector<string>  assetCodes;
 		}
 
 		rowidMin = minrowidLimit;
-
-		Logger::getLogger()->debug("purgeReadings m :%lu: rowidMin :%lu: ",m,  rowidMin);
+		Logger::getLogger()->debug("%s - m :%lu: rowidMin :%lu: ",__FUNCTION__ ,m,  rowidMin);
 	}
 
 	//logger->info("Purge collecting unsent row count");
@@ -2051,7 +2043,7 @@ vector<string>  assetCodes;
 			unsentPurged = unsent;
 		}
 
-		Logger::getLogger()->debug("purgeReadings lastPurgedId :%d: unsentPurged :%ld:"  ,lastPurgedId, unsentPurged);
+		Logger::getLogger()->debug("%s - lastPurgedId :%d: unsentPurged :%ld:",__FUNCTION__, lastPurgedId, unsentPurged);
 	}
 	if (m_writeAccessOngoing)
 	{
@@ -2095,7 +2087,7 @@ vector<string>  assetCodes;
 		rc = readCat->purgeAllReadings(dbHandle, query ,&zErrMsg, &rowsAffected);
 		END_TIME;
 
-		logger->debug("%s - DELETE - query :%s: rowsAffected :%ld:",  __FUNCTION__, query ,rowsAffected);
+		logger->debug("%s - DELETE sql :%s: rowsAffected :%ld:",  __FUNCTION__, query ,rowsAffected);
 
 		// Release memory for 'query' var
 		delete[] query;

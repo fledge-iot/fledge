@@ -1681,6 +1681,7 @@ class Server:
     @classmethod
     def validate_token(cls, token):
         """ Validate service bearer token
+        """
         try:
             ret = jwt.decode(token,
                          SERVICE_JWT_SECRET,

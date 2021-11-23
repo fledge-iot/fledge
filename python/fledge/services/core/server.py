@@ -1642,3 +1642,36 @@ class Server:
             raise web.HTTPInternalServerError(reason=ex)
 
         return web.json_response(message)
+
+    @classmethod
+        """ Endpoint for verifycation of service bearer token received at registration time
+
+        :Example:
+            curl -X POST -d '{"bearer_token" : "hjhdjsfshhj"}
+             http://localhost:<core mngmt port>/fledge/service/verity_token
+        """
+    async def verify_token(cls, request):
+        data = await request.json()
+        bearer_token = data.get('bearer_token', None)
+        if bearer_token is not None:
+            ret = cls.validate_token(bearer_token)
+            if ret.get('error') is None:
+                return web.json_response(ret)
+            else:
+                msg = ret['error']
+                raise web.HTTPBadRequest(reason=msg, body="{\"'error\": \"" +  msg + "\"}")
+        else:
+            msg = 'bearer token parameter is missing'
+            raise web.HTTPBadRequest(reason=msg, body="{\"'error\": \"" +  msg + "\"}")
+
+    @classmethod
+    def validate_token(cls, token):
+        """ Validate service bearer token
+        try:
+            ret = jwt.decode(token,
+                         SERVICE_JWT_SECRET,
+                         algorithms=[SERVICE_JWT_ALGORITHM],
+                         options = {"verify_signature": True, "verify_aud": False, "verify_exp": True})
+            return ret
+        except Exception as e:
+            return { 'error' : str(e) }

@@ -58,6 +58,9 @@ def setup(app, obj, is_core=False):
         # Internal refresh cache
         app.router.add_route('PUT', '/fledge/cache', obj.refresh_cache)
 
+        # Service token verification
+        app.router.add_route('POST', '/fledge/service/verify_token', obj.verify_token)
+
     # enable cors support
     enable_cors(app)
 

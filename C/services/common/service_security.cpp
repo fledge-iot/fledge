@@ -13,9 +13,17 @@
 using namespace std;
 using HttpServer = SimpleWeb::Server<SimpleWeb::HTTP>;
 
+/**
+ * Initialise m_mgtClient object to NULL
+ */
 ManagementClient *ServiceAuthHandler::m_mgtClient = NULL;
 
-// Create "$serviceSecurity" category with empty content
+/**
+ * Create "${service}Security" category with empty content
+ *
+ * @param mgtClient	The management client object
+ * @return		True on success, False otherwise
+ */
 bool ServiceAuthHandler::createSecurityCategories(ManagementClient* mgtClient)
 {
 	string securityCatName = m_name + string("Security");
@@ -49,7 +57,13 @@ bool ServiceAuthHandler::createSecurityCategories(ManagementClient* mgtClient)
 	return true;
 }
 
-// Update the class objects from security category content update
+/**
+ * Update the class objects from security category content update
+ *
+ * @param category	The service category name
+ * @return		True on success, False otherwise
+ */
+ 
 bool ServiceAuthHandler::updateSecurityCategory(const string& category)
 {
 	// Lock config
@@ -72,7 +86,9 @@ bool ServiceAuthHandler::updateSecurityCategory(const string& category)
 	Logger::getLogger()->debug("updateSecurityCategory called, switch val %d", acl_set);
 }
 
-// Set initial value of enabled authentication
+/**
+ * Set initial value of enabled authentication
+ */
 void ServiceAuthHandler::setInitialAuthenticatedCaller()
 {
 	bool acl_set = false;
@@ -90,14 +106,22 @@ void ServiceAuthHandler::setInitialAuthenticatedCaller()
 	}
 }
 
-// Set enabled authentication value
+/**
+ * Set enabled authentication value
+ *
+ * @param enabled	The enable/disable flag to set
+ */
 void ServiceAuthHandler::setAuthenticatedCaller(bool enabled)
 {
 	lock_guard<mutex> guard(m_mtx_config);
 	m_authentication_enabled = enabled;
 }
 
-// Return enabled authentication value
+/**
+ * Return enabled authentication value
+ *
+ * @return	True on success, False otherwise
+ */
 bool ServiceAuthHandler::getAuthenticatedCaller()
 {
 	lock_guard<mutex> guard(m_mtx_config);
@@ -273,7 +297,10 @@ void ServiceAuthHandler::AuthenticationMiddlewarePUT(shared_ptr<HttpServer::Resp
         		        shared_ptr<HttpServer::Response>,
         		        shared_ptr<HttpServer::Request>)> funcPUT)
 {
+	// Get authentication enabled value
 	bool acl_set = this->getAuthenticatedCaller();
+
+	// Check authentication
 	if (acl_set)
 	{
 		Logger::getLogger()->debug("This service %s has AuthenticatedCaller flag set %d",

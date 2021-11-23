@@ -173,11 +173,7 @@ unsigned long	  age, size;
 
 	if (flags & STORAGE_PURGE_SIZE)
 	{
-		manager->release(connection);
-		/**
-		 * Throw PluginNotImplementedException for purge by size in Postgres
-		 */
-		throw PluginNotImplementedException("Purge by size is not supported by 'Postgres' storage engine.");
+		(void)connection->purgeReadingsByRows(param, flags, sent, results);
 	}
 	else
 	{

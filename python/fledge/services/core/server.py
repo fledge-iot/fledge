@@ -1654,15 +1654,29 @@ class Server:
         data = await request.json()
         bearer_token = data.get('bearer_token', None)
         if bearer_token is not None:
+            # Check input token exists in system
+            foundToken = False
+            services_list = ServiceRegistry.all()
+            for service in services_list:
+                t = service._token if service._token is not None else ""
+                if t == bearer_token:
+                    foundToken = True
+                    break
+            # Raise error if token does not exists
+            if foundToken == False:
+                msg = 'token does not exist in system'
+                raise web.HTTPBadRequest(reason=msg, body=json.dumps({"error": msg}))
+
+            # Validate existing token
             ret = cls.validate_token(bearer_token)
             if ret.get('error') is None:
                 return web.json_response(ret)
             else:
                 msg = ret['error']
-                raise web.HTTPBadRequest(reason=msg, body="{\"error\": \"" +  msg + "\"}")
+                raise web.HTTPBadRequest(reason=msg, body=json.dumps({"error": msg}))
         else:
             msg = 'bearer token parameter is missing'
-            raise web.HTTPBadRequest(reason=msg, body="{\"error\": \"" +  msg + "\"}")
+            raise web.HTTPBadRequest(reason=msg, body=json.dumps({"error": msg}))
 
     @classmethod
     def validate_token(cls, token):

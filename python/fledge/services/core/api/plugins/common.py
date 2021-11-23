@@ -145,23 +145,22 @@ def load_and_fetch_c_hybrid_plugin_info(plugin_name: str, is_config: bool, plugi
 
 
 @lru_cache(maxsize=1, typed=True)
-def _get_available_packages(code: int, tmp_log_output_fp: str, pkg_mgt: str, pkg_type: str) -> tuple:
+def _get_available_packages(tmp_log_output_fp: str, pkg_mgt: str, pkg_type: str) -> tuple:
     available_packages = []
-    if code == 0:
-        open(tmp_log_output_fp, "w").close()
-        if pkg_mgt == 'yum':
-            cmd = "sudo yum list available fledge-{}\* | grep fledge | cut -d . -f1 > {} 2>&1".format(
-                pkg_type, tmp_log_output_fp)
-        else:
-            cmd = "sudo apt list | grep fledge-{} | grep -v installed | cut -d / -f1  > {} 2>&1".format(
-                pkg_type, tmp_log_output_fp)
-        code = os.system(cmd)
+    open(tmp_log_output_fp, "w").close()
+    if pkg_mgt == 'yum':
+        cmd = "sudo yum list available fledge-{}\* | grep fledge | cut -d . -f1 > {} 2>&1".format(
+            pkg_type, tmp_log_output_fp)
+    else:
+        cmd = "sudo apt list | grep fledge-{} | grep -v installed | cut -d / -f1  > {} 2>&1".format(
+            pkg_type, tmp_log_output_fp)
+    code = os.system(cmd)
 
-        # Below temporary file is for Output of above command which is needed to return in API response
-        with open("{}".format(tmp_log_output_fp), 'r') as fh:
-            for line in fh:
-                line = line.rstrip("\n")
-                available_packages.append(line)
+    # Below temporary file is for Output of above command which is needed to return in API response
+    with open("{}".format(tmp_log_output_fp), 'r') as fh:
+        for line in fh:
+            line = line.rstrip("\n")
+            available_packages.append(line)
 
     return code, available_packages
 
@@ -175,7 +174,6 @@ async def fetch_available_packages(package_type: str = "") -> tuple:
     _platform = platform.platform()
     pkg_type = "" if package_type is None else package_type
     pkg_mgt = 'yum' if 'centos' in _platform or 'redhat' in _platform else 'apt'
-    ret_code = 0
     category = await server.Server._configuration_manager.get_category_all_items("Installation")
     max_update_cat_item = category['maxUpdate']
     pkg_cache_mgr = server.Server._package_cache_manager
@@ -191,15 +189,13 @@ async def fetch_available_packages(package_type: str = "") -> tuple:
         if 'centos' in _platform or 'redhat' in _platform:
             pkg_mgt = 'yum'
             cmd = "sudo {} check-update > {} 2>&1".format(pkg_mgt, stdout_file_path)
-
-        ret_code = os.system(cmd)
-        if ret_code == 0:
-            pkg_cache_mgr['update']['last_accessed_time'] = now
-            # fetch available package caching always clear on every update request
-            _get_available_packages.cache_clear()
+        # Execute command
+        os.system(cmd)
+        pkg_cache_mgr['update']['last_accessed_time'] = now
+        # fetch available package caching always clear on every update request
+        _get_available_packages.cache_clear()
     else:
         _logger.warning("Maximum update exceeds the limit for the day")
-
     ttl_cat_item_val = int(category['listAvailablePackagesCacheTTL']['value'])
     if ttl_cat_item_val > 0:
         last_accessed_time = pkg_cache_mgr['list']['last_accessed_time']
@@ -214,19 +210,15 @@ async def fetch_available_packages(package_type: str = "") -> tuple:
     else:
         _get_available_packages.cache_clear()
         pkg_cache_mgr['list']['last_accessed_time'] = ""
-
-    ret_code, available_packages = _get_available_packages(ret_code, tmp_log_output_fp, pkg_mgt, pkg_type)
-
+    ret_code, available_packages = _get_available_packages(tmp_log_output_fp, pkg_mgt, pkg_type)
     # combine above output in logs file
     with open("{}".format(stdout_file_path), 'a') as fh:
         fh.write(" \n".join(available_packages))
         if not len(available_packages):
             fh.write("No package available to install")
-
     # Remove tmp_log_output_fp
     if os.path.isfile(tmp_log_output_fp):
         os.remove(tmp_log_output_fp)
-
     # relative log file link
     link = "logs/" + stdout_file_path.split("/")[-1]
     if ret_code != 0:

@@ -1,7 +1,7 @@
 /*
  * Fledge storage service.
  *
- * Copyright (c) 2017-2018 OSisoft, LLC
+ * Copyright (c) 2017-2021 OSisoft, LLC
  *
  * Released under the Apache 2.0 Licence
  *
@@ -757,9 +757,42 @@ bool ManagementClient::verifyAccessBearerToken(shared_ptr<HttpServer::Request> r
 	item = m_received_tokens.find(bearer_token);
 	if (item  == m_received_tokens.end())
 	{
+		bool verified = false;
 		// Token does not exist:
-		// TODO Verify it by calling Fledge new endpoint
-		bool verified = true;
+		// Verify it by calling Fledge management endpoint
+		string url = "/fledge/service/verify_token";
+		string payload = "{ \"bearer_token\" : \"" + bearer_token + "\"}";
+		auto res = this->getHttpClient()->request("POST", url.c_str(), payload);
+		Document doc;
+		string response = res->content.string();
+		doc.Parse(response.c_str());
+		if (doc.HasParseError())
+		{
+			bool httpError = (isdigit(response[0]) && isdigit(response[1]) && isdigit(response[2]) && response[3]==':');
+			m_logger->error("%s error in service token verification: %s\n", 
+								httpError?"HTTP error during":"Failed to parse result of", 
+								response.c_str());
+			verified = false;
+		}
+		else
+		{
+			if (doc.HasMember("error"))
+			{
+				string error = doc["error"].GetString();
+				m_logger->error("Failed to parse token verification result, error %s",
+						error.c_str());
+				verified = false;
+			}
+			else
+			{
+				verified = true;
+
+				// Set token claims in the input map
+				claims["aud"] = doc["aud"].GetString();
+				claims["sub"] = doc["sub"].GetString();
+				claims["iss"] = doc["iss"].GetString();
+			}
+		}
 
 		if (verified)
 		{
@@ -769,7 +802,8 @@ bool ManagementClient::verifyAccessBearerToken(shared_ptr<HttpServer::Request> r
 		else
 		{
 			ret = false;
-			m_logger->error("Micro service bearer token '%s' not verified.", bearer_token.c_str());
+			m_logger->error("Micro service bearer token '%s' not verified.",
+					bearer_token.c_str());
 		}
 	}
 

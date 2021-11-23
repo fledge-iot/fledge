@@ -119,9 +119,19 @@ bool ServiceAuthHandler::verifyURL(const string& path, map<string, string> claim
 	// Parse security config with lock
 	unique_lock<mutex> cfgLock(m_mtx_config);
 
-	doc.Parse(this->m_security.getValue("ACL").c_str());
-
+	string acl;
+	if (this->m_security.itemExists("ACL"))
+	{
+		acl = this->m_security.getValue("ACL");
+	}
 	cfgLock.unlock();
+
+	if (acl.empty())
+	{
+		return true;
+	}
+
+	doc.Parse(acl.c_str());
 
 	Value arrayURL;
 	if (doc["URL"].IsArray())
@@ -177,9 +187,19 @@ bool ServiceAuthHandler::verifyService(string& sName, string &sType)
 	// Parse security config with lock
 	unique_lock<mutex> cfgLock(m_mtx_config);
 
-	doc.Parse(this->m_security.getValue("ACL").c_str());
-
+	string acl;
+	if (this->m_security.itemExists("ACL"))
+	{
+		acl = this->m_security.getValue("ACL");
+	}
 	cfgLock.unlock();
+
+	if (acl.empty())
+	{
+		return true;
+	}
+
+	doc.Parse(acl.c_str());
 
 	if (doc["service"].IsArray())
 	{
@@ -260,6 +280,8 @@ void ServiceAuthHandler::AuthenticationMiddlewarePUT(shared_ptr<HttpServer::Resp
 			this->getName().c_str(),
 			acl_set);
 		map<string, string> tokenClaims;
+		// Verify token via Fledge management core POST API call
+		// and fill tokenClaims map
 		bool ret = m_mgtClient->verifyAccessBearerToken(request, tokenClaims);
 		if (!ret)
 		{
@@ -271,12 +293,6 @@ void ServiceAuthHandler::AuthenticationMiddlewarePUT(shared_ptr<HttpServer::Resp
 
 			return;
 		}
-
-		// TODO get token claims from FogLAMP issued bearer token
-		// Fill tokenClaims with examples
-		tokenClaims["aud"] = "Fledge";
-		tokenClaims["sub"] = "DISP1";		// Service Name
-		tokenClaims["iss"] = "Dispatcher";	// Service Type
 
 		// Check for valid service caller (name, type)
 		bool valid_service = this->verifyService(tokenClaims["sub"], tokenClaims["iss"]);
@@ -301,8 +317,8 @@ void ServiceAuthHandler::AuthenticationMiddlewarePUT(shared_ptr<HttpServer::Resp
 					responsePayload);
 			return;
 		}
-
-		// Call PUT endpoint routine
-		funcPUT(response, request);
 	}
+
+	// Call PUT endpoint routine
+	funcPUT(response, request);
 }

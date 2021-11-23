@@ -1644,13 +1644,13 @@ class Server:
         return web.json_response(message)
 
     @classmethod
+    async def verify_token(cls, request):
         """ Endpoint for verifycation of service bearer token received at registration time
 
         :Example:
             curl -X POST -d '{"bearer_token" : "hjhdjsfshhj"}
              http://localhost:<core mngmt port>/fledge/service/verity_token
         """
-    async def verify_token(cls, request):
         data = await request.json()
         bearer_token = data.get('bearer_token', None)
         if bearer_token is not None:
@@ -1658,7 +1658,7 @@ class Server:
             foundToken = False
             services_list = ServiceRegistry.all()
             for service in services_list:
-                t = service._token if service._token is not None else ""
+                t = service._bearer_token if service._bearer_token is not None else ""
                 if t == bearer_token:
                     foundToken = True
                     break

@@ -1732,7 +1732,7 @@ class Server:
                                                     m_port=service._management_port,
                                                     s_address=service._address,
                                                     s_protocol=service._protocol,
-                                                    s_token=bearer_token)
+                                                    s_bearer_token=bearer_token)
                                 for idx, item in enumerate(ServiceRegistry._registry):
                                     if getattr(item, "_name") == service._name:
                                         ServiceRegistry._registry[idx] = obj

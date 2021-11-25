@@ -581,10 +581,28 @@ async def post_delivery_channel(request: web.Request) -> web.Response:
     """
     try:
         notification_instance_name = request.match_info.get('notification_name', None)
+
+        #// FIXME_I:
+        import logging
+
+
+        #// FIXME_I:
+        _logger.setLevel(logging.DEBUG)
+        _logger.debug("xxx8 ---  -----------------------------------------------------------------------------------------:")
+        _logger.debug("xxx8 post_delivery_channel :{}: -".format(notification_instance_name) )
+
+
+
         data = await request.json()
         channel_name = data.get('name', None)
         channel_description = data.get('description', "{} delivery channel".format(channel_name))
         channel_config = data.get('config', {})
+
+
+        #// FIXME_I:
+        _logger.debug("xxx8 post_delivery_channel channel_name s1 :{}:  channel_config :{}:".format(channel_name,channel_config) )
+
+
         if channel_name is None:
             raise ValueError('Missing name property in payload')
         channel_name = channel_name.strip()
@@ -597,16 +615,39 @@ async def post_delivery_channel(request: web.Request) -> web.Response:
         storage = connect.get_storage_async()
         config_mgr = ConfigurationManager(storage)
         notification_config = await config_mgr._read_category_val(notification_instance_name)
+
+        #// FIXME_I:
+        _logger.debug("xxx8 post_delivery_channel channel_name s2")
+
         if notification_config:
+
+            #// FIXME_I:
+            _logger.debug("xxx8 post_delivery_channel channel_name s3")
+
             channel_name = "{}_channel_{}".format(notification_instance_name, channel_name)
             # Create category
             await config_mgr.create_category(category_name=channel_name, category_description=channel_description,
                                              category_value=channel_config)
+            #// FIXME_I:
+            _logger.debug("xxx8 post_delivery_channel channel_name s3.1")
+
+
             category_info = await config_mgr.get_category_all_items(category_name=channel_name)
+
+            #// FIXME_I:
+            _logger.debug("xxx8 post_delivery_channel channel_name s3.2")
+
             if category_info is None:
                 raise NotFoundError('No such {} category found'.format(channel_name))
             # Create parent-child relationship
             await config_mgr.create_child_category(notification_instance_name, [channel_name])
+
+            #// FIXME_I:
+            _logger.debug("xxx8 post_delivery_channel channel_name s4")
+
+            #// FIXME_I:
+            _logger.setLevel(logging.WARNING)
+
         else:
             raise NotFoundError("{} notification instance does not exist".format(notification_instance_name))
     except ValueError as err:

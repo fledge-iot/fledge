@@ -538,14 +538,58 @@ async def _hit_delete_url(delete_url, data=None):
 
 
 async def _get_channels(cfg_mgr: ConfigurationManager, notify_instance: str) -> list:
-    prefix = "{}_channel_".format(notify_instance)
+    """ Retrieve all  channels
+        the first having the naming : delivery +  "NotificationName"
+        the extras                  : "NotificationName" + _channel_ + "DeliveryName"
+    :Example:
+        deliveryTooHot1 (mqtt)
+        TooHot1_channel_asset_2
+        TooHot1_channel_mqtt_3
+
+    """
+
+    namingFirst = "delivery{}".format(notify_instance)
+    list_first = await _get_channels_type(cfg_mgr, notify_instance, namingFirst, False)
+
+    namingExtra = "{}_channel_".format(notify_instance)
+    list_extra = await _get_channels_type(cfg_mgr, notify_instance, namingExtra, True)
+
+    full_list = []
+
+    full_list.extend(list_first)
+    full_list.extend(list_extra)
+
+    return full_list
+
+
+async def _get_channels_type(cfg_mgr: ConfigurationManager, notify_instance: str, prefix: str, extra: bool) -> list:
+    """ Retrieve a type of channel
+    """
+
     all_categories = await cfg_mgr.get_all_category_names()
+
     categories = [c[0] for c in all_categories if c[0].startswith(prefix)]
     channel_names = []
+
     if categories:
         for ch in categories:
             if ch.startswith(prefix):
-                channel_names.append(ch[len(prefix):])
+
+                category_info = await cfg_mgr._read_category(ch)
+
+                if extra:
+                    try:
+                        delivery_name = ch[len(prefix):] + "/" + category_info['value']['plugin']['value']
+                    except KeyError:
+                        delivery_name = ch[len(prefix):]
+                else:
+                    try:
+                        delivery_name = ch + "/" + category_info['value']['plugin']['value']
+                    except KeyError:
+                        delivery_name = ch
+
+                channel_names.append(delivery_name)
+
     return channel_names
 
 

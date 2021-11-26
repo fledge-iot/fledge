@@ -314,8 +314,7 @@ class Scheduler(object):
         # Check a service / task token exists or create a new one
         startToken = self._startupTokens.get(schedule.name, None)
         if startToken is None:
-            letters = string.ascii_lowercase
-            startToken = ''.join((random.choice(string.ascii_lowercase) for x in range(32)))
+            startToken = ''.join((random.choice(string.ascii_letters) for x in range(32)))
             self._startupTokens[schedule.name] = startToken
 
             # Add startup token to args

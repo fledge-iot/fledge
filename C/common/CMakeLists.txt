@@ -29,7 +29,7 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/../lib)
 add_library(${PROJECT_NAME} SHARED ${SOURCES})
 target_link_libraries(${PROJECT_NAME} ${UUIDLIB})
 target_link_libraries(${PROJECT_NAME} ${Boost_LIBRARIES})
-target_link_libraries(${PROJECT_NAME} -lssl -lcrypto)
+target_link_libraries(${PROJECT_NAME} -lcrypto)
 
 set_target_properties(${PROJECT_NAME} PROPERTIES SOVERSION 1)
 

@@ -1155,9 +1155,9 @@ class Server:
             exp = int(time.time()) + SERVICE_JWT_EXP_DELTA_SECONDS
             # Add public token claims
             claims = {
-                         'aud': SERVICE_JWT_AUDIENCE,
+                         'aud': service_type,
                          'sub' : service_name,
-                         'iss' : service_type,
+                         'iss' : SERVICE_JWT_AUDIENCE,
                          'exp': exp
                      }
 

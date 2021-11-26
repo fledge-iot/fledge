@@ -186,7 +186,7 @@ bool ServiceAuthHandler::verifyURL(const string& path, map<string, string> claim
 				if (configURL == path)
 				{
 					// Check whether there is a service ACL for the matched URL
-					return this->verifyService(claims["sub"], claims["iss"]);
+					return this->verifyService(claims["sub"], claims["aud"]);
 				}
 			}
 		}
@@ -322,7 +322,7 @@ void ServiceAuthHandler::AuthenticationMiddlewarePUT(shared_ptr<HttpServer::Resp
 		}
 
 		// Check for valid service caller (name, type)
-		bool valid_service = this->verifyService(tokenClaims["sub"], tokenClaims["iss"]);
+		bool valid_service = this->verifyService(tokenClaims["sub"], tokenClaims["aud"]);
 		if (!valid_service)
 		{
 			string msg = "authorisation not granted to this service";

@@ -14,16 +14,21 @@
 #include <string_utils.h>
 #include <asset_tracking.h>
 #include <bearer_token.h>
+#include <crypto.hpp>
 
 using namespace std;
 using namespace rapidjson;
 using HttpClient = SimpleWeb::Client<SimpleWeb::HTTP>;
+using namespace SimpleWeb;
 
 // handles m_client_map access
 std::mutex mng_mtx_client_map;
 
+// TODO: move it into the class
 // handles m_received_tokens
 std::mutex mtx_received_tokens;
+
+vector<string> JWTTokenSplit(const string &s, char delim);
 
 /**
  * Management Client constructor
@@ -740,14 +745,6 @@ bool ManagementClient::verifyAccessBearerToken(shared_ptr<HttpServer::Request> r
 		return false;
 	}
 
-	// TODO Check for valid JWT token claims
-	// if (not_valid)
-	//     m_received_tokens.erase(bearer_token);
-
-	// TODO Check expiration time
-	// if (expired)
-	//     m_received_tokens.erase(bearer_token);
-
 	bool ret = true;
 
 	// Check token already exists in cache:
@@ -806,10 +803,70 @@ bool ManagementClient::verifyAccessBearerToken(shared_ptr<HttpServer::Request> r
 					bearer_token.c_str());
 		}
 	}
+	else
+	{
+		// A validated token exists: check expiration time
+		vector<string> elems = JWTTokenSplit(bearer_token, '.');
+		// Add missing base64 padding
+		if (elems[1].length() % 2 != 0)
+		{
+			elems[1] += "=";
+		}
+		if (elems[1].length() % 2 != 0)
+		{
+			elems[1] += "=";
+		}
+		// Base64 decode of second part of bearer token (with public claims)
+		string plainData = Crypto::Base64::decode(elems[1]);
+		Document doc;
+		doc.Parse(plainData.c_str());
+		// TODO check JSON parsing
+		unsigned long expiration = doc["exp"].GetUint();
+		unsigned long now = time(NULL);
+
+		// Check expiration
+		if (now >= expiration)
+		{
+			ret = false;
+			// Remove token from received ones
+			m_received_tokens.erase(bearer_token);
+
+			m_logger->error("Micro service bearer token '%s' has expired.",
+					bearer_token.c_str());
+		}
+		else
+		{
+			// Token still valid, set token claims in the input map
+			claims["aud"] = doc["aud"].GetString();
+			claims["sub"] = doc["sub"].GetString();
+			claims["iss"] = doc["iss"].GetString();
+		}
+	}
 
 	mtx_received_tokens.unlock();
 
 	m_logger->debug("Token verified %d", ret);
 
 	return ret;
+}
+
+/**
+ * Split JWT token (yyyy.wwww.zzzz) components into a vector of strings
+ *
+ * @param    s          The JWT bearer token string
+ * @param    delim      The JWT bearer token delimiter char
+ * @return              A vector of strings with token components
+ */
+vector<string> JWTTokenSplit(const string &s, char delim)
+{
+	stringstream ss(s);
+	string item;
+	// Output array
+	vector<string> elems;
+
+	while (std::getline(ss, item, delim)) {
+		elems.push_back(item);
+	}
+
+	return elems;
 }

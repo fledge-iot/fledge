@@ -12,7 +12,7 @@ const char *script = R"(
 import numpy as np
 
 def array_sort(arg, key):
-    readings = arg["reading"];
+    readings = arg["readings"];
     arr = readings[key];
     readings[key] = np.sort(arr)
     return arg
@@ -105,7 +105,6 @@ class  PythonReadingNumpyTest : public testing::Test {
 			PyObject* method = PyObject_GetAttrString(mod, name);
 			if (method != NULL)
 			{
-				//rval = PyObject_CallObject(method, Py_BuildValue("O", arg));
 				rval = PyObject_CallFunction(method, "O", arg);
 				if (rval == NULL)
 				{
@@ -184,6 +183,7 @@ class  PythonReadingNumpyTest : public testing::Test {
 
 TEST_F(PythonReadingNumpyTest, ArraySort)
 {
+#if RUNME
 	DataBuffer *buffer = new DataBuffer(sizeof(uint16_t), 5);
 	uint16_t *ptr = (uint16_t *)buffer->getData();
 	*ptr = 5;
@@ -216,5 +216,6 @@ TEST_F(PythonReadingNumpyTest, ArraySort)
 		EXPECT_EQ(*(ptr + 3), 4);
 		EXPECT_EQ(*(ptr + 4), 5);
 	}
+#endif
 }
 }

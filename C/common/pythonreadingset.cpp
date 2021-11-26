@@ -43,13 +43,13 @@ PythonReadingSet::PythonReadingSet(PyObject *set)
  *
  * @return A Python object that contains the set of readings as a Python list
  */
-PyObject *PythonReadingSet::toPython()
+PyObject *PythonReadingSet::toPython(bool changeKeys)
 {
 	PyObject *set = PyList_New(m_readings.size());
 	for (int i = 0; i < m_readings.size(); i++)
 	{
 		PythonReading *pyReading = (PythonReading *)m_readings[i];
-		PyList_SetItem(set, i, pyReading->toPython());
+		PyList_SetItem(set, i, pyReading->toPython(changeKeys));
 	}
 	return set;
 }

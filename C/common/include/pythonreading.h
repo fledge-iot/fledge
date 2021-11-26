@@ -20,7 +20,7 @@
 class PythonReading : public Reading {
 	public:
 		PythonReading(PyObject *pyReading);
-		PyObject 		*toPython();
+		PyObject 		*toPython(bool changeKeys = false);
 		static std::string	errorMessage();
 		static bool		doneNumPyImport;
 		static bool		isArray(PyObject *);

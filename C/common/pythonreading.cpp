@@ -47,10 +47,14 @@ PythonReading::PythonReading(PyObject *pyReading)
 {
 	// Get 'asset_code' value: borrowed reference.
 	PyObject *assetCode = PyDict_GetItemString(pyReading,
-						   "asset_code");
+						   "asset");
+	if (!assetCode)
+		assetCode = PyDict_GetItemString(pyReading, "asset_code");
 	// Get 'reading' value: borrowed reference.
 	PyObject *reading = PyDict_GetItemString(pyReading,
-						 "reading");
+						 "readings");
+	if (!reading)
+		reading = PyDict_GetItemString(pyReading, "reading");
 	// Keys not found or reading is not a dict
 	if (!assetCode ||
 	    !reading ||
@@ -245,7 +249,7 @@ DatapointValue *PythonReading::getDatapointValue(PyObject *value)
  *
  * @return PyObject*	The Python representation of the readings as a DICT
  */
-PyObject *PythonReading::toPython()
+PyObject *PythonReading::toPython(bool changeKeys)
 {
 	// Create object (dict) for reading Datapoints:
 	// this will be added as the value for key 'readings'
@@ -275,13 +279,13 @@ PyObject *PythonReading::toPython()
 	PyObject *readingObject = PyDict_New();
 
 	// Add reading datapoints
-	PyObject *key = PyUnicode_FromString("reading");
+	PyObject *key = PyUnicode_FromString(changeKeys ? "reading" : "readings");
 	PyDict_SetItem(readingObject, key, dataPoints);
 	Py_CLEAR(key);
 
 	// Add reading asset name
 	PyObject *assetVal = PyUnicode_FromString(m_asset.c_str());
-	key = PyUnicode_FromString("asset_code");
+	key = PyUnicode_FromString(changeKeys ? "asset_code" : "asset");
 	PyDict_SetItem(readingObject, key, assetVal);
 	Py_CLEAR(key);
 

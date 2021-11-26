@@ -10,15 +10,15 @@ namespace {
 
 const char *script = R"(
 def count(arg):
-    readings =  arg["reading"]
+    readings =  arg["readings"]
     return len(readings)
 
 def element(arg, key):
-    readings =  arg["reading"]
+    readings =  arg["readings"]
     return readings[key]
 
 def assetCode(arg):
-    return arg["asset_code"]
+    return arg["asset"]
 
 def returnIt(arg):
     return arg
@@ -27,16 +27,16 @@ def isDict(arg):
     return isinstance(arg, dict)
 
 def setAsset(arg, name):
-    arg["asset_code"] = name
+    arg["asset"] = name
     return arg
 
 def array_element_0(arg, key):
-    readings = arg["reading"];
+    readings = arg["readings"];
     arr = readings[key];
     return arr[0]
 
 def array_swap(arg, key):
-    readings = arg["reading"];
+    readings = arg["readings"];
     arr = readings[key];
     tmp = arr[0]
     arr[0] = arr[1]
@@ -44,7 +44,7 @@ def array_swap(arg, key):
     return arg
 
 def image_swap(arg, key):
-    readings = arg["reading"];
+    readings = arg["readings"];
     img = readings[key];
     return arg
 )";
@@ -136,7 +136,6 @@ class  PythonReadingTest : public testing::Test {
 			PyObject* method = PyObject_GetAttrString(mod, name);
 			if (method != NULL)
 			{
-				//rval = PyObject_CallObject(method, Py_BuildValue("O", arg));
 				rval = PyObject_CallFunction(method, "O", arg);
 				if (rval == NULL)
 				{

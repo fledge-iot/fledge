@@ -20,6 +20,6 @@
 class PythonReadingSet : public ReadingSet {
 	public:
 		PythonReadingSet(PyObject *pySet);
-		PyObject	*toPython();
+		PyObject	*toPython(bool changeKeys = false);
 };
 #endif

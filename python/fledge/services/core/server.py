@@ -1151,8 +1151,8 @@ class Server:
                 raise web.HTTPBadRequest(reason='Service {} could not be registered'.format(service_name))
 
             # Set JWT bearewr token
-            # Set expiration
-            exp = datetime.now() + timedelta(seconds=SERVICE_JWT_EXP_DELTA_SECONDS)
+            # Set expiration now + delta seconds
+            exp = int(time.time()) + SERVICE_JWT_EXP_DELTA_SECONDS
             # Add public token claims
             claims = {
                          'aud': SERVICE_JWT_AUDIENCE,
@@ -1718,7 +1718,8 @@ class Server:
                         if service._token == bearer_token and service._name == k:
                             claims = cls.validate_token(bearer_token)
                             if claims.get('error') is None:
-                                claims['exp'] =  datetime.now() + timedelta(seconds=SERVICE_JWT_EXP_DELTA_SECONDS)
+                                # Expiration set to now + delta
+                                claims['exp'] =  int(time.time()) + SERVICE_JWT_EXP_DELTA_SECONDS
                                 bearer_token = jwt.encode(claims,
                                                          SERVICE_JWT_SECRET,
                                                          SERVICE_JWT_ALGORITHM).decode("utf-8")

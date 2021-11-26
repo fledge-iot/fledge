@@ -870,3 +870,79 @@ vector<string> JWTTokenSplit(const string &s, char delim)
 
 	return elems;
 }
+
+/**
+ * Refresh the JWT bearer token
+ *
+ * @param request       HTTP request object
+ * @param claims        Map to fill with JWT public token claims
+ * @return              New bearer token on success, empty string otherwise
+ */
+string ManagementClient::refreshAccessBearerToken(shared_ptr<HttpServer::Request> request)
+{
+	string bearer_token = getAccessBearerToken(request);
+
+	if (bearer_token.length() == 0)
+	{
+		return "";
+	}
+
+	bool ret = false;
+
+	// Check token already exists in cache:
+	std::map<std::string, std::string>::iterator item;
+	mtx_received_tokens.lock();
+
+	// Refresh it by calling Fledge management endpoint
+	string newToken;
+	string url = "/fledge/service/refresh_token";
+	string payload;
+	SimpleWeb::CaseInsensitiveMultimap header;
+	header.emplace("Authorization", "Bearer " + bearer_token);
+	auto res = this->getHttpClient()->request("POST", url.c_str(), payload, header);
+	Document doc;
+	string response = res->content.string();
+	doc.Parse(response.c_str());
+	if (doc.HasParseError())
+	{
+		bool httpError = (isdigit(response[0]) &&
+				isdigit(response[1]) &&
+				isdigit(response[2]) &&
+				response[3]==':');
+		m_logger->error("%s error in service token refresh: %s\n",
+				httpError?"HTTP error during":"Failed to parse result of",
+				response.c_str());
+		ret = false;
+	}
+	else
+	{
+		if (doc.HasMember("error"))
+		{
+			string error = doc["error"].GetString();
+			m_logger->error("Failed to parse token refresh result, error %s",
+					error.c_str());
+			ret = false;
+		}
+		else if (doc.HasMember("bearer_token"))
+		{
+			// Set new token
+			newToken = doc["bearer_token"].GetString();
+			ret = true;
+		}
+		else
+		{
+			m_logger->error("Bearer token not found in token refresh result");
+			ret = false;
+		}
+	}
+
+	if (ret)
+	{
+		// Remove old token from received ones
+		m_received_tokens.erase(bearer_token);
+	}
+
+	mtx_received_tokens.unlock();
+
+	return newToken;
+}

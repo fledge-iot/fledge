@@ -57,6 +57,7 @@ class ManagementClient {
 		std::string&		getRegistrationBearerToken() { return m_bearer_token; };
 		bool			verifyAccessBearerToken(std::shared_ptr<HttpServer::Request> request,
 								std::map<std::string, std::string>& claims);
+		std::string		refreshAccessBearerToken(std::shared_ptr<HttpServer::Request> request);
 
 	private:
 		std::ostringstream 			m_urlbase;

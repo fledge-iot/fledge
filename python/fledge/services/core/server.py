@@ -1696,49 +1696,51 @@ class Server:
         """ Endpoint for refresh of service bearer token received at registration time
 
         :Example:
-            curl -X POST -d '{"bearer_token" : "hjhdjsfshhj"}
-             -H 'Authorization: ZGdrdmV4dWFsY2dsaHVyZmFxdmdybXB5dXduaXJvc3g='
+            curl -X POST
+             -H 'Authorization: Bearer evZGdrdmV.4dWFsY2dsaHVyZ.mFxdmdybXB5dXduaXJvc3g='
              http://localhost:<core mngmt port>/fledge/service/refresh_token
 
-        Authorization header must contain the startup token in base64 format
+        Authorization header must contain the Bearer token
+        No post data
 
         Note: token will be refresh for the service it belongs
         """
 
         data = await request.json()
-        authData = request.headers.get('Authorization', "")
-        auth = base64.b64decode(authData).decode('utf-8')
-        bearer_token = data.get('bearer_token',"")
+        parts = authData.split("Bearer ")
+        if len(parts) != 2:
+            msg = "bearer token is missing"
+            raise web.HTTPBadRequest(reason=msg, body=json.dumps({"error": msg}))
+
+        bearer_token = parts[1]
 
         try:
-            for k, v in cls.scheduler._startupTokens.items():
-                if auth == v:
-                    services_list = ServiceRegistry.all()
-                    for service in services_list:
-                        if service._token == bearer_token and service._name == k:
-                            claims = cls.validate_token(bearer_token)
-                            if claims.get('error') is None:
-                                # Expiration set to now + delta
-                                claims['exp'] =  int(time.time()) + SERVICE_JWT_EXP_DELTA_SECONDS
-                                bearer_token = jwt.encode(claims,
-                                                         SERVICE_JWT_SECRET,
-                                                         SERVICE_JWT_ALGORITHM).decode("utf-8")
-                                ret = {'bearer_token' : bearer_token}
+            claims = cls.validate_token(bearer_token)
+            services_list = ServiceRegistry.all()
+            for service in services_list:
+                if service._token == bearer_token and service._name == claims['sub']:
+                    if claims.get('error') is None:
+                        # Expiration set to now + delta
+                        claims['exp'] =  int(time.time()) + SERVICE_JWT_EXP_DELTA_SECONDS
+                        bearer_token = jwt.encode(claims,
+                                                  SERVICE_JWT_SECRET,
+                                                  SERVICE_JWT_ALGORITHM).decode("utf-8")
+                        ret = {'bearer_token' : bearer_token}
 
-                                # Find service name in registry and update the bearer token for that service
-                                obj = ServiceRecord(s_id=service._id,
-                                                    s_name=service._name,
-                                                    s_type=service._type,
-                                                    s_port=service._port,
-                                                    m_port=service._management_port,
-                                                    s_address=service._address,
-                                                    s_protocol=service._protocol,
-                                                    s_bearer_token=bearer_token)
-                                for idx, item in enumerate(ServiceRegistry._registry):
-                                    if getattr(item, "_name") == service._name:
-                                        ServiceRegistry._registry[idx] = obj
+                        # Find service name in registry and update the bearer token for that service
+                        obj = ServiceRecord(s_id=service._id,
+                                            s_name=service._name,
+                                            s_type=service._type,
+                                            s_port=service._port,
+                                            m_port=service._management_port,
+                                            s_address=service._address,
+                                            s_protocol=service._protocol,
+                                            s_bearer_token=bearer_token)
+                        for idx, item in enumerate(ServiceRegistry._registry):
+                            if getattr(item, "_name") == service._name:
+                                ServiceRegistry._registry[idx] = obj
 
-                                return web.json_response(ret)
+                        return web.json_response(ret)
 
             msg = 'service authentication failed for service'
             raise web.HTTPBadRequest(reason=msg, body=json.dumps({"error": msg}))

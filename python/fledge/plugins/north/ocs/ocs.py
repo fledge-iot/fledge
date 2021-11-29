@@ -23,8 +23,7 @@ import logging
 import fledge.plugins.north.common.common as plugin_common
 import fledge.plugins.north.common.exceptions as plugin_exceptions
 from fledge.common import logger
-
-import fledge.plugins.north.pi_server.pi_server as pi_server
+from fledge.plugins.north.pi_server.pi_server import _logger, _log_debug_level, _log_performance, PIServerNorthPlugin, CONFIG_DEFAULT_OMF_TYPES, OMF_TEMPLATE_TYPE
 
 # Module information
 __author__ = "Stefano Simonelli"
@@ -43,8 +42,8 @@ _LOGGER_DESTINATION = logger.SYSLOG
 _logger = None
 
 # Defines what and the level of details for logging
-_log_debug_level = 0
-_log_performance = False
+cur_log_debug_level = 0
+cur_log_performance = False
 _stream_id = None
 
 _MODULE_NAME = "ocs_north"
@@ -239,9 +238,9 @@ _CONFIG_DEFAULT_OMF = {
 _CONFIG_CATEGORY_OMF_TYPES_NAME = 'OCS_TYPES'
 _CONFIG_CATEGORY_OMF_TYPES_DESCRIPTION = 'Configuration of OCS types'
 
-_CONFIG_DEFAULT_OMF_TYPES = pi_server.CONFIG_DEFAULT_OMF_TYPES
+_CONFIG_DEFAULT_OMF_TYPES = CONFIG_DEFAULT_OMF_TYPES
 
-_OMF_TEMPLATE_TYPE = pi_server.OMF_TEMPLATE_TYPE
+_OMF_TEMPLATE_TYPE = OMF_TEMPLATE_TYPE
 
 
 def _performance_log(_function):
@@ -258,7 +257,7 @@ def _performance_log(_function):
             # Code execution
             result = _function(*arg)
 
-            if _log_performance:
+            if cur_log_performance:
 
                 usage = resource.getrusage(resource.RUSAGE_SELF)
                 memory_process = (usage[2])/1000
@@ -297,6 +296,7 @@ def plugin_info():
         'interface': "1.0",
         'config': _CONFIG_DEFAULT_OMF
     }
+
 
 def _validate_configuration(data):
     """ Validates the configuration retrieved from the Configuration Manager
@@ -344,6 +344,7 @@ def _validate_configuration_omf_type(data):
         _logger.error(_message)
         raise ValueError(_message)
 
+
 def plugin_init(data):
     """ Initializes the OMF plugin for the sending of blocks of readings to the PI Connector.
     Args:
@@ -354,31 +355,31 @@ def plugin_init(data):
 
     global _config
     global _config_omf_types
-    global _logger
+    global cur_logger
     global _recreate_omf_objects
-    global _log_debug_level, _log_performance, _stream_id
+    global cur_log_debug_level, cur_log_performance, _stream_id
 
-    _log_debug_level = data['debug_level']
-    _log_performance = data['log_performance']
+    cur_log_debug_level = data['debug_level']
+    cur_log_performance = data['log_performance']
     _stream_id = data['stream_id']
 
     try:
         # note : _module_name is used as __name__ refers to the Sending Process
         logger_name = _MODULE_NAME + "_" + str(_stream_id)
 
-        _logger = \
-            logger.setup(logger_name, destination=_LOGGER_DESTINATION) if _log_debug_level == 0 else\
+        cur_logger = \
+            logger.setup(logger_name, destination=_LOGGER_DESTINATION) if cur_log_debug_level == 0 else\
             logger.setup(
                             logger_name,
                             destination=_LOGGER_DESTINATION,
-                            level=logging.INFO if _log_debug_level == 1 else logging.DEBUG)
+                            level=logging.INFO if cur_log_debug_level == 1 else logging.DEBUG)
 
     except Exception as ex:
-        _logger.error("{0} - ERROR - {1}".format(
+        cur_logger.error("{0} - ERROR - {1}".format(
                                                 time.strftime("%Y-%m-%d %H:%M:%S:"),
                                                 plugin_common.MESSAGES_LIST["e000012"].format(str(ex))))
         raise ex
-    _logger.debug("{0} - ".format("plugin_info"))
+    cur_logger.debug("{0} - ".format("plugin_info"))
 
     _validate_configuration(data)
 
@@ -433,13 +434,13 @@ def plugin_init(data):
             new_value = ast.literal_eval(value)
             _config_omf_types[item]['value'] = new_value
 
-    _logger.debug("{0} - URL {1}".format("plugin_init", _config['URL']))
+    cur_logger.debug("{0} - URL {1}".format("plugin_init", _config['URL']))
 
     try:
         _recreate_omf_objects = True
 
     except Exception as ex:
-        _logger.error(plugin_common.MESSAGES_LIST["e000011"].format(ex))
+        cur_logger.error(plugin_common.MESSAGES_LIST["e000011"].format(ex))
         raise plugin_exceptions.PluginInitializeFailed(ex)
 
     return _config
@@ -466,11 +467,11 @@ async def plugin_send(data, raw_data, stream_id):
     type_id = _config_omf_types['type-id']['value']
 
     # Sets globals for the OMF module
-    pi_server._logger = _logger
-    pi_server._log_debug_level = _log_debug_level
-    pi_server._log_performance = _log_performance
+    _logger = cur_logger
+    _log_debug_level = cur_log_debug_level
+    _log_performance = cur_log_performance
 
-    ocs_north = OCSNorthPlugin(data['sending_process_instance'], data, _config_omf_types, _logger)
+    ocs_north = OCSNorthPlugin(data['sending_process_instance'], data, _config_omf_types, cur_logger)
 
     try:
         # Alloc the in memory buffer
@@ -491,13 +492,13 @@ async def plugin_send(data, raw_data, stream_id):
                 if _recreate_omf_objects:
                     await ocs_north.deleted_omf_types_already_created(config_category_name, type_id)
                     _recreate_omf_objects = False
-                    _logger.debug("{0} - Forces objects recreation ".format("plugin_send"))
+                    cur_logger.debug("{0} - Forces objects recreation ".format("plugin_send"))
                 raise ex
             else:
                 is_data_sent = True
 
     except Exception as ex:
-        _logger.exception(plugin_common.MESSAGES_LIST["e000031"].format(ex))
+        cur_logger.exception(plugin_common.MESSAGES_LIST["e000031"].format(ex))
         raise
 
     return is_data_sent, new_position, num_sent
@@ -510,10 +511,10 @@ def plugin_shutdown(data):
     Raises:
     """
     try:
-        _logger.debug("{0} - plugin_shutdown".format(_MODULE_NAME))
+        cur_logger.debug("{0} - plugin_shutdown".format(_MODULE_NAME))
 
     except Exception as ex:
-        _logger.error(plugin_common.MESSAGES_LIST["e000013"].format(ex))
+        cur_logger.error(plugin_common.MESSAGES_LIST["e000013"].format(ex))
         raise
 
 
@@ -530,9 +531,9 @@ def plugin_reconfigure():
     pass
 
 
-class OCSNorthPlugin(pi_server.PIServerNorthPlugin):
+class OCSNorthPlugin(PIServerNorthPlugin):
     """ North OCS North Plugin """
 
-    def __init__(self, sending_process_instance, config, config_omf_types,  _logger):
+    def __init__(self, sending_process_instance, config, config_omf_types,  cur_logger):
 
-        super().__init__(sending_process_instance, config, config_omf_types, _logger)
+        super().__init__(sending_process_instance, config, config_omf_types, cur_logger)

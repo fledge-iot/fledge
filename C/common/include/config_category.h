@@ -84,6 +84,10 @@ class ConfigCategory {
 		void				setDescription(const std::string& description);
 		std::string                     getName() const { return m_name; };
 		std::string                     getDescription() const { return m_description; };
+
+		std::string                     getDisplayName() const { return m_displayName; };
+		void                            setDisplayName(const std::string& displayName) {m_displayName = displayName;};
+
 		unsigned int			getCount() const { return m_items.size(); };
 		bool				itemExists(const std::string& name) const;
 		bool				setItemDisplayName(const std::string& name, const std::string& displayName);
@@ -159,6 +163,7 @@ class ConfigCategory {
 		std::vector<CategoryItem *>	m_items;
 		std::string			m_name;
 		std::string			m_description;
+		std::string			m_displayName;
 
 	public:
 		using iterator = std::vector<CategoryItem *>::iterator;

@@ -175,7 +175,7 @@ string Reading::toJSON(bool minimal) const
 ostringstream convert;
 
 	convert << "{\"asset_code\":\"";
-	convert << m_asset;
+	convert << escape(m_asset);
 	convert << "\",\"user_ts\":\"";
 
 	// Add date_time with microseconds + timezone UTC:
@@ -420,4 +420,39 @@ void Reading::stringToTimestamp(const string& timestamp, struct timeval *ts)
 		ts->tv_sec += sign * ((3600 * h) + (60 * m));
 	}
 
+}
+
+/**
+ * Escape quotes etc to allow the string to be a property value within
+ * a JSON document
+ *
+ * @param str	The string to escape
+ * @return The escaped string
+ */
+const string Reading::escape(const string& str) const
+{
+string rval;
+int bscount = 0;
+
+	for (size_t i = 0; i < str.length(); i++)
+	{
+		if (str[i] == '\\')
+		{
+			bscount++;
+		}
+		else if (str[i] == '\"')
+		{
+			if ((bscount & 1) == 0)	// not already escaped
+			{
+				rval += "\\";	// Add escape of "
+			}
+			bscount = 0;
+		}
+		else
+		{
+			bscount = 0;
+		}
+		rval += str[i];
+	}
+	return rval;
 }

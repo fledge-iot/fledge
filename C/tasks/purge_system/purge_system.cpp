@@ -139,20 +139,50 @@ ConfigCategory PurgeSystem::configurationHandling(const std::string& config)
 
 	ConfigCategory configuration;
 
+	ManagementClient *client = this->getManagementClient();
+
 	m_logger->debug("%s - categoryName :%s:", __FUNCTION__, categoryName.c_str());
 
 	// Create category, with "default" values only
 	DefaultConfigCategory defaultConfig(categoryName, config);
 	defaultConfig.setDescription(CONFIG_CATEGORY_DESCRIPTION);
+	defaultConfig.setDisplayName(CONFIG_CATEGORY_DISPLAY_NAME);
 
 	// Create/Update category name (we pass keep_original_items=true)
-	if (! this->getManagementClient()->addCategory(defaultConfig, true))
+	if (! client->addCategory(defaultConfig, true))
 	{
 		raiseError ("Failure creating/updating configuration key :%s: ", categoryName.c_str() );
 	}
 
+	// Purge system category as child of Utilities
+	{
+		vector<string> children;
+		children.push_back(categoryName);
+		ConfigCategories categories = client->getCategories();
+		try {
+			bool found = false;
+			for (unsigned int idx = 0; idx < categories.length(); idx++)
+			{
+				if (categories[idx]->getName().compare(UTILITIES_CATEGORY) == 0)
+				{
+					client->addChildCategories(UTILITIES_CATEGORY, children);
+					found = true;
+				}
+			}
+			if (!found)
+			{
+				raiseError("adding %s as a child of %s", categoryName.c_str(), UTILITIES_CATEGORY);
+			}
+		} catch (...) {
+			std::exception_ptr p = std::current_exception();
+			string errorInfo = (p ? p.__cxa_exception_type()->name() : "null");
+
+			raiseError("adding %s as a child of %s - %s", categoryName.c_str(), UTILITIES_CATEGORY, errorInfo.c_str());
+		}
+	}
+
 	// Get the category with values and defaults
-	configuration = this->getManagementClient()->getCategory(categoryName);
+	configuration = client->getCategory(categoryName);
 
 	return ConfigCategory(configuration);
 }

@@ -15,6 +15,10 @@
 #include <rapidjson/document.h>
 #include <libpq-fe.h>
 
+#define	STORAGE_PURGE_RETAIN_ANY 0x0001U
+#define	STORAGE_PURGE_RETAIN_ALL 0x0002U
+#define STORAGE_PURGE_SIZE	     0x0004U
+
 class Connection {
 	public:
 		Connection();
@@ -28,6 +32,9 @@ class Connection {
 		int		appendReadings(const char *readings);
 		bool		fetchReadings(unsigned long id, unsigned int blksize, std::string& resultSet);
 		unsigned int	purgeReadings(unsigned long age, unsigned int flags, unsigned long sent, std::string& results);
+		unsigned int	purgeReadingsByRows(unsigned long rowcount, unsigned int flags,unsigned long sent, std::string& results);
+		unsigned long   purgeOperation(const char *sql, const char *logSection, const char *phase, bool retrieve);
+
 		long		tableSize(const std::string& table);
 		void		setTrace(bool flag) { m_logSQL = flag; };
     		static bool 	formatDate(char *formatted_date, size_t formatted_date_size, const char *date);

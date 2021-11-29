@@ -57,22 +57,54 @@ DataSender::~DataSender()
  */
 void DataSender::sendThread()
 {
+	ReadingSet *readings = nullptr;
+
 	while (!m_shutdown)
 	{
-		ReadingSet *readings = m_loader->fetchReadings(true);
+		if (readings == NULL) {
+
+			readings = m_loader->fetchReadings(true);
+		}
 		if (!readings)
 		{
 			m_logger->warn(
 				"Sending thread closing down after failing to fetch readings");
 			return;
 		}
-		unsigned long lastSent = send(readings);
-		if (lastSent)
+		bool removeReadings = false;
+		if (readings->getCount() > 0)
 		{
-			m_loader->updateLastSentId(lastSent);
+			unsigned long lastSent = send(readings);
+			if (lastSent)
+			{
+				m_loader->updateLastSentId(lastSent);
 
+				// Check all readings sent
+				vector<Reading *> *vec = readings->getAllReadingsPtr();
+
+				// Set readings removal
+				removeReadings = vec->size() == 0;
+			}
+		} else {
+			// All readings filtered out
+			Logger::getLogger()->debug("All readings filtered out");
+
+			// Get last read item from the readings database
+			unsigned long lastRead = m_loader->getLastFetched();
+
+			// Update LastSentId in streams table
+			m_loader->updateLastSentId(lastRead);
+
+			// Set readings removal
+			removeReadings = true;
 		}
-		delete readings;
+
+		// Remove readings object if needed
+		if (removeReadings)
+		{
+			delete readings;
+			readings = NULL;
+		}
 	}
 	m_logger->info("Sending thread shutdown");
 }
@@ -88,13 +120,16 @@ unsigned long DataSender::send(ReadingSet *readings)
 	blockPause();
 	uint32_t sent = m_plugin->send(readings->getAllReadings());
 	releasePause();
-	unsigned long lastSent = readings->getLastId();
+	unsigned long lastSent = readings->getReadingId(sent);
+
 	if (sent > 0)
 	{
+		lastSent = readings->getLastId();
+
 		// Update asset tracker table/cache, if required
 		vector<Reading *> *vec = readings->getAllReadingsPtr();
 
-		for (vector<Reading *>::iterator it = vec->begin(); it != vec->end(); ++it)
+		for (vector<Reading *>::iterator it = vec->begin(); it != vec->end(); )
 		{
 			Reading *reading = *it;
 
@@ -105,18 +140,25 @@ unsigned long DataSender::send(ReadingSet *readings)
 				if (!AssetTracker::getAssetTracker()->checkAssetTrackingCache(tuple))
 				{
 					AssetTracker::getAssetTracker()->addAssetTrackingTuple(tuple);
-					Logger::getLogger()->info("sendDataThread:  Adding new asset tracking tuple - egress: %s", tuple.assetToString().c_str());
+					m_logger->info("sendDataThread:  Adding new asset tracking tuple - egress: %s", tuple.assetToString().c_str());
 				}
+
+				// Remove current reading
+				delete reading;
+				reading = NULL;
+
+				// Remove item and set iterator to next element
+				it = vec->erase(it);
 			}
 			else
 			{
 				break;
 			}
 		}
-
 		m_loader->updateStatistics(sent);
+		return lastSent;
 	}
-	return lastSent;
+	return 0;
 }
 
 /**
@@ -126,15 +168,13 @@ unsigned long DataSender::send(ReadingSet *readings)
  * send completes.
  *
  * Called by external classes that want to prevent interaction
- * with thew north plugin.
+ * with the north plugin.
  */
 void DataSender::pause()
 {
 	unique_lock<mutex> lck(m_pauseMutex);
-	while (m_sending)
-	{
-		m_pauseCV.wait(lck);
-	}
+	m_pauseCV.wait(lck, [this]{ return m_sending == false; });
+
 	m_paused = true;
 }
 
@@ -146,8 +186,11 @@ void DataSender::pause()
  */
 void DataSender::release()
 {
-	unique_lock<mutex> lck(m_pauseMutex);
-	m_paused = false;
+	{
+		std::lock_guard<std::mutex> lck(m_pauseMutex);
+		m_paused = false;
+	}
+
 	m_pauseCV.notify_all();
 }
 
@@ -160,10 +203,8 @@ void DataSender::release()
 void DataSender::blockPause()
 {
 	unique_lock<mutex> lck(m_pauseMutex);
-	while (m_paused)
-	{
-		m_pauseCV.wait(lck);
-	}
+	m_pauseCV.wait(lck, [this]{ return m_paused == false; });
+
 	m_sending = true;
 }
 
@@ -175,7 +216,9 @@ void DataSender::blockPause()
  */
 void DataSender::releasePause()
 {
-	unique_lock<mutex> lck(m_pauseMutex);
-	m_sending = false;
+	{
+		std::lock_guard<std::mutex> lck(m_pauseMutex);
+		m_sending = false;
+	}
 	m_pauseCV.notify_all();
 }

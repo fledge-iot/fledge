@@ -18,8 +18,13 @@
 #define TO_STRING_(...) #__VA_ARGS__
 #define QUOTE(...) TO_STRING(__VA_ARGS__)
 
-#define LOG_NAME                    "purge_system"
-#define CONFIG_CATEGORY_DESCRIPTION "Configuration of the Purge System"
+#define LOG_NAME                     "purge_system"
+#define CONFIG_CATEGORY_DESCRIPTION  "Configuration of the Purge System"
+#define CONFIG_CATEGORY_DISPLAY_NAME "Purge System"
+
+
+#define UTILITIES_CATEGORY	  "Utilities"
+
 
 class PurgeSystem : public FledgeProcess
 {

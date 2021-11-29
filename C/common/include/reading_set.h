@@ -42,6 +42,7 @@ class ReadingSet {
 
 		// Return the reading id of the last  data element
 		unsigned long			getLastId() const { return m_last_id; };
+		unsigned long			getReadingId(uint32_t pos);
 		void				append(ReadingSet *);
 		void				append(ReadingSet&);
 		void				append(const std::vector<Reading *> &);

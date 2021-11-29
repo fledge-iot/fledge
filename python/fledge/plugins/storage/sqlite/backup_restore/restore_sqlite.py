@@ -25,7 +25,7 @@ the FledgeProcess class, will be no more valid.
 Usage:
     --backup-id                     Restore a specific backup retrieving the related information from the
                                     Storage Layer.
-         --file                     Restore a backup from a specific file, the full path should be provided
+    --file                          Restore a backup from a specific file, the full path should be provided
                                     like for example : --file=/tmp/fledge_2017_09_25_15_10_22.dump
 
     The latest backup will be restored if no options is used.
@@ -49,6 +49,10 @@ import sys
 import os
 import signal
 import sqlite3
+import json
+import tarfile
+import shutil
+from distutils.dir_util import copy_tree
 
 from fledge.common.parser import Parser
 from fledge.common.process import FledgeProcess
@@ -286,18 +290,18 @@ class RestoreProcess(FledgeProcess):
 
         return raw_data
 
-    def storage_update(self, sql_cmd):
+    def storage_update(self, sql_cmd, records=None):
         """ Executes a sql command against SQLite directly
 
         Args:
             sql_cmd: sql command to execute
+            records: to insert multiple records only if records are there otherwise default None and will treat as single execution
         Returns:
         Raises:
         """
 
-        _logger.debug("{func} - sql cmd |{cmd}| ".format(
-                                                            func="storage_update",
-                                                            cmd=sql_cmd))
+        _logger.debug("{func} - sql cmd |{cmd} | {records}|".format(func="storage_update", cmd=sql_cmd,
+                                                                    records=records))
 
         db_connection_string = "{path}/{db}".format(
                                                         path=self._restore_lib.dir_fledge_data,
@@ -307,8 +311,10 @@ class RestoreProcess(FledgeProcess):
         comm = sqlite3.connect(db_connection_string)
 
         cur = comm.cursor()
-
-        cur.execute(sql_cmd)
+        if records is None:
+            cur.execute(sql_cmd)
+        else:
+            cur.executemany(sql_cmd, records)
         comm.commit()
         comm.close()
 
@@ -528,7 +534,7 @@ class RestoreProcess(FledgeProcess):
 
         return status
 
-    def _run_restore_command(self, backup_file):
+    def _run_restore_command(self, backup_file, restore_command):
         """ Executes the restore of the storage layer from a backup
 
         Args:
@@ -544,7 +550,7 @@ class RestoreProcess(FledgeProcess):
 
         # Prepares the restore command
         cmd = "{cmd} {file} {path}/{db} ".format(
-                                                cmd=self._restore_lib.SQLITE_RESTORE,
+                                                cmd=restore_command,
                                                 file=backup_file,
                                                 path=self._restore_lib.dir_fledge_data,
                                                 db=self._restore_lib.config['database-filename']
@@ -603,6 +609,39 @@ class RestoreProcess(FledgeProcess):
         else:
             raise exceptions.FledgeStartError
 
+    def insert_backup_entries(self, old_data: list, new_data: list) -> None:
+        """ Insert those backup entries from old data which are not found in new data
+
+        Args:
+            old_data: Old backup data before restore
+            new_data: New backup data after restore
+
+        Returns:
+
+        Raises:
+        """
+        self._logger.debug("Old backup data: {} - New backup data: {}".format(old_data, new_data))
+        matched_entry_to_delete = []
+        for idx, old_row in enumerate(old_data):
+            for new_row in new_data:
+                if old_row['file_name'] == new_row[1]:
+                    matched_entry_to_delete.append(old_row['file_name'])
+                    break
+        self._logger.debug("Matched entry deletion list from old backup data: {}".format(matched_entry_to_delete))
+        # Filter duplicate records between old and new backup data list
+        filtered_list = [d for d in old_data if d['file_name'] not in matched_entry_to_delete]
+        self._logger.debug("Filtered list: {}".format(filtered_list))
+        # Prepare backup multiple records with execute many operation of sqlite
+        backup_list = []
+        for row in filtered_list:
+            r_tuple = (row['file_name'], row['ts'], row['type'], row['status'], row['exit_code'])
+            backup_list.append(r_tuple)
+        # Insert new backup entries which were before restored checkpoint - this way we can't loose all backups
+        sql_cmd = "INSERT INTO backups (file_name, ts, type, status, exit_code) VALUES (?, ?, ?, ?, ?)"
+        self._logger.debug("Insert new entries from backup list: {}".format(backup_list))
+
+        self.storage_update(sql_cmd, backup_list)
+
     def backup_status_update(self, backup_id, status):
         """ Updates the status of the backup in the Storage layer
 
@@ -625,7 +664,79 @@ class RestoreProcess(FledgeProcess):
 
         self.storage_update(sql_cmd)
 
-    def execute_restore(self):
+    def tar_extraction(self, file_name) -> str:
+        """ Extracts the files from tar.gz backup file
+
+        Args:
+            file_name: filename of the backup
+        Returns:
+            Full backup filepath
+        Raises:
+        """
+        dummy, file_extension = os.path.splitext(file_name)
+        # Removes tar.gz
+        filename_base1 = os.path.basename(file_name)
+        filename_base2, dummy = os.path.splitext(filename_base1)
+        filename_base, dummy = os.path.splitext(filename_base2)
+        self._logger.debug("tar_extraction - filename  :{}: file_extension :{}: ".format(file_name, file_extension))
+        extract_path = self._restore_lib.dir_fledge_backup + "/extract"
+        if not os.path.isdir(extract_path):
+            os.mkdir(extract_path)
+        else:
+            shutil.rmtree(extract_path)
+            os.mkdir(extract_path)
+
+        # Extracts the tar
+        backup_tar = tarfile.open(file_name)
+        backup_tar.extractall(extract_path)
+        backup_tar.close()
+
+        # Moves the db file to the right position
+        file_source = extract_path + "/" + filename_base + ".db"
+        file_target = self._restore_lib.dir_fledge_backup + "/" + filename_base + ".db"
+        self._logger.debug("tar_extraction 'db' - file_source  :{}: file_dest :{}: ".format(file_source, file_target))
+        os.rename(file_source, file_target)
+        # etc
+        source = extract_path + "/etc"
+        target = self._restore_lib.dir_fledge_data + "/etc"
+        self._logger.debug("tar_extraction 'etc' - source :{}: target :{}: ".format(source, target))
+        copy_tree(source, target)
+
+        # external scripts
+        dir_scripts = extract_path + "/scripts"
+        if os.path.isdir(dir_scripts):
+            target = self._restore_lib.dir_fledge_data + "/scripts"
+            if not os.path.isdir(target):
+                os.mkdir(target)
+            source = dir_scripts
+            self._logger.debug("tar_extraction 'scripts' - source :{}: target :{}: ".format(source, target))
+            copy_tree(source, target)
+
+        # software
+        is_software = extract_path + "/software.json"
+        if os.path.exists(is_software):
+            # we don't need to install softwares as a part of restore automatically
+            # It is a user responsibility to install
+            with open(is_software, 'r') as f:
+                data = json.load(f)
+            self._logger.debug("tar_extraction 'data' :{}: ".format(data))
+            software_list = []
+            for p in data['plugins']:
+                # Exclude inbuilt plugins
+                if p['packageName'] != '':
+                    software_list.append({p['packageName']: p['version']})
+            for s in data['services']:
+                # Exclude inbuilt services
+                if s not in ('storage', 'south', 'north'):
+                    # As such no version available for services. Therefore keeping empty
+                    software_list.append({"fledge-service-{}".format(s): ''})
+            self._logger.info("Please check install software list: {}; if any of software is not present onto your system, "
+                         "you need to install it manually.".format(software_list))
+        # Remove extract directory
+        shutil.rmtree(extract_path)
+        return file_target
+
+    def execute_restore(self) -> None:
         """Executes the restore operation
 
         Args:
@@ -634,6 +745,11 @@ class RestoreProcess(FledgeProcess):
         """
 
         self._logger.debug("{func}".format(func="execute_restore"))
+
+        # Fetch old backup table entries before restore
+        old_backup_entries = self._restore_lib.sl_get_all_backups()
+        self._logger.debug("{func} - old backup entries list - {backups}".format(func="execute_restore",
+                                                                                 backups=old_backup_entries))
 
         backup_id, file_name = self._identifies_backup_to_restore()
 
@@ -647,31 +763,41 @@ class RestoreProcess(FledgeProcess):
 
         self._logger.debug("{func} - Fledge is down".format(func="execute_restore"))
 
+        dummy, file_extension = os.path.splitext(file_name)
+        # backward compatibility (<= 1.9.2)
+        if file_extension == ".db":
+            file_name_db = file_name
+            restore_command = self._restore_lib.SQLITE_RESTORE_COPY
+        elif file_extension == ".gz":
+            file_name_db = self.tar_extraction(file_name)
+            restore_command = self._restore_lib.SQLITE_RESTORE_MOVE
+        else:
+            raise Exception('Unsupported {} file extension found')
         # Executes the restore and then starts Fledge
         try:
-            self._run_restore_command(file_name)
-
+            self._run_restore_command(file_name_db, restore_command)
             if self._force_restore:
                 # Retrieve the backup-id after the restore operation
                 backup_info = self.get_backup_details_from_file_name(file_name)
                 backup_id = backup_info[0]
-
-            # Updates the backup as restored
+            # Updates the backup status as RESTORED
             self.backup_status_update(backup_id, lib.BackupStatus.RESTORED)
-
+            # Fetch new backup entries after DB fully restored
+            sql_cmd = """SELECT id, file_name, ts, type, status, exit_code FROM backups;"""
+            new_backup_entries = self.storage_retrieve(sql_cmd)
+            self._logger.debug("{func} - !!!New backup entries list - {backups}".format(func="execute_restore",
+                                                                                        backups=new_backup_entries))
+            # Insert old backup entries into newly restored Database
+            self.insert_backup_entries(old_backup_entries, new_backup_entries)
         except Exception as _ex:
             _message = self._MESSAGES_LIST["e000007"].format(_ex)
-
             self._logger.error(_message)
             raise
-
         finally:
             try:
                 self._fledge_start()
-
             except Exception as _ex:
                 _message = self._MESSAGES_LIST["e000006"].format(_ex)
-
                 self._logger.error(_message)
                 raise
 

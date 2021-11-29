@@ -175,6 +175,7 @@ class DatapointValue {
 
 	private:
 		void deleteNestedDPV();
+		const std::string	escape(const std::string& str) const;
 		union data_t {
 			std::string*		str;
 			long			i;

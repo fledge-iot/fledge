@@ -202,6 +202,7 @@ pg_reset() {
         read continue_reset
 
         if [ "$continue_reset" != 'YES' ]; then
+	    echo "The system will NOT be reset and current content remains"
             echo "Goodbye."
             # This is ok because it means that the script is called from command line
             exit 0
@@ -213,12 +214,20 @@ pg_reset() {
     else
         postgres_log "info" "Building the metadata for the Fledge Plugin 'postgres'" "logonly" "pretty"
     fi
-       
-    eval $PG_SQL -d postgres -q -f $INIT_SQL > /dev/null 2>&1
-    if [[ "$1" == "noisy" ]]; then
-        postgres_log "info" "Build complete." "all" "pretty"
+
+    output=$(eval $PG_SQL -d postgres -q -f $INIT_SQL 2>&1)
+    outputUC=${output^^}
+
+    if [[ "$outputUC" =~ "ERROR" || "$outputUC" =~ "WARNING" || "$outputUC" =~ "FATAL" ]]; then
+
+        postgres_log "err" "${output}" "all"
+        exit 1
     else
-        postgres_log "info" "Build complete." "logonly" "pretty"
+        if [[ "$1" == "noisy" ]]; then
+            postgres_log "info" "Build complete." "all" "pretty"
+        else
+            postgres_log "info" "Build complete." "logonly" "pretty"
+        fi
     fi
 
 }
@@ -396,6 +405,7 @@ pg_purge() {
     read continue_purge
 
     if [ "$continue_purge" != 'YES' ]; then
+	echo "The system will NOT be purged of data and current content remains"
         echo "Goodbye."
         # This is ok because it means that the script is called from command line
         exit 0

@@ -7,6 +7,7 @@
  *
  * Author: Massimiliano Pinto
  */
+#include <common.h>
 #include <connection_manager.h>
 #include <connection.h>
 #include <plugin_api.h>
@@ -25,6 +26,8 @@
 #include <reading_stream.h>
 #include <config_category.h>
 #include <readings_catalogue.h>
+#include <purge_configuration.h>
+#include <string_utils.h>
 
 using namespace std;
 using namespace rapidjson;
@@ -36,7 +39,7 @@ extern "C" {
 
 const char *default_config = QUOTE({
 		"poolSize" : {
-			"description" : "Connection pool size",
+			"description" : "The number of connections to create in the intial pool of connections",
 			"type" : "integer",
 			"default" : "5",
 			"displayName" : "Pool Size",
@@ -69,6 +72,13 @@ const char *default_config = QUOTE({
 			"default" : "2",
 			"displayName" : "Database allocation size",
 			"order" : "5"
+		},
+		"purgeExclude" : {
+			"description" : "A comma seperated list of assets to exclude from the purge process",
+			"type" : "string",
+			"default" : "",
+			"displayName" : "Purge Exclusions",
+			"order" : "6"
 		}
 
 });
@@ -134,6 +144,19 @@ PLUGIN_HANDLE plugin_init(ConfigCategory *category)
 
 	ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
 	readCat->multipleReadingsInit(storageConfig);
+
+	if (category->itemExists("purgeExclude"))
+	{
+		string exclusions = category->getValue("purgeExclude");
+		PurgeConfiguration *purge = PurgeConfiguration::getInstance();
+		size_t s = 0, pos;
+		while ((pos = exclusions.find_first_of(",", s)) != string::npos)
+		{
+			purge->exclude(StringTrim(exclusions.substr(s, pos - s)));
+			s = pos + 1;
+		}
+		purge->exclude(StringTrim(exclusions.substr(s, pos)));
+	}
 
 	return manager;
 }
@@ -261,8 +284,7 @@ Connection        *connection = manager->allocate();
 std::string 	  results;
 unsigned long	  age, size;
 
-	// TODO put flags in common header file
-	if (flags & 0x0002)	// Purge by size
+	if (flags & STORAGE_PURGE_SIZE)
 	{
 		(void)connection->purgeReadingsByRows(param, flags, sent, results);
 	}

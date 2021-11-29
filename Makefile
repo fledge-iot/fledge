@@ -109,6 +109,7 @@ FLEDGE_SCRIPT_SRC         := scripts/fledge
 FLEDGE_UPDATE_SRC         := scripts/extras/fledge_update
 UPDATE_TASK_APT_SRC        := scripts/extras/update_task.apt
 UPDATE_TASK_SNAPPY_SRC     := scripts/extras/update_task.snappy
+UPDATE_TASK_YUM_SRC        := scripts/extras/update_task.yum
 SUDOERS_SRC                := scripts/extras/fledge.sudoers
 SUDOERS_SRC_RH             := scripts/extras/fledge.sudoers_rh
 
@@ -134,6 +135,7 @@ CHECK_CERTS_TASK_SCRIPT_SRC := scripts/tasks/check_certs
 CERTIFICATES_SCRIPT_SRC     := scripts/certificates
 AUTH_CERTIFICATES_SCRIPT_SRC := scripts/auth_certificates
 PACKAGE_UPDATE_SCRIPT_SRC   := scripts/package
+FLEDGE_MNT_SCRIPT           := scripts/fledge_mnt
 
 # Custom location of SQLite3 library
 FLEDGE_HAS_SQLITE3_PATH    := /tmp/sqlite3-pkg/src
@@ -347,7 +349,8 @@ scripts_install : $(SCRIPTS_INSTALL_DIR) \
 	install_check_certificates_script \
 	install_certificates_script \
 	install_auth_certificates_script \
-	install_package_update_script
+	install_package_update_script \
+	install_fledge_mnt_script
 
 # create scripts install dir
 $(SCRIPTS_INSTALL_DIR) :
@@ -429,6 +432,9 @@ install_package_update_script : $(SCRIPT_INSTALL_DIR) $(PACKAGE_UPDATE_SCRIPT_SR
 	chmod -R a-w $(SCRIPTS_INSTALL_DIR)/package
 	chmod -R u+x $(SCRIPTS_INSTALL_DIR)/package
 
+install_fledge_mnt_script: $(SCRIPT_INSTALL_DIR) ${FLEDGE_MNT_SCRIPT}
+	$(CP) ${FLEDGE_MNT_SCRIPT} $(SCRIPTS_INSTALL_DIR)
+
 $(SCRIPT_COMMON_INSTALL_DIR) :
 	$(MKDIR_PATH) $@
 
@@ -469,6 +475,7 @@ bin_install : $(BIN_INSTALL_DIR) $(FOGBENCH_SCRIPT_SRC) $(FLEDGE_SCRIPT_SRC)
 	$(CP) $(FLEDGE_UPDATE_SRC) $(BIN_INSTALL_DIR)
 	$(CP) $(UPDATE_TASK_APT_SRC) $(BIN_INSTALL_DIR)
 	$(CP) $(UPDATE_TASK_SNAPPY_SRC) $(BIN_INSTALL_DIR)
+	$(CP) $(UPDATE_TASK_YUM_SRC) $(BIN_INSTALL_DIR)
 ifneq ("$(PLATFORM_RH)","")
 	$(CP) $(SUDOERS_SRC_RH) $(BIN_INSTALL_DIR)
 else

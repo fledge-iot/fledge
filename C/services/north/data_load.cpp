@@ -163,11 +163,11 @@ ReadingSet *readings = NULL;
 		}
 	       	catch (ReadingSetException* e)
 		{
-			Logger::getLogger()->error("North Service '%s', failed to fetch data, Exception '%s'", m_name.c_str(), e->what());
+			// Ignore, the exception has been reported in the layer below
 		}
 	       	catch (exception& e)
 		{
-			Logger::getLogger()->error("North Service '%s', failed to fetch data, Exception '%s'", m_name.c_str(), e.what());
+			// Ignore, the exception has been reported in the layer below
 		}
 		if (readings && readings->getCount())
 		{
@@ -500,7 +500,12 @@ void DataLoad::passToOnwardFilter(OUTPUT_HANDLE *outHandle,
 void DataLoad::pipelineEnd(OUTPUT_HANDLE *outHandle,
 			     READINGSET *readingSet)
 {
+
 	DataLoad *load = (DataLoad *)outHandle;
+	if (readingSet->getCount() == 0)	// Special case when all filtered out
+	{
+		load->updateLastSentId(load->m_lastFetched);
+	}
 
 	unique_lock<mutex> lck(load->m_qMutex);
 	load->m_queue.push_back(readingSet);

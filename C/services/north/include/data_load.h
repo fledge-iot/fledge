@@ -36,6 +36,7 @@ class DataLoad : public ServiceHandler {
 						READINGSET* readings);
 		void			shutdown();
 		void			configChange(const std::string& category, const std::string& newConfig);
+		unsigned long		getLastFetched() { return m_lastFetched; };
 	private:
 		void			readBlock(unsigned int blockSize);
 		unsigned int		waitForReadRequest();

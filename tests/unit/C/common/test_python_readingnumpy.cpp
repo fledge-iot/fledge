@@ -3,6 +3,7 @@
 #include <string.h>
 #include <string>
 #include <logger.h>
+#include <pyruntime.h>
 
 using namespace std;
 
@@ -22,13 +23,14 @@ class  PythonReadingNumpyTest : public testing::Test {
  protected:
 	void SetUp() override
 	{
-		Py_Initialize();
+		m_python = PythonRuntime::getPythonRuntime();
 	}
 
 	void TearDown() override
 	{
-		Py_Finalize();
 	}
+
+	PythonRuntime *m_python;
 
    public:
 	void logErrorMessage(const char *name)
@@ -96,94 +98,26 @@ class  PythonReadingNumpyTest : public testing::Test {
 	PyObject *callPythonFunc(const char *name, PyObject *arg)
 	{
 		PyObject *rval = NULL;
-		Logger *log = Logger::getLogger();
 
-		PyRun_SimpleString(script);
-		PyObject* mod = PyImport_ImportModule("__main__");
-		if (mod != NULL)
-		{
-			PyObject* method = PyObject_GetAttrString(mod, name);
-			if (method != NULL)
-			{
-				rval = PyObject_CallFunction(method, "O", arg);
-				if (rval == NULL)
-				{
-					if (PyErr_Occurred())
-					{
-						log->fatal("CallPythonFunc:Error occurred in %s", name);
-						logErrorMessage(name);
-						PyErr_Print();
-					}
-				}
-			}
-			else
-			{
-				log->fatal("Method '%s' not found", name);
-			}
-			Py_CLEAR(method);
-		}
-		else
-		{
-			log->fatal("Failed to import module");
-		}
-
-		// Reset error
-		PyErr_Clear();
-
-		// Remove references
-		Py_CLEAR(mod);
-
+		m_python->execute(script);
+		rval = m_python->call(name, "(O)", arg);
 		return rval;
 	}
 
 	PyObject *callPythonFunc2(const char *name, PyObject *arg1, PyObject *arg2)
 	{
 		PyObject *rval = NULL;
-		Logger *log = Logger::getLogger();
 
-		PyRun_SimpleString(script);
-		PyObject* mod = PyImport_ImportModule("__main__");
-		if (mod != NULL)
-		{
-			PyObject* method = PyObject_GetAttrString(mod, name);
-			if (method != NULL)
-			{
-				rval = PyObject_CallFunction(method, "OO", arg1, arg2);
-				if (rval == NULL)
-				{
-					if (PyErr_Occurred())
-					{
-						log->fatal("CallPythonFunc:Error occurred in %s", name);
-						logErrorMessage(name);
-						return NULL;
-					}
-				}
-			}
-			else
-			{
-				log->fatal("Method '%s' not found", name);
-			}
-			Py_CLEAR(method);
-		}
-		else
-		{
-			log->fatal("Failed to import module");
-		}
-
-		// Reset error
-		PyErr_Clear();
-
-		// Remove references
-		Py_CLEAR(mod);
-
+		m_python->execute(script);
+		rval = m_python->call(name, "OO", arg1, arg2);
 		return rval;
 	}
+
 };
 
 
 TEST_F(PythonReadingNumpyTest, ArraySort)
 {
-#if RUNME
 	DataBuffer *buffer = new DataBuffer(sizeof(uint16_t), 5);
 	uint16_t *ptr = (uint16_t *)buffer->getData();
 	*ptr = 5;
@@ -216,6 +150,5 @@ TEST_F(PythonReadingNumpyTest, ArraySort)
 		EXPECT_EQ(*(ptr + 3), 4);
 		EXPECT_EQ(*(ptr + 4), 5);
 	}
-#endif
 }
 }

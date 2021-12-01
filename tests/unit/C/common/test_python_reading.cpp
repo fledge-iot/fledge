@@ -48,6 +48,12 @@ def image_swap(arg, key):
     readings = arg["readings"];
     img = readings[key];
     return arg
+
+def failure(arg, key):
+    readings = arg["readings"];
+    img = readings[key];
+    raise Exception('Just testing!')
+    return arg
 )";
 
 class  PythonReadingTest : public testing::Test {
@@ -561,6 +567,37 @@ TEST_F(PythonReadingTest, UpdateAssetCode)
 	EXPECT_EQ(PyDict_Check(pyReading), true);
 	PyObject *newName = PyUnicode_FromString("shorter");
 	PyObject *obj = callPythonFunc2("setAsset", pyReading, newName);
+	if (obj)
+	{
+		PythonReading pyr(obj);
+		EXPECT_STREQ(pyr.getAssetName().c_str(), "shorter");
+		EXPECT_EQ(pyr.getDatapointCount(), 1);
+		Datapoint *dp = pyr.getDatapoint("long");
+		if (!dp)
+		{
+			EXPECT_STREQ("Expected datapoint missing", "");
+		}
+		else
+		{
+			EXPECT_EQ(dp->getData().getType(), DatapointValue::dataTagType::T_INTEGER);
+			EXPECT_EQ(dp->getData().toInt(), 1234);
+		}
+	}
+	else
+	{
+		EXPECT_STREQ("Expect PythonReading object missing", "");
+	}
+}
+
+TEST_F(PythonReadingTest, dotrace)
+{
+	long i = 1234;
+	DatapointValue value(i);
+	Reading reading("test", new Datapoint("long", value));
+	PyObject *pyReading = ((PythonReading *)(&reading))->toPython();
+	EXPECT_EQ(PyDict_Check(pyReading), true);
+	PyObject *newName = PyUnicode_FromString("shorter");
+	PyObject *obj = callPythonFunc2("failure", pyReading, newName);
 	if (obj)
 	{
 		PythonReading pyr(obj);

@@ -20,6 +20,7 @@ class PythonRuntime {
 		PythonRuntime();
 		PythonRuntime(const PythonRuntime& rhs);
 		PythonRuntime& operator=(const PythonRuntime& rhs);
+		void		logException(const std::string& name);
 
 		static PythonRuntime	*m_instance;
 

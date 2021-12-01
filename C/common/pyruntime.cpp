@@ -216,7 +216,7 @@ PyObject *mod, *method;
 			{
 				if (PyErr_Occurred())
 				{
-					Logger::getLogger()->fatal("CallPythonFunc:Error occurred in %s", fcn.c_str());
+					logException(fcn);
 					PyErr_Print();
 				}
 			}

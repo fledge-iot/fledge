@@ -548,11 +548,11 @@ async def _get_channels(cfg_mgr: ConfigurationManager, notify_instance: str) -> 
 
     """
 
-    namingFirst = "delivery{}".format(notify_instance)
-    list_first = await _get_channels_type(cfg_mgr, notify_instance, namingFirst, False)
+    naming_first = "delivery{}".format(notify_instance)
+    list_first = await _get_channels_type(cfg_mgr, notify_instance, naming_first, False)
 
-    namingExtra = "{}_channel_".format(notify_instance)
-    list_extra = await _get_channels_type(cfg_mgr, notify_instance, namingExtra, True)
+    naming_extra = "{}_channel_".format(notify_instance)
+    list_extra = await _get_channels_type(cfg_mgr, notify_instance, naming_extra, True)
 
     full_list = []
 

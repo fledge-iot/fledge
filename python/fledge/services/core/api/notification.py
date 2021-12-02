@@ -580,12 +580,12 @@ async def _get_channels_type(cfg_mgr: ConfigurationManager, notify_instance: str
                 if extra:
                     try:
                         delivery_name = ch[len(prefix):] + "/" + category_info['value']['plugin']['value']
-                    except KeyError:
+                    except:
                         delivery_name = ch[len(prefix):]
                 else:
                     try:
                         delivery_name = ch + "/" + category_info['value']['plugin']['value']
-                    except KeyError:
+                    except:
                         delivery_name = ch
 
                 channel_names.append(delivery_name)

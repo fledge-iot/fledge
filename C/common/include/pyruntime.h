@@ -16,6 +16,8 @@ class PythonRuntime {
 		static PythonRuntime	*getPythonRuntime();
 		void 	execute(const std::string& python);
 		PyObject	*call(const std::string& name, const std::string& fmt, ...);
+		PyObject	*call(PyObject *module, const std::string& name, const std::string& fmt, ...);
+		PyObject	*importModule(const std::string& name);
 	private:
 		PythonRuntime();
 		PythonRuntime(const PythonRuntime& rhs);

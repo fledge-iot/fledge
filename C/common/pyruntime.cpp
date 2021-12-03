@@ -27,7 +27,9 @@ PythonRuntime *PythonRuntime::m_instance = 0;
 PythonRuntime *PythonRuntime::getPythonRuntime()
 {
 	if (!m_instance)
+	{
 		m_instance = new PythonRuntime;
+	}
 	return m_instance;
 }
 
@@ -37,6 +39,8 @@ PythonRuntime *PythonRuntime::getPythonRuntime()
 PythonRuntime::PythonRuntime()
 {
 	Py_Initialize();
+	PyEval_InitThreads();
+	PyThreadState *save = PyEval_SaveThread();	// Release the GIL
 }
 
 /**
@@ -62,18 +66,22 @@ PythonRuntime& PythonRuntime::operator=(const PythonRuntime& rhs)
  */
 void PythonRuntime::execute(const string& python)
 {
+	PyGILState_STATE state = PyGILState_Ensure();
 	try {
 		PyRun_SimpleString(python.c_str());
 	} catch (exception& e) {
 		Logger::getLogger()->error("Exception %s executing Python '%s'", e.what(),
 				python.c_str());
 	}
+	PyGILState_Release(state);
 }
 
 /**
  * Call a Python function with a set of arguemnts
  *
- * The characters space, tab, colon and comma are ignored in format strings (but not within format units such as s#). This can be used to make long format strings a tad more readable.
+ * The characters space, tab, colon and comma are ignored in format
+ * strings (but not within format units such as s#). This can be used to
+ * make long format strings a tad more readable.
  * 
  * s (str or None) [const char *]
  * Convert a null-terminated C string to a Python str object using
@@ -204,6 +212,7 @@ PyObject *rval;
 va_list ap;
 PyObject *mod, *method;
 
+	PyGILState_STATE state = PyGILState_Ensure();
 	if ((mod = PyImport_ImportModule("__main__")) != NULL)
 	{
 		if ((method = PyObject_GetAttrString(mod, fcn.c_str())) != NULL)
@@ -237,6 +246,75 @@ PyObject *mod, *method;
 	// Reset error
 	PyErr_Clear();
 
+	PyGILState_Release(state);
 
 	return rval;
+}
+
+/**
+ * Call a Python function within a specified module.
+ *
+ * The using the same formattign rules as the call method above
+ *
+ * @param module	The module in which the function was imported
+ * @param fcn	The name of the function to call
+ * @param fmt	The buildValue style format string for the arguments
+ * @return PyObject* The function result
+ */
+PyObject *PythonRuntime::call(PyObject *module, const string& fcn, const string& fmt, ...)
+{
+PyObject *rval;
+va_list ap;
+PyObject *method;
+
+	PyGILState_STATE state = PyGILState_Ensure();
+	if ((method = PyObject_GetAttrString(module, fcn.c_str())) != NULL)
+	{
+		va_start(ap, fmt);
+		PyObject *args = Py_VaBuildValue(fmt.c_str(), ap);
+		va_end(ap);
+		rval = PyObject_Call(method, args, NULL);
+		if (rval == NULL)
+		{
+			if (PyErr_Occurred())
+			{
+				logException(fcn);
+				PyErr_Print();
+			}
+		}
+		Py_CLEAR(method);
+	}
+	else
+	{
+		Logger::getLogger()->fatal("Method '%s' not found", fcn.c_str());
+	}
+
+	// Reset error
+	PyErr_Clear();
+
+	PyGILState_Release(state);
+
+	return rval;
+}
+
+/**
+ * Import a Python module
+ *
+ * @param name	The name of the module to import
+ * @return PyObject* The Python module
+ */
+PyObject *PythonRuntime::importModule(const string& name)
+{
+	PyGILState_STATE state = PyGILState_Ensure();
+	PyObject *module = PyImport_ImportModule(name.c_str());
+	if (!module)
+	{
+		Logger::getLogger()->error("Failed to import Python module %s", name.c_str());
+		if (PyErr_Occurred())
+		{
+			logException(name);
+		}
+	}
+	PyGILState_Release(state);
+	return module;
 }

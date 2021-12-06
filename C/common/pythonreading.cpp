@@ -15,13 +15,9 @@
  * issues a it contians an embedded return statement.
  */
 #include <pythonreading.h>
+#include <pyruntime.h>
 #include <stdexcept>
 
-/*
- * We have to do the following includes here rather than in the header file as we
- * would like as if the numpy headers are included more than once this results in
- * objects being defined multiple times.
- */
 #define PY_ARRAY_UNIQUE_SYMBOL  PyArray_API_FLEDGE
 #include <numpy/npy_common.h>
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
@@ -31,10 +27,12 @@
 #undef NUMPY_IMPORT_ARRAY_RETVAL
 #define NUMPY_IMPORT_ARRAY_RETVAL       0
 
+bool PythonReading::doneNumPyImport = false;
+
 using namespace std;
 
 /**
- * Construct a PythonReading from a DICT object returned by Pythin code.
+ * Construct a PythonReading from a DICT object returned by Python code.
  *
  * The PythonReading acts as a wrapper on the Reading class to convert to and
  * from Readings in C and Python.
@@ -350,7 +348,8 @@ PyObject *PythonReading::convertDatapoint(Datapoint *dp)
 	}
 	else if (dataType == DatapointValue::dataTagType::T_DATABUFFER)
 	{
-		PythonRuntime::getPythonRuntime()->initNumPy();
+//		PythonRuntime::getPythonRuntime()->initNumPy();
+		InitNumPy();
 		DataBuffer *dbuf = dp->getData().getDataBuffer();
 		npy_intp dim = dbuf->getItemCount();
 		enum NPY_TYPES	type;
@@ -371,7 +370,9 @@ PyObject *PythonReading::convertDatapoint(Datapoint *dp)
 			default:
 				break;
 		}
+		PyGILState_STATE state = PyGILState_Ensure();
 		value = PyArray_SimpleNewFromData(1, &dim, type, dbuf->getData());
+		PyGILState_Release(state);
 #if 0
 		Py_buffer *buffer = (Py_buffer *)malloc(sizeof(Py_buffer));
 		DataBuffer *dbuf = (*it)->getData().getDataBuffer();
@@ -383,7 +384,8 @@ PyObject *PythonReading::convertDatapoint(Datapoint *dp)
 	}
 	else if (dataType == DatapointValue::dataTagType::T_IMAGE)
 	{
-		PythonRuntime::getPythonRuntime()->InitNumPy();
+		//PythonRuntime::getPythonRuntime()->initNumPy();
+		InitNumPy();
 		DPImage *image = dp->getData().getImage();
 		npy_intp dim[2];
 		dim[0] = image->getWidth();
@@ -406,7 +408,9 @@ PyObject *PythonReading::convertDatapoint(Datapoint *dp)
 			default:
 				break;
 		}
+		PyGILState_STATE state = PyGILState_Ensure();
 		value = PyArray_SimpleNewFromData(2, dim, type, image->getData());
+		PyGILState_Release(state);
 	}
 	else if (dataType == DatapointValue::dataTagType::T_DP_DICT)
 	{
@@ -530,3 +534,24 @@ bool PythonReading::isArray(PyObject *obj)
 {
 	return PyArray_Check(obj);
 }
+
+/**
+ * Impoirt NumPy. Due to the way numpy uses global variables we must only do
+ * this once in a single exeutable as multiple imports result in crashes.
+ */
+int PythonReading::InitNumPy()
+{
+	if (!PythonReading::doneNumPyImport)
+	{
+		PythonReading::doneNumPyImport = true;
+		// Note the following is a macro in the numpy header file that has an embedded return
+		// in the case of failure. Hence the need to return a value. Assume no code after this
+		// line is run
+		PyGILState_STATE state = PyGILState_Ensure();
+		import_array();
+		PyGILState_Release(state);
+	}
+	return 0;
+};
+
+

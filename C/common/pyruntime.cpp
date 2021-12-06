@@ -14,19 +14,6 @@
 #include <stdexcept>
 #include <stdarg.h>
 
-/*
- * We have to do the following includes here rather than in the header file as we
- * would like as if the numpy headers are included more than once this results in
- * objects being defined multiple times.
- */
-#define PY_ARRAY_UNIQUE_SYMBOL  PyArray_API_FLEDGE
-#include <numpy/npy_common.h>
-#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
-#include <numpy/ndarraytypes.h>
-#include <numpy/ndarrayobject.h>
-
-#undef NUMPY_IMPORT_ARRAY_RETVAL
-#define NUMPY_IMPORT_ARRAY_RETVAL       0
 
 using namespace std;
 
@@ -50,7 +37,7 @@ PythonRuntime *PythonRuntime::getPythonRuntime()
 /**
  * Constructor
  */
-PythonRuntime::PythonRuntime() : m_doneNumPyInit(false)
+PythonRuntime::PythonRuntime()
 {
 	Py_Initialize();
 	PyEval_InitThreads();
@@ -332,22 +319,3 @@ PyObject *PythonRuntime::importModule(const string& name)
 	PyGILState_Release(state);
 	return module;
 }
-
-/**
- * Import NumPy. Due to the way numpy uses global variables we must only do
- * this once in a single exeutable as multiple imports result in crashes.
- */
-int PythonRuntime::initNumPy()
-{
-	if (!m_doneNumPyImport)
-	{
-		m_doneNumPyImport = true;
-		PyGILState_STATE state = PyGILState_Ensure();
-		// Note the following is a macro in the numpy header file that has an embedded return
-		// in the case of failure. Hence the need to return a value. Assume no code after this
-		// line is run
-		import_array();
-		PyGILState_Release(state);
-	}
-	return 0;
-};

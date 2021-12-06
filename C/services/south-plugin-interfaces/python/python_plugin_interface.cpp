@@ -13,6 +13,7 @@
 #include <reading.h>
 #include <mutex>
 #include <south_plugin.h>
+#include <pyruntime.h>
 #include <Python.h>
 #include <python_plugin_common_interface.h>
 
@@ -70,19 +71,8 @@ void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
 
 	string fledgePythonDir = fledgeRootDir + "/python";
 	
-	// Embedded Python 3.5 initialisation
-	if (!Py_IsInitialized())
-	{
-		Py_Initialize();
-		PyEval_InitThreads();
-		PyThreadState* save = PyEval_SaveThread(); // release Python GIT
-		// Set init flag
-		initialisePython = true;
-		Logger::getLogger()->debug("Python interpreter started by plugin '%s'",
-					   pluginName);
-	}
+	PythonRuntime::getPythonRuntime();
 
-	PyGILState_STATE state = PyGILState_Ensure();
 
 	// Note: for South service plugin we don't set a new Python interpreter
 
@@ -94,6 +84,7 @@ void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
 				   fledgePythonDir.c_str(),
 				   pluginName);
 	
+	PyGILState_STATE state = PyGILState_Ensure();
 	// Set Python path for embedded Python 3.5
 	// Get current sys.path - borrowed reference
 	PyObject* sysPath = PySys_GetObject((char *)"path");

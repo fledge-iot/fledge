@@ -13,6 +13,7 @@
 #include <reading.h>
 #include <mutex>
 #include <plugin_handle.h>
+#include <pyruntime.h>
 #include <Python.h>
 
 #include <python_plugin_common_interface.h>
@@ -76,14 +77,7 @@ void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
 	Py_SetProgramName(programName);
 	PyMem_RawFree(programName);
 
-	// Embedded Python 3.x initialisation
-	if (!Py_IsInitialized())
-	{
-		Py_Initialize();
-		PyEval_InitThreads();
-		PyThreadState* save = PyEval_SaveThread(); // release Python GIT
-		initPython = true;
-	}
+	PythonRuntime::getPythonRuntime();
 
 	PyThreadState* newInterp = NULL;
 

@@ -14,6 +14,7 @@
 #include <reading_set.h>
 #include <mutex>
 #include <plugin_handle.h>
+#include <pyruntime.h>
 #include <Python.h>
 
 #include <python_plugin_common_interface.h>
@@ -579,22 +580,7 @@ void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
 
 	string name(string(PLUGIN_TYPE_FILTER) + string(SHIM_SCRIPT_POSTFIX));
 
-	// Embedded Python 3.x initialisation
-	if (!Py_IsInitialized())
-	{
-		// Embedded Python 3.x program name
-		wchar_t *programName = Py_DecodeLocale(name.c_str(), NULL);
-		Py_SetProgramName(programName);
-		PyMem_RawFree(programName);
-
-		Py_Initialize();
-		PyEval_InitThreads();
-		PyThreadState* save = PyEval_SaveThread(); // release Python GIT
-		initPython = true;
-		Logger::getLogger()->debug("FilterPlugin PluginInterfaceInit "
-					   "has loaded Python library, plugin '%s'",
-					   pluginName); 
-	}
+	PythonRuntime::getPythonRuntime();
 
 	PyThreadState* newInterp = NULL;
 

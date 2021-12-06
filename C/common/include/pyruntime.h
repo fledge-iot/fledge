@@ -18,6 +18,7 @@ class PythonRuntime {
 		PyObject	*call(const std::string& name, const std::string& fmt, ...);
 		PyObject	*call(PyObject *module, const std::string& name, const std::string& fmt, ...);
 		PyObject	*importModule(const std::string& name);
+		int		initNumPy();
 	private:
 		PythonRuntime();
 		PythonRuntime(const PythonRuntime& rhs);
@@ -25,6 +26,7 @@ class PythonRuntime {
 		void		logException(const std::string& name);
 
 		static PythonRuntime	*m_instance;
+		bool			m_doneNumPyImport;
 
 };
 

@@ -22,12 +22,10 @@ class PythonReading : public Reading {
 		PythonReading(PyObject *pyReading);
 		PyObject 		*toPython(bool changeKeys = false);
 		static std::string	errorMessage();
-		static bool		doneNumPyImport;
 		static bool		isArray(PyObject *);
 	private:
 		PyObject		*convertDatapoint(Datapoint *dp);
 		DatapointValue		*getDatapointValue(PyObject *object);
 		void 			fixQuoting(std::string& str);
-		int			InitNumPy();
 };
 #endif

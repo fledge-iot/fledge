@@ -33,8 +33,6 @@
 
 using namespace std;
 
-bool PythonReading::doneNumPyImport = false;
-
 /**
  * Construct a PythonReading from a DICT object returned by Pythin code.
  *
@@ -352,7 +350,7 @@ PyObject *PythonReading::convertDatapoint(Datapoint *dp)
 	}
 	else if (dataType == DatapointValue::dataTagType::T_DATABUFFER)
 	{
-		InitNumPy();
+		PythonRuntime::getPythonRuntime()->initNumPy();
 		DataBuffer *dbuf = dp->getData().getDataBuffer();
 		npy_intp dim = dbuf->getItemCount();
 		enum NPY_TYPES	type;
@@ -385,7 +383,7 @@ PyObject *PythonReading::convertDatapoint(Datapoint *dp)
 	}
 	else if (dataType == DatapointValue::dataTagType::T_IMAGE)
 	{
-		InitNumPy();
+		PythonRuntime::getPythonRuntime()->InitNumPy();
 		DPImage *image = dp->getData().getImage();
 		npy_intp dim[2];
 		dim[0] = image->getWidth();
@@ -520,22 +518,6 @@ bool escape = false;
 	str = newString;
 }
 
-/**
- * Impoirt NumPy. Due to the way numpy uses global variables we must only do
- * this once in a single exeutable as multiple imports result in crashes.
- */
-int PythonReading::InitNumPy()
-{
-	if (!PythonReading::doneNumPyImport)
-	{
-		PythonReading::doneNumPyImport = true;
-		// Note the following is a macro in the numpy header file that has an embedded return
-		// in the case of failure. Hence the need to return a value. Assume no code after this
-		// line is run
-		import_array();
-	}
-	return 0;
-};
 
 /**
  * Return true of the Python object is an array. This is mostly for testing

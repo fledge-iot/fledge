@@ -102,6 +102,16 @@ ConfigHandler::registerCategory(ServiceHandler *handler, const string& category)
 // FIXME_I: fix text messages
 void ConfigHandler::registerCategoryChild(ServiceHandler *handler, const string& category)
 {
+
+	// FIXME_I:
+	string _section="xxx8 ";
+
+	// FIXME_I:
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("%s / %s - START categoryName :%s:", _section.c_str(), __FUNCTION__, category.c_str());
+	Logger::getLogger()->setMinLevel("warning");
+
+
 	if (m_registrationsChild.count(category) == 0)
 	{
 		int retryCount = 0;

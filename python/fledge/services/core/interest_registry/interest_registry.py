@@ -91,6 +91,17 @@ class InterestRegistry(InterestRegistrySingleton):
             fledge.services.core.interest_registry.exceptions.ErrorInterestRegistrationAlreadyExists
                 in the event that the microservice_uuid, category_name pair is already registered
         """
+
+        #// FIXME_I:
+        import logging
+
+        #// FIXME_I:
+        _LOGGER.setLevel(logging.DEBUG)
+        _LOGGER.debug("xxx9 register_child  microservice_uuid:{}: category_name :{}:".format(microservice_uuid, category_name) )
+        _LOGGER.setLevel(logging.WARNING)
+
+
+
         if microservice_uuid is None:
             raise ValueError('Failed to register interest. microservice_uuid cannot be None')
         if category_name is None:
@@ -99,13 +110,25 @@ class InterestRegistry(InterestRegistrySingleton):
         try:
             self.get(microservice_uuid=microservice_uuid, category_name=category_name)
         except interest_registry_exceptions.DoesNotExist:
+
+            #// FIXME_I:
+            _LOGGER.setLevel(logging.DEBUG)
+            _LOGGER.debug("xxx9 register_child OK microservice_uuid:{}: category_name :{}:".format(microservice_uuid, category_name) )
+            _LOGGER.setLevel(logging.WARNING)
+
             pass
         else:
+
+            #// FIXME_I:
+            _LOGGER.setLevel(logging.DEBUG)
+            _LOGGER.debug("xxx9 register_child ERROR microservice_uuid:{}: category_name :{}:".format(microservice_uuid, category_name) )
+            _LOGGER.setLevel(logging.WARNING)
+
             raise interest_registry_exceptions.ErrorInterestRegistrationAlreadyExists
 
         # register callback with configuration manager
         #// FIXME_I:
-        #self._configuration_manager.register_interest(category_name, NOTIFY_CHANGE_CALLBACK)
+        self._configuration_manager.register_interest_child(category_name, NOTIFY_CHANGE_CALLBACK)
 
         # get registration_id
         registration_id = str(uuid.uuid4())

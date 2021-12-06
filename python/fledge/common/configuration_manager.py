@@ -1296,7 +1296,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
         #// FIXME_I:
         _logger.setLevel(logging.DEBUG)
-        _logger.debug("xxx7 register_interest_child :{}: -".format(category_name) )
+        _logger.debug("xxx10 register_interest_child CONFIG MNGR:{}: -".format(category_name) )
         _logger.setLevel(logging.WARNING)
 
 

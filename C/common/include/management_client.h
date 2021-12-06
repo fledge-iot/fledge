@@ -33,6 +33,7 @@ class ManagementClient {
 		bool 			unregisterService();
 		bool 			getService(ServiceRecord& service);
 		bool 			registerCategory(const std::string& categoryName);
+		bool 			registerCategoryChild(const std::string& categoryName);
 		bool 			unregisterCategory(const std::string& categoryName);
 		ConfigCategories	getCategories();
 		ConfigCategory		getCategory(const std::string& categoryName);

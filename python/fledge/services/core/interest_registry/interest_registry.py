@@ -78,6 +78,47 @@ class InterestRegistry(InterestRegistrySingleton):
             raise interest_registry_exceptions.DoesNotExist
         return interest_records
 
+    def register_child(self, microservice_uuid, category_name):
+        """ Used to add an entry to the InterestRegistry
+        Args:
+            category_name (str): category of interest (required)
+            microservice_uuid (str): interested party - microservice_uuid as a string (required)
+        Note:
+            category_name, microservice_uuid pair must be unique
+        Returns:
+            registration id of new InterestRegistration entry
+        Raises:
+            fledge.services.core.interest_registry.exceptions.ErrorInterestRegistrationAlreadyExists
+                in the event that the microservice_uuid, category_name pair is already registered
+        """
+        if microservice_uuid is None:
+            raise ValueError('Failed to register interest. microservice_uuid cannot be None')
+        if category_name is None:
+            raise ValueError('Failed to register interest. category_name cannot be None')
+
+        try:
+            self.get(microservice_uuid=microservice_uuid, category_name=category_name)
+        except interest_registry_exceptions.DoesNotExist:
+            pass
+        else:
+            raise interest_registry_exceptions.ErrorInterestRegistrationAlreadyExists
+
+        # register callback with configuration manager
+        #// FIXME_I:
+        #self._configuration_manager.register_interest(category_name, NOTIFY_CHANGE_CALLBACK)
+
+        # get registration_id
+        registration_id = str(uuid.uuid4())
+        # create new InterestRecord
+        #// FIXME_I:
+        #registered_interest = InterestRecord(registration_id, microservice_uuid, category_name)
+        # add interest record to list of registered interests
+        #// FIXME_I:
+        #self._registered_interests.append(registered_interest)
+
+        return registration_id
+
+
     def register(self, microservice_uuid, category_name):
         """ Used to add an entry to the InterestRegistry
         Args:

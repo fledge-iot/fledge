@@ -1266,6 +1266,40 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             _logger.error('Failed to delete file(s) for category %s. Exception %s', category_name, str(ex))
             # raise ex
 
+    def register_interest_child(self, category_name, callback):
+        """Registers an interest in any changes to the category_value associated with category_name
+
+        Keyword Arguments:
+        category_name -- name of the category_name of interest (required)
+        callback -- module with implementation of async method run(category_name) to be called when change is made to category_value
+
+        Return Values:
+        None
+
+        Side Effects:
+        Registers an interest in any changes to the category_value of a given category_name.
+        This interest is maintained in memory only, and not persisted in storage.
+
+        Restrictions and Usage:
+        A particular category_name may have multiple registered interests, aka multiple callbacks associated with a single category_name.
+        One or more category_names may use the same callback when a change is made to the corresponding category_value.
+        User must implement the callback code.
+        For example, if a callback is 'fledge.callback', then user must implement fledge/callback.py module with method run(category_name).
+        A callback is only called if the corresponding category_value is created or updated.
+        A callback is not called if the corresponding category_description is updated.
+        A change in configuration is not rolled back if callbacks fail.
+        """
+
+        #// FIXME_I:
+        import logging
+
+
+        #// FIXME_I:
+        _logger.setLevel(logging.DEBUG)
+        _logger.debug("xxx7 register_interest_child :{}: -".format(category_name) )
+        _logger.setLevel(logging.WARNING)
+
+
     def register_interest(self, category_name, callback):
         """Registers an interest in any changes to the category_value associated with category_name
 

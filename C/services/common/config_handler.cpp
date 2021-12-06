@@ -99,6 +99,36 @@ ConfigHandler::registerCategory(ServiceHandler *handler, const string& category)
 	m_change = true;
 }
 
+// FIXME_I: fix text messages
+void ConfigHandler::registerCategoryChild(ServiceHandler *handler, const string& category)
+{
+	if (m_registrationsChild.count(category) == 0)
+	{
+		int retryCount = 0;
+		while (m_mgtClient->registerCategoryChild(category) == false &&
+				retryCount++ < 10)
+		{
+			sleep(2 * retryCount);
+		}
+		if (retryCount >= 10)
+		{
+			m_logger->error("Failed to register configuration category %s", category.c_str());
+		}
+		else
+		{
+			 m_logger->debug("Interest in %s registered", category.c_str());
+		}
+	}
+	else
+	{
+		m_logger->info("Interest in %s already registered", category.c_str());
+	}
+	std::unique_lock<std::mutex> lck(m_mutex);
+	m_registrationsChild.insert(pair<string, ServiceHandler *>(category, handler));
+	m_change = true;
+}
+
+
 /**
  * Unregister a configuration category from the ConfigHandler for
  * a particular registered ServiceHandler class

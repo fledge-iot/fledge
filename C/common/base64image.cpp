@@ -22,7 +22,7 @@ Base64DPImage::Base64DPImage(const string& data)
 	string encoded;
 	if (pos != string::npos)
 	{
-		encoded = encoded.substr(pos + 1);
+		encoded = data.substr(pos + 1);
 	}
 	size_t in_len = encoded.size();
 	if (in_len % 4 != 0)

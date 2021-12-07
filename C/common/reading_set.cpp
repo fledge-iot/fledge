@@ -334,14 +334,13 @@ JSONReading::JSONReading(const Value& json)
 						{
 							// special encoded type
 							size_t pos = str.find_first_of(':');
-							string tname = str.substr(2, pos - 2);
-							if (tname.compare("DATABUFFER") == 0)
+							if (str.compare(2, 10, "DATABUFFER") == 0)
 							{
 								DataBuffer *databuffer = new Base64DataBuffer(str.substr(pos + 1));
 								DatapointValue value(databuffer);
 								this->addDatapoint(new Datapoint(m.name.GetString(), value));
 							}
-							else if (tname.compare("DPIMAGE") == 0)
+							else if (str.compare(2, 7, "DPIMAGE") == 0)
 							{
 								DPImage *image = new Base64DPImage(str.substr(pos + 1));
 								DatapointValue value(image);

@@ -66,6 +66,8 @@ Once complete you can add the repository itself into the apt configuration file 
 
     to the end of the file.
 
+    Note: Replace `buster` with  `stretch` or `bullseye` based on the OS image used.
+
   - Users with an Intel or AMD system with Ubuntu 18.04 should run
 
     .. code-block:: console

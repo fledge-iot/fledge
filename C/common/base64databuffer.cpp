@@ -90,5 +90,7 @@ string Base64DataBuffer::encode()
 		*p++ = '=';
 	}
 	*p = '\0';
-	return string(ret);
+	string r =  string(ret);
+	free(ret);
+	return r;
 }

@@ -97,5 +97,7 @@ string Base64DPImage::encode()
 	*p = '\0';
 	char buf[80];
 	snprintf(buf, sizeof(buf), "%d,%d,%d_", m_width, m_height, m_depth);
-	return string(buf) + string(ret);
+	string rstr = string(buf) + string(ret);
+	free(ret);
+	return rstr;
 }

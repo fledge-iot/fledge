@@ -214,12 +214,20 @@ pg_reset() {
     else
         postgres_log "info" "Building the metadata for the Fledge Plugin 'postgres'" "logonly" "pretty"
     fi
-       
-    eval $PG_SQL -d postgres -q -f $INIT_SQL > /dev/null 2>&1
-    if [[ "$1" == "noisy" ]]; then
-        postgres_log "info" "Build complete." "all" "pretty"
+
+    output=$(eval $PG_SQL -d postgres -q -f $INIT_SQL 2>&1)
+    outputUC=${output^^}
+
+    if [[ "$outputUC" =~ "ERROR" || "$outputUC" =~ "WARNING" || "$outputUC" =~ "FATAL" ]]; then
+
+        postgres_log "err" "${output}" "all"
+        exit 1
     else
-        postgres_log "info" "Build complete." "logonly" "pretty"
+        if [[ "$1" == "noisy" ]]; then
+            postgres_log "info" "Build complete." "all" "pretty"
+        else
+            postgres_log "info" "Build complete." "logonly" "pretty"
+        fi
     fi
 
 }

@@ -1281,11 +1281,6 @@ unsigned int  Connection::purgeReadings(unsigned long age,
 	}
 	Logger::getLogger()->debug("%s - flags :%X: flag_retain :%d: sent :%ld:", __FUNCTION__, flags, flag_retain, sent);
 
-	result = "{ \"removed\" : 0, ";
-	result += " \"unsentPurged\" : 0, ";
-	result += " \"unsentRetained\" : 0, ";
-	result += " \"readings\" : 0 }";
-
 	logger->info("Purge starting...");
 	gettimeofday(&startTv, NULL);
 	/*
@@ -1439,6 +1434,35 @@ unsigned int  Connection::purgeReadings(unsigned long age,
 		}
 
 		rowidLimit = m;
+
+		{ // Fix the value of rowidLimit
+
+			Logger::getLogger()->debug("%s - s1 rowidLimit :%lu: minrowidLimit :%lu: maxrowidLimit :%lu:", __FUNCTION__, rowidLimit, minrowidLimit, maxrowidLimit);
+
+			SQLBuffer sqlBuffer;
+			sqlBuffer.append("select max(id) from " READINGS_DB_NAME_BASE "." READINGS_TABLE " where rowid <= ");
+			sqlBuffer.append(rowidLimit);
+			sqlBuffer.append(" AND user_ts < datetime('now' , '-");
+			sqlBuffer.append(age);
+			sqlBuffer.append(" hours');");
+			const char *query = sqlBuffer.coalesce();
+
+			rc = SQLexec(dbHandle,
+						 query,
+						 rowidCallback,
+						 &rowidLimit,
+						 &zErrMsg);
+
+			delete[] query;
+
+			if (rc != SQLITE_OK)
+			{
+				raiseError("purge - phase 1, fetching rowidLimit ", zErrMsg);
+				sqlite3_free(zErrMsg);
+				return 0;
+			}
+			Logger::getLogger()->debug("%s - s2 rowidLimit :%lu: minrowidLimit :%lu: maxrowidLimit :%lu:", __FUNCTION__, rowidLimit, minrowidLimit, maxrowidLimit);
+		}
 
 		if (minrowidLimit == rowidLimit)
 		{

@@ -228,10 +228,22 @@ class SupportBuilder:
         self.write_to_tar(pyz, temp_file, data)
 
     def add_machine_resources(self, pyz, file_spec):
+        def _execute_command(cmd):
+            sub = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE).stdout.readlines()
+            convert_bytes_to_string = [s.decode() for s in sub]
+            remove_whitespaces_from_list = [bts.strip().replace(' ', '') for bts in convert_bytes_to_string]
+            result = {}
+            for rw in remove_whitespaces_from_list:
+                kv = rw.split(":")
+                result[kv[0]] = kv[1]
+            return result
+
         # Details of machine resources, memory size, amount of available memory, storage size and amount of free storage
         temp_file = self._interim_file_path + "/" + "machine-{}".format(file_spec)
         total, used, free = shutil.disk_usage("/")
         memory = subprocess.Popen('free -h', shell=True, stdout=subprocess.PIPE).stdout.readlines()[1].split()[1:]
+        hostname_info = _execute_command('hostnamectl status')
+        cpu_architecture_info = _execute_command('lscpu')
         data = {
             "about": "Machine resources",
             "platform": sys.platform,
@@ -241,6 +253,8 @@ class SupportBuilder:
             "totalDiskSpace_MB": int(total / (1024 * 1024)),
             "usedDiskSpace_MB": int(used / (1024 * 1024)),
             "freeDiskSpace_MB": int(free / (1024 * 1024)),
+            "hostnameInfo": hostname_info,
+            "cpuArchitectureInfo": cpu_architecture_info
         }
         self.write_to_tar(pyz, temp_file, data)
 

@@ -53,7 +53,7 @@ def _find_c_lib(name, dir):
         for path, subdirs, files in os.walk(fp):
             for fname in files:
                 # C-binary file
-                if fname.endswith(name + '.so'):
+                if fname.endswith("lib{}.so".format(name)):
                     return os.path.join(path, fname)
     return None
 

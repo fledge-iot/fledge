@@ -67,6 +67,10 @@ async def add_package_repo(request: web.Request) -> web.Response:
             os_name = "buster"
             architecture = "armv7l"
             extra_commands = ""
+        elif 'armv7l-with-glibc' in _platform:
+            os_name = "bullseye"
+            architecture = "armv7l"
+            extra_commands = ""
         elif 'aarch64-with-Ubuntu-18.04' in _platform:
             os_name = "ubuntu1804"
             architecture = "aarch64"

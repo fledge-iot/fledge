@@ -38,3 +38,24 @@ string getAccessBearerToken(shared_ptr<HttpServer::Request> request)
 
         return bearer_token;
 }
+
+/**
+ * Split JWT token (yyyy.wwww.zzzz) components into a vector of strings
+ *
+ * @param    s          The JWT bearer token string
+ * @param    delim      The JWT bearer token delimiter char
+ * @return              A vector of strings with token components
+ */
+vector<string> JWTTokenSplit(const string &s, char delim)
+{
+	stringstream ss(s);
+	string item;
+	// Output array
+	vector<string> elems;
+
+	while (std::getline(ss, item, delim)) {
+		elems.push_back(item);
+	}
+
+	return elems;
+}

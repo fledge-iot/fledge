@@ -16,5 +16,6 @@
 #define BEARER_SCHEMA "Bearer "
 
 std::string getAccessBearerToken(std::shared_ptr<SimpleWeb::Server<SimpleWeb::HTTP>::Request> request);
+std::vector<std::string> JWTTokenSplit(const std::string &s, char delim);
 
 #endif

@@ -18,8 +18,8 @@
 
 using namespace std;
 using namespace rapidjson;
-using HttpClient = SimpleWeb::Client<SimpleWeb::HTTP>;
 using namespace SimpleWeb;
+using HttpClient = SimpleWeb::Client<SimpleWeb::HTTP>;
 
 // handles m_client_map access
 std::mutex mng_mtx_client_map;
@@ -27,8 +27,6 @@ std::mutex mng_mtx_client_map;
 // TODO: move it into the class
 // handles m_received_tokens
 std::mutex mtx_received_tokens;
-
-vector<string> JWTTokenSplit(const string &s, char delim);
 
 /**
  * Management Client constructor
@@ -749,6 +747,7 @@ bool ManagementClient::verifyAccessBearerToken(shared_ptr<HttpServer::Request> r
 
 	// Check token already exists in cache:
 	std::map<std::string, std::string>::iterator item;
+	// Acquire lock
 	mtx_received_tokens.lock();
 
 	item = m_received_tokens.find(bearer_token);
@@ -820,6 +819,7 @@ bool ManagementClient::verifyAccessBearerToken(shared_ptr<HttpServer::Request> r
 		string plainData = Crypto::Base64::decode(elems[1]);
 		Document doc;
 		doc.Parse(plainData.c_str());
+
 		// TODO check JSON parsing
 		unsigned long expiration = doc["exp"].GetUint();
 		unsigned long now = time(NULL);
@@ -843,32 +843,12 @@ bool ManagementClient::verifyAccessBearerToken(shared_ptr<HttpServer::Request> r
 		}
 	}
 
+	// Release lock
 	mtx_received_tokens.unlock();
 
 	m_logger->debug("Token verified %d", ret);
 
 	return ret;
-}
-
-/**
- * Split JWT token (yyyy.wwww.zzzz) components into a vector of strings
- *
- * @param    s          The JWT bearer token string
- * @param    delim      The JWT bearer token delimiter char
- * @return              A vector of strings with token components
- */
-vector<string> JWTTokenSplit(const string &s, char delim)
-{
-	stringstream ss(s);
-	string item;
-	// Output array
-	vector<string> elems;
-
-	while (std::getline(ss, item, delim)) {
-		elems.push_back(item);
-	}
-
-	return elems;
 }
 
 /**

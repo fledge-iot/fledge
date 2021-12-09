@@ -67,7 +67,7 @@ class Purge(FledgeProcess):
         "retainUnsent": {
             "description": "Retain data that has not been sent yet.",
             "type": "enumeration",
-            "options":["purge unsent", "retain unsent to any destination", "retain unsent to all destinations"],
+            "options": ["purge unsent", "retain unsent to any destination", "retain unsent to all destinations"],
             "default": "purge unsent",
             "displayName": "Retain Unsent Data",
             "order": "3"
@@ -80,7 +80,7 @@ class Purge(FledgeProcess):
             "order": "4",
             "minimum": "1"
         },
-        "retainAuditLog" : {
+        "retainAuditLog": {
             "description": "This is the measure of how long to retain audit trail information for and should be measured in days.",
             "type": "integer",
             "default": "60",
@@ -134,34 +134,30 @@ class Purge(FledgeProcess):
 
         if config['retainUnsent']['value'].lower() == "purge unsent":
             flag = "purge"
-            operation_type="min"
+            operation_type = "min"
 
         elif config['retainUnsent']['value'].lower() == "retain unsent to any destination":
             flag = "retainany"
-            operation_type="max"
+            operation_type = "max"
 
         else:
             flag = "retainall"
-            operation_type="min"
+            operation_type = "min"
 
-        #########################################################################################:
-        #
         # Identifies the row id to use
-        #
-        north_streams = []
         north_instance = []
         north_list = []
-
         payload_north_streams = PayloadBuilder().SELECT("description").WHERE(['active', '=', 't']).payload()
         north_streams = await self._storage_async.query_tbl_with_payload("streams", payload_north_streams)
         for item in north_streams["rows"]:
             if "description" in north_list:
                 north_list.append(item["description"])
 
-        self._logger.debug("purge_data - north configured :{}: north active :{}: ".format(north_streams, north_list) )
+        self._logger.debug("purge_data - north configured :{}: north active :{}: ".format(north_streams, north_list))
 
         if north_list:
-            payload_sched = PayloadBuilder().SELECT("schedule_name").WHERE(['schedule_name', 'in', north_list]).AND_WHERE(['enabled', '=', 't']).payload()
+            payload_sched = PayloadBuilder().SELECT("schedule_name").WHERE(
+                ['schedule_name', 'in', north_list]).AND_WHERE(['enabled', '=', 't']).payload()
             north_instance = await self._storage_async.query_tbl_with_payload("schedules", payload_sched)
 
             north_list = []
@@ -169,7 +165,8 @@ class Purge(FledgeProcess):
                 if "schedule_name" in north_list:
                     north_list.append(item["schedule_name"])
 
-        self._logger.debug("purge_data - north schedules - schedules - :{}: north enabled :{}: ".format(north_instance, north_list) )
+        self._logger.debug("purge_data - north schedules - schedules - :{}: north enabled :{}: ".format(north_instance,
+                                                                                                        north_list))
 
         if north_list:
             payload = PayloadBuilder().AGGREGATE([operation_type, "last_object"]).\
@@ -185,7 +182,7 @@ class Purge(FledgeProcess):
         else:
             last_object = result["rows"][0]["max_last_object"]
 
-        self._logger.debug("purge_data - last_object :{}: ".format(last_object) )
+        self._logger.debug("purge_data - last_object :{}: ".format(last_object))
 
         if result["count"] == 1:
             # FIXME: Remove below check when fix from storage layer
@@ -196,37 +193,39 @@ class Purge(FledgeProcess):
         else:
             last_id = 0
 
-        self._logger.debug("purge_data - flag :{}: last_id :{}: count :{}: operation_type :{}:".format(flag, last_id, result["count"],operation_type) )
-        #########################################################################################:
+        self._logger.debug("purge_data - flag :{}: last_id :{}: count :{}: operation_type :{}:".format(
+            flag, last_id, result["count"], operation_type))
 
         try:
             if int(config['age']['value']) != 0:
-                result = await self._readings_storage_async.purge(age=config['age']['value'], sent_id=last_id, flag=flag)
-                total_rows_removed = result['removed']
-                unsent_rows_removed = result['unsentPurged']
-                unsent_retained = result['unsentRetained']
+                result = await self._readings_storage_async.purge(age=config['age']['value'], sent_id=last_id,
+                                                                  flag=flag)
+                if result is not None:
+                    total_rows_removed = result['removed']
+                    unsent_rows_removed = result['unsentPurged']
+                    unsent_retained = result['unsentRetained']
         except ValueError:
-            self._logger.error("Configuration item age {} should be integer!".format(config['age']['value']))
-
-        except StorageServerError as ex:
+            self._logger.error("purge_data - Configuration item age {} should be integer!".format(
+                config['age']['value']))
+        except StorageServerError:
             # skip logging as its already done in details for this operation in case of error
             # FIXME: check if ex.error jdoc has retryable True then retry the operation else move on
             pass
-
         try:
             if int(config['size']['value']) != 0:
-                result = await self._readings_storage_async.purge(size=config['size']['value'], sent_id=last_id, flag=flag)
-                total_rows_removed += result['removed']
-                unsent_rows_removed += result['unsentPurged']
-                unsent_retained += result['unsentRetained']
+                result = await self._readings_storage_async.purge(size=config['size']['value'], sent_id=last_id,
+                                                                  flag=flag)
+                if result is not None:
+                    total_rows_removed += result['removed']
+                    unsent_rows_removed += result['unsentPurged']
+                    unsent_retained += result['unsentRetained']
         except ValueError:
-            self._logger.error("Configuration item size {} should be integer!".format(config['size']['value']))
-
-        except StorageServerError as ex:
+            self._logger.error("purge_data - Configuration item size {} should be integer!".format(
+                config['size']['value']))
+        except StorageServerError:
             # skip logging as its already done in details for this operation in case of error
             # FIXME: check if ex.error jdoc has retryable True then retry the operation else move on
             pass
-
         end_time = time.strftime('%Y-%m-%d %H:%M:%S.%s', time.localtime(time.time()))
 
         if total_rows_removed > 0:

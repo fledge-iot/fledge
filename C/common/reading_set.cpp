@@ -392,27 +392,60 @@ JSONReading::JSONReading(const Value& json)
 
 					case kArrayType:
 					    {
-						    vector<double> arrayValues;
-						    for (auto& v : m.value.GetArray())
+						    if ((m.value.GetArray())[0].IsArray())
 						    {
-							    if (v.IsDouble())
+							    // We have a 2D array
+							    vector< vector<double> > array;
+							    for (auto& v : m.value.GetArray())
 							    {
-								    arrayValues.push_back(v.GetDouble());
+								    vector<double> arrayValues;
+								    for (auto& v : m.value.GetArray())
+								    {
+									    if (v.IsDouble())
+									    {
+										    arrayValues.push_back(v.GetDouble());
+									    }
+									    else if (v.IsInt() || v.IsUint())
+									    {
+										    double i = (double)v.GetInt();
+										    arrayValues.push_back(i);
+									    }
+									    else if (v.IsInt64() || v.IsUint64())
+									    {
+										    double i = (double)v.GetInt64();
+										    arrayValues.push_back(i);
+									    }
+								    }
+								    array.push_back(arrayValues);
 							    }
-							    else if (v.IsInt() || v.IsUint())
-							    {
-								    double i = (double)v.GetInt();
-								    arrayValues.push_back(i);
-							    }
-							    else if (v.IsInt64() || v.IsUint64())
-							    {
-								    double i = (double)v.GetInt64();
-								    arrayValues.push_back(i);
-							    }
+							    DatapointValue value(array);
+							    this->addDatapoint(new Datapoint(m.name.GetString(),
+												 value));
 						    }
-						    DatapointValue value(arrayValues);
-						    this->addDatapoint(new Datapoint(m.name.GetString(),
-											 value));
+						    else
+						    {
+							    vector<double> arrayValues;
+							    for (auto& v : m.value.GetArray())
+							    {
+								    if (v.IsDouble())
+								    {
+									    arrayValues.push_back(v.GetDouble());
+								    }
+								    else if (v.IsInt() || v.IsUint())
+								    {
+									    double i = (double)v.GetInt();
+									    arrayValues.push_back(i);
+								    }
+								    else if (v.IsInt64() || v.IsUint64())
+								    {
+									    double i = (double)v.GetInt64();
+									    arrayValues.push_back(i);
+								    }
+							    }
+							    DatapointValue value(arrayValues);
+							    this->addDatapoint(new Datapoint(m.name.GetString(),
+												 value));
+						    }
 						    break;
 						    
 					    }

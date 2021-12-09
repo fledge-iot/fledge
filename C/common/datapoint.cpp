@@ -97,6 +97,32 @@ std::string DatapointValue::toString() const
 			<< ((Base64DPImage *)m_value.image)->encode()
 			<< "\"";
 		return ss.str();
+	case T_2D_FLOAT_ARRAY:
+		{
+		ss << "[ ";
+		bool first = true;
+		for (auto row : *(m_value.a2d))
+		{
+			if (first)
+				first = false;
+			else
+				ss << ", ";
+			ss << "[";
+			for (auto it = row.begin();
+			     it != row.end();
+			     ++it)
+			{
+				if (it != row.begin())
+				{
+					ss << ", ";
+				}
+				ss << *it;
+			}
+			ss << "]";
+		}
+		ss << " ]";
+		return ss.str();
+		}
 	default:
 		throw std::runtime_error("No string representation for datapoint type");
 	}

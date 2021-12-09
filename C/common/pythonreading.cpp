@@ -181,6 +181,22 @@ DatapointValue *PythonReading::getDatapointValue(PyObject *value)
 			}
 			dataPoint = new DatapointValue(values);
 		}
+		else if (PyList_Check(item0))	// 2D array 		T_2D_FLOAT_ARRAY
+		{
+			vector<vector<double> > values;
+			for (Py_ssize_t i = 0; i < listSize; i++)
+			{
+				vector<double> row;
+				PyObject *pyRow = PyList_GetItem(value, i);
+				for (Py_ssize_t j = 0; j < PyList_Size(pyRow); j++)
+				{
+					double d = PyFloat_AS_DOUBLE(PyList_GetItem(pyRow, j));
+					row.push_back(d);
+				}
+
+			}
+			dataPoint = new DatapointValue(values);
+		}
 		else if (PyDict_Check(item0))	// List of datapoints	T_DP_LIST
 		{
 			vector<Datapoint *>* values = new vector<Datapoint *>;
@@ -340,10 +356,26 @@ PyObject *PythonReading::convertDatapoint(Datapoint *dp)
 	{
 		vector<double>* values = dp->getData().getDpArr();;
 		int i = 0;
+		value = PyList_New(values->size());
 		for (auto it = values->begin(); it != values->end(); ++it)
 		{
-			value = PyList_New(values->size());
 			PyList_SetItem(value, i++, PyFloat_FromDouble(*it));
+		}
+	}
+	else if (dataType == DatapointValue::dataTagType::T_2D_FLOAT_ARRAY)
+	{
+		vector<vector<double> > *vec = dp->getData().getDp2DArr();
+		value = PyList_New(vec->size());
+		int rowNo = 0;
+		for (auto row : *vec)
+		{
+			int i = 0;
+			PyObject *pyRow = PyList_New(row.size());
+			for (auto it = row.begin(); it != row.end(); ++it)
+			{
+				PyList_SetItem(pyRow, i++, PyFloat_FromDouble(*it));
+			}
+			PyList_SetItem(value, rowNo++, pyRow);
 		}
 	}
 	else if (dataType == DatapointValue::dataTagType::T_DATABUFFER)

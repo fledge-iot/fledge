@@ -38,8 +38,10 @@ class NorthService : public ServiceHandler {
 						      unsigned short corePort);
 		void 				stop();
 		void				shutdown();
-		void				configChange(const std::string&,
-						const std::string&);
+		void				configChange(const std::string&, const std::string&);
+		// FIXME_I:
+		void			    configChangeChild(const std::string&, const std::string&){};
+
 		static ManagementClient *	getMgmtClient();
 		const std::string&		getName() { return m_name; };
 		const std::string&		getPluginName() { return m_pluginName; };

@@ -144,6 +144,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
     _storage = None
     _registered_interests = None
+    _registered_interests_child = None
     _cacheManager = None
 
     def __init__(self, storage=None):
@@ -154,12 +155,60 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             self._storage = storage
         if self._registered_interests is None:
             self._registered_interests = {}
+
+        if self._registered_interests_child is None:
+            self._registered_interests_child = {}
+
         if self._cacheManager is None:
             self._cacheManager = ConfigurationCache()
 
     async def _run_callbacks(self, category_name):
         callbacks = self._registered_interests.get(category_name)
         if callbacks is not None:
+            for callback in callbacks:
+                try:
+                    cb = import_module(callback)
+                except ImportError:
+                    _logger.exception(
+                        'Unable to import callback module %s for category_name %s', callback, category_name)
+                    raise
+                if not hasattr(cb, 'run'):
+                    _logger.exception(
+                        'Callback module %s does not have method run', callback)
+                    raise AttributeError('Callback module {} does not have method run'.format(callback))
+                method = cb.run
+                if not inspect.iscoroutinefunction(method):
+                    _logger.exception(
+                        'Callback module %s run method must be a coroutine function', callback)
+                    raise AttributeError('Callback module {} run method must be a coroutine function'.format(callback))
+                await cb.run(category_name)
+
+    #// FIXME_I:
+    async def _run_callbacks_child(self, category_name, child_category):
+
+        #// FIXME_I:
+        import logging
+
+        #// FIXME_I:
+        _logger.setLevel(logging.DEBUG)
+        _logger.debug("xxx9 _run_callbacks_child S1  :{}: child_category :{}:".format(category_name, child_category) )
+        _logger.setLevel(logging.WARNING)
+
+        callbacks = self._registered_interests_child.get(category_name)
+
+        #// FIXME_I:
+        _logger.setLevel(logging.DEBUG)
+        _logger.debug("xxx9 _run_callbacks_child S2 callbacks :{}:".format(callbacks) )
+        _logger.setLevel(logging.WARNING)
+
+        if callbacks is not None:
+
+            #// FIXME_I:
+            _logger.setLevel(logging.DEBUG)
+            _logger.debug("xxx10 _run_callbacks_child S3  :{}: -".format(category_name) )
+            _logger.setLevel(logging.WARNING)
+
+
             for callback in callbacks:
                 try:
                     cb = import_module(callback)
@@ -1066,6 +1115,15 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         def diff(lst1, lst2):
             return [v for v in lst2 if v not in lst1]
 
+        #// FIXME_I:
+        import logging
+
+        #// FIXME_I:
+        _logger.setLevel(logging.DEBUG)
+        _logger.debug("xxx9 create_child_category S1  :{}: -".format(category_name, children) )
+        _logger.setLevel(logging.WARNING)
+
+
         if not isinstance(category_name, str):
             raise TypeError('category_name must be a string')
 
@@ -1091,6 +1149,14 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 result = await self._create_child(category_name, a_new_child)
                 children_from_storage.append(a_new_child)
 
+            #// FIXME_I:
+            try:
+                await self._run_callbacks_child(category_name, children)
+            except:
+                _logger.exception(
+                    'Unable to run callbacks for category_name %s', category_name)
+                raise
+
             return {"children": children_from_storage}
 
             # TODO: [TO BE DECIDED] - Audit Trail Entry
@@ -1107,6 +1173,16 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         Return Values:
         JSON
         """
+
+        #// FIXME_I:
+        import logging
+
+        #// FIXME_I:
+        _logger.setLevel(logging.DEBUG)
+        _logger.debug("xxx9 delete_child_category S1  :{}: -".format(category_name, child_category) )
+        _logger.setLevel(logging.WARNING)
+
+
         if not isinstance(category_name, str):
             raise TypeError('category_name must be a string')
 
@@ -1138,6 +1214,14 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         except StorageServerError as ex:
             err_response = ex.error
             raise ValueError(err_response)
+
+        #// FIXME_I:
+        try:
+            await self._run_callbacks_child(category_name, child_category)
+        except:
+            _logger.exception(
+                'Unable to run callbacks for category_name %s', category_name)
+            raise
 
         return _children
 
@@ -1296,7 +1380,21 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
         #// FIXME_I:
         _logger.setLevel(logging.DEBUG)
-        _logger.debug("xxx10 register_interest_child CONFIG MNGR:{}: -".format(category_name) )
+        _logger.debug("xxx10 register_interest_child S1 category_name:{}: -".format(category_name) )
+        _logger.setLevel(logging.WARNING)
+
+        if category_name is None:
+            raise ValueError('Failed to register interest. category_name cannot be None')
+        if callback is None:
+            raise ValueError('Failed to register interest. callback cannot be None')
+        if self._registered_interests_child.get(category_name) is None:
+            self._registered_interests_child[category_name] = {callback}
+        else:
+            self._registered_interests_child[category_name].add(callback)
+
+        #// FIXME_I:
+        _logger.setLevel(logging.DEBUG)
+        _logger.debug("xxx10 register_interest_child S2 callbacks :{}:".format(self._registered_interests_child) )
         _logger.setLevel(logging.WARNING)
 
 

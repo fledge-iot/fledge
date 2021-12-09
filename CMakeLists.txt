@@ -38,3 +38,9 @@ add_subdirectory(C/tasks/purge_system)
 add_subdirectory(C/plugins/utils)
 add_subdirectory(C/plugins/north/OMF)
 
+
+#// FIXME:
+set(CMAKE_BUILD_TYPE Debug)
+add_subdirectory(/home/foglamp/repos_fledge/fledge-service-notification /home/foglamp/Development/fledge/1_links_dev/repos_fledge/fledge-service-notification/build/C/services/notification)
+
+

@@ -107,24 +107,26 @@ class InterestRegistry(InterestRegistrySingleton):
         if category_name is None:
             raise ValueError('Failed to register interest. category_name cannot be None')
 
-        try:
-            self.get(microservice_uuid=microservice_uuid, category_name=category_name)
-        except interest_registry_exceptions.DoesNotExist:
+        #// FIXME_I:
 
-            #// FIXME_I:
-            _LOGGER.setLevel(logging.DEBUG)
-            _LOGGER.debug("xxx9 register_child OK microservice_uuid:{}: category_name :{}:".format(microservice_uuid, category_name) )
-            _LOGGER.setLevel(logging.WARNING)
-
-            pass
-        else:
-
-            #// FIXME_I:
-            _LOGGER.setLevel(logging.DEBUG)
-            _LOGGER.debug("xxx9 register_child ERROR microservice_uuid:{}: category_name :{}:".format(microservice_uuid, category_name) )
-            _LOGGER.setLevel(logging.WARNING)
-
-            raise interest_registry_exceptions.ErrorInterestRegistrationAlreadyExists
+        # try:
+        #     self.get(microservice_uuid=microservice_uuid, category_name=category_name)
+        # except interest_registry_exceptions.DoesNotExist:
+        #
+        #     #// FIXME_I:
+        #     _LOGGER.setLevel(logging.DEBUG)
+        #     _LOGGER.debug("xxx9 register_child OK microservice_uuid:{}: category_name :{}:".format(microservice_uuid, category_name) )
+        #     _LOGGER.setLevel(logging.WARNING)
+        #
+        #     pass
+        # else:
+        #
+        #     #// FIXME_I:
+        #     _LOGGER.setLevel(logging.DEBUG)
+        #     _LOGGER.debug("xxx9 register_child ERROR microservice_uuid:{}: category_name :{}:".format(microservice_uuid, category_name) )
+        #     _LOGGER.setLevel(logging.WARNING)
+        #
+        #     raise interest_registry_exceptions.ErrorInterestRegistrationAlreadyExists
 
         # register callback with configuration manager
         #// FIXME_I:

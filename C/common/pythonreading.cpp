@@ -193,6 +193,7 @@ DatapointValue *PythonReading::getDatapointValue(PyObject *value)
 					double d = PyFloat_AS_DOUBLE(PyList_GetItem(pyRow, j));
 					row.push_back(d);
 				}
+				values.push_back(row);
 
 			}
 			dataPoint = new DatapointValue(values);

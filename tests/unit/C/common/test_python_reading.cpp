@@ -48,6 +48,13 @@ def image_swap(arg, key):
     readings = arg["readings"];
     img = readings[key];
     return arg
+
+def row_swap(arg, key):
+    readings = arg["readings"];
+    a2d = readings[key];
+    newlist = [a2d[1], a2d[0]]
+    readings[key] = newlist
+    return arg
 )";
 
 class  PythonReadingTest : public testing::Test {
@@ -580,6 +587,41 @@ TEST_F(PythonReadingTest, UpdateAssetCode)
 	else
 	{
 		EXPECT_STREQ("Expect PythonReading object missing", "");
+	}
+}
+
+TEST_F(PythonReadingTest, Double2DArray)
+{
+	vector<vector<double> > array;
+	for (int i = 0; i < 2; i++)
+	{
+		vector<double> row;
+		row.push_back(1.4 + i);
+		row.push_back(3.7 + i);
+		array.push_back(row);
+	}
+	DatapointValue value(array);
+	Reading reading("test2d", new Datapoint("array", value));
+	PyObject *pyReading = ((PythonReading *)(&reading))->toPython();
+	PyObject *element = PyUnicode_FromString("array");
+	PyObject *obj = callPythonFunc2("row_swap", pyReading, element);
+	if (obj)
+	{
+		EXPECT_EQ(PyDict_Check(obj), true);
+		PythonReading pyr(obj);
+		EXPECT_STREQ(pyr.getAssetName().c_str(), "test2d");
+		EXPECT_EQ(pyr.getDatapointCount(), 1);
+		Datapoint *dp = pyr.getDatapoint("array");
+		EXPECT_EQ(dp->getData().getType(), DatapointValue::dataTagType::T_2D_FLOAT_ARRAY);
+		vector<vector<double> > *a2d = dp->getData().getDp2DArr();
+		EXPECT_EQ((*a2d)[0][0], 2.4);
+		EXPECT_EQ((*a2d)[0][1], 4.7);
+		EXPECT_EQ((*a2d)[1][0], 1.4);
+		EXPECT_EQ((*a2d)[1][1], 3.7);
+	}
+	else
+	{
+		EXPECT_STREQ("Expected a LIST object", "");
 	}
 }
 

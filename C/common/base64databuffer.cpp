@@ -22,7 +22,7 @@ Base64DataBuffer::Base64DataBuffer(const string& encoded)
 	{
 		throw runtime_error("Base64DataBuffer string is incorrect length");
 	}
-	size_t maxLen = (in_len -1) / 4 * 3;
+	size_t maxLen = in_len / 4 * 3;
 	if (encoded[in_len - 1] == '=')
 		maxLen--;
 	if (encoded[in_len - 2] == '=')
@@ -34,7 +34,7 @@ Base64DataBuffer::Base64DataBuffer(const string& encoded)
 	}
 	uint8_t *data = (uint8_t *)m_data;
 
-	for (size_t i = 1, j = 0; i < in_len;)
+	for (size_t i = 0, j = 0; i < in_len;)
 	{
 		uint32_t a = encoded[i] == '=' ? 0 & i++ : decodingTable[static_cast<int>(encoded[i++])];
 		uint32_t b = encoded[i] == '=' ? 0 & i++ : decodingTable[static_cast<int>(encoded[i++])];

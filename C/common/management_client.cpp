@@ -247,19 +247,8 @@ ostringstream convert;
 	}
 	try {
 		convert << "{ \"category\" : \"" << JSONescape(category) << "\", ";
-
-		// FIXME_I:
 		convert << "\"child\" : \"" << "True" << "\", ";
-
 		convert << "\"service\" : \"" << *m_uuid << "\" }";
-
-		// FIXME_I:
-		string _section="xxx8 ";
-
-		// FIXME_I:
-		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("%s / %s - START categoryName :%s: convert :%s:", _section.c_str(), __FUNCTION__, category.c_str(), convert.str().c_str());
-		Logger::getLogger()->setMinLevel("warning");
 
 		auto res = this->getHttpClient()->request("POST", "/fledge/interest", convert.str());
 		Document doc;

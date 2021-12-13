@@ -63,7 +63,6 @@ public:
 	void		setTimeout(const long timeout) { m_timeout = timeout; };
 	void		setThreshold(const unsigned int threshold) { m_queueSizeThreshold = threshold; };
 	void		configChange(const std::string&, const std::string&);
-	// FIXME_I:
 	void			configChangeChild(const std::string&, const std::string&){};
 	void		shutdown() {};	// Satisfy ServiceHandler
 

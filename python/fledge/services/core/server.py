@@ -1383,15 +1383,6 @@ class Server:
                 else:
                     child_subscribe = False
 
-                #// FIXME_I:
-                import logging
-
-                #// FIXME_I:
-                _logger.setLevel(logging.DEBUG)
-                _logger.debug("xxx7 <<<XXX>>> register_interest  value:{}: child_subscribe :{}:".format(value, child_subscribe) )
-                _logger.setLevel(logging.WARNING)
-
-
             except:
                 child_subscribe = False
 

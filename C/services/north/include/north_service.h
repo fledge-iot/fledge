@@ -39,7 +39,6 @@ class NorthService : public ServiceHandler {
 		void 				stop();
 		void				shutdown();
 		void				configChange(const std::string&, const std::string&);
-		// FIXME_I:
 		void			    configChangeChild(const std::string&, const std::string&){};
 
 		static ManagementClient *	getMgmtClient();

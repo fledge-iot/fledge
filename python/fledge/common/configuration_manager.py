@@ -186,28 +186,9 @@ class ConfigurationManager(ConfigurationManagerSingleton):
     #// FIXME_I:
     async def _run_callbacks_child(self, category_name, child_category):
 
-        #// FIXME_I:
-        import logging
-
-        #// FIXME_I:
-        _logger.setLevel(logging.DEBUG)
-        _logger.debug("xxx9 _run_callbacks_child S1  :{}: child_category :{}:".format(category_name, child_category) )
-        _logger.setLevel(logging.WARNING)
-
         callbacks = self._registered_interests_child.get(category_name)
 
-        #// FIXME_I:
-        _logger.setLevel(logging.DEBUG)
-        _logger.debug("xxx9 _run_callbacks_child S2 callbacks :{}:".format(callbacks) )
-        _logger.setLevel(logging.WARNING)
-
         if callbacks is not None:
-
-            #// FIXME_I:
-            _logger.setLevel(logging.DEBUG)
-            _logger.debug("xxx10 _run_callbacks_child S3  :{}: -".format(category_name) )
-            _logger.setLevel(logging.WARNING)
-
 
             for callback in callbacks:
                 try:
@@ -1115,15 +1096,6 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         def diff(lst1, lst2):
             return [v for v in lst2 if v not in lst1]
 
-        #// FIXME_I:
-        import logging
-
-        #// FIXME_I:
-        _logger.setLevel(logging.DEBUG)
-        _logger.debug("xxx9 create_child_category S1  :{}: -".format(category_name, children) )
-        _logger.setLevel(logging.WARNING)
-
-
         if not isinstance(category_name, str):
             raise TypeError('category_name must be a string')
 
@@ -1173,15 +1145,6 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         Return Values:
         JSON
         """
-
-        #// FIXME_I:
-        import logging
-
-        #// FIXME_I:
-        _logger.setLevel(logging.DEBUG)
-        _logger.debug("xxx9 delete_child_category S1  :{}: -".format(category_name, child_category) )
-        _logger.setLevel(logging.WARNING)
-
 
         if not isinstance(category_name, str):
             raise TypeError('category_name must be a string')
@@ -1374,15 +1337,6 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         A change in configuration is not rolled back if callbacks fail.
         """
 
-        #// FIXME_I:
-        import logging
-
-
-        #// FIXME_I:
-        _logger.setLevel(logging.DEBUG)
-        _logger.debug("xxx10 register_interest_child S1 category_name:{}: -".format(category_name) )
-        _logger.setLevel(logging.WARNING)
-
         if category_name is None:
             raise ValueError('Failed to register interest. category_name cannot be None')
         if callback is None:
@@ -1391,12 +1345,6 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             self._registered_interests_child[category_name] = {callback}
         else:
             self._registered_interests_child[category_name].add(callback)
-
-        #// FIXME_I:
-        _logger.setLevel(logging.DEBUG)
-        _logger.debug("xxx10 register_interest_child S2 callbacks :{}:".format(self._registered_interests_child) )
-        _logger.setLevel(logging.WARNING)
-
 
     def register_interest(self, category_name, callback):
         """Registers an interest in any changes to the category_value associated with category_name

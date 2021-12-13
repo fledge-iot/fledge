@@ -92,16 +92,6 @@ class InterestRegistry(InterestRegistrySingleton):
                 in the event that the microservice_uuid, category_name pair is already registered
         """
 
-        #// FIXME_I:
-        import logging
-
-        #// FIXME_I:
-        _LOGGER.setLevel(logging.DEBUG)
-        _LOGGER.debug("xxx9 register_child  microservice_uuid:{}: category_name :{}:".format(microservice_uuid, category_name) )
-        _LOGGER.setLevel(logging.WARNING)
-
-
-
         if microservice_uuid is None:
             raise ValueError('Failed to register interest. microservice_uuid cannot be None')
         if category_name is None:

@@ -45,19 +45,9 @@ ConfigHandler::ConfigHandler(ManagementClient *mgtClient)
 void
 ConfigHandler::configChange(const string& category, const string& config)
 {
-	// FIXME_I:
-	string _section="xxx11 ";
-
-	// FIXME_I:
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("%s / %s - S1 category :%s: config :%s:", _section.c_str(), __FUNCTION__, category.c_str(), config.c_str());
-	Logger::getLogger()->setMinLevel("warning");
-
-
 	m_logger->info("Configuration change notification for %s", category.c_str());
 	std::unique_lock<std::mutex> lck(m_mutex);
-	pair<CONFIG_MAP::iterator, CONFIG_MAP::iterator> res =
-			 m_registrations.equal_range(category);
+	pair<CONFIG_MAP::iterator, CONFIG_MAP::iterator> res = m_registrations.equal_range(category);
 	for (CONFIG_MAP::iterator it = res.first; it != res.second; it++)
 	{
 		// The config change call could effect the registered handlers
@@ -68,32 +58,15 @@ ConfigHandler::configChange(const string& category, const string& config)
 		lck.lock();
 		if (m_change) // Something changed
 		{
-			// FIXME_I:
-			_section="xxx12 ";
-
-			// FIXME_I:
-			Logger::getLogger()->setMinLevel("debug");
-			Logger::getLogger()->debug("%s / %s - S2 BREAK ", _section.c_str(), __FUNCTION__ );
-			Logger::getLogger()->setMinLevel("warning");
-
 			break;
 			//return;	// Call any other subscribers to this category. In reality there are no others
 		}
 	}
 
-	// FIXME_I:
-	// FIXME_I:
-	_section="xxx12 ";
-
 	m_logger->info("Configuration change notification for %s", category.c_str());
 	res = m_registrationsChild.equal_range(category);
 	for (CONFIG_MAP::iterator it = res.first; it != res.second; it++)
 	{
-
-		// FIXME_I:
-		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("%s / %s - S3 category :%s: config :%s:", _section.c_str(), __FUNCTION__, category.c_str(), config.c_str());
-		Logger::getLogger()->setMinLevel("warning");
 
 			// The config change call could effect the registered handlers
 		// we therefore need to guard against the map changing
@@ -148,16 +121,6 @@ ConfigHandler::registerCategory(ServiceHandler *handler, const string& category)
 // FIXME_I: fix text messages
 void ConfigHandler::registerCategoryChild(ServiceHandler *handler, const string& category)
 {
-
-	// FIXME_I:
-	string _section="xxx8 ";
-
-	// FIXME_I:
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("%s / %s - START categoryName :%s:", _section.c_str(), __FUNCTION__, category.c_str());
-	Logger::getLogger()->setMinLevel("warning");
-
-
 	if (m_registrationsChild.count(category) == 0)
 	{
 		int retryCount = 0;

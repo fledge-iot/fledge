@@ -37,7 +37,11 @@ async def get_all_scripts(request: web.Request) -> web.Response:
     :Example:
         curl -sX GET http://localhost:8081/fledge/control/script
     """
-    return web.json_response({"message": "To be Implemented"})
+    storage = connect.get_storage_async()
+    payload = PayloadBuilder().SELECT("name", "steps", "acl").payload()
+    result = await storage.query_tbl_with_payload('control_script', payload)
+    all_scripts = [key for key in result['rows']]
+    return web.json_response({"scripts": all_scripts})
 
 
 async def get_script(request: web.Request) -> web.Response:

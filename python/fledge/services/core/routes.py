@@ -29,7 +29,7 @@ from fledge.services.core.api.snapshot import plugins as snapshot_plugins
 from fledge.services.core.api.snapshot import table as snapshot_table
 from fledge.services.core.api import package_log
 from fledge.services.core.api.repos import configure as configure_repo
-
+from fledge.services.core.api.control_service import script_management
 
 __author__ = "Ashish Jabble, Praveen Garg, Massimiliano Pinto, Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017-2018 OSIsoft, LLC"
@@ -223,6 +223,14 @@ def setup(app):
 
     # Repo configure
     app.router.add_route('POST', '/fledge/repository', configure_repo.add_package_repo)
+
+    # Control Service Support
+    # Script Management
+    app.router.add_route('POST', '/fledge/control/script', script_management.add_script)
+    app.router.add_route('GET', '/fledge/control/script', script_management.get_all_scripts)
+    app.router.add_route('GET', '/fledge/control/script/{script_name}', script_management.get_script)
+    app.router.add_route('PUT', '/fledge/control/script/{script_name}', script_management.update_script)
+    app.router.add_route('DELETE', '/fledge/control/script/{script_name}', script_management.delete_script)
 
     # enable cors support
     enable_cors(app)

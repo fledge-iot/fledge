@@ -53,6 +53,69 @@ Reading* Py2C_parseReadingObject(PyObject *element)
 	return new PythonReading(element);
 }
 
+
+/**
+ * Set id, uuid, ts and user_ts in the reading object
+ *
+ * @param newReading	Reading object to update
+ * @param readingList	PyObject containing this reading object
+ * @param fillIfMissing	If True, only fill ID/TS fields if not set already
+ */
+void setReadingAttr(Reading* newReading, PyObject *readingList, bool fillIfMissing)
+{
+	if (!newReading)
+		return;
+	
+	// Get 'id' value: borrowed reference.
+	PyObject* id = PyDict_GetItemString(readingList, "id");
+    bool fill = (!fillIfMissing || (fillIfMissing && newReading->getId()==0));
+	if (fill && id && PyLong_Check(id))
+	{
+		// Set id
+		newReading->setId(PyLong_AsUnsignedLong(id));
+	}
+
+	// Get 'ts' value: borrowed reference.
+	PyObject* ts = PyDict_GetItemString(readingList, "ts");
+    fill = (!fillIfMissing || (fillIfMissing && newReading->getTimestamp()==0));
+	if (fill && ts)
+	{
+		// Convert a timestamp of the from '2019-01-07 19:06:35.366100+01:00'
+		const char *ts_str = PyUnicode_AsUTF8(ts);
+		newReading->setTimestamp(ts_str);
+	}
+
+	// Get 'user_ts' value: borrowed reference.
+	PyObject* uts = PyDict_GetItemString(readingList, "timestamp");
+    fill = (!fillIfMissing || (fillIfMissing && newReading->getUserTimestamp()==0));
+	if (fill && uts)
+	{
+		// Convert a timestamp of the from '2019-01-07 19:06:35.366100+01:00'
+		const char *ts_str = PyUnicode_AsUTF8(uts);
+		newReading->setUserTimestamp(ts_str);
+	}
+	
+	// Get 'ts' value: borrowed reference.
+	PyObject* userts = PyDict_GetItemString(readingList, "user_ts");
+    fill = (!fillIfMissing || (fillIfMissing && newReading->getUserTimestamp()==0));
+	if (fill && userts)
+	{
+		// Convert a timestamp of the from '2019-01-07 19:06:35.366100+01:00'
+		const char *ts_str = PyUnicode_AsUTF8(userts);
+		newReading->setUserTimestamp(ts_str);
+	}
+
+    // if User TS is still not filled, copy TS into it
+    fill = (!fillIfMissing || (fillIfMissing && newReading->getUserTimestamp()==0));
+    Logger::getLogger()->debug("fill=%s, newReading->getUserTimestamp()=%d, newReading->getTimestamp()=%d", fill?"True":"False", newReading->getUserTimestamp(), newReading->getTimestamp());
+    if (fill)
+    {
+        newReading->setUserTimestamp(newReading->getTimestamp());
+        Logger::getLogger()->debug("Copied TS into user TS: newReading->getUserTimestamp()=%d", newReading->getUserTimestamp());
+    }
+}
+
+
 /**
  * Creating vector of Reading objects from Python object
  *
@@ -62,6 +125,10 @@ Reading* Py2C_parseReadingObject(PyObject *element)
  */
 std::vector<Reading *>* Py2C_getReadings(PyObject *polledData)
 {
+    PyObject* objectsRepresentation = PyObject_Repr(polledData);
+    const char* s = PyUnicode_AsUTF8(objectsRepresentation);
+    Logger::getLogger()->info("Py2C_getReadings(): polledData=%s", s);
+    
 	std::vector<Reading *>* newReadings = new std::vector<Reading *>();
 
 	if(PyList_Check(polledData)) // got a list of readings
@@ -85,6 +152,9 @@ std::vector<Reading *>* Py2C_getReadings(PyObject *polledData)
 			Reading* newReading = new PythonReading(element);
 			if (newReading)
 			{
+                setReadingAttr(newReading, polledData, true);
+                Logger::getLogger()->info("Py2C_getReadings:L%d: reading=%s", __LINE__, newReading->toJSON().c_str());
+                
 				// Add the new reading to result vector
 				newReadings->push_back(newReading);
 			}
@@ -108,7 +178,13 @@ std::vector<Reading *>* Py2C_getReadings(PyObject *polledData)
 			{
 				Reading* newReading = new PythonReading(polledData);
 				if (newReading)
+				{
+                    setReadingAttr(newReading, polledData, true);
+                    Logger::getLogger()->info("Py2C_getReadings:L%d: reading=%s", __LINE__, newReading->toJSON().c_str());
+
+                    // Add the new reading to result vector
 					newReadings->push_back(newReading);
+				}
 			}
 		}
 	}

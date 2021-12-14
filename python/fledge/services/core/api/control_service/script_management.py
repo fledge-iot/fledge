@@ -52,11 +52,27 @@ async def get_script(request: web.Request) -> web.Response:
     """
     try:
         name = request.match_info.get('script_name', None)
+        storage = connect.get_storage_async()
+        payload = PayloadBuilder().SELECT("name", "steps", "acl").WHERE(['name', '=', name]).payload()
+        result = await storage.query_tbl_with_payload('control_script', payload)
+        if 'rows' in result:
+            if result['rows']:
+                script_info = result['rows'][0]
+            else:
+                raise NameNotFoundError('No such {} script found'.format(name))
+        else:
+            raise StorageServerError(result)
+    except StorageServerError as err:
+        msg = "Storage error: {}".format(str(err))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+    except NameNotFoundError as err:
+        msg = str(err)
+        raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
-        return web.json_response({"message": "To be Implemented"})
+        return web.json_response(script_info)
 
 
 async def add_script(request: web.Request) -> web.Response:

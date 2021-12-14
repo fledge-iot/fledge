@@ -30,6 +30,8 @@ from fledge.services.core.api.snapshot import table as snapshot_table
 from fledge.services.core.api import package_log
 from fledge.services.core.api.repos import configure as configure_repo
 from fledge.services.core.api.control_service import script_management
+from fledge.services.core.api.control_service import acl_management
+
 
 __author__ = "Ashish Jabble, Praveen Garg, Massimiliano Pinto, Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017-2018 OSIsoft, LLC"
@@ -231,6 +233,15 @@ def setup(app):
     app.router.add_route('GET', '/fledge/control/script/{script_name}', script_management.get_script)
     app.router.add_route('PUT', '/fledge/control/script/{script_name}', script_management.update_script)
     app.router.add_route('DELETE', '/fledge/control/script/{script_name}', script_management.delete_script)
+
+    # Access Control List Management
+    app.router.add_route('POST', '/fledge/ACL', acl_management.add_acl)
+    app.router.add_route('GET', '/fledge/ACL', acl_management.get_all_acls)
+    app.router.add_route('GET', '/fledge/ACL/{acl_name}', acl_management.get_acl)
+    app.router.add_route('PUT', '/fledge/ACL/{acl_name}', acl_management.update_acl)
+    app.router.add_route('DELETE', '/fledge/ACL/{acl_name}', acl_management.delete_acl)
+    app.router.add_route('PUT', '/fledge/service/{service_name}/ACL', acl_management.attach_acl_to_service)
+    app.router.add_route('DELETE', '/fledge/service/{service_name}/ACL', acl_management.detach_acl_from_service)
 
     # enable cors support
     enable_cors(app)

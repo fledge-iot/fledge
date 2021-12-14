@@ -612,7 +612,7 @@ CREATE TABLE fledge.control_script (
 -- Access Control List Management for control dispatch service
 CREATE TABLE fledge.control_acl (
              name          character varying(255)        NOT NULL,
-             service       character varying(255),
+             service       JSON                          NOT NULL DEFAULT '{}'
              url           JSON                          NOT NULL DEFAULT '{}',
              CONSTRAINT    control_acl_pkey              PRIMARY KEY (name) );
 

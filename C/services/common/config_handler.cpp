@@ -63,6 +63,13 @@ ConfigHandler::configChange(const string& category, const string& config)
 		}
 	}
 
+
+	// FIXME_I:
+	string _section="xxx13 ";
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("%s / %s - S1 category :%s: config :%s:", _section.c_str(), __FUNCTION__, category.c_str(), category.c_str(), config.c_str());
+	Logger::getLogger()->setMinLevel("warning");
+
 	m_logger->info("Configuration change notification for %s", category.c_str());
 	res = m_registrationsChild.equal_range(category);
 	for (CONFIG_MAP::iterator it = res.first; it != res.second; it++)

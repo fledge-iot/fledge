@@ -188,6 +188,14 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
         callbacks = self._registered_interests_child.get(category_name)
 
+        #// FIXME_I:
+        import logging
+
+        #// FIXME_I:
+        _logger.setLevel(logging.DEBUG)
+        _logger.debug("xxx6 _run_callbacks_child category_name :{}: child_category :{}: callbacks:{}: ".format(category_name, child_category, callbacks) )
+        _logger.setLevel(logging.WARNING)
+
         if callbacks is not None:
 
             for callback in callbacks:
@@ -1146,6 +1154,15 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         JSON
         """
 
+
+        #// FIXME_I:
+        import logging
+
+        #// FIXME_I:
+        _logger.setLevel(logging.DEBUG)
+        _logger.debug("xxx5 delete_child_category category_name :{}: child_category :{}:".format(category_name, channel_name) )
+        _logger.setLevel(logging.WARNING)
+
         if not isinstance(category_name, str):
             raise TypeError('category_name must be a string')
 
@@ -1169,6 +1186,12 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 _children = []
                 for item in child_dict:
                     _children.append(item['child'])
+
+
+            #// FIXME_I:
+            _logger.setLevel(logging.DEBUG)
+            _logger.debug("xxx4 delete_child_category result :{}:".format(result) )
+            _logger.setLevel(logging.WARNING)
 
             # TODO: Shall we write audit trail code entry here? log_code?
 

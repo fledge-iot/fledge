@@ -101,6 +101,7 @@ async def add_script(request: web.Request) -> web.Response:
                 raise ValueError('ACL must be a string')
             if acl.strip() == "":
                 raise ValueError('ACL cannot be empty')
+        result = {}
         storage = connect.get_storage_async()
         payload = PayloadBuilder().SELECT("name").WHERE(['name', '=', name]).payload()
         get_control_script_name_result = await storage.query_tbl_with_payload('control_script', payload)
@@ -184,6 +185,9 @@ async def update_script(request: web.Request) -> web.Response:
     except StorageServerError as err:
         msg = "Storage error: {}".format(str(err))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+    except NameNotFoundError as err:
+        msg = str(err)
+        raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except ValueError as err:
         msg = str(err)
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
@@ -202,9 +206,31 @@ async def delete_script(request: web.Request) -> web.Response:
     """
     try:
         name = request.match_info.get('script_name', None)
+        storage = connect.get_storage_async()
+        payload = PayloadBuilder().SELECT("name").WHERE(['name', '=', name]).payload()
+        result = await storage.query_tbl_with_payload('control_script', payload)
+        message = ""
+        if 'rows' in result:
+            if result['rows']:
+                payload = PayloadBuilder().WHERE(['name', '=', name]).payload()
+                delete_result = await storage.delete_from_tbl("control_script", payload)
+                if 'response' in delete_result:
+                    if delete_result['response'] == "deleted":
+                        message = "{} script deleted successfully".format(name)
+                else:
+                    raise StorageServerError(delete_result)
+            else:
+                raise NameNotFoundError('No such {} script found'.format(name))
+        else:
+            raise StorageServerError(result)
+    except StorageServerError as err:
+        msg = "Storage error: {}".format(str(err))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+    except NameNotFoundError as err:
+        msg = str(err)
+        raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
-        return web.json_response({"message": "To be Implemented"})
-
+        return web.json_response({"message": message})

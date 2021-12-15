@@ -37,3 +37,34 @@ async def get_all_acls(request: web.Request) -> web.Response:
     all_acls = [key for key in result['rows']]
     # TODO: Add users list in response where they are used
     return web.json_response({"acls": all_acls})
+
+
+async def get_acl(request: web.Request) -> web.Response:
+    """ Get the details of access control list by name
+
+    :Example:
+        curl -sX GET http://localhost:8081/fledge/ACL/testACL
+    """
+    try:
+        name = request.match_info.get('acl_name', None)
+        storage = connect.get_storage_async()
+        payload = PayloadBuilder().SELECT("name", "service", "url").WHERE(['name', '=', name]).payload()
+        result = await storage.query_tbl_with_payload('control_acl', payload)
+        if 'rows' in result:
+            if result['rows']:
+                acl_info = result['rows'][0]
+            else:
+                raise NameNotFoundError('No such {} ACL found'.format(name))
+        else:
+            raise StorageServerError(result)
+    except StorageServerError as err:
+        msg = "Storage error: {}".format(str(err))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+    except NameNotFoundError as err:
+        msg = str(err)
+        raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
+    except Exception as ex:
+        msg = str(ex)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+    else:
+        return web.json_response(acl_info)

@@ -236,6 +236,7 @@ def setup(app):
 
     # Access Control List Management
     app.router.add_route('GET', '/fledge/ACL', acl_management.get_all_acls)
+    app.router.add_route('GET', '/fledge/ACL/{acl_name}', acl_management.get_acl)
 
     # enable cors support
     enable_cors(app)

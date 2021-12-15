@@ -96,14 +96,18 @@ async def add_script(request: web.Request) -> web.Response:
             raise ValueError('steps param is required')
         if not isinstance(steps, dict):
             raise ValueError('steps must be a dictionary')
-        if acl is not None and acl.strip() == "":
-            raise ValueError('ACL cannot be empty')
+        if acl is not None:
+            if not isinstance(acl, str):
+                raise ValueError('ACL must be a string')
+            if acl.strip() == "":
+                raise ValueError('ACL cannot be empty')
         storage = connect.get_storage_async()
         payload = PayloadBuilder().SELECT("name").WHERE(['name', '=', name]).payload()
         get_control_script_name_result = await storage.query_tbl_with_payload('control_script', payload)
         if get_control_script_name_result['count'] == 0:
             payload = PayloadBuilder().INSERT(name=name, steps=steps).payload()
             if acl is not None:
+                # TODO: ACL record existence check if found then move else throw 404
                 payload = PayloadBuilder().INSERT(name=name, steps=steps, acl=acl.strip()).payload()
             insert_control_script_result = await storage.insert_into_tbl("control_script", payload)
             if 'response' in insert_control_script_result:
@@ -135,19 +139,59 @@ async def update_script(request: web.Request) -> web.Response:
     """ Update a script
 
     :Example:
-        curl -sX PUT http://localhost:8081/fledge/control/script/{script_name} -d '{"steps": [{}]}'
-        curl -sX PUT http://localhost:8081/fledge/control/script/{script_name} -d '{"steps": [{}], "acl": "testACL"}'
+        curl -sX PUT http://localhost:8081/fledge/control/script/{script_name} -d '{"steps": {}}'
+        curl -sX PUT http://localhost:8081/fledge/control/script/{script_name} -d '{"steps": {}, "acl": "testACL"}'
     """
     try:
         name = request.match_info.get('script_name', None)
         data = await request.json()
         steps = data.get('steps', None)
         acl = data.get('acl', None)
+        if steps is None and acl is None:
+            raise ValueError("Nothing to update in a given payload. Only steps and acl can be updated")
+        if steps is not None and not isinstance(steps, dict):
+            raise ValueError('steps must be a dictionary')
+        if acl is not None:
+            if not isinstance(acl, str):
+                raise ValueError('ACL must be a string')
+            if acl.strip() == "":
+                raise ValueError('ACL cannot be empty')
+        storage = connect.get_storage_async()
+        payload = PayloadBuilder().SELECT("name").WHERE(['name', '=', name]).payload()
+        result = await storage.query_tbl_with_payload('control_script', payload)
+        message = ""
+        if 'rows' in result:
+            if result['rows']:
+                if steps is not None and acl is not None:
+                    # TODO: acl existence check
+                    update_payload = PayloadBuilder().SET(steps=steps, acl=acl.strip()).WHERE(
+                        ['name', '=', name]).payload()
+                elif steps is not None:
+                    update_payload = PayloadBuilder().SET(steps=steps).WHERE(['name', '=', name]).payload()
+                else:
+                    # TODO: acl existence check
+                    update_payload = PayloadBuilder().SET(acl=acl.strip()).WHERE(['name', '=', name]).payload()
+                update_result = await storage.update_tbl("control_script", update_payload)
+                if 'response' in update_result:
+                    if update_result['response'] == "updated":
+                        message = "Record updated successfully for {} script".format(name)
+                else:
+                    raise StorageServerError(update_result)
+            else:
+                raise NameNotFoundError('No such {} script found'.format(name))
+        else:
+            raise StorageServerError(result)
+    except StorageServerError as err:
+        msg = "Storage error: {}".format(str(err))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+    except ValueError as err:
+        msg = str(err)
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
-        return web.json_response({"message": "To be Implemented"})
+        return web.json_response({"message": message})
 
 
 async def delete_script(request: web.Request) -> web.Response:

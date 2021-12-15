@@ -37,7 +37,7 @@ async def get_all_scripts(request: web.Request) -> web.Response:
     """ Get list of all scripts
 
     :Example:
-        curl -sX GET http://localhost:8081/fledge/control/script
+        curl -H "authorization: $AUTH_TOKEN" -sX GET http://localhost:8081/fledge/control/script
     """
     storage = connect.get_storage_async()
     payload = PayloadBuilder().SELECT("name", "steps", "acl").payload()
@@ -50,7 +50,7 @@ async def get_script(request: web.Request) -> web.Response:
     """ Get a named script
 
     :Example:
-        curl -sX GET http://localhost:8081/fledge/control/script/{script_name}
+        curl -H "authorization: $AUTH_TOKEN" -sX GET http://localhost:8081/fledge/control/script/testScript
     """
     try:
         name = request.match_info.get('script_name', None)
@@ -82,8 +82,8 @@ async def add_script(request: web.Request) -> web.Response:
     """ Add a script
 
     :Example:
-        curl -sX POST http://localhost:8081/fledge/control/script -d '{"name": "testScript", "steps": {"write": {"order": 1, "service": "modbus1", "values": {"speed": "$requestedSpeed$", "fan": "1200"}, "condition": {"key": "requestedSpeed", "condition": "<", "value": "2000"}}, "delay": {"order": 2, "duration": 1500}}}'
-        curl -sX POST http://localhost:8081/fledge/control/script -d '{"name": "test", "steps": {}, "acl": "testACL"}'
+        curl -H "authorization: $AUTH_TOKEN" -sX POST http://localhost:8081/fledge/control/script -d '{"name": "testScript", "steps": {"write": {"order": 1, "service": "modbus1", "values": {"speed": "$requestedSpeed$", "fan": "1200"}, "condition": {"key": "requestedSpeed", "condition": "<", "value": "2000"}}, "delay": {"order": 2, "duration": 1500}}}'
+        curl -H "authorization: $AUTH_TOKEN" -sX POST http://localhost:8081/fledge/control/script -d '{"name": "test", "steps": {}, "acl": "testACL"}'
     """
     if request.is_auth_optional:
         msg = "Add script: {}".format(FORBIDDEN_MSG)
@@ -140,7 +140,7 @@ async def add_script(request: web.Request) -> web.Response:
         msg = str(ex)
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
-        return web.json_response({"message": result})
+        return web.json_response(result)
 
 
 @has_permission("admin")
@@ -148,8 +148,8 @@ async def update_script(request: web.Request) -> web.Response:
     """ Update a script
 
     :Example:
-        curl -sX PUT http://localhost:8081/fledge/control/script/{script_name} -d '{"steps": {}}'
-        curl -sX PUT http://localhost:8081/fledge/control/script/{script_name} -d '{"steps": {}, "acl": "testACL"}'
+        curl -H "authorization: $AUTH_TOKEN" -sX PUT http://localhost:8081/fledge/control/script/testScript -d '{"steps": {}}'
+        curl -H "authorization: $AUTH_TOKEN" -sX PUT http://localhost:8081/fledge/control/script/test -d '{"steps": {}, "acl": "testACL"}'
     """
     if request.is_auth_optional:
         msg = "Update script: {}".format(FORBIDDEN_MSG)
@@ -215,7 +215,7 @@ async def delete_script(request: web.Request) -> web.Response:
     """ Delete a script
 
     :Example:
-        curl -sX DELETE http://localhost:8081/fledge/control/script/{script_name}
+        curl -H "authorization: $AUTH_TOKEN" -sX DELETE http://localhost:8081/fledge/control/script/test
     """
     if request.is_auth_optional:
         msg = "Delete script: {}".format(FORBIDDEN_MSG)

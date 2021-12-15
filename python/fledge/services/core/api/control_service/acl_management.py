@@ -68,3 +68,42 @@ async def get_acl(request: web.Request) -> web.Response:
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(acl_info)
+
+
+async def delete_acl(request: web.Request) -> web.Response:
+    """ Delete an access control list. Only ACL's that have no users can be deleted
+
+    :Example:
+        curl -sX DELETE http://localhost:8081/fledge/ACL/testACL
+    """
+    try:
+        name = request.match_info.get('acl_name', None)
+        storage = connect.get_storage_async()
+        payload = PayloadBuilder().SELECT("name").WHERE(['name', '=', name]).payload()
+        result = await storage.query_tbl_with_payload('control_acl', payload)
+        message = ""
+        if 'rows' in result:
+            if result['rows']:
+                payload = PayloadBuilder().WHERE(['name', '=', name]).payload()
+                # TODO: delete only that have no users
+                delete_result = await storage.delete_from_tbl("control_acl", payload)
+                if 'response' in delete_result:
+                    if delete_result['response'] == "deleted":
+                        message = "{} ACL deleted successfully".format(name)
+                else:
+                    raise StorageServerError(delete_result)
+            else:
+                raise NameNotFoundError('No such {} ACL found'.format(name))
+        else:
+            raise StorageServerError(result)
+    except StorageServerError as err:
+        msg = "Storage error: {}".format(str(err))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+    except NameNotFoundError as err:
+        msg = str(err)
+        raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
+    except Exception as ex:
+        msg = str(ex)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+    else:
+        return web.json_response({"message": message})

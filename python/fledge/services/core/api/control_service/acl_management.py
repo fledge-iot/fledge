@@ -74,7 +74,7 @@ async def add_acl(request: web.Request) -> web.Response:
     """ Create a new access control list
 
     :Example:
-         curl -sX POST http://localhost:8081/fledge/ACL -d '{"name": "IEC-104 ACL", "service": {"name": "IEC-104", "type": "notification"}, "url": {"URL": "/fledge/south/operation"}}'
+         curl -sX POST http://localhost:8081/fledge/ACL -d '{"name": "testACL", "service": {"name": "IEC-104", "type": "notification"}, "url": {"URL": "/fledge/south/operation"}}'
     """
     try:
         data = await request.json()
@@ -123,6 +123,63 @@ async def add_acl(request: web.Request) -> web.Response:
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(result)
+
+
+async def update_acl(request: web.Request) -> web.Response:
+    """ Update an access control list. Only the set of service and URL's can be updated
+
+    :Example:
+        curl -sX PUT http://localhost:8081/fledge/ACL/testACL -d '{"service": {"name": "Sinusoid"}}'
+        curl -sX PUT http://localhost:8081/fledge/ACL/testACL -d '{"service": {}, "url": {"URL": "/fledge/south/operation"}}'
+    """
+    try:
+        name = request.match_info.get('acl_name', None)
+        data = await request.json()
+        service = data.get('service', None)
+        url = data.get('url', None)
+        if service is None and url is None:
+            raise ValueError("Nothing to update in a given payload. Only service and url can be updated")
+        if service is not None and not isinstance(service, dict):
+            raise TypeError('service must be a dictionary')
+        if url is not None and not isinstance(url, dict):
+            raise TypeError('url must be a dictionary')
+        storage = connect.get_storage_async()
+        payload = PayloadBuilder().SELECT("name").WHERE(['name', '=', name]).payload()
+        result = await storage.query_tbl_with_payload('control_acl', payload)
+        message = ""
+        if 'rows' in result:
+            if result['rows']:
+                if service is not None and url is not None:
+                    update_payload = PayloadBuilder().SET(service=service, url=url).WHERE(
+                        ['name', '=', name]).payload()
+                elif service is not None:
+                    update_payload = PayloadBuilder().SET(service=service).WHERE(['name', '=', name]).payload()
+                else:
+                    update_payload = PayloadBuilder().SET(url=url).WHERE(['name', '=', name]).payload()
+                update_result = await storage.update_tbl("control_acl", update_payload)
+                if 'response' in update_result:
+                    if update_result['response'] == "updated":
+                        message = "Record updated successfully for {} ACL".format(name)
+                else:
+                    raise StorageServerError(update_result)
+            else:
+                raise NameNotFoundError('No such {} ACL found'.format(name))
+        else:
+            raise StorageServerError(result)
+    except StorageServerError as err:
+        msg = "Storage error: {}".format(str(err))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+    except NameNotFoundError as err:
+        msg = str(err)
+        raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
+    except (TypeError, ValueError) as err:
+        msg = str(err)
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+    except Exception as ex:
+        msg = str(ex)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+    else:
+        return web.json_response({"message": message})
 
 
 async def delete_acl(request: web.Request) -> web.Response:

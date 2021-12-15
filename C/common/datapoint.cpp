@@ -151,7 +151,12 @@ void DatapointValue::deleteNestedDPV()
 	else if (m_type == T_DATABUFFER)
 	{
 		delete m_value.dataBuffer;
-		m_value.a = NULL;
+		m_value.dataBuffer = NULL;
+	}
+	else if (m_type == T_IMAGE)
+	{
+		delete m_value.image;
+		m_value.image = NULL;
 	}
 	else if (m_type == T_DP_DICT ||
 		 m_type == T_DP_LIST)
@@ -169,6 +174,11 @@ void DatapointValue::deleteNestedDPV()
 			delete m_value.dpa;
 			m_value.dpa = NULL;
 		}
+	}
+	else if (m_type == T_2D_FLOAT_ARRAY)
+	{
+		delete m_value.a2d;
+		m_value.a2d = NULL;
 	}
 }
 

@@ -9,9 +9,10 @@ import logging
 
 from aiohttp import web
 
+from fledge.common import logger
 from fledge.common.storage_client.exceptions import StorageServerError
 from fledge.common.storage_client.payload_builder import PayloadBuilder
-from fledge.common import logger
+from fledge.common.web.middleware import has_permission
 from fledge.services.core import connect
 from fledge.services.core.api.control_service.exceptions import *
 
@@ -29,6 +30,7 @@ _help = """
 """
 
 _logger = logger.setup(__name__, level=logging.INFO)
+FORBIDDEN_MSG = 'resource you were trying to reach is absolutely forbidden for some reason'
 
 
 async def get_all_scripts(request: web.Request) -> web.Response:
@@ -75,6 +77,7 @@ async def get_script(request: web.Request) -> web.Response:
         return web.json_response(script_info)
 
 
+@has_permission("admin")
 async def add_script(request: web.Request) -> web.Response:
     """ Add a script
 
@@ -82,6 +85,10 @@ async def add_script(request: web.Request) -> web.Response:
         curl -sX POST http://localhost:8081/fledge/control/script -d '{"name": "testScript", "steps": {"write": {"order": 1, "service": "modbus1", "values": {"speed": "$requestedSpeed$", "fan": "1200"}, "condition": {"key": "requestedSpeed", "condition": "<", "value": "2000"}}, "delay": {"order": 2, "duration": 1500}}}'
         curl -sX POST http://localhost:8081/fledge/control/script -d '{"name": "test", "steps": {}, "acl": "testACL"}'
     """
+    if request.is_auth_optional:
+        msg = "Add script: {}".format(FORBIDDEN_MSG)
+        _logger.warning(msg)
+        raise web.HTTPForbidden(reason=msg, body=json.dumps({"message": msg}))
     try:
         data = await request.json()
         name = data.get('name', None)
@@ -136,6 +143,7 @@ async def add_script(request: web.Request) -> web.Response:
         return web.json_response({"message": result})
 
 
+@has_permission("admin")
 async def update_script(request: web.Request) -> web.Response:
     """ Update a script
 
@@ -143,6 +151,10 @@ async def update_script(request: web.Request) -> web.Response:
         curl -sX PUT http://localhost:8081/fledge/control/script/{script_name} -d '{"steps": {}}'
         curl -sX PUT http://localhost:8081/fledge/control/script/{script_name} -d '{"steps": {}, "acl": "testACL"}'
     """
+    if request.is_auth_optional:
+        msg = "Update script: {}".format(FORBIDDEN_MSG)
+        _logger.warning(msg)
+        raise web.HTTPForbidden(reason=msg, body=json.dumps({"message": msg}))
     try:
         name = request.match_info.get('script_name', None)
         data = await request.json()
@@ -198,12 +210,17 @@ async def update_script(request: web.Request) -> web.Response:
         return web.json_response({"message": message})
 
 
+@has_permission("admin")
 async def delete_script(request: web.Request) -> web.Response:
     """ Delete a script
 
     :Example:
         curl -sX DELETE http://localhost:8081/fledge/control/script/{script_name}
     """
+    if request.is_auth_optional:
+        msg = "Delete script: {}".format(FORBIDDEN_MSG)
+        _logger.warning(msg)
+        raise web.HTTPForbidden(reason=msg, body=json.dumps({"message": msg}))
     try:
         name = request.match_info.get('script_name', None)
         storage = connect.get_storage_async()

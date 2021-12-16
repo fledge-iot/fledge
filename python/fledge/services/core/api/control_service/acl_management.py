@@ -22,6 +22,12 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 
+_help = """
+    --------------------------------------------------------------
+    | GET POST            | /fledge/ACL                          |
+    | GET PUT DELETE      | /fledge/ACL/{acl_name}               |
+    --------------------------------------------------------------
+"""
 _logger = logger.setup(__name__, level=logging.INFO)
 
 

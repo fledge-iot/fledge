@@ -12,6 +12,7 @@ from aiohttp import web
 from fledge.common import logger
 from fledge.common.storage_client.exceptions import StorageServerError
 from fledge.common.storage_client.payload_builder import PayloadBuilder
+from fledge.common.web.middleware import has_permission
 from fledge.services.core import connect
 from fledge.services.core.api.control_service.exceptions import *
 
@@ -28,14 +29,16 @@ _help = """
     | GET PUT DELETE      | /fledge/ACL/{acl_name}               |
     --------------------------------------------------------------
 """
+
 _logger = logger.setup(__name__, level=logging.INFO)
+FORBIDDEN_MSG = 'resource you were trying to reach is absolutely forbidden for some reason'
 
 
 async def get_all_acls(request: web.Request) -> web.Response:
     """ Get list of all access control lists in the system
 
     :Example:
-        curl -sX GET http://localhost:8081/fledge/ACL
+        curl -H "authorization: $AUTH_TOKEN" -sX GET http://localhost:8081/fledge/ACL
     """
     storage = connect.get_storage_async()
     payload = PayloadBuilder().SELECT("name", "service", "url").payload()
@@ -49,7 +52,7 @@ async def get_acl(request: web.Request) -> web.Response:
     """ Get the details of access control list by name
 
     :Example:
-        curl -sX GET http://localhost:8081/fledge/ACL/testACL
+        curl -H "authorization: $AUTH_TOKEN" -sX GET http://localhost:8081/fledge/ACL/testACL
     """
     try:
         name = request.match_info.get('acl_name', None)
@@ -76,12 +79,17 @@ async def get_acl(request: web.Request) -> web.Response:
         return web.json_response(acl_info)
 
 
+@has_permission("admin")
 async def add_acl(request: web.Request) -> web.Response:
     """ Create a new access control list
 
     :Example:
-         curl -sX POST http://localhost:8081/fledge/ACL -d '{"name": "testACL", "service": {"name": "IEC-104", "type": "notification"}, "url": {"URL": "/fledge/south/operation"}}'
+         curl -H "authorization: $AUTH_TOKEN" -sX POST http://localhost:8081/fledge/ACL -d '{"name": "testACL", "service": {"name": "IEC-104", "type": "notification"}, "url": {"URL": "/fledge/south/operation"}}'
     """
+    if request.is_auth_optional:
+        msg = "Add ACL: {}".format(FORBIDDEN_MSG)
+        _logger.warning(msg)
+        raise web.HTTPForbidden(reason=msg, body=json.dumps({"message": msg}))
     try:
         data = await request.json()
         name = data.get('name', None)
@@ -89,9 +97,12 @@ async def add_acl(request: web.Request) -> web.Response:
         url = data.get('url', None)
         if name is None:
             raise ValueError('name param is required')
-        name = name.strip()
-        if name is not None and name == "":
-            raise ValueError('name cannot be empty')
+        if name is not None:
+            if not isinstance(name, str):
+                raise TypeError('name must be a string')
+            name = name.strip()
+            if name == "":
+                raise ValueError('name cannot be empty')
         if service is None:
             raise ValueError('service param is required')
         if not isinstance(service, dict):
@@ -131,13 +142,18 @@ async def add_acl(request: web.Request) -> web.Response:
         return web.json_response(result)
 
 
+@has_permission("admin")
 async def update_acl(request: web.Request) -> web.Response:
     """ Update an access control list. Only the set of service and URL's can be updated
 
     :Example:
-        curl -sX PUT http://localhost:8081/fledge/ACL/testACL -d '{"service": {"name": "Sinusoid"}}'
-        curl -sX PUT http://localhost:8081/fledge/ACL/testACL -d '{"service": {}, "url": {"URL": "/fledge/south/operation"}}'
+        curl -H "authorization: $AUTH_TOKEN" -sX PUT http://localhost:8081/fledge/ACL/testACL -d '{"service": {"name": "Sinusoid"}}'
+        curl -H "authorization: $AUTH_TOKEN" -sX PUT http://localhost:8081/fledge/ACL/testACL -d '{"service": {}, "url": {"URL": "/fledge/south/operation"}}'
     """
+    if request.is_auth_optional:
+        msg = "Update ACL: {}".format(FORBIDDEN_MSG)
+        _logger.warning(msg)
+        raise web.HTTPForbidden(reason=msg, body=json.dumps({"message": msg}))
     try:
         name = request.match_info.get('acl_name', None)
         data = await request.json()
@@ -188,12 +204,17 @@ async def update_acl(request: web.Request) -> web.Response:
         return web.json_response({"message": message})
 
 
+@has_permission("admin")
 async def delete_acl(request: web.Request) -> web.Response:
     """ Delete an access control list. Only ACL's that have no users can be deleted
 
     :Example:
-        curl -sX DELETE http://localhost:8081/fledge/ACL/testACL
+        curl -H "authorization: $AUTH_TOKEN" -sX DELETE http://localhost:8081/fledge/ACL/testACL
     """
+    if request.is_auth_optional:
+        msg = "Delete ACL: {}".format(FORBIDDEN_MSG)
+        _logger.warning(msg)
+        raise web.HTTPForbidden(reason=msg, body=json.dumps({"message": msg}))
     try:
         name = request.match_info.get('acl_name', None)
         storage = connect.get_storage_async()

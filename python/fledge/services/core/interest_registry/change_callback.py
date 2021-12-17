@@ -53,6 +53,16 @@ async def run(category_name):
             _LOGGER.exception("Unable to notify microservice with uuid %s as it is not found in the service registry", i._microservice_uuid)
             continue
         url = "{}://{}:{}/fledge/change".format(service_record._protocol, service_record._address, service_record._management_port)
+
+        #// FIXME_I:
+        import logging
+
+
+        #// FIXME_I:
+        _LOGGER.setLevel(logging.DEBUG)
+        _LOGGER.debug("xxx6 run  url :{}: :{}: -".format(url, payload) )
+        _LOGGER.setLevel(logging.WARNING)
+
         async with aiohttp.ClientSession() as session:
             try:
                 async with session.post(url, data=json.dumps(payload, sort_keys=True), headers=headers) as resp:

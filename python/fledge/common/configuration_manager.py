@@ -184,26 +184,33 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 await cb.run(category_name)
 
     #// FIXME_I:
-    async def _run_callbacks_child(self, category_name, child_category):
+    async def _run_callbacks_child(self, parent_category_name, child_category):
 
-        callbacks = self._registered_interests_child.get(category_name)
+        callbacks = self._registered_interests_child.get(parent_category_name)
 
         #// FIXME_I:
         import logging
 
         #// FIXME_I:
         _logger.setLevel(logging.DEBUG)
-        _logger.debug("xxx6 _run_callbacks_child category_name :{}: child_category :{}: callbacks:{}: ".format(category_name, child_category, callbacks) )
+        _logger.debug("xxx6 _run_callbacks_child S1 category_name :{}: child_category :{}: callbacks:{}: ".format(parent_category_name, child_category, callbacks))
         _logger.setLevel(logging.WARNING)
 
         if callbacks is not None:
+
+
+            #// FIXME_I:
+            _logger.setLevel(logging.DEBUG)
+            _logger.debug("xxx6 _run_callbacks_child S2 category_name :{}: child_category :{}: callbacks:{}: ".format(parent_category_name, child_category, callbacks))
+            _logger.setLevel(logging.WARNING)
+
 
             for callback in callbacks:
                 try:
                     cb = import_module(callback)
                 except ImportError:
                     _logger.exception(
-                        'Unable to import callback module %s for category_name %s', callback, category_name)
+                        'Unable to import callback module %s for category_name %s', callback, parent_category_name)
                     raise
                 if not hasattr(cb, 'run'):
                     _logger.exception(
@@ -214,7 +221,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     _logger.exception(
                         'Callback module %s run method must be a coroutine function', callback)
                     raise AttributeError('Callback module {} run method must be a coroutine function'.format(callback))
-                await cb.run(category_name)
+                await cb.run(parent_category_name)
 
     async def _merge_category_vals(self, category_val_new, category_val_storage, keep_original_items, category_name=None):
         # preserve all value_vals from category_val_storage
@@ -1248,6 +1255,16 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         Return Values:
         JSON
         """
+
+        #// FIXME_I:
+        import logging
+
+        #// FIXME_I:
+        _logger.setLevel(logging.DEBUG)
+        _logger.debug("xxx5 delete_category_and_children_recursively category_name :{}: ".format(category_name) )
+        _logger.setLevel(logging.WARNING)
+
+
         if not isinstance(category_name, str):
             raise TypeError('category_name must be a string')
         category = await self._read_category_val(category_name)
@@ -1259,6 +1276,16 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         for catg in RESERVED_CATG:
             if catg in catg_descendents:
                 raise ValueError('Reserved category found in descendents of {} - {}'.format(category_name, catg_descendents))
+
+        #// FIXME_I:
+        try:
+            #// FIXME_I:
+            await self._run_callbacks_child("TooHot1", category_name)
+        except:
+            _logger.exception(
+                'Unable to run callbacks for category_name %s', category_name)
+            raise
+
         try:
             result = await self._delete_recursively(category_name)
         except ValueError as ex:

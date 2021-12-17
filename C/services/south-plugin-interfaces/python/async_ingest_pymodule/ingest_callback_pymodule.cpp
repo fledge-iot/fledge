@@ -12,11 +12,12 @@
 #include <logger.h>
 #include <Python.h>
 #include <vector>
+#include <pythonreadingset.h>
 
 extern "C" {
 
-typedef void (*INGEST_CB2)(void *, std::vector<Reading *>*);
-std::vector<Reading *>* Py2C_getReadings(PyObject *polledData);
+typedef void (*INGEST_CB2)(void *, PythonReadingSet *);
+//std::vector<Reading *>* Py2C_getReadings(PyObject *polledData);
 Reading* Py2C_parseReadingObject(PyObject *element);
 
 void plugin_ingest_fn(PyObject *ingest_callback, PyObject *ingest_obj_ref_data, PyObject *readingsObj);
@@ -76,20 +77,25 @@ void plugin_ingest_fn(PyObject *ingest_callback, PyObject *ingest_obj_ref_data, 
 {
 	if (ingest_callback == NULL || ingest_obj_ref_data == NULL || readingsObj == NULL)
 	{
-		Logger::getLogger()->error("PyC interface: plugin_ingest_fn: ingest_callback=%p, ingest_obj_ref_data=%p, readingsObj=%p",
+		Logger::getLogger()->error("Py2C interface: plugin_ingest_fn: ingest_callback=%p, ingest_obj_ref_data=%p, readingsObj=%p",
 						ingest_callback, ingest_obj_ref_data, readingsObj);
 		return;
 	}
 	
-	std::vector<Reading *> *vec = Py2C_getReadings(readingsObj);
+	// std::vector<Reading *> *vec = Py2C_getReadings(readingsObj);
+	Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
+    PythonReadingSet *pyReadingSet = new PythonReadingSet(readingsObj);
+    Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
 
-	if(vec)
+	if(pyReadingSet)
 	{
 		INGEST_CB2 cb = (INGEST_CB2) PyCapsule_GetPointer(ingest_callback, NULL);
 		void *data = PyCapsule_GetPointer(ingest_obj_ref_data, NULL);
-		(*cb)(data, vec);
+        Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
+		(*cb)(data, pyReadingSet);
+        Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
 	}
 	else
-		Logger::getLogger()->error("PyC interface: plugin_ingest_fn: Py2C_getReadings() returned NULL");
+		Logger::getLogger()->error("Py2C interface: plugin_ingest_fn: PythonReadingSet c'tor returned NULL");
 }
 }; // end of extern "C" block

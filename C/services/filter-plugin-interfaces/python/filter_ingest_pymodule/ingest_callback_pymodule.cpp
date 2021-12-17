@@ -13,11 +13,12 @@
 #include <logger.h>
 #include <Python.h>
 #include <vector>
+#include <pythonreadingset.h>
 
 extern "C" {
 
-typedef void (*INGEST_CB_DATA)(void *, ReadingSet *);
-extern std::vector<Reading *>* Py2C_getReadings(PyObject *polledData);
+typedef void (*INGEST_CB_DATA)(void *, PythonReadingSet *);
+//extern std::vector<Reading *>* Py2C_getReadings(PyObject *polledData);
 
 static void filter_plugin_ingest_fn(PyObject *ingest_callback,
 				    PyObject *ingest_obj_ref_data,
@@ -125,13 +126,23 @@ void filter_plugin_ingest_fn(PyObject *ingest_callback,
 		return;
 	}
 
-	std::vector<Reading *> *vec = NULL;
+    PyObject* objectsRepresentation = PyObject_Repr(readingsObj);
+    const char* s = PyUnicode_AsUTF8(objectsRepresentation);
+    Logger::getLogger()->info("filter_plugin_ingest_fn:L%d : readingsObj=%s", __LINE__, s);
 
+	// std::vector<Reading *> *vec = NULL;
+	PythonReadingSet *pyReadingSet = NULL;
+
+    Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
+    
 	// Check we have a list of readings
 	if (PyList_Check(readingsObj))
 	{
+        Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
 		// Get vector of Readings from Python object
-		vec =  Py2C_getReadings(readingsObj);
+		// vec =  Py2C_getReadings(readingsObj);
+        pyReadingSet = new PythonReadingSet(readingsObj);
+        Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
 	}
 	else
 	{
@@ -140,7 +151,7 @@ void filter_plugin_ingest_fn(PyObject *ingest_callback,
 					   Py_TYPE(readingsObj)->tp_name);
 	}
 
-	if (vec)
+	if (pyReadingSet)
 	{
 		// Get callback pointer
 		INGEST_CB_DATA cb = (INGEST_CB_DATA) PyCapsule_GetPointer(ingest_callback, NULL);
@@ -148,18 +159,18 @@ void filter_plugin_ingest_fn(PyObject *ingest_callback,
 		void *data = PyCapsule_GetPointer(ingest_obj_ref_data, NULL);
 
 		// Create ReadingSet object
-		ReadingSet *newData = new ReadingSet(vec);
+		// ReadingSet *newData = new ReadingSet(vec);
 
 		// Delete vector object
-		delete vec;
+		// delete vec;
 
 		// Invoke callback method for ReadingSet filter ingestion
-		(*cb)(data, newData);
+		(*cb)(data, pyReadingSet);
 	}
 	else
 	{
 		Logger::getLogger()->error("PyC interface: plugin_ingest_fn: "
-					   "Py2C_getReadings() returned NULL");
+					   "Got invalid ReadingSet while converting from PyObject");
 	}
 }
 }; // end of extern "C" block

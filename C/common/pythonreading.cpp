@@ -61,7 +61,7 @@ PythonReading::PythonReading(PyObject *pyReading)
 {
     PyObject* objectsRepresentation = PyObject_Repr(pyReading);
     const char* s = PyUnicode_AsUTF8(objectsRepresentation);
-    Logger::getLogger()->info("PythonReading c'tor: pyReading=%s", s);
+    //Logger::getLogger()->info("PythonReading c'tor: pyReading=%s", s);
     
 	// Get 'asset_code' value: borrowed reference.
 	PyObject *assetCode = PyDict_GetItemString(pyReading,
@@ -124,7 +124,7 @@ PythonReading::PythonReading(PyObject *pyReading)
     else
     {
         m_id = 0;
-        Logger::getLogger()->debug("PythonReading c'tor: Couldn't parse 'id' ");
+        // Logger::getLogger()->debug("PythonReading c'tor: Couldn't parse 'id' ");
     }
 
 	// Get 'ts' value: borrowed reference.
@@ -141,7 +141,7 @@ PythonReading::PythonReading(PyObject *pyReading)
     {
         m_timestamp.tv_sec = 0;
 		m_timestamp.tv_usec = 0;
-        Logger::getLogger()->debug("PythonReading c'tor: Couldn't parse 'ts' ");
+        // Logger::getLogger()->debug("PythonReading c'tor: Couldn't parse 'ts' ");
     }
 
 	// Get 'user_ts' value: borrowed reference.
@@ -156,12 +156,12 @@ PythonReading::PythonReading(PyObject *pyReading)
 	}
     else
     {
-        Logger::getLogger()->debug("PythonReading c'tor: Couldn't parse 'user_ts' ");
+        // Logger::getLogger()->debug("PythonReading c'tor: Couldn't parse 'user_ts' ");
         m_userTimestamp.tv_sec = 0;
         m_userTimestamp.tv_usec = 0;
     }
 
-    Logger::getLogger()->debug("PythonReading c'tor: Created reading=%s", this->toJSON().c_str());
+    // Logger::getLogger()->debug("PythonReading c'tor: Created reading=%s", this->toJSON().c_str());
 }
 
 /**
@@ -175,31 +175,31 @@ DatapointValue *PythonReading::getDatapointValue(PyObject *value)
 	DatapointValue *dataPoint = NULL;
 	if (PyLong_Check(value))	// Integer	T_INTEGER
 	{
-        Logger::getLogger()->info("PythonReading::getDatapointValue: T_INTEGER");
+        //Logger::getLogger()->info("PythonReading::getDatapointValue: T_INTEGER");
 		dataPoint = new DatapointValue((long)PyLong_AsUnsignedLongMask(value));
 	}
 	else if (PyFloat_Check(value))		// Float		T_FLOAT
 	{
-        Logger::getLogger()->info("PythonReading::getDatapointValue: T_FLOAT");
+        //Logger::getLogger()->info("PythonReading::getDatapointValue: T_FLOAT");
 		dataPoint = new DatapointValue(PyFloat_AS_DOUBLE(value));
 	}
 	else if (PyBytes_Check(value))		// String		T_STRING
 	{
-        Logger::getLogger()->info("PythonReading::getDatapointValue: T_STRING");
+        //Logger::getLogger()->info("PythonReading::getDatapointValue: T_STRING");
 		string str = PyBytes_AsString(value);
 		fixQuoting(str);
 		dataPoint = new DatapointValue(str);
 	}
 	else if (PyUnicode_Check(value))	// String		T_STRING
 	{
-        Logger::getLogger()->info("PythonReading::getDatapointValue: T_STRING");
+        //Logger::getLogger()->info("PythonReading::getDatapointValue: T_STRING");
 		string str = PyUnicode_AsUTF8(value);
 		fixQuoting(str);
 		dataPoint = new DatapointValue(str);
 	}
 	else if (PyDict_Check(value))		// Nested object	T_DP_DICT
 	{
-        Logger::getLogger()->info("PythonReading::getDatapointValue: T_DP_DICT");
+        //Logger::getLogger()->info("PythonReading::getDatapointValue: T_DP_DICT");
 		vector<Datapoint *> *values = new vector<Datapoint *>;
 		Py_ssize_t dPos = 0;
 		PyObject *dKey, *dValue;
@@ -226,7 +226,7 @@ DatapointValue *PythonReading::getDatapointValue(PyObject *value)
 		}
 		if (PyFloat_Check(item0))	// List of floats	T_FLOAT_ARRAY
 		{
-            Logger::getLogger()->info("PythonReading::getDatapointValue: T_FLOAT_ARRAY");
+            //Logger::getLogger()->info("PythonReading::getDatapointValue: T_FLOAT_ARRAY");
 			vector<double> values;
 			for (Py_ssize_t i = 0; i < listSize; i++)
 			{
@@ -237,7 +237,7 @@ DatapointValue *PythonReading::getDatapointValue(PyObject *value)
 		}
 		else if (PyList_Check(item0))	// 2D array 		T_2D_FLOAT_ARRAY
 		{
-            Logger::getLogger()->info("PythonReading::getDatapointValue: T_2D_FLOAT_ARRAY");
+            //Logger::getLogger()->info("PythonReading::getDatapointValue: T_2D_FLOAT_ARRAY");
 			vector<vector<double> > values;
 			for (Py_ssize_t i = 0; i < listSize; i++)
 			{
@@ -255,7 +255,7 @@ DatapointValue *PythonReading::getDatapointValue(PyObject *value)
 		}
 		else if (PyDict_Check(item0))	// List of datapoints	T_DP_LIST
 		{
-            Logger::getLogger()->info("PythonReading::getDatapointValue: T_DP_LIST");
+            //Logger::getLogger()->info("PythonReading::getDatapointValue: T_DP_LIST");
 			vector<Datapoint *>* values = new vector<Datapoint *>;
 			for (Py_ssize_t i = 0; i < listSize; i++)
 			{
@@ -282,7 +282,7 @@ DatapointValue *PythonReading::getDatapointValue(PyObject *value)
 		int item_size = PyArray_ITEMSIZE(array);
 		if (PyArray_NDIM(array) == 1)	// Databuffer	T_DATABUFFER
 		{
-            Logger::getLogger()->info("PythonReading::getDatapointValue: T_DATABUFFER");
+            //Logger::getLogger()->info("PythonReading::getDatapointValue: T_DATABUFFER");
 			npy_intp *dims = PyArray_DIMS(array);
 			int n_items = (int)dims[0];
 			DataBuffer *buffer = new DataBuffer(item_size, n_items);
@@ -292,7 +292,7 @@ DatapointValue *PythonReading::getDatapointValue(PyObject *value)
 		}
 		else if (PyArray_NDIM(array) == 2)	// Image	T_IMAGE
 		{
-            Logger::getLogger()->info("PythonReading::getDatapointValue: T_IMAGE");
+            //Logger::getLogger()->info("PythonReading::getDatapointValue: T_IMAGE");
 			npy_intp *dims = PyArray_DIMS(array);
 			int width = (int)dims[0];
 			int height = (int)dims[1];
@@ -308,7 +308,7 @@ DatapointValue *PythonReading::getDatapointValue(PyObject *value)
 	}
 	else
 	{
-        Logger::getLogger()->info("PythonReading::getDatapointValue: UNSUPPORTED");
+        //Logger::getLogger()->info("PythonReading::getDatapointValue: UNSUPPORTED");
 		PyTypeObject *type = value->ob_type;
 		Logger::getLogger()->error("Encountered an unsupported type '%s' when create a reading from Python", type->tp_name);
 	}
@@ -368,13 +368,17 @@ PyObject *PythonReading::toPython(bool changeKeys)
 	Py_CLEAR(key);
 
 	// Add reading timestamp
-	PyObject *readingTs = PyLong_FromUnsignedLong(m_timestamp.tv_sec);
+	// PyObject *readingTs = PyLong_FromUnsignedLong(m_timestamp.tv_sec);
+	string s = this->getAssetDateTime(FMT_DEFAULT) + "+00:00";
+    PyObject *readingTs = PyUnicode_FromString(s.c_str());
 	key = PyUnicode_FromString("ts");
 	PyDict_SetItem(readingObject, key, readingTs);
 	Py_CLEAR(key);
 
 	// Add reading user timestamp
-	PyObject *readingUserTs = PyLong_FromUnsignedLong(m_userTimestamp.tv_sec);
+	//PyObject *readingUserTs = PyLong_FromUnsignedLong(m_userTimestamp.tv_sec);
+	s = this->getAssetDateUserTime(FMT_DEFAULT) + "+00:00";
+	PyObject *readingUserTs = PyUnicode_FromString(s.c_str());
 	key = PyUnicode_FromString("user_ts");
 	PyDict_SetItem(readingObject, key, readingUserTs);
 	Py_CLEAR(key);

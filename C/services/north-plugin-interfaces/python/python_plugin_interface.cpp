@@ -35,7 +35,7 @@ void plugin_start_fn(PLUGIN_HANDLE handle);
 uint32_t plugin_send_fn(PLUGIN_HANDLE handle, const std::vector<Reading *>& readings);
 
 Reading* Py2C_parseReadingObject(PyObject *);
-vector<Reading *>* Py2C_getReadings(PyObject *);
+//vector<Reading *>* Py2C_getReadings(PyObject *);
 DatapointValue* Py2C_createDictDPV(PyObject *data);
 DatapointValue* Py2C_createListDPV(PyObject *data);
 DatapointValue *Py2C_createBasicDPV(PyObject *dValue);

@@ -10,12 +10,13 @@
 
 #include <logger.h>
 #include <config_category.h>
-#include <reading.h>
+#include <reading_set.h>
 #include <mutex>
 #include <south_plugin.h>
 #include <pyruntime.h>
 #include <Python.h>
 #include <python_plugin_common_interface.h>
+#include <pythonreadingset.h>
 
 #define SHIM_SCRIPT_NAME "south_shim"
 
@@ -31,12 +32,12 @@ extern void logErrorMessage();
 extern PLUGIN_INFORMATION *Py2C_PluginInfo(PyObject *);
 
 // South plugin entry points
-vector<Reading *> * plugin_poll_fn(PLUGIN_HANDLE);
+ReadingSet* plugin_poll_fn(PLUGIN_HANDLE);
 void plugin_start_fn(PLUGIN_HANDLE handle);
 void plugin_register_ingest_fn(PLUGIN_HANDLE handle,INGEST_CB2 cb,void * data);
 
 Reading* Py2C_parseReadingObject(PyObject *);
-vector<Reading *>* Py2C_getReadings(PyObject *);
+//vector<Reading *>* Py2C_getReadings(PyObject *);
 DatapointValue* Py2C_createDictDPV(PyObject *data);
 DatapointValue* Py2C_createListDPV(PyObject *data);
 DatapointValue *Py2C_createBasicDPV(PyObject *dValue);
@@ -195,7 +196,7 @@ void* PluginInterfaceResolveSymbol(const char *_sym, const string& name)
  * @param    handle	Plugin handle from plugin_init_fn
  * @return		Vector of Reading data
  */
-vector<Reading *> * plugin_poll_fn(PLUGIN_HANDLE handle)
+ReadingSet* plugin_poll_fn(PLUGIN_HANDLE handle)
 {
 	if (!handle)
 	{
@@ -277,13 +278,20 @@ vector<Reading *> * plugin_poll_fn(PLUGIN_HANDLE handle)
 	else
 	{
 		// Get reading data
-		vector<Reading *> *vec = Py2C_getReadings(pReturn);
+		PyObject* objectsRepresentation = PyObject_Repr(pReturn);
+        const char* s = PyUnicode_AsUTF8(objectsRepresentation);
+        Logger::getLogger()->info("plugin_poll_fn:L%d : pReturn=%s", __LINE__, s);
+        
+		// vector<Reading *> *vec = Py2C_getReadings(pReturn);
+        PythonReadingSet *pyReadingSet = new PythonReadingSet(pReturn);
+        /* std::vector<Reading *>* vec = new std::vector<Reading *>(); 
+        std::vector<Reading *> *vec = pyReadingSet->getAllReadings(); */
 		
 		// Remove pReturn object
 		Py_CLEAR(pReturn);
 
 		PyGILState_Release(state);
-		return vec;
+		return pyReadingSet;
 	}
 }
 	

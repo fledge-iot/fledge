@@ -53,7 +53,7 @@ SouthPlugin::SouthPlugin(PLUGIN_HANDLE handle, const ConfigCategory& category) :
 	}
 	else if (pluginInterfaceVer[0]=='2' && pluginInterfaceVer[1]=='.')
 	{
-		pluginPollPtrV2 = (vector<Reading *>* (*)(PLUGIN_HANDLE))
+		pluginPollPtrV2 = (ReadingSet* (*)(PLUGIN_HANDLE))
 				manager->resolveSymbol(handle, "plugin_poll");
 	}
 	else
@@ -172,7 +172,7 @@ Reading SouthPlugin::poll()
 /**
  * Call the poll method in the plugin supporting interface ver 2.x
  */
-vector<Reading *>* SouthPlugin::pollV2()
+ReadingSet* SouthPlugin::pollV2()
 {
 	lock_guard<mutex> guard(mtx2);
 	try {

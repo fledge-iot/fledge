@@ -107,15 +107,16 @@ void setReadingAttr(Reading* newReading, PyObject *readingList, bool fillIfMissi
 
     // if User TS is still not filled, copy TS into it
     fill = (!fillIfMissing || (fillIfMissing && newReading->getUserTimestamp()==0));
-    Logger::getLogger()->debug("fill=%s, newReading->getUserTimestamp()=%d, newReading->getTimestamp()=%d", fill?"True":"False", newReading->getUserTimestamp(), newReading->getTimestamp());
+    //Logger::getLogger()->debug("fill=%s, newReading->getUserTimestamp()=%d, newReading->getTimestamp()=%d", fill?"True":"False", newReading->getUserTimestamp(), newReading->getTimestamp());
     if (fill)
     {
         newReading->setUserTimestamp(newReading->getTimestamp());
-        Logger::getLogger()->debug("Copied TS into user TS: newReading->getUserTimestamp()=%d", newReading->getUserTimestamp());
+        //Logger::getLogger()->debug("Copied TS into user TS: newReading->getUserTimestamp()=%d", newReading->getUserTimestamp());
     }
 }
 
 
+#if 0
 /**
  * Creating vector of Reading objects from Python object
  *
@@ -153,7 +154,7 @@ std::vector<Reading *>* Py2C_getReadings(PyObject *polledData)
 			if (newReading)
 			{
                 setReadingAttr(newReading, polledData, true);
-                Logger::getLogger()->info("Py2C_getReadings:L%d: reading=%s", __LINE__, newReading->toJSON().c_str());
+                //Logger::getLogger()->info("Py2C_getReadings:L%d: reading=%s", __LINE__, newReading->toJSON().c_str());
                 
 				// Add the new reading to result vector
 				newReadings->push_back(newReading);
@@ -180,7 +181,7 @@ std::vector<Reading *>* Py2C_getReadings(PyObject *polledData)
 				if (newReading)
 				{
                     setReadingAttr(newReading, polledData, true);
-                    Logger::getLogger()->info("Py2C_getReadings:L%d: reading=%s", __LINE__, newReading->toJSON().c_str());
+                    //Logger::getLogger()->info("Py2C_getReadings:L%d: reading=%s", __LINE__, newReading->toJSON().c_str());
 
                     // Add the new reading to result vector
 					newReadings->push_back(newReading);
@@ -190,6 +191,7 @@ std::vector<Reading *>* Py2C_getReadings(PyObject *polledData)
 	}
 	return newReadings;
 }
+#endif
 
 /**
  * Function to log error message encountered while interfacing with
@@ -251,6 +253,9 @@ PyObject* createReadingsList(const std::vector<Reading *>& readings, bool change
 		Py_CLEAR(readingObject);
 	}
 
+    PyObject* objectsRepresentation = PyObject_Repr(readingsList);
+    const char* s = PyUnicode_AsUTF8(objectsRepresentation);
+    Logger::getLogger()->info("C2Py: createReadingsList():L%d: readingsList=%s", __LINE__, s);
 	// Return pointer of new allocated list
 	return readingsList;
 }

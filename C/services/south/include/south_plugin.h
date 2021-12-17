@@ -14,7 +14,7 @@
 #include <plugin_manager.h>
 #include <config_category.h>
 #include <string>
-#include <reading.h>
+#include <reading_set.h>
 
 typedef void (*INGEST_CB)(void *, Reading);
 typedef void (*INGEST_CB2)(void *, std::vector<Reading *>*);
@@ -37,7 +37,7 @@ public:
 	~SouthPlugin();
 
 	Reading		poll();
-	std::vector<Reading *>*	pollV2();
+	ReadingSet*	pollV2();
 	void		start();
 	void		reconfigure(const std::string&);
 	void		shutdown();
@@ -54,7 +54,7 @@ private:
 	PLUGIN_HANDLE	instance;
 	void		(*pluginStartPtr)(PLUGIN_HANDLE);
 	Reading		(*pluginPollPtr)(PLUGIN_HANDLE);
-	std::vector<Reading *>*	(*pluginPollPtrV2)(PLUGIN_HANDLE);
+	ReadingSet* (*pluginPollPtrV2)(PLUGIN_HANDLE);
 	void		(*pluginReconfigurePtr)(PLUGIN_HANDLE*,
 					        const std::string& newConfig);
 	void		(*pluginShutdownPtr)(PLUGIN_HANDLE);

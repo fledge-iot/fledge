@@ -20,6 +20,7 @@
 #include <python_plugin_common_interface.h>
 #include <reading_set.h>
 #include <filter_plugin.h>
+#include <pythonreadingset.h>
 
 using namespace std;
 
@@ -228,12 +229,15 @@ void filter_plugin_ingest_fn(PLUGIN_HANDLE handle, READINGSET *data)
 		return;
 	}
 
+    Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
 	// Call asset tracker
+	int i=0;
 	vector<Reading *>* readings = ((ReadingSet *)data)->getAllReadingsPtr();
 	for (vector<Reading *>::const_iterator elem = readings->begin();
 						      elem != readings->end();
 						      ++elem)
 	{
+        Logger::getLogger()->info("Reading %d: %s", i++, (*elem)->toJSON().c_str());
 		AssetTracker* atr = AssetTracker::getAssetTracker();
 		if (atr)
 		{
@@ -243,10 +247,19 @@ void filter_plugin_ingest_fn(PLUGIN_HANDLE handle, READINGSET *data)
 		}
 	}
 
+    Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
 	// Create a dict of readings
 	// - 1 - Create Python list of dicts as input to the filter
-	PyObject* readingsList =
-		createReadingsList(((ReadingSet *)data)->getAllReadings());
+	PythonReadingSet *pyReadingSet = (PythonReadingSet *) data;
+    Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
+    PyObject* readingsList = pyReadingSet->toPython();
+    Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
+    PyObject* objectsRepresentation = PyObject_Repr(readingsList);
+    const char* s = PyUnicode_AsUTF8(objectsRepresentation);
+    Logger::getLogger()->info("C2Py: filter_plugin_ingest_fn():L%d: readingsList=%s", __LINE__, s);
+    
+	/* PyObject* readingsList = 
+		createReadingsList(((ReadingSet *)data)->getAllReadings()); */
 
 	PyObject* pReturn = PyObject_CallFunction(pFunc,
 						  "OO",

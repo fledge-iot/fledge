@@ -29,7 +29,7 @@ static void startSenderThread(void *data)
  * Constructor for the data sending class
  */
 DataSender::DataSender(NorthPlugin *plugin, DataLoad *loader, NorthService *service) :
-	m_plugin(plugin), m_loader(loader), m_service(service), m_shutdown(false)
+	m_plugin(plugin), m_loader(loader), m_service(service), m_shutdown(false), m_paused(false)
 {
 	m_logger = Logger::getLogger();
 
@@ -57,22 +57,54 @@ DataSender::~DataSender()
  */
 void DataSender::sendThread()
 {
+	ReadingSet *readings = nullptr;
+
 	while (!m_shutdown)
 	{
-		ReadingSet *readings = m_loader->fetchReadings(true);
+		if (readings == NULL) {
+
+			readings = m_loader->fetchReadings(true);
+		}
 		if (!readings)
 		{
 			m_logger->warn(
 				"Sending thread closing down after failing to fetch readings");
 			return;
 		}
-		unsigned long lastSent = send(readings);
-		if (lastSent)
+		bool removeReadings = false;
+		if (readings->getCount() > 0)
 		{
-			m_loader->updateLastSentId(lastSent);
+			unsigned long lastSent = send(readings);
+			if (lastSent)
+			{
+				m_loader->updateLastSentId(lastSent);
 
+				// Check all readings sent
+				vector<Reading *> *vec = readings->getAllReadingsPtr();
+
+				// Set readings removal
+				removeReadings = vec->size() == 0;
+			}
+		} else {
+			// All readings filtered out
+			Logger::getLogger()->debug("All readings filtered out");
+
+			// Get last read item from the readings database
+			unsigned long lastRead = m_loader->getLastFetched();
+
+			// Update LastSentId in streams table
+			m_loader->updateLastSentId(lastRead);
+
+			// Set readings removal
+			removeReadings = true;
 		}
-		delete readings;
+
+		// Remove readings object if needed
+		if (removeReadings)
+		{
+			delete readings;
+			readings = NULL;
+		}
 	}
 	m_logger->info("Sending thread shutdown");
 }
@@ -85,14 +117,19 @@ void DataSender::sendThread()
  */
 unsigned long DataSender::send(ReadingSet *readings)
 {
+	blockPause();
 	uint32_t sent = m_plugin->send(readings->getAllReadings());
-	unsigned long lastSent = readings->getLastId();
+	releasePause();
+	unsigned long lastSent = readings->getReadingId(sent);
+
 	if (sent > 0)
 	{
+		lastSent = readings->getLastId();
+
 		// Update asset tracker table/cache, if required
 		vector<Reading *> *vec = readings->getAllReadingsPtr();
 
-		for (vector<Reading *>::iterator it = vec->begin(); it != vec->end(); ++it)
+		for (vector<Reading *>::iterator it = vec->begin(); it != vec->end(); )
 		{
 			Reading *reading = *it;
 
@@ -103,16 +140,85 @@ unsigned long DataSender::send(ReadingSet *readings)
 				if (!AssetTracker::getAssetTracker()->checkAssetTrackingCache(tuple))
 				{
 					AssetTracker::getAssetTracker()->addAssetTrackingTuple(tuple);
-					Logger::getLogger()->info("sendDataThread:  Adding new asset tracking tuple - egress: %s", tuple.assetToString().c_str());
+					m_logger->info("sendDataThread:  Adding new asset tracking tuple - egress: %s", tuple.assetToString().c_str());
 				}
+
+				// Remove current reading
+				delete reading;
+				reading = NULL;
+
+				// Remove item and set iterator to next element
+				it = vec->erase(it);
 			}
 			else
 			{
 				break;
 			}
 		}
-
 		m_loader->updateStatistics(sent);
+		return lastSent;
 	}
-	return lastSent;
+	return 0;
+}
+
+/**
+ * Cause the data sender process to pause sending data until a corresponding release call is made.
+ *
+ * This call does not block until release is called, but does block until the current
+ * send completes.
+ *
+ * Called by external classes that want to prevent interaction
+ * with the north plugin.
+ */
+void DataSender::pause()
+{
+	unique_lock<mutex> lck(m_pauseMutex);
+	m_pauseCV.wait(lck, [this]{ return m_sending == false; });
+
+	m_paused = true;
+}
+
+/**
+ * Release the paused data sender thread
+ *
+ * Called by external classes that want to release interaction
+ * with thew north plugin.
+ */
+void DataSender::release()
+{
+	{
+		std::lock_guard<std::mutex> lck(m_pauseMutex);
+		m_paused = false;
+	}
+
+	m_pauseCV.notify_all();
+}
+
+/**
+ * Check if we have paused the sending of data
+ *
+ * Called before we interact with the north plugin by the
+ * DataSender class
+ */
+void DataSender::blockPause()
+{
+	unique_lock<mutex> lck(m_pauseMutex);
+	m_pauseCV.wait(lck, [this]{ return m_paused == false; });
+
+	m_sending = true;
+}
+
+/*
+ * Release the block on pausing the sender
+ *
+ * Called after we interact with the north plugin by the
+ * DataSender class
+ */
+void DataSender::releasePause()
+{
+	{
+		std::lock_guard<std::mutex> lck(m_pauseMutex);
+		m_sending = false;
+	}
+	m_pauseCV.notify_all();
 }

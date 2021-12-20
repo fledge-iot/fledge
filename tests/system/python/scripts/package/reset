@@ -1,10 +1,19 @@
 #!/usr/bin/env bash
 
-echo "Stopping Fledge using systemctl ..."
-sudo systemctl stop fledge
-echo "YES" | /usr/local/fledge/bin/fledge reset || exit 1
-echo
-echo "Starting Fledge using systemctl ..."
-sudo systemctl start fledge
-echo "Fledge Status"
-sudo systemctl status fledge | grep "Active"
+if [ "${FLEDGE_ENVIRONMENT}" == "docker" ]; then
+    /usr/local/fledge/bin/fledge stop
+    echo "YES" | /usr/local/fledge/bin/fledge reset || exit 1
+    echo
+    /usr/local/fledge/bin/fledge start
+    echo "Fledge Status"
+    /usr/local/fledge/bin/fledge status
+else
+    echo "Stopping Fledge using systemctl ..."
+    sudo systemctl stop fledge
+    echo "YES" | /usr/local/fledge/bin/fledge reset || exit 1
+    echo
+    echo "Starting Fledge using systemctl ..."
+    sudo systemctl start fledge
+    echo "Fledge Status"
+    sudo systemctl status fledge | grep "Active"
+fi

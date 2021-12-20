@@ -267,6 +267,7 @@ bool FilterPipeline::setupFiltersPipeline(void *passToOnwardFilter, void *useFil
 			
 			ConfigHandler *configHandler = ConfigHandler::getInstance(mgtClient);
 			configHandler->registerCategory((ServiceHandler *)ingest, filterCategoryName);
+			m_serviceHandler = (ServiceHandler *)ingest;
 			
 			m_filterCategories[filterCategoryName] = (*it);
 		}
@@ -346,9 +347,10 @@ void FilterPipeline::cleanupFilters(const string& categoryName)
 	for (auto it = m_filters.rbegin(); it != m_filters.rend(); ++it)
 	{
 		FilterPlugin* filter = *it;
-		//string filterCategoryName =  categoryName + "_" + filter->getName();
-		//mgtClient->unregisterCategory(filterCategoryName);
-		//Logger::getLogger()->info("FilterPipeline::cleanupFilters(): unregistered category %s", filterCategoryName.c_str());
+		string filterCategoryName =  categoryName + "_" + filter->getName();
+		ConfigHandler *configHandler = ConfigHandler::getInstance(mgtClient);
+		configHandler->unregisterCategory(m_serviceHandler, filterCategoryName);
+		Logger::getLogger()->info("FilterPipeline::cleanupFilters(): unregistered category %s", filterCategoryName.c_str());
 		
 		// If plugin has SP_PERSIST_DATA option:
 		if (filter->m_plugin_data)

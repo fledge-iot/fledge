@@ -18,6 +18,7 @@ from pathlib import Path
 import utils
 from datetime import timezone, datetime
 import itertools
+import platform
 
 __author__ = "Yash Tatkondawar"
 __copyright__ = "Copyright (c) 2020 Dianomic Systems Inc."
@@ -31,7 +32,7 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.parent
 SCRIPTS_DIR_ROOT = "{}/tests/system/python/packages/data/".format(PROJECT_ROOT)
 FLEDGE_ROOT = os.environ.get('FLEDGE_ROOT')
 CERTS_DIR = "{}/gcp".format(SCRIPTS_DIR_ROOT)
-FLEDGE_CERTS_DIR = "{}/data/etc/certs/".format(FLEDGE_ROOT)
+FLEDGE_CERTS_PEM_DIR = "{}/data/etc/certs/pem/".format(FLEDGE_ROOT)
 
 
 @pytest.fixture
@@ -66,7 +67,9 @@ def remove_and_add_pkgs(package_build_version):
         assert False, "setup package script failed"
 
     try:
-        subprocess.run(["sudo apt install -y fledge-north-gcp fledge-south-sinusoid"], shell=True, check=True)
+        os_platform = platform.platform()
+        pkg_mgr = 'yum' if 'centos' in os_platform or 'redhat' in os_platform else 'apt'
+        subprocess.run(["sudo {} install -y fledge-north-gcp fledge-south-sinusoid".format(pkg_mgr)], shell=True, check=True)
     except subprocess.CalledProcessError:
         assert False, "installation of gcp-gateway and sinusoid packages failed"
 
@@ -107,7 +110,8 @@ def get_statistics_map(fledge_url):
     return utils.serialize_stats_map(jdoc)
 
 
-# Get the latest 5 timestamps, readings of data sent from south to compare it with the timestamps, readings of data in GCP.
+# Get the latest 5 timestamps, readings of data sent from south to compare it with the timestamps,
+# readings of data in GCP.
 def get_asset_info(fledge_url):
     _connection = http.client.HTTPConnection(fledge_url)
     _connection.request("GET", '/fledge/asset/sinusoid?limit=5')
@@ -116,14 +120,19 @@ def get_asset_info(fledge_url):
     r = r.read().decode()
     jdoc = json.loads(r)
     for j in jdoc:
-        j['timestamp'] = datetime.strptime(j['timestamp'], "%Y-%m-%d %H:%M:%S.%f").astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M:%S.%f")
+        j['timestamp'] = datetime.strptime(j['timestamp'], "%Y-%m-%d %H:%M:%S.%f").astimezone(
+            timezone.utc).strftime("%Y-%m-%d %H:%M:%S.%f")
     return jdoc
 
 
 def copy_certs(gcp_cert_path):
-    copy_file = "cp {} {}/roots.pem {}".format(gcp_cert_path, CERTS_DIR, FLEDGE_CERTS_DIR)
-    exit_code = os.system(copy_file)
-    assert 0 == exit_code
+    # As we are not uploading pem certificate via cert Upload API, therefore below code is required for pem certs
+    create_cert_pem_dir = "mkdir -p {}".format(FLEDGE_CERTS_PEM_DIR)
+    os.system(create_cert_pem_dir)
+    assert os.path.isdir(FLEDGE_CERTS_PEM_DIR)
+    copy_file = "cp {} {}/roots.pem {}".format(gcp_cert_path, CERTS_DIR, FLEDGE_CERTS_PEM_DIR)
+    os.system(copy_file)
+    assert os.path.isfile("{}/roots.pem".format(FLEDGE_CERTS_PEM_DIR))
 
 
 @pytest.fixture
@@ -159,7 +168,7 @@ def verify_received_messages(logger_name, asset_info, retries, wait_time):
         assert len(gcp_info), "No Sinusoid readings GCP logs found"
         found = 0
         for i in gcp_info:
-            for  d in asset_info:
+            for d in asset_info:
                 if d['timestamp'] == i['ts']:
                     assert d['reading']['sinusoid'] == i['sinusoid']
                     found += 1
@@ -172,10 +181,11 @@ def verify_received_messages(logger_name, asset_info, retries, wait_time):
     if retries == 0:
         assert False, "TIMEOUT! sinusoid data sent not seen in GCP. "   
 
+
 class TestGCPGateway:
-    def test_gcp_gateway(self, check_fledge_root, verify_and_set_prerequisites, remove_and_add_pkgs, reset_fledge, fledge_url,
-                         wait_time, remove_data_file, gcp_project_id, gcp_device_gateway_id, gcp_registry_id,
-                         gcp_cert_path, gcp_logger_name, retries):
+    def test_gcp_gateway(self, check_fledge_root, verify_and_set_prerequisites, remove_and_add_pkgs, reset_fledge,
+                         fledge_url, wait_time, remove_data_file, gcp_project_id, gcp_device_gateway_id,
+                         gcp_registry_id, gcp_cert_path, gcp_logger_name, retries):
         payload = {"name": "Sine", "type": "south", "plugin": "sinusoid", "enabled": True, "config": {}}
         post_url = "/fledge/service"
         conn = http.client.HTTPConnection(fledge_url)
@@ -221,5 +231,5 @@ class TestGCPGateway:
 
         verify_received_messages(gcp_logger_name, asset_info, retries, wait_time)
 
-        remove_data_file("{}/rsa_private.pem".format(FLEDGE_CERTS_DIR))
-        remove_data_file("{}/roots.pem".format(FLEDGE_CERTS_DIR))
+        remove_data_file("{}/rsa_private.pem".format(FLEDGE_CERTS_PEM_DIR))
+        remove_data_file("{}/roots.pem".format(FLEDGE_CERTS_PEM_DIR))

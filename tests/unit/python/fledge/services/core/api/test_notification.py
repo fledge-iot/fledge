@@ -9,6 +9,7 @@ import asyncio
 import uuid
 import pytest
 import json
+import sys
 from aiohttp import web
 from unittest.mock import MagicMock, call
 
@@ -217,9 +218,16 @@ notification_config = {
     }
 }
 
+delivery_channel_config = {
+    "action": {
+      "description": "Perform a control action to turn pump",
+      "type": "boolean",
+      "default": "false"
+    }
+  }
 
-@asyncio.coroutine
-def mock_get_url(get_url):
+
+async def mock_get_url(get_url):
     if get_url.endswith("/notification/rules"):
         return json.dumps(rule_config)
     if get_url.endswith("/notification/delivery"):
@@ -249,8 +257,7 @@ def mock_get_url(get_url):
         return json.dumps(notif)
 
 
-@asyncio.coroutine
-def mock_post_url(post_url):
+async def mock_post_url(post_url):
     if post_url.endswith("/notification/Test Notification"):
         return json.dumps({"result": "OK"})
     if post_url.endswith("/notification/Test Notification/rule/threshold"):
@@ -258,13 +265,11 @@ def mock_post_url(post_url):
     if post_url.endswith("/notification/Test Notification/delivery/email"):
         return json.dumps({"result": "OK"})
 
-@asyncio.coroutine
-def mock_delete_url(delete_url):
+async def mock_delete_url(delete_url):
     return json.dumps({"result": "OK"})
 
 
-@asyncio.coroutine
-def mock_read_category_val(key):
+async def mock_read_category_val(key):
     r = list(filter(lambda rules: rules['name'] == notification_config['rule']['value'], rule_config))
     c = list(filter(lambda channels: channels['name'] == notification_config['channel']['value'], delivery_config))
     if len(r) == 0 or len(c) == 0: raise KeyError
@@ -276,34 +281,36 @@ def mock_read_category_val(key):
         return delivery_plugin_config
     if key.endswith("Test Notification"):
         return notification_config
-    return ""
+    if key.endswith("overspeed"):
+        return delivery_channel_config
+    if key.endswith("foo"):
+        return {}
+    if key.endswith("bar"):
+        return []
+    if key.endswith("coolant"):
+        return ["coolant"]
 
 
-@asyncio.coroutine
-def mock_read_all_child_category_names():
+async def mock_read_all_child_category_names():
     return [{
         "parent": "Notifications",
         "child": "Test Notification",
     }]
 
 
-@asyncio.coroutine
-def mock_create_category():
+async def mock_create_category():
     return ""
 
 
-@asyncio.coroutine
-def mock_update_category():
+async def mock_update_category():
     return ""
 
 
-@asyncio.coroutine
-def mock_create_child_category():
+async def mock_create_child_category():
     return ""
 
 
-@asyncio.coroutine
-def mock_check_category(val=None):
+async def mock_check_category(val=None):
     return val
 
 
@@ -318,9 +325,17 @@ class TestNotification:
 
     async def test_get_plugin(self, mocker, client):
         rules_and_delivery = {'rules': rule_config, 'delivery': delivery_config}
+        
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _se1 = await mock_get_url("/notification/rules")
+            _se2 = await mock_get_url("/notification/delivery")
+        else:
+            _se1 = asyncio.ensure_future(mock_get_url("/notification/rules"))
+            _se2 = asyncio.ensure_future(mock_get_url("/notification/delivery"))
+        
         mocker.patch.object(ServiceRegistry, 'get', return_value=mock_registry)
-        mocker.patch.object(notification, '_hit_get_url', side_effect=[mock_get_url("/notification/rules"),
-                                                                       mock_get_url("/notification/delivery")])
+        mocker.patch.object(notification, '_hit_get_url', side_effect=[_se1, _se2])
 
         resp = await client.get('/fledge/notification/plugin')
         assert 200 == resp.status
@@ -354,12 +369,19 @@ class TestNotification:
             "enable": notification_config['enable']['value'],
         }
 
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _se1 = await mock_read_category_val("Test Notification")
+            _se2 = await mock_read_category_val("ruleTest Notification")
+            _se3 = await mock_read_category_val("deliveryTest Notification")
+        else:
+            _se1 = asyncio.ensure_future(mock_read_category_val("Test Notification"))
+            _se2 = asyncio.ensure_future(mock_read_category_val("ruleTest Notification"))
+            _se3 = asyncio.ensure_future(mock_read_category_val("deliveryTest Notification"))         
+        
         mocker.patch.object(connect, 'get_storage_async')
         mocker.patch.object(ConfigurationManager, '__init__', return_value=None)
-        mocker.patch.object(ConfigurationManager, '_read_category_val', side_effect=[
-            mock_read_category_val("Test Notification"),
-            mock_read_category_val("ruleTest Notification"),
-            mock_read_category_val("deliveryTest Notification")])
+        mocker.patch.object(ConfigurationManager, '_read_category_val', side_effect=[_se1, _se2, _se3])
 
         resp = await client.get('/fledge/notification/Test Notification')
         assert 200 == resp.status
@@ -377,12 +399,20 @@ class TestNotification:
             "enable": notification_config['enable']['value'],
         }]
 
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv1 = await mock_read_all_child_category_names()
+            _rv2 = await mock_read_category_val("Test Notification")
+        else:
+            _rv1 = asyncio.ensure_future(mock_read_all_child_category_names())
+            _rv2 = asyncio.ensure_future(mock_read_category_val("Test Notification"))
+        
         mocker.patch.object(connect, 'get_storage_async')
         mocker.patch.object(ConfigurationManager, '__init__', return_value=None)
         mocker.patch.object(ConfigurationManager, '_read_all_child_category_names',
-                            return_value=mock_read_all_child_category_names())
+                            return_value=_rv1)
         mocker.patch.object(ConfigurationManager, '_read_category_val',
-                            return_value=mock_read_category_val("Test Notification"))
+                            return_value=_rv2)
 
         resp = await client.get('/fledge/notification')
         assert 200 == resp.status
@@ -391,20 +421,38 @@ class TestNotification:
         assert notifications == json_response["notifications"]
 
     async def test_post_notification(self, mocker, client):
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv1 = await mock_get_url("/fledge/notification/plugin")
+            _rv2 = await mock_create_category()
+            _rv3 = await mock_read_category_val("")
+            _rv4 = await mock_check_category()
+            _rv5 = await asyncio.sleep(.1)
+            _se1 = await mock_post_url("/notification/Test Notification")
+            _se2 = await mock_post_url("/notification/Test Notification/rule/threshold")
+            _se3 = await mock_post_url("/notification/Test Notification/delivery/email")
+        else:
+            _rv1 = asyncio.ensure_future(mock_get_url("/fledge/notification/plugin"))
+            _rv2 = asyncio.ensure_future(mock_create_category())
+            _rv3 = asyncio.ensure_future(mock_read_category_val(""))
+            _rv4 = asyncio.ensure_future(mock_check_category())
+            _rv5 = asyncio.ensure_future(asyncio.sleep(.1))
+            _se1 = asyncio.ensure_future(mock_post_url("/notification/Test Notification"))
+            _se2 = asyncio.ensure_future(mock_post_url("/notification/Test Notification/rule/threshold"))
+            _se3 = asyncio.ensure_future(mock_post_url("/notification/Test Notification/delivery/email"))        
+        
         mocker.patch.object(ServiceRegistry, 'get', return_value=mock_registry)
-        mocker.patch.object(notification, '_hit_get_url', return_value=mock_get_url("/fledge/notification/plugin"))
+        mocker.patch.object(notification, '_hit_get_url', return_value=_rv1)
         mocker.patch.object(notification, '_hit_post_url',
-                            side_effect=[mock_post_url("/notification/Test Notification"),
-                                         mock_post_url("/notification/Test Notification/rule/threshold"),
-                                         mock_post_url("/notification/Test Notification/delivery/email")])
+                            side_effect=[_se1, _se2, _se3])
         mocker.patch.object(connect, 'get_storage_async')
         mocker.patch.object(ConfigurationManager, '__init__', return_value=None)
         update_configuration_item_bulk = mocker.patch.object(ConfigurationManager, 'update_configuration_item_bulk',
-                                              return_value=mock_create_category())
-        mocker.patch.object(ConfigurationManager, '_read_category_val', return_value=mock_read_category_val())
-        mocker.patch.object(ConfigurationManager, 'get_category_all_items', return_value=mock_check_category())
+                                              return_value=_rv2)
+        mocker.patch.object(ConfigurationManager, '_read_category_val', return_value=_rv3)
+        mocker.patch.object(ConfigurationManager, 'get_category_all_items', return_value=_rv4)
         mocker.patch.object(AuditLogger, "__init__", return_value=None)
-        audit_logger = mocker.patch.object(AuditLogger, "information", return_value=asyncio.sleep(.1))
+        audit_logger = mocker.patch.object(AuditLogger, "information", return_value=_rv5)
         mock_payload = '{"name": "Test Notification", "description":"Test Notification", "rule": "threshold", ' \
                        '"channel": "email", "notification_type": "one shot", "enabled": false}'
 
@@ -416,10 +464,16 @@ class TestNotification:
         update_configuration_item_bulk.assert_has_calls(update_configuration_item_bulk_calls, any_order=True)
 
     async def test_post_notification_duplicate_name(self, mocker, client):
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv = await mock_check_category(True)
+        else:
+            _rv = asyncio.ensure_future(mock_check_category(True))
+        
         mocker.patch.object(ServiceRegistry, 'get', return_value=mock_registry)
         mocker.patch.object(connect, 'get_storage_async')
         mocker.patch.object(ConfigurationManager, '__init__', return_value=None)
-        mocker.patch.object(ConfigurationManager, 'get_category_all_items', return_value=mock_check_category(True))
+        mocker.patch.object(ConfigurationManager, 'get_category_all_items', return_value=_rv)
         mock_payload = '{"name": "Test Notification", "description":"Test Notification", "rule": "threshold", ' \
                        '"channel": "email", "notification_type": "one shot", "enabled": false}'
 
@@ -430,20 +484,38 @@ class TestNotification:
         assert "400: A Category with name Test Notification already exists." == result
 
     async def test_post_notification2(self, mocker, client):
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv1 = await mock_get_url("/fledge/notification/plugin")
+            _rv2 = await mock_create_category()
+            _rv3 = await mock_read_category_val("")
+            _rv4 = await mock_check_category()
+            _rv5 = await asyncio.sleep(.1)
+            _se1 = await mock_post_url("/notification/Test Notification")
+            _se2 = await mock_post_url("/notification/Test Notification/rule/threshold")
+            _se3 = await mock_post_url("/notification/Test Notification/delivery/email")
+        else:
+            _rv1 = asyncio.ensure_future(mock_get_url("/fledge/notification/plugin"))
+            _rv2 = asyncio.ensure_future(mock_create_category())
+            _rv3 = asyncio.ensure_future(mock_read_category_val(""))
+            _rv4 = asyncio.ensure_future(mock_check_category())
+            _rv5 = asyncio.ensure_future(asyncio.sleep(.1))
+            _se1 = asyncio.ensure_future(mock_post_url("/notification/Test Notification"))
+            _se2 = asyncio.ensure_future(mock_post_url("/notification/Test Notification/rule/threshold"))
+            _se3 = asyncio.ensure_future(mock_post_url("/notification/Test Notification/delivery/email"))      
+        
         mocker.patch.object(ServiceRegistry, 'get', return_value=mock_registry)
-        mocker.patch.object(notification, '_hit_get_url', return_value=mock_get_url("/fledge/notification/plugin"))
+        mocker.patch.object(notification, '_hit_get_url', return_value=_rv1)
         mocker.patch.object(notification, '_hit_post_url',
-                            side_effect=[mock_post_url("/notification/Test Notification"),
-                                         mock_post_url("/notification/Test Notification/rule/threshold"),
-                                         mock_post_url("/notification/Test Notification/delivery/email")])
+                            side_effect=[_se1, _se2, _se3])
         mocker.patch.object(connect, 'get_storage_async')
         mocker.patch.object(ConfigurationManager, '__init__', return_value=None)
         mocker.patch.object(AuditLogger, "__init__", return_value=None)
-        audit_logger = mocker.patch.object(AuditLogger, "information", return_value=asyncio.sleep(.1))
+        audit_logger = mocker.patch.object(AuditLogger, "information", return_value=_rv5)
         update_configuration_item_bulk = mocker.patch.object(ConfigurationManager, 'update_configuration_item_bulk',
-                                              return_value=mock_create_category())
-        mocker.patch.object(ConfigurationManager, '_read_category_val', return_value=mock_read_category_val())
-        mocker.patch.object(ConfigurationManager, 'get_category_all_items', return_value=mock_check_category())
+                                              return_value=_rv2)
+        mocker.patch.object(ConfigurationManager, '_read_category_val', return_value=_rv3)
+        mocker.patch.object(ConfigurationManager, 'get_category_all_items', return_value=_rv4)
         mock_payload = '{"name": "Test Notification", "description":"Test Notification", "rule": "threshold", ' \
                        '"channel": "email", "notification_type": "one shot", "enabled": false, "rule_config":{"window": "100"}, "delivery_config": {"server": "pop"}}'
 
@@ -458,23 +530,43 @@ class TestNotification:
         update_configuration_item_bulk.assert_has_calls(update_configuration_item_bulk_calls, any_order=True)
 
     async def test_post_notification_exception(self, mocker, client):
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv1 = await mock_get_url("/fledge/notification/plugin")
+            _rv2 = await mock_create_category()
+            _rv3 = await mock_read_category_val("")
+            _rv4 = await mock_check_category()
+            _rv5 = await asyncio.sleep(.1)
+            _rv6 = await mock_create_child_category()
+            _se1 = await mock_post_url("/notification/Test Notification")
+            _se2 = await mock_post_url("/notification/Test Notification/rule/threshold")
+            _se3 = await mock_post_url("/notification/Test Notification/delivery/email")
+        else:
+            _rv1 = asyncio.ensure_future(mock_get_url("/fledge/notification/plugin"))
+            _rv2 = asyncio.ensure_future(mock_create_category())
+            _rv3 = asyncio.ensure_future(mock_read_category_val(""))
+            _rv4 = asyncio.ensure_future(mock_check_category())
+            _rv5 = asyncio.ensure_future(asyncio.sleep(.1))
+            _rv6 = asyncio.ensure_future(mock_create_child_category())
+            _se1 = asyncio.ensure_future(mock_post_url("/notification/Test Notification"))
+            _se2 = asyncio.ensure_future(mock_post_url("/notification/Test Notification/rule/threshold"))
+            _se3 = asyncio.ensure_future(mock_post_url("/notification/Test Notification/delivery/email"))
+        
         mocker.patch.object(ServiceRegistry, 'get', return_value=mock_registry)
-        mocker.patch.object(notification, '_hit_get_url', return_value=mock_get_url("/fledge/notification/plugin"))
+        mocker.patch.object(notification, '_hit_get_url', return_value=_rv1)
         mocker.patch.object(notification, '_hit_post_url',
-                            side_effect=[mock_post_url("/notification/Test Notification"),
-                                         mock_post_url("/notification/Test Notification/rule/threshold"),
-                                         mock_post_url("/notification/Test Notification/delivery/email")])
+                            side_effect=[_se1, _se2, _se3])
         mocker.patch.object(connect, 'get_storage_async')
         mocker.patch.object(ConfigurationManager, '__init__', return_value=None)
         create_category = mocker.patch.object(ConfigurationManager, 'create_category',
-                                              return_value=mock_create_category())
+                                              return_value=_rv2)
         create_child_category = mocker.patch.object(ConfigurationManager, 'create_child_category',
-                                                    return_value=mock_create_child_category())
-        mocker.patch.object(ConfigurationManager, '_read_category_val', return_value=mock_read_category_val())
-        mocker.patch.object(ConfigurationManager, 'get_category_all_items', return_value=mock_check_category())
+                                                    return_value=_rv6)
+        mocker.patch.object(ConfigurationManager, '_read_category_val', return_value=_rv3)
+        mocker.patch.object(ConfigurationManager, 'get_category_all_items', return_value=_rv4)
 
         mocker.patch.object(AuditLogger, "__init__", return_value=None)
-        audit_logger = mocker.patch.object(AuditLogger, "information", return_value=asyncio.sleep(.1))
+        audit_logger = mocker.patch.object(AuditLogger, "information", return_value=_rv5)
         mock_payload = '{"description":"Test Notification", "rule": "threshold", "channel": "email", ' \
                        '"notification_type": "one shot", "enabled": false}'
         resp = await client.post("/fledge/notification", data=mock_payload)
@@ -562,16 +654,25 @@ class TestNotification:
             "Invalid rule plugin {} and/or delivery plugin {} supplied.".format("threshol", "emai"))
 
     async def test_put_notification(self, mocker, client):
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv1 = await mock_get_url("/fledge/notification/plugin")
+            _rv2 = await mock_create_category()
+            _rv3 = await mock_read_category_val("Test Notification")
+        else:
+            _rv1 = asyncio.ensure_future(mock_get_url("/fledge/notification/plugin"))
+            _rv2 = asyncio.ensure_future(mock_create_category())
+            _rv3 = asyncio.ensure_future(mock_read_category_val("Test Notification"))
+        
         mocker.patch.object(ServiceRegistry, 'get', return_value=mock_registry)
-        mocker.patch.object(notification, '_hit_get_url', return_value=mock_get_url("/fledge/notification/plugin"))
+        mocker.patch.object(notification, '_hit_get_url', return_value=_rv1)
         mocker.patch.object(connect, 'get_storage_async')
         mocker.patch.object(ConfigurationManager, '__init__', return_value=None)
         update_configuration_item_bulk = mocker.patch.object(ConfigurationManager, 'update_configuration_item_bulk',
-                                              return_value=mock_create_category())
-        mocker.patch.object(ConfigurationManager, '_read_category_val',
-                            return_value=mock_read_category_val("Test Notification"))
+                                              return_value=_rv2)
+        mocker.patch.object(ConfigurationManager, '_read_category_val', return_value=_rv3)
         create_category = mocker.patch.object(ConfigurationManager, 'create_category',
-                                              return_value=mock_create_category())
+                                              return_value=_rv2)
         mock_payload = '{"name": "Test Notification", "description":"Test Notification", "rule": "threshold", ' \
                        '"channel": "sms", "notification_type": "one shot", "enabled": false, ' \
                        '"rule_config": {"asset": "temperature", "trigger": "70", "window": "60", "tolerance": "4"}, ' \
@@ -588,16 +689,26 @@ class TestNotification:
 
 
     async def test_put_notification_exception(self, mocker, client):
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv1 = await mock_get_url("/fledge/notification/plugin")
+            _rv2 = await mock_create_category()
+            _rv3 = await mock_read_category_val("Test Notification")
+        else:
+            _rv1 = asyncio.ensure_future(mock_get_url("/fledge/notification/plugin"))
+            _rv2 = asyncio.ensure_future(mock_create_category())
+            _rv3 = asyncio.ensure_future(mock_read_category_val("Test Notification"))
+        
         mocker.patch.object(ServiceRegistry, 'get', return_value=mock_registry)
-        mocker.patch.object(notification, '_hit_get_url', return_value=mock_get_url("/fledge/notification/plugin"))
+        mocker.patch.object(notification, '_hit_get_url', return_value=_rv1)
         mocker.patch.object(connect, 'get_storage_async')
         mocker.patch.object(ConfigurationManager, '__init__', return_value=None)
         update_configuration_item_bulk = mocker.patch.object(ConfigurationManager, 'update_configuration_item_bulk',
-                                              return_value=mock_create_category())
+                                              return_value=_rv2)
         create_category = mocker.patch.object(ConfigurationManager, 'create_category',
-                                              return_value=mock_create_category())
+                                              return_value=_rv2)
         mocker.patch.object(ConfigurationManager, '_read_category_val',
-                            return_value=mock_read_category_val("Test Notification"))
+                            return_value=_rv3)
 
         mock_payload = '{"name": "Test Notification", "description":"Test Notification", "rule": "threshold", ' \
                        '"channel": "sms", "notification_type": "one shot", "enabled": false, ' \
@@ -655,21 +766,32 @@ class TestNotification:
             "Invalid rule plugin:{} and/or delivery plugin:{} supplied.".format("threshol", "sm"))
 
     async def test_delete_notification(self, mocker, client):
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv1 = await mock_get_url("/fledge/notification/plugin")
+            _rv2 = await asyncio.sleep(.1)
+            _rv3 = await mock_read_category_val("Test Notification")
+            _se = await mock_delete_url("/notification/Test Notification")
+        else:
+            _rv1 = asyncio.ensure_future(mock_get_url("/fledge/notification/plugin"))
+            _rv2 = asyncio.ensure_future(asyncio.sleep(.1))
+            _rv3 = asyncio.ensure_future(mock_read_category_val("Test Notification"))
+            _se = asyncio.ensure_future(mock_delete_url("/notification/Test Notification"))
+            
         mocker.patch.object(ServiceRegistry, 'get', return_value=mock_registry)
-        mocker.patch.object(notification, '_hit_get_url', return_value=mock_get_url("/fledge/notification/plugin"))
+        mocker.patch.object(notification, '_hit_get_url', return_value=_rv1)
         storage_client_mock = mocker.patch.object(connect, 'get_storage_async')
         mocker.patch.object(ConfigurationManager, '__init__', return_value=None)
         mocker.patch.object(ConfigurationManager, '_read_category_val',
-                            return_value=mock_read_category_val("Test Notification"))
+                            return_value=_rv3)
         mocker.patch.object(AuditLogger, "__init__", return_value=None)
-        audit_logger = mocker.patch.object(AuditLogger, "information", return_value=asyncio.sleep(.1))
+        audit_logger = mocker.patch.object(AuditLogger, "information", return_value=_rv2)
 
         c_mgr = ConfigurationManager(storage_client_mock)
-        delete_configuration = mocker.patch.object(ConfigurationManager, "delete_category_and_children_recursively", return_value=asyncio.sleep(.1))
-        audit_logger = mocker.patch.object(AuditLogger, "information", return_value=asyncio.sleep(.1))
+        delete_configuration = mocker.patch.object(ConfigurationManager, "delete_category_and_children_recursively", return_value=_rv2)
+        audit_logger = mocker.patch.object(AuditLogger, "information", return_value=_rv2)
 
-        mocker.patch.object(notification, '_hit_delete_url',
-                            side_effect=[mock_delete_url("/notification/Test Notification")])
+        mocker.patch.object(notification, '_hit_delete_url', side_effect=[_se])
 
         resp = await client.delete("/fledge/notification/Test Notification")
         assert 200 == resp.status
@@ -679,22 +801,21 @@ class TestNotification:
         assert "Test Notification" in args
 
         assert 1 == audit_logger.call_count
-        print(audit_logger.call_args_list)
         audit_logger_calls = [call('NTFDL', {'name': 'Test Notification'})]
         audit_logger.assert_has_calls(audit_logger_calls, any_order=True)
 
     async def test_delete_notification_exception(self, mocker, client):
         mocker.patch.object(ServiceRegistry, 'get', return_value=mock_registry)
-        mocker.patch.object(notification, '_hit_get_url', return_value=mock_get_url("/fledge/notification/plugin"))
+        mocker.patch.object(notification, '_hit_get_url', return_value=(await mock_get_url("/fledge/notification/plugin")))
         storage_client_mock = mocker.patch.object(connect, 'get_storage_async')
         mocker.patch.object(ConfigurationManager, '__init__', return_value=None)
         mocker.patch.object(ConfigurationManager, '_read_category_val',
-                            return_value=mock_read_category_val("Test Notification"))
+                            return_value=(await mock_read_category_val("Test Notification")))
         mocker.patch.object(AuditLogger, "__init__", return_value=None)
-        audit_logger = mocker.patch.object(AuditLogger, "information", return_value=asyncio.sleep(.1))
+        audit_logger = mocker.patch.object(AuditLogger, "information", return_value=(await asyncio.sleep(.1)))
 
         c_mgr = ConfigurationManager(storage_client_mock)
-        delete_configuration = mocker.patch.object(ConfigurationManager, "delete_category_and_children_recursively", return_value=asyncio.sleep(.1))
+        delete_configuration = mocker.patch.object(ConfigurationManager, "delete_category_and_children_recursively", return_value=(await asyncio.sleep(.1)))
 
         resp = await client.delete("/fledge/notification")
         assert 405 == resp.status
@@ -707,3 +828,195 @@ class TestNotification:
         assert 404 == resp.status
         result = await resp.text()
         assert result.endswith("No Notification service available.")
+
+    @pytest.mark.parametrize("payload, message", [
+        ({}, "Missing name property in payload"),
+        ({"name": ""}, "Name should not be empty"),
+        ({"name": " "}, "Name should not be empty"),
+        ({"name": "Test@123"}, "name should not use reserved words"),
+        ({"name": "Test123", "config": ""}, "config must be a valid JSON")
+    ])
+    async def test_bad_post_delivery_channel(self, client, payload, message):
+        resp = await client.post("/fledge/notification/overspeed/delivery", data=json.dumps(payload))
+        assert 400 == resp.status
+        assert message == resp.reason
+        r = await resp.text()
+        json_response = json.loads(r)
+        assert {"message": message} == json_response
+
+    @pytest.mark.parametrize("name, config, description", [
+        ("coolant", delivery_channel_config, None),
+        (" coolant2", {}, ''),
+        (" coolant3", {}, 'Test coolant'),
+    ])
+    async def test_good_post_delivery_channel(self, mocker, client, name, config, description):
+        notification_instance_name = "overspeed"
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info >= (3, 8):
+            _se = await mock_read_category_val(notification_instance_name)
+            _rv1 = await mock_create_category()
+            _rv2 = await mock_check_category(delivery_channel_config)
+            _rv3 = await mock_create_child_category()
+        else:
+            _se = asyncio.ensure_future(mock_read_category_val(notification_instance_name))
+            _rv1 = asyncio.ensure_future(mock_create_category())
+            _rv2 = asyncio.ensure_future(mock_check_category(delivery_channel_config))
+            _rv3 = asyncio.ensure_future(mock_create_child_category())
+        mocker.patch.object(connect, 'get_storage_async')
+        mocker.patch.object(ConfigurationManager, '__init__', return_value=None)
+        mocker.patch.object(ConfigurationManager, '_read_category_val', side_effect=[_se])
+        mocker.patch.object(ConfigurationManager, 'create_category', return_value=_rv1)
+        mocker.patch.object(ConfigurationManager, 'get_category_all_items', return_value=_rv2)
+        mocker.patch.object(ConfigurationManager, 'create_child_category', return_value=_rv3)
+        payload = {"name": name, "config": config}
+        expected_description = "{} delivery channel".format(name.strip())
+        if description is not None:
+            payload['description'] = description
+            expected_description = description
+        resp = await client.post("/fledge/notification/{}/delivery".format(notification_instance_name), data=json.dumps(payload))
+        assert 200 == resp.status
+        result = await resp.text()
+        json_response = json.loads(result)
+        expected_cat_name = "{}_channel_{}".format(notification_instance_name, name.strip())
+        assert expected_cat_name == json_response['category']
+        assert config == json_response['config']
+        assert expected_description == json_response['description']
+
+    async def test_bad_get_delivery_channel(self, mocker, client):
+        notification_instance_name = "blah"
+        message = "{} notification instance does not exist".format(notification_instance_name)
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        _se = await mock_read_category_val(notification_instance_name) if sys.version_info >= (3, 8) else \
+            asyncio.ensure_future(mock_read_category_val(notification_instance_name))
+        mocker.patch.object(connect, 'get_storage_async')
+        mocker.patch.object(ConfigurationManager, '__init__', return_value=None)
+        mocker.patch.object(ConfigurationManager, '_read_category_val', side_effect=[_se])
+
+        resp = await client.get('/fledge/notification/{}/delivery'.format(notification_instance_name))
+        assert 404 == resp.status
+        assert message == resp.reason
+        result = await resp.text()
+        json_response = json.loads(result)
+        assert {"message": message} == json_response
+
+    @pytest.mark.parametrize("notification_instance_name, categories, exp_channel", [
+        ("overspeed", [("overspeed_channel_coolant", 1), ("Pump_channel_coolant2", 2)], ['coolant']),
+        ("overspeed", [("overspeed_channel_coolant", 1), ("overspeed_channel_coolant2", 2)], ['coolant', 'coolant2']),
+        ("overspeed", [], [])
+    ])
+    async def test_good_get_delivery_channel(self, mocker, client, notification_instance_name, categories, exp_channel):
+        async def async_mock(cat):
+            return cat
+
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info >= (3, 8):
+            _se = await mock_read_category_val(notification_instance_name)
+            _rv = await async_mock(categories)
+        else:
+            _se = asyncio.ensure_future(mock_read_category_val(notification_instance_name))
+            _rv = asyncio.ensure_future(async_mock(categories))
+        mocker.patch.object(connect, 'get_storage_async')
+        mocker.patch.object(ConfigurationManager, '__init__', return_value=None)
+        mocker.patch.object(ConfigurationManager, '_read_category_val', side_effect=[_se])
+        mocker.patch.object(ConfigurationManager, 'get_all_category_names', return_value=_rv)
+        resp = await client.get('/fledge/notification/{}/delivery'.format(notification_instance_name))
+        assert 200 == resp.status
+        result = await resp.text()
+        json_response = json.loads(result)
+        assert exp_channel == json_response['channels']
+
+    @pytest.mark.parametrize("notification_instance_name, channel_name, message", [
+        ("foo", "bar", "foo notification instance does not exist"),
+        ("Test Notification", "bar", "bar channel does not exist")
+    ])
+    async def test_bad_get_delivery_channel_configuration(self, mocker, client, notification_instance_name,
+                                                          channel_name, message):
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info >= (3, 8):
+            _se1 = await mock_read_category_val(notification_instance_name)
+            _se2 = await mock_read_category_val(channel_name)
+        else:
+            _se1 = asyncio.ensure_future(mock_read_category_val(notification_instance_name))
+            _se2 = asyncio.ensure_future(mock_read_category_val(channel_name))
+        mocker.patch.object(connect, 'get_storage_async')
+        mocker.patch.object(ConfigurationManager, '__init__', return_value=None)
+        mocker.patch.object(ConfigurationManager, '_read_category_val', side_effect=[_se1])
+        mocker.patch.object(notification, '_get_channels', side_effect=[_se2])
+        resp = await client.get('/fledge/notification/{}/delivery/{}'.format(notification_instance_name, channel_name))
+        assert 404 == resp.status
+        assert message == resp.reason
+        result = await resp.text()
+        json_response = json.loads(result)
+        assert {"message": message} == json_response
+
+    async def test_good_get_delivery_channel_configuration(self, mocker, client):
+        notification_instance_name = "overspeed"
+        channel_name = "coolant"
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info >= (3, 8):
+            _se1 = await mock_read_category_val(notification_instance_name)
+            _se2 = await mock_read_category_val(channel_name)
+        else:
+            _se1 = asyncio.ensure_future(mock_read_category_val(notification_instance_name))
+            _se2 = asyncio.ensure_future(mock_read_category_val(channel_name))
+            _rv = asyncio.ensure_future(asyncio.sleep(.1))
+        mocker.patch.object(connect, 'get_storage_async')
+        mocker.patch.object(ConfigurationManager, '__init__', return_value=None)
+        mocker.patch.object(ConfigurationManager, '_read_category_val', side_effect=[_se1, _se1])
+        mocker.patch.object(notification, '_get_channels', side_effect=[_se2])
+        resp = await client.get('/fledge/notification/{}/delivery/{}'.format(notification_instance_name, channel_name))
+        assert 200 == resp.status
+        result = await resp.text()
+        json_response = json.loads(result)
+        assert 'config' in json_response
+        assert delivery_channel_config == json_response['config']
+
+    @pytest.mark.parametrize("notification_instance_name, channel_name, message", [
+        ("foo", "bar", "foo notification instance does not exist"),
+        ("Test Notification", "bar", "bar channel does not exist")
+    ])
+    async def test_bad_delete_delivery_channel(self, mocker, client, notification_instance_name, channel_name, message):
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info >= (3, 8):
+            _se1 = await mock_read_category_val(notification_instance_name)
+            _se2 = await mock_read_category_val(channel_name)
+        else:
+            _se1 = asyncio.ensure_future(mock_read_category_val(notification_instance_name))
+            _se2 = asyncio.ensure_future(mock_read_category_val(channel_name))
+        mocker.patch.object(connect, 'get_storage_async')
+        mocker.patch.object(ConfigurationManager, '__init__', return_value=None)
+        mocker.patch.object(ConfigurationManager, '_read_category_val', side_effect=[_se1])
+        mocker.patch.object(notification, '_get_channels', side_effect=[_se2])
+        resp = await client.delete('/fledge/notification/{}/delivery/{}'.format(notification_instance_name,
+                                                                                channel_name))
+        assert 404 == resp.status
+        assert message == resp.reason
+        result = await resp.text()
+        json_response = json.loads(result)
+        assert {"message": message} == json_response
+
+    async def test_good_delete_delivery_channel(self, mocker, client):
+        notification_instance_name = "overspeed"
+        channel_name = "coolant"
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info >= (3, 8):
+            _se1 = await mock_read_category_val(notification_instance_name)
+            _se2 = await mock_read_category_val(channel_name)
+            _se3 = await mock_read_category_val("bar")
+            _rv = await asyncio.sleep(.1)
+        else:
+            _se1 = asyncio.ensure_future(mock_read_category_val(notification_instance_name))
+            _se2 = asyncio.ensure_future(mock_read_category_val(channel_name))
+            _se3 = asyncio.ensure_future(mock_read_category_val("bar"))
+            _rv = asyncio.ensure_future(asyncio.sleep(.1))
+        mocker.patch.object(connect, 'get_storage_async')
+        mocker.patch.object(ConfigurationManager, '__init__', return_value=None)
+        mocker.patch.object(ConfigurationManager, '_read_category_val', side_effect=[_se1])
+        mocker.patch.object(notification, '_get_channels', side_effect=[_se2, _se3])
+        mocker.patch.object(ConfigurationManager, 'delete_category_and_children_recursively', return_value=_rv)
+        resp = await client.delete('/fledge/notification/{}/delivery/{}'.format(notification_instance_name,
+                                                                                channel_name))
+        assert 200 == resp.status
+        result = await resp.text()
+        json_response = json.loads(result)
+        assert [] == json_response['channels']

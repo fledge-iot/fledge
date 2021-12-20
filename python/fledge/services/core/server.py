@@ -1272,9 +1272,8 @@ class Server:
     @classmethod
     async def get_auth_token(cls, request: web.Request) -> web.Response:
         """ get auth token
-
             :Example:
-                curl -sX GET http://localhost:<core mgt port>/fledge/service/authtoken
+                curl -sX GET http://localhost:<core mgt port>/fledge/service/authtoken?_vid=<>
         """
         bearer_token = request.headers.get('bearer_token', "")
         if bearer_token:
@@ -1292,6 +1291,7 @@ class Server:
             certs_dir = _FLEDGE_DATA + '/etc/certs' if _FLEDGE_DATA else _FLEDGE_ROOT + "/data/etc/certs"
             ca_cert_file = "{}/{}.cert".format(certs_dir, ca_cert)
             SSLVerifier.set_ca_cert(ca_cert_file)
+            # FIXME: allow to supply content and any cert name as placed with configured CA sign 
             with open('{}/{}'.format(certs_dir, "admin.cert"), 'r') as content_file:
                 cert_content = content_file.read()
             SSLVerifier.set_user_cert(cert_content)
@@ -1304,18 +1304,39 @@ class Server:
             cfg_mgr = ConfigurationManager(cls._storage_client_async)
             category_info = await cfg_mgr.get_category_all_items('rest_api')
             is_auth_optional = True if category_info['authentication']['value'].lower() == 'optional' else False
+            
             if is_auth_optional:
                 raise api_exception.AuthenticationIsOptional
+            
             auth_method = category_info['authMethod']['value']
             ca_cert_name = category_info['authCertificateName']['value']
+
+            verification_id = request.query['_vid']
+            if not len(verification_id.strip()): raise api_exception.VerificationFailed             
+            
+            try:
+                fname = _FLEDGE_ROOT + "/data/.{}".format('managementtoken')
+                with open(fname, 'r', encoding = 'utf-8') as f:
+                    t = f.read()
+            except:
+                raise api_exception.VerificationFailed
+            else:
+                if verification_id != t:
+                    raise api_exception.VerificationFailed
+
+
             peername = request.transport.get_extra_info('peername')
             host = '0.0.0.0'
             if peername is not None:
-                host, port = peername
+                host, _ = peername
+
+            # TODO: restrict host to 0.0.0.0, 127.0.0.1 or localhost?
+
             if auth_method == 'certificate':
                 token = await cert_login(ca_cert_name)
             elif auth_method == 'password':
-                # Assuming that super admin user exists on the system
+                # Super admin user always exists on the system
+                # these can be configured diff for a/per services if required
                 payload = payload_builder.PayloadBuilder().SELECT("uname", "pwd").WHERE(['id', '=', 1]).payload()
                 result = await cls._storage_client_async.query_tbl_with_payload('users', payload)
                 uid, token, is_admin = await User.Objects.login("admin", result['rows'][0]['pwd'], host)
@@ -1323,8 +1344,18 @@ class Server:
                 # For auth method "any" we can use either login with cert or password
                 token = await cert_login(ca_cert_name)
                 # TODO: if cert does not exist then may try with password
-        except api_exception.AuthenticationIsOptional:
-            raise web.HTTPForbidden
+            
+            # remove file
+            try:
+                os.remove(fname)
+            except Exception as ex:
+                pass
+        except api_exception.AuthenticationIsOptional as err:
+            # remove file
+            msg = str(err)
+            raise web.HTTPPreconditionFailed(reason=msg, body=json.dumps({"message": msg}))
+        except api_exception.VerificationFailed:
+            raise web.HTTPUnauthorized(body=json.dumps({"message": 'Invalid verification code'}))
         except Exception as ex:
             msg = str(ex)
             raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))

@@ -15,7 +15,7 @@ from fledge.common import logger
 from fledge.common.storage_client import payload_builder
 from fledge.common.storage_client.storage_client import StorageClientAsync
 from fledge.common.configuration_manager import ConfigurationManager
-
+from fledge.common.storage_client.exceptions import StorageServerError
 import fledge.plugins.storage.common.exceptions as exceptions
 
 __author__ = "Stefano Simonelli"
@@ -223,7 +223,8 @@ class BackupRestoreLib(object):
     # SQLite commands
     SQLITE_SQLITE = "sqlite3"
     SQLITE_BACKUP = ".backup"
-    SQLITE_RESTORE = "cp"
+    SQLITE_RESTORE_COPY = "cp"
+    SQLITE_RESTORE_MOVE = "mv"
 
     # Postgres commands
     PG_COMMAND_DUMP = "pg_dump"
@@ -652,6 +653,24 @@ class BackupRestoreLib(object):
             _message = self._MESSAGES_LIST["e000016"].format(cmd_to_test)
             self._logger.error("{0}".format(_message))
             raise exceptions.PgCommandNotExecutable(_message)
+
+    def sl_get_all_backups(self) -> list:
+        """ Retrieves all records of backup table
+        Args:
+
+        Returns: List of backups
+
+        Raises:
+        """
+        payload = payload_builder.PayloadBuilder().SELECT("id", "file_name", "ts", "type", "status", "exit_code") \
+            .ALIAS("return", ("ts", 'ts')).FORMAT("return", ("ts", "YYYY-MM-DD HH24:MI:SS.MS")).payload()
+        _logger.debug("sl_get_all_backups PAYLOAD: {}".format(payload))
+        backups = asyncio.get_event_loop().run_until_complete(self._storage.query_tbl_with_payload(
+            self.STORAGE_TABLE_BACKUPS, payload))
+        if 'rows' not in backups:
+            raise StorageServerError
+        _logger.debug("{func} - backup list {backups}".format(func="sl_get_all_backups", backups=backups))
+        return backups['rows']
 
     def sl_get_backup_details(self, backup_id: int) -> dict:
         """ Returns the details of a backup

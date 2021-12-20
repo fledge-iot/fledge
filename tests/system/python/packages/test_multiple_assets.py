@@ -18,6 +18,7 @@ import urllib.parse
 from pathlib import Path
 import pytest
 import utils
+import platform
 
 # This  gives the path of directory where fledge is cloned. test_file < packages < python < system < tests < ROOT
 PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.parent
@@ -55,7 +56,9 @@ def remove_and_add_pkgs(package_build_version):
         assert False, "setup package script failed"
 
     try:
-        subprocess.run(["sudo apt install -y fledge-south-benchmark"], shell=True, check=True)
+        os_platform = platform.platform()
+        pkg_mgr = 'yum' if 'centos' in os_platform or 'redhat' in os_platform else 'apt'
+        subprocess.run(["sudo {} install -y fledge-south-benchmark".format(pkg_mgr)], shell=True, check=True)
     except subprocess.CalledProcessError:
         assert False, "installation of benchmark package failed"
 

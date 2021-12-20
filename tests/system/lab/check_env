@@ -10,9 +10,9 @@ else
 fi
 
 VERSION_CODENAME=$(cat /etc/os-release | grep VERSION_CODENAME | cut -f2 -d"=")
-if [[ ${VERSION_CODENAME} == "buster" || ${VERSION_CODENAME} == "stretch" ]]
+if [[ ${VERSION_CODENAME} == "bullseye" || ${VERSION_CODENAME} == "buster" || ${VERSION_CODENAME} == "stretch" ]]
  then
   echo "Running test on ${VERSION_CODENAME}"
  else
-  echo "This test is specific to RPi buster and stretch only!"; exit 1;
+  echo "This test is specific to RPi bullseye, buster and stretch only!"; exit 1;
 fi

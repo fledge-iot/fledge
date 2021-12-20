@@ -74,6 +74,8 @@ async def auth_middleware(app, handler):
                 request.user = await User.Objects.get(uid=uid)
                 # set the token to request
                 request.token = token
+                # set if user is admin
+                request.user_is_admin = True if int(request.user["role_id"]) == 1 else False
             except(User.InvalidToken, User.TokenExpired) as e:
                 raise web.HTTPUnauthorized(reason=e)
             except (jwt.DecodeError, jwt.ExpiredSignatureError) as e:

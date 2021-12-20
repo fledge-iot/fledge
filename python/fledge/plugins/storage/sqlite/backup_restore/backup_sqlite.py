@@ -17,14 +17,19 @@ import sys
 import time
 import os
 import asyncio
+import json
+import tarfile
 
 from fledge.common.process import FledgeProcess
 from fledge.common import logger
 from fledge.common.audit_logger import AuditLogger
-
+from fledge.common.plugin_discovery import PluginDiscovery
 from fledge.plugins.storage.common.backup import Backup
+from fledge.services.core.api.service import get_service_installed
+
 import fledge.plugins.storage.common.lib as lib
 import fledge.plugins.storage.common.exceptions as exceptions
+
 
 __author__ = "Stefano Simonelli"
 __copyright__ = "Copyright (c) 2018 OSIsoft, LLC"
@@ -194,12 +199,39 @@ class BackupProcess(FledgeProcess):
         self._purge_old_backups()
 
         backup_file = self._generate_file_name()
-
-        self._backup_lib.sl_backup_status_create(backup_file, lib.BackupType.FULL, lib.BackupStatus.RUNNING)
+        backup_file_tar_base, dummy = os.path.splitext(backup_file)
+        backup_file_tar = backup_file_tar_base + ".tar.gz"
+        self._logger.debug("execute_backup - backup_file  :{}: backup_file_tar :{}: -".format(backup_file,
+                                                                                              backup_file_tar))
+        self._backup_lib.sl_backup_status_create(backup_file_tar, lib.BackupType.FULL, lib.BackupStatus.RUNNING)
 
         status, exit_code = self._run_backup_command(backup_file)
 
-        backup_information = self._backup_lib.sl_get_backup_details_from_file_name(backup_file)
+        # Create tar file
+        t = tarfile.open(backup_file_tar, "w:gz")
+        t.add(backup_file, arcname=os.path.basename(backup_file))
+        # Add external scripts if any
+        backup_path = self._backup_lib.dir_fledge_data + "/scripts"
+        if os.path.isdir(backup_path):
+            t.add(backup_path, arcname=os.path.basename(backup_path))
+        # Add data/etc directory
+        t.add(self._backup_lib.dir_fledge_data_etc, arcname=os.path.basename(self._backup_lib.dir_fledge_data_etc))
+        # Add software both plugins & services
+        data = {
+            "plugins": PluginDiscovery.get_plugins_installed(),
+            "services": get_service_installed()
+        }
+        temp_software_file = "{}/software.json".format(self._backup_lib.dir_backups)
+        with open(temp_software_file, 'w') as outfile:
+            json.dump(data, outfile, indent=4)
+        t.add(temp_software_file, arcname=os.path.basename(temp_software_file))
+        t.close()
+
+        # Delete the temporary files
+        os.remove(backup_file)
+        os.remove(temp_software_file)
+
+        backup_information = self._backup_lib.sl_get_backup_details_from_file_name(backup_file_tar)
 
         self._backup_lib.sl_backup_status_update(backup_information['id'], status, exit_code)
 

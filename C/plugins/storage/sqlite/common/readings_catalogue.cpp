@@ -19,6 +19,7 @@
 #include <connection_manager.h>
 #include <common.h>
 #include "readings_catalogue.h"
+#include <purge_configuration.h>
 
 using namespace std;
 using namespace rapidjson;
@@ -1964,12 +1965,20 @@ int  ReadingsCatalogue::purgeAllReadings(sqlite3 *dbHandle, const char *sqlCmdBa
 	{
 		Logger::getLogger()->debug("purgeAllReadings tables defined");
 
+		PurgeConfiguration *purgeConfig = PurgeConfiguration::getInstance();
+		bool exclusions = purgeConfig->hasExclusions();
+
 		firstRow = true;
 		if  (rowsAffected != nullptr)
 			*rowsAffected = 0;
 
 		for (auto &item : m_AssetReadingCatalogue)
 		{
+			if (exclusions && purgeConfig->isExcluded(item.first))
+			{
+				Logger::getLogger()->info("Asset %s excluded from purge", item.first.c_str());
+				continue;
+			}
 			sqlCmdTmp = sqlCmdBase;
 
 			dbName = generateDbName(item.second.second);
@@ -2007,7 +2016,7 @@ int  ReadingsCatalogue::purgeAllReadings(sqlite3 *dbHandle, const char *sqlCmdBa
  * considering all the readings tables in use
  *
  */
-string  ReadingsCatalogue::sqlConstructMultiDb(string &sqlCmdBase, vector<string>  &assetCodes)
+string  ReadingsCatalogue::sqlConstructMultiDb(string &sqlCmdBase, vector<string>  &assetCodes, bool considerExclusion)
 {
 	string dbReadingsName;
 	string dbName;
@@ -2037,10 +2046,19 @@ string  ReadingsCatalogue::sqlConstructMultiDb(string &sqlCmdBase, vector<string
 		bool firstRow = true;
 		addedOne = false;
 
+		PurgeConfiguration *purgeConfig = PurgeConfiguration::getInstance();
+		bool exclusions = purgeConfig->hasExclusions();
+
 		for (auto &item : m_AssetReadingCatalogue)
 		{
 			assetCode=item.first;
 			addTable = false;
+
+			if (considerExclusion && exclusions && purgeConfig->isExcluded(item.first))
+			{
+				Logger::getLogger()->info("Asset %s excluded from the query on the multiple readings", item.first.c_str());
+				continue;
+			}
 
 			// Evaluates which tables should be referenced
 			if (assetCodes.empty())

@@ -44,7 +44,7 @@ def setup(app):
 
     # user
     app.router.add_route('GET', '/fledge/user', auth.get_user)
-    app.router.add_route('PUT', '/fledge/user/{id}', auth.update_user)
+    app.router.add_route('PUT', '/fledge/user', auth.update_me)
     app.router.add_route('PUT', '/fledge/user/{user_id}/password', auth.update_password)
 
     # role
@@ -60,7 +60,8 @@ def setup(app):
     # admin
     app.router.add_route('POST', '/fledge/admin/user', auth.create_user)
     app.router.add_route('DELETE', '/fledge/admin/{user_id}/delete', auth.delete_user)
-    app.router.add_route('PUT', '/fledge/admin/{user_id}/enabled', auth.enable_user)
+    app.router.add_route('PUT', '/fledge/admin/{user_id}', auth.update_user)
+    app.router.add_route('PUT', '/fledge/admin/{user_id}/enable', auth.enable_user)
     app.router.add_route('PUT', '/fledge/admin/{user_id}/reset', auth.reset)
 
     # Configuration
@@ -144,6 +145,7 @@ def setup(app):
     # Backup & Restore - As per doc
     app.router.add_route('GET', '/fledge/backup', backup_restore.get_backups)
     app.router.add_route('POST', '/fledge/backup', backup_restore.create_backup)
+    app.router.add_route('POST', '/fledge/backup/upload', backup_restore.upload_backup)
     app.router.add_route('GET', '/fledge/backup/status', backup_restore.get_backup_status)
     app.router.add_route('GET', '/fledge/backup/{backup_id}', backup_restore.get_backup_details)
     app.router.add_route('DELETE', '/fledge/backup/{backup_id}', backup_restore.delete_backup)
@@ -195,6 +197,13 @@ def setup(app):
     app.router.add_route('POST', '/fledge/notification', notification.post_notification)
     app.router.add_route('PUT', '/fledge/notification/{notification_name}', notification.put_notification)
     app.router.add_route('DELETE', '/fledge/notification/{notification_name}', notification.delete_notification)
+    app.router.add_route('GET', '/fledge/notification/{notification_name}/delivery', notification.get_delivery_channels)
+    app.router.add_route('POST', '/fledge/notification/{notification_name}/delivery',
+                         notification.post_delivery_channel)
+    app.router.add_route('GET', '/fledge/notification/{notification_name}/delivery/{channel_name}',
+                         notification.get_delivery_channel_configuration)
+    app.router.add_route('DELETE', '/fledge/notification/{notification_name}/delivery/{channel_name}',
+                         notification.delete_delivery_channel)
 
     # Snapshot plugins
     app.router.add_route('GET', '/fledge/snapshot/plugins', snapshot_plugins.get_snapshot)

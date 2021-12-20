@@ -15,6 +15,7 @@ from aiohttp.test_utils import make_mocked_request
 from aiohttp.streams import StreamReader
 from multidict import CIMultiDict
 import pytest
+import sys
 
 from fledge.services.common.microservice_management import routes as management_routes
 from fledge.services.core import server
@@ -87,10 +88,16 @@ class TestServer:
         storage_client_mock = MagicMock(spec=StorageClientAsync)
         Server._configuration_manager = ConfigurationManager(storage_client_mock)
 
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv = await async_mock([])
+        else:
+            _rv = asyncio.ensure_future(async_mock([]))
+        
         with patch.object(Server._configuration_manager, 'create_category',
-                          return_value=async_mock([])) as patch_create_cat:
+                          return_value=_rv) as patch_create_cat:
             with patch.object(Server._configuration_manager, 'get_category_all_items',
-                              return_value=async_mock([])) as patch_get_all_cat:
+                              return_value=_rv) as patch_get_all_cat:
                 await Server.installation_config()
             patch_get_all_cat.assert_called_once_with('Installation')
         patch_create_cat.assert_called_once_with('Installation', Server._INSTALLATION_DEFAULT_CONFIG, 'Installation',
@@ -191,16 +198,33 @@ class TestServer:
         async def return_async_value(val):
             return val
 
-        mocked__stop_scheduler.return_value = return_async_value('stopping scheduler..')
-        mocked_stop_microservices.return_value = return_async_value('stopping msvc..')
-        mocked_stop_service_monitor.return_value = return_async_value('stopping svc monitor..')
-        mocked_stop_rest_server.return_value = return_async_value('stopping REST server..')
-        mocked_stop_storage.return_value = return_async_value('stopping storage..')
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv1 = await return_async_value(None)
+            _rv2 = await return_async_value('stopping scheduler..')
+            _rv3 = await return_async_value('stopping msvc..')
+            _rv4 = await return_async_value('stopping svc monitor..')
+            _rv5 = await return_async_value('stopping REST server..')
+            _rv6 = await return_async_value('stopping storage..')
+        else:
+            _rv1 = asyncio.ensure_future(return_async_value(None))
+            _rv2 = asyncio.ensure_future(return_async_value('stopping scheduler..'))
+            _rv3 = asyncio.ensure_future(return_async_value('stopping msvc..'))
+            _rv4 = asyncio.ensure_future(return_async_value('stopping svc monitor..'))
+            _rv5 = asyncio.ensure_future(return_async_value('stopping REST server..'))
+            _rv6 = asyncio.ensure_future(return_async_value('stopping storage..'))
+            
+        
+        mocked__stop_scheduler.return_value = _rv2
+        mocked_stop_microservices.return_value = _rv3
+        mocked_stop_service_monitor.return_value = _rv4
+        mocked_stop_rest_server.return_value = _rv5
+        mocked_stop_storage.return_value = _rv6
 
-        mocked__remove_pid.return_value = 'removing PID..'
+        mocked__remove_pid.return_value = 'removing PID..'        
 
         with patch.object(AuditLogger, '__init__', return_value=None):
-            with patch.object(AuditLogger, 'information', return_value=return_async_value(None)) as audit_info_patch:
+            with patch.object(AuditLogger, 'information', return_value=_rv1) as audit_info_patch:
                 await Server._stop()
             # Must write the audit log entry before we stop the storage service
             args, kwargs = audit_info_patch.call_args
@@ -251,8 +275,14 @@ class TestServer:
         async def async_mock():
             return web.json_response({'categories': "test"})
 
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv = await async_mock()
+        else:
+            _rv = asyncio.ensure_future(async_mock())
+        
         result = {'categories': "test"}
-        with patch.object(conf_api, 'get_categories', return_value=async_mock()) as patch_get_all_categories:
+        with patch.object(conf_api, 'get_categories', return_value=_rv) as patch_get_all_categories:
             resp = await client.get('/fledge/service/category')
             assert 200 == resp.status
             r = await resp.text()
@@ -264,8 +294,14 @@ class TestServer:
         async def async_mock():
             return web.json_response("test")
 
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv = await async_mock()
+        else:
+            _rv = asyncio.ensure_future(async_mock())
+        
         result = "test"
-        with patch.object(conf_api, 'get_category', return_value=async_mock()) as patch_category:
+        with patch.object(conf_api, 'get_category', return_value=_rv) as patch_category:
             resp = await client.get('/fledge/service/category/{}'.format("test_category"))
             assert 200 == resp.status
             r = await resp.text()
@@ -279,8 +315,14 @@ class TestServer:
                                       "description": "test_category_desc",
                                       "value": "test_category_info"})
 
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv = await async_mock()
+        else:
+            _rv = asyncio.ensure_future(async_mock())
+        
         result = {"key": "test_name", "description": "test_category_desc", "value": "test_category_info"}
-        with patch.object(conf_api, 'create_category', return_value=async_mock()) as patch_create_category:
+        with patch.object(conf_api, 'create_category', return_value=_rv) as patch_create_category:
             resp = await client.post('/fledge/service/category')
             assert 200 == resp.status
             r = await resp.text()
@@ -292,8 +334,14 @@ class TestServer:
         async def async_mock():
             return web.json_response("test")
 
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv = await async_mock()
+        else:
+            _rv = asyncio.ensure_future(async_mock())
+        
         result = "test"
-        with patch.object(conf_api, 'get_category_item', return_value=async_mock()) as patch_category_item:
+        with patch.object(conf_api, 'get_category_item', return_value=_rv) as patch_category_item:
             resp = await client.get('/fledge/service/category/{}/{}'.format("test_category", "test_item"))
             assert 200 == resp.status
             r = await resp.text()
@@ -305,8 +353,14 @@ class TestServer:
         async def async_mock():
             return web.json_response("test")
 
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv = await async_mock()
+        else:
+            _rv = asyncio.ensure_future(async_mock())
+        
         result = "test"
-        with patch.object(conf_api, 'set_configuration_item', return_value=async_mock()) as patch_update_category_item:
+        with patch.object(conf_api, 'set_configuration_item', return_value=_rv) as patch_update_category_item:
             resp = await client.put('/fledge/service/category/{}/{}'.format("test_category", "test_item"))
             assert 200 == resp.status
             r = await resp.text()
@@ -318,8 +372,14 @@ class TestServer:
         async def async_mock():
             return web.json_response("ok")
 
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv = await async_mock()
+        else:
+            _rv = asyncio.ensure_future(async_mock())
+        
         result = "ok"
-        with patch.object(conf_api, 'delete_configuration_item_value', return_value=async_mock()) as patch_del_category_item:
+        with patch.object(conf_api, 'delete_configuration_item_value', return_value=_rv) as patch_del_category_item:
             resp = await client.delete('/fledge/service/category/{}/{}/value'.format("test_category", "test_item"))
             assert 200 == resp.status
             r = await resp.text()
@@ -578,7 +638,7 @@ class TestServer:
         request_data = {"type": "Storage", "name": "Storage Services", "address": "127.0.0.1", "service_port": 8090, "management_port": 1090}
         with patch.object(ServiceRegistry, 'register', return_value='1') as patch_register:
             with patch.object(AuditLogger, '__init__', return_value=None):
-                with patch.object(AuditLogger, 'information', return_value=async_mock(None)) as audit_info_patch:
+                with patch.object(AuditLogger, 'information', return_value=(await async_mock(None))) as audit_info_patch:
                     resp = await client.post('/fledge/service', data=json.dumps(request_data))
                     assert 200 == resp.status
                     r = await resp.text()
@@ -617,7 +677,7 @@ class TestServer:
         with patch.object(ServiceRegistry, 'get', return_value=data) as patch_get_unregister:
             with patch.object(ServiceRegistry, 'unregister') as patch_unregister:
                 with patch.object(AuditLogger, '__init__', return_value=None):
-                    with patch.object(AuditLogger, 'information', return_value=async_mock()) as audit_info_patch:
+                    with patch.object(AuditLogger, 'information', return_value=(await async_mock())) as audit_info_patch:
                         resp = await client.delete('/fledge/service/{}'.format(service_id))
                         assert 200 == resp.status
                         r = await resp.text()
@@ -647,8 +707,14 @@ class TestServer:
         async def return_async_value(val):
             return val
 
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv = await return_async_value('stopping...')
+        else:
+            _rv = asyncio.ensure_future(return_async_value('stopping...'))
+        
         mocked__stop = mocker.patch.object(Server, "_stop")
-        mocked__stop.return_value = return_async_value('stopping...')
+        mocked__stop.return_value = _rv
         mocked_log_info = mocker.patch.object(server._logger, "info")
 
         request = mock_request(data="", loop=asyncio.get_event_loop())
@@ -665,5 +731,6 @@ class TestServer:
         assert 'message' in json_response
         assert 'Fledge stopped successfully. Wait for few seconds for process cleanup.' == json_response["message"]
 
+    @pytest.mark.asyncio
     async def test_change(self):
         pass

@@ -389,7 +389,7 @@ uint32_t plugin_send_fn(PLUGIN_HANDLE handle, const std::vector<Reading *>& read
 	}
 
 	// Check return type
-	if PyLong_Check(pReturn)
+	if(PyLong_Check(pReturn))
 	{
 		data = (long)PyLong_AsUnsignedLongMask(pReturn);	
 	}

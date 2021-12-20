@@ -7,6 +7,8 @@
 import json
 from unittest.mock import MagicMock, patch
 import pytest
+import sys
+import asyncio
 
 from fledge.services.core.asset_tracker.asset_tracker import AssetTracker
 from fledge.common.storage_client.storage_client import StorageClientAsync
@@ -40,7 +42,13 @@ class TestAssetTracker:
         async def mock_coro():
             return result
 
-        with patch.object(asset_tracker._storage, 'query_tbl_with_payload', return_value=mock_coro()) as patch_query_tbl:
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv = await mock_coro()
+        else:
+            _rv = asyncio.ensure_future(mock_coro())
+
+        with patch.object(asset_tracker._storage, 'query_tbl_with_payload', return_value=_rv) as patch_query_tbl:
             await asset_tracker.load_asset_records()
             assert asset_list == asset_tracker._registered_asset_records
         patch_query_tbl.assert_called_once_with('asset_tracker', '{"return": ["asset", "event", "service", "plugin"]}')
@@ -58,8 +66,16 @@ class TestAssetTracker:
         async def mock_coro2():
             return {"response": "inserted", "rows_affected": 1}
 
-        with patch.object(cfg_manager, 'get_category_item', return_value=mock_coro()) as patch_get_cat_item:
-            with patch.object(asset_tracker._storage, 'insert_into_tbl', return_value=mock_coro2()) as patch_insert_tbl:
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv1 = await mock_coro()
+            _rv2 = await mock_coro2()
+        else:
+            _rv1 = asyncio.ensure_future(mock_coro())
+            _rv2 = asyncio.ensure_future(mock_coro2())
+
+        with patch.object(cfg_manager, 'get_category_item', return_value=_rv1) as patch_get_cat_item:
+            with patch.object(asset_tracker._storage, 'insert_into_tbl', return_value=_rv2) as patch_insert_tbl:
                 result = await asset_tracker.add_asset_record(asset='sinusoid', event='Ingest', service='sine', plugin='sinusoid')
                 assert payload == result
             args, kwargs = patch_insert_tbl.call_args

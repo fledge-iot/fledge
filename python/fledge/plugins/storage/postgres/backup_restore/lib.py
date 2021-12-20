@@ -13,6 +13,7 @@ from enum import IntEnum
 
 from fledge.common import logger
 from fledge.common.storage_client import payload_builder
+from fledge.common.storage_client.exceptions import StorageServerError
 from fledge.common.storage_client.storage_client import StorageClientAsync
 from fledge.common.configuration_manager import ConfigurationManager
 
@@ -372,6 +373,24 @@ class BackupRestoreLib(object):
         self.dir_fledge_backup = ""
         self.dir_backups = ""
         self.dir_semaphores = ""
+
+    def sl_get_all_backups(self) -> list:
+        """ Retrieves all records of backup table
+        Args:
+
+        Returns: List of backups
+
+        Raises:
+        """
+        payload = payload_builder.PayloadBuilder().SELECT("id", "file_name", "ts", "type", "status", "exit_code") \
+            .ALIAS("return", ("ts", 'ts')).FORMAT("return", ("ts", "YYYY-MM-DD HH24:MI:SS.MS")).payload()
+        _logger.debug("sl_get_all_backups PAYLOAD: {}".format(payload))
+        backups = asyncio.get_event_loop().run_until_complete(self._storage.query_tbl_with_payload(
+            self.STORAGE_TABLE_BACKUPS, payload))
+        if 'rows' not in backups:
+            raise StorageServerError
+        _logger.debug("{func} - backup list {backups}".format(func="sl_get_all_backups", backups=backups))
+        return backups['rows']
 
     def sl_backup_status_create(self, _file_name, _type, _status):
         """ Logs the creation of the backup in the Storage layer

@@ -204,7 +204,9 @@ Ingest::Ingest(StorageClient& storage,
 			m_serviceName(serviceName),
 			m_pluginName(pluginName),
 			m_mgtClient(mgmtClient),
-			m_failCnt(0)
+			m_failCnt(0),
+			m_storageFailed(false),
+			m_storesFailed(0)
 {
 	m_shutdown = false;
 	m_running = true;
@@ -341,25 +343,40 @@ int nFullQueues;
 	}
 }
 
+/**
+ * Work out how long to wait based on age of oldest queued reading
+ * We do this in a seperaste function so that we can
+ * lock the qMutex to access the oldest element in the queue
+ *
+ * @return the tiem to wait
+ */
+long Ingest::calculateWaitTime()
+{
+	long timeout = m_timeout;
+	lock_guard<mutex> guard(m_qMutex);
+	if (!m_queue->empty())
+	{
+		Reading *reading = (*m_queue)[0];
+		struct timeval tm, now;
+		reading->getUserTimestamp(&tm);
+		gettimeofday(&now, NULL);
+		long ageMS = (now.tv_sec - tm.tv_sec) * 1000 +
+			(now.tv_usec - tm.tv_usec) / 1000;
+		timeout = m_timeout - ageMS;
+	}
+	return timeout;
+}
 
+/**
+ * Wait for a period of time to allow the queue to build
+ */
 void Ingest::waitForQueue()
 {
 	if (m_fullQueues.size() > 0 || m_resendQueues.size() > 0)
 		return;
 	if (m_running && m_queue->size() < m_queueSizeThreshold)
 	{
-		// Work out how long to wait based on age of oldest queued reading
-		long timeout = m_timeout;
-		if (!m_queue->empty())
-		{
-			Reading *reading = (*m_queue)[0];
-			struct timeval tm, now;
-			reading->getUserTimestamp(&tm);
-			gettimeofday(&now, NULL);
-			long ageMS = (now.tv_sec - tm.tv_sec) * 1000 +
-				(now.tv_usec - tm.tv_usec) / 1000;
-			timeout = m_timeout - ageMS;
-		}
+		long timeout = calculateWaitTime();
 		if (timeout > 0)
 		{
 			mutex mtx;
@@ -392,11 +409,14 @@ void Ingest::processQueue()
 			vector<Reading *> *q = *m_resendQueues.begin();
 			if (m_storage.readingAppend(*q) == false)
 			{
-				m_logger->error("Still unable to resend buffered data, leaving on resend queue.");
+				if (!m_storageFailed)
+					m_logger->info("Still unable to resend buffered data, leaving on resend queue.");
+				m_storageFailed = true;
+				m_storesFailed++;
 				m_failCnt++;
 				if (m_failCnt > 5)
 				{
-					m_logger->error("Too many faliures with block of readings. Removing readings from block");
+					m_logger->info("Too many failures with block of readings. Removing readings from block");
 					for (int cnt = 5; cnt > 0 && q->size() > 0; cnt--)
 					{
 						Reading *reading = q->front();
@@ -416,6 +436,13 @@ void Ingest::processQueue()
 			}
 			else
 			{
+
+				if (m_storageFailed)
+				{
+					m_logger->warn("Storage operational after %d failures", m_storesFailed);
+					m_storageFailed = false;
+					m_storesFailed = 0;
+				}
 				m_failCnt = 0;
 				std::map<std::string, int>		statsEntriesCurrQueue;
 				AssetTracker *tracker = AssetTracker::getAssetTracker();
@@ -558,13 +585,22 @@ void Ingest::processQueue()
 		{
 			if (m_storage.readingAppend(*m_data) == false)
 			{
-				m_logger->warn("Failed to write readings to storage layer, queue for resend");
+				if (!m_storageFailed)
+					m_logger->warn("Failed to write readings to storage layer, queue for resend");
+				m_storageFailed = true;
+				m_storesFailed++;
 				m_resendQueues.push_back(m_data);
 				m_data = NULL;
 				m_failCnt = 1;
 			}
 			else
 			{
+				if (m_storageFailed)
+				{
+					m_logger->warn("Storage operational after %d failures", m_storesFailed);
+					m_storageFailed = false;
+					m_storesFailed = 0;
+				}
 				m_failCnt = 0;
 				std::map<std::string, int>		statsEntriesCurrQueue;
 				// check if this requires addition of a new asset tracker tuple

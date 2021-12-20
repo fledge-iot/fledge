@@ -9,6 +9,7 @@ import json
 import pathlib
 import asyncio
 from pathlib import PosixPath
+import sys
 
 from unittest.mock import Mock, MagicMock, patch, mock_open
 from aiohttp import web
@@ -128,14 +129,19 @@ class TestPackageLog:
         payload = {"return": ["id", "name", "action", "status", "log_file_uri"],
                    "where": {"column": "action", "condition": "=", "value": action.lower()}}
 
-        @asyncio.coroutine
-        def mock_coro():
+        async def mock_coro():
             return {"rows": []}
 
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv = await mock_coro()
+        else:
+            _rv = asyncio.ensure_future(mock_coro())
+        
         storage_client_mock = MagicMock(StorageClientAsync)
         msg = "'No record found'"
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=mock_coro()) as tbl_patch:
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv) as tbl_patch:
                 resp = await client.get('/fledge/package/{}/status'.format(action))
                 assert 404 == resp.status
                 assert msg == resp.reason
@@ -158,8 +164,7 @@ class TestPackageLog:
         payload = {"return": ["id", "name", "action", "status", "log_file_uri"],
                    "where": {"column": "action", "condition": "=", "value": action.lower()}}
 
-        @asyncio.coroutine
-        def mock_coro():
+        async def mock_coro():
             return {"rows": [{'id': 'b57fd5c5-8079-49ff-b6a1-9515cbd259e4', 'name': 'fledge-south-modbus',
                               'action': action, 'status': status,
                               'log_file_uri': 'log/201006-17-02-53-fledge-south-modbus-{}.log'.format(action.lower())}]}
@@ -176,9 +181,15 @@ class TestPackageLog:
             del old['log_file_uri']
             return new
 
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv = await mock_coro()
+        else:
+            _rv = asyncio.ensure_future(mock_coro())
+        
         storage_client_mock = MagicMock(StorageClientAsync)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=mock_coro()) as tbl_patch:
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv) as tbl_patch:
                 resp = await client.get('/fledge/package/{}/status'.format(action))
                 assert 200 == resp.status
                 r = await resp.text()
@@ -200,8 +211,7 @@ class TestPackageLog:
                    "where": {"column": "action", "condition": "=", "value": action.lower(),
                              "and": {"column": "id", "condition": "=", "value": uid}}}
 
-        @asyncio.coroutine
-        def mock_coro():
+        async def mock_coro():
             return {"rows": [{'id': 'b57fd5c5-8079-49ff-b6a1-9515cbd259e4', 'name': 'fledge-south-random',
                               'action': "install", 'status': -1,
                               'log_file_uri': 'log/201006-17-02-53-fledge-south-random-install.log'},
@@ -228,9 +238,15 @@ class TestPackageLog:
             del old['log_file_uri']
             return new
 
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv = await mock_coro()
+        else:
+            _rv = asyncio.ensure_future(mock_coro())
+        
         storage_client_mock = MagicMock(StorageClientAsync)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=mock_coro()) as tbl_patch:
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv) as tbl_patch:
                 resp = await client.get('/fledge/package/{}/status?id={}'.format(action, uid))
                 assert 200 == resp.status
                 r = await resp.text()

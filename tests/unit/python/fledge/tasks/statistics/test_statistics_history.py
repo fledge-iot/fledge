@@ -9,6 +9,7 @@
 import asyncio
 from unittest.mock import patch, MagicMock
 import pytest
+import sys
 
 import ast
 from fledge.common import logger
@@ -25,8 +26,7 @@ __version__ = "${VERSION}"
 pytestmark = pytest.mark.asyncio
 
 
-@asyncio.coroutine
-def mock_coro(*args, **kwargs):
+async def mock_coro(*args, **kwargs):
     if len(args) > 0:
         return args[0]
     else:
@@ -49,12 +49,18 @@ class TestStatisticsHistory:
         mock_process.assert_called_once_with()
 
     async def test_update_previous_value(self):
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv = await mock_coro(None)
+        else:
+            _rv = asyncio.ensure_future(mock_coro(None))
+        
         with patch.object(FledgeProcess, '__init__'):
             with patch.object(logger, "setup"):
                 sh = StatisticsHistory()
                 sh._storage_async = MagicMock(spec=StorageClientAsync)
                 payload = {'updates': [{'where': {'value': 'Bla', 'condition': '=', 'column': 'key'}, 'values': {'previous_value': 1}}]}
-                with patch.object(sh._storage_async, "update_tbl", return_value=mock_coro(None)) as patch_storage:
+                with patch.object(sh._storage_async, "update_tbl", return_value=_rv) as patch_storage:
                     await sh._bulk_update_previous_value(payload)
                 args, kwargs = patch_storage.call_args
                 assert "statistics" == args[0]
@@ -76,9 +82,17 @@ class TestStatisticsHistory:
                                     'ts': '2018-08-31 17:03:17.597055+05:30'
                                     }]
                           }
-                with patch.object(sh._storage_async, "query_tbl", return_value=mock_coro(retval)) as mock_keys:
-                    with patch.object(sh, "_bulk_update_previous_value", return_value=mock_coro(None)) as mock_update:
-                        with patch.object(sh._storage_async, "insert_into_tbl", return_value=mock_coro(None)) as mock_bulk_insert:
+                # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+                if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+                    _rv1 = await mock_coro(retval)
+                    _rv2 = await mock_coro(None)
+                else:
+                    _rv1 = asyncio.ensure_future(mock_coro(retval))
+                    _rv2 = asyncio.ensure_future(mock_coro(None))
+
+                with patch.object(sh._storage_async, "query_tbl", return_value=_rv1) as mock_keys:
+                    with patch.object(sh, "_bulk_update_previous_value", return_value=_rv2) as mock_update:
+                        with patch.object(sh._storage_async, "insert_into_tbl", return_value=_rv2) as mock_bulk_insert:
                             await sh.run()
                     assert 1 == mock_bulk_insert.call_count
                     assert 1 == mock_update.call_count

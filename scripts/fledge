@@ -118,7 +118,8 @@ libPathSet=0
 libdir=${FLEDGE_ROOT}/lib; [ -d ${libdir} ] && LD_LIBRARY_PATH=$(echo $LD_LIBRARY_PATH | sed "s|${libdir}||g") && export LD_LIBRARY_PATH=${libdir}:${LD_LIBRARY_PATH} && libPathSet=1
 libdir=${FLEDGE_ROOT}/cmake_build/C/lib; [ -d ${libdir} ] && LD_LIBRARY_PATH=$(echo $LD_LIBRARY_PATH | sed "s|${libdir}||g") && export LD_LIBRARY_PATH=${libdir}:${LD_LIBRARY_PATH} && libPathSet=1
 [ "$libPathSet" -eq "0" ] && echo "Unable to set/update LD_LIBRARY_PATH to include path of Fledge shared libraries: check whether ${FLEDGE_ROOT}/lib or ${FLEDGE_ROOT}/cmake_build/C/lib exists" && exit 1
-export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:/usr/local/lib
+# RHEL stores some libraries under /usr/local/lib64
+export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:/usr/local/lib:/usr/local/lib64
 
 ##########
 ## INCLUDE SECTION

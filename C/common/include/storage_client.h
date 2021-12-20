@@ -28,6 +28,11 @@ using HttpClient = SimpleWeb::Client<SimpleWeb::HTTP>;
 #define STREAM_BLK_SIZE 	50	// Readings to send per write call to a stream
 #define STREAM_THRESHOLD	25	// Switch to streamed mode above this number of readings per second
 
+// Backup values for repeated storage client exception messages
+#define SC_INITIAL_BACKOFF	100
+#define SC_MAX_BACKOFF		1000
+
+class ManagementClient;
 
 /**
  * Client for accessing the storage service
@@ -59,10 +64,12 @@ class StorageClient {
 		bool		unregisterAssetNotification(const std::string& assetName,
 							    const std::string& callbackUrl);
 
+		void		registerManagement(ManagementClient *mgmnt) { m_management = mgmnt; };
 	private:
 		void		handleUnexpectedResponse(const char *operation,
 							const std::string& responseCode,
 							const std::string& payload);
+		void		handleException(const std::exception& ex, const char *operation, ...);
 		HttpClient 	*getHttpClient(void);
 		bool		openStream();
 		bool		streamReadings(const std::vector<Reading *> & readings);
@@ -76,6 +83,10 @@ class StorageClient {
 		bool					m_streaming;
 		int					m_stream;
 		uint32_t				m_readingBlock;
+		std::string				m_lastException;
+		int					m_exRepeat;
+		int					m_backoff;
+		ManagementClient			*m_management;
 };
 
 #endif

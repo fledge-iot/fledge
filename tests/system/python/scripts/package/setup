@@ -15,36 +15,76 @@ PACKAGE_BUILD_VERSION=$1
 
 [[ -z "${PACKAGE_BUILD_VERSION}" ]] && echo "Build Version not found." && exit 1
 
-ID=$(cat /etc/os-release | grep -w ID | cut -f2 -d"=")
+OS_NAME=`(grep -o '^NAME=.*' /etc/os-release | cut -f2 -d\" | sed 's/"//g')`
+ID=$(cat /etc/os-release | grep -w ID | cut -f2 -d"=" | tr -d '"')
 UNAME=`uname -m`
 VERSION_ID=$(cat /etc/os-release | grep -w VERSION_ID | cut -f2 -d"=" |  tr -d '"')
 echo "version id is "${VERSION_ID}
 
-if [[ ${ID} = "ubuntu" ]]; then
-    VERSION_ID=$(echo "${VERSION_ID//.}")
-    ID="ubuntu${VERSION_ID}";
-elif [[ ${ID} = "raspbian" ]]; then
-    ID=$(cat /etc/os-release | grep VERSION_CODENAME | cut -f2 -d"=")
-    UNAME="armv7l"
+
+if [[ ${OS_NAME} == *"Red Hat"* || ${OS_NAME} == *"CentOS"* ]]; then
+    ID="${ID}7"
+    echo "Build version is "${PACKAGE_BUILD_VERSION}
+    echo "ID is "${ID}
+    echo "uname is "${UNAME}
+    
+    sudo cp -f /etc/yum.repos.d/fledge.repo /etc/yum.repos.d/fledge.repo.bak | true
+    sudo yum update -y
+    echo "==================== DONE update, upgrade ============================"
+    
+    # Configure Fledge repo
+    echo -e "[fledge]\n\
+name=fledge Repository\n\
+baseurl=http://archives.fledge-iot.org/${PACKAGE_BUILD_VERSION}/${ID}/${UNAME}/\n\
+enabled=1\n\
+gpgkey=http://archives.fledge-iot.org/RPM-GPG-KEY-fledge\n\
+gpgcheck=1" | sudo tee /etc/yum.repos.d/fledge.repo
+    
+    sudo yum update -y
+    
+    # Install prerequisites
+    if [[ ${ID} = "centos" ]]; then
+        sudo yum install -y centos-release-scl-rh
+        sudo yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+    elif [[ ${ID} = "rhel" ]]; then
+        sudo yum-config-manager --enable 'Red Hat Software Collections RPMs for Red Hat Enterprise Linux 7 Server from RHUI'
+    fi
+    sudo yum update -y
+    
+    time sudo yum install -y fledge
+    echo "==================== DONE INSTALLING Fledge =================="
+    
+    if [ "${FLEDGE_ENVIRONMENT}" != "docker" ]; then     
+        time sudo yum install -y fledge-gui
+        echo "==================== DONE INSTALLING Fledge GUI ======================"
+    fi
+else
+    if [[ ${ID} = "ubuntu" ]]; then
+        VERSION_ID=$(echo "${VERSION_ID//.}")
+        ID="ubuntu${VERSION_ID}";
+    elif [[ ${ID} = "raspbian" ]]; then
+        ID=$(cat /etc/os-release | grep VERSION_CODENAME | cut -f2 -d"=")
+        UNAME="armv7l"
+    fi
+    
+    echo "Build version is "${PACKAGE_BUILD_VERSION}
+    echo "ID is "${ID}
+    echo "uname is "${UNAME}
+    
+    if [[ -f /etc/apt/sources.list.d/fledge.list ]]; then cd /etc/apt/sources.list.d/ && sudo cp -f fledge.list fledge.list.bak && sudo rm -f fledge.list; fi
+
+    sudo apt update && sudo apt upgrade -y && sudo apt update
+    echo "==================== DONE update, upgrade, update ============================"
+
+    wget -q -O - http://archives.fledge-iot.org/KEY.gpg | sudo apt-key add -
+    echo "deb http://archives.fledge-iot.org/${PACKAGE_BUILD_VERSION}/${ID}/${UNAME}/ /" | sudo tee -a /etc/apt/sources.list.d/fledge.list
+    sudo apt update
+    
+    time sudo DEBIAN_FRONTEND=noninteractive apt install -yq fledge
+    echo "==================== DONE INSTALLING Fledge =================="
+    
+    if [ "${FLEDGE_ENVIRONMENT}" != "docker" ]; then     
+        time sudo apt install -y fledge-gui
+        echo "==================== DONE INSTALLING Fledge GUI ======================"
+    fi
 fi
-
-echo "Build version is "${PACKAGE_BUILD_VERSION}
-echo "ID is "${ID}
-echo "uname is "${UNAME}
-
-sudo cp /etc/apt/sources.list /etc/apt/sources.list.bak
-sudo sed -i "/\b\(archives.fledge-iot.org\)\b/d" /etc/apt/sources.list
-
-sudo apt update && sudo apt upgrade -y && sudo apt update
-echo "==================== DONE update, upgrade, update ============================"
-
-wget -q -O - http://archives.fledge-iot.org/KEY.gpg | sudo apt-key add -
-# FIXME: for centos/rhel
-echo "deb http://archives.fledge-iot.org/${PACKAGE_BUILD_VERSION}/${ID}/${UNAME}/ /" | sudo tee -a /etc/apt/sources.list
-sudo apt update
-
-time sudo DEBIAN_FRONTEND=noninteractive apt install -yq fledge
-echo "==================== DONE INSTALLING Fledge =================="
-
-time sudo apt install -y fledge-gui
-echo "==================== DONE INSTALLING Fledge GUI ======================"

@@ -317,7 +317,9 @@ async def attach_acl_to_service(request: web.Request) -> web.Response:
             }
             await cf_mgr.create_category(category_name=security_cat_name, category_description=category_desc,
                                          category_value=category_value)
-            # TODO: parent-child relation if any
+            add_child_result = await cf_mgr.create_child_category(svc_name, [security_cat_name])
+            if security_cat_name not in add_child_result['children']:
+                raise StorageServerError(add_child_result)
         else:
             raise ValueError('A {} service has already ACL attached'.format(svc_name))
     except StorageServerError as err:

@@ -250,12 +250,17 @@ async def delete_acl(request: web.Request) -> web.Response:
         return web.json_response({"message": message})
 
 
+@has_permission("admin")
 async def attach_acl_to_service(request: web.Request) -> web.Response:
     """ Attach ACL to a service. A service may only have single ACL associated with it
 
     :Example:
-        curl -sX PUT http://localhost:8081/fledge/service/Sine/ACL -d '{"acl_name": "testACL"}'
+        curl -H "authorization: $AUTH_TOKEN" -sX PUT http://localhost:8081/fledge/service/Sine/ACL -d '{"acl_name": "testACL"}'
     """
+    if request.is_auth_optional:
+        msg = "Attach ACL to service: {}".format(FORBIDDEN_MSG)
+        _logger.warning(msg)
+        raise web.HTTPForbidden(reason=msg, body=json.dumps({"message": msg}))
     try:
         svc_name = request.match_info.get('service_name', None)
         storage = connect.get_storage_async()
@@ -331,12 +336,17 @@ async def attach_acl_to_service(request: web.Request) -> web.Response:
         return web.json_response({"message": "{} ACL attached to {} service successfully".format(acl_name, svc_name)})
 
 
+@has_permission("admin")
 async def detach_acl_from_service(request: web.Request) -> web.Response:
     """ Detach ACL from a service
 
     :Example:
-        curl -sX DELETE http://localhost:8081/fledge/service/Sine/ACL
+        curl -H "authorization: $AUTH_TOKEN" -sX DELETE http://localhost:8081/fledge/service/Sine/ACL
     """
+    if request.is_auth_optional:
+        msg = "Detach ACL from service: {}".format(FORBIDDEN_MSG)
+        _logger.warning(msg)
+        raise web.HTTPForbidden(reason=msg, body=json.dumps({"message": msg}))
     try:
         svc_name = request.match_info.get('service_name', None)
         storage = connect.get_storage_async()
@@ -348,21 +358,29 @@ async def detach_acl_from_service(request: web.Request) -> web.Response:
                 raise NameNotFoundError('{} service does not exist.'.format(svc_name))
         else:
             raise StorageServerError(get_schedules_result)
-        # Delete {service_name}Security category
         cf_mgr = ConfigurationManager(storage)
         security_cat_name = "{}Security".format(svc_name)
-        delete_cat_result = await cf_mgr.delete_category_and_children_recursively(security_cat_name)
-        if 'response' in delete_cat_result:
-            if delete_cat_result['response'] == "deleted":
-                message = "ACL detached from {} service successfully".format(svc_name)
+        # Check {service_name}Security existence
+        category = await cf_mgr.get_category_all_items(security_cat_name)
+        if category is not None:
+            # Delete {service_name}Security category
+            delete_cat_result = await cf_mgr.delete_category_and_children_recursively(security_cat_name)
+            if 'response' in delete_cat_result:
+                if delete_cat_result['response'] == "deleted":
+                    message = "ACL detached from {} service successfully".format(svc_name)
+            else:
+                raise StorageServerError(delete_cat_result)
         else:
-            raise StorageServerError(delete_cat_result)
+            raise ValueError("Nothing to delete as there is no ACL attached with {} service".format(svc_name))
     except StorageServerError as err:
         msg = "Storage error: {}".format(str(err))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     except NameNotFoundError as err:
         msg = str(err)
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
+    except ValueError as err:
+        msg = str(err)
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))

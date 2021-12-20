@@ -156,6 +156,8 @@ class User:
             if not user_data:
                 return False
             kwargs = dict()
+            if 'access_method' in user_data:
+                kwargs.update({"access_method": user_data['access_method']})
             if 'real_name' in user_data:
                 kwargs.update({"real_name": user_data['real_name']})
             if 'description' in user_data:

@@ -75,6 +75,7 @@ private:
 						std::lock_guard<std::mutex> guard(m_statsMutex);
 						m_discardedReadings++;
 					};
+	long				calculateWaitTime();
 
 	StorageClient&			m_storage;
 	long				m_timeout;
@@ -108,6 +109,8 @@ private:
 	std::map<std::string, int>	statsPendingEntries;  // pending stats table entries
 	bool				m_highLatency;	      // Flag to indicate we are exceeding latency request
 	int				m_failCnt;
+	bool				m_storageFailed;
+	int				m_storesFailed;
 };
 
 #endif

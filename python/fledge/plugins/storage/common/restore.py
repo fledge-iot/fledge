@@ -4,7 +4,7 @@
 
 """ Common functionalities for the Restore, they are also used for the integration with the API.
 """
-
+import logging
 import uuid
 
 from fledge.services.core import server
@@ -30,14 +30,6 @@ _MESSAGES_LIST = {
 }
 """ Messages used for Information, Warning and Error notice """
 
-
-# Log definitions
-_logger = None
-
-_LOG_LEVEL_DEBUG = 10
-_LOG_LEVEL_INFO = 20
-
-_LOGGER_LEVEL = _LOG_LEVEL_INFO
 _LOGGER_DESTINATION = logger.SYSLOG
 
 
@@ -67,10 +59,7 @@ class Restore(object):
         self._storage = _storage
 
         if not Restore._logger:
-            Restore._logger = logger.setup(
-                                            self._MODULE_NAME,
-                                            destination=_LOGGER_DESTINATION,
-                                            level=_LOGGER_LEVEL)
+            Restore._logger = logger.setup(self._MODULE_NAME, destination=_LOGGER_DESTINATION, level=logging.INFO)
 
     async def restore_backup(self, backup_id: int):
         """ Starts an asynchronous restore process to restore the state of Fledge.
@@ -85,21 +74,18 @@ class Restore(object):
         Raises:
         """
 
-        self._logger.debug("{func} - backup id |{backup_id}|".format(
-                                                                    func="restore_backup",
-                                                                    backup_id=backup_id))
+        self._logger.debug("{func} - backup id |{backup_id}|".format(func="restore_backup", backup_id=backup_id))
 
         try:
             await server.Server.scheduler.queue_task(uuid.UUID(Restore.SCHEDULE_RESTORE_ON_DEMAND))
-
+            # Setting scheduler restore backup id
+            server.Server.scheduler._restore_backup_id = backup_id
+            self._logger.debug("Scheduler restore_backup_id: {}".format(server.Server.scheduler._restore_backup_id))
             _message = self._MESSAGES_LIST["i000001"]
             Restore._logger.info("{0}".format(_message))
             status = "running"
-
         except Exception as _ex:
             _message = self._MESSAGES_LIST["e000001"].format(_ex)
             Restore._logger.error("{0}".format(_message))
-
             status = "failed"
-
         return status

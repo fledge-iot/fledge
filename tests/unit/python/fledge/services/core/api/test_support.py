@@ -11,6 +11,8 @@ from unittest.mock import patch, mock_open, Mock, MagicMock
 
 from aiohttp import web
 import pytest
+import sys
+import asyncio
 
 from fledge.services.core import routes
 from fledge.services.core.api import support
@@ -117,8 +119,14 @@ class TestBundleSupport:
         async def mock_build():
             return 'support-180301-13-35-23.tar.gz'
 
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv = await mock_build()
+        else:
+            _rv = asyncio.ensure_future(mock_build())
+            
         with patch.object(SupportBuilder, "__init__", return_value=None):
-            with patch.object(SupportBuilder, "build", return_value=mock_build()):
+            with patch.object(SupportBuilder, "build", return_value=_rv):
                 resp = await client.post('/fledge/support')
                 res = await resp.text()
                 jdict = json.loads(res)

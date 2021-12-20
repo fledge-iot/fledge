@@ -10,9 +10,12 @@ __copyright__ = "Copyright (c) 2018 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
+
+import sys
+import pytest
+pytestmark = pytest.mark.skipif(sys.version_info >= (3, 8), reason="FOGL-3258: pi server north plugin is obsolete")
 import asyncio
 import logging
-import pytest
 import json
 import time
 import ast
@@ -190,11 +193,9 @@ class TestPiServer:
         assert isinstance(config['StaticData'], dict)
 
     @pytest.mark.parametrize("data", [
-
             # Bad case 1 - StaticData is a python dict instead of a string containing a dict
             {
                 "stream_id": {"value": 1},
-
                 "_CONFIG_CATEGORY_NAME":  module_sp.SendingProcess._CONFIG_CATEGORY_NAME,
                 "URL": {"value": "test_URL"},
                 "producerToken": {"value": "test_producerToken"},
@@ -208,14 +209,11 @@ class TestPiServer:
                             "Company": "Dianomic"
                         }
                 },
-
                 'sending_process_instance': MagicMock()
             },
-
             # Bad case 2 - OMFMaxRetry, bad value expected an int it is a string
             {
                 "stream_id": {"value": 1},
-
                 "_CONFIG_CATEGORY_NAME": module_sp.SendingProcess._CONFIG_CATEGORY_NAME,
                 "URL": {"value": "test_URL"},
                 "producerToken": {"value": "test_producerToken"},
@@ -230,10 +228,8 @@ class TestPiServer:
                         }
                     )
                 },
-
                 'sending_process_instance': MagicMock()
             }
-
     ])
     def test_plugin_init_bad(self, data):
         """Tests plugin_init using an invalid set of values"""
@@ -251,7 +247,6 @@ class TestPiServer:
                 # ret_transform_in_memory_data
                 # is_data_available - new_position - num_sent
                 [True,                20,            10],
-
                 # raw_data
                 {
                     "id": 10,
@@ -264,7 +259,6 @@ class TestPiServer:
                 # ret_transform_in_memory_data
                 # is_data_available - new_position - num_sent
                 [False, 20, 10],
-
                 # raw_data
                 {
                     "id": 10,
@@ -273,7 +267,6 @@ class TestPiServer:
                     "user_ts": '2018-04-20 09:38:50.163164+00'
                 }
             ),
-
         ]
     )
     @pytest.mark.asyncio
@@ -331,7 +324,6 @@ class TestPiServer:
                 # ret_transform_in_memory_data
                 # is_data_available - new_position - num_sent
                 [True,                20,            10],
-
                 # raw_data
                 {
                     "id": 10,
@@ -340,7 +332,6 @@ class TestPiServer:
                     "user_ts": '2018-04-20 09:38:50.163164+00'
                 }
              )
-
         ]
     )
     @pytest.mark.asyncio
@@ -412,20 +403,16 @@ class TestPIServerNorthPlugin:
         "p_data_from_storage, "
         "expected_data, ",
         [
-
             # Case 1
             (
                     # p_configuration_key
                     "SEND_PR1",
-
                     # p_type_id
                     "0001",
-
                     # p_data_from_storage
                     {
                         "rows":
                             [
-
                                 {
                                     "configuration_key": "SEND_PR1",
                                     "type_id": "0001",
@@ -436,10 +423,8 @@ class TestPIServerNorthPlugin:
                                     "type_id": "0001",
                                     "asset_code": "asset_code_2"
                                 }
-
                             ]
                     },
-
                     # expected_data
                     [
                         "asset_code_1",
@@ -563,16 +548,13 @@ class TestPIServerNorthPlugin:
             (
                 # Origin - Sensor data
                 {"asset_code": "pressure", "asset_data": {"pressure": 921.6}},
-
                 # type_id
                 "0001",
-
                 # Static Data
                 {
                     "Location": "Palo Alto",
                     "Company": "Dianomic"
                 },
-
                 # Expected
                 'pressure_typename',
                 {
@@ -604,16 +586,13 @@ class TestPIServerNorthPlugin:
             (
                     # Origin - Sensor data
                     {"asset_code": "luxometer", "asset_data": {"lux": 20}},
-
                     # type_id
                     "0002",
-
                     # Static Data
                     {
                         "Location": "Palo Alto",
                         "Company": "Dianomic"
                     },
-
                     # Expected
                     'luxometer_typename',
                     {
@@ -640,23 +619,18 @@ class TestPIServerNorthPlugin:
                             }
                         ]
                     }
-
             ),
-
             # Case 3 - switch / string
             (
                 # Origin - Sensor data
                 {"asset_code": "switch", "asset_data": {"button": "up"}},
-
                 # type_id
                 "0002",
-
                 # Static Data
                 {
                     "Location": "Palo Alto",
                     "Company": "Dianomic"
                 },
-
                 # Expected
                 'switch_typename',
                 {
@@ -683,9 +657,7 @@ class TestPIServerNorthPlugin:
                         }
                     ]
                 }
-
             )
-
         ]
     )
     @pytest.mark.asyncio
@@ -734,7 +706,6 @@ class TestPIServerNorthPlugin:
             (
                     # p_type_id
                     "0001",
-
                     # p_asset_code_omf_type
                     {
                         "typename": "position",
@@ -764,10 +735,8 @@ class TestPIServerNorthPlugin:
                             }
                         }
                     },
-
                     # expected_typename
                     "position",
-
                     # expected_omf_type
                     {
                         "position": [
@@ -804,10 +773,8 @@ class TestPIServerNorthPlugin:
                                     "z": {
                                         "type": "number"
                                     }
-
                                 }
                             }
-
                         ]
                     }
             )
@@ -855,19 +822,15 @@ class TestPIServerNorthPlugin:
             (
                 # p_asset
                 {"asset_code": "pressure", "asset_data": {"pressure": 921.6}},
-
                 # type_id
                 "0001",
-
                 # Static Data
                 {
                     "Location": "Palo Alto",
                     "Company": "Dianomic"
                 },
-
                 # p_typename
                 'pressure_typename',
-
                 # p_omf_type
                 {
                     'pressure_typename':
@@ -893,7 +856,6 @@ class TestPIServerNorthPlugin:
                          }
                     ]
                 },
-
                 # expected_container
                 [
                     {
@@ -901,7 +863,6 @@ class TestPIServerNorthPlugin:
                         'id': '0001measurement_pressure'
                     }
                 ],
-
                 # expected_static_data
                 [
                     {
@@ -915,7 +876,6 @@ class TestPIServerNorthPlugin:
                         ]
                     }
                 ],
-
                 # expected_link_data
                 [
                     {
@@ -932,7 +892,6 @@ class TestPIServerNorthPlugin:
                      }
                 ]
             )
-
         ]
     )
     @pytest.mark.asyncio
@@ -975,7 +934,6 @@ class TestPIServerNorthPlugin:
             (
                 # p_creation_type
                 "automatic",
-
                 # Origin
                 [
                     {
@@ -985,12 +943,10 @@ class TestPIServerNorthPlugin:
                         "user_ts": '2018-04-20 09:38:50.163164+00'
                     }
                 ],
-
                 # asset_codes_already_created
                 [
                     "test_none"
                 ],
-
                 # omf_objects_configuration_based
                 {"none": "none"}
             ),
@@ -998,7 +954,6 @@ class TestPIServerNorthPlugin:
             (
                     # p_creation_type
                     "configuration",
-
                     # Origin
                     [
                         {
@@ -1008,16 +963,13 @@ class TestPIServerNorthPlugin:
                             "user_ts": '2018-04-20 09:38:50.163164+00'
                         }
                     ],
-
                     # asset_codes_already_created
                     [
                         "test_none"
                     ],
-
                     # omf_objects_configuration_based
                     {"test_asset_code": {"value": "test_asset_code"}}
             )
-
         ]
     )
     @pytest.mark.asyncio
@@ -1091,7 +1043,6 @@ class TestPIServerNorthPlugin:
         [
             # Good cases
             ('producerToken', "xxx", "good"),
-
             # Bad cases
             ('NO-producerToken', "", "exception"),
             ('producerToken', "", "exception")
@@ -1125,7 +1076,6 @@ class TestPIServerNorthPlugin:
         [
             # Good cases
             ('type-id', "xxx", "good"),
-
             # Bad cases
             ('NO-type-id', "", "exception"),
             ('type-id', "", "exception")
@@ -1161,7 +1111,6 @@ class TestPIServerNorthPlugin:
                     'dummy': 'dummy'
                 }
             ),
-
         ]
     )
     @pytest.mark.asyncio
@@ -1222,7 +1171,6 @@ class TestPIServerNorthPlugin:
                 404, 'Invalid value type for the property',
                 {'dummy': 'dummy'}
             ),
-
         ]
     )
     @pytest.mark.asyncio
@@ -1292,9 +1240,7 @@ class TestPIServerNorthPlugin:
                          }
                     ]
                 }
-
             ),
-
         ]
     )
     @pytest.mark.asyncio
@@ -1351,9 +1297,7 @@ class TestPIServerNorthPlugin:
                 {
                     'dummy': 'dummy'
                 }
-
             ),
-
         ]
     )
     @pytest.mark.asyncio
@@ -1452,7 +1396,6 @@ class TestPIServerNorthPlugin:
                     ],
                     True, 11, 1
             ),
-
             # Case 3 - 2 rows
             (
                     # Origin
@@ -1519,4 +1462,3 @@ class TestPIServerNorthPlugin:
         assert is_data_available == expected_is_data_available
         assert new_position == expected_new_position
         assert num_sent == expected_num_sent
-

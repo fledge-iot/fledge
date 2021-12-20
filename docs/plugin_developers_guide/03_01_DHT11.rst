@@ -281,14 +281,14 @@ If you have not built Fledge yet, follow the steps described |Getting Started|. 
 .. code-block:: console
 
   $ cd ~/Fledge
-  $ cp -R ~/fledge-south-dht11/python/fledge/plugins/south/dht11 python/fledge/plugin/south/
+  $ cp -R ~/fledge-south-dht11/python/fledge/plugins/south/dht11 python/fledge/plugins/south/
   $
 
 - If you have installed Fledge by executing ``sudo make install``, copy the structure of the *fledge-south-dht11/python/* directory into the installed *python* directory:
 
 .. code-block:: console
 
-  $ sudo cp -R ~/fledge-south-dht11/python/fledge/plugins/south/dht11 /usr/local/fledge/python/fledge/plugin/south/
+  $ sudo cp -R ~/fledge-south-dht11/python/fledge/plugins/south/dht11 /usr/local/fledge/python/fledge/plugins/south/
   $
 
 .. note:: If you have installed Fledge using an alternative *DESTDIR*, remember to add the path to the destination directory to the ``cp`` command.

@@ -888,6 +888,12 @@ static void plugin_shutdown_fn(PLUGIN_HANDLE handle)
 		return;
 	}
 
+	if (! Py_IsInitialized()) {
+
+		Logger::getLogger()->debug("%s - Python environment not initialized, exiting from the function ", __FUNCTION__);
+		return;
+	}
+
 	PyObject* pFunc; 
 	PyGILState_STATE state = PyGILState_Ensure();
 

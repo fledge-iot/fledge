@@ -1,0 +1,857 @@
+#!/bin/bash
+
+##--------------------------------------------------------------------
+## Fledge management tool- to check/recovery fledge SQLITE databases
+##
+## Copyright (c) 2021 Dianomic Systems
+##
+## Released under the Apache 2.0 Licence
+##
+## Author: Stefano Simonelli
+##
+##
+## 2.0.04 - improved execution of min/max on tables
+## 2.0.03 - added --perf
+##          avoided the check of the db before after the shrink
+##          improve shrink  --table
+## 2.0.02 - handle PLUGIN_DATA_KEY having spaces
+## 2.0.01 - improves "recover --custom" handling a dynamic list of tables
+## 1.9.10 - adds Centos/Redhat handling for the syslog
+##
+##--------------------------------------------------------------------
+
+#set -e
+#set -x
+
+FLEDGE_MNT_VERSION=2.0.04
+FLEDGE_READINGS_DB_MAX=64           # Number of readings oer database handled
+
+#
+# Used for the command : clean --plugin_data
+#
+PLUGIN_DATA_KEY='xxx'               # Used to delete a specific row in the plugin_data table
+                                    # change this value to the proper one, use the info command
+                                    # to retrieve the current values
+
+
+
+#
+write_log() {
+
+  # Check log severity
+  case "$3" in
+    "debug")
+      severity="DEBUG"
+      ;;
+    "info")
+      severity="INFO"
+      ;;
+    "notice")
+      severity="WARNING"
+      ;;
+    "err")
+      severity="ERROR"
+      ;;
+    "crit")
+      severity="CRITICAL ERROR"
+      ;;
+    "alert")
+      severity="ALERT"
+      ;;
+    "emerg")
+      severity="EMERGENCY"
+      ;;
+    "*")
+      write_log $1 "err" "Internal error: unrecognized priority: $3" $4
+      exit 1
+      ;;
+  esac
+
+  # Log to syslog
+  if [[ "$5" =~ ^(logonly|all)$ ]]; then
+      tag="Fledge ${1}[${BASHPID}] ${severity}: ${2}"
+      logger -t "${tag}" "${4}"
+  fi
+
+  # Log to Stdout
+  if [[ "${5}" =~ ^(outonly|all)$ ]]; then
+      if [[ "${6}" == "pretty" ]]; then
+          echo "${4}" >&2
+      else
+          echo "[$(date +'%Y-%m-%d %H:%M:%S')]: $@" >&2
+      fi
+  fi
+
+}
+
+## fledge_log wrapper
+fledge_log() {
+    write_log "" "script.fledge_mnt" "$1" "$2" "$3" "$4"
+}
+
+#
+# FLEDGE_ROOT evaluation
+#
+if [ "${FLEDGE_ROOT}" = "" ]; then
+	FLEDGE_ROOT=/usr/local/fledge
+fi
+
+if [ ! -d "${FLEDGE_ROOT}" ]; then
+	fledge_log "err" "Fledge home directory missing or incorrectly set environment !${FLEDGE_ROOT}!"  "outonly" "pretty"
+	exit 1
+fi
+
+#
+# FLEDGE_DATA evaluation
+#
+if [ "${FLEDGE_DATA}" = "" ]; then
+	FLEDGE_DATA="${FLEDGE_ROOT}/data"
+fi
+
+#
+# fledge command evaluation
+#
+FLEDGE_SCRIPT="${FLEDGE_ROOT}/scripts/fledge"
+if [ ! -x "${FLEDGE_SCRIPT}" ]; then
+
+    FLEDGE_SCRIPT="${FLEDGE_ROOT}/bin/fledge"
+    if [ ! -x "${FLEDGE_SCRIPT}" ]; then
+
+	    fledge_log "warn" "WARNING: Fledge command unavailable both in deployment and development environments"  "outonly" "pretty"
+	    fledge_log "warn" "WARNING: if needed, fledge should be stopped manually before the execution"  "outonly" "pretty"
+	    FLEDGE_SCRIPT=""
+    else
+        FLEDGE_ENV="deployment"
+    fi
+else
+    FLEDGE_ENV="development"
+fi
+
+#
+# sqlite3 command selection - identify the newer one for the availability of th recover command
+#
+base_dir=$(dirname "$0")
+#SQLITE_SQL="${HOME}/bin/sqlite3"
+SQLITE_SQL="${base_dir}/sqlite3"
+if ! [[ -x "${SQLITE_SQL}" ]]; then
+
+    SQLITE_SQL="$FLEDGE_ROOT/plugins/storage/sqlite/sqlite3"
+    if ! [[ -x "${SQLITE_SQL}" ]]; then
+
+        # Check system default SQLite 3 command line is available
+        if ! [[ -x "$(command -v sqlite3)" ]]; then
+            fledge_log "info" "The sqlite3 command cannot be found. Is SQLite3 installed?" "outonly" "pretty"
+            fledge_log "info" "If SQLite3 is installed, check if the bin dir is in the PATH." "outonly" "pretty"
+            exit 1
+        else
+            SQLITE_SQL="$(command -v sqlite3)"
+        fi
+    fi
+fi
+
+export SQLITE_SQL_ANALYZER="${base_dir}/sqlite3_analyzer"
+if ! [[ -x "${SQLITE_SQL_ANALYZER}" ]]; then
+
+    fledge_log "info" "sqlite3_analyzer not available in !${SQLITE_SQL_ANALYZER}!" "outonly" "pretty"
+    SQLITE_SQL_ANALYZER=""
+fi
+
+#
+# Configurations
+#
+if [[ "${FLEDGE_DB_NAME}" == "" ]]; then
+
+    FLEDGE_DB="${FLEDGE_ROOT}/data/fledge.db"
+
+else
+    FLEDGE_DB="${FLEDGE_DB_NAME}"
+fi
+
+#
+# TODO: handle low bandwidth storage engine
+#
+READINGS_DB="${FLEDGE_DATA}/readings_1.db"
+READINGS_2_DB="${FLEDGE_DATA}/readings_2.db"
+READINGS_3_DB="${FLEDGE_DATA}/readings_3.db"
+
+#
+# Functions
+#
+fledge_stop() {
+
+    if [[ "${FLEDGE_SCRIPT}" == "" ]]; then
+
+	    fledge_log "warn" "WARNING: Fledge command unavailable both in deployment and development environments"  "outonly" "pretty"
+	    fledge_log "warn" "WARNING: if needed, fledge should be stopped manually before the execution"  "outonly" "pretty"
+    else
+
+         seconds=5
+        ${FLEDGE_SCRIPT} stop
+
+        echo "sleeping ${seconds} seconds before fledge kill, to ensure everything is not running"
+        sleep ${seconds}
+        ${FLEDGE_SCRIPT} kill
+    fi
+}
+
+operation_start() {
+
+    operation="${1}"
+
+    echo ""
+    echo "${operation}"
+    echo "Operation started : $(date)"
+
+    time_start=$(date +%s)
+
+}
+
+operation_end() {
+
+    time_end=$(date +%s)
+
+    elapsed_sec=$(($time_end - $time_start))
+    if [[ $elapsed_sec -ge 60 ]]; then
+
+        elapsed_min=$(($elapsed_sec / 60))
+    fi
+    if [[ $elapsed_min -ge 60 ]]; then
+
+        elapsed_hour=$(($elapsed_min / 60))
+    fi
+
+    echo "Operation completed : $(date)"
+    echo "Elapsed - seconds/minutes/hours - ${elapsed_sec} / ${elapsed_min} / ${elapsed_hour} "
+}
+
+fledge_info_table() {
+
+    fledge_table=$1
+    option=$2
+    timestamp_field=$3
+    execute_count=no
+
+    echo "Information on the table : ${fledge_table}"
+
+    if [[ "${option}" == "count" ]]; then
+
+        execute_count=yes
+    fi
+
+    if [[ "${option}" == "count_only" ]]; then
+
+        execute_count=yes
+    else
+        echo -en "\tMIN Id : "
+        "${SQLITE_SQL}" "${FLEDGE_DB}" "SELECT min(id) FROM ${fledge_table} "
+
+        echo -en "\tMAX Id : "
+        "${SQLITE_SQL}" "${FLEDGE_DB}" "SELECT max(id) FROM ${fledge_table} "
+
+
+        if [[ "${timestamp_field}" != "-" ]]; then
+
+            echo -en "\tTimestamp MIN: "
+            "${SQLITE_SQL}" "${FLEDGE_DB}" "SELECT min(${timestamp_field}) FROM ${fledge_table} "
+
+            echo -en "\tTimestamp MAX: "
+            "${SQLITE_SQL}" "${FLEDGE_DB}" "SELECT max(${timestamp_field}) FROM ${fledge_table} "
+        fi
+    fi
+
+    if [[ "${execute_count}" == "yes" ]]; then
+
+        echo -en "\tCOUNT  : "
+        "${SQLITE_SQL}" "${FLEDGE_DB}" "SELECT count(*) FROM ${fledge_table} "
+    fi
+
+    if [[ "${fledge_table}" == "PLUGIN_DATA" ]]; then
+
+        echo -e "\tTable - ${fledge_table}  : "
+        "${SQLITE_SQL}" -header "${FLEDGE_DB}" "SELECT * FROM ${fledge_table} "
+
+        echo ""
+    fi
+    if [[ "${fledge_table}" == "STREAMS" ]]; then
+
+        echo -e "\tNow - "$(date "+%Y-%m-%d %H:%M:%S.%3N")" - $(date) "
+
+        echo -e "\tTable - ${fledge_table}  : "
+        "${SQLITE_SQL}" -header "${FLEDGE_DB}" "SELECT * FROM ${fledge_table} "
+
+        echo ""
+        echo "Information on the READINGS tables"
+
+        min=$("${SQLITE_SQL}" "${READINGS_DB}" "SELECT min(id) FROM readings_1_1")
+        max=$("${SQLITE_SQL}" "${READINGS_DB}" "SELECT max(id) FROM readings_1_1")
+        echo -en "\tTable - readings_1_1 - min/max : ${min}/${max} "
+        echo ""
+
+        min=$("${SQLITE_SQL}" "${READINGS_DB}" "SELECT min(id) FROM readings_1_2")
+        max=$("${SQLITE_SQL}" "${READINGS_DB}" "SELECT max(id) FROM readings_1_2")
+        echo -en "\tTable - readings_1_2 - min/max : ${min}/${max} "
+        echo ""
+
+        min=$("${SQLITE_SQL}" "${READINGS_DB}" "SELECT min(id) FROM readings_1_3")
+        max=$("${SQLITE_SQL}" "${READINGS_DB}" "SELECT max(id) FROM readings_1_3")
+        echo -en "\tTable - readings_1_3 - min/max : ${min}/${max} "
+        echo ""
+
+        echo ""
+        echo -e "\tTable - configuration_readings : "
+        "${SQLITE_SQL}" -header "${READINGS_DB}" "SELECT * FROM configuration_readings"
+
+        echo ""
+        echo -e "\tTable - asset_reading_catalogue : "
+        "${SQLITE_SQL}" -header "${READINGS_DB}" "SELECT * FROM asset_reading_catalogue"
+
+        echo ""
+        echo -e "\tDB - readings_1 - tables :"
+        "${SQLITE_SQL}" "${READINGS_DB}" ".tables"
+
+    fi
+
+    if [[ "${fledge_table}" == "VERSION" ]]; then
+
+        echo -en "\tTable - VERSION  : "
+        "${SQLITE_SQL}" "${FLEDGE_DB}" "SELECT * FROM version"
+    fi
+
+    echo ""
+}
+
+fledge_info_err() {
+
+    text='WARNING|warning|ERROR|error|FATAL|fatal'
+    echo ""
+    echo "---- syslog - FULL - WARNING|warning|ERROR|error|FATAL|fatal -----------------------------------------------"
+
+    cat "${syslog_file}" | grep  -E  "${text}"
+
+    echo "---- syslog - Filtered  - WARNING|warning|ERROR|error|FATAL|fatal -----------------------------------------------"
+
+    cat  "${syslog_file}" | grep  -E  "${text}" | grep -v "Not all updates within transaction succeeded" | grep -v 'ERROR: Failed to register configuration category' | grep -v 'try C-plugin'
+
+    echo "---- syslog -----------------------------------------------------------------------------------------"
+}
+
+fledge_info_full() {
+    operation_start "Information on the database - full"
+
+    fledge_info
+
+    echo ""
+    fledge_info_table "STATISTICS_HISTORY" "count"          "history_ts"
+
+    operation_end
+}
+
+fledge_info_perf() {
+
+    operation_start "Information - performance"
+
+    for i in $(seq 3); do
+        fledge_info_perf_measurement
+    done
+    echo ""
+
+    operation_end
+}
+
+fledge_info_perf_measurement() {
+
+    tmp_file=/tmp/$$
+    cfg_cpu=10024
+    cfg_disk=1024    # 1GB file
+
+    echo ""
+    echo -n "CPU  : "
+    sync;sync;sync
+    dd if=/dev/zero bs=1M count=${cfg_cpu} 2> ${tmp_file} | md5sum > /dev/null
+    cat ${tmp_file} | tail -1
+
+    echo -n "DISK : "
+    test_file="${FLEDGE_ROOT}/fledge_test_perf"
+
+    if ! [[ -e "${test_file}" ]]; then
+
+        sync;sync;sync
+        dd  bs=1M count=${cfg_disk} if=/dev/zero of="${test_file}"  2> ${tmp_file}
+        cat ${tmp_file} | tail -1
+        rm "${test_file}"
+    else
+
+        echo "ERROR : file ${test_file} already exists, delete it if not needed"
+    fi
+}
+
+fledge_info() {
+
+    operation_start "Information on the database"
+
+    echo "Tables from .tables :"
+    "${SQLITE_SQL}" "${FLEDGE_DB}" ".tables"
+    echo ""
+
+    echo "Tables from sqlite_master:"
+    "${SQLITE_SQL}" "${FLEDGE_DB}"  "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;"
+
+    fledge_info_table "STATISTICS_HISTORY" "-"          "history_ts"
+    fledge_info_table "TASKS"              "count"      "start_time"
+    fledge_info_table "LOG"                "count"      "ts"
+    fledge_info_table "PLUGIN_DATA"        "count_only" "-"
+    fledge_info_table "STREAMS"            "count_only" "-"
+    fledge_info_table "VERSION"            "count_only" "-"
+
+    echo "Data directory:"
+    ls -lha "${FLEDGE_DATA}"
+    echo ""
+
+    operation_end
+}
+
+fledge_clean_plugin_data() {
+    echo "Clean operation - plugin_data : "
+
+    echo -e "\tTable - PLUGIN_DATA  : "
+    "${SQLITE_SQL}" -header "${FLEDGE_DB}" "SELECT * FROM PLUGIN_DATA "
+
+    sql_cmd="DELETE FROM PLUGIN_DATA WHERE key='"${PLUGIN_DATA_KEY}"'"
+    "${SQLITE_SQL}" "${FLEDGE_DB}" "${sql_cmd}"
+
+    echo -e "\tTable - PLUGIN_DATA  : "
+    "${SQLITE_SQL}" -header "${FLEDGE_DB}" "SELECT * FROM PLUGIN_DATA "
+
+}
+
+fledge_analyze() {
+
+    if [[ "${SQLITE_SQL_ANALYZER}" == "" ]]; then
+
+        fledge_log "info" "sqlite3_analyzer not available in !${SQLITE_SQL_ANALYZER}!" "outonly" "pretty"
+        exit 1
+    else
+        export_analyze="${FLEDGE_DB}_analyze.txt"
+        operation_start "Executing sqlite3_analyzer, output !${export_analyze}! "
+        "${SQLITE_SQL_ANALYZER}" "${FLEDGE_DB}"      > "${export_analyze}"
+
+        for ((loop=1; loop <= ${FLEDGE_READINGS_DB_MAX} ; loop++))
+        do
+            READINGS_DB="${FLEDGE_ROOT}/data/readings_${loop}.db"
+
+            if [[ -e "${READINGS_DB}" ]]; then
+
+                export_analyze_r="${READINGS_DB}_analyze.txt"
+                "${SQLITE_SQL_ANALYZER}" "${READINGS_DB}"  > "${export_analyze_r}"
+            fi
+        done
+
+        operation_end
+    fi
+}
+
+fledge_check() {
+
+    operation_start "Executing database check"
+    fledge_stop
+
+    echo -n "Checking database consistency : "
+    "${SQLITE_SQL}" "${FLEDGE_DB}" "pragma integrity_check;"
+
+    operation_end
+}
+
+#
+# Comment code for debug
+#
+fledge_shrink_table_shrink() {
+    fledge_table=$1
+
+    echo "Before:"
+    echo -n "Table ${fledge_table} - min date: "
+    "${SQLITE_SQL}" "${FLEDGE_DB}" "SELECT min(history_ts) FROM ${fledge_table}"
+
+    echo -n "Table ${fledge_table} - max date: "
+    "${SQLITE_SQL}" "${FLEDGE_DB}" "SELECT max(history_ts) FROM ${fledge_table}"
+
+    ###   #########################################################################################:
+
+    echo "shrinking table ${fledge_table}"
+
+    max_date=$("${SQLITE_SQL}" "${FLEDGE_DB}" "SELECT max(history_ts) FROM ${fledge_table}")
+
+    sql_cmd="DELETE FROM ${fledge_table} WHERE  history_ts <= date('"${max_date}"','-3 day')"
+    "${SQLITE_SQL}" "${FLEDGE_DB}" "${sql_cmd}"
+
+    ###   #########################################################################################:
+
+    echo "After:"
+    echo -n "Table ${fledge_table} - number of records : "
+    "${SQLITE_SQL}" "${FLEDGE_DB}" "SELECT COUNT(*) FROM ${fledge_table}"
+
+    echo -n "Table ${fledge_table} - min date: "
+    "${SQLITE_SQL}" "${FLEDGE_DB}" "SELECT min(history_ts) FROM ${fledge_table}"
+
+    echo -n "Table ${fledge_table} - max date: "
+    "${SQLITE_SQL}" "${FLEDGE_DB}" "SELECT max(history_ts) FROM ${fledge_table}"
+
+}
+
+fledge_shrink() {
+
+    operation_start "Executing database shrink"
+
+    fledge_stop
+
+    if [[ "${SHRINK_MODE}" == "table" ]]; then
+
+        fledge_shrink_table_shrink "STATISTICS_HISTORY"
+    fi
+
+    echo -n "Shrinking database"
+    "${SQLITE_SQL}" "${FLEDGE_DB}" "VACUUM"
+    echo ""
+
+    operation_end
+}
+
+export_file_check() {
+
+    file_export=$1
+
+    if [[ -f "${file_export}" ]]; then
+
+        echo ""
+        echo "WARNING: the export file ${file_export} is already present "
+        echo ""
+        echo -n "Enter YES if you want to delete the file : "
+        read user_answer
+
+        if [[ "$user_answer" == 'YES' ]]; then
+
+            export_execute="yes"
+        fi
+    else
+        export_execute="yes"
+    fi
+}
+
+fledge_recover_sqlite3() {
+
+    export_execute=""
+    export_sql="${FLEDGE_DB}_sql"
+    new_db="${FLEDGE_DB}_rec"
+
+    operation_start "Executing SQLITE3 database recovery"
+    fledge_stop
+
+    time_start=$(date +%s)
+
+    ###   #########################################################################################:
+    export_execute=""
+    file_export="${export_sql}"
+    export_file_check "${file_export}"
+
+    if [[ "$export_execute" == "yes" ]]; then
+
+        echo -n "exporting database to a sql file : ${file_export}"
+        "${SQLITE_SQL}" "${FLEDGE_DB}" ".recover" > "${file_export}"
+        echo ""
+    fi
+    ###   #########################################################################################:
+
+    if [[ -f "${new_db}" ]]; then
+
+        echo ""
+        echo "WARNING: the database ${new_db} is already present, deleting it "
+        echo ""
+
+        rm ${new_db}
+    fi
+
+    echo -n "Creating the new database !${new_db}!"
+    ${SQLITE_SQL} "${new_db}" < "${export_sql}"
+    echo ""
+
+
+    operation_end
+}
+
+fledge_recover_custom() {
+
+    export_sql_schema="${FLEDGE_DB}_sql_schema"
+    export_sql_data="${FLEDGE_DB}_sql_data"
+    new_db="${FLEDGE_DB}_rec_custom"
+
+    operation_start "Executing CUSTOM database recovery"
+    fledge_stop
+
+    time_start=$(date +%s)
+
+
+    ###   #########################################################################################:
+    export_execute=""
+    file_export="${export_sql_schema}"
+    export_file_check "${file_export}"
+
+    if [[ "$export_execute" == "yes" ]]; then
+
+        echo -n "exporting database to a sql file ${file_export}"
+        "${SQLITE_SQL}" "${FLEDGE_DB}" << EOF
+
+.output ${file_export}
+.schema STATISTICS_HISTORY
+
+EOF
+
+        echo ""
+    fi
+
+    ###   #########################################################################################:
+
+    export_execute=""
+    file_export="${export_sql_data}"
+    export_file_check "${file_export}"
+
+    if [[ "$export_execute" == "yes" ]]; then
+
+        echo "exporting database to the sql file ${file_export}"
+
+        tables=`"${SQLITE_SQL}" "${FLEDGE_DB}"  "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name";`
+
+        echo "" > ${file_export}
+
+        for table in $tables; do
+
+            table="${table^^}"                                  # to Uppercase
+            if [[ "${table}" == "STATISTICS_HISTORY" ]]; then
+
+                echo "skipped :${table}:"
+            else
+                echo "exported :${table}:"
+                "${SQLITE_SQL}" "${FLEDGE_DB}" ".dump ${table}" >> ${file_export}
+
+            fi
+        done
+
+        echo ""
+    fi
+
+    ###   #########################################################################################:
+
+    if [[ -f "${new_db}" ]]; then
+
+        echo ""
+        echo "WARNING: the database ${new_db} is already present, deleting it "
+        echo ""
+
+        rm ${new_db}
+    fi
+
+    echo -n "Creating the new database !${new_db}!"
+    ${SQLITE_SQL} "${new_db}" < "${export_sql_schema}"
+    ${SQLITE_SQL} "${new_db}" < "${export_sql_data}"
+    echo ""
+
+    echo -n "Checking database consistency !${new_db}! -  "
+    "${SQLITE_SQL}" "${new_db}" "pragma integrity_check;"
+
+    operation_end
+}
+
+fledge_recover() {
+
+    if [[ "${RECOVER_MODE}" == "custom" ]]; then
+
+        fledge_recover_custom
+    else
+        fledge_recover_sqlite3
+    fi
+}
+
+fledge_help() {
+
+    echo ""
+    echo "${USAGE}
+The script is used to check/recovery fledge
+
+Arguments:
+
+ info              - show information on the database/tables
+ info    --full    - show a complete set of information, performance measurement also
+ info    --perf    - performance measurement
+ info    --err     - shows errors in the syslog
+ analyze           - generate a text file with information about the database
+ check             - check the fledge database, stops Fledge
+ shrink            - shrink the database, stops Fledge
+ shrink  --table   - delete the content of the statistics_history older than 3 days and shrink the database
+ recover           - attempt to recover the fledge database using the SQLITE .recover command
+                   - NOTE: it creates the database fledge.db_rec
+ recover --custom  - a custom attempt to recover the fledge database, useful if the SQLITE .recover command fails
+                   - NOTE: it creates the database fledge.db_rec_custom
+                   - the new database will contain an empty STATISTICS_HISTORY and all other tables
+
+ clean --plugin_data - WARNING: delete the plugin_data content
+
+ help              - This text
+
+Environments:
+
+ FLEDGE_ROOT        - fledge root directory
+ FLEDGE_DATA        - fledge data directory
+ FLEDGE_DB_NAME     - overrides the default name of the database
+"
+
+
+}
+
+#
+# Main code
+#
+
+### Platform evaluation #######################################################################:
+
+os_name=`(grep -o '^NAME=.*' /etc/os-release | cut -f2 -d\" | sed 's/"//g')`
+os_version=`(grep -o '^VERSION_ID=.*' /etc/os-release | cut -f2 -d\" | sed 's/"//g')`
+
+USE_SCL=false
+YUM_PLATFORM=false
+
+if [[ $os_name == *"Red Hat"* || $os_name == *"CentOS"* ]]; then
+	YUM_PLATFORM=true
+	if [[ $os_version == *"7"* ]]; then
+		USE_SCL=true
+	fi
+fi
+
+if [[ $YUM_PLATFORM == true ]]; then
+
+    syslog_file="/var/log/messages"
+else
+    syslog_file="/var/log/syslog"
+fi
+
+###   #########################################################################################:
+
+echo ""
+echo "Fledge management tool v${FLEDGE_MNT_VERSION}"
+echo "Node            : $(hostname) - $(hostnamectl status | grep 'Operating')"
+echo "Platform is     : ${os_name}, Version: ${os_version}"
+echo "Environment     : ${FLEDGE_ENV}"
+echo "FLEDGE_ROOT     : ${FLEDGE_ROOT}"
+echo "FLEDGE_DATA     : ${FLEDGE_DATA}"
+echo "Fledge Db       : ${FLEDGE_DB}"
+echo "Readings Db     : ${READINGS_DB}"
+echo "sqlite3 command : ${SQLITE_SQL}"
+echo "sqlite3 version : $(${SQLITE_SQL} --version)"
+echo "sqlite3_analyzer: ${SQLITE_SQL_ANALYZER}"
+
+echo "fledge version  : $(head -n 1 ${FLEDGE_ROOT}/VERSION)"
+echo "fledge db ver.  : $(tail -1   ${FLEDGE_ROOT}/VERSION)"
+
+USAGE="Usage: `basename ${0}` {info|analyze|check|shrink --table|recover --custom}"
+
+RECOVER_MODE=''
+SHRINK_MODE=''
+
+
+# Handle commands
+case "$1" in
+    info)
+
+        if [ ! -z "$2" ]; then
+            if [[ "$2" == "--full" ]]; then
+
+                fledge_info_full
+
+            elif [[ "$2" == "--perf" ]]; then
+
+                fledge_info_perf
+
+            elif [[ "$2" == "--err" ]]; then
+
+                fledge_info_err
+
+            fi
+        else
+            fledge_info
+        fi
+        ;;
+
+    clean)
+        if [ ! -z "$2" ]; then
+            if [[ "$2" == "--plugin_data" ]]; then
+
+                echo ""
+                echo "WARNING: This operation will clean fledge table"
+                echo "'${FLEDGE_DB}'"
+                echo -n "Enter YES if you want to continue: "
+                read continue_reset
+
+                if [ "$continue_reset" != 'YES' ]; then
+
+                    echo "Operation aborted."
+                    exit 0
+                fi
+                fledge_clean_plugin_data
+            fi
+        else
+            echo "ERROR: An invalid option"
+            echo ""
+            fledge_help
+            exit 1
+        fi
+        ;;
+
+    analyze)
+        fledge_analyze
+        ;;
+    check)
+        fledge_check
+        ;;
+    shrink)
+        if [ ! -z "$2" ]; then
+            if [[ "$2" == "--table" ]]; then
+
+                SHRINK_MODE='table'
+
+                echo ""
+                echo "WARNING: This operation will remove the rows older than 3 days in the table STATISTICS_HISTORY"
+                echo "'${FLEDGE_DB}'"
+                echo -n "Enter YES if you want to continue: "
+                read continue_reset
+
+                if [[ "$continue_reset" != 'YES' ]]; then
+
+                    echo "Operation aborted."
+                    exit 0
+                fi
+            else
+               echo "An invalid option has been entered: $2. Use --table"
+               exit 1
+            fi
+        fi
+        fledge_shrink
+        ;;
+    recover)
+        if [ ! -z "$2" ]; then
+            if [[ "${2}" == "--custom" ]]; then
+                RECOVER_MODE='custom'
+            else
+               echo "An invalid option has been entered: $2. Use --custom"
+               exit 1
+            fi
+        fi
+        fledge_recover
+        ;;
+
+    help)
+        fledge_help
+        ;;
+    *)
+        echo "${USAGE}"
+        exit 1
+esac
+
+exit $?
+

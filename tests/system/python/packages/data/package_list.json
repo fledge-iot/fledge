@@ -1,6 +1,6 @@
 {
 	"p0": [{
-		"south": ["modbus", "sinusoid"],
+		"south": ["modbus", "mqtt-readings", "sinusoid"],
 		"north": ["httpc"],
 		"filter": ["expression", "python35"],
 		"notify": ["asset", "python35"],

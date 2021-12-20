@@ -14,6 +14,7 @@ import time
 import pytest
 from pathlib import Path
 import ssl
+import platform
 
 __author__ = "Yash Tatkondawar"
 __copyright__ = "Copyright (c) 2019 Dianomic Systems"
@@ -169,7 +170,9 @@ def remove_and_add_fledge_pkgs(package_build_version):
         assert False, "setup package script failed"
 
     try:
-        subprocess.run(["sudo apt install -y fledge-south-http-south"], shell=True, check=True)
+        os_platform = platform.platform()
+        pkg_mgr = 'yum' if 'centos' in os_platform or 'redhat' in os_platform else 'apt'
+        subprocess.run(["sudo {} install -y fledge-south-http-south".format(pkg_mgr)], shell=True, check=True)
     except subprocess.CalledProcessError:
         assert False, "installation of http-south package failed"
 
@@ -513,11 +516,16 @@ class TestAuthAnyWithoutTLS:
         assert "Unauthorized" == r.reason
 
     @pytest.mark.parametrize(("query", "expected_values"), [
-        ('', {'users': [{'userId': 1, 'roleId': 1, 'userName': 'admin'},
-                        {'userId': 2, 'roleId': 2, 'userName': 'user'}]}),
-        ('?id=2', {'userId': 2, 'roleId': 2, 'userName': 'user'}),
-        ('?username=admin', {'userId': 1, 'roleId': 1, 'userName': 'admin'}),
-        ('?id=1&username=admin', {'userId': 1, 'roleId': 1, 'userName': 'admin'}),
+        ('', {'users': [{'userId': 1, 'roleId': 1, 'userName': 'admin', 'accessMethod': 'any', 'realName': 'Admin user',
+                         'description': 'admin user'},
+                        {'userId': 2, 'roleId': 2, 'userName': 'user', 'accessMethod': 'any', 'realName': 'Normal user',
+                         'description': 'normal user'}]}),
+        ('?id=2', {'userId': 2, 'roleId': 2, 'userName': 'user', 'accessMethod': 'any', 'realName': 'Normal user',
+                   'description': 'normal user'}),
+        ('?username=admin', {'userId': 1, 'roleId': 1, 'userName': 'admin', 'accessMethod': 'any',
+                             'realName': 'Admin user', 'description': 'admin user'}),
+        ('?id=1&username=admin', {'userId': 1, 'roleId': 1, 'userName': 'admin', 'accessMethod': 'any',
+                                  'realName': 'Admin user', 'description': 'admin user'})
     ])
     def test_get_users_with_password_token(self, fledge_url, query, expected_values):
         conn = http.client.HTTPConnection(fledge_url)
@@ -529,11 +537,16 @@ class TestAuthAnyWithoutTLS:
         assert expected_values == jdoc
 
     @pytest.mark.parametrize(("query", "expected_values"), [
-        ('', {'users': [{'userId': 1, 'roleId': 1, 'userName': 'admin'},
-                        {'userId': 2, 'roleId': 2, 'userName': 'user'}]}),
-        ('?id=2', {'userId': 2, 'roleId': 2, 'userName': 'user'}),
-        ('?username=admin', {'userId': 1, 'roleId': 1, 'userName': 'admin'}),
-        ('?id=1&username=admin', {'userId': 1, 'roleId': 1, 'userName': 'admin'}),
+        ('', {'users': [{'userId': 1, 'roleId': 1, 'userName': 'admin', 'accessMethod': 'any', 'realName': 'Admin user',
+                         'description': 'admin user'},
+                        {'userId': 2, 'roleId': 2, 'userName': 'user', 'accessMethod': 'any', 'realName': 'Normal user',
+                         'description': 'normal user'}]}),
+        ('?id=2', {'userId': 2, 'roleId': 2, 'userName': 'user', 'accessMethod': 'any', 'realName': 'Normal user',
+                   'description': 'normal user'}),
+        ('?username=admin', {'userId': 1, 'roleId': 1, 'userName': 'admin', 'accessMethod': 'any',
+                             'realName': 'Admin user', 'description': 'admin user'}),
+        ('?id=1&username=admin', {'userId': 1, 'roleId': 1, 'userName': 'admin', 'accessMethod': 'any',
+                                  'realName': 'Admin user', 'description': 'admin user'})
     ])
     def test_get_users_with_certificate_token(self, fledge_url, query, expected_values):
         conn = http.client.HTTPConnection(fledge_url)
@@ -567,11 +580,12 @@ class TestAuthAnyWithoutTLS:
                            'id': 2, 'name': 'user'}]} == jdoc
 
     @pytest.mark.parametrize(("form_data", "expected_values"), [
-        ({"username": "any1", "password": "User@123"}, {'user': {'userName': 'any1', 'userId': 3, 'roleId': 2},
-                                                        'message': 'User has been created successfully'}),
+        ({"username": "any1", "password": "User@123", "real_name": "AJ", "description": "Nerd user"},
+         {'user': {'userName': 'any1', 'userId': 3, 'roleId': 2, 'accessMethod': 'any', 'realName': 'AJ',
+                   'description': 'Nerd user'}, 'message': 'any1 user has been created successfully'}),
         ({"username": "admin1", "password": "F0gl@mp!", "role_id": 1},
-         {'user': {'userName': 'admin1', 'userId': 4, 'roleId': 1},
-          'message': 'User has been created successfully'}),
+         {'user': {'userName': 'admin1', 'userId': 4, 'roleId': 1, 'accessMethod': 'any', 'realName': '',
+                   'description': ''}, 'message': 'admin1 user has been created successfully'})
     ])
     def test_create_user_with_password_token(self, fledge_url, form_data, expected_values):
         conn = http.client.HTTPConnection(fledge_url)
@@ -584,11 +598,12 @@ class TestAuthAnyWithoutTLS:
         assert expected_values == jdoc
 
     @pytest.mark.parametrize(("form_data", "expected_values"), [
-        ({"username": "any2", "password": "User@123"}, {'user': {'userName': 'any2', 'userId': 5, 'roleId': 2},
-                                                        'message': 'User has been created successfully'}),
+        ({"username": "any2", "password": "User@123", "real_name": "PG", "description": "Nerd user"},
+         {'user': {'userName': 'any2', 'userId': 5, 'roleId': 2, 'accessMethod': 'any', 'realName': 'PG',
+                   'description': 'Nerd user'}, 'message': 'any2 user has been created successfully'}),
         ({"username": "admin2", "password": "F0gl@mp!", "role_id": 1},
-         {'user': {'userName': 'admin2', 'userId': 6, 'roleId': 1},
-          'message': 'User has been created successfully'}),
+         {'user': {'userName': 'admin2', 'userId': 6, 'roleId': 1, 'accessMethod': 'any', 'realName': '',
+                   'description': ''}, 'message': 'admin2 user has been created successfully'})
     ])
     def test_create_user_with_certificate_token(self, fledge_url, form_data, expected_values):
         conn = http.client.HTTPConnection(fledge_url)
@@ -616,26 +631,28 @@ class TestAuthAnyWithoutTLS:
         assert expected_values == jdoc['message']
 
     def test_update_password_with_password_token(self, fledge_url):
+        uid = 3
+        data = {"current_password": "User@123", "new_password": "F0gl@mp1"}
         conn = http.client.HTTPConnection(fledge_url)
-        conn.request("PUT", "/fledge/user/any1/password", body=json.dumps({"current_password": "User@123",
-                                                                            "new_password": "F0gl@mp1"}),
+        conn.request("PUT", "/fledge/user/{}/password".format(uid), body=json.dumps(data),
                      headers={"authorization": PASSWORD_TOKEN})
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert {'message': 'Password has been updated successfully for user id:<3>'} == jdoc
+        assert {'message': 'Password has been updated successfully for user id:<{}>'.format(uid)} == jdoc
 
     def test_update_password_with_certificate_token(self, fledge_url):
+        uid = 5
+        data = {"current_password": "User@123", "new_password": "F0gl@mp2"}
         conn = http.client.HTTPConnection(fledge_url)
-        conn.request("PUT", "/fledge/user/any2/password", body=json.dumps({"current_password": "User@123",
-                                                                            "new_password": "F0gl@mp2"}),
+        conn.request("PUT", "/fledge/user/{}/password".format(uid), body=json.dumps(data),
                      headers={"authorization": CERT_TOKEN})
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert {'message': 'Password has been updated successfully for user id:<5>'} == jdoc
+        assert {'message': 'Password has been updated successfully for user id:<{}>'.format(uid)} == jdoc
 
     @pytest.mark.parametrize(("form_data", "expected_values"), [
         ({"username": "any1", "password": "F0gl@mp1"}, 'Logged in successfully'),
@@ -915,11 +932,16 @@ class TestAuthPasswordWithoutTLS:
         assert "Unauthorized" == r.reason
 
     @pytest.mark.parametrize(("query", "expected_values"), [
-        ('', {'users': [{'userId': 1, 'roleId': 1, 'userName': 'admin'},
-                        {'userId': 2, 'roleId': 2, 'userName': 'user'}]}),
-        ('?id=2', {'userId': 2, 'roleId': 2, 'userName': 'user'}),
-        ('?username=admin', {'userId': 1, 'roleId': 1, 'userName': 'admin'}),
-        ('?id=1&username=admin', {'userId': 1, 'roleId': 1, 'userName': 'admin'}),
+        ('', {'users': [{'userId': 1, 'roleId': 1, 'userName': 'admin', 'accessMethod': 'any', 'realName': 'Admin user',
+                         'description': 'admin user'},
+                        {'userId': 2, 'roleId': 2, 'userName': 'user', 'accessMethod': 'any', 'realName': 'Normal user',
+                         'description': 'normal user'}]}),
+        ('?id=2', {'userId': 2, 'roleId': 2, 'userName': 'user', 'accessMethod': 'any', 'realName': 'Normal user',
+                   'description': 'normal user'}),
+        ('?username=admin', {'userId': 1, 'roleId': 1, 'userName': 'admin', 'accessMethod': 'any',
+                             'realName': 'Admin user', 'description': 'admin user'}),
+        ('?id=1&username=admin', {'userId': 1, 'roleId': 1, 'userName': 'admin', 'accessMethod': 'any',
+                                  'realName': 'Admin user', 'description': 'admin user'})
     ])
     def test_get_users(self, fledge_url, query, expected_values):
         conn = http.client.HTTPConnection(fledge_url)
@@ -942,11 +964,12 @@ class TestAuthPasswordWithoutTLS:
                            'id': 2, 'name': 'user'}]} == jdoc
 
     @pytest.mark.parametrize(("form_data", "expected_values"), [
-        ({"username": "any1", "password": "User@123"}, {'user': {'userName': 'any1', 'userId': 3, 'roleId': 2},
-                                                        'message': 'User has been created successfully'}),
+        ({"username": "any1", "password": "User@123", "real_name": "AJ", "description": "Nerd user"},
+         {'user': {'userName': 'any1', 'userId': 3, 'roleId': 2, 'accessMethod': 'any', 'realName': 'AJ',
+                   'description': 'Nerd user'}, 'message': 'any1 user has been created successfully'}),
         ({"username": "admin1", "password": "F0gl@mp!", "role_id": 1},
-         {'user': {'userName': 'admin1', 'userId': 4, 'roleId': 1},
-          'message': 'User has been created successfully'}),
+         {'user': {'userName': 'admin1', 'userId': 4, 'roleId': 1, 'accessMethod': 'any', 'realName': '',
+                   'description': ''}, 'message': 'admin1 user has been created successfully'})
     ])
     def test_create_user(self, fledge_url, form_data, expected_values):
         conn = http.client.HTTPConnection(fledge_url)
@@ -972,15 +995,16 @@ class TestAuthPasswordWithoutTLS:
         assert expected_values == jdoc['message']
 
     def test_update_password(self, fledge_url):
+        uid = 3
+        data = {"current_password": "User@123", "new_password": "F0gl@mp1"}
         conn = http.client.HTTPConnection(fledge_url)
-        conn.request("PUT", "/fledge/user/any1/password", body=json.dumps({"current_password": "User@123",
-                                                                            "new_password": "F0gl@mp1"}),
+        conn.request("PUT", "/fledge/user/{}/password".format(uid), body=json.dumps(data),
                      headers={"authorization": PASSWORD_TOKEN})
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert {'message': 'Password has been updated successfully for user id:<3>'} == jdoc
+        assert {'message': 'Password has been updated successfully for user id:<{}>'.format(uid)} == jdoc
 
     def test_login_with_updated_password(self, fledge_url):
         conn = http.client.HTTPConnection(fledge_url)
@@ -1219,11 +1243,12 @@ class TestAuthCertificateWithoutTLS:
         assert "Unauthorized" == r.reason
 
     @pytest.mark.parametrize(("query", "expected_values"), [
-        ('', {'users': [{'userId': 1, 'roleId': 1, 'userName': 'admin'},
-                        {'userId': 2, 'roleId': 2, 'userName': 'user'}]}),
-        ('?id=2', {'userId': 2, 'roleId': 2, 'userName': 'user'}),
-        ('?username=admin', {'userId': 1, 'roleId': 1, 'userName': 'admin'}),
-        ('?id=1&username=admin', {'userId': 1, 'roleId': 1, 'userName': 'admin'}),
+        ('?id=2', {'userId': 2, 'roleId': 2, 'userName': 'user', 'accessMethod': 'any', 'realName': 'Normal user',
+                   'description': 'normal user'}),
+        ('?username=admin', {'userId': 1, 'roleId': 1, 'userName': 'admin', 'accessMethod': 'any',
+                             'realName': 'Admin user', 'description': 'admin user'}),
+        ('?id=1&username=admin', {'userId': 1, 'roleId': 1, 'userName': 'admin', 'accessMethod': 'any',
+                                  'realName': 'Admin user', 'description': 'admin user'})
     ])
     def test_get_users(self, fledge_url, query, expected_values):
         conn = http.client.HTTPConnection(fledge_url)
@@ -1246,11 +1271,12 @@ class TestAuthCertificateWithoutTLS:
                            'id': 2, 'name': 'user'}]} == jdoc
 
     @pytest.mark.parametrize(("form_data", "expected_values"), [
-        ({"username": "any1", "password": "User@123"}, {'user': {'userName': 'any1', 'userId': 3, 'roleId': 2},
-                                                        'message': 'User has been created successfully'}),
+        ({"username": "any1", "password": "User@123", "real_name": "AJ", "description": "Nerd user"},
+         {'user': {'userName': 'any1', 'userId': 3, 'roleId': 2, 'accessMethod': 'any', 'realName': 'AJ',
+                   'description': 'Nerd user'}, 'message': 'any1 user has been created successfully'}),
         ({"username": "admin1", "password": "F0gl@mp!", "role_id": 1},
-         {'user': {'userName': 'admin1', 'userId': 4, 'roleId': 1},
-          'message': 'User has been created successfully'}),
+         {'user': {'userName': 'admin1', 'userId': 4, 'roleId': 1, 'accessMethod': 'any', 'realName': '',
+                   'description': ''}, 'message': 'admin1 user has been created successfully'})
     ])
     def test_create_user(self, fledge_url, form_data, expected_values):
         conn = http.client.HTTPConnection(fledge_url)
@@ -1263,15 +1289,16 @@ class TestAuthCertificateWithoutTLS:
         assert expected_values == jdoc
 
     def test_update_password(self, fledge_url):
+        uid = 3
+        data = {"current_password": "User@123", "new_password": "F0gl@mp1"}
         conn = http.client.HTTPConnection(fledge_url)
-        conn.request("PUT", "/fledge/user/any1/password", body=json.dumps({"current_password": "User@123",
-                                                                            "new_password": "F0gl@mp1"}),
+        conn.request("PUT", "/fledge/user/{}/password".format(uid), body=json.dumps(data),
                      headers={"authorization": CERT_TOKEN})
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert {'message': 'Password has been updated successfully for user id:<3>'} == jdoc
+        assert {'message': 'Password has been updated successfully for user id:<{}>'.format(uid)} == jdoc
 
     def test_reset_user(self, fledge_url):
         conn = http.client.HTTPConnection(fledge_url)
@@ -1595,11 +1622,16 @@ class TestAuthAnyWithTLS:
         assert "Unauthorized" == r.reason
 
     @pytest.mark.parametrize(("query", "expected_values"), [
-        ('', {'users': [{'userId': 1, 'roleId': 1, 'userName': 'admin'},
-                        {'userId': 2, 'roleId': 2, 'userName': 'user'}]}),
-        ('?id=2', {'userId': 2, 'roleId': 2, 'userName': 'user'}),
-        ('?username=admin', {'userId': 1, 'roleId': 1, 'userName': 'admin'}),
-        ('?id=1&username=admin', {'userId': 1, 'roleId': 1, 'userName': 'admin'}),
+        ('', {'users': [{'userId': 1, 'roleId': 1, 'userName': 'admin', 'accessMethod': 'any', 'realName': 'Admin user',
+                         'description': 'admin user'},
+                        {'userId': 2, 'roleId': 2, 'userName': 'user', 'accessMethod': 'any', 'realName': 'Normal user',
+                         'description': 'normal user'}]}),
+        ('?id=2', {'userId': 2, 'roleId': 2, 'userName': 'user', 'accessMethod': 'any', 'realName': 'Normal user',
+                   'description': 'normal user'}),
+        ('?username=admin', {'userId': 1, 'roleId': 1, 'userName': 'admin', 'accessMethod': 'any',
+                             'realName': 'Admin user', 'description': 'admin user'}),
+        ('?id=1&username=admin', {'userId': 1, 'roleId': 1, 'userName': 'admin', 'accessMethod': 'any',
+                                  'realName': 'Admin user', 'description': 'admin user'})
     ])
     def test_get_users_with_password_token(self, query, expected_values):
         conn = http.client.HTTPSConnection("localhost", 1995, context=context)
@@ -1611,11 +1643,16 @@ class TestAuthAnyWithTLS:
         assert expected_values == jdoc
 
     @pytest.mark.parametrize(("query", "expected_values"), [
-        ('', {'users': [{'userId': 1, 'roleId': 1, 'userName': 'admin'},
-                        {'userId': 2, 'roleId': 2, 'userName': 'user'}]}),
-        ('?id=2', {'userId': 2, 'roleId': 2, 'userName': 'user'}),
-        ('?username=admin', {'userId': 1, 'roleId': 1, 'userName': 'admin'}),
-        ('?id=1&username=admin', {'userId': 1, 'roleId': 1, 'userName': 'admin'}),
+        ('', {'users': [{'userId': 1, 'roleId': 1, 'userName': 'admin', 'accessMethod': 'any', 'realName': 'Admin user',
+                         'description': 'admin user'},
+                        {'userId': 2, 'roleId': 2, 'userName': 'user', 'accessMethod': 'any', 'realName': 'Normal user',
+                         'description': 'normal user'}]}),
+        ('?id=2', {'userId': 2, 'roleId': 2, 'userName': 'user', 'accessMethod': 'any', 'realName': 'Normal user',
+                   'description': 'normal user'}),
+        ('?username=admin', {'userId': 1, 'roleId': 1, 'userName': 'admin', 'accessMethod': 'any',
+                             'realName': 'Admin user', 'description': 'admin user'}),
+        ('?id=1&username=admin', {'userId': 1, 'roleId': 1, 'userName': 'admin', 'accessMethod': 'any',
+                                  'realName': 'Admin user', 'description': 'admin user'})
     ])
     def test_get_users_with_certificate_token(self, query, expected_values):
         conn = http.client.HTTPSConnection("localhost", 1995, context=context)
@@ -1649,11 +1686,12 @@ class TestAuthAnyWithTLS:
                            'id': 2, 'name': 'user'}]} == jdoc
 
     @pytest.mark.parametrize(("form_data", "expected_values"), [
-        ({"username": "any1", "password": "User@123"}, {'user': {'userName': 'any1', 'userId': 3, 'roleId': 2},
-                                                        'message': 'User has been created successfully'}),
+        ({"username": "any1", "password": "User@123", "real_name": "AJ", "description": "Nerd user"},
+         {'user': {'userName': 'any1', 'userId': 3, 'roleId': 2, 'accessMethod': 'any', 'realName': 'AJ',
+                   'description': 'Nerd user'}, 'message': 'any1 user has been created successfully'}),
         ({"username": "admin1", "password": "F0gl@mp!", "role_id": 1},
-         {'user': {'userName': 'admin1', 'userId': 4, 'roleId': 1},
-          'message': 'User has been created successfully'}),
+         {'user': {'userName': 'admin1', 'userId': 4, 'roleId': 1, 'accessMethod': 'any', 'realName': '',
+                   'description': ''}, 'message': 'admin1 user has been created successfully'})
     ])
     def test_create_user_with_password_token(self, form_data, expected_values):
         conn = http.client.HTTPSConnection("localhost", 1995, context=context)
@@ -1666,11 +1704,12 @@ class TestAuthAnyWithTLS:
         assert expected_values == jdoc
 
     @pytest.mark.parametrize(("form_data", "expected_values"), [
-        ({"username": "any2", "password": "User@123"}, {'user': {'userName': 'any2', 'userId': 5, 'roleId': 2},
-                                                        'message': 'User has been created successfully'}),
+        ({"username": "any2", "password": "User@123", "real_name": "PG", "description": "Nerd user"},
+         {'user': {'userName': 'any2', 'userId': 5, 'roleId': 2, 'accessMethod': 'any', 'realName': 'PG',
+                   'description': 'Nerd user'}, 'message': 'any2 user has been created successfully'}),
         ({"username": "admin2", "password": "F0gl@mp!", "role_id": 1},
-         {'user': {'userName': 'admin2', 'userId': 6, 'roleId': 1},
-          'message': 'User has been created successfully'}),
+         {'user': {'userName': 'admin2', 'userId': 6, 'roleId': 1, 'accessMethod': 'any', 'realName': '',
+                   'description': ''}, 'message': 'admin2 user has been created successfully'})
     ])
     def test_create_user_with_certificate_token(self, form_data, expected_values):
         conn = http.client.HTTPSConnection("localhost", 1995, context=context)
@@ -1698,26 +1737,28 @@ class TestAuthAnyWithTLS:
         assert expected_values == jdoc['message']
 
     def test_update_password_with_password_token(self):
+        uid = 3
+        data = {"current_password": "User@123", "new_password": "F0gl@mp1"}
         conn = http.client.HTTPSConnection("localhost", 1995, context=context)
-        conn.request("PUT", "/fledge/user/any1/password", body=json.dumps({"current_password": "User@123",
-                                                                            "new_password": "F0gl@mp1"}),
+        conn.request("PUT", "/fledge/user/{}/password".format(uid), body=json.dumps(data),
                      headers={"authorization": PASSWORD_TOKEN})
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert {'message': 'Password has been updated successfully for user id:<3>'} == jdoc
+        assert {'message': 'Password has been updated successfully for user id:<{}>'.format(uid)} == jdoc
 
     def test_update_password_with_certificate_token(self):
+        uid = 5
+        data = {"current_password": "User@123", "new_password": "F0gl@mp2"}
         conn = http.client.HTTPSConnection("localhost", 1995, context=context)
-        conn.request("PUT", "/fledge/user/any2/password", body=json.dumps({"current_password": "User@123",
-                                                                            "new_password": "F0gl@mp2"}),
+        conn.request("PUT", "/fledge/user/{}/password".format(uid), body=json.dumps(data),
                      headers={"authorization": CERT_TOKEN})
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert {'message': 'Password has been updated successfully for user id:<5>'} == jdoc
+        assert {'message': 'Password has been updated successfully for user id:<{}>'.format(uid)} == jdoc
 
     @pytest.mark.parametrize(("form_data", "expected_values"), [
         ({"username": "any1", "password": "F0gl@mp1"}, 'Logged in successfully'),
@@ -2001,11 +2042,16 @@ class TestAuthPasswordWithTLS:
         assert "Unauthorized" == r.reason
 
     @pytest.mark.parametrize(("query", "expected_values"), [
-        ('', {'users': [{'userId': 1, 'roleId': 1, 'userName': 'admin'},
-                        {'userId': 2, 'roleId': 2, 'userName': 'user'}]}),
-        ('?id=2', {'userId': 2, 'roleId': 2, 'userName': 'user'}),
-        ('?username=admin', {'userId': 1, 'roleId': 1, 'userName': 'admin'}),
-        ('?id=1&username=admin', {'userId': 1, 'roleId': 1, 'userName': 'admin'}),
+        ('', {'users': [{'userId': 1, 'roleId': 1, 'userName': 'admin', 'accessMethod': 'any', 'realName': 'Admin user',
+                         'description': 'admin user'},
+                        {'userId': 2, 'roleId': 2, 'userName': 'user', 'accessMethod': 'any', 'realName': 'Normal user',
+                         'description': 'normal user'}]}),
+        ('?id=2', {'userId': 2, 'roleId': 2, 'userName': 'user', 'accessMethod': 'any', 'realName': 'Normal user',
+                   'description': 'normal user'}),
+        ('?username=admin', {'userId': 1, 'roleId': 1, 'userName': 'admin', 'accessMethod': 'any',
+                             'realName': 'Admin user', 'description': 'admin user'}),
+        ('?id=1&username=admin', {'userId': 1, 'roleId': 1, 'userName': 'admin', 'accessMethod': 'any',
+                                  'realName': 'Admin user', 'description': 'admin user'})
     ])
     def test_get_users(self, query, expected_values):
         conn = http.client.HTTPSConnection("localhost", 1995, context=context)
@@ -2028,11 +2074,12 @@ class TestAuthPasswordWithTLS:
                            'id': 2, 'name': 'user'}]} == jdoc
 
     @pytest.mark.parametrize(("form_data", "expected_values"), [
-        ({"username": "any1", "password": "User@123"}, {'user': {'userName': 'any1', 'userId': 3, 'roleId': 2},
-                                                        'message': 'User has been created successfully'}),
+        ({"username": "any1", "password": "User@123", "real_name": "AJ", "description": "Nerd user"},
+         {'user': {'userName': 'any1', 'userId': 3, 'roleId': 2, 'accessMethod': 'any', 'realName': 'AJ',
+                   'description': 'Nerd user'}, 'message': 'any1 user has been created successfully'}),
         ({"username": "admin1", "password": "F0gl@mp!", "role_id": 1},
-         {'user': {'userName': 'admin1', 'userId': 4, 'roleId': 1},
-          'message': 'User has been created successfully'}),
+         {'user': {'userName': 'admin1', 'userId': 4, 'roleId': 1, 'accessMethod': 'any', 'realName': '',
+                   'description': ''}, 'message': 'admin1 user has been created successfully'})
     ])
     def test_create_user(self, form_data, expected_values):
         conn = http.client.HTTPSConnection("localhost", 1995, context=context)
@@ -2058,15 +2105,16 @@ class TestAuthPasswordWithTLS:
         assert expected_values == jdoc['message']
 
     def test_update_password(self):
+        uid = 3
+        data = {"current_password": "User@123", "new_password": "F0gl@mp1"}
         conn = http.client.HTTPSConnection("localhost", 1995, context=context)
-        conn.request("PUT", "/fledge/user/any1/password", body=json.dumps({"current_password": "User@123",
-                                                                            "new_password": "F0gl@mp1"}),
+        conn.request("PUT", "/fledge/user/{}/password".format(uid), body=json.dumps(data),
                      headers={"authorization": PASSWORD_TOKEN})
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert {'message': 'Password has been updated successfully for user id:<3>'} == jdoc
+        assert {'message': 'Password has been updated successfully for user id:<{}>'.format(uid)} == jdoc
 
     def test_login_with_updated_password(self):
         conn = http.client.HTTPSConnection("localhost", 1995, context=context)
@@ -2308,11 +2356,16 @@ class TestAuthCertificateWithTLS:
         assert "Unauthorized" == r.reason
 
     @pytest.mark.parametrize(("query", "expected_values"), [
-        ('', {'users': [{'userId': 1, 'roleId': 1, 'userName': 'admin'},
-                        {'userId': 2, 'roleId': 2, 'userName': 'user'}]}),
-        ('?id=2', {'userId': 2, 'roleId': 2, 'userName': 'user'}),
-        ('?username=admin', {'userId': 1, 'roleId': 1, 'userName': 'admin'}),
-        ('?id=1&username=admin', {'userId': 1, 'roleId': 1, 'userName': 'admin'}),
+        ('', {'users': [{'userId': 1, 'roleId': 1, 'userName': 'admin', 'accessMethod': 'any', 'realName': 'Admin user',
+                         'description': 'admin user'},
+                        {'userId': 2, 'roleId': 2, 'userName': 'user', 'accessMethod': 'any', 'realName': 'Normal user',
+                         'description': 'normal user'}]}),
+        ('?id=2', {'userId': 2, 'roleId': 2, 'userName': 'user', 'accessMethod': 'any', 'realName': 'Normal user',
+                   'description': 'normal user'}),
+        ('?username=admin', {'userId': 1, 'roleId': 1, 'userName': 'admin', 'accessMethod': 'any',
+                             'realName': 'Admin user', 'description': 'admin user'}),
+        ('?id=1&username=admin', {'userId': 1, 'roleId': 1, 'userName': 'admin', 'accessMethod': 'any',
+                                  'realName': 'Admin user', 'description': 'admin user'})
     ])
     def test_get_users(self, query, expected_values):
         conn = http.client.HTTPSConnection("localhost", 1995, context=context)
@@ -2335,11 +2388,12 @@ class TestAuthCertificateWithTLS:
                            'id': 2, 'name': 'user'}]} == jdoc
 
     @pytest.mark.parametrize(("form_data", "expected_values"), [
-        ({"username": "any1", "password": "User@123"}, {'user': {'userName': 'any1', 'userId': 3, 'roleId': 2},
-                                                        'message': 'User has been created successfully'}),
+        ({"username": "any1", "password": "User@123", "real_name": "AJ", "description": "Nerd user"},
+         {'user': {'userName': 'any1', 'userId': 3, 'roleId': 2, 'accessMethod': 'any', 'realName': 'AJ',
+                   'description': 'Nerd user'}, 'message': 'any1 user has been created successfully'}),
         ({"username": "admin1", "password": "F0gl@mp!", "role_id": 1},
-         {'user': {'userName': 'admin1', 'userId': 4, 'roleId': 1},
-          'message': 'User has been created successfully'}),
+         {'user': {'userName': 'admin1', 'userId': 4, 'roleId': 1, 'accessMethod': 'any', 'realName': '',
+                   'description': ''}, 'message': 'admin1 user has been created successfully'})
     ])
     def test_create_user(self, form_data, expected_values):
         conn = http.client.HTTPSConnection("localhost", 1995, context=context)
@@ -2352,15 +2406,16 @@ class TestAuthCertificateWithTLS:
         assert expected_values == jdoc
 
     def test_update_password(self):
+        uid = 3
+        data = {"current_password": "User@123", "new_password": "F0gl@mp1"}
         conn = http.client.HTTPSConnection("localhost", 1995, context=context)
-        conn.request("PUT", "/fledge/user/any1/password", body=json.dumps({"current_password": "User@123",
-                                                                            "new_password": "F0gl@mp1"}),
+        conn.request("PUT", "/fledge/user/{}/password".format(uid), body=json.dumps(data),
                      headers={"authorization": CERT_TOKEN})
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert {'message': 'Password has been updated successfully for user id:<3>'} == jdoc
+        assert {'message': 'Password has been updated successfully for user id:<{}>'.format(uid)} == jdoc
 
     def test_reset_user(self):
         conn = http.client.HTTPSConnection("localhost", 1995, context=context)

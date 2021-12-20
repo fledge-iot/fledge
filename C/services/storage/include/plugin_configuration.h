@@ -39,6 +39,7 @@ class StoragePluginConfiguration {
     void		  getConfigCache(std::string& cache);
     void                  readCache();
     void                  writeCache();
+    void		  updateCache();
     const std::string	  m_name;
     const StoragePlugin	  *m_plugin;
     std::string		  m_category;

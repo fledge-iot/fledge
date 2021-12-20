@@ -190,9 +190,10 @@ Note: This following instructions assume you have downloaded and installed the C
 
   $ git clone https://github.com/fledge-iot/fledge-south-coap
   $ cd fledge-south-coap
-  $ sudo cp -r python /usr/local/fledge/python/fledge/plugins/south/
+  $ sudo cp -r python/fledge/plugins/south/coap /usr/local/fledge/python/fledge/plugins/south/
+  $ sudo cp python/requirements-coap.txt /usr/local/fledge/python/
   $ sudo pip3 install -r /usr/local/fledge/python/requirements-coap.txt
-  $ chown -R root:root /usr/local/fledge/python/fledge/plugins/south/coap
+  $ sudo chown -R root:root /usr/local/fledge/python/fledge/plugins/south/coap
   $ curl -sX POST http://localhost:8081/fledge/service -d '{"name": "CoAP", "type": "south", "plugin": "coap", "enabled": true}'
 
 
@@ -306,11 +307,11 @@ Now you should have all the information necessary to test the CoAP South microse
   - If you have installed Fledge in the default location (i.e. */usr/local/fledge*), type ``cd /usr/local/fledge;bin/fogbench -t data/extras/fogbench/fogbench_sensor_coap.template.json``.
 - ``fledge.fogbench`` ``-t /snap/fledge/current/usr/local/fledge/data/extras/fogbench/fogbench_sensor_coap.template.json``, if you have installed a snap version of Fledge.
 
-The output of your command should be:
+In development environment the output of your command should be:
 
 .. code-block:: console
 
-  $ scripts/extras/fogbench -t data/extras/fogbench/fogbench_sensor_coap.template.json
+  $ $FLEDGE_ROOT/scripts/extras/fogbench -t data/extras/fogbench/fogbench_sensor_coap.template.json
   >>> Make sure south CoAP plugin service is running & listening on specified host and port
   Total Statistics:
 
@@ -339,7 +340,7 @@ If you want to stress Fledge a bit, you may insert the same data sample several 
 
 .. code-block:: console
 
-  $ scripts/extras/fogbench -t data/extras/fogbench/fogbench_sensor_coap.template.json -I 100
+  $ $FLEDGE_ROOT/scripts/extras/fogbench -t data/extras/fogbench/fogbench_sensor_coap.template.json -I 100
   >>> Make sure south CoAP plugin service is running & listening on specified host and port
   Total Statistics:
 
@@ -373,23 +374,23 @@ We can check if Fledge has now stored what we have inserted from the South micro
 .. code-block:: console
 
   $ curl -s http://localhost:8081/fledge/asset ; echo
-  [{"asset_code": "switch", "count": 11}, {"asset_code": "fogbench/temperature", "count": 11}, {"asset_code": "fogbench/humidity", "count": 11}, {"asset_code": "fogbench/luxometer", "count": 11}, {"asset_code": "fogbench/accelerometer", "count": 11}, {"asset_code": "wall clock", "count": 11}, {"asset_code": "fogbench/magnetometer", "count": 11}, {"asset_code": "mouse", "count": 11}, {"asset_code": "fogbench/pressure", "count": 11}, {"asset_code": "fogbench/gyroscope", "count": 11}]
+  [{"assetCode": "fogbench_switch", "count": 11}, {"assetCode": "fogbench_temperature", "count": 11}, {"assetCode": "fogbench_humidity", "count": 11}, {"assetCode": "fogbench_luxometer", "count": 11}, {"assetCode": "fogbench_accelerometer", "count": 11}, {"assetCode": "wall clock", "count": 11}, {"assetCode": "fogbench_magnetometer", "count": 11}, {"assetCode": "mouse", "count": 11}, {"assetCode": "fogbench_pressure", "count": 11}, {"assetCode": "fogbench_gyroscope", "count": 11}]
   $
 
 The output of the asset entry point provides a list of assets buffered in Fledge and the count of elements stored. The output is a JSON array with two elements:
 
-- **asset_code** : the name of the sensor or device that provides the data
+- **assetCode** : the name of the sensor or device that provides the data
 - **count** : the number of occurrences of the asset in the buffer
 
 
 Feeding East/West Applications
 ------------------------------
 
-Let's suppose that we are interested in the data collected for one of the assets listed in the previous query, for example *fogbench/temperature*. The *asset* entry point can be used to retrieve the data points for individual assets by simply adding the code of the asset to the URI:
+Let's suppose that we are interested in the data collected for one of the assets listed in the previous query, for example *fogbench_temperature*. The *asset* entry point can be used to retrieve the data points for individual assets by simply adding the code of the asset to the URI:
 
 .. code-block:: console
 
-  $ curl -s http://localhost:8081/fledge/asset/fogbench%2Ftemperature ; echo
+  $ curl -s http://localhost:8081/fledge/asset/fogbench_temperature ; echo
   [{"timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41}}, {"timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41}}, {"timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41}}, {"timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41}}, {"timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41}}, {"timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41}}, {"timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41}}, {"timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41}}, {"timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41}}, {"timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41}}, {"timestamp": "2017-12-18 10:38:12.580", "reading": {"ambient": 33, "object": 7}}] 
   $
 
@@ -413,8 +414,8 @@ The JSON structure depends on the sensor and the plugin used to capture the data
 
 - **timestamp** : the timestamp generated by the sensors. In this case, since we have inserted 10 times the same value and one time a new value using *fogbench*, the result is 10 timestamps with the same value and one timestamp with a different value.
 - **reading** : a JSON structure that is the set of data points provided by the sensor. In this case:
-  - **ambient** : the ambient temperature in Celsius
-  - **object** : the object temperature in Celsius. Again, the values are repeated 10 times, due to the iteration executed by *fogbench*, plus an isolated element, so there are 11 readings in total. Also, it is very unlikely that in a real sensor the ambient and the object temperature differ so much, but here we are using a random number generator.
+- **ambient** : the ambient temperature in Celsius
+- **object** : the object temperature in Celsius. Again, the values are repeated 10 times, due to the iteration executed by *fogbench*, plus an isolated element, so there are 11 readings in total. Also, it is very unlikely that in a real sensor the ambient and the object temperature differ so much, but here we are using a random number generator.
 
 
 You can dig even more in the data and extract only a subset of the reading. Fog example, you can select the ambient temperature and limit to the last 5 readings:
@@ -422,7 +423,7 @@ You can dig even more in the data and extract only a subset of the reading. Fog 
 
 .. code-block:: console
 
-  $ curl -s http://localhost:8081/fledge/asset/fogbench%2Ftemperature/ambient?limit=5 ; echo
+  $ curl -s http://localhost:8081/fledge/asset/fogbench_temperature/ambient?limit=5 ; echo
   [ { "ambient": 13, "timestamp": "2017-12-18 10:38:29.652" },
     { "ambient": 13, "timestamp": "2017-12-18 10:38:29.652" }
     { "ambient": 13, "timestamp": "2017-12-18 10:38:29.652" },

@@ -6,6 +6,8 @@
 
 """Test tasks/statistics/__main__.py entry point"""
 
+import asyncio
+import sys
 from unittest.mock import patch, MagicMock
 import pytest
 
@@ -35,9 +37,15 @@ async def _stats_history_instance():
 
 @pytest.allure.feature("unit")
 @pytest.allure.story("tasks", "statistics")
-def test_main(_stats_history_instance):
+async def test_main(_stats_history_instance):
+    async def mock_coro():
+        return None
     with patch.object(statistics_history, "__name__", "__main__"):
-        with patch.object(StatisticsHistory, 'run', return_value=None):
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv = await mock_coro()
+        else:
+            _rv = asyncio.ensure_future(mock_coro())
+        with patch.object(StatisticsHistory, 'run', return_value=_rv):
             assert isinstance(_stats_history_instance, StatisticsHistory)
-            _stats_history_instance.run()
+            await _stats_history_instance.run()
             _stats_history_instance.run.assert_called_once_with()

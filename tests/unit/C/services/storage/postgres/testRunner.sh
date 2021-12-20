@@ -10,7 +10,9 @@ show_configuration () {
 	echo "Fledge unit tests for the PostgreSQL plugin"
 
 	echo "Starting storage layer      :$storage_exec:"
-	echo "timezone                    :$tz_exec:"
+	echo "PostgreSQL version          :$pg_version:"
+	echo "PostgreSQL timezone         :$tz_exec:"
+	echo "OS timezone                 :$tz_os:"
 	echo "expected dir                :$expected_dir:"
 	echo "configuration               :$FLEDGE_DATA:"
 }
@@ -19,13 +21,22 @@ restore_tz() {
 	#Restore the initial TZ
 	psql -d fledge -c "ALTER DATABASE fledge SET timezone TO '"$tz_original"';" > /dev/null
 	tz_current=`psql -qtAX -d fledge -c "SHOW timezone ;"`
-	echo -e "\nOriginal timezone restored   :$tz_current:\n"
+	echo -e "\nOriginal PostgreSQL timezone restored   :$tz_current:\n"
 }
 
 # Set UTC as TZ for the proper execution of the tests
 tz_original=`psql -qtAX -d fledge -c "SHOW timezone ;"`
 
 trap restore_tz 1 2 3 6 15
+
+pg_version=`psql -V | awk '{split($3,a,"."); print a[1] }'`
+# Handle specific a expected directory in relation to the PostgreSQL version
+if [[ $pg_version == "12" ]]; then
+
+    pg_version_major="_PG$pg_version"
+else
+    pg_version_major=""
+fi
 
 #
 # evaluates : FLEDGE_DATA, storage_exec, TZ and expected_dir
@@ -65,9 +76,11 @@ fi
 psql -d fledge -c "ALTER DATABASE fledge SET timezone TO '"${TZ}"';" > /dev/null
 tz_exec=`psql -qtAX -d fledge -c "SHOW timezone ;"`
 
+tz_os=`cat /etc/timezone`
+
 # Converts '/' to '_' and to upper case
 step1="${TZ/\//_}"
-expected_dir="expected_${step1^^}"
+expected_dir="expected_${step1^^}${pg_version_major}"
 
 if [[ "$storage_exec" != "" ]] ; then
 

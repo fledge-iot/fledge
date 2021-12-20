@@ -33,6 +33,7 @@
 #include <filter_plugin.h>
 #include <config_handler.h>
 #include <syslog.h>
+#include <stdarg.h>
 
 extern int makeDaemon(void);
 extern void handler(int sig);
@@ -53,6 +54,59 @@ static const char *defaultServiceConfig = QUOTE({
 		});
 
 using namespace std;
+
+static NorthService *service;
+
+/**
+ * Callback function when a plugin wishes to perform a write operation
+ */
+static bool controlWrite(char *name, char *value, ControlDestination destination, ...)
+{
+	va_list ap;
+	bool rval = false;
+
+	switch (destination)
+	{
+		case DestinationAsset:
+		case DestinationService:
+		{
+			va_start(ap, destination);
+			char *arg1 = va_arg(ap, char *);
+			va_end(ap);
+			rval = service->write(name, value, destination, arg1);
+			break;
+		}
+		case DestinationBroadcast:
+			rval = service->write(name, value, destination);
+			break;
+		default:
+			Logger::getLogger()->error("Unknown control write destination %d", destination);
+	}
+	return rval;
+}
+
+/**
+ * Callback function when a plugin wishes to perform a control operation
+ */
+static int controlOperation(char *operation, int paramCount, char *parameters[], ControlDestination destination, ...)
+{
+	va_list ap;
+	int	rval = -1;
+
+	switch (destination)
+	{
+		case DestinationAsset:
+		case DestinationService:
+			rval = service->operation(operation, paramCount, parameters, destination, va_arg(ap, char *));
+			break;
+		case DestinationBroadcast:
+			rval = service->operation(operation, paramCount, parameters, destination);
+			break;
+		default:
+			Logger::getLogger()->error("Unknown control operation destination %d for operation %s", destination, operation);
+	}
+	return rval;
+}
 
 /**
  * North service main entry point
@@ -101,7 +155,7 @@ string	       logLevel = "warning";
 		cout << "Failed to run as deamon - proceeding in interactive mode." << endl;
 	}
 
-	NorthService *service = new NorthService(myName);
+	service = new NorthService(myName);
 	Logger::getLogger()->setMinLevel(logLevel);
 	service->start(coreAddress, corePort);
 	return 0;
@@ -190,8 +244,8 @@ int	size;
 /**
  * Constructor for the north service
  */
-NorthService::NorthService(const string& myName) : m_name(myName), m_shutdown(false),
-	m_storage(NULL), m_pluginData(NULL), m_restartPlugin(false)
+NorthService::NorthService(const string& myName) : m_dataLoad(NULL), m_name(myName),
+	m_shutdown(false), m_storage(NULL), m_pluginData(NULL), m_restartPlugin(false)
 {
 	logger = new Logger(myName);
 	logger->setMinLevel("warning");
@@ -272,10 +326,18 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 		m_storage = new StorageClient(storageRecord.getAddress(),
 						storageRecord.getPort());
 
+		m_storage->registerManagement(m_mgtClient);
+
 		// Fetch Confguration
 		logger->debug("Initialise the asset tracker");
 		m_assetTracker = new AssetTracker(m_mgtClient, m_name);
 		AssetTracker::getAssetTracker()->populateAssetTrackingCache(m_name, "Egress");
+
+		// If the plugin supports control register the callback functions
+		if (northPlugin->hasControl())
+		{
+			northPlugin->pluginRegister(controlWrite, controlOperation);
+		}
 
 		// Deal with persisted data and start the plugin
 		if (northPlugin->persistData())
@@ -485,8 +547,8 @@ void NorthService::shutdown()
 	 */
 	m_shutdown = true;
 	logger->info("North service shutdown in progress.");
+
 	// Signal main thread to shutdown
-	unique_lock<mutex> lck(m_mutex);
 	m_cv.notify_all();
 }
 
@@ -504,6 +566,11 @@ void NorthService::configChange(const string& categoryName, const string& catego
 
 		m_restartPlugin = true;
 		m_cv.notify_all();
+
+    if (m_dataLoad)
+		{
+			m_dataLoad->configChange(categoryName, category);
+		}
 	}
 	if (categoryName.compare(m_name+"Advanced") == 0)
 	{
@@ -515,9 +582,22 @@ void NorthService::configChange(const string& categoryName, const string& catego
 	}
 }
 
+/**
+ * Restart the plugin with an updated confoguration.
+ * We need to do this as north plugins do not have a reconfigure method
+ *
+ * We need to make sure we are not sending data and the send data thread does not startup
+ * whilst we are doing the restart.
+ *
+ * We also need to make sure the send data thread gets the new plugin.
+ */
 void NorthService::restartPlugin()
 {
 	m_restartPlugin = false;
+
+	// Stop the send data thread
+	m_dataSender->pause();
+
 	if (m_pluginData)
 	{
 		string saveData = northPlugin->shutdownSaveData();
@@ -533,8 +613,26 @@ void NorthService::restartPlugin()
 	{
 		northPlugin->shutdown();
 	}
+
 	delete northPlugin;
 	loadPlugin();
+	// Deal with persisted data and start the plugin
+	if (northPlugin->persistData())
+	{
+		logger->debug("Plugin %s requires persisted data", m_pluginName.c_str());
+		m_pluginData = new PluginData(m_storage);
+		string key = m_name + m_pluginName;
+		string storedData = m_pluginData->loadStoredData(key);
+		logger->debug("Starting plugin with storedData: %s", storedData.c_str());
+		northPlugin->startData(storedData);
+	}
+	else
+	{
+		logger->debug("Start %s plugin", m_pluginName.c_str());
+		northPlugin->start();
+	}
+	m_dataSender->updatePlugin(northPlugin);
+	m_dataSender->release();
 }
 
 /**
@@ -559,3 +657,123 @@ void NorthService::addConfigDefaults(DefaultConfigCategory& defaultConfig)
 	defaultConfig.setItemDisplayName("logLevel", "Minimum Log Level");
 }
 
+/**
+ * Control write operation
+ *
+ * @param name		Name of the variable to write
+ * @param value		Value to write to the variable
+ * @param destination	Where to write the value
+ */
+bool NorthService::write(const string& name, const string& value, const ControlDestination destination)
+{
+	Logger::getLogger()->info("Control write %s with %s", name.c_str(), value.c_str());
+	// TODO Send write via control dispatcher
+	return false;
+}
+
+/**
+ * Control write operation
+ *
+ * @param name		Name of the variable to write
+ * @param value		Value to write to the variable
+ * @param destination	Where to write the value
+ * @param arg		Argument used to determine destination
+ */
+bool NorthService::write(const string& name, const string& value, const ControlDestination destination, const string& arg)
+{
+	Logger::getLogger()->info("Control write %s with %s", name.c_str(), value.c_str());
+	// TODO Send write via control dispatcher
+	if (destination == DestinationService)
+		sendToService(arg, name, value);
+	return false;
+}
+
+/**
+ * Control operation
+ *
+ * @param name		Name of the operation to perform
+ * @param paramCount	The number of parameters
+ * @param parameters	The parameters to the operation
+ * @param destination	Where to write the value
+ */
+int  NorthService::operation(const string& name, int paramCount, char *parameters[], const ControlDestination destination)
+{
+	Logger::getLogger()->info("Control operation %s with %d parameters", name.c_str(),
+			paramCount);
+	for (int i = 0; i < paramCount; i++)
+		Logger::getLogger()->info("Parameter %d: %s", i, parameters[i]);
+	// TODO Send operation via control dispatcher
+	return -1;
+}
+
+/**
+ * Control write operation
+ *
+ * @param name		Name of the operation to perform
+ * @param paramCount	The number of parameters
+ * @param parameters	The parameters to the operation
+ * @param destination	Where to write the value
+ * @param arg		Argument used to determine destination
+ */
+int NorthService::operation(const string& name, int paramCount, char *parameters[], const ControlDestination destination, const string& arg)
+{
+	Logger::getLogger()->info("Control operation %s with %d parameters", name.c_str(),
+			paramCount);
+	for (int i = 0; i < paramCount; i++)
+		Logger::getLogger()->info("Parameter %d: %s", i, parameters[i]);
+	// TODO Send operation via control dispatcher
+	return -1;
+}
+
+/**
+ * Send to a south service direct. This is temporary until we have the 
+ * service dispatcher in place.
+ */
+bool NorthService::sendToService(const string& southService, const string& name, const string& value)
+{
+	std::string payload = "{ \"values\" : { \"";
+	payload += name;
+	payload += "\": \"";
+	payload += value;
+	payload += "\"} }";
+
+	// Send the control message to the south service
+	try {
+		// TODO the real work
+		ServiceRecord service(southService);
+		if (!m_mgtClient->getService(service))
+		{
+			Logger::getLogger()->error("Unable to find service '%s'", southService.c_str());
+			return false;
+		}
+		string address = service.getAddress();
+		unsigned short port = service.getPort();
+		char addressAndPort[80];
+		snprintf(addressAndPort, sizeof(addressAndPort), "%s:%d", address.c_str(), port);
+		SimpleWeb::Client<SimpleWeb::HTTP> http(addressAndPort);
+
+		string url = "/fledge/south/setpoint";
+		try {
+			SimpleWeb::CaseInsensitiveMultimap headers = {{"Content-Type", "application/json"}};
+			auto res = http.request("PUT", url, payload, headers);
+			if (res->status_code.compare("200 OK"))
+			{
+				Logger::getLogger()->error("Failed to send set point operation to service %s, %s",
+							southService.c_str(), res->status_code.c_str());
+				return false;
+			}
+		} catch (exception& e) {
+			Logger::getLogger()->error("Failed to send set point operation to service %s, %s",
+						southService.c_str(), e.what());
+			return false;
+		}
+
+		return true;
+	}
+	catch (exception &e) {
+		Logger::getLogger()->error("Failed to send set point operation to service %s, %s",
+				southService.c_str(), e.what());
+		return false;
+	}
+
+}

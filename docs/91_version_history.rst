@@ -26,6 +26,161 @@ Fledge v1
 ==========
 
 
+v1.9.2
+-------
+
+Release Date: 2021-09-29
+
+- **Fledge Core**
+
+    - New Features:
+
+       - The ability for south plugins to persist data between executions of south services has been added for plugins written in C/C++. This follows the same model as already available for north plugins.              
+       - Notification delivery plugins now also receive the data that caused the rule to trigger. This can be used to deliver values in the notification delivery plugins.
+       - A new option has been added to the sqlite storage plugin only that allows assets to be excluded from consideration in the purge process.
+       - A new purge process has been added to control the growth of statistics history and audit trails. This new process is known as the "System Purge" process.
+       - The support bundle has been updated to include details of the packages installed.
+       - The package repository API endpoint has been updated to support Ubuntu 20.04 repository end point.
+       - The handling of updates from RPM package repositories has been improved.       
+       - The certificate store has been updated to support more formats of certificates, including DER, P12 and PFX format certificates.     
+       - The documentation has been updated to include an improved & detailed introduction to filters.
+       - The OMF north plugin documentation has been re-organised and updated to include the latest features that have been introduced to this plugin.
+       - A new section has been added to the documentation that discusses the tuning of the edge based control path.
+
+
+    - Bug Fix:
+       - A rare race condition during ingestion of readings would cause the south service to terminate and restart. This has now been resolved.       
+       - In some circumstances it was seen that north services could send the same data more than once. This has now been corrected.
+       - An issue that caused an intermittent error in the tracking of data sent north has been resolved. This only impacted north services and not north tasks.
+       - An optimisation has been added to prevent north plugins being sent empty data sets when the filter chain removes all the data in a reading set.
+       - An issue that prevented a north service restarting correctly when certain combinations of filters were present has been resolved.
+       - The API for retrieving the list of backups on the system has been improved to honour the limit and offset parameters.
+       - An issue with the restore operation always restoring the latest backup rather than the chosen backup has been resolved.
+       - The support package failed to include log data if binary data had been written to syslog. This has now been resolved.
+       - The configuration category for the system purge was in the incorrect location with the configuration category tree, this has now been correctly placed underneath the “Utilities” item.
+       - It was not possible to set a notification to always retrigger as there was a limitation that there must always be 1 second between notification triggers. This restriction has now been removed and it is possible to set a retrigger time of zero.
+       - An error in the documentation for the plugin developers guide which incorrectly documented how to build debug binaries has been corrected.
+
+
+- **GUI**
+
+    - New Features:
+
+       - The user interface has been updated to improve the filtering of logs when a large number of services have been defined within the instance.
+       - The user interface input validation for hostnames and port has been improved in the setup screen. A message  is now displayed when an incorrect port or address is entered.
+       - The user interface now prompts to accept a self signed certificate if one is configured.
+
+
+    - Bug Fix:
+
+       - If a south or north plugin included a script type configuration item the GUI failed to allow the service or task using this plugin to be created correctly. This has now been resolved.
+       - The ability to paste into password fields has been enabled in order to allow copy/paste of keys, tokens etc into configuration of the south and north services.
+       - An issue that could result in filters not being correctly removed from a pipeline of 2 or more filters has been resolved.
+
+
+- **Plugins**
+
+    - New Features:
+
+       - A new OPC/UA south plugin has been created based on the Safe and Secure OPC/UA library. This plugin supports authentication and encryption mechanisms.
+       - Control features have now been added to the modbus south plugin that allows the writing of registers and coils via the south service control channel.      
+       - The modbus south control flow has been updated to use both 0x06 and 0x10 function codes. This allows items that are split across multiple modbus registers to be written in a single write operation.
+       - The OMF plugin has been updated to support more complex scenarios for the placement of assets with the PI Asset Framework.
+       - The OMF north plugin hinting mechanism has been extended to support asset framework hierarchy hints.
+       - The OMF north plugin now defaults to using a concise naming scheme for tags in the PI server.      
+       - The Kafka north plugin has been updated to allow timestamps of higher granularity than 1 second, previously timestamps would be truncated to the previous second.
+       - The Kafka north plugin has been enhanced to give the option of sending JSON objects as strings to Kafka, as previously the default, or sending them as JSON objects.
+       - The HTTP-C north plugin has been updated to allow the inclusion of customer HTTP headers.
+       - The Python35 Filter plugin did not correctly handle string type data points. This has now been resolved.
+       - The OMF Hint filter documentation has been updated to describe the use of regular expressions when defining the asset name to which the hint should be applied.
+
+
+    - Bug Fix:
+
+       - An issue with string data that had quote characters embedded within the reading data has been resolved. This would cause data to be discarded with a bad formatting message in the log.       
+       - An issue that could result in the configuration for the incorrect plugin being displayed has now been resolved.       
+       - An issue with the modbus south plugin that could cause resource starvation in the threads used for set point write operations has been resolved.
+       - A race condition in the modbus south that could cause an issue if the plugin configuration is changed during a set point operation.
+       - The CSV playback south plugin installation on CentOS 7 platforms has now been corrected.
+       - The error handling of the OMF north plugin has been improved such that assets that contain data types that are not supported by the OMF endpoint of the PI Server are removed and other data continues to be sent to the PI Server.
+       - The Kafka north plugin was not always able to reconnect if the Kafka service was not available when it was first started. This issue has now been resolved. 
+       - The Kafka north plugin would on occasion duplicate data if a connection failed and was later reconnected. This has been resolved.
+       - A number of fixes have been made to the Kafka north plugin, these include; fixing issues caused by quoted data in the Kafka payload, sending timestamps accurate to the millisecond, fixing an issue that caused data duplication and switching the the user timestamp.
+       - A problem with the quoting of string type data points on the North HTTP-C plugin has been fixed.
+       - String type variables in the OPC/UA north plugin were incorrectly having extra quotes added to them. This has now been resolved.
+       - The delta filter previously did not manage calculating delta values when a datapoint changed from being an integer to a floating point value or vice versa. This has now been resolved and delta values are correctly calculated when these changes occur.
+       - The example path shown in the DHT11 plugin in the developers guide was incorrect, this has now been fixed.
+
+
+v1.9.1
+-------
+
+Release Date: 2021-05-27
+
+- **Fledge Core**
+
+    - New Features:
+
+       - Support has been added for Ubuntu 20.04 LTS.
+       - The core components have been ported to build and run on CentOS 8
+       - A new option has been added to the command line tool that controls the system. This option, called purge, allows all readings related data to be purged from the system whilst retaining the configuration. This allows a system to be tested and then reset without losing the configuration.
+       - A new service interface has been added to the south service that allows set point control and operations to be performed via the south interface. This is the first phase of the set point control feature in the product.
+       - The documentation has been improved to include the new control functionality in the south plugin developers guide.
+       - An improvement has been made to the documentation layout for default plugins to make the GUI able to find the plugin documentation.
+       - Documentation describing the installation of PostgreSQL on CentOS has been updated.
+       - The documentation has been updated to give more detail around the topic of self-signed certificates.
+
+
+    - Bug Fix:
+
+       - A security flaw that allowed non-privileged users to update the certificate store has been resolved.
+       - A bug that prevented users being created with certificate based authentication rather than password based authentication has been fixed.
+       - Switching storage plugins from SQLite to PostgreSQL caused errors in some circumstances. This has now been resolved.
+       - The HTTP code returned by the ping command has been updated to correctly report 401 errors if the option to allow ping without authentication is turned off.
+       - The HTTP error code returned when the notification service is not available has been corrected.
+       - Disabling and re-enabling the backup and restore task schedules sometimes caused a restart of the system. This has now been resolved.
+       - The error message returned when schedules could not be enabled or disabled has been improved.
+       - A problem related to readings with nested data not correctly getting copied has been resolved.
+       - An issue that caused problems if a service was deleted and then a new service was recreated using the name of the previously deleted service has been resolved.
+
+
+- **GUI**
+
+    - New Features:
+
+       - Links to the online help have been added on a number of screens in the user interface.
+       - Improvements have been made to the user management screens of the GUI.
+
+
+- **Plugins**
+
+    - New Features:
+
+       - North services now support Python as well as C++ plugins.
+       - A new delivery notification plugin has been added that uses the set point control mechanism to invoke an action in the south plugin.
+       - A new notification delivery mechanism has been implemented that uses the set point control mechanism to assert control on a south service. The plugin allows you to set the values of one or more control items on the notification triggered and set a different set of values when the notification rule clears.
+       - Support has been added in the OPC/UA north plugin for array data. This allows FFT spectrum data to be represented in the OPC/UA server.
+       - The documentation for the OPC/UA north plugin has been updated to recommend running the plugin as a service.
+       - A new storage plugin has been added that uses SQLite. This is designed for situations with low bandwidth sensors and stores all the readings within a single SQLite file.
+       - Support has been added to use RTSP video streams in the person detection plugin.
+       - The delta filter has been updated to allow an optional set of asset specific tolerances to be added in addition to the global tolerance used by the plugin when deciding to forward data.
+       - The Python script run by the MQTT scripted plugin now receives the topic as well as the message.
+       - The OMF plugin has been updated in line with recommendations from the OMF group regarding the use of SCRF Defense.
+       - The OMFHint plugin has been updated to support wildcarding of asset names in the rules for the plugin.
+       - New documentation has been added to help in troubleshooting PI connection issues.
+       - The pi_server and ocs north plugins are deprecated in favour of the newer and more feature rich OMF north plugin. These deprecated plugins cannot be used in north services and are only provided for backward compatibility when run as north tasks. These plugins will be removed in a future release.
+
+
+    - Bug Fix:
+
+       - The OMF plugin has been updated to better deal with nested data.
+       - Some improvements to error handling have been added to the InfluxDB north plugin for version 1.x of InfluxDB.
+       - The Python 35 filter stated it used the Python version 3.5 always, in reality it uses whatever Python 3 version is installed on your system. The documentation has been updated to reflect this.
+       - Fixed a bug that treated arrays of bytes as if they were strings in the OPC/UA south plugin.
+       - The HTTP North C plugin would not correctly shutdown, this effected reconfiguration when run as an always on service. This issue has now been resolved.
+       - An issue with the SQLite In Memory storage plugin that caused database locks under high load conditions has been resolved.
+
+
 v1.9.0
 -------
 

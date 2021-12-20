@@ -85,6 +85,9 @@ int SimpleHttp::sendRequest(
 	header.emplace("User-Agent", HTTP_SENDER_USER_AGENT);
 	header.emplace("Content-Type", "application/json");
 
+	// To let PI Web API having Cross-Site Request Forgery (CSRF) enabled as by default configuration
+	header.emplace("X-Requested-With", "XMLHttpRequest");
+
 	// Add custom headers
 	for (auto it = headers.begin(); it != headers.end(); ++it)
 	{

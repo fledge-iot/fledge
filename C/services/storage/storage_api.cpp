@@ -890,18 +890,33 @@ static std::atomic<bool> already_running(false);
 		}
 
 		search = query.find("flags");
+
 		if (search != query.end())
 		{
 			flags = search->second;
+
+			Logger::getLogger()->debug("%s - flags :%s:", __FUNCTION__, flags.c_str());
+
 			// TODO Turn flags into a bitmap
-			if (flags.compare(PURGE_FLAG_RETAIN) == 0)
+
+			if (flags.compare(PURGE_FLAG_RETAIN_ANY) == 0)
 			{
-				flagsMask |= STORAGE_PURGE_RETAIN;
+
+				flagsMask |= STORAGE_PURGE_RETAIN_ANY;
+			}
+			else if ( (flags.compare(PURGE_FLAG_RETAIN)     == 0) ||  // Backward compability
+			         (flags.compare(PURGE_FLAG_RETAIN_ALL) == 0) )
+			{
+				flagsMask |= STORAGE_PURGE_RETAIN_ALL;
 			}
 			else if (flags.compare(PURGE_FLAG_PURGE) == 0)
 			{
-				flagsMask &= (~STORAGE_PURGE_RETAIN);
+				flagsMask &= (~STORAGE_PURGE_RETAIN_ANY);
+				flagsMask &= (~STORAGE_PURGE_RETAIN_ALL);
 			}
+
+			Logger::getLogger()->debug("%s - flagsMask :%d:", __FUNCTION__, flagsMask);
+
 		}
 
 		char *purged = NULL;

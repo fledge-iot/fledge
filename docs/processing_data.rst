@@ -22,6 +22,21 @@ Processing Data
 
 We have already seen that Fledge can collect data from a variety of sources, buffer it locally and send it on to one or more destination systems. It is also possible to process the data within Fledge to edit, augment or remove data as it traverses the Fledge system. In the same way Fledge makes extensive use of plugin components to add new sources of data and new destinations for that data, Fledge also uses plugins to add processing filters to the Fledge system.
 
+Why Use Filters?
+================
+
+The concept behind filters is to create a set of small, useful pieces of
+functionality that can be inserted into the data flow from the south data
+ingress side to the north data egress side. By making these elements
+small and dedicated to a single task it increases the re-usability of
+the filters and greatly improves the chances when a new requirement
+is encountered that it can be satisfied by creating a filter pipeline
+from existing components or by augmenting existing components with the
+addition of any incremental processing required. The ultimate aim being
+to be able to create new applications within Fledge by merely configuring
+filters from the existing pool of available filters into a suitable pipeline
+without the need to write any new code.
+
 What Can Be Done?
 =================
 

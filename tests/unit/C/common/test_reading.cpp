@@ -143,3 +143,30 @@ TEST(ReadingTest, ArrayOfDicts)
 
 	ASSERT_NE(json.find(string("\"reading\":{\"a\":[{\"first\":1.0}, {\"second\":1.1}]}")), std::string::npos);
 }
+
+TEST(ReadingTest, FMTDEFAULT)
+{
+	DatapointValue value((long) 10);
+	Reading reading(string("test1"), new Datapoint("x", value));
+	reading.setUserTimestamp("2019-01-10 10:01:03.123456+0:00");
+	string datetime = reading.getAssetDateUserTime(Reading::FMT_DEFAULT);
+	ASSERT_EQ(datetime.compare("2019-01-10 10:01:03.123456"), 0);
+}
+
+TEST(ReadingTest, FMTSTANDARD)
+{
+	DatapointValue value((long) 10);
+	Reading reading(string("test1"), new Datapoint("x", value));
+	reading.setUserTimestamp("2019-01-10 10:01:03.123456+0:00");
+	string datetime = reading.getAssetDateUserTime(Reading::FMT_STANDARD);
+	ASSERT_EQ(datetime.compare("2019-01-10T10:01:03.123456"), 0);
+}
+
+TEST(ReadingTest, ISO8601MS)
+{
+	DatapointValue value((long) 10);
+	Reading reading(string("test1"), new Datapoint("x", value));
+	reading.setUserTimestamp("2019-01-10 10:01:03.123456+0:00");
+	string datetime = reading.getAssetDateUserTime(Reading::FMT_ISO8601MS);
+	ASSERT_EQ(datetime.compare("2019-01-10 10:01:03.123456 +0000"), 0);
+}

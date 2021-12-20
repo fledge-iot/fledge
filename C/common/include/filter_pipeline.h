@@ -16,6 +16,7 @@
 #include <plugin_data.h>
 #include <reading_set.h>
 #include <filter_plugin.h>
+#include <service_handler.h>
 
 typedef void (*filterReadingSetFn)(OUTPUT_HANDLE *outHandle, READINGSET* readings);
 
@@ -65,6 +66,7 @@ protected:
 				m_filterCategories;
 	std::string		m_pipeline;
 	bool		m_ready;
+	ServiceHandler		*m_serviceHandler;
 };
 
 #endif

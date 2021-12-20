@@ -163,11 +163,11 @@ ReadingSet *readings = NULL;
 		}
 	       	catch (ReadingSetException* e)
 		{
-			Logger::getLogger()->error("North Service '%s', failed to fetch data, Exception '%s'", m_name.c_str(), e->what());
+			// Ignore, the exception has been reported in the layer below
 		}
 	       	catch (exception& e)
 		{
-			Logger::getLogger()->error("North Service '%s', failed to fetch data, Exception '%s'", m_name.c_str(), e.what());
+			// Ignore, the exception has been reported in the layer below
 		}
 		if (readings && readings->getCount())
 		{
@@ -500,7 +500,12 @@ void DataLoad::passToOnwardFilter(OUTPUT_HANDLE *outHandle,
 void DataLoad::pipelineEnd(OUTPUT_HANDLE *outHandle,
 			     READINGSET *readingSet)
 {
+
 	DataLoad *load = (DataLoad *)outHandle;
+	if (readingSet->getCount() == 0)	// Special case when all filtered out
+	{
+		load->updateLastSentId(load->m_lastFetched);
+	}
 
 	unique_lock<mutex> lck(load->m_qMutex);
 	load->m_queue.push_back(readingSet);
@@ -561,5 +566,83 @@ void DataLoad::updateStatistic(const string& key, const string& description, uin
 				table.c_str(), key.c_str(), description.c_str());
 
                 }
+	}
+}
+
+
+/**
+ * Configuration change for one of the filters or to the pipeline.
+ *
+ * @param category	The name of the configuration category
+ * @param newConfig	The new category contents
+ */
+void DataLoad::configChange(const string& category, const string& newConfig)
+{
+	Logger::getLogger()->debug("DataLoad::configChange(): category=%s, newConfig=%s", category.c_str(), newConfig.c_str());
+	if (category == m_name) 
+	{
+		/**
+		 * The category that has changed is the one for the north service itself.
+		 * The only item that concerns us here is the filter item that defines
+		 * the filter pipeline. We extract that item and check to see if it defines
+		 * a pipeline that is different to the one we currently have.
+		 *
+		 * If it is we destroy the current pipeline and create a new one.
+		 */
+		ConfigCategory config("tmp", newConfig);
+		string newPipeline = "";
+		if (config.itemExists("filter"))
+		{
+		      newPipeline  = config.getValue("filter");
+		}
+
+		{
+			lock_guard<mutex> guard(m_pipelineMutex);
+			if (m_pipeline)
+			{
+				if (newPipeline == "" ||
+				    m_pipeline->hasChanged(newPipeline) == false)
+				{
+					Logger::getLogger()->info("Ingest::configChange(): "
+								  "filter pipeline is not set or "
+								  "it hasn't changed");
+					return;
+				}
+				/* The new filter pipeline is different to what we have already running
+				 * So remove the current pipeline and recreate.
+			 	 */
+				Logger::getLogger()->info("Ingest::configChange(): "
+							  "filter pipeline has changed, "
+							  "recreating filter pipeline");
+				m_pipeline->cleanupFilters(m_name);
+				delete m_pipeline;
+				m_pipeline = NULL;
+			}
+		}
+
+		/*
+		 * We have to setup a new pipeline to match the changed configuration.
+		 * Release the lock before reloading the filters as this will acquire
+		 * the lock again
+		 */
+		loadFilters(category);
+
+		lock_guard<mutex> guard(m_pipelineMutex);
+	}
+	else
+	{
+		/*
+		 * The category is for one fo the filters. We simply call the Filter Pipeline
+		 * instance and get it to deal with sending the configuration to the right filter.
+		 * This is done holding the pipeline mutex to prevent the pipeline being changed
+		 * during this call and also to hold the ingest thread from running the filters
+		 * during reconfiguration.
+		 */
+		Logger::getLogger()->info("Ingest::configChange(): change to config of some filter(s)");
+		lock_guard<mutex> guard(m_pipelineMutex);
+		if (m_pipeline)
+		{
+			m_pipeline->configChange(category, newConfig);
+		}
 	}
 }

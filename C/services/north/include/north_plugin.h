@@ -43,6 +43,9 @@ public:
 	void		start();
 	void		startData(const std::string& pluginData);
 	std::string	shutdownSaveData();
+	bool		hasControl() { return info->options & SP_CONTROL; };
+	void		pluginRegister(bool ( *write)(char *name, char *value, ControlDestination destination, ...),
+				int (* operation)(char *operation, int paramCount, char *parameters[], ControlDestination destination, ...));
 
 private:
 	PLUGIN_HANDLE	m_instance;
@@ -54,6 +57,10 @@ private:
 	void		(*pluginStartPtr)(PLUGIN_HANDLE);
 	void		(*pluginStartDataPtr)(PLUGIN_HANDLE,
 					      const std::string& pluginData);
+	void		(*pluginRegisterPtr)(PLUGIN_HANDLE handle,
+				bool ( *write)(char *name, char *value, ControlDestination destination, ...),
+				int (* operation)(char *operation, int paramCount, char *parameters[], ControlDestination destination, ...));
+	
 };
 
 #endif

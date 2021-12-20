@@ -56,3 +56,12 @@ def put_request(fledge_url, put_url, payload = None):
     assert 200 == res.status, "ERROR! PUT {} request failed".format(put_url)
     r = json.loads(res.read().decode())
     return r
+
+
+def delete_request(fledge_url, delete_url):
+    con = http.client.HTTPConnection(fledge_url)
+    con.request("DELETE", delete_url)
+    res = con.getresponse()
+    assert 200 == res.status, "ERROR! GET {} request failed".format(delete_url)
+    r = json.loads(res.read().decode())
+    return r

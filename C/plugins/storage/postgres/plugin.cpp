@@ -171,14 +171,9 @@ Connection        *connection = manager->allocate();
 std::string 	  results;
 unsigned long	  age, size;
 
-	// TODO put flags in common header file
-	if (flags & 0x0002)	// Purge by size
+	if (flags & STORAGE_PURGE_SIZE)
 	{
-		manager->release(connection);
-		/**
-		 * Throw PluginNotImplementedException for purge by size in Postgres
-		 */
-		throw PluginNotImplementedException("Purge by size is not supported by 'Postgres' storage engine.");
+		(void)connection->purgeReadingsByRows(param, flags, sent, results);
 	}
 	else
 	{

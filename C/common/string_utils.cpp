@@ -158,7 +158,7 @@ std::string StringSlashFix(const std::string& stringToFix)
 }
 
 /**
- * Strips Line feed and carige return
+ * Strips Line feed and carriage return
  *
  */
 void StringStripCRLF(std::string& StringToManage)
@@ -177,6 +177,18 @@ void StringStripCRLF(std::string& StringToManage)
 		StringToManage.erase ( pos, 2 );
 	}
 
+}
+
+/**
+ * Stripes " from the string
+ *
+ */
+void StringStripQuotes(std::string& StringToManage)
+{
+	if ( ! StringToManage.empty())
+	{
+		StringReplaceAll(StringToManage, "\"", "");
+	}
 }
 
 /**
@@ -421,4 +433,15 @@ std::string StringRTrim(const std::string& str)
 std::string StringTrim(const std::string& str)
 {
 	return StringRTrim(StringLTrim(str));
+}
+
+/**
+ * Evaluates if the input string is a regular expression
+ */
+bool IsRegex(const string &str) {
+
+	size_t nChar;
+	nChar = strcspn(str.c_str(), "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_");
+
+	return (nChar != 0);
 }

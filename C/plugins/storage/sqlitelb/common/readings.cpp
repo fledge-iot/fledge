@@ -1269,13 +1269,17 @@ unsigned int  Connection::purgeReadings(unsigned long age,
 	unsigned long rowidLimit = 0, minrowidLimit = 0, maxrowidLimit = 0, rowidMin;
 	struct timeval startTv, endTv;
 	int blocks = 0;
+	bool flag_retain;
 
 	Logger *logger = Logger::getLogger();
 
-	result = "{ \"removed\" : 0, ";
-	result += " \"unsentPurged\" : 0, ";
-	result += " \"unsentRetained\" : 0, ";
-	result += " \"readings\" : 0 }";
+	flag_retain = false;
+
+	if ( (flags & STORAGE_PURGE_RETAIN_ANY) || (flags & STORAGE_PURGE_RETAIN_ALL) )
+	{
+		flag_retain = true;
+	}
+	Logger::getLogger()->debug("%s - flags :%X: flag_retain :%d: sent :%ld:", __FUNCTION__, flags, flag_retain, sent);
 
 	logger->info("Purge starting...");
 	gettimeofday(&startTv, NULL);
@@ -1364,7 +1368,7 @@ unsigned int  Connection::purgeReadings(unsigned long age,
 		int rc;
 		unsigned long l = minrowidLimit;
 		unsigned long r;
-		if (flags & 0x01) {
+		if (flag_retain) {
 
 			r = min(sent, rowidLimit);
 		} else {
@@ -1372,7 +1376,8 @@ unsigned int  Connection::purgeReadings(unsigned long age,
 		}
 
 		r = max(r, l);
-		//logger->info("%s:%d: l=%u, r=%u, sent=%u, rowidLimit=%u, minrowidLimit=%u, flags=%u", __FUNCTION__, __LINE__, l, r, sent, rowidLimit, minrowidLimit, flags);
+		logger->debug   ("%s:%d: l=%u, r=%u, sent=%u, rowidLimit=%u, minrowidLimit=%u, flags=%u", __FUNCTION__, __LINE__, l, r, sent, rowidLimit, minrowidLimit, flags);
+
 		if (l == r)
 		{
 			logger->info("No data to purge: min_id == max_id == %u", minrowidLimit);
@@ -1430,6 +1435,35 @@ unsigned int  Connection::purgeReadings(unsigned long age,
 
 		rowidLimit = m;
 
+		{ // Fix the value of rowidLimit
+
+			Logger::getLogger()->debug("%s - s1 rowidLimit :%lu: minrowidLimit :%lu: maxrowidLimit :%lu:", __FUNCTION__, rowidLimit, minrowidLimit, maxrowidLimit);
+
+			SQLBuffer sqlBuffer;
+			sqlBuffer.append("select max(id) from " READINGS_DB_NAME_BASE "." READINGS_TABLE " where rowid <= ");
+			sqlBuffer.append(rowidLimit);
+			sqlBuffer.append(" AND user_ts < datetime('now' , '-");
+			sqlBuffer.append(age);
+			sqlBuffer.append(" hours');");
+			const char *query = sqlBuffer.coalesce();
+
+			rc = SQLexec(dbHandle,
+						 query,
+						 rowidCallback,
+						 &rowidLimit,
+						 &zErrMsg);
+
+			delete[] query;
+
+			if (rc != SQLITE_OK)
+			{
+				raiseError("purge - phase 1, fetching rowidLimit ", zErrMsg);
+				sqlite3_free(zErrMsg);
+				return 0;
+			}
+			Logger::getLogger()->debug("%s - s2 rowidLimit :%lu: minrowidLimit :%lu: maxrowidLimit :%lu:", __FUNCTION__, rowidLimit, minrowidLimit, maxrowidLimit);
+		}
+
 		if (minrowidLimit == rowidLimit)
 		{
 			logger->info("No data to purge");
@@ -1439,7 +1473,7 @@ unsigned int  Connection::purgeReadings(unsigned long age,
 		rowidMin = minrowidLimit;
 	}
 	//logger->info("Purge collecting unsent row count");
-	if ((flags & 0x01) == 0)
+	if ( ! flag_retain )
 	{
 		char *zErrMsg = NULL;
 		int rc;
@@ -1512,6 +1546,8 @@ unsigned int  Connection::purgeReadings(unsigned long age,
 						 NULL,
 						 &zErrMsg);
 			END_TIME;
+
+			logger->debug("%s - DELETE - query :%s: rowsAffected :%ld:",  __FUNCTION__, query ,rowsAffected);
 
 			// Release memory for 'query' var
 			delete[] query;
@@ -1588,6 +1624,8 @@ unsigned int  Connection::purgeReadings(unsigned long age,
 	unsigned long duration = (1000000 * (endTv.tv_sec - startTv.tv_sec)) + endTv.tv_usec - startTv.tv_usec;
 	logger->info("Purge process complete in %d blocks in %lduS", blocks, duration);
 
+	Logger::getLogger()->debug("%s - age :%lu: flag_retain :%x: sent :%lu: result :%s:", __FUNCTION__, age, flags, flag_retain, result.c_str() );
+
 	return deletedRows;
 }
 
@@ -1606,16 +1644,26 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 	unsigned long rowcount, minId, maxId;
 	unsigned long rowsAffected;
 	unsigned long deletePoint;
+	bool flag_retain;
+
 
 	Logger *logger = Logger::getLogger();
 
+	flag_retain = false;
+
+	if ( (flags & STORAGE_PURGE_RETAIN_ANY) || (flags & STORAGE_PURGE_RETAIN_ALL) )
+	{
+		flag_retain = true;
+	}
+	Logger::getLogger()->debug("%s - flags :%X: flag_retain :%d: sent :%ld:", __FUNCTION__, flags, flag_retain, sent);
+
 	logger->info("Purge by Rows called");
-	if ((flags & 0x01) == 0x01)
+	if (flag_retain)
 	{
 		limit = sent;
 		logger->info("Sent is %lu", sent);
 	}
-	logger->info("Purge by Rows called with flags %x, rows %lu, limit %lu", flags, rows, limit);
+	logger->info("Purge by Rows called with flag_retain %d, rows %lu, limit %lu", flag_retain, rows, limit);
 	// Don't save unsent rows
 
 	char *zErrMsg = NULL;
@@ -1676,7 +1724,7 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 			deletePoint = maxId - rows;
 
 		// Do not delete
-		if ((flags & 0x01) == 0x01) {
+		if (flag_retain) {
 
 			if (limit < deletePoint)
 			{

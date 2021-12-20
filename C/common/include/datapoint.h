@@ -82,7 +82,6 @@ class DatapointValue {
 		 */
 		~DatapointValue();
 
-		void deleteNestedDPV();
 		
 		/**
 		 * Set the value of a datapoint, this may
@@ -175,6 +174,8 @@ class DatapointValue {
 		}
 
 	private:
+		void deleteNestedDPV();
+		const std::string	escape(const std::string& str) const;
 		union data_t {
 			std::string*		str;
 			long			i;
@@ -200,7 +201,6 @@ class Datapoint {
 
 		~Datapoint()
 		{
-			m_value.deleteNestedDPV();
 		}
 		/**
 		 * Return asset reading data point as a JSON

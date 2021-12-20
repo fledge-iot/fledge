@@ -7,8 +7,6 @@
 .. |fledge_all_round| image:: ../images/fledge_all_round_solution.jpg
 
 .. Links
-.. _Fledge project on GitHub: https://github.com/fledge-iot/Fledge/issues
-
 
 ************
 Introduction

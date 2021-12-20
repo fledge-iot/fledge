@@ -539,7 +539,7 @@ static void sendDataThread(SendingProcess *sendData)
 			}
 			else
 			{
-				Logger::getLogger()->debug("SendingProcess sendDataThread: Error while sending " \
+				Logger::getLogger()->error("SendingProcess sendDataThread: Error while sending " \
 							   "('%s' stream id %d), sendIdx %u, N. (%d readings), " \
 							   ", last reading id in buffer %ld",
 							   sendData->getDataSourceType().c_str(),

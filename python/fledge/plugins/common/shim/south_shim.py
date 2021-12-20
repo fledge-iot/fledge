@@ -68,7 +68,8 @@ def plugin_shutdown(handle):
 
 def plugin_start(handle):
     _LOGGER.info("plugin_start")
-    return _plugin.plugin_start(handle)
+    if hasattr(_plugin, "plugin_start"):
+        return _plugin.plugin_start(handle)
 
 
 def plugin_register_ingest(handle, callback, ingest_ref):

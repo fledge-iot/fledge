@@ -240,6 +240,7 @@ def setup(app):
     app.router.add_route('GET', '/fledge/ACL/{acl_name}', acl_management.get_acl)
     app.router.add_route('PUT', '/fledge/ACL/{acl_name}', acl_management.update_acl)
     app.router.add_route('DELETE', '/fledge/ACL/{acl_name}', acl_management.delete_acl)
+    app.router.add_route('PUT', '/fledge/service/{service_name}/ACL', acl_management.attach_acl_to_service)
 
     # enable cors support
     enable_cors(app)

@@ -28,7 +28,7 @@ _help = """
     --------------------------------------------------------------
     | GET POST            | /fledge/ACL                          |
     | GET PUT DELETE      | /fledge/ACL/{acl_name}               |
-    | PUT                 | /fledge/service/{service_name}/ACL   |
+    | PUT DELETE          | /fledge/service/{service_name}/ACL   |
     --------------------------------------------------------------
 """
 
@@ -312,6 +312,7 @@ async def attach_acl_to_service(request: web.Request) -> web.Response:
             }
             await cf_mgr.create_category(category_name=security_cat_name, category_description=category_desc,
                                          category_value=category_value)
+            # TODO: parent-child relation if any
         else:
             raise ValueError('A {} service has already ACL attached'.format(svc_name))
     except StorageServerError as err:
@@ -328,3 +329,42 @@ async def attach_acl_to_service(request: web.Request) -> web.Response:
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({"message": "{} ACL attached to {} service successfully".format(acl_name, svc_name)})
+
+
+async def detach_acl_from_service(request: web.Request) -> web.Response:
+    """ Detach ACL from a service
+
+    :Example:
+        curl -sX DELETE http://localhost:8081/fledge/service/Sine/ACL
+    """
+    try:
+        svc_name = request.match_info.get('service_name', None)
+        storage = connect.get_storage_async()
+        payload = PayloadBuilder().SELECT(["id", "enabled"]).WHERE(['schedule_name', '=', svc_name]).payload()
+        # check service name existence
+        get_schedules_result = await storage.query_tbl_with_payload('schedules', payload)
+        if 'count' in get_schedules_result:
+            if get_schedules_result['count'] == 0:
+                raise NameNotFoundError('{} service does not exist.'.format(svc_name))
+        else:
+            raise StorageServerError(get_schedules_result)
+        # Delete {service_name}Security category
+        cf_mgr = ConfigurationManager(storage)
+        security_cat_name = "{}Security".format(svc_name)
+        delete_cat_result = await cf_mgr.delete_category_and_children_recursively(security_cat_name)
+        if 'response' in delete_cat_result:
+            if delete_cat_result['response'] == "deleted":
+                message = "ACL detached from {} service successfully".format(svc_name)
+        else:
+            raise StorageServerError(delete_cat_result)
+    except StorageServerError as err:
+        msg = "Storage error: {}".format(str(err))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+    except NameNotFoundError as err:
+        msg = str(err)
+        raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
+    except Exception as ex:
+        msg = str(ex)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+    else:
+        return web.json_response({"message": message})

@@ -8,6 +8,8 @@
 
 import uuid
 import asyncio
+import string
+import random
 from fledge.common import logger
 from fledge.common.service_record import ServiceRecord
 from fledge.services.core.service_registry import exceptions as service_registry_exceptions
@@ -22,8 +24,30 @@ __version__ = "${VERSION}"
 class ServiceRegistry:
 
     _registry = list()
+
+    # Startup tokens to pass to service or tasks being started
+    _startupTokens = dict()
+
     # INFO - level 20
     _logger = logger.setup(__name__, level=20)
+
+    @classmethod
+    def getStartupToken(cls, name):
+        """ Create a startup token upon request and store it
+        """ 
+        startToken = ''.join((random.choice(string.ascii_letters) for x in range(32)))
+        cls._startupTokens[name] = startToken
+        return startToken
+
+    @classmethod
+    def checkStartupToken(cls, name, token):
+        """ Check tartup token exists for given service name
+        """ 
+        foundToken = cls._startupTokens.get(name, None)
+        if foundToken is None or foundToken != token:
+            return False
+
+        return True
 
     @classmethod
     def register(cls, name, s_type, address, port, management_port,  protocol='http', token=None):
@@ -73,6 +97,12 @@ class ServiceRegistry:
         registered_service = ServiceRecord(service_id, name, s_type, protocol, address, port, management_port, token)
         cls._registry.append(registered_service)
         cls._logger.info("Registered {}".format(str(registered_service)))
+
+        # Remove startup token
+        if token is not None:
+            cls._startupTokens.pop(name, None)
+
+        # Success
         return service_id
 
     @classmethod

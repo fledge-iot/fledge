@@ -1123,8 +1123,7 @@ class Server:
                     raise web.HTTPBadRequest(reason=msg)
 
                 # Check startup token exists
-                foundToken = cls.scheduler._startupTokens.get(service_name)
-                if foundToken is None or foundToken != token:
+                if ServiceRegistry.checkStartupToken(service_name, token) == False:
                     msg = 'Token for the service was not found' 
                     raise web.HTTPBadRequest(reason=msg)
 
@@ -1150,29 +1149,33 @@ class Server:
             if not registered_service_id:
                 raise web.HTTPBadRequest(reason='Service {} could not be registered'.format(service_name))
 
-            # Set JWT bearewr token
-            # Set expiration now + delta seconds
-            exp = int(time.time()) + SERVICE_JWT_EXP_DELTA_SECONDS
-            # Add public token claims
-            claims = {
-                         'aud': service_type,
-                         'sub' : service_name,
-                         'iss' : SERVICE_JWT_AUDIENCE,
-                         'exp': exp
-                     }
+            # Prepare response JSON
+            _response = {
+                'id': registered_service_id,
+                'message': "Service registered successfully"
+            }
 
-            # Create JWT token
-            bearer_token = jwt.encode(claims,
+            # Create a JWT token if startup token exists
+            if token is not None:
+                # Set JWT bearer token
+                # Set expiration now + delta seconds
+                exp = int(time.time()) + SERVICE_JWT_EXP_DELTA_SECONDS
+                # Add public token claims
+                claims = {
+                             'aud': service_type,
+                             'sub' : service_name,
+                             'iss' : SERVICE_JWT_AUDIENCE,
+                             'exp': exp
+                         }
+
+                # Create JWT token
+                bearer_token = jwt.encode(claims,
                                       SERVICE_JWT_SECRET,
                                       SERVICE_JWT_ALGORITHM).decode("utf-8") if token is not None else ""
 
-            _response = {
-                'id': registered_service_id,
-                'message': "Service registered successfully",
-                'bearer_token': bearer_token
-            }
-            _logger.debug("For service: {} SERVER RESPONSE: {}".format(service_name, _response))
-            if bearer_token:
+                # Add bearer_token in response
+                _response['bearer_token'] = bearer_token
+
                 # Find service name in registry and update the bearer token for that service
                 svc_record = ServiceRegistry.get(name=service_name)
                 svc = svc_record[0]
@@ -1182,6 +1185,8 @@ class Server:
                 for idx, item in enumerate(ServiceRegistry._registry):
                     if getattr(item, "_name") == service_name:
                         ServiceRegistry._registry[idx] = obj
+
+            _logger.debug("For service: {} SERVER RESPONSE: {}".format(service_name, _response))
             return web.json_response(_response)
 
         except ValueError as err:

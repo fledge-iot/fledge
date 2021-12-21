@@ -1684,11 +1684,21 @@ class Server:
         """ Endpoint for verifycation of service bearer token received at registration time
 
         :Example:
-            curl -X POST -d '{"bearer_token" : "hjhdjsfshhj"}
-             http://localhost:<core mngmt port>/fledge/service/verity_token
+            curl -H 'Authorization: Bearer evZGdrdmV.4dWFsY2dsaHVyZ.mFxdmdybXB5dXduaXJvc3g='
+            -X POST http://localhost:<core mngmt port>/fledge/service/verity_token
+
+        Authorization header must contain the Bearer token to verify
+        No post data
         """
-        data = await request.json()
-        bearer_token = data.get('bearer_token', None)
+
+        authData = request.headers.get('Authorization', "")
+        parts = authData.split("Bearer ")
+        if len(parts) != 2:
+            msg = "bearer token is missing"
+            raise web.HTTPBadRequest(reason=msg, body=json.dumps({"error": msg}))
+
+        bearer_token = parts[1]
+
         if bearer_token is not None:
             # Check input token exists in system
             foundToken = False
@@ -1711,7 +1721,7 @@ class Server:
                 msg = ret['error']
                 raise web.HTTPBadRequest(reason=msg, body=json.dumps({"error": msg}))
         else:
-            msg = 'bearer token parameter is missing'
+            msg = 'bearer token is missing'
             raise web.HTTPBadRequest(reason=msg, body=json.dumps({"error": msg}))
 
     @classmethod

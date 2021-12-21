@@ -757,8 +757,10 @@ bool ManagementClient::verifyAccessBearerToken(shared_ptr<HttpServer::Request> r
 		// Token does not exist:
 		// Verify it by calling Fledge management endpoint
 		string url = "/fledge/service/verify_token";
-		string payload = "{ \"bearer_token\" : \"" + bearer_token + "\"}";
-		auto res = this->getHttpClient()->request("POST", url.c_str(), payload);
+                string payload;
+                SimpleWeb::CaseInsensitiveMultimap header;
+                header.emplace("Authorization", "Bearer " + bearer_token);
+                auto res = this->getHttpClient()->request("POST", url.c_str(), payload, header);
 		Document doc;
 		string response = res->content.string();
 		doc.Parse(response.c_str());

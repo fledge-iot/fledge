@@ -1742,7 +1742,7 @@ class Server:
         Note: token will be refresh for the service it belongs
         """
 
-        data = await request.json()
+        authData = request.headers.get('Authorization', "")
         parts = authData.split("Bearer ")
         if len(parts) != 2:
             msg = "bearer token is missing"

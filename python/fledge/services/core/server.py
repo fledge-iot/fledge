@@ -1691,8 +1691,12 @@ class Server:
         No post data
         """
 
-        authData = request.headers.get('Authorization', "")
-        parts = authData.split("Bearer ")
+        auth_header = request.headers.get('Authorization', None)
+        if auth_header is None:
+            msg = "Authorization header is missing"
+            raise web.HTTPBadRequest(reason=msg, body=json.dumps({"error": msg}))
+
+        parts = auth_header.split("Bearer ")
         if len(parts) != 2:
             msg = "bearer token is missing"
             raise web.HTTPBadRequest(reason=msg, body=json.dumps({"error": msg}))
@@ -1751,9 +1755,12 @@ class Server:
 
         Note: token will be refresh for the service it belongs
         """
+        auth_header = request.headers.get('Authorization', None)
+        if auth_header is None:
+            msg = "Authorization header is missing"
+            raise web.HTTPBadRequest(reason=msg, body=json.dumps({"error": msg}))
 
-        authData = request.headers.get('Authorization', "")
-        parts = authData.split("Bearer ")
+        parts = auth_header.split("Bearer ")
         if len(parts) != 2:
             msg = "bearer token is missing"
             raise web.HTTPBadRequest(reason=msg, body=json.dumps({"error": msg}))

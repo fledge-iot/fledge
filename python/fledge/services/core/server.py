@@ -1149,12 +1149,7 @@ class Server:
             if not registered_service_id:
                 raise web.HTTPBadRequest(reason='Service {} could not be registered'.format(service_name))
 
-            # Prepare response JSON
-            _response = {
-                'id': registered_service_id,
-                'message': "Service registered successfully"
-            }
-
+            bearer_token = ''
             # Create a JWT token if startup token exists
             if token is not None:
                 # Set JWT bearer token
@@ -1173,9 +1168,6 @@ class Server:
                                       SERVICE_JWT_SECRET,
                                       SERVICE_JWT_ALGORITHM).decode("utf-8") if token is not None else ""
 
-                # Add bearer_token in response
-                _response['bearer_token'] = bearer_token
-
                 # Find service name in registry and update the bearer token for that service
                 svc_record = ServiceRegistry.get(name=service_name)
                 svc = svc_record[0]
@@ -1186,7 +1178,15 @@ class Server:
                     if getattr(item, "_name") == service_name:
                         ServiceRegistry._registry[idx] = obj
 
+            # Prepare response JSON
+            _response = {
+                'id': registered_service_id,
+                'message': "Service registered successfully",
+                'bearer_token' : bearer_token
+            }
+
             _logger.debug("For service: {} SERVER RESPONSE: {}".format(service_name, _response))
+
             return web.json_response(_response)
 
         except ValueError as err:

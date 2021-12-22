@@ -669,6 +669,8 @@ INSERT INTO fledge.log_codes ( code, description )
             ( 'PKGIN', 'Package installation' ),
             ( 'PKGUP', 'Package updated' ),
             ( 'PKGRM', 'Package purged' );
+            ( 'DSPST', 'Dispatcher Startup' ),
+            ( 'DSPSD', 'Dispatcher Shutdown' );
 
 --
 -- Configuration parameters

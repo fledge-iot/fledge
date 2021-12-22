@@ -21,6 +21,6 @@ class ServiceHandler
 	public:
 		virtual void	shutdown() = 0;
 		virtual void	configChange(const std::string& category, const std::string& config) = 0;
-		virtual void	configChangeChild(const std::string& category, const std::string& config) = 0;
+		virtual void	configChangeChild(const std::string& parent_category, const std::string& category, const std::string& config) = 0;
 };
 #endif

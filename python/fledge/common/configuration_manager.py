@@ -193,7 +193,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
         #// FIXME_I:
         _logger.setLevel(logging.DEBUG)
-        _logger.debug("xxx6 _run_callbacks_child S1 category_name :{}: child_category :{}: callbacks:{}: ".format(parent_category_name, child_category, callbacks))
+        _logger.debug("xxx13 _run_callbacks_child S1 category_name :{}: child_category :{}: callbacks:{}: ".format(parent_category_name, child_category, callbacks))
         _logger.setLevel(logging.WARNING)
 
         if callbacks is not None:
@@ -201,9 +201,8 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
             #// FIXME_I:
             _logger.setLevel(logging.DEBUG)
-            _logger.debug("xxx6 _run_callbacks_child S2 category_name :{}: child_category :{}: callbacks:{}: ".format(parent_category_name, child_category, callbacks))
+            _logger.debug("xxx14 _run_callbacks_child S2 category_name :{}: child_category :{}: callbacks:{}: ".format(parent_category_name, child_category, callbacks))
             _logger.setLevel(logging.WARNING)
-
 
             for callback in callbacks:
                 try:
@@ -212,16 +211,16 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     _logger.exception(
                         'Unable to import callback module %s for category_name %s', callback, parent_category_name)
                     raise
-                if not hasattr(cb, 'run'):
+                if not hasattr(cb, 'run_child'):
                     _logger.exception(
                         'Callback module %s does not have method run', callback)
                     raise AttributeError('Callback module {} does not have method run'.format(callback))
-                method = cb.run
+                method = cb.run_child
                 if not inspect.iscoroutinefunction(method):
                     _logger.exception(
                         'Callback module %s run method must be a coroutine function', callback)
                     raise AttributeError('Callback module {} run method must be a coroutine function'.format(callback))
-                await cb.run(parent_category_name)
+                await cb.run_child(parent_category_name, child_category)
 
     async def _merge_category_vals(self, category_val_new, category_val_storage, keep_original_items, category_name=None):
         # preserve all value_vals from category_val_storage
@@ -1386,6 +1385,15 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         A callback is not called if the corresponding category_description is updated.
         A change in configuration is not rolled back if callbacks fail.
         """
+
+        #// FIXME_I:
+        import logging
+
+
+        #// FIXME_I:
+        _logger.setLevel(logging.DEBUG)
+        _logger.debug("xxx12 register_interest_child  category_name :{}: callback :{}:".format(category_name, callback) )
+        _logger.setLevel(logging.WARNING)
 
         if category_name is None:
             raise ValueError('Failed to register interest. category_name cannot be None')

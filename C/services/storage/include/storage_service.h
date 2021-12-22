@@ -32,7 +32,7 @@ class StorageService : public ServiceHandler {
 		void 			stop();
 		void			shutdown();
 		void			configChange(const std::string&, const std::string&);
-		void			configChangeChild(const std::string&, const std::string&){};
+		void			configChangeChild(const std::string& parent_category, const std::string&, const std::string&){};
 		string			getPluginName();
 		string			getPluginManagedStatus();
 		string			getReadingPluginName();

@@ -122,6 +122,11 @@ class FledgeMicroservice(FledgeProcess):
     async def change(self, request):
         pass
 
+    #// FIXME_I:
+    @abstractmethod
+    async def change_child(self, request):
+        pass
+
     async def ping(self, request):
         """ health check
     

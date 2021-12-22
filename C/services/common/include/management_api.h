@@ -20,6 +20,7 @@
 #define PING			"/fledge/service/ping"
 #define SERVICE_SHUTDOWN	"/fledge/service/shutdown"
 #define CONFIG_CHANGE		"/fledge/change"
+#define CONFIG_CHANGE_CHILD "/fledge/change_child"
 
 using HttpServer = SimpleWeb::Server<SimpleWeb::HTTP>;
 
@@ -45,6 +46,7 @@ class ManagementApi {
 		void ping(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
 		void shutdown(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
 		void configChange(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
+		void configChangeChild(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
 
 	protected:
 		static ManagementApi *m_instance;

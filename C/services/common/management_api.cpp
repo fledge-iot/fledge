@@ -47,6 +47,13 @@ void configChangeWrapper(shared_ptr<HttpServer::Response> response, shared_ptr<H
         api->configChange(response, request);
 }
 
+// FIXME_I:
+void configChangeChildWrapper(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
+{
+        ManagementApi *api = ManagementApi::getInstance();
+        api->configChangeChild(response, request);
+}
+
 /**
  * Construct a microservices management API manager class
  */
@@ -60,6 +67,7 @@ ManagementApi::ManagementApi(const string& name, const unsigned short port) : m_
 	m_server->resource[PING]["GET"] = pingWrapper;
 	m_server->resource[SERVICE_SHUTDOWN]["POST"] = shutdownWrapper;
 	m_server->resource[CONFIG_CHANGE]["POST"] = configChangeWrapper;
+	m_server->resource[CONFIG_CHANGE_CHILD]["POST"] = configChangeChildWrapper;
 
 	m_instance = this;
 
@@ -175,6 +183,34 @@ string	category, items, payload;
 	responsePayload = convert.str();
 	respond(response, responsePayload);
 }
+
+// FIXME_I:
+void ManagementApi::configChangeChild(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
+{
+ostringstream convert;
+string responsePayload;
+string	category, items, payload;
+
+	payload = request->content.string();
+
+
+	// FIXME_I:
+	string _section="xxx21 ";
+	Logger::getLogger()->setMinLevel("debug");
+	//Logger::getLogger()->debug("%s / %s - S1 category :%s: config :%s:", _section.c_str(), __FUNCTION__, category.c_str(), config.c_str());
+	Logger::getLogger()->debug("%s / %s - S1  payload:%s: ", _section.c_str(), __FUNCTION__, payload.c_str());
+	Logger::getLogger()->setMinLevel("warning");
+
+
+	ConfigCategoryChange	conf(payload);
+	ConfigHandler	*handler = ConfigHandler::getInstance(NULL);
+	// FIXME_I:
+	handler->configChangeChild("TooHot1", conf.getName(), conf.itemsToJSON(true));
+	convert << "{ \"message\" ; \"Config child change accepted\" }";
+	responsePayload = convert.str();
+	respond(response, responsePayload);
+}
+
 
 /**
  * HTTP response method

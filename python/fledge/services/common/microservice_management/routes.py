@@ -21,7 +21,8 @@ def setup(app, obj, is_core=False):
     app.router.add_route('GET', '/fledge/service/ping', obj.ping)
     app.router.add_route('POST', '/fledge/service/shutdown', obj.shutdown)
     app.router.add_route('POST', '/fledge/change', obj.change)
-    app.router.add_route('POST', '/fledge/change_child', obj.change_child)
+    #// FIXME_I:
+    #app.router.add_route('POST', '/fledge/change_child', obj.change_child)
 
     if is_core:
         # Configuration

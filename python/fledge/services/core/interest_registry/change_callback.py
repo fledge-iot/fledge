@@ -114,7 +114,6 @@ async def run_child(parent_category_name, child_category_list):
         #// FIXME_I:
         import logging
 
-
         #// FIXME_I:
         _LOGGER.setLevel(logging.DEBUG)
         _LOGGER.debug("xxx16 run_child category_name  :{}: child_category :{}: -".format(parent_category_name, child_category))

@@ -71,42 +71,34 @@ ConfigHandler::configChange(const string& category, const string& config)
 	}
 }
 
-void ConfigHandler::configChangeChild(const std::string& parent_category, const string& category, const string& config)
+void ConfigHandler::configChangeChild(const std::string& parent_category, const string& child_category, const string& config)
 {
 	std::unique_lock<std::mutex> lck(m_mutex);
 
 	// FIXME_I:
 	string _section="xxx21 ";
 	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("%s / %s - S3 parent_category :%s: category :%s: S2 config :%s:", _section.c_str(), __FUNCTION__, parent_category.c_str() , category.c_str(), config.c_str() );
+	Logger::getLogger()->debug("%s / %s - S3 parent_category :%s: category :%s: S2 config :%s:", _section.c_str(), __FUNCTION__, parent_category.c_str() , child_category.c_str(), config.c_str() );
 	Logger::getLogger()->setMinLevel("warning");
 
-	m_logger->info("Configuration change notification for %s", category.c_str());
+	m_logger->info("Configuration change notification for %s", child_category.c_str());
 
 	// FIXME_I:
-	for (CONFIG_MAP::iterator it = m_registrationsChild.begin(); it != m_registrationsChild.end() ; it++)
-	{
-		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("%s / %s - S3.1 m_registrationsChild :%s:", _section.c_str(), __FUNCTION__,it->first.c_str() );
-		Logger::getLogger()->setMinLevel("warning");
-
-	}
-
 	pair<CONFIG_MAP::iterator, CONFIG_MAP::iterator> res = m_registrationsChild.equal_range(parent_category);
 	for (CONFIG_MAP::iterator it = res.first; it != res.second; it++)
 	{
 
 		// FIXME_I:
 		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("%s / %s - S4 category :%s: config :%s:", _section.c_str(), __FUNCTION__, category.c_str(), config.c_str());
+		Logger::getLogger()->debug("%s / %s - S4 category :%s: config :%s:", _section.c_str(), __FUNCTION__, child_category.c_str(), config.c_str());
 		Logger::getLogger()->setMinLevel("warning");
 
 
-			// The config change call could effect the registered handlers
+		// The config change call could effect the registered handlers
 		// we therefore need to guard against the map changing
 		m_change = false;
 		lck.unlock();
-		it->second->configChangeChild(parent_category, category, config);
+		it->second->configChangeChild(parent_category, child_category, config);
 		lck.lock();
 		if (m_change) // Something changed
 		{

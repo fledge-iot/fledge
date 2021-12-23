@@ -183,27 +183,11 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     raise AttributeError('Callback module {} run method must be a coroutine function'.format(callback))
                 await cb.run(category_name)
 
-    #// FIXME_I:
     async def _run_callbacks_child(self, parent_category_name, child_category):
 
         callbacks = self._registered_interests_child.get(parent_category_name)
 
-        #// FIXME_I:
-        import logging
-
-        #// FIXME_I:
-        _logger.setLevel(logging.DEBUG)
-        _logger.debug("xxx13 _run_callbacks_child S1 category_name :{}: child_category :{}: callbacks:{}: ".format(parent_category_name, child_category, callbacks))
-        _logger.setLevel(logging.WARNING)
-
         if callbacks is not None:
-
-
-            #// FIXME_I:
-            _logger.setLevel(logging.DEBUG)
-            _logger.debug("xxx14 _run_callbacks_child S2 category_name :{}: child_category :{}: callbacks:{}: ".format(parent_category_name, child_category, callbacks))
-            _logger.setLevel(logging.WARNING)
-
             for callback in callbacks:
                 try:
                     cb = import_module(callback)
@@ -213,13 +197,13 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     raise
                 if not hasattr(cb, 'run_child'):
                     _logger.exception(
-                        'Callback module %s does not have method run', callback)
-                    raise AttributeError('Callback module {} does not have method run'.format(callback))
+                        'Callback module %s does not have method run_child', callback)
+                    raise AttributeError('Callback module {} does not have method run_child'.format(callback))
                 method = cb.run_child
                 if not inspect.iscoroutinefunction(method):
                     _logger.exception(
-                        'Callback module %s run method must be a coroutine function', callback)
-                    raise AttributeError('Callback module {} run method must be a coroutine function'.format(callback))
+                        'Callback module %s run_child method must be a coroutine function', callback)
+                    raise AttributeError('Callback module {} run_child method must be a coroutine function'.format(callback))
                 await cb.run_child(parent_category_name, child_category)
 
     async def _merge_category_vals(self, category_val_new, category_val_storage, keep_original_items, category_name=None):
@@ -1137,7 +1121,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
             #// FIXME_I:
             try:
-                await self._run_callbacks_child(category_name, children)
+                    await self._run_callbacks_child(category_name, children)
             except:
                 _logger.exception(
                     'Unable to run callbacks for category_name %s', category_name)
@@ -1159,15 +1143,6 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         Return Values:
         JSON
         """
-
-
-        #// FIXME_I:
-        import logging
-
-        #// FIXME_I:
-        _logger.setLevel(logging.DEBUG)
-        _logger.debug("xxx5 delete_child_category category_name :{}: child_category :{}:".format(category_name, channel_name) )
-        _logger.setLevel(logging.WARNING)
 
         if not isinstance(category_name, str):
             raise TypeError('category_name must be a string')
@@ -1192,12 +1167,6 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 _children = []
                 for item in child_dict:
                     _children.append(item['child'])
-
-
-            #// FIXME_I:
-            _logger.setLevel(logging.DEBUG)
-            _logger.debug("xxx4 delete_child_category result :{}:".format(result) )
-            _logger.setLevel(logging.WARNING)
 
             # TODO: Shall we write audit trail code entry here? log_code?
 
@@ -1255,15 +1224,6 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         JSON
         """
 
-        #// FIXME_I:
-        import logging
-
-        #// FIXME_I:
-        _logger.setLevel(logging.DEBUG)
-        _logger.debug("xxx5 delete_category_and_children_recursively category_name :{}: ".format(category_name) )
-        _logger.setLevel(logging.WARNING)
-
-
         if not isinstance(category_name, str):
             raise TypeError('category_name must be a string')
         category = await self._read_category_val(category_name)
@@ -1276,7 +1236,6 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             if catg in catg_descendents:
                 raise ValueError('Reserved category found in descendents of {} - {}'.format(category_name, catg_descendents))
 
-        #// FIXME_I:
         try:
             #// FIXME_I:
             await self._run_callbacks_child("TooHot1", category_name)
@@ -1385,15 +1344,6 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         A callback is not called if the corresponding category_description is updated.
         A change in configuration is not rolled back if callbacks fail.
         """
-
-        #// FIXME_I:
-        import logging
-
-
-        #// FIXME_I:
-        _logger.setLevel(logging.DEBUG)
-        _logger.debug("xxx12 register_interest_child  category_name :{}: callback :{}:".format(category_name, callback) )
-        _logger.setLevel(logging.WARNING)
 
         if category_name is None:
             raise ValueError('Failed to register interest. category_name cannot be None')

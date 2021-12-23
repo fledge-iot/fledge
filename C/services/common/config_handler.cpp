@@ -46,13 +46,6 @@ void
 ConfigHandler::configChange(const string& category, const string& config)
 {
 
-	// FIXME_I:
-	string _section="xxx13 ";
-	Logger::getLogger()->setMinLevel("debug");
-	//Logger::getLogger()->debug("%s / %s - S1 category :%s: config :%s:", _section.c_str(), __FUNCTION__, category.c_str(), config.c_str());
-	Logger::getLogger()->debug("%s / %s - S1 category :%s: ", _section.c_str(), __FUNCTION__, category.c_str() );
-	Logger::getLogger()->setMinLevel("warning");
-
 	m_logger->info("Configuration change notification for %s", category.c_str());
 	std::unique_lock<std::mutex> lck(m_mutex);
 	pair<CONFIG_MAP::iterator, CONFIG_MAP::iterator> res = m_registrations.equal_range(category);
@@ -75,24 +68,11 @@ void ConfigHandler::configChangeChild(const std::string& parent_category, const 
 {
 	std::unique_lock<std::mutex> lck(m_mutex);
 
-	// FIXME_I:
-	string _section="xxx21 ";
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("%s / %s - S3 parent_category :%s: category :%s: S2 config :%s:", _section.c_str(), __FUNCTION__, parent_category.c_str() , child_category.c_str(), config.c_str() );
-	Logger::getLogger()->setMinLevel("warning");
+	m_logger->info("Configuration change notification for child category %s", child_category.c_str());
 
-	m_logger->info("Configuration change notification for %s", child_category.c_str());
-
-	// FIXME_I:
 	pair<CONFIG_MAP::iterator, CONFIG_MAP::iterator> res = m_registrationsChild.equal_range(parent_category);
 	for (CONFIG_MAP::iterator it = res.first; it != res.second; it++)
 	{
-
-		// FIXME_I:
-		Logger::getLogger()->setMinLevel("debug");
-		Logger::getLogger()->debug("%s / %s - S4 category :%s: config :%s:", _section.c_str(), __FUNCTION__, child_category.c_str(), config.c_str());
-		Logger::getLogger()->setMinLevel("warning");
-
 
 		// The config change call could effect the registered handlers
 		// we therefore need to guard against the map changing
@@ -145,7 +125,12 @@ ConfigHandler::registerCategory(ServiceHandler *handler, const string& category)
 	m_change = true;
 }
 
-// FIXME_I: fix text messages
+/**
+ * Register a service handler for a given configuration category when a children category is changed
+ *
+ * @param handler	The service handler to call
+ * @param category	The configuration category to register
+ */
 void ConfigHandler::registerCategoryChild(ServiceHandler *handler, const string& category)
 {
 	if (m_registrationsChild.count(category) == 0)
@@ -162,12 +147,12 @@ void ConfigHandler::registerCategoryChild(ServiceHandler *handler, const string&
 		}
 		else
 		{
-			 m_logger->debug("Interest in %s registered", category.c_str());
+			 m_logger->debug("Interest in children categories of %s registered", category.c_str());
 		}
 	}
 	else
 	{
-		m_logger->info("Interest in %s already registered", category.c_str());
+		m_logger->info("Interest in children categories of %s already registered", category.c_str());
 	}
 	std::unique_lock<std::mutex> lck(m_mutex);
 	m_registrationsChild.insert(pair<string, ServiceHandler *>(category, handler));

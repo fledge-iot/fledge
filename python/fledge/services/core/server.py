@@ -1387,16 +1387,6 @@ class Server:
             except:
                 child_subscribe = False
 
-            #// FIXME_I:
-            import logging
-
-
-            #// FIXME_I:
-            _logger.setLevel(logging.DEBUG)
-            _logger.debug("xxx12 register_interest category_name :{}: microservice_uuid :{}:".format(category_name, microservice_uuid) )
-            _logger.setLevel(logging.WARNING)
-
-
             if microservice_uuid is not None:
                 try:
                     assert uuid.UUID(microservice_uuid)

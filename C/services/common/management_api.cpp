@@ -14,11 +14,6 @@
 #include <time.h>
 #include <sstream>
 
-
-//# FIXME_I:
-#include <tmp_log.hpp>
-
-
 using namespace std;
 using namespace rapidjson;
 using HttpServer = SimpleWeb::Server<SimpleWeb::HTTP>;
@@ -52,7 +47,9 @@ void configChangeWrapper(shared_ptr<HttpServer::Response> response, shared_ptr<H
         api->configChange(response, request);
 }
 
-// FIXME_I:
+/**
+ * Wrapper for config change method
+ */
 void configChangeChildWrapper(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
 {
         ManagementApi *api = ManagementApi::getInstance();
@@ -189,7 +186,9 @@ string	category, items, payload;
 	respond(response, responsePayload);
 }
 
-// FIXME_I:
+/**
+ * Received a children config change request, construct a reply and return to caller
+ */
 void ManagementApi::configChangeChild(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
 {
 ostringstream convert;
@@ -198,47 +197,21 @@ string	category, items, payload, parent_category;
 
 	payload = request->content.string();
 
-
-	// FIXME_I:
-	string _section="xxx21 ";
-	Logger::getLogger()->setMinLevel("debug");
-	//Logger::getLogger()->debug("%s / %s - S1 category :%s: config :%s:", _section.c_str(), __FUNCTION__, category.c_str(), config.c_str());
-	Logger::getLogger()->debug("%s / %s - S1  payload:%s: ", _section.c_str(), __FUNCTION__, payload.c_str());
-	Logger::getLogger()->setMinLevel("warning");
-
-
-//# FIXME_I:
-char tmp_buffer[500000];
-snprintf (tmp_buffer,500000, "%s / %s : payload |%s|"
-	,_section.c_str()
-    ,__FUNCTION__
-    ,payload.c_str()
-    );
-tmpLogger (tmp_buffer);
-
-
-
 	ConfigCategoryChange	conf(payload);
 	ConfigHandler	*handler = ConfigHandler::getInstance(NULL);
-	// FIXME_I:
-	//parent_category= "TooHot1";
+
 	parent_category = conf.getmParentName();
 	category = conf.getName();
 	items = conf.itemsToJSON(true);
 
-	//FIXME_I:
-	Logger::getLogger()->setMinLevel("debug");
-	//Logger::getLogger()->debug("%s / %s - S1 category :%s: config :%s:", _section.c_str(), __FUNCTION__, category.c_str(), config.c_str());
-	Logger::getLogger()->debug("%s / %s - S1.1  parent_category:%s: category:%s: items:%s: ", _section.c_str(), __FUNCTION__
+	Logger::getLogger()->debug("%s - parent_category:%s: child_category:%s: items:%s: ", __FUNCTION__
 							   , parent_category.c_str()
 							   , category.c_str()
 							   , items.c_str()
 							   );
-	Logger::getLogger()->setMinLevel("warning");
 
-
-	handler->configChangeChild(parent_category, conf.getName(), conf.itemsToJSON(true));
-	convert << "{ \"message\" ; \"Config child change accepted\" }";
+	handler->configChangeChild(parent_category, category, items);
+	convert << "{ \"message\" ; \"Config child category change accepted\" }";
 	responsePayload = convert.str();
 	respond(response, responsePayload);
 }

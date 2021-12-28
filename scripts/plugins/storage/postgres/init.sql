@@ -876,7 +876,9 @@ INSERT INTO fledge.log_codes ( code, description )
             ( 'NTFSD', 'Notification Server Shutdown' ),
             ( 'PKGIN', 'Package installation' ),
             ( 'PKGUP', 'Package updated' ),
-            ( 'PKGRM', 'Package purged' );
+            ( 'PKGRM', 'Package purged' ),
+            ( 'DSPST', 'Dispatcher Startup' ),
+            ( 'DSPSD', 'Dispatcher Shutdown' );
 
 --
 -- Configuration parameters

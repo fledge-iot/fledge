@@ -8,6 +8,8 @@
  * Author: Mark Riddoch
  */
 #include <base64dpimage.h>
+#include <logger.h>
+#include <string.h>
 
 using namespace std;
 
@@ -29,31 +31,26 @@ Base64DPImage::Base64DPImage(const string& data)
 	{
 		throw runtime_error("Base64DataBuffer string is incorrect length");
 	}
-	size_t maxLen = (in_len -1) / 4 * 3;
-	if (encoded[in_len - 1] == '=')
-		maxLen--;
-	if (encoded[in_len - 2] == '=')
-		maxLen--;
 	if ((m_pixels = malloc(m_byteSize)) == NULL)
 	{
 		throw runtime_error("Base64DataBuffer insufficient memory to store data");
 	}
 	uint8_t *ptr = (uint8_t *)m_pixels;
 
-	for (size_t i = 1, j = 0; i < in_len;)
+	for (size_t i = 0, j = 0; i < in_len;)
 	{
-		uint32_t a = encoded[i] == '=' ? 0 & i++ : decodingTable[static_cast<int>(encoded[i++])];
-		uint32_t b = encoded[i] == '=' ? 0 & i++ : decodingTable[static_cast<int>(encoded[i++])];
-		uint32_t c = encoded[i] == '=' ? 0 & i++ : decodingTable[static_cast<int>(encoded[i++])];
-		uint32_t d = encoded[i] == '=' ? 0 & i++ : decodingTable[static_cast<int>(encoded[i++])];
+		uint32_t a = encoded[i] == '=' ? 0 & i++ : decodingTable[(uint8_t)(encoded[i++])];
+		uint32_t b = encoded[i] == '=' ? 0 & i++ : decodingTable[(uint8_t)(encoded[i++])];
+		uint32_t c = encoded[i] == '=' ? 0 & i++ : decodingTable[(uint8_t)(encoded[i++])];
+		uint32_t d = encoded[i] == '=' ? 0 & i++ : decodingTable[(uint8_t)(encoded[i++])];
 
 		uint32_t triple = (a << 3 * 6) + (b << 2 * 6) + (c << 1 * 6) + (d << 0 * 6);
 
-		if (j < maxLen)
+		if (j < m_byteSize)
 			ptr[j++] = (triple >> 2 * 8) & 0xFF;
-		if (j < maxLen)
+		if (j < m_byteSize)
 			ptr[j++] = (triple >> 1 * 8) & 0xFF;
-		if (j < maxLen)
+		if (j < m_byteSize)
 			ptr[j++] = (triple >> 0 * 8) & 0xFF;
 	}
 }
@@ -67,15 +64,15 @@ string Base64DPImage::encode()
 
 	size_t nBytes = m_byteSize;
 	size_t encoded = 4 * ((nBytes + 2) / 3);
-	char *ret = (char *)malloc(encoded + 1);
-	char *p = ret;
+	uint8_t *ret = (uint8_t *)malloc(encoded + 1);
+	uint8_t *p = ret;
 	uint8_t *data = (uint8_t *)m_pixels;
 	int i;
 	for (i = 0; i < m_byteSize - 2; i += 3)
 	{
 		*p++ = encodingTable[(*data >> 2) & 0x3F];
-		*p++ = encodingTable[((*data & 0x3) << 4) | ((int) (*(data + 1) & 0xF0) >> 4)];
-		*p++ = encodingTable[((*(data + 1) & 0xF) << 2) | ((int) (*(data + 2) & 0xC0) >> 6)];
+		*p++ = encodingTable[((*data & 0x3) << 4) | ((unsigned int) (*(data + 1) & 0xF0) >> 4)];
+		*p++ = encodingTable[((*(data + 1) & 0xF) << 2) | ((unsigned int) (*(data + 2) & 0xC0) >> 6)];
 		*p++ = encodingTable[*(data + 2) & 0x3F];
 		data += 3;
 	}
@@ -89,7 +86,7 @@ string Base64DPImage::encode()
 		}
 		else
 		{
-			*p++ = encodingTable[((*data & 0x3) << 4) | ((int) (*(data + 1) & 0xF0) >> 4)];
+			*p++ = encodingTable[((*data & 0x3) << 4) | ((unsigned int) (*(data + 1) & 0xF0) >> 4)];
 			*p++ = encodingTable[((*(data + 1) & 0xF) << 2)];
 		}
 		*p++ = '=';
@@ -97,7 +94,7 @@ string Base64DPImage::encode()
 	*p = '\0';
 	char buf[80];
 	snprintf(buf, sizeof(buf), "%d,%d,%d_", m_width, m_height, m_depth);
-	string rstr = string(buf) + string(ret);
+	string rstr = string(buf) + string((char *)ret);
 	free(ret);
 	return rstr;
 }

@@ -308,7 +308,7 @@ class TestPurge:
                         with patch.object(audit, 'information', return_value=_rv2):
                             # Test the code block when purge failed because of invalid configuration
                             await p.purge_data(conf)
-                            p._logger.error.assert_called_with('Configuration item {} bla should be integer!'.
+                            p._logger.error.assert_called_with('purge_data - Configuration item {} bla should be integer!'.
                                                                format(expected_error_key))
                 assert patch_storage.called
                 assert 2 == patch_storage.call_count

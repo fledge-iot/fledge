@@ -1223,6 +1223,14 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         Return Values:
         JSON
         """
+        #// FIXME_I:
+        import logging
+
+        #// FIXME_I:
+        _logger.setLevel(logging.DEBUG)
+        _logger.debug("xxx13 delete_category_and_children_recursively - category_name :{}: ".format(category_name) )
+        _logger.setLevel(logging.WARNING)
+
 
         if not isinstance(category_name, str):
             raise TypeError('category_name must be a string')
@@ -1235,17 +1243,15 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         for catg in RESERVED_CATG:
             if catg in catg_descendents:
                 raise ValueError('Reserved category found in descendents of {} - {}'.format(category_name, catg_descendents))
-
-        try:
-            #// FIXME_I:
-            await self._run_callbacks_child("TooHot1", category_name)
-        except:
-            _logger.exception(
-                'Unable to run callbacks for category_name %s', category_name)
-            raise
-
         try:
             result = await self._delete_recursively(category_name)
+
+
+            #// FIXME_I:
+            _logger.setLevel(logging.DEBUG)
+            _logger.debug("xxx13 delete_category_and_children_recursively - result :{}: ".format(result) )
+            _logger.setLevel(logging.WARNING)
+
         except ValueError as ex:
             raise ValueError(ex)
         else:

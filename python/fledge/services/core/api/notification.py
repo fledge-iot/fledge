@@ -737,11 +737,11 @@ async def delete_delivery_channel(request: web.Request) -> web.Response:
 
         #// FIXME_I:
         notification = ""
-        #notification = json.loads(await _hit_delete_url(url))
+        notification = json.loads(await _hit_delete_url(url))
 
         #// FIXME_I:
         _logger.setLevel(logging.DEBUG)
-        _logger.debug("xxx8 delete_delivery_channel url :{}: notification :{}:-".format(url, notification) )
+        _logger.debug("xxx10 delete_delivery_channel url :{}: notification :{}:-".format(url, notification) )
         _logger.setLevel(logging.WARNING)
 
         category_name = "{}_channel_{}".format(notification_instance_name, channel_name)
@@ -749,7 +749,7 @@ async def delete_delivery_channel(request: web.Request) -> web.Response:
 
         #// FIXME_I:
         _logger.setLevel(logging.DEBUG)
-        _logger.debug("xxx8 delete_delivery_channel category_name :{}: notification_config :{}:-"
+        _logger.debug("xxx11 delete_delivery_channel category_name :{}: notification_config :{}:-"
                       .format(category_name, notification_config) )
         _logger.setLevel(logging.WARNING)
 
@@ -760,11 +760,17 @@ async def delete_delivery_channel(request: web.Request) -> web.Response:
 
             #// FIXME_I:
             _logger.setLevel(logging.DEBUG)
-            _logger.debug("xxx8 delete_delivery_channel _get_channels :{}: ".format(_get_channels) )
+            _logger.debug("xxx12 delete_delivery_channel channel_name :{}:  channels :{}: ".format(channel_name, channels) )
             _logger.setLevel(logging.WARNING)
 
             if channel_name in channels:
-                #await config_mgr.delete_category_and_children_recursively(category_name)
+
+                #// FIXME_I:
+                _logger.setLevel(logging.DEBUG)
+                _logger.debug("xxx12 IN ")
+                _logger.setLevel(logging.WARNING)
+
+                await config_mgr.delete_category_and_children_recursively(category_name)
                 # Get channels list again as relation gets deleted above
                 channels = await _get_channels(config_mgr, notification_instance_name)
             else:
@@ -773,7 +779,7 @@ async def delete_delivery_channel(request: web.Request) -> web.Response:
 
             #// FIXME_I:
             _logger.setLevel(logging.DEBUG)
-            _logger.debug("xxx8 delete_delivery_channel _get_channels :{}: ".format(_get_channels) )
+            _logger.debug("xxx12 delete_delivery_channel channel_name :{}:  channels :{}: ".format(channel_name, channels) )
             _logger.setLevel(logging.WARNING)
 
         else:

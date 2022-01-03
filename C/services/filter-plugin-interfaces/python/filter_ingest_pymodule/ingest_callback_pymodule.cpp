@@ -129,6 +129,7 @@ void filter_plugin_ingest_fn(PyObject *ingest_callback,
     PyObject* objectsRepresentation = PyObject_Repr(readingsObj);
     const char* s = PyUnicode_AsUTF8(objectsRepresentation);
     Logger::getLogger()->info("filter_plugin_ingest_fn:L%d : readingsObj=%s", __LINE__, s);
+    Py_CLEAR(objectsRepresentation);
 
 	// std::vector<Reading *> *vec = NULL;
 	PythonReadingSet *pyReadingSet = NULL;

@@ -281,6 +281,7 @@ ReadingSet* plugin_poll_fn(PLUGIN_HANDLE handle)
 		PyObject* objectsRepresentation = PyObject_Repr(pReturn);
         const char* s = PyUnicode_AsUTF8(objectsRepresentation);
         Logger::getLogger()->info("plugin_poll_fn:L%d : pReturn=%s", __LINE__, s);
+        Py_CLEAR(objectsRepresentation);
         
 		// vector<Reading *> *vec = Py2C_getReadings(pReturn);
         PythonReadingSet *pyReadingSet = new PythonReadingSet(pReturn);

@@ -62,6 +62,7 @@ PythonReading::PythonReading(PyObject *pyReading)
     PyObject* objectsRepresentation = PyObject_Repr(pyReading);
     const char* s = PyUnicode_AsUTF8(objectsRepresentation);
     //Logger::getLogger()->info("PythonReading c'tor: pyReading=%s", s);
+    Py_CLEAR(objectsRepresentation);
     
 	// Get 'asset_code' value: borrowed reference.
 	PyObject *assetCode = PyDict_GetItemString(pyReading,

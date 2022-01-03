@@ -201,7 +201,7 @@ void doIngestV2(Ingest *ingest, ReadingSet *set)
     {
         for (auto & r : *vec)
         {
-            Reading *r2 = new Reading(*r); // Need to copy reading objects here, since "del set" below would remove encapsulated reading objects
+            Reading *r2 = new Reading(*r); // Need to copy reading objects here, since "del set" below would remove encapsulated reading objects also
             vec2->emplace_back(r2);
         }
     }

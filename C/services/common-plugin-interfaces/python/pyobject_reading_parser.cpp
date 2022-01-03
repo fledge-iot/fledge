@@ -256,6 +256,7 @@ PyObject* createReadingsList(const std::vector<Reading *>& readings, bool change
     PyObject* objectsRepresentation = PyObject_Repr(readingsList);
     const char* s = PyUnicode_AsUTF8(objectsRepresentation);
     Logger::getLogger()->info("C2Py: createReadingsList():L%d: readingsList=%s", __LINE__, s);
+    Py_CLEAR(objectsRepresentation);
 	// Return pointer of new allocated list
 	return readingsList;
 }

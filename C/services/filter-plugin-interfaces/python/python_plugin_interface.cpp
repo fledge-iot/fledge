@@ -257,6 +257,7 @@ void filter_plugin_ingest_fn(PLUGIN_HANDLE handle, READINGSET *data)
     PyObject* objectsRepresentation = PyObject_Repr(readingsList);
     const char* s = PyUnicode_AsUTF8(objectsRepresentation);
     Logger::getLogger()->info("C2Py: filter_plugin_ingest_fn():L%d: readingsList=%s", __LINE__, s);
+    Py_CLEAR(objectsRepresentation);
     
 	/* PyObject* readingsList = 
 		createReadingsList(((ReadingSet *)data)->getAllReadings()); */

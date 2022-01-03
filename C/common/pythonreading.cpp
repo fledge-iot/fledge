@@ -61,7 +61,7 @@ PythonReading::PythonReading(PyObject *pyReading)
 {
     PyObject* objectsRepresentation = PyObject_Repr(pyReading);
     const char* s = PyUnicode_AsUTF8(objectsRepresentation);
-    //Logger::getLogger()->info("PythonReading c'tor: pyReading=%s", s);
+    // Logger::getLogger()->info("PythonReading c'tor: pyReading=%s", s);
     Py_CLEAR(objectsRepresentation);
     
 	// Get 'asset_code' value: borrowed reference.
@@ -130,6 +130,8 @@ PythonReading::PythonReading(PyObject *pyReading)
 
 	// Get 'ts' value: borrowed reference.
 	PyObject *ts = PyDict_GetItemString(pyReading, "timestamp");
+    if (!(ts && PyUnicode_Check(ts)))
+        ts = PyDict_GetItemString(pyReading, "ts");
 	if (ts && PyUnicode_Check(ts))
 	{
 		// Set timestamp

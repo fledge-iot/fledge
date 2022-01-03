@@ -66,7 +66,7 @@ void setReadingAttr(Reading* newReading, PyObject *readingList, bool fillIfMissi
 	}
 
     // if User TS is still not filled, copy TS into it
-    fill = (!fillIfMissing || (fillIfMissing && newReading->getUserTimestamp()==0));
+    fill = (fillIfMissing && newReading->getUserTimestamp()==0);
     //Logger::getLogger()->debug("fill=%s, newReading->getUserTimestamp()=%d, newReading->getTimestamp()=%d", fill?"True":"False", newReading->getUserTimestamp(), newReading->getTimestamp());
     if (fill)
     {
@@ -75,7 +75,7 @@ void setReadingAttr(Reading* newReading, PyObject *readingList, bool fillIfMissi
     }
 
     // if TS is still not filled, copy User TS into it
-    fill = (!fillIfMissing || (fillIfMissing && newReading->getTimestamp()==0));
+    fill = (fillIfMissing && newReading->getTimestamp()==0);
     //Logger::getLogger()->debug("fill=%s, newReading->getUserTimestamp()=%d, newReading->getTimestamp()=%d", fill?"True":"False", newReading->getUserTimestamp(), newReading->getTimestamp());
     if (fill)
     {
@@ -103,7 +103,7 @@ PythonReadingSet::PythonReadingSet(PyObject *set)
             setReadingAttr(reading, set, true);
 			m_readings.push_back(reading);
 			m_last_id = reading->getId();
-            Logger::getLogger()->info("PythonReadingSet c'tor: DICT: reading->toJSON()=%s", reading->toJSON().c_str());
+            Logger::getLogger()->info("PythonReadingSet c'tor: LIST: reading->toJSON()=%s", reading->toJSON().c_str());
 		}
 	}
     else if (PyDict_Check(set))

@@ -736,29 +736,48 @@ async def delete_delivery_channel(request: web.Request) -> web.Response:
         url = 'http://{}:{}/notification/{}/delivery/{}'.format(_address, _port, urllib.parse.quote(notification_instance_name),channel_name)
 
         #// FIXME_I:
-        notification = json.loads(await _hit_delete_url(url))
+        notification = ""
+        #notification = json.loads(await _hit_delete_url(url))
 
         #// FIXME_I:
         _logger.setLevel(logging.DEBUG)
-        _logger.debug("xxx8 delete_delivery_channel url :{}: -".format(url) )
+        _logger.debug("xxx8 delete_delivery_channel url :{}: notification :{}:-".format(url, notification) )
         _logger.setLevel(logging.WARNING)
 
         category_name = "{}_channel_{}".format(notification_instance_name, channel_name)
         notification_config = await config_mgr._read_category_val(notification_instance_name)
 
         #// FIXME_I:
+        _logger.setLevel(logging.DEBUG)
+        _logger.debug("xxx8 delete_delivery_channel category_name :{}: notification_config :{}:-"
+                      .format(category_name, notification_config) )
+        _logger.setLevel(logging.WARNING)
+
+        #// FIXME_I:
         channels = "writing..."
-        # if notification_config:
-        #     channels = await _get_channels(config_mgr, notification_instance_name)
-        #
-        #     if channel_name in channels:
-        #         await config_mgr.delete_category_and_children_recursively(category_name)
-        #         # Get channels list again as relation gets deleted above
-        #         channels = await _get_channels(config_mgr, notification_instance_name)
-        #     else:
-        #         raise NotFoundError("{} channel does not exist".format(channel_name))
-        # else:
-        #     raise NotFoundError("{} notification instance does not exist".format(notification_instance_name))
+        if notification_config:
+            channels = await _get_channels(config_mgr, notification_instance_name)
+
+            #// FIXME_I:
+            _logger.setLevel(logging.DEBUG)
+            _logger.debug("xxx8 delete_delivery_channel _get_channels :{}: ".format(_get_channels) )
+            _logger.setLevel(logging.WARNING)
+
+            if channel_name in channels:
+                #await config_mgr.delete_category_and_children_recursively(category_name)
+                # Get channels list again as relation gets deleted above
+                channels = await _get_channels(config_mgr, notification_instance_name)
+            else:
+                raise NotFoundError("{} channel does not exist".format(channel_name))
+
+
+            #// FIXME_I:
+            _logger.setLevel(logging.DEBUG)
+            _logger.debug("xxx8 delete_delivery_channel _get_channels :{}: ".format(_get_channels) )
+            _logger.setLevel(logging.WARNING)
+
+        else:
+            raise NotFoundError("{} notification instance does not exist".format(notification_instance_name))
 
     except NotFoundError as err:
         msg = str(err)

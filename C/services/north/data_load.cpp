@@ -472,6 +472,7 @@ void DataLoad::passToOnwardFilter(OUTPUT_HANDLE *outHandle,
 {
 	// Get next filter in the pipeline
 	FilterPlugin *next = (FilterPlugin *)outHandle;
+    Logger::getLogger()->info("DataLoad::passToOnwardFilter(): readingSet->getCount()=%d", readingSet->getCount()); 
 	// Pass readings to next filter
 	next->ingest(readingSet);
 }
@@ -502,6 +503,7 @@ void DataLoad::pipelineEnd(OUTPUT_HANDLE *outHandle,
 {
 
 	DataLoad *load = (DataLoad *)outHandle;
+    Logger::getLogger()->info("DataLoad::pipelineEnd(): readingSet->getCount()=%d", readingSet->getCount()); 
 	if (readingSet->getCount() == 0)	// Special case when all filtered out
 	{
 		load->updateLastSentId(load->m_lastFetched);

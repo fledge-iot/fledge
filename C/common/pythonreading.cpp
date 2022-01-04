@@ -251,8 +251,7 @@ DatapointValue *PythonReading::getDatapointValue(PyObject *value)
 					double d = PyFloat_AS_DOUBLE(PyList_GetItem(pyRow, j));
 					row.push_back(d);
 				}
-				values.push_back(row);
-
+				values.push_back(row);  // TODO: 'row' goes out of scope just after the loop ends on the line below, hence DatapointValue c'tor call below may access out of scope 'row' values
 			}
 			dataPoint = new DatapointValue(values);
 		}

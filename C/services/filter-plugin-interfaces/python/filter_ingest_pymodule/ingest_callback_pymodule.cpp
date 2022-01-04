@@ -143,7 +143,7 @@ void filter_plugin_ingest_fn(PyObject *ingest_callback,
 		// Get vector of Readings from Python object
 		// vec =  Py2C_getReadings(readingsObj);
         pyReadingSet = new PythonReadingSet(readingsObj);
-        Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
+        Logger::getLogger()->info("%s:%d, pyReadingSet=%p, pyReadingSet readings count=%d", __FUNCTION__, __LINE__, pyReadingSet, pyReadingSet?pyReadingSet->getCount():0);
 	}
 	else
 	{

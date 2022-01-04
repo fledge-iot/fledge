@@ -11,6 +11,7 @@
 #include <logger.h>
 #include <config_category.h>
 #include <reading.h>
+#include <pythonreadingset.h>
 #include <mutex>
 #include <north_plugin.h>
 #include <pyruntime.h>
@@ -34,11 +35,11 @@ extern PLUGIN_INFORMATION *Py2C_PluginInfo(PyObject *);
 void plugin_start_fn(PLUGIN_HANDLE handle);
 uint32_t plugin_send_fn(PLUGIN_HANDLE handle, const std::vector<Reading *>& readings);
 
-Reading* Py2C_parseReadingObject(PyObject *);
+// Reading* Py2C_parseReadingObject(PyObject *);
 //vector<Reading *>* Py2C_getReadings(PyObject *);
-DatapointValue* Py2C_createDictDPV(PyObject *data);
-DatapointValue* Py2C_createListDPV(PyObject *data);
-DatapointValue *Py2C_createBasicDPV(PyObject *dValue);
+// DatapointValue* Py2C_createDictDPV(PyObject *data);
+// DatapointValue* Py2C_createListDPV(PyObject *data);
+// DatapointValue *Py2C_createBasicDPV(PyObject *dValue);
 
 /**
  * Constructor for PythonPluginHandle
@@ -353,9 +354,21 @@ uint32_t plugin_send_fn(PLUGIN_HANDLE handle, const std::vector<Reading *>& read
 		return data;
 	}
 
+    // Create a dict of readings
+	// - 1 - Create Python list of dicts as input to the filter
+	ReadingSet *set = new ReadingSet(&readings);
+	PythonReadingSet *pyReadingSet = (PythonReadingSet *) set;
+    Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
+    PyObject* readingsList = pyReadingSet->toPython();
+    Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
+    PyObject* objectsRepresentation = PyObject_Repr(readingsList);
+    const char* s = PyUnicode_AsUTF8(objectsRepresentation);
+    Logger::getLogger()->info("C2Py: plugin_send_fn():L%d: readingsList=%s", __LINE__, s);
+    Py_CLEAR(objectsRepresentation);
+    
 	// Create the object with readings content (with "asset_code" and "reading" keys)
-	PyObject *readingsList = createReadingsList(readings, true);
-
+	// PyObject *readingsList = createReadingsList(readings, true);
+    
 	// Fetch result
 	PyObject* pReturn = PyObject_CallFunction(pFunc,
 						  "OO",

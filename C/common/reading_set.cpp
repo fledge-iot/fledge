@@ -49,7 +49,7 @@ ReadingSet::ReadingSet() : m_count(0), m_last_id(0)
  *			of readings to be copied
  *			into m_readings vector
  */
-ReadingSet::ReadingSet(vector<Reading *>* readings) : m_last_id(0)
+ReadingSet::ReadingSet(const vector<Reading *>* readings) : m_last_id(0)
 {
 	m_count = readings->size();
 	for (auto it = readings->begin(); it != readings->end(); ++it)

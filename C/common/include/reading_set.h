@@ -27,7 +27,7 @@ class ReadingSet {
 	public:
 		ReadingSet();
 		ReadingSet(const std::string& json);
-		ReadingSet(std::vector<Reading *>* readings);
+		ReadingSet(const std::vector<Reading *>* readings);
 		~ReadingSet();
 
 		unsigned long			getCount() const { return m_count; };

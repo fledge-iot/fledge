@@ -102,6 +102,7 @@ PythonReadingSet::PythonReadingSet(PyObject *set)
 			PythonReading *reading = new PythonReading(pyReading);
             setReadingAttr(reading, set, true);
 			m_readings.push_back(reading);
+            m_count++;
 			m_last_id = reading->getId();
             Logger::getLogger()->info("PythonReadingSet c'tor: LIST: reading->toJSON()=%s", reading->toJSON().c_str());
 		}

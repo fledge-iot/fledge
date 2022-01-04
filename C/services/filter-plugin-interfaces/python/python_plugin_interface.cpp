@@ -173,7 +173,7 @@ static void filter_plugin_reconfigure_fn(PLUGIN_HANDLE handle,
  */
 void filter_plugin_ingest_fn(PLUGIN_HANDLE handle, READINGSET *data)
 {
-        if (!handle)
+    if (!handle)
 	{
 		Logger::getLogger()->fatal("plugin_handle: filter_plugin_ingest_fn(): "
 					   "handle is NULL");
@@ -260,7 +260,8 @@ void filter_plugin_ingest_fn(PLUGIN_HANDLE handle, READINGSET *data)
     Py_CLEAR(objectsRepresentation);
     
 	/* PyObject* readingsList = 
-		createReadingsList(((ReadingSet *)data)->getAllReadings()); */
+		createReadingsList(((ReadingSet *)data)->getAllReadings()); 
+	*/
 
 	PyObject* pReturn = PyObject_CallFunction(pFunc,
 						  "OO",

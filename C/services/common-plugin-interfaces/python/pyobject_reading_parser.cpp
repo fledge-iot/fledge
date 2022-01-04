@@ -19,8 +19,9 @@
 
 extern "C" {
 
-static void logErrorMessage();
+// static void logErrorMessage();
 
+#if 0
 /**
  * Creating Reading object from Python object
  *
@@ -52,8 +53,9 @@ Reading* Py2C_parseReadingObject(PyObject *element)
 	
 	return new PythonReading(element);
 }
+#endif
 
-
+#if 0
 /**
  * Set id, uuid, ts and user_ts in the reading object
  *
@@ -114,7 +116,7 @@ void setReadingAttr(Reading* newReading, PyObject *readingList, bool fillIfMissi
         //Logger::getLogger()->debug("Copied TS into user TS: newReading->getUserTimestamp()=%d", newReading->getUserTimestamp());
     }
 }
-
+#endif
 
 #if 0
 /**
@@ -193,6 +195,7 @@ std::vector<Reading *>* Py2C_getReadings(PyObject *polledData)
 }
 #endif
 
+#if 0
 /**
  * Function to log error message encountered while interfacing with
  * Python runtime
@@ -225,7 +228,9 @@ static void logErrorMessage()
 	Py_CLEAR(pValue);
 	Py_CLEAR(pTraceback);
 }
+#endif
 
+#if 0
 /**
  * Create a list of dict Python object (PyList) from
  * a vector of Reading pointers
@@ -260,4 +265,7 @@ PyObject* createReadingsList(const std::vector<Reading *>& readings, bool change
 	// Return pointer of new allocated list
 	return readingsList;
 }
+#endif
+
 }; // End of extern C
+

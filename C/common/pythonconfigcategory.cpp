@@ -33,8 +33,7 @@ PythonConfigCategory::PythonConfigCategory(PyObject *config)
 	PyObject *dKey, *dValue;
 	Py_ssize_t dPos = 0;
 
-	// Fetch all Datapoint:w
-	// s in 'reading' dict
+	// Fetch all Datapoints in 'reading' dict
 	// dKey and dValue are borrowed references
 	while (PyDict_Next(config, &dPos, &dKey, &dValue))
 	{

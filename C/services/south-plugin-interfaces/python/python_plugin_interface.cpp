@@ -36,11 +36,11 @@ ReadingSet* plugin_poll_fn(PLUGIN_HANDLE);
 void plugin_start_fn(PLUGIN_HANDLE handle);
 void plugin_register_ingest_fn(PLUGIN_HANDLE handle,INGEST_CB2 cb,void * data);
 
-Reading* Py2C_parseReadingObject(PyObject *);
-//vector<Reading *>* Py2C_getReadings(PyObject *);
-DatapointValue* Py2C_createDictDPV(PyObject *data);
-DatapointValue* Py2C_createListDPV(PyObject *data);
-DatapointValue *Py2C_createBasicDPV(PyObject *dValue);
+// Reading* Py2C_parseReadingObject(PyObject *);
+// vector<Reading *>* Py2C_getReadings(PyObject *);
+// DatapointValue* Py2C_createDictDPV(PyObject *data);
+// DatapointValue* Py2C_createListDPV(PyObject *data);
+// DatapointValue *Py2C_createBasicDPV(PyObject *dValue);
 
 /**
  * Constructor for PythonPluginHandle

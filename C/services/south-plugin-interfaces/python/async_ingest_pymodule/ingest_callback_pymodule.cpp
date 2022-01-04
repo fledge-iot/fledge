@@ -17,8 +17,8 @@
 extern "C" {
 
 typedef void (*INGEST_CB2)(void *, PythonReadingSet *);
-//std::vector<Reading *>* Py2C_getReadings(PyObject *polledData);
-Reading* Py2C_parseReadingObject(PyObject *element);
+// std::vector<Reading *>* Py2C_getReadings(PyObject *polledData);
+// Reading* Py2C_parseReadingObject(PyObject *element);
 
 void plugin_ingest_fn(PyObject *ingest_callback, PyObject *ingest_obj_ref_data, PyObject *readingsObj);
 

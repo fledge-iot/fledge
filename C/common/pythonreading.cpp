@@ -175,6 +175,8 @@ PythonReading::PythonReading(PyObject *pyReading)
  */
 DatapointValue *PythonReading::getDatapointValue(PyObject *value)
 {
+    InitNumPy();
+    
 	DatapointValue *dataPoint = NULL;
 	if (PyLong_Check(value))	// Integer	T_INTEGER
 	{
@@ -310,7 +312,7 @@ DatapointValue *PythonReading::getDatapointValue(PyObject *value)
 	}
 	else
 	{
-        //Logger::getLogger()->info("PythonReading::getDatapointValue: UNSUPPORTED");
+        Logger::getLogger()->info("PythonReading::getDatapointValue: UNSUPPORTED");
 		PyTypeObject *type = value->ob_type;
 		Logger::getLogger()->error("Encountered an unsupported type '%s' when create a reading from Python", type->tp_name);
 	}
@@ -634,7 +636,7 @@ bool PythonReading::isArray(PyObject *obj)
 }
 
 /**
- * Impoirt NumPy. Due to the way numpy uses global variables we must only do
+ * Import NumPy. Due to the way numpy uses global variables we must only do
  * this once in a single exeutable as multiple imports result in crashes.
  */
 int PythonReading::InitNumPy()

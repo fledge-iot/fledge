@@ -1,0 +1,27 @@
+# A set of variables that define how we package this repository
+#
+plugin_name=testcard
+plugin_type=south
+plugin_install_dirname=testcard
+additional_libs=
+
+# Now build up the runtime requirements list. This has 3 components
+#   1. Generic packages we depend on in all architectures and package managers
+#   2. Architecture specific packages we depend on
+#   3. Package manager specific packages we depend on
+requirements="foglamp"
+
+case "$arch" in
+	x86_64)
+		;;
+	armv7l)
+		;;
+	aarch64)
+		;;
+esac
+case "$package_manager" in
+	deb)
+		;;
+	rpm)
+		;;
+esac

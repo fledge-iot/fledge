@@ -48,12 +48,12 @@ void configChangeWrapper(shared_ptr<HttpServer::Response> response, shared_ptr<H
 }
 
 /**
- * Wrapper for config change method
+ * Wrapper for config child  create method
  */
-void configChangeChildWrapper(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
+void configChildCreateWrapper(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
 {
         ManagementApi *api = ManagementApi::getInstance();
-        api->configChangeChild(response, request);
+        api->configChildCreate(response, request);
 }
 
 /**
@@ -69,7 +69,7 @@ ManagementApi::ManagementApi(const string& name, const unsigned short port) : m_
 	m_server->resource[PING]["GET"] = pingWrapper;
 	m_server->resource[SERVICE_SHUTDOWN]["POST"] = shutdownWrapper;
 	m_server->resource[CONFIG_CHANGE]["POST"] = configChangeWrapper;
-	m_server->resource[CONFIG_CHANGE_CHILD]["POST"] = configChangeChildWrapper;
+	m_server->resource[CONFIG_CHILD_CREATE]["POST"] = configChildCreateWrapper;
 
 	m_instance = this;
 
@@ -187,13 +187,21 @@ string	category, items, payload;
 }
 
 /**
- * Received a children config change request, construct a reply and return to caller
+ * Received a children creation request, construct a reply and return to caller
  */
-void ManagementApi::configChangeChild(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
+void ManagementApi::configChildCreate(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
 {
 ostringstream convert;
 string responsePayload;
 string	category, items, payload, parent_category;
+
+
+	// FIXME_I:
+	string _section="xxx6 ";
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("%s / %s - ManagementApi::configChildCreate ::", _section.c_str(), __FUNCTION__);
+	Logger::getLogger()->setMinLevel("warning");
+
 
 	payload = request->content.string();
 
@@ -210,7 +218,7 @@ string	category, items, payload, parent_category;
 							   , items.c_str()
 							   );
 
-	handler->configChangeChild(parent_category, category, items);
+	handler->configChildCreate(parent_category, category, items);
 	convert << "{ \"message\" ; \"Config child category change accepted\" }";
 	responsePayload = convert.str();
 	respond(response, responsePayload);

@@ -183,7 +183,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     raise AttributeError('Callback module {} run method must be a coroutine function'.format(callback))
                 await cb.run(category_name)
 
-    async def _run_callbacks_child(self, parent_category_name, child_category):
+    async def _run_callbacks_child(self, parent_category_name, child_category, operation):
 
         callbacks = self._registered_interests_child.get(parent_category_name)
 
@@ -204,7 +204,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     _logger.exception(
                         'Callback module %s run_child method must be a coroutine function', callback)
                     raise AttributeError('Callback module {} run_child method must be a coroutine function'.format(callback))
-                await cb.run_child(parent_category_name, child_category)
+                await cb.run_child(parent_category_name, child_category, operation)
 
     async def _merge_category_vals(self, category_val_new, category_val_storage, keep_original_items, category_name=None):
         # preserve all value_vals from category_val_storage
@@ -1121,10 +1121,10 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
             #// FIXME_I:
             try:
-                    await self._run_callbacks_child(category_name, children)
+                    await self._run_callbacks_child(category_name, children, "c")
             except:
                 _logger.exception(
-                    'Unable to run callbacks for category_name %s', category_name)
+                    'Unable to run callbacks for parent category_name %s', category_name)
                 raise
 
             return {"children": children_from_storage}
@@ -1178,10 +1178,10 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
         #// FIXME_I:
         try:
-            await self._run_callbacks_child(category_name, child_category)
+            await self._run_callbacks_child(category_name, child_category, "d")
         except:
             _logger.exception(
-                'Unable to run callbacks for category_name %s', category_name)
+                'Unable to run callbacks for parent category_name %s', category_name)
             raise
 
         return _children

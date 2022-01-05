@@ -64,9 +64,20 @@ ConfigHandler::configChange(const string& category, const string& config)
 	}
 }
 
-void ConfigHandler::configChangeChild(const std::string& parent_category, const string& child_category, const string& config)
+// FIXME_I:
+void ConfigHandler::configChildCreate(const std::string& parent_category, const string& child_category, const string& config)
 {
 	std::unique_lock<std::mutex> lck(m_mutex);
+
+
+
+	// FIXME_I:
+	string _section="xxx6 ";
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("%s / %s - ConfigHandler configChildCreate ::", _section.c_str(), __FUNCTION__);
+	Logger::getLogger()->setMinLevel("warning");
+
+
 
 	m_logger->info("Configuration change notification for child category %s", child_category.c_str());
 
@@ -78,7 +89,7 @@ void ConfigHandler::configChangeChild(const std::string& parent_category, const 
 		// we therefore need to guard against the map changing
 		m_change = false;
 		lck.unlock();
-		it->second->configChangeChild(parent_category, child_category, config);
+		it->second->configChildCreate(parent_category, child_category, config);
 		lck.lock();
 		if (m_change) // Something changed
 		{

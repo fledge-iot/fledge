@@ -182,7 +182,15 @@ bool ManagementClient::unregisterService()
 }
 
 /**
- * Get the specified service
+ * Get the specified service. Supplied with a service
+ * record that must either have the name or the type fields populated.
+ * The call will populate the other fields of the service record.
+ *
+ * Note, if multiple service records match then only the first will be
+ * returned.
+ *
+ * @param service	A partially filled service record that will be completed
+ * @return bool		Return true if the service record was found
  */
 bool ManagementClient::getService(ServiceRecord& service)
 {
@@ -227,6 +235,58 @@ string payload;
 		}
 	} catch (const SimpleWeb::system_error &e) {
 		m_logger->error("Get service failed %s.", e.what());
+		return false;
+	}
+	return false;
+}
+
+/**
+ * Return all services registered with the Fledge core
+ *
+ * @param services	A vector of service records that will be populated
+ * @return bool		True if the vecgtor was populated
+ */
+bool ManagementClient::getServices(vector<ServiceRecord *>& services)
+{
+string payload;
+
+	try {
+		string url = "/fledge/service";
+		auto res = this->getHttpClient()->request("GET", url.c_str());
+		Document doc;
+		string response = res->content.string();
+		doc.Parse(response.c_str());
+		if (doc.HasParseError())
+		{
+			bool httpError = (isdigit(response[0]) && isdigit(response[1]) && isdigit(response[2]) && response[3]==':');
+			m_logger->error("%s fetching service record: %s\n", 
+								httpError?"HTTP error while":"Failed to parse result of", 
+								response.c_str());
+			return false;
+		}
+		else if (doc.HasMember("message"))
+		{
+			m_logger->error("Failed to register service: %s.",
+				doc["message"].GetString());
+			return false;
+		}
+		else
+		{
+			Value& records = doc["services"];
+			for (auto& serviceRecord : records.GetArray())
+			{
+				ServiceRecord *service = new ServiceRecord(serviceRecord["name"].GetString(),
+						serviceRecord["type"].GetString());
+				service->setAddress(serviceRecord["address"].GetString());
+				service->setPort(serviceRecord["service_port"].GetInt());
+				service->setProtocol(serviceRecord["protocol"].GetString());
+				service->setManagementPort(serviceRecord["management_port"].GetInt());
+				services.push_back(service);
+			}
+			return true;
+		}
+	} catch (const SimpleWeb::system_error &e) {
+		m_logger->error("Get services failed %s.", e.what());
 		return false;
 	}
 	return false;

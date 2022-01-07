@@ -1,7 +1,7 @@
 /*
- * FogLAMP south plugin.
+ * Fledge south plugin.
  *
- * Copyright (c) 2021 Dianomic Systems
+ * Copyright (c) 2022 Dianomic Systems
  *
  * Released under the Apache 2.0 Licence
  *
@@ -21,7 +21,7 @@
 
 typedef void (*INGEST_CB)(void *, Reading);
 
-#define PLUGIN_NAME "Testcard"
+#define PLUGIN_NAME "testcard"
 
 using namespace std;
 
@@ -30,7 +30,7 @@ using namespace std;
  */
 static const char *default_config = QUOTE({
 	"plugin" : { 
-		"description" :  "Plugin for  iage testcard production",
+		"description" :  "Plugin for image testcard production",
 		"type" : "string",
 		"default" : PLUGIN_NAME, 
 		"readonly" : "true"

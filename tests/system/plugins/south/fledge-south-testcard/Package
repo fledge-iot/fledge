@@ -9,7 +9,7 @@ additional_libs=
 #   1. Generic packages we depend on in all architectures and package managers
 #   2. Architecture specific packages we depend on
 #   3. Package manager specific packages we depend on
-requirements="foglamp"
+requirements="fledge"
 
 case "$arch" in
 	x86_64)

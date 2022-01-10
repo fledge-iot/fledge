@@ -282,11 +282,12 @@ ReadingSet* plugin_poll_fn(PLUGIN_HANDLE handle)
         const char* s = PyUnicode_AsUTF8(objectsRepresentation);
         Logger::getLogger()->info("plugin_poll_fn:L%d : pReturn=%s", __LINE__, s);
         Py_CLEAR(objectsRepresentation);
-        
-		// vector<Reading *> *vec = Py2C_getReadings(pReturn);
-        PythonReadingSet *pyReadingSet = new PythonReadingSet(pReturn);
-        /* std::vector<Reading *>* vec = new std::vector<Reading *>(); 
-        std::vector<Reading *> *vec = pyReadingSet->getAllReadings(); */
+
+        PythonReadingSet *pyReadingSet = NULL;
+
+        // Valid ReadingSet would be of the form of python dict or list
+        if (PyList_Check(pReturn) || PyDict_Check(pReturn))
+            pyReadingSet = new PythonReadingSet(pReturn);
 		
 		// Remove pReturn object
 		Py_CLEAR(pReturn);

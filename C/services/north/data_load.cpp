@@ -171,13 +171,14 @@ ReadingSet *readings = NULL;
 		}
 		if (readings && readings->getCount())
 		{
+            Logger::getLogger()->debug("DataLoad::readBlock(): Got %d readings from storage client", readings->getCount());
 			m_lastFetched = readings->getLastId();
 			bufferReadings(readings);
 			return;
 		}
 		else
 		{
-			Logger::getLogger()->debug("No readings available");
+			Logger::getLogger()->debug("DataLoad::readBlock(): No readings available");
 		}
 		if (!m_shutdown)
 		{	

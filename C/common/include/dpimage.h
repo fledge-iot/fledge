@@ -14,7 +14,7 @@
  * Simple Image class that will be used within data points to store image data.
  *
  * This class merely acts to encapsulate the data of a simple image in memory, 
- * compelx functionality will be supported elsewhere. Images within the class
+ * complex functionality will be supported elsewhere. Images within the class
  * are stored as a simple, single area of memory the size of which is defined
  * by the width, hieght and depth of the image.
  */

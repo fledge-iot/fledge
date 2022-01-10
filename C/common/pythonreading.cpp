@@ -346,7 +346,7 @@ PyObject *PythonReading::toPython(bool changeKeys)
 		}
 		else
 		{
-			Logger::getLogger()->info("Unable to covnert datapoint '%s' of reading '%s' tp Python",
+			Logger::getLogger()->info("Unable to convert datapoint '%s' of reading '%s' tp Python",
 					(*it)->getName().c_str(), m_asset.c_str());
 		}
 	}

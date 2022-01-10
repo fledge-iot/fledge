@@ -477,27 +477,30 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 					else // V2 poll method
 					{
 						ReadingSet *set = southPlugin->pollV2();
-                        std::vector<Reading *> *vec = set->getAllReadingsPtr();
-                        std::vector<Reading *> *vec2 = new std::vector<Reading *>;
-                        if (!vec)
+                        if (set)
                         {
-                            Logger::getLogger()->info("%s:%d: V2 poll method: vec is NULL", __FUNCTION__, __LINE__);
-                            continue;
-                        }
-                        else
-                        {
-                            for (auto & r : *vec)
+                            std::vector<Reading *> *vec = set->getAllReadingsPtr();
+                            std::vector<Reading *> *vec2 = new std::vector<Reading *>;
+                            if (!vec)
                             {
-                                Reading *r2 = new Reading(*r); // Need to copy reading objects here, since "del set" below would remove encapsulated reading objects
-                                vec2->emplace_back(r2);
+                                Logger::getLogger()->info("%s:%d: V2 poll method: vec is NULL", __FUNCTION__, __LINE__);
+                                continue;
                             }
-                        }
-                        //Logger::getLogger()->info("%s:%d: V2 poll method returned: vec->size()=%d", __FUNCTION__, __LINE__, vec->size());
+                            else
+                            {
+                                for (auto & r : *vec)
+                                {
+                                    Reading *r2 = new Reading(*r); // Need to copy reading objects here, since "del set" below would remove encapsulated reading objects
+                                    vec2->emplace_back(r2);
+                                }
+                            }
+                            //Logger::getLogger()->info("%s:%d: V2 poll method returned: vec->size()=%d", __FUNCTION__, __LINE__, vec->size());
 
-						ingest.ingest(vec2);
-						pollCount += (int) vec2->size();
-						delete vec2; 	// each reading object inside vector has been allocated on heap and moved to Ingest class's internal queue
-						delete set;
+    						ingest.ingest(vec2);
+    						pollCount += (int) vec2->size();
+    						delete vec2; 	// each reading object inside vector has been allocated on heap and moved to Ingest class's internal queue
+    						delete set;
+                        }
 					}
 					throttlePoll();
 				}

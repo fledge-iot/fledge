@@ -64,6 +64,7 @@ public:
 	void		setThreshold(const unsigned int threshold) { m_queueSizeThreshold = threshold; };
 	void		configChange(const std::string&, const std::string&);
 	void		configChildCreate(const std::string& , const std::string&, const std::string&){};
+	void        configChildDelete(const std::string& , const std::string&){};
 	void		shutdown() {};	// Satisfy ServiceHandler
 
 private:

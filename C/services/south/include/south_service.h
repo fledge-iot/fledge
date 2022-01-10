@@ -50,6 +50,7 @@ class SouthService : public ServiceHandler {
 		void				shutdown();
 		void				configChange(const std::string&, const std::string&);
 		void			    configChildCreate(const std::string& , const std::string&, const std::string&){};
+		void			    configChildDelete(const std::string& , const std::string&){};
 		static ManagementClient *	getMgmtClient();
 		bool				setPoint(const std::string& name, const std::string& value);
 		bool				operation(const std::string& name, std::vector<PLUGIN_PARAMETER *>& );

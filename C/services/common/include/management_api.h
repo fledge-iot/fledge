@@ -21,6 +21,7 @@
 #define SERVICE_SHUTDOWN	"/fledge/service/shutdown"
 #define CONFIG_CHANGE		"/fledge/change"
 #define CONFIG_CHILD_CREATE "/fledge/child_create"
+#define CONFIG_CHILD_DELETE "/fledge/child_delete"
 
 using HttpServer = SimpleWeb::Server<SimpleWeb::HTTP>;
 
@@ -47,6 +48,7 @@ class ManagementApi {
 		void shutdown(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
 		void configChange(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
 		void configChildCreate(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
+		void configChildDelete(std::shared_ptr<HttpServer::Response> response, std::shared_ptr<HttpServer::Request> request);
 
 	protected:
 		static ManagementApi *m_instance;

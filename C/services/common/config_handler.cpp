@@ -100,6 +100,42 @@ void ConfigHandler::configChildCreate(const std::string& parent_category, const 
 
 }
 
+// FIXME_I:
+void ConfigHandler::configChildDelete(const std::string& parent_category, const string& child_category)
+{
+	std::unique_lock<std::mutex> lck(m_mutex);
+
+
+
+	// FIXME_I:
+	string _section="xxx8 ";
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("%s / %s - e ::", _section.c_str(), __FUNCTION__);
+	Logger::getLogger()->setMinLevel("warning");
+
+
+
+	m_logger->info("Configuration change notification for child category %s", child_category.c_str());
+
+	pair<CONFIG_MAP::iterator, CONFIG_MAP::iterator> res = m_registrationsChild.equal_range(parent_category);
+	for (CONFIG_MAP::iterator it = res.first; it != res.second; it++)
+	{
+
+		// The config change call could effect the registered handlers
+		// we therefore need to guard against the map changing
+		m_change = false;
+		lck.unlock();
+		it->second->configChildDelete(parent_category, child_category);
+		lck.lock();
+		if (m_change) // Something changed
+		{
+			return;	// Call any other subscribers to this category. In reality there are no others
+		}
+
+	}
+
+}
+
 
 /**
  * Register a service handler for a given configuration category

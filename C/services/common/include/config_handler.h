@@ -27,6 +27,7 @@ class ConfigHandler {
 		static ConfigHandler	*getInstance(ManagementClient *);
 		void			configChange(const std::string& category, const std::string& config);
 		void            configChildCreate(const std::string& parent_category, const std::string& child_category, const std::string& config);
+		void            configChildDelete(const std::string& parent_category, const std::string& child_category);
 		void			registerCategory(ServiceHandler *handler,
 							 const std::string& category);
 		void 			registerCategoryChild(ServiceHandler *handler, const std::string& category);

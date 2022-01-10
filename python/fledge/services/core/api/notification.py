@@ -733,15 +733,15 @@ async def delete_delivery_channel(request: web.Request) -> web.Response:
     try:
 
         # Remove notification delivery
-        url = 'http://{}:{}/notification/{}/delivery/{}'.format(_address, _port, urllib.parse.quote(notification_instance_name),channel_name)
+        #url = 'http://{}:{}/notification/{}/delivery/{}'.format(_address, _port, urllib.parse.quote(notification_instance_name),channel_name)
 
         #// FIXME_I:
         notification = ""
-        notification = json.loads(await _hit_delete_url(url))
+        #notification = json.loads(await _hit_delete_url(url))
 
         #// FIXME_I:
         _logger.setLevel(logging.DEBUG)
-        _logger.debug("xxx10 delete_delivery_channel url :{}: notification :{}:-".format(url, notification) )
+        _logger.debug("xxx10 delete_delivery_channel url :{}: ".format(notification) )
         _logger.setLevel(logging.WARNING)
 
         category_name = "{}_channel_{}".format(notification_instance_name, channel_name)

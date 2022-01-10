@@ -37,6 +37,7 @@ class DataLoad : public ServiceHandler {
 		void			shutdown();
 		void			configChange(const std::string& category, const std::string& newConfig);
 		void			configChildCreate(const std::string& , const std::string&, const std::string&){};
+		void			configChildDelete(const std::string& , const std::string&){};
 		unsigned long		getLastFetched() { return m_lastFetched; };
 	private:
 		void			readBlock(unsigned int blockSize);

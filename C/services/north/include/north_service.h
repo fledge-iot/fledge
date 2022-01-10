@@ -40,6 +40,7 @@ class NorthService : public ServiceHandler {
 		void				shutdown();
 		void				configChange(const std::string&, const std::string&);
 		void			    configChildCreate(const std::string& , const std::string&, const std::string&){};
+		void			    configChildDelete(const std::string& , const std::string&){};
 
 		static ManagementClient *	getMgmtClient();
 		const std::string&		getName() { return m_name; };

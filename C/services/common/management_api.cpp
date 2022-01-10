@@ -57,6 +57,16 @@ void configChildCreateWrapper(shared_ptr<HttpServer::Response> response, shared_
 }
 
 /**
+ * Wrapper for config child delete method
+ */
+void configChildDeleteWrapper(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
+{
+        ManagementApi *api = ManagementApi::getInstance();
+        api->configChildDelete(response, request);
+}
+
+
+/**
  * Construct a microservices management API manager class
  */
 ManagementApi::ManagementApi(const string& name, const unsigned short port) : m_name(name)
@@ -70,6 +80,8 @@ ManagementApi::ManagementApi(const string& name, const unsigned short port) : m_
 	m_server->resource[SERVICE_SHUTDOWN]["POST"] = shutdownWrapper;
 	m_server->resource[CONFIG_CHANGE]["POST"] = configChangeWrapper;
 	m_server->resource[CONFIG_CHILD_CREATE]["POST"] = configChildCreateWrapper;
+	m_server->resource[CONFIG_CHILD_DELETE]["DELETE"] = configChildDeleteWrapper;
+
 
 	m_instance = this;
 
@@ -182,6 +194,44 @@ string	category, items, payload;
 	ConfigHandler	*handler = ConfigHandler::getInstance(NULL);
 	handler->configChange(conf.getName(), conf.itemsToJSON(true));
 	convert << "{ \"message\" ; \"Config change accepted\" }";
+	responsePayload = convert.str();
+	respond(response, responsePayload);
+}
+
+/**
+ * Received a children deletion request, construct a reply and return to caller
+ */
+void ManagementApi::configChildDelete(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
+{
+ostringstream convert;
+string responsePayload;
+string	category, items, payload, parent_category;
+
+
+	// FIXME_I:
+	string _section="xxx8 ";
+	Logger::getLogger()->setMinLevel("debug");
+	Logger::getLogger()->debug("%s / %s ::", _section.c_str(), __FUNCTION__);
+	Logger::getLogger()->setMinLevel("warning");
+
+
+	payload = request->content.string();
+
+	ConfigCategoryChange	conf(payload);
+	ConfigHandler	*handler = ConfigHandler::getInstance(NULL);
+
+	parent_category = conf.getmParentName();
+	category = conf.getName();
+	items = conf.itemsToJSON(true);
+
+	Logger::getLogger()->debug("%s - parent_category:%s: child_category:%s: items:%s: ", __FUNCTION__
+							   , parent_category.c_str()
+							   , category.c_str()
+							   , items.c_str()
+							   );
+
+	handler->configChildDelete(parent_category, category);
+	convert << "{ \"message\" ; \"Config child category change accepted\" }";
 	responsePayload = convert.str();
 	respond(response, responsePayload);
 }

@@ -10,11 +10,12 @@
 #include <base64dpimage.h>
 #include <logger.h>
 #include <string.h>
+#include <sys/time.h>
 
 using namespace std;
 
 /**
- * Construct a DataBuffer by decoding a Base64 encoded buffer
+ * Construct a DPImage by decoding a Base64 encoded buffer
  */
 Base64DPImage::Base64DPImage(const string& data)
 {
@@ -56,17 +57,19 @@ Base64DPImage::Base64DPImage(const string& data)
 }
 
 /**
- * Base 64 encode the DataBuffer. Not the first character is
+ * Base 64 encode the DPImage. Note the first character is
  * not the data itself but an unencoded value for itemSize
  */
 string Base64DPImage::encode()
 {
-
+	char buf[80];
+	int hlen = snprintf(buf, sizeof(buf), "%d,%d,%d_", m_width, m_height, m_depth);
 	size_t nBytes = m_byteSize;
 	size_t encoded = 4 * ((nBytes + 2) / 3);
-	uint8_t *ret = (uint8_t *)malloc(encoded + 1);
-	uint8_t *p = ret;
-	uint8_t *data = (uint8_t *)m_pixels;
+	uint8_t *ret = (uint8_t *)malloc(hlen + encoded + 1);
+	strcpy((char *)ret, buf);
+	register uint8_t *p = ret + hlen;
+	register uint8_t *data = (uint8_t *)m_pixels;
 	int i;
 	for (i = 0; i < m_byteSize - 2; i += 3)
 	{
@@ -92,9 +95,8 @@ string Base64DPImage::encode()
 		*p++ = '=';
 	}
 	*p = '\0';
-	char buf[80];
-	snprintf(buf, sizeof(buf), "%d,%d,%d_", m_width, m_height, m_depth);
-	string rstr = string(buf) + string((char *)ret);
+	string rstr((char *)ret);
 	free(ret);
+	
 	return rstr;
 }

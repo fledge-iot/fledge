@@ -40,6 +40,8 @@ Supports a number of REST API:
 import time
 import datetime
 import json
+import logging
+import numpy as np
 
 from aiohttp import web
 
@@ -47,7 +49,7 @@ from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.services.core import connect
 from fledge.common import logger
 
-_logger = logger.setup(__name__)
+_logger = logger.setup(__name__, level=logging.INFO)
 
 __author__ = "Mark Riddoch, Ashish Jabble, Massimiliano Pinto"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -197,6 +199,33 @@ async def asset_latest(request: web.Request) -> web.Response:
         _readings = connect.get_readings_async()
         results = await _readings.query(payload)
         response = results['rows']
+        for item_name, item_val in response[0]['reading'].items():
+            if isinstance(item_val, str):
+                if item_val.startswith("__DPIMAGE"):
+                    _logger.debug("DP Image found for datapoint {}".format(item_name))
+                    # Split prefix with :
+                    prefix_split_by_colon = item_val.split(":")
+                    # Get <width>,<height>,<depth>_<base64_data>
+                    image_data = prefix_split_by_colon[1]
+                    # 2D numpy array
+                    values = np.fromstring(image_data, dtype=int, sep=",")
+                    # Insert base64 encoded data at the end of 2D numpy array
+                    two_d_np_arr = np.concatenate([values, [image_data.split("_")[1]]])
+                    _logger.debug("2D-numpy array: {}".format(two_d_np_arr))
+                    # Update the converted value for a datapoint
+                    response[0]['reading'][item_name] = two_d_np_arr.tolist()
+                elif item_val.startswith("__DATABUFFER"):
+                    _logger.debug("Data Buffer found")
+                    # TODO: Databuffer should map to 1D numpy array
+                # elif  # TODO: 2D Float array should map to List of Lists of numbers
+                else:
+                    # No action required, There may be case for mix type data
+                    _logger.debug("For {} datapoint conversion is not needed for item value: {}".format(item_name,
+                                                                                                        item_val))
+            else:
+                # No action required
+                _logger.debug("For {} datapoint conversion is not needed for item value: {}".format(item_name,
+                                                                                                    item_val))
     except KeyError:
         msg = results['message']
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))

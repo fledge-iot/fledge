@@ -39,6 +39,56 @@ extern PLUGIN_INFORMATION *plugin_info_fn();
 extern void plugin_shutdown_fn(PLUGIN_HANDLE);
 extern void setImportParameters(string& shimLayerPath, string& fledgePythonDir);
 
+
+PyObject *json_loads(const char *json_str)
+{
+PyObject *rval;
+va_list ap;
+PyObject *mod, *method;
+
+	PyGILState_STATE state = PyGILState_Ensure();
+	if ((mod = PyImport_ImportModule("json")) != NULL)
+	{
+		if ((method = PyObject_GetAttrString(mod, "loads")) != NULL)
+		{
+            PyObject *args = PyTuple_New(1);
+            PyObject *pValue = Py_BuildValue("s", json_str);
+            PyTuple_SetItem(args, 0, pValue);
+			
+			rval = PyObject_Call(method, args, NULL);
+			if (rval == NULL)
+			{
+				if (PyErr_Occurred())
+				{
+					logErrorMessage();
+                    return NULL;
+				}
+			}
+            else
+                Logger::getLogger()->info("%s:%d, rval type=%s", __FUNCTION__, __LINE__, (Py_TYPE(rval))->tp_name);
+            
+			Py_CLEAR(method);
+		}
+		else
+		{
+			Logger::getLogger()->fatal("Method 'dumps' not found");
+		}
+		// Remove references
+		Py_CLEAR(mod);
+	}
+	else
+	{
+		Logger::getLogger()->fatal("Failed to import module");
+	}
+
+	// Reset error
+	PyErr_Clear();
+
+	PyGILState_Release(state);
+    
+	return rval;
+}
+
 /**
  * Function to invoke 'plugin_reconfigure' function in python plugin
  *
@@ -117,11 +167,13 @@ static void filter_plugin_reconfigure_fn(PLUGIN_HANDLE handle,
 
 	Logger::getLogger()->debug("plugin_reconfigure with %s", config.c_str());
 
+    PyObject *config_dict = json_loads(config.c_str());
+
 	// Call Python method passing an object and a C string
 	PyObject* pReturn = PyObject_CallFunction(pFunc,
-						  "Os",
+						  "OO",
 						  handle,
-						  config.c_str());
+						  config_dict);
 
 	Py_CLEAR(pFunc);
 
@@ -229,7 +281,7 @@ void filter_plugin_ingest_fn(PLUGIN_HANDLE handle, READINGSET *data)
 		return;
 	}
 
-    Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
+    // Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
 	// Call asset tracker
 	int i=0;
 	vector<Reading *>* readings = ((ReadingSet *)data)->getAllReadingsPtr();
@@ -237,7 +289,7 @@ void filter_plugin_ingest_fn(PLUGIN_HANDLE handle, READINGSET *data)
 						      elem != readings->end();
 						      ++elem)
 	{
-        Logger::getLogger()->info("Reading %d: %s", i++, (*elem)->toJSON().c_str());
+        // Logger::getLogger()->info("Reading %d: %s", i++, (*elem)->toJSON().c_str());
 		AssetTracker* atr = AssetTracker::getAssetTracker();
 		if (atr)
 		{
@@ -247,13 +299,13 @@ void filter_plugin_ingest_fn(PLUGIN_HANDLE handle, READINGSET *data)
 		}
 	}
 
-    Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
+    Logger::getLogger()->info("C2Py: filter_plugin_ingest_fn():L%d: data->getCount()=%d", __LINE__, data->getCount());
+
+    // Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
 	// Create a dict of readings
 	// - 1 - Create Python list of dicts as input to the filter
 	PythonReadingSet *pyReadingSet = (PythonReadingSet *) data;
-    Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
     PyObject* readingsList = pyReadingSet->toPython();
-    Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
     PyObject* objectsRepresentation = PyObject_Repr(readingsList);
     const char* s = PyUnicode_AsUTF8(objectsRepresentation);
     Logger::getLogger()->info("C2Py: filter_plugin_ingest_fn():L%d: readingsList=%s", __LINE__, s);
@@ -313,6 +365,8 @@ PLUGIN_HANDLE filter_plugin_init_fn(ConfigCategory* config,
 	// Get pluginName
 	string pName = config->getValue("plugin");
 
+    Logger::getLogger()->info("filter_plugin_init_fn(): pName=%s", pName.c_str());
+
 	if (!pythonModules)
 	{
 		Logger::getLogger()->error("pythonModules map is NULL "
@@ -321,8 +375,8 @@ PLUGIN_HANDLE filter_plugin_init_fn(ConfigCategory* config,
 		return NULL;
 	}
 
-	bool loadModule = false;
-	bool reloadModule = false;
+	bool loadModule = false;   // whether module is already loaded
+	bool reloadModule = false;  // whether module is to be loaded using a new interpreter
 	bool pythonInitState = false;
 	PythonModule *module = NULL;
 	PyThreadState* newInterp = NULL;
@@ -354,7 +408,7 @@ PLUGIN_HANDLE filter_plugin_init_fn(ConfigCategory* config,
 		auto it = pythonModules->find(pName);
 		if (it == pythonModules->end())
 		{
-			Logger::getLogger()->debug("plugin_handle: filter_plugin_init(): "
+			Logger::getLogger()->info("plugin_handle: filter_plugin_init(): "
 						   "pModule not found for plugin '%s': "
 						   "import Python module using a new interpreter.",
 						   pName.c_str());
@@ -364,6 +418,11 @@ PLUGIN_HANDLE filter_plugin_init_fn(ConfigCategory* config,
 		}
 		else
 		{
+            Logger::getLogger()->info("plugin_handle: filter_plugin_init(): "
+						   "pModule FOUND for plugin '%s': "
+						   "import Python module without using a new interpreter.",
+						   pName.c_str());
+            
 			if (it->second && it->second->m_module)
 			{
 				// Just use current loaded module: no load or re-load action
@@ -382,12 +441,15 @@ PLUGIN_HANDLE filter_plugin_init_fn(ConfigCategory* config,
 		}
 	}
 
+    Logger::getLogger()->info("filter_plugin_init_fn: loadModule=%s, reloadModule=%s", loadModule?"TRUE":"FALSE", reloadModule?"TRUE":"FALSE");
+    
 	// Acquire GIL
 	PyGILState_STATE state = PyGILState_Ensure();
 
 	// Import Python module using a new interpreter
 	if (loadModule || reloadModule)
 	{
+#if 0
 		// Start a new interpreter
 		newInterp = Py_NewInterpreter();
 		if (!newInterp)
@@ -401,7 +463,8 @@ PLUGIN_HANDLE filter_plugin_init_fn(ConfigCategory* config,
 			PyGILState_Release(state);
 			return NULL;
 		}
-
+#endif
+        
 		string shimLayerPath;
 		string fledgePythonDir;
 		// Python 3.x set parameters for import
@@ -413,7 +476,7 @@ PLUGIN_HANDLE filter_plugin_init_fn(ConfigCategory* config,
 		// Get current sys.path - borrowed reference
 		PyObject* sysPath = PySys_GetObject((char *)"path");
 		PyList_Append(sysPath, PyUnicode_FromString((char *) fledgePythonDir.c_str()));
-		PyList_Append(sysPath, PyUnicode_FromString((char *) shimLayerPath.c_str()));
+		// PyList_Append(sysPath, PyUnicode_FromString((char *) shimLayerPath.c_str()));
 
 		// Set sys.argv for embedded Python 3.x
 		int argc = 2;
@@ -431,7 +494,7 @@ PLUGIN_HANDLE filter_plugin_init_fn(ConfigCategory* config,
 					   pName.c_str());
 
 		// Import Python script
-		PyObject *newObj = PyImport_ImportModule(name.c_str());
+		PyObject *newObj = PyImport_ImportModule(pName.c_str());
 
 		// Check for NULL
 		if (newObj)
@@ -441,10 +504,10 @@ PLUGIN_HANDLE filter_plugin_init_fn(ConfigCategory* config,
 							  pythonInitState,
 							  pName,
 							  PLUGIN_TYPE_FILTER,
-							  newInterp)) == NULL)
+							  NULL)) == NULL)
 			{
 				// Release lock
-				PyEval_ReleaseThread(newInterp);
+				PyGILState_Release(state);
 
 				Logger::getLogger()->fatal("plugin_handle: filter_plugin_init(): "
 							   "failed to create Python module "
@@ -464,7 +527,7 @@ PLUGIN_HANDLE filter_plugin_init_fn(ConfigCategory* config,
 			logErrorMessage();
 
 			// Release lock
-			PyEval_ReleaseThread(newInterp);
+			PyGILState_Release(state);
 
 			Logger::getLogger()->fatal("plugin_handle: filter_plugin_init(): "
 						   "failed to import plugin '%s'",
@@ -479,40 +542,42 @@ PLUGIN_HANDLE filter_plugin_init_fn(ConfigCategory* config,
 	}
 
 	Logger::getLogger()->debug("filter_plugin_init_fn for '%s', pModule '%p', "
-				   "Python interpreter '%p'",
+				   "Python interpreter '%p', config=%s",
 				   module->m_name.c_str(),
 				   module->m_module,
-				   module->m_tState);
+				   module->m_tState,
+				   config->itemsToJSON().c_str());
 
-        // Call Python method passing an object
-        PyObject* ingest_fn = PyCapsule_New((void *)output, NULL, NULL);
-        PyObject* ingest_ref = PyCapsule_New((void *)outHandle, NULL, NULL);
-        PyObject* pReturn = PyObject_CallMethod(module->m_module,
-						"plugin_init",
-						"sOO",
-						config->itemsToJSON().c_str(),
-						ingest_ref,
-						ingest_fn);
+    PyObject *config_dict = json_loads(config->itemsToJSON().c_str());
+        
+    // Call Python method passing an object
+    PyObject* ingest_fn = PyCapsule_New((void *)output, NULL, NULL);
+    PyObject* ingest_ref = PyCapsule_New((void *)outHandle, NULL, NULL);
+    PyObject* pReturn = PyObject_CallMethod(module->m_module,
+					"plugin_init",
+					"OOO",
+					config_dict,
+					ingest_ref,
+					ingest_fn);
 
-        Py_CLEAR(ingest_ref);
-        Py_CLEAR(ingest_fn);
+    Py_CLEAR(ingest_ref);
+    Py_CLEAR(ingest_fn);
 
-
-        // Handle returned data
-        if (!pReturn)
-        {
-                Logger::getLogger()->error("Called python script method plugin_init "
-                                           ": error while getting result object, plugin '%s'",
-                                           pName.c_str());
-                logErrorMessage();
-        }
-        else
-        {
-                Logger::getLogger()->debug("plugin_handle: filter_plugin_init(): "
-                                           "got result object '%p', plugin '%s'",
-                                           pReturn,
-                                           pName.c_str());
-        }
+    // Handle returned data
+    if (!pReturn)
+    {
+            Logger::getLogger()->error("Called python script method plugin_init "
+                                       ": error while getting result object, plugin '%s'",
+                                       pName.c_str());
+            logErrorMessage();
+    }
+    else
+    {
+            Logger::getLogger()->debug("plugin_handle: filter_plugin_init(): "
+                                       "got result object '%p', plugin '%s'",
+                                       pReturn,
+                                       pName.c_str());
+    }
 
 	// Add the handle to handles map as key, PythonModule object as value
 	std::pair<std::map<PLUGIN_HANDLE, PythonModule*>::iterator, bool> ret;
@@ -551,7 +616,7 @@ PLUGIN_HANDLE filter_plugin_init_fn(ConfigCategory* config,
 	// Release locks
 	if (newInterp)
 	{
-		PyEval_ReleaseThread(newInterp);
+		// PyEval_ReleaseThread(newInterp);
 	}
 	else
 	{
@@ -583,7 +648,7 @@ PLUGIN_HANDLE filter_plugin_init_fn(ConfigCategory* config,
  */
 void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
 {
-	bool initPython = false;
+	bool initPython = true;
 
 	// Set plugin name, also for methods in common-plugin-interfaces/python
 	gPluginName = pluginName;
@@ -592,40 +657,20 @@ void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
 	string fledgePythonDir;
 	// Python 3.x set parameters for import
 	setImportParameters(shimLayerPath, fledgePythonDir);
-
+    
+    string filtersRootPath = fledgePythonDir + string(R"(/fledge/plugins/filter/)") + string(pluginName);
+    Logger::getLogger()->info("%s:%d:, filtersRootPath=%s", __FUNCTION__, __LINE__, filtersRootPath.c_str());
+    
 	string name(string(PLUGIN_TYPE_FILTER) + string(SHIM_SCRIPT_POSTFIX));
-
+    
+    Logger::getLogger()->info("%s:%d:, name=%s", __FUNCTION__, __LINE__, name);
 	PythonRuntime::getPythonRuntime();
-
-	PyThreadState* newInterp = NULL;
-
+    
 	// Acquire GIL
 	PyGILState_STATE state = PyGILState_Ensure();
-
-	// New Python interpreter
-	if (!initPython)
-	{
-		newInterp = Py_NewInterpreter();
-		if (!newInterp)
-		{
-			Logger::getLogger()->fatal("FilterPlugin PluginInterfaceInit "
-						   "Py_NewInterprete failure "
-						   "for for plugin '%s': ",
-						   pluginName);
-			logErrorMessage();
-
-			PyGILState_Release(state);
-			return NULL;
-		}
-
-		Logger::getLogger()->debug("FilterPlugin PluginInterfaceInit "
-					   "has added a new Python interpreter "
-					   "'%p', plugin '%s'",
-					   newInterp,
-					   pluginName); 
-	}
-
-	Logger::getLogger()->debug("FilterPlugin PluginInterfaceInit %s:%d: "
+    Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
+    
+	Logger::getLogger()->info("FilterPlugin PluginInterfaceInit %s:%d: "
 				   "shimLayerPath=%s, fledgePythonDir=%s, plugin '%s'",
 				   __FUNCTION__,
 				   __LINE__,
@@ -636,18 +681,21 @@ void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
 	// Set Python path for embedded Python 3.x
 	// Get current sys.path - borrowed reference
 	PyObject* sysPath = PySys_GetObject((char *)"path");
-	PyList_Append(sysPath, PyUnicode_FromString((char *) shimLayerPath.c_str()));
+	PyList_Append(sysPath, PyUnicode_FromString((char *) filtersRootPath.c_str()));
 	PyList_Append(sysPath, PyUnicode_FromString((char *) fledgePythonDir.c_str()));
 
 	// Set sys.argv for embedded Python 3.x
+	/*
 	int argc = 2;
 	wchar_t* argv[2];
 	argv[0] = Py_DecodeLocale("", NULL);
 	argv[1] = Py_DecodeLocale(pluginName, NULL);
 	PySys_SetArgv(argc, argv);
+	*/
 
 	// 2) Import Python script
-	PyObject *pModule = PyImport_ImportModule(name.c_str());
+	PyObject *pModule = PyImport_ImportModule(pluginName);
+    Logger::getLogger()->info("%s:%d: pluginName=%s, pModule=%p", __FUNCTION__, __LINE__, pluginName, pModule);
 
 	// Check whether the Python module has been imported
 	if (!pModule)
@@ -658,10 +706,10 @@ void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
 			logErrorMessage();
 		}
 		Logger::getLogger()->fatal("FilterPlugin PluginInterfaceInit: "
-					   "cannot import Python shim file "
+					   "cannot import Python module file "
 					   "'%s' from '%s', plugin '%s'",
 					   name.c_str(),
-					   shimLayerPath.c_str(),
+					   pluginPathName,
 					   pluginName);
 	}
 	else
@@ -676,10 +724,10 @@ void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
 							  initPython,
 							  string(pluginName),
 							  PLUGIN_TYPE_FILTER,
-							  newInterp)) == NULL)
+							  NULL)) == NULL)
 			{
 				// Release lock
-				PyEval_ReleaseThread(newInterp);
+                PyGILState_Release(state);
 
 				Logger::getLogger()->fatal("plugin_handle: filter_plugin_init(): "
 							   "failed to create Python module "
@@ -727,7 +775,7 @@ void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
 	// Release locks
 	if (!initPython)
 	{
-		PyEval_ReleaseThread(newInterp);
+		// PyEval_ReleaseThread(newInterp);
 	}
 	else
 	{

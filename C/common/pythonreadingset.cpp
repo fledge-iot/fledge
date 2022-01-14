@@ -104,7 +104,7 @@ PythonReadingSet::PythonReadingSet(PyObject *set)
 			m_readings.push_back(reading);
             m_count++;
 			m_last_id = reading->getId();
-            Logger::getLogger()->info("PythonReadingSet c'tor: LIST: reading->toJSON()=%s", reading->toJSON().c_str());
+            Logger::getLogger()->debug("PythonReadingSet c'tor: LIST: reading->toJSON()=%s", reading->toJSON().c_str());
 		}
 	}
     else if (PyDict_Check(set))
@@ -114,8 +114,9 @@ PythonReadingSet::PythonReadingSet(PyObject *set)
 		{
             setReadingAttr(reading, set, true);
             m_readings.push_back(reading);
+            m_count++;
 			m_last_id = reading->getId();
-            Logger::getLogger()->info("PythonReadingSet c'tor: DICT: reading->toJSON()=%s", reading->toJSON().c_str());
+            Logger::getLogger()->debug("PythonReadingSet c'tor: DICT: reading->toJSON()=%s", reading->toJSON().c_str());
 		}
     }
 	else
@@ -135,9 +136,10 @@ PyObject *PythonReadingSet::toPython(bool changeKeys)
 	PyObject *set = PyList_New(m_readings.size());
 	for (int i = 0; i < m_readings.size(); i++)
 	{
-        Logger::getLogger()->info("PythonReadingSet::toPython(): i=%d, reading=%s", i, m_readings[i]->toJSON().c_str());
+        // Logger::getLogger()->info("PythonReadingSet::toPython(): i=%d, reading=%s", i, m_readings[i]->toJSON().c_str());
 		PythonReading *pyReading = (PythonReading *) m_readings[i];
 		PyList_SetItem(set, i, pyReading->toPython(changeKeys));
 	}
 	return set;
 }
+

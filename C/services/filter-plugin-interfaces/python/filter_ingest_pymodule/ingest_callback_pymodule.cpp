@@ -134,16 +134,15 @@ void filter_plugin_ingest_fn(PyObject *ingest_callback,
 	// std::vector<Reading *> *vec = NULL;
 	PythonReadingSet *pyReadingSet = NULL;
 
-    Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
     
 	// Check we have a list of readings
 	if (PyList_Check(readingsObj))
 	{
-        Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
 		// Get vector of Readings from Python object
 		// vec =  Py2C_getReadings(readingsObj);
         pyReadingSet = new PythonReadingSet(readingsObj);
-        Logger::getLogger()->info("%s:%d, pyReadingSet=%p, pyReadingSet readings count=%d", __FUNCTION__, __LINE__, pyReadingSet, pyReadingSet?pyReadingSet->getCount():0);
+        Logger::getLogger()->info("%s:%d, pyReadingSet=%p, pyReadingSet readings count=%d", 
+                                    __FUNCTION__, __LINE__, pyReadingSet, pyReadingSet?pyReadingSet->getCount():0);
 	}
 	else
 	{

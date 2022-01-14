@@ -26,7 +26,7 @@ PythonConfigCategory::PythonConfigCategory(PyObject *config)
 {
 	if (!PyDict_Check(config))
 	{
-			throw runtime_error("Invalid confioguration category, expected Python DICT");
+			throw runtime_error("Invalid configuration category, expected Python DICT");
 	}
 
 	// Fetch all items in configuration dict			

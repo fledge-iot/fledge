@@ -456,16 +456,16 @@ PyObject *PythonReading::convertDatapoint(Datapoint *dp)
 		switch (dbuf->getItemSize())
 		{
 			case 1:
-				type = NPY_BYTE;
+				type = NPY_UBYTE;
 				break;
 			case 2:
-				type = NPY_INT16;
+				type = NPY_UINT16;
 				break;
 			case 4:
-				type = NPY_INT32;
+				type = NPY_UINT32;
 				break;
 			case 8:
-				type = NPY_INT64;
+				type = NPY_UINT64;
 				break;
 			default:
 				break;
@@ -494,16 +494,16 @@ PyObject *PythonReading::convertDatapoint(Datapoint *dp)
 		switch (image->getDepth())
 		{
 			case 8:
-				type = NPY_BYTE;
+				type = NPY_UBYTE;
 				break;
 			case 16:
-				type = NPY_INT16;
+				type = NPY_UINT16;
 				break;
 			case 32:
-				type = NPY_INT32;
+				type = NPY_UINT32;
 				break;
 			case 64:
-				type = NPY_INT64;
+				type = NPY_UINT64;
 				break;
 			default:
 				break;

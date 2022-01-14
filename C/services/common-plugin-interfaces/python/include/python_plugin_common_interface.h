@@ -199,6 +199,66 @@ static void* PluginInterfaceGetInfo()
 	return (void *) plugin_info_fn;
 }
 
+const char *json_dumps(PyObject *json_dict)
+{
+PyObject *rval;
+va_list ap;
+PyObject *mod, *method;
+
+	PyGILState_STATE state = PyGILState_Ensure();
+	if ((mod = PyImport_ImportModule("json")) != NULL)
+	{
+        Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
+		if ((method = PyObject_GetAttrString(mod, "dumps")) != NULL)
+		{
+            Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
+            PyObject *args = PyTuple_New(1);
+            PyObject *pValue = Py_BuildValue("O", json_dict);
+            PyTuple_SetItem(args, 0, pValue);
+            Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
+			
+			rval = PyObject_Call(method, args, NULL);
+			if (rval == NULL)
+			{
+				if (PyErr_Occurred())
+				{
+					logErrorMessage();
+                    return NULL;
+				}
+			}
+            else
+                Logger::getLogger()->info("%s:%d, rval type=%s", __FUNCTION__, __LINE__, (Py_TYPE(rval))->tp_name);
+            
+			Py_CLEAR(method);
+		}
+		else
+		{
+			Logger::getLogger()->fatal("Method 'dumps' not found");
+		}
+        Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
+		// Remove references
+		Py_CLEAR(mod);
+	}
+	else
+	{
+		Logger::getLogger()->fatal("Failed to import module");
+	}
+    Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
+
+	// Reset error
+	PyErr_Clear();
+
+	PyGILState_Release(state);
+
+    Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
+
+    const char *retVal = PyUnicode_AsUTF8(rval);
+    Logger::getLogger()->info("json_dumps3(): retVal=%s", retVal);
+    
+	return retVal;
+}
+
+
 /**
  * Fill PLUGIN_INFORMATION structure from Python object
  *
@@ -220,9 +280,15 @@ static PLUGIN_INFORMATION *Py2C_PluginInfo(PyObject* pyRetVal)
 	{
 		const char* ckey = PyUnicode_AsUTF8(dKey);
 		const char* cval = PyUnicode_AsUTF8(dValue);
+        Logger::getLogger()->info("%s:%d, key=%s, value=%s, dValue type=%s", __FUNCTION__, __LINE__, ckey, cval, (Py_TYPE(dValue))->tp_name);
 
-		char *valStr = new char [string(cval).length()+1];
-		std::strcpy (valStr, cval);
+        char *valStr = NULL;
+        if (strcmp((Py_TYPE(dValue))->tp_name, "dict") != 0)
+        {
+    		valStr = new char [string(cval).length()+1];
+    		std::strcpy (valStr, cval);
+            Logger::getLogger()->info("%s:%d, key=%s, value=%s, valStr=%s", __FUNCTION__, __LINE__, ckey, cval, valStr);
+        }
 
 		if(!strcmp(ckey, "name"))
 		{
@@ -251,8 +317,19 @@ static PLUGIN_INFORMATION *Py2C_PluginInfo(PyObject* pyRetVal)
 		}
 		else if(!strcmp(ckey, "config"))
 		{
-			info->config = valStr;
+            Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
+            
+            // if 'config' value is of dict type, convert it to string
+            if (strcmp((Py_TYPE(dValue))->tp_name, "dict")==0)
+            {
+                info->config = json_dumps(dValue);
+                Logger::getLogger()->info("Py2C_PluginInfo(): OUTPUT: config value=%s", info->config);
+            }
+            else
+                info->config = valStr;
 		}
+        else
+            Logger::getLogger()->info("%s:%d: Unexpected key %s", __FUNCTION__, __LINE__, ckey);
 	}
 
 	return info;
@@ -290,8 +367,8 @@ static PLUGIN_INFORMATION *plugin_info_fn()
 	if (!pFunc)
 	{
 		Logger::getLogger()->fatal("Cannot find method 'plugin_info' "
-					   "in loaded python module '%s'",
-					   gPluginName.c_str());
+					   "in loaded python module '%s', m_module=%p",
+					   gPluginName.c_str(), it->second->m_module);
 	}
 
 	if (!pFunc || !PyCallable_Check(pFunc))
@@ -578,12 +655,10 @@ static PLUGIN_HANDLE plugin_init_fn(ConfigCategory *config)
 		}
 	}
 
-	Logger::getLogger()->debug("%s_plugin_init_fn for '%s', pModule '%p', "
-				   "Python interpreter '%p'",
+	Logger::getLogger()->debug("%s_plugin_init_fn for '%s', pModule '%p', ",
 				   loadPluginType.c_str(),
 				   module->m_name.c_str(),
-				   module->m_module,
-				   module->m_tState);
+				   module->m_module);
 
 	// Call Python method passing an object
 	PyObject* pReturn = PyObject_CallMethod(module->m_module,
@@ -939,7 +1014,8 @@ static void plugin_shutdown_fn(PLUGIN_HANDLE handle)
 		logErrorMessage();
 	}
 
-	if (it->second->m_tState)
+	//if (it->second->m_tState)
+    if (false)
 	{
 		// Switch to Interpreter thread
 		PyThreadState* swapState = PyThreadState_Swap(it->second->m_tState);

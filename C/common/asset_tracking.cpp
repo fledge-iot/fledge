@@ -126,3 +126,16 @@ void AssetTracker::addAssetTrackingTuple(string plugin, string asset, string eve
 	addAssetTrackingTuple(tuple);
 }
 
+/**
+ * Return the name of the service responsible for particulr event of the named asset
+ *
+ * @param event	The event of interest
+ * @param asset	The asset we are interested in
+ * @return string	The service name of the service that ingests the asset
+ * @throws exception 	If the asset could not be found
+ */
+string AssetTracker::getService(const std::string& event, const std::string& asset)
+{
+	// TODO Implement
+	throw runtime_error("Fetching service for asset not yet implemented");
+}

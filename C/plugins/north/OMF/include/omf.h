@@ -49,30 +49,19 @@ std::string ApplyPIServerNamingRules(const std::string &objName, bool *changed);
 /**
  * Per asset dataTypes
  * This class is used in a std::map where assetName is a key
- *
- * typeId           = is a prefix for OMF data Type messages
- * types            = is a JSON string with datapoint names and types
- * typesShort       = a numeric representation of the type used to quicly identify if a type has changed
- * namingScheme     = Naming schema of the asset, valid options are Concise, Backward compatibility ..
- * afhHash          = Asset hash based on the AF hierarchy
- * afHierarchy      = Current position of the asset in the AF hierarchy
- * afHierarchyOrig  = Original position of the asset in the AF hierarchy
- *
- * hintChkSum       = Checksum of the OMF hints
-
  */
 class OMFDataTypes
 {
         public:
-                long           typeId;
-                std::string    types;
-                unsigned long  typesShort;
-				long           namingScheme;
-				string         afhHash;
-				string         afHierarchy;
-				string         afHierarchyOrig;
+                long           typeId;           // is a prefix for OMF data Type messages
+                std::string    types;            // is a JSON string with datapoint names and types
+                unsigned long  typesShort;       // a numeric representation of the type used to quicly identify if a type has changed
+				long           namingScheme;     // Naming schema of the asset, valid options are Concise, Backward compatibility ..
+				string         afhHash;          // Asset hash based on the AF hierarchy
+				string         afHierarchy;      // Current position of the asset in the AF hierarchy
+				string         afHierarchyOrig;  // Original position of the asset in the AF hierarchy
 
-		unsigned short hintChkSum;
+		unsigned short hintChkSum;               // Checksum of the OMF hints
 };
 
 class OMFHints;

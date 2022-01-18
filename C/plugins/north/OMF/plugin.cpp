@@ -752,6 +752,7 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 	/**
 	 * Select the proper library in relation to the need,
 	 * LibcurlHttps is needed to integrate Kerberos as the SimpleHttp does not support it
+	 * the Libcurl integration implements only HTTPS not HTTP at the current stage
 	 *
 	 * The handler is allocated using "Hostname : port", connect_timeout and request_timeout.
 	 * Default is no timeout at all
@@ -860,9 +861,9 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
  *
  * Note: the entry with FAKE_ASSET_KEY ios never saved.
  *
- * @param handle    The plugin handle
- * @return	    A string with JSON plugin data
- *		    the caller will persist
+ * @param handle   The plugin handle
+ * @return         A string with JSON plugin data
+ *                 the caller will persist
  */
 string plugin_shutdown(PLUGIN_HANDLE handle)
 {
@@ -908,8 +909,8 @@ string plugin_shutdown(PLUGIN_HANDLE handle)
  *
  * Note: the entry with FAKE_ASSET_KEY is never saved.
  *
- * @param   connInfo	The CONNECTOR_INFO data scructure
- * @return		The string with JSON data
+ * @param   connInfo  The CONNECTOR_INFO data structure
+ * @return            The string with JSON data
  */
 string saveSentDataTypes(CONNECTOR_INFO* connInfo)
 {
@@ -1419,9 +1420,9 @@ OMF_ENDPOINT identifyPIServerEndpoint(CONNECTOR_INFO* connInfo)
  * Generate the credentials for the basic authentication
  * encoding user id and password joined by a single colon (:) using base64
  *
- * @param    userId	User id to be used for the generation of the credentials
- * @param    password	Password to be used for the generation of the credentials
- * @return		credentials to be used with the basic authentication
+ * @param    userId   User id to be used for the generation of the credentials
+ * @param    password Password to be used for the generation of the credentials
+ * @return            credentials to be used with the basic authentication
  */
 string AuthBasicCredentialsGenerate(string& userId, string& password)
 {

@@ -81,6 +81,11 @@ public:
 
 /**
  * A set of hints for a reading
+ *
+ * documentation available at:
+ * https://fledge-iot.readthedocs.io/en/latest/plugins/fledge-filter-omfhint/index.html
+ * https://fledge-iot.readthedocs.io/en/latest/OMF.html#omf-hints
+ *
  */
 class OMFHints
 {
@@ -97,7 +102,6 @@ class OMFHints
 		rapidjson::Document	m_doc;
 		unsigned short		m_chksum;
 		std::vector<OMFHint *>	m_hints;
-		std::map<std::string, std::vector<OMFHint *> >
-					m_datapointHints;
+		std::map<std::string, std::vector<OMFHint *> > m_datapointHints;
 };
 #endif

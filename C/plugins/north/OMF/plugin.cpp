@@ -364,9 +364,10 @@ typedef struct
 	string		formatNumber;	        // OMF protocol Number format
 	string		formatInteger;	        // OMF protocol Integer format
 	OMF_ENDPOINT PIServerEndpoint;      // Defines which End point should be used for the communication
-	NAMINGSCHEME_ENDPOINT NamingScheme; // Define how the object names should generated
+	NAMINGSCHEME_ENDPOINT NamingScheme; // Define how the object names should be generated - https://fledge-iot.readthedocs.io/en/latest/OMF.html#naming-scheme
 	string		DefaultAFLocation;      // 1st hierarchy in Asset Framework, PI Web API only.
 	string		AFMap;                  // Defines a set of rules to address where assets should be placed in the AF hierarchy.
+                                        //    https://fledge-iot.readthedocs.io/en/latest/OMF.html#asset-framework-hierarchy-rules
 
 	string		prefixAFAsset;          // Prefix to generate unique asste id
 	string		PIWebAPIProductTitle;
@@ -749,8 +750,10 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 	CONNECTOR_INFO* connInfo = (CONNECTOR_INFO *)handle;
 
 	/**
-	 * Allocate the HTTPS handler for "Hostname : port"
-	 * connect_timeout and request_timeout.
+	 * Select the proper library in relation to the need,
+	 * LibcurlHttps is needed to integrate Kerberos as the SimpleHttp does not support it
+	 *
+	 * The handler is allocated using "Hostname : port", connect_timeout and request_timeout.
 	 * Default is no timeout at all
 	 */
 	if (connInfo->PIWebAPIAuthMethod.compare("k") == 0)
@@ -790,7 +793,8 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 	connInfo->sender->setOCSClientId         (connInfo->OCSClientId);
 	connInfo->sender->setOCSClientSecret     (connInfo->OCSClientSecret);
 
-	// OCS - retreievs the authentication token
+	// OCS - retrieves the authentication token
+	// It is retrieved at every send as it can expire and the configuration is only in OCS
 	if (connInfo->PIServerEndpoint == ENDPOINT_OCS)
 	{
 		connInfo->OCSToken = OCSRetrieveAuthToken(connInfo);

@@ -33,6 +33,7 @@ enum OMF_ENDPOINT {
 	ENDPOINT_EDS
 };
 
+// Documentation about the Naming Scheme available at: https://fledge-iot.readthedocs.io/en/latest/OMF.html#naming-scheme
 enum NAMINGSCHEME_ENDPOINT {
 	NAMINGSCHEME_CONCISE,
 	NAMINGSCHEME_SUFFIX,
@@ -47,8 +48,9 @@ using namespace rapidjson;
 std::string ApplyPIServerNamingRules(const std::string &objName, bool *changed);
 
 /**
- * Per asset dataTypes
- * This class is used in a std::map where assetName is a key
+ * Per asset dataTypes - This class is used in a std::map where assetName is a key
+ *
+ * typeId  = is a prefix for OMF data Type messages
  */
 class OMFDataTypes
 {

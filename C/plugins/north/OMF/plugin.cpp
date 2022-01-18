@@ -6,7 +6,30 @@
  * Released under the Apache 2.0 Licence
  *
  * Author: Massimiliano Pinto, Stefano Simonelli
+ *
+ * PI Web API OMF Endpoint documentation available at:
+ * https://fledge-iot.readthedocs.io/en/latest/OMF.html?highlight=omf%20hint#
+ *
+ * Troubleshooting the PI-Server integration available at:
+ * https://fledge-iot.readthedocs.io/en/latest/troubleshooting_pi-server_integration.html#how-to-check-the-pi-web-api-is-installed-and-running
+ *
+ * Information about Asset Framework Hierarchy Rules available at:
+ * https://fledge-iot.readthedocs.io/en/latest/OMF.html?highlight=omf%20hint#asset-framework-hierarchy-rules
+ *
+ * Information about OMF Hint available at:
+ * https://fledge-iot.readthedocs.io/en/latest/OMF.html?highlight=omf%20hint#omf-hints
+ * https://fledge-iot.readthedocs.io/en/latest/plugins/fledge-filter-omfhint/index.html
+ *
+ * OSIsoft documentation about PI Web API:
+ * https://docs.osisoft.com/bundle/pi-web-api-reference/page/help.html
+ * https://livelibrary.osisoft.com/LiveLibrary/web/ui.xql?action=html&resource=publist_home.html
+ * https://pisquare.osisoft.com/s/topic/0TO1I000000OGBGWA4/pi-web-api
+ *
+ * OSIsoft documentation about OMF:
+ *
+ *
  */
+
 #include <unistd.h>
 
 #include <plugin_api.h>

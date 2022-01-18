@@ -98,7 +98,7 @@ public:
 			return getService("Ingest", asset);
 		};
 	std::string
-		getEgessService(const std::string& asset)
+		getEgressService(const std::string& asset)
 		{
 			return getService("Egress", asset);
 		};

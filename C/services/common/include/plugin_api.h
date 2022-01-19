@@ -71,7 +71,9 @@ typedef enum controlDestination {
 	/** The control message is destined for the named service */
 	DestinationService,
 	/** The control message is destined for all south services that support control */
-	DestinationBroadcast
+	DestinationBroadcast,
+	/** The control message is destined to execute the named script */
+	DestinationScript
 } ControlDestination;
  
 /**

@@ -63,7 +63,7 @@ std::string ApplyPIServerNamingRules(const std::string &objName, bool *changed);
 
  */
 class OMFDataTypes
-{
+{ 
         public:
                 long           typeId;
                 std::string    types;

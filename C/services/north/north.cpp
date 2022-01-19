@@ -679,7 +679,7 @@ bool NorthService::write(const string& name, const string& value, const ControlD
 	payload += "\" : \"";
 	payload += value;
 	payload += "\" }";
-	return sendToDispatcher("/dispatcher/write", payload);
+	return sendToDispatcher("/dispatch/write", payload);
 }
 
 /**
@@ -722,7 +722,7 @@ bool NorthService::write(const string& name, const string& value, const ControlD
 	payload += "\" : \"";
 	payload += value;
 	payload += "\" }";
-	return sendToDispatcher("/dispatcher/write", payload);
+	return sendToDispatcher("/dispatch/write", payload);
 }
 
 /**
@@ -751,7 +751,7 @@ int  NorthService::operation(const string& name, int paramCount, char *parameter
 	payload += "\" : { \"";
 	// TODO add parameters
 	payload += "\" }";
-	sendToDispatcher("/dispatcher/operation", payload);
+	sendToDispatcher("/dispatch/operation", payload);
 	return -1;
 }
 
@@ -798,7 +798,7 @@ int NorthService::operation(const string& name, int paramCount, char *parameters
 	payload += "\" : { \"";
 	// TODO add parameters
 	payload += "\" }";
-	sendToDispatcher("/dispatcher/operation", payload);
+	sendToDispatcher("/dispatch/operation", payload);
 	return -1;
 }
 

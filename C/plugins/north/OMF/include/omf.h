@@ -50,7 +50,7 @@ std::string ApplyPIServerNamingRules(const std::string &objName, bool *changed);
 /**
  * Per asset dataTypes - This class is used in a std::map where assetName is a key
  *
- * - typeId          = is a prefix for OMF data Type messages
+ * - typeId          = id of the type, it is incremented if the type is redefined
  * - types           = is a JSON string with datapoint names and types
  * - typesShort      = a numeric representation of the type used to quicly identify if a type has changed
  * - namingScheme    = Naming schema of the asset, valid options are Concise, Backward compatibility ..

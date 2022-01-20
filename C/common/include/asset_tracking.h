@@ -92,6 +92,20 @@ public:
 	bool	checkAssetTrackingCache(AssetTrackingTuple& tuple);
 	void	addAssetTrackingTuple(AssetTrackingTuple& tuple);
 	void	addAssetTrackingTuple(std::string plugin, std::string asset, std::string event);
+	std::string
+		getIngestService(const std::string& asset)
+		{
+			return getService("Ingest", asset);
+		};
+	std::string
+		getEgressService(const std::string& asset)
+		{
+			return getService("Egress", asset);
+		};
+
+private:
+	std::string
+		getService(const std::string& event, const std::string& asset);
 
 private:
 	static AssetTracker	*instance;

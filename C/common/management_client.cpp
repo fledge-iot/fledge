@@ -21,7 +21,14 @@ using HttpClient = SimpleWeb::Client<SimpleWeb::HTTP>;
 std::mutex mng_mtx_client_map;
 
 /**
- * Management Client constructor
+ * Management Client constructor. Creates a class used to send management API requests
+ * from a micro service to the Fledge core service.
+ *
+ * The parameters required here are passed to new services and tasks using the --address=
+ * and --port= arguments when the service is started.
+ *
+ * @param hostname	The hostname of the Fledge core micro service
+ * @param port		The port of the management service API listener in the Fledge core
  */
 ManagementClient::ManagementClient(const string& hostname, const unsigned short port) : m_uuid(0)
 {
@@ -54,6 +61,8 @@ ManagementClient::~ManagementClient()
 /**
  * Creates a HttpClient object for each thread
  * it stores/retrieves the reference to the HttpClient and the associated thread id in a map
+ *
+ * @return HttpClient	The HTTP client connection to the core
  */
 HttpClient *ManagementClient::getHttpClient() {
 
@@ -81,7 +90,10 @@ HttpClient *ManagementClient::getHttpClient() {
 }
 
 /**
- * Register this service
+ * Register this service with the Fledge core
+ *
+ * @param service	The service record of this service
+ * @return bool		True if the service registration was sucessful
  */
 bool ManagementClient::registerService(const ServiceRecord& service)
 {
@@ -138,7 +150,9 @@ string payload;
 }
 
 /**
- * Unregister this service
+ * Unregister this service with the Fledge core
+ *
+ * @return bool	True if the service successfully unregistered
  */
 bool ManagementClient::unregisterService()
 {
@@ -182,7 +196,15 @@ bool ManagementClient::unregisterService()
 }
 
 /**
- * Get the specified service
+ * Get the specified service. Supplied with a service
+ * record that must either have the name or the type fields populated.
+ * The call will populate the other fields of the service record.
+ *
+ * Note, if multiple service records match then only the first will be
+ * returned.
+ *
+ * @param service	A partially filled service record that will be completed
+ * @return bool		Return true if the service record was found
  */
 bool ManagementClient::getService(ServiceRecord& service)
 {
@@ -233,7 +255,118 @@ string payload;
 }
 
 /**
- * Register interest in a configuration category
+ * Return all services registered with the Fledge core
+ *
+ * @param services	A vector of service records that will be populated
+ * @return bool		True if the vecgtor was populated
+ */
+bool ManagementClient::getServices(vector<ServiceRecord *>& services)
+{
+string payload;
+
+	try {
+		string url = "/fledge/service";
+		auto res = this->getHttpClient()->request("GET", url.c_str());
+		Document doc;
+		string response = res->content.string();
+		doc.Parse(response.c_str());
+		if (doc.HasParseError())
+		{
+			bool httpError = (isdigit(response[0]) && isdigit(response[1]) && isdigit(response[2]) && response[3]==':');
+			m_logger->error("%s fetching service record: %s\n", 
+								httpError?"HTTP error while":"Failed to parse result of", 
+								response.c_str());
+			return false;
+		}
+		else if (doc.HasMember("message"))
+		{
+			m_logger->error("Failed to register service: %s.",
+				doc["message"].GetString());
+			return false;
+		}
+		else
+		{
+			Value& records = doc["services"];
+			for (auto& serviceRecord : records.GetArray())
+			{
+				ServiceRecord *service = new ServiceRecord(serviceRecord["name"].GetString(),
+						serviceRecord["type"].GetString());
+				service->setAddress(serviceRecord["address"].GetString());
+				service->setPort(serviceRecord["service_port"].GetInt());
+				service->setProtocol(serviceRecord["protocol"].GetString());
+				service->setManagementPort(serviceRecord["management_port"].GetInt());
+				services.push_back(service);
+			}
+			return true;
+		}
+	} catch (const SimpleWeb::system_error &e) {
+		m_logger->error("Get services failed %s.", e.what());
+		return false;
+	}
+	return false;
+}
+
+/**
+ * Return all services registered with the Fledge core of a specified type
+ *
+ * @param services	A vector of service records that will be populated
+ * @param type		The type of services to return
+ * @return bool		True if the vecgtor was populated
+ */
+bool ManagementClient::getServices(vector<ServiceRecord *>& services, const string& type)
+{
+string payload;
+
+	try {
+		string url = "/fledge/service?type=";
+		url += type;
+		auto res = this->getHttpClient()->request("GET", url.c_str());
+		Document doc;
+		string response = res->content.string();
+		doc.Parse(response.c_str());
+		if (doc.HasParseError())
+		{
+			bool httpError = (isdigit(response[0]) && isdigit(response[1]) && isdigit(response[2]) && response[3]==':');
+			m_logger->error("%s fetching service record: %s\n", 
+								httpError?"HTTP error while":"Failed to parse result of", 
+								response.c_str());
+			return false;
+		}
+		else if (doc.HasMember("message"))
+		{
+			m_logger->error("Failed to register service: %s.",
+				doc["message"].GetString());
+			return false;
+		}
+		else
+		{
+			Value& records = doc["services"];
+			for (auto& serviceRecord : records.GetArray())
+			{
+				ServiceRecord *service = new ServiceRecord(serviceRecord["name"].GetString(),
+						serviceRecord["type"].GetString());
+				service->setAddress(serviceRecord["address"].GetString());
+				service->setPort(serviceRecord["service_port"].GetInt());
+				service->setProtocol(serviceRecord["protocol"].GetString());
+				service->setManagementPort(serviceRecord["management_port"].GetInt());
+				services.push_back(service);
+			}
+			return true;
+		}
+	} catch (const SimpleWeb::system_error &e) {
+		m_logger->error("Get services failed %s.", e.what());
+		return false;
+	}
+	return false;
+}
+
+/**
+ * Register interest in a configuration category. The service will be called 
+ * with the updated confioguration category wheneven an item in the category
+ * is added, removed or changed.
+ *
+ * @param category	The name of the category to register
+ * @return bool		True if the registration was succesful
  */
 bool ManagementClient::registerCategory(const string& category)
 {
@@ -286,7 +419,11 @@ ostringstream convert;
 }
 
 /**
- * Unegister interest in a configuration category
+ * Unregister interest in a configuration category. The service will no
+ * longer be called when the configuration category is changed.
+ *
+ * @param category	The name of the configuration category to unregister
+ * @return bool		True if the configuration category is unregistered
  */             
 bool ManagementClient::unregisterCategory(const string& category)
 {               
@@ -304,7 +441,9 @@ ostringstream convert;
 }
 
 /**
- * Get the set of all categories from the core micro service.
+ * Get the set of all configuration categories from the core micro service.
+ *
+ * @return ConfigCategories	The set of all confguration categories
  */
 ConfigCategories ManagementClient::getCategories()
 {
@@ -529,7 +668,10 @@ string ManagementClient::addChildCategories(const string& parentCategory,
 
 /**
  * Get the asset tracking tuples
+ * for a service or all services
  *
+ * @param    serviceName	The serviceName to restrict data fetch
+ *				If empty records for all services are fetched
  * @return		A vector of pointers to AssetTrackingTuple objects allocated on heap
  */
 std::vector<AssetTrackingTuple*>& ManagementClient::getAssetTrackingTuples(const std::string serviceName)
@@ -537,7 +679,11 @@ std::vector<AssetTrackingTuple*>& ManagementClient::getAssetTrackingTuples(const
 	std::vector<AssetTrackingTuple*> *vec = new std::vector<AssetTrackingTuple*>();
 	
 	try {
-		string url = "/fledge/track?service="+urlEncode(serviceName);
+		string url = "/fledge/track";
+		if (serviceName != "")
+		{
+			url += "?service="+urlEncode(serviceName);
+		}
 		auto res = this->getHttpClient()->request("GET", url.c_str());
 		Document doc;
 		string response = res->content.string();
@@ -643,7 +789,8 @@ bool ManagementClient::addAssetTrackingTuple(const std::string& service,
 }
 
 /**
- * Add an Audit Entry
+ * Add an Audit Entry. Called when an auditable event occurs
+ * to regsiter that event.
  *
  * Fledge API call example :
  *

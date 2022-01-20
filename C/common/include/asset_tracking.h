@@ -102,6 +102,8 @@ public:
 		{
 			return getService("Egress", asset);
 		};
+
+private:
 	std::string
 		getService(const std::string& event, const std::string& asset);
 

@@ -104,11 +104,14 @@ public:
 		};
 
 private:
+	std::string
+		getService(const std::string& event, const std::string& asset);
+
+private:
 	static AssetTracker	*instance;
 	ManagementClient	*m_mgtClient;
 	std::string		m_service;
 	std::unordered_set<AssetTrackingTuple*, std::hash<AssetTrackingTuple*>, AssetTrackingTuplePtrEqual>	assetTrackerTuplesCache;
-	std::string		getService(const std::string& event, const std::string& asset);
 };
 
 #endif

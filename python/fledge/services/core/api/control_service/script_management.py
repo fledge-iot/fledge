@@ -30,7 +30,6 @@ _help = """
 """
 
 _logger = logger.setup(__name__, level=logging.INFO)
-FORBIDDEN_MSG = 'resource you were trying to reach is absolutely forbidden for some reason'
 
 
 async def get_all_scripts(request: web.Request) -> web.Response:
@@ -85,10 +84,6 @@ async def add_script(request: web.Request) -> web.Response:
         curl -H "authorization: $AUTH_TOKEN" -sX POST http://localhost:8081/fledge/control/script -d '{"name": "testScript", "steps": {"write": {"order": 1, "service": "modbus1", "values": {"speed": "$requestedSpeed$", "fan": "1200"}, "condition": {"key": "requestedSpeed", "condition": "<", "value": "2000"}}, "delay": {"order": 2, "duration": 1500}}}'
         curl -H "authorization: $AUTH_TOKEN" -sX POST http://localhost:8081/fledge/control/script -d '{"name": "test", "steps": {}, "acl": "testACL"}'
     """
-    if request.is_auth_optional:
-        msg = "Add script: {}".format(FORBIDDEN_MSG)
-        _logger.warning(msg)
-        raise web.HTTPForbidden(reason=msg, body=json.dumps({"message": msg}))
     try:
         data = await request.json()
         name = data.get('name', None)
@@ -151,10 +146,6 @@ async def update_script(request: web.Request) -> web.Response:
         curl -H "authorization: $AUTH_TOKEN" -sX PUT http://localhost:8081/fledge/control/script/testScript -d '{"steps": {}}'
         curl -H "authorization: $AUTH_TOKEN" -sX PUT http://localhost:8081/fledge/control/script/test -d '{"steps": {}, "acl": "testACL"}'
     """
-    if request.is_auth_optional:
-        msg = "Update script: {}".format(FORBIDDEN_MSG)
-        _logger.warning(msg)
-        raise web.HTTPForbidden(reason=msg, body=json.dumps({"message": msg}))
     try:
         name = request.match_info.get('script_name', None)
         data = await request.json()
@@ -217,10 +208,6 @@ async def delete_script(request: web.Request) -> web.Response:
     :Example:
         curl -H "authorization: $AUTH_TOKEN" -sX DELETE http://localhost:8081/fledge/control/script/test
     """
-    if request.is_auth_optional:
-        msg = "Delete script: {}".format(FORBIDDEN_MSG)
-        _logger.warning(msg)
-        raise web.HTTPForbidden(reason=msg, body=json.dumps({"message": msg}))
     try:
         name = request.match_info.get('script_name', None)
         storage = connect.get_storage_async()

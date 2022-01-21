@@ -33,7 +33,6 @@ _help = """
 """
 
 _logger = logger.setup(__name__, level=logging.INFO)
-FORBIDDEN_MSG = 'resource you were trying to reach is absolutely forbidden for some reason'
 
 
 async def get_all_acls(request: web.Request) -> web.Response:
@@ -88,10 +87,6 @@ async def add_acl(request: web.Request) -> web.Response:
     :Example:
          curl -H "authorization: $AUTH_TOKEN" -sX POST http://localhost:8081/fledge/ACL -d '{"name": "testACL", "service": {"name": "IEC-104", "type": "notification"}, "url": {"URL": "/fledge/south/operation"}}'
     """
-    if request.is_auth_optional:
-        msg = "Add ACL: {}".format(FORBIDDEN_MSG)
-        _logger.warning(msg)
-        raise web.HTTPForbidden(reason=msg, body=json.dumps({"message": msg}))
     try:
         data = await request.json()
         name = data.get('name', None)
@@ -152,10 +147,6 @@ async def update_acl(request: web.Request) -> web.Response:
         curl -H "authorization: $AUTH_TOKEN" -sX PUT http://localhost:8081/fledge/ACL/testACL -d '{"service": {"name": "Sinusoid"}}'
         curl -H "authorization: $AUTH_TOKEN" -sX PUT http://localhost:8081/fledge/ACL/testACL -d '{"service": {}, "url": {"URL": "/fledge/south/operation"}}'
     """
-    if request.is_auth_optional:
-        msg = "Update ACL: {}".format(FORBIDDEN_MSG)
-        _logger.warning(msg)
-        raise web.HTTPForbidden(reason=msg, body=json.dumps({"message": msg}))
     try:
         name = request.match_info.get('acl_name', None)
         data = await request.json()
@@ -213,10 +204,6 @@ async def delete_acl(request: web.Request) -> web.Response:
     :Example:
         curl -H "authorization: $AUTH_TOKEN" -sX DELETE http://localhost:8081/fledge/ACL/testACL
     """
-    if request.is_auth_optional:
-        msg = "Delete ACL: {}".format(FORBIDDEN_MSG)
-        _logger.warning(msg)
-        raise web.HTTPForbidden(reason=msg, body=json.dumps({"message": msg}))
     try:
         name = request.match_info.get('acl_name', None)
         storage = connect.get_storage_async()
@@ -257,10 +244,6 @@ async def attach_acl_to_service(request: web.Request) -> web.Response:
     :Example:
         curl -H "authorization: $AUTH_TOKEN" -sX PUT http://localhost:8081/fledge/service/Sine/ACL -d '{"acl_name": "testACL"}'
     """
-    if request.is_auth_optional:
-        msg = "Attach ACL to service: {}".format(FORBIDDEN_MSG)
-        _logger.warning(msg)
-        raise web.HTTPForbidden(reason=msg, body=json.dumps({"message": msg}))
     try:
         svc_name = request.match_info.get('service_name', None)
         storage = connect.get_storage_async()
@@ -345,10 +328,6 @@ async def detach_acl_from_service(request: web.Request) -> web.Response:
     :Example:
         curl -H "authorization: $AUTH_TOKEN" -sX DELETE http://localhost:8081/fledge/service/Sine/ACL
     """
-    if request.is_auth_optional:
-        msg = "Detach ACL from service: {}".format(FORBIDDEN_MSG)
-        _logger.warning(msg)
-        raise web.HTTPForbidden(reason=msg, body=json.dumps({"message": msg}))
     try:
         svc_name = request.match_info.get('service_name', None)
         storage = connect.get_storage_async()

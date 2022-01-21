@@ -305,9 +305,27 @@ DatapointValue *PythonReading::getDatapointValue(PyObject *value)
 
 			dataPoint = new DatapointValue(image);
 		}
+		else if (PyArray_NDIM(array) == 3)	// RGB Image	T_IMAGE
+		{
+            //Logger::getLogger()->info("PythonReading::getDatapointValue: T_IMAGE");
+			npy_intp *dims = PyArray_DIMS(array);
+			if ((int)dims[2] == 3)
+			{
+				int width = (int)dims[0];
+				int height = (int)dims[1];
+				int depth = 24;	// In bits
+				DPImage *image = new DPImage(width, height, depth, PyArray_DATA(array));
+
+				dataPoint = new DatapointValue(image);
+			}
+			else
+			{
+				Logger::getLogger()->error("Received 3D numpy array that is not RGB image");
+			}
+		}
 		else
 		{
-			Logger::getLogger()->error("Encountered a numpy array with more than 2 dimensions in a Python data point %s. This is currently not supported");
+			Logger::getLogger()->error("Encountered a numpy array with more than 3 dimensions in a Python data point %s. This is currently not supported");
 		}
 	}
 	else
@@ -487,30 +505,45 @@ PyObject *PythonReading::convertDatapoint(Datapoint *dp)
 		//PythonRuntime::getPythonRuntime()->initNumPy();
 		InitNumPy();
 		DPImage *image = dp->getData().getImage();
-		npy_intp dim[2];
-		dim[0] = image->getWidth();
-		dim[1] = image->getHeight();
-		enum NPY_TYPES	type;
-		switch (image->getDepth())
-		{
-			case 8:
-				type = NPY_UBYTE;
-				break;
-			case 16:
-				type = NPY_UINT16;
-				break;
-			case 32:
-				type = NPY_UINT32;
-				break;
-			case 64:
-				type = NPY_UINT64;
-				break;
-			default:
-				break;
+		if (image->getDepth() == 24)
+		{{
+			npy_intp dim[3];
+			dim[0] = image->getWidth();
+			dim[1] = image->getHeight();
+			dim[2] = 3;
+			enum NPY_TYPES	type = NPY_UBYTE;
+			PyGILState_STATE state = PyGILState_Ensure();
+			value = PyArray_SimpleNewFromData(3, dim, type, image->getData());
+			PyGILState_Release(state);
 		}
-		PyGILState_STATE state = PyGILState_Ensure();
-		value = PyArray_SimpleNewFromData(2, dim, type, image->getData());
-		PyGILState_Release(state);
+		}
+		else
+		{
+			npy_intp dim[2];
+			dim[0] = image->getWidth();
+			dim[1] = image->getHeight();
+			enum NPY_TYPES	type;
+			switch (image->getDepth())
+			{
+				case 8:
+					type = NPY_UBYTE;
+					break;
+				case 16:
+					type = NPY_UINT16;
+					break;
+				case 32:
+					type = NPY_UINT32;
+					break;
+				case 64:
+					type = NPY_UINT64;
+					break;
+				default:
+					break;
+			}
+			PyGILState_STATE state = PyGILState_Ensure();
+			value = PyArray_SimpleNewFromData(2, dim, type, image->getData());
+			PyGILState_Release(state);
+		}
 	}
 	else if (dataType == DatapointValue::dataTagType::T_DP_DICT)
 	{

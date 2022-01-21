@@ -42,7 +42,16 @@ static const char *default_config = QUOTE({
 		"displayName": "Asset Name",
 		"mandatory": "true",
 		"order" : "1"
-	       	}
+	       	},
+	"depth" : {
+		"description" : "Depth of the testcard to create",
+		"type" : "enumeration",
+		"options" : [ "8", "16", "24" ],
+		"default" : "8",
+		"displayName": "Depth",
+		"mandatory": "true",
+		"order" : "2"
+		}
 	});
 		  
 /**
@@ -100,18 +109,96 @@ Reading plugin_poll(PLUGIN_HANDLE *handle)
 {
 ConfigCategory *conf = (ConfigCategory *)handle;
 
-	void *data = malloc(256 * 256);
-	uint8_t *ptr = (uint8_t *)data;
-	for (int i = 0; i < 256; i++)
+	string d = conf->getValue("depth");
+	int depth = strtol(d.c_str(), NULL, 10);
+	switch (depth)
 	{
-		for (int j = 0; j < 256; j++)
-		{
-			*ptr++ = i;
-		}
+		case 8:
+			{
+			void *data = malloc(256 * 256);
+			uint8_t *ptr = (uint8_t *)data;
+			for (int i = 0; i < 256; i++)
+			{
+				for (int j = 0; j < 256; j++)
+				{
+					*ptr++ = i;
+				}
+			}
+			DPImage *image = new DPImage(256, 256, 8, data);
+			DatapointValue img(image);
+			return Reading(conf->getValue("asset"), new Datapoint("testcard", img));
+			}
+		case 16:
+			{
+			void *data = malloc(256 * 256 * 2);
+			uint16_t *ptr = (uint16_t *)data;
+			for (int i = 0; i < 256; i++)
+			{
+				for (int j = 0; j < 256; j++)
+				{
+					*ptr++ = i * i;
+				}
+			}
+			DPImage *image = new DPImage(256, 256, 16, data);
+			DatapointValue img(image);
+			return Reading(conf->getValue("asset"), new Datapoint("testcard", img));
+			}
+		case 24:
+			{
+			void *data = malloc(256 * 256 * 3);
+			uint8_t *ptr = (uint8_t *)data;
+			for (int i = 0; i < 32; i++)
+			{
+				for (int j = 0; j < 256; j++)
+				{
+					*ptr++ = i * 8;	// R
+					*ptr++ = 0;	// G
+					*ptr++ = 0;	// B
+				}
+			}
+			for (int i = 0; i < 32; i++)
+			{
+				for (int j = 0; j < 256; j++)
+				{
+					*ptr++ = 0;	// R
+					*ptr++ = i * 8;	// G
+					*ptr++ = 0;	// B
+				}
+			}
+			for (int i = 0; i < 32; i++)
+			{
+				for (int j = 0; j < 256; j++)
+				{
+					*ptr++ = 0;	// R
+					*ptr++ = 0;	// G
+					*ptr++ = i * 8;	// B
+				}
+			}
+			for (int i = 0; i < 32; i++)
+			{
+				for (int j = 0; j < 256; j++)
+				{
+					*ptr++ = i * 8;	// R
+					*ptr++ = i * 8;	// G
+					*ptr++ = i * 8;	// B
+				}
+			}
+			for (int i = 0; i < 128; i++)
+			{
+				for (int j = 0; j < 256; j++)
+				{
+					*ptr++ = i * 4;	// R
+					*ptr++ = 255 - (i * 4);	// G
+					*ptr++ = j;	// B
+				}
+			}
+			DPImage *image = new DPImage(256, 256, 24, data);
+			DatapointValue img(image);
+			return Reading(conf->getValue("asset"), new Datapoint("testcard", img));
+			}
+		default:
+			Logger::getLogger()->error("Unsupported depth %d", depth);
 	}
-	DPImage *image = new DPImage(256, 256, 8, data);
-	DatapointValue img(image);
-	return Reading(conf->getValue("asset"), new Datapoint("testcard", img));
 }
 
 /**

@@ -56,7 +56,7 @@ std::string ApplyPIServerNamingRules(const std::string &objName, bool *changed);
  * - namingScheme    = Naming schema of the asset, valid options are Concise, Backward compatibility ..
  * - afhHash         = Asset hash based on the AF hierarchy
  * - afHierarchy     = Current position of the asset in the AF hierarchy
- * - afHierarchyOrig = Original position of the asset in the AF hierarchy
+ * - afHierarchyOrig = Original position of the asset in the AF hierarchy, in case the asset was moved
  * - hintChkSum      = Checksum of the OMF hints
 
  */

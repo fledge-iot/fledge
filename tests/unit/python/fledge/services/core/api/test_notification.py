@@ -899,12 +899,14 @@ class TestNotification:
         json_response = json.loads(result)
         assert {"message": message} == json_response
 
-    @pytest.mark.parametrize("notification_instance_name, categories, exp_channel", [
-        ("overspeed", [("overspeed_channel_coolant", 1), ("Pump_channel_coolant2", 2)], ['coolant']),
-        ("overspeed", [("overspeed_channel_coolant", 1), ("overspeed_channel_coolant2", 2)], ['coolant', 'coolant2']),
-        ("overspeed", [], [])
+    @pytest.mark.parametrize("notification_instance_name, categories, exp_channel, plugin_type", [
+        ("overspeed", [], [], {}),
+        ("overspeed", [("overspeed_channel_coolant", 1), ("Pump_channel_coolant2", 2)], ['coolant'], {}),
+        ("overspeed", [("overspeed_channel_coolant", 1), ("overspeed_channel_coolant2", 2)], ['coolant', 'coolant2'], {}),
+        ("overspeed", [("deliveryoverspeed", 1), ("overspeed_channel_coolant2", 2)], ['deliveryoverspeed', 'coolant2'], {}),
+        ("overspeed", [("deliveryoverspeed", 1), ("overspeed_channel_coolant2", 2)], ['deliveryoverspeed/mqtt', 'coolant2/mqtt'], {"value": {"plugin": {"value": "mqtt" }}})
     ])
-    async def test_good_get_delivery_channel(self, mocker, client, notification_instance_name, categories, exp_channel):
+    async def test_good_get_delivery_channel(self, mocker, client, notification_instance_name, categories, exp_channel, plugin_type):
         async def async_mock(cat):
             return cat
 
@@ -912,13 +914,17 @@ class TestNotification:
         if sys.version_info >= (3, 8):
             _se = await mock_read_category_val(notification_instance_name)
             _rv = await async_mock(categories)
+            _rv2 = await async_mock(plugin_type)
         else:
             _se = asyncio.ensure_future(mock_read_category_val(notification_instance_name))
             _rv = asyncio.ensure_future(async_mock(categories))
+            _rv2 = asyncio.ensure_future(async_mock(plugin_type))
+
         mocker.patch.object(connect, 'get_storage_async')
         mocker.patch.object(ConfigurationManager, '__init__', return_value=None)
         mocker.patch.object(ConfigurationManager, '_read_category_val', side_effect=[_se])
         mocker.patch.object(ConfigurationManager, 'get_all_category_names', return_value=_rv)
+        mocker.patch.object(ConfigurationManager, '_read_category', return_value=_rv2)
         resp = await client.get('/fledge/notification/{}/delivery'.format(notification_instance_name))
         assert 200 == resp.status
         result = await resp.text()

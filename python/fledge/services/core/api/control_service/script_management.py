@@ -41,7 +41,11 @@ async def get_all_scripts(request: web.Request) -> web.Response:
     storage = connect.get_storage_async()
     payload = PayloadBuilder().SELECT("name", "steps", "acl").payload()
     result = await storage.query_tbl_with_payload('control_script', payload)
-    all_scripts = [key for key in result['rows']]
+    all_scripts = []
+    for key in result['rows']:
+        key.update({"steps": eval(str(key['steps']))})
+        all_scripts.append(key)
+
     return web.json_response({"scripts": all_scripts})
 
 
@@ -59,6 +63,7 @@ async def get_script(request: web.Request) -> web.Response:
         if 'rows' in result:
             if result['rows']:
                 script_info = result['rows'][0]
+                script_info.update({"steps": eval(str(script_info['steps']))})
             else:
                 raise NameNotFoundError('No such {} script found'.format(name))
         else:
@@ -81,8 +86,8 @@ async def add_script(request: web.Request) -> web.Response:
     """ Add a script
 
     :Example:
-        curl -H "authorization: $AUTH_TOKEN" -sX POST http://localhost:8081/fledge/control/script -d '{"name": "testScript", "steps": {"write": {"order": 1, "service": "modbus1", "values": {"speed": "$requestedSpeed$", "fan": "1200"}, "condition": {"key": "requestedSpeed", "condition": "<", "value": "2000"}}, "delay": {"order": 2, "duration": 1500}}}'
-        curl -H "authorization: $AUTH_TOKEN" -sX POST http://localhost:8081/fledge/control/script -d '{"name": "test", "steps": {}, "acl": "testACL"}'
+        curl -H "authorization: $AUTH_TOKEN" -sX POST http://localhost:8081/fledge/control/script -d '{"name": "testScript", "steps": [{"write": {"order": 1, "service": "modbus1", "values": {"speed": "$requestedSpeed$", "fan": "1200"}, "condition": {"key": "requestedSpeed", "condition": "<", "value": "2000"}}, "delay": {"order": 2, "duration": 1500}}]}'
+        curl -H "authorization: $AUTH_TOKEN" -sX POST http://localhost:8081/fledge/control/script -d '{"name": "test", "steps": [], "acl": "testACL"}'
     """
     try:
         data = await request.json()
@@ -96,8 +101,8 @@ async def add_script(request: web.Request) -> web.Response:
             raise ValueError('name cannot be empty')
         if steps is None:
             raise ValueError('steps param is required')
-        if not isinstance(steps, dict):
-            raise ValueError('steps must be a dictionary')
+        if not isinstance(steps, list):
+            raise ValueError('steps must be in list')
         if acl is not None:
             if not isinstance(acl, str):
                 raise ValueError('ACL must be a string')
@@ -107,6 +112,7 @@ async def add_script(request: web.Request) -> web.Response:
         storage = connect.get_storage_async()
         payload = PayloadBuilder().SELECT("name").WHERE(['name', '=', name]).payload()
         get_control_script_name_result = await storage.query_tbl_with_payload('control_script', payload)
+        steps = str(steps)
         if get_control_script_name_result['count'] == 0:
             payload = PayloadBuilder().INSERT(name=name, steps=steps).payload()
             if acl is not None:
@@ -115,8 +121,9 @@ async def add_script(request: web.Request) -> web.Response:
             insert_control_script_result = await storage.insert_into_tbl("control_script", payload)
             if 'response' in insert_control_script_result:
                 if insert_control_script_result['response'] == "inserted":
-                    result = {"name": name, "steps": steps} if acl is None else {"name": name, "steps": steps,
-                                                                                 "acl": acl.strip()}
+                    result = {"name": name, "steps": eval(steps)}
+                    if acl is not None:
+                        result["acl"] = acl.strip()
             else:
                 raise StorageServerError(insert_control_script_result)
         else:
@@ -143,8 +150,8 @@ async def update_script(request: web.Request) -> web.Response:
     """ Update a script
 
     :Example:
-        curl -H "authorization: $AUTH_TOKEN" -sX PUT http://localhost:8081/fledge/control/script/testScript -d '{"steps": {}}'
-        curl -H "authorization: $AUTH_TOKEN" -sX PUT http://localhost:8081/fledge/control/script/test -d '{"steps": {}, "acl": "testACL"}'
+        curl -H "authorization: $AUTH_TOKEN" -sX PUT http://localhost:8081/fledge/control/script/testScript -d '{"steps": []}'
+        curl -H "authorization: $AUTH_TOKEN" -sX PUT http://localhost:8081/fledge/control/script/test -d '{"steps": [], "acl": "testACL"}'
     """
     try:
         name = request.match_info.get('script_name', None)
@@ -153,8 +160,8 @@ async def update_script(request: web.Request) -> web.Response:
         acl = data.get('acl', None)
         if steps is None and acl is None:
             raise ValueError("Nothing to update in a given payload. Only steps and acl can be updated")
-        if steps is not None and not isinstance(steps, dict):
-            raise ValueError('steps must be a dictionary')
+        if steps is not None and not isinstance(steps, list):
+            raise ValueError('steps must be in list')
         if acl is not None:
             if not isinstance(acl, str):
                 raise ValueError('ACL must be a string')
@@ -168,10 +175,10 @@ async def update_script(request: web.Request) -> web.Response:
             if result['rows']:
                 if steps is not None and acl is not None:
                     # TODO: acl existence check
-                    update_payload = PayloadBuilder().SET(steps=steps, acl=acl.strip()).WHERE(
+                    update_payload = PayloadBuilder().SET(steps=str(steps), acl=acl.strip()).WHERE(
                         ['name', '=', name]).payload()
                 elif steps is not None:
-                    update_payload = PayloadBuilder().SET(steps=steps).WHERE(['name', '=', name]).payload()
+                    update_payload = PayloadBuilder().SET(steps=str(steps)).WHERE(['name', '=', name]).payload()
                 else:
                     # TODO: acl existence check
                     update_payload = PayloadBuilder().SET(acl=acl.strip()).WHERE(['name', '=', name]).payload()

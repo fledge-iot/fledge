@@ -1509,10 +1509,6 @@ class Server:
         pass
 
     @classmethod
-    async def change_child(cls, request):
-        pass
-
-    @classmethod
     async def get_track(cls, request):
         res = await asset_tracker_api.get_asset_tracker_events(request)
         return res

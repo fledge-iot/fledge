@@ -207,14 +207,6 @@ ostringstream convert;
 string responsePayload;
 string	category, items, payload, parent_category;
 
-
-	// FIXME_I:
-	string _section="xxx8 ";
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("%s / %s ::", _section.c_str(), __FUNCTION__);
-	Logger::getLogger()->setMinLevel("warning");
-
-
 	payload = request->content.string();
 
 	ConfigCategoryChange	conf(payload);
@@ -244,14 +236,6 @@ void ManagementApi::configChildCreate(shared_ptr<HttpServer::Response> response,
 ostringstream convert;
 string responsePayload;
 string	category, items, payload, parent_category;
-
-
-	// FIXME_I:
-	string _section="xxx6 ";
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("%s / %s - ManagementApi::configChildCreate ::", _section.c_str(), __FUNCTION__);
-	Logger::getLogger()->setMinLevel("warning");
-
 
 	payload = request->content.string();
 

@@ -579,7 +579,6 @@ async def _get_channels_type(cfg_mgr: ConfigurationManager, notify_instance: str
 
                 if extra:
                     try:
-                        #// FIXME_I:
                         #delivery_name = ch[len(prefix):] + "/" + category_info['value']['plugin']['value']
                         delivery_name = ch[len(prefix):]
                     except:
@@ -715,9 +714,6 @@ async def delete_delivery_channel(request: web.Request) -> web.Response:
         curl -sX DELETE http://localhost:8081/fledge/notification/overspeed/delivery/coolant
     """
 
-    #// FIXME_I:
-    import logging
-
     try:
         notification_service = ServiceRegistry.get(s_type=ServiceRecord.Type.Notification.name)
         _address, _port = notification_service[0]._address, notification_service[0]._port
@@ -732,55 +728,19 @@ async def delete_delivery_channel(request: web.Request) -> web.Response:
 
     try:
 
-        # Remove notification delivery
-        #url = 'http://{}:{}/notification/{}/delivery/{}'.format(_address, _port, urllib.parse.quote(notification_instance_name),channel_name)
-
-        #// FIXME_I:
-        notification = ""
-        #notification = json.loads(await _hit_delete_url(url))
-
-        #// FIXME_I:
-        _logger.setLevel(logging.DEBUG)
-        _logger.debug("xxx10 delete_delivery_channel url :{}: ".format(notification) )
-        _logger.setLevel(logging.WARNING)
-
         category_name = "{}_channel_{}".format(notification_instance_name, channel_name)
         notification_config = await config_mgr._read_category_val(notification_instance_name)
 
-        #// FIXME_I:
-        _logger.setLevel(logging.DEBUG)
-        _logger.debug("xxx11 delete_delivery_channel category_name :{}: notification_config :{}:-"
-                      .format(category_name, notification_config) )
-        _logger.setLevel(logging.WARNING)
-
-        #// FIXME_I:
-        channels = "writing..."
         if notification_config:
             channels = await _get_channels(config_mgr, notification_instance_name)
 
-            #// FIXME_I:
-            _logger.setLevel(logging.DEBUG)
-            _logger.debug("xxx12 delete_delivery_channel channel_name :{}:  channels :{}: ".format(channel_name, channels) )
-            _logger.setLevel(logging.WARNING)
-
             if channel_name in channels:
-
-                #// FIXME_I:
-                _logger.setLevel(logging.DEBUG)
-                _logger.debug("xxx12 IN ")
-                _logger.setLevel(logging.WARNING)
 
                 await config_mgr.delete_category_and_children_recursively(category_name)
                 # Get channels list again as relation gets deleted above
                 channels = await _get_channels(config_mgr, notification_instance_name)
             else:
                 raise NotFoundError("{} channel does not exist".format(channel_name))
-
-
-            #// FIXME_I:
-            _logger.setLevel(logging.DEBUG)
-            _logger.debug("xxx12 delete_delivery_channel channel_name :{}:  channels :{}: ".format(channel_name, channels) )
-            _logger.setLevel(logging.WARNING)
 
         else:
             raise NotFoundError("{} notification instance does not exist".format(notification_instance_name))

@@ -64,22 +64,19 @@ ConfigHandler::configChange(const string& category, const string& config)
 	}
 }
 
-// FIXME_I:
+/**
+ * Handle a callback from the core to handle the creation of a child category.
+ *
+ * @param parent_category The parent category of the child
+ * @param child_category  The name of the category that has created
+ * @param config          Configuration of the child category
+ */
 void ConfigHandler::configChildCreate(const std::string& parent_category, const string& child_category, const string& config)
 {
 	std::unique_lock<std::mutex> lck(m_mutex);
 
 
-
-	// FIXME_I:
-	string _section="xxx6 ";
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("%s / %s - ConfigHandler configChildCreate ::", _section.c_str(), __FUNCTION__);
-	Logger::getLogger()->setMinLevel("warning");
-
-
-
-	m_logger->info("Configuration change notification for child category %s", child_category.c_str());
+	m_logger->info("Configuration change notification,  child category created %s", child_category.c_str());
 
 	pair<CONFIG_MAP::iterator, CONFIG_MAP::iterator> res = m_registrationsChild.equal_range(parent_category);
 	for (CONFIG_MAP::iterator it = res.first; it != res.second; it++)
@@ -100,22 +97,18 @@ void ConfigHandler::configChildCreate(const std::string& parent_category, const 
 
 }
 
-// FIXME_I:
+
+/**
+ * Handle a callback from the core to handle the deletion of a child category.
+ *
+ * @param parent_category The parent category of the child
+ * @param child_category  The name of the category that has created
+ */
 void ConfigHandler::configChildDelete(const std::string& parent_category, const string& child_category)
 {
 	std::unique_lock<std::mutex> lck(m_mutex);
 
-
-
-	// FIXME_I:
-	string _section="xxx8 ";
-	Logger::getLogger()->setMinLevel("debug");
-	Logger::getLogger()->debug("%s / %s - e ::", _section.c_str(), __FUNCTION__);
-	Logger::getLogger()->setMinLevel("warning");
-
-
-
-	m_logger->info("Configuration change notification for child category %s", child_category.c_str());
+	m_logger->info("Configuration change notification,  child category deleted %s", child_category.c_str());
 
 	pair<CONFIG_MAP::iterator, CONFIG_MAP::iterator> res = m_registrationsChild.equal_range(parent_category);
 	for (CONFIG_MAP::iterator it = res.first; it != res.second; it++)

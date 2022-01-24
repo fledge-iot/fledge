@@ -84,17 +84,6 @@ async def run_child_create(parent_category_name, child_category_list):
     except interest_registry_exceptions.DoesNotExist:
         return
 
-
-    #// FIXME_I:
-    import logging
-
-
-    #// FIXME_I:
-    _LOGGER.setLevel(logging.DEBUG)
-    _LOGGER.debug("xxx5 run_child_create parent_category_name :{}: child_category_list :{}:".format(parent_category_name, child_category_list ) )
-    _LOGGER.setLevel(logging.WARNING)
-
-    #// FIXME_I:
     for child_category in child_category_list:
 
         category_value = await cfg_mgr.get_category_all_items(child_category)
@@ -110,11 +99,6 @@ async def run_child_create(parent_category_name, child_category_list):
                 _LOGGER.exception("Unable to notify microservice with uuid %s as it is not found in the service registry", i._microservice_uuid)
                 continue
             url = "{}://{}:{}/fledge/child_create".format(service_record._protocol, service_record._address, service_record._management_port)
-
-            #// FIXME_I:
-            _LOGGER.setLevel(logging.DEBUG)
-            _LOGGER.debug("xxx5 run_child_create url :{}: ".format(url) )
-            _LOGGER.setLevel(logging.WARNING)
 
             async with aiohttp.ClientSession() as session:
                 try:
@@ -145,19 +129,8 @@ async def run_child_delete(parent_category_name, child_category_list):
     except interest_registry_exceptions.DoesNotExist:
         return
 
-    #// FIXME_I:
-    import logging
-
-
-    #// FIXME_I:
-    _LOGGER.setLevel(logging.DEBUG)
-    _LOGGER.debug("xxx7 run_child_delete parent_category_name :{}: child_category_list :{}:".format(parent_category_name, child_category_list ) )
-    _LOGGER.setLevel(logging.WARNING)
-
-    #// FIXME_I:
     for child_category in child_category_list:
 
-        #// FIXME_I:
         category_value = await cfg_mgr.get_category_all_items(child_category)
         payload = {"parent_category" : parent_category_name, "category" : child_category, "items" : category_value}
         headers = {'content-type': 'application/json'}
@@ -171,11 +144,6 @@ async def run_child_delete(parent_category_name, child_category_list):
                 _LOGGER.exception("Unable to notify microservice with uuid %s as it is not found in the service registry", i._microservice_uuid)
                 continue
             url = "{}://{}:{}/fledge/child_delete".format(service_record._protocol, service_record._address, service_record._management_port)
-
-            #// FIXME_I:
-            _LOGGER.setLevel(logging.DEBUG)
-            _LOGGER.debug("xxx5 run_child_delete url :{}: ".format(url) )
-            _LOGGER.setLevel(logging.WARNING)
 
             async with aiohttp.ClientSession() as session:
                 try:
@@ -191,8 +159,6 @@ async def run_child_delete(parent_category_name, child_category_list):
                     continue
 
 
-
-
 async def run_child(parent_category_name, child_category_list, operation):
     """ Callback run by configuration category to notify changes to interested microservices
 
@@ -203,15 +169,6 @@ async def run_child(parent_category_name, child_category_list, operation):
         child_category_list (str): list of the children category changed
         operation (str): "c" = created | "d" = delete
     """
-
-    #// FIXME_I:
-    import logging
-
-
-    #// FIXME_I:
-    _LOGGER.setLevel(logging.DEBUG)
-    _LOGGER.debug("xxx5 run_child :{}: -".format(operation) )
-    _LOGGER.setLevel(logging.WARNING)
 
     if operation == "c":
         await run_child_create (parent_category_name, child_category_list)

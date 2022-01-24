@@ -1372,7 +1372,6 @@ class Server:
             category_name = data.get('category', None)
             microservice_uuid = data.get('service', None)
 
-            #// FIXME_I:
             try:
                 value = data.get('child', None)
                 if value is not None:
@@ -1509,7 +1508,6 @@ class Server:
     async def change(cls, request):
         pass
 
-    #// FIXME_I:
     @classmethod
     async def change_child(cls, request):
         pass

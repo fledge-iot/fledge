@@ -562,8 +562,7 @@ static PLUGIN_HANDLE plugin_init_fn(ConfigCategory *config)
 		if (it == pythonModules->end())
 		{
 			Logger::getLogger()->debug("plugin_handle: plugin_init(): "
-						   "pModule nof found for plugin '%s': "
-						   "import Python module using a new interpreter.",
+						   "pModule not found for plugin '%s': ",
 						   pName.c_str());
 
 			// Set plugin type
@@ -610,39 +609,21 @@ static PLUGIN_HANDLE plugin_init_fn(ConfigCategory *config)
 	// Import Python module using a new interpreter
 	if (loadModule || reloadModule)
 	{
-		// Start a new interpreter
-		newInterp = Py_NewInterpreter();
-		if (!newInterp)
-		{
-			Logger::getLogger()->fatal("plugin_handle: plugin_init() "
-						   "Py_NewInterpreter failure "
-						   "for for plugin '%s': ",
-						   pName.c_str());
-			logErrorMessage();
-
-			PyGILState_Release(state);
-			return NULL;
-		}
-        else
-            Logger::getLogger()->info("%s:%d: Created new python interpreter @%p", 
-                                        __FUNCTION__, __LINE__, newInterp);
-
-		string shimLayerPath;
 		string fledgePythonDir;
 	
-		// Python 3.x set parameters for import
-		setImportParameters(shimLayerPath, fledgePythonDir);
+		string fledgeRootDir(getenv("FLEDGE_ROOT"));
+    	fledgePythonDir = fledgeRootDir + "/python";
 
-		string name;
+        // string name;
 		int argc = 2;
 
 		// Set Python path for embedded Python 3.x
 		// Get current sys.path - borrowed reference
 		PyObject* sysPath = PySys_GetObject((char *)"path");
 		PyList_Append(sysPath, PyUnicode_FromString((char *) fledgePythonDir.c_str()));
-		PyList_Append(sysPath, PyUnicode_FromString((char *) shimLayerPath.c_str()));
 
-		// For notificationRUle/Delivery plugins we need another import parameter
+#if 0
+		// For notification Rule/Delivery plugins we need another import parameter
 		if (loadPluginType.find("notification") != string::npos)
 		{
 			name = "notification" + string(SHIM_SCRIPT_POSTFIX);
@@ -652,7 +633,8 @@ static PLUGIN_HANDLE plugin_init_fn(ConfigCategory *config)
 		{
 			name = loadPluginType + string(SHIM_SCRIPT_POSTFIX);
 		}
-
+#endif
+        
 		// Set sys.argv for embedded Python 3.x
 		wchar_t* argv[argc];
 		argv[0] = Py_DecodeLocale("", NULL);
@@ -665,15 +647,13 @@ static PLUGIN_HANDLE plugin_init_fn(ConfigCategory *config)
 		// Set script parameters
 		PySys_SetArgv(argc, argv);
 
-		Logger::getLogger()->debug("%s_plugin_init_fn, %sloading plugin '%s', "
-					   "using a new interpreter, SHIM file is '%s'",
+		Logger::getLogger()->debug("%s_plugin_init_fn, %sloading plugin '%s', ",
 					   loadPluginType.c_str(),
-					   string(reloadModule ? "re-" : "").c_str(), 
-					   pName.c_str(),
-					   name.c_str());
+					   reloadModule ? "re-" : "", 
+					   pName.c_str());
 
 		// Import Python script
-		PyObject *newObj = PyImport_ImportModule(name.c_str());
+		PyObject *newObj = PyImport_ImportModule(pName.c_str());
 
 		// Check result
 		if (newObj)
@@ -684,10 +664,10 @@ static PLUGIN_HANDLE plugin_init_fn(ConfigCategory *config)
 							  pythonInitState,
 							  pName,
 							  loadPluginType,
-							  newInterp)) == NULL)
+							  NULL)) == NULL)
 			{
 				// Release lock
-				PyEval_ReleaseThread(newInterp);
+				PyGILState_Release(state);
 
 				Logger::getLogger()->fatal("plugin_handle: plugin_init(): "
 							   "failed to create Python module "
@@ -704,7 +684,7 @@ static PLUGIN_HANDLE plugin_init_fn(ConfigCategory *config)
 			logErrorMessage();
 
 			// Release lock
-			PyEval_ReleaseThread(newInterp);
+			PyGILState_Release(state);
 
 			Logger::getLogger()->fatal("plugin_handle: plugin_init(): "
 						   "failed to import plugin '%s'",

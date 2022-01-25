@@ -598,7 +598,6 @@ void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
 				   fledgePythonDir.c_str(),
 				   pluginName);
 
-    string filterDir = fledgePythonDir + R"(fledge/plugins/filter)";
 	// Set Python path for embedded Python 3.x
 	// Get current sys.path - borrowed reference
 	PyObject* sysPath = PySys_GetObject((char *)"path");

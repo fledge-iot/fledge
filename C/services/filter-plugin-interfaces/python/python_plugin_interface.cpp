@@ -40,55 +40,6 @@ extern void plugin_shutdown_fn(PLUGIN_HANDLE);
 extern void setImportParameters(string& shimLayerPath, string& fledgePythonDir);
 
 
-PyObject *json_loads(const char *json_str)
-{
-PyObject *rval;
-va_list ap;
-PyObject *mod, *method;
-
-	PyGILState_STATE state = PyGILState_Ensure();
-	if ((mod = PyImport_ImportModule("json")) != NULL)
-	{
-		if ((method = PyObject_GetAttrString(mod, "loads")) != NULL)
-		{
-            PyObject *args = PyTuple_New(1);
-            PyObject *pValue = Py_BuildValue("s", json_str);
-            PyTuple_SetItem(args, 0, pValue);
-			
-			rval = PyObject_Call(method, args, NULL);
-			if (rval == NULL)
-			{
-				if (PyErr_Occurred())
-				{
-					logErrorMessage();
-                    return NULL;
-				}
-			}
-            else
-                Logger::getLogger()->info("%s:%d, rval type=%s", __FUNCTION__, __LINE__, (Py_TYPE(rval))->tp_name);
-            
-			Py_CLEAR(method);
-		}
-		else
-		{
-			Logger::getLogger()->fatal("Method 'dumps' not found");
-		}
-		// Remove references
-		Py_CLEAR(mod);
-	}
-	else
-	{
-		Logger::getLogger()->fatal("Failed to import module");
-	}
-
-	// Reset error
-	PyErr_Clear();
-
-	PyGILState_Release(state);
-    
-	return rval;
-}
-
 /**
  * Function to invoke 'plugin_reconfigure' function in python plugin
  *
@@ -301,7 +252,6 @@ void filter_plugin_ingest_fn(PLUGIN_HANDLE handle, READINGSET *data)
 
     Logger::getLogger()->info("C2Py: filter_plugin_ingest_fn():L%d: data->getCount()=%d", __LINE__, data->getCount());
 
-    // Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
 	// Create a dict of readings
 	// - 1 - Create Python list of dicts as input to the filter
 	PythonReadingSet *pyReadingSet = (PythonReadingSet *) data;
@@ -381,7 +331,7 @@ PLUGIN_HANDLE filter_plugin_init_fn(ConfigCategory* config,
 	PythonModule *module = NULL;
 	PyThreadState* newInterp = NULL;
 
-	// Check wether plugin pName has been already loaded
+	// Check whether plugin pName has been already loaded
 	for (auto h = pythonHandles->begin();
                   h != pythonHandles->end(); ++h)
         {
@@ -400,6 +350,11 @@ PLUGIN_HANDLE filter_plugin_init_fn(ConfigCategory* config,
 			break;
 		}
 	}
+
+    if(!loadModule)
+        Logger::getLogger()->info("filter_plugin_init_fn: NOT already loaded "
+						   "a plugin with name '%s'. A new Python obj is needed",
+						   pName.c_str());
 
 	if (!loadModule)
 	{
@@ -441,7 +396,8 @@ PLUGIN_HANDLE filter_plugin_init_fn(ConfigCategory* config,
 		}
 	}
 
-    Logger::getLogger()->info("filter_plugin_init_fn: loadModule=%s, reloadModule=%s", loadModule?"TRUE":"FALSE", reloadModule?"TRUE":"FALSE");
+    Logger::getLogger()->info("filter_plugin_init_fn: loadModule=%s, reloadModule=%s", 
+                                loadModule?"TRUE":"FALSE", reloadModule?"TRUE":"FALSE");
     
 	// Acquire GIL
 	PyGILState_STATE state = PyGILState_Ensure();
@@ -470,7 +426,7 @@ PLUGIN_HANDLE filter_plugin_init_fn(ConfigCategory* config,
 		// Python 3.x set parameters for import
 		setImportParameters(shimLayerPath, fledgePythonDir);
 
-		string name(string(PLUGIN_TYPE_FILTER) + string(SHIM_SCRIPT_POSTFIX));
+		// string name(string(PLUGIN_TYPE_FILTER) + string(SHIM_SCRIPT_POSTFIX));
 
 		// Set Python path for embedded Python 3.x
 		// Get current sys.path - borrowed reference
@@ -671,13 +627,13 @@ void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
     Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
     
 	Logger::getLogger()->info("FilterPlugin PluginInterfaceInit %s:%d: "
-				   "shimLayerPath=%s, fledgePythonDir=%s, plugin '%s'",
+				   "fledgePythonDir=%s, plugin '%s'",
 				   __FUNCTION__,
 				   __LINE__,
-				   shimLayerPath.c_str(),
 				   fledgePythonDir.c_str(),
 				   pluginName);
 
+    string filterDir = fledgePythonDir + R"(fledge/plugins/filter)";
 	// Set Python path for embedded Python 3.x
 	// Get current sys.path - borrowed reference
 	PyObject* sysPath = PySys_GetObject((char *)"path");

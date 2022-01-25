@@ -44,7 +44,6 @@ void plugin_register_ingest_fn(PLUGIN_HANDLE handle,INGEST_CB2 cb,void * data);
 
 /**
  * Constructor for PythonPluginHandle
- *    - Load python 3.5 interpreter
  *    - Set sys.path and sys.argv
  *    - Import shim layer script and pass plugin name in argv[1]
  */
@@ -55,10 +54,10 @@ void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
     // Set plugin name, also for methods in common-plugin-interfaces/python
     gPluginName = pluginName;
 
-    string shimLayerPath;
     string fledgePythonDir;
-    // Python 3.x set parameters for import
-    setImportParameters(shimLayerPath, fledgePythonDir);
+    
+    string fledgeRootDir(getenv("FLEDGE_ROOT"));
+	fledgePythonDir = fledgeRootDir + "/python";
     
     string southRootPath = fledgePythonDir + string(R"(/fledge/plugins/south/)") + string(pluginName);
     Logger::getLogger()->info("%s:%d:, southRootPath=%s", __FUNCTION__, __LINE__, southRootPath.c_str());
@@ -68,18 +67,13 @@ void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
     Py_SetProgramName(programName);
     PyMem_RawFree(programName);
 
-    // string name(string(PLUGIN_TYPE_NORTH) + string(SHIM_SCRIPT_POSTFIX));
-    // Logger::getLogger()->info("%s:%d:, name=%s", __FUNCTION__, __LINE__, name);
     PythonRuntime::getPythonRuntime();
-
-    Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
     
     // Acquire GIL
     PyGILState_STATE state = PyGILState_Ensure();
 
     Logger::getLogger()->info("SouthPlugin %s:%d: "
                    "southRootPath=%s, fledgePythonDir=%s, plugin '%s'",
-
                    __FUNCTION__,
                    __LINE__,
                    southRootPath.c_str(),
@@ -91,16 +85,6 @@ void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
     PyObject* sysPath = PySys_GetObject((char *)"path");
     PyList_Append(sysPath, PyUnicode_FromString((char *) southRootPath.c_str()));
     PyList_Append(sysPath, PyUnicode_FromString((char *) fledgePythonDir.c_str()));
-
-    // Set sys.argv for embedded Python 3.x
-    /*
-    int argc = 2;
-    wchar_t* argv[2];
-    argv[0] = Py_DecodeLocale("", NULL);
-    argv[1] = Py_DecodeLocale(pluginName, NULL);
-    PySys_SetArgv(argc, argv);
-    */
-    Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
 
     // 2) Import Python script
     PyObject *pModule = PyImport_ImportModule(pluginName);
@@ -137,7 +121,7 @@ void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
             ret.second == false)
         {
             Logger::getLogger()->fatal("%s:%d: python module not added to the map "
-                           "of loaded plugins, pModule=%p, plugin '%s'i, aborting.",
+                           "of loaded plugins, pModule=%p, plugin '%s', aborting.",
                            __FUNCTION__,
                            __LINE__,
                            pModule,

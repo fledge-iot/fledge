@@ -208,14 +208,11 @@ PyObject *mod, *method;
 	PyGILState_STATE state = PyGILState_Ensure();
 	if ((mod = PyImport_ImportModule("json")) != NULL)
 	{
-        Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
 		if ((method = PyObject_GetAttrString(mod, "dumps")) != NULL)
 		{
-            Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
             PyObject *args = PyTuple_New(1);
             PyObject *pValue = Py_BuildValue("O", json_dict);
             PyTuple_SetItem(args, 0, pValue);
-            Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
 			
 			rval = PyObject_Call(method, args, NULL);
 			if (rval == NULL)
@@ -235,7 +232,6 @@ PyObject *mod, *method;
 		{
 			Logger::getLogger()->fatal("Method 'dumps' not found");
 		}
-        Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
 		// Remove references
 		Py_CLEAR(mod);
 	}
@@ -243,17 +239,14 @@ PyObject *mod, *method;
 	{
 		Logger::getLogger()->fatal("Failed to import module");
 	}
-    Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
 
 	// Reset error
 	PyErr_Clear();
 
 	PyGILState_Release(state);
 
-    Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
-
     const char *retVal = PyUnicode_AsUTF8(rval);
-    Logger::getLogger()->info("json_dumps3(): retVal=%s", retVal);
+    Logger::getLogger()->debug("%s: retVal=%s", __FUNCTION__, retVal);
     
 	return retVal;
 }
@@ -268,14 +261,11 @@ PyObject *mod, *method;
 	PyGILState_STATE state = PyGILState_Ensure();
 	if ((mod = PyImport_ImportModule("json")) != NULL)
 	{
-        Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
 		if ((method = PyObject_GetAttrString(mod, "loads")) != NULL)
 		{
-            Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
             PyObject *args = PyTuple_New(1);
             PyObject *pValue = Py_BuildValue("s", json_str);
             PyTuple_SetItem(args, 0, pValue);
-            Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
 			
 			rval = PyObject_Call(method, args, NULL);
 			if (rval == NULL)
@@ -293,9 +283,9 @@ PyObject *mod, *method;
 		}
 		else
 		{
-			Logger::getLogger()->fatal("Method 'dumps' not found");
+			Logger::getLogger()->fatal("Method 'loads' not found");
 		}
-        Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
+
 		// Remove references
 		Py_CLEAR(mod);
 	}
@@ -303,14 +293,11 @@ PyObject *mod, *method;
 	{
 		Logger::getLogger()->fatal("Failed to import module");
 	}
-    Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
 
 	// Reset error
 	PyErr_Clear();
 
 	PyGILState_Release(state);
-
-    Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
     
 	return rval;
 }
@@ -331,8 +318,6 @@ static PLUGIN_INFORMATION *Py2C_PluginInfo(PyObject* pyRetVal)
 	// these are borrowed references returned by PyDict_Next
 	PyObject *dKey, *dValue;
 	Py_ssize_t dPos = 0;
-
-    Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
     
     PyObject* objectsRepresentation = PyObject_Repr(pyRetVal);
     const char* s = PyUnicode_AsUTF8(objectsRepresentation);
@@ -344,7 +329,7 @@ static PLUGIN_INFORMATION *Py2C_PluginInfo(PyObject* pyRetVal)
 	{
 		const char* ckey = PyUnicode_AsUTF8(dKey);
 		const char* cval = PyUnicode_AsUTF8(dValue);
-        Logger::getLogger()->info("%s:%d, key=%s, value=%s, dValue type=%s", __FUNCTION__, __LINE__, ckey, cval, (Py_TYPE(dValue))->tp_name);
+        Logger::getLogger()->debug("%s:%d, key=%s, value=%s, dValue type=%s", __FUNCTION__, __LINE__, ckey, cval, (Py_TYPE(dValue))->tp_name);
 
         char *valStr = NULL;
         if (strcmp((Py_TYPE(dValue))->tp_name, "dict") != 0)
@@ -380,9 +365,7 @@ static PLUGIN_INFORMATION *Py2C_PluginInfo(PyObject* pyRetVal)
 			info->interface = valStr;
 		}
 		else if(!strcmp(ckey, "config"))
-		{
-            Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
-            
+		{            
             // if 'config' value is of dict type, convert it to string
             if (strcmp((Py_TYPE(dValue))->tp_name, "dict")==0)
             {

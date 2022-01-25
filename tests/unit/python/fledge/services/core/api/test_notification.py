@@ -1002,8 +1002,6 @@ class TestNotification:
         #json_response = json.loads(result)
         #assert {"message": message} == json_response
 
-    # FIXME:
-    #@pytest.mark.this
     async def test_good_delete_delivery_channel(self, mocker, client):
         notification_instance_name = "overspeed"
         channel_name = "coolant"

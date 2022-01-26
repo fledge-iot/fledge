@@ -1740,7 +1740,9 @@ void  ReadingsCatalogue::allocateReadingAvailable()
 /**
  * Allocates a reading table to the given asset_code
  *
- * @return - the reading id associated to the provided asset_code
+ * @param    connection	Db connection to be used for the operations
+ * @param    asset_code for which the referenced readings table should be idenfied
+ * @return   the reading id associated to the provided asset_code
  */
 ReadingsCatalogue::tyReadingReference  ReadingsCatalogue::getReadingReference(Connection *connection, const char *asset_code)
 {

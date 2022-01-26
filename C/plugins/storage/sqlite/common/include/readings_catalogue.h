@@ -43,14 +43,17 @@ typedef struct
  * to a table that holds readings for that asset_code.
  *
  * The first reading table readings_1_1 is created by the script init_readings.sql executed during the storage init
- * all the other readings create by the code when Fledge starts.
+ * all the other readings tables are created by the code when Fledge starts.
  *
- * The table configuration_readings created by the script init_readings.sql keep tracks of the information:
+ * The table configuration_readings created by the script init_readings.sql keeps track of the information:
  *
  * - global_id         -- Stores the last global Id used +1, Updated at -1 when Fledge starts, Updated at the proper value when Fledge stops
  * - db_id_Last        -- Latest database available
  * - n_readings_per_db -- Number of readings table per database
  * - n_db_preallocate  -- Number of databases to allocate in advance
+ *
+ * The readings tables are allocated in sequence starting from the readings_1_1 and proceeding with the other tables available in the first database.
+ * The tables in the 2nd database (readings_2.db) will be used when all the tables in the first db are allocated.
  *
  */
 class ReadingsCatalogue {

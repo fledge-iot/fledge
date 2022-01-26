@@ -15,7 +15,7 @@
 using namespace std;
 using namespace rapidjson;
 
-/*
+/**
  * - poolSize                  Number of connections to allocate
  * - nReadingsPerDb            Number of readings tables per database
  * - nDbPreallocate            Number of databases to allocate in advance
@@ -33,7 +33,7 @@ typedef struct
 
 } STORAGE_CONFIGURATION;
 
-/*
+/**
  * Implements the handling of multiples readings tables spreaded among multiple SQLite databases.
  *
  * The databases are named using the format readings_<dbid>, like for example readings_1.db
@@ -192,7 +192,9 @@ private:
 
 };
 
-// Used to synchronize the attach database operation
+/**
+ * Used to synchronize the attach database operation
+ */
 class AttachDbSync {
 
 public:

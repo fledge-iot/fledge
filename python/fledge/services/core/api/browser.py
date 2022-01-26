@@ -13,6 +13,8 @@ Supports a number of REST API:
      - Return a summary count of all asset readings
   http://<address>/fledge/asset/{asset_code}
     - Return a set of asset readings for the given asset
+  http://<address>/fledge/asset/{asset_code}/latest
+    - Return latest reading for the given asset
   http://<address>/fledge/asset/{asset_code}/summary
     - Return a set of the summary of all sensors values for the given asset
   http://<address>/fledge/asset/{asset_code}/{reading}
@@ -61,6 +63,7 @@ def setup(app):
     """ Add the routes for the API endpoints supported by the data browser """
     app.router.add_route('GET', '/fledge/asset', asset_counts)
     app.router.add_route('GET', '/fledge/asset/{asset_code}', asset)
+    app.router.add_route('GET', '/fledge/asset/{asset_code}/latest', asset_latest)
     app.router.add_route('GET', '/fledge/asset/{asset_code}/summary', asset_all_readings_summary)
     app.router.add_route('GET', '/fledge/asset/{asset_code}/{reading}', asset_reading)
     app.router.add_route('GET', '/fledge/asset/{asset_code}/{reading}/summary', asset_summary)
@@ -174,6 +177,32 @@ async def asset(request):
     except KeyError:
         msg = results['message']
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+    else:
+        return web.json_response(response)
+
+
+async def asset_latest(request: web.Request) -> web.Response:
+    """ Browse a particular asset for which we have recorded readings and
+    return a single latest reading with timestamps for an asset.
+    Returns:
+            Latest reading for an asset
+    :Example:
+            curl -sX GET http://localhost:8081/fledge/asset/fogbench_humidity/latest
+    """
+    asset_code = request.match_info.get('asset_code', '')
+    payload = PayloadBuilder().SELECT(("reading", "user_ts")).ALIAS("return", ("user_ts", "timestamp")).WHERE(
+        ["asset_code", "=", asset_code]).LIMIT(1).ORDER_BY(["user_ts", "desc"]).payload()
+    results = {}
+    try:
+        _readings = connect.get_readings_async()
+        results = await _readings.query(payload)
+        response = results['rows']
+    except KeyError:
+        msg = results['message']
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+    except Exception as exc:
+        msg = str(exc)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(response)
 

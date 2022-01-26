@@ -869,6 +869,15 @@ class Server:
             if not cls.running_in_safe_mode:
                 # Start asset tracker
                 loop.run_until_complete(cls._start_asset_tracker())
+                # If dispatcher installation:
+                # a) not found then add it as a StartUp service
+                # b) found then check the status of its schedule and take action
+                is_dispatcher = loop.run_until_complete(cls.is_dispatcher_running(cls._storage_client_async))
+                if not is_dispatcher:
+                    _logger.info("Dispatcher service installation found on the system, but not in running state. "
+                                 "Therefore, starting the service...")
+                    loop.run_until_complete(cls.add_and_enable_dispatcher())
+                    _logger.info("Dispatcher service started.")
 
             # Everything is complete in the startup sequence, write the audit log entry
             cls._audit = AuditLogger(cls._storage_client_async)
@@ -1655,3 +1664,44 @@ class Server:
             raise web.HTTPInternalServerError(reason=ex)
 
         return web.json_response(message)
+
+    @classmethod
+    async def is_dispatcher_running(cls, storage):
+        from fledge.services.core.api import service as service_api
+        from fledge.common.storage_client.payload_builder import PayloadBuilder
+
+        # Find the dispatcher service installation
+        get_svc = service_api.get_service_installed()
+        # if installation found:
+        if 'dispatcher' in get_svc:
+            payload = PayloadBuilder().SELECT("id", "schedule_name", "process_name", "enabled").payload()
+            res = await storage.query_tbl_with_payload('schedules', payload)
+            for sch in res['rows']:
+                if sch['process_name'] == 'dispatcher_c' and sch['enabled'] == 'f':
+                    _logger.info("Dispatcher service found but not in enabled state. "
+                                 "Therefore, {} schedule name is enabled".format(sch['schedule_name']))
+                    await cls.scheduler.enable_schedule(uuid.UUID(sch["id"]))
+                    return True
+                elif sch['process_name'] == 'dispatcher_c' and sch['enabled'] == 't':
+                    # As such no action required for the case
+                    return True
+            # If installation not found:
+            return False
+        return True
+
+    @classmethod
+    async def add_and_enable_dispatcher(cls):
+        import datetime as dt
+        from fledge.services.core.scheduler.entities import StartUpSchedule
+
+        name = "dispatcher"
+        process_name = 'dispatcher_c'
+        is_enabled = True
+        schedule = StartUpSchedule()
+        schedule.name = name
+        schedule.process_name = process_name
+        schedule.repeat = dt.timedelta(0)
+        schedule.exclusive = True
+        schedule.enabled = False
+        # Save schedule
+        await cls.scheduler.save_schedule(schedule, is_enabled)

@@ -16,11 +16,11 @@ using namespace std;
 using namespace rapidjson;
 
 /**
- * - poolSize                  Number of connections to allocate
- * - nReadingsPerDb            Number of readings tables per database
- * - nDbPreallocate            Number of databases to allocate in advance
- * - nDbLeftFreeBeforeAllocate Number of free databases before a new allocation is executed
- * - nDbToAllocate             Number of database to allocate each time
+ * - poolSize                  = Number of connections to allocate
+ * - nReadingsPerDb            = Number of readings tables per database
+ * - nDbPreallocate            = Number of databases to allocate in advance
+ * - nDbLeftFreeBeforeAllocate = Number of free databases before a new allocation is executed
+ * - nDbToAllocate             = Number of database to allocate each time
  *
  */
 typedef struct

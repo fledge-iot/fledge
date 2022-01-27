@@ -103,7 +103,7 @@ void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
 	// Acquire GIL
 	PyGILState_STATE state = PyGILState_Ensure();
 
-	Logger::getLogger()->error("NotificationPlugin PluginInterfaceInit %s:%d: "
+	Logger::getLogger()->debug("NotificationPlugin PluginInterfaceInit %s:%d: "
 				"appPythonDir=%s, plugin '%s', type '%s'",
 				__FUNCTION__,
 				__LINE__,
@@ -117,8 +117,10 @@ void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
 	PyList_Append(sysPath,
 			PyUnicode_FromString((char *)notificationsRootPath.c_str()));
 
+	// Import plugin module
 	PyObject *pModule = PyImport_ImportModule(pluginName);
-	Logger::getLogger()->info("%s:%d: pluginName=%s, type '%s', pModule=%p",
+
+	Logger::getLogger()->debug("%s:%d: pluginName=%s, type '%s', pModule=%p",
 				__FUNCTION__,
 				__LINE__,
 				pluginName,

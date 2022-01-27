@@ -17,6 +17,17 @@
 #include <Python.h>
 
 #include <python_plugin_common_interface.h>
+#include <pythonreadingset.h>
+#include <base64dpimage.h>
+
+#define PY_ARRAY_UNIQUE_SYMBOL  PyArray_API_FLEDGE
+#include <numpy/npy_common.h>
+#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
+#include <numpy/ndarraytypes.h>
+#include <numpy/ndarrayobject.h>
+
+#undef NUMPY_IMPORT_ARRAY_RETVAL
+#define NUMPY_IMPORT_ARRAY_RETVAL       0
 
 using namespace std;
 
@@ -28,7 +39,6 @@ extern bool numpyImportError;
 extern PLUGIN_INFORMATION *plugin_info_fn();
 extern PLUGIN_HANDLE plugin_init_fn(ConfigCategory *);
 extern void plugin_shutdown_fn(PLUGIN_HANDLE);
-extern void setImportParameters(string& shimLayerPath, string& fledgePythonDir);
 
 // Reconfigure entry point for rule and delivery plugings
 void notification_plugin_reconfigure_fn(PLUGIN_HANDLE,
@@ -45,12 +55,14 @@ bool plugin_deliver_fn(PLUGIN_HANDLE handle,
 			const std::string& triggerReason,
 			const std::string& customMessage);
 
+// Substitute string values with known data types
+bool substituteObjects(PyObject *data, vector<PyObject*> &removeObjects);
+
 /**
  * Constructor for PythonPluginHandle
- *    - Load python interpreter
  *    - Set sys.path and sys.argv
- *    - Import shim layer script and pass plugin name in argv[1]
- *    - Set plygin_type (notificationRule or notificationDelivery in rgv[2]
+ *    - Set plygin_type (notificationRule or notificationDelivery
+ *    - Load Python module for the plugin
  *
  * @param    pluginName		The plugin name to load
  * @param    pluginPathName	The plugin pathname
@@ -61,86 +73,57 @@ bool plugin_deliver_fn(PLUGIN_HANDLE handle,
 void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
 {
 	bool initPython = false;
+
 	// Set plugin name for common-plugin-interfaces/python
 	gPluginName = pluginName;
 
-	string name("notification" + string(SHIM_SCRIPT_POSTFIX));
+	// Extract plugin type from path
+	string pluginType = strstr(pluginPathName, PLUGIN_TYPE_NOTIFICATION_RULE) != NULL ?
+					PLUGIN_TYPE_NOTIFICATION_RULE :
+					PLUGIN_TYPE_NOTIFICATION_DELIVERY;
 
-	string shimLayerPath;
-	string fledgePythonDir;
+	string appPythonDir;
 
-	// Python 3.x set parameters for import
-	setImportParameters(shimLayerPath, fledgePythonDir);
+	string appRootDir(getenv("FLEDGE_ROOT"));
+	appPythonDir = appRootDir + "/python";
 
-	// Embedded Python 3.x program name
-	wchar_t *programName = Py_DecodeLocale(name.c_str(), NULL);
-	Py_SetProgramName(programName);
-	PyMem_RawFree(programName);
+	string notificationsRootPath = appPythonDir +
+			string("/fledge/plugins/") +
+			pluginType + "/" +
+			string(pluginName);
 
+	Logger::getLogger()->error("%s:%d:, filtersRootPath=%s",
+				__FUNCTION__,
+				__LINE__,
+				notificationsRootPath.c_str());
+
+	// Get Python runtime
 	PythonRuntime::getPythonRuntime();
 
-	PyThreadState* newInterp = NULL;
-
-	 // Acquire GIL
+	// Acquire GIL
 	PyGILState_STATE state = PyGILState_Ensure();
 
-	// New Python interpreter
-	if (!initPython)
-	{
-		newInterp = Py_NewInterpreter();
-		if (!newInterp)
-		{
-			Logger::getLogger()->fatal("NotificationPlugin PluginInterfaceInit "
-						   "Py_NewInterpreter failure for plugin '%s': ",
-						   pluginName);
-			logErrorMessage();
-
-			PyGILState_Release(state);
-			return NULL;
-		}
-
-		Logger::getLogger()->debug("NotificationPlugin PluginInterfaceInit "
-					   "has added a new Python interpreter '%p', "
-					   "plugin '%s'",
-					   newInterp,
-					   pluginName);
-	}
-
-	Logger::getLogger()->debug("NotificationPlugin PythonInterface %s:%d: "
-				  "shimLayerPath=%s, shimFile=%s, plugin '%s",
-				   __FUNCTION__,
-				   __LINE__,
-				   shimLayerPath.c_str(),
-				   name.c_str(),
-				   pluginName);
+	Logger::getLogger()->error("NotificationPlugin PluginInterfaceInit %s:%d: "
+				"appPythonDir=%s, plugin '%s', type '%s'",
+				__FUNCTION__,
+				__LINE__,
+				appPythonDir.c_str(),
+				pluginName,
+				pluginType.c_str());
 
 	// Set Python path for embedded Python 3.x
 	// Get current sys.path - borrowed reference
 	PyObject* sysPath = PySys_GetObject((char *)"path");
-	PyList_Append(sysPath, PyUnicode_FromString((char *) shimLayerPath.c_str()));
-	PyList_Append(sysPath, PyUnicode_FromString((char *) fledgePythonDir.c_str()));
+	PyList_Append(sysPath,
+			PyUnicode_FromString((char *)notificationsRootPath.c_str()));
 
-	// Set sys.argv for embedded Python 3.x
-	int argc = 3;
-	wchar_t* argv[3];
-	argv[0] = Py_DecodeLocale("", NULL);
-	argv[1] = Py_DecodeLocale(pluginName, NULL);
-	// Extract plugin type from path
-	string pluginType =
-			strstr(pluginPathName, "/notificationDelivery/") != NULL ?
-			"notificationDelivery" :
-			"notificationRule";
-	argv[2] = Py_DecodeLocale(pluginType.c_str(), NULL);
-
-	Logger::getLogger()->debug("NotificationPlugin PluginInterfaceInit %s: "
-				    "setting plugin type to '%s' for plugin '%s'",
-				   __FUNCTION__,
-				   pluginType.c_str(),
-				   pluginName);
-	PySys_SetArgv(argc, argv);
-
-	// 2) Import Python script
-	PyObject* pModule = PyImport_ImportModule(name.c_str());
+	PyObject *pModule = PyImport_ImportModule(pluginName);
+	Logger::getLogger()->info("%s:%d: pluginName=%s, type '%s', pModule=%p",
+				__FUNCTION__,
+				__LINE__,
+				pluginName,
+				pluginType.c_str(),
+				pModule);
 
 	// Check whether the Python module has been imported
 	if (!pModule)
@@ -150,20 +133,12 @@ void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
 		{
 			logErrorMessage();
 		}
-
 		Logger::getLogger()->fatal("NotificationPlugin PluginInterfaceInit: "
-					   "cannot import Python shim script '%s' "
-					   "from shimLayerPath=%s, plugin '%s'",
-					   name.c_str(),
-					   shimLayerPath.c_str(),
-					   pluginName);
-		if (numpyImportError)
-		{
-			Logger::getLogger()->warn("Above import error is possibly caused by loading of Numpy library (or any library like Pandas/SciPy etc. that uses numpy internally) " \
-				"in python plugins multiple times (once per plugin, but same process) and that is a known issue because Numpy does not support working with multiple " \
-				"Python sub-interpreters in the same process. Also see: https://github.com/numpy/numpy/issues/14384");
-			numpyImportError = false;
-		}
+					"cannot import Python module file "
+					"from '%s', plugin '%s', type '%s'",
+					pluginPathName,
+					pluginName,
+					pluginType.c_str());
 	}
 	else
 	{
@@ -171,42 +146,43 @@ void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
 		PythonModule* newModule = NULL;
 		if (pythonModules)
 		{
-			string type = strstr(pluginPathName, PLUGIN_TYPE_NOTIFICATION_RULE) != NULL ?
-					PLUGIN_TYPE_NOTIFICATION_RULE :
-					PLUGIN_TYPE_NOTIFICATION_DELIVERY;
-
 			// Add module into pythonModules, pluginName is the key
 			if ((newModule = new PythonModule(pModule,
-							  initPython,
-							  string(pluginName),
-							  type,
-							  newInterp)) == NULL)
+					initPython,
+					string(pluginName),
+					pluginType,
+					NULL)) == NULL)
 			{
 				// Release lock
-				PyEval_ReleaseThread(newInterp);
+				PyGILState_Release(state);
 
-				Logger::getLogger()->fatal("NotificationPlugin PluginInterfaceInit "
-							   "failed to create Python module "
-							   "object, plugin '%s'",
-							   pluginName);
+				Logger::getLogger()->fatal("plugin_handle: plugin_init(): "
+							"failed to create Python module "
+							"object, plugin '%s', type '%s'",
+							pluginName,
+							pluginType.c_str());
+
 				return NULL;
 			}
 
-			// Add element
+
+			// Add module to the list of loaded modules
 			ret = pythonModules->insert(pair<string, PythonModule*>
-				(string(pluginName), newModule));
+						(string(pluginName), newModule));
 		}
 
 		// Check result
-		if (!pythonModules ||
-		    ret.second == false)
+		if (!pythonModules || ret.second == false)
 		{
-			Logger::getLogger()->fatal("%s:%d: python module not added to the map "
-						   "of loaded plugins, pModule=%p, plugin '%s', aborting.",
-						   __FUNCTION__,
-						   __LINE__,
-						   pModule,
-						   pluginName);
+			Logger::getLogger()->fatal("%s:%d: python module "
+						"not added to the map "
+						"of loaded plugins, "
+						"pModule=%p, plugin '%s', type '%s', aborting.",
+						__FUNCTION__,
+						__LINE__,
+						pModule,
+						pluginName,
+						pluginType.c_str());
 
 			// Cleanup
 			Py_CLEAR(pModule);
@@ -218,23 +194,18 @@ void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
 		else
 		{
 			Logger::getLogger()->debug("%s:%d: python module "
-						   "loaded successfully, pModule=%p, plugin '%s'",
-						   __FUNCTION__,
-						   __LINE__,
-						   pModule,
-						   pluginName);
+						"successfully loaded, "
+						"pModule=%p, plugin '%s', type '%s'",
+						__FUNCTION__,
+						__LINE__,
+						pModule,
+						pluginName,
+						pluginType.c_str());
 		}
 	}
 
 	// Release locks
-	if (!initPython)
-	{
-		PyEval_ReleaseThread(newInterp);
-	}
-	else
-	{
-		PyGILState_Release(state);
-	}
+	PyGILState_Release(state);
 
 	// Return new Python module or NULL
 	return pModule;
@@ -371,11 +342,10 @@ string plugin_triggers_fn(PLUGIN_HANDLE handle)
 	}
 
 	// Return C++ string
-	if (pReturn &&
-	    (PyBytes_Check(pReturn) || PyUnicode_Check(pReturn)))
-	{
-		ret = string(PyUnicode_AsUTF8(pReturn));
-        }
+	ret = string(json_dumps(pReturn));
+
+	// Remove objects
+	Py_CLEAR(pReturn);
 
 	PyGILState_Release(state);
 
@@ -469,12 +439,12 @@ std::string plugin_reason_fn(PLUGIN_HANDLE handle)
 		logErrorMessage();
 	}
 
-	// Return C++ string
-	if (pReturn &&
-	    (PyBytes_Check(pReturn) || PyUnicode_Check(pReturn)))
-	{
-		ret = std::string(PyUnicode_AsUTF8(pReturn));
-	}
+	// Get Python object
+	ret = string(json_dumps(pReturn));
+
+	// REmove objects
+	Py_CLEAR(pReturn);
+
 	PyGILState_Release(state);
 
 	return ret;
@@ -554,10 +524,18 @@ bool plugin_eval_fn(PLUGIN_HANDLE handle,
 	}
 
 	// Call Python method passing an object and the data as C string
+	PyObject *evalData = json_loads(assetValues.c_str());
+
+	vector<PyObject*> removeObjects;
+	// Replace content of some known string data:
+	// DPImage
+	substituteObjects(evalData, removeObjects);
+
+	// Call plugin_eval
 	PyObject* pReturn = PyObject_CallFunction(pFunc,
-						  "Os",
+						  "OO",
 						  handle,
-						  assetValues.c_str());
+						  evalData);
 
 	Py_CLEAR(pFunc);
 
@@ -577,6 +555,20 @@ bool plugin_eval_fn(PLUGIN_HANDLE handle,
 			ret = PyObject_IsTrue(pReturn);
 		}
 	}
+
+	// REmove objects
+	Py_CLEAR(evalData);
+	Py_CLEAR(pReturn);
+
+	// Remove any allocated object in substituteObjects()
+	for (auto it = removeObjects.begin();
+		  it != removeObjects.end();
+		  ++it)
+	{
+		Py_CLEAR(*it);
+	}
+	removeObjects.clear();
+
 	PyGILState_Release(state);
 
 	return ret;
@@ -737,7 +729,7 @@ bool plugin_deliver_fn(PLUGIN_HANDLE handle,
 		Logger::getLogger()->error("pythonModules map is NULL "
 					   "in plugin_deliver_fn, handle '%p'",
 					   handle);
-		return NULL;
+		return ret;
 	}
 
 	// Look for Python module for handle key
@@ -786,13 +778,17 @@ bool plugin_deliver_fn(PLUGIN_HANDLE handle,
 		return ret;
 	}
 
-	// Call Python method passing an object and the data as C string
+	// Transform triggerReason into a Python object
+	PyObject *reason = json_loads(triggerReason.c_str());
+
+	// Call Python method passing an object and the data ac C string bu
+	// triggerReason as a Python object
 	PyObject* pReturn = PyObject_CallFunction(pFunc,
-						  "Ossss",
+						  "OssOs",
 						  handle,
 						  deliveryName.c_str(),
 						  notificationName.c_str(),
-						  triggerReason.c_str(),
+						  reason,
 						  customMessage.c_str());
 
 	Py_CLEAR(pFunc);
@@ -814,8 +810,133 @@ bool plugin_deliver_fn(PLUGIN_HANDLE handle,
 		}
 	}
 
+	// Remove objects
+	Py_CLEAR(reason);
+	Py_CLEAR(pReturn);
+
 	PyGILState_Release(state);
 
 	return ret;
+}
+
+/**
+ * Substitute value for a second level dict in the Pythin object
+ * if DPImage string is found
+ *
+ *  {
+ *  	"TC1" : {
+ *  		"width" : 256,
+ *  		"height" : 256,
+ *  		"depth" : 24,
+ *  		"img" : "__DPIMAGE:2,2,24_AAAAAAAACAAACAAA"
+ *  	},
+ *  	"timestamp_TC1" : 1643293555.389629
+ *  	}
+ *
+ *  	"img" string value will be substituted by
+ *  	PyArray_SimpleNewFromData(...) data
+ */
+bool substituteObjects(PyObject *data, vector<PyObject*> &removeObjects)
+{
+
+	PyObject *dKey, *dValue;
+	Py_ssize_t dPos = 0;
+
+	// Fetch all Datapoints in 'reading' dict
+	// dKey and dValue are borrowed references
+	while (PyDict_Next(data, &dPos, &dKey, &dValue))
+	{
+		if (PyDict_Check(dValue))
+		{
+			PyObject *iKey, *iValue;
+			Py_ssize_t iPos = 0;
+			while (PyDict_Next(dValue, &iPos, &iKey, &iValue))
+			{
+				if (PyUnicode_Check(iValue))
+				{
+					string str = PyUnicode_AsUTF8(iValue);
+					size_t pos = str.find_first_of(':');
+					if (str.compare(2, 7, "DPIMAGE") == 0)
+					{
+						string key = PyUnicode_AsUTF8(iKey);
+						PyObject *newImage = NULL;
+						DPImage *image = new Base64DPImage(str.substr(pos + 1));
+
+						Logger::getLogger()->debug("Inner key '%s' will be "
+									"substituted with a DPImage of %dx%d@%d",
+									key.c_str(),
+									image->getHeight(),
+									image->getWidth(),
+									image->getDepth());
+
+						// Initialise Nunpy array
+						import_array();
+
+						if (image->getDepth() == 24)
+						{
+							npy_intp dim[3];
+							dim[0] = image->getHeight();
+							dim[1] = image->getWidth();
+							dim[2] = 3;
+							enum NPY_TYPES type = NPY_UBYTE;
+
+							// Create Python array wrapper around image data
+							newImage = PyArray_SimpleNewFromData(3,
+											dim,
+											type,
+											image->getData());
+						}
+						else
+						{
+							npy_intp dim[2];
+							dim[0] = image->getHeight();
+							dim[1] = image->getWidth();
+							enum NPY_TYPES type;
+							bool createImage = true;
+							switch (image->getDepth())
+							{
+								case 8:
+									type = NPY_UBYTE;
+									break;
+								case 16:
+									type = NPY_UINT16;
+									break;
+								case 32:
+									type = NPY_UINT32;
+									break;
+								case 64:
+									type = NPY_UINT64;
+									break;
+								default:
+									createImage = false;
+									break;
+							}
+							if (createImage)
+							{
+								// Create Python array wrapper around image data
+								newImage = PyArray_SimpleNewFromData(2,
+												dim,
+												type,
+												image->getData());
+							}
+						}
+						if (newImage)
+						{
+							// Replace value
+							PyDict_SetItem(dValue, iKey, newImage);
+
+							// Add object to remove vector
+							removeObjects.push_back(newImage);
+						}
+
+						// Delete DPImage object
+						delete(image);
+					}
+				}
+			}
+		}
+	}
+
+	return true;
 }
 }; // End of extern C

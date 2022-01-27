@@ -165,7 +165,9 @@ async def get_north_schedules(request):
         north_schedules = await _get_north_schedules(cf_mgr)
         
         north_schs = [ns["name"] for ns in north_schedules]
-        stats = await _get_sent_stats(storage_client, north_schs)
+        stats = []
+        if len(north_schs):
+            stats = await _get_sent_stats(storage_client, north_schs)
         installed_plugins = _get_installed_plugins()
         for sch in north_schedules:
             stat = next((s for s in stats if s["key"] == sch["name"]), None)

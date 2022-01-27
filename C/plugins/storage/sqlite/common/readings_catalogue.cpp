@@ -2085,6 +2085,11 @@ int  ReadingsCatalogue::purgeAllReadings(sqlite3 *dbHandle, const char *sqlCmdBa
  * Constructs a sql command from the given one consisting of a set of UNION ALL commands
  * considering all the readings tables in use
  *
+ * @param sqlCmdBase        Base Sql command
+ * @param assetCodes        Asset codes to evaluate for the operation
+ * @param considerExclusion If True the asset code in the excluded list must not be considered
+ * @return                  Full sql command
+ *
  */
 string  ReadingsCatalogue::sqlConstructMultiDb(string &sqlCmdBase, vector<string>  &assetCodes, bool considerExclusion)
 {
@@ -2181,6 +2186,9 @@ string  ReadingsCatalogue::sqlConstructMultiDb(string &sqlCmdBase, vector<string
 /**
  * Generates a SQLIte db alis from the database id
  *
+ * @param dbId Database id for which the alias must be generated
+ * @return     Generated alias
+ *
  */
 string ReadingsCatalogue::generateDbAlias(int dbId)
 {
@@ -2191,6 +2199,9 @@ string ReadingsCatalogue::generateDbAlias(int dbId)
 /**
  * Generates a SQLIte database name from the database id
  *
+ * @param dbId Database id for which the database name must be generated
+ * @return     Generated database name
+ *
  */
 string ReadingsCatalogue::generateDbName(int dbId)
 {
@@ -2200,6 +2211,9 @@ string ReadingsCatalogue::generateDbName(int dbId)
 /**
  * Generates a SQLITE database file name from the database id
  *
+ * @param dbId Database id for which the database file name must be generated
+ * @return     Generated database file name
+ *
  */
 string ReadingsCatalogue::generateDbFileName(int dbId)
 {
@@ -2208,6 +2222,9 @@ string ReadingsCatalogue::generateDbFileName(int dbId)
 
 /**
  * Extracts the readings id from the table name
+ *
+ * @param tableName Table name from which the id must be extracted
+ * @return          Extracted reading id
  *
  */
 int ReadingsCatalogue::extractReadingsIdFromName(string tableName)
@@ -2229,6 +2246,9 @@ int ReadingsCatalogue::extractReadingsIdFromName(string tableName)
 /**
  * Extract the database id from the table name
  *
+ * @param tableName Table name from which the database id must be extracted
+ * @return          Extracted database id
+ *
  */
 int ReadingsCatalogue::extractDbIdFromName(string tableName)
 {
@@ -2246,8 +2266,11 @@ int ReadingsCatalogue::extractDbIdFromName(string tableName)
 }
 /**
  * Generates the name of the reading table from the given table id as:
- *
  * Prefix + db Id + reading Id
+ *
+ * @param dbId    Database id to use for the generation of the table name
+ * @param tableId Table id to use for the generation of the table name
+ * @return        Generated reading table name
  *
  */
 string ReadingsCatalogue::generateReadingsName(int  dbId, int tableId)
@@ -2264,7 +2287,10 @@ string ReadingsCatalogue::generateReadingsName(int  dbId, int tableId)
 }
 
 /**
- * Extract the database id from the table id
+ * Retrieves the database id from the table id
+ *
+ * @param tableId Table id for which the database id must be retrieved
+ * @return        Retrieved database id for the requested reading id
  *
  */
 int ReadingsCatalogue::retrieveDbIdFromTableId(int tableId)
@@ -2286,6 +2312,9 @@ int ReadingsCatalogue::retrieveDbIdFromTableId(int tableId)
 
 /**
  * Identifies SQLIte database name from the given table id
+ *
+ * @param tableId Table id for which the database name must be retrieved
+ * @return        Retrieved database name for the requested reading id
  *
  */
 string ReadingsCatalogue::generateDbNameFromTableId(int tableId)
@@ -2310,9 +2339,11 @@ string ReadingsCatalogue::generateDbNameFromTableId(int tableId)
 /**
  * SQLIte wrapper to retry statements when the database is locked
  *
- * @param	db	     The open SQLite database
- * @param	sql	     The SQL to execute
- * @param	errmsg	 Error message
+ * @param dbHandle  Database connection to use for the operations
+ * @param sqlCmdsql The SQL to execute
+ * @param errmsg	Returned by reference, error message
+ * @return          SQLite constant indicating the outcome of the requested operation, like for example SQLITE_LOCKED, SQLITE_BUSY...
+ *
  */
 int ReadingsCatalogue::SQLExec(sqlite3 *dbHandle, const char *sqlCmd, char **errMsg)
 {
@@ -2354,7 +2385,10 @@ int ReadingsCatalogue::SQLExec(sqlite3 *dbHandle, const char *sqlCmd, char **err
 }
 
 /**
- * SQLIte wrapper to retry statements when the database error occuers
+ * SQLIte wrapper to retry statements when the database error occurs
+ *
+ * @param statement	SQLIte statement to execute
+ * @return          SQLite constant indicating the outcome of the requested operation, like for example SQLITE_LOCKED, SQLITE_BUSY...
  *
  */
 int ReadingsCatalogue::SQLStep(sqlite3_stmt *statement)

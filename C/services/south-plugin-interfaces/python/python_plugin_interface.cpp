@@ -325,7 +325,7 @@ void plugin_start_fn(PLUGIN_HANDLE handle)
 	pFunc = PyObject_GetAttrString(it->second->m_module, "plugin_start");
 	if (!pFunc)
 	{
-		Logger::getLogger()->fatal("Cannot find 'plugin_start' method "
+		Logger::getLogger()->warn("Cannot find 'plugin_start' method "
 					   "in loaded python module '%s'",
 					   it->second->m_name.c_str());
 	}
@@ -338,7 +338,7 @@ void plugin_start_fn(PLUGIN_HANDLE handle)
 			logErrorMessage();
 		}
 
-		Logger::getLogger()->fatal("Cannot call method 'plugin_start' "
+		Logger::getLogger()->warn("Cannot call method 'plugin_start' "
 					   "in loaded python module '%s'",
 					   it->second->m_name.c_str());
 		Py_CLEAR(pFunc);
@@ -411,7 +411,7 @@ void plugin_register_ingest_fn(PLUGIN_HANDLE handle,
 	pFunc = PyObject_GetAttrString(it->second->m_module, "plugin_register_ingest");
 	if (!pFunc)
 	{
-		Logger::getLogger()->fatal("Cannot find 'plugin_register_ingest' "
+		Logger::getLogger()->warn("Cannot find 'plugin_register_ingest' "
 					   "method in loaded python module '%s'",
 					   it->second->m_name.c_str());
 	}
@@ -424,7 +424,7 @@ void plugin_register_ingest_fn(PLUGIN_HANDLE handle,
 			logErrorMessage();
 		}
 
-		Logger::getLogger()->fatal("Cannot call method plugin_register_ingest "
+		Logger::getLogger()->warn("Cannot call method plugin_register_ingest "
 					   "in loaded python module '%s'",
 					   it->second->m_name.c_str());
 		Py_CLEAR(pFunc);

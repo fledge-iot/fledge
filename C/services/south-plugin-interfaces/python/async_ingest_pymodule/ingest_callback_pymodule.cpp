@@ -86,6 +86,7 @@ void plugin_ingest_fn(PyObject *ingest_callback, PyObject *ingest_obj_ref_data, 
 	Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
     PythonReadingSet *pyReadingSet = new PythonReadingSet(readingsObj);
     Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
+    Py_CLEAR(readingsObj);
 
 	if(pyReadingSet)
 	{

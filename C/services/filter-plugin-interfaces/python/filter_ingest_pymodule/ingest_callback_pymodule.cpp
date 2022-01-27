@@ -133,7 +133,6 @@ void filter_plugin_ingest_fn(PyObject *ingest_callback,
 
 	// std::vector<Reading *> *vec = NULL;
 	PythonReadingSet *pyReadingSet = NULL;
-
     
 	// Check we have a list of readings
 	if (PyList_Check(readingsObj))
@@ -150,6 +149,8 @@ void filter_plugin_ingest_fn(PyObject *ingest_callback,
 					   "but object type %s",
 					   Py_TYPE(readingsObj)->tp_name);
 	}
+    if(readingsObj)
+        Py_CLEAR(readingsObj);
 
 	if (pyReadingSet)
 	{

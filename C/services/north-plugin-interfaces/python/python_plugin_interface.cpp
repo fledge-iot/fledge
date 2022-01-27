@@ -563,7 +563,7 @@ void plugin_start_fn(PLUGIN_HANDLE handle)
 	pFunc = PyObject_GetAttrString(it->second->m_module, "plugin_start");
 	if (!pFunc)
 	{
-		Logger::getLogger()->fatal("Cannot find 'plugin_start' method "
+		Logger::getLogger()->warn("Cannot find 'plugin_start' method "
 					   "in loaded python module '%s'",
 					   it->second->m_name.c_str());
 	}
@@ -576,7 +576,7 @@ void plugin_start_fn(PLUGIN_HANDLE handle)
 			logErrorMessage();
 		}
 
-		Logger::getLogger()->fatal("Cannot call method 'plugin_start' "
+		Logger::getLogger()->warn("Cannot call method 'plugin_start' "
 					   "in loaded python module '%s'",
 					   it->second->m_name.c_str());
 		Py_CLEAR(pFunc);
@@ -596,7 +596,7 @@ void plugin_start_fn(PLUGIN_HANDLE handle)
 	// Handle return
 	if (!pReturn)
 	{
-		Logger::getLogger()->error("Called python script method plugin_start : "
+		Logger::getLogger()->warn("Called python script method plugin_start : "
 					   "error while getting result object, plugin '%s'",
 					   it->second->m_name.c_str());
 		logErrorMessage();
@@ -674,7 +674,7 @@ uint32_t plugin_send_fn(PLUGIN_HANDLE handle, const std::vector<Reading *>& read
 			logErrorMessage();
 		}
 
-		Logger::getLogger()->fatal("Cannot call method plugin_ingest"
+		Logger::getLogger()->fatal("Cannot call method plugin_send"
 					   "in loaded python module '%s'",
 					   pName.c_str());
 		Py_CLEAR(pFunc);

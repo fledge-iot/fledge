@@ -125,6 +125,7 @@ ConfigCategory *conf = (ConfigCategory *)handle;
 				}
 			}
 			DPImage *image = new DPImage(256, 256, 8, data);
+			free(data);
 			DatapointValue img(image);
 			return Reading(conf->getValue("asset"), new Datapoint("testcard", img));
 			}
@@ -140,6 +141,7 @@ ConfigCategory *conf = (ConfigCategory *)handle;
 				}
 			}
 			DPImage *image = new DPImage(256, 256, 16, data);
+			free(data);
 			DatapointValue img(image);
 			return Reading(conf->getValue("asset"), new Datapoint("testcard", img));
 			}
@@ -193,6 +195,7 @@ ConfigCategory *conf = (ConfigCategory *)handle;
 				}
 			}
 			DPImage *image = new DPImage(256, 256, 24, data);
+			free(data);
 			DatapointValue img(image);
 			return Reading(conf->getValue("asset"), new Datapoint("testcard", img));
 			}

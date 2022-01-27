@@ -34,13 +34,18 @@ typedef struct
 } STORAGE_CONFIGURATION;
 
 /**
- * Implements the handling of multiples readings tables spreaded among multiple SQLite databases.
+ * Implements the handling of multiples readings tables stored among multiple SQLite databases.
  *
  * The databases are named using the format readings_<dbid>, like for example readings_1.db
- * and each database contains multiples readings named as readings_<dbid>_<id> like readings_1_1
+ * and each database contains multiples readings named as readings_<dbid>_<id> like readings_1_1, readings_1_2
  *
  * The table asset_reading_catalogue is used as a catalogue in order map a particular asset_code
  * to a table that holds readings for that asset_code.
+ *
+ * readings_1.asset_reading_catalogue:
+ * - table_id     INTEGER               NOT NULL,
+ * - db_id        INTEGER               NOT NULL,
+ * - asset_code   character varying(50) NOT NULL
  *
  * The first reading table readings_1_1 is created by the script init_readings.sql executed during the storage init
  * all the other readings tables are created by the code when Fledge starts.

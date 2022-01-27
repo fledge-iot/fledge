@@ -120,7 +120,7 @@ static void filter_plugin_reconfigure_fn(PLUGIN_HANDLE handle,
 
     PyObject *config_dict = json_loads(config.c_str());
 
-	// Call Python method passing an object and a C string
+	// Call Python method passing an object and JSON config dict
 	PyObject* pReturn = PyObject_CallFunction(pFunc,
 						  "OO",
 						  handle,
@@ -138,13 +138,14 @@ static void filter_plugin_reconfigure_fn(PLUGIN_HANDLE handle,
 	}
 	else
 	{
+        Logger::getLogger()->info("%s:%d: Py_TYPE(pReturn)->tp_name=%s", __FUNCTION__, __LINE__, Py_TYPE(pReturn)->tp_name);
 		PyObject* tmp = (PyObject *)handle;
 		// Check current handle is Dict and pReturn is a Dict too
 		if (PyDict_Check(tmp) && PyDict_Check(pReturn))
 		{
 			// Clear Dict content
 			PyDict_Clear(tmp);
-			// Populate hadnle Dict with new data in pReturn
+			// Populate handle Dict with new data in pReturn
 			PyDict_Update(tmp, pReturn);
 			// Remove pReturn ojbect
 			Py_CLEAR(pReturn);

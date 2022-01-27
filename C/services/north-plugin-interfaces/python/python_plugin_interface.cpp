@@ -64,7 +64,7 @@ def plugin_send(handle, readings):
     return numSent
 #endif
 
-unsigned int call_plugin_send_coroutine(PyObject *plugin_send_module_func, PyObject *handle, PyObject *readingsList)
+unsigned int call_plugin_send_coroutine(PyObject *plugin_send_module_func, PLUGIN_HANDLE handle, PyObject *readingsList)
 {
     unsigned int numSent=0;
     
@@ -694,14 +694,14 @@ uint32_t plugin_send_fn(PLUGIN_HANDLE handle, const std::vector<Reading *>& read
     Logger::getLogger()->info("C2Py: plugin_send_fn():L%d: filtered readings to send = %s", __LINE__, s);
     Py_CLEAR(objectsRepresentation);
     
-    PyObject* handleObj = PyCapsule_New((void *)handle, NULL, NULL);
-    data = call_plugin_send_coroutine(pFunc, handleObj, readingsList);
+    // PyObject* handleObj = PyCapsule_New((void *)handle, NULL, NULL);
+    data = call_plugin_send_coroutine(pFunc, handle, readingsList);
     
 	// Remove readings list object
 	Py_CLEAR(readingsList);
 
 	// Remove result object
-	Py_CLEAR(handleObj);
+	// Py_CLEAR(handleObj);
 
 	// Release GIL
 	PyGILState_Release(state);

@@ -537,8 +537,7 @@ static PLUGIN_HANDLE plugin_init_fn(ConfigCategory *config)
 		if (h->second->m_name.compare(pName) == 0)
 		{
 			Logger::getLogger()->debug("%s_plugin_init_fn: already loaded "
-						   "a plugin with name '%s'. Loading a new "
-						   "Python module using a new interpreter.",
+						   "a plugin with name '%s'. Loading a new ",
 						   h->second->m_type.c_str(),
 						   pName.c_str());
 

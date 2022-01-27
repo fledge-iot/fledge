@@ -32,10 +32,10 @@ _help = """
 _logger = logger.setup(__name__)
 
 
-async def _get_sent_stats(storage_client):
+async def _get_sent_stats(storage_client, north_schedules):
     stats = []
     try:
-        payload = PayloadBuilder().SELECT("key", "value").payload()
+        payload = PayloadBuilder().SELECT(["key", "value"]).WHERE(["key", "in", north_schedules]).payload()
         result = await storage_client.query_tbl_with_payload('statistics', payload)
         if int(result['count']):
             stats = result['rows']
@@ -163,7 +163,9 @@ async def get_north_schedules(request):
         storage_client = connect.get_storage_async()
         cf_mgr = ConfigurationManager(storage_client)
         north_schedules = await _get_north_schedules(cf_mgr)
-        stats = await _get_sent_stats(storage_client)
+        
+        north_schs = [ns["name"] for ns in north_schedules]
+        stats = await _get_sent_stats(storage_client, north_schs)
         installed_plugins = _get_installed_plugins()
         for sch in north_schedules:
             stat = next((s for s in stats if s["key"] == sch["name"]), None)

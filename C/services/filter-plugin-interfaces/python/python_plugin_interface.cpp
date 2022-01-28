@@ -630,7 +630,6 @@ void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
 		if (pythonModules)
 		{
 			// Add module into pythonModules, pluginName is the key
-			PythonModule* newModule;
 			if ((newModule = new PythonModule(pModule,
 							  initPython,
 							  string(pluginName),

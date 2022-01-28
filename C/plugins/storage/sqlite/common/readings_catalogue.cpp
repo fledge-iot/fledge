@@ -1456,7 +1456,7 @@ string ReadingsCatalogue::generateDbFilePah(int dbId)
  * Stores on the persistent storage the id of the last created database
  *
  * @param dbHandle Database connection to use for the operations
- * @param newDbId  If of the created database
+ * @param newDbId  Id of the created database
  * @return         True of success, false on any error
  *
  */

@@ -44,120 +44,107 @@ void plugin_register_ingest_fn(PLUGIN_HANDLE handle,INGEST_CB2 cb,void * data);
 
 /**
  * Constructor for PythonPluginHandle
- *    - Load python 3.5 interpreter
  *    - Set sys.path and sys.argv
  *    - Import shim layer script and pass plugin name in argv[1]
  */
 void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
 {
-	bool initialisePython = false;
+    bool initialisePython = false;
 
-	// Set plugin name, also for methods in common-plugin-interfaces/python
-	gPluginName = pluginName;
-	// Get FLEDGE_ROOT dir
-	string fledgeRootDir(getenv("FLEDGE_ROOT"));
+    // Set plugin name, also for methods in common-plugin-interfaces/python
+    gPluginName = pluginName;
 
-	string path = fledgeRootDir + SHIM_SCRIPT_REL_PATH;
-	string name(string(PLUGIN_TYPE_SOUTH) + string(SHIM_SCRIPT_POSTFIX));
-	
-	// Python 3.5  script name
-	std::size_t found = path.find_last_of("/");
-	string pythonScript = path.substr(found + 1);
-	string shimLayerPath = path.substr(0, found);
-	
-	// Embedded Python 3.5 program name
-	wchar_t *programName = Py_DecodeLocale(name.c_str(), NULL);
-	Py_SetProgramName(programName);
-	PyMem_RawFree(programName);
+    string fledgePythonDir;
+    
+    string fledgeRootDir(getenv("FLEDGE_ROOT"));
+	fledgePythonDir = fledgeRootDir + "/python";
+    
+    string southRootPath = fledgePythonDir + string(R"(/fledge/plugins/south/)") + string(pluginName);
+    Logger::getLogger()->info("%s:%d:, southRootPath=%s", __FUNCTION__, __LINE__, southRootPath.c_str());
+    
+    // Embedded Python 3.5 program name
+    wchar_t *programName = Py_DecodeLocale(pluginName, NULL);
+    Py_SetProgramName(programName);
+    PyMem_RawFree(programName);
 
-	string fledgePythonDir = fledgeRootDir + "/python";
-	
-	PythonRuntime::getPythonRuntime();
+    PythonRuntime::getPythonRuntime();
+    
+    // Acquire GIL
+    PyGILState_STATE state = PyGILState_Ensure();
 
+    Logger::getLogger()->info("SouthPlugin %s:%d: "
+                   "southRootPath=%s, fledgePythonDir=%s, plugin '%s'",
+                   __FUNCTION__,
+                   __LINE__,
+                   southRootPath.c_str(),
+                   fledgePythonDir.c_str(),
+                   pluginName);
+    
+    // Set Python path for embedded Python 3.x
+    // Get current sys.path - borrowed reference
+    PyObject* sysPath = PySys_GetObject((char *)"path");
+    PyList_Append(sysPath, PyUnicode_FromString((char *) southRootPath.c_str()));
+    PyList_Append(sysPath, PyUnicode_FromString((char *) fledgePythonDir.c_str()));
 
-	// Note: for South service plugin we don't set a new Python interpreter
+    // 2) Import Python script
+    PyObject *pModule = PyImport_ImportModule(pluginName);
 
-	Logger::getLogger()->debug("SouthPlugin PythonInterface %s:%d: "
-				   "shimLayerPath=%s, fledgePythonDir=%s, plugin '%s'",
-				   __FUNCTION__,
-				   __LINE__,
-				   shimLayerPath.c_str(),
-				   fledgePythonDir.c_str(),
-				   pluginName);
-	
-	PyGILState_STATE state = PyGILState_Ensure();
-	// Set Python path for embedded Python 3.5
-	// Get current sys.path - borrowed reference
-	PyObject* sysPath = PySys_GetObject((char *)"path");
-	PyList_Append(sysPath, PyUnicode_FromString((char *) shimLayerPath.c_str()));
-	PyList_Append(sysPath, PyUnicode_FromString((char *) fledgePythonDir.c_str()));
+    // Check whether the Python module has been imported
+    if (!pModule)
+    {
+        // Failure
+        if (PyErr_Occurred())
+        {
+            logErrorMessage();
+        }
+        Logger::getLogger()->fatal("PluginInterfaceInit: cannot import Python 3.5 script "
+                       "'%s' from '%s' : plugin '%s'",
+                       pluginName, southRootPath.c_str(),
+                       pluginName);
+    }
+    else
+    {
+        std::pair<std::map<string, PythonModule*>::iterator, bool> ret;
+        if (pythonModules)
+        {
+            // Add element
+            ret = pythonModules->insert(pair<string, PythonModule*>
+                (string(pluginName), new PythonModule(pModule,
+                                      initialisePython,
+                                      string(pluginName),
+                                      PLUGIN_TYPE_SOUTH,
+                                      // New Python interpteter not set
+                                      NULL)));
+        }
+        // Check result
+        if (!pythonModules ||
+            ret.second == false)
+        {
+            Logger::getLogger()->fatal("%s:%d: python module not added to the map "
+                           "of loaded plugins, pModule=%p, plugin '%s', aborting.",
+                           __FUNCTION__,
+                           __LINE__,
+                           pModule,
+                           pluginName);
+            Py_CLEAR(pModule);
+            return NULL;
+        }
+        else
+        {
+            Logger::getLogger()->debug("%s:%d: python module loaded successfully, pModule=%p, plugin '%s'",
+                           __FUNCTION__,
+                           __LINE__,
+                           pModule,
+                           pluginName);
+        }
+    }
 
-	// Set sys.argv for embedded Python 3.5
-	int argc = 2;
-	wchar_t* argv[2];
-	argv[0] = Py_DecodeLocale("", NULL);
-	argv[1] = Py_DecodeLocale(pluginName, NULL);
-	PySys_SetArgv(argc, argv);
+    // Release GIL
+    PyGILState_Release(state);
 
-	// 2) Import Python script
-	PyObject *pModule = PyImport_ImportModule(name.c_str());
-
-	// Check whether the Python module has been imported
-	if (!pModule)
-	{
-		// Failure
-		if (PyErr_Occurred())
-		{
-			logErrorMessage();
-		}
-		Logger::getLogger()->fatal("PluginInterfaceInit: cannot import Python 3.5 script "
-					   "'%s' from '%s' : pythonScript=%s, shimLayerPath=%s, plugin '%s'",
-					   name.c_str(), path.c_str(),
-					   pythonScript.c_str(),
-					   shimLayerPath.c_str(),
-					   pluginName);
-	}
-	else
-	{
-		std::pair<std::map<string, PythonModule*>::iterator, bool> ret;
-		if (pythonModules)
-		{
-			// Add element
-			ret = pythonModules->insert(pair<string, PythonModule*>
-				(string(pluginName), new PythonModule(pModule,
-								      initialisePython,
-								      string(pluginName),
-								      PLUGIN_TYPE_SOUTH,
-								      // New Python interpteter not set
-								      NULL)));
-		}
-		// Check result
-		if (!pythonModules ||
-		    ret.second == false)
-		{
-			Logger::getLogger()->fatal("%s:%d: python module not added to the map "
-						   "of loaded plugins, pModule=%p, plugin '%s'i, aborting.",
-						   __FUNCTION__,
-						   __LINE__,
-						   pModule,
-						   pluginName);
-			Py_CLEAR(pModule);
-			return NULL;
-		}
-		else
-		{
-			Logger::getLogger()->debug("%s:%d: python module loaded successfully, pModule=%p, plugin '%s'",
-						   __FUNCTION__,
-						   __LINE__,
-						   pModule,
-					 	   pluginName);
-		}
-	}
-
-	PyGILState_Release(state);
-
-	return pModule;
+    return pModule;
 }
+
 
 /**
  * Returns function pointer that can be invoked to call '_sym' function
@@ -338,7 +325,7 @@ void plugin_start_fn(PLUGIN_HANDLE handle)
 	pFunc = PyObject_GetAttrString(it->second->m_module, "plugin_start");
 	if (!pFunc)
 	{
-		Logger::getLogger()->fatal("Cannot find 'plugin_start' method "
+		Logger::getLogger()->warn("Cannot find 'plugin_start' method "
 					   "in loaded python module '%s'",
 					   it->second->m_name.c_str());
 	}
@@ -351,7 +338,7 @@ void plugin_start_fn(PLUGIN_HANDLE handle)
 			logErrorMessage();
 		}
 
-		Logger::getLogger()->fatal("Cannot call method 'plugin_start' "
+		Logger::getLogger()->warn("Cannot call method 'plugin_start' "
 					   "in loaded python module '%s'",
 					   it->second->m_name.c_str());
 		Py_CLEAR(pFunc);
@@ -424,7 +411,7 @@ void plugin_register_ingest_fn(PLUGIN_HANDLE handle,
 	pFunc = PyObject_GetAttrString(it->second->m_module, "plugin_register_ingest");
 	if (!pFunc)
 	{
-		Logger::getLogger()->fatal("Cannot find 'plugin_register_ingest' "
+		Logger::getLogger()->warn("Cannot find 'plugin_register_ingest' "
 					   "method in loaded python module '%s'",
 					   it->second->m_name.c_str());
 	}
@@ -437,7 +424,7 @@ void plugin_register_ingest_fn(PLUGIN_HANDLE handle,
 			logErrorMessage();
 		}
 
-		Logger::getLogger()->fatal("Cannot call method plugin_register_ingest "
+		Logger::getLogger()->warn("Cannot call method plugin_register_ingest "
 					   "in loaded python module '%s'",
 					   it->second->m_name.c_str());
 		Py_CLEAR(pFunc);

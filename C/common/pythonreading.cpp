@@ -298,8 +298,8 @@ DatapointValue *PythonReading::getDatapointValue(PyObject *value)
 		{
             //Logger::getLogger()->info("PythonReading::getDatapointValue: T_IMAGE");
 			npy_intp *dims = PyArray_DIMS(array);
-			int width = (int)dims[0];
-			int height = (int)dims[1];
+			int height = (int)dims[0];
+			int width = (int)dims[1];
 			int depth = item_size * 8;	// In bits
 			DPImage *image = new DPImage(width, height, depth, PyArray_DATA(array));
 
@@ -311,8 +311,8 @@ DatapointValue *PythonReading::getDatapointValue(PyObject *value)
 			npy_intp *dims = PyArray_DIMS(array);
 			if ((int)dims[2] == 3)
 			{
-				int width = (int)dims[0];
-				int height = (int)dims[1];
+				int height = (int)dims[0];
+				int width = (int)dims[1];
 				int depth = 24;	// In bits
 				DPImage *image = new DPImage(width, height, depth, PyArray_DATA(array));
 
@@ -508,8 +508,8 @@ PyObject *PythonReading::convertDatapoint(Datapoint *dp)
 		if (image->getDepth() == 24)
 		{{
 			npy_intp dim[3];
-			dim[0] = image->getWidth();
-			dim[1] = image->getHeight();
+			dim[0] = image->getHeight();
+			dim[1] = image->getWidth();
 			dim[2] = 3;
 			enum NPY_TYPES	type = NPY_UBYTE;
 			PyGILState_STATE state = PyGILState_Ensure();
@@ -520,8 +520,8 @@ PyObject *PythonReading::convertDatapoint(Datapoint *dp)
 		else
 		{
 			npy_intp dim[2];
-			dim[0] = image->getWidth();
-			dim[1] = image->getHeight();
+			dim[0] = image->getHeight();
+			dim[1] = image->getWidth();
 			enum NPY_TYPES	type;
 			switch (image->getDepth())
 			{

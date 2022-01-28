@@ -41,6 +41,347 @@ uint32_t plugin_send_fn(PLUGIN_HANDLE handle, const std::vector<Reading *>& read
 // DatapointValue* Py2C_createListDPV(PyObject *data);
 // DatapointValue *Py2C_createBasicDPV(PyObject *dValue);
 
+#if 0
+def plugin_send(handle, readings):
+    _LOGGER.info("plugin_send")
+
+    # Create loop object
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
+    # Just pass a fake id as thrird parameter
+    coroObj = _plugin.plugin_send(handle, readings, "000001")
+
+    # Set coroutine to wait for
+    futures = [coroObj]
+    done, result = loop.run_until_complete(asyncio.wait(futures))
+
+    numSent = 0 
+    for t in done:
+        # Fetch done task result
+        retCode, lastId, numSent = t.result()
+
+    return numSent
+#endif
+
+unsigned int call_plugin_send_coroutine(PyObject *plugin_send_module_func, PLUGIN_HANDLE handle, PyObject *readingsList)
+{
+    unsigned int numSent=0;
+    
+    std::string fcn = "";
+	fcn += "def plugin_send_wrapper(handle, readings, plugin_send_module_func):\n";
+	fcn += "    import asyncio\n";
+	fcn += "    loop = asyncio.new_event_loop()\n"; 
+	fcn += "    asyncio.set_event_loop(loop)\n";
+	fcn += "    coroObj = plugin_send_module_func(handle, readings, \"000001\")\n";
+	fcn += "    futures = [coroObj]\n";
+	fcn += "    done, result = loop.run_until_complete(asyncio.wait(futures))\n"; 
+	fcn += "    numSent = 0\n";
+	fcn += "    for t in done:\n";
+	fcn += "        retCode, lastId, numSent = t.result()\n";
+	fcn += "    return numSent\n";
+
+	PyRun_SimpleString(fcn.c_str());
+	PyObject* mod = PyImport_ImportModule("__main__");
+	if (mod != NULL) 
+    {
+		PyObject* method = PyObject_GetAttrString(mod, "plugin_send_wrapper");
+		if (method != NULL)
+        {
+			PyObject* pReturn = PyObject_CallObject(method, Py_BuildValue("OOO", handle, readingsList, plugin_send_module_func));
+            Logger::getLogger()->info("%s:%d, pReturn=%p", __FUNCTION__, __LINE__, pReturn);
+			if (pReturn != NULL)
+			{
+				if(PyLong_Check(pReturn))
+				{
+					numSent = (long)PyLong_AsUnsignedLongMask(pReturn);
+					Logger::getLogger()->info("numSent=%d", numSent);
+				}
+				else
+					Logger::getLogger()->info("plugin_send_wrapper() didn't return a number, returned value is of type %s", (Py_TYPE(pReturn))->tp_name);
+				
+				// Py_CLEAR(tmp);
+			}
+            else
+            {
+                Logger::getLogger()->info("%s:%d: pReturn is NULL", __FUNCTION__, __LINE__);
+                if (PyErr_Occurred())
+        		{
+        			logErrorMessage();
+        		}
+            }
+            
+			Py_CLEAR(pReturn);
+		}
+		Py_CLEAR(method);
+	}
+        
+	// Reset error
+	PyErr_Clear();
+
+	// Remove references
+	//Py_CLEAR(type);
+	//Py_CLEAR(value);
+	//Py_CLEAR(traceback);
+	Py_CLEAR(mod);
+
+    return numSent;
+}
+
+#if 0
+const char *call_plugin_send_coroutine(PyObject *plugin_send_module_func, PyObject *handle, PyObject *readingsList)
+{
+PyObject *rval;
+va_list ap;
+PyObject *mod, *method, *new_event_loop, *loop, *set_event_loop_method;
+
+    Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
+
+	PyGILState_STATE state = PyGILState_Ensure();
+    Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
+	if ((mod = PyImport_ImportModule("asyncio")) != NULL)
+	{
+        Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
+        if ((new_event_loop = PyObject_GetAttrString(mod, "new_event_loop")) != NULL)
+		{
+            Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
+            // loop = asyncio.new_event_loop()
+            PyObject *args = PyTuple_New(0);
+            Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
+            loop = PyObject_Call(new_event_loop, args, NULL);
+            Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
+            if (loop == NULL)
+			{
+                Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
+				if (PyErr_Occurred())
+				{
+					logErrorMessage();
+                    return NULL;
+				}
+			}
+            else
+                Logger::getLogger()->info("%s:%d, new_event_loop created, loop type=%s", __FUNCTION__, __LINE__, (Py_TYPE(loop))->tp_name);
+
+            // TODO: free python objects that are no longer required
+            Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
+            
+            set_event_loop_method = PyObject_GetAttrString(mod, "set_event_loop");
+            Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
+            args = PyTuple_New(1);
+            PyObject *pValue = Py_BuildValue("O", loop);
+            PyTuple_SetItem(args, 0, pValue);
+            Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
+
+            // asyncio.set_event_loop(loop)
+			rval = PyObject_Call(set_event_loop_method, args, NULL);
+            Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
+			if (rval == NULL)
+			{
+				if (PyErr_Occurred())
+				{
+					logErrorMessage();
+                    return NULL;
+				}
+			}
+            else
+                Logger::getLogger()->info("%s:%d, set_event_loop called succeeded, rval type=%s", __FUNCTION__, __LINE__, (Py_TYPE(rval))->tp_name);
+
+            // coroObj = _plugin.plugin_send(handle, readings, "000001")
+            args = PyTuple_New(3);
+                
+            PyTuple_SetItem(args, 0, Py_BuildValue("O", handle));
+            PyTuple_SetItem(args, 1, Py_BuildValue("O", readingsList));
+            PyTuple_SetItem(args, 2, Py_BuildValue("s", "000001"));
+    
+			PyObject *coroObj = PyObject_Call(plugin_send_module_func, args, NULL);
+            Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
+			if (coroObj == NULL)
+			{
+				if (PyErr_Occurred())
+				{
+					logErrorMessage();
+                    return NULL;
+				}
+			}
+            else
+                Logger::getLogger()->info("%s:%d, plugin's plugin_send called successfully, coroObj type is %s", 
+                                                                __FUNCTION__, __LINE__, (Py_TYPE(coroObj))->tp_name);
+
+            // futures = [coroObj]
+            PyObject *futures = PyList_New(1);
+            PyList_SetItem(futures, 0, Py_BuildValue("O", coroObj));
+            Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
+
+            // coroutine = asyncio.wait(futures)
+            PyObject *wait, *coroutine;
+            args = PyTuple_New(1);
+            PyTuple_SetItem(args, 0, futures);
+            Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
+            
+            if ((wait = PyObject_GetAttrString(mod, "wait")) != NULL)
+            {
+                Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
+                coroutine = PyObject_Call(wait, args, NULL);
+                Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
+                if (coroutine == NULL)
+                {
+                    if (PyErr_Occurred())
+                    {
+                        logErrorMessage();
+                        return NULL;
+                    }
+                }
+                else
+                    Logger::getLogger()->info("%s:%d, coroutine with futures created, coroutine type=%s", 
+                                                        __FUNCTION__, __LINE__, (Py_TYPE(coroutine))->tp_name);
+                Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
+            }
+            else
+            {
+                Logger::getLogger()->info("%s:%d, wait is NULL", __FUNCTION__, __LINE__);
+            }
+
+            Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
+
+            // done, result = loop.run_until_complete(asyncio.wait(futures))
+            PyObject *run_until_complete, *done, *result;
+            if ((run_until_complete = PyObject_GetAttrString(loop, "run_until_complete")) != NULL)
+            {
+                args = PyTuple_New(1);
+                PyTuple_SetItem(args, 0, coroutine);
+                
+                rval = PyObject_Call(run_until_complete, args, NULL);
+                if (rval == NULL)
+                {
+                    if (PyErr_Occurred())
+                    {
+                        logErrorMessage();
+                        return NULL;
+                    }
+                }
+                else
+                {
+                    Logger::getLogger()->info("%s:%d, loop.run_until_complete done, rval type=%s", 
+                                                        __FUNCTION__, __LINE__, (Py_TYPE(rval))->tp_name);
+                    size_t sz = (size_t) PyTuple_Size(rval);
+                    Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
+                    done = PyTuple_GetItem(args, 0);
+                    Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
+                    result = PyTuple_GetItem(args, 1);
+                    Logger::getLogger()->info("%s:%d, tuple size=%d", __FUNCTION__, __LINE__, sz);
+
+                    if (done)
+                        Logger::getLogger()->info("%s:%d, tuple size=%d, done type=%s", __FUNCTION__, __LINE__, 
+                                                      sz, (Py_TYPE(done))->tp_name);
+                    else
+                        Logger::getLogger()->info("%s:%d, tuple size=%d, done is NULL", __FUNCTION__, __LINE__, sz);
+                        
+                    if (result)
+                        Logger::getLogger()->info("%s:%d, tuple size=%d, result type=%s", __FUNCTION__, __LINE__, 
+                                                      sz, (Py_TYPE(result))->tp_name);
+                    else
+                        Logger::getLogger()->info("%s:%d, tuple size=%d, result is NULL", __FUNCTION__, __LINE__, sz);
+                    
+                }
+            }
+            else
+            {
+                Logger::getLogger()->info("%s:%d, loop.run_until_complete returned NULL", __FUNCTION__, __LINE__);
+            }
+#if 0
+            PyObject *done=NULL, *result=NULL;
+            if (!PyArg_ParseTuple(rval, "OO", done, result))
+            {
+                logErrorMessage();
+                Logger::getLogger()->info("%s:%d: (Py_TYPE(done))->tp_name=%s, (Py_TYPE(result))->tp_name=%s", 
+                                           __FUNCTION__, __LINE__, (Py_TYPE(done))->tp_name, (Py_TYPE(result))->tp_name);
+                Logger::getLogger()->error("%s:%d: Cannot parse return values of 'plugin_send' for north plugin", __FUNCTION__, __LINE__);
+                //numSent=0;
+            }
+            else
+            {
+                Logger::getLogger()->info("%s:%d: (Py_TYPE(done))->tp_name=%s, (Py_TYPE(result))->tp_name=%s", 
+                                             __FUNCTION__, __LINE__, (Py_TYPE(done))->tp_name, (Py_TYPE(result))->tp_name);
+                Logger::getLogger()->info("%s:%d: retCode=%s, lastId=%d, numSent=%d", __FUNCTION__, __LINE__, retCode?"TRUE":"FALSE", lastId, numSent);
+            }
+#endif
+            unsigned int numSent = 0;
+            PyObject *m = PyImport_AddModule("__main__");
+            Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
+            args = PyTuple_New(1);
+            PyTuple_SetItem(args, 0, done);
+            Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
+            PyObject *builtins = PyEval_GetBuiltins();
+            Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
+            PyObject *_next = NULL;
+            if ((_next = PyDict_GetItemString(builtins , "next")) != NULL)
+            {
+                Logger::getLogger()->info("%s:%d: _next=%p, PyCallable_Check(_next)=%s", 
+                                            __FUNCTION__, __LINE__, _next, PyCallable_Check(_next)?"TRUE":"FALSE");
+                
+                //PyObject *iterator = PyObject_GetIter(done);
+                Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
+                
+                /*if (iterator == NULL) 
+                {
+                   Logger::getLogger()->info("%s:%d: Could not get iterator for 'done'", __FUNCTION__, __LINE__);
+                }
+                else */
+                {
+                    PyObject *item = NULL;
+                    while((item = PyIter_Next(done)) != NULL)
+                    {
+                        /*
+                        Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
+                        // rval = PyObject_Call(_next, args, NULL);
+                        rval = PyEval_CallFunction(_next, "(O)", done);
+                        item = PyIter_Next(done);
+                        */
+                        Logger::getLogger()->info("%s:%d, next(done/generator) returned, item rval type=%s",
+                                                            __FUNCTION__, __LINE__, (Py_TYPE(item))->tp_name);
+                        Py_DECREF(item);
+                    }
+                    Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
+                    //Py_DECREF(iterator);
+                }
+            }
+            else
+                Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
+
+            Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
+			// Py_CLEAR(method);
+            // Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
+		}
+		else
+		{
+			Logger::getLogger()->fatal("Method 'new_event_loop' not found");
+		}
+        Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
+		// Remove references
+		Py_CLEAR(mod);
+	}
+	else
+	{
+		Logger::getLogger()->fatal("Failed to import module");
+	}
+    Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
+
+bail_out:
+	// Reset error
+	PyErr_Clear();
+
+	PyGILState_Release(state);
+
+    Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
+
+    const char *retVal = PyUnicode_AsUTF8(rval);
+    Logger::getLogger()->info("json_dumps3(): retVal=%s", retVal);
+    
+	return retVal;
+}
+#endif
+
+
 /**
  * Constructor for PythonPluginHandle
  *    - Load python 3.5 interpreter
@@ -53,55 +394,46 @@ void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
 
 	// Set plugin name, also for methods in common-plugin-interfaces/python
 	gPluginName = pluginName;
-	// Get FLEDGE_ROOT dir
-	string fledgeRootDir(getenv("FLEDGE_ROOT"));
 
-	string path = fledgeRootDir + SHIM_SCRIPT_REL_PATH;
-	string name(string(PLUGIN_TYPE_NORTH) + string(SHIM_SCRIPT_POSTFIX));
-	
-	// Python 3.5  script name
-	std::size_t found = path.find_last_of("/");
-	string pythonScript = path.substr(found + 1);
-	string shimLayerPath = path.substr(0, found);
-	
-	// Embedded Python 3.5 program name
-	wchar_t *programName = Py_DecodeLocale(name.c_str(), NULL);
+	string fledgePythonDir;
+    
+	string fledgeRootDir(getenv("FLEDGE_ROOT"));
+	fledgePythonDir = fledgeRootDir + "/python";
+    
+	string northRootPath = fledgePythonDir + string(R"(/fledge/plugins/north/)") + string(pluginName);
+    Logger::getLogger()->info("%s:%d:, northRootPath=%s", __FUNCTION__, __LINE__, northRootPath.c_str());
+    
+    // Embedded Python 3.5 program name
+	wchar_t *programName = Py_DecodeLocale(pluginName, NULL);
 	Py_SetProgramName(programName);
 	PyMem_RawFree(programName);
 
-	string fledgePythonDir = fledgeRootDir + "/python";
-	
+    // string name(string(PLUGIN_TYPE_NORTH) + string(SHIM_SCRIPT_POSTFIX));
+    // Logger::getLogger()->info("%s:%d:, name=%s", __FUNCTION__, __LINE__, name);
 	PythonRuntime::getPythonRuntime();
 
-
-	// Note: for North service plugin we don't set a new Python interpreter
-
-	Logger::getLogger()->debug("NorthPlugin PythonInterface %s:%d: "
-				   "shimLayerPath=%s, fledgePythonDir=%s, plugin '%s'",
-				   __FUNCTION__,
-				   __LINE__,
-				   shimLayerPath.c_str(),
-				   fledgePythonDir.c_str(),
-				   pluginName);
-	
-	// Take GIL
+    Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
+    
+	// Acquire GIL
 	PyGILState_STATE state = PyGILState_Ensure();
 
-	// Set Python path for embedded Python 3.5
+    Logger::getLogger()->info("NorthPlugin %s:%d: "
+				   "northRootPath=%s, fledgePythonDir=%s, plugin '%s'",
+				   __FUNCTION__,
+				   __LINE__,
+				   northRootPath.c_str(),
+				   fledgePythonDir.c_str(),
+				   pluginName);
+
+        // string northDir = fledgePythonDir + R"(fledge/plugins/north)";
+	// Set Python path for embedded Python 3.x
 	// Get current sys.path - borrowed reference
 	PyObject* sysPath = PySys_GetObject((char *)"path");
-	PyList_Append(sysPath, PyUnicode_FromString((char *) shimLayerPath.c_str()));
+	PyList_Append(sysPath, PyUnicode_FromString((char *) northRootPath.c_str()));
 	PyList_Append(sysPath, PyUnicode_FromString((char *) fledgePythonDir.c_str()));
 
-	// Set sys.argv for embedded Python 3.5
-	int argc = 2;
-	wchar_t* argv[2];
-	argv[0] = Py_DecodeLocale("", NULL);
-	argv[1] = Py_DecodeLocale(pluginName, NULL);
-	PySys_SetArgv(argc, argv);
-
 	// 2) Import Python script
-	PyObject *pModule = PyImport_ImportModule(name.c_str());
+	PyObject *pModule = PyImport_ImportModule(pluginName);
 
 	// Check whether the Python module has been imported
 	if (!pModule)
@@ -112,10 +444,8 @@ void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
 			logErrorMessage();
 		}
 		Logger::getLogger()->fatal("PluginInterfaceInit: cannot import Python 3.5 script "
-					   "'%s' from '%s' : pythonScript=%s, shimLayerPath=%s, plugin '%s'",
-					   name.c_str(), path.c_str(),
-					   pythonScript.c_str(),
-					   shimLayerPath.c_str(),
+					   "'%s' from '%s' : plugin '%s'",
+					   pluginName, northRootPath.c_str(),
 					   pluginName);
 	}
 	else
@@ -233,7 +563,7 @@ void plugin_start_fn(PLUGIN_HANDLE handle)
 	pFunc = PyObject_GetAttrString(it->second->m_module, "plugin_start");
 	if (!pFunc)
 	{
-		Logger::getLogger()->fatal("Cannot find 'plugin_start' method "
+		Logger::getLogger()->warn("Cannot find 'plugin_start' method "
 					   "in loaded python module '%s'",
 					   it->second->m_name.c_str());
 	}
@@ -246,7 +576,7 @@ void plugin_start_fn(PLUGIN_HANDLE handle)
 			logErrorMessage();
 		}
 
-		Logger::getLogger()->fatal("Cannot call method 'plugin_start' "
+		Logger::getLogger()->warn("Cannot call method 'plugin_start' "
 					   "in loaded python module '%s'",
 					   it->second->m_name.c_str());
 		Py_CLEAR(pFunc);
@@ -266,7 +596,7 @@ void plugin_start_fn(PLUGIN_HANDLE handle)
 	// Handle return
 	if (!pReturn)
 	{
-		Logger::getLogger()->error("Called python script method plugin_start : "
+		Logger::getLogger()->warn("Called python script method plugin_start : "
 					   "error while getting result object, plugin '%s'",
 					   it->second->m_name.c_str());
 		logErrorMessage();
@@ -344,7 +674,7 @@ uint32_t plugin_send_fn(PLUGIN_HANDLE handle, const std::vector<Reading *>& read
 			logErrorMessage();
 		}
 
-		Logger::getLogger()->fatal("Cannot call method plugin_ingest"
+		Logger::getLogger()->fatal("Cannot call method plugin_send"
 					   "in loaded python module '%s'",
 					   pName.c_str());
 		Py_CLEAR(pFunc);
@@ -358,52 +688,20 @@ uint32_t plugin_send_fn(PLUGIN_HANDLE handle, const std::vector<Reading *>& read
 	// - 1 - Create Python list of dicts as input to the filter
 	ReadingSet *set = new ReadingSet(&readings);
 	PythonReadingSet *pyReadingSet = (PythonReadingSet *) set;
-    Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
     PyObject* readingsList = pyReadingSet->toPython();
-    Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
     PyObject* objectsRepresentation = PyObject_Repr(readingsList);
     const char* s = PyUnicode_AsUTF8(objectsRepresentation);
-    Logger::getLogger()->info("C2Py: plugin_send_fn():L%d: readingsList=%s", __LINE__, s);
+    Logger::getLogger()->info("C2Py: plugin_send_fn():L%d: filtered readings to send = %s", __LINE__, s);
     Py_CLEAR(objectsRepresentation);
     
-	// Create the object with readings content (with "asset_code" and "reading" keys)
-	// PyObject *readingsList = createReadingsList(readings, true);
+    // PyObject* handleObj = PyCapsule_New((void *)handle, NULL, NULL);
+    data = call_plugin_send_coroutine(pFunc, handle, readingsList);
     
-	// Fetch result
-	PyObject* pReturn = PyObject_CallFunction(pFunc,
-						  "OO",
-						  handle,
-						  readingsList);
-	Py_CLEAR(pFunc);
-
-	// Handle returned data
-	if (!pReturn)
-	{
-		Logger::getLogger()->error("Called python script method plugin_send "
-					   ": error while getting result object, plugin '%s'",
-					   pName.c_str());
-		logErrorMessage();
-
-		// Remove readings to dict
-		Py_CLEAR(readingsList);
-
-		// Release GIL
-		PyGILState_Release(state);
-
-		return data;
-	}
-
-	// Check return type
-	if(PyLong_Check(pReturn))
-	{
-		data = (long)PyLong_AsUnsignedLongMask(pReturn);	
-	}
-
-	// Remove readings to dict
+	// Remove readings list object
 	Py_CLEAR(readingsList);
 
-	// Remnove result object
-	Py_CLEAR(pReturn);
+	// Remove result object
+	// Py_CLEAR(handleObj);
 
 	// Release GIL
 	PyGILState_Release(state);

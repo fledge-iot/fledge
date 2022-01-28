@@ -128,12 +128,11 @@ void filter_plugin_ingest_fn(PyObject *ingest_callback,
 
     PyObject* objectsRepresentation = PyObject_Repr(readingsObj);
     const char* s = PyUnicode_AsUTF8(objectsRepresentation);
-    Logger::getLogger()->info("filter_plugin_ingest_fn:L%d : readingsObj=%s", __LINE__, s);
+    Logger::getLogger()->info("filter_plugin_ingest_fn:L%d : Py2C: filtered readings=%s", __LINE__, s);
     Py_CLEAR(objectsRepresentation);
 
 	// std::vector<Reading *> *vec = NULL;
 	PythonReadingSet *pyReadingSet = NULL;
-
     
 	// Check we have a list of readings
 	if (PyList_Check(readingsObj))
@@ -150,6 +149,8 @@ void filter_plugin_ingest_fn(PyObject *ingest_callback,
 					   "but object type %s",
 					   Py_TYPE(readingsObj)->tp_name);
 	}
+    if(readingsObj)
+        Py_CLEAR(readingsObj);
 
 	if (pyReadingSet)
 	{

@@ -50,7 +50,8 @@ class ManagementClient {
                                                              const std::string& itemValue);
 		std::string		addChildCategories(const std::string& parentCategory,
 							   const std::vector<std::string>& children);
-		std::vector<AssetTrackingTuple*>&	getAssetTrackingTuples(const std::string serviceName);
+		std::vector<AssetTrackingTuple*>&
+					getAssetTrackingTuples(const std::string serviceName = "");
 		bool addAssetTrackingTuple(const std::string& service, 
 					   const std::string& plugin, 
 					   const std::string& asset, 

@@ -668,7 +668,10 @@ string ManagementClient::addChildCategories(const string& parentCategory,
 
 /**
  * Get the asset tracking tuples
+ * for a service or all services
  *
+ * @param    serviceName	The serviceName to restrict data fetch
+ *				If empty records for all services are fetched
  * @return		A vector of pointers to AssetTrackingTuple objects allocated on heap
  */
 std::vector<AssetTrackingTuple*>& ManagementClient::getAssetTrackingTuples(const std::string serviceName)
@@ -676,7 +679,11 @@ std::vector<AssetTrackingTuple*>& ManagementClient::getAssetTrackingTuples(const
 	std::vector<AssetTrackingTuple*> *vec = new std::vector<AssetTrackingTuple*>();
 	
 	try {
-		string url = "/fledge/track?service="+urlEncode(serviceName);
+		string url = "/fledge/track";
+		if (serviceName != "")
+		{
+			url += "?service="+urlEncode(serviceName);
+		}
 		auto res = this->getHttpClient()->request("GET", url.c_str());
 		Document doc;
 		string response = res->content.string();

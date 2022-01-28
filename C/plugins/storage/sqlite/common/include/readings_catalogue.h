@@ -60,6 +60,20 @@ typedef struct
  * The readings tables are allocated in sequence starting from the readings_1_1 and proceeding with the other tables available in the first database.
  * The tables in the 2nd database (readings_2.db) will be used when all the tables in the first db are allocated.
  *
+ * Implementation notes:
+ *
+ * 1) Many functions receive the database connection as an input parameter:
+ *
+ * - sqlite3 *dbHandle
+ *
+ * and they will use that connection for the sql operations instead of allocating a new one each time.
+ * This approach allows to:
+ *
+ * - allocate a connection once using it for all the following operations
+ * - avoid to receive in use a connection having a different configuration (attached databases)
+ *   as the connections are handled in pool and it is not defined which one will be allocated
+ *   moreover all the operations are executed in parallel in multi threads
+ *
  */
 class ReadingsCatalogue {
 

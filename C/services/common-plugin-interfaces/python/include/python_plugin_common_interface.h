@@ -88,7 +88,6 @@ static void logErrorMessage();
 static bool numpyImportError = false;
 void setImportParameters(string& shimLayerPath, string& fledgePythonDir);
 
-// PyObject* createReadingsList(const vector<Reading *>& readings, bool changeDictKeys = false);
 
 /**
  * Destructor for PythonPluginHandle
@@ -199,11 +198,13 @@ static void* PluginInterfaceGetInfo()
 	return (void *) plugin_info_fn;
 }
 
+/**
+ * Invokes json.dumps inside python interpreter
+ */
 const char *json_dumps(PyObject *json_dict)
 {
-PyObject *rval;
-va_list ap;
-PyObject *mod, *method;
+    PyObject *rval;
+    PyObject *mod, *method;
 
 	PyGILState_STATE state = PyGILState_Ensure();
 	if ((mod = PyImport_ImportModule("json")) != NULL)
@@ -215,6 +216,11 @@ PyObject *mod, *method;
             PyTuple_SetItem(args, 0, pValue);
 			
 			rval = PyObject_Call(method, args, NULL);
+            Py_CLEAR(method);
+            Py_CLEAR(args);
+            Py_CLEAR(pValue);
+            Py_CLEAR(mod);
+            
 			if (rval == NULL)
 			{
 				if (PyErr_Occurred())
@@ -226,14 +232,14 @@ PyObject *mod, *method;
             else
                 Logger::getLogger()->info("%s:%d, rval type=%s", __FUNCTION__, __LINE__, (Py_TYPE(rval))->tp_name);
             
-			Py_CLEAR(method);
 		}
 		else
 		{
 			Logger::getLogger()->fatal("Method 'dumps' not found");
+            Py_CLEAR(mod);
 		}
 		// Remove references
-		Py_CLEAR(mod);
+		
 	}
 	else
 	{
@@ -252,11 +258,13 @@ PyObject *mod, *method;
 }
 
 
+/**
+ * Invokes json.loads inside python interpreter
+ */
 PyObject *json_loads(const char *json_str)
 {
-PyObject *rval;
-va_list ap;
-PyObject *mod, *method;
+    PyObject *rval;
+    PyObject *mod, *method;
 
 	PyGILState_STATE state = PyGILState_Ensure();
 	if ((mod = PyImport_ImportModule("json")) != NULL)
@@ -268,6 +276,11 @@ PyObject *mod, *method;
             PyTuple_SetItem(args, 0, pValue);
 			
 			rval = PyObject_Call(method, args, NULL);
+            Py_CLEAR(method);
+            Py_CLEAR(args);
+            Py_CLEAR(pValue);
+            Py_CLEAR(mod);
+            
 			if (rval == NULL)
 			{
 				if (PyErr_Occurred())
@@ -277,17 +290,14 @@ PyObject *mod, *method;
 				}
 			}
             else
-                Logger::getLogger()->info("%s:%d, rval type=%s", __FUNCTION__, __LINE__, (Py_TYPE(rval))->tp_name);
-            
-			Py_CLEAR(method);
+                Logger::getLogger()->debug("%s:%d, rval type=%s", __FUNCTION__, __LINE__, (Py_TYPE(rval))->tp_name);
+
 		}
 		else
 		{
 			Logger::getLogger()->fatal("Method 'loads' not found");
+            Py_CLEAR(mod);
 		}
-
-		// Remove references
-		Py_CLEAR(mod);
 	}
 	else
 	{
@@ -332,11 +342,11 @@ static PLUGIN_INFORMATION *Py2C_PluginInfo(PyObject* pyRetVal)
         Logger::getLogger()->debug("%s:%d, key=%s, value=%s, dValue type=%s", __FUNCTION__, __LINE__, ckey, cval, (Py_TYPE(dValue))->tp_name);
 
         char *valStr = NULL;
-        if (strcmp((Py_TYPE(dValue))->tp_name, "dict") != 0)
+        if (!PyDict_Check(dValue))
         {
     		valStr = new char [string(cval).length()+1];
     		std::strcpy (valStr, cval);
-            Logger::getLogger()->info("%s:%d, key=%s, value=%s, valStr=%s", __FUNCTION__, __LINE__, ckey, cval, valStr);
+            Logger::getLogger()->debug("%s:%d, key=%s, value=%s, valStr=%s", __FUNCTION__, __LINE__, ckey, cval, valStr);
         }
 
 		if(!strcmp(ckey, "name"))
@@ -613,7 +623,6 @@ static PLUGIN_HANDLE plugin_init_fn(ConfigCategory *config)
 		string fledgeRootDir(getenv("FLEDGE_ROOT"));
     	fledgePythonDir = fledgeRootDir + "/python";
 
-        // string name;
 		int argc = 2;
 
 		// Set Python path for embedded Python 3.x
@@ -704,6 +713,8 @@ static PLUGIN_HANDLE plugin_init_fn(ConfigCategory *config)
 						"plugin_init",
 						"O",
 						config_dict);
+
+    Py_CLEAR(config_dict);
 
 	// Handle returned data
 	if (!pReturn)
@@ -853,6 +864,7 @@ static void plugin_reconfigure_fn(PLUGIN_HANDLE* handle,
 						  new_config_dict);
 
 	Py_CLEAR(pFunc);
+    Py_CLEAR(new_config_dict);
 
 	// Handle returned data
 	if (!pReturn)
@@ -865,7 +877,7 @@ static void plugin_reconfigure_fn(PLUGIN_HANDLE* handle,
 	}
 	else
 	{
-                // Save PythonModule
+        // Save PythonModule
 		PythonModule* currentModule = it->second;
 
 		Py_CLEAR(*handle);
@@ -920,7 +932,7 @@ static void logErrorMessage()
 	const char* pErrorMessage = value ?
 				    PyBytes_AsString(pyExcValueStr) :
 				    "no error description.";
-	Logger::getLogger()->fatal("logErrorMessage: Error '%s', plugin '%s'",
+	Logger::getLogger()->warn("logErrorMessage: Error '%s', plugin '%s'",
 				   pErrorMessage,
 				   gPluginName.c_str());
 	
@@ -948,7 +960,7 @@ static void logErrorMessage()
 				PyObject* tmp = PyUnicode_AsASCIIString(outStr);
 				if (tmp != NULL) {
 					std::string pretty = PyBytes_AsString(tmp);
-					Logger::getLogger()->fatal("%s", pretty.c_str());
+					Logger::getLogger()->warn("%s", pretty.c_str());
 					Logger::getLogger()->printLongString(pretty.c_str());
 				}
 				Py_CLEAR(tmp);

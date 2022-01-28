@@ -37,7 +37,6 @@ extern PLUGIN_INFORMATION *Py2C_PluginInfo(PyObject *);
 extern void logErrorMessage();
 extern PLUGIN_INFORMATION *plugin_info_fn();
 extern void plugin_shutdown_fn(PLUGIN_HANDLE);
-// extern void setImportParameters(string& shimLayerPath, string& fledgePythonDir);
 
 
 /**
@@ -240,7 +239,7 @@ void filter_plugin_ingest_fn(PLUGIN_HANDLE handle, READINGSET *data)
 						      elem != readings->end();
 						      ++elem)
 	{
-        // Logger::getLogger()->info("Reading %d: %s", i++, (*elem)->toJSON().c_str());
+        // Logger::getLogger()->debug("Reading %d: %s", i++, (*elem)->toJSON().c_str());
 		AssetTracker* atr = AssetTracker::getAssetTracker();
 		if (atr)
 		{
@@ -250,20 +249,17 @@ void filter_plugin_ingest_fn(PLUGIN_HANDLE handle, READINGSET *data)
 		}
 	}
 
-    Logger::getLogger()->info("C2Py: filter_plugin_ingest_fn():L%d: data->getCount()=%d", __LINE__, data->getCount());
+    Logger::getLogger()->debug("C2Py: filter_plugin_ingest_fn():L%d: data->getCount()=%d", __LINE__, data->getCount());
 
 	// Create a dict of readings
 	// - 1 - Create Python list of dicts as input to the filter
 	PythonReadingSet *pyReadingSet = (PythonReadingSet *) data;
     PyObject* readingsList = pyReadingSet->toPython();
+    
     PyObject* objectsRepresentation = PyObject_Repr(readingsList);
     const char* s = PyUnicode_AsUTF8(objectsRepresentation);
-    Logger::getLogger()->info("C2Py: filter_plugin_ingest_fn():L%d: readingsList=%s", __LINE__, s);
+    Logger::getLogger()->debug("C2Py: filter_plugin_ingest_fn():L%d: readingsList=%s", __LINE__, s);
     Py_CLEAR(objectsRepresentation);
-    
-	/* PyObject* readingsList = 
-		createReadingsList(((ReadingSet *)data)->getAllReadings()); 
-	*/
 
 	PyObject* pReturn = PyObject_CallFunction(pFunc,
 						  "OO",

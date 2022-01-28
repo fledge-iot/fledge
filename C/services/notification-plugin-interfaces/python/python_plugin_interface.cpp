@@ -19,6 +19,7 @@
 #include <python_plugin_common_interface.h>
 #include <pythonreadingset.h>
 #include <base64dpimage.h>
+#include <base64databuffer.h>
 
 #define PY_ARRAY_UNIQUE_SYMBOL  PyArray_API_FLEDGE
 #include <numpy/npy_common.h>
@@ -61,7 +62,7 @@ bool substituteObjects(PyObject *data, vector<PyObject*> &removeObjects);
 /**
  * Constructor for PythonPluginHandle
  *    - Set sys.path and sys.argv
- *    - Set plygin_type (notificationRule or notificationDelivery
+ *    - Set plugin_type (notificationRule or notificationDelivery
  *    - Load Python module for the plugin
  *
  * @param    pluginName		The plugin name to load
@@ -857,82 +858,130 @@ bool substituteObjects(PyObject *data, vector<PyObject*> &removeObjects)
 				if (PyUnicode_Check(iValue))
 				{
 					string str = PyUnicode_AsUTF8(iValue);
-					size_t pos = str.find_first_of(':');
-					if (str.compare(2, 7, "DPIMAGE") == 0)
+					string key = PyUnicode_AsUTF8(iKey);
+					if (str[0] == '_' && str[1] == '_')
 					{
-						string key = PyUnicode_AsUTF8(iKey);
-						PyObject *newImage = NULL;
-						DPImage *image = new Base64DPImage(str.substr(pos + 1));
-
-						Logger::getLogger()->debug("Inner key '%s' will be "
-									"substituted with a DPImage of %dx%d@%d",
-									key.c_str(),
-									image->getHeight(),
-									image->getWidth(),
-									image->getDepth());
-
-						// Initialise Nunpy array
-						import_array();
-
-						if (image->getDepth() == 24)
+						size_t pos = str.find_first_of(':');
+						if (str.compare(2, 7, "DPIMAGE") == 0)
 						{
-							npy_intp dim[3];
-							dim[0] = image->getHeight();
-							dim[1] = image->getWidth();
-							dim[2] = 3;
-							enum NPY_TYPES type = NPY_UBYTE;
+							PyObject *newImage = NULL;
+							DPImage *image = new Base64DPImage(str.substr(pos + 1));
 
-							// Create Python array wrapper around image data
-							newImage = PyArray_SimpleNewFromData(3,
-											dim,
-											type,
-											image->getData());
+							Logger::getLogger()->debug("Inner key '%s' will be "
+										"substituted with a DPImage of %dx%d@%d",
+										key.c_str(),
+										image->getHeight(),
+										image->getWidth(),
+										image->getDepth());
+
+							// Initialise Nunpy array
+							import_array();
+
+							if (image->getDepth() == 24)
+							{
+								npy_intp dim[3];
+								dim[0] = image->getHeight();
+								dim[1] = image->getWidth();
+								dim[2] = 3;
+								enum NPY_TYPES type = NPY_UBYTE;
+
+								// Create Python array wrapper around image data
+								newImage = PyArray_SimpleNewFromData(3,
+												dim,
+												type,
+												image->getData());
+							}
+							else
+							{
+								npy_intp dim[2];
+								dim[0] = image->getHeight();
+								dim[1] = image->getWidth();
+								enum NPY_TYPES type;
+								bool createImage = true;
+								switch (image->getDepth())
+								{
+									case 8:
+										type = NPY_UBYTE;
+											break;
+									case 16:
+										type = NPY_UINT16;
+										break;
+									case 32:
+										type = NPY_UINT32;
+										break;
+									case 64:
+										type = NPY_UINT64;
+										break;
+									default:
+										createImage = false;
+										break;
+								}
+								if (createImage)
+								{
+									// Create Python array wrapper around image data
+									newImage = PyArray_SimpleNewFromData(2,
+													dim,
+													type,
+													image->getData());
+								}
+							}
+							if (newImage)
+							{
+								// Replace value
+								PyDict_SetItem(dValue, iKey, newImage);
+
+								// Add object to remove vector
+								removeObjects.push_back(newImage);
+							}
+	
+							// Delete DPImage object
+							delete(image);
 						}
-						else
+						if (str.compare(2, 10, "DATABUFFER") == 0)
 						{
-							npy_intp dim[2];
-							dim[0] = image->getHeight();
-							dim[1] = image->getWidth();
+							PyObject *newImage = NULL;
+							DataBuffer *dbuf = new Base64DataBuffer(str.substr(pos + 1));
+							npy_intp dim = dbuf->getItemCount();
 							enum NPY_TYPES type;
 							bool createImage = true;
-							switch (image->getDepth())
+							switch (dbuf->getItemSize())
 							{
-								case 8:
+								case 1:
 									type = NPY_UBYTE;
 									break;
-								case 16:
+								case 2:
 									type = NPY_UINT16;
 									break;
-								case 32:
+								case 4:
 									type = NPY_UINT32;
 									break;
-								case 64:
+								case 8:
 									type = NPY_UINT64;
 									break;
 								default:
 									createImage = false;
 									break;
 							}
+							// Initialise Nunpy array
+							import_array();
+
 							if (createImage)
 							{
 								// Create Python array wrapper around image data
-								newImage = PyArray_SimpleNewFromData(2,
-												dim,
-												type,
-												image->getData());
+								newImage = PyArray_SimpleNewFromData(1, &dim, type, dbuf->getData());
+								if (newImage)
+								{
+									// Replace value
+									PyDict_SetItem(dValue, iKey, newImage);
+
+									// Add object to remove vector
+									removeObjects.push_back(newImage);
+								}
 							}
+	
+							// Delete Databiffer object
+							delete(dbuf);
 						}
-						if (newImage)
-						{
-							// Replace value
-							PyDict_SetItem(dValue, iKey, newImage);
-
-							// Add object to remove vector
-							removeObjects.push_back(newImage);
-						}
-
-						// Delete DPImage object
-						delete(image);
 					}
 				}
 			}

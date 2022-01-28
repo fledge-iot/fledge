@@ -33,7 +33,6 @@ _help = """
 """
 
 _logger = logger.setup(__name__, level=logging.INFO)
-FORBIDDEN_MSG = 'resource you were trying to reach is absolutely forbidden for some reason'
 
 
 async def get_all_acls(request: web.Request) -> web.Response:
@@ -45,7 +44,11 @@ async def get_all_acls(request: web.Request) -> web.Response:
     storage = connect.get_storage_async()
     payload = PayloadBuilder().SELECT("name", "service", "url").payload()
     result = await storage.query_tbl_with_payload('control_acl', payload)
-    all_acls = [key for key in result['rows']]
+    all_acls = []
+    for key in result['rows']:
+        key.update({"service": eval(str(key['service']))})
+        key.update({"url": eval(str(key['url']))})
+        all_acls.append(key)
     # TODO: Add users list in response where they are used
     return web.json_response({"acls": all_acls})
 
@@ -64,6 +67,8 @@ async def get_acl(request: web.Request) -> web.Response:
         if 'rows' in result:
             if result['rows']:
                 acl_info = result['rows'][0]
+                acl_info.update({"service": eval(str(acl_info['service']))})
+                acl_info.update({"url": eval(str(acl_info['url']))})
             else:
                 raise NameNotFoundError('No such {} ACL found'.format(name))
         else:
@@ -86,12 +91,8 @@ async def add_acl(request: web.Request) -> web.Response:
     """ Create a new access control list
 
     :Example:
-         curl -H "authorization: $AUTH_TOKEN" -sX POST http://localhost:8081/fledge/ACL -d '{"name": "testACL", "service": {"name": "IEC-104", "type": "notification"}, "url": {"URL": "/fledge/south/operation"}}'
+         curl -H "authorization: $AUTH_TOKEN" -sX POST http://localhost:8081/fledge/ACL -d '{"name": "testACL", "service": [{"name": "IEC-104"}, {"type": "notification"}], "url": [{"URL": "/fledge/south/operation"}]}'
     """
-    if request.is_auth_optional:
-        msg = "Add ACL: {}".format(FORBIDDEN_MSG)
-        _logger.warning(msg)
-        raise web.HTTPForbidden(reason=msg, body=json.dumps({"message": msg}))
     try:
         data = await request.json()
         name = data.get('name', None)
@@ -107,22 +108,22 @@ async def add_acl(request: web.Request) -> web.Response:
                 raise ValueError('name cannot be empty')
         if service is None:
             raise ValueError('service param is required')
-        if not isinstance(service, dict):
-            raise TypeError('service must be a dictionary')
+        if not isinstance(service, list):
+            raise TypeError('service must be in list')
         if url is None:
             raise ValueError('url param is required')
-        if not isinstance(url, dict):
-            raise TypeError('url must be a dictionary')
+        if not isinstance(url, list):
+            raise TypeError('url must be in list')
         result = {}
         storage = connect.get_storage_async()
         payload = PayloadBuilder().SELECT("name").WHERE(['name', '=', name]).payload()
         get_control_acl_name_result = await storage.query_tbl_with_payload('control_acl', payload)
         if get_control_acl_name_result['count'] == 0:
-            payload = PayloadBuilder().INSERT(name=name, service=service, url=url).payload()
+            payload = PayloadBuilder().INSERT(name=name, service=str(service), url=str(url)).payload()
             insert_control_acl_result = await storage.insert_into_tbl("control_acl", payload)
             if 'response' in insert_control_acl_result:
                 if insert_control_acl_result['response'] == "inserted":
-                    result = {"name": name, "service": service, "url": url}
+                    result = {"name": name, "service": eval(str(service)), "url": eval(str(url))}
             else:
                 raise StorageServerError(insert_control_acl_result)
         else:
@@ -149,13 +150,9 @@ async def update_acl(request: web.Request) -> web.Response:
     """ Update an access control list. Only the set of service and URL's can be updated
 
     :Example:
-        curl -H "authorization: $AUTH_TOKEN" -sX PUT http://localhost:8081/fledge/ACL/testACL -d '{"service": {"name": "Sinusoid"}}'
-        curl -H "authorization: $AUTH_TOKEN" -sX PUT http://localhost:8081/fledge/ACL/testACL -d '{"service": {}, "url": {"URL": "/fledge/south/operation"}}'
+        curl -H "authorization: $AUTH_TOKEN" -sX PUT http://localhost:8081/fledge/ACL/testACL -d '{"service": [{"name": "Sinusoid"}]}'
+        curl -H "authorization: $AUTH_TOKEN" -sX PUT http://localhost:8081/fledge/ACL/testACL -d '{"service": [], "url": [{"URL": "/fledge/south/operation"}]}'
     """
-    if request.is_auth_optional:
-        msg = "Update ACL: {}".format(FORBIDDEN_MSG)
-        _logger.warning(msg)
-        raise web.HTTPForbidden(reason=msg, body=json.dumps({"message": msg}))
     try:
         name = request.match_info.get('acl_name', None)
         data = await request.json()
@@ -163,10 +160,10 @@ async def update_acl(request: web.Request) -> web.Response:
         url = data.get('url', None)
         if service is None and url is None:
             raise ValueError("Nothing to update in a given payload. Only service and url can be updated")
-        if service is not None and not isinstance(service, dict):
-            raise TypeError('service must be a dictionary')
-        if url is not None and not isinstance(url, dict):
-            raise TypeError('url must be a dictionary')
+        if service is not None and not isinstance(service, list):
+            raise TypeError('service must be in list')
+        if url is not None and not isinstance(url, list):
+            raise TypeError('url must be in list')
         storage = connect.get_storage_async()
         payload = PayloadBuilder().SELECT("name").WHERE(['name', '=', name]).payload()
         result = await storage.query_tbl_with_payload('control_acl', payload)
@@ -174,12 +171,12 @@ async def update_acl(request: web.Request) -> web.Response:
         if 'rows' in result:
             if result['rows']:
                 if service is not None and url is not None:
-                    update_payload = PayloadBuilder().SET(service=service, url=url).WHERE(
+                    update_payload = PayloadBuilder().SET(service=str(service), url=str(url)).WHERE(
                         ['name', '=', name]).payload()
                 elif service is not None:
-                    update_payload = PayloadBuilder().SET(service=service).WHERE(['name', '=', name]).payload()
+                    update_payload = PayloadBuilder().SET(service=str(service)).WHERE(['name', '=', name]).payload()
                 else:
-                    update_payload = PayloadBuilder().SET(url=url).WHERE(['name', '=', name]).payload()
+                    update_payload = PayloadBuilder().SET(url=str(url)).WHERE(['name', '=', name]).payload()
                 update_result = await storage.update_tbl("control_acl", update_payload)
                 if 'response' in update_result:
                     if update_result['response'] == "updated":
@@ -213,10 +210,6 @@ async def delete_acl(request: web.Request) -> web.Response:
     :Example:
         curl -H "authorization: $AUTH_TOKEN" -sX DELETE http://localhost:8081/fledge/ACL/testACL
     """
-    if request.is_auth_optional:
-        msg = "Delete ACL: {}".format(FORBIDDEN_MSG)
-        _logger.warning(msg)
-        raise web.HTTPForbidden(reason=msg, body=json.dumps({"message": msg}))
     try:
         name = request.match_info.get('acl_name', None)
         storage = connect.get_storage_async()
@@ -257,10 +250,6 @@ async def attach_acl_to_service(request: web.Request) -> web.Response:
     :Example:
         curl -H "authorization: $AUTH_TOKEN" -sX PUT http://localhost:8081/fledge/service/Sine/ACL -d '{"acl_name": "testACL"}'
     """
-    if request.is_auth_optional:
-        msg = "Attach ACL to service: {}".format(FORBIDDEN_MSG)
-        _logger.warning(msg)
-        raise web.HTTPForbidden(reason=msg, body=json.dumps({"message": msg}))
     try:
         svc_name = request.match_info.get('service_name', None)
         storage = connect.get_storage_async()
@@ -345,10 +334,6 @@ async def detach_acl_from_service(request: web.Request) -> web.Response:
     :Example:
         curl -H "authorization: $AUTH_TOKEN" -sX DELETE http://localhost:8081/fledge/service/Sine/ACL
     """
-    if request.is_auth_optional:
-        msg = "Detach ACL from service: {}".format(FORBIDDEN_MSG)
-        _logger.warning(msg)
-        raise web.HTTPForbidden(reason=msg, body=json.dumps({"message": msg}))
     try:
         svc_name = request.match_info.get('service_name', None)
         storage = connect.get_storage_async()

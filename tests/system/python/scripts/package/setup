@@ -72,6 +72,7 @@ else
     echo "uname is "${UNAME}
     
     if [[ -f /etc/apt/sources.list.d/fledge.list ]]; then cd /etc/apt/sources.list.d/ && sudo cp -f fledge.list fledge.list.bak && sudo rm -f fledge.list; fi
+    sudo sed -i "/\b\(archives.fledge-iot.org\)\b/d" /etc/apt/sources.list
 
     sudo apt update && sudo apt upgrade -y && sudo apt update
     echo "==================== DONE update, upgrade, update ============================"

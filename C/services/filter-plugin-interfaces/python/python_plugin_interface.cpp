@@ -552,17 +552,6 @@ PLUGIN_HANDLE filter_plugin_init_fn(ConfigCategory* config,
  * Constructor for PythonPluginHandle
  *    - Load python interpreter
  *    - Set sys.path and sys.argv
- *    - Import shim layer script and pass plugin name in argv[1]
- *
- * @param    pluginName         The plugin name to load
- * @param    pluginPathName     The plugin pathname
- * @return			PyObject of loaded module
- */
-/**
- * Constructor for PythonPluginHandle
- *    - Load python interpreter
- *    - Set sys.path and sys.argv
- *    - Import shim layer script and pass plugin name in argv[1]
  *
  * @param    pluginName         The plugin name to load
  * @param    pluginPathName     The plugin pathname

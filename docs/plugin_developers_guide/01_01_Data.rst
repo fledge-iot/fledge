@@ -39,6 +39,7 @@ Reading data is nominally stored and passed between the APIs using JSON, however
 +-------------------------------+-------------------------+-----------------------+--------------------------------+
 | 2 Dimensional list of numbers | A list of lists of      | A std::vector of      | A list of lists of floating    |
 |                               | floating point values   | std::vector<double>   | point values                   |
+|                               |                         | pointers              |                                |
 +-------------------------------+-------------------------+-----------------------+--------------------------------+
 | Data buffer                   | A base64 encoded string | A Databuffer class    | A 1 dimensional numpy array    |
 |                               | with a header           |                       | of values                      |

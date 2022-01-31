@@ -40,7 +40,7 @@ void setReadingAttr(Reading* newReading, PyObject *readingList, bool fillIfMissi
     fill = (!fillIfMissing || (fillIfMissing && newReading->getTimestamp()==0));
 	if (fill && ts)
 	{
-		// Convert a timestamp of the from '2019-01-07 19:06:35.366100+01:00'
+		// Convert a timestamp of the form '2019-01-07 19:06:35.366100+01:00'
 		const char *ts_str = PyUnicode_AsUTF8(ts);
 		newReading->setTimestamp(ts_str);
 	}
@@ -50,7 +50,7 @@ void setReadingAttr(Reading* newReading, PyObject *readingList, bool fillIfMissi
     fill = (!fillIfMissing || (fillIfMissing && newReading->getUserTimestamp()==0));
 	if (fill && uts)
 	{
-		// Convert a timestamp of the from '2019-01-07 19:06:35.366100+01:00'
+		// Convert a timestamp of the form '2019-01-07 19:06:35.366100+01:00'
 		const char *ts_str = PyUnicode_AsUTF8(uts);
 		newReading->setUserTimestamp(ts_str);
 	}
@@ -60,7 +60,7 @@ void setReadingAttr(Reading* newReading, PyObject *readingList, bool fillIfMissi
     fill = (!fillIfMissing || (fillIfMissing && newReading->getUserTimestamp()==0));
 	if (fill && userts)
 	{
-		// Convert a timestamp of the from '2019-01-07 19:06:35.366100+01:00'
+		// Convert a timestamp of the form '2019-01-07 19:06:35.366100+01:00'
 		const char *ts_str = PyUnicode_AsUTF8(userts);
 		newReading->setUserTimestamp(ts_str);
 	}
@@ -80,7 +80,7 @@ void setReadingAttr(Reading* newReading, PyObject *readingList, bool fillIfMissi
     if (fill)
     {
         newReading->setTimestamp(newReading->getUserTimestamp());
-        //Logger::getLogger()->debug("Copied TS into user TS: newReading->getUserTimestamp()=%d", newReading->getUserTimestamp());
+        //Logger::getLogger()->debug("Copied user TS into TS: newReading->getUserTimestamp()=%d", newReading->getUserTimestamp());
     }
 }
 
@@ -104,7 +104,7 @@ PythonReadingSet::PythonReadingSet(PyObject *set)
 			m_readings.push_back(reading);
             m_count++;
 			m_last_id = reading->getId();
-            Logger::getLogger()->debug("PythonReadingSet c'tor: LIST: reading->toJSON()=%s", reading->toJSON().c_str());
+            Logger::getLogger()->debug("PythonReadingSet c'tor: LIST: reading->toJSON()='%s' ", reading->toJSON().c_str());
 		}
 	}
     else if (PyDict_Check(set))
@@ -136,7 +136,6 @@ PyObject *PythonReadingSet::toPython(bool changeKeys)
 	PyObject *set = PyList_New(m_readings.size());
 	for (int i = 0; i < m_readings.size(); i++)
 	{
-        // Logger::getLogger()->info("PythonReadingSet::toPython(): i=%d, reading=%s", i, m_readings[i]->toJSON().c_str());
 		PythonReading *pyReading = (PythonReading *) m_readings[i];
 		PyList_SetItem(set, i, pyReading->toPython(changeKeys));
 	}

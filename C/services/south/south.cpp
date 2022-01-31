@@ -189,7 +189,6 @@ void doIngest(Ingest *ingest, Reading reading)
 
 void doIngestV2(Ingest *ingest, ReadingSet *set)
 {
-    Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
     std::vector<Reading *> *vec = set->getAllReadingsPtr();
     std::vector<Reading *> *vec2 = new std::vector<Reading *>;
     if (!vec)
@@ -205,7 +204,7 @@ void doIngestV2(Ingest *ingest, ReadingSet *set)
             vec2->emplace_back(r2);
         }
     }
-    Logger::getLogger()->info("%s:%d: V2 async ingest method returned: vec->size()=%d", __FUNCTION__, __LINE__, vec->size());
+    Logger::getLogger()->debug("%s:%d: V2 async ingest method returned: vec->size()=%d", __FUNCTION__, __LINE__, vec->size());
 
 	ingest->ingest(vec2);
 	delete vec2; 	// each reading object inside vector has been allocated on heap and moved to Ingest class's internal queue
@@ -494,7 +493,6 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
                                     vec2->emplace_back(r2);
                                 }
                             }
-                            //Logger::getLogger()->info("%s:%d: V2 poll method returned: vec->size()=%d", __FUNCTION__, __LINE__, vec->size());
 
     						ingest.ingest(vec2);
     						pollCount += (int) vec2->size();

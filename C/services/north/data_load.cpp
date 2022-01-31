@@ -146,7 +146,7 @@ ReadingSet *readings = NULL;
 			switch (m_dataSource)
 			{
 				case SourceReadings:
-					Logger::getLogger()->debug("Fetch %d readings from %d", blockSize, m_lastFetched + 1);
+					// Logger::getLogger()->debug("Fetch %d readings from %d", blockSize, m_lastFetched + 1);
 					readings = m_storage->readingFetch(m_lastFetched + 1, blockSize);
 					break;
 				case SourceStatistics:
@@ -178,7 +178,7 @@ ReadingSet *readings = NULL;
 		}
 		else
 		{
-			Logger::getLogger()->debug("DataLoad::readBlock(): No readings available");
+			// Logger::getLogger()->debug("DataLoad::readBlock(): No readings available");
 		}
 		if (!m_shutdown)
 		{	
@@ -473,7 +473,6 @@ void DataLoad::passToOnwardFilter(OUTPUT_HANDLE *outHandle,
 {
 	// Get next filter in the pipeline
 	FilterPlugin *next = (FilterPlugin *)outHandle;
-    Logger::getLogger()->info("DataLoad::passToOnwardFilter(): readingSet->getCount()=%d", readingSet->getCount()); 
 	// Pass readings to next filter
 	next->ingest(readingSet);
 }
@@ -504,7 +503,6 @@ void DataLoad::pipelineEnd(OUTPUT_HANDLE *outHandle,
 {
 
 	DataLoad *load = (DataLoad *)outHandle;
-    Logger::getLogger()->info("DataLoad::pipelineEnd(): readingSet->getCount()=%d", readingSet->getCount()); 
 	if (readingSet->getCount() == 0)	// Special case when all filtered out
 	{
 		load->updateLastSentId(load->m_lastFetched);

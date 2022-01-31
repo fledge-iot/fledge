@@ -9,7 +9,7 @@ set(COMMON_LIB common-lib)
 set(SERVICE_COMMON_LIB services-common-lib)
 
 # Find source files
-file(GLOB SOURCES python_plugin_interface.cpp ../../common-plugin-interfaces/python/pyobject_reading_parser.cpp)
+file(GLOB SOURCES python_plugin_interface.cpp)
 
 # Find Python.h 3.x dev/lib package
 if(${CMAKE_VERSION} VERSION_LESS "3.12.0") 

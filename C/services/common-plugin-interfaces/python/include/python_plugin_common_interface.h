@@ -86,8 +86,6 @@ static void plugin_shutdown_fn(PLUGIN_HANDLE);
 
 static void logErrorMessage();
 static bool numpyImportError = false;
-void setImportParameters(string& shimLayerPath, string& fledgePythonDir);
-
 
 /**
  * Destructor for PythonPluginHandle
@@ -629,19 +627,6 @@ static PLUGIN_HANDLE plugin_init_fn(ConfigCategory *config)
 		// Get current sys.path - borrowed reference
 		PyObject* sysPath = PySys_GetObject((char *)"path");
 		PyList_Append(sysPath, PyUnicode_FromString((char *) fledgePythonDir.c_str()));
-
-#if 0
-		// For notification Rule/Delivery plugins we need another import parameter
-		if (loadPluginType.find("notification") != string::npos)
-		{
-			name = "notification" + string(SHIM_SCRIPT_POSTFIX);
-			argc++;
-		}
-		else
-		{
-			name = loadPluginType + string(SHIM_SCRIPT_POSTFIX);
-		}
-#endif
         
 		// Set sys.argv for embedded Python 3.x
 		wchar_t* argv[argc];
@@ -1067,8 +1052,7 @@ static void plugin_shutdown_fn(PLUGIN_HANDLE handle)
 		logErrorMessage();
 	}
 
-	//if (it->second->m_tState)
-    if (false)
+    if (false) // no seperate python interpreter is used anymore for python plugins
 	{
 		// Switch to Interpreter thread
 		PyThreadState* swapState = PyThreadState_Swap(it->second->m_tState);
@@ -1123,23 +1107,6 @@ static void plugin_shutdown_fn(PLUGIN_HANDLE handle)
 				   pName.c_str());
 }
 
-/**
- * Fill input string parameters with needed values for Python import
- *
- * @param shimLayerPath		Full path of Python shim layer file
- * @param fledgePythonDir	Location of Python module files under FLEDGE_ROOT
- */
-void setImportParameters(string& shimLayerPath, string& fledgePythonDir)
-{
-	// Get FLEDGE_ROOT dir
-	string fledgeRootDir(getenv("FLEDGE_ROOT"));
-	string path = fledgeRootDir + SHIM_SCRIPT_REL_PATH;
-	fledgePythonDir = fledgeRootDir + "/python";
-
-	// Python 3.x script name
-	std::size_t found = path.find_last_of("/");
-	shimLayerPath = path.substr(0, found);
-}
-
 };
 #endif
+

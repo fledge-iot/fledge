@@ -233,7 +233,7 @@ void filter_plugin_ingest_fn(PLUGIN_HANDLE handle, READINGSET *data)
 	}
 
 	// Call asset tracker
-	int i=0;
+	// int i=0;
 	vector<Reading *>* readings = ((ReadingSet *)data)->getAllReadingsPtr();
 	for (vector<Reading *>::const_iterator elem = readings->begin();
 						      elem != readings->end();
@@ -251,8 +251,7 @@ void filter_plugin_ingest_fn(PLUGIN_HANDLE handle, READINGSET *data)
 
     Logger::getLogger()->debug("C2Py: filter_plugin_ingest_fn():L%d: data->getCount()=%d", __LINE__, data->getCount());
 
-	// Create a dict of readings
-	// - 1 - Create Python list of dicts as input to the filter
+	// Create a readingList of readings to be filtered
 	PythonReadingSet *pyReadingSet = (PythonReadingSet *) data;
     PyObject* readingsList = pyReadingSet->toPython();
     

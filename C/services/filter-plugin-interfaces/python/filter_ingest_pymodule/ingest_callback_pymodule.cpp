@@ -18,7 +18,6 @@
 extern "C" {
 
 typedef void (*INGEST_CB_DATA)(void *, PythonReadingSet *);
-//extern std::vector<Reading *>* Py2C_getReadings(PyObject *polledData);
 
 static void filter_plugin_ingest_fn(PyObject *ingest_callback,
 				    PyObject *ingest_obj_ref_data,
@@ -131,14 +130,12 @@ void filter_plugin_ingest_fn(PyObject *ingest_callback,
     Logger::getLogger()->debug("filter_plugin_ingest_fn:L%d : Py2C: filtered readings=%s", __LINE__, s);
     Py_CLEAR(objectsRepresentation);
 
-	// std::vector<Reading *> *vec = NULL;
 	PythonReadingSet *pyReadingSet = NULL;
     
 	// Check we have a list of readings
 	if (PyList_Check(readingsObj))
 	{
 		// Get vector of Readings from Python object
-		// vec =  Py2C_getReadings(readingsObj);
         pyReadingSet = new PythonReadingSet(readingsObj);
         Logger::getLogger()->debug("%s:%d, pyReadingSet=%p, pyReadingSet readings count=%d", 
                                     __FUNCTION__, __LINE__, pyReadingSet, pyReadingSet?pyReadingSet->getCount():0);
@@ -156,14 +153,9 @@ void filter_plugin_ingest_fn(PyObject *ingest_callback,
 	{
 		// Get callback pointer
 		INGEST_CB_DATA cb = (INGEST_CB_DATA) PyCapsule_GetPointer(ingest_callback, NULL);
+        
 		// Get ingest object parameter
 		void *data = PyCapsule_GetPointer(ingest_obj_ref_data, NULL);
-
-		// Create ReadingSet object
-		// ReadingSet *newData = new ReadingSet(vec);
-
-		// Delete vector object
-		// delete vec;
 
 		// Invoke callback method for ReadingSet filter ingestion
 		(*cb)(data, pyReadingSet);

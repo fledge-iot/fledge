@@ -17,8 +17,6 @@
 extern "C" {
 
 typedef void (*INGEST_CB2)(void *, PythonReadingSet *);
-// std::vector<Reading *>* Py2C_getReadings(PyObject *polledData);
-// Reading* Py2C_parseReadingObject(PyObject *element);
 
 void plugin_ingest_fn(PyObject *ingest_callback, PyObject *ingest_obj_ref_data, PyObject *readingsObj);
 
@@ -63,13 +61,13 @@ PyInit_async_ingest(void)
 	if (m == NULL)
 		return NULL;
 
-	//Logger::getLogger()->debug("PyModule_Create() succeeded");
+	Logger::getLogger()->debug("PyModule_Create() succeeded");
 
 	IngestError = PyErr_NewException("ingest.error", NULL, NULL);
 	Py_INCREF(IngestError);
 	PyModule_AddObject(m, "error", IngestError);
 
-	//Logger::getLogger()->debug("PyInit_ingest() returning");
+	Logger::getLogger()->debug("PyInit_ingest() returning");
 	return m;
 }
 
@@ -82,19 +80,14 @@ void plugin_ingest_fn(PyObject *ingest_callback, PyObject *ingest_obj_ref_data, 
 		return;
 	}
 	
-	// std::vector<Reading *> *vec = Py2C_getReadings(readingsObj);
-	Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
     PythonReadingSet *pyReadingSet = new PythonReadingSet(readingsObj);
-    Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
     Py_CLEAR(readingsObj);
 
 	if(pyReadingSet)
 	{
 		INGEST_CB2 cb = (INGEST_CB2) PyCapsule_GetPointer(ingest_callback, NULL);
 		void *data = PyCapsule_GetPointer(ingest_obj_ref_data, NULL);
-        Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
 		(*cb)(data, pyReadingSet);
-        Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
 	}
 	else
 		Logger::getLogger()->error("Py2C interface: plugin_ingest_fn: PythonReadingSet c'tor returned NULL");

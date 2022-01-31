@@ -96,42 +96,46 @@ PythonReading::PythonReading(PyObject *pyReading)
 		// Set id
 		m_id = PyLong_AsUnsignedLong(id);
 	}
-    else
-    {
-        m_id = 0;
-    }
+	else
+	{
+		m_id = 0;
+	}
 
 	// Get 'ts' value: borrowed reference.
-	PyObject *ts = PyDict_GetItemString(pyReading, "timestamp");
-    if (!(ts && PyUnicode_Check(ts)))
-        ts = PyDict_GetItemString(pyReading, "ts");
+	// Need to use PyDict_GetItemWithError in order to avoid an exception
+	PyObject *key = PyUnicode_FromString("timestamp");
+	PyObject *ts = PyDict_GetItemWithError(pyReading, key);
+	if (!(ts && PyUnicode_Check(ts)))
+	{
+		ts = PyDict_GetItemString(pyReading, "ts");
+	}
 	if (ts && PyUnicode_Check(ts))
 	{
 		// Set timestamp
-        const char *ts_str = PyUnicode_AsUTF8(ts);
+		const char *ts_str = PyUnicode_AsUTF8(ts);
 		setTimestamp(ts_str);
 	}
-    else
-    {
-        m_timestamp.tv_sec = 0;
+	else
+	{
+		m_timestamp.tv_sec = 0;
 		m_timestamp.tv_usec = 0;
-        // Logger::getLogger()->debug("PythonReading c'tor: Couldn't parse 'ts' ");
-    }
+		// Logger::getLogger()->debug("PythonReading c'tor: Couldn't parse 'ts' ");
+	}
 
 	// Get 'user_ts' value: borrowed reference.
 	PyObject *uts = PyDict_GetItemString(pyReading, "user_ts");
 	if (uts && PyUnicode_Check(uts))
 	{
 		// Set user timestamp
-        const char *ts_str = PyUnicode_AsUTF8(uts);
+		const char *ts_str = PyUnicode_AsUTF8(uts);
 		setUserTimestamp(ts_str);
 	}
-    else
-    {
-        // Logger::getLogger()->debug("PythonReading c'tor: Couldn't parse 'user_ts' ");
-        m_userTimestamp.tv_sec = 0;
-        m_userTimestamp.tv_usec = 0;
-    }
+	else
+	{
+		// Logger::getLogger()->debug("PythonReading c'tor: Couldn't parse 'user_ts' ");
+	        m_userTimestamp.tv_sec = 0;
+       		m_userTimestamp.tv_usec = 0;
+	}
 }
 
 /**

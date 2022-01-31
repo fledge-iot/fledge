@@ -31,23 +31,6 @@ bool PythonReading::doneNumPyImport = false;
 
 using namespace std;
 
-std::string getPyType(PyObject *pyObj)
-{
-    if (PyLong_Check(pyObj))
-        return "Long";
-    else if (PyFloat_Check(pyObj))
-        return "Float";
-    else if (PyBytes_Check(pyObj))
-        return "String";
-    else if (PyUnicode_Check(pyObj))
-        return "Unicode String";
-    else if (PyDict_Check(pyObj))
-        return "Dict";
-    else if (PyArray_Check(pyObj))
-        return "Numpy array";
-    else
-        return "Unknown";
-}
 
 /**
  * Construct a PythonReading from a DICT object returned by Python code.

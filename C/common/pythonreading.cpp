@@ -217,7 +217,7 @@ DatapointValue *PythonReading::getDatapointValue(PyObject *value)
 					double d = PyFloat_AS_DOUBLE(PyList_GetItem(pyRow, j));
 					row->push_back(d);
 				}
-				values.push_back(row);  // TODO: 'row' goes out of scope just after the loop ends on the line below, hence DatapointValue c'tor call below may access out of scope 'row' values
+				values.push_back(row);
 			}
 			dataPoint = new DatapointValue(values);
 		}
@@ -417,9 +417,9 @@ PyObject *PythonReading::convertDatapoint(Datapoint *dp)
 		{
 			int i = 0;
 			PyObject *pyRow = PyList_New(row->size());
-			for (auto it = row->begin(); it != row->end(); ++it)
+			for (auto& d : *row)
 			{
-				PyList_SetItem(pyRow, i++, PyFloat_FromDouble(*it));
+				PyList_SetItem(pyRow, i++, PyFloat_FromDouble(d));
 			}
 			PyList_SetItem(value, rowNo++, pyRow);
 		}

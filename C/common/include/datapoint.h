@@ -111,7 +111,7 @@ class DatapointValue {
 		 */
 		DatapointValue(const std::vector< std::vector<double> *>& values)
 		{
-			m_value.a2d = new std::vector< std::vector<double>* >();
+			m_value.a2d = new std::vector< std::vector<double>* >;
 			for (auto row : values)
 			{
 				std::vector<double> *nrow = new std::vector<double>;

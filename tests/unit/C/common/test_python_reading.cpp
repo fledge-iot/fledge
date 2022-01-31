@@ -593,9 +593,9 @@ TEST_F(PythonReadingTest, UpdateAssetCode)
 TEST_F(PythonReadingTest, Double2DArray)
 {
 	vector<vector<double>* > array;
-	for (i = 0; i < 2; i++)
+	for (int i = 0; i < 2; i++)
 	{
-		vector<double> *row = nee vector<double>;
+		vector<double> *row = new vector<double>;
 		row->push_back(1.4 + i);
 		row->push_back(3.7 + i);
 		array.push_back(row);
@@ -614,7 +614,7 @@ TEST_F(PythonReadingTest, Double2DArray)
 		EXPECT_EQ(pyr.getDatapointCount(), 1);
 		Datapoint *dp = pyr.getDatapoint("array");
 		EXPECT_EQ(dp->getData().getType(), DatapointValue::dataTagType::T_2D_FLOAT_ARRAY);
-		vector<vector<double> > *a2d = dp->getData().getDp2DArr();
+		vector<vector<double> *> *a2d = dp->getData().getDp2DArr();
 		EXPECT_EQ(a2d->at(0)->at(0), 2.4);
 		EXPECT_EQ(a2d->at(0)->at(1), 4.7);
 		EXPECT_EQ(a2d->at(1)->at(0), 1.4);

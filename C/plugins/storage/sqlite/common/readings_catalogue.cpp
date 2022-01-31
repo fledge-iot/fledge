@@ -44,6 +44,8 @@ void ReadingsCatalogue::raiseError(const char *operation, const char *reason, ..
  *     global id
  *     last created database
  *
+ * @param dbHandle Database connection to use for the operations
+ *
  */
 bool ReadingsCatalogue::configurationRetrieve(sqlite3 *dbHandle)
 {
@@ -218,6 +220,8 @@ bool ReadingsCatalogue::storeGlobalId ()
 /**
  * Calculates the value from the readings tables executing a max(id) on each table.
  *
+ * @param dbHandle Database connection to use for the operations
+ *
  */
 int ReadingsCatalogue::calculateGlobalId (sqlite3 *dbHandle)
 {
@@ -294,6 +298,8 @@ int ReadingsCatalogue::calculateGlobalId (sqlite3 *dbHandle)
 
 /**
  *  Calculates the minimum id from the readings tables executing a min(id) on each table
+ *
+ * @param dbHandle Database connection to use for the operations
  *
  */
 int ReadingsCatalogue::getMinGlobalId (sqlite3 *dbHandle)
@@ -489,7 +495,10 @@ void ReadingsCatalogue::prepareAllDbs() {
 
 /**
  * Create a set od databases
- * *
+ *
+ * @param    dbIdStart	Range of the database to create
+ * @param    dbIdEnd    Range of the database to create
+ *
  */
 void ReadingsCatalogue::preallocateNewDbsRange(int dbIdStart, int dbIdEnd) {
 
@@ -511,6 +520,8 @@ void ReadingsCatalogue::preallocateNewDbsRange(int dbIdStart, int dbIdEnd) {
 
 /**
  * Generates a list of all the used databases
+ *
+ * @param    dbIdList	returned by reference, the list databases in use
  *
  */
 void ReadingsCatalogue::getAllDbs(vector<int> &dbIdList) {
@@ -547,10 +558,10 @@ void ReadingsCatalogue::getAllDbs(vector<int> &dbIdList) {
 	sort(dbIdList.begin(), dbIdList.end());
 }
 
-
-
 /**
  * Retrieve the list of newly created db
+ *
+ * @param    dbIdList	returned by reference, the list of new databases
  *
  */
 void ReadingsCatalogue::getNewDbs(vector<int> &dbIdList) {
@@ -571,6 +582,8 @@ void ReadingsCatalogue::getNewDbs(vector<int> &dbIdList) {
 
 /**
  * Enable WAL on the provided database file
+ *
+ * @param    dbPathReadings	Database path for which the WAL must be enabled
  *
  */
 bool ReadingsCatalogue::enableWAL(string &dbPathReadings) {
@@ -603,8 +616,9 @@ bool ReadingsCatalogue::enableWAL(string &dbPathReadings) {
 /**
  * Attach a database to all the connections, idle and  inuse
  *
- * @param path  - path of the database to attach
- * @param alias - alias to be assigned to the attached database
+ * @param dbHandle Database connection to use for the operations
+ * @param path     path of the database to attach
+ * @param alias    alias to be assigned to the attached database
  */
 bool ReadingsCatalogue::attachDb(sqlite3 *dbHandle, std::string &path, std::string &alias)
 {
@@ -632,8 +646,8 @@ bool ReadingsCatalogue::attachDb(sqlite3 *dbHandle, std::string &path, std::stri
 /**
  * Detach a database from a connection
  *
- * @param dbHandle - handle of the connection
- * @param alias    - alias of the database to detach
+ * @param dbHandle Database connection to use for the operations*
+ * @param alias    alias of the database to detach
  */
 void ReadingsCatalogue::detachDb(sqlite3 *dbHandle, std::string &alias)
 {
@@ -654,6 +668,10 @@ void ReadingsCatalogue::detachDb(sqlite3 *dbHandle, std::string &alias)
 
 /**
  * Attaches all the defined SQlite database to all the connections and enable the WAL
+ *
+ * @param dbHandle Database connection to use for the operations
+ * @param dbIdList List of database to attach
+ * @return         True of success, false on any error
  *
  */
 bool ReadingsCatalogue::connectionAttachDbList(sqlite3 *dbHandle, vector<int> &dbIdList)
@@ -692,6 +710,9 @@ bool ReadingsCatalogue::connectionAttachDbList(sqlite3 *dbHandle, vector<int> &d
 /**
  * Attaches all the defined SQlite database to all the connections and enable the WAL
  *
+ * @param dbHandle Database connection to use for the operations
+ * @return         True of success, false on any error
+ *
  */
 bool ReadingsCatalogue::connectionAttachAllDbs(sqlite3 *dbHandle)
 {
@@ -722,6 +743,8 @@ bool ReadingsCatalogue::connectionAttachAllDbs(sqlite3 *dbHandle)
 
 /**
  * Attaches all the defined SQlite database to all the connections and enable the WAL
+ *
+ * @return         True of success, false on any error
  *
  */
 bool ReadingsCatalogue::attachDbsToAllConnections()
@@ -760,6 +783,8 @@ bool ReadingsCatalogue::attachDbsToAllConnections()
 
 /**
  * Setup the multiple readings databases/tables feature
+ *
+ * @param storageConfig Configuration to apply
  *
  */
 void ReadingsCatalogue::multipleReadingsInit(STORAGE_CONFIGURATION &storageConfig)
@@ -830,6 +855,8 @@ void ReadingsCatalogue::multipleReadingsInit(STORAGE_CONFIGURATION &storageConfi
 /**
  * Store on the database the configuration of the storage plugin
  *
+ * @param dbHandle Database connection to use for the operations
+ *
  */
 void ReadingsCatalogue::storeReadingsConfiguration (sqlite3 *dbHandle)
 {
@@ -855,6 +882,8 @@ void ReadingsCatalogue::storeReadingsConfiguration (sqlite3 *dbHandle)
 
 /**
  * Add all the required DBs in relation to the storage plugin configuration
+ *
+ * @param dbHandle Database connection to use for the operations
  *
  */
 void ReadingsCatalogue::configChangeAddDb(sqlite3 *dbHandle)
@@ -909,6 +938,8 @@ void ReadingsCatalogue::configChangeAddDb(sqlite3 *dbHandle)
 
 /**
  * Removes all the required DBs in relation to the storage plugin configuration
+ *
+ * @param dbHandle Database connection to use for the operations
  *
  */
 void ReadingsCatalogue::configChangeRemoveDb(sqlite3 *dbHandle)
@@ -1126,9 +1157,9 @@ void  ReadingsCatalogue::dbFileDelete(string dbPath)
 }
 
 /**
- * Evaluates and applis the storage plugin configuration
+ * Evaluates and applies the storage plugin configuration
  *
- * @param dbHandle - handle of the connection to use for the database operations
+ * @param dbHandle handle of the connection to use for the database operations
  *
  */
 bool ReadingsCatalogue::applyStorageConfigChanges(sqlite3 *dbHandle)
@@ -1246,9 +1277,9 @@ bool ReadingsCatalogue::applyStorageConfigChanges(sqlite3 *dbHandle)
 }
 
 /**
- * Calculates the maxixum readings id used
+ * Calculates the maximum readings id used
  *
- * @return - maxixum readings id used
+ * @return maximum readings id used
  *
  */
 int  ReadingsCatalogue::calcMaxReadingUsed()
@@ -1268,11 +1299,11 @@ int  ReadingsCatalogue::calcMaxReadingUsed()
 /**
  * Evaluates the operations to be executed in relation to the input parameters on the readings tables
  *
- * @param maxUsed - Maximum table id used
- * @param Current - Current table id configured
- * @param Request - Requested configuration id
+ * @param maxUsed Maximum table id used
+ * @param Current Current table id configured
+ * @param Request Requested configuration id
 
- * @return - Operation to execute : ACTION_TB_NONE / ACTION_TB_ADD /ACTION_TB_REMOVE / ACTION_INVALID
+ * @return        Operation to execute : ACTION_TB_NONE / ACTION_TB_ADD /ACTION_TB_REMOVE / ACTION_INVALID
  *
  */
 ReadingsCatalogue::ACTION  ReadingsCatalogue::changesLogicTables(int maxUsed ,int Current, int Request)
@@ -1347,6 +1378,8 @@ ReadingsCatalogue::ACTION ReadingsCatalogue::changesLogicDBs(int dbIdCurrent , i
  * Creates all the needed readings tables considering the tables already defined in the database
  * and the number of tables to have on each database.
  *
+ * @param dbId Database Id in which the table must be created
+ *
  */
 void ReadingsCatalogue::preallocateReadingsTables(int dbId)
 {
@@ -1387,6 +1420,9 @@ void ReadingsCatalogue::preallocateReadingsTables(int dbId)
 /**
  * Generates the full path of the SQLite database from the given the id
  *
+ * @param dbId Database Id for which the full path must be generated
+ * @return     Generated the full path
+ *
  */
 string ReadingsCatalogue::generateDbFilePah(int dbId)
 {
@@ -1419,6 +1455,10 @@ string ReadingsCatalogue::generateDbFilePah(int dbId)
 /**
  * Stores on the persistent storage the id of the last created database
  *
+ * @param dbHandle Database connection to use for the operations
+ * @param newDbId  Id of the created database
+ * @return         True of success, false on any error
+ *
  */
 bool ReadingsCatalogue::latestDbUpdate(sqlite3 *dbHandle, int newDbId)
 {
@@ -1440,7 +1480,13 @@ bool ReadingsCatalogue::latestDbUpdate(sqlite3 *dbHandle, int newDbId)
 
 
 /**
- * Creates a new database using m_dbId as datbase id
+ * Creates a new database
+ *
+ * @param dbHandle     Database connection to use for the operations
+ * @param newDbId      If of the created database to create
+ * @param startId      Starting id for the creation of the reading tables
+ * @param attachAllDb  Type of attache operation to apply on the newly created database
+ * @return             True of success, false on any error
  *
  */
 bool  ReadingsCatalogue::createNewDB(sqlite3 *dbHandle, int newDbId, int startId, NEW_DB_OPERATION attachAllDb)
@@ -1564,9 +1610,11 @@ bool  ReadingsCatalogue::createNewDB(sqlite3 *dbHandle, int newDbId, int startId
 /**
  * Creates a set of reading tables in the given database id
  *
- * @param dbId        - Database id on which the tables should be created
- * @param idStartFrom - Id from with to start to create the tables
- * @param nTables     - Number of table to create
+ * @param dbHandle    Database connection to use for the operations
+ * @param dbId        Database id on which the tables should be created
+ * @param idStartFrom Id from with to start to create the tables
+ * @param nTables     Number of table to create
+ *
  */
 bool  ReadingsCatalogue::createReadingsTables(sqlite3 *dbHandle, int dbId, int idStartFrom, int nTables)
 {
@@ -1639,6 +1687,9 @@ bool  ReadingsCatalogue::createReadingsTables(sqlite3 *dbHandle, int dbId, int i
 
 /**
  * Evaluates the latest reading table defined in the provided database id looking at sqlite_master, the SQLite repository
+ *
+ * @param dbHandle Database connection to use for the operations
+ * @param dbId     Database id for which the operation must be executed
  *
  * @return - a struct containing
  *             lastReadings = the id of the latest reading table defined in the  given database id
@@ -1740,7 +1791,9 @@ void  ReadingsCatalogue::allocateReadingAvailable()
 /**
  * Allocates a reading table to the given asset_code
  *
- * @return - the reading id associated to the provided asset_code
+ * @param    connection	Db connection to be used for the operations
+ * @param    asset_code for which the referenced readings table should be idenfied
+ * @return              the reading id associated to the provided asset_code
  */
 ReadingsCatalogue::tyReadingReference  ReadingsCatalogue::getReadingReference(Connection *connection, const char *asset_code)
 {
@@ -1878,7 +1931,10 @@ ReadingsCatalogue::tyReadingReference  ReadingsCatalogue::getReadingReference(Co
 }
 
 /**
- * Retrieve the maximum database id used
+ * Retrieve the maximum readings id for the provided database id
+ *
+ * @param dbId Database id for which the maximum reading id must be retrieved
+ * @return     Maximum readings for the requested database id
  *
  */
 int ReadingsCatalogue::getMaxReadingsId(int dbId)
@@ -1899,6 +1955,8 @@ int ReadingsCatalogue::getMaxReadingsId(int dbId)
 /**
  * Returns the number of readings in use
  *
+ * @return number of readings in use
+ *
  */
 int ReadingsCatalogue::getReadingsCount()
 {
@@ -1907,6 +1965,10 @@ int ReadingsCatalogue::getReadingsCount()
 
 /**
  * Returns the position in the array of the specific readings Id considering the database id and the table id
+ *
+ * @param dbId    Database id for which calculation must be evaluated
+ * @param tableId table  id for which calculation must be evaluated
+ * @return        Position in the array of the specific readings Id
  *
  */
 int ReadingsCatalogue::getReadingPosition(int dbId, int tableId)
@@ -1928,6 +1990,9 @@ int ReadingsCatalogue::getReadingPosition(int dbId, int tableId)
 /**
  * Calculate the number of reading tables associated to the given database id
  *
+ * @param dbId    Database id for which calculation must be evaluated
+ * @return        Number of reading tables associated to the given database id
+ *
  */
 int ReadingsCatalogue::getUsedTablesDbId(int dbId)
 {
@@ -1945,7 +2010,12 @@ int ReadingsCatalogue::getUsedTablesDbId(int dbId)
 /**
  * Delete the content of all the active readings tables using the provided sql command sqlCmdBase
  *
- * @return - returns SQLITE_OK if all the sql commands are properly executed
+ * @param dbHandle     Database connection to use for the operations
+ * @param sqlCmdBase   Sql command to execute
+ * @param zErrMsg      value returned by reference, Error message
+ * @param rowsAffected value returned by reference if != 0, Number of affected rows
+ * @return             returns SQLITE_OK if all the sql commands are properly executed
+ *
  */
 int  ReadingsCatalogue::purgeAllReadings(sqlite3 *dbHandle, const char *sqlCmdBase, char **zErrMsg, unsigned long *rowsAffected)
 {
@@ -2014,6 +2084,11 @@ int  ReadingsCatalogue::purgeAllReadings(sqlite3 *dbHandle, const char *sqlCmdBa
 /**
  * Constructs a sql command from the given one consisting of a set of UNION ALL commands
  * considering all the readings tables in use
+ *
+ * @param sqlCmdBase        Base Sql command
+ * @param assetCodes        Asset codes to evaluate for the operation
+ * @param considerExclusion If True the asset code in the excluded list must not be considered
+ * @return                  Full sql command
  *
  */
 string  ReadingsCatalogue::sqlConstructMultiDb(string &sqlCmdBase, vector<string>  &assetCodes, bool considerExclusion)
@@ -2111,6 +2186,9 @@ string  ReadingsCatalogue::sqlConstructMultiDb(string &sqlCmdBase, vector<string
 /**
  * Generates a SQLIte db alis from the database id
  *
+ * @param dbId Database id for which the alias must be generated
+ * @return     Generated alias
+ *
  */
 string ReadingsCatalogue::generateDbAlias(int dbId)
 {
@@ -2121,6 +2199,9 @@ string ReadingsCatalogue::generateDbAlias(int dbId)
 /**
  * Generates a SQLIte database name from the database id
  *
+ * @param dbId Database id for which the database name must be generated
+ * @return     Generated database name
+ *
  */
 string ReadingsCatalogue::generateDbName(int dbId)
 {
@@ -2130,6 +2211,9 @@ string ReadingsCatalogue::generateDbName(int dbId)
 /**
  * Generates a SQLITE database file name from the database id
  *
+ * @param dbId Database id for which the database file name must be generated
+ * @return     Generated database file name
+ *
  */
 string ReadingsCatalogue::generateDbFileName(int dbId)
 {
@@ -2138,6 +2222,9 @@ string ReadingsCatalogue::generateDbFileName(int dbId)
 
 /**
  * Extracts the readings id from the table name
+ *
+ * @param tableName Table name from which the id must be extracted
+ * @return          Extracted reading id
  *
  */
 int ReadingsCatalogue::extractReadingsIdFromName(string tableName)
@@ -2159,6 +2246,9 @@ int ReadingsCatalogue::extractReadingsIdFromName(string tableName)
 /**
  * Extract the database id from the table name
  *
+ * @param tableName Table name from which the database id must be extracted
+ * @return          Extracted database id
+ *
  */
 int ReadingsCatalogue::extractDbIdFromName(string tableName)
 {
@@ -2176,8 +2266,11 @@ int ReadingsCatalogue::extractDbIdFromName(string tableName)
 }
 /**
  * Generates the name of the reading table from the given table id as:
- *
  * Prefix + db Id + reading Id
+ *
+ * @param dbId    Database id to use for the generation of the table name
+ * @param tableId Table id to use for the generation of the table name
+ * @return        Generated reading table name
  *
  */
 string ReadingsCatalogue::generateReadingsName(int  dbId, int tableId)
@@ -2194,7 +2287,10 @@ string ReadingsCatalogue::generateReadingsName(int  dbId, int tableId)
 }
 
 /**
- * Extract the database id from the table id
+ * Retrieves the database id from the table id
+ *
+ * @param tableId Table id for which the database id must be retrieved
+ * @return        Retrieved database id for the requested reading id
  *
  */
 int ReadingsCatalogue::retrieveDbIdFromTableId(int tableId)
@@ -2216,6 +2312,9 @@ int ReadingsCatalogue::retrieveDbIdFromTableId(int tableId)
 
 /**
  * Identifies SQLIte database name from the given table id
+ *
+ * @param tableId Table id for which the database name must be retrieved
+ * @return        Retrieved database name for the requested reading id
  *
  */
 string ReadingsCatalogue::generateDbNameFromTableId(int tableId)
@@ -2240,9 +2339,11 @@ string ReadingsCatalogue::generateDbNameFromTableId(int tableId)
 /**
  * SQLIte wrapper to retry statements when the database is locked
  *
- * @param	db	     The open SQLite database
- * @param	sql	     The SQL to execute
- * @param	errmsg	 Error message
+ * @param dbHandle  Database connection to use for the operations
+ * @param sqlCmdsql The SQL to execute
+ * @param errmsg	Returned by reference, error message
+ * @return          SQLite constant indicating the outcome of the requested operation, like for example SQLITE_LOCKED, SQLITE_BUSY...
+ *
  */
 int ReadingsCatalogue::SQLExec(sqlite3 *dbHandle, const char *sqlCmd, char **errMsg)
 {
@@ -2284,7 +2385,10 @@ int ReadingsCatalogue::SQLExec(sqlite3 *dbHandle, const char *sqlCmd, char **err
 }
 
 /**
- * SQLIte wrapper to retry statements when the database error occuers
+ * SQLIte wrapper to retry statements when the database error occurs
+ *
+ * @param statement	SQLIte statement to execute
+ * @return          SQLite constant indicating the outcome of the requested operation, like for example SQLITE_LOCKED, SQLITE_BUSY...
  *
  */
 int ReadingsCatalogue::SQLStep(sqlite3_stmt *statement)

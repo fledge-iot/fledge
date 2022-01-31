@@ -590,19 +590,16 @@ TEST_F(PythonReadingTest, UpdateAssetCode)
 	}
 }
 
-#if 0
-// TODO Fix this test
 TEST_F(PythonReadingTest, Double2DArray)
 {
-	vector<vector<double> > array;
-	vector<double> row1;
-	row1.push_back(1.4);
-	row1.push_back(3.7);
-	array.push_back(row1);
-	vector<double> row2;
-	row2.push_back(2.4);
-	row2.push_back(4.7);
-	array.push_back(row2);
+	vector<vector<double>* > array;
+	for (i = 0; i < 2; i++)
+	{
+		vector<double> *row = nee vector<double>;
+		row->push_back(1.4 + i);
+		row->push_back(3.7 + i);
+		array.push_back(row);
+	}
 
 	DatapointValue value(array);
 	Reading reading("test2d", new Datapoint("array", value));
@@ -618,16 +615,15 @@ TEST_F(PythonReadingTest, Double2DArray)
 		Datapoint *dp = pyr.getDatapoint("array");
 		EXPECT_EQ(dp->getData().getType(), DatapointValue::dataTagType::T_2D_FLOAT_ARRAY);
 		vector<vector<double> > *a2d = dp->getData().getDp2DArr();
-		EXPECT_EQ((*a2d)[0][0], 2.4);
-		EXPECT_EQ((*a2d)[0][1], 4.7);
-		EXPECT_EQ((*a2d)[1][0], 1.4);
-		EXPECT_EQ((*a2d)[1][1], 3.7);
+		EXPECT_EQ(a2d->at(0)->at(0), 2.4);
+		EXPECT_EQ(a2d->at(0)->at(1), 4.7);
+		EXPECT_EQ(a2d->at(1)->at(0), 1.4);
+		EXPECT_EQ(a2d->at(1)->at(1), 3.7);
 	}
 	else
 	{
 		EXPECT_STREQ("Expected a LIST object", "");
 	}
 }
-#endif
 
 };

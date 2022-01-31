@@ -108,11 +108,11 @@ std::string DatapointValue::toString() const
 			else
 				ss << ", ";
 			ss << "[";
-			for (auto it = row.begin();
-			     it != row.end();
+			for (auto it = row->begin();
+			     it != row->end();
 			     ++it)
 			{
-				if (it != row.begin())
+				if (it != row->begin())
 				{
 					ss << ", ";
 				}

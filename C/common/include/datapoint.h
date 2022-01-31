@@ -109,12 +109,17 @@ class DatapointValue {
 		/**
 		 * Construct with a 2 dimentional  array of floating point values
 		 */
-		DatapointValue(const std::vector< std::vector<double> >& values)
+		DatapointValue(const std::vector< std::vector<double> *>& values)
 		{
-			m_value.a2d = new std::vector< std::vector<double> >();
+			m_value.a2d = new std::vector< std::vector<double>* >();
 			for (auto row : values)
 			{
-				m_value.a2d->push_back(std::vector<double>(row));
+				std::vector<double> *nrow = new std::vector<double>;
+				for (auto& d : *row)
+				{
+					nrow->push_back(d);
+				}
+				m_value.a2d->push_back(nrow);
 			}
 			m_type = T_2D_FLOAT_ARRAY;
 		};
@@ -243,7 +248,7 @@ class DatapointValue {
 		/**
 		 * Return 2D array of float
 		 */
-		std::vector<std::vector<double> >*& getDp2DArr()
+		std::vector<std::vector<double>* >*& getDp2DArr()
 		{
 			return m_value.a2d;
 		}
@@ -276,7 +281,7 @@ class DatapointValue {
 						*dpa;
 			DPImage			*image;
 			DataBuffer		*dataBuffer;
-			std::vector< std::vector<double> >
+			std::vector< std::vector<double>* >
 						*a2d;
 			} m_value;
 		DatapointTag	m_type;

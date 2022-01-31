@@ -207,15 +207,15 @@ DatapointValue *PythonReading::getDatapointValue(PyObject *value)
 		}
 		else if (PyList_Check(item0))	// 2D array 		T_2D_FLOAT_ARRAY
 		{
-			vector<vector<double> > values;
+			vector<vector<double>* > values;
 			for (Py_ssize_t i = 0; i < listSize; i++)
 			{
-				vector<double> row;
+				vector<double> *row = new vector<double>;
 				PyObject *pyRow = PyList_GetItem(value, i);
 				for (Py_ssize_t j = 0; j < PyList_Size(pyRow); j++)
 				{
 					double d = PyFloat_AS_DOUBLE(PyList_GetItem(pyRow, j));
-					row.push_back(d);
+					row->push_back(d);
 				}
 				values.push_back(row);  // TODO: 'row' goes out of scope just after the loop ends on the line below, hence DatapointValue c'tor call below may access out of scope 'row' values
 			}
@@ -410,14 +410,14 @@ PyObject *PythonReading::convertDatapoint(Datapoint *dp)
 	}
 	else if (dataType == DatapointValue::dataTagType::T_2D_FLOAT_ARRAY)
 	{
-		vector<vector<double> > *vec = dp->getData().getDp2DArr();
+		vector<vector<double>* > *vec = dp->getData().getDp2DArr();
 		value = PyList_New(vec->size());
 		int rowNo = 0;
 		for (auto row : *vec)
 		{
 			int i = 0;
-			PyObject *pyRow = PyList_New(row.size());
-			for (auto it = row.begin(); it != row.end(); ++it)
+			PyObject *pyRow = PyList_New(row->size());
+			for (auto it = row->begin(); it != row->end(); ++it)
 			{
 				PyList_SetItem(pyRow, i++, PyFloat_FromDouble(*it));
 			}

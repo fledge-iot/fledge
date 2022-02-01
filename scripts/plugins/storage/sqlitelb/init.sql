@@ -584,6 +584,22 @@ CREATE TABLE fledge.filter_users (
              name        character varying(255)        NOT NULL,
              user        character varying(255)        NOT NULL);
 
+-- Create control_script table
+-- Script management for control dispatch service
+CREATE TABLE fledge.control_script (
+             name          character varying(255)        NOT NULL,
+             steps         JSON                          NOT NULL DEFAULT '{}',
+             acl           character varying(255),
+             CONSTRAINT    control_script_pkey           PRIMARY KEY (name) );
+
+-- Create control_acl table
+-- Access Control List Management for control dispatch service
+CREATE TABLE fledge.control_acl (
+             name          character varying(255)        NOT NULL,
+             service       JSON                          NOT NULL DEFAULT '{}',
+             url           JSON                          NOT NULL DEFAULT '{}',
+             CONSTRAINT    control_acl_pkey              PRIMARY KEY (name) );
+
 ----------------------------------------------------------------------
 -- Initialization phase - DML
 ----------------------------------------------------------------------
@@ -635,7 +651,9 @@ INSERT INTO fledge.log_codes ( code, description )
             ( 'NTFSD', 'Notification Server Shutdown' ),
             ( 'PKGIN', 'Package installation' ),
             ( 'PKGUP', 'Package updated' ),
-            ( 'PKGRM', 'Package purged' );
+            ( 'PKGRM', 'Package purged' ),
+            ( 'DSPST', 'Dispatcher Startup' ),
+            ( 'DSPSD', 'Dispatcher Shutdown' );
 
 --
 -- Configuration parameters
@@ -678,6 +696,8 @@ INSERT INTO fledge.scheduled_processes (name, script)   VALUES ( 'notification_c
 INSERT INTO fledge.scheduled_processes (name, script)   VALUES ( 'north_c',        '["tasks/north_c"]'           );
 INSERT INTO fledge.scheduled_processes (name, script)   VALUES ( 'north',          '["tasks/north"]'             );
 INSERT INTO fledge.scheduled_processes (name, script)   VALUES ( 'north_C',        '["services/north_C"]'        );
+INSERT INTO fledge.scheduled_processes (name, script)   VALUES ( 'dispatcher_c',   '["services/dispatcher_c"]'   );
+
 --
 -- Schedules
 --

@@ -800,6 +800,23 @@ CREATE TABLE fledge.filter_users (
              name        character varying(255)        NOT NULL,
              "user"      character varying(255)        NOT NULL);
 
+-- Create control_script table
+-- Script management for control dispatch service
+CREATE TABLE fledge.control_script (
+             name          character varying(255)        NOT NULL,
+             steps         jsonb                         NOT NULL DEFAULT '{}'::jsonb,
+             acl           character varying(255),
+             CONSTRAINT    control_script_pkey           PRIMARY KEY (name) );
+
+-- Create control_acl table
+-- Access Control List Management for control dispatch service
+CREATE TABLE fledge.control_acl (
+             name          character varying(255)        NOT NULL,
+             service       jsonb                         NOT NULL DEFAULT '{}'::jsonb,
+             url           jsonb                         NOT NULL DEFAULT '{}'::jsonb,
+             CONSTRAINT    control_acl_pkey              PRIMARY KEY (name) );
+
+
 -- Grants to fledge schema
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA fledge TO PUBLIC;
 
@@ -859,7 +876,9 @@ INSERT INTO fledge.log_codes ( code, description )
             ( 'NTFSD', 'Notification Server Shutdown' ),
             ( 'PKGIN', 'Package installation' ),
             ( 'PKGUP', 'Package updated' ),
-            ( 'PKGRM', 'Package purged' );
+            ( 'PKGRM', 'Package purged' ),
+            ( 'DSPST', 'Dispatcher Startup' ),
+            ( 'DSPSD', 'Dispatcher Shutdown' );
 
 --
 -- Configuration parameters

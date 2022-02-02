@@ -162,6 +162,10 @@ if [[ $YUM_PLATFORM = true ]]; then
 		yum install -y postgresql
 		yum install -y postgresql-devel
 	fi
+
+	# Numpy libraries	
+	yum install -y numpy
+
 	yum install -y wget
 	yum install -y zlib-devel
 	yum install -y git

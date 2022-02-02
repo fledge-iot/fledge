@@ -108,14 +108,14 @@ def plugin_eval(handle, data):
                         if type(data[k][j]) != str:
                             t_type = type(data[k][j])
                             if t_type == numpy.ndarray:
-                                #_LOGGER.error("=== (2.4) numpy.ndarray here")
+                                #_LOGGER.debug("=== (2.4) numpy.ndarray here")
                                 arr = data[k][j]
-                                #_LOGGER.error("=== (2.4) numpy.ndarray check: " + str(type(arr)))
-                                #_LOGGER.error("=== (2.4.1) numpy.ndarray has dims " + str(arr.ndim))
-                                #_LOGGER.error("=== (2.4.2) numpy.ndarray has size " + str(arr.size))
-                                #_LOGGER.error("=== (2.4.3) numpy.ndarray has shape " + str(arr.shape))
-                                #_LOGGER.error("=== (2.4.4) numpy.ndarray has stored types " + str(arr.dtype))
-                                _LOGGER.error("*** (2.4.5) numpy.ndarray has numpy.count_nonzero:" + str(numpy.count_nonzero(arr)))
+                                #_LOGGER.debug("=== (2.4) numpy.ndarray check: " + str(type(arr)))
+                                #_LOGGER.debug("=== (2.4.1) numpy.ndarray has dims " + str(arr.ndim))
+                                #_LOGGER.debug("=== (2.4.2) numpy.ndarray has size " + str(arr.size))
+                                #_LOGGER.debug("=== (2.4.3) numpy.ndarray has shape " + str(arr.shape))
+                                #_LOGGER.debug("=== (2.4.4) numpy.ndarray has stored types " + str(arr.dtype))
+                                _LOGGER.debug("*** (2.4.5) numpy.ndarray has numpy.count_nonzero:" + str(numpy.count_nonzero(arr)))
                                 if numpy.count_nonzero(arr) > 145200:
                                     ret_val = True
                 else:
@@ -126,7 +126,7 @@ def plugin_eval(handle, data):
 
     handle["state"] = ret_val
 
-    _LOGGER.error("plugin_eval() returns " + str(ret_val))
+    _LOGGER.debug("plugin_eval() returns " + str(ret_val))
 
     return ret_val
 

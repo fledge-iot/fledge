@@ -8,6 +8,7 @@ import os
 import asyncio
 import json
 import sys
+import mimetypes
 
 from unittest.mock import MagicMock, patch
 from collections import Counter
@@ -253,6 +254,7 @@ class TestBackup:
         else:
             _rv = asyncio.ensure_future(mock_coro(response))
         
+        mimetypes.add_type('text/plain', '.tar.gz')
         with patch("aiohttp.web.FileResponse", return_value=web.FileResponse(path=os.path.realpath(__file__))) as file_res:
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
                 with patch.object(Backup, 'get_backup_details', return_value=_rv) as patch_backup_detail:

@@ -79,9 +79,25 @@ void plugin_ingest_fn(PyObject *ingest_callback, PyObject *ingest_obj_ref_data, 
 						ingest_callback, ingest_obj_ref_data, readingsObj);
 		return;
 	}
-	
-    PythonReadingSet *pyReadingSet = new PythonReadingSet(readingsObj);
-    Py_CLEAR(readingsObj);
+
+    PyObject* objectsRepresentation = PyObject_Repr(readingsObj);
+    const char* s = PyUnicode_AsUTF8(objectsRepresentation);
+    Logger::getLogger()->debug("%s:%s:L%d : Py2C: filtered readings=%s", __FILE__, __FUNCTION__, __LINE__, s);
+    Py_CLEAR(objectsRepresentation);
+
+    PythonReadingSet *pyReadingSet = NULL;
+
+    try
+    {
+        pyReadingSet = new PythonReadingSet(readingsObj);
+    }
+    catch (std::exception e)
+    {
+		Logger::getLogger()->warn("PythonReadingSet c'tor failed, error: %s", e.what());
+        pyReadingSet = NULL;
+	}
+    
+    // Py_XDECREF(readingsObj);
 
 	if(pyReadingSet)
 	{

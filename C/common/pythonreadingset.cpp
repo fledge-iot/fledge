@@ -93,7 +93,16 @@ void setReadingAttr(Reading* newReading, PyObject *readingList, bool fillIfMissi
  */
 PythonReadingSet::PythonReadingSet(PyObject *set)
 {
-	if (PyList_Check(set))
+    if (PyList_Check(set))
+    {
+        Logger::getLogger()->debug("PythonReadingSet c'tor: LIST of size %d", PyList_Size(set));
+    }
+    else if (PyDict_Check(set))
+    {
+        Logger::getLogger()->debug("PythonReadingSet c'tor: DICT of size %d", PyDict_Size(set));
+    }
+    
+	if (PyList_Check(set) && PyList_Size(set)>0)
 	{
 		Py_ssize_t listSize = PyList_Size(set);
 		for (Py_ssize_t i = 0; i < listSize; i++)
@@ -107,7 +116,7 @@ PythonReadingSet::PythonReadingSet(PyObject *set)
             Logger::getLogger()->debug("PythonReadingSet c'tor: LIST: reading->toJSON()='%s' ", reading->toJSON().c_str());
 		}
 	}
-    else if (PyDict_Check(set))
+    else if (PyDict_Check(set) && PyDict_Size(set)>0)
     {
         PythonReading *reading = new PythonReading(set);
 		if (reading)
@@ -121,7 +130,7 @@ PythonReadingSet::PythonReadingSet(PyObject *set)
     }
 	else
 	{
-		throw runtime_error("Expected a Python list/dict as a reading set");
+		throw runtime_error("Expected a non-empty Python list/dict as a reading set in PythonReadingSet c'tor");
 	}
 }
     

@@ -8,7 +8,6 @@ import os
 import asyncio
 import json
 import sys
-import mimetypes
 
 from unittest.mock import MagicMock, patch
 from collections import Counter
@@ -244,6 +243,10 @@ class TestBackup:
                     assert {"message": response_message} == json_response
 
     async def test_get_backup_download(self, client):
+        # FIXME: py3.9 fails to recognise this in default installed mimetypes known-file
+        import mimetypes
+        mimetypes.add_type('text/plain', '.tar.gz')
+
         storage_client_mock = MagicMock(StorageClientAsync)
         response = {'id': 1, 'file_name': '/usr/local/fledge/data/backup/fledge.db', 'ts': '2018-02-15 15:18:41',
                     'status': '2', 'type': '1'}
@@ -254,7 +257,6 @@ class TestBackup:
         else:
             _rv = asyncio.ensure_future(mock_coro(response))
         
-        mimetypes.add_type('text/plain', '.tar.gz')
         with patch("aiohttp.web.FileResponse", return_value=web.FileResponse(path=os.path.realpath(__file__))) as file_res:
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
                 with patch.object(Backup, 'get_backup_details', return_value=_rv) as patch_backup_detail:

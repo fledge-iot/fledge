@@ -652,11 +652,14 @@ void notification_plugin_reconfigure_fn(PLUGIN_HANDLE handle,
 
 	Logger::getLogger()->debug("plugin_reconfigure with %s", config.c_str());
 
-	// Call Python method passing an object and a C string
+	// Create Python object from string
+	PyObject *config_dict = json_loads(config.c_str());
+
+	// Call Python method passing the Python object
 	PyObject* pReturn = PyObject_CallFunction(pFunc,
-						  "Os",
+						  "OO",
 						  handle,
-						  config.c_str());
+						  config_dict);
 
 	Py_CLEAR(pFunc);
 

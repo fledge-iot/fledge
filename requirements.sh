@@ -164,7 +164,7 @@ if [[ $YUM_PLATFORM = true ]]; then
 	fi
 
 	# Numpy libraries	
-	yum install -y numpy scipy
+	yum install -y numpy
 
 	yum install -y wget
 	yum install -y zlib-devel

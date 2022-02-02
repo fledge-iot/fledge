@@ -105,8 +105,8 @@ def plugin_deliver(handle, deliveryName, notificationName, triggerReason, messag
             _LOGGER.debug("=== type of key '" + str(k) + "' is " + str(type(data[k])))
             if type(data[k]) == dict:
                 for j in data[k].keys():
-                    _LOGGER.error("=== type of dict key '" + str(j) + "' is " + str(type(data[k][j])))
+                    _LOGGER.debug("=== type of dict key '" + str(j) + "' is " + str(type(data[k][j])))
             else:
-                _LOGGER.error("=== value of key '" + str(k) + "' is " + str(data[k]))
+                _LOGGER.debug("=== value of key '" + str(k) + "' is " + str(data[k]))
 
     return True

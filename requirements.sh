@@ -216,6 +216,8 @@ if [[ $YUM_PLATFORM = true ]]; then
 		# To avoid to stop the execution for any internal error of scl_source
 		set +e
 		source scl_source enable rh-python36
+		pip3 install --upgrade pip
+		pip3 install numpy
 		set -e
 	fi
 

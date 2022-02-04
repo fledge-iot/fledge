@@ -105,7 +105,7 @@ class ServiceRegistry:
             cls.remove_from_registry(current_service_id)
 
         service_id = str(uuid.uuid4()) if new_service is True else current_service_id
-        registered_service = ServiceRecord(service_id, name, s_type, protocol, address, port, management_port, token)
+        registered_service = ServiceRecord(service_id, name, s_type, protocol, address, port, management_port)
         cls._registry.append(registered_service)
         cls._logger.info("Registered {}".format(str(registered_service)))
 

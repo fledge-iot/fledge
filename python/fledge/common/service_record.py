@@ -47,7 +47,7 @@ class ServiceRecord(object):
 
     __slots__ = ['_id', '_name', '_type', '_protocol', '_address', '_port', '_management_port', '_status']
 
-    def __init__(self, s_id, s_name, s_type, s_protocol, s_address, s_port, m_port, s_startup_token=None):
+    def __init__(self, s_id, s_name, s_type, s_protocol, s_address, s_port, m_port):
         self._id = s_id
         self._name = s_name
         self._type = self.valid_type(s_type)  # check with ServiceRecord.Type, if not a valid type raise error

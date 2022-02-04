@@ -324,10 +324,10 @@ class Scheduler(object):
                     self._logger.debug(fname +" written")
             except Exception as ex:
                 self._logger.exception(ex)
+
         # This should be appended as an arg and passed to process
         # and also kept as name | (single use) token pair for verification and assigning
         # jwt token for cross communication
-        # args_to_exec.append("--token={}".format(t))
 
 	# Get a startup token from ServiceRegistry
         startToken = ServiceRegistry.getStartupToken(schedule.name)

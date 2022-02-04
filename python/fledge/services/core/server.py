@@ -1113,8 +1113,7 @@ class Server:
             service_management_port = data.get('management_port', None)
             service_protocol = data.get('protocol', 'http')
             token = data.get('token', None)
-            # TODO: if token then check single use token verification; if bad then return 4XX
-            # FOGL-5144
+
             if not (service_name.strip() or service_type.strip() or service_address.strip()
                     or service_management_port.strip() or not service_management_port.isdigit()):
                 raise web.HTTPBadRequest(reason='One or more values for type/name/address/management port missing')
@@ -1126,6 +1125,7 @@ class Server:
             if not isinstance(service_management_port, int):
                 raise web.HTTPBadRequest(reason='Service management port can be a positive integer only')
 
+            # If token then check single use token verification; if bad then return 4XX
             if token is not None:
                 if not isinstance(token, str):
                     msg = 'Token can be a string only'
@@ -1177,15 +1177,8 @@ class Server:
                                       SERVICE_JWT_SECRET,
                                       SERVICE_JWT_ALGORITHM).decode("utf-8") if token is not None else ""
 
-                # Find service name in registry and update the bearer token for that service
-                svc_record = ServiceRegistry.get(name=service_name)
-                svc = svc_record[0]
-                obj = ServiceRecord(s_id=svc._id, s_name=svc._name, s_type=svc._type, s_port=svc._port,
-                                    m_port=svc._management_port, s_address=svc._address, s_protocol=svc._protocol,
-                                    s_bearer_token=bearer_token)
-                for idx, item in enumerate(ServiceRegistry._registry):
-                    if getattr(item, "_name") == service_name:
-                        ServiceRegistry._registry[idx] = obj
+                # Add the bearer token for that service being registered
+                ServiceRegistry.addBearerToken(service_name, bearer_token)
 
             # Prepare response JSON
             _response = {
@@ -1698,6 +1691,8 @@ class Server:
 
         Authorization header must contain the Bearer token to verify
         No post data
+
+        Note: token will be verified for the service name in token claim 'sub'
         """
 
         auth_header = request.headers.get('Authorization', None)
@@ -1713,17 +1708,11 @@ class Server:
         bearer_token = parts[1]
 
         if bearer_token is not None:
-            # Check input token exists in system
-            foundToken = False
-            services_list = ServiceRegistry.all()
-            for service in services_list:
-                t = service._bearer_token if service._bearer_token is not None else ""
-                if t == bearer_token:
-                    foundToken = True
-                    break
-            # Raise error if token does not exists
-            if foundToken == False:
-                msg = 'token does not exist in system'
+            claims = cls.validate_token(bearer_token)
+            # Check input token exists in system for the service name given in claims['sub']
+            foundToken = ServiceRegistry.getBearerToken(claims['sub'])
+            if foundToken is None:
+                msg = 'service bearer token does not exist in system'
                 raise web.HTTPBadRequest(reason=msg, body=json.dumps({"error": msg}))
 
             # Validate existing token
@@ -1762,7 +1751,7 @@ class Server:
         Authorization header must contain the Bearer token
         No post data
 
-        Note: token will be refresh for the service it belongs
+        Note: token will be refreshed for the service it belongs to
         """
         auth_header = request.headers.get('Authorization', None)
         if auth_header is None:
@@ -1778,33 +1767,29 @@ class Server:
 
         try:
             claims = cls.validate_token(bearer_token)
-            services_list = ServiceRegistry.all()
-            for service in services_list:
-                if service._token == bearer_token and service._name == claims['sub']:
-                    if claims.get('error') is None:
-                        # Expiration set to now + delta
-                        claims['exp'] =  int(time.time()) + SERVICE_JWT_EXP_DELTA_SECONDS
-                        bearer_token = jwt.encode(claims,
-                                                  SERVICE_JWT_SECRET,
-                                                  SERVICE_JWT_ALGORITHM).decode("utf-8")
-                        ret = {'bearer_token' : bearer_token}
+            if claims.get('error') is None:
+                foundToken = ServiceRegistry.getBearerToken(claims['sub'])
+                if foundToken is None:
+                    msg = "service '" + str(claims['sub']) + "' not registered"
+                    raise web.HTTPBadRequest(reason=msg, body=json.dumps({"error": msg}))
 
-                        # Find service name in registry and update the bearer token for that service
-                        obj = ServiceRecord(s_id=service._id,
-                                            s_name=service._name,
-                                            s_type=service._type,
-                                            s_port=service._port,
-                                            m_port=service._management_port,
-                                            s_address=service._address,
-                                            s_protocol=service._protocol,
-                                            s_bearer_token=bearer_token)
-                        for idx, item in enumerate(ServiceRegistry._registry):
-                            if getattr(item, "_name") == service._name:
-                                ServiceRegistry._registry[idx] = obj
+                if foundToken != bearer_token:
+                    msg = "bearer token does not belong to service '" + str(claims['sub']) + "'"
+                    raise web.HTTPBadRequest(reason=msg, body=json.dumps({"error": msg}))
 
-                        return web.json_response(ret)
+                # Expiration set to now + delta
+                claims['exp'] =  int(time.time()) + SERVICE_JWT_EXP_DELTA_SECONDS
+                bearer_token = jwt.encode(claims,
+                                          SERVICE_JWT_SECRET,
+                                          SERVICE_JWT_ALGORITHM).decode("utf-8")
 
-            msg = 'service authentication failed for service'
+                # Replace bearer_token for the service
+                ServiceRegistry.addBearerToken(claims['sub'], bearer_token)
+                ret = {'bearer_token' : bearer_token}
+
+                return web.json_response(ret)
+
+            msg = 'Failed to parse bearer token'
             raise web.HTTPBadRequest(reason=msg, body=json.dumps({"error": msg}))
 
         except Exception as e:

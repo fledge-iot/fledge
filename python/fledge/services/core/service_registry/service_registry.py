@@ -28,6 +28,9 @@ class ServiceRegistry:
     # Startup tokens to pass to service or tasks being started
     _startupTokens = dict()
 
+    # Bearer token for the registered services
+    _bearerTokens = dict()
+
     # INFO - level 20
     _logger = logger.setup(__name__, level=20)
 
@@ -48,6 +51,14 @@ class ServiceRegistry:
             return False
 
         return True
+
+    @classmethod
+    def addBearerToken(cls, service_name, bearer_token):
+        cls._bearerTokens[service_name] = bearer_token
+
+    @classmethod
+    def getBearerToken(cls, service_name):
+        return cls._bearerTokens.get(service_name, None)
 
     @classmethod
     def register(cls, name, s_type, address, port, management_port,  protocol='http', token=None):
@@ -117,6 +128,8 @@ class ServiceRegistry:
         service_name = services[0]._name
         services[0]._status = service_status
         cls._remove_from_scheduler_records(service_name)
+
+        cls._bearerTokens.pop(service_name, None)
 
         # Remove interest registry records, if any
         interest_recs = InterestRegistry().get(microservice_uuid=service_id)

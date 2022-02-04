@@ -6,7 +6,30 @@
  * Released under the Apache 2.0 Licence
  *
  * Author: Massimiliano Pinto, Stefano Simonelli
+ *
+ * PI Web API OMF Endpoint documentation available at:
+ * https://fledge-iot.readthedocs.io/en/latest/OMF.html?highlight=omf%20hint#
+ *
+ * Troubleshooting the PI-Server integration available at:
+ * https://fledge-iot.readthedocs.io/en/latest/troubleshooting_pi-server_integration.html#how-to-check-the-pi-web-api-is-installed-and-running
+ *
+ * Information about Asset Framework Hierarchy Rules available at:
+ * https://fledge-iot.readthedocs.io/en/latest/OMF.html?highlight=omf%20hint#asset-framework-hierarchy-rules
+ *
+ * Information about OMF Hint available at:
+ * https://fledge-iot.readthedocs.io/en/latest/OMF.html?highlight=omf%20hint#omf-hints
+ * https://fledge-iot.readthedocs.io/en/latest/plugins/fledge-filter-omfhint/index.html
+ *
+ * OSIsoft documentation about PI Web API:
+ * https://docs.osisoft.com/bundle/pi-web-api-reference/page/help.html
+ * https://livelibrary.osisoft.com/LiveLibrary/web/ui.xql?action=html&resource=publist_home.html
+ * https://pisquare.osisoft.com/s/topic/0TO1I000000OGBGWA4/pi-web-api
+ *
+ * OSIsoft documentation about OMF:
+ *
+ *
  */
+
 #include <unistd.h>
 
 #include <plugin_api.h>
@@ -341,9 +364,10 @@ typedef struct
 	string		formatNumber;	        // OMF protocol Number format
 	string		formatInteger;	        // OMF protocol Integer format
 	OMF_ENDPOINT PIServerEndpoint;      // Defines which End point should be used for the communication
-	NAMINGSCHEME_ENDPOINT NamingScheme; // Define how the object names should generated
+	NAMINGSCHEME_ENDPOINT NamingScheme; // Define how the object names should be generated - https://fledge-iot.readthedocs.io/en/latest/OMF.html#naming-scheme
 	string		DefaultAFLocation;      // 1st hierarchy in Asset Framework, PI Web API only.
 	string		AFMap;                  // Defines a set of rules to address where assets should be placed in the AF hierarchy.
+                                        //    https://fledge-iot.readthedocs.io/en/latest/OMF.html#asset-framework-hierarchy-rules
 
 	string		prefixAFAsset;          // Prefix to generate unique asste id
 	string		PIWebAPIProductTitle;
@@ -726,8 +750,11 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 	CONNECTOR_INFO* connInfo = (CONNECTOR_INFO *)handle;
 
 	/**
-	 * Allocate the HTTPS handler for "Hostname : port"
-	 * connect_timeout and request_timeout.
+	 * Select the proper library in relation to the need,
+	 * LibcurlHttps is needed to integrate Kerberos as the SimpleHttp does not support it
+	 * the Libcurl integration implements only HTTPS not HTTP at the current stage
+	 *
+	 * The handler is allocated using "Hostname : port", connect_timeout and request_timeout.
 	 * Default is no timeout at all
 	 */
 	if (connInfo->PIWebAPIAuthMethod.compare("k") == 0)
@@ -767,7 +794,8 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 	connInfo->sender->setOCSClientId         (connInfo->OCSClientId);
 	connInfo->sender->setOCSClientSecret     (connInfo->OCSClientSecret);
 
-	// OCS - retreievs the authentication token
+	// OCS - retrieves the authentication token
+	// It is retrieved at every send as it can expire and the configuration is only in OCS
 	if (connInfo->PIServerEndpoint == ENDPOINT_OCS)
 	{
 		connInfo->OCSToken = OCSRetrieveAuthToken(connInfo);
@@ -833,9 +861,9 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
  *
  * Note: the entry with FAKE_ASSET_KEY ios never saved.
  *
- * @param handle    The plugin handle
- * @return	    A string with JSON plugin data
- *		    the caller will persist
+ * @param handle   The plugin handle
+ * @return         A string with JSON plugin data
+ *                 the caller will persist
  */
 string plugin_shutdown(PLUGIN_HANDLE handle)
 {
@@ -881,8 +909,8 @@ string plugin_shutdown(PLUGIN_HANDLE handle)
  *
  * Note: the entry with FAKE_ASSET_KEY is never saved.
  *
- * @param   connInfo	The CONNECTOR_INFO data scructure
- * @return		The string with JSON data
+ * @param   connInfo  The CONNECTOR_INFO data structure
+ * @return            The string with JSON data
  */
 string saveSentDataTypes(CONNECTOR_INFO* connInfo)
 {
@@ -1392,9 +1420,9 @@ OMF_ENDPOINT identifyPIServerEndpoint(CONNECTOR_INFO* connInfo)
  * Generate the credentials for the basic authentication
  * encoding user id and password joined by a single colon (:) using base64
  *
- * @param    userId	User id to be used for the generation of the credentials
- * @param    password	Password to be used for the generation of the credentials
- * @return		credentials to be used with the basic authentication
+ * @param    userId   User id to be used for the generation of the credentials
+ * @param    password Password to be used for the generation of the credentials
+ * @return            credentials to be used with the basic authentication
  */
 string AuthBasicCredentialsGenerate(string& userId, string& password)
 {

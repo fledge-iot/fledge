@@ -39,7 +39,7 @@ static bool isTypeSupported(DatapointValue& dataPoint);
 #define INSTRUMENT	0
 
 #define  AFHierarchySeparator '/'
-#define  AF_TYPES_SUFFIX       "-type"
+#define  AF_TYPES_SUFFIX       "-type"      // The asset name is composed by: asset name + AF_TYPES_SUFFIX + incremental id of the type
 
 // Handling escapes for AF Hierarchies
 #define AFH_SLASH            "/"
@@ -49,6 +49,7 @@ static bool isTypeSupported(DatapointValue& dataPoint);
 #define AFH_ESCAPE_CHAR      "@"
 
 // Structures to generate and assign the 1st level of AF hierarchy if the end point is PI Web API
+// _placeholder_ will be replaced with the proper value
 const char *AF_HIERARCHY_1LEVEL_TYPE = QUOTE(
 	[
 		{
@@ -70,6 +71,8 @@ const char *AF_HIERARCHY_1LEVEL_TYPE = QUOTE(
 	]
 );
 
+// Structures to generate the OMF message for handling static information
+// _placeholder_ will be replaced with the proper value
 const char *AF_HIERARCHY_1LEVEL_STATIC = QUOTE(
 	[
 		{
@@ -85,7 +88,8 @@ const char *AF_HIERARCHY_1LEVEL_STATIC = QUOTE(
 	]
 );
 
-
+// Structures to generate the OMF message for handling link information
+// _placeholder_ will be replaced with the proper value
 const char *AF_HIERARCHY_LEVEL_LINK = QUOTE(
 [
   {
@@ -106,6 +110,8 @@ const char *AF_HIERARCHY_LEVEL_LINK = QUOTE(
 ]
 );
 
+// Structures to generate the OMF message for handling the link information for the first level of the AF hierarchy
+// _placeholder_ will be replaced with the proper value
 const char *AF_HIERARCHY_1LEVEL_LINK = QUOTE(
 	{
 		"source": {
@@ -121,7 +127,14 @@ const char *AF_HIERARCHY_1LEVEL_LINK = QUOTE(
 
 
 /**
- * OMFData constructor
+ * OMFData constructor, generates the OMF message containing the data
+ *
+ * @param reading           Reading for which the OMF message must be generated
+ * @param measurementId     Name/Reference of the object of the Data Archive at which the data must be assigned
+ * @param PIServerEndpoint  End point for which the OMF message must be prepared among: PIWebAPI, OCS, EDS...
+ * @param AFHierarchyPrefix Unused at the current stage
+ * @param hints             OMF hints for the specific reading for changing the behaviour of the operation
+ *
  */
 OMFData::OMFData(const Reading& reading, string measurementId, const OMF_ENDPOINT PIServerEndpoint,const string&  AFHierarchyPrefix, OMFHints *hints)
 {

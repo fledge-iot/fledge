@@ -56,9 +56,10 @@ _logger = logger.setup()
 #################################
 
 
-def get_service_records():
+def get_service_records(_type=None):
     sr_list = list()
-    for service_record in ServiceRegistry.all():
+    svc_records = ServiceRegistry.all() if _type is None else ServiceRegistry.get(s_type=_type)
+    for service_record in svc_records:
         sr_list.append(
             {
                 'name': service_record._name,
@@ -96,10 +97,31 @@ async def get_health(request):
             health of all registered services
 
     :Example:
-            curl -X GET http://localhost:8081/fledge/service
+            curl -sX GET http://localhost:8081/fledge/service
+            curl -sX GET http://localhost:8081/fledge/service?type=Southbound
     """
-    response = get_service_records()
-    return web.json_response(response)
+    try:
+        if 'type' in request.query and request.query['type'] != '':
+            _type = request.query['type']
+            svc_type_members = ServiceRecord.Type._member_names_
+            is_type_exists = _type in svc_type_members
+            if not is_type_exists:
+                raise ValueError('{} is not a valid service type. Supported types are {}'.format(_type,
+                                                                                                 svc_type_members))
+            response = get_service_records(_type)
+        else:
+            response = get_service_records()
+    except ValueError as err:
+        msg = str(err)
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+    except service_registry_exceptions.DoesNotExist:
+        msg = "No record found for {} service type".format(_type)
+        raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
+    except Exception as ex:
+        msg = str(ex)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+    else:
+        return web.json_response(response)
 
 
 async def delete_service(request):

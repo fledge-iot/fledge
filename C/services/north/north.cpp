@@ -69,6 +69,7 @@ static bool controlWrite(char *name, char *value, ControlDestination destination
 	{
 		case DestinationAsset:
 		case DestinationService:
+		case DestinationScript:
 		{
 			va_start(ap, destination);
 			char *arg1 = va_arg(ap, char *);
@@ -583,7 +584,7 @@ void NorthService::configChange(const string& categoryName, const string& catego
 }
 
 /**
- * Restart the plugin with an updated confoguration.
+ * Restart the plugin with an updated configuration.
  * We need to do this as north plugins do not have a reconfigure method
  *
  * We need to make sure we are not sending data and the send data thread does not startup
@@ -633,6 +634,12 @@ void NorthService::restartPlugin()
 	}
 	m_dataSender->updatePlugin(northPlugin);
 	m_dataSender->release();
+
+	// If the plugin supports control register the callback functions
+	if (northPlugin->hasControl())
+	{
+		northPlugin->pluginRegister(controlWrite, controlOperation);
+	}
 }
 
 /**
@@ -674,11 +681,11 @@ bool NorthService::write(const string& name, const string& value, const ControlD
 	}
 	// Build payload for dispatcher service
 	string payload = "{ \"destination\" : \"broadcast\",";
-	payload += ", \"write\" : { \"";
+	payload += "\"write\" : { \"";
 	payload += name;
 	payload += "\" : \"";
 	payload += value;
-	payload += "\" }";
+	payload += "\" } }";
 	return sendToDispatcher("/dispatch/write", payload);
 }
 
@@ -721,7 +728,7 @@ bool NorthService::write(const string& name, const string& value, const ControlD
 	payload += name;
 	payload += "\" : \"";
 	payload += value;
-	payload += "\" }";
+	payload += "\" } }";
 	return sendToDispatcher("/dispatch/write", payload);
 }
 
@@ -750,7 +757,7 @@ int  NorthService::operation(const string& name, int paramCount, char *parameter
 	payload += name;
 	payload += "\" : { \"";
 	// TODO add parameters
-	payload += "\" }";
+	payload += "\" } }";
 	sendToDispatcher("/dispatch/operation", payload);
 	return -1;
 }
@@ -797,7 +804,7 @@ int NorthService::operation(const string& name, int paramCount, char *parameters
 	payload += name;
 	payload += "\" : { \"";
 	// TODO add parameters
-	payload += "\" }";
+	payload += "\" } }";
 	sendToDispatcher("/dispatch/operation", payload);
 	return -1;
 }
@@ -816,7 +823,6 @@ bool NorthService::sendToService(const string& southService, const string& name,
 
 	// Send the control message to the south service
 	try {
-		// TODO the real work
 		ServiceRecord service(southService);
 		if (!m_mgtClient->getService(service))
 		{
@@ -860,10 +866,9 @@ bool NorthService::sendToService(const string& southService, const string& name,
  */
 bool NorthService::sendToDispatcher(const string& path, const string& payload)
 {
-
 	// Send the control message to the south service
 	try {
-		ServiceRecord service("Dispatcher");
+		ServiceRecord service("dispatcher");
 		if (!m_mgtClient->getService(service))
 		{
 			Logger::getLogger()->error("Unable to find dispatcher service 'Dispatcher'");
@@ -877,8 +882,8 @@ bool NorthService::sendToDispatcher(const string& path, const string& payload)
 
 		try {
 			SimpleWeb::CaseInsensitiveMultimap headers = {{"Content-Type", "application/json"}};
-			auto res = http.request("PUT", path, payload, headers);
-			if (res->status_code.compare("200 OK"))
+			auto res = http.request("POST", path, payload, headers);
+			if (res->status_code.compare("202 Accepted"))
 			{
 				Logger::getLogger()->error("Failed to send control operation to dispatcher service, %s",
 							res->status_code.c_str());

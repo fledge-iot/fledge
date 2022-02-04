@@ -1709,19 +1709,18 @@ class Server:
 
         if bearer_token is not None:
             claims = cls.validate_token(bearer_token)
+            if claims.get('error') is not None:
+                msg = claims['error']
+                raise web.HTTPBadRequest(reason=msg, body=json.dumps({"error": msg}))
+
             # Check input token exists in system for the service name given in claims['sub']
             foundToken = ServiceRegistry.getBearerToken(claims['sub'])
             if foundToken is None:
                 msg = 'service bearer token does not exist in system'
                 raise web.HTTPBadRequest(reason=msg, body=json.dumps({"error": msg}))
 
-            # Validate existing token
-            ret = cls.validate_token(bearer_token)
-            if ret.get('error') is None:
-                return web.json_response(ret)
-            else:
-                msg = ret['error']
-                raise web.HTTPBadRequest(reason=msg, body=json.dumps({"error": msg}))
+            # Success
+            return web.json_response(claims)
         else:
             msg = 'bearer token is missing'
             raise web.HTTPBadRequest(reason=msg, body=json.dumps({"error": msg}))

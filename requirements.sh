@@ -181,7 +181,10 @@ if [[ $YUM_PLATFORM = true ]]; then
 	yum install -y cmake3
 	# create symlink so that cmake points to cmake3
 	set +e
-	ln -s /usr/bin/cmake3 /usr/bin/cmake
+	# Make a copy of existing cmake
+	cp -p /usr/bin/cmake /usr/bin/cmake.old
+	# Use -f to remove existing cmake binary file
+	ln -f -s /usr/bin/cmake3 /usr/bin/cmake
 	set -e
 
 	if [[ $USE_SCL = true ]]; then

@@ -1,7 +1,16 @@
 .. |br| raw:: html
 
    <br />
+   
+.. Links
+.. |pluginlist| raw:: html
 
+   <a href="https://fledge-iot.readthedocs.io/en/develop/fledge_plugins.html">Fledge Plugins</a>
+   
+   
+.. |quickstart| raw:: html
+
+   <a href="https://fledge-iot.readthedocs.io/en/develop/quick_start/installing.html">Installing Fledge</a>
 
 *******
 Fledge
@@ -30,12 +39,15 @@ Fledge makes extensive use of plugin components in order to increase the flexibi
 - **South plugins** are used to allow for the easy expansion of Fledge to deal with new South devices and South device connection buses.
 - **North plugins** are used to allow for connection to different historians
 - **Datastore plugins** are used to allow Fledge to use different storage mechanisms for persisting meta data and the sensor data
-- **Authentication provider plugins** are used to allow the authentication mechanism to be matched with enterprise requirements or provided internally by Fledge.
+
+The South and North plugins are stored in seperate source code repositories which are named inthe pattern fledge-south-<device> fledge-north-<service>. A complete list of plugins can be found in the readthedocs documentation for the project. See |pluginlist|.
 
 The other paradigm that is used extensively within Fledge is the idea of **scheduling processes** to perform specific operations. The Fledge core contains a scheduler which can execute processes based on time schedules or triggered by events. This is used to start processes when an event occurs, such as Fledge starting, or based on a time trigger.
 
 Scheduled processes are used to send data from Fledge to the historian, to purge data from the Fledge data buffer, to gather statistics for historical analysis and perform backups of the Fledge environment.
 |br| |br|
+
+Pre-built packages for Fledge are availabe, see |quickstart| for details of how to use these.
 
 Building Fledge
 ================

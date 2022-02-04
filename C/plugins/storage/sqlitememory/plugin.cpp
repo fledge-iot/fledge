@@ -22,6 +22,7 @@
 #include <string>
 #include <logger.h>
 #include <plugin_exception.h>
+#include <common.h>
 
 using namespace std;
 using namespace rapidjson;
@@ -113,8 +114,7 @@ Connection        *connection = manager->allocate();
 std::string 	  results;
 unsigned long	  age, size;
 
-	// TODO put flags in common header file
-	if (flags & 0x0002)	// Purge by size
+	if (flags & STORAGE_PURGE_SIZE)	// Purge by size
 	{
 		(void)connection->purgeReadingsByRows(param, flags, sent, results);
 	}

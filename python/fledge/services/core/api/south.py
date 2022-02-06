@@ -124,10 +124,17 @@ async def _get_tracked_plugin_assets_and_readings(storage_client, cf_mgr, svc_na
         asset_records = result['rows']
         assets = [ar["asset"].upper()for ar in asset_records]
         if len(assets):
+            def map_original_asset_name(asset_stats_key):
+                # asset name are being recorded in uppercase as key in statistics table
+                for ar in asset_records:
+                    if ar["asset"].upper() == asset_stats_key:
+                        return ar["asset"]
+                return None
+
             payload = PayloadBuilder().SELECT(["key", "value"]).WHERE(["key", "in", assets]).payload()
             results = await storage_client.query_tbl_with_payload("statistics", payload)
             for _r in results['rows']:
-                asset_json.append({"count": _r['value'], "asset": _r['key']})
+                asset_json.append({"count": _r['value'], "asset": map_original_asset_name(_r['key'])})
     except:
         raise
     else:

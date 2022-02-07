@@ -1715,7 +1715,7 @@ class Server:
 
             # Check input token exists in system for the service name given in claims['sub']
             foundToken = ServiceRegistry.getBearerToken(claims['sub'])
-            if foundToken is None:
+            if foundToken is None or foundToken != bearer_token:
                 msg = 'service bearer token does not exist in system'
                 raise web.HTTPBadRequest(reason=msg, body=json.dumps({"error": msg}))
 

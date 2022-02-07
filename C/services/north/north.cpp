@@ -688,8 +688,19 @@ void NorthService::addConfigDefaults(DefaultConfigCategory& defaultConfig)
 bool NorthService::write(const string& name, const string& value, const ControlDestination destination)
 {
 	Logger::getLogger()->info("Control write %s with %s", name.c_str(), value.c_str());
-	// TODO Send write via control dispatcher
-	return false;
+	if (destination != DestinationBroadcast)
+	{
+		Logger::getLogger()->error("Write destination requires an argument that is not given");
+		return -1;
+	}
+	// Build payload for dispatcher service
+	string payload = "{ \"destination\" : \"broadcast\",";
+	payload += ", \"write\" : { \"";
+	payload += name;
+	payload += "\" : \"";
+	payload += value;
+	payload += "\" }";
+	return sendToDispatcher("/dispatch/write", payload);
 }
 
 /**
@@ -703,10 +714,36 @@ bool NorthService::write(const string& name, const string& value, const ControlD
 bool NorthService::write(const string& name, const string& value, const ControlDestination destination, const string& arg)
 {
 	Logger::getLogger()->info("Control write %s with %s", name.c_str(), value.c_str());
-	// TODO Send write via control dispatcher
-	if (destination == DestinationService)
-		sendToService(arg, name, value);
-	return false;
+
+	// Build payload for dispatcher service
+	string payload = "{ \"destination\" : \"";
+	switch (destination)
+	{
+		case DestinationService:
+			payload += "service\", \"name\" : \"";
+			payload += arg;
+			payload += "\"";
+			break;
+		case DestinationAsset:
+			payload += "asset\", \"name\" : \"";
+			payload += arg;
+			payload += "\"";
+			break;
+		case DestinationScript:
+			payload += "script\", \"name\" : \"";
+			payload += arg;
+			payload += "\"";
+			break;
+		case DestinationBroadcast:
+			payload += "broadcast\"";
+			break;
+	}
+	payload += ", \"write\" : { \"";
+	payload += name;
+	payload += "\" : \"";
+	payload += value;
+	payload += "\" }";
+	return sendToDispatcher("/dispatch/write", payload);
 }
 
 /**
@@ -723,7 +760,19 @@ int  NorthService::operation(const string& name, int paramCount, char *parameter
 			paramCount);
 	for (int i = 0; i < paramCount; i++)
 		Logger::getLogger()->info("Parameter %d: %s", i, parameters[i]);
-	// TODO Send operation via control dispatcher
+	if (destination != DestinationBroadcast)
+	{
+		Logger::getLogger()->error("Operation destination requires an argument that is not given");
+		return -1;
+	}
+	// Build payload for dispatcher service
+	string payload = "{ \"destination\" : \"broadcast\",";
+	payload += "\"operation\" : { \"";
+	payload += name;
+	payload += "\" : { \"";
+	// TODO add parameters
+	payload += "\" }";
+	sendToDispatcher("/dispatch/operation", payload);
 	return -1;
 }
 
@@ -742,7 +791,35 @@ int NorthService::operation(const string& name, int paramCount, char *parameters
 			paramCount);
 	for (int i = 0; i < paramCount; i++)
 		Logger::getLogger()->info("Parameter %d: %s", i, parameters[i]);
-	// TODO Send operation via control dispatcher
+	// Build payload for dispatcher service
+	string payload = "{ \"destination\" : \"";
+	switch (destination)
+	{
+		case DestinationService:
+			payload += "service\", \"name\" : \"";
+			payload += arg;
+			payload += "\"";
+			break;
+		case DestinationAsset:
+			payload += "asset\", \"name\" : \"";
+			payload += arg;
+			payload += "\"";
+			break;
+		case DestinationScript:
+			payload += "script\", \"name\" : \"";
+			payload += arg;
+			payload += "\"";
+			break;
+		case DestinationBroadcast:
+			payload += "broadcast\"";
+			break;
+	}
+	payload += ", \"operation\" : { \"";
+	payload += name;
+	payload += "\" : { \"";
+	// TODO add parameters
+	payload += "\" }";
+	sendToDispatcher("/dispatch/operation", payload);
 	return -1;
 }
 
@@ -794,6 +871,50 @@ bool NorthService::sendToService(const string& southService, const string& name,
 	catch (exception &e) {
 		Logger::getLogger()->error("Failed to send set point operation to service %s, %s",
 				southService.c_str(), e.what());
+		return false;
+	}
+
+}
+
+/**
+ * Send to the control dispatcher service
+ */
+bool NorthService::sendToDispatcher(const string& path, const string& payload)
+{
+
+	// Send the control message to the south service
+	try {
+		ServiceRecord service("Dispatcher");
+		if (!m_mgtClient->getService(service))
+		{
+			Logger::getLogger()->error("Unable to find dispatcher service 'Dispatcher'");
+			return false;
+		}
+		string address = service.getAddress();
+		unsigned short port = service.getPort();
+		char addressAndPort[80];
+		snprintf(addressAndPort, sizeof(addressAndPort), "%s:%d", address.c_str(), port);
+		SimpleWeb::Client<SimpleWeb::HTTP> http(addressAndPort);
+
+		try {
+			SimpleWeb::CaseInsensitiveMultimap headers = {{"Content-Type", "application/json"}};
+			auto res = http.request("PUT", path, payload, headers);
+			if (res->status_code.compare("200 OK"))
+			{
+				Logger::getLogger()->error("Failed to send control operation to dispatcher service, %s",
+							res->status_code.c_str());
+				return false;
+			}
+		} catch (exception& e) {
+			Logger::getLogger()->error("Failed to send control operation to dispatcher service, %s",
+						e.what());
+			return false;
+		}
+
+		return true;
+	}
+	catch (exception &e) {
+		Logger::getLogger()->error("Failed to send control operation to dispatcher service, %s", e.what());
 		return false;
 	}
 

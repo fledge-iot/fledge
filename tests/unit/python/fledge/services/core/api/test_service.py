@@ -123,6 +123,47 @@ class TestService:
             }
         assert 6 == log_patch_info.call_count
 
+    @pytest.mark.parametrize("_type", ["blah", 1, "storage"])
+    async def test_bad_get_service_with_type(self, client, _type):
+        svc_type_members = ServiceRecord.Type._member_names_
+        expected_msg = "{} is not a valid service type. Supported types are {}".format(_type, svc_type_members)
+        resp = await client.get('/fledge/service?type={}'.format(_type))
+        assert 400 == resp.status
+        assert expected_msg == resp.reason
+        result = await resp.text()
+        json_response = json.loads(result)
+        assert {"message": expected_msg} == json_response
+
+    async def test_get_service_with_type_not_found(self, client, _type="Notification"):
+        expected_msg = "No record found for {} service type".format(_type)
+        resp = await client.get('/fledge/service?type={}'.format(_type))
+        assert 404 == resp.status
+        assert expected_msg == resp.reason
+        result = await resp.text()
+        json_response = json.loads(result)
+        assert {"message": expected_msg} == json_response
+
+    @pytest.mark.parametrize("_type, svc_record_count", [
+        ("Storage", 1),
+        ("Southbound", 2),
+        ("Northbound", 1)
+    ])
+    async def test_get_service_with_type(self, mocker, client, _type, svc_record_count):
+        mocker.patch.object(InterestRegistry, "__init__", return_value=None)
+        mocker.patch.object(InterestRegistry, "get", return_value=list())
+        with patch.object(ServiceRegistry._logger, 'info') as log_patch_info:
+            # populated service registry
+            ServiceRegistry.register('name1', 'Storage', 'address1', 1, 1, 'protocol1')
+            ServiceRegistry.register('name2', 'Southbound', 'address2', 2, 2, 'protocol2')
+            ServiceRegistry.register('name3', 'Northbound', 'address3', 3, 3, 'protocol3')
+            ServiceRegistry.register('name4', 'Southbound', 'address4', 4, 4, 'protocol4')
+        assert 4 == log_patch_info.call_count
+        resp = await client.get('/fledge/service?type={}'.format(_type))
+        assert 200 == resp.status
+        result = await resp.text()
+        json_response = json.loads(result)
+        assert svc_record_count == len(json_response['services'])
+
     @pytest.mark.parametrize("payload, code, message", [
         ('"blah"', 400, "Data payload must be a valid JSON"''),
         ('{}', 400, "Missing name property in payload."),

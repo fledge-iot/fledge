@@ -15,18 +15,66 @@
 using namespace std;
 using namespace rapidjson;
 
-
+/**
+ * - poolSize                  = Number of connections to allocate
+ * - nReadingsPerDb            = Number of readings tables per database
+ * - nDbPreallocate            = Number of databases to allocate in advance
+ * - nDbLeftFreeBeforeAllocate = Number of free databases before a new allocation is executed
+ * - nDbToAllocate             = Number of database to allocate each time
+ *
+ */
 typedef struct
 {
-	int poolSize = 5;                           // Number of connections to allocate
-	int nReadingsPerDb = 14;                    // Number of readings tables per database
-	int nDbPreallocate = 3;                     // Number of databases to allocate in advance
-	int nDbLeftFreeBeforeAllocate = 1;          // Number of free databases before a new allocation is executed
-	int nDbToAllocate = 2;                      // Number of database to allocate each time
+	int poolSize = 5;
+	int nReadingsPerDb = 14;
+	int nDbPreallocate = 3;
+	int nDbLeftFreeBeforeAllocate = 1;
+	int nDbToAllocate = 2;
 
 } STORAGE_CONFIGURATION;
 
-
+/**
+ * Implements the handling of multiples readings tables stored among multiple SQLite databases.
+ *
+ * The databases are named using the format readings_<dbid>, like for example readings_1.db
+ * and each database contains multiples readings named as readings_<dbid>_<id> like readings_1_1, readings_1_2
+ *
+ * The table asset_reading_catalogue is used as a catalogue in order map a particular asset_code
+ * to a table that holds readings for that asset_code.
+ *
+ * readings_1.asset_reading_catalogue:
+ * - table_id     INTEGER               NOT NULL,
+ * - db_id        INTEGER               NOT NULL,
+ * - asset_code   character varying(50) NOT NULL
+ *
+ * The first reading table readings_1_1 is created by the script init_readings.sql executed during the storage init
+ * all the other readings tables are created by the code when Fledge starts.
+ *
+ * The table configuration_readings created by the script init_readings.sql keeps track of the information:
+ *
+ * - global_id         -- Stores the last global Id used +1, Updated at -1 when Fledge starts, Updated at the proper value when Fledge stops
+ * - db_id_Last        -- Latest database available
+ * - n_readings_per_db -- Number of readings table per database
+ * - n_db_preallocate  -- Number of databases to allocate in advance
+ *
+ * The readings tables are allocated in sequence starting from the readings_1_1 and proceeding with the other tables available in the first database.
+ * The tables in the 2nd database (readings_2.db) will be used when all the tables in the first db are allocated.
+ *
+ * Implementation notes:
+ *
+ * 1) Many functions receive the database connection as an input parameter:
+ *
+ * - sqlite3 *dbHandle
+ *
+ * and they will use that connection for the sql operations instead of allocating a new one each time.
+ * This approach allows to:
+ *
+ * - allocate a connection once using it for all the following operations
+ * - avoid to receive in use a connection having a different configuration (attached databases)
+ *   as the connections are handled in pool and it is not defined which one will be allocated
+ *   moreover all the operations are executed in parallel in multi threads
+ *
+ */
 class ReadingsCatalogue {
 
 public:
@@ -163,7 +211,9 @@ private:
 
 };
 
-// Used to synchronize the attach database operation
+/**
+ * Used to synchronize the attach database operation
+ */
 class AttachDbSync {
 
 public:

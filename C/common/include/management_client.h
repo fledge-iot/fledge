@@ -28,6 +28,13 @@ using namespace rapidjson;
 
 class AssetTrackingTuple;
 
+/**
+ * The management client class used by services and tasks to communicate
+ * with the management API of the Fledge core microservice.
+ *
+ * The class encapsulates the management REST API and provides methods for accessing each
+ * of those APIs.
+ */
 class ManagementClient {
 	public:
 		ManagementClient(const std::string& hostname, const unsigned short port);
@@ -35,6 +42,8 @@ class ManagementClient {
 		bool 			registerService(const ServiceRecord& service);
 		bool 			unregisterService();
 		bool 			getService(ServiceRecord& service);
+		bool			getServices(std::vector<ServiceRecord *>& services);
+		bool			getServices(std::vector<ServiceRecord *>& services, const std::string& type);
 		bool 			registerCategory(const std::string& categoryName);
 		bool 			unregisterCategory(const std::string& categoryName);
 		ConfigCategories	getCategories();
@@ -44,7 +53,8 @@ class ManagementClient {
                                                              const std::string& itemValue);
 		std::string		addChildCategories(const std::string& parentCategory,
 							   const std::vector<std::string>& children);
-		std::vector<AssetTrackingTuple*>&	getAssetTrackingTuples(const std::string serviceName);
+		std::vector<AssetTrackingTuple*>&
+					getAssetTrackingTuples(const std::string serviceName = "");
 		bool addAssetTrackingTuple(const std::string& service, 
 					   const std::string& plugin, 
 					   const std::string& asset, 

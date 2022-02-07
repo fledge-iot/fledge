@@ -55,6 +55,7 @@ class NorthService : public ServiceAuthHandler {
 		void				restartPlugin();
 	private:
 		bool				sendToService(const std::string& southService, const std::string& name, const std::string& value);
+		bool				sendToDispatcher(const std::string& path, const std::string& payload);
 		DataLoad			*m_dataLoad;
 		DataSender			*m_dataSender;
 		NorthPlugin			*northPlugin;

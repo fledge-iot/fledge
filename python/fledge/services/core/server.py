@@ -18,7 +18,8 @@ from aiohttp import web
 import aiohttp
 import json
 import signal
-from datetime import datetime
+from datetime import datetime, timedelta
+import jwt
 
 from fledge.common import logger
 from fledge.common.audit_logger import AuditLogger
@@ -49,7 +50,7 @@ from fledge.common.web.ssl_wrapper import SSLVerifier
 from fledge.services.core.api import exceptions as api_exception
 
 __author__ = "Amarendra K. Sinha, Praveen Garg, Terris Linenbach, Massimiliano Pinto"
-__copyright__ = "Copyright (c) 2017-2018 OSIsoft, LLC"
+__copyright__ = "Copyright (c) 2017-2021 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
@@ -67,6 +68,10 @@ _FLEDGE_PID_FILE = "fledge.core.pid"
 
 SSL_PROTOCOLS = (asyncio.sslproto.SSLProtocol,)
 
+SERVICE_JWT_SECRET = 'f0gl@mp+Fl3dG3'
+SERVICE_JWT_ALGORITHM = 'HS256'
+SERVICE_JWT_EXP_DELTA_SECONDS = 30*60  # 30 minutes
+SERVICE_JWT_AUDIENCE = 'Fledge'
 
 def ignore_aiohttp_ssl_eror(loop):
     """Ignore aiohttp #3535 / cpython #13548 issue with SSL data after close
@@ -869,6 +874,15 @@ class Server:
             if not cls.running_in_safe_mode:
                 # Start asset tracker
                 loop.run_until_complete(cls._start_asset_tracker())
+                # If dispatcher installation:
+                # a) not found then add it as a StartUp service
+                # b) found then check the status of its schedule and take action
+                is_dispatcher = loop.run_until_complete(cls.is_dispatcher_running(cls._storage_client_async))
+                if not is_dispatcher:
+                    _logger.info("Dispatcher service installation found on the system, but not in running state. "
+                                 "Therefore, starting the service...")
+                    loop.run_until_complete(cls.add_and_enable_dispatcher())
+                    _logger.info("Dispatcher service started.")
 
             # Everything is complete in the startup sequence, write the audit log entry
             cls._audit = AuditLogger(cls._storage_client_async)
@@ -1111,10 +1125,17 @@ class Server:
             if not isinstance(service_management_port, int):
                 raise web.HTTPBadRequest(reason='Service management port can be a positive integer only')
 
+            # If token then check single use token verification; if bad then return 4XX
             if token is not None:
                 if not isinstance(token, str):
                     msg = 'Token can be a string only'
-                    raise web.HTTPBadRequest(reason=msg, body=json.dumps(msg))
+                    raise web.HTTPBadRequest(reason=msg)
+
+                # Check startup token exists
+                if ServiceRegistry.checkStartupToken(service_name, token) == False:
+                    msg = 'Token for the service was not found' 
+                    raise web.HTTPBadRequest(reason=msg)
+
             try:
                 registered_service_id = ServiceRegistry.register(service_name, service_type, service_address,
                                                                  service_port, service_management_port,
@@ -1137,13 +1158,37 @@ class Server:
             if not registered_service_id:
                 raise web.HTTPBadRequest(reason='Service {} could not be registered'.format(service_name))
 
-            bearer_token = "{}_{}".format(service_name.strip(), uuid.uuid4().hex) if token is not None else ""
+            bearer_token = ''
+            # Create a JWT token if startup token exists
+            if token is not None:
+                # Set JWT bearer token
+                # Set expiration now + delta seconds
+                exp = int(time.time()) + SERVICE_JWT_EXP_DELTA_SECONDS
+                # Add public token claims
+                claims = {
+                             'aud': service_type,
+                             'sub' : service_name,
+                             'iss' : SERVICE_JWT_AUDIENCE,
+                             'exp': exp
+                         }
+
+                # Create JWT token
+                bearer_token = jwt.encode(claims,
+                                      SERVICE_JWT_SECRET,
+                                      SERVICE_JWT_ALGORITHM).decode("utf-8") if token is not None else ""
+
+                # Add the bearer token for that service being registered
+                ServiceRegistry.addBearerToken(service_name, bearer_token)
+
+            # Prepare response JSON
             _response = {
                 'id': registered_service_id,
                 'message': "Service registered successfully",
-                'bearer_token': bearer_token
+                'bearer_token' : bearer_token
             }
-            # _logger.exception("SERVER RESPONSE: {}".format(_response))
+
+            _logger.debug("For service: {} SERVER RESPONSE: {}".format(service_name, _response))
+
             return web.json_response(_response)
 
         except ValueError as err:
@@ -1237,6 +1282,18 @@ class Server:
             :Example:
                 curl -sX GET http://localhost:<core mgt port>/fledge/service/authtoken?_vid=<>
         """
+        bearer_token = request.headers.get('bearer_token', "")
+        if bearer_token:
+            services_list = ServiceRegistry.all()
+            is_bearer_token_valid = False
+            for svc in services_list:
+                if svc._token == bearer_token:
+                    is_bearer_token_valid = True
+                    break
+            if is_bearer_token_valid is False:
+                msg = "Bearer token is invalid"
+                raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+
         async def cert_login(ca_cert):
             certs_dir = _FLEDGE_DATA + '/etc/certs' if _FLEDGE_DATA else _FLEDGE_ROOT + "/data/etc/certs"
             ca_cert_file = "{}/{}.cert".format(certs_dir, ca_cert)
@@ -1623,3 +1680,159 @@ class Server:
             raise web.HTTPInternalServerError(reason=ex)
 
         return web.json_response(message)
+
+    @classmethod
+    async def verify_token(cls, request):
+        """ Endpoint for verifycation of service bearer token received at registration time
+
+        :Example:
+            curl -H 'Authorization: Bearer evZGdrdmV.4dWFsY2dsaHVyZ.mFxdmdybXB5dXduaXJvc3g='
+            -X POST http://localhost:<core mngmt port>/fledge/service/verity_token
+
+        Authorization header must contain the Bearer token to verify
+        No post data
+
+        Note: token will be verified for the service name in token claim 'sub'
+        """
+
+        auth_header = request.headers.get('Authorization', None)
+        if auth_header is None:
+            msg = "Authorization header is missing"
+            raise web.HTTPBadRequest(reason=msg, body=json.dumps({"error": msg}))
+
+        parts = auth_header.split("Bearer ")
+        if len(parts) != 2:
+            msg = "bearer token is missing"
+            raise web.HTTPBadRequest(reason=msg, body=json.dumps({"error": msg}))
+
+        bearer_token = parts[1]
+
+        if bearer_token is not None:
+            claims = cls.validate_token(bearer_token)
+            if claims.get('error') is not None:
+                msg = claims['error']
+                raise web.HTTPBadRequest(reason=msg, body=json.dumps({"error": msg}))
+
+            # Check input token exists in system for the service name given in claims['sub']
+            foundToken = ServiceRegistry.getBearerToken(claims['sub'])
+            if foundToken is None or foundToken != bearer_token:
+                msg = 'service bearer token does not exist in system'
+                raise web.HTTPBadRequest(reason=msg, body=json.dumps({"error": msg}))
+
+            # Success
+            return web.json_response(claims)
+        else:
+            msg = 'bearer token is missing'
+            raise web.HTTPBadRequest(reason=msg, body=json.dumps({"error": msg}))
+
+    @classmethod
+    def validate_token(cls, token):
+        """ Validate service bearer token
+        """
+        try:
+            ret = jwt.decode(token,
+                         SERVICE_JWT_SECRET,
+                         algorithms=[SERVICE_JWT_ALGORITHM],
+                         options = {"verify_signature": True, "verify_aud": False, "verify_exp": True})
+            return ret
+        except Exception as e:
+            return { 'error' : str(e) }
+
+    @classmethod
+    async def refresh_token(cls, request):
+        """ Endpoint for refresh of service bearer token received at registration time
+
+        :Example:
+            curl -X POST
+             -H 'Authorization: Bearer evZGdrdmV.4dWFsY2dsaHVyZ.mFxdmdybXB5dXduaXJvc3g='
+             http://localhost:<core mngmt port>/fledge/service/refresh_token
+
+        Authorization header must contain the Bearer token
+        No post data
+
+        Note: token will be refreshed for the service it belongs to
+        """
+        auth_header = request.headers.get('Authorization', None)
+        if auth_header is None:
+            msg = "Authorization header is missing"
+            raise web.HTTPBadRequest(reason=msg, body=json.dumps({"error": msg}))
+
+        parts = auth_header.split("Bearer ")
+        if len(parts) != 2:
+            msg = "bearer token is missing"
+            raise web.HTTPBadRequest(reason=msg, body=json.dumps({"error": msg}))
+
+        bearer_token = parts[1]
+
+        try:
+            claims = cls.validate_token(bearer_token)
+            if claims.get('error') is None:
+                foundToken = ServiceRegistry.getBearerToken(claims['sub'])
+                if foundToken is None:
+                    msg = "service '" + str(claims['sub']) + "' not registered"
+                    raise web.HTTPBadRequest(reason=msg, body=json.dumps({"error": msg}))
+
+                if foundToken != bearer_token:
+                    msg = "bearer token does not belong to service '" + str(claims['sub']) + "'"
+                    raise web.HTTPBadRequest(reason=msg, body=json.dumps({"error": msg}))
+
+                # Expiration set to now + delta
+                claims['exp'] =  int(time.time()) + SERVICE_JWT_EXP_DELTA_SECONDS
+                bearer_token = jwt.encode(claims,
+                                          SERVICE_JWT_SECRET,
+                                          SERVICE_JWT_ALGORITHM).decode("utf-8")
+
+                # Replace bearer_token for the service
+                ServiceRegistry.addBearerToken(claims['sub'], bearer_token)
+                ret = {'bearer_token' : bearer_token}
+
+                return web.json_response(ret)
+
+            msg = 'Failed to parse bearer token'
+            raise web.HTTPBadRequest(reason=msg, body=json.dumps({"error": msg}))
+
+        except Exception as e:
+            msg = str(e)
+            raise web.HTTPBadRequest(reason=msg, body=json.dumps({"error": msg}))
+
+    @classmethod
+    async def is_dispatcher_running(cls, storage):
+        from fledge.services.core.api import service as service_api
+        from fledge.common.storage_client.payload_builder import PayloadBuilder
+
+        # Find the dispatcher service installation
+        get_svc = service_api.get_service_installed()
+        # if installation found:
+        if 'dispatcher' in get_svc:
+            payload = PayloadBuilder().SELECT("id", "schedule_name", "process_name", "enabled").payload()
+            res = await storage.query_tbl_with_payload('schedules', payload)
+            for sch in res['rows']:
+                if sch['process_name'] == 'dispatcher_c' and sch['enabled'] == 'f':
+                    _logger.info("Dispatcher service found but not in enabled state. "
+                                 "Therefore, {} schedule name is enabled".format(sch['schedule_name']))
+                    await cls.scheduler.enable_schedule(uuid.UUID(sch["id"]))
+                    return True
+                elif sch['process_name'] == 'dispatcher_c' and sch['enabled'] == 't':
+                    # As such no action required for the case
+                    return True
+            # If installation not found:
+            return False
+        return True
+
+    @classmethod
+    async def add_and_enable_dispatcher(cls):
+        import datetime as dt
+        from fledge.services.core.scheduler.entities import StartUpSchedule
+
+        name = "dispatcher"
+        process_name = 'dispatcher_c'
+        is_enabled = True
+        schedule = StartUpSchedule()
+        schedule.name = name
+        schedule.process_name = process_name
+        schedule.repeat = dt.timedelta(0)
+        schedule.exclusive = True
+        schedule.enabled = False
+        # Save schedule
+        await cls.scheduler.save_schedule(schedule, is_enabled)
+

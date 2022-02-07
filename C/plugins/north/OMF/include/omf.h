@@ -33,6 +33,7 @@ enum OMF_ENDPOINT {
 	ENDPOINT_EDS
 };
 
+// Documentation about the Naming Scheme available at: https://fledge-iot.readthedocs.io/en/latest/OMF.html#naming-scheme
 enum NAMINGSCHEME_ENDPOINT {
 	NAMINGSCHEME_CONCISE,
 	NAMINGSCHEME_SUFFIX,
@@ -47,14 +48,20 @@ using namespace rapidjson;
 std::string ApplyPIServerNamingRules(const std::string &objName, bool *changed);
 
 /**
- * Per asset dataTypes
+ * Per asset dataTypes - This class is used in a std::map where assetName is a key
  *
- * typeId is a prefix for OMF data Type messages
- * types is a JSON string with datapoint names and types
- * This class is used in a std::map where assetName is a key
+ * - typeId          = id of the type, it is incremented if the type is redefined
+ * - types           = is a JSON string with datapoint names and types
+ * - typesShort      = a numeric representation of the type used to quicly identify if a type has changed
+ * - namingScheme    = Naming schema of the asset, valid options are Concise, Backward compatibility ..
+ * - afhHash         = Asset hash based on the AF hierarchy
+ * - afHierarchy     = Current position of the asset in the AF hierarchy
+ * - afHierarchyOrig = Original position of the asset in the AF hierarchy, in case the asset was moved
+ * - hintChkSum      = Checksum of the OMF hints
+
  */
 class OMFDataTypes
-{
+{ 
         public:
                 long           typeId;
                 std::string    types;
@@ -71,6 +78,7 @@ class OMFHints;
 
 /**
  * The OMF class.
+ * Implements the OMF protocol
  */
 class OMF
 {
@@ -250,14 +258,13 @@ private:
 		// Set saved dataType
 		unsigned long calcTypeShort(const Reading& row);
 
-
-	// Clear data types cache
+		// Clear data types cache
 		void clearCreatedTypes();
 
 		// Increment type-id value
 		void incrementTypeId();
 
-                // Handle data type errors
+		// Handle data type errors
 		bool handleTypeErrors(const string& keyComplete, const Reading& reading, OMFHints*hints);
 
 		string errorMessageHandler(const string &msg);
@@ -311,6 +318,7 @@ private:
 		bool HandleAFMapMetedata(Document& JSon);
 
 	private:
+		// Use for the evaluatin of the OMFDataTypes.typesShort
 		union t_typeCount {
 			struct
 			{
@@ -334,11 +342,12 @@ private:
 		OMF_ENDPOINT		  m_PIServerEndpoint;
 		NAMINGSCHEME_ENDPOINT m_NamingScheme;
 		std::string		      m_DefaultAFLocation;
+		bool                  m_sendFullStructure; // If disabled the AF hierarchy is not created.
 
-		bool            m_sendFullStructure;
-		// AF hierarchies handling - Metadata MAP
+		// Asset Framework Hierarchy Rules handling - Metadata MAP
+		// Documentation: https://fledge-iot.readthedocs.io/en/latest/plugins/fledge-north-OMF/index.html?highlight=hierarchy#asset-framework-hierarchy-rules
 		std::string		m_AFMap;
-		bool            m_AFMapEmptyNames;  // true if there are norules to manage
+		bool            m_AFMapEmptyNames;  // true if there are no rules to manage
 		bool            m_AFMapEmptyMetadata;
 		std::string		m_AFHierarchyLevel;
 		std::string		m_prefixAFAsset;
@@ -348,7 +357,6 @@ private:
 			//  Asset Framework path
 			// {""}
 		};
-
 
 		map<std::string, std::string>  m_NamesRules={
 
@@ -411,8 +419,7 @@ private:
 		std::vector<std::string> m_notBlockingErrors;
 
 		// Data types cache[key] = (key_type_id, key data types)
-		std::map<std::string, OMFDataTypes>*
-					m_OMFDataTypes;
+		std::map<std::string, OMFDataTypes>* m_OMFDataTypes;
 
 		// Stores the type for the block of data containing all the used properties
 		std::map<string, Reading*> m_SuperSetDataPoints;
@@ -420,8 +427,7 @@ private:
 		/**
 		 * Static data to send to OMF
 		 */
-		std::vector<std::pair<std::string, std::string>>
-			*m_staticData;
+		std::vector<std::pair<std::string, std::string>> *m_staticData;
 
 
 

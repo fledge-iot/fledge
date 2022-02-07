@@ -32,7 +32,7 @@ from fledge.services.core.service_registry import exceptions as service_registry
 from fledge.services.common import utils
 
 __author__ = "Terris Linenbach, Amarendra K Sinha, Massimiliano Pinto"
-__copyright__ = "Copyright (c) 2017-2018 OSIsoft, LLC"
+__copyright__ = "Copyright (c) 2017-2021 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
@@ -324,10 +324,16 @@ class Scheduler(object):
                     self._logger.debug(fname +" written")
             except Exception as ex:
                 self._logger.exception(ex)
+
         # This should be appended as an arg and passed to process
         # and also kept as name | (single use) token pair for verification and assigning
         # jwt token for cross communication
-        # args_to_exec.append("--token={}".format(t))
+
+	# Get a startup token from ServiceRegistry
+        startToken = ServiceRegistry.getStartupToken(schedule.name)
+
+        # Add startup token to args
+        args_to_exec.append("--token={}".format(startToken))
 
         task_process = self._TaskProcess()
         task_process.start_time = time.time()

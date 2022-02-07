@@ -300,12 +300,13 @@ void ServiceAuthHandler::AuthenticationMiddlewarePUT(shared_ptr<HttpServer::Resp
 	// Get authentication enabled value
 	bool acl_set = this->getAuthenticatedCaller();
 
+	Logger::getLogger()->debug("This service %s has AuthenticatedCaller flag set %d",
+			this->getName().c_str(),
+			acl_set);
+
 	// Check authentication
 	if (acl_set)
 	{
-		Logger::getLogger()->debug("This service %s has AuthenticatedCaller flag set %d",
-			this->getName().c_str(),
-			acl_set);
 		map<string, string> tokenClaims;
 		// Verify token via Fledge management core POST API call
 		// and fill tokenClaims map

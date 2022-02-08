@@ -82,6 +82,16 @@ LibcurlHttps::~LibcurlHttps()
 }
 
 /**
+ * Add a proxy server
+ *
+ * @param proxy	The host and port of the proxy
+ */
+void LibcurlHttps::setProxy(const string& proxy)
+{
+	curl_easy_setopt(m_sender, CURLOPT_PROXY, proxy.c_str());
+}
+
+/**
  * Avoid libcurl debug messages
  */
 size_t cb_write_data(void *buffer, size_t size, size_t nmemb, void *userp)

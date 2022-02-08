@@ -29,6 +29,11 @@ class HttpSender
 		virtual ~HttpSender();
 
 		/**
+		 * Set a proxy server
+		 */
+		virtual void setProxy(const std::string& proxy) = 0;
+
+		/**
 		 * HTTP(S) request: pass method and path, HTTP headers and POST/PUT payload.
 		 */
 		virtual int sendRequest(

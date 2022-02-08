@@ -35,6 +35,11 @@ public:
     ~LibcurlHttps();
 
     /**
+     * Set the proxy host and port
+     */
+    void setProxy(const std::string& proxy);
+
+    /**
      * HTTP(S) request: pass method and path, HTTP headers and POST/PUT payload.
      */
     int sendRequest(

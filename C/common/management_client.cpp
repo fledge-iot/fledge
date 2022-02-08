@@ -21,13 +21,6 @@ using namespace rapidjson;
 using namespace SimpleWeb;
 using HttpClient = SimpleWeb::Client<SimpleWeb::HTTP>;
 
-// handles m_client_map access
-std::mutex mng_mtx_client_map;
-
-// TODO: move it into the class
-// handles m_received_tokens
-std::mutex mtx_received_tokens;
-
 /**
  * Management Client constructor. Creates a class used to send management API requests
  * from a micro service to the Fledge core service.
@@ -79,7 +72,7 @@ HttpClient *ManagementClient::getHttpClient() {
 
 	std::thread::id thread_id = std::this_thread::get_id();
 
-	mng_mtx_client_map.lock();
+	m_mtx_client_map.lock();
 	item = m_client_map.find(thread_id);
 
 	if (item  == m_client_map.end() ) {
@@ -92,7 +85,8 @@ HttpClient *ManagementClient::getHttpClient() {
 	{
 		client = item->second;
 	}
-	mng_mtx_client_map.unlock();
+
+	m_mtx_client_map.unlock();
 
 	return (client);
 }
@@ -895,7 +889,7 @@ bool ManagementClient::verifyAccessBearerToken(shared_ptr<HttpServer::Request> r
 	// Check token already exists in cache:
 	std::map<std::string, std::string>::iterator item;
 	// Acquire lock
-	mtx_received_tokens.lock();
+	m_mtx_rTokens.lock();
 
 	item = m_received_tokens.find(bearer_token);
 	if (item  == m_received_tokens.end())
@@ -993,9 +987,13 @@ bool ManagementClient::verifyAccessBearerToken(shared_ptr<HttpServer::Request> r
 	}
 
 	// Release lock
-	mtx_received_tokens.unlock();
+	m_mtx_rTokens.unlock();
 
-	m_logger->debug("Token verified %d", ret);
+	m_logger->debug("Token verified %d, claims %s:%s:%s",
+			ret,
+			claims["aud"].c_str(),
+			claims["sub"].c_str(),
+			claims["iss"].c_str());
 
 	return ret;
 }
@@ -1020,7 +1018,7 @@ string ManagementClient::refreshAccessBearerToken(shared_ptr<HttpServer::Request
 
 	// Check token already exists in cache:
 	std::map<std::string, std::string>::iterator item;
-	mtx_received_tokens.lock();
+	m_mtx_rTokens.lock();
 
 	// Refresh it by calling Fledge management endpoint
 	string newToken;
@@ -1071,7 +1069,7 @@ string ManagementClient::refreshAccessBearerToken(shared_ptr<HttpServer::Request
 		m_received_tokens.erase(bearer_token);
 	}
 
-	mtx_received_tokens.unlock();
+	m_mtx_rTokens.unlock();
 
 	return newToken;
 }

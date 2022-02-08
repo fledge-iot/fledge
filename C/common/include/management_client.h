@@ -81,6 +81,10 @@ class ManagementClient {
 		std::string				m_bearer_token;
 		// Map of received and verified access bearer tokens from other microservices
 		std::map<std::string, std::string>	m_received_tokens;
+		// m_received_tokens lock
+		std::mutex 				m_mtx_rTokens;
+		// m_client_map lock
+		std::mutex				m_mtx_client_map;
   
 	public:
 		// member template must be here and not in .cpp file

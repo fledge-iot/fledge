@@ -41,6 +41,11 @@ class ServiceAuthHandler : public ServiceHandler
 								std::function<void(
 									std::shared_ptr<HttpServer::Response>,
 									std::shared_ptr<HttpServer::Request>)> funcPUT);
+		void			AuthenticationMiddlewarePOST(std::shared_ptr<HttpServer::Response> response,
+								std::shared_ptr<HttpServer::Request> request,
+								std::function<void(
+									std::shared_ptr<HttpServer::Response>,
+									std::shared_ptr<HttpServer::Request>)> funcPOST);
  		// Send a good HTTP response to the caller
 		void			respond(std::shared_ptr<HttpServer::Response> response,
 								const std::string& payload)

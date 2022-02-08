@@ -62,7 +62,7 @@ SouthApi::SouthApi(SouthService *service) : m_service(service), m_thread(NULL)
 	m_server->config.port = 0;
 	m_server->config.thread_pool_size = 1;
 
-	// AuthenticationMiddleware for PUT regexp paths: usare lambda funcion, passing the class object
+	// AuthenticationMiddleware for PUT regexp paths: use lambda funcion, passing the class object
 	m_server->resource[SETPOINT]["PUT"] = [this](shared_ptr<HttpServer::Response> response,
                                                         shared_ptr<HttpServer::Request> request) {
 				m_service->AuthenticationMiddlewarePUT(response, request, setPointWrapper);

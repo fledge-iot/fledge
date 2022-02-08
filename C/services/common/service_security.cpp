@@ -299,7 +299,6 @@ void ServiceAuthHandler::AuthenticationMiddlewarePUT(shared_ptr<HttpServer::Resp
 {
 	// Get authentication enabled value
 	bool acl_set = this->getAuthenticatedCaller();
-
 	Logger::getLogger()->debug("This service %s has AuthenticatedCaller flag set %d",
 			this->getName().c_str(),
 			acl_set);
@@ -328,7 +327,7 @@ void ServiceAuthHandler::AuthenticationMiddlewarePUT(shared_ptr<HttpServer::Resp
 		{
 			string msg = "authorisation not granted to this service";
 			string responsePayload = "{ \"error\" : \"" + msg + "\" }";
-			Logger::getLogger()->error(msg);
+			Logger::getLogger()->error(msg.c_str());
 			this->respond(response,
 					SimpleWeb::StatusCode::client_error_unauthorized,
 					responsePayload);
@@ -339,7 +338,9 @@ void ServiceAuthHandler::AuthenticationMiddlewarePUT(shared_ptr<HttpServer::Resp
 		bool access_granted = this->verifyURL(request->path, tokenClaims);
 		if (!access_granted)
 		{
-			string responsePayload = QUOTE({ "error" : "authorisation not granted to this resource"});
+			string msg = "authorisation not granted to this resource";
+			string responsePayload = "{ \"error\" : \"" + msg + "\" }";
+			Logger::getLogger()->error(msg.c_str());
 			this->respond(response,
 					SimpleWeb::StatusCode::client_error_unauthorized,
 					responsePayload);
@@ -349,4 +350,31 @@ void ServiceAuthHandler::AuthenticationMiddlewarePUT(shared_ptr<HttpServer::Resp
 
 	// Call PUT endpoint routine
 	funcPUT(response, request);
+}
+
+
+/**
+ * Authentication Middleware for POST methods
+ *
+ * Routine first check whether the service is configured with authentication
+ *
+ * Access bearer token is then verified against FogLAMP core API endpoint
+ * JWT token claims are passed to verifyURL and verifyService routines
+ *
+ * If access is granted the input funcPUT funcion is called
+ * otherwise error response is sent to the client
+ *
+ * @param response	The HTTP Response to send
+ * @param request	The HTTP Request
+ * @param funcPUT	The function to call in case of access granted
+ */
+void ServiceAuthHandler::AuthenticationMiddlewarePOST(shared_ptr<HttpServer::Response> response,
+			shared_ptr<HttpServer::Request> request,
+			std::function<void(
+				shared_ptr<HttpServer::Response>,
+				shared_ptr<HttpServer::Request>)> funcPOST)
+{
+	// POST does not have additional features, call PUT method
+	// passing pinter to POST function
+	this->AuthenticationMiddlewarePUT(response, request, funcPOST);
 }

@@ -9,7 +9,7 @@
 .. |sine_out_change| image:: images/sine_out_change.jpg
 .. |end_to_end| image:: images/EndToEnd.jpg
 .. |north_map1| image:: images/north_map1.jpg
-.. |dispatcher-config| image:: images/dispatch-config.jpg
+.. |dispatcher_config| image:: images/dispatcher-config.jpg
 
 
 *****************
@@ -330,7 +330,7 @@ Configuration
 The *control dispatcher* has a small number of configuration items that are available in the *Dispatcher* configuration category within the general Configuration menu item on the user interface.
 
 +---------------------+
-| | dispatch_config | |
+| |dispatcher_config| |
 +---------------------+
 
   - **Minimum Log Level**: Allows the minimum level at which logs will get written to the system log to be defined.

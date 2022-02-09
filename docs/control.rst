@@ -329,9 +329,9 @@ Configuration
 
 The *control dispatcher* has a small number of configuration items that are available in the *Dispatcher* configuration category within the general Configuration menu item on the user interface.
 
-+-----------------------+
-| | dispatcher-config | |
-+-----------------------+
++---------------------+
+| |dispatcher-config| |
++---------------------+
 
   - **Minimum Log Level**: Allows the minimum level at which logs will get written to the system log to be defined.
 

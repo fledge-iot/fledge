@@ -135,8 +135,17 @@ void filter_plugin_ingest_fn(PyObject *ingest_callback,
 	// Check we have a list of readings
 	if (PyList_Check(readingsObj))
 	{
-		// Get vector of Readings from Python object
-        pyReadingSet = new PythonReadingSet(readingsObj);
+        try
+        {
+            // Get vector of Readings from Python object
+            pyReadingSet = new PythonReadingSet(readingsObj);
+        }
+        catch (std::exception e)
+        {
+    		Logger::getLogger()->warn("PythonReadingSet c'tor failed, error: %s", e.what());
+            pyReadingSet = NULL;
+    	}
+        
         Logger::getLogger()->debug("%s:%d, pyReadingSet=%p, pyReadingSet readings count=%d", 
                                     __FUNCTION__, __LINE__, pyReadingSet, pyReadingSet?pyReadingSet->getCount():0);
 	}

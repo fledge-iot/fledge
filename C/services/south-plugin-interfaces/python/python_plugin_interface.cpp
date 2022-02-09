@@ -265,9 +265,19 @@ ReadingSet* plugin_poll_fn(PLUGIN_HANDLE handle)
 
         PythonReadingSet *pyReadingSet = NULL;
 
-        // Valid ReadingSet would be of the form of python dict or list
+        // Valid ReadingSet would be in the form of python dict or list
         if (PyList_Check(pReturn) || PyDict_Check(pReturn))
-            pyReadingSet = new PythonReadingSet(pReturn);
+        {
+            try
+            {
+                pyReadingSet = new PythonReadingSet(pReturn);
+            }
+            catch (std::exception e)
+            {
+        		Logger::getLogger()->warn("PythonReadingSet c'tor failed, error: %s", e.what());
+                pyReadingSet = NULL;
+        	}
+        }
 		
 		// Remove pReturn object
 		Py_CLEAR(pReturn);

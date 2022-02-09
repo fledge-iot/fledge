@@ -374,6 +374,9 @@ PLUGIN_HANDLE filter_plugin_init_fn(ConfigCategory* config,
 			{
 				// Just use current loaded module: no load or re-load action
 				module = it->second;
+                Logger::getLogger()->info("plugin_handle: filter_plugin_init(): "
+						   "module set to PythonModule object @ address %p",
+						   module);
 
 				// Set Python library loaded state
 				pythonInitState = it->second->m_init;
@@ -394,7 +397,7 @@ PLUGIN_HANDLE filter_plugin_init_fn(ConfigCategory* config,
 	// Acquire GIL
 	PyGILState_STATE state = PyGILState_Ensure();
     
-	// Import Python module using a new interpreter
+	// Import Python module
 	if (loadModule || reloadModule)
 	{        
 		string fledgePythonDir;
@@ -469,7 +472,7 @@ PLUGIN_HANDLE filter_plugin_init_fn(ConfigCategory* config,
 		module->setCategoryName(config->getName());
 	}
 
-	Logger::getLogger()->debug("filter_plugin_init_fn for '%s', pModule '%p', "
+	Logger::getLogger()->info("filter_plugin_init_fn for '%s', pModule '%p', "
 				   "Python interpreter '%p', config=%s",
 				   module->m_name.c_str(),
 				   module->m_module,
@@ -501,7 +504,7 @@ PLUGIN_HANDLE filter_plugin_init_fn(ConfigCategory* config,
     }
     else
     {
-            Logger::getLogger()->debug("plugin_handle: filter_plugin_init(): "
+            Logger::getLogger()->info("plugin_handle: filter_plugin_init(): "
                                        "got result object '%p', plugin '%s'",
                                        pReturn,
                                        pName.c_str());
@@ -633,6 +636,8 @@ void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
 
 			ret = pythonModules->insert(pair<string, PythonModule*>
 				(string(pluginName), newModule));
+            Logger::getLogger()->info("%s:%d: Added pair to pythonModules: <%s, %p>", 
+                                        __FUNCTION__, __LINE__, pluginName, newModule);
 		}
 
 		// Check result

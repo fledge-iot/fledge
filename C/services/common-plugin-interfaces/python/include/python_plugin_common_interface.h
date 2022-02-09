@@ -217,7 +217,7 @@ const char *json_dumps(PyObject *json_dict)
             Py_CLEAR(method);
             Py_CLEAR(args);
             Py_CLEAR(pValue);
-            Py_CLEAR(mod);
+            // Py_CLEAR(mod);
             
 			if (rval == NULL)
 			{
@@ -272,12 +272,13 @@ PyObject *json_loads(const char *json_str)
             PyObject *args = PyTuple_New(1);
             PyObject *pValue = Py_BuildValue("s", json_str);
             PyTuple_SetItem(args, 0, pValue);
-			
+
+            Logger::getLogger()->debug("%s:%d: method=%p, args=%p, pValue=%p", __FUNCTION__, __LINE__, method, args, pValue);
 			rval = PyObject_Call(method, args, NULL);
             Py_CLEAR(method);
-            Py_CLEAR(args);
-            Py_CLEAR(pValue);
-            Py_CLEAR(mod);
+            // Py_CLEAR(pValue);
+            // Py_CLEAR(args);
+            // Py_CLEAR(mod);
             
 			if (rval == NULL)
 			{

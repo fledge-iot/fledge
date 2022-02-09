@@ -1695,34 +1695,10 @@ class Server:
         Note: token will be verified for the service name in token claim 'sub'
         """
 
-        auth_header = request.headers.get('Authorization', None)
-        if auth_header is None:
-            msg = "Authorization header is missing"
-            raise web.HTTPBadRequest(reason=msg, body=json.dumps({"error": msg}))
-
-        parts = auth_header.split("Bearer ")
-        if len(parts) != 2:
-            msg = "bearer token is missing"
-            raise web.HTTPBadRequest(reason=msg, body=json.dumps({"error": msg}))
-
-        bearer_token = parts[1]
-
-        if bearer_token is not None:
-            claims = cls.validate_token(bearer_token)
-            if claims.get('error') is not None:
-                msg = claims['error']
-                raise web.HTTPBadRequest(reason=msg, body=json.dumps({"error": msg}))
-
-            # Check input token exists in system for the service name given in claims['sub']
-            foundToken = ServiceRegistry.getBearerToken(claims['sub'])
-            if foundToken is None or foundToken != bearer_token:
-                msg = 'service bearer token does not exist in system'
-                raise web.HTTPBadRequest(reason=msg, body=json.dumps({"error": msg}))
-
-            # Success
-            return web.json_response(claims)
-        else:
-            msg = 'bearer token is missing'
+        try:
+            return web.json_response(cls.get_token_common(request))
+        except Exception as e:
+            msg = str(e)
             raise web.HTTPBadRequest(reason=msg, body=json.dumps({"error": msg}))
 
     @classmethod
@@ -1752,48 +1728,24 @@ class Server:
 
         Note: token will be refreshed for the service it belongs to
         """
-        auth_header = request.headers.get('Authorization', None)
-        if auth_header is None:
-            msg = "Authorization header is missing"
-            raise web.HTTPBadRequest(reason=msg, body=json.dumps({"error": msg}))
-
-        parts = auth_header.split("Bearer ")
-        if len(parts) != 2:
-            msg = "bearer token is missing"
-            raise web.HTTPBadRequest(reason=msg, body=json.dumps({"error": msg}))
-
-        bearer_token = parts[1]
 
         try:
-            claims = cls.validate_token(bearer_token)
-            if claims.get('error') is None:
-                foundToken = ServiceRegistry.getBearerToken(claims['sub'])
-                if foundToken is None:
-                    msg = "service '" + str(claims['sub']) + "' not registered"
-                    raise web.HTTPBadRequest(reason=msg, body=json.dumps({"error": msg}))
+            claims = cls.get_token_common(request)
+            # Expiration set to now + delta
+            claims['exp'] =  int(time.time()) + SERVICE_JWT_EXP_DELTA_SECONDS
+            bearer_token = jwt.encode(claims,
+                                      SERVICE_JWT_SECRET,
+                                      SERVICE_JWT_ALGORITHM).decode("utf-8")
 
-                if foundToken != bearer_token:
-                    msg = "bearer token does not belong to service '" + str(claims['sub']) + "'"
-                    raise web.HTTPBadRequest(reason=msg, body=json.dumps({"error": msg}))
+            # Replace bearer_token for the service
+            ServiceRegistry.addBearerToken(claims['sub'], bearer_token)
+            ret = {'bearer_token' : bearer_token}
 
-                # Expiration set to now + delta
-                claims['exp'] =  int(time.time()) + SERVICE_JWT_EXP_DELTA_SECONDS
-                bearer_token = jwt.encode(claims,
-                                          SERVICE_JWT_SECRET,
-                                          SERVICE_JWT_ALGORITHM).decode("utf-8")
-
-                # Replace bearer_token for the service
-                ServiceRegistry.addBearerToken(claims['sub'], bearer_token)
-                ret = {'bearer_token' : bearer_token}
-
-                return web.json_response(ret)
-
-            msg = 'Failed to parse bearer token'
-            raise web.HTTPBadRequest(reason=msg, body=json.dumps({"error": msg}))
+            return web.json_response(ret)
 
         except Exception as e:
             msg = str(e)
-            raise web.HTTPBadRequest(reason=msg, body=json.dumps({"error": msg}))
+            raise web.HTTPBadRequest(reason=msg, body=json.dumps({"errorVALIDATE": msg}))
 
     @classmethod
     async def is_dispatcher_running(cls, storage):
@@ -1835,4 +1787,47 @@ class Server:
         schedule.enabled = False
         # Save schedule
         await cls.scheduler.save_schedule(schedule, is_enabled)
+
+    @classmethod
+    def get_token_common(cls, request):
+        """ Get Bearer Token from request
+            validate it and return token claims
+        """
+        auth_header = request.headers.get('Authorization', None)
+        if auth_header is None:
+            msg = "Authorization header is missing"
+            raise web.HTTPBadRequest(reason=msg, body=json.dumps({"error": msg}))
+
+        parts = auth_header.split("Bearer ")
+        if len(parts) != 2:
+            msg = "bearer token is missing"
+            raise web.HTTPBadRequest(reason=msg, body=json.dumps({"error": msg}))
+
+        bearer_token = parts[1]
+
+        try:
+            # Validate token and get public claims
+            claims = cls.validate_token(bearer_token)
+            if claims.get('error') is None:
+                # Check input token exists in system for the service name given in claims['sub']
+                foundToken = ServiceRegistry.getBearerToken(claims['sub'])
+                if foundToken is None:
+                    msg = "service '" + str(claims['sub']) + "' not registered"
+                    raise web.HTTPBadRequest(reason=msg, body=json.dumps({"error": msg}))
+
+                # Check input token is associated with service in claims['sub']
+                if foundToken != bearer_token:
+                    msg = "bearer token does not belong to service '" + str(claims['sub']) + "'"
+                    raise web.HTTPBadRequest(reason=msg, body=json.dumps({"error": msg}))
+
+                # Success
+                return claims
+
+            else:
+                msg = claims.get('error')
+                raise web.HTTPBadRequest(reason=msg, body=json.dumps({"error": msg}))
+
+        except Exception as e:
+            msg = str(e)
+            raise web.HTTPBadRequest(reason=msg, body=json.dumps({"error": msg}))
 

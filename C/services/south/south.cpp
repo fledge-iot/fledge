@@ -34,6 +34,8 @@
 #include <config_handler.h>
 #include <syslog.h>
 
+#define SERVICE_TYPE "Southbound"
+
 extern int makeDaemon(void);
 extern void handler(int sig);
 
@@ -197,22 +199,15 @@ void doIngestV2(Ingest *ingest, const vector<Reading *> *vec)
  * Constructor for the south service
  */
 SouthService::SouthService(const string& myName, const string& token) :
-				m_name(myName),
 				m_shutdown(false),
 				m_readingsPerSec(1),
 				m_throttle(false),
 				m_throttled(false),
 				m_token(token)
 {
+	m_name = myName;
 	logger = new Logger(myName);
 	logger->setMinLevel("warning");
-}
-
-ManagementClient *SouthService::m_mgtClient = NULL;
-
-ManagementClient * SouthService::getMgmtClient()
-{
-	return m_mgtClient;
 }
 
 /**
@@ -245,12 +240,14 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		// TODO proper hostname lookup
 		unsigned short managementListener = management.getListenerPort();
 		ServiceRecord record(m_name,			// Service name
-					"Southbound",		// Service type
+					SERVICE_TYPE,		// Service type
 					"http",			// Protocol
 					"localhost",		// Listening address
 					sport,			// Service port
 					managementListener,	// Management port
 					m_token);		// Token
+
+		// Allocate and save ManagementClient object
 		m_mgtClient = new ManagementClient(coreAddress, corePort);
 
 		// Create an empty South category if one doesn't exist
@@ -258,6 +255,7 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		southConfig.setDescription("South");
 		m_mgtClient->addCategory(southConfig, true);
 
+		// Get configuration for service name
 		m_config = m_mgtClient->getCategory(m_name);
 		if (!loadPlugin())
 		{
@@ -275,6 +273,8 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		{
 			logger->error("Failed to register service %s", m_name.c_str());
 		}
+
+		// Register for category content changes
 		ConfigHandler *configHandler = ConfigHandler::getInstance(m_mgtClient);
 		configHandler->registerCategory(this, m_name);
 		configHandler->registerCategory(this, m_name+"Advanced");
@@ -357,6 +357,8 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 			m_dataKey = m_name + m_config.getValue("plugin");
 		}
 
+		// Create default security category
+		this->createSecurityCategories(m_mgtClient);
 
 		// Get and ingest data
 		if (! southPlugin->isAsync())
@@ -748,6 +750,12 @@ void SouthService::configChange(const string& categoryName, const string& catego
 				m_throttle = false;
 			}
 		}
+	}
+
+	// Update the  Security category
+	if (categoryName.compare(m_name+"Security") == 0)
+	{
+		this->updateSecurityCategory(category);
 	}
 }
 

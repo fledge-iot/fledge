@@ -7,7 +7,7 @@
  *
  * Released under the Apache 2.0 Licence
  *
- * Author: Mark Riddoch
+ * Author: Mark Riddoch, Massimiliano Pinto
  */
 #include <logger.h>
 #include <server_http.hpp>
@@ -27,9 +27,8 @@ class SouthApi {
 		void			operation(std::shared_ptr<SimpleWeb::Server<SimpleWeb::HTTP>::Response> response,
 							std::shared_ptr<SimpleWeb::Server<SimpleWeb::HTTP>::Request> request);
 		void			startServer();
+
 	private:
-		void			respond(std::shared_ptr<SimpleWeb::Server<SimpleWeb::HTTP>::Response> response, const std::string& payload);
-		void			respond(std::shared_ptr<SimpleWeb::Server<SimpleWeb::HTTP>::Response> response, SimpleWeb::StatusCode code, const std::string& payload);
 		SimpleWeb::Server<SimpleWeb::HTTP>
 					*m_server;
 		SouthService		*m_service;

@@ -9,7 +9,9 @@
  *
  * Author: Mark Riddoch, Massimiliano Pinto
  */
+
 #include <client_http.hpp>
+#include <server_http.hpp>
 #include <config_category.h>
 #include <service_record.h>
 #include <logger.h>
@@ -21,6 +23,7 @@
 #include <thread>
 
 using HttpClient = SimpleWeb::Client<SimpleWeb::HTTP>;
+using HttpServer = SimpleWeb::Server<SimpleWeb::HTTP>;
 using namespace rapidjson;
 
 class AssetTrackingTuple;
@@ -61,10 +64,13 @@ class ManagementClient {
 		bool			addAuditEntry(const std::string& serviceName,
 						      const std::string& severity,
 						      const std::string& details);
-		std::string&		getBearerToken() { return m_bearer_token; };
+		std::string&		getRegistrationBearerToken() { return m_bearer_token; };
+		bool			verifyAccessBearerToken(std::shared_ptr<HttpServer::Request> request,
+								std::map<std::string, std::string>& claims);
+		std::string		refreshAccessBearerToken(std::shared_ptr<HttpServer::Request> request);
 
-private:
-    std::ostringstream 			m_urlbase;
+	private:
+		std::ostringstream 			m_urlbase;
 		std::map<std::thread::id, HttpClient *> m_client_map;
 		HttpClient				*m_client;
 		std::string				*m_uuid;
@@ -73,6 +79,12 @@ private:
 		// Bearer token returned by service registration
 		// if the service startup token has been passed in registration payload
 		std::string				m_bearer_token;
+		// Map of received and verified access bearer tokens from other microservices
+		std::map<std::string, std::string>	m_received_tokens;
+		// m_received_tokens lock
+		std::mutex 				m_mtx_rTokens;
+		// m_client_map lock
+		std::mutex				m_mtx_client_map;
   
 	public:
 		// member template must be here and not in .cpp file

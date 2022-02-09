@@ -49,6 +49,8 @@ bool ServiceAuthHandler::createSecurityCategories(ManagementClient* mgtClient)
 	ConfigHandler *configHandler = ConfigHandler::getInstance(mgtClient);
 	if (configHandler == NULL)
 	{
+		Logger::getLogger()->error("Failed to get access to ConfigHandler for %s",
+					m_name.c_str());
 		return false;
 	}
 

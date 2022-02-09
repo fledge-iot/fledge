@@ -52,6 +52,16 @@ SimpleHttp::SimpleHttp(const string& host_port,
 }
 
 /**
+ * Set a proxy server
+ *
+ * @param proxy	The name and port of the proxy server
+ */
+void SimpleHttp::setProxy(const string& proxy)
+{
+	m_sender->config.proxy_server = proxy;
+}
+
+/**
  * Destructor
  */
 SimpleHttp::~SimpleHttp()

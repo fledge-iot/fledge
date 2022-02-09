@@ -35,6 +35,11 @@ class SimpleHttp: public HttpSender
 		~SimpleHttp();
 
 		/**
+		 * Set the host and port of the proxy server
+		 */
+		void setProxy(const std::string& proxy);
+
+		/**
 		 * HTTP(S) request: pass method and path, HTTP headers and POST/PUT payload.
 		 */
 		int sendRequest(

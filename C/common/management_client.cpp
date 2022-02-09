@@ -881,6 +881,7 @@ bool ManagementClient::verifyAccessBearerToken(shared_ptr<HttpServer::Request> r
 
 	if (bearer_token.length() == 0)
 	{
+		m_logger->info("Bearer token has empty value");
 		return false;
 	}
 
@@ -907,19 +908,29 @@ bool ManagementClient::verifyAccessBearerToken(shared_ptr<HttpServer::Request> r
 		doc.Parse(response.c_str());
 		if (doc.HasParseError())
 		{
-			bool httpError = (isdigit(response[0]) && isdigit(response[1]) && isdigit(response[2]) && response[3]==':');
+			bool httpError = (isdigit(response[0]) &&
+					  isdigit(response[1]) &&
+					  isdigit(response[2]) &&
+					  response[3]==':');
 			m_logger->error("%s error in service token verification: %s\n", 
-								httpError?"HTTP error during":"Failed to parse result of", 
-								response.c_str());
+					httpError?"HTTP error during":"Failed to parse result of", 
+					response.c_str());
 			verified = false;
 		}
 		else
 		{
 			if (doc.HasMember("error"))
 			{
-				string error = doc["error"].GetString();
-				m_logger->error("Failed to parse token verification result, error %s",
-						error.c_str());
+				if (doc["error"].IsString())
+				{
+					string error = doc["error"].GetString();
+					m_logger->error("Failed to parse token verification result, error %s",
+							error.c_str());
+				}
+				else
+				{
+					m_logger->error("Failed to parse token verification result");
+				}
 				verified = false;
 			}
 			else
@@ -927,9 +938,18 @@ bool ManagementClient::verifyAccessBearerToken(shared_ptr<HttpServer::Request> r
 				verified = true;
 
 				// Set token claims in the input map
-				claims["aud"] = doc["aud"].GetString();
-				claims["sub"] = doc["sub"].GetString();
-				claims["iss"] = doc["iss"].GetString();
+				if (doc["aud"].IsString() &&
+				    doc["sub"].IsString() &&
+				    doc["iss"].IsString())
+				{
+					claims["aud"] = doc["aud"].GetString();
+					claims["sub"] = doc["sub"].GetString();
+					claims["iss"] = doc["iss"].GetString();
+				}
+				else
+				{
+					 m_logger->error("Token claims do not contain string values");
+				}
 			}
 		}
 
@@ -1045,9 +1065,16 @@ string ManagementClient::refreshAccessBearerToken(shared_ptr<HttpServer::Request
 	{
 		if (doc.HasMember("error"))
 		{
-			string error = doc["error"].GetString();
-			m_logger->error("Failed to parse token refresh result, error %s",
-					error.c_str());
+			if (doc["error"].IsString())
+			{
+				string error = doc["error"].GetString();
+				m_logger->error("Failed to parse token refresh result, error %s",
+						error.c_str());
+			}
+			else
+			{
+				m_logger->error("Failed to parse token refresh result");
+			}
 			ret = false;
 		}
 		else if (doc.HasMember("bearer_token"))

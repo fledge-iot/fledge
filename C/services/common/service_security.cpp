@@ -4,6 +4,7 @@
 #include <service_handler.h>
 #include <config_handler.h>
 #include <server_http.hpp>
+#include <rapidjson/error/en.h>
 
 #define TO_STRING(...) DEFER(TO_STRING_)(__VA_ARGS__)
 #define DEFER(x) x
@@ -157,11 +158,22 @@ bool ServiceAuthHandler::verifyURL(const string& path, map<string, string> claim
 
 	doc.Parse(acl.c_str());
 
-	Value arrayURL;
-	if (doc["URL"].IsArray())
+	// Check
+	if (doc.HasParseError())
 	{
-		arrayURL = doc["URL"];
+		Logger::getLogger()->error("Failed to parse ACL JSON data: %s. Document is %s",
+				GetParseError_En(doc.GetParseError()),
+				acl.c_str());
+		return false;
 	}
+
+	Value arrayURL;
+	if (!doc["URL"].IsArray())
+	{
+		return false;
+	}
+
+	arrayURL = doc["URL"];
 	if (arrayURL.Size() == 0)
 	{
 		return true;
@@ -225,11 +237,20 @@ bool ServiceAuthHandler::verifyService(string& sName, string &sType)
 
 	doc.Parse(acl.c_str());
 
-	if (doc["service"].IsArray())
+	// Check
+	if (doc.HasParseError())
 	{
-		arrayService = doc["service"];
+		Logger::getLogger()->error("Failed to parse ACL JSON data: %s. Document is %s",
+				GetParseError_En(doc.GetParseError()),
+				acl.c_str());
+		return false;
+	}
+	if (!doc["service"].IsArray())
+	{
+		return false;
 	}
 
+	arrayService = doc["service"];
 	if (arrayService.Size() == 0)
 	{
 		return true;

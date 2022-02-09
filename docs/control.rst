@@ -9,7 +9,7 @@
 .. |sine_out_change| image:: images/sine_out_change.jpg
 .. |end_to_end| image:: images/EndToEnd.jpg
 .. |north_map1| image:: images/north_map1.jpg
-.. |dispatcher_config| image:: images/dispatch-config.jpg
+.. |dispatcher_config| image:: images/dispatcher-config.jpg
 
 
 *****************

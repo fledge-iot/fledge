@@ -88,6 +88,12 @@ class TestService:
         assert 'Fledge Core' == core_svc['name']
         assert 'http' == core_svc['protocol']
 
+        # filter with Storage type
+        jdoc = get_service(fledge_url, '/fledge/service?type=Storage')
+        assert len(jdoc), "No data found"
+        assert 1 == len(jdoc['services'])
+        assert 'Storage' == jdoc['services'][0]['type']
+
     C_ASYNC_CONFIG = {"file": {"value": os.getenv("FLEDGE_ROOT", "") + '/tests/system/python/data/vibration.csv'}}
 
     @pytest.mark.parametrize("plugin, svc_name, display_svc_name, config, enabled, svc_count", [

@@ -243,6 +243,10 @@ class TestBackup:
                     assert {"message": response_message} == json_response
 
     async def test_get_backup_download(self, client):
+        # FIXME: py3.9 fails to recognise this in default installed mimetypes known-file
+        import mimetypes
+        mimetypes.add_type('text/plain', '.tar.gz')
+
         storage_client_mock = MagicMock(StorageClientAsync)
         response = {'id': 1, 'file_name': '/usr/local/fledge/data/backup/fledge.db', 'ts': '2018-02-15 15:18:41',
                     'status': '2', 'type': '1'}

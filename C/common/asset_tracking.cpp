@@ -126,3 +126,41 @@ void AssetTracker::addAssetTrackingTuple(string plugin, string asset, string eve
 	addAssetTrackingTuple(tuple);
 }
 
+/**
+ * Return the name of the service responsible for particulr event of the named asset
+ *
+ * @param event	The event of interest
+ * @param asset	The asset we are interested in
+ * @return string	The service name of the service that ingests the asset
+ * @throws exception 	If the service could not be found
+ */
+string AssetTracker::getService(const std::string& event, const std::string& asset)
+{
+	// Fetch all asset tracker records
+	std::vector<AssetTrackingTuple*>& vec = m_mgtClient->getAssetTrackingTuples();
+	string foundService;
+	for (AssetTrackingTuple* &rec : vec)
+	{
+		// Return first service name with given asset and event
+		if (rec->m_assetName == asset && rec->m_eventName == event)
+		{
+			foundService = rec->m_serviceName;
+			break;
+		}
+	}
+
+	delete (&vec);
+
+	// Return found service or raise an exception
+	if (foundService != "")
+	{
+		return foundService;
+	}
+	else
+	{
+		Logger::getLogger()->error("No service found for asset '%s' and event '%s'",
+					event.c_str(),
+					asset.c_str());
+		throw runtime_error("Fetching service for asset not yet implemented");
+	}
+}

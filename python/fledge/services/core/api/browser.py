@@ -58,7 +58,7 @@ __version__ = "${VERSION}"
 __DEFAULT_LIMIT = 20
 __DEFAULT_OFFSET = 0
 
-DATAPOINTS = ['__DPIMAGE', '__DATABUFFER']
+DATAPOINT_TYPES = ['__DPIMAGE', '__DATABUFFER']
 IMAGE_PLACEHOLDER = "Data removed for brevity"
 
 
@@ -180,7 +180,7 @@ async def asset(request):
             for item_name, item_val in data.items():
                 if isinstance(item_val, dict):
                     for item_name2, item_val2 in item_val.items():
-                        if isinstance(item_val2, str) and item_val2.startswith(tuple(DATAPOINTS)):
+                        if isinstance(item_val2, str) and item_val2.startswith(tuple(DATAPOINT_TYPES)):
                             data[item_name][item_name2] = IMAGE_PLACEHOLDER
         response = rows
     except KeyError:
@@ -268,8 +268,7 @@ async def asset_reading(request):
         for index, data in enumerate(rows):
             for item_name, item_val in data.items():
                 if item_name != 'timestamp':
-                    print(item_name, item_val)
-                    if isinstance(item_val, str) and item_val.startswith(tuple(DATAPOINTS)):
+                    if isinstance(item_val, str) and item_val.startswith(tuple(DATAPOINT_TYPES)):
                         data[item_name] = IMAGE_PLACEHOLDER
         response = rows
     except KeyError:
@@ -469,13 +468,22 @@ async def asset_averages(request):
     _group = PayloadBuilder(_and_where).GROUP_BY("user_ts").ALIAS("group", ("user_ts", "timestamp")) \
         .FORMAT("group", ("user_ts", ts_restraint)).chain_payload()
     payload = PayloadBuilder(_group).ORDER_BY(["user_ts", "desc"]).payload()
-    results = {}
+    _readings = connect.get_readings_async()
+    results = await _readings.query(payload)
     try:
-        _readings = connect.get_readings_async()
-        results = await _readings.query(payload)
-        response = results['rows']
+        rows = results['rows']
+        for index, data in enumerate(rows):
+            for item_name, item_val in data.items():
+                if item_name != 'timestamp':
+                    if isinstance(item_val, str) and item_val.startswith(tuple(DATAPOINT_TYPES)):
+                        data[item_name] = IMAGE_PLACEHOLDER
+        response = rows
     except KeyError:
-        raise web.HTTPBadRequest(reason=results['message'])
+        msg = results['message']
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+    except Exception as exc:
+        msg = str(exc)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(response)
 

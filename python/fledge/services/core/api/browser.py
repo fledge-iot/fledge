@@ -58,6 +58,9 @@ __version__ = "${VERSION}"
 __DEFAULT_LIMIT = 20
 __DEFAULT_OFFSET = 0
 
+DATAPOINTS = ['__DPIMAGE', '__DATABUFFER']
+IMAGE_PLACEHOLDER = "Data removed for brevity"
+
 
 def setup(app):
     """ Add the routes for the API endpoints supported by the data browser """
@@ -169,14 +172,23 @@ async def asset(request):
             raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
 
     payload = PayloadBuilder(_and_where).ORDER_BY(["user_ts", _order]).payload()
-    results = {}
     try:
         _readings = connect.get_readings_async()
         results = await _readings.query(payload)
-        response = results['rows']
+        rows = results['rows']
+        for index, data in enumerate(rows):
+            for item_name, item_val in data.items():
+                if isinstance(item_val, dict):
+                    for item_name2, item_val2 in item_val.items():
+                        if isinstance(item_val2, str) and item_val2.startswith(tuple(DATAPOINTS)):
+                            data[item_name][item_name2] = IMAGE_PLACEHOLDER
+        response = rows
     except KeyError:
         msg = results['message']
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+    except Exception as exc:
+        msg = str(exc)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(response)
 

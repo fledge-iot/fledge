@@ -47,8 +47,8 @@ class NorthService : public ServiceHandler {
 		void				release();
 		bool				write(const std::string& name, const std::string& value, const ControlDestination);
 		bool				write(const std::string& name, const std::string& value, const ControlDestination, const std::string& arg);
-		int				operation(const std::string& name, int paramCount, char *parameters[], const ControlDestination);
-		int				operation(const std::string& name, int paramCount, char *parameters[], const ControlDestination, const std::string& arg);
+		int				operation(const std::string& name, int paramCount, char *names[], char *parameters[], const ControlDestination);
+		int				operation(const std::string& name, int paramCount, char *names[], char *parameters[], const ControlDestination, const std::string& arg);
 	private:
 		void				addConfigDefaults(DefaultConfigCategory& defaults);
 		bool 				loadPlugin();
@@ -73,5 +73,6 @@ class NorthService : public ServiceHandler {
                 std::condition_variable		m_cv;
 		PluginData			*m_pluginData;
 		bool				m_restartPlugin;
+		bool				m_allowControl;
 };
 #endif

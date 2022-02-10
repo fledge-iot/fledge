@@ -387,10 +387,17 @@ async def asset_summary(request):
         results = await _readings.query(payload)
         # for aggregates, so there can only ever be one row
         response = results['rows'][0]
+        for item_name, item_val in response.items():
+            if isinstance(item_val, str) and item_val.startswith(tuple(DATAPOINT_TYPES)):
+                response[item_name] = IMAGE_PLACEHOLDER
     except KeyError:
-        raise web.HTTPBadRequest(reason=results['message'])
+        msg = results['message']
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+    except Exception as exc:
+        msg = str(exc)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
-        return web.json_response({reading: response})
+        return web.json_response(response)
 
 
 async def asset_averages(request):

@@ -311,7 +311,7 @@ async def asset_all_readings_summary(request):
         # TODO: FOGL-1768 when support available from storage layer then avoid multiple calls
         # Find keys in readings
         reading_keys = list(results['rows'][-1]['reading'].keys())
-        response = []
+        rows = []
         _where = PayloadBuilder().WHERE(["asset_code", "=", asset_code]).chain_payload()
         if 'seconds' in request.query or 'minutes' in request.query or 'hours' in request.query:
             _and_where = where_clause(request, _where)
@@ -328,11 +328,24 @@ async def asset_all_readings_summary(request):
                        ('reading', 'avg', 'average')).chain_payload()
             payload = PayloadBuilder(_aggregate).payload()
             results = await _readings.query(payload)
-            response.append({reading: results['rows'][0]})
-    except (KeyError, IndexError) as ex:
-        raise web.HTTPNotFound(reason=ex)
-    except (TypeError, ValueError) as ex:
-        raise web.HTTPBadRequest(reason=ex)
+            rows.append({reading: results['rows'][0]})
+        for index, data in enumerate(rows):
+            for item_name, item_val in data.items():
+                print(item_name, item_val)
+                if isinstance(item_val, dict):
+                    for item_name2, item_val2 in item_val.items():
+                        if isinstance(item_val2, str) and item_val2.startswith(tuple(DATAPOINT_TYPES)):
+                            data[item_name][item_name2] = IMAGE_PLACEHOLDER
+        response = rows
+    except (KeyError, IndexError) as err:
+        msg = str(err)
+        raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
+    except (TypeError, ValueError) as err:
+        msg = str(err)
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+    except Exception as exc:
+        msg = str(exc)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(response)
 

@@ -172,9 +172,9 @@ async def asset(request):
             raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
 
     payload = PayloadBuilder(_and_where).ORDER_BY(["user_ts", _order]).payload()
+    _readings = connect.get_readings_async()
+    results = await _readings.query(payload)
     try:
-        _readings = connect.get_readings_async()
-        results = await _readings.query(payload)
         rows = results['rows']
         for index, data in enumerate(rows):
             for item_name, item_val in data.items():
@@ -260,16 +260,24 @@ async def asset_reading(request):
     else:
         # Add the order by and limit, offset clause
         _and_where = prepare_limit_skip_payload(request, _where)
-
     payload = PayloadBuilder(_and_where).ORDER_BY(["user_ts", "desc"]).payload()
-
-    results = {}
+    _readings = connect.get_readings_async()
+    results = await _readings.query(payload)
     try:
-        _readings = connect.get_readings_async()
-        results = await _readings.query(payload)
-        response = results['rows']
+        rows = results['rows']
+        for index, data in enumerate(rows):
+            for item_name, item_val in data.items():
+                if item_name != 'timestamp':
+                    print(item_name, item_val)
+                    if isinstance(item_val, str) and item_val.startswith(tuple(DATAPOINTS)):
+                        data[item_name] = IMAGE_PLACEHOLDER
+        response = rows
     except KeyError:
-        raise web.HTTPBadRequest(reason=results['message'])
+        msg = results['message']
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+    except Exception as exc:
+        msg = str(exc)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(response)
 

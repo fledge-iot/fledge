@@ -54,7 +54,7 @@ private:
 	PLUGIN_HANDLE	instance;
 	void		(*pluginStartPtr)(PLUGIN_HANDLE);
 	Reading		(*pluginPollPtr)(PLUGIN_HANDLE);
-	ReadingSet* (*pluginPollPtrV2)(PLUGIN_HANDLE);
+	std::vector<Reading*>* (*pluginPollPtrV2)(PLUGIN_HANDLE);
 	void		(*pluginReconfigurePtr)(PLUGIN_HANDLE*,
 					        const std::string& newConfig);
 	void		(*pluginShutdownPtr)(PLUGIN_HANDLE);

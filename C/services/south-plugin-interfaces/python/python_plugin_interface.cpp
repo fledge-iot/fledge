@@ -32,7 +32,7 @@ extern void logErrorMessage();
 extern PLUGIN_INFORMATION *Py2C_PluginInfo(PyObject *);
 
 // South plugin entry points
-ReadingSet* plugin_poll_fn(PLUGIN_HANDLE);
+std::vector<Reading *>* plugin_poll_fn(PLUGIN_HANDLE);
 void plugin_start_fn(PLUGIN_HANDLE handle);
 void plugin_register_ingest_fn(PLUGIN_HANDLE handle,INGEST_CB2 cb,void * data);
 
@@ -176,7 +176,7 @@ void* PluginInterfaceResolveSymbol(const char *_sym, const string& name)
  * @param    handle	Plugin handle from plugin_init_fn
  * @return		Vector of Reading data
  */
-ReadingSet* plugin_poll_fn(PLUGIN_HANDLE handle)
+std::vector<Reading *>* plugin_poll_fn(PLUGIN_HANDLE handle)
 {
 	if (!handle)
 	{
@@ -283,7 +283,18 @@ ReadingSet* plugin_poll_fn(PLUGIN_HANDLE handle)
 		Py_CLEAR(pReturn);
 
 		PyGILState_Release(state);
-		return pyReadingSet;
+
+        std::vector<Reading *> *vec = pyReadingSet->getAllReadingsPtr();
+        std::vector<Reading *> *vec2 = new std::vector<Reading *>;
+        
+        for (auto & r : *vec)
+        {
+            Reading *r2 = new Reading(*r); // Need to copy reading objects here, since "del pyReadingSet" below would remove encapsulated reading objects
+            vec2->emplace_back(r2);
+        }
+        
+        delete pyReadingSet;
+		return vec2;
 	}
 }
 	

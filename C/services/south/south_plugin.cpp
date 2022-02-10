@@ -53,7 +53,7 @@ SouthPlugin::SouthPlugin(PLUGIN_HANDLE handle, const ConfigCategory& category) :
 	}
 	else if (pluginInterfaceVer[0]=='2' && pluginInterfaceVer[1]=='.')
 	{
-		pluginPollPtrV2 = (ReadingSet* (*)(PLUGIN_HANDLE))
+		pluginPollPtrV2 = (std::vector<Reading*>* (*)(PLUGIN_HANDLE))
 				manager->resolveSymbol(handle, "plugin_poll");
 	}
 	else
@@ -176,7 +176,10 @@ ReadingSet* SouthPlugin::pollV2()
 {
 	lock_guard<mutex> guard(mtx2);
 	try {
-		return this->pluginPollPtrV2(instance);
+        std::vector<Reading *> *vec = this->pluginPollPtrV2(instance);
+        ReadingSet *set = new ReadingSet(vec);
+        delete vec;
+		return set;  // this->pluginPollPtrV2(instance);
 	} catch (exception& e) {
 		Logger::getLogger()->fatal("Unhandled exception raised in v2 south plugin poll(), %s",
 			e.what());

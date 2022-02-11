@@ -49,7 +49,7 @@ ReadingSet::ReadingSet() : m_count(0), m_last_id(0)
  *			of readings to be copied
  *			into m_readings vector
  */
-ReadingSet::ReadingSet(vector<Reading *>* readings) : m_last_id(0)
+ReadingSet::ReadingSet(const vector<Reading *>* readings) : m_last_id(0)
 {
 	m_count = readings->size();
 	for (auto it = readings->begin(); it != readings->end(); ++it)
@@ -395,25 +395,25 @@ JSONReading::JSONReading(const Value& json)
 						    if ((m.value.GetArray())[0].IsArray())
 						    {
 							    // We have a 2D array
-							    vector< vector<double> > array;
+							    vector< vector<double> *> array;
 							    for (auto& v : m.value.GetArray())
 							    {
-								    vector<double> arrayValues;
+								    vector<double> *arrayValues = new vector<double>;
 								    for (auto& v : m.value.GetArray())
 								    {
 									    if (v.IsDouble())
 									    {
-										    arrayValues.push_back(v.GetDouble());
+										    arrayValues->push_back(v.GetDouble());
 									    }
 									    else if (v.IsInt() || v.IsUint())
 									    {
 										    double i = (double)v.GetInt();
-										    arrayValues.push_back(i);
+										    arrayValues->push_back(i);
 									    }
 									    else if (v.IsInt64() || v.IsUint64())
 									    {
 										    double i = (double)v.GetInt64();
-										    arrayValues.push_back(i);
+										    arrayValues->push_back(i);
 									    }
 								    }
 								    array.push_back(arrayValues);

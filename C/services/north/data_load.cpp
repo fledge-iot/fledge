@@ -146,7 +146,7 @@ ReadingSet *readings = NULL;
 			switch (m_dataSource)
 			{
 				case SourceReadings:
-					Logger::getLogger()->debug("Fetch %d readings from %d", blockSize, m_lastFetched + 1);
+					// Logger::getLogger()->debug("Fetch %d readings from %d", blockSize, m_lastFetched + 1);
 					readings = m_storage->readingFetch(m_lastFetched + 1, blockSize);
 					break;
 				case SourceStatistics:
@@ -171,13 +171,14 @@ ReadingSet *readings = NULL;
 		}
 		if (readings && readings->getCount())
 		{
+            Logger::getLogger()->debug("DataLoad::readBlock(): Got %d readings from storage client", readings->getCount());
 			m_lastFetched = readings->getLastId();
 			bufferReadings(readings);
 			return;
 		}
 		else
 		{
-			Logger::getLogger()->debug("No readings available");
+			// Logger::getLogger()->debug("DataLoad::readBlock(): No readings available");
 		}
 		if (!m_shutdown)
 		{	

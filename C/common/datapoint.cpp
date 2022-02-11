@@ -108,11 +108,11 @@ std::string DatapointValue::toString() const
 			else
 				ss << ", ";
 			ss << "[";
-			for (auto it = row.begin();
-			     it != row.end();
+			for (auto it = row->begin();
+			     it != row->end();
 			     ++it)
 			{
-				if (it != row.begin())
+				if (it != row->begin())
 				{
 					ss << ", ";
 				}
@@ -226,6 +226,19 @@ DatapointValue::DatapointValue(const DatapointValue& obj)
 		case T_DATABUFFER:
 			m_value.dataBuffer = new DataBuffer(*(obj.m_value.dataBuffer));
 			break;
+		case T_2D_FLOAT_ARRAY:
+			m_value.a2d = new std::vector< std::vector<double>* >;
+			for (auto row : *obj.m_value.a2d)
+			{
+				std::vector<double> *nrow = new std::vector<double>;
+				for (auto& d : *row)
+				{
+					nrow->push_back(d);
+				}
+				m_value.a2d->push_back(nrow);
+			}
+			m_type = T_2D_FLOAT_ARRAY;
+			break;
 		default:
 			m_value = obj.m_value;
 			break;
@@ -260,6 +273,10 @@ DatapointValue& DatapointValue::operator=(const DatapointValue& rhs)
 	{
 		delete m_value.dataBuffer;
 	}
+	if (m_type == T_2D_FLOAT_ARRAY)
+	{
+		delete m_value.a2d;
+	}
 
 	m_type = rhs.m_type;
 
@@ -280,6 +297,19 @@ DatapointValue& DatapointValue::operator=(const DatapointValue& rhs)
 		break;
 	case T_DATABUFFER:
 		m_value.dataBuffer = new DataBuffer(*(rhs.m_value.dataBuffer));
+		break;
+	case T_2D_FLOAT_ARRAY:
+		m_value.a2d = new std::vector< std::vector<double>* >;
+		for (auto row : *(rhs.m_value.a2d))
+		{
+			std::vector<double> *nrow = new std::vector<double>;
+			for (auto& d : *row)
+			{
+				nrow->push_back(d);
+			}
+			m_value.a2d->push_back(nrow);
+		}
+		m_type = T_2D_FLOAT_ARRAY;
 		break;
 	default:
 		m_value = rhs.m_value;

@@ -26,15 +26,14 @@ PythonConfigCategory::PythonConfigCategory(PyObject *config)
 {
 	if (!PyDict_Check(config))
 	{
-			throw runtime_error("Invalid confioguration category, expected Python DICT");
+			throw runtime_error("Invalid configuration category, expected Python DICT");
 	}
 
 	// Fetch all items in configuration dict			
 	PyObject *dKey, *dValue;
 	Py_ssize_t dPos = 0;
 
-	// Fetch all Datapoint:w
-	// s in 'reading' dict
+	// Fetch all Datapoints in 'reading' dict
 	// dKey and dValue are borrowed references
 	while (PyDict_Next(config, &dPos, &dKey, &dValue))
 	{

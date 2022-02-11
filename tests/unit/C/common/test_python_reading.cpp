@@ -433,7 +433,7 @@ TEST_F(PythonReadingTest, DataBuffer)
 	obj = callPythonFunc2("array_element_0", pyReading, element);
 	if (obj)
 	{
-		EXPECT_STREQ(obj->ob_type->tp_name, "numpy.int16");
+		EXPECT_STREQ(obj->ob_type->tp_name, "numpy.uint16");
 	}
 	else
 	{
@@ -592,14 +592,15 @@ TEST_F(PythonReadingTest, UpdateAssetCode)
 
 TEST_F(PythonReadingTest, Double2DArray)
 {
-	vector<vector<double> > array;
+	vector<vector<double>* > array;
 	for (int i = 0; i < 2; i++)
 	{
-		vector<double> row;
-		row.push_back(1.4 + i);
-		row.push_back(3.7 + i);
+		vector<double> *row = new vector<double>;
+		row->push_back(1.4 + i);
+		row->push_back(3.7 + i);
 		array.push_back(row);
 	}
+
 	DatapointValue value(array);
 	Reading reading("test2d", new Datapoint("array", value));
 	PyObject *pyReading = ((PythonReading *)(&reading))->toPython();
@@ -613,11 +614,11 @@ TEST_F(PythonReadingTest, Double2DArray)
 		EXPECT_EQ(pyr.getDatapointCount(), 1);
 		Datapoint *dp = pyr.getDatapoint("array");
 		EXPECT_EQ(dp->getData().getType(), DatapointValue::dataTagType::T_2D_FLOAT_ARRAY);
-		vector<vector<double> > *a2d = dp->getData().getDp2DArr();
-		EXPECT_EQ((*a2d)[0][0], 2.4);
-		EXPECT_EQ((*a2d)[0][1], 4.7);
-		EXPECT_EQ((*a2d)[1][0], 1.4);
-		EXPECT_EQ((*a2d)[1][1], 3.7);
+		vector<vector<double> *> *a2d = dp->getData().getDp2DArr();
+		EXPECT_EQ(a2d->at(0)->at(0), 2.4);
+		EXPECT_EQ(a2d->at(0)->at(1), 4.7);
+		EXPECT_EQ(a2d->at(1)->at(0), 1.4);
+		EXPECT_EQ(a2d->at(1)->at(1), 3.7);
 	}
 	else
 	{

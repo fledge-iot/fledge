@@ -31,6 +31,7 @@ bool PythonReading::doneNumPyImport = false;
 
 using namespace std;
 
+
 /**
  * Construct a PythonReading from a DICT object returned by Python code.
  *
@@ -40,7 +41,7 @@ using namespace std;
  * @param pyReading	The Python DICT
  */
 PythonReading::PythonReading(PyObject *pyReading)
-{
+{    
 	// Get 'asset_code' value: borrowed reference.
 	PyObject *assetCode = PyDict_GetItemString(pyReading,
 						   "asset");
@@ -71,8 +72,7 @@ PythonReading::PythonReading(PyObject *pyReading)
 	PyObject *dKey, *dValue;
 	Py_ssize_t dPos = 0;
 
-	// Fetch all Datapoint:w
-	// s in 'reading' dict
+	// Fetch all Datapoints in 'readings' dict
 	// dKey and dValue are borrowed references
 	while (PyDict_Next(reading, &dPos, &dKey, &dValue))
 	{
@@ -96,23 +96,45 @@ PythonReading::PythonReading(PyObject *pyReading)
 		// Set id
 		m_id = PyLong_AsUnsignedLong(id);
 	}
+	else
+	{
+		m_id = 0;
+	}
 
 	// Get 'ts' value: borrowed reference.
-	PyObject *ts = PyDict_GetItemString(pyReading, "ts");
-	if (ts && PyLong_Check(ts))
+	// Need to use PyDict_GetItemWithError in order to avoid an exception
+	PyObject *key = PyUnicode_FromString("timestamp");
+	PyObject *ts = PyDict_GetItemWithError(pyReading, key);
+	if (!(ts && PyUnicode_Check(ts)))
+	{
+		ts = PyDict_GetItemString(pyReading, "ts");
+	}
+	if (ts && PyUnicode_Check(ts))
 	{
 		// Set timestamp
-		m_timestamp.tv_sec = PyLong_AsUnsignedLong(ts);
+		const char *ts_str = PyUnicode_AsUTF8(ts);
+		setTimestamp(ts_str);
+	}
+	else
+	{
+		m_timestamp.tv_sec = 0;
 		m_timestamp.tv_usec = 0;
+		// Logger::getLogger()->debug("PythonReading c'tor: Couldn't parse 'ts' ");
 	}
 
 	// Get 'user_ts' value: borrowed reference.
 	PyObject *uts = PyDict_GetItemString(pyReading, "user_ts");
-	if (uts && PyLong_Check(uts))
+	if (uts && PyUnicode_Check(uts))
 	{
 		// Set user timestamp
-		m_userTimestamp.tv_sec = PyLong_AsUnsignedLong(uts);
-		m_userTimestamp.tv_usec = 0;
+		const char *ts_str = PyUnicode_AsUTF8(uts);
+		setUserTimestamp(ts_str);
+	}
+	else
+	{
+		// Logger::getLogger()->debug("PythonReading c'tor: Couldn't parse 'user_ts' ");
+	        m_userTimestamp.tv_sec = 0;
+       		m_userTimestamp.tv_usec = 0;
 	}
 }
 
@@ -124,8 +146,10 @@ PythonReading::PythonReading(PyObject *pyReading)
  */
 DatapointValue *PythonReading::getDatapointValue(PyObject *value)
 {
+    // InitNumPy();
+    
 	DatapointValue *dataPoint = NULL;
-	if (PyLong_Check(value) || PyLong_Check(value))	// Integer	T_INTEGER
+	if (PyLong_Check(value))	// Integer	T_INTEGER
 	{
 		dataPoint = new DatapointValue((long)PyLong_AsUnsignedLongMask(value));
 	}
@@ -162,7 +186,7 @@ DatapointValue *PythonReading::getDatapointValue(PyObject *value)
 		}
 		dataPoint = new DatapointValue(values, true);
 	}
-	else if (PyList_Check(value))	// List of data points or flaots
+	else if (PyList_Check(value))	// List of data points or floats
 	{
 		Py_ssize_t listSize = PyList_Size(value);
 		// Find out what the list contains
@@ -183,18 +207,17 @@ DatapointValue *PythonReading::getDatapointValue(PyObject *value)
 		}
 		else if (PyList_Check(item0))	// 2D array 		T_2D_FLOAT_ARRAY
 		{
-			vector<vector<double> > values;
+			vector<vector<double>* > values;
 			for (Py_ssize_t i = 0; i < listSize; i++)
 			{
-				vector<double> row;
+				vector<double> *row = new vector<double>;
 				PyObject *pyRow = PyList_GetItem(value, i);
 				for (Py_ssize_t j = 0; j < PyList_Size(pyRow); j++)
 				{
 					double d = PyFloat_AS_DOUBLE(PyList_GetItem(pyRow, j));
-					row.push_back(d);
+					row->push_back(d);
 				}
 				values.push_back(row);
-
 			}
 			dataPoint = new DatapointValue(values);
 		}
@@ -236,20 +259,38 @@ DatapointValue *PythonReading::getDatapointValue(PyObject *value)
 		else if (PyArray_NDIM(array) == 2)	// Image	T_IMAGE
 		{
 			npy_intp *dims = PyArray_DIMS(array);
-			int width = (int)dims[0];
-			int height = (int)dims[1];
+			int height = (int)dims[0];
+			int width = (int)dims[1];
 			int depth = item_size * 8;	// In bits
 			DPImage *image = new DPImage(width, height, depth, PyArray_DATA(array));
 
 			dataPoint = new DatapointValue(image);
 		}
+		else if (PyArray_NDIM(array) == 3)	// RGB Image	T_IMAGE
+		{
+			npy_intp *dims = PyArray_DIMS(array);
+			if ((int)dims[2] == 3)
+			{
+				int height = (int)dims[0];
+				int width = (int)dims[1];
+				int depth = 24;	// In bits
+				DPImage *image = new DPImage(width, height, depth, PyArray_DATA(array));
+
+				dataPoint = new DatapointValue(image);
+			}
+			else
+			{
+				Logger::getLogger()->error("Received 3D numpy array that is not RGB image");
+			}
+		}
 		else
 		{
-			Logger::getLogger()->error("Encountered a numpy array with more than 2 dimensions in a Python data point %s. This is currently not supported");
+			Logger::getLogger()->error("Encountered a numpy array with more than 3 dimensions in a Python data point %s. This is currently not supported");
 		}
 	}
 	else
 	{
+        Logger::getLogger()->info("PythonReading::getDatapointValue: UNSUPPORTED");
 		PyTypeObject *type = value->ob_type;
 		Logger::getLogger()->error("Encountered an unsupported type '%s' when create a reading from Python", type->tp_name);
 	}
@@ -283,7 +324,7 @@ PyObject *PythonReading::toPython(bool changeKeys)
 		}
 		else
 		{
-			Logger::getLogger()->info("Unable to covnert datapoint '%s' of reading '%s' tp Python",
+			Logger::getLogger()->info("Unable to convert datapoint '%s' of reading '%s' tp Python",
 					(*it)->getName().c_str(), m_asset.c_str());
 		}
 	}
@@ -309,13 +350,17 @@ PyObject *PythonReading::toPython(bool changeKeys)
 	Py_CLEAR(key);
 
 	// Add reading timestamp
-	PyObject *readingTs = PyLong_FromUnsignedLong(m_timestamp.tv_sec);
+	// PyObject *readingTs = PyLong_FromUnsignedLong(m_timestamp.tv_sec);
+	string s = this->getAssetDateTime(FMT_DEFAULT) + "+00:00";
+    PyObject *readingTs = PyUnicode_FromString(s.c_str());
 	key = PyUnicode_FromString("ts");
 	PyDict_SetItem(readingObject, key, readingTs);
 	Py_CLEAR(key);
 
 	// Add reading user timestamp
-	PyObject *readingUserTs = PyLong_FromUnsignedLong(m_userTimestamp.tv_sec);
+	//PyObject *readingUserTs = PyLong_FromUnsignedLong(m_userTimestamp.tv_sec);
+	s = this->getAssetDateUserTime(FMT_DEFAULT) + "+00:00";
+	PyObject *readingUserTs = PyUnicode_FromString(s.c_str());
 	key = PyUnicode_FromString("user_ts");
 	PyDict_SetItem(readingObject, key, readingUserTs);
 	Py_CLEAR(key);
@@ -365,16 +410,16 @@ PyObject *PythonReading::convertDatapoint(Datapoint *dp)
 	}
 	else if (dataType == DatapointValue::dataTagType::T_2D_FLOAT_ARRAY)
 	{
-		vector<vector<double> > *vec = dp->getData().getDp2DArr();
+		vector<vector<double>* > *vec = dp->getData().getDp2DArr();
 		value = PyList_New(vec->size());
 		int rowNo = 0;
 		for (auto row : *vec)
 		{
 			int i = 0;
-			PyObject *pyRow = PyList_New(row.size());
-			for (auto it = row.begin(); it != row.end(); ++it)
+			PyObject *pyRow = PyList_New(row->size());
+			for (auto& d : *row)
 			{
-				PyList_SetItem(pyRow, i++, PyFloat_FromDouble(*it));
+				PyList_SetItem(pyRow, i++, PyFloat_FromDouble(d));
 			}
 			PyList_SetItem(value, rowNo++, pyRow);
 		}
@@ -389,16 +434,16 @@ PyObject *PythonReading::convertDatapoint(Datapoint *dp)
 		switch (dbuf->getItemSize())
 		{
 			case 1:
-				type = NPY_BYTE;
+				type = NPY_UBYTE;
 				break;
 			case 2:
-				type = NPY_INT16;
+				type = NPY_UINT16;
 				break;
 			case 4:
-				type = NPY_INT32;
+				type = NPY_UINT32;
 				break;
 			case 8:
-				type = NPY_INT64;
+				type = NPY_UINT64;
 				break;
 			default:
 				break;
@@ -420,30 +465,45 @@ PyObject *PythonReading::convertDatapoint(Datapoint *dp)
 		//PythonRuntime::getPythonRuntime()->initNumPy();
 		InitNumPy();
 		DPImage *image = dp->getData().getImage();
-		npy_intp dim[2];
-		dim[0] = image->getWidth();
-		dim[1] = image->getHeight();
-		enum NPY_TYPES	type;
-		switch (image->getDepth())
-		{
-			case 8:
-				type = NPY_BYTE;
-				break;
-			case 16:
-				type = NPY_INT16;
-				break;
-			case 32:
-				type = NPY_INT32;
-				break;
-			case 64:
-				type = NPY_INT64;
-				break;
-			default:
-				break;
+		if (image->getDepth() == 24)
+		{{
+			npy_intp dim[3];
+			dim[0] = image->getHeight();
+			dim[1] = image->getWidth();
+			dim[2] = 3;
+			enum NPY_TYPES	type = NPY_UBYTE;
+			PyGILState_STATE state = PyGILState_Ensure();
+			value = PyArray_SimpleNewFromData(3, dim, type, image->getData());
+			PyGILState_Release(state);
 		}
-		PyGILState_STATE state = PyGILState_Ensure();
-		value = PyArray_SimpleNewFromData(2, dim, type, image->getData());
-		PyGILState_Release(state);
+		}
+		else
+		{
+			npy_intp dim[2];
+			dim[0] = image->getHeight();
+			dim[1] = image->getWidth();
+			enum NPY_TYPES	type;
+			switch (image->getDepth())
+			{
+				case 8:
+					type = NPY_UBYTE;
+					break;
+				case 16:
+					type = NPY_UINT16;
+					break;
+				case 32:
+					type = NPY_UINT32;
+					break;
+				case 64:
+					type = NPY_UINT64;
+					break;
+				default:
+					break;
+			}
+			PyGILState_STATE state = PyGILState_Ensure();
+			value = PyArray_SimpleNewFromData(2, dim, type, image->getData());
+			PyGILState_Release(state);
+		}
 	}
 	else if (dataType == DatapointValue::dataTagType::T_DP_DICT)
 	{
@@ -569,7 +629,7 @@ bool PythonReading::isArray(PyObject *obj)
 }
 
 /**
- * Impoirt NumPy. Due to the way numpy uses global variables we must only do
+ * Import NumPy. Due to the way numpy uses global variables we must only do
  * this once in a single exeutable as multiple imports result in crashes.
  */
 int PythonReading::InitNumPy()

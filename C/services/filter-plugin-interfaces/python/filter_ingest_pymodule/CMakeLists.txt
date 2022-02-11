@@ -9,7 +9,7 @@ set(COMMON_LIB common-lib)
 set(SERVICE_COMMON_LIB services-common-lib)
 
 # Find source files
-file(GLOB SOURCES ingest_callback_pymodule.cpp ../../../common-plugin-interfaces/python/pyobject_reading_parser.cpp)
+file(GLOB SOURCES ingest_callback_pymodule.cpp)
 
 # Find Python 3.5 or higher dev/lib/interp package
 #find_package(PythonInterp 3.5 REQUIRED)

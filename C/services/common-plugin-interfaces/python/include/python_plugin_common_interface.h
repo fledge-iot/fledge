@@ -86,9 +86,6 @@ static void plugin_shutdown_fn(PLUGIN_HANDLE);
 
 static void logErrorMessage();
 static bool numpyImportError = false;
-void setImportParameters(string& shimLayerPath, string& fledgePythonDir);
-
-PyObject* createReadingsList(const vector<Reading *>& readings, bool changeDictKeys = false);
 
 /**
  * Destructor for PythonPluginHandle
@@ -200,6 +197,122 @@ static void* PluginInterfaceGetInfo()
 }
 
 /**
+ * Invokes json.dumps inside python interpreter
+ */
+const char *json_dumps(PyObject *json_dict)
+{
+    PyObject *rval;
+    PyObject *mod, *method;
+
+	PyGILState_STATE state = PyGILState_Ensure();
+	if ((mod = PyImport_ImportModule("json")) != NULL)
+	{
+		if ((method = PyObject_GetAttrString(mod, "dumps")) != NULL)
+		{
+            PyObject *args = PyTuple_New(1);
+            PyObject *pValue = Py_BuildValue("O", json_dict);
+            PyTuple_SetItem(args, 0, pValue);
+			
+			rval = PyObject_Call(method, args, NULL);
+            Py_CLEAR(method);
+            Py_CLEAR(args);
+            Py_CLEAR(pValue);
+            // Py_CLEAR(mod);
+            
+			if (rval == NULL)
+			{
+				if (PyErr_Occurred())
+				{
+					logErrorMessage();
+                    return NULL;
+				}
+			}
+            else
+                Logger::getLogger()->info("%s:%d, rval type=%s", __FUNCTION__, __LINE__, (Py_TYPE(rval))->tp_name);
+            
+		}
+		else
+		{
+			Logger::getLogger()->fatal("Method 'dumps' not found");
+            Py_CLEAR(mod);
+		}
+		// Remove references
+		
+	}
+	else
+	{
+		Logger::getLogger()->fatal("Failed to import module");
+	}
+
+	// Reset error
+	PyErr_Clear();
+
+	PyGILState_Release(state);
+
+    const char *retVal = PyUnicode_AsUTF8(rval);
+    Logger::getLogger()->debug("%s: retVal=%s", __FUNCTION__, retVal);
+    
+	return retVal;
+}
+
+
+/**
+ * Invokes json.loads inside python interpreter
+ */
+PyObject *json_loads(const char *json_str)
+{
+    PyObject *rval;
+    PyObject *mod, *method;
+
+	PyGILState_STATE state = PyGILState_Ensure();
+	if ((mod = PyImport_ImportModule("json")) != NULL)
+	{
+		if ((method = PyObject_GetAttrString(mod, "loads")) != NULL)
+		{
+            PyObject *args = PyTuple_New(1);
+            PyObject *pValue = Py_BuildValue("s", json_str);
+            PyTuple_SetItem(args, 0, pValue);
+
+            Logger::getLogger()->debug("%s:%d: method=%p, args=%p, pValue=%p", __FUNCTION__, __LINE__, method, args, pValue);
+			rval = PyObject_Call(method, args, NULL);
+            Py_CLEAR(method);
+            // Py_CLEAR(pValue);
+            // Py_CLEAR(args);
+            // Py_CLEAR(mod);
+            
+			if (rval == NULL)
+			{
+				if (PyErr_Occurred())
+				{
+					logErrorMessage();
+                    return NULL;
+				}
+			}
+            else
+                Logger::getLogger()->debug("%s:%d, rval type=%s", __FUNCTION__, __LINE__, (Py_TYPE(rval))->tp_name);
+
+		}
+		else
+		{
+			Logger::getLogger()->fatal("Method 'loads' not found");
+            Py_CLEAR(mod);
+		}
+	}
+	else
+	{
+		Logger::getLogger()->fatal("Failed to import module");
+	}
+
+	// Reset error
+	PyErr_Clear();
+
+	PyGILState_Release(state);
+    
+	return rval;
+}
+
+
+/**
  * Fill PLUGIN_INFORMATION structure from Python object
  *
  * @param pyRetVal      Python 3.5 Object (dict)
@@ -214,15 +327,26 @@ static PLUGIN_INFORMATION *Py2C_PluginInfo(PyObject* pyRetVal)
 	// these are borrowed references returned by PyDict_Next
 	PyObject *dKey, *dValue;
 	Py_ssize_t dPos = 0;
+    
+    PyObject* objectsRepresentation = PyObject_Repr(pyRetVal);
+    const char* s = PyUnicode_AsUTF8(objectsRepresentation);
+    Logger::getLogger()->debug("Py2C_PluginInfo(): plugin_info returned: %s", s);
+    Py_CLEAR(objectsRepresentation);
 
 	// dKey and dValue are borrowed references
 	while (PyDict_Next(pyRetVal, &dPos, &dKey, &dValue))
 	{
 		const char* ckey = PyUnicode_AsUTF8(dKey);
 		const char* cval = PyUnicode_AsUTF8(dValue);
+        Logger::getLogger()->debug("%s:%d, key=%s, value=%s, dValue type=%s", __FUNCTION__, __LINE__, ckey, cval, (Py_TYPE(dValue))->tp_name);
 
-		char *valStr = new char [string(cval).length()+1];
-		std::strcpy (valStr, cval);
+        char *valStr = NULL;
+        if (!PyDict_Check(dValue))
+        {
+    		valStr = new char [string(cval).length()+1];
+    		std::strcpy (valStr, cval);
+            Logger::getLogger()->debug("%s:%d, key=%s, value=%s, valStr=%s", __FUNCTION__, __LINE__, ckey, cval, valStr);
+        }
 
 		if(!strcmp(ckey, "name"))
 		{
@@ -250,9 +374,23 @@ static PLUGIN_INFORMATION *Py2C_PluginInfo(PyObject* pyRetVal)
 			info->interface = valStr;
 		}
 		else if(!strcmp(ckey, "config"))
-		{
-			info->config = valStr;
+		{            
+            // if 'config' value is of dict type, convert it to string
+            if (strcmp((Py_TYPE(dValue))->tp_name, "dict")==0)
+            {
+                PyObject* objectsRepresentation = PyObject_Repr(dValue);
+                const char* s = PyUnicode_AsUTF8(objectsRepresentation);
+                Logger::getLogger()->debug("Py2C_PluginInfo(): INPUT: config value=%s", s);
+                Py_CLEAR(objectsRepresentation);
+
+                info->config = json_dumps(dValue);
+                Logger::getLogger()->info("Py2C_PluginInfo(): OUTPUT: config value=%s", info->config);
+            }
+            else
+                info->config = valStr;
 		}
+        else
+            Logger::getLogger()->info("%s:%d: Unexpected key %s", __FUNCTION__, __LINE__, ckey);
 	}
 
 	return info;
@@ -290,8 +428,8 @@ static PLUGIN_INFORMATION *plugin_info_fn()
 	if (!pFunc)
 	{
 		Logger::getLogger()->fatal("Cannot find method 'plugin_info' "
-					   "in loaded python module '%s'",
-					   gPluginName.c_str());
+					   "in loaded python module '%s', m_module=%p",
+					   gPluginName.c_str(), it->second->m_module);
 	}
 
 	if (!pFunc || !PyCallable_Check(pFunc))
@@ -408,8 +546,7 @@ static PLUGIN_HANDLE plugin_init_fn(ConfigCategory *config)
 		if (h->second->m_name.compare(pName) == 0)
 		{
 			Logger::getLogger()->debug("%s_plugin_init_fn: already loaded "
-						   "a plugin with name '%s'. Loading a new "
-						   "Python module using a new interpreter.",
+						   "a plugin with name '%s'. Loading a new ",
 						   h->second->m_type.c_str(),
 						   pName.c_str());
 
@@ -433,8 +570,7 @@ static PLUGIN_HANDLE plugin_init_fn(ConfigCategory *config)
 		if (it == pythonModules->end())
 		{
 			Logger::getLogger()->debug("plugin_handle: plugin_init(): "
-						   "pModule nof found for plugin '%s': "
-						   "import Python module using a new interpreter.",
+						   "pModule not found for plugin '%s': ",
 						   pName.c_str());
 
 			// Set plugin type
@@ -472,52 +608,27 @@ static PLUGIN_HANDLE plugin_init_fn(ConfigCategory *config)
 		}
 	}
 
+    Logger::getLogger()->info("%s:%d: loadModule=%s, reloadModule=%s", 
+                                __FUNCTION__, __LINE__, loadModule?"TRUE":"FALSE", reloadModule?"TRUE":"FALSE");
+
 	// Acquire GIL
 	PyGILState_STATE state = PyGILState_Ensure();
 
 	// Import Python module using a new interpreter
 	if (loadModule || reloadModule)
 	{
-		// Start a new interpreter
-		newInterp = Py_NewInterpreter();
-		if (!newInterp)
-		{
-			Logger::getLogger()->fatal("plugin_handle: plugin_init() "
-						   "Py_NewInterpreter failure "
-						   "for for plugin '%s': ",
-						   pName.c_str());
-			logErrorMessage();
-
-			PyGILState_Release(state);
-			return NULL;
-		}
-
-		string shimLayerPath;
 		string fledgePythonDir;
 	
-		// Python 3.x set parameters for import
-		setImportParameters(shimLayerPath, fledgePythonDir);
+		string fledgeRootDir(getenv("FLEDGE_ROOT"));
+    	fledgePythonDir = fledgeRootDir + "/python";
 
-		string name;
 		int argc = 2;
 
 		// Set Python path for embedded Python 3.x
 		// Get current sys.path - borrowed reference
 		PyObject* sysPath = PySys_GetObject((char *)"path");
 		PyList_Append(sysPath, PyUnicode_FromString((char *) fledgePythonDir.c_str()));
-		PyList_Append(sysPath, PyUnicode_FromString((char *) shimLayerPath.c_str()));
-
-		// For notificationRUle/Delivery plugins we need another import parameter
-		if (loadPluginType.find("notification") != string::npos)
-		{
-			name = "notification" + string(SHIM_SCRIPT_POSTFIX);
-			argc++;
-		}
-		else
-		{
-			name = loadPluginType + string(SHIM_SCRIPT_POSTFIX);
-		}
-
+        
 		// Set sys.argv for embedded Python 3.x
 		wchar_t* argv[argc];
 		argv[0] = Py_DecodeLocale("", NULL);
@@ -530,15 +641,13 @@ static PLUGIN_HANDLE plugin_init_fn(ConfigCategory *config)
 		// Set script parameters
 		PySys_SetArgv(argc, argv);
 
-		Logger::getLogger()->debug("%s_plugin_init_fn, %sloading plugin '%s', "
-					   "using a new interpreter, SHIM file is '%s'",
+		Logger::getLogger()->debug("%s_plugin_init_fn, %sloading plugin '%s', ",
 					   loadPluginType.c_str(),
-					   string(reloadModule ? "re-" : "").c_str(), 
-					   pName.c_str(),
-					   name.c_str());
+					   reloadModule ? "re-" : "", 
+					   pName.c_str());
 
 		// Import Python script
-		PyObject *newObj = PyImport_ImportModule(name.c_str());
+		PyObject *newObj = PyImport_ImportModule(pName.c_str());
 
 		// Check result
 		if (newObj)
@@ -549,10 +658,10 @@ static PLUGIN_HANDLE plugin_init_fn(ConfigCategory *config)
 							  pythonInitState,
 							  pName,
 							  loadPluginType,
-							  newInterp)) == NULL)
+							  NULL)) == NULL)
 			{
 				// Release lock
-				PyEval_ReleaseThread(newInterp);
+				PyGILState_Release(state);
 
 				Logger::getLogger()->fatal("plugin_handle: plugin_init(): "
 							   "failed to create Python module "
@@ -569,7 +678,7 @@ static PLUGIN_HANDLE plugin_init_fn(ConfigCategory *config)
 			logErrorMessage();
 
 			// Release lock
-			PyEval_ReleaseThread(newInterp);
+			PyGILState_Release(state);
 
 			Logger::getLogger()->fatal("plugin_handle: plugin_init(): "
 						   "failed to import plugin '%s'",
@@ -578,18 +687,20 @@ static PLUGIN_HANDLE plugin_init_fn(ConfigCategory *config)
 		}
 	}
 
-	Logger::getLogger()->debug("%s_plugin_init_fn for '%s', pModule '%p', "
-				   "Python interpreter '%p'",
+	Logger::getLogger()->debug("%s_plugin_init_fn for '%s', pModule '%p', ",
 				   loadPluginType.c_str(),
 				   module->m_name.c_str(),
-				   module->m_module,
-				   module->m_tState);
+				   module->m_module);
 
+    PyObject *config_dict = json_loads(config->itemsToJSON().c_str());
+    
 	// Call Python method passing an object
 	PyObject* pReturn = PyObject_CallMethod(module->m_module,
 						"plugin_init",
-						"s",
-						config->itemsToJSON().c_str());
+						"O",
+						config_dict);
+
+    Py_CLEAR(config_dict);
 
 	// Handle returned data
 	if (!pReturn)
@@ -730,13 +841,16 @@ static void plugin_reconfigure_fn(PLUGIN_HANDLE* handle,
 
 	Logger::getLogger()->debug("plugin_reconfigure with %s", config.c_str());
 
+    PyObject *new_config_dict = json_loads(config.c_str());
+
 	// Call Python method passing an object and a C string
 	PyObject* pReturn = PyObject_CallFunction(pFunc,
-						  "Os",
+						  "OO",
 						  *handle,
-						  config.c_str());
+						  new_config_dict);
 
 	Py_CLEAR(pFunc);
+    Py_CLEAR(new_config_dict);
 
 	// Handle returned data
 	if (!pReturn)
@@ -749,7 +863,7 @@ static void plugin_reconfigure_fn(PLUGIN_HANDLE* handle,
 	}
 	else
 	{
-                // Save PythonModule
+        // Save PythonModule
 		PythonModule* currentModule = it->second;
 
 		Py_CLEAR(*handle);
@@ -804,7 +918,7 @@ static void logErrorMessage()
 	const char* pErrorMessage = value ?
 				    PyBytes_AsString(pyExcValueStr) :
 				    "no error description.";
-	Logger::getLogger()->fatal("logErrorMessage: Error '%s', plugin '%s'",
+	Logger::getLogger()->warn("logErrorMessage: Error '%s', plugin '%s'",
 				   pErrorMessage,
 				   gPluginName.c_str());
 	
@@ -832,7 +946,7 @@ static void logErrorMessage()
 				PyObject* tmp = PyUnicode_AsASCIIString(outStr);
 				if (tmp != NULL) {
 					std::string pretty = PyBytes_AsString(tmp);
-					Logger::getLogger()->fatal("%s", pretty.c_str());
+					Logger::getLogger()->warn("%s", pretty.c_str());
 					Logger::getLogger()->printLongString(pretty.c_str());
 				}
 				Py_CLEAR(tmp);
@@ -939,7 +1053,7 @@ static void plugin_shutdown_fn(PLUGIN_HANDLE handle)
 		logErrorMessage();
 	}
 
-	if (it->second->m_tState)
+    if (false) // no seperate python interpreter is used anymore for python plugins
 	{
 		// Switch to Interpreter thread
 		PyThreadState* swapState = PyThreadState_Swap(it->second->m_tState);
@@ -994,23 +1108,6 @@ static void plugin_shutdown_fn(PLUGIN_HANDLE handle)
 				   pName.c_str());
 }
 
-/**
- * Fill input string parameters with needed values for Python import
- *
- * @param shimLayerPath		Full path of Python shim layer file
- * @param fledgePythonDir	Location of Python module files under FLEDGE_ROOT
- */
-void setImportParameters(string&shimLayerPath, string& fledgePythonDir)
-{
-	// Get FLEDGE_ROOT dir
-	string fledgeRootDir(getenv("FLEDGE_ROOT"));
-	string path = fledgeRootDir + SHIM_SCRIPT_REL_PATH;
-	fledgePythonDir = fledgeRootDir + "/python";
-
-	// Python 3.x script name
-	std::size_t found = path.find_last_of("/");
-	shimLayerPath = path.substr(0, found);
-}
-
 };
 #endif
+

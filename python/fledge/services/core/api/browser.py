@@ -122,15 +122,17 @@ async def asset_counts(request):
     """
     payload = PayloadBuilder().AGGREGATE(["count", "*"]).ALIAS("aggregate", ("*", "count", "count")) \
         .GROUP_BY("asset_code").payload()
-
-    results = {}
+    _readings = connect.get_readings_async()
+    results = await _readings.query(payload)
     try:
-        _readings = connect.get_readings_async()
-        results = await _readings.query(payload)
         response = results['rows']
         asset_json = [{"count": r['count'], "assetCode": r['asset_code']} for r in response]
     except KeyError:
-        raise web.HTTPBadRequest(reason=results['message'])
+        msg = results['message']
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+    except Exception as exc:
+        msg = str(exc)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(asset_json)
 
@@ -331,7 +333,6 @@ async def asset_all_readings_summary(request):
             rows.append({reading: results['rows'][0]})
         for index, data in enumerate(rows):
             for item_name, item_val in data.items():
-                print(item_name, item_val)
                 if isinstance(item_val, dict):
                     for item_name2, item_val2 in item_val.items():
                         if isinstance(item_val2, str) and item_val2.startswith(tuple(DATAPOINT_TYPES)):
@@ -383,13 +384,12 @@ async def asset_summary(request):
         _readings = connect.get_readings_async()
         results = await _readings.query(payload)
         if not results['rows']:
-            raise web.HTTPNotFound(reason="{} asset_code not found".format(asset_code))
+            raise ValueError('{} asset code not found'.format(asset_code))
 
         # TODO: FOGL-1768 when support available from storage layer then avoid multiple calls
         reading_keys = list(results['rows'][-1]['reading'].keys())
         if reading not in reading_keys:
-            raise web.HTTPNotFound(reason="{} reading key is not found".format(reading))
-
+            raise ValueError('{} reading key is not found'.format(reading))
         _aggregate = PayloadBuilder().AGGREGATE(["min", ["reading", reading]], ["max", ["reading", reading]],
                                                 ["avg", ["reading", reading]]) \
             .ALIAS('aggregate', ('reading', 'min', 'min'), ('reading', 'max', 'max'),
@@ -406,11 +406,14 @@ async def asset_summary(request):
     except KeyError:
         msg = results['message']
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+    except ValueError as err:
+        msg = str(err)
+        raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as exc:
         msg = str(exc)
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
-        return web.json_response(response)
+        return web.json_response({reading: response})
 
 
 async def asset_averages(request):

@@ -44,7 +44,7 @@ If you choose to use the Dianomic Systems package repository to install the pack
 Ubuntu or Debian
 ~~~~~~~~~~~~~~~~
 
-On a Ubuntu or Debian system, including the Raspberry Pi, the package manager that is supported in *apt*. You will need to add the Dianomic Systems archive server into the configuration of apt on your system. The first thing that most be done is to add the key that is used to verify the package repository. To do this run the command
+On a Ubuntu or Debian system, including the Raspberry Pi, the package manager that is supported is *apt*. You will need to add the Dianomic Systems archive server into the configuration of apt on your system. The first thing that most be done is to add the key that is used to verify the package repository. To do this run the command
 
 .. code-block:: console
 

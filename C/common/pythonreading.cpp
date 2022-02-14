@@ -123,7 +123,7 @@ PythonReading::PythonReading(PyObject *pyReading)
 	}
 
 	// Get 'user_ts' value: borrowed reference.
-	PyObject *uts = PyDict_GetItemString(pyReading, "user_ts");
+	PyObject *uts = PyDict_GetItemString(reading, "user_ts");
 	if (uts && PyUnicode_Check(uts))
 	{
 		// Set user timestamp

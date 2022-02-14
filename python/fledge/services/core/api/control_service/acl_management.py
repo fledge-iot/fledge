@@ -283,7 +283,9 @@ async def attach_acl_to_service(request: web.Request) -> web.Response:
         cf_mgr = ConfigurationManager(storage)
         security_cat_name = "{}Security".format(svc_name)
         category = await cf_mgr.get_category_all_items(security_cat_name)
-        if category is None:
+
+        # Check category does not exists or it's value is empty (created by a service when it starts)
+        if category is None or category == {}:
             # Create {service_name}Security category and having value with AuthenticationCaller Global switch &
             # ACL info attached (name is excluded from the ACL dict)
             category_desc = "Security category for {} service".format(svc_name)

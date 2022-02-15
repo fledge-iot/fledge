@@ -1280,20 +1280,8 @@ class Server:
     async def get_auth_token(cls, request: web.Request) -> web.Response:
         """ get auth token
             :Example:
-                curl -sX GET http://localhost:<core mgt port>/fledge/service/authtoken?_vid=<>
+                curl -sX GET -H "{'Authorization': 'Bearer ..'}" http://localhost:<core mgt port>/fledge/service/authtoken 
         """
-        bearer_token = request.headers.get('bearer_token', "")
-        if bearer_token:
-            services_list = ServiceRegistry.all()
-            is_bearer_token_valid = False
-            for svc in services_list:
-                if svc._token == bearer_token:
-                    is_bearer_token_valid = True
-                    break
-            if is_bearer_token_valid is False:
-                msg = "Bearer token is invalid"
-                raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
-
         async def cert_login(ca_cert):
             certs_dir = _FLEDGE_DATA + '/etc/certs' if _FLEDGE_DATA else _FLEDGE_ROOT + "/data/etc/certs"
             ca_cert_file = "{}/{}.cert".format(certs_dir, ca_cert)
@@ -1316,21 +1304,35 @@ class Server:
                 raise api_exception.AuthenticationIsOptional
             
             auth_method = category_info['authMethod']['value']
-            ca_cert_name = category_info['authCertificateName']['value']
-
-            verification_id = request.query['_vid']
-            if not len(verification_id.strip()): raise api_exception.VerificationFailed             
+            ca_cert_name = category_info['authCertificateName']['value']          
             
             try:
-                fname = _FLEDGE_ROOT + "/data/.{}".format('managementtoken')
-                with open(fname, 'r', encoding = 'utf-8') as f:
-                    t = f.read()
+                auth_header = request.headers.get('Authorization', None)
             except:
                 raise api_exception.VerificationFailed
             else:
-                if verification_id != t:
-                    raise api_exception.VerificationFailed
+                # check bearer token with service registry for given service
+                ##
+                # the lines below are repated many times, make it a def for common usage/check
+                parts = auth_header.split("Bearer ")
+                if len(parts) != 2:
+                    msg = "Bearer token is missing"
+                    raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+                bearer_token = parts[1]
+                # Validate token and get public claims
+                claims = cls.validate_token(bearer_token)
+                if claims.get('error'):
+                    msg = "Service '" + str(claims['sub']) + "' not registered"
+                    raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
 
+                if bearer_token != ServiceRegistry.getBearerToken(claims['sub']):
+                    # add WARN log (audit?) for this attempt?!
+                    raise api_exception.VerificationFailed
+                else:
+                    # add debug log for successful token verification
+                    pass
+
+                ##
 
             peername = request.transport.get_extra_info('peername')
             host = '0.0.0.0'
@@ -1351,12 +1353,6 @@ class Server:
                 # For auth method "any" we can use either login with cert or password
                 token = await cert_login(ca_cert_name)
                 # TODO: if cert does not exist then may try with password
-            
-            # remove file
-            try:
-                os.remove(fname)
-            except Exception as ex:
-                pass
         except api_exception.AuthenticationIsOptional as err:
             # remove file
             msg = str(err)

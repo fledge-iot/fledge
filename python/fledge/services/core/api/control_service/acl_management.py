@@ -110,12 +110,12 @@ async def add_acl(request: web.Request) -> web.Response:
                 raise ValueError('ACL name cannot be empty')
         
         if service is None:
-            raise ValueError('service param is required')
+            raise ValueError('service parameter is required')
         if not isinstance(service, list):
             raise TypeError('service must be in list')
         # check each item in list is an object of, either 'type'|<service type> or 'name'|<service name> value pair
         if url is None:
-            raise ValueError('url param is required')
+            raise ValueError('url parameter is required')
         if not isinstance(url, list):
             raise TypeError('url must be a list')
         # check URLs list has objects with URL and a list of ACL where each acl item here is an object of 'type'|<service type> value pair
@@ -158,7 +158,7 @@ async def update_acl(request: web.Request) -> web.Response:
     """ Update an access control list
 
     :Example:
-        curl -H "authorization: $AUTH_TOKEN" -sX PUT http://localhost:8081/fledge/ACL/testACL -d '{"service": [{"name": "Sinusoid"}]}'
+        curl -H "authorization: $AUTH_TOKEN" -sX PUT http://localhost:8081/fledge/ACL/testACL -d '{"name": "newName", service": [{"name": "Sinusoid"}]}'
         curl -H "authorization: $AUTH_TOKEN" -sX PUT http://localhost:8081/fledge/ACL/testACL -d '{"service": [], "url": [{"URL": "/fledge/south/operation", "ACL": [{"type": "Southbound"}]}]}'
     """
     try:

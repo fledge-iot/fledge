@@ -40,8 +40,33 @@ RESULTS = [{'rows': [{'count': 10, 'asset_code': 'TI sensorTag/luxometer'}], 'co
            {'rows': [{'average': '26', 'timestamp': '2018-02-16 15:08:51', 'max': '26', 'min': '26'}], 'count': 1}
            ]
 
+FILTERING_IMAGE_URLS = [
+    'fledge/asset/testcard',
+    'fledge/asset/testcard/summary',
+    'fledge/asset/testcard/testcard',
+    'fledge/asset/testcard/testcard/summary',
+    'fledge/asset/testcard/testcard/series'
+    ]
+
+FILTERING_IMAGE_PAYLOADS = [
+    '{"return": ["reading", {"column": "user_ts", "alias": "timestamp"}], "where": {"column": "asset_code", "condition": "=", "value": "testcard"}, "limit": 20, "sort": {"column": "user_ts", "direction": "desc"}}',
+    '{"return": ["reading"], "where": {"column": "asset_code", "condition": "=", "value": "testcard"}, "limit": 20, "sort": {"column": "user_ts", "direction": "desc"}}',
+    '{"return": [{"column": "user_ts", "alias": "timestamp"}, {"json": {"column": "reading", "properties": "testcard"}, "alias": "testcard"}], "where": {"column": "asset_code", "condition": "=", "value": "testcard"}, "limit": 20, "sort": {"column": "user_ts", "direction": "desc"}}',
+    '{"aggregate": [{"operation": "min", "json": {"column": "reading", "properties": "testcard"}, "alias": "min"}, {"operation": "max", "json": {"column": "reading", "properties": "testcard"}, "alias": "max"}, {"operation": "avg", "json": {"column": "reading", "properties": "testcard"}, "alias": "average"}], "where": {"column": "asset_code", "condition": "=", "value": "testcard"}}',
+    '{"aggregate": [{"operation": "min", "json": {"column": "reading", "properties": "testcard"}, "alias": "min"}, {"operation": "max", "json": {"column": "reading", "properties": "testcard"}, "alias": "max"}, {"operation": "avg", "json": {"column": "reading", "properties": "testcard"}, "alias": "average"}], "where": {"column": "asset_code", "condition": "=", "value": "testcard"}, "limit": 20, "group": {"column": "user_ts", "alias": "timestamp", "format": "YYYY-MM-DD HH24:MI:SS"}, "sort": {"column": "user_ts", "direction": "desc"}}'
+]
+FILTERING_IMAGE_RESULTS = [
+    {'count': 1, 'rows': [{'reading': {'testcard': '__DPIMAGE:256,256,8_AA'}}]},
+    {'count': 1, 'rows': [{'min': '__DPIMAGE:256,256,8_A', 'max': '__DPIMAGE:256,256,8_AA', 'average': 0.0}]},
+    {'count': 1, 'rows': [{'timestamp': '2022-02-11 16:08:59.617317', 'testcard': '__DPIMAGE:256,256,8_AA'}]},
+    {'count': 1, 'rows': [{'min': '__DPIMAGE:256,256,8_AA', 'max': '__DPIMAGE:256,256,8_AA', 'average': 0.0}]},
+    {'count': 1, 'rows': [{'min': '__DPIMAGE:256,256,8_AA', 'max': '__DPIMAGE:256,256,8_AA', 'average': 0.0}]}
+]
+
 FIXTURE_1 = [(url, payload, result) for url, payload, result in zip(URLS, PAYLOADS, RESULTS)]
 FIXTURE_2 = [(url, 400, payload) for url, payload in zip(URLS, PAYLOADS)]
+FIXTURE_3 = [(url, payload, result) for url, payload, result in
+             zip(FILTERING_IMAGE_URLS, FILTERING_IMAGE_PAYLOADS, FILTERING_IMAGE_RESULTS)]
 
 
 async def mock_coro(*args, **kwargs):
@@ -161,6 +186,9 @@ class TestBrowserAssets:
                 resp = await client.get(request_url)
                 assert response_code == resp.status
                 assert result['message'] == resp.reason
+                r = await resp.text()
+                json_response = json.loads(r)
+                assert {"message": result['message']} == json_response
             args, kwargs = query_patch.call_args
             assert json.loads(payload) == json.loads(args[0])
             query_patch.assert_called_once_with(args[0])
@@ -177,7 +205,7 @@ class TestBrowserAssets:
                                              'entryPoint': 'retrieve'},
          '{"where": {"value": "fogbench/humidity", "column": "asset_code", "condition": "="}, "return": ["reading"], '
          '"sort": {"column": "user_ts", "direction": "desc"}, "limit": 1}'),
-        (404, "fogbench/humidity asset_code not found", {"rows": [], "count": 0},
+        (404, "fogbench/humidity asset code not found", {"rows": [], "count": 0},
          '{"where": {"value": "fogbench/humidity", "column": "asset_code", "condition": "="}, "return": ["reading"], '
          '"sort": {"column": "user_ts", "direction": "desc"}, "limit": 1}'),
         (404, "temperature reading key is not found", {"count": 1, "rows": [{"reading": {"temp": 286.8, "visibility": 10000,
@@ -200,6 +228,9 @@ class TestBrowserAssets:
                 resp = await client.get('/fledge/asset/fogbench%2fhumidity/temperature/summary')
                 assert status_code == resp.status
                 assert message == resp.reason
+                r = await resp.text()
+                json_response = json.loads(r)
+                assert {"message": message} == json_response
             args, kwargs = query_patch.call_args
             assert json.loads(payload) == json.loads(args[0])
             query_patch.assert_called_once_with(args[0])
@@ -250,8 +281,6 @@ class TestBrowserAssets:
     ])
     async def test_asset_averages_with_valid_group_name(self, client, group_name, payload, result):
         readings_storage_client_mock = MagicMock(ReadingsStorageClientAsync)
-        
-        
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro(result)
@@ -473,7 +502,6 @@ class TestBrowserAssets:
          {'rows': [{'reading': {'temperature': 13.45}}], 'count': 1},
          "Invalid value for start. Error: ", "?start=149199235346457788234", True)
     ])
-
     async def test_bad_asset_bucket_size_and_optional_params(self, client, url, code, storage_result, message,
                                                              request_params, with_readings):
         if request_params:
@@ -543,3 +571,38 @@ class TestBrowserAssets:
         r = await resp.text()
         json_response = json.loads(r)
         assert {"message": response_message} == json_response
+
+    @pytest.mark.parametrize("request_url, payload, result", FIXTURE_3)
+    async def test_filtering_image_data(self, client, request_url, payload, result):
+        readings_storage_client_mock = MagicMock(ReadingsStorageClientAsync)
+        result_for_reading = {'rows': [{'reading': {'testcard': '__DPIMAGE:256,256,8_A'}}], 'count': 1}
+        if request_url.endswith('summary'):
+            # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+            if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+                _se1 = await mock_coro(result_for_reading)
+                _se2 = await mock_coro(result)
+            else:
+                _se1 = asyncio.ensure_future(mock_coro(result_for_reading))
+                _se2 = asyncio.ensure_future(mock_coro(result))
+            with patch.object(connect, 'get_readings_async', return_value=readings_storage_client_mock):
+                with patch.object(readings_storage_client_mock, 'query', side_effect=[_se1, _se2]):
+                    resp = await client.get(request_url)
+                    assert 200 == resp.status
+                    r = await resp.text()
+                    json_response = json.loads(r)
+                    expected_result = {'testcard': result['rows'][0]} if isinstance(json_response, dict) else \
+                        [{'testcard': result['rows'][0]}]
+                    assert expected_result == json_response
+        else:
+            _rv = await mock_coro(result) if sys.version_info.major == 3 and sys.version_info.minor >= 8 else \
+                asyncio.ensure_future(mock_coro(result))
+            with patch.object(connect, 'get_readings_async', return_value=readings_storage_client_mock):
+                with patch.object(readings_storage_client_mock, 'query', return_value=_rv) as query_patch:
+                    resp = await client.get(request_url)
+                    assert 200 == resp.status
+                    r = await resp.text()
+                    json_response = json.loads(r)
+                    assert result['rows'] == json_response
+                args, kwargs = query_patch.call_args
+                assert json.loads(payload) == json.loads(args[0])
+                query_patch.assert_called_once_with(args[0])

@@ -70,8 +70,10 @@ void setReadingAttr(Reading* newReading, PyObject *readingList, bool fillIfMissi
     //Logger::getLogger()->debug("fill=%s, newReading->getUserTimestamp()=%d, newReading->getTimestamp()=%d", fill?"True":"False", newReading->getUserTimestamp(), newReading->getTimestamp());
     if (fill)
     {
-        newReading->setUserTimestamp(newReading->getTimestamp());
-        //Logger::getLogger()->debug("Copied TS into user TS: newReading->getUserTimestamp()=%d", newReading->getUserTimestamp());
+        struct timeval tVal;
+		newReading->getTimestamp(&tVal);
+        newReading->setUserTimestamp(tVal);
+        Logger::getLogger()->debug("Copied TS into user TS: newReading->getUserTimestamp()=%d", newReading->getUserTimestamp());
     }
 
     // if TS is still not filled, copy User TS into it
@@ -79,8 +81,10 @@ void setReadingAttr(Reading* newReading, PyObject *readingList, bool fillIfMissi
     //Logger::getLogger()->debug("fill=%s, newReading->getUserTimestamp()=%d, newReading->getTimestamp()=%d", fill?"True":"False", newReading->getUserTimestamp(), newReading->getTimestamp());
     if (fill)
     {
-        newReading->setTimestamp(newReading->getUserTimestamp());
-        //Logger::getLogger()->debug("Copied user TS into TS: newReading->getUserTimestamp()=%d", newReading->getUserTimestamp());
+        struct timeval tVal;
+		newReading->getUserTimestamp(&tVal);
+        newReading->setTimestamp(tVal);
+        Logger::getLogger()->debug("Copied user TS into TS: newReading->getUserTimestamp()=%d", newReading->getUserTimestamp());
     }
 }
 

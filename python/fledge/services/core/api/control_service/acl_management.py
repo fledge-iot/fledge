@@ -155,19 +155,29 @@ async def add_acl(request: web.Request) -> web.Response:
 
 @has_permission("admin")
 async def update_acl(request: web.Request) -> web.Response:
-    """ Update an access control list. Only the set of service and URL's can be updated
+    """ Update an access control list
 
     :Example:
         curl -H "authorization: $AUTH_TOKEN" -sX PUT http://localhost:8081/fledge/ACL/testACL -d '{"service": [{"name": "Sinusoid"}]}'
-        curl -H "authorization: $AUTH_TOKEN" -sX PUT http://localhost:8081/fledge/ACL/testACL -d '{"service": [], "url": [{"URL": "/fledge/south/operation"}]}'
+        curl -H "authorization: $AUTH_TOKEN" -sX PUT http://localhost:8081/fledge/ACL/testACL -d '{"service": [], "url": [{"URL": "/fledge/south/operation", "ACL": [{"type": "Southbound"}]}]}'
     """
     try:
         name = request.match_info.get('acl_name', None)
+        
         data = await request.json()
+        acl_new_name = data.get('name', None)
         service = data.get('service', None)
         url = data.get('url', None)
-        if service is None and url is None:
-            raise ValueError("Nothing to update in a given payload. Only service and url can be updated")
+        if acl_new_name is None and service is None and url is None:
+            raise ValueError("Nothing to update for the given payload")
+        
+        if acl_new_name:
+            if not isinstance(acl_new_name, str):
+                raise TypeError('ACL name must be a string')
+            name = name.strip()
+            if name == "":
+                raise ValueError('ACL name cannot be set to empty')
+
         if service is not None and not isinstance(service, list):
             raise TypeError('service must be in list')
         if url is not None and not isinstance(url, list):
@@ -178,35 +188,40 @@ async def update_acl(request: web.Request) -> web.Response:
         message = ""
         if 'rows' in result:
             if result['rows']:
-                if service is not None and url is not None:
-                    update_payload = PayloadBuilder().SET(service=str(service), url=str(url)).WHERE(
-                        ['name', '=', name]).payload()
-                elif service is not None:
-                    update_payload = PayloadBuilder().SET(service=str(service)).WHERE(['name', '=', name]).payload()
-                else:
-                    update_payload = PayloadBuilder().SET(url=str(url)).WHERE(['name', '=', name]).payload()
-                update_result = await storage.update_tbl("control_acl", update_payload)
+                update_query = PayloadBuilder()
+                
+                set_values = {}
+                if acl_new_name is not None:
+                    set_values["name"] = acl_new_name
+                if service is not None:
+                    set_values["service"] = json.dumps(service)
+                if url is not None:
+                    set_values["url"] = json.dumps(url)
+                
+                update_query.SET(**set_values).WHERE(['name', '=', name])
+
+                update_result = await storage.update_tbl("control_acl", update_query.payload())
                 if 'response' in update_result:
                     if update_result['response'] == "updated":
-                        message = "Record updated successfully for {} ACL".format(name)
+                        message = "ACL {} updated successfully.".format(name)
                 else:
                     raise StorageServerError(update_result)
             else:
-                raise NameNotFoundError('No such {} ACL found'.format(name))
+                raise NameNotFoundError('ACL {} is not found'.format(name))
         else:
             raise StorageServerError(result)
     except StorageServerError as err:
-        msg = "Storage error: {}".format(str(err))
-        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+        message = "Storage error: {}".format(str(err))
+        raise web.HTTPInternalServerError(reason=message, body=json.dumps({"message": message}))
     except NameNotFoundError as err:
-        msg = str(err)
-        raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
+        message = str(err)
+        raise web.HTTPNotFound(reason=message, body=json.dumps({"message": message}))
     except (TypeError, ValueError) as err:
-        msg = str(err)
-        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+        message = str(err)
+        raise web.HTTPBadRequest(reason=message, body=json.dumps({"message": message}))
     except Exception as ex:
-        msg = str(ex)
-        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+        message = str(ex)
+        raise web.HTTPInternalServerError(reason=message, body=json.dumps({"message": message}))
     else:
         return web.json_response({"message": message})
 

@@ -58,6 +58,9 @@ __version__ = "${VERSION}"
 __DEFAULT_LIMIT = 20
 __DEFAULT_OFFSET = 0
 
+DATAPOINT_TYPES = ['__DPIMAGE', '__DATABUFFER']
+IMAGE_PLACEHOLDER = "Data removed for brevity"
+
 
 def setup(app):
     """ Add the routes for the API endpoints supported by the data browser """
@@ -119,15 +122,17 @@ async def asset_counts(request):
     """
     payload = PayloadBuilder().AGGREGATE(["count", "*"]).ALIAS("aggregate", ("*", "count", "count")) \
         .GROUP_BY("asset_code").payload()
-
-    results = {}
+    _readings = connect.get_readings_async()
+    results = await _readings.query(payload)
     try:
-        _readings = connect.get_readings_async()
-        results = await _readings.query(payload)
         response = results['rows']
         asset_json = [{"count": r['count'], "assetCode": r['asset_code']} for r in response]
     except KeyError:
-        raise web.HTTPBadRequest(reason=results['message'])
+        msg = results['message']
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+    except Exception as exc:
+        msg = str(exc)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(asset_json)
 
@@ -169,14 +174,23 @@ async def asset(request):
             raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
 
     payload = PayloadBuilder(_and_where).ORDER_BY(["user_ts", _order]).payload()
-    results = {}
+    _readings = connect.get_readings_async()
+    results = await _readings.query(payload)
     try:
-        _readings = connect.get_readings_async()
-        results = await _readings.query(payload)
-        response = results['rows']
+        rows = results['rows']
+        for index, data in enumerate(rows):
+            for item_name, item_val in data.items():
+                if isinstance(item_val, dict):
+                    for item_name2, item_val2 in item_val.items():
+                        if isinstance(item_val2, str) and item_val2.startswith(tuple(DATAPOINT_TYPES)):
+                            data[item_name][item_name2] = IMAGE_PLACEHOLDER
+        response = rows
     except KeyError:
         msg = results['message']
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+    except Exception as exc:
+        msg = str(exc)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(response)
 
@@ -248,16 +262,23 @@ async def asset_reading(request):
     else:
         # Add the order by and limit, offset clause
         _and_where = prepare_limit_skip_payload(request, _where)
-
     payload = PayloadBuilder(_and_where).ORDER_BY(["user_ts", "desc"]).payload()
-
-    results = {}
+    _readings = connect.get_readings_async()
+    results = await _readings.query(payload)
     try:
-        _readings = connect.get_readings_async()
-        results = await _readings.query(payload)
-        response = results['rows']
+        rows = results['rows']
+        for index, data in enumerate(rows):
+            for item_name, item_val in data.items():
+                if item_name != 'timestamp':
+                    if isinstance(item_val, str) and item_val.startswith(tuple(DATAPOINT_TYPES)):
+                        data[item_name] = IMAGE_PLACEHOLDER
+        response = rows
     except KeyError:
-        raise web.HTTPBadRequest(reason=results['message'])
+        msg = results['message']
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+    except Exception as exc:
+        msg = str(exc)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(response)
 
@@ -292,7 +313,7 @@ async def asset_all_readings_summary(request):
         # TODO: FOGL-1768 when support available from storage layer then avoid multiple calls
         # Find keys in readings
         reading_keys = list(results['rows'][-1]['reading'].keys())
-        response = []
+        rows = []
         _where = PayloadBuilder().WHERE(["asset_code", "=", asset_code]).chain_payload()
         if 'seconds' in request.query or 'minutes' in request.query or 'hours' in request.query:
             _and_where = where_clause(request, _where)
@@ -309,11 +330,23 @@ async def asset_all_readings_summary(request):
                        ('reading', 'avg', 'average')).chain_payload()
             payload = PayloadBuilder(_aggregate).payload()
             results = await _readings.query(payload)
-            response.append({reading: results['rows'][0]})
-    except (KeyError, IndexError) as ex:
-        raise web.HTTPNotFound(reason=ex)
-    except (TypeError, ValueError) as ex:
-        raise web.HTTPBadRequest(reason=ex)
+            rows.append({reading: results['rows'][0]})
+        for index, data in enumerate(rows):
+            for item_name, item_val in data.items():
+                if isinstance(item_val, dict):
+                    for item_name2, item_val2 in item_val.items():
+                        if isinstance(item_val2, str) and item_val2.startswith(tuple(DATAPOINT_TYPES)):
+                            data[item_name][item_name2] = IMAGE_PLACEHOLDER
+        response = rows
+    except (KeyError, IndexError) as err:
+        msg = str(err)
+        raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
+    except (TypeError, ValueError) as err:
+        msg = str(err)
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+    except Exception as exc:
+        msg = str(exc)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(response)
 
@@ -351,13 +384,12 @@ async def asset_summary(request):
         _readings = connect.get_readings_async()
         results = await _readings.query(payload)
         if not results['rows']:
-            raise web.HTTPNotFound(reason="{} asset_code not found".format(asset_code))
+            raise ValueError('{} asset code not found'.format(asset_code))
 
         # TODO: FOGL-1768 when support available from storage layer then avoid multiple calls
         reading_keys = list(results['rows'][-1]['reading'].keys())
         if reading not in reading_keys:
-            raise web.HTTPNotFound(reason="{} reading key is not found".format(reading))
-
+            raise ValueError('{} reading key is not found'.format(reading))
         _aggregate = PayloadBuilder().AGGREGATE(["min", ["reading", reading]], ["max", ["reading", reading]],
                                                 ["avg", ["reading", reading]]) \
             .ALIAS('aggregate', ('reading', 'min', 'min'), ('reading', 'max', 'max'),
@@ -368,8 +400,18 @@ async def asset_summary(request):
         results = await _readings.query(payload)
         # for aggregates, so there can only ever be one row
         response = results['rows'][0]
+        for item_name, item_val in response.items():
+            if isinstance(item_val, str) and item_val.startswith(tuple(DATAPOINT_TYPES)):
+                response[item_name] = IMAGE_PLACEHOLDER
     except KeyError:
-        raise web.HTTPBadRequest(reason=results['message'])
+        msg = results['message']
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+    except ValueError as err:
+        msg = str(err)
+        raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
+    except Exception as exc:
+        msg = str(exc)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({reading: response})
 
@@ -449,13 +491,22 @@ async def asset_averages(request):
     _group = PayloadBuilder(_and_where).GROUP_BY("user_ts").ALIAS("group", ("user_ts", "timestamp")) \
         .FORMAT("group", ("user_ts", ts_restraint)).chain_payload()
     payload = PayloadBuilder(_group).ORDER_BY(["user_ts", "desc"]).payload()
-    results = {}
+    _readings = connect.get_readings_async()
+    results = await _readings.query(payload)
     try:
-        _readings = connect.get_readings_async()
-        results = await _readings.query(payload)
-        response = results['rows']
+        rows = results['rows']
+        for index, data in enumerate(rows):
+            for item_name, item_val in data.items():
+                if item_name != 'timestamp':
+                    if isinstance(item_val, str) and item_val.startswith(tuple(DATAPOINT_TYPES)):
+                        data[item_name] = IMAGE_PLACEHOLDER
+        response = rows
     except KeyError:
-        raise web.HTTPBadRequest(reason=results['message'])
+        msg = results['message']
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+    except Exception as exc:
+        msg = str(exc)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(response)
 

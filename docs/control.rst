@@ -9,6 +9,10 @@
 .. |sine_out_change| image:: images/sine_out_change.jpg
 .. |end_to_end| image:: images/EndToEnd.jpg
 .. |north_map1| image:: images/north_map1.jpg
+.. |north_map2| image:: images/north_map2.jpg
+.. |north_map3| image:: images/north_map3.jpg
+.. |north_map4| image:: images/north_map4.jpg
+.. |opcua_server| image:: images/opcua_server.jpg
 .. |dispatcher_config| image:: images/dispatcher-config.jpg
 
 
@@ -274,6 +278,35 @@ A example of how a north plugin might define this mapping is shown below
 
 In this case we have an OPCUA north plugin that offers a writable node called *test*, we have defined this as accepting integer values and also set a destination of *service* and a name of *fan0213*. When the OPCUA node test is written the plugin will send a control message to the dispatcher to ask it to perform a write operation on the named service.
 
+<<<<<<< HEAD
+Alternately the dispatcher can send the request based on the assets that the south service is ingesting. In the following example, again taken from the OPCUA north plugin, we send a value of *EngingeSpeed* which is an integer within the OPCUA server that Fledge presents to the service that is ingesting the asset *pump0014*.
+
++--------------+
+| |north_map2| |
++--------------+
+
+If browsing the OPCUA server which Fledge is offering via the north service you will see a node with the browse name *EngineSpeed* which when written will cause the north plugin to send a message to the dispatcher service and ultimately cause the south service ingesting *pump0014* to have that value written to it;s *EngineSpeed* item. That south service need not be an OPCUA service, it could be any south service that supports control.
+
++----------------+
+| |opcua_server| |
++----------------+
+
+It is also possible to get the dispatcher to send the control request to all services that support control. In the case of the OPCUA north plugin this is specified by omitting the other types of destination.
+
++--------------+
+| |north_map3| |
++--------------+
+
+All south services that support control will be sent the request, these may be of many different types and are free to ignore the request if it can not be mapped locally to a resource to update. The semantics of how the request is treated is determined by the south plugin, each plugin receiving the request may take different actions.
+
+The dispatcher can also be instructed to run a local automation script, these are discussed in more detail below, when a write occurs on the OPCUA node via this north plugin. In this case the control map is passed a script key and name to execute. The script will receive the value *EngineSpeed* as a parameter of the script.
+
++--------------+
+| |north_map4| |
++--------------+
+
+=======
+>>>>>>> develop
 Note, this is an example and does not mean that all or any plugins will use the exact syntax for mapping described above, the documentation for your particular plugin should be consulted to confirm the mapping implemented by the plugin.
 
 Control Dispatcher

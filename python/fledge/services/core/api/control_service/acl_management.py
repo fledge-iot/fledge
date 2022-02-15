@@ -46,8 +46,8 @@ async def get_all_acls(request: web.Request) -> web.Response:
     result = await storage.query_tbl_with_payload('control_acl', payload)
     all_acls = []
     for key in result['rows']:
-        key.update({"service": eval(str(key['service']))})
-        key.update({"url": eval(str(key['url']))})
+        key.update({"service": key['service']})
+        key.update({"url": key['url']})
         all_acls.append(key)
     # TODO: Add users list in response where they are used
     return web.json_response({"acls": all_acls})
@@ -67,10 +67,10 @@ async def get_acl(request: web.Request) -> web.Response:
         if 'rows' in result:
             if result['rows']:
                 acl_info = result['rows'][0]
-                acl_info.update({"service": eval(str(acl_info['service']))})
-                acl_info.update({"url": eval(str(acl_info['url']))})
+                acl_info.update({"service": acl_info['service']})
+                acl_info.update({"url": acl_info['url']})
             else:
-                raise NameNotFoundError('No such {} ACL found'.format(name))
+                raise NameNotFoundError('ACL with name {} is not found.'.format(name))
         else:
             raise StorageServerError(result)
     except StorageServerError as err:
@@ -207,7 +207,7 @@ async def update_acl(request: web.Request) -> web.Response:
                 else:
                     raise StorageServerError(update_result)
             else:
-                raise NameNotFoundError('ACL {} is not found'.format(name))
+                raise NameNotFoundError('ACL with name {} is not found.'.format(name))
         else:
             raise StorageServerError(result)
     except StorageServerError as err:
@@ -250,7 +250,7 @@ async def delete_acl(request: web.Request) -> web.Response:
                 else:
                     raise StorageServerError(delete_result)
             else:
-                raise NameNotFoundError('No such {} ACL found'.format(name))
+                raise NameNotFoundError('ACL with name {} is not found.'.format(name))
         else:
             raise StorageServerError(result)
     except StorageServerError as err:

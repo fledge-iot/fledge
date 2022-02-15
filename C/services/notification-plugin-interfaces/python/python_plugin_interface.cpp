@@ -118,6 +118,13 @@ void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
 	PyList_Append(sysPath,
 			PyUnicode_FromString((char *)notificationsRootPath.c_str()));
 
+    // Set sys.argv for embedded Python 3.5
+	int argc = 2;
+	wchar_t* argv[2];
+	argv[0] = Py_DecodeLocale("", NULL);
+	argv[1] = Py_DecodeLocale(pluginName, NULL);
+	PySys_SetArgv(argc, argv);
+
 	// Import plugin module
 	PyObject *pModule = PyImport_ImportModule(pluginName);
 

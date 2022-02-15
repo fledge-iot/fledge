@@ -592,6 +592,13 @@ void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
 	PyList_Append(sysPath, PyUnicode_FromString((char *) filtersRootPath.c_str()));
 	PyList_Append(sysPath, PyUnicode_FromString((char *) fledgePythonDir.c_str()));
 
+    // Set sys.argv for embedded Python 3.5
+	int argc = 2;
+	wchar_t* argv[2];
+	argv[0] = Py_DecodeLocale("", NULL);
+	argv[1] = Py_DecodeLocale(pluginName, NULL);
+	PySys_SetArgv(argc, argv);
+
 	// 2) Import Python script
 	PyObject *pModule = PyImport_ImportModule(pluginName);
     Logger::getLogger()->info("%s:%d: pluginName=%s, pModule=%p", __FUNCTION__, __LINE__, pluginName, pModule);

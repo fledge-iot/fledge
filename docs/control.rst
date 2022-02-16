@@ -341,7 +341,7 @@ The same data substitution rules described above can also be used within the ste
 
 Each step may also have associated with it a condition, if specified that condition must evaluate to true for the step to be executed. If it evaluates to false then the step is not executed and execution moves to the next step in the script.
 
-.. include:: control-scripts.rst
+.. include:: control_scripts.rst
 
 Step Conditions
 ~~~~~~~~~~~~~~~

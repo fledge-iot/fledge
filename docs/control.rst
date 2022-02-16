@@ -278,7 +278,6 @@ A example of how a north plugin might define this mapping is shown below
 
 In this case we have an OPCUA north plugin that offers a writable node called *test*, we have defined this as accepting integer values and also set a destination of *service* and a name of *fan0213*. When the OPCUA node test is written the plugin will send a control message to the dispatcher to ask it to perform a write operation on the named service.
 
-<<<<<<< HEAD
 Alternately the dispatcher can send the request based on the assets that the south service is ingesting. In the following example, again taken from the OPCUA north plugin, we send a value of *EngingeSpeed* which is an integer within the OPCUA server that Fledge presents to the service that is ingesting the asset *pump0014*.
 
 +--------------+
@@ -305,8 +304,6 @@ The dispatcher can also be instructed to run a local automation script, these ar
 | |north_map4| |
 +--------------+
 
-=======
->>>>>>> develop
 Note, this is an example and does not mean that all or any plugins will use the exact syntax for mapping described above, the documentation for your particular plugin should be consulted to confirm the mapping implemented by the plugin.
 
 Control Dispatcher
@@ -344,6 +341,8 @@ The same data substitution rules described above can also be used within the ste
 
 Each step may also have associated with it a condition, if specified that condition must evaluate to true for the step to be executed. If it evaluates to false then the step is not executed and execution moves to the next step in the script.
 
+.. include:: control-scripts.rst
+
 Step Conditions
 ~~~~~~~~~~~~~~~
 
@@ -356,6 +355,8 @@ The conditions that can be applied to a step allow for the checking of the value
 to a step, would result in the step being executed if the value in the parameter called *speed* that was in the original request to the dispatcher, had a value other than 0.
 
 Conditions may be defined using the equals and not equals operators or for numeric values also greater than and less than.
+
+.. include:: acl.rst
 
 Configuration
 -------------

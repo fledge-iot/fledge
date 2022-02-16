@@ -25,7 +25,7 @@ The control dispatcher supports the execution of automation scripts as part of t
 Graphical Interface
 ~~~~~~~~~~~~~~~~~~~
 
-The automation scripts are available via the *Control Service* menu item in the left hand menu panel. Selecting this will give you access to the user interface associated with the control functions of Fledge. Click on the *Scripts* tab to select the scripts, this will display a list of scripts currently defined within the system and also show an add button ion the top right corner.
+The automation scripts are available via the *Control Service* menu item in the left hand menu panel. Selecting this will give you access to the user interface associated with the control functions of Fledge. Click on the *Scripts* tab to select the scripts, this will display a list of scripts currently defined within the system and also show an add button icon the top right corner.
 
 +----------------+
 | |automation_1| |

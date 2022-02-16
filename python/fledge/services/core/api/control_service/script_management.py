@@ -152,18 +152,20 @@ async def add_script(request: web.Request) -> web.Response:
 @has_permission("admin")
 async def update_script(request: web.Request) -> web.Response:
     """ Update a script
+    Only the steps & ACL parameters can be updated
 
     :Example:
-        curl -H "authorization: $AUTH_TOKEN" -sX PUT http://localhost:8081/fledge/control/script/testScript -d '{"name": "newName", "steps": []}'
+        curl -H "authorization: $AUTH_TOKEN" -sX PUT http://localhost:8081/fledge/control/script/testScript -d '{"steps": []}'
         curl -H "authorization: $AUTH_TOKEN" -sX PUT http://localhost:8081/fledge/control/script/test -d '{"steps": [], "acl": "testACL"}'
     """
     try:
         name = request.match_info.get('script_name', None)
+
         data = await request.json()
-        script_new_name = data.get('name', None)
         steps = data.get('steps', None)
         acl = data.get('acl', None)
-        if script_new_name is None and steps is None and acl is None:
+        
+        if steps is None and acl is None:
             raise ValueError("Nothing to update for the given payload.")
         if steps is not None and not isinstance(steps, list):
             raise ValueError('steps must be in list')
@@ -181,8 +183,6 @@ async def update_script(request: web.Request) -> web.Response:
             if result['rows']:
                 update_query = PayloadBuilder()
                 set_values = {}
-                if script_new_name is not None:
-                    set_values["name"] = script_new_name
                 if steps is not None: 
                     set_values["steps"] = json.dumps(steps)
                 if acl is not None:

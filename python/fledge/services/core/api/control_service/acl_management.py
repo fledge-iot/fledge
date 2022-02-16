@@ -156,27 +156,20 @@ async def add_acl(request: web.Request) -> web.Response:
 @has_permission("admin")
 async def update_acl(request: web.Request) -> web.Response:
     """ Update an access control list
+    Only the service and URL parameters can be updated. 
 
     :Example:
-        curl -H "authorization: $AUTH_TOKEN" -sX PUT http://localhost:8081/fledge/ACL/testACL -d '{"name": "newName", service": [{"name": "Sinusoid"}]}'
+        curl -H "authorization: $AUTH_TOKEN" -sX PUT http://localhost:8081/fledge/ACL/testACL -d '{service": [{"name": "Sinusoid"}]}'
         curl -H "authorization: $AUTH_TOKEN" -sX PUT http://localhost:8081/fledge/ACL/testACL -d '{"service": [], "url": [{"URL": "/fledge/south/operation", "ACL": [{"type": "Southbound"}]}]}'
     """
     try:
         name = request.match_info.get('acl_name', None)
         
         data = await request.json()
-        acl_new_name = data.get('name', None)
         service = data.get('service', None)
         url = data.get('url', None)
-        if acl_new_name is None and service is None and url is None:
+        if service is None and url is None:
             raise ValueError("Nothing to update for the given payload")
-        
-        if acl_new_name:
-            if not isinstance(acl_new_name, str):
-                raise TypeError('ACL name must be a string')
-            name = name.strip()
-            if name == "":
-                raise ValueError('ACL name cannot be set to empty')
 
         if service is not None and not isinstance(service, list):
             raise TypeError('service must be in list')
@@ -191,8 +184,6 @@ async def update_acl(request: web.Request) -> web.Response:
                 update_query = PayloadBuilder()
                 
                 set_values = {}
-                if acl_new_name is not None:
-                    set_values["name"] = acl_new_name
                 if service is not None:
                     set_values["service"] = json.dumps(service)
                 if url is not None:

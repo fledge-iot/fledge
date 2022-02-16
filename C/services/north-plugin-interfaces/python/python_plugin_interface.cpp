@@ -409,7 +409,7 @@ uint32_t plugin_send_fn(PLUGIN_HANDLE handle, const std::vector<Reading *>& read
     // Create a dict of readings
 	ReadingSet *set = new ReadingSet(&readings);
 	PythonReadingSet *pyReadingSet = (PythonReadingSet *) set;
-    PyObject* readingsList = pyReadingSet->toPython();
+    PyObject* readingsList = pyReadingSet->toPython(true);
     
     PyObject* objectsRepresentation = PyObject_Repr(readingsList);
     const char* s = PyUnicode_AsUTF8(objectsRepresentation);

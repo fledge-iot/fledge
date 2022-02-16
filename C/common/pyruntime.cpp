@@ -209,7 +209,7 @@ void PythonRuntime::execute(const string& python)
  */
 PyObject *PythonRuntime::call(const string& fcn, const string& fmt, ...)
 {
-PyObject *rval;
+PyObject *rval = NULL;
 va_list ap;
 PyObject *mod, *method;
 

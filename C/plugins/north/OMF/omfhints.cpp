@@ -74,7 +74,11 @@ string OMFHints::getHintForChecksum(const string &hint) {
 	return (hintFinal);
 }
 
-
+/**
+ *  Decodes the OMFhint in JSON format assigning the values to the memory structures: m_chksum,  m_hints and m_datapointHints
+ *
+ * @param hint   OMF hint in JSON format
+ */
 OMFHints::OMFHints(const string& hints)
 {
 	string hintsTmp, hintsChksum;

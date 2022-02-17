@@ -66,6 +66,16 @@ SimpleHttps::~SimpleHttps()
 }
 
 /**
+ * Set a proxy server
+ *
+ * @param proxy	The name and port of the proxy server
+ */
+void SimpleHttps::setProxy(const string& proxy)
+{
+	m_sender->config.proxy_server = proxy;
+}
+
+/**
  * Send data, it retries the operation m_max_retry times
  * waiting m_retry_sleep_time*2 at each attempt
  *

@@ -33,6 +33,8 @@ using namespace std;
 /**
  * Constructor: host:port, connect_timeout, request_timeout,
  *              retry_sleep_Time, max_retry
+ *
+ * Logs the messages into omf.log if the file is present
  */
 LibcurlHttps::LibcurlHttps(const string& host_port,
 			 unsigned int connect_timeout,
@@ -77,6 +79,16 @@ LibcurlHttps::~LibcurlHttps()
 		m_ofs.close();
 	}
 	curl_global_cleanup();
+}
+
+/**
+ * Add a proxy server
+ *
+ * @param proxy	The host and port of the proxy
+ */
+void LibcurlHttps::setProxy(const string& proxy)
+{
+	curl_easy_setopt(m_sender, CURLOPT_PROXY, proxy.c_str());
 }
 
 /**

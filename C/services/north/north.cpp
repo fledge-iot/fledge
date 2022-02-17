@@ -59,6 +59,10 @@ static NorthService *service;
 
 /**
  * Callback function when a plugin wishes to perform a write operation
+ *
+ * @param name	The name of the value to write
+ * @param value	The value to write
+ * @param destination	Where to write the value
  */
 static bool controlWrite(char *name, char *value, ControlDestination destination, ...)
 {
@@ -69,6 +73,7 @@ static bool controlWrite(char *name, char *value, ControlDestination destination
 	{
 		case DestinationAsset:
 		case DestinationService:
+		case DestinationScript:
 		{
 			va_start(ap, destination);
 			char *arg1 = va_arg(ap, char *);
@@ -87,8 +92,14 @@ static bool controlWrite(char *name, char *value, ControlDestination destination
 
 /**
  * Callback function when a plugin wishes to perform a control operation
+ *
+ * @param operation	The name of the operation to perform
+ * @param paramCount	The count of the number of parameters
+ * @param names		The names of the parameters
+ * @param parameters	The values of the parameters
+ * @param destiantion	The destiantion for the operation
  */
-static int controlOperation(char *operation, int paramCount, char *parameters[], ControlDestination destination, ...)
+static int controlOperation(char *operation, int paramCount, char *names[], char *parameters[], ControlDestination destination, ...)
 {
 	va_list ap;
 	int	rval = -1;
@@ -97,10 +108,10 @@ static int controlOperation(char *operation, int paramCount, char *parameters[],
 	{
 		case DestinationAsset:
 		case DestinationService:
-			rval = service->operation(operation, paramCount, parameters, destination, va_arg(ap, char *));
+			rval = service->operation(operation, paramCount, names, parameters, destination, va_arg(ap, char *));
 			break;
 		case DestinationBroadcast:
-			rval = service->operation(operation, paramCount, parameters, destination);
+			rval = service->operation(operation, paramCount, names, parameters, destination);
 			break;
 		default:
 			Logger::getLogger()->error("Unknown control operation destination %d for operation %s", destination, operation);
@@ -245,7 +256,8 @@ int	size;
  * Constructor for the north service
  */
 NorthService::NorthService(const string& myName) : m_dataLoad(NULL), m_name(myName),
-	m_shutdown(false), m_storage(NULL), m_pluginData(NULL), m_restartPlugin(false)
+	m_shutdown(false), m_storage(NULL), m_pluginData(NULL), m_restartPlugin(false),
+	m_allowControl(true)
 {
 	logger = new Logger(myName);
 	logger->setMinLevel("warning");
@@ -502,6 +514,12 @@ bool NorthService::loadPlugin()
 			m_config.removeItems();
 			m_config = m_mgtClient->getCategory(m_name);
 
+			try {
+				northPlugin = new NorthPlugin(handle, m_config);
+			} catch (...) {
+				return false;
+			}
+
 			// Deal with registering and fetching the advanced configuration
 			string advancedCatName = m_name+string("Advanced");
 			DefaultConfigCategory defConfigAdvanced(advancedCatName, string("{}"));
@@ -522,12 +540,21 @@ bool NorthService::loadPlugin()
 			{
 				logger->setMinLevel(m_configAdvanced.getValue("logLevel"));
 			}
-
-			try {
-				northPlugin = new NorthPlugin(handle, m_config);
-			} catch (...) {
-				return false;
+			if (m_configAdvanced.itemExists("control"))
+			{
+				string c = m_configAdvanced.getValue("control");
+				if (c.compare("true") == 0)
+				{
+					m_allowControl = true;
+					logger->warn("Control operations have been enabled");
+				}
+				else
+				{
+					m_allowControl = false;
+					logger->warn("Control operations have been disabled");
+				}
 			}
+
 
 			return true;
 		}
@@ -579,11 +606,25 @@ void NorthService::configChange(const string& categoryName, const string& catego
 		{
 			logger->setMinLevel(m_configAdvanced.getValue("logLevel"));
 		}
+		if (m_configAdvanced.itemExists("control"))
+		{
+			string c = m_configAdvanced.getValue("control");
+			if (c.compare("true") == 0)
+			{
+				m_allowControl = true;
+				logger->warn("Control operations have been enabled");
+			}
+			else
+			{
+				m_allowControl = false;
+				logger->warn("Control operations have been disabled");
+			}
+		}
 	}
 }
 
 /**
- * Restart the plugin with an updated confoguration.
+ * Restart the plugin with an updated configuration.
  * We need to do this as north plugins do not have a reconfigure method
  *
  * We need to make sure we are not sending data and the send data thread does not startup
@@ -633,6 +674,12 @@ void NorthService::restartPlugin()
 	}
 	m_dataSender->updatePlugin(northPlugin);
 	m_dataSender->release();
+
+	// If the plugin supports control register the callback functions
+	if (northPlugin->hasControl() && m_allowControl)
+	{
+		northPlugin->pluginRegister(controlWrite, controlOperation);
+	}
 }
 
 /**
@@ -648,6 +695,12 @@ void NorthService::addConfigDefaults(DefaultConfigCategory& defaultConfig)
 		defaultConfig.addItem(defaults[i].name, defaults[i].description,
 			defaults[i].type, defaults[i].value, defaults[i].value);
 		defaultConfig.setItemDisplayName(defaults[i].name, defaults[i].displayName);
+	}
+	if (northPlugin->hasControl())
+	{
+		defaultConfig.addItem("control", "Allow write and control operations from the upstream system",
+			"boolean", "true", "true");
+		defaultConfig.setItemDisplayName("control", "Allow Control");
 	}
 
 	/* Add the set of logging levels to the service */
@@ -674,12 +727,12 @@ bool NorthService::write(const string& name, const string& value, const ControlD
 	}
 	// Build payload for dispatcher service
 	string payload = "{ \"destination\" : \"broadcast\",";
-	payload += ", \"write\" : { \"";
+	payload += "\"write\" : { \"";
 	payload += name;
 	payload += "\" : \"";
 	payload += value;
-	payload += "\" }";
-	return sendToDispatcher("/dispatcher/write", payload);
+	payload += "\" } }";
+	return sendToDispatcher("/dispatch/write", payload);
 }
 
 /**
@@ -721,8 +774,8 @@ bool NorthService::write(const string& name, const string& value, const ControlD
 	payload += name;
 	payload += "\" : \"";
 	payload += value;
-	payload += "\" }";
-	return sendToDispatcher("/dispatcher/write", payload);
+	payload += "\" } }";
+	return sendToDispatcher("/dispatch/write", payload);
 }
 
 /**
@@ -733,7 +786,7 @@ bool NorthService::write(const string& name, const string& value, const ControlD
  * @param parameters	The parameters to the operation
  * @param destination	Where to write the value
  */
-int  NorthService::operation(const string& name, int paramCount, char *parameters[], const ControlDestination destination)
+int  NorthService::operation(const string& name, int paramCount, char *names[], char *parameters[], const ControlDestination destination)
 {
 	Logger::getLogger()->info("Control operation %s with %d parameters", name.c_str(),
 			paramCount);
@@ -749,9 +802,18 @@ int  NorthService::operation(const string& name, int paramCount, char *parameter
 	payload += "\"operation\" : { \"";
 	payload += name;
 	payload += "\" : { \"";
-	// TODO add parameters
-	payload += "\" }";
-	sendToDispatcher("/dispatcher/operation", payload);
+	for (int i = 0; i < paramCount; i++)
+	{
+		payload += "\"";
+		payload += names[i];
+		payload += "\": \"";
+		payload += parameters[i];
+		payload += "\"";
+		if (i < paramCount -1)
+			payload += ",";
+	}
+	payload += "\" } }";
+	sendToDispatcher("/dispatch/operation", payload);
 	return -1;
 }
 
@@ -764,7 +826,7 @@ int  NorthService::operation(const string& name, int paramCount, char *parameter
  * @param destination	Where to write the value
  * @param arg		Argument used to determine destination
  */
-int NorthService::operation(const string& name, int paramCount, char *parameters[], const ControlDestination destination, const string& arg)
+int NorthService::operation(const string& name, int paramCount, char *names[], char *parameters[], const ControlDestination destination, const string& arg)
 {
 	Logger::getLogger()->info("Control operation %s with %d parameters", name.c_str(),
 			paramCount);
@@ -796,9 +858,18 @@ int NorthService::operation(const string& name, int paramCount, char *parameters
 	payload += ", \"operation\" : { \"";
 	payload += name;
 	payload += "\" : { \"";
-	// TODO add parameters
-	payload += "\" }";
-	sendToDispatcher("/dispatcher/operation", payload);
+	for (int i = 0; i < paramCount; i++)
+	{
+		payload += "\"";
+		payload += names[i];
+		payload += "\": \"";
+		payload += parameters[i];
+		payload += "\"";
+		if (i < paramCount -1)
+			payload += ",";
+	}
+	payload += "\" } }";
+	sendToDispatcher("/dispatch/operation", payload);
 	return -1;
 }
 
@@ -816,7 +887,6 @@ bool NorthService::sendToService(const string& southService, const string& name,
 
 	// Send the control message to the south service
 	try {
-		// TODO the real work
 		ServiceRecord service(southService);
 		if (!m_mgtClient->getService(service))
 		{
@@ -860,10 +930,9 @@ bool NorthService::sendToService(const string& southService, const string& name,
  */
 bool NorthService::sendToDispatcher(const string& path, const string& payload)
 {
-
 	// Send the control message to the south service
 	try {
-		ServiceRecord service("Dispatcher");
+		ServiceRecord service("dispatcher");
 		if (!m_mgtClient->getService(service))
 		{
 			Logger::getLogger()->error("Unable to find dispatcher service 'Dispatcher'");
@@ -877,8 +946,8 @@ bool NorthService::sendToDispatcher(const string& path, const string& payload)
 
 		try {
 			SimpleWeb::CaseInsensitiveMultimap headers = {{"Content-Type", "application/json"}};
-			auto res = http.request("PUT", path, payload, headers);
-			if (res->status_code.compare("200 OK"))
+			auto res = http.request("POST", path, payload, headers);
+			if (res->status_code.compare("202 Accepted"))
 			{
 				Logger::getLogger()->error("Failed to send control operation to dispatcher service, %s",
 							res->status_code.c_str());

@@ -16,9 +16,9 @@
 .. |dispatcher_config| image:: images/dispatcher-config.jpg
 
 
-*****************
-Set Point Control
-*****************
+***********************
+Fledge Control Features
+***********************
 
 Fledge supports facilities that allows control of devices via the south service and plugins. This control in known as *set point control* as it is not intended for real time critical control of devices but rather to modify the behavior of a device based on one of many different information flows. The latency involved in these control operations is highly dependent on the control path itself and also the scheduling limitations of the underlying operating system. Hence the caveat that the control functions are not real time or guaranteed to be actioned within a specified time window.
 
@@ -306,8 +306,8 @@ The dispatcher can also be instructed to run a local automation script, these ar
 
 Note, this is an example and does not mean that all or any plugins will use the exact syntax for mapping described above, the documentation for your particular plugin should be consulted to confirm the mapping implemented by the plugin.
 
-Control Dispatcher
-==================
+Control Dispatcher Service
+==========================
 
 The *control dispatcher* service is a service responsible for receiving control messages from other components of the Fledge system and taking the necessary actions against the south services in order to achieve the request result. This may be as simple as forwarding the write or operation request to one to more south services or it may require the execution of an automation script by the *dispatcher service*.
 
@@ -325,7 +325,7 @@ The *service dispatcher* supports three forwarding regimes which may be used to 
 Automation Scripts
 ------------------
 
-The service dispatcher supports a limited scripting designed to allow users to easily create sequences of operations that can be executed in response to a single control write operation. Scripts are created within Fledge and named externally to any control operations and may be executed by more than one control input. These scripts consist of a linear set of steps, each of which results in one of a number of actions, the actions supported are
+The control dispatcher service supports a limited scripting designed to allow users to easily create sequences of operations that can be executed in response to a single control write operation. Scripts are created within Fledge and named externally to any control operations and may be executed by more than one control input. These scripts consist of a linear set of steps, each of which results in one of a number of actions, the actions supported are
 
   - Perform a write request. A new write operation is defined in the step and it may take the form of any of the three styles of forwarding supported by the dispatcher; write to a named service, write to as service providing an asset or write to all south services.
 
@@ -361,7 +361,7 @@ Conditions may be defined using the equals and not equals operators or for numer
 Configuration
 -------------
 
-The *control dispatcher* has a small number of configuration items that are available in the *Dispatcher* configuration category within the general Configuration menu item on the user interface.
+The *control dispatcher service* has a small number of configuration items that are available in the *Dispatcher* configuration category within the general Configuration menu item on the user interface.
 
 +---------------------+
 | |dispatcher_config| |

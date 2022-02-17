@@ -67,6 +67,11 @@ ResultSet::ResultSet(const std::string& json)
 					{
 						type = STRING_COLUMN;
 					}
+					// Array of any objects is JSON
+					else if (itr->value.IsArray())
+					{
+						type = JSON_COLUMN;
+					}
 					else
 					{
 						throw new ResultException("Unable to determine column type");

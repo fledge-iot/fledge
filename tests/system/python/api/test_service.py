@@ -260,7 +260,17 @@ class TestService:
         assert 3 == len(jdoc['services'])
         services = [name['name'] for name in jdoc['services']]
         assert SVC_NAME_6 not in services
-
+        # As now we have the ability to delete the orphan category of filter when service got deleted
+        # Create new filter category to use with another service
+        filter_data = {"name": FILTER_NAME, "plugin": PLUGIN_FILTER}
+        conn = http.client.HTTPConnection(fledge_url)
+        conn.request("POST", '/fledge/filter', json.dumps(filter_data))
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        jdoc = json.loads(r)
+        assert FILTER_NAME == jdoc['filter']
+        assert PLUGIN_FILTER == jdoc['value']['plugin']['value']
         # filter linked with SVC_NAME_4
         data = {"pipeline": [FILTER_NAME]}
         conn.request("PUT", '/fledge/filter/{}/pipeline?allow_duplicates=true&append_filter=true'

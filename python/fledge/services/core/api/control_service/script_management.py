@@ -43,7 +43,7 @@ async def get_all_scripts(request: web.Request) -> web.Response:
     result = await storage.query_tbl_with_payload('control_script', payload)
     all_scripts = []
     for key in result['rows']:
-        key.update({"steps": eval(str(key['steps']))})
+        key.update({"steps": key['steps']})
         all_scripts.append(key)
 
     return web.json_response({"scripts": all_scripts})
@@ -63,9 +63,9 @@ async def get_script(request: web.Request) -> web.Response:
         if 'rows' in result:
             if result['rows']:
                 script_info = result['rows'][0]
-                script_info.update({"steps": eval(str(script_info['steps']))})
+                script_info.update({"steps": script_info['steps']})
             else:
-                raise NameNotFoundError('No such {} script found'.format(name))
+                raise NameNotFoundError('Script with name {} is not found.'.format(name))
         else:
             raise StorageServerError(result)
     except StorageServerError as err:
@@ -95,39 +95,43 @@ async def add_script(request: web.Request) -> web.Response:
         steps = data.get('steps', None)
         acl = data.get('acl', None)
         if name is None:
-            raise ValueError('name param is required')
-        name = name.strip()
-        if name is not None and name == "":
-            raise ValueError('name cannot be empty')
+            raise ValueError('Script name is required')
+        else:
+            if not isinstance(name, str):
+                raise TypeError('Script name must be a string')
+            name = name.strip()
+            if name == "":
+                raise ValueError('Script name cannot be empty')
         if steps is None:
-            raise ValueError('steps param is required')
+            raise ValueError('steps parameter is required')
         if not isinstance(steps, list):
-            raise ValueError('steps must be in list')
+            raise ValueError('steps must be a list')
         if acl is not None:
             if not isinstance(acl, str):
-                raise ValueError('ACL must be a string')
-            if acl.strip() == "":
+                raise ValueError('ACL name must be a string')
+            acl = acl.strip()
+            if acl == "":
                 raise ValueError('ACL cannot be empty')
         result = {}
         storage = connect.get_storage_async()
         payload = PayloadBuilder().SELECT("name").WHERE(['name', '=', name]).payload()
         get_control_script_name_result = await storage.query_tbl_with_payload('control_script', payload)
-        steps = str(steps)
+        _steps = json.dumps(steps)
         if get_control_script_name_result['count'] == 0:
-            payload = PayloadBuilder().INSERT(name=name, steps=steps).payload()
+            payload = PayloadBuilder().INSERT(name=name, steps=_steps).payload()
             if acl is not None:
                 # TODO: ACL record existence check if found then move else throw 404
-                payload = PayloadBuilder().INSERT(name=name, steps=steps, acl=acl.strip()).payload()
+                payload = PayloadBuilder().INSERT(name=name, steps=_steps, acl=acl).payload()
             insert_control_script_result = await storage.insert_into_tbl("control_script", payload)
             if 'response' in insert_control_script_result:
                 if insert_control_script_result['response'] == "inserted":
-                    result = {"name": name, "steps": eval(steps)}
+                    result = {"name": name, "steps": json.loads(_steps)}
                     if acl is not None:
-                        result["acl"] = acl.strip()
+                        result["acl"] = acl
             else:
                 raise StorageServerError(insert_control_script_result)
         else:
-            msg = '{} name already exists.'.format(name)
+            msg = 'Script with name {} already exists.'.format(name)
             raise DuplicateNameError(msg)
     except StorageServerError as err:
         msg = "Storage error: {}".format(str(err))
@@ -148,6 +152,7 @@ async def add_script(request: web.Request) -> web.Response:
 @has_permission("admin")
 async def update_script(request: web.Request) -> web.Response:
     """ Update a script
+    Only the steps & ACL parameters can be updated
 
     :Example:
         curl -H "authorization: $AUTH_TOKEN" -sX PUT http://localhost:8081/fledge/control/script/testScript -d '{"steps": []}'
@@ -155,37 +160,38 @@ async def update_script(request: web.Request) -> web.Response:
     """
     try:
         name = request.match_info.get('script_name', None)
+
         data = await request.json()
         steps = data.get('steps', None)
         acl = data.get('acl', None)
+        
         if steps is None and acl is None:
-            raise ValueError("Nothing to update in a given payload. Only steps and acl can be updated")
+            raise ValueError("Nothing to update for the given payload.")
         if steps is not None and not isinstance(steps, list):
             raise ValueError('steps must be in list')
         if acl is not None:
             if not isinstance(acl, str):
                 raise ValueError('ACL must be a string')
-            if acl.strip() == "":
-                raise ValueError('ACL cannot be empty')
+            acl = acl.strip()
+
         storage = connect.get_storage_async()
         payload = PayloadBuilder().SELECT("name").WHERE(['name', '=', name]).payload()
         result = await storage.query_tbl_with_payload('control_script', payload)
         message = ""
         if 'rows' in result:
             if result['rows']:
-                if steps is not None and acl is not None:
+                update_query = PayloadBuilder()
+                set_values = {}
+                if steps is not None: 
+                    set_values["steps"] = json.dumps(steps)
+                if acl is not None:
                     # TODO: acl existence check
-                    update_payload = PayloadBuilder().SET(steps=str(steps), acl=acl.strip()).WHERE(
-                        ['name', '=', name]).payload()
-                elif steps is not None:
-                    update_payload = PayloadBuilder().SET(steps=str(steps)).WHERE(['name', '=', name]).payload()
-                else:
-                    # TODO: acl existence check
-                    update_payload = PayloadBuilder().SET(acl=acl.strip()).WHERE(['name', '=', name]).payload()
-                update_result = await storage.update_tbl("control_script", update_payload)
+                    set_values["acl"] = acl
+                update_query.SET(**set_values).WHERE(['name', '=', name])
+                update_result = await storage.update_tbl("control_script", update_query.payload())
                 if 'response' in update_result:
                     if update_result['response'] == "updated":
-                        message = "Record updated successfully for {} script".format(name)
+                        message = "Control script {} updated successfully.".format(name)
                 else:
                     raise StorageServerError(update_result)
             else:
@@ -227,7 +233,7 @@ async def delete_script(request: web.Request) -> web.Response:
                 delete_result = await storage.delete_from_tbl("control_script", payload)
                 if 'response' in delete_result:
                     if delete_result['response'] == "deleted":
-                        message = "{} script deleted successfully".format(name)
+                        message = "{} script deleted successfully.".format(name)
                 else:
                     raise StorageServerError(delete_result)
             else:

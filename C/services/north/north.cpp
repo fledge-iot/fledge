@@ -173,7 +173,7 @@ string		token = "";
 		cout << "Failed to run as deamon - proceeding in interactive mode." << endl;
 	}
 
-	service = new NorthService(myName);
+	service = new NorthService(myName, token);
 	Logger::getLogger()->setMinLevel(logLevel);
 	service->start(coreAddress, corePort);
 	return 0;

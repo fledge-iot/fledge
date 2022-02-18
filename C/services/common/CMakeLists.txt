@@ -13,7 +13,7 @@ file(GLOB SOURCES *.cpp)
 if(${CMAKE_VERSION} VERSION_LESS "3.12.0") 
     pkg_check_modules(PYTHON REQUIRED python3)
 else()
-    find_package(Python COMPONENTS Interpreter Development)
+    find_package(Python3 COMPONENTS Interpreter Development)
 endif()
 
 # Include header files

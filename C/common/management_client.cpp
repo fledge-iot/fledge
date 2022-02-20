@@ -15,6 +15,7 @@
 #include <asset_tracking.h>
 #include <bearer_token.h>
 #include <crypto.hpp>
+#include <rapidjson/error/en.h>
 
 using namespace std;
 using namespace rapidjson;
@@ -970,11 +971,11 @@ bool ManagementClient::verifyAccessBearerToken(shared_ptr<HttpServer::Request> r
 		// A validated token exists: check expiration time
 		vector<string> elems = JWTTokenSplit(bearer_token, '.');
 		// Add missing base64 padding
-		if (elems[1].length() % 2 != 0)
+		if (elems[1].length() % 4 != 0)
 		{
 			elems[1] += "=";
 		}
-		if (elems[1].length() % 2 != 0)
+		if (elems[1].length() % 4 != 0)
 		{
 			elems[1] += "=";
 		}
@@ -983,8 +984,30 @@ bool ManagementClient::verifyAccessBearerToken(shared_ptr<HttpServer::Request> r
 		Document doc;
 		doc.Parse(plainData.c_str());
 
-		// TODO check JSON parsing
-		unsigned long expiration = doc["exp"].GetUint();
+		// JSON parsing check of token claims
+		if (doc.HasParseError())
+		{
+			m_logger->error("Failure while parsing JSON claims of bearer token, "
+					"error %s, input data %s",
+					GetParseError_En(doc.GetParseError()),
+					plainData.c_str());
+			return false;
+		}
+
+		unsigned long expiration;
+		if (doc["exp"].IsUint())
+		{
+			expiration = doc["exp"].GetUint();
+		}
+		else
+		{
+			m_logger->error("Failure while parsing 'exp' token claim of bearer token, "
+					"error %s, input data %s",
+					"not a number",
+					plainData.c_str());
+			return false;
+		}
+
 		unsigned long now = time(NULL);
 
 		// Check expiration

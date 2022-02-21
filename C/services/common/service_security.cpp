@@ -219,7 +219,7 @@ bool ServiceAuthHandler::verifyURL(const string& path,
  * @param   sType	The caller service type (Northbound, Southbound, Notification, etc)
  * @return		True is the resource acces has been granted, false otherwise
  */
-bool ServiceAuthHandler::verifyService(string& sName, string &sType)
+bool ServiceAuthHandler::verifyService(const string& sName, const string &sType)
 {
 	// Check m_security category item ACL value service array
 	Document doc;
@@ -323,6 +323,22 @@ void ServiceAuthHandler::AuthenticationMiddlewarePUT(shared_ptr<HttpServer::Resp
         		        shared_ptr<HttpServer::Response>,
         		        shared_ptr<HttpServer::Request>)> funcPUT)
 {
+
+	string serviceName;
+	string serviceType;
+
+	for(auto &field : request->header)
+	{
+		if (field.first == "Service-Orig-From")
+		{
+			serviceName = field.second;
+		}
+		if (field.first == "Service-Orig-Type")
+		{
+			serviceType = field.second;
+		}
+	}
+
 	// Get authentication enabled value
 	bool acl_set = this->getAuthenticatedCaller();
 	Logger::getLogger()->debug("This service %s has AuthenticatedCaller flag set %d",
@@ -348,7 +364,7 @@ void ServiceAuthHandler::AuthenticationMiddlewarePUT(shared_ptr<HttpServer::Resp
 		}
 
 		// Check for valid service caller (name, type)
-		bool valid_service = this->verifyService(tokenClaims["sub"], tokenClaims["aud"]);
+		bool valid_service = this->verifyService(serviceName, serviceType);
 		if (!valid_service)
 		{
 			string msg = "authorisation not granted to this service";
@@ -361,7 +377,9 @@ void ServiceAuthHandler::AuthenticationMiddlewarePUT(shared_ptr<HttpServer::Resp
 		}
 
 		// Check URLS
-		bool access_granted = this->verifyURL(request->path, tokenClaims);
+		bool access_granted = this->verifyURL(request->path,
+						serviceName,
+						serviceType);
 		if (!access_granted)
 		{
 			string msg = "authorisation not granted to this resource";
@@ -479,6 +497,7 @@ bool ServiceAuthHandler::AuthenticationMiddlewareACL(shared_ptr<HttpServer::Resp
 map<string, string>
 	ServiceAuthHandler::AuthenticationMiddlewareCommon(shared_ptr<HttpServer::Response> response,
 							shared_ptr<HttpServer::Request> request)
+{
 	// Verify token via Fledge management core POST API call and fill tokenClaims map
 	map<string, string> tokenClaims;
 	bool ret = m_mgtClient->verifyAccessBearerToken(request, tokenClaims);

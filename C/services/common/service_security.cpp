@@ -142,7 +142,7 @@ bool ServiceAuthHandler::getAuthenticatedCaller()
  */
 bool ServiceAuthHandler::verifyURL(const string& path,
 				const string& serviceName,
-				const string& serviceType))
+				const string& serviceType)
 {
 	Document doc;
  

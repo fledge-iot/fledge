@@ -45,7 +45,7 @@ include_directories(../../../C/plugins/storage/common/include)
 if(${CMAKE_VERSION} VERSION_LESS "3.12.0") 
     include_directories(${PYTHON_INCLUDE_DIRS})
 else()
-    include_directories(${Python_INCLUDE_DIRS})
+    include_directories(${Python3_INCLUDE_DIRS})
 endif()
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/../lib)

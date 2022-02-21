@@ -1,5 +1,9 @@
 cmake_minimum_required(VERSION 2.4.0)
 
+if( POLICY CMP0007 )
+    cmake_policy( SET CMP0007 NEW )
+endif()
+
 project(services-common-lib)
 
 set(CMAKE_CXX_FLAGS_DEBUG "-O0 -ggdb")

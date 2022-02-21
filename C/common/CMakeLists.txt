@@ -26,7 +26,7 @@ find_package(PkgConfig REQUIRED)
 if(${CMAKE_VERSION} VERSION_LESS "3.12.0")
     pkg_check_modules(PYTHON REQUIRED python3)
 else()
-	find_package(Python COMPONENTS Interpreter Development NumPy Development)
+	find_package(Python COMPONENTS Interpreter Development NumPy REQUIRED python3)
 endif()
 
 # Find source files
@@ -56,7 +56,7 @@ add_library(${PROJECT_NAME} SHARED ${SOURCES})
 if(${CMAKE_VERSION} VERSION_LESS "3.12.0")
     target_link_libraries(${PROJECT_NAME} ${PYTHON_LIBRARIES})
 else()
-    target_link_libraries(${PROJECT_NAME} ${Python_LIBRARIES})
+	target_link_libraries(${PROJECT_NAME} ${Python_LIBRARIES} Python3::NumPy)
 endif()
 
 

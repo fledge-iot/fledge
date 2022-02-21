@@ -38,6 +38,7 @@ class NorthService : public ServiceHandler {
 						      unsigned short corePort);
 		void 				stop();
 		void				shutdown();
+		bool				isRunning() { return !m_shutdown; };
 		void				configChange(const std::string&,
 						const std::string&);
 		static ManagementClient *	getMgmtClient();

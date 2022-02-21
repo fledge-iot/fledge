@@ -45,7 +45,7 @@ find_package(PkgConfig REQUIRED)
 if(${CMAKE_VERSION} VERSION_LESS "3.12.0") 
     pkg_check_modules(PYTHON REQUIRED python3)
 else()
-    find_package(Python COMPONENTS Interpreter Development REQUIRED python3)
+    find_package(Python COMPONENTS Interpreter Development)
 endif()
 
 # Add Python 3.x header files

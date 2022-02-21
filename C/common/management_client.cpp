@@ -869,7 +869,7 @@ bool ManagementClient::addAuditEntry(const std::string& code,
 }
 
 /**
- * Checks and validate the JWT bearer token
+ * Checks and validate the JWT bearer token coming from HTTP request
  *
  * @param request	HTTP request object
  * @param claims	Map to fill with JWT public token claims
@@ -878,8 +878,25 @@ bool ManagementClient::addAuditEntry(const std::string& code,
 bool ManagementClient::verifyAccessBearerToken(shared_ptr<HttpServer::Request> request,
 						map<string, string>& claims)
 {
-	string bearer_token = getAccessBearerToken(request);
+	string bearerToken = getAccessBearerToken(request);
+	if (bearerToken.length() == 0)
+	{
+		m_logger->info("Access bearer token has empty value");
+		return false;
+	}
+	return verifyBearerToken(bearerToken, claims);
+}
 
+/**
+ * Checks and validate the JWT bearer token string
+ *
+ * @param bearerToken	The bearer token string
+ * @param claims	Map to fill with JWT public token claims
+ * @return		True on success, false otherwise
+ */
+bool ManagementClient::verifyBearerToken(const string& bearer_token,
+					map<string, string>& claims)
+{
 	if (bearer_token.length() == 0)
 	{
 		m_logger->info("Bearer token has empty value");
@@ -941,11 +958,13 @@ bool ManagementClient::verifyAccessBearerToken(shared_ptr<HttpServer::Request> r
 				// Set token claims in the input map
 				if (doc["aud"].IsString() &&
 				    doc["sub"].IsString() &&
-				    doc["iss"].IsString())
+				    doc["iss"].IsString() &&
+				    doc["exp"].IsUint())
 				{
 					claims["aud"] = doc["aud"].GetString();
 					claims["sub"] = doc["sub"].GetString();
 					claims["iss"] = doc["iss"].GetString();
+					claims["exp"] = std::to_string(doc["exp"].GetUint());
 				}
 				else
 				{
@@ -1007,7 +1026,6 @@ bool ManagementClient::verifyAccessBearerToken(shared_ptr<HttpServer::Request> r
 					plainData.c_str());
 			return false;
 		}
-
 		unsigned long now = time(NULL);
 
 		// Check expiration
@@ -1026,23 +1044,25 @@ bool ManagementClient::verifyAccessBearerToken(shared_ptr<HttpServer::Request> r
 			claims["aud"] = doc["aud"].GetString();
 			claims["sub"] = doc["sub"].GetString();
 			claims["iss"] = doc["iss"].GetString();
+			claims["exp"] = std::to_string(doc["exp"].GetUint());
 		}
 	}
 
 	// Release lock
 	m_mtx_rTokens.unlock();
 
-	m_logger->debug("Token verified %d, claims %s:%s:%s",
+	m_logger->error("Token verified %d, claims %s:%s:%s:%s",
 			ret,
 			claims["aud"].c_str(),
 			claims["sub"].c_str(),
-			claims["iss"].c_str());
+			claims["iss"].c_str(),
+			claims["exp"].c_str());
 
 	return ret;
 }
 
 /**
- * Refresh the JWT bearer token
+ * Refresh the JWT bearer token coming from HTTP request
  *
  * @param request       HTTP request object
  * @param claims        Map to fill with JWT public token claims
@@ -1051,7 +1071,23 @@ bool ManagementClient::verifyAccessBearerToken(shared_ptr<HttpServer::Request> r
 string ManagementClient::refreshAccessBearerToken(shared_ptr<HttpServer::Request> request)
 {
 	string bearer_token = getAccessBearerToken(request);
+	if (bearer_token.length() == 0)
+	{
+		return "";
+	}
 
+	return refreshBearerToken(bearer_token);
+}
+
+/**
+ * Refresh the JWT bearer token string
+ *
+ * @param request       HTTP request object
+ * @param claims        Map to fill with JWT public token claims
+ * @return              New bearer token on success, empty string otherwise
+ */
+string ManagementClient::refreshBearerToken(const string& bearer_token)
+{
 	if (bearer_token.length() == 0)
 	{
 		return "";

@@ -54,6 +54,7 @@ class ServiceAuthHandler : public ServiceHandler
 							std::function<void(
 								std::shared_ptr<HttpServer::Response>,
 								std::shared_ptr<HttpServer::Request>)> funcPOST);
+		void		refreshBearerToken();
  		// Send a good HTTP response to the caller
 		void		respond(std::shared_ptr<HttpServer::Response> response,
 							const std::string& payload)

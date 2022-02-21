@@ -1,5 +1,13 @@
 cmake_minimum_required(VERSION 2.4.0)
 
+if(COMMAND cmake_policy)
+    cmake_policy(SET CMP0003 NEW)
+endif(COMMAND cmake_policy)
+
+if( POLICY CMP0007 )
+    cmake_policy( SET CMP0007 NEW )
+endif()
+
 project(common-lib)
 
 set(CMAKE_CXX_FLAGS_DEBUG "-O0 -ggdb")
@@ -22,7 +30,7 @@ find_package(PkgConfig REQUIRED)
 if(${CMAKE_VERSION} VERSION_LESS "3.12.0")
     pkg_check_modules(PYTHON REQUIRED python3)
 else()
-    find_package(Python COMPONENTS Interpreter Development)
+    find_package(Python3 REQUIRED COMPONENTS Interpreter Development NumPy)
 endif()
 
 # Find source files
@@ -35,13 +43,13 @@ include_directories(include ../services/common/include ../common/include ../thir
 if(${CMAKE_VERSION} VERSION_LESS "3.12.0")
     include_directories(${PYTHON_INCLUDE_DIRS})
 else()
-    include_directories(${Python_INCLUDE_DIRS})
+    include_directories(${Python3_INCLUDE_DIRS} ${Python3_NUMPY_INCLUDE_DIRS})
 endif()
 
 if(${CMAKE_VERSION} VERSION_LESS "3.12.0")
     link_directories(${PYTHON_LIBRARY_DIRS})
 else()
-    link_directories(${Python_LIBRARY_DIRS})
+    link_directories(${Python3_LIBRARY_DIRS})
 endif()
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/../lib)
@@ -52,7 +60,7 @@ add_library(${PROJECT_NAME} SHARED ${SOURCES})
 if(${CMAKE_VERSION} VERSION_LESS "3.12.0")
     target_link_libraries(${PROJECT_NAME} ${PYTHON_LIBRARIES})
 else()
-    target_link_libraries(${PROJECT_NAME} ${Python_LIBRARIES})
+	target_link_libraries(${PROJECT_NAME} ${Python3_LIBRARIES} Python3::NumPy)
 endif()
 
 

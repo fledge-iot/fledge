@@ -16,7 +16,7 @@ file(GLOB SOURCES ingest_callback_pymodule.cpp)
 if(${CMAKE_VERSION} VERSION_LESS "3.12.0") 
     pkg_check_modules(PYTHON REQUIRED python3)
 else()
-    find_package(Python COMPONENTS Interpreter Development)
+    find_package(Python3 REQUIRED COMPONENTS Interpreter Development)
 endif()
 
 # Include header files
@@ -26,13 +26,13 @@ include_directories(include ../../../../common/include ../../../../services/comm
 if(${CMAKE_VERSION} VERSION_LESS "3.12.0") 
     include_directories(${PYTHON_INCLUDE_DIRS})
 else()
-    include_directories(${Python_INCLUDE_DIRS})
+    include_directories(${Python3_INCLUDE_DIRS})
 endif()
 
 if(${CMAKE_VERSION} VERSION_LESS "3.12.0") 
     link_directories(${PYTHON_LIBRARY_DIRS})
 else()
-    link_directories(${Python_LIBRARY_DIRS})
+    link_directories(${Python3_LIBRARY_DIRS})
 endif()
 link_directories(${PROJECT_BINARY_DIR}/../../../../lib)
 
@@ -45,7 +45,7 @@ add_library(${PROJECT_NAME} SHARED ${SOURCES})
 if(${CMAKE_VERSION} VERSION_LESS "3.12.0") 
     target_link_libraries(${PROJECT_NAME} ${PYTHON_LIBRARIES})
 else()
-    target_link_libraries(${PROJECT_NAME} ${Python_LIBRARIES})
+    target_link_libraries(${PROJECT_NAME} ${Python3_LIBRARIES})
 endif()
 
 target_link_libraries(${PROJECT_NAME} ${DLLIB})

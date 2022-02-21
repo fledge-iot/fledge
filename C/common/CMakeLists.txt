@@ -1,5 +1,9 @@
 cmake_minimum_required(VERSION 2.4.0)
 
+if( POLICY CMP0007 )
+    cmake_policy( SET CMP0007 NEW )
+endif()
+
 project(common-lib)
 
 set(CMAKE_CXX_FLAGS_DEBUG "-O0 -ggdb")
@@ -22,7 +26,7 @@ find_package(PkgConfig REQUIRED)
 if(${CMAKE_VERSION} VERSION_LESS "3.12.0")
     pkg_check_modules(PYTHON REQUIRED python3)
 else()
-    find_package(Python COMPONENTS Interpreter Development)
+	find_package(Python COMPONENTS Interpreter Development NumPy Development)
 endif()
 
 # Find source files
@@ -35,7 +39,7 @@ include_directories(include ../services/common/include ../common/include ../thir
 if(${CMAKE_VERSION} VERSION_LESS "3.12.0")
     include_directories(${PYTHON_INCLUDE_DIRS})
 else()
-    include_directories(${Python_INCLUDE_DIRS})
+    include_directories(${Python_INCLUDE_DIRS} ${Python_NUMPY_INCLUDE_DIRS})
 endif()
 
 if(${CMAKE_VERSION} VERSION_LESS "3.12.0")

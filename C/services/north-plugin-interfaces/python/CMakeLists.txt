@@ -32,7 +32,7 @@ endif()
 if(${CMAKE_VERSION} VERSION_LESS "3.12.0") 
     link_directories(${PYTHON_LIBRARY_DIRS})
 else()
-    link_directories(${PYTHON_LIBRARY_DIRS})
+    link_directories(${Python_LIBRARY_DIRS})
 endif()
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/../../../lib)

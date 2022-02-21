@@ -136,10 +136,13 @@ bool ServiceAuthHandler::getAuthenticatedCaller()
  * If array item value has ACL property a service name/type check is added
  *
  * @param   path	The requested service HTTP resource
- * @param   claims	JWT bearer token claims
+ * @param   serviceName	The serviceName to check
+ * @param   serviceType	The serviceType to check
  * @return		True is the resource acces has been granted, false otherwise
  */
-bool ServiceAuthHandler::verifyURL(const string& path, map<string, string> claims)
+bool ServiceAuthHandler::verifyURL(const string& path,
+				const string& serviceName,
+				const string& serviceType))
 {
 	Document doc;
  
@@ -200,7 +203,7 @@ bool ServiceAuthHandler::verifyURL(const string& path, map<string, string> claim
 				if (configURL == path)
 				{
 					// Check whether there is a service ACL for the matched URL
-					return this->verifyService(claims["sub"], claims["aud"]);
+					return this->verifyService(serviceName, serviceType);
 				}
 			}
 		}
@@ -400,4 +403,114 @@ void ServiceAuthHandler::AuthenticationMiddlewarePOST(shared_ptr<HttpServer::Res
 	// POST does not have additional features, call PUT method
 	// passing pinter to POST function
 	this->AuthenticationMiddlewarePUT(response, request, funcPOST);
+}
+
+/**
+ * Authentication Middleware ACL check
+ *
+ * serviceName, serviceType and url (request->path)
+ * are cheked with verifyURL and verifyService routines
+ *
+ * If access is granted return true
+ * otherwise error response is sent to the client and return is false
+ *
+ * @param response	The HTTP Response to send
+ * @param request	The HTTP Request
+ * @param serviceName	The service name to check
+ * @param serviceType	The service type to check
+ * @return		True on success
+ *			False otherwise with server reply error
+ */
+bool ServiceAuthHandler::AuthenticationMiddlewareACL(shared_ptr<HttpServer::Response> response,
+						shared_ptr<HttpServer::Request> request,
+						const string& serviceName,
+						const string& serviceType)
+{
+	// Check for valid service caller (name, type)
+	bool valid_service = this->verifyService(serviceName, serviceType);
+	if (!valid_service)
+	{
+		string msg = "authorisation not granted to this service";
+		string responsePayload = "{ \"error\" : \"" + msg + "\" }";
+		Logger::getLogger()->error(msg.c_str());
+
+		// Error reply to client
+		this->respond(response,
+			SimpleWeb::StatusCode::client_error_unauthorized,
+			responsePayload);
+			return false;
+	}
+
+	// Check URLS
+	bool access_granted = this->verifyURL(request->path, serviceName, serviceType);
+	if (!access_granted)
+	{
+		string msg = "authorisation not granted to this resource";
+		string responsePayload = "{ \"error\" : \"" + msg + "\" }";
+		Logger::getLogger()->error(msg.c_str());
+
+		// Error reply to client
+		this->respond(response,
+			SimpleWeb::StatusCode::client_error_unauthorized,
+			responsePayload);
+		return false;
+	}
+
+	return true;
+}
+/**
+ * Authentication Middleware for Dispatcher service
+ *
+ * Routine first check whether the service is configured with authentication
+ *
+ * Access bearer token is then verified against FogLAMP core API endpoint
+ * token claims 'sub' and 'aud' along with request are passed to
+ * verifyURL and verifyService routines
+ *
+ * If access is granted then return map with token claims 
+ * otherwise error response is sent to the client
+ * and empty map is returned.
+ *
+ * @param response	The HTTP Response to send
+ * @param request	The HTTP Request
+ * @return		Map with token claims on success
+ *			empty map in case of errors
+ */
+map<string, string>
+	ServiceAuthHandler::AuthenticationMiddlewareCommon(shared_ptr<HttpServer::Response> response,
+							shared_ptr<HttpServer::Request> request)
+	// Verify token via Fledge management core POST API call and fill tokenClaims map
+	map<string, string> tokenClaims;
+	bool ret = m_mgtClient->verifyAccessBearerToken(request, tokenClaims);
+	if (!ret)
+	{
+		string msg = "invalid service bearer token";
+		string responsePayload = "{ \"error\" : \"" + msg + "\" }";
+		Logger::getLogger()->error(msg.c_str());
+
+		// Error reply to client
+		this->respond(response,
+				SimpleWeb::StatusCode::client_error_bad_request,
+				responsePayload);
+
+		// Return emptyClaims
+		map<string, string> emptyClaims;
+		return emptyClaims;
+	}
+
+	// Check for valid service caller (name, type) and URLs
+	bool auth = this->AuthenticationMiddlewareACL(response,
+						request,
+						tokenClaims["sub"],
+						tokenClaims["aud"]);
+	// Check
+	if (!auth)
+	{
+		// Return emptyClaims
+		map<string, string> emptyClaims;
+		return emptyClaims;
+	}
+
+	// Return tokenClaims from bearer token
+	return tokenClaims;
 }

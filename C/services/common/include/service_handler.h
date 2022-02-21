@@ -30,61 +30,71 @@ class ServiceHandler
 class ServiceAuthHandler : public ServiceHandler
 {
 	public:
-		std::string&		getName() { return m_name; };
-		bool			createSecurityCategories(ManagementClient* mgtClient);
-		bool			updateSecurityCategory(const std::string& newCategory);
-		void			setInitialAuthenticatedCaller();
-		void			setAuthenticatedCaller(bool enabled);
-		bool			getAuthenticatedCaller();
-		void			AuthenticationMiddlewarePUT(std::shared_ptr<HttpServer::Response> response,
-								std::shared_ptr<HttpServer::Request> request,
-								std::function<void(
-									std::shared_ptr<HttpServer::Response>,
-									std::shared_ptr<HttpServer::Request>)> funcPUT);
-		void			AuthenticationMiddlewarePOST(std::shared_ptr<HttpServer::Response> response,
-								std::shared_ptr<HttpServer::Request> request,
-								std::function<void(
-									std::shared_ptr<HttpServer::Response>,
-									std::shared_ptr<HttpServer::Request>)> funcPOST);
+		std::string&	getName() { return m_name; };
+		bool		createSecurityCategories(ManagementClient* mgtClient);
+		bool		updateSecurityCategory(const std::string& newCategory);
+		void		setInitialAuthenticatedCaller();
+		void		setAuthenticatedCaller(bool enabled);
+		bool		getAuthenticatedCaller();
+                bool		AuthenticationMiddlewareACL(std::shared_ptr<HttpServer::Response> response,
+							std::shared_ptr<HttpServer::Request> request,
+							const std::string& serviceName,
+							const std::string& serviceType);
+		std::map<std::string, std::string>
+				AuthenticationMiddlewareCommon(std::shared_ptr<HttpServer::Response> response,
+							std::shared_ptr<HttpServer::Request> request);
+		void		AuthenticationMiddlewarePUT(std::shared_ptr<HttpServer::Response> response,
+							std::shared_ptr<HttpServer::Request> request,
+							std::function<void(
+								std::shared_ptr<HttpServer::Response>,
+								std::shared_ptr<HttpServer::Request>)> funcPUT);
+		void		AuthenticationMiddlewarePOST(std::shared_ptr<HttpServer::Response> response,
+							std::shared_ptr<HttpServer::Request> request,
+							std::function<void(
+								std::shared_ptr<HttpServer::Response>,
+								std::shared_ptr<HttpServer::Request>)> funcPOST);
  		// Send a good HTTP response to the caller
-		void			respond(std::shared_ptr<HttpServer::Response> response,
-								const std::string& payload)
-					{
-						*response << "HTTP/1.1 200 OK\r\n"
-							<< "Content-Length: " << payload.length() << "\r\n"
-							<<  "Content-type: application/json\r\n\r\n"
-							<< payload;
-					};
+		void		respond(std::shared_ptr<HttpServer::Response> response,
+							const std::string& payload)
+				{
+					*response << "HTTP/1.1 200 OK\r\n"
+						<< "Content-Length: " << payload.length() << "\r\n"
+						<<  "Content-type: application/json\r\n\r\n"
+						<< payload;
+				};
  		// Send an error messagei HTTP response to the caller with given HTTP code
-		void			respond(std::shared_ptr<HttpServer::Response> response,
-								SimpleWeb::StatusCode code,
-								const std::string& payload)
-					{
-						*response << "HTTP/1.1 " << status_code(code) << "\r\n"
-							<< "Content-Length: " << payload.length() << "\r\n"
-							<<  "Content-type: application/json\r\n\r\n"
-							<< payload;
-					};
+		void		respond(std::shared_ptr<HttpServer::Response> response,
+							SimpleWeb::StatusCode code,
+							const std::string& payload)
+				{
+					*response << "HTTP/1.1 " << status_code(code) << "\r\n"
+						<< "Content-Length: " << payload.length() << "\r\n"
+						<<  "Content-type: application/json\r\n\r\n"
+						<< payload;
+				};
 		static ManagementClient *
-					getMgmtClient() { return m_mgtClient; };
+				getMgmtClient() { return m_mgtClient; };
 
 	private:
-		bool			verifyURL(const std::string& path, std::map<std::string, std::string> claims);
-		bool			verifyService(std::string& sName, std::string &sType);
+		bool		verifyURL(const std::string& path,
+					const std::string& sName,
+					const std::string& sType);
+		bool		verifyService(const std::string& sName,
+					const std::string &sType);
 
 	protected:
-		std::string		m_name;
+		std::string	m_name;
 		// Management client pointer
 		static ManagementClient
-					*m_mgtClient;
+				*m_mgtClient;
 
 	private:
 		// Security configuration change mutex
-		std::mutex		m_mtx_config;
+		std::mutex	m_mtx_config;
 		// Authentication is enabled for API endpoints
 		bool			m_authentication_enabled;
 		// Security configuration
-		ConfigCategory		m_security;
+		ConfigCategory	m_security;
 };
 
 #endif

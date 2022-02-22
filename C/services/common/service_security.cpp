@@ -245,6 +245,10 @@ bool ServiceAuthHandler::verifyService(const string& sName, const string &sType)
 
 	if (acl.empty())
 	{
+		Logger::getLogger()->debug("verifyService '%s', type '%s', "
+					"the ACL is not set: allow any service",
+					sName.c_str(),
+					sType.c_str());
 		return true;
 	}
 
@@ -260,12 +264,21 @@ bool ServiceAuthHandler::verifyService(const string& sName, const string &sType)
 	}
 	if (!doc["service"].IsArray())
 	{
+		Logger::getLogger()->error("verifyService '%s', type '%s', in ACL '%s' "
+					", 'service' item is not an array",
+					sName.c_str(),
+					sType.c_str(),
+					acl.c_str());
 		return false;
 	}
 
 	arrayService = doc["service"];
 	if (arrayService.Size() == 0)
 	{
+		Logger::getLogger()->debug("verifyService '%s', type '%s', in ACL 'service' "
+					"item is empty: allow any service",
+					sName.c_str(),
+					sType.c_str());
 		return true;
 	}
 

@@ -310,14 +310,16 @@ class Scheduler(object):
             # Reset restore backup id
             self._restore_backup_id = None
 
-        # This should be appended as an arg and passed to process
-        # and also kept as name | (single use) token pair for verification and assigning
-        # jwt token for cross communication
+        # Pass startup token to args for services
+        if schedule.type == Schedule.Type.STARTUP:
+            # This should be appended as an arg and passed to process
+            # and also kept as name | (single use) token pair for verification and assigning
+            # jwt token for cross communication
 
-	    # Get a startup token from ServiceRegistry
-        startToken = ServiceRegistry.getStartupToken(schedule.name)
-        # Add startup token to args
-        args_to_exec.append("--token={}".format(startToken))
+            # Get a startup token from ServiceRegistry
+            startToken = ServiceRegistry.getStartupToken(schedule.name)
+            # Add startup token to args for services
+            args_to_exec.append("--token={}".format(startToken))
 
         task_process = self._TaskProcess()
         task_process.start_time = time.time()

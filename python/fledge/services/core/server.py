@@ -1125,7 +1125,10 @@ class Server:
             if not isinstance(service_management_port, int):
                 raise web.HTTPBadRequest(reason='Service management port can be a positive integer only')
 
-            # If token then check single use token verification; if bad then return 4XX
+            if token is None and ServiceRegistry.getStartupToken(service_name) is not None:
+                raise web.HTTPBadRequest(body=json.dumps({"message": 'Required registration token is missing.'}))
+            
+            # If token, then check single use token verification; if bad then return 4XX
             if token is not None:
                 if not isinstance(token, str):
                     msg = 'Token can be a string only'
@@ -1794,6 +1797,12 @@ class Server:
         auth_header = request.headers.get('Authorization', None)
         if auth_header is None:
             msg = "Authorization header is missing"
+            raise web.HTTPBadRequest(reason=msg, body=json.dumps({"error": msg}))
+
+        if not "Bearer " in auth_header:
+            msg = "Invalid Authorization token"
+            # FIXME: raise UNAUTHORISED here and among other places 
+            #   and JSON body to have message key
             raise web.HTTPBadRequest(reason=msg, body=json.dumps({"error": msg}))
 
         parts = auth_header.split("Bearer ")

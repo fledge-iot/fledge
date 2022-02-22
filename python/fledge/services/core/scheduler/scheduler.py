@@ -316,8 +316,8 @@ class Scheduler(object):
             # and also kept as name | (single use) token pair for verification and assigning
             # jwt token for cross communication
 
-            # Get a startup token from ServiceRegistry
-            startToken = ServiceRegistry.getStartupToken(schedule.name)
+            # Ask ServiceRegistry to issue a startup token and store
+            startToken = ServiceRegistry.setStartupToken(schedule.name)
             # Add startup token to args for services
             args_to_exec.append("--token={}".format(startToken))
 

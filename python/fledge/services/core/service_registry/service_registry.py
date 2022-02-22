@@ -41,10 +41,10 @@ class ServiceRegistry:
         return cls._startupTokens.get(name, None)
     
     @classmethod
-    def setStartupToken(cls, name):
+    def issueStartupToken(cls, name):
         """ Create a startup token upon request and store it
         """ 
-        startToken = ''.join((random.choice(string.ascii_letters) for x in range(32)))
+        startToken = ''.join((random.choice(string.ascii_letters) for _ in range(32)))
         cls._startupTokens[name] = startToken
         return startToken
 

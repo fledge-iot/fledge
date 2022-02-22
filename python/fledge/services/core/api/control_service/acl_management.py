@@ -372,7 +372,6 @@ async def detach_acl_from_service(request: web.Request) -> web.Response:
                                          category_value=category_value)
 
             message = "ACL detached from {} service successfully".format(svc_name)
-            return web.json_response({"message": message})
         else:
             raise ValueError("Nothing to delete as there is no ACL attached with {} service".format(svc_name))
     except StorageServerError as err:

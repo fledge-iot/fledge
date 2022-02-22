@@ -309,29 +309,13 @@ class Scheduler(object):
             args_to_exec.append("--backup-id={}".format(self._restore_backup_id))
             # Reset restore backup id
             self._restore_backup_id = None
-        # interim solution for service/authtoken endpoint exposure  
-        # restrict to FogLAMP manager/poll agent service
-        if schedule.process_name == 'management':
-            import secrets
-            t = secrets.token_urlsafe(15)
-            try:
-                # better we pass as arg to scheduled process and keep this in 
-                # main memory data structure corresponding to schedule/service name
-                # and remove once assigned a jwt token...
-                fname = _FLEDGE_ROOT + "/data/.{}".format('managementtoken')
-                with open(fname,'w', encoding = 'utf-8') as f:
-                    f.write(t)
-                    self._logger.debug(fname +" written")
-            except Exception as ex:
-                self._logger.exception(ex)
 
         # This should be appended as an arg and passed to process
         # and also kept as name | (single use) token pair for verification and assigning
         # jwt token for cross communication
 
-	# Get a startup token from ServiceRegistry
+	    # Get a startup token from ServiceRegistry
         startToken = ServiceRegistry.getStartupToken(schedule.name)
-
         # Add startup token to args
         args_to_exec.append("--token={}".format(startToken))
 

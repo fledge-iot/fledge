@@ -32,6 +32,7 @@ class ServiceAuthHandler : public ServiceHandler
 {
 	public:
 		std::string&	getName() { return m_name; };
+		std::string&	getType() { return m_type; };
 		bool		createSecurityCategories(ManagementClient* mgtClient);
 		bool		updateSecurityCategory(const std::string& newCategory);
 		void		setInitialAuthenticatedCaller();
@@ -86,6 +87,7 @@ class ServiceAuthHandler : public ServiceHandler
 
 	protected:
 		std::string	m_name;
+		std::string	m_type;
 		// Management client pointer
 		static ManagementClient
 				*m_mgtClient;

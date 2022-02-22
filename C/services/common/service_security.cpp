@@ -60,7 +60,7 @@ bool ServiceAuthHandler::createSecurityCategories(ManagementClient* mgtClient)
 	configHandler->registerCategory(this, m_name + "Security");
 
 	// Start thread for automatic bearer token refresh, before expiration
-	if (this->getAuthenticatedCaller())
+	if (this->getType() != "Southbound")
 	{
 		new thread(bearer_token_refresh_thread, this);
 	}

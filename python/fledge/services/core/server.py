@@ -1311,6 +1311,10 @@ class Server:
             except:
                 raise api_exception.VerificationFailed
             else:
+                if auth_header is None:
+                    raise api_exception.VerificationFailed
+                if not "Bearer " in auth_header:
+                    raise api_exception.VerificationFailed
                 # check bearer token with service registry for given service
                 ##
                 # the lines below are repated many times, make it a def for common usage/check
@@ -1331,7 +1335,6 @@ class Server:
                 else:
                     # add debug log for successful token verification
                     pass
-
                 ##
 
             peername = request.transport.get_extra_info('peername')
@@ -1354,11 +1357,10 @@ class Server:
                 token = await cert_login(ca_cert_name)
                 # TODO: if cert does not exist then may try with password
         except api_exception.AuthenticationIsOptional as err:
-            # remove file
             msg = str(err)
             raise web.HTTPPreconditionFailed(reason=msg, body=json.dumps({"message": msg}))
         except api_exception.VerificationFailed:
-            raise web.HTTPUnauthorized(body=json.dumps({"message": 'Invalid verification code'}))
+            raise web.HTTPUnauthorized(body=json.dumps({"message": 'Required authorization token is missing or invalid.'}))
         except Exception as ex:
             msg = str(ex)
             raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))

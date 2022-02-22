@@ -297,7 +297,7 @@ async def attach_acl_to_service(request: web.Request) -> web.Response:
         cf_mgr = ConfigurationManager(storage)
         security_cat_name = "{}Security".format(svc_name)
         category = await cf_mgr.get_category_all_items(security_cat_name)
-        if category is None:
+        if category is None or category == {}:
             # Create {service_name}Security category and having value with AuthenticationCaller Global switch &
             # ACL info attached (name is excluded from the ACL dict)
             category_desc = "Security category for {} service".format(svc_name)
@@ -365,12 +365,14 @@ async def detach_acl_from_service(request: web.Request) -> web.Response:
         category = await cf_mgr.get_category_all_items(security_cat_name)
         if category is not None:
             # Delete {service_name}Security category
-            delete_cat_result = await cf_mgr.delete_category_and_children_recursively(security_cat_name)
-            if 'response' in delete_cat_result:
-                if delete_cat_result['response'] == "deleted":
-                    message = "ACL detached from {} service successfully".format(svc_name)
-            else:
-                raise StorageServerError(delete_cat_result)
+            category_desc = "Security category for {} service".format(svc_name)
+            category_value = {}
+            await cf_mgr.create_category(category_name=security_cat_name,
+                                         category_description=category_desc,
+                                         category_value=category_value)
+
+            message = "ACL detached from {} service successfully".format(svc_name)
+            return web.json_response({"message": message})
         else:
             raise ValueError("Nothing to delete as there is no ACL attached with {} service".format(svc_name))
     except StorageServerError as err:

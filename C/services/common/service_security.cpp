@@ -106,7 +106,7 @@ void ServiceAuthHandler::setInitialAuthenticatedCaller()
 	if (m_security.itemExists("AuthenticatedCaller"))
 	{
 		string val = m_security.getValue("AuthenticatedCaller");
-		Logger::getLogger()->debug("This service %s has AuthenticatedCaller item %s",
+		Logger::getLogger()->debug("This service '%s' has AuthenticatedCaller item %s",
 			m_name.c_str(),
 			val.c_str());
 		if (val[0] == 't' || val[0] == 'T')
@@ -181,12 +181,17 @@ bool ServiceAuthHandler::verifyURL(const string& path,
 	}
 
 	Value arrayURL;
-	if (!doc["URL"].IsArray())
+	if (!this->m_security.itemExists("url"))
+	{
+		return true;
+	}
+
+	if (!doc["url"].IsArray())
 	{
 		return false;
 	}
 
-	arrayURL = doc["URL"];
+	arrayURL = doc["url"];
 	if (arrayURL.Size() == 0)
 	{
 		return true;
@@ -194,27 +199,65 @@ bool ServiceAuthHandler::verifyURL(const string& path,
 
 	if (arrayURL.Size() > 0)
 	{
-		bool serviceMatched = false;
 		bool typeMatched = false;
+		bool URLMatched = false;
 
 		for (Value::ConstValueIterator it = arrayURL.Begin();
 		     it != arrayURL.End();
 		     ++it)
 
 		{
-			if (it->IsObject() &&
-			    (it->HasMember("URL") &&
-			    (*it)["URL"].IsString()))
+			if (it->IsObject())
 			{
-				string configURL = (*it)["URL"].GetString();
-				// Request path matches configured URLs
-				if (configURL == path)
+				if (it->HasMember("url") && (*it)["url"].IsString())
 				{
-					// Check whether there is a service ACL for the matched URL
-					return this->verifyService(serviceName, serviceType);
+					string configURL = (*it)["url"].GetString();
+					// Request path matches configured URLs
+					if (configURL != "" && configURL == path)
+					{
+						URLMatched = true;
+					}
+				}
+				if (URLMatched)
+				{
+					if (it->HasMember("acl") && (*it)["acl"].IsArray())
+					{
+						auto arrayServices = (*it)["acl"].GetArray();
+						if (arrayServices.Size() == 0)
+						{
+							return true;
+						}
+						for (Value::ConstValueIterator iS = arrayServices.Begin();
+									     iS != arrayServices.End();
+									     ++iS)
+						{
+							if (iS->IsObject())
+							{
+								if (iS->HasMember("type") &&
+								    (*iS)["type"].IsString())
+								{
+									string type = (*iS)["type"].GetString();
+									if (type == serviceType)
+									{
+										typeMatched = true;
+										break;
+									}
+								}
+							}
+						}
+					}
 				}
 			}
 		}
+
+		Logger::getLogger()->debug("verify URL path '%s', type '%s': "
+					"result URL %d, result type %d",
+					path.c_str(),
+					serviceType.c_str(),
+					URLMatched,
+					typeMatched);
+
+		return URLMatched == true || typeMatched == true;
 	}
 
 	return false;
@@ -317,6 +360,14 @@ bool ServiceAuthHandler::verifyService(const string& sName, const string &sType)
 				}
 			}
 		}
+
+		Logger::getLogger()->debug("verify service '%s', type '%s': "
+					"result service %d, result type %d",
+					sName.c_str(),
+					sType.c_str(),
+					serviceMatched,
+					typeMatched);
+
 		return serviceMatched == true || typeMatched == true;
 	}
 
@@ -344,7 +395,6 @@ void ServiceAuthHandler::AuthenticationMiddlewarePUT(shared_ptr<HttpServer::Resp
         		        shared_ptr<HttpServer::Response>,
         		        shared_ptr<HttpServer::Request>)> funcPUT)
 {
-
 	string serviceName;
 	string serviceType;
 
@@ -362,7 +412,7 @@ void ServiceAuthHandler::AuthenticationMiddlewarePUT(shared_ptr<HttpServer::Resp
 
 	// Get authentication enabled value
 	bool acl_set = this->getAuthenticatedCaller();
-	Logger::getLogger()->debug("This service %s has AuthenticatedCaller flag set %d",
+	Logger::getLogger()->debug("This service '%s' has AuthenticatedCaller flag set %d",
 			this->getName().c_str(),
 			acl_set);
 
@@ -375,8 +425,9 @@ void ServiceAuthHandler::AuthenticationMiddlewarePUT(shared_ptr<HttpServer::Resp
 		bool ret = m_mgtClient->verifyAccessBearerToken(request, tokenClaims);
 		if (!ret)
 		{
-			string responsePayload = QUOTE({ "error" : "invalid service bearer token"});
-			Logger::getLogger()->error("invalid service bearer token");
+			string msg = "invalid service bearer token";
+			string responsePayload = "{ \"error\" : \"" + msg + "\" }";
+			Logger::getLogger()->error(msg.c_str());
 			this->respond(response,
 					SimpleWeb::StatusCode::client_error_bad_request,
 					responsePayload);
@@ -384,7 +435,7 @@ void ServiceAuthHandler::AuthenticationMiddlewarePUT(shared_ptr<HttpServer::Resp
 			return;
 		}
 
-		// Check for valid service caller (name, type)
+		// Check for valid origin service caller (name, type)
 		bool valid_service = this->verifyService(serviceName, serviceType);
 		if (!valid_service)
 		{
@@ -416,7 +467,6 @@ void ServiceAuthHandler::AuthenticationMiddlewarePUT(shared_ptr<HttpServer::Resp
 	// Call PUT endpoint routine
 	funcPUT(response, request);
 }
-
 
 /**
  * Authentication Middleware for POST methods
@@ -458,7 +508,7 @@ void ServiceAuthHandler::AuthenticationMiddlewarePOST(shared_ptr<HttpServer::Res
  * @param serviceName	The service name to check
  * @param serviceType	The service type to check
  * @return		True on success
- *			False otherwise with server reply error
+ * 			False otherwise with server reply error
  */
 bool ServiceAuthHandler::AuthenticationMiddlewareACL(shared_ptr<HttpServer::Response> response,
 						shared_ptr<HttpServer::Request> request,
@@ -475,9 +525,9 @@ bool ServiceAuthHandler::AuthenticationMiddlewareACL(shared_ptr<HttpServer::Resp
 
 		// Error reply to client
 		this->respond(response,
-			SimpleWeb::StatusCode::client_error_unauthorized,
-			responsePayload);
-			return false;
+				SimpleWeb::StatusCode::client_error_unauthorized,
+				responsePayload);
+		return false;
 	}
 
 	// Check URLS
@@ -490,13 +540,14 @@ bool ServiceAuthHandler::AuthenticationMiddlewareACL(shared_ptr<HttpServer::Resp
 
 		// Error reply to client
 		this->respond(response,
-			SimpleWeb::StatusCode::client_error_unauthorized,
-			responsePayload);
+				SimpleWeb::StatusCode::client_error_unauthorized,
+				responsePayload);
 		return false;
 	}
 
 	return true;
 }
+
 /**
  * Authentication Middleware for Dispatcher service
  *
@@ -583,9 +634,9 @@ void ServiceAuthHandler::refreshBearerToken()
 		if (k >= max_retries)
 		{
 			Logger::getLogger()->error("Bearer token not found for service %s, "
-						"refresh thread stops after %d retries",
-						this->getName().c_str(),
-						max_retries);
+					"refresh thread stops after %d retries",
+					this->getName().c_str(),
+					max_retries);
 			break;
 		}
 
@@ -621,9 +672,9 @@ void ServiceAuthHandler::refreshBearerToken()
 		expires_in = std::stoi(claims["exp"]) - time(NULL) - 10;
 
 		Logger::getLogger()->debug("Bearer token refresh thread sleeps "
-					"for %ld seconds, service '%s'",
-					expires_in,
-					this->getName().c_str());
+				"for %ld seconds, service '%s'",
+				expires_in,
+				this->getName().c_str());
 
 		// Thread sleeps for the given amount of time
 		std::this_thread::sleep_for(std::chrono::seconds(expires_in));
@@ -638,8 +689,8 @@ void ServiceAuthHandler::refreshBearerToken()
 		if (newToken != "")
 		{
 			Logger::getLogger()->debug("Bearer token refresh thread has got "
-						"a new bearer token for service '%s",
-						this->getName().c_str());
+					"a new bearer token for service '%s",
+					this->getName().c_str());
 
 			// Store new bearer token
 			m_mgtClient->setNewBearerToken(newToken);
@@ -647,7 +698,7 @@ void ServiceAuthHandler::refreshBearerToken()
 	}
 
 	Logger::getLogger()->info("Refreshing bearer token thread for service '%s' stopped",
-	this->getName().c_str());
+				this->getName().c_str());
 }
 
 /**

@@ -110,7 +110,9 @@ static int controlOperation(char *operation, int paramCount, char *names[], char
 	{
 		case DestinationAsset:
 		case DestinationService:
+			va_start(ap, destination);
 			rval = service->operation(operation, paramCount, names, parameters, destination, va_arg(ap, char *));
+			va_end(ap);
 			break;
 		case DestinationBroadcast:
 			rval = service->operation(operation, paramCount, names, parameters, destination);

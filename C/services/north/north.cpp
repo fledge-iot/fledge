@@ -967,6 +967,13 @@ bool NorthService::sendToDispatcher(const string& path, const string& payload)
 
 		try {
 			SimpleWeb::CaseInsensitiveMultimap headers = {{"Content-Type", "application/json"}};
+			// Pass North service bearer token to dispatcher
+			string regToken = m_mgtClient->getRegistrationBearerToken();
+			if (regToken != "")
+			{
+				headers.emplace("Authorization", "Bearer " + regToken);
+			}
+
 			auto res = http.request("POST", path, payload, headers);
 			if (res->status_code.compare("202 Accepted"))
 			{

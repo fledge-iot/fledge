@@ -447,7 +447,7 @@ void Ingest::processQueue()
 				std::map<std::string, int>		statsEntriesCurrQueue;
 				AssetTracker *tracker = AssetTracker::getAssetTracker();
 				string lastAsset = "";
-				int *lastStat;
+				int *lastStat = NULL;
 				for (vector<Reading *>::iterator it = q->begin();
 							 it != q->end(); ++it)
 				{
@@ -464,7 +464,7 @@ void Ingest::processQueue()
 						lastStat = &(statsEntriesCurrQueue[assetName]);
 						(*lastStat)++;
 					}
-					else
+					else if (lastStat)
 					{
 						(*lastStat)++;
 					}
@@ -607,7 +607,7 @@ void Ingest::processQueue()
 				// Remove the Readings in the vector
 				AssetTracker *tracker = AssetTracker::getAssetTracker();
 				string lastAsset = "";
-				int *lastStat;
+				int *lastStat = NULL;
 				for (vector<Reading *>::iterator it = m_data->begin(); it != m_data->end(); ++it)
 				{
 					Reading *reading = *it;
@@ -623,7 +623,7 @@ void Ingest::processQueue()
 						lastStat = &statsEntriesCurrQueue[assetName];
 						(*lastStat)++;
 					}
-					else
+					else if (lastStat)
 					{
 						(*lastStat)++;
 					}

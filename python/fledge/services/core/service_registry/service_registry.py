@@ -36,15 +36,21 @@ class ServiceRegistry:
 
     @classmethod
     def getStartupToken(cls, name):
+        """ fetch a token from issued startup tokens
+        """ 
+        return cls._startupTokens.get(name, None)
+    
+    @classmethod
+    def issueStartupToken(cls, name):
         """ Create a startup token upon request and store it
         """ 
-        startToken = ''.join((random.choice(string.ascii_letters) for x in range(32)))
+        startToken = ''.join((random.choice(string.ascii_letters) for _ in range(32)))
         cls._startupTokens[name] = startToken
         return startToken
 
     @classmethod
     def checkStartupToken(cls, name, token):
-        """ Check tartup token exists for given service name
+        """ Check startup token exists for given service name
         """ 
         foundToken = cls._startupTokens.get(name, None)
         if foundToken is None or foundToken != token:

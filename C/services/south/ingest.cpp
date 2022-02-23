@@ -309,7 +309,7 @@ void Ingest::ingest(const vector<Reading *> *vec)
 {
 vector<Reading *> *fullQueue = 0;
 size_t qSize;
-int nFullQueues;
+unsigned int nFullQueues = 0;
 
 	{
 		lock_guard<mutex> guard(m_qMutex);

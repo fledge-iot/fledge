@@ -13,6 +13,7 @@
 #include <reading_stream.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 #include <fcntl.h>
 #include <sys/epoll.h>
 #include <sys/ioctl.h>
@@ -165,8 +166,8 @@ struct sockaddr_in	address;
     	}
 	m_status = Listen;
 
-	srand(m_port + time(0));
-	m_token = random() & 0xffffffff;
+	srand(m_port + (unsigned int)time(0));
+	m_token = (uint32_t)random() & 0xffffffff;
 	*token = m_token;
 
 	// Add to epoll set
@@ -349,9 +350,9 @@ ssize_t n;
 					{
 						if ((n = read(m_socket, &m_currentReading->userTs, sizeof(struct timeval))) != (int)sizeof(struct timeval))
 							Logger::getLogger()->warn("Short read of %d bytes for timestamp: %s", n, strerror(errno));
-						int plen = m_readingSize - sizeof(struct timeval);
+						size_t plen = m_readingSize - sizeof(struct timeval);
 						uint32_t assetLen = m_currentReading->assetCodeLength;
-						if ((n = read(m_socket, &m_currentReading->assetCode[assetLen], (size_t)plen)) != plen)
+						if ((n = read(m_socket, &m_currentReading->assetCode[assetLen], plen)) < (int)plen)
 							Logger::getLogger()->warn("Short read of %d bytes for payload: %s", n, strerror(errno));
 						memcpy(&m_currentReading->assetCode[0], m_lastAsset.c_str(), assetLen);
 					}

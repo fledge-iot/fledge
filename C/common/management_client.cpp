@@ -900,6 +900,7 @@ bool ManagementClient::verifyBearerToken(const string& bearer_token,
 	if (bearer_token.length() == 0)
 	{
 		m_logger->info("Bearer token has empty value");
+		claims.clear();
 		return false;
 	}
 
@@ -934,6 +935,7 @@ bool ManagementClient::verifyBearerToken(const string& bearer_token,
 					httpError?"HTTP error during":"Failed to parse result of", 
 					response.c_str());
 			verified = false;
+			claims.clear();
 		}
 		else
 		{
@@ -949,6 +951,7 @@ bool ManagementClient::verifyBearerToken(const string& bearer_token,
 				{
 					m_logger->error("Failed to parse token verification result");
 				}
+				claims.clear();
 				verified = false;
 			}
 			else
@@ -980,6 +983,7 @@ bool ManagementClient::verifyBearerToken(const string& bearer_token,
 		}
 		else
 		{
+			claims.clear();
 			ret = false;
 			m_logger->error("Micro service bearer token '%s' not verified.",
 					bearer_token.c_str());
@@ -1010,6 +1014,7 @@ bool ManagementClient::verifyBearerToken(const string& bearer_token,
 					"error %s, input data %s",
 					GetParseError_En(doc.GetParseError()),
 					plainData.c_str());
+			claims.clear();
 			return false;
 		}
 
@@ -1024,6 +1029,7 @@ bool ManagementClient::verifyBearerToken(const string& bearer_token,
 					"error %s, input data %s",
 					"not a number",
 					plainData.c_str());
+			claims.clear();
 			return false;
 		}
 		unsigned long now = time(NULL);
@@ -1037,6 +1043,7 @@ bool ManagementClient::verifyBearerToken(const string& bearer_token,
 
 			m_logger->error("Micro service bearer token '%s' has expired.",
 					bearer_token.c_str());
+			claims.clear();
 		}
 		else
 		{

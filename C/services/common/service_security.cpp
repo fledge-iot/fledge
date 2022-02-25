@@ -633,11 +633,12 @@ void ServiceAuthHandler::refreshBearerToken()
 	{
 		if (k >= max_retries)
 		{
-			Logger::getLogger()->error("Bearer token not found for service %s, "
-					"refresh thread stops after %d retries",
-					this->getName().c_str(),
-					max_retries);
-			break;
+			string msg = "Bearer token not found for service '" + this->getName() +
+				" refresh thread exits after " +
+				std::to_string(max_retries) + " retries";
+			Logger::getLogger()->error(msg.c_str());
+
+			throw std::runtime_error(msg);
 		}
 
 		bool tokenExists = false;
@@ -668,20 +669,32 @@ void ServiceAuthHandler::refreshBearerToken()
 			continue;
 		}
 
-		// Token exists and it is valid, get expiration time
-		expires_in = std::stoi(claims["exp"]) - time(NULL) - 10;
+		try
+		{
+			// Token exists and it is valid, get expiration time
+			expires_in = std::stoi(claims["exp"]) - time(NULL) - 10;
 
-		Logger::getLogger()->debug("Bearer token refresh thread sleeps "
-				"for %ld seconds, service '%s'",
-				expires_in,
-				this->getName().c_str());
-
-		// Thread sleeps for the given amount of time
-		std::this_thread::sleep_for(std::chrono::seconds(expires_in));
-
-		Logger::getLogger()->debug("Bearer token refresh thread calls "
-					"token refresh endpoint for service '%s'",
+			Logger::getLogger()->debug("Bearer token refresh thread sleeps "
+					"for %ld seconds, service '%s'",
+					expires_in,
 					this->getName().c_str());
+
+			// Thread sleeps for the given amount of time
+			std::this_thread::sleep_for(std::chrono::seconds(expires_in));
+
+			Logger::getLogger()->debug("Bearer token refresh thread calls "
+						"token refresh endpoint for service '%s'",
+						this->getName().c_str());
+		}
+		catch(...)
+		{
+			Logger::getLogger()->error("Exception found while parsing "
+				"expiration of bearer token '%s'",
+				bToken.c_str());
+			// Sleep for some time
+			std::this_thread::sleep_for(std::chrono::seconds(10));
+			continue;
+		}
 
 		// Get a new bearer token for this service via
 		// refresh_token core API endpoint
@@ -694,6 +707,15 @@ void ServiceAuthHandler::refreshBearerToken()
 
 			// Store new bearer token
 			m_mgtClient->setNewBearerToken(newToken);
+		}
+		else
+		{
+			string msg = "Failed to get a new token "
+				"via refresh API call for service '" + this->getName() + "'";
+			Logger::getLogger()->fatal("%s, current token is '%s'",
+						msg.c_str(),
+						bToken.c_str());
+			throw std::runtime_error(msg);
 		}
 	}
 

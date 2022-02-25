@@ -46,8 +46,8 @@ async def get_all_acls(request: web.Request) -> web.Response:
     result = await storage.query_tbl_with_payload('control_acl', payload)
     all_acls = []
     for key in result['rows']:
-        key.update({"service": eval(str(key['service']))})
-        key.update({"url": eval(str(key['url']))})
+        key.update({"service": key['service']})
+        key.update({"url": key['url']})
         all_acls.append(key)
     # TODO: Add users list in response where they are used
     return web.json_response({"acls": all_acls})
@@ -67,10 +67,10 @@ async def get_acl(request: web.Request) -> web.Response:
         if 'rows' in result:
             if result['rows']:
                 acl_info = result['rows'][0]
-                acl_info.update({"service": eval(str(acl_info['service']))})
-                acl_info.update({"url": eval(str(acl_info['url']))})
+                acl_info.update({"service": acl_info['service']})
+                acl_info.update({"url": acl_info['url']})
             else:
-                raise NameNotFoundError('No such {} ACL found'.format(name))
+                raise NameNotFoundError('ACL with name {} is not found.'.format(name))
         else:
             raise StorageServerError(result)
     except StorageServerError as err:
@@ -91,43 +91,51 @@ async def add_acl(request: web.Request) -> web.Response:
     """ Create a new access control list
 
     :Example:
-         curl -H "authorization: $AUTH_TOKEN" -sX POST http://localhost:8081/fledge/ACL -d '{"name": "testACL", "service": [{"name": "IEC-104"}, {"type": "notification"}], "url": [{"URL": "/fledge/south/operation"}]}'
+         curl -H "authorization: $AUTH_TOKEN" -sX POST http://localhost:8081/fledge/ACL 
+            -d '{"name": "testACL", "service": [{"name": "IEC-104"}, {"type": "notification"}], "url": [ {"URL": "/fledge/south/operation", "ACL": [{"type": "Northbound"}]} ]}'
     """
     try:
         data = await request.json()
         name = data.get('name', None)
         service = data.get('service', None)
         url = data.get('url', None)
+
         if name is None:
-            raise ValueError('name param is required')
-        if name is not None:
+            raise ValueError('ACL name is required')
+        else:
             if not isinstance(name, str):
-                raise TypeError('name must be a string')
+                raise TypeError('ACL name must be a string')
             name = name.strip()
             if name == "":
-                raise ValueError('name cannot be empty')
+                raise ValueError('ACL name cannot be empty')
+        
         if service is None:
-            raise ValueError('service param is required')
+            raise ValueError('service parameter is required')
         if not isinstance(service, list):
             raise TypeError('service must be in list')
+        # check each item in list is an object of, either 'type'|<service type> or 'name'|<service name> value pair
         if url is None:
-            raise ValueError('url param is required')
+            raise ValueError('url parameter is required')
         if not isinstance(url, list):
-            raise TypeError('url must be in list')
+            raise TypeError('url must be a list')
+        # check URLs list has objects with URL and a list of ACL where each acl item here is an object of 'type'|<service type> value pair
+        
         result = {}
         storage = connect.get_storage_async()
         payload = PayloadBuilder().SELECT("name").WHERE(['name', '=', name]).payload()
         get_control_acl_name_result = await storage.query_tbl_with_payload('control_acl', payload)
         if get_control_acl_name_result['count'] == 0:
-            payload = PayloadBuilder().INSERT(name=name, service=str(service), url=str(url)).payload()
+            services = json.dumps(service)
+            urls = json.dumps(url)
+            payload = PayloadBuilder().INSERT(name=name, service=services, url=urls).payload()
             insert_control_acl_result = await storage.insert_into_tbl("control_acl", payload)
             if 'response' in insert_control_acl_result:
                 if insert_control_acl_result['response'] == "inserted":
-                    result = {"name": name, "service": eval(str(service)), "url": eval(str(url))}
+                    result = {"name": name, "service": json.loads(services), "url": json.loads(urls)}
             else:
                 raise StorageServerError(insert_control_acl_result)
         else:
-            msg = '{} name already exists.'.format(name)
+            msg = 'ACL with name {} already exists.'.format(name)
             raise DuplicateNameError(msg)
     except StorageServerError as err:
         msg = "Storage error: {}".format(str(err))
@@ -147,19 +155,22 @@ async def add_acl(request: web.Request) -> web.Response:
 
 @has_permission("admin")
 async def update_acl(request: web.Request) -> web.Response:
-    """ Update an access control list. Only the set of service and URL's can be updated
+    """ Update an access control list
+    Only the service and URL parameters can be updated. 
 
     :Example:
-        curl -H "authorization: $AUTH_TOKEN" -sX PUT http://localhost:8081/fledge/ACL/testACL -d '{"service": [{"name": "Sinusoid"}]}'
-        curl -H "authorization: $AUTH_TOKEN" -sX PUT http://localhost:8081/fledge/ACL/testACL -d '{"service": [], "url": [{"URL": "/fledge/south/operation"}]}'
+        curl -H "authorization: $AUTH_TOKEN" -sX PUT http://localhost:8081/fledge/ACL/testACL -d '{service": [{"name": "Sinusoid"}]}'
+        curl -H "authorization: $AUTH_TOKEN" -sX PUT http://localhost:8081/fledge/ACL/testACL -d '{"service": [], "url": [{"URL": "/fledge/south/operation", "ACL": [{"type": "Southbound"}]}]}'
     """
     try:
         name = request.match_info.get('acl_name', None)
+        
         data = await request.json()
         service = data.get('service', None)
         url = data.get('url', None)
         if service is None and url is None:
-            raise ValueError("Nothing to update in a given payload. Only service and url can be updated")
+            raise ValueError("Nothing to update for the given payload")
+
         if service is not None and not isinstance(service, list):
             raise TypeError('service must be in list')
         if url is not None and not isinstance(url, list):
@@ -170,35 +181,38 @@ async def update_acl(request: web.Request) -> web.Response:
         message = ""
         if 'rows' in result:
             if result['rows']:
-                if service is not None and url is not None:
-                    update_payload = PayloadBuilder().SET(service=str(service), url=str(url)).WHERE(
-                        ['name', '=', name]).payload()
-                elif service is not None:
-                    update_payload = PayloadBuilder().SET(service=str(service)).WHERE(['name', '=', name]).payload()
-                else:
-                    update_payload = PayloadBuilder().SET(url=str(url)).WHERE(['name', '=', name]).payload()
-                update_result = await storage.update_tbl("control_acl", update_payload)
+                update_query = PayloadBuilder()
+                
+                set_values = {}
+                if service is not None:
+                    set_values["service"] = json.dumps(service)
+                if url is not None:
+                    set_values["url"] = json.dumps(url)
+                
+                update_query.SET(**set_values).WHERE(['name', '=', name])
+
+                update_result = await storage.update_tbl("control_acl", update_query.payload())
                 if 'response' in update_result:
                     if update_result['response'] == "updated":
-                        message = "Record updated successfully for {} ACL".format(name)
+                        message = "ACL {} updated successfully.".format(name)
                 else:
                     raise StorageServerError(update_result)
             else:
-                raise NameNotFoundError('No such {} ACL found'.format(name))
+                raise NameNotFoundError('ACL with name {} is not found.'.format(name))
         else:
             raise StorageServerError(result)
     except StorageServerError as err:
-        msg = "Storage error: {}".format(str(err))
-        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+        message = "Storage error: {}".format(str(err))
+        raise web.HTTPInternalServerError(reason=message, body=json.dumps({"message": message}))
     except NameNotFoundError as err:
-        msg = str(err)
-        raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
+        message = str(err)
+        raise web.HTTPNotFound(reason=message, body=json.dumps({"message": message}))
     except (TypeError, ValueError) as err:
-        msg = str(err)
-        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+        message = str(err)
+        raise web.HTTPBadRequest(reason=message, body=json.dumps({"message": message}))
     except Exception as ex:
-        msg = str(ex)
-        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+        message = str(ex)
+        raise web.HTTPInternalServerError(reason=message, body=json.dumps({"message": message}))
     else:
         return web.json_response({"message": message})
 
@@ -227,7 +241,7 @@ async def delete_acl(request: web.Request) -> web.Response:
                 else:
                     raise StorageServerError(delete_result)
             else:
-                raise NameNotFoundError('No such {} ACL found'.format(name))
+                raise NameNotFoundError('ACL with name {} is not found.'.format(name))
         else:
             raise StorageServerError(result)
     except StorageServerError as err:
@@ -283,7 +297,7 @@ async def attach_acl_to_service(request: web.Request) -> web.Response:
         cf_mgr = ConfigurationManager(storage)
         security_cat_name = "{}Security".format(svc_name)
         category = await cf_mgr.get_category_all_items(security_cat_name)
-        if category is None:
+        if category is None or category == {}:
             # Create {service_name}Security category and having value with AuthenticationCaller Global switch &
             # ACL info attached (name is excluded from the ACL dict)
             category_desc = "Security category for {} service".format(svc_name)
@@ -351,12 +365,13 @@ async def detach_acl_from_service(request: web.Request) -> web.Response:
         category = await cf_mgr.get_category_all_items(security_cat_name)
         if category is not None:
             # Delete {service_name}Security category
-            delete_cat_result = await cf_mgr.delete_category_and_children_recursively(security_cat_name)
-            if 'response' in delete_cat_result:
-                if delete_cat_result['response'] == "deleted":
-                    message = "ACL detached from {} service successfully".format(svc_name)
-            else:
-                raise StorageServerError(delete_cat_result)
+            category_desc = "Security category for {} service".format(svc_name)
+            category_value = {}
+            await cf_mgr.create_category(category_name=security_cat_name,
+                                         category_description=category_desc,
+                                         category_value=category_value)
+
+            message = "ACL detached from {} service successfully".format(svc_name)
         else:
             raise ValueError("Nothing to delete as there is no ACL attached with {} service".format(svc_name))
     except StorageServerError as err:

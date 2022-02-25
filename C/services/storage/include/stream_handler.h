@@ -68,7 +68,7 @@ class StreamHandler {
 					enum { Closed, Listen, AwaitingToken, Connected }
 				       			m_status;
 					int		m_socket;
-					uint32_t	m_port;
+					uint16_t	m_port;
 					uint32_t	m_token;
 					uint32_t	m_blockNo;
 					enum { BlkHdr, RdHdr, RdBody }

@@ -64,9 +64,14 @@ class ManagementClient {
 		bool			addAuditEntry(const std::string& serviceName,
 						      const std::string& severity,
 						      const std::string& details);
-		std::string&		getRegistrationBearerToken() { return m_bearer_token; };
+		std::string&		getRegistrationBearerToken()
+		{
+					std::lock_guard<std::mutex> guard(m_bearer_token_mtx);
+					return m_bearer_token;
+		};
 		void			setNewBearerToken(const std::string& bearerToken)
 					{
+						std::lock_guard<std::mutex> guard(m_bearer_token_mtx);
 						m_bearer_token = bearerToken;
 					};
 		bool			verifyBearerToken(const std::string& bearerToken,
@@ -92,6 +97,8 @@ class ManagementClient {
 		std::mutex 				m_mtx_rTokens;
 		// m_client_map lock
 		std::mutex				m_mtx_client_map;
+		// Get and set bearer token mutex
+		std::mutex				m_bearer_token_mtx;
   
 	public:
 		// member template must be here and not in .cpp file

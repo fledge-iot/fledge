@@ -1746,7 +1746,7 @@ class Server:
 
         except Exception as e:
             msg = str(e)
-            raise web.HTTPBadRequest(reason=msg, body=json.dumps({"errorVALIDATE": msg}))
+            raise web.HTTPBadRequest(reason=msg, body=json.dumps({"error": msg}))
 
     @classmethod
     async def is_dispatcher_running(cls, storage):

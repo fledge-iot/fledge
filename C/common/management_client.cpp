@@ -949,7 +949,8 @@ bool ManagementClient::verifyBearerToken(const string& bearer_token,
 				}
 				else
 				{
-					m_logger->error("Failed to parse token verification result");
+					m_logger->error("Failed to parse token verification result: %s",
+							response.c_str());
 				}
 				claims.clear();
 				verified = false;
@@ -971,7 +972,10 @@ bool ManagementClient::verifyBearerToken(const string& bearer_token,
 				}
 				else
 				{
-					 m_logger->error("Token claims do not contain string values");
+					m_logger->error("Token claims do not contain string values: %s",
+							response.c_str());
+					verified = false;
+					claims.clear();
 				}
 			}
 		}
@@ -1139,7 +1143,8 @@ string ManagementClient::refreshBearerToken(const string& bearer_token)
 			}
 			else
 			{
-				m_logger->error("Failed to parse token refresh result");
+				m_logger->error("Failed to parse token refresh result: %s",
+						response.c_str());
 			}
 			ret = false;
 		}
@@ -1151,7 +1156,8 @@ string ManagementClient::refreshBearerToken(const string& bearer_token)
 		}
 		else
 		{
-			m_logger->error("Bearer token not found in token refresh result");
+			m_logger->error("Bearer token not found in token refresh result: %s",
+					response.c_str());
 			ret = false;
 		}
 	}

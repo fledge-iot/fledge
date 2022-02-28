@@ -54,7 +54,7 @@ do
 	if [ $? -eq 1 ]; then
 			write_log "" "fledge.check_certs" "err" "Certificate $cert will expire in less than a day" "all" "pretty"
 			cd $FLEDGE_ROOT
-			scripts/certificates `basename $cert .cert` 7 "" "" "" ""
+			scripts/certificates `basename $cert .cert` 7
 	else
 		openssl x509 -noout -checkend $week -in $cert >/dev/null
 		if [ $? -eq 1 ]; then

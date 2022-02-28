@@ -38,9 +38,10 @@ class NorthService : public ServiceHandler {
 						      unsigned short corePort);
 		void 				stop();
 		void				shutdown();
-		void				configChange(const std::string&, const std::string&);
-		void			    configChildCreate(const std::string& , const std::string&, const std::string&){};
-		void			    configChildDelete(const std::string& , const std::string&){};
+		void        configChange(const std::string&, const std::string&);
+		void        configChildCreate(const std::string& , const std::string&, const std::string&){};
+		void        configChildDelete(const std::string& , const std::string&){};
+		bool				isRunning() { return !m_shutdown; };
 
 		static ManagementClient *	getMgmtClient();
 		const std::string&		getName() { return m_name; };

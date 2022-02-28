@@ -48,6 +48,7 @@ public:
 	void		ingest(const std::vector<Reading *> *vec);
 	bool		running();
     	bool		isStopping();
+	bool		isRunning() { return !m_shutdown; };
 	void		processQueue();
 	void		waitForQueue();
 	size_t		queueLength();

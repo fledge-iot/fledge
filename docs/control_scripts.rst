@@ -17,11 +17,6 @@
 .. |automation_16| image:: images/automation_16.jpg
 .. |automation_17| image:: images/automation_17.jpg
 
-Automation Scripts
-------------------
-
-The control dispatcher supports the execution of automation scripts as part of the control subsystem within Fledge. These scripts are created graphically via the Fledge User Interface or using the Fledge API.
-
 Graphical Interface
 ~~~~~~~~~~~~~~~~~~~
 

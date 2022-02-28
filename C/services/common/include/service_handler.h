@@ -23,6 +23,6 @@ class ServiceHandler
 		virtual void	configChange(const std::string& category, const std::string& config) = 0;
 		virtual void	configChildCreate(const std::string& parent_category, const std::string& category, const std::string& config) = 0;
 		virtual void	configChildDelete(const std::string& parent_category, const std::string& category) = 0;
-
+		virtual bool	isRunning() = 0;
 };
 #endif

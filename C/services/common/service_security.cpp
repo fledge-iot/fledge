@@ -95,6 +95,8 @@ bool ServiceAuthHandler::updateSecurityCategory(const string& category)
 	m_authentication_enabled = acl_set;
 
 	Logger::getLogger()->debug("updateSecurityCategory called, switch val %d", acl_set);
+
+	return acl_set;
 }
 
 /**
@@ -698,8 +700,9 @@ void ServiceAuthHandler::refreshBearerToken()
 
 		// Get a new bearer token for this service via
 		// refresh_token core API endpoint
-		string newToken = m_mgtClient->refreshBearerToken(bToken);
-		if (newToken != "")
+		string newToken;
+		bool ret = m_mgtClient->refreshBearerToken(bToken, newToken);
+		if (ret)
 		{
 			Logger::getLogger()->debug("Bearer token refresh thread has got "
 					"a new bearer token for service '%s",

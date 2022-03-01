@@ -1076,32 +1076,35 @@ bool ManagementClient::verifyBearerToken(const string& bearer_token,
  * Refresh the JWT bearer token coming from HTTP request
  *
  * @param request       HTTP request object
- * @param claims        Map to fill with JWT public token claims
- * @return              New bearer token on success, empty string otherwise
+ * @param newToken	Input string to set with a new token
+ * @return              True if new bearer token has been set
+ *			False otherwise
  */
-string ManagementClient::refreshAccessBearerToken(shared_ptr<HttpServer::Request> request)
+bool ManagementClient::refreshAccessBearerToken(shared_ptr<HttpServer::Request> request,
+						string& newToken)
 {
 	string bearer_token = getAccessBearerToken(request);
 	if (bearer_token.length() == 0)
 	{
-		return "";
+		newToken.clear();
+		return false;
 	}
-
-	return refreshBearerToken(bearer_token);
+	return refreshBearerToken(bearer_token, newToken);
 }
 
 /**
  * Refresh the JWT bearer token string
  *
- * @param request       HTTP request object
- * @param claims        Map to fill with JWT public token claims
- * @return              New bearer token on success, empty string otherwise
+ * @param currentToken	Current bearer token
+ * @param newToken	New issued bearer token being set
+ * @return              True on success, false otherwise
  */
-string ManagementClient::refreshBearerToken(const string& bearer_token)
+bool ManagementClient::refreshBearerToken(const string& currentToken, string& newToken)
 {
-	if (bearer_token.length() == 0)
+	if (currentToken.length() == 0)
 	{
-		return "";
+		newToken.clear();
+		return false;
 	}
 
 	bool ret = false;
@@ -1111,11 +1114,10 @@ string ManagementClient::refreshBearerToken(const string& bearer_token)
 	m_mtx_rTokens.lock();
 
 	// Refresh it by calling Fledge management endpoint
-	string newToken;
 	string url = "/fledge/service/refresh_token";
 	string payload;
 	SimpleWeb::CaseInsensitiveMultimap header;
-	header.emplace("Authorization", "Bearer " + bearer_token);
+	header.emplace("Authorization", "Bearer " + currentToken);
 	auto res = this->getHttpClient()->request("POST", url.c_str(), payload, header);
 	Document doc;
 	string response = res->content.string();
@@ -1165,10 +1167,14 @@ string ManagementClient::refreshBearerToken(const string& bearer_token)
 	if (ret)
 	{
 		// Remove old token from received ones
-		m_received_tokens.erase(bearer_token);
+		m_received_tokens.erase(currentToken);
+	}
+	else
+	{
+		newToken.clear();
 	}
 
 	m_mtx_rTokens.unlock();
 
-	return newToken;
+	return ret;
 }

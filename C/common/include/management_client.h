@@ -78,8 +78,10 @@ class ManagementClient {
 								std::map<std::string, std::string>& claims);
 		bool			verifyAccessBearerToken(std::shared_ptr<HttpServer::Request> request,
 								std::map<std::string, std::string>& claims);
-		std::string		refreshAccessBearerToken(std::shared_ptr<HttpServer::Request> request);
-		std::string		refreshBearerToken(const std::string& bearerToken);
+		bool			refreshAccessBearerToken(std::shared_ptr<HttpServer::Request> request,
+							std::string& newToken);
+		bool			refreshBearerToken(const std::string& currentToken,
+							std::string& newToken);
 
 	private:
 		std::ostringstream 			m_urlbase;

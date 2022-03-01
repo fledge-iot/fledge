@@ -18,6 +18,7 @@ using HttpServer = SimpleWeb::Server<SimpleWeb::HTTP>;
  *
  * @param request	HTTP request object
  * @return		Access token as std::string
+ *			Empty string if no bearer token
  */
 string getAccessBearerToken(shared_ptr<HttpServer::Request> request)
 {

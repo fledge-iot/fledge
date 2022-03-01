@@ -68,6 +68,7 @@ _FLEDGE_PID_FILE = "fledge.core.pid"
 
 SSL_PROTOCOLS = (asyncio.sslproto.SSLProtocol,)
 
+# TODO generate secret at build time
 SERVICE_JWT_SECRET = 'f0gl@mp+Fl3dG3'
 SERVICE_JWT_ALGORITHM = 'HS256'
 SERVICE_JWT_EXP_DELTA_SECONDS = 30*60  # 30 minutes

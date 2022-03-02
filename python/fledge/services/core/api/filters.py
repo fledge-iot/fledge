@@ -262,6 +262,9 @@ async def add_filters_pipeline(request: web.Request) -> web.Response:
             message = "No detail found for user: {} and filter: {}".format(user_name, config_item)
             raise ValueError(message)
         else:
+            # Create Parent-child relation for standalone filter category with service/username
+            # And that way we have the ability to remove the category when we delete the service
+            await cf_mgr.create_child_category(user_name, filter_list)
             return web.json_response(
                 {'result': "Filter pipeline {} updated successfully".format(json.loads(result['value']))})
     except ValueError as ex:

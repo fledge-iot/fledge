@@ -128,9 +128,11 @@ string payload;
 					m_uuid->c_str());
 			if (doc.HasMember("bearer_token")){
 				m_bearer_token = string(doc["bearer_token"].GetString());
+#ifdef DEBUG_BEARER_TOKEN
 				m_logger->debug("Bearer token issued for service '%s': %s",
 						service.getName().c_str(),
 						m_bearer_token.c_str());
+#endif
 			}
 
 			return true;
@@ -878,7 +880,7 @@ bool ManagementClient::verifyAccessBearerToken(BearerToken& token)
 {
 	if (!token.exists())
 	{
-		m_logger->info("Access bearer token has empty value");
+		m_logger->warn("Access bearer token has empty value");
 		return false;
 	}
 	return verifyBearerToken(token);
@@ -995,7 +997,7 @@ bool ManagementClient::verifyBearerToken(BearerToken& bearerToken)
 {
 	if (!bearerToken.exists())
 	{
-		m_logger->info("Bearer token has empty value");
+		m_logger->warn("Bearer token has empty value");
 		return false;
 	}
 
@@ -1046,20 +1048,21 @@ bool ManagementClient::verifyBearerToken(BearerToken& bearerToken)
 			// Remove token from received ones
 			m_received_tokens.erase(token);
 
-			m_logger->error("Micro service bearer token '%s' has expired.",
-					token.c_str());
+			m_logger->error("Micro service bearer token expired.");
 		}
 	}
 
 	// Release lock
 	m_mtx_rTokens.unlock();
 
+#ifdef DEBUG_BEARER_TOKEN
 	m_logger->debug("Token verified %d, claims %s:%s:%s:%ld",
 			ret,
 			bearerToken.getAudience().c_str(),
 			bearerToken.getSubject().c_str(),
 			bearerToken.getIssuer().c_str(),
 			bearerToken.getExpiration());
+#endif
 
 	return ret;
 }

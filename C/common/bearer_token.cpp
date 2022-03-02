@@ -82,50 +82,61 @@ bool BearerToken::verify(const string& response)
 		log->error("%s error in service token verification: %s\n",
 				httpError?"HTTP error during":"Failed to parse result of",
 				response.c_str());
+		return false;
 	}
-	else
+
+	// Check JSON error item
+	if (doc.HasMember("error"))
 	{
-		if (doc.HasMember("error"))
+		if (doc["error"].IsString())
 		{
-			if (doc["error"].IsString())
-			{
-				string error = doc["error"].GetString();
-				log->error("Failed to parse token verification result, error %s",
-						error.c_str());
-			}
-			else
-			{
-				log->error("Failed to parse token verification result: %s",
-						response.c_str());
-			}
+			string error = doc["error"].GetString();
+			log->error("Failed to parse token verification result, error %s",
+					error.c_str());
 		}
 		else
 		{
+			log->error("Failed to parse token verification result: %s",
+					response.c_str());
+		}
+
+		return false;
+	}
+
+	// Check JSON claim items
+	if (doc.HasMember("aud") &&
+	    doc.HasMember("sub") &&
+	    doc.HasMember("iss") &&
+	    doc.HasMember("exp"))
+	{
+		// Set token claims in the input map
+		if (doc["aud"].IsString() &&
+		    doc["sub"].IsString() &&
+		    doc["iss"].IsString() &&
+		    doc["exp"].IsUint())
+		{
+			// Valid data: set claim values, expiration and verified
+			m_audience = doc["aud"].GetString();
+			m_subject = doc["sub"].GetString();
+			m_issuer = doc["iss"].GetString();
+			m_expiration = doc["exp"].GetUint();
+
 			m_verified = true;
 
-			// Set token claims in the input map
-			if (doc["aud"].IsString() &&
-			    doc["sub"].IsString() &&
-			    doc["iss"].IsString() &&
-			    doc["exp"].IsUint())
-			{
-				m_audience = doc["aud"].GetString();
-				m_subject = doc["sub"].GetString();
-				m_issuer = doc["iss"].GetString();
-				m_expiration = doc["exp"].GetUint();
-
-				log->debug("Token verified %s:%s, expiration %ld",
-						m_audience.c_str(),
-						m_subject.c_str(),
-						m_expiration);
-			}
-			else
-			{
-				log->error("Token claims do not contain string values: %s",
-					response.c_str());
-				m_verified = false;
-			}
+			log->debug("Token verified %s:%s, expiration %ld",
+				m_audience.c_str(),
+				m_subject.c_str(),
+				m_expiration);
 		}
+		else
+		{
+			log->error("Token claims do not contain valid values: %s",
+				response.c_str());
+		}
+	}
+	else
+	{
+		log->error("Needed token claims not found: %s", response.c_str());
 	}
 
 	return m_verified;

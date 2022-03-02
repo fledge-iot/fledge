@@ -425,7 +425,7 @@ void ServiceAuthHandler::AuthenticationMiddlewarePUT(shared_ptr<HttpServer::Resp
 	if (acl_set)
 	{
 		// Verify token via Fledge management core POST API call
-		// and fill tokenClaims map
+		// we do not need token claims here
 		bool ret = m_mgtClient->verifyAccessBearerToken(request);
 		if (!ret)
 		{
@@ -439,7 +439,12 @@ void ServiceAuthHandler::AuthenticationMiddlewarePUT(shared_ptr<HttpServer::Resp
 			return;
 		}
 
-		// Check for valid origin service caller (name, type)
+		// Dispatcher service is always allowed to send control requests
+		// to south service
+		//
+		// Checking for valid origin service caller (name/type) i.e
+		// N1_HTTP/Northbound
+		// NOTS/Notification
 		bool valid_service = this->verifyService(callerName, callerType);
 		if (!valid_service)
 		{
@@ -646,34 +651,20 @@ void ServiceAuthHandler::refreshBearerToken()
 			continue;
 		}
 
-		try
-		{
-			// Token exists and it is valid, get expiration time
-			expires_in = bToken.getExpiration() - time(NULL) - 10;
+		// Token exists and it is valid, get expiration time
+		expires_in = bToken.getExpiration() - time(NULL) - 10;
 
-			Logger::getLogger()->debug("Bearer token refresh thread sleeps "
+		Logger::getLogger()->debug("Bearer token refresh thread sleeps "
 					"for %ld seconds, service '%s'",
 					expires_in,
 					this->getName().c_str());
 
-			// Thread sleeps for the given amount of time
-			std::this_thread::sleep_for(std::chrono::seconds(expires_in));
+		// Thread sleeps for the given amount of time
+		std::this_thread::sleep_for(std::chrono::seconds(expires_in));
 
-			Logger::getLogger()->debug("Bearer token refresh thread calls "
-						"token refresh endpoint for service '%s'",
-						this->getName().c_str());
-		}
-		catch(...)
-		{
-			Logger::getLogger()->error("Exception found while parsing "
-					"service '%s' bearer token expiration, token '%s'",
-					this->getName().c_str(),
-					bToken.token().c_str());
-			// Sleep for some time
-			std::this_thread::sleep_for(std::chrono::seconds(30));
-			k++;
-			continue;
-		}
+		Logger::getLogger()->debug("Bearer token refresh thread calls "
+					"token refresh endpoint for service '%s'",
+					this->getName().c_str());
 
 		// Get a new bearer token for this service via
 		// refresh_token core API endpoint

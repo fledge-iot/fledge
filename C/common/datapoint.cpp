@@ -13,6 +13,7 @@
 #include <iomanip>
 #include <cfloat>
 #include <vector>
+#include <stdexcept>
 #include <logger.h>
 #include <datapoint.h>
 
@@ -142,9 +143,19 @@ DatapointValue::DatapointValue(const DatapointValue& obj)
 	{
 		case T_STRING:
 			m_value.str = new std::string(*(obj.m_value.str));
+			if (!m_value.str)
+			{
+				Logger::getLogger()->error("Failed to allocate string in datapoint value copy constructor");
+				throw std::runtime_error("Failed to allocate string in datapoint value copy constructor");
+			}
 			break;
 		case T_FLOAT_ARRAY:
 			m_value.a = new std::vector<double>(*(obj.m_value.a));
+			if (!m_value.a)
+			{
+				Logger::getLogger()->error("Failed to allocate float array in datapoint value copy constructor");
+				throw std::runtime_error("Failed to allocate float array in datapoint value copy constructor");
+			}
 			break;
 		case T_DP_DICT:
 		case T_DP_LIST:
@@ -154,9 +165,23 @@ DatapointValue::DatapointValue(const DatapointValue& obj)
 				++it)
 			{
 				Datapoint *d = *it;
-				// Add new allocated datapoint to the vector
-				// using copy constructor
-				m_value.dpa->push_back(new Datapoint(*d));
+				if (d)
+				{
+					// Add new allocated datapoint to the vector
+					// using copy constructor
+					Datapoint *tmp = new Datapoint(*d);
+					if (!tmp)
+					{
+						Logger::getLogger()->error("Failed to allocate datapoint for nested datapoint value in copy constructor");
+						throw std::runtime_error("Failed to allocate datapoint for nested datapoint value in copy constructor");
+					}
+					m_value.dpa->push_back(tmp);
+				}
+				else
+				{
+					Logger::getLogger()->error("NULL datapoint found in nested data point value in copy constructor");
+					throw std::runtime_error("NULL datapoint found in nested data point value in copy constructor");
+				}
 			}
 
 			break;
@@ -199,7 +224,30 @@ DatapointValue& DatapointValue::operator=(const DatapointValue& rhs)
 		break;
 	case T_DP_DICT:
 	case T_DP_LIST:
-		m_value.dpa = new std::vector<Datapoint*>(*(rhs.m_value.dpa));
+		m_value.dpa = new std::vector<Datapoint*>();
+		for (auto it = rhs.m_value.dpa->begin();
+			it != rhs.m_value.dpa->end();
+			++it)
+		{
+			Datapoint *d = *it;
+			if (d)
+			{
+				// Add new allocated datapoint to the vector
+				// using copy constructor
+				Datapoint *tmp = new Datapoint(*d);
+				if (!tmp)
+				{
+					Logger::getLogger()->error("Failed to allocate datapoint for nested datapoint value in assignment operator");
+					throw std::runtime_error("Failed to allocate datapoint for nested datapoint value in assignment operator");
+				}
+				m_value.dpa->push_back(tmp);
+			}
+			else
+			{
+				Logger::getLogger()->error("NULL datapoint found in nested data point value in copy constructor");
+				throw std::runtime_error("NULL datapoint found in nested data point value in assignment operator");
+			}
+		}
 		break;
 	default:
 		m_value = rhs.m_value;

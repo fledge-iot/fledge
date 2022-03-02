@@ -21,6 +21,7 @@
 #include <asset_tracking.h>
 #include <json_utils.h>
 #include <thread>
+#include <bearer_token.h>
 
 using HttpClient = SimpleWeb::Client<SimpleWeb::HTTP>;
 using HttpServer = SimpleWeb::Server<SimpleWeb::HTTP>;
@@ -74,12 +75,9 @@ class ManagementClient {
 						std::lock_guard<std::mutex> guard(m_bearer_token_mtx);
 						m_bearer_token = bearerToken;
 					};
-		bool			verifyBearerToken(const std::string& bearerToken,
-								std::map<std::string, std::string>& claims);
-		bool			verifyAccessBearerToken(std::shared_ptr<HttpServer::Request> request,
-								std::map<std::string, std::string>& claims);
-		bool			refreshAccessBearerToken(std::shared_ptr<HttpServer::Request> request,
-							std::string& newToken);
+		bool			verifyBearerToken(BearerToken& token);
+		bool			verifyAccessBearerToken(BearerToken& bToken);
+		bool			verifyAccessBearerToken(std::shared_ptr<HttpServer::Request> request);
 		bool			refreshBearerToken(const std::string& currentToken,
 							std::string& newToken);
 

@@ -15,7 +15,42 @@
 #define AUTH_HEADER "Authorization"
 #define BEARER_SCHEMA "Bearer "
 
-std::string getAccessBearerToken(std::shared_ptr<SimpleWeb::Server<SimpleWeb::HTTP>::Request> request);
-std::vector<std::string> JWTTokenSplit(const std::string &s, char delim);
+/**
+ * This class represents a JWT bearer token
+ *
+ * The claims are stored after verification to core service API endpoint
+ *
+ */
+class BearerToken
+{
+	public:
+		BearerToken(std::shared_ptr<SimpleWeb::Server<SimpleWeb::HTTP>::Request> request);
+		BearerToken(std::string& token);
+		~BearerToken() {};
+		bool		exists()
+		{
+			return m_bearer_token.length() > 0;
+		};
+		// Return string reference
+		const std::string&
+				token() { return m_bearer_token; };
+		bool		verify(const std::string& serverResponse);
+		unsigned long	getExpiration() { return m_expiration; };
+		// Return string references
+		const std::string&
+				getAudience() { return m_audience; };
+		const std::string&
+				getSubject() { return m_subject; };
+		const std::string&
+				getIssuer() { return m_issuer; };
+
+	private:
+		bool		m_verified;
+		unsigned long	m_expiration;
+		std::string	m_bearer_token;
+		std::string	m_audience;
+		std::string	m_subject;
+		std::string	m_issuer;
+};
 
 #endif

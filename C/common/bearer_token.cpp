@@ -9,54 +9,124 @@
  */
 
 #include "bearer_token.h"
+#include <rapidjson/document.h>
+#include <logger.h>
 
+using namespace rapidjson;
 using namespace std;
 using HttpServer = SimpleWeb::Server<SimpleWeb::HTTP>;
 
 /**
- * Extract access bearer token from request object
+ * BearerToken constructor with request object
  *
  * @param request	HTTP request object
- * @return		Access token as std::string
- *			Empty string if no bearer token
  */
-string getAccessBearerToken(shared_ptr<HttpServer::Request> request)
+BearerToken::BearerToken(shared_ptr<HttpServer::Request> request)
 {
-	string bearer_token;
+string bearer_token;
 
-        for(auto &field : request->header)
-        {
-                if (field.first == AUTH_HEADER)
-                {
-                        std::size_t pos = field.second.rfind(BEARER_SCHEMA);
-                        if (pos != string::npos)
-                        {
-                                pos += strlen(BEARER_SCHEMA);
-                                bearer_token = field.second.substr(pos);
-                        }
-                }
-        }
+ 	// Extract access bearer token from request headers
+	for(auto &field : request->header)
+	{
+		if (field.first == AUTH_HEADER)
+		{
+			std::size_t pos = field.second.rfind(BEARER_SCHEMA);
+			if (pos != string::npos)
+			{
+				pos += strlen(BEARER_SCHEMA);
+				m_bearer_token = field.second.substr(pos);
+			}
+		}
+	}
 
-        return bearer_token;
+	m_expiration = 0;
+	m_verified = false;
 }
 
 /**
- * Split JWT token (yyyy.wwww.zzzz) components into a vector of strings
- *
- * @param    s          The JWT bearer token string
- * @param    delim      The JWT bearer token delimiter char
- * @return              A vector of strings with token components
+ * BearerToken constructor with string reference
+ * @param token		Bearer token string
  */
-vector<string> JWTTokenSplit(const string &s, char delim)
-{
-	stringstream ss(s);
-	string item;
-	// Output array
-	vector<string> elems;
+BearerToken::BearerToken(std::string& token) :
+			m_bearer_token(token)
+{	
+	m_expiration = 0;
+	m_verified = false;
+}
 
-	while (std::getline(ss, item, delim)) {
-		elems.push_back(item);
+/**
+ * BearerToken verification from JSON string reference
+ *
+ * Known token claims as stored as strings
+ *
+ * @param response	JSON string from token verification endpoint
+ * @return		True on success
+ * 			False otherwise
+ */
+bool BearerToken::verify(const string& response)
+{
+	if (m_bearer_token.length() == 0)
+	{
+		return false;
+	}	
+
+	Logger *log = Logger::getLogger();
+	Document doc;
+	doc.Parse(response.c_str());
+	if (doc.HasParseError())
+	{
+		bool httpError = (isdigit(response[0]) &&
+				  isdigit(response[1]) &&
+				  isdigit(response[2]) &&
+				  response[3]==':');
+		log->error("%s error in service token verification: %s\n",
+				httpError?"HTTP error during":"Failed to parse result of",
+				response.c_str());
+	}
+	else
+	{
+		if (doc.HasMember("error"))
+		{
+			if (doc["error"].IsString())
+			{
+				string error = doc["error"].GetString();
+				log->error("Failed to parse token verification result, error %s",
+						error.c_str());
+			}
+			else
+			{
+				log->error("Failed to parse token verification result: %s",
+						response.c_str());
+			}
+		}
+		else
+		{
+			m_verified = true;
+
+			// Set token claims in the input map
+			if (doc["aud"].IsString() &&
+			    doc["sub"].IsString() &&
+			    doc["iss"].IsString() &&
+			    doc["exp"].IsUint())
+			{
+				m_audience = doc["aud"].GetString();
+				m_subject = doc["sub"].GetString();
+				m_issuer = doc["iss"].GetString();
+				m_expiration = doc["exp"].GetUint();
+
+				log->debug("Token verified %s:%s, expiration %ld",
+						m_audience.c_str(),
+						m_subject.c_str(),
+						m_expiration);
+			}
+			else
+			{
+				log->error("Token claims do not contain string values: %s",
+					response.c_str());
+				m_verified = false;
+			}
+		}
 	}
 
-	return elems;
+	return m_verified;
 }

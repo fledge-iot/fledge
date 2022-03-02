@@ -869,227 +869,31 @@ bool ManagementClient::addAuditEntry(const std::string& code,
 }
 
 /**
- * Checks and validate the JWT bearer token coming from HTTP request
+ * Checks and validate the JWT bearer token object as reference
  *
- * @param request	HTTP request object
- * @param claims	Map to fill with JWT public token claims
+ * @param request	The bearer token object
  * @return		True on success, false otherwise
  */
-bool ManagementClient::verifyAccessBearerToken(shared_ptr<HttpServer::Request> request,
-						map<string, string>& claims)
+bool ManagementClient::verifyAccessBearerToken(BearerToken& token)
 {
-	string bearerToken = getAccessBearerToken(request);
-	if (bearerToken.length() == 0)
+	if (!token.exists())
 	{
 		m_logger->info("Access bearer token has empty value");
 		return false;
 	}
-	return verifyBearerToken(bearerToken, claims);
+	return verifyBearerToken(token);
 }
 
 /**
- * Checks and validate the JWT bearer token string
+ * Checks and validate the JWT bearer token coming from HTTP request
  *
- * @param bearerToken	The bearer token string
- * @param claims	Map to fill with JWT public token claims
+ * @param request	HTTP request object
  * @return		True on success, false otherwise
  */
-bool ManagementClient::verifyBearerToken(const string& bearer_token,
-					map<string, string>& claims)
+bool ManagementClient::verifyAccessBearerToken(shared_ptr<HttpServer::Request> request)
 {
-	if (bearer_token.length() == 0)
-	{
-		m_logger->info("Bearer token has empty value");
-		claims.clear();
-		return false;
-	}
-
-	bool ret = true;
-
-	// Check token already exists in cache:
-	std::map<std::string, std::string>::iterator item;
-	// Acquire lock
-	m_mtx_rTokens.lock();
-
-	item = m_received_tokens.find(bearer_token);
-	if (item  == m_received_tokens.end())
-	{
-		bool verified = false;
-		// Token does not exist:
-		// Verify it by calling Fledge management endpoint
-		string url = "/fledge/service/verify_token";
-                string payload;
-                SimpleWeb::CaseInsensitiveMultimap header;
-                header.emplace("Authorization", "Bearer " + bearer_token);
-                auto res = this->getHttpClient()->request("POST", url.c_str(), payload, header);
-		Document doc;
-		string response = res->content.string();
-		doc.Parse(response.c_str());
-		if (doc.HasParseError())
-		{
-			bool httpError = (isdigit(response[0]) &&
-					  isdigit(response[1]) &&
-					  isdigit(response[2]) &&
-					  response[3]==':');
-			m_logger->error("%s error in service token verification: %s\n", 
-					httpError?"HTTP error during":"Failed to parse result of", 
-					response.c_str());
-			verified = false;
-			claims.clear();
-		}
-		else
-		{
-			if (doc.HasMember("error"))
-			{
-				if (doc["error"].IsString())
-				{
-					string error = doc["error"].GetString();
-					m_logger->error("Failed to parse token verification result, error %s",
-							error.c_str());
-				}
-				else
-				{
-					m_logger->error("Failed to parse token verification result: %s",
-							response.c_str());
-				}
-				claims.clear();
-				verified = false;
-			}
-			else
-			{
-				verified = true;
-
-				// Set token claims in the input map
-				if (doc["aud"].IsString() &&
-				    doc["sub"].IsString() &&
-				    doc["iss"].IsString() &&
-				    doc["exp"].IsUint())
-				{
-					claims["aud"] = doc["aud"].GetString();
-					claims["sub"] = doc["sub"].GetString();
-					claims["iss"] = doc["iss"].GetString();
-					claims["exp"] = std::to_string(doc["exp"].GetUint());
-				}
-				else
-				{
-					m_logger->error("Token claims do not contain string values: %s",
-							response.c_str());
-					verified = false;
-					claims.clear();
-				}
-			}
-		}
-
-		if (verified)
-		{
-			// Token verified, store the token
-			m_received_tokens[bearer_token] = "added";
-		}
-		else
-		{
-			claims.clear();
-			ret = false;
-			m_logger->error("Micro service bearer token '%s' not verified.",
-					bearer_token.c_str());
-		}
-	}
-	else
-	{
-		// A validated token exists: check expiration time
-		vector<string> elems = JWTTokenSplit(bearer_token, '.');
-		// Add missing base64 padding
-		if (elems[1].length() % 4 != 0)
-		{
-			elems[1] += "=";
-		}
-		if (elems[1].length() % 4 != 0)
-		{
-			elems[1] += "=";
-		}
-		// Base64 decode of second part of bearer token (with public claims)
-		string plainData = Crypto::Base64::decode(elems[1]);
-		Document doc;
-		doc.Parse(plainData.c_str());
-
-		// JSON parsing check of token claims
-		if (doc.HasParseError())
-		{
-			m_logger->error("Failure while parsing JSON claims of bearer token, "
-					"error %s, input data %s",
-					GetParseError_En(doc.GetParseError()),
-					plainData.c_str());
-			claims.clear();
-			return false;
-		}
-
-		unsigned long expiration;
-		if (doc["exp"].IsUint())
-		{
-			expiration = doc["exp"].GetUint();
-		}
-		else
-		{
-			m_logger->error("Failure while parsing 'exp' token claim of bearer token, "
-					"error %s, input data %s",
-					"not a number",
-					plainData.c_str());
-			claims.clear();
-			return false;
-		}
-		unsigned long now = time(NULL);
-
-		// Check expiration
-		if (now >= expiration)
-		{
-			ret = false;
-			// Remove token from received ones
-			m_received_tokens.erase(bearer_token);
-
-			m_logger->error("Micro service bearer token '%s' has expired.",
-					bearer_token.c_str());
-			claims.clear();
-		}
-		else
-		{
-			// Token still valid, set token claims in the input map
-			claims["aud"] = doc["aud"].GetString();
-			claims["sub"] = doc["sub"].GetString();
-			claims["iss"] = doc["iss"].GetString();
-			claims["exp"] = std::to_string(doc["exp"].GetUint());
-		}
-	}
-
-	// Release lock
-	m_mtx_rTokens.unlock();
-
-	m_logger->error("Token verified %d, claims %s:%s:%s:%s",
-			ret,
-			claims["aud"].c_str(),
-			claims["sub"].c_str(),
-			claims["iss"].c_str(),
-			claims["exp"].c_str());
-
-	return ret;
-}
-
-/**
- * Refresh the JWT bearer token coming from HTTP request
- *
- * @param request       HTTP request object
- * @param newToken	Input string to set with a new token
- * @return              True if new bearer token has been set
- *			False otherwise
- */
-bool ManagementClient::refreshAccessBearerToken(shared_ptr<HttpServer::Request> request,
-						string& newToken)
-{
-	string bearer_token = getAccessBearerToken(request);
-	if (bearer_token.length() == 0)
-	{
-		newToken.clear();
-		return false;
-	}
-	return refreshBearerToken(bearer_token, newToken);
+	BearerToken bT(request);
+	return this->verifyBearerToken(bT);
 }
 
 /**
@@ -1099,7 +903,8 @@ bool ManagementClient::refreshAccessBearerToken(shared_ptr<HttpServer::Request> 
  * @param newToken	New issued bearer token being set
  * @return              True on success, false otherwise
  */
-bool ManagementClient::refreshBearerToken(const string& currentToken, string& newToken)
+bool ManagementClient::refreshBearerToken(const string& currentToken,
+					string& newToken)
 {
 	if (currentToken.length() == 0)
 	{
@@ -1178,3 +983,84 @@ bool ManagementClient::refreshBearerToken(const string& currentToken, string& ne
 
 	return ret;
 }
+
+/**
+ * Checks and validate the JWT bearer token string
+ *
+ * @param bearerToken	The bearer token string
+ * @param claims	Map to fill with JWT public token claims
+ * @return		True on success, false otherwise
+ */
+bool ManagementClient::verifyBearerToken(BearerToken& bearerToken)
+{
+	if (!bearerToken.exists())
+	{
+		m_logger->info("Bearer token has empty value");
+		return false;
+	}
+
+	bool ret = true;
+	const string& token = bearerToken.token();
+
+	// Check token already exists in cache:
+	std::map<std::string, std::string>::iterator item;
+	// Acquire lock
+	m_mtx_rTokens.lock();
+
+	item = m_received_tokens.find(token);
+	if (item  == m_received_tokens.end())
+	{
+		bool verified = false;
+		// Token does not exist:
+		// Verify it by calling Fledge management endpoint
+		string url = "/fledge/service/verify_token";
+                string payload;
+                SimpleWeb::CaseInsensitiveMultimap header;
+                header.emplace("Authorization", "Bearer " + token);
+                auto res = this->getHttpClient()->request("POST", url.c_str(), payload, header);
+		string response = res->content.string();
+
+		// Parse JSON message and store claims
+		verified = bearerToken.verify(response);
+		if (verified)
+		{
+			// Token verified, store the token
+			m_received_tokens[token] = "added";
+		}
+		else
+		{
+			ret = false;
+			m_logger->error("Micro service bearer token '%s' not verified.",
+					token.c_str());
+		}
+	}
+	else
+	{
+		unsigned long expiration = bearerToken.getExpiration();
+		unsigned long now = time(NULL);
+
+		// Check expiration
+		if (now >= expiration)
+		{
+			ret = false;
+			// Remove token from received ones
+			m_received_tokens.erase(token);
+
+			m_logger->error("Micro service bearer token '%s' has expired.",
+					token.c_str());
+		}
+	}
+
+	// Release lock
+	m_mtx_rTokens.unlock();
+
+	m_logger->debug("Token verified %d, claims %s:%s:%s:%ld",
+			ret,
+			bearerToken.getAudience().c_str(),
+			bearerToken.getSubject().c_str(),
+			bearerToken.getIssuer().c_str(),
+			bearerToken.getExpiration());
+
+	return ret;
+}
+

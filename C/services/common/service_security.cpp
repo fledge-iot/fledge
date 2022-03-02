@@ -397,34 +397,36 @@ void ServiceAuthHandler::AuthenticationMiddlewarePUT(shared_ptr<HttpServer::Resp
         		        shared_ptr<HttpServer::Response>,
         		        shared_ptr<HttpServer::Request>)> funcPUT)
 {
-	string serviceName;
-	string serviceType;
+	string callerName;
+	string callerType;
 
 	for(auto &field : request->header)
 	{
 		if (field.first == "Service-Orig-From")
 		{
-			serviceName = field.second;
+			callerName = field.second;
 		}
 		if (field.first == "Service-Orig-Type")
 		{
-			serviceType = field.second;
+			callerType = field.second;
 		}
 	}
 
 	// Get authentication enabled value
 	bool acl_set = this->getAuthenticatedCaller();
-	Logger::getLogger()->debug("This service '%s' has AuthenticatedCaller flag set %d",
+	Logger::getLogger()->debug("This service '%s' has AuthenticatedCaller flag set %d "
+			"caller service is %s, type %s",
 			this->getName().c_str(),
-			acl_set);
+			acl_set,
+			callerName.c_str(),
+			callerType.c_str());
 
 	// Check authentication
 	if (acl_set)
 	{
-		map<string, string> tokenClaims;
 		// Verify token via Fledge management core POST API call
 		// and fill tokenClaims map
-		bool ret = m_mgtClient->verifyAccessBearerToken(request, tokenClaims);
+		bool ret = m_mgtClient->verifyAccessBearerToken(request);
 		if (!ret)
 		{
 			string msg = "invalid service bearer token";
@@ -438,7 +440,7 @@ void ServiceAuthHandler::AuthenticationMiddlewarePUT(shared_ptr<HttpServer::Resp
 		}
 
 		// Check for valid origin service caller (name, type)
-		bool valid_service = this->verifyService(serviceName, serviceType);
+		bool valid_service = this->verifyService(callerName, callerType);
 		if (!valid_service)
 		{
 			string msg = "authorisation not granted to this service";
@@ -452,8 +454,8 @@ void ServiceAuthHandler::AuthenticationMiddlewarePUT(shared_ptr<HttpServer::Resp
 
 		// Check URLS
 		bool access_granted = this->verifyURL(request->path,
-						serviceName,
-						serviceType);
+						callerName,
+						callerType);
 		if (!access_granted)
 		{
 			string msg = "authorisation not granted to this resource";
@@ -471,32 +473,6 @@ void ServiceAuthHandler::AuthenticationMiddlewarePUT(shared_ptr<HttpServer::Resp
 }
 
 /**
- * Authentication Middleware for POST methods
- *
- * Routine first check whether the service is configured with authentication
- *
- * Access bearer token is then verified against FogLAMP core API endpoint
- * JWT token claims are passed to verifyURL and verifyService routines
- *
- * If access is granted the input funcPUT funcion is called
- * otherwise error response is sent to the client
- *
- * @param response	The HTTP Response to send
- * @param request	The HTTP Request
- * @param funcPUT	The function to call in case of access granted
- */
-void ServiceAuthHandler::AuthenticationMiddlewarePOST(shared_ptr<HttpServer::Response> response,
-			shared_ptr<HttpServer::Request> request,
-			std::function<void(
-				shared_ptr<HttpServer::Response>,
-				shared_ptr<HttpServer::Request>)> funcPOST)
-{
-	// POST does not have additional features, call PUT method
-	// passing pinter to POST function
-	this->AuthenticationMiddlewarePUT(response, request, funcPOST);
-}
-
-/**
  * Authentication Middleware ACL check
  *
  * serviceName, serviceType and url (request->path)
@@ -507,18 +483,18 @@ void ServiceAuthHandler::AuthenticationMiddlewarePOST(shared_ptr<HttpServer::Res
  *
  * @param response	The HTTP Response to send
  * @param request	The HTTP Request
- * @param serviceName	The service name to check
- * @param serviceType	The service type to check
+ * @param callerName	The caller service name to check
+ * @param callerType	The caller service type to check
  * @return		True on success
  * 			False otherwise with server reply error
  */
 bool ServiceAuthHandler::AuthenticationMiddlewareACL(shared_ptr<HttpServer::Response> response,
 						shared_ptr<HttpServer::Request> request,
-						const string& serviceName,
-						const string& serviceType)
+						const string& callerName,
+						const string& callerType)
 {
 	// Check for valid service caller (name, type)
-	bool valid_service = this->verifyService(serviceName, serviceType);
+	bool valid_service = this->verifyService(callerName, callerType);
 	if (!valid_service)
 	{
 		string msg = "authorisation not granted to this service";
@@ -533,7 +509,7 @@ bool ServiceAuthHandler::AuthenticationMiddlewareACL(shared_ptr<HttpServer::Resp
 	}
 
 	// Check URLS
-	bool access_granted = this->verifyURL(request->path, serviceName, serviceType);
+	bool access_granted = this->verifyURL(request->path, callerName, callerType);
 	if (!access_granted)
 	{
 		string msg = "authorisation not granted to this resource";
@@ -565,16 +541,19 @@ bool ServiceAuthHandler::AuthenticationMiddlewareACL(shared_ptr<HttpServer::Resp
  *
  * @param response	The HTTP Response to send
  * @param request	The HTTP Request
- * @return		Map with token claims on success
- *			empty map in case of errors
+ * @return		True on success
+ *			False on errors
  */
-map<string, string>
-	ServiceAuthHandler::AuthenticationMiddlewareCommon(shared_ptr<HttpServer::Response> response,
-							shared_ptr<HttpServer::Request> request)
+bool ServiceAuthHandler::AuthenticationMiddlewareCommon(shared_ptr<HttpServer::Response> response,
+							shared_ptr<HttpServer::Request> request,
+							string& callerName,
+							string& callerType)
 {
+	// Get token from HTTP request
+	BearerToken bToken(request);
+
 	// Verify token via Fledge management core POST API call and fill tokenClaims map
-	map<string, string> tokenClaims;
-	bool ret = m_mgtClient->verifyAccessBearerToken(request, tokenClaims);
+	bool ret = m_mgtClient->verifyAccessBearerToken(bToken);
 	if (!ret)
 	{
 		string msg = "invalid service bearer token";
@@ -586,26 +565,28 @@ map<string, string>
 				SimpleWeb::StatusCode::client_error_bad_request,
 				responsePayload);
 
-		// Return emptyClaims
-		map<string, string> emptyClaims;
-		return emptyClaims;
+		// Failure
+		return false;
 	}
 
 	// Check for valid service caller (name, type) and URLs
-	bool auth = this->AuthenticationMiddlewareACL(response,
+	bool check = this->AuthenticationMiddlewareACL(response,
 						request,
-						tokenClaims["sub"],
-						tokenClaims["aud"]);
-	// Check
-	if (!auth)
+						bToken.getSubject(),
+						bToken.getAudience());
+	// Check ACL result
+	if (!check)
 	{
-		// Return emptyClaims
-		map<string, string> emptyClaims;
-		return emptyClaims;
+		// Failure
+		return false;
 	}
 
-	// Return tokenClaims from bearer token
-	return tokenClaims;
+	// Set caller name & type
+	callerName = bToken.getSubject();
+	callerType = bToken.getAudience();
+
+	// Success
+	return true;
 }
 
 /**
@@ -623,9 +604,7 @@ void ServiceAuthHandler::refreshBearerToken()
 				this->getName().c_str());
 
 	int max_retries = 2;
-	map<string, string> claims;
 	time_t expires_in;
-	string bToken;
 	int k = 0;
 
 	// While server is running get bearer token
@@ -636,33 +615,29 @@ void ServiceAuthHandler::refreshBearerToken()
 		if (k >= max_retries)
 		{
 			string msg = "Bearer token not found for service '" + this->getName() +
-				" refresh thread exits after " +
-				std::to_string(max_retries) + " retries";
+					" refresh thread exits after " + std::to_string(max_retries) + " retries";	
 			Logger::getLogger()->error(msg.c_str());
-
 			throw std::runtime_error(msg);
 		}
 
-		bool tokenExists = false;
+		bool tokenVerified = false;
 		// Fetch current bearer token
-		bToken = m_mgtClient->getRegistrationBearerToken();
-		if (bToken != "")
+		BearerToken bToken(m_mgtClient->getRegistrationBearerToken());
+		if (bToken.exists())
 		{
 			// Ask verification to core service nad get token claims
-			m_mgtClient->verifyBearerToken(bToken, claims);
+			tokenVerified = m_mgtClient->verifyBearerToken(bToken);
 
-			// 'sub', 'aud', 'iss', 'exp'
-			tokenExists = claims.size() == 4;
 		}
 
 		// Give it a try in case of any error from core service
-		if (!tokenExists)
+		if (!tokenVerified)
 		{
 			k++;
 			Logger::getLogger()->error("Refreshing bearer token thread for service '%s' "
 						"got empty or invalid bearer token '%s', retry n. %d",
 						this->getName().c_str(),
-						bToken.c_str(),
+						bToken.token().c_str(),
 						k);
 
 			// Sleep for some time
@@ -674,7 +649,7 @@ void ServiceAuthHandler::refreshBearerToken()
 		try
 		{
 			// Token exists and it is valid, get expiration time
-			expires_in = std::stoi(claims["exp"]) - time(NULL) - 10;
+			expires_in = bToken.getExpiration() - time(NULL) - 10;
 
 			Logger::getLogger()->debug("Bearer token refresh thread sleeps "
 					"for %ld seconds, service '%s'",
@@ -691,22 +666,25 @@ void ServiceAuthHandler::refreshBearerToken()
 		catch(...)
 		{
 			Logger::getLogger()->error("Exception found while parsing "
-				"expiration of bearer token '%s'",
-				bToken.c_str());
+					"service '%s' bearer token expiration, token '%s'",
+					this->getName().c_str(),
+					bToken.token().c_str());
 			// Sleep for some time
-			std::this_thread::sleep_for(std::chrono::seconds(10));
+			std::this_thread::sleep_for(std::chrono::seconds(30));
+			k++;
 			continue;
 		}
 
 		// Get a new bearer token for this service via
 		// refresh_token core API endpoint
 		string newToken;
-		bool ret = m_mgtClient->refreshBearerToken(bToken, newToken);
+		bool ret = m_mgtClient->refreshBearerToken(bToken.token(), newToken);
 		if (ret)
 		{
 			Logger::getLogger()->debug("Bearer token refresh thread has got "
-					"a new bearer token for service '%s",
-					this->getName().c_str());
+					"a new bearer token for service '%s, %s",
+					this->getName().c_str(),
+					newToken.c_str());
 
 			// Store new bearer token
 			m_mgtClient->setNewBearerToken(newToken);
@@ -716,8 +694,8 @@ void ServiceAuthHandler::refreshBearerToken()
 			string msg = "Failed to get a new token "
 				"via refresh API call for service '" + this->getName() + "'";
 			Logger::getLogger()->fatal("%s, current token is '%s'",
-						msg.c_str(),
-						bToken.c_str());
+					msg.c_str(),
+					bToken.token().c_str());
 			throw std::runtime_error(msg);
 		}
 	}

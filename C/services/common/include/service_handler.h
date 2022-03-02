@@ -38,23 +38,22 @@ class ServiceAuthHandler : public ServiceHandler
 		void		setInitialAuthenticatedCaller();
 		void		setAuthenticatedCaller(bool enabled);
 		bool		getAuthenticatedCaller();
-                bool		AuthenticationMiddlewareACL(std::shared_ptr<HttpServer::Response> response,
+		// ACL verification (for Dispatcher)
+		bool		AuthenticationMiddlewareACL(std::shared_ptr<HttpServer::Response> response,
 							std::shared_ptr<HttpServer::Request> request,
 							const std::string& serviceName,
 							const std::string& serviceType);
-		std::map<std::string, std::string>
-				AuthenticationMiddlewareCommon(std::shared_ptr<HttpServer::Response> response,
-							std::shared_ptr<HttpServer::Request> request);
+		// Hanlder for Dispatcher
+		bool		AuthenticationMiddlewareCommon(std::shared_ptr<HttpServer::Response> response,
+							std::shared_ptr<HttpServer::Request> request,
+							std::string& callerName,
+							std::string& callerType);
+		// Handler for South services: token verifation and service ACL check
 		void		AuthenticationMiddlewarePUT(std::shared_ptr<HttpServer::Response> response,
 							std::shared_ptr<HttpServer::Request> request,
 							std::function<void(
 								std::shared_ptr<HttpServer::Response>,
 								std::shared_ptr<HttpServer::Request>)> funcPUT);
-		void		AuthenticationMiddlewarePOST(std::shared_ptr<HttpServer::Response> response,
-							std::shared_ptr<HttpServer::Request> request,
-							std::function<void(
-								std::shared_ptr<HttpServer::Response>,
-								std::shared_ptr<HttpServer::Request>)> funcPOST);
 		void		refreshBearerToken();
  		// Send a good HTTP response to the caller
 		void		respond(std::shared_ptr<HttpServer::Response> response,

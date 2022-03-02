@@ -303,7 +303,7 @@ class Scheduler(object):
         args_to_exec = args.copy()
         args_to_exec.append("--port={}".format(self._core_management_port))
         args_to_exec.append("--address=127.0.0.1")
-        args_to_exec.append("--name={}".format(schedule.name))
+        
         if schedule.process_name == "restore" and self._restore_backup_id is not None:
             # Adding backup id argument
             args_to_exec.append("--backup-id={}".format(self._restore_backup_id))
@@ -320,6 +320,11 @@ class Scheduler(object):
             startToken = ServiceRegistry.issueStartupToken(schedule.name)
             # Add startup token to args for services
             args_to_exec.append("--token={}".format(startToken))
+        
+        args_to_exec.append("--name={}".format(schedule.name))
+
+        # avoid printing/logging tokens
+        args_to_exec_printable  = [a for a in args_to_exec if not a.startswith("--token")]
 
         task_process = self._TaskProcess()
         task_process.start_time = time.time()
@@ -329,7 +334,7 @@ class Scheduler(object):
         except EnvironmentError:
             self._logger.exception(
                 "Unable to start schedule '%s' process '%s'\n%s",
-                schedule.name, schedule.process_name, args_to_exec)
+                schedule.name, schedule.process_name, args_to_exec_printable)
             raise
 
         task_id = uuid.uuid4()
@@ -340,11 +345,11 @@ class Scheduler(object):
         # All tasks including STARTUP tasks go into both self._task_processes and self._schedule_executions
         self._task_processes[task_id] = task_process
         self._schedule_executions[schedule.id].task_processes[task_id] = task_process
-
+ 
         self._logger.info(
             "Process started: Schedule '%s' process '%s' task %s pid %s, %s running tasks\n%s",
             schedule.name, schedule.process_name, task_id, process.pid,
-            len(self._task_processes), args_to_exec)
+            len(self._task_processes), args_to_exec_printable)
 
         # Startup tasks are not tracked in the tasks table and do not have any future associated with them.
         if schedule.type != Schedule.Type.STARTUP:

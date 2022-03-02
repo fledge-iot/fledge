@@ -141,6 +141,32 @@ If there is an undefined symbol you will get an error from this
 utility. You can also check the validity of your JSON configuration by
 piping the output to a program such as jq.
 
+.. code-block:: console
+
+   $ get_plugin_info plugins/south/Random/libRandom.so plugin_info | jq
+    {
+      "name": "Random",
+      "version": "1.9.2",
+      "type": "south",
+      "interface": "1.0.0",
+      "flag": 4096,
+      "config": {
+        "plugin": {
+          "description": "Random data generation plugin",
+          "type": "string",
+          "default": "Random",
+          "readonly": "true"
+        },
+        "asset": {
+          "description": "Asset name",
+          "type": "string",
+          "default": "Random",
+          "displayName": "Asset Name",
+          "mandatory": "true"
+        }
+      }
+    }
+
 Running Under a Debugger
 ------------------------
 
@@ -338,13 +364,17 @@ The same approach can be used to make use of the *valgrind* command to find memo
 
    - Note the *--port=* and *--address=* arguments
 
-   - Run *strace* with the service adding the same set of arguments you used in gdb when running the service
+   - Run *valgrind* with the service adding the same set of arguments you used in gdb when running the service.
+
+     Add any arguments you wish to pass to *valgrind* itself before the service executable name, in this case we are passing *--leak-check=full*.
 
      .. code-block:: console
 
         $ valgrind --leak-check=full  services/fledge.services.south --port=39821 --address=127.0.0.1 --name=ServiceName -d
 
      Where *ServiceName* is the name you gave your service
+
+  - Once the service has run for a while shut it down to trigger *valgrind* to print a summary of memory leaks found during the execution.
 
 
 Python Plugin Info

@@ -12,6 +12,10 @@
 
         <a href="https://docs.microsoft.com/en-us/windows/wsl">Windows Subsystem for Linux (WSL2)</a>
 
+.. |hyperv| raw:: html
+
+        <a href="https://docs.microsoft.com/en-us/virtualization/hyper-v-on-windows/about">Hyper-V on Windows 10</a>
+
 .. Links in new tabs
 
 .. =============================================
@@ -20,11 +24,69 @@
 Developing with Windows Subsystem for Linux (WSL2)
 ==================================================
 
-|wsl| allows you to run a Linux environment
-directly on Windows, unmodified, without the overhead of a traditional virtual machine or dual-boot setup
--- including most command-line tools, utilities, and applications -- directly on Windows, unmodified, without the overhead of a traditional virtual machine or dual-boot setup.
+|wsl| allows you to run a Linux environment directly on Windows without the overhead of |hyperv| or a dual-boot setup.
+You can run many Linux command-line tools, utilities, and applications directly on Windows.
+It is possible to run a complete Fledge system on WSL2.
+This includes the `Fledge GUI <https://fledge-iot.readthedocs.io/en/latest/quick_start/gui.html>`_
+which can be accessed from a browser running on the host Windows environment.
 
-North plugins are used in North tasks and micro services to extract data buffered in Fledge and send it Northbound, i.e. to a server or a service in the Cloud or in an Enterprise data center. North plugins may be written in Python or C/C++, a number of different north plugins are available as examples that may be used when creating new plugins.
+Microsoft's `Visual Studio Code <https://code.visualstudio.com>`_ is a cross-platform editor that supports extensions
+for building and debugging software in a variety of languages and environments.
+This article describes how to configure Visual Studio Code to edit, build and debug Fledge plugins written in C++ running in Linux under WSL2.
+It is possible to configure Visual Studio Code to build and test Python code in WSL2 but this is not covered in this article.
+
+Preparing the Development Environment
+-------------------------------------
+
+This section outlines the steps to configure WSL2 and the Linux environment.
+
+Installing Windows Subsystem for Linux (WSL2)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+You must be running Windows 10 version 2004 and higher (Build 19041 and higher) or Windows 11 to install WSL2.
+The easiest way to install is to open a Windows Command Prompt as Administrator and run this command:
+
+.. code-block:: bash
+
+   wsl --install
+
+Windows will perform all the necessary steps for you and install the default Linux distribution which is the latest version of Ubuntu.
+If you wish to perform the steps manually, read the Microsoft documentation on `Installing WSL <https://docs.microsoft.com/en-us/windows/wsl/install>`_.
+
+When the installation completes, the Linux distribution will launch in a new window.
+It will prompt you for a username to serve as the root account and password.
+This username has nothing to do with your Windows environment so it can be any name you choose.
+
+Preparing the Linux Distribution for Fledge
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The *systemd* service manager is not configured by default in an Ubuntu distribution running in WSL2.
+Since Fledge relies on *systemd*, you must run a script to enable it.
+From your home directory in the Ubuntu window, enter the commands:
+
+.. code-block:: bash
+
+   git clone https://github.com/DamionGans/ubuntu-wsl2-systemd-script.git
+   cd ubuntu-wsl2-systemd-script
+   bash ubuntu-wsl2-systemd-script.sh
+   
+Restart the Ubuntu distribution and run the command *systemctl*.
+You should see no error and a list of units.
+The script must be run one time only.
+Whenever you start up your Ubuntu distribution, *systemd* should be ready.
+
+Installing Fledge
+~~~~~~~~~~~~~~~~~
+
+Following the normal instructions for `Installing Fledge on Ubuntu <https://fledge-iot.readthedocs.io/en/latest/quick_start/installing.html#ubuntu-or-debian>`_.
+Make sure the package repository matches your version of Ubuntu.
+You can check the operating system version in your distribution with the command *hostnamectl*.
+
+Installing Visual Studio Code
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Do this on Windows. **This part is important**.
+
 
 A north plugin has a limited number of entry points that it much support, these entry points are the same for both Python and C/C++ north plugins.
 

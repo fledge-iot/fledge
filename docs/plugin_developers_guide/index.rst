@@ -18,3 +18,4 @@ Plugin Developer Guide
     06_filter_plugins
     08_notify_plugins.rst
     10_testing
+    11_WSL2.rst

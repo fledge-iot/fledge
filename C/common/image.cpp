@@ -68,7 +68,9 @@ DPImage::DPImage(const DPImage& rhs)
 DPImage& DPImage::operator=(const DPImage& rhs)
 {
 	// Free any old data
-
+	if (m_pixels)
+		free(m_pixels);
+    
 	m_width = rhs.m_width;
 	m_height = rhs.m_height;
 	m_depth = rhs.m_depth;

@@ -67,8 +67,12 @@ unsigned int call_plugin_send_coroutine(PyObject *plugin_send_module_func, PLUGI
 		PyObject* method = PyObject_GetAttrString(mod, "plugin_send_wrapper");
 		if (method != NULL)
         {
-			PyObject* pReturn = PyObject_CallObject(method, Py_BuildValue("OOO", handle, readingsList, plugin_send_module_func));
+            PyObject* arg = Py_BuildValue("OOO", handle, readingsList, plugin_send_module_func);
+            PyObject* pReturn = PyObject_CallObject(method, arg);
             Logger::getLogger()->info("%s:%d, pReturn=%p", __FUNCTION__, __LINE__, pReturn);
+            Py_CLEAR(arg);
+            Py_CLEAR(readingsList);
+            
 			if (pReturn != NULL)
 			{
 				if(PyLong_Check(pReturn))

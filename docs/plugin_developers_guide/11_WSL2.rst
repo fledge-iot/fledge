@@ -51,11 +51,15 @@ The easiest way to install is to open a Windows Command Prompt as Administrator 
    wsl --install
 
 Windows will perform all the necessary steps for you and install the default Linux distribution which is the latest version of Ubuntu.
-If you wish to perform the steps manually, read the Microsoft documentation on `Installing WSL <https://docs.microsoft.com/en-us/windows/wsl/install>`_.
+If you wish to perform the steps manually, or install a Linux distribution other than the default,
+see the Microsoft documentation on `Installing WSL <https://docs.microsoft.com/en-us/windows/wsl/install>`_.
 
 When the installation completes, the Linux distribution will launch in a new window.
 It will prompt you for a username to serve as the root account and password.
 This username has nothing to do with your Windows environment so it can be any name you choose.
+
+You can start the Linux distribution at any time by finding it in the Windows Start Menu.
+If you hit the Windows key and type "Ubuntu," you should see it immediately.
 
 Preparing the Linux Distribution for Fledge
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -70,9 +74,10 @@ From your home directory in the Ubuntu window, enter the commands:
    cd ubuntu-wsl2-systemd-script
    bash ubuntu-wsl2-systemd-script.sh
    
-Restart the Ubuntu distribution and run the command *systemctl*.
+Restart the Ubuntu distribution using *sudo reboot* or *sudo systemctl reboot*.
+When the distribution has restarted, run the command *systemctl*.
 You should see no error and a list of units.
-The script must be run one time only.
+The script must be run *one time only*.
 Whenever you start up your Ubuntu distribution, *systemd* should be ready.
 
 Installing Fledge
@@ -80,12 +85,138 @@ Installing Fledge
 
 Following the normal instructions for `Installing Fledge on Ubuntu <https://fledge-iot.readthedocs.io/en/latest/quick_start/installing.html#ubuntu-or-debian>`_.
 Make sure the package repository matches your version of Ubuntu.
-You can check the operating system version in your distribution with the command *hostnamectl*.
+You can check the operating system version in your distribution with the command *hostnamectl* or *cat /etc/os-release*.
 
 Installing Visual Studio Code
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+Navigate to the `Visual Studio Code webpage <https://code.visualstudio.com>`_ in your Windows browser.
+Click the *Download for Windows* button.
+Launch the installer to install Visual Studio Code.
+
+Visual Studio Code is available for Microsoft Windows, Apple MacOS and several Linux distributions.
+**Do not install a Linux build of Visual Studio Code in your Ubuntu distribution in WSL2.**
+You will actually be launching Visual Studio Code for Windows from your Linux distribution!
+
 Do this on Windows. **This part is important**.
+
+Starting the Linux Distribution
+-------------------------------
+
+Perform these steps every time you start your Linux distribution if you plan to run Fledge:
+
+Starting syslog
+~~~~~~~~~~~~~~~
+
+The system log */var/log/syslog* is not configured to run automatically in a Linux distribution in WSL2.
+Start *syslog* with the command:
+
+.. code-block:: bash
+
+   sudo service rsyslog start
+
+You must do this at every startup.
+
+Starting Nginx
+~~~~~~~~~~~~~~
+
+Fledge uses `Nginx <https://nginx.org/en/>`_ as a web server to support the Fledge GUI.
+If you plan to run Fledge GUI during your Linux distribution session, enter the command:
+
+.. code-block:: bash
+
+   sudo service nginx start
+
+You must do this at every startup if you plan to run the Fledge GUI.
+
+Starting Fledge
+~~~~~~~~~~~~~~~
+
+Start Fledge normally.
+You can start it from the normal run directory, or from your build directory by following the directions on the webpage
+`Testing Your Plugin <https://fledge-iot.readthedocs.io/en/latest/plugin_developers_guide/10_testing.html#testing-your-plugin>`_.
+
+Starting Fledge GUI
+~~~~~~~~~~~~~~~~~~~
+
+If *Nginx* is running, you can run the Fledge GUI from a browser in your host Windows environment.
+Find the external IP address for your Linux distribution using the commmand:
+
+.. code-block:: bash
+
+   hostname -I
+
+This address is reachable from your Windows environment.
+Copy the IP address to a new tab in your browser and hit Enter.
+You should see the Fledge GUI Dashboard page.
+
+**Note: the Linux distribution's external IP address is usually different every time you start it.*
+You will need to run the *hostname -I* command every time to obtain the current address.
+
+Configuring Visual Studio Code
+------------------------------
+
+This section describes how to configure Visual Studio Code to edit, build and debug your C++ Linux projects.
+These instructions are summarized from the Visual Studio Code tutorial `Using C++ and WSL in VS Code <https://code.visualstudio.com/docs/cpp/config-wsl>`_.
+
+Installing Extensions
+~~~~~~~~~~~~~~~~~~~~~
+
+Navigate to a directory containing your C++ source code files and issue the command:
+
+.. code-block:: bash
+
+   code .
+   
+This will launch Visual Studio Code in your Windows environment but it will be looking at the current directory in your Linux distribution.
+Since you are launching Visual Studio Code from your Linux distribution, Code should prompt you to install two Extensions:
+
+* `Remote-WSL <https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-wsl>`_
+* `C/C++ <https://marketplace.visualstudio.com/items?itemName=ms-vscode.cpptools>`_
+
+If you are not prompted, follow these links to install the extensions and restart Visual Studio Code.
+If the extensions are installed and working, you should see a green label in the lower left-hand corner of the Visual Studio Code window
+with the text *WSL:* followed by the name of your Linux distribution.
+
+Configuring your Workspace
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Visual Studio Code refers to your directory of source code files as the *Workspace.*
+In order to edit, build and debug your code, you must create 3 Json files in a Workspace subdirectory called *.vscode*:
+
+* **c_cpp_properties.json**: compiler path, IntelliSense settings, and include file paths,
+* **tasks.json**: build instructions,
+* **launch.json**: debugger settings.
+
+You can create these files manually or use Visual Studio Code's configuration wizards.
+These subsections describe creation and required contents of each of these three files.
+
+File c_cpp_properties.json
+##########################
+
+Open the Command Pallette using the key sequence *Ctrl+Shift+P*.
+Choose the command *C/C++: Edit Configurations (JSON)*.
+This will create the *.vscode* subdirectory (if it doesn't already exist) and the *c_cpp_properties.json* file.
+This Json file will be opened for editing.
+You will see a new array called *configurations* with a single configuration object defined.
+This configuration will have a string array called *includePath*.
+Add the paths to your own include files, and those required by the Fledge API to the *includePath* array.
+You can use Linux environment variables in your paths.
+For example:
+
+.. code-block:: json
+
+   "${FLEDGE_ROOT}/C/common/include"
+
+You can find the list of include files by running your *make* command:
+
+.. code-block:: bash
+
+   make --just-print
+   
+which will list all commands defined by *make* without executing them.
+You will see the include file list in every instance of the *gcc* compiler command.
+
 
 
 A north plugin has a limited number of entry points that it much support, these entry points are the same for both Python and C/C++ north plugins.

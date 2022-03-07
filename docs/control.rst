@@ -16,9 +16,9 @@
 .. |dispatcher_config| image:: images/dispatcher-config.jpg
 
 
-***********************
+************************
 Fledge Control Features
-***********************
+************************
 
 Fledge supports facilities that allows control of devices via the south service and plugins. This control in known as *set point control* as it is not intended for real time critical control of devices but rather to modify the behavior of a device based on one of many different information flows. The latency involved in these control operations is highly dependent on the control path itself and also the scheduling limitations of the underlying operating system. Hence the caveat that the control functions are not real time or guaranteed to be actioned within a specified time window.
 
@@ -278,7 +278,7 @@ A example of how a north plugin might define this mapping is shown below
 
 In this case we have an OPCUA north plugin that offers a writable node called *test*, we have defined this as accepting integer values and also set a destination of *service* and a name of *fan0213*. When the OPCUA node test is written the plugin will send a control message to the dispatcher to ask it to perform a write operation on the named service.
 
-Alternately the dispatcher can send the request based on the assets that the south service is ingesting. In the following example, again taken from the OPCUA north plugin, we send a value of *EngingeSpeed* which is an integer within the OPCUA server that Fledge presents to the service that is ingesting the asset *pump0014*.
+Alternately the dispatcher can send the request based on the assets that the south service is ingesting. In the following example, again taken from the OPCUA north plugin, we send a value of *EngineSpeed* which is an integer within the OPCUA server that Fledge presents to the service that is ingesting the asset *pump0014*.
 
 +--------------+
 | |north_map2| |

@@ -191,8 +191,8 @@ In order to edit, build and debug your code, you must create 3 Json files in a W
 You can create these files manually or use Visual Studio Code's configuration wizards.
 These subsections describe creation and required contents of each of these three files.
 
-File c_cpp_properties.json
-##########################
+Code Editor Configuration: file c_cpp_properties.json
+#####################################################
 
 Open the Command Pallette using the key sequence *Ctrl+Shift+P*.
 Choose the command *C/C++: Edit Configurations (JSON)*.
@@ -217,7 +217,74 @@ You can find the list of include files by running your *make* command:
 which will list all commands defined by *make* without executing them.
 You will see the include file list in every instance of the *gcc* compiler command.
 
+Build Configuration: tasks.json
+###############################
 
+From the Visual Studio Code main menu, choose *Terminal -> Configure Default Build Task*.
+A dropdown will display of available tasks for C++ projects.
+Choose *g++ build active file*.
+This will create the *.vscode* subdirectory (if it doesn't already exist) and the *tasks.json* file.
+Open the Json file for editing.
+
+Building the project will be done using the *make* file rather than the *gcc* compiler.
+To make this change, edit the *command* and *args* entries as follows:
+
+.. code-block:: json
+
+   "command": "make",
+   "args": [
+      "-C",
+      "${workspaceFolder}/build"
+   ],
+
+The "-C" argument for *make* will move into the specified directory before doing anything.
+
+You can invoke a build from Visual Studio Code at any time with the key sequence *Ctrl+Shift+B*.
+
+Debugger Configuration: launch.json
+###################################
+
+From the Visual Studio Code main menu, choose *Run -> Add Configuration..*.
+Choose *C++ (GDB/LLDB)*.
+This will create the *.vscode* subdirectory (if it doesn't already exist) and the *launch.json* file.
+Edit the *launch.json* file so it looks like this:
+
+.. code-block:: json
+
+   {
+      "version": "0.2.0",
+      "configurations": [
+         {
+            "name": "Debug Plugin",
+            "type": "cppdbg",
+            "request": "launch",
+            "targetArchitecture": "x86_64",
+            "cwd": "${fileDirname}",
+            "program": "/full/path/to/fledge.services.north",
+            "externalConsole": false,
+            "stopAtEntry": true,
+            "MIMode": "gdb",
+            "avoidWindowsConsoleRedirection": false,
+            "args": [
+                "--port=42467",
+                "--address=0.0.0.0",
+                "--name=NullNorth",
+                "-d"
+            ]
+         }
+       ]
+   }
+
+Two facts to note:
+
+- The *program* attribute has the program that the *gdb* debugger should launch.
+  For Fledge plugin development, this is either *fledge.services.north* or *fledge.services.south* depending on what you are building.
+  These service executables will dynamically load your plugin library when they run.
+- The *args* attribute has the arguments normally passed to the service executable.
+  Since the TCP/IP *port* changes every time Fledge starts up, you must edit this file to update the *port* number before starting your debug session.
+
+Start your debug session from the Visual Studio Code main menu.
+Choose *Run -> Start Debugging* or by hitting the F5 key.
 
 A north plugin has a limited number of entry points that it much support, these entry points are the same for both Python and C/C++ north plugins.
 

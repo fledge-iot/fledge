@@ -175,15 +175,13 @@ async def update_script(request: web.Request) -> web.Response:
 
     :Example:
         curl -H "authorization: $AUTH_TOKEN" -sX PUT http://localhost:8081/fledge/control/script/testScript -d '{"steps": []}'
-        curl -H "authorization: $AUTH_TOKEN" -sX PUT http://localhost:8081/fledge/control/script/test -d '{"steps": [], "acl": "testACL"}'
+        curl -H "authorization: $AUTH_TOKEN" -sX PUT http://localhost:8081/fledge/control/script/test -d '{"steps": [{"delay": {"order": 0, "duration": 12}}], "acl": "testACL"}'
     """
     try:
         name = request.match_info.get('script_name', None)
-
         data = await request.json()
         steps = data.get('steps', None)
         acl = data.get('acl', None)
-        
         if steps is None and acl is None:
             raise ValueError("Nothing to update for the given payload.")
         if steps is not None and not isinstance(steps, list):
@@ -192,20 +190,31 @@ async def update_script(request: web.Request) -> web.Response:
             if not isinstance(acl, str):
                 raise ValueError('ACL must be a string')
             acl = acl.strip()
-
+            if acl == "":
+                raise ValueError('ACL cannot be empty')
         storage = connect.get_storage_async()
+        # Check existence of script record
         payload = PayloadBuilder().SELECT("name").WHERE(['name', '=', name]).payload()
         result = await storage.query_tbl_with_payload('control_script', payload)
         message = ""
         if 'rows' in result:
             if result['rows']:
-                update_query = PayloadBuilder()
                 set_values = {}
-                if steps is not None: 
-                    set_values["steps"] = json.dumps(steps)
+                if steps is not None:
+                    set_values["steps"] = _validate_steps_and_convert_to_str(steps)
                 if acl is not None:
-                    # TODO: acl existence check
-                    set_values["acl"] = acl
+                    # Check the existence of valid ACL record
+                    acl_payload = PayloadBuilder().SELECT("name").WHERE(['name', '=', acl]).payload()
+                    acl_result = await storage.query_tbl_with_payload('control_acl', acl_payload)
+                    if 'rows' in acl_result:
+                        if acl_result['rows']:
+                            set_values["acl"] = acl
+                        else:
+                            raise NameNotFoundError('ACL with name {} is not found.'.format(acl))
+                    else:
+                        raise StorageServerError(acl_result)
+                # Update script record
+                update_query = PayloadBuilder()
                 update_query.SET(**set_values).WHERE(['name', '=', name])
                 update_result = await storage.update_tbl("control_script", update_query.payload())
                 if 'response' in update_result:

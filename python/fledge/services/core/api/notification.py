@@ -736,7 +736,13 @@ async def delete_delivery_channel(request: web.Request) -> web.Response:
 
             if channel_name in channels:
 
+                # This call allows notification for deleted child category
+                # and deletes it from category_children table
+                await config_mgr.delete_child_category(notification_instance_name, category_name)
+
+                # Remove child category from configuration table
                 await config_mgr.delete_category_and_children_recursively(category_name)
+
                 # Get channels list again as relation gets deleted above
                 channels = await _get_channels(config_mgr, notification_instance_name)
             else:

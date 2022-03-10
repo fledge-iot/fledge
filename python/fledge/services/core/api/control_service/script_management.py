@@ -91,7 +91,7 @@ async def add_script(request: web.Request) -> web.Response:
     """ Add a script
 
     :Example:
-        curl -H "authorization: $AUTH_TOKEN" -sX POST http://localhost:8081/fledge/control/script -d '{"name": "testScript", "steps": [{"write": {"order": 1, "service": "modbus1", "values": {"speed": "$requestedSpeed$", "fan": "1200"}, "condition": {"key": "requestedSpeed", "condition": "<", "value": "2000"}}, "delay": {"order": 2, "duration": 1500}}]}'
+        curl -H "authorization: $AUTH_TOKEN" -sX POST http://localhost:8081/fledge/control/script -d '{"name": "testScript", "steps": [{"write": {"order": 0, "service": "modbus1", "values": {"speed": "$requestedSpeed$", "fan": "1200"}, "condition": {"key": "requestedSpeed", "condition": "<", "value": "2000"}}}, {"delay": {"order": 1, "duration": 1500}}]}'
         curl -H "authorization: $AUTH_TOKEN" -sX POST http://localhost:8081/fledge/control/script -d '{"name": "test", "steps": [], "acl": "testACL"}'
     """
     try:
@@ -117,21 +117,32 @@ async def add_script(request: web.Request) -> web.Response:
             acl = acl.strip()
             if acl == "":
                 raise ValueError('ACL cannot be empty')
+        _steps = _validate_steps_and_convert_to_str(steps)
         result = {}
         storage = connect.get_storage_async()
+        # Check duplicate script record
         payload = PayloadBuilder().SELECT("name").WHERE(['name', '=', name]).payload()
         get_control_script_name_result = await storage.query_tbl_with_payload('control_script', payload)
-        _steps = json.dumps(steps)
         if get_control_script_name_result['count'] == 0:
             payload = PayloadBuilder().INSERT(name=name, steps=_steps).payload()
             if acl is not None:
-                # TODO: ACL record existence check if found then move else throw 404
-                payload = PayloadBuilder().INSERT(name=name, steps=_steps, acl=acl).payload()
+                # Check the existence of valid ACL record
+                acl_payload = PayloadBuilder().SELECT("name").WHERE(['name', '=', acl]).payload()
+                acl_result = await storage.query_tbl_with_payload('control_acl', acl_payload)
+                if 'rows' in acl_result:
+                    if acl_result['rows']:
+                        payload = PayloadBuilder().INSERT(name=name, steps=_steps, acl=acl).payload()
+                    else:
+                        raise NameNotFoundError('ACL with name {} is not found.'.format(acl))
+                else:
+                    raise StorageServerError(acl_result)
+            # Insert the script record
             insert_control_script_result = await storage.insert_into_tbl("control_script", payload)
             if 'response' in insert_control_script_result:
                 if insert_control_script_result['response'] == "inserted":
                     result = {"name": name, "steps": json.loads(_steps)}
                     if acl is not None:
+                        # Append ACL into response if acl exists in payload
                         result["acl"] = acl
             else:
                 raise StorageServerError(insert_control_script_result)
@@ -147,6 +158,9 @@ async def add_script(request: web.Request) -> web.Response:
     except (TypeError, ValueError) as err:
         msg = str(err)
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+    except NameNotFoundError as err:
+        msg = str(err)
+        raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
@@ -311,3 +325,38 @@ async def add_schedule_and_configuration_for_script(request: web.Request) -> web
     else:
         msg = "Schedule and configuration is created for an automation script with name {}".format(name)
         return web.json_response({"message": msg})
+
+
+def _validate_steps_and_convert_to_str(payload: list) -> str:
+    """
+    NOTE: We cannot really check the internal KV pairs in steps as they related to configuration of plugin.
+          And only do the type check of step and for each item it should have order KV pair along its unique value
+    """
+    steps_supported_types = ["configure", "delay", "operation", "script", "write"]
+    unique_order_items = []
+    if payload:
+        for p in payload:
+            if isinstance(p, dict):
+                for k, v in p.items():
+                    if k not in steps_supported_types:
+                        raise TypeError('{} is an invalid step. Supported step types are {} with case-sensitive'.format(
+                            k, steps_supported_types))
+                    else:
+                        if isinstance(v, dict):
+                            if 'order' not in v:
+                                raise ValueError('order key is missing for {} step'.format(k))
+                            else:
+                                if isinstance(v['order'], int):
+                                    if v['order'] not in unique_order_items:
+                                        unique_order_items.append(v['order'])
+                                    else:
+                                        raise ValueError('order with value {} is also found in {}. '
+                                                         'It should be unique for each step item'.format(v['order'], k))
+                                else:
+                                    raise TypeError('order should be an integer for {} step'.format(k))
+                        else:
+                            raise ValueError("For {} step nested elements should be in dictionary".format(k))
+            else:
+                raise ValueError('Steps should be in list of dictionaries')
+    # Convert steps list into string
+    return json.dumps(payload)

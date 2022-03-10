@@ -46,12 +46,7 @@ async def get_all_scripts(request: web.Request) -> web.Response:
     storage = connect.get_storage_async()
     payload = PayloadBuilder().SELECT("name", "steps", "acl").payload()
     result = await storage.query_tbl_with_payload('control_script', payload)
-    all_scripts = []
-    for key in result['rows']:
-        key.update({"steps": key['steps']})
-        all_scripts.append(key)
-
-    return web.json_response({"scripts": all_scripts})
+    return web.json_response({"scripts": result['rows']})
 
 
 async def get_script(request: web.Request) -> web.Response:
@@ -68,7 +63,6 @@ async def get_script(request: web.Request) -> web.Response:
         if 'rows' in result:
             if result['rows']:
                 script_info = result['rows'][0]
-                script_info.update({"steps": script_info['steps']})
             else:
                 raise NameNotFoundError('Script with name {} is not found.'.format(name))
         else:

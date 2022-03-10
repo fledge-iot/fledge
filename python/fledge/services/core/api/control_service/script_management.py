@@ -339,7 +339,13 @@ async def add_schedule_and_configuration_for_script(request: web.Request) -> web
 def _validate_steps_and_convert_to_str(payload: list) -> str:
     """
     NOTE: We cannot really check the internal KV pairs in steps as they related to configuration of plugin.
-          And only do the type check of step and for each item it should have order KV pair along its unique value
+          And only do the type check of step and for each item it should have order KV pair along its unique value.
+
+          Also steps supported types are hardcoded at the moment, we may add new API to get the types
+          so that any client can use from there itself.
+          For example:
+          GUI client has also prepared this list by their own to show down in the dropdown.
+          Therefore if any new/update type is introduced with the current scenario both sides needs to be changed
     """
     steps_supported_types = ["configure", "delay", "operation", "script", "write"]
     unique_order_items = []
@@ -367,5 +373,5 @@ def _validate_steps_and_convert_to_str(payload: list) -> str:
                             raise ValueError("For {} step nested elements should be in dictionary".format(k))
             else:
                 raise ValueError('Steps should be in list of dictionaries')
-    # Convert steps list into string
+    # Convert steps payload list into string
     return json.dumps(payload)

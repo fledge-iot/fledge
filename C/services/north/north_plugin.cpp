@@ -70,7 +70,7 @@ NorthPlugin::~NorthPlugin()
  */
 void NorthPlugin::start()
 {
-	// Ccheck pluginStart function pointer exists
+	// Check pluginStart function pointer exists
 	if (this->pluginStartPtr)
 	{
 		this->pluginStartPtr(m_instance);

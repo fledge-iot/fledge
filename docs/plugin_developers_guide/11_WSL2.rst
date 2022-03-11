@@ -24,7 +24,9 @@ which can be accessed from a browser running on the host Windows environment.
 Microsoft's `Visual Studio Code <https://code.visualstudio.com>`_ is a cross-platform editor that supports extensions
 for building and debugging software in a variety of languages and environments.
 This article describes how to configure Visual Studio Code to edit, build and debug Fledge plugins written in C++ running in Linux under WSL2.
-It is possible to configure Visual Studio Code to build and test Python code in WSL2 but this is not covered in this article.
+
+.. note::
+    It is possible to configure Visual Studio Code to build and test Python code in WSL2 but this is not covered in this article.
 
 Preparing the Development Environment
 -------------------------------------
@@ -59,14 +61,14 @@ Some Useful Features of WSL2
 A Linux distribution running in WSL2 is a lightweight virtual machine but is well integrated with the Windows environment.
 Here are some useful features:
 
-- *Cut and paste text into and out of the Linux window*:
+- *Cut and paste text into and out of the Linux window*: |br|
   The Linux window behaves just like a Command Prompt window or a Powershell window.
   You can copy text from any window and paste it into any other.
-- *Access the Linux file system from Windows*:
+- *Access the Linux file system from Windows*: |br|
   The Linux file system appears as a Network drive in Windows.
   Open the Windows File Explorer and navigate to "*\\\\wsl$*."
   You will see your Linux distributions appear as network folders.
-- *Access the Windows file system from Linux*:
+- *Access the Windows file system from Linux*: |br|
   From the *bash* command line, navigate to the mount point "*/mnt*."
   You will see your Windows drive letters in this directory.
   
@@ -157,8 +159,9 @@ This address is reachable from your Windows environment.
 Copy the IP address to a new tab in your browser and hit Enter.
 You should see the Fledge GUI Dashboard page.
 
-*Note: the Linux distribution's external IP address is (usually) different every time you start it.*
-You will need to run the *hostname -I* command every time to obtain the current IP address.
+.. note::
+    The Linux distribution's external IP address is (usually) different every time you start it.
+    You will need to run the *hostname -I* command every time to obtain the current IP address.
 
 Configuring Visual Studio Code
 ------------------------------
@@ -191,35 +194,34 @@ Configuring your Workspace
 Visual Studio Code refers to your directory of source code files as the *Workspace.*
 In order to edit, build and debug your code, you must create 3 Json files in a Workspace subdirectory called *.vscode*:
 
-* **c_cpp_properties.json**: compiler path, IntelliSense settings, and include file paths,
-* **tasks.json**: build instructions,
-* **launch.json**: debugger settings.
+- **c_cpp_properties.json**: compiler path, IntelliSense settings, and include file paths
+- **tasks.json**: build instructions
+- **launch.json**: debugger settings
 
 You can create these files manually or use Visual Studio Code's configuration wizards.
 These subsections describe creation and required contents of each of these three files.
 
 Code Editor Configuration: c_cpp_properties.json
-#####################################################
+################################################
 
-Open the Command Palette using the key sequence *Ctrl+Shift+P*.
-Choose the command *C/C++: Edit Configurations (JSON)*.
-This will create the *.vscode* subdirectory (if it doesn't already exist) and the *c_cpp_properties.json* file.
-This Json file will be opened for editing.
-You will see a new array called *configurations* with a single configuration object defined.
-This configuration will have a string array called *includePath*.
-Add the paths to your own include files, and those required by the Fledge API to the *includePath* array.
-You can use Linux environment variables in your paths.
-For example:
+- Open the Command Palette using the key sequence *Ctrl+Shift+P*. |br|
+- Choose the command *C/C++: Edit Configurations (JSON)*. |br|
+- This will create the *.vscode* subdirectory (if it doesn't already exist) and the *c_cpp_properties.json* file. |br|
+- This Json file will be opened for editing. |br|
+- You will see a new array called *configurations* with a single configuration object defined. |br|
+- This configuration will have a string array called *includePath*. |br|
+- Add the paths to your own include files, and those required by the Fledge API to the *includePath* array. |br|
+- You can use Linux environment variables in your paths. For example: |br|
 
-.. code-block:: json
+  .. code-block:: json
 
-   "${FLEDGE_ROOT}/C/common/include"
+    "${FLEDGE_ROOT}/C/common/include"
 
-You can find the list of include files by running your *make* command:
+- You can find the list of include files by running your *make* command: |br|
 
-.. code-block:: bash
+  .. code-block:: bash
 
-   make --just-print
+    make --just-print
    
 which will list all commands defined by *make* without executing them.
 You will see the include file list in every instance of the *gcc* compiler command.
@@ -227,16 +229,16 @@ You will see the include file list in every instance of the *gcc* compiler comma
 Build Configuration: tasks.json
 ###############################
 
-From the Visual Studio Code main menu, choose *Terminal -> Configure Default Build Task*.
-A dropdown will display of available tasks for C++ projects.
-Choose *g++ build active file*.
-This will create the *.vscode* subdirectory (if it doesn't already exist) and the *tasks.json* file.
-Open the Json file for editing.
+- From the Visual Studio Code main menu, choose *Terminal -> Configure Default Build Task*. |br|
+- A dropdown will display of available tasks for C++ projects. |br|
+- Choose *g++ build active file*. |br|
+- This will create the *.vscode* subdirectory (if it doesn't already exist) and the *tasks.json* file. |br|
+- Open the Json file for editing. |br|
 
 Building the project will be done using the *make* file rather than the *gcc* compiler.
 To make this change, edit the *command* and *args* entries as follows:
 
-.. code-block:: json
+.. code-block:: console
 
    "command": "make",
    "args": [
@@ -251,10 +253,10 @@ You can invoke a build from Visual Studio Code at any time with the key sequence
 Debugger Configuration: launch.json
 ###################################
 
-From the Visual Studio Code main menu, choose *Run -> Add Configuration..*.
-Choose *C++ (GDB/LLDB)*.
-This will create the *.vscode* subdirectory (if it doesn't already exist) and the *launch.json* file.
-Edit the *launch.json* file so it looks like this:
+- From the Visual Studio Code main menu, choose *Run -> Add Configuration..*. |br|
+- Choose *C++ (GDB/LLDB)*. |br|
+- This will create the *.vscode* subdirectory (if it doesn't already exist) and the *launch.json* file. |br|
+- Edit the *launch.json* file so it looks like this:
 
 .. code-block:: json
 
@@ -282,13 +284,12 @@ Edit the *launch.json* file so it looks like this:
        ]
    }
 
-Two facts to note:
-
-- The *program* attribute holds the program that the *gdb* debugger should launch.
-  For Fledge plugin development, this is either *fledge.services.north* or *fledge.services.south* depending on which one you are building.
-  These service executables will dynamically load your plugin library when they run.
-- The *args* attribute has the arguments normally passed to the service executable.
-  Since the TCP/IP *port* changes every time Fledge starts up, you must edit this file to update the *port* number before starting your debug session.
+.. note::
+    - The *program* attribute holds the program that the *gdb* debugger should launch.
+      For Fledge plugin development, this is either *fledge.services.north* or *fledge.services.south* depending on which one you are building.
+      These service executables will dynamically load your plugin library when they run.
+    - The *args* attribute has the arguments normally passed to the service executable.
+      Since the TCP/IP *port* changes every time Fledge starts up, you must edit this file to update the *port* number before starting your debug session.
 
 Start your debug session from the Visual Studio Code main menu.
 Choose *Run -> Start Debugging* or by hitting the F5 key.
@@ -296,24 +297,25 @@ Choose *Run -> Start Debugging* or by hitting the F5 key.
 Known Problems
 --------------
 
-- *Environment variables in launch.json*:
+- *Environment variables in launch.json*: |br|
   Support for environment variables in the *program* attribute is inconsistent.
   Variables created by Visual Studio Code itself will work but user-defined environment variables like FLEDGE_ROOT will not.
-- *gdb startup errors*:
+- *gdb startup errors*: |br|
   It can occur that *gdb* stops with error 42 and exits immediately when you start a debugging session.
   To fix this, shut down your Linux distributions and reinstall Visual Studio Code in Windows.
   You will not lose your configuration settings or your installed extensions.
-- *Inconsistent breakpoint lists*:
+- *Inconsistent breakpoint lists*: |br|
   Visual Studio Code shows a list of breakpoints in the lower left corner of the window.
   The *gdb* debugger maintains its own list of breakpoints.
   It can occur that the two lists fall out of sync.
   You can still create, view and delete breakpoints from the *Debug Console* tab at the bottom of the screen which gives you access to the *gdb* command line.
-  When using the *Debug Console*, you must precede all *gdb* commands with "*-exec*."
+  When using the *Debug Console*, you must precede all *gdb* commands with "*-exec*." |br|
+
   To manipulate breakpoints:
     - Set a breakpoint: *-exec b functionName*.
     - View breakpoints: *-exec info b*.
       This will display an ordinal number for each breakpoint.
-    - Delete breakpoints: *-exec del ##*. Use the orginal number returned by *-exec info b* as "*##*."
+    - Delete breakpoints: *-exec del ##*. Use the original number returned by *-exec info b* as "*##*."
 
 References
 ----------

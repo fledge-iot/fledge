@@ -362,7 +362,7 @@ string payload;
 
 /**
  * Register interest in a configuration category. The service will be called 
- * with the updated confioguration category wheneven an item in the category
+ * with the updated configuration category whenever an item in the category
  * is added, removed or changed.
  *
  * @param category	The name of the category to register
@@ -390,7 +390,7 @@ ostringstream convert;
 		if (doc.HasParseError())
 		{
 			bool httpError = (isdigit(content[0]) && isdigit(content[1]) && isdigit(content[2]) && content[3]==':');
-			m_logger->error("%s category registration: %s\n",
+			m_logger->error("%s child category registration: %s\n",
 								httpError?"HTTP error during":"Failed to parse result of",
 								content.c_str());
 			return false;
@@ -399,22 +399,22 @@ ostringstream convert;
 		{
 			const char *reg_id = doc["id"].GetString();
 			m_categories[category] = string(reg_id);
-			m_logger->info("Registered configuration category %s, registration id %s.",
+			m_logger->info("Registered child configuration category %s, registration id %s.",
 					category.c_str(), reg_id);
 			return true;
 		}
 		else if (doc.HasMember("message"))
 		{
-			m_logger->error("Failed to register configuration category: %s.",
+			m_logger->error("Failed to register child configuration category: %s.",
 				doc["message"].GetString());
 		}
 		else
 		{
-			m_logger->error("Failed to register configuration category: %s.",
+			m_logger->error("Failed to register child configuration category: %s.",
 					content.c_str());
 		}
 	} catch (const SimpleWeb::system_error &e) {
-                m_logger->error("Register configuration category failed %s.", e.what());
+                m_logger->error("Register child configuration category failed %s.", e.what());
                 return false;
         }
         return false;
@@ -423,6 +423,9 @@ ostringstream convert;
 
 /**
  * Register interest in a configuration category
+ *
+ * @param category	The name of the configuration category to register
+ * @return bool		True if the configuration category has been registered
  */
 bool ManagementClient::registerCategory(const string& category)
 {

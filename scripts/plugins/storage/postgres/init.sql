@@ -922,6 +922,10 @@ INSERT INTO fledge.scheduled_processes (name, script)   VALUES ( 'north',       
 INSERT INTO fledge.scheduled_processes (name, script)   VALUES ( 'north_C',        '["services/north_C"]'        );
 INSERT INTO fledge.scheduled_processes (name, script)   VALUES ( 'dispatcher_c',   '["services/dispatcher_c"]'   );
 
+-- Automation script tasks
+--
+INSERT INTO fledge.scheduled_processes ( name, script ) VALUES ( 'automation_script', '["tasks/automation_script"]' );
+
 --
 -- Schedules
 --

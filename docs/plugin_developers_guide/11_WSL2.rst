@@ -4,10 +4,6 @@
 
    <br />
 
-.. Images
-
-.. Links in new tabs
-
 .. =============================================
 
 
@@ -71,6 +67,12 @@ Here are some useful features:
 - *Access the Windows file system from Linux*: |br|
   From the *bash* command line, navigate to the mount point "*/mnt*."
   You will see your Windows drive letters in this directory.
+- *Access the Linux environment from the Windows host through the network*: |br|
+  From the *bash* command line, run the command *hostname -I*.
+  The external IP address returned by this command can be used in the Windows host to reach Linux.
+- *Access the Windows host from the Linux environment through the network*: |br|
+  From the *bash* command line, run the command *cat /etc/resolv.conf*.
+  The IP address after the label *nameserver* can be used in the Linux environment to reach the Windows host.
   
 Preparing the Linux Distribution for Fledge
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

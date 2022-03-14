@@ -1028,7 +1028,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
     async def _read_all_child_category_names(self, category_name):
         _children = []
-        payload = PayloadBuilder().SELECT("parent", "child").WHERE(["parent", "=", category_name]).payload()
+        payload = PayloadBuilder().SELECT("parent", "child").WHERE(["parent", "=", category_name]).ORDER_BY(["id"]).payload()
         results = await self._storage.query_tbl_with_payload('category_children', payload)
         for row in results['rows']:
             _children.append(row)

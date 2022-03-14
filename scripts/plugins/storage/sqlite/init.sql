@@ -548,10 +548,12 @@ CREATE TABLE fledge.backups (
 CREATE TABLE fledge.version (id CHAR(10));
 
 -- Create the configuration category_children table
-CREATE TABLE fledge.category_children (
-       parent	character varying(255)	NOT NULL,
-       child	character varying(255)	NOT NULL,
-       CONSTRAINT config_children_pkey PRIMARY KEY (parent, child) );
+CREATE TABLE category_children (
+       id       integer                 PRIMARY KEY AUTOINCREMENT,
+       parent   character varying(255)  NOT NULL,
+       child    character varying(255)  NOT NULL);
+CREATE UNIQUE INDEX config_children_idx1
+    ON category_children (parent, child);
 
 -- Create the asset_tracker table
 CREATE TABLE fledge.asset_tracker (

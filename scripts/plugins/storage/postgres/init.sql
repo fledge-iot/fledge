@@ -748,10 +748,21 @@ CREATE TABLE fledge.backups (
 CREATE TABLE fledge.version (id CHAR(10));
 
 -- Create the configuration category_children table
+CREATE SEQUENCE fledge.category_children_id_seq
+    INCREMENT 1
+    START 1
+    MINVALUE 1
+    MAXVALUE 9223372036854775807
+    CACHE 1;
+
 CREATE TABLE fledge.category_children (
-       parent	character varying(255)	NOT NULL,
-       child	character varying(255)	NOT NULL,
-       CONSTRAINT config_children_pkey PRIMARY KEY (parent, child) );
+       id integer DEFAULT nextval('fledge.category_children_id_seq'::regclass) NOT NULL,
+       parent character varying(255) NOT NULL,
+       child character varying(255) NOT NULL,
+       CONSTRAINT config_children_pkey PRIMARY KEY(id)
+);
+
+CREATE UNIQUE INDEX config_children_ix1 ON fledge.category_children(parent, child);
 
 -- Create the asset_tracker table
 CREATE TABLE fledge.asset_tracker (

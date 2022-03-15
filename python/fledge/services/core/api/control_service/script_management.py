@@ -184,8 +184,6 @@ async def update_script(request: web.Request) -> web.Response:
             if not isinstance(acl, str):
                 raise ValueError('ACL must be a string')
             acl = acl.strip()
-            if acl == "":
-                raise ValueError('ACL cannot be empty')
         storage = connect.get_storage_async()
         # Check existence of script record
         payload = PayloadBuilder().SELECT("name").WHERE(['name', '=', name]).payload()

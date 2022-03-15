@@ -194,7 +194,7 @@ async def update_script(request: web.Request) -> web.Response:
                 set_values = {}
                 if steps is not None:
                     set_values["steps"] = _validate_steps_and_convert_to_str(steps)
-                if acl is not None:
+                if len(acl):
                     # Check the existence of valid ACL record
                     acl_payload = PayloadBuilder().SELECT("name").WHERE(['name', '=', acl]).payload()
                     acl_result = await storage.query_tbl_with_payload('control_acl', acl_payload)

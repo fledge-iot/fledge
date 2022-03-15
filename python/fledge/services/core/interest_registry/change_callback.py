@@ -142,7 +142,7 @@ async def run_child_delete(parent_category_name, child_category):
             _LOGGER.exception("Unable to notify microservice with uuid %s as it is not found in the service registry", i._microservice_uuid)
             continue
 
-        url = "{}://{}:{}/foglamp/child_delete".format(service_record._protocol, service_record._address, service_record._management_port)
+        url = "{}://{}:{}/fledge/child_delete".format(service_record._protocol, service_record._address, service_record._management_port)
 
         async with aiohttp.ClientSession() as session:
             try:

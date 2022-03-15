@@ -1,0 +1,332 @@
+.. Developing with Windows Subsystem for Linux (WSL2)
+
+.. |br| raw:: html
+
+   <br />
+
+.. =============================================
+
+
+Developing with Windows Subsystem for Linux (WSL2)
+==================================================
+
+`Windows Subsystem for Linux (WSL2) <https://docs.microsoft.com/en-us/windows/wsl>`_ allows you to run a Linux environment directly on Windows
+without the overhead of `Hyper-V on Windows 10 <https://docs.microsoft.com/en-us/virtualization/hyper-v-on-windows/about>`_ or a dual-boot setup.
+You can run many Linux command-line tools, utilities, and applications on a special lightweight virtual machine running on Windows.
+It is possible to run a complete Fledge system on WSL2.
+This includes the `Fledge GUI <https://fledge-iot.readthedocs.io/en/latest/quick_start/gui.html>`_
+which can be accessed from a browser running on the host Windows environment.
+
+Microsoft's `Visual Studio Code <https://code.visualstudio.com>`_ is a cross-platform editor that supports extensions
+for building and debugging software in a variety of languages and environments.
+This article describes how to configure Visual Studio Code to edit, build and debug Fledge plugins written in C++ running in Linux under WSL2.
+
+.. note::
+    It is possible to configure Visual Studio Code to build and test Python code in WSL2 but this is not covered in this article.
+
+Preparing the Development Environment
+-------------------------------------
+
+This section outlines the steps to configure WSL2 and the Linux environment.
+
+Installing Windows Subsystem for Linux (WSL2)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+You must be running Windows 10 version 2004 and higher (Build 19041 and higher) or Windows 11 to install WSL2.
+The easiest way to install is to open a Windows Command Prompt as Administrator and run this command:
+
+.. code-block:: bash
+
+   wsl --install
+
+Windows will perform all the necessary steps for you.
+It will install the default Linux distribution which is the latest version of Ubuntu.
+If you wish to perform the steps manually, or install a Linux distribution other than the default,
+see the Microsoft documentation on `Installing WSL <https://docs.microsoft.com/en-us/windows/wsl/install>`_.
+
+When the installation completes, the Linux distribution will launch in a new window.
+It will prompt you for a username to serve as the root account and password.
+This username has nothing to do with your Windows environment so it can be any name you choose.
+
+You can start the Linux distribution at any time by finding it in the Windows Start Menu.
+If you hit the Windows key and type the name of your Linux distribution (default: "Ubuntu"), you should see it immediately.
+
+Some Useful Features of WSL2
+############################
+
+A Linux distribution running in WSL2 is a lightweight virtual machine but is well integrated with the Windows environment.
+Here are some useful features:
+
+- *Cut and paste text into and out of the Linux window*: |br|
+  The Linux window behaves just like a Command Prompt window or a Powershell window.
+  You can copy text from any window and paste it into any other.
+- *Access the Linux file system from Windows*: |br|
+  The Linux file system appears as a Network drive in Windows.
+  Open the Windows File Explorer and navigate to "*\\\\wsl$*."
+  You will see your Linux distributions appear as network folders.
+- *Access the Windows file system from Linux*: |br|
+  From the *bash* command line, navigate to the mount point "*/mnt*."
+  You will see your Windows drive letters in this directory.
+- *Access the Linux environment from the Windows host through the network*: |br|
+  From the *bash* command line, run the command *hostname -I*.
+  The external IP address returned by this command can be used in the Windows host to reach Linux.
+- *Access the Windows host from the Linux environment through the network*: |br|
+  From the *bash* command line, run the command *cat /etc/resolv.conf*.
+  The IP address after the label *nameserver* can be used in the Linux environment to reach the Windows host.
+  
+Preparing the Linux Distribution for Fledge
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The *systemd* service manager is not configured by default in an Ubuntu distribution running in WSL2.
+Since Fledge relies on *systemd*, you must run a script to enable it.
+From your home directory in the Ubuntu window, enter the commands:
+
+.. code-block:: bash
+
+   git clone https://github.com/DamionGans/ubuntu-wsl2-systemd-script.git
+   cd ubuntu-wsl2-systemd-script
+   bash ubuntu-wsl2-systemd-script.sh
+   
+Restart the Ubuntu distribution using *sudo reboot* or *sudo systemctl reboot*.
+When the distribution has restarted, run the command *systemctl*.
+You should see no error and a list of units.
+The script must be run *one time only*.
+Whenever you start up your Ubuntu distribution, *systemd* should be ready.
+
+Installing Fledge
+~~~~~~~~~~~~~~~~~
+
+Following the normal instructions for `Installing Fledge on Ubuntu <https://fledge-iot.readthedocs.io/en/latest/quick_start/installing.html#ubuntu-or-debian>`_.
+Make sure the package repository matches your version of Ubuntu.
+You can check the operating system version in your distribution with the command *hostnamectl* or *cat /etc/os-release*.
+
+Installing Visual Studio Code
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Navigate to the `Visual Studio Code <https://code.visualstudio.com>`_ webpage in your Windows browser.
+Click the *Download for Windows* button.
+Run the installer to install Visual Studio Code.
+
+Visual Studio Code is available for Microsoft Windows, Apple MacOS, and several Linux distributions.
+**Do not install the Linux build of Visual Studio Code in your Linux distribution in WSL2.**
+You will actually be launching Visual Studio Code for Windows from your Linux distribution!
+
+Starting the Linux Distribution
+-------------------------------
+
+Perform these steps every time you start your Linux distribution if you plan to run Fledge:
+
+Starting syslog
+~~~~~~~~~~~~~~~
+
+The system log */var/log/syslog* is not configured to run automatically in a Linux distribution in WSL2.
+Start *syslog* with the command:
+
+.. code-block:: bash
+
+   sudo service rsyslog start
+
+You must do this at every startup.
+
+Starting Nginx
+~~~~~~~~~~~~~~
+
+Fledge uses `Nginx <https://nginx.org>`_ as a web server to host the Fledge GUI.
+If you plan to run Fledge GUI during your Linux distribution session, enter the command:
+
+.. code-block:: bash
+
+   sudo service nginx start
+
+You must do this at every startup if you plan to run the Fledge GUI.
+
+Starting Fledge
+~~~~~~~~~~~~~~~
+
+Start Fledge normally.
+You can start it from the normal run directory, or from your build directory by following the directions on the webpage
+`Testing Your Plugin <https://fledge-iot.readthedocs.io/en/latest/plugin_developers_guide/10_testing.html#testing-your-plugin>`_.
+
+Starting Fledge GUI
+~~~~~~~~~~~~~~~~~~~
+
+If *Nginx* is running, you can run the Fledge GUI in a browser in your host Windows environment.
+Find the external IP address for your Linux distribution using the command:
+
+.. code-block:: bash
+
+   hostname -I
+
+This address is reachable from your Windows environment.
+Copy the IP address to a new tab in your browser and hit Enter.
+You should see the Fledge GUI Dashboard page.
+
+.. note::
+    The Linux distribution's external IP address is (usually) different every time you start it.
+    You will need to run the *hostname -I* command every time to obtain the current IP address.
+
+Configuring Visual Studio Code
+------------------------------
+
+This section describes how to configure Visual Studio Code to edit, build and debug your C++ Linux projects.
+These instructions are summarized from the Visual Studio Code tutorial `Using C++ and WSL in VS Code <https://code.visualstudio.com/docs/cpp/config-wsl>`_.
+
+Installing Extensions
+~~~~~~~~~~~~~~~~~~~~~
+
+Navigate to a directory containing your C++ source code files and issue the command:
+
+.. code-block:: bash
+
+   code .
+   
+This will launch Visual Studio Code in your Windows environment but it will be looking at the current directory in your Linux distribution.
+Since you are launching Visual Studio Code from your Linux distribution, Code should prompt you to install two Extensions:
+
+* `Remote-WSL <https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-wsl>`_
+* `C/C++ <https://marketplace.visualstudio.com/items?itemName=ms-vscode.cpptools>`_
+
+If you are not prompted, follow these links to install the extensions and restart Visual Studio Code.
+If the extensions are installed and working, you should see a green label in the lower left-hand corner of the Visual Studio Code window
+with the text *WSL:* followed by the name of your Linux distribution.
+
+Configuring your Workspace
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Visual Studio Code refers to your directory of source code files as the *Workspace.*
+In order to edit, build and debug your code, you must create 3 Json files in a Workspace subdirectory called *.vscode*:
+
+- **c_cpp_properties.json**: compiler path, IntelliSense settings, and include file paths
+- **tasks.json**: build instructions
+- **launch.json**: debugger settings
+
+You can create these files manually or use Visual Studio Code's configuration wizards.
+These subsections describe creation and required contents of each of these three files.
+
+Code Editor Configuration: c_cpp_properties.json
+################################################
+
+- Open the Command Palette using the key sequence *Ctrl+Shift+P*. |br|
+- Choose the command *C/C++: Edit Configurations (JSON)*. |br|
+- This will create the *.vscode* subdirectory (if it doesn't already exist) and the *c_cpp_properties.json* file. |br|
+- This Json file will be opened for editing. |br|
+- You will see a new array called *configurations* with a single configuration object defined. |br|
+- This configuration will have a string array called *includePath*. |br|
+- Add the paths to your own include files, and those required by the Fledge API to the *includePath* array. |br|
+- You can use Linux environment variables in your paths. For example: |br|
+
+  .. code-block:: json
+
+    "${FLEDGE_ROOT}/C/common/include"
+
+- You can find the list of include files by running your *make* command: |br|
+
+  .. code-block:: bash
+
+    make --just-print
+   
+which will list all commands defined by *make* without executing them.
+You will see the include file list in every instance of the *gcc* compiler command.
+
+Build Configuration: tasks.json
+###############################
+
+- From the Visual Studio Code main menu, choose *Terminal -> Configure Default Build Task*. |br|
+- A dropdown will display of available tasks for C++ projects. |br|
+- Choose *g++ build active file*. |br|
+- This will create the *.vscode* subdirectory (if it doesn't already exist) and the *tasks.json* file. |br|
+- Open the Json file for editing. |br|
+
+Building the project will be done using the *make* file rather than the *gcc* compiler.
+To make this change, edit the *command* and *args* entries as follows:
+
+.. code-block:: console
+
+   "command": "make",
+   "args": [
+      "-C",
+      "${workspaceFolder}/build"
+   ],
+
+The "-C" argument for *make* will move into the specified directory before doing anything.
+
+You can invoke a build from Visual Studio Code at any time with the key sequence *Ctrl+Shift+B*.
+
+Debugger Configuration: launch.json
+###################################
+
+- From the Visual Studio Code main menu, choose *Run -> Add Configuration..*. |br|
+- Choose *C++ (GDB/LLDB)*. |br|
+- This will create the *.vscode* subdirectory (if it doesn't already exist) and the *launch.json* file. |br|
+- Edit the *launch.json* file so it looks like this:
+
+.. code-block:: json
+
+   {
+      "version": "0.2.0",
+      "configurations": [
+         {
+            "name": "Debug Plugin",
+            "type": "cppdbg",
+            "request": "launch",
+            "targetArchitecture": "x86_64",
+            "cwd": "${fileDirname}",
+            "program": "/full/path/to/fledge.services.north",
+            "externalConsole": false,
+            "stopAtEntry": true,
+            "MIMode": "gdb",
+            "avoidWindowsConsoleRedirection": false,
+            "args": [
+                "--port=42467",
+                "--address=0.0.0.0",
+                "--name=MyPluginInstance",
+                "-d"
+            ]
+         }
+       ]
+   }
+
+.. note::
+    - The *program* attribute holds the program that the *gdb* debugger should launch.
+      For Fledge plugin development, this is either *fledge.services.north* or *fledge.services.south* depending on which one you are building.
+      These service executables will dynamically load your plugin library when they run.
+    - The *args* attribute has the arguments normally passed to the service executable.
+      Since the TCP/IP *port* changes every time Fledge starts up, you must edit this file to update the *port* number before starting your debug session.
+
+Start your debug session from the Visual Studio Code main menu.
+Choose *Run -> Start Debugging* or by hitting the F5 key.
+
+Known Problems
+--------------
+
+- *Environment variables in launch.json*: |br|
+  Support for environment variables in the *program* attribute is inconsistent.
+  Variables created by Visual Studio Code itself will work but user-defined environment variables like FLEDGE_ROOT will not.
+- *gdb startup errors*: |br|
+  It can occur that *gdb* stops with error 42 and exits immediately when you start a debugging session.
+  To fix this, shut down your Linux distributions and reinstall Visual Studio Code in Windows.
+  You will not lose your configuration settings or your installed extensions.
+- *Inconsistent breakpoint lists*: |br|
+  Visual Studio Code shows a list of breakpoints in the lower left corner of the window.
+  The *gdb* debugger maintains its own list of breakpoints.
+  It can occur that the two lists fall out of sync.
+  You can still create, view and delete breakpoints from the *Debug Console* tab at the bottom of the screen which gives you access to the *gdb* command line.
+  When using the *Debug Console*, you must precede all *gdb* commands with "*-exec*." |br|
+
+  To manipulate breakpoints:
+    - Set a breakpoint: *-exec b functionName*.
+    - View breakpoints: *-exec info b*.
+      This will display an ordinal number for each breakpoint.
+    - Delete breakpoints: *-exec del ##*. Use the original number returned by *-exec info b* as "*##*."
+
+References
+----------
+  
+- `Visual Studio Code <https://code.visualstudio.com>`_
+- `Using C++ and WSL in VS Code <https://code.visualstudio.com/docs/cpp/config-wsl>`_
+- `Remote development in WSL <https://code.visualstudio.com/docs/remote/wsl-tutorial>`_
+- `Debug C++ in Visual Studio Code <https://code.visualstudio.com/docs/cpp/cpp-debug>`_
+- `Predefined Variables Reference <https://code.visualstudio.com/docs/editor/variables-reference>`_
+- `C_cpp_properties.json reference <https://code.visualstudio.com/docs/cpp/c-cpp-properties-schema-reference>`_
+- `Schema for tasks.json <https://code.visualstudio.com/docs/editor/tasks-appendix>`_
+- `Configuring C/C++ Debugging (launch.json) <https://code.visualstudio.com/docs/cpp/launch-json-reference>`_

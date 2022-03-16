@@ -194,17 +194,17 @@ async def update_script(request: web.Request) -> web.Response:
                 set_values = {}
                 if steps is not None:
                     set_values["steps"] = _validate_steps_and_convert_to_str(steps)
-                if len(acl):
-                    # Check the existence of valid ACL record
-                    acl_payload = PayloadBuilder().SELECT("name").WHERE(['name', '=', acl]).payload()
-                    acl_result = await storage.query_tbl_with_payload('control_acl', acl_payload)
-                    if 'rows' in acl_result:
-                        if acl_result['rows']:
-                            set_values["acl"] = acl
+                if acl is not None:
+                    if len(acl):
+                        # Check the existence of valid ACL record
+                        acl_payload = PayloadBuilder().SELECT("name").WHERE(['name', '=', acl]).payload()
+                        acl_result = await storage.query_tbl_with_payload('control_acl', acl_payload)
+                        if 'rows' in acl_result:
+                            if not acl_result['rows']:
+                                raise NameNotFoundError('ACL with name {} is not found.'.format(acl))
                         else:
-                            raise NameNotFoundError('ACL with name {} is not found.'.format(acl))
-                    else:
-                        raise StorageServerError(acl_result)
+                            raise StorageServerError(acl_result)
+                    set_values["acl"] = acl
                 # Update script record
                 update_query = PayloadBuilder()
                 update_query.SET(**set_values).WHERE(['name', '=', name])

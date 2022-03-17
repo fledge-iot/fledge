@@ -48,3 +48,41 @@ class TestScriptManagement:
             args, _ = patch_query_tbl.call_args
             assert 'control_script' == args[0]
             assert payload == json.loads(args[1])
+
+    async def test_bad_get_script_by_name(self, client):
+        script_name = 'blah'
+        storage_client_mock = MagicMock(StorageClientAsync)
+        result = {"count": 0, "rows": []}
+        payload = {"return": ["name", "steps", "acl"], "where": {"column": "name", "condition": "=", "value": "blah"}}
+        value = await mock_coro(result) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(result))
+        message = "Script with name {} is not found.".format(script_name)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=value) as patch_query_tbl:
+                resp = await client.get('/fledge/control/script/{}'.format(script_name))
+                assert 404 == resp.status
+                assert message == resp.reason
+                result = await resp.text()
+                json_response = json.loads(result)
+                assert {"message": message} == json_response
+            args, _ = patch_query_tbl.call_args
+            assert 'control_script' == args[0]
+            assert payload == json.loads(args[1])
+
+    async def test_good_get_script_by_name(self, client):
+        script_name = 'demoScript'
+        storage_client_mock = MagicMock(StorageClientAsync)
+        result = {"count": 0, "rows": [
+            {"name": script_name, "steps": [{"delay": {"order": 0, "duration": 9003}}], "acl": ""}]}
+        payload = {"return": ["name", "steps", "acl"], "where": {"column": "name", "condition": "=",
+                                                                 "value": script_name}}
+        value = await mock_coro(result) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(result))
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=value) as patch_query_tbl:
+                resp = await client.get('/fledge/control/script/{}'.format(script_name))
+                assert 200 == resp.status
+                result = await resp.text()
+                json_response = json.loads(result)
+                assert script_name == json_response['name']
+            args, _ = patch_query_tbl.call_args
+            assert 'control_script' == args[0]
+            assert payload == json.loads(args[1])

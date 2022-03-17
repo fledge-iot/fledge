@@ -357,3 +357,53 @@ class TestScriptManagement:
                                                                "value": script_name}}
                 update_payload["values"]["steps"] = str(steps_payload)
                 assert update_payload == json.loads(update_args[1])
+
+    async def test_delete_script_not_found(self, client):
+        script_name = "test"
+        req_payload = {"steps": []}
+        result = {"count": 0, "rows": []}
+        value = await mock_coro(result) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(result))
+        query_payload = {"return": ["name"], "where": {"column": "name", "condition": "=", "value": script_name}}
+        message = "No such {} script found.".format(script_name)
+        storage_client_mock = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=value) as query_tbl_patch:
+                resp = await client.delete('/fledge/control/script/{}'.format(script_name),
+                                           data=json.dumps(req_payload))
+                assert 404 == resp.status
+                assert message == resp.reason
+                result = await resp.text()
+                json_response = json.loads(result)
+                assert {"message": message} == json_response
+            args, _ = query_tbl_patch.call_args
+            assert 'control_script' == args[0]
+            assert query_payload == json.loads(args[1])
+
+    async def test_delete_script(self, client):
+        script_name = 'demoScript'
+        storage_client_mock = MagicMock(StorageClientAsync)
+        result = {"count": 0, "rows": [
+            {"name": script_name, "steps": [{"delay": {"order": 0, "duration": 9003}}], "acl": ""}]}
+        payload = {"return": ["name"], "where": {"column": "name", "condition": "=", "value": script_name}}
+        delete_payload = {"where": {"column": "name", "condition": "=", "value": script_name}}
+        delete_result = {"response": "deleted", "rows_affected": 1}
+        if sys.version_info >= (3, 8):
+            value = await mock_coro(result)
+            del_value = await mock_coro(delete_result)
+        else:
+            value = asyncio.ensure_future(mock_coro(result))
+            del_value = asyncio.ensure_future(mock_coro(delete_result))
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=value) as query_tbl_patch:
+                with patch.object(storage_client_mock, 'delete_from_tbl', return_value=del_value) as patch_delete_tbl:
+                    resp = await client.delete('/fledge/control/script/{}'.format(script_name))
+                    assert 200 == resp.status
+                    result = await resp.text()
+                    json_response = json.loads(result)
+                    assert {'message': '{} script deleted successfully.'.format(script_name)} == json_response
+                delete_args, _ = patch_delete_tbl.call_args
+                assert 'control_script' == delete_args[0]
+                assert delete_payload == json.loads(delete_args[1])
+            args, _ = query_tbl_patch.call_args
+            assert 'control_script' == args[0]
+            assert payload == json.loads(args[1])

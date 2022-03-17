@@ -5,10 +5,13 @@ from unittest.mock import MagicMock, patch
 import pytest
 from aiohttp import web
 
-from fledge.services.core import connect
+from fledge.common.configuration_manager import ConfigurationManager
 from fledge.common.storage_client.storage_client import StorageClientAsync
 from fledge.common.web import middleware
+from fledge.services.core import connect
 from fledge.services.core import routes
+from fledge.services.core import server
+from fledge.services.core.scheduler.scheduler import Scheduler
 
 __author__ = "Ashish Jabble"
 __copyright__ = "Copyright (c) 2022 Dianomic Systems Inc."
@@ -407,3 +410,68 @@ class TestScriptManagement:
             args, _ = query_tbl_patch.call_args
             assert 'control_script' == args[0]
             assert payload == json.loads(args[1])
+
+    async def test_schedule_script_not_found(self, client):
+        script_name = "test"
+        req_payload = {"steps": []}
+        result = {"count": 0, "rows": []}
+        value = await mock_coro(result) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(result))
+        query_payload = {"return": ["name", "steps", "acl"], "where": {"column": "name", "condition": "=",
+                                                                       "value": script_name}}
+        message = "Script with name {} is not found.".format(script_name)
+        storage_client_mock = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=value) as query_tbl_patch:
+                resp = await client.post('/fledge/control/script/{}/schedule'.format(script_name),
+                                         data=json.dumps(req_payload))
+                assert 404 == resp.status
+                assert message == resp.reason
+                result = await resp.text()
+                json_response = json.loads(result)
+                assert {"message": message} == json_response
+            args, _ = query_tbl_patch.call_args
+            assert 'control_script' == args[0]
+            assert query_payload == json.loads(args[1])
+
+    async def test_schedule_script(self, client):
+        script_name = 'demoScript'
+        result = {"count": 0, "rows": [{"name": script_name, "steps": [
+            {"write": {"order": 0, "service": "sine", "values": {"sinusoid": "1.2"}}}], "acl": ""}]}
+        cat_child_result = {'children': ['DispatcherAdvanced', script_name]}
+        server.Server.scheduler = Scheduler(None, None)
+        if sys.version_info >= (3, 8):
+            value = await mock_coro(result)
+            sch = await mock_coro("")
+            queue = await mock_coro(True)
+            cat = await mock_coro(None)
+            child = await mock_coro(cat_child_result)
+        else:
+            value = asyncio.ensure_future(mock_coro(result))
+            sch = asyncio.ensure_future(mock_coro(""))
+            queue = asyncio.ensure_future(mock_coro(True))
+            cat = asyncio.ensure_future(mock_coro(None))
+            child = asyncio.ensure_future(mock_coro(cat_child_result))
+        query_payload = {"return": ["name", "steps", "acl"], "where": {"column": "name", "condition": "=",
+                                                                       "value": script_name}}
+        message = "Schedule and configuration is created for an automation script with name {}".format(script_name)
+        storage_client_mock = MagicMock(StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=value) as patch_query_tbl:
+                with patch.object(server.Server.scheduler, 'save_schedule', return_value=sch) as patch_save_schedule:
+                    with patch.object(server.Server.scheduler, 'queue_task', return_value=queue) as patch_queue_task:
+                        with patch.object(c_mgr, 'create_category', return_value=cat) as patch_create_cat:
+                            with patch.object(c_mgr, 'create_child_category', return_value=child) \
+                                    as patch_create_child_cat:
+                                resp = await client.post('/fledge/control/script/{}/schedule'.format(script_name))
+                                assert 200 == resp.status
+                                result = await resp.text()
+                                json_response = json.loads(result)
+                                assert {"message": message} == json_response
+                            patch_create_child_cat.assert_called_once_with('Dispatcher', [script_name])
+                        assert 1 == patch_create_cat.call_count
+                    patch_queue_task.assert_called_once_with(None)
+                patch_save_schedule.assert_called_once()
+            args, _ = patch_query_tbl.call_args
+            assert 'control_script' == args[0]
+            assert query_payload == json.loads(args[1])

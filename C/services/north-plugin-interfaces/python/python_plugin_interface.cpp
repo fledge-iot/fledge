@@ -45,9 +45,9 @@ uint32_t plugin_send_fn(PLUGIN_HANDLE handle, const std::vector<Reading *>& read
  */
 unsigned int call_plugin_send_coroutine(PyObject *plugin_send_module_func, PLUGIN_HANDLE handle, PyObject *readingsList)
 {
-    unsigned int numSent=0;
+	unsigned int numSent=0;
     
-    std::string fcn = "";
+	std::string fcn = "";
 	fcn += "def plugin_send_wrapper(handle, readings, plugin_send_module_func):\n";
 	fcn += "    import asyncio\n";
 	fcn += "    loop = asyncio.new_event_loop()\n"; 
@@ -63,16 +63,16 @@ unsigned int call_plugin_send_coroutine(PyObject *plugin_send_module_func, PLUGI
 	PyRun_SimpleString(fcn.c_str());
 	PyObject* mod = PyImport_ImportModule("__main__");
 	if (mod != NULL) 
-    {
+	{
 		PyObject* method = PyObject_GetAttrString(mod, "plugin_send_wrapper");
 		if (method != NULL)
-        {
-            PyObject* arg = Py_BuildValue("OOO", handle, readingsList, plugin_send_module_func);
-            PyObject* pReturn = PyObject_CallObject(method, arg);
-            Logger::getLogger()->info("%s:%d, pReturn=%p", __FUNCTION__, __LINE__, pReturn);
-            Py_CLEAR(arg);
-            Py_CLEAR(readingsList);
-            
+		{
+			PyObject* arg = Py_BuildValue("OOO", handle, readingsList, plugin_send_module_func);
+			PyObject* pReturn = PyObject_CallObject(method, arg);
+			Logger::getLogger()->info("%s:%d, pReturn=%p", __FUNCTION__, __LINE__, pReturn);
+			Py_CLEAR(arg);
+			Py_CLEAR(readingsList);
+		    
 			if (pReturn != NULL)
 			{
 				if(PyLong_Check(pReturn))
@@ -82,17 +82,17 @@ unsigned int call_plugin_send_coroutine(PyObject *plugin_send_module_func, PLUGI
 				}
 				else
 					Logger::getLogger()->info("plugin_send_wrapper() didn't return a number, returned value is of type %s", (Py_TYPE(pReturn))->tp_name);
-				
+	
 				Py_CLEAR(pReturn);
 			}
-            else
-            {
-                Logger::getLogger()->info("%s:%d: pReturn is NULL", __FUNCTION__, __LINE__);
-                if (PyErr_Occurred())
-        		{
-        			logErrorMessage();
-        		}
-            }
+			else
+			{
+				Logger::getLogger()->info("%s:%d: pReturn is NULL", __FUNCTION__, __LINE__);
+				if (PyErr_Occurred())
+				{
+					logErrorMessage();
+				}
+			}
 		}
 		Py_CLEAR(method);
 	}
@@ -103,7 +103,7 @@ unsigned int call_plugin_send_coroutine(PyObject *plugin_send_module_func, PLUGI
 	// Remove references
 	Py_CLEAR(mod);
 
-    return numSent;
+	return numSent;
 }
 
 
@@ -123,21 +123,21 @@ void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
 	fledgePythonDir = fledgeRootDir + "/python";
     
 	string northRootPath = fledgePythonDir + string(R"(/fledge/plugins/north/)") + string(pluginName);
-    Logger::getLogger()->info("%s:%d:, northRootPath=%s", __FUNCTION__, __LINE__, northRootPath.c_str());
+	Logger::getLogger()->info("%s:%d:, northRootPath=%s", __FUNCTION__, __LINE__, northRootPath.c_str());
     
-    // Embedded Python 3.5 program name
+	// Embedded Python 3.5 program name
 	wchar_t *programName = Py_DecodeLocale(pluginName, NULL);
 	Py_SetProgramName(programName);
 	PyMem_RawFree(programName);
 
 	PythonRuntime::getPythonRuntime();
 
-    Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
+	Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
     
 	// Acquire GIL
 	PyGILState_STATE state = PyGILState_Ensure();
 
-    Logger::getLogger()->info("NorthPlugin %s:%d: "
+	Logger::getLogger()->info("NorthPlugin %s:%d: "
 				   "northRootPath=%s, fledgePythonDir=%s, plugin '%s'",
 				   __FUNCTION__,
 				   __LINE__,
@@ -151,7 +151,7 @@ void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
 	PyList_Append(sysPath, PyUnicode_FromString((char *) northRootPath.c_str()));
 	PyList_Append(sysPath, PyUnicode_FromString((char *) fledgePythonDir.c_str()));
 
-    // Set sys.argv for embedded Python 3.5
+	// Set sys.argv for embedded Python 3.5
 	int argc = 2;
 	wchar_t* argv[2];
 	argv[0] = Py_DecodeLocale("", NULL);
@@ -369,7 +369,7 @@ uint32_t plugin_send_fn(PLUGIN_HANDLE handle, const std::vector<Reading *>& read
 	    !it->second ||
 	    !it->second->m_module)
 	{
-		Logger::getLogger()->fatal("plugin_handle: plugin_start(): "
+		Logger::getLogger()->fatal("plugin_handle: plugin_send(): "
 					   "pModule is NULL, plugin handle '%p'",
 					   handle);
 		return numReadingsSent;
@@ -410,21 +410,22 @@ uint32_t plugin_send_fn(PLUGIN_HANDLE handle, const std::vector<Reading *>& read
 		return numReadingsSent;
 	}
 
-    // Create a dict of readings
+	// Create a dict of readings
 	ReadingSet *set = new ReadingSet(&readings);
 	PythonReadingSet *pyReadingSet = (PythonReadingSet *) set;
-    PyObject* readingsList = pyReadingSet->toPython(true);
-    
-    PyObject* objectsRepresentation = PyObject_Repr(readingsList);
-    const char* s = PyUnicode_AsUTF8(objectsRepresentation);
-    Logger::getLogger()->debug("C2Py: plugin_send_fn():L%d: filtered readings to send = %s", __LINE__, s);
-    Py_CLEAR(objectsRepresentation);
-    
-    numReadingsSent = call_plugin_send_coroutine(pFunc, handle, readingsList);
+	PyObject* readingsList = pyReadingSet->toPython(true);
+	    
+	PyObject* objectsRepresentation = PyObject_Repr(readingsList);
+	const char* s = PyUnicode_AsUTF8(objectsRepresentation);
+	Logger::getLogger()->debug("C2Py: plugin_send_fn():L%d: filtered readings to send = %s", __LINE__, s);
+	Py_CLEAR(objectsRepresentation);
+
+	numReadingsSent = call_plugin_send_coroutine(pFunc, handle, readingsList);
+	Logger::getLogger()->debug("C2Py: plugin_send_fn():L%d: filtered readings sent %d", __LINE__, numReadingsSent);
     
 	// Remove python object
 	Py_CLEAR(readingsList);
-    Py_CLEAR(pFunc);
+	Py_CLEAR(pFunc);
 
 	// Release GIL
 	PyGILState_Release(state);

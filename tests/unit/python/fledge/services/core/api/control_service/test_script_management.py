@@ -237,3 +237,123 @@ class TestScriptManagement:
                 assert 'control_script' == insert_args[0]
                 expected = json.loads(insert_args[1])
                 assert {'name': script_name, 'steps': '[]', 'acl': acl_name} == expected
+
+    @pytest.mark.parametrize("payload, message", [
+        ({}, "Nothing to update for the given payload."),
+        ({"steps": 1}, "steps must be a list."),
+        ({"acl": 1}, "ACL must be a string."),
+        ({"steps": [{"a": 1}]}, "a is an invalid step. Supported step types are "
+                                "['configure', 'delay', 'operation', 'script', 'write'] with case-sensitive."),
+        ({"steps": [1, 2]}, "Steps should be in list of dictionaries."),
+        ({"steps": [{"delay": 1}]}, "For delay step nested elements should be in dictionary."),
+        ({"steps": [{"delay": {}}]}, "order key is missing for delay step."),
+        ({"steps": [{"delay": {"order": "1"}}]}, "order should be an integer for delay step."),
+        ({"steps": [{"delay": {"order": 1}, "write": {}}]}, "order key is missing for write step."),
+        ({"steps": [{"delay": {"order": 1}, "write": {"order": "1"}}]},
+         "order should be an integer for write step."),
+        ({"steps": [{"delay": {"order": 1}, "write": {"order": 1}}]},
+         "order with value 1 is also found in write. It should be unique for each step item.")
+    ])
+    async def test_bad_update_script(self, client, payload, message):
+        script_name = "testScript"
+        resp = await client.put('/fledge/control/script/{}'.format(script_name), data=json.dumps(payload))
+        assert 400 == resp.status
+        assert message == resp.reason
+        result = await resp.text()
+        json_response = json.loads(result)
+        assert {"message": message} == json_response
+
+    async def test_update_script_not_found(self, client):
+        script_name = "test"
+        req_payload = {"steps": []}
+        result = {"count": 0, "rows": []}
+        value = await mock_coro(result) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(result))
+        query_payload = {"return": ["name"], "where": {"column": "name", "condition": "=", "value": script_name}}
+        message = "No such {} script found.".format(script_name)
+        storage_client_mock = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=value) as query_tbl_patch:
+                resp = await client.put('/fledge/control/script/{}'.format(script_name), data=json.dumps(req_payload))
+                assert 404 == resp.status
+                assert message == resp.reason
+                result = await resp.text()
+                json_response = json.loads(result)
+                assert {"message": message} == json_response
+            args, _ = query_tbl_patch.call_args
+            assert 'control_script' == args[0]
+            assert query_payload == json.loads(args[1])
+
+    async def test_update_script_when_acl_not_found(self, client):
+        script_name = "test"
+        acl_name = "blah"
+        payload = {"steps": [{"write": {"order": 1, "speed": 420}}], "acl": acl_name}
+        script_result = {"count": 1, "rows": [{"name": script_name, "steps": [{"write": {"order": 1, "speed": 420}}]}]}
+        script_query_payload = {"return": ["name"], "where": {"column": "name", "condition": "=", "value": script_name}}
+        acl_query_payload = {"return": ["name"], "where": {"column": "name", "condition": "=", "value": acl_name}}
+        acl_result = {"count": 0, "rows": []}
+
+        @asyncio.coroutine
+        def q_result(*args):
+            table = args[0]
+            if table == 'control_acl':
+                assert acl_query_payload == json.loads(args[1])
+                return acl_result
+            elif table == 'control_script':
+                assert script_query_payload == json.loads(args[1])
+                return script_result
+            else:
+                return {}
+
+        storage_client_mock = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
+                resp = await client.put('/fledge/control/script/{}'.format(script_name), data=json.dumps(payload))
+                assert 404 == resp.status
+                result = await resp.text()
+                json_response = json.loads(result)
+                assert {"message": "ACL with name {} is not found.".format(acl_name)} == json_response
+
+    @pytest.mark.parametrize("payload", [
+        {"steps": []},
+        {"steps": [], "acl": ""},
+        {"steps": [], "acl": "testACL"}
+    ])
+    async def test_update_script(self, client, payload):
+        script_name = "test"
+        acl_name = "testACL"
+        script_result = {"count": 1, "rows": [{"name": script_name, "steps": [{"write": {"order": 1, "speed": 420}}]}]}
+        update_result = {"response": "updated", "rows_affected": 1}
+        steps_payload = payload["steps"]
+        update_value = await mock_coro(update_result) if sys.version_info >= (3, 8) else \
+            asyncio.ensure_future(mock_coro(update_result))
+        script_query_payload = {"return": ["name"], "where": {"column": "name", "condition": "=", "value": script_name}}
+        acl_query_payload = {"return": ["name"], "where": {"column": "name", "condition": "=", "value": acl_name}}
+        acl_result = {"count": 1, "rows": [{"name": acl_name, "service": [], "url": []}]}
+
+        @asyncio.coroutine
+        def q_result(*args):
+            table = args[0]
+            if table == 'control_acl':
+                assert acl_query_payload == json.loads(args[1])
+                return acl_result
+            elif table == 'control_script':
+                assert script_query_payload == json.loads(args[1])
+                return script_result
+            else:
+                return {}
+
+        storage_client_mock = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
+                with patch.object(storage_client_mock, 'update_tbl', return_value=update_value) as patch_update_tbl:
+                    resp = await client.put('/fledge/control/script/{}'.format(script_name), data=json.dumps(payload))
+                    assert 200 == resp.status
+                    result = await resp.text()
+                    json_response = json.loads(result)
+                    assert {"message": "Control script {} updated successfully.".format(script_name)} == json_response
+                update_args, _ = patch_update_tbl.call_args
+                assert 'control_script' == update_args[0]
+                update_payload = {"values": payload, "where": {"column": "name", "condition": "=",
+                                                               "value": script_name}}
+                update_payload["values"]["steps"] = str(steps_payload)
+                assert update_payload == json.loads(update_args[1])

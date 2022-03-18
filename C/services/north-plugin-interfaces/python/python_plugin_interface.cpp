@@ -289,9 +289,11 @@ void plugin_start_fn(PLUGIN_HANDLE handle)
 	pFunc = PyObject_GetAttrString(it->second->m_module, "plugin_start");
 	if (!pFunc)
 	{
-		Logger::getLogger()->warn("Cannot find 'plugin_start' method "
+		Logger::getLogger()->info("Cannot find 'plugin_start' method "
 					   "in loaded python module '%s'",
 					   it->second->m_name.c_str());
+		PyGILState_Release(state);
+		return;
 	}
 
 	if (!pFunc || !PyCallable_Check(pFunc))
@@ -302,7 +304,7 @@ void plugin_start_fn(PLUGIN_HANDLE handle)
 			logErrorMessage();
 		}
 
-		Logger::getLogger()->warn("Cannot call method 'plugin_start' "
+		Logger::getLogger()->info("Cannot call method 'plugin_start' "
 					   "in loaded python module '%s'",
 					   it->second->m_name.c_str());
 		Py_CLEAR(pFunc);
@@ -390,6 +392,8 @@ uint32_t plugin_send_fn(PLUGIN_HANDLE handle, const std::vector<Reading *>& read
 		Logger::getLogger()->fatal("Cannot find 'plugin_send' "
 					   "method in loaded python module '%s'",
 					   pName.c_str());
+		PyGILState_Release(state);
+		return numReadingsSent;
 	}
 
 	if (!pFunc || !PyCallable_Check(pFunc))

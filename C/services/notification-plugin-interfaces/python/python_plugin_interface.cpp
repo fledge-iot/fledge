@@ -313,7 +313,6 @@ string plugin_triggers_fn(PLUGIN_HANDLE handle)
 		Logger::getLogger()->fatal("Cannot find 'plugin_triggers' method "
 					   "in loaded python module '%s'",
 					   it->second->m_name.c_str());
-		Py_CLEAR(pFunc);
 		PyGILState_Release(state);
 		return ret;
 	}
@@ -412,7 +411,6 @@ std::string plugin_reason_fn(PLUGIN_HANDLE handle)
 		Logger::getLogger()->fatal("Cannot find 'plugin_reason' method "
 					   "in loaded python module '%s'",
 					   it->second->m_name.c_str());
-		Py_CLEAR(pFunc);
 		PyGILState_Release(state);
 		return ret;
 	}
@@ -639,6 +637,8 @@ void notification_plugin_reconfigure_fn(PLUGIN_HANDLE handle,
 		Logger::getLogger()->fatal("Cannot find method 'plugin_reconfigure' "
 					   "in loaded python module '%s'",
 					   it->second->m_name.c_str());
+		PyGILState_Release(state);
+		return;
 	}
 
 	if (!pFunc || !PyCallable_Check(pFunc))
@@ -770,7 +770,6 @@ bool plugin_deliver_fn(PLUGIN_HANDLE handle,
 		Logger::getLogger()->fatal("Cannot find 'plugin_deliver' method "
 					   "in loaded python module '%s'",
 					   it->second->m_name.c_str());
-		Py_CLEAR(pFunc);
 		PyGILState_Release(state);
 		return ret;
 	}

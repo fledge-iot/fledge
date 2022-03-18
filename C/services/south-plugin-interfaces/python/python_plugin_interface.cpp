@@ -224,6 +224,8 @@ std::vector<Reading *>* plugin_poll_fn(PLUGIN_HANDLE handle)
 		Logger::getLogger()->fatal("Cannot find 'plugin_poll' method "
 					   "in loaded python module '%s'",
 					   it->second->m_name.c_str());
+		PyGILState_Release(state);
+		return NULL;
 	}
 
 	if (!pFunc || !PyCallable_Check(pFunc))
@@ -356,6 +358,8 @@ void plugin_start_fn(PLUGIN_HANDLE handle)
 		Logger::getLogger()->warn("Cannot find 'plugin_start' method "
 					   "in loaded python module '%s'",
 					   it->second->m_name.c_str());
+		PyGILState_Release(state);
+		return;
 	}
 
 	if (!pFunc || !PyCallable_Check(pFunc))
@@ -442,6 +446,8 @@ void plugin_register_ingest_fn(PLUGIN_HANDLE handle,
 		Logger::getLogger()->warn("Cannot find 'plugin_register_ingest' "
 					   "method in loaded python module '%s'",
 					   it->second->m_name.c_str());
+		PyGILState_Release(state);
+		return;
 	}
 
 	if (!pFunc || !PyCallable_Check(pFunc))

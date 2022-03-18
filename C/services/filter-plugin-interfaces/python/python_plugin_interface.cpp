@@ -96,6 +96,8 @@ static void filter_plugin_reconfigure_fn(PLUGIN_HANDLE handle,
 		Logger::getLogger()->fatal("Cannot find method 'plugin_reconfigure' "
 					   "in loaded python module '%s'",
 					   pName.c_str());
+		PyGILState_Release(state);
+		return;
 	}
 
 	if (!pFunc || !PyCallable_Check(pFunc))
@@ -214,6 +216,8 @@ void filter_plugin_ingest_fn(PLUGIN_HANDLE handle, READINGSET *data)
 		Logger::getLogger()->fatal("Cannot find 'plugin_ingest' "
 					   "method in loaded python module '%s'",
 					   pName.c_str());
+		PyGILState_Release(state);
+		return;
 	}
 	if (!pFunc || !PyCallable_Check(pFunc))
 	{

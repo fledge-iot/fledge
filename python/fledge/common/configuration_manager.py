@@ -1120,7 +1120,9 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 children_from_storage.append(a_new_child)
 
             try:
-                    await self._run_callbacks_child(category_name, children, "c")
+                    # If there is a diff then call the create callback
+                    if len(new_children):
+                        await self._run_callbacks_child(category_name, children, "c")
             except:
                 _logger.exception(
                     'Unable to run callbacks for child category_name %s', children)

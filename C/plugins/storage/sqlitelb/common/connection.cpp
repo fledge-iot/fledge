@@ -1072,6 +1072,7 @@ SQLBuffer	jsonConstraints;
 	} catch (exception e) {
 		raiseError("retrieve", "Internal error: %s", e.what());
 	}
+	return false;
 }
 #endif
 

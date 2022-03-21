@@ -559,6 +559,7 @@ SQLBuffer	jsonConstraints;	// Extra constraints to add to where clause
 	} catch (exception e) {
 		raiseError("retrieve", "Internal error: %s", e.what());
 	}
+	return false;
 }
 
 /**
@@ -821,6 +822,7 @@ bool Connection::retrieveReadings(const string& condition, string& resultSet)
 	} catch (exception e) {
 		raiseError("retrieve", "Internal error: %s", e.what());
 	}
+	return false;
 }
 
 
@@ -3277,6 +3279,7 @@ SQLBuffer sql;
 	} catch (exception e) {
 		raiseError("get_table_snapshots", "Internal error: %s", e.what());
 	}
+	return false;
 }
 
 /**

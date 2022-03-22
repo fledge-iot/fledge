@@ -297,7 +297,7 @@ The response payload is a set of configuration items within the category, each i
     * - description
       - string
       - A description of the configuration item that may be used in a user interface.
-      - The IPv4 network address of the FogLAMP server
+      - The IPv4 network address of the Fledge server
     * - type
       - string
       - A type that may be used by a user interface to know how to display an item.

@@ -94,23 +94,21 @@ async def add_script(request: web.Request) -> web.Response:
         steps = data.get('steps', None)
         acl = data.get('acl', None)
         if name is None:
-            raise ValueError('Script name is required')
+            raise ValueError('Script name is required.')
         else:
             if not isinstance(name, str):
-                raise TypeError('Script name must be a string')
+                raise TypeError('Script name must be a string.')
             name = name.strip()
             if name == "":
-                raise ValueError('Script name cannot be empty')
+                raise ValueError('Script name cannot be empty.')
         if steps is None:
-            raise ValueError('steps parameter is required')
+            raise ValueError('steps parameter is required.')
         if not isinstance(steps, list):
-            raise ValueError('steps must be a list')
+            raise ValueError('steps must be a list.')
         if acl is not None:
             if not isinstance(acl, str):
-                raise ValueError('ACL name must be a string')
+                raise ValueError('ACL name must be a string.')
             acl = acl.strip()
-            if acl == "":
-                raise ValueError('ACL cannot be empty')
         _steps = _validate_steps_and_convert_to_str(steps)
         result = {}
         storage = connect.get_storage_async()
@@ -149,12 +147,12 @@ async def add_script(request: web.Request) -> web.Response:
     except DuplicateNameError as err:
         msg = str(err)
         raise web.HTTPConflict(reason=msg, body=json.dumps({"message": msg}))
-    except (TypeError, ValueError) as err:
-        msg = str(err)
-        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except NameNotFoundError as err:
         msg = str(err)
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
+    except (TypeError, ValueError) as err:
+        msg = str(err)
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
@@ -179,11 +177,14 @@ async def update_script(request: web.Request) -> web.Response:
         if steps is None and acl is None:
             raise ValueError("Nothing to update for the given payload.")
         if steps is not None and not isinstance(steps, list):
-            raise ValueError('steps must be in list')
+            raise ValueError('steps must be a list.')
         if acl is not None:
             if not isinstance(acl, str):
-                raise ValueError('ACL must be a string')
+                raise ValueError('ACL must be a string.')
             acl = acl.strip()
+        set_values = {}
+        if steps is not None:
+            set_values["steps"] = _validate_steps_and_convert_to_str(steps)
         storage = connect.get_storage_async()
         # Check existence of script record
         payload = PayloadBuilder().SELECT("name").WHERE(['name', '=', name]).payload()
@@ -191,9 +192,6 @@ async def update_script(request: web.Request) -> web.Response:
         message = ""
         if 'rows' in result:
             if result['rows']:
-                set_values = {}
-                if steps is not None:
-                    set_values["steps"] = _validate_steps_and_convert_to_str(steps)
                 if acl is not None:
                     if len(acl):
                         # Check the existence of valid ACL record
@@ -215,7 +213,7 @@ async def update_script(request: web.Request) -> web.Response:
                 else:
                     raise StorageServerError(update_result)
             else:
-                raise NameNotFoundError('No such {} script found'.format(name))
+                raise NameNotFoundError('No such {} script found.'.format(name))
         else:
             raise StorageServerError(result)
     except StorageServerError as err:
@@ -224,7 +222,7 @@ async def update_script(request: web.Request) -> web.Response:
     except NameNotFoundError as err:
         msg = str(err)
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
-    except ValueError as err:
+    except (TypeError, ValueError) as err:
         msg = str(err)
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
@@ -257,7 +255,7 @@ async def delete_script(request: web.Request) -> web.Response:
                 else:
                     raise StorageServerError(delete_result)
             else:
-                raise NameNotFoundError('No such {} script found'.format(name))
+                raise NameNotFoundError('No such {} script found.'.format(name))
         else:
             raise StorageServerError(result)
     except StorageServerError as err:
@@ -346,24 +344,25 @@ def _validate_steps_and_convert_to_str(payload: list) -> str:
             if isinstance(p, dict):
                 for k, v in p.items():
                     if k not in steps_supported_types:
-                        raise TypeError('{} is an invalid step. Supported step types are {} with case-sensitive'.format(
-                            k, steps_supported_types))
+                        raise TypeError('{} is an invalid step. Supported step types are {} '
+                                        'with case-sensitive.'.format(k, steps_supported_types))
                     else:
                         if isinstance(v, dict):
                             if 'order' not in v:
-                                raise ValueError('order key is missing for {} step'.format(k))
+                                raise ValueError('order key is missing for {} step.'.format(k))
                             else:
                                 if isinstance(v['order'], int):
                                     if v['order'] not in unique_order_items:
                                         unique_order_items.append(v['order'])
                                     else:
                                         raise ValueError('order with value {} is also found in {}. '
-                                                         'It should be unique for each step item'.format(v['order'], k))
+                                                         'It should be unique for each step item.'.format(
+                                            v['order'], k))
                                 else:
-                                    raise TypeError('order should be an integer for {} step'.format(k))
+                                    raise TypeError('order should be an integer for {} step.'.format(k))
                         else:
-                            raise ValueError("For {} step nested elements should be in dictionary".format(k))
+                            raise ValueError("For {} step nested elements should be in dictionary.".format(k))
             else:
-                raise ValueError('Steps should be in list of dictionaries')
+                raise ValueError('Steps should be in list of dictionaries.')
     # Convert steps payload list into string
     return json.dumps(payload)

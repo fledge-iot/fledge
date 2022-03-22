@@ -333,7 +333,7 @@ The control dispatcher service supports a limited scripting designed to allow us
 
   - Delay the execution of a script. Add a delay between execution of the script steps.
 
-  - Update the FogLAMP configuration. Change the value of a configuration item within the system.
+  - Update the Fledge configuration. Change the value of a configuration item within the system.
 
   - Execute another script. A mechanism for calling another named script, the named script is executed and then the calling script will continue.
 

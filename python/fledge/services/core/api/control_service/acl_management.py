@@ -44,13 +44,8 @@ async def get_all_acls(request: web.Request) -> web.Response:
     storage = connect.get_storage_async()
     payload = PayloadBuilder().SELECT("name", "service", "url").payload()
     result = await storage.query_tbl_with_payload('control_acl', payload)
-    all_acls = []
-    for key in result['rows']:
-        key.update({"service": key['service']})
-        key.update({"url": key['url']})
-        all_acls.append(key)
-    # TODO: Add users list in response where they are used
-    return web.json_response({"acls": all_acls})
+    # TODO: FOGL-6258 Add users list in response where they are used
+    return web.json_response({"acls": result['rows']})
 
 
 async def get_acl(request: web.Request) -> web.Response:

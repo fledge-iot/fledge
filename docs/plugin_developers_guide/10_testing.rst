@@ -49,7 +49,7 @@ directory described above. Where *<type>* is one of *south*, *filter*,
 *north*, *notificationRule* or *notificationDelivery*. And *<plugin name>*
 is the name you gave your plugin.
 
-A Python filter plugin call normalise, on a system installed from
+A Python filter plugin called normalise, on a system installed from
 a package in the default location should be copied into a directory
 */usr/local/fledge/python/fledge/plugins/filter/normalise*. Within
 this directory should be a file called *normalise.py* and an empty file
@@ -216,10 +216,11 @@ The easiest approach to run under a debugger is
 
         export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${FLEDGE_ROOT}/cmake_build/C/lib
 
-   - Load the service you wish to use to run your plugin, e..g a south service, under the debugger
+   - Load the service you wish to use to run your plugin, e.g. a south service, under the debugger. This should be run from the FLEDGE_ROOT directory
 
      .. code-block:: console
 
+        $ cd $FLEDGE_ROOT
         $ gdb services/fledge.services.south
 
    - Run the service passing the *--port=* and *--address=* arguments you noted above and add *-d* and *--name=* with the name of your service.
@@ -228,9 +229,46 @@ The easiest approach to run under a debugger is
 
         (gdb) run --port=39821 --address=127.0.0.1 --name=ServiceName -d
 
-     Where *ServiceName* is the name you gave your service
+     Where *ServiceName* is the name you gave your service when you created it.
 
    - You can now use the debugger in the way you normally would to find any issues.
+
+     .. note::
+     
+        At this stage the plugins have not been loaded into the address space. If you try to set a break point in the plugin code you will get a warning that the break point can not currently be set. However when the plugin is later loaded the break point will be set and behave as expected.
+
+Only the plugin has been built with debug information, if you wish to be able to single step into the library code that supports the plugin, and the services you must rebuild Fledge itself with debug symbols. There are multiple ways this can be done, but perhaps the simplest approach is to modify the *Makefile* in the route of the Fledge source.
+
+When building Fledge the *cmake* command is executed by the make process, hence rather than manually running cmake and rebuilding you can simple alter the line
+
+.. code-block:: console
+
+   CMAKE := cmake
+
+in the *Makefile* to read
+
+.. code-block:: console
+
+   CMAKE := cmake -DCMAKE_BUILD_TYPE=Debug
+
+After making this change you should run a *make clean* followed by a *make* command
+
+.. code-block:: console
+
+   $ make clean
+   $ make
+
+One side effect of this, caused by running *make clean* is that the plugins you have previously built have been removed from the $FLEDGE_ROOT/plugins directory and this must be rebuilt.
+
+Alternatively you can manually build a debug version by running the following commands
+
+.. code-block:: console
+
+   $ cd $FLEDGE_ROOT/cmake_build
+   $ cmake -DCMAKE_BUILD_TYPE=Debug ..
+   $ make
+
+This has the advantage that *make clean* is not run so your plugins will be preserved.
 
 Running a Task Under the Debugger
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

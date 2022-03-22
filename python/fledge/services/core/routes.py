@@ -233,6 +233,8 @@ def setup(app):
     app.router.add_route('GET', '/fledge/control/script/{script_name}', script_management.get_script)
     app.router.add_route('PUT', '/fledge/control/script/{script_name}', script_management.update_script)
     app.router.add_route('DELETE', '/fledge/control/script/{script_name}', script_management.delete_script)
+    app.router.add_route('POST', '/fledge/control/script/{script_name}/schedule',
+                         script_management.add_schedule_and_configuration_for_script)
 
     # Access Control List Management
     app.router.add_route('POST', '/fledge/ACL', acl_management.add_acl)

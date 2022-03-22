@@ -62,8 +62,6 @@ async def get_acl(request: web.Request) -> web.Response:
         if 'rows' in result:
             if result['rows']:
                 acl_info = result['rows'][0]
-                acl_info.update({"service": acl_info['service']})
-                acl_info.update({"url": acl_info['url']})
             else:
                 raise NameNotFoundError('ACL with name {} is not found.'.format(name))
         else:

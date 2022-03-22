@@ -6,6 +6,8 @@
 .. |ACL_5| image:: images/ACL_5.jpg
 .. |ACL_6| image:: images/ACL_6.jpg
 .. |ACL_7| image:: images/ACL_7.jpg
+.. |ACL_8| image:: images/ACL_8.jpg
+.. |ACL_9| image:: images/ACL_9.jpg
 
 Access Control Lists
 --------------------
@@ -64,7 +66,11 @@ For example to create an ACL that allows all north services to have be granted a
 | |ACL_7| |
 +---------+
 
-The *URLs* section of the ACL is used to grant access to specific URLs accessing the system. This is intended to allow control access via the REST API of the Fledge instance and is currently not implemented in Fledge. 
+The *URLs* section of the ACL is used to grant access to specific URLs accessing the system.
+
+.. note::
+
+  This is intended to allow control access via the REST API of the Fledge instance and is currently not implemented in Fledge. 
 
 Once you are satisfied with the content of your access control list click on the *Save* button at the bottom of the page. You will be taken back to a display of the list of ACLs defined in your system.
 

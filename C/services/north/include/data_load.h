@@ -11,6 +11,8 @@
 #include <filter_pipeline.h>
 #include <service_handler.h>
 
+#define DEFAULT_BLOCK_SIZE 100
+
 /**
  * A class used in the North service to load data from the buffer
  *
@@ -38,6 +40,11 @@ class DataLoad : public ServiceHandler {
 		bool			isRunning() { return !m_shutdown; };
 		void			configChange(const std::string& category, const std::string& newConfig);
 		unsigned long		getLastFetched() { return m_lastFetched; };
+		void			setBlockSize(unsigned long blockSize)
+					{
+						m_blockSize = blockSize;
+					};
+
 	private:
 		void			readBlock(unsigned int blockSize);
 		unsigned int		waitForReadRequest();
@@ -66,5 +73,6 @@ class DataLoad : public ServiceHandler {
 		std::mutex		m_qMutex;
 		FilterPipeline		*m_pipeline;
 		std::mutex		m_pipelineMutex;
+		unsigned long		m_blockSize;
 };
 #endif

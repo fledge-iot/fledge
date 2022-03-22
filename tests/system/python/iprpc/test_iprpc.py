@@ -169,7 +169,7 @@ def test_reinitialization_of_numpy_without_iprpc(reset_and_start_fledge, fledge_
         sub interpreters when already used in a parent interpreter.
         Args:
             fledge_url: The url of the fledge api.
-            reset_and_start_fledge: A fixture that resets and starts FogLAMP again.
+            reset_and_start_fledge: A fixture that resets and starts Fledge again.
         Returns: None
     """
 
@@ -219,7 +219,7 @@ def test_reinitialization_of_numpy_with_iprpc(reset_and_start_fledge, fledge_url
         And verifies that the service is up and running with required operations being done.
         Args:
             fledge_url: The url of the fledge api.
-            reset_and_start_fledge: A fixture that resets and starts FogLAMP again.
+            reset_and_start_fledge: A fixture that resets and starts Fledge again.
         Returns: None
     """
 

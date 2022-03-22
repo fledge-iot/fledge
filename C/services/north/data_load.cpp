@@ -5,7 +5,7 @@
  *
  * Released under the Apache 2.0 Licence
  *
- * Author: Mark Riddoch
+ * Author: Mark Riddoch, Massimiliano Pinto
  */
 
 #include <data_load.h>
@@ -28,6 +28,8 @@ DataLoad::DataLoad(const string& name, long streamId, StorageClient *storage) :
 	m_name(name), m_streamId(streamId), m_storage(storage), m_shutdown(false),
 	m_readRequest(0), m_dataSource(SourceReadings), m_pipeline(NULL)
 {
+	m_blockSize = DEFAULT_BLOCK_SIZE;
+
 	if (m_streamId == 0)
 	{
 		m_streamId = createNewStream();
@@ -334,7 +336,7 @@ ReadingSet *DataLoad::fetchReadings(bool wait)
 	unique_lock<mutex> lck(m_qMutex);
 	while (m_queue.empty())
 	{
-		triggerRead(100);	// TODO Improve this
+		triggerRead(m_blockSize);
 		if (wait && !m_shutdown)
 		{
 			m_fetchCV.wait(lck);
@@ -346,7 +348,7 @@ ReadingSet *DataLoad::fetchReadings(bool wait)
 	}
 	ReadingSet *rval = m_queue.front();
 	m_queue.pop_front();
-	triggerRead(100);	// TODO Improve this
+	triggerRead(m_blockSize);
 	return rval;
 }
 

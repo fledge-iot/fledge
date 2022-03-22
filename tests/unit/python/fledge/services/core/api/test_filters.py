@@ -680,91 +680,118 @@ class TestFilters:
             get_cat_info_patch.assert_called_once_with(category_name=user)
 
     async def test_add_filter_pipeline(self, client):
-        cat_info = {'filter': {'description': 'Filter pipeline', 'type': 'JSON', 'default': '{"pipeline": []}', 'value': '{"pipeline":[]}'},
-                    'plugin': {'description': 'Benchmark C south plugin', 'type': 'string', 'default': 'Benchmark', 'value': 'Benchmark'},
-                    'asset': {'description': 'Asset name prefix', 'type': 'string', 'default': 'Random', 'value': 'Random'}}
+        cat_info = {'filter': {
+            'description': 'Filter pipeline', 'type': 'JSON', 'default': '{"pipeline": []}',
+            'value': '{"pipeline":[]}'}, 'plugin': {
+            'description': 'Benchmark C south plugin', 'type': 'string', 'default': 'Benchmark', 'value': 'Benchmark'},
+            'asset': {'description': 'Asset name prefix', 'type': 'string', 'default': 'Random', 'value': 'Random'}}
         query_tbl_payload_res = {'count': 1, 'rows': [{'name': 'AssetFilter2', 'plugin': 'python35'}]}
         update_filter_val = cat_info
         update_filter_val['filter']['value'] = '{"pipeline": ["AssetFilter"]}'
         user = "bench"
+        filter_name = "AssetFilter"
         storage_client_mock = MagicMock(StorageClientAsync)
         cf_mgr = ConfigurationManager(storage_client_mock)
-        
+        cat_child = {'children': ['Benchmark Filters', 'BenchmarkAdvanced', 'Benchmark_{}'.format(filter_name),
+                                  filter_name]}
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv1 = await self.async_mock(cat_info)
             _rv2 = await self.async_mock(query_tbl_payload_res)
             _rv3 = await self.async_mock(None)
             _rv4 = await self.async_mock(update_filter_val['filter'])
+            _rv5 = await self.async_mock(cat_child)
         else:
             _rv1 = asyncio.ensure_future(self.async_mock(cat_info))
             _rv2 = asyncio.ensure_future(self.async_mock(query_tbl_payload_res))
             _rv3 = asyncio.ensure_future(self.async_mock(None))
             _rv4 = asyncio.ensure_future(self.async_mock(update_filter_val['filter']))
-        
+            _rv5 = asyncio.ensure_future(self.async_mock(cat_child))
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(cf_mgr, 'get_category_all_items', return_value=_rv1) as get_cat_info_patch:
                 with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv2) as query_tbl_patch:
                     with patch.object(filters, '_delete_child_filters', return_value=_rv3) as _delete_child_patch:
                         with patch.object(filters, '_add_child_filters', return_value=_rv3) as _add_child_patch:
-                            with patch.object(cf_mgr, 'set_category_item_value_entry', return_value=_rv3) as set_cat_item_patch:
+                            with patch.object(cf_mgr, 'set_category_item_value_entry',
+                                              return_value=_rv3) as set_cat_item_patch:
                                 with patch.object(cf_mgr, 'get_category_item', return_value=_rv4) as get_cat_item_patch:
-                                    resp = await client.put('/fledge/filter/{}/pipeline'.format(user), data=json.dumps({"pipeline": ["AssetFilter"]}))
-                                    assert 200 == resp.status
-                                    r = await resp.text()
-                                    json_response = json.loads(r)
-                                    assert {'result': "Filter pipeline {'pipeline': ['AssetFilter']} updated successfully"} == json_response
+                                    with patch.object(cf_mgr, 'create_child_category',
+                                                      return_value=_rv5) as create_child_patch:
+                                        resp = await client.put('/fledge/filter/{}/pipeline'.format(user),
+                                                                data=json.dumps({"pipeline": [filter_name]}))
+                                        assert 200 == resp.status
+                                        r = await resp.text()
+                                        json_response = json.loads(r)
+                                        message = "Filter pipeline {'pipeline': ['AssetFilter']} updated successfully"
+                                        assert {'result': message} == json_response
+                                    create_child_patch.assert_called_once_with(user, [filter_name])
                                 get_cat_item_patch.assert_called_once_with(user, 'filter')
-                            set_cat_item_patch.assert_called_once_with(user, 'filter', {'pipeline': ['AssetFilter']})
+                            set_cat_item_patch.assert_called_once_with(user, 'filter', {'pipeline': [filter_name]})
                         args, kwargs = _add_child_patch.call_args
                         assert user == args[2]
-                        assert ['AssetFilter'] == args[3]
-                        assert {'old_list': ['AssetFilter']} == kwargs
+                        assert [filter_name] == args[3]
+                        assert {'old_list': [filter_name]} == kwargs
                     args, kwargs = _delete_child_patch.call_args
                     assert user == args[2]
-                    assert ['AssetFilter'] == args[3]
-                    assert {'old_list': ['AssetFilter']} == kwargs
-                query_tbl_patch.assert_called_once_with('filters', '{"where": {"column": "name", "condition": "=", "value": "AssetFilter"}}')
+                    assert [filter_name] == args[3]
+                    assert {'old_list': [filter_name]} == kwargs
+                query_tbl_patch.assert_called_once_with(
+                    'filters', '{"where": {"column": "name", "condition": "=", "value": "AssetFilter"}}')
             get_cat_info_patch.assert_called_once_with(category_name=user)
 
     async def test_add_filter_pipeline_without_filter_config(self, client):
-        cat_info = {'plugin': {'description': 'Benchmark C south plugin', 'type': 'string', 'default': 'Benchmark', 'value': 'Benchmark'},
-                    'asset': {'description': 'Asset name prefix', 'type': 'string', 'default': 'Random', 'value': 'Random'}}
+        cat_info = {'plugin': {
+            'description': 'Benchmark C south plugin', 'type': 'string', 'default': 'Benchmark', 'value': 'Benchmark'},
+            'asset': {'description': 'Asset name prefix', 'type': 'string', 'default': 'Random', 'value': 'Random'}}
         query_tbl_payload_res = {'count': 1, 'rows': [{'name': 'AssetFilter2', 'plugin': 'python35'}]}
         user = "bench"
-        new_item_val = {'filter': {'description': 'Filter pipeline', 'type': 'JSON', 'default': '{"pipeline": []}', 'value': '{"pipeline":[]}'}}
+        filter_name = "AssetFilter"
+        new_item_val = {'filter': {'description': 'Filter pipeline', 'type': 'JSON',
+                                   'default': '{"pipeline": []}', 'value': '{"pipeline":[]}'}}
         storage_client_mock = MagicMock(StorageClientAsync)
         cf_mgr = ConfigurationManager(storage_client_mock)
-        
+        cat_child = {'children': ['Benchmark Filters', 'BenchmarkAdvanced', 'Benchmark_{}'.format(filter_name),
+                                  filter_name]}
+
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv1 = await self.async_mock(cat_info)
             _rv2 = await self.async_mock(query_tbl_payload_res)
             _rv3 = await self.async_mock(None)
             _rv4 = await self.async_mock(new_item_val['filter'])
+            _rv5 = await self.async_mock(cat_child)
         else:
             _rv1 = asyncio.ensure_future(self.async_mock(cat_info))
             _rv2 = asyncio.ensure_future(self.async_mock(query_tbl_payload_res))
             _rv3 = asyncio.ensure_future(self.async_mock(None))
             _rv4 = asyncio.ensure_future(self.async_mock(new_item_val['filter']))
-        
+            _rv5 = asyncio.ensure_future(self.async_mock(cat_child))
+
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(cf_mgr, 'get_category_all_items', return_value=_rv1) as get_cat_info_patch:
                 with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv2) as query_tbl_patch:
                     with patch.object(cf_mgr, 'create_category', return_value=_rv3) as create_cat_patch:
                         with patch.object(filters, '_add_child_filters', return_value=_rv3) as _add_child_patch:
                             with patch.object(cf_mgr, 'get_category_item', return_value=_rv4) as get_cat_item_patch:
-                                resp = await client.put('/fledge/filter/{}/pipeline'.format(user), data=json.dumps({"pipeline": ["AssetFilter"]}))
-                                assert 200 == resp.status
-                                r = await resp.text()
-                                json_response = json.loads(r)
-                                assert {'result': "Filter pipeline {'pipeline': []} updated successfully"} == json_response
+                                with patch.object(cf_mgr, 'create_child_category',
+                                                  return_value=_rv5) as create_child_patch:
+                                    resp = await client.put('/fledge/filter/{}/pipeline'.format(user),
+                                                            data=json.dumps({"pipeline": [filter_name]}))
+                                    assert 200 == resp.status
+                                    r = await resp.text()
+                                    json_response = json.loads(r)
+                                    message = "Filter pipeline {'pipeline': []} updated successfully"
+                                    assert {'result': message} == json_response
+                                create_child_patch.assert_called_once_with(user, [filter_name])
                             get_cat_item_patch.assert_called_once_with(user, 'filter')
                         args, kwargs = _add_child_patch.call_args
                         assert user == args[2]
-                        assert ['AssetFilter'] == args[3]
-                    create_cat_patch.assert_called_once_with(category_name='bench', category_value={'filter': {'description': 'Filter pipeline', 'readonly' : 'true', 'type': 'JSON', 'default': '{"pipeline": ["AssetFilter"]}'}}, keep_original_items=True)
-                query_tbl_patch.assert_called_once_with('filters', '{"where": {"column": "name", "condition": "=", "value": "AssetFilter"}}')
+                        assert [filter_name] == args[3]
+                    create_cat_patch.assert_called_once_with(category_name='bench', category_value={
+                        'filter': {'description': 'Filter pipeline', 'readonly': 'true', 'type': 'JSON',
+                                   'default': '{"pipeline": ["AssetFilter"]}'}}, keep_original_items=True)
+                query_tbl_patch.assert_called_once_with(
+                    'filters', '{"where": {"column": "name", "condition": "=", "value": "AssetFilter"}}')
             get_cat_info_patch.assert_called_once_with(category_name=user)
 
     async def test_get_filter_pipeline(self, client):

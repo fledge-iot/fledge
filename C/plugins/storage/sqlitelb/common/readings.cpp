@@ -1281,6 +1281,12 @@ unsigned int  Connection::purgeReadings(unsigned long age,
 	}
 	Logger::getLogger()->debug("%s - flags :%X: flag_retain :%d: sent :%ld:", __FUNCTION__, flags, flag_retain, sent);
 
+	// Prepare empty result
+	result = "{ \"removed\" : 0, ";
+	result += " \"unsentPurged\" : 0, ";
+	result += " \"unsentRetained\" : 0, ";
+	result += " \"readings\" : 0 }";
+
 	logger->info("Purge starting...");
 	gettimeofday(&startTv, NULL);
 	/*

@@ -45,13 +45,20 @@ PythonReading::PythonReading(PyObject *pyReading)
 	// Get 'asset_code' value: borrowed reference.
 	PyObject *assetCode = PyDict_GetItemString(pyReading,
 						   "asset");
+
 	if (!assetCode)
+	{
 		assetCode = PyDict_GetItemString(pyReading, "asset_code");
+	}
+
 	// Get 'reading' value: borrowed reference.
 	PyObject *reading = PyDict_GetItemString(pyReading,
 						 "readings");
 	if (!reading)
+	{
 		reading = PyDict_GetItemString(pyReading, "reading");
+	}
+
 	// Keys not found or reading is not a dict
 	if (!assetCode ||
 	    !reading ||
@@ -79,7 +86,21 @@ PythonReading::PythonReading(PyObject *pyReading)
 		DatapointValue *dataPoint = getDatapointValue(dValue);
 		if (dataPoint)
 		{
-			m_values.push_back(new Datapoint(string(PyUnicode_AsUTF8(dKey)), *dataPoint));
+			// Deteck Python keys like reading[b'ema']
+			// or reading['ema']
+			if (PyUnicode_Check(dKey))   
+			{
+				m_values.push_back(new Datapoint(
+					string(PyUnicode_AsUTF8(dKey)),
+					*dataPoint));
+			}
+			else
+			{
+				m_values.push_back(new Datapoint(
+					string(PyBytes_AsString(dKey)),
+					*dataPoint));
+			}
+
 			// Remove temp objects
 			delete dataPoint;
 		}
@@ -137,7 +158,7 @@ PythonReading::PythonReading(PyObject *pyReading)
 	}
 	else
 	{
-		// Logger::getLogger()->debug("PythonReading c'tor: Couldn't parse 'user_ts' ");
+		Logger::getLogger()->warn("PythonReading c'tor: Couldn't parse 'user_ts' ");
 	        m_userTimestamp.tv_sec = 0;
        		m_userTimestamp.tv_usec = 0;
 	}
@@ -151,7 +172,8 @@ PythonReading::PythonReading(PyObject *pyReading)
  */
 DatapointValue *PythonReading::getDatapointValue(PyObject *value)
 {
-    // InitNumPy();
+	// TODO: remove if not needed
+	// InitNumPy();
     
 	DatapointValue *dataPoint = NULL;
 	if (PyLong_Check(value))	// Integer	T_INTEGER
@@ -299,6 +321,7 @@ DatapointValue *PythonReading::getDatapointValue(PyObject *value)
 		PyTypeObject *type = value->ob_type;
 		Logger::getLogger()->error("Encountered an unsupported type '%s' when create a reading from Python", type->tp_name);
 	}
+
 	return dataPoint;
 }
 
@@ -306,6 +329,8 @@ DatapointValue *PythonReading::getDatapointValue(PyObject *value)
  * Convert a PythonReading, which is just a Reading, into a PyObject
  * structure that can be passed to embedded Python code.
  *
+ * @param changeKeys	Set DICT keys as reading/asset_code if true
+ *			or readings/asset if false
  * @return PyObject*	The Python representation of the readings as a DICT
  */
 PyObject *PythonReading::toPython(bool changeKeys)
@@ -357,7 +382,7 @@ PyObject *PythonReading::toPython(bool changeKeys)
 	// Add reading timestamp
 	// PyObject *readingTs = PyLong_FromUnsignedLong(m_timestamp.tv_sec);
 	string s = this->getAssetDateTime(FMT_DEFAULT) + "+00:00";
-    PyObject *readingTs = PyUnicode_FromString(s.c_str());
+	PyObject *readingTs = PyUnicode_FromString(s.c_str());
 	key = PyUnicode_FromString("ts");
 	PyDict_SetItem(readingObject, key, readingTs);
 	Py_CLEAR(key);

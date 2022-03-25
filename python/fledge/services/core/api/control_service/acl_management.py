@@ -265,25 +265,25 @@ async def attach_acl_to_service(request: web.Request) -> web.Response:
         get_schedules_result = await storage.query_tbl_with_payload('schedules', payload)
         if 'count' in get_schedules_result:
             if get_schedules_result['count'] == 0:
-                raise NameNotFoundError('{} service does not exist.'.format(svc_name))
+                raise NameNotFoundError('Schedule with name {} is not found.'.format(svc_name))
         else:
             raise StorageServerError(get_schedules_result)
         data = await request.json()
         acl_name = data.get('acl_name', None)
         if acl_name is not None:
             if not isinstance(acl_name, str):
-                raise ValueError('ACL must be a string')
+                raise ValueError('ACL must be a string.')
             if acl_name.strip() == "":
-                raise ValueError('ACL cannot be empty')
+                raise ValueError('ACL cannot be empty.')
         else:
-            raise ValueError('acl name is missing in given payload request')
+            raise ValueError('acl_name KV pair is missing.')
         acl_name = acl_name.strip()
         # check ACL name existence
         payload = PayloadBuilder().SELECT("name", "service", "url").WHERE(['name', '=', acl_name]).payload()
         get_acl_result = await storage.query_tbl_with_payload('control_acl', payload)
         if 'count' in get_acl_result:
             if get_acl_result['count'] == 0:
-                raise NameNotFoundError('{} ACL does not exist'.format(acl_name))
+                raise NameNotFoundError('ACL with name {} is not found.'.format(acl_name))
         else:
             raise StorageServerError(get_acl_result)
         # check ACL existence with service
@@ -317,7 +317,7 @@ async def attach_acl_to_service(request: web.Request) -> web.Response:
             if security_cat_name not in add_child_result['children']:
                 raise StorageServerError(add_child_result)
         else:
-            raise ValueError('A {} service has already ACL attached'.format(svc_name))
+            raise ValueError('A {} service has already attached ACL with name {}.'.format(svc_name, acl_name))
     except StorageServerError as err:
         msg = "Storage error: {}".format(str(err))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
@@ -331,7 +331,8 @@ async def attach_acl_to_service(request: web.Request) -> web.Response:
         msg = str(ex)
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
-        return web.json_response({"message": "{} ACL attached to {} service successfully".format(acl_name, svc_name)})
+        return web.json_response({"message": "ACL with name {} attached to {} service successfully.".format(
+            acl_name, svc_name)})
 
 
 @has_permission("admin")

@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from aiohttp import web
 
+from fledge.common.configuration_manager import ConfigurationManager
 from fledge.common.storage_client.storage_client import StorageClientAsync
 from fledge.common.web import middleware
 from fledge.services.core import connect
@@ -247,8 +248,7 @@ class TestACLManagement:
     async def test_delete_acl(self, client):
         acl_name = 'demoACL'
         storage_client_mock = MagicMock(StorageClientAsync)
-        result = {"count": 0, "rows": [
-            {"name": acl_name, "steps": [{"delay": {"order": 0, "duration": 9003}}], "acl": ""}]}
+        result = {"count": 1, "rows": [{"name": acl_name, "service": [], "url": []}]}
         payload = {"return": ["name"], "where": {"column": "name", "condition": "=", "value": acl_name}}
         delete_payload = {"where": {"column": "name", "condition": "=", "value": acl_name}}
         delete_result = {"response": "deleted", "rows_affected": 1}
@@ -272,3 +272,178 @@ class TestACLManagement:
             args, _ = query_tbl_patch.call_args
             assert 'control_acl' == args[0]
             assert payload == json.loads(args[1])
+
+    async def test_bad_service_with_acl(self, client):
+        svc_name = 'foo'
+        result = {"count": 0, "rows": []}
+        payload = {"acl_name": "testACL"}
+        value = await mock_coro(result) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(result))
+        storage_client_mock = MagicMock(StorageClientAsync)
+        message = "Schedule with name {} is not found.".format(svc_name)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=value) as query_tbl_patch:
+                resp = await client.put('/fledge/service/{}/ACL'.format(svc_name), data=json.dumps(payload))
+                assert 404 == resp.status
+                assert message == resp.reason
+                result = await resp.text()
+                json_response = json.loads(result)
+                assert {'message': message} == json_response
+            args, _ = query_tbl_patch.call_args
+            assert 'schedules' == args[0]
+            assert {"where": {"column": "schedule_name", "condition": "=", "value": svc_name}} == json.loads(args[1])
+
+    @pytest.mark.parametrize("payload, message", [
+        ({}, 'acl_name KV pair is missing.'),
+        ({"acl_name": 1}, 'ACL must be a string.'),
+        ({"acl_name": ""}, 'ACL cannot be empty.'),
+    ])
+    async def test_bad_attach_acl_to_service(self, client, payload, message):
+        svc_name = 'foo'
+        result = {"count": 1, "rows": [{"id": "3e84f179-874d-4a91-a524-15512172f8a2", "enabled": "true"}]}
+        value = await mock_coro(result) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(result))
+        storage_client_mock = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=value) as query_tbl_patch:
+                resp = await client.put('/fledge/service/{}/ACL'.format(svc_name), data=json.dumps(payload))
+                assert 400 == resp.status
+                assert message == resp.reason
+                result = await resp.text()
+                json_response = json.loads(result)
+                assert {'message': message} == json_response
+            args, _ = query_tbl_patch.call_args
+            assert 'schedules' == args[0]
+            assert {"where": {"column": "schedule_name", "condition": "=", "value": svc_name}} == json.loads(args[1])
+
+    async def test_acl_not_found_when_attach_to_service(self, client):
+        svc_name = 'foo'
+        acl_name = "testACL"
+        req_payload = {"acl_name": acl_name}
+        acl_result = {"count": 0, "rows": []}
+        acl_query_payload = {"return": ["name", "service", "url"], "where": {"column": "name", "condition": "=",
+                                                                             "value": acl_name}}
+        sch_query_payload = {"where": {"column": "schedule_name", "condition": "=", "value": svc_name}}
+        sch_result = {"count": 1, "rows": [{"id": "3e84f179-874d-4a91-a524-15512172f8a2", "enabled": "true"}]}
+        message = "ACL with name {} is not found.".format(acl_name)
+
+        @asyncio.coroutine
+        def q_result(*args):
+            table = args[0]
+            if table == 'schedules':
+                assert sch_query_payload == json.loads(args[1])
+                return sch_result
+            elif table == 'control_acl':
+                assert acl_query_payload == json.loads(args[1])
+                return acl_result
+            else:
+                return {}
+
+        storage_client_mock = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
+                resp = await client.put('/fledge/service/{}/ACL'.format(svc_name), data=json.dumps(req_payload))
+                assert 404 == resp.status
+                assert message == resp.reason
+                result = await resp.text()
+                json_response = json.loads(result)
+                assert {'message': message} == json_response
+
+    async def test_service_already_attached_to_acl(self, client):
+        svc_name = 'foo'
+        acl_name = "testACL"
+        req_payload = {"acl_name": acl_name}
+        acl_result = {"count": 1, "rows": [{"name": acl_name, "service": [], "url": []}]}
+        acl_query_payload = {"return": ["name", "service", "url"], "where": {"column": "name", "condition": "=",
+                                                                             "value": acl_name}}
+        sch_query_payload = {"where": {"column": "schedule_name", "condition": "=", "value": svc_name}}
+        sch_result = {"count": 1, "rows": [{"id": "3e84f179-874d-4a91-a524-15512172f8a2", "enabled": "true"}]}
+        message = "A {} service has already attached ACL with name {}.".format(svc_name, acl_name)
+
+        @asyncio.coroutine
+        def q_result(*args):
+            table = args[0]
+            if table == 'schedules':
+                assert sch_query_payload == json.loads(args[1])
+                return sch_result
+            elif table == 'control_acl':
+                assert acl_query_payload == json.loads(args[1])
+                return acl_result
+            else:
+                return {}
+
+        cat_info = {"key": "{}Security".format(svc_name),
+                    "description": "Security category for {} service".format(svc_name),
+                    "displayName": "{}Security".format(svc_name),
+                    "value": {
+                        "AuthenticatedCaller": {"description": "Caller authorisation is needed", "type": "boolean",
+                                                "default": "false", "displayName": "Enable caller authorisation",
+                                                "value": "false"},
+                        "ACL": {
+                            "description": "Service ACL for {}".format(svc_name), "type": "JSON",
+                            "displayName": "Service ACL", "default": "[]", "value": "[]"
+                        }
+                    }
+                    }
+        cat_value = await mock_coro(cat_info) if sys.version_info >= (3, 8) else \
+            asyncio.ensure_future(mock_coro(cat_info))
+        storage_client_mock = MagicMock(StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
+                with patch.object(c_mgr, 'get_category_all_items', return_value=cat_value) as patch_get_all_items:
+                    resp = await client.put('/fledge/service/{}/ACL'.format(svc_name), data=json.dumps(req_payload))
+                    assert 400 == resp.status
+                    assert message == resp.reason
+                    result = await resp.text()
+                    json_response = json.loads(result)
+                    assert {'message': message} == json_response
+                patch_get_all_items.assert_called_once_with("{}Security".format(svc_name))
+
+    async def test_good_attach_acl_to_service(self, client):
+        svc_name = 'foo'
+        acl_name = "testACL"
+        req_payload = {"acl_name": acl_name}
+        acl_result = {"count": 1, "rows": [{"name": acl_name, "service": [], "url": []}]}
+        temp_acl_result = {"count": 1, "rows": [{'service': [], 'url': []}]}
+        acl_query_payload = {"return": ["name", "service", "url"], "where": {"column": "name", "condition": "=",
+                                                                             "value": acl_name}}
+        sch_query_payload = {"where": {"column": "schedule_name", "condition": "=", "value": svc_name}}
+        sch_result = {"count": 1, "rows": [{"id": "3e84f179-874d-4a91-a524-15512172f8a2", "enabled": "true"}]}
+        security_cat_name = "{}Security".format(svc_name)
+        cat_child_result = {"children": [security_cat_name]}
+        message = "ACL with name {} attached to {} service successfully.".format(acl_name, svc_name)
+
+        @asyncio.coroutine
+        def q_result(*args):
+            table = args[0]
+            if table == 'schedules':
+                assert sch_query_payload == json.loads(args[1])
+                return sch_result
+            elif table == 'control_acl':
+                assert acl_query_payload == json.loads(args[1])
+                return acl_result
+            else:
+                return {}
+
+        if sys.version_info >= (3, 8):
+            cat_value = await mock_coro(None)
+            cat_child_value = await mock_coro(cat_child_result)
+        else:
+            cat_value = asyncio.ensure_future(mock_coro(None))
+            cat_child_value = asyncio.ensure_future(mock_coro(cat_child_result))
+        storage_client_mock = MagicMock(StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
+                with patch.object(c_mgr, 'get_category_all_items', return_value=cat_value) as patch_get_all_items:
+                    with patch.object(c_mgr, 'create_category', return_value=cat_value) as patch_create_cat:
+                        with patch.object(c_mgr, 'create_child_category',
+                                          return_value=cat_child_value) as patch_create_child_cat:
+                            resp = await client.put('/fledge/service/{}/ACL'.format(svc_name),
+                                                    data=json.dumps(req_payload))
+                            assert 200 == resp.status
+                            result = await resp.text()
+                            json_response = json.loads(result)
+                            assert {'message': message} == json_response
+                        patch_create_child_cat.assert_called_once_with(svc_name, [security_cat_name])
+                        patch_create_cat.assert_called()
+                patch_get_all_items.assert_called_once_with(security_cat_name)

@@ -85,8 +85,8 @@ async def add_acl(request: web.Request) -> web.Response:
 
     :Example:
          curl -H "authorization: $AUTH_TOKEN" -sX POST http://localhost:8081/fledge/ACL -d '{"name": "testACL",
-         "service": [{"name": "IEC-104"}, {"type": "notification"}], "url": [ {"URL": "/fledge/south/operation",
-         "ACL": [{"type": "Northbound"}]}], "url": []}'
+         "service": [{"name": "IEC-104"}, {"type": "notification"}], "url": [{"url": "/fledge/south/operation",
+         "acl": [{"type": "Northbound"}]}]}'
     """
     try:
         data = await request.json()
@@ -151,8 +151,9 @@ async def update_acl(request: web.Request) -> web.Response:
     Only the service and URL parameters can be updated. 
 
     :Example:
-        curl -H "authorization: $AUTH_TOKEN" -sX PUT http://localhost:8081/fledge/ACL/testACL -d '{service": [{"name": "Sinusoid"}]}'
-        curl -H "authorization: $AUTH_TOKEN" -sX PUT http://localhost:8081/fledge/ACL/testACL -d '{"service": [], "url": [{"URL": "/fledge/south/operation", "ACL": [{"type": "Southbound"}]}]}'
+        curl -H "authorization: $AUTH_TOKEN" -sX PUT http://localhost:8081/fledge/ACL/testACL -d '{"service": [{"name": "Sinusoid"}]}'
+        curl -H "authorization: $AUTH_TOKEN" -sX PUT http://localhost:8081/fledge/ACL/testACL -d '{"service": [],
+        "url": [{"url": "/fledge/south/operation", "acl": [{"type": "Southbound"}]}]}'
     """
     try:
         name = request.match_info.get('acl_name', None)
@@ -161,12 +162,12 @@ async def update_acl(request: web.Request) -> web.Response:
         service = data.get('service', None)
         url = data.get('url', None)
         if service is None and url is None:
-            raise ValueError("Nothing to update for the given payload")
+            raise ValueError("Nothing to update for the given payload.")
 
         if service is not None and not isinstance(service, list):
-            raise TypeError('service must be in list')
+            raise TypeError('service must be a list.')
         if url is not None and not isinstance(url, list):
-            raise TypeError('url must be in list')
+            raise TypeError('url must be a list.')
         storage = connect.get_storage_async()
         payload = PayloadBuilder().SELECT("name").WHERE(['name', '=', name]).payload()
         result = await storage.query_tbl_with_payload('control_acl', payload)

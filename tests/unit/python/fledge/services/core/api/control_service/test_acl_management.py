@@ -156,3 +156,71 @@ class TestACLManagement:
             args, _ = query_tbl_patch.call_args_list[0]
             assert 'control_acl' == args[0]
             assert acl_query_payload == json.loads(args[1])
+
+    @pytest.mark.parametrize("payload, message", [
+        ({}, "Nothing to update for the given payload."),
+        ({"service": 1}, "service must be a list."),
+        ({"url": 1}, "url must be a list.")
+    ])
+    async def test_bad_update_acl(self, client, payload, message):
+        acl_name = "testACL"
+        resp = await client.put('/fledge/ACL/{}'.format(acl_name), data=json.dumps(payload))
+        assert 400 == resp.status
+        assert message == resp.reason
+        result = await resp.text()
+        json_response = json.loads(result)
+        assert {"message": message} == json_response
+
+    async def test_update_acl_not_found(self, client):
+        acl_name = "testACL"
+        req_payload = {"service": []}
+        result = {"count": 0, "rows": []}
+        value = await mock_coro(result) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(result))
+        query_payload = {"return": ["name"], "where": {"column": "name", "condition": "=", "value": acl_name}}
+        message = "ACL with name {} is not found.".format(acl_name)
+        storage_client_mock = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=value) as query_tbl_patch:
+                resp = await client.put('/fledge/ACL/{}'.format(acl_name), data=json.dumps(req_payload))
+                assert 404 == resp.status
+                assert message == resp.reason
+                result = await resp.text()
+                json_response = json.loads(result)
+                assert {"message": message} == json_response
+            args, _ = query_tbl_patch.call_args
+            assert 'control_acl' == args[0]
+            assert query_payload == json.loads(args[1])
+
+    @pytest.mark.parametrize("payload", [
+        {"service": []},
+        {"service": [{"service": [{"name": "Sinusoid"}, {"type": "Southbound"}]}]},
+        {"service": [], "url": []},
+        {"service": [], "url": [{"url": "/fledge/south/operation", "acl": [{"type": "Southbound"}]}]},
+        {"service": [{"service": [{"name": "Sinusoid"}, {"type": "Southbound"}]}],
+         "url": [{"url": "/fledge/south/operation", "acl": [{"type": "Southbound"}]}]}
+    ])
+    async def test_update_acl(self, client, payload):
+        acl_name = "testACL"
+        update_result = {"response": "updated", "rows_affected": 1}
+        query_tbl_result = {"count": 1, "rows": [{"name": acl_name, "service": [], "url": []}]}
+        query_payload = {"return": ["name"], "where": {"column": "name", "condition": "=", "value": acl_name}}
+        if sys.version_info >= (3, 8):
+            rv = await mock_coro(query_tbl_result)
+            update_value = await mock_coro(update_result)
+        else:
+            rv = asyncio.ensure_future(mock_coro(query_tbl_result))
+            update_value = asyncio.ensure_future(mock_coro(update_result))
+        storage_client_mock = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=rv) as patch_query_tbl:
+                with patch.object(storage_client_mock, 'update_tbl', return_value=update_value) as patch_update_tbl:
+                    resp = await client.put('/fledge/ACL/{}'.format(acl_name), data=json.dumps(payload))
+                    assert 200 == resp.status
+                    result = await resp.text()
+                    json_response = json.loads(result)
+                    assert {"message": "ACL {} updated successfully.".format(acl_name)} == json_response
+                update_args, _ = patch_update_tbl.call_args
+                assert 'control_acl' == update_args[0]
+            query_args, _ = patch_query_tbl.call_args
+            assert 'control_acl' == query_args[0]
+            assert query_payload == json.loads(query_args[1])

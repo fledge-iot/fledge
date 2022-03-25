@@ -350,7 +350,7 @@ async def detach_acl_from_service(request: web.Request) -> web.Response:
         get_schedules_result = await storage.query_tbl_with_payload('schedules', payload)
         if 'count' in get_schedules_result:
             if get_schedules_result['count'] == 0:
-                raise NameNotFoundError('{} service does not exist.'.format(svc_name))
+                raise NameNotFoundError('Schedule with name {} is not found.'.format(svc_name))
         else:
             raise StorageServerError(get_schedules_result)
         cf_mgr = ConfigurationManager(storage)
@@ -365,9 +365,9 @@ async def detach_acl_from_service(request: web.Request) -> web.Response:
                                          category_description=category_desc,
                                          category_value=category_value)
 
-            message = "ACL detached from {} service successfully".format(svc_name)
+            message = "ACL is detached from {} service successfully.".format(svc_name)
         else:
-            raise ValueError("Nothing to delete as there is no ACL attached with {} service".format(svc_name))
+            raise ValueError("Nothing to delete as there is no ACL attached with {} service.".format(svc_name))
     except StorageServerError as err:
         msg = "Storage error: {}".format(str(err))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))

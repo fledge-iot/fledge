@@ -158,7 +158,7 @@ PythonReading::PythonReading(PyObject *pyReading)
 	}
 	else
 	{
-		Logger::getLogger()->warn("PythonReading c'tor: Couldn't parse 'user_ts' ");
+		//Logger::getLogger()->debug("PythonReading c'tor: Couldn't parse 'user_ts' ");
 	        m_userTimestamp.tv_sec = 0;
        		m_userTimestamp.tv_usec = 0;
 	}

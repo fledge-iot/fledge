@@ -84,35 +84,34 @@ async def add_acl(request: web.Request) -> web.Response:
     """ Create a new access control list
 
     :Example:
-         curl -H "authorization: $AUTH_TOKEN" -sX POST http://localhost:8081/fledge/ACL 
-            -d '{"name": "testACL", "service": [{"name": "IEC-104"}, {"type": "notification"}], "url": [ {"URL": "/fledge/south/operation", "ACL": [{"type": "Northbound"}]} ]}'
+         curl -H "authorization: $AUTH_TOKEN" -sX POST http://localhost:8081/fledge/ACL -d '{"name": "testACL",
+         "service": [{"name": "IEC-104"}, {"type": "notification"}], "url": [ {"URL": "/fledge/south/operation",
+         "ACL": [{"type": "Northbound"}]}], "url": []}'
     """
     try:
         data = await request.json()
         name = data.get('name', None)
         service = data.get('service', None)
         url = data.get('url', None)
-
         if name is None:
-            raise ValueError('ACL name is required')
+            raise ValueError('ACL name is required.')
         else:
             if not isinstance(name, str):
-                raise TypeError('ACL name must be a string')
+                raise TypeError('ACL name must be a string.')
             name = name.strip()
             if name == "":
-                raise ValueError('ACL name cannot be empty')
-        
+                raise ValueError('ACL name cannot be empty.')
         if service is None:
-            raise ValueError('service parameter is required')
+            raise ValueError('service parameter is required.')
         if not isinstance(service, list):
-            raise TypeError('service must be in list')
+            raise TypeError('service must be a list.')
         # check each item in list is an object of, either 'type'|<service type> or 'name'|<service name> value pair
         if url is None:
-            raise ValueError('url parameter is required')
+            raise ValueError('url parameter is required.')
         if not isinstance(url, list):
-            raise TypeError('url must be a list')
-        # check URLs list has objects with URL and a list of ACL where each acl item here is an object of 'type'|<service type> value pair
-        
+            raise TypeError('url must be a list.')
+        # check URLs list has objects with URL and a list of ACL where each acl item here is an object of
+        # 'type'|<service type> value pair
         result = {}
         storage = connect.get_storage_async()
         payload = PayloadBuilder().SELECT("name").WHERE(['name', '=', name]).payload()

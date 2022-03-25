@@ -23,8 +23,7 @@ async def mock_coro(*args, **kwargs):
 @pytest.allure.feature("unit")
 @pytest.allure.story("api", "acl-management")
 class TestACLManagement:
-    """ ACL API tests
-    """
+    """ ACL API tests """
 
     @pytest.fixture
     def client(self, loop, test_client):
@@ -89,3 +88,71 @@ class TestACLManagement:
             args, _ = patch_query_tbl.call_args
             assert 'control_acl' == args[0]
             assert payload == json.loads(args[1])
+
+    @pytest.mark.parametrize("payload, message", [
+        ({}, "ACL name is required."),
+        ({"name": 1}, "ACL name must be a string."),
+        ({"name": ""}, "ACL name cannot be empty."),
+        ({"name": "test"}, "service parameter is required."),
+        ({"name": "test", "service": 1}, "service must be a list."),
+        ({"name": "test", "service": []}, "url parameter is required."),
+        ({"name": "test", "service": [], "url": 1}, "url must be a list.")
+    ])
+    async def test_bad_add_acl(self, client, payload, message):
+        resp = await client.post('/fledge/ACL', data=json.dumps(payload))
+        assert 400 == resp.status
+        assert message == resp.reason
+        result = await resp.text()
+        json_response = json.loads(result)
+        assert {"message": message} == json_response
+
+    async def test_duplicate_add_acl(self, client):
+        acl_name = "testACL"
+        request_payload = {"name": acl_name, "service": [], "url": []}
+        result = {'count': 1, 'rows': [
+            {'name': acl_name, 'service': [{'name': 'Fledge Storage'}, {'type': 'Southbound'}],
+             'url': [{'url': '/fledge/south/operation', 'acl': [{'type': 'Southbound'}]}]}]}
+        value = await mock_coro(result) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(result))
+        query_payload = {"return": ["name"], "where": {"column": "name", "condition": "=", "value": acl_name}}
+        message = "ACL with name {} already exists.".format(acl_name)
+        storage_client_mock = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=value) as patch_query_tbl:
+                resp = await client.post('/fledge/ACL', data=json.dumps(request_payload))
+                assert 409 == resp.status
+                assert message == resp.reason
+                result = await resp.text()
+                json_response = json.loads(result)
+                assert {"message": message} == json_response
+            args, _ = patch_query_tbl.call_args
+            assert 'control_acl' == args[0]
+            assert query_payload == json.loads(args[1])
+    
+    async def test_good_add_acl(self, client):
+        acl_name = "testACL"
+        request_payload = {"name": acl_name, "service": [], "url": []}
+        result = {"count": 0, "rows": []}
+        insert_result = {"response": "inserted", "rows_affected": 1}
+        acl_query_payload = {"return": ["name"], "where": {"column": "name", "condition": "=", "value": acl_name}}
+        if sys.version_info >= (3, 8):
+            value = await mock_coro(result)
+            insert_value = await mock_coro(insert_result)
+        else:
+            value = asyncio.ensure_future(mock_coro(result))
+            insert_value = asyncio.ensure_future(mock_coro(insert_result))
+        storage_client_mock = MagicMock(StorageClientAsync)
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=value) as query_tbl_patch:
+                with patch.object(storage_client_mock, 'insert_into_tbl', return_value=insert_value
+                                  ) as insert_tbl_patch:
+                    resp = await client.post('/fledge/ACL', data=json.dumps(request_payload))
+                    assert 200 == resp.status
+                    result = await resp.text()
+                    json_response = json.loads(result)
+                    assert {'name': acl_name, 'service': [], 'url': []} == json_response
+                args, _ = insert_tbl_patch.call_args_list[0]
+                assert 'control_acl' == args[0]
+                assert {'name': acl_name, 'service': '[]', 'url': '[]'} == json.loads(args[1])
+            args, _ = query_tbl_patch.call_args_list[0]
+            assert 'control_acl' == args[0]
+            assert acl_query_payload == json.loads(args[1])

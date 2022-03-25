@@ -230,7 +230,7 @@ async def delete_acl(request: web.Request) -> web.Response:
                 delete_result = await storage.delete_from_tbl("control_acl", payload)
                 if 'response' in delete_result:
                     if delete_result['response'] == "deleted":
-                        message = "{} ACL deleted successfully".format(name)
+                        message = "{} ACL deleted successfully.".format(name)
                 else:
                     raise StorageServerError(delete_result)
             else:

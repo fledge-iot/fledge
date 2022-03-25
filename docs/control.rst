@@ -368,7 +368,7 @@ Two subcategories exist, Server and Advanced.
 Server Configuration
 ####################
 
-The server section contains a single option which can be used to either turn on or off the forwarding of cpntrol messages to the varioues services within Fledge. Clicking this option off will turn off all control message routing within Fledge.
+The server section contains a single option which can be used to either turn on or off the forwarding of control messages to the varioues services within Fledge. Clicking this option off will turn off all control message routing within Fledge.
 
 Advanced Configuration
 ######################

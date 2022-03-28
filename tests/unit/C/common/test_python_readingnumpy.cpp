@@ -17,6 +17,15 @@ def array_sort(arg, key):
     arr = readings[key];
     readings[key] = np.sort(arr)
     return arg
+
+def image_normalise(arg, key):
+    readings = arg["readings"]
+    ar = readings[key]
+    mn = np.min(ar)
+    mx = np.max(ar)
+    norm = (ar - mn) * (1.0 / (mx - mn))
+    readings[key] = norm
+    return arg
 )";
 
 class  PythonReadingNumpyTest : public testing::Test {
@@ -149,6 +158,49 @@ TEST_F(PythonReadingNumpyTest, ArraySort)
 		EXPECT_EQ(*(ptr + 2), 3);
 		EXPECT_EQ(*(ptr + 3), 4);
 		EXPECT_EQ(*(ptr + 4), 5);
+	}
+}
+
+TEST_F(PythonReadingNumpyTest, ImageFloat)
+{
+	void *data = malloc(64 * 96);
+	uint8_t *ptr = (uint8_t *)data;
+	for (int i = 0; i < 64; i++)
+		for (int j = 0; j < 96; j++)
+			*ptr = i;
+	DPImage  *image = new DPImage(64, 96, 8, data);
+	DatapointValue img(image);
+	Reading reading("test", new Datapoint("image", img));
+	PyObject *pyReading = ((PythonReading *)(&reading))->toPython();
+	PyObject *element = PyUnicode_FromString("image");
+	PyObject *obj = callPythonFunc2("image_normalise", pyReading, element);
+	EXPECT_NE(obj, (PyObject *)NULL);
+	PythonReading pyr(obj);
+	EXPECT_STREQ(pyr.getAssetName().c_str(), "test");
+	EXPECT_EQ(pyr.getDatapointCount(), 1);
+	Datapoint *dp = pyr.getDatapoint("image");
+	if (!dp)
+	{
+		EXPECT_STREQ("Expected datapoint missing", "");
+	}
+	else
+	{
+		EXPECT_EQ(dp->getData().getType(), DatapointValue::dataTagType::T_IMAGE);
+		DPImage *image2 = dp->getData().getImage();
+		uint8_t *ptr = (uint8_t *)image2->getData();
+		EXPECT_EQ(image2->getWidth(), image->getWidth());
+		EXPECT_EQ(image2->getHeight(), image->getHeight());
+		EXPECT_EQ(image2->getDepth(), 64);
+
+		double *dptr = (double *)image2->getData();
+		for (int i = 0; i < 64; i++)
+		{
+			for (int j = 0; j < 96; j++)
+			{
+				EXPECT_TRUE(*dptr >= 0.0 && *dptr <= 1.0);
+				dptr++;
+			}
+		}
 	}
 }
 }

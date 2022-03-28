@@ -32,12 +32,12 @@ def setAsset(arg, name):
     return arg
 
 def array_element_0(arg, key):
-    readings = arg["readings"];
+    readings = arg["readings"]
     arr = readings[key];
     return arr[0]
 
 def array_swap(arg, key):
-    readings = arg["readings"];
+    readings = arg["readings"]
     arr = readings[key];
     tmp = arr[0]
     arr[0] = arr[1]
@@ -45,12 +45,12 @@ def array_swap(arg, key):
     return arg
 
 def image_swap(arg, key):
-    readings = arg["readings"];
+    readings = arg["readings"]
     img = readings[key];
     return arg
 
 def row_swap(arg, key):
-    readings = arg["readings"];
+    readings = arg["readings"]
     a2d = readings[key];
     newlist = [a2d[1], a2d[0]]
     readings[key] = newlist

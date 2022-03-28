@@ -1044,16 +1044,8 @@ static void plugin_shutdown_fn(PLUGIN_HANDLE handle)
 
 	Py_CLEAR(pFunc);
 
-        // Handle return
-	if (!pReturn)
-	{       
-		Logger::getLogger()->error("Called python script method plugin_shutdown "
-					   ": error while getting result object, plugin '%s'",
-					   it->second->m_name.c_str());
-		logErrorMessage();
-	}
 
-    if (false) // no seperate python interpreter is used anymore for python plugins
+	if (false) // no seperate python interpreter is used anymore for python plugins
 	{
 		// Switch to Interpreter thread
 		PyThreadState* swapState = PyThreadState_Swap(it->second->m_tState);

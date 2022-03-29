@@ -125,28 +125,28 @@ void filter_plugin_ingest_fn(PyObject *ingest_callback,
 		return;
 	}
 
-    PyObject* objectsRepresentation = PyObject_Repr(readingsObj);
-    const char* s = PyUnicode_AsUTF8(objectsRepresentation);
-    Logger::getLogger()->debug("filter_plugin_ingest_fn:L%d : Py2C: filtered readings=%s", __LINE__, s);
-    Py_CLEAR(objectsRepresentation);
+	PyObject* objectsRepresentation = PyObject_Repr(readingsObj);
+	const char* s = PyUnicode_AsUTF8(objectsRepresentation);
+	Logger::getLogger()->debug("filter_plugin_ingest_fn:L%d : Py2C: filtered readings=%s", __LINE__, s);
+	Py_CLEAR(objectsRepresentation);
 
 	PythonReadingSet *pyReadingSet = NULL;
     
 	// Check we have a list of readings
 	if (PyList_Check(readingsObj))
 	{
-        try
-        {
-            // Get vector of Readings from Python object
-            pyReadingSet = new PythonReadingSet(readingsObj);
-        }
-        catch (std::exception e)
-        {
-    		Logger::getLogger()->warn("PythonReadingSet c'tor failed, error: %s", e.what());
-            pyReadingSet = NULL;
-    	}
+		try
+		{
+			// Get vector of Readings from Python object
+			pyReadingSet = new PythonReadingSet(readingsObj);
+		}
+		catch (std::exception e)
+		{
+			Logger::getLogger()->warn("Unable to create a PythonReadingSet, error: %s", e.what());
+			pyReadingSet = NULL;
+		}
         
-        Logger::getLogger()->debug("%s:%d, pyReadingSet=%p, pyReadingSet readings count=%d", 
+		Logger::getLogger()->debug("%s:%d, pyReadingSet=%p, pyReadingSet readings count=%d", 
                                     __FUNCTION__, __LINE__, pyReadingSet, pyReadingSet?pyReadingSet->getCount():0);
 	}
 	else
@@ -155,8 +155,8 @@ void filter_plugin_ingest_fn(PyObject *ingest_callback,
 					   "but object type %s",
 					   Py_TYPE(readingsObj)->tp_name);
 	}
-    if(readingsObj)
-        Py_CLEAR(readingsObj);
+	if(readingsObj)
+		Py_CLEAR(readingsObj);
 
 	if (pyReadingSet)
 	{

@@ -21,14 +21,14 @@ using namespace std;
  * @param readingList	PyObject containing this reading object
  * @param fillIfMissing	If True, only fill ID/TS fields if not set already
  */
-void setReadingAttr(Reading* newReading, PyObject *readingList, bool fillIfMissing)
+void PythonReadingSet::setReadingAttr(Reading* newReading, PyObject *readingList, bool fillIfMissing)
 {
 	if (!newReading)
 		return;
 	
 	// Get 'id' value: borrowed reference.
 	PyObject* id = PyDict_GetItemString(readingList, "id");
-    bool fill = (!fillIfMissing || (fillIfMissing && newReading->getId()==0));
+	bool fill = (!fillIfMissing || (fillIfMissing && newReading->getId()==0));
 	if (fill && id && PyLong_Check(id))
 	{
 		// Set id
@@ -37,7 +37,7 @@ void setReadingAttr(Reading* newReading, PyObject *readingList, bool fillIfMissi
 
 	// Get 'ts' value: borrowed reference.
 	PyObject* ts = PyDict_GetItemString(readingList, "ts");
-    fill = (!fillIfMissing || (fillIfMissing && newReading->getTimestamp()==0));
+	fill = (!fillIfMissing || (fillIfMissing && newReading->getTimestamp()==0));
 	if (fill && ts)
 	{
 		// Convert a timestamp of the form '2019-01-07 19:06:35.366100+01:00'
@@ -47,7 +47,7 @@ void setReadingAttr(Reading* newReading, PyObject *readingList, bool fillIfMissi
 
 	// Get 'user_ts' value: borrowed reference.
 	PyObject* uts = PyDict_GetItemString(readingList, "timestamp");
-    fill = (!fillIfMissing || (fillIfMissing && newReading->getUserTimestamp()==0));
+	fill = (!fillIfMissing || (fillIfMissing && newReading->getUserTimestamp()==0));
 	if (fill && uts)
 	{
 		// Convert a timestamp of the form '2019-01-07 19:06:35.366100+01:00'
@@ -57,7 +57,7 @@ void setReadingAttr(Reading* newReading, PyObject *readingList, bool fillIfMissi
 	
 	// Get 'ts' value: borrowed reference.
 	PyObject* userts = PyDict_GetItemString(readingList, "user_ts");
-    fill = (!fillIfMissing || (fillIfMissing && newReading->getUserTimestamp()==0));
+	fill = (!fillIfMissing || (fillIfMissing && newReading->getUserTimestamp()==0));
 	if (fill && userts)
 	{
 		// Convert a timestamp of the form '2019-01-07 19:06:35.366100+01:00'
@@ -65,27 +65,27 @@ void setReadingAttr(Reading* newReading, PyObject *readingList, bool fillIfMissi
 		newReading->setUserTimestamp(ts_str);
 	}
 
-    // if User TS is still not filled, copy TS into it
-    fill = (fillIfMissing && newReading->getUserTimestamp()==0);
-    //Logger::getLogger()->debug("fill=%s, newReading->getUserTimestamp()=%d, newReading->getTimestamp()=%d", fill?"True":"False", newReading->getUserTimestamp(), newReading->getTimestamp());
-    if (fill)
-    {
-        struct timeval tVal;
+	// if User TS is still not filled, copy TS into it
+	fill = (fillIfMissing && newReading->getUserTimestamp()==0);
+	//Logger::getLogger()->debug("fill=%s, newReading->getUserTimestamp()=%d, newReading->getTimestamp()=%d", fill?"True":"False", newReading->getUserTimestamp(), newReading->getTimestamp());
+	if (fill)
+	{
+		struct timeval tVal;
 		newReading->getTimestamp(&tVal);
-        newReading->setUserTimestamp(tVal);
-        Logger::getLogger()->debug("Copied TS into user TS: newReading->getUserTimestamp()=%d", newReading->getUserTimestamp());
-    }
+		newReading->setUserTimestamp(tVal);
+		Logger::getLogger()->debug("Copied TS into user TS: newReading->getUserTimestamp()=%d", newReading->getUserTimestamp());
+	}
 
-    // if TS is still not filled, copy User TS into it
-    fill = (fillIfMissing && newReading->getTimestamp()==0);
-    //Logger::getLogger()->debug("fill=%s, newReading->getUserTimestamp()=%d, newReading->getTimestamp()=%d", fill?"True":"False", newReading->getUserTimestamp(), newReading->getTimestamp());
-    if (fill)
-    {
-        struct timeval tVal;
+	// if TS is still not filled, copy User TS into it
+	fill = (fillIfMissing && newReading->getTimestamp()==0);
+	//Logger::getLogger()->debug("fill=%s, newReading->getUserTimestamp()=%d, newReading->getTimestamp()=%d", fill?"True":"False", newReading->getUserTimestamp(), newReading->getTimestamp());
+	if (fill)
+	{
+		struct timeval tVal;
 		newReading->getUserTimestamp(&tVal);
-        newReading->setTimestamp(tVal);
-        Logger::getLogger()->debug("Copied user TS into TS: newReading->getUserTimestamp()=%d", newReading->getUserTimestamp());
-    }
+		newReading->setTimestamp(tVal);
+		Logger::getLogger()->debug("Copied user TS into TS: newReading->getUserTimestamp()=%d", newReading->getUserTimestamp());
+	}
 }
 
 
@@ -97,44 +97,45 @@ void setReadingAttr(Reading* newReading, PyObject *readingList, bool fillIfMissi
  */
 PythonReadingSet::PythonReadingSet(PyObject *set)
 {
-    if (PyList_Check(set))
-    {
-        Logger::getLogger()->debug("PythonReadingSet c'tor: LIST of size %d", PyList_Size(set));
-    }
-    else if (PyDict_Check(set))
-    {
-        Logger::getLogger()->debug("PythonReadingSet c'tor: DICT of size %d", PyDict_Size(set));
-    }
+	if (PyList_Check(set))
+	{
+		Logger::getLogger()->debug("PythonReadingSet c'tor: LIST of size %d", PyList_Size(set));
+	}
+	else if (PyDict_Check(set))
+	{
+		Logger::getLogger()->debug("PythonReadingSet c'tor: DICT of size %d", PyDict_Size(set));
+	}
     
-	if (PyList_Check(set) && PyList_Size(set)>0)
+	if (PyList_Check(set))
 	{
 		Py_ssize_t listSize = PyList_Size(set);
 		for (Py_ssize_t i = 0; i < listSize; i++)
 		{
 			PyObject *pyReading = PyList_GetItem(set, i);
 			PythonReading *reading = new PythonReading(pyReading);
-            setReadingAttr(reading, set, true);
+			setReadingAttr(reading, set, true);
 			m_readings.push_back(reading);
-            m_count++;
+			m_count++;
 			m_last_id = reading->getId();
-            Logger::getLogger()->debug("PythonReadingSet c'tor: LIST: reading->toJSON()='%s' ", reading->toJSON().c_str());
+			Logger::getLogger()->debug("PythonReadingSet c'tor: LIST: reading->toJSON()='%s' ", reading->toJSON().c_str());
 		}
 	}
-    else if (PyDict_Check(set) && PyDict_Size(set)>0)
-    {
-        PythonReading *reading = new PythonReading(set);
+	else if (PyDict_Check(set))
+	{
+		PythonReading *reading = new PythonReading(set);
 		if (reading)
 		{
-            setReadingAttr(reading, set, true);
-            m_readings.push_back(reading);
-            m_count++;
+			setReadingAttr(reading, set, true);
+			m_readings.push_back(reading);
+			m_count++;
 			m_last_id = reading->getId();
-            Logger::getLogger()->debug("PythonReadingSet c'tor: DICT: reading->toJSON()=%s", reading->toJSON().c_str());
+			Logger::getLogger()->debug("PythonReadingSet c'tor: DICT: reading->toJSON()=%s", reading->toJSON().c_str());
 		}
-    }
+	}
 	else
 	{
-		throw runtime_error("Expected a non-empty Python list/dict as a reading set in PythonReadingSet c'tor");
+		Logger::getLogger()->error("Expected a Python list/dict as a reading set when constructing a PythonReadingSet");
+		throw runtime_error("Expected a Python list/dict as a reading set when constructing a PythonReadingSet");
 	}
 }
     

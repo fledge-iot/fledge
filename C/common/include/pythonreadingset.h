@@ -21,5 +21,7 @@ class PythonReadingSet : public ReadingSet {
 	public:
 		PythonReadingSet(PyObject *pySet);
 		PyObject	*toPython(bool changeKeys = false);
+	private:
+		void setReadingAttr(Reading* newReading, PyObject *readingList, bool fillIfMissing);
 };
 #endif

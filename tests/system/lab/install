@@ -43,5 +43,5 @@ fledge-filter-fft fledge-filter-delta fledge-filter-metadata fledge-filter-chang
 fledge-notify-asset fledge-notify-python35 fledge-notify-email \
 fledge-rule-simple-expression fledge-rule-average \
 fledge-north-httpc \
-fledge-south-sinusoid fledge-south-envirophat fledge-south-randomwalk fledge-south-game fledge-south-modbus fledge-south-http-south
+fledge-south-sinusoid fledge-south-rpienviro fledge-south-randomwalk fledge-south-game fledge-south-modbus fledge-south-http-south
 echo "==================== DONE INSTALLING PLUGINS =================="

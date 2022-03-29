@@ -25,10 +25,10 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 
-SOUTH_PLUGIN = "envirophat"
+SOUTH_PLUGIN = "rpienviro"
 SVC_NAME = "Room-1"
 
-ASSET_PREFIX = "e_"  # default for envirophat South plugin
+ASSET_PREFIX = "e_"  # default asset prefix for rpienviro South plugin
 
 ASSET_NAME_W = "weather"
 SENSOR_READ_KEY_W = {"temperature", "altitude", "pressure"}
@@ -142,7 +142,7 @@ class TestE2eRPiEphatEgress:
                                    asset_name_with_prefix_a, asset_name_with_prefix_c])
         assert Counter(actual_assets) == expected_assets
 
-        # fledge/asset/envirophat%2Fweather
+        # fledge/asset/e%2Fweather
         conn.request("GET", '/fledge/asset/{}'.format(quote(asset_name_with_prefix_w, safe='')))
         r = conn.getresponse()
         assert 200 == r.status
@@ -159,7 +159,7 @@ class TestE2eRPiEphatEgress:
             jdoc = json.loads(r)
             assert len(jdoc), "No data found for asset '{}' and datapoint '{}'".format(asset_name_with_prefix_w, _sensor)
 
-        # fledge/asset/envirophat%2Fmagnetometer
+        # fledge/asset/e%2Fmagnetometer
         conn.request("GET", '/fledge/asset/{}'.format(quote(asset_name_with_prefix_m, safe='')))
         r = conn.getresponse()
         assert 200 == r.status
@@ -177,7 +177,7 @@ class TestE2eRPiEphatEgress:
             assert len(jdoc), "No data found for asset '{}' and datapoint '{}'".format(asset_name_with_prefix_m,
                                                                                        _sensor)
 
-        # fledge/asset/envirophat%2Faccelerometer
+        # fledge/asset/e%2Faccelerometer
         conn.request("GET", '/fledge/asset/{}'.format(quote(asset_name_with_prefix_a, safe='')))
         r = conn.getresponse()
         assert 200 == r.status
@@ -194,7 +194,7 @@ class TestE2eRPiEphatEgress:
             jdoc = json.loads(r)
             assert len(jdoc), "No data found for asset '{}' and datapoint '{}'".format(asset_name_with_prefix_a,
                                                                                        _sensor)
-        # fledge/asset/envirophat%2Frgb
+        # fledge/asset/e%2Frgb
         conn.request("GET", '/fledge/asset/{}'.format(quote(asset_name_with_prefix_c, safe='')))
         r = conn.getresponse()
         assert 200 == r.status

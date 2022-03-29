@@ -127,6 +127,7 @@ NORTH_C_SCRIPT_SRC          := scripts/tasks/north_c
 NORTH_SERVICE_C_SCRIPT_SRC  := scripts/services/north_C
 NOTIFICATION_C_SCRIPT_SRC   := scripts/services/notification_c
 DISPATCHER_C_SCRIPT_SRC     := scripts/services/dispatcher_c
+BUCKET_STORAGE_C_SCRIPT_SRC := scripts/services/bucket_storage_c
 PURGE_SCRIPT_SRC            := scripts/tasks/purge
 PURGE_C_SCRIPT_SRC          := scripts/tasks/purge_system
 STATISTICS_SCRIPT_SRC       := scripts/tasks/statistics
@@ -344,6 +345,7 @@ scripts_install : $(SCRIPTS_INSTALL_DIR) \
 	install_north_service_c_script \
 	install_notification_c_script \
 	install_dispatcher_c_script \
+	install_bucket_storage_c_script \
 	install_purge_script \
 	install_statistics_script \
 	install_storage_script \
@@ -408,6 +410,9 @@ install_notification_c_script: $(SCRIPT_SERVICES_INSTALL_DIR) $(NOTIFICATION_C_S
 
 install_dispatcher_c_script: $(SCRIPT_SERVICES_INSTALL_DIR) $(DISPATCHER_C_SCRIPT_SRC)
 	$(CP) $(DISPATCHER_C_SCRIPT_SRC) $(SCRIPT_SERVICES_INSTALL_DIR)
+
+install_bucket_storage_c_script: $(SCRIPT_SERVICES_INSTALL_DIR) $(BUCKET_STORAGE_C_SCRIPT_SRC)
+	$(CP) $(BUCKET_STORAGE_C_SCRIPT_SRC) $(SCRIPT_SERVICES_INSTALL_DIR)
 
 install_purge_script : $(SCRIPT_TASKS_INSTALL_DIR) $(PURGE_SCRIPT_SRC)
 	$(CP) $(PURGE_SCRIPT_SRC) $(SCRIPT_TASKS_INSTALL_DIR)

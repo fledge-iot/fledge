@@ -11,4 +11,4 @@ fi
 
 cd "${FLEDGE_ROOT}/services"
 
-./fledge.services.bucket_storage "$@"
+./fledge.services.bucketStorage "$@"

@@ -347,7 +347,7 @@ class TestService:
         data = {"name": "furnace4", "type": "south", "plugin": "dht11"}
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
-        
+        msg = "A service with {} name already exists.".format(data['name'])
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await self.async_mock(None)
@@ -360,7 +360,10 @@ class TestService:
                     with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
                         resp = await client.post('/fledge/service', data=json.dumps(data))
                         assert 400 == resp.status
-                        assert 'A service with this name already exists.' == resp.reason
+                        assert msg == resp.reason
+                        result = await resp.text()
+                        json_response = json.loads(result)
+                        assert {"message": msg} == json_response
                 patch_get_cat_info.assert_called_once_with(category_name=data['name'])
 
     p1 = '{"name": "furnace4", "type": "south", "plugin": "dht11"}'

@@ -381,7 +381,8 @@ async def add_service(request):
         # Check that the schedule name is not already registered
         count = await check_schedules(storage, name)
         if count != 0:
-            raise web.HTTPBadRequest(reason='A service with this name already exists.')
+            msg = "A service with {} name already exists.".format(name)
+            raise ValueError(msg)
 
         # Check that the process name is not already registered
         count = await check_scheduled_processes(storage, process_name, script)
@@ -467,10 +468,12 @@ async def add_service(request):
             await config_mgr.delete_category_and_children_recursively(name)
             _logger.exception("Failed to create service. %s", str(ex))
             raise web.HTTPInternalServerError(reason='Failed to create service.')
-    except ValueError as e:
-        raise web.HTTPBadRequest(reason=str(e))
-    except KeyError as ex:
-        raise web.HTTPNotFound(reason=str(ex))
+    except ValueError as err:
+        msg = str(err)
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+    except KeyError as err:
+        msg = str(err)
+        raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except StorageServerError as err:
         msg = str(err)
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": "Storage error: {}".format(msg)}))

@@ -62,6 +62,11 @@ class ManagementClient {
 						      const std::string& severity,
 						      const std::string& details);
 		std::string&		getBearerToken() { return m_bearer_token; };
+		bool			addProxy(const std::string& serviceName,
+						const std::string& operation,
+						const std::string& publicEnpoint,
+						const std::string& privateEndpoint);
+		bool			deleteProxy(const std::string& serviceName);
 
 private:
     std::ostringstream 			m_urlbase;

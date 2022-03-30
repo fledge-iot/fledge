@@ -864,3 +864,105 @@ bool ManagementClient::addAuditEntry(const std::string& code,
 	}
 	return false;
 }
+
+/**
+ * Request that the core proxy a URL to the service. URL's in the public Fledge API will be forwarded
+ * to the service API of the named service.
+ *
+ * @param serviceName	The name of the service to send the request to
+ * @param operation	The type of operations; post, put, get or delete
+ * @param publicEndpoint	The URL inthe Fledge public API to be proxied
+ * @param privateEnpoint	The URL in the service API of the named service to which the reuests will be proxied.
+ * @return	bool		True if the proxy request was accepted
+ */
+bool ManagementClient::addProxy(const std::string& serviceName,
+		const std::string& operation,
+		const std::string& publicEndpoint,
+		const std::string& privateEndpoint)
+{
+	ostringstream convert;
+
+	try {
+		convert << "{ \"" << operation << "\" : { ";
+		convert << "\"" << publicEndpoint << "\" : ";
+		convert << "\"" << privateEndpoint << "\" } }";
+
+		auto res = this->getHttpClient()->request("POST",
+							  "/fledge/proxy",
+							  convert.str());
+		Document doc;
+		string content = res->content.string();
+		doc.Parse(content.c_str());
+
+		if (doc.HasParseError())
+		{
+			bool httpError = (isdigit(content[0]) &&
+					  isdigit(content[1]) &&
+					  isdigit(content[2]) &&
+					  content[3]==':');
+			m_logger->error("%s proxy addition: %s\n", 
+					(httpError ?
+					 "HTTP error during" :
+					 "Failed to parse result of"), 
+					content.c_str());
+			return false;
+		}
+
+
+		if (doc.HasMember("message"))
+		{
+			// Erropr
+			m_logger->error("Failed to add audit entry: %s.",
+				doc["message"].GetString());
+			return false;
+		}
+		return true;
+	}
+	catch (const SimpleWeb::system_error &e)
+	{
+		m_logger->error("Failed to add audit entry: %s.", e.what());
+		return false;
+	}
+	return false;
+}
+
+/**
+ * Delete the current proxy endpoitn for the named service. Normally called prior
+ * to the service shutting down.
+ *
+ * @param serviceName	THe name of the service to sto the proxying for
+ * @return bool	True if the request succeeded
+ */
+bool ManagementClient::deleteProxy(const std::string& serviceName)
+{
+	try {
+		string url = "/fledge/proxy/";
+		url += serviceName;
+		auto res = this->getHttpClient()->request("DELETE", url.c_str());
+		Document doc;
+		string response = res->content.string();
+		doc.Parse(response.c_str());
+		if (doc.HasParseError())
+		{
+			bool httpError = (isdigit(response[0]) && isdigit(response[1]) && isdigit(response[2]) && response[3]==':');
+			m_logger->error("%s service proxy deletion: %s\n", 
+					httpError?"HTTP error during":"Failed to parse result of", 
+						response.c_str());
+			return false;
+		}
+		else if (doc.HasMember("message"))
+		{
+			m_logger->error("Failed to stop proxy of endpoints for service: %s.",
+				doc["message"].GetString());
+		}
+		else
+		{
+			m_logger->info("API proxying has been stopped");
+			return true;
+		}
+	} catch (const SimpleWeb::system_error &e) {
+		m_logger->error("Proxy deletion failed %s.", e.what());
+		return false;
+	}
+	return false;
+}

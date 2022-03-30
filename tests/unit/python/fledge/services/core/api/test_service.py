@@ -614,7 +614,11 @@ class TestService:
                             server.Server.scheduler = None
                             assert 400 == resp.status
                             svc_record = svc_type.capitalize() if svc_type != "bucketstorage" else "BucketStorage"
-                            assert 'A {} service schedule already exists.'.format(svc_record) == resp.reason
+                            msg = "A {} service type schedule already exists.".format(svc_record)
+                            assert msg == resp.reason
+                            result = await resp.text()
+                            json_response = json.loads(result)
+                            assert {"message": msg} == json_response
                         args, kwargs = insert_table_patch.call_args
                         assert 'scheduled_processes' == args[0]
                         p = json.loads(args[1])
@@ -1173,6 +1177,7 @@ class TestService:
                 return {'count': 0, 'rows': []}
 
         expected_insert_resp = {'rows_affected': 1, "response": "inserted"}
+        msg = "A Management service type schedule already exists."
 
         server.Server.scheduler = Scheduler(None, None)
         storage_client_mock = MagicMock(StorageClientAsync)
@@ -1196,7 +1201,10 @@ class TestService:
                             resp = await client.post('/fledge/service', data=payload)
                             server.Server.scheduler = None
                             assert 400 == resp.status
-                            assert 'A Management service schedule already exists.' == resp.reason
+                            assert msg == resp.reason
+                            result = await resp.text()
+                            json_response = json.loads(result)
+                            assert {"message": msg} == json_response
                         args, kwargs = insert_table_patch.call_args
                         assert 'scheduled_processes' == args[0]
                         p = json.loads(args[1])

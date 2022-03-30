@@ -403,26 +403,29 @@ async def add_service(request):
             res = await check_schedule_entry(storage)
             for ps in res['rows']:
                 if 'notification_c' in ps['process_name']:
-                    raise web.HTTPBadRequest(reason='A Notification service schedule already exists.')
+                    msg = "A Notification service type schedule already exists."
+                    raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
         # check that dispatcher service is not already registered, right now dispatcher service LIMIT to 1
         elif service_type == 'dispatcher':
             res = await check_schedule_entry(storage)
             for ps in res['rows']:
                 if 'dispatcher_c' in ps['process_name']:
-                    raise web.HTTPBadRequest(reason='A Dispatcher service schedule already exists.')
+                    msg = "A Dispatcher service type schedule already exists."
+                    raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
         # check the schedule entry for BucketStorage service as LIMIT to 1
         elif service_type == 'bucketstorage':
             res = await check_schedule_entry(storage)
             for ps in res['rows']:
                 if 'bucket_storage_c' in ps['process_name']:
-                    msg = "A BucketStorage service schedule already exists."
+                    msg = "A BucketStorage service type schedule already exists."
                     raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
         # check that management service is not already registered, right now management service LIMIT to 1
         elif service_type == 'management':
             res = await check_schedule_entry(storage)
             for ps in res['rows']:
                 if 'management' in ps['process_name']:
-                    raise web.HTTPBadRequest(reason='A Management service schedule already exists.')
+                    msg = "A Management service type schedule already exists."
+                    raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
         elif service_type == 'south' or service_type == 'north':
             try:
                 # Create a configuration category from the configuration defined in the plugin

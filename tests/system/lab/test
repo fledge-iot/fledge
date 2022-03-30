@@ -413,7 +413,7 @@ curl -sX POST "$URL/service" -d \
 '{
    "name": "Enviro",
    "type": "south",
-   "plugin": "envirophat",
+   "plugin": "rpienviro",
    "enabled": true,
    "config": {
       "assetNamePrefix": {

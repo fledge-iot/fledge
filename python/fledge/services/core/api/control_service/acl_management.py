@@ -44,13 +44,8 @@ async def get_all_acls(request: web.Request) -> web.Response:
     storage = connect.get_storage_async()
     payload = PayloadBuilder().SELECT("name", "service", "url").payload()
     result = await storage.query_tbl_with_payload('control_acl', payload)
-    all_acls = []
-    for key in result['rows']:
-        key.update({"service": key['service']})
-        key.update({"url": key['url']})
-        all_acls.append(key)
-    # TODO: Add users list in response where they are used
-    return web.json_response({"acls": all_acls})
+    # TODO: FOGL-6258 Add users list in response where they are used
+    return web.json_response({"acls": result['rows']})
 
 
 async def get_acl(request: web.Request) -> web.Response:
@@ -67,8 +62,6 @@ async def get_acl(request: web.Request) -> web.Response:
         if 'rows' in result:
             if result['rows']:
                 acl_info = result['rows'][0]
-                acl_info.update({"service": acl_info['service']})
-                acl_info.update({"url": acl_info['url']})
             else:
                 raise NameNotFoundError('ACL with name {} is not found.'.format(name))
         else:
@@ -91,35 +84,34 @@ async def add_acl(request: web.Request) -> web.Response:
     """ Create a new access control list
 
     :Example:
-         curl -H "authorization: $AUTH_TOKEN" -sX POST http://localhost:8081/fledge/ACL 
-            -d '{"name": "testACL", "service": [{"name": "IEC-104"}, {"type": "notification"}], "url": [ {"URL": "/fledge/south/operation", "ACL": [{"type": "Northbound"}]} ]}'
+         curl -H "authorization: $AUTH_TOKEN" -sX POST http://localhost:8081/fledge/ACL -d '{"name": "testACL",
+         "service": [{"name": "IEC-104"}, {"type": "notification"}], "url": [{"url": "/fledge/south/operation",
+         "acl": [{"type": "Northbound"}]}]}'
     """
     try:
         data = await request.json()
         name = data.get('name', None)
         service = data.get('service', None)
         url = data.get('url', None)
-
         if name is None:
-            raise ValueError('ACL name is required')
+            raise ValueError('ACL name is required.')
         else:
             if not isinstance(name, str):
-                raise TypeError('ACL name must be a string')
+                raise TypeError('ACL name must be a string.')
             name = name.strip()
             if name == "":
-                raise ValueError('ACL name cannot be empty')
-        
+                raise ValueError('ACL name cannot be empty.')
         if service is None:
-            raise ValueError('service parameter is required')
+            raise ValueError('service parameter is required.')
         if not isinstance(service, list):
-            raise TypeError('service must be in list')
+            raise TypeError('service must be a list.')
         # check each item in list is an object of, either 'type'|<service type> or 'name'|<service name> value pair
         if url is None:
-            raise ValueError('url parameter is required')
+            raise ValueError('url parameter is required.')
         if not isinstance(url, list):
-            raise TypeError('url must be a list')
-        # check URLs list has objects with URL and a list of ACL where each acl item here is an object of 'type'|<service type> value pair
-        
+            raise TypeError('url must be a list.')
+        # check URLs list has objects with URL and a list of ACL where each acl item here is an object of
+        # 'type'|<service type> value pair
         result = {}
         storage = connect.get_storage_async()
         payload = PayloadBuilder().SELECT("name").WHERE(['name', '=', name]).payload()
@@ -159,8 +151,9 @@ async def update_acl(request: web.Request) -> web.Response:
     Only the service and URL parameters can be updated. 
 
     :Example:
-        curl -H "authorization: $AUTH_TOKEN" -sX PUT http://localhost:8081/fledge/ACL/testACL -d '{service": [{"name": "Sinusoid"}]}'
-        curl -H "authorization: $AUTH_TOKEN" -sX PUT http://localhost:8081/fledge/ACL/testACL -d '{"service": [], "url": [{"URL": "/fledge/south/operation", "ACL": [{"type": "Southbound"}]}]}'
+        curl -H "authorization: $AUTH_TOKEN" -sX PUT http://localhost:8081/fledge/ACL/testACL -d '{"service": [{"name": "Sinusoid"}]}'
+        curl -H "authorization: $AUTH_TOKEN" -sX PUT http://localhost:8081/fledge/ACL/testACL -d '{"service": [],
+        "url": [{"url": "/fledge/south/operation", "acl": [{"type": "Southbound"}]}]}'
     """
     try:
         name = request.match_info.get('acl_name', None)
@@ -169,12 +162,12 @@ async def update_acl(request: web.Request) -> web.Response:
         service = data.get('service', None)
         url = data.get('url', None)
         if service is None and url is None:
-            raise ValueError("Nothing to update for the given payload")
+            raise ValueError("Nothing to update for the given payload.")
 
         if service is not None and not isinstance(service, list):
-            raise TypeError('service must be in list')
+            raise TypeError('service must be a list.')
         if url is not None and not isinstance(url, list):
-            raise TypeError('url must be in list')
+            raise TypeError('url must be a list.')
         storage = connect.get_storage_async()
         payload = PayloadBuilder().SELECT("name").WHERE(['name', '=', name]).payload()
         result = await storage.query_tbl_with_payload('control_acl', payload)
@@ -237,7 +230,7 @@ async def delete_acl(request: web.Request) -> web.Response:
                 delete_result = await storage.delete_from_tbl("control_acl", payload)
                 if 'response' in delete_result:
                     if delete_result['response'] == "deleted":
-                        message = "{} ACL deleted successfully".format(name)
+                        message = "{} ACL deleted successfully.".format(name)
                 else:
                     raise StorageServerError(delete_result)
             else:
@@ -272,25 +265,25 @@ async def attach_acl_to_service(request: web.Request) -> web.Response:
         get_schedules_result = await storage.query_tbl_with_payload('schedules', payload)
         if 'count' in get_schedules_result:
             if get_schedules_result['count'] == 0:
-                raise NameNotFoundError('{} service does not exist.'.format(svc_name))
+                raise NameNotFoundError('Schedule with name {} is not found.'.format(svc_name))
         else:
             raise StorageServerError(get_schedules_result)
         data = await request.json()
         acl_name = data.get('acl_name', None)
         if acl_name is not None:
             if not isinstance(acl_name, str):
-                raise ValueError('ACL must be a string')
+                raise ValueError('ACL must be a string.')
             if acl_name.strip() == "":
-                raise ValueError('ACL cannot be empty')
+                raise ValueError('ACL cannot be empty.')
         else:
-            raise ValueError('acl name is missing in given payload request')
+            raise ValueError('acl_name KV pair is missing.')
         acl_name = acl_name.strip()
         # check ACL name existence
         payload = PayloadBuilder().SELECT("name", "service", "url").WHERE(['name', '=', acl_name]).payload()
         get_acl_result = await storage.query_tbl_with_payload('control_acl', payload)
         if 'count' in get_acl_result:
             if get_acl_result['count'] == 0:
-                raise NameNotFoundError('{} ACL does not exist'.format(acl_name))
+                raise NameNotFoundError('ACL with name {} is not found.'.format(acl_name))
         else:
             raise StorageServerError(get_acl_result)
         # check ACL existence with service
@@ -324,7 +317,7 @@ async def attach_acl_to_service(request: web.Request) -> web.Response:
             if security_cat_name not in add_child_result['children']:
                 raise StorageServerError(add_child_result)
         else:
-            raise ValueError('A {} service has already ACL attached'.format(svc_name))
+            raise ValueError('A {} service has already attached ACL with name {}.'.format(svc_name, acl_name))
     except StorageServerError as err:
         msg = "Storage error: {}".format(str(err))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
@@ -338,7 +331,8 @@ async def attach_acl_to_service(request: web.Request) -> web.Response:
         msg = str(ex)
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
-        return web.json_response({"message": "{} ACL attached to {} service successfully".format(acl_name, svc_name)})
+        return web.json_response({"message": "ACL with name {} attached to {} service successfully.".format(
+            acl_name, svc_name)})
 
 
 @has_permission("admin")
@@ -356,7 +350,7 @@ async def detach_acl_from_service(request: web.Request) -> web.Response:
         get_schedules_result = await storage.query_tbl_with_payload('schedules', payload)
         if 'count' in get_schedules_result:
             if get_schedules_result['count'] == 0:
-                raise NameNotFoundError('{} service does not exist.'.format(svc_name))
+                raise NameNotFoundError('Schedule with name {} is not found.'.format(svc_name))
         else:
             raise StorageServerError(get_schedules_result)
         cf_mgr = ConfigurationManager(storage)
@@ -371,9 +365,9 @@ async def detach_acl_from_service(request: web.Request) -> web.Response:
                                          category_description=category_desc,
                                          category_value=category_value)
 
-            message = "ACL detached from {} service successfully".format(svc_name)
+            message = "ACL is detached from {} service successfully.".format(svc_name)
         else:
-            raise ValueError("Nothing to delete as there is no ACL attached with {} service".format(svc_name))
+            raise ValueError("Nothing to delete as there is no ACL attached with {} service.".format(svc_name))
     except StorageServerError as err:
         msg = "Storage error: {}".format(str(err))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))

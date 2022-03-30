@@ -172,8 +172,11 @@ PythonReading::PythonReading(PyObject *pyReading)
  */
 DatapointValue *PythonReading::getDatapointValue(PyObject *value)
 {
-	// TODO: remove if not needed
-	// InitNumPy();
+	InitNumPy();
+	if (!value)
+	{
+		throw runtime_error("NULL datapoint value in Python reading");
+	}
     
 	DatapointValue *dataPoint = NULL;
 	if (PyLong_Check(value))	// Integer	T_INTEGER

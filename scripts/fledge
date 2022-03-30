@@ -521,6 +521,7 @@ fledge_status() {
                 ps -ef | grep "fledge.services.north " |grep -v python3| grep -v 'grep' | grep -v awk | awk '{printf "fledge.services.north "; for(i=9;i<=NF;++i) printf $i FS; printf "\n"}' || true
                 ps -ef | grep "fledge.services.notification" |grep -v python3| grep -v 'grep' | grep -v awk | awk '{printf "fledge.services.notification "; for(i=9;i<=NF;++i) printf $i FS; printf "\n"}' || true
                 ps -ef | grep "fledge.services.dispatcher" |grep -v python3| grep -v 'grep' | grep -v awk | awk '{printf "fledge.services.dispatcher "; for(i=9;i<=NF;++i) printf $i FS; printf "\n"}' || true
+                ps -ef | grep "fledge.services.bucketStorage" |grep -v python3| grep -v 'grep' | grep -v awk | awk '{printf "fledge.services.bucketStorage "; for(i=9;i<=NF;++i) printf $i FS; printf "\n"}' || true
                 # Show Python services (except core)
                 ps -ef | grep -o 'python3 -m fledge.services.*' | grep -o 'fledge.services.*' | grep -v 'fledge.services.core' | grep -v 'fledge.services\.\*' || true
 

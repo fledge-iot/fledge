@@ -177,7 +177,7 @@ DatapointValue *PythonReading::getDatapointValue(PyObject *value)
 	{
 		throw runtime_error("NULL datapoint value in Python reading");
 	}
-    
+
 	DatapointValue *dataPoint = NULL;
 	if (PyLong_Check(value))	// Integer	T_INTEGER
 	{
@@ -332,11 +332,13 @@ DatapointValue *PythonReading::getDatapointValue(PyObject *value)
  * Convert a PythonReading, which is just a Reading, into a PyObject
  * structure that can be passed to embedded Python code.
  *
- * @param changeKeys	Set DICT keys as reading/asset_code if true
- *			or readings/asset if false
+ * @param changeKeys		Set DICT keys as reading/asset_code if true
+ *				or readings/asset if false
+ * @param useBytesString	Whether to use DICT keys as BytesString
+ *				and string values as BytesString
  * @return PyObject*	The Python representation of the readings as a DICT
  */
-PyObject *PythonReading::toPython(bool changeKeys)
+PyObject *PythonReading::toPython(bool changeKeys, bool useBytesString)
 {
 	// Create object (dict) for reading Datapoints:
 	// this will be added as the value for key 'readings'
@@ -345,11 +347,15 @@ PyObject *PythonReading::toPython(bool changeKeys)
 	// Get all datapoints
 	for (auto it = m_values.begin(); it != m_values.end(); ++it)
 	{
-		PyObject *value = convertDatapoint(*it);
+		// Pass BytesString switch
+		PyObject *value = convertDatapoint(*it, useBytesString);
 		// Add Datapoint: key and value
 		if (value)
 		{
-			PyObject *key = PyUnicode_FromString((*it)->getName().c_str());
+			PyObject *key = useBytesString ?
+					PyBytes_FromString((*it)->getName().c_str())
+					:
+					PyUnicode_FromString((*it)->getName().c_str());
 			PyDict_SetItem(dataPoints, key, value);
 		
 			Py_CLEAR(key);
@@ -411,10 +417,11 @@ PyObject *PythonReading::toPython(bool changeKeys)
 /**
  * Convert a single datapoint into a Pythn object
  *
- * @param dp	The datapoint to convert
+ * @param dp		The datapoint to convert
+ * @param bytesString	Wheter to set PyObject string as PyBytes or PyUnicode
  * @return The pointer to a converted Python Object or NULL if the conversion failed
  */
-PyObject *PythonReading::convertDatapoint(Datapoint *dp)
+PyObject *PythonReading::convertDatapoint(Datapoint *dp, bool bytesString)
 {
 	PyObject *value = NULL;
 	DatapointValue::dataTagType dataType = dp->getData().getType();
@@ -429,7 +436,10 @@ PyObject *PythonReading::convertDatapoint(Datapoint *dp)
 	}
 	else if (dataType == DatapointValue::dataTagType::T_STRING)
 	{
-		value = PyUnicode_FromString(dp->getData().toStringValue().c_str());
+		value = bytesString ?
+				PyBytes_FromString(dp->getData().toStringValue().c_str())
+				:
+				PyUnicode_FromString(dp->getData().toStringValue().c_str());
 	}
 	else if (dataType == DatapointValue::dataTagType::T_FLOAT_ARRAY)
 	{

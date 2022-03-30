@@ -20,13 +20,14 @@
 class PythonReading : public Reading {
 	public:
 		PythonReading(PyObject *pyReading);
-		PyObject 		*toPython(bool changeKeys = false);
+		~PythonReading();
+		PyObject 		*toPython(bool changeKeys = false, bool bytesString = false);
 		static std::string	errorMessage();
 		static bool		isArray(PyObject *);
 		static bool		doneNumPyImport;
 
 	private:
-		PyObject		*convertDatapoint(Datapoint *dp);
+		PyObject		*convertDatapoint(Datapoint *dp, bool bytesString = false);
 		DatapointValue		*getDatapointValue(PyObject *object);
 		void 			fixQuoting(std::string& str);
 		int			InitNumPy();

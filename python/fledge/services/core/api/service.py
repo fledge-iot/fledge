@@ -415,7 +415,8 @@ async def add_service(request):
             res = await check_schedule_entry(storage)
             for ps in res['rows']:
                 if 'bucket_storage_c' in ps['process_name']:
-                    raise web.HTTPBadRequest(reason='A BucketStorage service schedule already exists.')
+                    msg = "A BucketStorage service schedule already exists."
+                    raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
         # check that management service is not already registered, right now management service LIMIT to 1
         elif service_type == 'management':
             res = await check_schedule_entry(storage)

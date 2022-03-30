@@ -49,7 +49,7 @@ from fledge.services.core.api import asset_tracker as asset_tracker_api
 from fledge.common.web.ssl_wrapper import SSLVerifier
 from fledge.services.core.api import exceptions as api_exception
 
-__author__ = "Amarendra K. Sinha, Praveen Garg, Terris Linenbach, Massimiliano Pinto"
+__author__ = "Amarendra K. Sinha, Praveen Garg, Terris Linenbach, Massimiliano Pinto, Ashish Jabble"
 __copyright__ = "Copyright (c) 2017-2021 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
@@ -161,6 +161,9 @@ class Server:
 
     _USER_API_SERVICE = '_fledge-user._tcp.local.'
     """ The user REST service we advertise """
+
+    _PROXY_API_INFO = {}
+    """ Bucket Storage Proxy Public API info """
 
     admin_announcer = None
     """ The Announcer for the Admin API """
@@ -1534,6 +1537,69 @@ class Server:
     @classmethod
     async def change(cls, request):
         pass
+
+    @classmethod
+    async def add_proxy(cls, request):
+        data = await request.json()
+        try:
+            svc_name = data.get('service_name', None)
+            if svc_name is None:
+                raise ValueError("service_name KV pair is required.")
+            if svc_name is not None:
+                if not isinstance(svc_name, str):
+                    raise TypeError("service_name must be in string.")
+                svc_name = svc_name.strip()
+                if not len(svc_name):
+                    raise ValueError("service_name cannot be empty.")
+                # FIXME: enabled below line and remove testing related code
+                # ServiceRegistry.filter_by_name_and_type(name=svc_name, s_type="BucketStorage")
+                ServiceRegistry.get(name=svc_name)
+                valid_verbs = ["GET", "POST", "PUT", "DELETE"]
+                intersection = [i for i in valid_verbs if i in data]
+                if not intersection:
+                    raise ValueError("Nothing to add in proxy for {} service. "
+                                     "Pass atleast one {} verb in the given payload.".format(svc_name, valid_verbs))
+                if not all(data.values()):
+                    raise ValueError("Value cannot be empty for a verb in the given payload.")
+                if svc_name in cls._PROXY_API_INFO:
+                    raise ValueError("Proxy is already configured for {} service. "
+                                     "Delete it first and then re-create".format(svc_name))
+        except service_registry_exceptions.DoesNotExist:
+            msg = "{} service not found.".format(svc_name)
+            raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
+        except (TypeError, ValueError, KeyError) as err:
+            msg = str(err)
+            raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+        except Exception as ex:
+            msg = str(ex)
+            raise web.HTTPInternalServerError(reason=msg, body=json.dumps({'message': msg}))
+        else:
+            # TODO: forward calls
+            del data['service_name']
+            cls._PROXY_API_INFO.update({svc_name: data})
+            return web.json_response({"message": "Proxy has been configured for {} service.".format(svc_name)})
+
+    @classmethod
+    async def delete_proxy(cls, request):
+        svc_name = request.match_info.get('service_name', None)
+        try:
+            # FIXME: enabled below line and remove testing related code
+            # ServiceRegistry.filter_by_name_and_type(name=svc_name, s_type="BucketStorage")
+            ServiceRegistry.get(name=svc_name)
+            if svc_name not in cls._PROXY_API_INFO:
+                raise ValueError("For {} service, no proxy operation is configured.".format(svc_name))
+        except service_registry_exceptions.DoesNotExist:
+            msg = "{} service not found.".format(svc_name)
+            raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
+        except (TypeError, ValueError, KeyError) as err:
+            msg = str(err)
+            raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+        except Exception as ex:
+            msg = str(ex)
+            raise web.HTTPInternalServerError(reason=msg, body=json.dumps({'message': msg}))
+        else:
+            del cls._PROXY_API_INFO[svc_name]
+            return web.json_response({"message": "Proxy operations have been stopped for {} service.".format(svc_name)})
 
     @classmethod
     async def get_track(cls, request):

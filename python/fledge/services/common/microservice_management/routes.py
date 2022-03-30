@@ -64,6 +64,10 @@ def setup(app, obj, is_core=False):
         # Service token refresh
         app.router.add_route('POST', '/fledge/service/refresh_token', obj.refresh_token)
 
+        # Proxy API to specific BucketStorage microservice
+        app.router.add_route('POST', '/fledge/proxy', obj.add_proxy)
+        app.router.add_route('DELETE', '/fledge/proxy/{service_name}', obj.delete_proxy)
+
     # enable cors support
     enable_cors(app)
 

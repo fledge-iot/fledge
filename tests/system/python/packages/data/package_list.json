@@ -7,7 +7,7 @@
 		"rule": ["average", "simple-expression"]
 	}],
 	"p1": [{
-		"south": ["dnp3", "envirophat", "flirax8", "game", "mqtt-sparkplug", "opcua", "playback", "randomwalk"],
+		"south": ["dnp3", "rpienviro", "flirax8", "game", "mqtt-sparkplug", "opcua", "playback", "randomwalk"],
 		"north": ["kafka", "opcua"],
 		"filter": ["change", "delta", "fft", "flirvalidity", "metadata", "rms"],
 		"notify": ["email"],

@@ -27,6 +27,13 @@ def setup(app):
 
 
 async def add(request):
+    """ Add API proxy for a service
+
+    :Example:
+             curl -sX POST http://localhost:<SVC_MGT_PORT>/fledge/proxy -d '{"service_name": "BucketStorage", "POST": {"/fledge/bucket": "/bucket"}}'
+             curl -sX POST http://localhost:<SVC_MGT_PORT>/fledge/proxy -d '{"service_name": "BucketStorage", "GET": {"/fledge/bucket/{uniqueID}": "/bucket/{uniqueID}"}}'
+             curl -sX POST http://localhost:<SVC_MGT_PORT>/fledge/proxy -d '{"service_name": "BucketStorage", "GET": {"/fledge/bucket/{uniqueID}": "/bucket/{uniqueID}"}, "PUT": {"/fledge/bucket/{uniqueID}": "/bucket/{uniqueID}"}, "DELETE": {"/fledge/bucket/{uniqueID}": "/bucket/{uniqueID}"}}'
+   """
     data = await request.json()
     svc_name = data.get('service_name', None)
     try:
@@ -38,9 +45,10 @@ async def add(request):
             svc_name = svc_name.strip()
             if not len(svc_name):
                 raise ValueError("service_name cannot be empty.")
-            # FIXME: enabled below line and remove testing related code
+            # FIXME: service registry with both type and name
             # ServiceRegistry.filter_by_name_and_type(name=svc_name, s_type="BucketStorage")
             ServiceRegistry.get(name=svc_name)
+            del data['service_name']
             valid_verbs = ["GET", "POST", "PUT", "DELETE"]
             intersection = [i for i in valid_verbs if i in data]
             if not intersection:
@@ -48,6 +56,13 @@ async def add(request):
                                  "Pass atleast one {} verb in the given payload.".format(svc_name, valid_verbs))
             if not all(data.values()):
                 raise ValueError("Value cannot be empty for a verb in the given payload.")
+            for k, v in data.items():
+                if not isinstance(v, dict):
+                    raise TypeError("value should be in dict for {} key.".format(k))
+                for k1, v1 in v.items():
+                    if '/fledge/' not in k1:
+                        raise ValueError("Public URL must start with /fledge prefix for {} key.".format(k))
+
             if svc_name in server.Server._PROXY_API_INFO:
                 raise ValueError("Proxy is already configured for {} service. "
                                  "Delete it first and then re-create.".format(svc_name))
@@ -61,13 +76,17 @@ async def add(request):
         msg = str(ex)
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({'message': msg}))
     else:
-        del data['service_name']
         # Add service name KV pair in-memory structure
         server.Server._PROXY_API_INFO.update({svc_name: data})
         return web.json_response({"message": "Proxy has been configured for {} service.".format(svc_name)})
 
 
 async def delete(request):
+    """ Stop API proxy for a service
+
+    :Example:
+             curl -sX DELETE http://localhost:<SVC_MGT_PORT>/fledge/proxy/{service}
+   """
     svc_name = request.match_info.get('service_name', None)
     try:
         # FIXME: enabled below line and remove testing related code

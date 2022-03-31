@@ -4,6 +4,8 @@
 # See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
+from fledge.services.core import proxy
+
 __author__ = "Ashish Jabble, Praveen Garg, Ashwin Gopalakrishnan, Massimiliano Pinto"
 __copyright__ = "Copyright (c) 2021 OSIsoft, LLC"
 __license__ = "Apache 2.0"
@@ -64,9 +66,8 @@ def setup(app, obj, is_core=False):
         # Service token refresh
         app.router.add_route('POST', '/fledge/service/refresh_token', obj.refresh_token)
 
-        # Proxy API to specific BucketStorage microservice
-        app.router.add_route('POST', '/fledge/proxy', obj.add_proxy)
-        app.router.add_route('DELETE', '/fledge/proxy/{service_name}', obj.delete_proxy)
+        # Proxy API to specific bucketstorage microservice
+        proxy.setup(app)
 
     # enable cors support
     enable_cors(app)

@@ -1,0 +1,14 @@
+#!/bin/sh
+# Run a Fledge Bucket Storage service written in C/C++
+if [ "${FLEDGE_ROOT}" = "" ]; then
+  FLEDGE_ROOT=/usr/local/fledge
+fi
+
+if [ ! -d "${FLEDGE_ROOT}" ]; then
+	logger "Fledge home directory missing or incorrectly set environment"
+	exit 1
+fi
+
+cd "${FLEDGE_ROOT}/services"
+
+./fledge.services.bucketStorage "$@"

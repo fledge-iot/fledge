@@ -58,7 +58,7 @@ async def add(request):
                 raise ValueError("Value cannot be empty for a verb in the given payload.")
             for k, v in data.items():
                 if not isinstance(v, dict):
-                    raise TypeError("value should be in dict for {} key.".format(k))
+                    raise TypeError("Value should be a dictionary object for {} key.".format(k))
                 for k1, v1 in v.items():
                     if '/fledge/' not in k1:
                         raise ValueError("Public URL must start with /fledge prefix for {} key.".format(k))
@@ -89,7 +89,7 @@ async def delete(request):
    """
     svc_name = request.match_info.get('service_name', None)
     try:
-        # FIXME: enabled below line and remove testing related code
+        # FIXME: remove testing related code
         # ServiceRegistry.filter_by_name_and_type(name=svc_name, s_type="BucketStorage")
         ServiceRegistry.get(name=svc_name)
         if svc_name not in server.Server._PROXY_API_INFO:

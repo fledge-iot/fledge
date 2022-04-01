@@ -10,7 +10,6 @@ import aiohttp
 from aiohttp import web
 from fledge.common import logger
 from fledge.common.service_record import ServiceRecord
-from fledge.common.storage_client.exceptions import StorageServerError
 from fledge.services.core import server
 from fledge.services.core.service_registry import exceptions as service_registry_exceptions
 from fledge.services.core.service_registry.service_registry import ServiceRegistry
@@ -51,8 +50,9 @@ async def handler(request):
     # TODO: Match request.url with server.Server._PROXY_API_INFO KV pair and forward
     try:
         data = await request.json() if request.method != 'GET' else None
-        svc, token = await _get_service_record_info()
+        svc, token = await _get_service_record_info_along_with_bearer_token()
         url = str(request.url).split('fledge/')[1]
+        # FIXME: For test purpose
         message = "{} - {}://{}:{}/{} -- with data: {}".format(request.method, svc._protocol, svc._address, svc._port,
                                                                url, data)
         #result = await _call_microservice_service_api(request.method, svc._protocol, svc._address,
@@ -65,7 +65,7 @@ async def handler(request):
         return web.json_response({"message": message})
 
 
-async def _get_service_record_info():
+async def _get_service_record_info_along_with_bearer_token():
     try:
         # FIXME: replace Southbound with BucketStorage
         service = ServiceRegistry.get(s_type=ServiceRecord.Type.Southbound.name)
@@ -91,28 +91,28 @@ async def _call_microservice_service_api(method: str, protocol: str, address: st
                     status_code = resp.status
                     response = await resp.text()
                     if status_code not in range(200, 209):
-                        raise StorageServerError(code=resp.status, reason=resp.reason, error=response)
+                        raise Exception
         elif method == 'POST':
             async with aiohttp.ClientSession() as session:
-                async with session.post(url, data=data, headers=headers) as resp:
+                async with session.post(url, data=json.dumps(data), headers=headers) as resp:
                     status_code = resp.status
                     response = await resp.text()
                     if status_code not in range(200, 209):
-                        raise StorageServerError(code=resp.status, reason=resp.reason, error=response)
+                        raise Exception
         elif method == 'PUT':
             async with aiohttp.ClientSession() as session:
-                async with session.put(url, data=data, headers=headers) as resp:
+                async with session.put(url, data=json.dumps(data), headers=headers) as resp:
                     status_code = resp.status
                     response = await resp.text()
                     if status_code not in range(200, 209):
-                        raise StorageServerError(code=resp.status, reason=resp.reason, error=response)
+                        raise Exception
         elif method == 'DELETE':
             async with aiohttp.ClientSession() as session:
-                async with session.delete(url, data=data, headers=headers) as resp:
+                async with session.delete(url, data=json.dumps(data), headers=headers) as resp:
                     status_code = resp.status
                     response = await resp.text()
                     if status_code not in range(200, 209):
-                        raise StorageServerError(code=resp.status, reason=resp.reason, error=response)
+                        raise Exception
         else:
             _logger.warning("Not implemented yet for {} method.".format(method))
     except Exception:

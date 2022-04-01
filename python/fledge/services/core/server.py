@@ -163,7 +163,7 @@ class Server:
     """ The user REST service we advertise """
 
     _PROXY_API_INFO = {}
-    """ Bucket Storage Proxy Public API info """
+    """ Proxy Public API info for a microservice """
 
     admin_announcer = None
     """ The Announcer for the Admin API """

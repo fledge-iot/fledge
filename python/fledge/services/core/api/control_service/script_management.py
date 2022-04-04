@@ -307,7 +307,7 @@ async def add_schedule_and_configuration_for_script(request: web.Request) -> web
                 category_desc = "{} configuration for task".format(name)
                 await cf_mgr.create_category(category_name=name, category_description=category_desc,
                                              category_value=category_value)
-                await cf_mgr.create_child_category("Dispatcher", [name])
+                await cf_mgr.create_child_category("dispatcher", [name])
             else:
                 raise NameNotFoundError('Script with name {} is not found.'.format(name))
         else:

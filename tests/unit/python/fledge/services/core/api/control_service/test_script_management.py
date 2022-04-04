@@ -468,7 +468,7 @@ class TestScriptManagement:
                                 result = await resp.text()
                                 json_response = json.loads(result)
                                 assert {"message": message} == json_response
-                            patch_create_child_cat.assert_called_once_with('Dispatcher', [script_name])
+                            patch_create_child_cat.assert_called_once_with('dispatcher', [script_name])
                         assert 1 == patch_create_cat.call_count
                     patch_queue_task.assert_called_once_with(None)
                 patch_save_schedule.assert_called_once()

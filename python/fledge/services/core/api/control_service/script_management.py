@@ -41,6 +41,7 @@ _logger = logger.setup(__name__, level=logging.INFO)
 def setup(app):
     # schedules
     app.router.add_route('GET', '/fledge/control/script/schedule', get_all_schedules)
+    app.router.add_route('GET', '/fledge/control/script/{script_name}/schedule', get_schedule_by_name)
     app.router.add_route('POST', '/fledge/control/script/{script_name}/schedule', add_schedule_and_configuration)
 
     # CRUD's
@@ -51,7 +52,6 @@ def setup(app):
     app.router.add_route('DELETE', '/fledge/control/script/{script_name}', delete)
 
 
-@has_permission("admin")
 async def get_all_schedules(request: web.Request) -> web.Response:
     """ Get list of automation script type schedule
 
@@ -74,6 +74,97 @@ async def get_all_schedules(request: web.Request) -> web.Response:
                 'enabled': sch.enabled
             })
     return web.json_response({'schedules': schedules})
+
+
+async def get_schedule_by_name(request: web.Request) -> web.Response:
+    """ Get script schedule by name
+
+    :Example:
+        curl -H "authorization: $AUTH_TOKEN" -sX GET http://localhost:8081/fledge/control/script/testScript/schedule
+    """
+    name = request.match_info.get('script_name', None)
+    schedule = {}
+    try:
+        schedule_list = await server.Server.scheduler.get_schedules()
+        for sch in schedule_list:
+            if sch.name == name and sch.process_name == "automation_script":
+                schedule = {
+                    'id': str(sch.schedule_id),
+                    'name': sch.name,
+                    "processName": sch.process_name,
+                    'type': Schedule.Type(int(sch.schedule_type)).name,
+                    'repeat': 0,
+                    'time': 0,
+                    'day': sch.day,
+                    'exclusive': sch.exclusive,
+                    'enabled': sch.enabled
+                }
+                break
+        if not schedule:
+            raise ValueError('No schedule found for {} script.'.format(name))
+    except ValueError as err:
+        msg = str(err)
+        raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
+    except Exception as ex:
+        msg = str(ex)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+    else:
+        return web.json_response(schedule)
+
+
+@has_permission("admin")
+async def add_schedule_and_configuration(request: web.Request) -> web.Response:
+    """ Create a schedule and configuration category for the task
+
+    :Example:
+        curl -H "authorization: $AUTH_TOKEN" -sX POST http://localhost:8081/fledge/control/script/testScript/schedule
+    """
+    try:
+        name = request.match_info.get('script_name', None)
+        storage = connect.get_storage_async()
+        payload = PayloadBuilder().SELECT("name", "steps", "acl").WHERE(['name', '=', name]).payload()
+        result = await storage.query_tbl_with_payload('control_script', payload)
+        if 'rows' in result:
+            if result['rows']:
+                # QUERY: Can have multiple schedules for a script with same name as schedule POST allows?
+                # Create schedule for an automation script
+                manual_schedule = ManualSchedule()
+                # Set schedule fields
+                manual_schedule.name = name
+                manual_schedule.process_name = 'automation_script'
+                manual_schedule.repeat = datetime.timedelta(seconds=0)
+                manual_schedule.enabled = True
+                manual_schedule.exclusive = True
+                await server.Server.scheduler.save_schedule(manual_schedule)
+                # Set the schedule id
+                schedule_id = manual_schedule.schedule_id
+                # Add schedule_id to the schedule queue
+                await server.Server.scheduler.queue_task(schedule_id)
+                # Create configuration category for a task
+                cf_mgr = ConfigurationManager(connect.get_storage_async())
+                category_value = {"write": {"default": json.dumps(result['rows'][0]['steps'][0]['write']['values']),
+                                            "description": "Dispatcher write",
+                                            "type": "JSON"}}
+                category_desc = "{} configuration for task".format(name)
+                await cf_mgr.create_category(category_name=name, category_description=category_desc,
+                                             category_value=category_value)
+                await cf_mgr.create_child_category("dispatcher", [name])
+            else:
+                raise NameNotFoundError('Script with name {} is not found.'.format(name))
+        else:
+            raise StorageServerError(result)
+    except StorageServerError as err:
+        msg = "Storage error: {}".format(str(err))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+    except NameNotFoundError as err:
+        msg = str(err)
+        raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
+    except Exception as ex:
+        msg = str(ex)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+    else:
+        msg = "Schedule and configuration is created for an automation script with name {}".format(name)
+        return web.json_response({"message": msg})
 
 
 async def get_all(request: web.Request) -> web.Response:
@@ -308,61 +399,6 @@ async def delete(request: web.Request) -> web.Response:
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({"message": message})
-
-
-@has_permission("admin")
-async def add_schedule_and_configuration(request: web.Request) -> web.Response:
-    """ Create a schedule and configuration category for the task
-
-    :Example:
-        curl -H "authorization: $AUTH_TOKEN" -sX POST http://localhost:8081/fledge/control/script/testScript/schedule
-    """
-    try:
-        name = request.match_info.get('script_name', None)
-        storage = connect.get_storage_async()
-        payload = PayloadBuilder().SELECT("name", "steps", "acl").WHERE(['name', '=', name]).payload()
-        result = await storage.query_tbl_with_payload('control_script', payload)
-        if 'rows' in result:
-            if result['rows']:
-                # QUERY: Can have multiple schedules for a script with same name as schedule POST allows?
-                # Create schedule for an automation script
-                manual_schedule = ManualSchedule()
-                # Set schedule fields
-                manual_schedule.name = name
-                manual_schedule.process_name = 'automation_script'
-                manual_schedule.repeat = datetime.timedelta(seconds=0)
-                manual_schedule.enabled = True
-                manual_schedule.exclusive = True
-                await server.Server.scheduler.save_schedule(manual_schedule)
-                # Set the schedule id
-                schedule_id = manual_schedule.schedule_id
-                # Add schedule_id to the schedule queue
-                await server.Server.scheduler.queue_task(schedule_id)
-                # Create configuration category for a task
-                cf_mgr = ConfigurationManager(connect.get_storage_async())
-                category_value = {"write": {"default": json.dumps(result['rows'][0]['steps'][0]['write']['values']),
-                                            "description": "Dispatcher write",
-                                            "type": "JSON"}}
-                category_desc = "{} configuration for task".format(name)
-                await cf_mgr.create_category(category_name=name, category_description=category_desc,
-                                             category_value=category_value)
-                await cf_mgr.create_child_category("dispatcher", [name])
-            else:
-                raise NameNotFoundError('Script with name {} is not found.'.format(name))
-        else:
-            raise StorageServerError(result)
-    except StorageServerError as err:
-        msg = "Storage error: {}".format(str(err))
-        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
-    except NameNotFoundError as err:
-        msg = str(err)
-        raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
-    except Exception as ex:
-        msg = str(ex)
-        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
-    else:
-        msg = "Schedule and configuration is created for an automation script with name {}".format(name)
-        return web.json_response({"message": msg})
 
 
 def _validate_steps_and_convert_to_str(payload: list) -> str:

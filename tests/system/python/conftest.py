@@ -145,6 +145,62 @@ def add_south():
         return retval
     return _add_fledge_south
 
+# Change name of variables such as service_name, plugin_type, start_service
+@pytest.fixture
+def add_north():
+    def _add_fledge_north(north_plugin, north_branch, fledge_url, north_instance_name="play", config=None,
+                           plugin_lang="python", use_pip_cache=True, enabled=True, plugin_discovery_name=None,
+                           installation_type='make', is_task=True):
+        """Add north plugin and start the service by default"""
+
+        plugin_discovery_name = north_plugin if plugin_discovery_name is None else plugin_discovery_name
+        _config = config if config is not None else {}
+        _enabled = "true" if enabled else "false"
+
+        conn = http.client.HTTPConnection(fledge_url)
+
+        def clone_make_install():
+            try:
+                if plugin_lang == "python":
+                    subprocess.run(["$FLEDGE_ROOT/tests/system/python/scripts/install_python_plugin {} north {} {}".format(
+                        north_branch, north_plugin, use_pip_cache)], shell=True, check=True)
+                else:
+                    subprocess.run(["$FLEDGE_ROOT/tests/system/python/scripts/install_c_plugin {} north {}".format(
+                        north_branch, north_plugin)], shell=True, check=True)
+            except subprocess.CalledProcessError:
+                assert False, "{} plugin installation failed".format(north_plugin)
+
+        if installation_type == 'make':
+            clone_make_install()
+        elif installation_type == 'package':
+            try:
+                os_platform = platform.platform()
+                pkg_mgr = 'yum' if 'centos' in os_platform or 'redhat' in os_platform else 'apt'
+                subprocess.run(["sudo {} install -y fledge-north-{}".format(pkg_mgr, north_plugin)], shell=True, check=True)
+            except subprocess.CalledProcessError:
+                assert False, "{} package installation failed!".format(north_plugin)
+        else:
+            print("Skipped {} plugin installation. Installation mechanism is set to {}.".format(north_plugin, installation_type))
+
+        if is_task:
+            # Create north task
+            data = {"name": "{}".format(north_instance_name), "type": "North", "plugin": "{}".format(plugin_discovery_name),
+                "schedule_enabled": _enabled, "schedule_repeat": 30, "schedule_type": "3", "config": _config}
+            conn.request("POST", '/fledge/scheduled/task', json.dumps(data))
+        else:
+            # Create north service
+            data = {"name": "{}".format(north_instance_name), "type": "North", "plugin": "{}".format(plugin_discovery_name),
+                "enabled": _enabled, "config": _config}
+            print (data)
+            conn.request("POST", '/fledge/service', json.dumps(data))
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        retval = json.loads(r)
+        assert north_instance_name == retval["name"]
+        return retval
+    return _add_fledge_north
+
 
 @pytest.fixture
 def start_north_pi_v2():

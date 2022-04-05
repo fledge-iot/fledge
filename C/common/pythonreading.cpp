@@ -377,7 +377,11 @@ PyObject *PythonReading::toPython(bool changeKeys, bool useBytesString)
 	Py_CLEAR(key);
 
 	// Add reading asset name
-	PyObject *assetVal = PyUnicode_FromString(m_asset.c_str());
+	PyObject *assetVal = useBytesString ?
+			PyBytes_FromString(m_asset.c_str())
+			:
+			PyUnicode_FromString(m_asset.c_str());
+
 	key = PyUnicode_FromString(changeKeys ? "asset_code" : "asset");
 	PyDict_SetItem(readingObject, key, assetVal);
 	Py_CLEAR(key);

@@ -23,9 +23,8 @@ __version__ = "${VERSION}"
 
 _logger = logger.setup(__name__, level=logging.INFO)
 
-# FIXME: Service info
-# For testing
-SVC_NAME = "sine" #"BucketServer"
+# TODO: dynamic service name or configurable
+SVC_NAME = "Bucket Storage"
 SVC_TYPE = "BucketStorage"
 
 
@@ -45,34 +44,28 @@ async def handler(request):
     allow_methods = ["GET", "POST", "PUT", "DELETE"]
     if request.method not in allow_methods:
         raise web.HTTPMethodNotAllowed(method=request.method, allowed_methods=allow_methods)
-    if SVC_NAME not in server.Server._PROXY_API_INFO.keys():
+    if SVC_NAME not in server.Server._API_PROXIES.keys():
         raise web.HTTPForbidden()
     # TODO: Match request.url with server.Server._PROXY_API_INFO KV pair and forward
     try:
         data = await request.json() if request.method != 'GET' else None
         svc, token = await _get_service_record_info_along_with_bearer_token()
         url = str(request.url).split('fledge/')[1]
-        # FIXME: For test purpose
-        message = "{} - {}://{}:{}/{} -- with data: {}".format(request.method, svc._protocol, svc._address, svc._port,
-                                                               url, data)
-        #result = await _call_microservice_service_api(request.method, svc._protocol, svc._address,
-                                                      #svc._port, url, token, data)
-        # FIXME: pass this result in ELSE block instead of message
+        result = await _call_microservice_service_api(request.method, svc._protocol, svc._address,
+                                                      svc._port, url, token, data)
     except Exception as ex:
         msg = str(ex)
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
-        return web.json_response({"message": message})
+        return web.json_response({"message": result})
 
 
 async def _get_service_record_info_along_with_bearer_token():
     try:
-        # FIXME: replace Southbound with BucketStorage
-        service = ServiceRegistry.get(s_type=ServiceRecord.Type.Southbound.name)
-        # ServiceRegistry.filter_by_name_and_type(name=SVC_NAME, s_type=SVC_TYPE)
+        service = ServiceRegistry.filter_by_name_and_type(name=SVC_NAME, s_type=SVC_TYPE)
         token = ServiceRegistry.getBearerToken(SVC_NAME)
     except service_registry_exceptions.DoesNotExist:
-        raise web.HTTPNotFound(reason="No service available.")
+        raise web.HTTPNotFound(reason="No {} service available.".format(SVC_NAME))
     else:
         return service[0], token
 
@@ -116,8 +109,8 @@ async def _call_microservice_service_api(method: str, protocol: str, address: st
         else:
             _logger.warning("Not implemented yet for {} method.".format(method))
     except Exception:
-        _logger.error("Error code: %d, reason: %s, details: %s, url: %s",
-                      resp.status, resp.reason, response, url)
+        _logger.error("Error code: {}, reason: {}, details: {}, url: {}".format(
+            int(resp.status), resp.reason, response, url))
         raise
     else:
         return response

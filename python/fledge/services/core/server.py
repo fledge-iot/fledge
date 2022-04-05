@@ -162,7 +162,7 @@ class Server:
     _USER_API_SERVICE = '_fledge-user._tcp.local.'
     """ The user REST service we advertise """
 
-    _PROXY_API_INFO = {}
+    _API_PROXIES = {}
     """ Proxy Public API info for a microservice """
 
     admin_announcer = None

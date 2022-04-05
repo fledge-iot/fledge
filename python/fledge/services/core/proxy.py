@@ -19,6 +19,7 @@ __version__ = "${VERSION}"
 
 
 _logger = logger.setup(__name__, level=logging.INFO)
+SVC_TYPE = "BucketStorage"
 
 
 def setup(app):
@@ -45,9 +46,7 @@ async def add(request):
             svc_name = svc_name.strip()
             if not len(svc_name):
                 raise ValueError("service_name cannot be empty.")
-            # FIXME: service registry with both type and name
-            # ServiceRegistry.filter_by_name_and_type(name=svc_name, s_type="BucketStorage")
-            ServiceRegistry.get(name=svc_name)
+            ServiceRegistry.filter_by_name_and_type(name=svc_name, s_type=SVC_TYPE)
             del data['service_name']
             valid_verbs = ["GET", "POST", "PUT", "DELETE"]
             intersection = [i for i in valid_verbs if i in data]
@@ -63,7 +62,7 @@ async def add(request):
                     if '/fledge/' not in k1:
                         raise ValueError("Public URL must start with /fledge prefix for {} key.".format(k))
 
-            if svc_name in server.Server._PROXY_API_INFO:
+            if svc_name in server.Server._API_PROXIES:
                 raise ValueError("Proxy is already configured for {} service. "
                                  "Delete it first and then re-create.".format(svc_name))
     except service_registry_exceptions.DoesNotExist:
@@ -77,7 +76,7 @@ async def add(request):
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({'message': msg}))
     else:
         # Add service name KV pair in-memory structure
-        server.Server._PROXY_API_INFO.update({svc_name: data})
+        server.Server._API_PROXIES.update({svc_name: data})
         return web.json_response({"message": "Proxy has been configured for {} service.".format(svc_name)})
 
 
@@ -89,10 +88,8 @@ async def delete(request):
    """
     svc_name = request.match_info.get('service_name', None)
     try:
-        # FIXME: remove testing related code
-        # ServiceRegistry.filter_by_name_and_type(name=svc_name, s_type="BucketStorage")
-        ServiceRegistry.get(name=svc_name)
-        if svc_name not in server.Server._PROXY_API_INFO:
+        ServiceRegistry.filter_by_name_and_type(name=svc_name, s_type=SVC_TYPE)
+        if svc_name not in server.Server._API_PROXIES:
             raise ValueError("For {} service, no proxy operation is configured.".format(svc_name))
     except service_registry_exceptions.DoesNotExist:
         msg = "{} service not found.".format(svc_name)
@@ -105,5 +102,5 @@ async def delete(request):
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({'message': msg}))
     else:
         # Remove service name KV pair from in-memory structure
-        del server.Server._PROXY_API_INFO[svc_name]
+        del server.Server._API_PROXIES[svc_name]
         return web.json_response({"message": "Proxy operations have been stopped for {} service.".format(svc_name)})

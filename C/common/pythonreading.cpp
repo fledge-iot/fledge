@@ -74,6 +74,13 @@ PythonReading::PythonReading(PyObject *pyReading)
 	{
 		m_asset = PyUnicode_AsUTF8(assetCode);
 	}
+	else
+	{
+		if (PyBytes_Check(assetCode))
+		{
+			m_asset = PyBytes_AsString(assetCode);
+		}
+	}
 
 	// Fetch all Datapoints in 'reading' dict			
 	PyObject *dKey, *dValue;

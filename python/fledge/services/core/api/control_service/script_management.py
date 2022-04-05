@@ -37,7 +37,16 @@ _help = """
 _logger = logger.setup(__name__, level=logging.INFO)
 
 
-async def get_all_scripts(request: web.Request) -> web.Response:
+def setup(app):
+    app.router.add_route('POST', '/fledge/control/script', add)
+    app.router.add_route('GET', '/fledge/control/script', get_all)
+    app.router.add_route('GET', '/fledge/control/script/{script_name}', get_by_name)
+    app.router.add_route('PUT', '/fledge/control/script/{script_name}', update)
+    app.router.add_route('DELETE', '/fledge/control/script/{script_name}', delete)
+    app.router.add_route('POST', '/fledge/control/script/{script_name}/schedule', add_schedule_and_configuration)
+
+
+async def get_all(request: web.Request) -> web.Response:
     """ Get list of all scripts
 
     :Example:
@@ -49,7 +58,7 @@ async def get_all_scripts(request: web.Request) -> web.Response:
     return web.json_response({"scripts": result['rows']})
 
 
-async def get_script(request: web.Request) -> web.Response:
+async def get_by_name(request: web.Request) -> web.Response:
     """ Get a named script
 
     :Example:
@@ -81,7 +90,7 @@ async def get_script(request: web.Request) -> web.Response:
 
 
 @has_permission("admin")
-async def add_script(request: web.Request) -> web.Response:
+async def add(request: web.Request) -> web.Response:
     """ Add a script
 
     :Example:
@@ -161,7 +170,7 @@ async def add_script(request: web.Request) -> web.Response:
 
 
 @has_permission("admin")
-async def update_script(request: web.Request) -> web.Response:
+async def update(request: web.Request) -> web.Response:
     """ Update a script
     Only the steps & ACL parameters can be updated
 
@@ -233,7 +242,7 @@ async def update_script(request: web.Request) -> web.Response:
 
 
 @has_permission("admin")
-async def delete_script(request: web.Request) -> web.Response:
+async def delete(request: web.Request) -> web.Response:
     """ Delete a script
 
     :Example:
@@ -272,7 +281,7 @@ async def delete_script(request: web.Request) -> web.Response:
 
 
 @has_permission("admin")
-async def add_schedule_and_configuration_for_script(request: web.Request) -> web.Response:
+async def add_schedule_and_configuration(request: web.Request) -> web.Response:
     """ Create a schedule and configuration category for the task
 
     :Example:

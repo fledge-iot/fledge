@@ -17,7 +17,7 @@ from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.common.web.middleware import has_permission
 from fledge.services.core import connect
 from fledge.services.core import server
-from fledge.services.core.scheduler.entities import ManualSchedule
+from fledge.services.core.scheduler.entities import Schedule, ManualSchedule
 from fledge.services.core.api.control_service.exceptions import *
 
 
@@ -30,6 +30,7 @@ _help = """
     -----------------------------------------------------------------------
     | GET POST            | /fledge/control/script                        |
     | GET PUT DELETE      | /fledge/control/script/{script_name}          |
+    | GET                 | /fledge/control/script/schedule               |
     | POST                | /fledge/control/script/{script_name}/schedule |
     -----------------------------------------------------------------------
 """
@@ -38,12 +39,41 @@ _logger = logger.setup(__name__, level=logging.INFO)
 
 
 def setup(app):
+    # schedules
+    app.router.add_route('GET', '/fledge/control/script/schedule', get_all_schedules)
+    app.router.add_route('POST', '/fledge/control/script/{script_name}/schedule', add_schedule_and_configuration)
+
+    # CRUD's
     app.router.add_route('POST', '/fledge/control/script', add)
     app.router.add_route('GET', '/fledge/control/script', get_all)
     app.router.add_route('GET', '/fledge/control/script/{script_name}', get_by_name)
     app.router.add_route('PUT', '/fledge/control/script/{script_name}', update)
     app.router.add_route('DELETE', '/fledge/control/script/{script_name}', delete)
-    app.router.add_route('POST', '/fledge/control/script/{script_name}/schedule', add_schedule_and_configuration)
+
+
+@has_permission("admin")
+async def get_all_schedules(request: web.Request) -> web.Response:
+    """ Get list of automation script type schedule
+
+    :Example:
+        curl -H "authorization: $AUTH_TOKEN" -sX GET http://localhost:8081/fledge/control/script/schedule
+    """
+    schedule_list = await server.Server.scheduler.get_schedules()
+    schedules = []
+    for sch in schedule_list:
+        if sch.process_name == "automation_script":
+            schedules.append({
+                'id': str(sch.schedule_id),
+                'name': sch.name,
+                'processName': sch.process_name,
+                'type': Schedule.Type(int(sch.schedule_type)).name,
+                'repeat': 0,
+                'time': 0,
+                'day': sch.day,
+                'exclusive': sch.exclusive,
+                'enabled': sch.enabled
+            })
+    return web.json_response({'schedules': schedules})
 
 
 async def get_all(request: web.Request) -> web.Response:

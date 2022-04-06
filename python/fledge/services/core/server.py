@@ -163,7 +163,7 @@ class Server:
     """ The user REST service we advertise """
 
     _API_PROXIES = {}
-    """ Proxy Public API info for a microservice """
+    """ Proxy map for interfacing admin/user's REST API endpoints to Micro-services' service API endpoints """
 
     admin_announcer = None
     """ The Announcer for the Admin API """

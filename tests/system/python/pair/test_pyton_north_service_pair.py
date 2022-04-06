@@ -34,11 +34,13 @@ remote_north_plugin = "OMF"
 remote_north_service_name = "NorthReadingsToPI_WebAPI"
 
 north_schedule_id = ""
-filter1_name = "SF1"
-filter2_name = "MD1"
+filter_name = "ScaleFilter #1"
+
 # This  gives the path of directory where fledge is cloned. test_file < packages < python < system < tests < ROOT
 PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.parent
 SCRIPTS_DIR_ROOT = "{}/tests/system/python/scripts/package/".format(PROJECT_ROOT)
+# SSH command to make connection with the remote machine
+ssh_cmd = "ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i"
 
 
 @pytest.fixture
@@ -57,9 +59,9 @@ def setup_local(reset_fledge_local, add_south, add_north, fledge_url, remote_ip)
     # Change name of variables such as service_name, plugin_type
     global north_schedule_id
     local_north_config = {"url": {"value": "http://{}:6683/sensor-reading".format(remote_ip)}}
-    response = add_north(local_north_plugin, None, fledge_url,
+    response = add_north(fledge_url, local_north_plugin, None, installation_type='package',
                          north_instance_name="{}".format(local_north_service_name),
-                         installation_type='package', plugin_discovery_name="http_north", is_task=False,
+                         plugin_discovery_name="http_north", is_task=False,
                          config=local_north_config, enabled=True)
     north_schedule_id = response["id"]
 
@@ -76,15 +78,15 @@ def reset_fledge_remote(remote_user, remote_ip, key_path, remote_fledge_path):
         """
     if remote_fledge_path is None:
         remote_fledge_path = '/home/{}/fledge'.format(remote_user)
+    # Reset fledge on remote machine
     subprocess.run([
-        "ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i {} {}@{} 'cd {"
-        "}/tests/system/python/scripts/package/ && ./reset'".format(
-            key_path, remote_user,
+        "{} {} {}@{} 'cd {}/tests/system/python/scripts/package/ && ./reset'".format(
+            ssh_cmd, key_path, remote_user,
             remote_ip, remote_fledge_path)], shell=True, check=True)
 
 
 @pytest.fixture
-def clean_install_fledge_packages_remote(remote_user, remote_ip, key_path, remote_fledge_path):
+def clean_install_fledge_packages_remote(remote_user, remote_ip, key_path, remote_fledge_path, package_build_version):
     """Fixture that kills fledge, reset database and starts fledge again on a remote machine
             remote_user: User of remote machine
             remote_ip: IP of remote machine
@@ -93,22 +95,23 @@ def clean_install_fledge_packages_remote(remote_user, remote_ip, key_path, remot
         """
     if remote_fledge_path is None:
         remote_fledge_path = '/home/{}/fledge'.format(remote_user)
+    # Remove all already installed packages from remote machine
     subprocess.run([
-        "ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i {} {}@{} 'export FLEDGE_ROOT={};cd "
+        "{} {} {}@{} 'export FLEDGE_ROOT={};cd "
         "$FLEDGE_ROOT/tests/system/python/scripts/package/ && ./remove'".format(
-            key_path, remote_user,
+            ssh_cmd, key_path, remote_user,
             remote_ip, remote_fledge_path)], shell=True, check=True)
+    # Installs packages on remote machine based on packages version passed
     subprocess.run([
-        "ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i {} {}@{} 'export FLEDGE_ROOT={};cd "
-        "$FLEDGE_ROOT/tests/system/python/scripts/package/ && ./setup nightly'".format(
-            key_path, remote_user,
-            remote_ip, remote_fledge_path)], shell=True, check=True)
-    # Install http_south python plugin on remote machine
+        "{} {} {}@{} 'export FLEDGE_ROOT={};cd "
+        "$FLEDGE_ROOT/tests/system/python/scripts/package/ && ./setup {}'".format(
+            ssh_cmd, key_path, remote_user,
+            remote_ip, remote_fledge_path, package_build_version)], shell=True, check=True)
+    # Installs http_south python plugin on remote machine
     try:
         subprocess.run([
-            "ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i {} {}@{} 'sudo apt install -y "
-            "fledge-south-http-south'".format(
-                key_path, remote_user,
+            "{} {} {}@{} 'sudo apt install -y fledge-south-http-south'".format(
+                ssh_cmd, key_path, remote_user,
                 remote_ip)], shell=True, check=True)
     except subprocess.CalledProcessError:
         assert False, "{} plugin installation failed".format(remote_south_plugin)
@@ -170,7 +173,7 @@ def verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries):
             retry_count += 1
             ping_result = utils.get_request(fledge_url, get_url)
 
-        assert 1 <= sent, "Failed to send data via PI Web API using Basic auth"
+        assert 1 <= sent, "Failed to send data"
     return ping_result
 
 
@@ -203,11 +206,11 @@ def verify_service_added(fledge_url, south_service_name, north_service_name):
     assert north_service_name in [s["name"] for s in result["services"]]
 
 
-def verify_filter_added(fledge_url):
+def verify_filter_added(fledge_url, filter_name):
     get_url = "/fledge/filter"
     result = utils.get_request(fledge_url, get_url)
     assert len(result["filters"])
-    assert filter1_name in [s["name"] for s in result["filters"]]
+    assert filter_name in [s["name"] for s in result["filters"]]
     return result
 
 
@@ -273,7 +276,6 @@ class TestPythonNorthService:
                 on endpoint GET /fledge/ping
                 on endpoint GET /fledge/south
                 on endpoint GET /fledge/north
-                on endpoint GET /fledge/filter
                 on endpoint GET /fledge/service
                 on endpoint GET /fledge/statistics
                 on endpoint GET /fledge/asset
@@ -339,7 +341,6 @@ class TestPythonNorthService:
                 on endpoint GET /fledge/ping
                 on endpoint GET /fledge/south
                 on endpoint GET /fledge/north
-                on endpoint GET /fledge/filter
                 on endpoint GET /fledge/service
                 on endpoint GET /fledge/statistics
                 on endpoint GET /fledge/asset
@@ -374,24 +375,10 @@ class TestPythonNorthService:
         resp = utils.put_request(fledge_url, urllib.parse.quote(put_url), data)
         assert False == resp['schedule']['enabled']
 
-        # Disabling remote machine north service
-        fledge_url_remote = "{}:8081".format(remote_ip)
-        data = {"enabled": "false"}
-        put_url = "/fledge/schedule/{}".format(remote_north_schedule_id)
-        resp = utils.put_request(fledge_url_remote, urllib.parse.quote(put_url), data)
-        assert False == resp['schedule']['enabled']
-
         # Enabling local machine north service
         data = {"enabled": "true"}
         put_url = "/fledge/schedule/{}".format(north_schedule_id)
         resp = utils.put_request(fledge_url, urllib.parse.quote(put_url), data)
-        assert True == resp['schedule']['enabled']
-
-        # Enabling remote machine north service
-        fledge_url_remote = "{}:8081".format(remote_ip)
-        data = {"enabled": "true"}
-        put_url = "/fledge/schedule/{}".format(remote_north_schedule_id)
-        resp = utils.put_request(fledge_url_remote, urllib.parse.quote(put_url), data)
         assert True == resp['schedule']['enabled']
 
         old_ping_result = verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
@@ -420,14 +407,7 @@ class TestPythonNorthService:
             read_data_from_pi_web_api: Fixture to read data from PI web API
             skip_verify_north_interface: Flag for assertion of data using PI web API
             Assertions:
-                on endpoint GET /fledge/ping
-                on endpoint GET /fledge/south
-                on endpoint GET /fledge/north
-                on endpoint GET /fledge/filter
-                on endpoint GET /fledge/service
-                on endpoint GET /fledge/statistics
-                on endpoint GET /fledge/asset
-                on endpoint GET /fledge/track"""
+                on endpoint GET /fledge/ping"""
 
         # Wait until south and north services are created and some data is loaded
         time.sleep(wait_time)
@@ -440,8 +420,9 @@ class TestPythonNorthService:
         assert "Service {} deleted successfully.".format(local_north_service_name) == resp['result']
 
         local_north_config = {"url": {"value": "http://{}:6683/sensor-reading".format(remote_ip)}}
-        add_north(local_north_plugin, None, fledge_url, north_instance_name="{}".format(local_north_service_name),
-                  installation_type='package', plugin_discovery_name="http_north", is_task=False,
+        add_north(fledge_url, local_north_plugin, None, installation_type='package',
+                  north_instance_name="{}".format(local_north_service_name),
+                  plugin_discovery_name="http_north", is_task=False,
                   config=local_north_config, enabled=True)
 
         old_ping_result = verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
@@ -469,14 +450,7 @@ class TestPythonNorthService:
             read_data_from_pi_web_api: Fixture to read data from PI web API
             skip_verify_north_interface: Flag for assertion of data using PI web API
             Assertions:
-                on endpoint GET /fledge/ping
-                on endpoint GET /fledge/south
-                on endpoint GET /fledge/north
-                on endpoint GET /fledge/filter
-                on endpoint GET /fledge/service
-                on endpoint GET /fledge/statistics
-                on endpoint GET /fledge/asset
-                on endpoint GET /fledge/track"""
+                on endpoint GET /fledge/ping"""
 
         # Wait until south and north services are created and some data is loaded
         time.sleep(wait_time)
@@ -522,13 +496,7 @@ class TestPythonNorthService:
             skip_verify_north_interface: Flag for assertion of data using PI web API
             Assertions:
                 on endpoint GET /fledge/ping
-                on endpoint GET /fledge/south
-                on endpoint GET /fledge/north
-                on endpoint GET /fledge/filter
-                on endpoint GET /fledge/service
-                on endpoint GET /fledge/statistics
-                on endpoint GET /fledge/asset
-                on endpoint GET /fledge/track"""
+                on endpoint GET /fledge/filter"""
 
         # Wait until south and north services are created and some data is loaded
         time.sleep(wait_time)
@@ -536,8 +504,9 @@ class TestPythonNorthService:
         fledge_url_remote = "{}:8081".format(remote_ip)
 
         filter_cfg_scale = {"enable": "true"}
-        add_filter("scale", None, "SC1", filter_cfg_scale, fledge_url, local_north_service_name,
+        add_filter("scale", None, filter_name, filter_cfg_scale, fledge_url, local_north_service_name,
                    installation_type='package')
+        verify_filter_added(fledge_url, filter_name)
 
         old_ping_result = verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
         old_ping_result_remote = verify_ping(fledge_url_remote, skip_verify_north_interface, wait_time, retries)
@@ -561,7 +530,7 @@ class TestPythonNorthService:
                                                              skip_verify_north_interface, fledge_url, wait_time,
                                                              retries, pi_host,
                                                              pi_admin, pi_passwd, pi_db):
-        """ Test python plugin as a North service by adding filter on it.
+        """ Test python plugin as a North service by enabling/disabling filter.
             setup_local: Fixture to reset, add and configure plugins on local machine
             setup_remote: Fixture to reset, add and configure plugins on remote machine
             add_filter: Adds and configures a filter
@@ -569,13 +538,7 @@ class TestPythonNorthService:
             skip_verify_north_interface: Flag for assertion of data using PI web API
             Assertions:
                 on endpoint GET /fledge/ping
-                on endpoint GET /fledge/south
-                on endpoint GET /fledge/north
-                on endpoint GET /fledge/filter
-                on endpoint GET /fledge/service
-                on endpoint GET /fledge/statistics
-                on endpoint GET /fledge/asset
-                on endpoint GET /fledge/track"""
+                on endpoint GET /fledge/filter"""
 
         # Wait until south and north services are created and some data is loaded
         time.sleep(wait_time)
@@ -583,13 +546,14 @@ class TestPythonNorthService:
         fledge_url_remote = "{}:8081".format(remote_ip)
 
         # Add filter in disbled mode
-        filter_cfg_scale = {"enable": "true"}
-        add_filter("scale", None, "SC1", filter_cfg_scale, fledge_url, local_north_service_name,
+        filter_cfg_scale = {"enable": "false"}
+        add_filter("scale", None, filter_name, filter_cfg_scale, fledge_url, local_north_service_name,
                    installation_type='package')
+        verify_filter_added(fledge_url, filter_name)
 
         # Enable the filter  
         data = {"enable": "true"}
-        put_url = "/fledge/category/{}_SC1".format(local_north_service_name)
+        put_url = "/fledge/category/{}_{}".format(local_north_service_name, filter_name)
         resp = utils.put_request(fledge_url, urllib.parse.quote(put_url), data)
         assert "true" == resp['enable']['value']
 
@@ -615,7 +579,7 @@ class TestPythonNorthService:
                                                        skip_verify_north_interface, fledge_url, wait_time, retries,
                                                        pi_host,
                                                        pi_admin, pi_passwd, pi_db):
-        """ Test python plugin as a North service by adding filter on it.
+        """ Test python plugin as a North service by reconfiguring filter.
             setup_local: Fixture to reset, add and configure plugins on local machine
             setup_remote: Fixture to reset, add and configure plugins on remote machine
             add_filter: Adds and configures a filter
@@ -623,13 +587,7 @@ class TestPythonNorthService:
             skip_verify_north_interface: Flag for assertion of data using PI web API
             Assertions:
                 on endpoint GET /fledge/ping
-                on endpoint GET /fledge/south
-                on endpoint GET /fledge/north
-                on endpoint GET /fledge/filter
-                on endpoint GET /fledge/service
-                on endpoint GET /fledge/statistics
-                on endpoint GET /fledge/asset
-                on endpoint GET /fledge/track"""
+                on endpoint GET /fledge/filter"""
 
         # Wait until south and north services are created and some data is loaded
         time.sleep(wait_time)
@@ -638,14 +596,141 @@ class TestPythonNorthService:
 
         # Add filter in disbled mode
         filter_cfg_scale = {"enable": "true"}
-        add_filter("scale", None, "SC1", filter_cfg_scale, fledge_url, local_north_service_name,
+        add_filter("scale", None, filter_name, filter_cfg_scale, fledge_url, local_north_service_name,
                    installation_type='package')
+        verify_filter_added(fledge_url, filter_name)
 
         # Enable the filter  
         data = {"factor": "50"}
-        put_url = "/fledge/category/{}_SC1".format(local_north_service_name)
+        put_url = "/fledge/category/{}_{}".format(local_north_service_name, filter_name)
         resp = utils.put_request(fledge_url, urllib.parse.quote(put_url), data)
         assert "50.0" == resp['factor']['value']
+
+        old_ping_result = verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
+        old_ping_result_remote = verify_ping(fledge_url_remote, skip_verify_north_interface, wait_time, retries)
+        # Wait for read and sent readings to increase
+        time.sleep(wait_time)
+        new_ping_result = verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
+        new_ping_result_remote = verify_ping(fledge_url_remote, skip_verify_north_interface, wait_time, retries)
+
+        # Verifies whether Read and Sent readings are increasing
+        assert old_ping_result['dataRead'] < new_ping_result['dataRead']
+        assert old_ping_result_remote['dataRead'] < new_ping_result_remote['dataRead']
+
+        if not skip_verify_north_interface:
+            assert old_ping_result['dataSent'] < new_ping_result['dataSent']
+            assert old_ping_result_remote['dataSent'] < new_ping_result_remote['dataSent']
+            _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries,
+                           remote_south_asset_name)
+
+    def test_north_python_service_with_delete_add_filter(self, setup_local, setup_remote, read_data_from_pi_web_api,
+                                                         remote_ip, add_filter,
+                                                         skip_verify_north_interface, fledge_url, wait_time, retries,
+                                                         pi_host,
+                                                         pi_admin, pi_passwd, pi_db):
+        """ Test python plugin as a North service by deleting and re-adding filter on it.
+            setup_local: Fixture to reset, add and configure plugins on local machine
+            setup_remote: Fixture to reset, add and configure plugins on remote machine
+            add_filter: Adds and configures a filter
+            read_data_from_pi_web_api: Fixture to read data from PI web API
+            skip_verify_north_interface: Flag for assertion of data using PI web API
+            Assertions:
+                on endpoint GET /fledge/ping
+                on endpoint GET /fledge/filter"""
+
+        # Wait until south and north services are created and some data is loaded
+        time.sleep(wait_time)
+
+        fledge_url_remote = "{}:8081".format(remote_ip)
+
+        # Add filter in enabled mode
+        filter_cfg_scale = {"enable": "true"}
+        add_filter("scale", None, filter_name, filter_cfg_scale, fledge_url, local_north_service_name,
+                   installation_type='package')
+        verify_filter_added(fledge_url, filter_name)
+
+        # Delete the filter
+        data = {"pipeline": []}
+        put_url = "/fledge/filter/{}/pipeline?allow_duplicates=true&append_filter=false" \
+            .format(local_north_service_name)
+        utils.put_request(fledge_url, urllib.parse.quote(put_url, safe='?,=,&,/'), data)
+
+        delete_url = "/fledge/filter/{}".format(filter_name)
+        resp = utils.delete_request(fledge_url, urllib.parse.quote(delete_url))
+        assert "Filter {} deleted successfully".format(filter_name) == resp['result']
+
+        # Re-add filter in enabled mode
+        filter_cfg_scale = {"enable": "true"}
+        add_filter("scale", None, filter_name, filter_cfg_scale, fledge_url, local_north_service_name,
+                   installation_type='package')
+        verify_filter_added(fledge_url, filter_name)
+
+        old_ping_result = verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
+        old_ping_result_remote = verify_ping(fledge_url_remote, skip_verify_north_interface, wait_time, retries)
+        # Wait for read and sent readings to increase
+        time.sleep(wait_time)
+        new_ping_result = verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
+        new_ping_result_remote = verify_ping(fledge_url_remote, skip_verify_north_interface, wait_time, retries)
+
+        # Verifies whether Read and Sent readings are increasing
+        assert old_ping_result['dataRead'] < new_ping_result['dataRead']
+        assert old_ping_result_remote['dataRead'] < new_ping_result_remote['dataRead']
+
+        if not skip_verify_north_interface:
+            assert old_ping_result['dataSent'] < new_ping_result['dataSent']
+            assert old_ping_result_remote['dataSent'] < new_ping_result_remote['dataSent']
+            _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries,
+                           remote_south_asset_name)
+
+    def test_north_python_service_with_filter_reorder(self, setup_local, setup_remote, read_data_from_pi_web_api,
+                                                      remote_ip, add_filter,
+                                                      skip_verify_north_interface, fledge_url, wait_time, retries,
+                                                      pi_host,
+                                                      pi_admin, pi_passwd, pi_db):
+        """ Test python plugin as a North service by deleting and re-adding filter on it.
+            setup_local: Fixture to reset, add and configure plugins on local machine
+            setup_remote: Fixture to reset, add and configure plugins on remote machine
+            add_filter: Adds and configures a filter
+            read_data_from_pi_web_api: Fixture to read data from PI web API
+            skip_verify_north_interface: Flag for assertion of data using PI web API
+            Assertions:
+                on endpoint GET /fledge/ping
+                on endpoint GET /fledge/filter"""
+
+        # Wait until south and north services are created and some data is loaded
+        time.sleep(wait_time)
+
+        fledge_url_remote = "{}:8081".format(remote_ip)
+
+        # Add first filter in enabled mode
+        filter_cfg_scale = {"enable": "true"}
+        add_filter("scale", None, filter_name, filter_cfg_scale, fledge_url, local_north_service_name,
+                   installation_type='package')
+        verify_filter_added(fledge_url, filter_name)
+
+        # Add second filter in enabled mode
+        filter2_name = "MetadataFilter #1"
+        filter2_cfg = {"enable": "true"}
+        add_filter("scale", None, filter2_name, filter2_cfg, fledge_url, local_north_service_name,
+                   installation_type='package')
+        verify_filter_added(fledge_url, filter2_name)
+
+        # Verify the filter pipeline order
+        get_url = "/fledge/filter/{}/pipeline".format(local_north_service_name)
+        resp = utils.get_request(fledge_url, urllib.parse.quote(get_url))
+        assert filter_name == resp['result']['pipeline'][0]
+        assert filter2_name == resp['result']['pipeline'][1]
+
+        data = {"pipeline": ["{}".format(filter2_name), "{}".format(filter_name)]}
+        put_url = "/fledge/filter/{}/pipeline?allow_duplicates=true&append_filter=false" \
+            .format(local_north_service_name)
+        utils.put_request(fledge_url, urllib.parse.quote(put_url, safe='?,=,&,/'), data)
+
+        # Verify the filter pipeline order after reordering
+        get_url = "/fledge/filter/{}/pipeline".format(local_north_service_name)
+        resp = utils.get_request(fledge_url, urllib.parse.quote(get_url))
+        assert filter2_name == resp['result']['pipeline'][0]
+        assert filter_name == resp['result']['pipeline'][1]
 
         old_ping_result = verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
         old_ping_result_remote = verify_ping(fledge_url_remote, skip_verify_north_interface, wait_time, retries)

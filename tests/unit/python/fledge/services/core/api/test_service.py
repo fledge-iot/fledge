@@ -1067,7 +1067,7 @@ class TestService:
          ["south", "storage", "dispatcher"]),
         ([(['/usr/local/fledge/services'], [],
            ['fledge.services.south', 'fledge.services.storage', 'fledge.services.north',
-            'fledge.services.notification', 'fledge.services.dispatcher', 'fledge.services.bucketStorage'])], [],
+            'fledge.services.notification', 'fledge.services.dispatcher', 'fledge.services.bucket'])], [],
          ["south", "storage", "north", "notification", "dispatcher", "bucketStorage"])
     ])
     async def test_get_service_installed(self, client, mock_value1, mock_value2, exp_result):

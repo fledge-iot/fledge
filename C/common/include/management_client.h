@@ -15,6 +15,7 @@
 #include <logger.h>
 #include <string>
 #include <map>
+#include <vector>
 #include <rapidjson/document.h>
 #include <asset_tracking.h>
 #include <json_utils.h>
@@ -66,6 +67,8 @@ class ManagementClient {
 						const std::string& operation,
 						const std::string& publicEnpoint,
 						const std::string& privateEndpoint);
+		bool			addProxy(const std::string& serviceName,
+				const std::map<std::string, std::vector<std::pair<std::string, std::string> > >& endpoints);
 		bool			deleteProxy(const std::string& serviceName);
 
 private:

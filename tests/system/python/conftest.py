@@ -37,7 +37,7 @@ def clean_setup_fledge_packages(package_build_version):
 
     try:
         subprocess.run(["cd {} && ./remove"
-                       .format(SCRIPTS_DIR_ROOT)], shell=True, check=True)    
+                       .format(SCRIPTS_DIR_ROOT)], shell=True, check=True)
     except subprocess.CalledProcessError:
         assert False, "remove package script failed!"
 
@@ -64,7 +64,8 @@ def reset_and_start_fledge(storage_plugin):
 
     subprocess.run(["echo YES | $FLEDGE_ROOT/scripts/fledge reset"], shell=True, check=True)
     subprocess.run(["$FLEDGE_ROOT/scripts/fledge start"], shell=True)
-    stat = subprocess.run(["$FLEDGE_ROOT/scripts/fledge status"], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stat = subprocess.run(["$FLEDGE_ROOT/scripts/fledge status"], shell=True, stdout=subprocess.PIPE,
+                          stderr=subprocess.PIPE)
     assert "Fledge not running." not in stat.stderr.decode("utf-8")
 
 
@@ -84,6 +85,7 @@ def remove_data_file():
     def _remove_data_file(file_path=None):
         if os.path.exists(file_path):
             os.remove(file_path)
+
     return _remove_data_file
 
 
@@ -94,14 +96,15 @@ def remove_directories():
     def _remove_directories(dir_path=None):
         if os.path.exists(dir_path):
             shutil.rmtree(dir_path, ignore_errors=True)
+
     return _remove_directories
 
 
 @pytest.fixture
 def add_south():
     def _add_fledge_south(south_plugin, south_branch, fledge_url, service_name="play", config=None,
-                           plugin_lang="python", use_pip_cache=True, start_service=True, plugin_discovery_name=None,
-                           installation_type='make'):
+                          plugin_lang="python", use_pip_cache=True, start_service=True, plugin_discovery_name=None,
+                          installation_type='make'):
         """Add south plugin and start the service by default"""
 
         plugin_discovery_name = south_plugin if plugin_discovery_name is None else plugin_discovery_name
@@ -115,8 +118,9 @@ def add_south():
         def clone_make_install():
             try:
                 if plugin_lang == "python":
-                    subprocess.run(["$FLEDGE_ROOT/tests/system/python/scripts/install_python_plugin {} south {} {}".format(
-                        south_branch, south_plugin, use_pip_cache)], shell=True, check=True)
+                    subprocess.run(
+                        ["$FLEDGE_ROOT/tests/system/python/scripts/install_python_plugin {} south {} {}".format(
+                            south_branch, south_plugin, use_pip_cache)], shell=True, check=True)
                 else:
                     subprocess.run(["$FLEDGE_ROOT/tests/system/python/scripts/install_c_plugin {} south {}".format(
                         south_branch, south_plugin)], shell=True, check=True)
@@ -129,11 +133,13 @@ def add_south():
             try:
                 os_platform = platform.platform()
                 pkg_mgr = 'yum' if 'centos' in os_platform or 'redhat' in os_platform else 'apt'
-                subprocess.run(["sudo {} install -y fledge-south-{}".format(pkg_mgr, south_plugin)], shell=True, check=True)
+                subprocess.run(["sudo {} install -y fledge-south-{}".format(pkg_mgr, south_plugin)], shell=True,
+                               check=True)
             except subprocess.CalledProcessError:
                 assert False, "{} package installation failed!".format(south_plugin)
         else:
-            print("Skipped {} plugin installation. Installation mechanism is set to {}.".format(south_plugin, installation_type))
+            print("Skipped {} plugin installation. Installation mechanism is set to {}.".format(south_plugin,
+                                                                                                installation_type))
 
         # Create south service
         conn.request("POST", '/fledge/service', json.dumps(data))
@@ -143,7 +149,72 @@ def add_south():
         retval = json.loads(r)
         assert service_name == retval["name"]
         return retval
+
     return _add_fledge_south
+
+
+@pytest.fixture
+def add_north():
+    def _add_fledge_north(fledge_url, north_plugin, north_branch, installation_type='make', north_instance_name="play",
+                          config=None,
+                          plugin_lang="python", use_pip_cache=True, enabled=True, plugin_discovery_name=None,
+                          is_task=True):
+        """Add north plugin and start the service/task by default"""
+
+        if plugin_discovery_name is None:
+            plugin_discovery_name = north_plugin
+        _config = config if config is not None else {}
+        _enabled = "true" if enabled else "false"
+
+        conn = http.client.HTTPConnection(fledge_url)
+
+        def clone_make_install():
+            try:
+                if plugin_lang == "python":
+                    subprocess.run(
+                        ["$FLEDGE_ROOT/tests/system/python/scripts/install_python_plugin {} north {} {}".format(
+                            north_branch, north_plugin, use_pip_cache)], shell=True, check=True)
+                else:
+                    subprocess.run(["$FLEDGE_ROOT/tests/system/python/scripts/install_c_plugin {} north {}".format(
+                        north_branch, north_plugin)], shell=True, check=True)
+            except subprocess.CalledProcessError:
+                assert False, "{} plugin installation failed".format(north_plugin)
+
+        if installation_type == 'make':
+            clone_make_install()
+        elif installation_type == 'package':
+            try:
+                os_platform = platform.platform()
+                pkg_mgr = 'yum' if 'centos' in os_platform or 'redhat' in os_platform else 'apt'
+                subprocess.run(["sudo {} install -y fledge-north-{}".format(pkg_mgr, north_plugin)], shell=True,
+                               check=True)
+            except subprocess.CalledProcessError:
+                assert False, "{} package installation failed!".format(north_plugin)
+        else:
+            print("Skipped {} plugin installation. Installation mechanism is set to {}.".format(north_plugin,
+                                                                                                installation_type))
+
+        if is_task:
+            # Create north task
+            data = {"name": "{}".format(north_instance_name), "type": "North",
+                    "plugin": "{}".format(plugin_discovery_name),
+                    "schedule_enabled": _enabled, "schedule_repeat": 30, "schedule_type": "3", "config": _config}
+            conn.request("POST", '/fledge/scheduled/task', json.dumps(data))
+        else:
+            # Create north service
+            data = {"name": "{}".format(north_instance_name), "type": "North",
+                    "plugin": "{}".format(plugin_discovery_name),
+                    "enabled": _enabled, "config": _config}
+            print(data)
+            conn.request("POST", '/fledge/service', json.dumps(data))
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        retval = json.loads(r)
+        assert north_instance_name == retval["name"]
+        return retval
+
+    return _add_fledge_north
 
 
 @pytest.fixture
@@ -174,15 +245,16 @@ def start_north_pi_v2():
         assert 200 == r.status
         retval = r.read().decode()
         return retval
+
     return _start_north_pi_server_c
 
 
 @pytest.fixture
 def start_north_task_omf_web_api():
     def _start_north_task_omf_web_api(fledge_url, pi_host, pi_port, pi_db="Dianomic", auth_method='basic',
-                                         pi_user=None, pi_pwd=None, north_plugin="OMF",
-                                         taskname="NorthReadingsToPI_WebAPI", start_task=True,
-                                         naming_scheme="Backward compatibility"):
+                                      pi_user=None, pi_pwd=None, north_plugin="OMF",
+                                      taskname="NorthReadingsToPI_WebAPI", start_task=True,
+                                      naming_scheme="Backward compatibility"):
         """Start north task"""
 
         _enabled = True if start_task else False
@@ -197,7 +269,7 @@ def start_north_task_omf_web_api():
                 "schedule_enabled": _enabled,
                 "config": {"PIServerEndpoint": {"value": "PI Web API"},
                            "PIWebAPIAuthenticationMethod": {"value": auth_method},
-                           "PIWebAPIUserId":  {"value": pi_user},
+                           "PIWebAPIUserId": {"value": pi_user},
                            "PIWebAPIPassword": {"value": pi_pwd},
                            "ServerHostname": {"value": pi_host},
                            "ServerPort": {"value": str(pi_port)},
@@ -212,11 +284,12 @@ def start_north_task_omf_web_api():
         assert 200 == r.status
         retval = r.read().decode()
         return retval
+
     return _start_north_task_omf_web_api
 
 
 @pytest.fixture
-def start_north_omf_as_a_service():    
+def start_north_omf_as_a_service():
     def _start_north_omf_as_a_service(fledge_url, pi_host, pi_port, pi_db="Dianomic", auth_method='basic',
                                       pi_user=None, pi_pwd=None, north_plugin="OMF",
                                       service_name="NorthReadingsToPI_WebAPI", start=True,
@@ -231,7 +304,7 @@ def start_north_omf_as_a_service():
                 "type": "north",
                 "config": {"PIServerEndpoint": {"value": "PI Web API"},
                            "PIWebAPIAuthenticationMethod": {"value": auth_method},
-                           "PIWebAPIUserId":  {"value": pi_user},
+                           "PIWebAPIUserId": {"value": pi_user},
                            "PIWebAPIPassword": {"value": pi_pwd},
                            "ServerHostname": {"value": pi_host},
                            "ServerPort": {"value": str(pi_port)},
@@ -246,11 +319,13 @@ def start_north_omf_as_a_service():
         assert 200 == r.status
         retval = json.loads(r.read().decode())
         return retval
+
     return _start_north_omf_as_a_service
 
 
 start_north_pi_server_c = start_north_pi_v2
 start_north_pi_server_c_web_api = start_north_pi_v2_web_api = start_north_task_omf_web_api
+
 
 @pytest.fixture
 def read_data_from_pi():
@@ -331,7 +406,9 @@ def read_data_from_pi():
                 return _data_pi
         except (KeyError, IndexError, Exception):
             return None
+
     return _read_data_from_pi
+
 
 @pytest.fixture
 def read_data_from_pi_web_api():
@@ -349,7 +426,7 @@ def read_data_from_pi_web_api():
         # Resources in the PI Web API are addressed by WebID, parameter used for deletion of element
         web_id = None
         # List of elements
-        url_elements_data_list=None
+        url_elements_data_list = None
 
         username_password = "{}:{}".format(admin, password)
         username_password_b64 = base64.b64encode(username_password.encode('ascii')).decode("ascii")
@@ -384,7 +461,7 @@ def read_data_from_pi_web_api():
                     for el in r["Items"]:
                         if el["Name"] == af_hierarchy_list[af_level_count]:
                             url_elements_list = el["Links"]["Elements"]
-                            af_level_count = af_level_count+1
+                            af_level_count = af_level_count + 1
 
             if url_elements_list is not None:
                 conn.request("GET", url_elements_list, headers=headers)
@@ -429,12 +506,14 @@ def read_data_from_pi_web_api():
                 return _data_pi
         except (KeyError, IndexError, Exception):
             return None
+
     return _read_data_from_pi_web_api
 
 
 @pytest.fixture
 def add_filter():
-    def _add_filter(filter_plugin, filter_plugin_branch, filter_name, filter_config, fledge_url, filter_user_svc_task, installation_type='make'):
+    def _add_filter(filter_plugin, filter_plugin_branch, filter_name, filter_config, fledge_url, filter_user_svc_task,
+                    installation_type='make'):
         """
 
         :param filter_plugin: filter plugin `fledge-filter-?`
@@ -455,11 +534,13 @@ def add_filter():
             try:
                 os_platform = platform.platform()
                 pkg_mgr = 'yum' if 'centos' in os_platform or 'redhat' in os_platform else 'apt'
-                subprocess.run(["sudo {} install -y fledge-filter-{}".format(pkg_mgr, filter_plugin)], shell=True, check=True)
+                subprocess.run(["sudo {} install -y fledge-filter-{}".format(pkg_mgr, filter_plugin)], shell=True,
+                               check=True)
             except subprocess.CalledProcessError:
                 assert False, "{} package installation failed!".format(filter_plugin)
         else:
-            print("Skipped {} plugin installation. Installation mechanism is set to {}.".format(filter_plugin, installation_type))
+            print("Skipped {} plugin installation. Installation mechanism is set to {}.".format(filter_plugin,
+                                                                                                installation_type))
 
         data = {"name": "{}".format(filter_name), "plugin": "{}".format(filter_plugin), "filter_config": filter_config}
         conn = http.client.HTTPConnection(fledge_url)
@@ -600,10 +681,14 @@ def pytest_addoption(parser):
     parser.addoption("--modbus-baudrate", action="store", default="9600", type=int, help="Serial port baudrate")
 
     # Packages
-    parser.addoption("--package-build-version", action="store", default="nightly", help="Package build version for http://archives.fledge-iot.org")
-    parser.addoption("--package-build-list", action="store", default="p0", help="Package to build as per key defined in tests/system/python/packages/data/package_list.json and comma separated values are accepted if more than one to build with")
-    parser.addoption("--package-build-source-list", action="store", default="false", help="Package to build from apt/yum sources list")
-    parser.addoption("--exclude-packages-list", action="store", default="None", help="Packages to be excluded from test e.g. --exclude-packages-list=fledge-south-sinusoid,fledge-filter-log")
+    parser.addoption("--package-build-version", action="store", default="nightly",
+                     help="Package build version for http://archives.fledge-iot.org")
+    parser.addoption("--package-build-list", action="store", default="p0",
+                     help="Package to build as per key defined in tests/system/python/packages/data/package_list.json and comma separated values are accepted if more than one to build with")
+    parser.addoption("--package-build-source-list", action="store", default="false",
+                     help="Package to build from apt/yum sources list")
+    parser.addoption("--exclude-packages-list", action="store", default="None",
+                     help="Packages to be excluded from test e.g. --exclude-packages-list=fledge-south-sinusoid,fledge-filter-log")
 
     # GCP config
     parser.addoption("--gcp-project-id", action="store", default="nomadic-groove-264509", help="GCP Project ID")
@@ -611,8 +696,11 @@ def pytest_addoption(parser):
     parser.addoption("--gcp-device-gateway-id", action="store", default="fl-nerd-gateway", help="GCP Device ID")
     parser.addoption("--gcp-subscription-name", action="store", default="my-subscription", help="GCP Subscription name")
     parser.addoption("--google-app-credentials", action="store", help="GCP JSON credentials file path")
-    parser.addoption("--gcp-cert-path", action="store", default="./data/gcp/rsa_private.pem", help="GCP certificate path")
-    parser.addoption("--gcp-logger-name", action="store", default="cloudfunctions.googleapis.com%2Fcloud-functions", help="GCP Logger name")
+    parser.addoption("--gcp-cert-path", action="store", default="./data/gcp/rsa_private.pem",
+                     help="GCP certificate path")
+    parser.addoption("--gcp-logger-name", action="store", default="cloudfunctions.googleapis.com%2Fcloud-functions",
+                     help="GCP Logger name")
+
 
 @pytest.fixture
 def storage_plugin(request):

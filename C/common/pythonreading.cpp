@@ -626,7 +626,9 @@ string PythonReading::errorMessage()
 	string errorMessage = pValue ?
 				    PyBytes_AsString(pyExcValueStr) :
 				    "no error description.";
-
+					
+	Logger::getLogger()->error("Exception from python interpreter: %s", errorMessage.c_str());
+	
 	// Reset error
 	PyErr_Clear();
 
@@ -695,7 +697,12 @@ int PythonReading::InitNumPy()
 		// in the case of failure. Hence the need to return a value. Assume no code after this
 		// line is run
 		PyGILState_STATE state = PyGILState_Ensure();
+		
+		if (PyImport_ImportModule("numpy.core.multiarray") == NULL)
+			throw runtime_error(errorMessage());
+
 		import_array();
+		
 		PyGILState_Release(state);
 	}
 	return 0;

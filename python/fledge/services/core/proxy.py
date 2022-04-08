@@ -5,6 +5,7 @@
 # FLEDGE_END
 import json
 import logging
+import urllib.parse
 
 from aiohttp import web
 from fledge.common import logger
@@ -47,7 +48,6 @@ async def add(request):
             svc_name = svc_name.strip()
             if not len(svc_name):
                 raise ValueError("service_name cannot be empty.")
-            ServiceRegistry.filter_by_name_and_type(name=svc_name, s_type=SVC_TYPE)
             del data['service_name']
             valid_verbs = ["GET", "POST", "PUT", "DELETE"]
             intersection = [i for i in valid_verbs if i in data]
@@ -66,9 +66,6 @@ async def add(request):
             if svc_name in server.Server._API_PROXIES:
                 raise ValueError("Proxy is already configured for {} service. "
                                  "Delete it first and then re-create.".format(svc_name))
-    except service_registry_exceptions.DoesNotExist:
-        msg = "{} service not found.".format(svc_name)
-        raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except (TypeError, ValueError, KeyError) as err:
         msg = str(err)
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
@@ -88,6 +85,7 @@ async def delete(request):
              curl -sX DELETE http://localhost:<SVC_MGT_PORT>/fledge/proxy/{service}
    """
     svc_name = request.match_info.get('service_name', None)
+    svc_name = urllib.parse.unquote(svc_name) if svc_name is not None else None
     try:
         ServiceRegistry.filter_by_name_and_type(name=svc_name, s_type=SVC_TYPE)
         if svc_name not in server.Server._API_PROXIES:

@@ -885,7 +885,8 @@ bool ManagementClient::addProxy(const std::string& serviceName,
 	try {
 		convert << "{ \"" << operation << "\" : { ";
 		convert << "\"" << publicEndpoint << "\" : ";
-		convert << "\"" << privateEndpoint << "\" } }";
+		convert << "\"" << privateEndpoint << "\" } ";
+		convert << "\"service_name\" : \"" << serviceName << "\" }";
 
 		auto res = this->getHttpClient()->request("POST",
 							  "/fledge/proxy",
@@ -909,18 +910,23 @@ bool ManagementClient::addProxy(const std::string& serviceName,
 		}
 
 
+		bool result = false;
+                if (res->status_code[0] == '2') // A 2xx response
+		{
+			result = true;
+		}
+
 		if (doc.HasMember("message"))
 		{
-			// Erropr
-			m_logger->error("Failed to add audit entry: %s.",
+			m_logger->error("Add proxy entry: %s.",
 				doc["message"].GetString());
-			return false;
+			return result;
 		}
-		return true;
+		return result;
 	}
 	catch (const SimpleWeb::system_error &e)
 	{
-		m_logger->error("Failed to add audit entry: %s.", e.what());
+		m_logger->error("Failed to add proxt entry: %s.", e.what());
 		return false;
 	}
 	return false;
@@ -956,7 +962,7 @@ bool ManagementClient::addProxy(const std::string& serviceName,
 			}
 			convert << "}, ";
 		}
-		convert << "\"service\" : \"" << serviceName << "\" }";
+		convert << "\"service_name\" : \"" << serviceName << "\" }";
 
 		auto res = this->getHttpClient()->request("POST",
 							  "/fledge/proxy",
@@ -979,19 +985,23 @@ bool ManagementClient::addProxy(const std::string& serviceName,
 			return false;
 		}
 
+		bool result = false;
+                if (res->status_code[0] == '2') // A 2xx response
+		{
+			result = true;
+		}
 
 		if (doc.HasMember("message"))
 		{
-			// Erropr
-			m_logger->error("Failed to add audit entry: %s.",
+			m_logger->error("Add proxy entries: %s.",
 				doc["message"].GetString());
-			return false;
+			return result;
 		}
-		return true;
+		return result;
 	}
 	catch (const SimpleWeb::system_error &e)
 	{
-		m_logger->error("Failed to add audit entry: %s.", e.what());
+		m_logger->error("Failed to add proxy entry: %s.", e.what());
 		return false;
 	}
 	return false;
@@ -1006,10 +1016,15 @@ bool ManagementClient::addProxy(const std::string& serviceName,
  */
 bool ManagementClient::deleteProxy(const std::string& serviceName)
 {
+	bool result = false;
 	try {
 		string url = "/fledge/proxy/";
 		url += serviceName;
 		auto res = this->getHttpClient()->request("DELETE", url.c_str());
+                if (res->status_code[0] == '2') // A 2xx response
+		{
+			result = true;;
+		}
 		Document doc;
 		string response = res->content.string();
 		doc.Parse(response.c_str());
@@ -1019,17 +1034,18 @@ bool ManagementClient::deleteProxy(const std::string& serviceName)
 			m_logger->error("%s service proxy deletion: %s\n", 
 					httpError?"HTTP error during":"Failed to parse result of", 
 						response.c_str());
-			return false;
+			return result;
 		}
 		else if (doc.HasMember("message"))
 		{
-			m_logger->error("Failed to stop proxy of endpoints for service: %s.",
+			m_logger->error("Stop proxy of endpoints for service: %s.",
 				doc["message"].GetString());
+			return result;
 		}
 		else
 		{
 			m_logger->info("API proxying has been stopped");
-			return true;
+			return result;
 		}
 	} catch (const SimpleWeb::system_error &e) {
 		m_logger->error("Proxy deletion failed %s.", e.what());

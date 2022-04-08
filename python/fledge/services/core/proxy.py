@@ -34,6 +34,7 @@ async def add(request):
              curl -sX POST http://localhost:<SVC_MGT_PORT>/fledge/proxy -d '{"service_name": "BucketStorage", "POST": {"/fledge/bucket": "/bucket"}}'
              curl -sX POST http://localhost:<SVC_MGT_PORT>/fledge/proxy -d '{"service_name": "BucketStorage", "GET": {"/fledge/bucket/{uniqueID}": "/bucket/{uniqueID}"}}'
              curl -sX POST http://localhost:<SVC_MGT_PORT>/fledge/proxy -d '{"service_name": "BucketStorage", "GET": {"/fledge/bucket/{uniqueID}": "/bucket/{uniqueID}"}, "PUT": {"/fledge/bucket/{uniqueID}": "/bucket/{uniqueID}"}, "DELETE": {"/fledge/bucket/{uniqueID}": "/bucket/{uniqueID}"}}'
+            curl -sX POST http://localhost:<SVC_MGT_PORT>/fledge/proxy -d '{"service_name": "Bucket #1", "DELETE": {"/fledge/bucket/([0-9][0-9]*)$": "/bucket/([0-9][0-9]*)$"}, "GET": {"/fledge/bucket/([0-9][0-9]*)$": "/bucket/([0-9][0-9]*)$"}, "POST": {"/fledge/bucket": "/bucket"}, "PUT": {"/fledge/bucket/([0-9][0-9]*)$": "/bucket/([0-9][0-9]*)$", "/fledge/bucket/match": "/bucket/match"}}'
    """
     data = await request.json()
     svc_name = data.get('service_name', None)
@@ -77,7 +78,7 @@ async def add(request):
     else:
         # Add service name KV pair in-memory structure
         server.Server._API_PROXIES.update({svc_name: data})
-        return web.json_response({"message": "Proxy has been configured for {} service.".format(svc_name)})
+        return web.json_response({"inserted": "Proxy has been configured for {} service.".format(svc_name)})
 
 
 async def delete(request):
@@ -103,4 +104,4 @@ async def delete(request):
     else:
         # Remove service name KV pair from in-memory structure
         del server.Server._API_PROXIES[svc_name]
-        return web.json_response({"message": "Proxy operations have been stopped for {} service.".format(svc_name)})
+        return web.json_response({"deleted": "Proxy operations have been stopped for {} service.".format(svc_name)})

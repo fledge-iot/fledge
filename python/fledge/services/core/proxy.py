@@ -20,7 +20,6 @@ __version__ = "${VERSION}"
 
 
 _logger = logger.setup(__name__, level=logging.INFO)
-SVC_TYPE = "BucketStorage"
 
 
 def setup(app):
@@ -32,10 +31,7 @@ async def add(request):
     """ Add API proxy for a service
 
     :Example:
-             curl -sX POST http://localhost:<SVC_MGT_PORT>/fledge/proxy -d '{"service_name": "BucketStorage", "POST": {"/fledge/bucket": "/bucket"}}'
-             curl -sX POST http://localhost:<SVC_MGT_PORT>/fledge/proxy -d '{"service_name": "BucketStorage", "GET": {"/fledge/bucket/{uniqueID}": "/bucket/{uniqueID}"}}'
-             curl -sX POST http://localhost:<SVC_MGT_PORT>/fledge/proxy -d '{"service_name": "BucketStorage", "GET": {"/fledge/bucket/{uniqueID}": "/bucket/{uniqueID}"}, "PUT": {"/fledge/bucket/{uniqueID}": "/bucket/{uniqueID}"}, "DELETE": {"/fledge/bucket/{uniqueID}": "/bucket/{uniqueID}"}}'
-            curl -sX POST http://localhost:<SVC_MGT_PORT>/fledge/proxy -d '{"service_name": "Bucket #1", "DELETE": {"/fledge/bucket/([0-9][0-9]*)$": "/bucket/([0-9][0-9]*)$"}, "GET": {"/fledge/bucket/([0-9][0-9]*)$": "/bucket/([0-9][0-9]*)$"}, "POST": {"/fledge/bucket": "/bucket"}, "PUT": {"/fledge/bucket/([0-9][0-9]*)$": "/bucket/([0-9][0-9]*)$", "/fledge/bucket/match": "/bucket/match"}}'
+            curl -sX POST http://localhost:<SVC_MGT_PORT>/fledge/proxy -d '{"service_name": "SVC #1", "DELETE": {"/fledge/svc/([0-9][0-9]*)$": "/svc/([0-9][0-9]*)$"}, "GET": {"/fledge/svc/([0-9][0-9]*)$": "/svc/([0-9][0-9]*)$"}, "POST": {"/fledge/svc": "/svc"}, "PUT": {"/fledge/svc/([0-9][0-9]*)$": "/svc/([0-9][0-9]*)$", "/fledge/svc/match": "/svc/match"}}'
    """
     data = await request.json()
     svc_name = data.get('service_name', None)
@@ -87,7 +83,7 @@ async def delete(request):
     svc_name = request.match_info.get('service_name', None)
     svc_name = urllib.parse.unquote(svc_name) if svc_name is not None else None
     try:
-        ServiceRegistry.filter_by_name_and_type(name=svc_name, s_type=SVC_TYPE)
+        ServiceRegistry.get(name=svc_name)
         if svc_name not in server.Server._API_PROXIES:
             raise ValueError("For {} service, no proxy operation is configured.".format(svc_name))
     except service_registry_exceptions.DoesNotExist:

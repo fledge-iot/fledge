@@ -210,6 +210,7 @@ static PLUGIN_INFORMATION *Py2C_PluginInfo(PyObject* pyRetVal)
 {
 	// Create returnable PLUGIN_INFORMATION structure
 	PLUGIN_INFORMATION *info = new PLUGIN_INFORMATION;
+        info->options = 0;
 
 	// these are borrowed references returned by PyDict_Next
 	PyObject *dKey, *dValue;

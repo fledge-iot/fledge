@@ -59,10 +59,8 @@ NorthPlugin::NorthPlugin(PLUGIN_HANDLE handle, const ConfigCategory& category) :
 
 	if (hasControl())
 	{
-		Logger::getLogger()->error("%s:%d", __FUNCTION__, __LINE__);
 		pluginRegisterPtr = (void (*)(const PLUGIN_HANDLE handle, bool ( *write)(char *name, char *value, ControlDestination destination, ...),
                 	                     int (* operation)(char *operation, int paramCount, char *names[], char *parameters[], ControlDestination destination, ...)))manager->resolveSymbol(handle, "plugin_register");
-		Logger::getLogger()->error("%s:%d", __FUNCTION__, __LINE__);
 	}
 }
 

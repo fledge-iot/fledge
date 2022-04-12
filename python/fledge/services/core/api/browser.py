@@ -72,7 +72,8 @@ def setup(app):
     app.router.add_route('GET', '/fledge/asset/{asset_code}/{reading}/summary', asset_summary)
     app.router.add_route('GET', '/fledge/asset/{asset_code}/{reading}/series', asset_averages)
     app.router.add_route('GET', '/fledge/asset/{asset_code}/bucket/{bucket_size}', asset_datapoints_with_bucket_size)
-    app.router.add_route('GET', '/fledge/asset/{asset_code}/{reading}/bucket/{bucket_size}', asset_readings_with_bucket_size)
+    app.router.add_route('GET', '/fledge/asset/{asset_code}/{reading}/bucket/{bucket_size}',
+                         asset_readings_with_bucket_size)
     app.router.add_route('GET', '/fledge/structure/asset', asset_structure)
 
 
@@ -108,6 +109,22 @@ def prepare_limit_skip_payload(request, _dict):
         payload = PayloadBuilder(_dict).SKIP(offset)
 
     return payload.chain_payload()
+
+
+def is_image_excluded(request: web.Request) -> bool:
+    """ image type datapoints exclusion
+    Args:
+        request: images request query param
+    Returns:
+        Boolean
+    """
+    if 'images' in request.query:
+        if request.query['images'] not in ('include', 'exclude'):
+            msg = "images request query should either be include or exclude."
+            raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+        if request.query['images'] == 'include':
+            return False
+    return True
 
 
 async def asset_counts(request):
@@ -174,16 +191,16 @@ async def asset(request):
             raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
 
     payload = PayloadBuilder(_and_where).ORDER_BY(["user_ts", _order]).payload()
-    _readings = connect.get_readings_async()
-    results = await _readings.query(payload)
     try:
+        _readings = connect.get_readings_async()
+        results = await _readings.query(payload)
         rows = results['rows']
         for index, data in enumerate(rows):
             for item_name, item_val in data.items():
                 if isinstance(item_val, dict):
                     for item_name2, item_val2 in item_val.items():
                         if isinstance(item_val2, str) and item_val2.startswith(tuple(DATAPOINT_TYPES)):
-                            data[item_name][item_name2] = IMAGE_PLACEHOLDER
+                            data[item_name][item_name2] = IMAGE_PLACEHOLDER if is_image_excluded(request) else item_val2
         response = rows
     except KeyError:
         msg = results['message']
@@ -263,15 +280,15 @@ async def asset_reading(request):
         # Add the order by and limit, offset clause
         _and_where = prepare_limit_skip_payload(request, _where)
     payload = PayloadBuilder(_and_where).ORDER_BY(["user_ts", "desc"]).payload()
-    _readings = connect.get_readings_async()
-    results = await _readings.query(payload)
     try:
+        _readings = connect.get_readings_async()
+        results = await _readings.query(payload)
         rows = results['rows']
         for index, data in enumerate(rows):
             for item_name, item_val in data.items():
                 if item_name != 'timestamp':
                     if isinstance(item_val, str) and item_val.startswith(tuple(DATAPOINT_TYPES)):
-                        data[item_name] = IMAGE_PLACEHOLDER
+                        data[item_name] = IMAGE_PLACEHOLDER if is_image_excluded(request) else item_val
         response = rows
     except KeyError:
         msg = results['message']
@@ -336,7 +353,7 @@ async def asset_all_readings_summary(request):
                 if isinstance(item_val, dict):
                     for item_name2, item_val2 in item_val.items():
                         if isinstance(item_val2, str) and item_val2.startswith(tuple(DATAPOINT_TYPES)):
-                            data[item_name][item_name2] = IMAGE_PLACEHOLDER
+                            data[item_name][item_name2] = IMAGE_PLACEHOLDER if is_image_excluded(request) else item_val2
         response = rows
     except (KeyError, IndexError) as err:
         msg = str(err)
@@ -402,7 +419,7 @@ async def asset_summary(request):
         response = results['rows'][0]
         for item_name, item_val in response.items():
             if isinstance(item_val, str) and item_val.startswith(tuple(DATAPOINT_TYPES)):
-                response[item_name] = IMAGE_PLACEHOLDER
+                response[item_name] = IMAGE_PLACEHOLDER if is_image_excluded(request) else item_val
     except KeyError:
         msg = results['message']
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
@@ -491,15 +508,15 @@ async def asset_averages(request):
     _group = PayloadBuilder(_and_where).GROUP_BY("user_ts").ALIAS("group", ("user_ts", "timestamp")) \
         .FORMAT("group", ("user_ts", ts_restraint)).chain_payload()
     payload = PayloadBuilder(_group).ORDER_BY(["user_ts", "desc"]).payload()
-    _readings = connect.get_readings_async()
-    results = await _readings.query(payload)
     try:
+        _readings = connect.get_readings_async()
+        results = await _readings.query(payload)
         rows = results['rows']
         for index, data in enumerate(rows):
             for item_name, item_val in data.items():
                 if item_name != 'timestamp':
                     if isinstance(item_val, str) and item_val.startswith(tuple(DATAPOINT_TYPES)):
-                        data[item_name] = IMAGE_PLACEHOLDER
+                        data[item_name] = IMAGE_PLACEHOLDER if is_image_excluded(request) else item_val
         response = rows
     except KeyError:
         msg = results['message']
@@ -749,15 +766,14 @@ async def asset_structure(request):
                 elif type(value) == float:
                     datapoint[name] = "float"
             if len(metadata) > 0:
-                asset_json[code] = {'datapoint':datapoint,'metadata':metadata}
+                asset_json[code] = {'datapoint': datapoint, 'metadata': metadata}
             else:
-                asset_json[code] = {'datapoint':datapoint}
+                asset_json[code] = {'datapoint': datapoint}
     except KeyError:
         msg = results['message']
-        raise web.HTTPBadRequest(reason=results['message'], body=json.dumps({"message": msg}))
-    except Exception as e:
-        raise web.HTTPInternalServerError(reason=str(e), body=json.dumps({"message":str(e)}))
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+    except Exception as ex:
+        msg = str(ex)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(asset_json)
-
-

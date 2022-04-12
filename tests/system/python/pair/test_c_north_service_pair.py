@@ -3,7 +3,7 @@
 # FLEDGE_END
 
 """
-       A pair system test to verify north service with north and south python plugins
+       A pair system test to verify C north service with south python plugins
 """
 
 __author__ = "Yash Tatkondawar"
@@ -259,12 +259,12 @@ def _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_d
         assert False, "Failed to read data from PI"
 
 
-class TestPythonNorthService:
-    def test_north_python_service_with_restart(self, clean_setup_fledge_packages, clean_install_fledge_packages_remote,
+class TestCNorthService:
+    def test_north_C_service_with_restart(self, clean_setup_fledge_packages, clean_install_fledge_packages_remote,
                                                setup_local, setup_remote, skip_verify_north_interface, fledge_url,
                                                wait_time, retries, remote_ip, read_data_from_pi_web_api, pi_host,
                                                pi_admin, pi_passwd, pi_db):
-        """ Test python plugin as a North service before and after restarting fledge.
+        """ Test C plugin as a North service before and after restarting fledge.
             clean_setup_fledge_packages: Fixture to remove and install latest fledge packages
             clean_install_fledge_packages_remote: Fixture to remove and install latest fledge packages on remote machine
             setup_local: Fixture to reset, add and configure plugins on local machine
@@ -326,12 +326,12 @@ class TestPythonNorthService:
             _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries,
                            remote_south_asset_name)
 
-    def test_north_python_service_with_enable_disable(self, setup_local, setup_remote, read_data_from_pi_web_api,
+    def test_north_C_service_with_enable_disable(self, setup_local, setup_remote, read_data_from_pi_web_api,
                                                       remote_ip,
                                                       skip_verify_north_interface, fledge_url, wait_time, retries,
                                                       pi_host,
                                                       pi_admin, pi_passwd, pi_db):
-        """ Test python plugin as a North service by disabling and enabling it.
+        """ Test C plugin as a North service by disabling and enabling it.
             setup_local: Fixture to reset, add and configure plugins on local machine
             setup_remote: Fixture to reset, add and configure plugins on remote machine
             read_data_from_pi_web_api: Fixture to read data from PI web API
@@ -396,11 +396,11 @@ class TestPythonNorthService:
             _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries,
                            remote_south_asset_name)
 
-    def test_north_python_service_with_delete_add(self, setup_local, setup_remote, read_data_from_pi_web_api, remote_ip,
+    def test_north_C_service_with_delete_add(self, setup_local, setup_remote, read_data_from_pi_web_api, remote_ip,
                                                   add_north, skip_verify_north_interface, fledge_url, wait_time,
                                                   retries,
                                                   pi_host, pi_admin, pi_passwd, pi_db):
-        """ Test python plugin as a North service by deleting and adding it.
+        """ Test C plugin as a North service by deleting and adding it.
             setup_local: Fixture to reset, add and configure plugins on local machine
             setup_remote: Fixture to reset, add and configure plugins on remote machine
             read_data_from_pi_web_api: Fixture to read data from PI web API
@@ -439,10 +439,10 @@ class TestPythonNorthService:
             _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries,
                            remote_south_asset_name)
 
-    def test_north_python_service_with_reconfig(self, setup_local, setup_remote, read_data_from_pi_web_api, remote_ip,
+    def test_north_C_service_with_reconfig(self, setup_local, setup_remote, read_data_from_pi_web_api, remote_ip,
                                                 skip_verify_north_interface, fledge_url, wait_time, retries, pi_host,
                                                 pi_admin, pi_passwd, pi_db):
-        """ Test python plugin as a North service by reconfiguring it.
+        """ Test C plugin as a North service by reconfiguring it.
             setup_local: Fixture to reset, add and configure plugins on local machine
             setup_remote: Fixture to reset, add and configure plugins on remote machine
             read_data_from_pi_web_api: Fixture to read data from PI web API
@@ -482,11 +482,11 @@ class TestPythonNorthService:
             _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries,
                            remote_south_asset_name)
 
-    def test_north_python_service_with_filter(self, setup_local, setup_remote, read_data_from_pi_web_api, remote_ip,
+    def test_north_C_service_with_filter(self, setup_local, setup_remote, read_data_from_pi_web_api, remote_ip,
                                               add_filter,
                                               skip_verify_north_interface, fledge_url, wait_time, retries, pi_host,
                                               pi_admin, pi_passwd, pi_db):
-        """ Test python plugin as a North service by adding filter on it.
+        """ Test C plugin as a North service by adding filter on it.
             setup_local: Fixture to reset, add and configure plugins on local machine
             setup_remote: Fixture to reset, add and configure plugins on remote machine
             add_filter: Adds and configures a filter
@@ -523,12 +523,12 @@ class TestPythonNorthService:
             _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries,
                            remote_south_asset_name)
 
-    def test_north_python_service_with_filter_enable_disable(self, setup_local, setup_remote, read_data_from_pi_web_api,
+    def test_north_C_service_with_filter_enable_disable(self, setup_local, setup_remote, read_data_from_pi_web_api,
                                                              remote_ip, add_filter,
                                                              skip_verify_north_interface, fledge_url, wait_time,
                                                              retries, pi_host,
                                                              pi_admin, pi_passwd, pi_db):
-        """ Test python plugin as a North service by enabling/disabling filter.
+        """ Test C plugin as a North service by enabling/disabling filter.
             setup_local: Fixture to reset, add and configure plugins on local machine
             setup_remote: Fixture to reset, add and configure plugins on remote machine
             add_filter: Adds and configures a filter
@@ -572,12 +572,12 @@ class TestPythonNorthService:
             _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries,
                            remote_south_asset_name)
 
-    def test_north_python_service_with_filter_reconfig(self, setup_local, setup_remote, read_data_from_pi_web_api,
+    def test_north_C_service_with_filter_reconfig(self, setup_local, setup_remote, read_data_from_pi_web_api,
                                                        remote_ip, add_filter,
                                                        skip_verify_north_interface, fledge_url, wait_time, retries,
                                                        pi_host,
                                                        pi_admin, pi_passwd, pi_db):
-        """ Test python plugin as a North service by reconfiguring filter.
+        """ Test C plugin as a North service by reconfiguring filter.
             setup_local: Fixture to reset, add and configure plugins on local machine
             setup_remote: Fixture to reset, add and configure plugins on remote machine
             add_filter: Adds and configures a filter
@@ -621,12 +621,12 @@ class TestPythonNorthService:
             _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries,
                            remote_south_asset_name)
 
-    def test_north_python_service_with_delete_add_filter(self, setup_local, setup_remote, read_data_from_pi_web_api,
+    def test_north_C_service_with_delete_add_filter(self, setup_local, setup_remote, read_data_from_pi_web_api,
                                                          remote_ip, add_filter,
                                                          skip_verify_north_interface, fledge_url, wait_time, retries,
                                                          pi_host,
                                                          pi_admin, pi_passwd, pi_db):
-        """ Test python plugin as a North service by deleting and re-adding filter on it.
+        """ Test C plugin as a North service by deleting and re-adding filter on it.
             setup_local: Fixture to reset, add and configure plugins on local machine
             setup_remote: Fixture to reset, add and configure plugins on remote machine
             add_filter: Adds and configures a filter
@@ -680,12 +680,12 @@ class TestPythonNorthService:
             _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries,
                            remote_south_asset_name)
 
-    def test_north_python_service_with_filter_reorder(self, setup_local, setup_remote, read_data_from_pi_web_api,
+    def test_north_C_service_with_filter_reorder(self, setup_local, setup_remote, read_data_from_pi_web_api,
                                                       remote_ip, add_filter,
                                                       skip_verify_north_interface, fledge_url, wait_time, retries,
                                                       pi_host,
                                                       pi_admin, pi_passwd, pi_db):
-        """ Test python plugin as a North service by deleting and re-adding filter on it.
+        """ Test C plugin as a North service by deleting and re-adding filter on it.
             setup_local: Fixture to reset, add and configure plugins on local machine
             setup_remote: Fixture to reset, add and configure plugins on remote machine
             add_filter: Adds and configures a filter

@@ -71,7 +71,6 @@ unsigned int call_plugin_send_coroutine(PyObject *plugin_send_module_func, PLUGI
 			PyObject* pReturn = PyObject_CallObject(method, arg);
 			Logger::getLogger()->info("%s:%d, pReturn=%p", __FUNCTION__, __LINE__, pReturn);
 			Py_CLEAR(arg);
-			Py_CLEAR(readingsList);
 		    
 			if (pReturn != NULL)
 			{
@@ -81,8 +80,9 @@ unsigned int call_plugin_send_coroutine(PyObject *plugin_send_module_func, PLUGI
 					Logger::getLogger()->info("numSent=%d", numSent);
 				}
 				else
+				{
 					Logger::getLogger()->info("plugin_send_wrapper() didn't return a number, returned value is of type %s", (Py_TYPE(pReturn))->tp_name);
-	
+				}	
 				Py_CLEAR(pReturn);
 			}
 			else
@@ -419,11 +419,6 @@ uint32_t plugin_send_fn(PLUGIN_HANDLE handle, const std::vector<Reading *>& read
 	PythonReadingSet *pyReadingSet = (PythonReadingSet *) set;
 	PyObject* readingsList = pyReadingSet->toPython(true);
 	    
-	PyObject* objectsRepresentation = PyObject_Repr(readingsList);
-	const char* s = PyUnicode_AsUTF8(objectsRepresentation);
-	Logger::getLogger()->debug("C2Py: plugin_send_fn():L%d: filtered readings to send = %s", __LINE__, s);
-	Py_CLEAR(objectsRepresentation);
-
 	numReadingsSent = call_plugin_send_coroutine(pFunc, handle, readingsList);
 	Logger::getLogger()->debug("C2Py: plugin_send_fn():L%d: filtered readings sent %d", __LINE__, numReadingsSent);
     

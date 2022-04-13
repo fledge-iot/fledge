@@ -259,11 +259,6 @@ void filter_plugin_ingest_fn(PLUGIN_HANDLE handle, READINGSET *data)
 	PythonReadingSet *pyReadingSet = (PythonReadingSet *) data;
     PyObject* readingsList = pyReadingSet->toPython();
     
-    PyObject* objectsRepresentation = PyObject_Repr(readingsList);
-    const char* s = PyUnicode_AsUTF8(objectsRepresentation);
-    Logger::getLogger()->debug("C2Py: filter_plugin_ingest_fn():L%d: readingsList=%s", __LINE__, s);
-    Py_CLEAR(objectsRepresentation);
-
 	PyObject* pReturn = PyObject_CallFunction(pFunc,
 						  "OO",
 						  handle,

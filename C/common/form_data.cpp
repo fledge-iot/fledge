@@ -369,14 +369,14 @@ void FormData::getUploadedFile(string& field, FieldValue& data)
  */
 void FormData::saveFile(FormData::FieldValue& v)
 {
-	Logger::getLogger()->error("Uploaded filename is '%s'", v.filename.c_str());
+	Logger::getLogger()->debug("Uploaded filename is '%s'", v.filename.c_str());
 
 	// v.filename holds the file name as per upload content
 	// Here we create a temp file and we do not make use of v.filename
 	char *fileName = tempnam("/tmp", "buck");
 	if (fileName)
 	{
-		Logger::getLogger()->info("Saving uploaded file as '%s', size is %ld bytes",
+		Logger::getLogger()->debug("Saving uploaded file as '%s', size is %ld bytes",
 					fileName,
 					v.size);
 

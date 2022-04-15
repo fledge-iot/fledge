@@ -267,11 +267,6 @@ std::vector<Reading *>* plugin_poll_fn(PLUGIN_HANDLE handle)
 	else
 	{
 		// Get reading data
-		PyObject* objectsRepresentation = PyObject_Repr(pReturn);
-        const char* s = PyUnicode_AsUTF8(objectsRepresentation);
-        Logger::getLogger()->debug("plugin_poll_fn:L%d : pReturn=%s", __LINE__, s);
-        Py_CLEAR(objectsRepresentation);
-
         PythonReadingSet *pyReadingSet = NULL;
 
         // Valid ReadingSet would be in the form of python dict or list

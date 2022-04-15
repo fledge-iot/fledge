@@ -197,6 +197,10 @@ namespace SimpleWeb {
       std::size_t size() noexcept {
         return streambuf.size();
       }
+      /// Convenience function to return content data without copy
+      const std::uint8_t* data() noexcept {
+        return asio::buffer_cast<const uint8_t *>(streambuf.data());
+      }
       /// Convenience function to return content as std::string.
       std::string string() noexcept {
         return std::string(asio::buffers_begin(streambuf.data()), asio::buffers_end(streambuf.data()));

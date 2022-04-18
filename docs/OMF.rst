@@ -27,20 +27,24 @@ The second screen will request the following information:
 Select PI Web API from the Endpoint options.
 
 - Basic Information
-   - **Endpoint:** Select what you wish to connect to, in this case PI Web API.
-   - **Send full structure:** Used to control if AF structure messages are sent to the PI server. If this is turned off then the data will not be placed in the asset framework.
-   - **Naming scheme:** Defines the naming scheme to be used when creating the PI points within the PI Server. See :ref:`Naming_Scheme`.
-   - **Server hostname:** The hostname or address of the PI Server.
+   - **Endpoint:** This is the type of OMF endpoint. In this case, choose PI Web API.
+   - **Send full structure:** Used to control if AF structure messages are sent to the PI server. If this is turned off then the data will not be placed in the Asset Framework.
+   - **Naming scheme:** Defines the naming scheme to be used when creating the PI points within the PI Data Archive. See :ref:`Naming_Scheme`.
+   - **Server hostname:** The hostname or address of the PI Web API server. This is normally the same address as the PI Server.
    - **Server port:** The port the PI Web API OMF endpoint is listening on. Leave as 0 if you are using the default port.
-   - **Data Source:** Defines which data is sent to the PI Server. The readings or Fledge's internal statistics.
-   - **Static Data:** Data to include in every reading sent to PI.  For example, you can use this to specify the location of the devices being monitored by the Fledge server.
+   - **Data Source:** Defines which data is sent to the PI Server. Choices are: readings or statistics (that is, Fledge's internal statistics).
+   - **Static Data:** Data to include in every reading sent to PI. For example, you can use this to specify the location of the devices being monitored by the Fledge server.
 - Asset Framework
-   - **Asset Framework Hierarchies Tree:** The location in the Asset Framework into which the data will be inserted. All data will be inserted at this point in the Asset Framework unless a later rule overrides this.
+   - **Asset Framework Hierarchies Tree:** The location in the Asset Framework hierarchy into which the data will be inserted.
+     All data will be inserted at this point in the Asset Framework hierarchy unless a later rule overrides this.
+     Note that this field does not include the name of the target Asset Framework Database;
+     the target database is defined on the PI Web API server by the PI Web API Admin Utility.
    - **Asset Framework Hierarchies Rules:** A set of rules that allow specific readings to be placed elsewhere in the Asset Framework. These rules can be based on the name of the asset itself or some metadata associated with the asset. See `Asset Framework Hierarchy Rules`_
 - PI Web API authentication
-   - **PI Web API Authentication Method:** The authentication method to be used, anonymous equates to no authentication, basic authentication requires a user name and password and Kerberos allows integration with your single sign on environment.
-   - **PI Web API User Id:**  The user name to authenticate with the PI Web API.
-   - **PI Web API Password:** The password of the user we are using to authenticate.
+   - **PI Web API Authentication Method:** The authentication method to be used: anonymous, basic or kerberos.
+     Anonymous equates to no authentication, basic authentication requires a user name and password, and Kerberos allows integration with your single sign on environment.
+   - **PI Web API User Id:**  For Basic authentication, the user name to authenticate with the PI Web API.
+   - **PI Web API Password:** For Basic authentication, the password of the user we are using to authenticate.
    - **PI Web API Kerberos keytab file:** The Kerberos keytab file used to authenticate.
 - Connection management (These should only be changed with guidance from support)
    - **Sleep Time Retry:** Number of seconds to wait before retrying the HTTP connection (Fledge doubles this time after each failed attempt).
@@ -48,13 +52,14 @@ Select PI Web API from the Endpoint options.
    - **HTTP Timeout:** Number of seconds to wait before Fledge will time out an HTTP connection attempt.
 - Other (Rarely changed)
    - **Integer Format:** Used to match Fledge data types to the data type configured in PI. This defaults to int64 but may be set to any OMF data type compatible with integer data, e.g. int32.
-   - **Number Format:** Used to match Fledge data types to the data type configured in PI. The defaults is float64 but may be set to any OMF datatype that supports floating point values.
-   - **Compression:** Compress the readings data before sending it to the PI System.
+   - **Number Format:** Used to match Fledge data types to the data type configured in PI. The default is float64 but may be set to any OMF datatype that supports floating point values.
+   - **Compression:** Compress the readings data before sending them to the PI Web API OMF endpoint.
+     This setting is not related to data compression in the PI Data Archive.
 
-EDS OMF Endpoint
-~~~~~~~~~~~~~~~~
+Edge Data Store OMF Endpoint
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-To use the OSISoft Edge Data Store first install Edge Data Store on the same machine as your Fledge instance. It is a limitation of Edge Data Store that it must reside on the same host as any system that connects to it with OMF.
+To use the OSIsoft Edge Data Store first install Edge Data Store on the same machine as your Fledge instance. It is a limitation of Edge Data Store that it must reside on the same host as any system that connects to it with OMF.
 
 Now go to the Fledge user interface, create a new North instance and select the “OMF” plugin on the first screen.
 The second screen will request the following information:
@@ -66,23 +71,23 @@ The second screen will request the following information:
 Select Edge Data Store from the Endpoint options.
 
 - Basic Information
-   - **Endpoint:** Select what you wish to connect to, in this case Edge Data Store.
+   - **Endpoint:** This is the type of OMF endpoint. In this case, choose Edge Data Store.
    - **Naming scheme:** Defines the naming scheme to be used when creating the PI points within the PI Server. See :ref:`Naming_Scheme`.
-   - **Server hostname:** The hostname or address of the PI Server. This must be the localhost for EDS.
-   - **Server port:** The port the Edge Datastore is listening on. Leave as 0 if you are using the default port.
-   - **Data Source:** Defines which data is sent to the PI Server. The readings or Fledge's internal statistics.
-   - **Static Data:** Data to include in every reading sent to PI.  For example, you can use this to specify the location of the devices being monitored by the Fledge server.
+   - **Server hostname:** Normally the hostname or address of the OMF endpoint. For EDS, this must be *localhost*.
+   - **Server port:** The port the Edge Data Store is listening on. Leave as 0 if you are using the default port.
+   - **Data Source:** Defines which data is sent to the Edge Data Store. Choices are: readings or statistics (that is, Fledge's internal statistics).
+   - **Static Data:** Data to include in every reading sent to PI. For example, you can use this to specify the location of the devices being monitored by the Fledge server.
 - Connection management (These should only be changed with guidance from support)
    - **Sleep Time Retry:** Number of seconds to wait before retrying the HTTP connection (Fledge doubles this time after each failed attempt).
    - **Maximum Retry:** Maximum number of times to retry connecting to the PI server.
    - **HTTP Timeout:** Number of seconds to wait before Fledge will time out an HTTP connection attempt.
 - Other (Rarely changed)
    - **Integer Format:** Used to match Fledge data types to the data type configured in PI. This defaults to int64 but may be set to any OMF data type compatible with integer data, e.g. int32.
-   - **Number Format:** Used to match Fledge data types to the data type configured in PI. The defaults is float64 but may be set to any OMF datatype that supports floating point values.
-   - **Compression:** Compress the readings data before sending it to the PI System.
+   - **Number Format:** Used to match Fledge data types to the data type configured in PI. The default is float64 but may be set to any OMF datatype that supports floating point values.
+   - **Compression:** Compress the readings data before sending them to the Edge Data Store.
 
-OCS OMF Endpoint
-~~~~~~~~~~~~~~~~
+OSIsoft Cloud Services OMF Endpoint
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Go to the Fledge user interface, create a new North instance and select the “OMF” plugin on the first screen.
 The second screen will request the following information:
@@ -94,34 +99,33 @@ The second screen will request the following information:
 Select OSIsoft Cloud Services from the Endpoint options.
 
 - Basic Information
-   - **Endpoint:** Select what you wish to connect to, in this case OSIsoft Cloud Services.
+   - **Endpoint:** This is the type of OMF endpoint. In this case, choose OSIsoft Cloud Services.
    - **Naming scheme:** Defines the naming scheme to be used when creating the PI points within the PI Server. See :ref:`Naming_Scheme`.
-   - **Data Source:** Defines which data is sent to the PI Server. The readings or Fledge's internal statistics.
-   - **Static Data:** Data to include in every reading sent to PI.  For example, you can use this to specify the location of the devices being monitored by the Fledge server.
+   - **Data Source:** Defines which data is sent to OSIsoft Cloud Services. Choices are: readings or statistics (that is, Fledge's internal statistics).
+   - **Static Data:** Data to include in every reading sent to OSIsoft Cloud Services.  For example, you can use this to specify the location of the devices being monitored by the Fledge server.
 - Authentication
-   - **OCS Namespace:** Your namespace within the OSISoft Cloud Services.
-   - **OCS Tenant ID:** Your OSISoft Cloud Services tenant ID for your account.
-   - **OCS Client ID:** Your OSISoft Cloud Services client ID for your account.
-   - **OCS Client Secret:** Your OCS client secret.
+   - **OCS Namespace:** Your namespace within OSIsoft Cloud Services.
+   - **OCS Tenant ID:** Your OSIsoft Cloud Services Tenant ID for your account.
+   - **OCS Client ID:** Your OSIsoft Cloud Services Client ID for your account.
+   - **OCS Client Secret:** Your OSIsoft Cloud Services Client Secret.
 - Connection management (These should only be changed with guidance from support)
    - **Sleep Time Retry:** Number of seconds to wait before retrying the HTTP connection (Fledge doubles this time after each failed attempt).
    - **Maximum Retry:** Maximum number of times to retry connecting to the PI server.
    - **HTTP Timeout:** Number of seconds to wait before Fledge will time out an HTTP connection attempt.
 - Other (Rarely changed)
    - **Integer Format:** Used to match Fledge data types to the data type configured in PI. This defaults to int64 but may be set to any OMF data type compatible with integer data, e.g. int32.
-   - **Number Format:** Used to match Fledge data types to the data type configured in PI. The defaults is float64 but may be set to any OMF datatype that supports floating point values.
-   - **Compression:** Compress the readings data before sending it to the PI System.
+   - **Number Format:** Used to match Fledge data types to the data type configured in PI. The default is float64 but may be set to any OMF datatype that supports floating point values.
+   - **Compression:** Compress the readings data before sending them to OSIsoft Cloud Services.
 
 
 PI Connector Relay
 ~~~~~~~~~~~~~~~~~~
 
-The PI Connector Relay was the original mechanism by which OMF data
-could be ingesting into a PI Server, this has since been replaced by
-the PI Web API OMF endpoint. It is recommended that all new deployments
-should use the PI Web API endpoint as the Connector Relay has now been
-discontinued by OSIsoft. To use the Connector Relay, open and sign into
-the PI Relay Data Connection Manager.
+**The PI Connector Relay has been discontinued by OSIsoft.**
+All new deployments should use the PI Web API endpoint.
+Existing installations will still be supported.
+The PI Connector Relay was the original mechanism by which OMF data could be ingesting into a PI Server.
+To use the PI Connector Relay, open and sign into the PI Relay Data Connection Manager.
 
 +-----------------+
 | |PI_connectors| |
@@ -133,7 +137,7 @@ To add a new connector for the Fledge system, click on the drop down menu to the
 | |PI_connect| |
 +--------------+
 
-Connect the new application to the OMF Connector Relay by selecting the new Fledge application, clicking the check box for the OMF Connector Relay and then clicking "Save Configuration".
+Connect the new application to the PI Connector Relay by selecting the new Fledge application, clicking the check box for the PI Connector Relay and then clicking "Save Configuration".
 
 +------------+
 | |PI_token| |
@@ -149,11 +153,11 @@ The second screen will request the following information:
 +-------------------------------------+
 
 - Basic Information
-   - **Endpoint:** Select what you wish to connect to, in this case the Connector Relay.
-   - **Server hostname:** The hostname or address of the Connector Relay.
-   - **Server port:** The port the Connector Relay is listening on. Leave as 0 if you are using the default port.
-   - **Producer Token:** The Producer Token provided by PI
-   - **Data Source:** Defines which data is sent to the PI Server. The readings or Fledge's internal statistics.
+   - **Endpoint:** This is the type of OMF endpoint. In this case, choose Connector Relay.
+   - **Server hostname:** The hostname or address of the PI Connector Relay.
+   - **Server port:** The port the PI Connector Relay is listening on. Leave as 0 if you are using the default port.
+   - **Producer Token:** The Producer Token provided by the PI Relay Data Connection Manager.
+   - **Data Source:** Defines which data is sent to the PI Connector Relay. Choices are: readings or statistics (that is, Fledge's internal statistics).
    - **Static Data:** Data to include in every reading sent to PI.  For example, you can use this to specify the location of the devices being monitored by the Fledge server.
 - Connection management (These should only be changed with guidance from support)
    - **Sleep Time Retry:** Number of seconds to wait before retrying the HTTP connection (Fledge doubles this time after each failed attempt).
@@ -161,7 +165,7 @@ The second screen will request the following information:
    - **HTTP Timeout:** Number of seconds to wait before Fledge will time out an HTTP connection attempt.
 - Other (Rarely changed)
    - **Integer Format:** Used to match Fledge data types to the data type configured in PI. This defaults to int64 but may be set to any OMF data type compatible with integer data, e.g. int32.
-   - **Number Format:** Used to match Fledge data types to the data type configured in PI. The defaults is float64 but may be set to any OMF datatype that supports floating point values.
+   - **Number Format:** Used to match Fledge data types to the data type configured in PI. The default is float64 but may be set to any OMF datatype that supports floating point values.
    - **Compression:** Compress the readings data before sending it to the PI System.
 
 .. _Naming_Scheme:
@@ -169,22 +173,22 @@ The second screen will request the following information:
 Naming Scheme
 -------------
 
-The naming of objects in the asset framework and of the attributes of
+The naming of objects in the Asset Framework and of the attributes of
 those objects has a number of constraints that need to be understood when
-storing data into a PI Server using OMF. An important factor in this is
-the stability of your data structures. If, in your environment you have
-objects are liable to change, i.e. the types of attributes change or
-the number of attributes change between readings, then you may wish to
-take a different naming approach to if they do not.
+storing data into a PI Server using OMF.
+An important factor in this is the stability of your data structures.
+If you have objects in your environment that are likely to change,
+you may wish to take a different naming approach than.
+Examples of object changes are the number of attributes changes between readings, or the data types of attributes change.
 
 This occurs because of a limitation of the OMF interface to the PI
-server. Data is sent to OMF in a number of stages, one of these is the
-definition of the types for the AF Objects. OMF let's a type be defined,
-but once defined it can not be changed. A new type must be created rather
-than changing the existing type. This means a new asset framework object
-is created each time a type changes.
+server. Data is sent to OMF in a number of stages.
+One of these is the definition of the types used to create AF Element Templates.
+OMF uses a type to define an AF Element Template but once defined it can not be changed.
+If an updated type definition is sent to OMF, it will be used to create a new AF Element Template rather than changing the existing one.
+This means a new AF Element Template is created each time a type changes.
 
-The OMF plugin names objects in the asset framework based upon the asset
+The OMF plugin names objects in the Asset Framework based upon the asset
 name in the reading within Fledge. Asset names are typically added to
 the readings in the south plugins, however they may be altered by filters
 between the south ingest and the north egress points in the data
@@ -200,14 +204,14 @@ by the *Naming Scheme* option
 
   Concise
      No suffix or prefix is added to the asset name and property name when
-     creating the objects in the AF framework and Attributes in the PI
-     server. However if the structure of an asset changes a new AF Object
+     creating the Elements and Attributes in the Asset Framework.
+     However if the structure of an asset changes a new AF Element
      will be created which will have the suffix -type*x* appended to it.
 
   Use Type Suffix
-     The AF Object names will be created from the asset names by appending
-     the suffix -type*x* to the asset name. If and when the structure
-     of an asset changes a new object name will be created with an
+     The AF Element names will be created from the asset names by appending
+     the suffix -type*x* to the asset name. If the structure
+     of an asset changes a new Element name will be created with an
      updated suffix.
 
   Use Attribute Hash
@@ -222,7 +226,7 @@ by the *Naming Scheme* option
 Asset Framework Hierarchy Rules
 -------------------------------
 
-The asset framework rules allow the location of specific assets within
+The Asset Framework rules allow the location of specific assets within
 the PI Asset Framework to be controlled. There are two basic type of hint;
 
   - Asset name placement, the name of the asset determines where in the
@@ -288,7 +292,7 @@ The metadata rules are more complex, four different tests can be applied;
 
 The *exist* and *nonexist* tests take a set of name/value pairs that
 are tested. The name is the datapoint name to examine and the value is
-the asset framework location to use. For example
+the Asset Framework location to use. For example
 
 .. code-block:: console
 
@@ -332,7 +336,7 @@ The AF location may be a simple string or it may also include
 substitutions from other data points within the reading. For example
 of the reading has a data point called *room* that contains the room
 in which the readings was taken, an AF location of */BuildingA/${room}*
-would put the reading in the asset framework using the value of the room
+would put the reading in the Asset Framework using the value of the room
 data point. The reading
 
 .. code-block:: console
@@ -454,8 +458,8 @@ applies a *number format* hint to that datapoint.
 Asset Framework Location Hint
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-An asset framework location hint can be added to a reading to control
-the placement of that asset within the Asset Framework. An asset framework
+An Asset Framework location hint can be added to a reading to control
+the placement of that asset within the Asset Framework. An Asset Framework
 hint would be as follow
 
 .. code-block:: console

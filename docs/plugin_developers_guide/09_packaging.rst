@@ -1,16 +1,8 @@
 .. Plugin as a Package
 
-.. |br| raw:: html
-
-   <br />
-
-.. =============================================
-
-
 Plugin Packaging
 ================
 
-Adding an introduction that talks about the fact every plugin is in its own repository would be worthwhile. |br|
 There are as set of files that must exist within the repository of a plugin that are used to create the package for that plugin on the various supported platforms. The following documents what those files are and what they should contain.
 
 Common files
@@ -185,7 +177,7 @@ Examples of filename along with content
     esac
 
 .. note::
-    If your package is not supported for a specific platform then you must exit with exitcode 1
+    If your package is not supported for a specific platform then you must exit with exitcode 1.
 
 3. VERSION.{PLUGIN_TYPE}.{PLUGIN_NAME}
 

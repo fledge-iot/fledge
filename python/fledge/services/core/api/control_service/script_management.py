@@ -7,6 +7,7 @@
 import json
 import logging
 import datetime
+import uuid
 
 from aiohttp import web
 
@@ -419,6 +420,19 @@ async def delete(request: web.Request) -> web.Response:
         message = ""
         if 'rows' in result:
             if result['rows']:
+                try:
+                    # Delete automation script category and schedule
+                    cf_mgr = ConfigurationManager(connect.get_storage_async())
+                    await cf_mgr.delete_category_and_children_recursively(name)
+                    schedules_list = await server.Server.scheduler.get_schedules()
+                    for sch in schedules_list:
+                        if sch.name == name and sch.process_name == "automation_script":
+                            schedule_id = str(sch.schedule_id)
+                            await server.Server.scheduler.disable_schedule(uuid.UUID(schedule_id))
+                            await server.Server.scheduler.delete_schedule(uuid.UUID(schedule_id))
+                            break
+                except:
+                    pass
                 payload = PayloadBuilder().WHERE(['name', '=', name]).payload()
                 delete_result = await storage.delete_from_tbl("control_script", payload)
                 if 'response' in delete_result:

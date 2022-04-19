@@ -1,18 +1,19 @@
 .. Documentation of package for a Plugin
 
-Packaging Documentation
-=======================
+Plugin Packaging
+================
 
-Below are the prerequisite files which we need them in Plugin repository itself.
+Adding an introduction that talks about the fact every plugin is in its own repository would be worthwhile.
+
+There are as set of files that must exist within the repository of a plugin that are used to create the package for that plugin on the various supported platforms. The following documents what those files are and what they should contain.
 
 Common files
 ------------
 
 - Description
-   Summary of a plugin. Also make sure description of plugin must be in a single line as we do not support multiline yet.
-
+   The *Description* file should contain a brief description of the plugin and will be used as the description for the package that is created. Also make sure description of plugin must be in a single line as of now we do not have support multi lines yet.
 - Package
-   This is the main file where we define set of variables.
+   The *Package* file is the main file where we define set of variables.
 
    - plugin_name
       Name of the Plugin.
@@ -31,19 +32,18 @@ Common files
       additional_libs="DIRECTORY_NAME:FILE_NAME" - in case of single
       additional_libs="DIRECTORY_NAME:FILE_NAME1,DIRECTORY_NAME:FILE_NAME2" - in case of multiple use comma separated with both directory & file name
 
-
 - service_notification.version
-   This file only requires if plugin is notification rule or delivery based.
+   The *service_notification.version* file is only required if the plugin is a notification rule or notification delivery plugin. It contains the minimum version of the notification service which the plugin requires.
 
 C based Plugins
 ---------------
 
 - VERSION
-   Plugin version number.
+   The *VERSION* file contain the version number of the plugin and is used by the build process to include the version number within the code and also within the name of the package file created.
 - fledge.version
-   Fledge version number.
+   The *fledge.version* file contains the minimum version number of Fledge required by the plugin.
 - requirements.sh (OPTIONAL)
-   If a plugin requires some additional libraries to install with. Also make sure file should be in executable format.
+   The *requirements.sh* file is used to install any additional libraries or other artifacts that are need to build the plugin. It takes the form of a shell script. This script, if it exists, will be run as a part of the process of building the plugin before the cmake command is issued in the build process.
 
 Examples of filename along with content
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -133,22 +133,22 @@ Examples of filename along with content
 
 Common Additional Libraries Package
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-At the moment we have only two package exists.
+Currently there are two packages created a part of the process of building Fledge that are commonly used in plugins.
 
-- **fledge-mqtt** which is packed with libpaho-mqtt library.
-- **fledge-gcp** which is packed with libjwt and libjansson libraries.
+- **fledge-mqtt** which is a packaged version of the libpaho-mqtt library.
+- **fledge-gcp** which is a packaged version of the libjwt and libjansson libraries.
 
-If your plugin depends upon then update **requirements** variable in Package file instead of using *additional_libs* variable.
+If your plugin depends on any of these libraries they should be added to the *requirements* variable in the **Package** file rather than adding them as *additional_libs* since the version of these is managed by the Fledge build and packaging process.
 
 Python based Plugins
 --------------------
 
 - VERSION.{PLUGIN_TYPE}.{PLUGIN_NAME}
-   Fledge and Plugin version number.
+   The *VERSION.{PLUGIN_TYPE}.{PLUGIN_NAME}* file contains the packaged version of the the plugin and also the minimum fledge version that the plugin requires.
 - install_notes.txt (OPTIONAL)
-   If plugin requires any manual intervention like reboot or any setting which is required on the device directly. Therefore we need some notes to let user know what else is required to complete the installation of a plugin. And notes will be appeared at the end of plugin installation.
+   The *install_notes.txt* is a simple text file that can be included if there are specific instructions required to be given during the installation of the plugin. These notes will be displayed at the end of the installation process for the package.
 - extras_install.sh (OPTIONAL)
-   This is just another shell script file to avoid package lock errors during package installation. We can write those steps here. Also make sure file should be in executable format.
+   The *extras_install.sh* file is a shell script that is added to the package to allow for extra commands to be executed as part of the package installation. Not all plugins will require this file to be present and it can be omitted if there are no extra steps required on the installation.
 
 Examples of filename along with content
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -241,8 +241,8 @@ Examples of filename along with content
       esac
     fi
 
-Build Package
--------------
+Building A Package
+------------------
 
 Firstly you need to clone the repository `fledge-pkg <https://github.com/fledge-iot/fledge-pkg>`_. Now do the following steps
 

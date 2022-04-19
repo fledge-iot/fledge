@@ -24,6 +24,21 @@ async def mock_coro(*args, **kwargs):
     return None if len(args) == 0 else args[0]
 
 
+async def mock_schedule(name):
+    schedules = []
+    schedule = ManualSchedule()
+    schedule.repeat = None
+    schedule.time = None
+    schedule.day = None
+    schedule.schedule_id = "0c6fbbfd-8b36-4d6d-8fcb-5389436aa0fe"
+    schedule.exclusive = True
+    schedule.enabled = True
+    schedule.name = name
+    schedule.process_name = "automation_script"
+    schedules.append(schedule)
+    return schedules
+
+
 @pytest.allure.feature("unit")
 @pytest.allure.story("api", "script-management")
 class TestScriptManagement:
@@ -442,7 +457,17 @@ class TestScriptManagement:
             {"name": "test", "steps": [{"delay": {"order": 0, "duration": 9003}},
                                        {"write": {"order": 0, "service": "rand", "values": {
                                            "random": "$foo$", "sine": "$foobar$"}}}]}]},
-         {"parameters": {"foo": 1, "bar": "blah"}})
+         {"parameters": {"foo": "1", "bar": "blah"}}),
+        (400, "Value should be in string for foo param.", {"count": 1, "rows": [
+            {"name": "test", "steps": [{"delay": {"order": 0, "duration": 9003}},
+                                       {"write": {"order": 0, "service": "rand", "values": {
+                                           "random": "$foo$", "sine": "$foobar$"}}}]}]},
+         {"parameters": {"foo": 1}}),
+        (400, "Value should be in string for foobar param.", {"count": 1, "rows": [
+            {"name": "test", "steps": [{"delay": {"order": 0, "duration": 9003}},
+                                       {"write": {"order": 0, "service": "rand", "values": {
+                                           "random": "$foo$", "sine": "$foobar$"}}}]}]},
+         {"parameters": {"foo": "1", "foobar": 13}})
     ])
     async def test_schedule_script_not_found(self, client, code, message, get_script_result, payload):
         script_name = "test"
@@ -469,27 +494,12 @@ class TestScriptManagement:
         result = {"count": 1, "rows": [{"name": script_name, "steps": [
             {"write": {"order": 0, "service": "sine", "values": {"sinusoid": "1.2"}}}], "acl": ""}]}
         server.Server.scheduler = Scheduler(None, None)
-
-        async def mock_schedule():
-            schedules = []
-            schedule = ManualSchedule()
-            schedule.repeat = None
-            schedule.time = None
-            schedule.day = None
-            schedule.schedule_id = "0c6fbbfd-8b36-4d6d-8fcb-5389436aa0fe"
-            schedule.exclusive = True
-            schedule.enabled = True
-            schedule.name = script_name
-            schedule.process_name = "automation_script"
-            schedules.append(schedule)
-            return schedules
-
         if sys.version_info >= (3, 8):
             value = await mock_coro(result)
-            get_sch = await mock_schedule()
+            get_sch = await mock_schedule(script_name)
         else:
             value = asyncio.ensure_future(mock_coro(result))
-            get_sch = asyncio.ensure_future(mock_schedule())
+            get_sch = asyncio.ensure_future(mock_schedule(script_name))
 
         query_payload = {"return": ["name", "steps", "acl"], "where": {"column": "name", "condition": "=",
                                                                        "value": script_name}}
@@ -510,40 +520,26 @@ class TestScriptManagement:
             assert query_payload == json.loads(args[1])
 
     async def test_schedule_configuration_for_script(self, client):
-        script_name = 'demoScript'
+        script_name = "demoScript"
+        sch_name = "foo"
         result = {"count": 1, "rows": [{"name": script_name, "steps": [
             {"write": {"order": 0, "service": "sine", "values": {"sinusoid": "1.2"}}}], "acl": ""}]}
         cat_child_result = {'children': ['dispatcherAdvanced', script_name]}
         server.Server.scheduler = Scheduler(None, None)
-
-        async def mock_schedule():
-            schedules = []
-            schedule = ManualSchedule()
-            schedule.repeat = None
-            schedule.time = None
-            schedule.day = None
-            schedule.schedule_id = "0c6fbbfd-8b36-4d6d-8fcb-5389436aa0fe"
-            schedule.exclusive = True
-            schedule.enabled = True
-            schedule.name = "foo"
-            schedule.process_name = "automation_script"
-            schedules.append(schedule)
-            return schedules
-
         if sys.version_info >= (3, 8):
             value = await mock_coro(result)
             sch = await mock_coro("")
             queue = await mock_coro(True)
             cat = await mock_coro(None)
             child = await mock_coro(cat_child_result)
-            get_sch = await mock_schedule()
+            get_sch = await mock_schedule(sch_name)
         else:
             value = asyncio.ensure_future(mock_coro(result))
             sch = asyncio.ensure_future(mock_coro(""))
             queue = asyncio.ensure_future(mock_coro(True))
             cat = asyncio.ensure_future(mock_coro(None))
             child = asyncio.ensure_future(mock_coro(cat_child_result))
-            get_sch = asyncio.ensure_future(mock_schedule())
+            get_sch = asyncio.ensure_future(mock_schedule(sch_name))
 
         query_payload = {"return": ["name", "steps", "acl"], "where": {"column": "name", "condition": "=",
                                                                        "value": script_name}}
@@ -554,22 +550,22 @@ class TestScriptManagement:
             with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=value) as patch_query_tbl:
                 with patch.object(server.Server.scheduler, 'get_schedules',
                                   return_value=get_sch) as patch_get_schedules:
-                    with patch.object(server.Server.scheduler, 'save_schedule',
-                                      return_value=sch) as patch_save_schedule:
-                        with patch.object(server.Server.scheduler, 'queue_task',
-                                          return_value=queue) as patch_queue_task:
-                            with patch.object(c_mgr, 'create_category', return_value=cat) as patch_create_cat:
-                                with patch.object(c_mgr, 'create_child_category',
-                                                  return_value=child) as patch_create_child_cat:
+                    with patch.object(c_mgr, 'create_category', return_value=cat) as patch_create_cat:
+                        with patch.object(c_mgr, 'create_child_category',
+                                          return_value=child) as patch_create_child_cat:
+                            with patch.object(server.Server.scheduler, 'save_schedule',
+                                              return_value=sch) as patch_save_schedule:
+                                with patch.object(server.Server.scheduler, 'queue_task',
+                                                  return_value=queue) as patch_queue_task:
                                     resp = await client.post('/fledge/control/script/{}/schedule'.format(script_name))
                                     assert 200 == resp.status
                                     result = await resp.text()
                                     json_response = json.loads(result)
                                     assert {"message": message} == json_response
-                                patch_create_child_cat.assert_called_once_with('dispatcher', [script_name])
-                            assert 1 == patch_create_cat.call_count
-                        patch_queue_task.assert_called_once_with(None)
-                    patch_save_schedule.assert_called_once()
+                                patch_queue_task.assert_called_once_with(None)
+                            patch_save_schedule.assert_called_once()
+                        patch_create_child_cat.assert_called_once_with('dispatcher', [script_name])
+                    assert 1 == patch_create_cat.call_count
                 patch_get_schedules.assert_called_once_with()
             args, _ = patch_query_tbl.call_args
             assert 'control_script' == args[0]

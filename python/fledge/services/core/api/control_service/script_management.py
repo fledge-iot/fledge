@@ -117,7 +117,7 @@ async def add_schedule_and_configuration(request: web.Request) -> web.Response:
     """ Create a schedule and configuration category for the task
        :Example:
            curl -H "authorization: $AUTH_TOKEN" -sX POST http://localhost:8081/fledge/control/script/testScript/schedule
-           curl -H "authorization: $AUTH_TOKEN" -sX POST http://localhost:8081/fledge/control/script/testScript/schedule -d '{"parameters": {"foobar": 0.8}}'
+           curl -H "authorization: $AUTH_TOKEN" -sX POST http://localhost:8081/fledge/control/script/testScript/schedule -d '{"parameters": {"foobar": "0.8"}}'
        """
     params = None
     try:
@@ -146,23 +146,38 @@ async def add_schedule_and_configuration(request: web.Request) -> web.Response:
                     msg = 'write steps KV pair is missing for {} script.'.format(name)
                     return web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
                 if params is not None:
-                    for p in params:
-                        if p not in macros_used_in_write_steps:
-                            msg = '{} param is not found in write steps for {} script.'.format(p, name)
+                    for pk, pv in params.items():
+                        if pk not in macros_used_in_write_steps:
+                            msg = '{} param is not found in write steps for {} script.'.format(pk, name)
                             return web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
+                        if not isinstance(pv, str):
+                            msg = 'Value should be in string for {} param.'.format(pk)
+                            return web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
                 if params is not None:
                     for w in write_steps:
                         for k, v in w['values'].items():
                             if any(p in v for p in params):
-                                w['values'][k] = params[v[1:-1]]
-                # Create schedule for an automation script
+                                # Amend parameters to the existing dict
+                                w['values'][v[1:-1]] = w['values'].pop(k)
+                                w['values'][v[1:-1]] = params[v[1:-1]]
+                # Check if schedule exists for an automation task
                 schedule_list = await server.Server.scheduler.get_schedules()
                 for sch in schedule_list:
                     if sch.name == name and sch.process_name == "automation_script":
                         msg = '{} schedule already exists.'.format(name)
                         return web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+                # Create configuration category for a task
+                cf_mgr = ConfigurationManager(connect.get_storage_async())
+                category_value = {"write": {"default": json.dumps(write_steps),
+                                            "description": "Dispatcher write operation using automation script",
+                                            "type": "string"}}
+                category_desc = "{} configuration for task".format(name)
+                await cf_mgr.create_category(category_name=name, category_description=category_desc,
+                                             category_value=category_value, keep_original_items=True)
+                # Create Parent-child relation
+                await cf_mgr.create_child_category("dispatcher", [name])
+                # Create schedule for an automation script
                 manual_schedule = ManualSchedule()
-                # Set schedule fields
                 manual_schedule.name = name
                 manual_schedule.process_name = 'automation_script'
                 manual_schedule.repeat = datetime.timedelta(seconds=0)
@@ -173,16 +188,6 @@ async def add_schedule_and_configuration(request: web.Request) -> web.Response:
                 schedule_id = manual_schedule.schedule_id
                 # Add schedule_id to the schedule queue
                 await server.Server.scheduler.queue_task(schedule_id)
-                # Create configuration category for a task
-                cf_mgr = ConfigurationManager(connect.get_storage_async())
-                category_value = {"write": {"default": json.dumps(write_steps),
-                                            "description": "Dispatcher write operation using automation script",
-                                            "type": "JSON"}}
-                category_desc = "{} configuration for task".format(name)
-                await cf_mgr.create_category(category_name=name, category_description=category_desc,
-                                             category_value=category_value, keep_original_items=True)
-                # Create Parent-child relation
-                await cf_mgr.create_child_category("dispatcher", [name])
             else:
                 raise NameNotFoundError('Script with name {} is not found.'.format(name))
         else:

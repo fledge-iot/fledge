@@ -1,30 +1,29 @@
-.. Documentation of package for a Plugin
+.. Plugin as a Package
+
+.. |br| raw:: html
+
+   <br />
+
+.. =============================================
+
 
 Plugin Packaging
 ================
 
-Adding an introduction that talks about the fact every plugin is in its own repository would be worthwhile.
-
+Adding an introduction that talks about the fact every plugin is in its own repository would be worthwhile. |br|
 There are as set of files that must exist within the repository of a plugin that are used to create the package for that plugin on the various supported platforms. The following documents what those files are and what they should contain.
 
 Common files
 ------------
 
-- Description
-   The *Description* file should contain a brief description of the plugin and will be used as the description for the package that is created. Also make sure description of plugin must be in a single line as of now we do not have support multi lines yet.
-- Package
-   The *Package* file is the main file where we define set of variables.
+- **Description** - It should contain a brief description of the plugin and will be used as the description for the package that is created. Also make sure description of plugin must be in a single line as of now we do not have support multi lines yet.
+- **Package** - This is the main file where we define set of variables.
 
-   - plugin_name
-      Name of the Plugin.
-   - plugin_type
-      Type of the plugin.
-   - plugin_install_dirname
-      Installed directory name.
-   - plugin_package_name (OPTIONAL)
-      Name of the Package and also fullname is required. If not given or variable is not set then the package name should be same as plugin name.
-   - requirements
-      Runtime Architecture specific packages list in comma separated without any space.
+   - **plugin_name** - Name of the Plugin.
+   - **plugin_type** - Type of the Plugin.
+   - **plugin_install_dirname** - Installed Directory name.
+   - **plugin_package_name (Optional)** - Name of the Package. If it is not given then the package name should be same as plugin name.
+   - **requirements** - Runtime Architecture specific packages list and should have comma separated values without any space.
 
    .. note::
       For C-based plugins if a plugin requires some additional libraries to install with then set additional_libs variable inside Package file. And the value must be with following contract:
@@ -32,18 +31,14 @@ Common files
       additional_libs="DIRECTORY_NAME:FILE_NAME" - in case of single
       additional_libs="DIRECTORY_NAME:FILE_NAME1,DIRECTORY_NAME:FILE_NAME2" - in case of multiple use comma separated with both directory & file name
 
-- service_notification.version
-   The *service_notification.version* file is only required if the plugin is a notification rule or notification delivery plugin. It contains the minimum version of the notification service which the plugin requires.
+- **service_notification.version** - It is only required if the plugin is a notification rule or notification delivery plugin. It contains the minimum version of the notification service which the plugin requires.
 
 C based Plugins
 ---------------
 
-- VERSION
-   The *VERSION* file contain the version number of the plugin and is used by the build process to include the version number within the code and also within the name of the package file created.
-- fledge.version
-   The *fledge.version* file contains the minimum version number of Fledge required by the plugin.
-- requirements.sh (OPTIONAL)
-   The *requirements.sh* file is used to install any additional libraries or other artifacts that are need to build the plugin. It takes the form of a shell script. This script, if it exists, will be run as a part of the process of building the plugin before the cmake command is issued in the build process.
+- **VERSION** - It contains the version number of the plugin and is used by the build process to include the version number within the code and also within the name of the package file created.
+- **fledge.version** - It contains the minimum version number of Fledge required by the plugin.
+- **requirements.sh (Optional)** - It is used to install any additional libraries or other artifacts that are need to build the plugin. It takes the form of a shell script. This script, if it exists, will be run as a part of the process of building the plugin before the cmake command is issued in the build process.
 
 Examples of filename along with content
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -122,7 +117,7 @@ Examples of filename along with content
     esac
 
 .. note::
-    If your package is not supported for a specific platform then you must exit with exitcode 1
+    If your package is not supported for a specific platform then you must exit with exitcode 1.
 
 6. service_notification.version
 
@@ -143,12 +138,9 @@ If your plugin depends on any of these libraries they should be added to the *re
 Python based Plugins
 --------------------
 
-- VERSION.{PLUGIN_TYPE}.{PLUGIN_NAME}
-   The *VERSION.{PLUGIN_TYPE}.{PLUGIN_NAME}* file contains the packaged version of the the plugin and also the minimum fledge version that the plugin requires.
-- install_notes.txt (OPTIONAL)
-   The *install_notes.txt* is a simple text file that can be included if there are specific instructions required to be given during the installation of the plugin. These notes will be displayed at the end of the installation process for the package.
-- extras_install.sh (OPTIONAL)
-   The *extras_install.sh* file is a shell script that is added to the package to allow for extra commands to be executed as part of the package installation. Not all plugins will require this file to be present and it can be omitted if there are no extra steps required on the installation.
+- **VERSION.{PLUGIN_TYPE}.{PLUGIN_NAME}** - It contains the packaged version of the plugin and also the minimum fledge version that the plugin requires.
+- **install_notes.txt (Optional)** - It is a simple text file that can be included if there are specific instructions required to be given during the installation of the plugin. These notes will be displayed at the end of the installation process for the package.
+- **extras_install.sh (Optional)** - It is a shell script that is added to the package to allow for extra commands to be executed as part of the package installation. Not all plugins will require this file to be present and it can be omitted if there are no extra steps required on the installation.
 
 Examples of filename along with content
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

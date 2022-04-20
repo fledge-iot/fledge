@@ -402,6 +402,7 @@ class TestScriptManagement:
 
     async def test_delete_script_along_with_category_and_schedule(self, client):
         script_name = 'demoScript'
+        schedule_cat_name = "{}-automation-script".format(script_name)
         schedule_id = "0c6fbbfd-8b36-4d6d-8fcb-5389436aa0fe"
         server.Server.scheduler = Scheduler(None, None)
         storage_client_mock = MagicMock(StorageClientAsync)
@@ -455,7 +456,7 @@ class TestScriptManagement:
                         patch_delete_sch.assert_called_once_with(uuid.UUID(schedule_id))
                     patch_disable_sch.assert_called_once_with(uuid.UUID(schedule_id))
                 patch_get_schedules.assert_called_once_with()
-            patch_delete_cat_and_child.assert_called_once_with(script_name)
+            patch_delete_cat_and_child.assert_called_once_with(schedule_cat_name)
 
     async def test_delete_script(self, client):
         script_name = 'demoScript'

@@ -424,7 +424,8 @@ async def delete(request: web.Request) -> web.Response:
                 try:
                     # Delete automation script category and schedule
                     cf_mgr = ConfigurationManager(connect.get_storage_async())
-                    await cf_mgr.delete_category_and_children_recursively(name)
+                    cat_name = "{}-automation-script".format(name)
+                    await cf_mgr.delete_category_and_children_recursively(cat_name)
                     schedules_list = await server.Server.scheduler.get_schedules()
                     for sch in schedules_list:
                         if sch.name == name and sch.process_name == "automation_script":

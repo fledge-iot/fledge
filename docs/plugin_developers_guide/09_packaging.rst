@@ -133,6 +133,7 @@ Python based Plugins
 - **VERSION.{PLUGIN_TYPE}.{PLUGIN_NAME}** - It contains the packaged version of the plugin and also the minimum fledge version that the plugin requires.
 - **install_notes.txt (Optional)** - It is a simple text file that can be included if there are specific instructions required to be given during the installation of the plugin. These notes will be displayed at the end of the installation process for the package.
 - **extras_install.sh (Optional)** - It is a shell script that is added to the package to allow for extra commands to be executed as part of the package installation. Not all plugins will require this file to be present and it can be omitted if there are no extra steps required on the installation.
+- **requirements-{PLUGIN_NAME}.txt (Optional)** - It is a simple text file that can be included if there are pip dependencies required to be given during the installation of the plugin. Also make sure file should be placed inside *python* directory.
 
 Examples of filename along with content
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -224,6 +225,14 @@ Examples of filename along with content
 
       esac
     fi
+
+6. requirements-{PLUGIN_NAME}.txt
+
+.. code-block:: console
+
+    $ cat python/requirements-modbustcp.txt
+    pymodbus3==1.0.0
+
 
 Building A Package
 ------------------

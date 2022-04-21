@@ -570,11 +570,11 @@ Following https://www.postgresql.org/download/ instructions, the commands to ins
 .. code-block:: console
 
   sudo yum install -y https://download.postgresql.org/pub/repos/yum/reporpms/EL-7-x86_64/pgdg-redhat-repo-latest.noarch.rpm
-  sudo yum install -y postgresql96-server
-  sudo yum install -y postgresql96-devel
-  sudo yum install -y rh-postgresql96
-  sudo yum install -y rh-postgresql96-postgresql-devel
-  sudo /usr/pgsql-9.6/bin/postgresql96-setup initdb
+  sudo yum install -y postgresql13-server
+  sudo yum install -y postgresql13-devel
+  sudo yum install -y rh-postgresql13
+  sudo yum install -y rh-postgresql13-postgresql-devel
+  sudo /usr/pgsql-9.6/bin/postgresql13-setup initdb
   sudo systemctl enable postgresql-9.6
   sudo systemctl start postgresql-9.6
 
@@ -582,7 +582,7 @@ At this point, Postgres has been configured to start at boot and it should be up
 
 .. code-block:: console
 
-  $ sudo systemctl status postgresql-9.6
+  $ sudo systemctl status postgresql-13
   [sudo] password for fledge:
   ● postgresql-9.6.service - PostgreSQL 9.6 database server
      Loaded: loaded (/usr/lib/systemd/system/postgresql-9.6.service; enabled; vendor preset: disabled)

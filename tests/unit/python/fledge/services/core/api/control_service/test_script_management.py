@@ -401,20 +401,8 @@ class TestScriptManagement:
             assert query_payload == json.loads(args[1])
 
     async def test_delete_script_along_with_category_and_schedule(self, client):
-
-        async def mock_schedule():
-            schedule = ManualSchedule()
-            schedule.repeat = None
-            schedule.time = None
-            schedule.day = None
-            schedule.schedule_id = schedule_id
-            schedule.exclusive = True
-            schedule.enabled = True
-            schedule.name = script_name
-            schedule.process_name = "automation_script"
-            return [schedule]
-
         script_name = 'demoScript'
+        schedule_cat_name = "{}-automation-script".format(script_name)
         schedule_id = "0c6fbbfd-8b36-4d6d-8fcb-5389436aa0fe"
         server.Server.scheduler = Scheduler(None, None)
         storage_client_mock = MagicMock(StorageClientAsync)
@@ -431,14 +419,14 @@ class TestScriptManagement:
             value = await mock_coro(result)
             del_value = await mock_coro(delete_result)
             del_cat_and_child = await mock_coro(delete_result)
-            get_sch = await mock_schedule()
+            get_sch = await mock_schedule(script_name)
             disable_sch = await mock_coro(disable_sch_result)
             delete_sch = await mock_coro(delete_sch_result)
         else:
             value = asyncio.ensure_future(mock_coro(result))
             del_value = asyncio.ensure_future(mock_coro(delete_result))
             del_cat_and_child = asyncio.ensure_future(mock_coro(delete_result))
-            get_sch = asyncio.ensure_future(mock_schedule())
+            get_sch = asyncio.ensure_future(mock_schedule(script_name))
             disable_sch = asyncio.ensure_future(mock_coro(disable_sch_result))
             delete_sch = asyncio.ensure_future(mock_coro(delete_sch_result))
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
@@ -468,7 +456,7 @@ class TestScriptManagement:
                         patch_delete_sch.assert_called_once_with(uuid.UUID(schedule_id))
                     patch_disable_sch.assert_called_once_with(uuid.UUID(schedule_id))
                 patch_get_schedules.assert_called_once_with()
-            patch_delete_cat_and_child.assert_called_once_with(script_name)
+            patch_delete_cat_and_child.assert_called_once_with(schedule_cat_name)
 
     async def test_delete_script(self, client):
         script_name = 'demoScript'
@@ -597,10 +585,11 @@ class TestScriptManagement:
 
     async def test_schedule_configuration_for_script(self, client):
         script_name = "demoScript"
+        schedule_cat_name = "{}-automation-script".format(script_name)
         sch_name = "foo"
         result = {"count": 1, "rows": [{"name": script_name, "steps": [
             {"write": {"order": 0, "service": "sine", "values": {"sinusoid": "1.2"}}}], "acl": ""}]}
-        cat_child_result = {'children': ['dispatcherAdvanced', script_name]}
+        cat_child_result = {'children': ['dispatcherAdvanced', schedule_cat_name]}
         server.Server.scheduler = Scheduler(None, None)
         if sys.version_info >= (3, 8):
             value = await mock_coro(result)
@@ -640,7 +629,7 @@ class TestScriptManagement:
                                     assert {"message": message} == json_response
                                 patch_queue_task.assert_called_once_with(None)
                             patch_save_schedule.assert_called_once()
-                        patch_create_child_cat.assert_called_once_with('dispatcher', [script_name])
+                        patch_create_child_cat.assert_called_once_with('dispatcher', [schedule_cat_name])
                     assert 1 == patch_create_cat.call_count
                 patch_get_schedules.assert_called_once_with()
             args, _ = patch_query_tbl.call_args

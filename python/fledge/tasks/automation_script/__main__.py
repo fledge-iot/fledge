@@ -41,7 +41,7 @@ if __name__ == '__main__':
         if svc['type'] == "Core":
             # find the content of script category for write operation
             get_script_cat_conn = http.client.HTTPConnection("{}:{}".format(svc['address'], svc['service_port']))
-            get_script_cat_conn.request("GET", '/fledge/category/{}'.format(script_name))
+            get_script_cat_conn.request("GET", '/fledge/category/{}-automation-script'.format(script_name))
             r = get_script_cat_conn.getresponse()
             res = r.read().decode()
             script_cat_jdoc = json.loads(res)

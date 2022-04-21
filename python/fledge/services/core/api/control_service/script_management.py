@@ -172,11 +172,12 @@ async def add_schedule_and_configuration(request: web.Request) -> web.Response:
                 category_value = {"write": {"default": json.dumps(write_steps),
                                             "description": "Dispatcher write operation using automation script",
                                             "type": "string"}}
-                category_desc = "{} configuration for task".format(name)
-                await cf_mgr.create_category(category_name=name, category_description=category_desc,
-                                             category_value=category_value, keep_original_items=True)
+                category_desc = "{} configuration for automation script task".format(name)
+                cat_name = "{}-automation-script".format(name)
+                await cf_mgr.create_category(category_name=cat_name, category_description=category_desc,
+                                             category_value=category_value, keep_original_items=True, display_name=name)
                 # Create Parent-child relation
-                await cf_mgr.create_child_category("dispatcher", [name])
+                await cf_mgr.create_child_category("dispatcher", [cat_name])
                 # Create schedule for an automation script
                 manual_schedule = ManualSchedule()
                 manual_schedule.name = name
@@ -423,7 +424,8 @@ async def delete(request: web.Request) -> web.Response:
                 try:
                     # Delete automation script category and schedule
                     cf_mgr = ConfigurationManager(connect.get_storage_async())
-                    await cf_mgr.delete_category_and_children_recursively(name)
+                    cat_name = "{}-automation-script".format(name)
+                    await cf_mgr.delete_category_and_children_recursively(cat_name)
                     schedules_list = await server.Server.scheduler.get_schedules()
                     for sch in schedules_list:
                         if sch.name == name and sch.process_name == "automation_script":

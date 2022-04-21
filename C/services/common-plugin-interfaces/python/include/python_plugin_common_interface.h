@@ -209,32 +209,32 @@ const char *json_dumps(PyObject *json_dict)
 	{
 		if ((method = PyObject_GetAttrString(mod, "dumps")) != NULL)
 		{
-            PyObject *args = PyTuple_New(1);
-            PyObject *pValue = Py_BuildValue("O", json_dict);
-            PyTuple_SetItem(args, 0, pValue);
+			PyObject *args = PyTuple_New(1);
+			PyObject *pValue = Py_BuildValue("O", json_dict);
+			PyTuple_SetItem(args, 0, pValue);
 			
 			rval = PyObject_Call(method, args, NULL);
-            Py_CLEAR(method);
-            Py_CLEAR(args);
-            Py_CLEAR(pValue);
-            // Py_CLEAR(mod);
+			Py_CLEAR(method);
+			Py_CLEAR(args);
+			Py_CLEAR(pValue);
+			// Py_CLEAR(mod);
             
 			if (rval == NULL)
 			{
 				if (PyErr_Occurred())
 				{
 					logErrorMessage();
-                    return NULL;
+					return NULL;
 				}
 			}
-            else
-                Logger::getLogger()->info("%s:%d, rval type=%s", __FUNCTION__, __LINE__, (Py_TYPE(rval))->tp_name);
+			else
+				Logger::getLogger()->info("%s:%d, rval type=%s", __FUNCTION__, __LINE__, (Py_TYPE(rval))->tp_name);
             
 		}
 		else
 		{
 			Logger::getLogger()->fatal("Method 'dumps' not found");
-            Py_CLEAR(mod);
+			Py_CLEAR(mod);
 		}
 		// Remove references
 		
@@ -249,8 +249,8 @@ const char *json_dumps(PyObject *json_dict)
 
 	PyGILState_Release(state);
 
-    const char *retVal = PyUnicode_AsUTF8(rval);
-    Logger::getLogger()->debug("%s: retVal=%s", __FUNCTION__, retVal);
+	const char *retVal = PyUnicode_AsUTF8(rval);
+	Logger::getLogger()->debug("%s: retVal=%s", __FUNCTION__, retVal);
     
 	return retVal;
 }
@@ -261,41 +261,41 @@ const char *json_dumps(PyObject *json_dict)
  */
 PyObject *json_loads(const char *json_str)
 {
-    PyObject *rval;
-    PyObject *mod, *method;
+PyObject *rval;
+PyObject *mod, *method;
 
 	PyGILState_STATE state = PyGILState_Ensure();
 	if ((mod = PyImport_ImportModule("json")) != NULL)
 	{
 		if ((method = PyObject_GetAttrString(mod, "loads")) != NULL)
 		{
-            PyObject *args = PyTuple_New(1);
-            PyObject *pValue = Py_BuildValue("s", json_str);
-            PyTuple_SetItem(args, 0, pValue);
+			PyObject *args = PyTuple_New(1);
+			PyObject *pValue = Py_BuildValue("s", json_str);
+			PyTuple_SetItem(args, 0, pValue);
 
-            Logger::getLogger()->debug("%s:%d: method=%p, args=%p, pValue=%p", __FUNCTION__, __LINE__, method, args, pValue);
+			Logger::getLogger()->debug("%s:%d: method=%p, args=%p, pValue=%p", __FUNCTION__, __LINE__, method, args, pValue);
 			rval = PyObject_Call(method, args, NULL);
-            Py_CLEAR(method);
-            // Py_CLEAR(pValue);
-            // Py_CLEAR(args);
-            // Py_CLEAR(mod);
+			Py_CLEAR(method);
+			// Py_CLEAR(pValue);
+			// Py_CLEAR(args);
+			// Py_CLEAR(mod);
             
 			if (rval == NULL)
 			{
 				if (PyErr_Occurred())
 				{
 					logErrorMessage();
-                    return NULL;
+					return NULL;
 				}
 			}
-            else
-                Logger::getLogger()->debug("%s:%d, rval type=%s", __FUNCTION__, __LINE__, (Py_TYPE(rval))->tp_name);
+			else
+				Logger::getLogger()->debug("%s:%d, rval type=%s", __FUNCTION__, __LINE__, (Py_TYPE(rval))->tp_name);
 
 		}
 		else
 		{
 			Logger::getLogger()->fatal("Method 'loads' not found");
-            Py_CLEAR(mod);
+			Py_CLEAR(mod);
 		}
 	}
 	else
@@ -329,25 +329,25 @@ static PLUGIN_INFORMATION *Py2C_PluginInfo(PyObject* pyRetVal)
 	PyObject *dKey, *dValue;
 	Py_ssize_t dPos = 0;
     
-    PyObject* objectsRepresentation = PyObject_Repr(pyRetVal);
-    const char* s = PyUnicode_AsUTF8(objectsRepresentation);
-    Logger::getLogger()->debug("Py2C_PluginInfo(): plugin_info returned: %s", s);
-    Py_CLEAR(objectsRepresentation);
+	PyObject* objectsRepresentation = PyObject_Repr(pyRetVal);
+	const char* s = PyUnicode_AsUTF8(objectsRepresentation);
+	Logger::getLogger()->debug("Py2C_PluginInfo(): plugin_info returned: %s", s);
+	Py_CLEAR(objectsRepresentation);
 
 	// dKey and dValue are borrowed references
 	while (PyDict_Next(pyRetVal, &dPos, &dKey, &dValue))
 	{
 		const char* ckey = PyUnicode_AsUTF8(dKey);
 		const char* cval = PyUnicode_AsUTF8(dValue);
-        Logger::getLogger()->debug("%s:%d, key=%s, value=%s, dValue type=%s", __FUNCTION__, __LINE__, ckey, cval, (Py_TYPE(dValue))->tp_name);
+		Logger::getLogger()->debug("%s:%d, key=%s, value=%s, dValue type=%s", __FUNCTION__, __LINE__, ckey, cval, (Py_TYPE(dValue))->tp_name);
 
-        char *valStr = NULL;
-        if (!PyDict_Check(dValue))
-        {
-    		valStr = new char [string(cval).length()+1];
-    		std::strcpy (valStr, cval);
-            Logger::getLogger()->debug("%s:%d, key=%s, value=%s, valStr=%s", __FUNCTION__, __LINE__, ckey, cval, valStr);
-        }
+		char *valStr = NULL;
+		if (!PyDict_Check(dValue))
+		{
+			valStr = new char [string(cval).length()+1];
+			std::strcpy (valStr, cval);
+			Logger::getLogger()->debug("%s:%d, key=%s, value=%s, valStr=%s", __FUNCTION__, __LINE__, ckey, cval, valStr);
+		}
 
 		if(!strcmp(ckey, "name"))
 		{
@@ -376,22 +376,22 @@ static PLUGIN_INFORMATION *Py2C_PluginInfo(PyObject* pyRetVal)
 		}
 		else if(!strcmp(ckey, "config"))
 		{            
-            // if 'config' value is of dict type, convert it to string
-            if (strcmp((Py_TYPE(dValue))->tp_name, "dict")==0)
-            {
-                PyObject* objectsRepresentation = PyObject_Repr(dValue);
-                const char* s = PyUnicode_AsUTF8(objectsRepresentation);
-                Logger::getLogger()->debug("Py2C_PluginInfo(): INPUT: config value=%s", s);
-                Py_CLEAR(objectsRepresentation);
+			// if 'config' value is of dict type, convert it to string
+			if (strcmp((Py_TYPE(dValue))->tp_name, "dict")==0)
+			{
+				PyObject* objectsRepresentation = PyObject_Repr(dValue);
+				const char* s = PyUnicode_AsUTF8(objectsRepresentation);
+				Logger::getLogger()->debug("Py2C_PluginInfo(): INPUT: config value=%s", s);
+				Py_CLEAR(objectsRepresentation);
 
-                info->config = json_dumps(dValue);
-                Logger::getLogger()->info("Py2C_PluginInfo(): OUTPUT: config value=%s", info->config);
-            }
-            else
-                info->config = valStr;
+				info->config = json_dumps(dValue);
+				Logger::getLogger()->info("Py2C_PluginInfo(): OUTPUT: config value=%s", info->config);
+			}
+			else
+				info->config = valStr;
 		}
-        else
-            Logger::getLogger()->info("%s:%d: Unexpected key %s", __FUNCTION__, __LINE__, ckey);
+		else
+			Logger::getLogger()->info("%s:%d: Unexpected key %s", __FUNCTION__, __LINE__, ckey);
 	}
 
 	return info;
@@ -609,7 +609,7 @@ static PLUGIN_HANDLE plugin_init_fn(ConfigCategory *config)
 		}
 	}
 
-    Logger::getLogger()->info("%s:%d: loadModule=%s, reloadModule=%s", 
+	Logger::getLogger()->info("%s:%d: loadModule=%s, reloadModule=%s", 
                                 __FUNCTION__, __LINE__, loadModule?"TRUE":"FALSE", reloadModule?"TRUE":"FALSE");
 
 	// Acquire GIL
@@ -621,7 +621,7 @@ static PLUGIN_HANDLE plugin_init_fn(ConfigCategory *config)
 		string fledgePythonDir;
 	
 		string fledgeRootDir(getenv("FLEDGE_ROOT"));
-    	fledgePythonDir = fledgeRootDir + "/python";
+		fledgePythonDir = fledgeRootDir + "/python";
 
 		int argc = 2;
 
@@ -693,7 +693,7 @@ static PLUGIN_HANDLE plugin_init_fn(ConfigCategory *config)
 				   module->m_name.c_str(),
 				   module->m_module);
 
-    PyObject *config_dict = json_loads(config->itemsToJSON().c_str());
+	PyObject *config_dict = json_loads(config->itemsToJSON().c_str());
     
 	// Call Python method passing an object
 	PyObject* pReturn = PyObject_CallMethod(module->m_module,
@@ -701,7 +701,7 @@ static PLUGIN_HANDLE plugin_init_fn(ConfigCategory *config)
 						"O",
 						config_dict);
 
-    Py_CLEAR(config_dict);
+	Py_CLEAR(config_dict);
 
 	// Handle returned data
 	if (!pReturn)
@@ -842,7 +842,7 @@ static void plugin_reconfigure_fn(PLUGIN_HANDLE* handle,
 
 	Logger::getLogger()->debug("plugin_reconfigure with %s", config.c_str());
 
-    PyObject *new_config_dict = json_loads(config.c_str());
+	PyObject *new_config_dict = json_loads(config.c_str());
 
 	// Call Python method passing an object and a C string
 	PyObject* pReturn = PyObject_CallFunction(pFunc,
@@ -851,7 +851,7 @@ static void plugin_reconfigure_fn(PLUGIN_HANDLE* handle,
 						  new_config_dict);
 
 	Py_CLEAR(pFunc);
-    Py_CLEAR(new_config_dict);
+	Py_CLEAR(new_config_dict);
 
 	// Handle returned data
 	if (!pReturn)
@@ -864,7 +864,7 @@ static void plugin_reconfigure_fn(PLUGIN_HANDLE* handle,
 	}
 	else
 	{
-        // Save PythonModule
+		// Save PythonModule
 		PythonModule* currentModule = it->second;
 
 		Py_CLEAR(*handle);

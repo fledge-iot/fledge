@@ -195,10 +195,14 @@ class TestBrowserAssets:
 
     @pytest.mark.parametrize("request_url", URLS)
     async def test_http_exception(self, client, request_url):
-        with patch.object(connect, 'get_readings_async', return_value=Exception):
-            resp = await client.get(request_url)
-            assert 500 == resp.status
-            assert 'Internal Server Error' == resp.reason
+        readings_storage_client_mock = MagicMock(ReadingsStorageClientAsync)
+        result = {}
+        value = await mock_coro(result) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(result))
+        with patch.object(connect, 'get_readings_async', return_value=readings_storage_client_mock):
+            with patch.object(readings_storage_client_mock, 'query', return_value=value):
+                resp = await client.get(request_url)
+                assert 500 == resp.status
+                assert 'Internal Server Error' == resp.reason
 
     @pytest.mark.parametrize("status_code, message, storage_result, payload", [
         (400, "ERROR: something went wrong", {'message': 'ERROR: something went wrong', 'retryable': False,
@@ -606,3 +610,33 @@ class TestBrowserAssets:
                 args, kwargs = query_patch.call_args
                 assert json.loads(payload) == json.loads(args[0])
                 query_patch.assert_called_once_with(args[0])
+
+    @pytest.mark.parametrize("request_url, payload, is_image_excluded", [
+        ('fledge/asset/testcard?images=include', '{"return": ["reading", {"column": "user_ts", "alias": "timestamp"}], '
+                                                 '"where": {"column": "asset_code", "condition": "=", '
+                                                 '"value": "testcard"}, "limit": 20, "sort": {"column": "user_ts", '
+                                                 '"direction": "desc"}}',
+         True),
+        ('fledge/asset/testcard?images=exclude', '{"return": ["reading", {"column": "user_ts", "alias": "timestamp"}], '
+                                                 '"where": {"column": "asset_code", "condition": "=", '
+                                                 '"value": "testcard"}, "limit": 20, "sort": {"column": "user_ts", '
+                                                 '"direction": "desc"}}',
+         False)
+    ])
+    async def test_data_with_images_request_param(self, client, request_url, payload, is_image_excluded):
+        storage_result = {'count': 1, 'rows': [{'reading': {'testcard': '__DPIMAGE:256,256,8_AA'}}]}
+        image_placeholder_result = [{'reading': {'testcard': 'Data removed for brevity'}}]
+        readings_storage_client_mock = MagicMock(ReadingsStorageClientAsync)
+        _rv = await mock_coro(storage_result) if sys.version_info.major == 3 and sys.version_info.minor >= 8 \
+            else asyncio.ensure_future(mock_coro(storage_result))
+        with patch.object(connect, 'get_readings_async', return_value=readings_storage_client_mock):
+            with patch.object(readings_storage_client_mock, 'query', return_value=_rv) as query_patch:
+                resp = await client.get(request_url)
+                assert 200 == resp.status
+                r = await resp.text()
+                json_response = json.loads(r)
+                expected_result = storage_result['rows'] if is_image_excluded else image_placeholder_result
+                assert expected_result == json_response
+            args, _ = query_patch.call_args
+            assert json.loads(payload) == json.loads(args[0])
+            query_patch.assert_called_once_with(args[0])

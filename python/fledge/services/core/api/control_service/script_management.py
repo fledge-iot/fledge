@@ -175,7 +175,7 @@ async def add_schedule_and_configuration(request: web.Request) -> web.Response:
                 category_desc = "{} configuration for automation script task".format(name)
                 cat_name = "{}-automation-script".format(name)
                 await cf_mgr.create_category(category_name=cat_name, category_description=category_desc,
-                                             category_value=category_value, keep_original_items=True)
+                                             category_value=category_value, keep_original_items=True, display_name=name)
                 # Create Parent-child relation
                 await cf_mgr.create_child_category("dispatcher", [cat_name])
                 # Create schedule for an automation script

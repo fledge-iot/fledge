@@ -574,9 +574,9 @@ Following https://www.postgresql.org/download/ instructions, the commands to ins
   sudo yum install -y postgresql13-devel
   sudo yum install -y rh-postgresql13
   sudo yum install -y rh-postgresql13-postgresql-devel
-  sudo /usr/pgsql-9.6/bin/postgresql13-setup initdb
-  sudo systemctl enable postgresql-9.6
-  sudo systemctl start postgresql-9.6
+  sudo /usr/pgsql-13/bin/postgresql13-setup initdb
+  sudo systemctl enable postgresql-13
+  sudo systemctl start postgresql-13
 
 At this point, Postgres has been configured to start at boot and it should be up and running. You can always check the status of the database server with ``systemctl status postgresql-9.6``:
 

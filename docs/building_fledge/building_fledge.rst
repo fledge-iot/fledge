@@ -581,28 +581,30 @@ Following https://www.postgresql.org/download/ instructions, the commands to ins
 At this point, Postgres has been configured to start at boot and it should be up and running. You can always check the status of the database server with ``systemctl status postgresql-9.6``:
 
 .. code-block:: console
+  [asinha@localhost fledge]$ sudo systemctl status postgresql-13
+  [sudo] password for asinha:
+  postgresql-13.service - PostgreSQL 13 database server
+   Loaded: loaded (/usr/lib/systemd/system/postgresql-13.service; enabled; vendor preset: disabled)
+   Active: active (running) since Fri 2022-04-22 04:26:55 EDT; 2h 35min ago
+   Docs: https://www.postgresql.org/docs/13/static/
+   Process: 1061 ExecStartPre=/usr/pgsql-13/bin/postgresql-13-check-db-dir ${PGDATA} (code=exited, status=0/SUCCESS)
+   Main PID: 1079 (postmaster)
+   Tasks: 8
+   CGroup: /system.slice/postgresql-13.service
+      ├─1079 /usr/pgsql-13/bin/postmaster -D /var/lib/pgsql/13/data/
+      ├─1114 postgres: logger
+      ├─1442 postgres: checkpointer
+      ├─1443 postgres: background writer
+      ├─1444 postgres: walwriter
+      ├─1445 postgres: autovacuum launcher
+      ├─1446 postgres: stats collector
+      └─1447 postgres: logical replication launcher
 
-  $ sudo systemctl status postgresql-13
-  [sudo] password for fledge:
-  ● postgresql-9.6.service - PostgreSQL 9.6 database server
-     Loaded: loaded (/usr/lib/systemd/system/postgresql-9.6.service; enabled; vendor preset: disabled)
-     Active: active (running) since Sat 2018-03-17 06:22:52 GMT; 8min ago
-       Docs: https://www.postgresql.org/docs/9.6/static/
-    Process: 1036 ExecStartPre=/usr/pgsql-9.6/bin/postgresql96-check-db-dir ${PGDATA} (code=exited, status=0/SUCCESS)
-   Main PID: 1049 (postmaster)
-     CGroup: /system.slice/postgresql-9.6.service
-             ├─1049 /usr/pgsql-9.6/bin/postmaster -D /var/lib/pgsql/9.6/data/
-             ├─1077 postgres: logger process
-             ├─1087 postgres: checkpointer process
-             ├─1088 postgres: writer process
-             ├─1089 postgres: wal writer process
-             ├─1090 postgres: autovacuum launcher process
-             └─1091 postgres: stats collector process
-
-  Mar 17 06:22:52 vbox-centos-test systemd[1]: Starting PostgreSQL 9.6 database server...
-  Mar 17 06:22:52 vbox-centos-test postmaster[1049]: < 2018-03-17 06:22:52.910 GMT > LOG:  redirecting log output to logging collector process
-  Mar 17 06:22:52 vbox-centos-test postmaster[1049]: < 2018-03-17 06:22:52.910 GMT > HINT:  Future log output will appear in directory "pg_log".
-  Mar 17 06:22:52 vbox-centos-test systemd[1]: Started PostgreSQL 9.6 database server.
+    Apr 22 04:26:52 localhost.localdomain systemd[1]: Starting PostgreSQL 13 database server...
+    Apr 22 04:26:53 localhost.localdomain postmaster[1079]: 2022-04-22 04:26:53.345 EDT [1079] LOG:  redirecting log output to logging co...rocess
+    Apr 22 04:26:53 localhost.localdomain postmaster[1079]: 2022-04-22 04:26:53.345 EDT [1079] HINT:  Future log output will appear in di..."log".
+    Apr 22 04:26:55 localhost.localdomain systemd[1]: Started PostgreSQL 13 database server.
+    Hint: Some lines were ellipsized, use -l to show in full.
   $
 
 Next, you must create a PostgreSQL user that matches your Linux user.
@@ -612,11 +614,11 @@ Next, you must create a PostgreSQL user that matches your Linux user.
   $ sudo -u postgres createuser -d $(whoami)
 
 
-Finally, add ``/usr/pgsql-9.6/bin`` to your PATH environment variable in ``$HOME/.bash_profile``. the new PATH setting in the file should look something like this:
+Finally, add ``/usr/pgsql-13/bin`` to your PATH environment variable in ``$HOME/.bash_profile``. the new PATH setting in the file should look something like this:
 
 .. code-block:: console
 
-  PATH=$PATH:$HOME/.local/bin:$HOME/bin:/usr/pgsql-9.6/bin
+  PATH=$PATH:$HOME/.local/bin:$HOME/bin:/usr/pgsql-13/bin
 
 
 Installing SQLite3

@@ -47,7 +47,6 @@ This version of Fledge requires the following software to be installed in the sa
 
 - **Avahi 0.6.32+**
 - **Python 3.6.9+**
-- **PostgreSQL 9.5+**
 - **SQLite 3.11+**
 
 If you intend to download and build Fledge from source (as explained in this page), you also need *git*. |br| In this version SQLite is default engine, but we have left libraries to easily switch to PostgreSQL, in case you need it. The PostgreSQL plugin will be moved to a different repository in future versions. Other requirements largely depend on the plugins that run in Fledge.
@@ -437,7 +436,7 @@ If you intend to use the PostgreSQL database as storage engine, make sure that P
   ubuntu   15198  1225  0 17:22 pts/0    00:00:00 grep --color=auto postgres
   $
 
-PostgreSQL 13 is the version available for Ubuntu 18.04 when we have published this page. Other versions of PostgreSQL, such as 9.6 or 10.1, work just fine. |br| |br| When you install the Ubuntu package, PostreSQL is set for a *peer authentication*, i.e. the database user must match with the Linux user. Other packages may differ. You may quickly check the authentication mode set in the *pg_hba.conf* file. The file is in the same directory of the *postgresql.conf* file you may see as output from the *ps* command shown above, in our case */etc/postgresql/9.5/main*:
+PostgreSQL 13 is the version available for Ubuntu 18.04 when we have published this page. Other versions of PostgreSQL, such as 9.6 to newer version work just fine. |br| |br| When you install the Ubuntu package, PostreSQL is set for a *peer authentication*, i.e. the database user must match with the Linux user. Other packages may differ. You may quickly check the authentication mode set in the *pg_hba.conf* file. The file is in the same directory of the *postgresql.conf* file you may see as output from the *ps* command shown above, in our case */etc/postgresql/9.5/main*:
 
 .. code-block:: console
 
@@ -561,10 +560,10 @@ In order to use the latest version for Fledge, add the following lines at the en
   export LD_LIBRARY_PATH=/usr/local/lib64
 
 
-Installing PostgreSQL 13 
+Installing PostgreSQL
 -------------------------
 
-CentOS provides PostgreSQL 9.2. Fledge has been tested with PostgreSQL 13, 9.5, 9.6 and 10.X.
+CentOS provides PostgreSQL 9.2. Fledge has been tested with PostgreSQL 10.X and above.
 Following https://www.postgresql.org/download/ instructions, the commands to install the new version of PostgreSQL are:
 
 .. code-block:: console
@@ -574,7 +573,7 @@ Following https://www.postgresql.org/download/ instructions, the commands to ins
   sudo yum install -y postgresql13-devel
   sudo yum install -y rh-postgresql13
   sudo yum install -y rh-postgresql13-postgresql-devel
-  sudo /usr/pgsql-13/bin/postgresql13-setup initdb
+  sudo /usr/pgsql-13/bin/postgresql-13-setup initdb
   sudo systemctl enable postgresql-13
   sudo systemctl start postgresql-13
 

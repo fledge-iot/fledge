@@ -437,7 +437,7 @@ If you intend to use the PostgreSQL database as storage engine, make sure that P
   ubuntu   15198  1225  0 17:22 pts/0    00:00:00 grep --color=auto postgres
   $
 
-PostgreSQL 9.5 is the version available for Ubuntu 18.04 when we have published this page. Other versions of PostgreSQL, such as 9.6 or 10.1, work just fine. |br| |br| When you install the Ubuntu package, PostreSQL is set for a *peer authentication*, i.e. the database user must match with the Linux user. Other packages may differ. You may quickly check the authentication mode set in the *pg_hba.conf* file. The file is in the same directory of the *postgresql.conf* file you may see as output from the *ps* command shown above, in our case */etc/postgresql/9.5/main*:
+PostgreSQL 13 is the version available for Ubuntu 18.04 when we have published this page. Other versions of PostgreSQL, such as 9.6 or 10.1, work just fine. |br| |br| When you install the Ubuntu package, PostreSQL is set for a *peer authentication*, i.e. the database user must match with the Linux user. Other packages may differ. You may quickly check the authentication mode set in the *pg_hba.conf* file. The file is in the same directory of the *postgresql.conf* file you may see as output from the *ps* command shown above, in our case */etc/postgresql/9.5/main*:
 
 .. code-block:: console
 
@@ -561,10 +561,10 @@ In order to use the latest version for Fledge, add the following lines at the en
   export LD_LIBRARY_PATH=/usr/local/lib64
 
 
-Installing PostgreSQL 9.6
+Installing PostgreSQL 13 
 -------------------------
 
-CentOS provides PostgreSQL 9.2. Fledge has been tested with PostgreSQL 9.5, 9.6 and 10.X.
+CentOS provides PostgreSQL 9.2. Fledge has been tested with PostgreSQL 13, 9.5, 9.6 and 10.X.
 Following https://www.postgresql.org/download/ instructions, the commands to install the new version of PostgreSQL are:
 
 .. code-block:: console
@@ -578,7 +578,7 @@ Following https://www.postgresql.org/download/ instructions, the commands to ins
   sudo systemctl enable postgresql-13
   sudo systemctl start postgresql-13
 
-At this point, Postgres has been configured to start at boot and it should be up and running. You can always check the status of the database server with ``systemctl status postgresql-9.6``:
+At this point, Postgres has been configured to start at boot and it should be up and running. You can always check the status of the database server with ``systemctl status postgresql-13``:
 
 .. code-block:: console
   [asinha@localhost fledge]$ sudo systemctl status postgresql-13
@@ -648,7 +648,7 @@ First, clone the Github repository with the usual command: |br| ``git clone http
 
 We need to apply these changes to *C/plugins/storage/postgres/CMakeLists.txt*:
 
-- Replace |br| ``include_directories(../../../thirdparty/rapidjson/include /usr/include/postgresql)`` |br| with: |br| ``include_directories(../../../thirdparty/rapidjson/include /usr/pgsql-9.6/include)`` |br| ``link_directories(/usr/pgsql-9.6/lib)`` |br|
+- Replace |br| ``include_directories(../../../thirdparty/rapidjson/include /usr/include/postgresql)`` |br| with: |br| ``include_directories(../../../thirdparty/rapidjson/include /usr/pgsql-13/include)`` |br| ``link_directories(/usr/pgsql-13/lib)`` |br|
 
 You are now ready to execute the ``make`` command, as described here_.
 

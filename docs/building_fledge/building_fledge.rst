@@ -47,7 +47,6 @@ This version of Fledge requires the following software to be installed in the sa
 
 - **Avahi 0.6.32+**
 - **Python 3.6.9+**
-- **PostgreSQL 9.5+**
 - **SQLite 3.11+**
 
 If you intend to download and build Fledge from source (as explained in this page), you also need *git*. |br| In this version SQLite is default engine, but we have left libraries to easily switch to PostgreSQL, in case you need it. The PostgreSQL plugin will be moved to a different repository in future versions. Other requirements largely depend on the plugins that run in Fledge.
@@ -437,7 +436,7 @@ If you intend to use the PostgreSQL database as storage engine, make sure that P
   ubuntu   15198  1225  0 17:22 pts/0    00:00:00 grep --color=auto postgres
   $
 
-PostgreSQL 9.5 is the version available for Ubuntu 18.04 when we have published this page. Other versions of PostgreSQL, such as 9.6 or 10.1, work just fine. |br| |br| When you install the Ubuntu package, PostreSQL is set for a *peer authentication*, i.e. the database user must match with the Linux user. Other packages may differ. You may quickly check the authentication mode set in the *pg_hba.conf* file. The file is in the same directory of the *postgresql.conf* file you may see as output from the *ps* command shown above, in our case */etc/postgresql/9.5/main*:
+PostgreSQL 13 is the version available for Ubuntu 18.04 when we have published this page. Other versions of PostgreSQL, such as 9.6 to newer version work just fine. |br| |br| When you install the Ubuntu package, PostreSQL is set for a *peer authentication*, i.e. the database user must match with the Linux user. Other packages may differ. You may quickly check the authentication mode set in the *pg_hba.conf* file. The file is in the same directory of the *postgresql.conf* file you may see as output from the *ps* command shown above, in our case */etc/postgresql/9.5/main*:
 
 .. code-block:: console
 
@@ -561,48 +560,50 @@ In order to use the latest version for Fledge, add the following lines at the en
   export LD_LIBRARY_PATH=/usr/local/lib64
 
 
-Installing PostgreSQL 9.6
+Installing PostgreSQL
 -------------------------
 
-CentOS provides PostgreSQL 9.2. Fledge has been tested with PostgreSQL 9.5, 9.6 and 10.X.
+CentOS provides PostgreSQL 9.2. Fledge has been tested with PostgreSQL 10.X and above.
 Following https://www.postgresql.org/download/ instructions, the commands to install the new version of PostgreSQL are:
 
 .. code-block:: console
 
   sudo yum install -y https://download.postgresql.org/pub/repos/yum/reporpms/EL-7-x86_64/pgdg-redhat-repo-latest.noarch.rpm
-  sudo yum install -y postgresql96-server
-  sudo yum install -y postgresql96-devel
-  sudo yum install -y rh-postgresql96
-  sudo yum install -y rh-postgresql96-postgresql-devel
-  sudo /usr/pgsql-9.6/bin/postgresql96-setup initdb
-  sudo systemctl enable postgresql-9.6
-  sudo systemctl start postgresql-9.6
+  sudo yum install -y postgresql13-server
+  sudo yum install -y postgresql13-devel
+  sudo yum install -y rh-postgresql13
+  sudo yum install -y rh-postgresql13-postgresql-devel
+  sudo /usr/pgsql-13/bin/postgresql-13-setup initdb
+  sudo systemctl enable postgresql-13
+  sudo systemctl start postgresql-13
 
-At this point, Postgres has been configured to start at boot and it should be up and running. You can always check the status of the database server with ``systemctl status postgresql-9.6``:
+At this point, Postgres has been configured to start at boot and it should be up and running. You can always check the status of the database server with ``systemctl status postgresql-13``:
 
 .. code-block:: console
+  [asinha@localhost fledge]$ sudo systemctl status postgresql-13
+  [sudo] password for asinha:
+  postgresql-13.service - PostgreSQL 13 database server
+   Loaded: loaded (/usr/lib/systemd/system/postgresql-13.service; enabled; vendor preset: disabled)
+   Active: active (running) since Fri 2022-04-22 04:26:55 EDT; 2h 35min ago
+   Docs: https://www.postgresql.org/docs/13/static/
+   Process: 1061 ExecStartPre=/usr/pgsql-13/bin/postgresql-13-check-db-dir ${PGDATA} (code=exited, status=0/SUCCESS)
+   Main PID: 1079 (postmaster)
+   Tasks: 8
+   CGroup: /system.slice/postgresql-13.service
+      ├─1079 /usr/pgsql-13/bin/postmaster -D /var/lib/pgsql/13/data/
+      ├─1114 postgres: logger
+      ├─1442 postgres: checkpointer
+      ├─1443 postgres: background writer
+      ├─1444 postgres: walwriter
+      ├─1445 postgres: autovacuum launcher
+      ├─1446 postgres: stats collector
+      └─1447 postgres: logical replication launcher
 
-  $ sudo systemctl status postgresql-9.6
-  [sudo] password for fledge:
-  ● postgresql-9.6.service - PostgreSQL 9.6 database server
-     Loaded: loaded (/usr/lib/systemd/system/postgresql-9.6.service; enabled; vendor preset: disabled)
-     Active: active (running) since Sat 2018-03-17 06:22:52 GMT; 8min ago
-       Docs: https://www.postgresql.org/docs/9.6/static/
-    Process: 1036 ExecStartPre=/usr/pgsql-9.6/bin/postgresql96-check-db-dir ${PGDATA} (code=exited, status=0/SUCCESS)
-   Main PID: 1049 (postmaster)
-     CGroup: /system.slice/postgresql-9.6.service
-             ├─1049 /usr/pgsql-9.6/bin/postmaster -D /var/lib/pgsql/9.6/data/
-             ├─1077 postgres: logger process
-             ├─1087 postgres: checkpointer process
-             ├─1088 postgres: writer process
-             ├─1089 postgres: wal writer process
-             ├─1090 postgres: autovacuum launcher process
-             └─1091 postgres: stats collector process
-
-  Mar 17 06:22:52 vbox-centos-test systemd[1]: Starting PostgreSQL 9.6 database server...
-  Mar 17 06:22:52 vbox-centos-test postmaster[1049]: < 2018-03-17 06:22:52.910 GMT > LOG:  redirecting log output to logging collector process
-  Mar 17 06:22:52 vbox-centos-test postmaster[1049]: < 2018-03-17 06:22:52.910 GMT > HINT:  Future log output will appear in directory "pg_log".
-  Mar 17 06:22:52 vbox-centos-test systemd[1]: Started PostgreSQL 9.6 database server.
+    Apr 22 04:26:52 localhost.localdomain systemd[1]: Starting PostgreSQL 13 database server...
+    Apr 22 04:26:53 localhost.localdomain postmaster[1079]: 2022-04-22 04:26:53.345 EDT [1079] LOG:  redirecting log output to logging co...rocess
+    Apr 22 04:26:53 localhost.localdomain postmaster[1079]: 2022-04-22 04:26:53.345 EDT [1079] HINT:  Future log output will appear in di..."log".
+    Apr 22 04:26:55 localhost.localdomain systemd[1]: Started PostgreSQL 13 database server.
+    Hint: Some lines were ellipsized, use -l to show in full.
   $
 
 Next, you must create a PostgreSQL user that matches your Linux user.
@@ -612,11 +613,11 @@ Next, you must create a PostgreSQL user that matches your Linux user.
   $ sudo -u postgres createuser -d $(whoami)
 
 
-Finally, add ``/usr/pgsql-9.6/bin`` to your PATH environment variable in ``$HOME/.bash_profile``. the new PATH setting in the file should look something like this:
+Finally, add ``/usr/pgsql-13/bin`` to your PATH environment variable in ``$HOME/.bash_profile``. the new PATH setting in the file should look something like this:
 
 .. code-block:: console
 
-  PATH=$PATH:$HOME/.local/bin:$HOME/bin:/usr/pgsql-9.6/bin
+  PATH=$PATH:$HOME/.local/bin:$HOME/bin:/usr/pgsql-13/bin
 
 
 Installing SQLite3
@@ -646,7 +647,7 @@ First, clone the Github repository with the usual command: |br| ``git clone http
 
 We need to apply these changes to *C/plugins/storage/postgres/CMakeLists.txt*:
 
-- Replace |br| ``include_directories(../../../thirdparty/rapidjson/include /usr/include/postgresql)`` |br| with: |br| ``include_directories(../../../thirdparty/rapidjson/include /usr/pgsql-9.6/include)`` |br| ``link_directories(/usr/pgsql-9.6/lib)`` |br|
+- Replace |br| ``include_directories(../../../thirdparty/rapidjson/include /usr/include/postgresql)`` |br| with: |br| ``include_directories(../../../thirdparty/rapidjson/include /usr/pgsql-13/include)`` |br| ``link_directories(/usr/pgsql-13/lib)`` |br|
 
 You are now ready to execute the ``make`` command, as described here_.
 

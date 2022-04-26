@@ -364,7 +364,7 @@ static PLUGIN_INFORMATION *Py2C_PluginInfo(PyObject* pyRetVal)
 			{
 				info->options |= SP_ASYNC;
 			}
-			free(valStr);
+			delete[] valStr;
 		}
 		else if(!strcmp(ckey, "type"))
 		{
@@ -487,7 +487,7 @@ static PLUGIN_INFORMATION *plugin_info_fn()
 						   "from '%s' to '2.0.0', plugin '%s'",
 						   info->interface,
 						   gPluginName.c_str());
-			delete info->interface;
+			delete[] info->interface;
 			char *valStr = new char[6];
 			std::strcpy(valStr, "2.0.0");
 			info->interface = valStr;

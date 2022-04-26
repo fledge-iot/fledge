@@ -32,7 +32,15 @@ _DEFAULT_CONFIG = {
         'default': 'image',
         'displayName': 'Asset name',
         'mandatory': 'true'
+    },
+    'depth': {
+        'description': 'Bits per pixel',
+        'type': 'string',
+        'default': '8',
+        'displayName': 'Depth',
+        'mandatory': 'true'
     }
+
 }
 
 _LOGGER = logger.setup(__name__, level=logging.INFO)
@@ -80,31 +88,79 @@ def plugin_poll(handle):
     """
     try:
         time_stamp = utils.local_timestamp()
-        image = np.full((64, 64), 0, dtype=np.uint8)
-        for i in range(0, 63):
-            image[i][30] = i * 4;
-            image[i][31] = i * 4;
-            image[i][33] = i * 4;
-            image[i][34] = i * 4;
-            image[30][i] = i * 4;
-            image[31][i] = i * 4;
-            image[33][i] = i * 4;
-            image[34][i] = i * 4;
-            for j in range(0, 15):
-                image[j][i] = floor(i / 4) * 16
-            for j in range(49, 63):
-                image[j][i] = floor(i / 4) * 16
-            image[16][i] = 255
-            image[32][i] = 255
-            image[48][i] = 255
-            image[i][16] = 255
-            image[i][32] = 255
-            image[i][48] = 255
-        data = {'asset':  handle['assetName']['value'], 'timestamp': time_stamp, 'readings': {"image": image}}
+        depth = int(handle['depth']['value'])
+        _LOGGER.info(" depth from config {} \n".format(str(depth)))
+
+        if depth == 8:
+
+            image = np.full((256,256), 0 , dtype=np.uint8)
+
+            for i in range(0, 256):
+                for j in range(0,256):
+                        image[i][j] = i 
+        
+            data = {'asset':  handle['assetName']['value'], 'timestamp': time_stamp, 'readings': {"image": image}}
+
+        elif depth == 16:
+
+            image = np.full((256, 256*2), 0, dtype=np.uint8)
+            for i in range(0, 256):
+                for j in range(0, 256):
+                    image[i][j] = i*i
+
+            data = {'asset':  handle['assetName']['value'], 'timestamp': time_stamp, 'readings': {"image": image}}
+
+        elif depth == 24:
+            image = np.full((256, 256*3), 0, dtype=np.uint8)
+            for i in range(0, 32):
+                for j in range(0, 256 * 3):
+                    if  j%3 == 0:
+                        image[i][j] =  i*8
+                    else:
+                        image[i][j] = 0
+
+            for i in range (32,64):
+                for j in range(0,256*3):
+                    if  j%3 == 0:
+                        image[i][j] = 0         #R
+                    elif j%3 == 1:
+                        image[i][j] = (i-32)*8  #G
+                    else:
+                        image[i][j] = 0         #B
+
+            for i in range(64,96):
+                for j in range(0,256*3):    
+                    if j%3 == 0:
+                        image[i][j] = 0            #R
+                    elif j%3 == 0:
+                        image[i][j] = 0            #G
+                    else:
+                        image[i][j] = (i-64)*8     #B
+
+
+            for i in range(96,128):
+                for  j in range(0,256*3):
+                        image[i][j] = (i-96)*8
+
+            for i in range(128,256):
+                for j in range(0,256*3):
+                    if j%3 == 0:
+                        image[i][j] = (i-128) * 4                  #R
+                    elif j%3 == 1:
+                        image[i][j] = 255 - ( ( i-128) * 4 )      #G
+                    else:
+                        image[i][j] = j%256                        #B
+
+
+            data = {'asset':  handle['assetName']['value'], 'timestamp': time_stamp, 'readings': {"image": image}}
+        else:
+            pass
+
     except (Exception, RuntimeError) as ex:
         _LOGGER.exception("Imagetest exception: {}".format(str(ex)))
         raise ex
     else:
+
         return data
 
 

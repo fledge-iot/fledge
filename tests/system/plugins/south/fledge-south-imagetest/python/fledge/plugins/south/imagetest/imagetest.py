@@ -35,7 +35,8 @@ _DEFAULT_CONFIG = {
     },
     'depth': {
         'description': 'Bits per pixel',
-        'type': 'string',
+        'type': 'enumeration',
+        'options' : [ '8', '16', '24' ],
         'default': '8',
         'displayName': 'Depth',
         'mandatory': 'true'
@@ -100,16 +101,13 @@ def plugin_poll(handle):
                         image[i][j] = i 
         
             data = {'asset':  handle['assetName']['value'], 'timestamp': time_stamp, 'readings': {"image": image}}
-
         elif depth == 16:
-
             image = np.full((256, 256*2), 0, dtype=np.uint8)
             for i in range(0, 256):
                 for j in range(0, 256):
                     image[i][j] = i*i
 
             data = {'asset':  handle['assetName']['value'], 'timestamp': time_stamp, 'readings': {"image": image}}
-
         elif depth == 24:
             image = np.full((256, 256*3), 0, dtype=np.uint8)
             for i in range(0, 32):
@@ -151,16 +149,13 @@ def plugin_poll(handle):
                     else:
                         image[i][j] = j%256                        #B
 
-
             data = {'asset':  handle['assetName']['value'], 'timestamp': time_stamp, 'readings': {"image": image}}
         else:
             pass
-
     except (Exception, RuntimeError) as ex:
         _LOGGER.exception("Imagetest exception: {}".format(str(ex)))
         raise ex
     else:
-
         return data
 
 

@@ -28,8 +28,8 @@ Select PI Web API from the Endpoint options.
 
 - Basic Information
    - **Endpoint:** This is the type of OMF endpoint. In this case, choose PI Web API.
-   - **Send full structure:** Used to control if AF structure messages are sent to the PI server. If this is turned off then the data will not be placed in the Asset Framework.
-   - **Naming scheme:** Defines the naming scheme to be used when creating the PI points within the PI Data Archive. See :ref:`Naming_Scheme`.
+   - **Send full structure:** Used to control if AF structure messages are sent to the PI Server. If this is turned off then the data will not be placed in the Asset Framework.
+   - **Naming scheme:** Defines the naming scheme to be used when creating the PI points in the PI Data Archive. See :ref:`Naming_Scheme`.
    - **Server hostname:** The hostname or address of the PI Web API server. This is normally the same address as the PI Server.
    - **Server port:** The port the PI Web API OMF endpoint is listening on. Leave as 0 if you are using the default port.
    - **Data Source:** Defines which data is sent to the PI Server. Choices are: readings or statistics (that is, Fledge's internal statistics).
@@ -39,16 +39,16 @@ Select PI Web API from the Endpoint options.
      All data will be inserted at this point in the Asset Framework hierarchy unless a later rule overrides this.
      Note that this field does not include the name of the target Asset Framework Database;
      the target database is defined on the PI Web API server by the PI Web API Admin Utility.
-   - **Asset Framework Hierarchies Rules:** A set of rules that allow specific readings to be placed elsewhere in the Asset Framework. These rules can be based on the name of the asset itself or some metadata associated with the asset. See `Asset Framework Hierarchy Rules`_
+   - **Asset Framework Hierarchies Rules:** A set of rules that allow specific readings to be placed elsewhere in the Asset Framework. These rules can be based on the name of the asset itself or some metadata associated with the asset. See `Asset Framework Hierarchy Rules`_.
 - PI Web API authentication
    - **PI Web API Authentication Method:** The authentication method to be used: anonymous, basic or kerberos.
-     Anonymous equates to no authentication, basic authentication requires a user name and password, and Kerberos allows integration with your single sign on environment.
+     Anonymous equates to no authentication, basic authentication requires a user name and password, and Kerberos allows integration with your single signon environment.
    - **PI Web API User Id:**  For Basic authentication, the user name to authenticate with the PI Web API.
    - **PI Web API Password:** For Basic authentication, the password of the user we are using to authenticate.
    - **PI Web API Kerberos keytab file:** The Kerberos keytab file used to authenticate.
 - Connection management (These should only be changed with guidance from support)
    - **Sleep Time Retry:** Number of seconds to wait before retrying the HTTP connection (Fledge doubles this time after each failed attempt).
-   - **Maximum Retry:** Maximum number of times to retry connecting to the PI server.
+   - **Maximum Retry:** Maximum number of times to retry connecting to the PI Server.
    - **HTTP Timeout:** Number of seconds to wait before Fledge will time out an HTTP connection attempt.
 - Other (Rarely changed)
    - **Integer Format:** Used to match Fledge data types to the data type configured in PI. This defaults to int64 but may be set to any OMF data type compatible with integer data, e.g. int32.
@@ -178,15 +178,15 @@ those objects has a number of constraints that need to be understood when
 storing data into a PI Server using OMF.
 An important factor in this is the stability of your data structures.
 If you have objects in your environment that are likely to change,
-you may wish to take a different naming approach than.
-Examples of object changes are the number of attributes changes between readings, or the data types of attributes change.
+you may wish to take a different naming approach.
+Examples of changes are a difference in the number of attributes between readings, and a change in the data types of attributes.
 
-This occurs because of a limitation of the OMF interface to the PI
-server. Data is sent to OMF in a number of stages.
-One of these is the definition of the types used to create AF Element Templates.
-OMF uses a type to define an AF Element Template but once defined it can not be changed.
-If an updated type definition is sent to OMF, it will be used to create a new AF Element Template rather than changing the existing one.
-This means a new AF Element Template is created each time a type changes.
+This occurs because of a limitation of the OMF interface to the PI Server.
+Data is sent to OMF in a number of stages.
+One of these is the definition of the Types used to create AF Element Templates.
+OMF uses a Type to define an AF Element Template but once defined it can not be changed.
+If an updated Type definition is sent to OMF, it will be used to create a new AF Element Template rather than changing the existing one.
+This means a new AF Element Template is created each time a Type changes.
 
 The OMF plugin names objects in the Asset Framework based upon the asset
 name in the reading within Fledge. Asset names are typically added to
@@ -196,7 +196,7 @@ pipeline. Asset names can be overridden using the `OMF Hints` mechanism
 described below.
 
 The attribute names used within the objects in the PI System are based
-on the names of the data points within each reading within Fledge. Again
+on the names of the datapoints within each Reading within Fledge. Again
 `OMF Hints` can be used to override this mechanism.
 
 The naming used within the objects in the Asset Framework is controlled
@@ -204,40 +204,40 @@ by the *Naming Scheme* option
 
   Concise
      No suffix or prefix is added to the asset name and property name when
-     creating the Elements and Attributes in the Asset Framework.
-     However if the structure of an asset changes a new AF Element
+     creating obejcts in the Asset Framework and PI Points in the PI Data Archive.
+     However, if the structure of an asset changes a new AF Element Template
      will be created which will have the suffix -type*x* appended to it.
 
   Use Type Suffix
      The AF Element names will be created from the asset names by appending
      the suffix -type*x* to the asset name. If the structure
-     of an asset changes a new Element name will be created with an
+     of an asset changes a new AF Element name will be created with an
      updated suffix.
 
   Use Attribute Hash
-     Attribute names will be created using a numerical hash as a prefix.
+     AF Attribute names will be created using a numerical hash as a prefix.
 
   Backward Compatibility
      The naming reverts to the rules that were used by version 1.9.1 and
-     earlier of Fledge, both type suffices and attribute hashes will be
-     applied to the naming.
+     earlier of Fledge: both type suffixes and attribute hashes will be
+     applied to the name.
 
 
 Asset Framework Hierarchy Rules
 -------------------------------
 
 The Asset Framework rules allow the location of specific assets within
-the PI Asset Framework to be controlled. There are two basic type of hint;
+the Asset Framework to be controlled. There are two basic type of hint:
 
-  - Asset name placement, the name of the asset determines where in the
-    Asset Framework the asset is placed
+  - Asset name placement: the name of the asset determines where in the
+    Asset Framework the asset is placed,
 
-  - Meta data placement, metadata within the reading determines where
-    the asset is placed in the Asset Framework
+  - Meta data placement: metadata within the reading determines where
+    the asset is placed in the Asset Framework.
 
-The rules are encoded within a JSON document, this document contains
-two properties in the root of the document; one for name based rules
-and the other for metadata based rules
+The rules are encoded within a JSON document.
+This document contains two properties in the root of the document:
+one for name based rules and the other for metadata based rules.
 
 .. code-block:: console
 
@@ -276,19 +276,19 @@ and the other for metadata based rules
 		    }
     }
 
-The name type rules are simply a set of asset name and AF location
-pairs. The asset names must be complete names, there is no pattern
+The name type rules are simply a set of asset name and Asset Framework location
+pairs. The asset names must be complete names; there is no pattern
 matching within the names.
 
-The metadata rules are more complex, four different tests can be applied;
+The metadata rules are more complex. Four different tests can be applied:
 
   - **exists**: This test looks for the existence of the named datapoint within the asset.
 
   - **nonexist**: This test looks for the lack of a named datapoint within the asset.
 
-  - **equal**: This test looks for a named data point having a given value.
+  - **equal**: This test looks for a named datapoint having a given value.
 
-  - **notequal**: This test looks for a name data point having a value different from that specified.
+  - **notequal**: This test looks for a name datapoint having a value different from that specified.
 
 The *exist* and *nonexist* tests take a set of name/value pairs that
 are tested. The name is the datapoint name to examine and the value is
@@ -302,12 +302,12 @@ the Asset Framework location to use. For example
             "power"         : "/Electrical/Power"
        }  
 
-If an asset has a data point called *temperature* in will be stored in
-the AF hierarchy *temperatures*, if the asset had a data point called
+If an asset has a datapoint called *temperature* in will be stored in
+the AF hierarchy *temperatures*, if the asset had a datapoint called
 *power* the asset will be placed in the AF hierarchy */Electrical/Power*.
 
 The *equal* and *notequal* tests take a object as a child, the name of
-the object is data point to examine, the child nodes a sets of values
+the object is datapoint to examine, the child nodes a sets of values
 and locations. For example
 
 .. code-block:: console
@@ -321,7 +321,7 @@ and locations. For example
             }
       }
 
-In this case if the asset has a data point called *room* with a value
+In this case if the asset has a datapoint called *room* with a value
 of *4* then the asset will be placed in the AF location *ElectricalLab*,
 if it has a value of *6* then it is placed in the AF location *FluidLab*.
 
@@ -333,11 +333,11 @@ If an OMF Hint exists within a particular reading this will take
 precedence over generic rules.
 
 The AF location may be a simple string or it may also include
-substitutions from other data points within the reading. For example
-of the reading has a data point called *room* that contains the room
+substitutions from other datapoints within the reading. For example
+of the reading has a datapoint called *room* that contains the room
 in which the readings was taken, an AF location of */BuildingA/${room}*
 would put the reading in the Asset Framework using the value of the room
-data point. The reading
+datapoint. The reading
 
 .. code-block:: console
 
@@ -357,9 +357,9 @@ would be put in the AF at */BuildingA/B114* whereas a reading of the form
 
 would be put at the location */BuildingA/2016*.
 
-It is also possible to define defaults if the referenced data point
+It is also possible to define defaults if the referenced datapoint
 is missing. Therefore in our example above if we used the location
-*/BuildingA/${room:unknown}* a reading without a *room* data point would
+*/BuildingA/${room:unknown}* a reading without a *room* datapoint would
 be place in */BuildingA/unknown*. If no default is given and the data
 point is missing then the level in the hierarchy is ignore. E.g. if we
 use our original location */BuildingA/${room}* and we have the reading
@@ -377,7 +377,7 @@ OMF Hints
 
 The OMF plugin also supports the concept of hints in the actual data
 that determine how the data should be treated by the plugin. Hints are
-encoded in a specially name data point within the asset, *OMFHint*. The
+encoded in a specially name datapoint within the asset, *OMFHint*. The
 hints themselves are encoded as JSON within a string.
 
 Number Format Hints

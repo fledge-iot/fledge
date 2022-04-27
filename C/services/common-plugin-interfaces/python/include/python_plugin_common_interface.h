@@ -214,10 +214,10 @@ const char *json_dumps(PyObject *json_dict)
 			PyTuple_SetItem(args, 0, pValue);
 			
 			rval = PyObject_Call(method, args, NULL);
-			Py_CLEAR(method);
-			Py_CLEAR(args);
 			Py_CLEAR(pValue);
-			// Py_CLEAR(mod);
+			Py_CLEAR(args);
+			Py_CLEAR(method);
+			Py_CLEAR(mod);
             
 			if (rval == NULL)
 			{
@@ -275,10 +275,10 @@ PyObject *mod, *method;
 
 			Logger::getLogger()->debug("%s:%d: method=%p, args=%p, pValue=%p", __FUNCTION__, __LINE__, method, args, pValue);
 			rval = PyObject_Call(method, args, NULL);
+			// Py_CLEAR(pValue); // this is actually required, but if uncommented, it causes a segfault
+			Py_CLEAR(args);
 			Py_CLEAR(method);
-			// Py_CLEAR(pValue);
-			// Py_CLEAR(args);
-			// Py_CLEAR(mod);
+			Py_CLEAR(mod);
             
 			if (rval == NULL)
 			{

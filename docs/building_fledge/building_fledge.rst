@@ -561,7 +561,7 @@ In order to use the latest version for Fledge, add the following lines at the en
 
 
 Installing PostgreSQL
--------------------------
+---------------------
 
 CentOS provides PostgreSQL 9.2. Fledge has been tested with PostgreSQL 10.X and above.
 Following https://www.postgresql.org/download/ instructions, the commands to install the new version of PostgreSQL are:
@@ -580,16 +580,16 @@ Following https://www.postgresql.org/download/ instructions, the commands to ins
 At this point, Postgres has been configured to start at boot and it should be up and running. You can always check the status of the database server with ``systemctl status postgresql-13``:
 
 .. code-block:: console
-  [asinha@localhost fledge]$ sudo systemctl status postgresql-13
-  [sudo] password for asinha:
-  postgresql-13.service - PostgreSQL 13 database server
-   Loaded: loaded (/usr/lib/systemd/system/postgresql-13.service; enabled; vendor preset: disabled)
-   Active: active (running) since Fri 2022-04-22 04:26:55 EDT; 2h 35min ago
-   Docs: https://www.postgresql.org/docs/13/static/
-   Process: 1061 ExecStartPre=/usr/pgsql-13/bin/postgresql-13-check-db-dir ${PGDATA} (code=exited, status=0/SUCCESS)
-   Main PID: 1079 (postmaster)
-   Tasks: 8
-   CGroup: /system.slice/postgresql-13.service
+
+    $ sudo systemctl status postgresql-13
+    postgresql-13.service - PostgreSQL 13 database server
+    Loaded: loaded (/usr/lib/systemd/system/postgresql-13.service; enabled; vendor preset: disabled)
+    Active: active (running) since Fri 2022-04-22 04:26:55 EDT; 2h 35min ago
+    Docs: https://www.postgresql.org/docs/13/static/
+    Process: 1061 ExecStartPre=/usr/pgsql-13/bin/postgresql-13-check-db-dir ${PGDATA} (code=exited, status=0/SUCCESS)
+    Main PID: 1079 (postmaster)
+    Tasks: 8
+    CGroup: /system.slice/postgresql-13.service
       ├─1079 /usr/pgsql-13/bin/postmaster -D /var/lib/pgsql/13/data/
       ├─1114 postgres: logger
       ├─1442 postgres: checkpointer
@@ -604,7 +604,7 @@ At this point, Postgres has been configured to start at boot and it should be up
     Apr 22 04:26:53 localhost.localdomain postmaster[1079]: 2022-04-22 04:26:53.345 EDT [1079] HINT:  Future log output will appear in di..."log".
     Apr 22 04:26:55 localhost.localdomain systemd[1]: Started PostgreSQL 13 database server.
     Hint: Some lines were ellipsized, use -l to show in full.
-  $
+    $
 
 Next, you must create a PostgreSQL user that matches your Linux user.
 

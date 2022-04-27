@@ -593,8 +593,8 @@ and a callback that should be called with the output data of the filter.
       """ Initialise the plugin
       Args:
           config: JSON configuration document for the Filter plugin configuration category
-          ingest_ref:
-          callback:
+          ingest_ref: filter ingest reference
+          callback: filter callback
       Returns:
           data: JSON object to be used in future calls to the plugin
       Raises:
@@ -685,30 +685,19 @@ The following is an example of a Python filter that calculates an exponential mo
    import filter_ingest
 
    __author__ = "Massimiliano Pinto"
-   __copyright__ = "Copyright (c) 2020 Dianomic Systems"
+   __copyright__ = "Copyright (c) 2022 Dianomic Systems Inc."
    __license__ = "Apache 2.0"
    __version__ = "${VERSION}"
 
-   _LOGGER = logger.setup(__name__, level = logging.WARN)
+   _LOGGER = logger.setup(__name__, level = logging.INFO)
 
-   # Filter specific objects
-   the_callback = None
-   the_ingest_ref = None
-
-   # latest ema value
-   latest = None
-   # rate value
-   rate = None
-   # datapoint name
-   datapoint = None
-   # plugin shutdown indicator
-   shutdown_in_progress = False
+   PLUGIN_NAME = 'ema'
 
    _DEFAULT_CONFIG = {
        'plugin': {
            'description': 'Exponential Moving Average filter plugin',
            'type': 'string',
-           'default': 'ema',
+           'default': PLUGIN_NAME,
            'readonly': 'true'
        },
        'enable': {
@@ -728,25 +717,25 @@ The following is an example of a Python filter that calculates an exponential mo
        'datapoint': {
            'description': 'Datapoint name for calculated ema value',
            'type': 'string',
-           'default': 'ema',
+           'default': PLUGIN_NAME,
            'displayName': 'EMA datapoint',
            'order': "1"
        }
    }
 
 
-   def compute_ema(reading):
+   def compute_ema(handle, reading):
        """ Compute EMA
 
        Args:
            A reading data
        """
-       global rate, latest, datapoint
+       rate = float(handle['rate']['value'])
        for attribute in list(reading):
-           if not latest:
-               latest = reading[attribute]
-           latest = reading[attribute] * rate + latest * (1 - rate)
-           reading[datapoint] = latest
+           if not handle['latest']:
+               handle['latest'] = reading[attribute]
+       handle['latest'] = reading[attribute] * rate + handle['latest'] * (1 - rate)
+       reading[handle['datapoint']['value']] = handle['latest']
 
 
    def plugin_info():
@@ -757,9 +746,9 @@ The following is an example of a Python filter that calculates an exponential mo
        Raises:
        """
        return {
-           'name': 'ema',
-           'version': '1.8.2',
-           'mode': "none",
+           'name': PLUGIN_NAME,
+           'version': '1.9.2',
+           'mode': 'none',
            'type': 'filter',
            'interface': '1.0',
            'config': _DEFAULT_CONFIG
@@ -770,24 +759,18 @@ The following is an example of a Python filter that calculates an exponential mo
        """ Initialise the plugin
        Args:
            config: JSON configuration document for the Filter plugin configuration category
-           ingest_ref:
-           callback:
+           ingest_ref: filter ingest reference
+           callback: filter callback
        Returns:
            data: JSON object to be used in future calls to the plugin
        Raises:
        """
-       data = copy.deepcopy(config)
-
-       global the_callback, the_ingest_ref, rate, datapoint
-
-       the_callback = callback
-       the_ingest_ref = ingest_ref
-       rate = float(config['rate']['value'])
-       datapoint = config['datapoint']['value']
-
-       _LOGGER.debug("plugin_init for filter EMA called")
-
-       return data
+       _config = copy.deepcopy(config)
+       _config['ingestRef'] = ingest_ref
+       _config['callback'] = callback
+       _config['latest'] = None
+       _config['shutdownInProgress'] = False
+       return _config
 
 
    def plugin_reconfigure(handle, new_config):
@@ -799,12 +782,13 @@ The following is an example of a Python filter that calculates an exponential mo
        Returns:
            new_handle: new handle to be used in the future calls
        """
-       global rate, datapoint
-       rate = float(new_config['rate']['value'])
-       datapoint = new_config['datapoint']['value']
-       _LOGGER.debug("Old config for ema plugin {} \n new config {}".format(handle, new_config))
-       new_handle = copy.deepcopy(new_config)
+       _LOGGER.info("Old config for ema plugin {} \n new config {}".format(handle, new_config))
 
+       new_handle = copy.deepcopy(new_config)
+       new_handle['shutdownInProgress'] = False
+       new_handle['latest'] = None
+       new_handle['ingestRef'] = handle['ingestRef']
+       new_handle['callback'] = handle['callback']
        return new_handle
 
 
@@ -816,16 +800,13 @@ The following is an example of a Python filter that calculates an exponential mo
        Returns:
            plugin shutdown
        """
-       global shutdown_in_progress, the_callback, the_ingest_ref, rate, latest, datapoint
-       shutdown_in_progress = True
+       handle['shutdownInProgress'] = True
        time.sleep(1)
-       the_callback = None
-       the_ingest_ref = None
-       rate = None
-       latest = None
-       datapoint = None
+       handle['callback'] = None
+       handle['ingestRef'] = None
+       handle['latest'] = None
 
-       _LOGGER.info('filter ema plugin shutdown.')
+       _LOGGER.info('{} filter plugin shutdown.'.format(PLUGIN_NAME))
 
 
    def plugin_ingest(handle, data):
@@ -835,20 +816,20 @@ The following is an example of a Python filter that calculates an exponential mo
            handle: handle returned by the plugin initialisation call
            data: readings data
        """
-       global shutdown_in_progress, the_callback, the_ingest_ref
-       if shutdown_in_progress:
+       if handle['shutdownInProgress']:
            return
 
        if handle['enable']['value'] == 'false':
            # Filter not enabled, just pass data onwards
-           filter_ingest.filter_ingest_callback(the_callback, the_ingest_ref, data)
+           filter_ingest.filter_ingest_callback(handle['callback'], handle['ingestRef'], data)
            return
 
        # Filter is enabled: compute EMA for each reading
        for elem in data:
-           compute_ema(elem['readings'])
+           compute_ema(handle, elem['readings'])
 
        # Pass data onwards
-       filter_ingest.filter_ingest_callback(the_callback, the_ingest_ref, data)
+       filter_ingest.filter_ingest_callback(handle['callback'], handle['ingestRef'], data)
 
-       _LOGGER.debug("ema filter_ingest done")
+       _LOGGER.debug("{} filter_ingest done.".format(PLUGIN_NAME))
+

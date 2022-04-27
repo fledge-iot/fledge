@@ -82,7 +82,7 @@ then
 		#
 		# Enables the RedHat Postgres environment if available
 		#
-		rhpg_package="rh-postgresql96"
+		rhpg_package="rh-postgresql13"
 		source scl_source enable ${rhpg_package} > /dev/null
 		status=$?
 

@@ -461,6 +461,8 @@ def read_data_from_pi_web_api():
                     for el in r["Items"]:
                         if el["Name"] == af_hierarchy_list[af_level_count]:
                             url_elements_list = el["Links"]["Elements"]
+                            if af_level_count == 0:                            
+                                web_id_root = el["WebId"]
                             af_level_count = af_level_count + 1
 
             if url_elements_list is not None:
@@ -499,7 +501,7 @@ def read_data_from_pi_web_api():
                             _data_pi[_head] = _recoded_value_list
 
                 # Delete recorded elements
-                conn.request("DELETE", '/piwebapi/elements/{}'.format(web_id), headers=headers)
+                conn.request("DELETE", '/piwebapi/elements/{}'.format(web_id_root), headers=headers)
                 res = conn.getresponse()
                 res.read()
 

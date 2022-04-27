@@ -15,7 +15,7 @@
 PI Web API OMF Endpoint
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-To use the PI Web API OMF endpoint first  ensure the OMF option was included in your PI Server when it was installed.  
+To use the PI Web API OMF endpoint first ensure the OMF option was included in your PI Server when it was installed.  
 
 Now go to the Fledge user interface, create a new North instance and select the “OMF” plugin on the first screen.
 The second screen will request the following information:
@@ -28,16 +28,16 @@ Select PI Web API from the Endpoint options.
 
 - Basic Information
    - **Endpoint:** This is the type of OMF endpoint. In this case, choose PI Web API.
-   - **Send full structure:** Used to control if AF structure messages are sent to the PI Server. If this is turned off then the data will not be placed in the Asset Framework.
+   - **Send full structure:** Used to control if Asset Framework structure messages are sent to the PI Server. If this is turned off then the data will not be placed in the Asset Framework.
    - **Naming scheme:** Defines the naming scheme to be used when creating the PI points in the PI Data Archive. See :ref:`Naming_Scheme`.
    - **Server hostname:** The hostname or address of the PI Web API server. This is normally the same address as the PI Server.
    - **Server port:** The port the PI Web API OMF endpoint is listening on. Leave as 0 if you are using the default port.
    - **Data Source:** Defines which data is sent to the PI Server. Choices are: readings or statistics (that is, Fledge's internal statistics).
    - **Static Data:** Data to include in every reading sent to PI. For example, you can use this to specify the location of the devices being monitored by the Fledge server.
 - Asset Framework
-   - **Asset Framework Hierarchies Tree:** The location in the Asset Framework hierarchy into which the data will be inserted.
+   - **Default Asset Framework Location:** The location in the Asset Framework hierarchy into which the data will be inserted.
      All data will be inserted at this point in the Asset Framework hierarchy unless a later rule overrides this.
-     Note that this field does not include the name of the target Asset Framework Database;
+     Note this field does not include the name of the target Asset Framework Database;
      the target database is defined on the PI Web API server by the PI Web API Admin Utility.
    - **Asset Framework Hierarchies Rules:** A set of rules that allow specific readings to be placed elsewhere in the Asset Framework. These rules can be based on the name of the asset itself or some metadata associated with the asset. See `Asset Framework Hierarchy Rules`_.
 - PI Web API authentication
@@ -73,7 +73,7 @@ Select Edge Data Store from the Endpoint options.
 - Basic Information
    - **Endpoint:** This is the type of OMF endpoint. In this case, choose Edge Data Store.
    - **Naming scheme:** Defines the naming scheme to be used when creating the PI points within the PI Server. See :ref:`Naming_Scheme`.
-   - **Server hostname:** Normally the hostname or address of the OMF endpoint. For EDS, this must be *localhost*.
+   - **Server hostname:** Normally the hostname or address of the OMF endpoint. For Edge Data Store, this must be *localhost*.
    - **Server port:** The port the Edge Data Store is listening on. Leave as 0 if you are using the default port.
    - **Data Source:** Defines which data is sent to the Edge Data Store. Choices are: readings or statistics (that is, Fledge's internal statistics).
    - **Static Data:** Data to include in every reading sent to PI. For example, you can use this to specify the location of the devices being monitored by the Fledge server.
@@ -184,7 +184,7 @@ Examples of changes are a difference in the number of attributes between reading
 This occurs because of a limitation of the OMF interface to the PI Server.
 Data is sent to OMF in a number of stages.
 One of these is the definition of the Types used to create AF Element Templates.
-OMF uses a Type to define an AF Element Template but once defined it can not be changed.
+OMF uses a Type to define an AF Element Template but once defined it cannot be changed.
 If an updated Type definition is sent to OMF, it will be used to create a new AF Element Template rather than changing the existing one.
 This means a new AF Element Template is created each time a Type changes.
 
@@ -200,11 +200,11 @@ on the names of the datapoints within each Reading within Fledge. Again
 `OMF Hints` can be used to override this mechanism.
 
 The naming used within the objects in the Asset Framework is controlled
-by the *Naming Scheme* option
+by the *Naming Scheme* option:
 
   Concise
      No suffix or prefix is added to the asset name and property name when
-     creating obejcts in the Asset Framework and PI Points in the PI Data Archive.
+     creating objects in the Asset Framework and PI Points in the PI Data Archive.
      However, if the structure of an asset changes a new AF Element Template
      will be created which will have the suffix -type*x* appended to it.
 
@@ -227,7 +227,7 @@ Asset Framework Hierarchy Rules
 -------------------------------
 
 The Asset Framework rules allow the location of specific assets within
-the Asset Framework to be controlled. There are two basic type of hint:
+the Asset Framework to be controlled. There are two basic types of hint:
 
   - Asset name placement: the name of the asset determines where in the
     Asset Framework the asset is placed,
@@ -237,7 +237,7 @@ the Asset Framework to be controlled. There are two basic type of hint:
 
 The rules are encoded within a JSON document.
 This document contains two properties in the root of the document:
-one for name based rules and the other for metadata based rules.
+one for name-based rules and the other for metadata based rules.
 
 .. code-block:: console
 
@@ -306,7 +306,7 @@ If an asset has a datapoint called *temperature* in will be stored in
 the AF hierarchy *temperatures*, if the asset had a datapoint called
 *power* the asset will be placed in the AF hierarchy */Electrical/Power*.
 
-The *equal* and *notequal* tests take a object as a child, the name of
+The *equal* and *notequal* tests take an object as a child, the name of
 the object is datapoint to examine, the child nodes a sets of values
 and locations. For example
 
@@ -358,9 +358,9 @@ would be put in the AF at */BuildingA/B114* whereas a reading of the form
 would be put at the location */BuildingA/2016*.
 
 It is also possible to define defaults if the referenced datapoint
-is missing. Therefore in our example above if we used the location
+is missing. In our example above if we used the location
 */BuildingA/${room:unknown}* a reading without a *room* datapoint would
-be place in */BuildingA/unknown*. If no default is given and the data
+be placed in */BuildingA/unknown*. If no default is given and the data
 point is missing then the level in the hierarchy is ignore. E.g. if we
 use our original location */BuildingA/${room}* and we have the reading
 
@@ -383,8 +383,8 @@ hints themselves are encoded as JSON within a string.
 Number Format Hints
 ~~~~~~~~~~~~~~~~~~~
 
-A number format hint tells the plugin what number format to insert data
-into the PI Server as. The following will cause all numeric data within
+A number format hint tells the plugin what number format to use when inserting data
+into the PI Server. The following will cause all numeric data within
 the asset to be written using the format *float32*.
 
 .. code-block:: console
@@ -393,11 +393,11 @@ the asset to be written using the format *float32*.
 
 The value of the *number* hint may be any numeric format that is supported by the PI Server.
 
-Integer  Format Hints
-~~~~~~~~~~~~~~~~~~~~~
+Integer Format Hints
+~~~~~~~~~~~~~~~~~~~~
 
-an integer format hint tells the plugin what integer format to insert
-data into the PI Server as. The following will cause all integer data
+An integer format hint tells the plugin what integer format to use when inserting
+data into the PI Server. The following will cause all integer data
 within the asset to be written using the format *integer32*.
 
 .. code-block:: console
@@ -434,7 +434,7 @@ that adds this hint to ensure this is the case.
 Tag Name Hint
 ~~~~~~~~~~~~~
 
-Specifies that a specific tag name should be used when storing data in the PI server.
+Specifies that a specific tag name should be used when storing data in the PI Server.
 
 .. code-block:: console
 
@@ -445,7 +445,7 @@ Datapoint Specific Hint
 
 Hints may also be targeted to specific data points within an asset by
 using the datapoint hint. A *datapoint* hint takes a JSON object as
-it's value, this object defines the name of the datapoint and the hint
+its value; the object defines the name of the datapoint and the hint
 to apply.
 
 .. code-block:: console
@@ -460,7 +460,7 @@ Asset Framework Location Hint
 
 An Asset Framework location hint can be added to a reading to control
 the placement of that asset within the Asset Framework. An Asset Framework
-hint would be as follow
+hint would be as follows:
 
 .. code-block:: console
 
@@ -470,6 +470,6 @@ Adding OMF Hints
 ~~~~~~~~~~~~~~~~
 
 An OMF Hint is implemented as a string data point on a reading with
-the data point name of *OMFHint*. It can be added at any point int he
+the data point name of *OMFHint*. It can be added at any point in the
 processing of the data, however a specific plugin is available for adding
 the hints, the |OMFHint filter plugin|.

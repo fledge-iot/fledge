@@ -36,7 +36,7 @@ install_binary_file () {
    else
         if [[ $os_name == *"Red Hat"* || $os_name == *"CentOS"* ]]; then    
             set +e
-            source scl_source enable rh-postgresql96
+            source scl_source enable rh-postgresql13
             source scl_source enable devtoolset-7
             set -e
         fi

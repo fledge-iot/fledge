@@ -8,6 +8,7 @@ Plugin Developer Guide
 
     00_source_code_doc.rst
     01_Fledge_plugins
+    01_01_Data
     02_writing_plugins
     03_south_plugins
     03_south_C_plugins

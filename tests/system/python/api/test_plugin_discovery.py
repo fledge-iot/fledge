@@ -64,21 +64,22 @@ class TestPluginDiscovery:
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        # Only north plugins (1-C based and 2-Python based) are expected by default
-        assert 3 == len(jdoc['plugins'])
-        for plugin in jdoc['plugins']:
-            assert 'north' == plugin['type']
-            assert plugin['type'] not in ['south', 'filter', 'notify', 'rule']
-            # config is not expected by default
-            assert 'config' in plugin if config else 'config' not in plugin
+        # Only OMF north C-based plugin is expected by default
+        assert 1 == len(jdoc['plugins'])
+        plugin = jdoc['plugins'][0]
+        assert 'OMF' == plugin['name']
+        assert 'north' == plugin['type']
+        assert plugin['type'] not in ['south', 'filter', 'notify', 'rule']
+        # config is not expected by default
+        assert 'config' in plugin if config else 'config' not in plugin
 
     @pytest.mark.parametrize("method, count, config", [
         ("/fledge/plugins/installed?type=south", 0, None),
         ("/fledge/plugins/installed?type=filter", 0, None),
         ("/fledge/plugins/installed?type=notify", 0, None),
         ("/fledge/plugins/installed?type=rule", 0, None),
-        ("/fledge/plugins/installed?type=north&config=false", 3, False),
-        ("/fledge/plugins/installed?type=north&config=true", 3, True)
+        ("/fledge/plugins/installed?type=north&config=false", 1, False),
+        ("/fledge/plugins/installed?type=north&config=true", 1, True)
     ])
     def test_default_plugins_installed_by_type(self, fledge_url, method, count, config):
         conn = http.client.HTTPConnection(fledge_url)
@@ -92,9 +93,9 @@ class TestPluginDiscovery:
         for plugin in jdoc['plugins']:
             assert 'config' in plugin if config else 'config' not in plugin
             name.append(plugin['name'])
-        # Verify only 3 north plugins when type is north
-        if count == 3:
-            assert Counter(['ocs', 'pi_server', 'OMF']) == Counter(name)
+        # Verify only OMF north plugin when type is north
+        if count == 1:
+            assert Counter(['OMF']) == Counter(name)
 
     def test_south_plugins_installed(self, fledge_url, _type='south'):
         # install south plugin (Python version)
@@ -144,9 +145,9 @@ class TestPluginDiscovery:
         assert len(jdoc), "No data found"
         plugins = jdoc['plugins']
         plugin_names = [name['name'] for name in plugins]
-        # verify north plugins which is 3 by default and a new one (http)
-        assert 4 == len(plugins)
-        assert Counter(['ocs', 'http_north', 'pi_server', 'OMF']) == Counter(plugin_names)
+        # verify north plugins which is OMF by default and a new one (http)
+        assert 2 == len(plugins)
+        assert Counter(['http_north', 'OMF']) == Counter(plugin_names)
 
         # install one more north plugin (C version)
         install_plugin(_type, plugin='thingspeak', plugin_lang='C')
@@ -158,9 +159,9 @@ class TestPluginDiscovery:
         assert len(jdoc), "No data found"
         plugins = jdoc['plugins']
         plugin_names = [name['name'] for name in plugins]
-        # verify north plugins which is 4 by default and 2 new one (Python & C version)
-        assert 5 == len(plugins)
-        assert Counter(['ocs', 'http_north', 'pi_server', 'OMF', 'ThingSpeak']) == Counter(plugin_names)
+        # verify north plugins which is OMF by default and 2 are new one's (Python & C version)
+        assert 3 == len(plugins)
+        assert Counter(['http_north', 'OMF', 'ThingSpeak']) == Counter(plugin_names)
 
     def test_filter_plugins_installed(self, fledge_url, _type='filter'):
         # install rms filter plugin

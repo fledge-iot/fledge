@@ -5,7 +5,7 @@
  *
  * Released under the Apache 2.0 Licence
  *
- * Author: Mark Riddoch
+ * Author: Mark Riddoch, Massimiliano Pinto
  */
 
 #include <data_load.h>
@@ -28,6 +28,8 @@ DataLoad::DataLoad(const string& name, long streamId, StorageClient *storage) :
 	m_name(name), m_streamId(streamId), m_storage(storage), m_shutdown(false),
 	m_readRequest(0), m_dataSource(SourceReadings), m_pipeline(NULL)
 {
+	m_blockSize = DEFAULT_BLOCK_SIZE;
+
 	if (m_streamId == 0)
 	{
 		m_streamId = createNewStream();
@@ -146,7 +148,7 @@ ReadingSet *readings = NULL;
 			switch (m_dataSource)
 			{
 				case SourceReadings:
-					Logger::getLogger()->debug("Fetch %d readings from %d", blockSize, m_lastFetched + 1);
+					// Logger::getLogger()->debug("Fetch %d readings from %d", blockSize, m_lastFetched + 1);
 					readings = m_storage->readingFetch(m_lastFetched + 1, blockSize);
 					break;
 				case SourceStatistics:
@@ -171,13 +173,14 @@ ReadingSet *readings = NULL;
 		}
 		if (readings && readings->getCount())
 		{
+            Logger::getLogger()->debug("DataLoad::readBlock(): Got %d readings from storage client", readings->getCount());
 			m_lastFetched = readings->getLastId();
 			bufferReadings(readings);
 			return;
 		}
 		else
 		{
-			Logger::getLogger()->debug("No readings available");
+			// Logger::getLogger()->debug("DataLoad::readBlock(): No readings available");
 		}
 		if (!m_shutdown)
 		{	
@@ -333,7 +336,7 @@ ReadingSet *DataLoad::fetchReadings(bool wait)
 	unique_lock<mutex> lck(m_qMutex);
 	while (m_queue.empty())
 	{
-		triggerRead(100);	// TODO Improve this
+		triggerRead(m_blockSize);
 		if (wait && !m_shutdown)
 		{
 			m_fetchCV.wait(lck);
@@ -345,7 +348,7 @@ ReadingSet *DataLoad::fetchReadings(bool wait)
 	}
 	ReadingSet *rval = m_queue.front();
 	m_queue.pop_front();
-	triggerRead(100);	// TODO Improve this
+	triggerRead(m_blockSize);
 	return rval;
 }
 

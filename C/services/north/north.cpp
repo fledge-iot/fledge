@@ -5,7 +5,7 @@
  *
  * Released under the Apache 2.0 Licence
  *
- * Author: Mark Riddoch
+ * Author: Mark Riddoch, Massimiliano Pinto
  */
 
 #include <sys/timerfd.h>
@@ -108,7 +108,9 @@ static int controlOperation(char *operation, int paramCount, char *names[], char
 	{
 		case DestinationAsset:
 		case DestinationService:
+			va_start(ap, destination);
 			rval = service->operation(operation, paramCount, names, parameters, destination, va_arg(ap, char *));
+			va_end(ap);
 			break;
 		case DestinationBroadcast:
 			rval = service->operation(operation, paramCount, names, parameters, destination);
@@ -379,6 +381,17 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 		{
 			m_dataLoad->setDataSource(m_config.getValue("source"));
 		}
+		if (m_configAdvanced.itemExists("blockSize"))
+		{
+			unsigned long newBlock = strtoul(
+						m_configAdvanced.getValue("blockSize").c_str(),
+						NULL,
+						10);
+			if (newBlock > 0)
+			{
+				m_dataLoad->setBlockSize(newBlock);
+			}
+		}
 		m_dataSender = new DataSender(northPlugin, m_dataLoad, this);
 		logger->debug("North service is running");
 
@@ -594,7 +607,7 @@ void NorthService::configChange(const string& categoryName, const string& catego
 		m_restartPlugin = true;
 		m_cv.notify_all();
 
-    if (m_dataLoad)
+		if (m_dataLoad)
 		{
 			m_dataLoad->configChange(categoryName, category);
 		}
@@ -618,6 +631,17 @@ void NorthService::configChange(const string& categoryName, const string& catego
 			{
 				m_allowControl = false;
 				logger->warn("Control operations have been disabled");
+			}
+		}
+		if (m_configAdvanced.itemExists("blockSize"))
+		{
+			unsigned long newBlock = strtoul(
+					m_configAdvanced.getValue("blockSize").c_str(),
+					NULL,
+					10);
+			if (newBlock > 0)
+			{
+				m_dataLoad->setBlockSize(newBlock);
 			}
 		}
 	}
@@ -708,6 +732,14 @@ void NorthService::addConfigDefaults(DefaultConfigCategory& defaultConfig)
 	defaultConfig.addItem("logLevel", "Minimum logging level reported",
 			"warning", "warning", logLevels);
 	defaultConfig.setItemDisplayName("logLevel", "Minimum Log Level");
+
+	// Add blockSize configuration item
+	defaultConfig.addItem("blockSize",
+		"The size of a block of data to send in each transmission.",
+		"integer",
+		std::to_string(DEFAULT_BLOCK_SIZE),
+		std::to_string(DEFAULT_BLOCK_SIZE));
+	defaultConfig.setItemDisplayName("blockSize", "Data block size");
 }
 
 /**

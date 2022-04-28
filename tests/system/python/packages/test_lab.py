@@ -360,9 +360,9 @@ class TestRandomwalk1:
 
 
 @pytest.mark.skipif(os.uname()[4][:3] != 'arm', reason="only compatible with arm architecture")
-class TestEnviroPhat:
+class TestRpiEnviro:
     def test_enviro_phat(self, fledge_url, retries, wait_time):
-        data = {"name": "Enviro", "type": "south", "plugin": "envirophat", "enabled": True,
+        data = {"name": "Enviro", "type": "south", "plugin": "rpienviro", "enabled": True,
                 "config": {"assetNamePrefix": {"value": "e_"}}}
         utils.post_request(fledge_url, "/fledge/service", data)
 

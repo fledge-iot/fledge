@@ -127,12 +127,14 @@ NORTH_C_SCRIPT_SRC          := scripts/tasks/north_c
 NORTH_SERVICE_C_SCRIPT_SRC  := scripts/services/north_C
 NOTIFICATION_C_SCRIPT_SRC   := scripts/services/notification_c
 DISPATCHER_C_SCRIPT_SRC     := scripts/services/dispatcher_c
+BUCKET_STORAGE_C_SCRIPT_SRC := scripts/services/bucket_storage_c
 PURGE_SCRIPT_SRC            := scripts/tasks/purge
 PURGE_C_SCRIPT_SRC          := scripts/tasks/purge_system
 STATISTICS_SCRIPT_SRC       := scripts/tasks/statistics
 BACKUP_SRC                  := scripts/tasks/backup
 RESTORE_SRC                 := scripts/tasks/restore
 CHECK_CERTS_TASK_SCRIPT_SRC := scripts/tasks/check_certs
+AUTOMATION_TASK_SCRIPT_SRC  := scripts/tasks/automation_script
 CERTIFICATES_SCRIPT_SRC     := scripts/certificates
 AUTH_CERTIFICATES_SCRIPT_SRC := scripts/auth_certificates
 PACKAGE_UPDATE_SCRIPT_SRC   := scripts/package
@@ -343,12 +345,14 @@ scripts_install : $(SCRIPTS_INSTALL_DIR) \
 	install_north_service_c_script \
 	install_notification_c_script \
 	install_dispatcher_c_script \
+	install_bucket_storage_c_script \
 	install_purge_script \
 	install_statistics_script \
 	install_storage_script \
 	install_backup_script \
 	install_restore_script \
 	install_check_certificates_script \
+	install_automation_script \
 	install_certificates_script \
 	install_auth_certificates_script \
 	install_package_update_script \
@@ -407,6 +411,9 @@ install_notification_c_script: $(SCRIPT_SERVICES_INSTALL_DIR) $(NOTIFICATION_C_S
 install_dispatcher_c_script: $(SCRIPT_SERVICES_INSTALL_DIR) $(DISPATCHER_C_SCRIPT_SRC)
 	$(CP) $(DISPATCHER_C_SCRIPT_SRC) $(SCRIPT_SERVICES_INSTALL_DIR)
 
+install_bucket_storage_c_script: $(SCRIPT_SERVICES_INSTALL_DIR) $(BUCKET_STORAGE_C_SCRIPT_SRC)
+	$(CP) $(BUCKET_STORAGE_C_SCRIPT_SRC) $(SCRIPT_SERVICES_INSTALL_DIR)
+
 install_purge_script : $(SCRIPT_TASKS_INSTALL_DIR) $(PURGE_SCRIPT_SRC)
 	$(CP) $(PURGE_SCRIPT_SRC) $(SCRIPT_TASKS_INSTALL_DIR)
 	$(CP) $(PURGE_C_SCRIPT_SRC) $(SCRIPT_TASKS_INSTALL_DIR)
@@ -422,6 +429,9 @@ install_restore_script : $(SCRIPT_TASKS_INSTALL_DIR) $(RESTORE_SRC)
 
 install_check_certificates_script : $(SCRIPT_TASKS_INSTALL_DIR) $(CHECK_CERTS_TASK_SCRIPT_SRC)
 	$(CP) $(CHECK_CERTS_TASK_SCRIPT_SRC) $(SCRIPT_TASKS_INSTALL_DIR)
+
+install_automation_script : $(SCRIPT_INSTALL_DIR) $(AUTOMATION_TASK_SCRIPT_SRC)
+	$(CP) $(AUTOMATION_TASK_SCRIPT_SRC) $(SCRIPT_TASKS_INSTALL_DIR)
 
 install_storage_script : $(SCRIPT_INSTALL_DIR) $(STORAGE_SCRIPT_SRC)
 	$(CP) $(STORAGE_SCRIPT_SRC) $(SCRIPTS_INSTALL_DIR)

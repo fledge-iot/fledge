@@ -15,6 +15,8 @@
 #include <time.h>
 #include <stdlib.h>
 #include <logger.h>
+#include <base64databuffer.h>
+#include <base64dpimage.h>
 
 #include <boost/algorithm/string/replace.hpp>
 
@@ -47,7 +49,7 @@ ReadingSet::ReadingSet() : m_count(0), m_last_id(0)
  *			of readings to be copied
  *			into m_readings vector
  */
-ReadingSet::ReadingSet(vector<Reading *>* readings) : m_last_id(0)
+ReadingSet::ReadingSet(const vector<Reading *>* readings) : m_last_id(0)
 {
 	m_count = readings->size();
 	for (auto it = readings->begin(); it != readings->end(); ++it)
@@ -327,9 +329,30 @@ JSONReading::JSONReading(const Value& json)
 				switch (m.value.GetType()) {
 					// String
 					case (kStringType): {
-						DatapointValue value(m.value.GetString());
-						this->addDatapoint(new Datapoint(m.name.GetString(),
-										 value));
+						string str = m.value.GetString();
+						if (str[0] == '_' && str[1] == '_')
+						{
+							// special encoded type
+							size_t pos = str.find_first_of(':');
+							if (str.compare(2, 10, "DATABUFFER") == 0)
+							{
+								DataBuffer *databuffer = new Base64DataBuffer(str.substr(pos + 1));
+								DatapointValue value(databuffer);
+								this->addDatapoint(new Datapoint(m.name.GetString(), value));
+							}
+							else if (str.compare(2, 7, "DPIMAGE") == 0)
+							{
+								DPImage *image = new Base64DPImage(str.substr(pos + 1));
+								DatapointValue value(image);
+								this->addDatapoint(new Datapoint(m.name.GetString(), value));
+							}
+							
+						}
+						else
+						{
+							DatapointValue value(str);
+							this->addDatapoint(new Datapoint(m.name.GetString(), value));
+						}
 						break;
 					}
 
@@ -369,27 +392,60 @@ JSONReading::JSONReading(const Value& json)
 
 					case kArrayType:
 					    {
-						    vector<double> arrayValues;
-						    for (auto& v : m.value.GetArray())
+						    if ((m.value.GetArray())[0].IsArray())
 						    {
-							    if (v.IsDouble())
+							    // We have a 2D array
+							    vector< vector<double> *> array;
+							    for (auto& v : m.value.GetArray())
 							    {
-								    arrayValues.push_back(v.GetDouble());
+								    vector<double> *arrayValues = new vector<double>;
+								    for (auto& v : m.value.GetArray())
+								    {
+									    if (v.IsDouble())
+									    {
+										    arrayValues->push_back(v.GetDouble());
+									    }
+									    else if (v.IsInt() || v.IsUint())
+									    {
+										    double i = (double)v.GetInt();
+										    arrayValues->push_back(i);
+									    }
+									    else if (v.IsInt64() || v.IsUint64())
+									    {
+										    double i = (double)v.GetInt64();
+										    arrayValues->push_back(i);
+									    }
+								    }
+								    array.push_back(arrayValues);
 							    }
-							    else if (v.IsInt() || v.IsUint())
-							    {
-								    double i = (double)v.GetInt();
-								    arrayValues.push_back(i);
-							    }
-							    else if (v.IsInt64() || v.IsUint64())
-							    {
-								    double i = (double)v.GetInt64();
-								    arrayValues.push_back(i);
-							    }
+							    DatapointValue value(array);
+							    this->addDatapoint(new Datapoint(m.name.GetString(),
+												 value));
 						    }
-						    DatapointValue value(arrayValues);
-						    this->addDatapoint(new Datapoint(m.name.GetString(),
-											 value));
+						    else
+						    {
+							    vector<double> arrayValues;
+							    for (auto& v : m.value.GetArray())
+							    {
+								    if (v.IsDouble())
+								    {
+									    arrayValues.push_back(v.GetDouble());
+								    }
+								    else if (v.IsInt() || v.IsUint())
+								    {
+									    double i = (double)v.GetInt();
+									    arrayValues.push_back(i);
+								    }
+								    else if (v.IsInt64() || v.IsUint64())
+								    {
+									    double i = (double)v.GetInt64();
+									    arrayValues.push_back(i);
+								    }
+							    }
+							    DatapointValue value(arrayValues);
+							    this->addDatapoint(new Datapoint(m.name.GetString(),
+												 value));
+						    }
 						    break;
 						    
 					    }

@@ -579,7 +579,7 @@ int StorageClient::updateTable(const string& tableName, const InsertValues& valu
 		}
 		ostringstream resultPayload;
 		resultPayload << res->content.rdbuf();
-		handleUnexpectedResponse("Update table", res->status_code, resultPayload.str());
+		handleUnexpectedResponse("Update table", tableName, res->status_code, resultPayload.str());
 	} catch (exception& ex) {
 		handleException(ex, "update table %s", tableName.c_str());
 		throw;
@@ -644,7 +644,7 @@ int StorageClient::updateTable(const string& tableName, const ExpressionValues& 
 		}
 		ostringstream resultPayload;
 		resultPayload << res->content.rdbuf();
-		handleUnexpectedResponse("Update table", res->status_code, resultPayload.str());
+		handleUnexpectedResponse("Update table", tableName, res->status_code, resultPayload.str());
 	} catch (exception& ex) {
 		handleException(ex, "update table %s", tableName.c_str());
 		throw;
@@ -715,7 +715,7 @@ int StorageClient::updateTable(const string& tableName, vector<pair<ExpressionVa
 		}
 		ostringstream resultPayload;
 		resultPayload << res->content.rdbuf();
-		handleUnexpectedResponse("Update table", res->status_code, resultPayload.str());
+		handleUnexpectedResponse("Update table", tableName, res->status_code, resultPayload.str());
 	} catch (exception& ex) {
 		handleException(ex, "update table %s", tableName.c_str());
 		throw;
@@ -774,7 +774,7 @@ int StorageClient::updateTable(const string& tableName, const InsertValues& valu
 		}
 		ostringstream resultPayload;
 		resultPayload << res->content.rdbuf();
-		handleUnexpectedResponse("Update table", res->status_code, resultPayload.str());
+		handleUnexpectedResponse("Update table", tableName, res->status_code, resultPayload.str());
 	} catch (exception& ex) {
 		handleException(ex, "update table %s", tableName.c_str());
 		throw;
@@ -829,7 +829,7 @@ int StorageClient::updateTable(const string& tableName, const JSONProperties& va
 		}
 		ostringstream resultPayload;
 		resultPayload << res->content.rdbuf();
-		handleUnexpectedResponse("Update table", res->status_code, resultPayload.str());
+		handleUnexpectedResponse("Update table", tableName, res->status_code, resultPayload.str());
 	} catch (exception& ex) {
 		handleException(ex, "update table %s", tableName.c_str());
 		throw;
@@ -887,7 +887,7 @@ int StorageClient::updateTable(const string& tableName, const InsertValues& valu
 		}
 		ostringstream resultPayload;
 		resultPayload << res->content.rdbuf();
-		handleUnexpectedResponse("Update table", res->status_code, resultPayload.str());
+		handleUnexpectedResponse("Update table", tableName, res->status_code, resultPayload.str());
 	} catch (exception& ex) {
 		handleException(ex, "update table %s", tableName.c_str());
 		throw;
@@ -934,12 +934,29 @@ int StorageClient::deleteTable(const std::string& tableName, const Query& query)
 		}
 		ostringstream resultPayload;
 		resultPayload << res->content.rdbuf();
-		handleUnexpectedResponse("Delete from table", res->status_code, resultPayload.str());
+		handleUnexpectedResponse("Delete from table", tableName, res->status_code, resultPayload.str());
 	} catch (exception& ex) {
 		handleException(ex, "delete table date in %s", tableName.c_str());
 		throw;
 	}
 	return -1;
+}
+
+/**
+ * Standard logging method for all interactions
+ *
+ * @param operation	The operation being undertaken
+ * @param table		The name of the table
+ * @param responseCode	The HTTP response code
+ * @param payload	The payload in the response message
+ */
+void StorageClient::handleUnexpectedResponse(const char *operation, const string& table,
+			const string& responseCode,  const string& payload)
+{
+	string op(operation);
+	op += " ";
+	op += table;
+	handleUnexpectedResponse(op.c_str(), responseCode, payload);
 }
 
 /**
@@ -999,6 +1016,7 @@ bool StorageClient::registerAssetNotification(const string& assetName,
 		ostringstream resultPayload;
 		resultPayload << res->content.rdbuf();
 		handleUnexpectedResponse("Register asset",
+					 assetName,
 					 res->status_code,
 					 resultPayload.str());
 		m_logger->error("/storage/reading/interest/%s: %s",
@@ -1040,6 +1058,7 @@ bool StorageClient::unregisterAssetNotification(const string& assetName,
 		ostringstream resultPayload;
 		resultPayload << res->content.rdbuf();
 		handleUnexpectedResponse("Unregister asset",
+					 assetName,
 					 res->status_code,
 					 resultPayload.str());
 

@@ -559,6 +559,7 @@ SQLBuffer	jsonConstraints;	// Extra constraints to add to where clause
 	} catch (exception e) {
 		raiseError("retrieve", "Internal error: %s", e.what());
 	}
+	return false;
 }
 
 /**
@@ -821,6 +822,7 @@ bool Connection::retrieveReadings(const string& condition, string& resultSet)
 	} catch (exception e) {
 		raiseError("retrieve", "Internal error: %s", e.what());
 	}
+	return false;
 }
 
 
@@ -1625,6 +1627,12 @@ unsigned int  Connection::purgeReadings(unsigned long age, unsigned int flags, u
 		flag_retain = true;
 	}
 	Logger::getLogger()->debug("%s - flags :%X: flag_retain :%d: sent :%lu:", __FUNCTION__, flags, flag_retain, sent);
+
+	// Prepare empty result
+	result = "{ \"removed\" : 0, ";
+	result += " \"unsentPurged\" : 0, ";
+	result += " \"unsentRetained\" : 0, ";
+	result += " \"readings\" : 0 }";
 
 	logger->info("Purge starting...");
 	gettimeofday(&startTv, NULL);
@@ -3277,6 +3285,7 @@ SQLBuffer sql;
 	} catch (exception e) {
 		raiseError("get_table_snapshots", "Internal error: %s", e.what());
 	}
+	return false;
 }
 
 /**

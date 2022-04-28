@@ -31,6 +31,7 @@ class StorageService : public ServiceHandler {
 		void 			start(std::string& coreAddress, unsigned short corePort);
 		void 			stop();
 		void			shutdown();
+		bool			isRunning() { return !m_shutdown; };
 		void			configChange(const std::string&, const std::string&);
 		string			getPluginName();
 		string			getPluginManagedStatus();

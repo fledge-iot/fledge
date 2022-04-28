@@ -1081,7 +1081,10 @@ unsigned long rowsCount;
 		// SQL - union of all the readings tables
 		string sql_cmd_base;
 		string sql_cmd_tmp;
-		sql_cmd_base = " SELECT  id, \"_assetcode_\" asset_code, reading, user_ts, ts  FROM _dbname_._tablename_ WHERE id >= " + to_string(id) + " and id <=  " + to_string(id) + " + " + to_string(blksize) + " ";
+		// Would like to add a LIMIT on each sub-query in the union all, however SQLITE
+		// does not support this. Note we can not use id + blocksize as this fail if we 
+		// have holes in the id space
+		sql_cmd_base = " SELECT  id, \"_assetcode_\" asset_code, reading, user_ts, ts  FROM _dbname_._tablename_ WHERE id >= " + to_string(id) + " ";
 		ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
 		sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base, asset_codes);
 		sql_cmd += sql_cmd_tmp;
@@ -1705,6 +1708,12 @@ vector<string>  assetCodes;
 		flag_retain = true;
 	}
 	Logger::getLogger()->debug("%s - flags :%X: flag_retain :%d: sent :%ld:", __FUNCTION__, flags, flag_retain, sent);
+
+	// Prepare empty result
+	result = "{ \"removed\" : 0, ";
+	result += " \"unsentPurged\" : 0, ";
+	result += " \"unsentRetained\" : 0, ";
+	result += " \"readings\" : 0 }";
 
 	logger->info("Purge starting...");
 	gettimeofday(&startTv, NULL);

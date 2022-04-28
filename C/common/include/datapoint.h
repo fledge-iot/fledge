@@ -15,6 +15,8 @@
 #include <cfloat>
 #include <vector>
 #include <logger.h>
+#include <dpimage.h>
+#include <databuffer.h>
 
 class Datapoint;
 /**
@@ -68,6 +70,61 @@ class DatapointValue {
 		}
 
 		/**
+		 * Construct with an Image
+		 */
+		DatapointValue(const DPImage& value)
+		{
+			m_value.image = new DPImage(value);
+			m_type = T_IMAGE;
+		}
+
+		/**
+		 * Construct with a DataBuffer
+		 */
+		DatapointValue(const DataBuffer& value)
+		{
+			m_value.dataBuffer = new DataBuffer(value);
+			m_type = T_DATABUFFER;
+		}
+
+		/**
+		 * Construct with an Image Pointer, the
+		 * image becomes owned by the datapointValue
+		 */
+		DatapointValue(DPImage *value)
+		{
+			m_value.image = value;
+			m_type = T_IMAGE;
+		}
+
+		/**
+		 * Construct with a DataBuffer
+		 */
+		DatapointValue(DataBuffer *value)
+		{
+			m_value.dataBuffer = value;
+			m_type = T_DATABUFFER;
+		}
+
+		/**
+		 * Construct with a 2 dimentional  array of floating point values
+		 */
+		DatapointValue(const std::vector< std::vector<double> *>& values)
+		{
+			m_value.a2d = new std::vector< std::vector<double>* >;
+			for (auto row : values)
+			{
+				std::vector<double> *nrow = new std::vector<double>;
+				for (auto& d : *row)
+				{
+					nrow->push_back(d);
+				}
+				m_value.a2d->push_back(nrow);
+			}
+			m_type = T_2D_FLOAT_ARRAY;
+		};
+
+		/**
 		 * Copy constructor
 		 */
 		DatapointValue(const DatapointValue& obj);
@@ -105,6 +162,15 @@ class DatapointValue {
 			m_type = T_FLOAT;
 		}
 
+		/** Set the value of a datapoint to be an image
+		 * @param value The image to set in the data point
+		 */
+		void setValue(const DPImage& value)
+		{
+			m_value.image = new DPImage(value);
+			m_type = T_IMAGE;
+		}
+
 		/**
 		 * Return the value as a string
 		 */
@@ -132,7 +198,10 @@ class DatapointValue {
 			T_FLOAT,
 			T_FLOAT_ARRAY,
 			T_DP_DICT,
-			T_DP_LIST
+			T_DP_LIST,
+			T_IMAGE,
+			T_DATABUFFER,
+			T_2D_FLOAT_ARRAY
 		} dataTagType;
 
 		/**
@@ -153,6 +222,9 @@ class DatapointValue {
 				case T_FLOAT_ARRAY: return std::string("FLOAT_ARRAY");
 				case T_DP_DICT: return std::string("DP_DICT");
 				case T_DP_LIST: return std::string("DP_LIST");
+				case T_IMAGE: return std::string("IMAGE");
+				case T_DATABUFFER: return std::string("DATABUFFER");
+				case T_2D_FLOAT_ARRAY: return std::string("2D_FLOAT_ARRAY");
 				default: return std::string("INVALID");
 			}
 		}
@@ -173,6 +245,30 @@ class DatapointValue {
 			return m_value.a;
 		}
 
+		/**
+		 * Return 2D array of float
+		 */
+		std::vector<std::vector<double>* >*& getDp2DArr()
+		{
+			return m_value.a2d;
+		}
+
+		/**
+		 * Return the Image
+		 */
+		DPImage *getImage()
+		{
+			return m_value.image;
+		}
+
+		/**
+		 * Return the DataBuffer
+		 */
+		DataBuffer *getDataBuffer()
+		{
+			return m_value.dataBuffer;
+		}
+
 	private:
 		void deleteNestedDPV();
 		const std::string	escape(const std::string& str) const;
@@ -181,7 +277,12 @@ class DatapointValue {
 			long			i;
 			double			f;
 			std::vector<double>*	a;
-			std::vector<Datapoint*>*	dpa;
+			std::vector<Datapoint*>
+						*dpa;
+			DPImage			*image;
+			DataBuffer		*dataBuffer;
+			std::vector< std::vector<double>* >
+						*a2d;
 			} m_value;
 		DatapointTag	m_type;
 };

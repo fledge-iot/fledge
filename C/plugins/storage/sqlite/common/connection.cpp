@@ -1089,6 +1089,7 @@ vector<string>  asset_codes;
 	} catch (exception e) {
 		raiseError("retrieve", "Internal error: %s", e.what());
 	}
+	return false;
 }
 #endif
 

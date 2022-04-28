@@ -109,45 +109,50 @@ def plugin_poll(handle):
 
             data = {'asset':  handle['assetName']['value'], 'timestamp': time_stamp, 'readings': {"image": image}}
         elif depth == 24:
-            image = np.full((256, 256*3), 0, dtype=np.uint8)
+            image = np.full((256, 256, 3), 0, dtype=np.uint8)
             for i in range(0, 32):
-                for j in range(0, 256 * 3):
-                    if  j%3 == 0:
-                        image[i][j] =  i*8
-                    else:
-                        image[i][j] = 0
+                for j in range(0, 256):
+                    for k in range(0,3):
+                        if k%3 == 0:
+                            image[i][j][k] =  i*8
+                        else:
+                            image[i][j][k] = 0
 
             for i in range (32,64):
-                for j in range(0,256*3):
-                    if  j%3 == 0:
-                        image[i][j] = 0         #R
-                    elif j%3 == 1:
-                        image[i][j] = (i-32)*8  #G
-                    else:
-                        image[i][j] = 0         #B
+                for j in range(0,256):
+                    for k in range(0,3):
+                        if  k%3 == 0:
+                            image[i][j][k] = 0         #R
+                        elif k%3 == 1:
+                            image[i][j][k] = (i%32)*8  #G
+                        else:
+                            image[i][j][k] = 0         #B
 
             for i in range(64,96):
-                for j in range(0,256*3):    
-                    if j%3 == 0:
-                        image[i][j] = 0            #R
-                    elif j%3 == 0:
-                        image[i][j] = 0            #G
-                    else:
-                        image[i][j] = (i-64)*8     #B
+                for j in range(0,256):    
+                    for k in range(0,3):
+                        if k%3 == 0:
+                            image[i][j][k] = 0            #R
+                        elif k%3 == 1:
+                            image[i][j][k] = 0            #G
+                        else:
+                            image[i][j][k] = (i%32)*8     #B
 
 
             for i in range(96,128):
-                for  j in range(0,256*3):
-                        image[i][j] = (i-96)*8
+                for  j in range(0,256):
+                    for k in range(0,3):
+                        image[i][j][k] = (i%32)*8
 
             for i in range(128,256):
-                for j in range(0,256*3):
-                    if j%3 == 0:
-                        image[i][j] = (i-128) * 4                  #R
-                    elif j%3 == 1:
-                        image[i][j] = 255 - ( ( i-128) * 4 )      #G
-                    else:
-                        image[i][j] = j%256                        #B
+                for j in range(0,256):
+                    for k in range(0,3):
+                        if k%3 == 0:
+                            image[i][j][k] = (i%128) * 4                  #R
+                        elif k%3 == 1:
+                            image[i][j][k] = 255 - ( ( i%128) * 4 )      #G
+                        else:
+                            image[i][j][k] = j                           #B
 
             data = {'asset':  handle['assetName']['value'], 'timestamp': time_stamp, 'readings': {"image": image}}
         else:

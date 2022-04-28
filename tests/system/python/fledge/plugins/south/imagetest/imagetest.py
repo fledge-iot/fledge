@@ -102,7 +102,7 @@ def plugin_poll(handle):
         
             data = {'asset':  handle['assetName']['value'], 'timestamp': time_stamp, 'readings': {"image": image}}
         elif depth == 16:
-            image = np.full((256, 256*2), 0, dtype=np.uint8)
+            image = np.full((256, 256), 0, dtype=np.uint16)
             for i in range(0, 256):
                 for j in range(0, 256):
                     image[i][j] = i*i

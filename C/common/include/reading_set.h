@@ -27,7 +27,7 @@ class ReadingSet {
 	public:
 		ReadingSet();
 		ReadingSet(const std::string& json);
-		ReadingSet(std::vector<Reading *>* readings);
+		ReadingSet(const std::vector<Reading *>* readings);
 		~ReadingSet();
 
 		unsigned long			getCount() const { return m_count; };
@@ -49,7 +49,7 @@ class ReadingSet {
 		void				removeAll();
 		void				clear();
 
-	private:
+	protected:
 		unsigned long			m_count;
 		ReadingSet(const ReadingSet&);
 		ReadingSet&			operator=(ReadingSet const &);

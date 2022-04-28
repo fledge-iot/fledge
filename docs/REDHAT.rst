@@ -85,10 +85,10 @@ The previously installed gcc will be by default enabled again after a logoff/log
 Build and use Fledge with PostgreSQL for Red Hat/CentOS
 ========================================================
 
-The *rh-postgresql96* environment should be enabled using:
+The *rh-postgresql13* environment should be enabled using:
 
 .. code-block:: console
 
-	$ source scl_source enable rh-postgresql96
+	$ source scl_source enable rh-postgresql13
 
 before building Fledge if the intention is to use the Postgres plugin.

@@ -17,6 +17,7 @@ Plugin Developer Guide
     05_storage_plugins
     06_filter_plugins
     08_notify_plugins.rst
+    09_packaging.rst
     10_testing
     11_WSL2.rst
     

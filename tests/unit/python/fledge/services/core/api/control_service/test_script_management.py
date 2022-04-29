@@ -55,17 +55,47 @@ class TestScriptManagement:
 
     async def test_get_all_scripts(self, client):
         storage_client_mock = MagicMock(StorageClientAsync)
-        result = {"count": 2, "rows": [
-            {"name": "demoScript", "steps": [{"delay": {"order": 0, "duration": 9003}}], "acl": ""},
-            {"name": "testScript", "steps": [{"write": {"order": 0, "speed": 420}}], "acl": "testACL"}]}
+        c_mgr = ConfigurationManager(storage_client_mock)
+        server.Server.scheduler = Scheduler(None, None)
+        acl_name = "testACL"
+        script_name = "demoScript"
+        cat_name = "{}-automation-script".format(script_name)
+        result = {"count": 1, "rows": [
+            {"name": script_name, "steps": [{"write": {"order": 0, "service": "mod", "values": {"humidity": "12"}}}],
+             "acl": acl_name, "configuration": {}, "schedule": {}}]}
         payload = {"return": ["name", "steps", "acl"]}
-        value = await mock_coro(result) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(result))
+        cat_info = {'write': {'default': '[{"order": 0, "service": "mod", "values": {"humidity": "12"}}]',
+                              'description': 'Dispatcher write operation using automation script', 'type': 'string',
+                              'value': '[{"order": 0, "service": "mod", "values": {"humidity": "12"}}]'}}
+        if sys.version_info >= (3, 8):
+            value = await mock_coro(result)
+            get_sch = await mock_schedule(script_name)
+            get_cat = await mock_coro(cat_info)
+        else:
+            value = asyncio.ensure_future(mock_coro(result))
+            get_sch = asyncio.ensure_future(mock_schedule(script_name))
+            get_cat = asyncio.ensure_future(mock_coro(cat_info))
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=value) as patch_query_tbl:
-                resp = await client.get('/fledge/control/script')
-                assert 200 == resp.status
-                result = await resp.text()
-                assert 'scripts' in result
+                with patch.object(server.Server.scheduler, 'get_schedules',
+                                  return_value=get_sch) as patch_get_schedules:
+                    with patch.object(c_mgr, 'get_category_all_items', return_value=get_cat) as patch_get_all_items:
+                        resp = await client.get('/fledge/control/script')
+                        assert 200 == resp.status
+                        result = await resp.text()
+                        json_response = json.loads(result)
+                        assert 'scripts' in json_response
+                        assert 'acl' in json_response['scripts'][0]
+                        assert acl_name == json_response['scripts'][0]['acl']
+                        assert 'configuration' in json_response['scripts'][0]
+                        assert len(json_response['scripts'][0]['configuration'])
+                        assert cat_name == json_response['scripts'][0]['configuration']['categoryName']
+                        assert 'schedule' in json_response['scripts'][0]
+                        assert len(json_response['scripts'][0]['schedule'])
+                        assert script_name == json_response['scripts'][0]['schedule']['name']
+                        assert "automation_script" == json_response['scripts'][0]['schedule']['processName']
+                    patch_get_all_items.assert_called_once_with(cat_name)
+                patch_get_schedules.assert_called_once_with()
             args, _ = patch_query_tbl.call_args
             assert 'control_script' == args[0]
             assert payload == json.loads(args[1])
@@ -90,20 +120,61 @@ class TestScriptManagement:
             assert payload == json.loads(args[1])
 
     async def test_good_get_script_by_name(self, client):
-        script_name = 'demoScript'
         storage_client_mock = MagicMock(StorageClientAsync)
-        result = {"count": 1, "rows": [
-            {"name": script_name, "steps": [{"delay": {"order": 0, "duration": 9003}}], "acl": ""}]}
+        c_mgr = ConfigurationManager(storage_client_mock)
+        server.Server.scheduler = Scheduler(None, None)
+        script_name = 'demoScript'
+        cat_name = "{}-automation-script".format(script_name)
+        result = {"count": 1, "rows": [{"name": script_name, "steps": [
+            {"write": {"order": 0, "service": "mod", "values": {"humidity": "12"}}}], "acl": ""}]}
         payload = {"return": ["name", "steps", "acl"], "where": {"column": "name", "condition": "=",
                                                                  "value": script_name}}
-        value = await mock_coro(result) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(result))
+        cat_info = {'write': {'default': '[{"order": 0, "service": "mod", "values": {"humidity": "12"}}]',
+                              'description': 'Dispatcher write operation using automation script', 'type': 'string',
+                              'value': '[{"order": 0, "service": "mod", "values": {"humidity": "12"}}]'}}
+
+        async def mock_manual_schedule(name):
+            schedule = ManualSchedule()
+            schedule.repeat = None
+            schedule.time = None
+            schedule.day = None
+            schedule.schedule_id = "0c6fbbfd-8b36-4d6d-8fcb-5389436aa0fe"
+            schedule.exclusive = True
+            schedule.enabled = True
+            schedule.name = name
+            schedule.process_name = "automation_script"
+            return schedule
+
+        if sys.version_info >= (3, 8):
+            value = await mock_coro(result)
+            get_cat = await mock_coro(cat_info)
+            get_sch = await mock_manual_schedule(script_name)
+        else:
+            value = asyncio.ensure_future(mock_coro(result))
+            get_cat = asyncio.ensure_future(mock_coro(cat_info))
+            get_sch = asyncio.ensure_future(mock_manual_schedule(script_name))
+
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=value) as patch_query_tbl:
-                resp = await client.get('/fledge/control/script/{}'.format(script_name))
-                assert 200 == resp.status
-                result = await resp.text()
-                json_response = json.loads(result)
-                assert script_name == json_response['name']
+                with patch.object(c_mgr, 'get_category_all_items', return_value=get_cat) as patch_get_all_items:
+                    with patch.object(server.Server.scheduler, 'get_schedule_by_name',
+                                      return_value=get_sch) as patch_get_schedule_by_name:
+                        resp = await client.get('/fledge/control/script/{}'.format(script_name))
+                        assert 200 == resp.status
+                        result = await resp.text()
+                        json_response = json.loads(result)
+                        assert script_name == json_response['name']
+                        assert 'acl' in json_response
+                        assert "" == json_response['acl']
+                        assert 'configuration' in json_response
+                        assert len(json_response['configuration'])
+                        assert cat_name == json_response['configuration']['categoryName']
+                        assert 'schedule' in json_response
+                        assert len(json_response['schedule'])
+                        assert script_name == json_response['schedule']['name']
+                        assert "automation_script" == json_response['schedule']['processName']
+                    patch_get_schedule_by_name.assert_called_once_with(script_name)
+                patch_get_all_items.assert_called_once_with(cat_name)
             args, _ = patch_query_tbl.call_args
             assert 'control_script' == args[0]
             assert payload == json.loads(args[1])

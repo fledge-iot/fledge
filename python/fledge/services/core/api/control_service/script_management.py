@@ -217,38 +217,46 @@ async def get_all(request: web.Request) -> web.Response:
     :Example:
         curl -H "authorization: $AUTH_TOKEN" -sX GET http://localhost:8081/fledge/control/script
     """
-    storage = connect.get_storage_async()
-    cf_mgr = ConfigurationManager(storage)
-    payload = PayloadBuilder().SELECT("name", "steps", "acl").payload()
-    result = await storage.query_tbl_with_payload('control_script', payload)
-    schedule_list = await server.Server.scheduler.get_schedules()
-    scripts = []
-    for row in result['rows']:
-        # Add configuration to script
-        cat_name = "{}-automation-script".format(row['name'])
-        get_category = await cf_mgr.get_category_all_items(cat_name)
-        row['configuration'] = {}
-        if get_category is not None:
-            row['configuration'] = {"categoryName": cat_name}
-            row['configuration'].update(get_category)
-        # Add schedule to script
-        for sch in schedule_list:
-            row['schedule'] = {}
-            if sch.name == row['name'] and sch.process_name == "automation_script":
-                row['schedule'] = {
-                    'id': str(sch.schedule_id),
-                    'name': sch.name,
-                    'processName': sch.process_name,
-                    'type': Schedule.Type(int(sch.schedule_type)).name,
-                    'repeat': 0,
-                    'time': 0,
-                    'day': sch.day,
-                    'exclusive': sch.exclusive,
-                    'enabled': sch.enabled
-                }
-                break
-        scripts.append(row)
-    return web.json_response({"scripts": scripts})
+    try:
+        storage = connect.get_storage_async()
+        cf_mgr = ConfigurationManager(storage)
+        payload = PayloadBuilder().SELECT("name", "steps", "acl").payload()
+        result = await storage.query_tbl_with_payload('control_script', payload)
+        scripts = []
+        if 'rows' in result:
+            if result['rows']:
+                # Get all schedules
+                schedule_list = await server.Server.scheduler.get_schedules()
+                for row in result['rows']:
+                    # Add configuration to script
+                    cat_name = "{}-automation-script".format(row['name'])
+                    get_category = await cf_mgr.get_category_all_items(cat_name)
+                    row['configuration'] = {}
+                    if get_category is not None:
+                        row['configuration'] = {"categoryName": cat_name}
+                        row['configuration'].update(get_category)
+                    # Add schedule to script
+                    for sch in schedule_list:
+                        row['schedule'] = {}
+                        if sch.name == row['name'] and sch.process_name == "automation_script":
+                            row['schedule'] = {
+                                'id': str(sch.schedule_id),
+                                'name': sch.name,
+                                'processName': sch.process_name,
+                                'type': Schedule.Type(int(sch.schedule_type)).name,
+                                'repeat': 0,
+                                'time': 0,
+                                'day': sch.day,
+                                'exclusive': sch.exclusive,
+                                'enabled': sch.enabled
+                            }
+                            break
+                    scripts.append(row)
+    except Exception as ex:
+        msg = str(ex)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+    else:
+        return web.json_response({"scripts": scripts})
 
 
 async def get_by_name(request: web.Request) -> web.Response:

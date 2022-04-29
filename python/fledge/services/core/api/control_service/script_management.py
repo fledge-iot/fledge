@@ -31,7 +31,6 @@ _help = """
     -----------------------------------------------------------------------
     | GET POST            | /fledge/control/script                        |
     | GET PUT DELETE      | /fledge/control/script/{script_name}          |
-    | GET                 | /fledge/control/script/schedule               |
     | POST                | /fledge/control/script/{script_name}/schedule |
     -----------------------------------------------------------------------
 """
@@ -40,9 +39,7 @@ _logger = logger.setup(__name__, level=logging.INFO)
 
 
 def setup(app):
-    # schedules
-    app.router.add_route('GET', '/fledge/control/script/schedule', get_all_schedules)
-    app.router.add_route('GET', '/fledge/control/script/{script_name}/schedule', get_schedule_by_name)
+    # automation schedule task
     app.router.add_route('POST', '/fledge/control/script/{script_name}/schedule', add_schedule_and_configuration)
 
     # CRUD's
@@ -51,66 +48,6 @@ def setup(app):
     app.router.add_route('GET', '/fledge/control/script/{script_name}', get_by_name)
     app.router.add_route('PUT', '/fledge/control/script/{script_name}', update)
     app.router.add_route('DELETE', '/fledge/control/script/{script_name}', delete)
-
-
-async def get_all_schedules(request: web.Request) -> web.Response:
-    """ Get list of automation script type schedule
-
-    :Example:
-        curl -H "authorization: $AUTH_TOKEN" -sX GET http://localhost:8081/fledge/control/script/schedule
-    """
-    schedule_list = await server.Server.scheduler.get_schedules()
-    schedules = []
-    for sch in schedule_list:
-        if sch.process_name == "automation_script":
-            schedules.append({
-                'id': str(sch.schedule_id),
-                'name': sch.name,
-                'processName': sch.process_name,
-                'type': Schedule.Type(int(sch.schedule_type)).name,
-                'repeat': 0,
-                'time': 0,
-                'day': sch.day,
-                'exclusive': sch.exclusive,
-                'enabled': sch.enabled
-            })
-    return web.json_response({'schedules': schedules})
-
-
-async def get_schedule_by_name(request: web.Request) -> web.Response:
-    """ Get script schedule by name
-
-    :Example:
-        curl -H "authorization: $AUTH_TOKEN" -sX GET http://localhost:8081/fledge/control/script/testScript/schedule
-    """
-    name = request.match_info.get('script_name', None)
-    schedule = {}
-    try:
-        schedule_list = await server.Server.scheduler.get_schedules()
-        for sch in schedule_list:
-            if sch.name == name and sch.process_name == "automation_script":
-                schedule = {
-                    'id': str(sch.schedule_id),
-                    'name': sch.name,
-                    "processName": sch.process_name,
-                    'type': Schedule.Type(int(sch.schedule_type)).name,
-                    'repeat': 0,
-                    'time': 0,
-                    'day': sch.day,
-                    'exclusive': sch.exclusive,
-                    'enabled': sch.enabled
-                }
-                break
-        if not schedule:
-            raise ValueError('No schedule found for {} script.'.format(name))
-    except ValueError as err:
-        msg = str(err)
-        raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
-    except Exception as ex:
-        msg = str(ex)
-        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
-    else:
-        return web.json_response(schedule)
 
 
 @has_permission("admin")

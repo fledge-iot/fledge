@@ -11,9 +11,7 @@
  */
 
 #include "connection.h"
-
-using namespace std;
-using namespace rapidjson;
+#include <thread>
 
 /**
  * This class handles per thread started transaction boundaries:
@@ -27,7 +25,7 @@ class TransactionBoundary {
 		void		ClearThreadTransaction(std::thread::id);
 
 	private:
-		map<std::thread::id, unsigned long>
+		std::map<std::thread::id, unsigned long>
 				m_boundaries;
 		std::mutex	m_boundaryLock;
 };

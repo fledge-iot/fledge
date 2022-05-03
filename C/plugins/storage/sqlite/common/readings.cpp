@@ -693,9 +693,10 @@ int retries = 0;
 int sleep_time_ms = 0;
 
 int stmtArraySize;
+std::thread::id tid = std::this_thread::get_id();
+ostringstream threadId;
 
-	ostringstream threadId;
-	threadId << std::this_thread::get_id();
+	threadId << tid;
 
 	{
 		if (m_shutdown)
@@ -869,9 +870,29 @@ int stmtArraySize;
 			reading = escape(buffer.GetString());
 
 			if(stmt != NULL) {
+				// First reading, use the id as transaction start
+				if (itr == readingsValue.Begin())
+				{
+					// Get current reading global id
+					unsigned long startTransactionId = readCatalogue->getIncGlobalId();
 
-				sqlite3_bind_int (stmt, 1, readCatalogue->getIncGlobalId());
+					// Mark transaction srtart fot this thread
+					readCatalogue->m_tx.SetThreadTransactionStart(tid,
+							startTransactionId);
+
+					// Bind first parameter with reading id
+					sqlite3_bind_int (stmt, 1, startTransactionId);
+				}
+				else
+				{
+					// Bind first parameter with reading id
+					sqlite3_bind_int (stmt, 1, readCatalogue->getIncGlobalId());
+				}
+
+				// Set parameter for user timestamp
 				sqlite3_bind_text(stmt, 2, user_ts         ,-1, SQLITE_STATIC);
+
+				// Set parameter for reading JSON data
 				sqlite3_bind_text(stmt, 3, reading.c_str(), -1, SQLITE_STATIC);
 
 				retries =0;
@@ -905,20 +926,24 @@ int stmtArraySize;
 						sleep_time_ms = PREP_CMD_RETRY_BASE + (random() %  PREP_CMD_RETRY_BACKOFF);
 						retries++;
 
-						if (retries >= LOG_AFTER_NERRORS){
-							Logger::getLogger()->warn("appendReadings - %s - asset_code :%s: readingsId :%d: thread :%s: dbHandle :%X: record :%d: retry number :%d: sleep time ms :%d:error :%s:",
-													  msgError.c_str(),
-													  asset_code,
-													  readingsId,
-													  threadId.str().c_str() ,
-													  dbHandle,
-													  row,
-													  retries,
-													  sleep_time_ms,
-													  sqlite3_errmsg(dbHandle));
+						if (retries >= LOG_AFTER_NERRORS)
+						{
+							Logger::getLogger()->warn("appendReadings - %s - " \
+									"asset_code :%s: readingsId :%d: " \
+									"thread :%s: dbHandle :%X: record " \
+									":%d: retry number :%d: sleep time ms :%d:error :%s:",
+									msgError.c_str(),
+									asset_code,
+									readingsId,
+									threadId.str().c_str() ,
+									dbHandle,
+									row,
+									retries,
+									sleep_time_ms,
+									sqlite3_errmsg(dbHandle));
 						}
 
-
+						// Put thread to sleep
 						std::this_thread::sleep_for(std::chrono::milliseconds(sleep_time_ms));
 					}
 				} while (retries < PREP_CMD_MAX_RETRIES && (sqlite3_resut != SQLITE_DONE));
@@ -932,7 +957,9 @@ int stmtArraySize;
 				}
 				else
 				{
-					raiseError("appendReadings","Inserting a row into SQLIte using a prepared command - asset_code :%s: error :%s: reading :%s: dbHandle :%X:",
+					raiseError("appendReadings","Inserting a row into " \
+						"SQLIte using a prepared command - asset_code " \
+						":%s: error :%s: reading :%s: dbHandle :%X:",
 						asset_code,
 						sqlite3_errmsg(dbHandle),
 						reading.c_str(),
@@ -940,6 +967,9 @@ int stmtArraySize;
 
 					sqlite3_exec(dbHandle, "ROLLBACK TRANSACTION", NULL, NULL, NULL);
 					m_appendCount--;
+
+					// Clear transaction boundary for this thread
+					readCatalogue->m_tx.ClearThreadTransaction(tid);
 					return -1;
 				}
 			}
@@ -949,9 +979,15 @@ int stmtArraySize;
 	sqlite3_resut = sqlite3_exec(dbHandle, "END TRANSACTION", NULL, NULL, NULL);
 	if (sqlite3_resut != SQLITE_OK)
 	{
-		raiseError("appendReadings", "Executing the commit of the transaction :%s:", sqlite3_errmsg(dbHandle));
+		raiseError("appendReadings",
+				"Executing the commit of the transaction :%s:",
+				sqlite3_errmsg(dbHandle));
 		row = -1;
 	}
+
+	// Clear transaction boundary for this thread
+	readCatalogue->m_tx.ClearThreadTransaction(tid);
+
 	m_writeAccessOngoing.fetch_sub(1);
 	//db_cv.notify_all();
 	}
@@ -1084,9 +1120,20 @@ unsigned long rowsCount;
 		// Would like to add a LIMIT on each sub-query in the union all, however SQLITE
 		// does not support this. Note we can not use id + blocksize as this fail if we 
 		// have holes in the id space
-		sql_cmd_base = " SELECT  id, \"_assetcode_\" asset_code, reading, user_ts, ts  FROM _dbname_._tablename_ WHERE id >= " + to_string(id) + " ";
-		ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
-		sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base, asset_codes);
+		sql_cmd_base = " SELECT  id, \"_assetcode_\" asset_code, reading, user_ts, ts " \
+				"FROM _dbname_._tablename_ WHERE id >= " +
+				to_string(id) + " ";
+
+		// Check for any uncommitted transactions:
+		// fetch the minimum reading id among all per thread transactions
+		// an use it as a boundary limit
+		unsigned long safe_id = readCatalogue->m_tx.GetMinReadingId();
+		if (safe_id)
+		{
+			sql_cmd_base += "AND id < " + to_string(safe_id) + " ";
+		}
+
+		sql_cmd_tmp = readCatalogue->sqlConstructMultiDb(sql_cmd_base, asset_codes);
 		sql_cmd += sql_cmd_tmp;
 
 		// SQL - end
@@ -1099,6 +1146,7 @@ unsigned long rowsCount;
 	}
 
 	logSQL("ReadingsFetch", sql_cmd.c_str());
+
 	sqlite3_stmt *stmt;
 	// Prepare the SQL statement and get the result set
 	rc = sqlite3_prepare_v2(dbHandle, sql_cmd.c_str(),-1,&stmt,NULL);
@@ -1146,8 +1194,7 @@ unsigned long rowsCount;
 					string sql_cmd_base;
 					string sql_cmd_tmp;
 					sql_cmd_base = " SELECT  id, \"_assetcode_\" asset_code, reading, user_ts, ts  FROM _dbname_._tablename_ WHERE id >= " + to_string(id) + " and id <=  " + to_string(id) + " + " + to_string(blksize) + " ";
-					ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
-					sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base, asset_codes);
+					sql_cmd_tmp = readCatalogue->sqlConstructMultiDb(sql_cmd_base, asset_codes);
 					sql_cmd += sql_cmd_tmp;
 
 					// SQL - end
@@ -1160,6 +1207,7 @@ unsigned long rowsCount;
 				}
 
 				logSQL("ReadingsFetch", sql_cmd.c_str());
+
 				// Prepare the SQL statement and get the result set
 				rc = sqlite3_prepare_v2(dbHandle, sql_cmd.c_str(),-1,&stmt,NULL);
 				if (rc != SQLITE_OK)
@@ -1170,7 +1218,7 @@ unsigned long rowsCount;
 					return false;
 				}
 				// Call result set mapping
-				rc = mapResultSet(stmt, resultSet ,&rowsCount);
+				rc = mapResultSet(stmt, resultSet, &rowsCount);
 
 				if (rowsCount != 0)
 				{

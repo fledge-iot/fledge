@@ -5,7 +5,7 @@
  *
  * Released under the Apache 2.0 Licence
  *
- * Author: Stefano Simonelli
+ * Author: Stefano Simonelli, Massimiliano Pinto
  */
 
 #include <vector>
@@ -23,6 +23,9 @@
 
 using namespace std;
 using namespace rapidjson;
+
+// Log set, clear and get of transaction boundaries
+#define LOG_TX_BOUNDARIES 0
 
 /**
  * Logs an error
@@ -2417,4 +2420,92 @@ int ReadingsCatalogue::SQLStep(sqlite3_stmt *statement)
 	}
 
 	return rc;
+}
+
+/**
+ * Remove committed TRANSACTION for the given thread
+ *
+ * @param    tid	The thread id
+ * 			that just committed a transaction
+ */
+void TransactionBoundary::ClearThreadTransaction(std::thread::id tid)
+{
+	// Lock m_boundaries map
+	std::lock_guard<std::mutex> lck(m_boundaryLock);
+
+	// Find thread id
+	auto itr = m_boundaries.find(tid);
+	if (itr != m_boundaries.end())
+	{
+		// Remove element
+		m_boundaries.erase(itr);
+#ifdef LOG_TX_BOUNDARIES
+		Logger::getLogger()->debug("ClearThreadTransaction: thread [%ld] cleared TX start %ld",
+					tid, itr->second);
+#endif
+	}
+	else
+	{
+		Logger::getLogger()->error("ClearThreadTransaction: thread [%ld] not found", tid);
+	}
+}
+
+/**
+ * Set BEGIN of a transaction for a given thread, reading id
+ *
+ * @param    tid	The thread id
+ * 			that just started a transaction
+ * @param    id		The global reading id that starts the transaction
+ */
+void TransactionBoundary::SetThreadTransactionStart(std::thread::id tid, unsigned long id)
+{
+	// Lock m_boundaries map
+	std::lock_guard<std::mutex> lck(m_boundaryLock);
+
+	// Set id per thread
+	m_boundaries[tid] = id;
+
+#ifdef LOG_TX_BOUNDARIES
+	Logger::getLogger()->debug("SetThreadTransactionStart: thread [%ld] set TX start at %ld",
+				tid,
+				id);
+#endif
+}
+
+/**
+ * Fetch the minimum safe global reading id
+ * among all UNCOMMITTED per thread transactions
+ *
+ * @return		The safe global reading id to use in
+ *			UNION ALL queries as boundary limit
+ */
+unsigned long TransactionBoundary::GetMinReadingId()
+{
+	// Lock m_boundaries map
+	std::lock_guard<std::mutex> lck(m_boundaryLock);
+
+	unsigned long id = 0;
+
+	// Get minimum reading id
+	auto it = std::min_element(std::begin(m_boundaries),
+				std::end(m_boundaries),
+				// Lambda compare function
+				[](std::pair<std::thread::id ,unsigned long> i,
+					std::pair<std::thread::id ,unsigned long> j)
+					{
+						return i.second < j.second;
+					});
+
+	// Found, set id
+	if (it != m_boundaries.end())
+	{
+		id = it->second;
+	}
+
+#ifdef LOG_TX_BOUNDARIES
+	std::thread::id tid = std::this_thread::get_id();
+	Logger::getLogger()->error("---- Thread [%ld] TX min id is %ld", tid, id);
+#endif
+
+	return id;
 }

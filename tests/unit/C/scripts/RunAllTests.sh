@@ -21,7 +21,7 @@ fi
 
 if [ -f "./CMakeLists.txt" ] ; then
 	echo -n "Compiling libraries..."
-	(rm -rf build && mkdir build && cd build && cmake .. && make ${jobs} && cd ..) >/dev/null
+	(rm -rf build && mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=Debug .. && make ${jobs} && cd ..) >/dev/null
 	echo "done"
 fi
 
@@ -35,7 +35,7 @@ for f in $cmakefile; do
 		mkdir build;
 		cd build;
 		echo Building Tests...;
-		cmake ..;
+		cmake -DCMAKE_BUILD_TYPE=Debug ..;
 		rc=$?
 		if [ $rc != 0 ]; then
 			echo cmake failed for $dir;

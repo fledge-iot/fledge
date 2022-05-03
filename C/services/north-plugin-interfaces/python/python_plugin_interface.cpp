@@ -11,8 +11,10 @@
 #include <logger.h>
 #include <config_category.h>
 #include <reading.h>
+#include <pythonreadingset.h>
 #include <mutex>
 #include <north_plugin.h>
+#include <pyruntime.h>
 #include <Python.h>
 #include <python_plugin_common_interface.h>
 
@@ -33,17 +35,80 @@ extern PLUGIN_INFORMATION *Py2C_PluginInfo(PyObject *);
 void plugin_start_fn(PLUGIN_HANDLE handle);
 uint32_t plugin_send_fn(PLUGIN_HANDLE handle, const std::vector<Reading *>& readings);
 
-Reading* Py2C_parseReadingObject(PyObject *);
-vector<Reading *>* Py2C_getReadings(PyObject *);
-DatapointValue* Py2C_createDictDPV(PyObject *data);
-DatapointValue* Py2C_createListDPV(PyObject *data);
-DatapointValue *Py2C_createBasicDPV(PyObject *dValue);
+
+/**
+ * Function to invoke async 'plugin_send' function in python plugin
+ *
+ * @param   plugin_send_module_func Reference to plugin's plugin_send async method
+ * @param   handle     Plugin handle from plugin_init_fn
+ * @param   readingsList    Reading list to send
+ */
+unsigned int call_plugin_send_coroutine(PyObject *plugin_send_module_func, PLUGIN_HANDLE handle, PyObject *readingsList)
+{
+	unsigned int numSent=0;
+
+	std::string fcn = "";
+	fcn += "def plugin_send_wrapper(handle, readings, plugin_send_module_func):\n";
+	fcn += "    import asyncio\n";
+	fcn += "    loop = asyncio.new_event_loop()\n"; 
+	fcn += "    asyncio.set_event_loop(loop)\n";
+	fcn += "    coroObj = plugin_send_module_func(handle, readings, \"000001\")\n";
+	fcn += "    futures = [coroObj]\n";
+	fcn += "    done, result = loop.run_until_complete(asyncio.wait(futures))\n"; 
+	fcn += "    numSent = 0\n";
+	fcn += "    for t in done:\n";
+	fcn += "        retCode, lastId, numSent = t.result()\n";
+	fcn += "    return numSent\n";
+
+	PyRun_SimpleString(fcn.c_str());
+	PyObject* mod = PyImport_ImportModule("__main__");
+	if (mod != NULL) 
+	{
+		PyObject* method = PyObject_GetAttrString(mod, "plugin_send_wrapper");
+		if (method != NULL)
+		{
+			PyObject* arg = Py_BuildValue("OOO", handle, readingsList, plugin_send_module_func);
+			PyObject* pReturn = PyObject_CallObject(method, arg);
+			Logger::getLogger()->info("%s:%d, pReturn=%p", __FUNCTION__, __LINE__, pReturn);
+			Py_CLEAR(arg);
+		    
+			if (pReturn != NULL)
+			{
+				if(PyLong_Check(pReturn))
+				{
+					numSent = (long)PyLong_AsUnsignedLongMask(pReturn);
+					Logger::getLogger()->info("numSent=%d", numSent);
+				}
+				else
+				{
+					Logger::getLogger()->info("plugin_send_wrapper() didn't return a number, returned value is of type %s", (Py_TYPE(pReturn))->tp_name);
+				}	
+				Py_CLEAR(pReturn);
+			}
+			else
+			{
+				Logger::getLogger()->info("%s:%d: pReturn is NULL", __FUNCTION__, __LINE__);
+				if (PyErr_Occurred())
+				{
+					logErrorMessage();
+				}
+			}
+		}
+		Py_CLEAR(method);
+	}
+        
+	// Reset error
+	PyErr_Clear();
+
+	// Remove references
+	Py_CLEAR(mod);
+
+	return numSent;
+}
+
 
 /**
  * Constructor for PythonPluginHandle
- *    - Load python 3.5 interpreter
- *    - Set sys.path and sys.argv
- *    - Import shim layer script and pass plugin name in argv[1]
  */
 void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
 {
@@ -51,53 +116,39 @@ void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
 
 	// Set plugin name, also for methods in common-plugin-interfaces/python
 	gPluginName = pluginName;
-	// Get FLEDGE_ROOT dir
-	string fledgeRootDir(getenv("FLEDGE_ROOT"));
 
-	string path = fledgeRootDir + SHIM_SCRIPT_REL_PATH;
-	string name(string(PLUGIN_TYPE_NORTH) + string(SHIM_SCRIPT_POSTFIX));
-	
-	// Python 3.5  script name
-	std::size_t found = path.find_last_of("/");
-	string pythonScript = path.substr(found + 1);
-	string shimLayerPath = path.substr(0, found);
-	
+	string fledgePythonDir;
+    
+	string fledgeRootDir(getenv("FLEDGE_ROOT"));
+	fledgePythonDir = fledgeRootDir + "/python";
+    
+	string northRootPath = fledgePythonDir + string(R"(/fledge/plugins/north/)") + string(pluginName);
+	Logger::getLogger()->info("%s:%d:, northRootPath=%s", __FUNCTION__, __LINE__, northRootPath.c_str());
+    
 	// Embedded Python 3.5 program name
-	wchar_t *programName = Py_DecodeLocale(name.c_str(), NULL);
+	wchar_t *programName = Py_DecodeLocale(pluginName, NULL);
 	Py_SetProgramName(programName);
 	PyMem_RawFree(programName);
 
-	string fledgePythonDir = fledgeRootDir + "/python";
-	
-	// Embedded Python 3.5 initialisation
-	if (!Py_IsInitialized())
-	{
-		Py_Initialize();
-		PyEval_InitThreads();
-		PyThreadState* save = PyEval_SaveThread(); // release Python GIT
-		// Set init flag
-		initialisePython = true;
-		Logger::getLogger()->debug("Python interpreter started by plugin '%s'",
-					   pluginName);
-	}
+	PythonRuntime::getPythonRuntime();
 
-	// Take GIL
+	Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
+    
+	// Acquire GIL
 	PyGILState_STATE state = PyGILState_Ensure();
 
-	// Note: for North service plugin we don't set a new Python interpreter
-
-	Logger::getLogger()->debug("NorthPlugin PythonInterface %s:%d: "
-				   "shimLayerPath=%s, fledgePythonDir=%s, plugin '%s'",
+	Logger::getLogger()->info("NorthPlugin %s:%d: "
+				   "northRootPath=%s, fledgePythonDir=%s, plugin '%s'",
 				   __FUNCTION__,
 				   __LINE__,
-				   shimLayerPath.c_str(),
+				   northRootPath.c_str(),
 				   fledgePythonDir.c_str(),
 				   pluginName);
-	
-	// Set Python path for embedded Python 3.5
+
+	// Set Python path for embedded Python 3.x
 	// Get current sys.path - borrowed reference
 	PyObject* sysPath = PySys_GetObject((char *)"path");
-	PyList_Append(sysPath, PyUnicode_FromString((char *) shimLayerPath.c_str()));
+	PyList_Append(sysPath, PyUnicode_FromString((char *) northRootPath.c_str()));
 	PyList_Append(sysPath, PyUnicode_FromString((char *) fledgePythonDir.c_str()));
 
 	// Set sys.argv for embedded Python 3.5
@@ -108,7 +159,7 @@ void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
 	PySys_SetArgv(argc, argv);
 
 	// 2) Import Python script
-	PyObject *pModule = PyImport_ImportModule(name.c_str());
+	PyObject *pModule = PyImport_ImportModule(pluginName);
 
 	// Check whether the Python module has been imported
 	if (!pModule)
@@ -119,10 +170,8 @@ void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
 			logErrorMessage();
 		}
 		Logger::getLogger()->fatal("PluginInterfaceInit: cannot import Python 3.5 script "
-					   "'%s' from '%s' : pythonScript=%s, shimLayerPath=%s, plugin '%s'",
-					   name.c_str(), path.c_str(),
-					   pythonScript.c_str(),
-					   shimLayerPath.c_str(),
+					   "'%s' from '%s' : plugin '%s'",
+					   pluginName, northRootPath.c_str(),
 					   pluginName);
 	}
 	else
@@ -240,9 +289,11 @@ void plugin_start_fn(PLUGIN_HANDLE handle)
 	pFunc = PyObject_GetAttrString(it->second->m_module, "plugin_start");
 	if (!pFunc)
 	{
-		Logger::getLogger()->fatal("Cannot find 'plugin_start' method "
+		Logger::getLogger()->info("Cannot find 'plugin_start' method "
 					   "in loaded python module '%s'",
 					   it->second->m_name.c_str());
+		PyGILState_Release(state);
+		return;
 	}
 
 	if (!pFunc || !PyCallable_Check(pFunc))
@@ -253,7 +304,7 @@ void plugin_start_fn(PLUGIN_HANDLE handle)
 			logErrorMessage();
 		}
 
-		Logger::getLogger()->fatal("Cannot call method 'plugin_start' "
+		Logger::getLogger()->info("Cannot call method 'plugin_start' "
 					   "in loaded python module '%s'",
 					   it->second->m_name.c_str());
 		Py_CLEAR(pFunc);
@@ -273,7 +324,7 @@ void plugin_start_fn(PLUGIN_HANDLE handle)
 	// Handle return
 	if (!pReturn)
 	{
-		Logger::getLogger()->error("Called python script method plugin_start : "
+		Logger::getLogger()->warn("Called python script method plugin_start : "
 					   "error while getting result object, plugin '%s'",
 					   it->second->m_name.c_str());
 		logErrorMessage();
@@ -297,12 +348,12 @@ void plugin_start_fn(PLUGIN_HANDLE handle)
 uint32_t plugin_send_fn(PLUGIN_HANDLE handle, const std::vector<Reading *>& readings)
 {
 
-	uint32_t data = 0UL;
+	uint32_t numReadingsSent = 0UL;
 	if (!handle)
 	{
 		Logger::getLogger()->fatal("plugin_handle: plugin_send_fn: "
 					   "handle is NULL");
-		return data;
+		return numReadingsSent;
 	}
 
 	if (!pythonHandles)
@@ -311,7 +362,7 @@ uint32_t plugin_send_fn(PLUGIN_HANDLE handle, const std::vector<Reading *>& read
 		Logger::getLogger()->error("pythonModules map is NULL "
 					   "in plugin_send_fn, handle '%p'",
 					   handle);
-		 return data;
+		 return numReadingsSent;
 	}
 
 	// Look for Python module for handle key
@@ -320,10 +371,10 @@ uint32_t plugin_send_fn(PLUGIN_HANDLE handle, const std::vector<Reading *>& read
 	    !it->second ||
 	    !it->second->m_module)
 	{
-		Logger::getLogger()->fatal("plugin_handle: plugin_start(): "
+		Logger::getLogger()->fatal("plugin_handle: plugin_send(): "
 					   "pModule is NULL, plugin handle '%p'",
 					   handle);
-		return data;
+		return numReadingsSent;
 	}
 
 	// We have plugin name
@@ -341,6 +392,8 @@ uint32_t plugin_send_fn(PLUGIN_HANDLE handle, const std::vector<Reading *>& read
 		Logger::getLogger()->fatal("Cannot find 'plugin_send' "
 					   "method in loaded python module '%s'",
 					   pName.c_str());
+		PyGILState_Release(state);
+		return numReadingsSent;
 	}
 
 	if (!pFunc || !PyCallable_Check(pFunc))
@@ -351,60 +404,49 @@ uint32_t plugin_send_fn(PLUGIN_HANDLE handle, const std::vector<Reading *>& read
 			logErrorMessage();
 		}
 
-		Logger::getLogger()->fatal("Cannot call method plugin_ingest"
+		Logger::getLogger()->fatal("Cannot call method plugin_send"
 					   "in loaded python module '%s'",
 					   pName.c_str());
 		Py_CLEAR(pFunc);
 
 		// Release GIL
 		PyGILState_Release(state);
-		return data;
+		return numReadingsSent;
 	}
 
-	// Create the object with readings content (with "asset_code" and "reading" keys)
-	PyObject *readingsList = createReadingsList(readings, true);
+	// Create a dict of readings
+	// 1 create empty ReadingSet
+	ReadingSet set;
 
-	// Fetch result
-	PyObject* pReturn = PyObject_CallFunction(pFunc,
-						  "OO",
-						  handle,
-						  readingsList);
-	Py_CLEAR(pFunc);
+	// 2 append all input readings:
+	// Note: the readings elements are pointers
+	set.append(readings);
 
-	// Handle returned data
-	if (!pReturn)
-	{
-		Logger::getLogger()->error("Called python script method plugin_send "
-					   ": error while getting result object, plugin '%s'",
-					   pName.c_str());
-		logErrorMessage();
+	// 3 create a PythonReadingSet object
+	PythonReadingSet *pyReadingSet = (PythonReadingSet *) &set;
 
-		// Remove readings to dict
-		Py_CLEAR(readingsList);
+	// 4 create PyObject
+	PyObject* readingsList = pyReadingSet->toPython(true);
+	    
+	numReadingsSent = call_plugin_send_coroutine(pFunc, handle, readingsList);
+	Logger::getLogger()->debug("C2Py: plugin_send_fn():L%d: filtered readings sent %d",
+				__LINE__,
+				numReadingsSent);
+   
+	// Remove all elements in readings vector
+	// without freeing them as the reagings pointers
+	// will be be freed by the caller of plugin_send_fn
+	set.clear();
 
-		// Release GIL
-		PyGILState_Release(state);
-
-		return data;
-	}
-
-	// Check return type
-	if(PyLong_Check(pReturn))
-	{
-		data = (long)PyLong_AsUnsignedLongMask(pReturn);	
-	}
-
-	// Remove readings to dict
+	// Remove python object
 	Py_CLEAR(readingsList);
-
-	// Remnove result object
-	Py_CLEAR(pReturn);
+	Py_CLEAR(pFunc);
 
 	// Release GIL
 	PyGILState_Release(state);
 
 	// Return the number of readings sent
-	return data;
+	return numReadingsSent;
 }
 
 };

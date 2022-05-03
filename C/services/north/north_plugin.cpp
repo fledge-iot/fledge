@@ -56,11 +56,14 @@ NorthPlugin::NorthPlugin(PLUGIN_HANDLE handle, const ConfigCategory& category) :
 				manager->resolveSymbol(handle, "plugin_start");
 	pluginStartDataPtr = (void (*)(const PLUGIN_HANDLE, const string& storedData))
 				manager->resolveSymbol(handle, "plugin_start");
-
 	if (hasControl())
 	{
 		pluginRegisterPtr = (void (*)(const PLUGIN_HANDLE handle, bool ( *write)(char *name, char *value, ControlDestination destination, ...),
-                	                     int (* operation)(char *operation, int paramCount, char *names[], char *parameters[], ControlDestination destination, ...)))manager->resolveSymbol(handle, "plugin_register");
+                                     int (* operation)(char *operation, int paramCount, char *names[], char *parameters[], ControlDestination destination, ...)))manager->resolveSymbol(handle, "plugin_register");
+	}
+	else
+	{
+		pluginRegisterPtr = NULL;
 	}
 }
 
@@ -74,7 +77,7 @@ NorthPlugin::~NorthPlugin()
  */
 void NorthPlugin::start()
 {
-	// Ccheck pluginStart function pointer exists
+	// Check pluginStart function pointer exists
 	if (this->pluginStartPtr)
 	{
 		this->pluginStartPtr(m_instance);

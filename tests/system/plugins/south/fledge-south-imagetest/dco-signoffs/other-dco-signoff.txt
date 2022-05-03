@@ -1,0 +1,30 @@
+I, Bill Hunt, CTO of Dianomic hereby sign-off-by all past commits to this repo
+not covered by other sign-offs here, subject to the Developer Certificate of
+Origin (DCO), Version 1.1. In the past, these emails have been used:
+
+43450583+sdauber@users.noreply.github.com
+49699333+dependabot[bot]@users.noreply.github.com
+aksinha@nerdapplabs.com
+amarendra@dianmoic.com
+amarendra@dianomic.com
+bot@dianomic.com
+dlopez@osisoft.com
+dependabot[bot]@users.noreply.github.com
+ec2-user@ip-10-0-0-234.ec2.internal
+ec2-user@ip-10-0-0-235.ec2.internal
+foglamp@nerd-034
+gmoffett@gmail.com
+ivan.zoratti@gmail.com
+ivan@dianomic.com
+ivan@scaledb.com
+ivan@zoratti.co.uk
+jonscott20@gmail.com
+michael@scaledb.com
+miguelitoraton@users.noreply.github.com
+moduser@localhost.localdomain
+terris@dianomic.com
+terris@scaledb.com
+thyagr@outlook.com
+vaibhav@dianomic.com
+vaibhav@scaledb.com
+

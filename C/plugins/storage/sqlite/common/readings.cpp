@@ -1126,11 +1126,16 @@ unsigned long rowsCount;
 
 		// Check for any uncommitted transactions:
 		// fetch the minimum reading id among all per thread transactions
-		// an use it as a boundary limit
+		// an use it as a boundary limit.
+		// If no pending transactions just use current global reading id as limit
 		unsigned long safe_id = readCatalogue->m_tx.GetMinReadingId();
 		if (safe_id)
 		{
 			sql_cmd_base += "AND id < " + to_string(safe_id) + " ";
+		}
+		else
+		{
+			sql_cmd_base += "AND id < " + to_string(readCatalogue->getGlobalId()) + " ";
 		}
 
 		sql_cmd_tmp = readCatalogue->sqlConstructMultiDb(sql_cmd_base, asset_codes);

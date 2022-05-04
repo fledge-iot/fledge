@@ -155,8 +155,8 @@ if [[ $YUM_PLATFORM = true ]]; then
 	yum install -y openssl-devel
 	if [[ $os_version == *"7"* ]]; then
 		yum install -y rh-python36
-		yum install -y rh-postgresql96
-		yum install -y rh-postgresql96-postgresql-devel
+		yum install -y rh-postgresql13
+		yum install -y rh-postgresql13-postgresql-devel
 	else
 		yum install -y python36
 		yum install -y postgresql

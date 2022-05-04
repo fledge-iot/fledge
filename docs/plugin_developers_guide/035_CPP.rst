@@ -41,7 +41,7 @@ The *Reading* class and the associated *Datapoint* and *DatapointValue* classes 
                   void                            removeAllDatapoints();
                   // Return Reading datapoints
                   const std::vector<Datapoint *>  getReadingData() const { return m_values; };
-                  // Return refrerence to Reading datapoints
+                  // Return reference to Reading datapoints
                   std::vector<Datapoint *>&       getReadingData() { return m_values; };
                   unsigned long                   getId() const { return m_id; };
                   unsigned long                   getTimestamp() const { return (unsigned long)m_timestamp.tv_sec; };
@@ -183,7 +183,9 @@ Closely associated with the *Datapoint* is the *DatapointValue* which uses a tag
                    }
 
                    /**
-                    * Construct with a 2 dimentional  array of floating point values
+
+                    * Construct with a 2 dimensional  array of floating point values
+
                     */
                    DatapointValue(const std::vector< std::vector<double> >& values)
                    {
@@ -341,7 +343,9 @@ Closely associated with the *Datapoint* is the *DatapointValue* which uses a tag
                    }
    };
 
- The *DatapointValue* can store data in as a number of types
+
+The *DatapointValue* can store data in as a number of types
+
 
  +------------------+---------------------------------------------+
  | Type             | C++ Representation                          |
@@ -356,9 +360,11 @@ Closely associated with the *Datapoint* is the *DatapointValue* which uses a tag
  +------------------+---------------------------------------------+
  | T_2D_FLOAT_ARRAY | Pointer to std::vector<std::vector<double>> |
  +------------------+---------------------------------------------+
- | T_DP_DICT        | Pointer to std::vector<Datapoint \*>         |
+
+ | T_DP_DICT        | Pointer to std::vector<Datapoint \*>        |
  +------------------+---------------------------------------------+
- | T_DP_LIST        | Pointer to std::vector<Datapoint \*>         |
+ | T_DP_LIST        | Pointer to std::vector<Datapoint \*>        |
+
  +------------------+---------------------------------------------+
  | T_IMAGE          | Pointer to DPImage                          |
  +------------------+---------------------------------------------+

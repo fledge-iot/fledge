@@ -157,19 +157,20 @@ On CentOS and Red Hat systems, and other RPM based distributions the command is
 .. code-block:: console
 
   sudo yum install -y https://download.postgresql.org/pub/repos/yum/reporpms/EL-7-x86_64/pgdg-redhat-repo-latest.noarch.rpm
-  sudo yum install -y postgresql96-server
-  sudo yum install -y postgresql96-devel
-  sudo yum install -y rh-postgresql96
-  sudo yum install -y rh-postgresql96-postgresql-devel
-  sudo /usr/pgsql-9.6/bin/postgresql96-setup initdb
-  sudo systemctl enable postgresql-9.6
-  sudo systemctl start postgresql-9.6
+  sudo yum install -y postgresql13-server
+  sudo yum install -y postgresql13-devel
+  sudo yum install -y rh-postgresql13
+  sudo yum install -y rh-postgresql13-postgresql-devel
+  sudo /usr/pgsql-13/bin/postgresql-13-setup initdb
+  sudo systemctl enable postgresql-13
+  sudo systemctl start postgresql-13
 
-At this point, Postgres has been configured to start at boot and it should be up and running. You can always check the status of the database server with ``systemctl status postgresql-9.6``:
+
+At this point, Postgres has been configured to start at boot and it should be up and running. You can always check the status of the database server with ``systemctl status postgresql-13``:
 
 .. code-block:: console
 
-  sudo systemctl status postgresql-9.6
+  sudo systemctl status postgresql-13
 
 
 Next, you must create a PostgreSQL user that matches your Linux user.
@@ -178,11 +179,11 @@ Next, you must create a PostgreSQL user that matches your Linux user.
 
   sudo -u postgres createuser -d $(whoami)
 
-Finally, add ``/usr/pgsql-9.6/bin`` to your PATH environment variable in ``$HOME/.bash_profile``. the new PATH setting in the file should look something like this:
+Finally, add ``/usr/pgsql-13/bin`` to your PATH environment variable in ``$HOME/.bash_profile``. the new PATH setting in the file should look something like this:
 
 .. code-block:: console
 
-  PATH=$PATH:$HOME/.local/bin:$HOME/bin:/usr/pgsql-9.6/bin
+  PATH=$PATH:$HOME/.local/bin:$HOME/bin:/usr/pgsql-13/bin
 
 
 SQLite Plugin Configuration

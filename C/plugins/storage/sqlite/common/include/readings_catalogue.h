@@ -7,13 +7,29 @@
  *
  * Released under the Apache 2.0 Licence
  *
- * Author: Stefano Simonelli
+ * Author: Stefano Simonelli, Massimiliano Pinto
  */
 
 #include "connection.h"
+#include <thread>
 
-using namespace std;
-using namespace rapidjson;
+/**
+ * This class handles per thread started transaction boundaries:
+ */
+class TransactionBoundary {
+	public:
+		TransactionBoundary() {};
+		unsigned long	GetMinReadingId();
+		void		SetThreadTransactionStart(std::thread::id tid,
+							unsigned long id);
+		void		ClearThreadTransaction(std::thread::id);
+
+	private:
+		std::map<std::thread::id, unsigned long>
+				m_boundaries;
+		std::mutex	m_boundaryLock;
+};
+
 
 /**
  * - poolSize                  = Number of connections to allocate
@@ -208,6 +224,8 @@ private:
 		// asset_code  - reading Table Id, Db Id
 		// {"",         ,{1               ,1 }}
 	};
+public:
+	TransactionBoundary				m_tx;
 
 };
 

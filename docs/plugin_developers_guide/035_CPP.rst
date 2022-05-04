@@ -183,9 +183,7 @@ Closely associated with the *Datapoint* is the *DatapointValue* which uses a tag
                    }
 
                    /**
-
                     * Construct with a 2 dimensional  array of floating point values
-
                     */
                    DatapointValue(const std::vector< std::vector<double> >& values)
                    {
@@ -343,9 +341,7 @@ Closely associated with the *Datapoint* is the *DatapointValue* which uses a tag
                    }
    };
 
-
 The *DatapointValue* can store data in as a number of types
-
 
  +------------------+---------------------------------------------+
  | Type             | C++ Representation                          |
@@ -360,11 +356,9 @@ The *DatapointValue* can store data in as a number of types
  +------------------+---------------------------------------------+
  | T_2D_FLOAT_ARRAY | Pointer to std::vector<std::vector<double>> |
  +------------------+---------------------------------------------+
-
  | T_DP_DICT        | Pointer to std::vector<Datapoint \*>        |
  +------------------+---------------------------------------------+
  | T_DP_LIST        | Pointer to std::vector<Datapoint \*>        |
-
  +------------------+---------------------------------------------+
  | T_IMAGE          | Pointer to DPImage                          |
  +------------------+---------------------------------------------+

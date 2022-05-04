@@ -121,7 +121,6 @@ static void filter_plugin_reconfigure_fn(PLUGIN_HANDLE handle,
 
 	PyObject *config_dict = json_loads(config.c_str());
 
-
 	// Call Python method passing an object and JSON config dict
 	PyObject* pReturn = PyObject_CallFunction(pFunc,
 						  "OO",
@@ -180,7 +179,6 @@ static void filter_plugin_reconfigure_fn(PLUGIN_HANDLE handle,
 void filter_plugin_ingest_fn(PLUGIN_HANDLE handle, READINGSET *data)
 {
 	if (!handle)
-
 	{
 		Logger::getLogger()->fatal("plugin_handle: filter_plugin_ingest_fn(): "
 					   "handle is NULL");
@@ -245,9 +243,7 @@ void filter_plugin_ingest_fn(PLUGIN_HANDLE handle, READINGSET *data)
 						      elem != readings->end();
 						      ++elem)
 	{
-
 		// Logger::getLogger()->debug("Reading %d: %s", i++, (*elem)->toJSON().c_str());
-
 		AssetTracker* atr = AssetTracker::getAssetTracker();
 		if (atr)
 		{
@@ -257,13 +253,11 @@ void filter_plugin_ingest_fn(PLUGIN_HANDLE handle, READINGSET *data)
 		}
 	}
 
-
 	Logger::getLogger()->debug("C2Py: filter_plugin_ingest_fn():L%d: data->getCount()=%d", __LINE__, data->getCount());
 
 	// Create a readingList of readings to be filtered
 	PythonReadingSet *pyReadingSet = (PythonReadingSet *) data;
 	PyObject* readingsList = pyReadingSet->toPython();
-
 
 	PyObject* pReturn = PyObject_CallFunction(pFunc,
 						  "OO",
@@ -315,9 +309,7 @@ PLUGIN_HANDLE filter_plugin_init_fn(ConfigCategory* config,
 	// Get pluginName
 	string pName = config->getValue("plugin");
 
-
 	Logger::getLogger()->info("filter_plugin_init_fn(): pName=%s", pName.c_str());
-
 
 	if (!pythonModules)
 	{
@@ -335,9 +327,7 @@ PLUGIN_HANDLE filter_plugin_init_fn(ConfigCategory* config,
 	// Check whether plugin pName has been already loaded
 	for (auto h = pythonHandles->begin();
                   h != pythonHandles->end(); ++h)
-
 	{
-
 		if (h->second->m_name.compare(pName) == 0)
 		{
 			Logger::getLogger()->info("filter_plugin_init_fn: already loaded "

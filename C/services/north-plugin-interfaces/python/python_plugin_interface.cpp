@@ -82,8 +82,7 @@ unsigned int call_plugin_send_coroutine(PyObject *plugin_send_module_func, PLUGI
 				else
 				{
 					Logger::getLogger()->info("plugin_send_wrapper() didn't return a number, returned value is of type %s", (Py_TYPE(pReturn))->tp_name);
-				}	
-
+				}
 				Py_CLEAR(pReturn);
 			}
 			else
@@ -438,7 +437,6 @@ uint32_t plugin_send_fn(PLUGIN_HANDLE handle, const std::vector<Reading *>& read
 	// without freeing them as the reagings pointers
 	// will be be freed by the caller of plugin_send_fn
 	set.clear();
-
 
 	// Remove python object
 	Py_CLEAR(readingsList);

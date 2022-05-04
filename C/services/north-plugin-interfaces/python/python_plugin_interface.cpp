@@ -82,7 +82,7 @@ unsigned int call_plugin_send_coroutine(PyObject *plugin_send_module_func, PLUGI
 				else
 				{
 					Logger::getLogger()->info("plugin_send_wrapper() didn't return a number, returned value is of type %s", (Py_TYPE(pReturn))->tp_name);
-				}       
+				}	
 				Py_CLEAR(pReturn);
 			}
 			else

@@ -844,7 +844,6 @@ static void plugin_reconfigure_fn(PLUGIN_HANDLE* handle,
 
 	PyObject *new_config_dict = json_loads(config.c_str());
 
-
 	// Call Python method passing an object and a C string
 	PyObject* pReturn = PyObject_CallFunction(pFunc,
 						  "OO",
@@ -853,7 +852,6 @@ static void plugin_reconfigure_fn(PLUGIN_HANDLE* handle,
 
 	Py_CLEAR(pFunc);
 	Py_CLEAR(new_config_dict);
-
 
 	// Handle returned data
 	if (!pReturn)

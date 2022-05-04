@@ -129,13 +129,11 @@ PythonReading::PythonReading(PyObject *pyReading)
 		m_id = 0;
 	}
 
-
 	// New reference, to delete
 	PyObject *key = PyUnicode_FromString("timestamp");
 
 	// Get 'ts' value: borrowed reference.
 	// Need to use PyDict_GetItemWithError in order to avoid an exception
-
 	PyObject *ts = PyDict_GetItemWithError(pyReading, key);
 	if (!(ts && PyUnicode_Check(ts)))
 	{
@@ -152,8 +150,7 @@ PythonReading::PythonReading(PyObject *pyReading)
 		m_timestamp.tv_sec = 0;
 		m_timestamp.tv_usec = 0;
 		// Logger::getLogger()->debug("PythonReading c'tor: Couldn't parse 'ts' ");
-	}
-	
+	}	
 
 	Py_CLEAR(key);
 
@@ -161,7 +158,6 @@ PythonReading::PythonReading(PyObject *pyReading)
 	key = PyUnicode_FromString("user_ts");
 
 	// Get 'user_ts' value: borrowed reference.
-
 	PyObject *uts = PyDict_GetItemWithError(reading, key);
 	if (!uts)
 	{
@@ -179,9 +175,7 @@ PythonReading::PythonReading(PyObject *pyReading)
 	        m_userTimestamp.tv_sec = 0;
        		m_userTimestamp.tv_usec = 0;
 	}
-
 	Py_CLEAR(key);
-
 }
 
 /**

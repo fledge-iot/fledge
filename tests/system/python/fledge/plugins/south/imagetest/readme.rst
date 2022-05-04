@@ -2,4 +2,4 @@
 Fledge South ImageTest
 ***********************
 
-This directory contains a South plugin that implements an 8 bit per pixel test image
+This directory contains a South plugin that implements 8, 16 or 24 bits per pixel test image

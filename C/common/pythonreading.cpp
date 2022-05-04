@@ -150,7 +150,7 @@ PythonReading::PythonReading(PyObject *pyReading)
 		m_timestamp.tv_sec = 0;
 		m_timestamp.tv_usec = 0;
 		// Logger::getLogger()->debug("PythonReading c'tor: Couldn't parse 'ts' ");
-	}	
+	}
 
 	Py_CLEAR(key);
 

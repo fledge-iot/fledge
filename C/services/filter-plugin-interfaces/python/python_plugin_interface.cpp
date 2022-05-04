@@ -344,10 +344,6 @@ PLUGIN_HANDLE filter_plugin_init_fn(ConfigCategory* config,
 		}
 	}
 
-    if(!loadModule)
-        Logger::getLogger()->info("filter_plugin_init_fn: NOT already loaded "
-						   "a plugin with name '%s'. A new Python obj is needed",
-						   pName.c_str());
 
 	if (!loadModule)
 	{
@@ -368,7 +364,6 @@ PLUGIN_HANDLE filter_plugin_init_fn(ConfigCategory* config,
 		}
 		else
 		{
-
 			Logger::getLogger()->info("plugin_handle: filter_plugin_init(): "
 						   "pModule FOUND for plugin '%s': ",
 						   pName.c_str());
@@ -377,7 +372,6 @@ PLUGIN_HANDLE filter_plugin_init_fn(ConfigCategory* config,
 			{
 				// Just use current loaded module: no load or re-load action
 				module = it->second;
-
 				Logger::getLogger()->info("plugin_handle: filter_plugin_init(): "
 						   "module set to PythonModule object @ address %p",
 						   module);
@@ -395,7 +389,6 @@ PLUGIN_HANDLE filter_plugin_init_fn(ConfigCategory* config,
 		}
 	}
 
-
 	Logger::getLogger()->info("filter_plugin_init_fn: loadModule=%s, reloadModule=%s", 
                                 loadModule?"TRUE":"FALSE", reloadModule?"TRUE":"FALSE");
     
@@ -408,7 +401,6 @@ PLUGIN_HANDLE filter_plugin_init_fn(ConfigCategory* config,
 		string fledgePythonDir;
 
 		string fledgeRootDir(getenv("FLEDGE_ROOT"));
-
 		fledgePythonDir = fledgeRootDir + "/python";
 
 		// Set Python path for embedded Python 3.x
@@ -498,10 +490,6 @@ PLUGIN_HANDLE filter_plugin_init_fn(ConfigCategory* config,
 					ingest_ref,
 					ingest_fn);
 
- 
-
-           
-
 	Py_CLEAR(ingest_ref);
 	Py_CLEAR(ingest_fn);
 
@@ -520,7 +508,6 @@ PLUGIN_HANDLE filter_plugin_init_fn(ConfigCategory* config,
                                        pReturn,
                                        pName.c_str());
 	}
-
 
 	// Add the handle to handles map as key, PythonModule object as value
 	std::pair<std::map<PLUGIN_HANDLE, PythonModule*>::iterator, bool> ret;
@@ -583,11 +570,8 @@ void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
 	string fledgeRootDir(getenv("FLEDGE_ROOT"));
 	fledgePythonDir = fledgeRootDir + "/python";
     
-
-
 	string filtersRootPath = fledgePythonDir + string(R"(/fledge/plugins/filter/)") + string(pluginName);
 	Logger::getLogger()->info("%s:%d:, filtersRootPath=%s", __FUNCTION__, __LINE__, filtersRootPath.c_str());
-
     
 	PythonRuntime::getPythonRuntime();
     
@@ -607,9 +591,7 @@ void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
 	PyList_Append(sysPath, PyUnicode_FromString((char *) filtersRootPath.c_str()));
 	PyList_Append(sysPath, PyUnicode_FromString((char *) fledgePythonDir.c_str()));
 
-
 	// Set sys.argv for embedded Python 3.5
-
 	int argc = 2;
 	wchar_t* argv[2];
 	argv[0] = Py_DecodeLocale("", NULL);
@@ -618,9 +600,7 @@ void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
 
 	// 2) Import Python script
 	PyObject *pModule = PyImport_ImportModule(pluginName);
-
 	Logger::getLogger()->info("%s:%d: pluginName=%s, pModule=%p", __FUNCTION__, __LINE__, pluginName, pModule);
-
 
 	// Check whether the Python module has been imported
 	if (!pModule)
@@ -650,9 +630,7 @@ void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
 							  NULL)) == NULL)
 			{
 				// Release lock
-
 				PyGILState_Release(state);
-
 
 				Logger::getLogger()->fatal("plugin_handle: filter_plugin_init(): "
 							   "failed to create Python module "
@@ -664,7 +642,6 @@ void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
 
 			ret = pythonModules->insert(pair<string, PythonModule*>
 				(string(pluginName), newModule));
-
 			Logger::getLogger()->info("%s:%d: Added pair to pythonModules: <%s, %p>", 
                                         __FUNCTION__, __LINE__, pluginName, newModule);
 		}

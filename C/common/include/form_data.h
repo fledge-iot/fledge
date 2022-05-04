@@ -47,13 +47,13 @@ class FormData {
 		FormData(std::shared_ptr<SimpleWeb::Server<SimpleWeb::HTTP>::Request> request);
 		void		getUploadedData(std::string& field, FieldValue& data);
 		void		getUploadedFile(std::string& field, FieldValue& data);
-		void		saveFile(FieldValue& b);
+		bool		saveFile(FieldValue& b, const std::string& fileName);
 
 	private:
 		uint8_t*	skipSeparator(uint8_t *b);
 		uint8_t*	skipDoubleSeparator(uint8_t *b);
 		uint8_t*	getContentEnd(uint8_t *b);
-		uint8_t*	findDataFormField(uint8_t* buffer, std::string& field);
+		uint8_t*	findDataFormField(uint8_t* buffer, const std::string& field);
 
 	private:
 		const uint8_t*	m_buffer; 	// pointer to already allocated buffer data

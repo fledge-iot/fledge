@@ -144,10 +144,11 @@ uint8_t *FormData::getContentEnd(uint8_t *b)
  * Get given field name in the data buffer
  *
  * @param buffer	Current buffer pointer
+ * @param field		The field name to find
  * @return		Pointer to filed value
  * 			if found or NULL otherwise
  */
-uint8_t *FormData::findDataFormField(uint8_t* buffer, string& field)
+uint8_t *FormData::findDataFormField(uint8_t* buffer, const string& field)
 {
 	// Find first Content-Disposition: field
 	uint8_t* b = buffer;
@@ -366,69 +367,46 @@ void FormData::getUploadedFile(string& field, FieldValue& data)
  * Save the uploaded file
  *
  * @param v	The Field value data
+ * @return	Returns true if the file was succesfully saved
  */
-void FormData::saveFile(FormData::FieldValue& v)
+bool FormData::saveFile(FormData::FieldValue& v, const string& fileName)
 {
 	Logger::getLogger()->debug("Uploaded filename is '%s'", v.filename.c_str());
 
 	// v.filename holds the file name as per upload content
-	// Here we create a temp file and we do not make use of v.filename
-	char *fileName = tempnam("/tmp", "buck");
-	if (fileName)
-	{
-		Logger::getLogger()->debug("Saving uploaded file as '%s', size is %ld bytes",
-					fileName,
-					v.size);
+	Logger::getLogger()->debug("Saving uploaded file as '%s', size is %ld bytes",
+				fileName.c_str(), v.size);
 
-		// Create file
-		// TODO:
-		// If we need to write something like
-		// ./data/buckets/123/123456
-		// more code should be added before this call
-		int fd = open(fileName,
-				O_RDWR | O_CREAT | O_TRUNC,
-				(mode_t)0644);
-		if (fd == -1)
-		{
-			// An error occurred
-			char errBuf[128];
-			char *e = strerror_r(errno, errBuf, sizeof(errBuf));
-			Logger::getLogger()->error("Error while creating filename '%s': %s",
-						fileName,
-						e);
-
-			// Free name
-			free(fileName);
-
-			return;
-		}
-
-		// Write file from v.start, v.size bytes
-		if (write(fd, (const void *)v.start, v.size) == -1)
-		{
-			// An error occurred
-			char errBuf[128];
-			char *e = strerror_r(errno, errBuf, sizeof(errBuf));
-			Logger::getLogger()->error("Error while writing to file '%s': %s",
-						fileName,
-						e);
-		}
-
-		// Free name
-		free(fileName);
-
-		// Close file
-		close(fd);
-
-		return;
-	}
-	else
+	// Create file
+	int fd = open(fileName.c_str(),
+			O_RDWR | O_CREAT | O_TRUNC,
+			(mode_t)0644);
+	if (fd == -1)
 	{
 		// An error occurred
 		char errBuf[128];
 		char *e = strerror_r(errno, errBuf, sizeof(errBuf));
-		Logger::getLogger()->error("Error while creating temp filename: %s",
-					e);
+		Logger::getLogger()->error("Error while creating filename '%s': %s",
+					fileName.c_str(), e);
+
+		return false;
 	}
+
+	// Write file from v.start, v.size bytes
+	if (write(fd, (const void *)v.start, v.size) == -1)
+	{
+		// An error occurred
+		char errBuf[128];
+		char *e = strerror_r(errno, errBuf, sizeof(errBuf));
+		Logger::getLogger()->error("Error while writing to file '%s': %s",
+					fileName.c_str(), e);
+		close(fd);
+		return false;
+	}
+
+	// Close file
+	close(fd);
+
+	return true;
 }
 

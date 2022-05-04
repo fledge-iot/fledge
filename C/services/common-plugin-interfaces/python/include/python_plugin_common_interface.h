@@ -209,7 +209,6 @@ const char *json_dumps(PyObject *json_dict)
 	{
 		if ((method = PyObject_GetAttrString(mod, "dumps")) != NULL)
 		{
-
 			PyObject *args = PyTuple_New(1);
 			PyObject *pValue = Py_BuildValue("O", json_dict);
 			PyTuple_SetItem(args, 0, pValue);
@@ -225,7 +224,6 @@ const char *json_dumps(PyObject *json_dict)
 				if (PyErr_Occurred())
 				{
 					logErrorMessage();
-
 					return NULL;
 				}
 			}
@@ -237,7 +235,6 @@ const char *json_dumps(PyObject *json_dict)
 		{
 			Logger::getLogger()->fatal("Method 'dumps' not found");
 			Py_CLEAR(mod);
-
 		}
 		// Remove references
 		
@@ -252,10 +249,8 @@ const char *json_dumps(PyObject *json_dict)
 
 	PyGILState_Release(state);
 
-
 	const char *retVal = PyUnicode_AsUTF8(rval);
 	Logger::getLogger()->debug("%s: retVal=%s", __FUNCTION__, retVal);
-
     
 	return retVal;
 }
@@ -266,17 +261,14 @@ const char *json_dumps(PyObject *json_dict)
  */
 PyObject *json_loads(const char *json_str)
 {
-
 PyObject *rval;
 PyObject *mod, *method;
-
 
 	PyGILState_STATE state = PyGILState_Ensure();
 	if ((mod = PyImport_ImportModule("json")) != NULL)
 	{
 		if ((method = PyObject_GetAttrString(mod, "loads")) != NULL)
 		{
-
 			PyObject *args = PyTuple_New(1);
 			PyObject *pValue = Py_BuildValue("s", json_str);
 			PyTuple_SetItem(args, 0, pValue);
@@ -287,28 +279,23 @@ PyObject *mod, *method;
 			Py_CLEAR(args);
 			Py_CLEAR(method);
 			Py_CLEAR(mod);
-
             
 			if (rval == NULL)
 			{
 				if (PyErr_Occurred())
 				{
 					logErrorMessage();
-  
 					return NULL;
 				}
 			}
 			else
 				Logger::getLogger()->debug("%s:%d, rval type=%s", __FUNCTION__, __LINE__, (Py_TYPE(rval))->tp_name);
 
-
 		}
 		else
 		{
 			Logger::getLogger()->fatal("Method 'loads' not found");
-
 			Py_CLEAR(mod);
-
 		}
 	}
 	else
@@ -342,19 +329,16 @@ static PLUGIN_INFORMATION *Py2C_PluginInfo(PyObject* pyRetVal)
 	PyObject *dKey, *dValue;
 	Py_ssize_t dPos = 0;
     
-
 	PyObject* objectsRepresentation = PyObject_Repr(pyRetVal);
 	const char* s = PyUnicode_AsUTF8(objectsRepresentation);
 	Logger::getLogger()->debug("Py2C_PluginInfo(): plugin_info returned: %s", s);
 	Py_CLEAR(objectsRepresentation);
-
 
 	// dKey and dValue are borrowed references
 	while (PyDict_Next(pyRetVal, &dPos, &dKey, &dValue))
 	{
 		const char* ckey = PyUnicode_AsUTF8(dKey);
 		const char* cval = PyUnicode_AsUTF8(dValue);
-
 		Logger::getLogger()->debug("%s:%d, key=%s, value=%s, dValue type=%s", __FUNCTION__, __LINE__, ckey, cval, (Py_TYPE(dValue))->tp_name);
 
 		char *valStr = NULL;
@@ -364,7 +348,6 @@ static PLUGIN_INFORMATION *Py2C_PluginInfo(PyObject* pyRetVal)
 			std::strcpy (valStr, cval);
 			Logger::getLogger()->debug("%s:%d, key=%s, value=%s, valStr=%s", __FUNCTION__, __LINE__, ckey, cval, valStr);
 		}
-
 
 		if(!strcmp(ckey, "name"))
 		{
@@ -393,7 +376,6 @@ static PLUGIN_INFORMATION *Py2C_PluginInfo(PyObject* pyRetVal)
 		}
 		else if(!strcmp(ckey, "config"))
 		{            
-
 			// if 'config' value is of dict type, convert it to string
 			if (strcmp((Py_TYPE(dValue))->tp_name, "dict")==0)
 			{
@@ -410,7 +392,6 @@ static PLUGIN_INFORMATION *Py2C_PluginInfo(PyObject* pyRetVal)
 		}
 		else
 			Logger::getLogger()->info("%s:%d: Unexpected key %s", __FUNCTION__, __LINE__, ckey);
-
 	}
 
 	return info;

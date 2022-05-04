@@ -344,7 +344,6 @@ PLUGIN_HANDLE filter_plugin_init_fn(ConfigCategory* config,
 		}
 	}
 
-
 	if (!loadModule)
 	{
        		Logger::getLogger()->info("filter_plugin_init_fn: NOT already loaded "
@@ -476,7 +475,6 @@ PLUGIN_HANDLE filter_plugin_init_fn(ConfigCategory* config,
 				   module->m_module,
 				   module->m_tState,
 				   config->itemsToJSON().c_str());
-
 
 	PyObject *config_dict = json_loads(config->itemsToJSON().c_str());
         

@@ -267,7 +267,6 @@ std::vector<Reading *>* plugin_poll_fn(PLUGIN_HANDLE handle)
 	else
 	{
 		// Get reading data
-
         PythonReadingSet *pyReadingSet = NULL;
 
         // Valid ReadingSet would be in the form of python dict or list

@@ -609,7 +609,6 @@ static PLUGIN_HANDLE plugin_init_fn(ConfigCategory *config)
 		}
 	}
 
-
 	Logger::getLogger()->info("%s:%d: loadModule=%s, reloadModule=%s", 
                                 __FUNCTION__, __LINE__, loadModule?"TRUE":"FALSE", reloadModule?"TRUE":"FALSE");
 
@@ -622,7 +621,6 @@ static PLUGIN_HANDLE plugin_init_fn(ConfigCategory *config)
 		string fledgePythonDir;
 	
 		string fledgeRootDir(getenv("FLEDGE_ROOT"));
-
 		fledgePythonDir = fledgeRootDir + "/python";
 
 		int argc = 2;
@@ -695,9 +693,7 @@ static PLUGIN_HANDLE plugin_init_fn(ConfigCategory *config)
 				   module->m_name.c_str(),
 				   module->m_module);
 
-
 	PyObject *config_dict = json_loads(config->itemsToJSON().c_str());
-
     
 	// Call Python method passing an object
 	PyObject* pReturn = PyObject_CallMethod(module->m_module,
@@ -705,9 +701,7 @@ static PLUGIN_HANDLE plugin_init_fn(ConfigCategory *config)
 						"O",
 						config_dict);
 
-
 	Py_CLEAR(config_dict);
-
 
 	// Handle returned data
 	if (!pReturn)
@@ -848,7 +842,6 @@ static void plugin_reconfigure_fn(PLUGIN_HANDLE* handle,
 
 	Logger::getLogger()->debug("plugin_reconfigure with %s", config.c_str());
 
-
 	PyObject *new_config_dict = json_loads(config.c_str());
 
 
@@ -859,7 +852,6 @@ static void plugin_reconfigure_fn(PLUGIN_HANDLE* handle,
 						  new_config_dict);
 
 	Py_CLEAR(pFunc);
-
 	Py_CLEAR(new_config_dict);
 
 
@@ -874,9 +866,7 @@ static void plugin_reconfigure_fn(PLUGIN_HANDLE* handle,
 	}
 	else
 	{
-
 		// Save PythonModule
-
 		PythonModule* currentModule = it->second;
 
 		Py_CLEAR(*handle);

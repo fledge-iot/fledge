@@ -2504,7 +2504,9 @@ unsigned long TransactionBoundary::GetMinReadingId()
 
 #ifdef LOG_TX_BOUNDARIES
 	std::thread::id tid = std::this_thread::get_id();
-	Logger::getLogger()->error("---- Thread [%ld] TX min id is %ld", tid, id);
+	Logger::getLogger()->debug("GetMinReadingId: thread [%ld] TX min id is %ld",
+				   tid,
+				   id);
 #endif
 
 	return id;

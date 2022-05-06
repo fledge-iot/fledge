@@ -92,33 +92,82 @@ fi
 echo "======================= SINUSOID SETUP COMPLETE ======================="
 
 setup_north_pi_egress () {
-    # Add PI North
-    curl -sX POST "$URL/scheduled/task" -d \
-    '{
-       "name": "PI Server",
-       "plugin": "OMF",
-       "type": "north",
-       "schedule_repeat": 30,
-       "schedule_type": "3",
-       "schedule_enabled": true,
-       "config": {
-          "PIServerEndpoint": {
-             "value": "Connector Relay"
-          },
-          "ServerHostname": {
-             "value": "'${PI_IP}'"
-          },
-          "ServerPort": {
-             "value": "5460"
-          },
-          "producerToken": {
-             "value": "'${PI_TOKEN}'"
-          },
-          "compression": {
-             "value": "false"
-          }
-       }
-    }'
+    if [[  ${ADD_NORTH_AS_SERVICE} == true ]]
+    then
+        # Add PI North as service
+        curl -sX POST "$URL/service" -d \
+        '{
+           "name": "PI Server",
+           "plugin": "OMF",
+           "type": "north",
+           "enabled": true,
+           "config": {
+              "PIServerEndpoint": {
+                 "value": "PI Web API"
+              },
+              "ServerHostname": {
+                 "value": "'${PI_IP}'"
+              },
+              "ServerPort": {
+                 "value": "443"
+              },
+              "PIWebAPIUserId": {
+                 "value": "'${PI_USER}'"
+              },
+              "PIWebAPIPassword": {
+                 "value": "'${PI_PASSWORD}'"
+              },
+              "NamingScheme": {
+                 "value": "Backward compatibility"
+              },
+              "PIWebAPIAuthenticationMethod": {
+                 "value": "basic"
+              },
+              "compression": {
+                 "value": "true"
+              }
+           }
+        }'
+      else
+        # Add PI North as task
+        curl -sX POST "$URL/scheduled/task" -d \
+        '{
+           "name": "PI Server",
+           "plugin": "OMF",
+           "type": "north",
+           "schedule_repeat": 30,
+           "schedule_type": "3",
+           "schedule_enabled": true,
+           "config": {
+              "PIServerEndpoint": {
+                 "value": "PI Web API"
+              },
+              "ServerHostname": {
+                 "value": "'${PI_IP}'"
+              },
+              "ServerPort": {
+                 "value": "443"
+              },
+              "PIWebAPIUserId": {
+                 "value": "'${PI_USER}'"
+              },
+              "PIWebAPIPassword": {
+                 "value": "'${PI_PASSWORD}'"
+              },
+              "NamingScheme": {
+                 "value": "Backward compatibility"
+              },
+              "PIWebAPIAuthenticationMethod": {
+                 "value": "basic"
+              },
+              "compression": {
+                 "value": "true"
+              }
+           }
+        }'
+    fi
+    
+    
     echo
 
     for LOOP in $(seq ${MAX_RETRIES}); do

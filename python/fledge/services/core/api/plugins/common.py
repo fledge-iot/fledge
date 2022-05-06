@@ -103,8 +103,8 @@ def load_and_fetch_c_hybrid_plugin_info(plugin_name: str, is_config: bool, plugi
                     jdoc = utils.get_plugin_info(connection_name, dir=plugin_type)
                     if jdoc:
                         pkg_name = ''
-                        # inbuilt plugins ['ocs', 'pi_server', 'OMF']
-                        if plugin_name.lower() not in ['ocs', 'pi_server', 'omf']:
+                        # Only OMF is an inbuilt plugin
+                        if plugin_name.lower() != 'omf':
                             pkg_name = 'fledge-{}-{}'.format(plugin_type, plugin_name.lower().replace("_", "-"))
 
                         plugin_info = {'name': plugin_name,

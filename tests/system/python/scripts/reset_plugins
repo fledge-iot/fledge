@@ -22,7 +22,7 @@ remove_south_c () {
 
 remove_north_python () {
     path="$FLEDGE_ROOT/python/fledge/plugins/north"
-    find ${path} -maxdepth 1 | grep -v "^${path}$" | egrep -v '(pi_server|ocs|common|empty|README.rst|__init__.py)' | xargs rm -rf
+    find ${path} -maxdepth 1 | grep -v "^${path}$" | egrep -v '(common|empty|README.rst|__init__.py)' | xargs rm -rf
 }
 
 remove_north_c () {

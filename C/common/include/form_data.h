@@ -45,8 +45,8 @@ class FormData {
 
 	public:
 		FormData(std::shared_ptr<SimpleWeb::Server<SimpleWeb::HTTP>::Request> request);
-		void		getUploadedData(std::string& field, FieldValue& data);
-		void		getUploadedFile(std::string& field, FieldValue& data);
+		void		getUploadedData(const std::string& field, FieldValue& data);
+		void		getUploadedFile(const std::string& field, FieldValue& data);
 		bool		saveFile(FieldValue& b, const std::string& fileName);
 
 	private:

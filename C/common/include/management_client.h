@@ -17,6 +17,7 @@
 #include <logger.h>
 #include <string>
 #include <map>
+#include <vector>
 #include <rapidjson/document.h>
 #include <asset_tracking.h>
 #include <json_utils.h>
@@ -80,6 +81,15 @@ class ManagementClient {
 		bool			verifyAccessBearerToken(std::shared_ptr<HttpServer::Request> request);
 		bool			refreshBearerToken(const std::string& currentToken,
 							std::string& newToken);
+		std::string&		getBearerToken() { return m_bearer_token; };
+		bool			addProxy(const std::string& serviceName,
+						const std::string& operation,
+						const std::string& publicEnpoint,
+						const std::string& privateEndpoint);
+		bool			addProxy(const std::string& serviceName,
+						const std::map<std::string,
+						std::vector<std::pair<std::string, std::string> > >& endpoints);
+		bool			deleteProxy(const std::string& serviceName);
 
 	private:
 		std::ostringstream 			m_urlbase;

@@ -7,6 +7,7 @@
 import json
 import logging
 import datetime
+import uuid
 
 from aiohttp import web
 
@@ -247,6 +248,19 @@ async def delete_script(request: web.Request) -> web.Response:
         message = ""
         if 'rows' in result:
             if result['rows']:
+                try:
+                    # Delete automation script category and schedule
+                    cf_mgr = ConfigurationManager(connect.get_storage_async())
+                    await cf_mgr.delete_category_and_children_recursively(name)
+                    schedules_list = await server.Server.scheduler.get_schedules()
+                    for sch in schedules_list:
+                        if sch.name == name and sch.process_name == "automation_script":
+                            schedule_id = str(sch.schedule_id)
+                            await server.Server.scheduler.disable_schedule(uuid.UUID(schedule_id))
+                            await server.Server.scheduler.delete_schedule(uuid.UUID(schedule_id))
+                            break
+                except:
+                    pass
                 payload = PayloadBuilder().WHERE(['name', '=', name]).payload()
                 delete_result = await storage.delete_from_tbl("control_script", payload)
                 if 'response' in delete_result:
@@ -277,7 +291,23 @@ async def add_schedule_and_configuration_for_script(request: web.Request) -> web
 
     :Example:
         curl -H "authorization: $AUTH_TOKEN" -sX POST http://localhost:8081/fledge/control/script/testScript/schedule
+        curl -H "authorization: $AUTH_TOKEN" -sX POST http://localhost:8081/fledge/control/script/testScript/schedule -d '{"parameters": {"foobar": 0.8}}'
     """
+    params = None
+    try:
+        data = await request.json()
+        params = data.get('parameters')
+        if params is None:
+            msg = "parameters field is required."
+            return web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+        if not isinstance(params, dict):
+            msg = "parameters must be a dictionary."
+            return web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+        if not params:
+            msg = "parameters cannot be an empty."
+            return web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+    except Exception:
+        pass
     try:
         name = request.match_info.get('script_name', None)
         storage = connect.get_storage_async()
@@ -285,8 +315,26 @@ async def add_schedule_and_configuration_for_script(request: web.Request) -> web
         result = await storage.query_tbl_with_payload('control_script', payload)
         if 'rows' in result:
             if result['rows']:
-                # QUERY: Can have multiple schedules for a script with same name as schedule POST allows?
+                write_steps, macros_used_in_write_steps = _validate_write_steps(result['rows'][0]['steps'])
+                if not write_steps:
+                    msg = 'write steps KV pair is missing for {} script.'.format(name)
+                    return web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+                if params is not None:
+                    for p in params:
+                        if p not in macros_used_in_write_steps:
+                            msg = '{} param is not found in write steps for {} script.'.format(p, name)
+                            return web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
+                if params is not None:
+                    for w in write_steps:
+                        for k, v in w['values'].items():
+                            if any(p in v for p in params):
+                                w['values'][k] = params[v[1:-1]]
                 # Create schedule for an automation script
+                schedule_list = await server.Server.scheduler.get_schedules()
+                for sch in schedule_list:
+                    if sch.name == name and sch.process_name == "automation_script":
+                        msg = '{} schedule already exists.'.format(name)
+                        return web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
                 manual_schedule = ManualSchedule()
                 # Set schedule fields
                 manual_schedule.name = name
@@ -301,13 +349,14 @@ async def add_schedule_and_configuration_for_script(request: web.Request) -> web
                 await server.Server.scheduler.queue_task(schedule_id)
                 # Create configuration category for a task
                 cf_mgr = ConfigurationManager(connect.get_storage_async())
-                category_value = {"write": {"default": json.dumps(result['rows'][0]['steps'][0]['write']['values']),
-                                            "description": "Dispatcher write",
+                category_value = {"write": {"default": json.dumps(write_steps),
+                                            "description": "Dispatcher write operation using automation script",
                                             "type": "JSON"}}
                 category_desc = "{} configuration for task".format(name)
                 await cf_mgr.create_category(category_name=name, category_description=category_desc,
-                                             category_value=category_value)
-                await cf_mgr.create_child_category("Dispatcher", [name])
+                                             category_value=category_value, keep_original_items=True)
+                # Create Parent-child relation
+                await cf_mgr.create_child_category("dispatcher", [name])
             else:
                 raise NameNotFoundError('Script with name {} is not found.'.format(name))
         else:
@@ -315,15 +364,31 @@ async def add_schedule_and_configuration_for_script(request: web.Request) -> web
     except StorageServerError as err:
         msg = "Storage error: {}".format(str(err))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
-    except NameNotFoundError as err:
+    except (ValueError, NameNotFoundError) as err:
         msg = str(err)
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
+    except (KeyError, RuntimeError) as err:
+        msg = str(err)
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         msg = "Schedule and configuration is created for an automation script with name {}".format(name)
         return web.json_response({"message": msg})
+
+
+def _validate_write_steps(steps: list) -> tuple:
+    write_step_values = []
+    macro_step_values = []
+    for k in steps:
+        for k1, v1 in k.items():
+            if k1 == 'write':
+                for k2, v2 in v1['values'].items():
+                    if v2.startswith("$") and v2.endswith("$"):
+                        macro_step_values.append(v2[1:-1])
+                write_step_values.append(v1)
+    return write_step_values, macro_step_values
 
 
 def _validate_steps_and_convert_to_str(payload: list) -> str:

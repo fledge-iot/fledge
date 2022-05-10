@@ -1,0 +1,50 @@
+.. Data
+
+
+Representing Data
+=================
+
+The key purpose of Fledge and the plugins is the manipulation of data, that data is passed around the system and represented in a number of ways. This section will introduce the data representation formats used at various locations within the Fledge system. Conceptually the unit of data that we use is a reading. The reading represents the state of a monitored device at a point in time and has a number of elements.
+
++-------------+----------------------------------------------------------+
+| Name        | Description                                              |
++=============+==========================================================+
+| asset       | The name of the asset or device to which the data refers |
++-------------+----------------------------------------------------------+
+| timestamp   | The point in time at which these values where observed.  |
++-------------+----------------------------------------------------------+
+| data points | A set of named values for the data held for the asset    |
++-------------+----------------------------------------------------------+
+
+There are actually two timestamps within a reading and these may be different. There is a *user_ts*, which is the time the plugin assigned to the reading data and may come from the device itself and the *ts*. The *ts* timestamp is set by the system when the data is read into Fledge. Unless the plugin is able to determine a timestamp from the device the *user_ts* is usually the same as the *ts*.
+
+The data points themselves are a set of name and value pairs, with the values supporting a number of different data types. These will be described below.
+
+Reading data is nominally stored and passed between the APIs using JSON, however for convenience it is access in different ways within the different languages that can be used to implement Fledge components and plugins. In JSON a reading is represented as a JSON DICT whereas in C++ a Reading is a class, as is a data point. The way the different data point types are represented is outline below.
+
++-------------------------------+-------------------------+-----------------------+--------------------------------+
+| Type                          | JSON                    | C++                   | Python                         |
++===============================+=========================+=======================+================================+
+| Integer                       | An integer              | An int                | An integer                     |
++-------------------------------+-------------------------+-----------------------+--------------------------------+
+| Floating Point                | A floating point value  | A double              | A floating point               |
++-------------------------------+-------------------------+-----------------------+--------------------------------+
+| Boolean                       | A string either "true"  | A bool                | A boolean                      |
+|                               | or "false"              |                       |                                |
++-------------------------------+-------------------------+-----------------------+--------------------------------+
+| String                        | A string                | A std::string pointer | A string                       |
++-------------------------------+-------------------------+-----------------------+--------------------------------+
+| List of numbers               | An array of floating    | A std::vector<double> | A list of floating point       |
+|                               | point values            |                       | values                         |
++-------------------------------+-------------------------+-----------------------+--------------------------------+
+| 2 Dimensional list of numbers | A list of lists of      | A std::vector of      | A list of lists of floating    |
+|                               | floating point values   | std::vector<double>   | point values                   |
+|                               |                         | pointers              |                                |
++-------------------------------+-------------------------+-----------------------+--------------------------------+
+| Data buffer                   | A base64 encoded string | A Databuffer class    | A 1 dimensional numpy array    |
+|                               | with a header           |                       | of values                      |
++-------------------------------+-------------------------+-----------------------+--------------------------------+
+| Image                         | A base64 encoded string | A DPImage class       | A 2 dimensional numpy array of |
+|                               | with a header           |                       | pixels. In the case of RGB     |
+|                               |                         |                       | images each pixels is an array |
++-------------------------------+-------------------------+-----------------------+--------------------------------+

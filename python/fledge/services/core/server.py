@@ -16,6 +16,7 @@ import time
 import uuid
 from aiohttp import web
 import aiohttp
+import aiohttp_dynamic
 import json
 import signal
 from datetime import datetime, timedelta
@@ -73,6 +74,7 @@ SERVICE_JWT_SECRET = 'f0gl@mp+Fl3dG3'
 SERVICE_JWT_ALGORITHM = 'HS256'
 SERVICE_JWT_EXP_DELTA_SECONDS = 30*60  # 30 minutes
 SERVICE_JWT_AUDIENCE = 'Fledge'
+
 
 def ignore_aiohttp_ssl_eror(loop):
     """Ignore aiohttp #3535 / cpython #13548 issue with SSL data after close
@@ -344,6 +346,7 @@ class Server:
 
     service_app, service_server, service_server_handler = None, None, None
     core_app, core_server, core_server_handler = None, None, None
+    dynamic_route = None
 
     @classmethod
     def get_certificates(cls):
@@ -814,6 +817,12 @@ class Server:
 
             loop.run_until_complete(cls.rest_api_config())
             cls.service_app = cls._make_app(auth_required=cls.is_auth_required, auth_method=cls.auth_method)
+
+            # Add Dynamic routing and attach to service app
+            # This is required for Proxy API
+            cls.dynamic_route = aiohttp_dynamic.DynamicRouter()
+            cls.dynamic_route.attach(cls.service_app)
+
             # ssl context
             ssl_ctx = None
             if not cls.is_rest_server_http_enabled:

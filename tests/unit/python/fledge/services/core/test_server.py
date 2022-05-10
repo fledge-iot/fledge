@@ -40,7 +40,7 @@ __version__ = "${VERSION}"
 
 
 def mock_request(data, loop):
-    payload = StreamReader("http", loop=loop)
+    payload = StreamReader("http", loop=loop, limit=1024)
     payload.feed_data(data.encode())
     payload.feed_eof()
 

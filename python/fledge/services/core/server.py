@@ -16,7 +16,6 @@ import time
 import uuid
 from aiohttp import web
 import aiohttp
-import aiohttp_dynamic
 import json
 import signal
 from datetime import datetime, timedelta
@@ -820,6 +819,7 @@ class Server:
 
             # Add Dynamic routing and attach to service app
             # This is required for Proxy API
+            import aiohttp_dynamic
             cls.dynamic_route = aiohttp_dynamic.DynamicRouter()
             cls.dynamic_route.attach(cls.service_app)
 

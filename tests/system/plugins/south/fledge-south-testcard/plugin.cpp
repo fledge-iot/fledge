@@ -25,6 +25,8 @@ typedef void (*INGEST_CB)(void *, Reading);
 
 using namespace std;
 
+const int image_dim=8;
+
 /**
  * The default configuration for the Flir plugin.
  */
@@ -115,43 +117,43 @@ ConfigCategory *conf = (ConfigCategory *)handle;
 	{
 		case 8:
 			{
-			void *data = malloc(256 * 256);
+			void *data = malloc(image_dim * image_dim);
 			uint8_t *ptr = (uint8_t *)data;
-			for (int i = 0; i < 256; i++)
+			for (int i = 0; i < image_dim; i++)
 			{
-				for (int j = 0; j < 256; j++)
+				for (int j = 0; j < image_dim; j++)
 				{
 					*ptr++ = i;
 				}
 			}
-			DPImage *image = new DPImage(256, 256, 8, data);
+			DPImage *image = new DPImage(image_dim, image_dim, 8, data);
 			free(data);
 			DatapointValue img(image);
 			return Reading(conf->getValue("asset"), new Datapoint("testcard", img));
 			}
 		case 16:
 			{
-			void *data = malloc(256 * 256 * 2);
+			void *data = malloc(image_dim * image_dim * 2);
 			uint16_t *ptr = (uint16_t *)data;
-			for (int i = 0; i < 256; i++)
+			for (int i = 0; i < image_dim; i++)
 			{
-				for (int j = 0; j < 256; j++)
+				for (int j = 0; j < image_dim; j++)
 				{
 					*ptr++ = i * i;
 				}
 			}
-			DPImage *image = new DPImage(256, 256, 16, data);
+			DPImage *image = new DPImage(image_dim, image_dim, 16, data);
 			free(data);
 			DatapointValue img(image);
 			return Reading(conf->getValue("asset"), new Datapoint("testcard", img));
 			}
 		case 24:
 			{
-			void *data = malloc(256 * 256 * 3);
+			void *data = malloc(image_dim * image_dim * 3);
 			uint8_t *ptr = (uint8_t *)data;
 			for (int i = 0; i < 32; i++)
 			{
-				for (int j = 0; j < 256; j++)
+				for (int j = 0; j < image_dim; j++)
 				{
 					*ptr++ = i * 8;	// R
 					*ptr++ = 0;	// G
@@ -160,7 +162,7 @@ ConfigCategory *conf = (ConfigCategory *)handle;
 			}
 			for (int i = 0; i < 32; i++)
 			{
-				for (int j = 0; j < 256; j++)
+				for (int j = 0; j < image_dim; j++)
 				{
 					*ptr++ = 0;	// R
 					*ptr++ = i * 8;	// G
@@ -169,7 +171,7 @@ ConfigCategory *conf = (ConfigCategory *)handle;
 			}
 			for (int i = 0; i < 32; i++)
 			{
-				for (int j = 0; j < 256; j++)
+				for (int j = 0; j < image_dim; j++)
 				{
 					*ptr++ = 0;	// R
 					*ptr++ = 0;	// G
@@ -178,7 +180,7 @@ ConfigCategory *conf = (ConfigCategory *)handle;
 			}
 			for (int i = 0; i < 32; i++)
 			{
-				for (int j = 0; j < 256; j++)
+				for (int j = 0; j < image_dim; j++)
 				{
 					*ptr++ = i * 8;	// R
 					*ptr++ = i * 8;	// G
@@ -187,14 +189,14 @@ ConfigCategory *conf = (ConfigCategory *)handle;
 			}
 			for (int i = 0; i < 128; i++)
 			{
-				for (int j = 0; j < 256; j++)
+				for (int j = 0; j < image_dim; j++)
 				{
 					*ptr++ = i * 4;	// R
 					*ptr++ = 255 - (i * 4);	// G
 					*ptr++ = j;	// B
 				}
 			}
-			DPImage *image = new DPImage(256, 256, 24, data);
+			DPImage *image = new DPImage(image_dim, image_dim, 24, data);
 			free(data);
 			DatapointValue img(image);
 			return Reading(conf->getValue("asset"), new Datapoint("testcard", img));

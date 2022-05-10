@@ -229,7 +229,7 @@ uint8_t *FormData::findDataFormField(uint8_t* buffer, const string& field)
  * @param field		The field name to fetch
  * @param data		The value reference to fill on success
  */
-void FormData::getUploadedData(string &field, FieldValue& data)
+void FormData::getUploadedData(const string &field, FieldValue& data)
 {
 	// Point to buffer start
 	uint8_t* b = (uint8_t *)m_buffer;
@@ -278,7 +278,7 @@ void FormData::getUploadedData(string &field, FieldValue& data)
  * @param field		The field name (filename type) to fetch
  * @param data		The value reference to fill on success
  */
-void FormData::getUploadedFile(string& field, FieldValue& data)
+void FormData::getUploadedFile(const string& field, FieldValue& data)
 {
 	// Point to buffer start
 	uint8_t* b = (uint8_t *)m_buffer;

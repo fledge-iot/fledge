@@ -69,22 +69,6 @@ and their versions.
    {
      "plugins": [
        {
-         "name": "pi_server",
-         "type": "north",
-         "description": "PI Server North Plugin",
-         "version": "1.0.0",
-         "installedDirectory": "north/pi_server",
-         "packageName": ""
-       },
-       {
-         "name": "ocs",
-         "type": "north",
-         "description": "OCS (OSIsoft Cloud Services) North Plugin",
-         "version": "1.0.0",
-         "installedDirectory": "north/ocs",
-         "packageName": ""
-       },
-       {
          "name": "http_north",
          "type": "north",
          "description": "HTTP North Plugin",

@@ -2439,7 +2439,7 @@ void TransactionBoundary::ClearThreadTransaction(std::thread::id tid)
 	{
 		// Remove element
 		m_boundaries.erase(itr);
-#ifdef LOG_TX_BOUNDARIES
+#if LOG_TX_BOUNDARIES
 		Logger::getLogger()->debug("ClearThreadTransaction: thread [%ld] cleared TX start %ld",
 					tid, itr->second);
 #endif
@@ -2465,7 +2465,7 @@ void TransactionBoundary::SetThreadTransactionStart(std::thread::id tid, unsigne
 	// Set id per thread
 	m_boundaries[tid] = id;
 
-#ifdef LOG_TX_BOUNDARIES
+#if LOG_TX_BOUNDARIES
 	Logger::getLogger()->debug("SetThreadTransactionStart: thread [%ld] set TX start at %ld",
 				tid,
 				id);
@@ -2504,7 +2504,9 @@ unsigned long TransactionBoundary::GetMinReadingId()
 
 #ifdef LOG_TX_BOUNDARIES
 	std::thread::id tid = std::this_thread::get_id();
-	Logger::getLogger()->error("---- Thread [%ld] TX min id is %ld", tid, id);
+	Logger::getLogger()->debug("GetMinReadingId: thread [%ld] TX min id is %ld",
+				   tid,
+				   id);
 #endif
 
 	return id;

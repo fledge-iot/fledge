@@ -172,7 +172,12 @@ ConfigCategory *conf = (ConfigCategory *)handle;
 			{
 			void *data = malloc(image_height * image_width * 3);
 			uint8_t *ptr = (uint8_t *)data;
-			for (int i = 0; i < 32; i++)
+			
+			int inc_rows_first_half, inc_rows_second_half;
+			inc_rows_first_half = image_height / 8;
+			inc_rows_second_half = image_height / 2;
+
+			for (int i = 0; i < inc_rows_first_half; i++)
 			{
 				for (int j = 0; j < image_width; j++)
 				{
@@ -181,7 +186,7 @@ ConfigCategory *conf = (ConfigCategory *)handle;
 					*ptr++ = 0;	// B
 				}
 			}
-			for (int i = 0; i < 32; i++)
+			for (int i = 0; i < inc_rows_first_half; i++)
 			{
 				for (int j = 0; j < image_width; j++)
 				{
@@ -190,7 +195,7 @@ ConfigCategory *conf = (ConfigCategory *)handle;
 					*ptr++ = 0;	// B
 				}
 			}
-			for (int i = 0; i < 32; i++)
+			for (int i = 0; i < inc_rows_first_half; i++)
 			{
 				for (int j = 0; j < image_width; j++)
 				{
@@ -199,7 +204,7 @@ ConfigCategory *conf = (ConfigCategory *)handle;
 					*ptr++ = i * 8;	// B
 				}
 			}
-			for (int i = 0; i < 32; i++)
+			for (int i = 0; i < inc_rows_first_half; i++)
 			{
 				for (int j = 0; j < image_width; j++)
 				{
@@ -208,7 +213,7 @@ ConfigCategory *conf = (ConfigCategory *)handle;
 					*ptr++ = i * 8;	// B
 				}
 			}
-			for (int i = 0; i < 128; i++)
+			for (int i = 0; i < inc_rows_second_half; i++)
 			{
 				for (int j = 0; j < image_width; j++)
 				{

@@ -128,101 +128,115 @@ ConfigCategory *conf = (ConfigCategory *)handle;
 	string d = conf->getValue("depth");
 	int depth = strtol(d.c_str(), NULL, 10);
 
-	string image_h = conf->getValue("imageHeight");
-	int image_height = strtol(image_h.c_str(), NULL, 10);
+	string imageHeightStr = conf->getValue("imageHeight");
+	int imageHeight = strtol(imageHeightStr.c_str(), NULL, 10);
 
-	string image_w = conf->getValue("imageWidth");
-	int image_width = strtol(image_w.c_str(), NULL, 10);
+	string imageWidthStr = conf->getValue("imageWidth");
+	int imageWidth = strtol(imageWidthStr.c_str(), NULL, 10);
 
 	switch (depth)
 	{
 		case 8:
 			{
-			void *data = malloc(image_height * image_width);
+			void *data = malloc(imageHeight * imageWidth);
 			uint8_t *ptr = (uint8_t *)data;
-			for (int i = 0; i < image_height; i++)
+			for (int i = 0; i < imageHeight; i++)
 			{
-				for (int j = 0; j < image_width; j++)
+				for (int j = 0; j < imageWidth; j++)
 				{
 					*ptr++ = i;
 				}
 			}
-			DPImage *image = new DPImage(image_width, image_height, 8, data);
+			DPImage *image = new DPImage(imageWidth, imageHeight, 8, data);
 			free(data);
 			DatapointValue img(image);
 			return Reading(conf->getValue("asset"), new Datapoint("testcard", img));
 			}
 		case 16:
 			{
-			void *data = malloc(image_height * image_width * 2);
+			void *data = malloc(imageHeight * imageWidth * 2);
 			uint16_t *ptr = (uint16_t *)data;
-			for (int i = 0; i < image_height; i++)
+			for (int i = 0; i < imageHeight; i++)
 			{
-				for (int j = 0; j < image_width; j++)
+				for (int j = 0; j < imageWidth; j++)
 				{
 					*ptr++ = i * i;
 				}
 			}
-			DPImage *image = new DPImage(image_width, image_height, 16, data);
+			DPImage *image = new DPImage(imageWidth, imageHeight, 16, data);
 			free(data);
 			DatapointValue img(image);
 			return Reading(conf->getValue("asset"), new Datapoint("testcard", img));
 			}
 		case 24:
 			{
-			void *data = malloc(image_height * image_width * 3);
+			void *data = malloc(imageHeight * imageWidth * 3);
 			uint8_t *ptr = (uint8_t *)data;
-			
-			int inc_rows_first_half, inc_rows_second_half;
-			inc_rows_first_half = image_height / 8;
-			inc_rows_second_half = image_height / 2;
+			int rowLimitFirstHalf, rowLimitSecondHalf;
+			// We divide the image into 2 equal parts. 
+			// In the first half we display four component namely:
+			// 1. A red line 2. A Green Line 3. A Blue Line 4. A White Line
+			// In the second half we create a random pattern of RGB colours.
 
-			for (int i = 0; i < inc_rows_first_half; i++)
+			rowLimitFirstHalf = imageHeight / 8;
+			rowLimitSecondHalf = imageHeight / 2;
+
+			// This will create a red horizontal line.
+			for (int i = 0; i < rowLimitFirstHalf; i++)
 			{
-				for (int j = 0; j < image_width; j++)
+				for (int j = 0; j < imageWidth; j++)
 				{
 					*ptr++ = i * 8;	// R
 					*ptr++ = 0;	// G
 					*ptr++ = 0;	// B
 				}
 			}
-			for (int i = 0; i < inc_rows_first_half; i++)
+
+			// This will create a green horizontal line.
+			for (int i = 0; i < rowLimitFirstHalf; i++)
 			{
-				for (int j = 0; j < image_width; j++)
+				for (int j = 0; j < imageWidth; j++)
 				{
 					*ptr++ = 0;	// R
 					*ptr++ = i * 8;	// G
 					*ptr++ = 0;	// B
 				}
 			}
-			for (int i = 0; i < inc_rows_first_half; i++)
+
+			// This will create a blue horizontal line.
+			for (int i = 0; i < rowLimitFirstHalf; i++)
 			{
-				for (int j = 0; j < image_width; j++)
+				for (int j = 0; j < imageWidth; j++)
 				{
 					*ptr++ = 0;	// R
 					*ptr++ = 0;	// G
 					*ptr++ = i * 8;	// B
 				}
 			}
-			for (int i = 0; i < inc_rows_first_half; i++)
+
+			// This will create a white horizontal line.
+			for (int i = 0; i < rowLimitFirstHalf; i++)
 			{
-				for (int j = 0; j < image_width; j++)
+				for (int j = 0; j < imageWidth; j++)
 				{
 					*ptr++ = i * 8;	// R
 					*ptr++ = i * 8;	// G
 					*ptr++ = i * 8;	// B
 				}
 			}
-			for (int i = 0; i < inc_rows_second_half; i++)
+
+			// We are in second half now.
+			// This will create a colorful pattern in second half.  
+			for (int i = 0; i < rowLimitSecondHalf; i++)
 			{
-				for (int j = 0; j < image_width; j++)
+				for (int j = 0; j < imageWidth; j++)
 				{
 					*ptr++ = i * 4;	// R
 					*ptr++ = 255 - (i * 4);	// G
 					*ptr++ = j;	// B
 				}
 			}
-			DPImage *image = new DPImage(image_width, image_height, 24, data);
+			DPImage *image = new DPImage(imageWidth, imageHeight, 24, data);
 			free(data);
 			DatapointValue img(image);
 			return Reading(conf->getValue("asset"), new Datapoint("testcard", img));

@@ -44,6 +44,9 @@ class Connection {
 		bool		get_table_snapshots(const std::string& table,
 						    std::string& resultSet);
 		bool		aggregateQuery(const rapidjson::Value& payload, std::string& resultSet);
+		int 		create_schema(std::string payload);
+
+
 
 	private:
 		bool		m_logSQL;
@@ -60,5 +63,12 @@ class Connection {
     		const std::string 	double_quote_reserved_column_name(const std::string &column_name);
 		void		logSQL(const char *, const char *);
 		bool		isFunction(const char *) const;
+
+		typedef	struct{
+			std::string 	column;
+			std::string	type;
+			int		sz;
+			bool		key = false;
+		} columnRec;
 };
 #endif

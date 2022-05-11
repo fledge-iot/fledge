@@ -33,6 +33,7 @@ using HttpServer = SimpleWeb::Server<SimpleWeb::HTTP>;
 #define LOAD_TABLE_SNAPSHOT	"^/storage/table/([A-Za-z][a-zA-Z_0-9_]*)/snapshot/([a-zA-Z_0-9_]*)$"
 #define DELETE_TABLE_SNAPSHOT	LOAD_TABLE_SNAPSHOT
 #define CREATE_STORAGE_STREAM	"^/storage/reading/stream$"
+#define STORAGE_SCHEMA		"^/storage/schema"
 
 #define PURGE_FLAG_RETAIN      "retain"
 #define PURGE_FLAG_RETAIN_ANY  "retainany"
@@ -80,6 +81,7 @@ public:
 	void	getTableSnapshots(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
 	void	createStorageStream(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
 	bool	readingStream(ReadingStream **readings, bool commit);
+	void    createStorageSchema(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
 	void	printList();
 
 public:

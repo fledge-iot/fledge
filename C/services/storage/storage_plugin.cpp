@@ -83,6 +83,10 @@ StoragePlugin::StoragePlugin(const string& name, PLUGIN_HANDLE handle) : Plugin(
 			(int (*)(PLUGIN_HANDLE, ReadingStream **, bool))
 			      manager->resolveSymbol(handle, "plugin_readingStream");
 	pluginShutdownPtr = (bool (*)(PLUGIN_HANDLE))manager->resolveSymbol(handle, "plugin_shutdown");
+
+	createSchemaPtr = 
+              		(int (*)(PLUGIN_HANDLE, const char*))
+                              manager->resolveSymbol(handle, "plugin_createSchema");
 }
 
 /**
@@ -214,3 +218,13 @@ bool StoragePlugin::pluginShutdown()
 		return this->pluginShutdownPtr(instance);
 	return true;
 }
+
+/**
+ * Call the schema create method in the plugin
+ */
+int StoragePlugin::createSchema(const string& payload)
+{
+        return this->createSchemaPtr(instance, payload.c_str());
+}
+
+

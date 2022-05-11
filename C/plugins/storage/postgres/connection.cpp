@@ -3312,3 +3312,240 @@ const char *p;
 		return true;
 	return false;
 }
+
+/**
+ * Create scema of tables
+ *
+ * @param payload   The  payload containing information about schema of 
+ *                  tables to create
+ * @return true if the tables can be crated successfully
+ */
+int Connection::create_schema(std::string payload)
+{
+
+	Document document;
+	std::string schema;
+	int version;
+	const char *logSection="CreatingSchema";
+	unsigned long rowsAffectedLastCommand = 0;
+
+	std::string queryToFindVerFromDB = "select * from fledge.version;" ;
+	int versionFromDB = purgeOperation(queryToFindVerFromDB.c_str(), logSection, "logSection- finding version stored in db", true);
+	Logger::getLogger()->debug("%s:%d Version obtained from DB %d ", __FUNCTION__,__LINE__ , versionFromDB);
+
+	bool schemaUpdateRequired = false;	
+
+	try {
+                if (payload.empty())
+                {
+                        return -1;
+                }
+                else
+                {
+                        if (document.Parse(payload.c_str()).HasParseError())
+                        {
+                                raiseError("retrieve", "Failed to parse JSON payload");
+                                return -1;
+                        }
+			if (!document.HasMember("schema"))
+                        {
+				Logger::getLogger()->error("schema absent from payload, so exiting ");
+				return -1;
+			}
+			else
+			{
+				schema = document["schema"].GetString();
+				if ( !schema.empty())
+				{
+					std::string queryToCreateSchema = "create schema if not exists " + schema + ";" ;
+					rowsAffectedLastCommand = purgeOperation(queryToCreateSchema.c_str(), logSection, "Create Schema if not exists ", false);
+				}
+			/*	if ( !schema.empty())
+				{
+					std::string queryToFindSchema = "select count(*) from fledge.service_schema where name = " + schema +";" ;
+					rowsAffectedLastCommand = purgeOperation(queryToFindSchema.c_str(), logSection, "Create Schema finding schema name from fledge.service_schema", true);
+
+					if (rowsAffectedLastCommand != 1)
+					{
+						schemaUpdateRequired = true;
+					}
+				}
+			*/
+				if (!document.HasMember("version"))
+                        	{
+					Logger::getLogger()->debug("version absent from payload, so exiting");
+                                	return -1;
+                        	}
+				else
+				{
+					version = document["version"].GetInt();
+					if ( version == versionFromDB)
+					{
+						Logger::getLogger()->error("version in POST request same as present inn versionFromDB i.e.%d hence skipping further processing", version);
+						return 1;
+					}
+				}
+				if (!document.HasMember("tables"))
+                        	{
+					Logger::getLogger()->error("tables section absent from payload, so exiting");
+                                	return -1;
+                        	}
+				else
+				{
+					Value& tables = document["tables"];
+					if (!tables.IsArray())
+                                	{
+                                        	raiseError("retrieve", "The property return must be an array");
+                                        	return -1;
+                                	}
+					else
+                          		{
+                                		for (rapidjson::SizeType i = 0; i < tables.Size(); i++)
+						{
+							std::string name = tables[i]["name"].GetString();
+							Value& columns = tables[i]["columns"];
+							vector<std::string> index;
+							vector<columnRec> vecColumns;
+
+							std::string sql, sqlIdx;
+							sql = "create table " + schema + "." + name + " (" ;
+					
+							sqlIdx = "create index " + schema + "_" + name + "_idx1 on " + schema + "." + name + "(";
+
+							if (!columns.IsArray())
+							{
+								raiseError("retrieve", "The property return must be an array");
+		                                                return -1;
+							}
+
+							for (auto& v : columns.GetArray())
+							{
+								if (v.IsObject())
+				                                {
+									columnRec c;
+									if (v.HasMember("column"))
+                                        				{
+                                                				if (!v["column"].IsString())
+										{
+											Logger::getLogger()->error("%s %d ", __FUNCTION__, __LINE__, "extracting column name, expecting a string value here");
+ 
+										}
+										else
+										{
+                                                                			c.column = v["column"].GetString(); 
+										}
+									}
+
+									if (v.HasMember("type"))
+									{
+										if (!v["type"].IsString())
+										{
+											Logger::getLogger()->error("%s %d ", __FUNCTION__, __LINE__, "extracting type, expecting a string value here");
+										}
+										else
+										{
+											c.type = v["type"].GetString();
+											if (c.type == "double") c.type = "real";
+										}
+									}
+
+									if (v.HasMember("size"))
+									{
+										if(!v["size"].IsInt())
+										{
+											Logger::getLogger()->error("%s %d extracting size, expecting a string value here", __FUNCTION__, __LINE__);
+										}
+										else
+										{
+											c.sz = v["size"].GetInt();
+										}
+									}
+
+									if (v.HasMember("key"))
+									{
+										if(!v["key"].IsBool())
+                                                                                {
+											Logger::getLogger()->error("%s %d extracting key, expecting a bool value here", __FUNCTION__, __LINE__);
+
+                                                                                }
+                                                                                else
+                                                                                {
+                                                                                         c.key = v["key"].GetBool();
+                                                                                }
+                                                                        }
+
+									vecColumns.push_back(c);
+								}
+							}
+
+							Value& idx = tables[i]["index"];
+							if (!idx.IsArray())
+                                                        {
+                                                                raiseError("retrieve", "The property return must be an array");
+                                                        }
+							else
+							{
+                        					for (auto& v : idx.GetArray())
+                        					{
+									if(v.IsString())
+									{
+										index.push_back(v.GetString());
+									}
+									else
+									{
+										raiseError("retrieve", "The type must be a string ");
+									}
+								}
+							}
+
+							for ( auto& v: vecColumns)
+							{
+								sql += v.column + " " + v.type;
+								if (v.type == "varchar")
+								{
+									sql += "(" + std::to_string(v.sz) + ")";	
+								}
+
+								if (v.key == true)
+								{
+									sql += " primary key";
+								}
+								sql +=",";
+							}
+							// remove last comma
+							if ( sql[sql.size() - 1] == ',')
+							{
+								sql.erase(sql.size()-1);
+							}
+
+							sql += " );";
+
+
+							// execute the sql here 
+							rowsAffectedLastCommand = purgeOperation(sql.c_str(), logSection, "CreatingSchema - phase 1, crating tables", false);
+							for (auto &v : index)
+							{
+							 	sqlIdx += v + ","; 
+							}
+							if (sqlIdx[sqlIdx.size() -1 ] == ',')
+							{
+								sqlIdx.erase(sqlIdx.size() -1 );
+							}
+							sqlIdx += " );" ;
+							rowsAffectedLastCommand = purgeOperation(sqlIdx.c_str(), logSection, "CreatingSchema - phase 2, creating index on tables", false);
+
+						}
+					}
+				}
+			}
+		}
+	    }
+	    catch( std::exception &e){
+		Logger::getLogger()->error("%s %d exception caught %s", __FUNCTION__, __LINE__, e.what() );
+
+		    return -1;
+	    }
+
+	    return 1;
+
+}

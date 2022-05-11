@@ -302,4 +302,23 @@ std::string results;
 	return rval ? strdup(results.c_str()) : NULL;
 }
 
+/**
+ * Create schema of a common table
+ *
+ * @param handle        The plugin handle
+ * @param payload       The payload to shapshot
+ * @return              -1 on error, >= o on success
+ *
+ */
+int plugin_createSchema(PLUGIN_HANDLE handle,
+                                 char *payload)
+{
+	ConnectionManager *manager = (ConnectionManager *)handle;
+	Connection        *connection = manager->allocate();
+
+	int result = connection->create_schema(std::string(payload));
+        manager->release(connection);
+        return result;
+}
+
 };

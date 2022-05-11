@@ -43,6 +43,22 @@ static const char *default_config = QUOTE({
 		"mandatory": "true",
 		"order" : "1"
 	       	},
+	"imageHeight" : { 
+		"description" : "The height of test card image to create.",
+		"type" : "integer",
+		"displayName": "Image Height",
+		"default" : "480",
+		"mandatory": "true",
+		"order" : "2"
+	       	},
+	"imageWidth" : { 
+		"description" : "The Width of test card image to create.",
+		"type" : "integer",
+		"default" : "640",
+		"displayName": "Image Width",
+		"mandatory": "true",
+		"order" : "3"
+	       	},
 	"depth" : {
 		"description" : "Depth of the testcard to create",
 		"type" : "enumeration",
@@ -50,7 +66,7 @@ static const char *default_config = QUOTE({
 		"default" : "8",
 		"displayName": "Depth",
 		"mandatory": "true",
-		"order" : "2"
+		"order" : "4"
 		}
 	});
 		  
@@ -111,47 +127,54 @@ ConfigCategory *conf = (ConfigCategory *)handle;
 
 	string d = conf->getValue("depth");
 	int depth = strtol(d.c_str(), NULL, 10);
+
+	string image_h = conf->getValue("imageHeight");
+	int image_height = strtol(image_h.c_str(), NULL, 10);
+
+	string image_w = conf->getValue("imageWidth");
+	int image_width = strtol(image_w.c_str(), NULL, 10);
+
 	switch (depth)
 	{
 		case 8:
 			{
-			void *data = malloc(256 * 256);
+			void *data = malloc(image_height * image_width);
 			uint8_t *ptr = (uint8_t *)data;
-			for (int i = 0; i < 256; i++)
+			for (int i = 0; i < image_height; i++)
 			{
-				for (int j = 0; j < 256; j++)
+				for (int j = 0; j < image_width; j++)
 				{
 					*ptr++ = i;
 				}
 			}
-			DPImage *image = new DPImage(256, 256, 8, data);
+			DPImage *image = new DPImage(image_width, image_height, 8, data);
 			free(data);
 			DatapointValue img(image);
 			return Reading(conf->getValue("asset"), new Datapoint("testcard", img));
 			}
 		case 16:
 			{
-			void *data = malloc(256 * 256 * 2);
+			void *data = malloc(image_height * image_width * 2);
 			uint16_t *ptr = (uint16_t *)data;
-			for (int i = 0; i < 256; i++)
+			for (int i = 0; i < image_height; i++)
 			{
-				for (int j = 0; j < 256; j++)
+				for (int j = 0; j < image_width; j++)
 				{
 					*ptr++ = i * i;
 				}
 			}
-			DPImage *image = new DPImage(256, 256, 16, data);
+			DPImage *image = new DPImage(image_width, image_height, 16, data);
 			free(data);
 			DatapointValue img(image);
 			return Reading(conf->getValue("asset"), new Datapoint("testcard", img));
 			}
 		case 24:
 			{
-			void *data = malloc(256 * 256 * 3);
+			void *data = malloc(image_height * image_width * 3);
 			uint8_t *ptr = (uint8_t *)data;
 			for (int i = 0; i < 32; i++)
 			{
-				for (int j = 0; j < 256; j++)
+				for (int j = 0; j < image_width; j++)
 				{
 					*ptr++ = i * 8;	// R
 					*ptr++ = 0;	// G
@@ -160,7 +183,7 @@ ConfigCategory *conf = (ConfigCategory *)handle;
 			}
 			for (int i = 0; i < 32; i++)
 			{
-				for (int j = 0; j < 256; j++)
+				for (int j = 0; j < image_width; j++)
 				{
 					*ptr++ = 0;	// R
 					*ptr++ = i * 8;	// G
@@ -169,7 +192,7 @@ ConfigCategory *conf = (ConfigCategory *)handle;
 			}
 			for (int i = 0; i < 32; i++)
 			{
-				for (int j = 0; j < 256; j++)
+				for (int j = 0; j < image_width; j++)
 				{
 					*ptr++ = 0;	// R
 					*ptr++ = 0;	// G
@@ -178,7 +201,7 @@ ConfigCategory *conf = (ConfigCategory *)handle;
 			}
 			for (int i = 0; i < 32; i++)
 			{
-				for (int j = 0; j < 256; j++)
+				for (int j = 0; j < image_width; j++)
 				{
 					*ptr++ = i * 8;	// R
 					*ptr++ = i * 8;	// G
@@ -187,14 +210,14 @@ ConfigCategory *conf = (ConfigCategory *)handle;
 			}
 			for (int i = 0; i < 128; i++)
 			{
-				for (int j = 0; j < 256; j++)
+				for (int j = 0; j < image_width; j++)
 				{
 					*ptr++ = i * 4;	// R
 					*ptr++ = 255 - (i * 4);	// G
 					*ptr++ = j;	// B
 				}
 			}
-			DPImage *image = new DPImage(256, 256, 24, data);
+			DPImage *image = new DPImage(image_width, image_height, 24, data);
 			free(data);
 			DatapointValue img(image);
 			return Reading(conf->getValue("asset"), new Datapoint("testcard", img));

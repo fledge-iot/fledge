@@ -1,5 +1,5 @@
 /*
- * Fledge OSI Soft OMF interface to PI Server.
+ * Fledge OSIsoft OMF interface to PI Server.
  *
  * Copyright (c) 2018 Dianomic Systems
  *
@@ -319,7 +319,7 @@ std::string OMF::compress_string(const std::string& str,
  * Sends all the data type messages for a Reading data row
  *
  * @param row    The current Reading data row
- * @return       True is all data types have been sent (HTTP 2xx OK)
+ * @return       True if all data types have been sent (HTTP 2xx OK)
  *               False when first error occurs.
  */
 bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
@@ -332,7 +332,7 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 	// Create data for Type message	
 	string typeData = OMF::createTypeData(row, hints);
 
-	// If Datatyope in Reading row is not supported, just return true
+	// If Datatype in Reading row is not supported, just return true
 	if (typeData.empty())
 	{
 		return true;
@@ -414,7 +414,7 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 			return false;
 		}
 	}
-	// Exception raised fof HTTP 400 Bad Request
+	// Exception raised for HTTP 400 Bad Request
 	catch (const BadRequest& e)
 	{
 		if (OMF::isDataTypeError(e.what()))
@@ -1017,8 +1017,6 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 	string varDefault;
 	bool variablePresent;
 
-	std::vector <std::string> errorLogged;
-
 #if INSTRUMENT
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();
@@ -1185,13 +1183,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 
 			auto it = m_SuperSetDataPoints.find(m_assetName);
 			if (it == m_SuperSetDataPoints.end()) {
-
 				// The asset has only unsupported properties, so it is ignored
-				if(std::find(errorLogged.begin(), errorLogged.end(), m_assetName) == errorLogged.end())
-				{
-					errorLogged.push_back(m_assetName);
-					Logger::getLogger()->warn("AssetName :%s: has unsupported data", m_assetName.c_str());
-				}
 				continue;
 			}
 
@@ -1585,7 +1577,7 @@ uint32_t OMF::sendToServer(const vector<Reading>& readings,
 
 	m_lastError = false;
 
-	// Return number of sen t readings to the caller
+	// Return number of sent readings to the caller
 	return readings.size();
 }
 
@@ -1593,7 +1585,7 @@ uint32_t OMF::sendToServer(const vector<Reading>& readings,
  * Send a single reading to the PI Server
  *
  * @param reading             A reading to send
- * @return                    != on success, 0 otherwise
+ * @return                    1 = on success, 0 otherwise
  */
 uint32_t OMF::sendToServer(const Reading& reading,
 			   bool skipSentDataTypes)
@@ -3321,8 +3313,8 @@ bool OMF::handleTypeErrors(const string& keyComplete, const Reading& reading, OM
  * Create a superset data map for each reading and found datapoints
  *
  * The output map is filled with a Reading object containing
- * all the datapoints found for each asset in the inoput reading set.
- * The datapoint have a fake value based on the datapoint type
+ * all the datapoints found for each asset in the input reading set.
+ * The datapoints have a fake value based on the datapoint type
  *  
  * @param    readings		Current input readings data
  * @param    dataSuperSet	Map to store all datapoints for an assetname
@@ -3363,7 +3355,7 @@ void OMF::setMapObjectTypes(const vector<Reading*>& readings,
 			{
 				omfType = omfTypes[((*it)->getData()).getType()];
 
-				// if a OMF hint is applied the type may change
+				// if an OMF hint is applied the type may change
 				{
 					Reading *reading = *elem;
 
@@ -3391,7 +3383,7 @@ void OMF::setMapObjectTypes(const vector<Reading*>& readings,
 				// Asset not found in the map
 				if (itr == readingAllDataPoints.end())
 				{
-					// Set type of current datapoint for ssetName
+					// Set type of current datapoint for assetName
 					readingAllDataPoints[assetName][datapointName] = omfType;
 				}
 				else
@@ -4284,20 +4276,19 @@ bool OMF::getCreatedTypes(const string& keyComplete, const Reading& row, OMFHint
  * Check whether input Datapoint type is supported by OMF class
  *
  * @param    dataPoint		Input data
- * @return			True is fupported, false otherwise
+ * @return			True if supported, false otherwise
  */ 
 
 static bool isTypeSupported(DatapointValue& dataPoint)
 {
-	if (dataPoint.getType() == DatapointValue::DatapointTag::T_FLOAT_ARRAY ||
-	    dataPoint.getType() == DatapointValue::DatapointTag::T_DP_DICT ||
-	    dataPoint.getType() == DatapointValue::DatapointTag::T_DP_LIST)
+	switch (dataPoint.getType())
 	{
-		return false;
-	}
-	else
-	{
-		return true;
+		case DatapointValue::DatapointTag::T_FLOAT:
+		case DatapointValue::DatapointTag::T_INTEGER:
+		case DatapointValue::DatapointTag::T_STRING:
+			return true;
+		default:
+			return false;	
 	}
 }
 

@@ -168,9 +168,9 @@ class Connection {
 		sqlite3		*dbHandle;
 		int		mapResultSet(void *res, std::string& resultSet, unsigned long *rowsCount = nullptr);
 #ifndef SQLITE_SPLIT_READINGS
-		bool		jsonWhereClause(const rapidjson::Value& whereClause, SQLBuffer&, std::vector<std::string>  &asset_codes, bool convertLocaltime = false);
+		bool		jsonWhereClause(const rapidjson::Value& whereClause, SQLBuffer&, std::vector<std::string>  &asset_codes, bool convertLocaltime = false, std::string prefix = "");
 #else
-		bool		jsonWhereClause(const rapidjson::Value& whereClause, SQLBuffer&, bool convertLocaltime = false);
+		bool		jsonWhereClause(const rapidjson::Value& whereClause, SQLBuffer&, bool convertLocaltime = false, std::string prefix = "");
 #endif
 		bool		jsonModifiers(const rapidjson::Value&, SQLBuffer&, bool isTableReading = false);
 #ifndef SQLITE_SPLIT_READINGS
@@ -197,7 +197,9 @@ class Connection {
 						int i,
 						std::string& newDate);
 		void		logSQL(const char *, const char *);
-
+		bool		selectColumns(const rapidjson::Value& document, SQLBuffer& sql, int level);
+		bool 		appendTables(const rapidjson::Value& document, SQLBuffer& sql, int level);
+		bool		processJoinQueryWhereClause(const rapidjson::Value& query, SQLBuffer& sql, std::vector<std::string>  &asset_codes, int level);
 
 };
 

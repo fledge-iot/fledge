@@ -140,8 +140,8 @@ class PluginDiscovery(object):
                                 raise DeprecationWarning
 
                         pkg_name = ''
-                        # inbuilt plugins ['ocs', 'pi_server', 'OMF']
-                        if name.lower() not in ['ocs', 'pi_server', 'omf']:
+                        # Only OMF is an inbuilt plugin
+                        if name.lower() != 'omf':
                             pkg_name = 'fledge-{}-{}'.format(plugin_type, name.lower().replace("_", "-"))
 
                         plugin_config = {'name': name,
@@ -182,8 +182,8 @@ class PluginDiscovery(object):
                         raise DeprecationWarning
                 pkg_name = ''
                 name = plugin_info['config']['plugin']['default']
-                # inbuilt plugins ['ocs', 'pi_server', 'OMF']
-                if name.lower() not in ['ocs', 'pi_server', 'omf']:
+                # Only OMF is an inbuilt plugin
+                if name.lower() != 'omf':
                     pkg_name = 'fledge-{}-{}'.format(plugin_type, name.lower().replace("_", "-"))
 
                 plugin_config = {

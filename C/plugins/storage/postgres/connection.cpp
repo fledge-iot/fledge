@@ -3313,6 +3313,174 @@ const char *p;
 	return false;
 }
 
+bool Connection::findSchemaFromDB(std::string name, std::string &resultSet)
+{
+
+	SQLBuffer sql;
+        try
+        {
+		sql.append("select * from fledge.service_schema where name = '");
+	        sql.append(name);
+	      	sql.append("';");
+                const char *query = sql.coalesce();
+                logSQL("findSchemaAndVersionFromDB", query);
+
+                PGresult *res = PQexec(dbConnection, query);
+                delete[] query;
+                if (PQresultStatus(res) == PGRES_TUPLES_OK)
+                {
+                        mapResultSet(res, resultSet);
+                        PQclear(res);
+
+                        return true;
+		}
+		else
+		{
+			char *SQLState = PQresultErrorField(res, PG_DIAG_SQLSTATE);
+                	if (!strcmp(SQLState, "22P02")) // Conversion error
+                 	{
+                        	raiseError("findSchemaAndVersionFromDB", "Unable to convert data to the required type");
+                 	}
+                 	else
+                 	{
+                        	raiseError("findSchemaAndVersionFromDB", PQerrorMessage(dbConnection));
+                 	}
+                 	PQclear(res);
+                 	return false;
+         	}
+	}catch (exception e) {
+                	raiseError("findSchemaAndVersionFromDB", "Internal error: %s", e.what());
+        }
+         
+	return false;
+}
+
+bool Connection::parseDatabaseStorageSchema(int &version, std::string res, 
+		 std::unordered_map<std::string, unordered_set<std::string> > &tableColumnMap,
+		 std::unordered_map<std::string, unordered_set<std::string> > &tableIndexMap)
+{
+ 	Logger::getLogger()->error( "%s:%d result from table = %s", __FUNCTION__, __LINE__, res.c_str());
+	Document document;
+
+	if (document.Parse(res.c_str()).HasParseError())
+        {
+       		raiseError("checkSchemaUpdateRequired", "Failed to parse JSON payload");
+	        return false;
+        }
+        if (!document.HasMember("rows"))
+        {
+        	Logger::getLogger()->error("schema absent from payload, so exiting ");
+        	return false;
+        }
+        else
+	{
+		Value& rows = document["rows"];
+                if (!rows.IsArray())
+                {
+                	raiseError("checkSchemaUpdateRequired", "The property return must be an array");
+                        return false;
+                }
+                else
+                {
+			version = rows[0]["version"].GetInt();
+
+			Logger::getLogger()->error( "%s:%d schema and version %s,%d", __FUNCTION__, __LINE__, name.c_str(), version);
+
+			Value& def = rows[0]["definition"];
+
+			if (!def.IsObject())
+			{
+				raiseError("checkSchemaUpdateRequired", "The property definition must be an object");
+				return false;
+			}
+
+			Value& tables = def["tables"];
+			if (!tables.IsArray())
+			{
+				raiseError("checkSchemaUpdateRequired", "The property definition must be an array");
+				return false;
+			}
+
+			for (rapidjson::SizeType i = 0; i < tables.Size(); i++)
+                        {
+                        	std::string name = tables[i]["name"].GetString();
+                        	Value& columns = tables[i]["columns"];
+
+				unordered_set<std::string> columnSet;
+			        unordered_set<std::string> indexSet;
+
+	                        if (!columns.IsArray())
+                        	{
+ 	                       		raiseError("checkSchemaUpdateRequired", "The property return must be an array");
+                                	return false;
+                        	}
+
+                        	for (auto& v : columns.GetArray())
+                        	{
+       	                		if (v.IsObject())
+					{
+						if (v.HasMember("column"))
+                                                {
+                                                	if (!v["column"].IsString())
+                                                        {
+                                                        	Logger::getLogger()->error("%s %d ", __FUNCTION__, __LINE__, "extracting column name, expecting a string value here");
+                                                        }
+                                                        else
+                                                        {
+                                                        	columnSet.insert(v["column"].GetString());
+                                                        } 
+                                                }
+					}
+				}
+
+				Value& indexes = tables[i]["indexes"];
+				if (!indexes.IsArray())
+                                {
+                                        raiseError("checkSchemaUpdateRequired", "The property return must be an array");
+                                        return false;
+                                }
+
+				for (auto& v : indexes.GetArray())
+                                {
+                                        if (v.IsObject())
+                                        {
+                                                if (v.HasMember("index"))
+                                                {
+                                                        if (!v["index"].IsArray())
+                                                        {
+                                                                Logger::getLogger()->error("%s %d ", __FUNCTION__, __LINE__, "extracting index values , expecting an array here");
+								return false;
+                                                        }
+                                                        else
+                                                        {
+								std::string s;
+								for (auto& i : v["index"].GetArray())
+								{
+									s.append(i);
+									s.append(",");
+								}
+								// remove last comma
+								if ( s[s.size()-1] == ",")
+								{
+									s.erase(s.size()-1);
+								}
+
+                                                               	indexSet.insert(s);
+                                                        }
+                                                }
+                                        }
+                                }
+
+				tableColumnMap[name] = columnSet;
+				tableIndexMap[name] = indexSet;
+
+			}
+		}
+
+	}
+
+	return true;
+}
 /**
  * Create scema of tables
  *
@@ -3322,18 +3490,17 @@ const char *p;
  */
 int Connection::create_schema(std::string payload)
 {
+	Logger::getLogger()->error ( "%s:%d payload is  %s", __FUNCTION__, __LINE__, payload.c_str());
 
 	Document document;
 	std::string schema;
 	int version;
 	const char *logSection="CreatingSchema";
 	unsigned long rowsAffectedLastCommand = 0;
+	std::unordered_map<std::string, unordered_set<std::string> > columnMap;
+        std::unordered_map<std::string, unordered_set<std::string> > indexMap;
 
-	std::string queryToFindVerFromDB = "select * from fledge.version;" ;
-	int versionFromDB = purgeOperation(queryToFindVerFromDB.c_str(), logSection, "logSection- finding version stored in db", true);
-	Logger::getLogger()->debug("%s:%d Version obtained from DB %d ", __FUNCTION__,__LINE__ , versionFromDB);
-
-	bool schemaUpdateRequired = false;	
+	bool schemaUpdateRequired = false;
 
 	try {
                 if (payload.empty())
@@ -3355,22 +3522,18 @@ int Connection::create_schema(std::string payload)
 			else
 			{
 				schema = document["schema"].GetString();
-				if ( !schema.empty())
+				if (!document.HasMember("service"))
 				{
-					std::string queryToCreateSchema = "create schema if not exists " + schema + ";" ;
-					rowsAffectedLastCommand = purgeOperation(queryToCreateSchema.c_str(), logSection, "Create Schema if not exists ", false);
+					Logger::getLogger()->debug("service absent from payload, so exiting");
+                                        return -1;
 				}
-			/*	if ( !schema.empty())
+				std::string service = document["service"].GetString();	
+				if (service.empty())
 				{
-					std::string queryToFindSchema = "select count(*) from fledge.service_schema where name = " + schema +";" ;
-					rowsAffectedLastCommand = purgeOperation(queryToFindSchema.c_str(), logSection, "Create Schema finding schema name from fledge.service_schema", true);
+					Logger::getLogger()->debug("empty service name, so exiting");
+                                        return -1;
+				}
 
-					if (rowsAffectedLastCommand != 1)
-					{
-						schemaUpdateRequired = true;
-					}
-				}
-			*/
 				if (!document.HasMember("version"))
                         	{
 					Logger::getLogger()->debug("version absent from payload, so exiting");
@@ -3379,11 +3542,30 @@ int Connection::create_schema(std::string payload)
 				else
 				{
 					version = document["version"].GetInt();
-					if ( version == versionFromDB)
+
+					// insert payload in 
+			std::string s = "insert into fledge.service_schema(name, version, definition) values ('" + schema + "', " + to_string(version) + ", " + "'" + payload + "') ;" ;
+
+					rowsAffectedLastCommand = purgeOperation(s.c_str(), logSection, "insert in fledge.service_schema  ", false);
+
+					if (!schema.empty())
 					{
-						Logger::getLogger()->error("version in POST request same as present inn versionFromDB i.e.%d hence skipping further processing", version);
-						return 1;
+						std::string results;
+						std::string name = service + "_" + schema;
+						if (findSchemaFromDB(name, results))
+						{
+							if (parseDatabaseStorageSchema(version, results, columnMap, indexMap))
+							{
+								//comparePayloads(payload, results);
+								int i;
+
+							}
+						}
+							
+						std::string queryToCreateSchema = "create schema if not exists " + schema + ";" ;
+	                                        rowsAffectedLastCommand = purgeOperation(queryToCreateSchema.c_str(), logSection, "Create Schema if not exists ", false);
 					}
+
 				}
 				if (!document.HasMember("tables"))
                         	{

@@ -14,6 +14,8 @@
 #include <string>
 #include <rapidjson/document.h>
 #include <libpq-fe.h>
+#include <unordered_map>
+#include <unordered_set>
 
 #define	STORAGE_PURGE_RETAIN_ANY 0x0001U
 #define	STORAGE_PURGE_RETAIN_ALL 0x0002U
@@ -45,6 +47,10 @@ class Connection {
 						    std::string& resultSet);
 		bool		aggregateQuery(const rapidjson::Value& payload, std::string& resultSet);
 		int 		create_schema(std::string payload);
+		bool 		findSchemaFromDB(std::string name, std::string &resultSet);
+		bool 		parseDatabaseStorageSchema(int &version, std::string res,
+		                	std::unordered_map<std::string, std::unordered_set<std::string> > &tableColumnMap,
+               				std::unordered_map<std::string, std::unordered_set<std::string> > &tableIndexMap);
 
 
 

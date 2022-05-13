@@ -3356,8 +3356,8 @@ bool Connection::findSchemaFromDB(std::string name, std::string &resultSet)
 }
 
 bool Connection::parseDatabaseStorageSchema(int &version, std::string res, 
-		 std::unordered_map<std::string, unordered_set<std::string> > &tableColumnMap,
-		 std::unordered_map<std::string, unordered_set<std::string> > &tableIndexMap)
+		 std::unordered_map<std::string, std::unordered_set<std::string> > &tableColumnMap,
+		 std::unordered_map<std::string, std::unordered_set<std::string> > &tableIndexMap)
 {
  	Logger::getLogger()->error( "%s:%d result from table = %s", __FUNCTION__, __LINE__, res.c_str());
 	Document document;
@@ -3384,7 +3384,7 @@ bool Connection::parseDatabaseStorageSchema(int &version, std::string res,
                 {
 			version = rows[0]["version"].GetInt();
 
-			Logger::getLogger()->error( "%s:%d schema and version %s,%d", __FUNCTION__, __LINE__, name.c_str(), version);
+			Logger::getLogger()->error( "%s:%d version %d", __FUNCTION__, __LINE__,  version);
 
 			Value& def = rows[0]["definition"];
 
@@ -3456,11 +3456,11 @@ bool Connection::parseDatabaseStorageSchema(int &version, std::string res,
 								std::string s;
 								for (auto& i : v["index"].GetArray())
 								{
-									s.append(i);
+									s.append(i.GetString());
 									s.append(",");
 								}
 								// remove last comma
-								if ( s[s.size()-1] == ",")
+								if ( s[s.size()-1] == ',')
 								{
 									s.erase(s.size()-1);
 								}
@@ -3544,9 +3544,9 @@ int Connection::create_schema(std::string payload)
 					version = document["version"].GetInt();
 
 					// insert payload in 
-			std::string s = "insert into fledge.service_schema(name, version, definition) values ('" + schema + "', " + to_string(version) + ", " + "'" + payload + "') ;" ;
+			//std::string s = "insert into fledge.service_schema(name, version, definition) values ('" + schema + "', " + to_string(version) + ", " + "'" + payload + "') ;" ;
 
-					rowsAffectedLastCommand = purgeOperation(s.c_str(), logSection, "insert in fledge.service_schema  ", false);
+			//		rowsAffectedLastCommand = purgeOperation(s.c_str(), logSection, "insert in fledge.service_schema  ", false);
 
 					if (!schema.empty())
 					{

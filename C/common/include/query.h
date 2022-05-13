@@ -12,6 +12,7 @@
 #include <where.h>
 #include <aggregate.h>
 #include <sort.h>
+#include <join.h>
 #include <timebucket.h>
 #include <returns.h>
 #include <string>
@@ -40,6 +41,7 @@ class Query {
 		void				returns(Returns *);
 		void				returns(std::vector<Returns *>);
 		void				distinct();
+		void				join(Join *join);
 		const std::string		toJSON() const;
 	private:
 		Query(const Query&);		// Disable copy of query
@@ -52,6 +54,7 @@ class Query {
 		Timebucket*			m_timebucket;
 		std::vector<Returns *>		m_returns;
 		bool				m_distinct;
+		Join				*m_join;
 };
 #endif
 

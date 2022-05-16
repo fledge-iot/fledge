@@ -155,8 +155,13 @@ void filter_plugin_ingest_fn(PyObject *ingest_callback,
 					   "but object type %s",
 					   Py_TYPE(readingsObj)->tp_name);
 	}
-	if(readingsObj)
-		Py_CLEAR(readingsObj);
+
+	// From: https://docs.python.org/3/c-api/arg.html
+	// Note that any Python object references which are provided to the caller are borrowed references; 
+	// do not decrement their reference count!
+
+	/*if(readingsObj)
+		Py_CLEAR(readingsObj);*/
 
 	if (pyReadingSet)
 	{

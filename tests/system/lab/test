@@ -219,6 +219,7 @@ setup_north_pi_egress () {
 if [[  ${VERIFY_EGRESS_TO_PI} == 1 ]]
   then
      setup_north_pi_egress
+     echo "---- Verify and clean the data sent to PI server ----"
      python3 verify_clean_pi.py --pi-admin=${PI_USER} --pi-passwd=${PI_PASSWORD} --pi-host=${PI_IP} --pi-port=443 --pi-db=foglamp --asset-name=sinusoid
   else
      echo "======================= SKIPPED PI EGRESS ======================="

@@ -68,8 +68,6 @@ def read_data_from_pi_web_api(host, admin, password, pi_database, af_hierarchy_l
                 if el["Name"] == pi_database:
                     url_elements_list = el["Links"]["Elements"]
 
-        print(url_elements_list)
-
         # This block is for iteration when we have multi-level hierarchy.
         # For example, if we have DefaultAFLocation as "fledge/room1/machine1" then
         # it will recursively find elements of "fledge" and then "room1".

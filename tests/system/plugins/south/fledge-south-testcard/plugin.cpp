@@ -18,6 +18,7 @@
 #include <version.h>
 #include <reading.h>
 #include <dpimage.h>
+#include<cmath>
 
 typedef void (*INGEST_CB)(void *, Reading);
 
@@ -43,6 +44,22 @@ static const char *default_config = QUOTE({
 		"mandatory": "true",
 		"order" : "1"
 	       	},
+	"imageHeight" : { 
+		"description" : "The height of test card image to create.",
+		"type" : "integer",
+		"displayName": "Image Height",
+		"default" : "480",
+		"mandatory": "true",
+		"order" : "2"
+	       	},
+	"imageWidth" : { 
+		"description" : "The Width of test card image to create.",
+		"type" : "integer",
+		"default" : "640",
+		"displayName": "Image Width",
+		"mandatory": "true",
+		"order" : "3"
+	       	},
 	"depth" : {
 		"description" : "Depth of the testcard to create",
 		"type" : "enumeration",
@@ -50,7 +67,7 @@ static const char *default_config = QUOTE({
 		"default" : "8",
 		"displayName": "Depth",
 		"mandatory": "true",
-		"order" : "2"
+		"order" : "4"
 		}
 	});
 		  
@@ -111,93 +128,129 @@ ConfigCategory *conf = (ConfigCategory *)handle;
 
 	string d = conf->getValue("depth");
 	int depth = strtol(d.c_str(), NULL, 10);
+
+	string imageHeightStr = conf->getValue("imageHeight");
+	int imageHeight = strtol(imageHeightStr.c_str(), NULL, 10);
+
+	string imageWidthStr = conf->getValue("imageWidth");
+	int imageWidth = strtol(imageWidthStr.c_str(), NULL, 10);
+	const int maxIntensity8Bit = 256;
+	const int maxIntensity16Bit = 65536;
+
 	switch (depth)
 	{
 		case 8:
 			{
-			void *data = malloc(256 * 256);
-			uint8_t *ptr = (uint8_t *)data;
-			for (int i = 0; i < 256; i++)
-			{
-				for (int j = 0; j < 256; j++)
+				void *data = malloc(imageHeight * imageWidth);
+				uint8_t *ptr = (uint8_t *)data;
+				float reductionFactor = (float) maxIntensity8Bit / imageHeight;
+
+				for (int i = 0; i < imageHeight; i++)
 				{
-					*ptr++ = i;
+					for (int j = 0; j < imageWidth; j++)
+					{
+						*ptr++ = round(i * reductionFactor);
+					}
 				}
-			}
-			DPImage *image = new DPImage(256, 256, 8, data);
-			free(data);
-			DatapointValue img(image);
-			return Reading(conf->getValue("asset"), new Datapoint("testcard", img));
+				DPImage *image = new DPImage(imageWidth, imageHeight, 8, data);
+				free(data);
+				DatapointValue img(image);
+				return Reading(conf->getValue("asset"), new Datapoint("testcard", img));
 			}
 		case 16:
 			{
-			void *data = malloc(256 * 256 * 2);
-			uint16_t *ptr = (uint16_t *)data;
-			for (int i = 0; i < 256; i++)
-			{
-				for (int j = 0; j < 256; j++)
+				void *data = malloc(imageHeight * imageWidth * 2);
+				uint16_t *ptr = (uint16_t *)data;
+				float reductionFactor = (float) maxIntensity16Bit / (imageHeight * imageHeight);
+
+				for (int i = 0; i < imageHeight; i++)
 				{
-					*ptr++ = i * i;
+					for (int j = 0; j < imageWidth; j++)
+					{
+						*ptr++ = round(i*i  * reductionFactor);
+					}
 				}
-			}
-			DPImage *image = new DPImage(256, 256, 16, data);
-			free(data);
-			DatapointValue img(image);
-			return Reading(conf->getValue("asset"), new Datapoint("testcard", img));
+				DPImage *image = new DPImage(imageWidth, imageHeight, 16, data);
+				free(data);
+				DatapointValue img(image);
+				return Reading(conf->getValue("asset"), new Datapoint("testcard", img));
 			}
 		case 24:
 			{
-			void *data = malloc(256 * 256 * 3);
-			uint8_t *ptr = (uint8_t *)data;
-			for (int i = 0; i < 32; i++)
-			{
-				for (int j = 0; j < 256; j++)
+				void *data = malloc(imageHeight * imageWidth * 3);
+				uint8_t *ptr = (uint8_t *)data;
+				int rowLimitFirstHalf, rowLimitSecondHalf;
+				// We divide the image into 2 equal parts. 
+				// In the first half we display four component namely:
+				// 1. A red line 2. A Green Line 3. A Blue Line 4. A White Line
+				// In the second half we create a random pattern of RGB colours.
+
+				rowLimitFirstHalf = imageHeight / 8;
+				rowLimitSecondHalf = imageHeight / 2;
+				uint8_t stepSize = 0;
+
+				float reductionFactorFirstHalf = (float) maxIntensity8Bit / (rowLimitFirstHalf * 8);
+				float reductionFactorSecondHalf = (float) maxIntensity8Bit / (rowLimitSecondHalf * 2);
+				
+				// This will create a red horizontal line.
+				for (int i = 0; i < rowLimitFirstHalf; i++)
 				{
-					*ptr++ = i * 8;	// R
-					*ptr++ = 0;	// G
-					*ptr++ = 0;	// B
+					for (int j = 0; j < imageWidth; j++)
+					{
+						*ptr++ =  round(i * 8 * reductionFactorFirstHalf); // R
+						*ptr++ = 0;	// G
+						*ptr++ = 0;	// B
+					}
 				}
-			}
-			for (int i = 0; i < 32; i++)
-			{
-				for (int j = 0; j < 256; j++)
+
+				// This will create a green horizontal line.
+				for (int i = 0; i < rowLimitFirstHalf; i++)
 				{
-					*ptr++ = 0;	// R
-					*ptr++ = i * 8;	// G
-					*ptr++ = 0;	// B
+					for (int j = 0; j < imageWidth; j++)
+					{
+						*ptr++ = 0;	// R
+						*ptr++ = round(i * 8 * reductionFactorFirstHalf);	// G
+						*ptr++ = 0;	// B
+					}
 				}
-			}
-			for (int i = 0; i < 32; i++)
-			{
-				for (int j = 0; j < 256; j++)
+
+				// This will create a blue horizontal line.
+				for (int i = 0; i < rowLimitFirstHalf; i++)
 				{
-					*ptr++ = 0;	// R
-					*ptr++ = 0;	// G
-					*ptr++ = i * 8;	// B
+					for (int j = 0; j < imageWidth; j++)
+					{
+						*ptr++ = 0;	// R
+						*ptr++ = 0;	// G
+						*ptr++ = round(i * 8 * reductionFactorFirstHalf); // B
+					}
 				}
-			}
-			for (int i = 0; i < 32; i++)
-			{
-				for (int j = 0; j < 256; j++)
+
+				// This will create a white horizontal line.
+				for (int i = 0; i < rowLimitFirstHalf; i++)
 				{
-					*ptr++ = i * 8;	// R
-					*ptr++ = i * 8;	// G
-					*ptr++ = i * 8;	// B
+					for (int j = 0; j < imageWidth; j++)
+					{
+						*ptr++ = round(i * 8 * reductionFactorFirstHalf); // R
+						*ptr++ = round(i * 8 * reductionFactorFirstHalf); // G
+						*ptr++ = round(i * 8 * reductionFactorFirstHalf); // B
+					}
 				}
-			}
-			for (int i = 0; i < 128; i++)
-			{
-				for (int j = 0; j < 256; j++)
+
+				// We are in second half now.
+				// This will create a colorful pattern in second half.  
+				for (int i = 0; i < rowLimitSecondHalf; i++)
 				{
-					*ptr++ = i * 4;	// R
-					*ptr++ = 255 - (i * 4);	// G
-					*ptr++ = j;	// B
+					for (int j = 0; j < imageWidth; j++)
+					{
+						*ptr++ = round(i * 4  * reductionFactorSecondHalf);	// R
+						*ptr++ = round((255 - (i * 4)) * reductionFactorSecondHalf);	// G
+						*ptr++ = j;	// B
+					}
 				}
-			}
-			DPImage *image = new DPImage(256, 256, 24, data);
-			free(data);
-			DatapointValue img(image);
-			return Reading(conf->getValue("asset"), new Datapoint("testcard", img));
+				DPImage *image = new DPImage(imageWidth, imageHeight, 24, data);
+				free(data);
+				DatapointValue img(image);
+				return Reading(conf->getValue("asset"), new Datapoint("testcard", img));
 			}
 		default:
 			Logger::getLogger()->error("Unsupported depth %d", depth);
@@ -241,3 +294,5 @@ bool plugin_operation(PLUGIN_HANDLE *handle, string& operation, int count, PLUGI
 	return false;
 }
 };
+
+

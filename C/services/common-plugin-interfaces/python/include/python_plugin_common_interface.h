@@ -214,7 +214,6 @@ const char *json_dumps(PyObject *json_dict)
 			PyTuple_SetItem(args, 0, pValue);
 			
 			rval = PyObject_Call(method, args, NULL);
-			Py_CLEAR(pValue);
 			Py_CLEAR(args);
 			Py_CLEAR(method);
 			Py_CLEAR(mod);

@@ -26,7 +26,7 @@ TEMPLATE_NAME = "template.json"
 ASSET = "FOGL-2964-e2e-CoAP"
 DATAPOINT = "sensor"
 DATAPOINT_VALUE = 20
-north_service_name = "NorthReadingsToPI_WebAPI"
+NORTH_TASK_NAME = "NorthReadingsToPI_WebAPI"
 
 # This  gives the path of directory where fledge is cloned. test_file < packages < python < system < tests < ROOT
 PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.parent
@@ -74,7 +74,7 @@ def verify_statistics_map(fledge_url, skip_verify_north_interface):
     assert 1 <= actual_stats_map['READINGS']
     if not skip_verify_north_interface:
         assert 1 <= actual_stats_map['Readings Sent']
-        assert 1 <= actual_stats_map[north_service_name]
+        assert 1 <= actual_stats_map[NORTH_TASK_NAME]
 
 
 def verify_asset(fledge_url):
@@ -194,10 +194,6 @@ class TestPackagesCoAP_PI_WebAPI:
             skip_verify_north_interface: Flag for assertion of data using PI web API
             Assertions:
                 on endpoint GET /fledge/ping
-                on endpoint GET /fledge/south
-                on endpoint GET /fledge/north
-                on endpoint GET /fledge/filter
-                on endpoint GET /fledge/service
                 on endpoint GET /fledge/statistics
                 on endpoint GET /fledge/asset
                 on endpoint GET /fledge/track"""
@@ -216,7 +212,7 @@ class TestPackagesCoAP_PI_WebAPI:
 
         # Good reconfiguration to check data is sent
         data = {"SendFullStructure": "false"}
-        put_url = "/fledge/category/{}".format(north_service_name)
+        put_url = "/fledge/category/{}".format(NORTH_TASK_NAME)
         resp = utils.put_request(fledge_url, urllib.parse.quote(put_url), data)
         assert "false" == resp["SendFullStructure"]["value"]
 
@@ -237,8 +233,8 @@ class TestPackagesCoAP_PI_WebAPI:
             assert old_ping_result['dataSent'] < new_ping_result['dataSent']
 
         # Bad reconfiguration to check data is not sent
-        data = {"PIWebAPIUserId": "Admin"}
-        put_url = "/fledge/category/{}".format(north_service_name)
+        data = {"PIWebAPIUserId": "Inv@lidRandomUserID"}
+        put_url = "/fledge/category/{}".format(NORTH_TASK_NAME)
         resp = utils.put_request(fledge_url, urllib.parse.quote(put_url), data)
         assert "Admin" == resp["PIWebAPIUserId"]["value"]
 

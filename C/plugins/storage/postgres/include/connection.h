@@ -16,6 +16,8 @@
 #include <libpq-fe.h>
 #include <unordered_map>
 #include <unordered_set>
+#include <functional>
+#include <vector>
 
 #define	STORAGE_PURGE_RETAIN_ANY 0x0001U
 #define	STORAGE_PURGE_RETAIN_ALL 0x0002U
@@ -47,10 +49,13 @@ class Connection {
 						    std::string& resultSet);
 		bool		aggregateQuery(const rapidjson::Value& payload, std::string& resultSet);
 		int 		create_schema(std::string payload);
-		bool 		findSchemaFromDB(std::string name, std::string &resultSet);
+		bool 		findSchemaFromDB(std::string service, std::string name, std::string &resultSet);
 		bool 		parseDatabaseStorageSchema(int &version, std::string res,
-		                	std::unordered_map<std::string, std::unordered_set<std::string> > &tableColumnMap,
-               				std::unordered_map<std::string, std::unordered_set<std::string> > &tableIndexMap);
+                 				std::unordered_map<std::string, std::unordered_set<std::string> > &tableColumnMap,
+                 				std::unordered_map<std::string, std::vector<std::string> > &tableIndexMap,
+                 				std::unordered_map<std::string, std::string> &tableKeyMap,
+                 				bool &schemaCreationRequest);
+
 
 
 
@@ -69,6 +74,8 @@ class Connection {
     		const std::string 	double_quote_reserved_column_name(const std::string &column_name);
 		void		logSQL(const char *, const char *);
 		bool		isFunction(const char *) const;
+		std::string getIndexName(std::string schema, std::string name, std::string s);
+
 
 		typedef	struct{
 			std::string 	column;
@@ -76,5 +83,26 @@ class Connection {
 			int		sz;
 			bool		key = false;
 		} columnRec;
+
+		// Custom Hash Functor that will compute the hash on the
+		// passed string objects length
+		struct columnRecHasher
+		{
+	  		size_t operator()(const columnRec & obj) const
+  			{
+				return std::hash<std::string>()(obj.column);
+  			}
+		};
+
+		struct columnRecComparator
+		{
+  			bool operator()(const columnRec & obj1, const columnRec & obj2) const
+  			{
+			        if (obj1.column == obj2.column)
+				      return true;
+			        return false;
+  			}
+		};
+
 };
 #endif

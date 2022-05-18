@@ -598,7 +598,6 @@ PyObject *PythonReading::convertDatapoint(Datapoint *dp, bool bytesString)
 		
 			Py_CLEAR(key);
 			Py_CLEAR(childValue);
-			Py_CLEAR(dict);
 		}
 	}
 	else

@@ -1,24 +1,26 @@
 /*
  * Fledge storage service.
  *
- * Copyright (c) 2017-2018 OSisoft, LLC
+ * Copyright (c) 2017-2021 OSisoft, LLC
  *
  * Released under the Apache 2.0 Licence
  *
  * Author: Mark Riddoch, Massimiliano Pinto
  */
+
 #include <management_client.h>
 #include <rapidjson/document.h>
 #include <service_record.h>
 #include <string_utils.h>
 #include <asset_tracking.h>
+#include <bearer_token.h>
+#include <crypto.hpp>
+#include <rapidjson/error/en.h>
 
 using namespace std;
 using namespace rapidjson;
+using namespace SimpleWeb;
 using HttpClient = SimpleWeb::Client<SimpleWeb::HTTP>;
-
-// handles m_client_map access
-std::mutex mng_mtx_client_map;
 
 /**
  * Management Client constructor. Creates a class used to send management API requests
@@ -71,7 +73,7 @@ HttpClient *ManagementClient::getHttpClient() {
 
 	std::thread::id thread_id = std::this_thread::get_id();
 
-	mng_mtx_client_map.lock();
+	m_mtx_client_map.lock();
 	item = m_client_map.find(thread_id);
 
 	if (item  == m_client_map.end() ) {
@@ -84,7 +86,8 @@ HttpClient *ManagementClient::getHttpClient() {
 	{
 		client = item->second;
 	}
-	mng_mtx_client_map.unlock();
+
+	m_mtx_client_map.unlock();
 
 	return (client);
 }
@@ -125,9 +128,11 @@ string payload;
 					m_uuid->c_str());
 			if (doc.HasMember("bearer_token")){
 				m_bearer_token = string(doc["bearer_token"].GetString());
+#ifdef DEBUG_BEARER_TOKEN
 				m_logger->debug("Bearer token issued for service '%s': %s",
 						service.getName().c_str(),
 						m_bearer_token.c_str());
+#endif
 			}
 
 			return true;
@@ -863,6 +868,203 @@ bool ManagementClient::addAuditEntry(const std::string& code,
 		return false;
 	}
 	return false;
+}
+
+/**
+ * Checks and validate the JWT bearer token object as reference
+ *
+ * @param request	The bearer token object
+ * @return		True on success, false otherwise
+ */
+bool ManagementClient::verifyAccessBearerToken(BearerToken& token)
+{
+	if (!token.exists())
+	{
+		m_logger->warn("Access bearer token has empty value");
+		return false;
+	}
+	return verifyBearerToken(token);
+}
+
+/**
+ * Checks and validate the JWT bearer token coming from HTTP request
+ *
+ * @param request	HTTP request object
+ * @return		True on success, false otherwise
+ */
+bool ManagementClient::verifyAccessBearerToken(shared_ptr<HttpServer::Request> request)
+{
+	BearerToken bT(request);
+	return this->verifyBearerToken(bT);
+}
+
+/**
+ * Refresh the JWT bearer token string
+ *
+ * @param currentToken	Current bearer token
+ * @param newToken	New issued bearer token being set
+ * @return              True on success, false otherwise
+ */
+bool ManagementClient::refreshBearerToken(const string& currentToken,
+					string& newToken)
+{
+	if (currentToken.length() == 0)
+	{
+		newToken.clear();
+		return false;
+	}
+
+	bool ret = false;
+
+	// Check token already exists in cache:
+	std::map<std::string, std::string>::iterator item;
+	m_mtx_rTokens.lock();
+
+	// Refresh it by calling Fledge management endpoint
+	string url = "/fledge/service/refresh_token";
+	string payload;
+	SimpleWeb::CaseInsensitiveMultimap header;
+	header.emplace("Authorization", "Bearer " + currentToken);
+	auto res = this->getHttpClient()->request("POST", url.c_str(), payload, header);
+	Document doc;
+	string response = res->content.string();
+	doc.Parse(response.c_str());
+	if (doc.HasParseError())
+	{
+		bool httpError = (isdigit(response[0]) &&
+				isdigit(response[1]) &&
+				isdigit(response[2]) &&
+				response[3]==':');
+		m_logger->error("%s error in service token refresh: %s\n",
+				httpError?"HTTP error during":"Failed to parse result of",
+				response.c_str());
+		ret = false;
+	}
+	else
+	{
+		if (doc.HasMember("error"))
+		{
+			if (doc["error"].IsString())
+			{
+				string error = doc["error"].GetString();
+				m_logger->error("Failed to parse token refresh result, error %s",
+						error.c_str());
+			}
+			else
+			{
+				m_logger->error("Failed to parse token refresh result: %s",
+						response.c_str());
+			}
+			ret = false;
+		}
+		else if (doc.HasMember("bearer_token"))
+		{
+			// Set new token
+			newToken = doc["bearer_token"].GetString();
+			ret = true;
+		}
+		else
+		{
+			m_logger->error("Bearer token not found in token refresh result: %s",
+					response.c_str());
+			ret = false;
+		}
+	}
+
+	if (ret)
+	{
+		// Remove old token from received ones
+		m_received_tokens.erase(currentToken);
+	}
+	else
+	{
+		newToken.clear();
+	}
+
+	m_mtx_rTokens.unlock();
+
+	return ret;
+}
+
+/**
+ * Checks and validate the JWT bearer token string
+ *
+ * @param bearerToken	The bearer token string
+ * @param claims	Map to fill with JWT public token claims
+ * @return		True on success, false otherwise
+ */
+bool ManagementClient::verifyBearerToken(BearerToken& bearerToken)
+{
+	if (!bearerToken.exists())
+	{
+		m_logger->warn("Bearer token has empty value");
+		return false;
+	}
+
+	bool ret = true;
+	const string& token = bearerToken.token();
+
+	// Check token already exists in cache:
+	std::map<std::string, std::string>::iterator item;
+	// Acquire lock
+	m_mtx_rTokens.lock();
+
+	item = m_received_tokens.find(token);
+	if (item  == m_received_tokens.end())
+	{
+		bool verified = false;
+		// Token does not exist:
+		// Verify it by calling Fledge management endpoint
+		string url = "/fledge/service/verify_token";
+                string payload;
+                SimpleWeb::CaseInsensitiveMultimap header;
+                header.emplace("Authorization", "Bearer " + token);
+                auto res = this->getHttpClient()->request("POST", url.c_str(), payload, header);
+		string response = res->content.string();
+
+		// Parse JSON message and store claims
+		verified = bearerToken.verify(response);
+		if (verified)
+		{
+			// Token verified, store the token
+			m_received_tokens[token] = "added";
+		}
+		else
+		{
+			ret = false;
+			m_logger->error("Micro service bearer token '%s' not verified.",
+					token.c_str());
+		}
+	}
+	else
+	{
+		unsigned long expiration = bearerToken.getExpiration();
+		unsigned long now = time(NULL);
+
+		// Check expiration
+		if (now >= expiration)
+		{
+			ret = false;
+			// Remove token from received ones
+			m_received_tokens.erase(token);
+
+			m_logger->error("Micro service bearer token expired.");
+		}
+	}
+
+	// Release lock
+	m_mtx_rTokens.unlock();
+
+#ifdef DEBUG_BEARER_TOKEN
+	m_logger->debug("Token verified %d, claims %s:%s:%s:%ld",
+			ret,
+			bearerToken.getAudience().c_str(),
+			bearerToken.getSubject().c_str(),
+			bearerToken.getIssuer().c_str(),
+			bearerToken.getExpiration());
+#endif
+
+	return ret;
 }
 
 /**

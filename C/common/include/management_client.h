@@ -9,7 +9,9 @@
  *
  * Author: Mark Riddoch, Massimiliano Pinto
  */
+
 #include <client_http.hpp>
+#include <server_http.hpp>
 #include <config_category.h>
 #include <service_record.h>
 #include <logger.h>
@@ -20,8 +22,10 @@
 #include <asset_tracking.h>
 #include <json_utils.h>
 #include <thread>
+#include <bearer_token.h>
 
 using HttpClient = SimpleWeb::Client<SimpleWeb::HTTP>;
+using HttpServer = SimpleWeb::Server<SimpleWeb::HTTP>;
 using namespace rapidjson;
 
 class AssetTrackingTuple;
@@ -62,17 +66,33 @@ class ManagementClient {
 		bool			addAuditEntry(const std::string& serviceName,
 						      const std::string& severity,
 						      const std::string& details);
+		std::string&		getRegistrationBearerToken()
+		{
+					std::lock_guard<std::mutex> guard(m_bearer_token_mtx);
+					return m_bearer_token;
+		};
+		void			setNewBearerToken(const std::string& bearerToken)
+					{
+						std::lock_guard<std::mutex> guard(m_bearer_token_mtx);
+						m_bearer_token = bearerToken;
+					};
+		bool			verifyBearerToken(BearerToken& token);
+		bool			verifyAccessBearerToken(BearerToken& bToken);
+		bool			verifyAccessBearerToken(std::shared_ptr<HttpServer::Request> request);
+		bool			refreshBearerToken(const std::string& currentToken,
+							std::string& newToken);
 		std::string&		getBearerToken() { return m_bearer_token; };
 		bool			addProxy(const std::string& serviceName,
 						const std::string& operation,
 						const std::string& publicEnpoint,
 						const std::string& privateEndpoint);
 		bool			addProxy(const std::string& serviceName,
-				const std::map<std::string, std::vector<std::pair<std::string, std::string> > >& endpoints);
+						const std::map<std::string,
+						std::vector<std::pair<std::string, std::string> > >& endpoints);
 		bool			deleteProxy(const std::string& serviceName);
 
-private:
-    std::ostringstream 			m_urlbase;
+	private:
+		std::ostringstream 			m_urlbase;
 		std::map<std::thread::id, HttpClient *> m_client_map;
 		HttpClient				*m_client;
 		std::string				*m_uuid;
@@ -81,6 +101,14 @@ private:
 		// Bearer token returned by service registration
 		// if the service startup token has been passed in registration payload
 		std::string				m_bearer_token;
+		// Map of received and verified access bearer tokens from other microservices
+		std::map<std::string, std::string>	m_received_tokens;
+		// m_received_tokens lock
+		std::mutex 				m_mtx_rTokens;
+		// m_client_map lock
+		std::mutex				m_mtx_client_map;
+		// Get and set bearer token mutex
+		std::mutex				m_bearer_token_mtx;
   
 	public:
 		// member template must be here and not in .cpp file

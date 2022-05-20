@@ -4,7 +4,7 @@
 # See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
-
+import os
 import json
 import pathlib
 import asyncio
@@ -95,8 +95,9 @@ class TestPackageLog:
         filepath.with_name.return_value = log_filepath
         with patch.object(package_log, '_get_logs_dir', return_value=logs_path):
             with patch('os.walk'):
-                with patch("aiohttp.web.FileResponse", return_value=web.FileResponse(path=filepath)) as f_res:
-                    resp = await client.get('/fledge/package/log/{}'.format(filepath.name))
+                with patch("aiohttp.web.FileResponse",
+                           return_value=web.FileResponse(path=os.path.realpath(__file__))) as f_res:
+                    resp = await client.get('/fledge/package/log/{}'.format(str(filepath.name)))
                     assert 200 == resp.status
                     assert 'OK' == resp.reason
                 args, kwargs = f_res.call_args

@@ -57,6 +57,7 @@ file(GLOB COMMON_LIB_SOURCES ../../../C/common/*.cpp)
 add_library(common-lib SHARED ${COMMON_LIB_SOURCES})
 target_link_libraries(common-lib ${UUIDLIB})
 target_link_libraries(common-lib ${Boost_LIBRARIES})
+target_link_libraries(common-lib -lcrypto)
 set_target_properties(common-lib PROPERTIES SOVERSION 1)
 
 

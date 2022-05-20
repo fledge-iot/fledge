@@ -40,7 +40,7 @@ __version__ = "${VERSION}"
 
 
 def mock_request(data, loop):
-    payload = StreamReader("http", loop=loop)
+    payload = StreamReader("http", loop=loop, limit=1024)
     payload.feed_data(data.encode())
     payload.feed_eof()
 
@@ -615,19 +615,21 @@ class TestServer:
     ])
     async def test_register_service_exceptions(self, client, exception_name, message):
         request_data = {"type": "Storage", "name": "Storage Services", "address": "127.0.0.1", "service_port": 8090, "management_port": 1090}
-        with patch.object(ServiceRegistry, 'register', side_effect=exception_name):
-            resp = await client.post('/fledge/service', data=json.dumps(request_data))
-            assert 400 == resp.status
-            assert message == resp.reason
+        with patch.object(ServiceRegistry, 'getStartupToken', return_value=None):
+            with patch.object(ServiceRegistry, 'register', side_effect=exception_name):
+                resp = await client.post('/fledge/service', data=json.dumps(request_data))
+                assert 400 == resp.status
+                assert message == resp.reason
 
     async def test_service_not_registered(self, client):
         request_data = {"type": "Storage", "name": "Storage Services", "address": "127.0.0.1", "service_port": 8090, "management_port": 1090}
-        with patch.object(ServiceRegistry, 'register', return_value=None) as patch_register:
-            resp = await client.post('/fledge/service', data=json.dumps(request_data))
-            assert 400 == resp.status
-            assert 'Service {} could not be registered'.format(request_data['name']) == resp.reason
-        args, kwargs = patch_register.call_args
-        assert (request_data['name'], request_data['type'], request_data['address'],  request_data['service_port'], request_data['management_port'], 'http', None) == args
+        with patch.object(ServiceRegistry, 'getStartupToken', return_value=None):
+            with patch.object(ServiceRegistry, 'register', return_value=None) as patch_register:
+                resp = await client.post('/fledge/service', data=json.dumps(request_data))
+                assert 400 == resp.status
+                assert 'Service {} could not be registered'.format(request_data['name']) == resp.reason
+            args, _ = patch_register.call_args
+            assert (request_data['name'], request_data['type'], request_data['address'],  request_data['service_port'], request_data['management_port'], 'http', None) == args
 
     async def test_register_service(self, client):
         async def async_mock(return_value):
@@ -636,19 +638,20 @@ class TestServer:
         Server._storage_client = MagicMock(StorageClientAsync)
         Server._storage_client_async = MagicMock(StorageClientAsync)
         request_data = {"type": "Storage", "name": "Storage Services", "address": "127.0.0.1", "service_port": 8090, "management_port": 1090}
-        with patch.object(ServiceRegistry, 'register', return_value='1') as patch_register:
-            with patch.object(AuditLogger, '__init__', return_value=None):
-                with patch.object(AuditLogger, 'information', return_value=(await async_mock(None))) as audit_info_patch:
-                    resp = await client.post('/fledge/service', data=json.dumps(request_data))
-                    assert 200 == resp.status
-                    r = await resp.text()
-                    json_response = json.loads(r)
-                    assert {'message': 'Service registered successfully', 'id': '1', 'bearer_token': ''} == json_response
-                args, kwargs = audit_info_patch.call_args
-                assert 'SRVRG' == args[0]
-                assert {'name': request_data['name']} == args[1]
-        args, kwargs = patch_register.call_args
-        assert (request_data['name'], request_data['type'], request_data['address'], request_data['service_port'], request_data['management_port'], 'http', None) == args
+        with patch.object(ServiceRegistry, 'getStartupToken', return_value=None):
+            with patch.object(ServiceRegistry, 'register', return_value='1') as patch_register:
+                with patch.object(AuditLogger, '__init__', return_value=None):
+                    with patch.object(AuditLogger, 'information', return_value=(await async_mock(None))) as audit_info_patch:
+                        resp = await client.post('/fledge/service', data=json.dumps(request_data))
+                        assert 200 == resp.status
+                        r = await resp.text()
+                        json_response = json.loads(r)
+                        assert {'message': 'Service registered successfully', 'id': '1', 'bearer_token': ''} == json_response
+                    args, kwargs = audit_info_patch.call_args
+                    assert 'SRVRG' == args[0]
+                    assert {'name': request_data['name']} == args[1]
+            args, _ = patch_register.call_args
+            assert (request_data['name'], request_data['type'], request_data['address'], request_data['service_port'], request_data['management_port'], 'http', None) == args
 
     async def test_service_not_found_when_unregister(self, client):
         with patch.object(ServiceRegistry, 'get', side_effect=service_registry_exceptions.DoesNotExist) as patch_unregister:

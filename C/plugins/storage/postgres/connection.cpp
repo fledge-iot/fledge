@@ -1902,8 +1902,10 @@ unsigned long Connection::purgeOperation(const char *sql, const char *logSection
 			error = true;
 		}
 	} else {
+		Logger::getLogger()->error( " retrieve false case ");
 		if (PQresultStatus(res) == PGRES_COMMAND_OK) {
 			value = (unsigned long)atoi(PQcmdTuples(res));
+			Logger::getLogger()->error( " purgeOperation: value = %d", value);
 		} else {
 			error = true;
 		}
@@ -3364,7 +3366,6 @@ bool Connection::parseDatabaseStorageSchema(int &version, std::string res,
 		 std::unordered_map<std::string, std::string> &tableKeyMap,
 		 bool &schemaCreationRequest)
 {
- 	Logger::getLogger()->error( "%s:%d result from table = %s size =  %d", __FUNCTION__, __LINE__, res.c_str(), res.size());
 	Document document;
 
 	if (document.Parse(res.c_str()).HasParseError())
@@ -3523,8 +3524,6 @@ bool Connection::parseDatabaseStorageSchema(int &version, std::string res,
 
 	}
 
-	Logger::getLogger()->error("%s:%d exiting parseDatabaseStorageSchema", __FUNCTION__, __LINE__);
-
 	return true;
 }
 /**
@@ -3536,8 +3535,6 @@ bool Connection::parseDatabaseStorageSchema(int &version, std::string res,
  */
 int Connection::create_schema(std::string payload)
 {
-	Logger::getLogger()->error ( "%s:%d payload is  %s", __FUNCTION__, __LINE__, payload.c_str());
-
 	Document document;
 	std::string schema;
 	int version;
@@ -3570,7 +3567,6 @@ int Connection::create_schema(std::string payload)
 			else
 			{
 				schema = document["schema"].GetString();
-				Logger::getLogger()->error("%s:%d schema =%s ", __FUNCTION__, __LINE__, schema.c_str());
 
 				if (!document.HasMember("service"))
 				{
@@ -3593,7 +3589,6 @@ int Connection::create_schema(std::string payload)
 				{
 					version = document["version"].GetInt();
 
-					Logger::getLogger()->error("%s:%d version=%d ", __FUNCTION__, __LINE__, version); 
 					if (!schema.empty())
 					{
 						std::string results;
@@ -3601,22 +3596,24 @@ int Connection::create_schema(std::string payload)
 						{
 							if (!parseDatabaseStorageSchema(version, results, columnMapFromDB, indexMapFromDB, tbKeyMapFromDB, schemaCreationReq))
 							{
-								Logger::getLogger()->error("error in parsing Database Storage schema, so exiting");
+								Logger::getLogger()->error("error in parsing Database Storage schema");
 								return -1;
 							}
-
-							Logger::getLogger()->error("%s:%d version = %d", __FUNCTION__,__LINE__, version);
-
 						}
 							
 						std::string queryToCreateSchema = "create schema if not exists " + schema + ";" ;
 	                                        rowsAffectedLastCommand = purgeOperation(queryToCreateSchema.c_str(), logSection, "Create Schema if not exists ", false);
+						if (rowsAffectedLastCommand == -1)
+						{
+							Logger::getLogger()->error("%s:%d Error in creating schema",__FUNCTION__,__LINE__);
+							return -1;
+						}
 					}
 
 				}
 				if (!document.HasMember("tables"))
                         	{
-					Logger::getLogger()->error("tables section absent from payload, so exiting");
+					Logger::getLogger()->error("tables section absent from payload");
                                 	return -1;
                         	}
 				else
@@ -3631,8 +3628,6 @@ int Connection::create_schema(std::string payload)
                           		{
 						std::unordered_set<std::string> unSetTablesInSchemaRequest;
 						std::string sqlDropTables;
-
-						Logger::getLogger()->error("%s:%d parsing tables ", __FUNCTION__, __LINE__);
 
 						// Iterate over all the table lists in the Schema Creation/Alter request
                                 		for (rapidjson::SizeType i = 0; i < tables.Size(); i++)
@@ -3728,7 +3723,6 @@ int Connection::create_schema(std::string payload)
 							}
 
 							// Iterate over all the indexes per table and store in indexesMatrixFromReq
-					Logger::getLogger()->error("%s:%d parsing indexes", __FUNCTION__, __LINE__);
 							Value& idx = tables[i]["indexes"];
 							if (!idx.IsArray())
                                                         {
@@ -3776,7 +3770,6 @@ int Connection::create_schema(std::string payload)
 							// and create/alter/delete the colums list
 							//
 
-				Logger::getLogger()->error("%s:%d iterate over req", __FUNCTION__, __LINE__);
 							unordered_set<std::string> &dbCol = columnMapFromDB[name];
 							bool columnsToAlter = false;
 							for ( auto& v: colsPerTableInReq)
@@ -3802,7 +3795,7 @@ int Connection::create_schema(std::string payload)
 									// check if column already exists in database
 									if (dbCol.find(v.column) == dbCol.end())
 									{
-										// if it is not a key then add the column els elog error
+										// if it is not a key then add the column else log error
 										if (!v.key)
 										{
 											sql += "add column ";
@@ -3866,8 +3859,14 @@ int Connection::create_schema(std::string payload)
 							// if alterTable is true and no columns to Alter , then dont fire the sqlquery
 							// 
 							if (!( alterTable && !columnsToAlter))
-							rowsAffectedLastCommand = purgeOperation(sql.c_str(), logSection, "CreatingSchema - phase 1, creating/altering tables", false);
-
+							{
+								rowsAffectedLastCommand = purgeOperation(sql.c_str(), logSection, "CreatingSchema - phase 1, creating/altering tables", false);
+								if (rowsAffectedLastCommand == -1)
+                                                		{
+                                                        		Logger::getLogger()->error("%s:%d Error in creating/altering tables",__FUNCTION__,__LINE__);
+                                                        		return -1;
+                                                		}
+							}
                                                        	std::vector<std::string> &indexMatrixFromDB = indexMapFromDB[name];
                                                         bool indexPresent = false;
 
@@ -3885,10 +3884,16 @@ int Connection::create_schema(std::string payload)
 									
 								if(!indexPresent)
 								{
-									sqlIdx = "create index " + getIndexName(schema, name, req) + " on " + schema + "." + name + "(";
+									sqlIdx = "create index " + name + "_" + getIndexName(req) + " on " + schema + "." + name + "(";
                                                                		sqlIdx += req; 
                                                         		sqlIdx += " );";
 									rowsAffectedLastCommand = purgeOperation(sqlIdx.c_str(), logSection, "CreatingSchema - phase 2, creating index on tables", false);
+									if (rowsAffectedLastCommand == -1)
+                                                			{
+                                                        			Logger::getLogger()->error("%s:%d Error in creating indexes",__FUNCTION__,__LINE__);
+                                                        			return -1;
+                                                			}
+
 								}
 							}
 
@@ -3906,8 +3911,14 @@ int Connection::create_schema(std::string payload)
                                                                 }
                                                                 if(!indexPresent)
                                                                	{
-                                                               		sqlIdx = "drop index " + getIndexName(schema, name, req) + ";";
-                                                                        rowsAffectedLastCommand = purgeOperation(sqlIdx.c_str(), logSection, "CreatingSchema - phase 2, creating index on tables", false);
+                                                               		sqlIdx = "drop index " + schema + "." + name + "_" + req + ";";
+									rowsAffectedLastCommand = purgeOperation(sqlIdx.c_str(), logSection, "CreatingSchema - phase 2, creating index on tables", false);
+									if (rowsAffectedLastCommand == -1)
+                                                			{
+                                                        			Logger::getLogger()->error("%s:%d Error in executing drop index",__FUNCTION__,__LINE__);
+                                                        			return -1;
+                                                			}
+
                                                                 }
                                                         }
 						}
@@ -3920,7 +3931,6 @@ int Connection::create_schema(std::string payload)
 						bool tableToDrop = false;
 						for (auto itr : columnMapFromDB)
 						{
-						Logger::getLogger()->error("%s:%d table name in db = %s", __FUNCTION__, __LINE__, itr.first.c_str());
 							if (unSetTablesInSchemaRequest.find(itr.first) == unSetTablesInSchemaRequest.end())
 							{
 								sqlDropTables += schema +"." + itr.first + ",";
@@ -3935,19 +3945,35 @@ int Connection::create_schema(std::string payload)
 						if (tableToDrop)
 						{
               						rowsAffectedLastCommand = purgeOperation(sqlDropTables.c_str(), logSection, "Dropping unrequired tables", false);
+							if (rowsAffectedLastCommand == -1)
+                                                        {
+                                                        	Logger::getLogger()->error("%s:%d Error in executing drop table",__FUNCTION__,__LINE__);
+                                                                return -1;
+                                                        }
+
 						}
 						// delete payload in fledge.service_schema if already present
 						if(schemaCreationReq == false)
 						{
 							std::string s = "delete from fledge.service_schema where name =  '" + schema + "' and   service = '" + service + "';";
 							rowsAffectedLastCommand = purgeOperation(s.c_str(), logSection, "delete from fledge.service_schema  ", false);
+							if (rowsAffectedLastCommand == -1)
+                                                        {
+	                                                        Logger::getLogger()->error("%s:%d Error in executing delete payload from service_schema ",__FUNCTION__, __LINE__);
+                                                                return -1;
+                                                        }
+
 						}
 
 						// insert payload in the fledge.service_schema
                         			std::string s = "insert into fledge.service_schema(name, service, version, definition) values ('" + schema + "', " +"'" + service + "', " + to_string(version) + ", " + "'" + payload + "') ;" ;
 
                         		        rowsAffectedLastCommand = purgeOperation(s.c_str(), logSection, "insert in fledge.service_schema  ", false);
-
+						if (rowsAffectedLastCommand == -1)
+                                                {
+	                                                Logger::getLogger()->error("%s:%d Error in executing insert payload into service_schema ",__FUNCTION__, __LINE__);
+                                                        return -1;
+                                                }
 					}
 				}
 			}
@@ -3963,6 +3989,7 @@ int Connection::create_schema(std::string payload)
 
 }
 
-std::string Connection::getIndexName(std::string schema, std::string name, std::string s){
-	return schema + "_" + name + "_" + s;
+std::string Connection::getIndexName(std::string s){
+	std::replace_if( s.begin(),s.end(), [](char ch) {return ch ==',';},'_');	
+	return s;
 }

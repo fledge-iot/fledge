@@ -74,7 +74,7 @@ class Connection {
     		const std::string 	double_quote_reserved_column_name(const std::string &column_name);
 		void		logSQL(const char *, const char *);
 		bool		isFunction(const char *) const;
-		std::string getIndexName(std::string schema, std::string name, std::string s);
+		std::string getIndexName(std::string s);
 
 
 		typedef	struct{

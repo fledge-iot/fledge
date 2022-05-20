@@ -49,6 +49,7 @@ from fledge.services.core.api import asset_tracker as asset_tracker_api
 from fledge.common.web.ssl_wrapper import SSLVerifier
 from fledge.services.core.api import exceptions as api_exception
 
+
 __author__ = "Amarendra K. Sinha, Praveen Garg, Terris Linenbach, Massimiliano Pinto, Ashish Jabble"
 __copyright__ = "Copyright (c) 2017-2021 OSIsoft, LLC"
 __license__ = "Apache 2.0"

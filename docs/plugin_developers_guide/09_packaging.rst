@@ -124,6 +124,7 @@ Currently there are two packages created a part of the process of building Fledg
 
 - **fledge-mqtt** which is a packaged version of the libpaho-mqtt library.
 - **fledge-gcp** which is a packaged version of the libjwt and libjansson libraries.
+- **fledge-iec** which is a packaged version of the IEC 60870 and IEC 61850 libraries.
 
 If your plugin depends on any of these libraries they should be added to the *requirements* variable in the **Package** file rather than adding them as *additional_libs* since the version of these is managed by the Fledge build and packaging process.
 

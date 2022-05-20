@@ -3315,6 +3315,14 @@ const char *p;
 	return false;
 }
 
+/**
+ * Find existing payload schema from the DB fledge.service_schema table 
+ *
+ * @param service   The string containing service name 
+ * @param name      The string containing schema name
+ * @return 	    resultSet string containing the output of the sql query executed
+ */
+
 bool Connection::findSchemaFromDB(std::string service, std::string name, std::string &resultSet)
 {
 
@@ -3359,6 +3367,21 @@ bool Connection::findSchemaFromDB(std::string service, std::string name, std::st
          
 	return false;
 }
+
+/**
+ * This function parses the fledge.service_schema table payload retrieved in 
+ * and outputs a set of data structures containg the information about the tables
+ * and their columns and indexes
+ *
+ * @param[out] 	version   version retrieved form payload  
+ * @param[in]   res       output containing payload information
+ * @param[out]  tableColumnMap map[tablename ---> set of columns]
+ * @param[out]  tableIndexMap  map[tablename ---> indexes] where each index is a comma separated string of columns
+ * @param[out]  tableKeyMap    map[tablename ---> key] where key is the key column name
+ * @param[ouy]  schemaCreationRequest which is like this is first schema creation request or
+ *              schema already exist in the DB
+ * @return      true if parsing is successful else false 
+ */
 
 bool Connection::parseDatabaseStorageSchema(int &version, std::string res, 
 		 std::unordered_map<std::string, std::unordered_set<std::string> > &tableColumnMap,
@@ -3988,6 +4011,13 @@ int Connection::create_schema(std::string payload)
 	return 1;
 
 }
+
+/**
+ * This function checks for input string for ',' and returns a string with ',' replaced with '_'
+ *
+ * @param[in]   string to check for ',' 
+ * @return      string with , replaced with _ 
+ */
 
 std::string Connection::getIndexName(std::string s){
 	std::replace_if( s.begin(),s.end(), [](char ch) {return ch ==',';},'_');	

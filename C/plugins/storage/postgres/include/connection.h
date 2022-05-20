@@ -85,7 +85,7 @@ class Connection {
 		} columnRec;
 
 		// Custom Hash Functor that will compute the hash on the
-		// passed string objects length
+		// passed objects column data member 
 		struct columnRecHasher
 		{
 	  		size_t operator()(const columnRec & obj) const

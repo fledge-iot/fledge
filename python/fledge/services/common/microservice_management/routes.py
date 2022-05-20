@@ -4,8 +4,8 @@
 # See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
-__author__ = "Ashish Jabble, Praveen Garg, Ashwin Gopalakrishnan"
-__copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
+__author__ = "Ashish Jabble, Praveen Garg, Ashwin Gopalakrishnan, Massimiliano Pinto"
+__copyright__ = "Copyright (c) 2021 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
@@ -57,6 +57,12 @@ def setup(app, obj, is_core=False):
 
         # Internal refresh cache
         app.router.add_route('PUT', '/fledge/cache', obj.refresh_cache)
+
+        # Service token verification
+        app.router.add_route('POST', '/fledge/service/verify_token', obj.verify_token)
+
+        # Service token refresh
+        app.router.add_route('POST', '/fledge/service/refresh_token', obj.refresh_token)
 
     # enable cors support
     enable_cors(app)

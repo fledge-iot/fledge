@@ -66,6 +66,7 @@ endif()
 
 target_link_libraries(${PROJECT_NAME} ${UUIDLIB})
 target_link_libraries(${PROJECT_NAME} ${Boost_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} -lcrypto)
 
 set_target_properties(${PROJECT_NAME} PROPERTIES SOVERSION 1)
 

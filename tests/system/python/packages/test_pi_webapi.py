@@ -236,7 +236,7 @@ class TestPackagesCoAP_PI_WebAPI:
         data = {"PIWebAPIUserId": "Inv@lidRandomUserID"}
         put_url = "/fledge/category/{}".format(NORTH_TASK_NAME)
         resp = utils.put_request(fledge_url, urllib.parse.quote(put_url), data)
-        assert "Admin" == resp["PIWebAPIUserId"]["value"]
+        assert "Inv@lidRandomUserID" == resp["PIWebAPIUserId"]["value"]
 
         old_ping_result = verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
 

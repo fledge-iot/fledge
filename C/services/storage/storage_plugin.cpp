@@ -224,7 +224,8 @@ bool StoragePlugin::pluginShutdown()
  */
 int StoragePlugin::createSchema(const string& payload)
 {
-        return this->createSchemaPtr(instance, payload.c_str());
+	if (this->createSchemaPtr)
+        	return this->createSchemaPtr(instance, payload.c_str());
 }
 
 

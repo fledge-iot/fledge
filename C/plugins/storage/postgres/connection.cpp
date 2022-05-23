@@ -3632,7 +3632,7 @@ int Connection::create_schema(std::string payload)
 	{
                 if (payload.empty())
                 {
-			Logger::getLogger()->error("%s:%d input parameter payload empty", __FUNCTION__, __LINE__);
+			Logger::getLogger()->error("%s:%d function's input parameter payload empty", __FUNCTION__, __LINE__);
                         return -1;
                 }
                 else
@@ -3644,12 +3644,18 @@ int Connection::create_schema(std::string payload)
                         }
 			if (!document.HasMember("schema"))
                         {
-				Logger::getLogger()->error("%s:%d schema absent from payload", __FUNCTION__, __LINE__);
+				Logger::getLogger()->error("%s:%d schema absent from input parameter JSON payload", __FUNCTION__, __LINE__);
 				return -1;
 			}
 			else
 			{
+				if (!document["schema"].IsString())
+                                {
+                                	Logger::getLogger()->error("%s:%d The property schema in JSON payload must be a string", __FUNCTION__, __LINE__);
+                                        return -1;
+                                }
 				schema = document["schema"].GetString();
+
 				if (schema.empty())
 				{
 					Logger::getLogger()->error("%s:%d schema obtained from payload is empty", __FUNCTION__, __LINE__);
@@ -3662,6 +3668,12 @@ int Connection::create_schema(std::string payload)
 					Logger::getLogger()->error("%s:%d service absent from payload for schema %s", __FUNCTION__, __LINE__, schema.c_str());
                                         return -1;
 				}
+				if (!document["service"].IsString())
+                                {
+                                        Logger::getLogger()->error("%s:%d The property service in JSON payload must be a string", __FUNCTION__, __LINE__);
+                                        return -1;
+                                }
+
 				std::string service = document["service"].GetString();	
 				if (service.empty())
 				{
@@ -3672,11 +3684,17 @@ int Connection::create_schema(std::string payload)
 
 				if (!document.HasMember("version"))
                         	{
-					Logger::getLogger()->error("%s:%d version absent from payload for schema %s", __FUNCTION__, __LINE__, schema.c_str());
+					Logger::getLogger()->error("%s:%d version absent from payload for schema %s and service %s", __FUNCTION__, __LINE__, schema.c_str(), service.c_str());
                                 	return -1;
                         	}
 				else
 				{
+					if(!document["version"].IsInt())
+                                        {
+	                                        Logger::getLogger()->error("%s %d version needs to be int for schema %s and service %s", __FUNCTION__, __LINE__, schema.c_str(), service.c_str());
+						return -1;
+                                        }
+
 					version = document["version"].GetInt();
 					Logger::getLogger()->debug("%s:%d version obtained from payload = %d", __FUNCTION__, __LINE__, version);
 					std::string results;
@@ -3698,7 +3716,7 @@ int Connection::create_schema(std::string payload)
 	                                rowsAffectedLastCommand = purgeOperation(queryToCreateSchema.c_str(), logSection, "Create Schema if not exists ", false);
 					if (rowsAffectedLastCommand == -1)
 					{
-						Logger::getLogger()->error("%s:%d Error in creating schema %s in database",__FUNCTION__,__LINE__, schema.c_str());
+						Logger::getLogger()->error("%s:%d Error in creating schema %s in database, query executed = %s",__FUNCTION__,__LINE__, schema.c_str(), queryToCreateSchema.c_str());
 						return -1;
 					}
 				}
@@ -3789,7 +3807,7 @@ int Connection::create_schema(std::string payload)
                                         				{
                                                 				if (!v["column"].IsString())
 										{
-											Logger::getLogger()->error("%s %d extracting column name, expecting a string value here", __FUNCTION__, __LINE__);
+											Logger::getLogger()->error("%s %d Schema: %s, Service: %s ,table name %s , extracting column name, expecting a string value here", __FUNCTION__, __LINE__, schema.c_str(), service.c_str() , name.c_str());
  
 										}
 										else
@@ -3802,7 +3820,7 @@ int Connection::create_schema(std::string payload)
 									{
 										if (!v["type"].IsString())
 										{
-											Logger::getLogger()->error("%s:%d extracting type, expecting a string value here", __FUNCTION__, __LINE__);
+											Logger::getLogger()->error("%s:%d Schema:%s, Service:%s, tableName : %s , extracting type, expecting a string value here", __FUNCTION__, __LINE__, schema.c_str(), service.c_str(), name.c_str());
 										}
 										else
 										{
@@ -3815,7 +3833,7 @@ int Connection::create_schema(std::string payload)
 									{
 										if(!v["size"].IsInt())
 										{
-											Logger::getLogger()->error("%s %d extracting size, expecting an int value here", __FUNCTION__, __LINE__);
+											Logger::getLogger()->error("%s %d Schema:%s, Service:%s, tableName:%s ,extracting size, expecting an int value here", __FUNCTION__, __LINE__, schema.c_str(), service.c_str(), name.c_str());
 										}
 										else
 										{
@@ -3827,7 +3845,7 @@ int Connection::create_schema(std::string payload)
 									{
 										if(!v["key"].IsBool())
                                                                                 {
-											Logger::getLogger()->error("%s %d extracting key, expecting a bool value here", __FUNCTION__, __LINE__);
+											Logger::getLogger()->error("%s %d Schema:%s, Service:%s, tableName:%s, extracting key, expecting a bool value here", __FUNCTION__, __LINE__, schema.c_str(), service.c_str(), name.c_str());
 
                                                                                 }
                                                                                 else
@@ -3844,7 +3862,7 @@ int Connection::create_schema(std::string payload)
 
 							if (!tables[i].HasMember("indexes"))
                                                         {
-                                                                Logger::getLogger()->debug("%s:%d The table %s does not have indexes field", __FUNCTION__, __LINE__ ,name.c_str());
+                                                                Logger::getLogger()->debug("%s:%d Schema:%s, Service:%s, tableName:%s does not have indexes field", __FUNCTION__, __LINE__ ,schema.c_str(), service.c_str(), name.c_str());
                                                         }
 							else
 							{
@@ -3852,11 +3870,11 @@ int Connection::create_schema(std::string payload)
 								Value& idx = tables[i]["indexes"];
 								if (!idx.IsArray())
                                                         	{
-                                                                	Logger::getLogger()->error("%s:%d The property indexes for table %s must be an array", __FUNCTION__, __LINE__, name.c_str());
+                                                                	Logger::getLogger()->error("%s:%d Schema:%s, Service:%s, tableName:%s The property indexes must be an array", __FUNCTION__, __LINE__, schema.c_str(), service.c_str(), name.c_str());
                                                         	}
 								else
 								{
-									Logger::getLogger()->debug("%s:%d Extracting indexes for table %s", __FUNCTION__, __LINE__, name.c_str());
+									Logger::getLogger()->debug("%s:%d Extracting indexes for Schema:%s, Service:%s, tableName: %s", __FUNCTION__, __LINE__, schema.c_str(), service.c_str(), name.c_str());
 
                         						for (auto& v : idx.GetArray())
                         						{
@@ -3868,7 +3886,7 @@ int Connection::create_schema(std::string payload)
                                					                	{
                                                         					if (!v["index"].IsArray())
                                                         					{
-				                                                                	Logger::getLogger()->error("%s %d extracting index values , expecting an array here", __FUNCTION__, __LINE__);
+				                                                                	Logger::getLogger()->error("%s %d Schema:%s, Service:%s, tableName:%s , extracting index values, expecting an array here", __FUNCTION__, __LINE__, schema.c_str(), service.c_str(), name.c_str());
                                					                                 	return false;
                                                         					}
                                                         					else
@@ -3903,7 +3921,14 @@ int Connection::create_schema(std::string payload)
 							if (columnMapFromDB.find(name) != columnMapFromDB.end())
 							{
 								dbCol = &columnMapFromDB[name];
+								Logger::getLogger()->debug("%s:%d Schema:%s, Service:%s, tableName: %s found in Database ", __FUNCTION__, __LINE__, schema.c_str(), service.c_str(), name.c_str());
+
 							}
+							else
+							{
+								Logger::getLogger()->debug("%s:%d Schema:%s, Service:%s, tableName: %s could not be found in Database ", __FUNCTION__, __LINE__, schema.c_str(), service.c_str(), name.c_str());
+							}
+
 							bool columnsToAlter = false;
 							for ( auto& v: colsPerTableInReq)
 							{
@@ -3943,13 +3968,13 @@ int Connection::create_schema(std::string payload)
 										else
 										{
 											// altering a key is not allowed
-											Logger::getLogger()->error("%s:%d altering key request(%s) is not allowed for an existing table", __FUNCTION__, __LINE__, v.column.c_str());
+											Logger::getLogger()->error("%s:%d Schema:%s, Service:%s, tableName:%s, altering key request(%s) is not allowed for an existing table", __FUNCTION__, __LINE__, schema.c_str(), service.c_str(), name.c_str(), v.column.c_str());
 										}
 									}
 									else
 									{
 										// altering an existing column not alllowed
-                                                                        	Logger::getLogger()->error("%s:%d altering an existing column %s is not allowed", __FUNCTION__, __LINE__, v.column.c_str());
+                                                                        	Logger::getLogger()->error("%s:%d Schema:%s, Service:%s, tableName:%s, altering an existing column %s is not allowed", __FUNCTION__, __LINE__, schema.c_str(), service.c_str(), name.c_str(), v.column.c_str());
 									}
 								}
 							}
@@ -3996,7 +4021,7 @@ int Connection::create_schema(std::string payload)
 								rowsAffectedLastCommand = purgeOperation(sql.c_str(), logSection, "CreatingSchema - phase 1, creating/altering tables", false);
 								if (rowsAffectedLastCommand == -1)
                                                 		{
-                                                        		Logger::getLogger()->error("%s:%d Error in creating/altering tables",__FUNCTION__,__LINE__);
+                                                        		Logger::getLogger()->error("%s:%d Schema:%s, Service:%s, tableName:%s, Error in creating/altering tables, command executed = %s",__FUNCTION__,__LINE__, schema.c_str(), service.c_str(), name.c_str(), sql.c_str());
                                                         		return -1;
                                                 		}
 							}
@@ -4023,7 +4048,7 @@ int Connection::create_schema(std::string payload)
 									rowsAffectedLastCommand = purgeOperation(sqlIdx.c_str(), logSection, "CreatingSchema - phase 2, creating index on tables", false);
 									if (rowsAffectedLastCommand == -1)
                                                 			{
-                                                        			Logger::getLogger()->error("%s:%d Error in creating indexes command %s",__FUNCTION__, __LINE__, sqlIdx.c_str());
+                                                        			Logger::getLogger()->error("%s:%d Schema:%s, Service:%s, tableName:%s Error in creating indexes command %s",__FUNCTION__, __LINE__, schema.c_str(), service.c_str(), name.c_str(), sqlIdx.c_str());
                                                         			return -1;
                                                 			}
 
@@ -4048,7 +4073,7 @@ int Connection::create_schema(std::string payload)
 									rowsAffectedLastCommand = purgeOperation(sqlIdx.c_str(), logSection, "CreatingSchema - phase 2, creating index on tables", false);
 									if (rowsAffectedLastCommand == -1)
                                                 			{
-                                                        			Logger::getLogger()->error("%s:%d Error in executing drop index command %s",__FUNCTION__, __LINE__, sqlIdx.c_str());
+                                                        			Logger::getLogger()->error("%s:%d Schema:%s, Service:%s, tableName:%s, Error in executing drop index command %s",__FUNCTION__, __LINE__, schema.c_str(), service.c_str(), name.c_str(), sqlIdx.c_str());
                                                         			return -1;
                                                 			}
 

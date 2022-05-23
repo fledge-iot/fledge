@@ -1365,3 +1365,26 @@ void StorageClient::handleException(const exception& ex, const char *operation, 
 		}
 	}
 }
+
+/**
+ * Post to storage schema
+ */
+bool StorageClient::postStorageSchema(Reading& reading)
+{
+        try {
+                ostringstream convert;
+                convert << reading.toJSON();
+                auto res = this->getHttpClient()->request("POST", "/storage/schema", convert.str());
+                if (res->status_code.compare("200 OK") == 0)
+                {
+                        return true;
+                }
+                ostringstream resultPayload;
+                resultPayload << res->content.rdbuf();
+                handleUnexpectedResponse("Post Storage Schema", res->status_code, resultPayload.str());
+                return false;
+        } catch (exception& ex) {
+                handleException(ex, "post storage schema");
+        }
+        return false;
+}

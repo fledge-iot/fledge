@@ -3321,7 +3321,7 @@ const char *p;
  * @return 	    resultSet string containing the output of the sql query executed
  */
 
-bool Connection::findSchemaFromDB(std::string service, std::string name, std::string &resultSet)
+bool Connection::findSchemaFromDB(const std::string &service, const std::string &schema, std::string &resultSet)
 {
 
 	SQLBuffer sql;
@@ -3331,7 +3331,7 @@ bool Connection::findSchemaFromDB(std::string service, std::string name, std::st
 		sql.append(service);
 		sql.append("'");
 		sql.append(" and name = '");
-	        sql.append(name);
+	        sql.append(schema);
 	      	sql.append("';");
                 const char *query = sql.coalesce();
                 logSQL("findSchemaFromDB", query);
@@ -3375,16 +3375,14 @@ bool Connection::findSchemaFromDB(std::string service, std::string name, std::st
  * @param[in]   res       output containing payload information
  * @param[out]  tableColumnMap map[tablename ---> set of columns]
  * @param[out]  tableIndexMap  map[tablename ---> indexes] where each index is a comma separated string of columns
- * @param[out]  tableKeyMap    map[tablename ---> key] where key is the key column name
  * @param[ouy]  schemaCreationRequest which is like this is first schema creation request or
  *              schema already exist in the DB
  * @return      true if parsing is successful else false 
  */
 
-bool Connection::parseDatabaseStorageSchema(int &version, std::string res, 
-		 std::unordered_map<std::string, std::unordered_set<std::string> > &tableColumnMap,
+bool Connection::parseDatabaseStorageSchema(int &version,const std::string &res, 
+		 std::unordered_map<std::string, std::unordered_set<columnRec, columnRecHasher, columnRecComparator> > &tableColumnMap,
 		 std::unordered_map<std::string, std::vector<std::string> > &tableIndexMap,
-		 std::unordered_map<std::string, std::string> &tableKeyMap,
 		 bool &schemaCreationRequest)
 {
 	Document document;
@@ -3397,7 +3395,7 @@ bool Connection::parseDatabaseStorageSchema(int &version, std::string res,
         }
 	if (!document.HasMember("count"))
 	{
-		Logger::getLogger()->error("%s:%d count absent from database query response to fledge.service_schema", __FUNCTION__, __LINE__);
+		Logger::getLogger()->error("%s:%d count absent from database query response to fledge.service_schema",__FUNCTION__, __LINE__);
                 return false;
 	}
 	int count = document["count"].GetInt();
@@ -3503,16 +3501,16 @@ bool Connection::parseDatabaseStorageSchema(int &version, std::string res,
 
                         	Value& columns = tables[i]["columns"];
 
-				unordered_set<std::string> columnSet;
+				std::unordered_set<columnRec, columnRecHasher, columnRecComparator> columnSet;
 				std::vector<std::string> indexesVec;
 
 	                        if (!columns.IsArray())
                         	{
- 	                       		Logger::getLogger()->error("%s:%d The property columns in tables[%d] must be an array", __FUNCTION__, __LINE__, i);
+ 	                       		Logger::getLogger()->error("%s:%d The property columns in table %s must be an array", __FUNCTION__, __LINE__, name.c_str());
                                 	return false;
                         	}
 
-				Logger::getLogger()->debug("%s:%d Extracting the columns of tables[%d]", __FUNCTION__, __LINE__, i);
+				Logger::getLogger()->debug("%s:%d Extracting the columns of table name %s", __FUNCTION__, __LINE__, name.c_str());
 
                         	for (auto& v : columns.GetArray())
                         	{
@@ -3522,28 +3520,51 @@ bool Connection::parseDatabaseStorageSchema(int &version, std::string res,
                                                 {
                                                 	if (!v["column"].IsString())
                                                         {
-                                                        	Logger::getLogger()->error("%s %d extracting column name, expecting a string value here", __FUNCTION__, __LINE__);
+                                                        	Logger::getLogger()->error("%s :%d, table %s,extracting column name, expecting a string value here", __FUNCTION__, __LINE__, name.c_str());
                                                         }
                                                         else
                                                         {
-                                                        	columnSet.insert(v["column"].GetString());
+								columnRec c;
+								c.column = v["column"].GetString();
+								if ( c.column.empty())
+								{
+									Logger::getLogger()->error("%s :%d, table %s, column name empty,inconsistent DB", __FUNCTION__, __LINE__, name.c_str());
+									return false;
+								}
+								if (v.HasMember("type"))
+								{
+									if (!v["type"].IsString())
+                                                        		{
+                                                                		Logger::getLogger()->error("%s:%d tablename %s, column = %s, extracting column type, expecting a string value here", __FUNCTION__, __LINE__,name.c_str(), c.column.c_str());
+                                                        		}
+									c.type = v["type"].GetString();
+								}
 
-								// check if this column is the key ,add to the 
-								// tableKeyMap map
+								if (v.HasMember("size"))
+								{
+									if (!v["size"].IsInt())
+                                                                        {       
+                                                                                Logger::getLogger()->error("%s:%d, tableName = %s, column = %s,extracting column size, expecting an int value here", __FUNCTION__, __LINE__,name.c_str(), c.column.c_str());
+                                                                        }
+									c.sz = v["size"].GetInt();
+								}
+
 								if (v.HasMember("key"))
                                                 		{
 		                                                        if (!v["key"].IsBool())
                                                         		{
-		                                                                Logger::getLogger()->error("%s %d extracting column key, expecting a bool value here", __FUNCTION__, __LINE__);
+		                                                                Logger::getLogger()->error("%s:%d, tableName = %s, column = %s,extracting column key, expecting a bool value here", __FUNCTION__, __LINE__, name.c_str(), c.column.c_str());
                                                         		}
 		                                                        else
                  		                                        {
                                                                 		if (v["key"].GetBool())
 										{
-											tableKeyMap[name] = v["column"].GetString();
+											c.key = true;
 										}
                                                         		}
 								}
+
+								columnSet.insert(c);
 							}
                                                 }
 
@@ -3562,7 +3583,7 @@ bool Connection::parseDatabaseStorageSchema(int &version, std::string res,
 					Value& indexes = tables[i]["indexes"];
 					if (!indexes.IsArray())
                                 	{
-                                        	Logger::getLogger()->error("%s:%d The property indexes under tables[%d] must be an array", __FUNCTION__, __LINE__);
+                                        	Logger::getLogger()->error("%s:%d The property indexes under tablename = %s must be an array", __FUNCTION__, __LINE__, name.c_str());
                                         	return false;
                                 	}
 
@@ -3577,13 +3598,18 @@ bool Connection::parseDatabaseStorageSchema(int &version, std::string res,
                                                 	{
                                                         	if (!v["index"].IsArray())
                                                         	{
-                                                                	Logger::getLogger()->error("%s %d extracting index values, expecting an array here", __FUNCTION__, __LINE__);
+                                                                	Logger::getLogger()->error("%s:%d, tableName = %s, extracting index values, expecting an array here", __FUNCTION__, __LINE__, name.c_str());
 									return false;
                                                         	}
                                                         	else
                                                         	{
 									for (auto& i : v["index"].GetArray())
 									{
+										if (!i.IsString())
+                                                                		{
+                                                                        		Logger::getLogger()->error("%s:%d, tableName = %s, extracting index ,expecting a string here", __FUNCTION__, __LINE__, name.c_str());
+                                                                        		return false;
+                                                                		}
 										indexVec.push_back(i.GetString());
 									}
 
@@ -3616,17 +3642,17 @@ bool Connection::parseDatabaseStorageSchema(int &version, std::string res,
  *                  tables to create
  * @return true if the tables can be crated successfully
  */
-int Connection::create_schema(std::string payload)
+int Connection::create_schema(const std::string &payload)
 {
 	Document document;
 	std::string schema;
 	int version;
 	const char *logSection="CreatingSchema";
 	unsigned long rowsAffectedLastCommand = 0;
-	std::unordered_map<std::string, std::unordered_set<std::string> > columnMapFromDB;
+	std::unordered_map<std::string, std::unordered_set<columnRec, columnRecHasher, columnRecComparator> > columnMapFromDB;
         std::unordered_map<std::string, std::vector<std::string> > indexMapFromDB;
-	std::unordered_map<std::string, std::string> tbKeyMapFromDB;
 	bool schemaCreationReq = false;
+	std::vector<sqlQuery> queries;
 
 	try 
 	{
@@ -3700,7 +3726,7 @@ int Connection::create_schema(std::string payload)
 					std::string results;
 					if (findSchemaFromDB(service, schema, results))
 					{
-						if (!parseDatabaseStorageSchema(version, results, columnMapFromDB, indexMapFromDB, tbKeyMapFromDB, schemaCreationReq))
+						if (!parseDatabaseStorageSchema(version, results, columnMapFromDB, indexMapFromDB, schemaCreationReq))
 						{
 							Logger::getLogger()->error("%s:%d error in parsing Database Storage schema %s for schema  and service %s", __FUNCTION__, __LINE__, schema.c_str(), service.c_str());
 							return -1;
@@ -3722,7 +3748,7 @@ int Connection::create_schema(std::string payload)
 				}
 				if (!document.HasMember("tables"))
                         	{
-					Logger::getLogger()->error("%s:%d tables section absent from payload for schema %s and service %s", __FUNCTION__, __LINE__, schema.c_str() , service.c_str());
+					Logger::getLogger()->error("%s:%d tables section absent from payload for schema %s and service %s", __FUNCTION__, __LINE__, schema.c_str(), service.c_str());
                                 	return -1;
                         	}
 				else
@@ -3732,7 +3758,7 @@ int Connection::create_schema(std::string payload)
 					Value& tables = document["tables"];
 					if (!tables.IsArray())
                                 	{
-                                        	Logger::getLogger()->error("%s:%d The property tables must be an array", __FUNCTION__, __LINE__);
+                                        	Logger::getLogger()->error("%s:%d, Schema %s, Service %s, The property tables must be an array", __FUNCTION__, __LINE__, schema.c_str(), service.c_str());
                                         	return -1;
                                 	}
 					else
@@ -3746,35 +3772,35 @@ int Connection::create_schema(std::string payload)
 							if (!tables[i].HasMember("name"))
                                 			{
 			                                        Logger::getLogger()->error("%s:%d Schema %s, Service %s : The tables[%d] section in payload does not have name field", __FUNCTION__, __LINE__,schema.c_str(), service.c_str(), i);
-                       				                 continue;
+                       				                 return -1;
                                 			}
                                 			if (!tables[i]["name"].IsString())
                                 			{
-                                        			Logger::getLogger()->error("%s:%d The property name in tables[%d] must be a string", __FUNCTION__, __LINE__, i);
-                                        			continue;
+                                        			Logger::getLogger()->error("%s:%d , Schema %s, Service %s, The property name in tables[%d] must be a string", __FUNCTION__, __LINE__, schema.c_str(), service.c_str(), i);
+                                        			return -1;
                                 			}
                                 
 							std::string name = tables[i]["name"].GetString();
 
 							if (name.empty())
 							{
-								Logger::getLogger()->error("%s:%d The property name in tables[%d] is empty", __FUNCTION__, __LINE__, i);
-								continue;	
+								Logger::getLogger()->error("%s:%d Schema %s, Service %s, The property name in tables[%d] is empty", __FUNCTION__, __LINE__, schema.c_str(), service.c_str(), i);
+								return -1;	
 							}
-							Logger::getLogger()->debug("%s:%d Extracting columns for table name %s ", __FUNCTION__, __LINE__, name.c_str());
+							Logger::getLogger()->debug("%s:%d Extracting columns for schema %s, service %s, table name %s ", __FUNCTION__, __LINE__, schema.c_str(), service.c_str(), name.c_str());
 
 							unSetTablesInSchemaRequest.insert(name);
 
 							if (!tables[i].HasMember("columns"))
                                                         {
                                                                 Logger::getLogger()->error("%s:%d The tables section does not have columns field", __FUNCTION__, __LINE__);
-                                                                 continue;
+                                                                 return -1;
                                                         }
 							Value& columns = tables[i]["columns"];
 							if (!columns.IsArray())
                                                         {
                                                                 Logger::getLogger()->error("%s:%d The property columns must be an array", __FUNCTION__, __LINE__);
-                                                                continue;
+                                                                return -1;
                                                         }
 
 							std::vector<std::string> indexesMatrixFromReq;
@@ -3807,12 +3833,17 @@ int Connection::create_schema(std::string payload)
                                         				{
                                                 				if (!v["column"].IsString())
 										{
-											Logger::getLogger()->error("%s %d Schema: %s, Service: %s ,table name %s , extracting column name, expecting a string value here", __FUNCTION__, __LINE__, schema.c_str(), service.c_str() , name.c_str());
- 
+											Logger::getLogger()->error("%s %d Schema: %s, Service: %s ,table name %s , extracting column name, expecting a string value here", __FUNCTION__, __LINE__, schema.c_str(), service.c_str(), name.c_str());
+											return -1; 
 										}
 										else
 										{
                                                                 			c.column = v["column"].GetString(); 
+											if (c.column.empty())
+											{
+												Logger::getLogger()->error("%s %d Schema: %s, Service: %s ,table name %s, extracting column, found empty value for column", __FUNCTION__, __LINE__, schema.c_str(), service.c_str() , name.c_str());
+												return -1;	
+											}
 										}
 									}
 
@@ -3821,11 +3852,18 @@ int Connection::create_schema(std::string payload)
 										if (!v["type"].IsString())
 										{
 											Logger::getLogger()->error("%s:%d Schema:%s, Service:%s, tableName : %s , extracting type, expecting a string value here", __FUNCTION__, __LINE__, schema.c_str(), service.c_str(), name.c_str());
+											return -1;
 										}
 										else
 										{
 											c.type = v["type"].GetString();
 											if (c.type == "double") c.type = "real";
+											if (!checkValidDataType(c.type))
+											{
+												Logger::getLogger()->error("%s:%d Schema:%s, Service:%s, tableName : %s , type %s extracted is not a valid data type", __FUNCTION__, __LINE__, schema.c_str(), service.c_str(), name.c_str(), c.type.c_str());
+												return -1;
+											}
+
 										}
 									}
 
@@ -3834,6 +3872,7 @@ int Connection::create_schema(std::string payload)
 										if(!v["size"].IsInt())
 										{
 											Logger::getLogger()->error("%s %d Schema:%s, Service:%s, tableName:%s ,extracting size, expecting an int value here", __FUNCTION__, __LINE__, schema.c_str(), service.c_str(), name.c_str());
+											return -1;
 										}
 										else
 										{
@@ -3846,6 +3885,7 @@ int Connection::create_schema(std::string payload)
 										if(!v["key"].IsBool())
                                                                                 {
 											Logger::getLogger()->error("%s %d Schema:%s, Service:%s, tableName:%s, extracting key, expecting a bool value here", __FUNCTION__, __LINE__, schema.c_str(), service.c_str(), name.c_str());
+											return -1;
 
                                                                                 }
                                                                                 else
@@ -3862,6 +3902,7 @@ int Connection::create_schema(std::string payload)
 
 							if (!tables[i].HasMember("indexes"))
                                                         {
+								//Indexes are optional,if absent, will not trigger an exit from function
                                                                 Logger::getLogger()->debug("%s:%d Schema:%s, Service:%s, tableName:%s does not have indexes field", __FUNCTION__, __LINE__ ,schema.c_str(), service.c_str(), name.c_str());
                                                         }
 							else
@@ -3870,7 +3911,9 @@ int Connection::create_schema(std::string payload)
 								Value& idx = tables[i]["indexes"];
 								if (!idx.IsArray())
                                                         	{
+									// make sure if indexes are present, their type in JSON is valid
                                                                 	Logger::getLogger()->error("%s:%d Schema:%s, Service:%s, tableName:%s The property indexes must be an array", __FUNCTION__, __LINE__, schema.c_str(), service.c_str(), name.c_str());
+									return -1;
                                                         	}
 								else
 								{
@@ -3887,7 +3930,7 @@ int Connection::create_schema(std::string payload)
                                                         					if (!v["index"].IsArray())
                                                         					{
 				                                                                	Logger::getLogger()->error("%s %d Schema:%s, Service:%s, tableName:%s , extracting index values, expecting an array here", __FUNCTION__, __LINE__, schema.c_str(), service.c_str(), name.c_str());
-                               					                                 	return false;
+                               					                                 	return -1;
                                                         					}
                                                         					else
                                                         					{
@@ -3917,7 +3960,7 @@ int Connection::create_schema(std::string payload)
 							// and create/alter/delete the colums list
 							//
 
-							unordered_set<std::string> *dbCol = nullptr;
+							unordered_set<columnRec, columnRecHasher, columnRecComparator> *dbCol = nullptr;
 							if (columnMapFromDB.find(name) != columnMapFromDB.end())
 							{
 								dbCol = &columnMapFromDB[name];
@@ -3951,7 +3994,8 @@ int Connection::create_schema(std::string payload)
 								{
 									// alter table case, table already exists
 									// check if column already exists in database
-									if (dbCol != nullptr && (dbCol->find(v.column) == dbCol->end()))
+									// if not then add if not a key column
+									if (dbCol != nullptr && (dbCol->find(v) == dbCol->end()))
 									{
 										// if it is not a key then add the column else log error
 										if (!v.key)
@@ -3968,13 +4012,26 @@ int Connection::create_schema(std::string payload)
 										else
 										{
 											// altering a key is not allowed
-											Logger::getLogger()->error("%s:%d Schema:%s, Service:%s, tableName:%s, altering key request(%s) is not allowed for an existing table", __FUNCTION__, __LINE__, schema.c_str(), service.c_str(), name.c_str(), v.column.c_str());
+											// column in req does not exist in DB
+											// but is key, not allowed
+											Logger::getLogger()->error("%s:%d Schema:%s, Service:%s, tableName:%s, altering key request(%s) is not allowed for an existing table, dropping the schema request", __FUNCTION__, __LINE__, schema.c_str(), service.c_str(), name.c_str(), v.column.c_str());
+											return -1;
 										}
 									}
 									else
 									{
 										// altering an existing column not alllowed
-                                                                        	Logger::getLogger()->error("%s:%d Schema:%s, Service:%s, tableName:%s, altering an existing column %s is not allowed", __FUNCTION__, __LINE__, schema.c_str(), service.c_str(), name.c_str(), v.column.c_str());
+										// This condition means , column in req already present in DB
+										if (dbCol != nullptr)
+										{
+											auto itr = dbCol->find(v);
+											//Check if the column matches exactly with that present in db , if not same , the reject the request
+											if ( itr->type != v.type || itr->sz != v.sz || itr->key != v.key )
+											{
+                                                                        			Logger::getLogger()->error("%s:%d Schema:%s, Service:%s, tableName:%s, altering an existing column %s is not allowed", __FUNCTION__, __LINE__, schema.c_str(), service.c_str(), name.c_str(), v.column.c_str() );
+												return -1;
+											}
+										}
 									}
 								}
 							}
@@ -3989,15 +4046,20 @@ int Connection::create_schema(std::string payload)
 								for ( auto col : *dbCol)
 								{
 									// Make sure the column to be dropped is not a primary key
-									// check in the tbKeyMapFromDB for the key of this table
-									columnRec c;
-									c.column = col;
-									if(colsPerTableInReq.find(c) == colsPerTableInReq.end() && (tbKeyMapFromDB[name] != col))
+									if(colsPerTableInReq.find(col) == colsPerTableInReq.end())
 									{
+										if (!col.key)
+										{
 										// this column is in database but not in latest schema request
 										// need to drop this column
-										sql += "drop column " + col + "," ;
-										columnsToAlter = true;
+											sql += "drop column " + col.column + "," ;
+											columnsToAlter = true;
+										}
+										else
+										{
+											Logger::getLogger()->error("%s:%d Schema:%s, Service:%s, tableName:%s, dropping th ekey column is not allowed", __FUNCTION__, __LINE__, schema.c_str(), service.c_str(), name.c_str(), col.column.c_str());
+											return -1;
+										}
 									}
 								}
 							}
@@ -4018,12 +4080,15 @@ int Connection::create_schema(std::string payload)
 							// 
 							if (!(alterTable && !columnsToAlter))
 							{
-								rowsAffectedLastCommand = purgeOperation(sql.c_str(), logSection, "CreatingSchema - phase 1, creating/altering tables", false);
-								if (rowsAffectedLastCommand == -1)
-                                                		{
-                                                        		Logger::getLogger()->error("%s:%d Schema:%s, Service:%s, tableName:%s, Error in creating/altering tables, command executed = %s",__FUNCTION__,__LINE__, schema.c_str(), service.c_str(), name.c_str(), sql.c_str());
-                                                        		return -1;
-                                                		}
+								sqlQuery q;
+							        q.query = sql.c_str();
+								q.purgeOpArg = "CreatingSchema - phase 1, creating/altering tables";
+								char msg[1000] = {'\0'};
+								sprintf(msg,"Function: %s, Schema:%s, Service:%s, tableName:%s, Error in creating/altering tables, command executed = %s",__FUNCTION__, schema.c_str(), service.c_str(), name.c_str(), sql.c_str());
+								q.logMsg = msg;
+
+								queries.push_back(q);
+								
 							}
                                                        	std::vector<std::string> &indexMatrixFromDB = indexMapFromDB[name];
                                                         bool indexPresent = false;
@@ -4045,12 +4110,15 @@ int Connection::create_schema(std::string payload)
 									sqlIdx = "create index " + name + "_" + getIndexName(req) + " on " + schema + "." + name + "(";
                                                                		sqlIdx += req; 
                                                         		sqlIdx += " );";
-									rowsAffectedLastCommand = purgeOperation(sqlIdx.c_str(), logSection, "CreatingSchema - phase 2, creating index on tables", false);
-									if (rowsAffectedLastCommand == -1)
-                                                			{
-                                                        			Logger::getLogger()->error("%s:%d Schema:%s, Service:%s, tableName:%s Error in creating indexes command %s",__FUNCTION__, __LINE__, schema.c_str(), service.c_str(), name.c_str(), sqlIdx.c_str());
-                                                        			return -1;
-                                                			}
+
+									sqlQuery q;
+									q.query = sqlIdx.c_str();
+									q.purgeOpArg = "CreatingSchema - phase 2, creating index on tables";
+									char msg[1000] = {'\0'};
+									sprintf(msg, "Function :%s, Schema:%s, Service:%s, tableName:%s Error in creating indexes command %s",__FUNCTION__, schema.c_str(), service.c_str(), name.c_str(), sqlIdx.c_str());
+									q.logMsg = msg;
+
+									queries.push_back(q);
 
 								}
 							}
@@ -4070,21 +4138,38 @@ int Connection::create_schema(std::string payload)
                                                                 if(!indexPresent)
                                                                	{
                                                                		sqlIdx = "drop index " + schema + "." + name + "_" + req + ";";
-									rowsAffectedLastCommand = purgeOperation(sqlIdx.c_str(), logSection, "CreatingSchema - phase 2, creating index on tables", false);
-									if (rowsAffectedLastCommand == -1)
-                                                			{
-                                                        			Logger::getLogger()->error("%s:%d Schema:%s, Service:%s, tableName:%s, Error in executing drop index command %s",__FUNCTION__, __LINE__, schema.c_str(), service.c_str(), name.c_str(), sqlIdx.c_str());
-                                                        			return -1;
-                                                			}
 
+									sqlQuery q;
+									q.query = sqlIdx;
+									q.purgeOpArg = "CreatingSchema - phase 2, dropping index on tables";
+									char msg[1000] = {'\0'};
+									sprintf("Function: %s, Schema:%s, Service:%s, tableName:%s, Error in executing drop index command %s",__FUNCTION__, schema.c_str(), service.c_str(), name.c_str(), sqlIdx.c_str());
+									q.logMsg = msg;
+
+									queries.push_back(q);
                                                                 }
                                                         }
 						}
 							
+
+						// Iterate over all the sqlQuery command and execute them 
+
+						for (sqlQuery& q : queries)
+						{
+							if(!q.query.empty())
+							{
+								rowsAffectedLastCommand = purgeOperation(q.query.c_str(), logSection, q.purgeOpArg.c_str(), false);
+                                                                if (rowsAffectedLastCommand == -1)
+                                                                {
+                                                                	Logger::getLogger()->error(q.logMsg.c_str());
+                                                                        return -1;
+                                                                }
+							}
+						}
 						//
 						// delete all the tables which are not in the new schema request
 						// but present in db
-						//
+
 						sqlDropTables += "drop table if exists ";
 						bool tableToDrop = false;
 						for (auto itr : columnMapFromDB)
@@ -4157,4 +4242,8 @@ int Connection::create_schema(std::string payload)
 std::string Connection::getIndexName(std::string s){
 	std::replace_if( s.begin(),s.end(), [](char ch) {return ch ==',';},'_');	
 	return s;
+}
+
+bool Connection::checkValidDataType(const std::string &s){
+	return ( s == "varchar" || s ==  "integer" || s ==  "double" || s == "real" || s == "sequence");
 }

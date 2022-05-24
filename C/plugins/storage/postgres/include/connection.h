@@ -48,16 +48,8 @@ class Connection {
 		bool		get_table_snapshots(const std::string& table,
 						    std::string& resultSet);
 		bool		aggregateQuery(const rapidjson::Value& payload, std::string& resultSet);
-		int 		create_schema(std::string payload);
-		bool 		findSchemaFromDB(std::string service, std::string name, std::string &resultSet);
-		bool 		parseDatabaseStorageSchema(int &version, std::string res,
-                 				std::unordered_map<std::string, std::unordered_set<std::string> > &tableColumnMap,
-                 				std::unordered_map<std::string, std::vector<std::string> > &tableIndexMap,
-                 				std::unordered_map<std::string, std::string> &tableKeyMap,
-                 				bool &schemaCreationRequest);
-
-
-
+		int 		create_schema(const std::string &payload);
+		bool 		findSchemaFromDB(const std::string &service, const  std::string &name, std::string &resultSet);
 
 	private:
 		bool		m_logSQL;
@@ -75,6 +67,7 @@ class Connection {
 		void		logSQL(const char *, const char *);
 		bool		isFunction(const char *) const;
 		std::string getIndexName(std::string s);
+		bool 		checkValidDataType(const std::string &s);
 
 
 		typedef	struct{
@@ -103,6 +96,20 @@ class Connection {
 			        return false;
   			}
 		};
+
+		typedef struct{
+                        std::string     query;
+                        std::string     purgeOpArg;
+			std::string	logMsg;
+                } sqlQuery;
+
+	public:
+
+		bool            parseDatabaseStorageSchema(int &version, const std::string &res,
+                                std::unordered_map<std::string, std::unordered_set<columnRec, columnRecHasher, columnRecComparator> > &tableColumnMap, std::unordered_map<std::string, std::vector<std::string> > &tableIndexMap, bool &schemaCreationRequest);
+
+
+
 
 };
 #endif

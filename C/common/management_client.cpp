@@ -731,12 +731,13 @@ std::vector<AssetTrackingTuple*>& ManagementClient::getAssetTrackingTuples(const
 			return (*vec);
 		}
 	} catch (const SimpleWeb::system_error &e) {
-		m_logger->error("Fetch/parse of asset tracking tuples failed: %s.", e.what());
+		m_logger->error("Fetch/parse of asset tracking tuples for service %s failed: %s.", serviceName.c_str(), e.what());
 		//throw;
 	}
 	catch (...) {
-		m_logger->error("Some other exception");
+		m_logger->error("Unexpected exception when retrieving asset tuples for service %s:, serviceName.c_str()");
 	}
+	return *vec;
 }
 
 /**

@@ -303,6 +303,17 @@ void createStorageStreamWrapper(shared_ptr<HttpServer::Response> response,
 }
 
 /**
+ * Wrapper function for the create storage stream API call.
+ */
+void createStorageSchemaWrapper(shared_ptr<HttpServer::Response> response,
+                                shared_ptr<HttpServer::Request> request)
+{
+        StorageApi *api = StorageApi::getInstance();
+        api->createStorageSchema(response, request);
+}
+
+
+/**
  * Construct the singleton Storage API 
  */
 StorageApi::StorageApi(const unsigned short port, const unsigned int threads) : readingPlugin(0), streamHandler(0)
@@ -370,6 +381,7 @@ void StorageApi::initResources()
 	m_server->resource[READING_PURGE]["PUT"] = readingPurgeWrapper;
 
 	m_server->resource[CREATE_STORAGE_STREAM]["POST"] = createStorageStreamWrapper;
+	m_server->resource[STORAGE_SCHEMA]["POST"] = createStorageSchemaWrapper;
 
 	m_server->on_error = on_error;
 
@@ -1305,6 +1317,38 @@ string   payload;
 				SimpleWeb::StatusCode::client_error_bad_request,
 				responsePayload);
 		}
+        } catch (exception ex) {
+                internalError(response, ex);
+        }
+}
+
+
+/**
+ * Perform an create table and create index for schema provided in the payload.
+ *
+ * @param response      The response stream to send the response on
+ * @param request       The HTTP request
+ */
+void StorageApi::createStorageSchema(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
+{
+string  payload;
+string  responsePayload;
+
+        try {
+                payload = request->content.string();
+
+                int rval = plugin->createSchema(payload);
+                if (rval != -1)
+                {
+                        responsePayload = "{ \"Successfully created schema\"}  ";
+                        respond(response, responsePayload);
+                }
+                else
+                {
+                        mapError(responsePayload, plugin->lastError());
+                        respond(response, SimpleWeb::StatusCode::client_error_bad_request, responsePayload);
+                }
+
         } catch (exception ex) {
                 internalError(response, ex);
         }

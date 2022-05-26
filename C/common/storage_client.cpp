@@ -1367,14 +1367,12 @@ void StorageClient::handleException(const exception& ex, const char *operation, 
 }
 
 /**
- * Post to storage schema
+ * Function to create Storage Schema
  */
-bool StorageClient::postStorageSchema(Reading& reading)
+bool StorageClient::createSchema(const std::string& payload)
 {
         try {
-                ostringstream convert;
-                convert << reading.toJSON();
-                auto res = this->getHttpClient()->request("POST", "/storage/schema", convert.str());
+                auto res = this->getHttpClient()->request("POST", "/storage/schema", payload.c_str());
                 if (res->status_code.compare("200 OK") == 0)
                 {
                         return true;

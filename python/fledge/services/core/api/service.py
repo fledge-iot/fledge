@@ -365,7 +365,7 @@ async def add_service(request):
             process_name = 'dispatcher_c'
             script = '["services/dispatcher_c"]'
         elif service_type == 'bucketstorage':
-            if not os.path.exists(_FLEDGE_ROOT + "/services/fledge.services.bucketStorage"):
+            if not os.path.exists(_FLEDGE_ROOT + "/services/fledge.services.bucket"):
                 msg = "{} service is not installed correctly.".format(service_type.capitalize())
                 raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
             process_name = 'bucket_storage_c'

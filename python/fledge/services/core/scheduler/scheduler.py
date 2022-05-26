@@ -32,7 +32,7 @@ from fledge.services.core.service_registry import exceptions as service_registry
 from fledge.services.common import utils
 
 __author__ = "Terris Linenbach, Amarendra K Sinha, Massimiliano Pinto"
-__copyright__ = "Copyright (c) 2017-2018 OSIsoft, LLC"
+__copyright__ = "Copyright (c) 2017-2021 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
@@ -303,31 +303,28 @@ class Scheduler(object):
         args_to_exec = args.copy()
         args_to_exec.append("--port={}".format(self._core_management_port))
         args_to_exec.append("--address=127.0.0.1")
-        args_to_exec.append("--name={}".format(schedule.name))
+        
         if schedule.process_name == "restore" and self._restore_backup_id is not None:
             # Adding backup id argument
             args_to_exec.append("--backup-id={}".format(self._restore_backup_id))
             # Reset restore backup id
             self._restore_backup_id = None
-        # interim solution for service/authtoken endpoint exposure  
-        # restrict to FogLAMP manager/poll agent service
-        if schedule.process_name == 'management':
-            import secrets
-            t = secrets.token_urlsafe(15)
-            try:
-                # better we pass as arg to scheduled process and keep this in 
-                # main memory data structure corresponding to schedule/service name
-                # and remove once assigned a jwt token...
-                fname = _FLEDGE_ROOT + "/data/.{}".format('managementtoken')
-                with open(fname,'w', encoding = 'utf-8') as f:
-                    f.write(t)
-                    self._logger.debug(fname +" written")
-            except Exception as ex:
-                self._logger.exception(ex)
-        # This should be appended as an arg and passed to process
-        # and also kept as name | (single use) token pair for verification and assigning
-        # jwt token for cross communication
-        # args_to_exec.append("--token={}".format(t))
+
+        # Pass startup token to args for services
+        if schedule.type == Schedule.Type.STARTUP:
+            # This should be appended as an arg and passed to process
+            # and also kept as name | (single use) token pair for verification and assigning
+            # jwt token for cross communication
+
+            # Ask ServiceRegistry to issue a startup token and store
+            startToken = ServiceRegistry.issueStartupToken(schedule.name)
+            # Add startup token to args for services
+            args_to_exec.append("--token={}".format(startToken))
+        
+        args_to_exec.append("--name={}".format(schedule.name))
+
+        # avoid printing/logging tokens
+        args_to_exec_printable  = [a for a in args_to_exec if not a.startswith("--token")]
 
         task_process = self._TaskProcess()
         task_process.start_time = time.time()
@@ -337,7 +334,7 @@ class Scheduler(object):
         except EnvironmentError:
             self._logger.exception(
                 "Unable to start schedule '%s' process '%s'\n%s",
-                schedule.name, schedule.process_name, args_to_exec)
+                schedule.name, schedule.process_name, args_to_exec_printable)
             raise
 
         task_id = uuid.uuid4()
@@ -348,11 +345,11 @@ class Scheduler(object):
         # All tasks including STARTUP tasks go into both self._task_processes and self._schedule_executions
         self._task_processes[task_id] = task_process
         self._schedule_executions[schedule.id].task_processes[task_id] = task_process
-
+ 
         self._logger.info(
             "Process started: Schedule '%s' process '%s' task %s pid %s, %s running tasks\n%s",
             schedule.name, schedule.process_name, task_id, process.pid,
-            len(self._task_processes), args_to_exec)
+            len(self._task_processes), args_to_exec_printable)
 
         # Startup tasks are not tracked in the tasks table and do not have any future associated with them.
         if schedule.type != Schedule.Type.STARTUP:

@@ -18,7 +18,7 @@ using namespace std;
  *
  * @param where	A pointer to the where condition
  */
-Query::Query(Where *where) : m_where(where), m_limit(0), m_timebucket(0), m_distinct(false)
+Query::Query(Where *where) : m_where(where), m_limit(0), m_timebucket(0), m_distinct(false), m_join(0)
 {
 }
 
@@ -31,7 +31,8 @@ Query::Query(Where *where) : m_where(where), m_limit(0), m_timebucket(0), m_dist
 Query::Query(Aggregate *aggregate, Where *where) : m_where(where),
 						   m_limit(0),
 						   m_timebucket(0),
-						   m_distinct(false)
+						   m_distinct(false),
+						   m_join(0)
 {
 	m_aggregates.push_back(aggregate);
 }
@@ -45,7 +46,8 @@ Query::Query(Aggregate *aggregate, Where *where) : m_where(where),
 Query::Query(Timebucket *timebucket, Where *where) : m_where(where),
 						     m_limit(0),
 						     m_timebucket(timebucket),
-						     m_distinct(false)
+						     m_distinct(false),
+						     m_join(0)
 {
 }
 
@@ -60,7 +62,8 @@ Query::Query(Timebucket *timebucket, Where *where) : m_where(where),
 Query::Query(Timebucket *timebucket, Where *where, unsigned int limit) : m_where(where),
 									 m_limit(limit),
 									 m_timebucket(timebucket),
-									 m_distinct(false)
+									 m_distinct(false),
+									 m_join(0)
 {
 }
 
@@ -73,7 +76,8 @@ Query::Query(Timebucket *timebucket, Where *where, unsigned int limit) : m_where
 Query::Query(vector<Returns *> returns, Where *where) : m_where(where),
 							m_limit(0),
 							m_timebucket(0),
-							m_distinct(false)
+							m_distinct(false),
+							m_join(0)
 {
 	for (auto it = returns.cbegin(); it != returns.cend(); ++it)
 	{
@@ -92,7 +96,8 @@ Query::Query(vector<Returns *> returns, Where *where) : m_where(where),
 Query::Query(vector<Returns *> returns, Where *where, unsigned int limit) : m_where(where),
 									    m_limit(limit),
 									    m_timebucket(0),
-									    m_distinct(false)
+									    m_distinct(false),
+									    m_join(0)
 {
 	for (auto it = returns.cbegin(); it != returns.cend(); ++it)
 	{
@@ -108,7 +113,8 @@ Query::Query(vector<Returns *> returns, Where *where, unsigned int limit) : m_wh
 Query::Query(vector<Returns *> returns) : m_where(0),
 					  m_limit(0),
 					  m_timebucket(0),
-					  m_distinct(false)
+					  m_distinct(false),
+					  m_join(0)
 {
 	for (auto it = returns.cbegin(); it != returns.cend(); ++it)
 	{
@@ -124,7 +130,8 @@ Query::Query(vector<Returns *> returns) : m_where(0),
 Query::Query(Returns *returns) : m_where(0),
 				 m_limit(0),
 				 m_timebucket(0),
-				 m_distinct(false)
+				 m_distinct(false),
+				 m_join(0)
 {
 		m_returns.push_back(returns);
 }
@@ -134,7 +141,10 @@ Query::Query(Returns *returns) : m_where(0),
  */
 Query::~Query()
 {
-	delete m_where;
+	if (m_where)
+	{
+		delete m_where;
+	}
 	for (auto it = m_aggregates.cbegin(); it != m_aggregates.cend(); ++it)
 	{
 		delete *it;
@@ -150,6 +160,10 @@ Query::~Query()
 	if (m_timebucket)
 	{
 		delete m_timebucket;
+	}
+	if (m_join)
+	{
+		delete m_join;
 	}
 }
 
@@ -227,6 +241,16 @@ void Query::returns(vector<Returns *> returns)
 }
 
 /**
+ * Add a join clause to a query
+ *
+ * @param join	A pointer to a Join onject
+ */
+void Query::join(Join *join)
+{
+	m_join = join;
+}
+
+/**
  * Add a distinct value modifier to the query
  */
 void Query::distinct()
@@ -249,6 +273,13 @@ bool 		first = true;
 			json << ", ";
 		json << "\"where\" : " << m_where->toJSON();
 		first = false;
+	}
+	if (m_join)
+	{
+		if (! first)
+			json << ", ";
+		first = false;
+		json << m_join->toJSON();
 	}
 	switch (m_aggregates.size())
 	{

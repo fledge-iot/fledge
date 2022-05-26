@@ -4,8 +4,10 @@
 # See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
-__author__ = "Ashish Jabble, Praveen Garg, Ashwin Gopalakrishnan"
-__copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
+from fledge.services.core import proxy
+
+__author__ = "Ashish Jabble, Praveen Garg, Ashwin Gopalakrishnan, Massimiliano Pinto"
+__copyright__ = "Copyright (c) 2021 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
@@ -13,7 +15,8 @@ __version__ = "${VERSION}"
 def setup(app, obj, is_core=False):
     """ Common method to setup the microservice management api.
     Args:
-        obj (an instance, or a class, with the implementation of the needed methods for each route below)
+        app: an Application instance
+        obj: an instance, or a class, with the implementation of the needed methods for each route below
         is_core: if True, routes are being set for Core Management API only
     """
     
@@ -30,9 +33,12 @@ def setup(app, obj, is_core=False):
         app.router.add_route('DELETE', '/fledge/service/category/{category_name}', obj.delete_configuration_category)
         app.router.add_route('GET', '/fledge/service/category/{category_name}/children', obj.get_child_category)
         app.router.add_route('POST', '/fledge/service/category/{category_name}/children', obj.create_child_category)
-        app.router.add_route('GET', '/fledge/service/category/{category_name}/{config_item}', obj.get_configuration_item)
-        app.router.add_route('PUT', '/fledge/service/category/{category_name}/{config_item}', obj.update_configuration_item)
-        app.router.add_route('DELETE', '/fledge/service/category/{category_name}/{config_item}/value', obj.delete_configuration_item)
+        app.router.add_route('GET', '/fledge/service/category/{category_name}/{config_item}',
+                             obj.get_configuration_item)
+        app.router.add_route('PUT', '/fledge/service/category/{category_name}/{config_item}',
+                             obj.update_configuration_item)
+        app.router.add_route('DELETE', '/fledge/service/category/{category_name}/{config_item}/value',
+                             obj.delete_configuration_item)
 
         # Service Registration
         app.router.add_route('POST', '/fledge/service', obj.register)
@@ -58,8 +64,17 @@ def setup(app, obj, is_core=False):
         # Internal refresh cache
         app.router.add_route('PUT', '/fledge/cache', obj.refresh_cache)
 
-    # enable cors support
-    enable_cors(app)
+        # Service token verification
+        app.router.add_route('POST', '/fledge/service/verify_token', obj.verify_token)
+
+        # Service token refresh
+        app.router.add_route('POST', '/fledge/service/refresh_token', obj.refresh_token)
+
+        # Proxy API setup for a microservice
+        proxy.setup(app)
+
+        # enable cors support
+        enable_cors(app)
 
 
 def enable_cors(app):

@@ -3,8 +3,9 @@
  *
  * Copyright (c) 2021 Dianomic Systems
  *
- * Author: Mark Riddoch
+ * Author: Mark Riddoch, Massimiliano Pinto
  */
+
 #include <south_api.h>
 #include <south_service.h>
 #include <rapidjson/document.h>
@@ -14,8 +15,6 @@ using namespace rapidjson;
 using HttpServer = SimpleWeb::Server<SimpleWeb::HTTP>;
 
 static SouthApi *api = NULL;
-
-/* TODO Add security */
 
 /**
  * Wrapper for the PUT setPoint API call
@@ -62,8 +61,17 @@ SouthApi::SouthApi(SouthService *service) : m_service(service), m_thread(NULL)
 	m_server = new HttpServer();
 	m_server->config.port = 0;
 	m_server->config.thread_pool_size = 1;
-	m_server->resource[SETPOINT]["PUT"] = setPointWrapper;
-	m_server->resource[OPERATION]["PUT"] = operationWrapper;
+
+	// AuthenticationMiddleware for PUT regexp paths: use lambda funcion, passing the class object
+	m_server->resource[SETPOINT]["PUT"] = [this](shared_ptr<HttpServer::Response> response,
+                                                        shared_ptr<HttpServer::Request> request) {
+				m_service->AuthenticationMiddlewarePUT(response, request, setPointWrapper);
+	};
+	m_server->resource[OPERATION]["PUT"] = [this](shared_ptr<HttpServer::Response> response,
+                                                        shared_ptr<HttpServer::Request> request) {
+				m_service->AuthenticationMiddlewarePUT(response, request, operationWrapper);
+	};
+
 	api = this;
 	m_thread = new thread(startService);
 }
@@ -113,7 +121,7 @@ unsigned short SouthApi::getListenerPort()
  * @param request	The HTTP request
  */
 void SouthApi::setPoint(shared_ptr<HttpServer::Response> response,
-							shared_ptr<HttpServer::Request> request)
+			shared_ptr<HttpServer::Request> request)
 {
 	string payload = request->content.string();
 	try {
@@ -141,33 +149,33 @@ void SouthApi::setPoint(shared_ptr<HttpServer::Response> response,
 				if (status)
 				{
 					string responsePayload = QUOTE({ "status" : "ok" });
-					respond(response, responsePayload);
+					m_service->respond(response, responsePayload);
 				}
 				else
 				{
 					string responsePayload = QUOTE({ "status" : "failed" });
-					respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
+					m_service->respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
 				}
 				return;
 			}
 			else
 			{
 				string responsePayload = QUOTE({ "message" : "Missing 'values' object in payload" });
-				respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
+				m_service->respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
 				return;
 			}
 		}
 		else
 		{
 			string responsePayload = QUOTE({ "message" : "Failed to parse request payload" });
-			respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
+			m_service->respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
 		}
 		
 	} catch (exception &e) {
 		char buffer[80];
 		snprintf(buffer, sizeof(buffer), "\"Exception: %s\"", e.what());
 		string responsePayload = QUOTE({ "message" : buffer });
-		respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
+		m_service->respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
 	}
 }
 
@@ -178,7 +186,7 @@ void SouthApi::setPoint(shared_ptr<HttpServer::Response> response,
  * @param request	The HTTP request
  */
 void SouthApi::operation(shared_ptr<HttpServer::Response> response,
-							shared_ptr<HttpServer::Request> request)
+			shared_ptr<HttpServer::Request> request)
 {
 	string payload = request->content.string();
 	try {
@@ -212,7 +220,7 @@ void SouthApi::operation(shared_ptr<HttpServer::Response> response,
 				else if (doc.HasMember("parameters"))
 				{
 					string responsePayload = QUOTE({ "message" : "If present, parameters must be a JSON object" });
-					respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
+					m_service->respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
 					return;
 				}
 
@@ -223,12 +231,12 @@ void SouthApi::operation(shared_ptr<HttpServer::Response> response,
 				if (status)
 				{
 					string responsePayload = QUOTE({ "status" : "ok" });
-					respond(response, responsePayload);
+					m_service->respond(response, responsePayload);
 				}
 				else
 				{
 					string responsePayload = QUOTE({ "status" : "failed" });
-					respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
+					m_service->respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
 				}
 				return;
 				
@@ -236,41 +244,12 @@ void SouthApi::operation(shared_ptr<HttpServer::Response> response,
 			else
 			{
 				string responsePayload = QUOTE({ "message" : "Missing 'operation' in payload" });
-				respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
+				m_service->respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
 				return;
 			}
 		}
 	} catch (exception &e) {
 	}
 	string responsePayload = QUOTE({ "status" : "failed" });
-	respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
-}
-
-/**
- * Send a good HTTP response to the caller
- *
- * @param response	The HTTP response
- * @param paylaod	The response payload
- */
-void SouthApi::respond(shared_ptr<HttpServer::Response> response, const string& payload)
-{
-	*response << "HTTP/1.1 200 OK\r\n" 
-	       	<< "Content-Length: " << payload.length() << "\r\n"
-	       	<<  "Content-type: application/json\r\n\r\n"
-	       	<< payload;
-}
-
-/**
- * Send an error response to the caller
- *
- * @param response	The HTTP response
- * @param code		The HTTP error code
- * @param payload	The resposne payload
- */
-void SouthApi::respond(shared_ptr<HttpServer::Response> response, SimpleWeb::StatusCode code, const string& payload)
-{
-	*response << "HTTP/1.1 " << status_code(code) << "\r\n" 
-	       	<< "Content-Length: " << payload.length() << "\r\n"
-	       	<<  "Content-type: application/json\r\n\r\n"
-	       	<< payload;
+	m_service->respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
 }

@@ -56,7 +56,7 @@ class Connection {
 		void		raiseError(const char *operation, const char *reason,...);
 		PGconn		*dbConnection;
 		void		mapResultSet(PGresult *res, std::string& resultSet);
-		bool		jsonWhereClause(const rapidjson::Value& whereClause, SQLBuffer&);
+		bool		jsonWhereClause(const rapidjson::Value& whereClause, SQLBuffer&, const std::string& prefix = "");
 		bool		jsonModifiers(const rapidjson::Value&, SQLBuffer&);
 		bool		jsonAggregates(const rapidjson::Value&, const rapidjson::Value&, SQLBuffer&, SQLBuffer&, bool isTableReading = false);
 		bool		returnJson(const rapidjson::Value&, SQLBuffer&, SQLBuffer&);
@@ -66,6 +66,10 @@ class Connection {
     		const std::string 	double_quote_reserved_column_name(const std::string &column_name);
 		void		logSQL(const char *, const char *);
 		bool		isFunction(const char *) const;
+                bool            selectColumns(const rapidjson::Value& document, SQLBuffer& sql, int level);
+                bool            appendTables(const rapidjson::Value& document, SQLBuffer& sql, int level);
+                bool            processJoinQueryWhereClause(const rapidjson::Value& query, SQLBuffer& sql, int level);
+
 		std::string getIndexName(std::string s);
 		bool 		checkValidDataType(const std::string &s);
 
@@ -107,8 +111,6 @@ class Connection {
 
 		bool            parseDatabaseStorageSchema(int &version, const std::string &res,
                                 std::unordered_map<std::string, std::unordered_set<columnRec, columnRecHasher, columnRecComparator> > &tableColumnMap, std::unordered_map<std::string, std::vector<std::string> > &tableIndexMap, bool &schemaCreationRequest);
-
-
 
 
 };

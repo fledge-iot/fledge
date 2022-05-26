@@ -21,12 +21,13 @@ fi
 
 if [ -f "./CMakeLists.txt" ] ; then
 	echo -n "Compiling libraries..."
-	(rm -rf build && mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=Debug .. && make ${jobs} && cd ..) >/dev/null
+	(rm -rf build && mkdir -p build && cd build && cmake -DCMAKE_BUILD_TYPE=Debug .. && make ${jobs} && cd ..)
 	echo "done"
 fi
 
-cmakefile=`find . -name CMakeLists.txt | grep -v "\.\/CMakeLists.txt"`
+cmakefile=`find . -name CMakeLists.txt | grep -v "\.\/CMakeLists.txt" | grep -w sqlite | grep plugins`
 for f in $cmakefile; do	
+	echo "-----------------> Processing $f <-----------------"
 	dir=`dirname $f`
 	echo Testing $dir
 	(
@@ -41,21 +42,25 @@ for f in $cmakefile; do
 			echo cmake failed for $dir;
 			exit 1
 		fi
-		make ${jobs};
+		make ${jobs} > /dev/null;
 		rc=$?
 		if [ $rc != 0 ]; then
 			echo make failed for $dir;
 			exit 1
 		fi
-		echo Running tests...;
-		if [ -f "./RunTests" ] ; then
-			./RunTests --gtest_output=xml > /tmp/results;
-			rc=$?
-			if [ $rc != 0 ]; then
-				exit $rc
-			fi
-		fi
-	) >/dev/null
+		#echo Running tests...;
+		#if [ -f "./RunTests" ] ; then
+	#		./RunTests --gtest_output=xml > /tmp/results;
+	#		rc=$?
+	#		if [ $rc != 0 ]; then
+	#			exit $rc
+	#		fi
+	#	fi
+
+		echo Running "make CoverageHtml";
+                make CoverageHtml
+
+	) # >/dev/null
 	rc=$?
 	if [ $rc != 0 ]; then
 		echo Tests for $dir failed

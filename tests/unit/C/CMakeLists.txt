@@ -1,8 +1,18 @@
+set( CMAKE_VERBOSE_MAKEFILE on )
+
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR})
+
+set(GCOVR_PATH "/home/nerd039/.local/bin/gcovr")
+
 cmake_minimum_required(VERSION 2.6)
 
-set(CMAKE_CXX_FLAGS "-std=c++11 -O3")
+set(CMAKE_CXX_FLAGS "-std=c++11 --coverage -O0")
+
 set(UUIDLIB -luuid)
 set(COMMONLIB -ldl)
+
+include(CodeCoverage)
+append_coverage_compiler_flags()
  
 EXECUTE_PROCESS( COMMAND grep -o ^NAME=.* /etc/os-release COMMAND cut -f2 -d\" COMMAND sed s/\"//g OUTPUT_VARIABLE os_name )
 EXECUTE_PROCESS( COMMAND grep -o ^VERSION_ID=.* /etc/os-release COMMAND cut -f2 -d\" COMMAND sed s/\"//g OUTPUT_VARIABLE os_version )
@@ -117,3 +127,5 @@ add_subdirectory(cmake_pg)
 add_subdirectory(cmake_sqlite)
 add_subdirectory(cmake_sqlitelb)
 add_subdirectory(cmake_sqliteM)
+
+add_link_options("--coverage")

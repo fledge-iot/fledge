@@ -32,7 +32,7 @@ MKDIR_PATH := mkdir -p
 CD := cd
 LN := ln -sf
 PIP_USER_FLAG = --user
-USE_PIP_CACHE := no
+USE_PIP_CACHE := yes
 
 RM_DIR := rm -r
 RM_FILE := rm
@@ -167,7 +167,7 @@ PACKAGE_NAME=Fledge
 default : apply_version \
 	generate_selfcertificate \
 	c_build $(SYMLINK_STORAGE_BINARY) $(SYMLINK_SOUTH_BINARY) $(SYMLINK_NORTH_SERVICE_BINARY) $(SYMLINK_NORTH_BINARY) $(SYMLINK_PURGE_SYSTEM_BINARY) $(SYMLINK_PLUGINS_DIR) \
-	python_build python_requirements_user
+	python_build # python_requirements_user
 
 apply_version :
 # VERSION : this file contains Fledge app version and Fledge DB schema revision

@@ -5,6 +5,9 @@ set(UUIDLIB -luuid)
 set(COMMONLIB -ldl)
 set(LIBCURL_LIB -lcurl)
 
+set(CMAKE_MODULE_PATH .)
+include(CodeCoverage)
+
 # Locate GTest
 find_package(GTest REQUIRED)
 include_directories(${GTEST_INCLUDE_DIRS})
@@ -62,6 +65,8 @@ else()
 endif()
 
 link_directories(${PROJECT_BINARY_DIR}/../../lib)
+
+setup_target_for_coverage_gcovr_html(RunTests_coverage ${PROJECT_TEST_NAME} coverage)
 
 # Link runTests with what we want to test and the GTest and pthread library
 add_executable(RunTests ${unittests})

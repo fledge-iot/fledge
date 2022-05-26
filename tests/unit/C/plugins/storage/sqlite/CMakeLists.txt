@@ -1,8 +1,17 @@
+set( CMAKE_VERBOSE_MAKEFILE on )
+
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/../../..)
+
+set(GCOVR_PATH "/home/nerd039/.local/bin/gcovr")
+
 # Project configuration
 project(RunTests)
 cmake_minimum_required(VERSION 2.6)
-set(CMAKE_CXX_FLAGS "-std=c++11 ")
-set(CMAKE_CXX_FLAGS_DEBUG "-O0 -ggdb")
+set(CMAKE_CXX_FLAGS "-std=c++11 -O0 -ggdb --coverage")
+set(CMAKE_CXX_FLAGS_DEBUG "-O0 -ggdb --coverage")
+
+include(CodeCoverage)
+append_coverage_compiler_flags()
 
 # External libraries
 set(LIBCURL_LIB -lcurl)
@@ -13,6 +22,7 @@ set(SERVICE_COMMON_LIB      services-common-lib)
 set(PLUGINS_COMMON_LIB      plugins-common-lib)
 set(PLUGIN_SQLITE           sqlite)
 set(STORAGE_COMMON_LIB      storage-common-lib)
+
 
 # Locate GTest
 find_package(GTest REQUIRED)
@@ -75,3 +85,10 @@ if(${CMAKE_VERSION} VERSION_LESS "3.12.0")
 else()
 	target_link_libraries(${PROJECT_NAME} ${Python3_LIBRARIES})
 endif()
+
+setup_target_for_coverage_gcovr_html(
+            NAME CoverageHtml
+            EXECUTABLE ${PROJECT_NAME}
+            DEPENDENCIES ${PROJECT_NAME}
+    )
+

@@ -127,5 +127,3 @@ add_subdirectory(cmake_pg)
 add_subdirectory(cmake_sqlite)
 add_subdirectory(cmake_sqlitelb)
 add_subdirectory(cmake_sqliteM)
-
-add_link_options("--coverage")

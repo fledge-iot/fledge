@@ -485,12 +485,25 @@ ReadingSet* StorageClient::queryTableToReadings(const std::string& tableName,
  */
 int StorageClient::insertTable(const string& tableName, const InsertValues& values)
 {
+	return insertTable("fledge", tableName, values);
+}
+
+/**
+ * Insert data into an arbitrary table
+ *
+ * @param schema	The name of the schema to insert into
+ * @param tableName	The name of the table into which data will be added
+ * @param values	The values to insert into the table
+ * @return int		The number of rows inserted
+ */
+int StorageClient::insertTable(const string& schema, const string& tableName, const InsertValues& values)
+{
 	try {
 		ostringstream convert;
 
 		convert << values.toJSON();
 		char url[128];
-		snprintf(url, sizeof(url), "/storage/table/%s", tableName.c_str());
+		snprintf(url, sizeof(url), "/storage/schema/%s/table/%s", schema.c_str(), tableName.c_str());
 		auto res = this->getHttpClient()->request("POST", url, convert.str());
 		ostringstream resultPayload;
 		resultPayload << res->content.rdbuf();
@@ -532,6 +545,20 @@ int StorageClient::insertTable(const string& tableName, const InsertValues& valu
  */
 int StorageClient::updateTable(const string& tableName, const InsertValues& values, const Where& where)
 {
+	return updateTable("fledge", tableName, values, where);
+}
+
+/**
+ * Update data into an arbitrary table
+ *
+ * @param schema	The name of the schema into which data will be added
+ * @param tableName	The name of the table into which data will be added
+ * @param values	The values to insert into the table
+ * @param where		The conditions to match the updated rows
+ * @return int		The number of rows updated
+ */
+int StorageClient::updateTable(const string& schema, const string& tableName, const InsertValues& values, const Where& where)
+{
 	static HttpClient *httpClient = this->getHttpClient(); // to initialize m_seqnum_map[thread_id] for this thread
 	try {
 		std::thread::id thread_id = std::this_thread::get_id();
@@ -554,7 +581,7 @@ int StorageClient::updateTable(const string& tableName, const InsertValues& valu
 		convert << " ] }";
 		
 		char url[128];
-		snprintf(url, sizeof(url), "/storage/table/%s", tableName.c_str());
+		snprintf(url, sizeof(url), "/storage/schema/%s/table/%s", schema.c_str(), tableName.c_str());
 		auto res = this->getHttpClient()->request("PUT", url, convert.str(), headers);
 		if (res->status_code.compare("200 OK") == 0)
 		{
@@ -597,6 +624,20 @@ int StorageClient::updateTable(const string& tableName, const InsertValues& valu
  */
 int StorageClient::updateTable(const string& tableName, const ExpressionValues& values, const Where& where)
 {
+	return updateTable("fledge", tableName, values, where);
+}
+
+/**
+ * Update data into an arbitrary table
+ *
+ * @param schema	The name of the schema into which data will be added
+ * @param tableName	The name of the table into which data will be added
+ * @param values	The expressions to update into the table
+ * @param where		The conditions to match the updated rows
+ * @return int		The number of rows updated
+ */
+int StorageClient::updateTable(const string& schema, const string& tableName, const ExpressionValues& values, const Where& where)
+{
 	static HttpClient *httpClient = this->getHttpClient(); // to initialize m_seqnum_map[thread_id] for this thread
 	try {
 		std::thread::id thread_id = std::this_thread::get_id();
@@ -619,7 +660,7 @@ int StorageClient::updateTable(const string& tableName, const ExpressionValues& 
 		convert << " ] }";
 		
 		char url[128];
-		snprintf(url, sizeof(url), "/storage/table/%s", tableName.c_str());
+		snprintf(url, sizeof(url), "/storage/schema/%s/table/%s", schema.c_str(), tableName.c_str());
 		auto res = this->getHttpClient()->request("PUT", url, convert.str(), headers);
 		if (res->status_code.compare("200 OK") == 0)
 		{
@@ -661,6 +702,19 @@ int StorageClient::updateTable(const string& tableName, const ExpressionValues& 
  */
 int StorageClient::updateTable(const string& tableName, vector<pair<ExpressionValues *, Where *>>& updates)
 {
+	return updateTable("fledge", tableName, updates);
+}
+
+/**
+ * Update data into an arbitrary table
+ *
+ * @param schema	The name of the schema into which data will be added
+ * @param tableName	The name of the table into which data will be added
+ * @param updates	The expressions and condition pairs to update in the table
+ * @return int		The number of rows updated
+ */
+int StorageClient::updateTable(const string& schema, const string& tableName, vector<pair<ExpressionValues *, Where *>>& updates)
+{
 	static HttpClient *httpClient = this->getHttpClient(); // to initialize m_seqnum_map[thread_id] for this thread
 	try {
 		std::thread::id thread_id = std::this_thread::get_id();
@@ -690,7 +744,7 @@ int StorageClient::updateTable(const string& tableName, vector<pair<ExpressionVa
 		convert << " ] }";
 		
 		char url[128];
-		snprintf(url, sizeof(url), "/storage/table/%s", tableName.c_str());
+		snprintf(url, sizeof(url), "/storage/schema/%s/table/%s", schema.c_str(), tableName.c_str());
 		auto res = this->getHttpClient()->request("PUT", url, convert.str(), headers);
 		if (res->status_code.compare("200 OK") == 0)
 		{
@@ -735,6 +789,21 @@ int StorageClient::updateTable(const string& tableName, vector<pair<ExpressionVa
  */
 int StorageClient::updateTable(const string& tableName, const InsertValues& values, const ExpressionValues& expressions, const Where& where)
 {
+	return updateTable("fledge", tableName, values, expressions, where);
+}
+
+/**
+ * Update data into an arbitrary table
+ *
+ * @param schema	The name of the schema into which data will be added
+ * @param tableName	The name of the table into which data will be added
+ * @param values	The values to insert into the table
+ * @param expressions	The expression to update inthe table
+ * @param where		The conditions to match the updated rows
+ * @return int		The number of rows updated
+ */
+int StorageClient::updateTable(const string& schema, const string& tableName, const InsertValues& values, const ExpressionValues& expressions, const Where& where)
+{
 	try {
 		ostringstream convert;
 
@@ -749,7 +818,7 @@ int StorageClient::updateTable(const string& tableName, const InsertValues& valu
 		convert << " ] }";
 		
 		char url[128];
-		snprintf(url, sizeof(url), "/storage/table/%s", tableName.c_str());
+		snprintf(url, sizeof(url), "/storage/schema/%s/table/%s", schema.c_str(), tableName.c_str());
 		auto res = this->getHttpClient()->request("PUT", url, convert.str());
 		if (res->status_code.compare("200 OK") == 0)
 		{
@@ -792,6 +861,20 @@ int StorageClient::updateTable(const string& tableName, const InsertValues& valu
  */
 int StorageClient::updateTable(const string& tableName, const JSONProperties& values, const Where& where)
 {
+	return updateTable("fledge", tableName, values, where);
+}
+
+/**
+ * Update data into an arbitrary table
+ *
+ * @param schema	The name of the schema into which data will be added
+ * @param tableName	The name of the table into which data will be added
+ * @param json		The values to insert into the table
+ * @param where		The conditions to match the updated rows
+ * @return int		The number of rows updated
+ */
+int StorageClient::updateTable(const string& schema, const string& tableName, const JSONProperties& values, const Where& where)
+{
 	try {
 		ostringstream convert;
 
@@ -804,7 +887,7 @@ int StorageClient::updateTable(const string& tableName, const JSONProperties& va
 		convert << " ] }";
 		
 		char url[128];
-		snprintf(url, sizeof(url), "/storage/table/%s", tableName.c_str());
+		snprintf(url, sizeof(url), "/storage/schema/%s/table/%s", schema.c_str(), tableName.c_str());
 		auto res = this->getHttpClient()->request("PUT", url, convert.str());
 		if (res->status_code.compare("200 OK") == 0)
 		{
@@ -848,6 +931,21 @@ int StorageClient::updateTable(const string& tableName, const JSONProperties& va
  */
 int StorageClient::updateTable(const string& tableName, const InsertValues& values, const JSONProperties& jsonProp, const Where& where)
 {
+	return updateTable("fledge", tableName, values, jsonProp, where);
+}
+
+/**
+ * Update data into an arbitrary table
+ *
+ * @param schema	The name of the schema into which data will be added
+ * @param tableName	The name of the table into which data will be added
+ * @param values	The values to insert into the table
+ * @param jsonProp	The JSON Properties to update
+ * @param where		The conditions to match the updated rows
+ * @return int		The number of rows updated
+ */
+int StorageClient::updateTable(const string& schema, const string& tableName, const InsertValues& values, const JSONProperties& jsonProp, const Where& where)
+{
 	try {
 		ostringstream convert;
 
@@ -862,7 +960,7 @@ int StorageClient::updateTable(const string& tableName, const InsertValues& valu
 		convert << " ] }";
 		
 		char url[128];
-		snprintf(url, sizeof(url), "/storage/table/%s", tableName.c_str());
+		snprintf(url, sizeof(url), "/storage/schema/%s/table/%s", schema.c_str(), tableName.c_str());
 		auto res = this->getHttpClient()->request("PUT", url, convert.str());
 		if (res->status_code.compare("200 OK") == 0)
 		{
@@ -904,12 +1002,25 @@ int StorageClient::updateTable(const string& tableName, const InsertValues& valu
  */
 int StorageClient::deleteTable(const std::string& tableName, const Query& query)
 {
+	return deleteTable("fledge", tableName, query);
+}
+
+/**
+ * Delete from a table
+ *
+ * @param schema	The name of the schema to delete from
+ * @param tablename	The name of the table to delete from
+ * @param query		The query payload to match rows to delete
+ * @return int	The number of rows deleted
+ */
+int StorageClient::deleteTable(const std::string& schema, const std::string& tableName, const Query& query)
+{
 	try {
 		ostringstream convert;
 
 		convert << query.toJSON();
 		char url[128];
-		snprintf(url, sizeof(url), "/storage/table/%s", tableName.c_str());
+		snprintf(url, sizeof(url), "/storage/schema/%s/table/%s", schema.c_str(), tableName.c_str());
 		auto res = this->getHttpClient()->request("DELETE", url, convert.str());
 		if (res->status_code.compare("200 OK") == 0)
 		{

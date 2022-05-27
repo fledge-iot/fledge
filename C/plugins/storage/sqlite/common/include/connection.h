@@ -118,12 +118,19 @@ class Connection {
 		Connection();
 		~Connection();
 #ifndef SQLITE_SPLIT_READINGS
-		bool		retrieve(const std::string& table,
+		bool		retrieve(const std::string& schema,
+					 const std::string& table,
 					 const std::string& condition,
 					 std::string& resultSet);
-		int		insert(const std::string& table, const std::string& data);
-		int		update(const std::string& table, const std::string& data);
-		int		deleteRows(const std::string& table, const std::string& condition);
+		int		insert(const std::string& schema,
+					const std::string& table,
+					const std::string& data);
+		int		update(const std::string& schema,
+						const std::string& table,
+						const std::string& data);
+		int		deleteRows(const std::string& schema,
+						const std::string& table,
+						const std::string& condition);
 		int		create_table_snapshot(const std::string& table, const std::string& id);
 		int		load_table_snapshot(const std::string& table, const std::string& id);
 		int		delete_table_snapshot(const std::string& table, const std::string& id);
@@ -198,7 +205,7 @@ class Connection {
 						std::string& newDate);
 		void		logSQL(const char *, const char *);
 		bool		selectColumns(const rapidjson::Value& document, SQLBuffer& sql, int level);
-		bool 		appendTables(const rapidjson::Value& document, SQLBuffer& sql, int level);
+		bool 		appendTables(const std::string& schema, const rapidjson::Value& document, SQLBuffer& sql, int level);
 		bool		processJoinQueryWhereClause(const rapidjson::Value& query, SQLBuffer& sql, std::vector<std::string>  &asset_codes, int level);
 
 };

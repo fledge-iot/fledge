@@ -857,7 +857,8 @@ unsigned long *rowid = (unsigned long *)data;
  * Perform a query against a common table
  *
  */
-bool Connection::retrieve(const string& table,
+bool Connection::retrieve(const string& schema,
+			  const string& table,
 			  const string& condition,
 			  string& resultSet)
 {
@@ -878,7 +879,9 @@ vector<string>  asset_codes;
 
 		if (condition.empty())
 		{
-			sql.append("SELECT * FROM fledge.");
+			sql.append("SELECT * FROM ");
+			sql.append(schema);
+			sql.append('.');
 			sql.append(table);
 		}
 		else
@@ -900,7 +903,9 @@ vector<string>  asset_codes;
 				{
 					return false;
 				}
-				sql.append(" FROM fledge.");
+				sql.append(" FROM ");
+				sql.append(schema);
+				sql.append('.');
 			}
 			else if (document.HasMember("join"))
 			{
@@ -1008,7 +1013,9 @@ vector<string>  asset_codes;
 					}
 					col++;
 				}
-				sql.append(" FROM fledge.");
+				sql.append(" FROM ");
+				sql.append(schema);
+				sql.append('.');
 			}
 			else
 			{
@@ -1018,14 +1025,18 @@ vector<string>  asset_codes;
 					sql.append(document["modifier"].GetString());
 					sql.append(' ');
 				}
-				sql.append(" * FROM fledge.");
+				sql.append(" * FROM ");
+				sql.append(schema);
+				sql.append('.');
 			}
 			if (document.HasMember("join"))
 			{
-				sql.append(" FROM fledge.");
+				sql.append(" FROM ");
+				sql.append(schema);
+				sql.append('.');
 				sql.append(table);
 				sql.append(" t0");
-				appendTables(document, sql, 1);
+				appendTables(schema, document, sql, 1);
 			}
 			else
 			{
@@ -1159,7 +1170,7 @@ vector<string>  asset_codes;
 /**
  * Insert data into a table
  */
-int Connection::insert(const std::string& table, const std::string& data)
+int Connection::insert(const string& schema, const string& table, const string& data)
 {
 SQLBuffer	sql;
 Document	document;
@@ -1213,7 +1224,9 @@ std::size_t arr = data.find("inserts");
 		int col = 0;
 		SQLBuffer values;
 
-	 	sql.append("INSERT INTO fledge.");
+	 	sql.append("INSERT INTO ");
+		sql.append(schema);
+		sql.append('.');
 		sql.append(table);
 		sql.append(" (");
 
@@ -1345,7 +1358,7 @@ std::size_t arr = data.find("inserts");
  *    json_set(field, '$.key.value', the_value)
  *
  */
-int Connection::update(const string& table, const string& payload)
+int Connection::update(const string& schema, const string& table, const string& payload)
 {
 // Default template parameter uses UTF8 and MemoryPoolAllocator.
 Document	document;
@@ -1391,7 +1404,9 @@ vector<string>  asset_codes;
 					   "Each entry in the update array must be an object");
 				return -1;
 			}
-			sql.append("UPDATE fledge.");
+			sql.append("UPDATE ");
+			sql.append(schema);
+			sql.append('.');
 			sql.append(table);
 			sql.append(" SET ");
 
@@ -3126,14 +3141,16 @@ int retries = 0, rc;
  * Perform a delete against a common table
  *
  */
-int Connection::deleteRows(const string& table, const string& condition)
+int Connection::deleteRows(const string& schema, const string& table, const string& condition)
 {
 // Default template parameter uses UTF8 and MemoryPoolAllocator.
 Document document;
 SQLBuffer	sql;
 vector<string>  asset_codes;
 
-	sql.append("DELETE FROM fledge.");
+	sql.append("DELETE FROM ");
+	sql.append(schema);
+	sql.append('.');
 	sql.append(table);
 	if (! condition.empty())
 	{
@@ -3535,11 +3552,12 @@ SQLBuffer	jsonConstraints;
  * In the case of a join add the tables to select from for all the tables in
  * the join
  *
+ * @param schema	The schema we are using
  * @param document	The query we are processing
  * @param sql		The SQLBuffer we are writing
  * @param level		The table number we are processing
  */
-bool Connection::appendTables(const Value& document, SQLBuffer& sql, int level)
+bool Connection::appendTables(const string& schema, const Value& document, SQLBuffer& sql, int level)
 {
 	string tag = "t" + to_string(level);
 	if (document.HasMember("join"))
@@ -3559,14 +3577,16 @@ bool Connection::appendTables(const Value& document, SQLBuffer& sql, int level)
 				raiseError("commonRetrieve", "Joining table name is not a string");
 				return false;
 			}
-			sql.append(", fledge.");
+			sql.append(", ");
+			sql.append(schema);
+			sql.append('.');
 			sql.append(name.GetString());
 			sql.append(" ");
 			sql.append(tag);
 			if (join.HasMember("query"))
 			{
 				const Value& query = join["query"];
-				appendTables(query, sql, ++level);
+				appendTables(schema, query, sql, ++level);
 			}
 			else
 			{

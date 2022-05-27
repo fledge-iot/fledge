@@ -88,10 +88,10 @@ const char *default_config = QUOTE({
  */
 static PLUGIN_INFORMATION info = {
 	"SQLite3",                 // Name
-	"1.1.1",                  // Version
+	"1.2.0",                  // Version
 	SP_COMMON|SP_READINGS,    // Flags
 	PLUGIN_TYPE_STORAGE,               // Type
-	"1.4.0",                  // Interface version
+	"1.5.0",                  // Interface version
 	default_config
 };
 
@@ -164,12 +164,12 @@ PLUGIN_HANDLE plugin_init(ConfigCategory *category)
 /**
  * Insert into an arbitrary table
  */
-int plugin_common_insert(PLUGIN_HANDLE handle, char *table, char *data)
+int plugin_common_insert(PLUGIN_HANDLE handle, char *schema, char *table, char *data)
 {
 ConnectionManager *manager = (ConnectionManager *)handle;
 Connection        *connection = manager->allocate();
 
-	int result = connection->insert(std::string(table), std::string(data));
+	int result = connection->insert(std::string(schema), std::string(table), std::string(data));
 	manager->release(connection);
 	return result;
 }
@@ -177,13 +177,13 @@ Connection        *connection = manager->allocate();
 /**
  * Retrieve data from an arbitrary table
  */
-const char *plugin_common_retrieve(PLUGIN_HANDLE handle, char *table, char *query)
+const char *plugin_common_retrieve(PLUGIN_HANDLE handle, char *schema, char *table, char *query)
 {
 ConnectionManager *manager = (ConnectionManager *)handle;
 Connection        *connection = manager->allocate();
 std::string results;
 
-	bool rval = connection->retrieve(std::string(table), std::string(query), results);
+	bool rval = connection->retrieve(std::string(schema), std::string(table), std::string(query), results);
 	manager->release(connection);
 	if (rval)
 	{
@@ -195,12 +195,12 @@ std::string results;
 /**
  * Update an arbitary table
  */
-int plugin_common_update(PLUGIN_HANDLE handle, char *table, char *data)
+int plugin_common_update(PLUGIN_HANDLE handle, char *schema, char *table, char *data)
 {
 ConnectionManager *manager = (ConnectionManager *)handle;
 Connection        *connection = manager->allocate();
 
-	int result = connection->update(std::string(table), std::string(data));
+	int result = connection->update(std::string(schema), std::string(table), std::string(data));
 	manager->release(connection);
 	return result;
 }
@@ -208,12 +208,12 @@ Connection        *connection = manager->allocate();
 /**
  * Delete from an arbitrary table
  */
-int plugin_common_delete(PLUGIN_HANDLE handle, char *table, char *condition)
+int plugin_common_delete(PLUGIN_HANDLE handle, char *schema, char *table, char *condition)
 {
 ConnectionManager *manager = (ConnectionManager *)handle;
 Connection        *connection = manager->allocate();
 
-	int result = connection->deleteRows(std::string(table), std::string(condition));
+	int result = connection->deleteRows(std::string(schema), std::string(table), std::string(condition));
 	manager->release(connection);
 	return result;
 }

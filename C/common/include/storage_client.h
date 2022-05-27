@@ -32,6 +32,8 @@ using HttpClient = SimpleWeb::Client<SimpleWeb::HTTP>;
 #define SC_INITIAL_BACKOFF	100
 #define SC_MAX_BACKOFF		1000
 
+#define DEFAULT_SCHEMA 	"fledge"
+
 class ManagementClient;
 
 /**

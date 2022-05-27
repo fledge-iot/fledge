@@ -485,7 +485,7 @@ ReadingSet* StorageClient::queryTableToReadings(const std::string& tableName,
  */
 int StorageClient::insertTable(const string& tableName, const InsertValues& values)
 {
-	return insertTable("fledge", tableName, values);
+	return insertTable(DEFAULT_SCHEMA, tableName, values);
 }
 
 /**
@@ -545,7 +545,7 @@ int StorageClient::insertTable(const string& schema, const string& tableName, co
  */
 int StorageClient::updateTable(const string& tableName, const InsertValues& values, const Where& where)
 {
-	return updateTable("fledge", tableName, values, where);
+	return updateTable(DEFAULT_SCHEMA, tableName, values, where);
 }
 
 /**
@@ -624,7 +624,7 @@ int StorageClient::updateTable(const string& schema, const string& tableName, co
  */
 int StorageClient::updateTable(const string& tableName, const ExpressionValues& values, const Where& where)
 {
-	return updateTable("fledge", tableName, values, where);
+	return updateTable(DEFAULT_SCHEMA, tableName, values, where);
 }
 
 /**
@@ -702,7 +702,7 @@ int StorageClient::updateTable(const string& schema, const string& tableName, co
  */
 int StorageClient::updateTable(const string& tableName, vector<pair<ExpressionValues *, Where *>>& updates)
 {
-	return updateTable("fledge", tableName, updates);
+	return updateTable(DEFAULT_SCHEMA, tableName, updates);
 }
 
 /**
@@ -789,7 +789,7 @@ int StorageClient::updateTable(const string& schema, const string& tableName, ve
  */
 int StorageClient::updateTable(const string& tableName, const InsertValues& values, const ExpressionValues& expressions, const Where& where)
 {
-	return updateTable("fledge", tableName, values, expressions, where);
+	return updateTable(DEFAULT_SCHEMA, tableName, values, expressions, where);
 }
 
 /**
@@ -861,7 +861,7 @@ int StorageClient::updateTable(const string& schema, const string& tableName, co
  */
 int StorageClient::updateTable(const string& tableName, const JSONProperties& values, const Where& where)
 {
-	return updateTable("fledge", tableName, values, where);
+	return updateTable(DEFAULT_SCHEMA, tableName, values, where);
 }
 
 /**
@@ -931,7 +931,7 @@ int StorageClient::updateTable(const string& schema, const string& tableName, co
  */
 int StorageClient::updateTable(const string& tableName, const InsertValues& values, const JSONProperties& jsonProp, const Where& where)
 {
-	return updateTable("fledge", tableName, values, jsonProp, where);
+	return updateTable(DEFAULT_SCHEMA, tableName, values, jsonProp, where);
 }
 
 /**
@@ -1002,7 +1002,7 @@ int StorageClient::updateTable(const string& schema, const string& tableName, co
  */
 int StorageClient::deleteTable(const std::string& tableName, const Query& query)
 {
-	return deleteTable("fledge", tableName, query);
+	return deleteTable(DEFAULT_SCHEMA, tableName, query);
 }
 
 /**

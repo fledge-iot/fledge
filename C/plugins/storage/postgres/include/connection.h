@@ -14,6 +14,10 @@
 #include <string>
 #include <rapidjson/document.h>
 #include <libpq-fe.h>
+#include <unordered_map>
+#include <unordered_set>
+#include <functional>
+#include <vector>
 
 #define	STORAGE_PURGE_RETAIN_ANY 0x0001U
 #define	STORAGE_PURGE_RETAIN_ALL 0x0002U
@@ -44,13 +48,15 @@ class Connection {
 		bool		get_table_snapshots(const std::string& table,
 						    std::string& resultSet);
 		bool		aggregateQuery(const rapidjson::Value& payload, std::string& resultSet);
+		int 		create_schema(const std::string &payload);
+		bool 		findSchemaFromDB(const std::string &service, const  std::string &name, std::string &resultSet);
 
 	private:
 		bool		m_logSQL;
 		void		raiseError(const char *operation, const char *reason,...);
 		PGconn		*dbConnection;
 		void		mapResultSet(PGresult *res, std::string& resultSet);
-		bool		jsonWhereClause(const rapidjson::Value& whereClause, SQLBuffer&);
+		bool		jsonWhereClause(const rapidjson::Value& whereClause, SQLBuffer&, const std::string& prefix = "");
 		bool		jsonModifiers(const rapidjson::Value&, SQLBuffer&);
 		bool		jsonAggregates(const rapidjson::Value&, const rapidjson::Value&, SQLBuffer&, SQLBuffer&, bool isTableReading = false);
 		bool		returnJson(const rapidjson::Value&, SQLBuffer&, SQLBuffer&);
@@ -60,5 +66,52 @@ class Connection {
     		const std::string 	double_quote_reserved_column_name(const std::string &column_name);
 		void		logSQL(const char *, const char *);
 		bool		isFunction(const char *) const;
+                bool            selectColumns(const rapidjson::Value& document, SQLBuffer& sql, int level);
+                bool            appendTables(const rapidjson::Value& document, SQLBuffer& sql, int level);
+                bool            processJoinQueryWhereClause(const rapidjson::Value& query, SQLBuffer& sql, int level);
+
+		std::string getIndexName(std::string s);
+		bool 		checkValidDataType(const std::string &s);
+
+
+		typedef	struct{
+			std::string 	column;
+			std::string	type;
+			int		sz;
+			bool		key = false;
+		} columnRec;
+
+		// Custom Hash Functor that will compute the hash on the
+		// passed objects column data member 
+		struct columnRecHasher
+		{
+	  		size_t operator()(const columnRec & obj) const
+  			{
+				return std::hash<std::string>()(obj.column);
+  			}
+		};
+
+		struct columnRecComparator
+		{
+  			bool operator()(const columnRec & obj1, const columnRec & obj2) const
+  			{
+			        if (obj1.column == obj2.column)
+				      return true;
+			        return false;
+  			}
+		};
+
+		typedef struct{
+                        std::string     query;
+                        std::string     purgeOpArg;
+			std::string	logMsg;
+                } sqlQuery;
+
+	public:
+
+		bool            parseDatabaseStorageSchema(int &version, const std::string &res,
+                                std::unordered_map<std::string, std::unordered_set<columnRec, columnRecHasher, columnRecComparator> > &tableColumnMap, std::unordered_map<std::string, std::vector<std::string> > &tableIndexMap, bool &schemaCreationRequest);
+
+
 };
 #endif

@@ -902,6 +902,11 @@ vector<string>  asset_codes;
 				}
 				sql.append(" FROM fledge.");
 			}
+			else if (document.HasMember("join"))
+			{
+				sql.append("SELECT ");
+				selectColumns(document, sql, 0);
+			}
 			else if (document.HasMember("return"))
 			{
 				int col = 0;
@@ -1015,15 +1020,71 @@ vector<string>  asset_codes;
 				}
 				sql.append(" * FROM fledge.");
 			}
-			sql.append(table);
+			if (document.HasMember("join"))
+			{
+				sql.append(" FROM fledge.");
+				sql.append(table);
+				sql.append(" t0");
+				appendTables(document, sql, 1);
+			}
+			else
+			{
+				sql.append(table);
+			}
 			if (document.HasMember("where"))
 			{
 				sql.append(" WHERE ");
 			 
-				if (document.HasMember("where"))
+				if (document.HasMember("join"))
+				{
+					if (!jsonWhereClause(document["where"], sql, asset_codes, true, "t0."))
+					{
+						return false;
+					}
+
+					// Now and the join condition itself
+					string col0, col1;
+					const Value& join = document["join"];
+					if (join.HasMember("on") && join["on"].IsString())
+					{
+						col0 = join["on"].GetString();
+					}
+					else
+					{
+
+						raiseError("rerieve", "Missing on item");
+						return false;
+					}
+					if (join.HasMember("table"))
+					{
+						const Value& table = join["table"];
+						if (table.HasMember("column") && table["column"].IsString())
+						{
+							col1 = table["column"].GetString();
+						}
+						else
+						{
+							raiseError("QueryTable", "Missing column in join table");
+							return false;
+						}
+					}
+					sql.append(" AND t0.");
+					sql.append(col0);
+					sql.append(" = t1.");
+					sql.append(col1);
+					sql.append(" ");
+					if (join.HasMember("query") && join["query"].IsObject())
+					{
+						sql.append("AND  ");
+						const Value& query = join["query"];
+						processJoinQueryWhereClause(query, sql, asset_codes, 1);
+					}
+				}
+				else if (document.HasMember("where"))
 				{
 					if (!jsonWhereClause(document["where"], sql, asset_codes, true))
 					{
+						raiseError("retrieve", "Failed to add where clause");
 						return false;
 					}
 				}
@@ -1043,6 +1104,7 @@ vector<string>  asset_codes;
 			}
 			if (!jsonModifiers(document, sql, false))
 			{
+				raiseError("query", "Modifiers failed");
 				return false;
 			}
 		}
@@ -1089,6 +1151,7 @@ vector<string>  asset_codes;
 	} catch (exception e) {
 		raiseError("retrieve", "Internal error: %s", e.what());
 	}
+	return false;
 }
 #endif
 
@@ -2539,7 +2602,8 @@ bool Connection::jsonWhereClause(
 	const Value& whereClause,
 	SQLBuffer& sql,
 	std::vector<std::string>  &asset_codes,
-	bool convertLocaltime)
+	bool convertLocaltime,
+	string prefix)
 {
 
 	string column;
@@ -2568,6 +2632,8 @@ bool Connection::jsonWhereClause(
 	}
 
 	column = whereClause["column"].GetString();
+	if (!prefix.empty())
+		sql.append(prefix);
 	sql.append(column);
 	sql.append(' ');
 	cond = whereClause["condition"].GetString();
@@ -3322,5 +3388,259 @@ SQLBuffer sql;
 		// Failure
 		return false;
 	}
+}
+
+/**
+ * In the case of a join add the columns to select from for all the tables in
+ * the join
+ *
+ * @param document	The query we are processing
+ * @param sql		The SQLBuffer we are writing
+ * @param level		The table number we are processing
+ */
+bool Connection::selectColumns(const Value& document, SQLBuffer& sql, int level)
+{
+SQLBuffer	jsonConstraints;
+
+	string tag = "t" + to_string(level) + ".";
+
+	if (document.HasMember("return"))
+	{
+		int col = 0;
+		const Value& columns = document["return"];
+		if (! columns.IsArray())
+		{
+			raiseError("retrieve", "The property return must be an array");
+			return false;
+		}
+		if (document.HasMember("modifier"))
+		{
+			sql.append(document["modifier"].GetString());
+			sql.append(' ');
+		}
+		for (Value::ConstValueIterator itr = columns.Begin(); itr != columns.End(); ++itr)
+		{
+			if (col)
+				sql.append(", ");
+			if (!itr->IsObject())	// Simple column name
+			{
+				sql.append(tag);
+				sql.append(itr->GetString());
+			}
+			else
+			{
+				if (itr->HasMember("column"))
+				{
+					if (! (*itr)["column"].IsString())
+					{
+						raiseError("rerieve",
+							   "column must be a string");
+						return false;
+					}
+					if (itr->HasMember("format"))
+					{
+						if (! (*itr)["format"].IsString())
+						{
+							raiseError("rerieve",
+								   "format must be a string");
+							return false;
+						}
+
+						// SQLite 3 date format.
+						string new_format;
+						applyColumnDateFormat((*itr)["format"].GetString(),
+								      tag + (*itr)["column"].GetString(),
+								      new_format, true);
+
+						// Add the formatted column or use it as is
+						sql.append(new_format);
+					}
+					else if (itr->HasMember("timezone"))
+					{
+						if (! (*itr)["timezone"].IsString())
+						{
+							raiseError("rerieve",
+								   "timezone must be a string");
+							return false;
+						}
+						// SQLite3 doesnt support time zone formatting
+						if (strcasecmp((*itr)["timezone"].GetString(), "utc") != 0)
+						{
+							raiseError("retrieve",
+								   "SQLite3 plugin does not support timezones in qeueries");
+							return false;
+						}
+						else
+						{
+							sql.append("strftime('" F_DATEH24_MS "', ");
+							sql.append(tag);
+							sql.append((*itr)["column"].GetString());
+							sql.append(", 'utc')");
+						}
+					}
+					else
+					{
+						sql.append(tag);
+						sql.append((*itr)["column"].GetString());
+					}
+					sql.append(' ');
+				}
+				else if (itr->HasMember("json"))
+				{
+					const Value& json = (*itr)["json"];
+					if (! returnJson(json, sql, jsonConstraints))
+						return false;
+				}
+				else
+				{
+					raiseError("retrieve",
+						   "return object must have either a column or json property");
+					return false;
+				}
+
+				if (itr->HasMember("alias"))
+				{
+					sql.append(" AS \"");
+					sql.append((*itr)["alias"].GetString());
+					sql.append('"');
+				}
+			}
+			col++;
+		}
+	}
+	else
+	{
+		sql.append('*');
+		return true;
+	}
+	if (document.HasMember("join"))
+	{
+		const Value& join = document["join"];
+		if (join.HasMember("query"))
+		{
+			const Value& query = join["query"];
+			sql.append(", ");
+			if (!selectColumns(query, sql, ++level))
+			{
+				raiseError("commonRetrieve", "Join failed to add select columns");
+				return false;
+			}
+		}
+	}
+	return true;
+}
+
+
+/**
+ * In the case of a join add the tables to select from for all the tables in
+ * the join
+ *
+ * @param document	The query we are processing
+ * @param sql		The SQLBuffer we are writing
+ * @param level		The table number we are processing
+ */
+bool Connection::appendTables(const Value& document, SQLBuffer& sql, int level)
+{
+	string tag = "t" + to_string(level);
+	if (document.HasMember("join"))
+	{
+		const Value& join = document["join"];
+		if (join.HasMember("table"))
+		{
+			const Value& table = join["table"];
+			if (!table.HasMember("name"))
+			{
+				raiseError("commonRetrieve", "Joining table is missing a table name");
+				return false;
+			}
+			const Value& name = table["name"];
+			if (!name.IsString())
+			{
+				raiseError("commonRetrieve", "Joining table name is not a string");
+				return false;
+			}
+			sql.append(", fledge.");
+			sql.append(name.GetString());
+			sql.append(" ");
+			sql.append(tag);
+			if (join.HasMember("query"))
+			{
+				const Value& query = join["query"];
+				appendTables(query, sql, ++level);
+			}
+			else
+			{
+				raiseError("commonRetrieve", "Join is missing a join query definition");
+				return false;
+			}
+		}
+		else
+		{
+			raiseError("commonRetrieve", "Join is missing a table definition");
+			return false;
+		}
+	}
+	return true;
+}
+
+/**
+ * Recurse down and add the where cluase and join terms for each
+ * new table joined to the query
+ *
+ * @param query	The JSON query
+ * @param sql	The SQLBuffer we are writing the data to
+ * @param asset_codes	The asset codes
+ * @param level	The nestign level of the joined table
+ */
+bool Connection::processJoinQueryWhereClause(const Value& query, SQLBuffer& sql, std::vector<std::string>  &asset_codes, int level)
+{
+	string tag = "t" + to_string(level) + ".";
+	if (!jsonWhereClause(query["where"], sql, asset_codes, true, tag))
+	{
+		return false;
+	}
+
+	if (query.HasMember("join"))
+	{
+		// Now and the join condition itself
+		string col0, col1;
+		const Value& join = query["join"];
+		if (join.HasMember("on") && join["on"].IsString())
+		{
+			col0 = join["on"].GetString();
+		}
+		else
+		{
+			return false;
+		}
+		if (join.HasMember("table"))
+		{
+			const Value& table = join["table"];
+			if (table.HasMember("column") && table["column"].IsString())
+			{
+				col1 = table["column"].GetString();
+			}
+			else
+			{
+				raiseError("Joined query", "Missing join column in table");
+				return false;
+			}
+		}
+		sql.append(" AND ");
+		sql.append(tag);
+		sql.append(col0);
+		sql.append(" = t");
+		sql.append(level + 1);
+		sql.append(".");
+		sql.append(col1);
+		sql.append(" ");
+		if (join.HasMember("query") && join["query"].IsObject())
+		{
+			sql.append(" AND ");
+			const Value& query = join["query"];
+			processJoinQueryWhereClause(query, sql, asset_codes, level + 1);
+		}
+	}
+	return true;
 }
 #endif

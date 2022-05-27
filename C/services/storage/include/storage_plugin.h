@@ -55,6 +55,7 @@ public:
 	bool		hasStreamSupport() { return readingStreamPtr != NULL; };
 	int		readingStream(ReadingStream **stream, bool commit);
 	bool		pluginShutdown();
+	int 		createSchema(const std::string& payload);
 	StoragePluginConfiguration
 			*getConfig() { return m_config; };
 
@@ -76,6 +77,7 @@ private:
 	int		(*readingStreamPtr)(PLUGIN_HANDLE, ReadingStream **, bool);
 	PLUGIN_ERROR	*(*lastErrorPtr)(PLUGIN_HANDLE);
 	bool		(*pluginShutdownPtr)(PLUGIN_HANDLE);
+        int 		(*createSchemaPtr)(PLUGIN_HANDLE, const char*);
 	std::string	m_name;
 	StoragePluginConfiguration
 			*m_config;

@@ -1,7 +1,7 @@
-# Evaluates if rh-postgresql96 is available and enabled and identifies its path
+# Evaluates if rh-postgresql13 is available and enabled and identifies its path
 
 execute_process(
-        COMMAND  "scl" "enable" "rh-postgresql96" "command -v pg_isready"
+        COMMAND  "scl" "enable" "rh-postgresql13" "command -v pg_isready"
         RESULT_VARIABLE CMD_ERROR
         OUTPUT_VARIABLE CMD_OUTPUT
 )
@@ -18,7 +18,7 @@ endif()
 
 if(${RH_POSTGRES_FOUND} EQUAL 1)
 
-    MESSAGE( STATUS "INFO: rh-postgresql96 found in the path :${RH_POSTGRES_PATH}:")
+    MESSAGE( STATUS "INFO: rh-postgresql13 found in the path :${RH_POSTGRES_PATH}:")
 else()
-    MESSAGE( STATUS "INFO: rh-postgresql96 not found")
+    MESSAGE( STATUS "INFO: rh-postgresql13 not found")
 endif()

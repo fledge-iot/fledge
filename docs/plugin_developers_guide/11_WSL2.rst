@@ -75,7 +75,7 @@ Here are some useful features:
   The IP address after the label *nameserver* can be used in the Linux environment to reach the Windows host.
   
 Preparing the Linux Distribution for Fledge
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The *systemd* service manager is not configured by default in an Ubuntu distribution running in WSL2.
 Since Fledge relies on *systemd*, you must run a script to enable it.
@@ -94,7 +94,7 @@ The script must be run *one time only*.
 Whenever you start up your Ubuntu distribution, *systemd* should be ready.
 
 Installing Fledge
-~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~
 
 Following the normal instructions for `Installing Fledge on Ubuntu <https://fledge-iot.readthedocs.io/en/latest/quick_start/installing.html#ubuntu-or-debian>`_.
 Make sure the package repository matches your version of Ubuntu.
@@ -141,14 +141,14 @@ If you plan to run Fledge GUI during your Linux distribution session, enter the 
 You must do this at every startup if you plan to run the Fledge GUI.
 
 Starting Fledge
-~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~
 
 Start Fledge normally.
 You can start it from the normal run directory, or from your build directory by following the directions on the webpage
 `Testing Your Plugin <https://fledge-iot.readthedocs.io/en/latest/plugin_developers_guide/10_testing.html#testing-your-plugin>`_.
 
 Starting Fledge GUI
-~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~
 
 If *Nginx* is running, you can run the Fledge GUI in a browser in your host Windows environment.
 Find the external IP address for your Linux distribution using the command:

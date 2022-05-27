@@ -41,30 +41,33 @@ async def add_task(request):
     """ Create a new task to run a specific plugin
 
     :Example:
-     curl -X POST http://localhost:8081/fledge/scheduled/task -d
-     '{
-        "name": "North Readings to PI",
-        "plugin": "pi_server",
-        "type": "north",
-        "schedule_type": 3,
-        "schedule_day": 0,
-        "schedule_time": 0,
-        "schedule_repeat": 30,
-        "schedule_enabled": true
-     }'
+     curl -X POST http://localhost:8081/fledge/scheduled/task \
+     -d @- << EOF
+{
+    "name": "North Readings to PI-Web-API",
+    "plugin": "OMF",
+    "type": "north",
+    "schedule_type": 3,
+    "schedule_repeat": 30,
+    "schedule_enabled": true
+}
+EOF
 
-     curl -sX POST http://localhost:8081/fledge/scheduled/task -d
-     '{"name": "PI-2",
-     "plugin": "pi_server",
-     "type": "north",
-     "schedule_type": 3,
-     "schedule_day": 0,
-     "schedule_time": 0,
-     "schedule_repeat": 30,
-     "schedule_enabled": true,
-     "config": {
-        "producerToken": {"value": "uid=180905062754237&sig=kx5l+"},
-        "URL": {"value": "https://10.2.5.22:5460/ingress/messages"}}}'
+     curl -sX POST http://localhost:8081/fledge/scheduled/task \
+     -d @- << EOF
+{
+    "name":"North Readings to PI",
+    "plugin":"OMF",
+    "type":"north",
+    "schedule_repeat":30,
+    "schedule_type":"3",
+    "schedule_enabled":false,
+    "config":{
+        "PIServerEndpoint":{"value":"Connector Relay"},
+        "producerToken":{"value":"XXXX"}
+        }
+}
+EOF
     """
 
     try:

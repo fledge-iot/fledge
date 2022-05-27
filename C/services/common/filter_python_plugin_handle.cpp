@@ -33,7 +33,7 @@ FilterPythonPluginHandle::FilterPythonPluginHandle(const char *pluginName,
 	//same dir as where lib-services-common.so is present
 	m_interfaceObjName = PYTHON_PLUGIN_INTF_LIB;
 
-	// Open interfacxe library object
+	// Open interface library object
 	m_hndl = dlopen(m_interfaceObjName.c_str(), RTLD_NOW | RTLD_GLOBAL);
 	if (!m_hndl)
 	{

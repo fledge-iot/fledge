@@ -62,7 +62,13 @@ async def auth_middleware(app, handler):
         if request.method == 'OPTIONS':
             return await handler(request)
 
-        token = request.headers.get('authorization', None)
+        # make case insensitive `Authorization` should work
+        token = None
+        try:
+            token = request.headers.get('authorization')
+        except:
+            token = request.headers.get('Authorization', None)
+        
         if token:
             try:
                 # validate the token and get user id

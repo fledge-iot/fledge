@@ -34,6 +34,8 @@
 #include <config_handler.h>
 #include <syslog.h>
 
+#define SERVICE_TYPE "Southbound"
+
 extern int makeDaemon(void);
 extern void handler(int sig);
 
@@ -187,9 +189,28 @@ void doIngest(Ingest *ingest, Reading reading)
 	ingest->ingest(reading);
 }
 
-void doIngestV2(Ingest *ingest, const vector<Reading *> *vec)
+void doIngestV2(Ingest *ingest, ReadingSet *set)
 {
-	ingest->ingest(vec);
+    std::vector<Reading *> *vec = set->getAllReadingsPtr();
+    std::vector<Reading *> *vec2 = new std::vector<Reading *>;
+    if (!vec)
+    {
+        Logger::getLogger()->info("%s:%d: V2 async ingest method: vec is NULL", __FUNCTION__, __LINE__);
+        return;
+    }
+    else
+    {
+        for (auto & r : *vec)
+        {
+            Reading *r2 = new Reading(*r); // Need to copy reading objects here, since "del set" below would remove encapsulated reading objects also
+            vec2->emplace_back(r2);
+        }
+    }
+    Logger::getLogger()->debug("%s:%d: V2 async ingest method returned: vec->size()=%d", __FUNCTION__, __LINE__, vec->size());
+
+	ingest->ingest(vec2);
+	delete vec2; 	// each reading object inside vector has been allocated on heap and moved to Ingest class's internal queue
+	delete set;
 }
 
 
@@ -197,22 +218,17 @@ void doIngestV2(Ingest *ingest, const vector<Reading *> *vec)
  * Constructor for the south service
  */
 SouthService::SouthService(const string& myName, const string& token) :
-				m_name(myName),
 				m_shutdown(false),
 				m_readingsPerSec(1),
 				m_throttle(false),
 				m_throttled(false),
 				m_token(token)
 {
+	m_name = myName;
+	m_type = SERVICE_TYPE;
+
 	logger = new Logger(myName);
 	logger->setMinLevel("warning");
-}
-
-ManagementClient *SouthService::m_mgtClient = NULL;
-
-ManagementClient * SouthService::getMgmtClient()
-{
-	return m_mgtClient;
 }
 
 /**
@@ -245,12 +261,14 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		// TODO proper hostname lookup
 		unsigned short managementListener = management.getListenerPort();
 		ServiceRecord record(m_name,			// Service name
-					"Southbound",		// Service type
+					SERVICE_TYPE,		// Service type
 					"http",			// Protocol
 					"localhost",		// Listening address
 					sport,			// Service port
 					managementListener,	// Management port
 					m_token);		// Token
+
+		// Allocate and save ManagementClient object
 		m_mgtClient = new ManagementClient(coreAddress, corePort);
 
 		// Create an empty South category if one doesn't exist
@@ -258,6 +276,7 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		southConfig.setDescription("South");
 		m_mgtClient->addCategory(southConfig, true);
 
+		// Get configuration for service name
 		m_config = m_mgtClient->getCategory(m_name);
 		if (!loadPlugin())
 		{
@@ -275,6 +294,8 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		{
 			logger->error("Failed to register service %s", m_name.c_str());
 		}
+
+		// Register for category content changes
 		ConfigHandler *configHandler = ConfigHandler::getInstance(m_mgtClient);
 		configHandler->registerCategory(this, m_name);
 		configHandler->registerCategory(this, m_name+"Advanced");
@@ -357,6 +378,8 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 			m_dataKey = m_name + m_config.getValue("plugin");
 		}
 
+		// Create default security category
+		this->createSecurityCategories(m_mgtClient);
 
 		// Get and ingest data
 		if (! southPlugin->isAsync())
@@ -413,12 +436,7 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 				else
 				{
 					Logger::getLogger()->debug("Plugin does not persist data");
-					try {
-						southPlugin->start();
-						started = true;
-					} catch (...) {
-						Logger::getLogger()->debug("Plugin start raised an exception");
-					}
+					started = true;
 				}
 				if (!started)
 				{
@@ -456,11 +474,30 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 					}
 					else // V2 poll method
 					{
-						vector<Reading *> *vec = southPlugin->pollV2();
-						if (!vec) continue;
-						ingest.ingest(vec);
-						pollCount += (int) vec->size();
-						delete vec; 	// each reading object inside vector has been allocated on heap and moved to Ingest class's internal queue
+						ReadingSet *set = southPlugin->pollV2();
+                        if (set)
+                        {
+                            std::vector<Reading *> *vec = set->getAllReadingsPtr();
+                            std::vector<Reading *> *vec2 = new std::vector<Reading *>;
+                            if (!vec)
+                            {
+                                Logger::getLogger()->info("%s:%d: V2 poll method: vec is NULL", __FUNCTION__, __LINE__);
+                                continue;
+                            }
+                            else
+                            {
+                                for (auto & r : *vec)
+                                {
+                                    Reading *r2 = new Reading(*r); // Need to copy reading objects here, since "del set" below would remove encapsulated reading objects
+                                    vec2->emplace_back(r2);
+                                }
+                            }
+
+    						ingest.ingest(vec2);
+    						pollCount += (int) vec2->size();
+    						delete vec2; 	// each reading object inside vector has been allocated on heap and moved to Ingest class's internal queue
+    						delete set;
+                        }
 					}
 					throttlePoll();
 				}
@@ -528,7 +565,7 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 			if (southPlugin->persistData())
 			{
 				string data = southPlugin->shutdownSaveData();
-				Logger::getLogger()->debug("Persist plugin data, '%s'", data.c_str());
+				Logger::getLogger()->debug("Persist plugin data, %s '%s'", m_dataKey, data.c_str());
 				m_pluginData->persistPluginData(m_dataKey, data);
 			}
 			else
@@ -748,6 +785,12 @@ void SouthService::configChange(const string& categoryName, const string& catego
 				m_throttle = false;
 			}
 		}
+	}
+
+	// Update the  Security category
+	if (categoryName.compare(m_name+"Security") == 0)
+	{
+		this->updateSecurityCategory(category);
 	}
 }
 

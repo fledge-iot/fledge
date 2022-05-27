@@ -65,7 +65,13 @@ class StorageClient {
 							    const std::string& callbackUrl);
 
 		void		registerManagement(ManagementClient *mgmnt) { m_management = mgmnt; };
+		bool 		createSchema(const std::string&);
+
 	private:
+		void		handleUnexpectedResponse(const char *operation,
+							const std::string& table,
+							const std::string& responseCode,
+							const std::string& payload);
 		void		handleUnexpectedResponse(const char *operation,
 							const std::string& responseCode,
 							const std::string& payload);

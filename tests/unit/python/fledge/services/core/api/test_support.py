@@ -4,6 +4,7 @@
 # See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
+import os
 import pathlib
 from pathlib import PosixPath
 
@@ -64,15 +65,13 @@ class TestBundleSupport:
         gz_filepath.is_file.return_value = True
         gz_filepath.stat.return_value = MagicMock()
         gz_filepath.stat.st_size = 1024
-
         bundle_name = 'support-180301-13-35-23.tar.gz'
-
         filepath = Mock()
         filepath.name = bundle_name
         filepath.open = mock_open()
         filepath.with_name.return_value = gz_filepath
-
-        with patch("aiohttp.web.FileResponse", return_value=web.FileResponse(path=filepath)) as f_res:
+        with patch("aiohttp.web.FileResponse",
+                   return_value=web.FileResponse(path=os.path.realpath(__file__))) as f_res:
             path = support_bundles_dir_path / 'support'
             with patch.object(support, '_get_support_dir', return_value=path):
                 with patch('os.path.isdir', return_value=True):

@@ -182,6 +182,7 @@ async def delete_streams(storage, north_instance):
     payload = PayloadBuilder().WHERE(["description", "=", north_instance]).payload()
     await storage.delete_from_tbl("streams", payload)
 
+
 async def delete_plugin_data(storage, north_instance):
     payload = PayloadBuilder().WHERE(["key", "like", north_instance + "%"]).payload()
     await storage.delete_from_tbl("plugin_data", payload)
@@ -196,13 +197,16 @@ async def add_service(request):
              curl -sX POST http://localhost:8081/fledge/service -d '{"name": "Sine", "plugin": "sinusoid", "type": "south", "enabled": true, "config": {"dataPointsPerSec": {"value": "10"}}}' | jq
              curl -X POST http://localhost:8081/fledge/service -d '{"name": "NotificationServer", "type": "notification", "enabled": true}' | jq
              curl -sX POST http://localhost:8081/fledge/service -d '{"name": "DispatcherServer", "type": "dispatcher", "enabled": true}' | jq
+             curl -sX POST http://localhost:8081/fledge/service -d '{"name": "BucketServer", "type": "bucketstorage", "enabled": true}' | jq
              curl -X POST http://localhost:8081/fledge/service -d '{"name": "HTC", "plugin": "httpc", "type": "north", "enabled": true}' | jq
              curl -sX POST http://localhost:8081/fledge/service -d '{"name": "HT", "plugin": "http_north", "type": "north", "enabled": true, "config": {"verifySSL": {"value": "false"}}}' | jq
 
              curl -sX POST http://localhost:8081/fledge/service?action=install -d '{"format":"repository", "name": "fledge-service-notification"}'
              curl -sX POST http://localhost:8081/fledge/service?action=install -d '{"format":"repository", "name": "fledge-service-dispatcher"}'
+             curl -sX POST http://localhost:8081/fledge/service?action=install -d '{"format":"repository", "name": "fledge-service-bucketStorage"}'
              curl -sX POST http://localhost:8081/fledge/service?action=install -d '{"format":"repository", "name": "fledge-service-notification", "version":"1.6.0"}'
              curl -sX POST http://localhost:8081/fledge/service?action=install -d '{"format":"repository", "name": "fledge-service-dispatcher", "version":"1.9.1"}'
+             curl -sX POST http://localhost:8081/fledge/service?action=install -d '{"format":"repository", "name": "fledge-service-bucketStorage", "version":"1.9.2"}'
     """
 
     try:
@@ -293,8 +297,8 @@ async def add_service(request):
             raise web.HTTPBadRequest(reason='Missing type property in payload.')
 
         service_type = str(service_type).lower()
-        if service_type not in ['south', 'north', 'notification', 'management', 'dispatcher']:
-            raise web.HTTPBadRequest(reason='Only south, north, notification, management and dispatcher '
+        if service_type not in ['south', 'north', 'notification', 'management', 'dispatcher', 'bucketstorage']:
+            raise web.HTTPBadRequest(reason='Only south, north, notification, management, dispatcher and bucketstorage '
                                             'types are supported.')
         if plugin is None and service_type == 'south':
             raise web.HTTPBadRequest(reason='Missing plugin property for type south in payload.')
@@ -360,6 +364,12 @@ async def add_service(request):
                 raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
             process_name = 'dispatcher_c'
             script = '["services/dispatcher_c"]'
+        elif service_type == 'bucketstorage':
+            if not os.path.exists(_FLEDGE_ROOT + "/services/fledge.services.bucket"):
+                msg = "{} service is not installed correctly.".format(service_type.capitalize())
+                raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
+            process_name = 'bucket_storage_c'
+            script = '["services/bucket_storage_c"]'
         storage = connect.get_storage_async()
         config_mgr = ConfigurationManager(storage)
 
@@ -371,7 +381,8 @@ async def add_service(request):
         # Check that the schedule name is not already registered
         count = await check_schedules(storage, name)
         if count != 0:
-            raise web.HTTPBadRequest(reason='A service with this name already exists.')
+            msg = "A service with {} name already exists.".format(name)
+            raise ValueError(msg)
 
         # Check that the process name is not already registered
         count = await check_scheduled_processes(storage, process_name, script)
@@ -392,19 +403,29 @@ async def add_service(request):
             res = await check_schedule_entry(storage)
             for ps in res['rows']:
                 if 'notification_c' in ps['process_name']:
-                    raise web.HTTPBadRequest(reason='A Notification service schedule already exists.')
+                    msg = "A Notification service type schedule already exists."
+                    raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
         # check that dispatcher service is not already registered, right now dispatcher service LIMIT to 1
         elif service_type == 'dispatcher':
             res = await check_schedule_entry(storage)
             for ps in res['rows']:
                 if 'dispatcher_c' in ps['process_name']:
-                    raise web.HTTPBadRequest(reason='A Dispatcher service schedule already exists.')
+                    msg = "A Dispatcher service type schedule already exists."
+                    raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+        # check the schedule entry for BucketStorage service as LIMIT to 1
+        elif service_type == 'bucketstorage':
+            res = await check_schedule_entry(storage)
+            for ps in res['rows']:
+                if 'bucket_storage_c' in ps['process_name']:
+                    msg = "A BucketStorage service type schedule already exists."
+                    raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
         # check that management service is not already registered, right now management service LIMIT to 1
         elif service_type == 'management':
             res = await check_schedule_entry(storage)
             for ps in res['rows']:
                 if 'management' in ps['process_name']:
-                    raise web.HTTPBadRequest(reason='A Management service schedule already exists.')
+                    msg = "A Management service type schedule already exists."
+                    raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
         elif service_type == 'south' or service_type == 'north':
             try:
                 # Create a configuration category from the configuration defined in the plugin
@@ -451,10 +472,12 @@ async def add_service(request):
             await config_mgr.delete_category_and_children_recursively(name)
             _logger.exception("Failed to create service. %s", str(ex))
             raise web.HTTPInternalServerError(reason='Failed to create service.')
-    except ValueError as e:
-        raise web.HTTPBadRequest(reason=str(e))
-    except KeyError as ex:
-        raise web.HTTPNotFound(reason=str(ex))
+    except ValueError as err:
+        msg = str(err)
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+    except KeyError as err:
+        msg = str(err)
+        raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except StorageServerError as err:
         msg = str(err)
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": "Storage error: {}".format(msg)}))

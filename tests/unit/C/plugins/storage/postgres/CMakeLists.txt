@@ -38,6 +38,27 @@ else()
     include_directories(/usr/include/postgresql)
 endif()
 
+# Find python3.x dev/lib package
+find_package(PkgConfig REQUIRED)
+if(${CMAKE_VERSION} VERSION_LESS "3.12.0")
+    pkg_check_modules(PYTHON REQUIRED python3)
+else()
+    find_package(Python3 COMPONENTS Interpreter Development)
+endif()
+
+# Add Python 3.x header files
+if(${CMAKE_VERSION} VERSION_LESS "3.12.0")
+    include_directories(${PYTHON_INCLUDE_DIRS})
+else()
+    include_directories(${Python3_INCLUDE_DIRS})
+endif()
+
+if(${CMAKE_VERSION} VERSION_LESS "3.12.0")
+    link_directories(${PYTHON_LIBRARY_DIRS})
+else()
+    link_directories(${Python3_LIBRARY_DIRS})
+endif()
+
 # Source files
 file(GLOB test_sources tests.cpp)
 
@@ -58,3 +79,9 @@ target_link_libraries(${PROJECT_NAME} ${PG_LIB})
 target_link_libraries(${PROJECT_NAME} ${LIBCURL_LIB})
 
 target_link_libraries(${PROJECT_NAME} ${GTEST_LIBRARIES} pthread)
+# Add Python 3.x library
+if(${CMAKE_VERSION} VERSION_LESS "3.12.0")
+	target_link_libraries(${PROJECT_NAME} ${PYTHON_LIBRARIES})
+else()
+	target_link_libraries(${PROJECT_NAME} ${Python3_LIBRARIES})
+endif()

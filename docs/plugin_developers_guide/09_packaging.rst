@@ -120,13 +120,21 @@ Examples of filename along with content
 
 Common Additional Libraries Package
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Currently there are two packages created a part of the process of building Fledge that are commonly used in plugins.
+Below are the packages which created a part of the process of building Fledge that are commonly used in plugins.
 
 - **fledge-mqtt** which is a packaged version of the libpaho-mqtt library.
 - **fledge-gcp** which is a packaged version of the libjwt and libjansson libraries.
 - **fledge-iec** which is a packaged version of the IEC 60870 and IEC 61850 libraries.
+- **fledge-s2opcua** which is a packaged version of libexpat and libs2opc libraries.
 
-If your plugin depends on any of these libraries they should be added to the *requirements* variable in the **Package** file rather than adding them as *additional_libs* since the version of these is managed by the Fledge build and packaging process.
+.. note::
+    fledge-gcp and fledge-s2opcua additional packages are not supported on RPM platforms yet.
+
+If your plugin depends on any of these libraries they should be added to the *requirements* variable in the **Package** file rather than adding them as *additional_libs* since the version of these is managed by the Fledge build and packaging process. Below is the example
+
+.. code-block:: console
+
+    requirements="fledge,fledge-s2opcua"
 
 Python based Plugins
 --------------------

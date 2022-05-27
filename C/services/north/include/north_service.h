@@ -42,7 +42,6 @@ class NorthService : public ServiceAuthHandler {
 		void				configChildCreate(const std::string& , const std::string&, const std::string&){};
 		void				configChildDelete(const std::string& , const std::string&){};
 		bool				isRunning() { return !m_shutdown; };
-		static ManagementClient *	getMgmtClient();
 		const std::string&		getName() { return m_name; };
 		const std::string&		getPluginName() { return m_pluginName; };
 		void				pause();

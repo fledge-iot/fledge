@@ -607,6 +607,8 @@ Connection::Connection()
 			sqlite3_close_v2(dbHandle);
 		}
 	}
+
+	m_schemaManager = SchemaManager::getInstance();
 }
 #endif
 
@@ -869,6 +871,12 @@ SQLBuffer	sql;
 SQLBuffer	jsonConstraints;
 bool		isOptAggregate = false;
 vector<string>  asset_codes;
+
+	if (!m_schemaManager->exists(dbHandle, schema))
+	{
+		raiseError("retrieve", "Schema does not exist");
+		return false;
+	}
 
 	try {
 		if (dbHandle == NULL)
@@ -1177,6 +1185,12 @@ Document	document;
 ostringstream convert;
 std::size_t arr = data.find("inserts");
 
+	if (!m_schemaManager->exists(dbHandle, schema))
+	{
+		raiseError("insert", "Schema does not exist");
+		return false;
+	}
+
 
 	// Check first the 'inserts' property in JSON data
 	bool stdInsert = (arr == std::string::npos || arr > 8);
@@ -1370,6 +1384,12 @@ vector<string>  asset_codes;
 
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();
+
+	if (!m_schemaManager->exists(dbHandle, schema))
+	{
+		raiseError("update", "Schema does not exist");
+		return false;
+	}
 
 	std::size_t arr = payload.find("updates");
 	bool changeReqd = (arr == std::string::npos || arr > 8);
@@ -3148,6 +3168,12 @@ Document document;
 SQLBuffer	sql;
 vector<string>  asset_codes;
 
+	if (!m_schemaManager->exists(dbHandle, schema))
+	{
+		raiseError("delete", "Schema does not exist");
+		return false;
+	}
+
 	sql.append("DELETE FROM ");
 	sql.append(schema);
 	sql.append('.');
@@ -3662,5 +3688,18 @@ bool Connection::processJoinQueryWhereClause(const Value& query, SQLBuffer& sql,
 		}
 	}
 	return true;
+}
+
+
+/**
+ * Create schema and populate with tables and indexes as defined in the JSON schema
+ * definition.
+ *
+ * @param schema   The  schema defintion as a JSON document containing information about schema of tables to create
+ * @return true if the schema was created
+ */
+bool Connection::createSchema(const std::string &schema)
+{
+	m_schemaManager->create(dbHandle, schema);
 }
 #endif

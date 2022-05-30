@@ -422,5 +422,25 @@ std::string results;
 	return rval ? strdup(results.c_str()) : NULL;
 }
 
+
+/**
+ * Update or creats a schema
+ *
+ * @param handle        The plugin handle
+ * @param schema	The name of the schema
+ * @param definition    The schema definition
+ * @return              -1 on error, >= 0 on success
+ *
+ */
+int plugin_schema_update(PLUGIN_HANDLE handle, char *schema, char *definition)
+{
+	ConnectionManager *manager = (ConnectionManager *)handle;
+	Connection        *connection = manager->allocate();
+
+	int result = connection->createSchema(std::string(definition));
+	manager->release(connection);
+	return result;
+}
+
 };
 

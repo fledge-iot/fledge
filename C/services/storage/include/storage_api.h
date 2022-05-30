@@ -83,6 +83,7 @@ public:
 	bool	readingStream(ReadingStream **readings, bool commit);
 	void    createStorageSchema(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
 	void	printList();
+	bool	createSchema(const std::string& schema);
 
 public:
 	std::atomic<int>        m_workers_count;

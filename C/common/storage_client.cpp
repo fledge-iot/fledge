@@ -411,12 +411,25 @@ PurgeResult StorageClient::readingPurgeBySize(unsigned long size, unsigned long 
  */
 ResultSet *StorageClient::queryTable(const std::string& tableName, const Query& query)
 {
+	return queryTable(DEFAULT_SCHEMA, tableName, query);
+}
+
+/**
+ * Query a table
+ *
+ * @param schema	The name of the schema to query
+ * @param tablename	The name of the table to query
+ * @param query		The query payload
+ * @return ResultSet*	The resultset of the query
+ */
+ResultSet *StorageClient::queryTable(const std::string& schema, const std::string& tableName, const Query& query)
+{
 	try {
 		ostringstream convert;
 
 		convert << query.toJSON();
 		char url[128];
-		snprintf(url, sizeof(url), "/storage/table/%s/query", tableName.c_str());
+		snprintf(url, sizeof(url), "/storage/schema/%s/table/%s/query", schema.c_str(), tableName.c_str());
 		auto res = this->getHttpClient()->request("PUT", url, convert.str());
 		ostringstream resultPayload;
 		resultPayload << res->content.rdbuf();

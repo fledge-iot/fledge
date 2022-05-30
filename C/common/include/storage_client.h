@@ -44,6 +44,7 @@ class StorageClient {
 		StorageClient(HttpClient *client);
 		StorageClient(const std::string& hostname, const unsigned short port);
 		~StorageClient();
+		ResultSet	*queryTable(const std::string& schema, const std::string& tablename, const Query& query);
 		ResultSet	*queryTable(const std::string& tablename, const Query& query);
 		ReadingSet	*queryTableToReadings(const std::string& tableName, const Query& query);
 		int 		insertTable(const std::string& schema, const std::string& tableName, const InsertValues& values);

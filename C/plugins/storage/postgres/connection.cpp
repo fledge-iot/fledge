@@ -373,7 +373,7 @@ SQLBuffer	jsonConstraints;	// Extra constraints to add to where clause
 	try {
 		if (condition.empty())
 		{
-			sql.append("SELECT * FROM fledge.");
+			sql.append("SELECT * FROM ");
 			sql.append(table);
 		}
 		else
@@ -395,7 +395,7 @@ SQLBuffer	jsonConstraints;	// Extra constraints to add to where clause
 				{
 					return false;
 				}
-				sql.append(" FROM fledge.");
+				sql.append(" FROM ");
 			}
 			else if (document.HasMember("return"))
 			{
@@ -489,7 +489,7 @@ SQLBuffer	jsonConstraints;	// Extra constraints to add to where clause
 					}
 					col++;
 				}
-				sql.append(" FROM fledge.");
+				sql.append(" FROM ");
 			}
 			else
 			{
@@ -499,7 +499,7 @@ SQLBuffer	jsonConstraints;	// Extra constraints to add to where clause
 					sql.append(document["modifier"].GetString());
 					sql.append(' ');
 				}
-				sql.append(" * FROM fledge.");
+				sql.append(" * FROM ");
 			}
 			sql.append(table);
 			if (document.HasMember("where"))
@@ -879,7 +879,7 @@ std::size_t arr = data.find("inserts");
 		int col = 0;
 		SQLBuffer values;
 
-	 	sql.append("INSERT INTO fledge.");
+	 	sql.append("INSERT INTO ");
 		sql.append(table);
 		sql.append(" (");
 
@@ -999,7 +999,7 @@ SQLBuffer	sql;
 					   "Each entry in the update array must be an object");
 				return -1;
 			}
-			sql.append("UPDATE fledge.");
+			sql.append("UPDATE ");
 			sql.append(table);
 			sql.append(" SET ");
 
@@ -1304,7 +1304,7 @@ int Connection::deleteRows(const string& table, const string& condition)
 Document document;  // Default template parameter uses UTF8 and MemoryPoolAllocator.
 SQLBuffer	sql;
  
-	sql.append("DELETE FROM fledge.");
+	sql.append("DELETE FROM ");
 	sql.append(table);
 	if (! condition.empty())
 	{
@@ -4497,4 +4497,3 @@ std::string Connection::getIndexName(std::string s){
 bool Connection::checkValidDataType(const std::string &s){
 	return ( s == "varchar" || s ==  "integer" || s ==  "double" || s == "real" || s == "sequence");
 }
-

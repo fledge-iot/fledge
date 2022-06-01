@@ -1006,7 +1006,7 @@ bool ManagementClient::verifyBearerToken(BearerToken& bearerToken)
 	const string& token = bearerToken.token();
 
 	// Check token already exists in cache:
-	std::map<std::string, std::string>::iterator item;
+	map<string, BearerToken>::iterator item;
 	// Acquire lock
 	m_mtx_rTokens.lock();
 
@@ -1027,8 +1027,7 @@ bool ManagementClient::verifyBearerToken(BearerToken& bearerToken)
 		verified = bearerToken.verify(response);
 		if (verified)
 		{
-			// Token verified, store the token
-			m_received_tokens[token] = "added";
+			m_received_tokens.emplace(token, bearerToken);
 		}
 		else
 		{
@@ -1036,10 +1035,18 @@ bool ManagementClient::verifyBearerToken(BearerToken& bearerToken)
 			m_logger->error("Micro service bearer token '%s' not verified.",
 					token.c_str());
 		}
+#ifdef DEBUG_BEARER_TOKEN
+		m_logger->debug("Token verified %d, claims %s:%s:%s:%ld",
+				ret,
+				bearerToken.getAudience().c_str(),
+				bearerToken.getSubject().c_str(),
+				bearerToken.getIssuer().c_str(),
+				bearerToken.getExpiration());
+#endif
 	}
 	else
 	{
-		unsigned long expiration = bearerToken.getExpiration();
+		unsigned long expiration = (*item).second.getExpiration();
 		unsigned long now = time(NULL);
 
 		// Check expiration
@@ -1051,19 +1058,19 @@ bool ManagementClient::verifyBearerToken(BearerToken& bearerToken)
 
 			m_logger->error("Micro service bearer token expired.");
 		}
+
+#ifdef DEBUG_BEARER_TOKEN
+		m_logger->debug("Token verified %d, claims %s:%s:%s:%ld",
+				ret,
+				(*item).second.getAudience().c_str(),
+				(*item).second.getSubject().c_str(),
+				(*item).second.getIssuer().c_str(),
+				(*item).second.getExpiration());
+#endif
 	}
 
 	// Release lock
 	m_mtx_rTokens.unlock();
-
-#ifdef DEBUG_BEARER_TOKEN
-	m_logger->debug("Token verified %d, claims %s:%s:%s:%ld",
-			ret,
-			bearerToken.getAudience().c_str(),
-			bearerToken.getSubject().c_str(),
-			bearerToken.getIssuer().c_str(),
-			bearerToken.getExpiration());
-#endif
 
 	return ret;
 }

@@ -917,10 +917,6 @@ bool ManagementClient::refreshBearerToken(const string& currentToken,
 
 	bool ret = false;
 
-	// Check token already exists in cache:
-	std::map<std::string, std::string>::iterator item;
-	m_mtx_rTokens.lock();
-
 	// Refresh it by calling Fledge management endpoint
 	string url = "/fledge/service/refresh_token";
 	string payload;
@@ -972,6 +968,7 @@ bool ManagementClient::refreshBearerToken(const string& currentToken,
 		}
 	}
 
+	m_mtx_rTokens.lock();
 	if (ret)
 	{
 		// Remove old token from received ones

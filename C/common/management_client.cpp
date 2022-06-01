@@ -987,8 +987,10 @@ bool ManagementClient::refreshBearerToken(const string& currentToken,
 /**
  * Checks and validate the JWT bearer token string
  *
- * @param bearerToken	The bearer token string
- * @param claims	Map to fill with JWT public token claims
+ * Input token internal data will be set
+ * with new values or cached ones
+ *
+ * @param bearerToken	The bearer token object
  * @return		True on success, false otherwise
  */
 bool ManagementClient::verifyBearerToken(BearerToken& bearerToken)
@@ -1010,6 +1012,7 @@ bool ManagementClient::verifyBearerToken(BearerToken& bearerToken)
 	item = m_received_tokens.find(token);
 	if (item  == m_received_tokens.end())
 	{
+		// Token is not in the cache
 		bool verified = false;
 		// Token does not exist:
 		// Verify it by calling Fledge management endpoint
@@ -1020,11 +1023,10 @@ bool ManagementClient::verifyBearerToken(BearerToken& bearerToken)
                 auto res = this->getHttpClient()->request("POST", url.c_str(), payload, header);
 		string response = res->content.string();
 
-		// Parse JSON message and store claims
+		// Parse JSON message and store claims in input token object
 		verified = bearerToken.verify(response);
 		if (verified)
 		{
-			// Token verified, store the token object
 			m_received_tokens.emplace(token, bearerToken);
 		}
 		else
@@ -1034,7 +1036,7 @@ bool ManagementClient::verifyBearerToken(BearerToken& bearerToken)
 					token.c_str());
 		}
 #ifdef DEBUG_BEARER_TOKEN
-		m_logger->debug("Token verified %d, claims %s:%s:%s:%ld",
+		m_logger->debug("New token verified by core API endpoint %d, claims %s:%s:%s:%ld",
 				ret,
 				bearerToken.getAudience().c_str(),
 				bearerToken.getSubject().c_str(),
@@ -1044,6 +1046,7 @@ bool ManagementClient::verifyBearerToken(BearerToken& bearerToken)
 	}
 	else
 	{
+		// Token is in the cache
 		unsigned long expiration = (*item).second.getExpiration();
 		unsigned long now = time(NULL);
 
@@ -1057,8 +1060,11 @@ bool ManagementClient::verifyBearerToken(BearerToken& bearerToken)
 			m_logger->error("Micro service bearer token expired.");
 		}
 
+		// Set input token object as per cached data
+		bearerToken = (*item).second;
+
 #ifdef DEBUG_BEARER_TOKEN
-		m_logger->debug("Token verified %d, claims %s:%s:%s:%ld",
+		m_logger->debug("Existing token already verified %d, claims %s:%s:%s:%ld",
 				ret,
 				(*item).second.getAudience().c_str(),
 				(*item).second.getSubject().c_str(),

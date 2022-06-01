@@ -33,6 +33,17 @@ using namespace rapidjson;
  */
 extern "C" {
 
+
+const char *default_config = QUOTE({
+                "poolSize" : {
+                        "description" : "Connection pool size",
+                        "type" : "integer",
+                        "default" : "5",
+                        "displayName" : "Pool Size",
+                        "order" : "1"
+                        }
+                });
+
 /**
  * The plugin information structure
  */
@@ -41,7 +52,8 @@ static PLUGIN_INFORMATION info = {
 	"1.0.0",                  // Version
 	SP_COMMON|SP_READINGS,    // Flags
 	PLUGIN_TYPE_STORAGE,      // Type
-	"1.5.0"                   // Interface version
+	"1.5.0",                  // Interface version
+	default_config
 };
 
 /**

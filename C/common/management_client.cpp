@@ -1027,6 +1027,7 @@ bool ManagementClient::verifyBearerToken(BearerToken& bearerToken)
 		verified = bearerToken.verify(response);
 		if (verified)
 		{
+			// Token verified, store the token object
 			m_received_tokens.emplace(token, bearerToken);
 		}
 		else

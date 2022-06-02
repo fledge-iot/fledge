@@ -1,0 +1,8 @@
+{
+    "condition" : { 
+                    "column"    : "col2",
+                    "condition" : "=",
+                    "value"     : 20 
+                  }
+}
+

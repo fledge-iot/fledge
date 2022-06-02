@@ -1,0 +1,63 @@
+{
+       "schema"   : "test1",
+	"service"  : "TestService",
+        "version" : 1,
+        "tables"  : [
+                {
+		     "name" : "table1",
+                        "columns" : [
+					{
+                                                "column" : "col1",
+                                                "type" : "varchar",
+                                                "size" : 60
+                                        },
+					{
+                                                "column" : "col2",
+                                                "type" : "integer"
+                                        },
+					{
+                                                "column" : "col3",
+                                                "type" : "real"
+                                        },
+					{
+                                                "column" : "col4",
+                                                "type" : "integer"
+                                        }
+
+                                ],
+				"indexes" : [
+                             ]
+
+                },
+		{
+                     "name" : "table2",
+                        "columns" : [
+                                        {
+                                                "column" : "col1",
+                                                "type" : "varchar",
+                                                "size" : 60
+                                        },
+                                        {
+                                                "column" : "col2",
+                                                "type" : "double"
+                                        },
+					{
+                                                "column" : "col3",
+                                                "type" : "double"
+                                        }
+
+
+                                ],
+                                "indexes" : [
+					 {
+                                 "index" : [
+                                        "col2"
+                                        ]
+                               }
+
+                             ]
+
+                }
+        ]
+}
+

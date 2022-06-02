@@ -9,9 +9,9 @@ import platform
 import subprocess
 import json
 import logging
+import urllib.parse
 from pathlib import Path
 from aiohttp import web
-import urllib.parse
 
 from fledge.common import logger
 from fledge.common.common import _FLEDGE_ROOT, _FLEDGE_DATA
@@ -22,7 +22,7 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-_logger = logger.setup(__name__, level=logging.DEBUG)
+_logger = logger.setup(__name__, level=logging.INFO)
 
 _SYSLOG_FILE = '/var/log/syslog'
 if any(x in platform.platform() for x in ['centos', 'redhat']):
@@ -31,15 +31,20 @@ if any(x in platform.platform() for x in ['centos', 'redhat']):
 __DEFAULT_LIMIT = 20
 __DEFAULT_OFFSET = 0
 __DEFAULT_LOG_SOURCE = 'Fledge'
-__GET_SYSLOG_CMD_TEMPLATE = "grep -a -E '({})\[' {} | head -n {} | tail -n {}"
-__GET_SYSLOG_CMD_WITH_INFO_TEMPLATE = "grep -a -E '({})\[' {} | grep -a -E '(INFO|WARNING|ERROR|FATAL)' | head -n {} | tail -n {}"
-__GET_SYSLOG_CMD_WITH_ERROR_TEMPLATE = "grep -a -E '({})\[' {} | grep -a -E '(ERROR|FATAL)' | head -n {} | tail -n {}"
-__GET_SYSLOG_CMD_WITH_WARNING_TEMPLATE = "grep -a -E '({})\[' {} | grep -a -E '(WARNING|ERROR|FATAL)' | head -n {} | tail -n {}"
 
-__GET_SYSLOG_TOTAL_MATCHED_LINES = "grep -a -E -c '({})\[' {}"
-__GET_SYSLOG_INFO_MATCHED_LINES = "grep -a -E '({})\[' {} | grep -a -E -c '(INFO|WARNING|ERROR|FATAL)'"
-__GET_SYSLOG_ERROR_MATCHED_LINES = "grep -a -E '({})\[' {} | grep -a -E -c '(ERROR|FATAL)'"
-__GET_SYSLOG_WARNING_MATCHED_LINES = "grep -a -E '({})\[' {} | grep -a -E -c '(WARNING|ERROR|FATAL)'"
+
+# Debug and above
+__GET_SYSLOG_CMD_TEMPLATE = "grep -a -E '({})\[' {} | head -n {} | tail -n {}"
+__GET_SYSLOG_TOTAL_MATCHED_LINES = "grep -a -c -E '({})\[' {}"
+# Info and above
+__GET_SYSLOG_CMD_WITH_INFO_TEMPLATE = "grep -a -E '({})\[.*].* (INFO|WARNING|ERROR|FATAL)' {} | head -n {} | tail -n {}"
+__GET_SYSLOG_INFO_MATCHED_LINES = "grep -a -c -E '({})\[.*].* (INFO|WARNING|ERROR|FATAL|DEBUG)' {}"
+# Error and above
+__GET_SYSLOG_CMD_WITH_ERROR_TEMPLATE = "grep -a -E '({})\[.*].* (ERROR|FATAL)' {} | head -n {} | tail -n {}"
+__GET_SYSLOG_ERROR_MATCHED_LINES = "grep -a -c -E '({})\[.*].* (ERROR|FATAL)' {}"
+# Warning and above
+__GET_SYSLOG_CMD_WITH_WARNING_TEMPLATE = "grep -a -E '({})\[.*].* (WARNING|ERROR|FATAL)' {} | head -n {} | tail -n {}"
+__GET_SYSLOG_WARNING_MATCHED_LINES = "grep -a -c -E '({})\[.*].* (WARNING|ERROR|FATAL)' {}"
 
 _help = """
     ------------------------------------------------------------------------------

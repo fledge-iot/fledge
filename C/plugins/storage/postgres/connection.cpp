@@ -4386,7 +4386,7 @@ int Connection::create_schema(const std::string &payload)
 									q.query = sqlIdx;
 									q.purgeOpArg = "CreatingSchema - phase 2, dropping index on tables";
 									char msg[1000] = {'\0'};
-									sprintf("Function: %s, Schema:%s, Service:%s, tableName:%s, Error in executing drop index command %s",__FUNCTION__, schema.c_str(), service.c_str(), name.c_str(), sqlIdx.c_str());
+									sprintf(msg, "Function: %s, Schema:%s, Service:%s, tableName:%s, Error in executing drop index command %s",__FUNCTION__, schema.c_str(), service.c_str(), name.c_str(), sqlIdx.c_str());
 									q.logMsg = msg;
 
 									queries.push_back(q);

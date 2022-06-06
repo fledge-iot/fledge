@@ -976,10 +976,6 @@ bool ManagementClient::refreshBearerToken(const string& currentToken,
 
 	bool ret = false;
 
-	// Check token already exists in cache:
-	std::map<std::string, std::string>::iterator item;
-	m_mtx_rTokens.lock();
-
 	// Refresh it by calling Fledge management endpoint
 	string url = "/fledge/service/refresh_token";
 	string payload;
@@ -1031,6 +1027,7 @@ bool ManagementClient::refreshBearerToken(const string& currentToken,
 		}
 	}
 
+	m_mtx_rTokens.lock();
 	if (ret)
 	{
 		// Remove old token from received ones
@@ -1049,8 +1046,10 @@ bool ManagementClient::refreshBearerToken(const string& currentToken,
 /**
  * Checks and validate the JWT bearer token string
  *
- * @param bearerToken	The bearer token string
- * @param claims	Map to fill with JWT public token claims
+ * Input token internal data will be set
+ * with new values or cached ones
+ *
+ * @param bearerToken	The bearer token object
  * @return		True on success, false otherwise
  */
 bool ManagementClient::verifyBearerToken(BearerToken& bearerToken)
@@ -1065,13 +1064,14 @@ bool ManagementClient::verifyBearerToken(BearerToken& bearerToken)
 	const string& token = bearerToken.token();
 
 	// Check token already exists in cache:
-	std::map<std::string, std::string>::iterator item;
+	map<string, BearerToken>::iterator item;
 	// Acquire lock
 	m_mtx_rTokens.lock();
 
 	item = m_received_tokens.find(token);
 	if (item  == m_received_tokens.end())
 	{
+		// Token is not in the cache
 		bool verified = false;
 		// Token does not exist:
 		// Verify it by calling Fledge management endpoint
@@ -1082,12 +1082,12 @@ bool ManagementClient::verifyBearerToken(BearerToken& bearerToken)
                 auto res = this->getHttpClient()->request("POST", url.c_str(), payload, header);
 		string response = res->content.string();
 
-		// Parse JSON message and store claims
+		// Parse JSON message and store claims in input token object
 		verified = bearerToken.verify(response);
 		if (verified)
 		{
-			// Token verified, store the token
-			m_received_tokens[token] = "added";
+			// Token verified, store the token object
+			m_received_tokens.emplace(token, bearerToken);
 		}
 		else
 		{
@@ -1095,10 +1095,19 @@ bool ManagementClient::verifyBearerToken(BearerToken& bearerToken)
 			m_logger->error("Micro service bearer token '%s' not verified.",
 					token.c_str());
 		}
+#ifdef DEBUG_BEARER_TOKEN
+		m_logger->debug("New token verified by core API endpoint %d, claims %s:%s:%s:%ld",
+				ret,
+				bearerToken.getAudience().c_str(),
+				bearerToken.getSubject().c_str(),
+				bearerToken.getIssuer().c_str(),
+				bearerToken.getExpiration());
+#endif
 	}
 	else
 	{
-		unsigned long expiration = bearerToken.getExpiration();
+		// Token is in the cache
+		unsigned long expiration = (*item).second.getExpiration();
 		unsigned long now = time(NULL);
 
 		// Check expiration
@@ -1110,19 +1119,22 @@ bool ManagementClient::verifyBearerToken(BearerToken& bearerToken)
 
 			m_logger->error("Micro service bearer token expired.");
 		}
+
+		// Set input token object as per cached data
+		bearerToken = (*item).second;
+
+#ifdef DEBUG_BEARER_TOKEN
+		m_logger->debug("Existing token already verified %d, claims %s:%s:%s:%ld",
+				ret,
+				(*item).second.getAudience().c_str(),
+				(*item).second.getSubject().c_str(),
+				(*item).second.getIssuer().c_str(),
+				(*item).second.getExpiration());
+#endif
 	}
 
 	// Release lock
 	m_mtx_rTokens.unlock();
-
-#ifdef DEBUG_BEARER_TOKEN
-	m_logger->debug("Token verified %d, claims %s:%s:%s:%ld",
-			ret,
-			bearerToken.getAudience().c_str(),
-			bearerToken.getSubject().c_str(),
-			bearerToken.getIssuer().c_str(),
-			bearerToken.getExpiration());
-#endif
 
 	return ret;
 }

@@ -49,7 +49,7 @@ const char *default_config = QUOTE({
  */
 static PLUGIN_INFORMATION info = {
 	"PostgresSQL",            // Name
-	"1.0.0",                  // Version
+	"1.2.0",                  // Version
 	SP_COMMON|SP_READINGS,    // Flags
 	PLUGIN_TYPE_STORAGE,      // Type
 	"1.5.0",                  // Interface version

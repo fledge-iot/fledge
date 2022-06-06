@@ -46,6 +46,7 @@ static char ident[80];
 	}
 	openlog(ident, LOG_PID|LOG_CONS, LOG_USER);
 	instance = this;
+	setMinLevel("warning");
 }
 
 Logger::~Logger()

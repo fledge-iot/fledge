@@ -23,13 +23,14 @@ find_package(sqlite3)
 
 # Find source files
 file(GLOB COMMON_SOURCES ../../../../C/plugins/storage/sqlite/common/*.cpp)
+file(GLOB COMMON_SOURCES2 ../../../../C/common/logger.cpp ../../../../C/common/string_utils.cpp ../../../../C/common/config_category.cpp ../../../../C/common/json_utils.cpp)
 file(GLOB SOURCES ../../../../C/plugins/storage/sqlite/*.cpp)
 
 # Create shared library
 
 link_directories(${PROJECT_BINARY_DIR}/../../lib)
 
-add_library(${PROJECT_NAME} SHARED ${SOURCES} ${COMMON_SOURCES})
+add_library( ${PROJECT_NAME} SHARED ${SOURCES} ${COMMON_SOURCES} ${COMMON_SOURCES2} )
 
 add_definitions(-DPLUGIN_LOG_NAME="SQLite 3")
 

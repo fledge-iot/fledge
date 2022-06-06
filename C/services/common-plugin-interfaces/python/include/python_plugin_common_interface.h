@@ -746,7 +746,7 @@ static PLUGIN_HANDLE plugin_init_fn(ConfigCategory *config)
 				   module->m_name.c_str(),
 				   module->m_module);
 
-	Logger::getLogger()->debug("%s:%d: calling set_loglevel_in_python_module(), loglevel=%s", __FUNCTION__, __LINE__, Logger::getLogger()->getMinLevel().c_str());
+	// Logger::getLogger()->debug("%s:%d: calling set_loglevel_in_python_module(), loglevel=%s", __FUNCTION__, __LINE__, Logger::getLogger()->getMinLevel().c_str());
 	set_loglevel_in_python_module(module->m_module, module->m_name + " plugin_init");
     
 	PyObject *config_dict = json_loads(config->itemsToJSON().c_str());

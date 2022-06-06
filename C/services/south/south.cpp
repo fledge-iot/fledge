@@ -332,7 +332,7 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 
 				PluginManager *manager = PluginManager::getInstance();
 				PLUGIN_TYPE type = manager->getPluginImplType(southPlugin->getHandle());
-				logger->debug("%s:%d: plugin type = %s", __FUNCTION__, __LINE__, (type==PYTHON_PLUGIN)?"PYTHON_PLUGIN":"BINARY_PLUGIN");
+				// logger->debug("%s:%d: plugin type = %s", __FUNCTION__, __LINE__, (type==PYTHON_PLUGIN)?"PYTHON_PLUGIN":"BINARY_PLUGIN");
 				
 				if (type == PYTHON_PLUGIN)
 				{
@@ -789,7 +789,7 @@ void SouthService::configChange(const string& categoryName, const string& catego
 
 			PluginManager *manager = PluginManager::getInstance();
 			PLUGIN_TYPE type = manager->getPluginImplType(southPlugin->getHandle());
-			logger->debug("%s:%d: South plugin type = %s", __FUNCTION__, __LINE__, (type==PYTHON_PLUGIN)?"PYTHON_PLUGIN":"BINARY_PLUGIN");
+			// logger->debug("%s:%d: South plugin type = %s", __FUNCTION__, __LINE__, (type==PYTHON_PLUGIN)?"PYTHON_PLUGIN":"BINARY_PLUGIN");
 
 			// propagate loglevel change to filter irrespective whether the host plugin is python/binary
 			m_ingest->configChange(categoryName, "logLevel");

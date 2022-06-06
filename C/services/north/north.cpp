@@ -571,7 +571,7 @@ bool NorthService::loadPlugin()
 
 				PluginManager *manager = PluginManager::getInstance();
 				PLUGIN_TYPE type = manager->getPluginImplType(northPlugin->getHandle());
-				logger->debug("%s:%d: North plugin type = %s", __FUNCTION__, __LINE__, (type==PYTHON_PLUGIN)?"PYTHON_PLUGIN":"BINARY_PLUGIN");
+				// logger->debug("%s:%d: North plugin type = %s", __FUNCTION__, __LINE__, (type==PYTHON_PLUGIN)?"PYTHON_PLUGIN":"BINARY_PLUGIN");
 
 				if (m_dataLoad)
 				{

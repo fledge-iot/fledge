@@ -10,7 +10,7 @@ using namespace std;
 int main(int argc, char **argv) {
     testing::InitGoogleTest(&argc, argv);
 
-    testing::GTEST_FLAG(repeat) = 50;
+    testing::GTEST_FLAG(repeat) = 1;
     testing::GTEST_FLAG(shuffle) = true;
     testing::GTEST_FLAG(death_test_style) = "threadsafe";
 
@@ -48,6 +48,8 @@ EXPECT_EXIT({
 
 	string test_case = formatted_date;
 	string expected = p.expected;
+
+	cerr << "test_case=" << test_case << ", expected=" << expected << endl;
 
 	bool ret = test_case.compare(expected) == 0;
 	if (!ret)

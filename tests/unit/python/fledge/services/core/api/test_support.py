@@ -237,14 +237,18 @@ class TestBundleSupport:
                 assert 'warning' in jdict['logs'][1]
 
     @pytest.mark.parametrize("param, message", [
-        ("__DEFAULT_LIMIT", "Limit must be a positive integer"),
-        ("__DEFAULT_OFFSET", "Offset must be a positive integer OR Zero"),
+        ('limit=-1', "Limit must be a positive integer."),
+        ('offset=-1', "Offset must be a positive integer OR Zero."),
+        ('limit=1&offset=-1', "Offset must be a positive integer OR Zero."),
+        ('limit=-1&offset=0', "Limit must be a positive integer."),
     ])
-    async def test_get_syslog_entries_exception(self, client, param, message):
-        with patch.object(support, param, "garbage"):
-            resp = await client.get('/fledge/syslog')
-            assert 400 == resp.status
-            assert message == resp.reason
+    async def test_bad_limit_and_offset_in_get_syslog_entries(self, client, param, message):
+        resp = await client.get('/fledge/syslog?{}'.format(param))
+        assert 400 == resp.status
+        assert message == resp.reason
+        res = await resp.text()
+        jdict = json.loads(res)
+        assert {"message": message} == jdict
 
     async def test_get_syslog_entries_cmd_exception(self, client):
         msg = 'Internal Server Error'
@@ -252,6 +256,9 @@ class TestBundleSupport:
             resp = await client.get('/fledge/syslog')
             assert 500 == resp.status
             assert msg == resp.reason
+            res = await resp.text()
+            jdict = json.loads(res)
+            assert {"message": msg} == jdict
 
     async def test_get_syslog_entries_from_name(self, client):
         def mock_syslog():

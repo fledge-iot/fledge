@@ -2,7 +2,7 @@ set( CMAKE_VERBOSE_MAKEFILE on )
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR})
 
-set(GCOVR_PATH "/home/nerd039/.local/bin/gcovr")
+set(GCOVR_PATH "/home/foglamp/.local/bin/gcovr")
 
 cmake_minimum_required(VERSION 2.6)
 
@@ -128,4 +128,4 @@ add_subdirectory(cmake_sqlite)
 add_subdirectory(cmake_sqlitelb)
 add_subdirectory(cmake_sqliteM)
 
-add_link_options("--coverage")
+# add_link_options("--coverage")

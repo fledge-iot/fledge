@@ -21,11 +21,12 @@ fi
 
 if [ -f "./CMakeLists.txt" ] ; then
 	echo -n "Compiling libraries..."
-	(rm -rf build && mkdir -p build && cd build && cmake -DCMAKE_BUILD_TYPE=Debug .. && make ${jobs} && cd ..)
+	# rm -rf build && 
+	(mkdir -p build && cd build && cmake -DCMAKE_BUILD_TYPE=Debug .. && make ${jobs} && cd ..)
 	echo "done"
 fi
 
-cmakefile=`find . -name CMakeLists.txt | grep -v "\.\/CMakeLists.txt" | grep -w sqlite | grep plugins`
+cmakefile=`find . -name CMakeLists.txt | grep -v "\.\/CMakeLists.txt" | grep -w core | grep services`
 for f in $cmakefile; do	
 	echo "-----------------> Processing $f <-----------------"
 	dir=`dirname $f`

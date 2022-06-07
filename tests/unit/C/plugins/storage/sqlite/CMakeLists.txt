@@ -2,7 +2,7 @@ set( CMAKE_VERBOSE_MAKEFILE on )
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/../../..)
 
-set(GCOVR_PATH "/home/nerd039/.local/bin/gcovr")
+set(GCOVR_PATH "/home/foglamp/.local/bin/gcovr")
 
 # Project configuration
 project(RunTests)

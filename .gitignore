@@ -90,3 +90,12 @@ python/fledge/plugins/notificationRule/*
 
 # doxygen build
 doxy/
+htmlcov/
+tests/unit/C/lib/
+
+tests/unit/C/build/
+tests/unit/C/*/build/
+tests/unit/C/*/*/build/
+tests/unit/C/*/*/*/build/
+tests/unit/C/*/*/*/*/build/
+tests/unit/C/*/*/*/*/*/build/

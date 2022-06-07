@@ -439,6 +439,20 @@ void ServiceAuthHandler::AuthenticationMiddlewarePUT(shared_ptr<HttpServer::Resp
 			return;
 		}
 
+		// Check whether caller name and type are passed
+		if (callerName.empty() && callerType.empty())
+		{
+			string msg = "authorisation not granted " \
+				"to this service: missing caller name and type";
+			string responsePayload = "{ \"error\" : \"" + msg + "\" }";
+			Logger::getLogger()->error(msg.c_str());
+
+			this->respond(response,
+					SimpleWeb::StatusCode::client_error_unauthorized,
+					responsePayload);
+			return;
+		}
+
 		// Dispatcher service is always allowed to send control requests
 		// to south service
 		//

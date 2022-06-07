@@ -200,6 +200,53 @@ The easiest approach to run under a debugger is
 
         export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${FLEDGE_ROOT}/cmake_build/C/lib
 
+   - Get a startup token by calling the Fledge API endpoint
+
+     *Note*: authentication login or certificate must be enable in order to call that API endpoint
+ and logged user must be *admin*
+
+     In order to authenticate with admin user follow one ot the two steps
+
+     - User and password login
+
+         .. code-block:: console
+
+             curl -d '{"username": "admin", "some_pass": "fledge"}' -X POST http://localhost:8081/fledge/login
+
+        Check result
+
+       .. code-block:: console
+
+           {"message": "Logged in successfully", "uid": 1, "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1aWQiOjEsImV4cCI6MTY1NDU5NTIyMn0.IlhIgQ93LbCP-ztGlIuJVd6AJrBlbNBNvCv7SeuMfAs", "admin": true}
+
+     - Certificate login
+
+         .. code-block:: console
+
+            curl -T /some_path/admin.cert -X POST http://localhost:8081/fledge/login
+
+            Check result
+
+       .. code-block:: console
+
+            {"message": "Logged in successfully", "uid": 1, "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1aWQiOjEsImV4cCI6MTY1NDU5NTkzN30.6VVD_5RwmpLga2A7ri2bXhlo3x_CLqOYiefAAmLP63Y", "admin": true}
+
+   It is now possible to call the API endpoint by passing the authentication token
+
+   .. code-block:: console
+
+      curl -X POST 127.0.0.1:8081/fledge/service/ServiceName/otp -H 'authorization: Token'
+
+      Where *ServiceName* is the name you gave your service when you created it and *Token* is the one received after authentication
+
+   Response is
+
+     .. code-block:: console
+
+     {"startupToken": "WvFTYeGUvSEFMndePGbyvOsVYUzbnJdi"}
+
+     *startupToken* will be passed as service start argument: --token=*startupToken*
+
    - Load the service you wish to use to run your plugin, e.g. a south service, under the debugger. This should be run from the FLEDGE_ROOT directory
 
      .. code-block:: console
@@ -207,13 +254,14 @@ The easiest approach to run under a debugger is
         $ cd $FLEDGE_ROOT
         $ gdb services/fledge.services.south
 
-   - Run the service passing the *--port=* and *--address=* arguments you noted above and add *-d* and *--name=* with the name of your service.
+   - Run the service passing the *--port=* and *--address=* arguments you noted above and add *-d* and *--name=* with the name of your service
+ and *--token=startupToken* 
 
      .. code-block:: console
 
-        (gdb) run --port=39821 --address=127.0.0.1 --name=ServiceName -d
+        (gdb) run --port=39821 --address=127.0.0.1 --name=ServiceName -d --token=startupToken
 
-     Where *ServiceName* is the name you gave your service when you created it.
+     Where *ServiceName* is the name you gave your service when you created it and *startupToken* as issued following above steps.
 
    - You can now use the debugger in the way you normally would to find any issues.
 
@@ -355,9 +403,9 @@ You can also use a similar approach to that of running gdb to use the *strace* c
 
      .. code-block:: console
 
-        $ strace services/fledge.services.south --port=39821 --address=127.0.0.1 --name=ServiceName -d
+        $ strace services/fledge.services.south --port=39821 --address=127.0.0.1 --name=ServiceName --token=StartupToken -d
 
-     Where *ServiceName* is the name you gave your service
+     Where *ServiceName* is the name you gave your service and *startupToken* as issued following above steps.
 
 Memory Leaks and Corruptions
 ----------------------------
@@ -392,9 +440,9 @@ The same approach can be used to make use of the *valgrind* command to find memo
 
      .. code-block:: console
 
-        $ valgrind --leak-check=full  services/fledge.services.south --port=39821 --address=127.0.0.1 --name=ServiceName -d
+        $ valgrind --leak-check=full  services/fledge.services.south --port=39821 --address=127.0.0.1 --name=ServiceName --token=StartupToken -d
 
-     Where *ServiceName* is the name you gave your service
+     Where *ServiceName* is the name you gave your service and *startupToken* as issued following above steps.
 
   - Once the service has run for a while shut it down to trigger *valgrind* to print a summary of memory leaks found during the execution.
 

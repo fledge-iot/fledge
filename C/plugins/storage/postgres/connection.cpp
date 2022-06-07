@@ -37,6 +37,7 @@ using namespace rapidjson;
 
 static time_t connectErrorTime = 0;
 #define CONNECT_ERROR_THRESHOLD		5*60	// 5 minutes
+#define MSG_LEN 5000
 
 //
 // Used for the purge operation - start
@@ -4326,8 +4327,8 @@ int Connection::create_schema(const std::string &payload)
 								sqlQuery q;
 							        q.query = sql.c_str();
 								q.purgeOpArg = "CreatingSchema - phase 1, creating/altering tables";
-								char msg[1000] = {'\0'};
-								sprintf(msg,"Function: %s, Schema:%s, Service:%s, tableName:%s, Error in creating/altering tables, command executed = %s",__FUNCTION__, schema.c_str(), service.c_str(), name.c_str(), sql.c_str());
+								char msg[MSG_LEN] = {'\0'};
+								snprintf(msg, MSG_LEN, "Function: %s, Schema:%s, Service:%s, tableName:%s, Error in creating/altering tables, command executed = %s",__FUNCTION__, schema.c_str(), service.c_str(), name.c_str(), sql.c_str());
 								q.logMsg = msg;
 
 								queries.push_back(q);
@@ -4357,8 +4358,8 @@ int Connection::create_schema(const std::string &payload)
 									sqlQuery q;
 									q.query = sqlIdx.c_str();
 									q.purgeOpArg = "CreatingSchema - phase 2, creating index on tables";
-									char msg[1000] = {'\0'};
-									sprintf(msg, "Function :%s, Schema:%s, Service:%s, tableName:%s Error in creating indexes command %s",__FUNCTION__, schema.c_str(), service.c_str(), name.c_str(), sqlIdx.c_str());
+									char msg[MSG_LEN] = {'\0'};
+									snprintf(msg, MSG_LEN, "Function :%s, Schema:%s, Service:%s, tableName:%s Error in creating indexes command %s",__FUNCTION__, schema.c_str(), service.c_str(), name.c_str(), sqlIdx.c_str());
 									q.logMsg = msg;
 
 									queries.push_back(q);
@@ -4385,8 +4386,8 @@ int Connection::create_schema(const std::string &payload)
 									sqlQuery q;
 									q.query = sqlIdx;
 									q.purgeOpArg = "CreatingSchema - phase 2, dropping index on tables";
-									char msg[1000] = {'\0'};
-									sprintf(msg, "Function: %s, Schema:%s, Service:%s, tableName:%s, Error in executing drop index command %s",__FUNCTION__, schema.c_str(), service.c_str(), name.c_str(), sqlIdx.c_str());
+									char msg[MSG_LEN] = {'\0'};
+									snprintf(msg, MSG_LEN, "Function: %s, Schema:%s, Service:%s, tableName:%s, Error in executing drop index command %s",__FUNCTION__, schema.c_str(), service.c_str(), name.c_str(), sqlIdx.c_str());
 									q.logMsg = msg;
 
 									queries.push_back(q);

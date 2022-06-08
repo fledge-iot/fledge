@@ -12,7 +12,8 @@
 #include "rapidjson/error/en.h"
 #include <unistd.h>
 #include <connection.h>
-
+#include <algorithm>
+#include <vector>
 using namespace std;
 using namespace rapidjson;
 
@@ -350,28 +351,35 @@ bool Schema::createIndex(sqlite3 *db, const std::string& table, const rapidjson:
 				table.c_str(), m_name.c_str());
 		return false;
 	}
+
+	std::string tmp1, tmp2;
+	for (auto& col : index.GetArray())
+        {
+                if (col.IsString())
+                {
+			tmp1.append(col.GetString());
+			tmp1.append(",");
+			tmp2.append(col.GetString());
+			tmp2.append("_");		
+                }
+        }
+
+	if (tmp1.size() > 0)
+		tmp1.pop_back();
+	if (tmp2.size() > 0)
+		tmp2.pop_back();
+
 	SQLBuffer sql;
 	sql.append("CREATE INDEX ");
 	sql.append(m_name);
 	sql.append(".");
 	sql.append(table);
-	sql.append("_idx");
-	sql.append(m_indexNo++);
+	sql.append("_");
+	sql.append(tmp2);
 	sql.append(" ON ");
 	sql.append(table);
 	sql.append('(');
-	bool first = true;
-	for (auto& col : index.GetArray())
-	{
-		if (col.IsString())
-		{
-			if (first)
-				first = false;
-			else
-				sql.append(',');
-			sql.append(col.GetString());
-		}
-	}
+	sql.append(tmp1);
 	sql.append(");");
 
 	// Execute the SQL statement
@@ -526,7 +534,7 @@ bool Schema::upgrade(sqlite3 *db, const Document& doc)
 	}
 
 	logger->debug("Schema update: %s: Phase 5 - add any new indexes", m_name.c_str());
-	// Iterate over the new schema tables in both and then check for new columns
+	// Iterate over the new schema tables in both and then check for new indexes
 	if (hasArray(doc, "tables"))
 	{
 		const Value& newTables = doc["tables"];
@@ -544,7 +552,15 @@ bool Schema::upgrade(sqlite3 *db, const Document& doc)
 						{
 							if (hasArray(index, "index"))
 							{
-								// TODO Compare indexes
+								const Value& idx = index["index"];
+								std::string idxName = getIndexName(name,idx);
+                                                                if (!hasIndex(onDisk, name, idxName))
+                                                                {
+                                                                        if (!createIndex(db, name, idx))
+                                                                        {
+                                                                                return false;
+                                                                        }
+                                                                }
 							}
 						}
 					}
@@ -555,6 +571,49 @@ bool Schema::upgrade(sqlite3 *db, const Document& doc)
 
 	logger->debug("Schema update: %s: Phase 6 - remove any obsolete indexes", m_name.c_str());
 
+        // Iterate over the on disk tables looking for tables that exist in the new schema
+        // and then look for indexes that are on disk but not in the new schema
+        if (hasArray(onDisk, "tables"))
+        {
+                const Value& oldTables = onDisk["tables"];
+                for (auto& oldTable : oldTables.GetArray())
+                {
+                        if (hasString(oldTable, "name"))
+                        {
+                                string name = oldTable["name"].GetString();
+                                if (hasTable(doc, name))
+                                {
+                                        if (hasArray(oldTable, "indexes"))
+                                        {
+                                                const Value& indexes = oldTable["indexes"];
+
+                                                for (auto& index : indexes.GetArray())
+                                                {
+                                                        if (hasString(index, "index"))
+                                                        {
+                                                                const Value& idx = index["index"];
+								std::string idxName = getIndexName(name,idx);
+
+                                                                if (!hasIndex(doc, name, idxName))
+                                                                {
+                                                                        logger->debug("Schema Upgrade of %s drop index %s from table %s", m_name.c_str(), idxName.c_str(), name.c_str());
+                                                                        SQLBuffer sql;
+                                                                        sql.append("DROP INDEX  ");
+									sql.append(idxName);
+                                                                        sql.append(';');
+                                                                        if (!executeDDL(db, sql))
+                                                                        {
+                                                                                return false;
+                                                                        }
+                                                                }
+                                                        }
+                                                }
+
+                                        }
+                                }
+                        }
+                }
+        }
 
 	return true;
 }
@@ -795,4 +854,138 @@ bool Schema::attach(sqlite3 *db)
 	}
 	m_attached[db] = true;
 	return true;
+}
+
+
+/**
+ * Look in the JSON definition of a schema and check for the existence of a index within a table
+ *
+ * @param doc           The JSON document that defines the schema
+ * @param tableName     The name of the table name to look for
+ * @param indexName         The name of the index name to look for
+ * @return bool         True if the table exists in the schema
+ */
+bool Schema::hasIndex(const Document& doc, const std::string& tableName, const string& indexName)
+{
+        if (!hasArray(doc, "tables"))
+        {
+                return false;
+        }
+        const Value& tables = doc["tables"];
+        for (auto& table : tables.GetArray())
+        {
+                if (hasString(table, "name"))
+                {
+                        string name = table["name"].GetString();
+                        if (name.compare(tableName) == 0)
+                        {
+                                if (hasArray(table, "indexes"))
+                                {
+                                        const Value& indexes = table["indexes"];
+                                        for (auto& index : indexes.GetArray())
+                                        {
+                                                if (hasString(index, "index"))
+                                                {
+                                                        const Value& idx = index["index"];
+							std::vector<string> v;
+							for(auto& i: idx.GetArray())
+							{
+								if(i.IsString())
+									v.push_back(i.GetString());
+							}
+
+
+							std::sort(v.begin(), v.end());
+							std::string s;
+							s.append(m_name);
+							s.append(".");
+							s.append(name);
+							s.append("_");
+							for (auto& i: v)
+							{
+								s.append(i);
+								s.append("_");
+							}	
+
+							if(s.size() > 0) s.pop_back();
+
+                                                        if (s.compare(indexName) == 0)
+                                                        {
+                                                                return true;
+                                                        }
+                                                }
+                                        }
+                                }
+                        }
+                }
+        }
+        return false;
+}
+
+/**
+ * Add a new index to an existing table within the schema
+ *
+ * @param db    The SQLite database handle
+ * @param table The name of the table we are adding the column to
+ * @param column        The JSON definition of the column
+ * @param schema	The schema of the 
+ * @return bool True if the column was added to the table
+ */
+bool Schema::addTableIndex(sqlite3 *db, const std::string& tableName, const Value& index)
+{
+        Logger *logger = Logger::getLogger();
+        SQLBuffer sql;
+        sql.append(" CREATE INDEX ");
+        sql.append(tableName);
+        sql.append('_');
+	std::string s, indName;
+	if(!index.IsArray())
+	{
+		Logger::getLogger()->error("Malformed index for table %s in schema %s",
+                                tableName.c_str(), m_name.c_str());
+		return false;
+	}
+	for(auto& i: index.GetArray())
+	{
+		if(i.IsString())
+		{
+			s.append(i.GetString());
+			s.append("_");
+			indName.append(i.GetString());
+			indName.append(",");
+		}
+	}
+	if (s.size() > 0)
+		s.pop_back();
+	if (indName.size() >0)
+		indName.pop_back();
+        sql.append(s);
+        sql.append(" on ");
+	sql.append(tableName);
+	sql.append("(");
+	sql.append(indName);
+	sql.append(");");
+	return executeDDL(db, sql);
+}
+
+std::string Schema::getIndexName(std::string name, const Value& index)
+{
+	std::string s;
+        std::vector<string> v;
+        s.append(m_name);s.append(".");s.append(name);s.append("_");
+        for (auto& i : index.GetArray())
+        {
+	        if (i.IsString())
+                {
+       	        	v.push_back(i.GetString());
+                }
+        }
+        std::sort(v.begin(), v.end());
+        for (auto &i: v)
+	{
+        	s.append(i);
+                s.append("_");
+        }
+        if (s.size() > 0) s.pop_back();
+	return s;
 }

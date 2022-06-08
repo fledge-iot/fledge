@@ -66,6 +66,10 @@ class Schema {
 				};
 		bool		createDatabase();
 		void		setDatabasePath();
+		std::string 	getIndexName(std::string name, const rapidjson::Value& index);
+		bool 		addTableIndex(sqlite3 *db, const std::string& tableName, const rapidjson::Value& index);
+		bool 		hasIndex(const rapidjson::Document& doc, const std::string& tableName, const std::string& indexName);
+
 };
 
 /**

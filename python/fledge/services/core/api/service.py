@@ -32,6 +32,7 @@ from fledge.services.core.api.plugins import common
 from fledge.services.core.api.plugins import install
 from fledge.services.core.api.plugins.exceptions import *
 from fledge.common.audit_logger import AuditLogger
+from fledge.common.web.middleware import has_permission
 
 
 __author__ = "Mark Riddoch, Ashwin Gopalakrishnan, Amarendra K Sinha"
@@ -46,6 +47,7 @@ _help = """
     | GET                 | /fledge/service/installed                            |
     | PUT                 | /fledge/service/{type}/{name}/update                 |
     | DELETE              | /fledge/service/{service_name}                       |
+    | POST                | /fledge/service/{service_name}/otp                   |
     ------------------------------------------------------------------------------
 """
 
@@ -689,3 +691,27 @@ def do_update(http_enabled: bool, host: str, port: int, storage: connect, pkg_na
     # Restart the service which was disabled before service update
     for sch in schedules:
         loop.run_until_complete(_put_schedule(protocol, host, port, uuid.UUID(sch), True))
+
+
+@has_permission("admin")
+async def issueOTPToken(request):
+    """ Request an OTP startup token for service
+        being manually started
+
+        The request requires Core API authentication
+        and admin user
+
+    :Example:
+        curl -sX POST http://localhost:8081/fledge/service/SIN2/otp
+    """
+    if request.is_auth_optional:
+        _logger.warning('Resource you were trying to reach is forbidden')
+        raise web.HTTPForbidden
+
+    # Get service name
+    service_name = request.match_info.get('service_name')
+
+    # Create a startup token for the service
+    startToken = ServiceRegistry.issueStartupToken(service_name)
+
+    return web.json_response({"startupToken": startToken})

@@ -464,26 +464,33 @@ class PayloadBuilder(object):
             raise Exception("Expected at least table name  with JOIN clause.")
 
         if "join" in cls.query_payload:
-            cls.query_payload["join"].update(table_dict)
+            cls.query_payload["join"] = table_dict
         else:
             cls.query_payload["join"] = {}
-            cls.query_payload["join"].update(table_dict)
+            cls.query_payload["join"] = table_dict
 
         return cls
 
+    @classmethod
     def ON(cls, *args):
         if "join" not in cls.query_payload:
             raise Exception("ON Clause used without using JOIN first.")
         else:
             if len(args) == 1:
                 col_id = args[0]
-                on_dict = {"on": col_id}
-                cls.query_payload["join"].update(on_dict)
-                cls.query_payload["join"].update({"query": {}})
-                cls.query_payload = cls.query_payload["join"]["query"]
+                cls.query_payload["join"]["on"] = col_id
                 return cls
             else:
                 raise Exception("Expected column id with ON clause.")
+
+    @classmethod
+    def QUERY(cls, payload):
+        print(cls.query_payload)
+        if "join" in cls.query_payload:
+            cls.query_payload['join']['query'] = payload
+            return cls
+        else:
+            raise Exception("Query used without JOIN clause.")
 
     @classmethod
     def AGGREGATE(cls, arg, *args):

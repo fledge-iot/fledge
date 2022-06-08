@@ -34,6 +34,7 @@ bool ServiceAuthHandler::createSecurityCategories(ManagementClient* mgtClient)
 
 	// All services but South ones add 'AuthenticatedCaller' item
 	if (this->getType() != "Southbound")
+	{
 		// Add AuthenticatedCaller item, set to "false"
 		defConfigSecurity.addItem("AuthenticatedCaller",
 					"Security config params",

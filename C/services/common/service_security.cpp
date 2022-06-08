@@ -32,7 +32,18 @@ bool ServiceAuthHandler::createSecurityCategories(ManagementClient* mgtClient)
 	string securityCatName = m_name + string("Security");
 	DefaultConfigCategory defConfigSecurity(securityCatName, string("{}"));
 
-	defConfigSecurity.setDescription(m_name + string(" security config params"));
+	// All services but South ones add 'AuthenticatedCaller' item
+	if (this->getType() != "Southbound")
+	{
+		// Add AuthenticatedCaller item, set to "false"
+		defConfigSecurity.addItem("AuthenticatedCaller",
+					"Security config params",
+					"boolean",
+					"false",
+					"false");
+		defConfigSecurity.setItemDisplayName("AuthenticatedCaller",
+					"Enable caller authorisation");
+	}
 
 	// Create/Update category name (we pass keep_original_items=true)
 	mgtClient->addCategory(defConfigSecurity, true);

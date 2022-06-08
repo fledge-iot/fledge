@@ -440,6 +440,52 @@ class PayloadBuilder(object):
         return cls
 
     @classmethod
+    def JOIN(cls, *args):
+        if len(args) == 2:
+            tbl_name = args[0]
+            col_name = args[1]
+
+            table_dict = {
+                "table": {
+                    "name": tbl_name,
+                    "column": col_name
+                }
+            }
+
+        elif len(args) == 1:
+            tbl_name = args[0]
+
+            table_dict = {
+                "table": {
+                    "name": tbl_name
+                }
+            }
+        else:
+            raise Exception("Expected at least table name  with JOIN clause.")
+
+        if "join" in cls.query_payload:
+            cls.query_payload["join"].update(table_dict)
+        else:
+            cls.query_payload["join"] = {}
+            cls.query_payload["join"].update(table_dict)
+
+        return cls
+
+    def ON(cls, *args):
+        if "join" not in cls.query_payload:
+            raise Exception("ON Clause used without using JOIN first.")
+        else:
+            if len(args) == 1:
+                col_id = args[0]
+                on_dict = {"on": col_id}
+                cls.query_payload["join"].update(on_dict)
+                cls.query_payload["join"].update({"query": {}})
+                cls.query_payload = cls.query_payload["join"]["query"]
+                return cls
+            else:
+                raise Exception("Expected column id with ON clause.")
+
+    @classmethod
     def AGGREGATE(cls, arg, *args):
         """
         Forms a json to return a dict (for a single col) or a list of dicts required in an aggregate clause.

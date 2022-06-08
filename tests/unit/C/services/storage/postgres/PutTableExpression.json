@@ -1,0 +1,15 @@
+{
+    "condition"    : { 
+                       "column"    : "col2",
+                       "condition" : "=",
+                       "value"     : 20 
+                     },
+    "expressions" : [
+                       {
+                          "column"   : "col2",
+                          "operator" : "+",
+                          "value"    : 10
+                       }
+                    ]
+}
+

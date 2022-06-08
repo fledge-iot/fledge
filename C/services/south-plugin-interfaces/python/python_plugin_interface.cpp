@@ -35,6 +35,7 @@ extern PLUGIN_INFORMATION *Py2C_PluginInfo(PyObject *);
 std::vector<Reading *>* plugin_poll_fn(PLUGIN_HANDLE);
 void plugin_start_fn(PLUGIN_HANDLE handle);
 void plugin_register_ingest_fn(PLUGIN_HANDLE handle,INGEST_CB2 cb,void * data);
+bool plugin_write_fn(PLUGIN_HANDLE handle, const std::string& name, const std::string& value);
 bool plugin_operation_fn(PLUGIN_HANDLE handle, string operation, int parameterCount, PLUGIN_PARAMETER parameters[]);
 
 
@@ -146,6 +147,13 @@ void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
     return pModule;
 }
 
+/**
+ * Function to invoke 'plugin_write' function in python plugin
+ *
+ * @param    handle		Plugin handle from plugin_init_fn
+ * @param    name		Name of parameter to write
+ * @param    value		Value to be written to that parameter
+ */
 bool plugin_write_fn(PLUGIN_HANDLE handle, const std::string& name, const std::string& value)
 {
 	bool rv = false;
@@ -252,7 +260,14 @@ bool plugin_write_fn(PLUGIN_HANDLE handle, const std::string& name, const std::s
 	return rv;
 }
 
-
+/**
+ * Function to invoke 'plugin_operation' function in python plugin
+ *
+ * @param    handle			Plugin handle from plugin_init_fn
+ * @param    operation		Name of operation
+ * @param    parameterCount	Number of parameters in Parameter list
+ * @param    parameters		Parameter list
+ */
 bool plugin_operation_fn(PLUGIN_HANDLE handle, string operation, int parameterCount, PLUGIN_PARAMETER parameters[])
 {
 	bool rv = false;
@@ -364,8 +379,6 @@ bool plugin_operation_fn(PLUGIN_HANDLE handle, string operation, int parameterCo
 
 	return rv;
 }
-
-
 
 /**
  * Returns function pointer that can be invoked to call '_sym' function

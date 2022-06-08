@@ -357,6 +357,7 @@ static PLUGIN_INFORMATION *Py2C_PluginInfo(PyObject* pyRetVal)
 		}
 		else if(!strcmp(ckey, "mode"))
 		{
+			// Need to also handle mode values of the form "poll|control"
 			stringstream ss(valStr); 
 			string s;
 

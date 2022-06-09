@@ -34,6 +34,8 @@ using HttpServer = SimpleWeb::Server<SimpleWeb::HTTP>;
 #define DELETE_TABLE_SNAPSHOT	LOAD_TABLE_SNAPSHOT
 #define CREATE_STORAGE_STREAM	"^/storage/reading/stream$"
 #define STORAGE_SCHEMA		"^/storage/schema"
+#define STORAGE_TABLE_ACCESS    "^/storage/schema/([A-Za-z][a-zA-Z0-9_]*)/table/([A-Za-z][a-zA-Z0-9_]*)$"
+#define STORAGE_TABLE_QUERY	 "^/storage/schema/([A-Za-z][a-zA-Z0-9_]*)/table/([A-Za-z][a-zA-Z_0-9]*)/query$"           
 
 #define PURGE_FLAG_RETAIN      "retain"
 #define PURGE_FLAG_RETAIN_ANY  "retainany"
@@ -41,6 +43,8 @@ using HttpServer = SimpleWeb::Server<SimpleWeb::HTTP>;
 #define PURGE_FLAG_PURGE       "purge"
 
 #define TABLE_NAME_COMPONENT	1
+#define STORAGE_SCHEMA_NAME_COMPONENT	1
+#define STORAGE_TABLE_NAME_COMPONENT	2
 #define ASSET_NAME_COMPONENT	1
 #define SNAPSHOT_ID_COMPONENT	2
 
@@ -82,6 +86,13 @@ public:
 	void	createStorageStream(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
 	bool	readingStream(ReadingStream **readings, bool commit);
 	void    createStorageSchema(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
+	void 	storageTableInsert(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
+	void    storageTableUpdate(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
+	void    storageTableDelete(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
+	void    storageTableSimpleQuery(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
+	void    storageTableQuery(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
+
+
 	void	printList();
 	bool	createSchema(const std::string& schema);
 

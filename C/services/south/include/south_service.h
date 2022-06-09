@@ -18,6 +18,8 @@
 #include <filter_plugin.h>
 #include <plugin_data.h>
 
+#define MAX_SLEEP	5		// Maximum number of seconds the service will sleep during a poll cycle
+
 #define SERVICE_NAME  "Fledge South"
 
 /*
@@ -80,6 +82,7 @@ class SouthService : public ServiceAuthHandler {
 		struct timeval			m_currentRate;
 		int				m_timerfd;
 		const std::string		m_token;
+		unsigned int			m_repeatCnt;
 		PluginData			*m_pluginData;
 		std::string			m_dataKey;
 };

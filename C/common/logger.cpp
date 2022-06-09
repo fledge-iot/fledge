@@ -55,6 +55,9 @@ Logger::~Logger()
 
 Logger *Logger::getLogger()
 {
+	if (!instance)
+		instance = new Logger("fledge");
+
 	return instance;
 }
 

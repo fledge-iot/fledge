@@ -39,7 +39,7 @@ class Logger {
 	private:
 		std::string 	*format(const std::string& msg, va_list ap);
 		static Logger   *instance;
-		std::string     levelString;
+		static std::string     levelString;
 };
 
 #endif

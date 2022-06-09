@@ -203,9 +203,12 @@ bool plugin_write_fn(PLUGIN_HANDLE handle, const std::string& name, const std::s
 		Logger::getLogger()->fatal("Cannot find method 'plugin_write' "
 					   "in loaded python module '%s'",
 					   it->second->m_name.c_str());
+
+		PyGILState_Release(state);
+		return rv;
 	}
 
-	if (!pFunc || !PyCallable_Check(pFunc))
+	if (!PyCallable_Check(pFunc))
 	{
 		// Failure
 		if (PyErr_Occurred())
@@ -316,9 +319,12 @@ bool plugin_operation_fn(PLUGIN_HANDLE handle, string operation, int parameterCo
 		Logger::getLogger()->fatal("Cannot find method 'plugin_operation' "
 					   "in loaded python module '%s'",
 					   it->second->m_name.c_str());
+
+		PyGILState_Release(state);
+		return rv;
 	}
 
-	if (!pFunc || !PyCallable_Check(pFunc))
+	if (!PyCallable_Check(pFunc))
 	{
 		// Failure
 		if (PyErr_Occurred())

@@ -375,6 +375,8 @@ static PLUGIN_INFORMATION *Py2C_PluginInfo(PyObject* pyRetVal)
 				{
 					info->options |= SP_CONTROL;
 				}
+				else
+					Logger::getLogger()->warn("%s: mode: Unknown token/value %s", __FUNCTION__, s.c_str());
 			}
 
 			delete[] valStr;

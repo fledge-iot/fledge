@@ -504,11 +504,13 @@ class PayloadBuilder(object):
         """
             Class method for ON. Use like this
               First make a query payload like this
-              qp = SELECT(("name", "id")).ALIAS('return', ('name', 'my_name'), ('id', 'my_id')).chain_payload()
+              qp = PayloadBuilder().SELECT(("name", "id")) \
+                                   .ALIAS('return', ('name', 'my_name'), ('id', 'my_id'))\
+                                   .chain_payload()
               Then use PayloadBuilder().JOIN("t1", "t1_id").ON("t1_id").QUERY(qp)
-            Used only with JOIN.
+            Used only with JOIN and ON.
             Args:
-                *args (): column id for ON.
+                *args (): the query payload to merge into parent payload.
 
             Returns:
                 The object of payload builder class.

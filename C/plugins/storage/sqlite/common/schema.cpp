@@ -55,17 +55,20 @@ void SchemaManager::load(sqlite3 *db)
 		return;
 	}
 
-	while ((rc = sqlite3_step(stmt)) == SQLITE_ROW)
+	if (stmt)
 	{
-		string name = (const char *)sqlite3_column_text(stmt, 0);
-		string service = (const char *)sqlite3_column_text(stmt, 1);
-		int version = sqlite3_column_int(stmt, 2);
-		string definition = (const char *)sqlite3_column_text(stmt, 3);
+		while ((rc = sqlite3_step(stmt)) == SQLITE_ROW)
+		{
+			string name = (const char *)sqlite3_column_text(stmt, 0);
+			string service = (const char *)sqlite3_column_text(stmt, 1);
+			int version = sqlite3_column_int(stmt, 2);
+			string definition = (const char *)sqlite3_column_text(stmt, 3);
 
-		m_schema.insert(pair<string, Schema *>(name,
-					new Schema(name, service, version, definition)));
+			m_schema.insert(pair<string, Schema *>(name,
+						new Schema(name, service, version, definition)));
+		}
+		sqlite3_finalize(stmt);
 	}
-	sqlite3_finalize(stmt);
 	m_loaded = true;
 }
 
@@ -140,6 +143,9 @@ Document doc;
  */
 bool SchemaManager::exists(sqlite3 *db, const string& schema)
 {
+	if (schema.compare("fledge") == 0)	// The fledge schema always exists
+		return true;
+
 	if (!m_loaded)
 	{
 		load(db);

@@ -1,0 +1,11 @@
+{
+    "condition" : { 
+                    "column"    : "col2",
+                    "condition" : "=",
+                    "value"     : 70 
+                  },
+    "values"    : {
+                    "col2" : 20
+                  }
+}
+

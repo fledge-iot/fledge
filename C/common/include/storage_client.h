@@ -32,6 +32,8 @@ using HttpClient = SimpleWeb::Client<SimpleWeb::HTTP>;
 #define SC_INITIAL_BACKOFF	100
 #define SC_MAX_BACKOFF		1000
 
+#define DEFAULT_SCHEMA 	"fledge"
+
 class ManagementClient;
 
 /**
@@ -42,8 +44,17 @@ class StorageClient {
 		StorageClient(HttpClient *client);
 		StorageClient(const std::string& hostname, const unsigned short port);
 		~StorageClient();
+		ResultSet	*queryTable(const std::string& schema, const std::string& tablename, const Query& query);
 		ResultSet	*queryTable(const std::string& tablename, const Query& query);
 		ReadingSet	*queryTableToReadings(const std::string& tableName, const Query& query);
+		int 		insertTable(const std::string& schema, const std::string& tableName, const InsertValues& values);
+		int		updateTable(const std::string& schema, const std::string& tableName, const InsertValues& values, const Where& where);
+		int		updateTable(const std::string& schema, const std::string& tableName, const JSONProperties& json, const Where& where);
+		int		updateTable(const std::string& schema, const std::string& tableName, const InsertValues& values, const JSONProperties& json, const Where& where);
+		int		updateTable(const std::string& schema, const std::string& tableName, const ExpressionValues& values, const Where& where);
+		int		updateTable(const std::string& schema, const std::string& tableName, std::vector<std::pair<ExpressionValues *, Where *>>& updates);
+		int		updateTable(const std::string& schema, const std::string& tableName, const InsertValues& values, const ExpressionValues& expressoins, const Where& where);
+		int		deleteTable(const std::string& schema, const std::string& tableName, const Query& query);
 		int 		insertTable(const std::string& tableName, const InsertValues& values);
 		int		updateTable(const std::string& tableName, const InsertValues& values, const Where& where);
 		int		updateTable(const std::string& tableName, const JSONProperties& json, const Where& where);

@@ -441,6 +441,18 @@ class PayloadBuilder(object):
 
     @classmethod
     def JOIN(cls, *args):
+        """
+        Class method for JOIN. Use like this 1. PayloadBuilder().JOIN("t1", "t1_id")
+                                        or   2. PayloadBuilder().JOIN("t1").
+        The first example assumes that there is table t1 and has column t1_id.
+        The second example assumes that there is table t1 and it has the same column given
+         in the request payload.
+        Args:
+            *args (): a tuple of table id and column id or only table id.
+
+        Returns:
+            The object of payload builder class.
+        """
         if len(args) == 2:
             tbl_name = args[0]
             col_name = args[1]
@@ -463,16 +475,20 @@ class PayloadBuilder(object):
         else:
             raise Exception("Expected at least table name  with JOIN clause.")
 
-        if "join" in cls.query_payload:
-            cls.query_payload["join"] = table_dict
-        else:
-            cls.query_payload["join"] = {}
-            cls.query_payload["join"] = table_dict
-
+        cls.query_payload["join"] = table_dict
         return cls
 
     @classmethod
     def ON(cls, *args):
+        """
+            Class method for ON. Use like this PayloadBuilder().JOIN("t1", "t1_id").ON("t1_id")
+            Used only with JOIN
+            Args:
+                *args (): column id for ON.
+
+            Returns:
+                The object of payload builder class.
+        """
         if "join" not in cls.query_payload:
             raise Exception("ON Clause used without using JOIN first.")
         else:
@@ -484,11 +500,34 @@ class PayloadBuilder(object):
                 raise Exception("Expected column id with ON clause.")
 
     @classmethod
-    def QUERY(cls, payload):
-        print(cls.query_payload)
+    def QUERY(cls, *args):
+        """
+            Class method for ON. Use like this
+              First make a query payload like this
+              qp = SELECT(("name", "id")).ALIAS('return', ('name', 'my_name'), ('id', 'my_id')).chain_payload()
+              Then use PayloadBuilder().JOIN("t1", "t1_id").ON("t1_id").QUERY(qp)
+            Used only with JOIN.
+            Args:
+                *args (): column id for ON.
+
+            Returns:
+                The object of payload builder class.
+        """
         if "join" in cls.query_payload:
-            cls.query_payload['join']['query'] = payload
-            return cls
+
+            if len(args) == 1:
+                payload = args[0]
+                if isinstance(payload, OrderedDict):
+                    if 'query' not in cls.query_payload['join']:
+                        cls.query_payload['join']['query'] = payload
+                        return cls
+                    else:
+                        cls.query_payload['join']['query'].update(payload)
+                        return cls
+                else:
+                    raise Exception("The given nested payload is of the class that's not supported.")
+            else:
+                raise Exception("No nested payload given.")
         else:
             raise Exception("Query used without JOIN clause.")
 

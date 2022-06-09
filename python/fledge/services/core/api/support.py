@@ -8,10 +8,13 @@ import os
 import platform
 import subprocess
 import json
+import logging
+import urllib.parse
 from pathlib import Path
 from aiohttp import web
-import urllib.parse
 
+from fledge.common import logger
+from fledge.common.common import _FLEDGE_ROOT, _FLEDGE_DATA
 from fledge.services.core.support import SupportBuilder
 
 __author__ = "Ashish Jabble"
@@ -19,32 +22,35 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-
-_FLEDGE_DATA = os.getenv("FLEDGE_DATA", default=None)
-_FLEDGE_ROOT = os.getenv("FLEDGE_ROOT", default='/usr/local/fledge')
+_logger = logger.setup(__name__, level=logging.INFO)
 
 _SYSLOG_FILE = '/var/log/syslog'
-
-if ('centos' in platform.platform()) or ('redhat' in platform.platform()):
+if any(x in platform.platform() for x in ['centos', 'redhat']):
     _SYSLOG_FILE = '/var/log/messages'
 
 __DEFAULT_LIMIT = 20
 __DEFAULT_OFFSET = 0
 __DEFAULT_LOG_SOURCE = 'Fledge'
-__GET_SYSLOG_CMD_TEMPLATE = "grep -a -E '({})\[' {} | head -n {} | tail -n {}"
-__GET_SYSLOG_CMD_WITH_INFO_TEMPLATE = "grep -a -E '({})\[' {} | grep -a -E -i '(info|warning|error|fatal)' | head -n {} | tail -n {}"
-__GET_SYSLOG_CMD_WITH_ERROR_TEMPLATE = "grep -a -E '({})\[' {} | grep -a -E -i '(error|fatal)' | head -n {} | tail -n {}"
-__GET_SYSLOG_CMD_WITH_WARNING_TEMPLATE = "grep -a -E '({})\[' {} | grep -a -E -i '(warning|error|fatal)' | head -n {} | tail -n {}"
 
-__GET_SYSLOG_TOTAL_MATCHED_LINES = "grep -a -E '({})\[' {} | wc -l"
-__GET_SYSLOG_INFO_MATCHED_LINES = "grep -a -E '({})\[' {} | grep -a -E -i '(info|warning|error|fatal)' | wc -l"
-__GET_SYSLOG_ERROR_MATCHED_LINES = "grep -a -E '({})\[' {} | grep -a -E -i '(error|fatal)' | wc -l"
-__GET_SYSLOG_WARNING_MATCHED_LINES = "grep -a -E '({})\[' {} | grep -a -E -i '(warning|error|fatal)' | wc -l"
+
+# Debug and above
+__GET_SYSLOG_CMD_TEMPLATE = "grep -a -E '({})\[' {} | head -n {} | tail -n {}"
+__GET_SYSLOG_TOTAL_MATCHED_LINES = "grep -a -c -E '({})\[' {}"
+# Info and above
+__GET_SYSLOG_CMD_WITH_INFO_TEMPLATE = "grep -a -E '({})\[.*].* (INFO|WARNING|ERROR|FATAL)' {} | head -n {} | tail -n {}"
+__GET_SYSLOG_INFO_MATCHED_LINES = "grep -a -c -E '({})\[.*].* (INFO|WARNING|ERROR|FATAL|DEBUG)' {}"
+# Error and above
+__GET_SYSLOG_CMD_WITH_ERROR_TEMPLATE = "grep -a -E '({})\[.*].* (ERROR|FATAL)' {} | head -n {} | tail -n {}"
+__GET_SYSLOG_ERROR_MATCHED_LINES = "grep -a -c -E '({})\[.*].* (ERROR|FATAL)' {}"
+# Warning and above
+__GET_SYSLOG_CMD_WITH_WARNING_TEMPLATE = "grep -a -E '({})\[.*].* (WARNING|ERROR|FATAL)' {} | head -n {} | tail -n {}"
+__GET_SYSLOG_WARNING_MATCHED_LINES = "grep -a -c -E '({})\[.*].* (WARNING|ERROR|FATAL)' {}"
 
 _help = """
     ------------------------------------------------------------------------------
     | GET POST        | /fledge/support                                          |
     | GET             | /fledge/support/{bundle}                                 |
+    | GET             | /fledge/syslog                                           |
     ------------------------------------------------------------------------------
 """
 
@@ -97,7 +103,6 @@ async def create_support_bundle(request):
         curl -X POST http://localhost:8081/fledge/support
     """
     support_dir = _get_support_dir()
-    base_url = "{}://{}:{}/fledge".format(request.url.scheme, request.url.host, request.url.port)
     try:
         bundle_name = await SupportBuilder(support_dir).build()
     except Exception as ex:
@@ -120,29 +125,28 @@ async def get_syslog_entries(request):
         curl -X GET "http://localhost:8081/fledge/syslog?limit=5&source=storage"
         curl -X GET "http://localhost:8081/fledge/syslog?limit=5&offset=5&source=storage"
     """
-
     try:
-        limit = int(request.query['limit']) if 'limit' in request.query and request.query['limit'] != '' else __DEFAULT_LIMIT
+        # limit
+        limit = int(request.query['limit']) if 'limit' in request.query and request.query[
+            'limit'] != '' else __DEFAULT_LIMIT
         if limit < 0:
-            raise ValueError
-    except (Exception, ValueError):
-        raise web.HTTPBadRequest(reason="Limit must be a positive integer")
+            raise ValueError('Limit must be a positive integer.')
 
-    try:
-        offset = int(request.query['offset']) if 'offset' in request.query and request.query['offset'] != '' else __DEFAULT_OFFSET
+        # offset
+        offset = int(request.query['offset']) if 'offset' in request.query and request.query[
+            'offset'] != '' else __DEFAULT_OFFSET
         if offset < 0:
-            raise ValueError
-    except (Exception, ValueError):
-        raise web.HTTPBadRequest(reason="Offset must be a positive integer OR Zero")
+            raise ValueError('Offset must be a positive integer OR Zero.')
 
-    source = urllib.parse.unquote(request.query['source']) if 'source' in request.query and request.query['source'] != '' else __DEFAULT_LOG_SOURCE
-    if source.lower() in ['fledge', 'storage']:
-        source = source.lower()
-        valid_source = {'fledge': "Fledge.*", 'storage': 'Fledge Storage'}
-    else:
-        valid_source = {source: "Fledge {}".format(source)}
+        # source
+        source = urllib.parse.unquote(request.query['source']) if 'source' in request.query and request.query[
+            'source'] != '' else __DEFAULT_LOG_SOURCE
+        if source.lower() in ['fledge', 'storage']:
+            source = source.lower()
+            valid_source = {'fledge': "Fledge.*", 'storage': 'Fledge Storage'}
+        else:
+            valid_source = {source: "Fledge {}".format(source)}
 
-    try:
         # Get filtered lines
         template = __GET_SYSLOG_CMD_TEMPLATE
         lines = __GET_SYSLOG_TOTAL_MATCHED_LINES
@@ -169,9 +173,11 @@ async def get_syslog_entries(request):
         a = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE).stdout.readlines()
         c = [b.decode() for b in a]  # Since "a" contains return value in bytes, convert it to string
     except ValueError as err:
-        raise web.HTTPBadRequest(body=json.dumps({"message": str(err)}), reason=str(err))
+        msg = str(err)
+        raise web.HTTPBadRequest(body=json.dumps({"message": msg}), reason=msg)
     except (OSError, Exception) as ex:
-        raise web.HTTPInternalServerError(reason=str(ex))
+        msg = str(ex)
+        raise web.HTTPInternalServerError(body=json.dumps({"message": msg}), reason=msg)
 
     return web.json_response({'logs': c, 'count': total_lines})
 

@@ -1,0 +1,9 @@
+{
+	"where"    : {
+			   "column"    : "col2",
+			   "condition" : "=",
+			   "value"     : 70 
+			 },
+      "return"   : [ "col1" ]
+}
+

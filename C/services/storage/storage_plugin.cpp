@@ -12,6 +12,8 @@
 
 using namespace std;
 
+#define DEFAULT_SCHEMA "fledge"
+
 /**
  * Constructor for the class that wraps the storage plugin
  *
@@ -45,16 +47,58 @@ StoragePlugin::StoragePlugin(const string& name, PLUGIN_HANDLE handle) : Plugin(
 		instance = (*pluginInit)();
 	}
 
+	if (major >= 1 && minor >= 5)
+	{
+		m_bStorageSchemaFlag = true;
+	}
+
 
 	// Setup the function pointers to the plugin
-  	commonInsertPtr = (int (*)(PLUGIN_HANDLE, const char*, const char*))
+	
+	if (!m_bStorageSchemaFlag)
+	{
+  		commonInsertPtr = (int (*)(PLUGIN_HANDLE, const char*, const char*))
 				manager->resolveSymbol(handle, "plugin_common_insert");
-	commonRetrievePtr = (char * (*)(PLUGIN_HANDLE, const char*, const char*))
+	}
+	else
+	{
+		storageSchemaInsertPtr = (int (*)(PLUGIN_HANDLE, const char*, const char*, const char*))
+                                manager->resolveSymbol(handle, "plugin_common_insert");
+	}
+
+	if (!m_bStorageSchemaFlag)
+	{
+		commonRetrievePtr = (char * (*)(PLUGIN_HANDLE, const char*, const char*))
 				manager->resolveSymbol(handle, "plugin_common_retrieve");
-	commonUpdatePtr = (int (*)(PLUGIN_HANDLE, const char*, const char*))
-				manager->resolveSymbol(handle, "plugin_common_update");
-	commonDeletePtr = (int (*)(PLUGIN_HANDLE, const char*, const char*))
+	}
+	else
+	{
+		storageSchemaRetrievePtr = (char * (*)(PLUGIN_HANDLE, const char*, const char*, const char*))
+                                manager->resolveSymbol(handle, "plugin_common_retrieve");
+	}
+
+	if (!m_bStorageSchemaFlag)
+	{
+		commonUpdatePtr = (int (*)(PLUGIN_HANDLE, const char*, const char*))
+                                manager->resolveSymbol(handle, "plugin_common_update");
+	}
+	else
+	{
+		storageSchemaUpdatePtr = (int (*)(PLUGIN_HANDLE, const char*, const char*, const char*))
+                                manager->resolveSymbol(handle, "plugin_common_update");
+	}
+
+	if (!m_bStorageSchemaFlag)
+	{
+		commonDeletePtr = (int (*)(PLUGIN_HANDLE, const char*, const char*))
 				manager->resolveSymbol(handle, "plugin_common_delete");
+	}
+	else
+	{
+		storageSchemaDeletePtr = (int (*)(PLUGIN_HANDLE, const char*, const char*, const char*))
+                                manager->resolveSymbol(handle, "plugin_common_delete");
+	}
+
 	readingsAppendPtr = (int (*)(PLUGIN_HANDLE, const char *))
 				manager->resolveSymbol(handle, "plugin_reading_append");
 	readingsFetchPtr = (char * (*)(PLUGIN_HANDLE, unsigned long id, unsigned int blksize))
@@ -92,33 +136,70 @@ StoragePlugin::StoragePlugin(const string& name, PLUGIN_HANDLE handle) : Plugin(
 /**
  * Call the insert method in the plugin
  */
-int StoragePlugin::commonInsert(const string& table, const string& payload)
+int StoragePlugin::commonInsert(const string& table, const string& payload, char *schema)
 {
-	return this->commonInsertPtr(instance, table.c_str(), payload.c_str());
+	if(!m_bStorageSchemaFlag && this->commonInsertPtr)
+	{
+		return this->commonInsertPtr(instance, table.c_str(), payload.c_str());
+	}
+	else
+	{
+		if (!schema) schema = DEFAULT_SCHEMA;
+		if (this->storageSchemaInsertPtr)
+			return this->storageSchemaInsertPtr(instance, schema, table.c_str(), payload.c_str());
+	}
 }
 
 /**
  * Call the retrieve method in the plugin
  */
-char *StoragePlugin::commonRetrieve(const string& table, const string& payload)
+char *StoragePlugin::commonRetrieve(const string& table, const string& payload, char *schema)
 {
-	return this->commonRetrievePtr(instance, table.c_str(), payload.c_str());
+	if (!m_bStorageSchemaFlag && this->commonRetrievePtr)
+	{
+		return this->commonRetrievePtr(instance, table.c_str(), payload.c_str());
+	}
+	else
+	{
+		if (!schema) schema = DEFAULT_SCHEMA;
+		if (this->storageSchemaRetrievePtr)
+	                return this->storageSchemaRetrievePtr(instance, schema, table.c_str(), payload.c_str());
+        }
+
 }
 
 /**
  * Call the update method in the plugin
  */
-int StoragePlugin::commonUpdate(const string& table, const string& payload)
+int StoragePlugin::commonUpdate(const string& table, const string& payload, char *schema)
 {
-	return this->commonUpdatePtr(instance, table.c_str(), payload.c_str());
+	if (!m_bStorageSchemaFlag && this->commonUpdatePtr)
+        {
+		return this->commonUpdatePtr(instance, table.c_str(), payload.c_str());
+	}
+	else
+	{
+		if (!schema) schema = DEFAULT_SCHEMA;
+		if (this->storageSchemaUpdatePtr)
+                	return this->storageSchemaUpdatePtr(instance, schema, table.c_str(), payload.c_str());
+        }
 }
 
 /**
  * Call the delete method in the plugin
  */
-int StoragePlugin::commonDelete(const string& table, const string& payload)
+int StoragePlugin::commonDelete(const string& table, const string& payload, char *schema)
 {
-	return this->commonDeletePtr(instance, table.c_str(), payload.c_str());
+	if (!m_bStorageSchemaFlag && this->commonDeletePtr)
+        {
+		return this->commonDeletePtr(instance, table.c_str(), payload.c_str());
+	}
+	else
+	{
+		if (!schema) schema = DEFAULT_SCHEMA;
+		if (this->storageSchemaDeletePtr)
+			return this->storageSchemaDeletePtr(instance, schema, table.c_str(), payload.c_str());
+	}
 }
 
 /**
@@ -227,5 +308,3 @@ int StoragePlugin::createSchema(const string& payload)
 	if (this->createSchemaPtr)
         	return this->createSchemaPtr(instance, payload.c_str());
 }
-
-

@@ -35,6 +35,8 @@ extern PLUGIN_INFORMATION *Py2C_PluginInfo(PyObject *);
 std::vector<Reading *>* plugin_poll_fn(PLUGIN_HANDLE);
 void plugin_start_fn(PLUGIN_HANDLE handle);
 void plugin_register_ingest_fn(PLUGIN_HANDLE handle,INGEST_CB2 cb,void * data);
+bool plugin_write_fn(PLUGIN_HANDLE handle, const std::string& name, const std::string& value);
+bool plugin_operation_fn(PLUGIN_HANDLE handle, string operation, int parameterCount, PLUGIN_PARAMETER parameters[]);
 
 
 /**
@@ -145,6 +147,244 @@ void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
     return pModule;
 }
 
+/**
+ * Function to invoke 'plugin_write' function in python plugin
+ *
+ * @param    handle		Plugin handle from plugin_init_fn
+ * @param    name		Name of parameter to write
+ * @param    value		Value to be written to that parameter
+ */
+bool plugin_write_fn(PLUGIN_HANDLE handle, const std::string& name, const std::string& value)
+{
+	bool rv = false;
+
+	if (!handle)
+	{
+		Logger::getLogger()->fatal("plugin_handle: plugin_write(): "
+					   "handle is NULL");
+		return rv;
+	}
+
+	if (!pythonHandles)
+	{
+		Logger::getLogger()->error("pythonHandles map is NULL "
+					   "in plugin_write, plugin handle '%p'",
+					   handle);
+		return rv;
+	}
+
+	// Look for Python module for handle key
+	auto it = pythonHandles->find(handle);
+	if (it == pythonHandles->end() ||
+		!it->second ||
+		!it->second->m_module)
+	{
+		Logger::getLogger()->fatal("plugin_handle: plugin_write(): "
+					   "pModule is NULL, plugin handle '%p'",
+					   handle);
+		return rv;
+	}
+
+	std::mutex mtx;
+	PyObject* pFunc;
+	lock_guard<mutex> guard(mtx);
+	PyGILState_STATE state = PyGILState_Ensure();
+
+	Logger::getLogger()->debug("plugin_handle: plugin_write(): "
+				   "pModule=%p, handle=%p, plugin '%s'",
+				   it->second->m_module,
+				   handle,
+				   it->second->m_name.c_str());
+
+	// Fetch required method in loaded object
+	pFunc = PyObject_GetAttrString(it->second->m_module, "plugin_write");
+	if (!pFunc)
+	{
+		Logger::getLogger()->fatal("Cannot find method 'plugin_write' "
+					   "in loaded python module '%s'",
+					   it->second->m_name.c_str());
+
+		PyGILState_Release(state);
+		return rv;
+	}
+
+	if (!PyCallable_Check(pFunc))
+	{
+		// Failure
+		if (PyErr_Occurred())
+		{
+			logErrorMessage();
+		}
+
+		Logger::getLogger()->fatal("Cannot call method plugin_write "
+					   "in loaded python module '%s'",
+					   it->second->m_name.c_str());
+		Py_CLEAR(pFunc);
+
+		PyGILState_Release(state);
+		return rv;
+	}
+
+	Logger::getLogger()->debug("plugin_write with name=%s, value=%s", name.c_str(), value.c_str());
+
+	// Call Python method passing an object and 2 C-style strings
+	PyObject* pReturn = PyObject_CallFunction(pFunc,
+						  "Oss",
+						  handle, name.c_str(), value.c_str());
+
+	Py_CLEAR(pFunc);
+
+	// Handle return
+	if (!pReturn)
+	{
+		Logger::getLogger()->error("Called python script method plugin_write : "
+					   "error while getting result object, plugin '%s'",
+					   it->second->m_name.c_str());
+		logErrorMessage();
+	}
+	else
+	{
+		if (PyBool_Check(pReturn))
+		{
+			rv = PyObject_IsTrue(pReturn);
+			Logger::getLogger()->info("plugin_write() returned %s", rv?"TRUE":"FALSE");
+		}
+		else
+		{
+			Logger::getLogger()->error("plugin_handle: plugin_write(): "
+									"got result object '%p' of unexpected type %s, plugin '%s'",
+									pReturn, pReturn->ob_type->tp_name,
+									it->second->m_name.c_str());
+		}
+		Py_CLEAR(pReturn);
+	}
+	PyGILState_Release(state);
+
+	return rv;
+}
+
+/**
+ * Function to invoke 'plugin_operation' function in python plugin
+ *
+ * @param    handle			Plugin handle from plugin_init_fn
+ * @param    operation		Name of operation
+ * @param    parameterCount	Number of parameters in Parameter list
+ * @param    parameters		Parameter list
+ */
+bool plugin_operation_fn(PLUGIN_HANDLE handle, string operation, int parameterCount, PLUGIN_PARAMETER parameters[])
+{
+	bool rv = false;
+	if (!handle)
+	{
+		Logger::getLogger()->fatal("plugin_handle: plugin_operation(): "
+					   "handle is NULL");
+		return rv;
+	}
+
+	if (!pythonHandles)
+	{
+		Logger::getLogger()->error("pythonHandles map is NULL "
+					   "in plugin_operation, plugin handle '%p'",
+					   handle);
+		return rv;
+	}
+
+	// Look for Python module for handle key
+	auto it = pythonHandles->find(handle);
+	if (it == pythonHandles->end() ||
+		!it->second ||
+		!it->second->m_module)
+	{
+		Logger::getLogger()->fatal("plugin_handle: plugin_operation(): "
+					   "pModule is NULL, plugin handle '%p'",
+					   handle);
+		return rv;
+	}
+
+	std::mutex mtx;
+	PyObject* pFunc;
+	lock_guard<mutex> guard(mtx);
+	PyGILState_STATE state = PyGILState_Ensure();
+
+	Logger::getLogger()->debug("plugin_handle: plugin_operation(): "
+				   "pModule=%p, *handle=%p, plugin '%s'",
+				   it->second->m_module,
+				   handle,
+				   it->second->m_name.c_str());
+
+	// Fetch required method in loaded object
+	pFunc = PyObject_GetAttrString(it->second->m_module, "plugin_operation");
+	if (!pFunc)
+	{
+		Logger::getLogger()->fatal("Cannot find method 'plugin_operation' "
+					   "in loaded python module '%s'",
+					   it->second->m_name.c_str());
+
+		PyGILState_Release(state);
+		return rv;
+	}
+
+	if (!PyCallable_Check(pFunc))
+	{
+		// Failure
+		if (PyErr_Occurred())
+		{
+			logErrorMessage();
+		}
+
+		Logger::getLogger()->fatal("Cannot call method plugin_operation "
+					   "in loaded python module '%s'",
+					   it->second->m_name.c_str());
+		Py_CLEAR(pFunc);
+
+		PyGILState_Release(state);
+		return rv;
+	}
+
+	Logger::getLogger()->debug("plugin_operation with operation=%s, parameterCount=%d", operation.c_str(), parameterCount);
+
+	PyObject *paramsList = PyList_New(parameterCount);
+	for (int i=0; i<parameterCount; i++)
+	{
+		PyList_SetItem(paramsList, i, Py_BuildValue("(ss)", parameters[i].name.c_str(), parameters[i].value.c_str()) );
+	}
+	
+	// Call Python method passing an object and 2 C-style strings
+	PyObject* pReturn = PyObject_CallFunction(pFunc,
+						  "OsO",
+						  handle, operation.c_str(), paramsList);
+
+	Py_CLEAR(pFunc);
+	Py_CLEAR(paramsList);
+
+	// Handle return
+	if (!pReturn)
+	{
+		Logger::getLogger()->error("Called python script method plugin_operation : "
+					   "error while getting result object, plugin '%s'",
+					   it->second->m_name.c_str());
+		logErrorMessage();
+	}
+	else
+	{
+		if (PyBool_Check(pReturn))
+		{
+			rv = PyObject_IsTrue(pReturn);
+			Logger::getLogger()->info("plugin_operation() returned %s", rv?"TRUE":"FALSE");
+		}
+		else
+		{
+			Logger::getLogger()->error("plugin_handle: plugin_operation(): "
+									"got result object '%p' of unexpected type %s, plugin '%s'",
+									pReturn, pReturn->ob_type->tp_name,
+									it->second->m_name.c_str());
+		}
+		Py_CLEAR(pReturn);
+	}
+	PyGILState_Release(state);
+
+	return rv;
+}
 
 /**
  * Returns function pointer that can be invoked to call '_sym' function
@@ -167,6 +407,10 @@ void* PluginInterfaceResolveSymbol(const char *_sym, const string& name)
 		return (void *) plugin_start_fn;
 	else if (!sym.compare("plugin_register_ingest"))
 		return (void *) plugin_register_ingest_fn;
+	else if (!sym.compare("plugin_write"))
+		return (void *) plugin_write_fn;
+	else if (!sym.compare("plugin_operation"))
+		return (void *) plugin_operation_fn;
 	else
 	{
 		Logger::getLogger()->fatal("PluginInterfaceResolveSymbol can not find symbol '%s' "

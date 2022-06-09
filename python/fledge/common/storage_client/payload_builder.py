@@ -515,23 +515,24 @@ class PayloadBuilder(object):
             Returns:
                 The object of payload builder class.
         """
-        if "join" in cls.query_payload:
-
-            if len(args) == 1:
-                payload = args[0]
-                if isinstance(payload, OrderedDict):
-                    if 'query' not in cls.query_payload['join']:
-                        cls.query_payload['join']['query'] = payload
-                        return cls
-                    else:
-                        cls.query_payload['join']['query'].update(payload)
-                        return cls
-                else:
-                    raise Exception("The given nested payload is of the class that's not supported.")
-            else:
-                raise Exception("No nested payload given.")
-        else:
+        if "join" not in cls.query_payload:
             raise Exception("Query used without JOIN clause.")
+
+        if len(args) != 1:
+            raise Exception("Either no or invalid query payload paramater given.")
+
+        payload = args[0]
+        if not isinstance(payload, OrderedDict):
+            raise Exception("The query payload parameter must be an OrderedDict.")
+
+        if 'query' in cls.query_payload['join']:
+            # Used when we have to perform only one join.
+            cls.query_payload['join']['query'].update(payload)
+        else:
+            # Used when we have to perform nested join.
+            # This will update the already existent query field.
+            cls.query_payload['join']['query'] = payload
+        return cls
 
     @classmethod
     def AGGREGATE(cls, arg, *args):

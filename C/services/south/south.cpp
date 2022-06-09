@@ -222,7 +222,8 @@ SouthService::SouthService(const string& myName, const string& token) :
 				m_readingsPerSec(1),
 				m_throttle(false),
 				m_throttled(false),
-				m_token(token)
+				m_token(token),
+				m_repeatCnt(1)
 {
 	m_name = myName;
 	m_type = SERVICE_TYPE;
@@ -411,6 +412,17 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 			else if (units.compare("hour") == 0)
 				dividend = 3600000000;
 			unsigned long usecs = dividend / m_readingsPerSec;
+
+			if (usecs > MAX_SLEEP * 1000000)
+			{
+				double x = usecs / (MAX_SLEEP * 1000000);
+				m_repeatCnt = ceil(x);
+				usecs /= m_repeatCnt;
+			}
+			else
+			{
+				m_repeatCnt = 1;
+			}
 			m_desiredRate.tv_sec  = (int)(usecs / 1000000);
 			m_desiredRate.tv_usec = (int)(usecs % 1000000);
 			m_timerfd = createTimerFd(m_desiredRate); // interval to be passed is in usecs
@@ -471,11 +483,24 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 				uint64_t exp;
 				ssize_t s;
 				
-				s = read(m_timerfd, &exp, sizeof(uint64_t));
-				if ((unsigned int)s != sizeof(uint64_t))
-					logger->error("timerfd read()");
-				if (exp > 100 && exp > m_readingsPerSec/2)
+				long rep = m_repeatCnt;
+				while (rep > 0)
+				{
+					s = read(m_timerfd, &exp, sizeof(uint64_t));
+					if ((unsigned int)s != sizeof(uint64_t))
+						logger->error("timerfd read()");
+					if (exp > 100 && exp > m_readingsPerSec/2)
 					logger->error("%d expiry notifications accumulated", exp);
+					rep--;
+					if (m_shutdown)
+					{
+						break;
+					}
+				}
+				if (m_shutdown)
+				{
+					break;
+				}
 #if DO_CATCHUP
 				for (uint64_t i=0; i<exp; i++)
 #endif
@@ -763,6 +788,16 @@ void SouthService::configChange(const string& categoryName, const string& catego
 					m_readingsPerSec = newval;
 					close(m_timerfd);
 					unsigned long usecs = dividend / m_readingsPerSec;
+					if (usecs > MAX_SLEEP * 1000000)
+					{
+						double x = usecs / (MAX_SLEEP * 1000000);
+						m_repeatCnt = ceil(x);
+						usecs /= m_repeatCnt;
+					}
+					else
+					{
+						m_repeatCnt = 1;
+					}
 					m_desiredRate.tv_sec  = (int)(usecs / 1000000);
 					m_desiredRate.tv_usec = (int)(usecs % 1000000);
 					m_currentRate = m_desiredRate;
@@ -940,12 +975,23 @@ struct timeval now, res;
 		return;
 	}
 	double desired = m_desiredRate.tv_sec + ((double)m_desiredRate.tv_usec / 1000000);
+	desired *= m_repeatCnt;
 	gettimeofday(&now, NULL);
 	timersub(&now, &m_lastThrottle, &res);
 	if (m_ingest->queueLength() > m_highWater && res.tv_sec > SOUTH_THROTTLE_DOWN_INTERVAL)
 	{
 		double rate = m_currentRate.tv_sec + ((double)m_currentRate.tv_usec / 1000000);
 		rate *= (1.0 + ((double)SOUTH_THROTTLE_PERCENT / 100.0));
+		if (rate > MAX_SLEEP * 1000000)
+		{
+			double x = rate / (MAX_SLEEP * 1000000);
+			m_repeatCnt = ceil(x);
+			rate /= m_repeatCnt;
+		}
+		else
+		{
+			m_repeatCnt = 1;
+		}
 		m_currentRate.tv_sec = (long)rate;
 		m_currentRate.tv_usec = (rate - m_currentRate.tv_sec) * 1000000;
 		close(m_timerfd);
@@ -956,12 +1002,22 @@ struct timeval now, res;
 	}
 	else if (m_throttled && m_ingest->queueLength() < m_lowWater && res.tv_sec > SOUTH_THROTTLE_UP_INTERVAL)
 	{
-		// We are current throttle back but the queue is below the low water mark
+		// We are currently throttled back but the queue is below the low water mark
 		timersub(&m_desiredRate, &m_currentRate, &res);
 		if (res.tv_sec != 0 || res.tv_usec != 0)
 		{
 			double rate = m_currentRate.tv_sec + ((double)m_currentRate.tv_usec / 1000000);
 			rate *= (1.0 - ((double)SOUTH_THROTTLE_PERCENT / 100.0));
+			if (rate > MAX_SLEEP * 1000000)
+			{
+				double x = rate / (MAX_SLEEP * 1000000);
+				m_repeatCnt = ceil(x);
+				rate /= m_repeatCnt;
+			}
+			else
+			{
+				m_repeatCnt = 1;
+			}
 			m_currentRate.tv_sec = (long)rate;
 			m_currentRate.tv_usec = (rate - m_currentRate.tv_sec) * 1000000;
 			if (m_currentRate.tv_sec <= m_desiredRate.tv_sec

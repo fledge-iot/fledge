@@ -32,7 +32,18 @@ bool ServiceAuthHandler::createSecurityCategories(ManagementClient* mgtClient)
 	string securityCatName = m_name + string("Security");
 	DefaultConfigCategory defConfigSecurity(securityCatName, string("{}"));
 
-	defConfigSecurity.setDescription(m_name + string(" security config params"));
+	// All services but South ones add 'AuthenticatedCaller' item
+	if (this->getType() != "Southbound")
+	{
+		// Add AuthenticatedCaller item, set to "false"
+		defConfigSecurity.addItem("AuthenticatedCaller",
+					"Security config params",
+					"boolean",
+					"false",
+					"false");
+		defConfigSecurity.setItemDisplayName("AuthenticatedCaller",
+					"Enable caller authorisation");
+	}
 
 	// Create/Update category name (we pass keep_original_items=true)
 	mgtClient->addCategory(defConfigSecurity, true);
@@ -436,6 +447,20 @@ void ServiceAuthHandler::AuthenticationMiddlewarePUT(shared_ptr<HttpServer::Resp
 					SimpleWeb::StatusCode::client_error_bad_request,
 					responsePayload);
 
+			return;
+		}
+
+		// Check whether caller name and type are passed
+		if (callerName.empty() && callerType.empty())
+		{
+			string msg = "authorisation not granted " \
+				"to this service: missing caller name and type";
+			string responsePayload = "{ \"error\" : \"" + msg + "\" }";
+			Logger::getLogger()->error(msg.c_str());
+
+			this->respond(response,
+					SimpleWeb::StatusCode::client_error_unauthorized,
+					responsePayload);
 			return;
 		}
 

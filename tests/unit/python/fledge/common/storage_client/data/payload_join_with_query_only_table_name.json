@@ -1,0 +1,26 @@
+{
+  "join": {
+    "table": {
+      "name": "attributes"
+    },
+    "on": "id",
+    "query": {
+      "return": [
+        "parent_id",
+        {
+          "column": "name",
+          "alias": "attribute_name"
+        },
+        {
+          "column": "value",
+          "alias": "attribute_value"
+        }
+      ],
+      "where": {
+        "column": "name",
+        "condition": "=",
+        "value": "MyName"
+      }
+    }
+  }
+}

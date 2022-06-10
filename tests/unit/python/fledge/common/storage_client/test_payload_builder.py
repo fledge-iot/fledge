@@ -386,6 +386,78 @@ class TestPayloadBuilderRead:
         res = PayloadBuilder().WHERE(["ts", "newer", 60]).AGGREGATE(["count", "*"]).payload()
         assert _payload("data/payload_aggregate_where.json") == json.loads(res)
 
+    def test_join_without_query(self):
+        res = PayloadBuilder().JOIN("table1", "table1_id").ON("table2_id").payload()
+        assert _payload("data/payload_join_without_query.json") == json.loads(res)
+
+    def test_join_with_only_table_name_and_without_query(self):
+        res = PayloadBuilder().JOIN("table1").ON("table2_id").payload()
+        assert _payload("data/payload_join_without_query_only_table_name.json") == json.loads(res)
+
+    def test_join_with_query(self):
+        qp = PayloadBuilder().SELECT(("parent_id", "name", "value")). \
+            ALIAS('return', ('name', 'attribute_name'), ('value', 'attribute_value')). \
+            WHERE(["name", "=", "MyName"]). \
+            chain_payload()
+        res = PayloadBuilder().JOIN("attributes", "parent_id").ON("id").QUERY(qp).payload()
+        assert _payload("data/payload_join_with_query.json") == json.loads(res)
+
+    def test_join_with_query_and_only_table_name(self):
+        qp = PayloadBuilder().SELECT(("parent_id", "name", "value")). \
+            ALIAS('return', ('name', 'attribute_name'), ('value', 'attribute_value')). \
+            WHERE(["name", "=", "MyName"]). \
+            chain_payload()
+        res = PayloadBuilder().JOIN("attributes").ON("id").QUERY(qp).payload()
+        assert _payload("data/payload_join_with_query_only_table_name.json") == json.loads(res)
+
+    def test_nested_join(self):
+        qp1 = PayloadBuilder().SELECT(("parent_id", "value")). \
+            ALIAS('return', ('value', 'colour')). \
+            WHERE(["name", "=", "colour"]). \
+            chain_payload()
+        join1 = PayloadBuilder().JOIN("attributes", "parent_id").ON("id").QUERY(qp1).chain_payload()
+
+        qp2 = PayloadBuilder().SELECT(("parent_id", "value")). \
+            ALIAS('return', ('value', 'my_name')). \
+            WHERE(["name", "=", "MyName"]). \
+            chain_payload()
+
+        join2 = PayloadBuilder().JOIN("attributes", "parent_id").ON("id").QUERY(qp2)
+        join2.QUERY(join1)
+
+        res = join2.payload()
+        assert _payload("data/payload_nested_join.json") == json.loads(res)
+
+    def test_invalid_join_clause(self):
+        try:
+            PayloadBuilder().JOIN()
+        except Exception as e:
+            assert str(e) == "Expected at least table name  with JOIN clause."
+
+    def test_invalid_on_clause(self):
+        try:
+            PayloadBuilder().JOIN("table1").ON()
+        except Exception as e:
+            assert str(e) == "Expected column name with ON clause."
+
+    def test_invalid_query_clause_without_join(self):
+        try:
+            PayloadBuilder().MERGE({'a': 1})
+        except Exception as e:
+            assert str(e) == "Query used without JOIN clause."
+
+    def test_invalid_query_clause_without_on(self):
+        try:
+            PayloadBuilder().MERGE({'a': 1})
+        except Exception as e:
+            assert str(e) == "Query used without ON clause."
+
+    def test_invalid_query_clause_invalid_query_payload(self):
+        try:
+            PayloadBuilder().JOIN("table1", "column1").ON("id").MERGE("random")
+        except Exception as e:
+            assert str(e) == "The query payload parameter must be an OrderedDict."
+
 
 @pytest.allure.feature("unit")
 @pytest.allure.story("payload_builder")

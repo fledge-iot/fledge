@@ -432,7 +432,7 @@ std::string results;
  * @return              -1 on error, >= 0 on success
  *
  */
-int plugin_schema_update(PLUGIN_HANDLE handle, char *schema, char *definition)
+int plugin_createSchema(PLUGIN_HANDLE handle, char *definition)
 {
 	ConnectionManager *manager = (ConnectionManager *)handle;
 	Connection        *connection = manager->allocate();

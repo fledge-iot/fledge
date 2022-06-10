@@ -89,7 +89,7 @@ Document doc;
 	doc.Parse(definition.c_str());
 	if (doc.HasParseError())
 	{
-		m_logger->error("Failed to parse extension schema definition '%s' at %d: $s",
+		m_logger->error("Failed to parse extension schema definition '%s' at %d: %s",
 				GetParseError_En(doc.GetParseError()), doc.GetErrorOffset(),
 				definition.c_str());
 		return false;
@@ -129,9 +129,10 @@ Document doc;
 		}
 		if (it->second->getVersion() != version)
 		{
-			return it->second->upgrade(db, doc);
+			return it->second->upgrade(db, doc, definition);
 		}
 	}
+	return false;
 }
 
 /**
@@ -237,6 +238,20 @@ Schema::Schema(sqlite3 *db, const rapidjson::Document& doc) : m_indexNo(0)
 			createTable(db, table);
 		}
 	}
+	SQLBuffer sql;
+	sql.append("INSERT INTO fledge.service_schema ( name, service, version, defintion ) VALUES (");
+	sql.append(m_name);
+	sql.append(',');
+	sql.quote(m_service);
+	sql.append(',');
+	sql.append(m_version);
+	sql.append(',');
+	sql.quote(m_definition);
+	sql.append(");");
+	if (!executeDDL(db, sql))
+	{
+		logger->error("Failed to add schema to dictionary");
+	}
 }
 
 /**
@@ -296,7 +311,12 @@ bool Schema::createTable(sqlite3 *db, const rapidjson::Value& table)
 		}
 		else if (type.compare("varchar") == 0)
 		{
+			if (!hasInt(column, "size"))
+			{
+			}
+			int size = column["size"].GetInt();
 			sql.append(" CHARACTER VARYING(");
+			sql.append(size);
 			sql.append(')');
 		}
 		else if (type.compare("double") == 0)
@@ -390,10 +410,11 @@ bool Schema::createIndex(sqlite3 *db, const std::string& table, const rapidjson:
  * drop a column from a table, add a new index or drop an index.
  *
  * @param db	The SQLite3 database connection
+ * @param doc	The pre-parsed version of the schema definition
  * @param definition	The schema defintion for the new version of the schema as JSON
  * @param bool	True if the upgrade suceeded.
  */
-bool Schema::upgrade(sqlite3 *db, const Document& doc)
+bool Schema::upgrade(sqlite3 *db, const Document& doc, const string& definition)
 {
 	Logger *logger = Logger::getLogger();
 
@@ -561,6 +582,23 @@ bool Schema::upgrade(sqlite3 *db, const Document& doc)
 
 	logger->debug("Schema update: %s: Phase 6 - remove any obsolete indexes", m_name.c_str());
 
+
+	m_version = doc["version"].GetInt();	// Safe as we would not get here if version was missing
+	m_definition = definition;
+
+	logger->debug("Schema update: %s: Phase 7 - update schema table", m_name.c_str());
+	SQLBuffer sql;
+	sql.append("UPDATE fledge.service_schema SET version = ");
+	sql.append(m_version);
+	sql.append(", definition = ");
+	sql.quote(m_definition);
+	sql.append(" WHERE name = ");
+	sql.quote(m_name);
+	sql.append(" AND service = ");
+	sql.quote(m_service);
+	sql.append(';');
+	if (!executeDDL(db, sql))
+		return false;
 
 	return true;
 }

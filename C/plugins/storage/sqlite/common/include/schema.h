@@ -30,7 +30,8 @@ class Schema {
 		Schema(sqlite3 *db, const rapidjson::Document& doc);
 		~Schema();
 		int		getVersion() { return m_version; };
-		bool		upgrade(sqlite3 *db, const rapidjson::Document& doc);
+		std::string	getService() { return m_service; };
+		bool		upgrade(sqlite3 *db, const rapidjson::Document& doc, const std::string& definition);
 		bool		attach(sqlite3 *db);
 	private:
 		std::string	m_name;

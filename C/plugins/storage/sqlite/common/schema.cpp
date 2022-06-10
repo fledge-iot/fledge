@@ -89,7 +89,7 @@ Document doc;
 	doc.Parse(definition.c_str());
 	if (doc.HasParseError())
 	{
-		m_logger->error("Failed to parse extension schema definition '%s' at %d: $s",
+		m_logger->error("Failed to parse extension schema definition '%s' at %d: %s",
 				GetParseError_En(doc.GetParseError()), doc.GetErrorOffset(),
 				definition.c_str());
 		return false;
@@ -296,7 +296,12 @@ bool Schema::createTable(sqlite3 *db, const rapidjson::Value& table)
 		}
 		else if (type.compare("varchar") == 0)
 		{
+			if (!hasInt(column, "size"))
+			{
+			}
+			int size = column["size"].GetInt();
 			sql.append(" CHARACTER VARYING(");
+			sql.append(size);
 			sql.append(')');
 		}
 		else if (type.compare("double") == 0)

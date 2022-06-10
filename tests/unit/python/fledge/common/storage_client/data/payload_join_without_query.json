@@ -1,0 +1,1 @@
+{"join": {"table": {"name": "table1", "column": "table1_id"}, "on": "table2_id"}}

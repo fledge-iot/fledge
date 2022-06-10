@@ -357,11 +357,28 @@ static PLUGIN_INFORMATION *Py2C_PluginInfo(PyObject* pyRetVal)
 		}
 		else if(!strcmp(ckey, "mode"))
 		{
+			// Need to also handle mode values of the form "poll|control"
+			stringstream ss(valStr); 
+			string s;
+
 			info->options = 0;
-			if (!strcmp(valStr, "async"))
+			
+			// Tokenizing w.r.t. pipe '|'
+			while(getline(ss, s, '|'))
 			{
-				info->options |= SP_ASYNC;
+				Logger::getLogger()->debug("%s: mode: Found token %s", __FUNCTION__, s.c_str());
+				if (s.compare("async")==0)
+				{
+					info->options |= SP_ASYNC;
+				}
+				else if (s.compare("control")==0)
+				{
+					info->options |= SP_CONTROL;
+				}
+				else
+					Logger::getLogger()->warn("%s: mode: Unknown token/value %s", __FUNCTION__, s.c_str());
 			}
+
 			delete[] valStr;
 		}
 		else if(!strcmp(ckey, "type"))

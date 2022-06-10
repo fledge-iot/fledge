@@ -434,6 +434,12 @@ class TestPayloadBuilderRead:
         except Exception as e:
             assert str(e) == "Expected at least table name  with JOIN clause."
 
+    def test_invalid_on_without_join(self):
+        try:
+            PayloadBuilder().ON("id")
+        except Exception as e:
+            assert str(e) == "ON Clause used without using JOIN first."
+
     def test_invalid_on_clause(self):
         try:
             PayloadBuilder().JOIN("table1").ON()

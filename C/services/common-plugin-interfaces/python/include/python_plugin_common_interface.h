@@ -197,6 +197,12 @@ static void* PluginInterfaceGetInfo()
 	return (void *) plugin_info_fn;
 }
 
+/**
+ * Function to set current loglevel in given python plugin/filter module
+ *
+ * @param	python_module	The python plugin/filter module to which to propagate the loglevel
+ * @param	s	Debug string indicating the module name and plugin API that caused this loglevel change
+ */
 void set_loglevel_in_python_module(PyObject *python_module, string s)
 {
 	string& _loglevel = Logger::getLogger()->getMinLevel();
@@ -222,7 +228,7 @@ void set_loglevel_in_python_module(PyObject *python_module, string s)
 				Py_CLEAR(loggerObj);
 				if (retVal != NULL)
 				{
-					Logger::getLogger()->debug("%s: _LOGGER.setLevel(%s) done successfully", __FUNCTION__, loglevel);
+					Logger::getLogger()->debug("%s: %s: _LOGGER.setLevel(%s) done successfully", __FUNCTION__, s.c_str(), loglevel);
 				}
 				else
 				{

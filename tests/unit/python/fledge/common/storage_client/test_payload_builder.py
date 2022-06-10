@@ -429,40 +429,36 @@ class TestPayloadBuilderRead:
         assert _payload("data/payload_nested_join.json") == json.loads(res)
 
     def test_invalid_join_clause(self):
-        try:
+        with pytest.raises(Exception) as exc_info:
             PayloadBuilder().JOIN()
-        except Exception as e:
-            assert str(e) == "Expected at least table name  with JOIN clause."
+        assert exc_info.value.args[0] == "Expected at least table name with JOIN clause."
 
     def test_invalid_on_without_join(self):
-        try:
+        with pytest.raises(Exception) as exc_info:
             PayloadBuilder().ON("id")
-        except Exception as e:
-            assert str(e) == "ON Clause used without using JOIN first."
+        assert exc_info.value.args[0] == "ON Clause used without using JOIN first."
 
     def test_invalid_on_clause(self):
-        try:
+        with pytest.raises(Exception) as exc_info:
             PayloadBuilder().JOIN("table1").ON()
-        except Exception as e:
-            assert str(e) == "Expected column name with ON clause."
+        assert exc_info.value.args[0] == "Expected column name with ON clause."
 
     def test_invalid_query_clause_without_join(self):
-        try:
+        with pytest.raises(Exception) as exc_info:
             PayloadBuilder().QUERY({'a': 1})
-        except Exception as e:
-            assert str(e) == "Query used without JOIN clause."
+        assert exc_info.value.args[0] == "Query used without JOIN clause."
 
     def test_invalid_query_clause_without_on(self):
-        try:
+
+        with pytest.raises(Exception) as exc_info:
             PayloadBuilder().JOIN("table1").QUERY({'a': 1})
-        except Exception as e:
-            assert str(e) == "Query used without ON clause."
+        assert exc_info.value.args[0] == "Query used without ON clause."
 
     def test_invalid_query_clause_invalid_query_payload(self):
-        try:
+
+        with pytest.raises(Exception) as exc_info:
             PayloadBuilder().JOIN("table1", "column1").ON("id").QUERY("random")
-        except Exception as e:
-            assert str(e) == "The query payload parameter must be an OrderedDict."
+        assert exc_info.value.args[0] == "The query payload parameter must be an OrderedDict."
 
 
 @pytest.allure.feature("unit")

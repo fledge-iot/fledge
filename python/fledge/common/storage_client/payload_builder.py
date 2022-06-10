@@ -473,7 +473,7 @@ class PayloadBuilder(object):
                 }
             }
         else:
-            raise Exception("Expected at least table name  with JOIN clause.")
+            raise Exception("Expected at least table name with JOIN clause.")
 
         cls.query_payload["join"] = table_dict
         return cls

@@ -1,0 +1,44 @@
+{
+  "join": {
+    "table": {
+      "name": "attributes",
+      "column": "parent_id"
+    },
+    "on": "id",
+    "query": {
+      "return": [
+        "parent_id",
+        {
+          "column": "value",
+          "alias": "my_name"
+        }
+      ],
+      "where": {
+        "column": "name",
+        "condition": "=",
+        "value": "MyName"
+      },
+      "join": {
+        "table": {
+          "name": "attributes",
+          "column": "parent_id"
+        },
+        "on": "id",
+        "query": {
+          "return": [
+            "parent_id",
+            {
+              "column": "value",
+              "alias": "colour"
+            }
+          ],
+          "where": {
+            "column": "name",
+            "condition": "=",
+            "value": "colour"
+          }
+        }
+      }
+    }
+  }
+}

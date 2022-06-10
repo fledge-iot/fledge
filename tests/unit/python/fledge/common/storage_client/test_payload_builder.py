@@ -442,19 +442,19 @@ class TestPayloadBuilderRead:
 
     def test_invalid_query_clause_without_join(self):
         try:
-            PayloadBuilder().MERGE({'a': 1})
+            PayloadBuilder().QUERY({'a': 1})
         except Exception as e:
             assert str(e) == "Query used without JOIN clause."
 
     def test_invalid_query_clause_without_on(self):
         try:
-            PayloadBuilder().MERGE({'a': 1})
+            PayloadBuilder().JOIN("table1").QUERY({'a': 1})
         except Exception as e:
             assert str(e) == "Query used without ON clause."
 
     def test_invalid_query_clause_invalid_query_payload(self):
         try:
-            PayloadBuilder().JOIN("table1", "column1").ON("id").MERGE("random")
+            PayloadBuilder().JOIN("table1", "column1").ON("id").QUERY("random")
         except Exception as e:
             assert str(e) == "The query payload parameter must be an OrderedDict."
 

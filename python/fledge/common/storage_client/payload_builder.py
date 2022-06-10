@@ -492,13 +492,13 @@ class PayloadBuilder(object):
         """
         if "join" not in cls.query_payload:
             raise Exception("ON Clause used without using JOIN first.")
-        else:
-            if len(args) == 1:
-                col_name = args[0]
-                cls.query_payload["join"]["on"] = col_name
-                return cls
-            else:
-                raise Exception("Expected column name with ON clause.")
+
+        if len(args) != 1:
+            raise Exception("Expected column name with ON clause.")
+
+        col_name = args[0]
+        cls.query_payload["join"]["on"] = col_name
+        return cls
 
     @classmethod
     def QUERY(cls, *args):

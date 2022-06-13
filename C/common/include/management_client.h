@@ -47,6 +47,7 @@ class ManagementClient {
 		bool			getServices(std::vector<ServiceRecord *>& services);
 		bool			getServices(std::vector<ServiceRecord *>& services, const std::string& type);
 		bool 			registerCategory(const std::string& categoryName);
+		bool 			registerCategoryChild(const std::string& categoryName);
 		bool 			unregisterCategory(const std::string& categoryName);
 		ConfigCategories	getCategories();
 		ConfigCategory		getCategory(const std::string& categoryName);

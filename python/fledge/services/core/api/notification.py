@@ -538,14 +538,59 @@ async def _hit_delete_url(delete_url, data=None):
 
 
 async def _get_channels(cfg_mgr: ConfigurationManager, notify_instance: str) -> list:
-    prefix = "{}_channel_".format(notify_instance)
+    """ Retrieve all  channels
+        the first having the naming : delivery +  "NotificationName"
+        the extras                  : "NotificationName" + _channel_ + "DeliveryName"
+    :Example:
+        deliveryTooHot1 (mqtt)
+        TooHot1_channel_asset_2
+        TooHot1_channel_mqtt_3
+
+    """
+
+    naming_first = "delivery{}".format(notify_instance)
+    list_first = await _get_channels_type(cfg_mgr, notify_instance, naming_first, False)
+
+    naming_extra = "{}_channel_".format(notify_instance)
+    list_extra = await _get_channels_type(cfg_mgr, notify_instance, naming_extra, True)
+
+    full_list = []
+
+    full_list.extend(list_first)
+    full_list.extend(list_extra)
+
+    return full_list
+
+
+async def _get_channels_type(cfg_mgr: ConfigurationManager, notify_instance: str, prefix: str, extra: bool) -> list:
+    """ Retrieve a type of channel
+    """
+
     all_categories = await cfg_mgr.get_all_category_names()
+
     categories = [c[0] for c in all_categories if c[0].startswith(prefix)]
     channel_names = []
+
     if categories:
         for ch in categories:
             if ch.startswith(prefix):
-                channel_names.append(ch[len(prefix):])
+
+                category_info = await cfg_mgr._read_category(ch)
+
+                if extra:
+                    try:
+                        #delivery_name = ch[len(prefix):] + "/" + category_info['value']['plugin']['value']
+                        delivery_name = ch[len(prefix):]
+                    except:
+                        delivery_name = ch[len(prefix):]
+                else:
+                    try:
+                        delivery_name = ch + "/" + category_info['value']['plugin']['value']
+                    except:
+                        delivery_name = ch
+
+                channel_names.append(delivery_name)
+
     return channel_names
 
 
@@ -581,10 +626,13 @@ async def post_delivery_channel(request: web.Request) -> web.Response:
     """
     try:
         notification_instance_name = request.match_info.get('notification_name', None)
+
         data = await request.json()
         channel_name = data.get('name', None)
         channel_description = data.get('description', "{} delivery channel".format(channel_name))
         channel_config = data.get('config', {})
+
+
         if channel_name is None:
             raise ValueError('Missing name property in payload')
         channel_name = channel_name.strip()
@@ -597,16 +645,21 @@ async def post_delivery_channel(request: web.Request) -> web.Response:
         storage = connect.get_storage_async()
         config_mgr = ConfigurationManager(storage)
         notification_config = await config_mgr._read_category_val(notification_instance_name)
+
         if notification_config:
+
             channel_name = "{}_channel_{}".format(notification_instance_name, channel_name)
             # Create category
             await config_mgr.create_category(category_name=channel_name, category_description=channel_description,
                                              category_value=channel_config)
+
             category_info = await config_mgr.get_category_all_items(category_name=channel_name)
+
             if category_info is None:
                 raise NotFoundError('No such {} category found'.format(channel_name))
             # Create parent-child relationship
             await config_mgr.create_child_category(notification_instance_name, [channel_name])
+
         else:
             raise NotFoundError("{} notification instance does not exist".format(notification_instance_name))
     except ValueError as err:
@@ -660,23 +713,44 @@ async def delete_delivery_channel(request: web.Request) -> web.Response:
     :Example:
         curl -sX DELETE http://localhost:8081/fledge/notification/overspeed/delivery/coolant
     """
+
+    try:
+        notification_service = ServiceRegistry.get(s_type=ServiceRecord.Type.Notification.name)
+        _address, _port = notification_service[0]._address, notification_service[0]._port
+
+    except service_registry_exceptions.DoesNotExist:
+        raise web.HTTPNotFound(reason="No Notification service available.")
+
     notification_instance_name = request.match_info.get('notification_name', None)
     channel_name = request.match_info.get('channel_name', None)
     storage = connect.get_storage_async()
     config_mgr = ConfigurationManager(storage)
+
     try:
+
         category_name = "{}_channel_{}".format(notification_instance_name, channel_name)
         notification_config = await config_mgr._read_category_val(notification_instance_name)
+
         if notification_config:
             channels = await _get_channels(config_mgr, notification_instance_name)
+
             if channel_name in channels:
+
+                # This call allows notification for deleted child category
+                # and deletes it from category_children table
+                await config_mgr.delete_child_category(notification_instance_name, category_name)
+
+                # Remove child category from configuration table
                 await config_mgr.delete_category_and_children_recursively(category_name)
+
                 # Get channels list again as relation gets deleted above
                 channels = await _get_channels(config_mgr, notification_instance_name)
             else:
                 raise NotFoundError("{} channel does not exist".format(channel_name))
+
         else:
             raise NotFoundError("{} notification instance does not exist".format(notification_instance_name))
+
     except NotFoundError as err:
         msg = str(err)
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))

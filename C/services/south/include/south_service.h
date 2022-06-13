@@ -49,9 +49,13 @@ class SouthService : public ServiceAuthHandler {
 						      unsigned short corePort);
 		void 				stop();
 		void				shutdown();
+		void				configChange(const std::string&, const std::string&);
+		void				configChildCreate(const std::string&,
+								const std::string&,
+								const std::string&){};
+		void				configChildDelete(const std::string&,
+								const std::string&){};
 		bool				isRunning() { return !m_shutdown; };
-		void				configChange(const std::string&,
-						const std::string&);
 		bool				setPoint(const std::string& name, const std::string& value);
 		bool				operation(const std::string& name, std::vector<PLUGIN_PARAMETER *>& );
 	private:

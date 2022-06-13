@@ -327,7 +327,25 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 			if (m_config.itemExists("plugin"))
 				pluginName = m_config.getValue("plugin");
 			if (m_configAdvanced.itemExists("logLevel"))
+			{
+				string prevLogLevel = logger->getMinLevel();
 				logger->setMinLevel(m_configAdvanced.getValue("logLevel"));
+
+				PluginManager *manager = PluginManager::getInstance();
+				PLUGIN_TYPE type = manager->getPluginImplType(southPlugin->getHandle());
+				logger->debug("%s:%d: plugin type = %s", __FUNCTION__, __LINE__, (type==PYTHON_PLUGIN)?"PYTHON_PLUGIN":"BINARY_PLUGIN");
+				
+				if (type == PYTHON_PLUGIN)
+				{
+					// propagate loglevel changes to python filters/plugins, if present
+					logger->debug("prevLogLevel=%s, m_configAdvanced.getValue(\"logLevel\")=%s", prevLogLevel.c_str(), m_configAdvanced.getValue("logLevel").c_str());
+					if (prevLogLevel.compare(m_configAdvanced.getValue("logLevel")) != 0)
+					{
+						logger->debug("calling southPlugin->reconfigure() for updating loglevel");
+						southPlugin->reconfigure("logLevel");
+					}
+				}
+			}
 			if (m_configAdvanced.itemExists("throttle"))
 			{
 				string throt = m_configAdvanced.getValue("throttle");
@@ -801,7 +819,26 @@ void SouthService::configChange(const string& categoryName, const string& catego
 		}
 		if (m_configAdvanced.itemExists("logLevel"))
 		{
+			string prevLogLevel = logger->getMinLevel();
 			logger->setMinLevel(m_configAdvanced.getValue("logLevel"));
+
+			PluginManager *manager = PluginManager::getInstance();
+			PLUGIN_TYPE type = manager->getPluginImplType(southPlugin->getHandle());
+			logger->debug("%s:%d: South plugin type = %s", __FUNCTION__, __LINE__, (type==PYTHON_PLUGIN)?"PYTHON_PLUGIN":"BINARY_PLUGIN");
+
+			// propagate loglevel change to filter irrespective whether the host plugin is python/binary
+			m_ingest->configChange(categoryName, "logLevel");
+			
+			if (type == PYTHON_PLUGIN)
+			{
+				// propagate loglevel changes to python filters/plugins, if present
+				logger->debug("prevLogLevel=%s, m_configAdvanced.getValue(\"logLevel\")=%s", prevLogLevel.c_str(), m_configAdvanced.getValue("logLevel").c_str());
+				if (prevLogLevel.compare(m_configAdvanced.getValue("logLevel")) != 0)
+				{
+					logger->debug("%s:%d: calling southPlugin->reconfigure() for updating loglevel", __FUNCTION__, __LINE__);
+					southPlugin->reconfigure("logLevel");
+				}
+			}
 		}
 		if (m_configAdvanced.itemExists("throttle"))
 		{

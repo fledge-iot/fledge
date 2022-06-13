@@ -388,6 +388,23 @@ void FilterPipeline::cleanupFilters(const string& categoryName)
  */
 void FilterPipeline::configChange(const string& category, const string& newConfig)
 {
+	Logger::getLogger()->debug("%s:%d: category=%s, newConfig=%s", __FUNCTION__, __LINE__, category.c_str(), newConfig.c_str());
+
+	if(newConfig.compare("logLevel") == 0)
+	{
+		PluginManager *pluginManager = PluginManager::getInstance();
+		Logger::getLogger()->debug("m_filterCategories has %d entries", m_filterCategories.size());
+		for(auto & it : m_filterCategories)
+		{
+			const string &filtername = it.first;
+			FilterPlugin *fp = it.second;
+			PLUGIN_TYPE type = pluginManager->getPluginImplType(fp->getHandle());
+			Logger::getLogger()->debug("%s:%d: filter name=%s, filter type = %s", __FUNCTION__, __LINE__, filtername.c_str(), (type==PYTHON_PLUGIN)?"PYTHON_PLUGIN":"BINARY_PLUGIN");
+			if(type == PYTHON_PLUGIN)
+				fp->reconfigure(newConfig);
+		}
+	}
+	
 	auto it = m_filterCategories.find(category);
 	if (it != m_filterCategories.end())
 	{

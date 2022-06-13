@@ -89,6 +89,14 @@ static void filter_plugin_reconfigure_fn(PLUGIN_HANDLE handle,
 				   handle,
 				   pName.c_str());
 
+	Logger::getLogger()->debug("%s:%d: calling set_loglevel_in_python_module(), loglevel=%s", __FUNCTION__, __LINE__, Logger::getLogger()->getMinLevel().c_str());
+	if(config.compare("logLevel") == 0)
+	{
+		set_loglevel_in_python_module(it->second->m_module, it->second->m_name+" filter_plugin_reconf");
+		PyGILState_Release(state);
+		return;
+	}
+	
 	// Fetch required method in loaded object
 	pFunc = PyObject_GetAttrString(it->second->m_module, "plugin_reconfigure");
 	if (!pFunc)
@@ -475,6 +483,9 @@ PLUGIN_HANDLE filter_plugin_init_fn(ConfigCategory* config,
 				   module->m_module,
 				   module->m_tState,
 				   config->itemsToJSON().c_str());
+
+	Logger::getLogger()->debug("%s:%d: calling set_loglevel_in_python_module(), loglevel=%s", __FUNCTION__, __LINE__, Logger::getLogger()->getMinLevel().c_str());
+	set_loglevel_in_python_module(module->m_module, module->m_name + " plugin_init");
 
 	PyObject *config_dict = json_loads(config->itemsToJSON().c_str());
         

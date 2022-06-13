@@ -606,7 +606,7 @@ void DataLoad::configChange(const string& category, const string& newConfig)
 				if (newPipeline == "" ||
 				    m_pipeline->hasChanged(newPipeline) == false)
 				{
-					Logger::getLogger()->info("Ingest::configChange(): "
+					Logger::getLogger()->info("DataLoad::configChange(): "
 								  "filter pipeline is not set or "
 								  "it hasn't changed");
 					return;
@@ -614,7 +614,7 @@ void DataLoad::configChange(const string& category, const string& newConfig)
 				/* The new filter pipeline is different to what we have already running
 				 * So remove the current pipeline and recreate.
 			 	 */
-				Logger::getLogger()->info("Ingest::configChange(): "
+				Logger::getLogger()->info("DataLoad::configChange(): "
 							  "filter pipeline has changed, "
 							  "recreating filter pipeline");
 				m_pipeline->cleanupFilters(m_name);
@@ -641,7 +641,7 @@ void DataLoad::configChange(const string& category, const string& newConfig)
 		 * during this call and also to hold the ingest thread from running the filters
 		 * during reconfiguration.
 		 */
-		Logger::getLogger()->info("Ingest::configChange(): change to config of some filter(s)");
+		Logger::getLogger()->info("DataLoad::configChange(): change to config of some filter(s)");
 		lock_guard<mutex> guard(m_pipelineMutex);
 		if (m_pipeline)
 		{

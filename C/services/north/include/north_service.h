@@ -38,9 +38,10 @@ class NorthService : public ServiceAuthHandler {
 						      unsigned short corePort);
 		void 				stop();
 		void				shutdown();
+		void				configChange(const std::string&, const std::string&);
+		void				configChildCreate(const std::string& , const std::string&, const std::string&){};
+		void				configChildDelete(const std::string& , const std::string&){};
 		bool				isRunning() { return !m_shutdown; };
-		void				configChange(const std::string&,
-						const std::string&);
 		const std::string&		getName() { return m_name; };
 		const std::string&		getPluginName() { return m_pluginName; };
 		void				pause();

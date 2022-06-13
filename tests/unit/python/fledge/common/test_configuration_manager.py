@@ -2746,7 +2746,7 @@ class TestConfigurationManager:
         attrs = {"query_tbl_with_payload.return_value": _attr}
         storage_client_mock = MagicMock(spec=StorageClientAsync, **attrs)
         c_mgr = ConfigurationManager(storage_client_mock)
-        payload = {"return": ["parent", "child"], "where": {"value": "south", "condition": "=", "column": "parent"}}
+        payload = {"return": ["parent", "child"], "where": {"value": "south", "condition": "=", "column": "parent"}, "sort": {"column": "id", "direction": "asc"}}
         ret_val = await c_mgr._read_all_child_category_names('south')
         assert [{'parent': 'south', 'child': 'http'}] == ret_val
         args, kwargs = storage_client_mock.query_tbl_with_payload.call_args

@@ -10,6 +10,7 @@
  * Author: Massimiliano Pinto, Amandeep Singh Arora
  */
 
+#include <cctype>
 #include <plugin_manager.h>
 
 #define SHIM_SCRIPT_REL_PATH  "/python/fledge/plugins/common/shim/"
@@ -194,6 +195,66 @@ void PluginInterfaceCleanup(const string& pluginName)
 static void* PluginInterfaceGetInfo()
 {
 	return (void *) plugin_info_fn;
+}
+
+/**
+ * Function to set current loglevel in given python plugin/filter module
+ *
+ * @param	python_module	The python plugin/filter module to which to propagate the loglevel
+ * @param	s	Debug string indicating the module name and plugin API that caused this loglevel change
+ */
+void set_loglevel_in_python_module(PyObject *python_module, string s)
+{
+	string& _loglevel = Logger::getLogger()->getMinLevel();
+	for (auto & c: _loglevel) c = toupper(c);
+	const char *loglevel = _loglevel.c_str();
+	
+	PyObject* mod = python_module;
+	if (mod != NULL)
+	{
+		PyObject* loggerObj = PyObject_GetAttrString(mod, "_LOGGER");
+		if (loggerObj != NULL)
+		{
+			PyObject* method = PyObject_GetAttrString(loggerObj, "setLevel");
+			if (method != NULL)
+			{
+				PyObject *args = PyTuple_New(1);
+				PyObject *pValue = Py_BuildValue("s", loglevel);
+				PyTuple_SetItem(args, 0, pValue);
+				PyObject* retVal = PyObject_Call(method, args, NULL);
+
+				Py_CLEAR(args);
+				Py_CLEAR(method);
+				Py_CLEAR(loggerObj);
+				if (retVal != NULL)
+				{
+					Logger::getLogger()->debug("%s: %s: _LOGGER.setLevel(%s) done successfully", __FUNCTION__, s.c_str(), loglevel);
+				}
+				else
+				{
+					Logger::getLogger()->warn("%s: _LOGGER.setLevel(%s) failed", __FUNCTION__, loglevel);
+					if (PyErr_Occurred())
+					{       
+						logErrorMessage();
+						return;
+					}
+				}
+			}
+			else
+			{
+				Logger::getLogger()->warn("%s: Method 'setLevel' not found", __FUNCTION__);
+				Py_CLEAR(loggerObj);
+			}
+		}
+		else
+		{
+			Logger::getLogger()->warn("%s: Object '_LOGGER' not found in python module", __FUNCTION__);
+		}
+	}
+	else
+		Logger::getLogger()->warn("%s: module is NULL", __FUNCTION__);
+
+	PyErr_Clear();
 }
 
 /**
@@ -708,6 +769,9 @@ static PLUGIN_HANDLE plugin_init_fn(ConfigCategory *config)
 				   module->m_name.c_str(),
 				   module->m_module);
 
+	Logger::getLogger()->debug("%s:%d: calling set_loglevel_in_python_module(), loglevel=%s", __FUNCTION__, __LINE__, Logger::getLogger()->getMinLevel().c_str());
+	set_loglevel_in_python_module(module->m_module, module->m_name + " plugin_init");
+    
 	PyObject *config_dict = json_loads(config->itemsToJSON().c_str());
     
 	// Call Python method passing an object
@@ -791,6 +855,8 @@ static PLUGIN_HANDLE plugin_init_fn(ConfigCategory *config)
 static void plugin_reconfigure_fn(PLUGIN_HANDLE* handle,
 				  const std::string& config)
 {
+	Logger::getLogger()->debug("%s:%d: config=%s", __FUNCTION__, __LINE__, config.c_str());
+	
 	if (!handle)
 	{
 		Logger::getLogger()->fatal("plugin_handle: plugin_reconfigure(): "
@@ -828,7 +894,15 @@ static void plugin_reconfigure_fn(PLUGIN_HANDLE* handle,
 				   it->second->m_module,
 				   *handle,
 				   it->second->m_name.c_str());
-
+	
+	if(config.compare("logLevel") == 0)
+	{
+		Logger::getLogger()->debug("calling set_loglevel_in_python_module() for updating loglevel");
+		set_loglevel_in_python_module(it->second->m_module, it->second->m_name+" plugin_reconf");
+		PyGILState_Release(state);
+		return;
+	}
+	
 	// Fetch required method in loaded object
 	pFunc = PyObject_GetAttrString(it->second->m_module, "plugin_reconfigure");
 	if (!pFunc)

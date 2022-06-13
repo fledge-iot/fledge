@@ -35,9 +35,11 @@ class Logger {
 		void error(const std::string& msg, ...);
 		void fatal(const std::string& msg, ...);
 		void setMinLevel(const std::string& level);
+		std::string& getMinLevel() { return levelString; }
 	private:
 		std::string 	*format(const std::string& msg, va_list ap);
 		static Logger   *instance;
+		std::string     levelString;
 };
 
 #endif

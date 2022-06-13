@@ -23,6 +23,13 @@ typedef enum PluginType
 	PLUGIN_TYPE_ID_OTHER
 } tPluginType;
 
+enum PLUGIN_TYPE {
+	BINARY_PLUGIN,
+	PYTHON_PLUGIN,
+	JSON_PLUGIN
+};
+
+
 /**
  * The manager for plugins.
  *
@@ -44,6 +51,7 @@ class PluginManager {
 		void		getInstalledPlugins(const std::string& type,
 						    std::list<std::string>& plugins);
 		void setPluginType(tPluginType type);
+		PLUGIN_TYPE getPluginImplType(const PLUGIN_HANDLE hndl) { return pluginImplTypes[hndl]; }
 
 	public:
                 static PluginManager* instance;
@@ -55,6 +63,7 @@ class PluginManager {
                 std::list<PLUGIN_HANDLE>		plugins;
                 std::map<std::string, PLUGIN_HANDLE>	pluginNames;
                 std::map<std::string, std::string>	pluginTypes;
+		std::map<PLUGIN_HANDLE, PLUGIN_TYPE>	pluginImplTypes;
                 std::map<PLUGIN_HANDLE, PLUGIN_INFORMATION *>
 							pluginInfo;
                 std::map<PLUGIN_HANDLE, PluginHandle*>

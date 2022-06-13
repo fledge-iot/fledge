@@ -55,6 +55,9 @@ Logger::~Logger()
 
 Logger *Logger::getLogger()
 {
+	if (!instance)
+		instance = new Logger("fledge");
+
 	return instance;
 }
 
@@ -68,15 +71,19 @@ void Logger::setMinLevel(const string& level)
 	if (level.compare("info") == 0)
 	{
 		setlogmask(LOG_UPTO(LOG_INFO));
+		levelString = level;
 	} else if (level.compare("warning") == 0)
 	{
 		setlogmask(LOG_UPTO(LOG_WARNING));
+		levelString = level;
 	} else if (level.compare("debug") == 0)
 	{
 		setlogmask(LOG_UPTO(LOG_DEBUG));
+		levelString = level;
 	} else if (level.compare("error") == 0)
 	{
 		setlogmask(LOG_UPTO(LOG_ERR));
+		levelString = level;
 	} else
 	{
 		error("Request to set unsupported log level %s", level.c_str());

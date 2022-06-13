@@ -253,8 +253,7 @@ The easiest approach to run under a debugger is
         $ cd $FLEDGE_ROOT
         $ gdb services/fledge.services.south
 
-   - Run the service passing the *--port=* and *--address=* arguments you noted above and add *-d* and *--name=* with the name of your service
- and *--token=startupToken* 
+   - Run the service passing the *--port=* and *--address=* arguments you noted above and add *-d* and *--name=* with the name of your service and *--token=startupToken*
 
      .. code-block:: console
 

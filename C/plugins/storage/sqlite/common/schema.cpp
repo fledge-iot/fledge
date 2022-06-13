@@ -239,8 +239,8 @@ Schema::Schema(sqlite3 *db, const rapidjson::Document& doc) : m_indexNo(0)
 		}
 	}
 	SQLBuffer sql;
-	sql.append("INSERT INTO fledge.service_schema ( name, service, version, defintion ) VALUES (");
-	sql.append(m_name);
+	sql.append("INSERT INTO fledge.service_schema ( name, service, version, definition ) VALUES (");
+	sql.quote(m_name);
 	sql.append(',');
 	sql.quote(m_service);
 	sql.append(',');

@@ -1551,6 +1551,14 @@ ConfigCategoryChange::ConfigCategoryChange(const string& json)
 			json.c_str());
 		throw new ConfigMalformed();
 	}
+
+	if (doc.HasMember("parent_category"))
+	{
+		m_parent_name=doc["parent_category"].GetString();
+	} else {
+		m_parent_name="";
+	}
+
 	if (!doc.HasMember("items"))
 	{
 		Logger::getLogger()->error("Configuration change is missing an items element '%s'",

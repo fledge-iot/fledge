@@ -48,6 +48,25 @@ void configChangeWrapper(shared_ptr<HttpServer::Response> response, shared_ptr<H
 }
 
 /**
+ * Wrapper for config child  create method
+ */
+void configChildCreateWrapper(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
+{
+        ManagementApi *api = ManagementApi::getInstance();
+        api->configChildCreate(response, request);
+}
+
+/**
+ * Wrapper for config child delete method
+ */
+void configChildDeleteWrapper(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
+{
+        ManagementApi *api = ManagementApi::getInstance();
+        api->configChildDelete(response, request);
+}
+
+
+/**
  * Construct a microservices management API manager class
  */
 ManagementApi::ManagementApi(const string& name, const unsigned short port) : m_name(name)
@@ -60,6 +79,9 @@ ManagementApi::ManagementApi(const string& name, const unsigned short port) : m_
 	m_server->resource[PING]["GET"] = pingWrapper;
 	m_server->resource[SERVICE_SHUTDOWN]["POST"] = shutdownWrapper;
 	m_server->resource[CONFIG_CHANGE]["POST"] = configChangeWrapper;
+	m_server->resource[CONFIG_CHILD_CREATE]["POST"] = configChildCreateWrapper;
+	m_server->resource[CONFIG_CHILD_DELETE]["DELETE"] = configChildDeleteWrapper;
+
 
 	m_instance = this;
 
@@ -175,6 +197,67 @@ string	category, items, payload;
 	responsePayload = convert.str();
 	respond(response, responsePayload);
 }
+
+/**
+ * Received a children deletion request, construct a reply and return to caller
+ */
+void ManagementApi::configChildDelete(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
+{
+ostringstream convert;
+string responsePayload;
+string	category, items, payload, parent_category;
+
+	payload = request->content.string();
+
+	ConfigCategoryChange	conf(payload);
+	ConfigHandler	*handler = ConfigHandler::getInstance(NULL);
+
+	parent_category = conf.getmParentName();
+	category = conf.getName();
+	items = conf.itemsToJSON(true);
+
+	Logger::getLogger()->debug("%s - parent_category:%s: child_category:%s: items:%s: ", __FUNCTION__
+							   , parent_category.c_str()
+							   , category.c_str()
+							   , items.c_str()
+							   );
+
+	handler->configChildDelete(parent_category, category);
+	convert << "{ \"message\" ; \"Config child category change accepted\" }";
+	responsePayload = convert.str();
+	respond(response, responsePayload);
+}
+
+/**
+ * Received a children creation request, construct a reply and return to caller
+ */
+void ManagementApi::configChildCreate(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
+{
+ostringstream convert;
+string responsePayload;
+string	category, items, payload, parent_category;
+
+	payload = request->content.string();
+
+	ConfigCategoryChange	conf(payload);
+	ConfigHandler	*handler = ConfigHandler::getInstance(NULL);
+
+	parent_category = conf.getmParentName();
+	category = conf.getName();
+	items = conf.itemsToJSON(true);
+
+	Logger::getLogger()->debug("%s - parent_category:%s: child_category:%s: items:%s: ", __FUNCTION__
+							   , parent_category.c_str()
+							   , category.c_str()
+							   , items.c_str()
+							   );
+
+	handler->configChildCreate(parent_category, category, items);
+	convert << "{ \"message\" ; \"Config child category change accepted\" }";
+	responsePayload = convert.str();
+	respond(response, responsePayload);
+}
+
 
 /**
  * HTTP response method

@@ -45,6 +45,7 @@ class SQLBuffer {
 		void			append(const unsigned long);
 		void			append(const double);
 		void			append(const std::string&);
+		void			quote(const std::string&);
 		const char		*coalesce();
 
 	private:

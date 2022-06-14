@@ -10,7 +10,7 @@ set(DLLIB -ldl)
 file(GLOB SOURCES *.cpp)
 
 # Include header files
-include_directories(include)
+include_directories(./include)
 include_directories(../../../common/include)
 
 

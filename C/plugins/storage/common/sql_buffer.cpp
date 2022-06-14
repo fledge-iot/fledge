@@ -283,7 +283,7 @@ char	     *buffer = 0;
 }
 
 /**
- * Construct a buffer
+ * Construct a buffer with a standard size initial buffer.
  */
 SQLBuffer::Buffer::Buffer() : offset(0), length(BUFFER_CHUNK), attached(true)
 {
@@ -292,7 +292,11 @@ SQLBuffer::Buffer::Buffer() : offset(0), length(BUFFER_CHUNK), attached(true)
 }
 
 /**
- * Construct a large buffer
+ * Construct a large buffer, passign the size of buffer required. THis is useful
+ * if you know your buffer requirements are large and you wish to reduce the amount
+ * of allocation required.
+ *
+ * @param size	The size of the initial buffer to allocate.
  */
 SQLBuffer::Buffer::Buffer(unsigned int size) : offset(0), length(size), attached(true)
 {
@@ -301,7 +305,8 @@ SQLBuffer::Buffer::Buffer(unsigned int size) : offset(0), length(size), attached
 }
 
 /**
- * Buffer destructor
+ * Buffer destructor, the buffer itself is also deleted by this
+ * call and any reference to it must no longer be used.
  */
 SQLBuffer::Buffer::~Buffer()
 {
@@ -312,6 +317,12 @@ SQLBuffer::Buffer::~Buffer()
 	}
 }
 
+/**
+ * Detach the buffer from the SQLBuffer. The reference to the buffer
+ * is removed from the SQLBuffer but the buffer itself is not deleted.
+ * This allows the buffer ownership to be taken by external code
+ * whilst allowing the SQLBuffer to allocate a new buffer.
+ */
 char *SQLBuffer::Buffer::detach()
 {
 char *rval = data;

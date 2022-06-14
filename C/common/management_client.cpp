@@ -367,11 +367,70 @@ string payload;
 
 /**
  * Register interest in a configuration category. The service will be called 
- * with the updated confioguration category wheneven an item in the category
+ * with the updated configuration category whenever an item in the category
  * is added, removed or changed.
  *
  * @param category	The name of the category to register
  * @return bool		True if the registration was succesful
+ */
+bool ManagementClient::registerCategoryChild(const string& category)
+{
+ostringstream convert;
+
+	if (m_uuid == 0)
+	{
+		// Not registered with core
+		m_logger->error("Service is not registered with the core - not registering configuration interest");
+		return true;
+	}
+	try {
+		convert << "{ \"category\" : \"" << JSONescape(category) << "\", ";
+		convert << "\"child\" : \"" << "True" << "\", ";
+		convert << "\"service\" : \"" << *m_uuid << "\" }";
+
+		auto res = this->getHttpClient()->request("POST", "/fledge/interest", convert.str());
+		Document doc;
+		string content = res->content.string();
+		doc.Parse(content.c_str());
+		if (doc.HasParseError())
+		{
+			bool httpError = (isdigit(content[0]) && isdigit(content[1]) && isdigit(content[2]) && content[3]==':');
+			m_logger->error("%s child category registration: %s\n",
+								httpError?"HTTP error during":"Failed to parse result of",
+								content.c_str());
+			return false;
+		}
+		if (doc.HasMember("id"))
+		{
+			const char *reg_id = doc["id"].GetString();
+			m_categories[category] = string(reg_id);
+			m_logger->info("Registered child configuration category %s, registration id %s.",
+					category.c_str(), reg_id);
+			return true;
+		}
+		else if (doc.HasMember("message"))
+		{
+			m_logger->error("Failed to register child configuration category: %s.",
+				doc["message"].GetString());
+		}
+		else
+		{
+			m_logger->error("Failed to register child configuration category: %s.",
+					content.c_str());
+		}
+	} catch (const SimpleWeb::system_error &e) {
+                m_logger->error("Register child configuration category failed %s.", e.what());
+                return false;
+        }
+        return false;
+}
+
+
+/**
+ * Register interest in a configuration category
+ *
+ * @param category	The name of the configuration category to register
+ * @return bool		True if the configuration category has been registered
  */
 bool ManagementClient::registerCategory(const string& category)
 {
@@ -731,12 +790,13 @@ std::vector<AssetTrackingTuple*>& ManagementClient::getAssetTrackingTuples(const
 			return (*vec);
 		}
 	} catch (const SimpleWeb::system_error &e) {
-		m_logger->error("Fetch/parse of asset tracking tuples failed: %s.", e.what());
+		m_logger->error("Fetch/parse of asset tracking tuples for service %s failed: %s.", serviceName.c_str(), e.what());
 		//throw;
 	}
 	catch (...) {
-		m_logger->error("Some other exception");
+		m_logger->error("Unexpected exception when retrieving asset tuples for service %s:, serviceName.c_str()");
 	}
+	return *vec;
 }
 
 /**
@@ -916,10 +976,6 @@ bool ManagementClient::refreshBearerToken(const string& currentToken,
 
 	bool ret = false;
 
-	// Check token already exists in cache:
-	std::map<std::string, std::string>::iterator item;
-	m_mtx_rTokens.lock();
-
 	// Refresh it by calling Fledge management endpoint
 	string url = "/fledge/service/refresh_token";
 	string payload;
@@ -971,6 +1027,7 @@ bool ManagementClient::refreshBearerToken(const string& currentToken,
 		}
 	}
 
+	m_mtx_rTokens.lock();
 	if (ret)
 	{
 		// Remove old token from received ones
@@ -989,8 +1046,10 @@ bool ManagementClient::refreshBearerToken(const string& currentToken,
 /**
  * Checks and validate the JWT bearer token string
  *
- * @param bearerToken	The bearer token string
- * @param claims	Map to fill with JWT public token claims
+ * Input token internal data will be set
+ * with new values or cached ones
+ *
+ * @param bearerToken	The bearer token object
  * @return		True on success, false otherwise
  */
 bool ManagementClient::verifyBearerToken(BearerToken& bearerToken)
@@ -1005,13 +1064,14 @@ bool ManagementClient::verifyBearerToken(BearerToken& bearerToken)
 	const string& token = bearerToken.token();
 
 	// Check token already exists in cache:
-	std::map<std::string, std::string>::iterator item;
+	map<string, BearerToken>::iterator item;
 	// Acquire lock
 	m_mtx_rTokens.lock();
 
 	item = m_received_tokens.find(token);
 	if (item  == m_received_tokens.end())
 	{
+		// Token is not in the cache
 		bool verified = false;
 		// Token does not exist:
 		// Verify it by calling Fledge management endpoint
@@ -1022,12 +1082,12 @@ bool ManagementClient::verifyBearerToken(BearerToken& bearerToken)
                 auto res = this->getHttpClient()->request("POST", url.c_str(), payload, header);
 		string response = res->content.string();
 
-		// Parse JSON message and store claims
+		// Parse JSON message and store claims in input token object
 		verified = bearerToken.verify(response);
 		if (verified)
 		{
-			// Token verified, store the token
-			m_received_tokens[token] = "added";
+			// Token verified, store the token object
+			m_received_tokens.emplace(token, bearerToken);
 		}
 		else
 		{
@@ -1035,10 +1095,19 @@ bool ManagementClient::verifyBearerToken(BearerToken& bearerToken)
 			m_logger->error("Micro service bearer token '%s' not verified.",
 					token.c_str());
 		}
+#ifdef DEBUG_BEARER_TOKEN
+		m_logger->debug("New token verified by core API endpoint %d, claims %s:%s:%s:%ld",
+				ret,
+				bearerToken.getAudience().c_str(),
+				bearerToken.getSubject().c_str(),
+				bearerToken.getIssuer().c_str(),
+				bearerToken.getExpiration());
+#endif
 	}
 	else
 	{
-		unsigned long expiration = bearerToken.getExpiration();
+		// Token is in the cache
+		unsigned long expiration = (*item).second.getExpiration();
 		unsigned long now = time(NULL);
 
 		// Check expiration
@@ -1050,19 +1119,22 @@ bool ManagementClient::verifyBearerToken(BearerToken& bearerToken)
 
 			m_logger->error("Micro service bearer token expired.");
 		}
+
+		// Set input token object as per cached data
+		bearerToken = (*item).second;
+
+#ifdef DEBUG_BEARER_TOKEN
+		m_logger->debug("Existing token already verified %d, claims %s:%s:%s:%ld",
+				ret,
+				(*item).second.getAudience().c_str(),
+				(*item).second.getSubject().c_str(),
+				(*item).second.getIssuer().c_str(),
+				(*item).second.getExpiration());
+#endif
 	}
 
 	// Release lock
 	m_mtx_rTokens.unlock();
-
-#ifdef DEBUG_BEARER_TOKEN
-	m_logger->debug("Token verified %d, claims %s:%s:%s:%ld",
-			ret,
-			bearerToken.getAudience().c_str(),
-			bearerToken.getSubject().c_str(),
-			bearerToken.getIssuer().c_str(),
-			bearerToken.getExpiration());
-#endif
 
 	return ret;
 }

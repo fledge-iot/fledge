@@ -10,7 +10,7 @@
 .. Links
 .. |OMFHint filter plugin| raw:: html
 
-   <a href="../fledge-filter-omfhint/index.html">OMFHint filter plugin</a>
+   <a href="plugins/fledge-filter-omfhint/index.html">OMFHint filter plugin</a>
 
 PI Web API OMF Endpoint
 ~~~~~~~~~~~~~~~~~~~~~~~

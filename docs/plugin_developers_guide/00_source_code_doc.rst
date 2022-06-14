@@ -4,11 +4,11 @@
 
 .. |here| raw:: html
 
-        <a href="http://archives.fledge-iot.org/ARCHIVE_BUILD_NAME/source-documentation/html/index.html">here</a>
+        <a href="http://archives.fledge-iot.org/nightly/source-documentation/html/index.html">here</a>
 
 .. |pdf| raw:: html
 
-        <a href="http://archives.fledge-iot.org/ARCHIVE_BUILD_NAME/source-documentation/fledge.pdf">pdf</a>
+        <a href="http://archives.fledge-iot.org/nightly/source-documentation/fledge.pdf">pdf</a>
 
 Source Code Documentation
 =========================

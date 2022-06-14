@@ -200,6 +200,52 @@ The easiest approach to run under a debugger is
 
         export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${FLEDGE_ROOT}/cmake_build/C/lib
 
+   - Get a startup token by calling the Fledge API endpoint
+
+     *Note*: the caller must be authenticated as the *admin* user using either the username and password authentication or the certificate authentication mechanism in order to call the API endpoint.
+
+     In order to authenticate as the *admin* user one of the two following methods should be used, the choice of which is dependant on the authentication mechanism configured in your Fledge installation.
+
+     - User and password login
+
+         .. code-block:: console
+
+             curl -d '{"username": "admin", "some_pass": "fledge"}' -X POST http://localhost:8081/fledge/login
+
+       Successful authentication will produce a response as shown below.
+
+       .. code-block:: console
+
+           {"message": "Logged in successfully", "uid": 1, "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1aWQiOjEsImV4cCI6MTY1NDU5NTIyMn0.IlhIgQ93LbCP-ztGlIuJVd6AJrBlbNBNvCv7SeuMfAs", "admin": true}
+
+     - Certificate login
+
+         .. code-block:: console
+
+            curl -T /some_path/admin.cert -X POST http://localhost:8081/fledge/login
+
+        Successful authentication will produce a response as shown below.    
+
+       .. code-block:: console
+
+            {"message": "Logged in successfully", "uid": 1, "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1aWQiOjEsImV4cCI6MTY1NDU5NTkzN30.6VVD_5RwmpLga2A7ri2bXhlo3x_CLqOYiefAAmLP63Y", "admin": true}
+
+   It is now possible to call the API endpoint to retrieve a startup token by passing the authentication token given in the authentication request.
+
+   .. code-block:: console
+
+      curl -X POST 127.0.0.1:8081/fledge/service/ServiceName/otp -H 'authorization: Token'
+
+      Where *ServiceName* is the name you gave your service when you created it and *Token* received by the authentication request above.
+
+      This call will respond with a startup token that can be used to start the service you are debugging. An example response is shown below.
+
+     .. code-block:: console
+
+     {"startupToken": "WvFTYeGUvSEFMndePGbyvOsVYUzbnJdi"}
+
+     *startupToken* will be passed as service start argument: --token=*startupToken*
+
    - Load the service you wish to use to run your plugin, e.g. a south service, under the debugger. This should be run from the FLEDGE_ROOT directory
 
      .. code-block:: console
@@ -207,13 +253,13 @@ The easiest approach to run under a debugger is
         $ cd $FLEDGE_ROOT
         $ gdb services/fledge.services.south
 
-   - Run the service passing the *--port=* and *--address=* arguments you noted above and add *-d* and *--name=* with the name of your service.
+   - Run the service passing the *--port=* and *--address=* arguments you noted above and add *-d* and *--name=* with the name of your service and *--token=startupToken*
 
      .. code-block:: console
 
-        (gdb) run --port=39821 --address=127.0.0.1 --name=ServiceName -d
+        (gdb) run --port=39821 --address=127.0.0.1 --name=ServiceName -d --token=startupToken
 
-     Where *ServiceName* is the name you gave your service when you created it.
+     Where *ServiceName* is the name you gave your service when you created it and startupToken is the token issued using the method described above. Note, this token may only be used once, each time the service is restarted using the debugger a new startup token must be obtained.
 
    - You can now use the debugger in the way you normally would to find any issues.
 
@@ -355,9 +401,9 @@ You can also use a similar approach to that of running gdb to use the *strace* c
 
      .. code-block:: console
 
-        $ strace services/fledge.services.south --port=39821 --address=127.0.0.1 --name=ServiceName -d
+        $ strace services/fledge.services.south --port=39821 --address=127.0.0.1 --name=ServiceName --token=StartupToken -d
 
-     Where *ServiceName* is the name you gave your service
+     Where *ServiceName* is the name you gave your service and *startupToken* as issued following above steps.
 
 Memory Leaks and Corruptions
 ----------------------------
@@ -392,9 +438,9 @@ The same approach can be used to make use of the *valgrind* command to find memo
 
      .. code-block:: console
 
-        $ valgrind --leak-check=full  services/fledge.services.south --port=39821 --address=127.0.0.1 --name=ServiceName -d
+        $ valgrind --leak-check=full  services/fledge.services.south --port=39821 --address=127.0.0.1 --name=ServiceName --token=StartupToken -d
 
-     Where *ServiceName* is the name you gave your service
+     Where *ServiceName* is the name you gave your service and startupToken is a one time use token obtained following the steps shown above.
 
   - Once the service has run for a while shut it down to trigger *valgrind* to print a summary of memory leaks found during the execution.
 

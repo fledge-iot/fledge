@@ -18,6 +18,8 @@
 #include <filter_plugin.h>
 #include <plugin_data.h>
 
+#define MAX_SLEEP	5		// Maximum number of seconds the service will sleep during a poll cycle
+
 #define SERVICE_NAME  "Fledge South"
 
 /*
@@ -47,9 +49,13 @@ class SouthService : public ServiceAuthHandler {
 						      unsigned short corePort);
 		void 				stop();
 		void				shutdown();
+		void				configChange(const std::string&, const std::string&);
+		void				configChildCreate(const std::string&,
+								const std::string&,
+								const std::string&){};
+		void				configChildDelete(const std::string&,
+								const std::string&){};
 		bool				isRunning() { return !m_shutdown; };
-		void				configChange(const std::string&,
-						const std::string&);
 		bool				setPoint(const std::string& name, const std::string& value);
 		bool				operation(const std::string& name, std::vector<PLUGIN_PARAMETER *>& );
 	private:
@@ -80,6 +86,7 @@ class SouthService : public ServiceAuthHandler {
 		struct timeval			m_currentRate;
 		int				m_timerfd;
 		const std::string		m_token;
+		unsigned int			m_repeatCnt;
 		PluginData			*m_pluginData;
 		std::string			m_dataKey;
 };

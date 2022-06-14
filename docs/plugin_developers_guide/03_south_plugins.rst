@@ -141,4 +141,6 @@ It would then respond to the HTTP request and return. Since the handler is embed
   return web.json_response(message)
 
 
+.. include:: 03_02_south_python_Control.rst
+
 .. include:: 03_01_DHT11.rst

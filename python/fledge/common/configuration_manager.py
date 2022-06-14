@@ -144,6 +144,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
     _storage = None
     _registered_interests = None
+    _registered_interests_child = None
     _cacheManager = None
 
     def __init__(self, storage=None):
@@ -154,6 +155,10 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             self._storage = storage
         if self._registered_interests is None:
             self._registered_interests = {}
+
+        if self._registered_interests_child is None:
+            self._registered_interests_child = {}
+
         if self._cacheManager is None:
             self._cacheManager = ConfigurationCache()
 
@@ -177,6 +182,29 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                         'Callback module %s run method must be a coroutine function', callback)
                     raise AttributeError('Callback module {} run method must be a coroutine function'.format(callback))
                 await cb.run(category_name)
+
+    async def _run_callbacks_child(self, parent_category_name, child_category, operation):
+
+        callbacks = self._registered_interests_child.get(parent_category_name)
+
+        if callbacks is not None:
+            for callback in callbacks:
+                try:
+                    cb = import_module(callback)
+                except ImportError:
+                    _logger.exception(
+                        'Unable to import callback module %s for category_name %s', callback, parent_category_name)
+                    raise
+                if not hasattr(cb, 'run_child'):
+                    _logger.exception(
+                        'Callback module %s does not have method run_child', callback)
+                    raise AttributeError('Callback module {} does not have method run_child'.format(callback))
+                method = cb.run_child
+                if not inspect.iscoroutinefunction(method):
+                    _logger.exception(
+                        'Callback module %s run_child method must be a coroutine function', callback)
+                    raise AttributeError('Callback module {} run_child method must be a coroutine function'.format(callback))
+                await cb.run_child(parent_category_name, child_category, operation)
 
     async def _merge_category_vals(self, category_val_new, category_val_storage, keep_original_items, category_name=None):
         # preserve all value_vals from category_val_storage
@@ -1000,7 +1028,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
     async def _read_all_child_category_names(self, category_name):
         _children = []
-        payload = PayloadBuilder().SELECT("parent", "child").WHERE(["parent", "=", category_name]).payload()
+        payload = PayloadBuilder().SELECT("parent", "child").WHERE(["parent", "=", category_name]).ORDER_BY(["id"]).payload()
         results = await self._storage.query_tbl_with_payload('category_children', payload)
         for row in results['rows']:
             _children.append(row)
@@ -1091,6 +1119,15 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 result = await self._create_child(category_name, a_new_child)
                 children_from_storage.append(a_new_child)
 
+            try:
+                    # If there is a diff then call the create callback
+                    if len(new_children):
+                        await self._run_callbacks_child(category_name, children, "c")
+            except:
+                _logger.exception(
+                    'Unable to run callbacks for child category_name %s', children)
+                raise
+
             return {"children": children_from_storage}
 
             # TODO: [TO BE DECIDED] - Audit Trail Entry
@@ -1107,6 +1144,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         Return Values:
         JSON
         """
+
         if not isinstance(category_name, str):
             raise TypeError('category_name must be a string')
 
@@ -1138,6 +1176,12 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         except StorageServerError as ex:
             err_response = ex.error
             raise ValueError(err_response)
+
+        try:
+            await self._run_callbacks_child(category_name, child_category, "d")
+        except:
+            _logger.exception('Unable to run callbacks for child category_name %s', child_category)
+            raise
 
         return _children
 
@@ -1191,6 +1235,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 raise ValueError('Reserved category found in descendents of {} - {}'.format(category_name, catg_descendents))
         try:
             result = await self._delete_recursively(category_name)
+
         except ValueError as ex:
             raise ValueError(ex)
         else:
@@ -1265,6 +1310,39 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         except Exception as ex:
             _logger.error('Failed to delete file(s) for category %s. Exception %s', category_name, str(ex))
             # raise ex
+
+    def register_interest_child(self, category_name, callback):
+        """Registers an interest in any changes to the category_value associated with category_name
+
+        Keyword Arguments:
+        category_name -- name of the category_name of interest (required)
+        callback -- module with implementation of async method run(category_name) to be called when change is made to category_value
+
+        Return Values:
+        None
+
+        Side Effects:
+        Registers an interest in any changes to the category_value of a given category_name.
+        This interest is maintained in memory only, and not persisted in storage.
+
+        Restrictions and Usage:
+        A particular category_name may have multiple registered interests, aka multiple callbacks associated with a single category_name.
+        One or more category_names may use the same callback when a change is made to the corresponding category_value.
+        User must implement the callback code.
+        For example, if a callback is 'fledge.callback', then user must implement fledge/callback.py module with method run(category_name).
+        A callback is only called if the corresponding category_value is created or updated.
+        A callback is not called if the corresponding category_description is updated.
+        A change in configuration is not rolled back if callbacks fail.
+        """
+
+        if category_name is None:
+            raise ValueError('Failed to register interest. category_name cannot be None')
+        if callback is None:
+            raise ValueError('Failed to register interest. callback cannot be None')
+        if self._registered_interests_child.get(category_name) is None:
+            self._registered_interests_child[category_name] = {callback}
+        else:
+            self._registered_interests_child[category_name].add(callback)
 
     def register_interest(self, category_name, callback):
         """Registers an interest in any changes to the category_value associated with category_name

@@ -33,6 +33,8 @@ class StorageService : public ServiceHandler {
 		void			shutdown();
 		bool			isRunning() { return !m_shutdown; };
 		void			configChange(const std::string&, const std::string&);
+		void			configChildCreate(const std::string&, const std::string&, const std::string&){};
+		void			configChildDelete(const std::string& , const std::string&){};
 		string			getPluginName();
 		string			getPluginManagedStatus();
 		string			getReadingPluginName();

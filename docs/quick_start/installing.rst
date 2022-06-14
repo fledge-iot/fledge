@@ -23,11 +23,7 @@ If your system does not have Raspbian pre-installed, you can find instructions o
   sudo apt-get upgrade
   sudo apt-get update
 
-You can obtain Fledge in three ways:
-
-- Dianomic Systems hosts a package repository that allows the Fledge packages to be loaded using the system package manage. This is the recommended method for long term use of Fledge as it gives access to all the Fledge plugins and provides a route for easy upgrade of the Fledge packages. This also has the advantages that once the repository is configured you are able to install new plugins directly from the Fledge user interface without the need to resort to the Linux command line.
-- Dianomic Systems offers pre-built, certified binaries of Fledge for Debian using either Intel or ARM architectures. This is perhaps the simplest method for users not used to Linux. You can download the complete set of packages from https://fledge-iot.readthedocs.io/en/latest/92_downloads.html.
-- As source code from https://github.com/fledge-iot/.  Instructions for downloading and building Fledge source code can be found in the Fledge Developer’s Guide
+.. include:: instructions.txt
 
 In general, Fledge installation will require the following packages:
 

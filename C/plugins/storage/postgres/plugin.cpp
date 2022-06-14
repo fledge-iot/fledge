@@ -26,20 +26,34 @@
 using namespace std;
 using namespace rapidjson;
 
+#define DEFAULT_SCHEMA "fledge"
+
 /**
  * The Postgres plugin interface
  */
 extern "C" {
+
+
+const char *default_config = QUOTE({
+                "poolSize" : {
+                        "description" : "Connection pool size",
+                        "type" : "integer",
+                        "default" : "5",
+                        "displayName" : "Pool Size",
+                        "order" : "1"
+                        }
+                });
 
 /**
  * The plugin information structure
  */
 static PLUGIN_INFORMATION info = {
 	"PostgresSQL",            // Name
-	"1.0.0",                  // Version
+	"1.2.0",                  // Version
 	SP_COMMON|SP_READINGS,    // Flags
 	PLUGIN_TYPE_STORAGE,      // Type
-	"1.2.0"                   // Interface version
+	"1.5.0",                  // Interface version
+	default_config
 };
 
 /**
@@ -66,12 +80,14 @@ ConnectionManager *manager = ConnectionManager::getInstance();
 /**
  * Insert into an arbitrary table
  */
-int plugin_common_insert(PLUGIN_HANDLE handle, char *table, char *data)
+int plugin_common_insert(PLUGIN_HANDLE handle, char *schema, char *table, char *data)
 {
 ConnectionManager *manager = (ConnectionManager *)handle;
 Connection        *connection = manager->allocate();
 
-	int result = connection->insert(std::string(table), std::string(data));
+if (!schema) schema = DEFAULT_SCHEMA;
+
+	int result = connection->insert(std::string(schema) + "." + std::string(table), std::string(data));
 	manager->release(connection);
 	return result;
 }
@@ -79,13 +95,15 @@ Connection        *connection = manager->allocate();
 /**
  * Retrieve data from an arbitrary table
  */
-const char *plugin_common_retrieve(PLUGIN_HANDLE handle, char *table, char *query)
+const char *plugin_common_retrieve(PLUGIN_HANDLE handle, char *schema, char *table, char *query)
 {
 ConnectionManager *manager = (ConnectionManager *)handle;
 Connection        *connection = manager->allocate();
 std::string results;
 
-	bool rval = connection->retrieve(std::string(table), std::string(query), results);
+if (!schema) schema = DEFAULT_SCHEMA;
+
+	bool rval = connection->retrieve(std::string(schema) + "." + std::string(table), std::string(query), results);
 	manager->release(connection);
 	if (rval)
 	{
@@ -97,12 +115,13 @@ std::string results;
 /**
  * Update an arbitary table
  */
-int plugin_common_update(PLUGIN_HANDLE handle, char *table, char *data)
+int plugin_common_update(PLUGIN_HANDLE handle, char *schema, char *table, char *data)
 {
 ConnectionManager *manager = (ConnectionManager *)handle;
 Connection        *connection = manager->allocate();
+if (!schema) schema = DEFAULT_SCHEMA;
 
-	int result = connection->update(std::string(table), std::string(data));
+	int result = connection->update(std::string(schema) + "." + std::string(table), std::string(data));
 	manager->release(connection);
 	return result;
 }
@@ -110,12 +129,14 @@ Connection        *connection = manager->allocate();
 /**
  * Delete from an arbitrary table
  */
-int plugin_common_delete(PLUGIN_HANDLE handle, char *table, char *condition)
+int plugin_common_delete(PLUGIN_HANDLE handle, char *schema , char *table, char *condition)
 {
 ConnectionManager *manager = (ConnectionManager *)handle;
 Connection        *connection = manager->allocate();
 
-	int result = connection->deleteRows(std::string(table), std::string(condition));
+if (!schema) schema = DEFAULT_SCHEMA;
+
+	int result = connection->deleteRows(std::string(schema) + "." + std::string(table), std::string(condition));
 	manager->release(connection);
 	return result;
 }
@@ -300,6 +321,41 @@ std::string results;
 	manager->release(connection);
 
 	return rval ? strdup(results.c_str()) : NULL;
+}
+
+/**
+ * Create schema of a common table
+ *
+ * @param handle        The plugin handle
+ * @param payload       The payload to shapshot
+ * @return              -1 on error, >= o on success
+ *
+ */
+int plugin_createSchema(PLUGIN_HANDLE handle,
+                                 char *payload)
+{
+	ConnectionManager *manager = (ConnectionManager *)handle;
+	Connection        *connection = manager->allocate();
+
+	int result = connection->create_schema(std::string(payload));
+        manager->release(connection);
+        return result;
+}
+
+int plugin_schema_update(PLUGIN_HANDLE handle, 
+		                  char *schema, char *payload)
+{
+	ConnectionManager *manager = (ConnectionManager *)handle;
+        Connection        *connection = manager->allocate();
+
+	if (!schema) schema = DEFAULT_SCHEMA;
+
+	// create_schema handles both create and update schema
+	// schema value gets parsed from the payload
+        int result = connection->create_schema(std::string(payload));
+        manager->release(connection);
+        return result;
+
 }
 
 };

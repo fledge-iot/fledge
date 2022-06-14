@@ -1443,24 +1443,56 @@ class Server:
             data = await request.json()
             category_name = data.get('category', None)
             microservice_uuid = data.get('service', None)
+
+            try:
+                value = data.get('child', None)
+                if value is not None:
+
+                    if value == "True":
+                        child_subscribe = True
+                    else:
+                        child_subscribe = False
+                else:
+                    child_subscribe = False
+
+            except:
+                child_subscribe = False
+
             if microservice_uuid is not None:
                 try:
                     assert uuid.UUID(microservice_uuid)
                 except:
                     raise ValueError('Invalid microservice id {}'.format(microservice_uuid))
 
-            try:
-                registered_interest_id = cls._interest_registry.register(microservice_uuid, category_name)
-            except interest_registry_exceptions.ErrorInterestRegistrationAlreadyExists:
-                raise web.HTTPBadRequest(reason='An InterestRecord already exists by microservice_uuid {} for category_name {}'.format(microservice_uuid, category_name))
+            if child_subscribe:
 
-            if not registered_interest_id:
-                raise web.HTTPBadRequest(reason='Interest by microservice_uuid {} for category_name {} could not be registered'.format(microservice_uuid, category_name))
+                try:
+                    registered_interest_id = cls._interest_registry.register_child(microservice_uuid, category_name)
+                except interest_registry_exceptions.ErrorInterestRegistrationAlreadyExists:
+                    raise web.HTTPBadRequest(reason='An InterestRecord already exists by microservice_uuid {} for category_name {}'.format(microservice_uuid, category_name))
 
-            _response = {
-                'id': registered_interest_id,
-                'message': "Interest registered successfully"
-            }
+                if not registered_interest_id:
+                    raise web.HTTPBadRequest(reason='Interest by microservice_uuid {} for category_name {} could not be registered'.format(microservice_uuid, category_name))
+
+                _response = {
+                    'id': registered_interest_id,
+                    'message': "Interest registered successfully"
+                }
+
+
+            else:
+                try:
+                    registered_interest_id = cls._interest_registry.register(microservice_uuid, category_name)
+                except interest_registry_exceptions.ErrorInterestRegistrationAlreadyExists:
+                    raise web.HTTPBadRequest(reason='An InterestRecord already exists by microservice_uuid {} for category_name {}'.format(microservice_uuid, category_name))
+
+                if not registered_interest_id:
+                    raise web.HTTPBadRequest(reason='Interest by microservice_uuid {} for category_name {} could not be registered'.format(microservice_uuid, category_name))
+
+                _response = {
+                    'id': registered_interest_id,
+                    'message': "Interest registered successfully"
+                }
 
         except ValueError as ex:
             raise web.HTTPBadRequest(reason=str(ex))

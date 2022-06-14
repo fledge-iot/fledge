@@ -8,7 +8,7 @@ typing-extensions==4.2.0;python_version>="3.7"
 cchardet==2.1.4
 yarl==1.7.2
 
-pyjwt==1.6.4
+pyjwt==2.4.0
 
 # Transformation of data, Apply JqFilter
 # Install pyjq based on python version

@@ -203,9 +203,9 @@ class TestConfiguration:
         assert Counter(expected) == Counter(jdoc)
 
     def test_get_child_category(self, fledge_url):
-        expected = [{'displayName': 'Installation', 'key': 'Installation', 'description': 'Installation'},
+        expected = [{'displayName': 'Fledge Service', 'key': 'service', 'description': 'Fledge Service'},
                     {'displayName': 'Admin API', 'key': 'rest_api', 'description': 'Fledge Admin and User REST API'},
-                    {'displayName': 'Fledge Service', 'key': 'service', 'description': 'Fledge Service'}]
+                    {'displayName': 'Installation', 'key': 'Installation', 'description': 'Installation'}]
         conn = http.client.HTTPConnection(fledge_url)
         conn.request("GET", '/fledge/category/General/children')
         r = conn.getresponse()

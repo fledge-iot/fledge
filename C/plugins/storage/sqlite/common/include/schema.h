@@ -1,5 +1,14 @@
 #ifndef _SCHEMAS_H
 #define _SCHEMAS_H
+/*
+ * Fledge utilities functions for handling stringa
+ *
+ * Copyright (c) 2022 Dianomic Systems
+ *
+ * Released under the Apache 2.0 Licence
+ *
+ * Author: Mark Riddoch
+ */
 
 #include <sql_buffer.h>
 #include <string>

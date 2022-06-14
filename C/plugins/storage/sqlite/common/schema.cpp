@@ -45,7 +45,7 @@ SchemaManager::SchemaManager() : m_loaded(false)
  */
 void SchemaManager::load(sqlite3 *db)
 {
-	const char *sql = "select name, service, version, definition from fledge.service_schema;";
+	const char *sql = "SELECT name, service, version, definition FROM fledge.service_schema;";
 	sqlite3_stmt *stmt;
 	int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
 

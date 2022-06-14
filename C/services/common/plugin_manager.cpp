@@ -56,12 +56,6 @@ PluginManager::PluginManager()
   m_pluginType = PLUGIN_TYPE_ID_OTHER;
 }
 
-enum PLUGIN_TYPE {
-	BINARY_PLUGIN,
-	PYTHON_PLUGIN,
-	JSON_PLUGIN
-};
-
 /**
  * Update plugin info by merging the JSON plugin config over base plugin config
  *
@@ -397,6 +391,7 @@ char		buf[MAXPATHLEN];
 			plugins.push_back(pluginHandle);
 			pluginNames[name] = hndl;
 			pluginTypes[name] = type;
+			pluginImplTypes[hndl] = BINARY_PLUGIN;
 			pluginInfo[hndl] = info;
 
 			pluginHandleMap[hndl] = pluginHandle;
@@ -476,6 +471,7 @@ char		buf[MAXPATHLEN];
 			plugins.push_back(pluginHandle);
 			pluginNames[name] = hndl;
 			pluginTypes[name] = type;
+			pluginImplTypes[hndl] = PYTHON_PLUGIN;
 			pluginInfo[hndl] = info;
 			pluginHandleMap[hndl] = pluginHandle;
 		}

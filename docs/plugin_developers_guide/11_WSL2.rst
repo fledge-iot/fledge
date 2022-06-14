@@ -14,7 +14,7 @@ Developing with Windows Subsystem for Linux (WSL2)
 without the overhead of `Hyper-V on Windows 10 <https://docs.microsoft.com/en-us/virtualization/hyper-v-on-windows/about>`_ or a dual-boot setup.
 You can run many Linux command-line tools, utilities, and applications on a special lightweight virtual machine running on Windows.
 It is possible to run a complete Fledge system on WSL2.
-This includes the `Fledge GUI <https://fledge-iot.readthedocs.io/en/latest/quick_start/gui.html>`_
+This includes the `Fledge GUI <../quick_start/gui.html>`_
 which can be accessed from a browser running on the host Windows environment.
 
 Microsoft's `Visual Studio Code <https://code.visualstudio.com>`_ is a cross-platform editor that supports extensions
@@ -96,7 +96,7 @@ Whenever you start up your Ubuntu distribution, *systemd* should be ready.
 Installing Fledge
 ~~~~~~~~~~~~~~~~~~
 
-Following the normal instructions for `Installing Fledge on Ubuntu <https://fledge-iot.readthedocs.io/en/latest/quick_start/installing.html#ubuntu-or-debian>`_.
+Following the normal instructions for `Installing Fledge on Ubuntu <../quick_start/installing.html#ubuntu-or-debian>`_.
 Make sure the package repository matches your version of Ubuntu.
 You can check the operating system version in your distribution with the command *hostnamectl* or *cat /etc/os-release*.
 
@@ -145,7 +145,7 @@ Starting Fledge
 
 Start Fledge normally.
 You can start it from the normal run directory, or from your build directory by following the directions on the webpage
-`Testing Your Plugin <https://fledge-iot.readthedocs.io/en/latest/plugin_developers_guide/10_testing.html#testing-your-plugin>`_.
+`Testing Your Plugin <10_testing.html#testing-your-plugin>`_.
 
 Starting Fledge GUI
 ~~~~~~~~~~~~~~~~~~~~

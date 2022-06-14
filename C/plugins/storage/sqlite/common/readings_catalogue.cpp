@@ -497,7 +497,7 @@ void ReadingsCatalogue::prepareAllDbs() {
 }
 
 /**
- * Create a set od databases
+ * Create a set of databases
  *
  * @param    dbIdStart	Range of the database to create
  * @param    dbIdEnd    Range of the database to create

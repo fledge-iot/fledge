@@ -23,7 +23,7 @@ If your system does not have Raspbian pre-installed, you can find instructions o
   sudo apt-get upgrade
   sudo apt-get update
 
-.. include:: intro.txt
+.. include:: instructions.txt
 
 In general, Fledge installation will require the following packages:
 

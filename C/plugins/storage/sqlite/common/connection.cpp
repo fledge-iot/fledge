@@ -874,14 +874,14 @@ vector<string>  asset_codes;
 
 	if (!m_schemaManager->exists(dbHandle, schema))
 	{
-		raiseError("retrieve", "Schema does not exist");
+		raiseError("retrieve", "Schema %s does not exist, unable to retrieve from table %s", schema.c_str(), table.c_str());
 		return false;
 	}
 
 	try {
 		if (dbHandle == NULL)
 		{
-			raiseError("retrieve", "No SQLite 3 db connection available");
+			raiseError("retrieve", "No SQLite3 db connection available");
 			return false;
 		}
 
@@ -1187,7 +1187,7 @@ std::size_t arr = data.find("inserts");
 
 	if (!m_schemaManager->exists(dbHandle, schema))
 	{
-		raiseError("insert", "Schema does not exist");
+		raiseError("insert", "Schema %s does not exist, unable to insert into table %s", schema.c_str(), table.c_str());
 		return false;
 	}
 
@@ -1387,7 +1387,7 @@ vector<string>  asset_codes;
 
 	if (!m_schemaManager->exists(dbHandle, schema))
 	{
-		raiseError("update", "Schema does not exist");
+		raiseError("update", "Schema %s does not exist, unable to update table %s", schema.c_str(), table.c_str());
 		return false;
 	}
 
@@ -3170,7 +3170,7 @@ vector<string>  asset_codes;
 
 	if (!m_schemaManager->exists(dbHandle, schema))
 	{
-		raiseError("delete", "Schema does not exist");
+		raiseError("delete", "Schema %s does not exist, unable to delete from table %s", schema.c_str(), table.c_str());
 		return false;
 	}
 

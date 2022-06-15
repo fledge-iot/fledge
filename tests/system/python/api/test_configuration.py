@@ -72,9 +72,9 @@ class TestConfiguration:
                             'displayName': 'Storage',
                             'children': [
                                 {
-                                  'key': 'sqlite',
+                                  'key': storage_plugin,
                                   'description': 'Storage Plugin',
-                                  'displayName': 'sqlite',
+                                  'displayName': storage_plugin,
                                   'children': []
                                 }
                             ]
@@ -125,16 +125,6 @@ class TestConfiguration:
                           'children': []
             }
         ]
-
-        # With sqlite plugin we have "sqlite" child in category Storage
-        # with postgres there are no children
-        # Inject empty children array in category Storage
-        if storage_plugin == 'postgres':
-            expected_with_utilities[0]['children'][2] = {
-                        'children': [],
-                        'displayName': 'Storage', 'key': 'Storage',
-                        'description': 'Storage configuration'
-            }
 
         assert expected_with_utilities == jdoc["categories"]
 

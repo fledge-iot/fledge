@@ -2786,7 +2786,7 @@ bool Connection::jsonWhereClause(
 	if (whereClause.HasMember("and"))
 	{
 		sql.append(" AND ");
-		if (!jsonWhereClause(whereClause["and"], sql, asset_codes, convertLocaltime))
+		if (!jsonWhereClause(whereClause["and"], sql, asset_codes, convertLocaltime, prefix))
 		{
 			return false;
 		}
@@ -2794,7 +2794,7 @@ bool Connection::jsonWhereClause(
 	if (whereClause.HasMember("or"))
 	{
 		sql.append(" OR ");
-		if (!jsonWhereClause(whereClause["or"], sql, asset_codes, convertLocaltime))
+		if (!jsonWhereClause(whereClause["or"], sql, asset_codes, convertLocaltime, prefix))
 		{
 			return false;
 		}

@@ -4,12 +4,12 @@
 # See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
-""" Test sending data to PI using Web API
+""" Test sending data to PI using Web API under a distorted network.
 
 """
 
-__author__ = "Praveen Garg"
-__copyright__ = "Copyright (c) 2019 Dianomic Systems Inc"
+__author__ = "Deepanshu Yadav, Praveen Garg"
+__copyright__ = "Copyright (c) 2022 Dianomic Systems Inc"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
@@ -19,6 +19,7 @@ import pytest
 import os
 import time
 import utils
+import json
 from pathlib import Path
 import urllib.parse
 
@@ -29,7 +30,7 @@ ASSET = "FOGL-2964-e2e-CoAP"
 DATAPOINT = "sensor"
 DATAPOINT_VALUE = 20
 NORTH_TASK_NAME = "NorthReadingsToPI_WebAPI"
-SOUTH_SERVICE_NAME = "CoAP FOGL-2964"
+SOUTH_SERVICE_NAME = "Sinusoid-FOGL-6333"
 # This  gives the path of directory where fledge is cloned. test_file < packages < python < system < tests < ROOT
 PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.parent
 SCRIPTS_DIR_ROOT = "{}/tests/system/python/scripts/package/".format(PROJECT_ROOT)
@@ -84,6 +85,24 @@ def verify_asset(fledge_url):
     result = utils.get_request(fledge_url, get_url)
     assert len(result), "No asset found"
     assert ASSET in [s["assetCode"] for s in result]
+
+
+def disable_schedule(fledge_url, sch_name):
+    """
+        Disables schedule.
+        Args:
+            fledge_url: The url of the Fledge API.
+            sch_name: The name of schedule to be disabled.
+        Returns: Response of disabling schedule in json.
+        """
+    conn = http.client.HTTPConnection(fledge_url)
+    conn.request("PUT", '/fledge/schedule/disable', json.dumps({"schedule_name": sch_name}))
+    r = conn.getresponse()
+    assert 200 == r.status
+    r = r.read().decode()
+    jdoc = json.loads(r)
+    assert "scheduleId" in jdoc
+    return
 
 
 def verify_asset_tracking_details(fledge_url, skip_verify_north_interface):
@@ -155,9 +174,13 @@ def start_south_north(add_south, start_north_task_omf_web_api, remove_data_file,
 
 class TestPackagesCoAP_PI_WebAPI:
 
-    def test_omf_task(self, clean_setup_fledge_packages, reset_fledge, start_south_north, read_data_from_pi_web_api,
-                        fledge_url, pi_host, pi_admin, pi_passwd, pi_db,
-                        wait_time, retries, skip_verify_north_interface, asset_name=ASSET):
+    def test_omf_in_impaired_network(self, clean_setup_fledge_packages, reset_fledge,
+                                     start_south_north, read_data_from_pi_web_api,
+                                     fledge_url, pi_host, pi_admin, pi_passwd, pi_db,
+                                     wait_time, retries, skip_verify_north_interface,
+                                     south_service_wait_time, north_catch_up_time, pi_port,
+                                     interface_for_impairment, packet_delay, rate_limit,
+                                     asset_name=ASSET):
         """ Test that data is inserted in Fledge and sent to PI
             start_south_north: Fixture that add south and north instance
             read_data_from_pi: Fixture to read data from PI
@@ -169,96 +192,27 @@ class TestPackagesCoAP_PI_WebAPI:
                 on endpoint GET /fledge/asset/<asset_name>
                 data received from PI is same as data sent"""
 
-        conn = http.client.HTTPConnection(fledge_url)
-        subprocess.run(
-            ["cd $FLEDGE_ROOT/extras/python; python3 -m fogbench -t ../../data/{}; cd -".format(TEMPLATE_NAME)],
-            shell=True, check=True)
-
-        time.sleep(wait_time)
-
-        verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
-        verify_asset(fledge_url)
-        verify_statistics_map(fledge_url, skip_verify_north_interface)
-        verify_asset_tracking_details(fledge_url, skip_verify_north_interface)
-
-        if not skip_verify_north_interface:
-            _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries,
-                           asset_name)
-
-    def test_omf_task_with_reconfig(self, reset_fledge, start_south_north, read_data_from_pi_web_api,
-                                       skip_verify_north_interface, fledge_url,
-                                       wait_time, retries, pi_host, pi_port, pi_admin, pi_passwd, pi_db,
-                                       asset_name=ASSET):
-        """ Test OMF as a North task by reconfiguring it.
-            reset_fledge: Fixture to reset fledge
-            start_south_north: Adds and configures south(sinusoid) and north(OMF) service
-            read_data_from_pi_web_api: Fixture to read data from PI web API
-            skip_verify_north_interface: Flag for assertion of data using PI web API
-            Assertions:
-                on endpoint GET /fledge/ping
-                on endpoint GET /fledge/statistics
-                on endpoint GET /fledge/asset
-                on endpoint GET /fledge/track"""
+        duration = south_service_wait_time + north_catch_up_time
+        distort_network(interface=interface_for_impairment, traffic="outbound",
+                        latency=packet_delay,
+                        rate_limit=rate_limit, ip=pi_host, port=pi_port, duration=duration)
 
         conn = http.client.HTTPConnection(fledge_url)
         subprocess.run(
             ["cd $FLEDGE_ROOT/extras/python; python3 -m fogbench -t ../../data/{}; cd -".format(TEMPLATE_NAME)],
             shell=True, check=True)
 
-        time.sleep(wait_time)
+        time.sleep(south_service_wait_time)
 
-        verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
-        verify_asset(fledge_url)
-        verify_statistics_map(fledge_url, skip_verify_north_interface)
-        verify_asset_tracking_details(fledge_url, skip_verify_north_interface)
+        disable_schedule(fledge_url, SOUTH_SERVICE_NAME)
 
-        # Good reconfiguration to check data is sent
-        data = {"SendFullStructure": "false"}
-        put_url = "/fledge/category/{}".format(NORTH_TASK_NAME)
-        resp = utils.put_request(fledge_url, urllib.parse.quote(put_url), data)
-        assert "false" == resp["SendFullStructure"]["value"]
+        time.sleep(north_catch_up_time)
 
-        old_ping_result = verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
-
-        conn = http.client.HTTPConnection(fledge_url)
-        subprocess.run(
-            ["cd $FLEDGE_ROOT/extras/python; python3 -m fogbench -t ../../data/{}; cd -".format(TEMPLATE_NAME)],
-            shell=True, check=True)
-
-        # Wait for the OMF schedule to run.
-        time.sleep(wait_time * 2)
-
-        new_ping_result = verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
-        # Verifies whether Read and Sent readings are increasing after delete/add of north service
-        assert old_ping_result['dataRead'] < new_ping_result['dataRead']
-        if not skip_verify_north_interface:
-            assert old_ping_result['dataSent'] < new_ping_result['dataSent']
-
-        # Bad reconfiguration to check data is not sent
-        data = {"PIWebAPIUserId": "Inv@lidRandomUserID"}
-        put_url = "/fledge/category/{}".format(NORTH_TASK_NAME)
-        resp = utils.put_request(fledge_url, urllib.parse.quote(put_url), data)
-        assert "Inv@lidRandomUserID" == resp["PIWebAPIUserId"]["value"]
-
-        old_ping_result = verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
-
-        # Wait for the OMF schedule to run and then send the new data.
-        # Otherwise, it sends the data with old config. 
-        time.sleep(wait_time * 2)
-
-        conn = http.client.HTTPConnection(fledge_url)
-        subprocess.run(
-            ["cd $FLEDGE_ROOT/extras/python; python3 -m fogbench -t ../../data/{}; cd -".format(TEMPLATE_NAME)],
-            shell=True, check=True)
-
-        # Wait for the OMF schedule to run.
-        time.sleep(wait_time * 2)
-
-        new_ping_result = verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
-        # Verifies whether Read and Sent readings are increasing after delete/add of north service
-        assert old_ping_result['dataRead'] < new_ping_result['dataRead']
-
-        if not skip_verify_north_interface:
-            assert old_ping_result['dataSent'] == new_ping_result['dataSent']
-            _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries,
-                           asset_name)
+        # verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
+        # verify_asset(fledge_url)
+        # verify_statistics_map(fledge_url, skip_verify_north_interface)
+        # verify_asset_tracking_details(fledge_url, skip_verify_north_interface)
+        #
+        # if not skip_verify_north_interface:
+        #     _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries,
+        #                    asset_name)

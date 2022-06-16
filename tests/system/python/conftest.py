@@ -709,20 +709,20 @@ def pytest_addoption(parser):
                      help="The time in seconds before which the south service should keep  on"
                           "sending data. After this time the south service will shutdown.")
 
-    parser.addoption("--north-wait-time", action="store", type=int, default=30,
+    parser.addoption("--north-catch-up-time", action="store", type=int, default=30,
                      help="The time in seconds we will allow the north task /service"
                           " to keep on running "
-                          "after switching off the service.")
+                          "after switching off the south service.")
 
-    parser.addoption("--interface", action="store", default="eth0",
+    parser.addoption("--interface-for-impairment", action="store", default="eth0",
                      help="The interface on which network impairment will be applied.")
 
     parser.addoption("--rate-limit", action="store", type=int, default=10,
-                     help="The limit in packet transfer rate in kbps")
+                     help="The limit in packet transfer rate in kbps.")
 
-    parser.addoption("--delay", action="store", type=int, default="20",
+    parser.addoption("--packet-delay", action="store", type=int, default=300,
                      help="The delay in packet transfer to induce in the network. "
-                          "Given in milli seconds.")
+                          "Given in milliseconds.")
 
 
 @pytest.fixture
@@ -981,13 +981,13 @@ def south_service_wait_time(request):
 
 
 @pytest.fixture
-def north_wait_time(request):
-    return request.config.getoption("--north-wait-time")
+def north_catch_up_time(request):
+    return request.config.getoption("--north-catch-up-time")
 
 
 @pytest.fixture
-def interface(request):
-    return request.config.getoption("--interface")
+def interface_for_impairment(request):
+    return request.config.getoption("--interface-for-impairment")
 
 
 @pytest.fixture
@@ -996,6 +996,6 @@ def rate_limit(request):
 
 
 @pytest.fixture
-def delay(request):
-    return request.config.getoption("--delay")
+def packet_delay(request):
+    return request.config.getoption("--packet-delay")
 

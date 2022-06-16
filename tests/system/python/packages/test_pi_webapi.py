@@ -287,8 +287,8 @@ class TestPackagesCoAP_PI_WebAPI:
                                      start_south_north, read_data_from_pi_web_api,
                                      fledge_url, pi_host, pi_admin, pi_passwd, pi_db,
                                      wait_time, retries, skip_verify_north_interface,
-                                     south_service_wait_time, north_wait_time, pi_port,
-                                     interface, delay, rate_limit,
+                                     south_service_wait_time, north_catch_up_time, pi_port,
+                                     interface_for_impairment, packet_delay, rate_limit,
                                      asset_name=ASSET):
         """ Test that data is inserted in Fledge and sent to PI
             start_south_north: Fixture that add south and north instance
@@ -301,8 +301,9 @@ class TestPackagesCoAP_PI_WebAPI:
                 on endpoint GET /fledge/asset/<asset_name>
                 data received from PI is same as data sent"""
 
-        duration = south_service_wait_time + north_wait_time
-        distort_network(interface=interface, traffic="outbound", latency=delay,
+        duration = south_service_wait_time + north_catch_up_time
+        distort_network(interface=interface_for_impairment, traffic="outbound",
+                        latency=packet_delay,
                         rate_limit=rate_limit, ip=pi_host, port=pi_port, duration=duration)
 
         conn = http.client.HTTPConnection(fledge_url)
@@ -314,7 +315,7 @@ class TestPackagesCoAP_PI_WebAPI:
 
         disable_schedule(fledge_url, SOUTH_SERVICE_NAME)
 
-        time.sleep(north_wait_time)
+        time.sleep(north_catch_up_time)
 
         # verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
         # verify_asset(fledge_url)

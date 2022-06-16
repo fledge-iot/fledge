@@ -220,6 +220,17 @@ The minimum required parameters to run this test is ::
     --pi-passwd=<Password of PI Machine>
     --pi-token="<PI Producer token>"
 
+Test test_north_pi_webapi_nw_throttle.py
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Example
+python3 -m pytest -s -v test_north_pi_webapi_nw_throttle.py  --pi-db=foglamp  \
+--pi-host=54.160.102.87 --pi-port=443 --pi-admin=Administrator  \
+--pi-passwd=FogLamp200  --packet-delay=50  --rate-limit=100 \
+--interface-for-impairment=eth0  --south-service-wait-time=20 \
+--north-catch-up-time=180
+
+
+
 Execute all the System tests
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

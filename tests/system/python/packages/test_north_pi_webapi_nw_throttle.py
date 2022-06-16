@@ -8,7 +8,7 @@
 
 """
 
-__author__ = "Deepanshu Yadav, Praveen Garg"
+__author__ = "Deepanshu Yadav"
 __copyright__ = "Copyright (c) 2022 Dianomic Systems Inc"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
@@ -25,7 +25,7 @@ import urllib.parse
 
 from network_impairment import distort_network, reset_network
 
-ASSET = "Sine-FOGL-6333-1"
+ASSET = "Sine-FOGL-6333"
 DATAPOINT = "sinusoid"
 NORTH_TASK_NAME = "NorthReadingsToPI_WebAPI"
 SOUTH_SERVICE_NAME = "Sinusoid-FOGL-6333"

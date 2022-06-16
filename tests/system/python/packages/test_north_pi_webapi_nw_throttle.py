@@ -25,10 +25,8 @@ import urllib.parse
 
 from network_impairment import distort_network, reset_network
 
-TEMPLATE_NAME = "template.json"
-ASSET = "FOGL-2964-e2e-CoAP"
-DATAPOINT = "sensor"
-DATAPOINT_VALUE = 20
+ASSET = "Sine-FOGL-6333"
+DATAPOINT = "sinusoid"
 NORTH_TASK_NAME = "NorthReadingsToPI_WebAPI"
 SOUTH_SERVICE_NAME = "Sinusoid-FOGL-6333"
 # This  gives the path of directory where fledge is cloned. test_file < packages < python < system < tests < ROOT
@@ -85,6 +83,29 @@ def verify_asset(fledge_url):
     result = utils.get_request(fledge_url, get_url)
     assert len(result), "No asset found"
     assert ASSET in [s["assetCode"] for s in result]
+
+
+def change_category(fledge_url, cat_name, config_item, value):
+    """
+    Changes the value of configuration item in the given category.
+    Args:
+        fledge_url: The url of the Fledge API.
+        cat_name: The category name.
+        config_item: The configuration item to be changed.
+        value: The new value of configuration item.
+    Returns: returns the value of changed category or raises error.
+    """
+    conn = http.client.HTTPConnection(fledge_url)
+    body = {"value": str(value)}
+    json_data = json.dumps(body)
+    conn.request("PUT", '/fledge/category/{}/{}'.format(cat_name, config_item), json_data)
+    r = conn.getresponse()
+    # assert 200 == r.status, 'Could not change config item'
+    print(r.status)
+    r = r.read().decode()
+    conn.close()
+    retval = json.loads(r)
+    print(retval)
 
 
 def disable_schedule(fledge_url, sch_name):
@@ -152,27 +173,17 @@ def start_south_north(add_south, start_north_task_omf_web_api, remove_data_file,
         start_north_task_omf_web_api: Fixture that starts PI north task
         remove_data_file: Fixture that remove data file created during the tests """
 
-    # Define the template file for fogbench
-    fogbench_template_path = os.path.join(
-        os.path.expandvars('${FLEDGE_ROOT}'), 'data/{}'.format(TEMPLATE_NAME))
-    with open(fogbench_template_path, "w") as f:
-        f.write(
-            '[{"name": "%s", "sensor_values": '
-            '[{"name": "%s", "type": "number", "min": %d, "max": %d, "precision": 0}]}]' % (
-                asset_name, DATAPOINT, DATAPOINT_VALUE, DATAPOINT_VALUE))
-
-    south_plugin = "coap"
+    south_plugin = "sinusoid"
     # south_branch does not matter as these are archives.fledge-iot.org version install
-    add_south(south_plugin, None, fledge_url, service_name=SOUTH_SERVICE_NAME, installation_type='package')
+    _config = {"assetName": {"value": ASSET}}
+    add_south(south_plugin, None, fledge_url, config=_config,
+              service_name=SOUTH_SERVICE_NAME, installation_type='package')
     start_north_task_omf_web_api(fledge_url, pi_host, pi_port, pi_user=pi_admin, pi_pwd=pi_passwd)
 
     yield start_south_north
 
-    # Cleanup code that runs after the caller test is over
-    remove_data_file(fogbench_template_path)
 
-
-class TestPackagesCoAP_PI_WebAPI:
+class TestPackagesSinusoid_PI_WebAPI:
 
     def test_omf_in_impaired_network(self, clean_setup_fledge_packages, reset_fledge,
                                      start_south_north, read_data_from_pi_web_api,
@@ -197,17 +208,21 @@ class TestPackagesCoAP_PI_WebAPI:
                         latency=packet_delay,
                         rate_limit=rate_limit, ip=pi_host, port=pi_port, duration=duration)
 
-        conn = http.client.HTTPConnection(fledge_url)
-        subprocess.run(
-            ["cd $FLEDGE_ROOT/extras/python; python3 -m fogbench -t ../../data/{}; cd -".format(TEMPLATE_NAME)],
-            shell=True, check=True)
+        # allow the south service to run for sometime
+        time.sleep(5)
+        change_category(fledge_url, SOUTH_SERVICE_NAME + "Advanced", "readingsPerSec", 3000)
 
+        # Wait for south service to accumulate some readings
         time.sleep(south_service_wait_time)
 
+        # now shutdown the south service
         disable_schedule(fledge_url, SOUTH_SERVICE_NAME)
 
+        # Wait for north task or service to send these accumulated readings.
         time.sleep(north_catch_up_time)
 
+        # clear up all the distortions on this network.
+        reset_network(interface=interface_for_impairment)
         # verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
         # verify_asset(fledge_url)
         # verify_statistics_map(fledge_url, skip_verify_north_interface)

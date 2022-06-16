@@ -25,7 +25,7 @@ import urllib.parse
 
 from network_impairment import distort_network, reset_network
 
-ASSET = "Sine-FOGL-6333"
+ASSET = "Sine-FOGL-6333-1"
 DATAPOINT = "sinusoid"
 NORTH_TASK_NAME = "NorthReadingsToPI_WebAPI"
 SOUTH_SERVICE_NAME = "Sinusoid-FOGL-6333"
@@ -43,28 +43,17 @@ def reset_fledge(wait_time):
         assert False, "reset package script failed!"
 
 
-def verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries):
+def verify_ping(fledge_url, north_catch_up_time):
     get_url = "/fledge/ping"
     ping_result = utils.get_request(fledge_url, get_url)
     assert "dataRead" in ping_result
     assert "dataSent" in ping_result
     assert 0 < ping_result['dataRead'], "South data NOT seen in ping header"
 
-    retry_count = 1
-    sent = 0
-    if not skip_verify_north_interface:
-        while retries > retry_count:
-            sent = ping_result["dataSent"]
-            if sent >= 1:
-                break
-            else:
-                time.sleep(wait_time)
-
-            retry_count += 1
-            ping_result = utils.get_request(fledge_url, get_url)
-
-        assert 1 <= sent, "Failed to send data via PI Web API using Basic auth"
-    return ping_result
+    assert ping_result['dataRead'] == ping_result['dataSent'], "Could not send all" \
+                                                               " the data even after " \
+                                                               "waiting {} " \
+                                                               "seconds.".format(north_catch_up_time)
 
 
 def verify_statistics_map(fledge_url, skip_verify_north_interface):
@@ -161,7 +150,7 @@ def _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_d
     if data_from_pi is None or retry_count == retries:
         assert False, "Failed to read data from PI"
 
-    assert data_from_pi[recorded_datapoint][-1] == DATAPOINT_VALUE
+    return data_from_pi
 
 
 @pytest.fixture
@@ -227,11 +216,14 @@ class TestPackagesSinusoid_PI_WebAPI:
 
         # clear up all the distortions on this network.
         reset_network(interface=interface_for_impairment)
-        # verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
+        verify_ping(fledge_url, north_catch_up_time)
         # verify_asset(fledge_url)
         # verify_statistics_map(fledge_url, skip_verify_north_interface)
         # verify_asset_tracking_details(fledge_url, skip_verify_north_interface)
         #
-        # if not skip_verify_north_interface:
-        #     _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries,
-        #                    asset_name)
+        if not skip_verify_north_interface:
+            data_pi = _verify_egress(read_data_from_pi_web_api, pi_host,
+                                     pi_admin, pi_passwd, pi_db, wait_time, retries,
+                                     asset_name)
+            print(type(data_pi))
+            print(data_pi)

@@ -22,8 +22,6 @@ import utils
 from pathlib import Path
 import urllib.parse
 
-from network_impairment import distort_network, reset_network
-
 TEMPLATE_NAME = "template.json"
 ASSET = "FOGL-2964-e2e-CoAP"
 DATAPOINT = "sensor"

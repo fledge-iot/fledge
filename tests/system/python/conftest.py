@@ -724,6 +724,9 @@ def pytest_addoption(parser):
                      help="The delay in packet transfer to induce in the network. "
                           "Given in milliseconds.")
 
+    parser.addoption("--start-north-as-service", action="store", type=bool, default=True,
+                     help="Whether start the north as a service.")
+
 
 @pytest.fixture
 def storage_plugin(request):
@@ -999,3 +1002,7 @@ def rate_limit(request):
 def packet_delay(request):
     return request.config.getoption("--packet-delay")
 
+
+@pytest.fixture
+def start_north_as_service(request):
+    return request.config.getoption("--start-north-as-service")

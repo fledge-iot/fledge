@@ -166,7 +166,8 @@ def _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_d
 
 @pytest.fixture
 def start_south_north(add_south, start_north_task_omf_web_api, remove_data_file,
-                      fledge_url, pi_host, pi_port, pi_admin, pi_passwd, asset_name=ASSET):
+                      fledge_url, pi_host, pi_port, pi_admin, pi_passwd,
+                      start_north_omf_as_a_service, start_north_as_service, asset_name=ASSET):
     """ This fixture
         clean_setup_fledge_packages: purge the fledge* packages and install latest for given repo url
         add_south: Fixture that adds a south service with given configuration
@@ -178,7 +179,10 @@ def start_south_north(add_south, start_north_task_omf_web_api, remove_data_file,
     _config = {"assetName": {"value": ASSET}}
     add_south(south_plugin, None, fledge_url, config=_config,
               service_name=SOUTH_SERVICE_NAME, installation_type='package')
-    start_north_task_omf_web_api(fledge_url, pi_host, pi_port, pi_user=pi_admin, pi_pwd=pi_passwd)
+    if not start_north_as_service:
+        start_north_task_omf_web_api(fledge_url, pi_host, pi_port, pi_user=pi_admin, pi_pwd=pi_passwd)
+    else:
+        start_north_omf_as_a_service(fledge_url, pi_host, pi_port, pi_user=pi_admin, pi_pwd=pi_passwd)
 
     yield start_south_north
 

@@ -720,7 +720,7 @@ def pytest_addoption(parser):
     parser.addoption("--rate_limit", action="store", type=int, default=10,
                      help="The limit in packet transfer rate in kbps")
 
-    parser.addoption("--south-service-wait-time", action="store", type=int, default="20",
+    parser.addoption("--delay", action="store", type=int, default="20",
                      help="The delay in packet transfer to induce in the network. "
                           "Given in milli seconds.")
 

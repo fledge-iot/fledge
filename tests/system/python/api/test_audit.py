@@ -70,12 +70,7 @@ class TestAudit:
         ('?source=START&severity=information&limit=1', 1, 1),
         ('?source=START&severity=information&limit=1&skip=1', 1, 0)
     ])
-    def test_default_get_audit_sqlite(self, fledge_url, wait_time, request_params, total_count, audit_count,
-                                      storage_plugin):
-        if storage_plugin == 'postgres':
-            pytest.skip('Test is for SQLite only. Storage category when with SQLite plugin, '
-                        'creates a child category `sqlite` hence one additional CONAD entry.')
-
+    def test_default_get_audit(self, fledge_url, wait_time, request_params, total_count, audit_count, storage_plugin):
         # wait for Fledge start, first test only, once in the iteration before start
         if request_params == '':
             time.sleep(wait_time)
@@ -91,51 +86,13 @@ class TestAudit:
         assert total_count == jdoc['totalCount']
         assert audit_count == len(elems)
 
-    @pytest.mark.parametrize("request_params, total_count, audit_count", [
-        ('', 10, 10),
-        ('?limit=1', 10, 1),
-        ('?skip=4', 10, 6),
-        ('?limit=1&skip=8', 10, 1),
-        ('?source=START', 1, 1),
-        ('?source=CONAD', 9, 9),
-        ('?source=CONAD&limit=1', 9, 1),
-        ('?source=CONAD&skip=1', 9, 8),
-        ('?source=CONAD&skip=6&limit=1', 9, 1),
-        ('?severity=INFORMATION', 10, 10),
-        ('?severity=failure', 0, 0),
-        ('?source=CONAD&severity=failure', 0, 0),
-        ('?source=START&severity=INFORMATION', 1, 1),
-        ('?source=START&severity=information&limit=1', 1, 1),
-        ('?source=START&severity=information&limit=1&skip=1', 1, 0)
-    ])
-    def test_default_get_audit_postgres(self, fledge_url, wait_time, request_params, total_count, audit_count,
-                                        storage_plugin):
-        if storage_plugin == 'sqlite':
-            pytest.skip('Test is for PostgreSQL only. Storage category when with SQLite plugin, '
-                        'creates a child category `sqlite` hence one additional CONAD entry.')
-
-        # wait for Fledge start, first test only, once in the iteration before start
-        if request_params == '':
-            time.sleep(wait_time)
-
-        conn = http.client.HTTPConnection(fledge_url)
-        conn.request("GET", '/fledge/audit{}'.format(request_params))
-        r = conn.getresponse()
-        assert 200 == r.status
-        r = r.read().decode()
-        jdoc = json.loads(r)
-        audit_entries = jdoc['audit']
-        assert len(jdoc), "No data found"
-        assert total_count == jdoc['totalCount']
-        assert audit_count == len(audit_entries)
-
     @pytest.mark.parametrize("payload, total_count", [
         ({"source": "LOGGN", "severity": "warning", "details": {"message": "Engine oil pressure low"}}, 12),
         ({"source": "NHCOM", "severity": "success", "details": {}}, 13),
         ({"source": "START", "severity": "information", "details": {"message": "fledge started"}}, 14),
         ({"source": "CONCH", "severity": "failure", "details": {"message": "Scheduler configuration failed"}}, 15)
     ])
-    def test_create_audit_entry(self, fledge_url, payload, total_count, storage_plugin):
+    def test_create_audit_entry(self, fledge_url, payload, total_count):
         conn = http.client.HTTPConnection(fledge_url)
         conn.request('POST', '/fledge/audit', body=json.dumps(payload))
         r = conn.getresponse()
@@ -153,13 +110,6 @@ class TestAudit:
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-
-        # Storage category when with SQLite plugin, creates a child category `sqlite` hence one additional CONAD entry.
-        # CONAD, INFORMATION, '{{"name":"sqlite", ...}'
-        # so total_count is being decresed in case of 'postgres' storage engine
-        if storage_plugin == 'postgres':
-            total_count = total_count - 1
-
         assert len(jdoc), "No data found"
         assert total_count == jdoc['totalCount']
 

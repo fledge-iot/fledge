@@ -852,8 +852,8 @@ class TestNotification:
 
     @pytest.mark.parametrize("name, config, description", [
         ("coolant", delivery_channel_config, None),
-        (" coolant2", {}, ''),
-        (" coolant3", {}, 'Test coolant'),
+        (" coolant2", delivery_channel_config, ''),
+        (" coolant3", delivery_channel_config, 'Test coolant'),
     ])
     async def test_good_post_delivery_channel(self, mocker, client, name, config, description):
         notification_instance_name = "overspeed"

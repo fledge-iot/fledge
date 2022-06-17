@@ -717,10 +717,10 @@ def pytest_addoption(parser):
     parser.addoption("--interface-for-impairment", action="store", default="eth0",
                      help="The interface on which network impairment will be applied.")
 
-    parser.addoption("--rate-limit", action="store", type=int, default=10,
+    parser.addoption("--rate-limit", action="store", type=int, default=None,
                      help="The limit in packet transfer rate in kbps.")
 
-    parser.addoption("--packet-delay", action="store", type=int, default=300,
+    parser.addoption("--packet-delay", action="store", type=int, default=None,
                      help="The delay in packet transfer to induce in the network. "
                           "Given in milliseconds.")
 

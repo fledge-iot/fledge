@@ -223,8 +223,14 @@ delivery_channel_config = {
       "description": "Perform a control action to turn pump",
       "type": "boolean",
       "default": "false"
+    },
+    "plugin": {
+      "description": "Telegram notification plugin",
+      "type": "string",
+      "readonly": "true",
+      "default": "Telegram"
     }
-  }
+}
 
 
 async def mock_get_url(get_url):

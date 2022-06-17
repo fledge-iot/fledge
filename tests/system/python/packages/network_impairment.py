@@ -140,11 +140,30 @@ def distort_network(interface, duration, rate_limit, latency, ip=None, port=None
     if not check_for_interface(interface):
         raise Exception("Could not find given {} among present interfaces.".format(interface))
 
-    latency_converted = str(latency) + 'ms'
-    rate_limit_converted = str(rate_limit) + 'Kbit'
+    if not latency and not rate_limit:
+        raise Exception("Could not find latency or  rate_limit.")
+
+    if latency:
+        latency_converted = str(latency) + 'ms'
+    else:
+        latency_converted = None
+
+    if rate_limit:
+        rate_limit_converted = str(rate_limit) + 'Kbit'
+    else:
+        rate_limit_converted = None
+
     if not (ip and port):
-        run_cmd = "sudo tc qdisc add dev {} root netem delay {} rate {}".format(interface, latency_converted,
-                                                                                 rate_limit_converted)
+        if rate_limit_converted and latency_converted:
+            run_cmd = "sudo tc qdisc add dev {} root netem" \
+                      " delay {} rate {}".format(interface, latency_converted,
+                                                 rate_limit_converted)
+        elif rate_limit_converted and not latency_converted:
+            run_cmd = "sudo tc qdisc add dev {} root netem" \
+                      " rate {}".format(interface, rate_limit_converted)
+        elif not rate_limit_converted and latency_converted:
+            run_cmd = "sudo tc qdisc add dev {} root netem" \
+                      "delay {}".format(interface, latency_converted)
 
         clear_cmd = "sudo tc qdisc del dev {} root".format(interface)
         p = Distortion([run_cmd], clear_cmd, duration)
@@ -152,10 +171,22 @@ def distort_network(interface, duration, rate_limit, latency, ip=None, port=None
         p.start()
 
     else:
-        r1 = "sudo tc qdisc add dev {} root handle 1: prio priomap 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2".format(interface)
-        r2 = "sudo tc qdisc add dev {} parent 1:1 handle 10: netem delay {} rate {}".format(interface,
-                                                                                             latency_converted,
-                                                                                             rate_limit_converted)
+        r1 = "sudo tc qdisc add dev {} root handle 1: prio" \
+             " priomap 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2".format(interface)
+        if latency_converted and rate_limit_converted:
+            r2 = "sudo tc qdisc add dev {} parent 1:1 " \
+                 "handle 10: netem delay {} rate {}".format(interface,
+                                                            latency_converted,
+                                                            rate_limit_converted)
+        elif not latency_converted and rate_limit_converted:
+            r2 = "sudo tc qdisc add dev {} parent 1:1 " \
+                 "handle 10: netem  rate {}".format(interface,
+                                                    rate_limit_converted)
+        elif latency_converted and not rate_limit_converted:
+            r2 = "sudo tc qdisc add dev {} parent 1:1 " \
+                 "handle 10: netem delay {} ".format(interface,
+                                                     latency_converted)
+
         if traffic.lower() == 'outbound':
             ip_param = 'dst'
             port_param = 'dport'

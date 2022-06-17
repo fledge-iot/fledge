@@ -32,6 +32,7 @@ SOUTH_SERVICE_NAME = "Sinusoid-FOGL-6333"
 # This  gives the path of directory where fledge is cloned. test_file < packages < python < system < tests < ROOT
 PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.parent
 SCRIPTS_DIR_ROOT = "{}/tests/system/python/scripts/package/".format(PROJECT_ROOT)
+DATA_DIR_ROOT = "{}/tests/system/python/packages/data/".format(PROJECT_ROOT)
 
 
 @pytest.fixture
@@ -115,6 +116,24 @@ def disable_schedule(fledge_url, sch_name):
     return
 
 
+def enable_schedule(fledge_url, sch_name):
+    """
+        Disables schedule.
+        Args:
+            fledge_url: The url of the Fledge API.
+            sch_name: The name of schedule to be disabled.
+        Returns: Response of disabling schedule in json.
+        """
+    conn = http.client.HTTPConnection(fledge_url)
+    conn.request("PUT", '/fledge/schedule/enable', json.dumps({"schedule_name": sch_name}))
+    r = conn.getresponse()
+    assert 200 == r.status
+    r = r.read().decode()
+    jdoc = json.loads(r)
+    assert "scheduleId" in jdoc
+    return
+
+
 def verify_asset_tracking_details(fledge_url, skip_verify_north_interface):
     tracking_details = utils.get_asset_tracking_details(fledge_url, "Ingest")
     assert len(tracking_details["track"]), "Failed to track Ingest event"
@@ -169,10 +188,29 @@ def start_south_north(add_south, start_north_task_omf_web_api, remove_data_file,
     add_south(south_plugin, None, fledge_url, config=_config,
               service_name=SOUTH_SERVICE_NAME, installation_type='package')
     if not start_north_as_service:
-        start_north_task_omf_web_api(fledge_url, pi_host, pi_port, pi_user=pi_admin, pi_pwd=pi_passwd)
+        start_north_task_omf_web_api(fledge_url, pi_host, pi_port, pi_user=pi_admin, pi_pwd=pi_passwd,
+                                     start_task=False)
     else:
-        start_north_omf_as_a_service(fledge_url, pi_host, pi_port, pi_user=pi_admin, pi_pwd=pi_passwd)
+        start_north_omf_as_a_service(fledge_url, pi_host, pi_port, pi_user=pi_admin, pi_pwd=pi_passwd,
+                                     start=False)
 
+    data = {"name": "py35", "plugin": "python35", "filter_config": {"enable": "true"}}
+    utils.post_request(fledge_url, "/fledge/filter", data)
+
+    data = {"pipeline": ["py35"]}
+    put_url = "/fledge/filter/{}/pipeline?allow_duplicates=true&append_filter=true" \
+        .format(NORTH_TASK_NAME)
+    utils.put_request(fledge_url, urllib.parse.quote(put_url, safe='?,=,&,/'), data)
+
+    url = fledge_url + urllib.parse.quote('/fledge/category/{}_py35/script/upload'
+                                          .format(NORTH_TASK_NAME))
+    script_path = 'script=@{}/set_id.py'.format(DATA_DIR_ROOT)
+    upload_script = "curl -sX POST '{}' -F '{}'".format(url, script_path)
+    exit_code = os.system(upload_script)
+    assert 0 == exit_code
+
+    enable_schedule(fledge_url, NORTH_TASK_NAME)
+    time.sleep(3)
     yield start_south_north
 
 

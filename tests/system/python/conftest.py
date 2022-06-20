@@ -515,7 +515,7 @@ def read_data_from_pi_web_api():
 @pytest.fixture
 def add_filter():
     def _add_filter(filter_plugin, filter_plugin_branch, filter_name, filter_config, fledge_url, filter_user_svc_task,
-                    installation_type='make'):
+                    installation_type='make', only_installation=False):
         """
 
         :param filter_plugin: filter plugin `fledge-filter-?`
@@ -543,6 +543,9 @@ def add_filter():
         else:
             print("Skipped {} plugin installation. Installation mechanism is set to {}.".format(filter_plugin,
                                                                                                 installation_type))
+
+        if only_installation:
+            return
 
         data = {"name": "{}".format(filter_name), "plugin": "{}".format(filter_plugin), "filter_config": filter_config}
         conn = http.client.HTTPConnection(fledge_url)

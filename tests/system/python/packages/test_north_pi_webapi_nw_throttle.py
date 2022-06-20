@@ -173,7 +173,7 @@ def _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_d
 
 
 @pytest.fixture
-def start_south_north(add_south, start_north_task_omf_web_api, remove_data_file,
+def start_south_north(add_south, start_north_task_omf_web_api, add_filter, remove_data_file,
                       fledge_url, pi_host, pi_port, pi_admin, pi_passwd,
                       start_north_omf_as_a_service, start_north_as_service, asset_name=ASSET):
     """ This fixture
@@ -189,10 +189,13 @@ def start_south_north(add_south, start_north_task_omf_web_api, remove_data_file,
               service_name=SOUTH_SERVICE_NAME, installation_type='package')
     if not start_north_as_service:
         start_north_task_omf_web_api(fledge_url, pi_host, pi_port, pi_user=pi_admin, pi_pwd=pi_passwd,
-                                     start_task=False)
+                                     start_task=False, taskname=NORTH_TASK_NAME)
     else:
         start_north_omf_as_a_service(fledge_url, pi_host, pi_port, pi_user=pi_admin, pi_pwd=pi_passwd,
-                                     start=False)
+                                     start=False, service_name=NORTH_TASK_NAME)
+
+    add_filter("python35", None, "py35", {}, fledge_url, None, installation_type='package',
+               only_installation=True)
 
     data = {"name": "py35", "plugin": "python35", "filter_config": {"enable": "true"}}
     utils.post_request(fledge_url, "/fledge/filter", data)

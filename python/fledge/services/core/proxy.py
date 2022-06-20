@@ -121,7 +121,9 @@ async def handler(request):
     if request.method not in allow_methods:
         raise web.HTTPMethodNotAllowed(method=request.method, allowed_methods=allow_methods)
     try:
-        data = await request.json() if request.method != 'GET' else None
+        data = None
+        if request.method in ('POST', 'PUT'):
+            data = await request.json()
         # Find service name as per request.rel_url in proxy dict in-memory
         is_proxy_svc_found = False
         proxy_svc_name = None
@@ -161,6 +163,7 @@ async def _call_microservice_service_api(method: str, protocol: str, address: st
     if token is not None:
         headers['Authorization'] = "Bearer {}".format(token)
     url = "{}://{}:{}/{}".format(protocol, address, port, uri)
+
     try:
         if method == 'GET':
             async with aiohttp.ClientSession() as session:
@@ -194,6 +197,5 @@ async def _call_microservice_service_api(method: str, protocol: str, address: st
             _logger.warning("{} method is not implemented yet.".format(method))
     except Exception as ex:
         _logger.error(str(ex))
-        raise Exception(response)
-    else:
+    finally:
         return response

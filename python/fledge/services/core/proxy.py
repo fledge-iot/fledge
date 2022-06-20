@@ -140,7 +140,7 @@ async def handler(request):
         msg = str(ex)
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
-        return web.json_response({"info": result})
+        return web.json_response(body=result)
 
 
 async def _get_service_record_info_along_with_bearer_token(svc_name):

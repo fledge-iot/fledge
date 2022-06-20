@@ -105,7 +105,7 @@ async def get_notification(request):
                 "enable": notification_config['enable']['value'],
             }
             if len(list_extra) > 0:
-                notification["additional_channels"] =  list_extra
+                notification["additionalChannels"] =  list_extra
         else:
             raise ValueError("The Notification: {} does not exist.".format(notif))
     except ValueError as ex:
@@ -143,7 +143,7 @@ async def get_notifications(request):
                 "enable": notification_config['enable']['value'],
             }
             if len(list_extra) > 0:
-                notification["additional_channels"] =  list_extra
+                notification["additionalChannels"] =  list_extra
 
             notifications.append(notification)
     except Exception as ex:

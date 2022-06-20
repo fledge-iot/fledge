@@ -358,6 +358,8 @@ class TestNotification:
         assert notification_type == json_response
 
     async def test_get_notification(self, mocker, client):
+        async def mock_get_channel_type():
+            return []
         r = list(filter(lambda rules: rules['name'] == notification_config['rule']['value'], rule_config))
         c = list(filter(lambda channels: channels['name'] == notification_config['channel']['value'], delivery_config))
         if len(r) == 0 or len(c) == 0: raise KeyError
@@ -380,10 +382,16 @@ class TestNotification:
             _se1 = await mock_read_category_val("Test Notification")
             _se2 = await mock_read_category_val("ruleTest Notification")
             _se3 = await mock_read_category_val("deliveryTest Notification")
+            mocker.patch.object(notification,
+                        '_get_channels_type',
+                        return_value=await mock_get_channel_type())
         else:
             _se1 = asyncio.ensure_future(mock_read_category_val("Test Notification"))
             _se2 = asyncio.ensure_future(mock_read_category_val("ruleTest Notification"))
             _se3 = asyncio.ensure_future(mock_read_category_val("deliveryTest Notification"))         
+            mocker.patch.object(notification,
+                        '_get_channels_type',
+                        return_value = asyncio.ensure_future(mock_get_channel_type()))
         
         mocker.patch.object(connect, 'get_storage_async')
         mocker.patch.object(ConfigurationManager, '__init__', return_value=None)
@@ -396,6 +404,8 @@ class TestNotification:
         assert notif == json_response["notification"]
 
     async def test_get_notifications(self, mocker, client):
+        async def mock_get_channel_type():
+            return []
         notifications = [{
             "name": notification_config['name']['value'],
             "rule": notification_config['rule']['value'],
@@ -409,9 +419,15 @@ class TestNotification:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv1 = await mock_read_all_child_category_names()
             _rv2 = await mock_read_category_val("Test Notification")
+            mocker.patch.object(notification,
+                        '_get_channels_type',
+                        return_value=await mock_get_channel_type())
         else:
             _rv1 = asyncio.ensure_future(mock_read_all_child_category_names())
             _rv2 = asyncio.ensure_future(mock_read_category_val("Test Notification"))
+            mocker.patch.object(notification,
+                        '_get_channels_type',
+                        return_value = asyncio.ensure_future(mock_get_channel_type()))
         
         mocker.patch.object(connect, 'get_storage_async')
         mocker.patch.object(ConfigurationManager, '__init__', return_value=None)

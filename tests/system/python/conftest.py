@@ -486,26 +486,39 @@ def read_data_from_pi_web_api():
 
             _data_pi = {}
             if url_recorded_data is not None:
-                conn.request("GET", url_recorded_data, headers=headers)
-                res = conn.getresponse()
-                r = json.loads(res.read().decode())
-                _items = r["Items"]
-                for el in _items:
-                    _recoded_value_list = []
-                    for _head in sensor:
-                        # This checks if the recorded datapoint is present in the items that we retrieve from the PI server.
-                        if _head in el["Name"]:
-                            elx = el["Items"]
-                            for _el in elx:
-                                _recoded_value_list.append(_el["Value"])
-                            _data_pi[_head] = _recoded_value_list
+                time_interval = 300
+                step = 0.01
+                times = int(time_interval / step)
+                end = '*'
+                big_list = []
+                for t in range(times):
+                    m_sec = step * 1000
+                    st = '*-{}'.format((t+1)*m_sec )
+                    query_str = '?startTime={}&endTime={}'.format(st, end)
+                    end = st
+                    conn.request("GET", url_recorded_data + query_str, headers=headers)
+                    res = conn.getresponse()
+                    r = json.loads(res.read().decode())
+                    if not r:
+                        break
+                    _items = r["Items"]
+                    for el in _items:
+                        _recoded_value_list = []
+                        for _head in sensor:
+                            # This checks if the recorded datapoint is present
+                            # in the items that we retrieve from the PI server.
+                            if _head in el["Name"]:
+                                elx = el["Items"]
+                                for _el in elx:
+                                    _recoded_value_list.append(_el["Value"])
+                                big_list.append(_recoded_value_list)
 
                 # Delete recorded elements
                 conn.request("DELETE", '/piwebapi/elements/{}'.format(web_id_root), headers=headers)
                 res = conn.getresponse()
                 res.read()
 
-                return _data_pi
+                return big_list
         except (KeyError, IndexError, Exception):
             return None
 

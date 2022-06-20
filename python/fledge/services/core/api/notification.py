@@ -645,8 +645,7 @@ async def post_delivery_channel(request: web.Request) -> web.Response:
         data = await request.json()
         channel_name = data.get('name', None)
         channel_description = data.get('description', "{} delivery channel".format(channel_name))
-        channel_config = data.get('config', {})
-
+        channel_config = data.get('config', None)
 
         if channel_name is None:
             raise ValueError('Missing name property in payload')
@@ -655,8 +654,13 @@ async def post_delivery_channel(request: web.Request) -> web.Response:
             raise ValueError('Name should not be empty')
         if utils.check_reserved(channel_name) is False:
             raise ValueError('name should not use reserved words')
-        if not isinstance(channel_config, dict):
+        if channel_config is None or not isinstance(channel_config, dict) or len(channel_config) == 0:
             raise ValueError('config must be a valid JSON')
+
+        pluginData = channel_config.get('plugin', None)
+        if pluginData is None or not isinstance(pluginData, dict) or len(pluginData) == 0:
+            raise ValueError("'plugin' property is missing or not a JSON object in 'config' data")
+
         storage = connect.get_storage_async()
         config_mgr = ConfigurationManager(storage)
         notification_config = await config_mgr._read_category_val(notification_instance_name)

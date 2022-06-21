@@ -91,6 +91,7 @@ class ManagementClient {
 						const std::map<std::string,
 						std::vector<std::pair<std::string, std::string> > >& endpoints);
 		bool			deleteProxy(const std::string& serviceName);
+		const std::string 	getUrlbase() { return m_urlbase.str(); }
 
 	private:
 		std::ostringstream 			m_urlbase;

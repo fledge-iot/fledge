@@ -94,6 +94,7 @@ public:
 
 
 	void	printList();
+	bool	createSchema(const std::string& schema);
 
 public:
 	std::atomic<int>        m_workers_count;

@@ -223,8 +223,14 @@ delivery_channel_config = {
       "description": "Perform a control action to turn pump",
       "type": "boolean",
       "default": "false"
+    },
+    "plugin": {
+      "description": "Telegram notification plugin",
+      "type": "string",
+      "readonly": "true",
+      "default": "Telegram"
     }
-  }
+}
 
 
 async def mock_get_url(get_url):
@@ -846,8 +852,8 @@ class TestNotification:
 
     @pytest.mark.parametrize("name, config, description", [
         ("coolant", delivery_channel_config, None),
-        (" coolant2", {}, ''),
-        (" coolant3", {}, 'Test coolant'),
+        (" coolant2", delivery_channel_config, ''),
+        (" coolant3", delivery_channel_config, 'Test coolant'),
     ])
     async def test_good_post_delivery_channel(self, mocker, client, name, config, description):
         notification_instance_name = "overspeed"

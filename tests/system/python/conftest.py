@@ -514,9 +514,9 @@ def read_data_from_pi_web_api():
                                 big_list.append(_recoded_value_list)
 
                 # Delete recorded elements
-                conn.request("DELETE", '/piwebapi/elements/{}'.format(web_id_root), headers=headers)
-                res = conn.getresponse()
-                res.read()
+                # conn.request("DELETE", '/piwebapi/elements/{}'.format(web_id_root), headers=headers)
+                # res = conn.getresponse()
+                # res.read()
 
                 return big_list
         except (KeyError, IndexError, Exception):

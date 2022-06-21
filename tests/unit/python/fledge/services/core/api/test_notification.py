@@ -925,6 +925,7 @@ class TestNotification:
         ("overspeed", [], [], {}),
         ("overspeed", [("overspeed_channel_coolant", 1), ("Pump_channel_coolant2", 2)], ['coolant'], {}),
         ("overspeed", [("overspeed_channel_coolant", 1), ('overspeed_channel_coolant2', 2)], ['coolant', 'coolant2'], {}),
+        ("overspeed", [("deliveryoverspeed", 1), ("overspeed_channel_coolant2", 2)], ['deliveryoverspeed', 'coolant2'], {}),
         ("overspeed", [("deliveryoverspeed", 1), ("overspeed_channel_coolant2", 2)], [{'name': 'mqtt', 'category': 'deliveryoverspeed'}, {'name':'coolant2', 'category' : 'overspeed_channel_coolant2'}], {"value": {"plugin": {"value": "mqtt" }}})
     ])
     async def test_good_get_delivery_channel(self, mocker, client, notification_instance_name, categories, exp_channel, plugin_type):
@@ -936,10 +937,16 @@ class TestNotification:
             _se = await mock_read_category_val(notification_instance_name)
             _rv = await async_mock(categories)
             _rv2 = await async_mock(plugin_type)
+            mocker.patch.object(notification,
+                                '_get_all_delivery_channels',
+                                return_value=await async_mock(exp_channel))
         else:
             _se = asyncio.ensure_future(mock_read_category_val(notification_instance_name))
             _rv = asyncio.ensure_future(async_mock(categories))
             _rv2 = asyncio.ensure_future(async_mock(plugin_type))
+            mocker.patch.object(notification,
+                                '_get_all_delivery_channels',
+                                return_value=asyncio.ensure_future(async_mock(exp_channel)))
 
         mocker.patch.object(connect, 'get_storage_async')
         mocker.patch.object(ConfigurationManager, '__init__', return_value=None)

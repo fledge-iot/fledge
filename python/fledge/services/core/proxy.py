@@ -121,9 +121,17 @@ async def handler(request):
     if request.method not in allow_methods:
         raise web.HTTPMethodNotAllowed(method=request.method, allowed_methods=allow_methods)
     try:
-        data = None
-        if request.method in ('POST', 'PUT'):
+        is_multipart = False
+        if request.method == 'POST':
+            if 'multipart/form-data' in request.headers['Content-Type']:
+                is_multipart = True
+                data = await request.post()
+            else:
+                data = await request.json()
+        elif request.method == 'PUT':
             data = await request.json()
+        else:
+            data = None
         # Find service name as per request.rel_url in proxy dict in-memory
         is_proxy_svc_found = False
         proxy_svc_name = None
@@ -135,7 +143,7 @@ async def handler(request):
             svc, token = await _get_service_record_info_along_with_bearer_token(proxy_svc_name)
             url = str(request.url).split('fledge/')[1]
             result = await _call_microservice_service_api(request.method, svc._protocol, svc._address,
-                                                          svc._port, url, token, data)
+                                                          svc._port, url, token, data, multipart=is_multipart)
         else:
             raise web.HTTPForbidden()
     except Exception as ex:
@@ -158,12 +166,13 @@ async def _get_service_record_info_along_with_bearer_token(svc_name):
 
 
 async def _call_microservice_service_api(method: str, protocol: str, address: str, port: int, uri: str, token: str,
-                                         data: dict):
-    headers = {'Content-type': 'application/json'}
+                                         data: dict, multipart=False):
+    # TODO: Not sure header value in case of multipart
+    headers = {'Content-type': 'application/json'}  # if multipart is False else {'Content-type': 'multipart/form-data'}
     if token is not None:
         headers['Authorization'] = "Bearer {}".format(token)
     url = "{}://{}:{}/{}".format(protocol, address, port, uri)
-
+    response = ""
     try:
         if method == 'GET':
             async with aiohttp.ClientSession() as session:
@@ -173,12 +182,54 @@ async def _call_microservice_service_api(method: str, protocol: str, address: st
                         raise Exception("Error: Http status code: {}, reason: {}, response: {}".format(
                             resp.status, resp.reason, response))
         elif method == 'POST':
+            _logger.debug("{} data: {}".format(type(data), data))
+            # from aiohttp import FormData
+            # bucket = data["bucket"].file
+            # attrs = data["attributes"]
+            # _logger.debug("Original Bucket: {}-{} Attrs: {}-{}".format(type(bucket), bucket, type(attrs), attrs))
+            # key_file_content = bucket.read()
+
+            # boundary = '----WebKitFormBoundarywiBIWjWR7osAkgFI'
+            # with aiohttp.MultipartWriter('form-data', boundary) as mpwriter:
+            #     # custom headers...
+            #     # writer.headers['User-Agent'] = '...'
+            #     #payload = {'bucket': key_file_content, 'attributes': attrs}
+            #     mpwriter.append_form([('bucket', key_file_content)])
+            #     mpwriter.append_json({'attributes': attrs})
+            #     # for key, value in payload.items():
+            #     #     part = writer.append(value, {'content-type': 'form-data'})
+            #     #     part.set_content_disposition('form-data', name=key)
+            #     #     _logger.debug("PART: {}".format(part))
+            # _logger.debug("WRITER: {}".format(mpwriter))
+            # formdata = FormData()
+            # formdata.add_field('bucket', key_file_content, filename=data["bucket"].filename)
+            # formdata.add_field('attributes', attrs)
+            # _logger.debug("FORM DATA: {}".format(formdata))
+
+
+            bucket = data["bucket"].file
+            attrs = data["attributes"]
+            _logger.debug("Original Bucket: {}-{} Attrs: {}-{}".format(type(bucket), bucket, type(attrs), attrs))
+            key_file_content = bucket.read()
+            #_logger.debug("key_file_content: {}".format(key_file_content))
+            files = {'bucket': key_file_content, 'attributes': attrs}
+            _logger.debug("FILES: {}-{}".format(type(files), files))
+            _logger.debug("FILES-Bucket: {}-{}".format(type(files['bucket']), files['bucket']))
+            _logger.debug("FILES-Attrs: {}-{}".format(type(files['attributes']), files['attributes']))
+
+            # with aiohttp.MultipartWriter() as mpwriter:
+            #     J = {'bucket': key_file_content, 'attributes': attrs}
+            #     payload = mpwriter.append_form(J)
+            #     payload.set_content_disposition('attachment', filename=data["bucket"].filename)
+            # _logger.debug("payload: {}-{}".format(type(payload), payload))
+
             async with aiohttp.ClientSession() as session:
-                async with session.post(url, data=json.dumps(data), headers=headers) as resp:
+                async with session.post(url, data=json.dumps(data) if multipart is False else files, headers=headers) as resp:
                     response = await resp.text()
+                    _logger.debug("POST RESPONSE: {}".format(response))
                     if resp.status not in range(200, 209):
                         raise Exception("Error: Http status code: {}, reason: {}, response: {}".format(
-                            resp.status, resp.reason, response))
+                            resp.status, resp.reason, "response"))
         elif method == 'PUT':
             async with aiohttp.ClientSession() as session:
                 async with session.put(url, data=json.dumps(data), headers=headers) as resp:
@@ -196,6 +247,7 @@ async def _call_microservice_service_api(method: str, protocol: str, address: st
         else:
             _logger.warning("{} method is not implemented yet.".format(method))
     except Exception as ex:
-        _logger.error(str(ex))
+        if not response:
+            response = str(ex)
     finally:
         return response

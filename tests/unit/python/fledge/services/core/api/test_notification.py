@@ -924,9 +924,8 @@ class TestNotification:
     @pytest.mark.parametrize("notification_instance_name, categories, exp_channel, plugin_type", [
         ("overspeed", [], [], {}),
         ("overspeed", [("overspeed_channel_coolant", 1), ("Pump_channel_coolant2", 2)], ['coolant'], {}),
-        ("overspeed", [("overspeed_channel_coolant", 1), ("overspeed_channel_coolant2", 2)], ['coolant', 'coolant2'], {}),
-        ("overspeed", [("deliveryoverspeed", 1), ("overspeed_channel_coolant2", 2)], ['deliveryoverspeed', 'coolant2'], {}),
-        ("overspeed", [("deliveryoverspeed", 1), ("overspeed_channel_coolant2", 2)], ['deliveryoverspeed/mqtt', 'coolant2'], {"value": {"plugin": {"value": "mqtt" }}})
+        ("overspeed", [("overspeed_channel_coolant", 1), ('overspeed_channel_coolant2', 2)], ['coolant', 'coolant2'], {}),
+        ("overspeed", [("deliveryoverspeed", 1), ("overspeed_channel_coolant2", 2)], [{'name': 'mqtt', 'category': 'deliveryoverspeed'}, {'name':'coolant2', 'category' : 'overspeed_channel_coolant2'}], {"value": {"plugin": {"value": "mqtt" }}})
     ])
     async def test_good_get_delivery_channel(self, mocker, client, notification_instance_name, categories, exp_channel, plugin_type):
         async def async_mock(cat):

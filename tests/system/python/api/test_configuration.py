@@ -72,9 +72,9 @@ class TestConfiguration:
                             'displayName': 'Storage',
                             'children': [
                                 {
-                                  'key': 'sqlite',
+                                  'key': storage_plugin,
                                   'description': 'Storage Plugin',
-                                  'displayName': 'sqlite',
+                                  'displayName': storage_plugin,
                                   'children': []
                                 }
                             ]
@@ -125,16 +125,6 @@ class TestConfiguration:
                           'children': []
             }
         ]
-
-        # With sqlite plugin we have "sqlite" child in category Storage
-        # with postgres there are no children
-        # Inject empty children array in category Storage
-        if storage_plugin == 'postgres':
-            expected_with_utilities[0]['children'][2] = {
-                        'children': [],
-                        'displayName': 'Storage', 'key': 'Storage',
-                        'description': 'Storage configuration'
-            }
 
         assert expected_with_utilities == jdoc["categories"]
 
@@ -246,17 +236,20 @@ class TestConfiguration:
         assert Counter(expected) == Counter(jdoc)
 
     def test_get_child_category(self, fledge_url):
-        expected = [{'displayName': 'Fledge Service', 'key': 'service', 'description': 'Fledge Service'},
+        expected = [{'displayName': 'Installation', 'key': 'Installation', 'description': 'Installation'},
                     {'displayName': 'Admin API', 'key': 'rest_api', 'description': 'Fledge Admin and User REST API'},
-                    {'displayName': 'Installation', 'key': 'Installation', 'description': 'Installation'}]
+                    {'displayName': 'Fledge Service', 'key': 'service', 'description': 'Fledge Service'}]
         conn = http.client.HTTPConnection(fledge_url)
         conn.request("GET", '/fledge/category/General/children')
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert 3 == len(jdoc["categories"])
-        assert Counter({'categories': expected}) == Counter(jdoc)
+        actual = jdoc["categories"]
+        assert 3 == len(actual)
+        result = sorted(expected, key=lambda ex_element: sorted(ex_element.items())
+                        ) == sorted(actual, key=lambda ac_element: sorted(ac_element.items()))
+        assert result
 
     def test_create_child_category(self, fledge_url):
         payload = {'children': ['rest_api', 'service']}

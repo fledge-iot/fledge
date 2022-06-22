@@ -136,7 +136,7 @@ StoragePlugin::StoragePlugin(const string& name, PLUGIN_HANDLE handle) : Plugin(
 /**
  * Call the insert method in the plugin
  */
-int StoragePlugin::commonInsert(const string& table, const string& payload, char *schema)
+int StoragePlugin::commonInsert(const string& table, const string& payload, const char *schema)
 {
 	if(!m_bStorageSchemaFlag && this->commonInsertPtr)
 	{
@@ -144,16 +144,16 @@ int StoragePlugin::commonInsert(const string& table, const string& payload, char
 	}
 	else
 	{
-		if (!schema) schema = DEFAULT_SCHEMA;
 		if (this->storageSchemaInsertPtr)
-			return this->storageSchemaInsertPtr(instance, schema, table.c_str(), payload.c_str());
+			return this->storageSchemaInsertPtr(instance, schema ? schema : DEFAULT_SCHEMA, table.c_str(), payload.c_str());
 	}
+	return 0;
 }
 
 /**
  * Call the retrieve method in the plugin
  */
-char *StoragePlugin::commonRetrieve(const string& table, const string& payload, char *schema)
+char *StoragePlugin::commonRetrieve(const string& table, const string& payload, const char *schema)
 {
 	if (!m_bStorageSchemaFlag && this->commonRetrievePtr)
 	{
@@ -161,17 +161,16 @@ char *StoragePlugin::commonRetrieve(const string& table, const string& payload, 
 	}
 	else
 	{
-		if (!schema) schema = DEFAULT_SCHEMA;
 		if (this->storageSchemaRetrievePtr)
-	                return this->storageSchemaRetrievePtr(instance, schema, table.c_str(), payload.c_str());
+	                return this->storageSchemaRetrievePtr(instance, schema ? schema : DEFAULT_SCHEMA, table.c_str(), payload.c_str());
         }
-
+	return NULL;
 }
 
 /**
  * Call the update method in the plugin
  */
-int StoragePlugin::commonUpdate(const string& table, const string& payload, char *schema)
+int StoragePlugin::commonUpdate(const string& table, const string& payload, const char *schema)
 {
 	if (!m_bStorageSchemaFlag && this->commonUpdatePtr)
         {
@@ -179,16 +178,16 @@ int StoragePlugin::commonUpdate(const string& table, const string& payload, char
 	}
 	else
 	{
-		if (!schema) schema = DEFAULT_SCHEMA;
 		if (this->storageSchemaUpdatePtr)
-                	return this->storageSchemaUpdatePtr(instance, schema, table.c_str(), payload.c_str());
+                	return this->storageSchemaUpdatePtr(instance, schema ? schema : DEFAULT_SCHEMA, table.c_str(), payload.c_str());
         }
+	return 0;
 }
 
 /**
  * Call the delete method in the plugin
  */
-int StoragePlugin::commonDelete(const string& table, const string& payload, char *schema)
+int StoragePlugin::commonDelete(const string& table, const string& payload, const char *schema)
 {
 	if (!m_bStorageSchemaFlag && this->commonDeletePtr)
         {
@@ -196,10 +195,10 @@ int StoragePlugin::commonDelete(const string& table, const string& payload, char
 	}
 	else
 	{
-		if (!schema) schema = DEFAULT_SCHEMA;
 		if (this->storageSchemaDeletePtr)
-			return this->storageSchemaDeletePtr(instance, schema, table.c_str(), payload.c_str());
+			return this->storageSchemaDeletePtr(instance, schema ? schema : DEFAULT_SCHEMA, table.c_str(), payload.c_str());
 	}
+	return 0;
 }
 
 /**
@@ -307,4 +306,5 @@ int StoragePlugin::createSchema(const string& payload)
 {
 	if (this->createSchemaPtr)
         	return this->createSchemaPtr(instance, payload.c_str());
+	return 0;
 }

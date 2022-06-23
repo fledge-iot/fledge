@@ -44,6 +44,14 @@ def reset_fledge(wait_time):
         assert False, "reset package script failed!"
 
 
+@pytest.fixture
+def install_netem(wait_time):
+    try:
+        subprocess.run(["sudo apt install net-tools iproute2"], shell=True, check=True)
+    except subprocess.CalledProcessError:
+        assert False, "Could not install netem "
+
+
 def verify_ping(fledge_url, north_catch_up_time):
     get_url = "/fledge/ping"
     ping_result = utils.get_request(fledge_url, get_url)
@@ -155,12 +163,11 @@ def start_south_north(add_south, start_north_task_omf_web_api, add_filter, remov
 class TestPackagesSinusoid_PI_WebAPI:
 
     def test_omf_in_impaired_network(self, clean_setup_fledge_packages, reset_fledge,
-                                     start_south_north, read_data_from_pi_web_api,
+                                     install_netem, start_south_north, read_data_from_pi_web_api,
                                      fledge_url, pi_host, pi_admin, pi_passwd, pi_db,
                                      wait_time, retries, skip_verify_north_interface,
                                      south_service_wait_time, north_catch_up_time, pi_port,
-                                     interface_for_impairment, packet_delay, rate_limit,
-                                     disable_schedule, asset_name=ASSET):
+                                     throttled_network_config, disable_schedule, asset_name=ASSET):
         """ Test that checks data is inserted in Fledge and sent to PI under an impaired network.
             start_south_north: Fixture that add south and north instance
             read_data_from_pi: Fixture to read data from PI
@@ -170,9 +177,27 @@ class TestPackagesSinusoid_PI_WebAPI:
                 on endpoint GET /fledge/statistics
                 on endpoint GET /fledge/asset
                 on endpoint GET /fledge/asset/<asset_name>
-                data received from PI is same as data sent"""
+                data received from PI is same as data sent
+        """
 
         duration = south_service_wait_time + north_catch_up_time
+
+        try:
+            interface_for_impairment = throttled_network_config['interface']
+        except KeyError:
+            raise Exception("Interface not given for network impairment.")
+        try:
+            packet_delay = int(throttled_network_config['packet_delay'])
+        except KeyError:
+            packet_delay = None
+        try:
+            rate_limit = int(throttled_network_config['rate_limit'])
+        except KeyError:
+            rate_limit = None
+        if not rate_limit and not packet_delay:
+            raise Exception("None of packet delay or rate limit given, "
+                            "cannot apply network impairment.")
+
         distort_network(interface=interface_for_impairment, traffic="outbound",
                         latency=packet_delay,
                         rate_limit=rate_limit, ip=pi_host, port=pi_port, duration=duration)
@@ -194,8 +219,8 @@ class TestPackagesSinusoid_PI_WebAPI:
         reset_network(interface=interface_for_impairment)
         verify_ping(fledge_url, north_catch_up_time)
 
-        # TODO For now we can verify the data from the pi web api.
-        # It only gives up to 4K readings through the end point
+        # TODO For now we can verify limited data from the pi web api.
+        # It only gives up to 4K readings through the following endpoint
         # host/piwebapi/streamsets/<pi_web_id>/recorded?maxCount=100000
         # Notice it is still not working even if we give a high maxCount.
         # So leaving verification of readings id for now.

@@ -717,15 +717,12 @@ def pytest_addoption(parser):
                           " to keep on running "
                           "after switching off the south service.")
 
-    parser.addoption("--interface-for-impairment", action="store", default="eth0",
-                     help="The interface on which network impairment will be applied.")
-
-    parser.addoption("--rate-limit", action="store", type=int, default=None,
-                     help="The limit in packet transfer rate in kbps.")
-
-    parser.addoption("--packet-delay", action="store", type=int, default=None,
-                     help="The delay in packet transfer to induce in the network. "
-                          "Given in milliseconds.")
+    parser.add_argument('throttled-network-config', action='store', type=json.loads,
+                        help="Give config '{'rate_limit': '100',"
+                             "            'packet_delay': '50',"
+                             "            'interface': 'eth0'}' "
+                             "for causing a delay of 50 milliseconds "
+                             "and rate restriction of 100 kbps on interface eth0.")
 
     parser.addoption("--start-north-as-service", action="store", type=bool, default=True,
                      help="Whether start the north as a service.")
@@ -992,18 +989,8 @@ def north_catch_up_time(request):
 
 
 @pytest.fixture
-def interface_for_impairment(request):
-    return request.config.getoption("--interface-for-impairment")
-
-
-@pytest.fixture
-def rate_limit(request):
-    return request.config.getoption("--rate-limit")
-
-
-@pytest.fixture
-def packet_delay(request):
-    return request.config.getoption("--packet-delay")
+def throttled_network_config(request):
+    return request.config.getoption("--throttled-network-config")
 
 
 @pytest.fixture

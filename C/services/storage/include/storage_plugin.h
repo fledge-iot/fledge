@@ -37,10 +37,10 @@ public:
 	StoragePlugin(const std::string& name, PLUGIN_HANDLE handle);
 	~StoragePlugin();
 
-	int		commonInsert(const std::string& table, const std::string& payload, char *schema = nullptr);
-	char		*commonRetrieve(const std::string& table, const std::string& payload, char *schema = nullptr);
-	int		commonUpdate(const std::string& table, const std::string& payload, char *schema = nullptr);
-	int		commonDelete(const std::string& table, const std::string& payload, char *schema = nullptr);
+	int		commonInsert(const std::string& table, const std::string& payload, const char *schema = nullptr);
+	char		*commonRetrieve(const std::string& table, const std::string& payload, const char *schema = nullptr);
+	int		commonUpdate(const std::string& table, const std::string& payload, const char *schema = nullptr);
+	int		commonDelete(const std::string& table, const std::string& payload, const char *schema = nullptr);
 	int		readingsAppend(const std::string& payload);
 	char		*readingsFetch(unsigned long id, unsigned int blksize);
 	char		*readingsRetrieve(const std::string& payload);

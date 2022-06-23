@@ -110,7 +110,8 @@ def start_south_north(add_south, start_north_task_omf_web_api, add_filter, remov
                       fledge_url, pi_host, pi_port, pi_admin, pi_passwd,
                       start_north_omf_as_a_service, start_north_as_service,
                       enable_schedule, asset_name=ASSET):
-    """ This fixture
+    """ This fixture starts the sinusoid plugin and north pi web api plugin. Also puts a filter
+        to insert reading id as a datapoint when we send the data to north.
         clean_setup_fledge_packages: purge the fledge* packages and install latest for given repo url
         add_south: Fixture that adds a south service with given configuration
         start_north_task_omf_web_api: Fixture that starts PI north task
@@ -160,7 +161,7 @@ class TestPackagesSinusoid_PI_WebAPI:
                                      south_service_wait_time, north_catch_up_time, pi_port,
                                      interface_for_impairment, packet_delay, rate_limit,
                                      disable_schedule, asset_name=ASSET):
-        """ Test that data is inserted in Fledge and sent to PI
+        """ Test that checks data is inserted in Fledge and sent to PI under an impaired network.
             start_south_north: Fixture that add south and north instance
             read_data_from_pi: Fixture to read data from PI
             skip_verify_north_interface: Flag for assertion of data using PI web API

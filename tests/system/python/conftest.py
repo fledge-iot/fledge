@@ -717,8 +717,8 @@ def pytest_addoption(parser):
                           " to keep on running "
                           "after switching off the south service.")
 
-    parser.add_argument('throttled-network-config', action='store', type=json.loads,
-                        help="Give config '{'rate_limit': '100',"
+    parser.addoption('--throttled-network-config', action='store', type=json.loads,
+                     help=   "Give config '{'rate_limit': '100',"
                              "            'packet_delay': '50',"
                              "            'interface': 'eth0'}' "
                              "for causing a delay of 50 milliseconds "

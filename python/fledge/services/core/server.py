@@ -75,6 +75,10 @@ SERVICE_JWT_ALGORITHM = 'HS256'
 SERVICE_JWT_EXP_DELTA_SECONDS = 30*60  # 30 minutes
 SERVICE_JWT_AUDIENCE = 'Fledge'
 
+# aiohttp client’s maximum size in a request, in bytes.
+# If a POST request exceeds this value, it raises an HTTPRequestEntityTooLarge exception.
+AIOHTTP_CLIENT_MAX_SIZE = 4*1024**3  # allowed up to 4GB
+
 
 def ignore_aiohttp_ssl_eror(loop):
     """Ignore aiohttp #3535 / cpython #13548 issue with SSL data after close
@@ -531,7 +535,7 @@ class Server:
         else:
             mwares.append(middleware.auth_middleware)
 
-        app = web.Application(middlewares=mwares)
+        app = web.Application(middlewares=mwares, client_max_size=AIOHTTP_CLIENT_MAX_SIZE)
         admin_routes.setup(app)
         return app
 
@@ -541,7 +545,7 @@ class Server:
 
         :rtype: web.Application
         """
-        app = web.Application(middlewares=[middleware.error_middleware])
+        app = web.Application(middlewares=[middleware.error_middleware], client_max_size=AIOHTTP_CLIENT_MAX_SIZE)
         management_routes.setup(app, cls, True)
         return app
 

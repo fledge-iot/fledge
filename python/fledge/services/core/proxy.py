@@ -20,7 +20,6 @@ __copyright__ = "Copyright (c) 2022 Dianomic Systems Inc."
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-
 _logger = logger.setup(__name__, level=logging.INFO)
 
 
@@ -117,21 +116,17 @@ async def delete(request):
 
 async def handler(request):
     """ widecast handler """
-    allow_methods = ["GET", "POST", "PUT", "DELETE"]
+    allow_methods = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
     if request.method not in allow_methods:
         raise web.HTTPMethodNotAllowed(method=request.method, allowed_methods=allow_methods)
     try:
-        is_multipart = False
-        if request.method == 'POST':
-            if 'multipart/form-data' in request.headers['Content-Type']:
-                is_multipart = True
-                data = await request.post()
-            else:
-                data = await request.json()
-        elif request.method == 'PUT':
+        if request.method == "POST":
+            data = await request.post()
+        elif request.method == "PUT":
             data = await request.json()
         else:
             data = None
+        _logger.warning("DATA-INITIAL.......{}-{}".format(type(data), data))
         # Find service name as per request.rel_url in proxy dict in-memory
         is_proxy_svc_found = False
         proxy_svc_name = None
@@ -142,8 +137,8 @@ async def handler(request):
         if is_proxy_svc_found and proxy_svc_name is not None:
             svc, token = await _get_service_record_info_along_with_bearer_token(proxy_svc_name)
             url = str(request.url).split('fledge/')[1]
-            result = await _call_microservice_service_api(request.method, svc._protocol, svc._address,
-                                                          svc._port, url, token, data, multipart=is_multipart)
+            result = await _call_microservice_service_api(request.method, svc._protocol, svc._address, svc._port, url,
+                                                          token, data)
         else:
             raise web.HTTPForbidden()
     except Exception as ex:
@@ -166,9 +161,9 @@ async def _get_service_record_info_along_with_bearer_token(svc_name):
 
 
 async def _call_microservice_service_api(method: str, protocol: str, address: str, port: int, uri: str, token: str,
-                                         data: dict, multipart=False):
-    # TODO: Not sure header value in case of multipart
-    headers = {'Content-type': 'application/json'}  # if multipart is False else {'Content-type': 'multipart/form-data'}
+                                         payload: dict):
+    # Custom Request header
+    headers = {}
     if token is not None:
         headers['Authorization'] = "Bearer {}".format(token)
     url = "{}://{}:{}/{}".format(protocol, address, port, uri)
@@ -179,75 +174,41 @@ async def _call_microservice_service_api(method: str, protocol: str, address: st
                 async with session.get(url, headers=headers) as resp:
                     response = await resp.text()
                     if resp.status not in range(200, 209):
-                        raise Exception("Error: Http status code: {}, reason: {}, response: {}".format(
+                        raise Exception("GET Request Error: Http status code: {}, reason: {}, response: {}".format(
                             resp.status, resp.reason, response))
         elif method == 'POST':
-            _logger.debug("{} data: {}".format(type(data), data))
-            # from aiohttp import FormData
-            # bucket = data["bucket"].file
-            # attrs = data["attributes"]
-            # _logger.debug("Original Bucket: {}-{} Attrs: {}-{}".format(type(bucket), bucket, type(attrs), attrs))
-            # key_file_content = bucket.read()
-
-            # boundary = '----WebKitFormBoundarywiBIWjWR7osAkgFI'
-            # with aiohttp.MultipartWriter('form-data', boundary) as mpwriter:
-            #     # custom headers...
-            #     # writer.headers['User-Agent'] = '...'
-            #     #payload = {'bucket': key_file_content, 'attributes': attrs}
-            #     mpwriter.append_form([('bucket', key_file_content)])
-            #     mpwriter.append_json({'attributes': attrs})
-            #     # for key, value in payload.items():
-            #     #     part = writer.append(value, {'content-type': 'form-data'})
-            #     #     part.set_content_disposition('form-data', name=key)
-            #     #     _logger.debug("PART: {}".format(part))
-            # _logger.debug("WRITER: {}".format(mpwriter))
-            # formdata = FormData()
-            # formdata.add_field('bucket', key_file_content, filename=data["bucket"].filename)
-            # formdata.add_field('attributes', attrs)
-            # _logger.debug("FORM DATA: {}".format(formdata))
-
-
-            bucket = data["bucket"].file
-            attrs = data["attributes"]
-            _logger.debug("Original Bucket: {}-{} Attrs: {}-{}".format(type(bucket), bucket, type(attrs), attrs))
-            key_file_content = bucket.read()
-            #_logger.debug("key_file_content: {}".format(key_file_content))
-            files = {'bucket': key_file_content, 'attributes': attrs}
-            _logger.debug("FILES: {}-{}".format(type(files), files))
-            _logger.debug("FILES-Bucket: {}-{}".format(type(files['bucket']), files['bucket']))
-            _logger.debug("FILES-Attrs: {}-{}".format(type(files['attributes']), files['attributes']))
-
-            # with aiohttp.MultipartWriter() as mpwriter:
-            #     J = {'bucket': key_file_content, 'attributes': attrs}
-            #     payload = mpwriter.append_form(J)
-            #     payload.set_content_disposition('attachment', filename=data["bucket"].filename)
-            # _logger.debug("payload: {}-{}".format(type(payload), payload))
-
-            async with aiohttp.ClientSession() as session:
-                async with session.post(url, data=json.dumps(data) if multipart is False else files, headers=headers) as resp:
-                    response = await resp.text()
-                    _logger.debug("POST RESPONSE: {}".format(response))
-                    if resp.status not in range(200, 209):
-                        raise Exception("Error: Http status code: {}, reason: {}, response: {}".format(
-                            resp.status, resp.reason, "response"))
+            import requests
+            from requests_toolbelt.multipart.encoder import MultipartEncoder
+            # TODO: we need more generic solution; as below fields only for bucket service
+            # Also if POST request without multipart/form-data in request header, we need to send the fields application/json
+            m = MultipartEncoder(fields={
+                'bucket': (payload["bucket"].filename, payload["bucket"].file.read(), 'text/plain'),
+                'attributes': payload['attributes']}
+            )
+            headers['Content-Type'] = m.content_type
+            r = requests.post(url, data=m, headers=headers)
+            response = r.text
+            if r.status_code not in range(200, 209):
+                raise Exception("POST Request Error: Http status code: {}, reason: {}, response: {}".format(
+                    r.status_code, r.reason, response))
         elif method == 'PUT':
             async with aiohttp.ClientSession() as session:
-                async with session.put(url, data=json.dumps(data), headers=headers) as resp:
+                async with session.put(url, data=json.dumps(payload), headers=headers) as resp:
                     response = await resp.text()
                     if resp.status not in range(200, 209):
-                        raise Exception("Error: Http status code: {}, reason: {}, response: {}".format(
+                        raise Exception("PUT Request Error: Http status code: {}, reason: {}, response: {}".format(
                             resp.status, resp.reason, response))
         elif method == 'DELETE':
             async with aiohttp.ClientSession() as session:
-                async with session.delete(url, data=json.dumps(data), headers=headers) as resp:
+                async with session.delete(url, headers=headers) as resp:
                     response = await resp.text()
                     if resp.status not in range(200, 209):
-                        raise Exception("Error: Http status code: {}, reason: {}, response: {}".format(
-                            resp.status, resp.reason, response))
-        else:
-            _logger.warning("{} method is not implemented yet.".format(method))
+                        raise Exception("DELETE Request Error: Http status code: {}, reason: {}, response: {}"
+                                        "".format(resp.status, resp.reason, response))
     except Exception as ex:
+        msg = str(ex)
+        _logger.error(msg)
         if not response:
-            response = str(ex)
+            response = msg
     finally:
         return response

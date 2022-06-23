@@ -27,7 +27,7 @@ from network_impairment import distort_network, reset_network
 
 ASSET = "Sine-FOGL-6333"
 DATAPOINT = "sinusoid"
-NORTH_TASK_NAME = "NorthReadingsToPI_WebAPI"
+NORTH_INSTANCE_NAME = "NorthReadingsToPI_WebAPI"
 SOUTH_SERVICE_NAME = "Sinusoid-FOGL-6333"
 # This  gives the path of directory where fledge is cloned. test_file < packages < python < system < tests < ROOT
 PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.parent
@@ -57,24 +57,6 @@ def verify_ping(fledge_url, north_catch_up_time):
                                                                "seconds.".format(north_catch_up_time)
 
 
-def verify_statistics_map(fledge_url, skip_verify_north_interface):
-    get_url = "/fledge/statistics"
-    jdoc = utils.get_request(fledge_url, get_url)
-    actual_stats_map = utils.serialize_stats_map(jdoc)
-    assert 1 <= actual_stats_map[ASSET.upper()]
-    assert 1 <= actual_stats_map['READINGS']
-    if not skip_verify_north_interface:
-        assert 1 <= actual_stats_map['Readings Sent']
-        assert 1 <= actual_stats_map[NORTH_TASK_NAME]
-
-
-def verify_asset(fledge_url):
-    get_url = "/fledge/asset"
-    result = utils.get_request(fledge_url, get_url)
-    assert len(result), "No asset found"
-    assert ASSET in [s["assetCode"] for s in result]
-
-
 def change_category(fledge_url, cat_name, config_item, value):
     """
     Changes the value of configuration item in the given category.
@@ -96,57 +78,6 @@ def change_category(fledge_url, cat_name, config_item, value):
     conn.close()
     retval = json.loads(r)
     print(retval)
-
-
-def disable_schedule(fledge_url, sch_name):
-    """
-        Disables schedule.
-        Args:
-            fledge_url: The url of the Fledge API.
-            sch_name: The name of schedule to be disabled.
-        Returns: Response of disabling schedule in json.
-        """
-    conn = http.client.HTTPConnection(fledge_url)
-    conn.request("PUT", '/fledge/schedule/disable', json.dumps({"schedule_name": sch_name}))
-    r = conn.getresponse()
-    assert 200 == r.status
-    r = r.read().decode()
-    jdoc = json.loads(r)
-    assert "scheduleId" in jdoc
-    return
-
-
-def enable_schedule(fledge_url, sch_name):
-    """
-        Disables schedule.
-        Args:
-            fledge_url: The url of the Fledge API.
-            sch_name: The name of schedule to be disabled.
-        Returns: Response of disabling schedule in json.
-        """
-    conn = http.client.HTTPConnection(fledge_url)
-    conn.request("PUT", '/fledge/schedule/enable', json.dumps({"schedule_name": sch_name}))
-    r = conn.getresponse()
-    assert 200 == r.status
-    r = r.read().decode()
-    jdoc = json.loads(r)
-    assert "scheduleId" in jdoc
-    return
-
-
-def verify_asset_tracking_details(fledge_url, skip_verify_north_interface):
-    tracking_details = utils.get_asset_tracking_details(fledge_url, "Ingest")
-    assert len(tracking_details["track"]), "Failed to track Ingest event"
-    tracked_item = tracking_details["track"][0]
-    assert ASSET == tracked_item["asset"]
-    assert "coap" == tracked_item["plugin"]
-
-    if not skip_verify_north_interface:
-        egress_tracking_details = utils.get_asset_tracking_details(fledge_url, "Egress")
-        assert len(egress_tracking_details["track"]), "Failed to track Egress event"
-        tracked_item = egress_tracking_details["track"][0]
-        assert ASSET == tracked_item["asset"]
-        assert "OMF" == tracked_item["plugin"]
 
 
 def _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries, asset_name):
@@ -177,7 +108,8 @@ def _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_d
 @pytest.fixture
 def start_south_north(add_south, start_north_task_omf_web_api, add_filter, remove_data_file,
                       fledge_url, pi_host, pi_port, pi_admin, pi_passwd,
-                      start_north_omf_as_a_service, start_north_as_service, asset_name=ASSET):
+                      start_north_omf_as_a_service, start_north_as_service,
+                      enable_schedule, asset_name=ASSET):
     """ This fixture
         clean_setup_fledge_packages: purge the fledge* packages and install latest for given repo url
         add_south: Fixture that adds a south service with given configuration
@@ -191,10 +123,10 @@ def start_south_north(add_south, start_north_task_omf_web_api, add_filter, remov
               service_name=SOUTH_SERVICE_NAME, installation_type='package')
     if not start_north_as_service:
         start_north_task_omf_web_api(fledge_url, pi_host, pi_port, pi_user=pi_admin, pi_pwd=pi_passwd,
-                                     start_task=False, taskname=NORTH_TASK_NAME)
+                                     start_task=False, taskname=NORTH_INSTANCE_NAME)
     else:
         start_north_omf_as_a_service(fledge_url, pi_host, pi_port, pi_user=pi_admin, pi_pwd=pi_passwd,
-                                     start=False, service_name=NORTH_TASK_NAME)
+                                     start=False, service_name=NORTH_INSTANCE_NAME)
 
     add_filter("python35", None, "py35", {}, fledge_url, None, installation_type='package',
                only_installation=True)
@@ -204,17 +136,17 @@ def start_south_north(add_south, start_north_task_omf_web_api, add_filter, remov
 
     data = {"pipeline": ["py35"]}
     put_url = "/fledge/filter/{}/pipeline?allow_duplicates=true&append_filter=true" \
-        .format(NORTH_TASK_NAME)
+        .format(NORTH_INSTANCE_NAME)
     utils.put_request(fledge_url, urllib.parse.quote(put_url, safe='?,=,&,/'), data)
 
     url = fledge_url + urllib.parse.quote('/fledge/category/{}_py35/script/upload'
-                                          .format(NORTH_TASK_NAME))
+                                          .format(NORTH_INSTANCE_NAME))
     script_path = 'script=@{}/set_id.py'.format(DATA_DIR_ROOT)
     upload_script = "curl -sX POST '{}' -F '{}'".format(url, script_path)
     exit_code = os.system(upload_script)
     assert 0 == exit_code
 
-    enable_schedule(fledge_url, NORTH_TASK_NAME)
+    enable_schedule(fledge_url, NORTH_INSTANCE_NAME)
     time.sleep(3)
     yield start_south_north
 
@@ -227,7 +159,7 @@ class TestPackagesSinusoid_PI_WebAPI:
                                      wait_time, retries, skip_verify_north_interface,
                                      south_service_wait_time, north_catch_up_time, pi_port,
                                      interface_for_impairment, packet_delay, rate_limit,
-                                     asset_name=ASSET):
+                                     disable_schedule, asset_name=ASSET):
         """ Test that data is inserted in Fledge and sent to PI
             start_south_north: Fixture that add south and north instance
             read_data_from_pi: Fixture to read data from PI
@@ -260,13 +192,14 @@ class TestPackagesSinusoid_PI_WebAPI:
         # clear up all the distortions on this network.
         reset_network(interface=interface_for_impairment)
         verify_ping(fledge_url, north_catch_up_time)
-        # verify_asset(fledge_url)
-        # verify_statistics_map(fledge_url, skip_verify_north_interface)
-        # verify_asset_tracking_details(fledge_url, skip_verify_north_interface)
-        #
-        if not skip_verify_north_interface:
+
+        # TODO For now we can verify the data from the pi web api.
+        # It only gives up to 4K readings through the end point
+        # host/piwebapi/streamsets/<pi_web_id>/recorded?maxCount=100000
+        # Notice it is still not working even if we give a high maxCount.
+        # So leaving verification of readings id for now.
+        verify_data_north = False
+        if verify_data_north:
             data_pi = _verify_egress(read_data_from_pi_web_api, pi_host,
                                      pi_admin, pi_passwd, pi_db, wait_time, retries,
                                      asset_name)
-            print(type(data_pi))
-            print(data_pi)

@@ -515,7 +515,7 @@ def read_data_from_pi_web_api():
 @pytest.fixture
 def add_filter():
     def _add_filter(filter_plugin, filter_plugin_branch, filter_name, filter_config, fledge_url, filter_user_svc_task,
-                    installation_type='make'):
+                    installation_type='make', only_installation=False):
         """
 
         :param filter_plugin: filter plugin `fledge-filter-?`
@@ -543,6 +543,9 @@ def add_filter():
         else:
             print("Skipped {} plugin installation. Installation mechanism is set to {}.".format(filter_plugin,
                                                                                                 installation_type))
+
+        if only_installation:
+            return
 
         data = {"name": "{}".format(filter_name), "plugin": "{}".format(filter_plugin), "filter_config": filter_config}
         conn = http.client.HTTPConnection(fledge_url)
@@ -702,6 +705,27 @@ def pytest_addoption(parser):
                      help="GCP certificate path")
     parser.addoption("--gcp-logger-name", action="store", default="cloudfunctions.googleapis.com%2Fcloud-functions",
                      help="GCP Logger name")
+
+    # Config required for testing fledge under impaired network.
+
+    parser.addoption("--south-service-wait-time", action="store", type=int, default=20,
+                     help="The time in seconds before which the south service should keep  on"
+                          "sending data. After this time the south service will shutdown.")
+
+    parser.addoption("--north-catch-up-time", action="store", type=int, default=30,
+                     help="The time in seconds we will allow the north task /service"
+                          " to keep on running "
+                          "after switching off the south service.")
+
+    parser.addoption('--throttled-network-config', action='store', type=json.loads,
+                     help=   "Give config '{'rate_limit': '100',"
+                             "            'packet_delay': '50',"
+                             "            'interface': 'eth0'}' "
+                             "for causing a delay of 50 milliseconds "
+                             "and rate restriction of 100 kbps on interface eth0.")
+
+    parser.addoption("--start-north-as-service", action="store", type=bool, default=True,
+                     help="Whether start the north as a service.")
 
 
 @pytest.fixture
@@ -951,3 +975,24 @@ def pytest_itemcollected(item):
     suf = node.__doc__.strip() if node.__doc__ else node.__name__
     if pref or suf:
         item._nodeid = ' '.join((pref, suf))
+
+
+# Parameters required for testing Fledge under an impaired or noisy network.
+@pytest.fixture
+def south_service_wait_time(request):
+    return request.config.getoption("--south-service-wait-time")
+
+
+@pytest.fixture
+def north_catch_up_time(request):
+    return request.config.getoption("--north-catch-up-time")
+
+
+@pytest.fixture
+def throttled_network_config(request):
+    return request.config.getoption("--throttled-network-config")
+
+
+@pytest.fixture
+def start_north_as_service(request):
+    return request.config.getoption("--start-north-as-service")

@@ -27,7 +27,7 @@ ASSET = "FOGL-2964-e2e-CoAP"
 DATAPOINT = "sensor"
 DATAPOINT_VALUE = 20
 NORTH_TASK_NAME = "NorthReadingsToPI_WebAPI"
-
+SOUTH_SERVICE_NAME = "CoAP FOGL-2964"
 # This  gives the path of directory where fledge is cloned. test_file < packages < python < system < tests < ROOT
 PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.parent
 SCRIPTS_DIR_ROOT = "{}/tests/system/python/scripts/package/".format(PROJECT_ROOT)
@@ -142,7 +142,7 @@ def start_south_north(add_south, start_north_task_omf_web_api, remove_data_file,
 
     south_plugin = "coap"
     # south_branch does not matter as these are archives.fledge-iot.org version install
-    add_south(south_plugin, None, fledge_url, service_name="CoAP FOGL-2964", installation_type='package')
+    add_south(south_plugin, None, fledge_url, service_name=SOUTH_SERVICE_NAME, installation_type='package')
     start_north_task_omf_web_api(fledge_url, pi_host, pi_port, pi_user=pi_admin, pi_pwd=pi_passwd)
 
     yield start_south_north

@@ -179,12 +179,14 @@ async def _call_microservice_service_api(method: str, protocol: str, address: st
         elif method == 'POST':
             import requests
             from requests_toolbelt.multipart.encoder import MultipartEncoder
-            # TODO: we need more generic solution; as below fields only for bucket service
-            # Also if POST request without multipart/form-data in request header, we need to send the fields application/json
-            m = MultipartEncoder(fields={
-                'bucket': (payload["bucket"].filename, payload["bucket"].file.read(), 'text/plain'),
-                'attributes': payload['attributes']}
-            )
+            from aiohttp.web_request import FileField
+            multipart_payload = {}
+            for k, v in payload.items():
+                if isinstance(v, FileField):
+                    multipart_payload[k] = (v.filename, v.file.read(), 'text/plain')
+                else:
+                    multipart_payload[k] = v
+            m = MultipartEncoder(fields=multipart_payload)
             headers['Content-Type'] = m.content_type
             r = requests.post(url, data=m, headers=headers)
             response = r.text

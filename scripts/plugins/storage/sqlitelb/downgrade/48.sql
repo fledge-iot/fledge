@@ -19,6 +19,6 @@ CREATE TABLE fledge.category_children (
 INSERT INTO fledge.category_children(parent, child) SELECT parent, child FROM fledge.category_children_old;
 
 -- Remote temp table
-DROP TABLE fledge.category_children_old;
+DROP TABLE IF EXISTS fledge.category_children_old;
 
 COMMIT;

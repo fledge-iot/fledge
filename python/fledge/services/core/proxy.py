@@ -28,7 +28,7 @@ def setup(app):
     app.router.add_route('DELETE', '/fledge/proxy/{service_name}', delete)
 
 
-async def add(request):
+async def add(request: web.Request) -> web.Response:
     """ Add API proxy for a service
 
     :Example:
@@ -87,7 +87,7 @@ async def add(request):
         return web.json_response({"inserted": "Proxy has been configured for {} service.".format(svc_name)})
 
 
-async def delete(request):
+async def delete(request: web.Request) -> web.Response:
     """ Stop API proxy for a service
 
     :Example:
@@ -114,7 +114,7 @@ async def delete(request):
         return web.json_response({"deleted": "Proxy operations have been stopped for {} service.".format(svc_name)})
 
 
-async def handler(request):
+async def handler(request: web.Request) -> web.Response:
     """ widecast handler """
     allow_methods = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
     if request.method not in allow_methods:
@@ -126,7 +126,6 @@ async def handler(request):
             data = await request.json()
         else:
             data = None
-        _logger.warning("DATA-INITIAL.......{}-{}".format(type(data), data))
         # Find service name as per request.rel_url in proxy dict in-memory
         is_proxy_svc_found = False
         proxy_svc_name = None
@@ -137,8 +136,8 @@ async def handler(request):
         if is_proxy_svc_found and proxy_svc_name is not None:
             svc, token = await _get_service_record_info_along_with_bearer_token(proxy_svc_name)
             url = str(request.url).split('fledge/')[1]
-            result = await _call_microservice_service_api(request.method, svc._protocol, svc._address, svc._port, url,
-                                                          token, data)
+            result = await _call_microservice_service_api(
+                request, svc._protocol, svc._address, svc._port, url, token, data)
         else:
             raise web.HTTPForbidden()
     except Exception as ex:
@@ -160,8 +159,8 @@ async def _get_service_record_info_along_with_bearer_token(svc_name):
         return service[0], token
 
 
-async def _call_microservice_service_api(method: str, protocol: str, address: str, port: int, uri: str, token: str,
-                                         payload: dict):
+async def _call_microservice_service_api(
+        request: web.Request, protocol: str, address: str, port: int, uri: str, token: str, payload: dict):
     # Custom Request header
     headers = {}
     if token is not None:
@@ -169,38 +168,47 @@ async def _call_microservice_service_api(method: str, protocol: str, address: st
     url = "{}://{}:{}/{}".format(protocol, address, port, uri)
     response = ""
     try:
-        if method == 'GET':
+        if request.method == 'GET':
             async with aiohttp.ClientSession() as session:
                 async with session.get(url, headers=headers) as resp:
                     response = await resp.text()
                     if resp.status not in range(200, 209):
                         raise Exception("GET Request Error: Http status code: {}, reason: {}, response: {}".format(
                             resp.status, resp.reason, response))
-        elif method == 'POST':
-            import requests
-            from requests_toolbelt.multipart.encoder import MultipartEncoder
-            from aiohttp.web_request import FileField
-            multipart_payload = {}
-            for k, v in payload.items():
-                if isinstance(v, FileField):
-                    multipart_payload[k] = (v.filename, v.file.read(), 'text/plain')
-                else:
-                    multipart_payload[k] = v
-            m = MultipartEncoder(fields=multipart_payload)
-            headers['Content-Type'] = m.content_type
-            r = requests.post(url, data=m, headers=headers)
-            response = r.text
-            if r.status_code not in range(200, 209):
-                raise Exception("POST Request Error: Http status code: {}, reason: {}, response: {}".format(
-                    r.status_code, r.reason, response))
-        elif method == 'PUT':
+        elif request.method == 'POST':
+            if 'multipart/form-data' in request.headers['Content-Type']:
+                import requests
+                from requests_toolbelt.multipart.encoder import MultipartEncoder
+                from aiohttp.web_request import FileField
+                multipart_payload = {}
+                for k, v in payload.items():
+                    if isinstance(v, FileField):
+                        multipart_payload[k] = (v.filename, v.file.read(), 'text/plain')
+                    else:
+                        multipart_payload[k] = v
+                m = MultipartEncoder(fields=multipart_payload)
+                headers['Content-Type'] = m.content_type
+                r = requests.post(url, data=m, headers=headers)
+                response = r.text
+                if r.status_code not in range(200, 209):
+                    raise Exception("POST Request Error: Http status code: {}, reason: {}, response: {}".format(
+                        r.status_code, r.reason, response))
+            else:
+                payload = await request.json()
+                async with aiohttp.ClientSession() as session:
+                    async with session.post(url, data=json.dumps(payload), headers=headers) as resp:
+                        response = await resp.text()
+                        if resp.status not in range(200, 209):
+                            raise Exception("Error: Http status code: {}, reason: {}, response: {}".format(
+                                resp.status, resp.reason, response))
+        elif request.method == 'PUT':
             async with aiohttp.ClientSession() as session:
                 async with session.put(url, data=json.dumps(payload), headers=headers) as resp:
                     response = await resp.text()
                     if resp.status not in range(200, 209):
                         raise Exception("PUT Request Error: Http status code: {}, reason: {}, response: {}".format(
                             resp.status, resp.reason, response))
-        elif method == 'DELETE':
+        elif request.method == 'DELETE':
             async with aiohttp.ClientSession() as session:
                 async with session.delete(url, headers=headers) as resp:
                     response = await resp.text()

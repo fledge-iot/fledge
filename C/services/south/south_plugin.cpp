@@ -8,6 +8,7 @@
  * Author: Mark Riddoch
  */
 #include <south_plugin.h>
+#include <south_service.h>
 #include <config_category.h>
 #include <logger.h>
 #include <exception>

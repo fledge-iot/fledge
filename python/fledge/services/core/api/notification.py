@@ -88,6 +88,11 @@ async def get_notification(request):
         if notification_config:
             rule_config = await config_mgr._read_category_val("rule{}".format(notif))
             delivery_config = await config_mgr._read_category_val("delivery{}".format(notif))
+            naming_extra = "{}_channel_".format(notification_config['name']['value'])
+            list_extra = await _get_channels_type(config_mgr,
+                                          notification_config['name']['value'],
+                                          naming_extra,
+                                          True)
             notification = {
                 "name": notification_config['name']['value'],
                 "description": notification_config['description']['value'],
@@ -99,6 +104,8 @@ async def get_notification(request):
                 "retriggerTime": notification_config['retrigger_time']['value'],
                 "enable": notification_config['enable']['value'],
             }
+            if len(list_extra) > 0:
+                notification["additionalChannels"] =  list_extra
         else:
             raise ValueError("The Notification: {} does not exist.".format(notif))
     except ValueError as ex:
@@ -122,6 +129,11 @@ async def get_notifications(request):
         notifications = []
         for notification in all_notifications:
             notification_config = await config_mgr._read_category_val(notification['child'])
+            naming_extra = "{}_channel_".format(notification_config['name']['value'])
+            list_extra = await _get_channels_type(config_mgr,
+                                          notification_config['name']['value'],
+                                          naming_extra,
+                                          True)
             notification = {
                 "name": notification_config['name']['value'],
                 "rule": notification_config['rule']['value'],
@@ -130,6 +142,9 @@ async def get_notifications(request):
                 "retriggerTime": notification_config['retrigger_time']['value'],
                 "enable": notification_config['enable']['value'],
             }
+            if len(list_extra) > 0:
+                notification["additionalChannels"] =  list_extra
+
             notifications.append(notification)
     except Exception as ex:
         raise web.HTTPInternalServerError(reason=ex)
@@ -606,7 +621,7 @@ async def get_delivery_channels(request: web.Request) -> web.Response:
         config_mgr = ConfigurationManager(storage)
         notification_config = await config_mgr._read_category_val(notification_instance_name)
         if notification_config:
-            channels = await _get_channels(config_mgr, notification_instance_name)
+            channels = await _get_all_delivery_channels(config_mgr, notification_instance_name)
         else:
             raise NotFoundError("{} notification instance does not exist".format(notification_instance_name))
     except NotFoundError as err:
@@ -763,3 +778,31 @@ async def delete_delivery_channel(request: web.Request) -> web.Response:
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({"channels": channels})
+
+async def _get_all_delivery_channels(cfg_mgr: ConfigurationManager, notify_instance: str) -> dict:
+    """ Remove all delivery channels
+        in the form of array of dicts:
+        keys are 'name' and 'category'
+    """
+
+    full_list = []
+    category_first = "delivery{}".format(notify_instance)
+    first_name = await _get_channels_type(cfg_mgr, notify_instance, category_first, False)
+    first_channel = {
+            "name" : first_name[0].split('/')[1],
+            "category" : category_first,
+    }
+    full_list.append(first_channel)
+
+    naming_extra = "{}_channel_".format(notify_instance)
+    list_extra = await _get_channels_type(cfg_mgr, notify_instance, naming_extra, True)
+
+    for ch in list_extra:
+        extra_channel = {
+            "name" : ch,
+            "category" : "{}_channel_{}".format(notify_instance, ch)
+        }
+        full_list.append(extra_channel)
+
+    return full_list
+

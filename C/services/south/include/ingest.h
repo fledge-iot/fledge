@@ -27,6 +27,8 @@
 
 #define SERVICE_NAME  "Fledge South"
 
+#define INGEST_SUFFIX	"-Ingest"	// Suffix for per service ingest statistic
+
 /**
  * The ingest class is used to ingest asset readings.
  * It maintains a queue of readings to be sent to storage,
@@ -79,6 +81,7 @@ private:
 						m_discardedReadings++;
 					};
 	long				calculateWaitTime();
+	int 				createServiceStatsDbEntry();
 
 	StorageClient&			m_storage;
 	long				m_timeout;

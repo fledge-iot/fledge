@@ -242,10 +242,12 @@ void FormData::getUploadedData(const string &field, FieldValue& data)
 	}
 
 	b = ptr;
+	uint8_t *endContent = this->getContentEnd(b);
 
-	// Look for Content-Type, if existent
+	// Look for Content-Type, if existent within the 
+	// same part of the message, i.e. not beyond endContent
 	ptr = (uint8_t *)strstr((char *)b, "Content-Type:");
-	if (ptr != NULL)
+	if (ptr != NULL && ptr < endContent)
 	{
 		b = ptr + strlen("Content-Type:");
 	}
@@ -257,7 +259,6 @@ void FormData::getUploadedData(const string &field, FieldValue& data)
 	uint8_t *startContent = b;
 
 	// Find end of content
-	uint8_t *endContent = this->getContentEnd(b);
 	if (endContent)
 	{
 		// Set output data

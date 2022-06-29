@@ -30,6 +30,12 @@ def setup(app):
 
 def admin_api_setup(app):
     # Note: /svc is only for to catch Proxy endpoints
+    # Below code is not working due to aiohttp-cors lib issue
+    # https://github.com/aio-libs/aiohttp-cors/issues/241
+
+    # app.router.add_route('*', r'/fledge/svc/{tail:.*}', handler)
+
+    # Once above resolved we will remove below routes and replaced with * handler
     app.router.add_route('GET', r'/fledge/svc/{tail:.*}', handler)
     app.router.add_route('POST', r'/fledge/svc/{tail:.*}', handler)
     app.router.add_route('PUT', r'/fledge/svc/{tail:.*}', handler)

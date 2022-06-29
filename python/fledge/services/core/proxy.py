@@ -141,7 +141,7 @@ async def handler(request: web.Request) -> web.Response:
                 proxy_svc_name = svc_name
         if is_proxy_svc_found and proxy_svc_name is not None:
             svc, token = await _get_service_record_info_along_with_bearer_token(proxy_svc_name)
-            url = str(request.url).split('fledge/')[1]
+            url = str(request.url).split('fledge/svc/')[1]
             status_code, response = await _call_microservice_service_api(
                 request, svc._protocol, svc._address, svc._port, url, token)
         else:

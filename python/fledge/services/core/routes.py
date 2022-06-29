@@ -32,6 +32,7 @@ from fledge.services.core.api.repos import configure as configure_repo
 from fledge.services.core.api.control_service import script_management
 from fledge.services.core.api.control_service import acl_management
 
+from fledge.services.core import proxy
 
 __author__ = "Ashish Jabble, Praveen Garg, Massimiliano Pinto, Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017-2018 OSIsoft, LLC"
@@ -40,6 +41,10 @@ __version__ = "${VERSION}"
 
 
 def setup(app):
+
+    app.router.add_route('GET', r'/fledge/svc/{tail:.*}', proxy.handler)
+    app.router.add_route('POST', r'/fledge/svc/{tail:.*}', proxy.handler)
+
     app.router.add_route('GET', '/fledge/ping', api_common.ping)
     app.router.add_route('PUT', '/fledge/shutdown', api_common.shutdown)
     app.router.add_route('PUT', '/fledge/restart', api_common.restart)

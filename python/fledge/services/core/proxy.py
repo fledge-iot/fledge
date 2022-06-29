@@ -145,7 +145,7 @@ async def handler(request: web.Request) -> web.Response:
             status_code, response = await _call_microservice_service_api(
                 request, svc._protocol, svc._address, svc._port, url, token)
         else:
-            raise web.HTTPMethodNotAllowed
+            raise web.HTTPNotFound()
     except Exception as ex:
         msg = str(ex)
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))

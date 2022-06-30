@@ -30,8 +30,7 @@ def setup(app):
 
 def admin_api_setup(app):
     # Note: /svc is only for to catch Proxy endpoints
-    # Below code is not working due to aiohttp-cors lib issue
-    # https://github.com/aio-libs/aiohttp-cors/issues/241
+    # Below code is not working due to aiohttp-cors lib issue https://github.com/aio-libs/aiohttp-cors/issues/241
 
     # app.router.add_route('*', r'/fledge/svc/{tail:.*}', handler)
 
@@ -46,7 +45,7 @@ async def add(request: web.Request) -> web.Response:
     """ Add API proxy for a service
 
     :Example:
-        curl -sX POST http://localhost:<SVC_MGT_PORT>/fledge/proxy -d '{"service_name": "SVC #1", "DELETE": {"/fledge/svc/([0-9][0-9]*)$": "/svc/([0-9][0-9]*)$"}, "GET": {"/fledge/svc/([0-9][0-9]*)$": "/svc/([0-9][0-9]*)$"}, "POST": {"/fledge/svc": "/svc"}, "PUT": {"/fledge/svc/([0-9][0-9]*)$": "/svc/([0-9][0-9]*)$", "/fledge/svc/match": "/svc/match"}}'
+        curl -sX POST http://localhost:<CORE_MGT_PORT>/fledge/proxy -d '{"service_name": "SVC #1", "DELETE": {"/fledge/svc/([0-9][0-9]*)$": "/svc/([0-9][0-9]*)$"}, "GET": {"/fledge/svc/([0-9][0-9]*)$": "/svc/([0-9][0-9]*)$"}, "POST": {"/fledge/svc": "/svc"}, "PUT": {"/fledge/svc/([0-9][0-9]*)$": "/svc/([0-9][0-9]*)$", "/fledge/svc/match": "/svc/match"}}'
    """
     data = await request.json()
     svc_name = data.get('service_name', None)
@@ -95,14 +94,14 @@ async def add(request: web.Request) -> web.Response:
         except Exception as ex:
             msg = str(ex)
             raise web.HTTPInternalServerError(reason=msg, body=json.dumps({'message': msg}))
-        return web.json_response({"inserted": "Proxy has been configured for {} service.".format(svc_name)})
+        return web.json_response({"result": "Proxy has been configured for {} service.".format(svc_name)})
 
 
 async def delete(request: web.Request) -> web.Response:
     """ Stop API proxy for a service
 
     :Example:
-             curl -sX DELETE http://localhost:<SVC_MGT_PORT>/fledge/proxy/{service}
+             curl -sX DELETE http://localhost:<CORE_MGT_PORT>/fledge/proxy/{service}
    """
     svc_name = request.match_info.get('service_name', None)
     svc_name = urllib.parse.unquote(svc_name) if svc_name is not None else None
@@ -122,7 +121,7 @@ async def delete(request: web.Request) -> web.Response:
     else:
         # Remove service name KV pair from in-memory structure
         del server.Server._API_PROXIES[svc_name]
-        return web.json_response({"deleted": "Proxy operations have been stopped for {} service.".format(svc_name)})
+        return web.json_response({"result": "Configured proxy for {} service has been removed.".format(svc_name)})
 
 
 async def handler(request: web.Request) -> web.Response:
@@ -145,7 +144,8 @@ async def handler(request: web.Request) -> web.Response:
             status_code, response = await _call_microservice_service_api(
                 request, svc._protocol, svc._address, svc._port, url, token)
         else:
-            raise web.HTTPNotFound()
+            msg = "{} route not found.".format(request.rel_url)
+            return web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))

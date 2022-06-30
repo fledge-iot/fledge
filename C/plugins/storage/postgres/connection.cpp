@@ -2425,7 +2425,6 @@ bool Connection::jsonAggregates(const Value& payload,
 					sql.append(")::float");
 
 				}
-				//sql.append(")::float");
 			}
 			sql.append(" END) AS \"");
 			if (itr->HasMember("alias"))

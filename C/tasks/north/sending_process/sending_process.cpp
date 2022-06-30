@@ -66,6 +66,12 @@ int main(int argc, char** argv)
 		// Instantiate SendingProcess class
 		SendingProcess sendingProcess(argc, argv);
 
+		if (!sendingProcess.isRunning())
+		{
+			// Dryrun execution
+			exit(0);
+		}
+
 		memoryBufferSize = sendingProcess.getMemoryBufferSize();
 
 		// Launch the load thread

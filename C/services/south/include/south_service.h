@@ -58,6 +58,7 @@ class SouthService : public ServiceAuthHandler {
 		bool				isRunning() { return !m_shutdown; };
 		bool				setPoint(const std::string& name, const std::string& value);
 		bool				operation(const std::string& name, std::vector<PLUGIN_PARAMETER *>& );
+		void				setDryRun() { m_dryRun = true; };
 	private:
 		void				addConfigDefaults(DefaultConfigCategory& defaults);
 		bool 				loadPlugin();
@@ -89,5 +90,6 @@ class SouthService : public ServiceAuthHandler {
 		unsigned int			m_repeatCnt;
 		PluginData			*m_pluginData;
 		std::string			m_dataKey;
+		bool				m_dryRun;
 };
 #endif

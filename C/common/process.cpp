@@ -80,7 +80,8 @@ FledgeProcess::~FledgeProcess()
 FledgeProcess::FledgeProcess(int argc, char** argv) :
 				m_stime(time(NULL)),
 				m_argc(argc),
-				m_arg_vals((const char**) argv)
+				m_arg_vals((const char**) argv),
+				m_dryRun(false)
 {
 	signal(SIGSEGV, handler);
 	signal(SIGILL, handler);
@@ -100,6 +101,16 @@ FledgeProcess::FledgeProcess(int argc, char** argv) :
 	{
 		throw runtime_error(string("Error while parsing required options: ") + e.what());
 	}
+
+	// Look for the --dryrun flag
+	for (int i = 1; i < argc; i++)
+	{
+		if (!strncmp(argv[i], "--dryrun", 8))
+		{
+			m_dryRun = true;
+		}
+	}
+
 	myName = m_name;
 	m_logger = new Logger(myName);
 

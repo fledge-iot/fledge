@@ -370,6 +370,11 @@ void SendingProcess::run() const
                 // Just sleep
 		sleep(m_sleep);
 
+		if (m_dryRun)	// We do this here to allow the threads time to setup
+		{
+			break;
+		}
+
 		elapsedSeconds = time(NULL) - this->getStartTime();
 	}
 	Logger::getLogger()->info("SendingProcess is stopping, after %d seconds.",

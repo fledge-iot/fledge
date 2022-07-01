@@ -356,7 +356,7 @@ class TestACLManagement:
                                                                              "value": acl_name}}
         sch_query_payload = {"where": {"column": "schedule_name", "condition": "=", "value": svc_name}}
         sch_result = {"count": 1, "rows": [{"id": "3e84f179-874d-4a91-a524-15512172f8a2", "enabled": "true"}]}
-        message = "A {} service has already attached ACL with name {}.".format(svc_name, acl_name)
+        message = "Service {} already has an ACL object.".format(svc_name, acl_name)
 
         @asyncio.coroutine
         def q_result(*args):

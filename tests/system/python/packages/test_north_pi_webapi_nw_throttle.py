@@ -235,7 +235,7 @@ def get_bulk_data_from_pi(host, admin, password, asset_name, data_point_name):
             conn.close()
             return required_values
 
-    print("Could not find {} in all PI points".format(name_to_search))
+    assert False, "Could not find {} in all PI points".format(name_to_search)
 
 
 def turn_off_compression_for_pi_point(host, admin, password, asset_name, data_point_name):

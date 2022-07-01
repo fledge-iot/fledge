@@ -91,6 +91,7 @@ def change_category(fledge_url, cat_name, config_item, value):
 
 
 def _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries, asset_name):
+    # Calling this function to only delete the element hierarchy.
     retry_count = 0
     data_from_pi = None
 
@@ -108,9 +109,6 @@ def _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_d
                                                  PI_ASSET_NAME, {recorded_datapoint})
         retry_count += 1
         time.sleep(wait_time * 2)
-
-    if data_from_pi is None or retry_count == retries:
-        assert False, "Failed to read data from PI"
 
     return data_from_pi
 
@@ -162,6 +160,66 @@ def start_south_north(add_south, start_north_task_omf_web_api, add_filter, remov
     yield start_south_north
 
 
+def get_total_readings(fledge_url):
+    """
+    Fetches the reading for an asset
+    Args:
+        fledge_url: The url of fledge . By default localhost:8081
+    Returns: The first element in the list of json strings. (A dictionary)
+    """
+
+    conn = http.client.HTTPConnection(fledge_url)
+    conn.request("GET", '/fledge/asset')
+    r = conn.getresponse()
+    assert 200 == r.status, "Could not get total readings from fledge"
+    r = r.read().decode()
+    jdoc = json.loads(r)
+    return jdoc[0]['count']
+
+
+def get_bulk_data_from_pi(host, admin, password, asset_name, data_point_name):
+    username_password = "{}:{}".format(admin, password)
+    username_password_b64 = base64.b64encode(username_password.encode('ascii')).decode("ascii")
+    headers = {'Authorization': 'Basic %s' % username_password_b64}
+    try:
+        conn = http.client.HTTPSConnection(host, context=ssl._create_unverified_context())
+        conn.request("GET", '/piwebapi/dataservers', headers=headers)
+        res = conn.getresponse()
+        r = json.loads(res.read().decode())
+        points = r["Items"][0]["Links"]["Points"]
+    except Exception:
+        print("Could not request data server of PI")
+
+    name_to_search = asset_name + '.' + data_point_name
+    for single_point in points['Items']:
+
+        if name_to_search in single_point["Name"]:
+            web_id = single_point["WebId"]
+            pi_point_name = single_point["Name"]
+            url = single_point["Links"]["RecordedData"]
+            full_url = url + '?maxCount=100000'
+            conn.request("GET", full_url, headers=headers)
+            res = conn.getresponse()
+            r = json.loads(res.read().decode())
+
+            required_values = []
+            for full_value in r["Items"][1:]:
+                required_values.append(full_value['Value'])
+
+            assert required_values != [], "Could not get required values for PI point."
+
+            # We are deleting Pi point. Otherwise we have to use timestamps in queries to
+            # fetch data.
+            conn.request("DELETE", "/piwebapi/points/{}".format(web_id), headers=headers)
+            r = conn.getresponse()
+            assert r.status == 204, "Could not delete" \
+                                    " the pi point {}.".format(pi_point_name)
+            conn.close()
+            return required_values
+
+    print("Could not find {} in all PI points".format(name_to_search))
+
+
 def turn_off_compression_for_pi_point(host, admin, password, asset_name, data_point_name):
     username_password = "{}:{}".format(admin, password)
     username_password_b64 = base64.b64encode(username_password.encode('ascii')).decode("ascii")
@@ -189,8 +247,31 @@ def turn_off_compression_for_pi_point(host, admin, password, asset_name, data_po
                                     " for the pi point {}.".format(pi_point_name)
 
             print("Turned off compression for the PI point".format(pi_point_name))
+            conn.close()
+            return
 
     print("Could not find {} in all PI points".format(name_to_search))
+
+
+def get_readings_within_range(fledge_url, asset_name, limit, offset, order='desc'):
+    """
+    Takes a subset of readings from the database.
+    Args:
+        fledge_url: The url of fledge . By default localhost:8081
+        asset_name: The name of asset
+        limit: The number of readings to select.
+        offset: The index from which the readings have to be selected.
+        order: The order of readings to be fetched from database. (desc / asc)
+    Returns:
+        JSON string containing the subset of readings.
+    """
+    conn = http.client.HTTPConnection(fledge_url)
+    conn.request("GET", '/fledge/asset/{}?limit={}&skip={}&order={}'.format(asset_name, limit, offset, order))
+    r = conn.getresponse()
+    assert 200 == r.status, "Could not get readings for the asset {} ".format(asset_name)
+    r = r.read().decode()
+    jdoc = json.loads(r)
+    return
 
 
 class TestPackagesSinusoid_PI_WebAPI:
@@ -239,6 +320,7 @@ class TestPackagesSinusoid_PI_WebAPI:
         time.sleep(5)
 
         # Note down the total readings ingested
+        initial_readings = int(get_total_readings(fledge_url))
 
         # switch off Compression
         dp_name = 'id_datapoint'
@@ -272,10 +354,15 @@ class TestPackagesSinusoid_PI_WebAPI:
         reset_network(interface=interface_for_impairment)
         verify_ping(fledge_url, north_catch_up_time)
 
-
         # verify the bulk data from PI.
+        data_from_pi = get_bulk_data_from_pi(pi_host, pi_admin, pi_passwd, ASSET, dp_name)
+        total_readings = int(get_total_readings(fledge_url))
+        readings_list = [i for i in range(initial_readings, total_readings)]
 
-        verify_data_north = False
+        # comparing data from fledge and data from pi
+        assert data_from_pi[initial_readings:] == readings_list
+
+        verify_data_north = True
         if verify_data_north:
             data_pi = _verify_egress(read_data_from_pi_web_api, pi_host,
                                      pi_admin, pi_passwd, pi_db, wait_time, retries,

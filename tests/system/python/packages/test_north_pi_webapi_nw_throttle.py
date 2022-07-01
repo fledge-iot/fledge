@@ -203,12 +203,20 @@ def get_bulk_data_from_pi(host, admin, password, asset_name, data_point_name):
             r = json.loads(res.read().decode())
 
             required_values = []
+            # ignoring first value as it is not needed.
             for full_value in r["Items"][1:]:
                 required_values.append(full_value['Value'])
 
             assert required_values != [], "Could not get required values for PI point."
 
-            # We are deleting Pi point. Otherwise we have to use timestamps in queries to
+            url_for_last_value = single_point["Links"]["EndValue"]
+            conn.request("GET", url_for_last_value, headers=headers)
+            res = conn.getresponse()
+            r = json.loads(res.read().decode())
+            assert "Value" in r, "Could not fetch the last reading from PI."
+            required_values.append(r["Value"])
+
+            # We are deleting Pi point. Other wise we have to use timestamps in queries to
             # fetch data.
             conn.request("DELETE", "/piwebapi/points/{}".format(web_id), headers=headers)
             r = conn.getresponse()
@@ -358,10 +366,10 @@ class TestPackagesSinusoid_PI_WebAPI:
         data_from_pi = get_bulk_data_from_pi(pi_host, pi_admin, pi_passwd, ASSET, dp_name)
         data_from_pi = [int(d) for d in data_from_pi]
         total_readings = int(get_total_readings(fledge_url))
-        readings_list = [i for i in range(initial_readings + 1, total_readings)]
+        readings_list = [i for i in range(initial_readings + 1, total_readings+1)]
 
         required_index = data_from_pi.index(initial_readings + 1)
-        # comparing data from fledge and data from pi
+        # Comparing data from fledge and data from pi
         assert data_from_pi[required_index:] == readings_list
 
         # just to delete element hierarchy

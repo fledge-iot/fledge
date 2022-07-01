@@ -372,6 +372,7 @@ void SendingProcess::run() const
 
 		if (m_dryRun)	// We do this here to allow the threads time to setup
 		{
+			Logger::getLogger()->warn("Dryrun invocation, terminating");
 			break;
 		}
 

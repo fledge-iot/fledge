@@ -51,7 +51,10 @@ void StatsHistory::run() const
 	std::signal(SIGTERM, signalHandler);
 
 	if (m_dryRun)
+	{
+		Logger::getLogger()->info("Dryrun invocation, terminating");
 		return;
+	}
 
 	// Get the set of distinct statistics keys
 	Query query(new Returns("key"));

@@ -291,35 +291,34 @@ async def attach_acl_to_service(request: web.Request) -> web.Response:
         security_cat_name = "{}Security".format(svc_name)
         category = await cf_mgr.get_category_all_items(security_cat_name)
 
-        # Check category does not exists or it's value is empty (created by a service when it starts)
-        if category is None or category == {}:
-            # Create {service_name}Security category and having value with AuthenticationCaller Global switch &
-            # ACL info attached (name is excluded from the ACL dict)
-            category_desc = "Security category for {} service".format(svc_name)
-            del get_acl_result['rows'][0]['name']
-            category_value = {
-                'AuthenticatedCaller':
-                    {
-                        'description': 'Caller authorisation is needed',
-                        'type': 'boolean',
-                        'default': 'false',
-                        'displayName': 'Enable caller authorisation'
-                    },
-                'ACL':
-                    {
-                        'description': 'Service ACL for {}'.format(svc_name),
-                        'type': 'JSON',
-                        'displayName': 'Service ACL',
-                        'default': json.dumps(get_acl_result['rows'][0])
-                    }
+        if 'ACL' in category:
+            raise ValueError('Service {} already has an ACL object.'.format(svc_name))
+
+        # Create {service_name}Security category and having value with AuthenticationCaller Global switch &
+        # ACL info attached (name is excluded from the ACL dict)
+        category_desc = "Security category for {} service".format(svc_name)
+        del get_acl_result['rows'][0]['name']
+        category_value = {
+            'AuthenticatedCaller':
+                {
+                    'description': 'Caller authorisation is needed',
+                    'type': 'boolean',
+                    'default': 'false',
+                    'displayName': 'Enable caller authorisation'
+                },
+            'ACL':
+                {
+                    'description': 'Service ACL for {}'.format(svc_name),
+                    'type': 'JSON',
+                    'displayName': 'Service ACL',
+                    'default': json.dumps(get_acl_result['rows'][0])
+                }
             }
-            await cf_mgr.create_category(category_name=security_cat_name, category_description=category_desc,
-                                         category_value=category_value)
-            add_child_result = await cf_mgr.create_child_category(svc_name, [security_cat_name])
-            if security_cat_name not in add_child_result['children']:
-                raise StorageServerError(add_child_result)
-        else:
-            raise ValueError('A {} service has already attached ACL with name {}.'.format(svc_name, acl_name))
+        await cf_mgr.create_category(category_name=security_cat_name, category_description=category_desc,
+                                     category_value=category_value)
+        add_child_result = await cf_mgr.create_child_category(svc_name, [security_cat_name])
+        if security_cat_name not in add_child_result['children']:
+            raise StorageServerError(add_child_result)
     except StorageServerError as err:
         msg = "Storage error: {}".format(str(err))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
@@ -362,7 +361,15 @@ async def detach_acl_from_service(request: web.Request) -> web.Response:
         if category is not None:
             # Delete {service_name}Security category
             category_desc = "Security category for {} service".format(svc_name)
-            category_value = {}
+            category_value = {
+                'AuthenticatedCaller':
+                    {
+                        'description': 'Caller authorisation is needed',
+                        'type': 'boolean',
+                        'default': 'false',
+                        'displayName': 'Enable caller authorisation'
+                    }
+                }
             await cf_mgr.create_category(category_name=security_cat_name,
                                          category_description=category_desc,
                                          category_value=category_value)

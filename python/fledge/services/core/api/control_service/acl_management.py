@@ -18,7 +18,7 @@ from fledge.services.core import connect
 from fledge.services.core.api.control_service.exceptions import *
 
 
-__author__ = "Ashish Jabble"
+__author__ = "Ashish Jabble, Massimiliano Pinto"
 __copyright__ = "Copyright (c) 2021 Dianomic Systems Inc."
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
@@ -291,7 +291,7 @@ async def attach_acl_to_service(request: web.Request) -> web.Response:
         security_cat_name = "{}Security".format(svc_name)
         category = await cf_mgr.get_category_all_items(security_cat_name)
 
-        if 'ACL' in category:
+        if category is not None and 'ACL' in category:
             raise ValueError('Service {} already has an ACL object.'.format(svc_name))
 
         # Create {service_name}Security category and having value with AuthenticationCaller Global switch &

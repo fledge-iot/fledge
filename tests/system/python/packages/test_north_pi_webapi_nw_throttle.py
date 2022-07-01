@@ -392,6 +392,10 @@ class TestPackagesSinusoid_PI_WebAPI:
         required_index = data_from_pi.index(initial_readings + 1)
         print("The index from which we need to verify the readings from PI : {}".format(required_index))
         print("Total data from pi is {}".format(len(data_from_pi[required_index:])))
+        assert data_from_pi[required_index] == readings_list[0], "The first reading in readings from PI" \
+                                                                 " and readings from Fledge mismatch."
+        print("Some values of PI are {}".format(data_from_pi[:100]))
+        print("Some values of Fledge are {}".format(readings_list[:100]))
         # Comparing data from fledge and data from pi
         assert data_from_pi[required_index:] == readings_list
 

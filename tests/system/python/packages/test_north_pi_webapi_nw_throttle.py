@@ -186,9 +186,16 @@ def get_bulk_data_from_pi(host, admin, password, asset_name, data_point_name):
         conn.request("GET", '/piwebapi/dataservers', headers=headers)
         res = conn.getresponse()
         r = json.loads(res.read().decode())
-        points = r["Items"][0]["Links"]["Points"]
+        points_url = r["Items"][0]["Links"]["Points"]
     except Exception:
-        print("Could not request data server of PI")
+        assert False, "Could not request data server of PI"
+
+    try:
+        conn.request("GET", points_url, headers=headers)
+        res = conn.getresponse()
+        points = json.loads(res.read().decode())
+    except Exception:
+        assert False, "Could not get Points data."
 
     name_to_search = asset_name + '.' + data_point_name
     for single_point in points['Items']:
@@ -198,9 +205,12 @@ def get_bulk_data_from_pi(host, admin, password, asset_name, data_point_name):
             pi_point_name = single_point["Name"]
             url = single_point["Links"]["RecordedData"]
             full_url = url + '?maxCount=100000'
-            conn.request("GET", full_url, headers=headers)
-            res = conn.getresponse()
-            r = json.loads(res.read().decode())
+            try:
+                conn.request("GET", full_url, headers=headers)
+                res = conn.getresponse()
+                r = json.loads(res.read().decode())
+            except Exception:
+                assert False, "Could not get Required data from PI"
 
             required_values = []
             # ignoring first value as it is not needed.
@@ -237,9 +247,16 @@ def turn_off_compression_for_pi_point(host, admin, password, asset_name, data_po
         conn.request("GET", '/piwebapi/dataservers', headers=headers)
         res = conn.getresponse()
         r = json.loads(res.read().decode())
-        points = r["Items"][0]["Links"]["Points"]
+        points_url = r["Items"][0]["Links"]["Points"]
     except Exception:
-        print("Could not request data server of PI")
+        assert False, "Could not request data server of PI"
+
+    try:
+        conn.request("GET", points_url, headers=headers)
+        res = conn.getresponse()
+        points = json.loads(res.read().decode())
+    except Exception:
+        assert False, "Could not get Points data."
 
     name_to_search = asset_name + '.' + data_point_name
     for single_point in points['Items']:
@@ -258,7 +275,7 @@ def turn_off_compression_for_pi_point(host, admin, password, asset_name, data_po
             conn.close()
             return
 
-    print("Could not find {} in all PI points".format(name_to_search))
+    assert False, "Could not find {} in all PI points".format(name_to_search)
 
 
 def get_readings_within_range(fledge_url, asset_name, limit, offset, order='desc'):

@@ -204,7 +204,7 @@ def get_bulk_data_from_pi(host, admin, password, asset_name, data_point_name):
             web_id = single_point["WebId"]
             pi_point_name = single_point["Name"]
             url = single_point["Links"]["RecordedData"]
-            full_url = url + '?maxCount=100000'
+            full_url = url + '?startTime=*-1d&endTime=*&maxCount=100000'
             try:
                 conn.request("GET", full_url, headers=headers)
                 res = conn.getresponse()

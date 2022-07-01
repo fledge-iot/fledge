@@ -273,7 +273,7 @@ def turn_off_compression_for_pi_point(host, admin, password, asset_name, data_po
             assert r.status == 204, "Could not update the compression" \
                                     " for the PI Point {}.".format(pi_point_name)
 
-            print("Turned off compression for the PI Point".format(pi_point_name))
+            print("Turned off compression for the PI Point {} ".format(pi_point_name))
             conn.close()
             return
 
@@ -386,8 +386,12 @@ class TestPackagesSinusoid_PI_WebAPI:
         data_from_pi = [int(d) for d in data_from_pi]
         total_readings = int(get_total_readings(fledge_url))
         readings_list = [i for i in range(initial_readings + 1, total_readings+1)]
+        print("Readings ingested in beginning {}".format(initial_readings))
+        print("Total data from Fledge excluding initial readings is {}".format(len(readings_list)))
 
         required_index = data_from_pi.index(initial_readings + 1)
+        print("The index from which we need to verify the readings from PI : {}".format(required_index))
+        print("Total data from pi is {}".format(len(data_from_pi[required_index:])))
         # Comparing data from fledge and data from pi
         assert data_from_pi[required_index:] == readings_list
 

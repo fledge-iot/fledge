@@ -371,10 +371,6 @@ class TestACLManagement:
                 return {}
 
         cat_info = {
-                "key": "{}Security".format(svc_name),
-                    "description": "Security category for {} service".format(svc_name),
-                    "displayName": "{}Security".format(svc_name),
-                    "value": {
                         "AuthenticatedCaller": {"description": "Caller authorisation is needed", "type": "boolean",
                                                 "default": "false", "displayName": "Enable caller authorisation",
                                                 "value": "false"},
@@ -382,7 +378,6 @@ class TestACLManagement:
                             "description": "Service ACL for {}".format(svc_name), "type": "JSON",
                             "displayName": "Service ACL", "default": "[]", "value": "[]"
                         }
-                    }
                 }
         cat_value = await mock_coro(cat_info) if sys.version_info >= (3, 8) else \
             asyncio.ensure_future(mock_coro(cat_info))

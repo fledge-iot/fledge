@@ -22,6 +22,8 @@ import utils
 import json
 from pathlib import Path
 import urllib.parse
+import base64
+import ssl
 
 from network_impairment import distort_network, reset_network
 
@@ -160,6 +162,37 @@ def start_south_north(add_south, start_north_task_omf_web_api, add_filter, remov
     yield start_south_north
 
 
+def turn_off_compression_for_pi_point(host, admin, password, asset_name, data_point_name):
+    username_password = "{}:{}".format(admin, password)
+    username_password_b64 = base64.b64encode(username_password.encode('ascii')).decode("ascii")
+    headers = {'Authorization': 'Basic %s' % username_password_b64}
+    try:
+        conn = http.client.HTTPSConnection(host, context=ssl._create_unverified_context())
+        conn.request("GET", '/piwebapi/dataservers', headers=headers)
+        res = conn.getresponse()
+        r = json.loads(res.read().decode())
+        points = r["Items"][0]["Links"]["Points"]
+    except Exception:
+        print("Could not request data server of PI")
+
+    name_to_search = asset_name + '.' + data_point_name
+    for single_point in points['Items']:
+
+        if name_to_search in single_point['Name']:
+            web_id = single_point['WebId']
+            pi_point_name = single_point["Name"]
+            attr_name = 'compressing'
+            conn.request("PUT", '/piwebapi/points/{}/attributes/{}'.format(web_id, attr_name),
+                         "0", headers=headers)
+            r = conn.getresponse()
+            assert r.status == 204, "Could not update the compression" \
+                                    " for the pi point {}.".format(pi_point_name)
+
+            print("Turned off compression for the PI point".format(pi_point_name))
+
+    print("Could not find {} in all PI points".format(name_to_search))
+
+
 class TestPackagesSinusoid_PI_WebAPI:
 
     def test_omf_in_impaired_network(self, clean_setup_fledge_packages, reset_fledge,
@@ -167,7 +200,8 @@ class TestPackagesSinusoid_PI_WebAPI:
                                      fledge_url, pi_host, pi_admin, pi_passwd, pi_db,
                                      wait_time, retries, skip_verify_north_interface,
                                      south_service_wait_time, north_catch_up_time, pi_port,
-                                     throttled_network_config, disable_schedule, asset_name=ASSET):
+                                     throttled_network_config, disable_schedule,
+                                     enable_schedule, asset_name=ASSET):
         """ Test that checks data is inserted in Fledge and sent to PI under an impaired network.
             start_south_north: Fixture that add south and north instance
             read_data_from_pi: Fixture to read data from PI
@@ -197,7 +231,26 @@ class TestPackagesSinusoid_PI_WebAPI:
         if not rate_limit and not packet_delay:
             raise Exception("None of packet delay or rate limit given, "
                             "cannot apply network impairment.")
+        # Insert some readings before turning off compression.
+        time.sleep(3)
+        disable_schedule(fledge_url, SOUTH_SERVICE_NAME)
 
+        # Turn off south service
+        time.sleep(5)
+
+        # Note down the total readings ingested
+
+        # switch off Compression
+        dp_name = 'id_datapoint'
+        turn_off_compression_for_pi_point(pi_host, pi_admin, pi_passwd, ASSET, dp_name)
+
+        # Restart the south service
+        enable_schedule(fledge_url, SOUTH_SERVICE_NAME)
+
+        # Wait for the south service to start.
+        time.sleep(3)
+
+        # Now we can distort the network.
         distort_network(interface=interface_for_impairment, traffic="outbound",
                         latency=packet_delay,
                         rate_limit=rate_limit, ip=pi_host, port=pi_port, duration=duration)
@@ -219,11 +272,9 @@ class TestPackagesSinusoid_PI_WebAPI:
         reset_network(interface=interface_for_impairment)
         verify_ping(fledge_url, north_catch_up_time)
 
-        # TODO For now we can verify limited data from the pi web api.
-        # It only gives up to 4K readings through the following endpoint
-        # host/piwebapi/streamsets/<pi_web_id>/recorded?maxCount=100000
-        # Notice it is still not working even if we give a high maxCount.
-        # So leaving verification of readings id for now.
+
+        # verify the bulk data from PI.
+
         verify_data_north = False
         if verify_data_north:
             data_pi = _verify_egress(read_data_from_pi_web_api, pi_host,

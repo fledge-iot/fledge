@@ -356,12 +356,15 @@ class TestPackagesSinusoid_PI_WebAPI:
 
         # verify the bulk data from PI.
         data_from_pi = get_bulk_data_from_pi(pi_host, pi_admin, pi_passwd, ASSET, dp_name)
+        data_from_pi = [int(d) for d in data_from_pi]
         total_readings = int(get_total_readings(fledge_url))
-        readings_list = [i for i in range(initial_readings, total_readings)]
+        readings_list = [i for i in range(initial_readings + 1, total_readings)]
 
+        required_index = data_from_pi.index(initial_readings + 1)
         # comparing data from fledge and data from pi
-        assert data_from_pi[initial_readings:] == readings_list
+        assert data_from_pi[required_index:] == readings_list
 
+        # just to delete element hierarchy
         verify_data_north = True
         if verify_data_north:
             data_pi = _verify_egress(read_data_from_pi_web_api, pi_host,

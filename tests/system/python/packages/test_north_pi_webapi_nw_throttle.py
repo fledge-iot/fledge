@@ -241,7 +241,7 @@ def get_bulk_data_from_pi(host, admin, password, asset_name, data_point_name):
 def turn_off_compression_for_pi_point(host, admin, password, asset_name, data_point_name):
     username_password = "{}:{}".format(admin, password)
     username_password_b64 = base64.b64encode(username_password.encode('ascii')).decode("ascii")
-    headers = {'Authorization': 'Basic %s' % username_password_b64}
+    headers = {'Authorization': 'Basic %s' % username_password_b64, 'Content-Type': 'application/json'}
     try:
         conn = http.client.HTTPSConnection(host, context=ssl._create_unverified_context())
         conn.request("GET", '/piwebapi/dataservers', headers=headers)
@@ -265,13 +265,15 @@ def turn_off_compression_for_pi_point(host, admin, password, asset_name, data_po
             web_id = single_point['WebId']
             pi_point_name = single_point["Name"]
             attr_name = 'compressing'
+
             conn.request("PUT", '/piwebapi/points/{}/attributes/{}'.format(web_id, attr_name),
-                         "0", headers=headers)
+                         body="0", headers=headers)
+
             r = conn.getresponse()
             assert r.status == 204, "Could not update the compression" \
-                                    " for the pi point {}.".format(pi_point_name)
+                                    " for the PI Point {}.".format(pi_point_name)
 
-            print("Turned off compression for the PI point".format(pi_point_name))
+            print("Turned off compression for the PI Point".format(pi_point_name))
             conn.close()
             return
 

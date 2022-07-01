@@ -370,7 +370,8 @@ class TestACLManagement:
             else:
                 return {}
 
-        cat_info = {"key": "{}Security".format(svc_name),
+        cat_info = {
+                "key": "{}Security".format(svc_name),
                     "description": "Security category for {} service".format(svc_name),
                     "displayName": "{}Security".format(svc_name),
                     "value": {
@@ -382,7 +383,7 @@ class TestACLManagement:
                             "displayName": "Service ACL", "default": "[]", "value": "[]"
                         }
                     }
-                    }
+                }
         cat_value = await mock_coro(cat_info) if sys.version_info >= (3, 8) else \
             asyncio.ensure_future(mock_coro(cat_info))
         storage_client_mock = MagicMock(StorageClientAsync)
@@ -495,6 +496,14 @@ class TestACLManagement:
 
     async def test_good_detach_acl_from_service(self, client):
         svc_name = 'foo'
+        expected_result = {
+                    "AuthenticatedCaller": {
+                        "description": "Caller authorisation is needed",
+                        "type": "boolean",
+                        "default": "false",
+                        "displayName": "Enable caller authorisation",
+                }
+            }
         security_cat = "{}Security".format(svc_name)
         sch_query_payload = {"where": {"column": "schedule_name", "condition": "=", "value": svc_name}}
         sch_result = {"count": 1, "rows": [{"id": "3e84f179-874d-4a91-a524-15512172f8a2", "enabled": "true"}]}
@@ -519,7 +528,7 @@ class TestACLManagement:
                         assert {'message': message} == json_response
                     patch_create_cat.assert_called_once_with(category_description='Security category for foo service',
                                                              category_name=security_cat,
-                                                             category_value={})
+                                                             category_value=expected_result)
                 patch_get_all_items.assert_called_once_with(security_cat)
             args, _ = patch_query_tbl.call_args
             assert 'schedules' == args[0]

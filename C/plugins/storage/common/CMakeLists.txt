@@ -10,7 +10,9 @@ set(DLLIB -ldl)
 file(GLOB SOURCES *.cpp)
 
 # Include header files
-include_directories(include)
+include_directories(./include)
+include_directories(../../../common/include)
+
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/../../../lib)
 

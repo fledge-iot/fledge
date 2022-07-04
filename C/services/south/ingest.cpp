@@ -98,6 +98,50 @@ int Ingest::createStatsDbEntry(const string& assetName)
 }
 
 /**
+ * Create a row for service in the statistics DB table, if not present already
+ * 
+ */
+int Ingest::createServiceStatsDbEntry()
+{
+	// SELECT * FROM fledge.configuration WHERE key = categoryName
+	const Condition conditionKey(Equals);
+	Where *wKey = new Where("key", conditionKey, m_serviceName + INGEST_SUFFIX);
+	Query qKey(wKey);
+
+	ResultSet* result = 0;
+	try
+	{
+		// Query via storage client
+		result = m_storage.queryTable("statistics", qKey);
+
+		if (!result->rowCount())
+		{
+			// Prepare insert values for insertTable
+			InsertValues newStatsEntry;
+			newStatsEntry.push_back(InsertValue("key", m_serviceName + INGEST_SUFFIX));
+			newStatsEntry.push_back(InsertValue("description", string("Readings received from service ")+ m_serviceName));
+			// Set "value" field for insert using the JSON document object
+			newStatsEntry.push_back(InsertValue("value", 0));
+			newStatsEntry.push_back(InsertValue("previous_value", 0));
+
+			// Do the insert
+			if (!m_storage.insertTable("statistics", newStatsEntry))
+			{
+				m_logger->error("%s:%d : Insert new row into statistics table failed, newStatsEntry='%s'", __FUNCTION__, __LINE__, newStatsEntry.toJSON().c_str());
+				delete result;
+				return -1;
+			}
+		}
+		delete result;
+	}
+	catch (...)
+	{
+		m_logger->error("%s:%d : Unable to create new row in statistics table with key='%s'", __FUNCTION__, __LINE__, m_serviceName.c_str());
+		return -1;
+	}
+	return 0;
+}
+/**
  * Update statistics for this south service. Successfully processed 
  * readings are reflected against plugin asset name and READINGS keys.
  * Discarded readings stats are updated against DISCARDED key.
@@ -147,6 +191,13 @@ void Ingest::updateStats()
 	if(readings)
 	{
 		Where *wPluginStat = new Where("key", conditionStat, "READINGS");
+		ExpressionValues *updateValue = new ExpressionValues;
+		updateValue->push_back(Expression("value", "+", (int) readings));
+		statsUpdates.emplace_back(updateValue, wPluginStat);
+	}
+	if(readings)
+	{
+		Where *wPluginStat = new Where("key", conditionStat, m_serviceName + INGEST_SUFFIX);
 		ExpressionValues *updateValue = new ExpressionValues;
 		updateValue->push_back(Expression("value", "+", (int) readings));
 		statsUpdates.emplace_back(updateValue, wPluginStat);
@@ -221,6 +272,9 @@ Ingest::Ingest(StorageClient& storage,
 	// populate asset tracking cache
 	//m_assetTracker = new AssetTracker(m_mgtClient);
 	AssetTracker::getAssetTracker()->populateAssetTrackingCache(m_pluginName, "Ingest");
+
+	// Create the stats entry for the service
+	createServiceStatsDbEntry();
 
 	m_filterPipeline = NULL;
 }

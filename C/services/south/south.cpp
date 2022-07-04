@@ -52,6 +52,7 @@ bool	       daemonMode = true;
 string	       myName = SERVICE_NAME;
 string	       logLevel = "warning";
 string         token = "";
+bool	       dryrun = false;
 
 	signal(SIGSEGV, handler);
 	signal(SIGILL, handler);
@@ -81,9 +82,13 @@ string         token = "";
 		{
 			logLevel = &argv[i][11];
 		}
-		 else if (!strncmp(argv[i], "--token=", 8))
+		else if (!strncmp(argv[i], "--token=", 8))
 		{
 			token = &argv[i][8];
+		}
+		else if (!strncmp(argv[i], "--dryrun", 8))
+		{
+			dryrun = true;
 		}
 	}
 
@@ -94,6 +99,10 @@ string         token = "";
 	}
 
 	SouthService *service = new SouthService(myName, token);
+	if (dryrun)
+	{
+		service->setDryRun();
+	}
 	Logger::getLogger()->setMinLevel(logLevel);
 	service->start(coreAddress, corePort);
 	return 0;
@@ -223,7 +232,8 @@ SouthService::SouthService(const string& myName, const string& token) :
 				m_throttle(false),
 				m_throttled(false),
 				m_token(token),
-				m_repeatCnt(1)
+				m_repeatCnt(1),
+				m_dryRun(false)
 {
 	m_name = myName;
 	m_type = SERVICE_TYPE;
@@ -400,203 +410,210 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		// Create default security category
 		this->createSecurityCategories(m_mgtClient);
 
-		// Get and ingest data
-		if (! southPlugin->isAsync())
+		if (!m_dryRun)	// If not a dry run then handle readings
 		{
-			string units = m_configAdvanced.getValue("units");
-			unsigned long dividend = 1000000;
-			if (units.compare("second") == 0)
-				dividend = 1000000;
-			else if (units.compare("minute") == 0)
-				dividend = 60000000;
-			else if (units.compare("hour") == 0)
-				dividend = 3600000000;
-			unsigned long usecs = dividend / m_readingsPerSec;
+			// Get and ingest data
+			if (! southPlugin->isAsync())
+			{
+				string units = m_configAdvanced.getValue("units");
+				unsigned long dividend = 1000000;
+				if (units.compare("second") == 0)
+					dividend = 1000000;
+				else if (units.compare("minute") == 0)
+					dividend = 60000000;
+				else if (units.compare("hour") == 0)
+					dividend = 3600000000;
+				unsigned long usecs = dividend / m_readingsPerSec;
 
-			if (usecs > MAX_SLEEP * 1000000)
-			{
-				double x = usecs / (MAX_SLEEP * 1000000);
-				m_repeatCnt = ceil(x);
-				usecs /= m_repeatCnt;
-			}
-			else
-			{
-				m_repeatCnt = 1;
-			}
-			m_desiredRate.tv_sec  = (int)(usecs / 1000000);
-			m_desiredRate.tv_usec = (int)(usecs % 1000000);
-			m_timerfd = createTimerFd(m_desiredRate); // interval to be passed is in usecs
-			m_currentRate = m_desiredRate;
-			if (m_timerfd < 0)
-			{
-				logger->fatal("Could not create timer FD");
-				return;
-			}
-			
-			int pollCount = 0;
-			struct timespec start, end;
-			if (clock_gettime(CLOCK_MONOTONIC, &start) == -1)
-			   Logger::getLogger()->error("polling loop start: clock_gettime");
-
-			const char *pluginInterfaceVer = southPlugin->getInfo()->interface;
-			bool pollInterfaceV2 = (pluginInterfaceVer[0]=='2' && pluginInterfaceVer[1]=='.');
-			logger->info("pollInterfaceV2=%s", pollInterfaceV2?"true":"false");
-
-			/*
-			 * Start the plugin. If it fails with an excpetion retry the start with a delay
-			 * That delay starts at 500mS and will backoff to 1 minute
-			 *
-			 * We will continue to retry the start until the service is shutdown
-			 */
-			bool started = false;
-			int delay = 500;
-			while (started == false && m_shutdown == false)
-			{
-				if (southPlugin->persistData())
+				if (usecs > MAX_SLEEP * 1000000)
 				{
-					Logger::getLogger()->debug("Plugin persists data");
-					string pluginData = m_pluginData->loadStoredData(m_dataKey);
-					try {
-						southPlugin->startData(pluginData);
-						started = true;
-					} catch (...) {
-						Logger::getLogger()->debug("Plugin start raised an exception");
-					}
+					double x = usecs / (MAX_SLEEP * 1000000);
+					m_repeatCnt = ceil(x);
+					usecs /= m_repeatCnt;
 				}
 				else
 				{
-					Logger::getLogger()->debug("Plugin does not persist data");
-					started = true;
+					m_repeatCnt = 1;
 				}
-				if (!started)
+				m_desiredRate.tv_sec  = (int)(usecs / 1000000);
+				m_desiredRate.tv_usec = (int)(usecs % 1000000);
+				m_timerfd = createTimerFd(m_desiredRate); // interval to be passed is in usecs
+				m_currentRate = m_desiredRate;
+				if (m_timerfd < 0)
 				{
-					std::this_thread::sleep_for(std::chrono::milliseconds(delay));
-					if (delay < 60 * 1000)	// Backoff the delay to 1 minute
-					{
-						delay *= 2;
-					}
+					logger->fatal("Could not create timer FD");
+					return;
 				}
-			}
-
-			while (!m_shutdown)
-			{
-				uint64_t exp;
-				ssize_t s;
 				
-				long rep = m_repeatCnt;
-				while (rep > 0)
-				{
-					s = read(m_timerfd, &exp, sizeof(uint64_t));
-					if ((unsigned int)s != sizeof(uint64_t))
-						logger->error("timerfd read()");
-					if (exp > 100 && exp > m_readingsPerSec/2)
-					logger->error("%d expiry notifications accumulated", exp);
-					rep--;
-					if (m_shutdown)
-					{
-						break;
-					}
-				}
-				if (m_shutdown)
-				{
-					break;
-				}
-#if DO_CATCHUP
-				for (uint64_t i=0; i<exp; i++)
-#endif
-				{
-					if (!pollInterfaceV2) // v1 poll method
-					{
-					
-						Reading reading = southPlugin->poll();
-						if (reading.getDatapointCount())
-						{
-							ingest.ingest(reading);
-						}
-						++pollCount;
-					}
-					else // V2 poll method
-					{
-						ReadingSet *set = southPlugin->pollV2();
-                        if (set)
-                        {
-                            std::vector<Reading *> *vec = set->getAllReadingsPtr();
-                            std::vector<Reading *> *vec2 = new std::vector<Reading *>;
-                            if (!vec)
-                            {
-                                Logger::getLogger()->info("%s:%d: V2 poll method: vec is NULL", __FUNCTION__, __LINE__);
-                                continue;
-                            }
-                            else
-                            {
-                                for (auto & r : *vec)
-                                {
-                                    Reading *r2 = new Reading(*r); // Need to copy reading objects here, since "del set" below would remove encapsulated reading objects
-                                    vec2->emplace_back(r2);
-                                }
-                            }
+				int pollCount = 0;
+				struct timespec start, end;
+				if (clock_gettime(CLOCK_MONOTONIC, &start) == -1)
+				   Logger::getLogger()->error("polling loop start: clock_gettime");
 
-    						ingest.ingest(vec2);
-    						pollCount += (int) vec2->size();
-    						delete vec2; 	// each reading object inside vector has been allocated on heap and moved to Ingest class's internal queue
-    						delete set;
-                        }
-					}
-					throttlePoll();
-				}
-			}
-			if (clock_gettime(CLOCK_MONOTONIC, &end) == -1)
-			   Logger::getLogger()->error("polling loop end: clock_gettime");
-			
-			int secs = end.tv_sec - start.tv_sec;
-		   	int nsecs = end.tv_nsec - start.tv_nsec;
-		   	if (nsecs < 0)
-			{
-				secs--;
-				nsecs += 1000000000;
-			}
-			Logger::getLogger()->info("%d readings generated in %d.%d secs", pollCount, secs, nsecs);
-			close(m_timerfd);
-		}
-		else
-		{
-			const char *pluginInterfaceVer = southPlugin->getInfo()->interface;
-			bool pollInterfaceV2 = (pluginInterfaceVer[0]=='2' && pluginInterfaceVer[1]=='.');
-			Logger::getLogger()->info("pluginInterfaceVer=%s, pollInterfaceV2=%s", pluginInterfaceVer, pollInterfaceV2?"true":"false");
-			if (!pollInterfaceV2)
-				southPlugin->registerIngest((INGEST_CB)doIngest, &ingest);
-			else
-				southPlugin->registerIngestV2((INGEST_CB2)doIngestV2, &ingest);
-			bool started = false;
-			int backoff = 1000;
-			while (started == false && m_shutdown == false)
-			{
-				try {
+				const char *pluginInterfaceVer = southPlugin->getInfo()->interface;
+				bool pollInterfaceV2 = (pluginInterfaceVer[0]=='2' && pluginInterfaceVer[1]=='.');
+				logger->info("pollInterfaceV2=%s", pollInterfaceV2?"true":"false");
+
+				/*
+				 * Start the plugin. If it fails with an excpetion retry the start with a delay
+				 * That delay starts at 500mS and will backoff to 1 minute
+				 *
+				 * We will continue to retry the start until the service is shutdown
+				 */
+				bool started = false;
+				int delay = 500;
+				while (started == false && m_shutdown == false)
+				{
 					if (southPlugin->persistData())
 					{
+						Logger::getLogger()->debug("Plugin persists data");
 						string pluginData = m_pluginData->loadStoredData(m_dataKey);
-						Logger::getLogger()->debug("Plugin persists data, %s", pluginData.c_str());
-						southPlugin->startData(pluginData);
+						try {
+							southPlugin->startData(pluginData);
+							started = true;
+						} catch (...) {
+							Logger::getLogger()->debug("Plugin start raised an exception");
+						}
 					}
 					else
 					{
 						Logger::getLogger()->debug("Plugin does not persist data");
-						southPlugin->start();
+						started = true;
 					}
-					started = true;
-				} catch (...) {
-					Logger::getLogger()->debug("Plugin start raised an exception");
-					std::this_thread::sleep_for(std::chrono::milliseconds(backoff));
-					if (backoff < 60000)
+					if (!started)
 					{
-						backoff *= 2;
+						std::this_thread::sleep_for(std::chrono::milliseconds(delay));
+						if (delay < 60 * 1000)	// Backoff the delay to 1 minute
+						{
+							delay *= 2;
+						}
 					}
 				}
+
+				while (!m_shutdown)
+				{
+					uint64_t exp;
+					ssize_t s;
+					
+					long rep = m_repeatCnt;
+					while (rep > 0)
+					{
+						s = read(m_timerfd, &exp, sizeof(uint64_t));
+						if ((unsigned int)s != sizeof(uint64_t))
+							logger->error("timerfd read()");
+						if (exp > 100 && exp > m_readingsPerSec/2)
+						logger->error("%d expiry notifications accumulated", exp);
+						rep--;
+						if (m_shutdown)
+						{
+							break;
+						}
+					}
+					if (m_shutdown)
+					{
+						break;
+					}
+#if DO_CATCHUP
+					for (uint64_t i=0; i<exp; i++)
+#endif
+					{
+						if (!pollInterfaceV2) // v1 poll method
+						{
+						
+							Reading reading = southPlugin->poll();
+							if (reading.getDatapointCount())
+							{
+								ingest.ingest(reading);
+							}
+							++pollCount;
+						}
+						else // V2 poll method
+						{
+							ReadingSet *set = southPlugin->pollV2();
+				if (set)
+				{
+				    std::vector<Reading *> *vec = set->getAllReadingsPtr();
+				    std::vector<Reading *> *vec2 = new std::vector<Reading *>;
+				    if (!vec)
+				    {
+					Logger::getLogger()->info("%s:%d: V2 poll method: vec is NULL", __FUNCTION__, __LINE__);
+					continue;
+				    }
+				    else
+				    {
+					for (auto & r : *vec)
+					{
+					    Reading *r2 = new Reading(*r); // Need to copy reading objects here, since "del set" below would remove encapsulated reading objects
+					    vec2->emplace_back(r2);
+					}
+				    }
+
+							ingest.ingest(vec2);
+							pollCount += (int) vec2->size();
+							delete vec2; 	// each reading object inside vector has been allocated on heap and moved to Ingest class's internal queue
+							delete set;
+				}
+						}
+						throttlePoll();
+					}
+				}
+				if (clock_gettime(CLOCK_MONOTONIC, &end) == -1)
+				   Logger::getLogger()->error("polling loop end: clock_gettime");
+				
+				int secs = end.tv_sec - start.tv_sec;
+				int nsecs = end.tv_nsec - start.tv_nsec;
+				if (nsecs < 0)
+				{
+					secs--;
+					nsecs += 1000000000;
+				}
+				Logger::getLogger()->info("%d readings generated in %d.%d secs", pollCount, secs, nsecs);
+				close(m_timerfd);
 			}
-			while (!m_shutdown)
+			else
 			{
-				std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+				const char *pluginInterfaceVer = southPlugin->getInfo()->interface;
+				bool pollInterfaceV2 = (pluginInterfaceVer[0]=='2' && pluginInterfaceVer[1]=='.');
+				Logger::getLogger()->info("pluginInterfaceVer=%s, pollInterfaceV2=%s", pluginInterfaceVer, pollInterfaceV2?"true":"false");
+				if (!pollInterfaceV2)
+					southPlugin->registerIngest((INGEST_CB)doIngest, &ingest);
+				else
+					southPlugin->registerIngestV2((INGEST_CB2)doIngestV2, &ingest);
+				bool started = false;
+				int backoff = 1000;
+				while (started == false && m_shutdown == false)
+				{
+					try {
+						if (southPlugin->persistData())
+						{
+							string pluginData = m_pluginData->loadStoredData(m_dataKey);
+							Logger::getLogger()->debug("Plugin persists data, %s", pluginData.c_str());
+							southPlugin->startData(pluginData);
+						}
+						else
+						{
+							Logger::getLogger()->debug("Plugin does not persist data");
+							southPlugin->start();
+						}
+						started = true;
+					} catch (...) {
+						Logger::getLogger()->debug("Plugin start raised an exception");
+						std::this_thread::sleep_for(std::chrono::milliseconds(backoff));
+						if (backoff < 60000)
+						{
+							backoff *= 2;
+						}
+					}
+				}
+				while (!m_shutdown)
+				{
+					std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+				}
 			}
+		}
+		else
+		{
+			Logger::getLogger()->info("Dryrun of service, shutting down");
 		}
 
 		// Shutdown the API
@@ -704,7 +721,9 @@ bool SouthService::loadPlugin()
 			// Removes all the m_items already present in the category
 			m_config.removeItems();
 			m_config = m_mgtClient->getCategory(m_name);
-
+			m_config.addItem("mgmt_client_url_base", "Management client host and port",
+                             "string", "127.0.0.1:0",
+                             m_mgtClient->getUrlbase());
 			try {
 				southPlugin = new SouthPlugin(handle, m_config);
 			} catch (...) {

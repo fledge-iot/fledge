@@ -32,7 +32,7 @@ class SendingProcess : public FledgeProcess
 		void			run() const;
 		void			stop();
 		int			getStreamId() const { return m_stream_id; };
-		bool			isRunning() const { return m_running; };
+		bool			isRunning() const { if (m_dryRun) return false; return m_running; };
 		void			stopRunning() { m_running = false; };
 		void			setLastFetchId(unsigned long id) { m_last_fetch_id = id; };
 		unsigned long		getLastFetchId() const { return m_last_fetch_id; };

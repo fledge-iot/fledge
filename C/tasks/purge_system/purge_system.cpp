@@ -122,7 +122,10 @@ void PurgeSystem::run()
 				   ,m_retainAuditLog
 				   ,m_retainTaskHistory);
 
-	purgeExecution();
+	if (!m_dryRun)
+	{
+		purgeExecution();
+	}
 	processEnd();
 }
 

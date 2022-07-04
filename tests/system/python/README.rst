@@ -220,6 +220,16 @@ The minimum required parameters to run this test is ::
     --pi-passwd=<Password of PI Machine>
     --pi-token="<PI Producer token>"
 
+Test test_north_pi_webapi_nw_throttle.py
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Example
+python3 -m pytest -s -v test_north_pi_webapi_nw_throttle.py  --pi-db=<db_name>  \
+--pi-host=<host_ip> --pi-port=<port> --pi-admin=<user>  \
+--pi-passwd=<password> \
+--throttled-network-config='{"rate_limit": 100, "packet_delay": 25, "interface": "eth0"}' \
+--south-service-wait-time=20 --north-catch-up-time=180
+
+
 Execute all the System tests
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

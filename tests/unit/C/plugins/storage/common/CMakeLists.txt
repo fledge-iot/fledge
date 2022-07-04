@@ -6,9 +6,12 @@ set(CMAKE_CXX_FLAGS "-std=c++11 -O3")
 find_package(GTest REQUIRED)
 include_directories(${GTEST_INCLUDE_DIRS})
 include_directories(../../../../../../C/plugins/storage/common/include)
+include_directories(../../../../../../C/common/include)
 
 file(GLOB test_sources "../../../../../../C/plugins/storage/common/*.cpp")
+set(common_sources "../../../../../../C/common/string_utils.cpp")
+
  
 # Link runTests with what we want to test and the GTest and pthread library
-add_executable(RunTests ${test_sources} tests.cpp)
-target_link_libraries(RunTests ${GTEST_LIBRARIES} pthread)
+add_executable(RunTests ${test_sources} ${common_sources} tests.cpp)
+target_link_libraries(RunTests ${GTEST_LIBRARIES} pthread ${COMMONLIB})

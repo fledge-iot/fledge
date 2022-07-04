@@ -22,6 +22,6 @@ CREATE UNIQUE INDEX fledge.config_children_idx1 ON category_children (parent, ch
 INSERT INTO fledge.category_children(parent, child) SELECT parent, child FROM fledge.category_children_old;
 
 -- Remote temp table
-DROP TABLE foglamp.category_children_old;
+DROP TABLE fledge.category_children_old;
 
 COMMIT;

@@ -50,6 +50,9 @@ void StatsHistory::run() const
 	std::signal(SIGSTOP, signalHandler);
 	std::signal(SIGTERM, signalHandler);
 
+	if (m_dryRun)
+		return;
+
 	// Get the set of distinct statistics keys
 	Query query(new Returns("key"));
 	query.distinct();

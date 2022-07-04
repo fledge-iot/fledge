@@ -16,6 +16,7 @@
 #include <sqlite3.h>
 #include <mutex>
 #include <reading_stream.h>
+#include <schema.h>
 #include <map>
 #include <vector>
 #include <atomic>
@@ -118,19 +119,27 @@ class Connection {
 		Connection();
 		~Connection();
 #ifndef SQLITE_SPLIT_READINGS
-		bool		retrieve(const std::string& table,
+		bool		createSchema(const std::string& schema);
+		bool		retrieve(const std::string& schema,
+					 const std::string& table,
 					 const std::string& condition,
 					 std::string& resultSet);
-		int		insert(const std::string& table, const std::string& data);
-		int		update(const std::string& table, const std::string& data);
-		int		deleteRows(const std::string& table, const std::string& condition);
+		int		insert(const std::string& schema,
+					const std::string& table,
+					const std::string& data);
+		int		update(const std::string& schema,
+						const std::string& table,
+						const std::string& data);
+		int		deleteRows(const std::string& schema,
+						const std::string& table,
+						const std::string& condition);
 		int		create_table_snapshot(const std::string& table, const std::string& id);
 		int		load_table_snapshot(const std::string& table, const std::string& id);
 		int		delete_table_snapshot(const std::string& table, const std::string& id);
 		bool		get_table_snapshots(const std::string& table, std::string& resultSet);
 #endif
 		int		appendReadings(const char *readings);
-		int 	readingStream(ReadingStream **readings, bool commit);
+		int 		readingStream(ReadingStream **readings, bool commit);
 		bool		fetchReadings(unsigned long id, unsigned int blksize,
 						std::string& resultSet);
 		bool		retrieveReadings(const std::string& condition,
@@ -143,29 +152,31 @@ class Connection {
 		void		setTrace(bool);
 		bool		formatDate(char *formatted_date, size_t formatted_date_size, const char *date);
 		bool		aggregateQuery(const rapidjson::Value& payload, std::string& resultSet);
-		bool        getNow(std::string& Now);
+		bool		getNow(std::string& Now);
 
 		sqlite3		*getDbHandle() {return dbHandle;};
-		void        setUsedDbId(int dbId);
+		void		setUsedDbId(int dbId);
 
-		void        shutdownAppendReadings();
+		void		shutdownAppendReadings();
 
 	private:
 
-		std::vector<int>  m_NewDbIdList;            // Newly created databases that should be attached
+		std::vector<int>
+		       		m_NewDbIdList;            // Newly created databases that should be attached
 
-		bool 		m_streamOpenTransaction;
-		int		    m_queuing;
+		bool		m_streamOpenTransaction;
+		int		m_queuing;
 		std::mutex	m_qMutex;
-		int         SQLPrepare(sqlite3 *dbHandle, const char *sqlCmd, sqlite3_stmt **readingsStmt);
-		int 		SQLexec(sqlite3 *db, const char *sql,
-					int (*callback)(void*,int,char**,char**),
+		int		SQLPrepare(sqlite3 *dbHandle, const char *sqlCmd, sqlite3_stmt **readingsStmt);
+		int		SQLexec(sqlite3 *db, const char *sql,
+				int (*callback)(void*,int,char**,char**),
 					void *cbArg, char **errmsg);
 
 		int		SQLstep(sqlite3_stmt *statement);
 		bool		m_logSQL;
 		void		raiseError(const char *operation, const char *reason,...);
 		sqlite3		*dbHandle;
+		SchemaManager	*m_schemaManager;
 		int		mapResultSet(void *res, std::string& resultSet, unsigned long *rowsCount = nullptr);
 #ifndef SQLITE_SPLIT_READINGS
 		bool		jsonWhereClause(const rapidjson::Value& whereClause, SQLBuffer&, std::vector<std::string>  &asset_codes, bool convertLocaltime = false, std::string prefix = "");
@@ -183,7 +194,7 @@ class Connection {
 					       bool isExtQuery = false
 					       );
 #else
-	bool		jsonAggregates(const rapidjson::Value&,
+	bool			jsonAggregates(const rapidjson::Value&,
 		                               const rapidjson::Value&,
 		                               SQLBuffer&,
 		                               SQLBuffer&,
@@ -198,9 +209,8 @@ class Connection {
 						std::string& newDate);
 		void		logSQL(const char *, const char *);
 		bool		selectColumns(const rapidjson::Value& document, SQLBuffer& sql, int level);
-		bool 		appendTables(const rapidjson::Value& document, SQLBuffer& sql, int level);
+		bool 		appendTables(const std::string& schema, const rapidjson::Value& document, SQLBuffer& sql, int level);
 		bool		processJoinQueryWhereClause(const rapidjson::Value& query, SQLBuffer& sql, std::vector<std::string>  &asset_codes, int level);
-
 };
 
 #endif

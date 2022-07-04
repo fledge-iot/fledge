@@ -422,19 +422,23 @@ class TestPackagesSinusoid_PI_WebAPI:
         # Note down the total readings ingested
         initial_readings = int(get_total_readings(fledge_url))
 
+        print("Initial readings ingested {} \n".format(initial_readings))
         # switch off Compression
         dp_name = 'id_datapoint'
         turn_off_compression_for_pi_point(pi_host, pi_admin, pi_passwd, ASSET, dp_name)
 
         # allow the newly applied compression setting to be saved.
-        time.sleep(5)
-        change_category(fledge_url, SOUTH_SERVICE_NAME + "Advanced", "readingsPerSec", 3000)
+        time.sleep(2)
 
         # Restart the south service
         enable_schedule(fledge_url, SOUTH_SERVICE_NAME)
 
         # Wait for the south service to start.
         time.sleep(3)
+        # Increase the ingest rate.
+        readings_before_rate_increase = int(get_total_readings(fledge_url))
+        print("Readings before increasing rate {} \n".format(readings_before_rate_increase))
+        change_category(fledge_url, SOUTH_SERVICE_NAME + "Advanced", "readingsPerSec", 3000)
 
         # Now we can distort the network.
         distort_network(interface=interface_for_impairment, traffic="outbound",

@@ -24,6 +24,7 @@ from pathlib import Path
 import urllib.parse
 import base64
 import ssl
+import csv
 
 from network_impairment import distort_network, reset_network
 
@@ -469,6 +470,14 @@ class TestPackagesSinusoid_PI_WebAPI:
 
         assert len(data_from_pi) > 0, "Could not fetch fetch data from PI."
         data_from_pi = [int(d) for d in data_from_pi]
+        # opening the csv file in 'w+' mode
+        file_csv = open('readings_from_PI.csv', 'w+', newline='')
+
+        # writing the data into the file
+        with file_csv:
+            write = csv.writer(file_csv)
+            write.writerows([data_from_pi])
+
         total_readings = int(get_total_readings(fledge_url))
         readings_list = [i for i in range(initial_readings + 1, total_readings+1)]
         print("Readings ingested in beginning {}".format(initial_readings))

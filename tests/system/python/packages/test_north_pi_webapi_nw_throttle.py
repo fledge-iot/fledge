@@ -90,29 +90,6 @@ def change_category(fledge_url, cat_name, config_item, value):
     print(retval)
 
 
-def _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries, asset_name):
-    # Calling this function to only delete the element hierarchy.
-    retry_count = 0
-    data_from_pi = None
-
-    af_hierarchy_level = "fledge/room1/machine1"
-    af_hierarchy_level_list = af_hierarchy_level.split("/")
-    type_id = 1
-    dp_name = 'id_datapoint'
-    recorded_datapoint = "{}measurement_{}.{}".format(type_id, asset_name, dp_name)
-
-    # Name of asset in the PI server
-    PI_ASSET_NAME = "{}-type{}".format(asset_name, type_id)
-
-    while (data_from_pi is None or data_from_pi == []) and retry_count < retries:
-        data_from_pi = read_data_from_pi_web_api(pi_host, pi_admin, pi_passwd, pi_db, af_hierarchy_level_list,
-                                                 PI_ASSET_NAME, {recorded_datapoint})
-        retry_count += 1
-        time.sleep(wait_time * 2)
-
-    return data_from_pi
-
-
 @pytest.fixture
 def start_south_north(add_south, start_north_task_omf_web_api, add_filter, remove_data_file,
                       fledge_url, pi_host, pi_port, pi_admin, pi_passwd,
@@ -178,6 +155,7 @@ def get_total_readings(fledge_url):
 
 
 def get_bulk_data_from_pi(host, admin, password, asset_name, data_point_name):
+    """Used for getting bulk data < 100000 from PI."""
     username_password = "{}:{}".format(admin, password)
     username_password_b64 = base64.b64encode(username_password.encode('ascii')).decode("ascii")
     headers = {'Authorization': 'Basic %s' % username_password_b64}
@@ -226,20 +204,41 @@ def get_bulk_data_from_pi(host, admin, password, asset_name, data_point_name):
             assert "Value" in r, "Could not fetch the last reading from PI."
             required_values.append(r["Value"])
 
-            # We are deleting Pi point. Other wise we have to use timestamps in queries to
-            # fetch data.
-            conn.request("DELETE", "/piwebapi/points/{}".format(web_id), headers=headers)
-            r = conn.getresponse()
-            assert r.status == 204, "Could not delete" \
-                                    " the pi point {}.".format(pi_point_name)
             conn.close()
             return required_values
 
     assert False, "Could not find {} in all PI points".format(name_to_search)
 
 
-def turn_off_compression_for_pi_point(host, admin, password, asset_name, data_point_name):
+def delete_pi_point(host, admin, password, asset_name, data_point_name):
+    """Deletes a given pi point fromPI."""
     username_password = "{}:{}".format(admin, password)
+
+    username_password_b64 = base64.b64encode(username_password.encode('ascii')).decode("ascii")
+    headers = {'Authorization': 'Basic %s' % username_password_b64, 'Content-Type': 'application/json'}
+
+    try:
+        web_id, pi_point_name = search_for_pi_point(host, admin, password, asset_name, data_point_name)
+        if not web_id:
+            assert False, "Could not search PI Point {}".format(data_point_name)
+
+        conn = http.client.HTTPSConnection(host, context=ssl._create_unverified_context())
+        conn.request("DELETE", "/piwebapi/points/{}".format(web_id), headers=headers)
+        r = conn.getresponse()
+        assert r.status == 204, "Could not delete" \
+                                " the pi point {}.".format(pi_point_name)
+
+        conn.close()
+
+    except Exception as er:
+        print("Could not turn off compression for pi point {} due to {}".format(data_point_name, er))
+        assert False, "Could not turn off compression for pi point {} due to {}".format(data_point_name, er)
+
+
+def search_for_pi_point(host, admin, password, asset_name, data_point_name):
+    """Searches for a pi point in PI return its web_id and its full name in PI."""
+    username_password = "{}:{}".format(admin, password)
+
     username_password_b64 = base64.b64encode(username_password.encode('ascii')).decode("ascii")
     headers = {'Authorization': 'Basic %s' % username_password_b64, 'Content-Type': 'application/json'}
     try:
@@ -264,20 +263,37 @@ def turn_off_compression_for_pi_point(host, admin, password, asset_name, data_po
         if name_to_search in single_point['Name']:
             web_id = single_point['WebId']
             pi_point_name = single_point["Name"]
-            attr_name = 'compressing'
-
-            conn.request("PUT", '/piwebapi/points/{}/attributes/{}'.format(web_id, attr_name),
-                         body="0", headers=headers)
-
-            r = conn.getresponse()
-            assert r.status == 204, "Could not update the compression" \
-                                    " for the PI Point {}.".format(pi_point_name)
-
-            print("Turned off compression for the PI Point {} ".format(pi_point_name))
             conn.close()
-            return
+            return web_id, pi_point_name
 
-    assert False, "Could not find {} in all PI points".format(name_to_search)
+    return None, None
+
+
+def turn_off_compression_for_pi_point(host, admin, password, asset_name, data_point_name):
+    """Turns off compression for a given point in PI."""
+    username_password = "{}:{}".format(admin, password)
+
+    username_password_b64 = base64.b64encode(username_password.encode('ascii')).decode("ascii")
+    headers = {'Authorization': 'Basic %s' % username_password_b64, 'Content-Type': 'application/json'}
+    try:
+        web_id, pi_point_name = search_for_pi_point(host, admin, password, asset_name, data_point_name)
+        if not web_id:
+            assert False, "Could not search PI Point {}".format(data_point_name)
+
+        conn = http.client.HTTPSConnection(host, context=ssl._create_unverified_context())
+        attr_name = 'compressing'
+        conn.request("PUT", '/piwebapi/points/{}/attributes/{}'.format(web_id, attr_name),
+                     body="0", headers=headers)
+        r = conn.getresponse()
+        conn.close()
+        assert r.status == 204, "Could not update the compression" \
+                                " for the PI Point {}.".format(pi_point_name)
+    except Exception as er:
+        print("Could not turn off compression for pi point {} due to {}".format(data_point_name, er))
+        assert False, "Could not turn off compression for pi point {} due to {}".format(data_point_name, er)
+
+    print("Turned off compression for the PI Point {} ".format(pi_point_name))
+    return
 
 
 def get_readings_within_range(fledge_url, asset_name, limit, offset, order='desc'):
@@ -299,6 +315,63 @@ def get_readings_within_range(fledge_url, asset_name, limit, offset, order='desc
     r = r.read().decode()
     jdoc = json.loads(r)
     return
+
+
+def delete_element_hierarchy(host, admin, password, pi_database, af_hierarchy_list):
+    """ This method deletes the given hierarchy list form PI."""
+    # List of pi databases
+    dbs = None
+    # PI logical grouping of attributes and child elements
+    elements = None
+    # List of elements
+    url_elements_list = None
+    # Element's recorded data url
+    url_recorded_data = None
+    # Resources in the PI Web API are addressed by WebID, parameter used for deletion of element
+    web_id = None
+    # List of elements
+    url_elements_data_list = None
+
+    username_password = "{}:{}".format(admin, password)
+    username_password_b64 = base64.b64encode(username_password.encode('ascii')).decode("ascii")
+    headers = {'Authorization': 'Basic %s' % username_password_b64}
+
+    try:
+        conn = http.client.HTTPSConnection(host, context=ssl._create_unverified_context())
+        conn.request("GET", '/piwebapi/assetservers', headers=headers)
+        res = conn.getresponse()
+        r = json.loads(res.read().decode())
+        dbs = r["Items"][0]["Links"]["Databases"]
+
+        if dbs is not None:
+            conn.request("GET", dbs, headers=headers)
+            res = conn.getresponse()
+            r = json.loads(res.read().decode())
+            for el in r["Items"]:
+                if el["Name"] == pi_database:
+                    url_elements_list = el["Links"]["Elements"]
+
+        af_level_count = 0
+        for level in af_hierarchy_list[:-1]:
+            if url_elements_list is not None:
+                conn.request("GET", url_elements_list, headers=headers)
+                res = conn.getresponse()
+                r = json.loads(res.read().decode())
+                for el in r["Items"]:
+                    if el["Name"] == af_hierarchy_list[af_level_count]:
+                        url_elements_list = el["Links"]["Elements"]
+                        if af_level_count == 0:
+                            web_id_root = el["WebId"]
+                        af_level_count = af_level_count + 1
+
+        conn.request("DELETE", '/piwebapi/elements/{}'.format(web_id_root), headers=headers)
+        r = conn.getresponse()
+        assert r.status == 204, "Could not delete element hierarchy of {}".format(af_hierarchy_list)
+        conn.close()
+
+    except Exception as er:
+        print("Could not delete hierarchy of {} due to {}".format(af_hierarchy_list, er))
+        assert False, "Could not delete hierarchy of {} due to {}".format(af_hierarchy_list, er)
 
 
 class TestPackagesSinusoid_PI_WebAPI:
@@ -353,6 +426,10 @@ class TestPackagesSinusoid_PI_WebAPI:
         dp_name = 'id_datapoint'
         turn_off_compression_for_pi_point(pi_host, pi_admin, pi_passwd, ASSET, dp_name)
 
+        # allow the newly applied compression setting to be saved.
+        time.sleep(5)
+        change_category(fledge_url, SOUTH_SERVICE_NAME + "Advanced", "readingsPerSec", 3000)
+
         # Restart the south service
         enable_schedule(fledge_url, SOUTH_SERVICE_NAME)
 
@@ -363,10 +440,6 @@ class TestPackagesSinusoid_PI_WebAPI:
         distort_network(interface=interface_for_impairment, traffic="outbound",
                         latency=packet_delay,
                         rate_limit=rate_limit, ip=pi_host, port=pi_port, duration=duration)
-
-        # allow the south service to run for sometime
-        time.sleep(5)
-        change_category(fledge_url, SOUTH_SERVICE_NAME + "Advanced", "readingsPerSec", 3000)
 
         # Wait for south service to accumulate some readings
         time.sleep(south_service_wait_time)
@@ -383,6 +456,14 @@ class TestPackagesSinusoid_PI_WebAPI:
 
         # verify the bulk data from PI.
         data_from_pi = get_bulk_data_from_pi(pi_host, pi_admin, pi_passwd, ASSET, dp_name)
+
+        af_hierarchy_level = "fledge/room1/machine1"
+        af_hierarchy_level_list = af_hierarchy_level.split("/")
+        delete_element_hierarchy(pi_host, pi_admin, pi_passwd, pi_db, af_hierarchy_level_list)
+        delete_pi_point(pi_host, pi_admin, pi_passwd, ASSET, dp_name)
+        delete_pi_point(pi_host, pi_admin, pi_passwd, ASSET, 'sinusoid')
+
+        assert len(data_from_pi) > 0, "Could not fetch fetch data from PI."
         data_from_pi = [int(d) for d in data_from_pi]
         total_readings = int(get_total_readings(fledge_url))
         readings_list = [i for i in range(initial_readings + 1, total_readings+1)]
@@ -390,18 +471,13 @@ class TestPackagesSinusoid_PI_WebAPI:
         print("Total data from Fledge excluding initial readings is {}".format(len(readings_list)))
 
         required_index = data_from_pi.index(initial_readings + 1)
-        print("The index from which we need to verify the readings from PI : {}".format(required_index))
+        print("The index from which we need to verify the readings from PI : {} "
+              "and its value is {}".format(required_index, data_from_pi[required_index]))
         print("Total data from pi is {}".format(len(data_from_pi[required_index:])))
         assert data_from_pi[required_index] == readings_list[0], "The first reading in readings from PI" \
                                                                  " and readings from Fledge mismatch."
         print("Some values of PI are {}".format(data_from_pi[:100]))
         print("Some values of Fledge are {}".format(readings_list[:100]))
         # Comparing data from fledge and data from pi
-        assert data_from_pi[required_index:] == readings_list
-
-        # just to delete element hierarchy
-        verify_data_north = True
-        if verify_data_north:
-            data_pi = _verify_egress(read_data_from_pi_web_api, pi_host,
-                                     pi_admin, pi_passwd, pi_db, wait_time, retries,
-                                     asset_name)
+        assert data_from_pi[required_index:] == readings_list, "There is gap in readings " \
+                                                               "that are in Fledge and PI."

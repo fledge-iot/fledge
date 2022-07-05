@@ -11,6 +11,9 @@
 #include <connection_manager.h>
 #include <common.h>
 #include <utils.h>
+#ifndef MEMORY_READING_PLUGIN
+#include <schema.h>
+#endif
 
 /*
  * Control the way purge deletes readings. The block size sets a limit as to how many rows
@@ -598,6 +601,8 @@ Connection::Connection()
 		}
 
 	}
+
+	m_schemaManager = SchemaManager::getInstance();
 }
 #endif
 
@@ -842,7 +847,8 @@ unsigned long *rowid = (unsigned long *)data;
  * Perform a query against a common table
  *
  */
-bool Connection::retrieve(const string& table,
+bool Connection::retrieve(const string& schema,
+			  const string& table,
 			  const string& condition,
 			  string& resultSet)
 {
@@ -851,6 +857,15 @@ Document	document;
 SQLBuffer	sql;
 // Extra constraints to add to where clause
 SQLBuffer	jsonConstraints;
+
+	if (!m_schemaManager->exists(dbHandle, schema))
+	{
+		raiseError("retrieve",
+			"Schema %s does not exist, unable to retrieve from table %s",
+			schema.c_str(),
+			table.c_str());
+		return false;
+	}
 
 	try {
 		if (dbHandle == NULL)
@@ -861,7 +876,9 @@ SQLBuffer	jsonConstraints;
 
 		if (condition.empty())
 		{
-			sql.append("SELECT * FROM fledge.");
+			sql.append("SELECT * FROM ");
+			sql.append(schema);
+			sql.append('.');
 			sql.append(table);
 		}
 		else
@@ -1080,12 +1097,24 @@ SQLBuffer	jsonConstraints;
 /**
  * Insert data into a table
  */
-int Connection::insert(const std::string& table, const std::string& data)
+int Connection::insert(const std::string& schema,
+			const std::string& table,
+			const std::string& data)
 {
 SQLBuffer	sql;
 Document	document;
 ostringstream convert;
 std::size_t arr = data.find("inserts");
+
+	if (!m_schemaManager->exists(dbHandle, schema))
+	{
+		raiseError("insert",
+			"Schema %s does not exist, unable to insert into table %s",
+			schema.c_str(),
+			table.c_str());
+		return false;
+	}
+
 
 	// Check first the 'inserts' property in JSON data
 	bool stdInsert = (arr == std::string::npos || arr > 8);
@@ -1133,7 +1162,9 @@ std::size_t arr = data.find("inserts");
 		int col = 0;
 		SQLBuffer values;
 
-	 	sql.append("INSERT INTO fledge.");
+		sql.append("INSERT INTO ");
+		sql.append(schema);
+		sql.append('.');
 		sql.append(table);
 		sql.append(" (");
 
@@ -1265,7 +1296,9 @@ std::size_t arr = data.find("inserts");
  *    json_set(field, '$.key.value', the_value)
  *
  */
-int Connection::update(const string& table, const string& payload)
+int Connection::update(const string& schema,
+			const string& table,
+			const string& payload)
 {
 // Default template parameter uses UTF8 and MemoryPoolAllocator.
 Document	document;
@@ -1273,6 +1306,15 @@ SQLBuffer	sql;
 
 	int 	row = 0;
 	ostringstream convert;
+
+	if (!m_schemaManager->exists(dbHandle, schema))
+	{
+		raiseError("update",
+			"Schema %s does not exist, unable to update table %s",
+			schema.c_str(),
+			table.c_str());
+		return false;
+	}
 
 	std::size_t arr = payload.find("updates");
 	bool changeReqd = (arr == std::string::npos || arr > 8);
@@ -1307,7 +1349,9 @@ SQLBuffer	sql;
 					   "Each entry in the update array must be an object");
 				return -1;
 			}
-			sql.append("UPDATE fledge.");
+			sql.append("UPDATE ");
+			sql.append(schema);
+			sql.append('.');
 			sql.append(table);
 			sql.append(" SET ");
 
@@ -2987,14 +3031,28 @@ int Connection::SQLstep(sqlite3_stmt *statement)
  * Perform a delete against a common table
  *
  */
-int Connection::deleteRows(const string& table, const string& condition)
+int Connection::deleteRows(const string& schema,
+			const string& table,
+			const string& condition)
 {
 // Default template parameter uses UTF8 and MemoryPoolAllocator.
 Document document;
 SQLBuffer	sql;
- 
-	sql.append("DELETE FROM fledge.");
+
+	if (!m_schemaManager->exists(dbHandle, schema))
+	{
+		raiseError("delete",
+			"Schema %s does not exist, unable to delete from table %s",
+			schema.c_str(),
+			table.c_str());
+		return false;
+	}
+
+	sql.append("DELETE FROM ");
+	sql.append(schema);
+	sql.append('.');
 	sql.append(table);
+
 	if (! condition.empty())
 	{
 		sql.append(" WHERE ");

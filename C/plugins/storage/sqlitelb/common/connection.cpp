@@ -3307,4 +3307,15 @@ SQLBuffer sql;
 		return false;
 	}
 }
+/**
+ * Create schema and populate with tables and indexes as defined in the JSON schema
+ * definition.
+ *
+ * @param schema   The  schema defintion as a JSON document containing information about schema of tables to create
+ * @return true if the schema was created
+ */
+bool Connection::createSchema(const std::string &schema)
+{
+	return m_schemaManager->create(dbHandle, schema);
+}
 #endif

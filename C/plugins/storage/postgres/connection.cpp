@@ -1221,7 +1221,7 @@ SQLBuffer	sql;
 						else
 						{
 							sql.append("'\"");
-							sql.append(escape(str));
+							sql.append(escape_double_quotes(escape(str)));
 							sql.append("\"'");
 						}
 					}
@@ -2370,7 +2370,7 @@ bool Connection::jsonAggregates(const Value& payload,
 					raiseError("retrieve", "The json property is missing a column property");
 					return false;
 				}
-				sql.append('(');
+				sql.append("CASE WHEN jsonb_typeof(");
 				sql.append("\"");
 				sql.append(json["column"].GetString());
 				sql.append("\"");
@@ -2407,16 +2407,26 @@ bool Connection::jsonAggregates(const Value& payload,
 				}
 				else
 				{
+					sql.append("->'");
+					sql.append(jsonFields.GetString());
+					sql.append('\'');
+					sql.append(") != 'number' THEN 0 ELSE (");
+
+					sql.append("\"");
+					sql.append(json["column"].GetString());
+					sql.append("\"");
 					sql.append("->>'");
 					sql.append(jsonFields.GetString());
 					sql.append('\'');
 					jsonConstraint.append(" ? '");
 					jsonConstraint.append(jsonFields.GetString());
 					jsonConstraint.append("'");
+
+					sql.append(")::float");
+
 				}
-				sql.append(")::float");
 			}
-			sql.append(") AS \"");
+			sql.append(" END) AS \"");
 			if (itr->HasMember("alias"))
 			{
 				sql.append((*itr)["alias"].GetString());

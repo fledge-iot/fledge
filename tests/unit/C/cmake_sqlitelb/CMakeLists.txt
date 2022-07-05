@@ -24,7 +24,7 @@ find_package(sqlite3)
 
 # Find source files
 file(GLOB COMMON_SOURCES ../../../../C/plugins/storage/sqlitelb/common/*.cpp)
-file(GLOB SOURCES ../../../../C/plugins/storage/sqlitelb/*.cpp)
+file(GLOB SOURCES ../../../../C/plugins/storage/sqlitelb/*.cpp ../../../../C/plugins/storage/sqlite/schema/*.cpp)
 
 # Create shared library
 

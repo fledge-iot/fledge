@@ -889,7 +889,7 @@ INSERT INTO fledge.log_codes ( code, description )
             ( 'PKGUP', 'Package updated' ),
             ( 'PKGRM', 'Package purged' ),
             ( 'DSPST', 'Dispatcher Startup' ),
-            ( 'DSPSD', 'Dispatcher Shutdown' )
+            ( 'DSPSD', 'Dispatcher Shutdown' ),
 	    ( 'ESSRT', 'External Service Startup' ),
 	    ( 'ESSTP', 'External Service Shutdown' );
 

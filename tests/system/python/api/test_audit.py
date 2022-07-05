@@ -26,7 +26,8 @@ class TestAudit:
                               'CONCH', 'CONAD', 'SCHCH', 'SCHAD', 'SRVRG', 'SRVUN',
                               'SRVFL', 'NHCOM', 'NHDWN', 'NHAVL', 'UPEXC', 'BKEXC',
                               'NTFDL', 'NTFAD', 'NTFSN', 'NTFCL', 'NTFST', 'NTFSD',
-                              'PKGIN', 'PKGUP', 'PKGRM', 'DSPST', 'DSPSD']
+                              'PKGIN', 'PKGUP', 'PKGRM', 'DSPST', 'DSPSD', 'ESSRT',
+                              'ESSTP']
         conn = http.client.HTTPConnection(fledge_url)
         conn.request("GET", '/fledge/audit/logcode')
         r = conn.getresponse()

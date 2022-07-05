@@ -16,6 +16,7 @@ include_directories(../../../../C/services/common/include)
 include_directories(../../../../C/plugins/storage/common/include)
 include_directories(../../../../C/plugins/storage/sqlite/include)
 include_directories(../../../../C/plugins/storage/sqlite/common/include)
+include_directories(../../../../C/plugins/storage/sqlite/schema/include)
 
 # Check Sqlite3 required version
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}")

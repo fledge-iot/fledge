@@ -14,6 +14,7 @@ include_directories(../../../../C/thirdparty/rapidjson/include)
 include_directories(../../../../C/common/include)
 include_directories(../../../../C/services/common/include)
 include_directories(../../../../C/plugins/storage/common/include)
+include_directories(../../../../C/plugins/storage/sqlite/schema/include)
 include_directories(../../../../C/plugins/storage/sqlitelb/include)
 include_directories(../../../../C/plugins/storage/sqlitelb/common/include)
 

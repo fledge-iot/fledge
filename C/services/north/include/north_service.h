@@ -50,6 +50,7 @@ class NorthService : public ServiceAuthHandler {
 		bool				write(const std::string& name, const std::string& value, const ControlDestination, const std::string& arg);
 		int				operation(const std::string& name, int paramCount, char *names[], char *parameters[], const ControlDestination);
 		int				operation(const std::string& name, int paramCount, char *names[], char *parameters[], const ControlDestination, const std::string& arg);
+		void				setDryRun() { m_dryRun = true; };
 	private:
 		void				addConfigDefaults(DefaultConfigCategory& defaults);
 		bool 				loadPlugin();
@@ -74,5 +75,6 @@ class NorthService : public ServiceAuthHandler {
 		bool				m_restartPlugin;
 		const std::string		m_token;
 		bool				m_allowControl;
+		bool				m_dryRun;
 };
 #endif

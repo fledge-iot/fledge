@@ -657,7 +657,9 @@ INSERT INTO fledge.log_codes ( code, description )
             ( 'PKGUP', 'Package updated' ),
             ( 'PKGRM', 'Package purged' ),
             ( 'DSPST', 'Dispatcher Startup' ),
-            ( 'DSPSD', 'Dispatcher Shutdown' );
+            ( 'DSPSD', 'Dispatcher Shutdown' ),
+	    ( 'ESSRT', 'External Service Startup' ),
+	    ( 'ESSTP', 'External Service Shutdown' );
 
 --
 -- Configuration parameters
@@ -815,3 +817,10 @@ INSERT INTO fledge.schedules ( id, schedule_name, process_name, schedule_type,
                 't',                                   -- exclusive
                 't'                                    -- enabled
               );
+
+-- The Schema Service table used to hold information about extension schemas
+CREATE TABLE fledge.service_schema (
+             name          character varying(255)        NOT NULL,
+             service       character varying(255)        NOT NULL,
+             version       integer                       NOT NULL,
+             definition    JSON);

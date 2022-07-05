@@ -1,6 +1,17 @@
+set( CMAKE_VERBOSE_MAKEFILE on )
+
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/../../..)
+
+set(GCOVR_PATH "/home/nerd039/.local/bin/gcovr")
+
+# Project configuration
+project(RunTests)
 cmake_minimum_required(VERSION 2.6)
 
-set(CMAKE_CXX_FLAGS "-std=c++11 -O3")
+set(CMAKE_CXX_FLAGS "-std=c++11 -O0 -ggdb")
+
+include(CodeCoverage)
+append_coverage_compiler_flags()
  
 # Locate GTest
 find_package(GTest REQUIRED)
@@ -15,3 +26,9 @@ set(common_sources "../../../../../../C/common/string_utils.cpp")
 # Link runTests with what we want to test and the GTest and pthread library
 add_executable(RunTests ${test_sources} ${common_sources} tests.cpp)
 target_link_libraries(RunTests ${GTEST_LIBRARIES} pthread ${COMMONLIB})
+
+setup_target_for_coverage_gcovr_html(
+            NAME CoverageHtml
+            EXECUTABLE ${PROJECT_NAME}
+            DEPENDENCIES ${PROJECT_NAME}
+    )

@@ -1,19 +1,16 @@
-set( CMAKE_VERBOSE_MAKEFILE on )
-
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR})
-
-set(GCOVR_PATH "/home/nerd039/.local/bin/gcovr")
-
 cmake_minimum_required(VERSION 2.6)
 
-set(CMAKE_CXX_FLAGS "-std=c++11 --coverage -O0")
-
-set(UUIDLIB -luuid)
-set(COMMONLIB -ldl)
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR})
+set(GCOVR_PATH "$ENV{HOME}/.local/bin/gcovr")
 
 include(CodeCoverage)
 append_coverage_compiler_flags()
  
+set(CMAKE_CXX_FLAGS "-std=c++11 -O3")
+
+set(UUIDLIB -luuid)
+set(COMMONLIB -ldl)
+
 EXECUTE_PROCESS( COMMAND grep -o ^NAME=.* /etc/os-release COMMAND cut -f2 -d\" COMMAND sed s/\"//g OUTPUT_VARIABLE os_name )
 EXECUTE_PROCESS( COMMAND grep -o ^VERSION_ID=.* /etc/os-release COMMAND cut -f2 -d\" COMMAND sed s/\"//g OUTPUT_VARIABLE os_version )
 
@@ -67,7 +64,7 @@ file(GLOB COMMON_LIB_SOURCES ../../../C/common/*.cpp)
 add_library(common-lib SHARED ${COMMON_LIB_SOURCES})
 target_link_libraries(common-lib ${UUIDLIB})
 target_link_libraries(common-lib ${Boost_LIBRARIES})
-target_link_libraries(common-lib -lcrypto)
+target_link_libraries(common-lib -lcrypto -lgcov)
 set_target_properties(common-lib PROPERTIES SOVERSION 1)
 
 
@@ -76,7 +73,7 @@ file(GLOB SERVICES_COMMON_LIB_SOURCES ../../../C/services/common/*.cpp)
 
 # Create shared library
 add_library(services-common-lib SHARED ${SERVICES_COMMON_LIB_SOURCES})
-target_link_libraries(services-common-lib ${COMMONLIB})
+target_link_libraries(services-common-lib ${COMMONLIB} -lgcov)
 set_target_properties(services-common-lib PROPERTIES SOVERSION 1)
 
 
@@ -87,7 +84,7 @@ file(GLOB PLUGINS_COMMON_LIB_SOURCES ../../../C/plugins/common/*.cpp)
 set(LIBCURL_LIB -lcurl)
 
 add_library(plugins-common-lib SHARED ${PLUGINS_COMMON_LIB_SOURCES})
-target_link_libraries(plugins-common-lib ${Boost_LIBRARIES} common-lib services-common-lib z ssl crypto)
+target_link_libraries(plugins-common-lib ${Boost_LIBRARIES} common-lib services-common-lib z ssl crypto -lgcov)
 target_link_libraries(plugins-common-lib ${LIBCURL_LIB})
 
 set_target_properties(plugins-common-lib PROPERTIES SOVERSION 1)
@@ -105,7 +102,7 @@ target_link_libraries(${LIB_NAME}
                         common-lib
                         plugins-common-lib
                         ssl
-                        crypto)
+                        crypto -lgcov)
 
 set_target_properties(${LIB_NAME}  PROPERTIES SOVERSION 1)
 
@@ -120,10 +117,11 @@ file(GLOB STORAGE_COMMON_LIB_SOURCE ../../../C/plugins/storage/common/*.cpp)
 
 # Create shared library
 add_library(${LIB_NAME} SHARED ${STORAGE_COMMON_LIB_SOURCE})
-target_link_libraries(${LIB_NAME} ${DLLIB})
+target_link_libraries(${LIB_NAME} ${DLLIB} -lgcov)
 set_target_properties(${LIB_NAME} PROPERTIES SOVERSION 1)
 
 add_subdirectory(cmake_pg)
 add_subdirectory(cmake_sqlite)
 add_subdirectory(cmake_sqlitelb)
 add_subdirectory(cmake_sqliteM)
+

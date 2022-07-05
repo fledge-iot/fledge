@@ -1,3 +1,9 @@
+set( CMAKE_VERBOSE_MAKEFILE on )
+
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/..)
+
+set(GCOVR_PATH "/home/nerd039/.local/bin/gcovr")
+
 cmake_minimum_required(VERSION 2.6)
 
 set(CMAKE_CXX_FLAGS "-std=c++11 -O3")
@@ -5,8 +11,8 @@ set(UUIDLIB -luuid)
 set(COMMONLIB -ldl)
 set(LIBCURL_LIB -lcurl)
 
-set(CMAKE_MODULE_PATH .)
 include(CodeCoverage)
+append_coverage_compiler_flags()
 
 # Locate GTest
 find_package(GTest REQUIRED)
@@ -66,8 +72,6 @@ endif()
 
 link_directories(${PROJECT_BINARY_DIR}/../../lib)
 
-setup_target_for_coverage_gcovr_html(RunTests_coverage ${PROJECT_TEST_NAME} coverage)
-
 # Link runTests with what we want to test and the GTest and pthread library
 add_executable(RunTests ${unittests})
 target_link_libraries(RunTests ${GTEST_LIBRARIES} pthread)
@@ -86,4 +90,10 @@ if(${CMAKE_VERSION} VERSION_LESS "3.12.0")
 else()
 	target_link_libraries(${PROJECT_NAME} ${Python3_LIBRARIES} Python3::NumPy)
 endif()
+
+setup_target_for_coverage_gcovr_html(
+            NAME CoverageHtml
+            EXECUTABLE ${PROJECT_NAME}
+            DEPENDENCIES ${PROJECT_NAME}
+    )
 

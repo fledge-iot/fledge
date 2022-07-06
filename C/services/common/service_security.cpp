@@ -6,6 +6,8 @@
 #include <server_http.hpp>
 #include <rapidjson/error/en.h>
 
+#include <acl.h>
+
 #define TO_STRING(...) DEFER(TO_STRING_)(__VA_ARGS__)
 #define DEFER(x) x
 #define TO_STRING_(...) #__VA_ARGS__
@@ -740,5 +742,14 @@ void ServiceAuthHandler::securityChange(const string& payload)
 	Logger::getLogger()->debug("securityChange called for %s: %s",
 				this->getName().c_str(),
 				payload.c_str());
-	// TODO load, reload or detach ACL
+
+	// Parse reason JSON
+	ACL::ACLReason reason(payload);
+
+	Logger::getLogger()->debug("Reason is %s, argument %s",
+				reason.getReason().c_str(),
+				reason.getArgument().c_str());
+
+	// TODO: accordingly to reason.getReason():
+	// handle load, reload or detach ACL into this service
 }

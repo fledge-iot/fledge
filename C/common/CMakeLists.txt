@@ -5,7 +5,7 @@ if(COMMAND cmake_policy)
 endif(COMMAND cmake_policy)
 
 # Get the os name
-execute_process(COMMAND bash -c "cat /etc/os-release | grep -w ID | cut -f2 -d'='" OUTPUT_VARIABLE OS_NAME)
+execute_process(COMMAND bash -c "cat /etc/os-release | grep -w ID | cut -f2 -d'='" OUTPUT_VARIABLE OS_NAME OUTPUT_STRIP_TRAILING_WHITESPACE)
 
 if( POLICY CMP0007 )
     cmake_policy( SET CMP0007 NEW )

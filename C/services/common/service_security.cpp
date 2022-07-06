@@ -727,3 +727,18 @@ static void bearer_token_refresh_thread(void *data)
 	ServiceAuthHandler *service = (ServiceAuthHandler *)data;
 	service->refreshBearerToken();
 }
+
+/**
+ * Request security change action:
+ *
+ * Given a reason code, “attachACL”, “detachACL”, “reloadACL”
+ * in 'reason' atribute, the ACL name in 'argument' could be
+ * attached, detached or reloaded
+ */
+void ServiceAuthHandler::securityChange(const string& payload)
+{
+	Logger::getLogger()->debug("securityChange called for %s: %s",
+				this->getName().c_str(),
+				payload.c_str());
+	// TODO load, reload or detach ACL
+}

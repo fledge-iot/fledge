@@ -35,7 +35,7 @@ class TestAudit:
         r = r.read().decode()
         jdoc = json.loads(r)
         assert len(jdoc), "No data found"
-        assert 29 == len(jdoc['logCode'])
+        assert len(expected_code_list) == len(jdoc['logCode'])
         codes = [key['code'] for key in jdoc['logCode']]
         assert Counter(expected_code_list) == Counter(codes)
 

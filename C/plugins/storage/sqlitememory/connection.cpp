@@ -7,6 +7,7 @@
  *
  * Author: Massimiliano Pinto
  */
+
 #include <connection.h>
 #include <connection_manager.h>
 #include <common.h>

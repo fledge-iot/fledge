@@ -6,7 +6,7 @@ set(GCOVR_PATH "$ENV{HOME}/.local/bin/gcovr")
 include(CodeCoverage)
 append_coverage_compiler_flags()
  
-set(CMAKE_CXX_FLAGS "-std=c++11 -O3")
+set(CMAKE_CXX_FLAGS "-std=c++11 -O0")
 
 set(UUIDLIB -luuid)
 set(COMMONLIB -ldl)

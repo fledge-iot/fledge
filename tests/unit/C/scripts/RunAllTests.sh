@@ -22,10 +22,12 @@ fi
 if [ -f "./CMakeLists.txt" ] ; then
 	echo -n "Compiling libraries..."
 	(rm -rf build && mkdir -p build && cd build && cmake -DCMAKE_BUILD_TYPE=Debug .. && make ${jobs} && cd ..)
+	# (mkdir -p build && cd build && cmake -DCMAKE_BUILD_TYPE=Debug .. && make ${jobs} && cd ..)
 	echo "done"
 fi
 
-cmakefile=`find . -name CMakeLists.txt | grep -v "\.\/CMakeLists.txt" | grep -w sqlite | grep plugins`
+# cmakefile=`find . -name CMakeLists.txt | grep -v "\.\/CMakeLists.txt" | grep -w sqlite | grep plugins`
+cmakefile=`find . -name CMakeLists.txt | grep -v "\.\/CMakeLists.txt" `
 for f in $cmakefile; do	
 	echo "-----------------> Processing $f <-----------------"
 	dir=`dirname $f`
@@ -57,10 +59,13 @@ for f in $cmakefile; do
 	#		fi
 	#	fi
 
-		echo Running "make CoverageHtml";
-                make CoverageHtml
+		file=$(basename $f)
+		echo "pwd=`pwd`, f=$f, file=$file"
+		grep -q CoverageHtml ../${file}
+		[ $? -eq 0 ] && (echo Running "make CoverageHtml" && make CoverageHtml) || echo
+		# grep -q CoverageHtml ${f} && echo Running "make CoverageHtml" && make CoverageHtml
 
-	) # >/dev/null
+	) >/dev/null
 	rc=$?
 	if [ $rc != 0 ]; then
 		echo Tests for $dir failed

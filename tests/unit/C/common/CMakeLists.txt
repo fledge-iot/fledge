@@ -1,18 +1,17 @@
-set( CMAKE_VERBOSE_MAKEFILE on )
-
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/..)
-
-set(GCOVR_PATH "/home/nerd039/.local/bin/gcovr")
-
 cmake_minimum_required(VERSION 2.6)
 
-set(CMAKE_CXX_FLAGS "-std=c++11 -O3")
-set(UUIDLIB -luuid)
-set(COMMONLIB -ldl)
-set(LIBCURL_LIB -lcurl)
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/..)
+set(GCOVR_PATH "$ENV{HOME}/.local/bin/gcovr")
+
+project(RunTests)
 
 include(CodeCoverage)
 append_coverage_compiler_flags()
+
+set(CMAKE_CXX_FLAGS "-std=c++11 -O0")
+set(UUIDLIB -luuid)
+set(COMMONLIB -ldl)
+set(LIBCURL_LIB -lcurl)
 
 # Locate GTest
 find_package(GTest REQUIRED)

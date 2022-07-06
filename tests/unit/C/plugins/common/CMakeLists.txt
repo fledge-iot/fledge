@@ -1,17 +1,17 @@
 set( CMAKE_VERBOSE_MAKEFILE on )
 
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/../..)
+cmake_minimum_required(VERSION 2.6)
 
-set(GCOVR_PATH "/home/nerd039/.local/bin/gcovr")
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/../..)
+set(GCOVR_PATH "$ENV{HOME}/.local/bin/gcovr")
 
 # Project configuration
 project(RunTests)
-cmake_minimum_required(VERSION 2.6)
 
 include(CodeCoverage)
 append_coverage_compiler_flags()
 
-set(CMAKE_CXX_FLAGS "-std=c++11 -O0 -ggdb --coverage")
+set(CMAKE_CXX_FLAGS "-std=c++11 -O0 -ggdb")
 set(UUIDLIB -luuid)
 set(COMMONLIB -ldl)
 set(LIBCURL_LIB -lcurl)

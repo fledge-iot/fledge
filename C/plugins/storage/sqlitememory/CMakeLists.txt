@@ -37,6 +37,7 @@ find_package(sqlite3)
 
 add_definitions(-DSQLITE_SPLIT_READINGS=1)
 add_definitions(-DPLUGIN_LOG_NAME="SQLite 3 in_memory")
+add_definitions(-DMEMORY_READING_PLUGIN=1)
 
 # Use static SQLite3 library
 if(EXISTS ${FLEDGE_SQLITE3_LIBS})

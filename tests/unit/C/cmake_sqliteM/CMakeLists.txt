@@ -9,6 +9,8 @@ set(STORAGE_COMMON_LIB storage-common-lib)
 # Path of compiled libsqlite3.a and .h files: /tmp/sqlite3-pkg/src
 set(FLEDGE_SQLITE3_LIBS "/tmp/sqlite3-pkg/src" CACHE INTERNAL "")
 
+add_definitions(-DMEMORY_READING_PLUGIN=1)
+
 ## sqlitememory plugin
 include_directories(../../../../C/thirdparty/rapidjson/include)
 include_directories(../../../../C/common/include)

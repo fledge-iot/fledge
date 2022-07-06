@@ -12,6 +12,9 @@
 #include "rapidjson/error/en.h"
 #include <unistd.h>
 #include <connection.h>
+#ifndef DB_CONFIGURATION
+#define DB_CONFIGURATION "PRAGMA busy_timeout = 5000; PRAGMA cache_size = -4000; PRAGMA journal_mode = WAL; PRAGMA secure_delete = off; PRAGMA journal_size_limit = 4096000;"
+#endif
 
 using namespace std;
 using namespace rapidjson;

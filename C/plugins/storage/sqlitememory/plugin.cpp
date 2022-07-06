@@ -7,6 +7,7 @@
  *
  * Author: Massimiliano Pinto
  */
+
 #include <connection_manager.h>
 #include <connection.h>
 #include <plugin_api.h>

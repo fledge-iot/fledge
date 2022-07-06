@@ -32,6 +32,8 @@ find_package(PkgConfig REQUIRED)
 if(${CMAKE_VERSION} VERSION_LESS "3.12.0")
     pkg_check_modules(PYTHON REQUIRED python3)
 elseif("${OS_NAME}" STREQUAL "mendel")
+    # find_package(NumPy) is not supported on coral board. So better remove it.
+    # And explicitly set later.
     find_package(Python3 REQUIRED COMPONENTS Interpreter Development )
 else()
     find_package(Python3 REQUIRED COMPONENTS Interpreter Development NumPy)
@@ -47,13 +49,16 @@ include_directories(include ../services/common/include ../common/include ../thir
 if(${CMAKE_VERSION} VERSION_LESS "3.12.0")
     include_directories(${PYTHON_INCLUDE_DIRS})
 elseif("${OS_NAME}" STREQUAL "mendel")
+    # The following command gets the location of NumPy.
     execute_process(
         COMMAND "${python3}"
             -c "import numpy; print(numpy.get_include())"
             OUTPUT_VARIABLE NUMPY_INCLUDE_FULL_PATH
             OUTPUT_STRIP_TRAILING_WHITESPACE
     )
+    # Sets the variable Python3_NUMPY_INCLUDE_DIRS with the value fetched above.
     set(Python3_NUMPY_INCLUDE_DIRS ${NUMPY_INCLUDE_FULL_PATH})
+    # Now we can add include directories as usual.
     include_directories(${Python3_INCLUDE_DIRS} ${Python3_NUMPY_INCLUDE_DIRS})
 else()
     include_directories(${Python3_INCLUDE_DIRS} ${Python3_NUMPY_INCLUDE_DIRS})

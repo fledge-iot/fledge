@@ -57,7 +57,7 @@ else()
     if("${OS_NAME}" STREQUAL "mendel")
         # The following command gets the location of NumPy.
         execute_process(
-            COMMAND "${python3}"
+            COMMAND python3
                 -c "import numpy; print(numpy.get_include())"
                 OUTPUT_VARIABLE NUMPY_INCLUDE_FULL_PATH
                 OUTPUT_STRIP_TRAILING_WHITESPACE

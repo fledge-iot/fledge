@@ -5,13 +5,13 @@ set(GCOVR_PATH "$ENV{HOME}/.local/bin/gcovr")
 
 project(RunTests)
 
-include(CodeCoverage)
-append_coverage_compiler_flags()
-
 set(CMAKE_CXX_FLAGS "-std=c++11 -O0")
 set(UUIDLIB -luuid)
 set(COMMONLIB -ldl)
 set(LIBCURL_LIB -lcurl)
+
+include(CodeCoverage)
+append_coverage_compiler_flags()
 
 # Locate GTest
 find_package(GTest REQUIRED)

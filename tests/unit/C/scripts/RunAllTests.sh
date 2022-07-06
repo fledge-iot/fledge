@@ -3,9 +3,14 @@
 #
 # This is the shell script wrapper for running C unit tests
 #
-jobs="-j 4"
-if [ "$1" != "" ]; then
+jobs="-j4"
+if [ "$1" = "-j*" ]; then
   jobs="$1"
+fi
+
+COVERAGE=0
+if [ "$1" = "coverage" ]; then
+  COVERAGE=1
 fi
 
 if [ "$FLEDGE_ROOT" = "" ]; then
@@ -22,11 +27,9 @@ fi
 if [ -f "./CMakeLists.txt" ] ; then
 	echo -n "Compiling libraries..."
 	(rm -rf build && mkdir -p build && cd build && cmake -DCMAKE_BUILD_TYPE=Debug .. && make ${jobs} && cd ..)
-	# (mkdir -p build && cd build && cmake -DCMAKE_BUILD_TYPE=Debug .. && make ${jobs} && cd ..)
 	echo "done"
 fi
 
-# cmakefile=`find . -name CMakeLists.txt | grep -v "\.\/CMakeLists.txt" | grep -w sqlite | grep plugins`
 cmakefile=`find . -name CMakeLists.txt | grep -v "\.\/CMakeLists.txt" `
 for f in $cmakefile; do	
 	echo "-----------------> Processing $f <-----------------"
@@ -50,20 +53,24 @@ for f in $cmakefile; do
 			echo make failed for $dir;
 			exit 1
 		fi
-		#echo Running tests...;
-		#if [ -f "./RunTests" ] ; then
-	#		./RunTests --gtest_output=xml > /tmp/results;
-	#		rc=$?
-	#		if [ $rc != 0 ]; then
-	#			exit $rc
-	#		fi
-	#	fi
+		if [ $COVERAGE -eq 0 ]; then
+			echo Running tests...;
+			if [ -f "./RunTests" ] ; then
+				./RunTests --gtest_output=xml > /tmp/results;
+				rc=$?
+				if [ $rc != 0 ]; then
+					exit $rc
+				fi
+			fi
+		fi
 
-		file=$(basename $f)
-		echo "pwd=`pwd`, f=$f, file=$file"
-		grep -q CoverageHtml ../${file}
-		[ $? -eq 0 ] && (echo Running "make CoverageHtml" && make CoverageHtml) || echo
-		# grep -q CoverageHtml ${f} && echo Running "make CoverageHtml" && make CoverageHtml
+		if [ $COVERAGE -eq 1 ]; then
+			echo Generating coverage reports...;
+			file=$(basename $f)
+			# echo "pwd=`pwd`, f=$f, file=$file"
+			grep -q CoverageHtml ../${file}
+			[ $? -eq 0 ] && (echo Running "make CoverageHtml" && make CoverageHtml) || echo "CoverageHtml target not found, skipping..."
+		fi
 
 	) >/dev/null
 	rc=$?

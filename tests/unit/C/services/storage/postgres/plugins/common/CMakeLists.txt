@@ -6,11 +6,11 @@ set(GCOVR_PATH "$ENV{HOME}/.local/bin/gcovr")
 # Project configuration
 project(RunTests)
 
+set(CMAKE_CXX_FLAGS "-std=c++11 -O0")
+ 
 include(CodeCoverage)
 append_coverage_compiler_flags()
 
-set(CMAKE_CXX_FLAGS "-std=c++11 -O0 -ggdb")
- 
 # Locate GTest
 find_package(GTest REQUIRED)
 include_directories(${GTEST_INCLUDE_DIRS})

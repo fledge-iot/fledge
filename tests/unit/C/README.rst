@@ -37,3 +37,9 @@ To run all the unit tests go to the directory scripts and execute the script
 - RunAllTests
 
 This will run all unit tests and place the JUnit XML files in the directory results
+
+To generate coverage reports, go to the directory scripts and execute the script as follows:
+
+- RunAllTests coverage
+
+This will run all unit tests and report test coverage results in '.../build/CoverageHtml/index.html' file w.r.t. path of CMakeLists.txt files.

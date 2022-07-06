@@ -5,7 +5,10 @@ if(COMMAND cmake_policy)
 endif(COMMAND cmake_policy)
 
 # Get the os name
-execute_process(COMMAND bash -c "cat /etc/os-release | grep -w ID | cut -f2 -d'='" OUTPUT_VARIABLE OS_NAME OUTPUT_STRIP_TRAILING_WHITESPACE)
+execute_process(COMMAND bash -c "cat /etc/os-release | grep -w ID | cut -f2 -d'='"
+                                OUTPUT_VARIABLE
+                                OS_NAME
+                                OUTPUT_STRIP_TRAILING_WHITESPACE)
 
 if( POLICY CMP0007 )
     cmake_policy( SET CMP0007 NEW )
@@ -31,12 +34,14 @@ include_directories(SYSTEM ${Boost_INCLUDE_DIR})
 find_package(PkgConfig REQUIRED)
 if(${CMAKE_VERSION} VERSION_LESS "3.12.0")
     pkg_check_modules(PYTHON REQUIRED python3)
-elseif("${OS_NAME}" STREQUAL "mendel")
-    # find_package(NumPy) is not supported on coral board. So better remove it.
-    # And explicitly set later.
-    find_package(Python3 REQUIRED COMPONENTS Interpreter Development )
 else()
-    find_package(Python3 REQUIRED COMPONENTS Interpreter Development NumPy)
+    if("${OS_NAME}" STREQUAL "mendel")
+        # find_package(NumPy) is not supported on coral board. So better remove it.
+        # And explicitly set later.
+        find_package(Python3 REQUIRED COMPONENTS Interpreter Development )
+    else()
+        find_package(Python3 REQUIRED COMPONENTS Interpreter Development NumPy)
+    endif()
 endif()
 
 # Find source files
@@ -48,20 +53,22 @@ include_directories(include ../services/common/include ../common/include ../thir
 # Add Python 3.x header files
 if(${CMAKE_VERSION} VERSION_LESS "3.12.0")
     include_directories(${PYTHON_INCLUDE_DIRS})
-elseif("${OS_NAME}" STREQUAL "mendel")
-    # The following command gets the location of NumPy.
-    execute_process(
-        COMMAND "${python3}"
-            -c "import numpy; print(numpy.get_include())"
-            OUTPUT_VARIABLE NUMPY_INCLUDE_FULL_PATH
-            OUTPUT_STRIP_TRAILING_WHITESPACE
-    )
-    # Sets the variable Python3_NUMPY_INCLUDE_DIRS with the value fetched above.
-    set(Python3_NUMPY_INCLUDE_DIRS ${NUMPY_INCLUDE_FULL_PATH})
-    # Now we can add include directories as usual.
-    include_directories(${Python3_INCLUDE_DIRS} ${Python3_NUMPY_INCLUDE_DIRS})
 else()
-    include_directories(${Python3_INCLUDE_DIRS} ${Python3_NUMPY_INCLUDE_DIRS})
+    if("${OS_NAME}" STREQUAL "mendel")
+        # The following command gets the location of NumPy.
+        execute_process(
+            COMMAND "${python3}"
+                -c "import numpy; print(numpy.get_include())"
+                OUTPUT_VARIABLE NUMPY_INCLUDE_FULL_PATH
+                OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
+        # Sets the variable Python3_NUMPY_INCLUDE_DIRS with the value fetched above.
+        set(Python3_NUMPY_INCLUDE_DIRS ${NUMPY_INCLUDE_FULL_PATH})
+        # Now we can add include directories as usual.
+        include_directories(${Python3_INCLUDE_DIRS} ${Python3_NUMPY_INCLUDE_DIRS})
+    else()
+        include_directories(${Python3_INCLUDE_DIRS} ${Python3_NUMPY_INCLUDE_DIRS})
+    endif()
 endif()
 
 if(${CMAKE_VERSION} VERSION_LESS "3.12.0")
@@ -77,10 +84,12 @@ add_library(${PROJECT_NAME} SHARED ${SOURCES})
 # Add Python 3.5 library
 if(${CMAKE_VERSION} VERSION_LESS "3.12.0")
     target_link_libraries(${PROJECT_NAME} ${PYTHON_LIBRARIES})
-elseif("${OS_NAME}" STREQUAL "mendel")
-    target_link_libraries(${PROJECT_NAME} ${Python3_LIBRARIES})
 else()
-	target_link_libraries(${PROJECT_NAME} ${Python3_LIBRARIES} Python3::NumPy)
+    if("${OS_NAME}" STREQUAL "mendel")
+        target_link_libraries(${PROJECT_NAME} ${Python3_LIBRARIES})
+    else()
+	    target_link_libraries(${PROJECT_NAME} ${Python3_LIBRARIES} Python3::NumPy)
+	endif()
 endif()
 
 target_link_libraries(${PROJECT_NAME} ${UUIDLIB})

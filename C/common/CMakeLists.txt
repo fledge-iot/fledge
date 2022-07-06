@@ -4,10 +4,12 @@ if(COMMAND cmake_policy)
     cmake_policy(SET CMP0003 NEW)
 endif(COMMAND cmake_policy)
 
+# Get the os name
+execute_process(COMMAND cat /etc/os-release | grep -w ID | cut -f2 -d"=" OUTPUT_VARIABLE OS_NAME)
+
 if( POLICY CMP0007 )
     cmake_policy( SET CMP0007 NEW )
 endif()
-
 project(common-lib)
 
 set(CMAKE_CXX_FLAGS_DEBUG "-O0 -ggdb")
@@ -29,6 +31,8 @@ include_directories(SYSTEM ${Boost_INCLUDE_DIR})
 find_package(PkgConfig REQUIRED)
 if(${CMAKE_VERSION} VERSION_LESS "3.12.0")
     pkg_check_modules(PYTHON REQUIRED python3)
+elseif("${OS_NAME}" STREQUAL "mendel")
+    find_package(Python3 REQUIRED COMPONENTS Interpreter Development )
 else()
     find_package(Python3 REQUIRED COMPONENTS Interpreter Development NumPy)
 endif()
@@ -42,6 +46,15 @@ include_directories(include ../services/common/include ../common/include ../thir
 # Add Python 3.x header files
 if(${CMAKE_VERSION} VERSION_LESS "3.12.0")
     include_directories(${PYTHON_INCLUDE_DIRS})
+elseif("${OS_NAME}" STREQUAL "mendel")
+    execute_process(
+        COMMAND "${python3}"
+            -c "import numpy; print(numpy.get_include())"
+            OUTPUT_VARIABLE NUMPY_INCLUDE_FULL_PATH
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    set(Python3_NUMPY_INCLUDE_DIRS ${NUMPY_INCLUDE_FULL_PATH})
+    include_directories(${Python3_INCLUDE_DIRS} ${Python3_NUMPY_INCLUDE_DIRS})
 else()
     include_directories(${Python3_INCLUDE_DIRS} ${Python3_NUMPY_INCLUDE_DIRS})
 endif()
@@ -59,10 +72,11 @@ add_library(${PROJECT_NAME} SHARED ${SOURCES})
 # Add Python 3.5 library
 if(${CMAKE_VERSION} VERSION_LESS "3.12.0")
     target_link_libraries(${PROJECT_NAME} ${PYTHON_LIBRARIES})
+elseif("${OS_NAME}" STREQUAL "mendel")
+    target_link_libraries(${PROJECT_NAME} ${Python3_LIBRARIES})
 else()
 	target_link_libraries(${PROJECT_NAME} ${Python3_LIBRARIES} Python3::NumPy)
 endif()
-
 
 target_link_libraries(${PROJECT_NAME} ${UUIDLIB})
 target_link_libraries(${PROJECT_NAME} ${Boost_LIBRARIES})

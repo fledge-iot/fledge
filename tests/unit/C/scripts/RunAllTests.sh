@@ -26,7 +26,7 @@ fi
 
 if [ -f "./CMakeLists.txt" ] ; then
 	echo -n "Compiling libraries..."
-	(rm -rf build && mkdir -p build && cd build && cmake -DCMAKE_BUILD_TYPE=Debug .. && make ${jobs} && cd ..)
+	(rm -rf build && mkdir -p build && cd build && cmake -DCMAKE_BUILD_TYPE=Debug .. && make ${jobs} && cd ..) > /dev/null
 	echo "done"
 fi
 

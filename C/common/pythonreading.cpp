@@ -69,17 +69,25 @@ PythonReading::PythonReading(PyObject *pyReading)
 		{
 			throw runtime_error(errorMessage());
 		}
+		if (!assetCode)
+			throw runtime_error("Reading has no asset code element.");
+		if (!reading)
+			throw runtime_error("Reading is missing the reading element which shuld contain the data.");
+		else
+			throw runtime_error("The reading element in the python Reading is of an incorrect type, it should be a Python DICT.");
 	}
 	if (PyUnicode_Check(assetCode))
 	{
 		m_asset = PyUnicode_AsUTF8(assetCode);
 	}
+	else if (PyBytes_Check(assetCode))
+	{
+		m_asset = PyBytes_AsString(assetCode);
+	}
 	else
 	{
-		if (PyBytes_Check(assetCode))
-		{
-			m_asset = PyBytes_AsString(assetCode);
-		}
+		throw runtime_error("Unable to parse the asset code value. Asset codes should be a string");
+
 	}
 
 	// Fetch all Datapoints in 'reading' dict			

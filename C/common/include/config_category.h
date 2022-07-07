@@ -125,6 +125,9 @@ class ConfigCategory {
 		std::string			getItemAttribute(const std::string& itemName,
 								 ItemAttribute itemAttribute) const;
 
+		bool				setItemAttribute(const std::string& itemName,
+								 ItemAttribute itemAttribute, const std::string& value);
+
 	protected:
 		class CategoryItem {
 			public:

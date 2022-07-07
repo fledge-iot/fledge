@@ -85,7 +85,9 @@ int plugin_common_insert(PLUGIN_HANDLE handle, char *schema, char *table, char *
 ConnectionManager *manager = (ConnectionManager *)handle;
 Connection        *connection = manager->allocate();
 
-	int result = connection->insert(std::string(schema?schema:DEFAULT_SCHEMA) + "." + std::string(table), std::string(data));
+if (!schema) schema = DEFAULT_SCHEMA;
+
+	int result = connection->insert(std::string(schema) + "." + std::string(table), std::string(data));
 	manager->release(connection);
 	return result;
 }
@@ -99,7 +101,9 @@ ConnectionManager *manager = (ConnectionManager *)handle;
 Connection        *connection = manager->allocate();
 std::string results;
 
-	bool rval = connection->retrieve(std::string(schema?schema:DEFAULT_SCHEMA) + "." + std::string(table), std::string(query), results);
+if (!schema) schema = DEFAULT_SCHEMA;
+
+	bool rval = connection->retrieve(std::string(schema) + "." + std::string(table), std::string(query), results);
 	manager->release(connection);
 	if (rval)
 	{
@@ -115,8 +119,9 @@ int plugin_common_update(PLUGIN_HANDLE handle, char *schema, char *table, char *
 {
 ConnectionManager *manager = (ConnectionManager *)handle;
 Connection        *connection = manager->allocate();
+if (!schema) schema = DEFAULT_SCHEMA;
 
-	int result = connection->update(std::string(schema?schema:DEFAULT_SCHEMA) + "." + std::string(table), std::string(data));
+	int result = connection->update(std::string(schema) + "." + std::string(table), std::string(data));
 	manager->release(connection);
 	return result;
 }
@@ -129,7 +134,9 @@ int plugin_common_delete(PLUGIN_HANDLE handle, char *schema , char *table, char 
 ConnectionManager *manager = (ConnectionManager *)handle;
 Connection        *connection = manager->allocate();
 
-	int result = connection->deleteRows(std::string(schema?schema:DEFAULT_SCHEMA) + "." + std::string(table), std::string(condition));
+if (!schema) schema = DEFAULT_SCHEMA;
+
+	int result = connection->deleteRows(std::string(schema) + "." + std::string(table), std::string(condition));
 	manager->release(connection);
 	return result;
 }
@@ -340,6 +347,8 @@ int plugin_schema_update(PLUGIN_HANDLE handle,
 {
 	ConnectionManager *manager = (ConnectionManager *)handle;
         Connection        *connection = manager->allocate();
+
+	if (!schema) schema = DEFAULT_SCHEMA;
 
 	// create_schema handles both create and update schema
 	// schema value gets parsed from the payload

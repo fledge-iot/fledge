@@ -5,6 +5,7 @@
 #include <config_handler.h>
 #include <server_http.hpp>
 #include <rapidjson/error/en.h>
+#include <acl.h>
 
 #define TO_STRING(...) DEFER(TO_STRING_)(__VA_ARGS__)
 #define DEFER(x) x
@@ -726,4 +727,44 @@ static void bearer_token_refresh_thread(void *data)
 {
 	ServiceAuthHandler *service = (ServiceAuthHandler *)data;
 	service->refreshBearerToken();
+}
+
+/**
+ * Request security change action:
+ *
+ * Given a reason code, “attachACL”, “detachACL”, “reloadACL”
+ * in 'reason' atribute, the ACL name in 'argument' could be
+ * attached, detached or reloaded
+ *
+ * @param payload	The JSON document with 'reason' and 'argument' 
+ * @retun 		True on success
+ */
+bool ServiceAuthHandler::securityChange(const string& payload)
+{
+	// Parse JSON data
+	ACL::ACLReason reason(payload);
+
+	Logger::getLogger()->debug("Reason is %s, argument %s",
+				reason.getReason().c_str(),
+				reason.getArgument().c_str());
+
+	string r = reason.getReason();
+	if (r == "attachACL")
+	{
+		// Fetch and load ACL
+		ACL acl = m_mgtClient->getACL(reason.getArgument());
+	}
+	else if (r == "detachACL")
+	{
+	}
+	else if (r == "reloadACL")
+	{
+	}
+	else
+	{
+		// Error
+		return false;
+	}
+
+	return true;
 }

@@ -48,6 +48,7 @@ from fledge.services.core.asset_tracker.asset_tracker import AssetTracker
 from fledge.services.core.api import asset_tracker as asset_tracker_api
 from fledge.common.web.ssl_wrapper import SSLVerifier
 from fledge.services.core.api import exceptions as api_exception
+from fledge.services.core.api.control_service import acl_management as acl_management
 
 
 __author__ = "Amarendra K. Sinha, Praveen Garg, Terris Linenbach, Massimiliano Pinto, Ashish Jabble"
@@ -1888,3 +1889,8 @@ class Server:
             msg = str(e)
             raise web.HTTPBadRequest(reason=msg, body=json.dumps({"error": msg}))
 
+    @classmethod
+    async def get_control_acl(cls, request):
+        request.is_core_mgt = True
+        res = await acl_management.get_acl(request)
+        return res

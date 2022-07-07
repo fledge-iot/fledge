@@ -1327,3 +1327,50 @@ bool ManagementClient::deleteProxy(const std::string& serviceName)
 	}
 	return false;
 }
+
+
+/**
+ * Return the content of the named ACL by calling the
+ * management API of the Fledge core.
+ *
+ * @param  aclName		The name of the ACL to return
+ * @return ACL			The ACL class
+ * @throw  exception		If the ACL does not exist or
+ *				the JSON result can not be parsed
+ */
+ACL ManagementClient::getACL(const string& aclName)
+{
+	try {
+		string url = "/fledge/ACL/" + urlEncode(aclName);
+
+		auto res = this->getHttpClient()->request("GET", url.c_str());
+		Document doc;
+		string response = res->content.string();
+		doc.Parse(response.c_str());
+		if (doc.HasParseError())
+		{
+			bool httpError = (isdigit(response[0]) &&
+					  isdigit(response[1]) &&
+					  isdigit(response[2]) && response[3]==':');
+			m_logger->error("%s fetching ACL for %s: %s\n", 
+					httpError?"HTTP error while":"Failed to parse result of", 
+					aclName.c_str(),
+					response.c_str());
+			throw new exception();
+		}
+		else if (doc.HasMember("message"))
+		{
+			m_logger->error("Failed to fetch ACL: %s.",
+				doc["message"].GetString());
+			throw new exception();
+		}
+		else
+		{
+			// Success
+			return ACL(response);
+		}
+	} catch (const SimpleWeb::system_error &e) {
+		m_logger->error("Get ACL failed %s.", e.what());
+		throw;
+	}
+}

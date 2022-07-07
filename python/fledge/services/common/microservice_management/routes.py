@@ -70,6 +70,8 @@ def setup(app, obj, is_core=False):
         # Service token refresh
         app.router.add_route('POST', '/fledge/service/refresh_token', obj.refresh_token)
 
+        app.router.add_route('GET', '/fledge/ACL/{acl_name}', obj.get_control_acl)
+
         # Proxy API setup for a microservice
         proxy.setup(app)
 

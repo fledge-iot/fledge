@@ -16,6 +16,9 @@
 #include <sqlite3.h>
 #include <mutex>
 #include <reading_stream.h>
+#ifndef MEMORY_READING_PLUGIN
+#include <schema.h>
+#endif
 
 #define _DB_NAME                  "/fledge.db"
 #define READINGS_DB_NAME_BASE     "readings"
@@ -80,12 +83,20 @@ class Connection {
 		Connection();
 		~Connection();
 #ifndef SQLITE_SPLIT_READINGS
-		bool		retrieve(const std::string& table,
+		bool		createSchema(const std::string& schema);
+		bool		retrieve(const std::string& schema,
+					 const std::string& table,
 					 const std::string& condition,
 					 std::string& resultSet);
-		int		insert(const std::string& table, const std::string& data);
-		int		update(const std::string& table, const std::string& data);
-		int		deleteRows(const std::string& table, const std::string& condition);
+		int		insert(const std::string& schema,
+					const std::string& table,
+					const std::string& data);
+		int		update(const std::string& schema,
+					const std::string& table,
+					const std::string& data);
+		int		deleteRows(const std::string& schema,
+					const std::string& table,
+					const std::string& condition);
 		int		create_table_snapshot(const std::string& table, const std::string& id);
 		int		load_table_snapshot(const std::string& table, const std::string& id);
 		int		delete_table_snapshot(const std::string& table, const std::string& id);
@@ -108,6 +119,9 @@ class Connection {
 		bool        getNow(std::string& Now);
 
 	private:
+#ifndef MEMORY_READING_PLUGIN
+		SchemaManager   *m_schemaManager;
+#endif
 		bool 		m_streamOpenTransaction;
 		int		m_queuing;
 		std::mutex	m_qMutex;

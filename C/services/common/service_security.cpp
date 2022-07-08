@@ -68,6 +68,14 @@ bool ServiceAuthHandler::createSecurityCategories(ManagementClient* mgtClient)
 	// Register for content change notification
 	configHandler->registerCategory(this, m_name + "Security");
 
+	// TODO FOGL-6612
+	// Load ACL given the value of 'acl' type item: i.e.
+	//string acl_name = m_security.getValue("ACL");
+	//if (!acl_name.empty())
+	//{
+	//	m_service_acl = m_mgtClient->getACL(acl_name);
+	//}
+
 	// Start thread for automatic bearer token refresh, before expiration
 	if (this->getType() != "Southbound")
 	{
@@ -91,6 +99,10 @@ bool ServiceAuthHandler::updateSecurityCategory(const string& category)
 
 	m_security = ConfigCategory(m_name + "Security", category);
 	bool acl_set = false;
+
+	// Note: as per FOGL-6612
+	// Only AuthenticatedCaller will be handled in Security category change notification
+	// ACL update is made via security change service handler 
 	// Check for AuthenticatedCaller main switch
 	if (m_security.itemExists("AuthenticatedCaller"))
 	{
@@ -167,6 +179,8 @@ bool ServiceAuthHandler::verifyURL(const string& path,
  
 	// Parse security config with lock
 	unique_lock<mutex> cfgLock(m_mtx_config);
+
+	// TODO make use of m_service_acl instead of category as per FOGL-6612
 
 	string acl;
 	if (this->m_security.itemExists("ACL"))
@@ -290,6 +304,7 @@ bool ServiceAuthHandler::verifyService(const string& sName, const string &sType)
 	// Parse security config with lock
 	unique_lock<mutex> cfgLock(m_mtx_config);
 
+	// TODO make use of m_service_acl instead of category as per FOGL-6612
 	string acl;
 	if (this->m_security.itemExists("ACL"))
 	{
@@ -749,20 +764,33 @@ bool ServiceAuthHandler::securityChange(const string& payload)
 				reason.getArgument().c_str());
 
 	string r = reason.getReason();
+
+	// Lock config
+	lock_guard<mutex> cfgLock(m_mtx_config);
+
 	if (r == "attachACL")
 	{
 		// Fetch and load ACL
-		ACL acl = m_mgtClient->getACL(reason.getArgument());
+		m_service_acl = m_mgtClient->getACL(reason.getArgument());
 
-		// TODO inject ACL class into service instead of security category ACL item
-	}
-	else if (r == "detachACL")
-	{
-		// TODO inject new ACL class into service instead of security category ACL item
+		// TODO:
+		//  make use of m_service_acl
+		//  in verifyService and verifyURL
 	}
 	else if (r == "reloadACL")
 	{
-		// TODO remove/clean ACL class into service instead of security category without ACL
+		// Fetch and load ACL
+		m_service_acl = m_mgtClient->getACL(reason.getArgument());
+		// TODO:
+		//  make use of m_service_acl
+		//  in verifyService and verifyURL
+	}
+	else if (r == "detachACL")
+	{
+		m_service_acl = ACL();
+		// TODO:
+		//  make use of m_service_acl
+		//  in verifyService and verifyURL
 	}
 	else
 	{

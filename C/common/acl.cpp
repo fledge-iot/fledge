@@ -102,14 +102,16 @@ ACL::ACL(const string& json)
 			{
 				throw new ACLMalformed();
 			}
-			for (Value::ConstMemberIterator itr = item.MemberBegin(); itr != item.MemberEnd(); ++itr)
+			for (Value::ConstMemberIterator itr = item.MemberBegin();
+							itr != item.MemberEnd();
+							++itr)
 			{
-				KeyValueItem i(itr->name.GetString(), itr->value.GetString());
-				m_service.push_back(i);
+				// Construct KeyValueItem object
+				KeyValueItem i(itr->name.GetString(),
+						itr->value.GetString());
 
-				//Logger::getLogger()->error("Added %s:%s",
-				//			itr->name.GetString(),
-				//			itr->value.GetString());
+				// Add object to the vector
+				m_service.push_back(i);
 			}
 		}
 	}
@@ -128,7 +130,6 @@ ACL::ACL(const string& json)
 			string url = item["url"].GetString();
 			Value &acl = item["acl"]; 
 			vector<KeyValueItem> v_acl;	
-			//Logger::getLogger()->error("url %s", url.c_str());
 
 			// Check for acl array
 			if (acl.IsArray())
@@ -144,16 +145,21 @@ ACL::ACL(const string& json)
 									itr != item.MemberEnd();
 									++itr)
 					{
-						KeyValueItem item(itr->name.GetString(), itr->value.GetString());
+						// Construct KeyValueItem object
+						KeyValueItem item(itr->name.GetString(),
+								itr->value.GetString());
+
+						// Add object to the ACL vector
 						v_acl.push_back(item);
-						//Logger::getLogger()->error("acl %s:%s",
-						//		itr->name.GetString(),
-						//		itr->value.GetString());
 					}
 				}
 
 			}
+
+			// Construct UrlItem with url and ACL vector
 			UrlItem u(url, v_acl);
+
+			// Add object to the URL vector
 			m_url.push_back(u);
 		}
 	}

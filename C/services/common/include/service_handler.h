@@ -102,6 +102,8 @@ class ServiceAuthHandler : public ServiceHandler
 		bool		m_authentication_enabled;
 		// Security configuration
 		ConfigCategory	m_security;
+		// Service ACL
+		ACL		m_service_acl;
 };
 
 #endif

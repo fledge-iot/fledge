@@ -827,11 +827,15 @@ CREATE TABLE fledge.control_acl (
              url           jsonb                         NOT NULL DEFAULT '{}'::jsonb,
              CONSTRAINT    control_acl_pkey              PRIMARY KEY (name) );
 
+-- Access Control List usage relation
+CREATE TABLE fledge.acl_usage (
+             name            character varying(255)  NOT NULL,  -- ACL name
+             entity_type     character varying(80)   NOT NULL,  -- associated entity type: service or script 
+             entity_name     character varying(255)  NOT NULL,  -- associated entity name
+             CONSTRAINT      usage_acl_pkey          PRIMARY KEY (name, entity_type, entity_name) );
 
 -- Grants to fledge schema
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA fledge TO PUBLIC;
-
-
 
 ----------------------------------------------------------------------
 -- Initialization phase - DML
@@ -889,7 +893,7 @@ INSERT INTO fledge.log_codes ( code, description )
             ( 'PKGUP', 'Package updated' ),
             ( 'PKGRM', 'Package purged' ),
             ( 'DSPST', 'Dispatcher Startup' ),
-            ( 'DSPSD', 'Dispatcher Shutdown' )
+            ( 'DSPSD', 'Dispatcher Shutdown' ),
 	    ( 'ESSRT', 'External Service Startup' ),
 	    ( 'ESSTP', 'External Service Shutdown' );
 

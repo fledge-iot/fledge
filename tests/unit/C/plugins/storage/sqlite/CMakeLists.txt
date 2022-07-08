@@ -34,10 +34,11 @@ include_directories(../../../../../../C/plugins/storage/common/include)
 include_directories(../../../../../../C/thirdparty/rapidjson/include)
 include_directories(../../../../../../C/plugins/storage/sqlite/include)
 include_directories(../../../../../../C/plugins/storage/sqlite/common/include)
+include_directories(../../../../../../C/plugins/storage/sqlite/schema/include)
 
 # Source files
 file(GLOB TEST_SOURCES tests.cpp)
-file(GLOB COMMON_SOURCES ../sqlite/*.cpp)
+file(GLOB COMMON_SOURCES ../sqlite/*.cpp ../sqlite/schema/*.cpp)
 file(GLOB COMMON_SOURCES ../sqlite/common/*.cpp)
 
 # Check for SQLite3 source tree in specific location

@@ -33,11 +33,12 @@ include_directories(../../../../../../C/plugins/storage/common/include)
 include_directories(../../../../../../C/thirdparty/rapidjson/include)
 include_directories(../../../../../../C/plugins/storage/sqlitelb/include)
 include_directories(../../../../../../C/plugins/storage/sqlitelb/common/include)
+include_directories(../../../../../../C/plugins/storage/sqlite/schema/include)
 
 # Source files
 file(GLOB TEST_SOURCES tests.cpp)
 file(GLOB COMMON_SOURCES ../sqlitelb/*.cpp)
-file(GLOB COMMON_SOURCES ../sqlitelb/common/*.cpp)
+file(GLOB COMMON_SOURCES ../sqlitelb/common/*.cpp ../sqlite/schema/*.cpp)
 
 # Check for SQLite3 source tree in specific location
 set(FLEDGE_SQLITE3_LIBS "/tmp/sqlite3-pkg/src" CACHE INTERNAL "")

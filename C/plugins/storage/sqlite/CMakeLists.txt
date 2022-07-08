@@ -10,11 +10,12 @@ set(STORAGE_COMMON_LIB storage-common-lib)
 set(FLEDGE_SQLITE3_LIBS "/tmp/sqlite3-pkg/src" CACHE INTERNAL "")
 
 # Find source files
-file(GLOB SOURCES ./common/*.cpp *.cpp)
+file(GLOB SOURCES ./common/*.cpp ./schema/*.cpp *.cpp)
 
 # Include header files
 include_directories(./include)
 include_directories(./common/include)
+include_directories(./schema/include)
 include_directories(../../../common/include)
 include_directories(../../../services/common/include)
 include_directories(../common/include)

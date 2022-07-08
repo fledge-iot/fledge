@@ -25,6 +25,8 @@ set(STORAGE_COMMON_LIB      storage-common-lib)
 # Locate GTest
 find_package(GTest REQUIRED)
 
+add_definitions(-DMEMORY_READING_PLUGIN=1)
+
 # Include files
 include_directories(${GTEST_INCLUDE_DIRS})
 include_directories(../../../../../../C/common/include)

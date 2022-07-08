@@ -22,6 +22,7 @@
  */
 class ACL {
 	public:
+		ACL() {};
 		ACL(const std::string &json);
 		const std::string&
 			getName() { return m_name; };
@@ -29,13 +30,11 @@ class ACL {
 	protected:
 		class KeyValueItem {
 			public:
-				KeyValueItem(const std::string& key,
-					const std::string& value) :
-					m_key(key), m_value(value) {};
-
-			private:
-				std::string	m_key;
-				std::string	m_value;
+				KeyValueItem(const std::string& k,
+					const std::string& v) :
+					key(k), value(v) {};
+				std::string	key;
+				std::string	value;
 		};
 		class UrlItem {
 			public:

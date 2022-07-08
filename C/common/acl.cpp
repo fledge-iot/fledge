@@ -89,7 +89,7 @@ ACL::ACL(const string& json)
 	}
 	if (doc.HasMember("name") && doc["name"].IsString())
 	{
-		m_name = doc["name"].IsString();
+		m_name = doc["name"].GetString();
 	}
 
 	// Check for service array item

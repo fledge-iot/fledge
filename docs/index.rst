@@ -16,7 +16,6 @@ Welcome to Fledge's documentation!
     securing_fledge
     storage
     tuning_fledge
-    notifications
     control
     troubleshooting_pi-server_integration
     plugin_developers_guide/index
@@ -26,4 +25,4 @@ Welcome to Fledge's documentation!
     92_downloads
     KERBEROS
     plugin_index
-
+    services/index

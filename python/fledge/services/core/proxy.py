@@ -28,11 +28,24 @@ def setup(app):
     app.router.add_route('DELETE', '/fledge/proxy/{service_name}', delete)
 
 
+def admin_api_setup(app):
+    # Note: /extension is only for to catch Proxy endpoints
+    # Below code is not working due to aiohttp-cors lib issue https://github.com/aio-libs/aiohttp-cors/issues/241
+
+    # app.router.add_route('*', r'/fledge/extension/{tail:.*}', handler)
+
+    # Once above resolved we will remove below routes and replaced with * handler
+    app.router.add_route('GET', r'/fledge/extension/{tail:.*}', handler)
+    app.router.add_route('POST', r'/fledge/extension/{tail:.*}', handler)
+    app.router.add_route('PUT', r'/fledge/extension/{tail:.*}', handler)
+    app.router.add_route('DELETE', r'/fledge/extension/{tail:.*}', handler)
+
+
 async def add(request: web.Request) -> web.Response:
     """ Add API proxy for a service
 
     :Example:
-        curl -sX POST http://localhost:<SVC_MGT_PORT>/fledge/proxy -d '{"service_name": "SVC #1", "DELETE": {"/fledge/svc/([0-9][0-9]*)$": "/svc/([0-9][0-9]*)$"}, "GET": {"/fledge/svc/([0-9][0-9]*)$": "/svc/([0-9][0-9]*)$"}, "POST": {"/fledge/svc": "/svc"}, "PUT": {"/fledge/svc/([0-9][0-9]*)$": "/svc/([0-9][0-9]*)$", "/fledge/svc/match": "/svc/match"}}'
+        curl -sX POST http://localhost:<CORE_MGT_PORT>/fledge/proxy -d '{"service_name": "SVC #1", "DELETE": {"/fledge/svc/([0-9][0-9]*)$": "/svc/([0-9][0-9]*)$"}, "GET": {"/fledge/svc/([0-9][0-9]*)$": "/svc/([0-9][0-9]*)$"}, "POST": {"/fledge/svc": "/svc"}, "PUT": {"/fledge/svc/([0-9][0-9]*)$": "/svc/([0-9][0-9]*)$", "/fledge/svc/match": "/svc/match"}}'
    """
     data = await request.json()
     svc_name = data.get('service_name', None)
@@ -75,23 +88,20 @@ async def add(request: web.Request) -> web.Response:
                     prefix_url = '/{}/{}'.format(admin_route.split('/')[1], admin_route.split('/')[2])
                     break
                 break
-            widecast = '{}{{head:.*}}'.format(prefix_url)
-            # Add dynamic public routes for configured Proxy
-            server.Server.dynamic_route.add_any(widecast, handler=handler)
             # NOTE: There will be no same Public URL for different Proxies
             # Add service name KV pair in-memory structure
             server.Server._API_PROXIES.update({svc_name: {"endpoints": data, "prefix_url": prefix_url}})
         except Exception as ex:
             msg = str(ex)
             raise web.HTTPInternalServerError(reason=msg, body=json.dumps({'message': msg}))
-        return web.json_response({"inserted": "Proxy has been configured for {} service.".format(svc_name)})
+        return web.json_response({"result": "Proxy has been configured for {} service.".format(svc_name)})
 
 
 async def delete(request: web.Request) -> web.Response:
     """ Stop API proxy for a service
 
     :Example:
-             curl -sX DELETE http://localhost:<SVC_MGT_PORT>/fledge/proxy/{service}
+             curl -sX DELETE http://localhost:<CORE_MGT_PORT>/fledge/proxy/{service}
    """
     svc_name = request.match_info.get('service_name', None)
     svc_name = urllib.parse.unquote(svc_name) if svc_name is not None else None
@@ -111,12 +121,12 @@ async def delete(request: web.Request) -> web.Response:
     else:
         # Remove service name KV pair from in-memory structure
         del server.Server._API_PROXIES[svc_name]
-        return web.json_response({"deleted": "Proxy operations have been stopped for {} service.".format(svc_name)})
+        return web.json_response({"result": "Configured proxy for {} service has been removed.".format(svc_name)})
 
 
 async def handler(request: web.Request) -> web.Response:
     """ widecast handler """
-    allow_methods = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+    allow_methods = ["GET", "POST", "PUT", "DELETE"]
     if request.method not in allow_methods:
         raise web.HTTPMethodNotAllowed(method=request.method, allowed_methods=allow_methods)
     try:
@@ -124,16 +134,18 @@ async def handler(request: web.Request) -> web.Response:
         is_proxy_svc_found = False
         proxy_svc_name = None
         for svc_name, svc_info in server.Server._API_PROXIES.items():
-            if svc_info['prefix_url'] in str(request.rel_url):
+            # Handled extension identifier internally; if we don't want to change in an external service
+            if svc_info['prefix_url'] in str(request.rel_url).replace('/extension', ''):
                 is_proxy_svc_found = True
                 proxy_svc_name = svc_name
         if is_proxy_svc_found and proxy_svc_name is not None:
             svc, token = await _get_service_record_info_along_with_bearer_token(proxy_svc_name)
-            url = str(request.url).split('fledge/')[1]
+            url = str(request.url).split('fledge/extension/')[1]
             status_code, response = await _call_microservice_service_api(
                 request, svc._protocol, svc._address, svc._port, url, token)
         else:
-            raise web.HTTPForbidden()
+            msg = "{} route not found.".format(request.rel_url)
+            return web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))

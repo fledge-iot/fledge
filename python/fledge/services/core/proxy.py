@@ -29,16 +29,16 @@ def setup(app):
 
 
 def admin_api_setup(app):
-    # Note: /svc is only for to catch Proxy endpoints
+    # Note: /extension is only for to catch Proxy endpoints
     # Below code is not working due to aiohttp-cors lib issue https://github.com/aio-libs/aiohttp-cors/issues/241
 
-    # app.router.add_route('*', r'/fledge/svc/{tail:.*}', handler)
+    # app.router.add_route('*', r'/fledge/extension/{tail:.*}', handler)
 
     # Once above resolved we will remove below routes and replaced with * handler
-    app.router.add_route('GET', r'/fledge/svc/{tail:.*}', handler)
-    app.router.add_route('POST', r'/fledge/svc/{tail:.*}', handler)
-    app.router.add_route('PUT', r'/fledge/svc/{tail:.*}', handler)
-    app.router.add_route('DELETE', r'/fledge/svc/{tail:.*}', handler)
+    app.router.add_route('GET', r'/fledge/extension/{tail:.*}', handler)
+    app.router.add_route('POST', r'/fledge/extension/{tail:.*}', handler)
+    app.router.add_route('PUT', r'/fledge/extension/{tail:.*}', handler)
+    app.router.add_route('DELETE', r'/fledge/extension/{tail:.*}', handler)
 
 
 async def add(request: web.Request) -> web.Response:
@@ -134,13 +134,13 @@ async def handler(request: web.Request) -> web.Response:
         is_proxy_svc_found = False
         proxy_svc_name = None
         for svc_name, svc_info in server.Server._API_PROXIES.items():
-            # Handled svc identifier internally; if we don't want to change in an external service
-            if svc_info['prefix_url'] in str(request.rel_url).replace('/svc', ''):
+            # Handled extension identifier internally; if we don't want to change in an external service
+            if svc_info['prefix_url'] in str(request.rel_url).replace('/extension', ''):
                 is_proxy_svc_found = True
                 proxy_svc_name = svc_name
         if is_proxy_svc_found and proxy_svc_name is not None:
             svc, token = await _get_service_record_info_along_with_bearer_token(proxy_svc_name)
-            url = str(request.url).split('fledge/svc/')[1]
+            url = str(request.url).split('fledge/extension/')[1]
             status_code, response = await _call_microservice_service_api(
                 request, svc._protocol, svc._address, svc._port, url, token)
         else:

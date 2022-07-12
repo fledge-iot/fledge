@@ -350,7 +350,6 @@ class Server:
 
     service_app, service_server, service_server_handler = None, None, None
     core_app, core_server, core_server_handler = None, None, None
-    dynamic_route = None
 
     @classmethod
     def get_certificates(cls):
@@ -821,12 +820,6 @@ class Server:
 
             loop.run_until_complete(cls.rest_api_config())
             cls.service_app = cls._make_app(auth_required=cls.is_auth_required, auth_method=cls.auth_method)
-
-            # Add Dynamic routing and attach to service app
-            # This is required for Proxy API
-            import aiohttp_dynamic
-            cls.dynamic_route = aiohttp_dynamic.DynamicRouter()
-            cls.dynamic_route.attach(cls.service_app)
 
             # ssl context
             ssl_ctx = None

@@ -471,7 +471,7 @@ class TestPackagesSinusoid_PI_WebAPI:
         assert len(data_from_pi) > 0, "Could not fetch fetch data from PI."
         data_from_pi = [int(d) for d in data_from_pi]
         # opening the csv file in 'w+' mode
-        file_csv = open('readings_from_PI.csv', 'w', newline='')
+        file_csv = open('readings_from_PI.csv', 'w+', newline='')
 
         # writing the data into the file
         with file_csv:

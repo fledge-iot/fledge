@@ -4,6 +4,8 @@
 # See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
+from fledge.services.core import proxy
+
 from fledge.services.core.api import auth
 from fledge.services.core.api import audit as api_audit
 from fledge.services.core.api import browser
@@ -239,6 +241,9 @@ def setup(app):
     app.router.add_route('DELETE', '/fledge/ACL/{acl_name}', acl_management.delete_acl)
     app.router.add_route('PUT', '/fledge/service/{service_name}/ACL', acl_management.attach_acl_to_service)
     app.router.add_route('DELETE', '/fledge/service/{service_name}/ACL', acl_management.detach_acl_from_service)
+
+    # Proxy Admin API setup with regex
+    proxy.admin_api_setup(app)
 
     # enable cors support
     enable_cors(app)

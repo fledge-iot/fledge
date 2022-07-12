@@ -471,7 +471,7 @@ class TestPackagesSinusoid_PI_WebAPI:
         assert len(data_from_pi) > 0, "Could not fetch fetch data from PI."
         data_from_pi = [int(d) for d in data_from_pi]
         # opening the csv file in 'w+' mode
-        file_csv = open('readings_from_PI.csv', 'w+', newline='')
+        file_csv = open('readings_from_PI.csv', 'w', newline='')
 
         # writing the data into the file
         with file_csv:
@@ -482,4 +482,10 @@ class TestPackagesSinusoid_PI_WebAPI:
         total_readings = int(get_total_readings(fledge_url))
         print("Total readings from Fledge {}\n".format(total_readings))
         discontinuities = [data_from_pi[i] for i in range(len(data_from_pi)-1) if data_from_pi[i+1] != data_from_pi[i]+1]
-        print(sorted(discontinuities))
+        discontinuities = sorted(discontinuities)
+        print(discontinuities)
+        assert total_readings == data_from_pi[-1], "The last reading from Fledge {} " \
+                                                   "is not the same as PI {}".format(total_readings, data_from_pi[-1])
+        for val in discontinuities:
+            assert val < initial_readings, "There is gap at reading {} " \
+                                           "after permissible value {}".format(val, initial_readings)

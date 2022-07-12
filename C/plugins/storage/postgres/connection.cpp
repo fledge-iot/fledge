@@ -1221,7 +1221,7 @@ SQLBuffer	sql;
 						else
 						{
 							sql.append("'\"");
-							sql.append(escape(str));
+							sql.append(escape_double_quotes(escape(str)));
 							sql.append("\"'");
 						}
 					}

@@ -35,19 +35,19 @@ __DEFAULT_LOG_SOURCE = 'Fledge'
 # Debug and above
 __GET_SYSLOG_CMD_TEMPLATE = "grep -a -E '({})\[' {} | head -n {} | tail -n {}"
 __GET_SYSLOG_TOTAL_MATCHED_LINES = "grep -a -c -E '({})\[' {}"
-__GET_SYSLOG_TEMPLATE_WITH_NON_TOTALS = "grep -a -E '({})\[' {}"
+__GET_SYSLOG_TEMPLATE_WITH_NON_TOTALS = "grep -a -E '({})\[' {} | head -n -{} | tail -n {}"
 # Info and above
 __GET_SYSLOG_CMD_WITH_INFO_TEMPLATE = "grep -a -E '({})\[.*].* (INFO|WARNING|ERROR|FATAL)' {} | head -n {} | tail -n {}"
 __GET_SYSLOG_INFO_MATCHED_LINES = "grep -a -c -E '({})\[.*].* (INFO|WARNING|ERROR|FATAL)' {}"
-__GET_SYSLOG_INFO_TEMPLATE_WITH_NON_TOTALS = "grep -a -E '({})\[.*].* (INFO|WARNING|ERROR|FATAL)' {}"
+__GET_SYSLOG_INFO_TEMPLATE_WITH_NON_TOTALS = "grep -a -E '({})\[.*].* (INFO|WARNING|ERROR|FATAL)' {} | head -n -{} | tail -n {}"
 # Error and above
 __GET_SYSLOG_CMD_WITH_ERROR_TEMPLATE = "grep -a -E '({})\[.*].* (ERROR|FATAL)' {} | head -n {} | tail -n {}"
 __GET_SYSLOG_ERROR_MATCHED_LINES = "grep -a -c -E '({})\[.*].* (ERROR|FATAL)' {}"
-__GET_SYSLOG_ERROR_TEMPLATE_WITH_NON_TOTALS = "grep -a -E '({})\[.*].* (ERROR|FATAL)' {}"
+__GET_SYSLOG_ERROR_TEMPLATE_WITH_NON_TOTALS = "grep -a -E '({})\[.*].* (ERROR|FATAL)' {} | head -n -{} | tail -n {}"
 # Warning and above
 __GET_SYSLOG_CMD_WITH_WARNING_TEMPLATE = "grep -a -E '({})\[.*].* (WARNING|ERROR|FATAL)' {} | head -n {} | tail -n {}"
 __GET_SYSLOG_WARNING_MATCHED_LINES = "grep -a -c -E '({})\[.*].* (WARNING|ERROR|FATAL)' {}"
-__GET_SYSLOG_WARNING_TEMPLATE_WITH_NON_TOTALS = "grep -a -E '({})\[.*].* (WARNING|ERROR|FATAL)' {}"
+__GET_SYSLOG_WARNING_TEMPLATE_WITH_NON_TOTALS = "grep -a -E '({})\[.*].* (WARNING|ERROR|FATAL)' {} | head -n -{} | tail -n {}"
 
 _help = """
     ------------------------------------------------------------------------------
@@ -127,7 +127,11 @@ async def get_syslog_entries(request):
         curl -X GET "http://localhost:8081/fledge/syslog?level=error"
         curl -X GET "http://localhost:8081/fledge/syslog?limit=5&source=storage"
         curl -X GET "http://localhost:8081/fledge/syslog?limit=5&offset=5&source=storage"
-        curl -sX GET http://localhost:8081/fledge/syslog?nontotals=true
+        curl -sX GET "http://localhost:8081/fledge/syslog?nontotals=true"
+        curl -sX GET "http://localhost:8081/fledge/syslog?nontotals=true&source=<svc_name>|<task_name>"
+        curl -sX GET "http://localhost:8081/fledge/syslog?nontotals=true&limit=5"
+        curl -sX GET "http://localhost:8081/fledge/syslog?nontotals=true&limit=100&offset=50"
+        curl -sX GET "http://localhost:8081/fledge/syslog?nontotals=true&source=<svc_name>|<task_name>&limit=10&offset=50"
         curl -sX GET "http://localhost:8081/fledge/syslog?nontotals=true&source=<svc_name>|<task_name>"
     """
     try:
@@ -187,7 +191,7 @@ async def get_syslog_entries(request):
             response['count'] = total_lines
             cmd = template.format(valid_source[source], _SYSLOG_FILE, total_lines - offset, limit)
         else:
-            cmd = non_total_template.format(valid_source[source], _SYSLOG_FILE)
+            cmd = non_total_template.format(valid_source[source], _SYSLOG_FILE, offset, limit)
         a = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE).stdout.readlines()
         c = [b.decode() for b in a]  # Since "a" contains return value in bytes, convert it to string
         response['logs'] = c

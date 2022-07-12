@@ -136,6 +136,7 @@ def start_south_north(add_south, start_north_task_omf_web_api, add_filter, remov
     enable_schedule(fledge_url, NORTH_INSTANCE_NAME)
     time.sleep(3)
     enable_schedule(fledge_url, SOUTH_SERVICE_NAME)
+    time.sleep(1)
     yield start_south_north
 
 
@@ -417,7 +418,7 @@ class TestPackagesSinusoid_PI_WebAPI:
             raise Exception("None of packet delay or rate limit given, "
                             "cannot apply network impairment.")
         # Insert some readings before turning off compression.
-        time.sleep(3)
+        time.sleep(2)
         # Turn off south service
         disable_schedule(fledge_url, SOUTH_SERVICE_NAME)
         time.sleep(5)

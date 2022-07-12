@@ -8,9 +8,17 @@ if [ "$1" = "-j*" ]; then
   jobs="$1"
 fi
 
-COVERAGE=0
-if [ "$1" = "coverage" ]; then
-  COVERAGE=1
+COVERAGE_HTML=0
+COVERAGE_XML=0
+if [ "$1" = "coverageHtml" ]; then
+  COVERAGE_HTML=1
+  target="CoverageHtml"
+elif [ "$1" = "coverageXml" ]; then
+  COVERAGE_XML=1
+  target="CoverageXml"
+elif [ "$1" = "coverage" ]; then
+  echo "Use target 'CoverageHtml' or 'CoverageXml' instead"
+  exit 1
 fi
 
 if [ "$FLEDGE_ROOT" = "" ]; then
@@ -53,7 +61,7 @@ for f in $cmakefile; do
 			echo make failed for $dir;
 			exit 1
 		fi
-		if [ $COVERAGE -eq 0 ]; then
+		if [ $COVERAGE_HTML -eq 0 ] && [ $COVERAGE_XML -eq 0 ] ; then
 			echo Running tests...;
 			if [ -f "./RunTests" ] ; then
 				./RunTests --gtest_output=xml > /tmp/results;
@@ -62,14 +70,12 @@ for f in $cmakefile; do
 					exit $rc
 				fi
 			fi
-		fi
-
-		if [ $COVERAGE -eq 1 ]; then
+		else
 			echo Generating coverage reports...;
 			file=$(basename $f)
 			# echo "pwd=`pwd`, f=$f, file=$file"
-			grep -q CoverageHtml ../${file}
-			[ $? -eq 0 ] && (echo Running "make CoverageHtml" && make CoverageHtml) || echo "CoverageHtml target not found, skipping..."
+			grep -q ${target} ../${file}
+			[ $? -eq 0 ] && (echo Running "make ${target}" && make ${target}) || echo "${target} target not found, skipping..."
 		fi
 
 	) >/dev/null

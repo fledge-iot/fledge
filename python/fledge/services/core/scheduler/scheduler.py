@@ -288,7 +288,7 @@ class Scheduler(object):
         # is used by stop() to determine whether the scheduler can stop.
         del self._task_processes[task_process.task_id]
 
-    async def _start_task(self, schedule: _ScheduleRow) -> None:
+    async def _start_task(self, schedule: _ScheduleRow, dryRun=False) -> None:
         """Starts a task process
 
         Raises:
@@ -322,6 +322,8 @@ class Scheduler(object):
             args_to_exec.append("--token={}".format(startToken))
         
         args_to_exec.append("--name={}".format(schedule.name))
+        if dryRun:
+            args_to_exec.append("--dryrun")
 
         # avoid printing/logging tokens
         args_to_exec_printable  = [a for a in args_to_exec if not a.startswith("--token")]
@@ -1016,7 +1018,7 @@ class Scheduler(object):
 
         return self._schedule_row_to_schedule(found_id, schedule_row)
 
-    async def save_schedule(self, schedule: Schedule, is_enabled_modified=None):
+    async def save_schedule(self, schedule: Schedule, is_enabled_modified=None, dry_run=False):
         """Creates or update a schedule
 
         Args:
@@ -1088,8 +1090,7 @@ class Scheduler(object):
                 raise
             audit = AuditLogger(self._storage_async)
             await audit.information('SCHCH', {'schedule': schedule.toDict()})
-
-        if is_new_schedule:
+        else:
             insert_payload = PayloadBuilder() \
                 .INSERT(id=str(schedule.schedule_id),
                         schedule_type=schedule.schedule_type,
@@ -1170,6 +1171,9 @@ class Scheduler(object):
                 await self.enable_schedule(schedule.schedule_id, bypass_check=bypass_check)
             else:
                 await self.disable_schedule(schedule.schedule_id, bypass_check=bypass_check)
+
+            if dry_run and is_new_schedule:
+                self._start_task(schedule_row, dryRun=True)
 
     async def remove_service_from_task_processes(self, service_name):
         """

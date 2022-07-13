@@ -222,6 +222,7 @@ async def add_service(request):
         enabled = data.get('enabled', None)
         config = data.get('config', None)
 
+
         if name is None:
             raise web.HTTPBadRequest(reason='Missing name property in payload.')
         if 'action' in request.query and request.query['action'] != '':
@@ -315,6 +316,8 @@ async def add_service(request):
                                                 ' are allowed for value of enabled.')
         is_enabled = True if ((type(enabled) is str and enabled.lower() in ['true']) or (
             (type(enabled) is bool and enabled is True))) else False
+        
+        dry_run = not is_enabled
 
         # Check if a valid plugin has been provided
         plugin_module_path, plugin_config, process_name, script = "", {}, "", ""
@@ -464,7 +467,7 @@ async def add_service(request):
             schedule.enabled = False
 
             # Save schedule
-            await server.Server.scheduler.save_schedule(schedule, is_enabled)
+            await server.Server.scheduler.save_schedule(schedule, is_enabled, dry_run=dry_run)
             schedule = await server.Server.scheduler.get_schedule_by_name(name)
         except StorageServerError as ex:
             await config_mgr.delete_category_and_children_recursively(name)

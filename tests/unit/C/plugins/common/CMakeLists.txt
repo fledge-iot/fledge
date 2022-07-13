@@ -1,9 +1,18 @@
 cmake_minimum_required(VERSION 2.6)
 
-set(CMAKE_CXX_FLAGS "-std=c++11 -O3")
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/../..)
+set(GCOVR_PATH "$ENV{HOME}/.local/bin/gcovr")
+
+# Project configuration
+project(RunTests)
+
+set(CMAKE_CXX_FLAGS "-std=c++11 -O0")
 set(UUIDLIB -luuid)
 set(COMMONLIB -ldl)
 set(LIBCURL_LIB -lcurl)
+
+include(CodeCoverage)
+append_coverage_compiler_flags()
 
 EXECUTE_PROCESS( COMMAND grep -o ^NAME=.* /etc/os-release COMMAND cut -f2 -d\" COMMAND sed s/\"//g OUTPUT_VARIABLE os_name )
 EXECUTE_PROCESS( COMMAND grep -o ^VERSION_ID=.* /etc/os-release COMMAND cut -f2 -d\" COMMAND sed s/\"//g OUTPUT_VARIABLE os_version )
@@ -83,4 +92,16 @@ if(${CMAKE_VERSION} VERSION_LESS "3.12.0")
 else()
     target_link_libraries(RunTests ${Python3_LIBRARIES})
 endif()
+
+setup_target_for_coverage_gcovr_html(
+            NAME CoverageHtml
+            EXECUTABLE ${PROJECT_NAME}
+            DEPENDENCIES ${PROJECT_NAME}
+    )
+
+setup_target_for_coverage_gcovr_xml(
+            NAME CoverageXml
+            EXECUTABLE ${PROJECT_NAME}
+            DEPENDENCIES ${PROJECT_NAME}
+    )
 

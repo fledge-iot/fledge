@@ -351,7 +351,7 @@ def search_for_element_template(host, admin, password, pi_database, search_strin
             res = conn.getresponse()
             r = json.loads(res.read().decode())
             for template_info in r['Items']:
-                if template_info['Name'].contains(search_string):
+                if search_string in template_info['Name']:
                     web_ids.append(template_info['WebId'])
 
         if not web_ids:

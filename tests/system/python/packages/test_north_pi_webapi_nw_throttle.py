@@ -236,8 +236,8 @@ def delete_pi_point(host, admin, password, asset_name, data_point_name):
         conn.close()
 
     except Exception as er:
-        print("Could not turn off compression for pi point {} due to {}".format(data_point_name, er))
-        assert False, "Could not turn off compression for pi point {} due to {}".format(data_point_name, er)
+        print("Could not delete pi point {} due to {}".format(data_point_name, er))
+        assert False, "Could not delete pi point {} due to {}".format(data_point_name, er)
 
 
 def search_for_pi_point(host, admin, password, asset_name, data_point_name):
@@ -320,6 +320,71 @@ def get_readings_within_range(fledge_url, asset_name, limit, offset, order='desc
     r = r.read().decode()
     jdoc = json.loads(r)
     return
+
+
+def search_for_element_template(host, admin, password, pi_database, search_string):
+    """Searches for an element template using a search string. If found returns its web_id.
+       If multiple templates found then returns an array of web_ids.
+    """
+    username_password = "{}:{}".format(admin, password)
+    username_password_b64 = base64.b64encode(username_password.encode('ascii')).decode("ascii")
+    headers = {'Authorization': 'Basic %s' % username_password_b64}
+
+    try:
+        conn = http.client.HTTPSConnection(host, context=ssl._create_unverified_context())
+        conn.request("GET", '/piwebapi/assetservers', headers=headers)
+        res = conn.getresponse()
+        r = json.loads(res.read().decode())
+        dbs = r["Items"][0]["Links"]["Databases"]
+
+        if dbs is not None:
+            conn.request("GET", dbs, headers=headers)
+            res = conn.getresponse()
+            r = json.loads(res.read().decode())
+            for el in r["Items"]:
+                if el["Name"] == pi_database:
+                    element_template_list = el["Links"]["ElementTemplates"]
+
+        web_ids = []
+        if element_template_list is not None:
+            conn.request("GET", element_template_list, headers=headers)
+            res = conn.getresponse()
+            r = json.loads(res.read().decode())
+            for template_info in r['Items']:
+                if template_info['Name'].contains(search_string):
+                    web_ids.append(template_info['WebId'])
+
+        if not web_ids:
+            assert False, "Could not find asset template with name {}".format(search_string)
+        return web_ids
+
+    except Exception as er:
+        print("Could not find assets element template with name"
+              "  {} due to {}".format(search_string, er))
+        assert False, "Could not find assets element template with name"\
+                      "  {} due to {}".format(search_string, er)
+
+
+def delete_element_template(host, admin, password, web_id):
+    """Deletes an element template through its web_id."""
+    username_password = "{}:{}".format(admin, password)
+
+    username_password_b64 = base64.b64encode(username_password.encode('ascii')).decode("ascii")
+    headers = {'Authorization': 'Basic %s' % username_password_b64, 'Content-Type': 'application/json'}
+
+    try:
+
+        conn = http.client.HTTPSConnection(host, context=ssl._create_unverified_context())
+        conn.request("DELETE", "/piwebapi/elementtemplates/{}".format(web_id), headers=headers)
+        r = conn.getresponse()
+        assert r.status == 204, "Could not delete" \
+                                " element template for web_id {}.".format(web_id)
+
+        conn.close()
+
+    except Exception as er:
+        print("Could not delete element template {} due to {}".format(web_id, er))
+        assert False, "Could not delete element template {} due to {}".format(web_id, er)
 
 
 def delete_element_hierarchy(host, admin, password, pi_database, af_hierarchy_list):
@@ -467,6 +532,11 @@ class TestPackagesSinusoid_PI_WebAPI:
         delete_element_hierarchy(pi_host, pi_admin, pi_passwd, pi_db, af_hierarchy_level_list)
         delete_pi_point(pi_host, pi_admin, pi_passwd, ASSET, dp_name)
         delete_pi_point(pi_host, pi_admin, pi_passwd, ASSET, 'sinusoid')
+
+        for h_level in af_hierarchy_level_list:
+            web_ids = search_for_element_template(pi_host, pi_admin, pi_passwd, pi_db, h_level)
+            for web_id in web_ids:
+                delete_element_template(pi_host, pi_admin, pi_passwd, web_id)
 
         assert len(data_from_pi) > 0, "Could not fetch fetch data from PI."
         data_from_pi = [int(d) for d in data_from_pi]

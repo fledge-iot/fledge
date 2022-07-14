@@ -72,7 +72,7 @@ OMF Specific Considerations
 
 Certain north plugins present specific problems to the incremental development approach as changing the format of data that is sent to them can cause them internal issues. The |OMF| plugin that is used to send data to the Aveva PI Server is one such plugin.
 
-The problem with the PI Server is that it is designed to store data in fixed formats, therefore having data that is not of a consistent type, i.e. made up of the set set of attributes, can cause issues. In a PI server each new data type becomes a new tag, this is not a problem if you are happy to use tag naming that is flexible. However if you require that you used fixed name tags within the PI Server, using the |OMFhints| filter, this can be an issue for incremental development of your pipeline. Changing the properties of the tag will result in a new name being required for the tag.
+The problem with the PI Server is that it is designed to store data in fixed formats, therefore having data that is not of a consistent type, i.e. made up of the set of attributes, can cause issues. In a PI server each new data type becomes a new tag, this is not a problem if you are happy to use tag naming that is flexible. However if you require that you used fixed name tags within the PI Server, using the |OMFhints| filter, this can be an issue for incremental development of your pipeline. Changing the properties of the tag will result in a new name being required for the tag.
 
 The simplest approach is to do all the initial development without the fixed name and then do the name mapping as the final step in developing the pipeline. Although not ideal it gives a relatively simple approach to resolving the problem.
 
@@ -93,6 +93,8 @@ If you have data that is not timeseries by nature, such as string, you may use t
 | |view_spreadsheet| |
 +--------------------+
 
+.. _AccessingLogs
+
 Examining Logs
 ~~~~~~~~~~~~~~
 
@@ -108,11 +110,11 @@ Alternatively if you display the north or south configuration page for your serv
 | |logview_2| |
 +-------------+
 
-Log are displayed with the most recent entry first, with older entries shown as you move down the page. You may move to the next page to see older log entries. It is also possible to view different log severity; fatal, error, warning, info and debug. By default a service will not write info and debug messages to the log, it is possible to turn these levels on via the advanced configuration options of the service. This will then cause the log entries to be written, but before you can view them you must set the appropriate level of severity filtering and the user interface will filter out information and debug message by default.
+Log are displayed with the most recent entry first, with older entries shown as you move down the page. You may move to the next page to view older log entries. It is also possible to view different log severity; fatal, error, warning, info and debug. By default a service will not write info and debug messages to the log, it is possible to turn these levels on via the advanced configuration options of the service. This will then cause the log entries to be written, but before you can view them you must set the appropriate level of severity filtering and the user interface will filter out information and debug message by default.
 
 It is important to turn the logging level back down to warning and above messages once you have finished your debugging session and failure to do this will cause excessive log entries to be written to the system log file.
 
-Also note that the logs are written to the logging subsystem of the underlying Linux version, either syslog or the messages mechanism depending upon your Linux distribution. This means that these log files will be automatically rotated by the operating system mechanisms. This means the system will not, under normal circumstances, fill the storage subsystem. Older log files will be kept for a short time, but will be removed automatically after a few days. This should be born in mind if you have information in the log that you wish to keep. Also the user interface will only allow you to see data in the most recent log file.
+Also note that the logs are written to the logging subsystem of the underlying Linux version, either syslog or the messages mechanism depending upon your Linux distribution. This means that these log files will be automatically rotated by the operating system mechanisms. This means the system will not, under normal circumstances, fill the storage subsystem. Older log files will be kept for a short time, but will be removed automatically after a few days. This should be borne in mind if you have information in the log that you wish to keep. Also the user interface will only allow you to view data in the most recent log file.
 
 It is also possible to configure the syslog mechanism to write log files to non-standard files or remote machines. The Fledge mechanisms for viewing the system logs does require that the standard names for log files are used.
 
@@ -165,7 +167,7 @@ It is tempting to use this sharing of global variables as a method to share info
 
   - Intervening filters may add or remove readings resulting in the data in the global variables not referring to the same reading, or set of readings that it was intended to reference.
 
-If you no wish one filter to pass data onto a later filter in the pipeline this is best done by adding data to the reading, as an extra data point. This data point can then be removed by the later filter. An example of this is the way Fledge adds |OMFhints| to readings that are processed and removed by the |OMF| north plugin.
+If you wish one filter to pass data onto a later filter in the pipeline this is best done by adding data to the reading, as an extra data point. This data point can then be removed by the later filter. An example of this is the way Fledge adds |OMFhints| to readings that are processed and removed by the |OMF| north plugin.
 
 For example let us assume we have calculated some value delta that we wish to pass to a later filter, we can add this as a data point to our reading which we will call *_hintDelta*.
 
@@ -217,5 +219,5 @@ If an error occurs in the plugin or Python script, including script coding error
 
 Warnings raised will also be logged to the error log but will not cause data to cease flowing through the pipeline.
 
-See above for details have how to access the system logs.
+See :ref:`AccessingLogs`: for details have how to access the system logs.
 

@@ -25,5 +25,5 @@ Welcome to Fledge's documentation!
     91_version_history
     92_downloads
     KERBEROS
-    plugin_index
     services/index
+    plugin_index

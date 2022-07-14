@@ -450,11 +450,11 @@ def clear_cache(host, admin, password, pi_database):
     """
     username_password = "{}:{}".format(admin, password)
     username_password_b64 = base64.b64encode(username_password.encode('ascii')).decode("ascii")
-    headers = {'Authorization': 'Basic %s' % username_password_b64, 'Cache-Control': 'no-cache'}
-
+    headers = {'Authorization': 'Basic %s' % username_password_b64, 'cache-control': 'no-cache'}
+    normal_header = {'Authorization': 'Basic %s' % username_password_b64}
     try:
         conn = http.client.HTTPSConnection(host, context=ssl._create_unverified_context())
-        conn.request("GET", '/piwebapi/assetservers', headers=headers)
+        conn.request("GET", '/piwebapi/assetservers', headers=normal_header)
         res = conn.getresponse()
         assert res.status == 200, "Could not request asset server of Pi Web API."
         res = conn.getresponse()
@@ -462,13 +462,15 @@ def clear_cache(host, admin, password, pi_database):
         dbs = r["Items"][0]["Links"]["Databases"]
 
         if dbs is not None:
-            conn.request("GET", dbs, headers=headers)
+            conn.request("GET", dbs, headers=normal_header)
             res = conn.getresponse()
+            assert res.status == 200, "Databases is not accessible."
             r = json.loads(res.read().decode())
             for el in r["Items"]:
                 if el["Name"] == pi_database:
                     url_elements_list = el["Links"]["Elements"]
 
+        print("Going to request elemnent list with cache control no cache.")
         if url_elements_list is not None:
             conn.request("GET", url_elements_list, headers=headers)
             res = conn.getresponse()
@@ -477,7 +479,7 @@ def clear_cache(host, admin, password, pi_database):
         conn.close()
 
         # for verification whether we are able to clear cache.
-        normal_header = {'Authorization': 'Basic %s' % username_password_b64}
+        print("Now verifying whether cache cleared.")
         conn = http.client.HTTPSConnection(host, context=ssl._create_unverified_context())
         conn.request("GET", '/piwebapi/system/cacheinstances', headers=normal_header)
         res = conn.getresponse()

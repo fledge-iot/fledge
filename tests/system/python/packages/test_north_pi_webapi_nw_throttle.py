@@ -450,7 +450,7 @@ def clear_cache(host, admin, password, pi_database):
     """
     username_password = "{}:{}".format(admin, password)
     username_password_b64 = base64.b64encode(username_password.encode('ascii')).decode("ascii")
-    headers = {'Authorization': 'Basic %s' % username_password_b64, 'cache-control': 'no-cache'}
+    headers = {'Authorization': 'Basic %s' % username_password_b64, 'Cache-Control': 'no-cache'}
     normal_header = {'Authorization': 'Basic %s' % username_password_b64}
     try:
         conn = http.client.HTTPSConnection(host, context=ssl._create_unverified_context())
@@ -469,7 +469,22 @@ def clear_cache(host, admin, password, pi_database):
                 if el["Name"] == pi_database:
                     url_elements_list = el["Links"]["Elements"]
 
-        print("Going to request elemnent list with cache control no cache.")
+        print("Getting old cache")
+        conn = http.client.HTTPSConnection(host, context=ssl._create_unverified_context())
+        conn.request("GET", '/piwebapi/system/cacheinstances', headers=normal_header)
+        res = conn.getresponse()
+        r = json.loads(res.read().decode())
+        try:
+            # assuming we have single user Administrator
+            old_cache_refresh_time = r["Items"][0]['LastRefreshTime']
+        except (IndexError, KeyError):
+            print("The cache does not exist. ")
+            return
+
+        print("Old cache refresh time {} ".format(old_cache_refresh_time))
+        conn.close()
+
+        print("Going to request element list with cache control no cache.")
         if url_elements_list is not None:
             conn.request("GET", url_elements_list, headers=headers)
             res = conn.getresponse()
@@ -483,8 +498,17 @@ def clear_cache(host, admin, password, pi_database):
         conn.request("GET", '/piwebapi/system/cacheinstances', headers=normal_header)
         res = conn.getresponse()
         r = json.loads(res.read().decode())
-        assert r["Items"] == [], "The cache could not be cleared as it is showing {}".format(r['Items'])
+        try:
+            # assuming we have only one user named Administrator.
+            new_cache_refresh_time = r["Items"][0]['LastRefreshTime']
+        except (KeyError, IndexError):
+            print("The cache does not exist.")
+            return
+
+        print("New cache refresh time {} ".format(new_cache_refresh_time))
         conn.close()
+
+        assert new_cache_refresh_time != old_cache_refresh_time, "The cache has not been refreshed."
 
     except Exception as er:
         print("Could not clear cache due to {}".format(er))

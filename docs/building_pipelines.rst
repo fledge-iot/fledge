@@ -4,8 +4,8 @@
 .. |pipelines| image:: images/pipelines.png
 .. |logview_1| image:: images/logview_1.png
 .. |logview_2| image:: images/logview_2.png
-.. |view_graph| image:: ../images/view_graph.jpg
-.. |view_spreadsheet| image:: ../images/view_spreadsheet.jpg
+.. |view_graph| image:: images/view_graph.jpg
+.. |view_spreadsheet| image:: images/view_spreadsheet.jpg
 
 .. Links
 .. |python35| raw:: html

@@ -453,7 +453,7 @@ def clear_cache(host, admin, password):
         conn = http.client.HTTPSConnection(host, context=ssl._create_unverified_context())
         conn.request("GET", '/piwebapi/assetservers', headers=headers)
         res = conn.getresponse()
-        assert res.status == 201, "Could not request asset server of Pi Web API."
+        assert res.status == 200, "Could not request asset server of Pi Web API."
         conn.close()
 
         normal_header = {'Authorization': 'Basic %s' % username_password_b64}
@@ -461,7 +461,7 @@ def clear_cache(host, admin, password):
         conn.request("GET", '/piwebapi/system/cacheinstances', headers=normal_header)
         res = conn.getresponse()
         r = json.loads(res.read().decode())
-        assert r["Items"] == [], "The cache could not be cleared."
+        assert r["Items"] == [], "The cache could not be cleared as it is showing {}".format(r['Items'])
         conn.close()
 
     except Exception as er:

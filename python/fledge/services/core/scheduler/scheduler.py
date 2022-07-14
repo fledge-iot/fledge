@@ -1158,7 +1158,7 @@ class Scheduler(object):
 
         if dryrun and is_new_schedule:
             await self._start_task(schedule_row, dryrun=True)
-
+            return
         if is_enabled_modified is not None:
             if previous_enabled is None:  # New Schedule
                 # For a new schedule, if enabled is set to True, the schedule will be enabled.

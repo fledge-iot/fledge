@@ -444,7 +444,10 @@ def delete_element_hierarchy(host, admin, password, pi_database, af_hierarchy_li
         assert False, "Could not delete hierarchy of {} due to {}".format(af_hierarchy_list, er)
 
 
-def clear_cache(host, admin, password):
+def clear_cache(host, admin, password, pi_database):
+    """Method that deletes cache by supplying 'Cache-Control': 'no-cache' in header of GET request for
+        element list.
+    """
     username_password = "{}:{}".format(admin, password)
     username_password_b64 = base64.b64encode(username_password.encode('ascii')).decode("ascii")
     headers = {'Authorization': 'Basic %s' % username_password_b64, 'Cache-Control': 'no-cache'}
@@ -454,8 +457,26 @@ def clear_cache(host, admin, password):
         conn.request("GET", '/piwebapi/assetservers', headers=headers)
         res = conn.getresponse()
         assert res.status == 200, "Could not request asset server of Pi Web API."
+        res = conn.getresponse()
+        r = json.loads(res.read().decode())
+        dbs = r["Items"][0]["Links"]["Databases"]
+
+        if dbs is not None:
+            conn.request("GET", dbs, headers=headers)
+            res = conn.getresponse()
+            r = json.loads(res.read().decode())
+            for el in r["Items"]:
+                if el["Name"] == pi_database:
+                    url_elements_list = el["Links"]["Elements"]
+
+        if url_elements_list is not None:
+            conn.request("GET", url_elements_list, headers=headers)
+            res = conn.getresponse()
+            r = json.loads(res.read().decode())
+
         conn.close()
 
+        # for verification whether we are able to clear cache.
         normal_header = {'Authorization': 'Basic %s' % username_password_b64}
         conn = http.client.HTTPSConnection(host, context=ssl._create_unverified_context())
         conn.request("GET", '/piwebapi/system/cacheinstances', headers=normal_header)
@@ -563,7 +584,7 @@ class TestPackagesSinusoid_PI_WebAPI:
             for web_id in web_ids:
                 delete_element_template(pi_host, pi_admin, pi_passwd, web_id)
 
-        clear_cache(pi_host, pi_admin, pi_passwd)
+        clear_cache(pi_host, pi_admin, pi_passwd, pi_db)
 
         assert len(data_from_pi) > 0, "Could not fetch fetch data from PI."
         data_from_pi = [int(d) for d in data_from_pi]

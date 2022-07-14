@@ -457,7 +457,6 @@ def clear_cache(host, admin, password, pi_database):
         conn.request("GET", '/piwebapi/assetservers', headers=normal_header)
         res = conn.getresponse()
         assert res.status == 200, "Could not request asset server of Pi Web API."
-        res = conn.getresponse()
         r = json.loads(res.read().decode())
         dbs = r["Items"][0]["Links"]["Databases"]
 

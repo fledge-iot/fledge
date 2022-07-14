@@ -664,7 +664,6 @@ def clear_cache(host, admin, password, pi_database):
 
 @pytest.fixture
 def clear_pi_system_through_pi_web_api():
-
     def _clear_pi_system_through_pi_web_api(host, admin, password, pi_database, af_hierarchy_list, asset_dict):
         """
            Clears the pi system through pi web API.
@@ -695,6 +694,8 @@ def clear_pi_system_through_pi_web_api():
                 delete_element_template(host, admin, password, web_id)
 
         clear_cache(host, admin, password, pi_database)
+
+    return _clear_pi_system_through_pi_web_api
 
 
 @pytest.fixture

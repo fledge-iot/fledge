@@ -268,8 +268,9 @@ EOF
             schedule.exclusive = True
             schedule.enabled = False  # if "enabled" is supplied, it gets activated in save_schedule() via is_enabled flag
 
-            # Save schedule
-            await server.Server.scheduler.save_schedule(schedule, is_enabled)
+            # Save schedule always perform with dryrun
+            # Note: For python based sending process dryrun option support is not available. Therefore run time configuration appears only when task run once and then next only if enabled
+            await server.Server.scheduler.save_schedule(schedule, is_enabled, dryrun=True)
             schedule = await server.Server.scheduler.get_schedule_by_name(name)
         except StorageServerError as ex:
             await config_mgr.delete_category_and_children_recursively(name)

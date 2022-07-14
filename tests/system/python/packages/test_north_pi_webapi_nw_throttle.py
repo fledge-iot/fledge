@@ -444,6 +444,31 @@ def delete_element_hierarchy(host, admin, password, pi_database, af_hierarchy_li
         assert False, "Could not delete hierarchy of {} due to {}".format(af_hierarchy_list, er)
 
 
+def clear_cache(host, admin, password):
+    username_password = "{}:{}".format(admin, password)
+    username_password_b64 = base64.b64encode(username_password.encode('ascii')).decode("ascii")
+    headers = {'Authorization': 'Basic %s' % username_password_b64, 'Cache-Control': 'no-cache'}
+
+    try:
+        conn = http.client.HTTPSConnection(host, context=ssl._create_unverified_context())
+        conn.request("GET", '/piwebapi/assetservers', headers=headers)
+        res = conn.getresponse()
+        assert res.status == 201, "Could not request asset server of Pi Web API."
+        conn.close()
+
+        normal_header = {'Authorization': 'Basic %s' % username_password_b64}
+        conn = http.client.HTTPSConnection(host, context=ssl._create_unverified_context())
+        conn.request("GET", '/piwebapi/system/cacheinstances', headers=normal_header)
+        res = conn.getresponse()
+        r = json.loads(res.read().decode())
+        assert r["Items"] == [], "The cache could not be cleared."
+        conn.close()
+
+    except Exception as er:
+        print("Could not clear cache due to {}".format(er))
+        assert False, "Could not clear cache due to {}".format(er)
+
+
 class TestPackagesSinusoid_PI_WebAPI:
 
     def test_omf_in_impaired_network(self, clean_setup_fledge_packages, reset_fledge,
@@ -537,6 +562,8 @@ class TestPackagesSinusoid_PI_WebAPI:
             web_ids = search_for_element_template(pi_host, pi_admin, pi_passwd, pi_db, h_level)
             for web_id in web_ids:
                 delete_element_template(pi_host, pi_admin, pi_passwd, web_id)
+
+        clear_cache(pi_host, pi_admin, pi_passwd)
 
         assert len(data_from_pi) > 0, "Could not fetch fetch data from PI."
         data_from_pi = [int(d) for d in data_from_pi]

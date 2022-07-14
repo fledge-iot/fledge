@@ -13,6 +13,7 @@ Welcome to Fledge's documentation!
     processing_data
     fledge_architecture
     fledge_plugins
+    building_pipelines
     securing_fledge
     storage
     tuning_fledge

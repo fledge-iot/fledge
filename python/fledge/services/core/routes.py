@@ -24,6 +24,7 @@ from fledge.services.core.api import south
 from fledge.services.core.api import north
 from fledge.services.core.api import filters
 from fledge.services.core.api import notification
+from fledge.services.core.api import plugin_data
 from fledge.services.core.api.plugins import install as plugins_install, discovery as plugins_discovery
 from fledge.services.core.api.plugins import update as plugins_update
 from fledge.services.core.api.plugins import remove as plugins_remove
@@ -135,6 +136,11 @@ def setup(app):
 
     # asset tracker
     app.router.add_route('GET', '/fledge/track', asset_tracker.get_asset_tracker_events)
+
+    # plugin data
+    app.router.add_route('GET', '/fledge/service/{service_name}/plugin/{plugin_name}/data', plugin_data.get_plugin_data)
+    app.router.add_route('POST', '/fledge/service/{service_name}/plugin/{plugin_name}/data', plugin_data.add_plugin_data)
+    app.router.add_route('DELETE', '/fledge/service/{service_name}/plugin/{plugin_name}/data', plugin_data.delete_plugin_data)
 
     # Statistics - As per doc
     app.router.add_route('GET', '/fledge/statistics', api_statistics.get_statistics)

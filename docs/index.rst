@@ -13,6 +13,7 @@ Welcome to Fledge's documentation!
     processing_data
     fledge_architecture
     fledge_plugins
+    building_pipelines
     securing_fledge
     storage
     tuning_fledge
@@ -24,5 +25,5 @@ Welcome to Fledge's documentation!
     91_version_history
     92_downloads
     KERBEROS
-    plugin_index
     services/index
+    plugin_index

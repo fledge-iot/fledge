@@ -26,14 +26,14 @@ done
 
 
 cleanup(){
-  sudo rm -rf /usr/local/fledge
+  # sudo rm -rf /usr/local/fledge
   rm -rf /tmp/*valgrind.log
 }
 
 modify_scripts(){  
-  sudo sed -i "/.\/fledge.services.south.*/s/^/valgrind -v --log-file=\/tmp\/south_valgrind.log --leak-check=full --show-leak-kinds=all --track-origins=yes /" /usr/local/fledge/scripts/services/south_c
-  sudo sed -i "/.\/fledge.services.north.*/s/^/valgrind -v --log-file=\/tmp\/north_valgrind.log --leak-check=full --show-leak-kinds=all --track-origins=yes /" /usr/local/fledge/scripts/services/north_C
-  sudo sed -i "/\${storageExec} \"\$@\"/s/^/valgrind -v --log-file=\/tmp\/storage_valgrind.log --leak-check=full --show-leak-kinds=all --track-origins=yes /" /usr/local/fledge/scripts/services/storage
+  sudo sed -i "/.\/fledge.services.south.*/s/^/valgrind -v --xml=yes --xml-file=\/tmp\/south_valgrind.xml --log-file=\/tmp\/south_valgrind.log --leak-check=full --show-leak-kinds=all --track-origins=yes /" /usr/local/fledge/scripts/services/south_c
+  sudo sed -i "/.\/fledge.services.north.*/s/^/valgrind -v --xml=yes --xml-file=\/tmp\/north_valgrind.xml --log-file=\/tmp\/north_valgrind.log --leak-check=full --show-leak-kinds=all --track-origins=yes /" /usr/local/fledge/scripts/services/north_C
+  sudo sed -i "/\${storageExec} \"\$@\"/s/^/valgrind -v --xml=yes --xml-file=\/tmp\/storage_valgrind.xml --log-file=\/tmp\/storage_valgrind.log --leak-check=full --show-leak-kinds=all --track-origins=yes /" /usr/local/fledge/scripts/services/storage
 }
 
 setup_repo(){
@@ -103,7 +103,7 @@ generate_valgrind_logs(){
   sleep ${TEST_RUN_TIME}
   sudo systemctl stop fledge
   rm -rf reports/$1; mkdir -p reports/$1
-  cp -rf /tmp/*valgrind.log reports/$1/.  
+  cp -rf /tmp/*valgrind.log /tmp/*valgrind.xml reports/$1/.  
 }
 
 cleanup

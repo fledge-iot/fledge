@@ -330,8 +330,8 @@ start_north_pi_server_c_web_api = start_north_pi_v2_web_api = start_north_task_o
 @pytest.fixture
 def read_data_from_pi():
     def _read_data_from_pi(host, admin, password, pi_database, asset, sensor):
-        """ This method reads data from pi web api """
-
+        """ This method reads data from PI Web API and then delete the element"""
+        print("Reading data from PI host {} for {}.{}".format(host, asset, sensor))
         # List of pi databases
         dbs = None
         # PI logical grouping of attributes and child elements
@@ -402,6 +402,8 @@ def read_data_from_pi():
                 conn.request("DELETE", '/piwebapi/elements/{}'.format(web_id), headers=headers)
                 res = conn.getresponse()
                 res.read()
+                #TODO: check response status code?
+                print("Deleted recorded elements")
 
                 return _data_pi
         except (KeyError, IndexError, Exception):
@@ -413,9 +415,11 @@ def read_data_from_pi():
 @pytest.fixture
 def read_data_from_pi_web_api():
     def _read_data_from_pi_web_api(host, admin, password, pi_database, af_hierarchy_list, asset, sensor):
-        """ This method reads data from pi web api """
+        """ This method reads data point from PI Web API and then delete the root element """
 
-        # List of pi databases
+        print("Reading data from PI host {} for {}.{}".format(host, asset, sensor))
+        print(af_hierarchy_list)
+        # List of PI databases
         dbs = None
         # PI logical grouping of attributes and child elements
         elements = None
@@ -504,6 +508,8 @@ def read_data_from_pi_web_api():
                 conn.request("DELETE", '/piwebapi/elements/{}'.format(web_id_root), headers=headers)
                 res = conn.getresponse()
                 res.read()
+                #TODO: check response status code?
+                print("Deleted recorded elements")
 
                 return _data_pi
         except (KeyError, IndexError, Exception):

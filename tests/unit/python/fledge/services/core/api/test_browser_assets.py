@@ -92,7 +92,7 @@ class TestBrowserAssets:
         return loop.run_until_complete(test_client(app))
 
     def test_routes_count(self, app):
-        assert 10 == len(app.router.resources())
+        assert 12 == len(app.router.resources())
 
     def test_routes_info(self, app):
         for index, route in enumerate(app.router.routes()):

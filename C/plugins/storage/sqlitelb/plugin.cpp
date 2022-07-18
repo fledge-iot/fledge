@@ -383,7 +383,6 @@ unsigned int plugin_reading_purge_asset(PLUGIN_HANDLE handle, char *asset)
 {
 ConnectionManager *manager = (ConnectionManager *)handle;
 Connection        *connection = manager->allocate();
-unsigned long     age, size;
 
 	unsigned int deleted = connection->purgeReadingsAsset(asset);
 	manager->release(connection);

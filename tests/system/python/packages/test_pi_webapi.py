@@ -189,7 +189,7 @@ class TestPackagesCoAP_PI_WebAPI:
                                        asset_name=ASSET):
         """ Test OMF as a North task by reconfiguring it.
             reset_fledge: Fixture to reset fledge
-            start_south_north: Adds and configures south(sinusoid) and north(OMF) service
+            start_south_north: Adds and configures south and north (OMF)
             read_data_from_pi_web_api: Fixture to read data from PI web API
             skip_verify_north_interface: Flag for assertion of data using PI web API
             Assertions:

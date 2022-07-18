@@ -527,7 +527,6 @@ class TestOMFNorthServicewithFilters:
             _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries,
                            south_asset_name)
 
-    @pytest.mark.skip(reason="FOGL-5215: Deleting a service doesn't delete its filter categories")
     def test_omf_service_with_delete_add(self, reset_fledge, start_south_north, add_configure_filter, add_filter,
                                          read_data_from_pi_web_api,
                                          start_north_omf_as_a_service, skip_verify_north_interface,

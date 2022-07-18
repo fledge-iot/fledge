@@ -921,6 +921,8 @@ unsigned long size = 0;
 unsigned long lastSent = 0;
 unsigned int  flagsMask = 0;
 string        flags;
+string	      asset;
+bool	      byAsset = false;
 static std::atomic<bool> already_running(false);
 
 	if (already_running)
@@ -945,13 +947,22 @@ static std::atomic<bool> already_running(false);
 		{
 			size = (unsigned)atol(search->second.c_str());
 		}
+		search = query.find("asset");
+		if (search != query.end())
+		{
+			asset = search->second;
+			byAsset = true;
+		}
 		search = query.find("sent");
 		if (search == query.end())
 		{
-			string payload = "{ \"error\" : \"Missing query parameter sent\" }";
-			respond(response, SimpleWeb::StatusCode::client_error_bad_request, payload);
-			already_running.store(false);
-			return;
+			if (!byAsset)
+			{
+				string payload = "{ \"error\" : \"Missing query parameter sent\" }";
+				respond(response, SimpleWeb::StatusCode::client_error_bad_request, payload);
+				already_running.store(false);
+				return;
+			}
 		}
 		else
 		{
@@ -988,6 +999,7 @@ static std::atomic<bool> already_running(false);
 
 		}
 
+
 		char *purged = NULL;
 		if (age)
 		{
@@ -996,6 +1008,10 @@ static std::atomic<bool> already_running(false);
 		else if (size)
 		{
 			purged = (readingPlugin ? readingPlugin : plugin)->readingsPurge(size, flagsMask|STORAGE_PURGE_SIZE, lastSent);
+		}
+		else if (byAsset)
+		{
+			purged = (readingPlugin ? readingPlugin : plugin)->readingsPurgeAsset(asset);
 		}
 		else
 		{

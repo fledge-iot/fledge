@@ -24,6 +24,7 @@ from fledge.services.core.api import south
 from fledge.services.core.api import north
 from fledge.services.core.api import filters
 from fledge.services.core.api import notification
+from fledge.services.core.api.plugins import data as plugin_data
 from fledge.services.core.api.plugins import install as plugins_install, discovery as plugins_discovery
 from fledge.services.core.api.plugins import update as plugins_update
 from fledge.services.core.api.plugins import remove as plugins_remove
@@ -184,6 +185,11 @@ def setup(app):
     app.router.add_route('POST', '/fledge/plugins', plugins_install.add_plugin)
     app.router.add_route('PUT', '/fledge/plugins/{type}/{name}/update', plugins_update.update_plugin)
     app.router.add_route('DELETE', '/fledge/plugins/{type}/{name}', plugins_remove.remove_plugin)
+
+    # plugin data
+    app.router.add_route('GET', '/fledge/service/{service_name}/plugin/{plugin_name}/data', plugin_data.get)
+    app.router.add_route('POST', '/fledge/service/{service_name}/plugin/{plugin_name}/data', plugin_data.add)
+    app.router.add_route('DELETE', '/fledge/service/{service_name}/plugin/{plugin_name}/data', plugin_data.delete)
 
     # Filters 
     app.router.add_route('POST', '/fledge/filter', filters.create_filter)

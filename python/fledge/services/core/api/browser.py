@@ -804,7 +804,7 @@ async def asset_purge_all(request):
         msg = str(exc)
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
-        return web.json_response(asset_json)
+        return web.json_response(results)
 
 
 async def asset_purge(request):
@@ -829,5 +829,5 @@ async def asset_purge(request):
         msg = str(exc)
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
-        return web.json_response(response)
+        return web.json_response(results)
 

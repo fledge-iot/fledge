@@ -34,9 +34,10 @@ class TestConfigurationManager:
         ConfigurationManagerSingleton._shared_state = {}
 
     def test_supported_validate_type_strings(self):
-        assert 14 == len(_valid_type_strings)
-        assert ['IPv4', 'IPv6', 'JSON', 'URL', 'X509 certificate', 'boolean', 'code', 'enumeration', 'float', 'integer',
-                'northTask', 'password', 'script', 'string'] == _valid_type_strings
+        expected_types = ['IPv4', 'IPv6', 'JSON', 'URL', 'X509 certificate', 'boolean', 'code', 'enumeration', 'float', 'integer',
+                'northTask', 'password', 'script', 'string', 'ACL']
+        assert len(expected_types) == len(_valid_type_strings)
+        assert sorted(expected_types) == _valid_type_strings
 
     def test_supported_optional_items(self):
         assert 10 == len(_optional_items)

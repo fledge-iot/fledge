@@ -115,19 +115,19 @@ class TestStorageClientExceptions:
             assert 400 == ex.code
             assert "Purge flag valid options are retain or purge only" == ex.message
 
-    def test_PurgeOneOfAgeAndSize(self):
+    def test_PurgeOneOfAgeAssetAndSize(self):
         with pytest.raises(Exception) as excinfo:
-            raise PurgeOneOfAgeAndSize()
-        assert excinfo.type is PurgeOneOfAgeAndSize
+            raise PurgeOneOfAgeAssetAndSize()
+        assert excinfo.type is PurgeOneOfAgeAssetAndSize
         assert issubclass(excinfo.type, BadRequest)
 
         try:
-            raise PurgeOneOfAgeAndSize()
+            raise PurgeOneOfAgeAssetAndSize()
         except Exception as ex:
-            assert ex.__class__ is PurgeOneOfAgeAndSize
+            assert ex.__class__ is PurgeOneOfAgeAssetAndSize
             assert issubclass(ex.__class__, BadRequest)
             assert 400 == ex.code
-            assert "Purge must specify one of age or size" == ex.message
+            assert "Purge must specify one of age, size or asset" == ex.message
 
     def test_PurgeOnlyOneOfAgeAndSize(self):
         with pytest.raises(Exception) as excinfo:

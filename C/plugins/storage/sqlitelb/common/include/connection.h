@@ -103,7 +103,7 @@ class Connection {
 		bool		get_table_snapshots(const std::string& table, std::string& resultSet);
 #endif
 		int		appendReadings(const char *readings);
-		int 	readingStream(ReadingStream **readings, bool commit);
+		int 		readingStream(ReadingStream **readings, bool commit);
 		bool		fetchReadings(unsigned long id, unsigned int blksize,
 						std::string& resultSet);
 		bool		retrieveReadings(const std::string& condition,
@@ -116,7 +116,8 @@ class Connection {
 		void		setTrace(bool);
 		bool		formatDate(char *formatted_date, size_t formatted_date_size, const char *date);
 		bool		aggregateQuery(const rapidjson::Value& payload, std::string& resultSet);
-		bool        getNow(std::string& Now);
+		bool        	getNow(std::string& Now);
+		unsigned int	purgeReadingsAsset(const std::string& asset);
 
 	private:
 #ifndef MEMORY_READING_PLUGIN

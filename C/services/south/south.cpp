@@ -301,15 +301,18 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 			logger->info("South plugin has a control facility, adding south service API");
 		}
 
-		if (!m_mgtClient->registerService(record))
+		if (!m_dryRun)
 		{
-			logger->error("Failed to register service %s", m_name.c_str());
-		}
+			if (!m_mgtClient->registerService(record))
+			{
+				logger->error("Failed to register service %s", m_name.c_str());
+			}
 
-		// Register for category content changes
-		ConfigHandler *configHandler = ConfigHandler::getInstance(m_mgtClient);
-		configHandler->registerCategory(this, m_name);
-		configHandler->registerCategory(this, m_name+"Advanced");
+			// Register for category content changes
+			ConfigHandler *configHandler = ConfigHandler::getInstance(m_mgtClient);
+			configHandler->registerCategory(this, m_name);
+			configHandler->registerCategory(this, m_name+"Advanced");
+		}
 
 		// Get a handle on the storage layer
 		ServiceRecord storageRecord("Fledge Storage");
@@ -636,10 +639,13 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		}
 		
 		// Clean shutdown, unregister the storage service
-		m_mgtClient->unregisterService();
+		if (!m_dryRun)
+		{
+			m_mgtClient->unregisterService();
+		}
 	}
 	management.stop();
-	logger->info("South service shutdown completed");
+	logger->info("South service shutdown %s completed", m_dryRun ? "from dry run " : "");
 }
 
 /**

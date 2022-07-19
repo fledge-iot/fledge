@@ -338,20 +338,26 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 			management.stop();
 			return;
 		}
-		if (!m_mgtClient->registerService(record))
+		if (!m_dryRun)
 		{
-			logger->error("Failed to register service %s", m_name.c_str());
+			if (!m_mgtClient->registerService(record))
+			{
+				logger->error("Failed to register service %s", m_name.c_str());
+			}
+			ConfigHandler *configHandler = ConfigHandler::getInstance(m_mgtClient);
+			configHandler->registerCategory(this, m_name);
+			configHandler->registerCategory(this, m_name+"Advanced");
 		}
-		ConfigHandler *configHandler = ConfigHandler::getInstance(m_mgtClient);
-		configHandler->registerCategory(this, m_name);
-		configHandler->registerCategory(this, m_name+"Advanced");
 
 		// Get a handle on the storage layer
 		ServiceRecord storageRecord("Fledge Storage");
 		if (!m_mgtClient->getService(storageRecord))
 		{
 			logger->fatal("Unable to find storage service");
-			m_mgtClient->unregisterService();
+			if (!m_dryRun)
+			{
+				m_mgtClient->unregisterService();
+			}
 			return;
 		}
 		logger->info("Connect to storage on %s:%d",
@@ -470,12 +476,15 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 			}
 		}
 		
-		// Clean shutdown, unregister the storage service
-		logger->info("Unregistering service");
-		m_mgtClient->unregisterService();
+		if (!m_dryRun)
+		{
+			// Clean shutdown, unregister the storage service
+			logger->info("Unregistering service");
+			m_mgtClient->unregisterService();
+		}
 	}
 	management.stop();
-	logger->info("North service shutdown completed");
+	logger->info("North service %s shutdown completed", m_dryRun ? "dry run execution " : "");
 }
 
 /**

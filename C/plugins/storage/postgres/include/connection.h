@@ -49,7 +49,10 @@ class Connection {
 						    std::string& resultSet);
 		bool		aggregateQuery(const rapidjson::Value& payload, std::string& resultSet);
 		int 		create_schema(const std::string &payload);
-		bool 		findSchemaFromDB(const std::string &service, const  std::string &name, std::string &resultSet);
+		bool 		findSchemaFromDB(const std::string &service,
+						const std::string &name,
+						std::string &resultSet);
+		unsigned int	purgeReadingsAsset(const std::string& asset);
 
 	private:
 		bool		m_logSQL;

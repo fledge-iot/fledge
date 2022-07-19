@@ -2576,6 +2576,7 @@ sqlite3_stmt *stmt;
 		}
 
 		// Purge all readings data in all db tables
+		// zErrMsg is freed if rc != SQLITE_OK)
 		rc = readCat->purgeAllReadings(dbHandle, query ,&zErrMsg, &rowsAffected);
 
 		// Release memory for 'query' var
@@ -2584,7 +2585,6 @@ sqlite3_stmt *stmt;
 		if (rc != SQLITE_OK)
 		{
 			raiseError("ReadingsAssetPurge", sqlite3_errmsg(dbHandle));
-			sqlite3_free(zErrMsg);
 			return 0;
 		}
 

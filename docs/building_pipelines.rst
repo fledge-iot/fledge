@@ -93,7 +93,7 @@ If you have data that is not timeseries by nature, such as string, you may use t
 | |view_spreadsheet| |
 +--------------------+
 
-.. _AccessingLogs
+.. _AccessingLogs:
 
 Examining Logs
 ~~~~~~~~~~~~~~

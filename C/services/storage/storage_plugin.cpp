@@ -9,6 +9,7 @@
  */
 #include <config_category.h>
 #include <storage_plugin.h>
+#include <plugin_exception.h>
 
 using namespace std;
 
@@ -107,6 +108,8 @@ StoragePlugin::StoragePlugin(const string& name, PLUGIN_HANDLE handle) : Plugin(
 				manager->resolveSymbol(handle, "plugin_reading_retrieve");
 	readingsPurgePtr = (char * (*)(PLUGIN_HANDLE, unsigned long age, unsigned int flags, unsigned long sent))
 				manager->resolveSymbol(handle, "plugin_reading_purge");
+	readingsPurgeAssetPtr = (unsigned int (*)(PLUGIN_HANDLE, const char *))
+				manager->resolveSymbol(handle, "plugin_reading_purge_asset");
 	releasePtr = (void (*)(PLUGIN_HANDLE, const char *))
 				manager->resolveSymbol(handle, "plugin_release");
 	lastErrorPtr = (PLUGIN_ERROR * (*)(PLUGIN_HANDLE))
@@ -231,6 +234,28 @@ char *StoragePlugin::readingsRetrieve(const string& payload)
 char *StoragePlugin::readingsPurge(unsigned long age, unsigned int flags, unsigned long sent)
 {
 	return this->readingsPurgePtr(instance, age, flags, sent);
+}
+
+/**
+ * Call the readings purge asset method in the plugin
+ */
+char *StoragePlugin::readingsPurgeAsset(const string& asset)
+{
+	if (this->readingsPurgeAssetPtr)
+	{
+		unsigned int purged = this->readingsPurgeAssetPtr(instance, asset.c_str());
+		char *json = (char *)malloc(80);
+		if (json)
+		{
+			snprintf(json, 80, "{ \"purged\" : %u }", purged);
+			return json;
+		}
+		else
+		{
+			throw runtime_error("Out of memory");
+		}
+	}
+	throw PluginNotImplementedException("Purge by asset name not implemented in the storage plugin");
 }
 
 /**

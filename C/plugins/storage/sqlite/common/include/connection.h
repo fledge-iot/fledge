@@ -158,6 +158,7 @@ class Connection {
 		void		setUsedDbId(int dbId);
 
 		void		shutdownAppendReadings();
+		unsigned int	purgeReadingsAsset(const std::string& asset);
 
 	private:
 

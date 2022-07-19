@@ -687,14 +687,14 @@ class TestReadingsStorageAsyncClient:
         with pytest.raises(Exception) as excinfo:
             kwargs = dict(age=None, sent_id=0, size=None, flag=RETAINALL_FLAG)
             await rsc.purge(**kwargs)
-        assert excinfo.type is PurgeOneOfAgeAndSize
-        assert "Purge must specify one of age or size" in str(excinfo.value)
+        assert excinfo.type is PurgeOneOfAgeAssetAndSize
+        assert "Purge must specify one of age, size or asset" in str(excinfo.value)
 
         with pytest.raises(Exception) as excinfo:
             kwargs = dict(age=0, sent_id=0, size=0, flag=RETAINALL_FLAG)
             await rsc.purge(**kwargs)
-        assert excinfo.type is PurgeOneOfAgeAndSize
-        assert "Purge must specify one of age or size" in str(excinfo.value)
+        assert excinfo.type is PurgeOneOfAgeAssetAndSize
+        assert "Purge must specify one of age, size or asset" in str(excinfo.value)
 
         # age int
         with pytest.raises(Exception) as excinfo:

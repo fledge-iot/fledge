@@ -19,7 +19,7 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 __all__ = ('BadRequest', 'StorageServiceUnavailable', 'InvalidServiceInstance', 'InvalidReadingsPurgeFlagParameters',
-           'PurgeOneOfAgeAndSize', 'PurgeOnlyOneOfAgeAndSize', 'StorageServerError')
+           'PurgeOneOfAgeAssetAndSize', 'PurgeOnlyOneOfAgeAndSize', 'PurgeOneOfAgeAndAsset', 'PurgeOneOfSizeAndAsset', 'StorageServerError')
 
 
 class StorageClientException(Exception):
@@ -79,14 +79,29 @@ class PurgeOnlyOneOfAgeAndSize(BadRequest):
         self.message = "Purge must specify only one of age or size"
 
 
-class PurgeOneOfAgeAndSize(BadRequest):
+class PurgeOneOfAgeAssetAndSize(BadRequest):
     """ 400 - Invalid params for Purge request
     """
 
     def __init__(self):
         self.code = 400
-        self.message = "Purge must specify one of age or size"
+        self.message = "Purge must specify one of age, size or asset"
 
+class PurgeOneOfAgeAndAsset(BadRequest):
+    """ 400 - Invalid params for Purge request
+    """
+
+    def __init__(self):
+        self.code = 400
+        self.message = "Purge must specify one of age or asset"
+
+class PurgeOneOfSizeAndAsset(BadRequest):
+    """ 400 - Invalid params for Purge request
+    """
+
+    def __init__(self):
+        self.code = 400
+        self.message = "Purge must specify one of size or asset"
 
 class StorageServerError(Exception):
 

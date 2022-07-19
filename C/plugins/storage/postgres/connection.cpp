@@ -4508,3 +4508,43 @@ std::string Connection::getIndexName(std::string s){
 bool Connection::checkValidDataType(const std::string &s){
 	return ( s == "varchar" || s ==  "integer" || s ==  "double" || s == "real" || s == "sequence");
 }
+
+/**
+ * Purge readings by asset or purge all readings
+ *
+ * @param asset		The asset name to purge
+ * 			If empty all assets will be removed
+ * @return		The number of removed asset records
+ */
+unsigned int Connection::purgeReadingsAsset(const string& asset)
+{
+SQLBuffer       sql;
+unsigned int rowsAffected;
+
+	sql.append("DELETE FROM fledge.readings");
+
+	if (!asset.empty())
+	{
+		sql.append(" WHERE asset_code = '" + asset + "'");
+	}
+	sql.append(';');
+       
+	const char *query = sql.coalesce();
+        logSQL("PurgeReadingsAsset", query);
+
+	START_TIME;
+
+	PGresult *res = PQexec(dbConnection, query);
+
+	END_TIME;
+
+	delete[] query;
+	if (PQresultStatus(res) == PGRES_COMMAND_OK)
+	{
+		PQclear(res);
+		return atoi(PQcmdTuples(res));
+	}
+	raiseError("PurgeReadingsAsset", PQerrorMessage(dbConnection));
+	PQclear(res);
+	return 0;
+}

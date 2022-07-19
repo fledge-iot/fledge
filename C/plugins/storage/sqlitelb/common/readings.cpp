@@ -1259,9 +1259,9 @@ bool		isAggregate = false;
  * Purge readings from the reading table
  */
 unsigned int  Connection::purgeReadings(unsigned long age,
-										unsigned int flags,
-										unsigned long sent,
-										std::string& result)
+					unsigned int flags,
+					unsigned long sent,
+					std::string& result)
 {
 	long unsentPurged = 0;
 	long unsentRetained = 0;
@@ -1640,9 +1640,9 @@ unsigned int  Connection::purgeReadings(unsigned long age,
  * Purge readings from the reading table
  */
 unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
-											  unsigned int flags,
-											  unsigned long sent,
-											  std::string& result)
+					  unsigned int flags,
+					  unsigned long sent,
+					  std::string& result)
 {
 	unsigned long deletedRows = 0, unsentPurged = 0, unsentRetained = 0, numReadings = 0;
 	unsigned long limit = 0;
@@ -1795,4 +1795,64 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 
 	logger->info("Purge by Rows complete: %s", result.c_str());
 	return deletedRows;
+}
+
+/**
+ * Purge readings by asset or purge all readings
+ *
+ * @param asset		The asset name to purge
+ * 			If empty all assets will be removed
+ * @return		The number of removed asset records
+ */
+unsigned int Connection::purgeReadingsAsset(const string& asset)
+{
+SQLBuffer sql;
+unsigned int rowsAffected = 0;
+	sql.append("DELETE FROM " READINGS_DB_NAME_BASE "." READINGS_TABLE);
+		       
+	if (!asset.empty())
+	{
+		sql.append("  WHERE asset_code = '");
+		sql.append(asset);
+		sql.append('\'');
+	}
+	sql.append(';');
+
+	const char *query = sql.coalesce();
+	char *zErrMsg = NULL;
+	int rc;
+
+	logSQL("ReadingsAssetPurge", query);
+
+	if (m_writeAccessOngoing)
+	{
+		while (m_writeAccessOngoing)
+		{
+			std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		}
+	}
+
+	START_TIME;
+	// Exec DELETE query: no callback, no resultset
+	rc = SQLexec(dbHandle,
+			query,
+			NULL,
+			NULL,
+			&zErrMsg);
+	END_TIME;
+
+	// Release memory for 'query' var
+	delete[] query;
+
+	if (rc != SQLITE_OK)
+	{
+		raiseError("ReadingsAssetPurge", zErrMsg);
+		sqlite3_free(zErrMsg);
+		return rowsAffected;
+	}
+
+	// Get db changes
+	rowsAffected = sqlite3_changes(dbHandle);
+
+	return rowsAffected;
 }

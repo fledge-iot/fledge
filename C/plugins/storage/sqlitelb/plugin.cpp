@@ -376,5 +376,18 @@ int plugin_createSchema(PLUGIN_HANDLE handle, char *definition)
 	return result;
 }
 
+/**
+ * Purge given readings asset or all readings from the buffer
+ */
+unsigned int plugin_reading_purge_asset(PLUGIN_HANDLE handle, char *asset)
+{
+ConnectionManager *manager = (ConnectionManager *)handle;
+Connection        *connection = manager->allocate();
+
+	unsigned int deleted = connection->purgeReadingsAsset(asset);
+	manager->release(connection);
+	return deleted;
+}
+
 };
 

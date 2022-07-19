@@ -403,6 +403,35 @@ PurgeResult StorageClient::readingPurgeBySize(unsigned long size, unsigned long 
 }
 
 /**
+ * Purge the readings by asset name
+ *
+ * @param asset		The name of the asset to purge
+ * @return PurgeResult	Data on the readings that were purged
+ */
+PurgeResult StorageClient::readingPurgeByAsset(const string& asset)
+{
+	try {
+		char url[256];
+		snprintf(url, sizeof(url), "/storage/reading/purge?asset=%s", asset.c_str());
+		auto res = this->getHttpClient()->request("PUT", url);
+		if (res->status_code.compare("200 OK") == 0)
+		{
+			ostringstream resultPayload;
+			resultPayload << res->content.rdbuf();
+			return PurgeResult(resultPayload.str());
+		}
+	} catch (exception& ex) {
+		handleException(ex, "purge readings by size");
+		throw;
+	} catch (exception* ex) {
+		handleException(*ex, "purge readings by size");
+		delete ex;
+		throw exception();
+	}
+	return PurgeResult();
+}
+
+/**
  * Query a table
  *
  * @param tablename	The name of the table to query

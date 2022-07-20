@@ -103,7 +103,6 @@ generate_valgrind_logs(){
   sleep ${TEST_RUN_TIME}
   sudo systemctl stop fledge
   rm -rf reports/$1; mkdir -p reports/$1
-  for r in /tmp/*_valgrind_*xml; do grep -q '</valgrindoutput>' $r; [ $? -ne 0 ] && echo '</valgrindoutput>' >> $r && echo "Updated $r"; done
   cp -rf /tmp/*valgrind*.log /tmp/*valgrind*.xml reports/$1/.
 }
 

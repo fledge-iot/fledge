@@ -37,11 +37,11 @@ extern "C" {
  * The plugin information structure
  */
 static PLUGIN_INFORMATION info = {
-	"SQLite3",           // Name
-	"1.1.0",           // Version
-	SP_READINGS,                // Flags
-	PLUGIN_TYPE_STORAGE,        // Type
-	"1.0.0"           // Interface version
+	"SQLite3",		// Name
+	"1.1.0",		// Version
+	SP_READINGS,		// Flags
+	PLUGIN_TYPE_STORAGE,	// Type
+	"1.6.0"			// Interface version
 };
 
 /**

@@ -87,11 +87,11 @@ const char *default_config = QUOTE({
  * The plugin information structure
  */
 static PLUGIN_INFORMATION info = {
-	"SQLite3",                 // Name
+	"SQLite3",                // Name
 	"1.2.0",                  // Version
 	SP_COMMON|SP_READINGS,    // Flags
-	PLUGIN_TYPE_STORAGE,               // Type
-	"1.5.0",                  // Interface version
+	PLUGIN_TYPE_STORAGE,      // Type
+	"1.6.0",                  // Interface version
 	default_config
 };
 

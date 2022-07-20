@@ -36,6 +36,73 @@ audit
 
 The *audit* methods implement the audit trail, they are used to create and retrieve audit logs.
 
+The set of possible audit sources are
+
++--------+-------------------------------+
+| Source | Description                   |
++========+===============================+
+| PURGE  | Data Purging Process          |
++--------+-------------------------------+
+| LOGGN  | Logging Process               |
++--------+-------------------------------+
+| STRMN  | Streaming Process             |
++--------+-------------------------------+
+| SYPRG  | System Purge                  |
++--------+-------------------------------+
+| START  | System Startup                |
++--------+-------------------------------+
+| FSTOP  | System Shutdown               |
++--------+-------------------------------+
+| CONCH  | Configuration Change          |
++--------+-------------------------------+
+| CONAD  | Configuration Addition        |
++--------+-------------------------------+
+| SCHCH  | Schedule Change               |
++--------+-------------------------------+
+| SCHAD  | Schedule Addition             |
++--------+-------------------------------+
+| SRVRG  | Service Registered            |
++--------+-------------------------------+
+| SRVUN  | Service Unregistered          |
++--------+-------------------------------+
+| SRVFL  | Service Fail                  |
++--------+-------------------------------+
+| NHCOM  | North Process Complete        |
++--------+-------------------------------+
+| NHDWN  | North Destination Unavailable |
++--------+-------------------------------+
+| NHAVL  | North Destination Available   |
++--------+-------------------------------+
+| UPEXC  | Update Complete               |
++--------+-------------------------------+
+| BKEXC  | Backup Complete               |
++--------+-------------------------------+
+| NTFDL  | Notification Deleted          |
++--------+-------------------------------+
+| NTFAD  | Notification Added            |
++--------+-------------------------------+
+| NTFSN  | Notification Sent             |
++--------+-------------------------------+
+| NTFCL  | Notification Cleared          |
++--------+-------------------------------+
+| NTFST  | Notification Server Startup   |
++--------+-------------------------------+
+| NTFSD  | Notification Server Shutdown  |
++--------+-------------------------------+
+| PKGIN  | Package installation          |
++--------+-------------------------------+
+| PKGUP  | Package updated               |
++--------+-------------------------------+
+| PKGRM  | Package purged                |
++--------+-------------------------------+
+| DSPST  | Dispatcher Startup            |
++--------+-------------------------------+
+| DSPSD  | Dispatcher Shutdown           |
++--------+-------------------------------+
+| ESSRT  | External Service Startup      |
++--------+-------------------------------+
+| ESSTP  | External Service Shutdown     |
++--------+-------------------------------+
 
 GET Audit Entries
 ~~~~~~~~~~~~~~~~~

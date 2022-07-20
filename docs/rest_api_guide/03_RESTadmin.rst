@@ -1043,6 +1043,31 @@ The response payload is a JSON object with the details of the cancelled task.
 Other Administrative API calls
 ==============================
 
+shutdown
+--------
+
+The *shutdown* option will causes all fledge services to be shutdown cleanly. Any data held in memory buffers within the services will be sent to the storage layer and the Fledge plugins will persist any state required when they restart.
+
+.. code-block:: console
+
+   $ curl -X PUT /fledge/shutdown
+
+.. note::
+
+   If an in memory storage layer is configured this will **not** be stored to any permanant storage and the contents of the memory storage layer will be lost.
+
+restart
+-------
+
+The *restart* option will causes all fledge services to be shutdown cleanly and then restarted. Any data held in memory buffers within the services will be sent to the storage layer and the Fledge plugins will persist any state required when they restart.
+
+.. code-block:: console
+
+   $ curl -X PUT /fledge/restart
+
+.. note::
+
+   If an in memory storage layer is configured this will **not** be stored to any permanant storage and the contents of the memory storage layer will be lost.
 
 ping
 ----
@@ -1133,135 +1158,4 @@ The response payload is some basic health information in a JSON object.
     "safeMode": false
   }
   $
-
-
-statistics
-----------
-
-The *statistics* interface allows the retrieval of live statistics and statistical history for the Fledge device.
-
-
-GET statistics
-~~~~~~~~~~~~~~
-
-``GET /fledge/statistics`` - return a general set of statistics
-
-
-**Response Payload**
-
-The response payload is a JSON document with statistical information (all numerical), these statistics are absolute counts since Fledge started.
-
-.. list-table::
-    :widths: 20 50
-    :header-rows: 1
-
-    * - Key
-      - Description
-    * - BUFFERED
-      - Readings currently in the Fledge buffer
-    * - DISCARDED
-      - Readings discarded by the South Service before being  placed in the buffer. This may be due to an error in the readings themselves.
-    * - PURGED
-      - Readings removed from the buffer by the purge process
-    * - READINGS
-      - Readings received by Fledge
-    * - UNSENT
-      - Readings filtered out in the send process
-    * - UNSNPURGED
-      - Readings that were purged from the buffer before being sent
-
-
-**Example**
-
-.. code-block:: console
-
-  $ curl -s http://localhost:8081/fledge/statistics
-  [ {
-      "key": "BUFFERED",
-      "description": "Readings currently in the Fledge buffer",
-      "value": 0
-    },
-  ...
-    {
-      "key": "UNSNPURGED",
-      "description": "Readings that were purged from the buffer before being sent",
-      "value": 0
-    },
-  ... ]
-  $
-
-
-GET statistics/history
-~~~~~~~~~~~~~~~~~~~~~~
-
-``GET /fledge/statistics/history`` - return a historical set of statistics. This interface is normally used to check if a set of sensors or devices are sending data to Fledge, by comparing the recent statistics and the number of readings received for an asset.
-
-
-**Request Parameters**
-
-- **limit** - limit the result set to the *N* most recent entries.
-
-
-**Response Payload**
-
-A JSON document containing an array of statistical information, these statistics are delta counts since the previous entry in the array. The time interval between values is a constant defined that runs the gathering process which populates the history statistics in the storage layer.
-
-.. list-table::
-    :widths: 20 50
-    :header-rows: 1
-
-    * - Key
-      - Description
-    * - interval
-      - The interval in seconds between successive statistics values
-    * - statistics[].BUFFERED
-      - Readings currently in the Fledge buffer
-    * - statistics[].DISCARDED
-      - Readings discarded by the South Service before being  placed in the buffer. This may be due to an error in the readings themselves.
-    * - statistics[].PURGED
-      - Readings removed from the buffer by the purge process
-    * - statistics[].READINGS
-      - Readings received by Fledge
-    * - statistics[].*NORTH_TASK_NAME*
-      - The number of readings sent to the PI system via the OMF plugin with north instance name
-    * - statistics[].UNSENT
-      - Readings filtered out in the send process
-    * - statistics[].UNSNPURGED
-      - Readings that were purged from the buffer before being sent
-    * - statistics[].*ASSET-CODE*
-      - The number of readings received by Fledge since startup with name *asset-code*
-
-
-**Example**
-
-.. code-block:: console
-
-  $ curl -s http://localhost:8081/fledge/statistics/history?limit=2
-  {
-    "interval": 15,
-    "statistics": [
-      {
-        "history_ts": "2020-06-01 11:21:04.357",
-        "READINGS": 0,
-        "BUFFERED": 0,
-        "UNSENT": 0,
-        "PURGED": 0,
-        "UNSNPURGED": 0,
-        "DISCARDED": 0,
-        "Readings Sent": 0
-      },
-      {
-        "history_ts": "2020-06-01 11:20:48.740",
-        "READINGS": 0,
-        "BUFFERED": 0,
-        "UNSENT": 0,
-        "PURGED": 0,
-        "UNSNPURGED": 0,
-        "DISCARDED": 0,
-        "Readings Sent": 0
-      }
-    ]
-  }
-  $
-
 

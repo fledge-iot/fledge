@@ -7,5 +7,7 @@ REST API Developers Guide
 .. toctree::
 
     01_REST
-    02_RESTadmin
-    03_RESTuser
+    02_RESTauthentication
+    03_RESTadmin
+    03_RESTstatistics
+    04_RESTuser

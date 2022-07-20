@@ -147,8 +147,7 @@ public:
 	void          setUsedDbId(int dbId);
 	int           extractReadingsIdFromName(std::string tableName);
 	int           extractDbIdFromName(std::string tableName);
-
-
+	int           SQLExec(sqlite3 *dbHandle, const char *sqlCmd,  char **errMsg = NULL);
 
 private:
 	STORAGE_CONFIGURATION m_storageConfigCurrent;                           // The current configuration of the multiple readings
@@ -190,7 +189,6 @@ private:
 
 	void		  raiseError(const char *operation, const char *reason,...);
 	int			  SQLStep(sqlite3_stmt *statement);
-	int           SQLExec(sqlite3 *dbHandle, const char *sqlCmd,  char **errMsg = NULL);
 	bool          enableWAL(std::string &dbPathReadings);
 
 	bool          configurationRetrieve(sqlite3 *dbHandle);

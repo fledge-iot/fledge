@@ -75,6 +75,9 @@ def setup(app):
     app.router.add_route('GET', '/fledge/asset/{asset_code}/{reading}/bucket/{bucket_size}',
                          asset_readings_with_bucket_size)
     app.router.add_route('GET', '/fledge/structure/asset', asset_structure)
+    # The developer Purge by Asset naem API entry points
+    app.router.add_route('DELETE', '/fledge/asset', asset_purge_all)
+    app.router.add_route('DELETE', '/fledge/asset/{asset_code}', asset_purge)
 
 
 def prepare_limit_skip_payload(request, _dict):
@@ -777,3 +780,54 @@ async def asset_structure(request):
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(asset_json)
+
+# The following two routines are not really browsing data but this is probably a logical
+# place to put them as they share the same URL stem
+async def asset_purge_all(request):
+    """ Purge all the assets for which we have recorded readings
+
+    Returns:
+           json result with details of assets putge
+
+    :Example:
+            curl -sX DELETE http://localhost:8081/fledge/asset
+    """
+    try:
+        # Call storage service
+        _logger.warning("Manual purge of all assets has been requested")
+        _readings = connect.get_readings_async()
+        results = await _readings.purge(asset="")
+    except KeyError:
+        msg = results['message']
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+    except Exception as exc:
+        msg = str(exc)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+    else:
+        return web.json_response(results)
+
+
+async def asset_purge(request):
+    """ Purge a particular asset for which we have recorded readings
+    Returns:
+          json result details of purged asset
+
+    :Example:
+            curl -sX DELETE http://localhost:8081/fledge/asset/fogbench_humidity
+    """
+    asset_code = request.match_info.get('asset_code', '')
+    _logger.warning("Manual purge of '%s' asset has been requested", asset_code)
+
+    try:
+        # Call storage service
+        _readings = connect.get_readings_async()
+        results = await _readings.purge(asset=asset_code)
+    except KeyError:
+        msg = results['message']
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+    except Exception as exc:
+        msg = str(exc)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+    else:
+        return web.json_response(results)
+

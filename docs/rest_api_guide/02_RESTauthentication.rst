@@ -8,9 +8,9 @@
 
 Fledge supports a number of different authentication schemes for use of the REST API
 
-  - Unauthenticated or Optional authentication. There is no requirement for any authnetication to occur with the Fledge system to use the API. A user may authenticate if they desire, but it is not required.
+  - Unauthenticated or Optional authentication. There is no requirement for any authentication to occur with the Fledge system to use the API. A user may authenticate if they desire, but it is not required.
 
-  - Username/Password authentication. Authentication is required and the user chooses to authenticate usign a username and password.
+  - Username/Password authentication. Authentication is required and the user chooses to authenticate using a username and password.
 
   - Certificate based authentication. Authentication is required and the user presents a token issued using a certificate in order to authenticate.
 
@@ -54,7 +54,7 @@ Would return an authentication token
       "admin": true
     }
 
-Subsequenct calls should carry an HTTP header with the authorization token given in this response.
+Subsequent calls should carry an HTTP header with the authorization token given in this response.
 
 .. code-block:: console
 
@@ -90,7 +90,7 @@ The administrator may terminate the login session of another user.
 Users
 =====
 
-Fledge supports two levels of user, administration users and normal users. A set of API calls exsits to allow users to be created, queried, modified and destroyed. 
+Fledge supports two levels of user, administration users and normal users. A set of API calls exists to allow users to be created, queried, modified and destroyed. 
 
 Add User
 --------

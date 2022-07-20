@@ -1054,7 +1054,7 @@ The *shutdown* option will causes all fledge services to be shutdown cleanly. An
 
 .. note::
 
-   If an in memory storage layer is configured this will **not** be stored to any permanant storage and the contents of the memory storage layer will be lost.
+   If an in memory storage layer is configured this will **not** be stored to any permanent storage and the contents of the memory storage layer will be lost.
 
 restart
 -------
@@ -1067,7 +1067,7 @@ The *restart* option will causes all fledge services to be shutdown cleanly and 
 
 .. note::
 
-   If an in memory storage layer is configured this will **not** be stored to any permanant storage and the contents of the memory storage layer will be lost.
+   If an in memory storage layer is configured this will **not** be stored to any permanent storage and the contents of the memory storage layer will be lost.
 
 ping
 ----

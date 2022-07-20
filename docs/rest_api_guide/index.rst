@@ -10,4 +10,6 @@ REST API Developers Guide
     02_RESTauthentication
     03_RESTadmin
     03_RESTstatistics
+    03_RESTassetTracker
     04_RESTuser
+    05_RESTdeveloper

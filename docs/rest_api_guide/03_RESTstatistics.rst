@@ -2,9 +2,9 @@
 statistics
 ----------
 
-The *statistics* interface allows the retrieval of live statistics, statistical history and statisitical rates for the Fledge device.
+The *statistics* interface allows the retrieval of live statistics, statistical history and statistical rates for the Fledge device.
 
-Fledge records a number of statistics values, soem with fixed names and other that reflect the name of a service or an asset. The statistics counters with fixed names are given below.
+Fledge records a number of statistics values, some with fixed names and other that reflect the name of a service or an asset. The statistics counters with fixed names are given below.
 
 .. list-table::
     :widths: 20 50
@@ -31,7 +31,7 @@ In addition to these fixed names there will be;
 
   - One statistic per asset that is named the same as the asset. This will be the number of readings that have been ingested for that asset.
 
-  - One statistics per south service, that is named withthe service name and *-Ingest* appended. This is the count of readings read in for that service.
+  - One statistics per south service, that is named with the service name and *-Ingest* appended. This is the count of readings read in for that service.
 
 GET statistics
 ~~~~~~~~~~~~~~
@@ -141,13 +141,13 @@ A JSON document containing an array of statistical information, these statistics
 GET statistics/rate
 ~~~~~~~~~~~~~~~~~~~
 
-``GET /fledge/statistics/rate`` - return a set of rates for a set of statistics. This interface returns the rate of a statistic value in counts per minute over a specified set of averages. It is passed two parameters, a comma seperated list of intervals in minutes and a comma seperated list of statistics.
+``GET /fledge/statistics/rate`` - return a set of rates for a set of statistics. This interface returns the rate of a statistic value in counts per minute over a specified set of averages. It is passed two parameters, a comma separated list of intervals in minutes and a comma separated list of statistics.
 
 **Request Parameters**
 
-  - **statistics** - a comma seperated list of statistics values to return
+  - **statistics** - a comma separated list of statistics values to return
 
-  - **periods** - a comma seperated list of time periods in minutes. The corresponding rate that will be returned for a given value X is the counts per minute over the previous X minutes.
+  - **periods** - a comma separated list of time periods in minutes. The corresponding rate that will be returned for a given value X is the counts per minute over the previous X minutes.
 
 **Example**
 

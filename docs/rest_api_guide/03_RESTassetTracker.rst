@@ -3,7 +3,7 @@
 Asset Tacker
 ------------
 
-The *asset tracker* API allows the operations that an asset undegoes whilst traversing the data pipeline within Fledge to be tracked as displayed.
+The *asset tracker* API allows the operations that an asset undergoes whilst traversing the data pipeline within Fledge to be tracked as displayed.
 
 ``GET /fledge/track`` - return tracking data for one or more asset
 
@@ -13,7 +13,7 @@ The *asset tracker* API allows the operations that an asset undegoes whilst trav
 
   - ``event`` - the event to track. If omitted all events will be returned
 
-  - ``service`` - limit the trackign data to a partcualr service
+  - ``service`` - limit the tracking data to a particular service
 
 **Response Payload**
 

@@ -25,9 +25,10 @@ ManagementClient *ServiceAuthHandler::m_mgtClient = NULL;
  * Create "${service}Security" category with empty content
  *
  * @param mgtClient	The management client object
+ * @param dryRun	Dryrun so do not register interest inthe category
  * @return		True on success, False otherwise
  */
-bool ServiceAuthHandler::createSecurityCategories(ManagementClient* mgtClient)
+bool ServiceAuthHandler::createSecurityCategories(ManagementClient* mgtClient, bool dryRun)
 {
 	string securityCatName = m_name + string("Security");
 	DefaultConfigCategory defConfigSecurity(securityCatName, string("{}"));
@@ -64,8 +65,11 @@ bool ServiceAuthHandler::createSecurityCategories(ManagementClient* mgtClient)
 		return false;
 	}
 
-	// Register for content change notification
-	configHandler->registerCategory(this, m_name + "Security");
+	if (!dryRun)
+	{
+		// Register for content change notification
+		configHandler->registerCategory(this, m_name + "Security");
+	}
 
 	// Start thread for automatic bearer token refresh, before expiration
 	if (this->getType() != "Southbound")

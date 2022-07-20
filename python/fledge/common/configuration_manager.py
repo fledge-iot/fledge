@@ -24,6 +24,7 @@ from fledge.common.storage_client.utils import Utils
 from fledge.common import logger
 from fledge.common.common import _FLEDGE_ROOT, _FLEDGE_DATA
 from fledge.common.audit_logger import AuditLogger
+from fledge.common.acl_management import ACLManagement
 
 __author__ = "Ashwin Gopalakrishnan, Ashish Jabble, Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -146,6 +147,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
     _registered_interests = None
     _registered_interests_child = None
     _cacheManager = None
+    _acl_handler = None
 
     def __init__(self, storage=None):
         ConfigurationManagerSingleton.__init__(self)
@@ -161,6 +163,9 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
         if self._cacheManager is None:
             self._cacheManager = ConfigurationCache()
+
+        if self._acl_handler is None:
+            self._acl_handler = ACLManagement()
 
     async def _run_callbacks(self, category_name):
         callbacks = self._registered_interests.get(category_name)
@@ -517,6 +522,12 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             cat_info = await self.get_category_all_items(category_name)
             if cat_info is None:
                 raise NameError("No such Category found for {}".format(category_name))
+
+            is_acl = self._check_whether_category_contains_acl_config_item(config_item_list)
+            _logger.debug("IF acl is {}".format(is_acl))
+            if is_acl:
+                self._acl_handler.handle_update_for_acl_config_item(config_item_list)
+
             for item_name, new_val in config_item_list.items():
                 if item_name not in cat_info:
                     raise KeyError('{} config item not found'.format(item_name))
@@ -908,6 +919,16 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 'Unable to set optional %s entry based on category_name %s and item_name %s and value_item_entry %s', optional_entry_name, category_name, item_name, new_value_entry)
             raise
 
+    def _check_whether_category_contains_acl_config_item(self, category_info):
+        """Checks whether there is config item of type ACL in given . If yes return True else False."""
+        for item_name in category_info:
+            try:
+                if "ACL" in item_name['type']:
+                    return True
+            except KeyError:
+                continue
+        return False
+
     async def create_category(self, category_name, category_value, category_description='', keep_original_items=False, display_name=None):
         """Create a new category in the database.
 
@@ -975,6 +996,11 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             # validate new category_val, set "value" from default
             category_val_prepared = await self._validate_category_val(category_name, category_value, True)
             # Evaluate value as per rule if defined
+            is_acl = self._check_whether_category_contains_acl_config_item(category_val_prepared)
+            _logger.debug("check if there is {}".format(is_acl))
+            if is_acl:
+                self._acl_handler.handle_create_for_acl_config_item(category_val_prepared)
+
             for item_name in category_val_prepared:
                 if 'rule' in category_val_prepared[item_name]:
                     rule = category_val_prepared[item_name]['rule'].replace("value", category_val_prepared[item_name]['value'])
@@ -1128,6 +1154,12 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     'Unable to run callbacks for child category_name %s', children)
                 raise
 
+            # Evaluate value as per rule if defined
+            is_acl = self._check_whether_category_contains_acl_config_item(category_val_prepared)
+            _logger.debug("check if there is {}".format(is_acl))
+            if is_acl:
+                self._acl_handler.handle_create_for_acl_config_item(category_val_prepared)
+
             return {"children": children_from_storage}
 
             # TODO: [TO BE DECIDED] - Audit Trail Entry
@@ -1177,6 +1209,11 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             err_response = ex.error
             raise ValueError(err_response)
 
+        is_acl = self._check_whether_category_contains_acl_config_item(config_item_list)
+        _logger.debug("IF acl is {}".format(is_acl))
+        if is_acl:
+            self._acl_handler.handle_delete_for_acl_config_item(config_item_list)
+
         try:
             await self._run_callbacks_child(category_name, child_category, "d")
         except:
@@ -1213,6 +1250,11 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             err_response = ex.error
             raise ValueError(err_response)
 
+        is_acl = self._check_whether_category_contains_acl_config_item(config_item_list)
+        _logger.debug("IF acl is {}".format(is_acl))
+        if is_acl:
+            self._acl_handler.handle_delete_for_acl_config_item(config_item_list)
+
         return result
 
     async def delete_category_and_children_recursively(self, category_name):
@@ -1239,6 +1281,11 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         except ValueError as ex:
             raise ValueError(ex)
         else:
+            is_acl = self._check_whether_category_contains_acl_config_item(config_item_list)
+            _logger.debug("IF acl is {}".format(is_acl))
+            if is_acl:
+                self._acl_handler.handle_delete_for_acl_config_item(config_item_list)
+
             return result[category_name]
 
     async def _fetch_descendents(self, cat):

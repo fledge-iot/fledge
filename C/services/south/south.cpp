@@ -306,6 +306,8 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 			if (!m_mgtClient->registerService(record))
 			{
 				logger->error("Failed to register service %s", m_name.c_str());
+				management.stop();
+				return;
 			}
 
 			// Register for category content changes
@@ -411,7 +413,7 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		}
 
 		// Create default security category
-		this->createSecurityCategories(m_mgtClient);
+		this->createSecurityCategories(m_mgtClient, m_dryRun);
 
 		if (!m_dryRun)	// If not a dry run then handle readings
 		{

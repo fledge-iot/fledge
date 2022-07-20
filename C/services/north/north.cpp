@@ -343,6 +343,8 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 			if (!m_mgtClient->registerService(record))
 			{
 				logger->error("Failed to register service %s", m_name.c_str());
+				management.stop();
+				return;
 			}
 			ConfigHandler *configHandler = ConfigHandler::getInstance(m_mgtClient);
 			configHandler->registerCategory(this, m_name);
@@ -398,7 +400,7 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 		}
 
 		// Create default security category
-		this->createSecurityCategories(m_mgtClient);
+		this->createSecurityCategories(m_mgtClient, m_dryRun);
 
 		// Setup the data loading
 		long streamId = 0;

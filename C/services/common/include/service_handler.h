@@ -35,7 +35,7 @@ class ServiceAuthHandler : public ServiceHandler
 	public:
 		std::string&	getName() { return m_name; };
 		std::string&	getType() { return m_type; };
-		bool		createSecurityCategories(ManagementClient* mgtClient);
+		bool		createSecurityCategories(ManagementClient* mgtClient, bool dryRun);
 		bool		updateSecurityCategory(const std::string& newCategory);
 		void		setInitialAuthenticatedCaller();
 		void		setAuthenticatedCaller(bool enabled);

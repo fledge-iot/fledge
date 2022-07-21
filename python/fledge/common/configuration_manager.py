@@ -389,7 +389,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
     async def search_for_ACL_recursive_from_cat_name(self, cat_name):
         """
-         Searches for config item ACL recursive in a category and its child categories.
+            Searches for config item ACL recursive in a category and its child categories.
         """
         payload = PayloadBuilder().SELECT("key", "value").WHERE(["key", "=", cat_name]).payload()
         results = await self._storage.query_tbl_with_payload('configuration', payload)
@@ -397,7 +397,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             for item_name, item_info in row["value"].items():
                 try:
                     if item_info["type"] == "ACL":
-                        return True
+                        return True, item_name
                 except KeyError:
                     continue
 
@@ -406,12 +406,12 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         child_results = await self._storage.query_tbl_with_payload('category_children',
                                                                    category_children_payload)
         for row in child_results['rows']:
-            res = await self.search_for_ACL_recursive_from_cat_name(row["child"])
+            res, config_item_name = await self.search_for_ACL_recursive_from_cat_name(row["child"])
             if res:
-                return True
+                return True, config_item_name
 
         # If nothing found then return False
-        return False
+        return False, None
 
     async def _read_all_category_names(self):
         # SELECT configuration.key, configuration.description, configuration.value, configuration.display_name, configuration.ts FROM configuration
@@ -630,7 +630,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             is_acl = self._check_whether_category_contains_acl_config_item(config_item_list)
             _logger.debug("IF acl is {}".format(is_acl))
             if is_acl:
-                await self._acl_handler.handle_update_for_acl_config_item(config_item_list)
+                await self._acl_handler.handle_update_for_acl_config_item(category_name, config_item_list)
 
         except Exception as ex:
             _logger.exception('Unable to bulk update config items %s', str(ex))
@@ -848,6 +848,10 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                         self._cacheManager.cache[category_name]['value'][item_name]["file"] = script_file_path
                 else:
                     self._cacheManager.cache[category_name]['value'].update({item_name: cat_item['value']})
+            if storage_value_entry['type'] == "ACL":
+                await self._acl_handler.handle_update_for_acl_config_item(category_name,
+                                                                          [{"type": "ACL",
+                                                                            "value": new_value_entry}])
         except:
             _logger.exception(
                 'Unable to set item value entry based on category_name %s and item_name %s and value_item_entry %s',
@@ -1063,10 +1067,10 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     else:
                         await self._update_category(category_name, category_val_prepared, category_description, display_name)
 
-            is_acl = await self.search_for_ACL_recursive_from_cat_name(category_name)
+            is_acl, config_item = await self.search_for_ACL_recursive_from_cat_name(category_name)
             _logger.debug("check if there is {}".format(is_acl))
             if is_acl:
-                await self._acl_handler.handle_create_for_acl_config_item(category_val_prepared)
+                await self._acl_handler.handle_create_for_acl_config_item(category_name, config_item)
         except:
             _logger.exception(
                 'Unable to create new category based on category_name %s and category_description %s and category_json_schema %s',
@@ -1184,17 +1188,13 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
             # Evaluate value as per rule if defined
 
-            is_acl_parent = await self.search_for_ACL_recursive_from_cat_name(category_name)
+            is_acl_parent, config_item = await self.search_for_ACL_recursive_from_cat_name(category_name)
             _logger.debug("check if there is {} for parent.".format(is_acl_parent))
-            is_acl_children = False
+            await self._acl_handler.handle_create_for_acl_config_item(category_name, config_item)
             for new_child in new_children:
-                is_acl_child = await self.search_for_ACL_recursive_from_cat_name(new_child)
+                is_acl_child, config_item = await self.search_for_ACL_recursive_from_cat_name(new_child)
                 if is_acl_child:
-                    is_acl_children = True
-                    break
-            is_acl = is_acl_parent or is_acl_children
-            if is_acl:
-                await self._acl_handler.handle_create_for_acl_config_item(category_name, new_children)
+                    await self._acl_handler.handle_create_for_acl_config_item(new_child, config_item)
 
             return {"children": children_from_storage}
 
@@ -1245,13 +1245,15 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             err_response = ex.error
             raise ValueError(err_response)
 
-        is_acl_parent = await  self.search_for_ACL_recursive_from_cat_name(category_name)
+        is_acl_parent, parent_config_item = await  self.search_for_ACL_recursive_from_cat_name(category_name)
         _logger.debug("IF acl is {} parent".format(is_acl_parent))
-        is_acl_child = await  self.search_for_ACL_recursive_from_cat_name(child_category)
+        is_acl_child, child_config_item = await  self.search_for_ACL_recursive_from_cat_name(child_category)
         _logger.debug("IF acl is {} child".format(is_acl_child))
-        is_acl = is_acl_parent or is_acl_child
-        if is_acl:
-            await self._acl_handler.handle_delete_for_acl_config_item(category_name, child_category)
+        if is_acl_parent:
+            await self._acl_handler.handle_delete_for_acl_config_item(category_name, parent_config_item)
+        if is_acl_child:
+            await self._acl_handler.handle_delete_for_acl_config_item(child_category, child_config_item)
+
 
         try:
             await self._run_callbacks_child(category_name, child_category, "d")
@@ -1289,10 +1291,10 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             err_response = ex.error
             raise ValueError(err_response)
 
-        is_acl = await self.search_for_ACL_recursive_from_cat_name(category_name)
+        is_acl, config_item = await self.search_for_ACL_recursive_from_cat_name(category_name)
         _logger.debug("IF acl is {}".format(is_acl))
         if is_acl:
-            await self._acl_handler.handle_delete_for_acl_config_item(category_name)
+            await self._acl_handler.handle_delete_for_acl_config_item(category_name, config_item)
 
         return result
 
@@ -1320,10 +1322,10 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         except ValueError as ex:
             raise ValueError(ex)
         else:
-            is_acl = await self.search_for_ACL_recursive_from_cat_name(category_name)
+            is_acl, config_item = await self.search_for_ACL_recursive_from_cat_name(category_name)
             _logger.debug("IF acl is {}".format(is_acl))
             if is_acl:
-                await self._acl_handler.handle_delete_for_acl_config_item(category_name)
+                await self._acl_handler.handle_delete_for_acl_config_item(category_name, config_item)
 
             return result[category_name]
 

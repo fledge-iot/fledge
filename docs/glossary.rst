@@ -4,9 +4,9 @@
 
     <a href="https://github.com/fledge-iot/fledge">Fledge GitHub repository</a>
 
-************
-* Glossary *
-************
+********
+Glossary
+********
 
 The following are a set of definitions for terms used within the Fledge documentation and code, these are designed to be an aid to understanding some of the principles behind Fledge and improve the comprehension of the documentation by ensuring all readers have a common understanding of the terms used. If you feel any terms are missing or not fully explained please raise an issue against, or contribute to, the documentation in the |github|.
 

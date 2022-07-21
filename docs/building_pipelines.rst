@@ -6,6 +6,9 @@
 .. |logview_2| image:: images/logview_2.png
 .. |view_graph| image:: images/view_graph.jpg
 .. |view_spreadsheet| image:: images/view_spreadsheet.jpg
+.. |developer_features| image:: images/developer_features.jpg
+.. |manual_purge| image:: images/manual_purge.jpg
+.. |eraser| image:: images/eraser.jpg
 
 .. Links
 .. |python35| raw:: html
@@ -56,9 +59,30 @@ The Fledge pipeline mechanism is designed for and lends itself to a modular deve
 This piecemeal approach can also be adopted in the process of building the pipeline, especially if you use the |assetFilter| to block data from progressing further through the Fledge system once it has been buffered in the storage layer. Simply add your south service, bring the service up and observe the data that is buffered from the service. You can now add another filter to the pipeline and observe how this alters the data that is being buffered. Since you have a block on the data flowing further within your system, this data will disappear as part of the normal purging process and will not end up in upstream systems to the north of Fledge.
 
 If you are developing on a standalone Fledge instance, with no existing north services, and you still set your experimental data to disappear, this can be achieved by use of the purge process. Simply configure the purge process to frequently purge data and set the process to purge unsent data. This will mean that the data will remain in the buffer for you to examine for a short time before it is purged from that buffer. Simply adjust the purge interval to allow you enough time to view the data in the buffer. Provided all the experimental data has been purged before you make your system go live, you will not be troubled with your experimental data being sent upstream.
+
 Remember of course to reconfigure the purge process to be more inline with the duration you wish to keep the data for and to turn off the purging of unsent data unless you are willing to loose data that can not be sent for a period of time greater than the purge interval.
 
 Configuring a more aggressive purge system, with the purging of unsent data, is probably not something you would wish to do on an existing system with live data pipelines and should not be used as a technique for developing new pipelines on such a system.
+
+An alternative approach for removing data from the system is to enable the *Developer Features* in the Fledge User Interface. This can be done by selecting the *Settings* page in the left hand menu and clicking the option on the bottom of that screen.
+
++------------------------+
+| | developer_features | |
++------------------------+
+
+Amongst the extra features introduced by selecting *Developer Features* will be the ability to manually purge data from the Fledge data store. This on-demand purging can be either applied to a single asset or to all assets within the data store. The manual purge operations are accessed via the *Assets & Readings* item in the Fledge menu. A number of new icons will appear when the *Developer Features* are turned on, one per asset and one that impacts all assets. 
+
++------------------+
+| | manual_purge | |
++------------------+
+
+These icons are resemble erasers and are located in each row of the assets and also in the top right corner next to the help icon. Clicking on the eraser icon in each of the rows will purge the data for just that asset, leaving other assets untouched. Clicking on the icon in the top left corner will purge all the assets currently in the data store.
+
++------------+
+| | eraser | |
++------------+
+
+In both cases a confirmation dialogue will be displayed to ensure against accidental use. If you choose to proceed the selected data within the Fledge buffer, either all or a specific asset, will be erased. There is no way to undo this operation or to retrieve the data once it has been purged.
 
 Sacrificial North System
 ########################

@@ -66,21 +66,21 @@ Configuring a more aggressive purge system, with the purging of unsent data, is 
 
 An alternative approach for removing data from the system is to enable the *Developer Features* in the Fledge User Interface. This can be done by selecting the *Settings* page in the left hand menu and clicking the option on the bottom of that screen.
 
-+------------------------+
-| | developer_features | |
-+------------------------+
++----------------------+
+| |developer_features| |
++----------------------+
 
 Amongst the extra features introduced by selecting *Developer Features* will be the ability to manually purge data from the Fledge data store. This on-demand purging can be either applied to a single asset or to all assets within the data store. The manual purge operations are accessed via the *Assets & Readings* item in the Fledge menu. A number of new icons will appear when the *Developer Features* are turned on, one per asset and one that impacts all assets. 
 
-+------------------+
-| | manual_purge | |
-+------------------+
++----------------+
+| |manual_purge| |
++----------------+
 
 These icons are resemble erasers and are located in each row of the assets and also in the top right corner next to the help icon. Clicking on the eraser icon in each of the rows will purge the data for just that asset, leaving other assets untouched. Clicking on the icon in the top left corner will purge all the assets currently in the data store.
 
-+------------+
-| | eraser | |
-+------------+
++----------+
+| |eraser| |
++----------+
 
 In both cases a confirmation dialogue will be displayed to ensure against accidental use. If you choose to proceed the selected data within the Fledge buffer, either all or a specific asset, will be erased. There is no way to undo this operation or to retrieve the data once it has been purged.
 

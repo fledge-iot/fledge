@@ -27,3 +27,4 @@ Welcome to Fledge's documentation!
     KERBEROS
     services/index
     plugin_index
+    glossary

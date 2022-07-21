@@ -630,7 +630,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             is_acl = self._check_whether_category_contains_acl_config_item(config_item_list)
             _logger.debug("IF acl is {}".format(is_acl))
             if is_acl:
-                self._acl_handler.handle_update_for_acl_config_item(config_item_list)
+                await self._acl_handler.handle_update_for_acl_config_item(config_item_list)
 
         except Exception as ex:
             _logger.exception('Unable to bulk update config items %s', str(ex))
@@ -1194,7 +1194,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     break
             is_acl = is_acl_parent or is_acl_children
             if is_acl:
-                self._acl_handler.handle_create_for_acl_config_item(category_name, new_children)
+                await self._acl_handler.handle_create_for_acl_config_item(category_name, new_children)
 
             return {"children": children_from_storage}
 

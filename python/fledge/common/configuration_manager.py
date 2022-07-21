@@ -31,7 +31,8 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-_logger = logger.setup(__name__)
+import logging
+_logger = logger.setup(__name__, level=logging.DEBUG)
 
 # MAKE UPPER_CASE
 _valid_type_strings = sorted(['boolean', 'integer', 'float', 'string', 'IPv4', 'IPv6', 'X509 certificate', 'password',
@@ -387,9 +388,11 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             raise ValueError(err_response)
 
     async def search_for_ACL_recursive_from_cat_name(self, cat_name):
+        """
+         Searches for config item ACL recursive in a category and its child categories.
+        """
         payload = PayloadBuilder().SELECT("key", "value").WHERE(["key", "=", cat_name]).payload()
         results = await self._storage.query_tbl_with_payload('configuration', payload)
-
         for row in results["rows"]:
             for item_name, item_info in row["value"].items():
                 try:
@@ -398,16 +401,14 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 except KeyError:
                     continue
 
-        category_children_payload = PayloadBuilder().SELECT("child").DISTINCT(["child"]).WHERE("parent", "=",
-                                                                                               cat_name).payload()
+        category_children_payload = PayloadBuilder().SELECT("child").DISTINCT(["child"]).WHERE(["parent", "=",
+                                                                                               cat_name]).payload()
         child_results = await self._storage.query_tbl_with_payload('category_children',
                                                                    category_children_payload)
-
         for row in child_results['rows']:
             res = await self.search_for_ACL_recursive_from_cat_name(row["child"])
             if res:
                 return True
-
 
         # If nothing found then return False
         return False
@@ -1183,11 +1184,11 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
             # Evaluate value as per rule if defined
 
-            is_acl_parent = self.search_for_ACL_recursive_from_cat_name(category_name)
+            is_acl_parent = await self.search_for_ACL_recursive_from_cat_name(category_name)
             _logger.debug("check if there is {} for parent.".format(is_acl_parent))
             is_acl_children = False
             for new_child in new_children:
-                is_acl_child = self.search_for_ACL_recursive_from_cat_name(new_child)
+                is_acl_child = await self.search_for_ACL_recursive_from_cat_name(new_child)
                 if is_acl_child:
                     is_acl_children = True
                     break

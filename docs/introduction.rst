@@ -17,7 +17,7 @@ Introduction to Fledge
 
 Fledge is a system designed to make the process of gathering, processing and using operational data simpler and more open. Core to the design of Fledge is extensible to enable any data to be read, processed and sent to any system. The processing and analytics that can be performed and the events that can be detected and how those events get notified to users and systems is also part of Fledge's extensible design. Coupled with this extensibility the open source nature of Fledge allows other to benefit from extensions, resulting in an ever growing choice of components that can be used to solve your OT data needs.
 
-It provides a salable, secure, robust infrastructure for collecting data from sensors, processing data at the edge using intelligent data pipelines and transporting data to historian and other management systems. Fledge also allows for edge based event detection and notification and control flows as a result of events, stimulus from upstream systems or user action. Fledge can operate over the unreliable, intermittent and low bandwidth connections often found in industrial or rugged environments.
+It provides a scalable, secure, robust infrastructure for collecting data from sensors, processing data at the edge using intelligent data pipelines and transporting data to historian and other management systems. Fledge also allows for edge based event detection and notification and control flows as a result of events, stimulus from upstream systems or user action. Fledge can operate over the unreliable, intermittent and low bandwidth connections often found in industrial or rugged environments.
 
 Typical Use Cases
 -----------------

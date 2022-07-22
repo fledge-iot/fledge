@@ -1,20 +1,40 @@
-import asyncio
 import logging
 
-from fledge.services.core import connect
 from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.common.storage_client.exceptions import StorageServerError
-from fledge.common.microservice_management_client import MicroserviceManagementClient
-from fledge.python.fledge.services.core.service_registry.service_registry import ServiceRegistry
-from fledge.python.fledge.services.core.service_registry.service_registry.exceptions import DoesNotExist
+
+
 from fledge.common import logger
 
 _logger = logger.setup(__name__, level=logging.DEBUG)
 
 
-class ACLManagement:
+class ACLManagement(object):
     def __init__(self):
+        from fledge.services.core import connect
         self._storage_client = connect.get_storage_async()
+
+    def notify_service_about_acl_change(self, entity_name, acl, reason):
+        """Helper function that sends the ACL change to the respective service. """
+        # We need to find the address and management host for the required service.
+        from fledge.services.core.service_registry.service_registry import ServiceRegistry
+        from fledge.services.core.service_registry.service_registry.exceptions import DoesNotExist
+        try:
+            services = ServiceRegistry.get(name=entity_name)
+            service = services[0]
+        except DoesNotExist:  # Does not exist
+            _logger.error("Cannot notify the service {} "
+                          "about {}".format(entity_name, reason))
+            return
+        else:
+            _logger.info("Notifying the service"
+                         " {} about {}".format(entity_name, reason))
+            from fledge.common.microservice_management_client import MicroserviceManagementClient
+            mgt_client = MicroserviceManagementClient(service._address,
+                                                      service._management_port)
+            mgt_client.update_security_for_acl_change(acl=acl,
+                                                      reason=reason)
+            _logger.info("Notified the {} about {}".format(entity_name, reason))
 
     async def handle_update_for_acl_usage(self, entity_name, acl_name_or_config_item, entity_type):
         if entity_type == "service":
@@ -31,23 +51,7 @@ class ACLManagement:
 
                             result = await self._storage_client.update_tbl("acl_usage", payload_update)
                             response = result['response']
-
-                            # We need to find the address and management host for the required service.
-                            try:
-                                services = ServiceRegistry.get(name=entity_name)
-                                service = services[0]
-                            except DoesNotExist:  # Does not exist
-                                _logger.error("Cannot notify the service {} "
-                                              "about ACL Update.".format(entity_name))
-                                return
-                            else:
-                                _logger.info("Notifying the service"
-                                             " {} about ACL Update".format(entity_name))
-                                mgt_client = MicroserviceManagementClient(service._address,
-                                                                          service._management_port)
-                                mgt_client.update_security_for_acl_change(acl=required_name,
-                                                                          reason="updateACL")
-
+                            self.notify_service_about_acl_change(entity_name, required_name, "updateACL")
                         except KeyError:
                             raise ValueError(result['message'])
                         except StorageServerError as ex:
@@ -83,21 +87,7 @@ class ACLManagement:
                     for item_name, item_info in row["value"].items():
                         if item_name == acl_name_or_config_item:
                             acl = item_info['value']
-                # We need to find the address and management host for the required service.
-                try:
-                    services = ServiceRegistry.get(name=entity_name)
-                    service = services[0]
-                except DoesNotExist:  # Does not exist
-                    # log and return
-                    _logger.error("Cannot notify the service {} "
-                                  "about ACL Detach.".format(entity_name))
-                    return
-                else:
-                    _logger.info("Notifying the service"
-                                 " {} about ACL Update".format(entity_name))
-                    mgt_client = MicroserviceManagementClient(service._address,
-                                                              service._management_port)
-                    mgt_client.update_security_for_acl_change(acl=acl, reason="detachACL")
+                self.notify_service_about_acl_change(entity_name, acl, "deleteACL")
             except KeyError:
                 raise ValueError(result['message'])
             except StorageServerError as ex:
@@ -133,20 +123,7 @@ class ACLManagement:
                                                               name=item_info['value']).payload()
                             result = await self._storage_client.insert_into_tbl("acl_usage", payload)
                             response = result['response']
-                            # We need to find the address and management host for the required service.
-                            try:
-                                services = ServiceRegistry.get(name=entity_name)
-                                service = services[0]
-                            except DoesNotExist:  # Does not exist
-                                _logger.error("Cannot notify the service {} "
-                                              "about ACL Attach.".format(entity_name))
-                            else:
-                                _logger.info("Notifying the service"
-                                             " {} about ACL Attach".format(entity_name))
-                                mgt_client = MicroserviceManagementClient(service._address,
-                                                                          service._management_port)
-                                mgt_client.update_security_for_acl_change(acl=acl, reason="attachACL")
-
+                            self.notify_service_about_acl_change(entity_name, acl, "attachACL")
                         except KeyError:
                             raise ValueError(result['message'])
                         except StorageServerError as ex:

@@ -8,7 +8,7 @@ class ACLManagement:
     def __init__(self):
         self._storage_client = connect.get_storage_async()
 
-    async def handle_update_for_acl(self, entity_name, acl_name_or_config_item, entity_type):
+    async def handle_update_for_acl_usage(self, entity_name, acl_name_or_config_item, entity_type):
         if entity_type == "service":
             payload = PayloadBuilder().SELECT("key", "value").WHERE(["key", "=", entity_name]).payload()
             results = await self._storage_client.query_tbl_with_payload('configuration', payload)
@@ -41,7 +41,7 @@ class ACLManagement:
                 err_response = ex.error
                 raise ValueError(err_response)
 
-    async def handle_delete_for_acl(self, entity_name, acl_name_or_config_item, entity_type):
+    async def handle_delete_for_acl_usage(self, entity_name, acl_name_or_config_item, entity_type):
         if entity_type == "service":
             try:
                 # Note entity_type must be a service since it is a config item of type ACL
@@ -68,7 +68,7 @@ class ACLManagement:
                 err_response = ex.error
                 raise ValueError(err_response)
 
-    async def handle_create_for_acl(self, entity_name, acl_name_or_config_item, entity_type):
+    async def handle_create_for_acl_usage(self, entity_name, acl_name_or_config_item, entity_type):
         if entity_type == "service":
             payload = PayloadBuilder().SELECT("key", "value").WHERE(["key", "=", entity_name]).payload()
             results = await self._storage_client.query_tbl_with_payload('configuration', payload)

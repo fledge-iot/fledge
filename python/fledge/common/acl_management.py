@@ -100,11 +100,21 @@ class ACLManagement(object):
             try:
                 # Note entity_type must be a service since it is a config item of type ACL
                 # in a category.
-                payload = PayloadBuilder().INSERT(entity_name=entity_name,
-                                                  entity_type="service",
-                                                  name=acl_name).payload()
-                result = await self._storage_client.insert_into_tbl("acl_usage", payload)
-                response = result['response']
+                q_payload = PayloadBuilder().SELECT("name", "entity_name", "entity_type"). \
+                    WHERE(["entity_name", "=", entity_name]). \
+                    ANDWHERE(["entity_type", "=", entity_type]).\
+                    ANDWHERE(["name", "=", acl_name]).payload()
+                results = await self._storage_client.query_tbl_with_payload('acl_usage', q_payload)
+                # Check if the value to insert already exists.
+                if len(results["rows"]) > 0:
+                    _logger.info("The tuple ({}, {}, {}) already exists in acl usage table.".format(entity_name, entity_type, acl_name))
+                else:
+                    payload = PayloadBuilder().INSERT(entity_name=entity_name,
+                                                      entity_type="service",
+                                                      name=acl_name).payload()
+                    result = await self._storage_client.insert_into_tbl("acl_usage", payload)
+                    response = result['response']
+
                 self.notify_service_about_acl_change(entity_name, acl_name, "attachACL")
             except KeyError:
                 raise ValueError(result['message'])

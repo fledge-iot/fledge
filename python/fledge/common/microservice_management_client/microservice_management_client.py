@@ -298,6 +298,26 @@ class MicroserviceManagementClient(object):
         response = json.loads(res)
         return response
 
+    def update_security_for_acl_change(self, acl, reason):
+        assert reason in ["attachACL", "detachACL", "updateACL"]
+        url = "/fledge/security"
+        payload = {
+            "reason": reason,
+            "argument": acl
+        }
+        self._management_client_conn.request(method='PUT', url=url, body=payload)
+        r = self._management_client_conn.getresponse()
+        if r.status in range(400, 500):
+            _logger.error("Client error code: %d, Reason: %s", r.status, r.reason)
+            raise client_exceptions.MicroserviceManagementClientError(status=r.status, reason=r.reason)
+        if r.status in range(500, 600):
+            _logger.error("Server error code: %d, Reason: %s", r.status, r.reason)
+            raise client_exceptions.MicroserviceManagementClientError(status=r.status, reason=r.reason)
+        res = r.read().decode()
+        self._management_client_conn.close()
+        response = json.loads(res)
+        return response
+
     def delete_configuration_item(self, category_name, config_item):
         """
 

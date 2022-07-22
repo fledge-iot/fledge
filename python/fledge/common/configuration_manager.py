@@ -1066,7 +1066,8 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                         await self._update_category(category_name, category_val_prepared, category_description, display_name)
 
             is_acl, config_item, found_cat_name = await self.search_for_ACL_recursive_from_cat_name(category_name)
-            _logger.debug("check if there is {}".format(is_acl))
+            _logger.debug("check if there is {} create category function  for category {} ".format(is_acl,
+                                                                                                   category_name))
             if is_acl:
                 await self._acl_handler.handle_create_for_acl_usage(found_cat_name, config_item, "service")
         except:

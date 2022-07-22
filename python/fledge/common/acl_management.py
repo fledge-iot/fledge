@@ -18,7 +18,7 @@ class ACLManagement(object):
         """Helper function that sends the ACL change to the respective service. """
         # We need to find the address and management host for the required service.
         from fledge.services.core.service_registry.service_registry import ServiceRegistry
-        from fledge.services.core.service_registry.service_registry.exceptions import DoesNotExist
+        from fledge.services.core.service_registry.exceptions import DoesNotExist
         try:
             services = ServiceRegistry.get(name=entity_name)
             service = services[0]

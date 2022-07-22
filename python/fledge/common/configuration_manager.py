@@ -1188,7 +1188,8 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
             is_acl_parent, config_item, found_cat_name = await self.search_for_ACL_recursive_from_cat_name(category_name)
             _logger.debug("check if acl item there is {} for parent {} ".format(is_acl_parent, category_name))
-            await self._acl_handler.handle_create_for_acl_usage(found_cat_name, config_item, "service")
+            if is_acl_parent:
+                await self._acl_handler.handle_create_for_acl_usage(found_cat_name, config_item, "service")
             for new_child in new_children:
                 is_acl_child, config_item, found_cat_name = await self.search_for_ACL_recursive_from_cat_name(new_child)
                 _logger.debug("check if acl item there is {} for child {} ".format(is_acl_child, new_child))

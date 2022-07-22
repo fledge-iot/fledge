@@ -2,9 +2,9 @@
 
 
 
-***********************************
-* REST API Users & Authentication *
-***********************************
+*******************************
+REST API Users & Authentication
+*******************************
 
 Fledge supports a number of different authentication schemes for use of the REST API
 
@@ -50,7 +50,7 @@ Would return an authentication token
     {
       "message": "Logged in successfully",
       "uid": 1,
-      "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1aWQiOjEsImV4cCI6MTY1ODIzOTIyMH0.ptpvvJtbPx9glG27SkJ3HNpvo0UWUchHe5VGk4S4eoU",
+      "token": "********************",
       "admin": true
     }
 
@@ -58,7 +58,7 @@ Subsequent calls should carry an HTTP header with the authorization token given 
 
 .. code-block:: console
 
-   curl -H "authorization: eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1aWQiOjEsImV4cCI6MTY1ODIzOTIyMH0.ptpvvJtbPx9glG27SkJ3HNpvo0UWUchHe5VGk4S4eoU" http://localhost:8081/fledge/ping
+   curl -H "authorization: ******************" http://localhost:8081/fledge/ping
 
 Alternatively a certificate based authentication can be used with the user presenting a certificate instead of the JSON payload shown above to the ``/fledge/login`` endpoint.
 
@@ -95,7 +95,12 @@ Fledge supports two levels of user, administration users and normal users. A set
 Add User
 --------
 
-``POST /fledge/user`` - add a new user to Fledge’s user database
+``POST /fledge/admin/user`` - add a new user to Fledge’s user database
+
+.. note::
+
+   Only admin users are able to create other users/
+
 
 **Request Payload**
 
@@ -121,14 +126,14 @@ A JSON document which describes the user to add.
       - string
       - The name of a certificate in the certificate store. May only be used when a password is not given.
       -
-    * - permissions
-      - string
-      - The permissions that new user should be given
-      - admin
     * - realname
       - string
       - The real name of the user. This is used for display purposes only.
       - David Brent
+    * - role_id
+      - string
+      - The role that the new user should be given
+      - admin
 
 **Response Payload**
 
@@ -156,18 +161,18 @@ The following error responses may be returned
 
 .. code-block:: console
 
-   curl -X POST /fledge/user -d'
+   curl -X POST /fledge/admin/user -d'
    {
     "username"    : "david",
-    "password"    : "1nv1nc1ble",
+    "password"    : "1nv1nc1blE",
     "permissions" : "admin",
     "realname"    : "David Brent"
-   }
+   }'
 
 Get All Users
 -------------
 
-``GET /fledge/user`` - Retrieve data on all users
+``GET /fledge/admin/user`` - Retrieve data on all users
 
 **Response Payload**
 
@@ -202,7 +207,7 @@ A JSON document which all users in a JSON array.
 
 .. code-block:: console
 
-   curl -X GET /fledge/user
+   curl -X GET /fledge/admin/user
 
 
 Returns the response payload

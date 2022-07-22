@@ -23,7 +23,7 @@ Many of these are outside of the control of Fledge itself, however it is possibl
 South Service Advanced Configuration
 ====================================
 
-The south services within Fledge each have a set of advanced configuration options defined for them. These are accessed by editing the configuration of the south service itself. There is a link titled *Show Advanced Config* to the right of the screen between the main configuration parameters and the *Enabled* option. Clicking on this link will show the following panel of advanced configuration options.
+The south services within Fledge each have a set of advanced configuration options defined for them. These are accessed by editing the configuration of the south service itself. A screen with a set of tabbed panes will appear, select the tab labeled *Advanced Configuration* to view and edit the advanced configuration options.
 
 +------------------+
 | |south_advanced| |

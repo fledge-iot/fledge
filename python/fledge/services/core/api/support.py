@@ -9,6 +9,8 @@ import platform
 import subprocess
 import json
 import logging
+import datetime
+
 import urllib.parse
 from pathlib import Path
 from aiohttp import web
@@ -160,6 +162,8 @@ async def get_syslog_entries(request):
         template = __GET_SYSLOG_CMD_TEMPLATE
         lines = __GET_SYSLOG_TOTAL_MATCHED_LINES
         non_total_template = __GET_SYSLOG_TEMPLATE_WITH_NON_TOTALS
+
+        levels = ""
         if 'level' in request.query and request.query['level'] != '':
             level = request.query['level'].lower()
             supported_level = ['info', 'warning', 'error', 'debug']
@@ -169,14 +173,18 @@ async def get_syslog_entries(request):
                 template = __GET_SYSLOG_CMD_WITH_INFO_TEMPLATE
                 lines = __GET_SYSLOG_INFO_MATCHED_LINES
                 non_total_template = __GET_SYSLOG_INFO_TEMPLATE_WITH_NON_TOTALS
+                levels = "(INFO|WARNING|ERROR|FATAL)"
             elif level == 'warning':
                 template = __GET_SYSLOG_CMD_WITH_WARNING_TEMPLATE
                 lines = __GET_SYSLOG_WARNING_MATCHED_LINES
                 non_total_template = __GET_SYSLOG_WARNING_TEMPLATE_WITH_NON_TOTALS
+                levels = "(WARNING|ERROR|FATAL)"
             elif level == 'error':
                 template = __GET_SYSLOG_CMD_WITH_ERROR_TEMPLATE
                 lines = __GET_SYSLOG_ERROR_MATCHED_LINES
                 non_total_template = __GET_SYSLOG_ERROR_TEMPLATE_WITH_NON_TOTALS
+                levels = "(ERROR|FATAL)"
+
         response = {}
         # nontotals
         non_totals = request.query['nontotals'].lower() if 'nontotals' in request.query and request.query[
@@ -186,14 +194,27 @@ async def get_syslog_entries(request):
         if non_totals != "true":
             # Get total lines
             cmd = lines.format(valid_source[source], _SYSLOG_FILE)
+            _logger.warn('********* non_totals=false: 1. shell command: {}'.format(cmd))
             t = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE).stdout.readlines()
             total_lines = int(t[0].decode())
             response['count'] = total_lines
             cmd = template.format(valid_source[source], _SYSLOG_FILE, total_lines - offset, limit)
+            _logger.warn('********* non_totals=false: 2. shell command: {}'.format(cmd))
         else:
+            scriptPath = os.path.split(os.path.abspath(__file__))[0]
+            scriptPath = os.path.join(scriptPath, "get_logs.sh")
             cmd = non_total_template.format(valid_source[source], _SYSLOG_FILE, offset, limit)
-        a = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE).stdout.readlines()
+            _logger.warn('********* non_totals=true: prev shell command: {}'.format(cmd))
+            pattern = '({})\[.*{}'.format(valid_source[source], levels)
+            cmd = '{} -offset {} -limit {} -pattern \'{}\' -logfile {}'.format(scriptPath, offset, limit, pattern, _SYSLOG_FILE)
+            _logger.warn('********* non_totals=true: new shell command: {}'.format(cmd))
+
+        t1 = datetime.datetime.now()
+        a = subprocess.Popen([cmd], shell=True, stdout=subprocess.PIPE).stdout.readlines()
+        t2 = datetime.datetime.now()
         c = [b.decode() for b in a]  # Since "a" contains return value in bytes, convert it to string
+        t3 = datetime.datetime.now()
+        _logger.warn('********* Time taken for grep/tail/head subprocess: {} msec'.format((t2 - t1).total_seconds()*1000))
         response['logs'] = c
     except ValueError as err:
         msg = str(err)

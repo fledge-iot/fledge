@@ -24,6 +24,9 @@ The following are a set of definitions for terms used within the Fledge document
     Datapoint
         A datapoint is a container for data, each datapoint represents a value that is known about an asset and has a name for that value and the value itself. Values may be one of many types; simpler scalar values, alpha numeric strings, arrays of scalar values, images, arbitrary binary objects or a collection of datapoints.
 
+    Filter
+        A combination of a :term:`Filter Plugin<Filter Plugin>` and the configuration that makes that filter perform the processing that is required of it.
+
     Filter Plugin
         A filter plugin is a :term:`plugin<Plugin>` that implements an operation on one or more :term:`reading<Reading>` as it passes through the Fledge system. This processing may add, remove or augment the data as it passes through Fledge. Filters are arrange as linear :term:`pipelines<Pipeline>` in either the :term:`south service<South Service>` as data is ingested into Fledge or the :term:`north services<North Service>` and :term:`tasks<Task>` as data is passed upstream to the systems that receive data from Fledge.
 
@@ -75,7 +78,7 @@ The following are a set of definitions for terms used within the Fledge document
     South Plugin
         A south plugin is a :term:`plugin<Plugin>` that implements the interface to a device or system from which Fledge is collecting data and optionally to which Fledge is sending control signals.
 
-    Storage
+    Storage Service
         A :term:`microservice<Microservice>` that implements either permanent or transient storage services used to both buffer :term:`readings<Reading>` within Fledge and also to store Fledge's configuration information. The storage services uses either one or two :term:`storage plugins<Storage Plugin>` to store the configuration data and the :term:`readings<Reading>` data.
 
     Storage Plugin

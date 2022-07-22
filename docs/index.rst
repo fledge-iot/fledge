@@ -9,6 +9,7 @@ Welcome to Fledge's documentation!
 
 .. toctree::
 
+    introduction
     quick_start/index
     processing_data
     fledge_architecture

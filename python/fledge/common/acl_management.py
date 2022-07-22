@@ -8,65 +8,97 @@ class ACLManagement:
     def __init__(self):
         self._storage_client = connect.get_storage_async()
 
-    async def handle_update_for_acl_config_item(self, cat_name, config_item_list):
-        for config_item in config_item_list:
+    async def handle_update_for_acl(self, entity_name, acl_name_or_config_item, entity_type):
+        if entity_type == "service":
+            payload = PayloadBuilder().SELECT("key", "value").WHERE(["key", "=", entity_name]).payload()
+            results = await self._storage_client.query_tbl_with_payload('configuration', payload)
+            for row in results["rows"]:
+                for item_name, item_info in row["value"].items():
+                    if item_name == acl_name_or_config_item:
+                        try:
+                            required_name = item_info['value']
+                            payload_update = PayloadBuilder().WHERE(["entity_type", "=", "service"]).\
+                                ANDWHERE(["entity_name", "=", entity_name]).\
+                                EXPR(["name", "=", required_name]).payload()
+
+                            result = await self._storage_client.update_tbl("acl_usage", payload_update)
+                        except KeyError:
+                            raise ValueError(result['message'])
+                        except StorageServerError as ex:
+                            err_response = ex.error
+                            raise ValueError(err_response)
+        else:
             try:
-                if config_item['type'] == 'ACL':
-                    try:
-                        # Note entity_type must be a service since it is a config item of type ACL
-                        # in a category.
-                        delete_payload = PayloadBuilder().WHERE(
-                            ["name", "=", config_item["value"]]).payload()
-                        result = await self._storage_client.delete_from_tbl("acl_usage", delete_payload)
+                required_name = acl_name_or_config_item
+                payload_update = PayloadBuilder().WHERE(["entity_type", "=", "control"]). \
+                    ANDWHERE(["entity_name", "=", entity_name]). \
+                    EXPR(["name", "=", required_name]).payload()
 
-                        payload = PayloadBuilder().INSERT(entity_name=cat_name,
-                                                          entity_type="service",
-                                                          name=config_item['value']).payload()
-                        result = await self._storage.insert_into_tbl("acl_usage", payload)
-                        response = result['response']
-                    except KeyError:
-                        raise ValueError(result['message'])
-                    except StorageServerError as ex:
-                        err_response = ex.error
-                        raise ValueError(err_response)
+                result = await self._storage_client.update_tbl("acl_usage", payload_update)
             except KeyError:
-                continue
+                raise ValueError(result['message'])
+            except StorageServerError as ex:
+                err_response = ex.error
+                raise ValueError(err_response)
 
-    async def handle_delete_for_acl_config_item(self, category_name, config_item):
-        payload = PayloadBuilder().SELECT("key", "value").WHERE(["key", "=", category_name]).payload()
-        results = await self._storage_client.query_tbl_with_payload('configuration', payload)
-        for row in results["rows"]:
-            for item_name, item_info in row["value"].items():
-                if item_name == config_item:
-                    try:
-                        # Note entity_type must be a service since it is a config item of type ACL
-                        # in a category.
-                        delete_payload = PayloadBuilder().WHERE(
-                                                          ["name", "=", item_info["value"]]).payload()
-                        result = await self._storage_client.delete_from_tbl("acl_usage", delete_payload)
-                        response = result['response']
-                    except KeyError:
-                        raise ValueError(result['message'])
-                    except StorageServerError as ex:
-                        err_response = ex.error
-                        raise ValueError(err_response)
+    async def handle_delete_for_acl(self, entity_name, acl_name_or_config_item, entity_type):
+        if entity_type == "service":
+            try:
+                # Note entity_type must be a service since it is a config item of type ACL
+                # in a category.
+                delete_payload = PayloadBuilder().WHERE(["entity_name", "=", entity_name]). \
+                    ANDWHERE(["entity_type", "=", "service"]).payload()
+                result = await self._storage_client.delete_from_tbl("acl_usage", delete_payload)
+                response = result['response']
+            except KeyError:
+                raise ValueError(result['message'])
+            except StorageServerError as ex:
+                err_response = ex.error
+                raise ValueError(err_response)
+        else:
+            try:
+                # Note entity_type must be a script since ACL is being deleted.
+                delete_payload = PayloadBuilder().WHERE(["name", "=", acl_name_or_config_item]). \
+                    ANDWHERE(["entity_type", "=", "script"]).payload()
+                result = await self._storage_client.delete_from_tbl("acl_usage", delete_payload)
+                response = result['response']
+            except KeyError:
+                raise ValueError(result['message'])
+            except StorageServerError as ex:
+                err_response = ex.error
+                raise ValueError(err_response)
 
-    async def handle_create_for_acl_config_item(self, category_name, config_item):
-        payload = PayloadBuilder().SELECT("key", "value").WHERE(["key", "=", category_name]).payload()
-        results = await self._storage_client.query_tbl_with_payload('configuration', payload)
-        for row in results["rows"]:
-            for item_name, item_info in row["value"].items():
-                if item_name == config_item:
-                    try:
-                        # Note entity_type must be a service since it is a config item of type ACL
-                        # in a category.
-                        payload = PayloadBuilder().INSERT(entity_name=category_name,
-                                                          entity_type="service",
-                                                          name=item_info['value']).payload()
-                        result = await self._storage_client.insert_into_tbl("acl_usage", payload)
-                        response = result['response']
-                    except KeyError:
-                        raise ValueError(result['message'])
-                    except StorageServerError as ex:
-                        err_response = ex.error
-                        raise ValueError(err_response)
+    async def handle_create_for_acl(self, entity_name, acl_name_or_config_item, entity_type):
+        if entity_type == "service":
+            payload = PayloadBuilder().SELECT("key", "value").WHERE(["key", "=", entity_name]).payload()
+            results = await self._storage_client.query_tbl_with_payload('configuration', payload)
+            for row in results["rows"]:
+                for item_name, item_info in row["value"].items():
+                    if item_name == acl_name_or_config_item:
+                        try:
+                            # Note entity_type must be a service since it is a config item of type ACL
+                            # in a category.
+                            payload = PayloadBuilder().INSERT(entity_name=entity_name,
+                                                              entity_type="service",
+                                                              name=item_info['value']).payload()
+                            result = await self._storage_client.insert_into_tbl("acl_usage", payload)
+                            response = result['response']
+                        except KeyError:
+                            raise ValueError(result['message'])
+                        except StorageServerError as ex:
+                            err_response = ex.error
+                            raise ValueError(err_response)
+        else:
+            try:
+                # Note entity_type must be a script since handle new acl is called.
+                acl_name = acl_name_or_config_item
+                payload = PayloadBuilder().INSERT(entity_name=entity_name,
+                                                  entity_type="script",
+                                                  name=acl_name).payload()
+                result = await self._storage_client.insert_into_tbl("acl_usage", payload)
+                response = result['response']
+            except KeyError:
+                raise ValueError(result['message'])
+            except StorageServerError as ex:
+                err_response = ex.error
+                raise ValueError(err_response)

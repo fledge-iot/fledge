@@ -149,6 +149,8 @@ EOF
         is_enabled = True if ((type(enabled) is str and enabled.lower() in ['true']) or (
             (type(enabled) is bool and enabled is True))) else False
 
+        dryrun = not is_enabled
+
         # Check if a valid plugin has been provided
         try:
             # "plugin_module_path" is fixed by design. It is MANDATORY to keep the plugin in the exactly similar named
@@ -268,8 +270,10 @@ EOF
             schedule.exclusive = True
             schedule.enabled = False  # if "enabled" is supplied, it gets activated in save_schedule() via is_enabled flag
 
+            # Note: For Python based sending process dryrun option support is not available;
+            # Therefore the runtime configuration will appear only when enabled & task executed once
             # Save schedule
-            await server.Server.scheduler.save_schedule(schedule, is_enabled)
+            await server.Server.scheduler.save_schedule(schedule, is_enabled, dryrun=dryrun)
             schedule = await server.Server.scheduler.get_schedule_by_name(name)
         except StorageServerError as ex:
             await config_mgr.delete_category_and_children_recursively(name)

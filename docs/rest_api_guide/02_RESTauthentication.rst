@@ -25,7 +25,24 @@ Login
 
 **Request Payload** 
 
-The request payload is an authentication payload that must match one of the payloads that an authentication provider can interrupt. Note the payload does not explicitly state which provider should authenticate the request, it is the responsibility of the code to try each provider in turn until authentication is successful.
+If the user is connecting with a user name and a password then a JSON structure should be passed as the payload providing the following key/value pairs.
+
+.. list-table::
+    :widths: 20 20 50 30
+    :header-rows: 1
+
+    * - Name
+      - Type
+      - Description
+      - Example
+    * - username
+      - string
+      - The username of the user attempting to login
+      - david
+    * - password
+      - string
+      - The plain text password of the user attempting to login
+      - 1nv1nc1ble
 
 **Response Payload**
 
@@ -45,7 +62,7 @@ Assuming the authentication provider is a username and password provider.
 
 Would return an authentication token
 
-.. code-block:: console 
+.. code-block:: json 
 
     {
       "message": "Logged in successfully",
@@ -172,7 +189,7 @@ The following error responses may be returned
 Get All Users
 -------------
 
-``GET /fledge/admin/user`` - Retrieve data on all users
+``GET /fledge/user`` - Retrieve data on all users
 
 **Response Payload**
 
@@ -207,12 +224,13 @@ A JSON document which all users in a JSON array.
 
 .. code-block:: console
 
-   curl -X GET /fledge/admin/user
+   curl -X GET /fledge/user
 
 
 Returns the response payload
 
-.. code-block:: console
+.. code-block:: json
+
     {
         "users" : [
                     {
@@ -228,63 +246,92 @@ Returns the response payload
                   ]
     }
 
+Update User
+-----------
 
+``PUT /fledge/user`` - Allows a user to update their own user information
 
-Get User
---------
+**Request Payload**
 
-``GET /fledge/user/{username}`` - Retrieve data on a user
-
-**Response Payload**
-
-A JSON document which describes the user.
+A JSON document which describes the updates to the user record.
 
 .. list-table::
-    :widths: 20 50
+    :widths: 20 20 50 30
     :header-rows: 1
 
-    * - Name
-      - Type
-      - Description
-      - Example
-    * - username
-      - string
-      - The username of the new user to add
-      - david
-    * - permissions
-      - string
-      - The permissions that new user should be given
-      - admin
     * - realname
       - string
       - The real name of the user. This is used for display purposes only.
       - David Brent
 
 
-..note::
+.. note::
 
-    This payload does not include the password of the user.
+    A user can only update their own real name, other information must be updated by an admin user.
+
+**Response Payload**
+
+The response payload is a JSON document containing a message as to the success of the operation.
+
+**Errors**
+
+The following error responses may be returned
+
+.. list-table::
+    :widths: 20 50 
+    :header-rows: 1
+
+    * - HTTP Code
+      - Reason
+    * - 400
+      - Incomplete or badly formed request payload
 
 **Example**
 
 .. code-block:: console
 
-  GET /fledge/user/david**
+   curl -X PUT /foglamp/user/david -d'
+    {
+        "realname"    : "Dave Brent"
+    }'
 
-Returns the response payload
+Change Password
+---------------
+
+``PUT /fledge/user/{userid}/password`` - change the password for the current user
+
+**Request Payload**
+
+A JSON document that contains the old and new passwords.
+
+.. list-table::
+    :widths: 20 20 50 30
+    :header-rows: 1
+
+    * - current_password
+      - string
+      - The current password of the user
+      - Ch40Dlw3p
+    * - new_password
+      - string
+      - The new password of the user
+      - Qu3ublE3
+
+**Response Payload**
+
+A message as to the success of the operation
+
+**Example**
 
 .. code-block:: console
 
-    {
-        "username"    : "david",
-        "permissions" : "admin",
-        "realname"    : "David Brent"
-    }
+    curl -X PUT -d '{"current_password": "F0gl@mp!", "new_password": "F0gl@mp1"}' http://localhost:8081/fledge/user/peter/password
 
-Update User
------------
 
-``PUT /fledge/user/{username}`` - update a user
+Admin Update User
+-----------------
+
+``PUT /fledge/admin/user`` - An admin user can update any user's information
 
 **Request Payload**
 

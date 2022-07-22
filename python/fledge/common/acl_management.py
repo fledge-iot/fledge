@@ -14,7 +14,7 @@ class ACLManagement(object):
         from fledge.services.core import connect
         self._storage_client = connect.get_storage_async()
 
-    def notify_service_about_acl_change(self, entity_name, acl, reason):
+    def _notify_service_about_acl_change(self, entity_name, acl, reason):
         """Helper function that sends the ACL change to the respective service. """
         # We need to find the address and management host for the required service.
         from fledge.services.core.service_registry.service_registry import ServiceRegistry
@@ -24,16 +24,19 @@ class ACLManagement(object):
             service = services[0]
         except DoesNotExist:  # Does not exist
             _logger.error("Cannot notify the service {} "
-                          "about {}".format(entity_name, reason))
+                          "about {}. It does not exist.".format(entity_name, reason))
             return
         else:
             _logger.info("Notifying the service"
                          " {} about {}".format(entity_name, reason))
-            from fledge.common.microservice_management_client import MicroserviceManagementClient
+            from fledge.common.microservice_management_client.microservice_management_client import MicroserviceManagementClient
             mgt_client = MicroserviceManagementClient(service._address,
                                                       service._management_port)
-            mgt_client.update_security_for_acl_change(acl=acl,
-                                                      reason=reason)
+            _logger.info("Connect established with {} at {} and port {}".format(entity_name,
+                                                                                service._address,
+                                                                                service._management_port))
+            mgt_client.update_service_for_acl_change_security(acl=acl,
+                                                              reason=reason)
             _logger.info("Notified the {} about {}".format(entity_name, reason))
 
     async def handle_update_for_acl_usage(self, entity_name, acl_name, entity_type):
@@ -41,12 +44,12 @@ class ACLManagement(object):
             try:
                 required_name = acl_name
                 payload_update = PayloadBuilder().WHERE(["entity_type", "=", "service"]).\
-                    ANDWHERE(["entity_name", "=", entity_name]).\
+                    AND_WHERE(["entity_name", "=", entity_name]).\
                     EXPR(["name", "=", required_name]).payload()
 
                 result = await self._storage_client.update_tbl("acl_usage", payload_update)
                 response = result['response']
-                self.notify_service_about_acl_change(entity_name, required_name, "updateACL")
+                self._notify_service_about_acl_change(entity_name, required_name, "updateACL")
             except KeyError:
                 raise ValueError(result['message'])
             except StorageServerError as ex:
@@ -56,7 +59,7 @@ class ACLManagement(object):
             try:
                 required_name = acl_name
                 payload_update = PayloadBuilder().WHERE(["entity_type", "=", "script"]). \
-                    ANDWHERE(["entity_name", "=", entity_name]). \
+                    AND_WHERE(["entity_name", "=", entity_name]). \
                     EXPR(["name", "=", required_name]).payload()
 
                 result = await self._storage_client.update_tbl("acl_usage", payload_update)
@@ -72,11 +75,11 @@ class ACLManagement(object):
                 # Note entity_type must be a service since it is a config item of type ACL
                 # in a category.
                 delete_payload = PayloadBuilder().WHERE(["entity_name", "=", entity_name]). \
-                    ANDWHERE(["entity_type", "=", "service"]).payload()
+                    AND_WHERE(["entity_type", "=", "service"]).payload()
                 result = await self._storage_client.delete_from_tbl("acl_usage", delete_payload)
                 response = result['response']
 
-                self.notify_service_about_acl_change(entity_name, acl_name, "deleteACL")
+                self._notify_service_about_acl_change(entity_name, acl_name, "deleteACL")
             except KeyError:
                 raise ValueError(result['message'])
             except StorageServerError as ex:
@@ -86,7 +89,7 @@ class ACLManagement(object):
             try:
                 # Note entity_type must be a script since ACL is being deleted.
                 delete_payload = PayloadBuilder().WHERE(["name", "=", acl_name]). \
-                    ANDWHERE(["entity_type", "=", "script"]).payload()
+                    AND_WHERE(["entity_type", "=", "script"]).payload()
                 result = await self._storage_client.delete_from_tbl("acl_usage", delete_payload)
                 response = result['response']
             except KeyError:
@@ -102,8 +105,8 @@ class ACLManagement(object):
                 # in a category.
                 q_payload = PayloadBuilder().SELECT("name", "entity_name", "entity_type"). \
                     WHERE(["entity_name", "=", entity_name]). \
-                    ANDWHERE(["entity_type", "=", entity_type]).\
-                    ANDWHERE(["name", "=", acl_name]).payload()
+                    AND_WHERE(["entity_type", "=", entity_type]).\
+                    AND_WHERE(["name", "=", acl_name]).payload()
                 results = await self._storage_client.query_tbl_with_payload('acl_usage', q_payload)
                 # Check if the value to insert already exists.
                 if len(results["rows"]) > 0:
@@ -115,7 +118,7 @@ class ACLManagement(object):
                     result = await self._storage_client.insert_into_tbl("acl_usage", payload)
                     response = result['response']
 
-                self.notify_service_about_acl_change(entity_name, acl_name, "attachACL")
+                self._notify_service_about_acl_change(entity_name, acl_name, "attachACL")
             except KeyError:
                 raise ValueError(result['message'])
             except StorageServerError as ex:

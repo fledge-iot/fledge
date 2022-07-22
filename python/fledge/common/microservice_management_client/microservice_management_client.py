@@ -7,6 +7,8 @@
 import http.client
 import json
 import urllib.parse
+import logging
+
 from fledge.common import logger
 from fledge.common.microservice_management_client import exceptions as client_exceptions
 
@@ -15,7 +17,7 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-_logger = logger.setup(__name__)
+_logger = logger.setup(__name__, logging.DEBUG)
 
 
 class MicroserviceManagementClient(object):
@@ -298,14 +300,15 @@ class MicroserviceManagementClient(object):
         response = json.loads(res)
         return response
 
-    def update_security_for_acl_change(self, acl, reason):
+    def update_service_for_acl_change_security(self, acl, reason):
         assert reason in ["attachACL", "detachACL", "updateACL"]
         url = "/fledge/security"
         payload = {
             "reason": reason,
             "argument": acl
         }
-        self._management_client_conn.request(method='PUT', url=url, body=payload)
+        self._management_client_conn.request(method='PUT', url=url, body=json.dumps(payload))
+        _logger.info("Requesting end point {} with payload {}".format(url, payload))
         r = self._management_client_conn.getresponse()
         if r.status in range(400, 500):
             _logger.error("Client error code: %d, Reason: %s", r.status, r.reason)
@@ -313,6 +316,7 @@ class MicroserviceManagementClient(object):
         if r.status in range(500, 600):
             _logger.error("Server error code: %d, Reason: %s", r.status, r.reason)
             raise client_exceptions.MicroserviceManagementClientError(status=r.status, reason=r.reason)
+        _logger.info("r status {} and r {}".format(r.status, r))
         res = r.read().decode()
         self._management_client_conn.close()
         response = json.loads(res)

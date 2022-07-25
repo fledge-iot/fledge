@@ -164,6 +164,7 @@ async def get_syslog_entries(request):
         non_total_template = __GET_SYSLOG_TEMPLATE_WITH_NON_TOTALS
 
         levels = ""
+        level = "debug"
         if 'level' in request.query and request.query['level'] != '':
             level = request.query['level'].lower()
             supported_level = ['info', 'warning', 'error', 'debug']
@@ -206,7 +207,7 @@ async def get_syslog_entries(request):
             cmd = non_total_template.format(valid_source[source], _SYSLOG_FILE, offset, limit)
             _logger.warn('********* non_totals=true: prev shell command: {}'.format(cmd))
             pattern = '({})\[.*{}'.format(valid_source[source], levels)
-            cmd = '{} -offset {} -limit {} -pattern \'{}\' -logfile {}'.format(scriptPath, offset, limit, pattern, _SYSLOG_FILE)
+            cmd = '{} -offset {} -limit {} -pattern \'{}\' -logfile {} -source {} -level {}'.format(scriptPath, offset, limit, pattern, _SYSLOG_FILE, source, level)
             _logger.warn('********* non_totals=true: new shell command: {}'.format(cmd))
 
         t1 = datetime.datetime.now()

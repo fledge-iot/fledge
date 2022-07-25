@@ -436,6 +436,14 @@ static PLUGIN_INFORMATION *Py2C_PluginInfo(PyObject* pyRetVal)
 				{
 					info->options |= SP_CONTROL;
 				}
+				else if (s.compare("poll")==0)
+				{
+					// Nothing to set
+				}
+				else if (s.compare("none")==0)
+				{
+					// Ignore
+				}
 				else
 					Logger::getLogger()->warn("%s: mode: Unknown token/value %s", __FUNCTION__, s.c_str());
 			}

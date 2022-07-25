@@ -102,7 +102,7 @@ class ACLManagement(object):
                 err_response = ex.error
                 raise ValueError(err_response)
 
-    async def handle_create_for_acl_usage(self, entity_name, acl_name, entity_type):
+    async def handle_create_for_acl_usage(self, entity_name, acl_name, entity_type, notify_service=False):
         if entity_type == "service":
             try:
                 # Note entity_type must be a service since it is a config item of type ACL
@@ -110,11 +110,22 @@ class ACLManagement(object):
                 q_payload = PayloadBuilder().SELECT("name", "entity_name", "entity_type"). \
                     WHERE(["entity_name", "=", entity_name]). \
                     AND_WHERE(["entity_type", "=", entity_type]).\
-                    AND_WHERE(["name", "=", acl_name]).payload()
+                    AND_WHERE(["name", "=", ""]).payload()
                 results = await self._storage_client.query_tbl_with_payload('acl_usage', q_payload)
                 # Check if the value to insert already exists.
                 if len(results["rows"]) > 0:
-                    _logger.info("The tuple ({}, {}, {}) already exists in acl usage table.".format(entity_name, entity_type, acl_name))
+                    _logger.info("The tuple ({}, {}, {}) already exists in acl usage table.".format(entity_name,
+                                                                                                    entity_type,
+                                                                                                    acl_name))
+
+                    payload_update = PayloadBuilder().WHERE(["entity_type", "=", "service"]). \
+                        AND_WHERE(["name", "=", acl_name]).\
+                        AND_WHERE(["entity_name", "=", entity_name]).\
+                        EXPR(["name", "=", acl_name]).payload()
+
+                    result = await self._storage_client.update_tbl("acl_usage", payload_update)
+                    response = result['response']
+
                 else:
                     payload = PayloadBuilder().INSERT(entity_name=entity_name,
                                                       entity_type="service",
@@ -122,7 +133,8 @@ class ACLManagement(object):
                     result = await self._storage_client.insert_into_tbl("acl_usage", payload)
                     response = result['response']
 
-                self._notify_service_about_acl_change(entity_name, acl_name, "attachACL")
+                if notify_service:
+                    self._notify_service_about_acl_change(entity_name, acl_name, "attachACL")
             except KeyError:
                 raise ValueError(result['message'])
             except StorageServerError as ex:

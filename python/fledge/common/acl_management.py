@@ -30,6 +30,10 @@ class ACLManagement(object):
             _logger.info("Notifying the service"
                          " {} about {}".format(entity_name, reason))
             from fledge.common.microservice_management_client.microservice_management_client import MicroserviceManagementClient
+            _logger.info("The host and port is {} {} and "
+                         "entity is {}".format(service._address,
+                                               service._management_port,
+                                               entity_name))
             mgt_client = MicroserviceManagementClient(service._address,
                                                       service._management_port)
             _logger.info("Connect established with {} at {} and port {}".format(entity_name,

@@ -609,6 +609,21 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     payload['updates'].append(json.loads(payload_item))
                     audit_details['items'].update({item_name: {'oldValue': old_value, 'newValue': new_val}})
 
+                    if "ACL" in item_name['type']:
+                        if old_value == "" and not new_val == "":
+                            # Need to attach ACL.
+                            await self._acl_handler.handle_create_for_acl_usage(category_name, new_val,
+                                                                                "service", notify_service=True)
+
+                        elif not old_value == "" and new_val == "":
+                            # Need to detach ACL
+                            await self._acl_handler.handle_delete_for_acl_usage(category_name, new_val,
+                                                                                "service")
+
+                        else:
+                            # Need to update ACL.
+                            await self._acl_handler.handle_update_for_acl_usage(category_name, new_val, "service")
+
             if not payload['updates']:
                 return
             
@@ -627,11 +642,6 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             # Configuration Change audit entry
             audit = AuditLogger(self._storage)
             await audit.information('CONCH', audit_details)
-
-            is_acl, acl_name = self._check_whether_category_contains_acl_config_item(config_item_list)
-            _logger.debug("IF acl is {}".format(is_acl))
-            if is_acl:
-                await self._acl_handler.handle_update_for_acl_usage(category_name, acl_name, "service")
 
         except Exception as ex:
             _logger.exception('Unable to bulk update config items %s', str(ex))
@@ -833,6 +843,23 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             # Validations on the basis of optional attributes
             self._validate_value_per_optional_attribute(item_name, storage_value_entry, new_value_entry)
 
+            if storage_value_entry['type'] == "ACL":
+                old_value = storage_value_entry['value']
+                new_val = new_value_entry
+                if old_value == "" and not new_val == "":
+                    # Need to attach ACL.
+                    await self._acl_handler.handle_create_for_acl_usage(category_name, new_val,
+                                                                        "service", notify_service=True)
+
+                elif not old_value == "" and new_val == "":
+                    # Need to detach ACL
+                    await self._acl_handler.handle_delete_for_acl_usage(category_name, new_val,
+                                                                        "service")
+
+                else:
+                    # Need to update ACL.
+                    await self._acl_handler.handle_update_for_acl_usage(category_name, new_val, "service")
+
             await self._update_value_val(category_name, item_name, new_value_entry)
             # always get value from storage
             cat_item = await self._read_item_val(category_name, item_name)
@@ -849,8 +876,6 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                         self._cacheManager.cache[category_name]['value'][item_name]["file"] = script_file_path
                 else:
                     self._cacheManager.cache[category_name]['value'].update({item_name: cat_item['value']})
-            if storage_value_entry['type'] == "ACL":
-                await self._acl_handler.handle_update_for_acl_usage(category_name, new_value_entry, "service")
         except:
             _logger.exception(
                 'Unable to set item value entry based on category_name %s and item_name %s and value_item_entry %s',

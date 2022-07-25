@@ -387,6 +387,19 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             err_response = ex.error
             raise ValueError(err_response)
 
+    async def search_for_ACL_single(self, cat_name):
+        payload = PayloadBuilder().SELECT("key", "value").WHERE(["key", "=", cat_name]).payload()
+        results = await self._storage.query_tbl_with_payload('configuration', payload)
+        for row in results["rows"]:
+            for item_name, item_info in row["value"].items():
+                try:
+                    if item_info["type"] == "ACL" and "Security" in cat_name:
+                        return True, item_name, cat_name.replace("Security", ""), item_info['value']
+                except KeyError:
+                    continue
+
+        return False, None, None, None
+
     async def search_for_ACL_recursive_from_cat_name(self, cat_name):
         """
             Searches for config item ACL recursive in a category and its child categories.
@@ -1273,17 +1286,6 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             err_response = ex.error
             raise ValueError(err_response)
 
-        is_acl_parent, parent_config_item, found_cat_name_parent, found_value_parent = await  \
-            self.search_for_ACL_recursive_from_cat_name(category_name)
-        _logger.debug("IF acl is {} parent".format(is_acl_parent))
-        is_acl_child, child_config_item, found_cat_name_child, found_value_child = await \
-            self.search_for_ACL_recursive_from_cat_name(child_category)
-        _logger.debug("IF acl is {} child".format(is_acl_child))
-        if is_acl_parent:
-            await self._acl_handler.handle_delete_for_acl_usage(found_cat_name_parent, found_value_parent, "service")
-        if is_acl_child:
-            await self._acl_handler.handle_delete_for_acl_usage(found_cat_name_child, found_value_child, "service")
-
         try:
             await self._run_callbacks_child(category_name, child_category, "d")
         except:
@@ -1319,12 +1321,6 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         except StorageServerError as ex:
             err_response = ex.error
             raise ValueError(err_response)
-
-        is_acl, config_item, found_cat_name, found_value = await \
-            self.search_for_ACL_recursive_from_cat_name(category_name)
-        _logger.debug("IF acl is {}".format(is_acl))
-        if is_acl:
-            await self._acl_handler.handle_delete_for_acl_usage(found_cat_name, found_value, "service")
 
         return result
 
@@ -1376,6 +1372,9 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 child = row['child']
                 await self._delete_recursively(child)
 
+            is_acl, _, found_cat_name, acl_value = await self.search_for_ACL_single(cat)
+            if is_acl:
+                await self._acl_handler.handle_delete_for_acl_usage(found_cat_name, acl_value, "service")
             # Remove cat as child from parent-child relation.
             payload = PayloadBuilder().WHERE(["child", "=", cat]).payload()
             result = await self._storage.delete_from_tbl("category_children", payload)

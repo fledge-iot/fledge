@@ -53,7 +53,7 @@ class ACLManagement(object):
 
                 result = await self._storage_client.update_tbl("acl_usage", payload_update)
                 response = result['response']
-                self._notify_service_about_acl_change(entity_name, required_name, "updateACL")
+                self._notify_service_about_acl_change(entity_name, required_name, "reloadACL")
             except KeyError:
                 raise ValueError(result['message'])
             except StorageServerError as ex:

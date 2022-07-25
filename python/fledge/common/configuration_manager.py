@@ -396,8 +396,8 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         for row in results["rows"]:
             for item_name, item_info in row["value"].items():
                 try:
-                    if item_info["type"] == "ACL":
-                        return True, item_name, cat_name, item_info['value']
+                    if item_info["type"] == "ACL" and "Security" in cat_name:
+                        return True, item_name, cat_name.replace("Security", ""), item_info['value']
                 except KeyError:
                     continue
 
@@ -1091,7 +1091,8 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     else:
                         await self._update_category(category_name, category_val_prepared, category_description, display_name)
 
-            is_acl, config_item, found_cat_name, found_value = await self.search_for_ACL_recursive_from_cat_name(category_name)
+            is_acl, config_item, found_cat_name, found_value = await \
+                self.search_for_ACL_recursive_from_cat_name(category_name)
             _logger.debug("check if there is {} create category function  for category {} ".format(is_acl,
                                                                                                    category_name))
             if is_acl:

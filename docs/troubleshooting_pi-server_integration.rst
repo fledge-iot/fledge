@@ -9,6 +9,10 @@
 .. |img_008| image:: images/tshooting_pi_008.jpg
 .. |img_009| image:: images/tshooting_pi_009.jpg
 .. |img_010| image:: images/tshooting_pi_010.jpg
+.. |OMF_tabs| image:: images/OMF_tabs.png
+.. |OMF_Persisted| image:: images/OMF_Persisted.png
+.. |PersistedPlugins| image:: images/PersistedPlugins.png
+.. |PersistedActions| image:: images/PersistedActions.png
 
 *****************************************
 Troubleshooting the PI-Server integration
@@ -117,6 +121,121 @@ Some error messages and causes:
       - Fledge is able to reach the machine in which PI-Server is executing but the PI Web API is not running.
     * - North_Readings_to_PI[24485]: ERROR: Sending JSON data error : **Container not found**. 4273005507977094880_1measurement_sin_4816_asset_1 - WIN-4M7ODKB0RH2:443 /piwebapi/omf
       - Fledge is able to interact with PI Web API but there is an attempt to store data in a PI Point that does not exist.
+
+OMF Plugin Data
+===============
+
+The OMF north plugin must create type information within the OMF subsystem of the PI server before any data can be sent. This type information is persisted within the PI Server between sessions and must also be persisted within Fledge for each connection to a PI Server. This is done using the plugin data persistence features of the Fledge north plugin.
+
+This results in an important connection between a north service or task and a PI server, which does add extra constraints as to what may be done at each end. It is very important this data is kept synchronized between the two ends. In normal circumstances this is not a problem, but there are some actions that can cause problems and require action on both ends.
+
+Delete a north service or task using the OMF plugin
+    If a north service or task using the OMF plugin is deleted then the persisted data of the plugin is also lost. This is Fledge's record of what types have been created in the PI Server and is no longer synchronized following the deletion of the north service. Any new service or task that is created and connected to the same PI Server will receive duplicate type errors from the PI Server. There are two possible solutions to this problem;
+
+        - Remove the type data from the PI Server such that neither end has the type information.
+
+        - Before deleting the north service or task export the plugin persisted data and import that data into the new service or task.
+
+Cleanup a PI server and reuse and existing OMF North service or task
+    This is the opposite problem to that stated above, the plugin will try to send data thinking that the types have already been created in the PI Server and receive an error. Fledge will automatically correct for this and create new types. These new types however will be created with new names, which may not be the desired behavior. Type names are created using a fixed algorithm. To re-use the previous names stopping the north service and deleting the plugin persisted data will reset the algorithm and recreate the types using the names that had been previously used.
+
+Taking an existing Fledge north task or service and moving it to a new PI Server
+    This new PI server will not have the type information from the old and we will once again get errors when sending data due to these missing types. Fledge will automatically correct for this and create new types. These new types however will be created with new names, which ma y not be the desired behavior. Type names are created using a fixed algorithm. To re-use the previous
+names stopping the north service and deleting the plugin persisted data will reset the algorithm and recreate the types using the names that had been previously used.
+
+Managing Plugin Persisted Data
+------------------------------
+
+This is not a feature that users would ordinarily need to be concerned with, however it is possible to enable *Developer Features* in the Fledge User Interface that will provide a mechanism to manage this data.
+
+Enable Develop Features
+~~~~~~~~~~~~~~~~~~~~~~~
+
+Navigate to the *Settings* page of the GUI and toggle on the *Developer Features* tick box on the bottom left of the page.
+
+Viewing Persisted Data
+~~~~~~~~~~~~~~~~~~~~~~
+
+In order to view the persisted data for the plugins of a service open either the *North* or *South* page on the user interface and select your service or task. An page will open that allows you to update the configuration of the plugin. This contains a set of tabs that may be selected, when *Developer Features* are enabled one of these tabs will be labeled *Developer*.
+
++------------+
+| |OMF_tabs| |
++------------+
+
+The *Developer* tab will allow the viewing of the persisted data for all of the plugins in that service, filters and either north or south plugins, for which data is persisted.
+
+Persisted data is only written when a plugin is shutdown, therefore in order to get the most up to date view of the data it is recommended that service is disabled before viewing the persisted data. It is possible to view the persisted data of a running service, however this will be a snapshot taken from the last time the service was shutdown.
+
++-----------------+
+| |OMF_Persisted| |
++-----------------+
+
+It is possible for more than one plugin within a pipeline to persist data, in order to select between the plugins that have persisted data a menu is provided in the top left which will list all those plugins for which data can be viewed.
+
++--------------------+
+| |PersistedPlugins| |
++--------------------+
+
+As well as viewing the persisted data it is also possible to perform other actions, such as *Delete*, *Export* and *Import*. These actions are available via a menu that appears in the top right of the screen.
+
++--------------------+
+| |PersistedActions| |
++--------------------+
+
+.. note::
+
+    The service must be disabled before use of the Delete or Import features and to get the latest values when performing an Export.
+
+Understanding The OMF Persisted Data
+------------------------------------
+
+The persisted data takes the form of a JSON document, the following is an example for a Fledge instance configured with just the Sinusoid plugin.
+
+.. code-block:: json
+
+    {
+      "sentDataTypes": [
+	{
+	  "sinusoid": {
+	    "type-id": 1,
+	    "dataTypesShort": "0x101",
+	    "hintChecksum": "0x0",
+	    "namingScheme": 0,
+	    "afhHash": "15489826335467873671",
+	    "afHierarchy": "fledge/data_piwebapi/mark",
+	    "afHierarchyOrig": "fledge/data_piwebapi/mark",
+	    "dataTypes": {
+	      "sinusoid": {
+		"type": "number",
+		"format": "float64"
+	      }
+	    }
+	  }
+	}
+      ]
+    }
+
+The *SentDataTypes* is a JSON array of object, with each object representing one data type that has been sent to the PI Server. The key/value pairs within the object are as follow
+
++-----------------+------------------------------------------------------+
+| Key             | Description                                          |
++=================+======================================================+
+| type-id         | An index of the different types sent for this asset  |
++-----------------+------------------------------------------------------+
+| dataTypesShort  | A summary of the types in the datatypes of the asset |
++-----------------+------------------------------------------------------+
+| hintChecksum    | A checksum of the OMFHints used to create this type  |
++-----------------+------------------------------------------------------+
+| namingScheme    | The current OMF naming scheme when the type was sent |
++-----------------+------------------------------------------------------+
+| afhHash         | A Hash of the AF settings for the type               |
++-----------------+------------------------------------------------------+
+| afHierarchy     | The AF Hierarchy locations                           |
++-----------------+------------------------------------------------------+
+| afHierarchyOrig | The original setting of AF Heir achy                 |
++-----------------+------------------------------------------------------+
+| dataTypes       | The data type sent to the PI Server                  |
++-----------------+------------------------------------------------------+
 
 Possible solutions to common problems
 =====================================

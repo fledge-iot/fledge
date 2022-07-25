@@ -12,7 +12,7 @@
 .. |OMF_tabs| image:: images/OMF_tabs.png
 .. |OMF_Persisted| image:: images/OMF_Persisted.png
 .. |PersistedPlugins| image:: images/PersistedPlugins.png
-.. |PersistedActions| image:: images/PersistedActions.png
+.. |PersistedActions| image:: images/PersistActions.png
 
 *****************************************
 Troubleshooting the PI-Server integration
@@ -232,7 +232,7 @@ The *SentDataTypes* is a JSON array of object, with each object representing one
 +-----------------+------------------------------------------------------+
 | afHierarchy     | The AF Hierarchy locations                           |
 +-----------------+------------------------------------------------------+
-| afHierarchyOrig | The original setting of AF Heir achy                 |
+| afHierarchyOrig | The original setting of AF Heirarchy                 |
 +-----------------+------------------------------------------------------+
 | dataTypes       | The data type sent to the PI Server                  |
 +-----------------+------------------------------------------------------+

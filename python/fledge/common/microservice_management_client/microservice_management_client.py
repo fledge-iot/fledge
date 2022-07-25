@@ -301,7 +301,7 @@ class MicroserviceManagementClient(object):
         return response
 
     def update_service_for_acl_change_security(self, acl, reason):
-        assert reason in ["attachACL", "detachACL", "updateACL"]
+        assert reason in ["attachACL", "detachACL", "reloadACL"]
         url = "/fledge/security"
         payload = {
             "reason": reason,

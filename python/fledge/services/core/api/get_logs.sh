@@ -5,6 +5,9 @@
 exec 2<&-
 exec 2<>/tmp/fledge_syslog.log
 
+RECALC_AFTER_N_SCRIPT_RUNS=100
+NUM_LOGFILE_LINES_TO_CHECK_INITIALLY=2000
+
 offset=100
 limit=5
 pattern=""
@@ -36,7 +39,7 @@ else
 fi
 
 echo "script_runs=$script_runs" >&2
-if [[ $script_runs -gt 100 ]]; then
+if [[ $script_runs -gt ${RECALC_AFTER_N_SCRIPT_RUNS} ]]; then
 	echo "Resetting script_runs" >&2
 	rm /tmp/fledge_syslog_script_runs
 	script_runs=0
@@ -46,7 +49,7 @@ echo "offset=$offset, limit=$limit, sum=$sum, pattern=$pattern, sourceApp=$sourc
 
 factor=2
 if [[ $script_runs -eq 0 ]]; then
-	factor=$((2000 / $sum))
+	factor=$((${NUM_LOGFILE_LINES_TO_CHECK_INITIALLY} / $sum))
 	[[ $factor -lt 2 ]] && factor=2
 else
 	if [ -f /tmp/fledge_syslog_factor ]; then

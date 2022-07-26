@@ -106,7 +106,8 @@ class ACLManagement(object):
                 err_response = ex.error
                 raise ValueError(err_response)
 
-    async def handle_create_for_acl_usage(self, entity_name, acl_name, entity_type, notify_service=False):
+    async def handle_create_for_acl_usage(self, entity_name, acl_name, entity_type, notify_service=False,
+                                          acl_to_delete=None):
         _logger.info("Create acl usage called for {} {} {}".format(entity_name, acl_name, entity_type))
         if entity_type == "service":
             try:
@@ -116,8 +117,9 @@ class ACLManagement(object):
                 q_payload = PayloadBuilder().SELECT("name", "entity_name", "entity_type"). \
                     WHERE(["entity_name", "=", entity_name]). \
                     AND_WHERE(["entity_type", "=", entity_type]).\
-                    AND_WHERE(["name", "=", ""]).payload()
+                    AND_WHERE(["name", "=", acl_name]).payload()
                 results = await self._storage_client.query_tbl_with_payload('acl_usage', q_payload)
+                _logger.info("The result of query is {}".format(results))
                 # Check if the value to insert already exists.
                 if len(results["rows"]) > 0:
                     _logger.info("The tuple ({}, {}, {}) already exists in acl usage table.".format(entity_name,
@@ -129,7 +131,15 @@ class ACLManagement(object):
                                                       name=acl_name).payload()
                     result = await self._storage_client.insert_into_tbl("acl_usage", payload)
                     response = result['response']
-
+                    if acl_to_delete is not None:
+                        delete_payload = PayloadBuilder().WHERE(["entity_name", "=", entity_name]). \
+                            AND_WHERE(["entity_type", "=", entity_name]).\
+                            AND_WHERE(["name", "=", acl_to_delete]).payload()
+                        _logger.info("The acl to delete is {} and entity name is {}".format(acl_to_delete,
+                                                                                            entity_name))
+                        result = await self._storage_client.delete_from_tbl("acl_usage", delete_payload)
+                        response = result['response']
+                        _logger.info("the response is {}".format(response))
                 if notify_service:
                     self._notify_service_about_acl_change(entity_name, acl_name, "attachACL")
             except KeyError:

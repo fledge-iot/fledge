@@ -631,7 +631,8 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                             # Need to attach ACL.
                             await self._acl_handler.handle_create_for_acl_usage(category_name.replace("Security", ""),
                                                                                 new_val,
-                                                                                "service", notify_service=True)
+                                                                                "service", notify_service=True,
+                                                                                acl_to_delete="")
 
                         elif not old_value == "" and new_val == "":
                             # Need to detach ACL
@@ -870,7 +871,8 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     # Need to attach ACL.
                     await self._acl_handler.handle_create_for_acl_usage(category_name.replace("Security", ""),
                                                                         new_val,
-                                                                        "service", notify_service=True)
+                                                                        "service", notify_service=True,
+                                                                        acl_to_delete="")
 
                 elif not old_value == "" and new_val == "":
                     # Need to detach ACL

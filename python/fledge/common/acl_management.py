@@ -133,13 +133,14 @@ class ACLManagement(object):
                     response = result['response']
                     if acl_to_delete is not None:
                         delete_payload = PayloadBuilder().WHERE(["entity_name", "=", entity_name]). \
-                            AND_WHERE(["entity_type", "=", entity_name]).\
+                            AND_WHERE(["entity_type", "=", entity_type]).\
                             AND_WHERE(["name", "=", acl_to_delete]).payload()
                         _logger.info("The acl to delete is {} and entity name is {}".format(acl_to_delete,
                                                                                             entity_name))
                         result = await self._storage_client.delete_from_tbl("acl_usage", delete_payload)
                         response = result['response']
                         _logger.info("the response is {}".format(response))
+
                 if notify_service:
                     self._notify_service_about_acl_change(entity_name, acl_name, "attachACL")
             except KeyError:

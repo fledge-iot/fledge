@@ -1,7 +1,5 @@
 #!/bin/bash
 
-# set -vx
-
 > /tmp/fledge_syslog.log
 
 exec 2<&-
@@ -12,6 +10,7 @@ limit=5
 pattern=""
 level="debug"
 logfile="/var/log/syslog"
+sourceApp="fledge"
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
@@ -93,7 +92,7 @@ do
 		break
 	else
         	new_factor=$factor
-		[[ $count -ne 0 ]] && ( new_factor=$(($lines / $count)) && new_factor=$(($new_factor + 1)) )  # || new_factor=$(($new_factor * 2))
+		[[ $count -ne 0 ]] && ( new_factor=$(($lines / $count)) && new_factor=$(($new_factor + 1)) )
 		echo "factor=$factor, new_factor=$new_factor" >&2
 		[[ $new_factor -eq $factor ]] && [[ $lines -lt $filesz_dbl ]] && factor=$(($factor * 2)) || factor=$new_factor
 		echo "Didn't get sufficient number of matching log lines, trying factor=$factor" >&2

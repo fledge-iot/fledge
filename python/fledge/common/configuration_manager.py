@@ -393,8 +393,10 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         for row in results["rows"]:
             for item_name, item_info in row["value"].items():
                 try:
-                    if item_info["type"] == "ACL" and "Security" in cat_name:
-                        return True, item_name, cat_name.replace("Security", ""), item_info['value']
+                    # TODO if item_info["type"] == "ACL" and "Security" in cat_name:
+                    if item_info["type"] == "ACL":
+                        # TODO return True, item_name, cat_name.replace("Security", ""), item_info['value']
+                        return True, item_name, cat_name, item_info['value']
                 except KeyError:
                     continue
 
@@ -409,8 +411,10 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         for row in results["rows"]:
             for item_name, item_info in row["value"].items():
                 try:
-                    if item_info["type"] == "ACL" and "Security" in cat_name:
-                        return True, item_name, cat_name.replace("Security", ""), item_info['value']
+                    # TODO if item_info["type"] == "ACL" and "Security" in cat_name:
+                    if item_info["type"] == "ACL":
+                        # TODO  return True, item_name, cat_name.replace("Security", ""), item_info['value']
+                        return True, item_name, cat_name, item_info['value']
                 except KeyError:
                     continue
 

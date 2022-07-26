@@ -285,7 +285,8 @@ class MicroserviceManagementClient(object):
         :param category_data: e.g. '{"value": "true"}'
         :return:
         """
-        url = "/fledge/service/category/{}/{}".format(urllib.parse.quote(category_name), urllib.parse.quote(config_item))
+        url = "/fledge/service/category/{}/{}".format(urllib.parse.quote(category_name),
+                                                      urllib.parse.quote(config_item))
 
         self._management_client_conn.request(method='PUT', url=url, body=category_data)
         r = self._management_client_conn.getresponse()
@@ -310,6 +311,13 @@ class MicroserviceManagementClient(object):
         self._management_client_conn.request(method='PUT', url=url, body=json.dumps(payload))
         _logger.info("Requesting end point {} with payload {}".format(url, payload))
         r = self._management_client_conn.getresponse()
+        res = r.read().decode()
+        _logger.info("The response is {}".format(res))
+        response = json.loads(res)
+        _logger.info("The response json is {}".format(response))
+        self._management_client_conn.close()
+        return response
+
         if r.status in range(400, 500):
             _logger.error("Client error code: %d, Reason: %s", r.status, r.reason)
             raise client_exceptions.MicroserviceManagementClientError(status=r.status, reason=r.reason)

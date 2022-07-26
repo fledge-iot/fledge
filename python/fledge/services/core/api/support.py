@@ -205,10 +205,10 @@ async def get_syslog_entries(request):
             scriptPath = os.path.split(os.path.abspath(__file__))[0]
             scriptPath = os.path.join(scriptPath, "get_logs.sh")
             cmd = non_total_template.format(valid_source[source], _SYSLOG_FILE, offset, limit)
-            _logger.warn('********* non_totals=true: prev shell command: {}'.format(cmd))
-            pattern = '({})\[.*{}'.format(valid_source[source], levels)
+            # _logger.warn('********* non_totals=true: prev shell command: {}'.format(cmd))
+            pattern = '({})\[.*\] {}'.format(valid_source[source], levels)
             cmd = '{} -offset {} -limit {} -pattern \'{}\' -logfile {} -source {} -level {}'.format(scriptPath, offset, limit, pattern, _SYSLOG_FILE, source, level)
-            _logger.warn('********* non_totals=true: new shell command: {}'.format(cmd))
+            _logger.info('********* non_totals=true: new shell command: {}'.format(cmd))
 
         t1 = datetime.datetime.now()
         a = subprocess.Popen([cmd], shell=True, stdout=subprocess.PIPE).stdout.readlines()

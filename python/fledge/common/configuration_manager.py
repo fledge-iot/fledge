@@ -622,7 +622,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     payload['updates'].append(json.loads(payload_item))
                     audit_details['items'].update({item_name: {'oldValue': old_value, 'newValue': new_val}})
 
-                    if "ACL" in item_name['type']:
+                    if "ACL" in item_name and type(old_value) == str and type(new_val) == str:
                         if old_value == "" and not new_val == "":
                             # Need to attach ACL.
                             await self._acl_handler.handle_create_for_acl_usage(category_name, new_val,
@@ -856,7 +856,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             # Validations on the basis of optional attributes
             self._validate_value_per_optional_attribute(item_name, storage_value_entry, new_value_entry)
 
-            if storage_value_entry['type'] == "ACL":
+            if type(storage_value_entry) == dict and storage_value_entry['type'] == "ACL":
                 old_value = storage_value_entry['value']
                 new_val = new_value_entry
                 if old_value == "" and not new_val == "":
@@ -987,16 +987,6 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             _logger.exception(
                 'Unable to set optional %s entry based on category_name %s and item_name %s and value_item_entry %s', optional_entry_name, category_name, item_name, new_value_entry)
             raise
-
-    def _check_whether_category_contains_acl_config_item(self, category_info):
-        """Checks whether there is config item of type ACL in given . If yes return True else False."""
-        for item_name in category_info:
-            try:
-                if "ACL" in item_name['type']:
-                    return True, item_name['value']
-            except KeyError:
-                continue
-        return False, None
 
     async def create_category(self, category_name, category_value, category_description='', keep_original_items=False, display_name=None):
         """Create a new category in the database.
@@ -1348,11 +1338,6 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         except ValueError as ex:
             raise ValueError(ex)
         else:
-            is_acl, config_item, found_cat_name, found_value = await self.search_for_ACL_recursive_from_cat_name(category_name)
-            _logger.debug("IF acl is {}".format(is_acl))
-            if is_acl:
-                await self._acl_handler.handle_delete_for_acl_usage(found_cat_name, found_value, "service")
-
             return result[category_name]
 
     async def _fetch_descendents(self, cat):

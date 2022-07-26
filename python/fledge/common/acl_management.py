@@ -87,7 +87,7 @@ class ACLManagement(object):
                 result = await self._storage_client.delete_from_tbl("acl_usage", delete_payload)
                 response = result['response']
 
-                self._notify_service_about_acl_change(entity_name, acl_name, "deleteACL")
+                self._notify_service_about_acl_change(entity_name, acl_name, "detachACL")
             except KeyError:
                 raise ValueError(result['message'])
             except StorageServerError as ex:

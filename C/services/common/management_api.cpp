@@ -292,7 +292,7 @@ void ManagementApi::securityChange(shared_ptr<HttpServer::Response> response,
 	// Call server securityChange method
 	m_serviceHandler->securityChange(payload);
 
-	convert << "{ \"message\" ; \"Security change accepted\" }";
+	convert << "{ \"message\" : \"Security change accepted\" }";
 
 	responsePayload = convert.str();
 	respond(response, responsePayload);

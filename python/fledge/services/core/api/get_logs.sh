@@ -72,25 +72,16 @@ do
 
 	lines=$(($factor * $sum))
 
-	if [[ $lines -gt $filesz_dbl ]]; then
-		echo "Cannot increase factor value any further; filesz=$filesz, lines=$lines" >&2
-
-		cat $tmpfile | tail -n $sum | head -n $limit
-		rm $tmpfile
-		touch /tmp/fledge_syslog_factor
-		grep -v "$sourceApp:$level:" /tmp/fledge_syslog_factor > /tmp/fledge_syslog_factor.out; mv /tmp/fledge_syslog_factor.out /tmp/fledge_syslog_factor
-		echo "$sourceApp:$level:$factor" >> /tmp/fledge_syslog_factor
-		break
-	fi
+	echo "loop_iters=$loop_iters: factor=$factor, lines=$lines, tmpfile=$tmpfile" >&2
 
 	cmd="tail -n $lines $logfile | grep -a -E '${pattern}' > $tmpfile"
 	echo "cmd=$cmd, filesz=$filesz" >&2
-	# tail -n $lines $logfile | grep -a -E '${pattern}' > $tmpfile
 	eval "$cmd"
 	t2=$(date +%s%N)
 	t_diff=$(((t2 - t1)/1000000))
 	count=$(wc -l < $tmpfile)
 	echo "Got $count matching log lines in last $lines lines of syslog file; processing time=${t_diff}ms" >&2
+
 	if [[ $count -ge $sum ]]; then
 		echo "Got sufficient number of matching log lines, current factor value of $factor is good" >&2
 		cat $tmpfile | tail -n $sum | head -n $limit
@@ -104,9 +95,24 @@ do
         	new_factor=$factor
 		[[ $count -ne 0 ]] && ( new_factor=$(($lines / $count)) && new_factor=$(($new_factor + 1)) )  # || new_factor=$(($new_factor * 2))
 		echo "factor=$factor, new_factor=$new_factor" >&2
-		[[ $new_factor -eq $factor ]] && factor=$(($factor * 2)) || factor=$new_factor
+		[[ $new_factor -eq $factor ]] && [[ $lines -lt $filesz_dbl ]] && factor=$(($factor * 2)) || factor=$new_factor
 		echo "Didn't get sufficient number of matching log lines, trying factor=$factor" >&2
 	fi
+
+	if [[ $lines -gt $filesz_dbl ]]; then
+		echo "Cannot increase factor value any further; filesz=$filesz, lines=$lines" >&2
+
+		cat $tmpfile | tail -n $sum | head -n $limit
+		echo "Log results START:" >&2
+		cat $tmpfile | tail -n $sum | head -n $limit >&2
+		echo "Log results END:" >&2
+		rm $tmpfile
+		touch /tmp/fledge_syslog_factor
+		grep -v "$sourceApp:$level:" /tmp/fledge_syslog_factor > /tmp/fledge_syslog_factor.out; mv /tmp/fledge_syslog_factor.out /tmp/fledge_syslog_factor
+		echo "$sourceApp:$level:$factor" >> /tmp/fledge_syslog_factor
+		break
+	fi
+
 	loop_iters=$(($loop_iters + 1))
 done
 

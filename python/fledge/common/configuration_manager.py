@@ -393,10 +393,10 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         for row in results["rows"]:
             for item_name, item_info in row["value"].items():
                 try:
-                    # TODO if item_info["type"] == "ACL" and "Security" in cat_name:
-                    if item_info["type"] == "ACL":
-                        # TODO return True, item_name, cat_name.replace("Security", ""), item_info['value']
-                        return True, item_name, cat_name, item_info['value']
+                    if item_info["type"] == "ACL" and "Security" in cat_name:
+                    # if item_info["type"] == "ACL":
+                        return True, item_name, cat_name.replace("Security", ""), item_info['value']
+                        # return True, item_name, cat_name, item_info['value']
                 except KeyError:
                     continue
 
@@ -411,10 +411,10 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         for row in results["rows"]:
             for item_name, item_info in row["value"].items():
                 try:
-                    # TODO if item_info["type"] == "ACL" and "Security" in cat_name:
-                    if item_info["type"] == "ACL":
-                        # TODO  return True, item_name, cat_name.replace("Security", ""), item_info['value']
-                        return True, item_name, cat_name, item_info['value']
+                    if item_info["type"] == "ACL" and "Security" in cat_name:
+                    # if item_info["type"] == "ACL":
+                        return True, item_name, cat_name.replace("Security", ""), item_info['value']
+                        # return True, item_name, cat_name, item_info['value']
                 except KeyError:
                     continue
 
@@ -629,17 +629,20 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     if "ACL" in item_name and type(old_value) == str and type(new_val) == str:
                         if old_value == "" and not new_val == "":
                             # Need to attach ACL.
-                            await self._acl_handler.handle_create_for_acl_usage(category_name, new_val,
+                            await self._acl_handler.handle_create_for_acl_usage(category_name.replace("Security", ""),
+                                                                                new_val,
                                                                                 "service", notify_service=True)
 
                         elif not old_value == "" and new_val == "":
                             # Need to detach ACL
-                            await self._acl_handler.handle_delete_for_acl_usage(category_name, new_val,
+                            await self._acl_handler.handle_delete_for_acl_usage(category_name.replace("Security", ""),
+                                                                                new_val,
                                                                                 "service")
 
                         else:
                             # Need to update ACL.
-                            await self._acl_handler.handle_update_for_acl_usage(category_name, new_val, "service")
+                            await self._acl_handler.handle_update_for_acl_usage(category_name.replace("Security", ""),
+                                                                                new_val, "service")
 
             if not payload['updates']:
                 return
@@ -865,17 +868,20 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 new_val = new_value_entry
                 if old_value == "" and not new_val == "":
                     # Need to attach ACL.
-                    await self._acl_handler.handle_create_for_acl_usage(category_name, new_val,
+                    await self._acl_handler.handle_create_for_acl_usage(category_name.replace("Security", ""),
+                                                                        new_val,
                                                                         "service", notify_service=True)
 
                 elif not old_value == "" and new_val == "":
                     # Need to detach ACL
-                    await self._acl_handler.handle_delete_for_acl_usage(category_name, new_val,
+                    await self._acl_handler.handle_delete_for_acl_usage(category_name.replace("Security", ""),
+                                                                        new_val,
                                                                         "service")
 
                 else:
                     # Need to update ACL.
-                    await self._acl_handler.handle_update_for_acl_usage(category_name, new_val, "service")
+                    await self._acl_handler.handle_update_for_acl_usage(category_name.replace("Security", ""),
+                                                                        new_val, "service")
 
             await self._update_value_val(category_name, item_name, new_value_entry)
             # always get value from storage

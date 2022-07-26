@@ -44,6 +44,8 @@ class ACLManagement(object):
             _logger.info("Notified the {} about {}".format(entity_name, reason))
 
     async def handle_update_for_acl_usage(self, entity_name, acl_name, entity_type):
+        _logger.info("Update acl usage called for {} {} {}".format(entity_name, acl_name, entity_type))
+
         if entity_type == "service":
             try:
                 required_name = acl_name
@@ -74,6 +76,8 @@ class ACLManagement(object):
                 raise ValueError(err_response)
 
     async def handle_delete_for_acl_usage(self, entity_name, acl_name, entity_type):
+        _logger.info("delete acl usage called for {} {} {}".format(entity_name, acl_name, entity_type))
+
         if entity_type == "service":
             try:
                 # Note entity_type must be a service since it is a config item of type ACL
@@ -103,10 +107,12 @@ class ACLManagement(object):
                 raise ValueError(err_response)
 
     async def handle_create_for_acl_usage(self, entity_name, acl_name, entity_type, notify_service=False):
+        _logger.info("Create acl usage called for {} {} {}".format(entity_name, acl_name, entity_type))
         if entity_type == "service":
             try:
                 # Note entity_type must be a service since it is a config item of type ACL
                 # in a category.
+                _logger.info("Notify south is {}".format(notify_service))
                 q_payload = PayloadBuilder().SELECT("name", "entity_name", "entity_type"). \
                     WHERE(["entity_name", "=", entity_name]). \
                     AND_WHERE(["entity_type", "=", entity_type]).\
@@ -117,15 +123,6 @@ class ACLManagement(object):
                     _logger.info("The tuple ({}, {}, {}) already exists in acl usage table.".format(entity_name,
                                                                                                     entity_type,
                                                                                                     acl_name))
-
-                    payload_update = PayloadBuilder().WHERE(["entity_type", "=", "service"]). \
-                        AND_WHERE(["name", "=", acl_name]).\
-                        AND_WHERE(["entity_name", "=", entity_name]).\
-                        EXPR(["name", "=", acl_name]).payload()
-
-                    result = await self._storage_client.update_tbl("acl_usage", payload_update)
-                    response = result['response']
-
                 else:
                     payload = PayloadBuilder().INSERT(entity_name=entity_name,
                                                       entity_type="service",

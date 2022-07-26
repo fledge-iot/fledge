@@ -217,25 +217,30 @@ The persisted data takes the form of a JSON document, the following is an exampl
 
 The *SentDataTypes* is a JSON array of object, with each object representing one data type that has been sent to the PI Server. The key/value pairs within the object are as follow
 
-+-----------------+------------------------------------------------------+
-| Key             | Description                                          |
-+=================+======================================================+
-| type-id         | An index of the different types sent for this asset  |
-+-----------------+------------------------------------------------------+
-| dataTypesShort  | A summary of the types in the datatypes of the asset |
-+-----------------+------------------------------------------------------+
-| hintChecksum    | A checksum of the OMFHints used to create this type  |
-+-----------------+------------------------------------------------------+
-| namingScheme    | The current OMF naming scheme when the type was sent |
-+-----------------+------------------------------------------------------+
-| afhHash         | A Hash of the AF settings for the type               |
-+-----------------+------------------------------------------------------+
-| afHierarchy     | The AF Hierarchy locations                           |
-+-----------------+------------------------------------------------------+
-| afHierarchyOrig | The original setting of AF Heirarchy                 |
-+-----------------+------------------------------------------------------+
-| dataTypes       | The data type sent to the PI Server                  |
-+-----------------+------------------------------------------------------+
++-----------------+-------------------------------------------------------------------------------------------+
+| Key             | Description                                                                               |
++=================+===========================================================================================+
+| type-id         | An index of the different types sent for this asset. Each time a new type is sent to the  |
+|                 | PI server for this asset this index will be incremented.                                  |
++-----------------+-------------------------------------------------------------------------------------------+
+| dataTypesShort  | A summary of the types in the datatypes of the asset. The value is an encoded number that |
+|                 | contains the count of each of base types, integer, float and string, in the datapoints of |
+|                 | this asset.                                                                               |
++-----------------+-------------------------------------------------------------------------------------------+
+| hintChecksum    | A checksum of the OMFHints used to create this type. 0 if no OMF Hint was used.           |
++-----------------+-------------------------------------------------------------------------------------------+
+| namingScheme    | The current OMF naming scheme when the type was sent.                                     |
++-----------------+-------------------------------------------------------------------------------------------+
+| afhHash         | A Hash of the AF settings for the type.                                                   |
++-----------------+-------------------------------------------------------------------------------------------+
+| afHierarchy     | The AF Hierarchy location.                                                                |
++-----------------+-------------------------------------------------------------------------------------------+
+| afHierarchyOrig | The original setting of AF Heirarchy. This may differ from the above if specific AF rules |
+|                 | are in place.                                                                             |
++-----------------+-------------------------------------------------------------------------------------------+
+| dataTypes       | The data type sent to the PI Server. This is an actually OMF type definition and is the   |
+|                 | exact type definition sent to the PI Web API endpoint.                                    |
++-----------------+-------------------------------------------------------------------------------------------+
 
 Possible solutions to common problems
 =====================================

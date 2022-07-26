@@ -206,7 +206,7 @@ async def get_syslog_entries(request):
             scriptPath = os.path.join(scriptPath, "get_logs.sh")
             cmd = non_total_template.format(valid_source[source], _SYSLOG_FILE, offset, limit)
             # _logger.warn('********* non_totals=true: prev shell command: {}'.format(cmd))
-            pattern = '({})\[.*\] {}'.format(valid_source[source], levels)
+            pattern = '({})\[.*\].*{}:'.format(valid_source[source], levels)
             cmd = '{} -offset {} -limit {} -pattern \'{}\' -logfile {} -source {} -level {}'.format(scriptPath, offset, limit, pattern, _SYSLOG_FILE, source, level)
             _logger.info('********* non_totals=true: new shell command: {}'.format(cmd))
 

@@ -30,6 +30,10 @@ _SYSLOG_FILE = '/var/log/syslog'
 if any(x in platform.platform() for x in ['centos', 'redhat']):
     _SYSLOG_FILE = '/var/log/messages'
 
+# FLEDGE_ROOT env variable
+_FLEDGE_ROOT = os.getenv("FLEDGE_ROOT", default='/usr/local/fledge')
+_SCRIPTS_DIR = os.path.expanduser(_FLEDGE_ROOT + '/scripts')
+
 __DEFAULT_LIMIT = 20
 __DEFAULT_OFFSET = 0
 __DEFAULT_LOG_SOURCE = 'Fledge'
@@ -200,8 +204,7 @@ async def get_syslog_entries(request):
             response['count'] = total_lines
             cmd = template.format(valid_source[source], _SYSLOG_FILE, total_lines - offset, limit)
         else:
-            scriptPath = os.path.split(os.path.abspath(__file__))[0]
-            scriptPath = os.path.join(scriptPath, "get_logs.sh")
+            scriptPath = os.path.join(_SCRIPTS_DIR, "common", "get_logs.sh")
             # cmd = non_total_template.format(valid_source[source], _SYSLOG_FILE, offset, limit)
             pattern = '({})\[.*\].*{}:'.format(valid_source[source], levels)
             cmd = '{} -offset {} -limit {} -pattern \'{}\' -logfile {} -source {} -level {}'.format(scriptPath, offset, limit, pattern, _SYSLOG_FILE, source, level)

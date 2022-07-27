@@ -432,25 +432,31 @@ class TestFilters:
 
         filter_name = "AssetFilter"
         delete_result = {'response': 'deleted', 'rows_affected': 1}
+        update_result = {'rows_affected': 1, "response": "updated"}
         storage_client_mock = MagicMock(StorageClientAsync)
         
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv1 = await self.async_mock(None)
             _rv2 = await self.async_mock(delete_result)
+            _rv3 = await self.async_mock(update_result)
         else:
             _rv1 = asyncio.ensure_future(self.async_mock(None))
             _rv2 = asyncio.ensure_future(self.async_mock(delete_result))
-        
+            _rv3 = asyncio.ensure_future(self.async_mock(update_result))
+
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
                 with patch.object(storage_client_mock, 'delete_from_tbl', return_value=_rv2) as delete_tbl_patch:
                     with patch.object(filters, '_delete_configuration_category', return_value=_rv1) as delete_cfg_patch:
-                        resp = await client.delete('/fledge/filter/{}'.format(filter_name))
-                        assert 200 == resp.status
-                        r = await resp.text()
-                        json_response = json.loads(r)
-                        assert {'result': 'Filter AssetFilter deleted successfully'} == json_response
+                        with patch.object(storage_client_mock, 'update_tbl', return_value=_rv3) as update_tbl_patch:
+                            resp = await client.delete('/fledge/filter/{}'.format(filter_name))
+                            assert 200 == resp.status
+                            r = await resp.text()
+                            json_response = json.loads(r)
+                            assert {'result': 'Filter AssetFilter deleted successfully'} == json_response
+                        args, kwargs = update_tbl_patch.call_args
+                        assert 'asset_tracker' == args[0]
                     args, kwargs = delete_cfg_patch.call_args
                     assert filter_name == args[1]
                 delete_tbl_patch.assert_called_once_with('filters', '{"where": {"column": "name", "condition": "=", "value": "AssetFilter"}}')

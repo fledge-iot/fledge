@@ -174,6 +174,11 @@ async def delete_service(request):
 
         # Delete schedule
         await server.Server.scheduler.delete_schedule(sch_id)
+
+        # update deprecated_ts entry in asset tracker
+        current_time = utils.local_timestamp()
+        update_payload = PayloadBuilder().SET(deprecated_ts=current_time).WHERE(['service', '=', svc]).payload()
+        await storage.update_tbl("asset_tracker", update_payload)
     except Exception as ex:
         raise web.HTTPInternalServerError(reason=str(ex))
     else:

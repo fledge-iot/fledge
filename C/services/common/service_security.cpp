@@ -293,6 +293,7 @@ bool ServiceAuthHandler::verifyService(const string& sName, const string &sType)
 	// Parse security config with lock
 	unique_lock<mutex> cfgLock(m_mtx_config);
 
+	// TODO make use of m_service_acl instead of category as per FOGL-6612
 	string acl;
 	if (this->m_security.itemExists("ACL"))
 	{
@@ -634,12 +635,15 @@ void ServiceAuthHandler::refreshBearerToken()
 	Logger::getLogger()->debug("Bearer token refresh thread starts for service '%s'",
 				this->getName().c_str());
 
-	int max_retries = 2;
-	time_t expires_in;
+	int max_retries = 10;
+	time_t expires_in = 0;
 	int k = 0;
+	bool tokenVerified = false;
+	string current_token;
 
 	// While server is running get bearer token
-	// and sleeps for expires_in - 10 seconds
+	// and sleeps for a few secods.
+	// When expires_in - 10 seconds is done
 	// then get new token and sleep again
 	while (this->isRunning())
 	{
@@ -648,54 +652,80 @@ void ServiceAuthHandler::refreshBearerToken()
 			string msg = "Bearer token not found for service '" + this->getName() +
 					" refresh thread exits after " + std::to_string(max_retries) + " retries";	
 			Logger::getLogger()->error(msg.c_str());
-			throw std::runtime_error(msg);
+
+			// Shutdown service
+			if (this->isRunning())
+			{
+				Logger::getLogger()->info("Shutting down service due to bearer token refresh error");
+				this->shutdown();
+				break;
+			}
 		}
 
-		bool tokenVerified = false;
-		// Fetch current bearer token
-		BearerToken bToken(m_mgtClient->getRegistrationBearerToken());
-		if (bToken.exists())
-		{
-			// Ask verification to core service nad get token claims
-			tokenVerified = m_mgtClient->verifyBearerToken(bToken);
-
-		}
-
-		// Give it a try in case of any error from core service
 		if (!tokenVerified)
 		{
-			k++;
-			Logger::getLogger()->error("Refreshing bearer token thread for service '%s' "
-						"got empty or invalid bearer token '%s', retry n. %d",
-						this->getName().c_str(),
-						bToken.token().c_str(),
-						k);
+			// Fetch current bearer token
+			BearerToken bToken(m_mgtClient->getRegistrationBearerToken());
+			if (bToken.exists())
+			{
+				// Ask verification to core service and get token claims
+				tokenVerified = m_mgtClient->verifyBearerToken(bToken);
 
-			// Sleep for some time
-			std::this_thread::sleep_for(std::chrono::seconds(30));
+			}
 
-			continue;
+			// Give it a try in case of any error from core service
+			if (!tokenVerified)
+			{
+				k++;
+				Logger::getLogger()->error("Refreshing bearer token thread for service '%s' "
+							"got empty or invalid bearer token '%s', retry n. %d",
+							this->getName().c_str(),
+							bToken.token().c_str(),
+							k);
+
+				// Sleep for some time
+				std::this_thread::sleep_for(std::chrono::seconds(1));
+
+				continue;
+			}
+
+			// Save verified token
+			current_token = bToken.token();
+
+			// Token exists and it is valid, get expiration time
+			expires_in = bToken.getExpiration() -1700 - time(NULL) - 10;
+
+			Logger::getLogger()->debug("Bearer token refresh will be called in "
+						"%ld seconds, service '%s'",
+						expires_in,
+						this->getName().c_str());
 		}
 
-		// Token exists and it is valid, get expiration time
-		expires_in = bToken.getExpiration() - time(NULL) - 10;
-
-		Logger::getLogger()->debug("Bearer token refresh thread sleeps "
-					"for %ld seconds, service '%s'",
-					expires_in,
-					this->getName().c_str());
-
-		// Thread sleeps for the given amount of time
-		std::this_thread::sleep_for(std::chrono::seconds(expires_in));
+		// Check the expiration time is done
+		if (expires_in > 0)
+		{
+			// Thread sleeps for a few seconds
+			std::this_thread::sleep_for(std::chrono::seconds(10));
+			expires_in -= 10;
+			continue;
+		}
 
 		Logger::getLogger()->debug("Bearer token refresh thread calls "
 					"token refresh endpoint for service '%s'",
 					this->getName().c_str());
 
+		// A shutdown maybe is set, since last check: check it now
+		// refresh_token core API endpoint
+		if (!this->isRunning())
+		{
+			Logger::getLogger()->info("Service is being shut down: refresh token thread exits");
+			break;
+		}
+
 		// Get a new bearer token for this service via
 		// refresh_token core API endpoint
 		string newToken;
-		bool ret = m_mgtClient->refreshBearerToken(bToken.token(), newToken);
+		bool ret = m_mgtClient->refreshBearerToken(current_token, newToken);
 		if (ret)
 		{
 			Logger::getLogger()->debug("Bearer token refresh thread has got "
@@ -705,15 +735,22 @@ void ServiceAuthHandler::refreshBearerToken()
 
 			// Store new bearer token
 			m_mgtClient->setNewBearerToken(newToken);
+
+			// Next loop will veryfy token
+			tokenVerified = false;
 		}
 		else
 		{
+			k++;
 			string msg = "Failed to get a new token "
 				"via refresh API call for service '" + this->getName() + "'";
 			Logger::getLogger()->fatal("%s, current token is '%s'",
 					msg.c_str(),
-					bToken.token().c_str());
-			throw std::runtime_error(msg);
+					current_token.c_str());
+			// Sleep for some time
+			std::this_thread::sleep_for(std::chrono::seconds(1));
+
+			continue;
 		}
 	}
 

@@ -43,6 +43,7 @@ async def get_asset_tracker_events(request: web.Request) -> web.Response:
     """
     payload = PayloadBuilder().SELECT("asset", "event", "service", "fledge", "plugin", "ts", "deprecated_ts") \
         .ALIAS("return", ("ts", 'timestamp')).FORMAT("return", ("ts", "YYYY-MM-DD HH24:MI:SS.MS")) \
+        .ALIAS("return", ("deprecated_ts", 'deprecatedTimestamp')) \
         .WHERE(['1', '=', 1])
     if 'asset' in request.query and request.query['asset'] != '':
         asset = urllib.parse.unquote(request.query['asset'])

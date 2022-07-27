@@ -656,7 +656,8 @@ void ServiceAuthHandler::refreshBearerToken()
 			// Shutdown service
 			if (this->isRunning())
 			{
-				Logger::getLogger()->info("Shutting down service due to bearer token refresh error");
+				Logger::getLogger()->warn("Service is being shut down " \
+						"due to bearer token refresh error");
 				this->shutdown();
 				break;
 			}

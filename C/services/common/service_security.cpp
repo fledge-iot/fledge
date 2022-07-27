@@ -684,7 +684,7 @@ void ServiceAuthHandler::refreshBearerToken()
 							bToken.token().c_str(),
 							k);
 
-				// Sleep for some time
+				// Sleep for 1 second
 				std::this_thread::sleep_for(std::chrono::seconds(1));
 
 				continue;
@@ -705,7 +705,7 @@ void ServiceAuthHandler::refreshBearerToken()
 		// Check the expiration time is done
 		if (expires_in > 0)
 		{
-			// Thread sleeps for a few seconds
+			// Thread sleeps for a few seconds, so it can get shutdown indicator
 			std::this_thread::sleep_for(std::chrono::seconds(10));
 			expires_in -= 10;
 			continue;
@@ -747,9 +747,10 @@ void ServiceAuthHandler::refreshBearerToken()
 			k++;
 			string msg = "Failed to get a new token "
 				"via refresh API call for service '" + this->getName() + "'";
-			Logger::getLogger()->fatal("%s, current token is '%s'",
+			Logger::getLogger()->fatal("%s, current token is '%s', retry n. %d",
 					msg.c_str(),
-					current_token.c_str());
+					current_token.c_str(),
+					k);
 			// Sleep for some time
 			std::this_thread::sleep_for(std::chrono::seconds(1));
 

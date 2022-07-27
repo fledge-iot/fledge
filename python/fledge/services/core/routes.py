@@ -135,7 +135,9 @@ def setup(app):
     browser.setup(app)
 
     # asset tracker
-    app.router.add_route('GET', '/fledge/track', asset_tracker.get_asset_tracker_events)
+    app.router.add_route('GET',    '/fledge/track', asset_tracker.get_asset_tracker_events)
+    app.router.add_route('PUT',    '/fledge/track/service/{service}/asset/{asset}/event/{event}',
+                         asset_tracker.deprecate_asset_track_entry)
 
     # Statistics - As per doc
     app.router.add_route('GET', '/fledge/statistics', api_statistics.get_statistics)

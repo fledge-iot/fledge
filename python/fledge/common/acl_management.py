@@ -10,9 +10,12 @@ _logger = logger.setup(__name__, level=logging.DEBUG)
 
 
 class ACLManagement(object):
-    def __init__(self):
-        from fledge.services.core import connect
-        self._storage_client = connect.get_storage_async()
+    def __init__(self, given_client=None):
+        if not given_client:
+            from fledge.services.core import connect
+            self._storage_client = connect.get_storage_async()
+        else:
+            self._storage_client = given_client
 
     def _notify_service_about_acl_change(self, entity_name, acl, reason):
         """Helper function that sends the ACL change to the respective service. """

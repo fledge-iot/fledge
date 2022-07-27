@@ -167,7 +167,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             self._cacheManager = ConfigurationCache()
 
         if self._acl_handler is None:
-            self._acl_handler = ACLManagement()
+            self._acl_handler = ACLManagement(storage)
 
     async def _run_callbacks(self, category_name):
         callbacks = self._registered_interests.get(category_name)

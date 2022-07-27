@@ -694,7 +694,7 @@ void ServiceAuthHandler::refreshBearerToken()
 			current_token = bToken.token();
 
 			// Token exists and it is valid, get expiration time
-			expires_in = bToken.getExpiration() -1700 - time(NULL) - 10;
+			expires_in = bToken.getExpiration() - time(NULL) - 10;
 
 			Logger::getLogger()->debug("Bearer token refresh will be called in "
 						"%ld seconds, service '%s'",

@@ -15,6 +15,26 @@ string expected("{ \"where\" : { \"column\" : \"c1\", \"condition\" : \"=\", \"v
 	ASSERT_EQ(json.compare(expected), 0);
 }
 
+TEST(QueryTest, IsNull)
+{
+Query query(new Where("c1", IsNull));
+string json;
+string expected("{ \"where\" : { \"column\" : \"c1\", \"condition\" : \"isnull\" } }");
+
+	json = query.toJSON();
+	ASSERT_STREQ(json.c_str(), expected.c_str());
+}
+
+TEST(QueryTest, NotNull)
+{
+Query query(new Where("c1", NotNull));
+string json;
+string expected("{ \"where\" : { \"column\" : \"c1\", \"condition\" : \"notnull\" } }");
+
+	json = query.toJSON();
+	ASSERT_STREQ(json.c_str(), expected.c_str());
+}
+
 TEST(QueryTest, And)
 {
 Query query2(new Where("c1", Equals, "10", new Where("c2", LessThan, "15")));

@@ -13,7 +13,7 @@ from typing import List, Dict, Tuple
 from fledge.common.configuration_manager import ConfigurationManager
 from fledge.services.core import connect
 from fledge.services.core.api import utils as apiutils
-from fledge.common import logger
+from fledge.common import logger, utils
 from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.common.storage_client.exceptions import StorageServerError
 from fledge.common.storage_client.storage_client import StorageClientAsync
@@ -406,6 +406,12 @@ async def delete_filter(request: web.Request) -> web.Response:
 
         # Delete configuration for filter
         await _delete_configuration_category(storage, filter_name)
+
+        # update deprecated_ts entry in asset tracker
+        current_time = utils.local_timestamp()
+        update_payload = PayloadBuilder().SET(deprecated_ts=current_time).WHERE(
+            ['plugin', '=', filter_name]).payload()
+        await storage.update_tbl("asset_tracker", update_payload)
     except StorageServerError as ex:
         _LOGGER.exception("Delete filter: %s, caught exception: %s", filter_name, str(ex.error))
         raise web.HTTPInternalServerError(reason=str(ex.error))

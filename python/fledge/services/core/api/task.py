@@ -325,6 +325,11 @@ async def delete_task(request):
         await delete_streams(storage, north_instance)
         await delete_plugin_data(storage, north_instance)
 
+        # update deprecated_ts entry in asset tracker
+        current_time = utils.local_timestamp()
+        update_payload = PayloadBuilder().SET(deprecated_ts=current_time).WHERE(
+            ['service', '=', north_instance]).payload()
+        await storage.update_tbl("asset_tracker", update_payload)
     except Exception as ex:
         raise web.HTTPInternalServerError(reason=ex)
     else:

@@ -319,17 +319,13 @@ async def delete_task(request):
         config_mgr = ConfigurationManager(storage)
         await config_mgr.delete_category_and_children_recursively(north_instance)
 
-        # delete statistics key
+        # delete statistics key, streams, plugin data
         await delete_statistics_key(storage, north_instance)
-
         await delete_streams(storage, north_instance)
         await delete_plugin_data(storage, north_instance)
+        # update deprecated timestamp in asset_tracker
+        await update_deprecated_ts_in_asset_tracker(storage, north_instance)
 
-        # update deprecated_ts entry in asset tracker
-        current_time = utils.local_timestamp()
-        update_payload = PayloadBuilder().SET(deprecated_ts=current_time).WHERE(
-            ['service', '=', north_instance]).payload()
-        await storage.update_tbl("asset_tracker", update_payload)
     except Exception as ex:
         raise web.HTTPInternalServerError(reason=ex)
     else:
@@ -363,10 +359,19 @@ async def delete_task_entry_with_schedule_id(storage, sch_id):
     payload = PayloadBuilder().WHERE(["schedule_id", "=", str(sch_id)]).payload()
     await storage.delete_from_tbl("tasks", payload)
 
+
 async def delete_streams(storage, north_instance):
     payload = PayloadBuilder().WHERE(["description", "=", north_instance]).payload()
     await storage.delete_from_tbl("streams", payload)
 
+
 async def delete_plugin_data(storage, north_instance):
     payload = PayloadBuilder().WHERE(["key", "like", north_instance + "%"]).payload()
     await storage.delete_from_tbl("plugin_data", payload)
+
+
+async def update_deprecated_ts_in_asset_tracker(storage, north_instance):
+    current_time = utils.local_timestamp()
+    update_payload = PayloadBuilder().SET(deprecated_ts=current_time).WHERE(
+        ['service', '=', north_instance]).payload()
+    await storage.update_tbl("asset_tracker", update_payload)

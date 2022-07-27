@@ -169,30 +169,36 @@ async def delete_service(request):
         except service_registry_exceptions.DoesNotExist:
             pass
 
+        # Delete streams and plugin data
         await delete_streams(storage, svc)
         await delete_plugin_data(storage, svc)
 
         # Delete schedule
         await server.Server.scheduler.delete_schedule(sch_id)
 
-        # update deprecated_ts entry in asset tracker
-        current_time = utils.local_timestamp()
-        update_payload = PayloadBuilder().SET(deprecated_ts=current_time).WHERE(['service', '=', svc]).payload()
-        await storage.update_tbl("asset_tracker", update_payload)
+        # Update deprecated timestamp in asset_tracker
+        await update_deprecated_ts_in_asset_tracker(storage, svc)
     except Exception as ex:
         raise web.HTTPInternalServerError(reason=str(ex))
     else:
         return web.json_response({'result': 'Service {} deleted successfully.'.format(svc)})
 
 
-async def delete_streams(storage, north_instance):
-    payload = PayloadBuilder().WHERE(["description", "=", north_instance]).payload()
+async def delete_streams(storage, svc):
+    payload = PayloadBuilder().WHERE(["description", "=", svc]).payload()
     await storage.delete_from_tbl("streams", payload)
 
 
-async def delete_plugin_data(storage, north_instance):
-    payload = PayloadBuilder().WHERE(["key", "like", north_instance + "%"]).payload()
+async def delete_plugin_data(storage, svc):
+    payload = PayloadBuilder().WHERE(["key", "like", svc + "%"]).payload()
     await storage.delete_from_tbl("plugin_data", payload)
+
+
+async def update_deprecated_ts_in_asset_tracker(storage, svc):
+    current_time = utils.local_timestamp()
+    update_payload = PayloadBuilder().SET(deprecated_ts=current_time).WHERE(
+        ['service', '=', svc]).payload()
+    await storage.update_tbl("asset_tracker", update_payload)
 
 
 async def add_service(request):

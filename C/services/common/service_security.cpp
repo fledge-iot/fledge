@@ -710,17 +710,19 @@ void ServiceAuthHandler::refreshBearerToken()
 			continue;
 		}
 
-		Logger::getLogger()->debug("Bearer token refresh thread calls "
-					"token refresh endpoint for service '%s'",
-					this->getName().c_str());
-
 		// A shutdown maybe is set, since last check: check it now
 		// refresh_token core API endpoint
 		if (!this->isRunning())
 		{
-			Logger::getLogger()->info("Service is being shut down: refresh token thread exits");
+			Logger::getLogger()->info("Service is being shut down: " \
+						"refresh thread does not call " \
+						"refresh endpoint and exits now");
 			break;
 		}
+
+		Logger::getLogger()->debug("Bearer token refresh thread calls "
+					"token refresh endpoint for service '%s'",
+					this->getName().c_str());
 
 		// Get a new bearer token for this service via
 		// refresh_token core API endpoint

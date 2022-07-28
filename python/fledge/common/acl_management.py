@@ -82,7 +82,7 @@ class ACLManagement(object):
                 err_response = ex.error
                 raise ValueError(err_response)
 
-    async def handle_delete_for_acl_usage(self, entity_name, acl_name, entity_type):
+    async def handle_delete_for_acl_usage(self, entity_name, acl_name, entity_type, notify_service=True):
         _logger.info("delete acl usage called for {} {} {}".format(entity_name, acl_name, entity_type))
 
         if entity_type == "service":
@@ -97,7 +97,10 @@ class ACLManagement(object):
                 response = result['response']
                 _logger.info("The response payload is {}".format(response))
 
-                await self._notify_service_about_acl_change(entity_name, acl_name, "detachACL")
+                if notify_service:
+                    await self._notify_service_about_acl_change(entity_name,
+                                                                acl_name,
+                                                                "detachACL")
             except KeyError:
                 raise ValueError(result['message'])
             except StorageServerError as ex:

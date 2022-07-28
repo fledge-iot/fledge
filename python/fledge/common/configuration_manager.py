@@ -1407,7 +1407,10 @@ class ConfigurationManager(ConfigurationManagerSingleton):
 
             is_acl, _, found_cat_name, acl_value = await self.search_for_ACL_single(cat)
             if is_acl:
-                await self._acl_handler.handle_delete_for_acl_usage(found_cat_name, acl_value, "service")
+                await self._acl_handler.handle_delete_for_acl_usage(found_cat_name,
+                                                                    acl_value,
+                                                                    "service",
+                                                                    notify_service=False)
             # Remove cat as child from parent-child relation.
             payload = PayloadBuilder().WHERE(["child", "=", cat]).payload()
             result = await self._storage.delete_from_tbl("category_children", payload)

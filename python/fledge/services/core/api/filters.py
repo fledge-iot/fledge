@@ -407,11 +407,25 @@ async def delete_filter(request: web.Request) -> web.Response:
         # Delete configuration for filter
         await _delete_configuration_category(storage, filter_name)
 
-        # update deprecated_ts entry in asset tracker
-        current_time = utils.local_timestamp()
-        update_payload = PayloadBuilder().SET(deprecated_ts=current_time).WHERE(
-            ['plugin', '=', filter_name]).payload()
-        await storage.update_tbl("asset_tracker", update_payload)
+        # Update deprecated timestamp in asset_tracker
+        """
+        TODO: FOGL-6749
+        Once rows affected with 0 case handled at Storage side
+        then we will need to update the query with AND_WHERE(['deprecated_ts', 'isnull'])
+        At the moment deprecated_ts is updated even in notnull case.
+        Also added SELECT query before UPDATE to avoid BadCase when there is no asset track entry exists for the filter.
+        This should also be removed when given JIRA is fixed.
+        """
+        select_payload = PayloadBuilder().SELECT("deprecated_ts").WHERE(['plugin', '=', filter_name]).payload()
+        get_result = await storage.query_tbl_with_payload('asset_tracker', select_payload)
+        if 'rows' in get_result:
+            response = get_result['rows']
+            if response:
+                # AND_WHERE(['deprecated_ts', 'isnull']) once FOGL-6749 is done
+                current_time = utils.local_timestamp()
+                update_payload = PayloadBuilder().SET(deprecated_ts=current_time).WHERE(
+                    ['plugin', '=', filter_name]).payload()
+                await storage.update_tbl("asset_tracker", update_payload)
     except StorageServerError as ex:
         _LOGGER.exception("Delete filter: %s, caught exception: %s", filter_name, str(ex.error))
         raise web.HTTPInternalServerError(reason=str(ex.error))

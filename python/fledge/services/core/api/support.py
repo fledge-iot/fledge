@@ -19,6 +19,8 @@ from fledge.common import logger
 from fledge.common.common import _FLEDGE_ROOT, _FLEDGE_DATA
 from fledge.services.core.support import SupportBuilder
 
+from fledge.common.common import _FLEDGE_ROOT
+
 __author__ = "Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
@@ -30,9 +32,7 @@ _SYSLOG_FILE = '/var/log/syslog'
 if any(x in platform.platform() for x in ['centos', 'redhat']):
     _SYSLOG_FILE = '/var/log/messages'
 
-# FLEDGE_ROOT env variable
-_FLEDGE_ROOT = os.getenv("FLEDGE_ROOT", default='/usr/local/fledge')
-_SCRIPTS_DIR = os.path.expanduser(_FLEDGE_ROOT + '/scripts')
+_SCRIPTS_DIR = "{}/scripts".format(_FLEDGE_ROOT)
 
 __DEFAULT_LIMIT = 20
 __DEFAULT_OFFSET = 0
@@ -165,7 +165,6 @@ async def get_syslog_entries(request):
         # Get filtered lines
         template = __GET_SYSLOG_CMD_TEMPLATE
         lines = __GET_SYSLOG_TOTAL_MATCHED_LINES
-        non_total_template = __GET_SYSLOG_TEMPLATE_WITH_NON_TOTALS
 
         levels = ""
         level = "debug"
@@ -177,17 +176,14 @@ async def get_syslog_entries(request):
             if level == 'info':
                 template = __GET_SYSLOG_CMD_WITH_INFO_TEMPLATE
                 lines = __GET_SYSLOG_INFO_MATCHED_LINES
-                non_total_template = __GET_SYSLOG_INFO_TEMPLATE_WITH_NON_TOTALS
                 levels = "(INFO|WARNING|ERROR|FATAL)"
             elif level == 'warning':
                 template = __GET_SYSLOG_CMD_WITH_WARNING_TEMPLATE
                 lines = __GET_SYSLOG_WARNING_MATCHED_LINES
-                non_total_template = __GET_SYSLOG_WARNING_TEMPLATE_WITH_NON_TOTALS
                 levels = "(WARNING|ERROR|FATAL)"
             elif level == 'error':
                 template = __GET_SYSLOG_CMD_WITH_ERROR_TEMPLATE
                 lines = __GET_SYSLOG_ERROR_MATCHED_LINES
-                non_total_template = __GET_SYSLOG_ERROR_TEMPLATE_WITH_NON_TOTALS
                 levels = "(ERROR|FATAL)"
 
         response = {}
@@ -208,14 +204,14 @@ async def get_syslog_entries(request):
             # cmd = non_total_template.format(valid_source[source], _SYSLOG_FILE, offset, limit)
             pattern = '({})\[.*\].*{}:'.format(valid_source[source], levels)
             cmd = '{} -offset {} -limit {} -pattern \'{}\' -logfile {} -source {} -level {}'.format(scriptPath, offset, limit, pattern, _SYSLOG_FILE, source, level)
-            _logger.info('********* non_totals=true: new shell command: {}'.format(cmd))
+            _logger.debug('********* non_totals=true: new shell command: {}'.format(cmd))
 
         t1 = datetime.datetime.now()
-        a = subprocess.Popen([cmd], shell=True, stdout=subprocess.PIPE).stdout.readlines()
+        rv = subprocess.Popen([cmd], shell=True, stdout=subprocess.PIPE).stdout.readlines()
         t2 = datetime.datetime.now()
-        c = [b.decode() for b in a]  # Since "a" contains return value in bytes, convert it to string
-        _logger.info('********* Time taken for grep/tail/head subprocess: {} msec'.format((t2 - t1).total_seconds()*1000))
-        response['logs'] = c
+        rv_str = [b.decode() for b in a]  # Since "a" contains return value in bytes, convert it to string
+        _logger.debug('********* Time taken for grep/tail/head subprocess: {} msec'.format((t2 - t1).total_seconds()*1000))
+        response['logs'] = rv_str
     except ValueError as err:
         msg = str(err)
         raise web.HTTPBadRequest(body=json.dumps({"message": msg}), reason=msg)

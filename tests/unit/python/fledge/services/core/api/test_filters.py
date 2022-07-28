@@ -430,6 +430,11 @@ class TestFilters:
                 assert {"where": {"column": "name", "condition": "=", "value": filter_name}} == json.loads(payload)
                 return {'count': 0, 'rows': []}
 
+            if table == 'asset_tracker':
+                assert {"return": ["deprecated_ts"],
+                        "where": {"column": "plugin", "condition": "=", "value": filter_name}} == json.loads(payload)
+                return {'count': 1, 'rows': [{'deprecated_ts': ''}]}
+
         filter_name = "AssetFilter"
         delete_result = {'response': 'deleted', 'rows_affected': 1}
         update_result = {'rows_affected': 1, "response": "updated"}

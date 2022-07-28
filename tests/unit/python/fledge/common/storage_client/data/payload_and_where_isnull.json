@@ -1,0 +1,11 @@
+{
+  "where": {
+  "and": {
+    "column": "deprecated_ts",
+    "condition": "isnull"
+  },
+  "column": "event",
+  "condition": "=",
+  "value": "Ingest"
+  }
+}

@@ -1277,6 +1277,7 @@ void loadSentDataTypes(CONNECTOR_INFO* connInfo,
 	}
 	else
 	{
+		Logger::getLogger()->warn("Persisted data is not of the correct format, ignoring");
 		OMFDataTypes dataType;
 		dataType.typeId = connInfo->typeId;
 		dataType.types = "{}";

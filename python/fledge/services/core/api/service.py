@@ -195,6 +195,12 @@ async def delete_plugin_data(storage, svc):
 
 
 async def update_deprecated_ts_in_asset_tracker(storage, svc):
+    """
+    TODO: FOGL-6749 Once rows affected with 0 case handled at Storage side
+          then we will update query with AND_WHERE(['deprecated_ts', 'isnull'])
+          At the moment deprecated_ts is updated even in notnull case.
+          And we do not want to add expensive calls or workaround to restrict the UPDATE.
+    """
     current_time = utils.local_timestamp()
     update_payload = PayloadBuilder().SET(deprecated_ts=current_time).WHERE(
         ['service', '=', svc]).payload()

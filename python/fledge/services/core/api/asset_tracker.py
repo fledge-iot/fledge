@@ -86,6 +86,7 @@ async def deprecate_asset_track_entry(request: web.Request) -> web.Response:
     event_name = request.match_info.get('event', None)
     try:
         storage_client = connect.get_storage_async()
+        # TODO: FOGL-6749 Once rows affected with 0 case handled at Storage side then we can remove SELECT call
         select_payload = PayloadBuilder().SELECT("deprecated_ts").WHERE(
             ['service', '=', svc_name]).AND_WHERE(['asset', '=', asset_name]).AND_WHERE(
             ['event', '=', event_name]).payload()

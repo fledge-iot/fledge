@@ -407,6 +407,7 @@ class TestACLManagement:
         cat_child_result = {"children": [security_cat_name]}
         message = "ACL with name {} attached to {} service successfully.".format(acl_name, svc_name)
 
+        acl_dict = {'ACL': acl_name}
         @asyncio.coroutine
         def q_result(*args):
             table = args[0]
@@ -422,9 +423,12 @@ class TestACLManagement:
         if sys.version_info >= (3, 8):
             cat_value = await mock_coro(None)
             cat_child_value = await mock_coro(cat_child_result)
+            update_bulk_value = await mock_coro(None)
         else:
             cat_value = asyncio.ensure_future(mock_coro(None))
             cat_child_value = asyncio.ensure_future(mock_coro(cat_child_result))
+            update_bulk_value = asyncio.ensure_future(mock_coro(None))
+
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
@@ -433,12 +437,15 @@ class TestACLManagement:
                     with patch.object(c_mgr, 'create_category', return_value=cat_value) as patch_create_cat:
                         with patch.object(c_mgr, 'create_child_category',
                                           return_value=cat_child_value) as patch_create_child_cat:
-                            resp = await client.put('/fledge/service/{}/ACL'.format(svc_name),
-                                                    data=json.dumps(req_payload))
-                            assert 200 == resp.status
-                            result = await resp.text()
-                            json_response = json.loads(result)
-                            assert {'message': message} == json_response
+                            with patch.object(c_mgr, 'update_configuration_item_bulk',
+                                              return_value=update_bulk_value) as patch_update_bulk:
+                                resp = await client.put('/fledge/service/{}/ACL'.format(svc_name),
+                                                        data=json.dumps(req_payload))
+                                assert 200 == resp.status
+                                result = await resp.text()
+                                json_response = json.loads(result)
+                                assert {'message': message} == json_response
+                            patch_update_bulk.assert_called_once_with(security_cat_name, acl_dict)
                         patch_create_child_cat.assert_called_once_with(svc_name, [security_cat_name])
                         patch_create_cat.assert_called()
                 patch_get_all_items.assert_called_once_with(security_cat_name)
@@ -504,23 +511,30 @@ class TestACLManagement:
         sch_result = {"count": 1, "rows": [{"id": "3e84f179-874d-4a91-a524-15512172f8a2", "enabled": "true"}]}
         cat_result = {"a": 1}
         message = "ACL is detached from {} service successfully.".format(svc_name)
+        acl_dict = {'ACL': ''}
+
         if sys.version_info >= (3, 8):
             cat_value = await mock_coro(cat_result)
             sch_value = await mock_coro(sch_result)
+            update_bulk_value = await mock_coro(None)
         else:
             cat_value = asyncio.ensure_future(mock_coro(cat_result))
             sch_value = asyncio.ensure_future(mock_coro(sch_result))
+            update_bulk_value = asyncio.ensure_future(mock_coro(None))
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=sch_value) as patch_query_tbl:
                 with patch.object(c_mgr, 'get_category_all_items', return_value=cat_value) as patch_get_all_items:
                     with patch.object(c_mgr, 'create_category', return_value=cat_value) as patch_create_cat:
-                        resp = await client.delete('/fledge/service/{}/ACL'.format(svc_name))
-                        assert 200 == resp.status
-                        result = await resp.text()
-                        json_response = json.loads(result)
-                        assert {'message': message} == json_response
+                        with patch.object(c_mgr, 'update_configuration_item_bulk',
+                                          return_value=update_bulk_value) as patch_update_bulk:
+                            resp = await client.delete('/fledge/service/{}/ACL'.format(svc_name))
+                            assert 200 == resp.status
+                            result = await resp.text()
+                            json_response = json.loads(result)
+                            assert {'message': message} == json_response
+                        patch_update_bulk.assert_called_once_with(security_cat, acl_dict)
                     patch_create_cat.assert_called_once_with(category_description='Security category for foo service',
                                                              category_name=security_cat,
                                                              category_value=expected_result)

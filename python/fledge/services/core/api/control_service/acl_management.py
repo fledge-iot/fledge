@@ -334,7 +334,7 @@ async def attach_acl_to_service(request: web.Request) -> web.Response:
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         # Call service security endpoint with attachACL = acl_name
-        data = {'ACL' : acl_name}
+        data = {'ACL': acl_name}
         await cf_mgr.update_configuration_item_bulk(security_cat_name, data)
         
         return web.json_response({"message": "ACL with name {} attached to {} service successfully.".format(
@@ -376,7 +376,7 @@ async def detach_acl_from_service(request: web.Request) -> web.Response:
                     }
                 }
             # Call service security endpoint with detachACL = ''
-            data = {'ACL' : ''}
+            data = {'ACL': ''}
             await cf_mgr.update_configuration_item_bulk(security_cat_name, data)
 
             # Set new content without ACL item

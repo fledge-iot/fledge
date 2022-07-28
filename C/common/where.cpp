@@ -61,32 +61,42 @@ ostringstream json;
 	case In:
 		json << "in";
 		break;
+	case IsNull:
+		json << "isnull";
+		break;
+	case NotNull:
+		json << "notnull";
+		break;
 	}
-	json << "\", ";
+	json << "\"";
 
-	if ( (m_condition == Older) || (m_condition == Newer) )
+	if (m_condition != IsNull && m_condition != NotNull)
 	{
-		json << "\"value\" : " << m_value << "";
-
-	}
-	else if (m_condition != In)
-	{
-		json << "\"value\" : \"" << m_value << "\"";
-	}
-	else
-	{
-		json << "\"value\" : [";
-		for (auto v = m_in.begin();
-		     v != m_in.end();
-		     ++v)
+		json << ", ";
+		if ( (m_condition == Older) || (m_condition == Newer) )
 		{
-			json << "\"" << *v << "\"";
-			if (next(v, 1) != m_in.end())
-			{
-				json << ", ";
-			}
+			json << "\"value\" : " << m_value << "";
+
 		}
-		json << "]";
+		else if (m_condition != In)
+		{
+			json << "\"value\" : \"" << m_value << "\"";
+		}
+		else
+		{
+			json << "\"value\" : [";
+			for (auto v = m_in.begin();
+			     v != m_in.end();
+			     ++v)
+			{
+				json << "\"" << *v << "\"";
+				if (next(v, 1) != m_in.end())
+				{
+					json << ", ";
+				}
+			}
+			json << "]";
+		}
 	}
 
 	if (m_and || m_or)

@@ -207,11 +207,11 @@ async def get_syslog_entries(request):
             _logger.debug('********* non_totals=true: new shell command: {}'.format(cmd))
 
         t1 = datetime.datetime.now()
-        rv = subprocess.Popen([cmd], shell=True, stdout=subprocess.PIPE).stdout.readlines()
+        a = subprocess.Popen([cmd], shell=True, stdout=subprocess.PIPE).stdout.readlines()
         t2 = datetime.datetime.now()
-        rv_str = [b.decode() for b in a]  # Since "a" contains return value in bytes, convert it to string
+        c = [b.decode() for b in a]  # Since "a" contains return value in bytes, convert it to string
         _logger.debug('********* Time taken for grep/tail/head subprocess: {} msec'.format((t2 - t1).total_seconds()*1000))
-        response['logs'] = rv_str
+        response['logs'] = c
     except ValueError as err:
         msg = str(err)
         raise web.HTTPBadRequest(body=json.dumps({"message": msg}), reason=msg)

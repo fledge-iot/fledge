@@ -44,6 +44,14 @@ bool ServiceAuthHandler::createSecurityCategories(ManagementClient* mgtClient, b
 	defConfigSecurity.setItemDisplayName("AuthenticatedCaller",
 				"Enable caller authorisation");
 
+	defConfigSecurity.addItem("ACL",
+				"Service ACL for " + m_name,
+				"ACL",
+				"",
+				"");
+	defConfigSecurity.setItemDisplayName("ACL",
+				"Service ACL");
+
 	// Create/Update category name (we pass keep_original_items=true)
 	mgtClient->addCategory(defConfigSecurity, true);
 

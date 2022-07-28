@@ -51,28 +51,18 @@ class ACLManagement(object):
 
         if entity_type == "service":
             try:
-                q_payload = PayloadBuilder().WHERE(["entity_type", "=", "service"]). \
+                del_payload = PayloadBuilder().WHERE(["entity_type", "=", "service"]). \
                     AND_WHERE(["entity_name", "=", entity_name]).payload()
-                results = await self._storage_client.query_tbl_with_payload('acl_usage', q_payload)
-                if len(results['rows']) > 0:
-                    _logger.info("Value already exists need to update")
-                    required_name = acl_name
-                    payload_update = PayloadBuilder().WHERE(["entity_type", "=", "service"]).\
-                        AND_WHERE(["entity_name", "=", entity_name]).\
-                        EXPR(["name", "=", required_name]).payload()
-                    _logger.info("update payload is {}".format(payload_update))
-                    result = await self._storage_client.update_tbl("acl_usage", payload_update)
-                    response = result['response']
-                else:
-                    _logger.info("Value does not  exists need to insert.")
-                    payload = PayloadBuilder().INSERT(entity_name=entity_name,
-                                                      entity_type="service",
-                                                      name=acl_name).payload()
-                    _logger.info("insert payload is {}".format(payload))
-                    result = await self._storage_client.insert_into_tbl("acl_usage", payload)
-                    response = result['response']
+                result = await self._storage_client.delete_from_tbl('acl_usage', del_payload)
 
-                await self._notify_service_about_acl_change(entity_name, required_name, "reloadACL")
+                payload = PayloadBuilder().INSERT(entity_name=entity_name,
+                                                  entity_type="service",
+                                                  name=acl_name).payload()
+                _logger.info("insert payload is {}".format(payload))
+                result = await self._storage_client.insert_into_tbl("acl_usage", payload)
+                response = result['response']
+
+                await self._notify_service_about_acl_change(entity_name, acl_name, "reloadACL")
             except KeyError:
                 raise ValueError(result['message'])
             except StorageServerError as ex:
@@ -101,8 +91,11 @@ class ACLManagement(object):
                 # in a category.
                 delete_payload = PayloadBuilder().WHERE(["entity_name", "=", entity_name]). \
                     AND_WHERE(["entity_type", "=", "service"]).payload()
+                _logger.info("The delete payload is {}".format(delete_payload))
+
                 result = await self._storage_client.delete_from_tbl("acl_usage", delete_payload)
                 response = result['response']
+                _logger.info("The response payload is {}".format(response))
 
                 await self._notify_service_about_acl_change(entity_name, acl_name, "detachACL")
             except KeyError:

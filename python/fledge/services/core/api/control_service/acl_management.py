@@ -16,6 +16,7 @@ from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.common.web.middleware import has_permission
 from fledge.services.core import connect
 from fledge.services.core.api.control_service.exceptions import *
+from fledge.common.acl_management import ACLManagement
 
 
 __author__ = "Ashish Jabble, Massimiliano Pinto"
@@ -207,6 +208,18 @@ async def update_acl(request: web.Request) -> web.Response:
         message = str(ex)
         raise web.HTTPInternalServerError(reason=message, body=json.dumps({"message": message}))
     else:
+        # Fetch service name associated with acl
+        q_payload = PayloadBuilder().SELECT("name", "entity_name", "entity_type"). \
+                    WHERE(["name", "=", name]). \
+                    AND_WHERE(["entity_type", "=", "service"]).payload()
+        results = await storage.query_tbl_with_payload('acl_usage', q_payload)
+        if len(results["rows"]) > 0:
+            # Call service security endpoint with attachACL = acl_name
+            service_name = results["rows"][0]["entity_name"]
+            if service_name != "":
+                acl_handler = ACLManagement(storage)
+                await acl_handler._notify_service_about_acl_change(service_name, name, "reloadACL")
+
         return web.json_response({"message": message})
 
 

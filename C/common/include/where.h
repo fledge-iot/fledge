@@ -11,6 +11,7 @@
  */
 #include <string>
 #include <vector>
+#include <stdexcept>
 
 typedef enum Conditional {
 	Older,
@@ -19,7 +20,9 @@ typedef enum Conditional {
 	NotEquals,
 	GreaterThan,
 	LessThan,
-	In
+	In,
+	IsNull,
+	NotNull
 } Condition;
 
 /**
@@ -49,6 +52,22 @@ class Where {
 			else
 			{
 				m_in.push_back(value);
+			}
+		};
+		Where(const std::string& column, const Condition condition) :
+				m_column(column), m_condition(condition), m_and(0), m_or(0)
+		{
+			if (condition != IsNull && condition != NotNull)
+			{
+				throw std::runtime_error("Missing value in where clause");
+			}
+		};
+		Where(const std::string& column, const Condition condition, Where *andCondition) :
+				m_column(column), m_condition(condition), m_and(andCondition), m_or(0)
+		{
+			if (condition != IsNull && condition != NotNull)
+			{
+				throw std::runtime_error("Missing value in where clause");
 			}
 		};
 		~Where();

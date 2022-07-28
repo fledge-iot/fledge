@@ -79,8 +79,12 @@ async def add(request: web.Request) -> web.Response:
             msg = "{} key already exist.".format(key)
             return web.HTTPConflict(reason=msg, body=json.dumps({"message": msg}))
         data = await request.json()
-        payload = PayloadBuilder().INSERT(key=key, data=data)
-        await storage_client.insert_into_tbl('plugin_data', payload.payload())
+        data = data["data"]
+        if data is not None:
+            payload = PayloadBuilder().INSERT(key=key, data=data)
+            await storage_client.insert_into_tbl('plugin_data', payload.payload())
+        else:
+            raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": "Malformed data in payload"}))
     except KeyError as err:
         msg = str(err)
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))

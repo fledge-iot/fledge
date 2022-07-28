@@ -86,26 +86,29 @@ async def deprecate_asset_track_entry(request: web.Request) -> web.Response:
     event_name = request.match_info.get('event', None)
     try:
         storage_client = connect.get_storage_async()
-        select_payload = PayloadBuilder().SELECT("service").WHERE(
+        select_payload = PayloadBuilder().SELECT("deprecated_ts").WHERE(
             ['service', '=', svc_name]).AND_WHERE(['asset', '=', asset_name]).AND_WHERE(
             ['event', '=', event_name]).payload()
         get_result = await storage_client.query_tbl_with_payload('asset_tracker', select_payload)
         if 'rows' in get_result:
             response = get_result['rows']
             if response:
-                # Update deprecated ts column entry
-                current_time = common_utils.local_timestamp()
-                update_payload = PayloadBuilder().SET(deprecated_ts=current_time).WHERE(
-                    ['service', '=', svc_name]).AND_WHERE(['asset', '=', asset_name]).AND_WHERE(
-                    ['event', '=', event_name]).payload()
-                update_result = await storage_client.update_tbl("asset_tracker", update_payload)
-                if 'response' in update_result:
-                    response = update_result['response']
-                    if response != 'updated':
-                        raise KeyError('Update failure in asset tracker for service: {} asset: {} event: {}'.format(
-                            svc_name, asset_name, event_name))
+                if response[0]['deprecated_ts'] == "":
+                    # Update deprecated_ts column entry
+                    current_time = common_utils.local_timestamp()
+                    update_payload = PayloadBuilder().SET(deprecated_ts=current_time).WHERE(
+                        ['service', '=', svc_name]).AND_WHERE(['asset', '=', asset_name]).AND_WHERE(
+                        ['event', '=', event_name]).AND_WHERE(['deprecated_ts', 'isnull']).payload()
+                    update_result = await storage_client.update_tbl("asset_tracker", update_payload)
+                    if 'response' in update_result:
+                        response = update_result['response']
+                        if response != 'updated':
+                            raise KeyError('Update failure in asset tracker for service: {} asset: {} event: {}'.format(
+                                svc_name, asset_name, event_name))
+                    else:
+                        raise StorageServerError
                 else:
-                    raise StorageServerError
+                    raise KeyError('Asset record already deprecated.')
             else:
                 raise ValueError('No record found in asset tracker for given service: {} asset: {} event: {}'.format(
                     svc_name, asset_name, event_name))

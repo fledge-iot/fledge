@@ -896,7 +896,8 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             # Validations on the basis of optional attributes
             self._validate_value_per_optional_attribute(item_name, storage_value_entry, new_value_entry)
 
-            if type(storage_value_entry) == dict and storage_value_entry['type'] == "ACL":
+            if type(storage_value_entry) == dict and 'type' in storage_value_entry \
+                    and storage_value_entry['type'] == "ACL":
                 old_value = storage_value_entry['value']
                 new_val = new_value_entry
                 await self._handle_update_config_for_acl(category_name, old_value, new_val)

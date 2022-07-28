@@ -322,27 +322,6 @@ class MicroserviceManagementClient(object):
                 _logger.info("The response is {}".format(json_response))
 
         return
-        self._management_client_conn.request(method='PUT', url=url, body=json.dumps(payload))
-        _logger.info("Requesting end point {} with payload {}".format(url, payload))
-        r = self._management_client_conn.getresponse()
-        res = r.read().decode()
-        _logger.info("The response is {}".format(res))
-        response = json.loads(res)
-        _logger.info("The response json is {}".format(response))
-        self._management_client_conn.close()
-        return response
-
-        if r.status in range(400, 500):
-            _logger.error("Client error code: %d, Reason: %s", r.status, r.reason)
-            raise client_exceptions.MicroserviceManagementClientError(status=r.status, reason=r.reason)
-        if r.status in range(500, 600):
-            _logger.error("Server error code: %d, Reason: %s", r.status, r.reason)
-            raise client_exceptions.MicroserviceManagementClientError(status=r.status, reason=r.reason)
-        _logger.info("r status {} and r {}".format(r.status, r))
-        res = r.read().decode()
-        self._management_client_conn.close()
-        response = json.loads(res)
-        return response
 
     def delete_configuration_item(self, category_name, config_item):
         """

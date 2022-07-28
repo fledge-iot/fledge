@@ -309,11 +309,12 @@ async def attach_acl_to_service(request: web.Request) -> web.Response:
             'ACL':
                 {
                     'description': 'Service ACL for {}'.format(svc_name),
-                    'type': 'JSON',
+                    'type': 'ACL',
                     'displayName': 'Service ACL',
-                    'default': json.dumps(get_acl_result['rows'][0])
+                    'default': ''
                 }
             }
+        # Create category content with ACL default set to ''
         await cf_mgr.create_category(category_name=security_cat_name, category_description=category_desc,
                                      category_value=category_value)
         add_child_result = await cf_mgr.create_child_category(svc_name, [security_cat_name])
@@ -332,6 +333,10 @@ async def attach_acl_to_service(request: web.Request) -> web.Response:
         msg = str(ex)
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
+        # Call service security endpoint with attachACL = acl_name
+        data = {'ACL' : acl_name}
+        await cf_mgr.update_configuration_item_bulk(security_cat_name, data)
+        
         return web.json_response({"message": "ACL with name {} attached to {} service successfully.".format(
             acl_name, svc_name)})
 
@@ -370,6 +375,11 @@ async def detach_acl_from_service(request: web.Request) -> web.Response:
                         'displayName': 'Enable caller authorisation'
                     }
                 }
+            # Call service security endpoint with detachACL = ''
+            data = {'ACL' : ''}
+            await cf_mgr.update_configuration_item_bulk(security_cat_name, data)
+
+            # Set new content without ACL item
             await cf_mgr.create_category(category_name=security_cat_name,
                                          category_description=category_desc,
                                          category_value=category_value)

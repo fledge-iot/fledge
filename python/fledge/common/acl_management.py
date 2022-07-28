@@ -17,7 +17,7 @@ class ACLManagement(object):
         else:
             self._storage_client = given_client
 
-    def _notify_service_about_acl_change(self, entity_name, acl, reason):
+    async def _notify_service_about_acl_change(self, entity_name, acl, reason):
         """Helper function that sends the ACL change to the respective service. """
         # We need to find the address and management host for the required service.
         from fledge.services.core.service_registry.service_registry import ServiceRegistry
@@ -42,8 +42,8 @@ class ACLManagement(object):
             _logger.info("Connect established with {} at {} and port {}".format(entity_name,
                                                                                 service._address,
                                                                                 service._management_port))
-            mgt_client.update_service_for_acl_change_security(acl=acl,
-                                                              reason=reason)
+            await mgt_client.update_service_for_acl_change_security(acl=acl,
+                                                                    reason=reason)
             _logger.info("Notified the {} about {}".format(entity_name, reason))
 
     async def handle_update_for_acl_usage(self, entity_name, acl_name, entity_type):
@@ -58,7 +58,7 @@ class ACLManagement(object):
 
                 result = await self._storage_client.update_tbl("acl_usage", payload_update)
                 response = result['response']
-                self._notify_service_about_acl_change(entity_name, required_name, "reloadACL")
+                await self._notify_service_about_acl_change(entity_name, required_name, "reloadACL")
             except KeyError:
                 raise ValueError(result['message'])
             except StorageServerError as ex:
@@ -90,7 +90,7 @@ class ACLManagement(object):
                 result = await self._storage_client.delete_from_tbl("acl_usage", delete_payload)
                 response = result['response']
 
-                self._notify_service_about_acl_change(entity_name, acl_name, "detachACL")
+                await self._notify_service_about_acl_change(entity_name, acl_name, "detachACL")
             except KeyError:
                 raise ValueError(result['message'])
             except StorageServerError as ex:
@@ -145,7 +145,7 @@ class ACLManagement(object):
                         _logger.info("the response is {}".format(response))
 
                 if notify_service:
-                    self._notify_service_about_acl_change(entity_name, acl_name, "attachACL")
+                    await self._notify_service_about_acl_change(entity_name, acl_name, "attachACL")
             except KeyError:
                 raise ValueError(result['message'])
             except StorageServerError as ex:

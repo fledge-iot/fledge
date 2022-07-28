@@ -25,6 +25,8 @@ class MicroserviceManagementClient(object):
 
     def __init__(self, microservice_management_host, microservice_management_port):
         self._management_client_conn = http.client.HTTPConnection("{0}:{1}".format(microservice_management_host, microservice_management_port))
+        self.hostname = microservice_management_host
+        self.port = microservice_management_port
 
     def register_service(self, service_registration_payload):
         """ Registers a newly created microservice with the core service
@@ -301,13 +303,25 @@ class MicroserviceManagementClient(object):
         response = json.loads(res)
         return response
 
-    def update_service_for_acl_change_security(self, acl, reason):
+    async def update_service_for_acl_change_security(self, acl, reason):
         assert reason in ["attachACL", "detachACL", "reloadACL"]
         url = "/fledge/security"
         payload = {
             "reason": reason,
             "argument": acl
         }
+        import aiohttp
+        async with aiohttp.ClientSession() as session:
+            async with session.put('http://{}:{}/fledge/security'.format(self.hostname,
+                                                                         self.port),
+                                   data=json.dumps(payload)) as resp:
+                _logger.info(resp.status)
+                x = await resp.text()
+                _logger.info(x)
+                json_response = json.loads(x)
+                _logger.info("The response is {}".format(json_response))
+
+        return
         self._management_client_conn.request(method='PUT', url=url, body=json.dumps(payload))
         _logger.info("Requesting end point {} with payload {}".format(url, payload))
         r = self._management_client_conn.getresponse()

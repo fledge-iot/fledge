@@ -644,23 +644,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     audit_details['items'].update({item_name: {'oldValue': old_value, 'newValue': new_val}})
 
                     if "ACL" in item_name and type(old_value) == str and type(new_val) == str:
-                        if old_value == "" and not new_val == "":
-                            # Need to attach ACL.
-                            await self._acl_handler.handle_create_for_acl_usage(category_name.replace("Security", ""),
-                                                                                new_val,
-                                                                                "service", notify_service=True,
-                                                                                acl_to_delete="")
-
-                        elif not old_value == "" and new_val == "":
-                            # Need to detach ACL
-                            await self._acl_handler.handle_delete_for_acl_usage(category_name.replace("Security", ""),
-                                                                                new_val,
-                                                                                "service")
-
-                        else:
-                            # Need to update ACL.
-                            await self._acl_handler.handle_update_for_acl_usage(category_name.replace("Security", ""),
-                                                                                new_val, "service")
+                        await self._handle_update_config_for_acl(category_name, old_value, new_val)
 
             if not payload['updates']:
                 return
@@ -693,6 +677,32 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             _logger.exception(
                 'Unable to run callbacks for category_name %s', category_name)
             raise
+
+    async def _handle_update_config_for_acl(self, category_name, old_value, new_val):
+        """ Handles which function to call for acl usage table on the basis of old_value and
+            new_val.
+        """
+        if new_val != old_value:
+            if old_value == "" and not new_val == "":
+                # Need to attach ACL.
+                await \
+                 self._acl_handler.handle_create_for_acl_usage(category_name.replace("Security", ""),
+                                                               new_val,
+                                                               "service", notify_service=True,
+                                                               acl_to_delete="")
+
+            elif not old_value == "" and new_val == "":
+                # Need to detach ACL
+                await \
+                 self._acl_handler.handle_delete_for_acl_usage(category_name.replace("Security", ""),
+                                                               new_val,
+                                                               "service")
+
+            else:
+                # Need to update ACL.
+                await \
+                 self._acl_handler.handle_update_for_acl_usage(category_name.replace("Security", ""),
+                                                               new_val, "service")
 
     async def _update_category(self, category_name, category_val, category_description, display_name=None):
         try:
@@ -889,23 +899,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             if type(storage_value_entry) == dict and storage_value_entry['type'] == "ACL":
                 old_value = storage_value_entry['value']
                 new_val = new_value_entry
-                if old_value == "" and not new_val == "":
-                    # Need to attach ACL.
-                    await self._acl_handler.handle_create_for_acl_usage(category_name.replace("Security", ""),
-                                                                        new_val,
-                                                                        "service", notify_service=True,
-                                                                        acl_to_delete="")
-
-                elif not old_value == "" and new_val == "":
-                    # Need to detach ACL
-                    await self._acl_handler.handle_delete_for_acl_usage(category_name.replace("Security", ""),
-                                                                        new_val,
-                                                                        "service")
-
-                else:
-                    # Need to update ACL.
-                    await self._acl_handler.handle_update_for_acl_usage(category_name.replace("Security", ""),
-                                                                        new_val, "service")
+                await self._handle_update_config_for_acl(category_name, old_value, new_val)
 
             await self._update_value_val(category_name, item_name, new_value_entry)
             # always get value from storage

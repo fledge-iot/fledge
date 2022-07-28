@@ -320,7 +320,8 @@ async def attach_acl_to_service(request: web.Request) -> web.Response:
         category = await cf_mgr.get_category_all_items(security_cat_name)
 
         if category is not None and 'ACL' in category:
-            raise ValueError('Service {} already has an ACL object.'.format(svc_name))
+            if category['ACL']['value'] != "":
+                raise ValueError('Service {} already has an ACL object.'.format(svc_name))
 
         # Create {service_name}Security category and having value with AuthenticationCaller Global switch &
         # ACL info attached (name is excluded from the ACL dict)

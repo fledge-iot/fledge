@@ -2752,7 +2752,9 @@ bool Connection::jsonModifiers(const Value& payload, SQLBuffer& sql)
  * Convert a JSON where clause into a PostresSQL where clause
  *
  */
-bool Connection::jsonWhereClause(const Value& whereClause, SQLBuffer& sql, const string& prefix)
+bool Connection::jsonWhereClause(const Value& whereClause,
+				SQLBuffer& sql,
+				const string& prefix)
 {
 	if (!whereClause.IsObject())
 	{
@@ -2767,11 +2769,6 @@ bool Connection::jsonWhereClause(const Value& whereClause, SQLBuffer& sql, const
 	if (!whereClause.HasMember("condition"))
 	{
 		raiseError("where clause", "The \"where\" object is missing a \"condition\" property");
-		return false;
-	}
-	if (!whereClause.HasMember("value"))
-	{
-		raiseError("where clause", "The \"where\" object is missing a \"value\" property");
 		return false;
 	}
 
@@ -2796,100 +2793,117 @@ bool Connection::jsonWhereClause(const Value& whereClause, SQLBuffer& sql, const
 
 	sql.append(' ');
 	string cond = whereClause["condition"].GetString();
-	if (!cond.compare("older"))
+
+	if (cond.compare("isnull") == 0)
 	{
-		if (!whereClause["value"].IsInt())
-		{
-			raiseError("where clause", "The \"value\" of an \"older\" condition must be an integer");
-			return false;
-		}
-		sql.append("< now() - INTERVAL '");
-		sql.append(whereClause["value"].GetInt());
-		sql.append(" seconds'");
+		sql.append("isnull ");
 	}
-	else if (!cond.compare("newer"))
+	else if (cond.compare("notnull") == 0)
 	{
-		if (!whereClause["value"].IsInt())
-		{
-			raiseError("where clause", "The \"value\" of an \"newer\" condition must be an integer");
-			return false;
-		}
-		sql.append("> now() - INTERVAL '");
-		sql.append(whereClause["value"].GetInt());
-		sql.append(" seconds'");
-	}
-	else if (!cond.compare("in") || !cond.compare("not in"))
-	{
-		// Check we have a non empty array
-		if (whereClause["value"].IsArray() &&
-		    whereClause["value"].Size())
-		{
-			sql.append(cond);
-			sql.append(" ( ");
-			int field = 0;
-			for (Value::ConstValueIterator itr = whereClause["value"].Begin();
-							itr != whereClause["value"].End();
-							++itr)
-			{
-				if (field)
-				{
-					sql.append(", ");
-				}
-				field++;
-				if (itr->IsNumber())
-				{
-					if (itr->IsInt())
-					{
-						sql.append(itr->GetInt());
-					}
-					else if (itr->IsInt64())
-					{
-						sql.append((long)itr->GetInt64());
-					}
-					else
-					{
-						sql.append(itr->GetDouble());
-					}
-				}
-				else if (itr->IsString())
-				{
-					sql.append('\'');
-					sql.append(escape(itr->GetString()));
-					sql.append('\'');
-				}
-				else
-				{
-					string message("The \"value\" of a \"" + \
-							cond + \
-							"\" condition array element must be " \
-							"a string, integer or double.");
-					raiseError("where clause", message.c_str());
-					return false;
-				}
-			}
-			sql.append(" )");
-		}
-		else
-		{
-			string message("The \"value\" of a \"" + \
-					cond + "\" condition must be an array " \
-					"and must not be empty.");
-			raiseError("where clause", message.c_str());
-			return false;
-		}
+		sql.append("notnull ");
 	}
 	else
 	{
-		sql.append(cond);
-		sql.append(' ');
-		if (whereClause["value"].IsInt())
+		if (!whereClause.HasMember("value"))
 		{
+			raiseError("where clause", "The \"where\" object is missing a \"value\" property");
+			return false;
+		}
+		if (!cond.compare("older"))
+		{
+			if (!whereClause["value"].IsInt())
+			{
+				raiseError("where clause", "The \"value\" of an \"older\" condition must be an integer");
+				return false;
+			}
+			sql.append("< now() - INTERVAL '");
 			sql.append(whereClause["value"].GetInt());
-		} else if (whereClause["value"].IsString())
+			sql.append(" seconds'");
+		}
+		else if (!cond.compare("newer"))
 		{
-			sql.append('\'');
-			sql.append(escape(whereClause["value"].GetString()));
-			sql.append('\'');
+			if (!whereClause["value"].IsInt())
+			{
+				raiseError("where clause", "The \"value\" of an \"newer\" condition must be an integer");
+				return false;
+			}
+			sql.append("> now() - INTERVAL '");
+			sql.append(whereClause["value"].GetInt());
+			sql.append(" seconds'");
+		}
+		else if (!cond.compare("in") || !cond.compare("not in"))
+		{
+			// Check we have a non empty array
+			if (whereClause["value"].IsArray() &&
+			    whereClause["value"].Size())
+			{
+				sql.append(cond);
+				sql.append(" ( ");
+				int field = 0;
+				for (Value::ConstValueIterator itr = whereClause["value"].Begin();
+								itr != whereClause["value"].End();
+								++itr)
+				{
+					if (field)
+					{
+						sql.append(", ");
+					}
+					field++;
+					if (itr->IsNumber())
+					{
+						if (itr->IsInt())
+						{
+							sql.append(itr->GetInt());
+						}
+						else if (itr->IsInt64())
+						{
+							sql.append((long)itr->GetInt64());
+						}
+						else
+						{
+							sql.append(itr->GetDouble());
+						}
+					}
+					else if (itr->IsString())
+					{
+						sql.append('\'');
+						sql.append(escape(itr->GetString()));
+						sql.append('\'');
+					}
+					else
+					{
+						string message("The \"value\" of a \"" + \
+								cond + \
+								"\" condition array element must be " \
+								"a string, integer or double.");
+						raiseError("where clause", message.c_str());
+						return false;
+					}
+				}
+				sql.append(" )");
+			}
+			else
+			{
+				string message("The \"value\" of a \"" + \
+						cond + "\" condition must be an array " \
+						"and must not be empty.");
+				raiseError("where clause", message.c_str());
+				return false;
+			}
+		}
+		else
+		{
+			sql.append(cond);
+			sql.append(' ');
+			if (whereClause["value"].IsInt())
+			{
+				sql.append(whereClause["value"].GetInt());
+			} else if (whereClause["value"].IsString())
+			{
+				sql.append('\'');
+				sql.append(escape(whereClause["value"].GetString()));
+				sql.append('\'');
+			}
 		}
 	}
  

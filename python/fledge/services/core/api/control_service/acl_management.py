@@ -260,6 +260,21 @@ async def delete_acl(request: web.Request) -> web.Response:
         msg = str(ex)
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
+        # Fetch service name associated with acl
+        q_payload = PayloadBuilder().SELECT("name", "entity_name", "entity_type"). \
+                    WHERE(["name", "=", name]). \
+                    AND_WHERE(["entity_type", "=", "service"]).payload()
+        results = await storage.query_tbl_with_payload('acl_usage', q_payload)
+        if len(results["rows"]) > 0:
+            # Call service security endpoint with attachACL = acl_name
+            service_name = results["rows"][0]["entity_name"]
+            if service_name != "":
+                # Call service security endpoint with detachACL = ''
+                cf_mgr = ConfigurationManager(storage)
+                data = {'ACL': ''}
+                security_cat_name = "{}Security".format(service_name)
+                await cf_mgr.update_configuration_item_bulk(security_cat_name, data)
+
         return web.json_response({"message": message})
 
 

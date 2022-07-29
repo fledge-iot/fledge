@@ -319,7 +319,8 @@ class MicroserviceManagementClient(object):
                 json_response = await resp.json()
                 _logger.info("The response is {}".format(json_response))
                 self._management_client_conn.close()
-
+                self.port = None
+                self.hostname = None
         return json_response
 
     def delete_configuration_item(self, category_name, config_item):

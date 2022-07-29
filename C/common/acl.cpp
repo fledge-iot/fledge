@@ -80,7 +80,7 @@ ACL::ACL(const string& json)
 		throw new ACLMalformed();
 	}
 
-	Logger::getLogger()->error("ACL content is %s", json.c_str());
+	Logger::getLogger()->debuf("ACL content is %s", json.c_str());
 
 	if (!doc.HasMember("name"))
 	{

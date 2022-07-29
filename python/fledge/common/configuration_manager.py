@@ -24,7 +24,7 @@ from fledge.common.storage_client.utils import Utils
 from fledge.common import logger
 from fledge.common.common import _FLEDGE_ROOT, _FLEDGE_DATA
 from fledge.common.audit_logger import AuditLogger
-from fledge.common.acl_management import ACLManagement
+from fledge.common.acl_manager import ACLManager
 
 __author__ = "Ashwin Gopalakrishnan, Ashish Jabble, Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -167,7 +167,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             self._cacheManager = ConfigurationCache()
 
         if self._acl_handler is None:
-            self._acl_handler = ACLManagement(storage)
+            self._acl_handler = ACLManager(storage)
 
     async def _run_callbacks(self, category_name):
         callbacks = self._registered_interests.get(category_name)

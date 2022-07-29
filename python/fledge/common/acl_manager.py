@@ -9,7 +9,7 @@ from fledge.common import logger
 _logger = logger.setup(__name__, level=logging.DEBUG)
 
 
-class ACLManagement(object):
+class ACLManager(object):
     def __init__(self, given_client=None):
         if not given_client:
             from fledge.services.core import connect

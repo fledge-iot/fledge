@@ -27,7 +27,6 @@ class ACL {
 		const std::string&
 			getName() { return m_name; };
 
-	protected:
 		class KeyValueItem {
 			public:
 				KeyValueItem(const std::string& k,
@@ -40,12 +39,11 @@ class ACL {
 			public:
 				UrlItem(const std::string& url,
 					const std::vector<KeyValueItem>& acl) :
-					m_url(url), m_acl(acl) {};
+					url(url), acl(acl) {};
 
-			private:
-				std::string	m_url;
+				std::string	url;
 				std::vector<KeyValueItem>
-						m_acl;
+						acl;
 		};
 
 	public:

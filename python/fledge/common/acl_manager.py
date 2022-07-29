@@ -186,7 +186,7 @@ class ACLManager(object):
         if len(results['rows']) > 0:
             entities = []
             for row in results['rows']:
-                entities.append(row)
+                entities.append(row['entity_name'])
             return entities
         else:
             return []

@@ -24,7 +24,7 @@ from fledge.common.storage_client.utils import Utils
 from fledge.common import logger
 from fledge.common.common import _FLEDGE_ROOT, _FLEDGE_DATA
 from fledge.common.audit_logger import AuditLogger
-from fledge.common.acl_management import ACLManagement
+from fledge.common.acl_manager import ACLManager
 
 __author__ = "Ashwin Gopalakrishnan, Ashish Jabble, Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -33,7 +33,7 @@ __version__ = "${VERSION}"
 
 import logging
 
-_logger = logger.setup(__name__, level=logging.DEBUG)
+_logger = logger.setup(__name__)
 
 # MAKE UPPER_CASE
 _valid_type_strings = sorted(['boolean', 'integer', 'float', 'string', 'IPv4', 'IPv6', 'X509 certificate', 'password',
@@ -167,7 +167,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             self._cacheManager = ConfigurationCache()
 
         if self._acl_handler is None:
-            self._acl_handler = ACLManagement(storage)
+            self._acl_handler = ACLManager(storage)
 
     async def _run_callbacks(self, category_name):
         callbacks = self._registered_interests.get(category_name)
@@ -1138,7 +1138,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 self.search_for_ACL_recursive_from_cat_name(category_name)
             _logger.debug("check if there is {} create category function  for category {} ".format(is_acl,
                                                                                                    category_name))
-            if is_acl:
+            if is_acl and found_value and found_value != "":
                 await self._acl_handler.handle_create_for_acl_usage(found_cat_name, found_value, "service")
         except:
             _logger.exception(
@@ -1264,13 +1264,13 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             is_acl_parent, config_item, found_cat_name, found_value = await self.search_for_ACL_recursive_from_cat_name(
                 category_name)
             _logger.debug("check if acl item there is {} for parent {} ".format(is_acl_parent, category_name))
-            if is_acl_parent:
+            if is_acl_parent and found_value and found_value != "":
                 await self._acl_handler.handle_create_for_acl_usage(found_cat_name, found_value, "service")
             for new_child in new_children:
                 is_acl_child, config_item, found_cat_name, found_value = await self.search_for_ACL_recursive_from_cat_name(
                     new_child)
                 _logger.debug("check if acl item there is {} for child {} ".format(is_acl_child, new_child))
-                if is_acl_child:
+                if is_acl_child and found_value and found_value != "":
                     await self._acl_handler.handle_create_for_acl_usage(found_cat_name, found_value, "service")
 
             return {"children": children_from_storage}

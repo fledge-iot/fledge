@@ -9,7 +9,7 @@ from fledge.common import logger
 _logger = logger.setup(__name__, level=logging.DEBUG)
 
 
-class ACLManagement(object):
+class ACLManager(object):
     def __init__(self, given_client=None):
         if not given_client:
             from fledge.services.core import connect
@@ -175,3 +175,19 @@ class ACLManagement(object):
             except StorageServerError as ex:
                 err_response = ex.error
                 raise ValueError(err_response)
+
+    async def get_all_entities_for_a_acl(self, acl_name, entity_type):
+        """Get all the entities attached to an acl."""
+        q_payload = PayloadBuilder().SELECT("entity_name"). \
+            AND_WHERE(["entity_type", "=", entity_type]). \
+            AND_WHERE(["name", "=", acl_name]).payload()
+        results = await self._storage_client.query_tbl_with_payload('acl_usage', q_payload)
+
+        if len(results['rows']) > 0:
+            entities = []
+            for row in results['rows']:
+                entities.append(row['entity_name'])
+            return entities
+        else:
+            return []
+

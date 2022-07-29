@@ -316,12 +316,12 @@ class MicroserviceManagementClient(object):
                                                                          self.port),
                                    data=json.dumps(payload)) as resp:
                 _logger.info(resp.status)
-                x = await resp.text()
-                _logger.info(x)
-                json_response = json.loads(x)
+                json_response = await resp.json()
                 _logger.info("The response is {}".format(json_response))
-
-        return
+                self._management_client_conn.close()
+                self.port = None
+                self.hostname = None
+        return json_response
 
     def delete_configuration_item(self, category_name, config_item):
         """

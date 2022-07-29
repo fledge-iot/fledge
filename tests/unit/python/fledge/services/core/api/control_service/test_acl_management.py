@@ -248,6 +248,7 @@ class TestACLManagement:
     async def test_delete_acl(self, client):
         acl_name = 'demoACL'
         storage_client_mock = MagicMock(StorageClientAsync)
+        acl_q_result = {"count": 0, "rows": []}
         result = {"count": 1, "rows": [{"name": acl_name, "service": [], "url": []}]}
         payload = {"return": ["name"], "where": {"column": "name", "condition": "=", "value": acl_name}}
         delete_payload = {"where": {"column": "name", "condition": "=", "value": acl_name}}
@@ -258,8 +259,29 @@ class TestACLManagement:
         else:
             value = asyncio.ensure_future(mock_coro(result))
             del_value = asyncio.ensure_future(mock_coro(delete_result))
+
+        acl_query_payload_service = {"return": ["entity_name"], "where": {"column": "entity_type",
+                                                                          "condition": "=",
+                                                                          "value": "service",
+                                                                          "and":
+                                                                              {"column": "name",
+                                                                               "condition": "=",
+                                                                               "value": "{}".format(acl_name)}}}
+
+        @asyncio.coroutine
+        def q_result(*args):
+            table = args[0]
+            if table == 'acl_usage':
+                assert acl_query_payload_service == json.loads(args[1])
+                return acl_q_result
+            elif table == 'control_acl':
+                assert payload == json.loads(args[1])
+                return result
+            else:
+                return {}
+
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=value) as query_tbl_patch:
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result) as query_tbl_patch:
                 with patch.object(storage_client_mock, 'delete_from_tbl', return_value=del_value) as patch_delete_tbl:
                     resp = await client.delete('/fledge/ACL/{}'.format(acl_name))
                     assert 200 == resp.status
@@ -269,9 +291,6 @@ class TestACLManagement:
                 delete_args, _ = patch_delete_tbl.call_args
                 assert 'control_acl' == delete_args[0]
                 assert delete_payload == json.loads(delete_args[1])
-            args, _ = query_tbl_patch.call_args
-            assert 'control_acl' == args[0]
-            assert payload == json.loads(args[1])
 
     async def test_bad_service_with_acl(self, client):
         svc_name = 'foo'

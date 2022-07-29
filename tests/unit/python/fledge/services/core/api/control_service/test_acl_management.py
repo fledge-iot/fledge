@@ -504,7 +504,12 @@ class TestACLManagement:
                         "type": "boolean",
                         "default": "false",
                         "displayName": "Enable caller authorisation",
-                }
+                    },
+                    'ACL': {
+                        'description': 'Service ACL for {}'.format(svc_name),
+                        'type': 'ACL',
+                        'displayName': 'Service ACL',
+                        'default': ''}
             }
         security_cat = "{}Security".format(svc_name)
         sch_query_payload = {"where": {"column": "schedule_name", "condition": "=", "value": svc_name}}

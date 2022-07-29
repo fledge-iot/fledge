@@ -202,6 +202,7 @@ class TestACLManagement:
     ])
     async def test_update_acl(self, client, payload):
         acl_name = "testACL"
+        acl_q_result = {"count": 0, "rows": []}
         update_result = {"response": "updated", "rows_affected": 1}
         query_tbl_result = {"count": 1, "rows": [{"name": acl_name, "service": [], "url": []}]}
         query_payload = {"return": ["name"], "where": {"column": "name", "condition": "=", "value": acl_name}}
@@ -212,8 +213,28 @@ class TestACLManagement:
             rv = asyncio.ensure_future(mock_coro(query_tbl_result))
             update_value = asyncio.ensure_future(mock_coro(update_result))
         storage_client_mock = MagicMock(StorageClientAsync)
+        acl_query_payload_service = {"return": ["entity_name"], "where": {"column": "entity_type",
+                                                                          "condition": "=",
+                                                                          "value": "service",
+                                                                          "and":
+                                                                              {"column": "name",
+                                                                               "condition": "=",
+                                                                               "value": "{}".format(acl_name)}}}
+
+        @asyncio.coroutine
+        def q_result(*args):
+            table = args[0]
+            if table == 'acl_usage':
+                assert acl_query_payload_service == json.loads(args[1])
+                return acl_q_result
+            elif table == 'control_acl':
+                assert query_payload == json.loads(args[1])
+                return query_tbl_result
+            else:
+                return {}
+
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=rv) as patch_query_tbl:
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result) as patch_query_tbl:
                 with patch.object(storage_client_mock, 'update_tbl', return_value=update_value) as patch_update_tbl:
                     resp = await client.put('/fledge/ACL/{}'.format(acl_name), data=json.dumps(payload))
                     assert 200 == resp.status
@@ -222,9 +243,6 @@ class TestACLManagement:
                     assert {"message": "ACL {} updated successfully.".format(acl_name)} == json_response
                 update_args, _ = patch_update_tbl.call_args
                 assert 'control_acl' == update_args[0]
-            query_args, _ = patch_query_tbl.call_args
-            assert 'control_acl' == query_args[0]
-            assert query_payload == json.loads(query_args[1])
 
     async def test_delete_acl_not_found(self, client):
         acl_name = "test"

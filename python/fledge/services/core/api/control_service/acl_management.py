@@ -397,7 +397,15 @@ async def detach_acl_from_service(request: web.Request) -> web.Response:
                         'default': 'false',
                         'displayName': 'Enable caller authorisation'
                     }
-                }
+                ,
+                'ACL':
+                    {
+                     'description': 'Service ACL for {}'.format(svc_name),
+                     'type': 'ACL',
+                     'displayName': 'Service ACL',
+                     'default': ''
+                    }
+            }
             # Call service security endpoint with detachACL = ''
             data = {'ACL': ''}
             await cf_mgr.update_configuration_item_bulk(security_cat_name, data)

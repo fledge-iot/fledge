@@ -1138,7 +1138,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 self.search_for_ACL_recursive_from_cat_name(category_name)
             _logger.debug("check if there is {} create category function  for category {} ".format(is_acl,
                                                                                                    category_name))
-            if is_acl:
+            if is_acl and found_value and found_value != "":
                 await self._acl_handler.handle_create_for_acl_usage(found_cat_name, found_value, "service")
         except:
             _logger.exception(
@@ -1264,13 +1264,13 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             is_acl_parent, config_item, found_cat_name, found_value = await self.search_for_ACL_recursive_from_cat_name(
                 category_name)
             _logger.debug("check if acl item there is {} for parent {} ".format(is_acl_parent, category_name))
-            if is_acl_parent:
+            if is_acl_parent and found_value and found_value != "":
                 await self._acl_handler.handle_create_for_acl_usage(found_cat_name, found_value, "service")
             for new_child in new_children:
                 is_acl_child, config_item, found_cat_name, found_value = await self.search_for_ACL_recursive_from_cat_name(
                     new_child)
                 _logger.debug("check if acl item there is {} for child {} ".format(is_acl_child, new_child))
-                if is_acl_child:
+                if is_acl_child and found_value and found_value != "":
                     await self._acl_handler.handle_create_for_acl_usage(found_cat_name, found_value, "service")
 
             return {"children": children_from_storage}

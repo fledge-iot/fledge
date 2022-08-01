@@ -45,36 +45,28 @@ AssetTracker::AssetTracker(ManagementClient *mgtClient, string service)
  *
  * @param plugin  	Plugin name
  * @param event  	Event name
- * @return		Vector of deprecated asset names
  */
-vector<string> AssetTracker::populateAssetTrackingCache(string /*plugin*/, string /*event*/)
+void AssetTracker::populateAssetTrackingCache(string /*plugin*/, string /*event*/)
 {
-	vector<string> deprecated;
 	try {
 		std::vector<AssetTrackingTuple*>& vec = m_mgtClient->getAssetTrackingTuples(m_service);
 		for (AssetTrackingTuple* & rec : vec)
 		{
 			assetTrackerTuplesCache.insert(rec);
 
-			// Add a deprecated asset into the output
-			if (rec->isDeprecated())
-			{
-				deprecated.push_back(rec->getAssetName());
-			}
-
-			//Logger::getLogger()->info("Added asset tracker tuple to cache: '%s'", rec->assetToString().c_str());
+			Logger::getLogger()->debug("Added asset tracker tuple to cache: '%s'",
+					rec->assetToString().c_str());
 		}
 		delete (&vec);
 	}
 	catch (...)
 	{
 		Logger::getLogger()->error("Failed to populate asset tracking tuples' cache");
-		return deprecated;
+		return;
 	}
 
-	return deprecated;
+	return;
 }
-
 
 /**
  * Check local cache for a given asset tracking tuple
@@ -94,6 +86,19 @@ bool AssetTracker::checkAssetTrackingCache(AssetTrackingTuple& tuple)
 		return true;
 }
 
+AssetTrackingTuple* AssetTracker::findAssetTrackingCache(AssetTrackingTuple& tuple)	
+{
+	AssetTrackingTuple *ptr = &tuple;
+	std::unordered_set<AssetTrackingTuple*>::const_iterator it = assetTrackerTuplesCache.find(ptr);
+	if (it == assetTrackerTuplesCache.end())
+	{
+		return NULL;
+	}
+	else
+	{
+		return *it;
+	}
+}
 
 /**
  * Add asset tracking tuple via microservice management API and in cache

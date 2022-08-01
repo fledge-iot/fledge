@@ -268,36 +268,9 @@ Ingest::Ingest(StorageClient& storage,
 	m_data = NULL;
 	m_discardedReadings = 0;
 	m_highLatency = false;
-	
+
 	// populate asset tracking cache
-	// and get list of assets to un-deprecate
-	AssetTracker* assetTracker = AssetTracker::getAssetTracker();
-	if (assetTracker)
-	{
-		vector<string> deprecated =
-			assetTracker->populateAssetTrackingCache(m_pluginName, "Ingest");
-		for (auto d : deprecated)
-		{
-			m_logger->debug("Need to un-deprecate asset '%s'", d.c_str());
-
-			const Condition conditionParams(Equals);
-			Where * wAsset = new Where("asset", conditionParams, d);
-			Where *wService = new Where("service", conditionParams, m_serviceName, wAsset);
-			Where *wEvent = new Where("event", conditionParams, "Ingest", wService);
-
-			InsertValues unDeprecated;
-
-			// Set NULL value
-			unDeprecated.push_back(InsertValue("deprecated_ts"));
-
-			// Update storage with NULL value
-			int rv = m_storage.updateTable(string("asset_tracker"), unDeprecated, *wEvent);
-			if (rv < 0)
-			{
-				m_logger->error("Failure while un-deprecating asset '%s'", d.c_str());
-			}
-		}
-	}
+	AssetTracker::getAssetTracker()->populateAssetTrackingCache(m_pluginName, "Ingest");
 
 	// Create the stats entry for the service
 	createServiceStatsDbEntry();
@@ -526,7 +499,10 @@ void Ingest::processQueue()
 				m_failCnt = 0;
 				std::map<std::string, int>		statsEntriesCurrQueue;
 				AssetTracker *tracker = AssetTracker::getAssetTracker();
+
+				// TODO: save it as member variable
 				string lastAsset = "";
+
 				int *lastStat = NULL;
 				for (vector<Reading *>::iterator it = q->begin();
 							 it != q->end(); ++it)
@@ -539,9 +515,20 @@ void Ingest::processQueue()
 									m_pluginName,
 									assetName,
 									"Ingest");
-						if (!tracker->checkAssetTrackingCache(tuple))
+
+						// Check Asset record exists
+						AssetTrackingTuple* res = tracker->findAssetTrackingCache(tuple);
+						if (res == NULL)
 						{
+							// Record non in cache, add it
 							tracker->addAssetTrackingTuple(tuple);
+						}
+						else
+						{
+							// Un-deprecate asset tracking record
+							unDeprecateAssetTrackingRecord(res,
+											assetName,
+											"Ingest");
 						}
 						lastAsset = assetName;
 						lastStat = &(statsEntriesCurrQueue[assetName]);
@@ -689,7 +676,10 @@ void Ingest::processQueue()
 				// check if this requires addition of a new asset tracker tuple
 				// Remove the Readings in the vector
 				AssetTracker *tracker = AssetTracker::getAssetTracker();
+
+				// TODO: save it as member variable
 				string lastAsset = "";
+
 				int *lastStat = NULL;
 				for (vector<Reading *>::iterator it = m_data->begin(); it != m_data->end(); ++it)
 				{
@@ -701,9 +691,20 @@ void Ingest::processQueue()
 									m_pluginName,
 									assetName,
 									"Ingest");
-						if (!tracker->checkAssetTrackingCache(tuple))
+
+						// Check Asset record exists
+						AssetTrackingTuple* res = tracker->findAssetTrackingCache(tuple);
+						if (res == NULL)
 						{
+							// Record not in cache, add it
 							tracker->addAssetTrackingTuple(tuple);
+						}
+						else
+						{
+							// Un-deprecate asset tracking record
+							unDeprecateAssetTrackingRecord(res,
+											assetName,
+											"Ingest");
 						}
 						lastAsset = assetName;
 						lastStat = &statsEntriesCurrQueue[assetName];
@@ -927,4 +928,77 @@ size_t Ingest::queueLength()
 	len += m_resendQueues.size() * m_queueSizeThreshold;
 
 	return len;
+}
+
+/**
+ * Load an up-to-date AssetTracking record for the given parameters
+ * and un-deprecate AssetTracking record it has been found as deprecated
+ * Existing cache element is updated
+ *
+ * @param currentTuple		Current AssetTracking record for given assetName
+ * @param assetName		AssetName to fetch from AssetTracking
+ * @param event			The event type to fetch
+ */
+void Ingest::unDeprecateAssetTrackingRecord(AssetTrackingTuple* currentTuple,
+					const string& assetName,
+					const string& event)
+{
+	// Get up-to-date Asset Tracking record 
+	AssetTrackingTuple* updatedTuple =
+			m_mgtClient->getAssetTrackingTuple(
+			m_serviceName,
+			assetName,
+			event);
+
+	if (updatedTuple)
+	{
+		if (updatedTuple->isDeprecated())
+		{
+			// Update un-deprecated state in cached object
+			currentTuple->unDeprecate();
+
+			m_logger->debug("Asset '%s' is being un-deprecated",
+					assetName.c_str());
+
+			// Prepare UPDATE query
+			const Condition conditionParams(Equals);
+			Where * wAsset = new Where("asset",
+						conditionParams,
+						assetName);
+			Where *wService = new Where("service",
+						conditionParams,
+						m_serviceName,
+						wAsset);
+			Where *wEvent = new Where("event",
+						conditionParams,
+						event,
+						wService);
+
+			InsertValues unDeprecated;
+
+			// Set NULL value
+			unDeprecated.push_back(InsertValue("deprecated_ts"));
+				
+			// Update storage with NULL value
+			int rv = m_storage.updateTable("asset_tracker",
+							unDeprecated,
+							*wEvent);
+
+			// Check update operation
+			if (rv < 0)
+			{
+				m_logger->error("Failure while un-deprecating asset '%s'",
+						assetName.c_str());
+			}
+		}
+	}
+	else
+	{
+		m_logger->error("Failure to get AssetTracking record " 	
+				"for service '%s', asset '%s'",
+				m_serviceName.c_str(),
+				assetName.c_str());
+	}
+
+	delete updatedTuple;
 }

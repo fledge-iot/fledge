@@ -14,7 +14,6 @@ from fledge.common import logger
 from fledge.common.service_record import ServiceRecord
 from fledge.services.core.service_registry import exceptions as service_registry_exceptions
 from fledge.services.core.interest_registry.interest_registry import InterestRegistry
-from fledge.common.acl_manager import ACLManager
 
 __author__ = "Praveen Garg, Amarendra Kumar Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -116,7 +115,6 @@ class ServiceRegistry:
         cls._registry.append(registered_service)
         cls._logger.info("Registered {}".format(str(registered_service)))
 
-        ACLManager().resolve_pending_notification_for_acl_change(name)
         # Remove startup token
         if token is not None:
             cls._startupTokens.pop(name, None)

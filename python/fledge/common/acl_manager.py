@@ -9,24 +9,26 @@ from fledge.common import logger
 _logger = logger.setup(__name__, level=logging.DEBUG)
 
 
-class Singleton(object):
-    _instance = None
+class ACLManagerSingleton(object):
+    _shared_state = {}
 
-    def __new__(class_, *args, **kwargs):
-        if not isinstance(class_._instance, class_):
-            class_._instance = object.__new__(class_, *args, **kwargs)
-        return class_._instance
+    def __init__(self):
+        self.__dict__ = self._shared_state
 
 
-class ACLManager(Singleton):
+class ACLManager(ACLManagerSingleton):
+    _pending_notifications = {}
+    _storage_client = None
+    
     def __init__(self, given_client=None):
+        ACLManagerSingleton.__init__(self)
         if not given_client:
             from fledge.services.core import connect
             self._storage_client = connect.get_storage_async()
         else:
             self._storage_client = given_client
 
-        self.pending_notifications = {}
+        self._pending_notifications = {}
 
     async def _notify_service_about_acl_change(self, entity_name, acl, reason):
         """Helper function that sends the ACL change to the respective service. """
@@ -39,7 +41,7 @@ class ACLManager(Singleton):
         except DoesNotExist:  # Does not exist
             _logger.error("Cannot notify the service {} "
                           "about {}. It does not exist.".format(entity_name, reason))
-            self.pending_notifications[entity_name] = acl
+            self._pending_notifications[entity_name] = acl
             return
         else:
             try:
@@ -59,11 +61,11 @@ class ACLManager(Singleton):
                                                                         reason=reason)
                 _logger.info("Notified the {} about {}".format(entity_name, reason))
                 # clearing the pending notifications if any.
-                if entity_name in self.pending_notifications:
-                    self.pending_notifications.pop(entity_name)
+                if entity_name in self._pending_notifications:
+                    self._pending_notifications.pop(entity_name)
 
             except aiohttp.client_exceptions.ClientConnectorError:
-                self.pending_notifications[entity_name] = acl
+                self._pending_notifications[entity_name] = acl
                 return
 
     async def handle_update_for_acl_usage(self, entity_name, acl_name, entity_type):
@@ -212,7 +214,7 @@ class ACLManager(Singleton):
             return []
 
     async def get_acl_for_an_entity(self, entity_name, entity_type):
-        """Get all the entities attached to an acl."""
+        """Get the acl attached to an entity."""
         q_payload = PayloadBuilder().SELECT("name"). \
             AND_WHERE(["entity_type", "=", entity_type]). \
             AND_WHERE(["entity_name", "=", entity_name]).payload()
@@ -225,11 +227,11 @@ class ACLManager(Singleton):
             return ""
 
     async def resolve_pending_notification_for_acl_change(self, svc_name):
-        if svc_name not in self.pending_notifications:
+        if svc_name not in self._pending_notifications:
             return
 
         new_acl = await self.get_acl_for_an_entity(svc_name, "service")
-        old_acl = await self.pending_notifications[svc_name]
+        old_acl = await self._pending_notifications[svc_name]
 
         if new_acl == old_acl and new_acl != "":
             await self._notify_service_about_acl_change(entity_name=svc_name, acl=new_acl,

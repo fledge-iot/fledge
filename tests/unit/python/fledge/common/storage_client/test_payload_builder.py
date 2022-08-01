@@ -95,35 +95,44 @@ class TestPayloadBuilderRead:
         assert expected == json.loads(res)
 
     @pytest.mark.parametrize("test_input, expected", [
-        (["name", "=", "test"], _payload("data/payload_conditions1.json"))
+        (["name", "=", "test"], _payload("data/payload_conditions1.json")),
+        (["deprecated_ts", "isnull"], _payload("data/payload_where_condition_isnull.json")),
+        (["deprecated_ts", "notnull"], _payload("data/payload_where_condition_notnull.json"))
     ])
     def test_where_payload(self, test_input, expected):
         res = PayloadBuilder().WHERE(test_input).payload()
         assert expected == json.loads(res)
 
     @pytest.mark.parametrize("test_input_1, test_input_2, expected", [
-        (["name", "=", "test"], ["id", ">", 3], _payload("data/payload_and_where1.json"))
+        (["name", "=", "test"], ["id", ">", 3], _payload("data/payload_and_where1.json")),
+        (["event", "=", "Ingest"], ["deprecated_ts", "isnull"], _payload("data/payload_and_where_isnull.json")),
+        (["plugin", "=", "sinusoid"], ["deprecated_ts", "notnull"], _payload("data/payload_and_where_notnull.json"))
     ])
     def test_and_where_payload(self, test_input_1, test_input_2, expected):
         res = PayloadBuilder().WHERE(test_input_1).AND_WHERE(test_input_2).payload()
         assert expected == json.loads(res)
 
     @pytest.mark.parametrize("test_input_1, test_input_2, test_input_3, expected", [
-        (["name", "=", "test"], ["id", ">", 3], ["value", "!=", 0], _payload("data/payload_and_where2.json"))
+        (["name", "=", "test"], ["id", ">", 3], ["value", "!=", 0], _payload("data/payload_and_where2.json")),
+        (["plugin", "=", "sinusoid"], ["deprecated_ts", "notnull"], ["event", "=", "Ingest"], _payload("data/payload_multiple_and_where.json"))
     ])
     def test_multiple_and_where_payload(self, test_input_1, test_input_2, test_input_3, expected):
         res = PayloadBuilder().WHERE(test_input_1).AND_WHERE(test_input_2).AND_WHERE(test_input_3).payload()
         assert expected == json.loads(res)
 
     @pytest.mark.parametrize("test_input_1, test_input_2, expected", [
-        (["name", "=", "test"], ["id", ">", 3], _payload("data/payload_or_where1.json"))
+        (["name", "=", "test"], ["id", ">", 3], _payload("data/payload_or_where1.json")),
+        (["event", "=", "Filter"], ["deprecated_ts", "isnull"], _payload("data/payload_or_where_isnull.json")),
+        (["event", "=", "Egress"], ["deprecated_ts", "notnull"], _payload("data/payload_or_where_notnull.json"))
     ])
     def test_or_where_payload(self, test_input_1, test_input_2, expected):
         res = PayloadBuilder().WHERE(test_input_1).OR_WHERE(test_input_2).payload()
         assert expected == json.loads(res)
 
     @pytest.mark.parametrize("test_input_1, test_input_2, test_input_3, expected", [
-        (["name", "=", "test"], ["id", ">", 3], ["value", "!=", 0], _payload("data/payload_or_where2.json"))
+        (["name", "=", "test"], ["id", ">", 3], ["value", "!=", 0], _payload("data/payload_or_where2.json")),
+        (["plugin", "=", "http_north"], ["deprecated_ts", "isnull"], ["event", "=", "Egress"],
+         _payload("data/payload_multiple_or_where.json"))
     ])
     def test_multiple_or_where_payload(self, test_input_1, test_input_2, test_input_3, expected):
         res = PayloadBuilder().WHERE(test_input_1).OR_WHERE(test_input_2).OR_WHERE(test_input_3).payload()

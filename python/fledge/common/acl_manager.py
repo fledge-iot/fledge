@@ -1,9 +1,9 @@
+import aiohttp
+
 import logging
 
 from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.common.storage_client.exceptions import StorageServerError
-
-
 from fledge.common import logger
 
 _logger = logger.setup(__name__, level=logging.DEBUG)
@@ -42,25 +42,29 @@ class ACLManager(Singleton):
             self.pending_notifications[entity_name] = acl
             return
         else:
-            _logger.info("Notifying the service"
-                         " {} about {}".format(entity_name, reason))
-            from fledge.common.microservice_management_client.microservice_management_client import MicroserviceManagementClient
-            _logger.info("The host and port is {} {} and "
-                         "entity is {}".format(service._address,
-                                               service._management_port,
-                                               entity_name))
-            mgt_client = MicroserviceManagementClient(service._address,
-                                                      service._management_port)
-            _logger.info("Connect established with {} at {} and port {}".format(entity_name,
-                                                                                service._address,
-                                                                                service._management_port))
-            await mgt_client.update_service_for_acl_change_security(acl=acl,
-                                                                    reason=reason)
-            _logger.info("Notified the {} about {}".format(entity_name, reason))
+            try:
+                _logger.info("Notifying the service"
+                             " {} about {}".format(entity_name, reason))
+                from fledge.common.microservice_management_client.microservice_management_client import MicroserviceManagementClient
+                _logger.info("The host and port is {} {} and "
+                             "entity is {}".format(service._address,
+                                                   service._management_port,
+                                                   entity_name))
+                mgt_client = MicroserviceManagementClient(service._address,
+                                                          service._management_port)
+                _logger.info("Connect established with {} at {} and port {}".format(entity_name,
+                                                                                    service._address,
+                                                                                    service._management_port))
+                await mgt_client.update_service_for_acl_change_security(acl=acl,
+                                                                        reason=reason)
+                _logger.info("Notified the {} about {}".format(entity_name, reason))
+                # clearing the pending notifications if any.
+                if entity_name in self.pending_notifications:
+                    self.pending_notifications.pop(entity_name)
 
-            # clearing the pending notifications if any.
-            if entity_name in self.pending_notifications:
-                self.pending_notifications.pop(entity_name)
+            except aiohttp.client_exceptions.ClientConnectorError:
+                self.pending_notifications[entity_name] = acl
+                return
 
     async def handle_update_for_acl_usage(self, entity_name, acl_name, entity_type):
         _logger.info("Update acl usage called for {} {} {}".format(entity_name, acl_name, entity_type))
@@ -220,21 +224,21 @@ class ACLManager(Singleton):
         else:
             return ""
 
-    def resolve_pending_notification_for_acl_change(self, svc_name):
+    async def resolve_pending_notification_for_acl_change(self, svc_name):
         if svc_name not in self.pending_notifications:
             return
 
-        new_acl = self.get_acl_for_an_entity(svc_name, "service")
-        old_acl = self.pending_notifications[svc_name]
+        new_acl = await self.get_acl_for_an_entity(svc_name, "service")
+        old_acl = await self.pending_notifications[svc_name]
 
         if new_acl == old_acl and new_acl != "":
-            self._notify_service_about_acl_change(entity_name=svc_name, acl=new_acl,
-                                                  reason="reloadACL")
+            await self._notify_service_about_acl_change(entity_name=svc_name, acl=new_acl,
+                                                        reason="reloadACL")
 
         if old_acl != "" and new_acl == "":
-            self._notify_service_about_acl_change(entity_name=svc_name, acl=new_acl,
-                                                  reason="detachACL")
+            await self._notify_service_about_acl_change(entity_name=svc_name, acl=new_acl,
+                                                        reason="detachACL")
 
         if old_acl == "" and new_acl != "":
-            self._notify_service_about_acl_change(entity_name=svc_name, acl=new_acl,
-                                                  reason="attachACL")
+            await self._notify_service_about_acl_change(entity_name=svc_name, acl=new_acl,
+                                                        reason="attachACL")

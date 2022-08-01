@@ -9,13 +9,24 @@ from fledge.common import logger
 _logger = logger.setup(__name__, level=logging.DEBUG)
 
 
-class ACLManager(object):
+class Singleton(object):
+    _instance = None
+
+    def __new__(class_, *args, **kwargs):
+        if not isinstance(class_._instance, class_):
+            class_._instance = object.__new__(class_, *args, **kwargs)
+        return class_._instance
+
+
+class ACLManager(Singleton):
     def __init__(self, given_client=None):
         if not given_client:
             from fledge.services.core import connect
             self._storage_client = connect.get_storage_async()
         else:
             self._storage_client = given_client
+
+        self.pending_notifications = {}
 
     async def _notify_service_about_acl_change(self, entity_name, acl, reason):
         """Helper function that sends the ACL change to the respective service. """
@@ -28,6 +39,7 @@ class ACLManager(object):
         except DoesNotExist:  # Does not exist
             _logger.error("Cannot notify the service {} "
                           "about {}. It does not exist.".format(entity_name, reason))
+            self.pending_notifications[entity_name] = acl
             return
         else:
             _logger.info("Notifying the service"
@@ -45,6 +57,10 @@ class ACLManager(object):
             await mgt_client.update_service_for_acl_change_security(acl=acl,
                                                                     reason=reason)
             _logger.info("Notified the {} about {}".format(entity_name, reason))
+
+            # clearing the pending notifications if any.
+            if entity_name in self.pending_notifications:
+                self.pending_notifications.pop(entity_name)
 
     async def handle_update_for_acl_usage(self, entity_name, acl_name, entity_type):
         _logger.info("Update acl usage called for {} {} {}".format(entity_name, acl_name, entity_type))
@@ -191,3 +207,34 @@ class ACLManager(object):
         else:
             return []
 
+    async def get_acl_for_an_entity(self, entity_name, entity_type):
+        """Get all the entities attached to an acl."""
+        q_payload = PayloadBuilder().SELECT("name"). \
+            AND_WHERE(["entity_type", "=", entity_type]). \
+            AND_WHERE(["entity_name", "=", entity_name]).payload()
+        results = await self._storage_client.query_tbl_with_payload('acl_usage', q_payload)
+
+        if len(results['rows']) > 0:
+            for row in results['rows']:
+                return row['name']
+        else:
+            return ""
+
+    def resolve_pending_notification_for_acl_change(self, svc_name):
+        if svc_name not in self.pending_notifications:
+            return
+
+        new_acl = self.get_acl_for_an_entity(svc_name, "service")
+        old_acl = self.pending_notifications[svc_name]
+
+        if new_acl == old_acl and new_acl != "":
+            self._notify_service_about_acl_change(entity_name=svc_name, acl=new_acl,
+                                                  reason="reloadACL")
+
+        if old_acl != "" and new_acl == "":
+            self._notify_service_about_acl_change(entity_name=svc_name, acl=new_acl,
+                                                  reason="detachACL")
+
+        if old_acl == "" and new_acl != "":
+            self._notify_service_about_acl_change(entity_name=svc_name, acl=new_acl,
+                                                  reason="attachACL")

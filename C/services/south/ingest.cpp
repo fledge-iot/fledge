@@ -294,7 +294,7 @@ Ingest::Ingest(StorageClient& storage,
 			int rv = m_storage.updateTable(string("asset_tracker"), unDeprecated, *wEvent);
 			if (rv < 0)
 			{
-				m_logger->error("Failure while un-deprecating asset '%s', d.c_str());
+				m_logger->error("Failure while un-deprecating asset '%s'", d.c_str());
 			}
 		}
 	}

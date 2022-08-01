@@ -36,7 +36,7 @@ using namespace rapidjson;
 static bool isTypeSupported(DatapointValue& dataPoint);
 
 // 1 enable performance tracking
-#define INSTRUMENT	1
+#define INSTRUMENT	0
 
 #define  AFHierarchySeparator '/'
 #define  AF_TYPES_SUFFIX       "-type"      // The asset name is composed by: asset name + AF_TYPES_SUFFIX + incremental id of the type

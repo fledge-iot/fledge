@@ -59,7 +59,7 @@
 
 
 #define VERBOSE_LOG	0
-#define INSTRUMENT 1
+#define INSTRUMENT 0
 
 using namespace std;
 using namespace rapidjson;

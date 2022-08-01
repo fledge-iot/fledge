@@ -114,7 +114,10 @@ class TestPayloadBuilderRead:
 
     @pytest.mark.parametrize("test_input_1, test_input_2, test_input_3, expected", [
         (["name", "=", "test"], ["id", ">", 3], ["value", "!=", 0], _payload("data/payload_and_where2.json")),
-        (["plugin", "=", "sinusoid"], ["deprecated_ts", "notnull"], ["event", "=", "Ingest"], _payload("data/payload_multiple_and_where.json"))
+        (["plugin", "=", "sinusoid"], ["deprecated_ts", "notnull"], ["event", "=", "Ingest"],
+         _payload("data/payload_multiple_and_where_with_notnull.json")),
+        (["asset", "=", "sinusoid"], ["deprecated_ts", "isnull"], ["event", "=", "Ingest"],
+         _payload("data/payload_multiple_and_where_with_isnull.json"))
     ])
     def test_multiple_and_where_payload(self, test_input_1, test_input_2, test_input_3, expected):
         res = PayloadBuilder().WHERE(test_input_1).AND_WHERE(test_input_2).AND_WHERE(test_input_3).payload()
@@ -132,7 +135,9 @@ class TestPayloadBuilderRead:
     @pytest.mark.parametrize("test_input_1, test_input_2, test_input_3, expected", [
         (["name", "=", "test"], ["id", ">", 3], ["value", "!=", 0], _payload("data/payload_or_where2.json")),
         (["plugin", "=", "http_north"], ["deprecated_ts", "isnull"], ["event", "=", "Egress"],
-         _payload("data/payload_multiple_or_where.json"))
+         _payload("data/payload_multiple_or_where_with_isnull.json")),
+        (["service", "=", "HT #1"], ["deprecated_ts", "notnull"], ["event", "=", "Egress"],
+         _payload("data/payload_multiple_or_where_with_notnull.json"))
     ])
     def test_multiple_or_where_payload(self, test_input_1, test_input_2, test_input_3, expected):
         res = PayloadBuilder().WHERE(test_input_1).OR_WHERE(test_input_2).OR_WHERE(test_input_3).payload()

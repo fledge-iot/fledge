@@ -1379,6 +1379,11 @@ Document	document;
 SQLBuffer	sql;
 vector<string>  asset_codes;
 
+	Logger::getLogger()->fatal("---- update %s, %s: '%s'",
+			schema.c_str(),
+			table.c_str(),
+			payload.c_str());
+
 	int 	row = 0;
 	ostringstream convert;
 
@@ -1472,6 +1477,11 @@ vector<string>  asset_codes;
 						sql.append('\'');
 						sql.append(escape(buffer.GetString()));
 						sql.append('\'');
+					}
+					// Hanlde JSON value null: "item" : null
+					else if (itr->value.IsNull())
+					{
+						sql.append("NULL");
 					}
 					col++;
 				}

@@ -28,6 +28,7 @@ public:
 	std::string 		m_pluginName;
 	std::string 		m_assetName;
 	std::string 		m_eventName;
+	bool			m_deprecated;
 
 	std::string assetToString()
 	{
@@ -38,14 +39,27 @@ public:
 
 	inline bool operator==(const AssetTrackingTuple& x) const
 	{
-		return ( x.m_serviceName==m_serviceName && x.m_pluginName==m_pluginName && x.m_assetName==m_assetName && x.m_eventName==m_eventName);
+		return ( x.m_serviceName==m_serviceName &&
+			x.m_pluginName==m_pluginName &&
+			x.m_assetName==m_assetName &&
+			x.m_eventName==m_eventName &&
+			x.m_deprecated==m_deprecated);
 	}
 
-	AssetTrackingTuple(const std::string& service, const std::string& plugin, 
-								 const std::string& asset, const std::string& event) :
-									m_serviceName(service), m_pluginName(plugin), 
-									m_assetName(asset), m_eventName(event)
+	AssetTrackingTuple(const std::string& service,
+			const std::string& plugin, 
+			const std::string& asset,
+			const std::string& event,
+			const bool& deprecated = false) :
+			m_serviceName(service),
+			m_pluginName(plugin), 
+			m_assetName(asset),
+			m_eventName(event),
+			m_deprecated(deprecated)
 	{}
+
+	std::string&	getAssetName() { return m_assetName; };
+	bool		isDeprecated() { return m_deprecated; };
 };
 
 struct AssetTrackingTuplePtrEqual {
@@ -88,7 +102,8 @@ public:
 	AssetTracker(ManagementClient *mgtClient, std::string service);
 	~AssetTracker() {}
 	static AssetTracker *getAssetTracker();
-	void	populateAssetTrackingCache(std::string plugin, std::string event);
+	std::vector<std::string>
+		populateAssetTrackingCache(std::string plugin, std::string event);
 	bool	checkAssetTrackingCache(AssetTrackingTuple& tuple);
 	void	addAssetTrackingTuple(AssetTrackingTuple& tuple);
 	void	addAssetTrackingTuple(std::string plugin, std::string asset, std::string event);

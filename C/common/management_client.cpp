@@ -778,7 +778,25 @@ std::vector<AssetTrackingTuple*>& ManagementClient::getAssetTrackingTuples(const
 					{
 						throw runtime_error("Expected asset tracker tuple to be an object");
 					}
-					AssetTrackingTuple *tuple = new AssetTrackingTuple(rec["service"].GetString(), rec["plugin"].GetString(), rec["asset"].GetString(), rec["event"].GetString());
+
+					// Note: deprecatedTimestamp NULL value is returned as ""
+					// otherwise it's a string DATE
+					bool deprecated = rec.HasMember("deprecatedTimestamp") &&
+					    strlen(rec["deprecatedTimestamp"].GetString());
+
+					AssetTrackingTuple *tuple = new AssetTrackingTuple(rec["service"].GetString(),
+									rec["plugin"].GetString(),
+									rec["asset"].GetString(),
+									rec["event"].GetString(),
+									deprecated);
+
+					m_logger->debug("Adding AssetTracker tuple for service %s: %s:%s:%s, " \
+							"deprecated state is %d",
+							rec["service"].GetString(),
+							rec["plugin"].GetString(),
+							rec["asset"].GetString(),
+							rec["event"].GetString(),
+							deprecated);
 					vec->push_back(tuple);
 				}
 			}
@@ -809,7 +827,9 @@ std::vector<AssetTrackingTuple*>& ManagementClient::getAssetTrackingTuples(const
  * @return		whether operation was successful
  */
 bool ManagementClient::addAssetTrackingTuple(const std::string& service, 
-					const std::string& plugin, const std::string& asset, const std::string& event)
+					const std::string& plugin,
+					const std::string& asset,
+					const std::string& event)
 {
 	ostringstream convert;
 

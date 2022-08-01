@@ -270,8 +270,34 @@ Ingest::Ingest(StorageClient& storage,
 	m_highLatency = false;
 	
 	// populate asset tracking cache
-	//m_assetTracker = new AssetTracker(m_mgtClient);
-	AssetTracker::getAssetTracker()->populateAssetTrackingCache(m_pluginName, "Ingest");
+	// and get list of assets to un-deprecate
+	AssetTracker* assetTracker = AssetTracker::getAssetTracker();
+	if (assetTracker)
+	{
+		vector<string> deprecated =
+			assetTracker->populateAssetTrackingCache(m_pluginName, "Ingest");
+		for (auto d : deprecated)
+		{
+			m_logger->debug("Need to un-deprecate asset '%s'", d.c_str());
+
+			const Condition conditionParams(Equals);
+			Where * wAsset = new Where("asset", conditionParams, d);
+			Where *wService = new Where("service", conditionParams, m_serviceName, wAsset);
+			Where *wEvent = new Where("event", conditionParams, "Ingest", wService);
+
+			InsertValues unDeprecated;
+
+			// Set NULL value
+			unDeprecated.push_back(InsertValue("deprecated_ts"));
+
+			// Update storage with NULL value
+			int rv = m_storage.updateTable(string("asset_tracker"), unDeprecated, *wEvent);
+			if (rv < 0)
+			{
+				m_logger->error("Failure while un-deprecating asset '%s', d.c_str());
+			}
+		}
+	}
 
 	// Create the stats entry for the service
 	createServiceStatsDbEntry();
@@ -509,7 +535,10 @@ void Ingest::processQueue()
 					string assetName = reading->getAssetName();
 					if (lastAsset.compare(assetName))
 					{
-						AssetTrackingTuple tuple(m_serviceName, m_pluginName, assetName, "Ingest");
+						AssetTrackingTuple tuple(m_serviceName,
+									m_pluginName,
+									assetName,
+									"Ingest");
 						if (!tracker->checkAssetTrackingCache(tuple))
 						{
 							tracker->addAssetTrackingTuple(tuple);
@@ -668,7 +697,10 @@ void Ingest::processQueue()
 					string	assetName = reading->getAssetName();
 					if (lastAsset.compare(assetName))
 					{
-						AssetTrackingTuple tuple(m_serviceName, m_pluginName, assetName, "Ingest");
+						AssetTrackingTuple tuple(m_serviceName,
+									m_pluginName,
+									assetName,
+									"Ingest");
 						if (!tracker->checkAssetTrackingCache(tuple))
 						{
 							tracker->addAssetTrackingTuple(tuple);

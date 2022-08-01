@@ -1048,6 +1048,11 @@ SQLBuffer	sql;
 						sql.append(escape(buffer.GetString()));
 						sql.append('\'');
 					}
+					// Handle JSON value null: "item" : null
+					else if (itr->value.IsNull())
+					{
+						sql.append("NULL");
+					}
 					col++;
 				}
 			}

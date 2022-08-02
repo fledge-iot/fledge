@@ -38,7 +38,10 @@ class ACLManager(ACLManagerSingleton):
             service = services[0]
         except DoesNotExist:  # Does not exist
             _logger.error("Cannot notify the service {} "
-                          "about {}. It does not exist.".format(entity_name, reason))
+                          "about {}. It does not exist in service registry.".format(entity_name, reason))
+            _logger.info("Moved {} to pending. And pending is {}".format(entity_name,
+                                                                         self._pending_notifications))
+
             self._pending_notifications[entity_name] = acl
             return
         else:
@@ -67,6 +70,9 @@ class ACLManager(ACLManagerSingleton):
                 _logger.info("Moved {} to pending. And pending is {}".format(entity_name,
                                                                              self._pending_notifications))
                 return
+
+            except Exception as ex:
+                _logger.error("Could not notify {} due to {}".format(entity_name, ex))
 
     async def handle_update_for_acl_usage(self, entity_name, acl_name, entity_type):
         _logger.debug("Update acl usage called for {} {} {}".format(entity_name, acl_name, entity_type))

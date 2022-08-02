@@ -49,7 +49,6 @@ from fledge.services.core.api import asset_tracker as asset_tracker_api
 from fledge.common.web.ssl_wrapper import SSLVerifier
 from fledge.services.core.api import exceptions as api_exception
 from fledge.services.core.api.control_service import acl_management as acl_management
-from fledge.common.acl_manager import ACLManager
 
 __author__ = "Amarendra K. Sinha, Praveen Garg, Terris Linenbach, Massimiliano Pinto, Ashish Jabble"
 __copyright__ = "Copyright (c) 2017-2021 OSIsoft, LLC"
@@ -1159,8 +1158,6 @@ class Server:
                     if not cls._storage_client_async is None:
                         cls._audit = AuditLogger(cls._storage_client_async)
                         await cls._audit.information('SRVRG', {'name': service_name})
-                        await ACLManager(cls._storage_client_async).\
-                            resolve_pending_notification_for_acl_change(service_name)
                 except Exception as ex:
                     _logger.info("Failed to audit registration: %s", str(ex))
             except service_registry_exceptions.AlreadyExistsWithTheSameName:

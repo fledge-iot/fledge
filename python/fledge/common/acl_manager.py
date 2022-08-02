@@ -39,8 +39,8 @@ class ACLManager(ACLManagerSingleton):
         except DoesNotExist:  # Does not exist
             _logger.error("Cannot notify the service {} "
                           "about {}. It does not exist in service registry.".format(entity_name, reason))
-            _logger.info("Moved {} to pending. And pending is {}".format(entity_name,
-                                                                         self._pending_notifications))
+            _logger.info("Moved {} to pending. And pending items are is {}".format(entity_name,
+                                                                                   self._pending_notifications))
 
             self._pending_notifications[entity_name] = acl
             return
@@ -51,14 +51,17 @@ class ACLManager(ACLManagerSingleton):
                 from fledge.common.service_record import ServiceRecord
 
                 if service.Status == ServiceRecord.Status.Shutdown:
-                    self._pending_notifications[entity_name] = acl
-                    _logger.info("Moved {} to pending. And pending notifications {}".format(entity_name,
-                                                                                            self._pending_notifications))
+                    _logger.error("The service {} has failed. Cannot notify the service about ACL change.")
                     return
+
                 elif service.Status == ServiceRecord.Status.Unresponsive:
                     _logger.warn("The service {} is Unresponsive. Skipping notifying "
-                                 "the service bout ACL change.")
+                                 "the service about ACL change. But adding to pending items.")
+                    _logger.info("Moved {} to pending. And pending items are {}".format(entity_name,
+                                                                                        self._pending_notifications))
+                    self._pending_notifications[entity_name] = acl
                     return
+
                 elif service.Status == ServiceRecord.Status.Failed:
                     _logger.error("The service {} has failed. Cannot notify the service about ACL change")
                     return

@@ -15,10 +15,10 @@
 .. |PersistedActions| image:: images/PersistActions.png
 
 *****************************************
-Troubleshooting the PI-Server integration
+Troubleshooting the PI Server integration
 *****************************************
 
-This section describes how to troubleshoot issues with the PI-Server integration
+This section describes how to troubleshoot issues with the PI Server integration
 using Fledge version >= 1.9.1 and PI Web API 2019 SP1 1.13.0.6518
 
 - `Log files`_
@@ -31,7 +31,7 @@ Log files
 =========
 
 Fledge logs messages at error and warning levels by default, it is possible to increase the verbosity of messages logged to include information and debug messages also. This is done by altering the minimum log level setting for the north service or task. To change the minimal log level within the graphical user interface select the north service or task, click on the advanced settings link and then select a new minimal log level from the option list presented.
-The name of the north instance should be used to extract just the logs about the PI-Server integration, as in this example:
+The name of the north instance should be used to extract just the logs about the PI Server integration, as in this example:
 
 screenshot from the Fledge GUI
 
@@ -74,7 +74,7 @@ Select the item *System* to verify the installed version:
 Commands to check the PI WEB API
 ================================
 
-Open the PI Web API URL and drill drown into the Data Archive and the Asset Framework hierarchies to verify the proper configuration on the PI-Server side. Also confirm that the correct permissions have be granted to access these hierarchies.
+Open the PI Web API URL and drill drown into the Data Archive and the Asset Framework hierarchies to verify the proper configuration on the PI Server side. Also confirm that the correct permissions have be granted to access these hierarchies.
 
 **Data Archive drill down**
 
@@ -116,9 +116,9 @@ Some error messages and causes:
     * - Message
       - Cause
     * - North_Readings_to_PI[20884]: WARNING: Error in retrieving the PIWebAPI version, The **PI Web API server is not reachable**, verify the network reachability
-      - Fledge is not able to reach the machine in which PI-Server is running due to a network problem or a firewall restriction.
+      - Fledge is not able to reach the machine in which PI Server is running due to a network problem or a firewall restriction.
     * - North_Readings_to_PI[5838]: WARNING: Error in retrieving the PIWebAPI version, **503 Service Unavailable**
-      - Fledge is able to reach the machine in which PI-Server is executing but the PI Web API is not running.
+      - Fledge is able to reach the machine in which PI Server is executing but the PI Web API is not running.
     * - North_Readings_to_PI[24485]: ERROR: Sending JSON data error : **Container not found**. 4273005507977094880_1measurement_sin_4816_asset_1 - WIN-4M7ODKB0RH2:443 /piwebapi/omf
       - Fledge is able to interact with PI Web API but there is an attempt to store data in a PI Point that does not exist.
 
@@ -140,7 +140,7 @@ Cleanup a PI Server and reuse and existing OMF North service or task
     This is the opposite problem to that stated above, the plugin will try to send data thinking that the types have already been created in the PI Server and receive an error. Fledge will automatically correct for this and create new types. These new types however will be created with new names, which may not be the desired behavior. Type names are created using a fixed algorithm. To re-use the previous names, stopping the north service and deleting the plugin persisted data will reset the algorithm and recreate the types using the names that had been previously used.
 
 Taking an existing Fledge north task or service and moving it to a new PI Server
-    This new PI Server will not have the type information from the old and we will once again get errors when sending data due to these missing types. Fledge will automatically correct for this and create new types. These new types however will be created with new names, which may not be the desired behavior. Type names are created using a fixed algorithm. To re-use the previous names stopping, the north service and deleting the plugin persisted data will reset the algorithm and recreate the types using the names that had been previously used.
+    This new PI Server will not have the type information from the old and we will once again get errors when sending data due to these missing types. Fledge will automatically correct for this and create new types. These new types however will be created with new names, which may not be the desired behavior. Type names are created using a fixed algorithm. To re-use the previous names, stopping, the north service and deleting the plugin persisted data will reset the algorithm and recreate the types using the names that had been previously used.
 
 Managing Plugin Persisted Data
 ------------------------------
@@ -244,7 +244,7 @@ The *SentDataTypes* is a JSON array of object, with each object representing one
 Possible solutions to common problems
 =====================================
 
-**Recreate a single or a sets of PI-Server objects and resend all the data for them to the PI Server on the Asset Framework hierarchy level**
+**Recreate a single or a sets of PI Server objects and resend all the data for them to the PI Server on the Asset Framework hierarchy level**
     procedure:
         - disable the 1st north instance
         - delete the objects in the PI Server, AF + Data archive, that are to be recreated or were partially sent.
@@ -274,7 +274,7 @@ Possible solutions to common problems
         - there will some data duplicated for the recreated assets because part of the information will be managed by both the north instances
 
 
-**Recreate all the PI-Server objects and resend all the data to the PI Server on a different Asset Framework hierarchy level**
+**Recreate all the PI Server objects and resend all the data to the PI Server on a different Asset Framework hierarchy level**
     procedure:
         - disable the 1st north instance
         - create a new north instance using a new, unique name and having a new AF hierarchy (North option 'Asset Framework hierarchies tree')
@@ -283,7 +283,7 @@ Possible solutions to common problems
         - this solution will create a set of new objects unrelated to the previous ones
         - all the data stored in Fledge will be sent
 
-**Recreate all the PI-Server objects and resend all the data to the PI Server on the same Asset Framework hierarchy level of the 1st North instance WITH data duplication**
+**Recreate all the PI Server objects and resend all the data to the PI Server on the same Asset Framework hierarchy level of the 1st North instance WITH data duplication**
     procedure:
         - disable the 1st north instance
         - delete properly the objects on the PI Server, AF + Data archive, that were eventually partially deleted
@@ -291,11 +291,11 @@ Possible solutions to common problems
         - create a new north instance 2nd using the same AF hierarchy (North option 'Asset Framework hierarchies tree)
 
     note:
-        - all the types will be recreated on the PI-Server. If the structure of each asset, number and types of the properties, does not change the data will be accepted and laced into the PI Server without any error. PI Web API 2019 SP1 1.13.0.6518 will accept the data.
-        - Using PI Web API 2019 SP1 1.13.0.6518 the PI-Server creates objects with the compression feature disabled. This will cause any data that was previously loaded and is still present in the Data Archive, to be duplicated.
+        - all the types will be recreated on the PI Server. If the structure of each asset, number and types of the properties, does not change the data will be accepted and laced into the PI Server without any error. PI Web API 2019 SP1 1.13.0.6518 will accept the data.
+        - Using PI Web API 2019 SP1 1.13.0.6518 the PI Server creates objects with the compression feature disabled. This will cause any data that was previously loaded and is still present in the Data Archive, to be duplicated.
 
 
-**Recreate all the PI-Server objects and resend all the data to the PI Server on the same Asset Framework hierarchy level of the 1st North instance WITHOUT data duplication**
+**Recreate all the PI Server objects and resend all the data to the PI Server on the same Asset Framework hierarchy level of the 1st North instance WITHOUT data duplication**
     procedure:
         - disable the 1st north instance
         - delete all the objects on the PI Server side, both in the AF and in the Data Archive, sent by the 1st north instance

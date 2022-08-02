@@ -67,13 +67,13 @@ class ACLManager(ACLManagerSingleton):
                     return
 
                 from fledge.common.microservice_management_client.microservice_management_client import MicroserviceManagementClient
-                _logger.info("The host and port is {} {} and "
-                             "entity is {}".format(service._address,
-                                                   service._management_port,
-                                                   entity_name))
+                _logger.debug("The host and port is {} {} and "
+                              "entity is {}".format(service._address,
+                                                    service._management_port,
+                                                    entity_name))
                 mgt_client = MicroserviceManagementClient(service._address,
                                                           service._management_port)
-                _logger.info("Connection established with {} at {} and port {}".format(entity_name,
+                _logger.debug("Connection established with {} at {} and port {}".format(entity_name,
                                                                                     service._address,
                                                                                     service._management_port))
                 await mgt_client.update_service_for_acl_change_security(acl=acl,

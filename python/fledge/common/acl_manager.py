@@ -20,13 +20,13 @@ class ACLManager(ACLManagerSingleton):
     _pending_notifications = {}
     _storage_client = None
     
-    def __init__(self, given_client=None):
+    def __init__(self, storage_client=None):
         ACLManagerSingleton.__init__(self)
-        if not given_client:
+        if not storage_client:
             from fledge.services.core import connect
             self._storage_client = connect.get_storage_async()
         else:
-            self._storage_client = given_client
+            self._storage_client = storage_client
 
     async def _notify_service_about_acl_change(self, entity_name, acl, reason):
         """Helper function that sends the ACL change to the respective service. """
@@ -36,7 +36,7 @@ class ACLManager(ACLManagerSingleton):
         try:
             services = ServiceRegistry.get(name=entity_name)
             service = services[0]
-        except DoesNotExist:  # Does not exist
+        except DoesNotExist:
             _logger.error("Cannot notify the service {} "
                           "about {}. It does not exist in service registry.".format(entity_name, reason))
             return
@@ -47,15 +47,15 @@ class ACLManager(ACLManagerSingleton):
                 from fledge.common.service_record import ServiceRecord
 
                 if service.Status == ServiceRecord.Status.Shutdown:
-                    _logger.error("The service {} has failed. Cannot notify the service about ACL change.")
+                    _logger.error("The service {} has Shut Down. Cannot notify the service about ACL change.")
                     return
 
                 elif service.Status == ServiceRecord.Status.Unresponsive:
                     _logger.warn("The service {} is Unresponsive. Skipping notifying "
                                  "the service about ACL change. But adding to pending items.")
+                    self._pending_notifications[entity_name] = acl
                     _logger.info("Moved {} to pending. And pending items are {}".format(entity_name,
                                                                                         self._pending_notifications))
-                    self._pending_notifications[entity_name] = acl
                     return
 
                 elif service.Status == ServiceRecord.Status.Failed:

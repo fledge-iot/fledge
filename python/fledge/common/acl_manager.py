@@ -28,8 +28,6 @@ class ACLManager(ACLManagerSingleton):
         else:
             self._storage_client = given_client
 
-        self._pending_notifications = {}
-
     async def _notify_service_about_acl_change(self, entity_name, acl, reason):
         """Helper function that sends the ACL change to the respective service. """
         # We need to find the address and management host for the required service.
@@ -66,6 +64,8 @@ class ACLManager(ACLManagerSingleton):
 
             except aiohttp.client_exceptions.ClientConnectorError:
                 self._pending_notifications[entity_name] = acl
+                _logger.info("Moved {} to pending. And pending is {}".format(entity_name,
+                                                                             self._pending_notifications))
                 return
 
     async def handle_update_for_acl_usage(self, entity_name, acl_name, entity_type):
@@ -227,12 +227,15 @@ class ACLManager(ACLManagerSingleton):
             return ""
 
     async def resolve_pending_notification_for_acl_change(self, svc_name):
+        _logger.info("svc name {} and pending notifications {}".format(svc_name,
+                                                                       self._pending_notifications))
         if svc_name not in self._pending_notifications:
             return
 
         new_acl = await self.get_acl_for_an_entity(svc_name, "service")
         old_acl = await self._pending_notifications[svc_name]
 
+        _logger.info("new acl is {} old acl is {}".format(new_acl, old_acl))
         if new_acl == old_acl and new_acl != "":
             await self._notify_service_about_acl_change(entity_name=svc_name, acl=new_acl,
                                                         reason="reloadACL")

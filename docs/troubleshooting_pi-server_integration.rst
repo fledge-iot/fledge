@@ -125,9 +125,9 @@ Some error messages and causes:
 OMF Plugin Data
 ===============
 
-The OMF north plugin must create type information within the OMF subsystem of the PI server before any data can be sent. This type information is persisted within the PI Server between sessions and must also be persisted within Fledge for each connection to a PI Server. This is done using the plugin data persistence features of the Fledge north plugin.
+The OMF north plugin must create type information within the OMF subsystem of the PI Server before any data can be sent. This type information is persisted within the PI Server between sessions and must also be persisted within Fledge for each connection to a PI Server. This is done using the plugin data persistence features of the Fledge north plugin.
 
-This results in an important connection between a north service or task and a PI server, which does add extra constraints as to what may be done at each end. It is very important this data is kept synchronized between the two ends. In normal circumstances this is not a problem, but there are some actions that can cause problems and require action on both ends.
+This results in an important connection between a north service or task and a PI Server, which does add extra constraints as to what may be done at each end. It is very important this data is kept synchronized between the two ends. In normal circumstances this is not a problem, but there are some actions that can cause problems and require action on both ends.
 
 Delete a north service or task using the OMF plugin
     If a north service or task using the OMF plugin is deleted then the persisted data of the plugin is also lost. This is Fledge's record of what types have been created in the PI Server and is no longer synchronized following the deletion of the north service. Any new service or task that is created and connected to the same PI Server will receive duplicate type errors from the PI Server. There are two possible solutions to this problem;
@@ -136,12 +136,11 @@ Delete a north service or task using the OMF plugin
 
         - Before deleting the north service or task export the plugin persisted data and import that data into the new service or task.
 
-Cleanup a PI server and reuse and existing OMF North service or task
-    This is the opposite problem to that stated above, the plugin will try to send data thinking that the types have already been created in the PI Server and receive an error. Fledge will automatically correct for this and create new types. These new types however will be created with new names, which may not be the desired behavior. Type names are created using a fixed algorithm. To re-use the previous names stopping the north service and deleting the plugin persisted data will reset the algorithm and recreate the types using the names that had been previously used.
+Cleanup a PI Server and reuse and existing OMF North service or task
+    This is the opposite problem to that stated above, the plugin will try to send data thinking that the types have already been created in the PI Server and receive an error. Fledge will automatically correct for this and create new types. These new types however will be created with new names, which may not be the desired behavior. Type names are created using a fixed algorithm. To re-use the previous names, stopping the north service and deleting the plugin persisted data will reset the algorithm and recreate the types using the names that had been previously used.
 
 Taking an existing Fledge north task or service and moving it to a new PI Server
-    This new PI server will not have the type information from the old and we will once again get errors when sending data due to these missing types. Fledge will automatically correct for this and create new types. These new types however will be created with new names, which ma y not be the desired behavior. Type names are created using a fixed algorithm. To re-use the previous
-names stopping the north service and deleting the plugin persisted data will reset the algorithm and recreate the types using the names that had been previously used.
+    This new PI Server will not have the type information from the old and we will once again get errors when sending data due to these missing types. Fledge will automatically correct for this and create new types. These new types however will be created with new names, which may not be the desired behavior. Type names are created using a fixed algorithm. To re-use the previous names stopping, the north service and deleting the plugin persisted data will reset the algorithm and recreate the types using the names that had been previously used.
 
 Managing Plugin Persisted Data
 ------------------------------
@@ -151,7 +150,7 @@ This is not a feature that users would ordinarily need to be concerned with, how
 Enable Develop Features
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-Navigate to the *Settings* page of the GUI and toggle on the *Developer Features* tick box on the bottom left of the page.
+Navigate to the *Settings* page of the GUI and toggle on the *Developer Features* check box on the bottom left of the page.
 
 Viewing Persisted Data
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -221,7 +220,7 @@ The *SentDataTypes* is a JSON array of object, with each object representing one
 | Key             | Description                                                                               |
 +=================+===========================================================================================+
 | type-id         | An index of the different types sent for this asset. Each time a new type is sent to the  |
-|                 | PI server for this asset this index will be incremented.                                  |
+|                 | PI Server for this asset this index will be incremented.                                  |
 +-----------------+-------------------------------------------------------------------------------------------+
 | dataTypesShort  | A summary of the types in the datatypes of the asset. The value is an encoded number that |
 |                 | contains the count of each of base types, integer, float and string, in the datapoints of |
@@ -235,7 +234,7 @@ The *SentDataTypes* is a JSON array of object, with each object representing one
 +-----------------+-------------------------------------------------------------------------------------------+
 | afHierarchy     | The AF Hierarchy location.                                                                |
 +-----------------+-------------------------------------------------------------------------------------------+
-| afHierarchyOrig | The original setting of AF Heirarchy. This may differ from the above if specific AF rules |
+| afHierarchyOrig | The original setting of AF Hierarchy. This may differ from the above if specific AF rules |
 |                 | are in place.                                                                             |
 +-----------------+-------------------------------------------------------------------------------------------+
 | dataTypes       | The data type sent to the PI Server. This is an actually OMF type definition and is the   |

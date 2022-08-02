@@ -910,12 +910,15 @@ string plugin_shutdown(PLUGIN_HANDLE handle)
 	// Delete plugin handle
 	delete connInfo;
 
-	// Return current plugin data to save
+#if INSTRUMENT
+	// For debugging: write plugin's JSON data to a file
 	string jsonFilePath = getDataDir() + string("/logs/OMFSaveData.json");
 	ofstream f(jsonFilePath.c_str(), ios_base::trunc);
 	f << saveData.str();
 	f.close();
+#endif
 
+	// Return current plugin data to save
 	return saveData.str();
 }
 

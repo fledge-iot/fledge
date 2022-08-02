@@ -115,6 +115,8 @@ class Monitor(object):
                 else:
                     service_record._status = ServiceRecord.Status.Running
                     if 1 < check_count[service_record._id] <= self._max_attempts:
+                        self._logger.info("Resolving pending notification for ACL change "
+                                          "for service {} ".format(service_record._name))
                         ACLManager(connect.get_storage_async()).\
                             resolve_pending_notification_for_acl_change(service_record._name)
                     check_count[service_record._id] = 1

@@ -36,7 +36,7 @@ public:
 			", plugin:" << m_pluginName <<
 			", asset:" << m_assetName <<
 			", event:" << m_eventName <<
-			". deprecated:" << m_deprecated;
+			", deprecated:" << m_deprecated;
 		return o.str();
 	}
 

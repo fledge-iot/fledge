@@ -43,6 +43,7 @@ class Expression {
 			case JSON_COLUMN:
 			case BOOL_COLUMN:
 			case STRING_COLUMN:
+			case NULL_COLUMN:
 				break;
 			case INT_COLUMN:
 				json << m_value.ival;

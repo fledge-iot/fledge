@@ -61,6 +61,15 @@ class InsertValue {
 			strncpy(m_value.str, s.c_str(), s.length() + 1);
 			m_type = JSON_COLUMN;
 		};
+
+		// Insert a NULL value for the given column
+		InsertValue(const std::string& column) :
+				m_column(column)
+		{
+			m_type = NULL_COLUMN;
+			m_value.str = NULL;
+		}
+
 		InsertValue(const InsertValue& rhs) : m_column(rhs.m_column)
 		{
 			m_type = rhs.m_type;
@@ -77,6 +86,9 @@ class InsertValue {
 				break;
 			case JSON_COLUMN:	// Internally stored a a string
 				m_value.str = strdup(rhs.m_value.str);
+				break;
+			case NULL_COLUMN:
+				m_value.str = NULL;
 				break;
 			case BOOL_COLUMN:
 				// TODO
@@ -111,6 +123,10 @@ class InsertValue {
 				break;
 			case STRING_COLUMN:
 				json << "\"" << m_value.str << "\"";
+				break;
+			case NULL_COLUMN:
+				// JSON output for NULL value
+				json << "null";
 				break;
 			}
 			return json.str();

@@ -233,7 +233,7 @@ class ACLManager(ACLManagerSingleton):
             return
 
         new_acl = await self.get_acl_for_an_entity(svc_name, "service")
-        old_acl = await self._pending_notifications[svc_name]
+        old_acl = self._pending_notifications[svc_name]
 
         _logger.info("new acl is {} old acl is {}".format(new_acl, old_acl))
         if new_acl == old_acl and new_acl != "":

@@ -39,10 +39,6 @@ class ACLManager(ACLManagerSingleton):
         except DoesNotExist:  # Does not exist
             _logger.error("Cannot notify the service {} "
                           "about {}. It does not exist in service registry.".format(entity_name, reason))
-            _logger.info("Moved {} to pending. And pending items are is {}".format(entity_name,
-                                                                                   self._pending_notifications))
-
-            self._pending_notifications[entity_name] = acl
             return
         else:
             try:

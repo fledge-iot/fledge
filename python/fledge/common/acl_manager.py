@@ -69,7 +69,7 @@ class ACLManager(ACLManagerSingleton):
                 return
 
     async def handle_update_for_acl_usage(self, entity_name, acl_name, entity_type):
-        _logger.info("Update acl usage called for {} {} {}".format(entity_name, acl_name, entity_type))
+        _logger.debug("Update acl usage called for {} {} {}".format(entity_name, acl_name, entity_type))
 
         if entity_type == "service":
             try:
@@ -105,7 +105,7 @@ class ACLManager(ACLManagerSingleton):
                 raise ValueError(err_response)
 
     async def handle_delete_for_acl_usage(self, entity_name, acl_name, entity_type, notify_service=True):
-        _logger.info("delete acl usage called for {} {} {}".format(entity_name, acl_name, entity_type))
+        _logger.debug("delete acl usage called for {} {} {}".format(entity_name, acl_name, entity_type))
 
         if entity_type == "service":
             try:
@@ -113,11 +113,11 @@ class ACLManager(ACLManagerSingleton):
                 # in a category.
                 delete_payload = PayloadBuilder().WHERE(["entity_name", "=", entity_name]). \
                     AND_WHERE(["entity_type", "=", "service"]).payload()
-                _logger.info("The delete payload is {}".format(delete_payload))
+                _logger.debug("The delete payload is {}".format(delete_payload))
 
                 result = await self._storage_client.delete_from_tbl("acl_usage", delete_payload)
                 response = result['response']
-                _logger.info("The response payload is {}".format(response))
+                _logger.debug("The response payload is {}".format(response))
 
                 if notify_service:
                     await self._notify_service_about_acl_change(entity_name,
@@ -143,21 +143,21 @@ class ACLManager(ACLManagerSingleton):
 
     async def handle_create_for_acl_usage(self, entity_name, acl_name, entity_type, notify_service=False,
                                           acl_to_delete=None):
-        _logger.info("Create acl usage called for {} {} {}".format(entity_name, acl_name, entity_type))
+        _logger.debug("Create acl usage called for {} {} {}".format(entity_name, acl_name, entity_type))
         if entity_type == "service":
             try:
                 # Note entity_type must be a service since it is a config item of type ACL
                 # in a category.
-                _logger.info("Notify south is {}".format(notify_service))
+                _logger.debug("Notify south is {}".format(notify_service))
                 q_payload = PayloadBuilder().SELECT("name", "entity_name", "entity_type"). \
                     WHERE(["entity_name", "=", entity_name]). \
                     AND_WHERE(["entity_type", "=", entity_type]).\
                     AND_WHERE(["name", "=", acl_name]).payload()
                 results = await self._storage_client.query_tbl_with_payload('acl_usage', q_payload)
-                _logger.info("The result of query is {}".format(results))
+                _logger.debug("The result of query is {}".format(results))
                 # Check if the value to insert already exists.
                 if len(results["rows"]) > 0:
-                    _logger.info("The tuple ({}, {}, {}) already exists in acl usage table.".format(entity_name,
+                    _logger.debug("The tuple ({}, {}, {}) already exists in acl usage table.".format(entity_name,
                                                                                                     entity_type,
                                                                                                     acl_name))
                 else:
@@ -170,11 +170,11 @@ class ACLManager(ACLManagerSingleton):
                         delete_payload = PayloadBuilder().WHERE(["entity_name", "=", entity_name]). \
                             AND_WHERE(["entity_type", "=", entity_type]).\
                             AND_WHERE(["name", "=", acl_to_delete]).payload()
-                        _logger.info("The acl to delete is {} and entity name is {}".format(acl_to_delete,
+                        _logger.debug("The acl to delete is {} and entity name is {}".format(acl_to_delete,
                                                                                             entity_name))
                         result = await self._storage_client.delete_from_tbl("acl_usage", delete_payload)
                         response = result['response']
-                        _logger.info("the response is {}".format(response))
+                        _logger.debug("the response is {}".format(response))
 
                 if notify_service:
                     await self._notify_service_about_acl_change(entity_name, acl_name, "attachACL")
@@ -227,7 +227,8 @@ class ACLManager(ACLManagerSingleton):
             return ""
 
     async def resolve_pending_notification_for_acl_change(self, svc_name):
-        _logger.info("svc name {} and pending notifications {}".format(svc_name,
+        """Methods that handles the pending notification about acl change to the service."""
+        _logger.debug("svc name {} and pending notifications {}".format(svc_name,
                                                                        self._pending_notifications))
         if svc_name not in self._pending_notifications:
             return
@@ -235,7 +236,7 @@ class ACLManager(ACLManagerSingleton):
         new_acl = await self.get_acl_for_an_entity(svc_name, "service")
         old_acl = self._pending_notifications[svc_name]
 
-        _logger.info("new acl is {} old acl is {}".format(new_acl, old_acl))
+        _logger.debug("new acl is {} old acl is {}".format(new_acl, old_acl))
         if new_acl == old_acl and new_acl != "":
             await self._notify_service_about_acl_change(entity_name=svc_name, acl=new_acl,
                                                         reason="reloadACL")

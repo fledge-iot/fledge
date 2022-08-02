@@ -1159,8 +1159,6 @@ class Server:
                     if not cls._storage_client_async is None:
                         cls._audit = AuditLogger(cls._storage_client_async)
                         await cls._audit.information('SRVRG', {'name': service_name})
-                        _logger.info("The svc {} is running again calling "
-                                     "the pending acl change notification for it if any.".format(service_name))
                         await ACLManager(cls._storage_client_async).\
                             resolve_pending_notification_for_acl_change(service_name)
                 except Exception as ex:

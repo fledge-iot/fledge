@@ -60,6 +60,10 @@ class ACLManager(ACLManagerSingleton):
 
                 elif service.Status == ServiceRecord.Status.Failed:
                     _logger.error("The service {} has failed. Cannot notify the service about ACL change")
+                    # No need to clear pending items if any so that when next time service restarts it picks
+                    # acl from its category.
+                    if entity_name in self._pending_notifications:
+                        self._pending_notifications.pop(entity_name)
                     return
 
                 from fledge.common.microservice_management_client.microservice_management_client import MicroserviceManagementClient

@@ -500,9 +500,7 @@ void Ingest::processQueue()
 				std::map<std::string, int>		statsEntriesCurrQueue;
 				AssetTracker *tracker = AssetTracker::getAssetTracker();
 
-				// TODO: save it as member variable
 				string lastAsset = "";
-
 				int *lastStat = NULL;
 				for (vector<Reading *>::iterator it = q->begin();
 							 it != q->end(); ++it)
@@ -525,11 +523,19 @@ void Ingest::processQueue()
 						}
 						else
 						{
-							// Un-deprecate asset tracking record
-							unDeprecateAssetTrackingRecord(res,
+							if (!m_lastAsset.empty() &&
+							    m_lastAsset.compare(assetName))
+							{
+								// Asset name changed:
+								// Un-deprecate asset tracking record
+								unDeprecateAssetTrackingRecord(res,
 											assetName,
 											"Ingest");
+							}
 						}
+						// Store last asset
+						m_lastAsset = assetName;
+
 						lastAsset = assetName;
 						lastStat = &(statsEntriesCurrQueue[assetName]);
 						(*lastStat)++;
@@ -677,9 +683,7 @@ void Ingest::processQueue()
 				// Remove the Readings in the vector
 				AssetTracker *tracker = AssetTracker::getAssetTracker();
 
-				// TODO: save it as member variable
-				string lastAsset = "";
-
+				string lastAsset;
 				int *lastStat = NULL;
 				for (vector<Reading *>::iterator it = m_data->begin(); it != m_data->end(); ++it)
 				{
@@ -701,11 +705,19 @@ void Ingest::processQueue()
 						}
 						else
 						{
-							// Un-deprecate asset tracking record
-							unDeprecateAssetTrackingRecord(res,
-											assetName,
-											"Ingest");
+							if (!m_lastAsset.empty() &&
+							    m_lastAsset.compare(assetName))
+							{
+								// Asset name changed:
+								// Un-deprecate asset tracking record
+								unDeprecateAssetTrackingRecord(res,
+												assetName,
+												"Ingest");
+							}
 						}
+						// Store last asset
+						m_lastAsset = assetName;
+
 						lastAsset = assetName;
 						lastStat = &statsEntriesCurrQueue[assetName];
 						(*lastStat)++;

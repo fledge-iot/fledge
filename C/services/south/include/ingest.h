@@ -120,6 +120,7 @@ private:
 	int				m_failCnt;
 	bool				m_storageFailed;
 	int				m_storesFailed;
+	std::string			m_lastAsset;
 };
 
 #endif

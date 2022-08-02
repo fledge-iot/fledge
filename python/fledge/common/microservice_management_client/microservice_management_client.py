@@ -17,7 +17,7 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-_logger = logger.setup(__name__, level=logging.DEBUG)
+_logger = logger.setup(__name__, level=logging.INFO)
 
 
 class MicroserviceManagementClient(object):
@@ -317,7 +317,7 @@ class MicroserviceManagementClient(object):
                                    data=json.dumps(payload)) as resp:
                 _logger.info(resp.status)
                 json_response = await resp.json()
-                _logger.info("The response is {}".format(json_response))
+                _logger.debug("The response is {}".format(json_response))
                 self._management_client_conn.close()
                 self.port = None
                 self.hostname = None

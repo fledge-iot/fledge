@@ -48,6 +48,21 @@ class ACLManager(ACLManagerSingleton):
             try:
                 _logger.info("Notifying the service"
                              " {} about {}".format(entity_name, reason))
+                from fledge.common.service_record import ServiceRecord
+
+                if service.Status == ServiceRecord.Status.Shutdown:
+                    self._pending_notifications[entity_name] = acl
+                    _logger.info("Moved {} to pending. And pending notifications {}".format(entity_name,
+                                                                                            self._pending_notifications))
+                    return
+                elif service.Status == ServiceRecord.Status.Unresponsive:
+                    _logger.warn("The service {} is Unresponsive. Skipping notifying "
+                                 "the service bout ACL change.")
+                    return
+                elif service.Status == ServiceRecord.Status.Failed:
+                    _logger.error("The service {} has failed. Cannot notify the service about ACL change")
+                    return
+
                 from fledge.common.microservice_management_client.microservice_management_client import MicroserviceManagementClient
                 _logger.info("The host and port is {} {} and "
                              "entity is {}".format(service._address,
@@ -55,7 +70,7 @@ class ACLManager(ACLManagerSingleton):
                                                    entity_name))
                 mgt_client = MicroserviceManagementClient(service._address,
                                                           service._management_port)
-                _logger.info("Connect established with {} at {} and port {}".format(entity_name,
+                _logger.info("Connection established with {} at {} and port {}".format(entity_name,
                                                                                     service._address,
                                                                                     service._management_port))
                 await mgt_client.update_service_for_acl_change_security(acl=acl,
@@ -64,12 +79,6 @@ class ACLManager(ACLManagerSingleton):
                 # clearing the pending notifications if any.
                 if entity_name in self._pending_notifications:
                     self._pending_notifications.pop(entity_name)
-
-            except aiohttp.client_exceptions.ClientConnectorError:
-                self._pending_notifications[entity_name] = acl
-                _logger.info("Moved {} to pending. And pending is {}".format(entity_name,
-                                                                             self._pending_notifications))
-                return
 
             except Exception as ex:
                 _logger.error("Could not notify {} due to {}".format(entity_name, ex))

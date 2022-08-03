@@ -189,6 +189,7 @@ def setup(app):
     app.router.add_route('DELETE', '/fledge/plugins/{type}/{name}', plugins_remove.remove_plugin)
 
     # plugin data
+    app.router.add_route('GET', '/fledge/service/{service_name}/persist', plugin_data.get_persist_plugins)
     app.router.add_route('GET', '/fledge/service/{service_name}/plugin/{plugin_name}/data', plugin_data.get)
     app.router.add_route('POST', '/fledge/service/{service_name}/plugin/{plugin_name}/data', plugin_data.add)
     app.router.add_route('DELETE', '/fledge/service/{service_name}/plugin/{plugin_name}/data', plugin_data.delete)

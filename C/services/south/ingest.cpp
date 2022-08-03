@@ -523,19 +523,11 @@ void Ingest::processQueue()
 						}
 						else
 						{
-							if (!m_lastAsset.empty() &&
-							    m_lastAsset.compare(assetName))
-							{
-								// Asset name changed:
-								// Un-deprecate asset tracking record
-								unDeprecateAssetTrackingRecord(res,
+							// Possibly Un-deprecate asset tracking record
+							unDeprecateAssetTrackingRecord(res,
 											assetName,
 											"Ingest");
-							}
 						}
-						// Store last asset
-						m_lastAsset = assetName;
-
 						lastAsset = assetName;
 						lastStat = &(statsEntriesCurrQueue[assetName]);
 						(*lastStat)++;
@@ -705,19 +697,11 @@ void Ingest::processQueue()
 						}
 						else
 						{
-							if (!m_lastAsset.empty() &&
-							    m_lastAsset.compare(assetName))
-							{
-								// Asset name changed:
-								// Un-deprecate asset tracking record
-								unDeprecateAssetTrackingRecord(res,
-												assetName,
-												"Ingest");
-							}
+							// Un-deprecate asset tracking record
+							unDeprecateAssetTrackingRecord(res,
+											assetName,
+											"Ingest");
 						}
-						// Store last asset
-						m_lastAsset = assetName;
-
 						lastAsset = assetName;
 						lastStat = &statsEntriesCurrQueue[assetName];
 						(*lastStat)++;

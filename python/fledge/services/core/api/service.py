@@ -169,25 +169,50 @@ async def delete_service(request):
         except service_registry_exceptions.DoesNotExist:
             pass
 
+        # Delete streams and plugin data
         await delete_streams(storage, svc)
         await delete_plugin_data(storage, svc)
 
         # Delete schedule
         await server.Server.scheduler.delete_schedule(sch_id)
+
+        # Update deprecated timestamp in asset_tracker
+        await update_deprecated_ts_in_asset_tracker(storage, svc)
     except Exception as ex:
         raise web.HTTPInternalServerError(reason=str(ex))
     else:
         return web.json_response({'result': 'Service {} deleted successfully.'.format(svc)})
 
 
-async def delete_streams(storage, north_instance):
-    payload = PayloadBuilder().WHERE(["description", "=", north_instance]).payload()
+async def delete_streams(storage, svc):
+    payload = PayloadBuilder().WHERE(["description", "=", svc]).payload()
     await storage.delete_from_tbl("streams", payload)
 
 
-async def delete_plugin_data(storage, north_instance):
-    payload = PayloadBuilder().WHERE(["key", "like", north_instance + "%"]).payload()
+async def delete_plugin_data(storage, svc):
+    payload = PayloadBuilder().WHERE(["key", "like", svc + "%"]).payload()
     await storage.delete_from_tbl("plugin_data", payload)
+
+
+async def update_deprecated_ts_in_asset_tracker(storage, svc):
+    """
+    TODO: FOGL-6749
+    Once rows affected with 0 case handled at Storage side
+    then we will need to update the query with AND_WHERE(['deprecated_ts', 'isnull'])
+    At the moment deprecated_ts is updated even in notnull case.
+    Also added SELECT query before UPDATE to avoid BadCase when there is no asset track entry exists for the instance.
+    This should also be removed when given JIRA is fixed.
+    """
+    select_payload = PayloadBuilder().SELECT("deprecated_ts").WHERE(['service', '=', svc]).payload()
+    get_result = await storage.query_tbl_with_payload('asset_tracker', select_payload)
+    if 'rows' in get_result:
+        response = get_result['rows']
+        if response:
+            # AND_WHERE(['deprecated_ts', 'isnull']) once FOGL-6749 is done
+            current_time = utils.local_timestamp()
+            update_payload = PayloadBuilder().SET(deprecated_ts=current_time).WHERE(
+                ['service', '=', svc]).payload()
+            await storage.update_tbl("asset_tracker", update_payload)
 
 
 async def add_service(request):

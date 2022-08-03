@@ -59,6 +59,7 @@
 
 
 #define VERBOSE_LOG	0
+#define INSTRUMENT 0
 
 using namespace std;
 using namespace rapidjson;
@@ -747,6 +748,10 @@ void plugin_start(const PLUGIN_HANDLE handle,
 uint32_t plugin_send(const PLUGIN_HANDLE handle,
 		     const vector<Reading *>& readings)
 {
+#if INSTRUMENT
+	struct timeval	start, end;
+	gettimeofday(&start, NULL);
+#endif
 	CONNECTOR_INFO* connInfo = (CONNECTOR_INFO *)handle;
 
 	/**
@@ -850,6 +855,14 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 	delete connInfo->sender;
 	delete connInfo->omf;
 
+#if INSTRUMENT
+	gettimeofday(&end, NULL);
+	struct timeval tm;
+	timersub(&end, &start, &tm);
+	double elapsedTime = tm.tv_sec + ((double)tm.tv_usec / 1000000);
+	Logger::getLogger()->debug("plugin_send elapsed time: %6.3f seconds", elapsedTime);
+#endif
+
 	// Return sent data ret code
 	return ret;
 }
@@ -897,6 +910,14 @@ string plugin_shutdown(PLUGIN_HANDLE handle)
 	// Delete plugin handle
 	delete connInfo;
 
+#if INSTRUMENT
+	// For debugging: write plugin's JSON data to a file
+	string jsonFilePath = getDataDir() + string("/logs/OMFSaveData.json");
+	ofstream f(jsonFilePath.c_str(), ios_base::trunc);
+	f << saveData.str();
+	f.close();
+#endif
+
 	// Return current plugin data to save
 	return saveData.str();
 }
@@ -905,7 +926,7 @@ string plugin_shutdown(PLUGIN_HANDLE handle)
 };
 
 /**
- * Return a JSON string with the dataTypes to save in plugion_data
+ * Return a JSON string with the dataTypes to save in plugin_data
  *
  * Note: the entry with FAKE_ASSET_KEY is never saved.
  *

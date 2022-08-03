@@ -47,7 +47,7 @@ class ACLManager(ACLManagerSingleton):
                 from fledge.common.service_record import ServiceRecord
 
                 if service.Status == ServiceRecord.Status.Shutdown:
-                    _logger.error("The service {} has Shut Down. Cannot notify the service about ACL change.")
+                    _logger.info("The service {} has Shut Down. Cannot notify the service about ACL change.")
                     return
 
                 elif service.Status == ServiceRecord.Status.Unresponsive:
@@ -60,7 +60,7 @@ class ACLManager(ACLManagerSingleton):
 
                 elif service.Status == ServiceRecord.Status.Failed:
                     _logger.error("The service {} has failed. Cannot notify the service about ACL change")
-                    # No need to clear pending items if any so that when next time service restarts it picks
+                    # Need to clear pending items if any so that when next time service restarts it picks
                     # acl from its category.
                     if entity_name in self._pending_notifications:
                         self._pending_notifications.pop(entity_name)

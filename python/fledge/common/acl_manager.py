@@ -1,4 +1,8 @@
-import aiohttp
+# -*- coding: utf-8 -*-
+
+# FLEDGE_BEGIN
+# See: http://fledge-iot.readthedocs.io/
+# FLEDGE_END
 
 import logging
 
@@ -6,7 +10,13 @@ from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.common.storage_client.exceptions import StorageServerError
 from fledge.common import logger
 
-_logger = logger.setup(__name__, level=logging.DEBUG)
+
+__author__ = "Deepanshu Yadav"
+__copyright__ = "Copyright (c) 2022 Dianomic Systems Inc."
+__license__ = "Apache 2.0"
+__version__ = "${VERSION}"
+
+_logger = logger.setup(__name__, level=logging.INFO)
 
 
 class ACLManagerSingleton(object):

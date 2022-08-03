@@ -53,8 +53,7 @@ class Monitor(object):
         """Restart failed microservice - manual/auto"""
 
         self.restarted_services = []
-
-        self._acl_handler = ACLManager(connect.get_storage_async())
+        self._acl_handler = None
 
     async def _sleep(self, sleep_time):
         await asyncio.sleep(sleep_time)
@@ -119,6 +118,8 @@ class Monitor(object):
 
                     self._logger.debug("Resolving pending notification for ACL change "
                                        "for service {} ".format(service_record._name))
+                    if not self._acl_handler:
+                        self._acl_handler = ACLManager(connect.get_storage_async())
                     await self._acl_handler.\
                         resolve_pending_notification_for_acl_change(service_record._name)
 

@@ -8,10 +8,12 @@ import json
 import urllib.parse
 from aiohttp import web
 
-from fledge.plugins.common import utils as common_utils
 from fledge.common.plugin_discovery import PluginDiscovery
 from fledge.common.storage_client.payload_builder import PayloadBuilder
+from fledge.plugins.common import utils as common_utils
 from fledge.services.core import connect
+from fledge.services.core.service_registry.service_registry import ServiceRegistry
+
 
 __author__ = "Mark Riddoch, Ashish Jabble"
 __copyright__ = "Copyright (c) 2022 Dianomic Systems Inc."
@@ -24,7 +26,7 @@ _help = """
     | GET POST DELETE       | /fledge/service/{service_name}/plugin/{plugin_name}/data    |
     ---------------------------------------------------------------------------------------
 """
-
+FORBIDDEN_MSG = "Resource you were trying to reach is absolutely forbidden!"
 
 async def get_persist_plugins(request: web.Request) -> web.Response:
     """
@@ -85,6 +87,10 @@ async def add(request: web.Request) -> web.Response:
     try:
         service = request.match_info.get('service_name', None)
         plugin = request.match_info.get('plugin_name', None)
+        svc_records = ServiceRegistry.all()
+        for service_record in svc_records:
+            if service_record._name == service and int(service_record._status) == 1:
+                raise web.HTTPForbidden(reason=FORBIDDEN_MSG)
         storage_client = connect.get_storage_async()
         await _find_svc_and_plugin(storage_client, service, plugin)
         key = "{}{}".format(service, plugin)
@@ -93,13 +99,13 @@ async def add(request: web.Request) -> web.Response:
         if response:
             msg = "{} key already exist.".format(key)
             return web.HTTPConflict(reason=msg, body=json.dumps({"message": msg}))
-        data = await request.json()
-        data = data["data"]
+        payload = await request.json()
+        data = payload.get("data")
         if data is not None:
             payload = PayloadBuilder().INSERT(key=key, data=data)
             await storage_client.insert_into_tbl('plugin_data', payload.payload())
         else:
-            raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": "Malformed data in payload"}))
+            raise KeyError('Malformed data in payload!')
     except KeyError as err:
         msg = str(err)
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))

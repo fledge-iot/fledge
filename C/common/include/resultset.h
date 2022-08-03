@@ -21,7 +21,8 @@ typedef enum column_type {
 	NUMBER_COLUMN,
 	STRING_COLUMN,
 	BOOL_COLUMN,
-	JSON_COLUMN
+	JSON_COLUMN,
+	NULL_COLUMN
 } ColumnType;
 
 

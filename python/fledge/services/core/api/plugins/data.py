@@ -8,6 +8,7 @@ import json
 import urllib.parse
 from aiohttp import web
 
+from fledge.plugins.common import utils as common_utils
 from fledge.common.plugin_discovery import PluginDiscovery
 from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.services.core import connect
@@ -19,9 +20,23 @@ __version__ = "${VERSION}"
 
 _help = """
     ---------------------------------------------------------------------------------------
+    | GET                   | /fledge/service/{service_name}/persist                      |
     | GET POST DELETE       | /fledge/service/{service_name}/plugin/{plugin_name}/data    |
     ---------------------------------------------------------------------------------------
 """
+
+
+async def get_persist_plugins(request: web.Request) -> web.Response:
+    """
+    Args:
+        request:
+    Returns:
+        list of plugins that have SP_PERSIST_DATA flag set in plugin info
+    :Example:
+        curl -sX GET "http://localhost:8081/fledge/service/{service_name}/persist"
+    """
+    plugins = common_utils.get_persist_plugins()
+    return web.json_response({'persistent': plugins})
 
 
 async def get(request: web.Request) -> web.Response:

@@ -132,6 +132,10 @@ async def delete(request: web.Request) -> web.Response:
         service = request.match_info.get('service_name', None)
         service = urllib.parse.unquote(service) if service is not None else None
         plugin = request.match_info.get('plugin_name', None)
+        svc_records = ServiceRegistry.all()
+        for service_record in svc_records:
+            if service_record._name == service and int(service_record._status) == 1:
+                raise web.HTTPForbidden(reason=FORBIDDEN_MSG)
         storage_client = connect.get_storage_async()
         key = "{}{}".format(service, plugin)
         payload = PayloadBuilder().WHERE(['key', '=', key])

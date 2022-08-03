@@ -92,6 +92,9 @@ class ManagementClient {
 						std::vector<std::pair<std::string, std::string> > >& endpoints);
 		bool			deleteProxy(const std::string& serviceName);
 		const std::string 	getUrlbase() { return m_urlbase.str(); }
+		AssetTrackingTuple*	getAssetTrackingTuple(const std::string& serviceName,
+								const std::string& assetName,
+								const std::string& event);
 
 	private:
 		std::ostringstream 			m_urlbase;

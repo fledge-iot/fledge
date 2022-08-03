@@ -502,14 +502,19 @@ class TestTask:
                 ]
             }
 
+        delete_result = {'response': 'deleted', 'rows_affected': 1}
+        update_result = {'rows_affected': 1, "response": "updated"}
+
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv1 = await mock_result()
-            _rv2 = asyncio.ensure_future(asyncio.sleep(.1))
+            _rv3 = await self.async_mock(delete_result)
+            _rv4 = await self.async_mock(update_result)
         else:
             _rv1 = asyncio.ensure_future(mock_result())
-            _rv2 = asyncio.ensure_future(asyncio.sleep(.1))
-        
+            _rv3 = asyncio.ensure_future(self.async_mock(delete_result))
+            _rv4 = asyncio.ensure_future(self.async_mock(update_result))
+        _rv2 = asyncio.ensure_future(asyncio.sleep(.1))
         storage_client_mock = MagicMock(StorageClientAsync)
         mocker.patch.object(connect, 'get_storage_async', storage_client_mock)
         get_schedule = mocker.patch.object(task, "get_schedule", return_value=_rv1)
@@ -520,10 +525,11 @@ class TestTask:
                                                                  return_value=_rv2)
         delete_configuration = mocker.patch.object(ConfigurationManager, "delete_category_and_children_recursively",
                                                    return_value=_rv2)
-        delete_statistics_key = mocker.patch.object(task, "delete_statistics_key", return_value=_rv2)
-
-        delete_streams = mocker.patch.object(task, "delete_streams", return_value=_rv2)
-        delete_plugin_data = mocker.patch.object(task, "delete_plugin_data", return_value=_rv2)
+        delete_statistics_key = mocker.patch.object(task, "delete_statistics_key", return_value=_rv3)
+        delete_streams = mocker.patch.object(task, "delete_streams", return_value=_rv3)
+        delete_plugin_data = mocker.patch.object(task, "delete_plugin_data", return_value=_rv3)
+        update_deprecated_ts_in_asset_tracker = mocker.patch.object(task, "update_deprecated_ts_in_asset_tracker",
+                                                                    return_value=_rv4)
 
         resp = await client.delete("/fledge/scheduled/task/{}".format(sch_name))
         assert 200 == resp.status
@@ -552,6 +558,18 @@ class TestTask:
 
         assert 1 == delete_statistics_key.call_count
         args, kwargs = delete_statistics_key.call_args_list[0]
+        assert sch_name in args
+
+        assert 1 == delete_streams.call_count
+        args, kwargs = delete_streams.call_args_list[0]
+        assert sch_name in args
+
+        assert 1 == delete_plugin_data.call_count
+        args, kwargs = delete_plugin_data.call_args_list[0]
+        assert sch_name in args
+
+        assert 1 == update_deprecated_ts_in_asset_tracker.call_count
+        args, kwargs = update_deprecated_ts_in_asset_tracker.call_args_list[0]
         assert sch_name in args
 
     async def test_delete_task_exception(self, mocker, client):

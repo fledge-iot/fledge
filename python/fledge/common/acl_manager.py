@@ -56,20 +56,24 @@ class ACLManager(ACLManagerSingleton):
                              " {} about {}".format(entity_name, reason))
                 from fledge.common.service_record import ServiceRecord
 
-                if service.Status == ServiceRecord.Status.Shutdown:
-                    _logger.info("The service {} has Shut Down. Cannot notify the service about ACL change.")
+                _logger.info("The status is {}".format(service._status))
+                if service._status == ServiceRecord.Status.Shutdown:
+                    _logger.info("The service {} has Shut Down. "
+                                 "Cannot notify the service about ACL change.".format(entity_name))
                     return
 
-                elif service.Status == ServiceRecord.Status.Unresponsive:
+                elif service._status == ServiceRecord.Status.Unresponsive:
                     _logger.warn("The service {} is Unresponsive. Skipping notifying "
-                                 "the service about ACL change. But adding to pending items.")
+                                 "the service about {}. But adding to pending items.".format(entity_name, reason))
                     self._pending_notifications[entity_name] = acl
-                    _logger.info("Adding {} to to pending list. And pending items are {}".format(entity_name,
-                                                                                                 self._pending_notifications))
+                    _logger.info("Adding {} to to pending list. "
+                                 "And pending items are {}".format(entity_name,
+                                                                   self._pending_notifications))
                     return
 
-                elif service.Status == ServiceRecord.Status.Failed:
-                    _logger.error("The service {} has failed. Cannot notify the service about ACL change")
+                elif service._status == ServiceRecord.Status.Failed:
+                    _logger.error("The service {} has failed. "
+                                  "Cannot notify the service about ACL change".format(entity_name))
                     # Need to clear pending items if any so that when next time service restarts it picks
                     # acl from its category.
                     if entity_name in self._pending_notifications:

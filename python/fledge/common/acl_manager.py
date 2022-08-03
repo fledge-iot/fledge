@@ -218,31 +218,39 @@ class ACLManager(ACLManagerSingleton):
 
     async def get_all_entities_for_a_acl(self, acl_name, entity_type):
         """Get all the entities attached to an acl."""
-        q_payload = PayloadBuilder().SELECT("entity_name"). \
-            AND_WHERE(["entity_type", "=", entity_type]). \
-            AND_WHERE(["name", "=", acl_name]).payload()
-        results = await self._storage_client.query_tbl_with_payload('acl_usage', q_payload)
+        try:
+            q_payload = PayloadBuilder().SELECT("entity_name"). \
+                AND_WHERE(["entity_type", "=", entity_type]). \
+                AND_WHERE(["name", "=", acl_name]).payload()
+            results = await self._storage_client.query_tbl_with_payload('acl_usage', q_payload)
 
-        if len(results['rows']) > 0:
-            entities = []
-            for row in results['rows']:
-                entities.append(row['entity_name'])
-            return entities
-        else:
-            return []
+            if len(results['rows']) > 0:
+                entities = []
+                for row in results['rows']:
+                    entities.append(row['entity_name'])
+                return entities
+            else:
+                return []
+        except StorageServerError as ex:
+            err_response = ex.error
+            raise ValueError(err_response)
 
     async def get_acl_for_an_entity(self, entity_name, entity_type):
         """Get the acl attached to an entity."""
-        q_payload = PayloadBuilder().SELECT("name"). \
-            AND_WHERE(["entity_type", "=", entity_type]). \
-            AND_WHERE(["entity_name", "=", entity_name]).payload()
-        results = await self._storage_client.query_tbl_with_payload('acl_usage', q_payload)
+        try:
+            q_payload = PayloadBuilder().SELECT("name"). \
+                AND_WHERE(["entity_type", "=", entity_type]). \
+                AND_WHERE(["entity_name", "=", entity_name]).payload()
+            results = await self._storage_client.query_tbl_with_payload('acl_usage', q_payload)
 
-        if len(results['rows']) > 0:
-            for row in results['rows']:
-                return row['name']
-        else:
-            return ""
+            if len(results['rows']) > 0:
+                for row in results['rows']:
+                    return row['name']
+            else:
+                return ""
+        except StorageServerError as ex:
+            err_response = ex.error
+            raise ValueError(err_response)
 
     async def resolve_pending_notification_for_acl_change(self, svc_name):
         """Methods that handles the pending notification about acl change to the service."""

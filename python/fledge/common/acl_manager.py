@@ -54,8 +54,8 @@ class ACLManager(ACLManagerSingleton):
                     _logger.warn("The service {} is Unresponsive. Skipping notifying "
                                  "the service about ACL change. But adding to pending items.")
                     self._pending_notifications[entity_name] = acl
-                    _logger.info("Moved {} to pending. And pending items are {}".format(entity_name,
-                                                                                        self._pending_notifications))
+                    _logger.info("Adding {} to to pending list. And pending items are {}".format(entity_name,
+                                                                                                 self._pending_notifications))
                     return
 
                 elif service.Status == ServiceRecord.Status.Failed:
@@ -74,17 +74,17 @@ class ACLManager(ACLManagerSingleton):
                 mgt_client = MicroserviceManagementClient(service._address,
                                                           service._management_port)
                 _logger.debug("Connection established with {} at {} and port {}".format(entity_name,
-                                                                                    service._address,
-                                                                                    service._management_port))
+                                                                                        service._address,
+                                                                                        service._management_port))
                 await mgt_client.update_service_for_acl_change_security(acl=acl,
                                                                         reason=reason)
                 _logger.info("Notified the {} about {}".format(entity_name, reason))
-                # clearing the pending notifications if any.
+                # Clearing the pending notifications if any.
                 if entity_name in self._pending_notifications:
                     self._pending_notifications.pop(entity_name)
 
             except Exception as ex:
-                _logger.error("Could not notify {} due to {}".format(entity_name, ex))
+                _logger.error("Could not notify {} due to {}".format(entity_name, str(ex)))
 
     async def handle_update_for_acl_usage(self, entity_name, acl_name, entity_type):
         _logger.debug("Update acl usage called for {} {} {}".format(entity_name, acl_name, entity_type))
@@ -231,6 +231,8 @@ class ACLManager(ACLManagerSingleton):
                 return entities
             else:
                 return []
+        except KeyError:
+            raise ValueError(results['message'])
         except StorageServerError as ex:
             err_response = ex.error
             raise ValueError(err_response)
@@ -248,6 +250,8 @@ class ACLManager(ACLManagerSingleton):
                     return row['name']
             else:
                 return ""
+        except KeyError:
+            raise ValueError(results['message'])
         except StorageServerError as ex:
             err_response = ex.error
             raise ValueError(err_response)
@@ -255,14 +259,15 @@ class ACLManager(ACLManagerSingleton):
     async def resolve_pending_notification_for_acl_change(self, svc_name):
         """Methods that handles the pending notification about acl change to the service."""
         _logger.debug("svc name {} and pending notifications {}".format(svc_name,
-                                                                       self._pending_notifications))
+                                                                        self._pending_notifications))
         if svc_name not in self._pending_notifications:
             return
 
         new_acl = await self.get_acl_for_an_entity(svc_name, "service")
         old_acl = self._pending_notifications[svc_name]
 
-        _logger.debug("new acl is {} old acl is {}".format(new_acl, old_acl))
+        _logger.debug("New acl is {} Old acl is {}".format(new_acl, old_acl))
+
         if new_acl == old_acl and new_acl != "":
             await self._notify_service_about_acl_change(entity_name=svc_name, acl=new_acl,
                                                         reason="reloadACL")

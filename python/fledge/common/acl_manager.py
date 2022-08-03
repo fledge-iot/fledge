@@ -56,7 +56,6 @@ class ACLManager(ACLManagerSingleton):
                              " {} about {}".format(entity_name, reason))
                 from fledge.common.service_record import ServiceRecord
 
-                _logger.info("The status is {}".format(service._status))
                 if service._status == ServiceRecord.Status.Shutdown:
                     _logger.info("The service {} has Shut Down. "
                                  "Cannot notify the service about ACL change.".format(entity_name))

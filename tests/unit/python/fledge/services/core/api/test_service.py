@@ -747,24 +747,33 @@ class TestService:
                             },
                         ]
             }
-        
+
+        delete_result = {'response': 'deleted', 'rows_affected': 1}
+        update_result = {'rows_affected': 1, "response": "updated"}
+
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await mock_result()
+            _rv1 = await mock_result()
+            _rv3 = await self.async_mock(delete_result)
+            _rv4 = await self.async_mock(update_result)
         else:
-            _rv = asyncio.ensure_future(mock_result())
+            _rv1 = asyncio.ensure_future(mock_result())
+            _rv3 = asyncio.ensure_future(self.async_mock(delete_result))
+            _rv4 = asyncio.ensure_future(self.async_mock(update_result))
         _rv2 = asyncio.ensure_future(asyncio.sleep(.1))
-        
         mocker.patch.object(connect, 'get_storage_async')
-        get_schedule = mocker.patch.object(service, "get_schedule", return_value=_rv)
+        get_schedule = mocker.patch.object(service, "get_schedule", return_value=_rv1)
         scheduler = mocker.patch.object(server.Server, "scheduler", MagicMock())
         delete_schedule = mocker.patch.object(scheduler, "delete_schedule", return_value=_rv2)
         disable_schedule = mocker.patch.object(scheduler, "disable_schedule", return_value=_rv2)
-        delete_configuration = mocker.patch.object(ConfigurationManager, "delete_category_and_children_recursively", return_value=_rv2)
+        delete_configuration = mocker.patch.object(ConfigurationManager, "delete_category_and_children_recursively",
+                                                   return_value=_rv2)
         get_registry = mocker.patch.object(ServiceRegistry, 'get', return_value=mock_registry)
         remove_registry = mocker.patch.object(ServiceRegistry, 'remove_from_registry')
-        delete_streams = mocker.patch.object(service, "delete_streams", return_value=_rv)
-        delete_plugin_data = mocker.patch.object(service, "delete_plugin_data", return_value=_rv)
+        delete_streams = mocker.patch.object(service, "delete_streams", return_value=_rv3)
+        delete_plugin_data = mocker.patch.object(service, "delete_plugin_data", return_value=_rv3)
+        update_deprecated_ts_in_asset_tracker = mocker.patch.object(service, "update_deprecated_ts_in_asset_tracker",
+                                                                    return_value=_rv4)
 
         mock_registry[0]._status = ServiceRecord.Status.Shutdown
 
@@ -803,6 +812,10 @@ class TestService:
 
         assert 1 == delete_plugin_data.call_count
         args, kwargs = delete_plugin_data.call_args_list[0]
+        assert sch_name in args
+
+        assert 1 == update_deprecated_ts_in_asset_tracker.call_count
+        args, kwargs = update_deprecated_ts_in_asset_tracker.call_args_list[0]
         assert sch_name in args
 
     async def test_delete_service_exception(self, mocker, client):

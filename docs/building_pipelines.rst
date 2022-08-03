@@ -9,6 +9,8 @@
 .. |developer_features| image:: images/developer_features.jpg
 .. |manual_purge| image:: images/manual_purge.jpg
 .. |eraser| image:: images/eraser.jpg
+.. |deprecated_1| image:: images/deprecated_1.png
+.. |deprecated_2| image:: images/deprecated_2.png
 
 .. Links
 .. |python35| raw:: html
@@ -82,6 +84,26 @@ Amongst the extra features introduced by selecting *Developer Features* will be 
 These icons are resemble erasers and are located in each row of the assets and also in the top right corner next to the help icon. Clicking on the eraser icon in each of the rows will purge the data for just that asset, leaving other assets untouched. Clicking on the icon in the top right corner will purge all the assets currently in the data store.
 
 In both cases a confirmation dialog will be displayed to ensure against accidental use. If you choose to proceed the selected data within the Fledge buffer, either all or a specific asset, will be erased. There is no way to undo this operation or to retrieve the data once it has been purged.
+
+Another consequence that may occur when developing new pipelines is that assets are created during the development process which are not required in the finished pipeline. The asset however remains associated with the service and the asset name and count of number of ingested readings will be displayed in the *South Services* page on the user interface.
+
++----------------+
+| |deprecated_1| |
++----------------+
+
+It is possible to deprecate the relationship between the service and the asset name using the developer features of the user interface. To do this you must first enable *Developer Features* in the user interface settings page. Now when you view the *South Services* page you will see an eraser icon next to each asset listed for a service.
+
++----------------+
+| |deprecated_2| |
++----------------+
+
+If you click on this icon you will be prompted to deprecate the relationship between the asset and the service. If you select *Yes* the relationship will be severed and the asset will no longer appear next to the service.
+
+Deprecating the relationship will not remove the statistics for the asset, it will merely remove the relationship with the service and hence it will not be displayed against the service.
+
+If an asset relationship is deprecated for an asset that is still in use, it will automatically be reinstated the next time a reading is ingested for that asset. Since the statistics were not deleted when the relationship was deprecated the previous readings will still in included in the statistics when the relationship is restored.
+
+These *Developer Features* are designed to be of use when developing pipelines within Fledge, the functionality is not something that should be used in normal operation and the developer features should be turned off when pipelines are not being developed.
 
 Sacrificial North System
 ########################

@@ -111,7 +111,7 @@ class ACLManager(ACLManagerSingleton):
                 payload = PayloadBuilder().INSERT(entity_name=entity_name,
                                                   entity_type="service",
                                                   name=acl_name).payload()
-                _logger.info("insert payload is {}".format(payload))
+                _logger.debug("insert payload is {}".format(payload))
                 result = await self._storage_client.insert_into_tbl("acl_usage", payload)
                 response = result['response']
 

@@ -129,3 +129,61 @@ async def deprecate_asset_track_entry(request: web.Request) -> web.Response:
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({'success': "Asset record entry has been deprecated."})
+
+
+async def query_asset_tracker_table(storage_client):
+    """Helper function that queries asset_tracker table to get the datapoints of every asset."""
+    try:
+        q_payload = PayloadBuilder().SELECT("data", "asset"). \
+            DISTINCT(["asset"])
+
+        results = await storage_client.query_tbl_with_payload('asset_tracker', q_payload)
+        # _logger.debug("The result of query is {}".format(results))
+        # Check if there are no empty entries.
+        data_to_return = {"count": 0,
+                          "assets": []
+                          }
+
+        if len(results["rows"]) > 0:
+            # _logger.debug("No assets found.")
+            return data_to_return
+        else:
+            total_datapoints = 0
+            for row in results["rows"]:
+                total_datapoints += int(row['data']['count'])
+                dict_to_add = {"asset": row["asset"], "datapoints": row["data"]["datapoints"]}
+                data_to_return["assets"].append(dict_to_add)
+
+            data_to_return["count"] = total_datapoints
+
+            return data_to_return
+    except KeyError as ex:
+        raise KeyError(results['message'])
+
+    except StorageServerError as ex:
+        err_response = ex.error
+        raise KeyError(err_response)
+
+
+async def get_datapoint_usage(request: web.Request) -> web.Response:
+    """
+    Args:
+        request:
+
+    Returns:
+            asset track records
+
+    :Example:
+            curl -sX GET http://localhost:8081/fledge/track/storage/assets
+
+    """
+    storage_client = connect.get_storage_async()
+    try:
+        response = await query_asset_tracker_table(storage_client)
+    except KeyError as msg:
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+    except Exception as ex:
+        msg = str(ex)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+    else:
+        return web.json_response(response)

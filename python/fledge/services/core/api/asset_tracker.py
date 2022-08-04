@@ -137,7 +137,7 @@ async def query_asset_tracker_table(storage_client):
         q_payload = PayloadBuilder().SELECT("data", "asset"). \
             DISTINCT(["asset"]). \
             WHERE(["event", "=", "store"]). \
-            ANDWHERE(["service", "=", "storage"])
+            ANDWHERE(["service", "=", "storage"]).payload()
 
         results = await storage_client.query_tbl_with_payload('asset_tracker', q_payload)
         data_to_return = {"count": 0,

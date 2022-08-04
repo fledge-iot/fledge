@@ -129,6 +129,38 @@ In the above example the constant *default_config* is a string that contains the
                         }
   });
 
+The *flags* items contains a bitmask of flag values used to pass information regarding the behavior and requirements of the plugin. The flag values currently supported are shown below
+
++-------------------+---------------------------------------------------------------------------------+
+| Flag Name         | Description                                                                     |
++===================+=================================================================================+
+| SP_COMMON         | Used exclusively by storage plugins. The plugin supports the common table       |
+|                   | access needed to store configuration                                            |
++-------------------+---------------------------------------------------------------------------------+
+| SP_READINGS       | Used exclusively by storage plugins. The plugin supports the storage of reading |
+|                   | data                                                                            |
++-------------------+---------------------------------------------------------------------------------+
+| SP_ASYNC          | The plugin ingests data asynchronously. Applies to south plugins only           |
++-------------------+---------------------------------------------------------------------------------+
+| SP_PERSIST_DATA   | The plugin wishes to persist data between executions                            |
++-------------------+---------------------------------------------------------------------------------+
+| SP_INGEST         | A non-south plugin wishes to ingest new data into the system. Used by           |
+|                   | notification plugins                                                            |
++-------------------+---------------------------------------------------------------------------------+
+| SP_GET_MANAGEMENT | The plugin requires access to the management API interface for the service      |
++-------------------+---------------------------------------------------------------------------------+
+| SP_GET_STORAGE    | The plugin requires access to the storage service                               |
++-------------------+---------------------------------------------------------------------------------+
+| SP_DEPRECATED     | The plugin should be considered to be deprecated. New service can not use this  |
+|                   | plugin, but existing services may continue to use it                            |
++-------------------+---------------------------------------------------------------------------------+
+| SP_BUILTIN        | The plugin is not implemented as an external package but is built into the      |
+|                   | system                                                                          |
++-------------------+---------------------------------------------------------------------------------+
+| SP_CONTROL        | The plugin implement control features                                           |
++-------------------+---------------------------------------------------------------------------------+
+
+These flag values may be combined by use of the or operator where more than one of the above options is supported.
 
 Plugin Initialization
 ~~~~~~~~~~~~~~~~~~~~~

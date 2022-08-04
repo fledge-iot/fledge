@@ -135,32 +135,27 @@ async def query_asset_tracker_table(storage_client):
     """Helper function that queries asset_tracker table to get the datapoints of every asset."""
     try:
         q_payload = PayloadBuilder().SELECT("data", "asset"). \
-            DISTINCT(["asset"])
+            DISTINCT(["asset"]). \
+            WHERE(["event", "=", "store"]). \
+            ANDWHERE(["service", "=", "storage"])
 
         results = await storage_client.query_tbl_with_payload('asset_tracker', q_payload)
-        # _logger.debug("The result of query is {}".format(results))
-        # Check if there are no empty entries.
         data_to_return = {"count": 0,
                           "assets": []
                           }
+        total_datapoints = 0
+        for row in results["rows"]:
+            # The no of datapoints for this asset.
+            total_datapoints += int(row['data']['count'])
+            # Construct a dict that contains information about a single asset.
+            dict_to_add = {"asset": row["asset"], "datapoints": row["data"]["datapoints"]}
+            # appending information of single asset to the asset information list.
+            data_to_return["assets"].append(dict_to_add)
 
-        if len(results["rows"]) > 0:
-            # _logger.debug("No assets found.")
-            return data_to_return
-        else:
-            total_datapoints = 0
-            for row in results["rows"]:
-                # The no of datapoints for this asset.
-                total_datapoints += int(row['data']['count'])
-                # Construct a dict that contains information about a single asset.
-                dict_to_add = {"asset": row["asset"], "datapoints": row["data"]["datapoints"]}
-                # appending information of single asset to the asset information list.
-                data_to_return["assets"].append(dict_to_add)
+        # finally update the total count in the main dict.
+        data_to_return["count"] = total_datapoints
 
-            # finally update the total count in the main dict.
-            data_to_return["count"] = total_datapoints
-
-            return data_to_return
+        return data_to_return
     except KeyError as ex:
         raise KeyError(results['message'])
 

@@ -150,10 +150,14 @@ async def query_asset_tracker_table(storage_client):
         else:
             total_datapoints = 0
             for row in results["rows"]:
+                # The no of datapoints for this asset.
                 total_datapoints += int(row['data']['count'])
+                # Construct a dict that contains information about a single asset.
                 dict_to_add = {"asset": row["asset"], "datapoints": row["data"]["datapoints"]}
+                # appending information of single asset to the asset information list.
                 data_to_return["assets"].append(dict_to_add)
 
+            # finally update the total count in the main dict.
             data_to_return["count"] = total_datapoints
 
             return data_to_return
@@ -168,10 +172,23 @@ async def query_asset_tracker_table(storage_client):
 async def get_datapoint_usage(request: web.Request) -> web.Response:
     """
     Args:
-        request:
+        request: a GET request to the /fledge/track/storage/assets endpoint.
 
     Returns:
-            asset track records
+            A JSON response. An example would be.
+            {
+              "count" : 5,
+               "assets" : [
+                            {
+                              "asset" : "sinusoid",
+                              "datapoints" : [ "sinusoid" ]
+                            },
+                            {
+                               "asset" : "motor",
+                               "datapoints" : [ "rpm", "current", "voltage", "temperature" ]
+                            }
+                          ]
+            }
 
     :Example:
             curl -sX GET http://localhost:8081/fledge/track/storage/assets

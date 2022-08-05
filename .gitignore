@@ -91,3 +91,6 @@ python/fledge/plugins/notificationRule/*
 
 # doxygen build
 doxy/
+
+# aspell backups
+*.bak

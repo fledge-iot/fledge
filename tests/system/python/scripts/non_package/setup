@@ -1,0 +1,140 @@
+#!/usr/bin/env bash
+
+set -e
+
+
+PACKAGE_BUILD_VERSION=$1
+branch=$3
+echo 'Version -' $1
+echo 'plugin - ' $2
+echo 'branch - '$3
+
+
+[[ -z "${PACKAGE_BUILD_VERSION}" ]] && echo "Build Version not found." && exit 1
+
+OS_NAME=`(grep -o '^NAME=.*' /etc/os-release | cut -f2 -d\" | sed 's/"//g')`
+ID=$(cat /etc/os-release | grep -w ID | cut -f2 -d"=" | tr -d '"')
+UNAME=`uname -m`
+VERSION_ID=$(cat /etc/os-release | grep -w VERSION_ID | cut -f2 -d"=" |  tr -d '"')
+echo "version id is "${VERSION_ID}
+
+
+if [[ ${OS_NAME} == *"Ubuntu"* ]]; then
+    if [[ ${ID} = "ubuntu" ]]; then
+        VERSION_ID=$(echo "${VERSION_ID//.}")
+        ID="ubuntu${VERSION_ID}";
+    elif [[ ${ID} = "raspbian" ]]; then
+        ID=$(cat /etc/os-release | grep VERSION_CODENAME | cut -f2 -d"=")
+        UNAME="armv7l"
+    fi
+    
+    echo "Build version is "${PACKAGE_BUILD_VERSION}
+    echo "ID is "${ID}
+    echo "uname is "${UNAME}
+fi
+
+# installing pre requisite package - git, for cloning fledge non package
+
+REQUIRED_PKG="git"
+PKG_OK=$(dpkg-query -W --showformat='${Status}\n' $REQUIRED_PKG|grep "install ok installed")
+echo Checking for $REQUIRED_PKG: $PKG_OK
+if [ "" = "$PKG_OK" ]; then
+  echo "$REQUIRED_PKG is not installed. installing up $REQUIRED_PKG."
+  sudo apt-get --yes install $REQUIRED_PKG
+fi
+
+if [[ -z "${branch}" ]]; then
+	echo "Cloning from default branch - devlope"
+	git clone  https://github.com/fledge-iot/fledge.git  || exit 1
+else
+	echo "Cloning from ${branch}"
+	git clone -b $branch https://github.com/fledge-iot/fledge.git || exit 1
+fi
+
+#first  installing prerequisites of fledge then fledge
+pwd; ls -lrth | grep -i fledge; cd fledge && chmod +x requirements.sh && sh -x requirements.sh ;
+
+
+echo 'Changing CMakelists'
+sed -i 's|c++11 -O3|c++11 -O0 -ggdb|g' CMakeLists.txt && make -j4
+
+echo '----------------------------------'
+echo
+cat CMakeLists.txt
+echo 
+echo '----------------------------------'
+echo 'CMakeLists.txt changed'
+
+#exporting fledge path
+export FLEDGE_ROOT=`pwd` && cd ..;
+
+#modifying scripit
+
+tmp_b='/usr/local/fledge'
+echo 'fledge root path .....'
+echo ${FLEDGE_ROOT}
+psouth_c=${FLEDGE_ROOT}/scripts/services/south_c
+echo $psouth_c
+
+sudo sed -i 's#/usr/local/fledge#'"$FLEDGE_ROOT"'#g' ${psouth_c}
+
+sudo sed -i '/.\/fledge.services.south.*/s/^/valgrind -v --tool=memcheck  --fullpath-after=  --xml=yes --xml-file=\/tmp\/south_valgrind_%p.xml --log-file=\/tmp\/south_valgrind.log --child-silent-after-fork=no --leak-check=full --show-leak-kinds=all --track-origins=yes /' ${psouth_c}
+
+pnorth_C=${FLEDGE_ROOT}/scripts/services/north_C
+echo $pnorth_C
+
+sudo sed -i 's#/usr/local/fledge#'"$FLEDGE_ROOT"'#g' ${pnorth_C}
+
+sudo sed -i '/.\/fledge.services.north.*/s/^/valgrind -v --tool=memcheck --fullpath-after=  --xml=yes --xml-file=\/tmp\/north_valgrind_%p.xml --log-file=\/tmp\/north_valgrind.log --child-silent-after-fork=no --leak-check=full --show-leak-kinds=all --track-origins=yes /' ${pnorth_C}
+
+pstorage=${FLEDGE_ROOT}/scripts/services/storage
+echo $pstorage
+
+sudo sed -i 's#/usr/local/fledge#'"$FLEDGE_ROOT"'#g' ${pstorage}
+
+sudo sed -i '/\${storageExec} \"\$@\"/s/^/valgrind -v  --tool=memcheck --fullpath-after=  --xml=yes --xml-file=\/tmp\/storage_valgrind_%p.xml --log-file=\/tmp\/storage_valgrind.log --child-silent-after-fork=no --leak-check=full --show-leak-kinds=all --track-origins=yes /' ${pstorage}
+
+#cloning plugins based on parameters passed to the script
+
+
+for i in ${2}
+do
+	echo $i
+	git clone  https://github.com/fledge-iot/${i}.git && cd ${i};tmp_a=`pwd`
+
+	#checking  CMakeLists.txt exists or not, to confirm whther it is a C based plugin or python based plugin
+	if [[ -f  ${tmp_a}/CMakeLists.txt ]]
+	then
+		sed -i 's|c++11 -O3|c++11 -O0 -ggdb|g'  ${tmp_a}/CMakeLists.txt
+		#Cheking requirements.sh file exists or not, to install plugins dependencies
+		if [[ -f ${tmp_a}/requirements.sh  ]] 
+		then
+			sh -x requirements.sh
+		fi
+
+	#building C based plugin
+	echo 'Building C plugin'
+           mkdir -p build && cd build && cmake -DFLEDGE_INSTALL=${FLEDGE_ROOT} -DFLEDGE_ROOT=${FLEDGE_ROOT} .. && make -j4 && make install && cd ../../ ;
+	else 
+		#Checking requirements.txt file exists or not, to install plugins dependency (if any)
+		if [[ -f ${tmp_a}/requirements.txt  ]]
+		then
+			python3 -m pip install -r ${tmp_a}/requirements.txt
+		fi
+		
+		#checking whether plugin is south bound plugin or north bound plugin
+		echo 'Copying plugin'
+		if [[ $tmp_a == *"south"* ]]
+		then
+			sudo cp -r python/fledge/plugins/south/*  ${FLEDGE_ROOT}/python/fledge/plugins/south/
+		elif [[ $tmp_a == *"north"* ]]
+		then
+			 sudo cp -r python/fledge/plugins/north/*  ${FLEDGE_ROOT}/python/fledge/plugins/north/
+		fi
+		cd ../..
+	fi
+done
+
+echo 'Current location - '; pwd;
+
+echo 'End of setup'

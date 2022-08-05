@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+
+
+[[ -d /usr/local/fledge ]] && echo "Fledge is installed through package, So it can't be deleted " && exit 1
+echo "Non Packaged fledge deletion begins"
+
+if [[ -z ${FLEDGE_ROOT}  ]]
+then
+	echo "Fledge Root environment variable is not set"
+else
+	echo "Removing Fledge"
+	echo ${FLEDGE_ROOT}
+	# removing Non packged 
+	rm -rfv ${FLEDGE_ROOT}
+fi

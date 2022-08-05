@@ -59,8 +59,8 @@ These are the properties returned by the JSON document:
 
 - **name** - A textual name that will be used for reporting purposes for this plugin.
 - **version** - This property allows the version of the plugin to be communicated to the plugin loader. This is used for reporting purposes only and has no effect on the way Fledge interacts with the plugin.
-- **mode** - A set of options the define how the plugin operations, these are separated from each other using the | symbol.
-- **type** - The type of the plugin, used by the plugin loader to determine if the plugin is being used correctly. The type is a simple string and may be South, North, Storage, Filter, Rule or Delivery.
+- **mode** - A set of options that defines how the plugin operates. Multiple values can be given, the different options are separated from each other using the | symbol.
+- **type** - The type of the plugin, used by the plugin loader to determine if the plugin is being used correctly. The type is a simple string and may be *south*, *north*,  *filter*, *rule* or *delivery*.
 
 .. note:: If you browse the Fledge code you may find old plugins with type *device*: this was the type used to indicate a South plugin and it is now deprecated.
 
@@ -93,14 +93,13 @@ The various values that may appear in the *mode* item are shown in the table bel
 +---------+---------------------------------------------------------------------------------------+
 | async   | The plugin is an asynchronous plugin, *plugin_poll* will not be called and the        |
 |         | plugin will be supplied with a callback function that it calls each time it has a     |
-|         | new value to pass to the Fledge system. The *plugin_register_ingest* entry point      |
-|         | will be called to register the callback with the plugin.                              |
+|         | new value to pass to the system. The *plugin_register_ingest* entry point will be     |
+|         | called to register the callback with the plugin.                                      |
 +---------+---------------------------------------------------------------------------------------+
 | none    | This is equivalent to poll.                                                           |
 +---------+---------------------------------------------------------------------------------------+
-| control | The plugin support a control flow from Fledge to the device the plugin is connected   |
-|         | to. The plugin must supply the control entry points *plugin_write* and                |
-|         | *plugin_operation*                                                                    |
+| control | The plugin support a control flow to the device the plugin is connected to. The       |
+|         | must supply the control entry points *plugin_write* and *plugin_operation*.           |
 +---------+---------------------------------------------------------------------------------------+
 
 |br|

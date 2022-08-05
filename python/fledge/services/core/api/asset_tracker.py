@@ -135,8 +135,11 @@ async def deprecate_asset_track_entry(request: web.Request) -> web.Response:
         return web.json_response({'success': "Asset record entry has been deprecated."})
 
 
-async def query_asset_tracker_table(storage_client):
+async def query_assets_storage_store_event_data(storage_client):
     """Helper function that queries asset_tracker table to get the datapoints of every asset."""
+    data_to_return = {"count": 0,
+                      "assets": []
+                      }
     try:
         q_payload = PayloadBuilder().SELECT("asset", "data"). \
             DISTINCT(["asset", "data"]). \
@@ -144,9 +147,7 @@ async def query_asset_tracker_table(storage_client):
             AND_WHERE(["service", "=", "storage"]).payload()
 
         results = await storage_client.query_tbl_with_payload('asset_tracker', q_payload)
-        data_to_return = {"count": 0,
-                          "assets": []
-                          }
+
         total_datapoints = 0
         for row in results["rows"]:
             # The no of datapoints for this asset.
@@ -158,17 +159,15 @@ async def query_asset_tracker_table(storage_client):
 
         # finally update the total count in the main dict.
         data_to_return["count"] = total_datapoints
-        return data_to_return
-
     except KeyError as ex:
         raise KeyError(str(ex))
-
     except TypeError as ex:
         raise KeyError(str(ex))
-
     except StorageServerError as ex:
         err_response = ex.error
         raise KeyError(err_response)
+    else:
+        return data_to_return
 
 
 async def get_datapoint_usage(request: web.Request) -> web.Response:
@@ -198,7 +197,7 @@ async def get_datapoint_usage(request: web.Request) -> web.Response:
     """
     storage_client = connect.get_storage_async()
     try:
-        response = await query_asset_tracker_table(storage_client)
+        response = await query_assets_storage_store_event_data(storage_client)
     except KeyError as msg:
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:

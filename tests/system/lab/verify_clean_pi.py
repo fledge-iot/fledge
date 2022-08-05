@@ -26,28 +26,135 @@ parser.add_argument("--asset-name", action="store", default="asset-name",
                     help="Asset name")
 args = vars(parser.parse_args())
 
-pi_host = args["pi_host"]
-pi_admin = args["pi_admin"]
-pi_passwd = args["pi_passwd"]
-pi_db = args["pi_db"]
-asset_name = args["asset_name"]
+
+def delete_pi_point(host, admin, password, asset_name, data_point_name):
+    """Deletes a given pi point fromPI."""
+    username_password = "{}:{}".format(admin, password)
+
+    username_password_b64 = base64.b64encode(username_password.encode('ascii')).decode("ascii")
+    headers = {'Authorization': 'Basic %s' % username_password_b64, 'Content-Type': 'application/json'}
+
+    try:
+        web_id, pi_point_name = search_for_pi_point(host, admin, password, asset_name, data_point_name)
+        if not web_id:
+            print("Could not search PI Point {}. ".format(data_point_name))
+            return
+
+        conn = http.client.HTTPSConnection(host, context=ssl._create_unverified_context())
+        conn.request("DELETE", "/piwebapi/points/{}".format(web_id), headers=headers)
+        r = conn.getresponse()
+        assert r.status == 204, "Could not delete" \
+                                " the pi point {}.".format(pi_point_name)
+
+        conn.close()
+
+    except Exception as er:
+        print("Could not delete pi point {} due to {}".format(data_point_name, er))
+        assert False, "Could not delete pi point {} due to {}".format(data_point_name, er)
 
 
-def read_data_from_pi_web_api(host, admin, password, pi_database, af_hierarchy_list, asset, sensor):
-    """ This method reads data from pi web api """
+def search_for_pi_point(host, admin, password, asset_name, data_point_name):
+    """Searches for a pi point in PI return its web_id and its full name in PI."""
+    username_password = "{}:{}".format(admin, password)
 
-    # List of pi databases
-    dbs = None
-    # PI logical grouping of attributes and child elements
-    elements = None
-    # List of elements
+    username_password_b64 = base64.b64encode(username_password.encode('ascii')).decode("ascii")
+    headers = {'Authorization': 'Basic %s' % username_password_b64, 'Content-Type': 'application/json'}
+    try:
+        conn = http.client.HTTPSConnection(host, context=ssl._create_unverified_context())
+        conn.request("GET", '/piwebapi/dataservers', headers=headers)
+        res = conn.getresponse()
+        r = json.loads(res.read().decode())
+        points_url = r["Items"][0]["Links"]["Points"]
+    except Exception:
+        assert False, "Could not request data server of PI"
+
+    try:
+        conn.request("GET", points_url, headers=headers)
+        res = conn.getresponse()
+        points = json.loads(res.read().decode())
+    except Exception:
+        assert False, "Could not get Points data."
+
+    name_to_search = asset_name + '.' + data_point_name
+    for single_point in points['Items']:
+
+        if name_to_search in single_point['Name']:
+            web_id = single_point['WebId']
+            pi_point_name = single_point["Name"]
+            conn.close()
+            return web_id, pi_point_name
+
+    return None, None
+
+
+def search_for_element_template(host, admin, password, pi_database, search_string):
+    """Searches for an element template using a search string. If found returns its web_id.
+       If multiple templates found then returns an array of web_ids.
+    """
+    username_password = "{}:{}".format(admin, password)
+    username_password_b64 = base64.b64encode(username_password.encode('ascii')).decode("ascii")
+    headers = {'Authorization': 'Basic %s' % username_password_b64}
+
+    try:
+        conn = http.client.HTTPSConnection(host, context=ssl._create_unverified_context())
+        conn.request("GET", '/piwebapi/assetservers', headers=headers)
+        res = conn.getresponse()
+        r = json.loads(res.read().decode())
+        dbs = r["Items"][0]["Links"]["Databases"]
+
+        if dbs is not None:
+            conn.request("GET", dbs, headers=headers)
+            res = conn.getresponse()
+            r = json.loads(res.read().decode())
+            for el in r["Items"]:
+                if el["Name"] == pi_database:
+                    element_template_list = el["Links"]["ElementTemplates"]
+
+        web_ids = []
+        if element_template_list is not None:
+            conn.request("GET", element_template_list, headers=headers)
+            res = conn.getresponse()
+            r = json.loads(res.read().decode())
+            for template_info in r['Items']:
+                if search_string in template_info['Name']:
+                    web_ids.append(template_info['WebId'])
+
+        if not web_ids:
+            print("Could not find asset template with name {}".format(search_string))
+            return []
+        return web_ids
+
+    except Exception as er:
+        print("Could not find asset element template with name"
+              "  {} due to {}".format(search_string, er))
+        return []
+
+
+def delete_element_template(host, admin, password, web_id):
+    """Deletes an element template through its web_id."""
+    username_password = "{}:{}".format(admin, password)
+
+    username_password_b64 = base64.b64encode(username_password.encode('ascii')).decode("ascii")
+    headers = {'Authorization': 'Basic %s' % username_password_b64, 'Content-Type': 'application/json'}
+
+    try:
+
+        conn = http.client.HTTPSConnection(host, context=ssl._create_unverified_context())
+        conn.request("DELETE", "/piwebapi/elementtemplates/{}".format(web_id), headers=headers)
+        r = conn.getresponse()
+        assert r.status == 204, "Could not delete" \
+                                " element template for web_id {}.".format(web_id)
+
+        conn.close()
+
+    except Exception as er:
+        print("Could not delete element template {} due to {}".format(web_id, er))
+        assert False, "Could not delete element template {} due to {}".format(web_id, er)
+
+
+def delete_element_hierarchy(host, admin, password, pi_database, af_hierarchy_list):
+    """ This method deletes the given hierarchy list form PI."""
     url_elements_list = None
-    # Element's recorded data url
-    url_recorded_data = None
-    # Resources in the PI Web API are addressed by WebID, parameter used for deletion of element
-    web_id = None
-    # List of elements
-    url_elements_data_list = None
 
     username_password = "{}:{}".format(admin, password)
     username_password_b64 = base64.b64encode(username_password.encode('ascii')).decode("ascii")
@@ -68,11 +175,6 @@ def read_data_from_pi_web_api(host, admin, password, pi_database, af_hierarchy_l
                 if el["Name"] == pi_database:
                     url_elements_list = el["Links"]["Elements"]
 
-        # This block is for iteration when we have multi-level hierarchy.
-        # For example, if we have DefaultAFLocation as "fledge/room1/machine1" then
-        # it will recursively find elements of "fledge" and then "room1".
-        # And next block is for finding element of "machine1".
-
         af_level_count = 0
         for level in af_hierarchy_list[:-1]:
             if url_elements_list is not None:
@@ -86,63 +188,128 @@ def read_data_from_pi_web_api(host, admin, password, pi_database, af_hierarchy_l
                             web_id_root = el["WebId"]
                         af_level_count = af_level_count + 1
 
+        if web_id_root:
+            conn.request("DELETE", '/piwebapi/elements/{}'.format(web_id_root), headers=headers)
+            r = conn.getresponse()
+            assert r.status == 204, "Could not delete element hierarchy of {}".format(af_hierarchy_list)
+            conn.close()
+
+    except Exception as er:
+        print("Could not delete hierarchy of {} due to {}".format(af_hierarchy_list, er))
+        print("Most probably it does not exist.")
+
+
+def clear_cache(host, admin, password, pi_database):
+    """Method that deletes cache by supplying 'Cache-Control': 'no-cache' in header of GET request for
+        element list.
+    """
+    username_password = "{}:{}".format(admin, password)
+    username_password_b64 = base64.b64encode(username_password.encode('ascii')).decode("ascii")
+    headers = {'Authorization': 'Basic %s' % username_password_b64, 'Cache-Control': 'no-cache'}
+    normal_header = {'Authorization': 'Basic %s' % username_password_b64}
+    try:
+        conn = http.client.HTTPSConnection(host, context=ssl._create_unverified_context())
+        conn.request("GET", '/piwebapi/assetservers', headers=normal_header)
+        res = conn.getresponse()
+        assert res.status == 200, "Could not request asset server of Pi Web API."
+        r = json.loads(res.read().decode())
+        dbs = r["Items"][0]["Links"]["Databases"]
+
+        if dbs is not None:
+            conn.request("GET", dbs, headers=normal_header)
+            res = conn.getresponse()
+            assert res.status == 200, "Databases is not accessible."
+            r = json.loads(res.read().decode())
+            for el in r["Items"]:
+                if el["Name"] == pi_database:
+                    url_elements_list = el["Links"]["Elements"]
+
+        print("Getting old cache")
+        conn = http.client.HTTPSConnection(host, context=ssl._create_unverified_context())
+        conn.request("GET", '/piwebapi/system/cacheinstances', headers=normal_header)
+        res = conn.getresponse()
+        r = json.loads(res.read().decode())
+        try:
+            # assuming we have single user Administrator
+            old_cache_refresh_time = r["Items"][0]['LastRefreshTime']
+        except (IndexError, KeyError):
+            print("The cache does not exist. ")
+            return
+
+        print("Old cache refresh time {} ".format(old_cache_refresh_time))
+        conn.close()
+
+        print("Going to request element list with cache control no cache.")
         if url_elements_list is not None:
             conn.request("GET", url_elements_list, headers=headers)
             res = conn.getresponse()
             r = json.loads(res.read().decode())
-            items = r["Items"]
-            for el in items:
-                if el["Name"] == af_hierarchy_list[-1]:
-                    url_elements_data_list = el["Links"]["Elements"]
 
-        if url_elements_data_list is not None:
-            conn.request("GET", url_elements_data_list, headers=headers)
-            res = conn.getresponse()
-            r = json.loads(res.read().decode())
-            items = r["Items"]
-            for el2 in items:
-                if el2["Name"] == asset:
-                    url_recorded_data = el2["Links"]["RecordedData"]
-                    web_id = el2["WebId"]
+        conn.close()
 
-        _data_pi = {}
-        if url_recorded_data is not None:
-            conn.request("GET", url_recorded_data, headers=headers)
-            res = conn.getresponse()
-            r = json.loads(res.read().decode())
-            _items = r["Items"]
-            for el in _items:
-                _recoded_value_list = []
-                for _head in sensor:
-                    # This checks if the recorded datapoint is present in the items that we retrieve from the PI server.
-                    if _head in el["Name"]:
-                        elx = el["Items"]
-                        for _el in elx:
-                            _recoded_value_list.append(_el["Value"])
-                        _data_pi[_head] = _recoded_value_list
+        # for verification whether we are able to clear cache.
+        print("Now verifying whether cache cleared.")
+        conn = http.client.HTTPSConnection(host, context=ssl._create_unverified_context())
+        conn.request("GET", '/piwebapi/system/cacheinstances', headers=normal_header)
+        res = conn.getresponse()
+        r = json.loads(res.read().decode())
+        try:
+            # assuming we have only one user named Administrator.
+            new_cache_refresh_time = r["Items"][0]['LastRefreshTime']
+        except (KeyError, IndexError):
+            print("The cache does not exist.")
+            return
 
-            # Delete recorded elements
-            conn.request("DELETE", '/piwebapi/elements/{}'.format(web_id_root), headers=headers)
-            res = conn.getresponse()
-            res.read()
+        print("New cache refresh time {} ".format(new_cache_refresh_time))
+        conn.close()
 
-            return _data_pi
-    except (KeyError, IndexError, Exception):
-        return None
+        assert new_cache_refresh_time != old_cache_refresh_time, "The cache has not been refreshed."
 
+    except Exception as er:
+        print("Could not clear cache due to {}".format(er))
+        return
+
+
+def _clear_pi_system_through_pi_web_api(host, admin, password, pi_database, af_hierarchy_list, asset_dict):
+    """
+       Clears the pi system through pi web API.
+       1. Deletes the elements.
+       2. Deletes element templates.
+       3. Deletes the PI Points.
+       4. Clears the cache.
+    Args:
+        host (str): The address of the pi server.
+        admin (str): The user name inside pi server.
+        password (str): The passowrd for the username used above.
+        pi_database (str): The database inside pi server.
+        af_hierarchy_list (list): The asset heirarchy list to delete.
+        asset_dict (dict): It's a dict where keys are asset names, and it's value is list where each
+                           element of list is a datapoint associated with that asset.
+
+    Returns:
+        None
+    """
+    delete_element_hierarchy(host, admin, password, pi_database, af_hierarchy_list)
+    for asset_name in asset_dict.keys():
+        for dp_name in asset_dict[asset_name]:
+            delete_pi_point(host, admin, password, asset_name, dp_name)
+
+    for h_level in af_hierarchy_list:
+        web_ids = search_for_element_template(host, admin, password, pi_database, h_level)
+        for web_id in web_ids:
+            delete_element_template(host, admin, password, web_id)
+
+    clear_cache(host, admin, password, pi_database)
+
+
+pi_host = args["pi_host"]
+pi_admin = args["pi_admin"]
+pi_passwd = args["pi_passwd"]
+pi_db = args["pi_db"]
+asset_name = args["asset_name"]
 
 af_hierarchy_level = "fledge/data_piwebapi/default"
 af_hierarchy_level_list = af_hierarchy_level.split("/")
-type_id = 1
-recorded_datapoint = "{}measurement_{}".format(type_id, asset_name)
-# Name of asset in the PI server
-pi_asset_name = "{}-type{}".format(asset_name, type_id)
 
-while (data_from_pi is None or data_from_pi == []) and retry_count < retries:
-    data_from_pi = read_data_from_pi_web_api(pi_host, pi_admin, pi_passwd, pi_db, af_hierarchy_level_list,
-                                             pi_asset_name, {recorded_datapoint})
-    retry_count += 1
-    time.sleep(wait_time * 2)
-
-if data_from_pi is None or retry_count == retries:
-    assert False, "Failed to read data from PI"
+_clear_pi_system_through_pi_web_api(pi_host, pi_admin, pi_passwd, pi_db, af_hierarchy_level_list,
+                                    {asset_name: [asset_name]})

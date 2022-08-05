@@ -420,7 +420,8 @@ def delete_pi_point(host, admin, password, asset_name, data_point_name):
     try:
         web_id, pi_point_name = search_for_pi_point(host, admin, password, asset_name, data_point_name)
         if not web_id:
-            assert False, "Could not search PI Point {}".format(data_point_name)
+            print("Could not search PI Point {}. ".format(data_point_name))
+            return
 
         conn = http.client.HTTPSConnection(host, context=ssl._create_unverified_context())
         conn.request("DELETE", "/piwebapi/points/{}".format(web_id), headers=headers)
@@ -502,14 +503,14 @@ def search_for_element_template(host, admin, password, pi_database, search_strin
                     web_ids.append(template_info['WebId'])
 
         if not web_ids:
-            assert False, "Could not find asset template with name {}".format(search_string)
+            print("Could not find asset template with name {}".format(search_string))
+            return []
         return web_ids
 
     except Exception as er:
-        print("Could not find assets element template with name"
+        print("Could not find asset element template with name"
               "  {} due to {}".format(search_string, er))
-        assert False, "Could not find assets element template with name"\
-                      "  {} due to {}".format(search_string, er)
+        return []
 
 
 def delete_element_template(host, admin, password, web_id):
@@ -536,18 +537,7 @@ def delete_element_template(host, admin, password, web_id):
 
 def delete_element_hierarchy(host, admin, password, pi_database, af_hierarchy_list):
     """ This method deletes the given hierarchy list form PI."""
-    # List of pi databases
-    dbs = None
-    # PI logical grouping of attributes and child elements
-    elements = None
-    # List of elements
     url_elements_list = None
-    # Element's recorded data url
-    url_recorded_data = None
-    # Resources in the PI Web API are addressed by WebID, parameter used for deletion of element
-    web_id = None
-    # List of elements
-    url_elements_data_list = None
 
     username_password = "{}:{}".format(admin, password)
     username_password_b64 = base64.b64encode(username_password.encode('ascii')).decode("ascii")
@@ -581,14 +571,15 @@ def delete_element_hierarchy(host, admin, password, pi_database, af_hierarchy_li
                             web_id_root = el["WebId"]
                         af_level_count = af_level_count + 1
 
-        conn.request("DELETE", '/piwebapi/elements/{}'.format(web_id_root), headers=headers)
-        r = conn.getresponse()
-        assert r.status == 204, "Could not delete element hierarchy of {}".format(af_hierarchy_list)
-        conn.close()
+        if web_id_root:
+            conn.request("DELETE", '/piwebapi/elements/{}'.format(web_id_root), headers=headers)
+            r = conn.getresponse()
+            assert r.status == 204, "Could not delete element hierarchy of {}".format(af_hierarchy_list)
+            conn.close()
 
     except Exception as er:
         print("Could not delete hierarchy of {} due to {}".format(af_hierarchy_list, er))
-        assert False, "Could not delete hierarchy of {} due to {}".format(af_hierarchy_list, er)
+        print("Most probably it does not exist.")
 
 
 def clear_cache(host, admin, password, pi_database):
@@ -659,7 +650,7 @@ def clear_cache(host, admin, password, pi_database):
 
     except Exception as er:
         print("Could not clear cache due to {}".format(er))
-        assert False, "Could not clear cache due to {}".format(er)
+        return
 
 
 @pytest.fixture

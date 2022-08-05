@@ -13,19 +13,19 @@ Welcome to Fledge's documentation!
     quick_start/index
     processing_data
     fledge_architecture
-    fledge_plugins
+    storage
+    services/index
+    control
+    plugin_index
     building_pipelines
     securing_fledge
-    storage
     tuning_fledge
-    control
     troubleshooting_pi-server_integration
     plugin_developers_guide/index
     rest_api_guide/index
     build_index
+    KERBEROS
+    fledge_plugins
     91_version_history
     92_downloads
-    KERBEROS
-    services/index
-    plugin_index
     glossary

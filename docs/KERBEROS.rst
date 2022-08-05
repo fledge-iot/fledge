@@ -7,9 +7,8 @@
 .. _curl sources: https://github.com/curl/curl/releases
 .. _OMF: https://omf-docs.osisoft.com/
 
-***********************
-Kerberos authentication
-***********************
+OMF Kerberos Authentication
+***************************
 
 Introduction
 ============
@@ -18,13 +17,13 @@ The bundled OMF north plugin in Fledge can use a number of different authenticat
 
 The Fledge *requirements.sh* script installs the Kerberos client to allow the integration with what in the specific terminology is called KDC (the Kerberos server).
 
-PI-Server as the North endpoint
+PI Server as the North endpoint
 ===============================
 
-The OSI *Connector Relay* allows token authentication while *PI Web API* supports Basic and Kerberos.
+The OSI *Connector Relay* allows token authentication while *PI Web API* supports Basic and Kerberos authentication.
 
 There could be more than one configuration to allow the Kerberos authentication,
-the easiest one is the Windows server on which the PI-Server is executed act as the Kerberos server also.
+the easiest one is the Windows server on which the PI Server is executed act as the Kerberos server also.
 
 The Windows Active directory should be installed and properly configured for allowing the Windows server to authenticate Kerberos requests.
 
@@ -159,7 +158,7 @@ Troubleshooting the Kerberos authentication
 	-rwxrwxrwx 1 fledge fledge  91 Jul 17 09:07 piwebapi_kerberos_https.keytab
 	-rw-rw-r-- 1 fledge fledge 199 Aug 13 15:30 README.rst
 
-3) verify the reachability of the Kerberos server (usually the PI-Server) - Network reachability
+3) verify the reachability of the Kerberos server (usually the PI Server) - Network reachability
 
 .. code-block:: console
 

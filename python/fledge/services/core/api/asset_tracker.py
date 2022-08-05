@@ -4,6 +4,7 @@
 # See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 import json
+import logging
 
 from aiohttp import web
 import urllib.parse
@@ -12,6 +13,9 @@ from fledge.common import utils as common_utils
 from fledge.common.storage_client.exceptions import StorageServerError
 from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.services.core import connect
+from fledge.common import logger
+
+_logger = logger.setup(__name__, level=logging.INFO)
 
 __author__ = "Ashish Jabble"
 __copyright__ = "Copyright (c) 2018 OSIsoft, LLC"
@@ -134,10 +138,10 @@ async def deprecate_asset_track_entry(request: web.Request) -> web.Response:
 async def query_asset_tracker_table(storage_client):
     """Helper function that queries asset_tracker table to get the datapoints of every asset."""
     try:
-        q_payload = PayloadBuilder().SELECT("data", "asset"). \
-            DISTINCT(["asset"]). \
+        q_payload = PayloadBuilder().SELECT("asset", "data"). \
+            DISTINCT(["asset", "data"]). \
             WHERE(["event", "=", "store"]). \
-            ANDWHERE(["service", "=", "storage"]).payload()
+            AND_WHERE(["service", "=", "storage"]).payload()
 
         results = await storage_client.query_tbl_with_payload('asset_tracker', q_payload)
         data_to_return = {"count": 0,
@@ -154,10 +158,13 @@ async def query_asset_tracker_table(storage_client):
 
         # finally update the total count in the main dict.
         data_to_return["count"] = total_datapoints
-
         return data_to_return
+
     except KeyError as ex:
-        raise KeyError(results['message'])
+        raise KeyError(str(ex))
+
+    except TypeError as ex:
+        raise KeyError(str(ex))
 
     except StorageServerError as ex:
         err_response = ex.error
@@ -167,7 +174,7 @@ async def query_asset_tracker_table(storage_client):
 async def get_datapoint_usage(request: web.Request) -> web.Response:
     """
     Args:
-        request: a GET request to the /fledge/track/storage/assets endpoint.
+        request: a GET request to the /fledge/track/storage/assets Endpoint.
 
     Returns:
             A JSON response. An example would be.

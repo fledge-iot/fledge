@@ -1314,6 +1314,7 @@ bool ManagementClient::deleteProxy(const std::string& serviceName)
 	try {
 		string url = "/fledge/proxy/";
 		url += serviceName;
+		url = urlEncode(url);
 		auto res = this->getHttpClient()->request("DELETE", url.c_str());
                 if (res->status_code[0] == '2') // A 2xx response
 		{

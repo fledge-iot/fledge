@@ -12,6 +12,9 @@ from fledge.common import utils as common_utils
 from fledge.common.storage_client.exceptions import StorageServerError
 from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.services.core import connect
+from fledge.common.audit_logger import AuditLogger
+from fledge.common import logger
+import logging
 
 __author__ = "Ashish Jabble"
 __copyright__ = "Copyright (c) 2018 OSIsoft, LLC"
@@ -25,6 +28,7 @@ _help = """
     -----------------------------------------------------------------------------------------
 """
 
+_logger = logger.setup(__name__, level=logging.INFO)
 
 async def get_asset_tracker_events(request: web.Request) -> web.Response:
     """
@@ -128,4 +132,8 @@ async def deprecate_asset_track_entry(request: web.Request) -> web.Response:
         msg = str(ex)
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
+        audit = AuditLogger(storage_client)
+        audit_details = {'asset': asset_name, 'service': svc_name, 'event' : event_name}
+        await audit.information('ASTDP', audit_details)
+        _logger.info("Asset '{}' has been deprecated".format(asset_name))
         return web.json_response({'success': "Asset record entry has been deprecated."})

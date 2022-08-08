@@ -1,11 +1,11 @@
 import argparse
-import http.client
-import json
-import base64
-import ssl
-import time
+from pathlib import Path
+import sys
 
-from fledge.tests.system.common.clean_pi_system import clear_pi_system_pi_web_api
+PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
+sys.path.insert(0, '{}/tests/system/common/clean_pi_system'.format(PROJECT_ROOT))
+
+from clean_pi_system import clear_pi_system_pi_web_api
 
 retry_count = 0
 data_from_pi = None

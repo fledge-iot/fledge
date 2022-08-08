@@ -20,6 +20,7 @@
 #include <vector>
 #include <rapidjson/document.h>
 #include <asset_tracking.h>
+#include <storage_asset_tracking.h>
 #include <json_utils.h>
 #include <thread>
 #include <bearer_token.h>
@@ -29,6 +30,7 @@ using HttpServer = SimpleWeb::Server<SimpleWeb::HTTP>;
 using namespace rapidjson;
 
 class AssetTrackingTuple;
+class StorageAssetTrackingTuple;
 
 /**
  * The management client class used by services and tasks to communicate
@@ -58,10 +60,14 @@ class ManagementClient {
 							   const std::vector<std::string>& children);
 		std::vector<AssetTrackingTuple*>&
 					getAssetTrackingTuples(const std::string serviceName = "");
+		std::vector<StorageAssetTrackingTuple*>& 
+					getStorageAssetTrackingTuples(const std::string serviceName);
 		bool addAssetTrackingTuple(const std::string& service, 
 					   const std::string& plugin, 
 					   const std::string& asset, 
-					   const std::string& event);
+					   const std::string& event,
+					   const std::string& datapoints = "",
+					   const int& count = 0);
 		ConfigCategories	getChildCategories(const std::string& categoryName);
 		HttpClient		*getHttpClient();
 		bool			addAuditEntry(const std::string& serviceName,

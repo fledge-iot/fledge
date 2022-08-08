@@ -21,6 +21,7 @@
 #include <string_utils.h>
 #include <algorithm>
 #include <vector>
+#include <map>
 
 #include <readings_catalogue.h>
 
@@ -672,6 +673,13 @@ Document doc;
 int      row = 0, readingId;
 bool     add_row = false;
 
+if ( readings != nullptr)
+{
+	Logger::getLogger()->error("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
+	Logger::getLogger()->error("%s:  appendReadings has got arg readings = %s", __FUNCTION__, readings);
+	Logger::getLogger()->error("-----------------------------------------------------------");
+}
+
 int lastReadingsId;
 
 // Variables related to the SQLite insert using prepared command
@@ -759,6 +767,7 @@ ostringstream threadId;
 		return -1;
 	}
 
+
 	int tableIdx;
 	string sql_cmd;
 
@@ -772,6 +781,14 @@ ostringstream threadId;
 #endif
 
 	lastAsset = "";
+
+	typedef struct{
+                std::string datapoints;
+                int count;
+        } data;
+
+        std::map<std::string, data> assetCountMap;
+
 	for (Value::ConstValueIterator itr = readingsValue.Begin(); itr != readingsValue.End(); ++itr)
 	{
 		if (!itr->IsObject())
@@ -783,6 +800,28 @@ ostringstream threadId;
 		}
 
 		add_row = true;
+
+		std::string readVal, rVal;
+                {
+        	        StringBuffer buffer;
+               	 	Writer<StringBuffer> writer(buffer);
+                	(*itr)["reading"].Accept(writer);
+                	readVal = escape(buffer.GetString());
+			size_t pos = readVal.find(":");
+
+			if(pos != string::npos && (pos >= 1) && readVal[0] == '{')
+			{
+				rVal = readVal.substr(1, pos-1);
+			}
+                	Logger::getLogger()->error("%s:%s reading obtained = %s, pos = %d", __FILE__, __FUNCTION__, rVal.c_str(), pos);
+                }
+
+		std::string a_code = (*itr)["asset_code"].GetString();
+                assetCountMap[a_code].datapoints.append(rVal);
+		assetCountMap[a_code].datapoints.append(",");
+                assetCountMap[a_code].count++;
+                Logger::getLogger()->error("%s:%s, For asset_code %s, count = %d, datapoints = %s", __FILE__, __FUNCTION__, a_code.c_str(), assetCountMap[a_code].count, assetCountMap[a_code].datapoints.c_str());
+
 
 		// Handles - user_ts
 		char formatted_date[LEN_BUFFER_DATE] = {0};
@@ -975,6 +1014,19 @@ ostringstream threadId;
 			}
 		}
 	}
+
+
+        StorageAssetTracker *pInstance = StorageAssetTracker::getStorageAssetTracker();
+
+        StorageAssetTrackingTuple t(pInstance->getServiceName(), pInstance->getPluginName(), a_code, pInstance->m_eventName(), false, assetCountMap[a_code].datapoints, assetCountMap[a_code].count);
+
+        if (!pInstance->checkStorageAssetTrackingCache(t))
+        {
+        	pInstance->addStorageAssetTrackingTuple(t);
+        	m_logger->info("%s:%s  Adding new asset tracking tuple - storage: %s",__FILE__, __FUNCTION__, a_code.c_str());
+        }
+
+
 
 	sqlite3_resut = sqlite3_exec(dbHandle, "END TRANSACTION", NULL, NULL, NULL);
 	if (sqlite3_resut != SQLITE_OK)

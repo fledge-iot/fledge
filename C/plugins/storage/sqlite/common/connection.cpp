@@ -609,6 +609,9 @@ Connection::Connection()
 	}
 
 	m_schemaManager = SchemaManager::getInstance();
+
+	AssetTracker::getAssetTracker()->populateStorageAssetTrackingCache();
+
 }
 #endif
 

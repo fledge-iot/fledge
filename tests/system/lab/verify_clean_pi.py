@@ -2,8 +2,8 @@ import argparse
 from pathlib import Path
 import sys
 
-PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
-sys.path.insert(0, '{}/tests/system/common/clean_pi_system'.format(PROJECT_ROOT))
+PROJECT_ROOT = Path(__file__).absolute().parent.parent.parent.parent
+sys.path.append('{}/tests/system/common'.format(PROJECT_ROOT))
 
 from clean_pi_system import clear_pi_system_pi_web_api
 

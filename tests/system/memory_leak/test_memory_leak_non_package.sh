@@ -42,6 +42,11 @@ setup_south(){
      "enabled": true,
      "config": {}
   }'
+  echo 'Updateing Readings per se'
+  curl -sX PUT "$FLEDGE_URL/category/SineAdvanced" -d \
+  '{
+ "reaadingsPerSec": "100"
+  }'
   echo
 }
 

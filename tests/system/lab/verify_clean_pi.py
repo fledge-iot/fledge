@@ -289,17 +289,25 @@ def _clear_pi_system_through_pi_web_api(host, admin, password, pi_database, af_h
     Returns:
         None
     """
+    print("Going to delete the element hierarchy list {}.".format(af_hierarchy_list))
     delete_element_hierarchy(host, admin, password, pi_database, af_hierarchy_list)
-    for asset_name in asset_dict.keys():
+    print("Deleted the element hierarchy list {}.".format(af_hierarchy_list))
+
+    for asst_name in asset_dict.keys():
         for dp_name in asset_dict[asset_name]:
+            print("Going to delete the PI point. with name {}.{}".format(asst_name, dp_name))
             delete_pi_point(host, admin, password, asset_name, dp_name)
+            print("Deleted the PI point. with name {}.{}".format(asst_name, dp_name))
 
     for h_level in af_hierarchy_list:
         web_ids = search_for_element_template(host, admin, password, pi_database, h_level)
+        print("Going to delete the element template with name {} and web ids {}".format(h_level, web_ids))
         for web_id in web_ids:
             delete_element_template(host, admin, password, web_id)
+        print("Deleted the element template with name {} and web ids {}".format(h_level, web_ids))
 
     clear_cache(host, admin, password, pi_database)
+    print("Cleared the cache of Pi system.")
 
 
 pi_host = args["pi_host"]

@@ -44,14 +44,16 @@ def search_for_pi_point(host, admin, password, asset_name, data_point_name):
         r = json.loads(res.read().decode())
         points_url = r["Items"][0]["Links"]["Points"]
     except Exception:
-        assert False, "Could not request data server of PI"
+        print("Could not request data server of PI")
+        return False, None
 
     try:
         conn.request("GET", points_url, headers=headers)
         res = conn.getresponse()
         points = json.loads(res.read().decode())
     except Exception:
-        assert False, "Could not get Points data."
+        print("Could not get Points data.")
+        return False, None
 
     name_to_search = asset_name + '.' + data_point_name
     for single_point in points['Items']:

@@ -105,6 +105,7 @@ generate_valgrind_logs(){
   mkdir -p reports/$1 ; ls -lrth
   echo 'copying reports '
   cp -rf /tmp/*valgrind*.log /tmp/*valgrind*.xml reports/$1/.  && echo 'copied'
+  rm -rf fledge*
 }
 
 cleanup

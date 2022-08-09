@@ -186,7 +186,7 @@ async def get_datapoint_usage(request: web.Request) -> web.Response:
         response["count"] = total_datapoints
 
     except KeyError as msg:
-        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+        raise web.HTTPBadRequest(reason=str(msg), body=json.dumps({"message": str(msg)}))
     except TypeError as ex:
         raise web.HTTPBadRequest(reason=str(ex), body=json.dumps({"message": str(ex)}))
     except StorageServerError as ex:

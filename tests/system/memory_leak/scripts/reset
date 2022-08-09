@@ -1,12 +1,10 @@
 #!/usr/bin/env bash
 
 
-echo $1
 echo "Stopping Fledge"
 export FLEDGE_ROOT=$1
 
-cd ${1}/scripts/
-./fledge stop
+cd ${1}/scripts/ && ./fledge stop
 
 echo 'resetting fledge'
 echo "YES" | ./fledge reset || exit 1

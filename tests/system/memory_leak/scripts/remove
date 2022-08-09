@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+export FLEDGE_ROOT=$1
+echo "Removing Fledge..."
+
+if [[ -z ${FLEDGE_ROOT}  ]]
+then
+	echo "Fledge Root environment variable is not set"
+else
+	echo ${FLEDGE_ROOT}
+	rm -rfv fledge* reports && echo 'Done.'
+fi

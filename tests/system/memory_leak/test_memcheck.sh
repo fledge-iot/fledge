@@ -7,29 +7,31 @@ source config.sh
 export FLEDGE_ROOT=${cwd}/fledge
 #echo $plugin_repos
 
-if [[ -z "$1"  ]]
-then
-	fledge_branch=""
-else
-	fledge_branch=$1  #here fledge_branch means branch of fledge repository from clone is need to be done, default is devops
-fi
+fledge_branch=${1:-}
+
+#if [[ -z "$1"  ]]
+#then
+#	fledge_branch=""
+#else
+#	fledge_branch=$1  #here fledge_branch means branch of fledge repository from clone is need to be done, default is devops
+#fi
 
 
 cleanup(){
   # sudo rm -rf /usr/local/fledge
   rm -rf /tmp/*valgrind*.log /tmp/*valgrind*.xml
-  rm -rf fledge* reports
+  echo "Removig Repositories..."
+  rm -rf fledge* reports && echo 'Done.'
 }
 
 #Setting up Fledge and installing its plugin
 setup_repo(){
-  ../python/scripts/non_package/remove;
-  ../python/scripts/non_package/setup ${PACKAGE_VERSION} fledge-south-sinusoid  ${fledge_branch} 
+   ./scripts/setup ${PACKAGE_VERSION} fledge-south-sinusoid  ${fledge_branch} 
 }
 
 
 reset_fledge(){
-  ../python/scripts/non_package/reset ${FLEDGE_ROOT} ;
+  ./scripts/reset ${FLEDGE_ROOT} ;
 }
 
 setup_south(){ 
@@ -41,12 +43,13 @@ setup_south(){
      "plugin": "sinusoid",
      "enabled": true,
      "config": {}
-  }'
-  echo 'Updateing Readings per se'
-  curl -sX PUT "$FLEDGE_URL/category/SineAdvanced" -d \
-  '{
- "reaadingsPerSec": "100"
-  }'
+  }'  
+  echo
+  echo 'Updateing Readings per second'
+
+  sleep 60
+  
+  curl -sX PUT "$FLEDGE_URL/category/SineAdvanced" -d '{ "readingsPerSec": "100"}'
   echo
 }
 
@@ -95,10 +98,10 @@ generate_valgrind_logs(){
   cwd=`pwd`
   cd ${FLEDGE_ROOT}/scripts/
   echo 'stopping fledge'
-  ./fledge stop && echo 'fledge stopped'
+  ./fledge stop 
   cd ../../
   echo $1
-  echo 'Creating reports directory'; ls -lrth ; pwd
+  echo 'Creating reports directory';
   mkdir -p reports/$1 ; ls -lrth
   echo 'copying reports '
   cp -rf /tmp/*valgrind*.log /tmp/*valgrind*.xml reports/$1/.  && echo 'copied'

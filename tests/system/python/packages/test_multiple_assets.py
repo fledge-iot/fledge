@@ -68,8 +68,22 @@ def remove_and_add_pkgs(package_build_version):
 
 @pytest.fixture
 def start_north(start_north_omf_as_a_service, fledge_url,
-                      pi_host, pi_port, pi_admin, pi_passwd):
+                      pi_host, pi_port, pi_admin, pi_passwd, clear_pi_system_through_pi_web_api, pi_db):
     global north_schedule_id
+
+    af_hierarchy_level = "fledge/room1/machine1"
+    af_hierarchy_level_list = af_hierarchy_level.split("/")
+    dp_list = ["random"]
+    asset_dict = {}
+
+    no_of_services = 6
+    for service_count in range(no_of_services):
+        for asst_count in range(PER_BENCHMARK_ASSET_COUNT):
+            asset_name = ASSET_NAME + "-{}{}".format(service_count + 1, asst_count + 1)
+            asset_dict[asset_name] = dp_list
+
+    clear_pi_system_through_pi_web_api(pi_host, pi_admin, pi_passwd, pi_db,
+                                       af_hierarchy_level_list, asset_dict)
 
     response = start_north_omf_as_a_service(fledge_url, pi_host, pi_port, pi_user=pi_admin, pi_pwd=pi_passwd)
     north_schedule_id = response["id"]

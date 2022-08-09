@@ -110,6 +110,13 @@ async def deprecate_asset_track_entry(request: web.Request) -> web.Response:
                         if response != 'updated':
                             raise KeyError('Update failure in asset tracker for service: {} asset: {} event: {}'.format(
                                 svc_name, asset_name, event_name))
+                        try:
+                            audit = AuditLogger(storage_client)
+                            audit_details = {'asset': asset_name, 'service': svc_name, 'event' : event_name}
+                            await audit.information('ASTDP', audit_details)
+                        except:
+                            _logger.warning("Failed to log the audit entry for {} deprecation".format(asset_name))
+                            pass
                     else:
                         raise StorageServerError
                 else:
@@ -132,8 +139,5 @@ async def deprecate_asset_track_entry(request: web.Request) -> web.Response:
         msg = str(ex)
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
-        audit = AuditLogger(storage_client)
-        audit_details = {'asset': asset_name, 'service': svc_name, 'event' : event_name}
-        await audit.information('ASTDP', audit_details)
         _logger.info("Asset '{}' has been deprecated".format(asset_name))
         return web.json_response({'success': "Asset record entry has been deprecated."})

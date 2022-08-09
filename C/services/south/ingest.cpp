@@ -994,7 +994,7 @@ void Ingest::unDeprecateAssetTrackingRecord(AssetTrackingTuple* currentTuple,
 				// Add AuditLog entry
 				if (!m_mgtClient->addAuditEntry("ASTUN", "INFORMATION", audit_details))
 				{
-					m_logger->error("Failure while adding AuditLog entry " \
+					m_logger->warn("Failure while adding AuditLog entry " \
 							" for un-deprecated asset '%s'",
 							assetName.c_str());
 				}

@@ -65,6 +65,14 @@ void configChildDeleteWrapper(shared_ptr<HttpServer::Response> response, shared_
         api->configChildDelete(response, request);
 }
 
+/**
+ * Wrapper for security change method
+ */
+void securityChangeWrapper(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
+{
+        ManagementApi *api = ManagementApi::getInstance();
+        api->securityChange(response, request);
+}
 
 /**
  * Construct a microservices management API manager class
@@ -81,7 +89,7 @@ ManagementApi::ManagementApi(const string& name, const unsigned short port) : m_
 	m_server->resource[CONFIG_CHANGE]["POST"] = configChangeWrapper;
 	m_server->resource[CONFIG_CHILD_CREATE]["POST"] = configChildCreateWrapper;
 	m_server->resource[CONFIG_CHILD_DELETE]["DELETE"] = configChildDeleteWrapper;
-
+	m_server->resource[SECURITY_CHANGE]["PUT"] = securityChangeWrapper;
 
 	m_instance = this;
 
@@ -266,4 +274,26 @@ void ManagementApi::respond(shared_ptr<HttpServer::Response> response, const str
 {
         *response << "HTTP/1.1 200 OK\r\nContent-Length: " << payload.length() << "\r\n"
                  <<  "Content-type: application/json\r\n\r\n" << payload;
+}
+
+/**
+ * Received a security change request, construct a reply and return to caller
+ */
+void ManagementApi::securityChange(shared_ptr<HttpServer::Response> response,
+				shared_ptr<HttpServer::Request> request)
+{
+	string payload = request->content.string();
+
+	Logger::getLogger()->debug("Received securityChange: %s", payload.c_str());
+
+	ostringstream convert;
+	string responsePayload;
+
+	// Call server securityChange method
+	m_serviceHandler->securityChange(payload);
+
+	convert << "{ \"message\" : \"Security change accepted\" }";
+
+	responsePayload = convert.str();
+	respond(response, responsePayload);
 }

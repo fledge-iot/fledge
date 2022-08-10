@@ -15,6 +15,7 @@ from fledge.common.configuration_manager import ConfigurationManager
 from fledge.services.core.service_registry.service_registry import ServiceRegistry
 from fledge.common.service_record import ServiceRecord
 from fledge.services.core import connect
+from fledge.common.acl_manager import ACLManager
 
 __author__ = "Ashwin Gopalakrishnan, Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -52,6 +53,7 @@ class Monitor(object):
         """Restart failed microservice - manual/auto"""
 
         self.restarted_services = []
+        self._acl_handler = None
 
     async def _sleep(self, sleep_time):
         await asyncio.sleep(sleep_time)
@@ -113,6 +115,14 @@ class Monitor(object):
                     self._logger.info("Exception occurred: %s, %s", str(ex), service_record.__repr__())
                 else:
                     service_record._status = ServiceRecord.Status.Running
+
+                    self._logger.debug("Resolving pending notification for ACL change "
+                                       "for service {} ".format(service_record._name))
+                    if not self._acl_handler:
+                        self._acl_handler = ACLManager(connect.get_storage_async())
+                    await self._acl_handler.\
+                        resolve_pending_notification_for_acl_change(service_record._name)
+
                     check_count[service_record._id] = 1
 
                 if check_count[service_record._id] > self._max_attempts:

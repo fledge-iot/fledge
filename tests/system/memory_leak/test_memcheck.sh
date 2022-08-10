@@ -65,10 +65,10 @@ setup_north_pi_egress () {
            "value": "443"
         },
         "PIWebAPIUserId": {
-           "value": "'$4'"
+           "value": "'$3'"
         },
         "PIWebAPIPassword": {
-           "value": "'$5'"
+           "value": "'$4'"
         },
         "NamingScheme": {
            "value": "Backward compatibility"

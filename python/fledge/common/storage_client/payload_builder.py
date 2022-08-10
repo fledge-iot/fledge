@@ -60,6 +60,12 @@ class PayloadBuilder(object):
                 if arg[1] in ['in', 'not in']:
                     if isinstance(arg[2], list):
                         retval = True
+            elif len(arg) == 2:
+                # There is no 3rd arg required for below operations
+                if arg[1] in ['isnull', 'notnull']:
+                    retval = True
+            else:
+                retval = False
         return retval
 
     @staticmethod
@@ -394,7 +400,9 @@ class PayloadBuilder(object):
             if cls.verify_condition(arg):
                 condition["column"] = arg[0]
                 condition["condition"] = arg[1]
-                condition["value"] = arg[2]
+                # Note: append value KV pair only if 3 argument supplied
+                if len(arg) == 3:
+                    condition["value"] = arg[2]
                 if 'where' not in cls.query_payload:
                     cls.query_payload["where"] = condition
                 else:
@@ -410,7 +418,9 @@ class PayloadBuilder(object):
             if cls.verify_condition(arg):
                 condition["column"] = arg[0]
                 condition["condition"] = arg[1]
-                condition["value"] = arg[2]
+                # Note: append value KV pair only if 3 argument supplied
+                if len(arg) == 3:
+                    condition["value"] = arg[2]
                 if 'where' not in cls.query_payload:
                     cls.query_payload["where"] = condition
                 else:
@@ -426,7 +436,9 @@ class PayloadBuilder(object):
             if cls.verify_condition(arg):
                 condition["column"] = arg[0]
                 condition["condition"] = arg[1]
-                condition["value"] = arg[2]
+                # Note: append value KV pair only if 3 argument supplied
+                if len(arg) == 3:
+                    condition["value"] = arg[2]
                 if 'where' not in cls.query_payload:
                     cls.query_payload["where"] = condition
                 else:

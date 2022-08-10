@@ -1,7 +1,7 @@
 #ifndef _OMF_H
 #define _OMF_H
 /*
- * Fledge OSI Soft OMF interface to PI Server.
+ * Fledge OSIsoft OMF interface to PI Server.
  *
  * Copyright (c) 2018 Dianomic Systems
  *
@@ -269,7 +269,7 @@ private:
 
 		string errorMessageHandler(const string &msg);
 
-		// Extract assetName from erro message
+		// Extract assetName from error message
 		std::string getAssetNameFromError(const char* message);
 
 		// Get asset type-id from cached data
@@ -291,7 +291,7 @@ private:
 		// Add the 1st level of AF hierarchy if the end point is PI Web API
 		void setAFHierarchy();
 
-		bool handleAFHirerarchy();
+		bool handleAFHierarchy();
 		bool handleAFHierarchySystemWide();
 		bool handleOmfHintHierarchies();
 
@@ -318,7 +318,7 @@ private:
 		bool HandleAFMapMetedata(Document& JSon);
 
 	private:
-		// Use for the evaluatin of the OMFDataTypes.typesShort
+		// Use for the evaluation of the OMFDataTypes.typesShort
 		union t_typeCount {
 			struct
 			{
@@ -352,7 +352,7 @@ private:
 		std::string		m_AFHierarchyLevel;
 		std::string		m_prefixAFAsset;
 
-		vector<std::string>  m_afhHierarchyAlredyCreated={
+		vector<std::string>  m_afhHierarchyAlreadyCreated={
 
 			//  Asset Framework path
 			// {""}

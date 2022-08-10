@@ -288,7 +288,7 @@ class Scheduler(object):
         # is used by stop() to determine whether the scheduler can stop.
         del self._task_processes[task_process.task_id]
 
-    async def _start_task(self, schedule: _ScheduleRow) -> None:
+    async def _start_task(self, schedule: _ScheduleRow, dryrun=False) -> None:
         """Starts a task process
 
         Raises:
@@ -322,10 +322,12 @@ class Scheduler(object):
             args_to_exec.append("--token={}".format(startToken))
         
         args_to_exec.append("--name={}".format(schedule.name))
+        if dryrun:
+            args_to_exec.append("--dryrun")
 
         # avoid printing/logging tokens
-        args_to_exec_printable  = [a for a in args_to_exec if not a.startswith("--token")]
-
+        args_to_exec_printable = [a for a in args_to_exec if not a.startswith("--token")]
+        
         task_process = self._TaskProcess()
         task_process.start_time = time.time()
 
@@ -336,6 +338,9 @@ class Scheduler(object):
                 "Unable to start schedule '%s' process '%s'\n%s",
                 schedule.name, schedule.process_name, args_to_exec_printable)
             raise
+
+        if dryrun:
+            return
 
         task_id = uuid.uuid4()
         task_process.process = process
@@ -1016,7 +1021,7 @@ class Scheduler(object):
 
         return self._schedule_row_to_schedule(found_id, schedule_row)
 
-    async def save_schedule(self, schedule: Schedule, is_enabled_modified=None):
+    async def save_schedule(self, schedule: Schedule, is_enabled_modified=None, dryrun=False):
         """Creates or update a schedule
 
         Args:
@@ -1088,8 +1093,7 @@ class Scheduler(object):
                 raise
             audit = AuditLogger(self._storage_async)
             await audit.information('SCHCH', {'schedule': schedule.toDict()})
-
-        if is_new_schedule:
+        else:
             insert_payload = PayloadBuilder() \
                 .INSERT(id=str(schedule.schedule_id),
                         schedule_type=schedule.schedule_type,
@@ -1113,12 +1117,7 @@ class Scheduler(object):
         repeat_seconds = None
         if schedule.repeat is not None and schedule.repeat != datetime.timedelta(0):
             repeat_seconds = schedule.repeat.total_seconds()
-
-        if not is_new_schedule:
-            previous_enabled = self._schedules[schedule.schedule_id].enabled
-        else:
-            previous_enabled = None
-
+        previous_enabled = self._schedules[schedule.schedule_id].enabled if not is_new_schedule else None
         schedule_row = self._ScheduleRow(
             id=schedule.schedule_id,
             name=schedule.name,
@@ -1157,6 +1156,9 @@ class Scheduler(object):
             self._schedule_first_task(schedule_row, now)
             self._resume_check_schedules()
 
+        if dryrun and is_new_schedule:
+            await self._start_task(schedule_row, dryrun=True)
+            return
         if is_enabled_modified is not None:
             if previous_enabled is None:  # New Schedule
                 # For a new schedule, if enabled is set to True, the schedule will be enabled.

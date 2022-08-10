@@ -117,6 +117,7 @@ do
 		then
 			 sudo cp -r python/fledge/plugins/north/*  ${FLEDGE_ROOT}/python/fledge/plugins/north/
 		fi
+		echo 'Copied.'
 		cd ../..
 	fi
 done

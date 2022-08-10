@@ -62,7 +62,7 @@ setup_north_pi_egress () {
            "value": "'$2'"
         },
         "ServerPort": {
-           "value": "'$3'"
+           "value": "443"
         },
         "PIWebAPIUserId": {
            "value": "'$4'"
@@ -94,7 +94,7 @@ generate_valgrind_logs(){
   echo 'Creating reports directory';
   mkdir -p reports/test1 ; ls -lrth
   echo 'copying reports '
-  cp -rf /tmp/*valgrind*.log /tmp/*valgrind*.xml reports/$1/.  && echo 'copied'
+  cp -rf /tmp/*valgrind*.log /tmp/*valgrind*.xml reports/test1/.  && echo 'copied'
   rm -rf fledge*
 }
 

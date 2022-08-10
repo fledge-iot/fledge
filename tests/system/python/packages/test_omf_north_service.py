@@ -577,6 +577,8 @@ class TestOMFNorthServicewithFilters:
         filter_cfg_scale = {"enable": "true"}
         add_filter("scale", None, "SF2", filter_cfg_scale, fledge_url, north_service_name, installation_type='package')
 
+        # Wait for some time for north service to come up.
+        time.sleep(wait_time)
         verify_service_added(fledge_url)
         verify_filter_added(fledge_url)
 

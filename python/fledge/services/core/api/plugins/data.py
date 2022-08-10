@@ -47,7 +47,7 @@ async def get_persist_plugins(request: web.Request) -> web.Response:
         dir_name = None
         svc_info = (False, dir_name)
         for sch in sch_list:
-            if service == sch.name and sch.process_name in ("south_c", "north_C"):
+            if service == sch.name and sch.process_name in ("south_c", "north_C", "north_c"):
                 dir_name = "south" if sch.process_name == "south_c" else "north"
                 svc_info = (True, dir_name)
                 break

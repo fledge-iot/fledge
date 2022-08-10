@@ -724,7 +724,7 @@ static void bearer_token_refresh_thread(void *data)
 /**
  * Request security change action:
  *
- * Given a reason code, “attachACL”, “detachACL”, “reloadACL”
+ * Given a reason code, “attachACL”, “detachACL”, “reloadACL”, “updateACL”
  * in 'reason' atribute, the ACL name in 'argument' could be
  * attached, detached or reloaded
  *
@@ -750,9 +750,9 @@ bool ServiceAuthHandler::securityChange(const string& payload)
 		// Fetch and load ACL
 		m_service_acl = m_mgtClient->getACL(reason.getArgument());
 	}
-	else if (r == "reloadACL")
+	else if (r == "reloadACL" || r == "updateACL")
 	{
-		// Fetch and load ACL
+		// Fetch and load new or updated ACL
 		m_service_acl = m_mgtClient->getACL(reason.getArgument());
 	}
 	else if (r == "detachACL")

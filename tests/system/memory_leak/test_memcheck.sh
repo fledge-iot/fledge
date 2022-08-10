@@ -86,7 +86,7 @@ setup_north_pi_egress () {
 }
 
 generate_valgrind_logs(){
-  sleep $6
+  sleep ${TEST_RUN_TIME} 
   cd ${FLEDGE_ROOT}/scripts/
   echo 'stopping fledge'
   ./fledge stop 

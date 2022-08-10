@@ -6,8 +6,7 @@ source config.sh
 
 export FLEDGE_ROOT=$(pwd)/fledge
 
-fledge_test_branch=$1     #here fledge_test_branch means branch of fledge repository that is needed to be scanned, default is devops
-
+FLEDGE_TEST_BRANCH=$1     #here fledge_test_branch means branch of fledge repository that is needed to be scanned, default is devops
 
 cleanup(){
   # sudo rm -rf /usr/local/fledge
@@ -17,16 +16,15 @@ cleanup(){
 }
 
 #Setting up Fledge and installing its plugin
-setup_repo(){
+setup(){
    ./scripts/setup fledge-south-sinusoid  ${fledge_test_branch} 
 }
-
 
 reset_fledge(){
   ./scripts/reset ${FLEDGE_ROOT} ;
 }
 
-setup_south(){ 
+adding_sinusoid(){ 
   echo -e INFO: "Add South"
   curl -sX POST "$FLEDGE_URL/service" -d \
   '{
@@ -37,7 +35,7 @@ setup_south(){
      "config": {}
   }'  
   echo
-  echo 'Updateing Readings per second'
+  echo 'Updating Readings per second'
 
   sleep 60
   
@@ -99,8 +97,8 @@ generate_valgrind_logs(){
 }
 
 cleanup
-setup_repo
+setup
 reset_fledge
-setup_south
+adding_sinusoid
 setup_north_pi_egress
 generate_valgrind_logs 

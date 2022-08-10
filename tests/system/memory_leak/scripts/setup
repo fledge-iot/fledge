@@ -3,11 +3,8 @@
 set -e
 
 
-PACKAGE_BUILD_VERSION=$1
-branch=${3:-develop}
+Branch=$2   #here Branch means branch of fledge repository that is needed to be scanned, default is devops
 
-
-[[ -z "${PACKAGE_BUILD_VERSION}" ]] && echo "Build Version not found." && exit 1
 
 OS_NAME=`(grep -o '^NAME=.*' /etc/os-release | cut -f2 -d\" | sed 's/"//g')`
 ID=$(cat /etc/os-release | grep -w ID | cut -f2 -d"=" | tr -d '"')
@@ -15,26 +12,24 @@ UNAME=`uname -m`
 VERSION_ID=$(cat /etc/os-release | grep -w VERSION_ID | cut -f2 -d"=" |  tr -d '"')
 echo "version id is "${VERSION_ID}
 
-
-if [[ ${OS_NAME} == *"Ubuntu"* ]]; then
-    if [[ ${ID} = "ubuntu" ]]; then
+if [[ ${ID} = "ubuntu" ]]; then
         VERSION_ID=$(echo "${VERSION_ID//.}")
         ID="ubuntu${VERSION_ID}";
-    elif [[ ${ID} = "raspbian" ]]; then
-        ID=$(cat /etc/os-release | grep VERSION_CODENAME | cut -f2 -d"=")
+elif [[ ${ID} = "raspbian" ]]; then
+	ID=$(cat /etc/os-release | grep VERSION_CODENAME | cut -f2 -d"=")
         UNAME="armv7l"
-    fi
-    
-    echo "Build version is "${PACKAGE_BUILD_VERSION}
-    echo "ID is "${ID}
-    echo "uname is "${UNAME}
 fi
 
+echo "Build version is "${PACKAGE_BUILD_VERSION}
+echo "ID is "${ID}
+echo "uname is "${UNAME}
+
+
 # installing pre requisite package - git, for cloning fledge non package
-sudo apt install git
+sudo apt -y  install git
 
 #cloneing fledge
-git clone -b $branch https://github.com/fledge-iot/fledge.git &&  cd fledge && chmod +x requirements.sh && sh -x requirements.sh ;
+git clone -b $Branch https://github.com/fledge-iot/fledge.git &&  cd fledge && chmod +x requirements.sh && sh -x requirements.sh ;
 
 
 echo 'Changing CMakelists'
@@ -47,13 +42,12 @@ echo
 echo '----------------------------------'
 echo 'CMakeLists.txt changed'
 
-#exporting fledge path
-export FLEDGE_ROOT=`pwd` && cd ..;
+#exporting fledge path and changing directory to location where plugin repositories will be cloned and removed once the test is finished
+export FLEDGE_ROOT=`pwd` && cd ..; 
 
-#modifying scripit
+#modifying script
 
-echo 'fledge root path .....'
-echo ${FLEDGE_ROOT}
+echo 'fledge root path is set to  ${FLEDGE_ROOT}'
 
 valgrind_conf=' --tool=memcheck  --fullpath-after=  --xml=yes  --log-file=\/tmp\/south_valgrind.log --child-silent-after-fork=no --leak-check=full --show-leak-kinds=all --track-origins=yes '
 
@@ -80,8 +74,16 @@ sudo sed -i '/\${storageExec} \"\$@\"/s/^/valgrind -v   --xml-file=\/tmp\/storag
 
 #cloning plugins based on parameters passed to the script
 
+install_reuirements_Sh(){
+if [[ -f ${plugin_dir}/requirements.sh  ]]
+then
+	./${plugin_dir}/requirements.sh
+fi
+}
 
-for i in ${2}
+
+
+for i in ${1}
 do
 	echo $i
 	git clone  https://github.com/fledge-iot/${i}.git && cd ${i}; plugin_dir=`pwd`
@@ -91,10 +93,9 @@ do
 	then
 		sed -i 's|c++11 -O3|c++11 -O0 -ggdb|g'  ${plugin_dir}/CMakeLists.txt
 		#Cheking requirements.sh file exists or not, to install plugins dependencies
-		if [[ -f ${plugin_dir}/requirements.sh  ]] 
-		then
-			./requirements.sh
-		fi
+		
+		install_reuirements_Sh
+
 		#building C based plugin
 		echo 'Building C plugin'
 		mkdir -p build && cd build && cmake -DFLEDGE_INSTALL=${FLEDGE_ROOT} -DFLEDGE_ROOT=${FLEDGE_ROOT} .. && make  && make install && cd ../../ ;
@@ -104,6 +105,9 @@ do
 		then
 			python3 -m pip install -r ${plugin_dir}/requirements.txt
 		fi
+
+		install_reuirements_Sh
+		
 		#checking whether plugin is south bound plugin or north bound plugin
 		echo 'Copying plugin'
 		if [[ $plugin_dir == *"south"* ]]

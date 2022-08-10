@@ -4,17 +4,9 @@
 
 source config.sh
 
-export FLEDGE_ROOT=${cwd}/fledge
-#echo $plugin_repos
+export FLEDGE_ROOT=$(pwd)/fledge
 
-fledge_branch=${1:-}
-
-#if [[ -z "$1"  ]]
-#then
-#	fledge_branch=""
-#else
-#	fledge_branch=$1  #here fledge_branch means branch of fledge repository from clone is need to be done, default is devops
-#fi
+fledge_test_branch=$1     #here fledge_test_branch means branch of fledge repository that is needed to be scanned, default is devops
 
 
 cleanup(){
@@ -26,7 +18,7 @@ cleanup(){
 
 #Setting up Fledge and installing its plugin
 setup_repo(){
-   ./scripts/setup ${PACKAGE_VERSION} fledge-south-sinusoid  ${fledge_branch} 
+   ./scripts/setup fledge-south-sinusoid  ${fledge_test_branch} 
 }
 
 
@@ -67,16 +59,16 @@ setup_north_pi_egress () {
            "value": "PI Web API"
         },
         "ServerHostname": {
-           "value": "'${PI_IP}'"
+           "value": "'$2'"
         },
         "ServerPort": {
-           "value": "443"
+           "value": "'$3'"
         },
         "PIWebAPIUserId": {
-           "value": "'${PI_USER}'"
+           "value": "'$4'"
         },
         "PIWebAPIPassword": {
-           "value": "'${PI_PASSWORD}'"
+           "value": "'$5'"
         },
         "NamingScheme": {
            "value": "Backward compatibility"
@@ -94,15 +86,13 @@ setup_north_pi_egress () {
 }
 
 generate_valgrind_logs(){
-  sleep ${TEST_RUN_TIME}
-  cwd=`pwd`
+  sleep $6
   cd ${FLEDGE_ROOT}/scripts/
   echo 'stopping fledge'
   ./fledge stop 
   cd ../../
-  echo $1
   echo 'Creating reports directory';
-  mkdir -p reports/$1 ; ls -lrth
+  mkdir -p reports/test1 ; ls -lrth
   echo 'copying reports '
   cp -rf /tmp/*valgrind*.log /tmp/*valgrind*.xml reports/$1/.  && echo 'copied'
   rm -rf fledge*
@@ -113,4 +103,4 @@ setup_repo
 reset_fledge
 setup_south
 setup_north_pi_egress
-generate_valgrind_logs test1
+generate_valgrind_logs 

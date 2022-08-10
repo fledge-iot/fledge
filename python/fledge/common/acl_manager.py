@@ -99,7 +99,8 @@ class ACLManager(ACLManagerSingleton):
             except Exception as ex:
                 _logger.error("Could not notify {} due to {}".format(entity_name, str(ex)))
 
-    async def handle_update_for_acl_usage(self, entity_name, acl_name, entity_type):
+    async def handle_update_for_acl_usage(self, entity_name, acl_name, entity_type,
+                                          message="updateACL"):
         _logger.debug("Update acl usage called for {} {} {}".format(entity_name, acl_name, entity_type))
 
         if entity_type == "service":
@@ -115,7 +116,7 @@ class ACLManager(ACLManagerSingleton):
                 result = await self._storage_client.insert_into_tbl("acl_usage", payload)
                 response = result['response']
 
-                await self._notify_service_about_acl_change(entity_name, acl_name, "reloadACL")
+                await self._notify_service_about_acl_change(entity_name, acl_name, message)
             except KeyError:
                 raise ValueError(result['message'])
             except StorageServerError as ex:
@@ -285,10 +286,13 @@ class ACLManager(ACLManagerSingleton):
             await self._notify_service_about_acl_change(entity_name=svc_name, acl=new_acl,
                                                         reason="reloadACL")
 
-        if old_acl != "" and new_acl == "":
+        elif new_acl != old_acl and new_acl != "" and old_acl != "":
+            await self._notify_service_about_acl_change(entity_name=svc_name, acl=new_acl,
+                                                        reason="updateACL")
+        elif old_acl != "" and new_acl == "":
             await self._notify_service_about_acl_change(entity_name=svc_name, acl=new_acl,
                                                         reason="detachACL")
 
-        if old_acl == "" and new_acl != "":
+        elif old_acl == "" and new_acl != "":
             await self._notify_service_about_acl_change(entity_name=svc_name, acl=new_acl,
                                                         reason="attachACL")

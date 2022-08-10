@@ -749,30 +749,21 @@ bool ServiceAuthHandler::securityChange(const string& payload)
 	{
 		// Fetch and load ACL
 		m_service_acl = m_mgtClient->getACL(reason.getArgument());
-
-		// TODO:
-		//  make use of m_service_acl
-		//  in verifyService and verifyURL
 	}
 	else if (r == "reloadACL")
 	{
 		// Fetch and load ACL
 		m_service_acl = m_mgtClient->getACL(reason.getArgument());
-		// TODO:
-		//  make use of m_service_acl
-		//  in verifyService and verifyURL
 	}
 	else if (r == "detachACL")
 	{
 		m_service_acl = ACL();
-		// TODO:
-		//  make use of m_service_acl
-		//  in verifyService and verifyURL
 	}
 	else
 	{
 		// Error
-		// TODO
+		Logger::getLogger()->error("Reason '%s' is not supported",
+					reason.getReason().c_str());
 		return false;
 	}
 

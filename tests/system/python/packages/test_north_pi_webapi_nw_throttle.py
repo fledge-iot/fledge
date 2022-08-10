@@ -329,6 +329,7 @@ class TestPackagesSinusoid_PI_WebAPI:
         disable_schedule(fledge_url, SOUTH_SERVICE_NAME)
         time.sleep(5)
         # switch off Compression
+        verify_ping(fledge_url, 5)
         dp_name = 'id_datapoint'
         turn_off_compression_for_pi_point(pi_host, pi_admin, pi_passwd, ASSET, dp_name)
 

@@ -7,6 +7,8 @@
 import http.client
 import json
 import urllib.parse
+import logging
+
 from fledge.common import logger
 from fledge.common.microservice_management_client import exceptions as client_exceptions
 
@@ -15,7 +17,7 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-_logger = logger.setup(__name__)
+_logger = logger.setup(__name__, level=logging.INFO)
 
 
 class MicroserviceManagementClient(object):
@@ -23,6 +25,8 @@ class MicroserviceManagementClient(object):
 
     def __init__(self, microservice_management_host, microservice_management_port):
         self._management_client_conn = http.client.HTTPConnection("{0}:{1}".format(microservice_management_host, microservice_management_port))
+        self.hostname = microservice_management_host
+        self.port = microservice_management_port
 
     def register_service(self, service_registration_payload):
         """ Registers a newly created microservice with the core service
@@ -283,7 +287,8 @@ class MicroserviceManagementClient(object):
         :param category_data: e.g. '{"value": "true"}'
         :return:
         """
-        url = "/fledge/service/category/{}/{}".format(urllib.parse.quote(category_name), urllib.parse.quote(config_item))
+        url = "/fledge/service/category/{}/{}".format(urllib.parse.quote(category_name),
+                                                      urllib.parse.quote(config_item))
 
         self._management_client_conn.request(method='PUT', url=url, body=category_data)
         r = self._management_client_conn.getresponse()
@@ -297,6 +302,26 @@ class MicroserviceManagementClient(object):
         self._management_client_conn.close()
         response = json.loads(res)
         return response
+
+    async def update_service_for_acl_change_security(self, acl, reason):
+        assert reason in ["attachACL", "detachACL", "reloadACL", "updateACL"]
+        url = "/fledge/security"
+        payload = {
+            "reason": reason,
+            "argument": acl
+        }
+        import aiohttp
+        async with aiohttp.ClientSession() as session:
+            async with session.put('http://{}:{}/fledge/security'.format(self.hostname,
+                                                                         self.port),
+                                   data=json.dumps(payload)) as resp:
+                _logger.info(resp.status)
+                json_response = await resp.json()
+                _logger.debug("The response is {}".format(json_response))
+                self._management_client_conn.close()
+                self.port = None
+                self.hostname = None
+        return json_response
 
     def delete_configuration_item(self, category_name, config_item):
         """

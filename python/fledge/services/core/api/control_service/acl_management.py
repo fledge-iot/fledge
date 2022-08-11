@@ -16,6 +16,7 @@ from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.common.web.middleware import has_permission
 from fledge.services.core import connect
 from fledge.services.core.api.control_service.exceptions import *
+from fledge.common.acl_manager import ACLManager
 
 
 __author__ = "Ashish Jabble, Massimiliano Pinto"
@@ -207,6 +208,15 @@ async def update_acl(request: web.Request) -> web.Response:
         message = str(ex)
         raise web.HTTPInternalServerError(reason=message, body=json.dumps({"message": message}))
     else:
+        # Fetch service name associated with acl
+        acl_handler = ACLManager(storage)
+        services = await acl_handler.get_all_entities_for_a_acl(name, "service")
+        for svc in services:
+            await acl_handler._notify_service_about_acl_change(svc, name, "reloadACL")
+
+        # TODO Get all the scripts that are attached to this ACL. FOGL-6750 And handle them separately.
+        # scripts = await acl_handler.get_all_entities_for_a_acl(name, "script")
+
         return web.json_response({"message": message})
 
 
@@ -247,6 +257,18 @@ async def delete_acl(request: web.Request) -> web.Response:
         msg = str(ex)
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
+        # Fetch service names associated with acl
+        acl_handler = ACLManager(storage)
+        services = await acl_handler.get_all_entities_for_a_acl(name, "service")
+        for svc in services:
+            cf_mgr = ConfigurationManager(storage)
+            data = {'ACL': ''}
+            security_cat_name = "{}Security".format(svc)
+            await cf_mgr.update_configuration_item_bulk(security_cat_name, data)
+
+        # TODO Get all the scripts that are attached to this ACL. FOGL-6750 And handle them separately.
+        # scripts = await acl_handler.get_all_entities_for_a_acl(name, "script")
+
         return web.json_response({"message": message})
 
 
@@ -292,7 +314,8 @@ async def attach_acl_to_service(request: web.Request) -> web.Response:
         category = await cf_mgr.get_category_all_items(security_cat_name)
 
         if category is not None and 'ACL' in category:
-            raise ValueError('Service {} already has an ACL object.'.format(svc_name))
+            if category['ACL']['value'] != "":
+                raise ValueError('Service {} already has an ACL object.'.format(svc_name))
 
         # Create {service_name}Security category and having value with AuthenticationCaller Global switch &
         # ACL info attached (name is excluded from the ACL dict)
@@ -309,11 +332,12 @@ async def attach_acl_to_service(request: web.Request) -> web.Response:
             'ACL':
                 {
                     'description': 'Service ACL for {}'.format(svc_name),
-                    'type': 'JSON',
+                    'type': 'ACL',
                     'displayName': 'Service ACL',
-                    'default': json.dumps(get_acl_result['rows'][0])
+                    'default': ''
                 }
             }
+        # Create category content with ACL default set to ''
         await cf_mgr.create_category(category_name=security_cat_name, category_description=category_desc,
                                      category_value=category_value)
         add_child_result = await cf_mgr.create_child_category(svc_name, [security_cat_name])
@@ -332,6 +356,10 @@ async def attach_acl_to_service(request: web.Request) -> web.Response:
         msg = str(ex)
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
+        # Call service security endpoint with attachACL = acl_name
+        data = {'ACL': acl_name}
+        await cf_mgr.update_configuration_item_bulk(security_cat_name, data)
+        
         return web.json_response({"message": "ACL with name {} attached to {} service successfully.".format(
             acl_name, svc_name)})
 
@@ -369,7 +397,20 @@ async def detach_acl_from_service(request: web.Request) -> web.Response:
                         'default': 'false',
                         'displayName': 'Enable caller authorisation'
                     }
-                }
+                ,
+                'ACL':
+                    {
+                     'description': 'Service ACL for {}'.format(svc_name),
+                     'type': 'ACL',
+                     'displayName': 'Service ACL',
+                     'default': ''
+                    }
+            }
+            # Call service security endpoint with detachACL = ''
+            data = {'ACL': ''}
+            await cf_mgr.update_configuration_item_bulk(security_cat_name, data)
+
+            # Set new content without ACL item
             await cf_mgr.create_category(category_name=security_cat_name,
                                          category_description=category_desc,
                                          category_value=category_value)

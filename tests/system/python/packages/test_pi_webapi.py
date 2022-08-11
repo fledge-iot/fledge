@@ -124,12 +124,21 @@ def _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_d
 
 @pytest.fixture
 def start_south_north(add_south, start_north_task_omf_web_api, remove_data_file,
-                      fledge_url, pi_host, pi_port, pi_admin, pi_passwd, asset_name=ASSET):
+                      fledge_url, pi_host, pi_port, pi_admin, pi_passwd,
+                      clear_pi_system_through_pi_web_api, pi_db, asset_name=ASSET):
     """ This fixture
         clean_setup_fledge_packages: purge the fledge* packages and install latest for given repo url
         add_south: Fixture that adds a south service with given configuration
         start_north_task_omf_web_api: Fixture that starts PI north task
         remove_data_file: Fixture that remove data file created during the tests """
+
+    af_hierarchy_level = "fledge/room1/machine1"
+    af_hierarchy_level_list = af_hierarchy_level.split("/")
+    dp_list = [DATAPOINT]
+    asset_dict = {}
+    asset_dict[ASSET] = dp_list
+    clear_pi_system_through_pi_web_api(pi_host, pi_admin, pi_passwd, pi_db,
+                                       af_hierarchy_level_list, asset_dict)
 
     # Define the template file for fogbench
     fogbench_template_path = os.path.join(

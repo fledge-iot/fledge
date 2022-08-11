@@ -9,7 +9,10 @@ import asyncio
 import aiohttp
 from fledge.services.core.service_registry.monitor import Monitor
 from fledge.services.core.service_registry.service_registry import ServiceRegistry
+from fledge.common.storage_client.storage_client import StorageClientAsync
 from fledge.common.service_record import ServiceRecord
+from fledge.services.core import connect
+
 
 __author__ = "Ashwin Gopalakrishnan"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -68,12 +71,15 @@ class TestMonitor:
         monitor._sleep_interval = Monitor._DEFAULT_SLEEP_INTERVAL
         monitor._max_attempts = Monitor._DEFAULT_MAX_ATTEMPTS
 
+        storage_client_mock = MagicMock(StorageClientAsync)
+
         # throw the TestMonitorException when sleep is called (end of infinite loop)
         with patch.object(Monitor, '_sleep', side_effect=TestMonitorException()):
             with patch.object(aiohttp.ClientSession, 'get', return_value=AsyncSessionContextManagerMock()):
-                with pytest.raises(Exception) as excinfo:
-                    await monitor._monitor_loop()
-                assert excinfo.type is TestMonitorException
+                with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+                    with pytest.raises(Exception) as excinfo:
+                        await monitor._monitor_loop()
+                    assert excinfo.type is TestMonitorException
         # service is good, so it should remain in the service registry
         assert len(ServiceRegistry.get(idx=s_id_1)) is 1
         

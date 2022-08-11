@@ -39,7 +39,8 @@ def reset_fledge(wait_time):
 
 
 @pytest.fixture
-def start_south(add_south, remove_data_file, fledge_url):
+def start_south(add_south, remove_data_file, fledge_url, clear_pi_system_through_pi_web_api,
+                pi_host, pi_port, pi_admin, pi_passwd, pi_db):
     """ This fixture
         clean_setup_fledge_packages: purge the fledge* packages and install latest for given repo url
         add_south: Fixture that adds a south service with given configuration
@@ -47,6 +48,15 @@ def start_south(add_south, remove_data_file, fledge_url):
         remove_data_file: Fixture that remove data file created during the tests """
 
     # Define the template file for fogbench
+
+    af_hierarchy_level = "fledge/room1/machine1"
+    af_hierarchy_level_list = af_hierarchy_level.split("/")
+    dp_list = [DATAPOINT]
+    asset_dict = {}
+    asset_dict[south_asset_name] = dp_list
+    clear_pi_system_through_pi_web_api(pi_host, pi_admin, pi_passwd, pi_db,
+                                       af_hierarchy_level_list, asset_dict)
+
     fogbench_template_path = os.path.join(
         os.path.expandvars('{}'.format(PROJECT_ROOT)), 'data/{}'.format(TEMPLATE_NAME))
     with open(fogbench_template_path, "w") as f:

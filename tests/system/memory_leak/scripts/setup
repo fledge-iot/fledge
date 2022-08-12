@@ -76,15 +76,8 @@ do
 		then
 			python3 -m pip install -r ${plugin_dir}/requirements.txt
 		fi
-		# checking whether plugin is south bound plugin or north bound plugin
-		echo 'Copying plugin'
-		if [[ $plugin_dir == *"south"* ]]
-		then
-			sudo cp -r python/fledge/plugins/south/*  ${FLEDGE_ROOT}/python/fledge/plugins/south/
-		elif [[ $plugin_dir == *"north"* ]]
-		then
-			 sudo cp -r python/fledge/plugins/north/*  ${FLEDGE_ROOT}/python/fledge/plugins/north/
-		fi
+		# Copying Plugin
+		sudo cp -r $plugin_dir/python $FLEDGE_ROOT/
 		echo 'Copied.'
 	fi
 	cd ../..

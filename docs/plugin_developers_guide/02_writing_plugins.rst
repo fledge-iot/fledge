@@ -94,7 +94,8 @@ The various values that may appear in the *mode* item are shown in the table bel
 | async   | The plugin is an asynchronous plugin, *plugin_poll* will not be called and the        |
 |         | plugin will be supplied with a callback function that it calls each time it has a     |
 |         | new value to pass to the system. The *plugin_register_ingest* entry point will be     |
-|         | called to register the callback with the plugin.                                      |
+|         | called to register the callback with the plugin. The *plugin_start* call will be      |
+|         | called once to initiate the asynchronous delivery of data.                            |
 +---------+---------------------------------------------------------------------------------------+
 | none    | This is equivalent to poll.                                                           |
 +---------+---------------------------------------------------------------------------------------+
@@ -161,7 +162,12 @@ The *flags* items contains a bitmask of flag values used to pass information reg
 | SP_READINGS       | Used exclusively by storage plugins. The plugin supports the storage of reading |
 |                   | data                                                                            |
 +-------------------+---------------------------------------------------------------------------------+
-| SP_ASYNC          | The plugin ingests data asynchronously. Applies to south plugins only           |
+| SP_ASYNC          | The plugin is an asynchronous plugin, *plugin_poll* will not be called and the  |
+|                   | plugin will be supplied with a callback function that it calls each time it has |
+|                   | a new value to pass to the system. The *plugin_register_ingest* entry point will|
+|                   | be called to register the callback with the plugin. The *plugin_start* call will|
+|                   | be called once to initiate the asynchronous delivery of data. This applies      |
+|                   | only to south plugins.                                                          |
 +-------------------+---------------------------------------------------------------------------------+
 | SP_PERSIST_DATA   | The plugin wishes to persist data between executions                            |
 +-------------------+---------------------------------------------------------------------------------+

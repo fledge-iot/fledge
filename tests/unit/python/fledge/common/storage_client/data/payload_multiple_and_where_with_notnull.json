@@ -1,0 +1,16 @@
+{
+  "where": {
+    "and": {
+      "column": "deprecated_ts",
+      "condition": "notnull",
+      "and": {
+        "column": "event",
+        "condition": "=",
+        "value": "Ingest"
+      }
+  },
+  "column": "plugin",
+  "condition": "=",
+  "value": "sinusoid"
+  }
+}

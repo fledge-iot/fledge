@@ -19,6 +19,8 @@ import shutil
 import pytest
 from urllib.parse import quote
 from pathlib import Path
+import sys
+
 
 __author__ = "Vaibhav Singhal"
 __copyright__ = "Copyright (c) 2019 Dianomic Systems"
@@ -408,6 +410,16 @@ def read_data_from_pi():
             return None
 
     return _read_data_from_pi
+
+
+@pytest.fixture
+def clear_pi_system_through_pi_web_api():
+    PROJECT_ROOT = Path(__file__).absolute().parent.parent.parent.parent
+    sys.path.append('{}/tests/system/common'.format(PROJECT_ROOT))
+
+    from clean_pi_system import clear_pi_system_pi_web_api
+
+    return clear_pi_system_pi_web_api
 
 
 @pytest.fixture

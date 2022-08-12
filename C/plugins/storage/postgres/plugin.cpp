@@ -52,7 +52,7 @@ static PLUGIN_INFORMATION info = {
 	"1.2.0",                  // Version
 	SP_COMMON|SP_READINGS,    // Flags
 	PLUGIN_TYPE_STORAGE,      // Type
-	"1.5.0",                  // Interface version
+	"1.6.0",                  // Interface version
 	default_config
 };
 
@@ -356,6 +356,19 @@ int plugin_schema_update(PLUGIN_HANDLE handle,
         manager->release(connection);
         return result;
 
+}
+
+/**
+ * Purge given readings asset or all readings from the buffer
+ */
+unsigned int plugin_reading_purge_asset(PLUGIN_HANDLE handle, char *asset)
+{
+ConnectionManager *manager = (ConnectionManager *)handle;
+Connection        *connection = manager->allocate();
+
+	unsigned int deleted = connection->purgeReadingsAsset(asset);
+	manager->release(connection);
+	return deleted;
 }
 
 };

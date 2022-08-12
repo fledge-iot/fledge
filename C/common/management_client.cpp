@@ -778,7 +778,25 @@ std::vector<AssetTrackingTuple*>& ManagementClient::getAssetTrackingTuples(const
 					{
 						throw runtime_error("Expected asset tracker tuple to be an object");
 					}
-					AssetTrackingTuple *tuple = new AssetTrackingTuple(rec["service"].GetString(), rec["plugin"].GetString(), rec["asset"].GetString(), rec["event"].GetString());
+
+					// Note: deprecatedTimestamp NULL value is returned as ""
+					// otherwise it's a string DATE
+					bool deprecated = rec.HasMember("deprecatedTimestamp") &&
+					    strlen(rec["deprecatedTimestamp"].GetString());
+
+					AssetTrackingTuple *tuple = new AssetTrackingTuple(rec["service"].GetString(),
+									rec["plugin"].GetString(),
+									rec["asset"].GetString(),
+									rec["event"].GetString(),
+									deprecated);
+
+					m_logger->debug("Adding AssetTracker tuple for service %s: %s:%s:%s, " \
+							"deprecated state is %d",
+							rec["service"].GetString(),
+							rec["plugin"].GetString(),
+							rec["asset"].GetString(),
+							rec["event"].GetString(),
+							deprecated);
 					vec->push_back(tuple);
 				}
 			}
@@ -809,7 +827,9 @@ std::vector<AssetTrackingTuple*>& ManagementClient::getAssetTrackingTuples(const
  * @return		whether operation was successful
  */
 bool ManagementClient::addAssetTrackingTuple(const std::string& service, 
-					const std::string& plugin, const std::string& asset, const std::string& event)
+					const std::string& plugin,
+					const std::string& asset,
+					const std::string& event)
 {
 	ostringstream convert;
 
@@ -1326,4 +1346,150 @@ bool ManagementClient::deleteProxy(const std::string& serviceName)
 		return false;
 	}
 	return false;
+}
+
+/**
+ * Get the asset tracking tuple
+ * for a service and asset name
+ *
+ * @param    serviceName	The serviceName to restrict data fetch
+ * @param    assetName		The asset name that belongs to the service
+ * @param    event		The associated event type
+ * @return		A vector of pointers to AssetTrackingTuple objects allocated on heap
+ */
+AssetTrackingTuple* ManagementClient::getAssetTrackingTuple(const std::string& serviceName,
+							const std::string& assetName,
+							const std::string& event)
+{
+	AssetTrackingTuple* tuple = NULL;
+	try {
+		string url = "/fledge/track";
+		if (serviceName == "" && assetName == "" && event == "")
+		{
+			m_logger->error("Failed to fetch asset tracking tuple: " \
+					"service name, asset name and event type are required.");
+			throw new exception();
+		}
+
+		url += "?service=" + urlEncode(serviceName);
+		url += "&asset=" + urlEncode(assetName) + "&event=" + event;
+
+		auto res = this->getHttpClient()->request("GET", url.c_str());
+		Document doc;
+		string response = res->content.string();
+		doc.Parse(response.c_str());
+		if (doc.HasParseError())
+		{
+			bool httpError = (isdigit(response[0]) &&
+					isdigit(response[1]) &&
+					isdigit(response[2]) &&
+					response[3]==':');
+			m_logger->error("%s fetch asset tracking tuple: %s\n",
+					httpError?"HTTP error during":"Failed to parse result of",
+					response.c_str());
+			throw new exception();
+		}
+		else if (doc.HasMember("message"))
+		{
+			m_logger->error("Failed to fetch asset tracking tuple: %s.",
+				doc["message"].GetString());
+			throw new exception();
+		}
+		else
+		{
+			const rapidjson::Value& trackArray = doc["track"];
+			if (trackArray.IsArray())
+			{
+				// Process every row and create the AssetTrackingTuple object
+				for (auto& rec : trackArray.GetArray())
+				{
+					if (!rec.IsObject())
+					{
+						throw runtime_error("Expected asset tracker tuple to be an object");
+					}
+
+					// Note: deprecatedTimestamp NULL value is returned as ""
+					// otherwise it's a string DATE
+					bool deprecated = rec.HasMember("deprecatedTimestamp") &&
+					    strlen(rec["deprecatedTimestamp"].GetString());
+
+					// Create a new AssetTrackingTuple object, to be freed by the caller
+					tuple = new AssetTrackingTuple(rec["service"].GetString(),
+									rec["plugin"].GetString(),
+									rec["asset"].GetString(),
+									rec["event"].GetString(),
+									deprecated);
+
+					m_logger->debug("Adding AssetTracker tuple for service %s: %s:%s:%s, " \
+							"deprecated state is %d",
+							rec["service"].GetString(),
+							rec["plugin"].GetString(),
+							rec["asset"].GetString(),
+							rec["event"].GetString(),
+							deprecated);
+				}
+			}
+			else
+			{
+				throw runtime_error("Expected array of rows in asset track tuples array");
+			}
+
+			return tuple;
+		}
+	} catch (const SimpleWeb::system_error &e) {
+		m_logger->error("Fetch/parse of asset tracking tuples for service %s failed: %s.",
+				serviceName.c_str(),
+				e.what());
+	} catch (...) {
+		m_logger->error("Unexpected exception when retrieving asset tuples for service %s",
+				serviceName.c_str());
+	}
+
+	return tuple;
+}
+
+/**
+ * Return the content of the named ACL by calling the
+ * management API of the Fledge core.
+ *
+ * @param  aclName		The name of the ACL to return
+ * @return ACL			The ACL class
+ * @throw  exception		If the ACL does not exist or
+ *				the JSON result can not be parsed
+ */
+ACL ManagementClient::getACL(const string& aclName)
+{
+	try {
+		string url = "/fledge/ACL/" + urlEncode(aclName);
+
+		auto res = this->getHttpClient()->request("GET", url.c_str());
+		Document doc;
+		string response = res->content.string();
+		doc.Parse(response.c_str());
+		if (doc.HasParseError())
+		{
+			bool httpError = (isdigit(response[0]) &&
+					  isdigit(response[1]) &&
+					  isdigit(response[2]) && response[3]==':');
+			m_logger->error("%s fetching ACL for %s: %s\n",
+					httpError?"HTTP error while":"Failed to parse result of",
+					aclName.c_str(),
+					response.c_str());
+			throw new exception();
+		}
+		else if (doc.HasMember("message"))
+		{
+			m_logger->error("Failed to fetch ACL: %s.",
+				doc["message"].GetString());
+			throw new exception();
+		}
+		else
+		{
+			// Success
+			return ACL(response);
+		}
+	} catch (const SimpleWeb::system_error &e) {
+		m_logger->error("Get ACL failed %s.", e.what());
+		throw;
+	}
 }

@@ -22,6 +22,9 @@ import utils
 import json
 from pathlib import Path
 import urllib.parse
+import base64
+import ssl
+import csv
 
 from network_impairment import distort_network, reset_network
 
@@ -88,36 +91,11 @@ def change_category(fledge_url, cat_name, config_item, value):
     print(retval)
 
 
-def _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries, asset_name):
-    retry_count = 0
-    data_from_pi = None
-
-    af_hierarchy_level = "fledge/room1/machine1"
-    af_hierarchy_level_list = af_hierarchy_level.split("/")
-    type_id = 1
-    dp_name = 'id_datapoint'
-    recorded_datapoint = "{}measurement_{}.{}".format(type_id, asset_name, dp_name)
-
-    # Name of asset in the PI server
-    PI_ASSET_NAME = "{}-type{}".format(asset_name, type_id)
-
-    while (data_from_pi is None or data_from_pi == []) and retry_count < retries:
-        data_from_pi = read_data_from_pi_web_api(pi_host, pi_admin, pi_passwd, pi_db, af_hierarchy_level_list,
-                                                 PI_ASSET_NAME, {recorded_datapoint})
-        retry_count += 1
-        time.sleep(wait_time * 2)
-
-    if data_from_pi is None or retry_count == retries:
-        assert False, "Failed to read data from PI"
-
-    return data_from_pi
-
-
 @pytest.fixture
 def start_south_north(add_south, start_north_task_omf_web_api, add_filter, remove_data_file,
-                      fledge_url, pi_host, pi_port, pi_admin, pi_passwd,
+                      fledge_url, pi_host, pi_port, pi_admin, pi_passwd, pi_db,
                       start_north_omf_as_a_service, start_north_as_service,
-                      enable_schedule, asset_name=ASSET):
+                      enable_schedule, clear_pi_system_through_pi_web_api, asset_name=ASSET):
     """ This fixture starts the sinusoid plugin and north pi web api plugin. Also puts a filter
         to insert reading id as a datapoint when we send the data to north.
         clean_setup_fledge_packages: purge the fledge* packages and install latest for given repo url
@@ -125,11 +103,19 @@ def start_south_north(add_south, start_north_task_omf_web_api, add_filter, remov
         start_north_task_omf_web_api: Fixture that starts PI north task
         remove_data_file: Fixture that remove data file created during the tests """
 
+    af_hierarchy_level = "fledge/room1/machine1"
+    af_hierarchy_level_list = af_hierarchy_level.split("/")
+    dp_list = ['sinusoid', 'id_datapoint']
+    asset_dict = {}
+    asset_dict[ASSET] = dp_list
+    clear_pi_system_through_pi_web_api(pi_host, pi_admin, pi_passwd, pi_db,
+                                       af_hierarchy_level_list, asset_dict)
+
     south_plugin = "sinusoid"
     # south_branch does not matter as these are archives.fledge-iot.org version install
     _config = {"assetName": {"value": ASSET}}
     add_south(south_plugin, None, fledge_url, config=_config,
-              service_name=SOUTH_SERVICE_NAME, installation_type='package')
+              service_name=SOUTH_SERVICE_NAME, installation_type='package', start_service=False)
     if not start_north_as_service:
         start_north_task_omf_web_api(fledge_url, pi_host, pi_port, pi_user=pi_admin, pi_pwd=pi_passwd,
                                      start_task=False, taskname=NORTH_INSTANCE_NAME)
@@ -157,7 +143,145 @@ def start_south_north(add_south, start_north_task_omf_web_api, add_filter, remov
 
     enable_schedule(fledge_url, NORTH_INSTANCE_NAME)
     time.sleep(3)
+    enable_schedule(fledge_url, SOUTH_SERVICE_NAME)
+    time.sleep(1)
     yield start_south_north
+
+
+def get_total_readings(fledge_url):
+    """
+    Fetches the reading for an asset
+    Args:
+        fledge_url: The url of fledge . By default localhost:8081
+    Returns: The first element in the list of json strings. (A dictionary)
+    """
+
+    conn = http.client.HTTPConnection(fledge_url)
+    conn.request("GET", '/fledge/asset')
+    r = conn.getresponse()
+    assert 200 == r.status, "Could not get total readings from fledge"
+    r = r.read().decode()
+    jdoc = json.loads(r)
+    return jdoc[0]['count']
+
+
+def get_bulk_data_from_pi(host, admin, password, asset_name, data_point_name):
+    """Used for getting bulk data < 100000 from PI."""
+    username_password = "{}:{}".format(admin, password)
+    username_password_b64 = base64.b64encode(username_password.encode('ascii')).decode("ascii")
+    headers = {'Authorization': 'Basic %s' % username_password_b64}
+    try:
+        conn = http.client.HTTPSConnection(host, context=ssl._create_unverified_context())
+        conn.request("GET", '/piwebapi/dataservers', headers=headers)
+        res = conn.getresponse()
+        r = json.loads(res.read().decode())
+        points_url = r["Items"][0]["Links"]["Points"]
+    except Exception:
+        assert False, "Could not request data server of PI"
+
+    try:
+        conn.request("GET", points_url, headers=headers)
+        res = conn.getresponse()
+        points = json.loads(res.read().decode())
+    except Exception:
+        assert False, "Could not get Points data."
+
+    name_to_search = asset_name + '.' + data_point_name
+    for single_point in points['Items']:
+
+        if name_to_search in single_point["Name"]:
+            web_id = single_point["WebId"]
+            pi_point_name = single_point["Name"]
+            url = single_point["Links"]["RecordedData"]
+            full_url = url + '?startTime=*-1d&endTime=*&maxCount=100000'
+            try:
+                conn.request("GET", full_url, headers=headers)
+                res = conn.getresponse()
+                r = json.loads(res.read().decode())
+            except Exception:
+                assert False, "Could not get Required data from PI"
+
+            required_values = []
+            # ignoring first value as it is not needed.
+            for full_value in r["Items"][1:]:
+                required_values.append(full_value['Value'])
+
+            assert required_values != [], "Could not get required values for PI point."
+
+            # The last reading will come from API if we wait for a few moments.
+            # So not required to insert the last reading.
+            # url_for_last_value = single_point["Links"]["EndValue"]
+            # conn.request("GET", url_for_last_value, headers=headers)
+            # res = conn.getresponse()
+            # r = json.loads(res.read().decode())
+            # assert "Value" in r, "Could not fetch the last reading from PI."
+            # required_values.append(r["Value"])
+
+            conn.close()
+            return required_values
+
+    assert False, "Could not find {} in all PI points".format(name_to_search)
+
+
+def search_for_pi_point(host, admin, password, asset_name, data_point_name):
+    """Searches for a pi point in PI return its web_id and its full name in PI."""
+    username_password = "{}:{}".format(admin, password)
+
+    username_password_b64 = base64.b64encode(username_password.encode('ascii')).decode("ascii")
+    headers = {'Authorization': 'Basic %s' % username_password_b64, 'Content-Type': 'application/json'}
+    try:
+        conn = http.client.HTTPSConnection(host, context=ssl._create_unverified_context())
+        conn.request("GET", '/piwebapi/dataservers', headers=headers)
+        res = conn.getresponse()
+        r = json.loads(res.read().decode())
+        points_url = r["Items"][0]["Links"]["Points"]
+    except Exception:
+        assert False, "Could not request data server of PI"
+
+    try:
+        conn.request("GET", points_url, headers=headers)
+        res = conn.getresponse()
+        points = json.loads(res.read().decode())
+    except Exception:
+        assert False, "Could not get Points data."
+
+    name_to_search = asset_name + '.' + data_point_name
+    for single_point in points['Items']:
+
+        if name_to_search in single_point['Name']:
+            web_id = single_point['WebId']
+            pi_point_name = single_point["Name"]
+            conn.close()
+            return web_id, pi_point_name
+
+    return None, None
+
+
+def turn_off_compression_for_pi_point(host, admin, password, asset_name, data_point_name):
+    """Turns off compression for a given point in PI."""
+    username_password = "{}:{}".format(admin, password)
+
+    username_password_b64 = base64.b64encode(username_password.encode('ascii')).decode("ascii")
+    headers = {'Authorization': 'Basic %s' % username_password_b64, 'Content-Type': 'application/json'}
+    try:
+        web_id, pi_point_name = search_for_pi_point(host, admin, password, asset_name, data_point_name)
+        if not web_id:
+            assert False, "Could not search PI Point {}".format(data_point_name)
+
+        conn = http.client.HTTPSConnection(host, context=ssl._create_unverified_context())
+        attr_name = 'compressing'
+        conn.request("PUT", '/piwebapi/points/{}/attributes/{}'.format(web_id, attr_name),
+                     body="0", headers=headers)
+        r = conn.getresponse()
+        conn.close()
+        assert r.status == 204, "Could not update the compression" \
+                                " for the PI Point {}.".format(pi_point_name)
+    except Exception as er:
+        print("Could not turn off compression for pi point {} due to {}".format(data_point_name, er))
+        assert False, "Could not turn off compression for pi point {} due to {}".format(data_point_name, er)
+
+    print("Turned off compression for the PI Point {} ".format(pi_point_name))
+    return
 
 
 class TestPackagesSinusoid_PI_WebAPI:
@@ -167,7 +291,9 @@ class TestPackagesSinusoid_PI_WebAPI:
                                      fledge_url, pi_host, pi_admin, pi_passwd, pi_db,
                                      wait_time, retries, skip_verify_north_interface,
                                      south_service_wait_time, north_catch_up_time, pi_port,
-                                     throttled_network_config, disable_schedule, asset_name=ASSET):
+                                     throttled_network_config, disable_schedule,
+                                     enable_schedule, clear_pi_system_through_pi_web_api,
+                                     asset_name=ASSET):
         """ Test that checks data is inserted in Fledge and sent to PI under an impaired network.
             start_south_north: Fixture that add south and north instance
             read_data_from_pi: Fixture to read data from PI
@@ -197,14 +323,34 @@ class TestPackagesSinusoid_PI_WebAPI:
         if not rate_limit and not packet_delay:
             raise Exception("None of packet delay or rate limit given, "
                             "cannot apply network impairment.")
+        # Insert some readings before turning off compression.
+        time.sleep(2)
+        # Turn off south service
+        disable_schedule(fledge_url, SOUTH_SERVICE_NAME)
+        time.sleep(5)
+        # switch off Compression
+        dp_name = 'id_datapoint'
+        turn_off_compression_for_pi_point(pi_host, pi_admin, pi_passwd, ASSET, dp_name)
 
+        # allow the newly applied compression setting to be saved.
+        time.sleep(2)
+
+        # Restart the south service
+        enable_schedule(fledge_url, SOUTH_SERVICE_NAME)
+
+        # Wait for the south service to start and ingest a few readings.
+        time.sleep(10)
+        # Increase the ingest rate.
+        # Note down the total readings ingested
+        initial_readings = int(get_total_readings(fledge_url))
+
+        print("Initial readings ingested {} \n".format(initial_readings))
+        change_category(fledge_url, SOUTH_SERVICE_NAME + "Advanced", "readingsPerSec", 3000)
+
+        # Now we can distort the network.
         distort_network(interface=interface_for_impairment, traffic="outbound",
                         latency=packet_delay,
                         rate_limit=rate_limit, ip=pi_host, port=pi_port, duration=duration)
-
-        # allow the south service to run for sometime
-        time.sleep(5)
-        change_category(fledge_url, SOUTH_SERVICE_NAME + "Advanced", "readingsPerSec", 3000)
 
         # Wait for south service to accumulate some readings
         time.sleep(south_service_wait_time)
@@ -219,13 +365,36 @@ class TestPackagesSinusoid_PI_WebAPI:
         reset_network(interface=interface_for_impairment)
         verify_ping(fledge_url, north_catch_up_time)
 
-        # TODO For now we can verify limited data from the pi web api.
-        # It only gives up to 4K readings through the following endpoint
-        # host/piwebapi/streamsets/<pi_web_id>/recorded?maxCount=100000
-        # Notice it is still not working even if we give a high maxCount.
-        # So leaving verification of readings id for now.
-        verify_data_north = False
-        if verify_data_north:
-            data_pi = _verify_egress(read_data_from_pi_web_api, pi_host,
-                                     pi_admin, pi_passwd, pi_db, wait_time, retries,
-                                     asset_name)
+        # verify the bulk data from PI.
+        data_from_pi = get_bulk_data_from_pi(pi_host, pi_admin, pi_passwd, ASSET, dp_name)
+
+        af_hierarchy_level = "fledge/room1/machine1"
+        af_hierarchy_level_list = af_hierarchy_level.split("/")
+        dp_list = ['sinusoid', dp_name]
+        asset_dict = {}
+        asset_dict[ASSET] = dp_list
+        clear_pi_system_through_pi_web_api(pi_host, pi_admin, pi_passwd, pi_db,
+                                           af_hierarchy_level_list, asset_dict)
+
+        assert len(data_from_pi) > 0, "Could not fetch fetch data from PI."
+
+        data_from_pi = [int(d) for d in data_from_pi]
+        # opening the csv file in 'w+' mode
+        file_csv = open('readings_from_PI.csv', 'w+', newline='')
+
+        # writing the data into the file
+        with file_csv:
+            write = csv.writer(file_csv)
+            for d in data_from_pi:
+                write.writerow([d])
+
+        total_readings = int(get_total_readings(fledge_url))
+        print("Total readings from Fledge {}\n".format(total_readings))
+        discontinuities = [data_from_pi[i] for i in range(len(data_from_pi)-1) if data_from_pi[i+1] != data_from_pi[i]+1]
+        discontinuities = sorted(discontinuities)
+        print(discontinuities)
+        assert total_readings == data_from_pi[-1], "The last reading from Fledge {} " \
+                                                   "is not the same as PI {}".format(total_readings, data_from_pi[-1])
+        for val in discontinuities:
+            assert val < initial_readings, "There is gap at reading {} " \
+                                           "after permissible value {}".format(val, initial_readings)

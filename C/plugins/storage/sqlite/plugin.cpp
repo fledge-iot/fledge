@@ -87,11 +87,11 @@ const char *default_config = QUOTE({
  * The plugin information structure
  */
 static PLUGIN_INFORMATION info = {
-	"SQLite3",                 // Name
+	"SQLite3",                // Name
 	"1.2.0",                  // Version
 	SP_COMMON|SP_READINGS,    // Flags
-	PLUGIN_TYPE_STORAGE,               // Type
-	"1.5.0",                  // Interface version
+	PLUGIN_TYPE_STORAGE,      // Type
+	"1.6.0",                  // Interface version
 	default_config
 };
 
@@ -440,6 +440,19 @@ int plugin_createSchema(PLUGIN_HANDLE handle, char *definition)
 	int result = connection->createSchema(std::string(definition));
 	manager->release(connection);
 	return result;
+}
+
+/**
+ * Purge given readings asset or all readings from the buffer
+ */
+unsigned int plugin_reading_purge_asset(PLUGIN_HANDLE handle, char *asset)
+{
+ConnectionManager *manager = (ConnectionManager *)handle;
+Connection        *connection = manager->allocate();
+
+	unsigned int deleted = connection->purgeReadingsAsset(asset);
+	manager->release(connection);
+	return deleted;
 }
 
 };

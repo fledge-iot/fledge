@@ -46,6 +46,7 @@ public:
 	char		*readingsRetrieve(const std::string& payload);
 	char		*readingsPurge(unsigned long age, unsigned int flags, unsigned long sent);
 	long		*readingsPurge();
+	char		*readingsPurgeAsset(const std::string& asset);
 	void		release(const char *response);
 	int		createTableSnapshot(const std::string& table, const std::string& id);
 	int		loadTableSnapshot(const std::string& table, const std::string& id);
@@ -73,6 +74,7 @@ private:
 	char		*(*readingsFetchPtr)(PLUGIN_HANDLE, unsigned long id, unsigned int blksize);
 	char		*(*readingsRetrievePtr)(PLUGIN_HANDLE, const char *payload);
 	char		*(*readingsPurgePtr)(PLUGIN_HANDLE, unsigned long age, unsigned int flags, unsigned long sent);
+	unsigned int	(*readingsPurgeAssetPtr)(PLUGIN_HANDLE, const char *asset);
 	void		(*releasePtr)(PLUGIN_HANDLE, const char *payload);
 	int		(*createTableSnapshotPtr)(PLUGIN_HANDLE, const char *, const char *);
 	int		(*loadTableSnapshotPtr)(PLUGIN_HANDLE, const char *, const char *);

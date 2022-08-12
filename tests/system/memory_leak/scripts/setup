@@ -2,7 +2,7 @@
 
 set -e
 
-BRANCH=${2:-develop}   #here Branch means branch of fledge repository that is needed to be scanned through valgrind, default is devops
+BRANCH=${2:-develop}   # here Branch means branch of fledge repository that is needed to be scanned through valgrind, default is develop
 
 OS_NAME=`(grep -o '^NAME=.*' /etc/os-release | cut -f2 -d\" | sed 's/"//g')`
 ID=$(cat /etc/os-release | grep -w ID | cut -f2 -d"=" | tr -d '"')
@@ -51,7 +51,7 @@ echo $pstorage
 sudo sed -i 's#/usr/local/fledge#'"$FLEDGE_ROOT"'#g' ${pstorage}
 sudo sed -i '/\${storageExec} \"\$@\"/s/^/valgrind -v   --xml-file=\/tmp\/storage_valgrind_%p.xml '"$valgrind_conf"'  /' ${pstorage}
 
-# cloning plugins based on parameters passed to the script
+# cloning plugins based on parameters passed to the script, Currently only installing sinusoid
 for i in ${1}
 do
 	echo $i
@@ -71,7 +71,7 @@ do
 		echo 'Building C plugin'
 		mkdir -p build && cd build && cmake -DFLEDGE_INSTALL=${FLEDGE_ROOT} -DFLEDGE_ROOT=${FLEDGE_ROOT} .. && make  && make install
 	else 
-		# Checking requirements.txt file exists or not, to install plugins dependency (if any)
+		# Checking requirements.txt file exists or not, to install plugins dependencies (if any)
 		if [[ -f ${plugin_dir}/requirements.txt  ]]
 		then
 			python3 -m pip install -r ${plugin_dir}/requirements.txt

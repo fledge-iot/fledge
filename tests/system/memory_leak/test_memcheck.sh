@@ -17,14 +17,14 @@ cleanup(){
 
 #Setting up Fledge and installing its plugin
 setup(){
-   ./scripts/setup fledge-south-sinusoid  ${fledge_test_branch} 
+   ./scripts/setup fledge-south-sinusoid  ${FLEDGE_TEST_BRANCH} 
 }
 
 reset_fledge(){
   ./scripts/reset ${FLEDGE_ROOT} ;
 }
 
-adding_sinusoid(){ 
+add_sinusoid(){ 
   echo -e INFO: "Add South"
   curl -sX POST "$FLEDGE_URL/service" -d \
   '{

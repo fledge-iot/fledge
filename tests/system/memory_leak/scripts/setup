@@ -2,7 +2,7 @@
 
 set -e
 
-BRANCH=$2   #here Branch means branch of fledge repository that is needed to be scanned through valgrind, default is devops
+BRANCH=${2:-develop}   #here Branch means branch of fledge repository that is needed to be scanned through valgrind, default is devops
 
 OS_NAME=`(grep -o '^NAME=.*' /etc/os-release | cut -f2 -d\" | sed 's/"//g')`
 ID=$(cat /etc/os-release | grep -w ID | cut -f2 -d"=" | tr -d '"')
@@ -16,7 +16,7 @@ echo "UNAME is "${UNAME}
 # installing pre requisite package - git, for cloning fledge non package
 sudo apt -y  install git
 
-# cloneing fledge
+# cloning fledge
 git clone -b $BRANCH  https://github.com/fledge-iot/fledge.git &&  cd fledge && chmod +x requirements.sh && sh -x requirements.sh ;
 
 echo 'Changing CMakelists'

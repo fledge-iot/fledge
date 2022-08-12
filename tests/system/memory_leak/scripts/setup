@@ -77,6 +77,7 @@ do
 			python3 -m pip install -r ${plugin_dir}/requirements.txt
 		fi
 		# Copying Plugin
+		echo 'Copying Plugin'
 		sudo cp -r $plugin_dir/python $FLEDGE_ROOT/
 		echo 'Copied.'
 	fi

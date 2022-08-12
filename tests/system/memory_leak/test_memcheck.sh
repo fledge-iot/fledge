@@ -9,7 +9,7 @@ export FLEDGE_ROOT=$(pwd)/fledge
 FLEDGE_TEST_BRANCH=$1     #here fledge_test_branch means branch of fledge repository that is needed to be scanned, default is devops
 
 cleanup(){
-  # Removing tempo files, fledge and its plugin repository cloned by previous build of the Job 
+  # Removing temporary files, fledge and its plugin repository cloned by previous build of the Job 
   echo "Removing Cloned repository and tmp files"
   rm -rf /tmp/*valgrind*.log /tmp/*valgrind*.xml
   rm -rf fledge* reports && echo 'Done.'

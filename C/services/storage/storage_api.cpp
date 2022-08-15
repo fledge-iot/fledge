@@ -489,6 +489,15 @@ void StorageApi::setReadingPlugin(StoragePlugin *plugin)
 }
 
 /**
+ * Connect with the storage plugin
+ */
+
+void StorageApi::setManagementClient(ManagementClient *client)
+{
+	this->plugin->setManagementClient(client);
+}
+
+/**
  * Construct an HTTP response with the 200 OK return code using the payload
  * provided.
  *

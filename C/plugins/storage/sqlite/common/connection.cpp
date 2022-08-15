@@ -13,6 +13,7 @@
 #include <utils.h>
 
 #include "readings_catalogue.h"
+#include <storage_asset_tracking.h>
 
 /*
  * Control the way purge deletes readings. The block size sets a limit as to how many rows
@@ -609,8 +610,6 @@ Connection::Connection()
 	}
 
 	m_schemaManager = SchemaManager::getInstance();
-
-	AssetTracker::getAssetTracker()->populateStorageAssetTrackingCache();
 
 }
 #endif
@@ -3722,5 +3721,18 @@ bool Connection::processJoinQueryWhereClause(const Value& query, SQLBuffer& sql,
 bool Connection::createSchema(const std::string &schema)
 {
 	m_schemaManager->create(dbHandle, schema);
+}
+
+void Connection::setManagementClient(ManagementClient *client)
+{
+	Logger::getLogger()->error("%s:%s Initializing StorageAssetTracker class in connection", __FILE__, __FUNCTION__);
+        m_storageAssetTracker = new StorageAssetTracker(m_mgtClient);
+
+        Logger::getLogger()->error("%s:%s calling populateStorageAssetTrackingCache class in connection", __FILE__, __FUNCTION__);
+        m_storageAssetTracker->populateStorageAssetTrackingCache();
+
+	Logger::getLogger()->error(" %s:%s calling getStorageAssetTracker", __FILE__, __FUNCTION__);
+	m_mgtClient = client;
+	m_storageAssetTracker = StorageAssetTracker::getStorageAssetTracker(m_mgtClient);
 }
 #endif

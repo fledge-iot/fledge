@@ -20,7 +20,6 @@
 #include <vector>
 #include <rapidjson/document.h>
 #include <asset_tracking.h>
-#include <storage_asset_tracking.h>
 #include <json_utils.h>
 #include <thread>
 #include <bearer_token.h>

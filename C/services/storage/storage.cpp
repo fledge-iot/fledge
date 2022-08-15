@@ -257,6 +257,9 @@ void StorageService::start(string& coreAddress, unsigned short corePort)
 		ManagementClient *client = new ManagementClient(coreAddress, corePort);
 		client->registerService(record);
 
+		Logger::getLogger()->error("%s:%s calling setManagementClient on storage api", __FILE__, __FUNCTION__);
+		api->setManagementClient(client);
+
 		// Add the default configuration under the Advanced category
 		unsigned int retryCount = 0;
 		DefaultConfigCategory *conf = config->getDefaultCategory();

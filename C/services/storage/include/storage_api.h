@@ -66,6 +66,7 @@ public:
 	void	startServer();
 	void	wait();
 	void	stopServer();
+	void	setManagementClient(ManagementClient *);
 	unsigned short getListenerPort();
 	void	commonInsert(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);
 	void	commonSimpleQuery(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request);

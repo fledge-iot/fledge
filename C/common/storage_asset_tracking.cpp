@@ -9,7 +9,7 @@
  */
 
 #include <logger.h>
-#include <asset_tracking.h>
+#include <storage_asset_tracking.h>
 
 using namespace std;
 
@@ -21,10 +21,20 @@ StorageAssetTracker *StorageAssetTracker::instance = 0;
  *
  * @return	Singleton asset tracker instance
  */
-StorageAssetTracker *StorageAssetTracker::getStorageAssetTracker()
+StorageAssetTracker *StorageAssetTracker::getStorageAssetTracker(ManagementClient *client)
 {
+	if (!instance)
+		instance = new StorageAssetTracker(client);
 	return instance;
 }
+
+void StorageAssetTracker::releaseStorageAssetTracker()
+{
+        if (instance)
+                delete instance;
+       	instance = nullptr; 
+}
+
 
 /**
  * AssetTracker class constructor
@@ -32,31 +42,18 @@ StorageAssetTracker *StorageAssetTracker::getStorageAssetTracker()
  * @param mgtClient		Management client object for this south service
  * @param service  		Service name
  */
-StorageAssetTracker::StorageAssetTracker(ManagementClient *mgtClient, string service) 
-	: m_mgtClient(mgtClient), m_service(service)
+StorageAssetTracker::StorageAssetTracker(ManagementClient *mgtClient) 
+	: m_mgtClient(mgtClient)
 {
+	Logger::getLogger()->error("%s:%s StorageAssetTracker constructor called ",__FILE__, __FUNCTION__);
 	instance = this;
 	m_service = "storage";
         m_event = "store";
+
 	if (!getPluginInfo())
 	{
 		Logger::getLogger()->error("%s:%s Could not find out the Plugin info from fledge config", __FILE__, __FUNCTION__);
 	}
-}
-
-std::string StorageAssetTracker::getServiceName()
-{
-	return m_service;
-}
-
-std::string StorageAssetTracker::getEventName()
-{
-	return m_event;
-}
-
-std::string StorageAssetTracker::getPluginName()
-{
-	return m_plugin;
 }
 
 /**
@@ -72,7 +69,7 @@ void StorageAssetTracker::populateStorageAssetTrackingCache()
 
 	Logger::getLogger()->error("%s:%s populateStorageAssetTrackingCache start", __FILE__, __FUNCTION__);
 	try {
-		std::vector<StorageAssetTracker*>& vec = m_mgtClient->getAssetTrackingTuples(m_service);
+		std::vector<StorageAssetTrackingTuple*>& vec = m_mgtClient->getStorageAssetTrackingTuples(m_service);
 		for (StorageAssetTrackingTuple* & rec : vec)
 		{
 			storageAssetTrackerTuplesCache.insert(rec);
@@ -101,15 +98,20 @@ void StorageAssetTracker::populateStorageAssetTrackingCache()
  */
 bool StorageAssetTracker::checkStorageAssetTrackingCache(StorageAssetTrackingTuple& tuple)	
 {
-	StorageAssetTrackingTuple& *ptr = &tuple;
+
+	Logger::getLogger()->error("%s:%s :checkStorageAssetTrackingCache start ", __FILE__, __FUNCTION__);
+	StorageAssetTrackingTuple *ptr = &tuple;
 	std::unordered_set<StorageAssetTrackingTuple*>::const_iterator it = storageAssetTrackerTuplesCache.find(ptr);
+
+        Logger::getLogger()->error("%s:%s :storageAssetTrackerTuplesCache 2 ", __FILE__, __FUNCTION__);
+
 	if (it == storageAssetTrackerTuplesCache.end())
 	{
 		return false;
 	}
 	else
 	{
-		if (it->m_maxCount >= ptr->m_maxCount)
+		if ((*it)->m_maxCount >= ptr->m_maxCount)
 		{
 			return true;
 		}
@@ -118,6 +120,8 @@ bool StorageAssetTracker::checkStorageAssetTrackingCache(StorageAssetTrackingTup
 			return false;
 		}
 	}
+	 Logger::getLogger()->error("%s:%s :storageAssetTrackerTuplesCache  end ", __FILE__, __FUNCTION__);
+
 }
 
 StorageAssetTrackingTuple* StorageAssetTracker::findStorageAssetTrackingCache(StorageAssetTrackingTuple& tuple)	
@@ -168,16 +172,18 @@ void StorageAssetTracker::addStorageAssetTrackingTuple(StorageAssetTrackingTuple
  * @param asset		Asset name
  * @param event		Event name
  */
-void StorageAssetTracker::addStorageAssetTrackingTuple(string asset, string datapoints, string maxCount)
+void StorageAssetTracker::addStorageAssetTrackingTuple(std::string asset, std::string datapoints, int maxCount)
 {
 	// in case of "Filter" event, 'plugin' input argument is category name, so remove service name (prefix) & '_' from it
-	if (event == string("Filter"))
+	if (m_event == string("Filter"))
 	{
 		string pattern  = m_service + "_";
-		if (plugin.find(pattern) != string::npos)
-			plugin.erase(plugin.begin(), plugin.begin() + m_service.length() + 1);
+		if (m_plugin.find(pattern) != string::npos)
+			m_plugin.erase(m_plugin.begin(), m_plugin.begin() + m_service.length() + 1);
 
 	}
+
+	Logger::getLogger()->error("%s:%s calling addStorageAssetTrackingTuple(tuple)", __FILE__, __FUNCTION__);
 	
 	StorageAssetTrackingTuple tuple(m_service, m_plugin, asset, m_event, false, datapoints, maxCount);
 	addStorageAssetTrackingTuple(tuple);
@@ -190,14 +196,16 @@ void StorageAssetTracker::addStorageAssetTrackingTuple(string asset, string data
  */
 bool StorageAssetTracker::getPluginInfo()
 {
- Logger::getLogger()->error("StorageAssetTracker::getPluginInfo start "); 
+	Logger::getLogger()->error("StorageAssetTracker::getPluginInfo start"); 
         try {
                 string url = "/fledge/category/service";
-		auto res;
-		if (m_mgtClient)
+		if (!m_mgtClient)
 		{
-                	res = m_mgtClient->getHttpClient()->request("GET", url.c_str());
+			Logger::getLogger()->error("%s:%s, m_mgtClient Ptr is NULL", __FILE__, __FUNCTION__);
+			return false;
 		}
+
+		auto res = m_mgtClient->getHttpClient()->request("GET", url.c_str());
                 Document doc;
                 string response = res->content.string();
                 doc.Parse(response.c_str());
@@ -220,25 +228,25 @@ bool StorageAssetTracker::getPluginInfo()
                         Value& serviceName = doc["name"];
 			if (!serviceName.IsObject())
 			{
-				Logger::getLoggger()->error("%s:%s, serviceName is not an object", __FILE__, __FUNCTION__);	
+				Logger::getLogger()->error("%s:%s, serviceName is not an object", __FILE__, __FUNCTION__);	
 				return false;
 			}
 
 			if (!serviceName.HasMember("value"))
 			{
-				Logger::getLoggger()->error("%s:%s, serviceName has no member value", __FILE__, __FUNCTION__);
+				Logger::getLogger()->error("%s:%s, serviceName has no member value", __FILE__, __FUNCTION__);
 				return false;
 
 			}
 			Value& serviceVal = serviceName["value"];
 			if ( !serviceVal.IsString())
 			{
-				Logger::getLoggger()->error("%s:%s, serviceVal is not a string", __FILE__, __FUNCTION__);
+				Logger::getLogger()->error("%s:%s, serviceVal is not a string", __FILE__, __FUNCTION__);
 				return false;
 			}
 
 			m_plugin = serviceVal.GetString();    
-			Logger::getLoggger()->error("%s:%s, m_plugin value = %s",__FILE__, __FUNCTION__, m_plugin.c_str());
+			Logger::getLogger()->error("%s:%s, m_plugin value = %s",__FILE__, __FUNCTION__, m_plugin.c_str());
     			return true;
                 }
 		  

@@ -20,6 +20,8 @@
 #include <map>
 #include <vector>
 #include <atomic>
+#include <management_client.h>
+#include <storage_asset_tracking.h>
 
 #define _DB_NAME                  "/fledge.db"
 #define READINGS_DB_NAME_BASE     "readings"
@@ -159,6 +161,7 @@ class Connection {
 
 		void		shutdownAppendReadings();
 		unsigned int	purgeReadingsAsset(const std::string& asset);
+		void		setManagementClient(ManagementClient *client);
 
 	private:
 
@@ -168,6 +171,7 @@ class Connection {
 		bool		m_streamOpenTransaction;
 		int		m_queuing;
 		std::mutex	m_qMutex;
+		ManagementClient*	m_mgtClient;
 		int		SQLPrepare(sqlite3 *dbHandle, const char *sqlCmd, sqlite3_stmt **readingsStmt);
 		int		SQLexec(sqlite3 *db, const char *sql,
 				int (*callback)(void*,int,char**,char**),
@@ -212,6 +216,7 @@ class Connection {
 		bool		selectColumns(const rapidjson::Value& document, SQLBuffer& sql, int level);
 		bool 		appendTables(const std::string& schema, const rapidjson::Value& document, SQLBuffer& sql, int level);
 		bool		processJoinQueryWhereClause(const rapidjson::Value& query, SQLBuffer& sql, std::vector<std::string>  &asset_codes, int level);
+		StorageAssetTracker*	m_storageAssetTracker;
 };
 
 #endif

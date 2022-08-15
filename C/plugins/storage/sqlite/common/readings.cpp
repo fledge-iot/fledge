@@ -788,6 +788,7 @@ ostringstream threadId;
         } data;
 
         std::map<std::string, data> assetCountMap;
+	std::string a_code;
 
 	for (Value::ConstValueIterator itr = readingsValue.Begin(); itr != readingsValue.End(); ++itr)
 	{
@@ -816,7 +817,7 @@ ostringstream threadId;
                 	Logger::getLogger()->error("%s:%s reading obtained = %s, pos = %d", __FILE__, __FUNCTION__, rVal.c_str(), pos);
                 }
 
-		std::string a_code = (*itr)["asset_code"].GetString();
+		a_code = (*itr)["asset_code"].GetString();
                 assetCountMap[a_code].datapoints.append(rVal);
 		assetCountMap[a_code].datapoints.append(",");
                 assetCountMap[a_code].count++;
@@ -1015,17 +1016,25 @@ ostringstream threadId;
 		}
 	}
 
+	Logger::getLogger()->error("%s:%s before if block ", __FILE__, __FUNCTION__);
+	if (m_storageAssetTracker != nullptr)
+	{
 
-        StorageAssetTracker *pInstance = StorageAssetTracker::getStorageAssetTracker();
+		Logger::getLogger()->error("%s:%s m_storageAssetTracker is not nullptr", __FILE__, __FUNCTION__);
 
-        StorageAssetTrackingTuple t(pInstance->getServiceName(), pInstance->getPluginName(), a_code, pInstance->m_eventName(), false, assetCountMap[a_code].datapoints, assetCountMap[a_code].count);
+        	StorageAssetTrackingTuple t(m_storageAssetTracker->m_service, m_storageAssetTracker->m_plugin, a_code, m_storageAssetTracker->m_event, false, assetCountMap[a_code].datapoints, assetCountMap[a_code].count);
 
-        if (!pInstance->checkStorageAssetTrackingCache(t))
-        {
-        	pInstance->addStorageAssetTrackingTuple(t);
-        	m_logger->info("%s:%s  Adding new asset tracking tuple - storage: %s",__FILE__, __FUNCTION__, a_code.c_str());
-        }
 
+                Logger::getLogger()->error("%s:%s checking  StorageAssetTracking cache ", __FILE__, __FUNCTION__);
+
+        	if (!m_storageAssetTracker->checkStorageAssetTrackingCache(t))
+        	{
+			Logger::getLogger()->error("%s:%s adding StorageAssetTracking tuple in cache ", __FILE__, __FUNCTION__);
+        		m_storageAssetTracker->addStorageAssetTrackingTuple(t);
+			Logger::getLogger()->info("%s:%s  Adding new asset tracking tuple - storage: %s",__FILE__, __FUNCTION__, a_code.c_str());
+        	}
+
+	}
 
 
 	sqlite3_resut = sqlite3_exec(dbHandle, "END TRANSACTION", NULL, NULL, NULL);

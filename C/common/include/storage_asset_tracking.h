@@ -1,26 +1,29 @@
-#ifndef _ASSET_TRACKING_H
-#define _ASSET_TRACKING_H
+#ifndef _STORAGE_ASSET_TRACKING_H
+#define _STORAGE_ASSET_TRACKING_H
 /*
- * Fledge asset tracking related
+ * Fledge storage asset tracking related
  *
- * Copyright (c) 2018 OSisoft, LLC
+ * Copyright (c) 2022 OSisoft, LLC
  *
  * Released under the Apache 2.0 Licence
  *
- * Author: Amandeep Singh Arora
+ * Author: Ashwini Sinha
  */
 #include <logger.h>
 #include <vector>
 #include <sstream>
 #include <unordered_set>
+#include <asset_tracking.h>
 #include <management_client.h>
 
+
 /**
- * The AssetTrackingTuple class is used to represent an asset
+ * The StorageAssetTrackingTuple class is used to represent ai storage asset
  * tracking tuple. Hash function and '==' operator are defined for
  * this class and pointer to this class that would be required
  * to create an unordered_set of this class.
  */
+
 class StorageAssetTrackingTuple : public AssetTrackingTuple {
 
 public:
@@ -30,7 +33,7 @@ public:
 	std::string assetToString()
 	{
 		std::ostringstream o;
-		o << AssetTrackingTuple::assetToString() + "." + << m_datapoints + "." + m_maxCount;
+		o << AssetTrackingTuple::assetToString() << "."  << m_datapoints << "." << m_maxCount;
 		return o.str();
 	}
 
@@ -46,8 +49,8 @@ public:
 			const std::string& asset,
 			const std::string& event,
 			const bool& deprecated = false,
-			const std::string& datapoints,
-			unsigned int c) :
+			const std::string& datapoints = "",
+			unsigned int c = 0) :
 			AssetTrackingTuple(service, plugin, asset, event, deprecated), m_datapoints(datapoints), m_maxCount(c)
 	{}
 
@@ -91,24 +94,25 @@ class ManagementClient;
 class StorageAssetTracker {
 
 public:
-	StorageAssetTracker(ManagementClient *mgtClient, std::string service);
+	StorageAssetTracker(ManagementClient *mgtClient);
 	~StorageAssetTracker() {}
-	static AssetTracker *getAssetTracker();
-	void	populateStorageAssetTrackingCache(event);
-	bool	checkStorageAssetTrackingCache(AssetTrackingTuple& tuple);
-	AssetTrackingTuple*
-		findStorageAssetTrackingCache(AssetTrackingTuple& tuple);
-	void	addStorageAssetTrackingTuple(AssetTrackingTuple& tuple);
-	void	addStorageAssetTrackingTuple(std::string plugin, std::string asset, std::string event);
+	void	populateStorageAssetTrackingCache();
+	bool	checkStorageAssetTrackingCache(StorageAssetTrackingTuple& tuple);
+	StorageAssetTrackingTuple*
+		findStorageAssetTrackingCache(StorageAssetTrackingTuple& tuple);
+	void	addStorageAssetTrackingTuple(StorageAssetTrackingTuple& tuple);
+	void	addStorageAssetTrackingTuple(std::string asset, std::string datapoints, int maxCount);
 	bool 	getPluginInfo();
+	static  StorageAssetTracker *getStorageAssetTracker(ManagementClient *);
+	static	void releaseStorageAssetTracker();
+	std::string             m_service;
+	std::string             m_plugin;
+	std::string             m_event;
 
 
 private:
 	static StorageAssetTracker	*instance;
 	ManagementClient	*m_mgtClient;
-	std::string		m_service;
-	std::string		m_plugin;
-	std::string 		m_event;
 	std::unordered_set<StorageAssetTrackingTuple*, std::hash<StorageAssetTrackingTuple*>, StorageAssetTrackingTuplePtrEqual> storageAssetTrackerTuplesCache;
 };
 

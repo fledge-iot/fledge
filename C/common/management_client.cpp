@@ -13,10 +13,10 @@
 #include <service_record.h>
 #include <string_utils.h>
 #include <asset_tracking.h>
+#include <storage_asset_tracking.h>
 #include <bearer_token.h>
 #include <crypto.hpp>
 #include <rapidjson/error/en.h>
-#include <storage_asset_tracking.h>
 
 using namespace std;
 using namespace rapidjson;
@@ -75,18 +75,22 @@ HttpClient *ManagementClient::getHttpClient() {
 	std::thread::id thread_id = std::this_thread::get_id();
 
 	m_mtx_client_map.lock();
+
 	item = m_client_map.find(thread_id);
 
 	if (item  == m_client_map.end() ) {
 
 		// Adding a new HttpClient
+	
 		client = new HttpClient(m_urlbase.str());
 		m_client_map[thread_id] = client;
+
 	}
 	else
 	{
 		client = item->second;
 	}
+
 
 	m_mtx_client_map.unlock();
 
@@ -833,6 +837,7 @@ std::vector<StorageAssetTrackingTuple*>& ManagementClient::getStorageAssetTracki
 
         try {
                 string url = "/fledge/track";
+
                 if (serviceName != "")
                 {
                         url += "?service="+urlEncode(serviceName);

@@ -54,8 +54,11 @@ def search_for_pi_point(host, admin, password, asset_name, data_point_name):
     except Exception:
         print("Could not get Points data.")
         return False, None
+    if data_point_name != '':
+        name_to_search = asset_name + '.' + data_point_name
+    else:
+        name_to_search = asset_name
 
-    name_to_search = asset_name + '.' + data_point_name
     for single_point in points['Items']:
 
         if name_to_search in single_point['Name']:

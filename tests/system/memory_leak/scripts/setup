@@ -1,0 +1,88 @@
+#!/usr/bin/env bash
+
+set -e
+
+BRANCH=${2:-develop}   # here Branch means branch of fledge repository that is needed to be scanned through valgrind, default is develop
+
+OS_NAME=`(grep -o '^NAME=.*' /etc/os-release | cut -f2 -d\" | sed 's/"//g')`
+ID=$(cat /etc/os-release | grep -w ID | cut -f2 -d"=" | tr -d '"')
+UNAME=`uname -m`
+VERSION_ID=$(cat /etc/os-release | grep -w VERSION_ID | cut -f2 -d"=" |  tr -d '"')
+echo "OS Name is "${OS_NAME}
+echo "VERSION ID is "${VERSION_ID}
+echo "ID is "${ID}
+echo "UNAME is "${UNAME}
+
+# installing pre requisite package - git, for cloning fledge non package
+sudo apt -y  install git
+
+# cloning fledge
+git clone -b $BRANCH  https://github.com/fledge-iot/fledge.git &&  cd fledge && chmod +x requirements.sh && sh -x requirements.sh ;
+
+echo 'Changing CMakelists'
+sed -i 's|c++11 -O3|c++11 -O0 -ggdb|g' CMakeLists.txt && make 
+
+echo '----------------------------------'
+echo
+cat CMakeLists.txt
+echo 
+echo '----------------------------------'
+echo 'CMakeLists.txt changed'
+
+# exporting fledge path and changing directory to location where plugin repositories will be cloned and removed once the test is finished
+export FLEDGE_ROOT=`pwd` && cd ..; 
+
+# modifying script
+echo 'fledge root path is set to  ${FLEDGE_ROOT}'
+valgrind_conf=' --tool=memcheck  --fullpath-after=  --xml=yes  --log-file=\/tmp\/south_valgrind.log --child-silent-after-fork=no --leak-check=full --show-leak-kinds=all --track-origins=yes '
+
+psouth_c=${FLEDGE_ROOT}/scripts/services/south_c
+echo $psouth_c
+sudo sed -i 's#/usr/local/fledge#'"$FLEDGE_ROOT"'#g' ${psouth_c}
+sudo sed -i '/.\/fledge.services.south.*/s/^/valgrind -v --xml-file=\/tmp\/south_valgrind_%p.xml  '"$valgrind_conf"'  /' ${psouth_c}
+
+pnorth_C=${FLEDGE_ROOT}/scripts/services/north_C
+echo $pnorth_C
+sudo sed -i 's#/usr/local/fledge#'"$FLEDGE_ROOT"'#g' ${pnorth_C}
+sudo sed -i '/.\/fledge.services.north.*/s/^/valgrind -v  --xml-file=\/tmp\/north_valgrind_%p.xml '"$valgrind_conf"'  /' ${pnorth_C}
+
+pstorage=${FLEDGE_ROOT}/scripts/services/storage
+echo $pstorage
+sudo sed -i 's#/usr/local/fledge#'"$FLEDGE_ROOT"'#g' ${pstorage}
+sudo sed -i '/\${storageExec} \"\$@\"/s/^/valgrind -v   --xml-file=\/tmp\/storage_valgrind_%p.xml '"$valgrind_conf"'  /' ${pstorage}
+
+# cloning plugins based on parameters passed to the script, Currently only installing sinusoid
+for i in ${1}
+do
+	echo $i
+	git clone  https://github.com/fledge-iot/${i}.git && cd ${i}; plugin_dir=`pwd`
+
+        # Cheking requirements.sh file exists or not, to install plugins dependencies
+	if [[ -f ${plugin_dir}/requirements.sh  ]]
+	then
+		./${plugin_dir}/requirements.sh
+	fi
+
+	# checking  CMakeLists.txt exists or not, to confirm whther it is a C based plugin or python based plugin
+	if [[ -f  ${plugin_dir}/CMakeLists.txt ]]
+	then
+		sed -i 's|c++11 -O3|c++11 -O0 -ggdb|g'  ${plugin_dir}/CMakeLists.txt
+		# building C based plugin
+		echo 'Building C plugin'
+		mkdir -p build && cd build && cmake -DFLEDGE_INSTALL=${FLEDGE_ROOT} -DFLEDGE_ROOT=${FLEDGE_ROOT} .. && make  && make install
+	else 
+		# Checking requirements.txt file exists or not, to install plugins dependencies (if any)
+		if [[ -f ${plugin_dir}/requirements.txt  ]]
+		then
+			python3 -m pip install -r ${plugin_dir}/requirements.txt
+		fi
+		# Copying Plugin
+		echo 'Copying Plugin'
+		sudo cp -r $plugin_dir/python $FLEDGE_ROOT/
+		echo 'Copied.'
+	fi
+	cd ../..
+done
+echo 'Current location - '; pwd;
+echo 'End of setup'
+

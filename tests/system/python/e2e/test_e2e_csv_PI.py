@@ -56,6 +56,7 @@ def get_statistics_map(fledge_url):
 @pytest.fixture
 def start_south_north(reset_and_start_fledge, add_south, start_north_pi_server_c, remove_data_file,
                       remove_directories, south_branch, fledge_url, pi_host, pi_port, pi_token,
+                      clear_pi_system_through_pi_web_api, pi_admin, pi_passwd, pi_db,
                       asset_name="end_to_end_csv"):
     """ This fixture clone a south repo and starts both south and north instance
         reset_and_start_fledge: Fixture that resets and starts fledge, no explicit invocation, called at start
@@ -63,6 +64,13 @@ def start_south_north(reset_and_start_fledge, add_south, start_north_pi_server_c
         start_north_pi_server_c: Fixture that starts PI north task
         remove_data_file: Fixture that remove data file created during the tests
         remove_directories: Fixture that remove directories created during the tests"""
+
+    # No need to give asset hierarchy in case of connector relay.
+    dp_list = ['ivalue', 'fvalue', 'svalue', '']
+    asset_dict = {}
+    asset_dict[asset_name] = dp_list
+    clear_pi_system_through_pi_web_api(pi_host, pi_admin, pi_passwd, pi_db,
+                                       [], asset_dict)
 
     # Define configuration of fledge south playback service
     south_config = {"assetName": {"value": "{}".format(asset_name)}, "csvFilename": {"value": "{}".format(CSV_NAME)},

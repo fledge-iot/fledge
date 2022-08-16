@@ -55,13 +55,21 @@ class TestE2eExprPi:
     @pytest.fixture
     def start_south_north(self, reset_and_start_fledge, add_south, enable_schedule, remove_directories,
                           south_branch, fledge_url, add_filter, filter_branch, filter_name,
-                          start_north_pi_server_c, pi_host, pi_port, pi_token):
+                          start_north_pi_server_c, pi_host, pi_port, pi_token,
+                          clear_pi_system_through_pi_web_api, pi_admin, pi_passwd, pi_db,):
         """ This fixture clone a south and north repo and starts both south and north instance
 
             reset_and_start_fledge: Fixture that resets and starts fledge, no explicit invocation, called at start
             add_south: Fixture that adds a south service with given configuration with enabled or disabled mode
             remove_directories: Fixture that remove directories created during the tests
         """
+
+        # No need to give asset hierarchy in case of connector relay.
+        dp_list = [ASSET_NAME, 'name', '']
+        asset_dict = {}
+        asset_dict[ASSET_NAME] = dp_list
+        clear_pi_system_through_pi_web_api(pi_host, pi_admin, pi_passwd, pi_db,
+                                           [], asset_dict)
 
         cfg = {"expression": {"value": "tan(x)"}, "minimumX": {"value": "45"}, "maximumX": {"value": "45"},
                "stepX": {"value": "0"}}

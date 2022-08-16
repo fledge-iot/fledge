@@ -69,10 +69,21 @@ class TestE2ePiEgressWithScalesetFilter:
     def start_south_north_with_filter(self, reset_and_start_fledge, add_south, south_branch,
                                       remove_data_file, remove_directories, enable_schedule,
                                       fledge_url, add_filter, filter_branch, filter_name,
+                                      clear_pi_system_through_pi_web_api, pi_admin, pi_passwd, pi_db,
                                       start_north_pi_server_c, pi_host, pi_port, pi_token):
         """ This fixture clones given south & filter plugin repo, and starts south and PI north C instance with filter
 
         """
+
+        # No need to give asset hierarchy in case of connector relay.
+        dp_list = [READ_KEY, '']
+        asset_dict = {}
+        asset_dict[ASSET_NAME] = dp_list
+        asset_dict["{}{}".format(ASSET_PREFIX, ASSET_NAME)] = dp_list
+
+        clear_pi_system_through_pi_web_api(pi_host, pi_admin, pi_passwd, pi_db,
+                                           [], asset_dict)
+
         fogbench_template_path = os.path.join(
             os.path.expandvars('${FLEDGE_ROOT}'), 'data/template.json')
         with open(fogbench_template_path, "w") as f:

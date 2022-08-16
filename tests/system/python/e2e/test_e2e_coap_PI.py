@@ -62,14 +62,21 @@ def _verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_
 
 @pytest.fixture
 def start_south_north(reset_and_start_fledge, add_south, start_north_pi_server_c, remove_data_file,
-                      remove_directories, south_branch, fledge_url, pi_host, pi_port, pi_token,
-                      asset_name="end_to_end_coap"):
+                      remove_directories, south_branch, fledge_url, pi_host, pi_port, pi_token, pi_passwd,
+                      pi_db, pi_admin, clear_pi_system_through_pi_web_api, asset_name="end_to_end_coap"):
     """ This fixture clone a south repo and starts both south and north instance
         reset_and_start_fledge: Fixture that resets and starts fledge, no explicit invocation, called at start
         add_south: Fixture that adds a south service with given configuration
         start_north_pi_server_c: Fixture that starts PI north task
         remove_data_file: Fixture that remove data file created during the tests
         remove_directories: Fixture that remove directories created during the tests"""
+
+    # No need to give asset hierarchy in case of connector relay.
+    dp_list = ['sensor', '']
+    asset_dict = {}
+    asset_dict[asset_name] = dp_list
+    clear_pi_system_through_pi_web_api(pi_host, pi_admin, pi_passwd, pi_db,
+                                       [], asset_dict)
 
     # Define the template file for fogbench
     fogbench_template_path = os.path.join(

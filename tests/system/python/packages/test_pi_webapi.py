@@ -134,7 +134,7 @@ def start_south_north(add_south, start_north_task_omf_web_api, remove_data_file,
 
     af_hierarchy_level = "fledge/room1/machine1"
     af_hierarchy_level_list = af_hierarchy_level.split("/")
-    dp_list = [DATAPOINT]
+    dp_list = [DATAPOINT, '']
     asset_dict = {}
     asset_dict[ASSET] = dp_list
     clear_pi_system_through_pi_web_api(pi_host, pi_admin, pi_passwd, pi_db,

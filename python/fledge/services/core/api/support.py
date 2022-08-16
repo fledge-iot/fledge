@@ -160,6 +160,7 @@ async def get_syslog_entries(request):
         template = __GET_SYSLOG_CMD_TEMPLATE
         lines = __GET_SYSLOG_TOTAL_MATCHED_LINES
         non_total_template = __GET_SYSLOG_TEMPLATE_WITH_NON_TOTALS
+        level = "debug" # default log level
         if 'level' in request.query and request.query['level'] != '':
             level = request.query['level'].lower()
             supported_level = ['info', 'warning', 'error', 'debug']
@@ -192,7 +193,15 @@ async def get_syslog_entries(request):
             cmd = template.format(valid_source[source], _SYSLOG_FILE, total_lines - offset, limit)
         else:
             cmd = non_total_template.format(valid_source[source], _SYSLOG_FILE, offset, limit)
+            _logger.info("prev cmd={}".format(cmd))
+            log_file = os.path.join(_get_logs_dir(), "{}.log".format(level))
+            cmd = "tail -n {} {} | head -n {}".format(offset+limit, log_file, limit)
+            _logger.info("new cmd={}".format(cmd))
+
+        t1 = datetime.datetime.now()
         a = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE).stdout.readlines()
+        t2 = datetime.datetime.now()
+        _logger.debug('********* Time taken for extracting logs: {} msec'.format((t2 - t1).total_seconds()*1000))
         c = [b.decode() for b in a]  # Since "a" contains return value in bytes, convert it to string
         response['logs'] = c
     except ValueError as err:
@@ -212,3 +221,11 @@ def _get_support_dir():
         support_dir = os.path.expanduser(_FLEDGE_ROOT + '/data/support')
 
     return support_dir
+
+def _get_logs_dir():
+    if _FLEDGE_DATA:
+        logs_dir = os.path.expanduser(_FLEDGE_DATA + '/logs')
+    else:
+        logs_dir = os.path.expanduser(_FLEDGE_ROOT + '/data/logs')
+
+    return logs_dir

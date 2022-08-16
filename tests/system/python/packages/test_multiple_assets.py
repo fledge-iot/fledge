@@ -73,7 +73,7 @@ def start_north(start_north_omf_as_a_service, fledge_url,
 
     af_hierarchy_level = "fledge/room1/machine1"
     af_hierarchy_level_list = af_hierarchy_level.split("/")
-    dp_list = ["random", '']
+    dp_list = ['']
     asset_dict = {}
 
     no_of_services = 6

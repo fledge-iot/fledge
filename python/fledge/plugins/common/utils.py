@@ -56,13 +56,15 @@ def bit_at_given_position_set_or_unset(n, k):
     return new_num & 1
 
 
-def get_persist_plugins():
+def get_persist_plugins(directory=None):
     """ Get a list of south, north, filter types plugins that can persist data for a service
     :return: list - plugins
     :example: ["OMF"]
     """
     plugin_list = []
     supported_persist_dirs = ["south", "north", "filter"]
+    if directory is not None:
+        supported_persist_dirs = [directory, "filter"]
     for plugin_type in supported_persist_dirs:
         libs = api_utils.find_c_plugin_libs(plugin_type)
         for name, _type in libs:

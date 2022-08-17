@@ -69,9 +69,9 @@ class TestE2eFilterFFTThreshold:
         """
 
         # No need to give asset hierarchy in case of connector relay.
-        dp_list = ['10 Min Std Dev', '']
+        dp_list = ['Band00', 'Band01', 'Band02']
         asset_dict = {}
-        asset_dict[ASSET] = dp_list
+        asset_dict[ASSET + " " + 'FFT'] = dp_list
         clear_pi_system_through_pi_web_api(pi_host, pi_admin, pi_passwd, pi_db,
                                            [], asset_dict)
 

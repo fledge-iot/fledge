@@ -10,6 +10,7 @@
 import json
 from aiohttp import web
 import datetime
+import os
 
 from fledge.services.core import server
 from fledge.common import logger
@@ -99,4 +100,10 @@ async def update_package(request):
         msg = str(ex)
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
+        # Save current logged user token
+        token = request.headers.get('authorization', None)
+        if token is not None:
+            with open(os.path.expanduser('~') + '/.fledge_token', 'w') as f:
+                f.write(token)
+
         return web.json_response({"status": "Running", "message": status_message})

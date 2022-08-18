@@ -37,6 +37,8 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.parent
 SCRIPTS_DIR_ROOT = "{}/tests/system/python/scripts/package/".format(PROJECT_ROOT)
 DATA_DIR_ROOT = "{}/tests/system/python/packages/data/".format(PROJECT_ROOT)
 
+AF_HIERARCHY_LEVEL = "network/throttled/machine1"
+
 
 @pytest.fixture
 def reset_fledge(wait_time):
@@ -103,8 +105,7 @@ def start_south_north(add_south, start_north_task_omf_web_api, add_filter, remov
         start_north_task_omf_web_api: Fixture that starts PI north task
         remove_data_file: Fixture that remove data file created during the tests """
 
-    af_hierarchy_level = "fledge/room1/machine1"
-    af_hierarchy_level_list = af_hierarchy_level.split("/")
+    af_hierarchy_level_list = AF_HIERARCHY_LEVEL.split("/")
     dp_list = ['sinusoid', 'id_datapoint']
     asset_dict = {}
     asset_dict[ASSET] = dp_list
@@ -118,10 +119,12 @@ def start_south_north(add_south, start_north_task_omf_web_api, add_filter, remov
               service_name=SOUTH_SERVICE_NAME, installation_type='package', start_service=False)
     if not start_north_as_service:
         start_north_task_omf_web_api(fledge_url, pi_host, pi_port, pi_user=pi_admin, pi_pwd=pi_passwd,
-                                     start_task=False, taskname=NORTH_INSTANCE_NAME)
+                                     start_task=False, taskname=NORTH_INSTANCE_NAME,
+                                     default_af_location=AF_HIERARCHY_LEVEL)
     else:
         start_north_omf_as_a_service(fledge_url, pi_host, pi_port, pi_user=pi_admin, pi_pwd=pi_passwd,
-                                     start=False, service_name=NORTH_INSTANCE_NAME)
+                                     start=False, service_name=NORTH_INSTANCE_NAME,
+                                     default_af_location=AF_HIERARCHY_LEVEL)
 
     add_filter("python35", None, "py35", {}, fledge_url, None, installation_type='package',
                only_installation=True)
@@ -369,8 +372,7 @@ class TestPackagesSinusoid_PI_WebAPI:
         # verify the bulk data from PI.
         data_from_pi = get_bulk_data_from_pi(pi_host, pi_admin, pi_passwd, ASSET, dp_name)
 
-        af_hierarchy_level = "fledge/room1/machine1"
-        af_hierarchy_level_list = af_hierarchy_level.split("/")
+        af_hierarchy_level_list = AF_HIERARCHY_LEVEL.split("/")
         dp_list = ['sinusoid', dp_name]
         asset_dict = {}
         asset_dict[ASSET] = dp_list

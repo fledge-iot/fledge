@@ -30,6 +30,7 @@ FLEDGE_ROOT = os.environ.get('FLEDGE_ROOT')
 BENCHMARK_SOUTH_SVC_NAME = "BenchMark #"
 ASSET_NAME = "random"
 PER_BENCHMARK_ASSET_COUNT = 150
+AF_HIERARCHY_LEVEL = "multipleassets/machine1/room1"
 
 
 @pytest.fixture
@@ -71,8 +72,7 @@ def start_north(start_north_omf_as_a_service, fledge_url,
                       pi_host, pi_port, pi_admin, pi_passwd, clear_pi_system_through_pi_web_api, pi_db):
     global north_schedule_id
 
-    af_hierarchy_level = "fledge/room1/machine1"
-    af_hierarchy_level_list = af_hierarchy_level.split("/")
+    af_hierarchy_level_list = AF_HIERARCHY_LEVEL.split("/")
     dp_list = ['']
     asset_dict = {}
 
@@ -85,7 +85,8 @@ def start_north(start_north_omf_as_a_service, fledge_url,
     clear_pi_system_through_pi_web_api(pi_host, pi_admin, pi_passwd, pi_db,
                                        af_hierarchy_level_list, asset_dict)
 
-    response = start_north_omf_as_a_service(fledge_url, pi_host, pi_port, pi_user=pi_admin, pi_pwd=pi_passwd)
+    response = start_north_omf_as_a_service(fledge_url, pi_host, pi_port, pi_user=pi_admin, pi_pwd=pi_passwd,
+                                            default_af_location=AF_HIERARCHY_LEVEL)
     north_schedule_id = response["id"]
 
     yield start_north
@@ -259,8 +260,8 @@ def verify_asset_tracking_details(fledge_url, total_assets, total_benchmark_serv
 
 
 def _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries, total_benchmark_services):
-    af_hierarchy_level = "fledge/room1/machine1"
-    af_hierarchy_level_list = af_hierarchy_level.split("/")
+
+    af_hierarchy_level_list = AF_HIERARCHY_LEVEL.split("/")
     type_id = 1
     
     for s in range(1,total_benchmark_services+1):

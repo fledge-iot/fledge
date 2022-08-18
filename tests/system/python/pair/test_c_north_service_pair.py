@@ -41,6 +41,7 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.parent
 SCRIPTS_DIR_ROOT = "{}/tests/system/python/scripts/package/".format(PROJECT_ROOT)
 # SSH command to make connection with the remote machine
 ssh_cmd = "ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i"
+AF_HIERARCHY_LEVEL = "Cservicepair/room1/machine1"
 
 
 @pytest.fixture
@@ -131,8 +132,7 @@ def setup_remote(reset_fledge_remote, remote_user, remote_ip, start_north_omf_as
             pi_passwd: Password of PI machine
         """
 
-    af_hierarchy_level = "fledge/room1/machine1"
-    af_hierarchy_level_list = af_hierarchy_level.split("/")
+    af_hierarchy_level_list = AF_HIERARCHY_LEVEL.split("/")
     dp_list = ['sinusoid', '']
     asset_dict = {}
     asset_dict['sinusoid'] = dp_list
@@ -155,7 +155,7 @@ def setup_remote(reset_fledge_remote, remote_user, remote_ip, start_north_omf_as
     # Configure pi north plugin on remote machine
     global remote_north_schedule_id
     response = start_north_omf_as_a_service(fledge_url, pi_host, pi_port, pi_user=pi_admin, pi_pwd=pi_passwd,
-                                            start=True)
+                                            start=True, default_af_location=AF_HIERARCHY_LEVEL)
     remote_north_schedule_id = response["id"]
 
     yield setup_remote
@@ -251,8 +251,7 @@ def _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_d
     retry_count = 0
     data_from_pi = None
 
-    af_hierarchy_level = "fledge/room1/machine1"
-    af_hierarchy_level_list = af_hierarchy_level.split("/")
+    af_hierarchy_level_list = AF_HIERARCHY_LEVEL.split("/")
     type_id = 1
     recorded_datapoint = "{}measurement_{}".format(type_id, asset_name)
     # Name of asset in the PI server

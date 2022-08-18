@@ -93,15 +93,23 @@ def change_category(fledge_url, cat_name, config_item, value):
 
 @pytest.fixture
 def start_south_north(add_south, start_north_task_omf_web_api, add_filter, remove_data_file,
-                      fledge_url, pi_host, pi_port, pi_admin, pi_passwd,
+                      fledge_url, pi_host, pi_port, pi_admin, pi_passwd, pi_db,
                       start_north_omf_as_a_service, start_north_as_service,
-                      enable_schedule, asset_name=ASSET):
+                      enable_schedule, clear_pi_system_through_pi_web_api, asset_name=ASSET):
     """ This fixture starts the sinusoid plugin and north pi web api plugin. Also puts a filter
         to insert reading id as a datapoint when we send the data to north.
         clean_setup_fledge_packages: purge the fledge* packages and install latest for given repo url
         add_south: Fixture that adds a south service with given configuration
         start_north_task_omf_web_api: Fixture that starts PI north task
         remove_data_file: Fixture that remove data file created during the tests """
+
+    af_hierarchy_level = "fledge/room1/machine1"
+    af_hierarchy_level_list = af_hierarchy_level.split("/")
+    dp_list = ['sinusoid', 'id_datapoint']
+    asset_dict = {}
+    asset_dict[ASSET] = dp_list
+    clear_pi_system_through_pi_web_api(pi_host, pi_admin, pi_passwd, pi_db,
+                                       af_hierarchy_level_list, asset_dict)
 
     south_plugin = "sinusoid"
     # south_branch does not matter as these are archives.fledge-iot.org version install

@@ -21,7 +21,7 @@ using namespace rapidjson;
  * PluginData constructor
  * @param client	StorageClient pointer
  */
-PluginData::PluginData(StorageClient* client) : m_storage(client)
+PluginData::PluginData(StorageClient* client) : m_storage(client), m_dataLoaded(false)
 {
 }
 
@@ -43,6 +43,7 @@ string PluginData::loadStoredData(const string& key)
 	ResultSet* pluginData = m_storage->queryTable("plugin_data", wKey);
 	if (pluginData != NULL && pluginData->rowCount())
 	{
+		m_dataLoaded = true;
 		// Get the first row only
 		ResultSet::RowIterator it = pluginData->firstRow();
 		// Access the element
@@ -109,12 +110,27 @@ bool PluginData::persistPluginData(const string& key,
 	InsertValues updateData;
 	updateData.push_back(InsertValue("data", JSONData));
 
-	// Try update first
-	if (m_storage->updateTable("plugin_data",
-				   updateData,
-				   wKey) == -1)
+	if (m_dataLoaded)
 	{
-		// Update filure: try insert
+		// Try update first
+		if (m_storage->updateTable("plugin_data",
+					   updateData,
+					   wKey) == -1)
+		{
+			// Update filure: try insert
+			InsertValues insertData;
+			insertData.push_back(InsertValue("key", key));
+			insertData.push_back(InsertValue("data", JSONData));
+
+			if (m_storage->insertTable("plugin_data",
+						   insertData) == -1)
+			{
+				ret = false;
+			}
+		}
+	}
+	else
+	{	// We didn't load the data so do an insert first
 		InsertValues insertData;
 		insertData.push_back(InsertValue("key", key));
 		insertData.push_back(InsertValue("data", JSONData));
@@ -122,10 +138,21 @@ bool PluginData::persistPluginData(const string& key,
 		if (m_storage->insertTable("plugin_data",
 					   insertData) == -1)
 		{
-			ret = false;
+			// The insert failed, so try an update before giving up
+			if (m_storage->updateTable("plugin_data", updateData, wKey) == -1)
+			{
+				ret = false;
+			}
+		}
+		else
+		{
+			m_dataLoaded = true;	// Data is now in the database
 		}
 	}
 
-	Logger::getLogger()->warn("Failed to persist data for %s, unable to insert into storage", key.c_str());
+	if (!ret)
+	{
+		Logger::getLogger()->warn("Failed to persist data for %s, unable to insert into storage", key.c_str());
+	}
 	return ret;
 }

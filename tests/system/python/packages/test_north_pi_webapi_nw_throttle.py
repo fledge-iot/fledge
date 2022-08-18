@@ -106,6 +106,8 @@ def start_south_north(add_south, start_north_task_omf_web_api, add_filter, remov
         remove_data_file: Fixture that remove data file created during the tests """
 
     af_hierarchy_level_list = AF_HIERARCHY_LEVEL.split("/")
+    # There are two data points here. 1. sinusoid
+    # 2. id_datapoint
     dp_list = ['sinusoid', 'id_datapoint']
     asset_dict = {}
     asset_dict[ASSET] = dp_list

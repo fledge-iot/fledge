@@ -135,6 +135,8 @@ def setup_remote(reset_fledge_remote, remote_user, remote_ip, start_north_omf_as
 
     af_hierarchy_level_list = AF_HIERARCHY_LEVEL.split("/")
     dp_list = ['sinusoid', 'name', '']
+    # There are three data points here. 1. sinusoid  2. name
+    # 3. no data point (Asset name be used in this case.)
     asset_dict = {}
     asset_dict['sinusoid'] = dp_list
     clear_pi_system_through_pi_web_api(pi_host, pi_admin, pi_passwd, pi_db,

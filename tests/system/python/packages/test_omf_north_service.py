@@ -43,6 +43,8 @@ def reset_fledge(wait_time):
 def start_south_north(add_south, start_north_omf_as_a_service, fledge_url,
                       pi_host, pi_port, pi_admin, pi_passwd, clear_pi_system_through_pi_web_api, pi_db):
     af_hierarchy_level_list = AF_HIERARCHY_LEVEL.split("/")
+    # There are three data points here. 1. sinusoid   2. name for meta data
+    # 3. no data point (Asset name be used in this case.)
     dp_list = ['sinusoid', 'name', '']
     asset_dict = {}
     asset_dict['sinusoid'] = dp_list

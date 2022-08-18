@@ -51,6 +51,8 @@ def start_south(add_south, remove_data_file, fledge_url, clear_pi_system_through
     # Define the template file for fogbench
 
     af_hierarchy_level_list = AF_HIERARCHY_LEVEL.split("/")
+    # There are two data points here. 1. DATAPOINT
+    # 2. no data point (Asset name be used in this case.)
     dp_list = [DATAPOINT, '']
     asset_dict = {}
     asset_dict[south_asset_name] = dp_list

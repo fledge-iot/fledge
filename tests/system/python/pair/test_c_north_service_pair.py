@@ -133,6 +133,8 @@ def setup_remote(reset_fledge_remote, remote_user, remote_ip, start_north_omf_as
         """
 
     af_hierarchy_level_list = AF_HIERARCHY_LEVEL.split("/")
+    # There are two data points here. 1. sinusoid
+    # 2. no data point (Asset name be used in this case.)
     dp_list = ['sinusoid', '']
     asset_dict = {}
     asset_dict['sinusoid'] = dp_list

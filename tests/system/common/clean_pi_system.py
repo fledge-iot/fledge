@@ -54,9 +54,14 @@ def search_for_pi_point(host, admin, password, asset_name, data_point_name):
     except Exception:
         print("Could not get Points data.")
         return False, None
+
+    # if datapoint name is given then will search with asset name.
     if data_point_name != '':
         name_to_search = asset_name + '.' + data_point_name
     else:
+        # if no datapoint is given will search for asset name.
+        # This is expected behaviour when pi points are created for assets with single data point.
+        # See FOGL-6804 for details.
         name_to_search = asset_name
 
     for single_point in points['Items']:

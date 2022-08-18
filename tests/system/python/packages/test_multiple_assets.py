@@ -73,6 +73,8 @@ def start_north(start_north_omf_as_a_service, fledge_url,
     global north_schedule_id
 
     af_hierarchy_level_list = AF_HIERARCHY_LEVEL.split("/")
+    # There is one data points here.
+    # 1. no data point (Asset name be used in this case.)
     dp_list = ['']
     asset_dict = {}
 

@@ -91,6 +91,12 @@ async def update_package(request):
             # Log new schedule creation
             _logger.info("%s, ID [ %s ]", create_message, str(schedule_id))
 
+        # Save current logged user token
+        token = request.headers.get('authorization', None)
+        if token is not None:
+            with open(os.path.expanduser('~') + '/.fledge_token', 'w') as f:
+                f.write(token)
+
         # Add schedule_id to the schedule queue
         await server.Server.scheduler.queue_task(schedule_id)
     except ValueError as err:
@@ -100,10 +106,4 @@ async def update_package(request):
         msg = str(ex)
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
-        # Save current logged user token
-        token = request.headers.get('authorization', None)
-        if token is not None:
-            with open(os.path.expanduser('~') + '/.fledge_token', 'w') as f:
-                f.write(token)
-
         return web.json_response({"status": "Running", "message": status_message})

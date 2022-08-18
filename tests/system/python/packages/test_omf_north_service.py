@@ -40,7 +40,15 @@ def reset_fledge(wait_time):
 
 @pytest.fixture
 def start_south_north(add_south, start_north_omf_as_a_service, fledge_url,
-                      pi_host, pi_port, pi_admin, pi_passwd):
+                      pi_host, pi_port, pi_admin, pi_passwd, clear_pi_system_through_pi_web_api, pi_db):
+    af_hierarchy_level = "fledge/room1/machine1"
+    af_hierarchy_level_list = af_hierarchy_level.split("/")
+    dp_list = ['sinusoid', 'name']
+    asset_dict = {}
+    asset_dict['sinusoid'] = dp_list
+    clear_pi_system_through_pi_web_api(pi_host, pi_admin, pi_passwd, pi_db,
+                                       af_hierarchy_level_list, asset_dict)
+
     global north_schedule_id
 
     add_south(south_plugin, None, fledge_url, service_name="{}".format(south_service_name), installation_type='package')

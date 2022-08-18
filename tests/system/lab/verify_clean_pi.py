@@ -34,7 +34,7 @@ pi_passwd = args["pi_passwd"]
 pi_db = args["pi_db"]
 asset_name = args["asset_name"]
 
-af_hierarchy_level = "fledge/data_piwebapi/default"
+af_hierarchy_level = "PIlab/room1/machine1"
 af_hierarchy_level_list = af_hierarchy_level.split("/")
 
 clear_pi_system_pi_web_api(pi_host, pi_admin, pi_passwd, pi_db, af_hierarchy_level_list,

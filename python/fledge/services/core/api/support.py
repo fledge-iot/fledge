@@ -185,19 +185,20 @@ async def get_syslog_entries(request):
             'nontotals'] != '' else "false"
         if non_totals not in ("true", "false"):
             raise ValueError('nontotals must either be in True or False.')
+
+        log_file = os.path.join(_get_logs_dir(), "{}.log".format(level))
         if non_totals != "true":
             # Get total lines
-            cmd = lines.format(valid_source[source], _SYSLOG_FILE)
+            cmd = lines.format(valid_source[source], log_file)
+            _logger.debug("cmd 1={}".format(cmd))
             t = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE).stdout.readlines()
             total_lines = int(t[0].decode())
             response['count'] = total_lines
-            cmd = template.format(valid_source[source], _SYSLOG_FILE, total_lines - offset, limit)
+            cmd = template.format(valid_source[source], log_file, total_lines - offset, limit)
+            _logger.debug("cmd 2={}".format(cmd))
         else:
-            cmd = non_total_template.format(valid_source[source], _SYSLOG_FILE, offset, limit)
-            _logger.info("prev cmd={}".format(cmd))
-            log_file = os.path.join(_get_logs_dir(), "{}.log".format(level))
-            cmd = "tail -n {} {} | head -n {}".format(offset+limit, log_file, limit)
-            _logger.info("new cmd={}".format(cmd))
+            cmd = non_total_template.format(valid_source[source], log_file, offset, limit)
+            _logger.debug("cmd={}".format(cmd))
 
         t1 = datetime.datetime.now()
         a = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE).stdout.readlines()

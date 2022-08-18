@@ -9,6 +9,7 @@ import platform
 import subprocess
 import json
 import logging
+import datetime
 import urllib.parse
 from pathlib import Path
 from aiohttp import web
@@ -22,7 +23,7 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-_logger = logger.setup(__name__, level=logging.INFO)
+_logger = logger.setup(__name__, level=logging.DEBUG)
 
 _SYSLOG_FILE = '/var/log/syslog'
 if any(x in platform.platform() for x in ['centos', 'redhat']):

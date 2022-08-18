@@ -66,6 +66,8 @@ def start_south_north(reset_and_start_fledge, add_south, start_north_pi_server_c
         remove_directories: Fixture that remove directories created during the tests"""
 
     # No need to give asset hierarchy in case of connector relay.
+    # There are four data points here. 1. ivalue  2. fvalue
+    # 3. svalue    4. no data point (Asset name be used in this case.)
     dp_list = ['ivalue', 'fvalue', 'svalue', '']
     asset_dict = {}
     asset_dict[asset_name] = dp_list

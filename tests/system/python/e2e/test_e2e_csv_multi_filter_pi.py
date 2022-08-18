@@ -68,6 +68,8 @@ class TestE2eCsvMultiFltrPi:
             remove_data_file: Fixture that remove data file created during the tests
         """
         dp_list = ['ivalue', 'name', 'ivaluecrest', 'ivaluepeak']
+        # There are four data points here. 1. ivalue  2. name as metadata filter is used.
+        # 3. ivaluecrest    4. ivaluepeak
         asset_dict = {}
         asset_dict['e2e_filters_RMS'] = dp_list
         clear_pi_system_through_pi_web_api(pi_host, pi_admin, pi_passwd, pi_db,

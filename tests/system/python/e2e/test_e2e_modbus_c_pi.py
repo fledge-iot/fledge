@@ -76,6 +76,9 @@ class TestE2EModbusCPI:
                }
 
         # No need to give asset hierarchy in case of connector relay.
+        # There are five data points here. 1. front right 2. rear right
+        # 3. front left           4. rear left
+        # 5. no data point (Asset name be used in this case.)
         dp_list = ['front right', 'rear right', 'front left', 'rear left', '']
         asset_dict = {}
         asset_dict[ASSET_NAME] = dp_list

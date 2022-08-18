@@ -97,6 +97,9 @@ class TestE2EAssetHttpPI:
 
         # No need to give asset hierarchy in case of connector relay.
         dp_list = ['a', 'b', 'a2', 'b2', '']
+        # There are five data points here. 1. a 2. b
+        # 3. a2          4. b2
+        # 5. no data point (Asset name be used in this case.)
         asset_dict = {}
         asset_dict[asset_name] = dp_list
 

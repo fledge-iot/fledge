@@ -107,6 +107,7 @@ class TestE2eFogPairPi:
             """
 
         # No need to give asset hierarchy in case of connector relay.
+        # There are two data points here. 1. ivalue 2. No data point (Asset name is will be used).
         dp_list = ['ivalue', '']
         asset_dict = {}
         asset_dict['fogpair_playback'] = dp_list

@@ -76,6 +76,7 @@ class TestE2ePiEgressWithScalesetFilter:
         """
 
         # No need to give asset hierarchy in case of connector relay.
+        # There are two data points here. 1. READ_KEY 2. no data point (Asset name be used in this case.)
         dp_list = [READ_KEY, '']
         asset_dict = {}
         asset_dict[ASSET_NAME] = dp_list

@@ -66,6 +66,8 @@ class TestE2eExprPi:
 
         # No need to give asset hierarchy in case of connector relay.
         dp_list = [ASSET_NAME, 'name', '']
+        # There are three data points here. 1. ASSET_NAME  2. name as metadata filter is used.
+        # 3. no data point (Asset name be used in this case.)
         asset_dict = {}
         asset_dict[ASSET_NAME] = dp_list
         clear_pi_system_through_pi_web_api(pi_host, pi_admin, pi_passwd, pi_db,

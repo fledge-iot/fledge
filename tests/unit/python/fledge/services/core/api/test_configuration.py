@@ -4,19 +4,21 @@
 # See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
+import sys
 import copy
 import asyncio
 import json
 from unittest.mock import MagicMock, patch
 from aiohttp import web
 import pytest
-import sys
 
-from fledge.services.core import routes
-from fledge.services.core import connect
+from fledge.common.audit_logger import AuditLogger
 from fledge.common.storage_client.storage_client import StorageClientAsync
 from fledge.common.configuration_manager import ConfigurationManager, ConfigurationManagerSingleton, _logger
-from fledge.common.audit_logger import AuditLogger
+from fledge.common.web import middleware
+from fledge.services.core import routes
+from fledge.services.core import connect
+
 
 __author__ = "Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -30,7 +32,7 @@ class TestConfiguration:
 
     @pytest.fixture
     def client(self, loop, test_client):
-        app = web.Application(loop=loop)
+        app = web.Application(loop=loop,  middlewares=[middleware.optional_auth_middleware])
         # fill the routes table
         routes.setup(app)
         return loop.run_until_complete(test_client(app))

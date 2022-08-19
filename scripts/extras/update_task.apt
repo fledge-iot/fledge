@@ -133,7 +133,6 @@ get_rest_api_url () {
 audit_trail_entry () {
     SQL_DATA="log(code, level, log) VALUES('PKGUP', 4, '{\"packageName\": \"${PKG_NAME}\"}');"
     # Find storage engine value
-    #STORAGE=`curl -skX GET $REST_API_URL/fledge/category/Storage | python3 ${FLEDGE_ROOT}/scripts/common/json_parse.py get_config_item_value plugin`;
     STORAGE=`${FLEDGE_ROOT}/services/fledge.services.storage --plugin | awk '{print $1}'`
     if [ "${STORAGE}" = "postgres" ]; then
         INSERT_SQL="INSERT INTO fledge.${SQL_DATA}"
@@ -166,7 +165,6 @@ update_task() {
 
     # Find storage engine value
     STORAGE=`${FLEDGE_ROOT}/services/fledge.services.storage --plugin | awk '{print $1}'`
-    #STORAGE=`curl -skX GET $REST_API_URL/fledge/category/Storage | python3 ${FLEDGE_ROOT}/scripts/common/json_parse.py get_config_item_value plugin`;
     if [ "${STORAGE}" = "postgres" ]; then
         UPDATE_SQL_QUERY="UPDATE fledge.tasks ${SQL_QUERY}"
         SQL_CMD=`psql -d fledge -t -c "${UPDATE_SQL_QUERY}"`

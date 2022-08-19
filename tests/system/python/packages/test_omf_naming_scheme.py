@@ -17,7 +17,7 @@ import utils
 import os
 
 south_plugin = "coap"
-south_asset_name = "coap"
+south_asset_name = "coap-omf-naming"
 south_service_name = "CoAP #1"
 north_plugin = "OMF"
 north_task_name = "NorthReadingsToPI_WebAPI"
@@ -27,7 +27,7 @@ DATAPOINT_VALUE = 20
 # This  gives the path of directory where fledge is cloned. test_file < packages < python < system < tests < ROOT
 PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.parent
 SCRIPTS_DIR_ROOT = "{}/tests/system/python/scripts/package/".format(PROJECT_ROOT)
-AF_HIERARCHY_LEVEL = "naming_scheme/room1/machine1"
+AF_HIERARCHY_LEVEL = "namingscheme/namingschemelvl2/namingschemelvl3"
 
 
 @pytest.fixture

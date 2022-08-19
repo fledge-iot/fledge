@@ -17,7 +17,7 @@ import pytest
 import utils
 
 south_plugin = "sinusoid"
-south_asset_name = "sinusoid"
+south_asset_name = "omf_svc_sinusoid"
 south_service_name = "Sine #1"
 north_plugin = "OMF"
 north_service_name = "NorthReadingsToPI_WebAPI"
@@ -27,7 +27,7 @@ filter2_name = "MD1"
 # This  gives the path of directory where fledge is cloned. test_file < packages < python < system < tests < ROOT
 PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.parent
 SCRIPTS_DIR_ROOT = "{}/tests/system/python/scripts/package/".format(PROJECT_ROOT)
-AF_HIERARCHY_LEVEL = 'omfservice/room1/machine1'
+AF_HIERARCHY_LEVEL = 'omfsvc/omfsvclvl2/omfsvclvl3'
 
 
 @pytest.fixture
@@ -47,7 +47,7 @@ def start_south_north(add_south, start_north_omf_as_a_service, fledge_url,
     # 3. no data point (Asset name be used in this case.)
     dp_list = ['sinusoid', 'name', '']
     asset_dict = {}
-    asset_dict['sinusoid'] = dp_list
+    asset_dict[south_asset_name] = dp_list
     clear_pi_system_through_pi_web_api(pi_host, pi_admin, pi_passwd, pi_db,
                                        af_hierarchy_level_list, asset_dict)
 

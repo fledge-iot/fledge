@@ -37,7 +37,7 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.parent
 SCRIPTS_DIR_ROOT = "{}/tests/system/python/scripts/package/".format(PROJECT_ROOT)
 DATA_DIR_ROOT = "{}/tests/system/python/packages/data/".format(PROJECT_ROOT)
 
-AF_HIERARCHY_LEVEL = "network/throttled/machine1"
+AF_HIERARCHY_LEVEL = "throttlednetworktest/throttlednetworktestlvl2/throttlednetworktestlvl3"
 
 
 @pytest.fixture

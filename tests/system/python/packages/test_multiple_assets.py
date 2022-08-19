@@ -28,9 +28,9 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.parent
 SCRIPTS_DIR_ROOT = "{}/tests/system/python/packages/data/".format(PROJECT_ROOT)
 FLEDGE_ROOT = os.environ.get('FLEDGE_ROOT')
 BENCHMARK_SOUTH_SVC_NAME = "BenchMark #"
-ASSET_NAME = "random"
+ASSET_NAME = "random_multiple_assets"
 PER_BENCHMARK_ASSET_COUNT = 150
-AF_HIERARCHY_LEVEL = "multipleassets/machine1/room1"
+AF_HIERARCHY_LEVEL = "multipleassets/multipleassetslvl2/multipleassetslvl3"
 
 
 @pytest.fixture

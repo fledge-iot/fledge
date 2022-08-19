@@ -23,7 +23,7 @@ from pathlib import Path
 import urllib.parse
 
 TEMPLATE_NAME = "template.json"
-ASSET = "FOGL-2964-e2e-CoAP"
+ASSET = "FOGL-2964-e2e-CoAP-PIWebAPI"
 DATAPOINT = "sensor"
 DATAPOINT_VALUE = 20
 NORTH_TASK_NAME = "NorthReadingsToPI_WebAPI"
@@ -31,7 +31,7 @@ SOUTH_SERVICE_NAME = "CoAP FOGL-2964"
 # This  gives the path of directory where fledge is cloned. test_file < packages < python < system < tests < ROOT
 PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.parent
 SCRIPTS_DIR_ROOT = "{}/tests/system/python/scripts/package/".format(PROJECT_ROOT)
-AF_HIERARCHY_LEVEL = 'testpiwebapi/room1/machine1'
+AF_HIERARCHY_LEVEL = 'testpiwebapi/testpiwebapilvl2/testpiwebapilvl3'
 
 
 @pytest.fixture

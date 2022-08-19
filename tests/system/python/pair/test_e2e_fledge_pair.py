@@ -31,6 +31,7 @@ CSV_HEADERS = "ivalue"
 CSV_DATA = "10,20,21,40"
 
 NORTH_TASK_NAME = "NorthReadingsTo_PI"
+remote_asset_name = "fogpair_playback"
 
 
 class TestE2eFogPairPi:
@@ -110,7 +111,7 @@ class TestE2eFogPairPi:
         # There are two data points here. 1. ivalue 2. No data point (Asset name is will be used).
         dp_list = ['ivalue', '']
         asset_dict = {}
-        asset_dict['fogpair_playback'] = dp_list
+        asset_dict[remote_asset_name] = dp_list
         clear_pi_system_through_pi_web_api(pi_host, pi_admin, pi_passwd, pi_db,
                                            [], asset_dict)
 

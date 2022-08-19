@@ -29,7 +29,7 @@ local_north_service_name = "HN #1"
 # Remote machine
 remote_south_plugin = "http_south"
 remote_south_service_name = "HS #1"
-remote_south_asset_name = "sinusoid"
+remote_south_asset_name = "python-north-service-pair"
 remote_north_plugin = "OMF"
 remote_north_service_name = "NorthReadingsToPI_WebAPI"
 
@@ -41,7 +41,7 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.parent
 SCRIPTS_DIR_ROOT = "{}/tests/system/python/scripts/package/".format(PROJECT_ROOT)
 # SSH command to make connection with the remote machine
 ssh_cmd = "ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i"
-AF_HIERARCHY_LEVEL = "servicepair/room1/machine1"
+AF_HIERARCHY_LEVEL = "pythonnorthservicepair/pythonnorthservicepairlvl2/pythonnorthservicepairlvl3"
 
 
 @pytest.fixture
@@ -138,7 +138,7 @@ def setup_remote(reset_fledge_remote, remote_user, remote_ip, start_north_omf_as
     # There are three data points here. 1. sinusoid  2. name
     # 3. no data point (Asset name be used in this case.)
     asset_dict = {}
-    asset_dict['sinusoid'] = dp_list
+    asset_dict[remote_south_asset_name] = dp_list
     clear_pi_system_through_pi_web_api(pi_host, pi_admin, pi_passwd, pi_db,
                                        af_hierarchy_level_list, asset_dict)
 

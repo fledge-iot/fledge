@@ -52,8 +52,9 @@ def start_south_north(add_south, start_north_omf_as_a_service, fledge_url,
                                        af_hierarchy_level_list, asset_dict)
 
     global north_schedule_id
-
-    add_south(south_plugin, None, fledge_url, service_name="{}".format(south_service_name), installation_type='package')
+    south_config = {"assetName": {"value": south_asset_name}}
+    add_south(south_plugin, None, fledge_url, service_name="{}".format(south_service_name),
+              config=south_config, installation_type='package')
 
     response = start_north_omf_as_a_service(fledge_url, pi_host, pi_port,
                                             pi_user=pi_admin, pi_pwd=pi_passwd,

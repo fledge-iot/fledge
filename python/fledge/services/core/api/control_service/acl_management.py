@@ -214,10 +214,8 @@ async def update_acl(request: web.Request) -> web.Response:
         for svc in services:
             await acl_handler._notify_service_about_acl_change(svc, name, "reloadACL")
 
-        scripts = await acl_handler.get_all_entities_for_a_acl(name, "script")
-        for script_present in scripts:
-            await acl_handler.handle_update_for_acl_usage(entity_name=script_present,
-                                                          acl_name=name, entity_type="script")
+        # No need to handle update for script. As acl name has not changed.
+        # The script will pick the updated contents of acl next time when it runs.
 
         return web.json_response({"message": message})
 

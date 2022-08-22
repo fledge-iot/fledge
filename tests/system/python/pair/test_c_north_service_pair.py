@@ -55,7 +55,9 @@ def reset_fledge_local(wait_time):
 
 @pytest.fixture
 def setup_local(reset_fledge_local, add_south, add_north, fledge_url, remote_ip):
-    add_south(local_south_plugin, None, fledge_url, service_name="{}".format(local_south_service_name),
+    local_south_config = {"assetName": {"value": remote_south_asset_name}}
+    add_south(local_south_plugin, None, fledge_url, config=local_south_config,
+              service_name="{}".format(local_south_service_name),
               installation_type='package')
     # Change name of variables such as service_name, plugin_type
     global north_schedule_id

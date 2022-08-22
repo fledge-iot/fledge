@@ -20,7 +20,7 @@ south_plugin = "coap"
 south_asset_name = "coap-omf-naming"
 south_service_name = "CoAP #1"
 north_plugin = "OMF"
-north_task_name = "NorthReadingsToPI_WebAPI"
+north_task_name = "NorthReadingsToPI_WebAPI #1"
 TEMPLATE_NAME = "template.json"
 DATAPOINT = "sensor"
 DATAPOINT_VALUE = 20
@@ -135,7 +135,7 @@ def verify_asset_tracking_details(fledge_url, skip_verify_north_interface):
     tracked_item = tracking_details["track"][0]
     assert south_service_name == tracked_item["service"]
     assert south_asset_name == tracked_item["asset"]
-    assert south_asset_name == tracked_item["plugin"]
+    assert south_plugin == tracked_item["plugin"]
 
     if not skip_verify_north_interface:
         egress_tracking_details = utils.get_asset_tracking_details(fledge_url, "Egress")

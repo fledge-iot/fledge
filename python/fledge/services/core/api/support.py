@@ -23,7 +23,7 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-_logger = logger.setup(__name__, level=logging.INFO)
+_logger = logger.setup(__name__, level=logging.DEBUG)
 
 _SYSLOG_FILE = '/var/log/syslog'
 if any(x in platform.platform() for x in ['centos', 'redhat']):
@@ -170,15 +170,15 @@ async def get_syslog_entries(request):
             if level == 'info':
                 template = __GET_SYSLOG_CMD_WITH_INFO_TEMPLATE
                 lines = __GET_SYSLOG_INFO_MATCHED_LINES
-                non_total_template = __GET_SYSLOG_INFO_TEMPLATE_WITH_NON_TOTALS
+                # non_total_template = __GET_SYSLOG_INFO_TEMPLATE_WITH_NON_TOTALS
             elif level == 'warning':
                 template = __GET_SYSLOG_CMD_WITH_WARNING_TEMPLATE
                 lines = __GET_SYSLOG_WARNING_MATCHED_LINES
-                non_total_template = __GET_SYSLOG_WARNING_TEMPLATE_WITH_NON_TOTALS
+                # non_total_template = __GET_SYSLOG_WARNING_TEMPLATE_WITH_NON_TOTALS
             elif level == 'error':
                 template = __GET_SYSLOG_CMD_WITH_ERROR_TEMPLATE
                 lines = __GET_SYSLOG_ERROR_MATCHED_LINES
-                non_total_template = __GET_SYSLOG_ERROR_TEMPLATE_WITH_NON_TOTALS
+                # non_total_template = __GET_SYSLOG_ERROR_TEMPLATE_WITH_NON_TOTALS
         response = {}
         # nontotals
         non_totals = request.query['nontotals'].lower() if 'nontotals' in request.query and request.query[

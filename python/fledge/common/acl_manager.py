@@ -124,12 +124,17 @@ class ACLManager(ACLManagerSingleton):
                 raise ValueError(err_response)
         else:
             try:
-                required_name = acl_name
-                payload_update = PayloadBuilder().WHERE(["entity_type", "=", "script"]). \
-                    AND_WHERE(["entity_name", "=", entity_name]). \
-                    EXPR(["name", "=", required_name]).payload()
+                del_payload = PayloadBuilder().WHERE(["entity_type", "=", "script"]). \
+                    AND_WHERE(["entity_name", "=", entity_name]).payload()
+                result = await self._storage_client.delete_from_tbl('acl_usage', del_payload)
 
-                result = await self._storage_client.update_tbl("acl_usage", payload_update)
+                payload = PayloadBuilder().INSERT(entity_name=entity_name,
+                                                  entity_type="script",
+                                                  name=acl_name).payload()
+                _logger.debug("insert payload is {}".format(payload))
+                result = await self._storage_client.insert_into_tbl("acl_usage", payload)
+                response = result['response']
+
             except KeyError:
                 raise ValueError(result['message'])
             except StorageServerError as ex:
@@ -218,12 +223,23 @@ class ACLManager(ACLManagerSingleton):
         else:
             try:
                 # Note entity_type must be a script since handle new acl is called.
-                acl_name = acl_name
-                payload = PayloadBuilder().INSERT(entity_name=entity_name,
-                                                  entity_type="script",
-                                                  name=acl_name).payload()
-                result = await self._storage_client.insert_into_tbl("acl_usage", payload)
-                response = result['response']
+                q_payload = PayloadBuilder().SELECT("name", "entity_name", "entity_type"). \
+                    WHERE(["entity_name", "=", entity_name]). \
+                    AND_WHERE(["entity_type", "=", entity_type]). \
+                    AND_WHERE(["name", "=", acl_name]).payload()
+                results = await self._storage_client.query_tbl_with_payload('acl_usage', q_payload)
+                _logger.debug("The result of query is {}".format(results))
+                # Check if the value to insert already exists.
+                if len(results["rows"]) > 0:
+                    _logger.debug("The tuple ({}, {}, {}) already exists in acl usage table.".format(entity_name,
+                                                                                                     entity_type,
+                                                                                                     acl_name))
+                else:
+                    payload = PayloadBuilder().INSERT(entity_name=entity_name,
+                                                      entity_type="script",
+                                                      name=acl_name).payload()
+                    result = await self._storage_client.insert_into_tbl("acl_usage", payload)
+                    response = result['response']
             except KeyError:
                 raise ValueError(result['message'])
             except StorageServerError as ex:

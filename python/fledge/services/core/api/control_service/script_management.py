@@ -20,6 +20,7 @@ from fledge.services.core import connect
 from fledge.services.core import server
 from fledge.services.core.scheduler.entities import Schedule, ManualSchedule
 from fledge.services.core.api.control_service.exceptions import *
+from fledge.common.acl_manager import ACLManager
 
 
 __author__ = "Ashish Jabble"
@@ -302,6 +303,11 @@ async def add(request: web.Request) -> web.Response:
                     raise StorageServerError(acl_result)
             # Insert the script record
             insert_control_script_result = await storage.insert_into_tbl("control_script", payload)
+            if acl is not None:
+                acl_handler = ACLManager(storage)
+                await acl_handler.handle_create_for_acl_usage(entity_name=name,
+                                                              acl_name=acl, entity_type="script")
+
             if 'response' in insert_control_script_result:
                 if insert_control_script_result['response'] == "inserted":
                     result = {"name": name, "steps": json.loads(_steps)}
@@ -435,6 +441,12 @@ async def delete(request: web.Request) -> web.Response:
                     pass
                 payload = PayloadBuilder().WHERE(['name', '=', name]).payload()
                 delete_result = await storage.delete_from_tbl("control_script", payload)
+                acl_handler = ACLManager(storage)
+                acl_name = await acl_handler.get_acl_for_an_entity(name, "script")
+                if acl_name != "":
+                    await acl_handler.handle_delete_for_acl_usage(entity_name=name,
+                                                                  acl_name=acl_name, entity_type="script")
+
                 if 'response' in delete_result:
                     if delete_result['response'] == "deleted":
                         message = "{} script deleted successfully.".format(name)

@@ -312,23 +312,31 @@ class TestScriptManagement:
             elif table == 'control_script':
                 assert script_query_payload == json.loads(payload)
                 return script_result
+            elif table == "acl_usage":
+                return {"count": 0, "rows": []}
             else:
                 return {}
+
+        @asyncio.coroutine
+        def i_result(*args):
+            table = args[0]
+            payload = args[1]
+            if table == 'control_script':
+                assert {'name': script_name, 'steps': '[]', 'acl': acl_name} == json.loads(payload)
+                return insert_result
+            elif table == "acl_usage":
+                assert {'name': acl_name, 'entity_type': 'script',
+                        'entity_name': script_name} == json.loads(payload)
+                return insert_result
 
         storage_client_mock = MagicMock(StorageClientAsync)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
-                with patch.object(storage_client_mock, 'insert_into_tbl', return_value=insert_value
+                print("yes")
+                with patch.object(storage_client_mock, 'insert_into_tbl', side_effect=i_result
                                   ) as insert_tbl_patch:
                     resp = await client.post('/fledge/control/script', data=json.dumps(request_payload))
                     assert 200 == resp.status
-                    result = await resp.text()
-                    json_response = json.loads(result)
-                    assert {'acl': acl_name, 'name': script_name, 'steps': []} == json_response
-                insert_args, _ = insert_tbl_patch.call_args_list[0]
-                assert 'control_script' == insert_args[0]
-                expected = json.loads(insert_args[1])
-                assert {'name': script_name, 'steps': '[]', 'acl': acl_name} == expected
 
     @pytest.mark.parametrize("payload, message", [
         ({}, "Nothing to update for the given payload."),

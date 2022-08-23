@@ -24,9 +24,6 @@ set -e
 #
 USAGE="Usage: `basename ${0}` {start|start --safe-mode|stop|status|reset|purge|kill|help|version}"
 
-# Remove any token cache left over from a previous execution
-rm -f ~/.fledge_token
-
 # Check FLEDGE_ROOT
 if [ -z ${FLEDGE_ROOT+x} ]; then
     # Set FLEDGE_ROOT as the default directory
@@ -205,6 +202,10 @@ fledge_reset() {
 
 ## Fledge Start
 fledge_start() {
+
+    # Remove any token cache left over from a previous execution
+    rm -f ~/.fledge_token
+
     # Check the storage management script
     check_storage_management_script "start"
 
@@ -327,6 +328,9 @@ fledge_stop() {
   if [[ "${result}" =~ "Fledge shutdown has been scheduled" ]]; then
     echo -n "Stopping Fledge."
   fi
+
+  # Remove any token cache left over from a previous execution
+  rm -f ~/.fledge_token
 
   attempts=60
 

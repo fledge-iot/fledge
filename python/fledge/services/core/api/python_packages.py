@@ -1,3 +1,9 @@
+# -*- coding: utf-8 -*-
+
+# FLEDGE_BEGIN
+# See: http://fledge-iot.readthedocs.io/
+# FLEDGE_END
+
 import logging
 import sys
 import pkg_resources

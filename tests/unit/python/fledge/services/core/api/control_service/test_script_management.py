@@ -500,28 +500,46 @@ class TestScriptManagement:
         server.Server.scheduler = Scheduler(None, None)
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
-        result = {"count": 0, "rows": [
+        q_result = {"count": 0, "rows": [
             {"name": script_name, "steps": [{"delay": {"order": 0, "duration": 9003}}], "acl": ""}]}
-        payload = {"return": ["name"], "where": {"column": "name", "condition": "=", "value": script_name}}
+        q_payload = {"return": ["name"], "where": {"column": "name", "condition": "=", "value": script_name}}
         delete_payload = {"where": {"column": "name", "condition": "=", "value": script_name}}
         delete_result = {"response": "deleted", "rows_affected": 1}
         disable_sch_result = (True, "Schedule successfully disabled")
         delete_sch_result = (True, 'Schedule deleted successfully.')
         message = '{} script deleted successfully.'.format(script_name)
+
+        @asyncio.coroutine
+        def query_schedule(*args):
+            table = args[0]
+            payload = args[1]
+            if table == 'control_script':
+                assert q_payload == json.loads(payload)
+                return q_result
+            elif table == "acl_usage":
+                return {"count": 0, "rows": []}
+
+        @asyncio.coroutine
+        def d_schedule(*args):
+            table = args[0]
+            payload = args[1]
+            if table == 'control_script':
+                assert delete_payload == json.loads(payload)
+                return delete_result
+            elif table == "acl_usage":
+                return delete_result
+
         if sys.version_info >= (3, 8):
-            value = await mock_coro(result)
-            del_value = await mock_coro(delete_result)
             del_cat_and_child = await mock_coro(delete_result)
             get_sch = await mock_schedule(script_name)
             disable_sch = await mock_coro(disable_sch_result)
             delete_sch = await mock_coro(delete_sch_result)
         else:
-            value = asyncio.ensure_future(mock_coro(result))
-            del_value = asyncio.ensure_future(mock_coro(delete_result))
             del_cat_and_child = asyncio.ensure_future(mock_coro(delete_result))
             get_sch = asyncio.ensure_future(mock_schedule(script_name))
             disable_sch = asyncio.ensure_future(mock_coro(disable_sch_result))
             delete_sch = asyncio.ensure_future(mock_coro(delete_sch_result))
+
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(c_mgr, 'delete_category_and_children_recursively',
                               return_value=del_cat_and_child) as patch_delete_cat_and_child:
@@ -532,57 +550,60 @@ class TestScriptManagement:
                         with patch.object(server.Server.scheduler, 'delete_schedule',
                                           return_value=delete_sch) as patch_delete_sch:
                             with patch.object(storage_client_mock, 'query_tbl_with_payload',
-                                              return_value=value) as patch_query_tbl:
+                                              side_effect=query_schedule) as patch_query_tbl:
                                 with patch.object(storage_client_mock, 'delete_from_tbl',
-                                                  return_value=del_value) as patch_delete_tbl:
+                                                  side_effect=d_schedule) as patch_delete_tbl:
                                     resp = await client.delete('/fledge/control/script/{}'.format(script_name))
                                     assert 200 == resp.status
                                     result = await resp.text()
                                     json_response = json.loads(result)
                                     assert {'message': message} == json_response
-                                delete_args, _ = patch_delete_tbl.call_args
-                                assert 'control_script' == delete_args[0]
-                                assert delete_payload == json.loads(delete_args[1])
-                            args, _ = patch_query_tbl.call_args
-                            assert 'control_script' == args[0]
-                            assert payload == json.loads(args[1])
                         patch_delete_sch.assert_called_once_with(uuid.UUID(schedule_id))
                     patch_disable_sch.assert_called_once_with(uuid.UUID(schedule_id))
                 patch_get_schedules.assert_called_once_with()
             patch_delete_cat_and_child.assert_called_once_with(schedule_cat_name)
 
-    async def test_delete_script(self, client):
+    async def test_delete_script_acl_not_attached(self, client):
         script_name = 'demoScript'
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
-        result = {"count": 0, "rows": [
+        q_result = {"count": 1, "rows": [
             {"name": script_name, "steps": [{"delay": {"order": 0, "duration": 9003}}], "acl": ""}]}
-        payload = {"return": ["name"], "where": {"column": "name", "condition": "=", "value": script_name}}
+        q_payload = {"return": ["name"], "where": {"column": "name", "condition": "=", "value": script_name}}
         delete_payload = {"where": {"column": "name", "condition": "=", "value": script_name}}
         delete_result = {"response": "deleted", "rows_affected": 1}
-        if sys.version_info >= (3, 8):
-            value = await mock_coro(result)
-            del_value = await mock_coro(delete_result)
-        else:
-            value = asyncio.ensure_future(mock_coro(result))
-            del_value = asyncio.ensure_future(mock_coro(delete_result))
+
+        @asyncio.coroutine
+        def query_result(*args):
+            table = args[0]
+            payload = args[1]
+            if table == 'control_script':
+                assert q_payload == json.loads(payload)
+                return q_result
+            elif table == "acl_usage":
+                return {"count": 0, "rows": []}
+
+        @asyncio.coroutine
+        def d_result(*args):
+            table = args[0]
+            payload = args[1]
+            if table == 'control_script':
+                assert delete_payload == json.loads(payload)
+                return delete_result
+            elif table == "acl_usage":
+                return delete_result
+
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(c_mgr, 'delete_category_and_children_recursively', side_effect=Exception):
                 with patch.object(storage_client_mock, 'query_tbl_with_payload',
-                                  return_value=value) as patch_query_tbl:
+                                  side_effect=query_result) as patch_query_tbl:
                     with patch.object(storage_client_mock, 'delete_from_tbl',
-                                      return_value=del_value) as patch_delete_tbl:
+                                      side_effect=d_result) as patch_delete_tbl:
                         resp = await client.delete('/fledge/control/script/{}'.format(script_name))
                         assert 200 == resp.status
                         result = await resp.text()
                         json_response = json.loads(result)
                         assert {'message': '{} script deleted successfully.'.format(script_name)} == json_response
-                    delete_args, _ = patch_delete_tbl.call_args
-                    assert 'control_script' == delete_args[0]
-                    assert delete_payload == json.loads(delete_args[1])
-                args, _ = patch_query_tbl.call_args
-                assert 'control_script' == args[0]
-                assert payload == json.loads(args[1])
 
     @pytest.mark.parametrize("payload, message", [
         ({}, "parameters field is required."),

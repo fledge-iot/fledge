@@ -386,11 +386,17 @@ async def update(request: web.Request) -> web.Response:
                 update_query.SET(**set_values).WHERE(['name', '=', name])
                 update_result = await storage.update_tbl("control_script", update_query.payload())
                 acl_handler = ACLManager(storage)
-                acl_name = await acl_handler.get_acl_for_an_entity(name, "script")
-                if acl_name != "":
-                    await acl_handler.handle_update_for_acl_usage(entity_name=name,
-                                                                  acl_name=acl_name, entity_type="script")
-
+                old_acl_name = await acl_handler.get_acl_for_an_entity(name, "script")
+                if old_acl_name != "":
+                    # The acl attached to this script has changed.
+                    if acl:
+                        await acl_handler.handle_update_for_acl_usage(entity_name=name,
+                                                                      acl_name=acl, entity_type="script")
+                else:
+                    # New acl is attached to this script.
+                    if acl:
+                        await acl_handler.handle_update_for_acl_usage(entity_name=name,
+                                                                      acl_name=acl, entity_type="script")
                 if 'response' in update_result:
                     if update_result['response'] == "updated":
                         message = "Control script {} updated successfully.".format(name)

@@ -31,6 +31,7 @@ C based Plugins
 - **VERSION** - It contains the version number of the plugin and is used by the build process to include the version number within the code and also within the name of the package file created.
 - **fledge.version** - It contains the minimum version number of Fledge required by the plugin.
 - **requirements.sh (Optional)** - It is used to install any additional libraries or other artifacts that are need to build the plugin. It takes the form of a shell script. This script, if it exists, will be run as a part of the process of building the plugin before the cmake command is issued in the build process.
+- **extras_install.sh (Optional)** - It is a shell script that is added to the package to allow for extra commands to be executed as part of the package installation. Not all plugins will require this file to be present and it can be omitted if there are no extra steps required on the installation.
 
 Examples of filename along with content
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

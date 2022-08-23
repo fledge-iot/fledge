@@ -332,7 +332,6 @@ class TestScriptManagement:
         storage_client_mock = MagicMock(StorageClientAsync)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
-                print("yes")
                 with patch.object(storage_client_mock, 'insert_into_tbl', side_effect=i_result
                                   ) as insert_tbl_patch:
                     resp = await client.post('/fledge/control/script', data=json.dumps(request_payload))
@@ -429,6 +428,7 @@ class TestScriptManagement:
         script_query_payload = {"return": ["name"], "where": {"column": "name", "condition": "=", "value": script_name}}
         acl_query_payload = {"return": ["name"], "where": {"column": "name", "condition": "=", "value": acl_name}}
         acl_result = {"count": 1, "rows": [{"name": acl_name, "service": [], "url": []}]}
+        insert_result = {"response": "inserted", "rows_affected": 1}
 
         @asyncio.coroutine
         def q_result(*args):
@@ -439,18 +439,32 @@ class TestScriptManagement:
             elif table == 'control_script':
                 assert script_query_payload == json.loads(args[1])
                 return script_result
+            elif table == "acl_usage":
+                return {"count": 0, "rows": []}
             else:
                 return {}
+
+        @asyncio.coroutine
+        def i_result(*args):
+            table = args[0]
+            payload_ins = args[1]
+            if table == "acl_usage":
+                assert {'name': acl_name, 'entity_type': 'script',
+                        'entity_name': script_name} == json.loads(payload_ins)
+                return insert_result
 
         storage_client_mock = MagicMock(StorageClientAsync)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
                 with patch.object(storage_client_mock, 'update_tbl', return_value=update_value) as patch_update_tbl:
-                    resp = await client.put('/fledge/control/script/{}'.format(script_name), data=json.dumps(payload))
-                    assert 200 == resp.status
-                    result = await resp.text()
-                    json_response = json.loads(result)
-                    assert {"message": "Control script {} updated successfully.".format(script_name)} == json_response
+                    with patch.object(storage_client_mock, 'insert_into_tbl', side_effect=i_result):
+                        resp = await client.put('/fledge/control/script/{}'.format(script_name),
+                                                data=json.dumps(payload))
+                        assert 200 == resp.status
+                        result = await resp.text()
+                        json_response = json.loads(result)
+                        assert {"message": "Control script {} updated successfully.".format(script_name)}\
+                               == json_response
                 update_args, _ = patch_update_tbl.call_args
                 assert 'control_script' == update_args[0]
                 update_payload = {"values": payload, "where": {"column": "name", "condition": "=",

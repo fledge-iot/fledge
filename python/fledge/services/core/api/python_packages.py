@@ -87,42 +87,44 @@ async def install_package(request: web.Request) -> web.Response:
     
     installed_package, installed_version = get_installed_package_info(input_package_name)
 
-    if installed_package is None:
-        #Package not found, install package via pip
-        try:
-            pip_process = await asyncio.create_subprocess_shell('python3 -m pip install '+ install_args, 
-                                                                stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
-            
-            stdout, stderr = await pip_process.communicate()
-            if pip_process.returncode == 0:
-                _LOGGER.info("Package: {} successfully installed", format(input_package_name))
-                try:
-                    #Audit log entry: PIPIN
-                    storage_client = connect.get_storage_async()
-                    pip_audit_log = AuditLogger(storage_client)
-                    audit_message = {"package":input_package_name, "status": "Success"}
-                    if input_package_version:
-                        audit_message["version"] = input_package_version
-                    await pip_audit_log.information('PIPIN', audit_message)
-                except:
-                    _LOGGER.exception("Failed to log the audit entry for PIPIN, for package {} install", format(input_package_name))
-                response = "Package {} version {} installed successfully.".format(input_package_name, input_package_version)
-                if not input_package_version:
-                    response = "Package {} installed successfully.".format(input_package_name)
-                return web.json_response({"message": response})
-            else:
-                response = "Error while installing package {} version {}.".format(input_package_name, input_package_version)
-                if not input_package_version:
-                    response = "Error while installing package {}.".format(input_package_name)
-                return web.HTTPNotFound(reason=response, body=json.dumps({"message": stderr.decode()}))
-        except subprocess.CalledProcessError as ex:
-            _LOGGER.exception("Pip install exception: {}".format(str(ex.output)))
-            return web.HTTPError(reason=str(ex))
-        except Exception as ex:
-            return web.HTTPInternalServerError(reason=str(ex))
-    else:
+    if installed_package is not None:
          #Package already exists
         _LOGGER.info("Package: {} Version: {} already installed.".format(installed_package, installed_version))
         return web.HTTPConflict(reason="Package already installed.", 
                                 body=json.dumps({"message":"Package {} version {} already installed."
                                                 .format(installed_package, installed_version)}))
+
+    #Package not found, install package via pip
+    try:
+        pip_process = await asyncio.create_subprocess_shell('python3 -m pip install '+ install_args, 
+                                                            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+        
+        stdout, stderr = await pip_process.communicate()
+        if pip_process.returncode == 0:
+            _LOGGER.info("Package: {} successfully installed", format(input_package_name))
+            try:
+                #Audit log entry: PIPIN
+                storage_client = connect.get_storage_async()
+                pip_audit_log = AuditLogger(storage_client)
+                audit_message = {"package":input_package_name, "status": "Success"}
+                if input_package_version:
+                    audit_message["version"] = input_package_version
+                await pip_audit_log.information('PIPIN', audit_message)
+            except:
+                _LOGGER.exception("Failed to log the audit entry for PIPIN, for package {} install", format(input_package_name))
+            response = "Package {} version {} installed successfully.".format(input_package_name, input_package_version)
+            if not input_package_version:
+                response = "Package {} installed successfully.".format(input_package_name)
+            return web.json_response({"message": response})
+        else:
+            response = "Error while installing package {} version {}.".format(input_package_name, input_package_version)
+            if not input_package_version:
+                response = "Error while installing package {}.".format(input_package_name)
+            return web.HTTPNotFound(reason=response, body=json.dumps({"message": stderr.decode()}))
+    except subprocess.CalledProcessError as ex:
+        _LOGGER.exception("Pip install exception: {}".format(str(ex.output)))
+        return web.HTTPError(reason=str(ex))
+    except Exception as ex:
+        return web.HTTPInternalServerError(reason=str(ex))
+    
+        

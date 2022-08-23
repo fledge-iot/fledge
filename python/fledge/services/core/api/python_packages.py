@@ -1,23 +1,18 @@
 import logging
-import pkg_resources
 import sys
+import pkg_resources
 import json
 import subprocess
 import asyncio
-import re
 
 from aiohttp import web
-from fledge.common.common import _FLEDGE_ROOT, _FLEDGE_DATA
 from fledge.common import logger
-from fledge.common.storage_client.payload_builder import PayloadBuilder
-from fledge.common.storage_client.storage_client import StorageClientAsync
-from fledge.common.storage_client.exceptions import StorageServerError
 from fledge.services.core import connect
 from fledge.common.audit_logger import AuditLogger
 from fledge.services.core import connect
 
 __author__ = "Himanshu Vimal"
-__copyright__ = "Copyright (c) 2019, Dianomic Systems Inc."
+__copyright__ = "Copyright (c) 2022, Dianomic Systems Inc."
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
@@ -40,13 +35,11 @@ async def get_python_packages(request: web.Request) -> web.Response:
     :Example:
            curl -X GET http://localhost:8081/fledge/python/packages
     """
-    
-    def get_installed_pkg_list():
-        package_dict = [{'package':dist.project_name,'version': dist.version} for dist in pkg_resources.working_set]
-        return package_dict
-
-    installed_pkg_list = get_installed_pkg_list()
-    return web.json_response({'packages': installed_pkg_list})
+    #update current working_set after any new installation
+    for entry in sys.path:
+        pkg_resources.working_set.add_entry(entry)    
+    installed_pkgs = [{'package':dist.project_name,'version': dist.version} for dist in pkg_resources.working_set]
+    return web.json_response({'packages': installed_pkgs})
 
 
 async def install_package(request: web.Request) -> web.Response:
@@ -57,82 +50,73 @@ async def install_package(request: web.Request) -> web.Response:
                   }'
 
     Returns:
-        Success: 
+        Json response with message key  
 
     :Example:
            curl -X POST http://localhost:8081/fledge/python/package -d '{"package":"numpy", "version":"1.23"}'
     """
     
     def get_installed_package_info(input_package):
-
+        for entry in sys.path:
+            pkg_resources.working_set.add_entry(entry)
+        
         packages = pkg_resources.working_set
-
         for package in packages:
             if package.project_name == input_package.lower():
                 return package.project_name, package.version
-
         return None, None
                     
-    # def is_canonical(version):
-    #     #regex in accordance with PEP-440
-    #     #Refer to https://peps.python.org/pep-0440/#appendix-b-parsing-version-strings-with-regular-expressions
-    #     return re.match(r'^([1-9][0-9]*!)?(0|[1-9][0-9]*)(\.(0|[1-9][0-9]*))*((a|b|rc)(0|[1-9][0-9]*))?(\.post(0|[1-9][0-9]*))?(\.dev(0|[1-9][0-9]*))?$', input_package_version) is not None
-
     data = await request.json()
-
-    input_package_name = data.get('package', None)
-    input_package_version = data.get('version', None)
-    #regex - PEP440 check for canonical versions
     
-    if len(input_package_name.strip()) == 0:
+    input_package_version = ""
+    input_package_name = data.get('package', None).strip()
+    input_package_version = data.get('version', None).strip()
+    
+    if len(input_package_name) == 0:
         return web.HTTPBadRequest(reason="Package name empty.")
 
-    #check version - semver
-
-    # if is_canonical(input_package_version) == None:
-    #     return web.HTTPBadRequest(reason="Package version not in canonical form.")
-    
-    if input_package_version == None:
-        install_cmd = input_package_name.lower()
-    else:
-        install_cmd = input_package_name.lower() + "==" + input_package_version.lower()
+    install_args = input_package_name
+    if input_package_version:
+        install_args = input_package_name + "==" + input_package_version
     
     installed_package, installed_version = get_installed_package_info(input_package_name)
 
-    if installed_package != None:
-         #Package already exists
-        _LOGGER.info("Package: {} Version: {} already installed.".format(installed_package, installed_version))
-        return web.HTTPConflict(reason="Package already installed.", 
-                                body=json.dumps({"message":"Package: {} Version:{} already installed"
-                                                .format(installed_package, installed_version)}))
-    else:
+    if installed_package is None:
+        #Package not found, install package via pip
         try:
-            # code = subprocess.run([sys.executable, '-m', 'pip', 'install', install_string], capture_output=True, text=True, encoding='utf-8')
-            pip_process = await asyncio.create_subprocess_exec('pip3 install', [install_cmd], stdout=asyncio.subprocess.PIPE, 
-                                                                stderr=asyncio.subprocess.PIPE)
+            pip_process = await asyncio.create_subprocess_shell('python3 -m pip install '+ install_args, 
+                                                                stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
             
-            pip_stdout, pip_stderr = await pip_process.communicate()
+            stdout, stderr = await pip_process.communicate()
             if pip_process.returncode == 0:
                 _LOGGER.info("Package: {} successfully installed", format(input_package_name))
                 try:
                     #Audit log entry: PIPIN
                     storage_client = connect.get_storage_async()
                     pip_audit_log = AuditLogger(storage_client)
-                    audit_message = {"message":"Package: {} Version:{} successfully installed"
-                                        .format(input_package_name, input_package_version)}
+                    audit_message = {"package":input_package_name, "status": "Success"}
+                    if input_package_version:
+                        audit_message["version"] = input_package_version
                     await pip_audit_log.information('PIPIN', audit_message)
                 except:
-                    _LOGGER.exception("Failed to log the audit entry for PIPIN, while installing package {}", format(input_package_name))
-
-                return web.json_response("Package: {} successfully installed".format(input_package_name, input_package_version))
+                    _LOGGER.exception("Failed to log the audit entry for PIPIN, for package {} install", format(input_package_name))
+                response = "Package {} version {} installed successfully.".format(input_package_name, input_package_version)
+                if not input_package_version:
+                    response = "Package {} installed successfully.".format(input_package_name)
+                return web.json_response({"message": response})
             else:
-            #log error and output
-            #close code after output is processed
-                # _LOGGER.error(code.stdout)
-                _LOGGER.error(pip_stderr.decode().strip())
-                return web.HTTPNotFound(reason="Invalid package name")
+                response = "Error while installing package {} version {}.".format(input_package_name, input_package_version)
+                if not input_package_version:
+                    response = "Error while installing package {}.".format(input_package_name)
+                return web.HTTPNotFound(reason=response, body=json.dumps({"message": stderr.decode()}))
         except subprocess.CalledProcessError as ex:
-            _LOGGER.exception("Pip install exception: {}", format(str(ex.output)))
+            _LOGGER.exception("Pip install exception: {}".format(str(ex.output)))
             return web.HTTPError(reason=str(ex))
         except Exception as ex:
             return web.HTTPInternalServerError(reason=str(ex))
+    else:
+         #Package already exists
+        _LOGGER.info("Package: {} Version: {} already installed.".format(installed_package, installed_version))
+        return web.HTTPConflict(reason="Package already installed.", 
+                                body=json.dumps({"message":"Package {} version {} already installed."
+                                                .format(installed_package, installed_version)}))

@@ -67,7 +67,7 @@ async def install_package(request: web.Request) -> web.Response:
     def get_installed_package_info(input_package):
         packages = pkg_resources.WorkingSet()
         for package in packages:
-            if package.project_name == input_package.lower():
+            if package.project_name.lower() == input_package.lower():
                 return package.project_name, package.version
         return None, None
     
@@ -112,3 +112,4 @@ async def install_package(request: web.Request) -> web.Response:
             response = "Error while installing package {}.".format(input_package_name)        
         _LOGGER.error(response)
         return web.HTTPNotFound(reason=response, body=json.dumps({"message": stderr.decode(encoding='utf-8')}))
+        

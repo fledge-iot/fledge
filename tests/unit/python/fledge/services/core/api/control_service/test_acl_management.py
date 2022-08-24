@@ -266,7 +266,8 @@ class TestACLManagement:
     async def test_delete_acl(self, client):
         acl_name = 'demoACL'
         storage_client_mock = MagicMock(StorageClientAsync)
-        acl_q_result = {"count": 0, "rows": []}
+        acl_q_result_svc = {"count": 0, "rows": []}
+        acl_q_result_scr = {"count": 0, "rows": []}
         result = {"count": 1, "rows": [{"name": acl_name, "service": [], "url": []}]}
         payload = {"return": ["name"], "where": {"column": "name", "condition": "=", "value": acl_name}}
         delete_payload = {"where": {"column": "name", "condition": "=", "value": acl_name}}
@@ -286,12 +287,22 @@ class TestACLManagement:
                                                                                "condition": "=",
                                                                                "value": "{}".format(acl_name)}}}
 
+        acl_query_payload_script = {"return": ["entity_name"], "where": {"column": "entity_type",
+                                                                         "condition": "=",
+                                                                         "value": "script",
+                                                                         "and":
+                                                                         {"column": "name",
+                                                                          "condition": "=",
+                                                                          "value": "{}".format(acl_name)}}}
+
         @asyncio.coroutine
         def q_result(*args):
             table = args[0]
             if table == 'acl_usage':
-                assert acl_query_payload_service == json.loads(args[1])
-                return acl_q_result
+                if acl_query_payload_service == json.loads(args[1]):
+                    return acl_q_result_svc
+                elif acl_query_payload_script == json.loads(args[1]):
+                    return acl_q_result_scr
             elif table == 'control_acl':
                 assert payload == json.loads(args[1])
                 return result

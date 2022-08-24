@@ -168,7 +168,7 @@ class ACLManager(ACLManagerSingleton):
         else:
             try:
                 # Note entity_type must be a script since ACL is being deleted.
-                delete_payload = PayloadBuilder().WHERE(["name", "=", acl_name]). \
+                delete_payload = PayloadBuilder().WHERE(["entity_name", "=", entity_name]). \
                     AND_WHERE(["entity_type", "=", "script"]).payload()
                 result = await self._storage_client.delete_from_tbl("acl_usage", delete_payload)
                 response = result['response']

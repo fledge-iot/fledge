@@ -390,11 +390,17 @@ async def update(request: web.Request) -> web.Response:
                 old_acl_name = await acl_handler.get_acl_for_an_entity(name, "script")
                 if old_acl_name != "":
                     # The acl attached to this script has changed.
-                    if acl:
-                        await acl_handler.handle_update_for_acl_usage(entity_name=name,
-                                                                      acl_name=acl, entity_type="script")
+                    if acl is not None:
+                        if acl != "":
+                            # New acl has been attached to this script.
+                            await acl_handler.handle_update_for_acl_usage(entity_name=name,
+                                                                          acl_name=acl, entity_type="script")
+                        # The acl has been detached.
+                        else:
+                            await acl_handler.handle_delete_for_acl_usage(entity_name=name,
+                                                                          acl_name=acl, entity_type="script")
                 else:
-                    # New acl is attached to this script.
+                    # New acl is attached to this script which was previously empty.
                     if acl:
                         await acl_handler.handle_create_for_acl_usage(entity_name=name,
                                                                       acl_name=acl, entity_type="script")

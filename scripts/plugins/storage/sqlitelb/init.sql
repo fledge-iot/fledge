@@ -670,7 +670,8 @@ INSERT INTO fledge.log_codes ( code, description )
 	    ( 'ESSRT', 'External Service Startup' ),
 	    ( 'ESSTP', 'External Service Shutdown' ),
 	    ( 'ASTDP', 'Asset deprecated' ),
-	    ( 'ASTUN', 'Asset un-deprecated' );
+	    ( 'ASTUN', 'Asset un-deprecated' ),
+	    ( 'PIPIN', 'Pip installation' );
 
 --
 -- Configuration parameters

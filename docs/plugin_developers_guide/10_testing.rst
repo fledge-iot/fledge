@@ -203,6 +203,10 @@ The easiest approach to run under a debugger is
    - Get a startup token by calling the Fledge API endpoint
 
      *Note*: the caller must be authenticated as the *admin* user using either the username and password authentication or the certificate authentication mechanism in order to call the API endpoint.
+     You must first set Fledge to require authentication.
+     To do this, launch the Fledge GUI, navigate to Configuration and then Admin API.
+     Set Authentication to *mandatory*.
+     Authentication Method can be left as *any*.
 
      In order to authenticate as the *admin* user one of the two following methods should be used, the choice of which is dependant on the authentication mechanism configured in your Fledge installation.
 

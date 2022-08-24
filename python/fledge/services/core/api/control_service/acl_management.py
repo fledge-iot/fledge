@@ -240,7 +240,7 @@ async def delete_acl(request: web.Request) -> web.Response:
                 services = await acl_handler.get_all_entities_for_a_acl(name, "service")
                 scripts = await acl_handler.get_all_entities_for_a_acl(name, "script")
                 if services or scripts:
-                    message = "This ACL {} has been associated with an entity. So cannot delete." \
+                    message = "{} is associated with an entity. So cannot delete." \
                                  " Make sure to remove all the usages of this ACL.".format(name)
                     _logger.info(message)
                     return web.json_response({"message": message})

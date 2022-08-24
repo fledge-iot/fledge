@@ -673,8 +673,8 @@ class RestoreProcess(FledgeProcess):
             filename_base1 = os.path.basename(_file)
             filename_base2, dummy1 = os.path.splitext(filename_base1)
             filename_base, dummy2 = os.path.splitext(filename_base2)
-            self._logger.debug("tar_extraction - filename  :{}: file_extension :{}: ".format(_file, _ext))
-            extract_path = self._restore_lib.dir_fledge_backup + "/extract"
+            self._logger.debug("tar_extraction - filename: {} file_extension: {}".format(_file, _ext))
+            extract_path = "{}/extract".format(self._restore_lib.dir_fledge_backup)
             if not os.path.isdir(extract_path):
                 os.mkdir(extract_path)
             else:
@@ -684,24 +684,26 @@ class RestoreProcess(FledgeProcess):
             # Extracts the tar
             backup_tar = tarfile.open(_file)
             backup_tar.extractall(extract_path)
+            db_file_from_extract = [entry for entry in backup_tar.getnames() if entry.endswith(".dump")]
             backup_tar.close()
 
             # Moves the dump file to the right position
-            file_source = extract_path + "/" + filename_base + ".dump"
-            file_target = self._restore_lib.dir_fledge_backup + "/" + filename_base + ".dump"
-            self._logger.debug("tar_extraction 'dump' - file_source  :{}: file_dest :{}: ".format(file_source,
-                                                                                                  file_target))
+            db_file_to_restore = db_file_from_extract[0] if db_file_from_extract else "{}.dump".format(filename_base)
+            file_source = "{}/{}".format(extract_path, db_file_to_restore)
+            file_target = "{}/{}.dump".format(self._restore_lib.dir_fledge_backup, filename_base)
+            self._logger.debug("tar_extraction 'db' - source :{}: target :{}: ".format(file_source, file_target))
             os.rename(file_source, file_target)
+
             # etc
-            source = extract_path + "/etc"
-            target = self._restore_lib.dir_fledge_data + "/etc"
+            source = "{}/etc".format(extract_path)
+            target = "{}/etc".format(self._restore_lib.dir_fledge_data)
             self._logger.debug("tar_extraction 'etc' - source :{}: target :{}: ".format(source, target))
             copy_tree(source, target)
 
             # external scripts
-            dir_scripts = extract_path + "/scripts"
+            dir_scripts = "{}/scripts".format(extract_path)
             if os.path.isdir(dir_scripts):
-                target = self._restore_lib.dir_fledge_data + "/scripts"
+                target = "{}/scripts".format(self._restore_lib.dir_fledge_data)
                 if not os.path.isdir(target):
                     os.mkdir(target)
                 source = dir_scripts
@@ -709,9 +711,9 @@ class RestoreProcess(FledgeProcess):
                 copy_tree(source, target)
 
             # software
-            is_software = extract_path + "/software.json"
+            is_software = "{}/software.json".format(extract_path)
             if os.path.exists(is_software):
-                # we don't need to install softwares as a part of restore automatically
+                # we don't need to install software as a part of restore automatically
                 # It is a user responsibility to install
                 with open(is_software, 'r') as f:
                     data = json.load(f)
@@ -724,7 +726,7 @@ class RestoreProcess(FledgeProcess):
                 for s in data['services']:
                     # Exclude inbuilt services
                     if s not in ('storage', 'south', 'north'):
-                        # As such no version available for services. Therefore keeping empty
+                        # As such no version available for services, therefore keeping empty
                         software_list.append({"fledge-service-{}".format(s): ''})
                 self._logger.info(
                     "Please check install software list: {}; if any of software is not present onto your system, "
@@ -754,7 +756,7 @@ class RestoreProcess(FledgeProcess):
             file_name_dump = file_name if file_extension == ".dump" else tar_extraction(file_name, file_extension)
             self._logger.debug("Filename dump: {}".format(file_name_dump))
             self._run_restore_command(file_name_dump)
-            if self._force_restore:
+            if self._force_restore and file_extension != ".gz":
                 # Retrieve the backup-id after the restore operation
                 backup_id = self.get_backup_id_from_file_name(file_name)
             # Updates the backup status as RESTORED

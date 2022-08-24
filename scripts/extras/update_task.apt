@@ -52,6 +52,8 @@ fi
 # Set the PYTHONPATH
 export PYTHONPATH=$FLEDGE_ROOT/python
 
+UPGRADE_DONE="N"
+
 # Fledge STOP
 fledge_stop() {
     STOP_FLEDGE_CMD="${FLEDGE_ROOT}/bin/fledge stop"
@@ -63,8 +65,8 @@ fledge_stop() {
     fi
 }
 
-# Commands for Packages to upgrade
-run_commands() {
+# Commands for Packages to update
+run_update() {
     # Download and update the package information from all of the configured sources
     UPDATE_CMD="sudo apt -y update"
     write_log "" "$0" "info" "Executing ${UPDATE_CMD} command..." "logonly"
@@ -74,7 +76,9 @@ run_commands() {
         write_log "" "$0" "err" "Failed on $UPDATE_CMD. Exit: $UPDATE_CMD_STATUS. Out: $UPDATE_CMD_OUT" "all" "pretty"
         exit 1
     fi
+}
 
+run_upgrade() {
     # Check GUI package is installed or not
     if ! dpkg -l | grep fledge-gui; then
         UPGRADE_CMD="sudo apt-get -y install fledge"
@@ -92,6 +96,7 @@ run_commands() {
         write_log "" "$0" "err" "Failed on $UPGRADE_CMD. Exit: $UPGRADE_CMD_STATUS. Out: $UPGRADE_CMD_OUT" "all" "pretty"
         exit 1
     fi
+    UPGRADE_DONE="Y"
 }
 
 # Fledge START
@@ -104,7 +109,7 @@ fledge_start() {
         exit 1
     fi
 
-    msg="${PKG_NAME} package updated successfully!"
+    msg="'${PKG_NAME}' package updated successfully!"
     write_log "" "$0" "info" "$msg" "all" "pretty"
 }
 
@@ -126,13 +131,27 @@ get_rest_api_url () {
 
 # CREATE Audit trail entry for update package
 audit_trail_entry () {
-    HTTP_STATUS_CODE=$(curl --write-out '%{http_code}' --silent --output /dev/null -sX POST $REST_API_URL/fledge/audit -d '{"source": "PKGUP", "severity": "INFORMATION", "details": {"packageName": "'"${PKG_NAME}"'"}}');
-    if [ "$HTTP_STATUS_CODE" = "200" ]; then
-        msg="Audit trail entry created for ${PKG_NAME} package update!"
-        write_log "" "$0" "info" "$msg" "all" "pretty"
+    SQL_DATA="log(code, level, log) VALUES('PKGUP', 4, '{\"packageName\": \"${PKG_NAME}\"}');"
+    # Find storage engine value
+    STORAGE=`${FLEDGE_ROOT}/services/fledge.services.storage --plugin | awk '{print $1}'`
+    if [ "${STORAGE}" = "postgres" ]; then
+        INSERT_SQL="INSERT INTO fledge.${SQL_DATA}"
+        SQL_CMD=`psql -d fledge -t -c "${INSERT_SQL}"`
+    elif [ "${STORAGE}" = "sqlite" ] || [ "${STORAGE}" = "sqlitelb" ]; then
+        INSERT_SQL="INSERT INTO ${SQL_DATA}"
+        SQL_CMD=`sqlite3 ${FLEDGE_DATA}/fledge.db "${INSERT_SQL}"`
     else
-        write_log "" "$0" "err" "Failed on POST Audit trail entry. Found $HTTP_STATUS_CODE http status code" "all" "pretty"
+        write_log "" "$0" "err" "Bad storage engine found: ${STORAGE}" "all" "pretty"
         exit 1
+    fi
+
+    ADD_AUDIT_LOG_STATUS="$?"
+    if [ "$ADD_AUDIT_LOG_STATUS" != "0" ]; then
+        write_log "" "$0" "err" "Failed on execution of ${INSERT_SQL}. Exit: ${ADD_AUDIT_LOG_STATUS}." "all" "pretty"
+        exit 1
+    else
+        msg="Audit trail entry created for '${PKG_NAME}' package update!"
+        write_log "" "$0" "info" "$msg" "all" "pretty"
     fi
 }
 
@@ -145,7 +164,7 @@ update_task() {
     SQL_QUERY="SET state='$TASK_STATE_COMPLETE',exit_code='$EXIT_CODE',end_time='$TIMESTAMP' WHERE schedule_name='$SCHEDULE_NAME';"
 
     # Find storage engine value
-    STORAGE=`curl -sX GET $REST_API_URL/fledge/category/Storage | python3 ${FLEDGE_ROOT}/scripts/common/json_parse.py get_config_item_value plugin`;
+    STORAGE=`${FLEDGE_ROOT}/services/fledge.services.storage --plugin | awk '{print $1}'`
     if [ "${STORAGE}" = "postgres" ]; then
         UPDATE_SQL_QUERY="UPDATE fledge.tasks ${SQL_QUERY}"
         SQL_CMD=`psql -d fledge -t -c "${UPDATE_SQL_QUERY}"`
@@ -159,32 +178,51 @@ update_task() {
 
     UPDATE_TASK_STATUS="$?"
     if [ "$UPDATE_TASK_STATUS" != "0" ]; then
-        write_log "" "$0" "err" "Failed on execution of ${UPDATE_SQL_QUERY}. Exit: $UPDATE_TASK_STATUS." "all" "pretty"
+        write_log "" "$0" "err" "Failed on execution of ${UPDATE_SQL_QUERY} in engine '${STORAGE}'. Exit: $UPDATE_TASK_STATUS." "all" "pretty"
         exit 1
     else
-        write_log "" "$0" "debug" "Storage engine is: ${STORAGE} and running SQL Query: ${UPDATE_SQL_QUERY}" "logonly"
-        msg="Task state updated successfully!"
-        write_log "" "$0" "info" "$msg" "all" "pretty"
+        msg="'$SCHEDULE_NAME' task state updated successfully"
+        write_log "" "$0" "debug" "$msg" "all" "pretty"
     fi
 }
 
+# Upgrade check
+upgrade_check() {
+    # System update request
+    run_update
+
+    UPGRADE_CHECK="sudo apt list --upgradable"
+    write_log "" "$0" "info" "Executing ${UPGRADE_CHECK} command..." "logonly"
+    UPGRADE_CMD_OUT=`$UPGRADE_CHECK 2> /dev/null | grep 'fledge/'`
+    UPGRADE_CMD_STATUS="$?"
+    write_log "" "$0" "debug" "Upgrade check result [$UPGRADE_CMD_OUT], retcode $UPGRADE_CMD_STATUS" "all" "pretty"
+    if [ "$UPGRADE_CMD_STATUS" != "0" ]; then
+        write_log "" "$0" "info" "No new Fledge package to upgrade" "all" "pretty"
+	echo 0
+    else
+	echo 1
+    fi
+}
 
 # Main
 
-# Stop Fledge
-fledge_stop
+DO_UPGRADE=`upgrade_check`
 
-# Now run Package commands.
-run_commands
+if [ "$DO_UPGRADE" = "1" ]; then
+	# Stop Fledge
+	fledge_stop
 
-# Start Fledge
-fledge_start
+	# Now run Package upgrade
+	run_upgrade
 
-# Find REST API URL
-get_rest_api_url
+	# Start Fledge
+	fledge_start
+fi
 
-# Audit log entry
-audit_trail_entry
+if [ "$UPGRADE_DONE" = "Y" ]; then
+    # Audit log entry
+    audit_trail_entry
+fi
 
 # Update Task Record
 update_task

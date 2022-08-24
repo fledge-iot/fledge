@@ -2,7 +2,7 @@
  * Fledge OSIsoft PI Web API integration.
  * Implements the integration for the specific functionalities exposed by PI Web API
  *
- * Copyright (c) 2020 Dianomic Systems
+ * Copyright (c) 2020-2022 Dianomic Systems
  *
  * Released under the Apache 2.0 Licence
  *

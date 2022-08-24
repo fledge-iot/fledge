@@ -3,7 +3,7 @@
 /*
  * Fledge OSIsoft PI Web API integration.
  *
- * Copyright (c) 2020 Dianomic Systems
+ * Copyright (c) 2020-2022 Dianomic Systems
  *
  * Released under the Apache 2.0 Licence
  *

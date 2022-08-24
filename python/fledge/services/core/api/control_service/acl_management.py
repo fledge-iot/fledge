@@ -236,7 +236,15 @@ async def delete_acl(request: web.Request) -> web.Response:
         if 'rows' in result:
             if result['rows']:
                 payload = PayloadBuilder().WHERE(['name', '=', name]).payload()
-                # TODO: delete only that have no users
+                acl_handler = ACLManager(storage)
+                services = await acl_handler.get_all_entities_for_a_acl(name, "service")
+                scripts = await acl_handler.get_all_entities_for_a_acl(name, "script")
+                if services or scripts:
+                    message = "{} is associated with an entity. So cannot delete." \
+                                 " Make sure to remove all the usages of this ACL.".format(name)
+                    _logger.info(message)
+                    return web.json_response({"message": message})
+
                 delete_result = await storage.delete_from_tbl("control_acl", payload)
                 if 'response' in delete_result:
                     if delete_result['response'] == "deleted":
@@ -257,20 +265,6 @@ async def delete_acl(request: web.Request) -> web.Response:
         msg = str(ex)
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
-        # Fetch service names associated with acl
-        acl_handler = ACLManager(storage)
-        services = await acl_handler.get_all_entities_for_a_acl(name, "service")
-        for svc in services:
-            cf_mgr = ConfigurationManager(storage)
-            data = {'ACL': ''}
-            security_cat_name = "{}Security".format(svc)
-            await cf_mgr.update_configuration_item_bulk(security_cat_name, data)
-
-        scripts = await acl_handler.get_all_entities_for_a_acl(name, "script")
-        for script_present in scripts:
-            await acl_handler.handle_delete_for_acl_usage(entity_name=script_present,
-                                                          acl_name=name, entity_type="script")
-
         return web.json_response({"message": message})
 
 

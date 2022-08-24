@@ -214,8 +214,8 @@ async def update_acl(request: web.Request) -> web.Response:
         for svc in services:
             await acl_handler._notify_service_about_acl_change(svc, name, "reloadACL")
 
-        # TODO Get all the scripts that are attached to this ACL. FOGL-6750 And handle them separately.
-        # scripts = await acl_handler.get_all_entities_for_a_acl(name, "script")
+        # No need to handle update for script. As acl name has not changed.
+        # The script will pick the updated contents of acl next time when it runs.
 
         return web.json_response({"message": message})
 
@@ -266,8 +266,10 @@ async def delete_acl(request: web.Request) -> web.Response:
             security_cat_name = "{}Security".format(svc)
             await cf_mgr.update_configuration_item_bulk(security_cat_name, data)
 
-        # TODO Get all the scripts that are attached to this ACL. FOGL-6750 And handle them separately.
-        # scripts = await acl_handler.get_all_entities_for_a_acl(name, "script")
+        scripts = await acl_handler.get_all_entities_for_a_acl(name, "script")
+        for script_present in scripts:
+            await acl_handler.handle_delete_for_acl_usage(entity_name=script_present,
+                                                          acl_name=name, entity_type="script")
 
         return web.json_response({"message": message})
 

@@ -251,7 +251,7 @@ def setup(app):
     app.router.add_route('PUT', '/fledge/service/{service_name}/ACL', acl_management.attach_acl_to_service)
     app.router.add_route('DELETE', '/fledge/service/{service_name}/ACL', acl_management.detach_acl_from_service)
 
-    app.router.add_route('GET', '/fledge/python/packages', python_packages.get_python_packages)
+    app.router.add_route('GET', '/fledge/python/packages', python_packages.get_packages)
     app.router.add_route('POST', '/fledge/python/package', python_packages.install_package)
 
     # Proxy Admin API setup with regex

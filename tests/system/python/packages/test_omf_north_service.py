@@ -17,7 +17,7 @@ import pytest
 import utils
 
 south_plugin = "sinusoid"
-south_asset_name = "sinusoid"
+south_asset_name = "omf_svc_sinusoid"
 south_service_name = "Sine #1"
 north_plugin = "OMF"
 north_service_name = "NorthReadingsToPI_WebAPI"
@@ -27,6 +27,7 @@ filter2_name = "MD1"
 # This  gives the path of directory where fledge is cloned. test_file < packages < python < system < tests < ROOT
 PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.parent
 SCRIPTS_DIR_ROOT = "{}/tests/system/python/scripts/package/".format(PROJECT_ROOT)
+AF_HIERARCHY_LEVEL = 'omfsvc/omfsvclvl2/omfsvclvl3'
 
 
 @pytest.fixture
@@ -40,12 +41,24 @@ def reset_fledge(wait_time):
 
 @pytest.fixture
 def start_south_north(add_south, start_north_omf_as_a_service, fledge_url,
-                      pi_host, pi_port, pi_admin, pi_passwd):
+                      pi_host, pi_port, pi_admin, pi_passwd, clear_pi_system_through_pi_web_api, pi_db):
+    af_hierarchy_level_list = AF_HIERARCHY_LEVEL.split("/")
+    # There are three data points here. 1. sinusoid   2. name for meta data
+    # 3. no data point (Asset name be used in this case.)
+    dp_list = ['sinusoid', 'name', '']
+    asset_dict = {}
+    asset_dict[south_asset_name] = dp_list
+    clear_pi_system_through_pi_web_api(pi_host, pi_admin, pi_passwd, pi_db,
+                                       af_hierarchy_level_list, asset_dict)
+
     global north_schedule_id
+    south_config = {"assetName": {"value": south_asset_name}}
+    add_south(south_plugin, None, fledge_url, service_name="{}".format(south_service_name),
+              config=south_config, installation_type='package')
 
-    add_south(south_plugin, None, fledge_url, service_name="{}".format(south_service_name), installation_type='package')
-
-    response = start_north_omf_as_a_service(fledge_url, pi_host, pi_port, pi_user=pi_admin, pi_pwd=pi_passwd)
+    response = start_north_omf_as_a_service(fledge_url, pi_host, pi_port,
+                                            pi_user=pi_admin, pi_pwd=pi_passwd,
+                                            default_af_location=AF_HIERARCHY_LEVEL)
     north_schedule_id = response["id"]
 
     yield start_south_north
@@ -134,7 +147,7 @@ def verify_asset_tracking_details(fledge_url, skip_verify_north_interface):
     tracked_item = tracking_details["track"][0]
     assert south_service_name == tracked_item["service"]
     assert south_asset_name == tracked_item["asset"]
-    assert south_asset_name == tracked_item["plugin"]
+    assert south_plugin == tracked_item["plugin"]
 
     if not skip_verify_north_interface:
         egress_tracking_details = utils.get_asset_tracking_details(fledge_url, "Egress")
@@ -149,8 +162,7 @@ def _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_d
     retry_count = 0
     data_from_pi = None
 
-    af_hierarchy_level = "fledge/room1/machine1"
-    af_hierarchy_level_list = af_hierarchy_level.split("/")
+    af_hierarchy_level_list = AF_HIERARCHY_LEVEL.split("/")
     type_id = 1
     recorded_datapoint = "{}measurement_{}".format(type_id, asset_name)
     # Name of asset in the PI server
@@ -569,6 +581,8 @@ class TestOMFNorthServicewithFilters:
         filter_cfg_scale = {"enable": "true"}
         add_filter("scale", None, "SF2", filter_cfg_scale, fledge_url, north_service_name, installation_type='package')
 
+        # Wait for some time for north service to come up.
+        time.sleep(wait_time)
         verify_service_added(fledge_url)
         verify_filter_added(fledge_url)
 

@@ -1,9 +1,9 @@
 #ifndef _PIWEBAPI_H
 #define _PIWEBAPI_H
 /*
- * Fledge OSI Soft PI Web API integration.
+ * Fledge OSIsoft PI Web API integration.
  *
- * Copyright (c) 2020 Dianomic Systems
+ * Copyright (c) 2020-2022 Dianomic Systems
  *
  * Released under the Apache 2.0 Licence
  *
@@ -36,7 +36,7 @@ class PIWebAPI
 		void    setAuthMethod          (std::string& authMethod)           {m_authMethod = authMethod; }
 		void    setAuthBasicCredentials(std::string& authBasicCredentials) {m_authBasicCredentials = authBasicCredentials; }
 
-		string  GetVersion(const string& host);
+		int     GetVersion(const string& host, string &version, bool logMessage = true);
 		string  errorMessageHandler(const string& msg);
 
 	private:

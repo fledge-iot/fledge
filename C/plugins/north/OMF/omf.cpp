@@ -1,7 +1,7 @@
 /*
  * Fledge OSIsoft OMF interface to PI Server.
  *
- * Copyright (c) 2018 Dianomic Systems
+ * Copyright (c) 2018-2022 Dianomic Systems
  *
  * Released under the Apache 2.0 Licence
  *
@@ -386,7 +386,7 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 									errorMsg.c_str(),
 									m_sender.getHostPort().c_str(),
 									m_path.c_str());
-
+		m_connected = false;
 		return false;
 	}
 
@@ -440,6 +440,7 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 					   errorMsg.c_str(),
 					   m_sender.getHostPort().c_str(),
 					   m_path.c_str());
+		m_connected = false;
 		return false;
 	}
 
@@ -497,6 +498,7 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 						   errorMsg.c_str(),
 						   m_sender.getHostPort().c_str(),
 						   m_path.c_str() );
+			m_connected = false;
 			return false;
 		}
 	}
@@ -634,6 +636,7 @@ bool OMF::AFHierarchySendMessage(const string& msgType, string& jsonData, const 
 	{
 		success = false;
 		errorMessage = ex.what();
+		m_connected = false;
 	}
 
 	if (! success)
@@ -759,7 +762,7 @@ bool OMF::manageAFHierarchyLink(std::string parent, std::string child, std::stri
  *  AFHierarchy - delete the link between 2 elements in the AF hierarchy
  *
  */
-void OMF::deleteAssetAFH(const string& assetName, string& path) {
+bool OMF::deleteAssetAFH(const string& assetName, string& path) {
 
 	std::string pathLastLevel, pathPrefixId, assetNamePrefixId, assetNameFullId;
 
@@ -778,14 +781,14 @@ void OMF::deleteAssetAFH(const string& assetName, string& path) {
 		, assetNameFullId.c_str()
 	);
 
-	manageAFHierarchyLink(pathLastLevel, assetName, pathPrefixId, assetNamePrefixId, assetNameFullId, "delete");
+	return manageAFHierarchyLink(pathLastLevel, assetName, pathPrefixId, assetNamePrefixId, assetNameFullId, "delete");
 }
 
 /**
  *  AFHierarchy - create the link between 2 elements in the AF hierarchy
  *
  */
-void OMF::createAssetAFH(const string& assetName, string& path) {
+bool OMF::createAssetAFH(const string& assetName, string& path) {
 
 	std::string pathLastLevel, pathPrefixId, assetNamePrefixId, assetNameFullId;
 
@@ -804,7 +807,7 @@ void OMF::createAssetAFH(const string& assetName, string& path) {
 		, assetNameFullId.c_str()
 	);
 
-	manageAFHierarchyLink(pathLastLevel, assetName, pathPrefixId, assetNamePrefixId, assetNameFullId, "create");
+	return manageAFHierarchyLink(pathLastLevel, assetName, pathPrefixId, assetNamePrefixId, assetNameFullId, "create");
 }
 
 /**
@@ -843,8 +846,6 @@ bool OMF::sendAFHierarchy(string AFHierarchy)
 
 	if(find(m_afhHierarchyAlreadyCreated.begin(), m_afhHierarchyAlreadyCreated.end(), AFHierarchy) == m_afhHierarchyAlreadyCreated.end()){
 
-		Logger::getLogger()->debug("%s - path created :%s:", __FUNCTION__, AFHierarchy.c_str() );
-
 		if (AFHierarchy.at(0) == '/')
 		{
 			// Absolute path
@@ -860,7 +861,10 @@ bool OMF::sendAFHierarchy(string AFHierarchy)
 
 		m_afhHierarchyAlreadyCreated.push_back(AFHierarchy);
 
-		success = sendAFHierarchyLevels(parentPath, path, dummy);
+		if (success = sendAFHierarchyLevels(parentPath, path, dummy))
+		{
+			Logger::getLogger()->debug("%s - path created :%s:", __FUNCTION__, AFHierarchy.c_str() );
+		}
 	} else {
 		Logger::getLogger()->debug("%s - path already created :%s:", __FUNCTION__, AFHierarchy.c_str() );
 	}
@@ -974,7 +978,7 @@ void OMF::setAFHierarchy()
 	AFLocation = m_DefaultAFLocation;
 	if (m_PIServerEndpoint == ENDPOINT_PIWEB_API)
 	{
-		// Implementation onfly for PI Web API
+		// Implementation only for PI Web API
 		StringReplaceAll(AFLocation, AFH_ESCAPE_SEQ,   AFH_ESCAPE_CHAR);
 		StringReplaceAll(AFLocation, AFH_SLASH_ESCAPE ,AFH_SLASH_ESCAPE_TMP);
 		std::stringstream defaultAFLocation(AFLocation);
@@ -1126,9 +1130,21 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 
 		// Since hints are attached to individual readings that are processed by the north plugin if an AFLocation
 		// hint is present it will override any default AFLocation or AF Location rules defined in the north plugin configuration.
-		if ( ! createAFHierarchyOmfHint(m_assetName, OMFHintAFHierarchy) ) {
-
-			evaluateAFHierarchyRules(m_assetName, *reading);
+		if ( ! createAFHierarchyOmfHint(m_assetName, OMFHintAFHierarchy) )
+		{
+			if (m_connected)
+			{
+				if (!evaluateAFHierarchyRules(m_assetName, *reading))
+				{
+					m_lastError = true;
+					return 0;
+				}
+			}
+			else
+			{
+				m_lastError = true;
+				return 0;
+			}
 		}
 
 		if (m_PIServerEndpoint == ENDPOINT_CR  ||
@@ -1212,7 +1228,11 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 				// it sends the hierarchy once
 				if (sendDataTypes and ! AFHierarchySent)
 				{
-					handleAFHierarchy();
+					if (!handleAFHierarchy())
+					{
+						m_lastError = true;
+						return 0;
+					}
 
 					AFHierarchySent = true;
 				}
@@ -1454,6 +1474,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 
 		// Failure
 		m_lastError = true;
+		m_connected = false;
 		return 0;
 	}
 }
@@ -1571,6 +1592,7 @@ uint32_t OMF::sendToServer(const vector<Reading>& readings,
 					   m_path.c_str(),
 					   jsonData.str().c_str() );
 
+		m_connected = false;
 		return false;
 	}
 
@@ -1662,6 +1684,7 @@ uint32_t OMF::sendToServer(const Reading* reading,
 					   m_sender.getHostPort().c_str(),
 					   m_path.c_str() );
 
+		m_connected = false;
 		return false;
 	}
 
@@ -2315,7 +2338,10 @@ bool OMF::createAFHierarchyOmfHint(const string& assetName, const  string &OmfHi
 
 			Logger::getLogger()->debug("%s - New path requested :%s:", __FUNCTION__, pathNew.c_str());
 
-			sendAFHierarchy(pathNew.c_str());
+			if (!sendAFHierarchy(pathNew.c_str()))
+			{
+				return false;
+			}
 		}
 
 		if (pathStored.compare("") == 0)
@@ -2334,14 +2360,20 @@ bool OMF::createAFHierarchyOmfHint(const string& assetName, const  string &OmfHi
 										   , pathNew.c_str()
 										   , pathStored.c_str());
 
-				deleteAssetAFH(assetName, pathStored);
+				if (!deleteAssetAFH(assetName, pathStored))
+				{
+					return false;
+				}
 
 				auto item = make_pair(pathNew, prefix);
 				m_AssetNamePrefix[assetName].clear();
 				m_AssetNamePrefix[assetName].push_back(item);
 				setPathStored (assetName, pathNew);
 
-				createAssetAFH(assetName, pathNew);
+				if (!createAssetAFH(assetName, pathNew))
+				{
+					return false;
+				}
 
 			} else {
 				Logger::getLogger()->debug("%s - Same path for the assetName :%s: path :%s:", __FUNCTION__, assetName.c_str(), pathNew.c_str());
@@ -2497,11 +2529,11 @@ std::string OMF::variableValueHandle(const Reading& reading, std::string &AFHier
  * @param path                   assetName to evaluate
  * @param reading		         reading row from which will be extracted the datapoint for the evaluation of the rules
  */
-void OMF::evaluateAFHierarchyRules(const string& assetName, const Reading& reading)
+bool OMF::evaluateAFHierarchyRules(const string& assetName, const Reading& reading)
 {
 	bool ruleMatched = false;
 	bool ruleMatchedNames = false;
-	bool success;
+	bool success = true;
 
 	string pathInitial;
 	string path;
@@ -2545,18 +2577,20 @@ void OMF::evaluateAFHierarchyRules(const string& assetName, const Reading& readi
 
 				if(v.size() == 0 ||  std::find(v.begin(), v.end(), item) == v.end())
 				{
-					success = sendAFHierarchy(path.c_str());
-					m_AssetNamePrefix[assetName].push_back(item);
+					if (success = sendAFHierarchy(path.c_str()))
+					{
+						m_AssetNamePrefix[assetName].push_back(item);
 
-					Logger::getLogger()->debug(
-						"%s - m_NamesRules size :%d: m_AssetNamePrefix size :%d:   vector size :%d: pathInitial :%s: path :%s: stored :%s:"
-							,__FUNCTION__
-							,m_NamesRules.size()
-							,m_AssetNamePrefix.size()
-							,v.size()
-							,pathInitial.c_str()
-							,path.c_str()
-							,it->second.c_str());
+						Logger::getLogger()->debug(
+							"%s - m_NamesRules size :%d: m_AssetNamePrefix size :%d:   vector size :%d: pathInitial :%s: path :%s: stored :%s:"
+								,__FUNCTION__
+								,m_NamesRules.size()
+								,m_AssetNamePrefix.size()
+								,v.size()
+								,pathInitial.c_str()
+								,path.c_str()
+								,it->second.c_str());
+					}
 				} else {
 					Logger::getLogger()->debug(
 						"%s - m_NamesRules skipped pathInitial :%s: path :%s: stored :%s:"
@@ -2604,10 +2638,11 @@ void OMF::evaluateAFHierarchyRules(const string& assetName, const Reading& readi
 
 					if(v.size() == 0 || std::find(v.begin(), v.end(), item) == v.end())
 					{
-						success = sendAFHierarchy(path.c_str());
-						m_AssetNamePrefix[assetName].push_back(item);
-
-						Logger::getLogger()->debug("%s - m_MetadataRulesExist asset :%s: path added :%s: :%s:" , __FUNCTION__, assetName.c_str(), pathInitial.c_str()  , path.c_str() );
+						if (success = sendAFHierarchy(path.c_str()))
+						{
+							m_AssetNamePrefix[assetName].push_back(item);
+							Logger::getLogger()->debug("%s - m_MetadataRulesExist asset :%s: path added :%s: :%s:" , __FUNCTION__, assetName.c_str(), pathInitial.c_str()  , path.c_str() );
+						}
 					} else {
 						Logger::getLogger()->debug("%s - m_MetadataRulesExist already created asset :%s: path added :%s: :%s:" , __FUNCTION__, assetName.c_str(), pathInitial.c_str()  , path.c_str() );
 					}
@@ -2656,10 +2691,11 @@ void OMF::evaluateAFHierarchyRules(const string& assetName, const Reading& readi
 
 					if(v.size() == 0 || std::find(v.begin(), v.end(), item) == v.end())
 					{
-						success = sendAFHierarchy(path.c_str());
-						m_AssetNamePrefix[assetName].push_back(item);
-
-						Logger::getLogger()->debug("%s - m_MetadataRulesNonExist - asset :%s: path added :%s: :%s:" , __FUNCTION__, assetName.c_str(), pathInitial.c_str()  , path.c_str() );
+						if (success = sendAFHierarchy(path.c_str()))
+						{
+							m_AssetNamePrefix[assetName].push_back(item);
+							Logger::getLogger()->debug("%s - m_MetadataRulesNonExist - asset :%s: path added :%s: :%s:" , __FUNCTION__, assetName.c_str(), pathInitial.c_str()  , path.c_str() );
+						}
 					} else {
 						Logger::getLogger()->debug("%s - m_MetadataRulesNonExist -  already created asset :%s: path added :%s: :%s:" , __FUNCTION__, assetName.c_str(), pathInitial.c_str()  , path.c_str() );
 					}
@@ -2720,10 +2756,11 @@ void OMF::evaluateAFHierarchyRules(const string& assetName, const Reading& readi
 
 					if(v.size() == 0 || std::find(v.begin(), v.end(), item) == v.end())
 					{
-						success = sendAFHierarchy(path.c_str());
-						m_AssetNamePrefix[assetName].push_back(item);
-
-						Logger::getLogger()->debug("%s - m_MetadataRulesEqual asset :%s: path added :%s: :%s:" , __FUNCTION__, assetName.c_str(), pathInitial.c_str()  , path.c_str() );
+						if (success = sendAFHierarchy(path.c_str()))
+						{
+							m_AssetNamePrefix[assetName].push_back(item);
+							Logger::getLogger()->debug("%s - m_MetadataRulesEqual asset :%s: path added :%s: :%s:" , __FUNCTION__, assetName.c_str(), pathInitial.c_str()  , path.c_str() );
+						}
 					} else {
 						Logger::getLogger()->debug("%s - m_MetadataRulesEqual already created asset :%s: path added :%s: :%s:" , __FUNCTION__, assetName.c_str(), pathInitial.c_str()  , path.c_str() );
 					}
@@ -2787,10 +2824,11 @@ void OMF::evaluateAFHierarchyRules(const string& assetName, const Reading& readi
 
 					if(v.size() == 0 || std::find(v.begin(), v.end(), item) == v.end())
 					{
-						success = sendAFHierarchy(path.c_str());
-						m_AssetNamePrefix[assetName].push_back(item);
-
-						Logger::getLogger()->debug("%s - m_MetadataRulesNotEqual asset :%s: path added :%s: :%s:" , __FUNCTION__, assetName.c_str(), pathInitial.c_str()  , path.c_str() );
+						if (success = sendAFHierarchy(path.c_str()))
+						{
+							m_AssetNamePrefix[assetName].push_back(item);
+							Logger::getLogger()->debug("%s - m_MetadataRulesNotEqual asset :%s: path added :%s: :%s:" , __FUNCTION__, assetName.c_str(), pathInitial.c_str()  , path.c_str() );
+						}
 					} else {
 						Logger::getLogger()->debug("%s - m_MetadataRulesNotEqual already created asset :%s: path added :%s: :%s:" , __FUNCTION__, assetName.c_str(), pathInitial.c_str()  , path.c_str() );
 					}
@@ -2799,7 +2837,7 @@ void OMF::evaluateAFHierarchyRules(const string& assetName, const Reading& readi
 		}
 	}
 
-	// If no rules matched se the AF default location
+	// If no rules matched the AF default location
 	if ( ! ruleMatched )
 	{
 		string prefix;
@@ -2811,6 +2849,7 @@ void OMF::evaluateAFHierarchyRules(const string& assetName, const Reading& readi
 		m_AssetNamePrefix[assetName].push_back(item);
 	}
 
+	return success;
 }
 
 /**
@@ -3256,7 +3295,7 @@ bool OMF::isDataTypeError(const char* message)
 }
 
 /**
- * Send again Data Types of current readind data
+ * Send again Data Types of current reading data
  * with a new type-id
  *
  * NOTE: the m_typeId member variable value is incremented.

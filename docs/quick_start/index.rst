@@ -4,7 +4,6 @@ Quick Start Guide
 
 .. toctree::
 
-    introduction
     installing
     starting
     troubleshooting

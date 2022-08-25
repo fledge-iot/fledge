@@ -34,7 +34,7 @@ from fledge.services.core.api import package_log
 from fledge.services.core.api.repos import configure as configure_repo
 from fledge.services.core.api.control_service import script_management
 from fledge.services.core.api.control_service import acl_management
-
+from fledge.services.core.api import python_packages
 
 __author__ = "Ashish Jabble, Praveen Garg, Massimiliano Pinto, Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017-2018 OSIsoft, LLC"
@@ -135,7 +135,9 @@ def setup(app):
     browser.setup(app)
 
     # asset tracker
-    app.router.add_route('GET', '/fledge/track', asset_tracker.get_asset_tracker_events)
+    app.router.add_route('GET',    '/fledge/track', asset_tracker.get_asset_tracker_events)
+    app.router.add_route('PUT',    '/fledge/track/service/{service}/asset/{asset}/event/{event}',
+                         asset_tracker.deprecate_asset_track_entry)
 
     # Statistics - As per doc
     app.router.add_route('GET', '/fledge/statistics', api_statistics.get_statistics)
@@ -187,6 +189,7 @@ def setup(app):
     app.router.add_route('DELETE', '/fledge/plugins/{type}/{name}', plugins_remove.remove_plugin)
 
     # plugin data
+    app.router.add_route('GET', '/fledge/service/{service_name}/persist', plugin_data.get_persist_plugins)
     app.router.add_route('GET', '/fledge/service/{service_name}/plugin/{plugin_name}/data', plugin_data.get)
     app.router.add_route('POST', '/fledge/service/{service_name}/plugin/{plugin_name}/data', plugin_data.add)
     app.router.add_route('DELETE', '/fledge/service/{service_name}/plugin/{plugin_name}/data', plugin_data.delete)
@@ -247,6 +250,9 @@ def setup(app):
     app.router.add_route('DELETE', '/fledge/ACL/{acl_name}', acl_management.delete_acl)
     app.router.add_route('PUT', '/fledge/service/{service_name}/ACL', acl_management.attach_acl_to_service)
     app.router.add_route('DELETE', '/fledge/service/{service_name}/ACL', acl_management.detach_acl_from_service)
+
+    app.router.add_route('GET', '/fledge/python/packages', python_packages.get_packages)
+    app.router.add_route('POST', '/fledge/python/package', python_packages.install_package)
 
     # Proxy Admin API setup with regex
     proxy.admin_api_setup(app)

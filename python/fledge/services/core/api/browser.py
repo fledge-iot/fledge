@@ -793,10 +793,24 @@ async def asset_purge_all(request):
             curl -sX DELETE http://localhost:8081/fledge/asset
     """
     try:
+        from fledge.common.audit_logger import AuditLogger
         # Call storage service
         _logger.warning("Manual purge of all assets has been requested")
         _readings = connect.get_readings_async()
+        # Get AuditLogger
+        _audit = AuditLogger(_readings)
+
+        start_time = time.strftime('%Y-%m-%d %H:%M:%S.%s', time.localtime(time.time()))
+
         results = await _readings.purge(asset="")
+
+        if 'purged' in results:
+            end_time = time.strftime('%Y-%m-%d %H:%M:%S.%s', time.localtime(time.time()))
+            await _audit.information('PURGE',
+                                     {
+                                         "start_time": start_time,
+                                         "end_time": end_time,
+                                         "rowsRemoved": results['purged'] })
     except KeyError:
         msg = results['message']
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
@@ -819,9 +833,24 @@ async def asset_purge(request):
     _logger.warning("Manual purge of '%s' asset has been requested", asset_code)
 
     try:
+        from fledge.common.audit_logger import AuditLogger
         # Call storage service
         _readings = connect.get_readings_async()
+        # Get AuditLogger
+        _audit = AuditLogger(_readings)
+
+        start_time = time.strftime('%Y-%m-%d %H:%M:%S.%s', time.localtime(time.time()))
+
         results = await _readings.purge(asset=asset_code)
+
+        if 'purged' in results:
+            end_time = time.strftime('%Y-%m-%d %H:%M:%S.%s', time.localtime(time.time()))
+            await _audit.information('PURGE',
+                                     {
+                                         "start_time": start_time,
+                                         "end_time": end_time,
+                                         "rowsRemoved": results['purged'],
+                                         "asset" : asset_code })
     except KeyError:
         msg = results['message']
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))

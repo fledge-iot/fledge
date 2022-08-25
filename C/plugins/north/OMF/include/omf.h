@@ -1,9 +1,9 @@
 #ifndef _OMF_H
 #define _OMF_H
 /*
- * Fledge OSI Soft OMF interface to PI Server.
+ * Fledge OSIsoft OMF interface to PI Server.
  *
- * Copyright (c) 2018 Dianomic Systems
+ * Copyright (c) 2018-2022 Dianomic Systems
  *
  * Released under the Apache 2.0 Licence
  *
@@ -151,8 +151,8 @@ class OMF
 		string getPathStored(const string& assetName);
 		string getPathOrigStored(const string& assetName);
 		bool setPathStored(const string& assetName, string &afHierarchy);
-		void deleteAssetAFH(const string& assetName, string& path);
-		void createAssetAFH(const string& assetName, string& path);
+		bool deleteAssetAFH(const string& assetName, string& path);
+		bool createAssetAFH(const string& assetName, string& path);
 
 		// Set the first level of hierarchy in Asset Framework in which the assets will be created, PI Web API only.
 		void setDefaultAFLocation(const std::string &DefaultAFLocation);
@@ -199,6 +199,9 @@ class OMF
 
 		bool getAFMapEmptyNames() const { return m_AFMapEmptyNames; };
 		bool getAFMapEmptyMetadata() const { return m_AFMapEmptyMetadata; };
+
+		bool getConnected() const { return m_connected; };
+		void setConnected(const bool connectionStatus) { m_connected = connectionStatus; };
 
 		static std::string ApplyPIServerNamingRulesObj(const std::string &objName, bool *changed);
 		static std::string ApplyPIServerNamingRulesPath(const std::string &objName, bool *changed);
@@ -269,7 +272,7 @@ private:
 
 		string errorMessageHandler(const string &msg);
 
-		// Extract assetName from erro message
+		// Extract assetName from error message
 		std::string getAssetNameFromError(const char* message);
 
 		// Get asset type-id from cached data
@@ -291,7 +294,7 @@ private:
 		// Add the 1st level of AF hierarchy if the end point is PI Web API
 		void setAFHierarchy();
 
-		bool handleAFHirerarchy();
+		bool handleAFHierarchy();
 		bool handleAFHierarchySystemWide();
 		bool handleOmfHintHierarchies();
 
@@ -308,7 +311,7 @@ private:
 
 
 		std::string generateUniquePrefixId(const std::string &path);
-		void evaluateAFHierarchyRules(const string& assetName, const Reading& reading);
+		bool evaluateAFHierarchyRules(const string& assetName, const Reading& reading);
 		void retrieveAFHierarchyPrefixAssetName(const string& assetName, string& prefix, string& AFHierarchyLevel);
 		void retrieveAFHierarchyFullPrefixAssetName(const string& assetName, string& prefix, string& AFHierarchy);
 
@@ -318,7 +321,7 @@ private:
 		bool HandleAFMapMetedata(Document& JSon);
 
 	private:
-		// Use for the evaluatin of the OMFDataTypes.typesShort
+		// Use for the evaluation of the OMFDataTypes.typesShort
 		union t_typeCount {
 			struct
 			{
@@ -351,8 +354,9 @@ private:
 		bool            m_AFMapEmptyMetadata;
 		std::string		m_AFHierarchyLevel;
 		std::string		m_prefixAFAsset;
+		bool            m_connected;  // true if calls to PI Web API are working 
 
-		vector<std::string>  m_afhHierarchyAlredyCreated={
+		vector<std::string>  m_afhHierarchyAlreadyCreated={
 
 			//  Asset Framework path
 			// {""}

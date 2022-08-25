@@ -103,7 +103,7 @@ generate_valgrind_logs(){
 cleanup
 setup
 reset_fledge
-adding_sinusoid
+add_sinusoid
 setup_north_pi_egress
 collect_data
 generate_valgrind_logs 

@@ -14,3 +14,4 @@ REST API Developers Guide
     03_RESTupdate
     04_RESTuser
     05_RESTdeveloper
+    06_GrafanaExamples

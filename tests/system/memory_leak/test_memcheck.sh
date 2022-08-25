@@ -2,6 +2,7 @@
 #
 # Tests for checking meomory leaks.
 
+set -e
 source config.sh
 
 export FLEDGE_ROOT=$(pwd)/fledge

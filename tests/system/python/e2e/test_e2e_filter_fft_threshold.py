@@ -58,7 +58,8 @@ class TestE2eFilterFFTThreshold:
     @pytest.fixture
     def start_south_north(self, reset_and_start_fledge, add_south, enable_schedule, remove_directories,
                           remove_data_file, south_branch, fledge_url, add_filter, filter_branch,
-                          start_north_pi_server_c, pi_host, pi_port, pi_token, asset_name=ASSET):
+                          start_north_pi_server_c, pi_host, pi_port, pi_token,
+                          clear_pi_system_through_pi_web_api, pi_admin, pi_passwd, pi_db, asset_name=ASSET):
         """ This fixture clone a south and north repo and starts both south and north instance
 
             reset_and_start_fledge: Fixture that resets and starts fledge, no explicit invocation, called at start
@@ -66,6 +67,15 @@ class TestE2eFilterFFTThreshold:
             remove_directories: Fixture that remove directories created during the tests
             remove_data_file: Fixture that remove data file created during the tests
         """
+
+        # No need to give asset hierarchy in case of connector relay.
+        dp_list = ['Band00', 'Band01', 'Band02']
+        # There are three data points here. 1. Band00  2. Band01
+        # 3. Band02
+        asset_dict = {}
+        asset_dict[ASSET + " " + 'FFT'] = dp_list
+        clear_pi_system_through_pi_web_api(pi_host, pi_admin, pi_passwd, pi_db,
+                                           [], asset_dict)
 
         # Define configuration of Fledge playback service
         south_config = {"assetName": {"value": "{}".format(asset_name)},

@@ -23,7 +23,7 @@ from pathlib import Path
 import urllib.parse
 
 TEMPLATE_NAME = "template.json"
-ASSET = "FOGL-2964-e2e-CoAP"
+ASSET = "FOGL-2964-e2e-CoAP-PIWebAPI"
 DATAPOINT = "sensor"
 DATAPOINT_VALUE = 20
 NORTH_TASK_NAME = "NorthReadingsToPI_WebAPI"
@@ -31,6 +31,7 @@ SOUTH_SERVICE_NAME = "CoAP FOGL-2964"
 # This  gives the path of directory where fledge is cloned. test_file < packages < python < system < tests < ROOT
 PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.parent
 SCRIPTS_DIR_ROOT = "{}/tests/system/python/scripts/package/".format(PROJECT_ROOT)
+AF_HIERARCHY_LEVEL = 'testpiwebapi/testpiwebapilvl2/testpiwebapilvl3'
 
 
 @pytest.fixture
@@ -103,8 +104,7 @@ def _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_d
     retry_count = 0
     data_from_pi = None
 
-    af_hierarchy_level = "fledge/room1/machine1"
-    af_hierarchy_level_list = af_hierarchy_level.split("/")
+    af_hierarchy_level_list = AF_HIERARCHY_LEVEL.split("/")
     type_id = 1
     recorded_datapoint = "{}measurement_{}".format(type_id, asset_name)
     # Name of asset in the PI server
@@ -132,9 +132,10 @@ def start_south_north(add_south, start_north_task_omf_web_api, remove_data_file,
         start_north_task_omf_web_api: Fixture that starts PI north task
         remove_data_file: Fixture that remove data file created during the tests """
 
-    af_hierarchy_level = "fledge/room1/machine1"
-    af_hierarchy_level_list = af_hierarchy_level.split("/")
-    dp_list = [DATAPOINT]
+    af_hierarchy_level_list = AF_HIERARCHY_LEVEL.split("/")
+    # There are two data points here. 1. DATAPOINT
+    # 2. no data point (Asset name be used in this case.)
+    dp_list = [DATAPOINT, '']
     asset_dict = {}
     asset_dict[ASSET] = dp_list
     clear_pi_system_through_pi_web_api(pi_host, pi_admin, pi_passwd, pi_db,
@@ -152,7 +153,8 @@ def start_south_north(add_south, start_north_task_omf_web_api, remove_data_file,
     south_plugin = "coap"
     # south_branch does not matter as these are archives.fledge-iot.org version install
     add_south(south_plugin, None, fledge_url, service_name=SOUTH_SERVICE_NAME, installation_type='package')
-    start_north_task_omf_web_api(fledge_url, pi_host, pi_port, pi_user=pi_admin, pi_pwd=pi_passwd)
+    start_north_task_omf_web_api(fledge_url, pi_host, pi_port, pi_user=pi_admin, pi_pwd=pi_passwd,
+                                 default_af_location=AF_HIERARCHY_LEVEL)
 
     yield start_south_north
 

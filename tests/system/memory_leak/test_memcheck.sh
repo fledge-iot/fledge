@@ -89,11 +89,11 @@ collect_data(){
   sleep ${TEST_RUN_TIME}
   cd ${FLEDGE_ROOT}/scripts/
   echo 'stopping fledge'
-  ./fledge stop
-  cd ../../
+  ./fledge stop && echo $?
 }
 
 generate_valgrind_logs(){
+  cd /home/ubuntu/fledge/tests/system/memory_leak/
   echo 'Creating reports directory';
   mkdir -p reports/test1 ; ls -lrth
   echo 'copying reports '

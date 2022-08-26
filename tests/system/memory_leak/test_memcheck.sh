@@ -87,14 +87,11 @@ setup_north_pi_egress () {
 # This Function keep the fledge and its plugin running state for the "TEST_RUN_TIME" seconds then stop the fledge, So that data required for mem check be collected.
 collect_data(){
   sleep ${TEST_RUN_TIME}
-  cd ${FLEDGE_ROOT}/scripts/
-  echo 'stopping fledge'
-  # Fix me, fledge is giving exit code 1 when we stop it from ./bin/fledge. The Jira is locked for it -  https://scaledb.atlassian.net/browse/FOGL-6840
-  # That is the reason set +e and set -e executed
+  # TODO: remove set +e / set -e 
+  # FOGL-6840  fledge stop returns exit code 1 
   set +e
-  ./fledge stop && echo $?
+  ${FLEDGE_ROOT}/scripts/fledge stop && echo $?
   set -e
-  cd ../..
 }
 
 generate_valgrind_logs(){

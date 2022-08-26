@@ -29,7 +29,7 @@ local_north_service_name = "HN #1"
 # Remote machine
 remote_south_plugin = "http_south"
 remote_south_service_name = "HS #1"
-remote_south_asset_name = "sinusoid"
+remote_south_asset_name = "python-north-service-pair"
 remote_north_plugin = "OMF"
 remote_north_service_name = "NorthReadingsToPI_WebAPI"
 
@@ -41,6 +41,7 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.parent
 SCRIPTS_DIR_ROOT = "{}/tests/system/python/scripts/package/".format(PROJECT_ROOT)
 # SSH command to make connection with the remote machine
 ssh_cmd = "ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i"
+AF_HIERARCHY_LEVEL = "pythonnorthservicepair/pythonnorthservicepairlvl2/pythonnorthservicepairlvl3"
 
 
 @pytest.fixture
@@ -54,7 +55,9 @@ def reset_fledge_local(wait_time):
 
 @pytest.fixture
 def setup_local(reset_fledge_local, add_south, add_north, fledge_url, remote_ip):
-    add_south(local_south_plugin, None, fledge_url, service_name="{}".format(local_south_service_name),
+    local_south_config = {"assetName": {"value": remote_south_asset_name}}
+    add_south(local_south_plugin, None, fledge_url, config=local_south_config,
+              service_name="{}".format(local_south_service_name),
               installation_type='package')
     # Change name of variables such as service_name, plugin_type
     global north_schedule_id
@@ -119,7 +122,8 @@ def clean_install_fledge_packages_remote(remote_user, remote_ip, key_path, remot
 
 @pytest.fixture
 def setup_remote(reset_fledge_remote, remote_user, remote_ip, start_north_omf_as_a_service,
-                 pi_host, pi_port, pi_admin, pi_passwd):
+                 pi_host, pi_port, pi_admin, pi_passwd,
+                 clear_pi_system_through_pi_web_api, pi_db):
     """Fixture that setups remote machine
             reset_fledge_remote: Fixture that kills fledge, reset database and starts fledge again on a remote
                                            machine.
@@ -130,6 +134,15 @@ def setup_remote(reset_fledge_remote, remote_user, remote_ip, start_north_omf_as
             pi_admin: Username of PI machine
             pi_passwd: Password of PI machine
         """
+
+    af_hierarchy_level_list = AF_HIERARCHY_LEVEL.split("/")
+    dp_list = ['sinusoid', 'name', '']
+    # There are three data points here. 1. sinusoid  2. name
+    # 3. no data point (Asset name be used in this case.)
+    asset_dict = {}
+    asset_dict[remote_south_asset_name] = dp_list
+    clear_pi_system_through_pi_web_api(pi_host, pi_admin, pi_passwd, pi_db,
+                                       af_hierarchy_level_list, asset_dict)
 
     fledge_url = "{}:8081".format(remote_ip)
 
@@ -147,7 +160,7 @@ def setup_remote(reset_fledge_remote, remote_user, remote_ip, start_north_omf_as
     # Configure pi north plugin on remote machine
     global remote_north_schedule_id
     response = start_north_omf_as_a_service(fledge_url, pi_host, pi_port, pi_user=pi_admin, pi_pwd=pi_passwd,
-                                            start=True)
+                                            start=True, default_af_location=AF_HIERARCHY_LEVEL)
     remote_north_schedule_id = response["id"]
 
     yield setup_remote
@@ -243,8 +256,7 @@ def _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_d
     retry_count = 0
     data_from_pi = None
 
-    af_hierarchy_level = "fledge/room1/machine1"
-    af_hierarchy_level_list = af_hierarchy_level.split("/")
+    af_hierarchy_level_list = AF_HIERARCHY_LEVEL.split("/")
     type_id = 1
     recorded_datapoint = "{}measurement_{}".format(type_id, asset_name)
     # Name of asset in the PI server

@@ -128,12 +128,13 @@ static int controlOperation(char *operation, int paramCount, char *names[], char
  */
 int main(int argc, char *argv[])
 {
-unsigned short corePort = 8082;
-string	       coreAddress = "localhost";
-bool	       daemonMode = true;
-string	       myName = SERVICE_NAME;
-string	       logLevel = "warning";
+unsigned short	corePort = 8082;
+string		coreAddress = "localhost";
+bool		daemonMode = true;
+string		myName = SERVICE_NAME;
+string		logLevel = "warning";
 string		token = "";
+bool		dryRun = false;
 
 	signal(SIGSEGV, handler);
 	signal(SIGILL, handler);
@@ -167,6 +168,10 @@ string		token = "";
 		{
 			token = &argv[i][8];
 		}
+		else if (!strncmp(argv[i], "--dryrun", 8))
+		{
+			dryRun = true;
+		}
 	}
 
 	if (daemonMode && makeDaemon() == -1)
@@ -176,6 +181,10 @@ string		token = "";
 	}
 
 	service = new NorthService(myName, token);
+	if (dryRun)
+	{
+		service->setDryRun();
+	}
 	Logger::getLogger()->setMinLevel(logLevel);
 	service->start(coreAddress, corePort);
 	return 0;
@@ -271,7 +280,8 @@ NorthService::NorthService(const string& myName, const string& token) :
 	m_pluginData(NULL),
 	m_restartPlugin(false),
 	m_token(token),
-	m_allowControl(true)
+	m_allowControl(true),
+	m_dryRun(false)
 {
 	m_name = myName;
 	logger = new Logger(myName);
@@ -328,20 +338,28 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 			management.stop();
 			return;
 		}
-		if (!m_mgtClient->registerService(record))
+		if (!m_dryRun)
 		{
-			logger->error("Failed to register service %s", m_name.c_str());
+			if (!m_mgtClient->registerService(record))
+			{
+				logger->error("Failed to register service %s", m_name.c_str());
+				management.stop();
+				return;
+			}
+			ConfigHandler *configHandler = ConfigHandler::getInstance(m_mgtClient);
+			configHandler->registerCategory(this, m_name);
+			configHandler->registerCategory(this, m_name+"Advanced");
 		}
-		ConfigHandler *configHandler = ConfigHandler::getInstance(m_mgtClient);
-		configHandler->registerCategory(this, m_name);
-		configHandler->registerCategory(this, m_name+"Advanced");
 
 		// Get a handle on the storage layer
 		ServiceRecord storageRecord("Fledge Storage");
 		if (!m_mgtClient->getService(storageRecord))
 		{
 			logger->fatal("Unable to find storage service");
-			m_mgtClient->unregisterService();
+			if (!m_dryRun)
+			{
+				m_mgtClient->unregisterService();
+			}
 			return;
 		}
 		logger->info("Connect to storage on %s:%d",
@@ -382,7 +400,7 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 		}
 
 		// Create default security category
-		this->createSecurityCategories(m_mgtClient);
+		this->createSecurityCategories(m_mgtClient, m_dryRun);
 
 		// Setup the data loading
 		long streamId = 0;
@@ -408,21 +426,29 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 			}
 		}
 		m_dataSender = new DataSender(northPlugin, m_dataLoad, this);
-		logger->debug("North service is running");
 
-		
-		// wait for shutdown
-		unique_lock<mutex> lck(m_mutex);
-		while (!m_shutdown)
+		if (!m_dryRun)
 		{
-			m_cv.wait(lck);
-			logger->debug("North main thread woken up, shutdown %s", m_shutdown ? "true" : "false");
-			if (m_shutdown == false && m_restartPlugin)
+			logger->debug("North service is running");
+
+			
+			// wait for shutdown
+			unique_lock<mutex> lck(m_mutex);
+			while (!m_shutdown)
 			{
-				restartPlugin();
+				m_cv.wait(lck);
+				logger->debug("North main thread woken up, shutdown %s", m_shutdown ? "true" : "false");
+				if (m_shutdown == false && m_restartPlugin)
+				{
+					restartPlugin();
+				}
 			}
+			logger->debug("North service is shutting down");
 		}
-		logger->debug("North service is shutting down");
+		else
+		{
+			logger->info("Dryrun of service, shutting down");
+		}
 
 		m_dataLoad->shutdown();		// Forces the data load to return from any blocking fetch call
 		delete m_dataSender;
@@ -452,12 +478,15 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 			}
 		}
 		
-		// Clean shutdown, unregister the storage service
-		logger->info("Unregistering service");
-		m_mgtClient->unregisterService();
+		if (!m_dryRun)
+		{
+			// Clean shutdown, unregister the storage service
+			logger->info("Unregistering service");
+			m_mgtClient->unregisterService();
+		}
 	}
 	management.stop();
-	logger->info("North service shutdown completed");
+	logger->info("North service %s shutdown completed", m_dryRun ? "dry run execution " : "");
 }
 
 /**

@@ -2537,3 +2537,79 @@ int Connection::SQLPrepare(sqlite3 *dbHandle, const char *sqlCmd, sqlite3_stmt *
 
 	return rc;
 }
+
+/**
+ * Purge readings by asset or purge all readings
+ *
+ * @param asset		The asset name to purge
+ * 			If empty all assets will be removed
+ * @return		The number of removed asset records
+ */
+unsigned int Connection::purgeReadingsAsset(const string& asset)
+{
+char *zErrMsg = NULL;
+int rc;
+sqlite3_stmt *stmt;
+
+	ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
+	if (readCat == NULL)
+	{
+		return 0;
+	}
+
+	if (asset.empty())
+	{
+		SQLBuffer sql;
+		unsigned long rowsAffected;
+
+		sql.append("DELETE FROM _dbname_._tablename_;");
+		const char *query = sql.coalesce();
+
+		logSQL("ReadingsAssetPurge", query);
+
+		if (m_writeAccessOngoing)
+		{
+			while (m_writeAccessOngoing)
+			{
+				std::this_thread::sleep_for(std::chrono::milliseconds(100));
+			}
+		}
+
+		// Purge all readings data in all db tables
+		// zErrMsg is freed if rc != SQLITE_OK)
+		rc = readCat->purgeAllReadings(dbHandle, query ,&zErrMsg, &rowsAffected);
+
+		// Release memory for 'query' var
+		delete[] query;
+
+		if (rc != SQLITE_OK)
+		{
+			raiseError("ReadingsAssetPurge", sqlite3_errmsg(dbHandle));
+			return 0;
+		}
+
+		return rowsAffected;
+	}
+	else
+	{
+		ReadingsCatalogue::tyReadingReference ref;
+		ref = readCat->getReadingReference(this, asset.c_str());
+		string dbReadingsName;
+		string dbName;
+
+		string query = "DELETE FROM " + readCat->generateDbName(ref.dbId);
+		query += "." + readCat->generateReadingsName(ref.dbId, ref.tableId) + ";";
+
+		// Execute SQL statement via SQLExec wrapper
+		rc = readCat->SQLExec(dbHandle, query.c_str(), &zErrMsg);
+		if (rc != SQLITE_OK)
+		{
+			raiseError("ReadingsAssetPurge", sqlite3_errmsg(dbHandle));
+			sqlite3_free(zErrMsg);
+			return 0;
+		}
+
+		// Get numbwer of affected rows
+                return (unsigned int)sqlite3_changes(dbHandle);
+	}
+}

@@ -56,7 +56,8 @@ class TestE2EModbusCPI:
 
     @pytest.fixture
     def start_south_north(self, reset_and_start_fledge, add_south, remove_directories, south_branch, fledge_url,
-                          start_north_pi_server_c, pi_host, pi_port, pi_token, modbus_host, modbus_port):
+                          start_north_pi_server_c, pi_host, pi_port, pi_token, modbus_host, modbus_port,
+                          clear_pi_system_through_pi_web_api, pi_admin, pi_passwd, pi_db):
         """ This fixture clone a south and north repo and starts both south and north instance
 
             reset_and_start_fledge: Fixture that resets and starts fledge, no explicit invocation, called at start
@@ -73,6 +74,16 @@ class TestE2EModbusCPI:
                    {"slave": 1, "scale": 1, "offset": 0, "register": 4, "assetName": ASSET_NAME, "name": "rear left"}
                ]}}
                }
+
+        # No need to give asset hierarchy in case of connector relay.
+        # There are five data points here. 1. front right 2. rear right
+        # 3. front left           4. rear left
+        # 5. no data point (Asset name be used in this case.)
+        dp_list = ['front right', 'rear right', 'front left', 'rear left', '']
+        asset_dict = {}
+        asset_dict[ASSET_NAME] = dp_list
+        clear_pi_system_through_pi_web_api(pi_host, pi_admin, pi_passwd, pi_db,
+                                           [], asset_dict)
 
         add_south(SOUTH_PLUGIN, south_branch, fledge_url, service_name=SVC_NAME, config=cfg,
                   plugin_lang="C", start_service=False, plugin_discovery_name=PLUGIN_NAME)

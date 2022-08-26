@@ -1,0 +1,16 @@
+{
+  "where": {
+    "or": {
+      "column": "deprecated_ts",
+      "condition": "notnull",
+      "or": {
+        "column": "event",
+        "condition": "=",
+        "value": "Egress"
+      }
+  },
+  "column": "service",
+  "condition": "=",
+  "value": "HT #1"
+  }
+}

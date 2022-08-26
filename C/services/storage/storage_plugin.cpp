@@ -9,6 +9,7 @@
  */
 #include <config_category.h>
 #include <storage_plugin.h>
+#include <plugin_exception.h>
 
 using namespace std;
 
@@ -107,6 +108,8 @@ StoragePlugin::StoragePlugin(const string& name, PLUGIN_HANDLE handle) : Plugin(
 				manager->resolveSymbol(handle, "plugin_reading_retrieve");
 	readingsPurgePtr = (char * (*)(PLUGIN_HANDLE, unsigned long age, unsigned int flags, unsigned long sent))
 				manager->resolveSymbol(handle, "plugin_reading_purge");
+	readingsPurgeAssetPtr = (unsigned int (*)(PLUGIN_HANDLE, const char *))
+				manager->resolveSymbol(handle, "plugin_reading_purge_asset");
 	releasePtr = (void (*)(PLUGIN_HANDLE, const char *))
 				manager->resolveSymbol(handle, "plugin_release");
 	lastErrorPtr = (PLUGIN_ERROR * (*)(PLUGIN_HANDLE))
@@ -136,7 +139,7 @@ StoragePlugin::StoragePlugin(const string& name, PLUGIN_HANDLE handle) : Plugin(
 /**
  * Call the insert method in the plugin
  */
-int StoragePlugin::commonInsert(const string& table, const string& payload, char *schema)
+int StoragePlugin::commonInsert(const string& table, const string& payload, const char *schema)
 {
 	if(!m_bStorageSchemaFlag && this->commonInsertPtr)
 	{
@@ -144,16 +147,16 @@ int StoragePlugin::commonInsert(const string& table, const string& payload, char
 	}
 	else
 	{
-		if (!schema) schema = DEFAULT_SCHEMA;
 		if (this->storageSchemaInsertPtr)
-			return this->storageSchemaInsertPtr(instance, schema, table.c_str(), payload.c_str());
+			return this->storageSchemaInsertPtr(instance, schema ? schema : DEFAULT_SCHEMA, table.c_str(), payload.c_str());
 	}
+	return 0;
 }
 
 /**
  * Call the retrieve method in the plugin
  */
-char *StoragePlugin::commonRetrieve(const string& table, const string& payload, char *schema)
+char *StoragePlugin::commonRetrieve(const string& table, const string& payload, const char *schema)
 {
 	if (!m_bStorageSchemaFlag && this->commonRetrievePtr)
 	{
@@ -161,17 +164,16 @@ char *StoragePlugin::commonRetrieve(const string& table, const string& payload, 
 	}
 	else
 	{
-		if (!schema) schema = DEFAULT_SCHEMA;
 		if (this->storageSchemaRetrievePtr)
-	                return this->storageSchemaRetrievePtr(instance, schema, table.c_str(), payload.c_str());
+	                return this->storageSchemaRetrievePtr(instance, schema ? schema : DEFAULT_SCHEMA, table.c_str(), payload.c_str());
         }
-
+	return NULL;
 }
 
 /**
  * Call the update method in the plugin
  */
-int StoragePlugin::commonUpdate(const string& table, const string& payload, char *schema)
+int StoragePlugin::commonUpdate(const string& table, const string& payload, const char *schema)
 {
 	if (!m_bStorageSchemaFlag && this->commonUpdatePtr)
         {
@@ -179,16 +181,16 @@ int StoragePlugin::commonUpdate(const string& table, const string& payload, char
 	}
 	else
 	{
-		if (!schema) schema = DEFAULT_SCHEMA;
 		if (this->storageSchemaUpdatePtr)
-                	return this->storageSchemaUpdatePtr(instance, schema, table.c_str(), payload.c_str());
+                	return this->storageSchemaUpdatePtr(instance, schema ? schema : DEFAULT_SCHEMA, table.c_str(), payload.c_str());
         }
+	return 0;
 }
 
 /**
  * Call the delete method in the plugin
  */
-int StoragePlugin::commonDelete(const string& table, const string& payload, char *schema)
+int StoragePlugin::commonDelete(const string& table, const string& payload, const char *schema)
 {
 	if (!m_bStorageSchemaFlag && this->commonDeletePtr)
         {
@@ -196,10 +198,10 @@ int StoragePlugin::commonDelete(const string& table, const string& payload, char
 	}
 	else
 	{
-		if (!schema) schema = DEFAULT_SCHEMA;
 		if (this->storageSchemaDeletePtr)
-			return this->storageSchemaDeletePtr(instance, schema, table.c_str(), payload.c_str());
+			return this->storageSchemaDeletePtr(instance, schema ? schema : DEFAULT_SCHEMA, table.c_str(), payload.c_str());
 	}
+	return 0;
 }
 
 /**
@@ -232,6 +234,28 @@ char *StoragePlugin::readingsRetrieve(const string& payload)
 char *StoragePlugin::readingsPurge(unsigned long age, unsigned int flags, unsigned long sent)
 {
 	return this->readingsPurgePtr(instance, age, flags, sent);
+}
+
+/**
+ * Call the readings purge asset method in the plugin
+ */
+char *StoragePlugin::readingsPurgeAsset(const string& asset)
+{
+	if (this->readingsPurgeAssetPtr)
+	{
+		unsigned int purged = this->readingsPurgeAssetPtr(instance, asset.c_str());
+		char *json = (char *)malloc(80);
+		if (json)
+		{
+			snprintf(json, 80, "{ \"purged\" : %u }", purged);
+			return json;
+		}
+		else
+		{
+			throw runtime_error("Out of memory");
+		}
+	}
+	throw PluginNotImplementedException("Purge by asset name not implemented in the storage plugin");
 }
 
 /**
@@ -307,4 +331,5 @@ int StoragePlugin::createSchema(const string& payload)
 {
 	if (this->createSchemaPtr)
         	return this->createSchemaPtr(instance, payload.c_str());
+	return 0;
 }

@@ -69,7 +69,7 @@ unsigned int call_plugin_send_coroutine(PyObject *plugin_send_module_func, PLUGI
 		{
 			PyObject* arg = Py_BuildValue("OOO", handle, readingsList, plugin_send_module_func);
 			PyObject* pReturn = PyObject_CallObject(method, arg);
-			Logger::getLogger()->info("%s:%d, pReturn=%p", __FUNCTION__, __LINE__, pReturn);
+			Logger::getLogger()->debug("%s:%d, pReturn=%p", __FUNCTION__, __LINE__, pReturn);
 			Py_CLEAR(arg);
 		    
 			if (pReturn != NULL)
@@ -77,17 +77,17 @@ unsigned int call_plugin_send_coroutine(PyObject *plugin_send_module_func, PLUGI
 				if(PyLong_Check(pReturn))
 				{
 					numSent = (long)PyLong_AsUnsignedLongMask(pReturn);
-					Logger::getLogger()->info("numSent=%d", numSent);
+					Logger::getLogger()->debug("numSent=%d", numSent);
 				}
 				else
 				{
-					Logger::getLogger()->info("plugin_send_wrapper() didn't return a number, returned value is of type %s", (Py_TYPE(pReturn))->tp_name);
+					Logger::getLogger()->warn("plugin_send_wrapper() didn't return a number, returned value is of type %s", (Py_TYPE(pReturn))->tp_name);
 				}	
 				Py_CLEAR(pReturn);
 			}
 			else
 			{
-				Logger::getLogger()->info("%s:%d: pReturn is NULL", __FUNCTION__, __LINE__);
+				Logger::getLogger()->debug("%s:%d: pReturn is NULL", __FUNCTION__, __LINE__);
 				if (PyErr_Occurred())
 				{
 					logErrorMessage();
@@ -123,7 +123,7 @@ void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
 	fledgePythonDir = fledgeRootDir + "/python";
     
 	string northRootPath = fledgePythonDir + string(R"(/fledge/plugins/north/)") + string(pluginName);
-	Logger::getLogger()->info("%s:%d:, northRootPath=%s", __FUNCTION__, __LINE__, northRootPath.c_str());
+	Logger::getLogger()->debug("%s:%d:, northRootPath=%s", __FUNCTION__, __LINE__, northRootPath.c_str());
     
 	// Embedded Python 3.5 program name
 	wchar_t *programName = Py_DecodeLocale(pluginName, NULL);
@@ -132,12 +132,12 @@ void *PluginInterfaceInit(const char *pluginName, const char * pluginPathName)
 
 	PythonRuntime::getPythonRuntime();
 
-	Logger::getLogger()->info("%s:%d", __FUNCTION__, __LINE__);
+	Logger::getLogger()->debug("%s:%d", __FUNCTION__, __LINE__);
     
 	// Acquire GIL
 	PyGILState_STATE state = PyGILState_Ensure();
 
-	Logger::getLogger()->info("NorthPlugin %s:%d: "
+	Logger::getLogger()->debug("NorthPlugin %s:%d: "
 				   "northRootPath=%s, fledgePythonDir=%s, plugin '%s'",
 				   __FUNCTION__,
 				   __LINE__,

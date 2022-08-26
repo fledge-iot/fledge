@@ -1,14 +1,12 @@
 # Common - REST interface
 aiohttp==3.8.1
 aiohttp_cors==0.7.0
-aiohttp-dynamic==1.3.0
-# Install explicit typing-extensions pip package based on python version; as it is required for aiohttp-dynamic
-typing-extensions==4.1.1;python_version<"3.7"
-typing-extensions==4.2.0;python_version>="3.7"
 cchardet==2.1.4
 yarl==1.7.2
-
 pyjwt==2.4.0
+
+# only required for Public Proxy multipart payload
+requests-toolbelt==0.9.1
 
 # Transformation of data, Apply JqFilter
 # Install pyjq based on python version

@@ -48,11 +48,11 @@ const char *default_config = QUOTE({
  * The plugin information structure
  */
 static PLUGIN_INFORMATION info = {
-	"SQLiteLb",                 // Name
-	"1.1.1",                  // Version
+	"SQLiteLb",               // Name
+	"1.2.0",                  // Version
 	SP_COMMON|SP_READINGS,    // Flags
-	PLUGIN_TYPE_STORAGE,               // Type
-	"1.4.0",                  // Interface version
+	PLUGIN_TYPE_STORAGE,      // Type
+	"1.6.0",                  // Interface version
 	default_config
 };
 
@@ -85,12 +85,17 @@ int poolSize = 5;
 /**
  * Insert into an arbitrary table
  */
-int plugin_common_insert(PLUGIN_HANDLE handle, char *table, char *data)
+int plugin_common_insert(PLUGIN_HANDLE handle,
+			char *schema,
+			char *table,
+			char *data)
 {
 ConnectionManager *manager = (ConnectionManager *)handle;
 Connection        *connection = manager->allocate();
 
-	int result = connection->insert(std::string(table), std::string(data));
+	int result = connection->insert(std::string(schema),
+					std::string(table),
+					std::string(data));
 	manager->release(connection);
 	return result;
 }
@@ -98,13 +103,19 @@ Connection        *connection = manager->allocate();
 /**
  * Retrieve data from an arbitrary table
  */
-const char *plugin_common_retrieve(PLUGIN_HANDLE handle, char *table, char *query)
+const char *plugin_common_retrieve(PLUGIN_HANDLE handle,
+				char *schema,
+				char *table,
+				char *query)
 {
 ConnectionManager *manager = (ConnectionManager *)handle;
 Connection        *connection = manager->allocate();
 std::string results;
 
-	bool rval = connection->retrieve(std::string(table), std::string(query), results);
+	bool rval = connection->retrieve(std::string(schema),
+					std::string(table),
+					std::string(query),
+					results);
 	manager->release(connection);
 	if (rval)
 	{
@@ -116,12 +127,17 @@ std::string results;
 /**
  * Update an arbitary table
  */
-int plugin_common_update(PLUGIN_HANDLE handle, char *table, char *data)
+int plugin_common_update(PLUGIN_HANDLE handle,
+			char *schema,
+			char *table,
+			char *data)
 {
 ConnectionManager *manager = (ConnectionManager *)handle;
 Connection        *connection = manager->allocate();
 
-	int result = connection->update(std::string(table), std::string(data));
+	int result = connection->update(std::string(schema),
+					std::string(table),
+					std::string(data));
 	manager->release(connection);
 	return result;
 }
@@ -129,12 +145,17 @@ Connection        *connection = manager->allocate();
 /**
  * Delete from an arbitrary table
  */
-int plugin_common_delete(PLUGIN_HANDLE handle, char *table, char *condition)
+int plugin_common_delete(PLUGIN_HANDLE handle,
+			char *schema,
+			char *table,
+			char *condition)
 {
 ConnectionManager *manager = (ConnectionManager *)handle;
 Connection        *connection = manager->allocate();
 
-	int result = connection->deleteRows(std::string(table), std::string(condition));
+	int result = connection->deleteRows(std::string(schema),
+					std::string(table),
+					std::string(condition));
 	manager->release(connection);
 	return result;
 }
@@ -334,6 +355,38 @@ std::string results;
 	manager->release(connection);
 
 	return rval ? strdup(results.c_str()) : NULL;
+}
+
+/**
+ * Update or creats a schema
+ *
+ * @param handle        The plugin handle
+ * @param schema        The name of the schema
+ * @param definition    The schema definition
+ * @return              -1 on error, >= 0 on success
+ *
+ */
+int plugin_createSchema(PLUGIN_HANDLE handle, char *definition)
+{
+	ConnectionManager *manager = (ConnectionManager *)handle;
+	Connection        *connection = manager->allocate();
+
+	int result = connection->createSchema(std::string(definition));
+	manager->release(connection);
+	return result;
+}
+
+/**
+ * Purge given readings asset or all readings from the buffer
+ */
+unsigned int plugin_reading_purge_asset(PLUGIN_HANDLE handle, char *asset)
+{
+ConnectionManager *manager = (ConnectionManager *)handle;
+Connection        *connection = manager->allocate();
+
+	unsigned int deleted = connection->purgeReadingsAsset(asset);
+	manager->release(connection);
+	return deleted;
 }
 
 };

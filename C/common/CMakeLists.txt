@@ -4,10 +4,15 @@ if(COMMAND cmake_policy)
     cmake_policy(SET CMP0003 NEW)
 endif(COMMAND cmake_policy)
 
+# Get the os name
+execute_process(COMMAND bash -c "cat /etc/os-release | grep -w ID | cut -f2 -d'='"
+                                OUTPUT_VARIABLE
+                                OS_NAME
+                                OUTPUT_STRIP_TRAILING_WHITESPACE)
+
 if( POLICY CMP0007 )
     cmake_policy( SET CMP0007 NEW )
 endif()
-
 project(common-lib)
 
 set(CMAKE_CXX_FLAGS_DEBUG "-O0 -ggdb")
@@ -30,7 +35,12 @@ find_package(PkgConfig REQUIRED)
 if(${CMAKE_VERSION} VERSION_LESS "3.12.0")
     pkg_check_modules(PYTHON REQUIRED python3)
 else()
-    find_package(Python3 REQUIRED COMPONENTS Interpreter Development NumPy)
+    if("${OS_NAME}" STREQUAL "mendel")
+        # We will explicitly set include path later for NumPy.
+        find_package(Python3 REQUIRED COMPONENTS Interpreter Development )
+    else()
+        find_package(Python3 REQUIRED COMPONENTS Interpreter Development NumPy)
+    endif()
 endif()
 
 # Find source files
@@ -43,7 +53,19 @@ include_directories(include ../services/common/include ../common/include ../thir
 if(${CMAKE_VERSION} VERSION_LESS "3.12.0")
     include_directories(${PYTHON_INCLUDE_DIRS})
 else()
-    include_directories(${Python3_INCLUDE_DIRS} ${Python3_NUMPY_INCLUDE_DIRS})
+    if("${OS_NAME}" STREQUAL "mendel")
+        # The following command gets the location of NumPy.
+        execute_process(
+            COMMAND python3
+                -c "import numpy; print(numpy.get_include())"
+                OUTPUT_VARIABLE Python3_NUMPY_INCLUDE_DIRS
+                OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
+        # Now we can add include directories as usual.
+        include_directories(${Python3_INCLUDE_DIRS} ${Python3_NUMPY_INCLUDE_DIRS})
+    else()
+        include_directories(${Python3_INCLUDE_DIRS} ${Python3_NUMPY_INCLUDE_DIRS})
+    endif()
 endif()
 
 if(${CMAKE_VERSION} VERSION_LESS "3.12.0")
@@ -60,9 +82,12 @@ add_library(${PROJECT_NAME} SHARED ${SOURCES})
 if(${CMAKE_VERSION} VERSION_LESS "3.12.0")
     target_link_libraries(${PROJECT_NAME} ${PYTHON_LIBRARIES})
 else()
-	target_link_libraries(${PROJECT_NAME} ${Python3_LIBRARIES} Python3::NumPy)
+    if("${OS_NAME}" STREQUAL "mendel")
+        target_link_libraries(${PROJECT_NAME} ${Python3_LIBRARIES})
+    else()
+	    target_link_libraries(${PROJECT_NAME} ${Python3_LIBRARIES} Python3::NumPy)
+	endif()
 endif()
-
 
 target_link_libraries(${PROJECT_NAME} ${UUIDLIB})
 target_link_libraries(${PROJECT_NAME} ${Boost_LIBRARIES})

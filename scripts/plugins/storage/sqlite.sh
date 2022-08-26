@@ -249,6 +249,21 @@ sqlite_reset_db_fledge() {
         sqlite_log "info" "Building the metadata for the Fledge Plugin '${PLUGIN}' ..." "logonly" "pretty"
     fi
 
+    if [[ -f $DEFAULT_SQLITE_DB_FILE && $2 != "immediate" ]]; then
+        # Remove service schema files as per name
+        schema=$(${SQLITE_SQL} ${DEFAULT_SQLITE_DB_FILE} 'select name from service_schema;')
+        for f in $schema; do
+            echo "Removing $f service schema..."
+            echo "'${FLEDGE_DATA}/${f}.db'"
+            rm -f ${FLEDGE_DATA}/${f}.db*
+            echo "Removal of $f service schema Done!"
+            if [ -d "${FLEDGE_DATA}/buckets" ]; then
+                echo "Removed user data from ${FLEDGE_DATA}/buckets"
+                rm -rf ${FLEDGE_DATA}/buckets
+            fi
+        done
+    fi
+
     # 1- Drop all databases in DEFAULT_SQLITE_DB_FILE
     if [ -f "${DEFAULT_SQLITE_DB_FILE}" ]; then
         rm ${DEFAULT_SQLITE_DB_FILE} ||

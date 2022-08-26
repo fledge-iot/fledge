@@ -1473,6 +1473,11 @@ vector<string>  asset_codes;
 						sql.append(escape(buffer.GetString()));
 						sql.append('\'');
 					}
+					// Handle JSON value null: "item" : null
+					else if (itr->value.IsNull())
+					{
+						sql.append("NULL");
+					}
 					col++;
 				}
 			}
@@ -2659,12 +2664,6 @@ bool Connection::jsonWhereClause(
 		raiseError("where clause", "The \"where\" object is missing a \"condition\" property");
 		return false;
 	}
-	if (!whereClause.HasMember("value"))
-	{
-		raiseError("where clause",
-			   "The \"where\" object is missing a \"value\" property");
-		return false;
-	}
 
 	column = whereClause["column"].GetString();
 	if (!prefix.empty())
@@ -2672,121 +2671,140 @@ bool Connection::jsonWhereClause(
 	sql.append(column);
 	sql.append(' ');
 	cond = whereClause["condition"].GetString();
-	if (!cond.compare("older"))
+
+	if (cond.compare("isnull") == 0)
 	{
-		if (!whereClause["value"].IsInt())
-		{
-			raiseError("where clause",
-				   "The \"value\" of an \"older\" condition must be an integer");
-			return false;
-		}
-		sql.append("< datetime('now', '-");
-		sql.append(whereClause["value"].GetInt());
-		if (convertLocaltime)
-			sql.append(" seconds', 'localtime')"); // Get value in localtime
-		else
-			sql.append(" seconds')"); // Get value in UTC by asking for no timezone
+		sql.append("isnull ");
 	}
-	else if (!cond.compare("newer"))
+	else if (cond.compare("notnull") == 0)
 	{
-		if (!whereClause["value"].IsInt())
-		{
-			raiseError("where clause",
-				   "The \"value\" of an \"newer\" condition must be an integer");
-			return false;
-		}
-		sql.append("> datetime('now', '-");
-		sql.append(whereClause["value"].GetInt());
-		if (convertLocaltime)
-			sql.append(" seconds', 'localtime')"); // Get value in localtime
-		else
-			sql.append(" seconds')"); // Get value in UTC by asking for no timezone
-	}
-	else if (!cond.compare("in") || !cond.compare("not in"))
-	{
-		// Check we have a non empty array
-		if (whereClause["value"].IsArray() &&
-		    whereClause["value"].Size())
-		{
-			sql.append(cond);
-			sql.append(" ( ");
-			int field = 0;
-			for (Value::ConstValueIterator itr = whereClause["value"].Begin();
-							itr != whereClause["value"].End();
-							++itr)
-			{
-				if (field)
-				{
-					sql.append(", ");
-				}
-				field++;
-				if (itr->IsNumber())
-				{
-					if (itr->IsInt())
-					{
-						sql.append(itr->GetInt());
-					}
-					else if (itr->IsInt64())
-					{
-						sql.append((long)itr->GetInt64());
-					}
-					else
-					{
-						sql.append(itr->GetDouble());
-					}
-				}
-				else if (itr->IsString())
-				{
-					sql.append('\'');
-					sql.append(escape(itr->GetString()));
-					sql.append('\'');
-				}
-				else
-				{
-					string message("The \"value\" of a \"" + \
-							cond + \
-							"\" condition array element must be " \
-							"a string, integer or double.");
-					raiseError("where clause", message.c_str());
-					return false;
-				}
-			}
-			sql.append(" )");
-		}
-		else
-		{
-			string message("The \"value\" of a \"" + \
-					cond + "\" condition must be an array " \
-					"and must not be empty.");
-			raiseError("where clause", message.c_str());
-			return false;
-		}
+		sql.append("notnull ");
 	}
 	else
 	{
-		sql.append(cond);
-		sql.append(' ');
-		if (whereClause["value"].IsInt())
+		if (!whereClause.HasMember("value"))
 		{
-			sql.append(whereClause["value"].GetInt());
-		} else if (whereClause["value"].IsString())
-		{
-			string value = whereClause["value"].GetString();
-			sql.append('\'');
-			sql.append(escape(value ));
-			sql.append('\'');
+			raiseError("where clause",
+				   "The \"where\" object is missing a \"value\" property");
+			return false;
+		}
 
-			// Identify a specific operation to restrinct the tables involved
-			if (column.compare("asset_code") == 0)
-				if ( cond.compare("=") == 0)
-						asset_codes.push_back(value);
+		if (!cond.compare("older"))
+		{
+			if (!whereClause["value"].IsInt())
+			{
+				raiseError("where clause",
+					   "The \"value\" of an \"older\" condition must be an integer");
+				return false;
+			}
+			sql.append("< datetime('now', '-");
+			sql.append(whereClause["value"].GetInt());
+			if (convertLocaltime)
+				sql.append(" seconds', 'localtime')"); // Get value in localtime
+			else
+				sql.append(" seconds')"); // Get value in UTC by asking for no timezone
+		}
+		else if (!cond.compare("newer"))
+		{
+			if (!whereClause["value"].IsInt())
+			{
+				raiseError("where clause",
+					   "The \"value\" of an \"newer\" condition must be an integer");
+				return false;
+			}
+			sql.append("> datetime('now', '-");
+			sql.append(whereClause["value"].GetInt());
+			if (convertLocaltime)
+				sql.append(" seconds', 'localtime')"); // Get value in localtime
+			else
+				sql.append(" seconds')"); // Get value in UTC by asking for no timezone
+		}
+		else if (!cond.compare("in") || !cond.compare("not in"))
+		{
+			// Check we have a non empty array
+			if (whereClause["value"].IsArray() &&
+			    whereClause["value"].Size())
+			{
+				sql.append(cond);
+				sql.append(" ( ");
+				int field = 0;
+				for (Value::ConstValueIterator itr = whereClause["value"].Begin();
+								itr != whereClause["value"].End();
+								++itr)
+				{
+					if (field)
+					{
+						sql.append(", ");
+					}
+					field++;
+					if (itr->IsNumber())
+					{
+						if (itr->IsInt())
+						{
+							sql.append(itr->GetInt());
+						}
+						else if (itr->IsInt64())
+						{
+							sql.append((long)itr->GetInt64());
+						}
+						else
+						{
+							sql.append(itr->GetDouble());
+						}
+					}
+					else if (itr->IsString())
+					{
+						sql.append('\'');
+						sql.append(escape(itr->GetString()));
+						sql.append('\'');
+					}
+					else
+					{
+						string message("The \"value\" of a \"" + \
+								cond + \
+								"\" condition array element must be " \
+								"a string, integer or double.");
+						raiseError("where clause", message.c_str());
+						return false;
+					}
+				}
+				sql.append(" )");
+			}
+			else
+			{
+				string message("The \"value\" of a \"" + \
+						cond + "\" condition must be an array " \
+						"and must not be empty.");
+				raiseError("where clause", message.c_str());
+				return false;
+			}
+		}
+		else
+		{
+			sql.append(cond);
+			sql.append(' ');
+			if (whereClause["value"].IsInt())
+			{
+				sql.append(whereClause["value"].GetInt());
+			} else if (whereClause["value"].IsString())
+			{
+				string value = whereClause["value"].GetString();
+				sql.append('\'');
+				sql.append(escape(value ));
+				sql.append('\'');
+
+				// Identify a specific operation to restrinct the tables involved
+				if (column.compare("asset_code") == 0)
+					if ( cond.compare("=") == 0)
+							asset_codes.push_back(value);
+			}
 		}
 	}
  
 	if (whereClause.HasMember("and"))
 	{
 		sql.append(" AND ");
-		if (!jsonWhereClause(whereClause["and"], sql, asset_codes, convertLocaltime))
+		if (!jsonWhereClause(whereClause["and"], sql, asset_codes, convertLocaltime, prefix))
 		{
 			return false;
 		}
@@ -2794,7 +2812,7 @@ bool Connection::jsonWhereClause(
 	if (whereClause.HasMember("or"))
 	{
 		sql.append(" OR ");
-		if (!jsonWhereClause(whereClause["or"], sql, asset_codes, convertLocaltime))
+		if (!jsonWhereClause(whereClause["or"], sql, asset_codes, convertLocaltime, prefix))
 		{
 			return false;
 		}

@@ -98,6 +98,50 @@ int Ingest::createStatsDbEntry(const string& assetName)
 }
 
 /**
+ * Create a row for service in the statistics DB table, if not present already
+ * 
+ */
+int Ingest::createServiceStatsDbEntry()
+{
+	// SELECT * FROM fledge.configuration WHERE key = categoryName
+	const Condition conditionKey(Equals);
+	Where *wKey = new Where("key", conditionKey, m_serviceName + INGEST_SUFFIX);
+	Query qKey(wKey);
+
+	ResultSet* result = 0;
+	try
+	{
+		// Query via storage client
+		result = m_storage.queryTable("statistics", qKey);
+
+		if (!result->rowCount())
+		{
+			// Prepare insert values for insertTable
+			InsertValues newStatsEntry;
+			newStatsEntry.push_back(InsertValue("key", m_serviceName + INGEST_SUFFIX));
+			newStatsEntry.push_back(InsertValue("description", string("Readings received from service ")+ m_serviceName));
+			// Set "value" field for insert using the JSON document object
+			newStatsEntry.push_back(InsertValue("value", 0));
+			newStatsEntry.push_back(InsertValue("previous_value", 0));
+
+			// Do the insert
+			if (!m_storage.insertTable("statistics", newStatsEntry))
+			{
+				m_logger->error("%s:%d : Insert new row into statistics table failed, newStatsEntry='%s'", __FUNCTION__, __LINE__, newStatsEntry.toJSON().c_str());
+				delete result;
+				return -1;
+			}
+		}
+		delete result;
+	}
+	catch (...)
+	{
+		m_logger->error("%s:%d : Unable to create new row in statistics table with key='%s'", __FUNCTION__, __LINE__, m_serviceName.c_str());
+		return -1;
+	}
+	return 0;
+}
+/**
  * Update statistics for this south service. Successfully processed 
  * readings are reflected against plugin asset name and READINGS keys.
  * Discarded readings stats are updated against DISCARDED key.
@@ -147,6 +191,13 @@ void Ingest::updateStats()
 	if(readings)
 	{
 		Where *wPluginStat = new Where("key", conditionStat, "READINGS");
+		ExpressionValues *updateValue = new ExpressionValues;
+		updateValue->push_back(Expression("value", "+", (int) readings));
+		statsUpdates.emplace_back(updateValue, wPluginStat);
+	}
+	if(readings)
+	{
+		Where *wPluginStat = new Where("key", conditionStat, m_serviceName + INGEST_SUFFIX);
 		ExpressionValues *updateValue = new ExpressionValues;
 		updateValue->push_back(Expression("value", "+", (int) readings));
 		statsUpdates.emplace_back(updateValue, wPluginStat);
@@ -217,10 +268,12 @@ Ingest::Ingest(StorageClient& storage,
 	m_data = NULL;
 	m_discardedReadings = 0;
 	m_highLatency = false;
-	
+
 	// populate asset tracking cache
-	//m_assetTracker = new AssetTracker(m_mgtClient);
 	AssetTracker::getAssetTracker()->populateAssetTrackingCache(m_pluginName, "Ingest");
+
+	// Create the stats entry for the service
+	createServiceStatsDbEntry();
 
 	m_filterPipeline = NULL;
 }
@@ -446,6 +499,7 @@ void Ingest::processQueue()
 				m_failCnt = 0;
 				std::map<std::string, int>		statsEntriesCurrQueue;
 				AssetTracker *tracker = AssetTracker::getAssetTracker();
+
 				string lastAsset = "";
 				int *lastStat = NULL;
 				for (vector<Reading *>::iterator it = q->begin();
@@ -455,10 +509,24 @@ void Ingest::processQueue()
 					string assetName = reading->getAssetName();
 					if (lastAsset.compare(assetName))
 					{
-						AssetTrackingTuple tuple(m_serviceName, m_pluginName, assetName, "Ingest");
-						if (!tracker->checkAssetTrackingCache(tuple))
+						AssetTrackingTuple tuple(m_serviceName,
+									m_pluginName,
+									assetName,
+									"Ingest");
+
+						// Check Asset record exists
+						AssetTrackingTuple* res = tracker->findAssetTrackingCache(tuple);
+						if (res == NULL)
 						{
+							// Record non in cache, add it
 							tracker->addAssetTrackingTuple(tuple);
+						}
+						else
+						{
+							// Possibly Un-deprecate asset tracking record
+							unDeprecateAssetTrackingRecord(res,
+											assetName,
+											"Ingest");
 						}
 						lastAsset = assetName;
 						lastStat = &(statsEntriesCurrQueue[assetName]);
@@ -606,7 +674,8 @@ void Ingest::processQueue()
 				// check if this requires addition of a new asset tracker tuple
 				// Remove the Readings in the vector
 				AssetTracker *tracker = AssetTracker::getAssetTracker();
-				string lastAsset = "";
+
+				string lastAsset;
 				int *lastStat = NULL;
 				for (vector<Reading *>::iterator it = m_data->begin(); it != m_data->end(); ++it)
 				{
@@ -614,10 +683,24 @@ void Ingest::processQueue()
 					string	assetName = reading->getAssetName();
 					if (lastAsset.compare(assetName))
 					{
-						AssetTrackingTuple tuple(m_serviceName, m_pluginName, assetName, "Ingest");
-						if (!tracker->checkAssetTrackingCache(tuple))
+						AssetTrackingTuple tuple(m_serviceName,
+									m_pluginName,
+									assetName,
+									"Ingest");
+
+						// Check Asset record exists
+						AssetTrackingTuple* res = tracker->findAssetTrackingCache(tuple);
+						if (res == NULL)
 						{
+							// Record not in cache, add it
 							tracker->addAssetTrackingTuple(tuple);
+						}
+						else
+						{
+							// Un-deprecate asset tracking record
+							unDeprecateAssetTrackingRecord(res,
+											assetName,
+											"Ingest");
 						}
 						lastAsset = assetName;
 						lastStat = &statsEntriesCurrQueue[assetName];
@@ -841,4 +924,92 @@ size_t Ingest::queueLength()
 	len += m_resendQueues.size() * m_queueSizeThreshold;
 
 	return len;
+}
+
+/**
+ * Load an up-to-date AssetTracking record for the given parameters
+ * and un-deprecate AssetTracking record it has been found as deprecated
+ * Existing cache element is updated
+ *
+ * @param currentTuple		Current AssetTracking record for given assetName
+ * @param assetName		AssetName to fetch from AssetTracking
+ * @param event			The event type to fetch
+ */
+void Ingest::unDeprecateAssetTrackingRecord(AssetTrackingTuple* currentTuple,
+					const string& assetName,
+					const string& event)
+{
+	// Get up-to-date Asset Tracking record 
+	AssetTrackingTuple* updatedTuple =
+			m_mgtClient->getAssetTrackingTuple(
+			m_serviceName,
+			assetName,
+			event);
+
+	if (updatedTuple)
+	{
+		if (updatedTuple->isDeprecated())
+		{
+			// Update un-deprecated state in cached object
+			currentTuple->unDeprecate();
+
+			m_logger->debug("Asset '%s' is being un-deprecated",
+					assetName.c_str());
+
+			// Prepare UPDATE query
+			const Condition conditionParams(Equals);
+			Where * wAsset = new Where("asset",
+						conditionParams,
+						assetName);
+			Where *wService = new Where("service",
+						conditionParams,
+						m_serviceName,
+						wAsset);
+			Where *wEvent = new Where("event",
+						conditionParams,
+						event,
+						wService);
+
+			InsertValues unDeprecated;
+
+			// Set NULL value
+			unDeprecated.push_back(InsertValue("deprecated_ts"));
+				
+			// Update storage with NULL value
+			int rv = m_storage.updateTable("asset_tracker",
+							unDeprecated,
+							*wEvent);
+
+			// Check update operation
+			if (rv < 0)
+			{
+				m_logger->error("Failure while un-deprecating asset '%s'",
+						assetName.c_str());
+			}
+			else
+			{
+				string audit_details = "{\"asset\" : \"" + assetName +
+							"\", \"service\" : \"" + m_serviceName +
+							"\", \"event\" : \"" + event + "\"}";
+				// Add AuditLog entry
+				if (!m_mgtClient->addAuditEntry("ASTUN", "INFORMATION", audit_details))
+				{
+					m_logger->warn("Failure while adding AuditLog entry " \
+							" for un-deprecated asset '%s'",
+							assetName.c_str());
+				}
+				m_logger->info("Asset '%s' has been un-deprecated",
+						assetName.c_str());
+			}
+		}
+	}
+	else
+	{
+		m_logger->error("Failure to get AssetTracking record " 	
+				"for service '%s', asset '%s'",
+				m_serviceName.c_str(),
+				assetName.c_str());
+	}
+
+	delete updatedTuple;
 }

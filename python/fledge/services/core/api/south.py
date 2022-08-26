@@ -116,7 +116,7 @@ async def _get_tracked_plugin_assets_and_readings(storage_client, cf_mgr, svc_na
     plugin_value = await cf_mgr.get_category_item(svc_name, 'plugin')
     plugin = plugin_value['value'] if plugin_value is not None else ''
     payload = PayloadBuilder().SELECT(["asset", "plugin"]).WHERE(['service', '=', svc_name]).AND_WHERE(
-        ['event', '=', 'Ingest']).AND_WHERE(['plugin', '=', plugin]).payload()
+        ['event', '=', 'Ingest']).AND_WHERE(['plugin', '=', plugin]).AND_WHERE(['deprecated_ts', 'isnull']).payload()
     try:
         result = await storage_client.query_tbl_with_payload('asset_tracker', payload)
         # TODO: FOGL-2549

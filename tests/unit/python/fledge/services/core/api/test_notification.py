@@ -223,8 +223,14 @@ delivery_channel_config = {
       "description": "Perform a control action to turn pump",
       "type": "boolean",
       "default": "false"
+    },
+    "plugin": {
+      "description": "Telegram notification plugin",
+      "type": "string",
+      "readonly": "true",
+      "default": "Telegram"
     }
-  }
+}
 
 
 async def mock_get_url(get_url):
@@ -352,6 +358,8 @@ class TestNotification:
         assert notification_type == json_response
 
     async def test_get_notification(self, mocker, client):
+        async def mock_get_channel_type():
+            return []
         r = list(filter(lambda rules: rules['name'] == notification_config['rule']['value'], rule_config))
         c = list(filter(lambda channels: channels['name'] == notification_config['channel']['value'], delivery_config))
         if len(r) == 0 or len(c) == 0: raise KeyError
@@ -374,10 +382,16 @@ class TestNotification:
             _se1 = await mock_read_category_val("Test Notification")
             _se2 = await mock_read_category_val("ruleTest Notification")
             _se3 = await mock_read_category_val("deliveryTest Notification")
+            mocker.patch.object(notification,
+                        '_get_channels_type',
+                        return_value=await mock_get_channel_type())
         else:
             _se1 = asyncio.ensure_future(mock_read_category_val("Test Notification"))
             _se2 = asyncio.ensure_future(mock_read_category_val("ruleTest Notification"))
             _se3 = asyncio.ensure_future(mock_read_category_val("deliveryTest Notification"))         
+            mocker.patch.object(notification,
+                        '_get_channels_type',
+                        return_value = asyncio.ensure_future(mock_get_channel_type()))
         
         mocker.patch.object(connect, 'get_storage_async')
         mocker.patch.object(ConfigurationManager, '__init__', return_value=None)
@@ -390,6 +404,8 @@ class TestNotification:
         assert notif == json_response["notification"]
 
     async def test_get_notifications(self, mocker, client):
+        async def mock_get_channel_type():
+            return []
         notifications = [{
             "name": notification_config['name']['value'],
             "rule": notification_config['rule']['value'],
@@ -403,9 +419,15 @@ class TestNotification:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv1 = await mock_read_all_child_category_names()
             _rv2 = await mock_read_category_val("Test Notification")
+            mocker.patch.object(notification,
+                        '_get_channels_type',
+                        return_value=await mock_get_channel_type())
         else:
             _rv1 = asyncio.ensure_future(mock_read_all_child_category_names())
             _rv2 = asyncio.ensure_future(mock_read_category_val("Test Notification"))
+            mocker.patch.object(notification,
+                        '_get_channels_type',
+                        return_value = asyncio.ensure_future(mock_get_channel_type()))
         
         mocker.patch.object(connect, 'get_storage_async')
         mocker.patch.object(ConfigurationManager, '__init__', return_value=None)
@@ -846,8 +868,8 @@ class TestNotification:
 
     @pytest.mark.parametrize("name, config, description", [
         ("coolant", delivery_channel_config, None),
-        (" coolant2", {}, ''),
-        (" coolant3", {}, 'Test coolant'),
+        (" coolant2", delivery_channel_config, ''),
+        (" coolant3", delivery_channel_config, 'Test coolant'),
     ])
     async def test_good_post_delivery_channel(self, mocker, client, name, config, description):
         notification_instance_name = "overspeed"
@@ -902,9 +924,9 @@ class TestNotification:
     @pytest.mark.parametrize("notification_instance_name, categories, exp_channel, plugin_type", [
         ("overspeed", [], [], {}),
         ("overspeed", [("overspeed_channel_coolant", 1), ("Pump_channel_coolant2", 2)], ['coolant'], {}),
-        ("overspeed", [("overspeed_channel_coolant", 1), ("overspeed_channel_coolant2", 2)], ['coolant', 'coolant2'], {}),
+        ("overspeed", [("overspeed_channel_coolant", 1), ('overspeed_channel_coolant2', 2)], ['coolant', 'coolant2'], {}),
         ("overspeed", [("deliveryoverspeed", 1), ("overspeed_channel_coolant2", 2)], ['deliveryoverspeed', 'coolant2'], {}),
-        ("overspeed", [("deliveryoverspeed", 1), ("overspeed_channel_coolant2", 2)], ['deliveryoverspeed/mqtt', 'coolant2'], {"value": {"plugin": {"value": "mqtt" }}})
+        ("overspeed", [("deliveryoverspeed", 1), ("overspeed_channel_coolant2", 2)], [{'name': 'mqtt', 'category': 'deliveryoverspeed'}, {'name':'coolant2', 'category' : 'overspeed_channel_coolant2'}], {"value": {"plugin": {"value": "mqtt" }}})
     ])
     async def test_good_get_delivery_channel(self, mocker, client, notification_instance_name, categories, exp_channel, plugin_type):
         async def async_mock(cat):
@@ -915,10 +937,16 @@ class TestNotification:
             _se = await mock_read_category_val(notification_instance_name)
             _rv = await async_mock(categories)
             _rv2 = await async_mock(plugin_type)
+            mocker.patch.object(notification,
+                                '_get_all_delivery_channels',
+                                return_value=await async_mock(exp_channel))
         else:
             _se = asyncio.ensure_future(mock_read_category_val(notification_instance_name))
             _rv = asyncio.ensure_future(async_mock(categories))
             _rv2 = asyncio.ensure_future(async_mock(plugin_type))
+            mocker.patch.object(notification,
+                                '_get_all_delivery_channels',
+                                return_value=asyncio.ensure_future(async_mock(exp_channel)))
 
         mocker.patch.object(connect, 'get_storage_async')
         mocker.patch.object(ConfigurationManager, '__init__', return_value=None)

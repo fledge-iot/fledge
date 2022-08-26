@@ -1,0 +1,11 @@
+{
+  "where": {
+  "and": {
+    "column": "deprecated_ts",
+    "condition": "notnull"
+  },
+  "column": "plugin",
+  "condition": "=",
+  "value": "sinusoid"
+  }
+}

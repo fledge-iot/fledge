@@ -27,6 +27,8 @@
 
 #define SERVICE_NAME  "Fledge South"
 
+#define INGEST_SUFFIX	"-Ingest"	// Suffix for per service ingest statistic
+
 /**
  * The ingest class is used to ingest asset readings.
  * It maintains a queue of readings to be sent to storage,
@@ -65,8 +67,11 @@ public:
 	void		setThreshold(const unsigned int threshold) { m_queueSizeThreshold = threshold; };
 	void		configChange(const std::string&, const std::string&);
 	void		configChildCreate(const std::string& , const std::string&, const std::string&){};
-	void        configChildDelete(const std::string& , const std::string&){};
+	void		configChildDelete(const std::string& , const std::string&){};
 	void		shutdown() {};	// Satisfy ServiceHandler
+	void		unDeprecateAssetTrackingRecord(AssetTrackingTuple* currentTuple,
+							const std::string& assetName,
+							const std::string& event);
 
 private:
 	void				signalStatsUpdate() {
@@ -79,6 +84,7 @@ private:
 						m_discardedReadings++;
 					};
 	long				calculateWaitTime();
+	int 				createServiceStatsDbEntry();
 
 	StorageClient&			m_storage;
 	long				m_timeout;

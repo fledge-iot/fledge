@@ -354,7 +354,7 @@ class User:
             exp = datetime.now() + timedelta(seconds=JWT_EXP_DELTA_SECONDS)
             uid = found_user['id']
             p = {'uid': uid, 'exp': exp}
-            jwt_token = jwt.encode(p, JWT_SECRET, JWT_ALGORITHM).decode("utf-8")
+            jwt_token = jwt.encode(p, JWT_SECRET, JWT_ALGORITHM)
 
             payload = PayloadBuilder().INSERT(user_id=p['uid'], token=jwt_token,
                                               token_expiration=str(exp), ip=host).payload()

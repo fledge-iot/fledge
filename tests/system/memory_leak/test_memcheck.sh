@@ -89,11 +89,15 @@ collect_data(){
   sleep ${TEST_RUN_TIME}
   cd ${FLEDGE_ROOT}/scripts/
   echo 'stopping fledge'
+  # Fix me, fledge is giving exit code 1 when we stop it from ./bin/fledge. The Jira is locked for it -  https://scaledb.atlassian.net/browse/FOGL-6840
+  # That is the reason set +e and set -e executed
+  set +e
   ./fledge stop && echo $?
+  set -e
+  cd ../..
 }
 
 generate_valgrind_logs(){
-  cd /home/ubuntu/fledge/tests/system/memory_leak/
   echo 'Creating reports directory';
   mkdir -p reports/test1 ; ls -lrth
   echo 'copying reports '

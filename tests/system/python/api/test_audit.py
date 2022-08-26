@@ -26,7 +26,8 @@ class TestAudit:
                               'CONCH', 'CONAD', 'SCHCH', 'SCHAD', 'SRVRG', 'SRVUN',
                               'SRVFL', 'NHCOM', 'NHDWN', 'NHAVL', 'UPEXC', 'BKEXC',
                               'NTFDL', 'NTFAD', 'NTFSN', 'NTFCL', 'NTFST', 'NTFSD',
-                              'PKGIN', 'PKGUP', 'PKGRM', 'DSPST', 'DSPSD']
+                              'PKGIN', 'PKGUP', 'PKGRM', 'DSPST', 'DSPSD', 'ESSRT',
+                              'ESSTP', 'ASTDP', 'ASTUN', 'PIPIN']
         conn = http.client.HTTPConnection(fledge_url)
         conn.request("GET", '/fledge/audit/logcode')
         r = conn.getresponse()
@@ -34,7 +35,7 @@ class TestAudit:
         r = r.read().decode()
         jdoc = json.loads(r)
         assert len(jdoc), "No data found"
-        assert 29 == len(jdoc['logCode'])
+        assert len(expected_code_list) == len(jdoc['logCode'])
         codes = [key['code'] for key in jdoc['logCode']]
         assert Counter(expected_code_list) == Counter(codes)
 

@@ -26,6 +26,7 @@ public:
 
 private:
 	StorageClient*		m_storage;
+	bool			m_dataLoaded;
 };
 
 #endif

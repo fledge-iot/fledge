@@ -86,12 +86,25 @@ class TestE2EAssetHttpPI:
 
     @pytest.fixture
     def start_south_north(self, reset_and_start_fledge, add_south, start_north_pi_server_c, remove_directories,
-                          south_branch, fledge_url, pi_host, pi_port, pi_token):
+                          south_branch, fledge_url, pi_host, pi_port, pi_token,
+                          clear_pi_system_through_pi_web_api, pi_admin, pi_passwd, pi_db,
+                          asset_name = "e2e_varying"):
         """ This fixture clone a south repo and starts both south and north instance
             reset_and_start_fledge: Fixture that resets and starts fledge, no explicit invocation, called at start
             add_south: Fixture that adds a south service with given configuration
             start_north_pi_server_c: Fixture that starts PI north task
             remove_directories: Fixture that remove directories created during the tests"""
+
+        # No need to give asset hierarchy in case of connector relay.
+        dp_list = ['a', 'b', 'a2', 'b2', '']
+        # There are five data points here. 1. a 2. b
+        # 3. a2          4. b2
+        # 5. no data point (Asset name be used in this case.)
+        asset_dict = {}
+        asset_dict[asset_name] = dp_list
+
+        clear_pi_system_through_pi_web_api(pi_host, pi_admin, pi_passwd, pi_db,
+                                           [], asset_dict)
 
         south_plugin = "http"
         add_south("http_south", south_branch, fledge_url, config={"assetNamePrefix": {"value": ""}},

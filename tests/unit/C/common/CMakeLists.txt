@@ -1,9 +1,17 @@
 cmake_minimum_required(VERSION 2.6)
 
-set(CMAKE_CXX_FLAGS "-std=c++11 -O3")
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/..)
+set(GCOVR_PATH "$ENV{HOME}/.local/bin/gcovr")
+
+project(RunTests)
+
+set(CMAKE_CXX_FLAGS "-std=c++11 -O0")
 set(UUIDLIB -luuid)
 set(COMMONLIB -ldl)
 set(LIBCURL_LIB -lcurl)
+
+include(CodeCoverage)
+append_coverage_compiler_flags()
 
 # Locate GTest
 find_package(GTest REQUIRED)
@@ -11,6 +19,12 @@ include_directories(${GTEST_INCLUDE_DIRS})
 
 EXECUTE_PROCESS( COMMAND grep -o ^NAME=.* /etc/os-release COMMAND cut -f2 -d\" COMMAND sed s/\"//g OUTPUT_VARIABLE os_name )
 EXECUTE_PROCESS( COMMAND grep -o ^VERSION_ID=.* /etc/os-release COMMAND cut -f2 -d\" COMMAND sed s/\"//g OUTPUT_VARIABLE os_version )
+
+# Get the os name
+execute_process(COMMAND bash -c "cat /etc/os-release | grep -w ID | cut -f2 -d'='"
+                                OUTPUT_VARIABLE
+                                OS_NAME
+                                OUTPUT_STRIP_TRAILING_WHITESPACE)
 
 if ( ( ${os_name} MATCHES "Red Hat" OR ${os_name} MATCHES "CentOS") AND ( ${os_version} MATCHES "7" ) )
     add_definitions(-DRHEL_CENTOS_7=1)
@@ -45,14 +59,31 @@ find_package(PkgConfig REQUIRED)
 if(${CMAKE_VERSION} VERSION_LESS "3.12.0") 
     pkg_check_modules(PYTHON REQUIRED python3)
 else()
-    find_package(Python3 COMPONENTS Interpreter Development)
+    if("${OS_NAME}" STREQUAL "mendel")
+        # We will explicitly set include path later for NumPy.
+        find_package(Python3 REQUIRED COMPONENTS Interpreter Development )
+    else()
+        find_package(Python3 REQUIRED COMPONENTS Interpreter Development NumPy)
+    endif()
 endif()
 
 # Add Python 3.x header files
 if(${CMAKE_VERSION} VERSION_LESS "3.12.0") 
     include_directories(${PYTHON_INCLUDE_DIRS})
 else()
-    include_directories(${Python3_INCLUDE_DIRS})
+    if("${OS_NAME}" STREQUAL "mendel")
+        # The following command gets the location of NumPy.
+        execute_process(
+            COMMAND python3
+                -c "import numpy; print(numpy.get_include())"
+                OUTPUT_VARIABLE Python3_NUMPY_INCLUDE_DIRS
+                OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
+        # Now we can add include directories as usual.
+        include_directories(${Python3_INCLUDE_DIRS} ${Python3_NUMPY_INCLUDE_DIRS})
+    else()
+        include_directories(${Python3_INCLUDE_DIRS} ${Python3_NUMPY_INCLUDE_DIRS})
+    endif()
 endif()
 
 if(${CMAKE_VERSION} VERSION_LESS "3.12.0") 
@@ -79,6 +110,22 @@ target_link_libraries(RunTests ${PLUGINS_COMMON_LIB})
 if(${CMAKE_VERSION} VERSION_LESS "3.12.0") 
     target_link_libraries(RunTests ${PYTHON_LIBRARIES})
 else()
-    target_link_libraries(RunTests ${Python3_LIBRARIES})
+    if("${OS_NAME}" STREQUAL "mendel")
+        target_link_libraries(${PROJECT_NAME} ${Python3_LIBRARIES})
+    else()
+	    target_link_libraries(${PROJECT_NAME} ${Python3_LIBRARIES} Python3::NumPy)
+    endif()
 endif()
+
+setup_target_for_coverage_gcovr_html(
+            NAME CoverageHtml
+            EXECUTABLE ${PROJECT_NAME}
+            DEPENDENCIES ${PROJECT_NAME}
+    )
+
+setup_target_for_coverage_gcovr_xml(
+            NAME CoverageXml
+            EXECUTABLE ${PROJECT_NAME}
+            DEPENDENCIES ${PROJECT_NAME}
+    )
 

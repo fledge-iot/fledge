@@ -559,13 +559,15 @@ CREATE UNIQUE INDEX config_children_idx1
 
 -- Create the asset_tracker table
 CREATE TABLE fledge.asset_tracker (
-       id            integer          PRIMARY KEY AUTOINCREMENT,
-       asset         character(50)    NOT NULL,
-       event         character varying(50) NOT NULL,
-       service       character varying(255) NOT NULL,
-       fledge       character varying(50) NOT NULL,
-       plugin        character varying(50) NOT NULL,
-       ts            DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'localtime')) );
+       id              integer                  PRIMARY KEY AUTOINCREMENT,
+       asset           character(50)            NOT NULL, -- asset name
+       event           character varying(50)    NOT NULL, -- event name
+       service         character varying(255)   NOT NULL, -- service name
+       fledge          character varying(50)    NOT NULL, -- FL service name
+       plugin          character varying(50)    NOT NULL, -- Plugin name
+       deprecated_ts   DATETIME                         , -- When an asset record is removed then time will be set else empty and that mean entry has not been deprecated
+       ts              DATETIME                 DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'localtime'))
+);
 
 CREATE INDEX asset_tracker_ix1 ON asset_tracker (asset);
 CREATE INDEX asset_tracker_ix2 ON asset_tracker (service);
@@ -603,6 +605,13 @@ CREATE TABLE fledge.control_acl (
              service       JSON                          NOT NULL DEFAULT '{}',
              url           JSON                          NOT NULL DEFAULT '{}',
              CONSTRAINT    control_acl_pkey              PRIMARY KEY (name) );
+
+-- Access Control List usage relation
+CREATE TABLE fledge.acl_usage (
+             name            character varying(255)  NOT NULL,  -- ACL name
+             entity_type     character varying(80)   NOT NULL,  -- associated entity type: service or script
+             entity_name     character varying(255)  NOT NULL,  -- associated entity name
+             CONSTRAINT      usage_acl_pkey          PRIMARY KEY (name, entity_type, entity_name) );
 
 ----------------------------------------------------------------------
 -- Initialization phase - DML
@@ -659,7 +668,10 @@ INSERT INTO fledge.log_codes ( code, description )
             ( 'DSPST', 'Dispatcher Startup' ),
             ( 'DSPSD', 'Dispatcher Shutdown' ),
 	    ( 'ESSRT', 'External Service Startup' ),
-	    ( 'ESSTP', 'External Service Shutdown' );
+	    ( 'ESSTP', 'External Service Shutdown' ),
+	    ( 'ASTDP', 'Asset deprecated' ),
+	    ( 'ASTUN', 'Asset un-deprecated' ),
+	    ( 'PIPIN', 'Pip installation' );
 
 --
 -- Configuration parameters

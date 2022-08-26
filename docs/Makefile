@@ -12,24 +12,26 @@ BUILDDIR      = _build
 help:	fledge_plugins.rst
 	@$(SPHINXBUILD) -M help "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
 
-.PHONY: help Makefile generated fledge_plugins.rst plugin_configuration clean
+.PHONY: help Makefile generated fledge_plugins.rst plugin_and_services_configuration clean
 
 # Catch-all target: route all unknown targets to Sphinx using the new
 # "make mode" option.  $(O) is meant as a shortcut for $(SPHINXOPTS).
 %: Makefile 
 	@$(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
 
-generated: fledge_plugins.rst plugin_configuration
+generated: fledge_plugins.rst plugin_and_services_configuration
 
 fledge_plugins.rst: 
 	@echo Building page with table of plugins
 	@bash scripts/fledge_plugin_list fledge_plugins.rst
 
-plugin_configuration: 
-	@echo Building plugin configuration appendices
-	@bash scripts/plugin_documentation
+plugin_and_services_configuration:
+	@echo Building plugin and service configuration appendices
+	@bash scripts/plugin_and_service_documentation
 
 clean:
+	@echo Clean Doc build artifacts
 	@rm -f fledge_plugins.rst
 	@rm -rf plugins
+	@rm -rf services
 	@rm -rf "$(BUILDDIR)"

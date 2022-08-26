@@ -1,8 +1,16 @@
+cmake_minimum_required(VERSION 2.6)
+
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/../../..)
+set(GCOVR_PATH "$ENV{HOME}/.local/bin/gcovr")
+
 # Project configuration
 project(RunTests)
-cmake_minimum_required(VERSION 2.6)
-set(CMAKE_CXX_FLAGS "-std=c++11 ")
+
+set(CMAKE_CXX_FLAGS "-std=c++11 -O0")
 set(CMAKE_CXX_FLAGS_DEBUG "-O0 -ggdb")
+
+include(CodeCoverage)
+append_coverage_compiler_flags()
 
 # External libraries
 set(LIBCURL_LIB -lcurl)
@@ -25,11 +33,12 @@ include_directories(../../../../../../C/plugins/storage/common/include)
 include_directories(../../../../../../C/thirdparty/rapidjson/include)
 include_directories(../../../../../../C/plugins/storage/sqlitelb/include)
 include_directories(../../../../../../C/plugins/storage/sqlitelb/common/include)
+include_directories(../../../../../../C/plugins/storage/sqlite/schema/include)
 
 # Source files
 file(GLOB TEST_SOURCES tests.cpp)
 file(GLOB COMMON_SOURCES ../sqlitelb/*.cpp)
-file(GLOB COMMON_SOURCES ../sqlitelb/common/*.cpp)
+file(GLOB COMMON_SOURCES ../sqlitelb/common/*.cpp ../sqlite/schema/*.cpp)
 
 # Check for SQLite3 source tree in specific location
 set(FLEDGE_SQLITE3_LIBS "/tmp/sqlite3-pkg/src" CACHE INTERNAL "")
@@ -81,4 +90,16 @@ if(${CMAKE_VERSION} VERSION_LESS "3.12.0")
 else()
 	target_link_libraries(${PROJECT_NAME} ${Python3_LIBRARIES})
 endif()
+
+setup_target_for_coverage_gcovr_html(
+            NAME CoverageHtml
+            EXECUTABLE ${PROJECT_NAME}
+            DEPENDENCIES ${PROJECT_NAME}
+    )
+
+setup_target_for_coverage_gcovr_xml(
+            NAME CoverageXml
+            EXECUTABLE ${PROJECT_NAME}
+            DEPENDENCIES ${PROJECT_NAME}
+    )
 

@@ -766,13 +766,15 @@ CREATE UNIQUE INDEX config_children_ix1 ON fledge.category_children(parent, chil
 
 -- Create the asset_tracker table
 CREATE TABLE fledge.asset_tracker (
-       id            integer                NOT NULL DEFAULT nextval('fledge.asset_tracker_id_seq'::regclass),
-       asset         character(255)         NOT NULL,
-       event         character varying(50)  NOT NULL,
-       service       character varying(255) NOT NULL,
-       fledge       character varying(50)  NOT NULL,
-       plugin        character varying(50)  NOT NULL,
-       ts            timestamp(6) with time zone NOT NULL DEFAULT now() );
+       id              integer                         NOT NULL DEFAULT nextval('fledge.asset_tracker_id_seq'::regclass),
+       asset           character(255)                  NOT NULL, -- asset name
+       event           character varying(50)           NOT NULL, -- event name
+       service         character varying(255)          NOT NULL, -- service name
+       fledge          character varying(50)           NOT NULL, -- FL service name
+       plugin          character varying(50)           NOT NULL, -- Plugin name
+       deprecated_ts   timestamp(6) with time zone             , -- When an asset record is removed then time will be set else empty and that mean entry has not been deprecated
+       ts              timestamp(6) with time zone     NOT NULL DEFAULT now()
+);
 
 CREATE INDEX asset_tracker_ix1 ON fledge.asset_tracker USING btree (asset);
 CREATE INDEX asset_tracker_ix2 ON fledge.asset_tracker USING btree (service);
@@ -827,11 +829,15 @@ CREATE TABLE fledge.control_acl (
              url           jsonb                         NOT NULL DEFAULT '{}'::jsonb,
              CONSTRAINT    control_acl_pkey              PRIMARY KEY (name) );
 
+-- Access Control List usage relation
+CREATE TABLE fledge.acl_usage (
+             name            character varying(255)  NOT NULL,  -- ACL name
+             entity_type     character varying(80)   NOT NULL,  -- associated entity type: service or script 
+             entity_name     character varying(255)  NOT NULL,  -- associated entity name
+             CONSTRAINT      usage_acl_pkey          PRIMARY KEY (name, entity_type, entity_name) );
 
 -- Grants to fledge schema
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA fledge TO PUBLIC;
-
-
 
 ----------------------------------------------------------------------
 -- Initialization phase - DML
@@ -891,7 +897,10 @@ INSERT INTO fledge.log_codes ( code, description )
             ( 'DSPST', 'Dispatcher Startup' ),
             ( 'DSPSD', 'Dispatcher Shutdown' ),
 	    ( 'ESSRT', 'External Service Startup' ),
-	    ( 'ESSTP', 'External Service Shutdown' );
+	    ( 'ESSTP', 'External Service Shutdown' ),
+	    ( 'ASTDP', 'Asset deprecated' ),
+	    ( 'ASTUN', 'Asset un-deprecated' ),	
+	    ( 'PIPIN', 'Pip installation' );
 
 --
 -- Configuration parameters

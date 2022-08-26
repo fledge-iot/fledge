@@ -57,14 +57,15 @@ A typical Python implementation of this would simply return a fixed dictionary o
 
 These are the properties returned by the JSON document:
 
-- **Name** - A textual name that will be used for reporting purposes for this plugin.
-- **Version** - This property allows the version of the plugin to be communicated to the plugin loader. This is used for reporting purposes only and has no effect on the way Fledge interacts with the plugin.
-- **Type** - The type of the plugin, used by the plugin loader to determine if the plugin is being used correctly. The type is a simple string and may be South, North, Storage, Filter, Rule or Delivery.
+- **name** - A textual name that will be used for reporting purposes for this plugin.
+- **version** - This property allows the version of the plugin to be communicated to the plugin loader. This is used for reporting purposes only and has no effect on the way Fledge interacts with the plugin.
+- **mode** - A set of options that defines how the plugin operates. Multiple values can be given, the different options are separated from each other using the | symbol.
+- **type** - The type of the plugin, used by the plugin loader to determine if the plugin is being used correctly. The type is a simple string and may be *south*, *north*,  *filter*, *rule* or *delivery*.
 
 .. note:: If you browse the Fledge code you may find old plugins with type *device*: this was the type used to indicate a South plugin and it is now deprecated.
 
-- **Interface** - This property reports the version of the plugin API to which this plugin was written. It allows Fledge to support upgrades of the API whilst being able to recognise the version that a particular plugin is compliant with. Currently all interfaces are version 1.0.
-- **Configuration** - This allows the plugin to return a JSON document which contains the default configuration of the plugin.  This is in line with the extensible plugin mechanism of Fledge, each plugin will return a set of configuration items that it wishes to use, this will then be used to extend the set of Fledge configuration items. This structure, a JSON document, includes default values but no actual values for each configuration option. The first time Fledge’s configuration manager sees a category it will register the category and create values for each item using the default value in the configuration document. On subsequent calls the value already in the configuration manager will be used. |br| This mechanism allows the plugin to extend the set of configuration variables whilst giving the user the opportunity to modify the value of these configuration items. It also allow new versions of plugins to add new configuration items whilst retaining the values of previous items. And new items will automatically be assigned the default value for that item. |br| As an example, a plugin that wishes to maintain two configuration variables, say a GPIO pin to use and a polling interval, would return a configuration document that looks as follows:
+- **interface** - This property reports the version of the plugin API to which this plugin was written. It allows Fledge to support upgrades of the API whilst being able to recognise the version that a particular plugin is compliant with. Currently all interfaces are version 1.0.
+- **configuration** - This allows the plugin to return a JSON document which contains the default configuration of the plugin.  This is in line with the extensible plugin mechanism of Fledge, each plugin will return a set of configuration items that it wishes to use, this will then be used to extend the set of Fledge configuration items. This structure, a JSON document, includes default values but no actual values for each configuration option. The first time Fledge’s configuration manager sees a category it will register the category and create values for each item using the default value in the configuration document. On subsequent calls the value already in the configuration manager will be used. |br| This mechanism allows the plugin to extend the set of configuration variables whilst giving the user the opportunity to modify the value of these configuration items. It also allow new versions of plugins to add new configuration items whilst retaining the values of previous items. And new items will automatically be assigned the default value for that item. |br| As an example, a plugin that wishes to maintain two configuration variables, say a GPIO pin to use and a polling interval, would return a configuration document that looks as follows:
 
 .. code-block:: console
 
@@ -80,6 +81,27 @@ These are the properties returned by the JSON document:
           'default': '4'
       }
   }
+
+
+The various values that may appear in the *mode* item are shown in the table below
+
++---------+---------------------------------------------------------------------------------------+
+| Mode    | Description                                                                           |
++=========+=======================================================================================+
+| poll    | The plugin is a polled plugin and *plugin_poll* will be called periodically to obtain |
+|         | new values.                                                                           |
++---------+---------------------------------------------------------------------------------------+
+| async   | The plugin is an asynchronous plugin, *plugin_poll* will not be called and the        |
+|         | plugin will be supplied with a callback function that it calls each time it has a     |
+|         | new value to pass to the system. The *plugin_register_ingest* entry point will be     |
+|         | called to register the callback with the plugin. The *plugin_start* call will be      |
+|         | called once to initiate the asynchronous delivery of data.                            |
++---------+---------------------------------------------------------------------------------------+
+| none    | This is equivalent to poll.                                                           |
++---------+---------------------------------------------------------------------------------------+
+| control | The plugin support a control flow to the device the plugin is connected to. The       |
+|         | must supply the control entry points *plugin_write* and *plugin_operation*.           |
++---------+---------------------------------------------------------------------------------------+
 
 |br|
 
@@ -129,6 +151,43 @@ In the above example the constant *default_config* is a string that contains the
                         }
   });
 
+The *flags* items contains a bitmask of flag values used to pass information regarding the behavior and requirements of the plugin. The flag values currently supported are shown below
+
++-------------------+---------------------------------------------------------------------------------+
+| Flag Name         | Description                                                                     |
++===================+=================================================================================+
+| SP_COMMON         | Used exclusively by storage plugins. The plugin supports the common table       |
+|                   | access needed to store configuration                                            |
++-------------------+---------------------------------------------------------------------------------+
+| SP_READINGS       | Used exclusively by storage plugins. The plugin supports the storage of reading |
+|                   | data                                                                            |
++-------------------+---------------------------------------------------------------------------------+
+| SP_ASYNC          | The plugin is an asynchronous plugin, *plugin_poll* will not be called and the  |
+|                   | plugin will be supplied with a callback function that it calls each time it has |
+|                   | a new value to pass to the system. The *plugin_register_ingest* entry point will|
+|                   | be called to register the callback with the plugin. The *plugin_start* call will|
+|                   | be called once to initiate the asynchronous delivery of data. This applies      |
+|                   | only to south plugins.                                                          |
++-------------------+---------------------------------------------------------------------------------+
+| SP_PERSIST_DATA   | The plugin wishes to persist data between executions                            |
++-------------------+---------------------------------------------------------------------------------+
+| SP_INGEST         | A non-south plugin wishes to ingest new data into the system. Used by           |
+|                   | notification plugins                                                            |
++-------------------+---------------------------------------------------------------------------------+
+| SP_GET_MANAGEMENT | The plugin requires access to the management API interface for the service      |
++-------------------+---------------------------------------------------------------------------------+
+| SP_GET_STORAGE    | The plugin requires access to the storage service                               |
++-------------------+---------------------------------------------------------------------------------+
+| SP_DEPRECATED     | The plugin should be considered to be deprecated. New service can not use this  |
+|                   | plugin, but existing services may continue to use it                            |
++-------------------+---------------------------------------------------------------------------------+
+| SP_BUILTIN        | The plugin is not implemented as an external package but is built into the      |
+|                   | system                                                                          |
++-------------------+---------------------------------------------------------------------------------+
+| SP_CONTROL        | The plugin implement control features                                           |
++-------------------+---------------------------------------------------------------------------------+
+
+These flag values may be combined by use of the or operator where more than one of the above options is supported.
 
 Plugin Initialization
 ~~~~~~~~~~~~~~~~~~~~~

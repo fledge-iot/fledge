@@ -41,15 +41,23 @@ class TestAssetTracker:
             return {"rows": rows, 'count': 1}
 
         storage_client_mock = MagicMock(StorageClientAsync)
-        rows = [{'asset': 'AirIntake', 'event': 'Ingest', 'fledge': 'Booth1', 'service': 'PT100_In1', 'plugin': 'PT100', "timestamp": "2018-08-13 15:39:48.796263"},
-                {'asset': 'AirIntake', 'event': 'Egress', 'fledge': 'Booth1', 'service': 'Display', 'plugin': 'ShopFloorDisplay', "timestamp": "2018-08-13 16:00:00.134563"}]
-        payload = {'where': {'condition': '=', 'value': 1, 'column': '1'}, 'return': ['asset', 'event', 'service', 'fledge', 'plugin', {'alias': 'timestamp', 'column': 'ts', 'format': 'YYYY-MM-DD HH24:MI:SS.MS'}]}   
+        rows = [{'asset': 'AirIntake', 'event': 'Ingest', 'fledge': 'Booth1', 'service': 'PT100_In1',
+                 'plugin': 'PT100', "timestamp": "2018-08-13 15:39:48.796263", "deprecatedTimestamp": ""
+                 },
+                {'asset': 'AirIntake', 'event': 'Egress', 'fledge': 'Booth1', 'service': 'Display',
+                 'plugin': 'ShopFloorDisplay', "timestamp": "2018-08-13 16:00:00.134563", "deprecatedTimestamp": ""
+                 }
+                ]
+        payload = {'where': {'condition': '=', 'value': 1, 'column': '1'},
+                   'return': ['asset', 'event', 'service', 'fledge', 'plugin',
+                              {'alias': 'timestamp', 'column': 'ts', 'format': 'YYYY-MM-DD HH24:MI:SS.MS'},
+                              {'alias': 'deprecatedTimestamp', 'column': 'deprecated_ts'}
+                              ]
+                   }
 
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await async_mock()
-        else:
-            _rv = asyncio.ensure_future(async_mock())        
+        _rv = await async_mock() if sys.version_info.major == 3 and sys.version_info.minor >= 8 \
+            else asyncio.ensure_future(async_mock())
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv) as patch_query_payload:

@@ -14,6 +14,7 @@ include_directories(../../../../C/thirdparty/rapidjson/include)
 include_directories(../../../../C/common/include)
 include_directories(../../../../C/services/common/include)
 include_directories(../../../../C/plugins/storage/common/include)
+include_directories(../../../../C/plugins/storage/sqlite/schema/include)
 include_directories(../../../../C/plugins/storage/sqlitelb/include)
 include_directories(../../../../C/plugins/storage/sqlitelb/common/include)
 
@@ -23,7 +24,7 @@ find_package(sqlite3)
 
 # Find source files
 file(GLOB COMMON_SOURCES ../../../../C/plugins/storage/sqlitelb/common/*.cpp)
-file(GLOB SOURCES ../../../../C/plugins/storage/sqlitelb/*.cpp)
+file(GLOB SOURCES ../../../../C/plugins/storage/sqlitelb/*.cpp ../../../../C/plugins/storage/sqlite/schema/*.cpp)
 
 # Create shared library
 

@@ -4,24 +4,14 @@
 
    <br />
 
-.. Images
-.. |fledge_all_round| image:: ../images/fledge_all_round_solution.jpg
-
-.. Links
-.. _here: #id1
-
 .. Links in new tabs
 .. |Fledge Repo| raw:: html
 
-   <a href="https://github.com/fledge-iot/Fledge" target="_blank">https://github.com/fledge-iot/Fledge</a>
+   <a href="https://github.com/fledge-iot/fledge" target="_blank">https://github.com/fledge-iot/fledge</a>
 
 .. |GCC Bug| raw:: html
 
    <a href="https://gcc.gnu.org/bugzilla/show_bug.cgi?id=66425" target="_blank">here</a>
-
-.. |snappy| raw:: html
-
-   <a href="https://snapcraft.io" target="_blank">Snappy</a>
 
 .. =============================================
 
@@ -36,7 +26,7 @@ Let's get started! In this chapter we will see where to find and how to build, i
 Fledge Platforms
 =================
 
-Due to the use of standard libraries, Fledge can run on a large number of platforms and operating environments, but its primary target is Linux distributions. |br| Our testing environment includes Ubuntu LTS 18.04 and Raspbian, but we have installed and tested Fledge on other Linux distributions. In addition to the native support, Fledge can also run on Virtual Machines, Docker and LXC containers.
+Due to the use of standard libraries, Fledge can run on a large number of platforms and operating environments, but its primary target is Linux distributions. |br| Our testing environment includes Ubuntu 18.04 LTS, Ubuntu 20.04 LTS and Raspbian, but we have installed and tested Fledge on other Linux distributions. In addition to the native support, Fledge can also run on Virtual Machines, Docker and LXC containers.
 
 
 Requirements
@@ -66,32 +56,32 @@ Fledge is available on GitHub. The link to the repository is |Fledge Repo|. In o
   Resolving deltas: 100% (55599/55599), done.
   $
 
-The code should now be loaded on your machine in a directory called fledge. The name of the repository directory is *Fledge*:
+The code should now be loaded on your machine in a directory called fledge. The name of the repository directory is *fledge*:
 
 .. code-block:: console
 
   $ ls -l fledge
   total 228
-  drwxrwxr-x  7 foglamp foglamp   4096 Aug 26 11:20 C
-  -rw-rw-r--  1 foglamp foglamp   1659 Aug 26 11:20 CMakeLists.txt
-  drwxrwxr-x  2 foglamp foglamp   4096 Aug 26 11:20 contrib
-  -rw-rw-r--  1 foglamp foglamp   4786 Aug 26 11:20 CONTRIBUTING.md
-  drwxrwxr-x  4 foglamp foglamp   4096 Aug 26 11:20 data
-  drwxrwxr-x  2 foglamp foglamp   4096 Aug 26 11:20 dco-signoffs
-  drwxrwxr-x 10 foglamp foglamp   4096 Aug 26 11:20 docs
-  -rw-rw-r--  1 foglamp foglamp 108680 Aug 26 11:20 doxy.config
-  drwxrwxr-x  3 foglamp foglamp   4096 Aug 26 11:20 examples
-  drwxrwxr-x  4 foglamp foglamp   4096 Aug 26 11:20 extras
-  -rw-rw-r--  1 foglamp foglamp  11346 Aug 26 11:20 LICENSE
-  -rw-rw-r--  1 foglamp foglamp  24216 Aug 26 11:20 Makefile
-  -rwxrwxr-x  1 foglamp foglamp    310 Aug 26 11:20 mkversion
-  drwxrwxr-x  4 foglamp foglamp   4096 Aug 26 11:20 python
-  -rw-rw-r--  1 foglamp foglamp   9292 Aug 26 11:20 README.rst
-  -rwxrwxr-x  1 foglamp foglamp   8177 Aug 26 11:20 requirements.sh
-  drwxrwxr-x  8 foglamp foglamp   4096 Aug 26 11:20 scripts
-  drwxrwxr-x  4 foglamp foglamp   4096 Aug 26 11:20 tests
-  drwxrwxr-x  3 foglamp foglamp   4096 Aug 26 11:20 tests-manual
-  -rwxrwxr-x  1 foglamp foglamp     38 Aug 26 11:20 VERSION
+  drwxrwxr-x  7 fledge fledge   4096 Aug 26 11:20 C
+  -rw-rw-r--  1 fledge fledge   1659 Aug 26 11:20 CMakeLists.txt
+  drwxrwxr-x  2 fledge fledge   4096 Aug 26 11:20 contrib
+  -rw-rw-r--  1 fledge fledge   4786 Aug 26 11:20 CONTRIBUTING.md
+  drwxrwxr-x  4 fledge fledge   4096 Aug 26 11:20 data
+  drwxrwxr-x  2 fledge fledge   4096 Aug 26 11:20 dco-signoffs
+  drwxrwxr-x 10 fledge fledge   4096 Aug 26 11:20 docs
+  -rw-rw-r--  1 fledge fledge 108680 Aug 26 11:20 doxy.config
+  drwxrwxr-x  3 fledge fledge   4096 Aug 26 11:20 examples
+  drwxrwxr-x  4 fledge fledge   4096 Aug 26 11:20 extras
+  -rw-rw-r--  1 fledge fledge  11346 Aug 26 11:20 LICENSE
+  -rw-rw-r--  1 fledge fledge  24216 Aug 26 11:20 Makefile
+  -rwxrwxr-x  1 fledge fledge    310 Aug 26 11:20 mkversion
+  drwxrwxr-x  4 fledge fledge   4096 Aug 26 11:20 python
+  -rw-rw-r--  1 fledge fledge   9292 Aug 26 11:20 README.rst
+  -rwxrwxr-x  1 fledge fledge   8177 Aug 26 11:20 requirements.sh
+  drwxrwxr-x  8 fledge fledge   4096 Aug 26 11:20 scripts
+  drwxrwxr-x  4 fledge fledge   4096 Aug 26 11:20 tests
+  drwxrwxr-x  3 fledge fledge   4096 Aug 26 11:20 tests-manual
+  -rwxrwxr-x  1 fledge fledge     38 Aug 26 11:20 VERSION
   $
 
 Selecting the Correct Version
@@ -112,7 +102,7 @@ Once you have cloned the Fledge project, in order to check the branches availabl
 
   $ pwd
   /home/ubuntu
-  $ cd Fledge
+  $ cd fledge
   $ git branch --all
   * develop
   remotes/origin/1.0
@@ -142,7 +132,7 @@ Building Fledge
 
 You are now ready to build your first Fledge project. 
 
-  - Move to the *Fledge* project directory
+  - Move to the *fledge* project directory
 
   - Load the requirements needed to build Fledge by typing
 
@@ -161,7 +151,7 @@ You are now ready to build your first Fledge project.
     .. code-block:: console
 
       $ make
-      Building Fledge version 1.9.2, DB schema 55
+      Building Fledge version X.X., DB schema X
       scripts/certificates "fledge" "365"
       Creating a self signed SSL certificate ...
       Certificates created successfully, and placed in data/etc/certs
@@ -238,7 +228,7 @@ You can check the status of Fledge with the ``fledge status`` command. For few s
   Fledge starting.
   $
   $ scripts/fledge status
-  Fledge v1.8.0 running.
+  Fledge vX.X.X running.
   Fledge Uptime:  9065 seconds.
   Fledge records: 86299 read, 86851 sent, 0 purged.
   Fledge does not require authentication.

@@ -1443,7 +1443,7 @@ bool ManagementClient::deleteProxy(const std::string& serviceName)
 	bool result = false;
 	try {
 		string url = "/fledge/proxy/";
-		url += serviceName;
+		url += urlEncode(serviceName);
 		auto res = this->getHttpClient()->request("DELETE", url.c_str());
                 if (res->status_code[0] == '2') // A 2xx response
 		{
@@ -1477,6 +1477,7 @@ bool ManagementClient::deleteProxy(const std::string& serviceName)
 	}
 	return false;
 }
+
 /**
  * Get the asset tracking tuple
  * for a service and asset name
@@ -1502,7 +1503,7 @@ AssetTrackingTuple* ManagementClient::getAssetTrackingTuple(const std::string& s
 
 		url += "?service=" + urlEncode(serviceName);
 		url += "&asset=" + urlEncode(assetName) + "&event=" + event;
-				
+
 		auto res = this->getHttpClient()->request("GET", url.c_str());
 		Document doc;
 		string response = res->content.string();
@@ -1513,8 +1514,8 @@ AssetTrackingTuple* ManagementClient::getAssetTrackingTuple(const std::string& s
 					isdigit(response[1]) &&
 					isdigit(response[2]) &&
 					response[3]==':');
-			m_logger->error("%s fetch asset tracking tuple: %s\n", 
-					httpError?"HTTP error during":"Failed to parse result of", 
+			m_logger->error("%s fetch asset tracking tuple: %s\n",
+					httpError?"HTTP error during":"Failed to parse result of",
 					response.c_str());
 			throw new exception();
 		}
@@ -1578,6 +1579,52 @@ AssetTrackingTuple* ManagementClient::getAssetTrackingTuple(const std::string& s
 }
 
 /**
+ * Return the content of the named ACL by calling the
+ * management API of the Fledge core.
+ *
+ * @param  aclName		The name of the ACL to return
+ * @return ACL			The ACL class
+ * @throw  exception		If the ACL does not exist or
+ *				the JSON result can not be parsed
+ */
+ACL ManagementClient::getACL(const string& aclName)
+{
+	try {
+		string url = "/fledge/ACL/" + urlEncode(aclName);
+
+		auto res = this->getHttpClient()->request("GET", url.c_str());
+		Document doc;
+		string response = res->content.string();
+		doc.Parse(response.c_str());
+		if (doc.HasParseError())
+		{
+			bool httpError = (isdigit(response[0]) &&
+					  isdigit(response[1]) &&
+					  isdigit(response[2]) && response[3]==':');
+			m_logger->error("%s fetching ACL for %s: %s\n",
+					httpError?"HTTP error while":"Failed to parse result of",
+					aclName.c_str(),
+					response.c_str());
+			throw new exception();
+		}
+		else if (doc.HasMember("message"))
+		{
+			m_logger->error("Failed to fetch ACL: %s.",
+				doc["message"].GetString());
+			throw new exception();
+		}
+		else
+		{
+			// Success
+			return ACL(response);
+		}
+	} catch (const SimpleWeb::system_error &e) {
+		m_logger->error("Get ACL failed %s.", e.what());
+		throw;
+	}
+}
+
+/**
  * Get the asset tracking tuple
  * for a service and asset name
  *
@@ -1590,8 +1637,8 @@ StorageAssetTrackingTuple* ManagementClient::getStorageAssetTrackingTuple(const 
                                                         const std::string& assetName,
                                                         const std::string& event)
 {
-	m_logger->error("%s:%d function start  service = %s , assetName = %s ", __FILE__, __LINE__, serviceName.c_str(), assetName.c_str());
-	
+        m_logger->error("%s:%d function start  service = %s , assetName = %s ", __FILE__, __LINE__, serviceName.c_str(), assetName.c_str());
+
         StorageAssetTrackingTuple* tuple = NULL;
         try {
                 string url = "/fledge/track";
@@ -1634,25 +1681,25 @@ StorageAssetTrackingTuple* ManagementClient::getStorageAssetTrackingTuple(const 
                                 // Process every row and create the AssetTrackingTuple object
                                 for (auto& rec : trackArray.GetArray())
                                 {
-					 m_logger->error("%s:%d Inside for loop of trackArray ", __FILE__, __LINE__);
+                                         m_logger->error("%s:%d Inside for loop of trackArray ", __FILE__, __LINE__);
 
                                         if (!rec.IsObject())
                                         {
                                                 throw runtime_error("Expected storage asset tracker tuple to be an object");
                                         }
 
-                                        // Note: deprecatedTimestamp NULL value is returned as ""
+					                                        // Note: deprecatedTimestamp NULL value is returned as ""
                                         // otherwise it's a string DATE
                                         bool deprecated = rec.HasMember("deprecatedTimestamp") &&
                                             strlen(rec["deprecatedTimestamp"].GetString());
 
-					std::string data ;
+                                        std::string data ;
                                         if (!rec.HasMember("data"))
                                         {
                                                 throw runtime_error("Expected asset tracker tuple to contain member data");
                                         }
-					else
-						m_logger->error("%s:%d got member data ", __FILE__, __LINE__);
+                                        else
+                                                m_logger->error("%s:%d got member data ", __FILE__, __LINE__);
 
                                         const rapidjson::Value& dataVal = rec["data"];
                                         if (!dataVal.IsObject())
@@ -1669,14 +1716,13 @@ StorageAssetTrackingTuple* ManagementClient::getStorageAssetTrackingTuple(const 
                                         {
                                                 throw runtime_error("Expected datapoints to be string");
                                         }
-					else
-					{
-						m_logger->error("%s:%d got member data ", __FILE__, __LINE__);
-					}
+                                        else
+                                        {
+                                                m_logger->error("%s:%d got member data ", __FILE__, __LINE__);
+                                        }
 
                                         std::string datapoints = dataVal["datapoints"].GetString();
-
-					 m_logger->error("%s:%d  datapoints = %s ", __FILE__, __LINE__, datapoints.c_str());
+                                         m_logger->error("%s:%d  datapoints = %s ", __FILE__, __LINE__, datapoints.c_str());
                                         if (!dataVal.HasMember("count"))
                                         {
                                                  throw runtime_error("Expected asset tracker tuple to contain count");
@@ -1687,7 +1733,7 @@ StorageAssetTrackingTuple* ManagementClient::getStorageAssetTrackingTuple(const 
                                                 throw runtime_error("Expected count in data to be int");
                                         }
                                         int count = dataVal["count"].GetInt();
-					m_logger->error("%s:%d count = %d  ", __FILE__, __LINE__, count);
+                                        m_logger->error("%s:%d count = %d  ", __FILE__, __LINE__, count);
 
 
                                         // Create a new AssetTrackingTuple object, to be freed by the caller
@@ -1704,7 +1750,7 @@ StorageAssetTrackingTuple* ManagementClient::getStorageAssetTrackingTuple(const 
                                                         rec["asset"].GetString(),
                                                         rec["event"].GetString(),
                                                         deprecated);
- 
+
 
                                 }
                         }
@@ -1726,4 +1772,4 @@ StorageAssetTrackingTuple* ManagementClient::getStorageAssetTrackingTuple(const 
 
         return tuple;
 }
-	
+

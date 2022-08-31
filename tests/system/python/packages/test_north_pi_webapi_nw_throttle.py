@@ -37,6 +37,8 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.parent
 SCRIPTS_DIR_ROOT = "{}/tests/system/python/scripts/package/".format(PROJECT_ROOT)
 DATA_DIR_ROOT = "{}/tests/system/python/packages/data/".format(PROJECT_ROOT)
 
+AF_HIERARCHY_LEVEL = "throttlednetworktest/throttlednetworktestlvl2/throttlednetworktestlvl3"
+
 
 @pytest.fixture
 def reset_fledge(wait_time):
@@ -93,15 +95,24 @@ def change_category(fledge_url, cat_name, config_item, value):
 
 @pytest.fixture
 def start_south_north(add_south, start_north_task_omf_web_api, add_filter, remove_data_file,
-                      fledge_url, pi_host, pi_port, pi_admin, pi_passwd,
+                      fledge_url, pi_host, pi_port, pi_admin, pi_passwd, pi_db,
                       start_north_omf_as_a_service, start_north_as_service,
-                      enable_schedule, asset_name=ASSET):
+                      enable_schedule, clear_pi_system_through_pi_web_api, asset_name=ASSET):
     """ This fixture starts the sinusoid plugin and north pi web api plugin. Also puts a filter
         to insert reading id as a datapoint when we send the data to north.
         clean_setup_fledge_packages: purge the fledge* packages and install latest for given repo url
         add_south: Fixture that adds a south service with given configuration
         start_north_task_omf_web_api: Fixture that starts PI north task
         remove_data_file: Fixture that remove data file created during the tests """
+
+    af_hierarchy_level_list = AF_HIERARCHY_LEVEL.split("/")
+    # There are two data points here. 1. sinusoid
+    # 2. id_datapoint
+    dp_list = ['sinusoid', 'id_datapoint']
+    asset_dict = {}
+    asset_dict[ASSET] = dp_list
+    clear_pi_system_through_pi_web_api(pi_host, pi_admin, pi_passwd, pi_db,
+                                       af_hierarchy_level_list, asset_dict)
 
     south_plugin = "sinusoid"
     # south_branch does not matter as these are archives.fledge-iot.org version install
@@ -110,10 +121,12 @@ def start_south_north(add_south, start_north_task_omf_web_api, add_filter, remov
               service_name=SOUTH_SERVICE_NAME, installation_type='package', start_service=False)
     if not start_north_as_service:
         start_north_task_omf_web_api(fledge_url, pi_host, pi_port, pi_user=pi_admin, pi_pwd=pi_passwd,
-                                     start_task=False, taskname=NORTH_INSTANCE_NAME)
+                                     start_task=False, taskname=NORTH_INSTANCE_NAME,
+                                     default_af_location=AF_HIERARCHY_LEVEL)
     else:
         start_north_omf_as_a_service(fledge_url, pi_host, pi_port, pi_user=pi_admin, pi_pwd=pi_passwd,
-                                     start=False, service_name=NORTH_INSTANCE_NAME)
+                                     start=False, service_name=NORTH_INSTANCE_NAME,
+                                     default_af_location=AF_HIERARCHY_LEVEL)
 
     add_filter("python35", None, "py35", {}, fledge_url, None, installation_type='package',
                only_installation=True)
@@ -321,6 +334,7 @@ class TestPackagesSinusoid_PI_WebAPI:
         disable_schedule(fledge_url, SOUTH_SERVICE_NAME)
         time.sleep(5)
         # switch off Compression
+        verify_ping(fledge_url, 5)
         dp_name = 'id_datapoint'
         turn_off_compression_for_pi_point(pi_host, pi_admin, pi_passwd, ASSET, dp_name)
 
@@ -360,8 +374,7 @@ class TestPackagesSinusoid_PI_WebAPI:
         # verify the bulk data from PI.
         data_from_pi = get_bulk_data_from_pi(pi_host, pi_admin, pi_passwd, ASSET, dp_name)
 
-        af_hierarchy_level = "fledge/room1/machine1"
-        af_hierarchy_level_list = af_hierarchy_level.split("/")
+        af_hierarchy_level_list = AF_HIERARCHY_LEVEL.split("/")
         dp_list = ['sinusoid', dp_name]
         asset_dict = {}
         asset_dict[ASSET] = dp_list

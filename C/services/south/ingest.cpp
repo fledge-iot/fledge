@@ -1069,6 +1069,21 @@ void Ingest::unDeprecateAssetTrackingRecord(AssetTrackingTuple* currentTuple,
 				m_logger->error("Failure while un-deprecating asset '%s'",
 						assetName.c_str());
 			}
+			else
+			{
+				string audit_details = "{\"asset\" : \"" + assetName +
+							"\", \"service\" : \"" + m_serviceName +
+							"\", \"event\" : \"" + event + "\"}";
+				// Add AuditLog entry
+				if (!m_mgtClient->addAuditEntry("ASTUN", "INFORMATION", audit_details))
+				{
+					m_logger->warn("Failure while adding AuditLog entry " \
+							" for un-deprecated asset '%s'",
+							assetName.c_str());
+				}
+				m_logger->info("Asset '%s' has been un-deprecated",
+						assetName.c_str());
+			}
 		}
 	}
 	else

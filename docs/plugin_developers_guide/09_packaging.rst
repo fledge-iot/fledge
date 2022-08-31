@@ -31,6 +31,7 @@ C based Plugins
 - **VERSION** - It contains the version number of the plugin and is used by the build process to include the version number within the code and also within the name of the package file created.
 - **fledge.version** - It contains the minimum version number of Fledge required by the plugin.
 - **requirements.sh (Optional)** - It is used to install any additional libraries or other artifacts that are need to build the plugin. It takes the form of a shell script. This script, if it exists, will be run as a part of the process of building the plugin before the cmake command is issued in the build process.
+- **extras_install.sh (Optional)** - It is a shell script that is added to the package to allow for extra commands to be executed as part of the package installation. Not all plugins will require this file to be present and it can be omitted if there are no extra steps required on the installation.
 
 Examples of filename along with content
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -103,9 +104,6 @@ Examples of filename along with content
         deb)
             requirements="${requirements},libmodbus-dev"
             ;;
-        rpm)
-            requirements="${requirements},epel-release,libmodbus,libmodbus-devel"
-            ;;
     esac
 
 .. note::
@@ -127,8 +125,6 @@ Below are the packages which created a part of the process of building Fledge th
 - **fledge-iec** which is a packaged version of the IEC 60870 and IEC 61850 libraries.
 - **fledge-s2opcua** which is a packaged version of libexpat and libs2opc libraries.
 
-.. note::
-    fledge-gcp and fledge-s2opcua additional packages are not supported on RPM platforms yet.
 
 If your plugin depends on any of these libraries they should be added to the *requirements* variable in the **Package** file rather than adding them as *additional_libs* since the version of these is managed by the Fledge build and packaging process. Below is the example
 
@@ -182,8 +178,6 @@ Examples of filename along with content
     case "$package_manager" in
         deb)
             ;;
-        rpm)
-            ;;
     esac
 
 .. note::
@@ -218,14 +212,6 @@ Examples of filename along with content
     ID=$(cat /etc/os-release | grep -w ID | cut -f2 -d"=")
     if [ ${ID} != "mendel" ]; then
     case $os_name in
-      *"Red Hat"*)
-        source scl_source enable rh-python36
-        ;;
-
-      *"CentOS"*)
-        source scl_source enable rh-python36
-        ;;
-
       *"Ubuntu"*)
         if [ ${arch} = "aarch64" ]; then
           python3 -m pip install --upgrade pip

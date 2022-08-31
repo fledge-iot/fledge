@@ -3,13 +3,10 @@
    <br />
 
 .. Links
-.. _curl homepage: https://curl.haxx.se/
-.. _curl sources: https://github.com/curl/curl/releases
 .. _OMF: https://omf-docs.osisoft.com/
 
-***********************
-Kerberos authentication
-***********************
+OMF Kerberos Authentication
+***************************
 
 Introduction
 ============
@@ -18,13 +15,13 @@ The bundled OMF north plugin in Fledge can use a number of different authenticat
 
 The Fledge *requirements.sh* script installs the Kerberos client to allow the integration with what in the specific terminology is called KDC (the Kerberos server).
 
-PI-Server as the North endpoint
+PI Server as the North endpoint
 ===============================
 
-The OSI *Connector Relay* allows token authentication while *PI Web API* supports Basic and Kerberos.
+The OSI *Connector Relay* allows token authentication while *PI Web API* supports Basic and Kerberos authentication.
 
 There could be more than one configuration to allow the Kerberos authentication,
-the easiest one is the Windows server on which the PI-Server is executed act as the Kerberos server also.
+the easiest one is the Windows server on which the PI Server is executed act as the Kerberos server also.
 
 The Windows Active directory should be installed and properly configured for allowing the Windows server to authenticate Kerberos requests.
 
@@ -159,7 +156,7 @@ Troubleshooting the Kerberos authentication
 	-rwxrwxrwx 1 fledge fledge  91 Jul 17 09:07 piwebapi_kerberos_https.keytab
 	-rw-rw-r-- 1 fledge fledge 199 Aug 13 15:30 README.rst
 
-3) verify the reachability of the Kerberos server (usually the PI-Server) - Network reachability
+3) verify the reachability of the Kerberos server (usually the PI Server) - Network reachability
 
 .. code-block:: console
 
@@ -182,28 +179,3 @@ Kerberos reachability and keys retrieval
     09/27/2019 11:51:47  09/27/2019 21:51:47  krbtgt/DIANOMIC.COM@DIANOMIC.COM
         renew until 09/28/2019 11:51:46
     $
-
-Kerberos authentication on RedHat/CentOS
-========================================
-RedHat and CentOS version 7 provide by default an old version of curl and the related libcurl
-and it does not support Kerberos, output of the curl provided by CentOS:
-
-.. code-block:: console
-
-    $ curl -V
-    curl 7.29.0 (x86_64-redhat-linux-gnu) libcurl/7.29.0 NSS/3.36 zlib/1.2.7 libidn/1.28 libssh2/1.4.3
-    Protocols: dict file ftp ftps gopher http https imap imaps ldap ldaps pop3 pop3s rtsp scp sftp smtp smtps telnet tftp
-    Features: AsynchDNS GSS-Negotiate IDN IPv6 Largefile NTLM NTLM_WB SSL libz unix-sockets
-
-The *requirements.sh* evaluates if the default version 7.29.0 is installed and in this case it will download the sources, build and install
-the version 7.65.3 to provide Kerberos authentication, output of the curl after the upgrade:
-
-.. code-block:: console
-
-    $ curl -V
-    curl 7.65.3 (x86_64-unknown-linux-gnu) libcurl/7.65.3 OpenSSL/1.0.2k-fips zlib/1.2.7
-    Release-Date: 2019-07-19
-    Protocols: dict file ftp ftps gopher http https imap imaps pop3 pop3s rtsp smb smbs smtp smtps telnet tftp
-    Features: AsynchDNS GSS-API HTTPS-proxy IPv6 Kerberos Largefile libz NTLM NTLM_WB SPNEGO SSL UnixSockets
-
-The sources are downloaded from the curl repository `curl sources`_, the curl homepage is available at `curl homepage`_.

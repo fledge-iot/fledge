@@ -125,6 +125,9 @@ setup_north_pi_egress () {
               },
               "compression": {
                  "value": "true"
+              },
+              "DefaultAFLocation": {
+                 "value": "PIlab/room1/machine1"
               }
            }
         }'
@@ -162,6 +165,9 @@ setup_north_pi_egress () {
               },
               "compression": {
                  "value": "true"
+              },
+              "DefaultAFLocation": {
+                 "value": "PIlab/room1/machine1"
               }
            }
         }'

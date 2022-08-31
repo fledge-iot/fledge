@@ -197,7 +197,6 @@ if [[ $YUM_PLATFORM = true ]]; then
 	service rsyslog start
 
 	sqlite3_build_prepare
-
 	# Attempts a second execution of make if the first fails
 	set +e
 	make
@@ -206,10 +205,11 @@ if [[ $YUM_PLATFORM = true ]]; then
 
 		set -e
 		make
+		# TODO: Use make install to install sqlite3 as a command
 	fi
 	cd $fledge_location
 	set -e
-
+	
 	# Upgrade curl if needed
 	curl_upgrade_evaluates
 
@@ -219,8 +219,8 @@ if [[ $YUM_PLATFORM = true ]]; then
 		# To avoid to stop the execution for any internal error of scl_source
 		set +e
 		source scl_source enable rh-python36
-		pip3 install --upgrade pip
-		pip3 install numpy
+		python3 -m pip install --upgrade pip
+		python3 -m pip install numpy
 		set -e
 	fi
 
@@ -248,18 +248,20 @@ elif apt --version 2>/dev/null; then
 	apt install -y cmake g++ make build-essential autoconf automake uuid-dev
 	apt install -y libtool libboost-dev libboost-system-dev libboost-thread-dev libpq-dev libz-dev
 	apt install -y python-dev python3-dev python3-pip python3-numpy
+	python3 -m pip install --upgrade pip
 
 	sqlite3_build_prepare
 	make
-
+        
+	apt install -y sqlite3 # make install after sqlite3_build_prepare should be enough to install sqlite3 as a command 
 	apt install -y pkg-config
 
 	# for Kerberos authentication, avoid interactive questions
 	DEBIAN_FRONTEND=noninteractive apt install -yq krb5-user
 	DEBIAN_FRONTEND=noninteractive apt install -yq libcurl4-openssl-dev
 
-	apt install -y cpulimit
+	apt install -y cpulimit 
+	
 else
-	echo "Requirements cannot be automatically installed, please refer README.rst to install requirements manually"
-yum install -y rh-python36
+	echo "Requirements cannot be automatically installed, please refer README.rst to install requirements manually."
 fi

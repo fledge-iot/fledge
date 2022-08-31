@@ -234,14 +234,28 @@ Returns the response payload
     {
         "users" : [
                     {
-                       "username"    : "david",
-                       "permissions" : "admin",
-                       "realname"    : "David Brent"
+                       "userId"       : 1,
+                       "userName"     : "admin",
+                       "roleId"       : 1,
+                       "accessMethod" : "any",
+                       "realName"     : Admin user",
+                       "description"  : "admin user"
                     },
                     {
-                       "username"    : "paul",
-                       "permissions" : "user",
-                       "realname"    : "Paul Smith"
+                       "userId"       : 2,
+                       "userName"     : "david",
+                       "realName"     : "David Brent",
+                       "accessMethod" : "any",
+                       "roleId"       : 2,
+                       "description"  : "OT Department Head"
+                    },
+                    {
+                       "userId"       : 3,
+                       "userName"     : "paul",
+                       "realName"     : "Paul Smith"
+                       "roleId"       : 3,
+                       "accessMethod" : "any",
+                       "description"  : "OT Supervisor"
                     }
                   ]
     }
@@ -403,7 +417,7 @@ The following error responses may be returned
 Delete User
 -----------
 
-``DELETE /foglamp/user/{username}`` - delete a user
+``DELETE /foglamp/admin/user/{userID}`` - delete a user
 
 .. note::
 
@@ -413,5 +427,5 @@ Delete User
 
 .. code-block:: console 
 
-	DELETE /foglamp/user/paul
+	DELETE /foglamp/admin/user/3
 

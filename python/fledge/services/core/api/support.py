@@ -9,6 +9,7 @@ import platform
 import subprocess
 import json
 import logging
+import datetime
 import urllib.parse
 from pathlib import Path
 from aiohttp import web
@@ -22,7 +23,7 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-_logger = logger.setup(__name__, level=logging.INFO)
+_logger = logger.setup(__name__, level=logging.DEBUG)
 
 _SYSLOG_FILE = '/var/log/syslog'
 if any(x in platform.platform() for x in ['centos', 'redhat']):
@@ -160,6 +161,7 @@ async def get_syslog_entries(request):
         template = __GET_SYSLOG_CMD_TEMPLATE
         lines = __GET_SYSLOG_TOTAL_MATCHED_LINES
         non_total_template = __GET_SYSLOG_TEMPLATE_WITH_NON_TOTALS
+        level = "debug" # default log level
         if 'level' in request.query and request.query['level'] != '':
             level = request.query['level'].lower()
             supported_level = ['info', 'warning', 'error', 'debug']
@@ -168,31 +170,40 @@ async def get_syslog_entries(request):
             if level == 'info':
                 template = __GET_SYSLOG_CMD_WITH_INFO_TEMPLATE
                 lines = __GET_SYSLOG_INFO_MATCHED_LINES
-                non_total_template = __GET_SYSLOG_INFO_TEMPLATE_WITH_NON_TOTALS
+                # non_total_template = __GET_SYSLOG_INFO_TEMPLATE_WITH_NON_TOTALS
             elif level == 'warning':
                 template = __GET_SYSLOG_CMD_WITH_WARNING_TEMPLATE
                 lines = __GET_SYSLOG_WARNING_MATCHED_LINES
-                non_total_template = __GET_SYSLOG_WARNING_TEMPLATE_WITH_NON_TOTALS
+                # non_total_template = __GET_SYSLOG_WARNING_TEMPLATE_WITH_NON_TOTALS
             elif level == 'error':
                 template = __GET_SYSLOG_CMD_WITH_ERROR_TEMPLATE
                 lines = __GET_SYSLOG_ERROR_MATCHED_LINES
-                non_total_template = __GET_SYSLOG_ERROR_TEMPLATE_WITH_NON_TOTALS
+                # non_total_template = __GET_SYSLOG_ERROR_TEMPLATE_WITH_NON_TOTALS
         response = {}
         # nontotals
         non_totals = request.query['nontotals'].lower() if 'nontotals' in request.query and request.query[
             'nontotals'] != '' else "false"
         if non_totals not in ("true", "false"):
             raise ValueError('nontotals must either be in True or False.')
+
+        log_file = os.path.join(_get_logs_dir(), "{}.log".format(level))
         if non_totals != "true":
             # Get total lines
-            cmd = lines.format(valid_source[source], _SYSLOG_FILE)
+            cmd = lines.format(valid_source[source], log_file)
+            _logger.debug("cmd 1={}".format(cmd))
             t = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE).stdout.readlines()
             total_lines = int(t[0].decode())
             response['count'] = total_lines
-            cmd = template.format(valid_source[source], _SYSLOG_FILE, total_lines - offset, limit)
+            cmd = template.format(valid_source[source], log_file, total_lines - offset, limit)
+            _logger.debug("cmd 2={}".format(cmd))
         else:
-            cmd = non_total_template.format(valid_source[source], _SYSLOG_FILE, offset, limit)
+            cmd = non_total_template.format(valid_source[source], log_file, offset, limit)
+            _logger.debug("cmd={}".format(cmd))
+
+        t1 = datetime.datetime.now()
         a = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE).stdout.readlines()
+        t2 = datetime.datetime.now()
+        _logger.debug('********* Time taken for extracting logs: {} msec'.format((t2 - t1).total_seconds()*1000))
         c = [b.decode() for b in a]  # Since "a" contains return value in bytes, convert it to string
         response['logs'] = c
     except ValueError as err:
@@ -212,3 +223,11 @@ def _get_support_dir():
         support_dir = os.path.expanduser(_FLEDGE_ROOT + '/data/support')
 
     return support_dir
+
+def _get_logs_dir():
+    if _FLEDGE_DATA:
+        logs_dir = os.path.expanduser(_FLEDGE_DATA + '/logs')
+    else:
+        logs_dir = os.path.expanduser(_FLEDGE_ROOT + '/data/logs')
+
+    return logs_dir

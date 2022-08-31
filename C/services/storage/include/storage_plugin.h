@@ -15,7 +15,6 @@
 #include <string>
 #include <reading_stream.h>
 #include <plugin_configuration.h>
-#include <management_client.h>
 
 #define	STORAGE_PURGE_RETAIN_ANY 0x0001U
 #define	STORAGE_PURGE_RETAIN_ALL 0x0002U
@@ -60,7 +59,6 @@ public:
 	int 		createSchema(const std::string& payload);
 	StoragePluginConfiguration
 			*getConfig() { return m_config; };
-	void            setManagementClient(ManagementClient *client);
 
 private:
 	PLUGIN_HANDLE	instance;
@@ -86,12 +84,10 @@ private:
 	PLUGIN_ERROR	*(*lastErrorPtr)(PLUGIN_HANDLE);
 	bool		(*pluginShutdownPtr)(PLUGIN_HANDLE);
         int 		(*createSchemaPtr)(PLUGIN_HANDLE, const char*);
-	void		(*setManagementClientPtr)(PLUGIN_HANDLE, ManagementClient*);
 	std::string	m_name;
 	StoragePluginConfiguration
 			*m_config;
 	bool 		m_bStorageSchemaFlag = false;
-
 };
 
 #endif

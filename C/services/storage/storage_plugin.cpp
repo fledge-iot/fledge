@@ -48,8 +48,6 @@ StoragePlugin::StoragePlugin(const string& name, PLUGIN_HANDLE handle) : Plugin(
 		instance = (*pluginInit)();
 	}
 
-	Logger::getLogger()->error("%s:%s StoragePlugin major =%d, minor = %d", __FILE__, __FUNCTION__, major, minor);
-
 	if (major >= 1 && minor >= 5)
 	{
 		m_bStorageSchemaFlag = true;
@@ -136,17 +134,6 @@ StoragePlugin::StoragePlugin(const string& name, PLUGIN_HANDLE handle) : Plugin(
 	createSchemaPtr = 
               		(int (*)(PLUGIN_HANDLE, const char*))
                               manager->resolveSymbol(handle, "plugin_createSchema");
-
-	Logger::getLogger()->error ("%s:%s setting setManagementClientPtr", __FILE__, __FUNCTION__);
-	setManagementClientPtr =
-			(void (*)(PLUGIN_HANDLE, ManagementClient*))
-                              manager->resolveSymbol(handle, "plugin_setManagementClient");
-
-	if ( setManagementClientPtr == nullptr)
-	{
-		Logger::getLogger()->error ("%s:%s setManagementClientPtr is null", __FILE__, __FUNCTION__); 
-	}
-
 }
 
 /**
@@ -345,19 +332,4 @@ int StoragePlugin::createSchema(const string& payload)
 	if (this->createSchemaPtr)
         	return this->createSchemaPtr(instance, payload.c_str());
 	return 0;
-}
-
-void StoragePlugin::setManagementClient(ManagementClient* client)
-{
-	Logger::getLogger()->error("%s:%s StoragePlugin::setManagementClient ", __FILE__, __FUNCTION__);
-	if (this->setManagementClientPtr)
-	{
-		Logger::getLogger()->error("%s:%s  setManagementClientPtr is not null ", __FILE__, __FUNCTION__);
-
-		this->setManagementClientPtr(instance,client);
-	}
-	else
-	{
-		Logger::getLogger()->error("%s:%s setManagementClientPtr is null", __FILE__, __FUNCTION__);
-	}
 }

@@ -37,6 +37,9 @@ public:
 		return o.str();
 	}
 
+	unsigned int getMaxCount() { return m_maxCount; }
+	std::string getDataPoints() { return m_datapoints; }
+
 /*	inline bool operator==(const StorageAssetTrackingTuple& x) const
 	{
 		return ( x.m_datapoints == m_datapoints && x.m_maxCount = m_maxCount && 
@@ -94,25 +97,25 @@ class ManagementClient;
 class StorageAssetTracker {
 
 public:
-	StorageAssetTracker(ManagementClient *mgtClient);
+	StorageAssetTracker(ManagementClient *mgtClient, std::string m_service);
 	~StorageAssetTracker() {}
 	void	populateStorageAssetTrackingCache();
 	bool	checkStorageAssetTrackingCache(StorageAssetTrackingTuple& tuple);
 	StorageAssetTrackingTuple*
 		findStorageAssetTrackingCache(StorageAssetTrackingTuple& tuple);
 	void	addStorageAssetTrackingTuple(StorageAssetTrackingTuple& tuple);
-	void	addStorageAssetTrackingTuple(std::string asset, std::string datapoints, int maxCount);
-	bool 	getPluginInfo();
-	static  StorageAssetTracker *getStorageAssetTracker(ManagementClient *);
+//	void	addStorageAssetTrackingTuple(std::string asset, std::string datapoints, int maxCount);
+	bool 	getFledgeConfigInfo();
+	static  StorageAssetTracker *getStorageAssetTracker();
 	static	void releaseStorageAssetTracker();
-	std::string             m_service;
-	std::string             m_plugin;
-	std::string             m_event;
 
 
 private:
 	static StorageAssetTracker	*instance;
-	ManagementClient	*m_mgtClient;
+	ManagementClient		*m_mgtClient;
+	std::string                     m_fledgeService;
+	std::string			m_service;
+	std::string			m_event;
 	std::unordered_set<StorageAssetTrackingTuple*, std::hash<StorageAssetTrackingTuple*>, StorageAssetTrackingTuplePtrEqual> storageAssetTrackerTuplesCache;
 };
 

@@ -566,7 +566,8 @@ CREATE TABLE fledge.asset_tracker (
        fledge          character varying(50)    NOT NULL, -- FL service name
        plugin          character varying(50)    NOT NULL, -- Plugin name
        deprecated_ts   DATETIME                         , -- When an asset record is removed then time will be set else empty and that mean entry has not been deprecated
-       ts              DATETIME                 DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'localtime'))
+       ts              DATETIME                 DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW', 'localtime'),
+       data            JSON                     DEFAULT '{}')
 );
 
 CREATE INDEX asset_tracker_ix1 ON asset_tracker (asset);

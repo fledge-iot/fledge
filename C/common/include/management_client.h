@@ -100,6 +100,10 @@ class ManagementClient {
 		AssetTrackingTuple*	getAssetTrackingTuple(const std::string& serviceName,
 								const std::string& assetName,
 								const std::string& event);
+		StorageAssetTrackingTuple* getStorageAssetTrackingTuple(const std::string& serviceName,
+                                                        		  const std::string& assetName,
+                                                        		  const std::string& event);
+
 
 	private:
 		std::ostringstream 			m_urlbase;

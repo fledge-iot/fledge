@@ -457,19 +457,3 @@ Connection        *connection = manager->allocate();
 
 };
 
-/**
- * Set the value of Management Client in the connection
- */
-
-void plugin_setManagementClient(PLUGIN_HANDLE handle, ManagementClient *client)
-{
-	ConnectionManager *manager = (ConnectionManager *)handle;
-	Connection        *connection = manager->allocate();
-
-	Logger::getLogger()->error("%s:%s plugin_setManagementClient calling setManagementClient on connection", __FILE__, __FUNCTION__);
-
-	connection->setManagementClient(client);
-        Logger::getLogger()->error("%s:%s plugin_setManagementClient after calling setManagementClient on connection", __FILE__, __FUNCTION__);
-
-	manager->release(connection);
-}

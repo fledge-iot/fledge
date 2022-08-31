@@ -21,10 +21,8 @@ StorageAssetTracker *StorageAssetTracker::instance = 0;
  *
  * @return	Singleton asset tracker instance
  */
-StorageAssetTracker *StorageAssetTracker::getStorageAssetTracker(ManagementClient *client)
+StorageAssetTracker *StorageAssetTracker::getStorageAssetTracker()
 {
-	if (!instance)
-		instance = new StorageAssetTracker(client);
 	return instance;
 }
 
@@ -42,18 +40,11 @@ void StorageAssetTracker::releaseStorageAssetTracker()
  * @param mgtClient		Management client object for this south service
  * @param service  		Service name
  */
-StorageAssetTracker::StorageAssetTracker(ManagementClient *mgtClient) 
-	: m_mgtClient(mgtClient)
+StorageAssetTracker::StorageAssetTracker(ManagementClient *mgtClient, std::string service) 
+	: m_mgtClient(mgtClient), m_service(service), m_event("store")
 {
 	Logger::getLogger()->error("%s:%s StorageAssetTracker constructor called ",__FILE__, __FUNCTION__);
 	instance = this;
-	m_service = "storage";
-        m_event = "store";
-
-	if (!getPluginInfo())
-	{
-		Logger::getLogger()->error("%s:%s Could not find out the Plugin info from fledge config", __FILE__, __FUNCTION__);
-	}
 }
 
 /**
@@ -66,15 +57,15 @@ StorageAssetTracker::StorageAssetTracker(ManagementClient *mgtClient)
  */
 void StorageAssetTracker::populateStorageAssetTrackingCache()
 {
-
 	Logger::getLogger()->error("%s:%s populateStorageAssetTrackingCache start", __FILE__, __FUNCTION__);
 	try {
 		std::vector<StorageAssetTrackingTuple*>& vec = m_mgtClient->getStorageAssetTrackingTuples(m_service);
+		 Logger::getLogger()->error("%s:%s  m_mgtClient->getStorageAssetTrackingTuples returned vec of size %d", __FILE__, __FUNCTION__, vec.size());
 		for (StorageAssetTrackingTuple* & rec : vec)
 		{
 			storageAssetTrackerTuplesCache.insert(rec);
 
-			Logger::getLogger()->debug("Added asset tracker tuple to cache: '%s'",
+			Logger::getLogger()->error("Added asset tracker tuple to cache: '%s'",
 					rec->assetToString().c_str());
 		}
 		delete (&vec);
@@ -94,7 +85,7 @@ void StorageAssetTracker::populateStorageAssetTrackingCache()
  * Check local cache for a given asset tracking tuple
  *
  * @param tuple		Tuple to find in cache
- * @return			Returns whether tuple is present in cache
+ * @return		Returns whether tuple is present in cache
  */
 bool StorageAssetTracker::checkStorageAssetTrackingCache(StorageAssetTrackingTuple& tuple)	
 {
@@ -107,16 +98,20 @@ bool StorageAssetTracker::checkStorageAssetTrackingCache(StorageAssetTrackingTup
 
 	if (it == storageAssetTrackerTuplesCache.end())
 	{
+		Logger::getLogger()->error("%s:%s :checkStorageAssetTrackingCache tuple not in cache", __FILE__, __LINE__);
 		return false;
 	}
 	else
 	{
 		if ((*it)->m_maxCount >= ptr->m_maxCount)
 		{
+			Logger::getLogger()->error("%s:%s :checkStorageAssetTrackingCache  tuple in database count > = tuple in arg count, returnin true ", __FILE__, __LINE__);
 			return true;
 		}
 		else
 		{
+			Logger::getLogger()->error("%s:%s :checkStorageAssetTrackingCache  tuple in database count < tuple in arg count, returning false", __FILE__, __LINE__);
+
 			return false;
 		}
 	}
@@ -130,10 +125,12 @@ StorageAssetTrackingTuple* StorageAssetTracker::findStorageAssetTrackingCache(St
 	std::unordered_set<StorageAssetTrackingTuple*>::const_iterator it = storageAssetTrackerTuplesCache.find(ptr);
 	if (it == storageAssetTrackerTuplesCache.end())
 	{
+	        Logger::getLogger()->error("%s:%d :findStorageAssetTrackingCache tuple not found in cache ", __FILE__, __LINE__);
 		return NULL;
 	}
 	else
 	{
+		Logger::getLogger()->error("%s:%d :findStorageAssetTrackingCache tuple found in cache ", __FILE__, __LINE__);
 		return *it;
 	}
 }
@@ -145,24 +142,23 @@ StorageAssetTrackingTuple* StorageAssetTracker::findStorageAssetTrackingCache(St
  */
 void StorageAssetTracker::addStorageAssetTrackingTuple(StorageAssetTrackingTuple& tuple)
 {
-	Logger::getLogger()->error("%s:%s, addStorageAssetTrackingTuple start" ,__FILE__, __FUNCTION__);
+	Logger::getLogger()->error("%s:%d, addStorageAssetTrackingTuple start" ,__FILE__, __LINE__);
 	std::unordered_set<StorageAssetTrackingTuple*>::const_iterator it = storageAssetTrackerTuplesCache.find(&tuple);
 	if (it == storageAssetTrackerTuplesCache.end())
 	{
+		Logger::getLogger()->error("%s:%d, addStorageAssetTrackingTuple tuple not found in cache, insert in DB",  __FILE__, __LINE__);
 		bool rv = m_mgtClient->addAssetTrackingTuple(tuple.m_serviceName, tuple.m_pluginName, tuple.m_assetName, tuple.m_eventName, tuple.m_datapoints, tuple.m_maxCount);
-
-		Logger::getLogger()->error("%s:%s, addStorageAssetTrackingTuple after calling addAssetTrackingTuple" ,__FILE__, __FUNCTION__);
 
 		if (rv) // insert into cache only if DB operation succeeded
 		{
 			StorageAssetTrackingTuple *ptr = new StorageAssetTrackingTuple(tuple);
 			storageAssetTrackerTuplesCache.insert(ptr);
-			Logger::getLogger()->info("addStorgeAssetTrackingTuple(): Added tuple to cache: '%s'", tuple.assetToString().c_str());
+			Logger::getLogger()->info("addStorgeAssetTrackingTuple(): Added tuple to cache: %s, insert in db successful ", tuple.assetToString().c_str());
 		}
 		else
 			Logger::getLogger()->error("addStorageAssetTrackingTuple(): Failed to insert asset tracking tuple into DB: '%s'", tuple.assetToString().c_str());
 	}
-	Logger::getLogger()->error("%s:%s, addStorageAssetTrackingTuple end", __FILE__, __FUNCTION__);
+	Logger::getLogger()->error("%s:%d, addStorageAssetTrackingTuple end", __FILE__, __LINE__);
 }
 
 /**
@@ -172,29 +168,21 @@ void StorageAssetTracker::addStorageAssetTrackingTuple(StorageAssetTrackingTuple
  * @param asset		Asset name
  * @param event		Event name
  */
-void StorageAssetTracker::addStorageAssetTrackingTuple(std::string asset, std::string datapoints, int maxCount)
+/*void StorageAssetTracker::addStorageAssetTrackingTuple(std::string asset, std::string datapoints, int maxCount)
 {
-	// in case of "Filter" event, 'plugin' input argument is category name, so remove service name (prefix) & '_' from it
-	if (m_event == string("Filter"))
-	{
-		string pattern  = m_service + "_";
-		if (m_plugin.find(pattern) != string::npos)
-			m_plugin.erase(m_plugin.begin(), m_plugin.begin() + m_service.length() + 1);
-
-	}
 
 	Logger::getLogger()->error("%s:%s calling addStorageAssetTrackingTuple(tuple)", __FILE__, __FUNCTION__);
 	
 	StorageAssetTrackingTuple tuple(m_service, m_plugin, asset, m_event, false, datapoints, maxCount);
 	addStorageAssetTrackingTuple(tuple);
 }
-
+*/
 /**
  * Return Plugin Information in the Fledge configuration
  *
- * @return bool         True if the plugin info could be obtained
+ * @return bool	True if the plugin info could be obtained
  */
-bool StorageAssetTracker::getPluginInfo()
+bool StorageAssetTracker::getFledgeConfigInfo()
 {
 	Logger::getLogger()->error("StorageAssetTracker::getPluginInfo start"); 
         try {
@@ -245,8 +233,8 @@ bool StorageAssetTracker::getPluginInfo()
 				return false;
 			}
 
-			m_plugin = serviceVal.GetString();    
-			Logger::getLogger()->error("%s:%s, m_plugin value = %s",__FILE__, __FUNCTION__, m_plugin.c_str());
+			m_fledgeService = serviceVal.GetString();    
+			Logger::getLogger()->error("%s:%s, m_plugin value = %s",__FILE__, __FUNCTION__, m_fledgeService.c_str());
     			return true;
                 }
 		  

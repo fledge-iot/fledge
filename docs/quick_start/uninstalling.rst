@@ -10,13 +10,6 @@ Use the ``apt`` or the ``apt-get`` command to uninstall Fledge:
 
   sudo apt -y purge fledge
 
-RPM Platform
-############
-
-.. code-block:: console
-
-  sudo yum -y remove fledge
-
 .. note::
     You may notice the warning in the last row of the package removal output:
 

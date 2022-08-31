@@ -2,6 +2,7 @@
 #
 # Tests for checking meomory leaks.
 
+set -e
 source config.sh
 
 export FLEDGE_ROOT=$(pwd)/fledge
@@ -86,10 +87,11 @@ setup_north_pi_egress () {
 # This Function keep the fledge and its plugin running state for the "TEST_RUN_TIME" seconds then stop the fledge, So that data required for mem check be collected.
 collect_data(){
   sleep ${TEST_RUN_TIME}
-  cd ${FLEDGE_ROOT}/scripts/
-  echo 'stopping fledge'
-  ./fledge stop
-  cd ../../
+  # TODO: remove set +e / set -e 
+  # FOGL-6840  fledge stop returns exit code 1 
+  set +e
+  ${FLEDGE_ROOT}/scripts/fledge stop && echo $?
+  set -e
 }
 
 generate_valgrind_logs(){
@@ -103,7 +105,7 @@ generate_valgrind_logs(){
 cleanup
 setup
 reset_fledge
-adding_sinusoid
+add_sinusoid
 setup_north_pi_egress
 collect_data
 generate_valgrind_logs 

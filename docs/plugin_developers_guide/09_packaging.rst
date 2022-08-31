@@ -104,9 +104,6 @@ Examples of filename along with content
         deb)
             requirements="${requirements},libmodbus-dev"
             ;;
-        rpm)
-            requirements="${requirements},epel-release,libmodbus,libmodbus-devel"
-            ;;
     esac
 
 .. note::
@@ -128,8 +125,6 @@ Below are the packages which created a part of the process of building Fledge th
 - **fledge-iec** which is a packaged version of the IEC 60870 and IEC 61850 libraries.
 - **fledge-s2opcua** which is a packaged version of libexpat and libs2opc libraries.
 
-.. note::
-    fledge-gcp and fledge-s2opcua additional packages are not supported on RPM platforms yet.
 
 If your plugin depends on any of these libraries they should be added to the *requirements* variable in the **Package** file rather than adding them as *additional_libs* since the version of these is managed by the Fledge build and packaging process. Below is the example
 
@@ -183,8 +178,6 @@ Examples of filename along with content
     case "$package_manager" in
         deb)
             ;;
-        rpm)
-            ;;
     esac
 
 .. note::
@@ -219,14 +212,6 @@ Examples of filename along with content
     ID=$(cat /etc/os-release | grep -w ID | cut -f2 -d"=")
     if [ ${ID} != "mendel" ]; then
     case $os_name in
-      *"Red Hat"*)
-        source scl_source enable rh-python36
-        ;;
-
-      *"CentOS"*)
-        source scl_source enable rh-python36
-        ;;
-
       *"Ubuntu"*)
         if [ ${arch} = "aarch64" ]; then
           python3 -m pip install --upgrade pip

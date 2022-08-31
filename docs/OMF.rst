@@ -469,8 +469,9 @@ hint would be as follows:
 Note the following when defining an *AFLocation* hint:
 
 - An asset in a Fledge Reading is used to create a `Container in the OSIsoft Asset Framework <https://docs.osisoft.com/bundle/omf-with-pi-web-api/page/container-messages.html>`_.
-  A *Container* is an AF Element with an AF Attribute that is mapped to a PI Point using the OSIsoft PI Point Data Reference.
-  The names of both the AF Element and the AF Attribute are the Fledge Reading asset name.
+  A *Container* is an AF Element with one or more AF Attributes that are mapped to PI Points using the OSIsoft PI Point Data Reference.
+  The name of the AF Element comes from the Fledge Reading asset name.
+  The names of the AF Attributes come from the Fledge Reading datapoint names.
 - If you edit the AF Location hint, the Container will be moved to the new location in the AF hierarchy.
 - If you disable the OMF Hint filter, the Container will not move.
 - If you wish to move a Container, you can do this with the PI System Explorer.

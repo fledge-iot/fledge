@@ -284,7 +284,7 @@ Fledge supports a number of different service types, some of which are included 
 
 .. note::
 
-   The API entry points in this section require that the installation has been configured with access to a Fledge package repository.
+   The API entry points in this section require that the Fledge installation has been configured with access to a Fledge package repository.
 
 Installed Service Types
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -328,4 +328,66 @@ This will install the named service from the package repository.
 
    In order to install a package the user must be an admin role user and the package repository must be configured and accessible.
 
+Creating A Service
+------------------
+
+A new service can be created using the POST method on the */fledge/service* API call. The payload passed to this request will determine at least the service type and the name pf the new service, however it may also contain further configuration which is dependent on the type of the service.
+
+The minimum payload content that must be in every create call for a service is the name of the new service, the type of the service and the enabled state of the service. This can be used for example to create a notification service or a control dispatcher service that need no further configuration.
+
+.. code-block:: console
+
+   $ curl -X POST http://localhost:8081/fledge/service -d'{ "name" : "Notifier", "type" : "notification", "enabled" : "true" }'
+
+Or for a control dispatcher
+
+.. code-block:: console
+
+   $ curl -X POST http://localhost:8081/fledge/service -d'{ "name" : "Control", "type" : "dispatcher", "enabled" : "true" }'
+
+A north or south service need some extra configuration in the payload. These service type must always have a plugin and can optionally be passed configuration for that plugin. If no plugin configuration is given then the plugins default configuration values will be used.
+
+To create a south service using the default values of the *sinusoid* plugin.
+
+.. code-block:: console
+
+   $ curl -X POST http://localhost:8081/fledge/service -d'{ "name" : "Sine", "type" : "south", "enabled" : "true", "plugin" : "sinusoid" }'
+
+In the next example we create a north plugin that will send data to another Fledge instance using the *HTTPC* plugin. We set the value of the configuration item *URL* in the plugin to be the URL of the concentrator Fledge instance.
+
+.. code-block:: console
+
+   $ curl -sX POST http://localhost:8081/fledge/service -d '{"name": "HTTP", "plugin": "httpc", "type": "north", "enabled": true, "config": {"URL": {"value": "http://concentrator.local:6683/buildingA"}}}'
+
+Stopping and Starting Services
+------------------------------
+
+Services within Fledge are started and stop via the scheduler, normally a service will be started via a schedule that defines the service to run at startup of Fledge. This ensures that the service runs when Fledge is started and will continue to run until Fledge is stopped. To implicitly stop a service the schedule must be disabled.
+
+Disabling a schedule associated for a service will also stop the service. The service will not then be restarted, even if Fledge is restarted, until the schedule is again enabled.
+
+To disable a schedule you can call the */fledge/schedule/{schedule_id}/disable* API call, however this requires you to know the ID of the schedule associated with the service. It is possible to find this for a given service, as the schedule name is the same as the service name, however it is simpler to use the API call */fledge/schedule/disable* as this can be passed the name of the schedule rather than the schedule ID. Since the schedule name and the service name are the same, we effectively pass the name of the service we wish to disable.
+
+To disable the service call *Sine* we would use the following *curl* command.
+
+.. code-block:: console
+
+   $ curl -X PUT http://localhost:8081/fledge/schedule/disable -d '{"schedule_name": "Sine"}'
+
+To enable the service again we can use the */fledge/schedule/enable* API call, this takes an identical payload to the disable API call.
+
+.. code-block:: console
+
+   $ curl -X PUT http://localhost:8081/fledge/schedule/enable -d '{"schedule_name": "Sine"}'
+
+Deleting a Service
+------------------
+
+Services may be deleted from the system using the */fledge/service* API call with the DELETE method. When a service is deleted it will be stopped and the service, configuration for the service and the associated schedule will be removed. Any data that has been read by the service will however remain in the readings database.
+
+To delete the service named *Sine*
+
+.. code-block:: console
+
+   $ curl -X DELETE http://localhost:8081/fledge/service/Sine
 

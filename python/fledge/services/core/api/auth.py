@@ -183,8 +183,18 @@ async def get_ott(request):
         p = {'uid': user_id, 'exp': now_time}
         ott_token = jwt.encode(p, JWT_SECRET, JWT_ALGORITHM).decode("utf-8")
 
+        already_existed_token = False
+        key_to_remove = None
+        for k, v in OTT.OTT_MAP.items():
+            if v[1] == original_token:
+                already_existed_token = True
+                key_to_remove = k
+
+        if already_existed_token:
+            OTT.OTT_MAP.pop(key_to_remove, None)
+
         ott_info = (user_id, original_token, is_admin, now_time)
-        OTT.OTT_MAP[request.token] = ott_info
+        OTT.OTT_MAP[ott_token] = ott_info
 
         return web.json_response({"ott": ott_token})
 

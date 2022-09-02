@@ -119,12 +119,16 @@ async def login(request):
                 time_now = datetime.datetime.now()
                 user_id, orig_token, is_admin, initial_time = OTT.OTT_MAP[ott_token_inside_request]
 
-                # remove ott from MAP even if expired.
+                # remove ott from MAP when used or when expired.
+                OTT.OTT_MAP.pop(ott_token_inside_request, None)
                 if time_now - initial_time > datetime.timedelta(minutes=EXPIRY_MINUTES):
                     return web.json_response(
                         {"message": "Logged in successfully", "uid": user_id, "token": orig_token, "admin": is_admin})
                 else:
                     raise web.HTTPBadRequest(reason="The token has expired. Try again with fresh ott token.")
+            else:
+                raise web.HTTPBadRequest(reason="The token is invalid. "
+                                                "Either it has expired or already used. Try again with fresh token.")
 
         username = data.get('username')
         password = data.get('password')

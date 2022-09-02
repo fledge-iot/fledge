@@ -5,10 +5,11 @@
 # FLEDGE_END
 
 """ auth routes """
-
+import datetime
 import re
 import json
 from collections import OrderedDict
+import jwt
 
 from aiohttp import web
 from fledge.services.core.user_model import User
@@ -57,6 +58,15 @@ FORBIDDEN_MSG = 'Resource you were trying to reach is absolutely forbidden for s
 # TODO: remove me, use from roles table
 ADMIN_ROLE_ID = 1
 DEFAULT_ROLE_ID = 2
+EXPIRY_MINUTES = 5
+
+
+# The OTT class has only one member OTT_MAP which is static.
+class OTT:
+    OTT_MAP = {}
+
+    def __init__(self):
+        pass
 
 
 async def login(request):
@@ -102,6 +112,20 @@ async def login(request):
         except json.JSONDecodeError:
             raise web.HTTPBadRequest(reason="Invalid username and/or password.")
 
+        # Check ott before user_id and password.
+        if 'ott' in data:
+            ott_token_inside_request = data.get('ott')
+            if ott_token_inside_request in OTT.OTT_MAP:
+                time_now = datetime.datetime.now()
+                user_id, orig_token, is_admin, initial_time = OTT.OTT_MAP[ott_token_inside_request]
+
+                # remove ott from MAP even if expired.
+                if time_now - initial_time > datetime.timedelta(minutes=EXPIRY_MINUTES):
+                    return web.json_response(
+                        {"message": "Logged in successfully", "uid": user_id, "token": orig_token, "admin": is_admin})
+                else:
+                    raise web.HTTPBadRequest(reason="The token has expired. Try again with fresh ott token.")
+
         username = data.get('username')
         password = data.get('password')
 
@@ -130,6 +154,38 @@ async def login(request):
 
     _logger.info("User with username:<{}> has been logged in successfully".format(username))
     return web.json_response({"message": "Logged in successfully", "uid": uid, "token": token, "admin": is_admin})
+
+
+async def get_ott(request):
+
+    try:
+        original_token = request.token
+        from fledge.services.core import connect
+        from fledge.common.storage_client.payload_builder import PayloadBuilder
+        payload = PayloadBuilder().SELECT("user_id", "role_id").WHERE(['token', '=', original_token]).payload()
+        storage_client = connect.get_storage_async()
+        result = await storage_client.query_tbl_with_payload("user_logins", payload)
+        if len(result['rows']) == 0:
+            message = "The request token {} does not have a valid user associated with it.".format(original_token)
+            return web.HTTPNotFound(reason=str(message))
+        else:
+            user_id = result['rows'][0]['user_id']
+            if result['rows'][0]['role_id'] == 1:
+                is_admin = True
+            else:
+                is_admin = False
+
+        now_time = datetime.datetime.now()
+        p = {'uid': user_id, 'exp': now_time}
+        ott_token = jwt.encode(p, JWT_SECRET, JWT_ALGORITHM).decode("utf-8")
+
+        ott_info = (user_id, original_token, is_admin, now_time)
+        OTT.OTT_MAP[request.token] = ott_info
+
+        return web.json_response({"ott": ott_token})
+
+    except Exception as ex:
+        raise web.HTTPBadRequest(reason="Token creation failed due to {}".format(ex))
 
 
 async def logout_me(request):

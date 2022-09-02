@@ -11,6 +11,9 @@
 .. |eraser| image:: images/eraser.jpg
 .. |deprecated_1| image:: images/deprecated_1.png
 .. |deprecated_2| image:: images/deprecated_2.png
+.. |pip_1| image:: images/pip_1.jpg
+.. |pip_2| image:: images/pip_2.jpg
+.. |pip_3| image:: images/pip_3.jpg
 
 .. Links
 .. |python35| raw:: html
@@ -198,6 +201,26 @@ Do not import packages that you do not use or are not required. This adds an ext
 Python does not provide a mechanism to remove a package that has previously been imported, therefore if you import a package in your script and then update your script to no longer import the package, the package will still be in memory from the previous import. This is because we reload updated scripts without closing down as restarting the Python interpreter. This is part of the sharing of the interpreter that is needed in order to allow packages such as numpy and scipy to be used. This can lead to misleading behavior as when the service gets restarted the package will not be loaded and the script may break because it makes use of the package still.
 
 If you remove a package import form your script and you want to be completely satisfied that the script will still run without it, then you must restart the service in which you are using the plugin. This can be done by disabling and then re-enabling the service.
+
+One of the *Developer Features* of the Fledge user interface allows the management of the installed Python Packages from within the user interface. This features is turned on via the *Developer features* toggle in the *Settings* page and will add a new menu item called *Developer*. Navigating to this page will give the the option of managing packages
+
++---------+
+| |pip_1| |
++---------+
+
+Clicking on *Manage packages* link will display the current set of Python packages that are installed on the machine.
+
++---------+
+| |pip_2| |
++---------+
+
+To add a new package click on the *Add +* link in the top right corner. This will display a screen that allows you to enter details of a Python package to install.
+
++---------+
+| |pip_3| |
++---------+
+
+Enter package name and an optional package version and then click on the *Install* button to install a new package via *pip3*.
 
 Use of Global Variables
 #######################

@@ -316,7 +316,7 @@ and locations. For example
       {
          "room" :
             {
-               "4" : "ElecticalLab",
+               "4" : "ElectricalLab",
                "6" : "FluidLab"
             }
       }
@@ -459,12 +459,30 @@ Asset Framework Location Hint
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 An Asset Framework location hint can be added to a reading to control
-the placement of that asset within the Asset Framework. An Asset Framework
+the placement of the asset within the Asset Framework. An Asset Framework
 hint would be as follows:
 
 .. code-block:: console
 
    "OMFHint"  : { "AFLocation" : "/UK/London/TowerHill/Floor4" }
+   
+Note the following when defining an *AFLocation* hint:
+
+- An asset in a Fledge Reading is used to create a `Container in the OSIsoft Asset Framework <https://docs.osisoft.com/bundle/omf-with-pi-web-api/page/container-messages.html>`_.
+  A *Container* is an AF Element with one or more AF Attributes that are mapped to PI Points using the OSIsoft PI Point Data Reference.
+  The name of the AF Element comes from the Fledge Reading asset name.
+  The names of the AF Attributes come from the Fledge Reading datapoint names.
+- If you edit the AF Location hint, the Container will be moved to the new location in the AF hierarchy.
+- If you disable the OMF Hint filter, the Container will not move.
+- If you wish to move a Container, you can do this with the PI System Explorer.
+  Right-click on the AF Element that represents the Container.
+  Choose Copy.
+  Select the AF Element that will serve as the new parent of the Container.
+  Right-click and choose *Paste*.
+  You can then return to the original Container and delete it.
+  *Note that PI System Explorer does not have the traditional Cut function for AF Elements*.
+- If you move a Container, OMF North will not recreate it.
+  If you then edit the AF Location hint, the Container will appear in the new location.
 
 Adding OMF Hints
 ~~~~~~~~~~~~~~~~

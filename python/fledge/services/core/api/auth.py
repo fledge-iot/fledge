@@ -10,6 +10,7 @@ import re
 import json
 from collections import OrderedDict
 import jwt
+import logging
 
 from aiohttp import web
 from fledge.services.core.user_model import User
@@ -22,7 +23,7 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-_logger = logger.setup(__name__)
+_logger = logger.setup(__name__, level=logging.INFO)
 
 _help = """
     ------------------------------------------------------------------------------------
@@ -58,10 +59,9 @@ FORBIDDEN_MSG = 'Resource you were trying to reach is absolutely forbidden for s
 # TODO: remove me, use from roles table
 ADMIN_ROLE_ID = 1
 DEFAULT_ROLE_ID = 2
-EXPIRY_MINUTES = 5
+OTT_TOKEN_EXPIRY_MINUTES = 5
 
 
-# The OTT class has only one member OTT_MAP which is static.
 class OTT:
     OTT_MAP = {}
 
@@ -114,21 +114,20 @@ async def login(request):
 
         # Check ott before user_id and password.
         if 'ott' in data:
-            ott_token_inside_request = data.get('ott')
-            if ott_token_inside_request in OTT.OTT_MAP:
+            _ott = data.get('ott')
+            if _ott in OTT.OTT_MAP:
                 time_now = datetime.datetime.now()
-                user_id, orig_token, is_admin, initial_time = OTT.OTT_MAP[ott_token_inside_request]
+                user_id, orig_token, is_admin, initial_time = OTT.OTT_MAP[_ott]
 
                 # remove ott from MAP when used or when expired.
-                OTT.OTT_MAP.pop(ott_token_inside_request, None)
-                if time_now - initial_time > datetime.timedelta(minutes=EXPIRY_MINUTES):
+                OTT.OTT_MAP.pop(_ott, None)
+                if time_now - initial_time <= datetime.timedelta(minutes=OTT_TOKEN_EXPIRY_MINUTES):
                     return web.json_response(
                         {"message": "Logged in successfully", "uid": user_id, "token": orig_token, "admin": is_admin})
                 else:
-                    raise web.HTTPBadRequest(reason="The token has expired. Try again with fresh ott token.")
+                    raise web.HTTPBadRequest(reason="The token has expired.")
             else:
-                raise web.HTTPBadRequest(reason="The token is invalid. "
-                                                "Either it has expired or already used. Try again with fresh token.")
+                raise web.HTTPBadRequest(reason="Either given token expired or already used.")
 
         username = data.get('username')
         password = data.get('password')
@@ -161,12 +160,11 @@ async def login(request):
 
 
 async def get_ott(request):
-
     try:
         original_token = request.token
         from fledge.services.core import connect
         from fledge.common.storage_client.payload_builder import PayloadBuilder
-        payload = PayloadBuilder().SELECT("user_id", "role_id").WHERE(['token', '=', original_token]).payload()
+        payload = PayloadBuilder().SELECT("user_id").WHERE(['token', '=', original_token]).payload()
         storage_client = connect.get_storage_async()
         result = await storage_client.query_tbl_with_payload("user_logins", payload)
         if len(result['rows']) == 0:
@@ -174,11 +172,23 @@ async def get_ott(request):
             return web.HTTPNotFound(reason=str(message))
         else:
             user_id = result['rows'][0]['user_id']
-            if result['rows'][0]['role_id'] == 1:
-                is_admin = True
-            else:
-                is_admin = False
+            payload_role = PayloadBuilder().SELECT("role_id").WHERE(['id', '=', user_id]).payload()
+            storage_client = connect.get_storage_async()
+            result_role = await storage_client.query_tbl_with_payload("users", payload_role)
 
+            if len(result_role['rows']) < 1:
+                message = "The request token {} does not have a valid role associated with it.".format(original_token)
+                return web.HTTPNotFound(reason=str(message))
+            else:
+                # checking if the user is an admin.
+                if int(result_role['rows'][0]['role_id']) == 1:
+                    is_admin = True
+                else:
+                    is_admin = False
+
+    except Exception as ex:
+        raise web.HTTPBadRequest(reason="The request failed due to {}".format(ex))
+    else:
         now_time = datetime.datetime.now()
         p = {'uid': user_id, 'exp': now_time}
         ott_token = jwt.encode(p, JWT_SECRET, JWT_ALGORITHM).decode("utf-8")
@@ -195,11 +205,7 @@ async def get_ott(request):
 
         ott_info = (user_id, original_token, is_admin, now_time)
         OTT.OTT_MAP[ott_token] = ott_info
-
         return web.json_response({"ott": ott_token})
-
-    except Exception as ex:
-        raise web.HTTPBadRequest(reason="Token creation failed due to {}".format(ex))
 
 
 async def logout_me(request):

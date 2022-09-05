@@ -55,12 +55,16 @@ class TestFledgeMicroservice:
                     pass
                 async def shutdown(self):
                     pass
+                async def restart(self):
+                    pass
             fm = FledgeMicroserviceImp()
         with pytest.raises(TypeError):
             class FledgeMicroserviceImp(FledgeMicroservice):
                 def run(self):
                     pass
                 async def shutdown(self):
+                    pass
+                async def restart(self):
                     pass
             fm = FledgeMicroserviceImp()
         with pytest.raises(TypeError):
@@ -83,6 +87,9 @@ class TestFledgeMicroservice:
                 pass
 
             async def shutdown(self):
+                pass
+
+            async def restart(self):
                 pass
 
             async def get_track(self):
@@ -139,6 +146,9 @@ class TestFledgeMicroservice:
             async def shutdown(self):
                 pass
 
+            async def restart(self):
+                pass
+
             async def get_track(self):
                 pass
 
@@ -175,6 +185,9 @@ class TestFledgeMicroservice:
                 pass
 
             async def shutdown(self):
+                pass
+
+            async def restart(self):
                 pass
 
             async def get_track(self):

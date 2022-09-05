@@ -36,6 +36,8 @@ _help = """
     | POST                       | /fledge/login                                      |
     | PUT                        | /fledge/{user_id}/logout                           |
     
+    | GET                        | /fledge/auth/ott                                   |
+
     | POST                       | /fledge/admin/user                                 |
     | PUT                        | /fledge/admin/{user_id}                            |
     | PUT                        | /fledge/admin/{user_id}/enable                     |
@@ -75,6 +77,7 @@ async def login(request):
     :Example:
         curl -d '{"username": "user", "password": "fledge"}' -X POST http://localhost:8081/fledge/login
         curl -T data/etc/certs/user.cert -X POST http://localhost:8081/fledge/login --insecure (--insecure or -k)
+        curl -d '{"ott": "ott_token"}' -skX POST http://localhost:8081/fledge/login
     """
     auth_method = request.auth_method if 'auth_method' in dir(request) else "any"
     data = await request.text()
@@ -160,6 +163,11 @@ async def login(request):
 
 
 async def get_ott(request):
+    """ Get one time use token for login.
+
+        :Example:
+            curl -H "authorization: <token>" -X GET http://localhost:8081/fledge/auth/ott
+    """
     try:
         original_token = request.token
         from fledge.services.core import connect

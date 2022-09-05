@@ -177,7 +177,7 @@ async def get_ott(request):
         result = await storage_client.query_tbl_with_payload("user_logins", payload)
         if len(result['rows']) == 0:
             message = "The request token {} does not have a valid user associated with it.".format(original_token)
-            return web.HTTPNotFound(reason=str(message))
+            raise web.HTTPBadRequest(reason=message)
         else:
             user_id = result['rows'][0]['user_id']
             payload_role = PayloadBuilder().SELECT("role_id").WHERE(['id', '=', user_id]).payload()
@@ -186,13 +186,12 @@ async def get_ott(request):
 
             if len(result_role['rows']) < 1:
                 message = "The request token {} does not have a valid role associated with it.".format(original_token)
-                return web.HTTPNotFound(reason=str(message))
+                raise web.HTTPBadRequest(reason=message)
             else:
                 # checking if the user is an admin.
+                is_admin = False
                 if int(result_role['rows'][0]['role_id']) == 1:
                     is_admin = True
-                else:
-                    is_admin = False
 
     except Exception as ex:
         raise web.HTTPBadRequest(reason="The request failed due to {}".format(ex))

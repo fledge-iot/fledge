@@ -173,6 +173,7 @@ async def get_ott(request):
         raise web.HTTPForbidden
 
     try:
+        # Fetching user_id and role for given token.
         original_token = request.token
         from fledge.services.core import connect
         from fledge.common.storage_client.payload_builder import PayloadBuilder
@@ -186,7 +187,6 @@ async def get_ott(request):
         payload_role = PayloadBuilder().SELECT("role_id").WHERE(['id', '=', user_id]).payload()
         storage_client = connect.get_storage_async()
         result_role = await storage_client.query_tbl_with_payload("users", payload_role)
-
         if len(result_role['rows']) < 1:
             message = "The request token {} does not have a valid role associated with it.".format(original_token)
             raise web.HTTPBadRequest(reason=message)
@@ -194,7 +194,6 @@ async def get_ott(request):
         is_admin = False
         if int(result_role['rows'][0]['role_id']) == 1:
             is_admin = True
-
     except Exception as ex:
         raise web.HTTPBadRequest(reason="The request failed due to {}".format(ex))
     else:

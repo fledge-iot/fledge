@@ -119,6 +119,10 @@ class FledgeMicroservice(FledgeProcess):
         pass
 
     @abstractmethod
+    async def restart(self, request):
+        pass
+
+    @abstractmethod
     async def change(self, request):
         pass
 

@@ -76,7 +76,8 @@ class Monitor(object):
                 # Try ping if service status is either running or doubtful (i.e. give service a chance to recover)
                 if service_record._status not in [ServiceRecord.Status.Running,
                                                   ServiceRecord.Status.Unresponsive,
-                                                  ServiceRecord.Status.Failed]:
+                                                  ServiceRecord.Status.Failed,
+                                                  ServiceRecord.Status.Restart]:
                     continue
 
                 self._logger.debug("Service: {} Status: {}".format(service_record._name, service_record._status))
@@ -87,6 +88,12 @@ class Monitor(object):
                             self.restarted_services.append(service_record._id)
                             asyncio.ensure_future(self.restart_service(service_record))
                     continue
+
+                if service_record._status == ServiceRecord.Status.Restart:
+                     if service_record._id not in self.restarted_services:
+                         self.restarted_services.append(service_record._id)
+                         asyncio.ensure_future(self.restart_service(service_record))
+                     continue
 
                 try:
                     url = "{}://{}:{}/fledge/service/ping".format(

@@ -1271,6 +1271,9 @@ class Server:
             return web.json_response(_resp)
         except ValueError as ex:
             raise web.HTTPNotFound(reason=str(ex))
+        except Exception as ex:
+            msg = str(ex)
+            raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
 
 
     @classmethod

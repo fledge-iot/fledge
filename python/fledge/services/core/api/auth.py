@@ -118,19 +118,19 @@ async def login(request):
         # Check ott before user_id and password.
         if 'ott' in data:
             _ott = data.get('ott')
-            if _ott in OTT.OTT_MAP:
-                time_now = datetime.datetime.now()
-                user_id, orig_token, is_admin, initial_time = OTT.OTT_MAP[_ott]
-
-                # remove ott from MAP when used or when expired.
-                OTT.OTT_MAP.pop(_ott, None)
-                if time_now - initial_time <= datetime.timedelta(minutes=OTT_TOKEN_EXPIRY_MINUTES):
-                    return web.json_response(
-                        {"message": "Logged in successfully", "uid": user_id, "token": orig_token, "admin": is_admin})
-                else:
-                    raise web.HTTPBadRequest(reason="The token has expired.")
-            else:
+            if _ott not in OTT.OTT_MAP:
                 raise web.HTTPBadRequest(reason="Either given token expired or already used.")
+
+            time_now = datetime.datetime.now()
+            user_id, orig_token, is_admin, initial_time = OTT.OTT_MAP[_ott]
+
+            # remove ott from MAP when used or when expired.
+            OTT.OTT_MAP.pop(_ott, None)
+            if time_now - initial_time <= datetime.timedelta(minutes=OTT_TOKEN_EXPIRY_MINUTES):
+                return web.json_response(
+                    {"message": "Logged in successfully", "uid": user_id, "token": orig_token, "admin": is_admin})
+            else:
+                raise web.HTTPBadRequest(reason="The token has expired.")
 
         username = data.get('username')
         password = data.get('password')
@@ -168,6 +168,10 @@ async def get_ott(request):
         :Example:
             curl -H "authorization: <token>" -X GET http://localhost:8081/fledge/auth/ott
     """
+    if request.is_auth_optional:
+        _logger.warning(FORBIDDEN_MSG)
+        raise web.HTTPForbidden
+
     try:
         original_token = request.token
         from fledge.services.core import connect
@@ -178,20 +182,18 @@ async def get_ott(request):
         if len(result['rows']) == 0:
             message = "The request token {} does not have a valid user associated with it.".format(original_token)
             raise web.HTTPBadRequest(reason=message)
-        else:
-            user_id = result['rows'][0]['user_id']
-            payload_role = PayloadBuilder().SELECT("role_id").WHERE(['id', '=', user_id]).payload()
-            storage_client = connect.get_storage_async()
-            result_role = await storage_client.query_tbl_with_payload("users", payload_role)
+        user_id = result['rows'][0]['user_id']
+        payload_role = PayloadBuilder().SELECT("role_id").WHERE(['id', '=', user_id]).payload()
+        storage_client = connect.get_storage_async()
+        result_role = await storage_client.query_tbl_with_payload("users", payload_role)
 
-            if len(result_role['rows']) < 1:
-                message = "The request token {} does not have a valid role associated with it.".format(original_token)
-                raise web.HTTPBadRequest(reason=message)
-            else:
-                # checking if the user is an admin.
-                is_admin = False
-                if int(result_role['rows'][0]['role_id']) == 1:
-                    is_admin = True
+        if len(result_role['rows']) < 1:
+            message = "The request token {} does not have a valid role associated with it.".format(original_token)
+            raise web.HTTPBadRequest(reason=message)
+        # checking if the user is an admin.
+        is_admin = False
+        if int(result_role['rows'][0]['role_id']) == 1:
+            is_admin = True
 
     except Exception as ex:
         raise web.HTTPBadRequest(reason="The request failed due to {}".format(ex))

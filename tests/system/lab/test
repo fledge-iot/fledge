@@ -96,6 +96,7 @@ fi
 
 echo "======================= SINUSOID SETUP COMPLETE ======================="
 
+
 setup_north_pi_egress () {
     if [[  ${ADD_NORTH_AS_SERVICE} == true ]]
     then
@@ -132,7 +133,7 @@ setup_north_pi_egress () {
                  "value": "true"
               },
               "DefaultAFLocation": {
-                 "value": "/PIlablvl1/PIlablvl2/PIlablvl3"
+                 "value": "/PIlabSinelvl1/PIlabSinelvl2/PIlabSinelvl3"
               }
            }
         }'
@@ -172,7 +173,7 @@ setup_north_pi_egress () {
                  "value": "true"
               },
               "DefaultAFLocation": {
-                 "value": "/PIlablvl1/PIlablvl2/PIlablvl3"
+                 "value": "/PIlabSinelvl1/PIlabSinelvl2/PIlabSinelvl3"
               }
            }
         }'
@@ -235,19 +236,19 @@ if [[  ${VERIFY_EGRESS_TO_PI} == 1 ]]
      echo "======================= SKIPPED PI EGRESS ======================="
 fi
 
+
 square_filter_config=$(cat <<EOF
 {
    "name": "Square",
    "plugin": "expression",
    "filter_config": {
       "name": "square",
-      "expression": "if(${LAB_ASSET_NAME}>0,0.5,-0.5)",
+      "expression": "if(sinusoid>0,0.5,-0.5)",
       "enable": "true"
    }
 }
 EOF
 )
-
 
 # Add Expression Filter (Square)
 curl -sX POST "$URL/filter" -d "$square_filter_config"
@@ -268,7 +269,7 @@ max_filter_config=$(cat <<EOF
    "plugin": "expression",
    "filter_config": {
       "name": "max",
-      "expression": "max(${LAB_ASSET_NAME}, max)",
+      "expression": "max(sinusoid, square)",
       "enable": "true"
    }
 }
@@ -572,7 +573,7 @@ echo
 
 sine_rule_config_positive=$(cat <<EOF
 {
-   "asset": ${LAB_ASSET_NAME},
+   "asset": "${LAB_ASSET_NAME}",
    "datapoint": "sinusoid",
    "condition": ">"
 }
@@ -630,7 +631,7 @@ echo
 
 sine_rule_config_negative=$(cat <<EOF
 {
-   "asset": ${LAB_ASSET_NAME},
+   "asset": "${LAB_ASSET_NAME}",
    "datapoint": "sinusoid",
    "condition": "<"
 }
@@ -662,10 +663,29 @@ fi
 
 echo "======================= EVENT NEGATIVE SINE COMPLETE ======================="
 
+sinusoid1_config=$(cat <<EOF
+{
+   "name": "sin #1",
+   "type": "south",
+   "plugin": "sinusoid",
+   "enabled": true,
+   "config": {"assetName":{"value": "$LAB_ASSET_NAME" }}
+}
+EOF
+)
+
+rule_config=$(cat <<EOF
+{ "asset":"${LAB_ASSET_NAME}",
+  "datapoint":"sinusoid",
+   "trigger_value": "0.8"
+}
+EOF
+)
 
 event_toggled_sent_clear () {
     echo "Add sinusoid"
-    ADD_SIN_RES=`curl -sX POST "$URL/service" -d '{"name": "sin #1", "plugin": "sinusoid", "type": "south", "enabled":true, "config":{"assetName": ""'${LAB_ASSET_NAME}'""}}'`
+
+    ADD_SIN_RES=`curl -sX POST "$URL/service" -d "$sinusoid1_config"`
     ID=`echo ${ADD_SIN_RES} | jq '.id // empty'`
     NAME=`echo ${ADD_SIN_RES} | jq '.name // empty'`
     echo "$ADD_SIN_RES"
@@ -704,7 +724,7 @@ event_toggled_sent_clear () {
     fi
 
     echo "Set rule"
-    SET_RULE=`curl -sX PUT "$URL/category/ruletest" -d '{"asset":"'${LAB_ASSET_NAME}'", "datapoint":"sinusoid", "trigger_value": "0.8"}' | jq .`
+    SET_RULE=`curl -sX PUT "$URL/category/ruletest" -d "$rule_config" | jq .`
     echo "$SET_RULE"
 
     for LOOP in $(seq ${MAX_RETRIES}); do

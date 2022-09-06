@@ -17,7 +17,7 @@ import utils
 import os
 
 south_plugin = "coap"
-south_asset_name = "coap"
+south_asset_name = "coap-omf-naming"
 south_service_name = "CoAP #1"
 north_plugin = "OMF"
 north_task_name = "NorthReadingsToPI_WebAPI"
@@ -27,6 +27,7 @@ DATAPOINT_VALUE = 20
 # This  gives the path of directory where fledge is cloned. test_file < packages < python < system < tests < ROOT
 PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.parent
 SCRIPTS_DIR_ROOT = "{}/tests/system/python/scripts/package/".format(PROJECT_ROOT)
+AF_HIERARCHY_LEVEL = "namingscheme/namingschemelvl2/namingschemelvl3"
 
 
 @pytest.fixture
@@ -49,9 +50,10 @@ def start_south(add_south, remove_data_file, fledge_url, clear_pi_system_through
 
     # Define the template file for fogbench
 
-    af_hierarchy_level = "fledge/room1/machine1"
-    af_hierarchy_level_list = af_hierarchy_level.split("/")
-    dp_list = [DATAPOINT]
+    af_hierarchy_level_list = AF_HIERARCHY_LEVEL.split("/")
+    # There are two data points here. 1. DATAPOINT
+    # 2. no data point (Asset name be used in this case.)
+    dp_list = [DATAPOINT, '']
     asset_dict = {}
     asset_dict[south_asset_name] = dp_list
     clear_pi_system_through_pi_web_api(pi_host, pi_admin, pi_passwd, pi_db,
@@ -133,7 +135,7 @@ def verify_asset_tracking_details(fledge_url, skip_verify_north_interface):
     tracked_item = tracking_details["track"][0]
     assert south_service_name == tracked_item["service"]
     assert south_asset_name == tracked_item["asset"]
-    assert south_asset_name == tracked_item["plugin"]
+    assert south_plugin == tracked_item["plugin"]
 
     if not skip_verify_north_interface:
         egress_tracking_details = utils.get_asset_tracking_details(fledge_url, "Egress")
@@ -149,8 +151,7 @@ def _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_d
     retry_count = 0
     data_from_pi = None
 
-    af_hierarchy_level = "fledge/room1/machine1"
-    af_hierarchy_level_list = af_hierarchy_level.split("/")
+    af_hierarchy_level_list = AF_HIERARCHY_LEVEL.split("/")
 
     while (data_from_pi is None or data_from_pi == []) and retry_count < retries:
         data_from_pi = read_data_from_pi_web_api(pi_host, pi_admin, pi_passwd, pi_db, af_hierarchy_level_list,
@@ -186,7 +187,7 @@ class TestOMFNamingScheme:
                 on endpoint GET /fledge/track"""
 
         start_north_task_omf_web_api(fledge_url, pi_host, pi_port, pi_user=pi_admin, pi_pwd=pi_passwd,
-                                        naming_scheme="Concise")
+                                        naming_scheme="Concise", default_af_location=AF_HIERARCHY_LEVEL)
         subprocess.run(
             ["cd {}/extras/python; python3 -m fogbench -t ../../data/{}; cd -".format(PROJECT_ROOT, TEMPLATE_NAME)],
             shell=True, check=True)
@@ -227,7 +228,7 @@ class TestOMFNamingScheme:
                 on endpoint GET /fledge/track"""
 
         start_north_task_omf_web_api(fledge_url, pi_host, pi_port, pi_user=pi_admin, pi_pwd=pi_passwd,
-                                        naming_scheme="Use Type Suffix")
+                                        naming_scheme="Use Type Suffix", default_af_location=AF_HIERARCHY_LEVEL)
         subprocess.run(
             ["cd {}/extras/python; python3 -m fogbench -t ../../data/{}; cd -".format(PROJECT_ROOT, TEMPLATE_NAME)],
             shell=True, check=True)
@@ -269,7 +270,7 @@ class TestOMFNamingScheme:
                 on endpoint GET /fledge/track"""
 
         start_north_task_omf_web_api(fledge_url, pi_host, pi_port, pi_user=pi_admin, pi_pwd=pi_passwd,
-                                        naming_scheme="Use Attribute Hash")
+                                        naming_scheme="Use Attribute Hash", default_af_location=AF_HIERARCHY_LEVEL)
         subprocess.run(
             ["cd {}/extras/python; python3 -m fogbench -t ../../data/{}; cd -".format(PROJECT_ROOT, TEMPLATE_NAME)],
             shell=True, check=True)
@@ -311,7 +312,7 @@ class TestOMFNamingScheme:
                 on endpoint GET /fledge/track"""
 
         start_north_task_omf_web_api(fledge_url, pi_host, pi_port, pi_user=pi_admin,
-                                        pi_pwd=pi_passwd)
+                                     pi_pwd=pi_passwd, default_af_location=AF_HIERARCHY_LEVEL)
         subprocess.run(
             ["cd {}/extras/python; python3 -m fogbench -t ../../data/{}; cd -".format(PROJECT_ROOT, TEMPLATE_NAME)],
             shell=True, check=True)

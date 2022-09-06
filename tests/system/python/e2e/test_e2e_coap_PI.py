@@ -24,6 +24,7 @@ __version__ = "${VERSION}"
 
 TEMPLATE_NAME = "template.json"
 SENSOR_VALUE = 20
+ASSET_NAME = "e2e_COAP_PI"
 
 
 def get_ping_status(fledge_url):
@@ -62,14 +63,22 @@ def _verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_
 
 @pytest.fixture
 def start_south_north(reset_and_start_fledge, add_south, start_north_pi_server_c, remove_data_file,
-                      remove_directories, south_branch, fledge_url, pi_host, pi_port, pi_token,
-                      asset_name="end_to_end_coap"):
+                      remove_directories, south_branch, fledge_url, pi_host, pi_port, pi_token, pi_passwd,
+                      pi_db, pi_admin, clear_pi_system_through_pi_web_api, asset_name=ASSET_NAME):
     """ This fixture clone a south repo and starts both south and north instance
         reset_and_start_fledge: Fixture that resets and starts fledge, no explicit invocation, called at start
         add_south: Fixture that adds a south service with given configuration
         start_north_pi_server_c: Fixture that starts PI north task
         remove_data_file: Fixture that remove data file created during the tests
         remove_directories: Fixture that remove directories created during the tests"""
+
+    # No need to give asset hierarchy in case of connector relay.
+    # There are two data points here. 1. sensor 2. no data point (Asset name be used in this case.)
+    dp_list = ['sensor', '']
+    asset_dict = {}
+    asset_dict[asset_name] = dp_list
+    clear_pi_system_through_pi_web_api(pi_host, pi_admin, pi_passwd, pi_db,
+                                       [], asset_dict)
 
     # Define the template file for fogbench
     fogbench_template_path = os.path.join(
@@ -93,7 +102,7 @@ def start_south_north(reset_and_start_fledge, add_south, start_north_pi_server_c
 
 class TestE2E_CoAP_PI:
     def test_end_to_end(self, start_south_north, read_data_from_pi, fledge_url, pi_host, pi_admin, pi_passwd, pi_db,
-                        wait_time, retries, skip_verify_north_interface, asset_name="end_to_end_coap"):
+                        wait_time, retries, skip_verify_north_interface, asset_name=ASSET_NAME):
         """ Test that data is inserted in Fledge and sent to PI
             start_south_north: Fixture that starts Fledge with south and north instance
             read_data_from_pi: Fixture to read data from PI
@@ -145,7 +154,7 @@ class TestE2E_CoAP_PI:
         assert len(tracking_details["track"]), "Failed to track Ingest event"
         tracked_item = tracking_details["track"][0]
         assert "coap" == tracked_item["service"]
-        assert "end_to_end_coap" == tracked_item["asset"]
+        assert ASSET_NAME == tracked_item["asset"]
         assert "coap" == tracked_item["plugin"]
 
         if not skip_verify_north_interface:
@@ -153,5 +162,5 @@ class TestE2E_CoAP_PI:
             assert len(egress_tracking_details["track"]), "Failed to track Egress event"
             tracked_item = egress_tracking_details["track"][0]
             assert "NorthReadingsToPI" == tracked_item["service"]
-            assert "end_to_end_coap" == tracked_item["asset"]
+            assert ASSET_NAME == tracked_item["asset"]
             assert "OMF" == tracked_item["plugin"]

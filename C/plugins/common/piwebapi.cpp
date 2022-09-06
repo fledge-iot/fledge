@@ -1,8 +1,8 @@
 /*
- * Fledge OSI Soft PIWebAPI integration.
- * Implements the integration for the specific functionalities exposed by PIWebAPI
+ * Fledge OSIsoft PI Web API integration.
+ * Implements the integration for the specific functionalities exposed by PI Web API
  *
- * Copyright (c) 2020 Dianomic Systems
+ * Copyright (c) 2020-2022 Dianomic Systems
  *
  * Released under the Apache 2.0 Licence
  *
@@ -87,17 +87,19 @@ std::string PIWebAPI::ExtractVersion(const string& response)
 
 
 /**
- * Calls the PIWebAPI api to retrieve the version
+ * Calls the PI Web API to retrieve the version
  *
- * @param host  Reference of the server running PIWebAPI in the format: hostName + ":" + port
- * @return      The version of the PIWebAPI server
+ * @param host       Reference of the server running PI Web API in the format: hostName + ":" + port
+ * @param version    The returned version string of the PI Web API server
+ * @param logMessage If true, log an error message if there is a failure (default: true)
+ * @return           HTTP response status code
  *
  */
-std::string PIWebAPI::GetVersion(const string& host)
+int PIWebAPI::GetVersion(const string& host, string &version, bool logMessage)
 {
-	string version;
 	string response;
 	string payload;
+	string errorMsg;
 
 	HttpSender *endPoint;
 	vector<pair<string, string>> header;
@@ -133,25 +135,34 @@ std::string PIWebAPI::GetVersion(const string& host)
 		{
 			version = ExtractVersion(response);
 		}
-		else
+		else if (logMessage)
 		{
-			string errorMsg;
 			errorMsg = errorMessageHandler(response);
-
-			Logger::getLogger()->warn("Error in retrieving the PIWebAPI version, :%d: %s ", httpCode, errorMsg.c_str());
+			Logger::getLogger()->error("Error in retrieving the PI Web API version from %s: [%d] %s ", host.c_str(), httpCode, errorMsg.c_str());
 		}
+	}
+	catch (const BadRequest& ex)
+	{
+		if (logMessage)
+		{
+			errorMsg = errorMessageHandler(ex.what());
+			Logger::getLogger()->error("BadRequest error retrieving the PI Web API version from %s: %s", host.c_str(), errorMsg.c_str());
+		}
+		httpCode = (int) SimpleWeb::StatusCode::client_error_bad_request;
 	}
 	catch (exception &ex)
 	{
-		string errorMsg;
-		errorMsg = errorMessageHandler(ex.what());
-
-		Logger::getLogger()->warn("Error in retrieving the PIWebAPI version, %s ", errorMsg.c_str());
+		if (logMessage)
+		{
+			errorMsg = errorMessageHandler(ex.what());
+			Logger::getLogger()->error("Error in retrieving the PI Web API version from %s: %s", host.c_str(), errorMsg.c_str());
+		}
+		httpCode = (int) SimpleWeb::StatusCode::server_error_service_unavailable;
 	}
 
 	delete endPoint;
 
-	return version;
+	return httpCode;
 }
 
 /**

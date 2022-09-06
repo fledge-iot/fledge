@@ -34,7 +34,7 @@ from fledge.services.core.api import package_log
 from fledge.services.core.api.repos import configure as configure_repo
 from fledge.services.core.api.control_service import script_management
 from fledge.services.core.api.control_service import acl_management
-
+from fledge.services.core.api import python_packages
 
 __author__ = "Ashish Jabble, Praveen Garg, Massimiliano Pinto, Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017-2018 OSIsoft, LLC"
@@ -58,6 +58,9 @@ def setup(app):
     # auth
     app.router.add_route('POST', '/fledge/login', auth.login)
     app.router.add_route('PUT', '/fledge/logout', auth.logout_me)
+
+    # auth ott
+    app.router.add_route('GET', '/fledge/auth/ott', auth.get_ott)
 
     # logout all active sessions
     app.router.add_route('PUT', '/fledge/{user_id}/logout', auth.logout)
@@ -251,6 +254,9 @@ def setup(app):
     app.router.add_route('DELETE', '/fledge/ACL/{acl_name}', acl_management.delete_acl)
     app.router.add_route('PUT', '/fledge/service/{service_name}/ACL', acl_management.attach_acl_to_service)
     app.router.add_route('DELETE', '/fledge/service/{service_name}/ACL', acl_management.detach_acl_from_service)
+
+    app.router.add_route('GET', '/fledge/python/packages', python_packages.get_packages)
+    app.router.add_route('POST', '/fledge/python/package', python_packages.install_package)
 
     # Proxy Admin API setup with regex
     proxy.admin_api_setup(app)

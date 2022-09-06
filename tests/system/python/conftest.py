@@ -256,7 +256,8 @@ def start_north_task_omf_web_api():
     def _start_north_task_omf_web_api(fledge_url, pi_host, pi_port, pi_db="Dianomic", auth_method='basic',
                                       pi_user=None, pi_pwd=None, north_plugin="OMF",
                                       taskname="NorthReadingsToPI_WebAPI", start_task=True,
-                                      naming_scheme="Backward compatibility"):
+                                      naming_scheme="Backward compatibility",
+                                      default_af_location="fledge/room1/machine1"):
         """Start north task"""
 
         _enabled = True if start_task else False
@@ -276,7 +277,7 @@ def start_north_task_omf_web_api():
                            "ServerHostname": {"value": pi_host},
                            "ServerPort": {"value": str(pi_port)},
                            "compression": {"value": "true"},
-                           "DefaultAFLocation": {"value": "fledge/room1/machine1"},
+                           "DefaultAFLocation": {"value": default_af_location},
                            "NamingScheme": {"value": naming_scheme}
                            }
                 }
@@ -295,7 +296,8 @@ def start_north_omf_as_a_service():
     def _start_north_omf_as_a_service(fledge_url, pi_host, pi_port, pi_db="Dianomic", auth_method='basic',
                                       pi_user=None, pi_pwd=None, north_plugin="OMF",
                                       service_name="NorthReadingsToPI_WebAPI", start=True,
-                                      naming_scheme="Backward compatibility"):
+                                      naming_scheme="Backward compatibility",
+                                      default_af_location="fledge/room1/machine1"):
         """Start north service"""
 
         _enabled = True if start else False
@@ -311,7 +313,7 @@ def start_north_omf_as_a_service():
                            "ServerHostname": {"value": pi_host},
                            "ServerPort": {"value": str(pi_port)},
                            "compression": {"value": "true"},
-                           "DefaultAFLocation": {"value": "fledge/room1/machine1"},
+                           "DefaultAFLocation": {"value": default_af_location},
                            "NamingScheme": {"value": naming_scheme}
                            }
                 }

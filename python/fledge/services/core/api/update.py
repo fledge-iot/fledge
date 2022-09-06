@@ -10,6 +10,7 @@
 import json
 from aiohttp import web
 import datetime
+import os
 
 from fledge.services.core import server
 from fledge.common import logger
@@ -89,6 +90,12 @@ async def update_package(request):
 
             # Log new schedule creation
             _logger.info("%s, ID [ %s ]", create_message, str(schedule_id))
+
+        # Save current logged user token
+        token = request.headers.get('authorization', None)
+        if token is not None:
+            with open(os.path.expanduser('~') + '/.fledge_token', 'w') as f:
+                f.write(token)
 
         # Add schedule_id to the schedule queue
         await server.Server.scheduler.queue_task(schedule_id)

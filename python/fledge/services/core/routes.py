@@ -59,6 +59,9 @@ def setup(app):
     app.router.add_route('POST', '/fledge/login', auth.login)
     app.router.add_route('PUT', '/fledge/logout', auth.logout_me)
 
+    # auth ott
+    app.router.add_route('GET', '/fledge/auth/ott', auth.get_ott)
+
     # logout all active sessions
     app.router.add_route('PUT', '/fledge/{user_id}/logout', auth.logout)
 

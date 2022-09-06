@@ -1,5 +1,5 @@
 
-statistics
+Statistics
 ----------
 
 The *statistics* interface allows the retrieval of live statistics, statistical history and statistical rates for the Fledge device.
@@ -27,7 +27,7 @@ Fledge records a number of statistics values, some with fixed names and other th
 
 In addition to these fixed names there will be;
 
-  - One statistic per north service of task that is named the same as the service or task name. This will count the number of readings sent out on that service.
+  - One statistic per north service or task that is named the same as the service or task name. This will count the number of readings sent out on that service.
 
   - One statistic per asset that is named the same as the asset. This will be the number of readings that have been ingested for that asset.
 
@@ -96,7 +96,7 @@ A JSON document containing an array of statistical information, these statistics
     * - statistics[].READINGS
       - Readings received by Fledge
     * - statistics[].*NORTH_TASK_NAME*
-      - The number of readings sent to the PI system via the OMF plugin with north instance name
+      - The number of readings sent to the upstream system by the plugin with the north instance name
     * - statistics[].UNSENT
       - Readings filtered out in the send process
     * - statistics[].UNSNPURGED
@@ -153,7 +153,7 @@ GET statistics/rate
 
 .. code-block:: console
 
-   $ curl http://localhost:8081/fledge/statistics/rate?statistics=Readdings%20Sent\&periods=1,5,15,30,60
+   $ curl http://localhost:8081/fledge/statistics/rate?statistics=READINGS%20Sent\&periods=1,5,15,30,60
    {
       "rates": {
         "READINGS": {
@@ -163,7 +163,7 @@ GET statistics/rate
           "30": 12.938816958618938,
           "60": 12.938816958618938
         },
-        "READINGS SENT": {
+        "Readings Sent": {
           "1": 0,
           "5": 0,
           "15": 0,

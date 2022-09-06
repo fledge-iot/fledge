@@ -238,7 +238,7 @@ Returns the response payload
                        "userName"     : "admin",
                        "roleId"       : 1,
                        "accessMethod" : "any",
-                       "realName"     : Admin user",
+                       "realName"     : "Admin user",
                        "description"  : "admin user"
                     },
                     {

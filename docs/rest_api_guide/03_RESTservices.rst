@@ -102,7 +102,8 @@ The data returned for each service includes
 +-----------------+-----------------------------------------------------------------------------+
 | protocol        | The protocol the service is using for its control API.                      |
 +-----------------+-----------------------------------------------------------------------------+
-| status          | The status of the service. This may be running, shutdown or unresponsive.   |
+| status          | The status of the service. This may be running, shutdown, unresponsive or   |
+|                 | failed.                                                                     |
 +-----------------+-----------------------------------------------------------------------------+
 
 Parameters
@@ -143,7 +144,7 @@ Specific API calls exist for the two must commonly used service types, the south
 
 .. note::
 
-   In the case of the north API entry pint the information returned is for both services and tasks
+   In the case of the north API entry point the information returned is for both services and tasks
 
 South Services
 ~~~~~~~~~~~~~~
@@ -152,7 +153,7 @@ The */fledge/south* call will list all of the south service with the information
 
   - the assets that are ingested by the service, 
     
-  - a count for each asset of how many readings have been ingested, 
+  - a count for each asset of how many readings have been ingested, this is only applicable if the plugin ingests multiple assets
     
   - the name and version of the south plugin used 
     
@@ -296,6 +297,10 @@ In order to find out what service types are installed in the system the */fledge
     $ curl http://localhost:8081/fledge/service/installed
     {"services": ["storage", "north", "dispatcher", "notification", "south"]}
 
+.. note::
+
+   All Fledge instances have the storage, south and north services installed by default when the Fledge core is installed.
+
 Available Service Types
 ~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -326,12 +331,12 @@ This will install the named service from the package repository.
 
 .. note::
 
-   In order to install a package the user must be an admin role user and the package repository must be configured and accessible.
+   In order to install a package the package repository must be configured and accessible.
 
 Creating A Service
 ------------------
 
-A new service can be created using the POST method on the */fledge/service* API call. The payload passed to this request will determine at least the service type and the name pf the new service, however it may also contain further configuration which is dependent on the type of the service.
+A new service can be created using the POST method on the */fledge/service* API call. The payload passed to this request will determine at least the service type and the name of the new service, however it may also contain further configuration which is dependent on the type of the service.
 
 The minimum payload content that must be in every create call for a service is the name of the new service, the type of the service and the enabled state of the service. This can be used for example to create a notification service or a control dispatcher service that need no further configuration.
 

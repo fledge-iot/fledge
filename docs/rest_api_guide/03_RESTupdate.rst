@@ -11,7 +11,7 @@ Repository Configuration
 The payload is a JSON document that can have one or two keys defined in
 the JSON object, *url* and *version*. The *url* item is mandatory and
 gives the URL of the package repository. This is normally set to the
-Dianomic archives for the fledge packages.
+fledge-iot archives for the fledge packages.
 
 .. code-block:: console
 

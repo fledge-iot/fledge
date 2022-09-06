@@ -24,6 +24,12 @@ The response payload is a JSON document that returns the number of readings that
 
    $ curl -X DELETE http://localhost:8081/fledge/asset
 
+The return from this is the number of readings that have been purged.
+
+.. code-block:: JSON
+
+   { "purged" : 3239 }
+
 .. note::
 
    Great care should be exercised in using this call as **all** data that is currently buffered in the Fledge storage layer will be lost and there is no mechanism to undo this operation.
@@ -40,6 +46,12 @@ The response payload is a JSON document that returns the number of readings that
 
    $ curl -X DELETE http://localhost:8081/fledge/asset/sinusoid
 
+The return from this is the number of readings that have been purged.
+
+.. code-block:: JSON
+
+   { "purged" : 435 }
+
 .. note::
 
    Great care should be exercised in using this call as **all** data for the **named** asset that is currently buffered in the Fledge storage layer will be lost and there is no mechanism to undo this operation.
@@ -48,6 +60,24 @@ View Plugin Persisted Data
 --------------------------
 
 Fledge plugins may persist data between executions of the the plugin. This data takes the form of a JSON document. In normally circumstance the user should not need to view or manage this data as it is the responsibility of the plugin to manage this data. However, during the development of a plugin it is useful for a plugin developer to be able to view this data and manage the data.
+
+``GET /fledge/service/{service_name}/persist`` - get the names of the plugins that persist data within a service.
+
+.. code-block:: console
+
+   curl http:/localhost:8081/fledge/service/OMF/persist
+
+This would return the list of plugins as a JSON document as shown below
+
+.. code-block:: JSON
+
+   {
+      "persistent": [
+        "OMF"
+      ]
+    }
+
+If no plugins within this service persist data the *persistent* array would be empty.
 
 ``GET /fledge/service/{service_name}/plugin/{plugin_name}/data`` - view the plugin data persisted by an instance of a plugin
 
@@ -119,6 +149,8 @@ Where *OMF* is the name of a north service with an OMF filter connected to a PI 
 ``POST /fledge/service/{service_name}/plugin/{plugin_name}/data`` - write the persisted data for a plugin
 
 Write or overwrite data persisted by the plugin. The request payload is the data which the plugin should receive and must be in the correct format for the plugin.
+
+The payload for the POST command is defined by the plugin itself and hence no general example can be given here. It is intended that this is used in conjunction with an earlier GET request or a GET request on another instance, to restore a previous state.
 
 .. note::
 

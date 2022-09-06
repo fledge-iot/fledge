@@ -9,7 +9,7 @@
 .. Links
 .. |grafana| raw:: html
 
-   < a href="https://grafana.com" target="_blank">Grafana</a>
+   <a href="https://grafana.com" target="_blank">Grafana</a>
 
 Grafana Examples
 ================
@@ -20,6 +20,12 @@ Show Fledge Status
 ------------------
 
 Using the *GET /fledge/ping* endpoint we can retrieve information about the number of readings read, sent, purged etc. 
+
+.. code-block:: console
+
+   $ curl http://localhost:8081/fledge/ping
+
+Which would return a JSON payload that looks similar to that shown below
 
 .. code-block:: JSON
 
@@ -58,7 +64,7 @@ Using the curl command to look at the API call
 
 We get a JSON response as follows
 
-.. code-block:: JSON
+.. code-block:: console
 
     {
       "interval": 15,

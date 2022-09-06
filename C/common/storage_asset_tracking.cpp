@@ -64,7 +64,31 @@ void StorageAssetTracker::populateStorageAssetTrackingCache()
 		 Logger::getLogger()->error("%s:%s  m_mgtClient->getStorageAssetTrackingTuples returned vec of size %d", __FILE__, __FUNCTION__, vec.size());
 		for (StorageAssetTrackingTuple* & rec : vec)
 		{
-			storageAssetTrackerTuplesCache.insert(rec);
+			auto it = storageAssetTrackerTuplesCache.find(rec);
+			if (it == storageAssetTrackerTuplesCache.end())
+			{
+				// tuple not found in cache , so add it
+				storageAssetTrackerTuplesCache.insert(rec);
+			}
+			else
+			{
+				// tuple present and count value < count of reading, update cache
+				if ((*it)->m_maxCount < rec->m_maxCount)
+				{
+					storageAssetTrackerTuplesCache.erase(it);
+					storageAssetTrackerTuplesCache.insert(rec);
+				}
+				else if ((*it)->m_maxCount == rec->m_maxCount)
+				{
+					// case where counts are same but datapoints are different
+					// "a", "b", "c" and "a", "b", "foo"
+					// keep both the records
+					if ((*it)->m_datapoints.compare(rec->m_datapoints))
+					{
+						storageAssetTrackerTuplesCache.insert(rec);
+					}
+				}
+			}
 
 			Logger::getLogger()->error("%s:%s Added storage asset tracker tuple to cache: '%s'", __FILE__, __FUNCTION__,
 					rec->assetToString().c_str());
@@ -77,65 +101,19 @@ void StorageAssetTracker::populateStorageAssetTrackingCache()
 		return;
 	}
 
+	Logger::getLogger()->error("%s:%s size of multiset %d", __FILE__, __FUNCTION__,
+                                        storageAssetTrackerTuplesCache.size());
 
 	return;
 }
 
-/**
- * Check local cache for a given asset tracking tuple
- *
- * @param tuple		Tuple to find in cache
- * @return		Returns whether tuple is present in cache
- */
-bool StorageAssetTracker::checkStorageAssetTrackingCache(StorageAssetTrackingTuple& tuple)	
-{
-
-	Logger::getLogger()->error("%s:%s start ", __FILE__, __FUNCTION__);
-	StorageAssetTrackingTuple *ptr = &tuple;
-	std::unordered_set<StorageAssetTrackingTuple*>::const_iterator it = storageAssetTrackerTuplesCache.find(ptr);
-
-	Logger::getLogger()->error("%s:%s :checkStorageAssetTrackingCache : storageAssetTrackerTuplesCache.size()=%d ", __FILE__, __FUNCTION__, storageAssetTrackerTuplesCache.size());
-
-
-	Logger::getLogger()->error("%s:%s : Printing cache ", __FILE__, __FUNCTION__);
-        for (auto tuple : storageAssetTrackerTuplesCache)
-        {
-                Logger::getLogger()->error("%s:%s:%s:%s:%s:%d ", tuple->m_serviceName.c_str(), tuple->m_pluginName.c_str(), tuple->m_assetName.c_str(), tuple->m_eventName.c_str(), tuple->m_datapoints.c_str(), tuple->m_maxCount);
-        }
-
-	if (it == storageAssetTrackerTuplesCache.end())
-	{
-		Logger::getLogger()->error("%s:%s :checkStorageAssetTrackingCache tuple not in cache", __FILE__, __FUNCTION__);
-		return false;
-	}
-	else
-	{
-		if ((*it)->m_maxCount >= ptr->m_maxCount || (*it)->m_datapoints != ptr->m_datapoints)
-		{
-			Logger::getLogger()->error("%s:%s :checkStorageAssetTrackingCache  tuple in database count > = tuple in arg count, returnin true ", __FILE__, __FUNCTION__);
-			return true;
-		}
-		else
-		{
-			Logger::getLogger()->error("%s:%s :checkStorageAssetTrackingCache  tuple in database count < tuple in arg count, returning false", __FILE__, __FUNCTION__);
-
-			return false;
-		}
-	}
-	 Logger::getLogger()->error("%s:%s :function ", __FILE__, __FUNCTION__);
-
-}
 
 StorageAssetTrackingTuple* StorageAssetTracker::findStorageAssetTrackingCache(StorageAssetTrackingTuple& tuple)	
 {
 	StorageAssetTrackingTuple *ptr = &tuple;
-	std::unordered_set<StorageAssetTrackingTuple*>::const_iterator it = storageAssetTrackerTuplesCache.find(ptr);
+	std::unordered_multiset<StorageAssetTrackingTuple*>::const_iterator it = storageAssetTrackerTuplesCache.find(ptr);
 
-	if (storageAssetTrackerTuplesCache.empty())
-	{
-	     Logger::getLogger()->error("%s:%s :findStorageAssetTrackingCache : storageAssetTrackerTuplesCache.empty ", __FILE__, __FUNCTION__);
-	}
-	Logger::getLogger()->error("%s:%s :findStorageAssetTrackingCache : storageAssetTrackerTuplesCache.size()=%d ", __FILE__, __FUNCTION__, storageAssetTrackerTuplesCache.size());
+	Logger::getLogger()->error("%s:%s :findStorageAssetTrackingCache : storageAssetTrackerTuplesCache.size()=%d ,tupleto find dp = %s", __FILE__, __FUNCTION__, storageAssetTrackerTuplesCache.size(), ptr->m_datapoints.c_str());
 
 	Logger::getLogger()->error("%s:%s : Printing cache , size being %d", __FILE__, __FUNCTION__, storageAssetTrackerTuplesCache.size());
 
@@ -151,7 +129,37 @@ StorageAssetTrackingTuple* StorageAssetTracker::findStorageAssetTrackingCache(St
 	}
 	else
 	{
-		Logger::getLogger()->error("%s:%s :findStorageAssetTrackingCache tuple found in cache ", __FILE__, __FUNCTION__);
+		Logger::getLogger()->error("%s:%s :findStorageAssetTrackingCache tuple found in cache dp = %s", __FILE__, __FUNCTION__, (*it)->m_datapoints.c_str());
+
+		Logger::getLogger()->error("%s:%s :findStorageAssetTrackingCache tuple found in cache , arg dp = %s", __FILE__, __FUNCTION__, (ptr)->m_datapoints.c_str());
+
+
+		   // tuple present and count value < count of reading, update cache
+                if ((*it)->m_maxCount < ptr->m_maxCount)
+                {
+			// record to be updated in tuple, delete old one 
+	                storageAssetTrackerTuplesCache.erase(it);
+
+			Logger::getLogger()->error("%s:%d:%s tuple present and count value < count of reading, update cache, erased dp%s ",  __FILE__,__LINE__, __FUNCTION__, (*it)->m_datapoints.c_str());
+			return NULL;
+                }
+                else if ((*it)->m_maxCount == ptr->m_maxCount)
+                {
+                // case where counts are same but datapoints are different
+                // "a", "b", "c" and "a", "b", "foo"
+                // keep both the records
+        	        if (compareDatapoints(ptr->m_datapoints,(*it)->m_datapoints))
+               		{
+				//  record to be addded 
+				Logger::getLogger()->error("%s:%d:%s tuple present and case where counts are same but datapoints are different, update cache ",  __FILE__,__LINE__, __FUNCTION__);
+
+				return NULL;
+                	}
+			else
+				return *it;
+                 }
+
+		// dont need updation , return pointer to tuple in cache
 		return *it;
 	}
 }
@@ -163,18 +171,16 @@ StorageAssetTrackingTuple* StorageAssetTracker::findStorageAssetTrackingCache(St
  */
 void StorageAssetTracker::addStorageAssetTrackingTuple(StorageAssetTrackingTuple& tuple)
 {
-	Logger::getLogger()->error("%s:%d, addStorageAssetTrackingTuple start" ,__FILE__, __LINE__);
-	std::unordered_set<StorageAssetTrackingTuple*>::const_iterator it = storageAssetTrackerTuplesCache.find(&tuple);
-	Logger::getLogger()->error("%s:%d, addStorageAssetTrackingTuple():tuple not found in cache, insert in DB",  __FILE__, __LINE__);
+	std::unordered_multiset<StorageAssetTrackingTuple*>::const_iterator it = storageAssetTrackerTuplesCache.find(&tuple);
 
-	Logger::getLogger()->error("%s:%d,  service:%s, plugin:%s, asset:%s, event:%s, datapoints:%s, count:%d ",__FILE__, __LINE__,  tuple.m_serviceName.c_str(), tuple.m_pluginName.c_str(), tuple.m_assetName.c_str(), tuple.m_eventName.c_str(), tuple.m_datapoints.c_str(), tuple.m_maxCount);
+	Logger::getLogger()->error("%s:%d, addStorageAssetTrackingTuple: tuple to add : service:%s, plugin:%s, asset:%s, event:%s, datapoints:%s, count:%d ",__FILE__, __LINE__,  tuple.m_serviceName.c_str(), tuple.m_pluginName.c_str(), tuple.m_assetName.c_str(), tuple.m_eventName.c_str(), tuple.m_datapoints.c_str(), tuple.m_maxCount);
 	bool rv = m_mgtClient->addStorageAssetTrackingTuple(tuple.m_serviceName, tuple.m_pluginName, tuple.m_assetName, tuple.m_eventName, false, tuple.m_datapoints, tuple.m_maxCount);
 
 	if (rv) // insert into cache only if DB operation succeeded
 	{
 		StorageAssetTrackingTuple *ptr = new StorageAssetTrackingTuple(tuple);
 		storageAssetTrackerTuplesCache.insert(ptr);
-		Logger::getLogger()->info("%s:%d: Added tuple to cache: %s, insert in db successful ", __FILE__, __LINE__, tuple.assetToString().c_str());
+		Logger::getLogger()->info("%s:%d:%s: Added tuple to cache: %s, insert in db successful ", __FILE__, __LINE__, __FUNCTION__, tuple.assetToString().c_str());
 	}
 	else
 		Logger::getLogger()->error("%s:%d:%s Failed to insert storage asset tracking tuple into DB: '%s'", __FILE__, __LINE__,__FUNCTION__, tuple.assetToString().c_str());
@@ -262,6 +268,25 @@ bool StorageAssetTracker::getFledgeConfigInfo()
                 return false;
         }
         return false;
+}
+
+int StorageAssetTracker::compareDatapoints(const std::string& dp1, const std::string& dp2)
+{
+	std::string temp1, temp2;
+	for( int i = 0; i < dp1.size() ; ++i)
+	{
+		if (dp1[i] != '"')
+			temp1.push_back(dp1[i]);
+	}
+
+	for( int i = 0; i < dp2.size() ; ++i)
+        {
+                if (dp2[i] != '"')
+                        temp2.push_back(dp2[i]);
+        }
+
+	Logger::getLogger()->error("%s:%s temp1 = %s , temp1.size = %d , temp2 = %s , temp2 size %d , return value %d", __FILE__, __FUNCTION__, temp1.c_str(), temp1.size(), temp2.c_str(), temp2.size(), temp1.compare(temp2)); 
+	return temp1.compare(temp2);
 }
 
 

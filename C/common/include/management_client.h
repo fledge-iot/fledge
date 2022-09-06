@@ -64,8 +64,8 @@ class ManagementClient {
  					getStorageAssetTrackingTuples(const std::string serviceName);
 
 		StorageAssetTrackingTuple* getStorageAssetTrackingTuple(const std::string& serviceName,
-                                                         		  const std::string& assetName,
-                                                         		  const std::string& event);
+                                                         	const std::string& assetName,
+								const std::string& event, const std::string & dp, const unsigned int& c);
 
 		bool addAssetTrackingTuple(const std::string& service, 
 					   const std::string& plugin, 
@@ -113,6 +113,7 @@ class ManagementClient {
 		AssetTrackingTuple*	getAssetTrackingTuple(const std::string& serviceName,
 								const std::string& assetName,
 								const std::string& event);
+		int 			validateDatapoints(std::string dp1, std::string dp2);
 
 	private:
 		std::ostringstream 			m_urlbase;

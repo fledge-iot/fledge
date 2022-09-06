@@ -1506,7 +1506,7 @@ ACL ManagementClient::getACL(const string& aclName)
  */
 StorageAssetTrackingTuple* ManagementClient::getStorageAssetTrackingTuple(const std::string& serviceName,
                                                         const std::string& assetName,
-                                                        const std::string& event)
+                                                        const std::string& event, const std::string& dp, const unsigned int& c)
 {
 	m_logger->error("%s:%d function %s start  service = %s , assetName = %s ", __FILE__, __LINE__,__FUNCTION__, serviceName.c_str(), assetName.c_str());
 	
@@ -1611,6 +1611,20 @@ StorageAssetTrackingTuple* ManagementClient::getStorageAssetTrackingTuple(const 
 					{
 						datapoints.pop_back();
 					}
+
+					if(validateDatapoints(dp,datapoints))
+					{
+						//datapoints in db not same as in arg, continue
+		m_logger->error("%s:%s:%d : Datapoints in db %s size %d ", __FILE__,__FUNCTION__,__LINE__, datapoints.c_str(), datapoints.size());
+		m_logger->error("%s:%s:%d : Datapoints in arg %s size %d",   __FILE__,__FUNCTION__,__LINE__, dp.c_str(), dp.size());
+
+						m_logger->error("%s:%s :Datapoints in db not same as in arg",__FILE__, __FUNCTION__);
+						continue;
+					}
+					else
+					{
+						m_logger->error("dp and datapoints are equal");
+					}
 					
                                         if (!dataVal.HasMember("count"))
                                         {
@@ -1622,6 +1636,12 @@ StorageAssetTrackingTuple* ManagementClient::getStorageAssetTrackingTuple(const 
                                                 throw runtime_error("Expected count in data to be int");
                                         }
                                         int count = dataVal["count"].GetInt();
+					if ( count != c)
+					{
+						// count not same, continue
+						m_logger->error("%s:%s :count in db not same as received in arg", __FILE__, __FUNCTION__);
+						continue;
+					}
 
                                         // Create a new AssetTrackingTuple object, to be freed by the caller
                                         tuple = new StorageAssetTrackingTuple(rec["service"].GetString(),
@@ -1867,5 +1887,17 @@ std::vector<StorageAssetTrackingTuple*>& ManagementClient::getStorageAssetTracki
                 m_logger->error("Unexpected exception when retrieving asset tuples for service %s", serviceName.c_str());
         }
         return *vec;
+}
+
+int ManagementClient::validateDatapoints(std::string dp1, std::string dp2)
+{
+	std::string temp;
+	for (int i = 0; i < dp1.size(); ++i)
+	{
+		if ( dp1[i] != '"')
+			temp.push_back(dp1[i]);
+	}
+
+	return temp.compare(dp2);
 }
 

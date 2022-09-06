@@ -100,7 +100,6 @@ public:
 	StorageAssetTracker(ManagementClient *mgtClient, std::string m_service);
 	~StorageAssetTracker() {}
 	void	populateStorageAssetTrackingCache();
-	bool	checkStorageAssetTrackingCache(StorageAssetTrackingTuple& tuple);
 	StorageAssetTrackingTuple*
 		findStorageAssetTrackingCache(StorageAssetTrackingTuple& tuple);
 	void	addStorageAssetTrackingTuple(StorageAssetTrackingTuple& tuple);
@@ -108,7 +107,7 @@ public:
 	bool 	getFledgeConfigInfo();
 	static  StorageAssetTracker *getStorageAssetTracker();
 	static	void releaseStorageAssetTracker();
-
+	int 	compareDatapoints(const std::string& dp1, const std::string& dp2);
 
 private:
 	static StorageAssetTracker	*instance;
@@ -116,7 +115,7 @@ private:
 	std::string                     m_fledgeService;
 	std::string			m_service;
 	std::string			m_event;
-	std::unordered_set<StorageAssetTrackingTuple*, std::hash<StorageAssetTrackingTuple*>, StorageAssetTrackingTuplePtrEqual> storageAssetTrackerTuplesCache;
+	std::unordered_multiset<StorageAssetTrackingTuple*, std::hash<StorageAssetTrackingTuple*>, StorageAssetTrackingTuplePtrEqual> storageAssetTrackerTuplesCache;
 };
 
 #endif

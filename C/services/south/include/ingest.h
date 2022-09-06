@@ -73,7 +73,7 @@ public:
 							const std::string& assetName,
 							const std::string& event);
 	void            unDeprecateStorageAssetTrackingRecord(StorageAssetTrackingTuple* currentTuple,
-                                                        const std::string& assetName);
+                                                        const std::string& assetName, const std::string&, const unsigned int&);
 
 
 private:

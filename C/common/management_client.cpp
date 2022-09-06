@@ -13,6 +13,7 @@
 #include <service_record.h>
 #include <string_utils.h>
 #include <asset_tracking.h>
+#include <storage_asset_tracking.h>
 #include <bearer_token.h>
 #include <crypto.hpp>
 #include <rapidjson/error/en.h>
@@ -1493,3 +1494,400 @@ ACL ManagementClient::getACL(const string& aclName)
 		throw;
 	}
 }
+
+/**
+ * Get the asset tracking tuple
+ * for a service and asset name
+ *
+ * @param    serviceName        The serviceName to restrict data fetch
+ * @param    assetName          The asset name that belongs to the service
+ * @param    event              The associated event type
+ * @return              A vector of pointers to AssetTrackingTuple objects allocated on heap
+ */
+StorageAssetTrackingTuple* ManagementClient::getStorageAssetTrackingTuple(const std::string& serviceName,
+                                                        const std::string& assetName,
+                                                        const std::string& event)
+{
+	m_logger->error("%s:%d function %s start  service = %s , assetName = %s ", __FILE__, __LINE__,__FUNCTION__, serviceName.c_str(), assetName.c_str());
+	
+        StorageAssetTrackingTuple* tuple = NULL;
+        try {
+                string url = "/fledge/track";
+                if (serviceName == "" || assetName == "" || event == "")
+                {
+                        m_logger->error("Failed to fetch storage asset tracking tuple: " \
+                                        "service name, asset name and event type are required.");
+                        throw new exception();
+                }
+
+                url += "?service=" + urlEncode(serviceName);
+                url += "&asset=" + urlEncode(assetName) + "&event=" + event;
+
+                auto res = this->getHttpClient()->request("GET", url.c_str());
+                Document doc;
+                string response = res->content.string();
+                doc.Parse(response.c_str());
+                if (doc.HasParseError())
+                {
+                        bool httpError = (isdigit(response[0]) &&
+                                        isdigit(response[1]) &&
+                                        isdigit(response[2]) &&
+                                        response[3]==':');
+                        m_logger->error("%s fetch storage asset tracking tuple: %s\n",
+                                        httpError?"HTTP error during":"Failed to parse result of",
+                                        response.c_str());
+                        throw new exception();
+                }
+                else if (doc.HasMember("message"))
+                {
+                        m_logger->error("Failed to fetch storage asset tracking tuple: %s.",
+                                doc["message"].GetString());
+                        throw new exception();
+                }
+                else
+                {
+                        const rapidjson::Value& trackArray = doc["track"];
+                        if (trackArray.IsArray())
+                        {
+                                // Process every row and create the AssetTrackingTuple object
+                                for (auto& rec : trackArray.GetArray())
+                                {
+					 m_logger->error("%s:%d Inside for loop of trackArray ", __FILE__, __LINE__);
+
+                                        if (!rec.IsObject())
+                                        {
+                                                throw runtime_error("Expected storage asset tracker tuple to be an object");
+                                        }
+
+                                        // Note: deprecatedTimestamp NULL value is returned as ""
+                                        // otherwise it's a string DATE
+                                        bool deprecated = rec.HasMember("deprecatedTimestamp") &&
+                                            strlen(rec["deprecatedTimestamp"].GetString());
+
+					std::string data ;
+                                        if (!rec.HasMember("data"))
+                                        {
+                                                throw runtime_error("Expected storage asset tracker tuple to contain member data");
+                                        }
+
+                                        const rapidjson::Value& dataVal = rec["data"];
+                                        if (!dataVal.IsObject())
+                                        {
+                                                throw runtime_error("Expected data in storage asset tracker tuple to be an object");
+                                        }
+					else
+					{
+						Logger::getLogger()->error("%s:%sdataVal.IsObject", __FILE__, __FUNCTION__);
+					}
+
+                                        if (!dataVal.HasMember("datapoints"))
+                                        {
+                                                 throw runtime_error("Expected asset tracker tuple to contain datapoints");
+                                        }
+					else
+					{
+						Logger::getLogger()->error("%s:%s datapoints present in JSON with type %d", __FILE__, __FUNCTION__ , dataVal["datapoints"].GetType());
+					}
+
+                                        if (!dataVal["datapoints"].IsArray())
+                                        {
+                                                throw runtime_error("Expected datapoints to be object");
+                                        }
+					else
+					{
+						m_logger->error("%s:%s got member data dataVal[\"datapoints\"] ", __FILE__, __FUNCTION__);
+					}
+
+					std::string datapoints;
+					for (auto& r : dataVal["datapoints"].GetArray())
+					{
+						if (!r.IsString())
+						{
+							throw runtime_error("Expected r to be string");
+						}
+						else
+						{
+							datapoints.append(r.GetString());
+							datapoints.append(",");
+						}
+					}
+
+					m_logger->error("%s:%sdatapoints = %s", __FILE__, __FUNCTION__, datapoints.c_str());
+
+					if (datapoints[datapoints.size()-1] == ',')
+					{
+						datapoints.pop_back();
+					}
+					
+
+
+					m_logger->error("%s:%s  datapoints = %s ", __FILE__, __FUNCTION__, datapoints.c_str());
+                                        if (!dataVal.HasMember("count"))
+                                        {
+                                                 throw runtime_error("Expected asset tracker tuple to contain count");
+                                        }
+
+                                        if (!dataVal["count"].IsInt())
+                                        {
+                                                throw runtime_error("Expected count in data to be int");
+                                        }
+                                        int count = dataVal["count"].GetInt();
+					m_logger->error("%s:%s count = %d  ", __FILE__, __FUNCTION__, count);
+
+
+                                        // Create a new AssetTrackingTuple object, to be freed by the caller
+                                        tuple = new StorageAssetTrackingTuple(rec["service"].GetString(),
+                                                                        rec["plugin"].GetString(),
+                                                                        rec["asset"].GetString(),
+                                                                        rec["event"].GetString(),
+                                                                        deprecated, datapoints, count);
+
+                                        m_logger->error("Adding StorageAssetTracker tuple for service %s: %s:%s:%s, " \
+                                                        "deprecated state is %d, datapoints %s , count %d",
+                                                        rec["service"].GetString(),
+                                                        rec["plugin"].GetString(),
+                                                        rec["asset"].GetString(),
+                                                        rec["event"].GetString(),
+                                                        deprecated, datapoints.c_str(), count);
+ 
+
+                                }
+                        }
+                        else
+                        {
+                                throw runtime_error("Expected array of rows in storage asset track tuples array");
+                        }
+
+                        return tuple;
+                }
+        } catch (const SimpleWeb::system_error &e) {
+                m_logger->error("Fetch/parse of storage asset tracking tuples for service %s failed: %s.",
+                                serviceName.c_str(),
+                                e.what());
+        } catch (...) {
+                m_logger->error("Unexpected exception when retrieving storage asset tuples for service %s",
+                                serviceName.c_str());
+        }
+
+        return tuple;
+}
+	
+/**
+ * Add a new asset tracking tuple
+ *
+ * @param service	Service name
+ * @param plugin	Plugin name
+ * @param asset		Asset name
+ * @param event		Event type
+ * @return		whether operation was successful
+ */
+bool ManagementClient::addStorageAssetTrackingTuple(const std::string& service, 
+					const std::string& plugin,
+					const std::string& asset,
+					const std::string& event,
+					const bool& deprecated,
+					const std::string& datapoints,
+					const int& count)
+{
+	ostringstream convert;
+
+	try {
+		convert << "{ \"service\" : \"" << JSONescape(service) << "\", ";
+		convert << " \"plugin\" : \"" << plugin << "\", ";
+		convert << " \"asset\" : \"" << asset << "\", ";
+		convert << " \"event\" : \"" << event << "\", ";
+		convert << " \"deprecated\" :\"" << deprecated << "\", ";
+		convert << " \"data\"  :  { \"datapoints\" : \[ " << datapoints << " \], ";
+		convert << " \"count\" : " << count << " } }";
+
+
+		auto res = this->getHttpClient()->request("POST", "/fledge/track", convert.str());
+		Document doc;
+		string content = res->content.string();
+		doc.Parse(content.c_str());
+		if (doc.HasParseError())
+		{
+			bool httpError = (isdigit(content[0]) && isdigit(content[1]) && isdigit(content[2]) && content[3]==':');
+			m_logger->error("%s:%d , %s storage asset tracking tuple addition: %s\n",__FILE__, __LINE__, 
+								httpError?"HTTP error during":"Failed to parse result of", 
+								content.c_str());
+			return false;
+		}
+		if (doc.HasMember("fledge"))
+		{
+			const char *reg_id = doc["fledge"].GetString();
+			return true;
+		}
+		else if (doc.HasMember("message"))
+		{
+			m_logger->error("%s:%d Failed to add storage asset tracking tuple: %s.",__FILE__, __LINE__,
+				doc["message"].GetString());
+		}
+		else
+		{
+			m_logger->error("%s:%d Failed to add storage asset tracking tuple: %s.",__FILE__, __LINE__,
+					content.c_str());
+		}
+	} catch (const SimpleWeb::system_error &e) {
+				m_logger->error("%s:%d Failed to add storage asset tracking tuple: %s.",__FILE__, __LINE__, e.what());
+				return false;
+		}
+		return false;
+}
+
+/**
+ * Get the storage asset tracking tuples
+ * for a service or all services
+ *
+ * @param    serviceName        The serviceName to restrict data fetch
+ *                              If empty records for all services are fetched
+ * @return              A vector of pointers to AssetTrackingTuple objects allocated on heap
+ */
+std::vector<StorageAssetTrackingTuple*>& ManagementClient::getStorageAssetTrackingTuples(const std::string serviceName)
+{
+        std::vector<StorageAssetTrackingTuple*> *vec = new std::vector<StorageAssetTrackingTuple*>();
+
+        try {
+                string url = "/fledge/track";
+                if (serviceName != "")
+                {
+                        url += "?service="+urlEncode(serviceName);
+                }
+                auto res = this->getHttpClient()->request("GET", url.c_str());
+                Document doc;
+                string response = res->content.string();
+                doc.Parse(response.c_str());
+                if (doc.HasParseError())
+                {
+                        bool httpError = (isdigit(response[0]) && isdigit(response[1]) && isdigit(response[2]) && response[3]==':');
+                        m_logger->error("%s fetch asset tracking tuples: %s\n",
+                                                                httpError?"HTTP error during":"Failed to parse result of",
+                                                                response.c_str());
+                        throw new exception();
+                }
+		else if (doc.HasMember("message"))
+                {
+                        m_logger->error("Failed to fetch asset tracking tuples: %s.",
+                                doc["message"].GetString());
+                        throw new exception();
+                }
+                else
+                {
+                        const rapidjson::Value& trackArray = doc["track"];
+                        if (trackArray.IsArray())
+                        {
+                                // Process every row and create the AssetTrackingTuple object
+                                for (auto& rec : trackArray.GetArray())
+                                {
+                                        if (!rec.IsObject())
+                                        {
+                                                throw runtime_error("Expected asset tracker tuple to be an object");
+                                        }
+
+                                        // Note: deprecatedTimestamp NULL value is returned as ""
+                                        // otherwise it's a string DATE
+                                        bool deprecated = rec.HasMember("deprecatedTimestamp") &&
+                                            strlen(rec["deprecatedTimestamp"].GetString());
+
+                                        std::string data ;
+                                        if (!rec.HasMember("data"))
+                                        {
+                                                throw runtime_error("Expected asset tracker tuple to contain member data");
+                                        }
+                                        else
+                                                m_logger->error("%s:%d got member data type %d", __FILE__, __LINE__, rec["data"].GetType());
+
+                                        const rapidjson::Value& dataVal = rec["data"];
+                                        if (!dataVal.IsObject())
+                                        {
+                                                throw runtime_error("Expected data asset tracker tuple to be an object");
+                                        }
+					else
+					{
+						m_logger->error("%s:%d dataVal is Object" , __FILE__, __LINE__);
+					}
+
+                                        if (!dataVal.HasMember("datapoints"))
+                                        {
+                                                 throw runtime_error("Expected asset tracker tuple to contain datapoints");
+                                        }
+					else
+					{
+						m_logger->error("%s:%d dataVal.HasMember datapoints type %d",__FILE__, __LINE__, dataVal["datapoints"].GetType());
+					}
+
+
+					if (!dataVal["datapoints"].IsArray())
+                                        {
+                                                throw runtime_error("Expected datapoints to be array");
+                                        }
+                                        else
+                                        {
+                                                m_logger->error("%s:%s got member data dataVal[\"datapoints\"] ", __FILE__, __FUNCTION__);
+                                        }
+
+                                        std::string datapoints;
+                                        for (auto& r : dataVal["datapoints"].GetArray())
+                                        {
+                                                if (!r.IsString())
+                                                {
+                                                        throw runtime_error("Expected r to be string");
+                                                }
+                                                else
+                                                {
+                                                        datapoints.append(r.GetString());
+                                                        datapoints.append(",");
+                                                }
+                                        }
+
+                                        m_logger->error("%s:%sdatapoints = %s", __FILE__, __FUNCTION__, datapoints.c_str());
+                                        
+					if( datapoints[datapoints.size()-1] == ',')
+					{
+						datapoints.pop_back();
+					}
+                                        if (!dataVal.HasMember("count"))
+                                        {
+                                                 throw runtime_error("Expected asset tracker tuple to contain count");
+                                        }
+
+                                        if (!dataVal["count"].IsInt())
+                                        {
+                                                throw runtime_error("Expected count in data to be int");
+                                        }
+                                        int count = dataVal["count"].GetInt();
+                                        m_logger->error("%s:%d count = %d  ", __FILE__, __LINE__, count);
+
+                                        StorageAssetTrackingTuple *tuple = new StorageAssetTrackingTuple(rec["service"].GetString(),
+                                                                        rec["plugin"].GetString(),
+                                                                        rec["asset"].GetString(),
+                                                                        rec["event"].GetString(),
+                                                                        deprecated, datapoints, count);
+
+                                        m_logger->error("Adding StorageAssetTracker tuple for service %s: %s:%s:%s, " \
+                                                        "deprecated state is %d, datapoints %s , count %d" ,
+                                                        rec["service"].GetString(),
+                                                        rec["plugin"].GetString(),
+                                                        rec["asset"].GetString(),
+                                                        rec["event"].GetString(),
+                                                        deprecated, datapoints.c_str(), count);
+                                        vec->push_back(tuple);
+                                }
+                        }
+                        else
+                        {
+                                throw runtime_error("Expected array of rows in asset track tuples array");
+                        }
+
+                        return (*vec);
+                }
+        } catch (const SimpleWeb::system_error &e) {
+                m_logger->error("Fetch/parse of asset tracking tuples for service %s failed: %s.", serviceName.c_str(), e.what());
+                //throw;
+        }
+        catch (...) {
+                m_logger->error("Unexpected exception when retrieving asset tuples for service %s", serviceName.c_str());
+        }
+        return *vec;
+}
+

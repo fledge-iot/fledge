@@ -45,7 +45,7 @@ async def get_asset_tracker_events(request: web.Request) -> web.Response:
             curl -sX GET http://localhost:8081/fledge/track?service=XXX
             curl -sX GET http://localhost:8081/fledge/track?event=XXX&asset=XXX&service=XXX
     """
-    payload = PayloadBuilder().SELECT("asset", "event", "service", "fledge", "plugin", "ts", "deprecated_ts") \
+    payload = PayloadBuilder().SELECT("asset", "event", "service", "fledge", "plugin", "ts", "deprecated_ts", "data") \
         .ALIAS("return", ("ts", 'timestamp')).FORMAT("return", ("ts", "YYYY-MM-DD HH24:MI:SS.MS")) \
         .ALIAS("return", ("deprecated_ts", 'deprecatedTimestamp')) \
         .WHERE(['1', '=', 1])

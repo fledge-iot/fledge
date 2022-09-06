@@ -132,7 +132,7 @@ setup_north_pi_egress () {
                  "value": "true"
               },
               "DefaultAFLocation": {
-                 "value": "PIlablvl1/PIlablvl2/PIlablvl3"
+                 "value": "/PIlablvl1/PIlablvl2/PIlablvl3"
               }
            }
         }'
@@ -172,7 +172,7 @@ setup_north_pi_egress () {
                  "value": "true"
               },
               "DefaultAFLocation": {
-                 "value": "PIlablvl1/PIlablvl2/PIlablvl3"
+                 "value": "/PIlablvl1/PIlablvl2/PIlablvl3"
               }
            }
         }'
@@ -570,7 +570,8 @@ curl -sX POST "$URL/notification" -d \
 echo
 # Set Positive Sine Rule Config (sinusoid.sinusoid > 0)
 
-sine_rule_config_positive=$(cat <<EOF{
+sine_rule_config_positive=$(cat <<EOF
+{
    "asset": ${LAB_ASSET_NAME},
    "datapoint": "sinusoid",
    "condition": ">"
@@ -627,7 +628,8 @@ curl  -sX POST "$URL/category/deliveryNegative%20Sine/script/upload" -F "script=
 echo
 
 
-sine_rule_config_negative=$(cat <<EOF{
+sine_rule_config_negative=$(cat <<EOF
+{
    "asset": ${LAB_ASSET_NAME},
    "datapoint": "sinusoid",
    "condition": "<"

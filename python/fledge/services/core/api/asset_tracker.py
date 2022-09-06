@@ -177,10 +177,10 @@ async def get_datapoint_usage(request: web.Request) -> web.Response:
                 }
     try:
         storage_client = connect.get_storage_async()
-        q_payload = PayloadBuilder().SELECT("asset", "data"). \
+        q_payload = PayloadBuilder().SELECT(). \
             DISTINCT(["asset", "data"]). \
             WHERE(["event", "=", "store"]). \
-            AND_WHERE(["service", "=", "storage"]).payload()
+            payload()
 
         results = await storage_client.query_tbl_with_payload('asset_tracker', q_payload)
 

@@ -201,6 +201,53 @@ bool ManagementClient::unregisterService()
 }
 
 /**
+ * Restart this service by sendign a request to the Fledge core
+ *
+ * @return bool	True if the service successfully requested restart
+ */
+bool ManagementClient::restartService()
+{
+
+	if (!m_uuid)
+	{
+		return false;	// Not registered
+	}
+	try {
+		string url = "/fledge/service/";
+		url += urlEncode(*m_uuid);
+		url += "/restart";
+		auto res = this->getHttpClient()->request("PUT", url.c_str());
+		Document doc;
+		string response = res->content.string();
+		doc.Parse(response.c_str());
+		if (doc.HasParseError())
+		{
+			bool httpError = (isdigit(response[0]) && isdigit(response[1]) && isdigit(response[2]) && response[3]==':');
+			m_logger->error("%s service restart: %s\n", 
+								httpError?"HTTP error during":"Failed to parse result of", 
+								response.c_str());
+			return false;
+		}
+		if (doc.HasMember("id"))
+		{
+			delete m_uuid;
+			m_uuid = new string(doc["id"].GetString());
+			m_logger->info("Restart service %s.\n", m_uuid->c_str());
+			return true;
+		}
+		else if (doc.HasMember("message"))
+		{
+			m_logger->error("Failed to restart service: %s.",
+				doc["message"].GetString());
+		}
+	} catch (const SimpleWeb::system_error &e) {
+		m_logger->error("Restart service failed %s.", e.what());
+		return false;
+	}
+	return false;
+}
+
+/**
  * Get the specified service. Supplied with a service
  * record that must either have the name or the type fields populated.
  * The call will populate the other fields of the service record.
@@ -1023,12 +1070,12 @@ bool ManagementClient::refreshBearerToken(const string& currentToken,
 			if (doc["error"].IsString())
 			{
 				string error = doc["error"].GetString();
-				m_logger->error("Failed to parse token refresh result, error %s",
+				m_logger->error("Failed to refresh refresh bearer token, error %s",
 						error.c_str());
 			}
 			else
 			{
-				m_logger->error("Failed to parse token refresh result: %s",
+				m_logger->error("Failed to refresh beearer token result: %s",
 						response.c_str());
 			}
 			ret = false;

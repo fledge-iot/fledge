@@ -281,7 +281,8 @@ NorthService::NorthService(const string& myName, const string& token) :
 	m_restartPlugin(false),
 	m_token(token),
 	m_allowControl(true),
-	m_dryRun(false)
+	m_dryRun(false),
+	m_requestRestart()
 {
 	m_name = myName;
 	logger = new Logger(myName);
@@ -358,7 +359,11 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 			logger->fatal("Unable to find storage service");
 			if (!m_dryRun)
 			{
-				m_mgtClient->unregisterService();
+
+				if (m_requestRestart)
+					m_mgtClient->restartService();
+				else
+					m_mgtClient->unregisterService();
 			}
 			return;
 		}
@@ -651,6 +656,22 @@ void NorthService::shutdown()
 	/* Stop recieving new requests and allow existing
 	 * requests to drain.
 	 */
+	m_shutdown = true;
+	logger->info("North service shutdown in progress.");
+
+	// Signal main thread to shutdown
+	m_cv.notify_all();
+}
+
+/**
+ * Restart request
+ */
+void NorthService::restart()
+{
+	/* Stop recieving new requests and allow existing
+	 * requests to drain.
+	 */
+	m_requestRestart = true;
 	m_shutdown = true;
 	logger->info("North service shutdown in progress.");
 

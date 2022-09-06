@@ -49,6 +49,7 @@ class SouthService : public ServiceAuthHandler {
 						      unsigned short corePort);
 		void 				stop();
 		void				shutdown();
+		void				restart();
 		void				configChange(const std::string&, const std::string&);
 		void				configChildCreate(const std::string&,
 								const std::string&,
@@ -91,5 +92,6 @@ class SouthService : public ServiceAuthHandler {
 		PluginData			*m_pluginData;
 		std::string			m_dataKey;
 		bool				m_dryRun;
+		bool				m_requestRestart;
 };
 #endif

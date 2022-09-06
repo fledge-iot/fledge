@@ -71,6 +71,14 @@ void DataLoad::shutdown()
 }
 
 /**
+ * External call to restart
+ */
+void DataLoad::restart()
+{
+	shutdown();
+}
+
+/**
  * Set the source of data for the service
  *
  * @param source	The data source

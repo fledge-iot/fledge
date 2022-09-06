@@ -51,6 +51,14 @@ An array of tracked events, each of which contains the following
       - string
       - The timestamp when this event was first tracked
       - 2022-07-06 10:20:13.059
+    * - deprecatedTimestamp
+      - string
+      - The timestamp when this event was deprecated
+      - 2022-07-06 10:20:13.059
+
+.. note::
+
+   Asset tracking deprecation allows for old information regarding the plugin that ingested an asset to be hidden when that asset is no longer ingested by the plugin. When this is done the deprecatedTimestamp value is st to be a non-empty timestamp.
 
 **Example**
 
@@ -101,3 +109,21 @@ Returns
       ]
     }
 
+Deprecation
+~~~~~~~~~~~
+
+There are some circumstances in which old data regarding asset tracking needs to be removed. In particular when a plugin ingests multiple assets or asset names have changed, it is convenient for the user to remove the association with the old asset names.
+
+``PUT /fledge/track/service/service_name/asset/asset_name/event/event_name`` - mark the asset tracking event as deprecated
+
+**Parameters**
+
+  - ``service_name`` - the name of the service for which we want to deprecate the asset tracking event
+
+  - ``asset_name`` - the name of the asset that we should deprecate
+
+  - ``event_name`` - the name of the event to deprecate
+
+.. note::
+
+   There is no API to remove the deprecation of an asset tracking event, this is done automatically when assets are tracked in future events.

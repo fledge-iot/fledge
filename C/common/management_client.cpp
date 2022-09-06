@@ -1575,28 +1575,22 @@ StorageAssetTrackingTuple* ManagementClient::getStorageAssetTrackingTuple(const 
                                         {
                                                 throw runtime_error("Expected data in storage asset tracker tuple to be an object");
                                         }
-					else
-					{
-						Logger::getLogger()->error("%s:%sdataVal.IsObject", __FILE__, __FUNCTION__);
-					}
 
                                         if (!dataVal.HasMember("datapoints"))
                                         {
                                                  throw runtime_error("Expected asset tracker tuple to contain datapoints");
                                         }
-					else
-					{
-						Logger::getLogger()->error("%s:%s datapoints present in JSON with type %d", __FILE__, __FUNCTION__ , dataVal["datapoints"].GetType());
-					}
+
+                                        if (dataVal.ObjectEmpty())
+                                        {
+                                                m_logger->error("%s:%d dataVal  Object empty " , __FILE__, __LINE__);
+                                                continue;
+                                        }
 
                                         if (!dataVal["datapoints"].IsArray())
                                         {
                                                 throw runtime_error("Expected datapoints to be object");
                                         }
-					else
-					{
-						m_logger->error("%s:%s got member data dataVal[\"datapoints\"] ", __FILE__, __FUNCTION__);
-					}
 
 					std::string datapoints;
 					for (auto& r : dataVal["datapoints"].GetArray())
@@ -1612,16 +1606,12 @@ StorageAssetTrackingTuple* ManagementClient::getStorageAssetTrackingTuple(const 
 						}
 					}
 
-					m_logger->error("%s:%sdatapoints = %s", __FILE__, __FUNCTION__, datapoints.c_str());
 
 					if (datapoints[datapoints.size()-1] == ',')
 					{
 						datapoints.pop_back();
 					}
 					
-
-
-					m_logger->error("%s:%s  datapoints = %s ", __FILE__, __FUNCTION__, datapoints.c_str());
                                         if (!dataVal.HasMember("count"))
                                         {
                                                  throw runtime_error("Expected asset tracker tuple to contain count");
@@ -1632,8 +1622,6 @@ StorageAssetTrackingTuple* ManagementClient::getStorageAssetTrackingTuple(const 
                                                 throw runtime_error("Expected count in data to be int");
                                         }
                                         int count = dataVal["count"].GetInt();
-					m_logger->error("%s:%s count = %d  ", __FILE__, __FUNCTION__, count);
-
 
                                         // Create a new AssetTrackingTuple object, to be freed by the caller
                                         tuple = new StorageAssetTrackingTuple(rec["service"].GetString(),
@@ -1642,8 +1630,8 @@ StorageAssetTrackingTuple* ManagementClient::getStorageAssetTrackingTuple(const 
                                                                         rec["event"].GetString(),
                                                                         deprecated, datapoints, count);
 
-                                        m_logger->error("Adding StorageAssetTracker tuple for service %s: %s:%s:%s, " \
-                                                        "deprecated state is %d, datapoints %s , count %d",
+                                        m_logger->error("%s:%s : Adding StorageAssetTracker tuple for service %s: %s:%s:%s, " \
+                                                        "deprecated state is %d, datapoints %s , count %d",__FILE__, __FUNCTION__,
                                                         rec["service"].GetString(),
                                                         rec["plugin"].GetString(),
                                                         rec["asset"].GetString(),
@@ -1756,6 +1744,7 @@ std::vector<StorageAssetTrackingTuple*>& ManagementClient::getStorageAssetTracki
                 auto res = this->getHttpClient()->request("GET", url.c_str());
                 Document doc;
                 string response = res->content.string();
+		m_logger->error("%s:%s :%d response = %s ", __FILE__, __FUNCTION__, __LINE__, response.c_str());
                 doc.Parse(response.c_str());
                 if (doc.HasParseError())
                 {
@@ -1794,36 +1783,27 @@ std::vector<StorageAssetTrackingTuple*>& ManagementClient::getStorageAssetTracki
                                         {
                                                 throw runtime_error("Expected asset tracker tuple to contain member data");
                                         }
-                                        else
-                                                m_logger->error("%s:%d got member data type %d", __FILE__, __LINE__, rec["data"].GetType());
 
                                         const rapidjson::Value& dataVal = rec["data"];
                                         if (!dataVal.IsObject())
                                         {
                                                 throw runtime_error("Expected data asset tracker tuple to be an object");
                                         }
-					else
+
+					if (dataVal.ObjectEmpty())
 					{
-						m_logger->error("%s:%d dataVal is Object" , __FILE__, __LINE__);
+						m_logger->error("%s:%d dataVal  Object empty " , __FILE__, __LINE__);
+						continue;
 					}
 
                                         if (!dataVal.HasMember("datapoints"))
                                         {
                                                  throw runtime_error("Expected asset tracker tuple to contain datapoints");
                                         }
-					else
-					{
-						m_logger->error("%s:%d dataVal.HasMember datapoints type %d",__FILE__, __LINE__, dataVal["datapoints"].GetType());
-					}
-
 
 					if (!dataVal["datapoints"].IsArray())
                                         {
                                                 throw runtime_error("Expected datapoints to be array");
-                                        }
-                                        else
-                                        {
-                                                m_logger->error("%s:%s got member data dataVal[\"datapoints\"] ", __FILE__, __FUNCTION__);
                                         }
 
                                         std::string datapoints;
@@ -1831,7 +1811,7 @@ std::vector<StorageAssetTrackingTuple*>& ManagementClient::getStorageAssetTracki
                                         {
                                                 if (!r.IsString())
                                                 {
-                                                        throw runtime_error("Expected r to be string");
+                                                        throw runtime_error("Expected individual datapoints in datapoints array to be string");
                                                 }
                                                 else
                                                 {
@@ -1840,12 +1820,11 @@ std::vector<StorageAssetTrackingTuple*>& ManagementClient::getStorageAssetTracki
                                                 }
                                         }
 
-                                        m_logger->error("%s:%sdatapoints = %s", __FILE__, __FUNCTION__, datapoints.c_str());
-                                        
 					if( datapoints[datapoints.size()-1] == ',')
 					{
 						datapoints.pop_back();
 					}
+
                                         if (!dataVal.HasMember("count"))
                                         {
                                                  throw runtime_error("Expected asset tracker tuple to contain count");
@@ -1864,8 +1843,8 @@ std::vector<StorageAssetTrackingTuple*>& ManagementClient::getStorageAssetTracki
                                                                         rec["event"].GetString(),
                                                                         deprecated, datapoints, count);
 
-                                        m_logger->error("Adding StorageAssetTracker tuple for service %s: %s:%s:%s, " \
-                                                        "deprecated state is %d, datapoints %s , count %d" ,
+                                        m_logger->error("%s:%s: Adding StorageAssetTracker tuple for service %s: %s:%s:%s, " \
+                                                        "deprecated state is %d, datapoints %s , count %d" ,__FILE__, __FUNCTION__,
                                                         rec["service"].GetString(),
                                                         rec["plugin"].GetString(),
                                                         rec["asset"].GetString(),
@@ -1883,7 +1862,6 @@ std::vector<StorageAssetTrackingTuple*>& ManagementClient::getStorageAssetTracki
                 }
         } catch (const SimpleWeb::system_error &e) {
                 m_logger->error("Fetch/parse of asset tracking tuples for service %s failed: %s.", serviceName.c_str(), e.what());
-                //throw;
         }
         catch (...) {
                 m_logger->error("Unexpected exception when retrieving asset tuples for service %s", serviceName.c_str());

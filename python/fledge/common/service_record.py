@@ -37,6 +37,7 @@ class ServiceRecord(object):
         Shutdown = 2
         Failed = 3
         Unresponsive = 4
+        Restart = 5
 
     class InvalidServiceType(Exception):
         # TODO: tell allowed service types?

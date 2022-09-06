@@ -667,6 +667,7 @@ INSERT INTO fledge.log_codes ( code, description )
             ( 'SRVRG', 'Service Registered' ),
             ( 'SRVUN', 'Service Unregistered' ),
             ( 'SRVFL', 'Service Fail' ),
+	    ( 'SRVRS', 'Service Restart' ),
             ( 'NHCOM', 'North Process Complete' ),
             ( 'NHDWN', 'North Destination Unavailable' ),
             ( 'NHAVL', 'North Destination Available' ),

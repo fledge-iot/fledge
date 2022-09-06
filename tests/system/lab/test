@@ -23,15 +23,19 @@ display_and_collect_err () {
 
 URL="http://$FLEDGE_IP:8081/fledge"
 
-echo -e INFO: "${CINFO} Add Sinusoid South ${CRESET}"
-curl -sX POST "$URL/service" -d \
-'{
+sinusoid_config=$(cat <<EOF
+{
    "name": "Sine",
    "type": "south",
    "plugin": "sinusoid",
    "enabled": true,
-   "config": {"assetName": "'${LAB_ASSET_NAME}'"}
-}'
+   "config": {"assetName":{"value": "$LAB_ASSET_NAME" }}
+}
+EOF
+)
+
+echo -e INFO: "${CINFO} Add Sinusoid South ${CRESET}"
+curl -sX POST "$URL/service" -d "$sinusoid_config"
 echo
 
 for LOOP in $(seq ${MAX_RETRIES}); do
@@ -79,7 +83,7 @@ fi
 for LOOP in $(seq ${MAX_RETRIES}); do
     RESULT=`curl -sX GET "$URL/asset/${LAB_ASSET_NAME}?seconds=600"`
     # echo ${RESULT}
-    POINT=`echo ${RESULT} | jq '.[0].reading."'${LAB_ASSET_NAME}'" // empty'`
+    POINT=`echo ${RESULT} | jq '.[0].reading.sinusoid // empty'`
     if [[ -n "$POINT" ]]; then break; fi
 done
 if [[ ${LOOP} -eq ${MAX_RETRIES} ]]
@@ -173,8 +177,7 @@ setup_north_pi_egress () {
            }
         }'
     fi
-    
-    
+
     echo
 
     for LOOP in $(seq ${MAX_RETRIES}); do
@@ -232,20 +235,22 @@ if [[  ${VERIFY_EGRESS_TO_PI} == 1 ]]
      echo "======================= SKIPPED PI EGRESS ======================="
 fi
 
-
-
-
-# Add Expression Filter (Square)
-curl -sX POST "$URL/filter" -d \
-'{
+square_filter_config=$(cat <<EOF
+{
    "name": "Square",
    "plugin": "expression",
    "filter_config": {
       "name": "square",
-      "expression": "if(PILAB-sinusoid>0,0.5,-0.5)",
+      "expression": "if(${LAB_ASSET_NAME}>0,0.5,-0.5)",
       "enable": "true"
    }
-}'
+}
+EOF
+)
+
+
+# Add Expression Filter (Square)
+curl -sX POST "$URL/filter" -d "$square_filter_config"
 echo
 # Apply Square to Sine
 curl -sX PUT "$URL/filter/Sine/pipeline?allow_duplicates=true&append_filter=true" -d \
@@ -257,16 +262,19 @@ curl -sX PUT "$URL/filter/Sine/pipeline?allow_duplicates=true&append_filter=true
 echo
 echo "======================= SINUSOID SQUARE FILTER COMPLETE ======================="
 # Add Expression Filter (Max)
-curl -sX POST "$URL/filter" -d \
-'{
+max_filter_config=$(cat <<EOF
+{
    "name": "Max",
    "plugin": "expression",
    "filter_config": {
       "name": "max",
-      "expression": "max(PILAB-sinusoid, square)",
+      "expression": "max(${LAB_ASSET_NAME}, max)",
       "enable": "true"
    }
-}'
+}
+EOF
+)
+curl -sX POST "$URL/filter" -d "$max_filter_config"
 echo
 # Apply Max to Sine
 curl -sX PUT "$URL/filter/Sine/pipeline?allow_duplicates=true&append_filter=true" -d \
@@ -561,11 +569,16 @@ curl -sX POST "$URL/notification" -d \
 }'
 echo
 # Set Positive Sine Rule Config (sinusoid.sinusoid > 0)
-curl -sX PUT "$URL/category/rulePositive%20Sine" -d \
-'{
-   "asset": "'${LAB_ASSET_NAME}'",
-   "datapoint": "sinusoid"
-}'
+
+sine_rule_config_positive=$(cat <<EOF{
+   "asset": ${LAB_ASSET_NAME},
+   "datapoint": "sinusoid",
+   "condition": ">"
+}
+EOF
+)
+
+curl -sX PUT "$URL/category/rulePositive%20Sine" -d "$sine_rule_config_positive"
 echo
 # Set Positive Sine Delivery Config (positive_sine: "positive")
 curl -sX PUT "$URL/category/deliveryPositive%20Sine" -d \
@@ -613,13 +626,16 @@ curl -sX POST "$URL/notification" -d \
 curl  -sX POST "$URL/category/deliveryNegative%20Sine/script/upload" -F "script=@scripts/write_out.py"
 echo
 
-# Set Negative Sine Rule Config (sinusoid.sinusoid < 0)
-curl -sX PUT "$URL/category/ruleNegative%20Sine" -d \
-'{
-   "asset": "'${LAB_ASSET_NAME}'",
+
+sine_rule_config_negative=$(cat <<EOF{
+   "asset": ${LAB_ASSET_NAME},
    "datapoint": "sinusoid",
    "condition": "<"
-}'
+}
+EOF
+)
+# Set Negative Sine Rule Config (sinusoid.sinusoid < 0)
+curl -sX PUT "$URL/category/ruleNegative%20Sine" -d "$sine_rule_config_negative"
 echo
 
 

@@ -81,40 +81,27 @@ async def login(request):
     """
     auth_method = request.auth_method if 'auth_method' in dir(request) else "any"
     data = await request.text()
-
+    login_through_token = False
     try:
         # Check ott inside request.
-        data = json.loads(data)
-        if 'ott' in data:
-            _ott = data.get('ott')
-            if _ott not in OTT.OTT_MAP:
-                raise web.HTTPBadRequest(reason="Either given token expired or already used.")
-
-            time_now = datetime.datetime.now()
-            user_id, orig_token, is_admin, initial_time = OTT.OTT_MAP[_ott]
-
-            # remove ott from MAP when used or when expired.
-            OTT.OTT_MAP.pop(_ott, None)
-            if time_now - initial_time <= datetime.timedelta(minutes=OTT_TOKEN_EXPIRY_MINUTES):
-                return web.json_response(
-                    {"message": "Logged in successfully", "uid": user_id, "token": orig_token, "admin": is_admin})
-            else:
-                raise web.HTTPBadRequest(reason="The token has expired.")
-
+        _data = json.loads(data)
+        if 'ott' in _data:
+            login_through_token = True
     except json.JSONDecodeError:
         pass
 
     # Check for appropriate payload per auth_method
     if auth_method == 'certificate':
-        if not data.startswith("-----BEGIN CERTIFICATE-----"):
+        if not data.startswith("-----BEGIN CERTIFICATE-----") and not login_through_token:
             raise web.HTTPBadRequest(reason="Use a valid certificate to login.")
-    elif auth_method == 'password':
+
+    elif auth_method == 'password' and not login_through_token:
         try:
             user_data = json.loads(data)
         except json.JSONDecodeError:
             raise web.HTTPBadRequest(reason="Use a valid username and password to login.")
 
-    if data.startswith("-----BEGIN CERTIFICATE-----"):
+    if data.startswith("-----BEGIN CERTIFICATE-----") and not login_through_token:
         peername = request.transport.get_extra_info('peername')
         if peername is not None:
             host, port = peername
@@ -131,6 +118,22 @@ async def login(request):
             raise web.HTTPUnauthorized(reason="Authentication failed")
         except ValueError as ex:
             raise web.HTTPUnauthorized(reason="Authentication failed: {}".format(str(ex)))
+    elif login_through_token:
+
+        _ott = _data.get('ott')
+        if _ott not in OTT.OTT_MAP:
+            raise web.HTTPBadRequest(reason="Either given token expired or already used.")
+
+        time_now = datetime.datetime.now()
+        user_id, orig_token, is_admin, initial_time = OTT.OTT_MAP[_ott]
+
+        # remove ott from MAP when used or when expired.
+        OTT.OTT_MAP.pop(_ott, None)
+        if time_now - initial_time <= datetime.timedelta(minutes=OTT_TOKEN_EXPIRY_MINUTES):
+            return web.json_response(
+                {"message": "Logged in successfully", "uid": user_id, "token": orig_token, "admin": is_admin})
+        else:
+            raise web.HTTPBadRequest(reason="The token has expired.")
     else:
         try:
             data = json.loads(data)

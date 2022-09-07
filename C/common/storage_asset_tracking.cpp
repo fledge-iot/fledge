@@ -90,14 +90,14 @@ void StorageAssetTracker::populateStorageAssetTrackingCache()
 				}
 			}
 
-			Logger::getLogger()->debug("%s:%s Added storage asset tracker tuple to cache: '%s'", __FILE__, __FUNCTION__,
+			Logger::getLogger()->debug("%s:%d Added storage asset tracker tuple to cache: '%s'", __FUNCTION__, __LINE__,
 					rec->assetToString().c_str());
 		}
 		delete (&vec);
 	}
 	catch (...)
 	{
-		Logger::getLogger()->error("%s:%s Failed to populate storage asset tracking tuples' cache", __FILE__, __FUNCTION__);
+		Logger::getLogger()->error("%s:%d Failed to populate storage asset tracking tuples' cache",  __FUNCTION__, __LINE__);
 		return;
 	}
 
@@ -122,7 +122,7 @@ StorageAssetTrackingTuple* StorageAssetTracker::findStorageAssetTrackingCache(St
 
 	if (it == storageAssetTrackerTuplesCache.end())
 	{
-	        Logger::getLogger()->debug("%s:%s :findStorageAssetTrackingCache tuple not found in cache ", __FILE__, __FUNCTION__);
+	        Logger::getLogger()->debug("%s:%d :tuple not found in cache ", __FUNCTION__, __LINE__);
 		return NULL;
 	}
 	else
@@ -132,7 +132,7 @@ StorageAssetTrackingTuple* StorageAssetTracker::findStorageAssetTrackingCache(St
                 if ((*it)->m_maxCount < ptr->m_maxCount)
                 {
 			// record to be updated in tuple, delete old one 
-			Logger::getLogger()->debug("%s:%d:%s tuple present and count value < count of reading, update cache, erased dp%s ",  __FILE__,__LINE__, __FUNCTION__, (*it)->m_datapoints.c_str());
+			Logger::getLogger()->debug("%s:%d tuple present and count value < count of reading, update cache, erased dp%s ", __FUNCTION__,  __LINE__, (*it)->m_datapoints.c_str());
 
 	                storageAssetTrackerTuplesCache.erase(it);
 			return NULL;
@@ -145,7 +145,7 @@ StorageAssetTrackingTuple* StorageAssetTracker::findStorageAssetTrackingCache(St
         	        if (compareDatapoints(ptr->m_datapoints,(*it)->m_datapoints))
                		{
 				//  record to be addded 
-				Logger::getLogger()->debug("%s:%d:%s tuple present and case where counts are same but datapoints are different, update cache ",  __FILE__,__LINE__, __FUNCTION__);
+				Logger::getLogger()->debug("%s:%d tuple present and case where counts are same but datapoints are different, update cache ", __FUNCTION__,__LINE__);
 
 				return NULL;
                 	}
@@ -173,10 +173,10 @@ void StorageAssetTracker::addStorageAssetTrackingTuple(StorageAssetTrackingTuple
 	{
 		StorageAssetTrackingTuple *ptr = new StorageAssetTrackingTuple(tuple);
 		storageAssetTrackerTuplesCache.insert(ptr);
-		Logger::getLogger()->info("%s:%d:%s: Added tuple to cache: %s, insert in db successful ", __FILE__, __LINE__, __FUNCTION__, tuple.assetToString().c_str());
+		Logger::getLogger()->info("%s:%d: Added tuple to cache: %s, insert in db successful ", __FUNCTION__, __LINE__, tuple.assetToString().c_str());
 	}
 	else
-		Logger::getLogger()->error("%s:%d:%s Failed to insert storage asset tracking tuple into DB: '%s'", __FILE__, __LINE__,__FUNCTION__, tuple.assetToString().c_str());
+		Logger::getLogger()->error("%s:%d: Failed to insert storage asset tracking tuple into DB: '%s'", __FUNCTION__, __LINE__, tuple.assetToString().c_str());
 }
 
 /**
@@ -191,7 +191,7 @@ bool StorageAssetTracker::getFledgeConfigInfo()
                 string url = "/fledge/category/service";
 		if (!m_mgtClient)
 		{
-			Logger::getLogger()->error("%s:%s, m_mgtClient Ptr is NULL", __FILE__, __FUNCTION__);
+			Logger::getLogger()->error("%s:%d, m_mgtClient Ptr is NULL", __FUNCTION__, __LINE__);
 			return false;
 		}
 
@@ -218,25 +218,25 @@ bool StorageAssetTracker::getFledgeConfigInfo()
                         Value& serviceName = doc["name"];
 			if (!serviceName.IsObject())
 			{
-				Logger::getLogger()->error("%s:%s, serviceName is not an object", __FILE__, __FUNCTION__);	
+				Logger::getLogger()->error("%s:%d, serviceName is not an object",  __FUNCTION__, __LINE__);	
 				return false;
 			}
 
 			if (!serviceName.HasMember("value"))
 			{
-				Logger::getLogger()->error("%s:%s, serviceName has no member value", __FILE__, __FUNCTION__);
+				Logger::getLogger()->error("%s:%d, serviceName has no member value", __FUNCTION__, __LINE__);
 				return false;
 
 			}
 			Value& serviceVal = serviceName["value"];
 			if ( !serviceVal.IsString())
 			{
-				Logger::getLogger()->error("%s:%s, serviceVal is not a string", __FILE__, __FUNCTION__);
+				Logger::getLogger()->error("%s:%d, serviceVal is not a string",  __FUNCTION__, __LINE__);
 				return false;
 			}
 
 			m_fledgeService = serviceVal.GetString();    
-			Logger::getLogger()->error("%s:%s, m_plugin value = %s",__FILE__, __FUNCTION__, m_fledgeService.c_str());
+			Logger::getLogger()->error("%s:%d, m_plugin value = %s", __FUNCTION__, __LINE__, m_fledgeService.c_str());
     			return true;
                 }
 		  

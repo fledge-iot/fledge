@@ -1667,10 +1667,6 @@ StorageAssetTrackingTuple* ManagementClient::getStorageAssetTrackingTuple(const 
 						m_logger->debug("%s:%s :Datapoints in db not same as in arg",__FILE__, __FUNCTION__);
 						continue;
 					}
-					else
-					{
-						m_logger->error("dp and datapoints are equal");
-					}
 					
                                         if (!dataVal.HasMember("count"))
                                         {

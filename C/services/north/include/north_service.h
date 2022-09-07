@@ -38,6 +38,7 @@ class NorthService : public ServiceAuthHandler {
 						      unsigned short corePort);
 		void 				stop();
 		void				shutdown();
+		void				restart();
 		void				configChange(const std::string&, const std::string&);
 		void				configChildCreate(const std::string& , const std::string&, const std::string&){};
 		void				configChildDelete(const std::string& , const std::string&){};
@@ -76,5 +77,6 @@ class NorthService : public ServiceAuthHandler {
 		const std::string		m_token;
 		bool				m_allowControl;
 		bool				m_dryRun;
+		bool				m_requestRestart;
 };
 #endif

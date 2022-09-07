@@ -65,6 +65,10 @@ OTT_TOKEN_EXPIRY_MINUTES = 5
 
 
 class OTT:
+    """
+        Manage the One Time Token assigned to log in for single time and within OTT_TOKEN_EXPIRY_MINUTES
+    """
+
     OTT_MAP = {}
 
     def __init__(self):
@@ -81,30 +85,26 @@ async def login(request):
     """
     auth_method = request.auth_method if 'auth_method' in dir(request) else "any"
     data = await request.text()
-    login_through_token = False
+
     try:
-        # Check ott inside request.
+        # Check ott inside request payload.
         _data = json.loads(data)
         if 'ott' in _data:
-            login_through_token = True
+            auth_method = "OTT"  # This is for local reference and not a configuration value
     except json.JSONDecodeError:
+        if auth_method == 'password':
+            raise web.HTTPBadRequest(reason="Use valid username & password to log in.")
         pass
 
     # Check for appropriate payload per auth_method
     if auth_method == 'certificate':
-        if not data.startswith("-----BEGIN CERTIFICATE-----") and not login_through_token:
+        if not data.startswith("-----BEGIN CERTIFICATE-----"):
             raise web.HTTPBadRequest(reason="Use a valid certificate to login.")
 
-    elif auth_method == 'password' and not login_through_token:
-        try:
-            user_data = json.loads(data)
-        except json.JSONDecodeError:
-            raise web.HTTPBadRequest(reason="Use a valid username and password to login.")
-
-    if data.startswith("-----BEGIN CERTIFICATE-----") and not login_through_token:
+    if data.startswith("-----BEGIN CERTIFICATE-----"):
         peername = request.transport.get_extra_info('peername')
         if peername is not None:
-            host, port = peername
+            host, _ = peername
 
         try:
             await User.Objects.verify_certificate(data)
@@ -118,7 +118,7 @@ async def login(request):
             raise web.HTTPUnauthorized(reason="Authentication failed")
         except ValueError as ex:
             raise web.HTTPUnauthorized(reason="Authentication failed: {}".format(str(ex)))
-    elif login_through_token:
+    elif auth_method == "OTT":
 
         _ott = _data.get('ott')
         if _ott not in OTT.OTT_MAP:
@@ -135,13 +135,9 @@ async def login(request):
         else:
             raise web.HTTPBadRequest(reason="The token has expired.")
     else:
-        try:
-            data = json.loads(data)
-        except json.JSONDecodeError:
-            raise web.HTTPBadRequest(reason="Invalid username and/or password.")
 
-        username = data.get('username')
-        password = data.get('password')
+        username = _data.get('username')
+        password = _data.get('password')
 
         if not username or not password:
             _logger.warning("Username and password are required to login")
@@ -171,7 +167,7 @@ async def login(request):
 
 
 async def get_ott(request):
-    """ Get one time use token for login.
+    """ Get one time use token (OTT) for login.
 
         :Example:
             curl -H "authorization: <token>" -X GET http://localhost:8081/fledge/auth/ott

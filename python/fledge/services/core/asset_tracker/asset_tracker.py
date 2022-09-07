@@ -50,7 +50,7 @@ class AssetTracker(object):
         except Exception as ex:
             _logger.exception('Failed to retrieve asset records, %s', str(ex))
 
-    async def add_asset_record(self, *,  asset, event, service, plugin, jsondata = None):
+    async def add_asset_record(self, *,  asset, event, service, plugin, jsondata = {}):
         """
         Args:
              asset: asset code of the record
@@ -70,8 +70,6 @@ class AssetTracker(object):
             cfg_manager = ConfigurationManager(self._storage)
             svc_config = await cfg_manager.get_category_item(category_name='service', item_name='name')
             self.fledge_svc_name = svc_config['value']
-        if jsondata == None:
-           jsondata = {}
 
         try:
             payload = PayloadBuilder().INSERT(asset=asset, event=event, service=service, plugin=plugin, fledge=self.fledge_svc_name, data=jsondata).payload()

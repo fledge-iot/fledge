@@ -1696,7 +1696,7 @@ StorageAssetTrackingTuple* ManagementClient::getStorageAssetTrackingTuple(const 
                                                                         rec["event"].GetString(),
                                                                         deprecated, datapoints, count);
 
-                                        m_logger->error("%s:%s : Adding StorageAssetTracker tuple for service %s: %s:%s:%s, " \
+                                        m_logger->debug("%s:%s : Adding StorageAssetTracker tuple for service %s: %s:%s:%s, " \
                                                         "deprecated state is %d, datapoints %s , count %d",__FILE__, __FUNCTION__,
                                                         rec["service"].GetString(),
                                                         rec["plugin"].GetString(),
@@ -1911,7 +1911,7 @@ std::vector<StorageAssetTrackingTuple*>& ManagementClient::getStorageAssetTracki
                                                                         rec["event"].GetString(),
                                                                         deprecated, datapoints, count);
 
-                                        m_logger->error("%s:%s: Adding StorageAssetTracker tuple for service %s: %s:%s:%s, " \
+                                        m_logger->debug("%s:%s: Adding StorageAssetTracker tuple for service %s: %s:%s:%s, " \
                                                         "deprecated state is %d, datapoints %s , count %d" ,__FILE__, __FUNCTION__,
                                                         rec["service"].GetString(),
                                                         rec["plugin"].GetString(),

@@ -40,13 +40,6 @@ public:
 	unsigned int getMaxCount() { return m_maxCount; }
 	std::string getDataPoints() { return m_datapoints; }
 
-/*	inline bool operator==(const StorageAssetTrackingTuple& x) const
-	{
-		return ( x.m_datapoints == m_datapoints && x.m_maxCount = m_maxCount && 
-			 (AssetTrackingTuple::operator == (x)));		
-	}
-*/
-
 	StorageAssetTrackingTuple(const std::string& service,
 			const std::string& plugin, 
 			const std::string& asset,
@@ -103,7 +96,6 @@ public:
 	StorageAssetTrackingTuple*
 		findStorageAssetTrackingCache(StorageAssetTrackingTuple& tuple);
 	void	addStorageAssetTrackingTuple(StorageAssetTrackingTuple& tuple);
-//	void	addStorageAssetTrackingTuple(std::string asset, std::string datapoints, int maxCount);
 	bool 	getFledgeConfigInfo();
 	static  StorageAssetTracker *getStorageAssetTracker();
 	static	void releaseStorageAssetTracker();

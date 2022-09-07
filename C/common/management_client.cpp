@@ -1615,10 +1615,7 @@ StorageAssetTrackingTuple* ManagementClient::getStorageAssetTrackingTuple(const 
 					if(validateDatapoints(dp,datapoints))
 					{
 						//datapoints in db not same as in arg, continue
-		m_logger->error("%s:%s:%d : Datapoints in db %s size %d ", __FILE__,__FUNCTION__,__LINE__, datapoints.c_str(), datapoints.size());
-		m_logger->error("%s:%s:%d : Datapoints in arg %s size %d",   __FILE__,__FUNCTION__,__LINE__, dp.c_str(), dp.size());
-
-						m_logger->error("%s:%s :Datapoints in db not same as in arg",__FILE__, __FUNCTION__);
+						m_logger->debug("%s:%s :Datapoints in db not same as in arg",__FILE__, __FUNCTION__);
 						continue;
 					}
 					else
@@ -1639,7 +1636,7 @@ StorageAssetTrackingTuple* ManagementClient::getStorageAssetTrackingTuple(const 
 					if ( count != c)
 					{
 						// count not same, continue
-						m_logger->error("%s:%s :count in db not same as received in arg", __FILE__, __FUNCTION__);
+						m_logger->debug("%s:%s :count in db not same as received in arg", __FILE__, __FUNCTION__);
 						continue;
 					}
 
@@ -1764,7 +1761,6 @@ std::vector<StorageAssetTrackingTuple*>& ManagementClient::getStorageAssetTracki
                 auto res = this->getHttpClient()->request("GET", url.c_str());
                 Document doc;
                 string response = res->content.string();
-		m_logger->error("%s:%s :%d response = %s ", __FILE__, __FUNCTION__, __LINE__, response.c_str());
                 doc.Parse(response.c_str());
                 if (doc.HasParseError())
                 {
@@ -1855,7 +1851,7 @@ std::vector<StorageAssetTrackingTuple*>& ManagementClient::getStorageAssetTracki
                                                 throw runtime_error("Expected count in data to be int");
                                         }
                                         int count = dataVal["count"].GetInt();
-                                        m_logger->error("%s:%d count = %d  ", __FILE__, __LINE__, count);
+                                        m_logger->debug("%s:%d count = %d  ", __FILE__, __LINE__, count);
 
                                         StorageAssetTrackingTuple *tuple = new StorageAssetTrackingTuple(rec["service"].GetString(),
                                                                         rec["plugin"].GetString(),

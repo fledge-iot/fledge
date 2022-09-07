@@ -1591,7 +1591,6 @@ class Server:
             raise ValueError('Data payload must be a dictionary')
 
         try:
-            _logger.error("INFOASH: inside add_track:: calling add_asset_record with data=  %s", str(data))
             result = await cls._asset_tracker.add_asset_record(asset=data.get("asset"),
                                                                plugin=data.get("plugin"),
                                                                service=data.get("service"),

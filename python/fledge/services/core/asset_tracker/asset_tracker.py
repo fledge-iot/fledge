@@ -46,7 +46,6 @@ class AssetTracker(object):
             payload = PayloadBuilder().SELECT("asset", "event", "service", "plugin", "data").payload()
             results = await self._storage.query_tbl_with_payload('asset_tracker', payload)
             for row in results['rows']:
-                _logger.error("INFOASH row = %s", str(row))
                 self._registered_asset_records.append(row)
         except Exception as ex:
             _logger.exception('Failed to retrieve asset records, %s', str(ex))
@@ -59,12 +58,9 @@ class AssetTracker(object):
              service: The name of the service that made the entry
              plugin: The name of the plugin, that has been loaded by the service.
         """
-        if jsondata != None:
-            _logger.error("INFOASH:FUNC add_asset_record:: jsondata = %s , jsondata['datapoints'] = %s", str(jsondata), jsondata['datapoints'])
         # If (asset + event + service + plugin) row combination exists in _find_registered_asset_record then return
         d = {"asset": asset, "event": event, "service": service, "plugin": plugin, "data":jsondata}
         if d in self._registered_asset_records:
-            _logger.error("INFOASH: FUNC add_asset_record:: d in self._registered_asset_records case returning empty dict")
             return {}
 
         # The name of the Fledge this entry has come from.
@@ -80,7 +76,6 @@ class AssetTracker(object):
         try:
             payload = PayloadBuilder().INSERT(asset=asset, event=event, service=service, plugin=plugin, fledge=self.fledge_svc_name, data=jsondata).payload()
 
-            _logger.error("INFOASH FUNC add_asset_record:: calling _storage.insert_into_tbl assettracker, payload: %s", str(payload));
             result = await self._storage.insert_into_tbl('asset_tracker', payload)
             response = result['response']
             self._registered_asset_records.append(d)

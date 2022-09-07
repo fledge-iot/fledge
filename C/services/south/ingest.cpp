@@ -456,7 +456,6 @@ void Ingest::waitForQueue()
 void Ingest::processQueue()
 {
 
-	Logger::getLogger()->error("%s: --------Function %s start-------- " , __FILE__, __FUNCTION__);
 	do {
 		/*
 		 * If we have some data that has been previously filtered but failed to send,
@@ -508,12 +507,8 @@ void Ingest::processQueue()
 				if ( satracker == nullptr)
                                 {
                                         Logger::getLogger()->error("%s:%d could not initialize satracker ", __FILE__, __LINE__);
+					return;
                                 }
-                                else
-                                {
-                                        Logger::getLogger()->error("%s:%d initialized satracker ", __FILE__, __LINE__);
-                                }
-
 
 				string lastAsset = "";
 				int *lastStat = NULL;
@@ -569,7 +564,6 @@ void Ingest::processQueue()
 					delete reading;
 				}
 
-
 				for (auto itr : assetDatapointMap)
                                 {
                                         std::set<string> &s = itr.second;
@@ -586,10 +580,6 @@ void Ingest::processQueue()
                                                 ++j;
                                         }
 
- Logger::getLogger()->error("%s:%d :%s storageTuple dp = %s, count = %d", __FILE__, __LINE__,__FUNCTION__, dp.c_str(), count);
-
-
-
                                         StorageAssetTrackingTuple storageTuple(m_serviceName,
                                                                               m_pluginName,
                                                                               itr.first,
@@ -598,13 +588,13 @@ void Ingest::processQueue()
                                         if (rv == NULL)
                                         {
                                                 // Record not found in cache , please update cache
-                                                Logger::getLogger()->error("%s:%d record not found in cache ", __FILE__, __LINE__);
+                                                Logger::getLogger()->debug("%s:%d record not found in cache ", __FILE__, __LINE__);
                                                 satracker->addStorageAssetTrackingTuple(storageTuple);
                                         }
                                         else
                                         {
                                         	//record not found undeprecate the record
-                                                Logger::getLogger()->error("%s:%d Record found in cache , undeprecate it", __FILE__,__LINE__);
+                                                Logger::getLogger()->debug("%s:%d Record found in cache , undeprecate it", __FILE__,__LINE__);
                                                 unDeprecateStorageAssetTrackingRecord(rv, itr.first, dp, count);
                                         }
                                 }
@@ -756,8 +746,6 @@ void Ingest::processQueue()
 		               	        Reading *reading = *it;
 					string	assetName = reading->getAssetName();
 
-					Logger::getLogger()->error("%s:%d:%s readings = %s ", __FILE__, __LINE__, __FUNCTION__, reading->toJSON().c_str());
-
 					const std::vector<Datapoint *> dpVec = reading->getReadingData();
 
 					for ( auto dp : dpVec)
@@ -806,8 +794,6 @@ void Ingest::processQueue()
 
 				}
 
-				// Create a storageAsset Tracking tuple and check if it exists in the cache
-	  Logger::getLogger()->error("%s:%d:%siterating over assetDatapointMap", __FILE__, __LINE__, __FUNCTION__);
 
 				for (auto itr : assetDatapointMap)
 				{ 
@@ -826,7 +812,6 @@ void Ingest::processQueue()
                                                 ++j;
                                         }
 
- Logger::getLogger()->error("%s:%d :%s storageTuple from SET  dp = %s, count = %d", __FILE__, __LINE__,__FUNCTION__, dp.c_str(), count);
 
 					StorageAssetTrackingTuple storageTuple(m_serviceName,
                                                                               m_pluginName,
@@ -839,13 +824,13 @@ void Ingest::processQueue()
                                   	if (rv == NULL)
                                   	{
                                        		// Record not found in cache , please update cache
-						Logger::getLogger()->error("%s:%d record not found in cache  add it", __FILE__, __LINE__);
+						Logger::getLogger()->debug("%s:%d record not found in cache  add it", __FILE__, __LINE__);
                                                 satracker->addStorageAssetTrackingTuple(storageTuple);
                                   	}
                                   	else
                                   	{
 						//record not found undeprecate the record
-						Logger::getLogger()->error("%s:%d No need for updation , undeprecate it", __FILE__,__LINE__);
+						Logger::getLogger()->debug("%s:%d No need for updation , undeprecate it", __FILE__,__LINE__);
 
                                         	unDeprecateStorageAssetTrackingRecord(rv, itr.first, dp, count);
                                   	}    
@@ -1167,7 +1152,6 @@ void Ingest::unDeprecateStorageAssetTrackingRecord(StorageAssetTrackingTuple* cu
                                         
 {
 
-	m_logger->error("%s:%d Function %s start ", __FILE__, __LINE__, __FUNCTION__);
         // Get up-to-date Asset Tracking record
         StorageAssetTrackingTuple* updatedTuple =
                         m_mgtClient->getStorageAssetTrackingTuple(
@@ -1228,10 +1212,6 @@ void Ingest::unDeprecateStorageAssetTrackingRecord(StorageAssetTrackingTuple* cu
                         {
                                 m_logger->error("Failure while un-deprecating asset '%s'",
 						assetName.c_str());
-			}
-			else
-			{
-				m_logger->error(" %s:%s Success in updatiing table", __FILE__, __FUNCTION__);
 			}
 		}
 	}

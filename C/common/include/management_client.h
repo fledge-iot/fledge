@@ -109,7 +109,7 @@ class ManagementClient {
 						std::vector<std::pair<std::string, std::string> > >& endpoints);
 		bool			deleteProxy(const std::string& serviceName);
 		const std::string 	getUrlbase() { return m_urlbase.str(); }
-        ACL			    getACL(const std::string& aclName);
+	        ACL			getACL(const std::string& aclName);
 		AssetTrackingTuple*	getAssetTrackingTuple(const std::string& serviceName,
 								const std::string& assetName,
 								const std::string& event);

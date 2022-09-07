@@ -1,11 +1,11 @@
 /*
- * Fledge asset tracking related
+ * Fledge Storage asset tracking related
  *
- t* Copyright (c) 2019 Dianomic Systems
+ t* Copyright (c) 2022 Dianomic Systems
  *
  * Released under the Apache 2.0 Licence
  *
- * Author: Amandeep Singh Arora
+ * Author: Ashwini Sinha
  */
 
 #include <logger.h>
@@ -43,7 +43,6 @@ void StorageAssetTracker::releaseStorageAssetTracker()
 StorageAssetTracker::StorageAssetTracker(ManagementClient *mgtClient, std::string service) 
 	: m_mgtClient(mgtClient), m_service(service), m_event("store")
 {
-	Logger::getLogger()->error("%s:%s StorageAssetTracker constructor called ",__FILE__, __FUNCTION__);
 	instance = this;
 }
 
@@ -58,10 +57,8 @@ StorageAssetTracker::StorageAssetTracker(ManagementClient *mgtClient, std::strin
 void StorageAssetTracker::populateStorageAssetTrackingCache()
 {
 
-	Logger::getLogger()->error("%s:%s +++++++++++++++++populateStorageAssetTrackingCache start+++++++++++++++", __FILE__, __FUNCTION__);
 	try {
 		std::vector<StorageAssetTrackingTuple*>& vec = m_mgtClient->getStorageAssetTrackingTuples(m_service);
-		 Logger::getLogger()->error("%s:%s  m_mgtClient->getStorageAssetTrackingTuples returned vec of size %d", __FILE__, __FUNCTION__, vec.size());
 		for (StorageAssetTrackingTuple* & rec : vec)
 		{
 			auto it = storageAssetTrackerTuplesCache.find(rec);
@@ -90,7 +87,7 @@ void StorageAssetTracker::populateStorageAssetTrackingCache()
 				}
 			}
 
-			Logger::getLogger()->error("%s:%s Added storage asset tracker tuple to cache: '%s'", __FILE__, __FUNCTION__,
+			Logger::getLogger()->debug("%s:%s Added storage asset tracker tuple to cache: '%s'", __FILE__, __FUNCTION__,
 					rec->assetToString().c_str());
 		}
 		delete (&vec);
@@ -101,8 +98,6 @@ void StorageAssetTracker::populateStorageAssetTrackingCache()
 		return;
 	}
 
-	Logger::getLogger()->error("%s:%s size of multiset %d", __FILE__, __FUNCTION__,
-                                        storageAssetTrackerTuplesCache.size());
 
 	return;
 }
@@ -113,34 +108,21 @@ StorageAssetTrackingTuple* StorageAssetTracker::findStorageAssetTrackingCache(St
 	StorageAssetTrackingTuple *ptr = &tuple;
 	std::unordered_multiset<StorageAssetTrackingTuple*>::const_iterator it = storageAssetTrackerTuplesCache.find(ptr);
 
-	Logger::getLogger()->error("%s:%s :findStorageAssetTrackingCache : storageAssetTrackerTuplesCache.size()=%d ,tupleto find dp = %s", __FILE__, __FUNCTION__, storageAssetTrackerTuplesCache.size(), ptr->m_datapoints.c_str());
-
-	Logger::getLogger()->error("%s:%s : Printing cache , size being %d", __FILE__, __FUNCTION__, storageAssetTrackerTuplesCache.size());
-
-	for (auto tuple : storageAssetTrackerTuplesCache)
-	{
-		Logger::getLogger()->error("%s:%s:%s:%s:%s:%d", tuple->m_serviceName.c_str(), tuple->m_pluginName.c_str(), tuple->m_assetName.c_str(), tuple->m_eventName.c_str(), tuple->m_datapoints.c_str(), tuple->m_maxCount);
-	}
-
 	if (it == storageAssetTrackerTuplesCache.end())
 	{
-	        Logger::getLogger()->error("%s:%s :findStorageAssetTrackingCache tuple not found in cache ", __FILE__, __FUNCTION__);
+	        Logger::getLogger()->debug("%s:%s :findStorageAssetTrackingCache tuple not found in cache ", __FILE__, __FUNCTION__);
 		return NULL;
 	}
 	else
 	{
-		Logger::getLogger()->error("%s:%s :findStorageAssetTrackingCache tuple found in cache dp = %s", __FILE__, __FUNCTION__, (*it)->m_datapoints.c_str());
-
-		Logger::getLogger()->error("%s:%s :findStorageAssetTrackingCache tuple found in cache , arg dp = %s", __FILE__, __FUNCTION__, (ptr)->m_datapoints.c_str());
-
 
 		   // tuple present and count value < count of reading, update cache
                 if ((*it)->m_maxCount < ptr->m_maxCount)
                 {
 			// record to be updated in tuple, delete old one 
-	                storageAssetTrackerTuplesCache.erase(it);
+			Logger::getLogger()->debug("%s:%d:%s tuple present and count value < count of reading, update cache, erased dp%s ",  __FILE__,__LINE__, __FUNCTION__, (*it)->m_datapoints.c_str());
 
-			Logger::getLogger()->error("%s:%d:%s tuple present and count value < count of reading, update cache, erased dp%s ",  __FILE__,__LINE__, __FUNCTION__, (*it)->m_datapoints.c_str());
+	                storageAssetTrackerTuplesCache.erase(it);
 			return NULL;
                 }
                 else if ((*it)->m_maxCount == ptr->m_maxCount)
@@ -151,7 +133,7 @@ StorageAssetTrackingTuple* StorageAssetTracker::findStorageAssetTrackingCache(St
         	        if (compareDatapoints(ptr->m_datapoints,(*it)->m_datapoints))
                		{
 				//  record to be addded 
-				Logger::getLogger()->error("%s:%d:%s tuple present and case where counts are same but datapoints are different, update cache ",  __FILE__,__LINE__, __FUNCTION__);
+				Logger::getLogger()->debug("%s:%d:%s tuple present and case where counts are same but datapoints are different, update cache ",  __FILE__,__LINE__, __FUNCTION__);
 
 				return NULL;
                 	}
@@ -173,7 +155,6 @@ void StorageAssetTracker::addStorageAssetTrackingTuple(StorageAssetTrackingTuple
 {
 	std::unordered_multiset<StorageAssetTrackingTuple*>::const_iterator it = storageAssetTrackerTuplesCache.find(&tuple);
 
-	Logger::getLogger()->error("%s:%d, addStorageAssetTrackingTuple: tuple to add : service:%s, plugin:%s, asset:%s, event:%s, datapoints:%s, count:%d ",__FILE__, __LINE__,  tuple.m_serviceName.c_str(), tuple.m_pluginName.c_str(), tuple.m_assetName.c_str(), tuple.m_eventName.c_str(), tuple.m_datapoints.c_str(), tuple.m_maxCount);
 	bool rv = m_mgtClient->addStorageAssetTrackingTuple(tuple.m_serviceName, tuple.m_pluginName, tuple.m_assetName, tuple.m_eventName, false, tuple.m_datapoints, tuple.m_maxCount);
 
 	if (rv) // insert into cache only if DB operation succeeded
@@ -186,22 +167,6 @@ void StorageAssetTracker::addStorageAssetTrackingTuple(StorageAssetTrackingTuple
 		Logger::getLogger()->error("%s:%d:%s Failed to insert storage asset tracking tuple into DB: '%s'", __FILE__, __LINE__,__FUNCTION__, tuple.assetToString().c_str());
 }
 
-/**
- * Add asset tracking tuple via microservice management API and in cache
- *
- * @param plugin	Plugin name
- * @param asset		Asset name
- * @param event		Event name
- */
-/*void StorageAssetTracker::addStorageAssetTrackingTuple(std::string asset, std::string datapoints, int maxCount)
-{
-
-	Logger::getLogger()->error("%s:%s calling addStorageAssetTrackingTuple(tuple)", __FILE__, __FUNCTION__);
-	
-	StorageAssetTrackingTuple tuple(m_service, m_plugin, asset, m_event, false, datapoints, maxCount);
-	addStorageAssetTrackingTuple(tuple);
-}
-*/
 /**
  * Return Plugin Information in the Fledge configuration
  *
@@ -285,7 +250,6 @@ int StorageAssetTracker::compareDatapoints(const std::string& dp1, const std::st
                         temp2.push_back(dp2[i]);
         }
 
-	Logger::getLogger()->error("%s:%s temp1 = %s , temp1.size = %d , temp2 = %s , temp2 size %d , return value %d", __FILE__, __FUNCTION__, temp1.c_str(), temp1.size(), temp2.c_str(), temp2.size(), temp1.compare(temp2)); 
 	return temp1.compare(temp2);
 }
 

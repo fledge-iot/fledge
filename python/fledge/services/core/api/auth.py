@@ -130,7 +130,7 @@ async def login(request):
         # remove ott from MAP when used or when expired.
         OTT.OTT_MAP.pop(_ott, None)
 
-        user_id_db, role_id_db = get_user_and_role_for_token(orig_token)
+        user_id_db, role_id_db = await get_user_and_role_for_token(orig_token)
         if not user_id_db or not role_id_db:
             raise web.HTTPUnauthorized(reason="Authentication failed! Could not fetch user details.")
         if user_id_db == user_id and role_id_db == role_id:
@@ -212,7 +212,7 @@ async def get_ott(request):
 
     # Fetching user_id and role for given token.
     original_token = request.token
-    user_id, role_id = get_user_and_role_for_token(original_token)
+    user_id, role_id = await get_user_and_role_for_token(original_token)
     if not user_id or not role_id:
         raise web.HTTPBadRequest(reason="Could not fetch user and role for given token {}.".format(original_token))
     else:

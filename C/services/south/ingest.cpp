@@ -511,7 +511,7 @@ void Ingest::processQueue()
 				StorageAssetTracker *satracker = StorageAssetTracker::getStorageAssetTracker();
 				if ( satracker == nullptr)
                                 {
-                                        Logger::getLogger()->error("%s:%d could not initialize satracker ", __FILE__, __LINE__);
+                                        Logger::getLogger()->error("%s could not initialize satracker ", __FUNCTION__);
 					return;
                                 }
 
@@ -607,13 +607,13 @@ void Ingest::processQueue()
                                         	if (rv == NULL)
                                         	{
                                                 	// Record not found in cache , please update cache
-                                                	Logger::getLogger()->debug("%s:%d record not found in cache ", __FILE__, __LINE__);
+                                                	Logger::getLogger()->debug("%s:%d record not found in cache ", __FUNCTION__, __LINE__);
                                                 	satracker->addStorageAssetTrackingTuple(storageTuple);
                                         	}
                                         	else
                                         	{
                                         		//record not found undeprecate the record
-                                                	Logger::getLogger()->debug("%s:%d Record found in cache , undeprecate it", __FILE__,__LINE__);
+                                                	Logger::getLogger()->debug("%s:%d Record found in cache , undeprecate it", __FUNCTION__,__LINE__);
                                                 	unDeprecateStorageAssetTrackingRecord(rv, itr.first, dp, c);
                                         	}
 					}
@@ -828,7 +828,6 @@ void Ingest::processQueue()
                                           else if (lastStat)
                                           {
                                                   (*lastStat)++;
-						  Logger::getLogger()->error("%s:%s last Stat increment", __FILE__, __FUNCTION__);
                                           }
                                           delete reading;
 
@@ -854,13 +853,13 @@ void Ingest::processQueue()
                                   		if (rv == NULL)
                                   		{
 	                                       		// Record not found in cache , please update cache
-							Logger::getLogger()->debug("%s:%d record not found in cache  add it", __FILE__, __LINE__);
+							Logger::getLogger()->debug("%s:%d record not found in cache  add it", __FUNCTION__, __LINE__);
                                                 	satracker->addStorageAssetTrackingTuple(storageTuple);
                                   		}
                                   		else
                                   		{
 							//record not found undeprecate the record
-							Logger::getLogger()->debug("%s:%d No need for updation , undeprecate it", __FILE__,__LINE__);
+							Logger::getLogger()->debug("%s:%d No need for updation , undeprecate it", __FUNCTION__,__LINE__);
 
                                         		unDeprecateStorageAssetTrackingRecord(rv, itr.first, dp, c);
                                   		}    

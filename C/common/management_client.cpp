@@ -1557,7 +1557,6 @@ StorageAssetTrackingTuple* ManagementClient::getStorageAssetTrackingTuple(const 
                                                         const std::string& assetName,
                                                         const std::string& event, const std::string& dp, const unsigned int& c)
 {
-	m_logger->error("%s:%d function %s start  service = %s , assetName = %s ", __FILE__, __LINE__,__FUNCTION__, serviceName.c_str(), assetName.c_str());
 	
         StorageAssetTrackingTuple* tuple = NULL;
         try {
@@ -1601,7 +1600,7 @@ StorageAssetTrackingTuple* ManagementClient::getStorageAssetTrackingTuple(const 
                                 // Process every row and create the AssetTrackingTuple object
                                 for (auto& rec : trackArray.GetArray())
                                 {
-					 m_logger->error("%s:%d Inside for loop of trackArray ", __FILE__, __LINE__);
+					 m_logger->debug("%s:%d Inside for loop of trackArray ", __FUNCTION__, __LINE__);
 
                                         if (!rec.IsObject())
                                         {
@@ -1632,7 +1631,7 @@ StorageAssetTrackingTuple* ManagementClient::getStorageAssetTrackingTuple(const 
 
                                         if (dataVal.ObjectEmpty())
                                         {
-                                                m_logger->error("%s:%d dataVal  Object empty " , __FILE__, __LINE__);
+                                                m_logger->error("%s:%d dataVal  Object empty " , __FUNCTION__, __LINE__);
                                                 continue;
                                         }
 
@@ -1664,7 +1663,7 @@ StorageAssetTrackingTuple* ManagementClient::getStorageAssetTrackingTuple(const 
 					if(validateDatapoints(dp,datapoints))
 					{
 						//datapoints in db not same as in arg, continue
-						m_logger->debug("%s:%s :Datapoints in db not same as in arg",__FILE__, __FUNCTION__);
+						m_logger->debug("%s:%d :Datapoints in db not same as in arg",__FUNCTION__, __LINE__);
 						continue;
 					}
 					
@@ -1681,7 +1680,7 @@ StorageAssetTrackingTuple* ManagementClient::getStorageAssetTrackingTuple(const 
 					if ( count != c)
 					{
 						// count not same, continue
-						m_logger->debug("%s:%s :count in db not same as received in arg", __FILE__, __FUNCTION__);
+						m_logger->debug("%s:%d :count in db not same as received in arg", __FUNCTION__, __LINE__);
 						continue;
 					}
 
@@ -1692,8 +1691,8 @@ StorageAssetTrackingTuple* ManagementClient::getStorageAssetTrackingTuple(const 
                                                                         rec["event"].GetString(),
                                                                         deprecated, datapoints, count);
 
-                                        m_logger->debug("%s:%s : Adding StorageAssetTracker tuple for service %s: %s:%s:%s, " \
-                                                        "deprecated state is %d, datapoints %s , count %d",__FILE__, __FUNCTION__,
+                                        m_logger->debug("%s:%d : Adding StorageAssetTracker tuple for service %s: %s:%s:%s, " \
+                                                        "deprecated state is %d, datapoints %s , count %d",__FUNCTION__, __LINE__,
                                                         rec["service"].GetString(),
                                                         rec["plugin"].GetString(),
                                                         rec["asset"].GetString(),
@@ -1761,7 +1760,7 @@ bool ManagementClient::addStorageAssetTrackingTuple(const std::string& service,
 		if (doc.HasParseError())
 		{
 			bool httpError = (isdigit(content[0]) && isdigit(content[1]) && isdigit(content[2]) && content[3]==':');
-			m_logger->error("%s:%d , %s storage asset tracking tuple addition: %s\n",__FILE__, __LINE__, 
+			m_logger->error("%s:%d , %s storage asset tracking tuple addition: %s\n",__FUNCTION__, __LINE__, 
 								httpError?"HTTP error during":"Failed to parse result of", 
 								content.c_str());
 			return false;
@@ -1773,16 +1772,16 @@ bool ManagementClient::addStorageAssetTrackingTuple(const std::string& service,
 		}
 		else if (doc.HasMember("message"))
 		{
-			m_logger->error("%s:%d Failed to add storage asset tracking tuple: %s.",__FILE__, __LINE__,
+			m_logger->error("%s:%d Failed to add storage asset tracking tuple: %s.",__FUNCTION__, __LINE__,
 				doc["message"].GetString());
 		}
 		else
 		{
-			m_logger->error("%s:%d Failed to add storage asset tracking tuple: %s.",__FILE__, __LINE__,
+			m_logger->error("%s:%d Failed to add storage asset tracking tuple: %s.",__FUNCTION__, __LINE__,
 					content.c_str());
 		}
 	} catch (const SimpleWeb::system_error &e) {
-				m_logger->error("%s:%d Failed to add storage asset tracking tuple: %s.",__FILE__, __LINE__, e.what());
+				m_logger->error("%s:%d Failed to add storage asset tracking tuple: %s.",__FUNCTION__, __LINE__, e.what());
 				return false;
 		}
 		return false;
@@ -1856,7 +1855,7 @@ std::vector<StorageAssetTrackingTuple*>& ManagementClient::getStorageAssetTracki
 
 					if (dataVal.ObjectEmpty())
 					{
-						m_logger->error("%s:%d dataVal  Object empty " , __FILE__, __LINE__);
+						m_logger->error("%s:%d dataVal  Object empty " , __FUNCTION__, __LINE__);
 						continue;
 					}
 
@@ -1899,7 +1898,7 @@ std::vector<StorageAssetTrackingTuple*>& ManagementClient::getStorageAssetTracki
                                                 throw runtime_error("Expected count in data to be int");
                                         }
                                         int count = dataVal["count"].GetInt();
-                                        m_logger->debug("%s:%d count = %d  ", __FILE__, __LINE__, count);
+                                        m_logger->debug("%s:%d count = %d  ", __FUNCTION__, __LINE__, count);
 
                                         StorageAssetTrackingTuple *tuple = new StorageAssetTrackingTuple(rec["service"].GetString(),
                                                                         rec["plugin"].GetString(),
@@ -1907,8 +1906,8 @@ std::vector<StorageAssetTrackingTuple*>& ManagementClient::getStorageAssetTracki
                                                                         rec["event"].GetString(),
                                                                         deprecated, datapoints, count);
 
-                                        m_logger->debug("%s:%s: Adding StorageAssetTracker tuple for service %s: %s:%s:%s, " \
-                                                        "deprecated state is %d, datapoints %s , count %d" ,__FILE__, __FUNCTION__,
+                                        m_logger->debug("%s:%d: Adding StorageAssetTracker tuple for service %s: %s:%s:%s, " \
+                                                        "deprecated state is %d, datapoints %s , count %d" ,__FUNCTION__, __LINE__,
                                                         rec["service"].GetString(),
                                                         rec["plugin"].GetString(),
                                                         rec["asset"].GetString(),

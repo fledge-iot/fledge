@@ -24,10 +24,10 @@ class TestAudit:
     def test_get_log_codes(self, fledge_url, reset_and_start_fledge):
         expected_code_list = ['PURGE', 'LOGGN', 'STRMN', 'SYPRG', 'START', 'FSTOP',
                               'CONCH', 'CONAD', 'SCHCH', 'SCHAD', 'SRVRG', 'SRVUN',
-                              'SRVFL', 'NHCOM', 'NHDWN', 'NHAVL', 'UPEXC', 'BKEXC',
-                              'NTFDL', 'NTFAD', 'NTFSN', 'NTFCL', 'NTFST', 'NTFSD',
-                              'PKGIN', 'PKGUP', 'PKGRM', 'DSPST', 'DSPSD', 'ESSRT',
-                              'ESSTP', 'ASTDP', 'ASTUN', 'PIPIN']
+                              'SRVFL', 'SRVRS', 'NHCOM', 'NHDWN', 'NHAVL', 'UPEXC',
+                              'BKEXC', 'NTFDL', 'NTFAD', 'NTFSN', 'NTFCL', 'NTFST',
+                              'NTFSD', 'PKGIN', 'PKGUP', 'PKGRM', 'DSPST', 'DSPSD',
+                              'ESSRT', 'ESSTP', 'ASTDP', 'ASTUN', 'PIPIN']
         conn = http.client.HTTPConnection(fledge_url)
         conn.request("GET", '/fledge/audit/logcode')
         r = conn.getresponse()

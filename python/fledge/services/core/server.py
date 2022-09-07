@@ -1242,6 +1242,41 @@ class Server:
             raise web.HTTPNotFound(reason=str(ex))
 
     @classmethod
+    async def restart_service(cls, request):
+        """ Restart a service
+
+        :Example:
+            curl -X PUT  http://localhost:<core mgt port>/fledge/service/dc9bfc01-066a-4cc0-b068-9c35486db87f/restart
+        """
+
+        try:
+            service_id = request.match_info.get('service_id', None)
+
+            try:
+                services = ServiceRegistry.get(idx=service_id)
+            except service_registry_exceptions.DoesNotExist:
+                raise ValueError('Service with {} does not exist'.format(service_id))
+
+            ServiceRegistry.restart(service_id)
+
+            if cls._storage_client_async is not None and services[0]._name not in ("Fledge Storage", "Fledge Core"):
+                try:
+                    cls._audit = AuditLogger(cls._storage_client_async)
+                    await cls._audit.information('SRVRS', {'name': services[0]._name})
+                except Exception as ex:
+                    _logger.exception(str(ex))
+
+            _resp = {'id': str(service_id), 'message': 'Service restart requested'}
+
+            return web.json_response(_resp)
+        except ValueError as ex:
+            raise web.HTTPNotFound(reason=str(ex))
+        except Exception as ex:
+            msg = str(ex)
+            raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+
+
+    @classmethod
     async def get_service(cls, request):
         """ Returns a list of all services or as per name &|| type filter
 

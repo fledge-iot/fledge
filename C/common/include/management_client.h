@@ -45,6 +45,7 @@ class ManagementClient {
 		~ManagementClient();
 		bool 			registerService(const ServiceRecord& service);
 		bool 			unregisterService();
+		bool 			restartService();
 		bool 			getService(ServiceRecord& service);
 		bool			getServices(std::vector<ServiceRecord *>& services);
 		bool			getServices(std::vector<ServiceRecord *>& services, const std::string& type);

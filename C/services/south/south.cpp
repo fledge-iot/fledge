@@ -233,7 +233,8 @@ SouthService::SouthService(const string& myName, const string& token) :
 				m_throttled(false),
 				m_token(token),
 				m_repeatCnt(1),
-				m_dryRun(false)
+				m_dryRun(false),
+				m_requestRestart(false)
 {
 	m_name = myName;
 	m_type = SERVICE_TYPE;
@@ -644,7 +645,14 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		// Clean shutdown, unregister the storage service
 		if (!m_dryRun)
 		{
-			m_mgtClient->unregisterService();
+			if (m_requestRestart)
+			{
+				m_mgtClient->restartService();
+			}
+			else
+			{
+				m_mgtClient->unregisterService();
+			}
 		}
 	}
 	management.stop();
@@ -778,6 +786,19 @@ void SouthService::shutdown()
 	 */
 	m_shutdown = true;
 	logger->info("South service shutdown in progress.");
+}
+
+/**
+ * Restart request
+ */
+void SouthService::restart()
+{
+	/* Stop recieving new requests and allow existing
+	 * requests to drain.
+	 */
+	m_requestRestart = true;
+	m_shutdown = true;
+	logger->info("South service shutdown for restart in progress.");
 }
 
 /**

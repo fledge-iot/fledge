@@ -3,7 +3,7 @@
 /*
  * Fledge storage asset tracking related
  *
- * Copyright (c) 2022 OSisoft, LLC
+ * Copyright (c) 2022 Dianomic Systems
  *
  * Released under the Apache 2.0 Licence
  *

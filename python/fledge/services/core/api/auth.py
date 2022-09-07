@@ -125,10 +125,20 @@ async def login(request):
             raise web.HTTPUnauthorized(reason="Authentication failed. Either the given token expired or already used.")
 
         time_now = datetime.datetime.now()
-        user_id, orig_token, is_admin, initial_time = OTT.OTT_MAP[_ott]
+        user_id, orig_token, role_id, initial_time = OTT.OTT_MAP[_ott]
 
         # remove ott from MAP when used or when expired.
         OTT.OTT_MAP.pop(_ott, None)
+
+        user_id_db, role_id_db = get_user_and_role_for_token(orig_token)
+        if not user_id_db or not role_id_db:
+            raise web.HTTPUnauthorized(reason="Authentication failed! Could not fetch user details.")
+        if user_id_db == user_id and role_id_db == role_id:
+            raise web.HTTPUnauthorized(reason="Authentication failed! The user login details got changed.")
+        is_admin = False
+        if role_id == 1:
+            is_admin = True
+
         if time_now - initial_time <= datetime.timedelta(minutes=OTT_TOKEN_EXPIRY_MINUTES):
             return web.json_response(
                 {"message": "Logged in successfully", "uid": user_id, "token": orig_token, "admin": is_admin})
@@ -166,6 +176,30 @@ async def login(request):
     return web.json_response({"message": "Logged in successfully.", "uid": uid, "token": token, "admin": is_admin})
 
 
+async def get_user_and_role_for_token(given_token):
+    try:
+        from fledge.services.core import connect
+        from fledge.common.storage_client.payload_builder import PayloadBuilder
+        payload = PayloadBuilder().SELECT("user_id").WHERE(['token', '=', given_token]).payload()
+        storage_client = connect.get_storage_async()
+        result = await storage_client.query_tbl_with_payload("user_logins", payload)
+        if len(result['rows']) == 0:
+            message = "The request token {} does not have a valid user associated with it.".format(given_token)
+            raise web.HTTPBadRequest(reason=message)
+        user_id = result['rows'][0]['user_id']
+        payload_role = PayloadBuilder().SELECT("role_id").WHERE(['id', '=', user_id]).payload()
+        storage_client = connect.get_storage_async()
+        result_role = await storage_client.query_tbl_with_payload("users", payload_role)
+        if len(result_role['rows']) < 1:
+            message = "The request token {} does not have a valid role associated with it.".format(given_token)
+            raise web.HTTPBadRequest(reason=message)
+
+        return user_id, int(result_role['rows'][0]['role_id'])
+
+    except Exception as ex:
+        return None, None
+
+
 async def get_ott(request):
     """ Get one time use token (OTT) for login.
 
@@ -176,30 +210,11 @@ async def get_ott(request):
         _logger.warning(FORBIDDEN_MSG)
         raise web.HTTPForbidden
 
-    try:
-        # Fetching user_id and role for given token.
-        original_token = request.token
-        from fledge.services.core import connect
-        from fledge.common.storage_client.payload_builder import PayloadBuilder
-        payload = PayloadBuilder().SELECT("user_id").WHERE(['token', '=', original_token]).payload()
-        storage_client = connect.get_storage_async()
-        result = await storage_client.query_tbl_with_payload("user_logins", payload)
-        if len(result['rows']) == 0:
-            message = "The request token {} does not have a valid user associated with it.".format(original_token)
-            raise web.HTTPBadRequest(reason=message)
-        user_id = result['rows'][0]['user_id']
-        payload_role = PayloadBuilder().SELECT("role_id").WHERE(['id', '=', user_id]).payload()
-        storage_client = connect.get_storage_async()
-        result_role = await storage_client.query_tbl_with_payload("users", payload_role)
-        if len(result_role['rows']) < 1:
-            message = "The request token {} does not have a valid role associated with it.".format(original_token)
-            raise web.HTTPBadRequest(reason=message)
-        # checking if the user is an admin.
-        is_admin = False
-        if int(result_role['rows'][0]['role_id']) == 1:
-            is_admin = True
-    except Exception as ex:
-        raise web.HTTPBadRequest(reason="The request failed due to {}".format(ex))
+    # Fetching user_id and role for given token.
+    original_token = request.token
+    user_id, role_id = get_user_and_role_for_token(original_token)
+    if not user_id or not role_id:
+        raise web.HTTPBadRequest(reason="Could not fetch user and role for given token {}.".format(original_token))
     else:
         now_time = datetime.datetime.now()
         p = {'uid': user_id, 'exp': now_time}
@@ -215,7 +230,7 @@ async def get_ott(request):
         if already_existed_token:
             OTT.OTT_MAP.pop(key_to_remove, None)
 
-        ott_info = (user_id, original_token, is_admin, now_time)
+        ott_info = (user_id, original_token, role_id, now_time)
         OTT.OTT_MAP[ott_token] = ott_info
         return web.json_response({"ott": ott_token})
 

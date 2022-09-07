@@ -58,7 +58,7 @@ An array of tracked events, each of which contains the following
 
 .. note::
 
-   Asset tracking deprecation allows for old information regarding the plugin that ingested an asset to be hidden when that asset is no longer ingested by the plugin. When this is done the deprecatedTimestamp value is st to be a non-empty timestamp.
+   Asset tracking deprecation allows for old information regarding the plugin that ingested an asset to be hidden when that asset is no longer ingested by the plugin. When this is done the deprecatedTimestamp value is set to be a non-empty timestamp.
 
 **Example**
 

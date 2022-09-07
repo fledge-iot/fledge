@@ -32,10 +32,10 @@ _help = """
     | PUT                        | /fledge/user/{user_id}/password                    |     
 
     | GET                        | /fledge/user/role                                  |
-    
+
     | POST                       | /fledge/login                                      |
     | PUT                        | /fledge/{user_id}/logout                           |
-    
+
     | GET                        | /fledge/auth/ott                                   |
 
     | POST                       | /fledge/admin/user                                 |
@@ -48,7 +48,7 @@ _help = """
 
 JWT_SECRET = 'f0gl@mp'
 JWT_ALGORITHM = 'HS256'
-JWT_EXP_DELTA_SECONDS = 30*60  # 30 minutes
+JWT_EXP_DELTA_SECONDS = 30 * 60  # 30 minutes
 
 MIN_USERNAME_LENGTH = 4
 USERNAME_REGEX_PATTERN = '^[a-zA-Z0-9_.-]+$'
@@ -368,7 +368,7 @@ async def create_user(request):
     if request.is_auth_optional:
         _logger.warning(FORBIDDEN_MSG)
         raise web.HTTPForbidden
-    
+
     data = await request.json()
     username = data.get('username', '')
     password = data.get('password')
@@ -451,6 +451,7 @@ async def create_user(request):
     msg = "{} user has been created successfully".format(username)
     _logger.info(msg)
     return web.json_response({'message': msg, 'user': u})
+
 
 # FIXME: Need to fix user id dependency in update_me
 
@@ -624,7 +625,8 @@ async def update_password(request):
 
     _logger.info("Password has been updated successfully for user id:<{}>".format(int(user_id)))
 
-    return web.json_response({'message': 'Password has been updated successfully for user id:<{}>'.format(int(user_id))})
+    return web.json_response(
+        {'message': 'Password has been updated successfully for user id:<{}>'.format(int(user_id))})
 
 
 @has_permission("admin")
@@ -774,7 +776,7 @@ async def delete_user(request):
         msg = "Super admin user can not be deleted"
         _logger.warning(msg)
         raise web.HTTPNotAcceptable(reason=msg)
-    
+
     # Requester should not be able to delete her/himself
     if user_id == request.user["id"]:
         msg = "You can not delete your own account"

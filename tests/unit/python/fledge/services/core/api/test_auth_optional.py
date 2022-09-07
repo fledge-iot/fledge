@@ -215,7 +215,7 @@ class TestAuthOptional:
                     assert ret_val[0] == actual['uid']
                     assert ret_val[1] == actual['token']
                     assert ret_val[2] == actual['admin']
-                patch_logger.assert_called_once_with('User with username:<{}> has been logged in successfully'.format(request_data['username']))
+                patch_logger.assert_called_once_with('User with username:<{}> has been logged in successfully.'.format(request_data['username']))
             # TODO: host arg patch transport.request.extra_info
             args, kwargs = patch_user_login.call_args
             assert request_data['username'] == args[0]

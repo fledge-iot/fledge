@@ -122,7 +122,7 @@ async def login(request):
 
         _ott = _data.get('ott')
         if _ott not in OTT.OTT_MAP:
-            raise web.HTTPBadRequest(reason="Either given token expired or already used.")
+            raise web.HTTPUnauthorized(reason="Authentication failed. Either the given token expired or already used.")
 
         time_now = datetime.datetime.now()
         user_id, orig_token, is_admin, initial_time = OTT.OTT_MAP[_ott]
@@ -133,7 +133,7 @@ async def login(request):
             return web.json_response(
                 {"message": "Logged in successfully", "uid": user_id, "token": orig_token, "admin": is_admin})
         else:
-            raise web.HTTPBadRequest(reason="The token has expired.")
+            raise web.HTTPUnauthorized(reason="Authentication failed! The given token has expired")
     else:
 
         username = _data.get('username')
@@ -153,17 +153,17 @@ async def login(request):
             uid, token, is_admin = await User.Objects.login(username, password, host)
         except (User.DoesNotExist, User.PasswordDoesNotMatch, ValueError) as ex:
             _logger.warning(str(ex))
-            return web.HTTPNotFound(reason=str(ex))
+            raise web.HTTPNotFound(reason=str(ex))
         except User.PasswordExpired as ex:
             # delete all user token for this user
             await User.Objects.delete_user_tokens(str(ex))
 
             msg = 'Your password has been expired. Please set your password again'
             _logger.warning(msg)
-            return web.HTTPUnauthorized(reason=msg)
+            raise web.HTTPUnauthorized(reason=msg)
 
-    _logger.info("User with username:<{}> has been logged in successfully".format(username))
-    return web.json_response({"message": "Logged in successfully", "uid": uid, "token": token, "admin": is_admin})
+    _logger.info("User with username:<{}> logged in successfully.".format(username))
+    return web.json_response({"message": "Logged in successfully.", "uid": uid, "token": token, "admin": is_admin})
 
 
 async def get_ott(request):

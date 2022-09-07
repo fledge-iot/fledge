@@ -1549,7 +1549,9 @@ ACL ManagementClient::getACL(const string& aclName)
  * @param    serviceName        The serviceName to restrict data fetch
  * @param    assetName          The asset name that belongs to the service
  * @param    event              The associated event type
- * @return              A vector of pointers to AssetTrackingTuple objects allocated on heap
+ * @param    dp			The datapoints Type
+ * @param    c			The count of datapoints
+ * @return              	A pointer to AssetTrackingTuple objects allocated on heap
  */
 StorageAssetTrackingTuple* ManagementClient::getStorageAssetTrackingTuple(const std::string& serviceName,
                                                         const std::string& assetName,
@@ -1731,6 +1733,9 @@ StorageAssetTrackingTuple* ManagementClient::getStorageAssetTrackingTuple(const 
  * @param plugin	Plugin name
  * @param asset		Asset name
  * @param event		Event type
+ * @param deprecated	Deprecated or not
+ * @param datapoints	Datapoints type
+ * @param count		Count Type
  * @return		whether operation was successful
  */
 bool ManagementClient::addStorageAssetTrackingTuple(const std::string& service, 
@@ -1793,7 +1798,7 @@ bool ManagementClient::addStorageAssetTrackingTuple(const std::string& service,
  *
  * @param    serviceName        The serviceName to restrict data fetch
  *                              If empty records for all services are fetched
- * @return              A vector of pointers to AssetTrackingTuple objects allocated on heap
+ * @return              	A vector of pointers to AssetTrackingTuple objects allocated on heap
  */
 std::vector<StorageAssetTrackingTuple*>& ManagementClient::getStorageAssetTrackingTuples(const std::string serviceName)
 {
@@ -1931,6 +1936,14 @@ std::vector<StorageAssetTrackingTuple*>& ManagementClient::getStorageAssetTracki
         }
         return *vec;
 }
+
+/**
+ * Compare the datapoints to be equal or not, they can be '"' enclosed 
+ *
+ * @param    dp1        The datapoint to compare, enclosed in '"'
+ * @param    dp2        The datapoint to compare
+ * @return   int        integer depicting result of comparison, 0 on equal 
+ */
 
 int ManagementClient::validateDatapoints(std::string dp1, std::string dp2)
 {

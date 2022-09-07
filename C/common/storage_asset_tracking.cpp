@@ -1,7 +1,7 @@
 /*
  * Fledge Storage asset tracking related
  *
- t* Copyright (c) 2022 Dianomic Systems
+ * Copyright (c) 2022 Dianomic Systems
  *
  * Released under the Apache 2.0 Licence
  *
@@ -12,7 +12,6 @@
 #include <storage_asset_tracking.h>
 
 using namespace std;
-
 
 StorageAssetTracker *StorageAssetTracker::instance = 0;
 
@@ -25,6 +24,12 @@ StorageAssetTracker *StorageAssetTracker::getStorageAssetTracker()
 {
 	return instance;
 }
+
+/**
+ * Release the storage asset tracker singleton instance 
+ *
+ * @return      void 
+ */
 
 void StorageAssetTracker::releaseStorageAssetTracker()
 {
@@ -47,12 +52,10 @@ StorageAssetTracker::StorageAssetTracker(ManagementClient *mgtClient, std::strin
 }
 
 /**
- * Fetch all asset tracking tuples from DB and populate local cache
+ * Fetch all storage asset tracking tuples from DB and populate local cache
  *
  * Return the vector of deprecated asset names
  *
- * @param plugin  	Plugin name
- * @param event  	Event name
  */
 void StorageAssetTracker::populateStorageAssetTrackingCache()
 {
@@ -102,6 +105,15 @@ void StorageAssetTracker::populateStorageAssetTrackingCache()
 	return;
 }
 
+/**
+ * Find whether the Storage asset tracking tuple exists in the cache or not
+ *
+ * Return the pointer to the tuple 
+ *
+ * @param tuple        StorageAssetTrackingTuple Type
+ * @return	       A pointer to StorageAssetTrackingTuple in cache or null
+ */
+
 
 StorageAssetTrackingTuple* StorageAssetTracker::findStorageAssetTrackingCache(StorageAssetTrackingTuple& tuple)	
 {
@@ -147,7 +159,7 @@ StorageAssetTrackingTuple* StorageAssetTracker::findStorageAssetTrackingCache(St
 }
 
 /**
- * Add asset tracking tuple via microservice management API and in cache
+ * Add storage asset tracking tuple via microservice management API and in cache
  *
  * @param tuple		New tuple to add in DB and in cache
  */
@@ -235,6 +247,12 @@ bool StorageAssetTracker::getFledgeConfigInfo()
         return false;
 }
 
+
+/**
+ * Compare the Datapoints in StorageAssetTracker, they can be '"' enclosed
+ *
+ * @return int  result of comparison of datapoints strings , 0 when equal
+ */
 int StorageAssetTracker::compareDatapoints(const std::string& dp1, const std::string& dp2)
 {
 	std::string temp1, temp2;

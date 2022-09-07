@@ -141,6 +141,7 @@ def setup(app):
     app.router.add_route('GET',    '/fledge/track', asset_tracker.get_asset_tracker_events)
     app.router.add_route('PUT',    '/fledge/track/service/{service}/asset/{asset}/event/{event}',
                          asset_tracker.deprecate_asset_track_entry)
+    app.router.add_route('GET', '/fledge/track/storage/assets', asset_tracker.get_datapoint_usage)
 
     # Statistics - As per doc
     app.router.add_route('GET', '/fledge/statistics', api_statistics.get_statistics)

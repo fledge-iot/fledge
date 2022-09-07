@@ -4,6 +4,7 @@
 # See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 import json
+import logging
 
 from aiohttp import web
 import urllib.parse
@@ -12,9 +13,10 @@ from fledge.common import utils as common_utils
 from fledge.common.storage_client.exceptions import StorageServerError
 from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.services.core import connect
+
 from fledge.common.audit_logger import AuditLogger
 from fledge.common import logger
-import logging
+
 
 __author__ = "Ashish Jabble"
 __copyright__ = "Copyright (c) 2018 OSIsoft, LLC"
@@ -29,6 +31,7 @@ _help = """
 """
 
 _logger = logger.setup(__name__, level=logging.INFO)
+
 
 async def get_asset_tracker_events(request: web.Request) -> web.Response:
     """
@@ -141,3 +144,67 @@ async def deprecate_asset_track_entry(request: web.Request) -> web.Response:
     else:
         _logger.info("Asset '{}' has been deprecated".format(asset_name))
         return web.json_response({'success': "Asset record entry has been deprecated."})
+
+
+async def get_datapoint_usage(request: web.Request) -> web.Response:
+    """
+    Args:
+        request: a GET request to the /fledge/track/storage/assets Endpoint.
+
+    Returns:
+            A JSON response. An example would be.
+            {
+              "count" : 5,
+               "assets" : [
+                            {
+                              "asset" : "sinusoid",
+                              "datapoints" : [ "sinusoid" ]
+                            },
+                            {
+                               "asset" : "motor",
+                               "datapoints" : [ "rpm", "current", "voltage", "temperature" ]
+                            }
+                          ]
+            }
+
+    :Example:
+            curl -sX GET http://localhost:8081/fledge/track/storage/assets
+
+    """
+
+    response = {"count": 0,
+                "assets": []
+                }
+    try:
+        storage_client = connect.get_storage_async()
+        q_payload = PayloadBuilder().SELECT(). \
+            DISTINCT(["asset", "data"]). \
+            WHERE(["event", "=", "store"]). \
+            payload()
+
+        results = await storage_client.query_tbl_with_payload('asset_tracker', q_payload)
+
+        total_datapoints = 0
+        for row in results["rows"]:
+            # The no of datapoints for this asset.
+            total_datapoints += int(row['data']['count'])
+            # Construct a dict that contains information about a single asset.
+            dict_to_add = {"asset": row["asset"], "datapoints": row["data"]["datapoints"]}
+            # appending information of single asset to the asset information list.
+            response["assets"].append(dict_to_add)
+
+        # finally update the total count in the main dict.
+        response["count"] = total_datapoints
+
+    except KeyError as msg:
+        raise web.HTTPBadRequest(reason=str(msg), body=json.dumps({"message": str(msg)}))
+    except TypeError as ex:
+        raise web.HTTPBadRequest(reason=str(ex), body=json.dumps({"message": str(ex)}))
+    except StorageServerError as ex:
+        err_response = ex.error
+        raise web.HTTPBadRequest(reason=err_response, body=json.dumps({"message": err_response}))
+    except Exception as ex:
+        msg = str(ex)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+    else:
+        return web.json_response(response)

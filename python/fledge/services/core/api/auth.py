@@ -133,7 +133,7 @@ async def login(request):
         user_id_db, role_id_db = await get_user_and_role_for_token(orig_token)
         if not user_id_db or not role_id_db:
             raise web.HTTPUnauthorized(reason="Authentication failed! Could not fetch user details.")
-        if user_id_db == user_id and role_id_db == role_id:
+        if not user_id_db == user_id or not role_id_db == role_id:
             raise web.HTTPUnauthorized(reason="Authentication failed! The user login details got changed.")
         is_admin = False
         if role_id == 1:

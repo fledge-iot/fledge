@@ -1629,7 +1629,7 @@ class Server:
         jsondata=data.get("data")
 
         try:
-            if jsondata==None:
+            if jsondata is None:
 
                 result = await cls._asset_tracker.add_asset_record(asset=data.get("asset"),
                                                                    plugin=data.get("plugin"),

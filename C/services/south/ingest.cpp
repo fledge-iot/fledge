@@ -612,7 +612,7 @@ void Ingest::processQueue()
                                         	}
                                         	else
                                         	{
-                                        		//record not found undeprecate the record
+                                        		//record found undeprecate the record
                                                 	Logger::getLogger()->debug("%s:%d Record found in cache , undeprecate it", __FUNCTION__,__LINE__);
                                                 	unDeprecateStorageAssetTrackingRecord(rv, itr.first, dp, c);
                                         	}
@@ -858,7 +858,7 @@ void Ingest::processQueue()
                                   		}
                                   		else
                                   		{
-							//record not found undeprecate the record
+							//record found undeprecate the record
 							Logger::getLogger()->debug("%s:%d No need for updation , undeprecate it", __FUNCTION__,__LINE__);
 
                                         		unDeprecateStorageAssetTrackingRecord(rv, itr.first, dp, c);

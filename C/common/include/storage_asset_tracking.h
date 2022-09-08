@@ -107,7 +107,11 @@ private:
 	std::string                     m_fledgeService;
 	std::string			m_service;
 	std::string			m_event;
-	std::unordered_multiset<StorageAssetTrackingTuple*, std::hash<StorageAssetTrackingTuple*>, StorageAssetTrackingTuplePtrEqual> storageAssetTrackerTuplesCache;
+
+	typedef std::unordered_multiset<StorageAssetTrackingTuple*, std::hash<StorageAssetTrackingTuple*>, StorageAssetTrackingTuplePtrEqual> StorageAssetCacheSet;
+
+	typedef std::unordered_multiset<StorageAssetTrackingTuple*, std::hash<StorageAssetTrackingTuple*>, StorageAssetTrackingTuplePtrEqual>::iterator StorageAssetCacheSetItr;
+	StorageAssetCacheSet storageAssetTrackerTuplesCache;
 };
 
 #endif

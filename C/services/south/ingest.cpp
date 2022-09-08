@@ -456,10 +456,11 @@ void Ingest::waitForQueue()
 void Ingest::processQueue()
 {
 
-	typedef struct{
+/*	typedef struct{
                 std::set<std::string> setDp;
                 unsigned int          count;
         }dpCountObj;
+*/
 
 	do {
 		/*
@@ -517,7 +518,7 @@ void Ingest::processQueue()
 
 				string lastAsset = "";
 				int *lastStat = NULL;
-				std::map <std::string ,dpCountObj> assetDatapointMap;
+				std::map <std::string , std::set<std::string> > assetDatapointMap;
 
 				for (vector<Reading *>::iterator it = q->begin();
 							 it != q->end(); ++it)
@@ -554,8 +555,7 @@ void Ingest::processQueue()
 					// Push them in a set so as to avoid duplication of datapoints
 					// a reading of d1, d2, d3 and another d2,d3,d1 , second will be discarded
 
-					assetDatapointMap[assetName].setDp.insert(temp);
-                                        assetDatapointMap[assetName].count = i;
+					assetDatapointMap[assetName].insert(temp);
 
 					if (lastAsset.compare(assetName))
 					{
@@ -591,16 +591,15 @@ void Ingest::processQueue()
 
 				for (auto itr : assetDatapointMap)
                                 {
-                                        std::set<string> &s = itr.second.setDp;
- 
-                                        unsigned int c = itr.second.count;;
+                                        std::set<string> &s = itr.second;
  
                                         for (auto dp : s)
                                         {
+						unsigned int c = count(dp.begin(), dp.end(), ',');
                                                 StorageAssetTrackingTuple storageTuple(m_serviceName,
                                                                               m_pluginName,
                                                                               itr.first,
-                                                                              "store", false, dp, c);
+                                                                              "store", false, dp, c+1);
  
 
                                         	StorageAssetTrackingTuple* rv = satracker->findStorageAssetTrackingCache(storageTuple);
@@ -614,7 +613,7 @@ void Ingest::processQueue()
                                         	{
                                         		//record found undeprecate the record
                                                 	Logger::getLogger()->debug("%s:%d Record found in cache , undeprecate it", __FUNCTION__,__LINE__);
-                                                	unDeprecateStorageAssetTrackingRecord(rv, itr.first, dp, c);
+                                                	unDeprecateStorageAssetTrackingRecord(rv, itr.first, dp, c+1);
                                         	}
 					}
                                 }
@@ -760,7 +759,7 @@ void Ingest::processQueue()
 				string lastAsset;
 				int *lastStat = NULL;
 
-				std::map <std::string, dpCountObj> assetDatapointMap;
+				std::map <std::string, std::set<std::string> > assetDatapointMap;
 
 				for (vector<Reading *>::iterator it = m_data->begin(); it != m_data->end(); ++it)
 				{
@@ -794,8 +793,7 @@ void Ingest::processQueue()
                                         // Push them in a set so as to avoid duplication of datapoints
                                         // a reading of d1, d2, d3 and another d2,d3,d1 , second will be discarded
 
-                                        assetDatapointMap[assetName].setDp.insert(temp);
-					assetDatapointMap[assetName].count = i;
+                                        assetDatapointMap[assetName].insert(temp);
 
                                         if (lastAsset.compare(assetName))
                                         {
@@ -836,16 +834,16 @@ void Ingest::processQueue()
 
 				for (auto itr : assetDatapointMap)
 				{ 
-					unsigned int c = itr.second.count;;
-
-					for (auto dp : itr.second.setDp)
+					for (auto dp : itr.second)
 					{
+						unsigned int c= count(dp.begin(), dp.end(), ',');
+
 						StorageAssetTrackingTuple storageTuple(m_serviceName,
                                                                               m_pluginName,
                                                                               itr.first,
-                                                                              "store", false, dp, c);
+                                                                              "store", false, dp, c+1);
 
-						Logger::getLogger()->debug("%s  Dp string dp = %s", __FUNCTION__, dp.c_str());
+						Logger::getLogger()->error("%s  Dp string dp = %s", __FUNCTION__, dp.c_str());
 
                                   		StorageAssetTrackingTuple* rv = satracker->findStorageAssetTrackingCache(storageTuple);
 
@@ -861,7 +859,7 @@ void Ingest::processQueue()
 							//record found undeprecate the record
 							Logger::getLogger()->debug("%s:%d No need for updation , undeprecate it", __FUNCTION__,__LINE__);
 
-                                        		unDeprecateStorageAssetTrackingRecord(rv, itr.first, dp, c);
+                                        		unDeprecateStorageAssetTrackingRecord(rv, itr.first, dp, c+1);
                                   		}    
 					}
 				}

@@ -127,32 +127,75 @@ StorageAssetTrackingTuple* StorageAssetTracker::findStorageAssetTrackingCache(St
 	}
 	else
 	{
+		auto rangeItr = storageAssetTrackerTuplesCache.equal_range(ptr);
 
-		   // tuple present and count value < count of reading, update cache
-                if ((*it)->m_maxCount < ptr->m_maxCount)
+		unsigned int max = 0;
+		StorageAssetCacheSetItr maxItr;
+		for(auto r = rangeItr.first; r != rangeItr.second; ++r)
+		{
+			// case where maxcount in cache greater than tuple arg, simply return that itr to cache
+			if ((*r)->m_maxCount > ptr->m_maxCount)
+			{
+				return (*r);
+			}
+			if ((*r)->m_maxCount > max)
+			{
+				max = (*r)->m_maxCount;
+
+				Logger::getLogger()->error("%s:%d, max value = %d", __FILE__, __LINE__, max);
+				maxItr = r;
+			}
+		}
+
+		for(auto r = rangeItr.first; r != rangeItr.second; ++r)
                 {
-			// record to be updated in tuple, delete old one 
-			Logger::getLogger()->debug("%s:%d tuple present and count value < count of reading, update cache, erased dp%s ", __FUNCTION__,  __LINE__, (*it)->m_datapoints.c_str());
 
-	                storageAssetTrackerTuplesCache.erase(it);
-			return NULL;
-                }
-                else if ((*it)->m_maxCount == ptr->m_maxCount)
-                {
-                // case where counts are same but datapoints are different
-                // "a", "b", "c" and "a", "b", "foo"
-                // keep both the records
-        	        if (compareDatapoints(ptr->m_datapoints,(*it)->m_datapoints))
-               		{
-				//  record to be addded 
-				Logger::getLogger()->debug("%s:%d tuple present and case where counts are same but datapoints are different, update cache ", __FUNCTION__,__LINE__);
+		 	// tuple present and its value > count of max in cache, update in cache, remove rest
+			if ( ptr->m_maxCount > max)
+			{
+				Logger::getLogger()->error("%s:%d tuple present and count value < count of reading, update cache, erased dp%s ", __FUNCTION__,  __LINE__, (*it)->m_datapoints.c_str());
 
+				storageAssetTrackerTuplesCache.erase(rangeItr.first, rangeItr.second); 
 				return NULL;
-                	}
-			else
-				return *it;
-                 }
+       		        }
+               
+		       	else if (ptr->m_maxCount == max)
+                	{
+                		// case where counts are same but datapoints are different
+                		// "a", "b", "c" and "a", "b", "foo"
+                		// keep both the records incoming and max already present in cache
+				// delete rest
 
+				// for all the records which have less count than maxItr and incoming, delete
+				if (r != maxItr)
+				{
+					Logger::getLogger()->error("%s:%d ptr->m_maxCount == max",__FILE__, __LINE__);
+					Logger::getLogger()->error("%s:%d erasing record other than maxItr",__FILE__, __LINE__);
+					storageAssetTrackerTuplesCache.erase(r);
+				}
+				else
+				{
+
+					Logger::getLogger()->error("%s:%d ptr->m_maxCount == max, and r = maxItr", __FILE__, __LINE__);
+					// incoming has same count as maximum, check their dps
+					
+					if (compareDatapoints(ptr->m_datapoints,(*r)->m_datapoints))
+					{
+						// dps different however count same , need to update in cache
+						Logger::getLogger()->error("%s:%d ptr->m_maxCount == max different dps", __FILE__, __LINE__);
+						return NULL;
+					}
+					else
+					{
+						// dps same and count also same , dont update
+						Logger::getLogger()->error("%s:%d ptr->m_maxCount == max same dps ", __FILE__, __LINE__);
+						return *maxItr;
+					}
+				}
+			}
+			
+		}		
+				
 		// dont need updation , return pointer to tuple in cache
 		return *it;
 	}

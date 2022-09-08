@@ -535,9 +535,7 @@ void Ingest::processQueue()
                                         for ( auto dp : dpVec)
                                         {
 						temp.clear();
-                                                temp.append("\"");
                                                 temp.append(dp->getName());
-                                                temp.append("\"");
 						tempSet.insert(temp);
                                         }
 
@@ -775,9 +773,7 @@ void Ingest::processQueue()
                                         for ( auto dp : dpVec)
                                         {
 						temp.clear();
-                                                temp.append("\"");
                                                 temp.append(dp->getName());
-                                                temp.append("\"");
                                                 tempSet.insert(temp);
                                         }
                                         temp.clear();

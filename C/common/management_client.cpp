@@ -1743,15 +1743,21 @@ bool ManagementClient::addStorageAssetTrackingTuple(const std::string& service,
 {
 	ostringstream convert;
 
+	std::string d = datapoints;
+	for ( int i = 0; i < datapoints.size(); ++i)
+	{
+		if (d[i] == ',') d.insert(i, "\",\"" );
+		i = i+2;
+	}
+
 	try {
 		convert << "{ \"service\" : \"" << JSONescape(service) << "\", ";
 		convert << " \"plugin\" : \"" << plugin << "\", ";
 		convert << " \"asset\" : \"" << asset << "\", ";
 		convert << " \"event\" : \"" << event << "\", ";
 		convert << " \"deprecated\" :\"" << deprecated << "\", ";
-		convert << " \"data\"  :  { \"datapoints\" : \[ " << datapoints << " \], ";
+		convert << " \"data\"  :  { \"datapoints\" : \[ \"" << d << "\" \], ";
 		convert << " \"count\" : " << count << " } }";
-
 
 		auto res = this->getHttpClient()->request("POST", "/fledge/track", convert.str());
 		Document doc;

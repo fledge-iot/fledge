@@ -15,6 +15,7 @@
 #include <unordered_set>
 #include <asset_tracking.h>
 #include <management_client.h>
+#include <set>
 
 
 /**

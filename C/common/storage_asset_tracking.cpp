@@ -130,7 +130,7 @@ StorageAssetTrackingTuple* StorageAssetTracker::findStorageAssetTrackingCache(St
 		auto rangeItr = storageAssetTrackerTuplesCache.equal_range(ptr);
 
 		unsigned int max = 0;
-		StorageAssetCacheSetItr maxItr;
+		std::set<StorageAssetCacheSetItr> maxItr;
 		for(auto r = rangeItr.first; r != rangeItr.second; ++r)
 		{
 			// case where maxcount in cache greater than tuple arg, simply return that itr to cache
@@ -143,9 +143,18 @@ StorageAssetTrackingTuple* StorageAssetTracker::findStorageAssetTrackingCache(St
 				max = (*r)->m_maxCount;
 
 				Logger::getLogger()->debug("%s:%d, max value = %d", __FILE__, __LINE__, max);
-				maxItr = r;
 			}
 		}
+
+		for(auto r = rangeItr.first; r != rangeItr.second; ++r)
+                {
+			//prepare set of iterators with maxiumum value
+                        if ((*r)->m_maxCount == max)
+                        {
+				maxItr.insert(r);
+                        }
+                }
+
 
 		for(auto r = rangeItr.first; r != rangeItr.second; ++r)
                 {
@@ -167,7 +176,7 @@ StorageAssetTrackingTuple* StorageAssetTracker::findStorageAssetTrackingCache(St
 				// delete rest
 
 				// for all the records which have less count than maxItr and incoming, delete
-				if (r != maxItr)
+				if (maxItr.find(r) == maxItr.end())
 				{
 					storageAssetTrackerTuplesCache.erase(r);
 				}
@@ -184,7 +193,7 @@ StorageAssetTrackingTuple* StorageAssetTracker::findStorageAssetTrackingCache(St
 					else
 					{
 						// dps same and count also same , dont update
-						return *maxItr;
+						return *r;
 					}
 				}
 			}

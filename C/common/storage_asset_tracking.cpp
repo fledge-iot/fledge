@@ -142,7 +142,7 @@ StorageAssetTrackingTuple* StorageAssetTracker::findStorageAssetTrackingCache(St
 			{
 				max = (*r)->m_maxCount;
 
-				Logger::getLogger()->error("%s:%d, max value = %d", __FILE__, __LINE__, max);
+				Logger::getLogger()->debug("%s:%d, max value = %d", __FILE__, __LINE__, max);
 				maxItr = r;
 			}
 		}
@@ -153,7 +153,7 @@ StorageAssetTrackingTuple* StorageAssetTracker::findStorageAssetTrackingCache(St
 		 	// tuple present and its value > count of max in cache, update in cache, remove rest
 			if ( ptr->m_maxCount > max)
 			{
-				Logger::getLogger()->error("%s:%d tuple present and count value < count of reading, update cache, erased dp%s ", __FUNCTION__,  __LINE__, (*it)->m_datapoints.c_str());
+				Logger::getLogger()->debug("%s:%d tuple present and count value < count of reading, update cache, erased dp%s ", __FUNCTION__,  __LINE__, (*it)->m_datapoints.c_str());
 
 				storageAssetTrackerTuplesCache.erase(rangeItr.first, rangeItr.second); 
 				return NULL;
@@ -169,26 +169,21 @@ StorageAssetTrackingTuple* StorageAssetTracker::findStorageAssetTrackingCache(St
 				// for all the records which have less count than maxItr and incoming, delete
 				if (r != maxItr)
 				{
-					Logger::getLogger()->error("%s:%d ptr->m_maxCount == max",__FILE__, __LINE__);
-					Logger::getLogger()->error("%s:%d erasing record other than maxItr",__FILE__, __LINE__);
 					storageAssetTrackerTuplesCache.erase(r);
 				}
 				else
 				{
 
-					Logger::getLogger()->error("%s:%d ptr->m_maxCount == max, and r = maxItr", __FILE__, __LINE__);
 					// incoming has same count as maximum, check their dps
 					
 					if (compareDatapoints(ptr->m_datapoints,(*r)->m_datapoints))
 					{
 						// dps different however count same , need to update in cache
-						Logger::getLogger()->error("%s:%d ptr->m_maxCount == max different dps", __FILE__, __LINE__);
 						return NULL;
 					}
 					else
 					{
 						// dps same and count also same , dont update
-						Logger::getLogger()->error("%s:%d ptr->m_maxCount == max same dps ", __FILE__, __LINE__);
 						return *maxItr;
 					}
 				}

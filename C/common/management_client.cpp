@@ -1855,7 +1855,7 @@ std::vector<StorageAssetTrackingTuple*>& ManagementClient::getStorageAssetTracki
 
 					if (dataVal.ObjectEmpty())
 					{
-						m_logger->error("%s:%d dataVal  Object empty " , __FUNCTION__, __LINE__);
+						m_logger->debug("%s:%d dataVal Object empty " , __FUNCTION__, __LINE__);
 						continue;
 					}
 

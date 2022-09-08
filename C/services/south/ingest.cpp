@@ -843,7 +843,7 @@ void Ingest::processQueue()
                                                                               itr.first,
                                                                               "store", false, dp, c+1);
 
-						Logger::getLogger()->error("%s  Dp string dp = %s", __FUNCTION__, dp.c_str());
+						Logger::getLogger()->debug("%s  Dp string dp = %s", __FUNCTION__, dp.c_str());
 
                                   		StorageAssetTrackingTuple* rv = satracker->findStorageAssetTrackingCache(storageTuple);
 

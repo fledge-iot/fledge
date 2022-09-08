@@ -3718,6 +3718,6 @@ bool Connection::processJoinQueryWhereClause(const Value& query, SQLBuffer& sql,
  */
 bool Connection::createSchema(const std::string &schema)
 {
-	m_schemaManager->create(dbHandle, schema);
+	return m_schemaManager->create(dbHandle, schema);
 }
 #endif

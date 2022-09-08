@@ -130,7 +130,7 @@ StorageAssetTrackingTuple* StorageAssetTracker::findStorageAssetTrackingCache(St
 		auto rangeItr = storageAssetTrackerTuplesCache.equal_range(ptr);
 
 		unsigned int max = 0;
-		std::set<StorageAssetCacheSetItr> maxItr;
+		std::set<StorageAssetCacheSetItr, StorageAssetCacheSetItrCmp> maxItr;
 		for(auto r = rangeItr.first; r != rangeItr.second; ++r)
 		{
 			// case where maxcount in cache greater than tuple arg, simply return that itr to cache

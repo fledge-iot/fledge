@@ -83,6 +83,18 @@ namespace std
 
 class ManagementClient;
 
+typedef std::unordered_multiset<StorageAssetTrackingTuple*, std::hash<StorageAssetTrackingTuple*>, StorageAssetTrackingTuplePtrEqual> StorageAssetCacheSet;
+
+typedef std::unordered_multiset<StorageAssetTrackingTuple*, std::hash<StorageAssetTrackingTuple*>, StorageAssetTrackingTuplePtrEqual>::iterator StorageAssetCacheSetItr;
+
+struct StorageAssetCacheSetItrCmp{
+
+	bool operator ()(StorageAssetCacheSetItr x, StorageAssetCacheSetItr y)
+	{
+		return x != y;
+	}
+
+};
 /**
  * The StorageAssetTracker class provides the asset tracking functionality.
  * There are methods to populate asset tracking cache from asset_tracker DB table,
@@ -109,9 +121,6 @@ private:
 	std::string			m_service;
 	std::string			m_event;
 
-	typedef std::unordered_multiset<StorageAssetTrackingTuple*, std::hash<StorageAssetTrackingTuple*>, StorageAssetTrackingTuplePtrEqual> StorageAssetCacheSet;
-
-	typedef std::unordered_multiset<StorageAssetTrackingTuple*, std::hash<StorageAssetTrackingTuple*>, StorageAssetTrackingTuplePtrEqual>::iterator StorageAssetCacheSetItr;
 	StorageAssetCacheSet storageAssetTrackerTuplesCache;
 };
 

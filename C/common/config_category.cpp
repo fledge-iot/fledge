@@ -505,6 +505,15 @@ bool ConfigCategory::setItemAttribute(const string& itemName,
 				case FILE_ATTR:
 					m_items[i]->m_file = value;
 					return true;
+				case MINIMUM_ATTR:
+					m_items[i]->m_minimum = value;
+					return true;
+				case MAXIMUM_ATTR:
+					m_items[i]->m_maximum = value;
+					return true;
+				case LENGTH_ATTR:
+					m_items[i]->m_length = value;
+					return true;
 				default:
 					return false;
 			}

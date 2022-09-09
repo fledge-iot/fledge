@@ -34,8 +34,17 @@ pi_passwd = args["pi_passwd"]
 pi_db = args["pi_db"]
 asset_name = args["asset_name"]
 
-af_hierarchy_level = "PIlab/PIlablvl1/PIlablvl2"
+af_hierarchy_level = "PIlabSinelvl1/PIlabSinelvl2/PIlabSinelvl3"
 af_hierarchy_level_list = af_hierarchy_level.split("/")
 
 clear_pi_system_pi_web_api(pi_host, pi_admin, pi_passwd, pi_db, af_hierarchy_level_list,
-                           {asset_name: [asset_name, '']})
+                           {asset_name: ['sinusoid', '', 'max', 'square'],
+                            'e_accelerometer': ['', 'x', 'y', 'z'],
+                            'e_magnetometer': ['', 'x', 'y', 'z'],
+                            'e_rgb': ['', 'b', 'g', 'r'],
+                            'e_weather': ['', 'altitude', 'temperature', 'pressure', 'temp_fahr'],
+                            'randomwalk': ['', 'randomwalk', 'ema'],
+                            'randomwalk1': ['', 'randomwalk', 'ema'],
+                            'positive_sine': ['', 'description', 'event', 'rule'],
+                            'negative_sine': ['', 'description', 'event', 'rule'],
+                            'sin0.8': ['', 'description', 'event', 'rule']})

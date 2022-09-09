@@ -185,15 +185,29 @@ async def get_datapoint_usage(request: web.Request) -> web.Response:
         results = await storage_client.query_tbl_with_payload('asset_tracker', q_payload)
 
         total_datapoints = 0
+        asset_info_list = []
         for row in results["rows"]:
             # The no of datapoints for this asset.
-            total_datapoints += int(row['data']['count'])
+            asset_name = row["asset"]
             # Construct a dict that contains information about a single asset.
             dict_to_add = {"asset": row["asset"], "datapoints": row["data"]["datapoints"]}
             # appending information of single asset to the asset information list.
-            response["assets"].append(dict_to_add)
+            asset_found = False
+            index_of_asset = 0
+            for (idx, asset_info) in enumerate(asset_info_list):
+                if 'asset' in asset_info and asset_info['asset'] == asset_name:
+                    asset_found = True
+                    index_of_asset = idx
+            if asset_found:
+                if len(dict_to_add['datapoints']) < len(asset_info_list[index_of_asset]['datapoints']):
+                    dict_to_add['datapoints'] = asset_info_list[index_of_asset]['datapoints']
+
+            asset_info_list.append(dict_to_add)
 
         # finally update the total count in the main dict.
+        for asset_info in asset_info_list:
+            total_datapoints += len(asset_info['datapoints'])
+        response['assets'] = asset_info_list
         response["count"] = total_datapoints
 
     except KeyError as msg:

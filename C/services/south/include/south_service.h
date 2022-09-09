@@ -94,6 +94,7 @@ class SouthService : public ServiceAuthHandler {
 		std::string			m_dataKey;
 		bool				m_dryRun;
 		bool				m_requestRestart;
+		std::string			m_rateUnits;
 		StorageAssetTracker             *m_storageAssetTracker;
 
 };

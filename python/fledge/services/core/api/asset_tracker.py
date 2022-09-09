@@ -190,8 +190,11 @@ async def get_datapoint_usage(request: web.Request) -> web.Response:
             # The no of datapoints for this asset.
             asset_name = row["asset"]
             # Construct a dict that contains information about a single asset.
-            dict_to_add = {"asset": row["asset"], "datapoints": row["data"]["datapoints"]}
+            current_count = int(row["data"]["count"])
+            dict_to_add = {"asset": row["asset"], "datapoints": row["data"]["datapoints"], 'count': current_count}
             # appending information of single asset to the asset information list.
+
+            # now find that this is a new asset or not.
             asset_found = False
             index_of_asset = 0
             for (idx, asset_info) in enumerate(asset_info_list):
@@ -199,14 +202,24 @@ async def get_datapoint_usage(request: web.Request) -> web.Response:
                     asset_found = True
                     index_of_asset = idx
             if asset_found:
-                if len(dict_to_add['datapoints']) < len(asset_info_list[index_of_asset]['datapoints']):
-                    dict_to_add['datapoints'] = asset_info_list[index_of_asset]['datapoints']
+                # If current data point count exceed the maximum data point then replace
+                # this new data point information else do nothing
+                if current_count >= asset_info_list[index_of_asset]['count']:
+                    asset_info_list.pop(index_of_asset)
+                    asset_info_list.append(dict_to_add)
+            else:
+                # This is a new asset simply add to list.
+                asset_info_list.append(dict_to_add)
 
-            asset_info_list.append(dict_to_add)
-
-        # finally update the total count in the main dict.
+        # finally calculate the total data points
         for asset_info in asset_info_list:
-            total_datapoints += len(asset_info['datapoints'])
+            total_datapoints += int(asset_info['count'])
+
+        # Remove count for each asset_info
+        for ast_info in asset_info_list:
+            ast_info.pop('count')
+
+        # update the required information.
         response['assets'] = asset_info_list
         response["count"] = total_datapoints
 

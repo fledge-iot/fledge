@@ -1620,15 +1620,28 @@ class Server:
 
     @classmethod
     async def add_track(cls, request):
+
         data = await request.json()
+
         if not isinstance(data, dict):
             raise ValueError('Data payload must be a dictionary')
 
+        jsondata=data.get("data")
+
         try:
-            result = await cls._asset_tracker.add_asset_record(asset=data.get("asset"),
-                                                               plugin=data.get("plugin"),
-                                                               service=data.get("service"),
-                                                               event=data.get("event"))
+            if jsondata is None:
+
+                result = await cls._asset_tracker.add_asset_record(asset=data.get("asset"),
+                                                                   plugin=data.get("plugin"),
+                                                                   service=data.get("service"),
+                                                                   event=data.get("event"))
+            else:
+                result = await cls._asset_tracker.add_asset_record(asset=data.get("asset"),
+                                                                   plugin=data.get("plugin"),
+                                                                   service=data.get("service"),
+                                                                   event=data.get("event"),
+                                                                   jsondata=data.get("data"))
+                                                                   
         except (TypeError, StorageServerError) as ex:
             raise web.HTTPBadRequest(reason=str(ex))
         except ValueError as ex:

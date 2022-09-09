@@ -384,6 +384,7 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		}
 
 		m_assetTracker = new AssetTracker(m_mgtClient, m_name);
+		m_storageAssetTracker = new StorageAssetTracker(m_mgtClient, m_name);
 
 		{
 		// Instantiate the Ingest class
@@ -434,6 +435,7 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 					dividend = 60000000;
 				else if (units.compare("hour") == 0)
 					dividend = 3600000000;
+				m_rateUnits = units;
 				unsigned long usecs = dividend / m_readingsPerSec;
 
 				if (usecs > MAX_SLEEP * 1000000)
@@ -668,6 +670,10 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
  */
 void SouthService::stop()
 {
+	if (m_storageAssetTracker)
+	{
+		m_storageAssetTracker->releaseStorageAssetTracker();
+	}
 	logger->info("Stopping south service...\n");
 }
 
@@ -841,9 +847,10 @@ void SouthService::configChange(const string& categoryName, const string& catego
 					dividend = 60000000;
 				else if (units.compare("hour") == 0)
 					dividend = 3600000000;
-				if (newval != m_readingsPerSec)
+				if (newval != m_readingsPerSec || m_rateUnits.compare(units) != 0)
 				{
 					m_readingsPerSec = newval;
+					m_rateUnits = units;
 					close(m_timerfd);
 					unsigned long usecs = dividend / m_readingsPerSec;
 					if (usecs > MAX_SLEEP * 1000000)

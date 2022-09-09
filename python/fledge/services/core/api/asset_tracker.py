@@ -195,17 +195,17 @@ async def get_datapoint_usage(request: web.Request) -> web.Response:
             # appending information of single asset to the asset information list.
 
             # now find that this is a new asset or not.
-            asset_found = False
-            index_of_asset = 0
+            # Initialize index_of_found_asset by -1 . -1 means not found.
+            index_of_found_asset = -1
             for (idx, asset_info) in enumerate(asset_info_list):
                 if 'asset' in asset_info and asset_info['asset'] == asset_name:
-                    asset_found = True
-                    index_of_asset = idx
-            if asset_found:
+                    index_of_found_asset = idx
+
+            if index_of_found_asset != -1:
                 # If current data point count exceed the maximum data point then replace
                 # this new data point information else do nothing
-                if current_count >= asset_info_list[index_of_asset]['count']:
-                    asset_info_list.pop(index_of_asset)
+                if current_count >= asset_info_list[index_of_found_asset]['count']:
+                    asset_info_list.pop(index_of_found_asset)
                     asset_info_list.append(dict_to_add)
             else:
                 # This is a new asset simply add to list.

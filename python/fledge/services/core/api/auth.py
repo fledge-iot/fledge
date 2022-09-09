@@ -75,6 +75,13 @@ class OTT:
         pass
 
 
+def remove_ott_for_user(user_id):
+    for k, v in OTT.OTT_MAP.items():
+        if v[0] == user_id:
+            OTT.OTT_MAP.pop(k)
+            break
+
+
 async def login(request):
     """ Validate user with its username and password
 
@@ -263,10 +270,8 @@ async def logout(request):
             raise web.HTTPNotFound()
 
         # Remove OTT token for this user if there.
-        for k, v in OTT.OTT_MAP.items():
-            if v[0] == user_id:
-                OTT.OTT_MAP.pop(k)
-                break
+        remove_ott_for_user(user_id)
+
         _logger.info("User with id:<{}> has been logged out successfully".format(int(user_id)))
     else:
         # requester is not an admin but trying to take action for another user
@@ -542,10 +547,7 @@ async def update_user(request):
             user_info = await User.Objects.get(uid=user_id)
 
         # Remove OTT token for this user if there.
-        for k, v in OTT.OTT_MAP.items():
-            if v[0] == user_id:
-                OTT.OTT_MAP.pop(k)
-                break
+        remove_ott_for_user(user_id)
 
     except ValueError as err:
         msg = str(err)
@@ -606,10 +608,7 @@ async def update_password(request):
         await User.Objects.update(int(user_id), {'password': new_password})
 
         # Remove OTT token for this user if there.
-        for k, v in OTT.OTT_MAP.items():
-            if v[0] == user_id:
-                OTT.OTT_MAP.pop(k)
-                break
+        remove_ott_for_user(user_id)
 
     except ValueError as ex:
         _logger.warning(str(ex))
@@ -738,10 +737,7 @@ async def reset(request):
         await User.Objects.update(user_id, user_data)
 
         # Remove OTT token for this user if there.
-        for k, v in OTT.OTT_MAP.items():
-            if v[0] == user_id:
-                OTT.OTT_MAP.pop(k)
-                break
+        remove_ott_for_user(user_id)
 
     except ValueError as ex:
         _logger.warning(str(ex))
@@ -798,10 +794,7 @@ async def delete_user(request):
             raise User.DoesNotExist
 
         # Remove OTT token for this user if there.
-        for k, v in OTT.OTT_MAP.items():
-            if v[0] == user_id:
-                OTT.OTT_MAP.pop(k)
-                break
+        remove_ott_for_user(user_id)
 
     except ValueError as ex:
         _logger.warning(str(ex))

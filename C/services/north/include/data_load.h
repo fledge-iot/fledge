@@ -37,6 +37,7 @@ class DataLoad : public ServiceHandler {
 		static void		pipelineEnd(OUTPUT_HANDLE *outHandle,
 						READINGSET* readings);
 		void			shutdown();
+		void			restart();
 		bool			isRunning() { return !m_shutdown; };
 		void			configChange(const std::string& category, const std::string& newConfig);
 		void			configChildCreate(const std::string& , const std::string&, const std::string&){};

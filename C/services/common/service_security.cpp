@@ -5,6 +5,7 @@
 #include <config_handler.h>
 #include <server_http.hpp>
 #include <rapidjson/error/en.h>
+#include <acl.h>
 
 #define TO_STRING(...) DEFER(TO_STRING_)(__VA_ARGS__)
 #define DEFER(x) x
@@ -25,7 +26,7 @@ ManagementClient *ServiceAuthHandler::m_mgtClient = NULL;
  * Create "${service}Security" category with empty content
  *
  * @param mgtClient	The management client object
- * @param dryRun	Dryrun so do not register interest inthe category
+ * @param dryRun	Dryrun so do not register interest in the category
  * @return		True on success, False otherwise
  */
 bool ServiceAuthHandler::createSecurityCategories(ManagementClient* mgtClient, bool dryRun)
@@ -36,12 +37,21 @@ bool ServiceAuthHandler::createSecurityCategories(ManagementClient* mgtClient, b
 	// All services add 'AuthenticatedCaller' item
 	// Add AuthenticatedCaller item, set to "false"
 	defConfigSecurity.addItem("AuthenticatedCaller",
-				"Security config params",
+				"Security enable parameter",
 				"boolean",
-				"false",
-				"false");
+				// For dispatcher set default = true
+				this->getType() == "Dispatcher" ? "true" : "false", // Default
+				"false"); // Value
 	defConfigSecurity.setItemDisplayName("AuthenticatedCaller",
 				"Enable caller authorisation");
+
+	defConfigSecurity.addItem("ACL",
+				"Service ACL for " + m_name,
+				"ACL",
+				"",  // Default
+				""); // Value
+	defConfigSecurity.setItemDisplayName("ACL",
+				"Service ACL");
 
 	// Create/Update category name (we pass keep_original_items=true)
 	mgtClient->addCategory(defConfigSecurity, true);
@@ -71,6 +81,13 @@ bool ServiceAuthHandler::createSecurityCategories(ManagementClient* mgtClient, b
 		configHandler->registerCategory(this, m_name + "Security");
 	}
 
+	// Load ACL given the value of 'acl' type item: i.e.
+	string acl_name = m_security.getValue("ACL");
+	if (!acl_name.empty())
+	{
+		m_service_acl = m_mgtClient->getACL(acl_name);
+	}
+
 	// Start thread for automatic bearer token refresh, before expiration
 	if (this->getType() != "Southbound" && dryRun == false)
 	{
@@ -94,6 +111,10 @@ bool ServiceAuthHandler::updateSecurityCategory(const string& category)
 
 	m_security = ConfigCategory(m_name + "Security", category);
 	bool acl_set = false;
+
+	// Note: as per FOGL-6612
+	// Only AuthenticatedCaller will be handled in Security category change notification
+	// ACL update is made via security change service handler 
 	// Check for AuthenticatedCaller main switch
 	if (m_security.itemExists("AuthenticatedCaller"))
 	{
@@ -166,11 +187,10 @@ bool ServiceAuthHandler::verifyURL(const string& path,
 				const string& serviceName,
 				const string& serviceType)
 {
-	Document doc;
- 
-	// Parse security config with lock
+	// Check config with lock
 	unique_lock<mutex> cfgLock(m_mtx_config);
 
+	// Check m_security category item ACL is set
 	string acl;
 	if (this->m_security.itemExists("ACL"))
 	{
@@ -180,86 +200,55 @@ bool ServiceAuthHandler::verifyURL(const string& path,
 
 	if (acl.empty())
 	{
+		Logger::getLogger()->debug("verifyURL '%s', type '%s', "
+					"the ACL is not set: allow any URL from any service type",
+					serviceName.c_str(),
+					serviceType.c_str());
 		return true;
 	}
 
-	doc.Parse(acl.c_str());
-
-	// Check
-	if (doc.HasParseError())
+	const vector<ACL::UrlItem>& arrayURL = this->m_service_acl.getURL();
+	if (arrayURL.size() == 0)
 	{
-		Logger::getLogger()->error("Failed to parse ACL JSON data: %s. Document is %s",
-				GetParseError_En(doc.GetParseError()),
-				acl.c_str());
-		return false;
-	}
-
-	Value arrayURL;
-	if (!this->m_security.itemExists("url"))
-	{
+		Logger::getLogger()->debug("verifyURL '%s', type '%s', "
+					"the URL array is empty: allow any URL from any service type",
+					serviceName.c_str(),
+					serviceType.c_str());
 		return true;
 	}
 
-	if (!doc["url"].IsArray())
-	{
-		return false;
-	}
-
-	arrayURL = doc["url"];
-	if (arrayURL.Size() == 0)
-	{
-		return true;
-	}
-
-	if (arrayURL.Size() > 0)
+	if (arrayURL.size() > 0)
 	{
 		bool typeMatched = false;
 		bool URLMatched = false;
 
-		for (Value::ConstValueIterator it = arrayURL.Begin();
-		     it != arrayURL.End();
-		     ++it)
-
+		// Check URL value
+		for (auto it = arrayURL.begin(); it != arrayURL.end(); ++it)
 		{
-			if (it->IsObject())
+			string configURL = (*it).url;
+			// Request path matches configured URLs
+			if (configURL != "" && configURL == path)
 			{
-				if (it->HasMember("url") && (*it)["url"].IsString())
+				URLMatched = true;
+			}
+
+			vector<ACL::KeyValueItem> aclServices = (*it).acl;
+			if (URLMatched && aclServices.size() == 0)
+			{
+				Logger::getLogger()->debug("verifyURL '%s', type '%s', "
+					"the URL '%s' has no ACL : allow any service type",
+					serviceName.c_str(),
+					serviceType.c_str());
+				return true;
+			}
+			for (auto iS = aclServices.begin();
+			    	  iS != aclServices.end();
+				  ++iS)
+			{
+				if ((*iS).key == "type" && (*iS).value == serviceType)
 				{
-					string configURL = (*it)["url"].GetString();
-					// Request path matches configured URLs
-					if (configURL != "" && configURL == path)
-					{
-						URLMatched = true;
-					}
-				}
-				if (URLMatched)
-				{
-					if (it->HasMember("acl") && (*it)["acl"].IsArray())
-					{
-						auto arrayServices = (*it)["acl"].GetArray();
-						if (arrayServices.Size() == 0)
-						{
-							return true;
-						}
-						for (Value::ConstValueIterator iS = arrayServices.Begin();
-									     iS != arrayServices.End();
-									     ++iS)
-						{
-							if (iS->IsObject())
-							{
-								if (iS->HasMember("type") &&
-								    (*iS)["type"].IsString())
-								{
-									string type = (*iS)["type"].GetString();
-									if (type == serviceType)
-									{
-										typeMatched = true;
-										break;
-									}
-								}
-							}
-						}
-					}
+					typeMatched = true;
+					break;
 				}
 			}
 		}
@@ -286,14 +275,10 @@ bool ServiceAuthHandler::verifyURL(const string& path,
  */
 bool ServiceAuthHandler::verifyService(const string& sName, const string &sType)
 {
-	// Check m_security category item ACL value service array
-	Document doc;
-	Value arrayService;
-
-	// Parse security config with lock
+	// Check config with lock
 	unique_lock<mutex> cfgLock(m_mtx_config);
 
-	// TODO make use of m_service_acl instead of category as per FOGL-6612
+	// Check m_security category item ACL is set
 	string acl;
 	if (this->m_security.itemExists("ACL"))
 	{
@@ -310,69 +295,32 @@ bool ServiceAuthHandler::verifyService(const string& sName, const string &sType)
 		return true;
 	}
 
-	doc.Parse(acl.c_str());
-
-	// Check
-	if (doc.HasParseError())
+	vector<ACL::KeyValueItem> aclServices = this->m_service_acl.getService();
+	if (aclServices.size() == 0)
 	{
-		Logger::getLogger()->error("Failed to parse ACL JSON data: %s. Document is %s",
-				GetParseError_En(doc.GetParseError()),
-				acl.c_str());
-		return false;
-	}
-	if (!doc["service"].IsArray())
-	{
-		Logger::getLogger()->error("verifyService '%s', type '%s', in ACL '%s' "
-					", 'service' item is not an array",
-					sName.c_str(),
-					sType.c_str(),
-					acl.c_str());
-		return false;
-	}
-
-	arrayService = doc["service"];
-	if (arrayService.Size() == 0)
-	{
-		Logger::getLogger()->debug("verifyService '%s', type '%s', in ACL 'service' "
-					"item is empty: allow any service",
+		Logger::getLogger()->debug("verifyService '%s', type '%s', " \
+					"has an empty ACL service array: allow any service",
 					sName.c_str(),
 					sType.c_str());
 		return true;
 	}
 
-	if (arrayService.Size() > 0)
+	if (aclServices.size() > 0)
 	{
 		bool serviceMatched = false;
 		bool typeMatched = false;
 
-		for (Value::ConstValueIterator it = arrayService.Begin();
-		     it != arrayService.End();
-		     ++it)
-
+		for (auto it = aclServices.begin(); it != aclServices.end(); ++it)
 		{
-			if (it->IsObject())
+			if ((*it).key == "name" && (*it).value == sName)
 			{
-				if (it->HasMember("name") &&
-				    (*it)["name"].IsString())
-				{
-					string name = (*it)["name"].GetString();
-					if (name == sName)
-					{
-						serviceMatched = true;
-						break;
-					}
-				}
-
-				if (it->HasMember("type") &&
-				    (*it)["type"].IsString())
-				{
-					string type = (*it)["type"].GetString();
-					if (type == sType)
-					{
-						typeMatched = true;
-						break;
-					}
-				}
+				serviceMatched = true;
+				break;
+			}
+			if ((*it).key == "type" && (*it).value == sType)
+			{
+				typeMatched = true;
+				break;
 			}
 		}
 
@@ -658,7 +606,7 @@ void ServiceAuthHandler::refreshBearerToken()
 			{
 				Logger::getLogger()->warn("Service is being shut down " \
 						"due to bearer token refresh error");
-				this->shutdown();
+				this->restart();
 				break;
 			}
 		}
@@ -771,4 +719,53 @@ static void bearer_token_refresh_thread(void *data)
 {
 	ServiceAuthHandler *service = (ServiceAuthHandler *)data;
 	service->refreshBearerToken();
+}
+
+/**
+ * Request security change action:
+ *
+ * Given a reason code, “attachACL”, “detachACL”, “reloadACL”, “updateACL”
+ * in 'reason' atribute, the ACL name in 'argument' could be
+ * attached, detached or reloaded
+ *
+ * @param payload	The JSON document with 'reason' and 'argument' 
+ * @retun 		True on success
+ */
+bool ServiceAuthHandler::securityChange(const string& payload)
+{
+	// Parse JSON data
+	ACL::ACLReason reason(payload);
+
+	Logger::getLogger()->debug("Reason is %s, argument %s",
+				reason.getReason().c_str(),
+				reason.getArgument().c_str());
+
+	string r = reason.getReason();
+
+	// Lock config
+	lock_guard<mutex> cfgLock(m_mtx_config);
+
+	if (r == "attachACL")
+	{
+		// Fetch and load ACL
+		m_service_acl = m_mgtClient->getACL(reason.getArgument());
+	}
+	else if (r == "reloadACL" || r == "updateACL")
+	{
+		// Fetch and load new or updated ACL
+		m_service_acl = m_mgtClient->getACL(reason.getArgument());
+	}
+	else if (r == "detachACL")
+	{
+		m_service_acl = ACL();
+	}
+	else
+	{
+		// Error
+		Logger::getLogger()->error("Reason '%s' is not supported",
+					reason.getReason().c_str());
+		return false;
+	}
+
+	return true;
 }

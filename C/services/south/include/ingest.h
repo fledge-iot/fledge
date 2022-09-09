@@ -69,6 +69,7 @@ public:
 	void		configChildCreate(const std::string& , const std::string&, const std::string&){};
 	void		configChildDelete(const std::string& , const std::string&){};
 	void		shutdown() {};	// Satisfy ServiceHandler
+	void		restart() {};	// Satisfy ServiceHandler
 	void		unDeprecateAssetTrackingRecord(AssetTrackingTuple* currentTuple,
 							const std::string& assetName,
 							const std::string& event);

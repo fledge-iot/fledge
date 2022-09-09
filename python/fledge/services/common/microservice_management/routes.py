@@ -43,6 +43,7 @@ def setup(app, obj, is_core=False):
         # Service Registration
         app.router.add_route('POST', '/fledge/service', obj.register)
         app.router.add_route('DELETE', '/fledge/service/{service_id}', obj.unregister)
+        app.router.add_route('PUT', '/fledge/service/{service_id}/restart', obj.restart_service)
         app.router.add_route('GET', '/fledge/service', obj.get_service)
         app.router.add_route('GET', '/fledge/service/authtoken', obj.get_auth_token)
 
@@ -69,6 +70,8 @@ def setup(app, obj, is_core=False):
 
         # Service token refresh
         app.router.add_route('POST', '/fledge/service/refresh_token', obj.refresh_token)
+
+        app.router.add_route('GET', '/fledge/ACL/{acl_name}', obj.get_control_acl)
 
         # Proxy API setup for a microservice
         proxy.setup(app)

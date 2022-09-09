@@ -31,6 +31,7 @@ CSV_HEADERS = "ivalue"
 CSV_DATA = "10,20,21,40"
 
 NORTH_TASK_NAME = "NorthReadingsTo_PI"
+remote_asset_name = "fogpair_playback"
 
 
 class TestE2eFogPairPi:
@@ -92,7 +93,8 @@ class TestE2eFogPairPi:
     @pytest.fixture
     def start_south_north_remote(self, reset_and_start_fledge_remote, use_pip_cache, remote_user,
                                  key_path, remote_fledge_path, remote_ip, south_branch,
-                                 start_north_pi_server_c, pi_host, pi_port, pi_token):
+                                 start_north_pi_server_c, pi_host, pi_port, pi_token,
+                                 clear_pi_system_through_pi_web_api, pi_admin, pi_passwd, pi_db):
         """Fixture that starts south and north plugins on remote machine
                 reset_and_start_fledge_remote: Fixture that kills fledge, reset database and starts fledge again on a remote machine
                 use_pip_cache: flag to tell whether to use python's pip cache for python dependencies
@@ -104,6 +106,14 @@ class TestE2eFogPairPi:
                 pi_host: Host IP of PI machine
                 pi_token: Token of connector relay of PI
             """
+
+        # No need to give asset hierarchy in case of connector relay.
+        # There are two data points here. 1. ivalue 2. No data point (Asset name is will be used).
+        dp_list = ['ivalue', '']
+        asset_dict = {}
+        asset_dict[remote_asset_name] = dp_list
+        clear_pi_system_through_pi_web_api(pi_host, pi_admin, pi_passwd, pi_db,
+                                           [], asset_dict)
 
         if remote_fledge_path is None:
             remote_fledge_path = '/home/{}/fledge'.format(remote_user)

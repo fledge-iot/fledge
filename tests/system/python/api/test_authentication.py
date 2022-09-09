@@ -53,7 +53,7 @@ class TestAuthenticationAPI:
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert "Logged in successfully" == jdoc['message']
+        assert "Logged in successfully." == jdoc['message']
         assert "token" in jdoc
         assert not jdoc['admin']
         global TOKEN
@@ -75,7 +75,7 @@ class TestAuthenticationAPI:
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert "Logged in successfully" == jdoc['message']
+        assert "Logged in successfully." == jdoc['message']
         assert "token" in jdoc
         assert jdoc['admin']
         global TOKEN
@@ -302,7 +302,7 @@ class TestAuthenticationAPI:
             assert 200 == r.status
             r = r.read().decode()
             jdoc = json.loads(r)
-            assert "Logged in successfully" == jdoc['message']
+            assert "Logged in successfully." == jdoc['message']
             assert "token" in jdoc
             assert not jdoc['admin']
 
@@ -315,7 +315,7 @@ class TestAuthenticationAPI:
             assert 200 == r.status
             r = r.read().decode()
             jdoc = json.loads(r)
-            assert "Logged in successfully" == jdoc['message']
+            assert "Logged in successfully." == jdoc['message']
             assert "token" in jdoc
             assert jdoc['admin']
 
@@ -337,7 +337,7 @@ class TestAuthenticationAPI:
             assert 200 == r.status
             r = r.read().decode()
             jdoc = json.loads(r)
-            assert "Logged in successfully" == jdoc['message']
+            assert "Logged in successfully." == jdoc['message']
             assert "token" in jdoc
             assert not jdoc['admin']
 

@@ -172,11 +172,11 @@ fi
 mkdir services
 
 cat > services/index.rst << EOFSERVICES
-*********************
-Service Documentation
-*********************
+*******************
+Additional Services
+*******************
 
-The following external services are currently available to extend the functionality of Fledge.
+The following additional services are currently available to extend the functionality of Fledge. These are optional services not installed as part of the base Fledge installation.
 
 .. toctree::
 

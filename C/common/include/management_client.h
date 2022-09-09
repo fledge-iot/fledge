@@ -23,6 +23,7 @@
 #include <json_utils.h>
 #include <thread>
 #include <bearer_token.h>
+#include <acl.h>
 
 using HttpClient = SimpleWeb::Client<SimpleWeb::HTTP>;
 using HttpServer = SimpleWeb::Server<SimpleWeb::HTTP>;
@@ -43,6 +44,7 @@ class ManagementClient {
 		~ManagementClient();
 		bool 			registerService(const ServiceRecord& service);
 		bool 			unregisterService();
+		bool 			restartService();
 		bool 			getService(ServiceRecord& service);
 		bool			getServices(std::vector<ServiceRecord *>& services);
 		bool			getServices(std::vector<ServiceRecord *>& services, const std::string& type);
@@ -92,6 +94,7 @@ class ManagementClient {
 						std::vector<std::pair<std::string, std::string> > >& endpoints);
 		bool			deleteProxy(const std::string& serviceName);
 		const std::string 	getUrlbase() { return m_urlbase.str(); }
+        ACL			getACL(const std::string& aclName);
 		AssetTrackingTuple*	getAssetTrackingTuple(const std::string& serviceName,
 								const std::string& assetName,
 								const std::string& event);

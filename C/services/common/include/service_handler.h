@@ -1,7 +1,7 @@
 #ifndef _SERVICE_HANDLER_H
 #define _SERVICE_HANDLER_H
 /*
- * Fledge storage service.
+ * Fledge service class
  *
  * Copyright (c) 2017 OSisoft, LLC
  *
@@ -21,10 +21,12 @@ class ServiceHandler
 {
 	public:
 		virtual void	shutdown() = 0;
+		virtual void	restart() = 0;
 		virtual void	configChange(const std::string& category, const std::string& config) = 0;
 		virtual void	configChildCreate(const std::string& parent_category, const std::string& category, const std::string& config) = 0;
 		virtual void	configChildDelete(const std::string& parent_category, const std::string& category) = 0;
 		virtual bool	isRunning() = 0;
+		virtual bool	securityChange(const std::string &payload) { return payload.empty(); };
 };
 
 /**
@@ -78,6 +80,7 @@ class ServiceAuthHandler : public ServiceHandler
 				};
 		static ManagementClient *
 				getMgmtClient() { return m_mgtClient; };
+		bool		securityChange(const std::string &payload);
 
 	private:
 		bool		verifyURL(const std::string& path,
@@ -97,9 +100,11 @@ class ServiceAuthHandler : public ServiceHandler
 		// Security configuration change mutex
 		std::mutex	m_mtx_config;
 		// Authentication is enabled for API endpoints
-		bool			m_authentication_enabled;
+		bool		m_authentication_enabled;
 		// Security configuration
 		ConfigCategory	m_security;
+		// Service ACL
+		ACL		m_service_acl;
 };
 
 #endif

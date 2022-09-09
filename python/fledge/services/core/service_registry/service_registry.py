@@ -156,6 +156,17 @@ class ServiceRegistry:
         return service_id
 
     @classmethod
+    def restart(cls, service_id):
+        """ restart the service instance
+
+        :param service_id: a uuid of registered service
+        :return: service_id on successful deregistration
+        """
+        expunged_service = cls._expunge(service_id, ServiceRecord.Status.Restart)
+        cls._logger.info("Restart requested {}".format(str(expunged_service)))
+        return service_id
+
+    @classmethod
     def mark_as_failed(cls, service_id):
         """ marks the service instance as failed
 

@@ -17,6 +17,7 @@
 #include <ingest.h>
 #include <filter_plugin.h>
 #include <plugin_data.h>
+#include <storage_asset_tracking.h>
 
 #define MAX_SLEEP	5		// Maximum number of seconds the service will sleep during a poll cycle
 
@@ -94,5 +95,7 @@ class SouthService : public ServiceAuthHandler {
 		bool				m_dryRun;
 		bool				m_requestRestart;
 		std::string			m_rateUnits;
+		StorageAssetTracker             *m_storageAssetTracker;
+
 };
 #endif

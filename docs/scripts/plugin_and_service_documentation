@@ -3,7 +3,7 @@
 # The best default branch to use develop rather than master. As new repository do not have a branch called master any more and having main branch only.
 if [[ "${DOCBRANCH}" == "" ]]; then
     # NOTE: During release time we need to replace develop and nightly build with actual released version
-    export DOCBRANCH=develop
+    export DOCBRANCH=2.0.0RC
     export ARCHIVE_BUILD=nightly
 else
     # only for dev purpose

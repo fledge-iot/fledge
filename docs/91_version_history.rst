@@ -22,6 +22,98 @@
 Version History
 ***************
 
+Fledge v2
+==========
+
+v2.0.0
+-------
+
+Release Date: 2022-08-03
+
+- **Fledge Core**
+
+    - New Features:
+
+       - Add options for choosing the Fledge Asset name: Browser Name, Subscription Path and Full Path. Use the OPC UA Source timestamp as the User Timestamp in Fledge.
+       - A new section has been added to the documentation which discusses the process and best practices for building data pipelines in Fledge.
+       - The storage interface used to query generic configuration tables has been improved to support tests for null and non-null column values.
+       - The ability for north services to support control inputs coming from systems north of Fledge has been introduced.
+       - Improved north plugin developers documentation is now available.
+       - The handling of a failed storage service has been improved. The client now attempt to re-connect and if that fails they we will down. The logging produced is now much less verbose, removing the repeated messages previously seen.
+       - Documentation has been added for the purge process and the new options recently added.
+       - A new service has been added to Fledge to facilitate the routing of control messages within Fledge. This service is responsible for determined which south services to send control requests to and also for the security aspects of those requests.
+       - Updated OMF North plugin documentation to include current OSIsoft product names
+       - Ensure that new Fledge data types not supported by OMF are not processed.
+       - Fixed a typo in the quick start guide
+       - Added an article on Developing with Windows Subsystem for Linux (WSL2) to the Plugin Developer Guide. WSL2 allows you to run a Linux environment directly on Windows without the overhead of Windows Hyper-V. You can run Fledge and develop plugins on WSL2.
+       - The storage service now supports a richer set of queries against the generic table interface. In particular joins between tables are now supported.
+       - OPC UA Security has been enhanced. This plugin now supports Security Policies Basic256 and Basic256Sha256, with Security Modes Sign and Sign & Encrypt. Authentication types are anonymous and username/password.
+       - South services that have a slow poll rate can take a long time to shutdown, this sometimes resulted in those services not shutting down cleanly. The shutdown process has been modified such that these services now shutdown promptly regardless of polling rate.
+       - The documentation that describes the writing of asynchronous Python plugins has been updated in line with the latest code changes.
+       - A new API has been added to allow external viewing and managing of the data that various plugins persist.
+       - A new REST API entry point has been added that allows all instances of a specified asset to be purged from the buffer. A further entry point has also been added to purge all data from the reading buffer. These entry points should be used with care as they will cause data to be discarded.
+       - A number of new features have been added to the user interface to aid developers creating data pipelines and plugins. These features allow for manual purging of data, deprecating the relationship between the services and the assets they have ingested and viewing the persisted data of the plugins. These are all documented in the section on developing pipelines within the online documentation.
+       - A glossary has been added to the documentation for the product.
+       - The documentation has been updated to reflect the new tabs available in the Fledge user interface for editing the configuration of services and tasks.
+       - A new introduction section has been added to the Fledge documentation that describes the new features and some typical use cases of Fledge.
+       - A new section has been added to the Fledge Tuning guide that discusses the tuning of North services and tasks. Also scheduler tuning has been added to the tuning guide along with the tuning of the service monitor which is used to detected failures of services within Fledge.
+       - The Tuning Fledge section of the documentation has been updated to include information on tuning the Fledge service monitor that is used to monitor and restart Fledge services. A section has also been added that describes the tuning of north services and tasks. A new section describes the different storage plugins available, when they should be used and how to tune them.
+
+
+    - Bug Fix:
+
+       - The Fledge control script has options for purge and reset that requires a confirmation before it will continue. The message that was produced if this confirmation was not given was unclear. This has now been improved.
+       - An issue that could cause a north service or task that had been disabled for a long period of time to fail to send data when it was re-enabled has been resolved.
+       - S2OPCUA Toolkit changes required an update in build procedures for the S2OPCUA South Plugin.
+       - Previously it has not been possible to configure the advanced configuration of a south service until it has been run at least once. This has now been resolved and it is possible to add a south service in disable mode and edit the advanced configuration.
+       - The diagnostics when a plugin fails to load have been improved.
+       - The South Plugin shutdown problem was caused by errors in the plugin startup procedure which would throw an exception for any error. The plugin startup has been fixed so errors are reported properly. The problem of plugin shutdown when adding a filter has been resolved.
+       - The S2OPCUA South Plugin would throw an exception for any error during startup. This would cause the core system to shut down the plugin permanently after a few retries. This has been fixed. Error messages has been recategorized to properly reflect informational, warning and error messages.
+
+
+- **GUI**
+
+    - New Features:
+
+
+
+    - Bug Fix:
+
+
+
+- **Plugins**
+
+    - New Features:
+
+       - A new OPCUA South Plugin has been created based on the Open 62541 OPCUA client library
+       - The documentation has been updated to include the new watchdog notification rule.
+       - A new notification delivery plugin has been added that allows notifications to be delivered via the control dispatcher service. This allows the full features of the control dispatcher to be used with the edge notification path.
+       - Documentation has been added for the Azure north plugin
+       - The fledge-north-harperdb plugin was not previously documented. Documentation for this plugin has now been added to the system.
+       - Support has been added for proxy servers in the north HTTP-C plugin.
+       - The OPCUA north plugin has been updated to include the ability for systems outside of Fledge to write to the server that Fledge advertises. These write are taken as control input into the Fledge system.
+       - The HTTPC North plugin has been enhanced to add an optional Python script that can be used to format the payload of the data sent in the HTTP REST request.
+       - The documentation describing how to run services under the debugger has been improved along with other improvements to the documentation aimed at plugin developers.
+       - +underlined text+
+       - The SQLite storage plugins have been updated to support service extension schemas. This is a mechanism that allows services within the Fledge system to add new schemas within the storage service that are exclusive to that service.
+       - The documentation of the Python35 filter has been updated to included a fuller description of how to make use of the configuration data block supported by the plugin.
+       - Documentation has been added for the Video4Linux plugin
+
+
+    - Bug Fix:
+
+       - Build procedures were updated to accommodate breaking changes in the S2OPC OPCUA Toolkit
+       - Occasionally switching from the sqlite to the sqlitememory plugin for the storage of readings would cause a fatal error in the storage layer. This has now been fixed and it is possible to change to sqlitememory without an error.
+       - A race condition within the modbus south plugin that could cause unfair scheduling of read verses write operations has been resolved. This could cause write operations to be delayed in some circumstances. The scheduling of set point write operations is now fairly interleaved between the read operations in all cases.
+       - A problem that caused the HTTPC North plugin to fail if the path component of the URL was omitted has been resolved.
+       - The modbus-c south plugin documentation has been enhanced to include details of the function codes used to read modbus data.
+       - An incorrect error message in the modbus-c south plugin has been fixed and others have been improved to aid resolving configuration issues. The documentation has been updated to include descriptive text for the error messages that may occur.
+       - The documentation for the Python35 filter has been updated to discuss Python package imports and issues when removing previously used imports.
+       - The Python35 filter plugin has been updated such that if no data is to be passed onwards it may now simply return the None Python constant or an empty list.
+       - The Python35 plugin which allows simple Python scripts to be added into filter pipelines has had a number of updates to improve the robustness of the plugin in the event of incorrect script code being provided by the user. The behaviour of the plugin has also been updated such that any errors run the script will prevent data being passed onwards the filter pipeline.
+       - The \Average\ rule has been updated to improve the user interaction during the configuration of the rule.
+
+
 Fledge v1
 ==========
 

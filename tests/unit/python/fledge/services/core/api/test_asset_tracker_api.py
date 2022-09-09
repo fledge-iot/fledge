@@ -42,16 +42,16 @@ class TestAssetTracker:
 
         storage_client_mock = MagicMock(StorageClientAsync)
         rows = [{'asset': 'AirIntake', 'event': 'Ingest', 'fledge': 'Booth1', 'service': 'PT100_In1',
-                 'plugin': 'PT100', "timestamp": "2018-08-13 15:39:48.796263", "deprecatedTimestamp": ""
+            'plugin': 'PT100', "timestamp": "2018-08-13 15:39:48.796263", "deprecatedTimestamp": "", 'data':'{}'
                  },
                 {'asset': 'AirIntake', 'event': 'Egress', 'fledge': 'Booth1', 'service': 'Display',
-                 'plugin': 'ShopFloorDisplay', "timestamp": "2018-08-13 16:00:00.134563", "deprecatedTimestamp": ""
+                 'plugin': 'ShopFloorDisplay', "timestamp": "2018-08-13 16:00:00.134563", "deprecatedTimestamp": "", 'data':'{}'
                  }
                 ]
         payload = {'where': {'condition': '=', 'value': 1, 'column': '1'},
                    'return': ['asset', 'event', 'service', 'fledge', 'plugin',
                               {'alias': 'timestamp', 'column': 'ts', 'format': 'YYYY-MM-DD HH24:MI:SS.MS'},
-                              {'alias': 'deprecatedTimestamp', 'column': 'deprecated_ts'}
+                              {'alias': 'deprecatedTimestamp', 'column': 'deprecated_ts'}, 'data'
                               ]
                    }
 

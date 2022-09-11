@@ -618,10 +618,10 @@ class TestAuthAnyWithoutTLS:
         assert expected_values == jdoc
 
     @pytest.mark.parametrize(("form_data", "expected_values"), [
-        ({"username": "any1", "password": "User@123"}, 'Logged in successfully'),
-        ({"username": "admin1", "password": "F0gl@mp!"}, 'Logged in successfully'),
-        ({"username": "any2", "password": "User@123"}, 'Logged in successfully'),
-        ({"username": "admin2", "password": "F0gl@mp!"}, 'Logged in successfully')
+        ({"username": "any1", "password": "User@123"}, LOGIN_SUCCESS_MSG),
+        ({"username": "admin1", "password": "F0gl@mp!"}, LOGIN_SUCCESS_MSG),
+        ({"username": "any2", "password": "User@123"}, LOGIN_SUCCESS_MSG),
+        ({"username": "admin2", "password": "F0gl@mp!"}, LOGIN_SUCCESS_MSG)
     ])
     def test_login_of_newly_created_user(self, fledge_url, form_data, expected_values):
         conn = http.client.HTTPConnection(fledge_url)
@@ -657,8 +657,8 @@ class TestAuthAnyWithoutTLS:
         assert {'message': 'Password has been updated successfully for user id:<{}>'.format(uid)} == jdoc
 
     @pytest.mark.parametrize(("form_data", "expected_values"), [
-        ({"username": "any1", "password": "F0gl@mp1"}, 'Logged in successfully'),
-        ({"username": "any2", "password": "F0gl@mp2"}, 'Logged in successfully')
+        ({"username": "any1", "password": "F0gl@mp1"}, LOGIN_SUCCESS_MSG),
+        ({"username": "any2", "password": "F0gl@mp2"}, LOGIN_SUCCESS_MSG)
     ])
     def test_login_with_updated_password(self, fledge_url, form_data, expected_values):
         conn = http.client.HTTPConnection(fledge_url)
@@ -690,8 +690,8 @@ class TestAuthAnyWithoutTLS:
         assert {'message': 'User with id:<5> has been updated successfully'} == jdoc
 
     @pytest.mark.parametrize(("form_data", "expected_values"), [
-        ({"username": "any1", "password": "F0gl@mp!#1"}, 'Logged in successfully'),
-        ({"username": "any2", "password": "F0gl@mp!#2"}, 'Logged in successfully')
+        ({"username": "any1", "password": "F0gl@mp!#1"}, LOGIN_SUCCESS_MSG),
+        ({"username": "any2", "password": "F0gl@mp!#2"}, LOGIN_SUCCESS_MSG)
     ])
     def test_login_with_resetted_password(self, fledge_url, form_data, expected_values):
         conn = http.client.HTTPConnection(fledge_url)
@@ -984,8 +984,8 @@ class TestAuthPasswordWithoutTLS:
         assert expected_values == jdoc
 
     @pytest.mark.parametrize(("form_data", "expected_values"), [
-        ({"username": "any1", "password": "User@123"}, 'Logged in successfully'),
-        ({"username": "admin1", "password": "F0gl@mp!"}, 'Logged in successfully')
+        ({"username": "any1", "password": "User@123"}, LOGIN_SUCCESS_MSG),
+        ({"username": "admin1", "password": "F0gl@mp!"}, LOGIN_SUCCESS_MSG)
     ])
     def test_login_of_newly_created_user(self, fledge_url, form_data, expected_values):
         conn = http.client.HTTPConnection(fledge_url)
@@ -1015,7 +1015,7 @@ class TestAuthPasswordWithoutTLS:
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert 'Logged in successfully' == jdoc['message']
+        assert LOGIN_SUCCESS_MSG == jdoc['message']
 
     def test_reset_user(self, fledge_url):
         conn = http.client.HTTPConnection(fledge_url)
@@ -1034,7 +1034,7 @@ class TestAuthPasswordWithoutTLS:
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert 'Logged in successfully' == jdoc['message']
+        assert LOGIN_SUCCESS_MSG == jdoc['message']
 
     def test_delete_user(self, fledge_url):
         conn = http.client.HTTPConnection(fledge_url)
@@ -1724,10 +1724,10 @@ class TestAuthAnyWithTLS:
         assert expected_values == jdoc
 
     @pytest.mark.parametrize(("form_data", "expected_values"), [
-        ({"username": "any1", "password": "User@123"}, 'Logged in successfully'),
-        ({"username": "admin1", "password": "F0gl@mp!"}, 'Logged in successfully'),
-        ({"username": "any2", "password": "User@123"}, 'Logged in successfully'),
-        ({"username": "admin2", "password": "F0gl@mp!"}, 'Logged in successfully')
+        ({"username": "any1", "password": "User@123"}, LOGIN_SUCCESS_MSG),
+        ({"username": "admin1", "password": "F0gl@mp!"}, LOGIN_SUCCESS_MSG),
+        ({"username": "any2", "password": "User@123"}, LOGIN_SUCCESS_MSG),
+        ({"username": "admin2", "password": "F0gl@mp!"}, LOGIN_SUCCESS_MSG)
     ])
     def test_login_of_newly_created_user(self, form_data, expected_values):
         conn = http.client.HTTPSConnection("localhost", 1995, context=context)
@@ -1763,8 +1763,8 @@ class TestAuthAnyWithTLS:
         assert {'message': 'Password has been updated successfully for user id:<{}>'.format(uid)} == jdoc
 
     @pytest.mark.parametrize(("form_data", "expected_values"), [
-        ({"username": "any1", "password": "F0gl@mp1"}, 'Logged in successfully'),
-        ({"username": "any2", "password": "F0gl@mp2"}, 'Logged in successfully')
+        ({"username": "any1", "password": "F0gl@mp1"}, LOGIN_SUCCESS_MSG),
+        ({"username": "any2", "password": "F0gl@mp2"}, LOGIN_SUCCESS_MSG)
     ])
     def test_login_with_updated_password(self, form_data, expected_values):
         conn = http.client.HTTPSConnection("localhost", 1995, context=context)
@@ -1796,8 +1796,8 @@ class TestAuthAnyWithTLS:
         assert {'message': 'User with id:<5> has been updated successfully'} == jdoc
 
     @pytest.mark.parametrize(("form_data", "expected_values"), [
-        ({"username": "any1", "password": "F0gl@mp!#1"}, 'Logged in successfully'),
-        ({"username": "any2", "password": "F0gl@mp!#2"}, 'Logged in successfully')
+        ({"username": "any1", "password": "F0gl@mp!#1"}, LOGIN_SUCCESS_MSG),
+        ({"username": "any2", "password": "F0gl@mp!#2"}, LOGIN_SUCCESS_MSG)
     ])
     def test_login_with_resetted_password(self, form_data, expected_values):
         conn = http.client.HTTPSConnection("localhost", 1995, context=context)
@@ -2094,8 +2094,8 @@ class TestAuthPasswordWithTLS:
         assert expected_values == jdoc
 
     @pytest.mark.parametrize(("form_data", "expected_values"), [
-        ({"username": "any1", "password": "User@123"}, 'Logged in successfully'),
-        ({"username": "admin1", "password": "F0gl@mp!"}, 'Logged in successfully')
+        ({"username": "any1", "password": "User@123"}, LOGIN_SUCCESS_MSG),
+        ({"username": "admin1", "password": "F0gl@mp!"}, LOGIN_SUCCESS_MSG)
     ])
     def test_login_of_newly_created_user(self, form_data, expected_values):
         conn = http.client.HTTPSConnection("localhost", 1995, context=context)
@@ -2125,7 +2125,7 @@ class TestAuthPasswordWithTLS:
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert 'Logged in successfully' == jdoc['message']
+        assert LOGIN_SUCCESS_MSG == jdoc['message']
 
     def test_reset_user(self):
         conn = http.client.HTTPSConnection("localhost", 1995, context=context)
@@ -2144,7 +2144,7 @@ class TestAuthPasswordWithTLS:
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert 'Logged in successfully' == jdoc['message']
+        assert LOGIN_SUCCESS_MSG == jdoc['message']
 
     def test_delete_user(self):
         conn = http.client.HTTPSConnection("localhost", 1995, context=context)

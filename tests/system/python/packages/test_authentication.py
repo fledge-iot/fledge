@@ -882,7 +882,7 @@ class TestAuthPasswordWithoutTLS:
             conn.request("POST", "/fledge/login", body=f)
             r = conn.getresponse()
             assert 400 == r.status
-            assert "Use a valid username and password to login." == r.reason
+            assert "Use valid username & password to log in." == r.reason
 
     def test_ping_with_allow_ping_true(self, fledge_url):
         conn = http.client.HTTPConnection(fledge_url)
@@ -1992,7 +1992,7 @@ class TestAuthPasswordWithTLS:
             conn.request("POST", "/fledge/login", body=f)
             r = conn.getresponse()
             assert 400 == r.status
-            assert "Use a valid username and password to login." == r.reason
+            assert "Use valid username & password to log in." == r.reason
 
     def test_ping_with_allow_ping_true(self):
         conn = http.client.HTTPSConnection("localhost", 1995, context=context)

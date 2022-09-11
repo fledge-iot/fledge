@@ -384,6 +384,7 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		}
 
 		m_assetTracker = new AssetTracker(m_mgtClient, m_name);
+		m_storageAssetTracker = new StorageAssetTracker(m_mgtClient, m_name);
 
 		{
 		// Instantiate the Ingest class
@@ -394,6 +395,11 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 			m_readingsPerSec = 1;
 			if (m_configAdvanced.itemExists("readingsPerSec"))
 				m_readingsPerSec = (unsigned long)strtol(m_configAdvanced.getValue("readingsPerSec").c_str(), NULL, 10);
+			if (m_readingsPerSec < 1)
+			{
+				logger->warn("Invalid setting of reading rate, defaulting to 1");
+				m_readingsPerSec = 1;
+			}
 		} catch (ConfigItemNotFound e) {
 			logger->info("Defaulting to inline default for poll interval");
 		}
@@ -429,6 +435,7 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 					dividend = 60000000;
 				else if (units.compare("hour") == 0)
 					dividend = 3600000000;
+				m_rateUnits = units;
 				unsigned long usecs = dividend / m_readingsPerSec;
 
 				if (usecs > MAX_SLEEP * 1000000)
@@ -663,6 +670,10 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
  */
 void SouthService::stop()
 {
+	if (m_storageAssetTracker)
+	{
+		m_storageAssetTracker->releaseStorageAssetTracker();
+	}
 	logger->info("Stopping south service...\n");
 }
 
@@ -823,6 +834,11 @@ void SouthService::configChange(const string& categoryName, const string& catego
 		{
 			try {
 				unsigned long newval = (unsigned long)strtol(m_configAdvanced.getValue("readingsPerSec").c_str(), NULL, 10);
+				if (newval < 1)
+				{
+					logger->warn("Invalid setting of reading rate, defaulting to 1");
+					m_readingsPerSec = 1;
+				}
 				string units = m_configAdvanced.getValue("units");
 				unsigned long dividend = 1000000;
 				if (units.compare("second") == 0)
@@ -831,9 +847,10 @@ void SouthService::configChange(const string& categoryName, const string& catego
 					dividend = 60000000;
 				else if (units.compare("hour") == 0)
 					dividend = 3600000000;
-				if (newval != m_readingsPerSec)
+				if (newval != m_readingsPerSec || m_rateUnits.compare(units) != 0)
 				{
 					m_readingsPerSec = newval;
+					m_rateUnits = units;
 					close(m_timerfd);
 					unsigned long usecs = dividend / m_readingsPerSec;
 					if (usecs > MAX_SLEEP * 1000000)
@@ -932,6 +949,11 @@ void SouthService::addConfigDefaults(DefaultConfigCategory& defaultConfig)
 		defaultConfig.addItem(defaults[i].name, defaults[i].description,
 			defaults[i].type, defaults[i].value, defaults[i].value);
 		defaultConfig.setItemDisplayName(defaults[i].name, defaults[i].displayName);
+		if (!strcmp(defaults[i].name, "readingsPerSec"))
+		{
+			defaultConfig.setItemAttribute(defaults[i].name, ConfigCategory::MINIMUM_ATTR, "1");
+
+		}
 	}
 
 	if (!isAsync)

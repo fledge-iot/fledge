@@ -33,6 +33,8 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.parent
 SCRIPTS_DIR_ROOT = "{}/tests/system/python/packages/data/".format(PROJECT_ROOT)
 context = ssl._create_unverified_context()
 
+LOGIN_SUCCESS_MSG = "Logged in successfully."
+
 
 def send_data_using_fogbench(wait_time):
     execute_fogbench = 'cd {}/extras/python ;python3 -m fogbench -t $FLEDGE_ROOT/data/tests/{} ' \
@@ -220,7 +222,7 @@ def generate_password_based_auth_token(asset_name, fledge_url):
     assert 200 == r.status
     r = r.read().decode()
     jdoc = json.loads(r)
-    assert "Logged in successfully" == jdoc['message']
+    assert LOGIN_SUCCESS_MSG == jdoc['message']
     assert not jdoc['admin']
     global PASSWORD_TOKEN
     PASSWORD_TOKEN = jdoc["token"]
@@ -236,7 +238,7 @@ def generate_certificate_based_auth_token(asset_name, fledge_url):
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert "Logged in successfully" == jdoc['message']
+        assert LOGIN_SUCCESS_MSG == jdoc['message']
         assert "token" in jdoc
         assert jdoc['admin']
         global CERT_TOKEN
@@ -324,7 +326,7 @@ class TestAuthAnyWithoutTLS:
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert "Logged in successfully" == jdoc['message']
+        assert LOGIN_SUCCESS_MSG == jdoc['message']
         assert not jdoc['admin']
         global PASSWORD_TOKEN
         PASSWORD_TOKEN = jdoc["token"]
@@ -352,7 +354,7 @@ class TestAuthAnyWithoutTLS:
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert "Logged in successfully" == jdoc['message']
+        assert LOGIN_SUCCESS_MSG == jdoc['message']
         assert "token" in jdoc
         assert jdoc['admin']
         global PASSWORD_TOKEN
@@ -374,7 +376,7 @@ class TestAuthAnyWithoutTLS:
             assert 200 == r.status
             r = r.read().decode()
             jdoc = json.loads(r)
-            assert "Logged in successfully" == jdoc['message']
+            assert LOGIN_SUCCESS_MSG == jdoc['message']
             assert "token" in jdoc
             assert not jdoc['admin']
 
@@ -387,7 +389,7 @@ class TestAuthAnyWithoutTLS:
             assert 200 == r.status
             r = r.read().decode()
             jdoc = json.loads(r)
-            assert "Logged in successfully" == jdoc['message']
+            assert LOGIN_SUCCESS_MSG == jdoc['message']
             assert "token" in jdoc
             assert jdoc['admin']
             global CERT_TOKEN
@@ -414,7 +416,7 @@ class TestAuthAnyWithoutTLS:
             assert 200 == r.status
             r = r.read().decode()
             jdoc = json.loads(r)
-            assert "Logged in successfully" == jdoc['message']
+            assert LOGIN_SUCCESS_MSG == jdoc['message']
             assert "token" in jdoc
             assert not jdoc['admin']
 
@@ -466,7 +468,7 @@ class TestAuthAnyWithoutTLS:
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert "Logged in successfully" == jdoc['message']
+        assert LOGIN_SUCCESS_MSG == jdoc['message']
         _token = jdoc["token"]
 
         conn = http.client.HTTPConnection(fledge_url)
@@ -495,7 +497,7 @@ class TestAuthAnyWithoutTLS:
             assert 200 == r.status
             r = r.read().decode()
             jdoc = json.loads(r)
-            assert "Logged in successfully" == jdoc['message']
+            assert LOGIN_SUCCESS_MSG == jdoc['message']
             _token = jdoc["token"]
 
         conn = http.client.HTTPConnection(fledge_url)
@@ -832,7 +834,7 @@ class TestAuthPasswordWithoutTLS:
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert "Logged in successfully" == jdoc['message']
+        assert LOGIN_SUCCESS_MSG == jdoc['message']
         assert not jdoc['admin']
         global PASSWORD_TOKEN
         PASSWORD_TOKEN = jdoc["token"]
@@ -860,7 +862,7 @@ class TestAuthPasswordWithoutTLS:
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert "Logged in successfully" == jdoc['message']
+        assert LOGIN_SUCCESS_MSG == jdoc['message']
         assert "token" in jdoc
         assert jdoc['admin']
         global PASSWORD_TOKEN
@@ -911,7 +913,7 @@ class TestAuthPasswordWithoutTLS:
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert "Logged in successfully" == jdoc['message']
+        assert LOGIN_SUCCESS_MSG == jdoc['message']
         _token = jdoc["token"]
 
         conn = http.client.HTTPConnection(fledge_url)
@@ -1117,7 +1119,7 @@ class TestAuthCertificateWithoutTLS:
             assert 200 == r.status
             r = r.read().decode()
             jdoc = json.loads(r)
-            assert "Logged in successfully" == jdoc['message']
+            assert LOGIN_SUCCESS_MSG == jdoc['message']
             assert "token" in jdoc
             assert not jdoc['admin']
 
@@ -1130,7 +1132,7 @@ class TestAuthCertificateWithoutTLS:
             assert 200 == r.status
             r = r.read().decode()
             jdoc = json.loads(r)
-            assert "Logged in successfully" == jdoc['message']
+            assert LOGIN_SUCCESS_MSG == jdoc['message']
             assert "token" in jdoc
             assert jdoc['admin']
             global CERT_TOKEN
@@ -1157,7 +1159,7 @@ class TestAuthCertificateWithoutTLS:
             assert 200 == r.status
             r = r.read().decode()
             jdoc = json.loads(r)
-            assert "Logged in successfully" == jdoc['message']
+            assert LOGIN_SUCCESS_MSG == jdoc['message']
             assert "token" in jdoc
             assert not jdoc['admin']
 
@@ -1222,7 +1224,7 @@ class TestAuthCertificateWithoutTLS:
             assert 200 == r.status
             r = r.read().decode()
             jdoc = json.loads(r)
-            assert "Logged in successfully" == jdoc['message']
+            assert LOGIN_SUCCESS_MSG == jdoc['message']
             _token = jdoc["token"]
 
         conn = http.client.HTTPConnection(fledge_url)
@@ -1430,7 +1432,7 @@ class TestAuthAnyWithTLS:
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert "Logged in successfully" == jdoc['message']
+        assert LOGIN_SUCCESS_MSG == jdoc['message']
         assert not jdoc['admin']
         global PASSWORD_TOKEN
         PASSWORD_TOKEN = jdoc["token"]
@@ -1458,7 +1460,7 @@ class TestAuthAnyWithTLS:
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert "Logged in successfully" == jdoc['message']
+        assert LOGIN_SUCCESS_MSG == jdoc['message']
         assert "token" in jdoc
         assert jdoc['admin']
         global PASSWORD_TOKEN
@@ -1480,7 +1482,7 @@ class TestAuthAnyWithTLS:
             assert 200 == r.status
             r = r.read().decode()
             jdoc = json.loads(r)
-            assert "Logged in successfully" == jdoc['message']
+            assert LOGIN_SUCCESS_MSG == jdoc['message']
             assert "token" in jdoc
             assert not jdoc['admin']
 
@@ -1493,7 +1495,7 @@ class TestAuthAnyWithTLS:
             assert 200 == r.status
             r = r.read().decode()
             jdoc = json.loads(r)
-            assert "Logged in successfully" == jdoc['message']
+            assert LOGIN_SUCCESS_MSG == jdoc['message']
             assert "token" in jdoc
             assert jdoc['admin']
             global CERT_TOKEN
@@ -1520,7 +1522,7 @@ class TestAuthAnyWithTLS:
             assert 200 == r.status
             r = r.read().decode()
             jdoc = json.loads(r)
-            assert "Logged in successfully" == jdoc['message']
+            assert LOGIN_SUCCESS_MSG == jdoc['message']
             assert "token" in jdoc
             assert not jdoc['admin']
 
@@ -1572,7 +1574,7 @@ class TestAuthAnyWithTLS:
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert "Logged in successfully" == jdoc['message']
+        assert LOGIN_SUCCESS_MSG == jdoc['message']
         _token = jdoc["token"]
 
         conn = http.client.HTTPSConnection("localhost", 1995, context=context)
@@ -1601,7 +1603,7 @@ class TestAuthAnyWithTLS:
             assert 200 == r.status
             r = r.read().decode()
             jdoc = json.loads(r)
-            assert "Logged in successfully" == jdoc['message']
+            assert LOGIN_SUCCESS_MSG == jdoc['message']
             _token = jdoc["token"]
 
         conn = http.client.HTTPSConnection("localhost", 1995, context=context)
@@ -1942,7 +1944,7 @@ class TestAuthPasswordWithTLS:
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert "Logged in successfully" == jdoc['message']
+        assert LOGIN_SUCCESS_MSG == jdoc['message']
         assert not jdoc['admin']
         global PASSWORD_TOKEN
         PASSWORD_TOKEN = jdoc["token"]
@@ -1970,7 +1972,7 @@ class TestAuthPasswordWithTLS:
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert "Logged in successfully" == jdoc['message']
+        assert LOGIN_SUCCESS_MSG == jdoc['message']
         assert "token" in jdoc
         assert jdoc['admin']
         global PASSWORD_TOKEN
@@ -2021,7 +2023,7 @@ class TestAuthPasswordWithTLS:
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert "Logged in successfully" == jdoc['message']
+        assert LOGIN_SUCCESS_MSG == jdoc['message']
         _token = jdoc["token"]
 
         conn = http.client.HTTPSConnection("localhost", 1995, context=context)
@@ -2230,7 +2232,7 @@ class TestAuthCertificateWithTLS:
             assert 200 == r.status
             r = r.read().decode()
             jdoc = json.loads(r)
-            assert "Logged in successfully" == jdoc['message']
+            assert LOGIN_SUCCESS_MSG == jdoc['message']
             assert "token" in jdoc
             assert not jdoc['admin']
 
@@ -2243,7 +2245,7 @@ class TestAuthCertificateWithTLS:
             assert 200 == r.status
             r = r.read().decode()
             jdoc = json.loads(r)
-            assert "Logged in successfully" == jdoc['message']
+            assert LOGIN_SUCCESS_MSG == jdoc['message']
             assert "token" in jdoc
             assert jdoc['admin']
             global CERT_TOKEN
@@ -2270,7 +2272,7 @@ class TestAuthCertificateWithTLS:
             assert 200 == r.status
             r = r.read().decode()
             jdoc = json.loads(r)
-            assert "Logged in successfully" == jdoc['message']
+            assert LOGIN_SUCCESS_MSG == jdoc['message']
             assert "token" in jdoc
             assert not jdoc['admin']
 
@@ -2335,7 +2337,7 @@ class TestAuthCertificateWithTLS:
             assert 200 == r.status
             r = r.read().decode()
             jdoc = json.loads(r)
-            assert "Logged in successfully" == jdoc['message']
+            assert LOGIN_SUCCESS_MSG == jdoc['message']
             _token = jdoc["token"]
 
         conn = http.client.HTTPSConnection("localhost", 1995, context=context)

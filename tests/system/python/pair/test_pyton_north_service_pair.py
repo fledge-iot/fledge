@@ -300,7 +300,7 @@ class TestPythonNorthService:
 
         # Verify on local machine
         verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
-        verify_asset(fledge_url, local_south_asset_name)
+        verify_asset(fledge_url, remote_south_asset_name)
         verify_service_added(fledge_url, local_south_service_name, local_north_service_name)
         verify_statistics_map(fledge_url, local_south_asset_name, local_north_service_name, skip_verify_north_interface)
         verify_asset_tracking_details(fledge_url, local_south_service_name, local_south_asset_name, local_south_plugin,
@@ -365,7 +365,7 @@ class TestPythonNorthService:
 
         # Verify on local machine
         verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
-        verify_asset(fledge_url, local_south_asset_name)
+        verify_asset(fledge_url, remote_south_asset_name)
         verify_service_added(fledge_url, local_south_service_name, local_north_service_name)
         verify_statistics_map(fledge_url, local_south_asset_name, local_north_service_name, skip_verify_north_interface)
         verify_asset_tracking_details(fledge_url, local_south_service_name, local_south_asset_name, local_south_plugin,

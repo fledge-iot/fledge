@@ -153,7 +153,7 @@ GET statistics/rate
 
 .. code-block:: console
 
-   $ curl http://localhost:8081/fledge/statistics/rate?statistics=READINGS%20Sent\&periods=1,5,15,30,60
+   $ curl -sX GET http://localhost:8081/fledge/statistics/rate?statistics=READINGS,Readings%20Sent\&periods=1,5,15,30,60
    {
       "rates": {
         "READINGS": {

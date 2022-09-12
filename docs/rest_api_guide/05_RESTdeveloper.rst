@@ -146,7 +146,7 @@ Where *OMF* is the name of a north service with an OMF filter connected to a PI 
 
    Persisted data is written when the plugin is shutdown. Therefore in order to obtain accurate results this call should only be made when the service is shutdown. Calling this API when a service is running will result in data from the previous time the service was shutdown.
 
-``POST /fledge/service/{service_name}/plugin/{plugin_name}/data`` - write the persisted data for a plugin
+``POST /fledge/service/{service_name}/plugin/{plugin_name}/data`` - write the persisted data for a plugin. Also send the data with payload ``{"data": "<YOUR_VALUE>"}``
 
 Write or overwrite data persisted by the plugin. The request payload is the data which the plugin should receive and must be in the correct format for the plugin.
 

@@ -28,7 +28,7 @@ Fledge v2
 v2.0.0
 -------
 
-Release Date: 2022-08-03
+Release Date: 2022-09-09
 
 - **Fledge Core**
 
@@ -37,10 +37,10 @@ Release Date: 2022-08-03
        - Add options for choosing the Fledge Asset name: Browser Name, Subscription Path and Full Path. Use the OPC UA Source timestamp as the User Timestamp in Fledge.
        - The storage interface used to query generic configuration tables has been improved to support tests for null and non-null column values.
        - The ability for north services to support control inputs coming from systems north of Fledge has been introduced.
-       - The handling of a failed storage service has been improved. The client now attempt to re-connect and if that fails they we will down. The logging produced is now much less verbose, removing the repeated messages previously seen.
-       - A new service has been added to Fledge to facilitate the routing of control messages within Fledge. This service is responsible for determined which south services to send control requests to and also for the security aspects of those requests.
+       - The handling of a failed storage service has been improved. The client now attempt to re-connect and if that fails they will down. The logging produced is now much less verbose, removing the repeated messages previously seen.
+       - A new service has been added to Fledge to facilitate the routing of control messages within Fledge. This service is responsible for determining which south services to send control requests to and also for the security aspects of those requests.
        - Ensure that new Fledge data types not supported by OMF are not processed.
-       - The storage service now supports a richer set of queries against the generic table interface. In particular joins between tables are now supported.
+       - The storage service now supports a richer set of queries against the generic table interface. In particular, joins between tables are now supported.
        - OPC UA Security has been enhanced. This plugin now supports Security Policies Basic256 and Basic256Sha256, with Security Modes Sign and Sign & Encrypt. Authentication types are anonymous and username/password.
        - South services that have a slow poll rate can take a long time to shutdown, this sometimes resulted in those services not shutting down cleanly. The shutdown process has been modified such that these services now shutdown promptly regardless of polling rate.
        - A new configuration item type has been added for the selection of access control lists.
@@ -51,11 +51,11 @@ Release Date: 2022-08-03
        - The version of the PostgreSQL database used by the Postgres storage plugin has been updated to PostgreSQL 13.
        - An enhancement has been added to the North service to allow the user to specify the block size to use when sending data to the plugin. This helps tune the north services and is described in the tuning guide within the documentation.
        - The notification server would previously output warning messages when it was starting, these were not an indication of a problem and should have been information messages. This has now been resolved.
-       - The backup mechanism has been improved to include some external items to be include in the backup and provide a more secure backup.
-       - The purge option that controls if unsent assets cane purged or not has been enhanced to provide options for sent to any destination or sent to all destinations as well as sent to no destinations.
+       - The backup mechanism has been improved to include some external items in the backup and provide a more secure backup.
+       - The purge option that controls if unsent assets can be purged or not has been enhanced to provide options for sent to any destination or sent to all destinations as well as sent to no destinations.
        - It is now possible to add control features to Python south plugins.
        - Certificate based authentication is now possible between services in a single instance. This allows for secure control messages to be implemented between services.
-       - Performance improvements have been made such that the display of south service data when large numbers of assets are in use has been improved.
+       - Performance improvements have been made such that the display of south service data when large numbers of assets are in use.
        - The new micro service, control dispatcher, is now available as a package that can be installed via the package manager.
        - New data types are now supported for data points within an asset and are encoded into various Python types when passed to Python plugins or scripts run within standard plugin. This includes numpy arrays for images and data buffers, 2 dimensional Python lists and others. Details of the type encoding can be found in the plugin developers guide of the online product documentation.
        - The mechanism for online update of configuration has been extended to allow for more configuration to be modified without the need to restart any services.
@@ -68,7 +68,6 @@ Release Date: 2022-08-03
        - A new parameter has been added to the asset retrieval API that allows image data to be returned, images=include. By default image type datapoints will be replaced with a message, “Image removed for brevity”, in order to reduce the size of the returned payload.
        - A new API has been added to the management API that allows services to request that URL’s in the public API are proxied to the service API. This is used when extending the functionality of the system with custom microservices.
        - A new set of API calls have been added to the public REST API of the product to support the control dispatcher and for the creation and management of control scripts.
-       - A new API call has been added to Fledge that allows the core package to be updated and Fledge restarted with the updated version.
        - A new API has been added to the public API that will return the latest reading for a given asset. This will return all data types including images.
        - A new API has been added that allows asset tracking records to be marked as deprecated. This allows the flushing of relationships between assets and the services that have processed them. It is useful only in development systems and should not be used in production systems.
        - A new API call has been added that allows the persisted data related to a plugin to be retrieved via the public REST API. The is intended for use by plugin writers and to allow for better tracking of data persisted between service executions.
@@ -83,7 +82,7 @@ Release Date: 2022-08-03
        - The documentation that describes the writing of asynchronous Python plugins has been updated in line with the latest code changes.
        - The documentation has been updated to reflect the new tabs available in the Fledge user interface for editing the configuration of services and tasks.
        - A new introduction section has been added to the Fledge documentation that describes the new features and some typical use cases of Fledge.
-       - A new section has been added to the Fledge Tuning guide that discusses the tuning of North services and tasks. Also scheduler tuning has been added to the tuning guide along with the tuning of the service monitor which is used to detected failures of services within Fledge.
+       - A new section has been added to the Fledge Tuning guide that discusses the tuning of North services and tasks. Also scheduler tuning has been added to the tuning guide along with the tuning of the service monitor which is used to detect failures of services within Fledge.
        - The Tuning Fledge section of the documentation has been updated to include information on tuning the Fledge service monitor that is used to monitor and restart Fledge services. A section has also been added that describes the tuning of north services and tasks. A new section describes the different storage plugins available, when they should be used and how to tune them.
        - Added an article on Developing with Windows Subsystem for Linux (WSL2) to the Plugin Developer Guide. WSL2 allows you to run a Linux environment directly on Windows without the overhead of Windows Hyper-V. You can run Fledge and develop plugins on WSL2.
        - Documentation has been added for the purge process and the new options recently added.
@@ -92,7 +91,7 @@ Release Date: 2022-08-03
        - Documentation has been updated to show how to build Fledge using the requirements.sh script.
        - The documentation ordering has been changed to make the section order more logical.
        - The plugin developers guide has been updated to include information on the various flags that are used to communicate the options implemented by a plugin.
-       - Updated OMF North plugin documentation to include current OSIsoft product names.
+       - Updated OMF North plugin documentation to include current OSIsoft (AVEVA) product names.
        - Fixed a typo in the quick start guide.
        - Improved north plugin developers documentation is now available.
 
@@ -108,11 +107,12 @@ Release Date: 2022-08-03
        - The update process has been optimised to remove an unnecessary restart if no new version of the software are available.
        - The OMF North plugin was unable to process configuration changes or shut down if the PI Web API hostname was not correct. This has been fixed.
        - S2OPC South plugin builds have been updated to explicitly reference S2OPC Toolkit Version 1.2.0.
-       - An issue that could on rare occasions cause the SQLite plugin to silently discard a readings has been resolved.
+       - An issue that could on rare occasions cause the SQLite plugin to silently discard readings has been resolved.
        - An issue with the automatic renewal of authentication certificates has been resolved.
        - Deleting a service which had a filter pipeline could cause some orphaned configuration information to be left stored. This prevented creating filters of the same name in the future. This has now been resolved.
        - The error reporting has been improved when downloading backups from the system.
        - An issue that could cause north plugins to occasionally fail to shutdown correctly has now been resolved.
+       - Some fixes are made in Package update API that allows the core package to be updated.
        - The documentation has been updated to correct a statement regarding running the south side as a task.
 
 
@@ -125,11 +125,10 @@ Release Date: 2022-08-03
         - A new feature has been added to the south page that allows the relationship between an asset and a service to be deprecated. This is a special feature enabled with the Developer Features option. See the documentation on building pipelines for a full description.
         - A new feature has been added to the Assets and Readings page that allows for manual purging of named assets or all assets. This is a developer only feature and should not be used on production systems. The feature is enabled, along with other developer features via the Settings page.
         - A new feature has been added to the South and North pages for each service that allows the user to view, import, export and delete the data persisted by a plugin. This is a developer only feature and should not be used on production systems. It is enabled via the Setting page.
-        - A new configuration type, Access Control List, is now supported ints user interface. This allows for selection of an ACL from those already created.
+        - A new configuration type, Access Control List, is now supported in user interface. This allows for selection of an ACL from those already created.
         - A new tabbed layout has been adopted for the editing of south and north services and tasks. Configuration, Advanced and Security tabs are supported as our tabs for developer features if enabled.
-        - The user interface for displaying system logs has been modify to improve the performance of log viewing.
-        - The User Interface has been updated to use the latest versions of a number of packages it depends upon in due to vulnerabilities reported in those packages.
-        - The new FogLAMP Bucket Storage service in now included in the service status display on the GUI.
+        - The user interface for displaying system logs has been modified to improve the performance of log viewing.
+        - The User Interface has been updated to use the latest versions of a number of packages it depends upon, due to vulnerabilities reported in those packages.
         - With the introduction of image data types to the readings supported by the system the user interface has been updated to add visualisation features for these images. A new feature also allows the latest reading for a given asset to be shown.
         - A new feature has been added to the south and north pages that allows the user to view the logs for the service.
         - The service status display now includes the Control Dispatcher service if it has been installed.
@@ -163,7 +162,7 @@ Release Date: 2022-08-03
        - New image type datapoints can now be sent between instances using the http north and south plugins.
        - A new watchdog notification rule plugin has been added that allows notifications to be send if data stops being ingress for specified assets.
        - The ability to define response headers in the http south plugin has been added to aid certain circumstances where CORS provided data flows.
-       - The documentation of the Python35 filter has been updated to included a fuller description of how to make use of the configuration data block supported by the plugin.
+       - The documentation of the Python35 filter has been updated to include a fuller description of how to make use of the configuration data block supported by the plugin.
        - The documentation describing how to run services under the debugger has been improved along with other improvements to the documentation aimed at plugin developers.
        - Documentation has been added for the Azure north plugin.
        - Documentation has now been added for fledge-north-harperdb.
@@ -176,7 +175,7 @@ Release Date: 2022-08-03
 
        - Build procedures were updated to accommodate breaking changes in the S2OPC OPCUA Toolkit.
        - Occasionally switching from the sqlite to the sqlitememory plugin for the storage of readings would cause a fatal error in the storage layer. This has now been fixed and it is possible to change to sqlitememory without an error.
-       - A race condition within the modbus south plugin that could cause unfair scheduling of read verses write operations has been resolved. This could cause write operations to be delayed in some circumstances. The scheduling of set point write operations is now fairly interleaved between the read operations in all cases.
+       - A race condition within the modbus south plugin that could cause unfair scheduling of read versus write operations has been resolved. This could cause write operations to be delayed in some circumstances. The scheduling of set point write operations is now fairly interleaved between the read operations in all cases.
        - A problem that caused the HTTPC North plugin to fail if the path component of the URL was omitted has been resolved.
        - The modbus-c south plugin documentation has been enhanced to include details of the function codes used to read modbus data.
        - An incorrect error message in the modbus-c south plugin has been fixed and others have been improved to aid resolving configuration issues. The documentation has been updated to include descriptive text for the error messages that may occur.

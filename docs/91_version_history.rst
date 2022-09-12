@@ -75,10 +75,31 @@ Release Date: 2022-08-03
 
     - New Features:
 
-
+        - A new *Developer* item has been added to the user interface to allow for the management of Python packages via the UI. This is enabled by turning on developer features in the user interface *Settings* page.
+        - A control has been added that allows the display of assets in the *South* screen to be collapsed or expanded. This allows for more services to be seen when services ingest multiple assets.
+        - A new feature has been added to the south page that allows the relationship between an asset and a service to be deprecated. This is a special feature enabled with the Developer Features option. See the documentation on building pipelines for a full description.
+        - A new feature has been added to the Assets and Readings page that allows for manual purging of named assets or all assets. This is a developer only feature and should not be used on production systems. The feature is enabled, along with other developer features via the Settings page.
+        - A new feature has been added to the South and North pages for each service that allows the user to view, import, export and delete the data persisted by a plugin. This is a developer only feature and should not be used on production systems. It is enabled via the Setting page.
+        - A new configuration type, Access Control List, is now supported ints user interface. This allows for selection of an ACL from those already created.
+        - A new tabbed layout has been adopted for the editing of south and north services and tasks. Configuration, Advanced and Security tabs are supported as our tabs for developer features if enabled.
+        - The user interface for displaying system logs has been modify to improve the performance of log viewing.
+        - The User Interface has been updated to use the latest versions of a number of packages it depends upon in due to vulnerabilities reported in those packages.
+        - The new FogLAMP Bucket Storage service in now included in the service status display on the GUI.
+        - With the introduction of image data types to the readings supported by the system the user interface has been updated to add visualisation features for these images. A new feature also allows the latest reading for a given asset to be shown.
+        - A new feature has been added to the south and north pages that allows the user to view the logs for the service.
+        - The service status display now includes the Control Dispatcher service if it has been installed.
+        - The user interface now supports the new control dispatcher service. This includes the graphical creation and editing of control scripts and access control lists used by control features.
+        - An option has been added to the Asset and Readings page to show just the latest values for a given asset.
+        - The notification user interface now links to the relevant sections of the online documentation allowing users to navigate to the help based on the current context.
+        - Some timezone inconsistencies in the user interface have been resolved.
 
     - Bug Fix:
 
+        - An issue that would cause the GUI to not always allow JSON data to be saved has been resolved.
+        - An issue with the auto refresh in the systems log page that made selecting the service to filter difficult has been resolved.
+        - The sorting of services and tasks in the South and North pages has been improved such that enabled services appear above disabled services.
+        - An issue the prevented gaps in the data from appearing int he groans displayed by the GUI has now been resolved.
+        - Entering times in the GUI could sometimes be difficult and result in unexpected results. This has now been improved to ease the entry of time values.
 
 
 - **Plugins**

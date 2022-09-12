@@ -1,7 +1,3 @@
-..
-
-
-
 *******************************
 REST API Users & Authentication
 *******************************
@@ -31,18 +27,18 @@ If the user is connecting with a user name and a password then a JSON structure 
     :widths: 20 20 50 30
     :header-rows: 1
 
-    * - Name
+    * - Key Name
       - Type
       - Description
       - Example
     * - username
       - string
       - The username of the user attempting to login
-      - david
+      - admin
     * - password
       - string
       - The plain text password of the user attempting to login
-      - 1nv1nc1ble
+      - fledge
 
 **Response Payload**
 
@@ -75,7 +71,7 @@ Subsequent calls should carry an HTTP header with the authorization token given 
 
 .. code-block:: console
 
-   curl -H "authorization: ******************" http://localhost:8081/fledge/ping
+   curl -H "authorization: <token>" http://localhost:8081/fledge/ping
 
 Alternatively a certificate based authentication can be used with the user presenting a certificate instead of the JSON payload shown above to the ``/fledge/login`` endpoint.
 
@@ -96,7 +92,7 @@ Logout
 
 Ends to login session for the current user and invalidates the token given in the header.
 
-``PUT /fledge/{user_id}/logout`` - Terminate the login session for another user.
+``PUT /fledge/{user_id}/logout`` - Terminate the login session for user's all active sessions.
 
 The administrator may terminate the login session of another user.
 
@@ -116,7 +112,7 @@ Add User
 
 .. note::
 
-   Only admin users are able to create other users/
+   Only admin users are able to create other users.
 
 
 **Request Payload**
@@ -127,34 +123,39 @@ A JSON document which describes the user to add.
     :widths: 20 20 50 30
     :header-rows: 1
 
-    * - Name
+    * - Key Name
       - Type
       - Description
       - Example
     * - username
       - string
-      - The username of the new user to add
+      - The username of the new user to add. It is a required field.
       - david
     * - password
       - string
-      - The password to assign to the new user. If not given then a certificate must be included in the payload.
-      - 1nv1nc1ble
-    * - certificate
+      - The password to assign to the new user. It is a required field.
+      - Inv1nc!ble
+    * - access_method
       - string
-      - The name of a certificate in the certificate store. May only be used when a password is not given.
-      -
-    * - realname
+      - Access of a user. It is an optional field.
+      - Possible values are cert, any, cert.
+    * - real_name
       - string
-      - The real name of the user. This is used for display purposes only.
+      - The real name of the user. This is used for display purposes only. It is an optional field.
       - David Brent
     * - role_id
+      - integer
+      - The role id of the new user. It is an optional field.
+      - 1 for Admin user and 2 for normal user. If not given it will be treated as normal user.
+    * - description
       - string
-      - The role that the new user should be given
-      - admin
+      - Description of the user. It is an optional field.
+      - 1 for Admin and 2 for normal user. If not given it will be treated as normal user.
+
 
 **Response Payload**
 
-The response payload is a JSON document containing the username of the newly created user.
+The response payload is a JSON document containing the full details of the newly created user.
 
 **Errors**
 
@@ -178,13 +179,8 @@ The following error responses may be returned
 
 .. code-block:: console
 
-   curl -X POST /fledge/admin/user -d'
-   {
-    "username"    : "david",
-    "password"    : "1nv1nc1blE",
-    "permissions" : "admin",
-    "realname"    : "David Brent"
-   }'
+    curl -H "authorization: <token>" -X POST -d '{"username": "david", "password": "Inv1nc!ble", "role_id": 1, "real_name": "David Brent"}' http://localhost:8081/fledge/admin/user
+
 
 Get All Users
 -------------
@@ -199,22 +195,26 @@ A JSON document which all users in a JSON array.
     :widths: 20 20 50 30
     :header-rows: 1
 
-    * - Name
+    * - JSON Key
       - Type
       - Description
       - Example
-    * - [].username
+    * - .users[].userName
       - string
-      - The username of the new user to add
+      - The username of the user
       - david
-    * - [].permissions
-      - string
-      - The permissions that new user should be given
-      - admin
-    * - [].realname
+    * - .users[].roleId
+      - integer
+      - The permissions level of the user
+      - 1
+    * - .users[].realName
       - string
       - The real name of the user. This is used for display purposes only.
       - David Brent
+    * - .users[].description
+      - string
+      - The description of the user.
+      - This is an admin user.
 
 .. note::
 
@@ -224,7 +224,7 @@ A JSON document which all users in a JSON array.
 
 .. code-block:: console
 
-   curl -X GET /fledge/user
+   curl -H "authorization: <token>" -X GET http://localhost:8081/fledge/user
 
 
 Returns the response payload
@@ -246,14 +246,14 @@ Returns the response payload
                        "userName"     : "david",
                        "realName"     : "David Brent",
                        "accessMethod" : "any",
-                       "roleId"       : 2,
+                       "roleId"       : 1,
                        "description"  : "OT Department Head"
                     },
                     {
                        "userId"       : 3,
                        "userName"     : "paul",
                        "realName"     : "Paul Smith"
-                       "roleId"       : 3,
+                       "roleId"       : 2,
                        "accessMethod" : "any",
                        "description"  : "OT Supervisor"
                     }
@@ -273,7 +273,11 @@ A JSON document which describes the updates to the user record.
     :widths: 20 20 50 30
     :header-rows: 1
 
-    * - realname
+    * - Key Name
+      - string
+      - description
+      - Example
+    * - real_name
       - string
       - The real name of the user. This is used for display purposes only.
       - David Brent
@@ -304,10 +308,7 @@ The following error responses may be returned
 
 .. code-block:: console
 
-   curl -X PUT /foglamp/user/david -d'
-    {
-        "realname"    : "Dave Brent"
-    }'
+   curl -H "authorization: <token>" -X PUT /fledge/user -d '{"real_name": "Dave Brent"}'
 
 Change Password
 ---------------
@@ -322,14 +323,18 @@ A JSON document that contains the old and new passwords.
     :widths: 20 20 50 30
     :header-rows: 1
 
+    * - Key Name
+      - string
+      - description
+      - Example
     * - current_password
       - string
       - The current password of the user
-      - Ch40Dlw3p
+      - Inv1nc!ble
     * - new_password
       - string
       - The new password of the user
-      - Qu3ublE3
+      - F0gl!mp1
 
 **Response Payload**
 
@@ -339,8 +344,7 @@ A message as to the success of the operation
 
 .. code-block:: console
 
-    curl -X PUT -d '{"current_password": "F0gl@mp!", "new_password": "F0gl@mp1"}' http://localhost:8081/fledge/user/peter/password
-
+    curl -X PUT -d '{"current_password": "Inv1nc!ble", "new_password": "F0gl!mp1"}' http://localhost:8081/fledge/user/{user_id}/password
 
 Admin Update User
 -----------------
@@ -359,31 +363,22 @@ A JSON document which describes the updates to the user record.
       - Type
       - Description
       - Example
-    * - username
+    * - description
       - string
-      - The username of the new user to add
+      - The description of a user
       - david
-    * - password
-      - string
-      - The password to assign to the new user
-      - 1nv1nc1ble
-    * - permissions
+    * - access_method
       - string
       - The permissions that new user should be given
-      - admin
-    * - realname
+      - Possible values are cert, any, cert.
+    * - real_name
       - string
       - The real name of the user. This is used for display purposes only.
       - David Brent
 
-
-.. note::
-
-    The inclusion of username in the payload allows for usernames to be changed.
-
 **Response Payload**
 
-The response payload is a JSON document containing the username of the newly created user.
+The response payload is a JSON document containing the user information.
 
 **Errors**
 
@@ -406,26 +401,21 @@ The following error responses may be returned
 
 .. code-block:: console
 
-   curl -X PUT /foglamp/user/david -d'
-    {
-        "username"    : "dave",
-        "password"    : "1nv1nc1ble",
-        "permissions" : "admin",
-        "realname"    : "Dave Brent"
-    }'
+   curl -H "authorization: <token>" -X PUT -d '{"description": "OT Department Head", "real_name": "David Brent", "access_method": "pwd"}' http://localhost:8081/fledge/admin/{user_id}
 
 Delete User
 -----------
 
-``DELETE /foglamp/admin/user/{userID}`` - delete a user
+``DELETE /fledge/admin/user/{userID}/delete`` - delete a user
 
 .. note::
 
-    It is not possible to remove the user that is currently logged in to the system.
+    - It is not possible to remove the user that is currently logged in to the system.
+    - Only Admin can delete the user.
+    - Super Admin cannot be deleted.
 
 **Example**
 
 .. code-block:: console 
 
-	DELETE /foglamp/admin/user/3
-
+	curl -H "authorization: <token>" -X DELETE  http://localhost:8081/fledge/admin/{user_id}/delete

@@ -83,6 +83,14 @@ def __remove_ott_for_user(user_id):
             break
 
 
+def __remove_ott_for_token(given_token):
+    """Helper function that removes given token from OTT_MAP if that token in the map."""
+    for k, v in OTT.OTT_MAP.items():
+        if v[1] == given_token:
+            OTT.OTT_MAP.pop(k)
+            break
+
+
 async def login(request):
     """ Validate user with its username and password
 
@@ -246,6 +254,7 @@ async def logout_me(request):
         _logger.warning("Logout requested with bad user token")
         raise web.HTTPNotFound()
 
+    __remove_ott_for_token(request.token)
     _logger.info("User has been logged out successfully")
     return web.json_response({"logout": True})
 
@@ -547,8 +556,9 @@ async def update_user(request):
         if user:
             user_info = await User.Objects.get(uid=user_id)
 
-        # Remove OTT token for this user if there.
-        __remove_ott_for_user(user_id)
+        if 'access_method' in data:
+            # Remove OTT token for this user only if access method is updated.
+            __remove_ott_for_user(user_id)
 
     except ValueError as err:
         msg = str(err)
@@ -664,6 +674,8 @@ async def enable_user(request):
                     raise User.DoesNotExist
                 payload = PayloadBuilder().SET(enabled=user_data['enabled']).WHERE(['id', '=', user_id]).payload()
                 result = await storage_client.update_tbl("users", payload)
+                # Remove ott token for this enabled/disabled user.
+                __remove_ott_for_user(user_id)
                 if result['response'] == 'updated':
                     _text = 'enabled' if user_data['enabled'] == 't' else 'disabled'
                     payload = PayloadBuilder().SELECT("id", "uname", "role_id", "enabled").WHERE(

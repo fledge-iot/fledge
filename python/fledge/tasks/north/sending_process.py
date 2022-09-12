@@ -925,6 +925,9 @@ class SendingProcess(FledgeProcess):
 
             exec_sending_process = self._config['enable']
 
+            if self.isDryRun():
+                return
+
             if self._config['enable']:
 
                 # Checks if the plug is defined if not end the execution

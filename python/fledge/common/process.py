@@ -65,6 +65,8 @@ class FledgeProcess(ABC):
     _start_time = None
     """ time at which this python process started """
 
+    _dryRun = False
+
     def __init__(self):
         """ All processes must have these three command line arguments passed:
 
@@ -88,7 +90,9 @@ class FledgeProcess(ABC):
             if self._core_management_port not in r:
                 raise ArgumentParserError("Invalid Port: {}".format(self._core_management_port))
             for item in args:
-                if item.startswith('--'):
+                if item == "--dryrun":
+                    _dryrun = True
+                else if item.startswith('--'):
                     kv = item.split('=')
                     if len(kv) == 2:
                         if len(kv[1].strip()) == 0:
@@ -198,3 +202,9 @@ class FledgeProcess(ABC):
         """
         return self._core_microservice_management_client.delete_configuration_item(category_name, config_item)
 
+    def isDryRun(self):
+        """
+
+        :return:
+        """
+        return _dryRun

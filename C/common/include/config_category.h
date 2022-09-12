@@ -121,7 +121,10 @@ class ConfigCategory {
 					ORDER_ATTR,
 					READONLY_ATTR,
 					MANDATORY_ATTR,
-					FILE_ATTR};
+					FILE_ATTR,
+					MINIMUM_ATTR,
+					MAXIMUM_ATTR,
+					LENGTH_ATTR};
 		std::string			getItemAttribute(const std::string& itemName,
 								 ItemAttribute itemAttribute) const;
 

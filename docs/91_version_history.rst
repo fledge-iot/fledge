@@ -150,25 +150,24 @@ Release Date: 2022-09-09
 
     - New Features:
 
-       - A new notification delivery fledge-notify-control plugin has been added that allows notifications to be delivered via the control dispatcher service. This allows the full features of the control dispatcher to be used with the edge notification path.
+       - A new fledge-notify-control plugin has been added that allows notifications to be delivered via the control dispatcher service. This allows the full features of the control dispatcher to be used with the edge notification path.
+       - A new fledge-notify-customasset notification delivery plugin that creates an event asset in readings.
+       - A new fledge-rule-delta notification rule plugin that triggers when a data point value changes.
+       - A new fledge-rule-watchdog notification rule plugin that allows notifications to be send if data stops being ingress for specified assets.
        - Support has been added for proxy servers in the north HTTP-C plugin.
        - The OPCUA north plugin has been updated to include the ability for systems outside of Fledge to write to the server that Fledge advertises. These write are taken as control input into the Fledge system.
        - The HTTPC North plugin has been enhanced to add an optional Python script that can be used to format the payload of the data sent in the HTTP REST request.
        - The SQLite storage plugins have been updated to support service extension schemas. This is a mechanism that allows services within the Fledge system to add new schemas within the storage service that are exclusive to that service.
        - The Python35 filter has been updated to use the common Python interpreter. This allows for packages such as numpy to be used. The resilience and error reporting of this plugin have also been improved.
        - A set of developer only features designed to aid the process of developing data pipelines and plugins has been added in this release. These features are turned on and off via a toggle setting on the Settings page.
-       - A new option has been added to the Python35 filter that changes the way datapoint names are used in the JSOn readings. Previously there had to be encoded and decode by use of the b’xxx' mechanism. There is now a toggle that allows for either this to be required or simple text string use to be enabled.
+       - A new option has been added to the Python35 filter that changes the way datapoint names are used in the JSON readings. Previously there had to be encoded and decode by use of the b’xxx' mechanism. There is now a toggle that allows for either this to be required or simple text string use to be enabled.
        - The API of the storage service has been updated to allow for custom schemas to be created by services that extend the core functionality of the system.
        - New image type datapoints can now be sent between instances using the http north and south plugins.
-       - A new watchdog notification rule plugin has been added that allows notifications to be send if data stops being ingress for specified assets.
        - The ability to define response headers in the http south plugin has been added to aid certain circumstances where CORS provided data flows.
        - The documentation of the Python35 filter has been updated to include a fuller description of how to make use of the configuration data block supported by the plugin.
        - The documentation describing how to run services under the debugger has been improved along with other improvements to the documentation aimed at plugin developers.
-       - Documentation has been added for the Azure north plugin.
-       - Documentation has now been added for fledge-north-harperdb.
-       - Documentation has been added for the Video4Linux plugin.
-       - Documentation has been added for the custom asset notification plugin.
-       - The documentation has been updated to include the new watchdog notification rule.
+       - Documentation has been added for fledge-north-azure plugin.
+       - Documentation has now been added for fledge-north-harperdb plugin.
 
 
     - Bug Fix:
@@ -177,17 +176,13 @@ Release Date: 2022-09-09
        - Occasionally switching from the sqlite to the sqlitememory plugin for the storage of readings would cause a fatal error in the storage layer. This has now been fixed and it is possible to change to sqlitememory without an error.
        - A race condition within the modbus south plugin that could cause unfair scheduling of read versus write operations has been resolved. This could cause write operations to be delayed in some circumstances. The scheduling of set point write operations is now fairly interleaved between the read operations in all cases.
        - A problem that caused the HTTPC North plugin to fail if the path component of the URL was omitted has been resolved.
-       - The modbus-c south plugin documentation has been enhanced to include details of the function codes used to read modbus data.
-       - An incorrect error message in the modbus-c south plugin has been fixed and others have been improved to aid resolving configuration issues. The documentation has been updated to include descriptive text for the error messages that may occur.
-       - The Python35 filter plugin has been updated such that if no data is to be passed onwards it may now simply return the None Python constant or an empty list.
-       - The Python35 plugin which allows simple Python scripts to be added into filter pipelines has had a number of updates to improve the robustness of the plugin in the event of incorrect script code being provided by the user. The behaviour of the plugin has also been updated such that any errors run the script will prevent data being passed onwards the filter pipeline.
+       - The modbus-c south plugin documentation has been enhanced to include details of the function codes used to read modbus data. Also incorrect error message and others have been improved to aid resolving configuration issues. The documentation has been updated to include descriptive text for the error messages that may occur.
+       - The Python35 filter plugin has been updated such that if no data is to be passed onwards it may now simply return the None Python constant or an empty list. Also it allows simple Python scripts to be added into filter pipelines has had a number of updates to improve the robustness of the plugin in the event of incorrect script code being provided by the user. The behaviour of the plugin has also been updated such that any errors run the script will prevent data being passed onwards the filter pipeline. An error explaining the exact cause of the failure is now logged in the system log. Also its documentation has been updated to discuss Python package imports and issues when removing previously used imports.
        - The Average rule has been updated to improve the user interaction during the configuration of the rule.
        - The first time a plugin that persisted data is executed erroneous errors and warnings would be written to the system log. This has now been resolved.
-       - Python35 filter code that failed to return a properly formed asset in the response would previously crash rather than fail gracefully. An error explaining the exact cause of the failure is now logged in the system log.
        - An issue with the Kafka north plugin not sending data in certain circumstances has been resolved.
        - Adding some notification plugins would cause incorrect errors to be logged to the system log. The functioning of the notifications was not affected. This has now been resolved and the error logs no longer appear.
        - The documentation for the fledge-rule-delta plugin has been corrected.
-       - The documentation for the Python35 filter has been updated to discuss Python package imports and issues when removing previously used imports.
 
 
 Fledge v1

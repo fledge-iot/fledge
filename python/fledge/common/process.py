@@ -91,7 +91,7 @@ class FledgeProcess(ABC):
                 raise ArgumentParserError("Invalid Port: {}".format(self._core_management_port))
             for item in args:
                 if item == "--dryrun":
-                    _dryrun = True
+                    self._dryrun = True
                 elif item.startswith('--'):
                     kv = item.split('=')
                     if len(kv) == 2:
@@ -207,4 +207,4 @@ class FledgeProcess(ABC):
 
         :return:
         """
-        return _dryRun
+        return self._dryRun

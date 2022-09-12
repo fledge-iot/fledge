@@ -35,30 +35,66 @@ Release Date: 2022-08-03
     - New Features:
 
        - Add options for choosing the Fledge Asset name: Browser Name, Subscription Path and Full Path. Use the OPC UA Source timestamp as the User Timestamp in Fledge.
-       - A new section has been added to the documentation which discusses the process and best practices for building data pipelines in Fledge.
        - The storage interface used to query generic configuration tables has been improved to support tests for null and non-null column values.
        - The ability for north services to support control inputs coming from systems north of Fledge has been introduced.
-       - Improved north plugin developers documentation is now available.
        - The handling of a failed storage service has been improved. The client now attempt to re-connect and if that fails they we will down. The logging produced is now much less verbose, removing the repeated messages previously seen.
-       - Documentation has been added for the purge process and the new options recently added.
        - A new service has been added to Fledge to facilitate the routing of control messages within Fledge. This service is responsible for determined which south services to send control requests to and also for the security aspects of those requests.
-       - Updated OMF North plugin documentation to include current OSIsoft product names
        - Ensure that new Fledge data types not supported by OMF are not processed.
-       - Fixed a typo in the quick start guide
-       - Added an article on Developing with Windows Subsystem for Linux (WSL2) to the Plugin Developer Guide. WSL2 allows you to run a Linux environment directly on Windows without the overhead of Windows Hyper-V. You can run Fledge and develop plugins on WSL2.
        - The storage service now supports a richer set of queries against the generic table interface. In particular joins between tables are now supported.
        - OPC UA Security has been enhanced. This plugin now supports Security Policies Basic256 and Basic256Sha256, with Security Modes Sign and Sign & Encrypt. Authentication types are anonymous and username/password.
        - South services that have a slow poll rate can take a long time to shutdown, this sometimes resulted in those services not shutting down cleanly. The shutdown process has been modified such that these services now shutdown promptly regardless of polling rate.
-       - The documentation that describes the writing of asynchronous Python plugins has been updated in line with the latest code changes.
+       - A new configuration item type has been added for the selection of access control lists.
+       - Support has been added to the Python query builder for NULL and NOT NULL columns.
+       - The Python query builder has been updated to support nested database queries.
+       - The third party packages on which Fledge is built have been updated to use the latest versions to resolve issues with vulnerabilities in these underlying packages.
+       - When the data stream from a south plugin included an OMF Hint of AFLocation, performance of the OMF North plugin would degrade. In addition, process memory would grow over time. These issues have been fixed.
+       - The version of the PostgreSQL database used by the Postgres storage plugin has been updated to PostgreSQL 13.
+       - An enhancement has been added to the North service to allow the user to specify the block size to use when sending data to the plugin. This helps tune the north services and is described in the tuning guide within the documentation.
+       - The notification server would previously output warning messages when it was starting, these were not an indication of a problem and should have been information messages. This has now been resolved.
+       - The backup mechanism has been improved to include some external items to be include in the backup and provide a more secure backup.
+       - The purge option that controls if unsent assets cane purged or not has been enhanced to provide options for sent to any destination or sent to all destinations as well as sent to no destinations.
+       - It is now possible to add control features to Python south plugins.
+       - Certificate based authentication is now possible between services in a single instance. This allows for secure control messages to be implemented between services.
+       - Performance improvements have been made such that the display of south service data when large numbers of assets are in use has been improved.
+       - The new micro service, control dispatcher, is now available as a package that can be installed via the package manager.
+       - New data types are now supported for data points within an asset and are encoded into various Python types when passed to Python plugins or scripts run within standard plugin. This includes numpy arrays for images and data buffers, 2 dimensional Python lists and others. Details of the type encoding can be found in the plugin developers guide of the online product documentation.
+       - The mechanism for online update of configuration has been extended to allow for more configuration to be modified without the need to restart any services.
+       - Support has been added for the Raspberry Pi Bullseye release.
+       - A problem with a file descriptor leak in Python that could cause Fledge to fail has been resolved.
+       - The control of logging levels has now been added to the Python code run within a service such that the advanced settings option is now honoured by the Python code.
+       - Enhancements have been made to the asset tracker API to retrieve the service responsive for the ingest of a given asset.
        - A new API has been added to allow external viewing and managing of the data that various plugins persist.
        - A new REST API entry point has been added that allows all instances of a specified asset to be purged from the buffer. A further entry point has also been added to purge all data from the reading buffer. These entry points should be used with care as they will cause data to be discarded.
+       - A new parameter has been added to the asset retrieval API that allows image data to be returned, images=include. By default image type datapoints will be replaced with a message, “Image removed for brevity”, in order to reduce the size of the returned payload.
+       - A new API has been added to the management API that allows services to request that URL’s in the public API are proxied to the service API. This is used when extending the functionality of the system with custom microservices.
+       - A new set of API calls have been added to the public REST API of the product to support the control dispatcher and for the creation and management of control scripts.
+       - A new API call has been added to Fledge that allows the core package to be updated and Fledge restarted with the updated version.
+       - A new API has been added to the public API that will return the latest reading for a given asset. This will return all data types including images.
+       - A new API has been added that allows asset tracking records to be marked as deprecated. This allows the flushing of relationships between assets and the services that have processed them. It is useful only in development systems and should not be used in production systems.
+       - A new API call has been added that allows the persisted data related to a plugin to be retrieved via the public REST API. The is intended for use by plugin writers and to allow for better tracking of data persisted between service executions.
+       - A new query parameter has been added to the API used to fetch log messages from the system log, nontotals. This will increase the performance of the call at the expense of not returning the total number of logs that match the search criteria.
+       - New API entry points have been added for the management of Python packages.
+       - Major performance improvements have been made to the code for retrieving log messages from the system log. This is mainly an issue on systems with very large log files.
+       - The storage service API has been extended to support the creation of private schemas for the use of optional micro services registered to a Fledge instance.
+       - Filtering by service type has now been added to the API that retrieve service information via the public REST API.
        - A number of new features have been added to the user interface to aid developers creating data pipelines and plugins. These features allow for manual purging of data, deprecating the relationship between the services and the assets they have ingested and viewing the persisted data of the plugins. These are all documented in the section on developing pipelines within the online documentation.
+       - A new section has been added to the documentation which discusses the process and best practices for building data pipelines in Fledge.
        - A glossary has been added to the documentation for the product.
+       - The documentation that describes the writing of asynchronous Python plugins has been updated in line with the latest code changes.
        - The documentation has been updated to reflect the new tabs available in the Fledge user interface for editing the configuration of services and tasks.
        - A new introduction section has been added to the Fledge documentation that describes the new features and some typical use cases of Fledge.
        - A new section has been added to the Fledge Tuning guide that discusses the tuning of North services and tasks. Also scheduler tuning has been added to the tuning guide along with the tuning of the service monitor which is used to detected failures of services within Fledge.
        - The Tuning Fledge section of the documentation has been updated to include information on tuning the Fledge service monitor that is used to monitor and restart Fledge services. A section has also been added that describes the tuning of north services and tasks. A new section describes the different storage plugins available, when they should be used and how to tune them.
-
+       - Added an article on Developing with Windows Subsystem for Linux (WSL2) to the Plugin Developer Guide. WSL2 allows you to run a Linux environment directly on Windows without the overhead of Windows Hyper-V. You can run Fledge and develop plugins on WSL2.
+       - Documentation has been added for the purge process and the new options recently added.
+       - Documentation has been added to the plugin developer guides that explain what needs to be done to allow the packaging mechanism to be able to package a plugin.
+       - Documentation has been added to the Building Pipelines section of the documentation for the new UI feature that allows Python packages to be installed via the user interface.
+       - Documentation has been updated to show how to build Fledge using the requirements.sh script.
+       - The documentation ordering has been changed to make the section order more logical.
+       - The plugin developers guide has been updated to include information on the various flags that are used to communicate the options implemented by a plugin.
+       - Updated OMF North plugin documentation to include current OSIsoft product names.
+       - Fixed a typo in the quick start guide.
+       - Improved north plugin developers documentation is now available.
 
     - Bug Fix:
 
@@ -69,6 +105,15 @@ Release Date: 2022-08-03
        - The diagnostics when a plugin fails to load have been improved.
        - The South Plugin shutdown problem was caused by errors in the plugin startup procedure which would throw an exception for any error. The plugin startup has been fixed so errors are reported properly. The problem of plugin shutdown when adding a filter has been resolved.
        - The S2OPCUA South Plugin would throw an exception for any error during startup. This would cause the core system to shut down the plugin permanently after a few retries. This has been fixed. Error messages has been recategorized to properly reflect informational, warning and error messages.
+       - The update process has been optimised to remove an unnecessary restart if no new version of the software are available.
+       - The OMF North plugin was unable to process configuration changes or shut down if the PI Web API hostname was not correct. This has been fixed.
+       - S2OPC South plugin builds have been updated to explicitly reference S2OPC Toolkit Version 1.2.0.
+       - An issue that could on rare occasions cause the SQLite plugin to silently discard a readings has been resolved.
+       - An issue with the automatic renewal of authentication certificates has been resolved.
+       - Deleting a service which had a filter pipeline could cause some orphaned configuration information to be left stored. This prevented creating filters of the same name in the future. This has now been resolved.
+       - The error reporting has been improved when downloading backups from the system.
+       - An issue that could cause north plugins to occasionally fail to shutdown correctly has now been resolved.
+       - The documentation has been updated to correct a statement regarding running the south side as a task.
 
 
 - **GUI**

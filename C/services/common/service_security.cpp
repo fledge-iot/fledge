@@ -53,6 +53,8 @@ bool ServiceAuthHandler::createSecurityCategories(ManagementClient* mgtClient, b
 	defConfigSecurity.setItemDisplayName("ACL",
 				"Service ACL");
 
+	defConfigSecurity.setDescription(m_name + " Security");
+
 	// Create/Update category name (we pass keep_original_items=true)
 	mgtClient->addCategory(defConfigSecurity, true);
 

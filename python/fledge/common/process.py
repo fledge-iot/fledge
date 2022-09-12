@@ -92,7 +92,7 @@ class FledgeProcess(ABC):
             for item in args:
                 if item == "--dryrun":
                     _dryrun = True
-                else if item.startswith('--'):
+                elif item.startswith('--'):
                     kv = item.split('=')
                     if len(kv) == 2:
                         if len(kv[1].strip()) == 0:

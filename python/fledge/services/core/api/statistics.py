@@ -189,7 +189,7 @@ async def get_statistics_rate(request: web.Request) -> web.Response:
         raise web.HTTPBadRequest(reason="The maximum allowed value for a period is 10080 minutes")
 
     stats = params['statistics']
-    stat_split_list = list(filter(None, [x.upper() for x in stats.split(',')]))
+    stat_split_list = list(filter(None, [x for x in stats.split(',')]))
     storage_client = connect.get_storage_async()
     # To find the interval in secs from stats collector schedule
     scheduler_payload = PayloadBuilder().SELECT("schedule_interval").WHERE(

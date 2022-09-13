@@ -77,8 +77,13 @@ class OTT:
 
 def __remove_ott_for_user(user_id):
     """Helper function that removes given user_id from OTT_MAP if the user exists in the map."""
+    try:
+        _user_id = int(user_id)
+    except ValueError as ex:
+        _logger.info("User id given is not an integer.")
+        return
     for k, v in OTT.OTT_MAP.items():
-        if v[0] == user_id:
+        if v[0] == _user_id:
             OTT.OTT_MAP.pop(k)
             break
 

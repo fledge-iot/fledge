@@ -21,7 +21,7 @@ import utils
 
 # Local machine
 local_south_plugin = "sinusoid"
-local_south_asset_name = "sinusoid"
+local_south_asset_name = "python-north-service-pair"
 local_south_service_name = "Sine #1"
 local_north_plugin = "http-north"
 local_north_service_name = "HN #1"
@@ -55,7 +55,7 @@ def reset_fledge_local(wait_time):
 
 @pytest.fixture
 def setup_local(reset_fledge_local, add_south, add_north, fledge_url, remote_ip):
-    local_south_config = {"assetName": {"value": remote_south_asset_name}}
+    local_south_config = {"assetName": {"value": local_south_asset_name}}
     add_south(local_south_plugin, None, fledge_url, config=local_south_config,
               service_name="{}".format(local_south_service_name),
               installation_type='package')

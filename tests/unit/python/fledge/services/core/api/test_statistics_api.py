@@ -493,7 +493,7 @@ class TestStatistics:
         assert msg == resp.reason
 
     async def test_get_statistics_rate(self, client, params='?periods=1,5&statistics=readings'):
-        output = {'rates': {'READINGS': {'1': 120.52585669781932, '5': 120.52585669781932}}}
+        output = {'rates': {'readings': {'1': 120.52585669781932, '5': 120.52585669781932}}}
         p1 = {'where': {'value': 'stats collector', 'condition': '=', 'column': 'process_name'},
               'return': ['schedule_interval']}
         p2 = {"return": ["key"], "aggregate": [{"operation": "sum", "column": "value"},

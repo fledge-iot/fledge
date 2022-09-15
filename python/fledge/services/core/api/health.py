@@ -71,11 +71,26 @@ async def get_storage_health(request: web.Request) -> web.Response:
         disk_stat = shutil.disk_usage(FLEDGE_DATA)
 
         json_response['disk'] = {}
-        json_response['disk']['status'] = 'green'
-        json_response['disk']['used'] = disk_stat[0]
-        json_response['disk']['usage'] = disk_stat[1]
-        json_response['disk']['available'] = disk_stat[2]
+        pip_process = await asyncio.create_subprocess_shell('df -k ' + FLEDGE_DATA,
+                                                            stdout=asyncio.subprocess.PIPE,
+                                                            stderr=asyncio.subprocess.PIPE)
 
+        stdout, stderr = await pip_process.communicate()
+        disk_stats = stdout.decode("utf-8")
+        required_stats = disk_stats.split('\n')[1].split()
+        used = int(required_stats[2])
+        available = int(required_stats[3])
+        usage = int(required_stats[4].replace("%", ''))
+        if usage < 90:
+            status = 'green'
+        elif 90 < usage <= 95:
+            status = 'yellow'
+        else:
+            status = 'red'
+        json_response['disk']['used'] = used
+        json_response['disk']['usage'] = usage
+        json_response['disk']['available'] = available
+        json_response['disk']['status'] = status
         return web.json_response(json_response)
     except Exception as ex:
         _LOGGER.error("Could get disk stats due to {}".format(str(ex)))

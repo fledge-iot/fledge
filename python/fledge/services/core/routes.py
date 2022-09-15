@@ -35,6 +35,8 @@ from fledge.services.core.api.repos import configure as configure_repo
 from fledge.services.core.api.control_service import script_management
 from fledge.services.core.api.control_service import acl_management
 from fledge.services.core.api import python_packages
+from fledge.services.core.api import packages_update
+
 
 __author__ = "Ashish Jabble, Praveen Garg, Massimiliano Pinto, Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017-2018 OSIsoft, LLC"
@@ -257,6 +259,8 @@ def setup(app):
 
     app.router.add_route('GET', '/fledge/python/packages', python_packages.get_packages)
     app.router.add_route('POST', '/fledge/python/package', python_packages.install_package)
+
+    app.router.add_route('GET', '/fledge/update', packages_update.get_updates)
 
     # Proxy Admin API setup with regex
     proxy.admin_api_setup(app)

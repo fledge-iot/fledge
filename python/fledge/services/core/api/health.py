@@ -7,6 +7,7 @@
 import logging
 import json
 import asyncio
+import shutil
 
 from aiohttp import web
 from fledge.common import logger
@@ -66,20 +67,16 @@ async def get_storage_health(request: web.Request) -> web.Response:
             _LOGGER.error("Could not ping Storage  due to {}".format(str(ex)))
             return
 
-    process = await asyncio.create_subprocess_shell('df -k ' + FLEDGE_DATA,
-                                                        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+    try:
+        disk_stat = shutil.disk_usage(FLEDGE_DATA)
 
-    stdout, stderr = await process.communicate()
-    if process.returncode != 0:
-        _LOGGER.error("Could not execute df -k")
+        json_response['disk'] = {}
+        json_response['disk']['status'] = 'green'
+        json_response['disk']['used'] = disk_stat[0]
+        json_response['disk']['usage'] = disk_stat[1]
+        json_response['disk']['available'] = disk_stat[2]
 
-    process_output = stdout.decode("utf-8")
-    _LOGGER.info(process_output)
-
-    json_response['disk'] = {}
-    json_response['disk']['status'] = {}
-    json_response['disk']['used'] = {}
-    json_response['disk']['usage'] = {}
-    json_response['disk']['available'] = {}
-
-    return web.json_response({"message": json_response})
+        return web.json_response(json_response)
+    except Exception as ex:
+        _LOGGER.error("Could get disk stats due to {}".format(str(ex)))
+        return

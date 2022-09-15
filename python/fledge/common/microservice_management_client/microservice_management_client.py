@@ -311,7 +311,7 @@ class MicroserviceManagementClient(object):
                                                                              self.port)) as resp:
                 _logger.info(resp.status)
                 json_response = await resp.json()
-                _logger.debug("The response is {}".format(json_response))
+                _logger.info("The response is {}".format(json_response))
                 self._management_client_conn.close()
                 self.port = None
                 self.hostname = None

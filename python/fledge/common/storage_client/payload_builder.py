@@ -60,6 +60,12 @@ class PayloadBuilder(object):
                 if arg[1] in ['in', 'not in']:
                     if isinstance(arg[2], list):
                         retval = True
+            elif len(arg) == 2:
+                # There is no 3rd arg required for below operations
+                if arg[1] in ['isnull', 'notnull']:
+                    retval = True
+            else:
+                retval = False
         return retval
 
     @staticmethod
@@ -394,7 +400,9 @@ class PayloadBuilder(object):
             if cls.verify_condition(arg):
                 condition["column"] = arg[0]
                 condition["condition"] = arg[1]
-                condition["value"] = arg[2]
+                # Note: append value KV pair only if 3 argument supplied
+                if len(arg) == 3:
+                    condition["value"] = arg[2]
                 if 'where' not in cls.query_payload:
                     cls.query_payload["where"] = condition
                 else:
@@ -410,7 +418,9 @@ class PayloadBuilder(object):
             if cls.verify_condition(arg):
                 condition["column"] = arg[0]
                 condition["condition"] = arg[1]
-                condition["value"] = arg[2]
+                # Note: append value KV pair only if 3 argument supplied
+                if len(arg) == 3:
+                    condition["value"] = arg[2]
                 if 'where' not in cls.query_payload:
                     cls.query_payload["where"] = condition
                 else:
@@ -426,7 +436,9 @@ class PayloadBuilder(object):
             if cls.verify_condition(arg):
                 condition["column"] = arg[0]
                 condition["condition"] = arg[1]
-                condition["value"] = arg[2]
+                # Note: append value KV pair only if 3 argument supplied
+                if len(arg) == 3:
+                    condition["value"] = arg[2]
                 if 'where' not in cls.query_payload:
                     cls.query_payload["where"] = condition
                 else:
@@ -437,6 +449,130 @@ class PayloadBuilder(object):
     def GROUP_BY(cls, *args):
         # TODO: Add dict format for args
         cls.query_payload["group"] = ', '.join(args)
+        return cls
+
+    @classmethod
+    def JOIN(cls, *args):
+        """
+        Class method for JOIN. Use like this 1. PayloadBuilder().JOIN("table_name", "column_name")
+                                        or   2. PayloadBuilder().JOIN("table_name").
+        The first example assumes that were a table_name and a column_name for the JOIN clause.
+        The second example assumes that we only have a table_name and its column matches
+         the column name given in the request payload.
+        Args:
+            *args ():  Tuple/s of table name and column name or only table name.
+
+        Returns:
+            The object of payload builder class.
+        """
+        if len(args) == 2:
+            tbl_name = args[0]
+            col_name = args[1]
+
+            table_dict = {
+                "table": {
+                    "name": tbl_name,
+                    "column": col_name
+                }
+            }
+
+        elif len(args) == 1:
+            tbl_name = args[0]
+
+            table_dict = {
+                "table": {
+                    "name": tbl_name
+                }
+            }
+        else:
+            raise Exception("Expected at least table name with JOIN clause.")
+
+        cls.query_payload["join"] = table_dict
+        return cls
+
+    @classmethod
+    def ON(cls, *args):
+        """
+            Class method for ON. Use like this PayloadBuilder().JOIN("table_name", "column_name").\
+                                                                ON("column_name")
+            Used only with JOIN.
+            Args:
+                *args (): column name for ON clause.
+
+            Returns:
+                The object of payload builder class.
+        """
+        if "join" not in cls.query_payload:
+            raise Exception("ON Clause used without using JOIN first.")
+
+        if len(args) != 1:
+            raise Exception("Expected column name with ON clause.")
+
+        col_name = args[0]
+        cls.query_payload["join"]["on"] = col_name
+        return cls
+
+    @classmethod
+    def QUERY(cls, *args):
+        """
+             Class method for QUERY. Used only with JOIN and ON.
+             Inserts a query payload inside cls.query_payload['join']['query.']
+             Usage
+              1. First make a query payload like this
+              qp = PayloadBuilder().SELECT(("name", "id")) \
+                                   .ALIAS('return', ('name', 'my_name'), ('id', 'my_id'))\
+                                   .chain_payload()
+              2. Then use PayloadBuilder().JOIN("t1", "t1_id").ON("t1_id").QUERY(qp)
+              Result:
+                   {
+                      "join": {
+                        "table": {
+                          "name": "t1",
+                          "column": "t1_id"
+                        },
+                        "on": "t1_id",
+                        "query": {
+                          "return": [
+                            {
+                              "column": "name",
+                              "alias": "my_name"
+                            },
+                            {
+                              "column": "id",
+                              "alias": "my_id"
+                            }
+                          ]
+                        }
+                     }
+                   }
+
+            Args:
+                *args (): the query payload to insert into parent payload.
+
+            Returns:
+                The object of payload builder class.
+        """
+
+        if "join" not in cls.query_payload:
+            raise Exception("Query used without JOIN clause.")
+
+        if 'on' not in cls.query_payload['join']:
+            raise Exception("Query used without ON clause.")
+
+        if len(args) != 1:
+            raise Exception("Either no or invalid query payload parameter given.")
+
+        payload = args[0]
+        if not isinstance(payload, OrderedDict):
+            raise Exception("The query payload parameter must be an OrderedDict.")
+
+        if 'query' in cls.query_payload['join']:
+            # Used when we have to perform only one join.
+            cls.query_payload['join']['query'].update(payload)
+        else:
+            # Used when we have to perform nested join.
+            # This will update the already existent query field.
+            cls.query_payload['join']['query'] = payload
         return cls
 
     @classmethod

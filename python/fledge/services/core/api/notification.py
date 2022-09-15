@@ -25,10 +25,12 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 _help = """
-    -------------------------------------------------------------------------------
-    | GET                            | /fledge/notification/plugin               |
-    | GET POST PUT DELETE            | /fledge/notification                      |
-    -------------------------------------------------------------------------------
+    -----------------------------------------------------------------------------------------------------
+    | GET                            | /fledge/notification/plugin                                      |
+    | GET POST PUT DELETE            | /fledge/notification                                             |
+    | GET POST                       | /fledge/notification/{name}/delivery                             |
+    | GET DELETE                     | /fledge/notification/{notification_name}/delivery/{channel_name} |
+    -----------------------------------------------------------------------------------------------------
 """
 
 _logger = logger.setup()
@@ -86,6 +88,11 @@ async def get_notification(request):
         if notification_config:
             rule_config = await config_mgr._read_category_val("rule{}".format(notif))
             delivery_config = await config_mgr._read_category_val("delivery{}".format(notif))
+            naming_extra = "{}_channel_".format(notification_config['name']['value'])
+            list_extra = await _get_channels_type(config_mgr,
+                                          notification_config['name']['value'],
+                                          naming_extra,
+                                          True)
             notification = {
                 "name": notification_config['name']['value'],
                 "description": notification_config['description']['value'],
@@ -97,6 +104,8 @@ async def get_notification(request):
                 "retriggerTime": notification_config['retrigger_time']['value'],
                 "enable": notification_config['enable']['value'],
             }
+            if len(list_extra) > 0:
+                notification["additionalChannels"] =  list_extra
         else:
             raise ValueError("The Notification: {} does not exist.".format(notif))
     except ValueError as ex:
@@ -120,6 +129,11 @@ async def get_notifications(request):
         notifications = []
         for notification in all_notifications:
             notification_config = await config_mgr._read_category_val(notification['child'])
+            naming_extra = "{}_channel_".format(notification_config['name']['value'])
+            list_extra = await _get_channels_type(config_mgr,
+                                          notification_config['name']['value'],
+                                          naming_extra,
+                                          True)
             notification = {
                 "name": notification_config['name']['value'],
                 "rule": notification_config['rule']['value'],
@@ -128,6 +142,9 @@ async def get_notifications(request):
                 "retriggerTime": notification_config['retrigger_time']['value'],
                 "enable": notification_config['enable']['value'],
             }
+            if len(list_extra) > 0:
+                notification["additionalChannels"] =  list_extra
+
             notifications.append(notification)
     except Exception as ex:
         raise web.HTTPInternalServerError(reason=ex)
@@ -533,4 +550,259 @@ async def _hit_delete_url(delete_url, data=None):
         raise
     else:
         return jdoc
+
+
+async def _get_channels(cfg_mgr: ConfigurationManager, notify_instance: str) -> list:
+    """ Retrieve all  channels
+        the first having the naming : delivery +  "NotificationName"
+        the extras                  : "NotificationName" + _channel_ + "DeliveryName"
+    :Example:
+        deliveryTooHot1 (mqtt)
+        TooHot1_channel_asset_2
+        TooHot1_channel_mqtt_3
+
+    """
+
+    naming_first = "delivery{}".format(notify_instance)
+    list_first = await _get_channels_type(cfg_mgr, notify_instance, naming_first, False)
+
+    naming_extra = "{}_channel_".format(notify_instance)
+    list_extra = await _get_channels_type(cfg_mgr, notify_instance, naming_extra, True)
+
+    full_list = []
+
+    full_list.extend(list_first)
+    full_list.extend(list_extra)
+
+    return full_list
+
+
+async def _get_channels_type(cfg_mgr: ConfigurationManager, notify_instance: str, prefix: str, extra: bool) -> list:
+    """ Retrieve a type of channel
+    """
+
+    all_categories = await cfg_mgr.get_all_category_names()
+
+    categories = [c[0] for c in all_categories if c[0].startswith(prefix)]
+    channel_names = []
+
+    if categories:
+        for ch in categories:
+            if ch.startswith(prefix):
+
+                category_info = await cfg_mgr._read_category(ch)
+
+                if extra:
+                    try:
+                        #delivery_name = ch[len(prefix):] + "/" + category_info['value']['plugin']['value']
+                        delivery_name = ch[len(prefix):]
+                    except:
+                        delivery_name = ch[len(prefix):]
+                else:
+                    try:
+                        delivery_name = ch + "/" + category_info['value']['plugin']['value']
+                    except:
+                        delivery_name = ch
+
+                channel_names.append(delivery_name)
+
+    return channel_names
+
+
+async def get_delivery_channels(request: web.Request) -> web.Response:
+    """ Retrieve a list of all the additional notification channels for the given notification
+
+    :Example:
+        curl -sX GET http://localhost:8081/fledge/notification/overspeed/delivery
+    """
+    try:
+        notification_instance_name = request.match_info.get('notification_name', None)
+        storage = connect.get_storage_async()
+        config_mgr = ConfigurationManager(storage)
+        notification_config = await config_mgr._read_category_val(notification_instance_name)
+        if notification_config:
+            channels = await _get_all_delivery_channels(config_mgr, notification_instance_name)
+        else:
+            raise NotFoundError("{} notification instance does not exist".format(notification_instance_name))
+    except NotFoundError as err:
+        msg = str(err)
+        raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
+    except Exception as ex:
+        msg = str(ex)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+    else:
+        return web.json_response({"channels": channels})
+
+
+async def post_delivery_channel(request: web.Request) -> web.Response:
+    """ Add a new delivery channel to an existing notification
+        :Example:
+            curl -sX POST http://localhost:8081/fledge/notification/overspeed/delivery -d '{"name": "coolant", "config": {"action": {"description": "Perform a control action to turn pump", "type": "boolean", "default": "false"}}}'
+    """
+    try:
+        notification_instance_name = request.match_info.get('notification_name', None)
+
+        data = await request.json()
+        channel_name = data.get('name', None)
+        channel_description = data.get('description', "{} delivery channel".format(channel_name))
+        channel_config = data.get('config', None)
+
+        if channel_name is None:
+            raise ValueError('Missing name property in payload')
+        channel_name = channel_name.strip()
+        if channel_name == "":
+            raise ValueError('Name should not be empty')
+        if utils.check_reserved(channel_name) is False:
+            raise ValueError('name should not use reserved words')
+        if channel_config is None or not isinstance(channel_config, dict) or len(channel_config) == 0:
+            raise ValueError('config must be a valid JSON')
+
+        pluginData = channel_config.get('plugin', None)
+        if pluginData is None or not isinstance(pluginData, dict) or len(pluginData) == 0:
+            raise ValueError("'plugin' property is missing or not a JSON object in 'config' data")
+
+        storage = connect.get_storage_async()
+        config_mgr = ConfigurationManager(storage)
+        notification_config = await config_mgr._read_category_val(notification_instance_name)
+
+        if notification_config:
+
+            channel_name = "{}_channel_{}".format(notification_instance_name, channel_name)
+            # Create category
+            await config_mgr.create_category(category_name=channel_name, category_description=channel_description,
+                                             category_value=channel_config)
+
+            category_info = await config_mgr.get_category_all_items(category_name=channel_name)
+
+            if category_info is None:
+                raise NotFoundError('No such {} category found'.format(channel_name))
+            # Create parent-child relationship
+            await config_mgr.create_child_category(notification_instance_name, [channel_name])
+
+        else:
+            raise NotFoundError("{} notification instance does not exist".format(notification_instance_name))
+    except ValueError as err:
+        msg = str(err)
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+    except NotFoundError as err:
+        msg = str(err)
+        raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
+    except Exception as ex:
+        msg = str(ex)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+    else:
+        return web.json_response({"category": channel_name, "description": channel_description,
+                                  "config": channel_config})
+
+
+async def get_delivery_channel_configuration(request: web.Request) -> web.Response:
+    """ Retrieve the configuration of a delivery channel
+
+    :Example:
+        curl -sX GET http://localhost:8081/fledge/notification/overspeed/delivery/coolant
+    """
+    notification_instance_name = request.match_info.get('notification_name', None)
+    channel_name = request.match_info.get('channel_name', None)
+    storage = connect.get_storage_async()
+    config_mgr = ConfigurationManager(storage)
+    try:
+        category_name = "{}_channel_{}".format(notification_instance_name, channel_name)
+        notification_config = await config_mgr._read_category_val(notification_instance_name)
+        if notification_config:
+            channels = await _get_channels(config_mgr, notification_instance_name)
+            if channel_name in channels:
+                channel_config = await config_mgr._read_category_val(category_name)
+            else:
+                raise NotFoundError("{} channel does not exist".format(channel_name))
+        else:
+            raise NotFoundError("{} notification instance does not exist".format(notification_instance_name))
+    except NotFoundError as err:
+        msg = str(err)
+        raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
+    except Exception as ex:
+        msg = str(ex)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+    else:
+        return web.json_response({"config": channel_config})
+
+
+async def delete_delivery_channel(request: web.Request) -> web.Response:
+    """ Remove a delivery channel
+
+    :Example:
+        curl -sX DELETE http://localhost:8081/fledge/notification/overspeed/delivery/coolant
+    """
+
+    try:
+        notification_service = ServiceRegistry.get(s_type=ServiceRecord.Type.Notification.name)
+        _address, _port = notification_service[0]._address, notification_service[0]._port
+
+    except service_registry_exceptions.DoesNotExist:
+        raise web.HTTPNotFound(reason="No Notification service available.")
+
+    notification_instance_name = request.match_info.get('notification_name', None)
+    channel_name = request.match_info.get('channel_name', None)
+    storage = connect.get_storage_async()
+    config_mgr = ConfigurationManager(storage)
+
+    try:
+
+        category_name = "{}_channel_{}".format(notification_instance_name, channel_name)
+        notification_config = await config_mgr._read_category_val(notification_instance_name)
+
+        if notification_config:
+            channels = await _get_channels(config_mgr, notification_instance_name)
+
+            if channel_name in channels:
+
+                # This call allows notification for deleted child category
+                # and deletes it from category_children table
+                await config_mgr.delete_child_category(notification_instance_name, category_name)
+
+                # Remove child category from configuration table
+                await config_mgr.delete_category_and_children_recursively(category_name)
+
+                # Get channels list again as relation gets deleted above
+                channels = await _get_channels(config_mgr, notification_instance_name)
+            else:
+                raise NotFoundError("{} channel does not exist".format(channel_name))
+
+        else:
+            raise NotFoundError("{} notification instance does not exist".format(notification_instance_name))
+
+    except NotFoundError as err:
+        msg = str(err)
+        raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
+    except Exception as ex:
+        msg = str(ex)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+    else:
+        return web.json_response({"channels": channels})
+
+async def _get_all_delivery_channels(cfg_mgr: ConfigurationManager, notify_instance: str) -> dict:
+    """ Remove all delivery channels
+        in the form of array of dicts:
+        keys are 'name' and 'category'
+    """
+
+    full_list = []
+    category_first = "delivery{}".format(notify_instance)
+    first_name = await _get_channels_type(cfg_mgr, notify_instance, category_first, False)
+    first_channel = {
+            "name" : first_name[0].split('/')[1],
+            "category" : category_first,
+    }
+    full_list.append(first_channel)
+
+    naming_extra = "{}_channel_".format(notify_instance)
+    list_extra = await _get_channels_type(cfg_mgr, notify_instance, naming_extra, True)
+
+    for ch in list_extra:
+        extra_channel = {
+            "name" : ch,
+            "category" : "{}_channel_{}".format(notify_instance, ch)
+        }
+        full_list.append(extra_channel)
+
+    return full_list
 

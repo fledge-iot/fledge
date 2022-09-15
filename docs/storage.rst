@@ -3,6 +3,9 @@
 .. |storage_02| image:: images/storage_02.jpg
 .. |storage_03| image:: images/storage_03.jpg
 .. |sqlite_01| image:: images/sqlite_storage_configuration.jpg
+.. |purge_01| image:: images/purge_01.jpg
+.. |purge_02| image:: images/purge_02.jpg
+.. |purge_03| image:: images/purge_03.jpg
 
 
 
@@ -146,42 +149,6 @@ A more generic command is:
   sudo -u postgres createuser -d $(whoami)
 
 
-CentOS/Red Hat Install
-----------------------
-
-On CentOS and Red Hat systems, and other RPM based distributions the command is
-
-.. code-block:: console
-
-  sudo yum install -y https://download.postgresql.org/pub/repos/yum/reporpms/EL-7-x86_64/pgdg-redhat-repo-latest.noarch.rpm
-  sudo yum install -y postgresql96-server
-  sudo yum install -y postgresql96-devel
-  sudo yum install -y rh-postgresql96
-  sudo yum install -y rh-postgresql96-postgresql-devel
-  sudo /usr/pgsql-9.6/bin/postgresql96-setup initdb
-  sudo systemctl enable postgresql-9.6
-  sudo systemctl start postgresql-9.6
-
-At this point, Postgres has been configured to start at boot and it should be up and running. You can always check the status of the database server with ``systemctl status postgresql-9.6``:
-
-.. code-block:: console
-
-  sudo systemctl status postgresql-9.6
-
-
-Next, you must create a PostgreSQL user that matches your Linux user.
-
-.. code-block:: console
-
-  sudo -u postgres createuser -d $(whoami)
-
-Finally, add ``/usr/pgsql-9.6/bin`` to your PATH environment variable in ``$HOME/.bash_profile``. the new PATH setting in the file should look something like this:
-
-.. code-block:: console
-
-  PATH=$PATH:$HOME/.local/bin:$HOME/bin:/usr/pgsql-9.6/bin
-
-
 SQLite Plugin Configuration
 ===========================
 
@@ -217,3 +184,64 @@ of assets that can be stored within a Fledge instance as SQLite has a
 maximum limit of 61 databases that can be in use at any time. Therefore
 the maximum number of readings is 60 times the number of readings per
 database. One database is reserved for the configuration data.
+
+Storage Management
+==================
+
+Fledge manages the amount of storage used by means of purge processes that run periodically to remove older data and thus limit the growth of storage use. The purging operations are implemented as Fledge tasks that can be scheduled to run periodically. There are two distinct tasks that are run
+
+  - **purge**: This task is responsible for limiting the readings that are maintained within the Fledge buffer.
+
+  - **system purge**: This task limit the amount of system data in the form of logs, audit trail and task history that is maintained.
+
+Purge Task
+----------
+
+The purge task is run via a scheduled called *purge*, the default for this schedule is to run the purge task every hour. This can be modified via the user interface in the *Schedules* menu entry or via the REST API by updating the schedule.
+
+The purge task has two metrics it takes into consideration, the age of the readings within the system and the number of readings in the system. These can be configured to control how much data is retained within the system. Note however that this does not mean that there will never be data older than specified or more rows than specified as purge runs periodically and between executions of the purge task the readings buffered will continue to grow.
+
+The configuration of the purge task can be found in the *Configuration* menu item under the *Utilities* section.
+
++------------+
+| |purge_01| |
++------------+
+
+  - **Age Of Data To Be Retained**: This configuration option sets the limit on how old data has to be before it is considered for purging from the system. It defines a value in hours, and only data older than this is considered for purging from the system.
+
+  - **Max rows of data to retain**: This defines how many readings should be retained in the buffer. This can override the age of data to retain and defines the maximum allowed number of readings that should be in the buffer after the purge process has completed.
+
+  - **Retain Unsent Data**: This defines how to treat data that has been read by Fledge but not yet sent onward to one or more of the north destinations for data. It supports a number of options
+
+    +------------+
+    | |purge_02| |
+    +------------+
+
+    - **purge unsent**: Data will be purged regardless if it has been sent onward from Fledge or not.
+
+    - **retain unsent to any destination**: Data will not be purged, i.e. it will be retained, if it has not been sent to any of the north destinations. If it has been sent to at least one of the north destinations then it will be purged.
+
+    - **retain unset to all destinations**: Data will be retained until it has been sent to all north destinations that are enabled at the time the purge process runs. Disabled north destinations are not included in order to prevent them from stopping all data from being purged.
+
+
+Note: This configuration category will not appear until after the purge process has run for the first time. By default this will be 1 hour after the Fledge instance is started for the first time.
+
+
+System Purge Task
+-----------------
+
+The system purge task is run via a scheduled called *system_purge*, the default for this schedule is to run the system purge task every 23 hours and 50 minutes. This can be modified via the user interface in the *Schedules* menu entry or via the REST API by updating the schedule.
+
+The configuration category for the system purge can be found in the *Configuration* menu item under the *Utilities* section.
+
++------------+
+| |purge_03| |
++------------+
+
+  - **Statistics Retention**: This defines the number of days for which full statistics are held within Fledge. Statistics older than this number of days are removed and only a summary of the statistics is held.
+
+  - **Audit Retention**: This defines the number of day for which the audit log entries will be retained. Once the entries reach this age they will be removed from the system.
+
+  - **Task Retention**: This defines the number of days for which history if task execution within Fledge is maintained.
+
+Note: This configuration category will not appear until after the system purge process has run for the first time.

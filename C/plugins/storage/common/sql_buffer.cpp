@@ -9,6 +9,7 @@
  */
 #include <sql_buffer.h>
 #include <string.h>
+#include <string_utils.h>
 
 using namespace std;
 /**
@@ -37,6 +38,8 @@ SQLBuffer::~SQLBuffer()
 
 /**
  * Append a character to a buffer
+ *
+ * @param data	The character to append to the buffer
  */
 void SQLBuffer::append(const char data)
 {
@@ -54,6 +57,8 @@ SQLBuffer::Buffer *buffer = buffers.back();
 
 /**
  * Append a character string to a buffer
+ *
+ * @para data	The string to append to the buffer
  */
 void SQLBuffer::append(const char *data)
 {
@@ -79,6 +84,8 @@ SQLBuffer::Buffer *buffer = buffers.back();
 
 /**
  * Append an integer to a buffer
+ *
+ * @param value	The value to append to the buffer
  */
 void SQLBuffer::append(const int value)
 {
@@ -99,6 +106,8 @@ SQLBuffer::Buffer *buffer = buffers.back();
 
 /**
  * Append a long to a buffer
+ *
+ * @param value	The long value to append to the buffer
  */
 void SQLBuffer::append(const long value)
 {
@@ -119,6 +128,8 @@ SQLBuffer::Buffer *buffer = buffers.back();
 
 /**
  * Append an unsigned integer to a buffer
+ *
+ * @param value	The unsigned long value to append to the buffer
  */
 void SQLBuffer::append(const unsigned int value)
 {
@@ -139,6 +150,8 @@ SQLBuffer::Buffer *buffer = buffers.back();
 
 /**
  * Append an unsigned long to a buffer
+ *
+ * @param value	The value to append to the buffer
  */
 void SQLBuffer::append(const unsigned long value)
 {
@@ -159,6 +172,8 @@ SQLBuffer::Buffer *buffer = buffers.back();
 
 /**
  * Append a double to a buffer
+ *
+ * @param value	The double value to append to the buffer
  */
 void SQLBuffer::append(const double value)
 {
@@ -179,6 +194,8 @@ SQLBuffer::Buffer *buffer = buffers.back();
 
 /**
  * Append a string to a buffer
+ *
+ * @param str	The string to be appended to the buffer
  */
 void SQLBuffer::append(const string& str)
 {
@@ -204,7 +221,43 @@ SQLBuffer::Buffer *buffer = buffers.back();
 }
 
 /**
+ * Quote and append a string to a buffer
+ *
+ * @param str	The string to quote and append to the buffer
+ */
+void SQLBuffer::quote(const string& str)
+{
+string esc = str;
+StringEscapeQuotes(esc);
+const char	*cstr = esc.c_str();
+unsigned int len = strlen(cstr) + 2;
+SQLBuffer::Buffer *buffer = buffers.back();
+
+        if (buffer->offset + len >= buffer->length)
+        {
+		if (len > BUFFER_CHUNK)
+		{
+			buffer = new SQLBuffer::Buffer(len + BUFFER_CHUNK);
+		}
+		else
+		{
+			buffer = new SQLBuffer::Buffer();
+		}
+		buffers.push_back(buffer);
+	}
+	buffer->data[buffer->offset] = '"';
+	memcpy(&buffer->data[buffer->offset + 1], cstr, len - 2);
+	buffer->data[buffer->offset + len - 1] = '"';
+	buffer->offset += len;
+	buffer->data[buffer->offset] = 0;
+}
+
+/**
  * Create a coalesced buffer from the buffer chain
+ *
+ * The buffer returned has been created usign the new[] operator and must be
+ * deleted by the caller.
+ * @return char* The SQL statement in a single buffer
  */
 const char *SQLBuffer::coalesce()
 {
@@ -230,7 +283,7 @@ char	     *buffer = 0;
 }
 
 /**
- * Construct a buffer
+ * Construct a buffer with a standard size initial buffer.
  */
 SQLBuffer::Buffer::Buffer() : offset(0), length(BUFFER_CHUNK), attached(true)
 {
@@ -239,7 +292,11 @@ SQLBuffer::Buffer::Buffer() : offset(0), length(BUFFER_CHUNK), attached(true)
 }
 
 /**
- * Construct a large buffer
+ * Construct a large buffer, passign the size of buffer required. THis is useful
+ * if you know your buffer requirements are large and you wish to reduce the amount
+ * of allocation required.
+ *
+ * @param size	The size of the initial buffer to allocate.
  */
 SQLBuffer::Buffer::Buffer(unsigned int size) : offset(0), length(size), attached(true)
 {
@@ -248,7 +305,8 @@ SQLBuffer::Buffer::Buffer(unsigned int size) : offset(0), length(size), attached
 }
 
 /**
- * Buffer destructor
+ * Buffer destructor, the buffer itself is also deleted by this
+ * call and any reference to it must no longer be used.
  */
 SQLBuffer::Buffer::~Buffer()
 {
@@ -259,6 +317,12 @@ SQLBuffer::Buffer::~Buffer()
 	}
 }
 
+/**
+ * Detach the buffer from the SQLBuffer. The reference to the buffer
+ * is removed from the SQLBuffer but the buffer itself is not deleted.
+ * This allows the buffer ownership to be taken by external code
+ * whilst allowing the SQLBuffer to allocate a new buffer.
+ */
 char *SQLBuffer::Buffer::detach()
 {
 char *rval = data;

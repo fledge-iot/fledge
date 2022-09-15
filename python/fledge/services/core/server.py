@@ -18,7 +18,8 @@ from aiohttp import web
 import aiohttp
 import json
 import signal
-from datetime import datetime
+from datetime import datetime, timedelta
+import jwt
 
 from fledge.common import logger
 from fledge.common.audit_logger import AuditLogger
@@ -47,9 +48,11 @@ from fledge.services.core.asset_tracker.asset_tracker import AssetTracker
 from fledge.services.core.api import asset_tracker as asset_tracker_api
 from fledge.common.web.ssl_wrapper import SSLVerifier
 from fledge.services.core.api import exceptions as api_exception
+from fledge.services.core.api.control_service import acl_management as acl_management
 
-__author__ = "Amarendra K. Sinha, Praveen Garg, Terris Linenbach, Massimiliano Pinto"
-__copyright__ = "Copyright (c) 2017-2018 OSIsoft, LLC"
+
+__author__ = "Amarendra K. Sinha, Praveen Garg, Terris Linenbach, Massimiliano Pinto, Ashish Jabble"
+__copyright__ = "Copyright (c) 2017-2021 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
@@ -66,6 +69,16 @@ _FLEDGE_PID_FILE = "fledge.core.pid"
 
 
 SSL_PROTOCOLS = (asyncio.sslproto.SSLProtocol,)
+
+# TODO generate secret at build time
+SERVICE_JWT_SECRET = 'f0gl@mp+Fl3dG3'
+SERVICE_JWT_ALGORITHM = 'HS256'
+SERVICE_JWT_EXP_DELTA_SECONDS = 30*60  # 30 minutes
+SERVICE_JWT_AUDIENCE = 'Fledge'
+
+# aiohttp client’s maximum size in a request, in bytes.
+# If a POST request exceeds this value, it raises an HTTPRequestEntityTooLarge exception.
+AIOHTTP_CLIENT_MAX_SIZE = 4*1024**3  # allowed up to 4GB
 
 
 def ignore_aiohttp_ssl_eror(loop):
@@ -155,6 +168,9 @@ class Server:
 
     _USER_API_SERVICE = '_fledge-user._tcp.local.'
     """ The user REST service we advertise """
+
+    _API_PROXIES = {}
+    """ Proxy map for interfacing admin/user's REST API endpoints to Micro-services' service API endpoints """
 
     admin_announcer = None
     """ The Announcer for the Admin API """
@@ -519,7 +535,7 @@ class Server:
         else:
             mwares.append(middleware.auth_middleware)
 
-        app = web.Application(middlewares=mwares)
+        app = web.Application(middlewares=mwares, client_max_size=AIOHTTP_CLIENT_MAX_SIZE)
         admin_routes.setup(app)
         return app
 
@@ -529,7 +545,7 @@ class Server:
 
         :rtype: web.Application
         """
-        app = web.Application(middlewares=[middleware.error_middleware])
+        app = web.Application(middlewares=[middleware.error_middleware], client_max_size=AIOHTTP_CLIENT_MAX_SIZE)
         management_routes.setup(app, cls, True)
         return app
 
@@ -805,6 +821,7 @@ class Server:
 
             loop.run_until_complete(cls.rest_api_config())
             cls.service_app = cls._make_app(auth_required=cls.is_auth_required, auth_method=cls.auth_method)
+
             # ssl context
             ssl_ctx = None
             if not cls.is_rest_server_http_enabled:
@@ -869,6 +886,15 @@ class Server:
             if not cls.running_in_safe_mode:
                 # Start asset tracker
                 loop.run_until_complete(cls._start_asset_tracker())
+                # If dispatcher installation:
+                # a) not found then add it as a StartUp service
+                # b) found then check the status of its schedule and take action
+                is_dispatcher = loop.run_until_complete(cls.is_dispatcher_running(cls._storage_client_async))
+                if not is_dispatcher:
+                    _logger.info("Dispatcher service installation found on the system, but not in running state. "
+                                 "Therefore, starting the service...")
+                    loop.run_until_complete(cls.add_and_enable_dispatcher())
+                    _logger.info("Dispatcher service started.")
 
             # Everything is complete in the startup sequence, write the audit log entry
             cls._audit = AuditLogger(cls._storage_client_async)
@@ -1111,10 +1137,20 @@ class Server:
             if not isinstance(service_management_port, int):
                 raise web.HTTPBadRequest(reason='Service management port can be a positive integer only')
 
+            if token is None and ServiceRegistry.getStartupToken(service_name) is not None:
+                raise web.HTTPBadRequest(body=json.dumps({"message": 'Required registration token is missing.'}))
+            
+            # If token, then check single use token verification; if bad then return 4XX
             if token is not None:
                 if not isinstance(token, str):
                     msg = 'Token can be a string only'
-                    raise web.HTTPBadRequest(reason=msg, body=json.dumps(msg))
+                    raise web.HTTPBadRequest(reason=msg)
+
+                # Check startup token exists
+                if ServiceRegistry.checkStartupToken(service_name, token) == False:
+                    msg = 'Token for the service was not found' 
+                    raise web.HTTPBadRequest(reason=msg)
+
             try:
                 registered_service_id = ServiceRegistry.register(service_name, service_type, service_address,
                                                                  service_port, service_management_port,
@@ -1137,13 +1173,37 @@ class Server:
             if not registered_service_id:
                 raise web.HTTPBadRequest(reason='Service {} could not be registered'.format(service_name))
 
-            bearer_token = "{}_{}".format(service_name.strip(), uuid.uuid4().hex) if token is not None else ""
+            bearer_token = ''
+            # Create a JWT token if startup token exists
+            if token is not None:
+                # Set JWT bearer token
+                # Set expiration now + delta seconds
+                exp = int(time.time()) + SERVICE_JWT_EXP_DELTA_SECONDS
+                # Add public token claims
+                claims = {
+                             'aud': service_type,
+                             'sub' : service_name,
+                             'iss' : SERVICE_JWT_AUDIENCE,
+                             'exp': exp
+                         }
+
+                # Create JWT token
+                bearer_token = jwt.encode(claims,
+                                      SERVICE_JWT_SECRET,
+                                      SERVICE_JWT_ALGORITHM).decode("utf-8") if token is not None else ""
+
+                # Add the bearer token for that service being registered
+                ServiceRegistry.addBearerToken(service_name, bearer_token)
+
+            # Prepare response JSON
             _response = {
                 'id': registered_service_id,
                 'message': "Service registered successfully",
-                'bearer_token': bearer_token
+                'bearer_token' : bearer_token
             }
-            # _logger.exception("SERVER RESPONSE: {}".format(_response))
+
+            _logger.debug("For service: {} SERVER RESPONSE: {}".format(service_name, _response))
+
             return web.json_response(_response)
 
         except ValueError as err:
@@ -1180,6 +1240,41 @@ class Server:
             return web.json_response(_resp)
         except ValueError as ex:
             raise web.HTTPNotFound(reason=str(ex))
+
+    @classmethod
+    async def restart_service(cls, request):
+        """ Restart a service
+
+        :Example:
+            curl -X PUT  http://localhost:<core mgt port>/fledge/service/dc9bfc01-066a-4cc0-b068-9c35486db87f/restart
+        """
+
+        try:
+            service_id = request.match_info.get('service_id', None)
+
+            try:
+                services = ServiceRegistry.get(idx=service_id)
+            except service_registry_exceptions.DoesNotExist:
+                raise ValueError('Service with {} does not exist'.format(service_id))
+
+            ServiceRegistry.restart(service_id)
+
+            if cls._storage_client_async is not None and services[0]._name not in ("Fledge Storage", "Fledge Core"):
+                try:
+                    cls._audit = AuditLogger(cls._storage_client_async)
+                    await cls._audit.information('SRVRS', {'name': services[0]._name})
+                except Exception as ex:
+                    _logger.exception(str(ex))
+
+            _resp = {'id': str(service_id), 'message': 'Service restart requested'}
+
+            return web.json_response(_resp)
+        except ValueError as ex:
+            raise web.HTTPNotFound(reason=str(ex))
+        except Exception as ex:
+            msg = str(ex)
+            raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+
 
     @classmethod
     async def get_service(cls, request):
@@ -1235,7 +1330,7 @@ class Server:
     async def get_auth_token(cls, request: web.Request) -> web.Response:
         """ get auth token
             :Example:
-                curl -sX GET http://localhost:<core mgt port>/fledge/service/authtoken?_vid=<>
+                curl -sX GET -H "{'Authorization': 'Bearer ..'}" http://localhost:<core mgt port>/fledge/service/authtoken 
         """
         async def cert_login(ca_cert):
             certs_dir = _FLEDGE_DATA + '/etc/certs' if _FLEDGE_DATA else _FLEDGE_ROOT + "/data/etc/certs"
@@ -1259,21 +1354,38 @@ class Server:
                 raise api_exception.AuthenticationIsOptional
             
             auth_method = category_info['authMethod']['value']
-            ca_cert_name = category_info['authCertificateName']['value']
-
-            verification_id = request.query['_vid']
-            if not len(verification_id.strip()): raise api_exception.VerificationFailed             
+            ca_cert_name = category_info['authCertificateName']['value']          
             
             try:
-                fname = _FLEDGE_ROOT + "/data/.{}".format('managementtoken')
-                with open(fname, 'r', encoding = 'utf-8') as f:
-                    t = f.read()
+                auth_header = request.headers.get('Authorization', None)
             except:
                 raise api_exception.VerificationFailed
             else:
-                if verification_id != t:
+                if auth_header is None:
                     raise api_exception.VerificationFailed
+                if not "Bearer " in auth_header:
+                    raise api_exception.VerificationFailed
+                # check bearer token with service registry for given service
+                ##
+                # the lines below are repated many times, make it a def for common usage/check
+                parts = auth_header.split("Bearer ")
+                if len(parts) != 2:
+                    msg = "Bearer token is missing"
+                    raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+                bearer_token = parts[1]
+                # Validate token and get public claims
+                claims = cls.validate_token(bearer_token)
+                if claims.get('error'):
+                    msg = "Service '" + str(claims['sub']) + "' not registered"
+                    raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
 
+                if bearer_token != ServiceRegistry.getBearerToken(claims['sub']):
+                    # add WARN log (audit?) for this attempt?!
+                    raise api_exception.VerificationFailed
+                else:
+                    # add debug log for successful token verification
+                    pass
+                ##
 
             peername = request.transport.get_extra_info('peername')
             host = '0.0.0.0'
@@ -1294,18 +1406,11 @@ class Server:
                 # For auth method "any" we can use either login with cert or password
                 token = await cert_login(ca_cert_name)
                 # TODO: if cert does not exist then may try with password
-            
-            # remove file
-            try:
-                os.remove(fname)
-            except Exception as ex:
-                pass
         except api_exception.AuthenticationIsOptional as err:
-            # remove file
             msg = str(err)
             raise web.HTTPPreconditionFailed(reason=msg, body=json.dumps({"message": msg}))
         except api_exception.VerificationFailed:
-            raise web.HTTPUnauthorized(body=json.dumps({"message": 'Invalid verification code'}))
+            raise web.HTTPUnauthorized(body=json.dumps({"message": 'Required authorization token is missing or invalid.'}))
         except Exception as ex:
             msg = str(ex)
             raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
@@ -1371,24 +1476,56 @@ class Server:
             data = await request.json()
             category_name = data.get('category', None)
             microservice_uuid = data.get('service', None)
+
+            try:
+                value = data.get('child', None)
+                if value is not None:
+
+                    if value == "True":
+                        child_subscribe = True
+                    else:
+                        child_subscribe = False
+                else:
+                    child_subscribe = False
+
+            except:
+                child_subscribe = False
+
             if microservice_uuid is not None:
                 try:
                     assert uuid.UUID(microservice_uuid)
                 except:
                     raise ValueError('Invalid microservice id {}'.format(microservice_uuid))
 
-            try:
-                registered_interest_id = cls._interest_registry.register(microservice_uuid, category_name)
-            except interest_registry_exceptions.ErrorInterestRegistrationAlreadyExists:
-                raise web.HTTPBadRequest(reason='An InterestRecord already exists by microservice_uuid {} for category_name {}'.format(microservice_uuid, category_name))
+            if child_subscribe:
 
-            if not registered_interest_id:
-                raise web.HTTPBadRequest(reason='Interest by microservice_uuid {} for category_name {} could not be registered'.format(microservice_uuid, category_name))
+                try:
+                    registered_interest_id = cls._interest_registry.register_child(microservice_uuid, category_name)
+                except interest_registry_exceptions.ErrorInterestRegistrationAlreadyExists:
+                    raise web.HTTPBadRequest(reason='An InterestRecord already exists by microservice_uuid {} for category_name {}'.format(microservice_uuid, category_name))
 
-            _response = {
-                'id': registered_interest_id,
-                'message': "Interest registered successfully"
-            }
+                if not registered_interest_id:
+                    raise web.HTTPBadRequest(reason='Interest by microservice_uuid {} for category_name {} could not be registered'.format(microservice_uuid, category_name))
+
+                _response = {
+                    'id': registered_interest_id,
+                    'message': "Interest registered successfully"
+                }
+
+
+            else:
+                try:
+                    registered_interest_id = cls._interest_registry.register(microservice_uuid, category_name)
+                except interest_registry_exceptions.ErrorInterestRegistrationAlreadyExists:
+                    raise web.HTTPBadRequest(reason='An InterestRecord already exists by microservice_uuid {} for category_name {}'.format(microservice_uuid, category_name))
+
+                if not registered_interest_id:
+                    raise web.HTTPBadRequest(reason='Interest by microservice_uuid {} for category_name {} could not be registered'.format(microservice_uuid, category_name))
+
+                _response = {
+                    'id': registered_interest_id,
+                    'message': "Interest registered successfully"
+                }
 
         except ValueError as ex:
             raise web.HTTPBadRequest(reason=str(ex))
@@ -1623,3 +1760,165 @@ class Server:
             raise web.HTTPInternalServerError(reason=ex)
 
         return web.json_response(message)
+
+    @classmethod
+    async def verify_token(cls, request):
+        """ Endpoint for verifycation of service bearer token received at registration time
+
+        :Example:
+            curl -H 'Authorization: Bearer evZGdrdmV.4dWFsY2dsaHVyZ.mFxdmdybXB5dXduaXJvc3g='
+            -X POST http://localhost:<core mngmt port>/fledge/service/verity_token
+
+        Authorization header must contain the Bearer token to verify
+        No post data
+
+        Note: token will be verified for the service name in token claim 'sub'
+        """
+
+        try:
+            return web.json_response(cls.get_token_common(request))
+        except Exception as e:
+            msg = str(e)
+            raise web.HTTPBadRequest(reason=msg, body=json.dumps({"error": msg}))
+
+    @classmethod
+    def validate_token(cls, token):
+        """ Validate service bearer token
+        """
+        try:
+            ret = jwt.decode(token,
+                         SERVICE_JWT_SECRET,
+                         algorithms=[SERVICE_JWT_ALGORITHM],
+                         options = {"verify_signature": True, "verify_aud": False, "verify_exp": True})
+            return ret
+        except Exception as e:
+            return { 'error' : str(e) }
+
+    @classmethod
+    async def refresh_token(cls, request):
+        """ Endpoint for refresh of service bearer token received at registration time
+
+        :Example:
+            curl -X POST
+             -H 'Authorization: Bearer evZGdrdmV.4dWFsY2dsaHVyZ.mFxdmdybXB5dXduaXJvc3g='
+             http://localhost:<core mngmt port>/fledge/service/refresh_token
+
+        Authorization header must contain the Bearer token
+        No post data
+
+        Note: token will be refreshed for the service it belongs to
+        """
+
+        try:
+            claims = cls.get_token_common(request)
+            # Expiration set to now + delta
+            claims['exp'] =  int(time.time()) + SERVICE_JWT_EXP_DELTA_SECONDS
+            bearer_token = jwt.encode(claims,
+                                      SERVICE_JWT_SECRET,
+                                      SERVICE_JWT_ALGORITHM).decode("utf-8")
+
+            # Replace bearer_token for the service
+            ServiceRegistry.addBearerToken(claims['sub'], bearer_token)
+            ret = {'bearer_token' : bearer_token}
+
+            return web.json_response(ret)
+
+        except Exception as e:
+            msg = str(e)
+            raise web.HTTPBadRequest(reason=msg, body=json.dumps({"error": msg}))
+
+    @classmethod
+    async def is_dispatcher_running(cls, storage):
+        from fledge.services.core.api import service as service_api
+        from fledge.common.storage_client.payload_builder import PayloadBuilder
+
+        # Find the dispatcher service installation
+        get_svc = service_api.get_service_installed()
+        # if installation found:
+        if 'dispatcher' in get_svc:
+            payload = PayloadBuilder().SELECT("id", "schedule_name", "process_name", "enabled").payload()
+            res = await storage.query_tbl_with_payload('schedules', payload)
+            for sch in res['rows']:
+                if sch['process_name'] == 'dispatcher_c' and sch['enabled'] == 'f':
+                    _logger.info("Dispatcher service found but not in enabled state. "
+                                 "Therefore, {} schedule name is enabled".format(sch['schedule_name']))
+                    await cls.scheduler.enable_schedule(uuid.UUID(sch["id"]))
+                    return True
+                elif sch['process_name'] == 'dispatcher_c' and sch['enabled'] == 't':
+                    # As such no action required for the case
+                    return True
+            # If installation not found:
+            return False
+        return True
+
+    @classmethod
+    async def add_and_enable_dispatcher(cls):
+        import datetime as dt
+        from fledge.services.core.scheduler.entities import StartUpSchedule
+
+        name = "dispatcher"
+        process_name = 'dispatcher_c'
+        is_enabled = True
+        schedule = StartUpSchedule()
+        schedule.name = name
+        schedule.process_name = process_name
+        schedule.repeat = dt.timedelta(0)
+        schedule.exclusive = True
+        schedule.enabled = False
+        # Save schedule
+        await cls.scheduler.save_schedule(schedule, is_enabled)
+
+    @classmethod
+    def get_token_common(cls, request):
+        """ Get Bearer Token from request
+            validate it and return token claims
+        """
+        auth_header = request.headers.get('Authorization', None)
+        if auth_header is None:
+            msg = "Authorization header is missing"
+            raise web.HTTPBadRequest(reason=msg, body=json.dumps({"error": msg}))
+
+        if not "Bearer " in auth_header:
+            msg = "Invalid Authorization token"
+            # FIXME: raise UNAUTHORISED here and among other places 
+            #   and JSON body to have message key
+            raise web.HTTPBadRequest(reason=msg, body=json.dumps({"error": msg}))
+
+        parts = auth_header.split("Bearer ")
+        if len(parts) != 2:
+            msg = "bearer token is missing"
+            raise web.HTTPBadRequest(reason=msg, body=json.dumps({"error": msg}))
+
+        bearer_token = parts[1]
+
+        try:
+            # Validate token and get public claims
+            claims = cls.validate_token(bearer_token)
+            if claims.get('error') is None:
+                # Check input token exists in system for the service name given in claims['sub']
+                foundToken = ServiceRegistry.getBearerToken(claims['sub'])
+                if foundToken is None:
+                    msg = "service '" + str(claims['sub']) + "' not registered"
+                    raise web.HTTPBadRequest(reason=msg, body=json.dumps({"error": msg}))
+
+                # Check input token is associated with service in claims['sub']
+                if foundToken != bearer_token:
+                    msg = "bearer token does not belong to service '" + str(claims['sub']) + "'"
+                    raise web.HTTPBadRequest(reason=msg, body=json.dumps({"error": msg}))
+
+                # Success
+                return claims
+
+            else:
+                msg = claims.get('error')
+                raise web.HTTPBadRequest(reason=msg, body=json.dumps({"error": msg}))
+
+        except Exception as e:
+            msg = str(e)
+            raise web.HTTPBadRequest(reason=msg, body=json.dumps({"error": msg}))
+
+    @classmethod
+    async def get_control_acl(cls, request):
+        request.is_core_mgt = True
+        res = await acl_management.get_acl(request)
+        return res

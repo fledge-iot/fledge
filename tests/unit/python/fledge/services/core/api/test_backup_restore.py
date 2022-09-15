@@ -225,17 +225,28 @@ class TestBackup:
     @pytest.mark.parametrize("input_exception, response_code, response_message", [
         (ValueError, 400, "Invalid backup id"),
         (exceptions.DoesNotExist, 404, "Backup id 8 does not exist"),
-        (Exception("Internal Server Error"), 500, "Internal Server Error")
+        (Exception("Internal Server Error"), 500, "Internal Server Error"),
+        (FileNotFoundError("fledge_backup_2021_10_04_11_12_11.db backup file does not exist in "
+                           "/usr/local/fledge/data/backup directory"), 404,
+         "fledge_backup_2021_10_04_11_12_11.db backup file does not exist in /usr/local/fledge/data/backup directory")
     ])
     async def test_get_backup_download_exceptions(self, client, input_exception, response_code, response_message):
         storage_client_mock = MagicMock(StorageClientAsync)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(Backup, 'get_backup_details', side_effect=input_exception):
-                resp = await client.get('/fledge/backup/{}/download'.format(8))
-                assert response_code == resp.status
-                assert response_message == resp.reason
+                with patch('os.path.isfile', return_value=False):
+                    resp = await client.get('/fledge/backup/{}/download'.format(8))
+                    assert response_code == resp.status
+                    assert response_message == resp.reason
+                    result = await resp.text()
+                    json_response = json.loads(result)
+                    assert {"message": response_message} == json_response
 
     async def test_get_backup_download(self, client):
+        # FIXME: py3.9 fails to recognise this in default installed mimetypes known-file
+        import mimetypes
+        mimetypes.add_type('text/plain', '.tar.gz')
+
         storage_client_mock = MagicMock(StorageClientAsync)
         response = {'id': 1, 'file_name': '/usr/local/fledge/data/backup/fledge.db', 'ts': '2018-02-15 15:18:41',
                     'status': '2', 'type': '1'}
@@ -249,10 +260,11 @@ class TestBackup:
         with patch("aiohttp.web.FileResponse", return_value=web.FileResponse(path=os.path.realpath(__file__))) as file_res:
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
                 with patch.object(Backup, 'get_backup_details', return_value=_rv) as patch_backup_detail:
-                    with patch('tarfile.open'):
-                        resp = await client.get('/fledge/backup/{}/download'.format(1))
-                        assert 200 == resp.status
-                        assert 'OK' == resp.reason
+                    with patch('os.path.isfile', return_value=True):
+                        with patch('tarfile.open'):
+                            resp = await client.get('/fledge/backup/{}/download'.format(1))
+                            assert 200 == resp.status
+                            assert 'OK' == resp.reason
                 patch_backup_detail.assert_called_once_with(1)
         assert 1 == file_res.call_count
 

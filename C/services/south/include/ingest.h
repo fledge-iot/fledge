@@ -27,6 +27,8 @@
 
 #define SERVICE_NAME  "Fledge South"
 
+#define INGEST_SUFFIX	"-Ingest"	// Suffix for per service ingest statistic
+
 /**
  * The ingest class is used to ingest asset readings.
  * It maintains a queue of readings to be sent to storage,
@@ -48,6 +50,7 @@ public:
 	void		ingest(const std::vector<Reading *> *vec);
 	bool		running();
     	bool		isStopping();
+	bool		isRunning() { return !m_shutdown; };
 	void		processQueue();
 	void		waitForQueue();
 	size_t		queueLength();
@@ -63,7 +66,13 @@ public:
 	void		setTimeout(const long timeout) { m_timeout = timeout; };
 	void		setThreshold(const unsigned int threshold) { m_queueSizeThreshold = threshold; };
 	void		configChange(const std::string&, const std::string&);
+	void		configChildCreate(const std::string& , const std::string&, const std::string&){};
+	void		configChildDelete(const std::string& , const std::string&){};
 	void		shutdown() {};	// Satisfy ServiceHandler
+	void		restart() {};	// Satisfy ServiceHandler
+	void		unDeprecateAssetTrackingRecord(AssetTrackingTuple* currentTuple,
+							const std::string& assetName,
+							const std::string& event);
 
 private:
 	void				signalStatsUpdate() {
@@ -76,6 +85,7 @@ private:
 						m_discardedReadings++;
 					};
 	long				calculateWaitTime();
+	int 				createServiceStatsDbEntry();
 
 	StorageClient&			m_storage;
 	long				m_timeout;
@@ -109,6 +119,8 @@ private:
 	std::map<std::string, int>	statsPendingEntries;  // pending stats table entries
 	bool				m_highLatency;	      // Flag to indicate we are exceeding latency request
 	int				m_failCnt;
+	bool				m_storageFailed;
+	int				m_storesFailed;
 };
 
 #endif

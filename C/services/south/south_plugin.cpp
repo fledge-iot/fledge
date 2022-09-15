@@ -8,6 +8,7 @@
  * Author: Mark Riddoch
  */
 #include <south_plugin.h>
+#include <south_service.h>
 #include <config_category.h>
 #include <logger.h>
 #include <exception>
@@ -53,7 +54,7 @@ SouthPlugin::SouthPlugin(PLUGIN_HANDLE handle, const ConfigCategory& category) :
 	}
 	else if (pluginInterfaceVer[0]=='2' && pluginInterfaceVer[1]=='.')
 	{
-		pluginPollPtrV2 = (vector<Reading *>* (*)(PLUGIN_HANDLE))
+		pluginPollPtrV2 = (std::vector<Reading*>* (*)(PLUGIN_HANDLE))
 				manager->resolveSymbol(handle, "plugin_poll");
 	}
 	else
@@ -172,11 +173,19 @@ Reading SouthPlugin::poll()
 /**
  * Call the poll method in the plugin supporting interface ver 2.x
  */
-vector<Reading *>* SouthPlugin::pollV2()
+ReadingSet* SouthPlugin::pollV2()
 {
 	lock_guard<mutex> guard(mtx2);
 	try {
-		return this->pluginPollPtrV2(instance);
+        std::vector<Reading *> *vec = this->pluginPollPtrV2(instance);
+        if(vec)
+        {
+            ReadingSet *set = new ReadingSet(vec);
+            delete vec;
+    		return set;  // this->pluginPollPtrV2(instance);
+        }
+        else
+            return NULL;
 	} catch (exception& e) {
 		Logger::getLogger()->fatal("Unhandled exception raised in v2 south plugin poll(), %s",
 			e.what());

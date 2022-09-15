@@ -3,9 +3,22 @@
 #
 # This is the shell script wrapper for running C unit tests
 #
-jobs="-j 4"
-if [ "$1" != "" ]; then
+jobs="-j4"
+if [ "$1" = "-j*" ]; then
   jobs="$1"
+fi
+
+COVERAGE_HTML=0
+COVERAGE_XML=0
+if [ "$1" = "coverageHtml" ]; then
+  COVERAGE_HTML=1
+  target="CoverageHtml"
+elif [ "$1" = "coverageXml" ]; then
+  COVERAGE_XML=1
+  target="CoverageXml"
+elif [ "$1" = "coverage" ]; then
+  echo "Use target 'CoverageHtml' or 'CoverageXml' instead"
+  exit 1
 fi
 
 if [ "$FLEDGE_ROOT" = "" ]; then
@@ -21,12 +34,13 @@ fi
 
 if [ -f "./CMakeLists.txt" ] ; then
 	echo -n "Compiling libraries..."
-	(rm -rf build && mkdir build && cd build && cmake .. && make ${jobs} && cd ..) >/dev/null
+	(rm -rf build && mkdir -p build && cd build && cmake -DCMAKE_BUILD_TYPE=Debug .. && make ${jobs} && cd ..) > /dev/null
 	echo "done"
 fi
 
-cmakefile=`find . -name CMakeLists.txt | grep -v "\.\/CMakeLists.txt"`
+cmakefile=`find . -name CMakeLists.txt | grep -v "\.\/CMakeLists.txt" `
 for f in $cmakefile; do	
+	echo "-----------------> Processing $f <-----------------"
 	dir=`dirname $f`
 	echo Testing $dir
 	(
@@ -35,26 +49,35 @@ for f in $cmakefile; do
 		mkdir build;
 		cd build;
 		echo Building Tests...;
-		cmake ..;
+		cmake -DCMAKE_BUILD_TYPE=Debug ..;
 		rc=$?
 		if [ $rc != 0 ]; then
 			echo cmake failed for $dir;
 			exit 1
 		fi
-		make ${jobs};
+		make ${jobs} > /dev/null;
 		rc=$?
 		if [ $rc != 0 ]; then
 			echo make failed for $dir;
 			exit 1
 		fi
-		echo Running tests...;
-		if [ -f "./RunTests" ] ; then
-			./RunTests --gtest_output=xml > /tmp/results;
-			rc=$?
-			if [ $rc != 0 ]; then
-				exit $rc
+		if [ $COVERAGE_HTML -eq 0 ] && [ $COVERAGE_XML -eq 0 ] ; then
+			echo Running tests...;
+			if [ -f "./RunTests" ] ; then
+				./RunTests --gtest_output=xml > /tmp/results;
+				rc=$?
+				if [ $rc != 0 ]; then
+					exit $rc
+				fi
 			fi
+		else
+			echo Generating coverage reports...;
+			file=$(basename $f)
+			# echo "pwd=`pwd`, f=$f, file=$file"
+			grep -q ${target} ../${file}
+			[ $? -eq 0 ] && (echo Running "make ${target}" && make ${target}) || echo "${target} target not found, skipping..."
 		fi
+
 	) >/dev/null
 	rc=$?
 	if [ $rc != 0 ]; then

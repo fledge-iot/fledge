@@ -24,9 +24,6 @@ set -e
 #
 USAGE="Usage: `basename ${0}` {start|start --safe-mode|stop|status|reset|purge|kill|help|version}"
 
-# Remove any token cache left over from a previous execution
-rm -f ~/.fledge_token
-
 # Check FLEDGE_ROOT
 if [ -z ${FLEDGE_ROOT+x} ]; then
     # Set FLEDGE_ROOT as the default directory
@@ -82,7 +79,7 @@ then
 		#
 		# Enables the RedHat Postgres environment if available
 		#
-		rhpg_package="rh-postgresql96"
+		rhpg_package="rh-postgresql13"
 		source scl_source enable ${rhpg_package} > /dev/null
 		status=$?
 
@@ -205,6 +202,10 @@ fledge_reset() {
 
 ## Fledge Start
 fledge_start() {
+
+    # Remove any token cache left over from a previous execution
+    rm -f ~/.fledge_token
+
     # Check the storage management script
     check_storage_management_script "start"
 
@@ -327,6 +328,9 @@ fledge_stop() {
   if [[ "${result}" =~ "Fledge shutdown has been scheduled" ]]; then
     echo -n "Stopping Fledge."
   fi
+
+  # Remove any token cache left over from a previous execution
+  rm -f ~/.fledge_token
 
   attempts=60
 
@@ -517,16 +521,17 @@ fledge_status() {
                 fledge_log "info" "=== Fledge services:" "outonly" "pretty"
                 fledge_log "info" "fledge.services.core" "outonly" "pretty"
                 ps -ef | grep "fledge.services.storage" | grep -v 'grep' | grep -v awk | awk '{print "fledge.services.storage " $9 " " $10}' || true
-                ps -ef | grep "fledge.services.south " |grep -v python3| grep -v 'grep' | grep -v awk | awk '{printf "fledge.services.south "; for(i=9;i<=NF;++i) printf $i FS; printf "\n"}' || true
-                ps -ef | grep "fledge.services.north " |grep -v python3| grep -v 'grep' | grep -v awk | awk '{printf "fledge.services.north "; for(i=9;i<=NF;++i) printf $i FS; printf "\n"}' || true
-                ps -ef | grep "fledge.services.notification" |grep -v python3| grep -v 'grep' | grep -v awk | awk '{printf "fledge.services.notification "; for(i=9;i<=NF;++i) printf $i FS; printf "\n"}' || true
-                ps -ef | grep "fledge.services.dispatcher" |grep -v python3| grep -v 'grep' | grep -v awk | awk '{printf "fledge.services.dispatcher "; for(i=9;i<=NF;++i) printf $i FS; printf "\n"}' || true
+                ps -ef | grep "fledge.services.south " |grep -v python3| grep -v 'grep' | grep -v awk | awk '{printf "fledge.services.south "; for(i=9;i<=NF;++i) printf $i FS; printf "\n"}' | sed -e 's/--token.*--name/--name/g' || true
+                ps -ef | grep "fledge.services.north " |grep -v python3| grep -v 'grep' | grep -v awk | awk '{printf "fledge.services.north "; for(i=9;i<=NF;++i) printf $i FS; printf "\n"}' | sed -e 's/--token.*--name/--name/g' || true
+                ps -ef | grep "fledge.services.notification" |grep -v python3| grep -v 'grep' | grep -v awk | awk '{printf "fledge.services.notification "; for(i=9;i<=NF;++i) printf $i FS; printf "\n"}' | sed -e 's/--token.*--name/--name/g' || true
+                ps -ef | grep "fledge.services.dispatcher" |grep -v python3| grep -v 'grep' | grep -v awk | awk '{printf "fledge.services.dispatcher "; for(i=9;i<=NF;++i) printf $i FS; printf "\n"}' | sed -e 's/--token.*--name/--name/g' || true
+                ps -ef | grep "fledge.services.bucket" |grep -v python3| grep -v 'grep' | grep -v awk | awk '{printf "fledge.services.bucket "; for(i=9;i<=NF;++i) printf $i FS; printf "\n"}' | sed -e 's/--token.*--name/--name/g' || true
                 # Show Python services (except core)
-                ps -ef | grep -o 'python3 -m fledge.services.*' | grep -o 'fledge.services.*' | grep -v 'fledge.services.core' | grep -v 'fledge.services\.\*' || true
+                ps -ef | grep -o 'python3 -m fledge.services.*' | grep -o 'fledge.services.*' | grep -v 'fledge.services.core' | grep -v 'fledge.services\.\*' | sed -e 's/--token.*--name/--name/g' || true
 
                 # Show Tasks
                 fledge_log "info" "=== Fledge tasks:" "outonly" "pretty"
-                ps -ef | grep -v 'cpulimit*' | grep -o 'python3 -m fledge.tasks.*' | grep -o 'fledge.tasks.*'    | grep -v 'fledge.tasks\.\*' || true
+                ps -ef | grep -v 'cpulimit*' | grep -o 'python3 -m fledge.tasks.*' | grep -o 'fledge.tasks.*' | grep -v 'fledge.tasks\.\*' || true
 
                 # Show Tasks in C code
                 ps -ef | grep './tasks.' | grep -v python3 | grep -v grep | grep -v awk | awk '{printf "tasks/sending_process "; for(i=9;i<=NF;++i) printf $i FS; printf "\n"}' || true

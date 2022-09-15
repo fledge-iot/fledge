@@ -1,9 +1,18 @@
 cmake_minimum_required(VERSION 2.6)
 
-set(CMAKE_CXX_FLAGS "-std=c++11 -O3")
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/../..)
+set(GCOVR_PATH "$ENV{HOME}/.local/bin/gcovr")
+
+# Project configuration
+project(RunTests)
+
+set(CMAKE_CXX_FLAGS "-std=c++11 -O0")
 set(UUIDLIB -luuid)
 set(COMMONLIB -ldl)
 set(LIBCURL_LIB -lcurl)
+
+include(CodeCoverage)
+append_coverage_compiler_flags()
 
 EXECUTE_PROCESS( COMMAND grep -o ^NAME=.* /etc/os-release COMMAND cut -f2 -d\" COMMAND sed s/\"//g OUTPUT_VARIABLE os_name )
 EXECUTE_PROCESS( COMMAND grep -o ^VERSION_ID=.* /etc/os-release COMMAND cut -f2 -d\" COMMAND sed s/\"//g OUTPUT_VARIABLE os_version )
@@ -46,20 +55,20 @@ find_package(PkgConfig REQUIRED)
 if(${CMAKE_VERSION} VERSION_LESS "3.12.0") 
     pkg_check_modules(PYTHON REQUIRED python3)
 else()
-    find_package(Python COMPONENTS Interpreter Development)
+    find_package(Python3 COMPONENTS Interpreter Development)
 endif()
 
 # Add Python 3.x header files
 if(${CMAKE_VERSION} VERSION_LESS "3.12.0") 
     include_directories(${PYTHON_INCLUDE_DIRS})
 else()
-    include_directories(${Python_INCLUDE_DIRS})
+    include_directories(${Python3_INCLUDE_DIRS})
 endif()
 
 if(${CMAKE_VERSION} VERSION_LESS "3.12.0") 
     link_directories(${PYTHON_LIBRARY_DIRS})
 else()
-    link_directories(${Python_LIBRARY_DIRS})
+    link_directories(${Python3_LIBRARY_DIRS})
 endif()
 
 link_directories(${PROJECT_BINARY_DIR}/../../../lib)
@@ -81,6 +90,18 @@ target_link_libraries(RunTests ${LIBCURL_LIB})
 if(${CMAKE_VERSION} VERSION_LESS "3.12.0") 
     target_link_libraries(RunTests ${PYTHON_LIBRARIES})
 else()
-    target_link_libraries(RunTests ${Python_LIBRARIES})
+    target_link_libraries(RunTests ${Python3_LIBRARIES})
 endif()
+
+setup_target_for_coverage_gcovr_html(
+            NAME CoverageHtml
+            EXECUTABLE ${PROJECT_NAME}
+            DEPENDENCIES ${PROJECT_NAME}
+    )
+
+setup_target_for_coverage_gcovr_xml(
+            NAME CoverageXml
+            EXECUTABLE ${PROJECT_NAME}
+            DEPENDENCIES ${PROJECT_NAME}
+    )
 

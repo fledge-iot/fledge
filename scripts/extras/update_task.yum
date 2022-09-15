@@ -1,0 +1,233 @@
+#!/bin/bash
+
+##
+# Installation process creates a link file, named "scripts/tasks/update".
+#
+# It may either be called by Fledge scheduler for updating Fledge package and it may also be called
+# manually via /usr/local/fledge/bin/fledge_update script.
+#
+# Pre-requisites:
+# 1. To add the fledge repository to the yum package manager run the command:
+#        sudo rpm --import http://archives.fledge-iot.org/RPM-GPG-KEY-fledge
+# 2. Add the repository location to your sources list.
+#   a) Create a file called fledge.repo in the directory /etc/yum.repos.d and add the following content:
+#        Below example for CentOS 64bit machine
+#        [fledge]
+#        name=fledge Repository
+#        baseurl=http://archives.fledge-iot.org/latest/centos7/x86_64/
+#        enabled=1
+#        gpgkey=http://archives.fledge-iot.org/RPM-GPG-KEY-fledge
+#        gpgcheck=1
+#   b) There are a few more pre-requisites that need to be installed
+#        sudo yum install -y centos-release-scl-rh
+#        sudo yum install -y epel-release
+#
+# Similarly you can setup for Rhel. See https://fledge-iot.readthedocs.io/en/latest/quick_start/installing.html#redhat-centos
+##
+
+__author__="Ashish Jabble, Massimiliano Pinto"
+__copyright__="Copyright (c) 2021, Dianomic Systems Inc."
+__license__="Apache 2.0"
+__version__="1.1"
+
+
+# Set the default value for FLEDGE_ROOT if not set
+if [ "${FLEDGE_ROOT}" = "" ]; then
+    export FLEDGE_ROOT='/usr/local/fledge'
+fi
+
+# Set the default value for FLEDGE_DATA if not set
+if [ "${FLEDGE_DATA}" = "" ]; then
+    export FLEDGE_DATA=${FLEDGE_ROOT}/data
+fi
+
+# Include logging: it works only with bash
+. "${FLEDGE_ROOT}/scripts/common/write_log.sh" || exit 1
+
+# Ignore signals: 1-SIGHUP, 2-SIGINT, 3-SIGQUIT, 6-SIGABRT, 15-SIGTERM
+trap "" 1 2 3 6 15
+
+# Check availability of FLEDGE_ROOT directory
+if [ ! -d "${FLEDGE_ROOT}" ]; then
+    write_log "" "$0" "err" "home directory missing or incorrectly set environment" "logonly"
+    exit 1
+fi
+
+# Check availability of FLEDGE_DATA directory
+if [ ! -d "${FLEDGE_DATA}" ]; then
+    write_log "" "$0" "err" "Data directory is missing or incorrectly set environment" "logonly"
+    exit 1
+fi
+
+# Set the PYTHONPATH
+export PYTHONPATH=$FLEDGE_ROOT/python
+
+UPGRADE_DONE="N"
+
+# Fledge STOP
+fledge_stop() {
+    STOP_FLEDGE_CMD="${FLEDGE_ROOT}/bin/fledge stop"
+    STOP_FLEDGE_CMD_STATUS=`$STOP_FLEDGE_CMD`
+    sleep 15
+    if [ "${STOP_FLEDGE_CMD_STATUS}" = "" ]; then
+        write_log "" "$0" "err" "cannot run \"${STOP_FLEDGE_CMD}\" command" "logonly"
+        exit 1
+    fi
+}
+
+# Commands for Packages to update
+run_update() {
+    # Download and update the package information from all of the configured sources
+    UPDATE_CMD="sudo yum check-update"
+    write_log "" "$0" "info" "Executing ${UPDATE_CMD} command..." "logonly"
+    UPDATE_CMD_OUT=`$UPDATE_CMD`
+    UPDATE_CMD_STATUS="$?"
+    if [ "$UPDATE_CMD_STATUS" != "0" ]; then
+        write_log "" "$0" "err" "Failed on $UPDATE_CMD. Exit: $UPDATE_CMD_STATUS. Out: $UPDATE_CMD_OUT" "all" "pretty"
+        exit 1
+    fi
+}
+
+run_upgrade() {
+    # Check GUI package is installed or not
+    if ! yum list installed | grep fledge-gui; then
+        UPGRADE_CMD="sudo yum -y install fledge"
+        PKG_NAME="fledge"
+    else
+        PKG_NAME="fledge, fledge-gui"
+        UPGRADE_CMD="sudo yum -y install fledge fledge-gui"
+    fi
+
+    # Upgrade Package
+    write_log "" "$0" "info" "Executing ${UPGRADE_CMD} command..." "logonly"
+    UPGRADE_CMD_OUT=`$UPGRADE_CMD`
+    UPGRADE_CMD_STATUS="$?"
+    if [ "$UPGRADE_CMD_STATUS" != "0" ]; then
+        write_log "" "$0" "err" "Failed on $UPGRADE_CMD. Exit: $UPGRADE_CMD_STATUS. Out: $UPGRADE_CMD_OUT" "all" "pretty"
+        exit 1
+    fi
+    UPGRADE_DONE="Y"
+}
+
+# Fledge START
+fledge_start() {
+    START_FLEDGE_CMD="${FLEDGE_ROOT}/bin/fledge start"
+    START_FLEDGE_CMD_OUT=`$START_FLEDGE_CMD`
+    START_FLEDGE_CMD_STATUS="$?"
+    if [ "$START_FLEDGE_CMD_OUT" = "" ]; then
+        write_log "" "$0" "err" "Failed on $START_FLEDGE_CMD. Exit: $START_FLEDGE_CMD_STATUS. Out: $START_FLEDGE_CMD_OUT" "all" "pretty"
+        exit 1
+    fi
+
+    msg="'${PKG_NAME}' package updated successfully!"
+    write_log "" "$0" "info" "$msg" "all" "pretty"
+}
+
+# Find the local timestamp
+function local_timestamp
+{
+python3 - <<END
+import datetime
+varDateTime = str(datetime.datetime.now(datetime.timezone.utc).astimezone())
+print (varDateTime)
+END
+}
+
+# CREATE Audit trail entry for update package
+audit_trail_entry () {
+    SQL_DATA="log(code, level, log) VALUES('PKGUP', 4, '{\"packageName\": \"${PKG_NAME}\"}');"
+    # Find storage engine value
+    STORAGE=`${FLEDGE_ROOT}/services/fledge.services.storage --plugin | awk '{print $1}'`
+    if [ "${STORAGE}" = "postgres" ]; then
+        INSERT_SQL="INSERT INTO fledge.${SQL_DATA}"
+        SQL_CMD=`psql -d fledge -t -c "${INSERT_SQL}"`
+    elif [ "${STORAGE}" = "sqlite" ] || [ "${STORAGE}" = "sqlitelb" ]; then
+        INSERT_SQL="INSERT INTO ${SQL_DATA}"
+        SQL_CMD=`sqlite3 ${FLEDGE_DATA}/fledge.db "${INSERT_SQL}"`
+    else
+        write_log "" "$0" "err" "Bad storage engine found: ${STORAGE}" "all" "pretty"
+        exit 1
+    fi
+
+    ADD_AUDIT_LOG_STATUS="$?"
+    if [ "$ADD_AUDIT_LOG_STATUS" != "0" ]; then
+        write_log "" "$0" "err" "Failed on execution of ${INSERT_SQL}. Exit: ${ADD_AUDIT_LOG_STATUS}." "all" "pretty"
+        exit 1
+    else
+        msg="Audit trail entry created for '${PKG_NAME}' package update!"
+        write_log "" "$0" "info" "$msg" "all" "pretty"
+    fi
+}
+
+# UPDATE task record entry on completion for given schedule name
+update_task() {
+    SCHEDULE_NAME="Fledge updater on demand"
+    TASK_STATE_COMPLETE="2"
+    EXIT_CODE="0"
+    TIMESTAMP=$(local_timestamp)
+    SQL_QUERY="SET state='$TASK_STATE_COMPLETE',exit_code='$EXIT_CODE',end_time='$TIMESTAMP' WHERE schedule_name='$SCHEDULE_NAME';"
+
+    # Find storage engine value
+    STORAGE=`${FLEDGE_ROOT}/services/fledge.services.storage --plugin | awk '{print $1}'`
+    if [ "${STORAGE}" = "postgres" ]; then
+        UPDATE_SQL_QUERY="UPDATE fledge.tasks ${SQL_QUERY}"
+        SQL_CMD=`psql -d fledge -t -c "${UPDATE_SQL_QUERY}"`
+    elif [ "${STORAGE}" = "sqlite" ] || [ "${STORAGE}" = "sqlitelb" ]; then
+        UPDATE_SQL_QUERY="UPDATE tasks ${SQL_QUERY}"
+        SQL_CMD=`sqlite3 ${FLEDGE_DATA}/fledge.db "${UPDATE_SQL_QUERY}"`
+    else
+        write_log "" "$0" "err" "Bad storage engine found: ${STORAGE}" "all" "pretty"
+        exit 1
+    fi
+
+    UPDATE_TASK_STATUS="$?"
+    if [ "$UPDATE_TASK_STATUS" != "0" ]; then
+        write_log "" "$0" "err" "Failed on execution of ${UPDATE_SQL_QUERY}. Exit: $UPDATE_TASK_STATUS." "all" "pretty"
+        exit 1
+    else
+        write_log "" "$0" "debug" "Storage engine is: ${STORAGE} and running SQL Query: ${UPDATE_SQL_QUERY}" "logonly"
+        msg="Task state updated successfully!"
+        write_log "" "$0" "info" "$msg" "all" "pretty"
+    fi
+}
+
+# Upgrade check
+upgrade_check() {
+    # System update request
+    run_update
+
+    UPGRADE_CHECK="sudo yum list updates"
+    write_log "" "$0" "info" "Executing ${UPGRADE_CHECK} command..." "logonly"
+    UPGRADE_CMD_OUT=`$UPGRADE_CHECK 2> /dev/null | grep 'fledge\.'`
+    UPGRADE_CMD_STATUS="$?"
+    write_log "" "$0" "debug" "Upgrade check result [$UPGRADE_CMD_OUT], retcode $UPGRADE_CMD_STATUS" "all" "pretty"
+    if [ "$UPGRADE_CMD_STATUS" != "0" ]; then
+        write_log "" "$0" "info" "No new FogLAMP package to upgrade" "all" "pretty"
+        echo 0
+    else
+        echo 1
+    fi
+}
+
+# Main
+
+DO_UPGRADE=`upgrade_check`
+
+if [ "$DO_UPGRADE" = "1" ]; then
+        # Stop Fledge
+        fledge_stop
+
+        # Now run Package upgrade
+        run_upgrade
+
+        # Start Fledge
+        fledge_start
+fi
+
+if [ "$UPGRADE_DONE" = "Y" ]; then
+    # Audit log entry
+    audit_trail_entry
+fi
+
+# Update Task Record
+update_task

@@ -32,6 +32,7 @@ from fledge.services.core.api.plugins import common
 from fledge.services.core.api.plugins import install
 from fledge.services.core.api.plugins.exceptions import *
 from fledge.common.audit_logger import AuditLogger
+from fledge.common.web.middleware import has_permission
 
 
 __author__ = "Mark Riddoch, Ashwin Gopalakrishnan, Amarendra K Sinha"
@@ -46,6 +47,7 @@ _help = """
     | GET                 | /fledge/service/installed                            |
     | PUT                 | /fledge/service/{type}/{name}/update                 |
     | DELETE              | /fledge/service/{service_name}                       |
+    | POST                | /fledge/service/{service_name}/otp                   |
     ------------------------------------------------------------------------------
 """
 
@@ -56,9 +58,10 @@ _logger = logger.setup()
 #################################
 
 
-def get_service_records():
+def get_service_records(_type=None):
     sr_list = list()
-    for service_record in ServiceRegistry.all():
+    svc_records = ServiceRegistry.all() if _type is None else ServiceRegistry.get(s_type=_type)
+    for service_record in svc_records:
         sr_list.append(
             {
                 'name': service_record._name,
@@ -96,10 +99,31 @@ async def get_health(request):
             health of all registered services
 
     :Example:
-            curl -X GET http://localhost:8081/fledge/service
+            curl -sX GET http://localhost:8081/fledge/service
+            curl -sX GET http://localhost:8081/fledge/service?type=Southbound
     """
-    response = get_service_records()
-    return web.json_response(response)
+    try:
+        if 'type' in request.query and request.query['type'] != '':
+            _type = request.query['type']
+            svc_type_members = ServiceRecord.Type._member_names_
+            is_type_exists = _type in svc_type_members
+            if not is_type_exists:
+                raise ValueError('{} is not a valid service type. Supported types are {}'.format(_type,
+                                                                                                 svc_type_members))
+            response = get_service_records(_type)
+        else:
+            response = get_service_records()
+    except ValueError as err:
+        msg = str(err)
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+    except service_registry_exceptions.DoesNotExist:
+        msg = "No record found for {} service type".format(_type)
+        raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
+    except Exception as ex:
+        msg = str(ex)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+    else:
+        return web.json_response(response)
 
 
 async def delete_service(request):
@@ -145,24 +169,50 @@ async def delete_service(request):
         except service_registry_exceptions.DoesNotExist:
             pass
 
+        # Delete streams and plugin data
         await delete_streams(storage, svc)
         await delete_plugin_data(storage, svc)
 
         # Delete schedule
         await server.Server.scheduler.delete_schedule(sch_id)
+
+        # Update deprecated timestamp in asset_tracker
+        await update_deprecated_ts_in_asset_tracker(storage, svc)
     except Exception as ex:
         raise web.HTTPInternalServerError(reason=str(ex))
     else:
         return web.json_response({'result': 'Service {} deleted successfully.'.format(svc)})
 
 
-async def delete_streams(storage, north_instance):
-    payload = PayloadBuilder().WHERE(["description", "=", north_instance]).payload()
+async def delete_streams(storage, svc):
+    payload = PayloadBuilder().WHERE(["description", "=", svc]).payload()
     await storage.delete_from_tbl("streams", payload)
 
-async def delete_plugin_data(storage, north_instance):
-    payload = PayloadBuilder().WHERE(["key", "like", north_instance + "%"]).payload()
+
+async def delete_plugin_data(storage, svc):
+    payload = PayloadBuilder().WHERE(["key", "like", svc + "%"]).payload()
     await storage.delete_from_tbl("plugin_data", payload)
+
+
+async def update_deprecated_ts_in_asset_tracker(storage, svc):
+    """
+    TODO: FOGL-6749
+    Once rows affected with 0 case handled at Storage side
+    then we will need to update the query with AND_WHERE(['deprecated_ts', 'isnull'])
+    At the moment deprecated_ts is updated even in notnull case.
+    Also added SELECT query before UPDATE to avoid BadCase when there is no asset track entry exists for the instance.
+    This should also be removed when given JIRA is fixed.
+    """
+    select_payload = PayloadBuilder().SELECT("deprecated_ts").WHERE(['service', '=', svc]).payload()
+    get_result = await storage.query_tbl_with_payload('asset_tracker', select_payload)
+    if 'rows' in get_result:
+        response = get_result['rows']
+        if response:
+            # AND_WHERE(['deprecated_ts', 'isnull']) once FOGL-6749 is done
+            current_time = utils.local_timestamp()
+            update_payload = PayloadBuilder().SET(deprecated_ts=current_time).WHERE(
+                ['service', '=', svc]).payload()
+            await storage.update_tbl("asset_tracker", update_payload)
 
 
 async def add_service(request):
@@ -174,13 +224,16 @@ async def add_service(request):
              curl -sX POST http://localhost:8081/fledge/service -d '{"name": "Sine", "plugin": "sinusoid", "type": "south", "enabled": true, "config": {"dataPointsPerSec": {"value": "10"}}}' | jq
              curl -X POST http://localhost:8081/fledge/service -d '{"name": "NotificationServer", "type": "notification", "enabled": true}' | jq
              curl -sX POST http://localhost:8081/fledge/service -d '{"name": "DispatcherServer", "type": "dispatcher", "enabled": true}' | jq
+             curl -sX POST http://localhost:8081/fledge/service -d '{"name": "BucketServer", "type": "bucketstorage", "enabled": true}' | jq
              curl -X POST http://localhost:8081/fledge/service -d '{"name": "HTC", "plugin": "httpc", "type": "north", "enabled": true}' | jq
              curl -sX POST http://localhost:8081/fledge/service -d '{"name": "HT", "plugin": "http_north", "type": "north", "enabled": true, "config": {"verifySSL": {"value": "false"}}}' | jq
 
              curl -sX POST http://localhost:8081/fledge/service?action=install -d '{"format":"repository", "name": "fledge-service-notification"}'
              curl -sX POST http://localhost:8081/fledge/service?action=install -d '{"format":"repository", "name": "fledge-service-dispatcher"}'
+             curl -sX POST http://localhost:8081/fledge/service?action=install -d '{"format":"repository", "name": "fledge-service-bucketStorage"}'
              curl -sX POST http://localhost:8081/fledge/service?action=install -d '{"format":"repository", "name": "fledge-service-notification", "version":"1.6.0"}'
              curl -sX POST http://localhost:8081/fledge/service?action=install -d '{"format":"repository", "name": "fledge-service-dispatcher", "version":"1.9.1"}'
+             curl -sX POST http://localhost:8081/fledge/service?action=install -d '{"format":"repository", "name": "fledge-service-bucketStorage", "version":"1.9.2"}'
     """
 
     try:
@@ -271,8 +324,8 @@ async def add_service(request):
             raise web.HTTPBadRequest(reason='Missing type property in payload.')
 
         service_type = str(service_type).lower()
-        if service_type not in ['south', 'north', 'notification', 'management', 'dispatcher']:
-            raise web.HTTPBadRequest(reason='Only south, north, notification, management and dispatcher '
+        if service_type not in ['south', 'north', 'notification', 'management', 'dispatcher', 'bucketstorage']:
+            raise web.HTTPBadRequest(reason='Only south, north, notification, management, dispatcher and bucketstorage '
                                             'types are supported.')
         if plugin is None and service_type == 'south':
             raise web.HTTPBadRequest(reason='Missing plugin property for type south in payload.')
@@ -287,6 +340,8 @@ async def add_service(request):
                                                 ' are allowed for value of enabled.')
         is_enabled = True if ((type(enabled) is str and enabled.lower() in ['true']) or (
             (type(enabled) is bool and enabled is True))) else False
+        
+        dryrun = not is_enabled
 
         # Check if a valid plugin has been provided
         plugin_module_path, plugin_config, process_name, script = "", {}, "", ""
@@ -338,6 +393,12 @@ async def add_service(request):
                 raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
             process_name = 'dispatcher_c'
             script = '["services/dispatcher_c"]'
+        elif service_type == 'bucketstorage':
+            if not os.path.exists(_FLEDGE_ROOT + "/services/fledge.services.bucket"):
+                msg = "{} service is not installed correctly.".format(service_type.capitalize())
+                raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
+            process_name = 'bucket_storage_c'
+            script = '["services/bucket_storage_c"]'
         storage = connect.get_storage_async()
         config_mgr = ConfigurationManager(storage)
 
@@ -349,7 +410,8 @@ async def add_service(request):
         # Check that the schedule name is not already registered
         count = await check_schedules(storage, name)
         if count != 0:
-            raise web.HTTPBadRequest(reason='A service with this name already exists.')
+            msg = "A service with {} name already exists.".format(name)
+            raise ValueError(msg)
 
         # Check that the process name is not already registered
         count = await check_scheduled_processes(storage, process_name, script)
@@ -370,19 +432,29 @@ async def add_service(request):
             res = await check_schedule_entry(storage)
             for ps in res['rows']:
                 if 'notification_c' in ps['process_name']:
-                    raise web.HTTPBadRequest(reason='A Notification service schedule already exists.')
+                    msg = "A Notification service type schedule already exists."
+                    raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
         # check that dispatcher service is not already registered, right now dispatcher service LIMIT to 1
         elif service_type == 'dispatcher':
             res = await check_schedule_entry(storage)
             for ps in res['rows']:
                 if 'dispatcher_c' in ps['process_name']:
-                    raise web.HTTPBadRequest(reason='A Dispatcher service schedule already exists.')
+                    msg = "A Dispatcher service type schedule already exists."
+                    raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+        # check the schedule entry for BucketStorage service as LIMIT to 1
+        elif service_type == 'bucketstorage':
+            res = await check_schedule_entry(storage)
+            for ps in res['rows']:
+                if 'bucket_storage_c' in ps['process_name']:
+                    msg = "A BucketStorage service type schedule already exists."
+                    raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
         # check that management service is not already registered, right now management service LIMIT to 1
         elif service_type == 'management':
             res = await check_schedule_entry(storage)
             for ps in res['rows']:
                 if 'management' in ps['process_name']:
-                    raise web.HTTPBadRequest(reason='A Management service schedule already exists.')
+                    msg = "A Management service type schedule already exists."
+                    raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
         elif service_type == 'south' or service_type == 'north':
             try:
                 # Create a configuration category from the configuration defined in the plugin
@@ -419,7 +491,7 @@ async def add_service(request):
             schedule.enabled = False
 
             # Save schedule
-            await server.Server.scheduler.save_schedule(schedule, is_enabled)
+            await server.Server.scheduler.save_schedule(schedule, is_enabled, dryrun=dryrun)
             schedule = await server.Server.scheduler.get_schedule_by_name(name)
         except StorageServerError as ex:
             await config_mgr.delete_category_and_children_recursively(name)
@@ -429,10 +501,12 @@ async def add_service(request):
             await config_mgr.delete_category_and_children_recursively(name)
             _logger.exception("Failed to create service. %s", str(ex))
             raise web.HTTPInternalServerError(reason='Failed to create service.')
-    except ValueError as e:
-        raise web.HTTPBadRequest(reason=str(e))
-    except KeyError as ex:
-        raise web.HTTPNotFound(reason=str(ex))
+    except ValueError as err:
+        msg = str(err)
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+    except KeyError as err:
+        msg = str(err)
+        raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except StorageServerError as err:
         msg = str(err)
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": "Storage error: {}".format(msg)}))
@@ -644,3 +718,27 @@ def do_update(http_enabled: bool, host: str, port: int, storage: connect, pkg_na
     # Restart the service which was disabled before service update
     for sch in schedules:
         loop.run_until_complete(_put_schedule(protocol, host, port, uuid.UUID(sch), True))
+
+
+@has_permission("admin")
+async def issueOTPToken(request):
+    """ Request an OTP startup token for service
+        being manually started
+
+        The request requires Core API authentication
+        and admin user
+
+    :Example:
+        curl -sX POST http://localhost:8081/fledge/service/SIN2/otp
+    """
+    if request.is_auth_optional:
+        _logger.warning('Resource you were trying to reach is forbidden')
+        raise web.HTTPForbidden
+
+    # Get service name
+    service_name = request.match_info.get('service_name')
+
+    # Create a startup token for the service
+    startToken = ServiceRegistry.issueStartupToken(service_name)
+
+    return web.json_response({"startupToken": startToken})

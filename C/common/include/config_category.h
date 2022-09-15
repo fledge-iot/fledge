@@ -98,6 +98,7 @@ class ConfigCategory {
 		bool				setDefault(const std::string& name, const std::string& value);
 		bool				setValue(const std::string& name, const std::string& value);
 		std::string			getDisplayName(const std::string& name) const;
+		std::string			getmParentName() const {return (m_parent_name);};
 		std::vector<std::string>	getOptions(const std::string& name) const;
 		std::string			getLength(const std::string& name) const;
 		std::string			getMinimum(const std::string& name) const;
@@ -123,6 +124,9 @@ class ConfigCategory {
 					FILE_ATTR};
 		std::string			getItemAttribute(const std::string& itemName,
 								 ItemAttribute itemAttribute) const;
+
+		bool				setItemAttribute(const std::string& itemName,
+								 ItemAttribute itemAttribute, const std::string& value);
 
 	protected:
 		class CategoryItem {
@@ -162,6 +166,7 @@ class ConfigCategory {
 		};
 		std::vector<CategoryItem *>	m_items;
 		std::string			m_name;
+		std::string         m_parent_name;
 		std::string			m_description;
 		std::string			m_displayName;
 

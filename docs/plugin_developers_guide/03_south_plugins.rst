@@ -106,39 +106,51 @@ The *plugin_start* method, as with other plugin calls, is called with the plugin
 This code first gets the event loop for this Python execution, it then creates the web application and adds a route for the POST request. In this case it is calling the *render_post* method of the object *SensorPhone*. It then goes on to create the handler and install the web server instance into the event system.
 
 
-Async Handler
-~~~~~~~~~~~~~
+Async Data Callback
+~~~~~~~~~~~~~~~~~~~
 
-The async handler is defined for incoming message has the responsibility of taking the sensor data and ingesting that into Fledge. Unlike the poll mechanism, this is done from within the handler rather than by passing the data back to the South service itself. A convenient method exists for ingesting readings, *Ingest.add_readings*. This call is passed an asset, timestamp, key and readings document for the asset and will do everything else required to make sure the readings are stored in the Fledge buffer. |br| In the case of our HTTP based example above, the code would create the items needed to generate the arguments to the *Ingest.add_readings* call, by creating data items and retrieving them from the payload sent by the sensor.
+The async data callback is used for incoming sensor data and passing that reading data into the Fledge ingest process. Unlike the poll mechanism, this is done from within the callback rather than by passing the data back to the South service itself. A plugin entry point, *plugin_register_ingest* is called by the south service before the plugin is started to register the callback with the plugin. The plugin would usually save the callback function and the reference data for later use.
 
 .. code-block:: python
 
-  try:
-      if not Ingest.is_available():
-          increment_discarded_counter = True
-          message = {'busy': True}
-      else:
-          payload = await request.json()
+   def plugin_register_ingest(handle, callback, ingest_ref):
+       """Required plugin interface component to communicate to South C server
 
-          asset = 'SensorPhone'
-          timestamp = str(datetime.now(tz=timezone.utc))
-          messages = payload.get('messages')
+       Args:
+           handle: handle returned by the plugin initialisation call
+           callback: C opaque object required to passed back to C->ingest method
+           ingest_ref: C opaque object required to passed back to C->ingest method
+       """
+       global c_callback, c_ingest_ref
+       c_callback = callback
+       c_ingest_ref = ingest_ref
 
-          if not isinstance(messages, list):
-                  raise ValueError('messages must be a list')
 
-          for readings in messages:
-               key = str(uuid.uuid4())
-      await Ingest.add_readings(asset=asset, timestamp=timestamp, key=key, readings=readings)
 
-  except ...
+The plugin then uses these saved references when it has data to be ingested. A new reading is constructed and passed to the callback function using *async_ingest* object that should be imported by the plugin.
 
-It would then respond to the HTTP request and return. Since the handler is embedded in the event loop this will happen in the context of a coroutine and would happen each time a new POST request is received.
+.. code-block:: python
+
+  import async_ingest
+
+Then for each reading to be ingested the data is sent to the ingest thread of the south plugin using the following construct.
+
+.. code-block:: python
+
+    data = {
+                'asset': self.asset_name,
+                'timestamp': utils.local_timestamp(),
+                'readings': reads
+    }
+    async_ingest.ingest_callback(c_callback, c_ingest_ref, data)
+
 
 .. code-block:: python
 
   message['status'] = code
   return web.json_response(message)
 
+
+.. include:: 03_02_south_python_Control.rst
 
 .. include:: 03_01_DHT11.rst

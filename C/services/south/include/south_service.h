@@ -13,11 +13,12 @@
 #include <logger.h>
 #include <south_plugin.h>
 #include <service_handler.h>
-#include <management_client.h>
 #include <config_category.h>
 #include <ingest.h>
 #include <filter_plugin.h>
 #include <plugin_data.h>
+
+#define MAX_SLEEP	5		// Maximum number of seconds the service will sleep during a poll cycle
 
 #define SERVICE_NAME  "Fledge South"
 
@@ -40,7 +41,7 @@
  * of the service that provides south side services
  * to Fledge.
  */
-class SouthService : public ServiceHandler {
+class SouthService : public ServiceAuthHandler {
 	public:
 		SouthService(const std::string& name,
 			const std::string& token = "");
@@ -48,26 +49,32 @@ class SouthService : public ServiceHandler {
 						      unsigned short corePort);
 		void 				stop();
 		void				shutdown();
-		void				configChange(const std::string&,
-						const std::string&);
-		static ManagementClient *	getMgmtClient();
+		void				restart();
+		void				configChange(const std::string&, const std::string&);
+		void				configChildCreate(const std::string&,
+								const std::string&,
+								const std::string&){};
+		void				configChildDelete(const std::string&,
+								const std::string&){};
+		bool				isRunning() { return !m_shutdown; };
 		bool				setPoint(const std::string& name, const std::string& value);
 		bool				operation(const std::string& name, std::vector<PLUGIN_PARAMETER *>& );
+		void				setDryRun() { m_dryRun = true; };
 	private:
 		void				addConfigDefaults(DefaultConfigCategory& defaults);
 		bool 				loadPlugin();
 		int 				createTimerFd(struct timeval rate);
-		void 				createConfigCategories(DefaultConfigCategory configCategory, std::string parent_name,std::string current_name);
+		void 				createConfigCategories(DefaultConfigCategory configCategory,
+									std::string parent_name,
+									std::string current_name);
 		void				throttlePoll();
 	private:
 		SouthPlugin			*southPlugin;
-		const std::string&		m_name;
 		Logger        			*logger;
 		AssetTracker			*m_assetTracker;
 		bool				m_shutdown;
 		ConfigCategory			m_config;
 		ConfigCategory			m_configAdvanced;
-		static ManagementClient		*m_mgtClient;
 		unsigned long			m_readingsPerSec;	// May not be per second, new rate defines time units
 		unsigned int			m_threshold;
 		unsigned long			m_timeout;
@@ -81,7 +88,10 @@ class SouthService : public ServiceHandler {
 		struct timeval			m_currentRate;
 		int				m_timerfd;
 		const std::string		m_token;
+		unsigned int			m_repeatCnt;
 		PluginData			*m_pluginData;
 		std::string			m_dataKey;
+		bool				m_dryRun;
+		bool				m_requestRestart;
 };
 #endif

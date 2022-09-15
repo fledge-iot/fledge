@@ -4,19 +4,21 @@
 # See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
+import os
+import json
 import copy
-from aiohttp import web
 import binascii
 import urllib.parse
-import os
 from typing import Dict
+from aiohttp import web
 
-from fledge.services.core import connect
-from fledge.common.configuration_manager import ConfigurationManager, _optional_items
-from fledge.common.storage_client.payload_builder import PayloadBuilder
+from fledge.common import logger
 from fledge.common.audit_logger import AuditLogger
 from fledge.common.common import _FLEDGE_ROOT, _FLEDGE_DATA
-from fledge.common import logger
+from fledge.common.configuration_manager import ConfigurationManager, _optional_items
+from fledge.common.storage_client.payload_builder import PayloadBuilder
+from fledge.services.core import connect
+
 
 __author__ = "Amarendra K. Sinha, Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -242,6 +244,18 @@ async def set_configuration_item(request):
 
     category_name = urllib.parse.unquote(category_name) if category_name is not None else None
     config_item = urllib.parse.unquote(config_item) if config_item is not None else None
+    """
+    FIXME: FOGL-6774   We should handle in better way, there may be more cases.
+                       GIVEN: config item 'authentication' And category 'rest_api'
+                       WHEN: if non-admin user is trying to update 
+                       THEN: 403 Forbidden case 
+    """
+    if request.user and (category_name == 'rest_api' and config_item == 'authentication'):
+        if not request.user_is_admin:
+            msg = "Admin role permissions required to change the {} value for category {}.".format(
+                config_item, category_name)
+            _logger.warning(msg)
+            raise web.HTTPForbidden(reason=msg, body=json.dumps({"message": msg}))
 
     data = await request.json()
     cf_mgr = ConfigurationManager(connect.get_storage_async())
@@ -302,11 +316,23 @@ async def update_configuration_item_bulk(request):
     """
     category_name = request.match_info.get('category_name', None)
     category_name = urllib.parse.unquote(category_name) if category_name is not None else None
-
     try:
         data = await request.json()
         if not data:
             return web.HTTPBadRequest(reason='Nothing to update')
+        """
+        FIXME: FOGL-6774   We should handle in better way, there may be more cases.
+                           GIVEN: config item 'authentication' And category 'rest_api'
+                           WHEN: if non-admin user is trying to update 
+                           THEN: 403 Forbidden case 
+        """
+        config_items = [k for k, v in data.items() if k == 'authentication']
+        if request.user and (category_name == 'rest_api' and config_items):
+            if not request.user_is_admin:
+                msg = "Admin role permissions required to change the authentication value for category {}.".format(
+                    category_name)
+                _logger.warning(msg)
+                return web.HTTPForbidden(reason=msg, body=json.dumps({"message": msg}))
         cf_mgr = ConfigurationManager(connect.get_storage_async())
         try:
             is_core_mgt = request.is_core_mgt

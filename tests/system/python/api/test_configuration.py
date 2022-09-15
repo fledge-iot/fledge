@@ -61,37 +61,70 @@ class TestConfiguration:
         assert 3 == len(jdoc["categories"])
 
         expected_with_utilities = [
-            {'children': [{'children': [], 'displayName': 'Scheduler', 'key': 'SCHEDULER',
-                           'description': 'Scheduler configuration'},
-                          {'children': [], 'displayName': 'Service Monitor', 'key': 'SMNTR',
-                           'description': 'Service Monitor'},
-                          {'children': [{'children': [], 'displayName': 'sqlite', 'key': 'sqlite',
-                           'description': 'Storage Plugin'}], 'displayName': 'Storage', 'key': 'Storage',
-                           'description': 'Storage configuration'}],
-             'displayName': 'Advanced', 'key': 'Advanced', 'description': 'Advanced'
-             },
-                        {'children': [{'children': [], 'key': 'Installation', 'description': 'Installation', 'displayName': 'Installation'},
-                          {'children': [], 'displayName': 'Admin API', 'key': 'rest_api',
-                           'description': 'Fledge Admin and User REST API'},
-                          {'children': [], 'displayName': 'Fledge Service', 'key': 'service',
-                           'description': 'Fledge Service'}
-                          ],
-             'displayName': 'General', 'key': 'General', 'description': 'General'
-             },
-            {'children': [],
-             'displayName': 'Utilities', 'key': 'Utilities', 'description': 'Utilities'
-             }
-        ]
-
-        # With sqlite plugin we have "sqlite" child in category Storage
-        # with postgres there are no children
-        # Inject empty children array in category Storage
-        if storage_plugin == 'postgres':
-            expected_with_utilities[0]['children'][2] = {
-                        'children': [],
-                        'displayName': 'Storage', 'key': 'Storage',
-                        'description': 'Storage configuration'
+          {
+              'key': 'Advanced',
+              'description': 'Advanced',
+              'displayName': 'Advanced',
+              'children': [
+                  {
+                            'key': 'Storage',
+                            'description': 'Storage configuration',
+                            'displayName': 'Storage',
+                            'children': [
+                                {
+                                  'key': storage_plugin,
+                                  'description': 'Storage Plugin',
+                                  'displayName': storage_plugin,
+                                  'children': []
+                                }
+                            ]
+                  },
+                  {
+                     'key': 'SMNTR',
+                     'description': 'Service Monitor',
+                     'displayName': 'Service Monitor',
+                     'children': []
+                  },
+                  {
+                     'key': 'SCHEDULER',
+                     'description': 'Scheduler configuration',
+                     'displayName': 'Scheduler',
+                     'children': []
+                  }
+              ]
+          },
+          {
+                     'key': 'General',
+                     'description': 'General',
+                     'displayName': 'General',
+                     'children': [
+                         {
+                             'key': 'service',
+                             'description': 'Fledge Service',
+                             'displayName': 'Fledge Service',
+                             'children': []
+                         },
+                         {
+                             'key': 'rest_api',
+                             'description': 'Fledge Admin and User REST API',
+                             'displayName': 'Admin API',
+                             'children': []
+                         },
+                         {
+                              'key': 'Installation',
+                              'description': 'Installation',
+                              'displayName': 'Installation',
+                              'children': []
+                         }
+                     ]
+            },
+            {
+                          'key': 'Utilities',
+                          'description': 'Utilities',
+                          'displayName': 'Utilities',
+                          'children': []
             }
+        ]
 
         assert expected_with_utilities == jdoc["categories"]
 
@@ -212,8 +245,11 @@ class TestConfiguration:
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert 3 == len(jdoc["categories"])
-        assert Counter({'categories': expected}) == Counter(jdoc)
+        actual = jdoc["categories"]
+        assert 3 == len(actual)
+        result = sorted(expected, key=lambda ex_element: sorted(ex_element.items())
+                        ) == sorted(actual, key=lambda ac_element: sorted(ac_element.items()))
+        assert result
 
     def test_create_child_category(self, fledge_url):
         payload = {'children': ['rest_api', 'service']}

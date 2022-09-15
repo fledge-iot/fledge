@@ -15,6 +15,9 @@
 #include <vector>
 #include <logger.h>
 #include <datapoint.h>
+#include <exception>
+#include <base64databuffer.h>
+#include <base64dpimage.h>
 
  /**
  * Return the value as a string
@@ -80,11 +83,48 @@ std::string DatapointValue::toString() const
 		ss << ((m_type==T_DP_DICT)?'}':']');
 		return ss.str();
 	case T_STRING:
-	default:
 		ss << "\"";
 		ss << escape(*m_value.str);
 		ss << "\"";
 		return ss.str();
+	case T_DATABUFFER:
+		ss << "\"__DATABUFFER:" 
+			<< ((Base64DataBuffer *)m_value.dataBuffer)->encode()
+			<< "\"";
+		return ss.str();
+	case T_IMAGE:
+		ss << "\"__DPIMAGE:" 
+			<< ((Base64DPImage *)m_value.image)->encode()
+			<< "\"";
+		return ss.str();
+	case T_2D_FLOAT_ARRAY:
+		{
+		ss << "[ ";
+		bool first = true;
+		for (auto row : *(m_value.a2d))
+		{
+			if (first)
+				first = false;
+			else
+				ss << ", ";
+			ss << "[";
+			for (auto it = row->begin();
+			     it != row->end();
+			     ++it)
+			{
+				if (it != row->begin())
+				{
+					ss << ", ";
+				}
+				ss << *it;
+			}
+			ss << "]";
+		}
+		ss << " ]";
+		return ss.str();
+		}
+	default:
+		throw std::runtime_error("No string representation for datapoint type");
 	}
 }
 
@@ -103,6 +143,21 @@ void DatapointValue::deleteNestedDPV()
 		delete m_value.a;
 		m_value.a = NULL;
 	}
+	else if (m_type == T_IMAGE)
+	{
+		delete m_value.image;
+		m_value.a = NULL;
+	}
+	else if (m_type == T_DATABUFFER)
+	{
+		delete m_value.dataBuffer;
+		m_value.dataBuffer = NULL;
+	}
+	else if (m_type == T_IMAGE)
+	{
+		delete m_value.image;
+		m_value.image = NULL;
+	}
 	else if (m_type == T_DP_DICT ||
 		 m_type == T_DP_LIST)
 	{
@@ -119,6 +174,11 @@ void DatapointValue::deleteNestedDPV()
 			delete m_value.dpa;
 			m_value.dpa = NULL;
 		}
+	}
+	else if (m_type == T_2D_FLOAT_ARRAY)
+	{
+		delete m_value.a2d;
+		m_value.a2d = NULL;
 	}
 }
 
@@ -160,6 +220,25 @@ DatapointValue::DatapointValue(const DatapointValue& obj)
 			}
 
 			break;
+		case T_IMAGE:
+			m_value.image = new DPImage(*(obj.m_value.image));
+			break;
+		case T_DATABUFFER:
+			m_value.dataBuffer = new DataBuffer(*(obj.m_value.dataBuffer));
+			break;
+		case T_2D_FLOAT_ARRAY:
+			m_value.a2d = new std::vector< std::vector<double>* >;
+			for (auto row : *obj.m_value.a2d)
+			{
+				std::vector<double> *nrow = new std::vector<double>;
+				for (auto& d : *row)
+				{
+					nrow->push_back(d);
+				}
+				m_value.a2d->push_back(nrow);
+			}
+			m_type = T_2D_FLOAT_ARRAY;
+			break;
 		default:
 			m_value = obj.m_value;
 			break;
@@ -186,6 +265,18 @@ DatapointValue& DatapointValue::operator=(const DatapointValue& rhs)
 		// Remove previous value
 		delete m_value.dpa;
 	}
+	if (m_type == T_IMAGE)
+	{
+		delete m_value.image;
+	}
+	if (m_type == T_DATABUFFER)
+	{
+		delete m_value.dataBuffer;
+	}
+	if (m_type == T_2D_FLOAT_ARRAY)
+	{
+		delete m_value.a2d;
+	}
 
 	m_type = rhs.m_type;
 
@@ -200,6 +291,25 @@ DatapointValue& DatapointValue::operator=(const DatapointValue& rhs)
 	case T_DP_DICT:
 	case T_DP_LIST:
 		m_value.dpa = new std::vector<Datapoint*>(*(rhs.m_value.dpa));
+		break;
+	case T_IMAGE:
+		m_value.image = new DPImage(*(rhs.m_value.image));
+		break;
+	case T_DATABUFFER:
+		m_value.dataBuffer = new DataBuffer(*(rhs.m_value.dataBuffer));
+		break;
+	case T_2D_FLOAT_ARRAY:
+		m_value.a2d = new std::vector< std::vector<double>* >;
+		for (auto row : *(rhs.m_value.a2d))
+		{
+			std::vector<double> *nrow = new std::vector<double>;
+			for (auto& d : *row)
+			{
+				nrow->push_back(d);
+			}
+			m_value.a2d->push_back(nrow);
+		}
+		m_type = T_2D_FLOAT_ARRAY;
 		break;
 	default:
 		m_value = rhs.m_value;

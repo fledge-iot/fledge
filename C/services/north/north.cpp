@@ -5,7 +5,7 @@
  *
  * Released under the Apache 2.0 Licence
  *
- * Author: Mark Riddoch
+ * Author: Mark Riddoch, Massimiliano Pinto
  */
 
 #include <sys/timerfd.h>
@@ -33,6 +33,9 @@
 #include <filter_plugin.h>
 #include <config_handler.h>
 #include <syslog.h>
+#include <stdarg.h>
+
+#define SERVICE_TYPE "Northbound"
 
 extern int makeDaemon(void);
 extern void handler(int sig);
@@ -54,16 +57,84 @@ static const char *defaultServiceConfig = QUOTE({
 
 using namespace std;
 
+static NorthService *service;
+
+/**
+ * Callback function when a plugin wishes to perform a write operation
+ *
+ * @param name	The name of the value to write
+ * @param value	The value to write
+ * @param destination	Where to write the value
+ */
+static bool controlWrite(char *name, char *value, ControlDestination destination, ...)
+{
+	va_list ap;
+	bool rval = false;
+
+	switch (destination)
+	{
+		case DestinationAsset:
+		case DestinationService:
+		case DestinationScript:
+		{
+			va_start(ap, destination);
+			char *arg1 = va_arg(ap, char *);
+			va_end(ap);
+			rval = service->write(name, value, destination, arg1);
+			break;
+		}
+		case DestinationBroadcast:
+			rval = service->write(name, value, destination);
+			break;
+		default:
+			Logger::getLogger()->error("Unknown control write destination %d", destination);
+	}
+	return rval;
+}
+
+/**
+ * Callback function when a plugin wishes to perform a control operation
+ *
+ * @param operation	The name of the operation to perform
+ * @param paramCount	The count of the number of parameters
+ * @param names		The names of the parameters
+ * @param parameters	The values of the parameters
+ * @param destiantion	The destiantion for the operation
+ */
+static int controlOperation(char *operation, int paramCount, char *names[], char *parameters[], ControlDestination destination, ...)
+{
+	va_list ap;
+	int	rval = -1;
+
+	switch (destination)
+	{
+		case DestinationAsset:
+		case DestinationService:
+			va_start(ap, destination);
+			rval = service->operation(operation, paramCount, names, parameters, destination, va_arg(ap, char *));
+			va_end(ap);
+			break;
+		case DestinationBroadcast:
+			rval = service->operation(operation, paramCount, names, parameters, destination);
+			break;
+		default:
+			Logger::getLogger()->error("Unknown control operation destination %d for operation %s", destination, operation);
+	}
+	return rval;
+}
+
 /**
  * North service main entry point
  */
 int main(int argc, char *argv[])
 {
-unsigned short corePort = 8082;
-string	       coreAddress = "localhost";
-bool	       daemonMode = true;
-string	       myName = SERVICE_NAME;
-string	       logLevel = "warning";
+unsigned short	corePort = 8082;
+string		coreAddress = "localhost";
+bool		daemonMode = true;
+string		myName = SERVICE_NAME;
+string		logLevel = "warning";
+string		token = "";
+bool		dryRun = false;
 
 	signal(SIGSEGV, handler);
 	signal(SIGILL, handler);
@@ -93,6 +164,14 @@ string	       logLevel = "warning";
 		{
 			logLevel = &argv[i][11];
 		}
+		else if (!strncmp(argv[i], "--token=", 8))
+		{
+			token = &argv[i][8];
+		}
+		else if (!strncmp(argv[i], "--dryrun", 8))
+		{
+			dryRun = true;
+		}
 	}
 
 	if (daemonMode && makeDaemon() == -1)
@@ -101,7 +180,11 @@ string	       logLevel = "warning";
 		cout << "Failed to run as deamon - proceeding in interactive mode." << endl;
 	}
 
-	NorthService *service = new NorthService(myName);
+	service = new NorthService(myName, token);
+	if (dryRun)
+	{
+		service->setDryRun();
+	}
 	Logger::getLogger()->setMinLevel(logLevel);
 	service->start(coreAddress, corePort);
 	return 0;
@@ -190,9 +273,18 @@ int	size;
 /**
  * Constructor for the north service
  */
-NorthService::NorthService(const string& myName) : m_dataLoad(NULL), m_name(myName),
-	m_shutdown(false), m_storage(NULL), m_pluginData(NULL), m_restartPlugin(false)
+NorthService::NorthService(const string& myName, const string& token) :
+	m_dataLoad(NULL),
+	m_shutdown(false),
+	m_storage(NULL),
+	m_pluginData(NULL),
+	m_restartPlugin(false),
+	m_token(token),
+	m_allowControl(true),
+	m_dryRun(false),
+	m_requestRestart()
 {
+	m_name = myName;
 	logger = new Logger(myName);
 	logger->setMinLevel("warning");
 }
@@ -204,13 +296,6 @@ NorthService::~NorthService()
 {
 	if (m_storage)
 		delete m_storage;
-}
-
-ManagementClient *NorthService::m_mgtClient = NULL;
-
-ManagementClient *NorthService::getMgmtClient()
-{
-	return m_mgtClient;
 }
 
 /**
@@ -233,7 +318,13 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 		// Now register our service
 		// TODO proper hostname lookup
 		unsigned short managementListener = management.getListenerPort();
-		ServiceRecord record(m_name, "Northbound", "http", "localhost", 0, managementListener);
+		ServiceRecord record(m_name,		// Service name
+				SERVICE_TYPE,		// Service type
+				"http",			// Protocol
+				"localhost",		// Listening address
+				0,			// Service port
+				managementListener,	// Management port
+				m_token);		// Token);
 		m_mgtClient = new ManagementClient(coreAddress, corePort);
 
 		// Create an empty North category if one doesn't exist
@@ -248,20 +339,32 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 			management.stop();
 			return;
 		}
-		if (!m_mgtClient->registerService(record))
+		if (!m_dryRun)
 		{
-			logger->error("Failed to register service %s", m_name.c_str());
+			if (!m_mgtClient->registerService(record))
+			{
+				logger->error("Failed to register service %s", m_name.c_str());
+				management.stop();
+				return;
+			}
+			ConfigHandler *configHandler = ConfigHandler::getInstance(m_mgtClient);
+			configHandler->registerCategory(this, m_name);
+			configHandler->registerCategory(this, m_name+"Advanced");
 		}
-		ConfigHandler *configHandler = ConfigHandler::getInstance(m_mgtClient);
-		configHandler->registerCategory(this, m_name);
-		configHandler->registerCategory(this, m_name+"Advanced");
 
 		// Get a handle on the storage layer
 		ServiceRecord storageRecord("Fledge Storage");
 		if (!m_mgtClient->getService(storageRecord))
 		{
 			logger->fatal("Unable to find storage service");
-			m_mgtClient->unregisterService();
+			if (!m_dryRun)
+			{
+
+				if (m_requestRestart)
+					m_mgtClient->restartService();
+				else
+					m_mgtClient->unregisterService();
+			}
 			return;
 		}
 		logger->info("Connect to storage on %s:%d",
@@ -272,10 +375,18 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 		m_storage = new StorageClient(storageRecord.getAddress(),
 						storageRecord.getPort());
 
+		m_storage->registerManagement(m_mgtClient);
+
 		// Fetch Confguration
 		logger->debug("Initialise the asset tracker");
 		m_assetTracker = new AssetTracker(m_mgtClient, m_name);
 		AssetTracker::getAssetTracker()->populateAssetTrackingCache(m_name, "Egress");
+
+		// If the plugin supports control register the callback functions
+		if (northPlugin->hasControl())
+		{
+			northPlugin->pluginRegister(controlWrite, controlOperation);
+		}
 
 		// Deal with persisted data and start the plugin
 		if (northPlugin->persistData())
@@ -293,6 +404,9 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 			northPlugin->start();
 		}
 
+		// Create default security category
+		this->createSecurityCategories(m_mgtClient, m_dryRun);
+
 		// Setup the data loading
 		long streamId = 0;
 		if (m_config.itemExists("streamId"))
@@ -305,22 +419,41 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 		{
 			m_dataLoad->setDataSource(m_config.getValue("source"));
 		}
-		m_dataSender = new DataSender(northPlugin, m_dataLoad, this);
-		logger->debug("North service is running");
-
-		
-		// wait for shutdown
-		unique_lock<mutex> lck(m_mutex);
-		while (!m_shutdown)
+		if (m_configAdvanced.itemExists("blockSize"))
 		{
-			m_cv.wait(lck);
-			logger->debug("North main thread woken up, shutdown %s", m_shutdown ? "true" : "false");
-			if (m_shutdown == false && m_restartPlugin)
+			unsigned long newBlock = strtoul(
+						m_configAdvanced.getValue("blockSize").c_str(),
+						NULL,
+						10);
+			if (newBlock > 0)
 			{
-				restartPlugin();
+				m_dataLoad->setBlockSize(newBlock);
 			}
 		}
-		logger->debug("North service is shutting down");
+		m_dataSender = new DataSender(northPlugin, m_dataLoad, this);
+
+		if (!m_dryRun)
+		{
+			logger->debug("North service is running");
+
+			
+			// wait for shutdown
+			unique_lock<mutex> lck(m_mutex);
+			while (!m_shutdown)
+			{
+				m_cv.wait(lck);
+				logger->debug("North main thread woken up, shutdown %s", m_shutdown ? "true" : "false");
+				if (m_shutdown == false && m_restartPlugin)
+				{
+					restartPlugin();
+				}
+			}
+			logger->debug("North service is shutting down");
+		}
+		else
+		{
+			logger->info("Dryrun of service, shutting down");
+		}
 
 		m_dataLoad->shutdown();		// Forces the data load to return from any blocking fetch call
 		delete m_dataSender;
@@ -350,12 +483,15 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 			}
 		}
 		
-		// Clean shutdown, unregister the storage service
-		logger->info("Unregistering service");
-		m_mgtClient->unregisterService();
+		if (!m_dryRun)
+		{
+			// Clean shutdown, unregister the storage service
+			logger->info("Unregistering service");
+			m_mgtClient->unregisterService();
+		}
 	}
 	management.stop();
-	logger->info("North service shutdown completed");
+	logger->info("North service %s shutdown completed", m_dryRun ? "dry run execution " : "");
 }
 
 /**
@@ -440,6 +576,12 @@ bool NorthService::loadPlugin()
 			m_config.removeItems();
 			m_config = m_mgtClient->getCategory(m_name);
 
+			try {
+				northPlugin = new NorthPlugin(handle, m_config);
+			} catch (...) {
+				return false;
+			}
+
 			// Deal with registering and fetching the advanced configuration
 			string advancedCatName = m_name+string("Advanced");
 			DefaultConfigCategory defConfigAdvanced(advancedCatName, string("{}"));
@@ -458,14 +600,45 @@ bool NorthService::loadPlugin()
 			m_configAdvanced = m_mgtClient->getCategory(advancedCatName);
 			if (m_configAdvanced.itemExists("logLevel"))
 			{
+				string prevLogLevel = logger->getMinLevel();
 				logger->setMinLevel(m_configAdvanced.getValue("logLevel"));
+
+				PluginManager *manager = PluginManager::getInstance();
+				PLUGIN_TYPE type = manager->getPluginImplType(northPlugin->getHandle());
+				logger->debug("%s:%d: North plugin type = %s", __FUNCTION__, __LINE__, (type==PYTHON_PLUGIN)?"PYTHON_PLUGIN":"BINARY_PLUGIN");
+
+				if (m_dataLoad)
+				{
+					logger->debug("%s:%d: calling m_dataLoad->configChange() for updating loglevel", __FUNCTION__, __LINE__);
+					m_dataLoad->configChange("north filters", "logLevel");
+				}
+				
+				if (type == PYTHON_PLUGIN)
+				{
+					// propagate loglevel changes to python filters/plugins, if present
+					logger->debug("prevLogLevel=%s, m_configAdvanced.getValue(\"logLevel\")=%s", prevLogLevel.c_str(), m_configAdvanced.getValue("logLevel").c_str());
+					if (prevLogLevel.compare(m_configAdvanced.getValue("logLevel")) != 0)
+					{
+						logger->debug("calling northPlugin->reconfigure() for updating loglevel");
+						northPlugin->reconfigure("logLevel");
+					}
+				}
+			}
+			if (m_configAdvanced.itemExists("control"))
+			{
+				string c = m_configAdvanced.getValue("control");
+				if (c.compare("true") == 0)
+				{
+					m_allowControl = true;
+					logger->warn("Control operations have been enabled");
+				}
+				else
+				{
+					m_allowControl = false;
+					logger->warn("Control operations have been disabled");
+				}
 			}
 
-			try {
-				northPlugin = new NorthPlugin(handle, m_config);
-			} catch (...) {
-				return false;
-			}
 
 			return true;
 		}
@@ -491,6 +664,22 @@ void NorthService::shutdown()
 }
 
 /**
+ * Restart request
+ */
+void NorthService::restart()
+{
+	/* Stop recieving new requests and allow existing
+	 * requests to drain.
+	 */
+	m_requestRestart = true;
+	m_shutdown = true;
+	logger->info("North service shutdown in progress.");
+
+	// Signal main thread to shutdown
+	m_cv.notify_all();
+}
+
+/**
  * Configuration change notification
  */
 void NorthService::configChange(const string& categoryName, const string& category)
@@ -505,7 +694,7 @@ void NorthService::configChange(const string& categoryName, const string& catego
 		m_restartPlugin = true;
 		m_cv.notify_all();
 
-    if (m_dataLoad)
+		if (m_dataLoad)
 		{
 			m_dataLoad->configChange(categoryName, category);
 		}
@@ -515,13 +704,66 @@ void NorthService::configChange(const string& categoryName, const string& catego
 		m_configAdvanced = ConfigCategory(m_name+"Advanced", category);
 		if (m_configAdvanced.itemExists("logLevel"))
 		{
+			string prevLogLevel = logger->getMinLevel();
 			logger->setMinLevel(m_configAdvanced.getValue("logLevel"));
+
+			PluginManager *manager = PluginManager::getInstance();
+			PLUGIN_TYPE type = manager->getPluginImplType(northPlugin->getHandle());
+			logger->debug("%s:%d: North plugin type = %s", __FUNCTION__, __LINE__, (type==PYTHON_PLUGIN)?"PYTHON_PLUGIN":"BINARY_PLUGIN");
+			
+			if (m_dataLoad)
+			{
+				logger->debug("%s:%d: calling m_dataLoad->configChange() for updating loglevel", __FUNCTION__, __LINE__);
+				m_dataLoad->configChange("north filters", "logLevel");
+			}
+			
+			if (type == PYTHON_PLUGIN)
+			{
+				// propagate loglevel changes to python filters/plugins, if present
+				logger->debug("prevLogLevel=%s, m_configAdvanced.getValue(\"logLevel\")=%s", prevLogLevel.c_str(), m_configAdvanced.getValue("logLevel").c_str());
+				if (prevLogLevel.compare(m_configAdvanced.getValue("logLevel")) != 0)
+				{
+					logger->debug("%s:%d: calling northPlugin->reconfigure() for updating loglevel", __FUNCTION__, __LINE__);
+					northPlugin->reconfigure("logLevel");
+				}
+			}
 		}
+		if (m_configAdvanced.itemExists("control"))
+		{
+			string c = m_configAdvanced.getValue("control");
+			if (c.compare("true") == 0)
+			{
+				m_allowControl = true;
+				logger->warn("Control operations have been enabled");
+			}
+			else
+			{
+				m_allowControl = false;
+				logger->warn("Control operations have been disabled");
+			}
+		}
+		if (m_configAdvanced.itemExists("blockSize"))
+		{
+			unsigned long newBlock = strtoul(
+					m_configAdvanced.getValue("blockSize").c_str(),
+					NULL,
+					10);
+			if (newBlock > 0)
+			{
+				m_dataLoad->setBlockSize(newBlock);
+			}
+		}
+	}
+
+	// Update the  Security category
+	if (categoryName.compare(m_name+"Security") == 0)
+	{
+		this->updateSecurityCategory(category);
 	}
 }
 
 /**
- * Restart the plugin with an updated confoguration.
+ * Restart the plugin with an updated configuration.
  * We need to do this as north plugins do not have a reconfigure method
  *
  * We need to make sure we are not sending data and the send data thread does not startup
@@ -571,6 +813,12 @@ void NorthService::restartPlugin()
 	}
 	m_dataSender->updatePlugin(northPlugin);
 	m_dataSender->release();
+
+	// If the plugin supports control register the callback functions
+	if (northPlugin->hasControl() && m_allowControl)
+	{
+		northPlugin->pluginRegister(controlWrite, controlOperation);
+	}
 }
 
 /**
@@ -587,11 +835,289 @@ void NorthService::addConfigDefaults(DefaultConfigCategory& defaultConfig)
 			defaults[i].type, defaults[i].value, defaults[i].value);
 		defaultConfig.setItemDisplayName(defaults[i].name, defaults[i].displayName);
 	}
+	if (northPlugin->hasControl())
+	{
+		defaultConfig.addItem("control", "Allow write and control operations from the upstream system",
+			"boolean", "true", "true");
+		defaultConfig.setItemDisplayName("control", "Allow Control");
+	}
 
 	/* Add the set of logging levels to the service */
 	vector<string>	logLevels = { "error", "warning", "info", "debug" };
 	defaultConfig.addItem("logLevel", "Minimum logging level reported",
 			"warning", "warning", logLevels);
 	defaultConfig.setItemDisplayName("logLevel", "Minimum Log Level");
+
+	// Add blockSize configuration item
+	defaultConfig.addItem("blockSize",
+		"The size of a block of data to send in each transmission.",
+		"integer",
+		std::to_string(DEFAULT_BLOCK_SIZE),
+		std::to_string(DEFAULT_BLOCK_SIZE));
+	defaultConfig.setItemDisplayName("blockSize", "Data block size");
 }
 
+/**
+ * Control write operation
+ *
+ * @param name		Name of the variable to write
+ * @param value		Value to write to the variable
+ * @param destination	Where to write the value
+ */
+bool NorthService::write(const string& name, const string& value, const ControlDestination destination)
+{
+	Logger::getLogger()->info("Control write %s with %s", name.c_str(), value.c_str());
+	if (destination != DestinationBroadcast)
+	{
+		Logger::getLogger()->error("Write destination requires an argument that is not given");
+		return -1;
+	}
+	// Build payload for dispatcher service
+	string payload = "{ \"destination\" : \"broadcast\",";
+	payload += "\"write\" : { \"";
+	payload += name;
+	payload += "\" : \"";
+	payload += value;
+	payload += "\" } }";
+	return sendToDispatcher("/dispatch/write", payload);
+}
+
+/**
+ * Control write operation
+ *
+ * @param name		Name of the variable to write
+ * @param value		Value to write to the variable
+ * @param destination	Where to write the value
+ * @param arg		Argument used to determine destination
+ */
+bool NorthService::write(const string& name, const string& value, const ControlDestination destination, const string& arg)
+{
+	Logger::getLogger()->info("Control write %s with %s", name.c_str(), value.c_str());
+
+	// Build payload for dispatcher service
+	string payload = "{ \"destination\" : \"";
+	switch (destination)
+	{
+		case DestinationService:
+			payload += "service\", \"name\" : \"";
+			payload += arg;
+			payload += "\"";
+			break;
+		case DestinationAsset:
+			payload += "asset\", \"name\" : \"";
+			payload += arg;
+			payload += "\"";
+			break;
+		case DestinationScript:
+			payload += "script\", \"name\" : \"";
+			payload += arg;
+			payload += "\"";
+			break;
+		case DestinationBroadcast:
+			payload += "broadcast\"";
+			break;
+	}
+	payload += ", \"write\" : { \"";
+	payload += name;
+	payload += "\" : \"";
+	payload += value;
+	payload += "\" } }";
+	return sendToDispatcher("/dispatch/write", payload);
+}
+
+/**
+ * Control operation
+ *
+ * @param name		Name of the operation to perform
+ * @param paramCount	The number of parameters
+ * @param parameters	The parameters to the operation
+ * @param destination	Where to write the value
+ */
+int  NorthService::operation(const string& name, int paramCount, char *names[], char *parameters[], const ControlDestination destination)
+{
+	Logger::getLogger()->info("Control operation %s with %d parameters", name.c_str(),
+			paramCount);
+	for (int i = 0; i < paramCount; i++)
+		Logger::getLogger()->info("Parameter %d: %s", i, parameters[i]);
+	if (destination != DestinationBroadcast)
+	{
+		Logger::getLogger()->error("Operation destination requires an argument that is not given");
+		return -1;
+	}
+	// Build payload for dispatcher service
+	string payload = "{ \"destination\" : \"broadcast\",";
+	payload += "\"operation\" : { \"";
+	payload += name;
+	payload += "\" : { \"";
+	for (int i = 0; i < paramCount; i++)
+	{
+		payload += "\"";
+		payload += names[i];
+		payload += "\": \"";
+		payload += parameters[i];
+		payload += "\"";
+		if (i < paramCount -1)
+			payload += ",";
+	}
+	payload += "\" } }";
+	sendToDispatcher("/dispatch/operation", payload);
+	return -1;
+}
+
+/**
+ * Control write operation
+ *
+ * @param name		Name of the operation to perform
+ * @param paramCount	The number of parameters
+ * @param parameters	The parameters to the operation
+ * @param destination	Where to write the value
+ * @param arg		Argument used to determine destination
+ */
+int NorthService::operation(const string& name, int paramCount, char *names[], char *parameters[], const ControlDestination destination, const string& arg)
+{
+	Logger::getLogger()->info("Control operation %s with %d parameters", name.c_str(),
+			paramCount);
+	for (int i = 0; i < paramCount; i++)
+		Logger::getLogger()->info("Parameter %d: %s", i, parameters[i]);
+	// Build payload for dispatcher service
+	string payload = "{ \"destination\" : \"";
+	switch (destination)
+	{
+		case DestinationService:
+			payload += "service\", \"name\" : \"";
+			payload += arg;
+			payload += "\"";
+			break;
+		case DestinationAsset:
+			payload += "asset\", \"name\" : \"";
+			payload += arg;
+			payload += "\"";
+			break;
+		case DestinationScript:
+			payload += "script\", \"name\" : \"";
+			payload += arg;
+			payload += "\"";
+			break;
+		case DestinationBroadcast:
+			payload += "broadcast\"";
+			break;
+	}
+	payload += ", \"operation\" : { \"";
+	payload += name;
+	payload += "\" : { \"";
+	for (int i = 0; i < paramCount; i++)
+	{
+		payload += "\"";
+		payload += names[i];
+		payload += "\": \"";
+		payload += parameters[i];
+		payload += "\"";
+		if (i < paramCount -1)
+			payload += ",";
+	}
+	payload += "\" } }";
+	sendToDispatcher("/dispatch/operation", payload);
+	return -1;
+}
+
+/**
+ * Send to a south service direct. This is temporary until we have the 
+ * service dispatcher in place.
+ */
+bool NorthService::sendToService(const string& southService, const string& name, const string& value)
+{
+	std::string payload = "{ \"values\" : { \"";
+	payload += name;
+	payload += "\": \"";
+	payload += value;
+	payload += "\"} }";
+
+	// Send the control message to the south service
+	try {
+		ServiceRecord service(southService);
+		if (!m_mgtClient->getService(service))
+		{
+			Logger::getLogger()->error("Unable to find service '%s'", southService.c_str());
+			return false;
+		}
+		string address = service.getAddress();
+		unsigned short port = service.getPort();
+		char addressAndPort[80];
+		snprintf(addressAndPort, sizeof(addressAndPort), "%s:%d", address.c_str(), port);
+		SimpleWeb::Client<SimpleWeb::HTTP> http(addressAndPort);
+
+		string url = "/fledge/south/setpoint";
+		try {
+			SimpleWeb::CaseInsensitiveMultimap headers = {{"Content-Type", "application/json"}};
+			auto res = http.request("PUT", url, payload, headers);
+			if (res->status_code.compare("200 OK"))
+			{
+				Logger::getLogger()->error("Failed to send set point operation to service %s, %s",
+							southService.c_str(), res->status_code.c_str());
+				return false;
+			}
+		} catch (exception& e) {
+			Logger::getLogger()->error("Failed to send set point operation to service %s, %s",
+						southService.c_str(), e.what());
+			return false;
+		}
+
+		return true;
+	}
+	catch (exception &e) {
+		Logger::getLogger()->error("Failed to send set point operation to service %s, %s",
+				southService.c_str(), e.what());
+		return false;
+	}
+
+}
+
+/**
+ * Send to the control dispatcher service
+ */
+bool NorthService::sendToDispatcher(const string& path, const string& payload)
+{
+	// Send the control message to the south service
+	try {
+		ServiceRecord service("dispatcher");
+		if (!m_mgtClient->getService(service))
+		{
+			Logger::getLogger()->error("Unable to find dispatcher service 'Dispatcher'");
+			return false;
+		}
+		string address = service.getAddress();
+		unsigned short port = service.getPort();
+		char addressAndPort[80];
+		snprintf(addressAndPort, sizeof(addressAndPort), "%s:%d", address.c_str(), port);
+		SimpleWeb::Client<SimpleWeb::HTTP> http(addressAndPort);
+
+		try {
+			SimpleWeb::CaseInsensitiveMultimap headers = {{"Content-Type", "application/json"}};
+			// Pass North service bearer token to dispatcher
+			string regToken = m_mgtClient->getRegistrationBearerToken();
+			if (regToken != "")
+			{
+				headers.emplace("Authorization", "Bearer " + regToken);
+			}
+
+			auto res = http.request("POST", path, payload, headers);
+			if (res->status_code.compare("202 Accepted"))
+			{
+				Logger::getLogger()->error("Failed to send control operation to dispatcher service, %s",
+							res->status_code.c_str());
+				return false;
+			}
+		} catch (exception& e) {
+			Logger::getLogger()->error("Failed to send control operation to dispatcher service, %s",
+						e.what());
+			return false;
+		}
+
+		return true;
+	}
+	catch (exception &e) {
+		Logger::getLogger()->error("Failed to send control operation to dispatcher service, %s", e.what());
+		return false;
+	}
+
+}

@@ -16,8 +16,9 @@
 #include <reading_stream.h>
 #include <plugin_configuration.h>
 
-#define	STORAGE_PURGE_RETAIN	0x0001U
-#define STORAGE_PURGE_SIZE	0x0002U
+#define	STORAGE_PURGE_RETAIN_ANY 0x0001U
+#define	STORAGE_PURGE_RETAIN_ALL 0x0002U
+#define STORAGE_PURGE_SIZE	     0x0004U
 
 /**
  * Class that represents a storage plugin.
@@ -36,15 +37,16 @@ public:
 	StoragePlugin(const std::string& name, PLUGIN_HANDLE handle);
 	~StoragePlugin();
 
-	int		commonInsert(const std::string& table, const std::string& payload);
-	char		*commonRetrieve(const std::string& table, const std::string& payload);
-	int		commonUpdate(const std::string& table, const std::string& payload);
-	int		commonDelete(const std::string& table, const std::string& payload);
+	int		commonInsert(const std::string& table, const std::string& payload, const char *schema = nullptr);
+	char		*commonRetrieve(const std::string& table, const std::string& payload, const char *schema = nullptr);
+	int		commonUpdate(const std::string& table, const std::string& payload, const char *schema = nullptr);
+	int		commonDelete(const std::string& table, const std::string& payload, const char *schema = nullptr);
 	int		readingsAppend(const std::string& payload);
 	char		*readingsFetch(unsigned long id, unsigned int blksize);
 	char		*readingsRetrieve(const std::string& payload);
 	char		*readingsPurge(unsigned long age, unsigned int flags, unsigned long sent);
 	long		*readingsPurge();
+	char		*readingsPurgeAsset(const std::string& asset);
 	void		release(const char *response);
 	int		createTableSnapshot(const std::string& table, const std::string& id);
 	int		loadTableSnapshot(const std::string& table, const std::string& id);
@@ -54,19 +56,25 @@ public:
 	bool		hasStreamSupport() { return readingStreamPtr != NULL; };
 	int		readingStream(ReadingStream **stream, bool commit);
 	bool		pluginShutdown();
+	int 		createSchema(const std::string& payload);
 	StoragePluginConfiguration
 			*getConfig() { return m_config; };
 
 private:
 	PLUGIN_HANDLE	instance;
-	int		(*commonInsertPtr)(PLUGIN_HANDLE, const char *, const char *);
-	char		*(*commonRetrievePtr)(PLUGIN_HANDLE, const char *, const char *);
-	int		(*commonUpdatePtr)(PLUGIN_HANDLE, const char *, const char *);
-	int		(*commonDeletePtr)(PLUGIN_HANDLE, const char *, const char *);
+	int		(*commonInsertPtr)(PLUGIN_HANDLE, const char *, const char *) = nullptr;
+	char		*(*commonRetrievePtr)(PLUGIN_HANDLE, const char *, const char *) = nullptr;
+	int		(*commonUpdatePtr)(PLUGIN_HANDLE, const char *, const char *) = nullptr;
+	int		(*commonDeletePtr)(PLUGIN_HANDLE, const char *, const char *) = nullptr;
+	int             (*storageSchemaInsertPtr)(PLUGIN_HANDLE, const char *, const char *, const char*) = nullptr;
+	char            *(*storageSchemaRetrievePtr)(PLUGIN_HANDLE, const char *, const char *, const char*) = nullptr;
+        int             (*storageSchemaUpdatePtr)(PLUGIN_HANDLE, const char *, const char *, const char*) = nullptr;
+        int             (*storageSchemaDeletePtr)(PLUGIN_HANDLE, const char *, const char *, const char*) = nullptr;
 	int		(*readingsAppendPtr)(PLUGIN_HANDLE, const char *);
 	char		*(*readingsFetchPtr)(PLUGIN_HANDLE, unsigned long id, unsigned int blksize);
 	char		*(*readingsRetrievePtr)(PLUGIN_HANDLE, const char *payload);
 	char		*(*readingsPurgePtr)(PLUGIN_HANDLE, unsigned long age, unsigned int flags, unsigned long sent);
+	unsigned int	(*readingsPurgeAssetPtr)(PLUGIN_HANDLE, const char *asset);
 	void		(*releasePtr)(PLUGIN_HANDLE, const char *payload);
 	int		(*createTableSnapshotPtr)(PLUGIN_HANDLE, const char *, const char *);
 	int		(*loadTableSnapshotPtr)(PLUGIN_HANDLE, const char *, const char *);
@@ -75,9 +83,11 @@ private:
 	int		(*readingStreamPtr)(PLUGIN_HANDLE, ReadingStream **, bool);
 	PLUGIN_ERROR	*(*lastErrorPtr)(PLUGIN_HANDLE);
 	bool		(*pluginShutdownPtr)(PLUGIN_HANDLE);
+        int 		(*createSchemaPtr)(PLUGIN_HANDLE, const char*);
 	std::string	m_name;
 	StoragePluginConfiguration
 			*m_config;
+	bool 		m_bStorageSchemaFlag = false;
 };
 
 #endif

@@ -31,7 +31,11 @@ class StorageService : public ServiceHandler {
 		void 			start(std::string& coreAddress, unsigned short corePort);
 		void 			stop();
 		void			shutdown();
+		void			restart();
+		bool			isRunning() { return !m_shutdown; };
 		void			configChange(const std::string&, const std::string&);
+		void			configChildCreate(const std::string&, const std::string&, const std::string&){};
+		void			configChildDelete(const std::string& , const std::string&){};
 		string			getPluginName();
 		string			getPluginManagedStatus();
 		string			getReadingPluginName();
@@ -44,5 +48,6 @@ class StorageService : public ServiceHandler {
 		StoragePlugin 		*storagePlugin;
 		StoragePlugin 		*readingPlugin;
 		bool			m_shutdown;
+		bool			m_requestRestart;
 };
 #endif

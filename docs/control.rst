@@ -7,11 +7,18 @@
 .. |sine_in| image:: images/sine_in.jpg
 .. |sine_out5| image:: images/sine_out5.jpg
 .. |sine_out_change| image:: images/sine_out_change.jpg
+.. |end_to_end| image:: images/EndToEnd.jpg
+.. |north_map1| image:: images/north_map1.jpg
+.. |north_map2| image:: images/north_map2.jpg
+.. |north_map3| image:: images/north_map3.jpg
+.. |north_map4| image:: images/north_map4.jpg
+.. |opcua_server| image:: images/opcua_server.jpg
+.. |dispatcher_config| image:: images/dispatcher-config.jpg
 
 
-*****************
-Set Point Control
-*****************
+************************
+Fledge Control Features
+************************
 
 Fledge supports facilities that allows control of devices via the south service and plugins. This control in known as *set point control* as it is not intended for real time critical control of devices but rather to modify the behavior of a device based on one of many different information flows. The latency involved in these control operations is highly dependent on the control path itself and also the scheduling limitations of the underlying operating system. Hence the caveat that the control functions are not real time or guaranteed to be actioned within a specified time window.
 
@@ -235,3 +242,141 @@ Changing the buffering on the south service to only buffer a single reading resu
 +-------------------+
 
 At the left end of the graph the south service is buffering 5 readings before sending data onward, on the right end it is only buffering one reading.
+
+End to End Control 
+------------------
+
+The end to end control path in Fledge is a path that allows control messages to enter the Fledge system from the north and flow through to the south. Both the north and south plugins involved in the path must support control operations, a dedicated service, the control dispatcher, is used to route the control messages from the source of the control input, the north service to the objects of the control operations, via the south service and plugins. Multiple south services may receive control inputs as a result of a single north control input.
+
++--------------+
+| |end_to_end| |
++--------------+
+
+It is the job of the north plugin to define how the control input is received, as this is specific to the protocol of device to the north of Fledge. The plugin then takes this input and maps it to a control message that can be routed by the dispatcher. The way this mappings is defined is specific to each of the north plugins that provide control input.
+
+The control messages that the dispatcher is able to route are defined by the following set
+
+  - Write one or more values to a specified south service
+
+  - Write one or more values to the south service that ingests a specified asset
+
+  - Write one or more values to all south services supporting control
+
+  - Run an automation script within the dispatcher service
+
+  - Execution an operation on a specified south service
+
+  - Execute an operation on the south service that ingests a specified asset
+
+  - Execute an operation on all the south services that support control
+
+A example of how a north plugin might define this mapping is shown below
+
++--------------+
+| |north_map1| |
++--------------+
+
+In this case we have an OPCUA north plugin that offers a writable node called *test*, we have defined this as accepting integer values and also set a destination of *service* and a name of *fan0213*. When the OPCUA node test is written the plugin will send a control message to the dispatcher to ask it to perform a write operation on the named service.
+
+Alternately the dispatcher can send the request based on the assets that the south service is ingesting. In the following example, again taken from the OPCUA north plugin, we send a value of *EngineSpeed* which is an integer within the OPCUA server that Fledge presents to the service that is ingesting the asset *pump0014*.
+
++--------------+
+| |north_map2| |
++--------------+
+
+If browsing the OPCUA server which Fledge is offering via the north service you will see a node with the browse name *EngineSpeed* which when written will cause the north plugin to send a message to the dispatcher service and ultimately cause the south service ingesting *pump0014* to have that value written to it;s *EngineSpeed* item. That south service need not be an OPCUA service, it could be any south service that supports control.
+
++----------------+
+| |opcua_server| |
++----------------+
+
+It is also possible to get the dispatcher to send the control request to all services that support control. In the case of the OPCUA north plugin this is specified by omitting the other types of destination.
+
++--------------+
+| |north_map3| |
++--------------+
+
+All south services that support control will be sent the request, these may be of many different types and are free to ignore the request if it can not be mapped locally to a resource to update. The semantics of how the request is treated is determined by the south plugin, each plugin receiving the request may take different actions.
+
+The dispatcher can also be instructed to run a local automation script, these are discussed in more detail below, when a write occurs on the OPCUA node via this north plugin. In this case the control map is passed a script key and name to execute. The script will receive the value *EngineSpeed* as a parameter of the script.
+
++--------------+
+| |north_map4| |
++--------------+
+
+Note, this is an example and does not mean that all or any plugins will use the exact syntax for mapping described above, the documentation for your particular plugin should be consulted to confirm the mapping implemented by the plugin.
+
+Control Dispatcher Service
+==========================
+
+The *control dispatcher* service is a service responsible for receiving control messages from other components of the Fledge system and taking the necessary actions against the south services in order to achieve the request result. This may be as simple as forwarding the write or operation request to one to more south services or it may require the execution of an automation script by the *dispatcher service*.
+
+Forwarding Requests
+-------------------
+
+The *service dispatcher* supports three forwarding regimes which may be used to either forward write requests or operation requests, these are;
+
+  - Forward to a single service using the name of the service. The caller of the dispatcher must provide the name of the service to which the request will be sent.
+
+  - Forward to a single service that is responsible for ingesting a named asset into the Fledge system. The caller of the dispatcher must provide the name of an asset, the *service dispatcher* will then look this asset up in the asset tracker database to determine which service ingested the named asset. The request will then be forwarded to that service.
+
+  - Forward the request to all south services that are currently running and that support control operations. Note that if a service is not running then the request will not be buffered for later sending.
+
+Automation Scripts
+------------------
+
+The control dispatcher service supports a limited scripting designed to allow users to easily create sequences of operations that can be executed in response to a single control write operation. Scripts are created within Fledge and named externally to any control operations and may be executed by more than one control input. These scripts consist of a linear set of steps, each of which results in one of a number of actions, the actions supported are
+
+  - Perform a write request. A new write operation is defined in the step and it may take the form of any of the three styles of forwarding supported by the dispatcher; write to a named service, write to as service providing an asset or write to all south services.
+
+  - Perform an operation request on one or all south services. As with the write request above the three forwards of defining the target south service are defined.
+
+  - Delay the execution of a script. Add a delay between execution of the script steps.
+
+  - Update the Fledge configuration. Change the value of a configuration item within the system.
+
+  - Execute another script. A mechanism for calling another named script, the named script is executed and then the calling script will continue.
+
+The same data substitution rules described above can also be used within the steps of an automation script. This allows data that is sent to the write or operation request in the dispatcher to be substituted in the steps themselves, for example a request to run a script with the values *param1* set to *value1* and *param2* set to *value2* would result in a step that wrote the value *$param1$* to a south service actually writing the value *value1*, i..e the value of *param1*.
+
+Each step may also have associated with it a condition, if specified that condition must evaluate to true for the step to be executed. If it evaluates to false then the step is not executed and execution moves to the next step in the script.
+
+.. include:: control_scripts.rst
+
+Step Conditions
+~~~~~~~~~~~~~~~
+
+The conditions that can be applied to a step allow for the checking of the values in the original request sent to the dispatcher. For example attaching a condition of the form 
+
+.. code-block:: console
+
+   speed != 0
+
+to a step, would result in the step being executed if the value in the parameter called *speed* that was in the original request to the dispatcher, had a value other than 0.
+
+Conditions may be defined using the equals and not equals operators or for numeric values also greater than and less than.
+
+.. include:: acl.rst
+
+Configuration
+-------------
+
+The *control dispatcher service* has a small number of configuration items that are available in the *Dispatcher* configuration category within the general Configuration menu item on the user interface.
+
+Two subcategories exist, Server and Advanced.
+
+Server Configuration
+~~~~~~~~~~~~~~~~~~~~
+
+The server section contains a single option which can be used to either turn on or off the forwarding of control messages to the various services within Fledge. Clicking this option off will turn off all control message routing within Fledge.
+
+Advanced Configuration
+~~~~~~~~~~~~~~~~~~~~~~
+
++---------------------+
+| |dispatcher_config| |
++---------------------+
+
+  - **Minimum Log Level**: Allows the minimum level at which logs will get written to the system log to be defined.
+
+  - **Maximum number of dispatcher threads**: Dispatcher threads are used to execute automation scripts. Each script utilizes a single thread for the duration of the execution of the script. Therefore this setting determines how many scripts can be executed in parallel.

@@ -34,9 +34,10 @@ class TestConfigurationManager:
         ConfigurationManagerSingleton._shared_state = {}
 
     def test_supported_validate_type_strings(self):
-        assert 14 == len(_valid_type_strings)
-        assert ['IPv4', 'IPv6', 'JSON', 'URL', 'X509 certificate', 'boolean', 'code', 'enumeration', 'float', 'integer',
-                'northTask', 'password', 'script', 'string'] == _valid_type_strings
+        expected_types = ['IPv4', 'IPv6', 'JSON', 'URL', 'X509 certificate', 'boolean', 'code', 'enumeration', 'float', 'integer',
+                'northTask', 'password', 'script', 'string', 'ACL']
+        assert len(expected_types) == len(_valid_type_strings)
+        assert sorted(expected_types) == _valid_type_strings
 
     def test_supported_optional_items(self):
         assert 10 == len(_optional_items)
@@ -917,17 +918,22 @@ class TestConfigurationManager:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await async_mock({})
             _se = await async_mock({})
+            _sr = await async_mock((False, None, None, None))
         else:
             _rv = asyncio.ensure_future(async_mock({}))
             _se = asyncio.ensure_future(async_mock({}))
+            _sr = asyncio.ensure_future(async_mock((False, None, None, None)))
         
         with patch.object(_logger, 'exception') as log_exc:
             with patch.object(ConfigurationManager, '_validate_category_val', side_effect=[_se, Exception()]) as valpatch:
                 with patch.object(ConfigurationManager, '_read_category_val', return_value=_rv) as readpatch:
                     with patch.object(ConfigurationManager, '_merge_category_vals') as mergepatch:
                         with patch.object(ConfigurationManager, '_run_callbacks', return_value=_rv) as callbackpatch:
-                            cat = await c_mgr.create_category('catname', 'catvalue', 'catdesc')
-                            assert cat is None
+                            with patch.object(ConfigurationManager, 'search_for_ACL_recursive_from_cat_name',
+                                              return_value=_sr) as searchaclpatch:
+                                cat = await c_mgr.create_category('catname', 'catvalue', 'catdesc')
+                                assert cat is None
+                            searchaclpatch.assert_called_once_with('catname')
                         callbackpatch.assert_called_once_with('catname')
                     mergepatch.assert_not_called()
                 readpatch.assert_called_once_with('catname')
@@ -947,16 +953,21 @@ class TestConfigurationManager:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await async_mock({})
             _se = await async_mock({})
+            _sr = await async_mock((False, None, None, None))
         else:
             _rv = asyncio.ensure_future(async_mock({}))
             _se = asyncio.ensure_future(async_mock({}))
+            _sr = asyncio.ensure_future(async_mock((False, None, None, None)))
                 
         with patch.object(_logger, 'exception') as log_exc:
             with patch.object(ConfigurationManager, '_validate_category_val', side_effect=[_se, Exception]) as valpatch:
                 with patch.object(ConfigurationManager, '_read_category_val', return_value=_rv) as readpatch:
                     with patch.object(ConfigurationManager, '_merge_category_vals') as mergepatch:
                         with patch.object(ConfigurationManager, '_run_callbacks', return_value=_rv) as callbackpatch:
+                            with patch.object(ConfigurationManager, 'search_for_ACL_recursive_from_cat_name',
+                                              return_value=_sr) as searchaclpatch:
                                 await c_mgr.create_category('catname', 'catvalue', 'catdesc')
+                            searchaclpatch.assert_called_once_with('catname')
                         callbackpatch.assert_called_once_with('catname')
                     mergepatch.assert_not_called()
                 readpatch.assert_called_once_with('catname')
@@ -1017,21 +1028,26 @@ class TestConfigurationManager:
             _rv3 = await async_mock({'bla': 'bla'})
             _rv4 = await async_mock(None)
             _se = await async_mock({})
+            _sr = await async_mock((False, None, None, None))
         else:
             _rv1 = asyncio.ensure_future(async_mock({}))
             _rv2 = asyncio.ensure_future(async_mock(all_cat_names))
             _rv3 = asyncio.ensure_future(async_mock({'bla': 'bla'}))
             _rv4 = asyncio.ensure_future(async_mock(None))
-            _se = asyncio.ensure_future(async_mock({}))        
-        
+            _se = asyncio.ensure_future(async_mock({}))
+            _sr = asyncio.ensure_future(async_mock((False, None, None, None)))
+
         with patch.object(ConfigurationManager, '_validate_category_val', side_effect=[_se, _se]) as valpatch:
             with patch.object(ConfigurationManager, '_read_category_val', return_value=_rv1) as readpatch:
                 with patch.object(ConfigurationManager, '_read_all_category_names', return_value=_rv2) as read_all_patch:
                     with patch.object(ConfigurationManager, '_merge_category_vals', return_value=_rv3) as mergepatch:
                         with patch.object(ConfigurationManager, '_run_callbacks', return_value=_rv4) as callbackpatch:
                             with patch.object(ConfigurationManager, '_update_category', return_value=_rv4) as updatepatch:
-                                cat = await c_mgr.create_category('catname', 'catvalue', 'catdesc')
-                                assert cat is None
+                                with patch.object(ConfigurationManager, 'search_for_ACL_recursive_from_cat_name',
+                                                  return_value=_sr) as searchaclpatch:
+                                    cat = await c_mgr.create_category('catname', 'catvalue', 'catdesc')
+                                    assert cat is None
+                                searchaclpatch.assert_called_once_with('catname')
                             updatepatch.assert_called_once_with('catname', {'bla': 'bla'}, 'catdesc', 'catname')
                         callbackpatch.assert_called_once_with('catname')
                     mergepatch.assert_called_once_with({}, {}, False, 'catname')
@@ -1090,15 +1106,20 @@ class TestConfigurationManager:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv1 = await async_mock({})
             _rv2 = await async_mock(None)
+            _sr = await async_mock((False, None, None, None))
         else:
             _rv1 = asyncio.ensure_future(async_mock({}))
             _rv2 = asyncio.ensure_future(async_mock(None))
+            _sr = asyncio.ensure_future(async_mock((False, None, None, None)))
 
         with patch.object(ConfigurationManager, '_validate_category_val', return_value=_rv1) as valpatch:
             with patch.object(ConfigurationManager, '_read_category_val', return_value=_rv2) as readpatch:
                 with patch.object(ConfigurationManager, '_create_new_category', return_value=_rv2) as createpatch:
                     with patch.object(ConfigurationManager, '_run_callbacks', return_value=_rv2) as callbackpatch:
-                        await c_mgr.create_category('catname', 'catvalue', "catdesc")
+                        with patch.object(ConfigurationManager, 'search_for_ACL_recursive_from_cat_name',
+                                          return_value=_sr) as searchaclpatch:
+                            await c_mgr.create_category('catname', 'catvalue', "catdesc")
+                        searchaclpatch.assert_called_once_with('catname')
                     callbackpatch.assert_called_once_with('catname')
                 createpatch.assert_called_once_with('catname', {}, 'catdesc', None)
             readpatch.assert_called_once_with('catname')
@@ -2234,17 +2255,22 @@ class TestConfigurationManager:
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv1 = await async_mock('inserted')
             _rv2 = await async_mock(all_child_ret_val)
+            _sr = await async_mock((False, None, None, None))
         else:
             _rv1 = asyncio.ensure_future(async_mock('inserted'))
-            _rv2 = asyncio.ensure_future(async_mock(all_child_ret_val))    
+            _rv2 = asyncio.ensure_future(async_mock(all_child_ret_val))
+            _sr = asyncio.ensure_future(async_mock((False, None, None, None)))
         
         with patch.object(ConfigurationManager, '_read_category_val', side_effect=q_result):
             with patch.object(ConfigurationManager, '_read_all_child_category_names',
                               return_value=_rv2) as patch_readall_child:
                 with patch.object(ConfigurationManager, '_create_child',
                                   return_value=_rv1) as patch_create_child:
-                    ret_val = await c_mgr.create_child_category(cat_name, [child_name])
-                    assert {'children': ['http', 'coap']} == ret_val
+                    with patch.object(ConfigurationManager, 'search_for_ACL_recursive_from_cat_name',
+                                      return_value=_sr) as searchaclpatch:
+                        ret_val = await c_mgr.create_child_category(cat_name, [child_name])
+                        assert {'children': ['http', 'coap']} == ret_val
+                    searchaclpatch.assert_has_calls([call(cat_name), call(child_name)])
             patch_readall_child.assert_called_once_with(cat_name)
         patch_create_child.assert_called_once_with(cat_name, child_name)
 
@@ -2269,14 +2295,19 @@ class TestConfigurationManager:
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await async_mock(all_child_ret_val)
+            _sr = await async_mock((False, None, None, None))
         else:
             _rv = asyncio.ensure_future(async_mock(all_child_ret_val))
+            _sr = asyncio.ensure_future(async_mock((False, None, None, None)))
         
         with patch.object(ConfigurationManager, '_read_category_val', side_effect=q_result):
             with patch.object(ConfigurationManager, '_read_all_child_category_names',
                               return_value=_rv) as patch_readall_child:
-                ret_val = await c_mgr.create_child_category(cat_name, [child_name])
-                assert {'children': ['coap']} == ret_val
+                with patch.object(ConfigurationManager, 'search_for_ACL_recursive_from_cat_name',
+                                  return_value=_sr) as searchaclpatch:
+                    ret_val = await c_mgr.create_child_category(cat_name, [child_name])
+                    assert {'children': ['coap']} == ret_val
+                searchaclpatch.assert_has_calls([call(cat_name)])
             patch_readall_child.assert_called_once_with(cat_name)
 
     @pytest.mark.parametrize("cat_name, child_name, message", [
@@ -2579,8 +2610,10 @@ class TestConfigurationManager:
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await async_mock('bla')
+            _sr = await async_mock((False, None, None, None))
         else:
-            _rv = asyncio.ensure_future(async_mock('bla'))        
+            _rv = asyncio.ensure_future(async_mock('bla'))
+            _sr = asyncio.ensure_future(async_mock((False, None, None, None)))
         
         c_mgr = ConfigurationManager(storage_client_mock)
         patch_read_cat_val = mocker.patch.object(ConfigurationManager, '_read_category_val',
@@ -2593,8 +2626,15 @@ class TestConfigurationManager:
         mocker.patch.object(AuditLogger, '__init__', return_value=None)
         audit_info = mocker.patch.object(AuditLogger, 'information', return_value=_rv)
 
-        ret_val = await c_mgr.delete_category_and_children_recursively("A")
-        assert expected_result == ret_val
+        acl_search_calls = [call('G'), call('F'), call('I'), call('H'),
+                            call('E'), call('N'), call('M'), call('D'),
+                            call('C'), call('B'), call('K'), call('L'),
+                            call('J'), call('A')]
+        with patch.object(ConfigurationManager, 'search_for_ACL_single',
+                          return_value=_sr) as searchaclpatch:
+            ret_val = await c_mgr.delete_category_and_children_recursively("A")
+            assert expected_result == ret_val
+        searchaclpatch.assert_has_calls(acl_search_calls)
 
         patch_read_cat_val.assert_called_once_with('A')
         patch_fetch_descendents.assert_called_once_with('A')
@@ -2746,7 +2786,7 @@ class TestConfigurationManager:
         attrs = {"query_tbl_with_payload.return_value": _attr}
         storage_client_mock = MagicMock(spec=StorageClientAsync, **attrs)
         c_mgr = ConfigurationManager(storage_client_mock)
-        payload = {"return": ["parent", "child"], "where": {"value": "south", "condition": "=", "column": "parent"}}
+        payload = {"return": ["parent", "child"], "where": {"value": "south", "condition": "=", "column": "parent"}, "sort": {"column": "id", "direction": "asc"}}
         ret_val = await c_mgr._read_all_child_category_names('south')
         assert [{'parent': 'south', 'child': 'http'}] == ret_val
         args, kwargs = storage_client_mock.query_tbl_with_payload.call_args

@@ -13,6 +13,8 @@ Supports a number of REST API:
      - Return a summary count of all asset readings
   http://<address>/fledge/asset/{asset_code}
     - Return a set of asset readings for the given asset
+  http://<address>/fledge/asset/{asset_code}/latest
+    - Return latest reading for the given asset
   http://<address>/fledge/asset/{asset_code}/summary
     - Return a set of the summary of all sensors values for the given asset
   http://<address>/fledge/asset/{asset_code}/{reading}
@@ -56,18 +58,26 @@ __version__ = "${VERSION}"
 __DEFAULT_LIMIT = 20
 __DEFAULT_OFFSET = 0
 
+DATAPOINT_TYPES = ['__DPIMAGE', '__DATABUFFER']
+IMAGE_PLACEHOLDER = "Data removed for brevity"
+
 
 def setup(app):
     """ Add the routes for the API endpoints supported by the data browser """
     app.router.add_route('GET', '/fledge/asset', asset_counts)
     app.router.add_route('GET', '/fledge/asset/{asset_code}', asset)
+    app.router.add_route('GET', '/fledge/asset/{asset_code}/latest', asset_latest)
     app.router.add_route('GET', '/fledge/asset/{asset_code}/summary', asset_all_readings_summary)
     app.router.add_route('GET', '/fledge/asset/{asset_code}/{reading}', asset_reading)
     app.router.add_route('GET', '/fledge/asset/{asset_code}/{reading}/summary', asset_summary)
     app.router.add_route('GET', '/fledge/asset/{asset_code}/{reading}/series', asset_averages)
     app.router.add_route('GET', '/fledge/asset/{asset_code}/bucket/{bucket_size}', asset_datapoints_with_bucket_size)
-    app.router.add_route('GET', '/fledge/asset/{asset_code}/{reading}/bucket/{bucket_size}', asset_readings_with_bucket_size)
+    app.router.add_route('GET', '/fledge/asset/{asset_code}/{reading}/bucket/{bucket_size}',
+                         asset_readings_with_bucket_size)
     app.router.add_route('GET', '/fledge/structure/asset', asset_structure)
+    # The developer Purge by Asset naem API entry points
+    app.router.add_route('DELETE', '/fledge/asset', asset_purge_all)
+    app.router.add_route('DELETE', '/fledge/asset/{asset_code}', asset_purge)
 
 
 def prepare_limit_skip_payload(request, _dict):
@@ -104,6 +114,22 @@ def prepare_limit_skip_payload(request, _dict):
     return payload.chain_payload()
 
 
+def is_image_excluded(request: web.Request) -> bool:
+    """ image type datapoints exclusion
+    Args:
+        request: images request query param
+    Returns:
+        Boolean
+    """
+    if 'images' in request.query:
+        if request.query['images'] not in ('include', 'exclude'):
+            msg = "images request query should either be include or exclude."
+            raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+        if request.query['images'] == 'include':
+            return False
+    return True
+
+
 async def asset_counts(request):
     """ Browse all the assets for which we have recorded readings and
     return a readings count.
@@ -116,15 +142,17 @@ async def asset_counts(request):
     """
     payload = PayloadBuilder().AGGREGATE(["count", "*"]).ALIAS("aggregate", ("*", "count", "count")) \
         .GROUP_BY("asset_code").payload()
-
-    results = {}
+    _readings = connect.get_readings_async()
+    results = await _readings.query(payload)
     try:
-        _readings = connect.get_readings_async()
-        results = await _readings.query(payload)
         response = results['rows']
         asset_json = [{"count": r['count'], "assetCode": r['asset_code']} for r in response]
     except KeyError:
-        raise web.HTTPBadRequest(reason=results['message'])
+        msg = results['message']
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+    except Exception as exc:
+        msg = str(exc)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(asset_json)
 
@@ -166,6 +194,38 @@ async def asset(request):
             raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
 
     payload = PayloadBuilder(_and_where).ORDER_BY(["user_ts", _order]).payload()
+    try:
+        _readings = connect.get_readings_async()
+        results = await _readings.query(payload)
+        rows = results['rows']
+        for index, data in enumerate(rows):
+            for item_name, item_val in data.items():
+                if isinstance(item_val, dict):
+                    for item_name2, item_val2 in item_val.items():
+                        if isinstance(item_val2, str) and item_val2.startswith(tuple(DATAPOINT_TYPES)):
+                            data[item_name][item_name2] = IMAGE_PLACEHOLDER if is_image_excluded(request) else item_val2
+        response = rows
+    except KeyError:
+        msg = results['message']
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+    except Exception as exc:
+        msg = str(exc)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+    else:
+        return web.json_response(response)
+
+
+async def asset_latest(request: web.Request) -> web.Response:
+    """ Browse a particular asset for which we have recorded readings and
+    return a single latest reading with timestamps for an asset.
+    Returns:
+            Latest reading for an asset
+    :Example:
+            curl -sX GET http://localhost:8081/fledge/asset/fogbench_humidity/latest
+    """
+    asset_code = request.match_info.get('asset_code', '')
+    payload = PayloadBuilder().SELECT(("reading", "user_ts")).ALIAS("return", ("user_ts", "timestamp")).WHERE(
+        ["asset_code", "=", asset_code]).LIMIT(1).ORDER_BY(["user_ts", "desc"]).payload()
     results = {}
     try:
         _readings = connect.get_readings_async()
@@ -174,6 +234,9 @@ async def asset(request):
     except KeyError:
         msg = results['message']
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+    except Exception as exc:
+        msg = str(exc)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(response)
 
@@ -219,16 +282,23 @@ async def asset_reading(request):
     else:
         # Add the order by and limit, offset clause
         _and_where = prepare_limit_skip_payload(request, _where)
-
     payload = PayloadBuilder(_and_where).ORDER_BY(["user_ts", "desc"]).payload()
-
-    results = {}
     try:
         _readings = connect.get_readings_async()
         results = await _readings.query(payload)
-        response = results['rows']
+        rows = results['rows']
+        for index, data in enumerate(rows):
+            for item_name, item_val in data.items():
+                if item_name != 'timestamp':
+                    if isinstance(item_val, str) and item_val.startswith(tuple(DATAPOINT_TYPES)):
+                        data[item_name] = IMAGE_PLACEHOLDER if is_image_excluded(request) else item_val
+        response = rows
     except KeyError:
-        raise web.HTTPBadRequest(reason=results['message'])
+        msg = results['message']
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+    except Exception as exc:
+        msg = str(exc)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(response)
 
@@ -263,7 +333,7 @@ async def asset_all_readings_summary(request):
         # TODO: FOGL-1768 when support available from storage layer then avoid multiple calls
         # Find keys in readings
         reading_keys = list(results['rows'][-1]['reading'].keys())
-        response = []
+        rows = []
         _where = PayloadBuilder().WHERE(["asset_code", "=", asset_code]).chain_payload()
         if 'seconds' in request.query or 'minutes' in request.query or 'hours' in request.query:
             _and_where = where_clause(request, _where)
@@ -280,11 +350,23 @@ async def asset_all_readings_summary(request):
                        ('reading', 'avg', 'average')).chain_payload()
             payload = PayloadBuilder(_aggregate).payload()
             results = await _readings.query(payload)
-            response.append({reading: results['rows'][0]})
-    except (KeyError, IndexError) as ex:
-        raise web.HTTPNotFound(reason=ex)
-    except (TypeError, ValueError) as ex:
-        raise web.HTTPBadRequest(reason=ex)
+            rows.append({reading: results['rows'][0]})
+        for index, data in enumerate(rows):
+            for item_name, item_val in data.items():
+                if isinstance(item_val, dict):
+                    for item_name2, item_val2 in item_val.items():
+                        if isinstance(item_val2, str) and item_val2.startswith(tuple(DATAPOINT_TYPES)):
+                            data[item_name][item_name2] = IMAGE_PLACEHOLDER if is_image_excluded(request) else item_val2
+        response = rows
+    except (KeyError, IndexError) as err:
+        msg = str(err)
+        raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
+    except (TypeError, ValueError) as err:
+        msg = str(err)
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+    except Exception as exc:
+        msg = str(exc)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(response)
 
@@ -322,13 +404,12 @@ async def asset_summary(request):
         _readings = connect.get_readings_async()
         results = await _readings.query(payload)
         if not results['rows']:
-            raise web.HTTPNotFound(reason="{} asset_code not found".format(asset_code))
+            raise ValueError('{} asset code not found'.format(asset_code))
 
         # TODO: FOGL-1768 when support available from storage layer then avoid multiple calls
         reading_keys = list(results['rows'][-1]['reading'].keys())
         if reading not in reading_keys:
-            raise web.HTTPNotFound(reason="{} reading key is not found".format(reading))
-
+            raise ValueError('{} reading key is not found'.format(reading))
         _aggregate = PayloadBuilder().AGGREGATE(["min", ["reading", reading]], ["max", ["reading", reading]],
                                                 ["avg", ["reading", reading]]) \
             .ALIAS('aggregate', ('reading', 'min', 'min'), ('reading', 'max', 'max'),
@@ -339,8 +420,18 @@ async def asset_summary(request):
         results = await _readings.query(payload)
         # for aggregates, so there can only ever be one row
         response = results['rows'][0]
+        for item_name, item_val in response.items():
+            if isinstance(item_val, str) and item_val.startswith(tuple(DATAPOINT_TYPES)):
+                response[item_name] = IMAGE_PLACEHOLDER if is_image_excluded(request) else item_val
     except KeyError:
-        raise web.HTTPBadRequest(reason=results['message'])
+        msg = results['message']
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+    except ValueError as err:
+        msg = str(err)
+        raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
+    except Exception as exc:
+        msg = str(exc)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({reading: response})
 
@@ -420,13 +511,22 @@ async def asset_averages(request):
     _group = PayloadBuilder(_and_where).GROUP_BY("user_ts").ALIAS("group", ("user_ts", "timestamp")) \
         .FORMAT("group", ("user_ts", ts_restraint)).chain_payload()
     payload = PayloadBuilder(_group).ORDER_BY(["user_ts", "desc"]).payload()
-    results = {}
     try:
         _readings = connect.get_readings_async()
         results = await _readings.query(payload)
-        response = results['rows']
+        rows = results['rows']
+        for index, data in enumerate(rows):
+            for item_name, item_val in data.items():
+                if item_name != 'timestamp':
+                    if isinstance(item_val, str) and item_val.startswith(tuple(DATAPOINT_TYPES)):
+                        data[item_name] = IMAGE_PLACEHOLDER if is_image_excluded(request) else item_val
+        response = rows
     except KeyError:
-        raise web.HTTPBadRequest(reason=results['message'])
+        msg = results['message']
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+    except Exception as exc:
+        msg = str(exc)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(response)
 
@@ -669,15 +769,94 @@ async def asset_structure(request):
                 elif type(value) == float:
                     datapoint[name] = "float"
             if len(metadata) > 0:
-                asset_json[code] = {'datapoint':datapoint,'metadata':metadata}
+                asset_json[code] = {'datapoint': datapoint, 'metadata': metadata}
             else:
-                asset_json[code] = {'datapoint':datapoint}
+                asset_json[code] = {'datapoint': datapoint}
     except KeyError:
         msg = results['message']
-        raise web.HTTPBadRequest(reason=results['message'], body=json.dumps({"message": msg}))
-    except Exception as e:
-        raise web.HTTPInternalServerError(reason=str(e), body=json.dumps({"message":str(e)}))
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+    except Exception as ex:
+        msg = str(ex)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(asset_json)
 
+# The following two routines are not really browsing data but this is probably a logical
+# place to put them as they share the same URL stem
+async def asset_purge_all(request):
+    """ Purge all the assets for which we have recorded readings
+
+    Returns:
+           json result with details of assets putge
+
+    :Example:
+            curl -sX DELETE http://localhost:8081/fledge/asset
+    """
+    try:
+        from fledge.common.audit_logger import AuditLogger
+        # Call storage service
+        _logger.warning("Manual purge of all assets has been requested")
+        _readings = connect.get_readings_async()
+        # Get AuditLogger
+        _audit = AuditLogger(_readings)
+
+        start_time = time.strftime('%Y-%m-%d %H:%M:%S.%s', time.localtime(time.time()))
+
+        results = await _readings.purge(asset="")
+
+        if 'purged' in results:
+            end_time = time.strftime('%Y-%m-%d %H:%M:%S.%s', time.localtime(time.time()))
+            await _audit.information('PURGE',
+                                     {
+                                         "start_time": start_time,
+                                         "end_time": end_time,
+                                         "rowsRemoved": results['purged'] })
+    except KeyError:
+        msg = results['message']
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+    except Exception as exc:
+        msg = str(exc)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+    else:
+        return web.json_response(results)
+
+
+async def asset_purge(request):
+    """ Purge a particular asset for which we have recorded readings
+    Returns:
+          json result details of purged asset
+
+    :Example:
+            curl -sX DELETE http://localhost:8081/fledge/asset/fogbench_humidity
+    """
+    asset_code = request.match_info.get('asset_code', '')
+    _logger.warning("Manual purge of '%s' asset has been requested", asset_code)
+
+    try:
+        from fledge.common.audit_logger import AuditLogger
+        # Call storage service
+        _readings = connect.get_readings_async()
+        # Get AuditLogger
+        _audit = AuditLogger(_readings)
+
+        start_time = time.strftime('%Y-%m-%d %H:%M:%S.%s', time.localtime(time.time()))
+
+        results = await _readings.purge(asset=asset_code)
+
+        if 'purged' in results:
+            end_time = time.strftime('%Y-%m-%d %H:%M:%S.%s', time.localtime(time.time()))
+            await _audit.information('PURGE',
+                                     {
+                                         "start_time": start_time,
+                                         "end_time": end_time,
+                                         "rowsRemoved": results['purged'],
+                                         "asset" : asset_code })
+    except KeyError:
+        msg = results['message']
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+    except Exception as exc:
+        msg = str(exc)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+    else:
+        return web.json_response(results)
 

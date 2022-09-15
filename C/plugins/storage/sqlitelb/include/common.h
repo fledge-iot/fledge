@@ -22,6 +22,13 @@
 #include <atomic>
 #include <condition_variable>
 #include <sys/time.h>
+#include <connection.h>
+
+#define	STORAGE_PURGE_RETAIN_ANY 0x0001U
+#define	STORAGE_PURGE_RETAIN_ALL 0x0002U
+#define STORAGE_PURGE_SIZE	     0x0004U
+
+#define  DB_CONFIGURATION "PRAGMA busy_timeout = 5000; PRAGMA cache_size = -4000; PRAGMA journal_mode = WAL; PRAGMA secure_delete = off; PRAGMA journal_size_limit = 4096000;"
 
 static std::map<std::string, std::string> sqliteDateFormat = {
                                                 {"HH24:MI:SS",

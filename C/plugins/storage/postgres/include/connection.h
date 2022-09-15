@@ -14,6 +14,14 @@
 #include <string>
 #include <rapidjson/document.h>
 #include <libpq-fe.h>
+#include <unordered_map>
+#include <unordered_set>
+#include <functional>
+#include <vector>
+
+#define	STORAGE_PURGE_RETAIN_ANY 0x0001U
+#define	STORAGE_PURGE_RETAIN_ALL 0x0002U
+#define STORAGE_PURGE_SIZE	     0x0004U
 
 class Connection {
 	public:
@@ -28,6 +36,9 @@ class Connection {
 		int		appendReadings(const char *readings);
 		bool		fetchReadings(unsigned long id, unsigned int blksize, std::string& resultSet);
 		unsigned int	purgeReadings(unsigned long age, unsigned int flags, unsigned long sent, std::string& results);
+		unsigned int	purgeReadingsByRows(unsigned long rowcount, unsigned int flags,unsigned long sent, std::string& results);
+		unsigned long   purgeOperation(const char *sql, const char *logSection, const char *phase, bool retrieve);
+
 		long		tableSize(const std::string& table);
 		void		setTrace(bool flag) { m_logSQL = flag; };
     		static bool 	formatDate(char *formatted_date, size_t formatted_date_size, const char *date);
@@ -37,13 +48,18 @@ class Connection {
 		bool		get_table_snapshots(const std::string& table,
 						    std::string& resultSet);
 		bool		aggregateQuery(const rapidjson::Value& payload, std::string& resultSet);
+		int 		create_schema(const std::string &payload);
+		bool 		findSchemaFromDB(const std::string &service,
+						const std::string &name,
+						std::string &resultSet);
+		unsigned int	purgeReadingsAsset(const std::string& asset);
 
 	private:
 		bool		m_logSQL;
 		void		raiseError(const char *operation, const char *reason,...);
 		PGconn		*dbConnection;
 		void		mapResultSet(PGresult *res, std::string& resultSet);
-		bool		jsonWhereClause(const rapidjson::Value& whereClause, SQLBuffer&);
+		bool		jsonWhereClause(const rapidjson::Value& whereClause, SQLBuffer&, const std::string& prefix = "");
 		bool		jsonModifiers(const rapidjson::Value&, SQLBuffer&);
 		bool		jsonAggregates(const rapidjson::Value&, const rapidjson::Value&, SQLBuffer&, SQLBuffer&, bool isTableReading = false);
 		bool		returnJson(const rapidjson::Value&, SQLBuffer&, SQLBuffer&);
@@ -53,5 +69,52 @@ class Connection {
     		const std::string 	double_quote_reserved_column_name(const std::string &column_name);
 		void		logSQL(const char *, const char *);
 		bool		isFunction(const char *) const;
+                bool            selectColumns(const rapidjson::Value& document, SQLBuffer& sql, int level);
+                bool            appendTables(const rapidjson::Value& document, SQLBuffer& sql, int level);
+                bool            processJoinQueryWhereClause(const rapidjson::Value& query, SQLBuffer& sql, int level);
+
+		std::string getIndexName(std::string s);
+		bool 		checkValidDataType(const std::string &s);
+
+
+		typedef	struct{
+			std::string 	column;
+			std::string	type;
+			int		sz;
+			bool		key = false;
+		} columnRec;
+
+		// Custom Hash Functor that will compute the hash on the
+		// passed objects column data member 
+		struct columnRecHasher
+		{
+	  		size_t operator()(const columnRec & obj) const
+  			{
+				return std::hash<std::string>()(obj.column);
+  			}
+		};
+
+		struct columnRecComparator
+		{
+  			bool operator()(const columnRec & obj1, const columnRec & obj2) const
+  			{
+			        if (obj1.column == obj2.column)
+				      return true;
+			        return false;
+  			}
+		};
+
+		typedef struct{
+                        std::string     query;
+                        std::string     purgeOpArg;
+			std::string	logMsg;
+                } sqlQuery;
+
+	public:
+
+		bool            parseDatabaseStorageSchema(int &version, const std::string &res,
+                                std::unordered_map<std::string, std::unordered_set<columnRec, columnRecHasher, columnRecComparator> > &tableColumnMap, std::unordered_map<std::string, std::vector<std::string> > &tableIndexMap, bool &schemaCreationRequest);
+
+
 };
 #endif

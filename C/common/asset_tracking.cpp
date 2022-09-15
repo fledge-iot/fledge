@@ -41,6 +41,8 @@ AssetTracker::AssetTracker(ManagementClient *mgtClient, string service)
 /**
  * Fetch all asset tracking tuples from DB and populate local cache
  *
+ * Return the vector of deprecated asset names
+ *
  * @param plugin  	Plugin name
  * @param event  	Event name
  */
@@ -51,7 +53,9 @@ void AssetTracker::populateAssetTrackingCache(string /*plugin*/, string /*event*
 		for (AssetTrackingTuple* & rec : vec)
 		{
 			assetTrackerTuplesCache.insert(rec);
-			//Logger::getLogger()->info("Added asset tracker tuple to cache: '%s'", rec->assetToString().c_str());
+
+			Logger::getLogger()->debug("Added asset tracker tuple to cache: '%s'",
+					rec->assetToString().c_str());
 		}
 		delete (&vec);
 	}
@@ -60,8 +64,9 @@ void AssetTracker::populateAssetTrackingCache(string /*plugin*/, string /*event*
 		Logger::getLogger()->error("Failed to populate asset tracking tuples' cache");
 		return;
 	}
-}
 
+	return;
+}
 
 /**
  * Check local cache for a given asset tracking tuple
@@ -81,6 +86,19 @@ bool AssetTracker::checkAssetTrackingCache(AssetTrackingTuple& tuple)
 		return true;
 }
 
+AssetTrackingTuple* AssetTracker::findAssetTrackingCache(AssetTrackingTuple& tuple)	
+{
+	AssetTrackingTuple *ptr = &tuple;
+	std::unordered_set<AssetTrackingTuple*>::const_iterator it = assetTrackerTuplesCache.find(ptr);
+	if (it == assetTrackerTuplesCache.end())
+	{
+		return NULL;
+	}
+	else
+	{
+		return *it;
+	}
+}
 
 /**
  * Add asset tracking tuple via microservice management API and in cache
@@ -126,3 +144,41 @@ void AssetTracker::addAssetTrackingTuple(string plugin, string asset, string eve
 	addAssetTrackingTuple(tuple);
 }
 
+/**
+ * Return the name of the service responsible for particulr event of the named asset
+ *
+ * @param event	The event of interest
+ * @param asset	The asset we are interested in
+ * @return string	The service name of the service that ingests the asset
+ * @throws exception 	If the service could not be found
+ */
+string AssetTracker::getService(const std::string& event, const std::string& asset)
+{
+	// Fetch all asset tracker records
+	std::vector<AssetTrackingTuple*>& vec = m_mgtClient->getAssetTrackingTuples();
+	string foundService;
+	for (AssetTrackingTuple* &rec : vec)
+	{
+		// Return first service name with given asset and event
+		if (rec->m_assetName == asset && rec->m_eventName == event)
+		{
+			foundService = rec->m_serviceName;
+			break;
+		}
+	}
+
+	delete (&vec);
+
+	// Return found service or raise an exception
+	if (foundService != "")
+	{
+		return foundService;
+	}
+	else
+	{
+		Logger::getLogger()->error("No service found for asset '%s' and event '%s'",
+					event.c_str(),
+					asset.c_str());
+		throw runtime_error("Fetching service for asset not yet implemented");
+	}
+}

@@ -303,6 +303,68 @@ void createStorageStreamWrapper(shared_ptr<HttpServer::Response> response,
 }
 
 /**
+ * Wrapper function for the create storage stream API call.
+ */
+void createStorageSchemaWrapper(shared_ptr<HttpServer::Response> response,
+                                shared_ptr<HttpServer::Request> request)
+{
+        StorageApi *api = StorageApi::getInstance();
+        api->createStorageSchema(response, request);
+}
+
+
+/**
+ * Wrapper function for the insert into storage table API call.
+ */
+void storageTableInsertWrapper(shared_ptr<HttpServer::Response> response,
+                                shared_ptr<HttpServer::Request> request)
+{
+        StorageApi *api = StorageApi::getInstance();
+        api->storageTableInsert(response, request);
+}
+
+
+/**
+ * Wrapper function for the simple query in storage table API call.
+ */
+void storageTableSimpleQueryWrapper(shared_ptr<HttpServer::Response> response,
+                                shared_ptr<HttpServer::Request> request)
+{
+        StorageApi *api = StorageApi::getInstance();
+        api->storageTableSimpleQuery(response, request);
+}
+
+/**
+ * Wrapper function for the update into storage table API call.
+ */
+void storageTableUpdateWrapper(shared_ptr<HttpServer::Response> response,
+                                shared_ptr<HttpServer::Request> request)
+{
+        StorageApi *api = StorageApi::getInstance();
+        api->storageTableUpdate(response, request);
+}
+
+/**
+ * Wrapper function for the update into storage table API call.
+ */
+void storageTableDeleteWrapper(shared_ptr<HttpServer::Response> response,
+                                shared_ptr<HttpServer::Request> request)
+{
+        StorageApi *api = StorageApi::getInstance();
+        api->storageTableDelete(response, request);
+}
+
+/**
+ * Wrapper function for the update into storage table API call.
+ */
+void storageTableQueryWrapper(shared_ptr<HttpServer::Response> response,
+                                shared_ptr<HttpServer::Request> request)
+{
+        StorageApi *api = StorageApi::getInstance();
+        api->storageTableQuery(response, request);
+}
+
+/**
  * Construct the singleton Storage API 
  */
 StorageApi::StorageApi(const unsigned short port, const unsigned int threads) : readingPlugin(0), streamHandler(0)
@@ -370,6 +432,13 @@ void StorageApi::initResources()
 	m_server->resource[READING_PURGE]["PUT"] = readingPurgeWrapper;
 
 	m_server->resource[CREATE_STORAGE_STREAM]["POST"] = createStorageStreamWrapper;
+	m_server->resource[STORAGE_SCHEMA]["POST"] = createStorageSchemaWrapper;
+
+	m_server->resource[STORAGE_TABLE_ACCESS]["POST"] = storageTableInsertWrapper;
+	m_server->resource[STORAGE_TABLE_ACCESS]["GET"] = storageTableSimpleQueryWrapper;
+	m_server->resource[STORAGE_TABLE_ACCESS]["PUT"] = storageTableUpdateWrapper;
+	m_server->resource[STORAGE_TABLE_ACCESS]["DELETE"] = storageTableDeleteWrapper;
+	m_server->resource[STORAGE_TABLE_QUERY]["PUT"] = storageTableQueryWrapper;
 
 	m_server->on_error = on_error;
 
@@ -852,6 +921,8 @@ unsigned long size = 0;
 unsigned long lastSent = 0;
 unsigned int  flagsMask = 0;
 string        flags;
+string	      asset;
+bool	      byAsset = false;
 static std::atomic<bool> already_running(false);
 
 	if (already_running)
@@ -876,13 +947,22 @@ static std::atomic<bool> already_running(false);
 		{
 			size = (unsigned)atol(search->second.c_str());
 		}
+		search = query.find("asset");
+		if (search != query.end())
+		{
+			asset = search->second;
+			byAsset = true;
+		}
 		search = query.find("sent");
 		if (search == query.end())
 		{
-			string payload = "{ \"error\" : \"Missing query parameter sent\" }";
-			respond(response, SimpleWeb::StatusCode::client_error_bad_request, payload);
-			already_running.store(false);
-			return;
+			if (!byAsset)
+			{
+				string payload = "{ \"error\" : \"Missing query parameter sent\" }";
+				respond(response, SimpleWeb::StatusCode::client_error_bad_request, payload);
+				already_running.store(false);
+				return;
+			}
 		}
 		else
 		{
@@ -890,19 +970,35 @@ static std::atomic<bool> already_running(false);
 		}
 
 		search = query.find("flags");
+
 		if (search != query.end())
 		{
 			flags = search->second;
+
+			Logger::getLogger()->debug("%s - flags :%s:", __FUNCTION__, flags.c_str());
+
 			// TODO Turn flags into a bitmap
-			if (flags.compare(PURGE_FLAG_RETAIN) == 0)
+
+			if (flags.compare(PURGE_FLAG_RETAIN_ANY) == 0)
 			{
-				flagsMask |= STORAGE_PURGE_RETAIN;
+
+				flagsMask |= STORAGE_PURGE_RETAIN_ANY;
+			}
+			else if ( (flags.compare(PURGE_FLAG_RETAIN)     == 0) ||  // Backward compability
+			         (flags.compare(PURGE_FLAG_RETAIN_ALL) == 0) )
+			{
+				flagsMask |= STORAGE_PURGE_RETAIN_ALL;
 			}
 			else if (flags.compare(PURGE_FLAG_PURGE) == 0)
 			{
-				flagsMask &= (~STORAGE_PURGE_RETAIN);
+				flagsMask &= (~STORAGE_PURGE_RETAIN_ANY);
+				flagsMask &= (~STORAGE_PURGE_RETAIN_ALL);
 			}
+
+			Logger::getLogger()->debug("%s - flagsMask :%d:", __FUNCTION__, flagsMask);
+
 		}
+
 
 		char *purged = NULL;
 		if (age)
@@ -912,6 +1008,10 @@ static std::atomic<bool> already_running(false);
 		else if (size)
 		{
 			purged = (readingPlugin ? readingPlugin : plugin)->readingsPurge(size, flagsMask|STORAGE_PURGE_SIZE, lastSent);
+		}
+		else if (byAsset)
+		{
+			purged = (readingPlugin ? readingPlugin : plugin)->readingsPurgeAsset(asset);
 		}
 		else
 		{
@@ -1294,3 +1394,280 @@ string   payload;
                 internalError(response, ex);
         }
 }
+
+
+/**
+ * Perform an create table and create index for schema provided in the payload.
+ *
+ * @param response      The response stream to send the response on
+ * @param request       The HTTP request
+ */
+void StorageApi::createStorageSchema(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
+{
+string  payload;
+string  responsePayload;
+
+        try {
+                payload = request->content.string();
+
+                int rval = plugin->createSchema(payload);
+                if (rval != -1)
+                {
+                        responsePayload = "{ \"Successfully created schema\"}  ";
+                        respond(response, responsePayload);
+                }
+                else
+                {
+                        mapError(responsePayload, plugin->lastError());
+                        respond(response, SimpleWeb::StatusCode::client_error_bad_request, responsePayload);
+                }
+
+        } catch (exception ex) {
+                internalError(response, ex);
+        }
+}
+
+/**
+ * Perform an insert table operation.
+ *
+ * @param response      The response stream to send the response on
+ * @param request       The HTTP request
+ */
+void StorageApi::storageTableInsert(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
+{
+string  schemaName;
+string  tableName;
+string  payload;
+string  responsePayload;
+
+        stats.commonInsert++;
+        try {
+		schemaName = request->path_match[STORAGE_SCHEMA_NAME_COMPONENT];
+                tableName = request->path_match[STORAGE_TABLE_NAME_COMPONENT];
+                payload = request->content.string();
+
+                int rval = plugin->commonInsert(tableName, payload, const_cast<char*>(schemaName.c_str()));
+                if (rval != -1)
+                {
+                        responsePayload = "{ \"response\" : \"inserted\", \"rows_affected\" : ";
+                        responsePayload += to_string(rval);
+                        responsePayload += " }";
+                        respond(response, responsePayload);
+                }
+                else
+                {
+                        mapError(responsePayload, plugin->lastError());
+                        respond(response, SimpleWeb::StatusCode::client_error_bad_request, responsePayload);
+                }
+        } catch (exception ex) {
+                internalError(response, ex);
+        }
+}
+
+/**
+ * Perform an update on a table of the data provided in the payload.
+ *
+ * @param response      The response stream to send the response on
+ * @param request       The HTTP request
+ */
+void StorageApi::storageTableUpdate(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
+{
+string  schemaName;
+string  tableName;
+string  payload;
+string  responsePayload;
+
+        auto header_seq = request->header.find("SeqNum");
+        if(header_seq != request->header.end())
+        {
+                string threadId = header_seq->second.substr(0, header_seq->second.find("_"));
+                int seqNum = stoi(header_seq->second.substr(header_seq->second.find("_")+1));
+                {
+                        std::unique_lock<std::mutex> lock(mtx_seqnum_map);
+                        auto it = m_seqnum_map.find(threadId);
+                        if (it != m_seqnum_map.end())
+                        {
+                                if (seqNum <= it->second.first)
+                                {
+                                        responsePayload = "{ \"response\" : \"updated\", \"rows_affected\"  : ";
+                                        responsePayload += to_string(0);
+                                        responsePayload += " }";
+                                        Logger::getLogger()->info("%s:%d: Repeat/old request: responding with zero response - threadId=%s, last seen seqNum for this threadId=%d, HTTP request header seqNum=%d",
+                                                                        __FUNCTION__, __LINE__, threadId.c_str(), it->second.first, seqNum);
+                                        respond(response, responsePayload);
+                                        return;
+				}
+
+                                // remove this threadId from LRU list; will add this to front of LRU list below
+                                seqnum_map_lru_list.erase(m_seqnum_map[threadId].second);
+                        }
+                        else
+                        {
+                                if (seqnum_map_lru_list.size() == max_entries_in_seqnum_map) // LRU list is full
+                                {
+                                        //delete least recently used element
+                                        string last = seqnum_map_lru_list.back();
+                                        seqnum_map_lru_list.pop_back();
+                                        m_seqnum_map.erase(last);
+                                }
+                        }
+
+                        // insert an entry for threadId at front of LRU queue
+                        seqnum_map_lru_list.push_front(threadId);
+                        m_seqnum_map[threadId] = make_pair(seqNum, seqnum_map_lru_list.begin());
+                }
+        }
+
+        stats.commonUpdate++;
+        try {
+		schemaName = request->path_match[STORAGE_SCHEMA_NAME_COMPONENT];
+                tableName = request->path_match[STORAGE_TABLE_NAME_COMPONENT];
+                payload = request->content.string();
+
+                int rval = plugin->commonUpdate(tableName, payload, const_cast<char*>(schemaName.c_str()));
+                if (rval != -1)
+                {
+                        responsePayload = "{ \"response\" : \"updated\", \"rows_affected\"  : ";
+                        responsePayload += to_string(rval);
+                        responsePayload += " }";
+                        respond(response, responsePayload);
+                }
+                else
+                {
+                        mapError(responsePayload, plugin->lastError());
+                        respond(response, SimpleWeb::StatusCode::client_error_bad_request, responsePayload);
+                }
+
+        } catch (exception ex) {
+                internalError(response, ex);
+                }
+}
+
+/**
+ * Perform a delete on a table using the condition encoded in the JSON payload
+ *
+ * @param response      The response stream to send the response on
+ * @param request       The HTTP request
+ */
+void StorageApi::storageTableDelete(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
+{
+string 	schemaName;
+string  tableName;
+string  payload;
+string  responsePayload;
+
+        stats.commonDelete++;
+        try {
+		schemaName = request->path_match[STORAGE_SCHEMA_NAME_COMPONENT];
+                tableName = request->path_match[STORAGE_TABLE_NAME_COMPONENT];
+                payload = request->content.string();
+
+                int rval = plugin->commonDelete(tableName, payload, const_cast<char*>(schemaName.c_str()));
+                if (rval != -1)
+                {
+                        responsePayload = "{ \"response\" : \"deleted\", \"rows_affected\"  : ";
+                        responsePayload += to_string(rval);
+                        responsePayload += " }";
+                        respond(response, responsePayload);
+                }
+                else
+                {
+                        mapError(responsePayload, plugin->lastError());
+                        respond(response, SimpleWeb::StatusCode::client_error_bad_request, responsePayload);
+                }
+
+	}catch (exception ex) {
+               	internalError(response, ex);
+        }
+}
+
+/**
+ * Perform a simple query on the table using the query parameters as conditions
+ * TODO make this work for multiple column queries
+ *
+ * @param response      The response stream to send the response on
+ * @param request       The HTTP request
+ */
+void StorageApi::storageTableSimpleQuery(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
+{
+string  schemaName;
+string  tableName;
+SimpleWeb::CaseInsensitiveMultimap      query;
+string payload;
+
+        stats.commonSimpleQuery++;
+        try {
+		schemaName = request->path_match[STORAGE_SCHEMA_NAME_COMPONENT];
+                tableName = request->path_match[STORAGE_TABLE_NAME_COMPONENT];
+                query = request->parse_query_string();
+
+                if (query.size() > 0)
+                {
+                        payload = "{ \"where\" : { ";
+                        for(auto &param : query)
+                        {
+                                payload = payload + "\"column\" :  \"";
+                                payload = payload + param.first;
+                                payload = payload + "\", \"condition\" : \"=\", \"value\" : \"";
+                                payload = payload + param.second;
+                                payload = payload + "\"";
+                        }
+                        payload = payload + "} }";
+                }
+                char *pluginResult = plugin->commonRetrieve(tableName, payload, const_cast<char*>(schemaName.c_str()));
+                if (pluginResult)
+                {
+                        string res = pluginResult;
+
+                        respond(response, res);
+                        free(pluginResult);
+                }
+                else
+                {
+                        string responsePayload;
+                        mapError(responsePayload, plugin->lastError());
+                        respond(response, SimpleWeb::StatusCode::client_error_bad_request, responsePayload);
+                }
+        } catch (exception ex) {
+                internalError(response, ex);
+        }
+}
+
+/**
+ * Perform query on a table using the JSON encoded query in the payload
+ *
+ * @param response      The response stream to send the response on
+ * @param request       The HTTP request
+ */
+void StorageApi::storageTableQuery(shared_ptr<HttpServer::Response> response, shared_ptr<HttpServer::Request> request)
+{
+string  schemaName;
+string  tableName;
+string  payload;
+
+        stats.commonQuery++;
+        try {
+		schemaName = request->path_match[STORAGE_SCHEMA_NAME_COMPONENT];
+                tableName = request->path_match[STORAGE_TABLE_NAME_COMPONENT];
+                payload = request->content.string();
+
+                char *pluginResult = plugin->commonRetrieve(tableName, payload, const_cast<char*>(schemaName.c_str()));
+                if (pluginResult)
+                {
+                        string res = pluginResult;
+
+                        respond(response, res);
+                        free(pluginResult);
+                }
+                else
+                {
+                        string responsePayload;
+                        mapError(responsePayload, plugin->lastError());
+                        respond(response, SimpleWeb::StatusCode::client_error_bad_request, responsePayload);
+                }
+
+        } catch (exception ex) {
+                internalError(response, ex); 
+        }
+}
+

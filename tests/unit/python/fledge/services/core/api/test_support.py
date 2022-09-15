@@ -4,6 +4,7 @@
 # See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
+import os
 import pathlib
 from pathlib import PosixPath
 
@@ -64,15 +65,13 @@ class TestBundleSupport:
         gz_filepath.is_file.return_value = True
         gz_filepath.stat.return_value = MagicMock()
         gz_filepath.stat.st_size = 1024
-
         bundle_name = 'support-180301-13-35-23.tar.gz'
-
         filepath = Mock()
         filepath.name = bundle_name
         filepath.open = mock_open()
         filepath.with_name.return_value = gz_filepath
-
-        with patch("aiohttp.web.FileResponse", return_value=web.FileResponse(path=filepath)) as f_res:
+        with patch("aiohttp.web.FileResponse",
+                   return_value=web.FileResponse(path=os.path.realpath(__file__))) as f_res:
             path = support_bundles_dir_path / 'support'
             with patch.object(support, '_get_support_dir', return_value=path):
                 with patch('os.path.isdir', return_value=True):
@@ -238,14 +237,18 @@ class TestBundleSupport:
                 assert 'warning' in jdict['logs'][1]
 
     @pytest.mark.parametrize("param, message", [
-        ("__DEFAULT_LIMIT", "Limit must be a positive integer"),
-        ("__DEFAULT_OFFSET", "Offset must be a positive integer OR Zero"),
+        ('limit=-1', "Limit must be a positive integer."),
+        ('offset=-1', "Offset must be a positive integer OR Zero."),
+        ('limit=1&offset=-1', "Offset must be a positive integer OR Zero."),
+        ('limit=-1&offset=0', "Limit must be a positive integer."),
     ])
-    async def test_get_syslog_entries_exception(self, client, param, message):
-        with patch.object(support, param, "garbage"):
-            resp = await client.get('/fledge/syslog')
-            assert 400 == resp.status
-            assert message == resp.reason
+    async def test_bad_limit_and_offset_in_get_syslog_entries(self, client, param, message):
+        resp = await client.get('/fledge/syslog?{}'.format(param))
+        assert 400 == resp.status
+        assert message == resp.reason
+        res = await resp.text()
+        jdict = json.loads(res)
+        assert {"message": message} == jdict
 
     async def test_get_syslog_entries_cmd_exception(self, client):
         msg = 'Internal Server Error'
@@ -253,6 +256,9 @@ class TestBundleSupport:
             resp = await client.get('/fledge/syslog')
             assert 500 == resp.status
             assert msg == resp.reason
+            res = await resp.text()
+            jdict = json.loads(res)
+            assert {"message": msg} == jdict
 
     async def test_get_syslog_entries_from_name(self, client):
         def mock_syslog():

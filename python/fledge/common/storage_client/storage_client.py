@@ -301,6 +301,7 @@ class StorageClientAsync(AbstractStorage):
         put_url = '/storage/table/{tbl_name}/query'.format(tbl_name=tbl_name)
 
         url = 'http://' + self.base_url + put_url
+
         async with aiohttp.ClientSession() as session:
             async with session.put(url, data=query_payload) as resp:
                 status_code = resp.status
@@ -526,13 +527,14 @@ class ReadingsStorageClientAsync(StorageClientAsync):
 
         return jdoc
 
-    async def purge(self, age=None, sent_id=0, size=None, flag=None):
+    async def purge(self, age=None, sent_id=0, size=None, flag=None, asset=None):
         """ Purge readings based on the age of the readings
 
         :param age: the maximum age of data to retain, expressed in hours
         :param sent_id: the id of the last reading to be sent out of Fledge
         :param size: the maximum size of data to retain, expressed in Kbytes
         :param flag: define what to do about unsent readings. Valid options are retain or purge
+        :param asset: defien the asset to purge. Currently no other options are valid with this option
         :return: a JSON with the number of readings removed, the number of unsent readings removed
             and the number of readings that remain
         :Example:
@@ -541,7 +543,7 @@ class ReadingsStorageClientAsync(StorageClientAsync):
             curl -X PUT "http://0.0.0.0:<storage_service_port>/storage/reading/purge?size=1024&sent=0&flags=PURGE"
         """
 
-        valid_flags = ['retain', 'purge']
+        valid_flags = ['retainany', 'retainall', 'purge']
 
         if flag and flag.lower() not in valid_flags:
             raise InvalidReadingsPurgeFlagParameters
@@ -549,8 +551,14 @@ class ReadingsStorageClientAsync(StorageClientAsync):
         if age and size:
             raise PurgeOnlyOneOfAgeAndSize
 
-        if not age and not size:
-            raise PurgeOneOfAgeAndSize
+        if not age and not size and asset is None:
+            raise PurgeOneOfAgeAssetAndSize
+
+        if asset is not None and age:
+            raise PurgeOneOfAgeAndAsset
+
+        if asset is not None and size:
+            raise PurgeOneOfSizeAndAsset
 
         # age should be int
         # size should be int
@@ -572,6 +580,8 @@ class ReadingsStorageClientAsync(StorageClientAsync):
             put_url = '/storage/reading/purge?size={}&sent={}'.format(_size, _sent_id)
         if flag:
             put_url += "&flags={}".format(flag.lower())
+        if asset is not None:
+            put_url = '/storage/reading/purge?asset={}'.format(asset)
 
         url = 'http://' + self._base_url + put_url
         async with aiohttp.ClientSession() as session:

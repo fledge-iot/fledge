@@ -1,12 +1,38 @@
 /*
  * Fledge PI Server north plugin.
  *
- * Copyright (c) 2018 Dianomic Systems
+ * Copyright (c) 2018-2022 Dianomic Systems
  *
  * Released under the Apache 2.0 Licence
  *
  * Author: Massimiliano Pinto, Stefano Simonelli
+ *
+ * PI Web API OMF Endpoint documentation available at:
+ * https://fledge-iot.readthedocs.io/en/latest/OMF.html?highlight=omf%20hint#
+ *
+ * Troubleshooting the PI-Server integration available at:
+ * https://fledge-iot.readthedocs.io/en/latest/troubleshooting_pi-server_integration.html#how-to-check-the-pi-web-api-is-installed-and-running
+ *
+ * Information about Asset Framework Hierarchy Rules available at:
+ * https://fledge-iot.readthedocs.io/en/latest/OMF.html?highlight=omf%20hint#asset-framework-hierarchy-rules
+ *
+ * Information about OMF Hint available at:
+ * https://fledge-iot.readthedocs.io/en/latest/OMF.html?highlight=omf%20hint#omf-hints
+ * https://fledge-iot.readthedocs.io/en/latest/plugins/fledge-filter-omfhint/index.html
+ *
+ * OSIsoft documentation about PI Web API:
+ * https://docs.osisoft.com/bundle/pi-web-api/page/pi-web-api.html
+ * https://docs.osisoft.com/bundle/pi-web-api-reference/page/help.html
+ * https://pisquare.osisoft.com/s/topic/0TO1I000000OGBGWA4/pi-web-api
+ *
+ * OSIsoft documentation about OMF:
+ * https://docs.osisoft.com/bundle/omf/page/index.html
+ *
+ * OSIsoft documentation about OMF in PI Web API:
+ * https://docs.osisoft.com/bundle/omf-with-pi-web-api/page/osisoft-message-format.html
+ *
  */
+
 #include <unistd.h>
 
 #include <plugin_api.h>
@@ -36,6 +62,7 @@
 
 
 #define VERBOSE_LOG	0
+#define INSTRUMENT 0
 
 using namespace std;
 using namespace rapidjson;
@@ -62,6 +89,8 @@ using namespace SimpleWeb;
 #define ENDPOINT_URL_CR         "https://HOST_PLACEHOLDER:PORT_PLACEHOLDER/ingress/messages"
 #define ENDPOINT_URL_OCS        "https://dat-b.osisoft.com:PORT_PLACEHOLDER/api/v1/tenants/TENANT_ID_PLACEHOLDER/Namespaces/NAMESPACE_ID_PLACEHOLDER/omf"
 #define ENDPOINT_URL_EDS        "http://localhost:PORT_PLACEHOLDER/api/v1/tenants/default/namespaces/default/omf"
+
+static bool s_connected = true;		// if true, access to PI Web API is working
 
 enum OMF_ENDPOINT_PORT {
 	ENDPOINT_PORT_PIWEB_API=443,
@@ -341,9 +370,10 @@ typedef struct
 	string		formatNumber;	        // OMF protocol Number format
 	string		formatInteger;	        // OMF protocol Integer format
 	OMF_ENDPOINT PIServerEndpoint;      // Defines which End point should be used for the communication
-	NAMINGSCHEME_ENDPOINT NamingScheme; // Define how the object names should generated
+	NAMINGSCHEME_ENDPOINT NamingScheme; // Define how the object names should be generated - https://fledge-iot.readthedocs.io/en/latest/OMF.html#naming-scheme
 	string		DefaultAFLocation;      // 1st hierarchy in Asset Framework, PI Web API only.
 	string		AFMap;                  // Defines a set of rules to address where assets should be placed in the AF hierarchy.
+                                        //    https://fledge-iot.readthedocs.io/en/latest/OMF.html#asset-framework-hierarchy-rules
 
 	string		prefixAFAsset;          // Prefix to generate unique asste id
 	string		PIWebAPIProductTitle;
@@ -383,7 +413,10 @@ OMF_ENDPOINT  identifyPIServerEndpoint     (CONNECTOR_INFO* connInfo);
 string        AuthBasicCredentialsGenerate (string& userId, string& password);
 void          AuthKerberosSetup            (string& keytabFile, string& keytabFileName);
 string        OCSRetrieveAuthToken         (CONNECTOR_INFO* connInfo);
-string        PIWebAPIGetVersion           (CONNECTOR_INFO* connInfo);
+int           PIWebAPIGetVersion           (CONNECTOR_INFO* connInfo, std::string &version, bool logMessage = true);
+double        GetElapsedTime               (struct timeval *startTime);
+bool          IsPIWebAPIConnected          (CONNECTOR_INFO* connInfo);
+
 
 /**
  * Return the information about this plugin
@@ -420,6 +453,11 @@ PLUGIN_INFORMATION *plugin_info()
  */
 PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 {
+#if INSTRUMENT
+	struct timeval startTime;
+	gettimeofday(&startTime, NULL);
+#endif
+
 	int endpointPort = 0;
 
 	/**
@@ -636,13 +674,6 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 
 	}
 
-	// retrieves the Pi Web Api Version
-	if (connInfo->PIServerEndpoint == ENDPOINT_PIWEB_API)
-	{
-		connInfo->PIWebAPIVersion = PIWebAPIGetVersion(connInfo);
-		Logger::getLogger()->info("PIWebAPI version :%s:" ,connInfo->PIWebAPIVersion.c_str() );
-	}
-
 #if VERBOSE_LOG
 	// Log plugin configuration
 	Logger::getLogger()->info("%s plugin configured: URL=%s, "
@@ -652,13 +683,16 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 				  producerToken.c_str(),
 				  connInfo->compression ? "True" : "False");
 #endif
+#if INSTRUMENT
+	Logger::getLogger()->debug("plugin_init elapsed time: %6.3f seconds", GetElapsedTime(&startTime));
+#endif
 
 	return (PLUGIN_HANDLE)connInfo;
 }
 
 
 /**
- * Plugin start with sored plugin_data
+ * Plugin start with stored plugin_data
  *
  * @param handle	The plugin handle
  * @param storedData	The stored plugin_data
@@ -666,6 +700,17 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 void plugin_start(const PLUGIN_HANDLE handle,
 		  const string& storedData)
 {
+#if INSTRUMENT
+	struct timeval startTime;
+	gettimeofday(&startTime, NULL);
+
+	// For debugging: write plugin's stored data to a file
+	string jsonFilePath = getDataDir() + string("/logs/OMFStoredData.json");
+	ofstream f(jsonFilePath.c_str(), ios_base::trunc);
+	f << storedData.c_str();
+	f.close();
+#endif
+
 	Logger* logger = Logger::getLogger();
 	CONNECTOR_INFO* connInfo = (CONNECTOR_INFO *)handle;
 
@@ -715,6 +760,26 @@ void plugin_start(const PLUGIN_HANDLE handle,
 					  TYPE_ID_KEY,
 					  getMaxTypeId(connInfo));
 	}
+
+	// Retrieve the PI Web API Version
+	s_connected = true;
+	if (connInfo->PIServerEndpoint == ENDPOINT_PIWEB_API)
+	{
+		int httpCode = PIWebAPIGetVersion(connInfo, connInfo->PIWebAPIVersion);
+		if (httpCode >= 200 && httpCode < 400)
+		{
+			Logger::getLogger()->info("%s connected to %s" ,connInfo->PIWebAPIVersion.c_str(), connInfo->hostAndPort.c_str());
+			s_connected = true;
+		}
+		else
+		{
+			s_connected = false;
+		}
+	}
+
+#if INSTRUMENT
+	Logger::getLogger()->debug("plugin_start elapsed time: %6.3f seconds", GetElapsedTime(&startTime));
+#endif
 }
 
 /**
@@ -723,11 +788,24 @@ void plugin_start(const PLUGIN_HANDLE handle,
 uint32_t plugin_send(const PLUGIN_HANDLE handle,
 		     const vector<Reading *>& readings)
 {
+#if INSTRUMENT
+	struct timeval startTime;
+	gettimeofday(&startTime, NULL);
+#endif
 	CONNECTOR_INFO* connInfo = (CONNECTOR_INFO *)handle;
 
+	// Check if the endpoint is PI Web API and if the PI Web API server is available
+	if (!IsPIWebAPIConnected(connInfo))
+	{
+		return 0;
+	}
+
 	/**
-	 * Allocate the HTTPS handler for "Hostname : port"
-	 * connect_timeout and request_timeout.
+	 * Select the proper library in relation to the need,
+	 * LibcurlHttps is needed to integrate Kerberos as the SimpleHttp does not support it
+	 * the Libcurl integration implements only HTTPS not HTTP at the current stage
+	 *
+	 * The handler is allocated using "Hostname : port", connect_timeout and request_timeout.
 	 * Default is no timeout at all
 	 */
 	if (connInfo->PIWebAPIAuthMethod.compare("k") == 0)
@@ -767,7 +845,8 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 	connInfo->sender->setOCSClientId         (connInfo->OCSClientId);
 	connInfo->sender->setOCSClientSecret     (connInfo->OCSClientSecret);
 
-	// OCS - retreievs the authentication token
+	// OCS - retrieves the authentication token
+	// It is retrieved at every send as it can expire and the configuration is only in OCS
 	if (connInfo->PIServerEndpoint == ENDPOINT_OCS)
 	{
 		connInfo->OCSToken = OCSRetrieveAuthToken(connInfo);
@@ -780,6 +859,7 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 				connInfo->assetsDataTypes,
 				connInfo->producerToken);
 
+	connInfo->omf->setConnected(s_connected);
 	connInfo->omf->setSendFullStructure(connInfo->sendFullStructure);
 
 	// Set PIServerEndpoint configuration
@@ -818,9 +898,22 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 					  TYPE_ID_KEY,
 					  connInfo->typeId);
 	}
+
+	// Write a warning if the connection to PI Web API has been lost
+	bool updatedConnected = connInfo->omf->getConnected();
+	if (connInfo->PIServerEndpoint == ENDPOINT_PIWEB_API && s_connected && !updatedConnected)
+	{
+		Logger::getLogger()->warn("Connection to PI Web API at %s has been lost", connInfo->hostAndPort.c_str());
+	}
+	s_connected = updatedConnected;
+	
 	// Delete objects
 	delete connInfo->sender;
 	delete connInfo->omf;
+
+#if INSTRUMENT
+	Logger::getLogger()->debug("plugin_send elapsed time: %6.3f seconds, NumValues: %u", GetElapsedTime(&startTime), ret);
+#endif
 
 	// Return sent data ret code
 	return ret;
@@ -833,12 +926,17 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
  *
  * Note: the entry with FAKE_ASSET_KEY ios never saved.
  *
- * @param handle    The plugin handle
- * @return	    A string with JSON plugin data
- *		    the caller will persist
+ * @param handle   The plugin handle
+ * @return         A string with JSON plugin data
+ *                 the caller will persist
  */
 string plugin_shutdown(PLUGIN_HANDLE handle)
 {
+#if INSTRUMENT
+	struct timeval startTime;
+	gettimeofday(&startTime, NULL);
+#endif
+
 	// Delete the handle
 	CONNECTOR_INFO* connInfo = (CONNECTOR_INFO *) handle;
 
@@ -869,6 +967,16 @@ string plugin_shutdown(PLUGIN_HANDLE handle)
 	// Delete plugin handle
 	delete connInfo;
 
+#if INSTRUMENT
+	// For debugging: write plugin's JSON data to a file
+	string jsonFilePath = getDataDir() + string("/logs/OMFSaveData.json");
+	ofstream f(jsonFilePath.c_str(), ios_base::trunc);
+	f << saveData.str();
+	f.close();
+
+	Logger::getLogger()->debug("plugin_shutdown elapsed time: %6.3f seconds", GetElapsedTime(&startTime));	
+#endif
+
 	// Return current plugin data to save
 	return saveData.str();
 }
@@ -877,12 +985,12 @@ string plugin_shutdown(PLUGIN_HANDLE handle)
 };
 
 /**
- * Return a JSON string with the dataTypes to save in plugion_data
+ * Return a JSON string with the dataTypes to save in plugin_data
  *
  * Note: the entry with FAKE_ASSET_KEY is never saved.
  *
- * @param   connInfo	The CONNECTOR_INFO data scructure
- * @return		The string with JSON data
+ * @param   connInfo  The CONNECTOR_INFO data structure
+ * @return            The string with JSON data
  */
 string saveSentDataTypes(CONNECTOR_INFO* connInfo)
 {
@@ -973,8 +1081,8 @@ string saveSentDataTypes(CONNECTOR_INFO* connInfo)
 /**
  * Calculate the TypeShort in the case it is missing loading type definition
  *
- * Generate a 64 bit number containing  a set of counts,
- * number of datapoint in an asset and the number of datapoint of each type we support.
+ * Generate a 64 bit number containing a set of counts,
+ * number of datapoints in an asset and the number of datapoint of each type we support.
  *
  */
 unsigned long calcTypeShort(const string& dataTypes)
@@ -1042,7 +1150,7 @@ unsigned long calcTypeShort(const string& dataTypes)
 /**
  * Load stored data types (already sent to PI server)
  *
- * Each element, the assetName,  has type-id and datatype for each datapoint
+ * Each element, the assetName, has type-id and datatype for each datapoint
  *
  * If no data exists in the plugin_data table, then a map entry
  * with FAKE_ASSET_KEY is made in order to set the start type-id
@@ -1249,6 +1357,7 @@ void loadSentDataTypes(CONNECTOR_INFO* connInfo,
 	}
 	else
 	{
+		Logger::getLogger()->warn("Persisted data is not of the correct format, ignoring");
 		OMFDataTypes dataType;
 		dataType.typeId = connInfo->typeId;
 		dataType.types = "{}";
@@ -1263,7 +1372,7 @@ void loadSentDataTypes(CONNECTOR_INFO* connInfo,
  *
  * If the array is empty the connInfo->typeId is returned.
  *
- * @param    connInfo	The CONNECTOR_INFO data scructure
+ * @param    connInfo	The CONNECTOR_INFO data structure
  * @return		The maximum value of type-id found
  */
 long getMaxTypeId(CONNECTOR_INFO* connInfo)
@@ -1281,13 +1390,16 @@ long getMaxTypeId(CONNECTOR_INFO* connInfo)
 	return maxId;
 }
 
-
 /**
- * Calls the PIWebAPI api to retrieve the version
+ * Calls the PI Web API to retrieve the version
+ * 
+ * @param    connInfo	The CONNECTOR_INFO data structure
+ * @param    version	Returned version string
+ * @param    logMessage	If true, log error messages (default: true)
+ * @return   httpCode   HTTP response code
  */
-string PIWebAPIGetVersion(CONNECTOR_INFO* connInfo)
+int PIWebAPIGetVersion(CONNECTOR_INFO* connInfo, std::string &version, bool logMessage)
 {
-	string version;
 	PIWebAPI *_PIWebAPI;
 
 	_PIWebAPI = new PIWebAPI();
@@ -1296,16 +1408,18 @@ string PIWebAPIGetVersion(CONNECTOR_INFO* connInfo)
 	_PIWebAPI->setAuthMethod          (connInfo->PIWebAPIAuthMethod);
 	_PIWebAPI->setAuthBasicCredentials(connInfo->PIWebAPICredentials);
 
-	version = _PIWebAPI->GetVersion(connInfo->hostAndPort);
+	int httpCode = _PIWebAPI->GetVersion(connInfo->hostAndPort, version, logMessage);
 
 	delete _PIWebAPI;
 
-	return version;
+	return httpCode;
 }
 
-
 /**
- * Calls the OCS api to retrieve the authentication token
+ * Calls the OCS API to retrieve the authentication token
+ * 
+ * @param    connInfo	The CONNECTOR_INFO data structure
+ * @return   token      Authorization token
  */
 string OCSRetrieveAuthToken(CONNECTOR_INFO* connInfo)
 {
@@ -1324,8 +1438,8 @@ string OCSRetrieveAuthToken(CONNECTOR_INFO* connInfo)
 /**
  * Evaluate if the endpoint is a PI Web API or a Connector Relay.
  *
- * @param    connInfo	The CONNECTOR_INFO data structure
- * @return		        OMF_ENDPOINT values
+ * @param    connInfo	   The CONNECTOR_INFO data structure
+ * @return	               OMF_ENDPOINT values
  */
 OMF_ENDPOINT identifyPIServerEndpoint(CONNECTOR_INFO* connInfo)
 {
@@ -1392,9 +1506,9 @@ OMF_ENDPOINT identifyPIServerEndpoint(CONNECTOR_INFO* connInfo)
  * Generate the credentials for the basic authentication
  * encoding user id and password joined by a single colon (:) using base64
  *
- * @param    userId	User id to be used for the generation of the credentials
- * @param    password	Password to be used for the generation of the credentials
- * @return		credentials to be used with the basic authentication
+ * @param    userId   User id to be used for the generation of the credentials
+ * @param    password Password to be used for the generation of the credentials
+ * @return            credentials to be used with the basic authentication
  */
 string AuthBasicCredentialsGenerate(string& userId, string& password)
 {
@@ -1428,4 +1542,60 @@ void AuthKerberosSetup(string& keytabEnv, string& keytabFileName)
 		Logger::getLogger()->error("Kerberos authentication not possible, the keytab file :%s: is missing.", keytabFullPath.c_str());
 	}
 
+}
+
+/**
+ * Calculate elapsed time in seconds
+ *
+ * @param startTime   Start time of the interval to be evaluated
+ * @return            Elapsed time in seconds
+ */
+double GetElapsedTime(struct timeval *startTime)
+{
+	struct timeval endTime, diff;
+	gettimeofday(&endTime, NULL);
+	timersub(&endTime, startTime, &diff);
+	return diff.tv_sec + ((double)diff.tv_usec / 1000000);
+}
+
+/**
+ * Check if the PI Web API server is available by reading the product version
+ *
+ * @param connInfo   The CONNECTOR_INFO data structure
+ * @return           Connection status
+ */
+bool IsPIWebAPIConnected(CONNECTOR_INFO* connInfo)
+{
+	static std::chrono::steady_clock::time_point nextCheck;
+
+	if (!s_connected && connInfo->PIServerEndpoint == ENDPOINT_PIWEB_API)
+	{
+		std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+
+		if (now >= nextCheck)
+		{
+			std::string version;
+			int httpCode = PIWebAPIGetVersion(connInfo, version, false);
+			if (httpCode >= 500)
+			{
+				s_connected = false;
+				now = std::chrono::steady_clock::now();
+				nextCheck = now + std::chrono::seconds(60);
+				Logger::getLogger()->debug("PI Web API %s is not available. HTTP Code: %d", connInfo->hostAndPort.c_str(), httpCode);
+			}
+			else
+			{
+				s_connected = true;
+				Logger::getLogger()->info("%s reconnected to %s", version.c_str(), connInfo->hostAndPort.c_str());
+			}
+		}
+	}
+	else
+	{
+		// Endpoints other than PI Web API fail quickly when they are unavailable
+		// so there is no need to check their status in advance.
+		s_connected = true;
+	}
+
+	return s_connected;
 }

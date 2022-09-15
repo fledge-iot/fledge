@@ -34,6 +34,8 @@
 #include <config_handler.h>
 #include <syslog.h>
 
+#define SERVICE_TYPE "Southbound"
+
 extern int makeDaemon(void);
 extern void handler(int sig);
 
@@ -50,6 +52,7 @@ bool	       daemonMode = true;
 string	       myName = SERVICE_NAME;
 string	       logLevel = "warning";
 string         token = "";
+bool	       dryrun = false;
 
 	signal(SIGSEGV, handler);
 	signal(SIGILL, handler);
@@ -79,9 +82,13 @@ string         token = "";
 		{
 			logLevel = &argv[i][11];
 		}
-		 else if (!strncmp(argv[i], "--token=", 8))
+		else if (!strncmp(argv[i], "--token=", 8))
 		{
 			token = &argv[i][8];
+		}
+		else if (!strncmp(argv[i], "--dryrun", 8))
+		{
+			dryrun = true;
 		}
 	}
 
@@ -92,6 +99,10 @@ string         token = "";
 	}
 
 	SouthService *service = new SouthService(myName, token);
+	if (dryrun)
+	{
+		service->setDryRun();
+	}
 	Logger::getLogger()->setMinLevel(logLevel);
 	service->start(coreAddress, corePort);
 	return 0;
@@ -187,9 +198,28 @@ void doIngest(Ingest *ingest, Reading reading)
 	ingest->ingest(reading);
 }
 
-void doIngestV2(Ingest *ingest, const vector<Reading *> *vec)
+void doIngestV2(Ingest *ingest, ReadingSet *set)
 {
-	ingest->ingest(vec);
+    std::vector<Reading *> *vec = set->getAllReadingsPtr();
+    std::vector<Reading *> *vec2 = new std::vector<Reading *>;
+    if (!vec)
+    {
+        Logger::getLogger()->info("%s:%d: V2 async ingest method: vec is NULL", __FUNCTION__, __LINE__);
+        return;
+    }
+    else
+    {
+        for (auto & r : *vec)
+        {
+            Reading *r2 = new Reading(*r); // Need to copy reading objects here, since "del set" below would remove encapsulated reading objects also
+            vec2->emplace_back(r2);
+        }
+    }
+    Logger::getLogger()->debug("%s:%d: V2 async ingest method returned: vec->size()=%d", __FUNCTION__, __LINE__, vec->size());
+
+	ingest->ingest(vec2);
+	delete vec2; 	// each reading object inside vector has been allocated on heap and moved to Ingest class's internal queue
+	delete set;
 }
 
 
@@ -197,22 +227,20 @@ void doIngestV2(Ingest *ingest, const vector<Reading *> *vec)
  * Constructor for the south service
  */
 SouthService::SouthService(const string& myName, const string& token) :
-				m_name(myName),
 				m_shutdown(false),
 				m_readingsPerSec(1),
 				m_throttle(false),
 				m_throttled(false),
-				m_token(token)
+				m_token(token),
+				m_repeatCnt(1),
+				m_dryRun(false),
+				m_requestRestart(false)
 {
+	m_name = myName;
+	m_type = SERVICE_TYPE;
+
 	logger = new Logger(myName);
 	logger->setMinLevel("warning");
-}
-
-ManagementClient *SouthService::m_mgtClient = NULL;
-
-ManagementClient * SouthService::getMgmtClient()
-{
-	return m_mgtClient;
 }
 
 /**
@@ -245,12 +273,14 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		// TODO proper hostname lookup
 		unsigned short managementListener = management.getListenerPort();
 		ServiceRecord record(m_name,			// Service name
-					"Southbound",		// Service type
+					SERVICE_TYPE,		// Service type
 					"http",			// Protocol
 					"localhost",		// Listening address
 					sport,			// Service port
 					managementListener,	// Management port
 					m_token);		// Token
+
+		// Allocate and save ManagementClient object
 		m_mgtClient = new ManagementClient(coreAddress, corePort);
 
 		// Create an empty South category if one doesn't exist
@@ -258,6 +288,7 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		southConfig.setDescription("South");
 		m_mgtClient->addCategory(southConfig, true);
 
+		// Get configuration for service name
 		m_config = m_mgtClient->getCategory(m_name);
 		if (!loadPlugin())
 		{
@@ -271,13 +302,20 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 			logger->info("South plugin has a control facility, adding south service API");
 		}
 
-		if (!m_mgtClient->registerService(record))
+		if (!m_dryRun)
 		{
-			logger->error("Failed to register service %s", m_name.c_str());
+			if (!m_mgtClient->registerService(record))
+			{
+				logger->error("Failed to register service %s", m_name.c_str());
+				management.stop();
+				return;
+			}
+
+			// Register for category content changes
+			ConfigHandler *configHandler = ConfigHandler::getInstance(m_mgtClient);
+			configHandler->registerCategory(this, m_name);
+			configHandler->registerCategory(this, m_name+"Advanced");
 		}
-		ConfigHandler *configHandler = ConfigHandler::getInstance(m_mgtClient);
-		configHandler->registerCategory(this, m_name);
-		configHandler->registerCategory(this, m_name+"Advanced");
 
 		// Get a handle on the storage layer
 		ServiceRecord storageRecord("Fledge Storage");
@@ -293,6 +331,7 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		
 		StorageClient storage(storageRecord.getAddress(),
 						storageRecord.getPort());
+		storage.registerManagement(m_mgtClient);
 		unsigned int threshold = 100;
 		long timeout = 5000;
 		std::string pluginName;
@@ -304,7 +343,25 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 			if (m_config.itemExists("plugin"))
 				pluginName = m_config.getValue("plugin");
 			if (m_configAdvanced.itemExists("logLevel"))
+			{
+				string prevLogLevel = logger->getMinLevel();
 				logger->setMinLevel(m_configAdvanced.getValue("logLevel"));
+
+				PluginManager *manager = PluginManager::getInstance();
+				PLUGIN_TYPE type = manager->getPluginImplType(southPlugin->getHandle());
+				logger->debug("%s:%d: plugin type = %s", __FUNCTION__, __LINE__, (type==PYTHON_PLUGIN)?"PYTHON_PLUGIN":"BINARY_PLUGIN");
+				
+				if (type == PYTHON_PLUGIN)
+				{
+					// propagate loglevel changes to python filters/plugins, if present
+					logger->debug("prevLogLevel=%s, m_configAdvanced.getValue(\"logLevel\")=%s", prevLogLevel.c_str(), m_configAdvanced.getValue("logLevel").c_str());
+					if (prevLogLevel.compare(m_configAdvanced.getValue("logLevel")) != 0)
+					{
+						logger->debug("calling southPlugin->reconfigure() for updating loglevel");
+						southPlugin->reconfigure("logLevel");
+					}
+				}
+			}
 			if (m_configAdvanced.itemExists("throttle"))
 			{
 				string throt = m_configAdvanced.getValue("throttle");
@@ -356,166 +413,213 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 			m_dataKey = m_name + m_config.getValue("plugin");
 		}
 
+		// Create default security category
+		this->createSecurityCategories(m_mgtClient, m_dryRun);
 
-		// Get and ingest data
-		if (! southPlugin->isAsync())
+		if (!m_dryRun)	// If not a dry run then handle readings
 		{
-			string units = m_configAdvanced.getValue("units");
-			unsigned long dividend = 1000000;
-			if (units.compare("second") == 0)
-				dividend = 1000000;
-			else if (units.compare("minute") == 0)
-				dividend = 60000000;
-			else if (units.compare("hour") == 0)
-				dividend = 3600000000;
-			unsigned long usecs = dividend / m_readingsPerSec;
-			m_desiredRate.tv_sec  = (int)(usecs / 1000000);
-			m_desiredRate.tv_usec = (int)(usecs % 1000000);
-			m_timerfd = createTimerFd(m_desiredRate); // interval to be passed is in usecs
-			m_currentRate = m_desiredRate;
-			if (m_timerfd < 0)
+			// Get and ingest data
+			if (! southPlugin->isAsync())
 			{
-				logger->fatal("Could not create timer FD");
-				return;
-			}
-			
-			int pollCount = 0;
-			struct timespec start, end;
-			if (clock_gettime(CLOCK_MONOTONIC, &start) == -1)
-			   Logger::getLogger()->error("polling loop start: clock_gettime");
+				string units = m_configAdvanced.getValue("units");
+				unsigned long dividend = 1000000;
+				if (units.compare("second") == 0)
+					dividend = 1000000;
+				else if (units.compare("minute") == 0)
+					dividend = 60000000;
+				else if (units.compare("hour") == 0)
+					dividend = 3600000000;
+				unsigned long usecs = dividend / m_readingsPerSec;
 
-			const char *pluginInterfaceVer = southPlugin->getInfo()->interface;
-			bool pollInterfaceV2 = (pluginInterfaceVer[0]=='2' && pluginInterfaceVer[1]=='.');
-			logger->info("pollInterfaceV2=%s", pollInterfaceV2?"true":"false");
-
-			/*
-			 * Start the plugin. If it fails with an excpetion retry the start with a delay
-			 * That delay starts at 500mS and will backoff to 1 minute
-			 *
-			 * We will continue to retry the start until the service is shutdown
-			 */
-			bool started = false;
-			int delay = 500;
-			while (started == false && m_shutdown == false)
-			{
-				if (southPlugin->persistData())
+				if (usecs > MAX_SLEEP * 1000000)
 				{
-					Logger::getLogger()->debug("Plugin persists data");
-					string pluginData = m_pluginData->loadStoredData(m_dataKey);
-					try {
-						southPlugin->startData(pluginData);
-						started = true;
-					} catch (...) {
-						Logger::getLogger()->debug("Plugin start raised an exception");
-					}
+					double x = usecs / (MAX_SLEEP * 1000000);
+					m_repeatCnt = ceil(x);
+					usecs /= m_repeatCnt;
 				}
 				else
 				{
-					Logger::getLogger()->debug("Plugin does not persist data");
-					try {
-						southPlugin->start();
-						started = true;
-					} catch (...) {
-						Logger::getLogger()->debug("Plugin start raised an exception");
-					}
+					m_repeatCnt = 1;
 				}
-				if (!started)
+				m_desiredRate.tv_sec  = (int)(usecs / 1000000);
+				m_desiredRate.tv_usec = (int)(usecs % 1000000);
+				m_timerfd = createTimerFd(m_desiredRate); // interval to be passed is in usecs
+				m_currentRate = m_desiredRate;
+				if (m_timerfd < 0)
 				{
-					std::this_thread::sleep_for(std::chrono::milliseconds(delay));
-					if (delay < 60 * 1000)	// Backoff the delay to 1 minute
-					{
-						delay *= 2;
-					}
+					logger->fatal("Could not create timer FD");
+					return;
 				}
-			}
-
-			while (!m_shutdown)
-			{
-				uint64_t exp;
-				ssize_t s;
 				
-				s = read(m_timerfd, &exp, sizeof(uint64_t));
-				if ((unsigned int)s != sizeof(uint64_t))
-					logger->error("timerfd read()");
-				if (exp > 100 && exp > m_readingsPerSec/2)
-					logger->error("%d expiry notifications accumulated", exp);
-#if DO_CATCHUP
-				for (uint64_t i=0; i<exp; i++)
-#endif
+				int pollCount = 0;
+				struct timespec start, end;
+				if (clock_gettime(CLOCK_MONOTONIC, &start) == -1)
+				   Logger::getLogger()->error("polling loop start: clock_gettime");
+
+				const char *pluginInterfaceVer = southPlugin->getInfo()->interface;
+				bool pollInterfaceV2 = (pluginInterfaceVer[0]=='2' && pluginInterfaceVer[1]=='.');
+				logger->info("pollInterfaceV2=%s", pollInterfaceV2?"true":"false");
+
+				/*
+				 * Start the plugin. If it fails with an excpetion retry the start with a delay
+				 * That delay starts at 500mS and will backoff to 1 minute
+				 *
+				 * We will continue to retry the start until the service is shutdown
+				 */
+				bool started = false;
+				int delay = 500;
+				while (started == false && m_shutdown == false)
 				{
-					if (!pollInterfaceV2) // v1 poll method
-					{
-					
-						Reading reading = southPlugin->poll();
-						if (reading.getDatapointCount())
-						{
-							ingest.ingest(reading);
-						}
-						++pollCount;
-					}
-					else // V2 poll method
-					{
-						vector<Reading *> *vec = southPlugin->pollV2();
-						if (!vec) continue;
-						ingest.ingest(vec);
-						pollCount += (int) vec->size();
-						delete vec; 	// each reading object inside vector has been allocated on heap and moved to Ingest class's internal queue
-					}
-					throttlePoll();
-				}
-			}
-			if (clock_gettime(CLOCK_MONOTONIC, &end) == -1)
-			   Logger::getLogger()->error("polling loop end: clock_gettime");
-			
-			int secs = end.tv_sec - start.tv_sec;
-		   	int nsecs = end.tv_nsec - start.tv_nsec;
-		   	if (nsecs < 0)
-			{
-				secs--;
-				nsecs += 1000000000;
-			}
-			Logger::getLogger()->info("%d readings generated in %d.%d secs", pollCount, secs, nsecs);
-			close(m_timerfd);
-		}
-		else
-		{
-			const char *pluginInterfaceVer = southPlugin->getInfo()->interface;
-			bool pollInterfaceV2 = (pluginInterfaceVer[0]=='2' && pluginInterfaceVer[1]=='.');
-			Logger::getLogger()->info("pluginInterfaceVer=%s, pollInterfaceV2=%s", pluginInterfaceVer, pollInterfaceV2?"true":"false");
-			if (!pollInterfaceV2)
-				southPlugin->registerIngest((INGEST_CB)doIngest, &ingest);
-			else
-				southPlugin->registerIngestV2((INGEST_CB2)doIngestV2, &ingest);
-			bool started = false;
-			int backoff = 1000;
-			while (started == false && m_shutdown == false)
-			{
-				try {
 					if (southPlugin->persistData())
 					{
+						Logger::getLogger()->debug("Plugin persists data");
 						string pluginData = m_pluginData->loadStoredData(m_dataKey);
-						Logger::getLogger()->debug("Plugin persists data, %s", pluginData.c_str());
-						southPlugin->startData(pluginData);
+						try {
+							southPlugin->startData(pluginData);
+							started = true;
+						} catch (...) {
+							Logger::getLogger()->debug("Plugin start raised an exception");
+						}
 					}
 					else
 					{
 						Logger::getLogger()->debug("Plugin does not persist data");
-						southPlugin->start();
+						started = true;
 					}
-					started = true;
-				} catch (...) {
-					Logger::getLogger()->debug("Plugin start raised an exception");
-					std::this_thread::sleep_for(std::chrono::milliseconds(backoff));
-					if (backoff < 60000)
+					if (!started)
 					{
-						backoff *= 2;
+						std::this_thread::sleep_for(std::chrono::milliseconds(delay));
+						if (delay < 60 * 1000)	// Backoff the delay to 1 minute
+						{
+							delay *= 2;
+						}
 					}
 				}
+
+				while (!m_shutdown)
+				{
+					uint64_t exp;
+					ssize_t s;
+					
+					long rep = m_repeatCnt;
+					while (rep > 0)
+					{
+						s = read(m_timerfd, &exp, sizeof(uint64_t));
+						if ((unsigned int)s != sizeof(uint64_t))
+							logger->error("timerfd read()");
+						if (exp > 100 && exp > m_readingsPerSec/2)
+						logger->error("%d expiry notifications accumulated", exp);
+						rep--;
+						if (m_shutdown)
+						{
+							break;
+						}
+					}
+					if (m_shutdown)
+					{
+						break;
+					}
+#if DO_CATCHUP
+					for (uint64_t i=0; i<exp; i++)
+#endif
+					{
+						if (!pollInterfaceV2) // v1 poll method
+						{
+						
+							Reading reading = southPlugin->poll();
+							if (reading.getDatapointCount())
+							{
+								ingest.ingest(reading);
+							}
+							++pollCount;
+						}
+						else // V2 poll method
+						{
+							ReadingSet *set = southPlugin->pollV2();
+				if (set)
+				{
+				    std::vector<Reading *> *vec = set->getAllReadingsPtr();
+				    std::vector<Reading *> *vec2 = new std::vector<Reading *>;
+				    if (!vec)
+				    {
+					Logger::getLogger()->info("%s:%d: V2 poll method: vec is NULL", __FUNCTION__, __LINE__);
+					continue;
+				    }
+				    else
+				    {
+					for (auto & r : *vec)
+					{
+					    Reading *r2 = new Reading(*r); // Need to copy reading objects here, since "del set" below would remove encapsulated reading objects
+					    vec2->emplace_back(r2);
+					}
+				    }
+
+							ingest.ingest(vec2);
+							pollCount += (int) vec2->size();
+							delete vec2; 	// each reading object inside vector has been allocated on heap and moved to Ingest class's internal queue
+							delete set;
+				}
+						}
+						throttlePoll();
+					}
+				}
+				if (clock_gettime(CLOCK_MONOTONIC, &end) == -1)
+				   Logger::getLogger()->error("polling loop end: clock_gettime");
+				
+				int secs = end.tv_sec - start.tv_sec;
+				int nsecs = end.tv_nsec - start.tv_nsec;
+				if (nsecs < 0)
+				{
+					secs--;
+					nsecs += 1000000000;
+				}
+				Logger::getLogger()->info("%d readings generated in %d.%d secs", pollCount, secs, nsecs);
+				close(m_timerfd);
 			}
-			while (!m_shutdown)
+			else
 			{
-				std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+				const char *pluginInterfaceVer = southPlugin->getInfo()->interface;
+				bool pollInterfaceV2 = (pluginInterfaceVer[0]=='2' && pluginInterfaceVer[1]=='.');
+				Logger::getLogger()->info("pluginInterfaceVer=%s, pollInterfaceV2=%s", pluginInterfaceVer, pollInterfaceV2?"true":"false");
+				if (!pollInterfaceV2)
+					southPlugin->registerIngest((INGEST_CB)doIngest, &ingest);
+				else
+					southPlugin->registerIngestV2((INGEST_CB2)doIngestV2, &ingest);
+				bool started = false;
+				int backoff = 1000;
+				while (started == false && m_shutdown == false)
+				{
+					try {
+						if (southPlugin->persistData())
+						{
+							string pluginData = m_pluginData->loadStoredData(m_dataKey);
+							Logger::getLogger()->debug("Plugin persists data, %s", pluginData.c_str());
+							southPlugin->startData(pluginData);
+						}
+						else
+						{
+							Logger::getLogger()->debug("Plugin does not persist data");
+							southPlugin->start();
+						}
+						started = true;
+					} catch (...) {
+						Logger::getLogger()->debug("Plugin start raised an exception");
+						std::this_thread::sleep_for(std::chrono::milliseconds(backoff));
+						if (backoff < 60000)
+						{
+							backoff *= 2;
+						}
+					}
+				}
+				while (!m_shutdown)
+				{
+					std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+				}
 			}
+		}
+		else
+		{
+			Logger::getLogger()->info("Dryrun of service, shutting down");
 		}
 
 		// Shutdown the API
@@ -527,7 +631,7 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 			if (southPlugin->persistData())
 			{
 				string data = southPlugin->shutdownSaveData();
-				Logger::getLogger()->debug("Persist plugin data, '%s'", data.c_str());
+				Logger::getLogger()->debug("Persist plugin data, %s '%s'", m_dataKey, data.c_str());
 				m_pluginData->persistPluginData(m_dataKey, data);
 			}
 			else
@@ -538,10 +642,20 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		}
 		
 		// Clean shutdown, unregister the storage service
-		m_mgtClient->unregisterService();
+		if (!m_dryRun)
+		{
+			if (m_requestRestart)
+			{
+				m_mgtClient->restartService();
+			}
+			else
+			{
+				m_mgtClient->unregisterService();
+			}
+		}
 	}
 	management.stop();
-	logger->info("South service shutdown completed");
+	logger->info("South service shutdown %s completed", m_dryRun ? "from dry run " : "");
 }
 
 /**
@@ -623,7 +737,9 @@ bool SouthService::loadPlugin()
 			// Removes all the m_items already present in the category
 			m_config.removeItems();
 			m_config = m_mgtClient->getCategory(m_name);
-
+			m_config.addItem("mgmt_client_url_base", "Management client host and port",
+                             "string", "127.0.0.1:0",
+                             m_mgtClient->getUrlbase());
 			try {
 				southPlugin = new SouthPlugin(handle, m_config);
 			} catch (...) {
@@ -668,6 +784,19 @@ void SouthService::shutdown()
 }
 
 /**
+ * Restart request
+ */
+void SouthService::restart()
+{
+	/* Stop recieving new requests and allow existing
+	 * requests to drain.
+	 */
+	m_requestRestart = true;
+	m_shutdown = true;
+	logger->info("South service shutdown for restart in progress.");
+}
+
+/**
  * Configuration change notification
  */
 void SouthService::configChange(const string& categoryName, const string& category)
@@ -707,6 +836,16 @@ void SouthService::configChange(const string& categoryName, const string& catego
 					m_readingsPerSec = newval;
 					close(m_timerfd);
 					unsigned long usecs = dividend / m_readingsPerSec;
+					if (usecs > MAX_SLEEP * 1000000)
+					{
+						double x = usecs / (MAX_SLEEP * 1000000);
+						m_repeatCnt = ceil(x);
+						usecs /= m_repeatCnt;
+					}
+					else
+					{
+						m_repeatCnt = 1;
+					}
 					m_desiredRate.tv_sec  = (int)(usecs / 1000000);
 					m_desiredRate.tv_usec = (int)(usecs % 1000000);
 					m_currentRate = m_desiredRate;
@@ -728,7 +867,26 @@ void SouthService::configChange(const string& categoryName, const string& catego
 		}
 		if (m_configAdvanced.itemExists("logLevel"))
 		{
+			string prevLogLevel = logger->getMinLevel();
 			logger->setMinLevel(m_configAdvanced.getValue("logLevel"));
+
+			PluginManager *manager = PluginManager::getInstance();
+			PLUGIN_TYPE type = manager->getPluginImplType(southPlugin->getHandle());
+			logger->debug("%s:%d: South plugin type = %s", __FUNCTION__, __LINE__, (type==PYTHON_PLUGIN)?"PYTHON_PLUGIN":"BINARY_PLUGIN");
+
+			// propagate loglevel change to filter irrespective whether the host plugin is python/binary
+			m_ingest->configChange(categoryName, "logLevel");
+			
+			if (type == PYTHON_PLUGIN)
+			{
+				// propagate loglevel changes to python filters/plugins, if present
+				logger->debug("prevLogLevel=%s, m_configAdvanced.getValue(\"logLevel\")=%s", prevLogLevel.c_str(), m_configAdvanced.getValue("logLevel").c_str());
+				if (prevLogLevel.compare(m_configAdvanced.getValue("logLevel")) != 0)
+				{
+					logger->debug("%s:%d: calling southPlugin->reconfigure() for updating loglevel", __FUNCTION__, __LINE__);
+					southPlugin->reconfigure("logLevel");
+				}
+			}
 		}
 		if (m_configAdvanced.itemExists("throttle"))
 		{
@@ -747,6 +905,12 @@ void SouthService::configChange(const string& categoryName, const string& catego
 				m_throttle = false;
 			}
 		}
+	}
+
+	// Update the  Security category
+	if (categoryName.compare(m_name+"Security") == 0)
+	{
+		this->updateSecurityCategory(category);
 	}
 }
 
@@ -859,12 +1023,23 @@ struct timeval now, res;
 		return;
 	}
 	double desired = m_desiredRate.tv_sec + ((double)m_desiredRate.tv_usec / 1000000);
+	desired *= m_repeatCnt;
 	gettimeofday(&now, NULL);
 	timersub(&now, &m_lastThrottle, &res);
 	if (m_ingest->queueLength() > m_highWater && res.tv_sec > SOUTH_THROTTLE_DOWN_INTERVAL)
 	{
 		double rate = m_currentRate.tv_sec + ((double)m_currentRate.tv_usec / 1000000);
 		rate *= (1.0 + ((double)SOUTH_THROTTLE_PERCENT / 100.0));
+		if (rate > MAX_SLEEP * 1000000)
+		{
+			double x = rate / (MAX_SLEEP * 1000000);
+			m_repeatCnt = ceil(x);
+			rate /= m_repeatCnt;
+		}
+		else
+		{
+			m_repeatCnt = 1;
+		}
 		m_currentRate.tv_sec = (long)rate;
 		m_currentRate.tv_usec = (rate - m_currentRate.tv_sec) * 1000000;
 		close(m_timerfd);
@@ -875,12 +1050,22 @@ struct timeval now, res;
 	}
 	else if (m_throttled && m_ingest->queueLength() < m_lowWater && res.tv_sec > SOUTH_THROTTLE_UP_INTERVAL)
 	{
-		// We are current throttle back but the queue is below the low water mark
+		// We are currently throttled back but the queue is below the low water mark
 		timersub(&m_desiredRate, &m_currentRate, &res);
 		if (res.tv_sec != 0 || res.tv_usec != 0)
 		{
 			double rate = m_currentRate.tv_sec + ((double)m_currentRate.tv_usec / 1000000);
 			rate *= (1.0 - ((double)SOUTH_THROTTLE_PERCENT / 100.0));
+			if (rate > MAX_SLEEP * 1000000)
+			{
+				double x = rate / (MAX_SLEEP * 1000000);
+				m_repeatCnt = ceil(x);
+				rate /= m_repeatCnt;
+			}
+			else
+			{
+				m_repeatCnt = 1;
+			}
 			m_currentRate.tv_sec = (long)rate;
 			m_currentRate.tv_usec = (rate - m_currentRate.tv_sec) * 1000000;
 			if (m_currentRate.tv_sec <= m_desiredRate.tv_sec

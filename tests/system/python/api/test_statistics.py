@@ -83,22 +83,25 @@ class TestStatistics:
         assert {} == jdoc['statistics'][0]
 
     def test_statistics_history_with_stats_collector_schedule(self, fledge_url, wait_time, retries):
-        # wait for sometime for stats collector schedule to start
-        time.sleep(wait_time * retries)
-
         conn = http.client.HTTPConnection(fledge_url)
-        conn.request("GET", '/fledge/statistics/history')
-        r = conn.getresponse()
-        assert 200 == r.status
-        r = r.read().decode()
-        jdoc = json.loads(r)
-        assert len(jdoc), "No data found"
-        assert 15 == jdoc['interval']
-        assert 1 == len(jdoc['statistics'])
-        statistics = jdoc['statistics'][0]
-        assert Counter(STATS_HISTORY_KEYS) == Counter(statistics.keys())
-        del statistics['history_ts']
-        assert Counter([0, 0, 0, 0, 0, 0]) == Counter(statistics.values())
+        for i in range (0,retries):
+            # wait for sometime for stats collector schedule to start
+            time.sleep(wait_time)
+
+            conn.request("GET", '/fledge/statistics/history')
+            r = conn.getresponse()
+            assert 200 == r.status
+            r = r.read().decode()
+            jdoc = json.loads(r)
+            assert len(jdoc), "No data found"
+            assert 15 == jdoc['interval']
+            assert 1 == len(jdoc['statistics'])
+            statistics = jdoc['statistics'][0]
+            if i <= retries and Counter(STATS_HISTORY_KEYS) != Counter(statistics.keys()): continue
+            assert Counter(STATS_HISTORY_KEYS) == Counter(statistics.keys())
+            del statistics['history_ts']
+            assert Counter([0, 0, 0, 0, 0, 0]) == Counter(statistics.values())
+            break
 
     @pytest.mark.parametrize("request_params, keys", [
         ('', STATS_HISTORY_KEYS),
@@ -183,3 +186,4 @@ class TestStatistics:
         asset = [a[ASSET_NAME.upper()] for a in jdoc['statistics']]
         assert 1 in asset
         assert 1 == asset.count(1)
+

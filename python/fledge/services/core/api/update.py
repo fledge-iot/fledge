@@ -6,8 +6,11 @@
 
 """ Fledge package updater API support"""
 
+
+import json
 from aiohttp import web
 import datetime
+import os
 
 from fledge.services.core import server
 from fledge.common import logger
@@ -23,7 +26,7 @@ __version__ = "${VERSION}"
 
 _help = """
     -----------------------------------------
-    | PUT             | /fledge/update     |
+    | PUT             | /fledge/update      |
     -----------------------------------------
 """
 
@@ -45,52 +48,62 @@ async def update_package(request):
     """
 
     create_message = "{} : a new schedule has been created".format(_FLEDGE_MANUAL_UPDATE_SCHEDULE)
-
     status_message = "{}  has been queued for execution".format(_FLEDGE_MANUAL_UPDATE_SCHEDULE)
-
     error_message = "Failed to create the schedule {}".format(_FLEDGE_MANUAL_UPDATE_SCHEDULE)
+    schedule_disable_error_message = "{} schedule is disabled".format(_FLEDGE_MANUAL_UPDATE_SCHEDULE)
 
-    task_found = False
+    try:
+        task_found = False
+        # Get all the 'Scheduled Tasks'
+        schedule_list = await server.Server.scheduler.get_schedules()
 
-    # Get all the 'Scheduled Tasks'
-    schedule_list = await server.Server.scheduler.get_schedules()
+        # Find the manual updater schedule
+        for schedule_info in schedule_list:
+            if schedule_info.name == _FLEDGE_MANUAL_UPDATE_SCHEDULE:
+                task_found = True
+                # Set the schedule id
+                schedule_id = schedule_info.schedule_id
+                if schedule_info.enabled is False:
+                    _logger.warning(schedule_disable_error_message)
+                    raise ValueError(schedule_disable_error_message)
+                break
 
-    # Find the manual updater schedule
-    for schedule_info in schedule_list:
-        if schedule_info.name == _FLEDGE_MANUAL_UPDATE_SCHEDULE:
-            task_found = True
+        # If no schedule then create it
+        if task_found is False:
+            # Create a manual schedule for update
+            manual_schedule = ManualSchedule()
+
+            if not manual_schedule:
+                _logger.error(error_message)
+                raise ValueError(error_message)
+            # Set schedule fields
+            manual_schedule.name = _FLEDGE_MANUAL_UPDATE_SCHEDULE
+            manual_schedule.process_name = _FLEDGE_UPDATE_TASK
+            manual_schedule.repeat = datetime.timedelta(seconds=0)
+            manual_schedule.enabled = True
+            manual_schedule.exclusive = True
+
+            await server.Server.scheduler.save_schedule(manual_schedule)
 
             # Set the schedule id
-            schedule_id = schedule_info.schedule_id
-            break
+            schedule_id = manual_schedule.schedule_id
 
-    # If no schedule then create it
-    if task_found is False:
-        # Create a manual schedule for update
-        manual_schedule = ManualSchedule()
+            # Log new schedule creation
+            _logger.info("%s, ID [ %s ]", create_message, str(schedule_id))
 
-        if not manual_schedule:
-            # Return error
-            _logger.error(error_message)
-            return web.json_response({"status": "Failed", "message": error_message})
+        # Save current logged user token
+        token = request.headers.get('authorization', None)
+        if token is not None:
+            with open(os.path.expanduser('~') + '/.fledge_token', 'w') as f:
+                f.write(token)
 
-        # Set schedule fields
-        manual_schedule.name = _FLEDGE_MANUAL_UPDATE_SCHEDULE
-        manual_schedule.process_name = _FLEDGE_UPDATE_TASK
-        manual_schedule.repeat = datetime.timedelta(seconds=0)
-        manual_schedule.enabled = True
-        manual_schedule.exclusive = True
-
-        await server.Server.scheduler.save_schedule(manual_schedule)
-
-        # Set the schedule id
-        schedule_id = manual_schedule.schedule_id
-
-        # Log new schedule creation
-        _logger.info("%s, ID [ %s ]", create_message, str(schedule_id))
-
-    # Add schedule_id to the schedule queue
-    await server.Server.scheduler.queue_task(schedule_id)
-
-    # Return success
-    return web.json_response({"status": "Running", "message": status_message})
+        # Add schedule_id to the schedule queue
+        await server.Server.scheduler.queue_task(schedule_id)
+    except ValueError as err:
+        msg = str(err)
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+    except Exception as ex:
+        msg = str(ex)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+    else:
+        return web.json_response({"status": "Running", "message": status_message})

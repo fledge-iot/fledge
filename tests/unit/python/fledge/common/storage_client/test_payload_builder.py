@@ -95,35 +95,49 @@ class TestPayloadBuilderRead:
         assert expected == json.loads(res)
 
     @pytest.mark.parametrize("test_input, expected", [
-        (["name", "=", "test"], _payload("data/payload_conditions1.json"))
+        (["name", "=", "test"], _payload("data/payload_conditions1.json")),
+        (["deprecated_ts", "isnull"], _payload("data/payload_where_condition_isnull.json")),
+        (["deprecated_ts", "notnull"], _payload("data/payload_where_condition_notnull.json"))
     ])
     def test_where_payload(self, test_input, expected):
         res = PayloadBuilder().WHERE(test_input).payload()
         assert expected == json.loads(res)
 
     @pytest.mark.parametrize("test_input_1, test_input_2, expected", [
-        (["name", "=", "test"], ["id", ">", 3], _payload("data/payload_and_where1.json"))
+        (["name", "=", "test"], ["id", ">", 3], _payload("data/payload_and_where1.json")),
+        (["event", "=", "Ingest"], ["deprecated_ts", "isnull"], _payload("data/payload_and_where_isnull.json")),
+        (["plugin", "=", "sinusoid"], ["deprecated_ts", "notnull"], _payload("data/payload_and_where_notnull.json"))
     ])
     def test_and_where_payload(self, test_input_1, test_input_2, expected):
         res = PayloadBuilder().WHERE(test_input_1).AND_WHERE(test_input_2).payload()
         assert expected == json.loads(res)
 
     @pytest.mark.parametrize("test_input_1, test_input_2, test_input_3, expected", [
-        (["name", "=", "test"], ["id", ">", 3], ["value", "!=", 0], _payload("data/payload_and_where2.json"))
+        (["name", "=", "test"], ["id", ">", 3], ["value", "!=", 0], _payload("data/payload_and_where2.json")),
+        (["plugin", "=", "sinusoid"], ["deprecated_ts", "notnull"], ["event", "=", "Ingest"],
+         _payload("data/payload_multiple_and_where_with_notnull.json")),
+        (["asset", "=", "sinusoid"], ["deprecated_ts", "isnull"], ["event", "=", "Ingest"],
+         _payload("data/payload_multiple_and_where_with_isnull.json"))
     ])
     def test_multiple_and_where_payload(self, test_input_1, test_input_2, test_input_3, expected):
         res = PayloadBuilder().WHERE(test_input_1).AND_WHERE(test_input_2).AND_WHERE(test_input_3).payload()
         assert expected == json.loads(res)
 
     @pytest.mark.parametrize("test_input_1, test_input_2, expected", [
-        (["name", "=", "test"], ["id", ">", 3], _payload("data/payload_or_where1.json"))
+        (["name", "=", "test"], ["id", ">", 3], _payload("data/payload_or_where1.json")),
+        (["event", "=", "Filter"], ["deprecated_ts", "isnull"], _payload("data/payload_or_where_isnull.json")),
+        (["event", "=", "Egress"], ["deprecated_ts", "notnull"], _payload("data/payload_or_where_notnull.json"))
     ])
     def test_or_where_payload(self, test_input_1, test_input_2, expected):
         res = PayloadBuilder().WHERE(test_input_1).OR_WHERE(test_input_2).payload()
         assert expected == json.loads(res)
 
     @pytest.mark.parametrize("test_input_1, test_input_2, test_input_3, expected", [
-        (["name", "=", "test"], ["id", ">", 3], ["value", "!=", 0], _payload("data/payload_or_where2.json"))
+        (["name", "=", "test"], ["id", ">", 3], ["value", "!=", 0], _payload("data/payload_or_where2.json")),
+        (["plugin", "=", "http_north"], ["deprecated_ts", "isnull"], ["event", "=", "Egress"],
+         _payload("data/payload_multiple_or_where_with_isnull.json")),
+        (["service", "=", "HT #1"], ["deprecated_ts", "notnull"], ["event", "=", "Egress"],
+         _payload("data/payload_multiple_or_where_with_notnull.json"))
     ])
     def test_multiple_or_where_payload(self, test_input_1, test_input_2, test_input_3, expected):
         res = PayloadBuilder().WHERE(test_input_1).OR_WHERE(test_input_2).OR_WHERE(test_input_3).payload()
@@ -385,6 +399,80 @@ class TestPayloadBuilderRead:
     def test_aggregate_with_where(self):
         res = PayloadBuilder().WHERE(["ts", "newer", 60]).AGGREGATE(["count", "*"]).payload()
         assert _payload("data/payload_aggregate_where.json") == json.loads(res)
+
+    def test_join_without_query(self):
+        res = PayloadBuilder().JOIN("table1", "table1_id").ON("table2_id").payload()
+        assert _payload("data/payload_join_without_query.json") == json.loads(res)
+
+    def test_join_with_only_table_name_and_without_query(self):
+        res = PayloadBuilder().JOIN("table1").ON("table2_id").payload()
+        assert _payload("data/payload_join_without_query_only_table_name.json") == json.loads(res)
+
+    def test_join_with_query(self):
+        qp = PayloadBuilder().SELECT(("parent_id", "name", "value")). \
+            ALIAS('return', ('name', 'attribute_name'), ('value', 'attribute_value')). \
+            WHERE(["name", "=", "MyName"]). \
+            chain_payload()
+        res = PayloadBuilder().JOIN("attributes", "parent_id").ON("id").QUERY(qp).payload()
+        assert _payload("data/payload_join_with_query.json") == json.loads(res)
+
+    def test_join_with_query_and_only_table_name(self):
+        qp = PayloadBuilder().SELECT(("parent_id", "name", "value")). \
+            ALIAS('return', ('name', 'attribute_name'), ('value', 'attribute_value')). \
+            WHERE(["name", "=", "MyName"]). \
+            chain_payload()
+        res = PayloadBuilder().JOIN("attributes").ON("id").QUERY(qp).payload()
+        assert _payload("data/payload_join_with_query_only_table_name.json") == json.loads(res)
+
+    def test_nested_join(self):
+        qp1 = PayloadBuilder().SELECT(("parent_id", "value")). \
+            ALIAS('return', ('value', 'colour')). \
+            WHERE(["name", "=", "colour"]). \
+            chain_payload()
+        join1 = PayloadBuilder().JOIN("attributes", "parent_id").ON("id").QUERY(qp1).chain_payload()
+
+        qp2 = PayloadBuilder().SELECT(("parent_id", "value")). \
+            ALIAS('return', ('value', 'my_name')). \
+            WHERE(["name", "=", "MyName"]). \
+            chain_payload()
+
+        join2 = PayloadBuilder().JOIN("attributes", "parent_id").ON("id").QUERY(qp2)
+        join2.QUERY(join1)
+
+        res = join2.payload()
+        assert _payload("data/payload_nested_join.json") == json.loads(res)
+
+    def test_invalid_join_clause(self):
+        with pytest.raises(Exception) as exc_info:
+            PayloadBuilder().JOIN()
+        assert exc_info.value.args[0] == "Expected at least table name with JOIN clause."
+
+    def test_invalid_on_without_join(self):
+        with pytest.raises(Exception) as exc_info:
+            PayloadBuilder().ON("id")
+        assert exc_info.value.args[0] == "ON Clause used without using JOIN first."
+
+    def test_invalid_on_clause(self):
+        with pytest.raises(Exception) as exc_info:
+            PayloadBuilder().JOIN("table1").ON()
+        assert exc_info.value.args[0] == "Expected column name with ON clause."
+
+    def test_invalid_query_clause_without_join(self):
+        with pytest.raises(Exception) as exc_info:
+            PayloadBuilder().QUERY({'a': 1})
+        assert exc_info.value.args[0] == "Query used without JOIN clause."
+
+    def test_invalid_query_clause_without_on(self):
+
+        with pytest.raises(Exception) as exc_info:
+            PayloadBuilder().JOIN("table1").QUERY({'a': 1})
+        assert exc_info.value.args[0] == "Query used without ON clause."
+
+    def test_invalid_query_clause_invalid_query_payload(self):
+
+        with pytest.raises(Exception) as exc_info:
+            PayloadBuilder().JOIN("table1", "column1").ON("id").QUERY("random")
+        assert exc_info.value.args[0] == "The query payload parameter must be an OrderedDict."
 
 
 @pytest.allure.feature("unit")

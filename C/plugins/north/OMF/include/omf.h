@@ -1,9 +1,9 @@
 #ifndef _OMF_H
 #define _OMF_H
 /*
- * Fledge OSI Soft OMF interface to PI Server.
+ * Fledge OSIsoft OMF interface to PI Server.
  *
- * Copyright (c) 2018 Dianomic Systems
+ * Copyright (c) 2018-2022 Dianomic Systems
  *
  * Released under the Apache 2.0 Licence
  *
@@ -33,6 +33,7 @@ enum OMF_ENDPOINT {
 	ENDPOINT_EDS
 };
 
+// Documentation about the Naming Scheme available at: https://fledge-iot.readthedocs.io/en/latest/OMF.html#naming-scheme
 enum NAMINGSCHEME_ENDPOINT {
 	NAMINGSCHEME_CONCISE,
 	NAMINGSCHEME_SUFFIX,
@@ -47,14 +48,20 @@ using namespace rapidjson;
 std::string ApplyPIServerNamingRules(const std::string &objName, bool *changed);
 
 /**
- * Per asset dataTypes
+ * Per asset dataTypes - This class is used in a std::map where assetName is a key
  *
- * typeId is a prefix for OMF data Type messages
- * types is a JSON string with datapoint names and types
- * This class is used in a std::map where assetName is a key
+ * - typeId          = id of the type, it is incremented if the type is redefined
+ * - types           = is a JSON string with datapoint names and types
+ * - typesShort      = a numeric representation of the type used to quicly identify if a type has changed
+ * - namingScheme    = Naming schema of the asset, valid options are Concise, Backward compatibility ..
+ * - afhHash         = Asset hash based on the AF hierarchy
+ * - afHierarchy     = Current position of the asset in the AF hierarchy
+ * - afHierarchyOrig = Original position of the asset in the AF hierarchy, in case the asset was moved
+ * - hintChkSum      = Checksum of the OMF hints
+
  */
 class OMFDataTypes
-{
+{ 
         public:
                 long           typeId;
                 std::string    types;
@@ -71,6 +78,7 @@ class OMFHints;
 
 /**
  * The OMF class.
+ * Implements the OMF protocol
  */
 class OMF
 {
@@ -143,8 +151,8 @@ class OMF
 		string getPathStored(const string& assetName);
 		string getPathOrigStored(const string& assetName);
 		bool setPathStored(const string& assetName, string &afHierarchy);
-		void deleteAssetAFH(const string& assetName, string& path);
-		void createAssetAFH(const string& assetName, string& path);
+		bool deleteAssetAFH(const string& assetName, string& path);
+		bool createAssetAFH(const string& assetName, string& path);
 
 		// Set the first level of hierarchy in Asset Framework in which the assets will be created, PI Web API only.
 		void setDefaultAFLocation(const std::string &DefaultAFLocation);
@@ -191,6 +199,9 @@ class OMF
 
 		bool getAFMapEmptyNames() const { return m_AFMapEmptyNames; };
 		bool getAFMapEmptyMetadata() const { return m_AFMapEmptyMetadata; };
+
+		bool getConnected() const { return m_connected; };
+		void setConnected(const bool connectionStatus) { m_connected = connectionStatus; };
 
 		static std::string ApplyPIServerNamingRulesObj(const std::string &objName, bool *changed);
 		static std::string ApplyPIServerNamingRulesPath(const std::string &objName, bool *changed);
@@ -250,19 +261,18 @@ private:
 		// Set saved dataType
 		unsigned long calcTypeShort(const Reading& row);
 
-
-	// Clear data types cache
+		// Clear data types cache
 		void clearCreatedTypes();
 
 		// Increment type-id value
 		void incrementTypeId();
 
-                // Handle data type errors
+		// Handle data type errors
 		bool handleTypeErrors(const string& keyComplete, const Reading& reading, OMFHints*hints);
 
 		string errorMessageHandler(const string &msg);
 
-		// Extract assetName from erro message
+		// Extract assetName from error message
 		std::string getAssetNameFromError(const char* message);
 
 		// Get asset type-id from cached data
@@ -284,7 +294,7 @@ private:
 		// Add the 1st level of AF hierarchy if the end point is PI Web API
 		void setAFHierarchy();
 
-		bool handleAFHirerarchy();
+		bool handleAFHierarchy();
 		bool handleAFHierarchySystemWide();
 		bool handleOmfHintHierarchies();
 
@@ -301,7 +311,7 @@ private:
 
 
 		std::string generateUniquePrefixId(const std::string &path);
-		void evaluateAFHierarchyRules(const string& assetName, const Reading& reading);
+		bool evaluateAFHierarchyRules(const string& assetName, const Reading& reading);
 		void retrieveAFHierarchyPrefixAssetName(const string& assetName, string& prefix, string& AFHierarchyLevel);
 		void retrieveAFHierarchyFullPrefixAssetName(const string& assetName, string& prefix, string& AFHierarchy);
 
@@ -311,6 +321,7 @@ private:
 		bool HandleAFMapMetedata(Document& JSon);
 
 	private:
+		// Use for the evaluation of the OMFDataTypes.typesShort
 		union t_typeCount {
 			struct
 			{
@@ -334,21 +345,22 @@ private:
 		OMF_ENDPOINT		  m_PIServerEndpoint;
 		NAMINGSCHEME_ENDPOINT m_NamingScheme;
 		std::string		      m_DefaultAFLocation;
+		bool                  m_sendFullStructure; // If disabled the AF hierarchy is not created.
 
-		bool            m_sendFullStructure;
-		// AF hierarchies handling - Metadata MAP
+		// Asset Framework Hierarchy Rules handling - Metadata MAP
+		// Documentation: https://fledge-iot.readthedocs.io/en/latest/plugins/fledge-north-OMF/index.html?highlight=hierarchy#asset-framework-hierarchy-rules
 		std::string		m_AFMap;
-		bool            m_AFMapEmptyNames;  // true if there are norules to manage
+		bool            m_AFMapEmptyNames;  // true if there are no rules to manage
 		bool            m_AFMapEmptyMetadata;
 		std::string		m_AFHierarchyLevel;
 		std::string		m_prefixAFAsset;
+		bool            m_connected;  // true if calls to PI Web API are working 
 
-		vector<std::string>  m_afhHierarchyAlredyCreated={
+		vector<std::string>  m_afhHierarchyAlreadyCreated={
 
 			//  Asset Framework path
 			// {""}
 		};
-
 
 		map<std::string, std::string>  m_NamesRules={
 
@@ -411,8 +423,7 @@ private:
 		std::vector<std::string> m_notBlockingErrors;
 
 		// Data types cache[key] = (key_type_id, key data types)
-		std::map<std::string, OMFDataTypes>*
-					m_OMFDataTypes;
+		std::map<std::string, OMFDataTypes>* m_OMFDataTypes;
 
 		// Stores the type for the block of data containing all the used properties
 		std::map<string, Reading*> m_SuperSetDataPoints;
@@ -420,8 +431,7 @@ private:
 		/**
 		 * Static data to send to OMF
 		 */
-		std::vector<std::pair<std::string, std::string>>
-			*m_staticData;
+		std::vector<std::pair<std::string, std::string>> *m_staticData;
 
 
 

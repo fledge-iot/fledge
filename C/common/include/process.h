@@ -31,6 +31,7 @@ class FledgeProcess
 
 	protected:
 		std::string getArgValue(const std::string& name) const;
+		bool			m_dryRun;
 
 	private:
 		const time_t		m_stime;    // Start time

@@ -419,7 +419,6 @@ void Reading::stringToTimestamp(const string& timestamp, struct timeval *ts)
 		sscanf(ptr, "%02d:%02d", &h, &m);
 		ts->tv_sec += sign * ((3600 * h) + (60 * m));
 	}
-
 }
 
 /**

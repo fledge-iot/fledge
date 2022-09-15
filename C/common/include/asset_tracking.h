@@ -32,20 +32,40 @@ public:
 	std::string assetToString()
 	{
 		std::ostringstream o;
-		o << "service:" << m_serviceName << ", plugin:" << m_pluginName << ", asset:" << m_assetName << ", event:" << m_eventName;
+		o << "service:" << m_serviceName <<
+			", plugin:" << m_pluginName <<
+			", asset:" << m_assetName <<
+			", event:" << m_eventName <<
+			", deprecated:" << m_deprecated;
 		return o.str();
 	}
 
 	inline bool operator==(const AssetTrackingTuple& x) const
 	{
-		return ( x.m_serviceName==m_serviceName && x.m_pluginName==m_pluginName && x.m_assetName==m_assetName && x.m_eventName==m_eventName);
+		return ( x.m_serviceName==m_serviceName &&
+			x.m_pluginName==m_pluginName &&
+			x.m_assetName==m_assetName &&
+			x.m_eventName==m_eventName);
 	}
 
-	AssetTrackingTuple(const std::string& service, const std::string& plugin, 
-								 const std::string& asset, const std::string& event) :
-									m_serviceName(service), m_pluginName(plugin), 
-									m_assetName(asset), m_eventName(event)
+	AssetTrackingTuple(const std::string& service,
+			const std::string& plugin, 
+			const std::string& asset,
+			const std::string& event,
+			const bool& deprecated = false) :
+			m_serviceName(service),
+			m_pluginName(plugin), 
+			m_assetName(asset),
+			m_eventName(event),
+			m_deprecated(deprecated)
 	{}
+
+	std::string&	getAssetName() { return m_assetName; };
+	bool		isDeprecated() { return m_deprecated; };
+	void		unDeprecate() { m_deprecated = false; };
+
+private:
+	bool			m_deprecated;
 };
 
 struct AssetTrackingTuplePtrEqual {
@@ -90,8 +110,24 @@ public:
 	static AssetTracker *getAssetTracker();
 	void	populateAssetTrackingCache(std::string plugin, std::string event);
 	bool	checkAssetTrackingCache(AssetTrackingTuple& tuple);
+	AssetTrackingTuple*
+		findAssetTrackingCache(AssetTrackingTuple& tuple);
 	void	addAssetTrackingTuple(AssetTrackingTuple& tuple);
 	void	addAssetTrackingTuple(std::string plugin, std::string asset, std::string event);
+	std::string
+		getIngestService(const std::string& asset)
+		{
+			return getService("Ingest", asset);
+		};
+	std::string
+		getEgressService(const std::string& asset)
+		{
+			return getService("Egress", asset);
+		};
+
+private:
+	std::string
+		getService(const std::string& event, const std::string& asset);
 
 private:
 	static AssetTracker	*instance;

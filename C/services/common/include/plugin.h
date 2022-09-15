@@ -24,6 +24,7 @@ class Plugin {
     ~Plugin();
 
     const PLUGIN_INFORMATION *getInfo();
+    PLUGIN_HANDLE getHandle() { return handle; }
 
   protected:
     PLUGIN_HANDLE handle;

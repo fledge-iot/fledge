@@ -26,16 +26,42 @@
 #include <time.h>
 #include <algorithm>
 #include <math.h>
+#include <sys/time.h>
+
+#include <iostream>
+#include <chrono>
+#include <thread>
 
 using namespace std;
 using namespace rapidjson;
 
 static time_t connectErrorTime = 0;
 #define CONNECT_ERROR_THRESHOLD		5*60	// 5 minutes
+#define MSG_LEN 5000
+
+//
+// Used for the purge operation - start
+//
+#define PURGE_DELETE_BLOCK_SIZE	    10000
+#define MIN_PURGE_DELETE_BLOCK_SIZE	1000
+#define MAX_PURGE_DELETE_BLOCK_SIZE	10000
+
+#define TARGET_PURGE_BLOCK_DEL_TIME	(70*1000) 	// 70 msec
+#define PURGE_BLOCK_SZ_GRANULARITY	5 	// 5 rows
+#define RECALC_PURGE_BLOCK_SIZE_NUM_BLOCKS	30	// recalculate purge block size after every 30 blocks
+
+#define START_TIME std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
+#define END_TIME std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now(); \
+				 auto usecs = std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count();
+//
+// Used for the purge operation - end
+
 
 #define LEN_BUFFER_DATE 100
 // Format timestamp having microseconds
 #define F_DATEH24_US    	"YYYY-MM-DD HH24:MI:SS.US"
+
+static int purgeBlockSize = PURGE_DELETE_BLOCK_SIZE;
 
 const vector<string>  pg_column_reserved_words = {
 	"user"
@@ -348,7 +374,7 @@ SQLBuffer	jsonConstraints;	// Extra constraints to add to where clause
 	try {
 		if (condition.empty())
 		{
-			sql.append("SELECT * FROM fledge.");
+			sql.append("SELECT * FROM ");
 			sql.append(table);
 		}
 		else
@@ -370,7 +396,7 @@ SQLBuffer	jsonConstraints;	// Extra constraints to add to where clause
 				{
 					return false;
 				}
-				sql.append(" FROM fledge.");
+				sql.append(" FROM ");
 			}
 			else if (document.HasMember("return"))
 			{
@@ -464,7 +490,7 @@ SQLBuffer	jsonConstraints;	// Extra constraints to add to where clause
 					}
 					col++;
 				}
-				sql.append(" FROM fledge.");
+				sql.append(" FROM ");
 			}
 			else
 			{
@@ -474,7 +500,7 @@ SQLBuffer	jsonConstraints;	// Extra constraints to add to where clause
 					sql.append(document["modifier"].GetString());
 					sql.append(' ');
 				}
-				sql.append(" * FROM fledge.");
+				sql.append(" * FROM ");
 			}
 			sql.append(table);
 			if (document.HasMember("where"))
@@ -534,6 +560,7 @@ SQLBuffer	jsonConstraints;	// Extra constraints to add to where clause
 	} catch (exception e) {
 		raiseError("retrieve", "Internal error: %s", e.what());
 	}
+	return false;
 }
 
 /**
@@ -796,6 +823,7 @@ bool Connection::retrieveReadings(const string& condition, string& resultSet)
 	} catch (exception e) {
 		raiseError("retrieve", "Internal error: %s", e.what());
 	}
+	return false;
 }
 
 
@@ -852,7 +880,7 @@ std::size_t arr = data.find("inserts");
 		int col = 0;
 		SQLBuffer values;
 
-	 	sql.append("INSERT INTO fledge.");
+	 	sql.append("INSERT INTO ");
 		sql.append(table);
 		sql.append(" (");
 
@@ -972,7 +1000,7 @@ SQLBuffer	sql;
 					   "Each entry in the update array must be an object");
 				return -1;
 			}
-			sql.append("UPDATE fledge.");
+			sql.append("UPDATE ");
 			sql.append(table);
 			sql.append(" SET ");
 
@@ -1019,6 +1047,11 @@ SQLBuffer	sql;
 						sql.append('\'');
 						sql.append(escape(buffer.GetString()));
 						sql.append('\'');
+					}
+					// Handle JSON value null: "item" : null
+					else if (itr->value.IsNull())
+					{
+						sql.append("NULL");
 					}
 					col++;
 				}
@@ -1193,7 +1226,7 @@ SQLBuffer	sql;
 						else
 						{
 							sql.append("'\"");
-							sql.append(escape(str));
+							sql.append(escape_double_quotes(escape(str)));
 							sql.append("\"'");
 						}
 					}
@@ -1277,7 +1310,7 @@ int Connection::deleteRows(const string& table, const string& condition)
 Document document;  // Default template parameter uses UTF8 and MemoryPoolAllocator.
 SQLBuffer	sql;
  
-	sql.append("DELETE FROM fledge.");
+	sql.append("DELETE FROM ");
 	sql.append(table);
 	if (! condition.empty())
 	{
@@ -1571,15 +1604,65 @@ char	sqlbuffer[200];
 	return false;
 }
 
+
+
 /**
  * Purge readings from the reading table
  */
 unsigned int  Connection::purgeReadings(unsigned long age, unsigned int flags, unsigned long sent, std::string& result)
 {
-SQLBuffer sql;
-long unsentPurged = 0;
-long unsentRetained = 0;
-long numReadings = 0;
+	unsigned long rowidLimit = 0, minrowidLimit = 0, maxrowidLimit = 0, rowidMin;
+
+	string sqlCommand;
+	SQLBuffer sql;
+	long unsentPurged = 0;
+	long unsentRetained = 0;
+	long numReadings = 0;
+	bool flag_retain;
+	int blocks = 0;
+	struct timeval startTv{}, endTv{};
+
+	const char *logSection="ReadingsPurgeByAge";
+
+	Logger *logger = Logger::getLogger();
+
+	flag_retain = false;
+
+	if ( (flags & STORAGE_PURGE_RETAIN_ANY) || (flags & STORAGE_PURGE_RETAIN_ALL) )
+	{
+		flag_retain = true;
+	}
+	Logger::getLogger()->debug("%s - flags :%X: flag_retain :%d: sent :%lu:", __FUNCTION__, flags, flag_retain, sent);
+
+	// Prepare empty result
+	result = "{ \"removed\" : 0, ";
+	result += " \"unsentPurged\" : 0, ";
+	result += " \"unsentRetained\" : 0, ";
+	result += " \"readings\" : 0 }";
+
+	logger->info("Purge starting...");
+	gettimeofday(&startTv, NULL);
+
+	/*
+	 * We fetch the current rowid and limit the purge process to work on just
+	 * those rows present in the database when the purge process started.
+	 * This prevents us looping in the purge process if new readings become
+	 * eligible for purging at a rate that is faster than we can purge them.
+	 */
+	rowidLimit = purgeOperation("SELECT max(id) from fledge.readings;", logSection,
+						   "ReadingsPurgeByAge - phase 1, fetching maximum id",
+						   true);
+	if (rowidLimit == -1) {
+		return 0;
+	}
+	maxrowidLimit = rowidLimit;
+
+	minrowidLimit = purgeOperation("SELECT min(id) from fledge.readings;", logSection,
+						   "ReadingsPurgeByAge - phase 1, fetching minimum id", true);
+	if (minrowidLimit == -1) {
+		return 0;
+	}
+	//###   #########################################################################################:
 
 	if (age == 0)
 	{
@@ -1587,110 +1670,388 @@ long numReadings = 0;
 		 * An age of 0 means remove the oldest hours data.
 		 * So set age based on the data we have and continue.
 		 */
-		SQLBuffer oldest;
-		oldest.append("SELECT round(extract(epoch FROM (now() - min(user_ts)))/360) from fledge.readings;");
-		const char *query = oldest.coalesce();
-		logSQL("ReadingsPurge", query);
-		PGresult *res = PQexec(dbConnection, query);
-		delete[] query;
-		if (PQresultStatus(res) == PGRES_TUPLES_OK)
-		{
-			age = (unsigned long)atol(PQgetvalue(res, 0, 0));
-			PQclear(res);
-		}
-		else
-		{
- 			raiseError("purge", PQerrorMessage(dbConnection));
-			PQclear(res);
+
+		sqlCommand = "SELECT round(extract(epoch FROM (now() - min(user_ts)))/360) FROM fledge.readings WHERE id <=" + to_string (rowidLimit) + ";";
+		age = purgeOperation(sqlCommand.c_str() , logSection,
+					   "ReadingsPurgeByAge - phase 1, calculating age", true);
+		if (age == -1) {
 			return 0;
 		}
 	}
-	if ((flags & 0x01) == 0)
+
+	Logger::getLogger()->debug("%s - rowidLimit :%lu: maxrowidLimit :%lu: maxrowidLimit :%lu: age :%lu:", __FUNCTION__, rowidLimit, maxrowidLimit, minrowidLimit, age);
+
 	{
-		// Get number of unsent rows we are about to remove
-		SQLBuffer unsentBuffer;
-		unsentBuffer.append("SELECT count(*) FROM fledge.readings WHERE  user_ts < now() - INTERVAL '");
-		unsentBuffer.append(age);
-		unsentBuffer.append(" hours' AND id > ");
-		unsentBuffer.append(sent);
-		unsentBuffer.append(';');
-		const char *query = unsentBuffer.coalesce();
-		logSQL("ReadingsPurge", query);
-		PGresult *res = PQexec(dbConnection, query);
-		delete[] query;
-		if (PQresultStatus(res) == PGRES_TUPLES_OK)
-		{
-			unsentPurged = atol(PQgetvalue(res, 0, 0));
-			PQclear(res);
+		/*
+		 * Refine rowid limit to just those rows older than age hours.
+		 */
+		unsigned long l = minrowidLimit;
+		unsigned long r;
+		if (flag_retain) {
+
+			r = min(sent, rowidLimit);
+		} else {
+			r = rowidLimit;
 		}
-		else
+
+		r = max(r, l);
+		logger->debug   ("%s - l=%u, r=%u, sent=%u, rowidLimit=%u, minrowidLimit=%u, flags=%u", __FUNCTION__, l, r, sent, rowidLimit, minrowidLimit, flags);
+
+		if (l == r)
 		{
- 			raiseError("retrieve", PQerrorMessage(dbConnection));
-			PQclear(res);
+			logger->info("V2 No data to purge: min_id == max_id == %u", minrowidLimit);
+			return 0;
 		}
+
+		unsigned long m=l;
+
+		while (l <= r)
+		{
+			unsigned long midRowId = 0;
+			unsigned long prev_m = m;
+			m = l + (r - l) / 2;
+			if (prev_m == m) break;
+
+			// e.g. select id from readings where rowid = 219867307 AND user_ts < datetime('now' , '-24 hours', 'utc');
+			sqlCommand = "SELECT id FROM fledge.readings WHERE id = " + to_string (m) + " AND user_ts < (now() - INTERVAL '" + to_string (age) + " hours');";
+			midRowId = purgeOperation(sqlCommand.c_str() , logSection, "ReadingsPurgeByAge - phase 2, fetching midRowId", true);
+			if (midRowId == -1) {
+				return 0;
+			}
+
+			if (midRowId == 0) // mid row doesn't satisfy given condition for user_ts, so discard right/later half and look in left/earlier half
+			{
+				// search in earlier/left half
+				r = m - 1;
+
+				// The m position should be skipped as midRowId is 0
+				m = r;
+			}
+			else //if (l != m)
+			{
+				// search in later/right half
+				l = m + 1;
+			}
+		}
+
+
+		rowidLimit = m;
+
+		Logger::getLogger()->debug("%s - s1 rowidLimit :%lu: minrowidLimit :%lu: maxrowidLimit :%lu:", __FUNCTION__, rowidLimit, minrowidLimit, maxrowidLimit);
+
+		sqlCommand = "SELECT max(id) FROM fledge.readings WHERE id <= " + to_string (rowidLimit) + " AND user_ts < (now() - INTERVAL '" + to_string (age) + " hours');";
+		rowidLimit = purgeOperation(sqlCommand.c_str() , logSection, "ReadingsPurgeByAge - phase 2, checking rowidLimit", true);
+
+		if (rowidLimit == -1) {
+			return 0;
+		}
+
+		Logger::getLogger()->debug("%s - s2 rowidLimit :%lu: minrowidLimit :%lu: maxrowidLimit :%lu:", __FUNCTION__, rowidLimit, minrowidLimit, maxrowidLimit);
+
+		if (minrowidLimit == rowidLimit)
+		{
+			logger->info("No data to purge");
+			return 0;
+		}
+
+		rowidMin = minrowidLimit;
+		Logger::getLogger()->debug("%s - m :%lu: rowidMin :%lu: ",__FUNCTION__ ,m,  rowidMin);
 	}
+
 	
-	sql.append("DELETE FROM fledge.readings WHERE user_ts < now() - INTERVAL '");
-	sql.append(age);
-	sql.append(" hours'");
-	if ((flags & 0x01) == 0x01)	// Don't delete unsent rows
+	if ( ! flag_retain )
 	{
-		sql.append(" AND id < ");
-		sql.append(sent);
+		unsigned long lastPurgedId;
+
+		sqlCommand = "SELECT id FROM fledge.readings WHERE id = " + to_string (rowidLimit) + ";";
+		lastPurgedId = purgeOperation(sqlCommand.c_str() , logSection, "ReadingsPurgeByAge - phase 2, fetching unsentPurged", true);
+		if (lastPurgedId == -1) {
+			return 0;
+		}
+
+		if (sent != 0 && lastPurgedId > sent)	// Unsent readings will be purged
+		{
+			// Get number of unsent rows we are about to remove
+			unsentPurged = rowidLimit - sent;
+		}
+		Logger::getLogger()->debug("%s - lastPurgedId :%d: unsentPurged :%ld:" ,__FUNCTION__, lastPurgedId, unsentPurged);
 	}
-	sql.append(';');
-	const char *query = sql.coalesce();
-	logSQL("ReadingsPurge", query);
-	PGresult *res = PQexec(dbConnection, query);
-	delete[] query;
-	if (PQresultStatus(res) != PGRES_COMMAND_OK)
+
+	unsigned int deletedRows = 0;
+	unsigned int rowsAffected, totTime=0, prevBlocks=0, prevTotTime=0;
+
+	logger->info("Purge about to delete readings # %ld to %ld", rowidMin, rowidLimit);
+	while (rowidMin < rowidLimit)
 	{
-		PQclear(res);
- 		raiseError("retrieve", PQerrorMessage(dbConnection));
+		blocks++;
+		rowidMin += purgeBlockSize;
+		if (rowidMin > rowidLimit)
+		{
+			rowidMin = rowidLimit;
+		}
+
+		{
+			sqlCommand = "DELETE FROM fledge.readings WHERE id <=" + to_string(rowidMin) + ";" ;
+
+			START_TIME;
+			rowsAffected = purgeOperation(sqlCommand.c_str() , logSection, "ReadingsPurgeByAge - phase 3, deleting readings", false);
+			END_TIME;
+
+			logger->debug("%s - DELETE sql :%s: rowsAffected :%ld:",  __FUNCTION__, sqlCommand.c_str() ,rowsAffected);
+
+			if (rowsAffected == -1) {
+				return 0;
+			}
+			totTime += usecs;
+
+			if(usecs>150000)
+			{
+				std::this_thread::sleep_for(std::chrono::milliseconds(100+usecs/10000));
+			}
+		}
+
+		deletedRows += rowsAffected;
+		logger->debug("Purge delete block #%d with %d readings", blocks, rowsAffected);
+
+		if(blocks % RECALC_PURGE_BLOCK_SIZE_NUM_BLOCKS == 0)
+		{
+			int prevAvg = prevTotTime/(prevBlocks?prevBlocks:1);
+			int currAvg = (totTime-prevTotTime)/(blocks-prevBlocks);
+			int avg = ((prevAvg?prevAvg:currAvg)*5 + currAvg*5) / 10; // 50% weightage for long term avg and 50% weightage for current avg
+			prevBlocks = blocks;
+			prevTotTime = totTime;
+			int deviation = abs(avg - TARGET_PURGE_BLOCK_DEL_TIME);
+			logger->debug("blocks=%d, totTime=%d usecs, prevAvg=%d usecs, currAvg=%d usecs, avg=%d usecs, TARGET_PURGE_BLOCK_DEL_TIME=%d usecs, deviation=%d usecs",
+						  blocks, totTime, prevAvg, currAvg, avg, TARGET_PURGE_BLOCK_DEL_TIME, deviation);
+			if (deviation > TARGET_PURGE_BLOCK_DEL_TIME/10)
+			{
+				float ratio = (float)TARGET_PURGE_BLOCK_DEL_TIME / (float)avg;
+				if (ratio > 2.0) ratio = 2.0;
+				if (ratio < 0.5) ratio = 0.5;
+				purgeBlockSize = (float)purgeBlockSize * ratio;
+				purgeBlockSize = purgeBlockSize / PURGE_BLOCK_SZ_GRANULARITY * PURGE_BLOCK_SZ_GRANULARITY;
+				if (purgeBlockSize < MIN_PURGE_DELETE_BLOCK_SIZE)
+					purgeBlockSize = MIN_PURGE_DELETE_BLOCK_SIZE;
+				if (purgeBlockSize > MAX_PURGE_DELETE_BLOCK_SIZE)
+					purgeBlockSize = MAX_PURGE_DELETE_BLOCK_SIZE;
+				logger->debug("Changed purgeBlockSize to %d", purgeBlockSize);
+			}
+			std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		}
+		//Logger::getLogger()->debug("Purge delete block #%d with %d readings", blocks, rowsAffected);
+	} while (rowidMin  < rowidLimit);
+
+	logger->debug   ("%s - sent=%u, minrowidLimit=%u, maxrowidLimit=%u, rowidLimit=%u deletedRows=%u", __FUNCTION__, sent, minrowidLimit, maxrowidLimit, rowidLimit, deletedRows);
+
+	unsentRetained = maxrowidLimit - rowidLimit;
+
+	numReadings = maxrowidLimit +1 - minrowidLimit - deletedRows;
+
+	if (sent == 0)	// Special case when not north process is used
+	{
+		unsentPurged = deletedRows;
+	}
+
+	ostringstream convert;
+
+	convert << "{ \"removed\" : "       << deletedRows    << ", ";
+	convert << " \"unsentPurged\" : "   << unsentPurged   << ", ";
+	convert << " \"unsentRetained\" : " << unsentRetained << ", ";
+	convert << " \"readings\" : "       << numReadings    << " }";
+
+	result = convert.str();
+
+	{ // Timing
+		unsigned long duration;
+		gettimeofday(&endTv, NULL);
+		duration = (1000000 * (endTv.tv_sec - startTv.tv_sec)) + endTv.tv_usec - startTv.tv_usec;
+		duration = duration / 1000; // milliseconds
+		logger->info("Purge process complete in %d blocks in %ld milliseconds", blocks, duration);
+	}
+
+	Logger::getLogger()->debug("%s - age :%lu: flag_retain :%x: sent :%lu: result :%s:", __FUNCTION__, age, flags, flag_retain, result.c_str() );
+
+	return deletedRows;
+}
+
+/**
+ * Execute a SQL command for the purge task
+ */
+unsigned long Connection::purgeOperation(const char *sql, const char *logSection, const char *phase, bool retrieve)
+{
+	SQLBuffer sqlBuffer;
+	const char *query;
+	unsigned long value;
+	PGresult *res;
+	bool error;
+	char *PGValue {};
+
+	error = false;
+	value = 0;
+
+	Logger::getLogger()->debug("%s - sql :%s: logSection :%s: phase :%s:", __FUNCTION__, sql, logSection, phase);
+
+	sqlBuffer.append(sql);
+	query = sqlBuffer.coalesce();
+	logSQL(logSection, query);
+	res = PQexec(dbConnection, query);
+	delete[] query;
+
+	if (retrieve) {
+		if (PQresultStatus(res) == PGRES_TUPLES_OK) {
+
+			PGValue = PQgetvalue(res, 0, 0);
+			if (PGValue)
+				value = (unsigned long) atol(PGValue);
+
+		} else {
+			error = true;
+		}
+	} else {
+		if (PQresultStatus(res) == PGRES_COMMAND_OK) {
+			value = (unsigned long)atoi(PQcmdTuples(res));
+		} else {
+			error = true;
+		}
+	}
+
+	if (error)
+	{
+		raiseError(phase, PQerrorMessage(dbConnection));
+		value = -1;
+	}
+
+	PQclear(res);
+
+	return value;
+}
+
+/**
+ * Purge readings from the reading table leaving a number of rows equal to the parameter rows
+ */
+unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
+					unsigned int flags,
+					unsigned long sent,
+					std::string& result)
+{
+	unsigned long deletedRows = 0, unsentPurged = 0, unsentRetained = 0, numReadings = 0;
+	unsigned long limit = 0;
+	unsigned long rowcount, minId, maxId;
+	unsigned long rowsAffectedLastComand;
+	unsigned long deletePoint;
+
+	string sqlCommand;
+	bool flag_retain;
+
+	const char *logSection="ReadingsPurgeByRows";
+
+	Logger *logger = Logger::getLogger();
+
+	flag_retain = false;
+
+	if ( (flags & STORAGE_PURGE_RETAIN_ANY) || (flags & STORAGE_PURGE_RETAIN_ALL) )
+	{
+		flag_retain = true;
+	}
+	Logger::getLogger()->debug(" %s - flags :%X: flag_retain :%s: sent :%ld:", __FUNCTION__, flags, flag_retain ? "true" : "false", sent);
+
+	logger->info("Purge by Rows called");
+	if (flag_retain)
+	{
+		limit = sent;
+		logger->info("Sent is %lu", sent);
+	}
+	logger->info("Purge by Rows called with flag_retain %X, rows %lu, limit %lu", flag_retain, rows, limit);
+
+
+	rowcount = purgeOperation("SELECT count(*) from fledge.readings;", logSection,
+							  "ReadingsPurgeByRows - phase 1, fetching row count", true);
+	if (rowcount == -1) {
 		return 0;
 	}
-	unsigned int deletedRows = (unsigned int)atoi(PQcmdTuples(res));
-	PQclear(res);
 
-	SQLBuffer retainedBuffer;
-	retainedBuffer.append("SELECT count(*) FROM fledge.readings WHERE id > ");
-	retainedBuffer.append(sent);
-	retainedBuffer.append(';');
-	const char *query1 = retainedBuffer.coalesce();
-	logSQL("ReadingsPurge", query1);
-	res = PQexec(dbConnection, query1);
-	delete[] query1;
-	if (PQresultStatus(res) == PGRES_TUPLES_OK)
-	{
-		unsentRetained = atol(PQgetvalue(res, 0, 0));
+	maxId = purgeOperation("SELECT max(id) from fledge.readings;", logSection,
+						   "ReadingsPurgeByRows - phase 1, fetching maximum id",
+						   true);
+	if (maxId == -1) {
+		return 0;
 	}
-	else
-	{
- 		raiseError("retrieve", PQerrorMessage(dbConnection));
-	}
-	PQclear(res);
 
-	res = PQexec(dbConnection, "SELECT count(*) FROM fledge.readings;");
-	if (PQresultStatus(res) == PGRES_TUPLES_OK)
+	numReadings = rowcount;
+	rowsAffectedLastComand = 0;
+	deletedRows = 0;
+
+	do
 	{
-		numReadings = atol(PQgetvalue(res, 0, 0));
-	}
-	else
+		if (rowcount <= rows)
+		{
+			logger->info("Row count %d is less than required rows %d", rowcount, rows);
+			break;
+		}
+
+		minId = purgeOperation("SELECT min(id) from fledge.readings;", logSection,
+							   "ReadingsPurgeByRows - phase 2, fetching minimum id", true);
+		if (minId == -1) {
+			return 0;
+		}
+
+		deletePoint = minId + 10000;
+		if (maxId - deletePoint < rows || deletePoint > maxId)
+			deletePoint = maxId - rows;
+
+		// Do not delete
+		if (flag_retain) {
+
+			if (limit < deletePoint)
+			{
+				deletePoint = limit;
+			}
+		}
+
+		{
+			logger->info("RowCount %lu, Max Id %lu, min Id %lu, delete point %lu", rowcount, maxId, minId, deletePoint);
+
+			sqlCommand = "DELETE FROM fledge.readings WHERE id <= " +  to_string(deletePoint);
+			rowsAffectedLastComand = purgeOperation(sqlCommand.c_str(), logSection, "ReadingsPurgeByRows - phase 2, deleting readings", false);
+
+			deletedRows += rowsAffectedLastComand;
+			numReadings -= rowsAffectedLastComand;
+			rowcount    -= rowsAffectedLastComand;
+
+			logger->debug("Deleted %lu rows", rowsAffectedLastComand);
+			if (rowsAffectedLastComand == 0)
+			{
+				break;
+			}
+			if (limit != 0 && sent != 0)
+			{
+				unsentPurged = deletePoint - sent;
+			}
+			else if (!limit)
+			{
+				unsentPurged += rowsAffectedLastComand;
+			}
+		}
+	} while (rowcount > rows);
+
+	if (limit)
 	{
- 		raiseError("retrieve", PQerrorMessage(dbConnection));
+		unsentRetained = numReadings - rows;
 	}
-	PQclear(res);
 
 	ostringstream convert;
 
 	convert << "{ \"removed\" : " << deletedRows << ", ";
 	convert << " \"unsentPurged\" : " << unsentPurged << ", ";
 	convert << " \"unsentRetained\" : " << unsentRetained << ", ";
-    	convert << " \"readings\" : " << numReadings << " }";
+	convert << " \"readings\" : " << numReadings << " }";
 
 	result = convert.str();
 
+	Logger::getLogger()->debug("%s - Purge by Rows complete - rows :%lu: flag :%x: sent :%lu:  numReadings :%lu:  rowsAffected :%u:  result :%s:", __FUNCTION__, rows, flags, sent, numReadings, rowsAffectedLastComand, result.c_str() );
+
 	return deletedRows;
+
 }
 
 /**
@@ -2014,7 +2375,7 @@ bool Connection::jsonAggregates(const Value& payload,
 					raiseError("retrieve", "The json property is missing a column property");
 					return false;
 				}
-				sql.append('(');
+				sql.append("CASE WHEN jsonb_typeof(");
 				sql.append("\"");
 				sql.append(json["column"].GetString());
 				sql.append("\"");
@@ -2051,16 +2412,26 @@ bool Connection::jsonAggregates(const Value& payload,
 				}
 				else
 				{
+					sql.append("->'");
+					sql.append(jsonFields.GetString());
+					sql.append('\'');
+					sql.append(") != 'number' THEN 0 ELSE (");
+
+					sql.append("\"");
+					sql.append(json["column"].GetString());
+					sql.append("\"");
 					sql.append("->>'");
 					sql.append(jsonFields.GetString());
 					sql.append('\'');
 					jsonConstraint.append(" ? '");
 					jsonConstraint.append(jsonFields.GetString());
 					jsonConstraint.append("'");
+
+					sql.append(")::float");
+
 				}
-				sql.append(")::float");
 			}
-			sql.append(") AS \"");
+			sql.append(" END) AS \"");
 			if (itr->HasMember("alias"))
 			{
 				sql.append((*itr)["alias"].GetString());
@@ -2386,7 +2757,9 @@ bool Connection::jsonModifiers(const Value& payload, SQLBuffer& sql)
  * Convert a JSON where clause into a PostresSQL where clause
  *
  */
-bool Connection::jsonWhereClause(const Value& whereClause, SQLBuffer& sql)
+bool Connection::jsonWhereClause(const Value& whereClause,
+				SQLBuffer& sql,
+				const string& prefix)
 {
 	if (!whereClause.IsObject())
 	{
@@ -2403,11 +2776,6 @@ bool Connection::jsonWhereClause(const Value& whereClause, SQLBuffer& sql)
 		raiseError("where clause", "The \"where\" object is missing a \"condition\" property");
 		return false;
 	}
-	if (!whereClause.HasMember("value"))
-	{
-		raiseError("where clause", "The \"where\" object is missing a \"value\" property");
-		return false;
-	}
 
 	// Handle WHERE 1 = 1, 0.55 = 0.55 etc
 	string whereColumnName = whereClause["column"].GetString();
@@ -2417,6 +2785,8 @@ bool Connection::jsonWhereClause(const Value& whereClause, SQLBuffer& sql)
 	{
 		// Quote column name
 		sql.append("\"");
+		if (!prefix.empty())
+			sql.append(prefix);
 		sql.append(whereClause["column"].GetString());
 		sql.append("\"");
 	}
@@ -2428,100 +2798,117 @@ bool Connection::jsonWhereClause(const Value& whereClause, SQLBuffer& sql)
 
 	sql.append(' ');
 	string cond = whereClause["condition"].GetString();
-	if (!cond.compare("older"))
+
+	if (cond.compare("isnull") == 0)
 	{
-		if (!whereClause["value"].IsInt())
-		{
-			raiseError("where clause", "The \"value\" of an \"older\" condition must be an integer");
-			return false;
-		}
-		sql.append("< now() - INTERVAL '");
-		sql.append(whereClause["value"].GetInt());
-		sql.append(" seconds'");
+		sql.append("isnull ");
 	}
-	else if (!cond.compare("newer"))
+	else if (cond.compare("notnull") == 0)
 	{
-		if (!whereClause["value"].IsInt())
-		{
-			raiseError("where clause", "The \"value\" of an \"newer\" condition must be an integer");
-			return false;
-		}
-		sql.append("> now() - INTERVAL '");
-		sql.append(whereClause["value"].GetInt());
-		sql.append(" seconds'");
-	}
-	else if (!cond.compare("in") || !cond.compare("not in"))
-	{
-		// Check we have a non empty array
-		if (whereClause["value"].IsArray() &&
-		    whereClause["value"].Size())
-		{
-			sql.append(cond);
-			sql.append(" ( ");
-			int field = 0;
-			for (Value::ConstValueIterator itr = whereClause["value"].Begin();
-							itr != whereClause["value"].End();
-							++itr)
-			{
-				if (field)
-				{
-					sql.append(", ");
-				}
-				field++;
-				if (itr->IsNumber())
-				{
-					if (itr->IsInt())
-					{
-						sql.append(itr->GetInt());
-					}
-					else if (itr->IsInt64())
-					{
-						sql.append((long)itr->GetInt64());
-					}
-					else
-					{
-						sql.append(itr->GetDouble());
-					}
-				}
-				else if (itr->IsString())
-				{
-					sql.append('\'');
-					sql.append(escape(itr->GetString()));
-					sql.append('\'');
-				}
-				else
-				{
-					string message("The \"value\" of a \"" + \
-							cond + \
-							"\" condition array element must be " \
-							"a string, integer or double.");
-					raiseError("where clause", message.c_str());
-					return false;
-				}
-			}
-			sql.append(" )");
-		}
-		else
-		{
-			string message("The \"value\" of a \"" + \
-					cond + "\" condition must be an array " \
-					"and must not be empty.");
-			raiseError("where clause", message.c_str());
-			return false;
-		}
+		sql.append("notnull ");
 	}
 	else
 	{
-		sql.append(cond);
-		sql.append(' ');
-		if (whereClause["value"].IsInt())
+		if (!whereClause.HasMember("value"))
 		{
+			raiseError("where clause", "The \"where\" object is missing a \"value\" property");
+			return false;
+		}
+		if (!cond.compare("older"))
+		{
+			if (!whereClause["value"].IsInt())
+			{
+				raiseError("where clause", "The \"value\" of an \"older\" condition must be an integer");
+				return false;
+			}
+			sql.append("< now() - INTERVAL '");
 			sql.append(whereClause["value"].GetInt());
-		} else if (whereClause["value"].IsString())
+			sql.append(" seconds'");
+		}
+		else if (!cond.compare("newer"))
 		{
-			sql.append('\'');
-			sql.append(escape(whereClause["value"].GetString()));
-			sql.append('\'');
+			if (!whereClause["value"].IsInt())
+			{
+				raiseError("where clause", "The \"value\" of an \"newer\" condition must be an integer");
+				return false;
+			}
+			sql.append("> now() - INTERVAL '");
+			sql.append(whereClause["value"].GetInt());
+			sql.append(" seconds'");
+		}
+		else if (!cond.compare("in") || !cond.compare("not in"))
+		{
+			// Check we have a non empty array
+			if (whereClause["value"].IsArray() &&
+			    whereClause["value"].Size())
+			{
+				sql.append(cond);
+				sql.append(" ( ");
+				int field = 0;
+				for (Value::ConstValueIterator itr = whereClause["value"].Begin();
+								itr != whereClause["value"].End();
+								++itr)
+				{
+					if (field)
+					{
+						sql.append(", ");
+					}
+					field++;
+					if (itr->IsNumber())
+					{
+						if (itr->IsInt())
+						{
+							sql.append(itr->GetInt());
+						}
+						else if (itr->IsInt64())
+						{
+							sql.append((long)itr->GetInt64());
+						}
+						else
+						{
+							sql.append(itr->GetDouble());
+						}
+					}
+					else if (itr->IsString())
+					{
+						sql.append('\'');
+						sql.append(escape(itr->GetString()));
+						sql.append('\'');
+					}
+					else
+					{
+						string message("The \"value\" of a \"" + \
+								cond + \
+								"\" condition array element must be " \
+								"a string, integer or double.");
+						raiseError("where clause", message.c_str());
+						return false;
+					}
+				}
+				sql.append(" )");
+			}
+			else
+			{
+				string message("The \"value\" of a \"" + \
+						cond + "\" condition must be an array " \
+						"and must not be empty.");
+				raiseError("where clause", message.c_str());
+				return false;
+			}
+		}
+		else
+		{
+			sql.append(cond);
+			sql.append(' ');
+			if (whereClause["value"].IsInt())
+			{
+				sql.append(whereClause["value"].GetInt());
+			} else if (whereClause["value"].IsString())
+			{
+				sql.append('\'');
+				sql.append(escape(whereClause["value"].GetString()));
+				sql.append('\'');
+			}
 		}
 	}
  
@@ -2930,6 +3317,7 @@ SQLBuffer sql;
 	} catch (exception e) {
 		raiseError("get_table_snapshots", "Internal error: %s", e.what());
 	}
+	return false;
 }
 
 /**
@@ -2955,4 +3343,1227 @@ const char *p;
 	if (*p == '(')
 		return true;
 	return false;
+}
+
+/**
+ * In the case of a join add the columns to select from for all the tables in
+ * the join
+ *
+ * @param document	The query we are processing
+ * @param sql		The SQLBuffer we are writing
+ * @param level		The table number we are processing
+ */
+bool Connection::selectColumns(const Value& document, SQLBuffer& sql, int level)
+{
+SQLBuffer	jsonConstraints;
+
+	string tag = "t" + to_string(level) + ".";
+
+	if (document.HasMember("return"))
+	{
+		int col = 0;
+		const Value& columns = document["return"];
+		if (! columns.IsArray())
+		{
+			raiseError("retrieve", "The property return must be an array");
+			return false;
+		}
+		if (document.HasMember("modifier"))
+		{
+			sql.append(document["modifier"].GetString());
+			sql.append(' ');
+		}
+		for (Value::ConstValueIterator itr = columns.Begin(); itr != columns.End(); ++itr)
+		{
+			if (col)
+				sql.append(", ");
+			if (!itr->IsObject())	// Simple column name
+			{
+				sql.append(tag);
+				sql.append(itr->GetString());
+			}
+			else
+			{
+				if (itr->HasMember("column"))
+				{
+					if (! (*itr)["column"].IsString())
+					{
+						raiseError("rerieve",
+							   "column must be a string");
+						return false;
+					}
+					if (itr->HasMember("format"))
+					{
+						if (! (*itr)["format"].IsString())
+						{
+							raiseError("rerieve", "format must be a string");
+							return false;
+						}
+						sql.append("to_char(");
+						sql.append("\"");
+						sql.append((*itr)["column"].GetString());
+						sql.append("\"");
+						sql.append(", '");
+						sql.append((*itr)["format"].GetString());
+						sql.append("')");
+					}
+					else if (itr->HasMember("timezone"))
+					{
+						if (! (*itr)["timezone"].IsString())
+						{
+							raiseError("rerieve", "timezone must be a string");
+							return false;
+						}
+						sql.append("\"");
+						sql.append((*itr)["column"].GetString());
+						sql.append("\"");
+						sql.append(" AT TIME ZONE '");
+						sql.append((*itr)["timezone"].GetString());
+						sql.append("' ");
+					}
+					else
+					{
+						sql.append(tag);
+						sql.append((*itr)["column"].GetString());
+					}
+					sql.append(' ');
+				}
+				else if (itr->HasMember("json"))
+				{
+					const Value& json = (*itr)["json"];
+					if (! returnJson(json, sql, jsonConstraints))
+						return false;
+				}
+				else
+				{
+					raiseError("retrieve",
+						   "return object must have either a column or json property");
+					return false;
+				}
+
+				if (itr->HasMember("alias"))
+				{
+					sql.append(" AS \"");
+					sql.append((*itr)["alias"].GetString());
+					sql.append('"');
+				}
+			}
+			col++;
+		}
+	}
+	else
+	{
+		sql.append('*');
+		return true;
+	}
+	if (document.HasMember("join"))
+	{
+		const Value& join = document["join"];
+		if (join.HasMember("query"))
+		{
+			const Value& query = join["query"];
+			sql.append(", ");
+			if (!selectColumns(query, sql, ++level))
+			{
+				raiseError("commonRetrieve", "Join failed to add select columns");
+				return false;
+			}
+		}
+	}
+	return true;
+}
+
+
+/**
+ * In the case of a join add the tables to select from for all the tables in
+ * the join
+ *
+ * @param document	The query we are processing
+ * @param sql		The SQLBuffer we are writing
+ * @param level		The table number we are processing
+ */
+bool Connection::appendTables(const Value& document, SQLBuffer& sql, int level)
+{
+	string tag = "t" + to_string(level);
+	if (document.HasMember("join"))
+	{
+		const Value& join = document["join"];
+		if (join.HasMember("table"))
+		{
+			const Value& table = join["table"];
+			if (!table.HasMember("name"))
+			{
+				raiseError("commonRetrieve", "Joining table is missing a table name");
+				return false;
+			}
+			const Value& name = table["name"];
+			if (!name.IsString())
+			{
+				raiseError("commonRetrieve", "Joining table name is not a string");
+				return false;
+			}
+			sql.append(", fledge.");
+			sql.append(name.GetString());
+			sql.append(" ");
+			sql.append(tag);
+			if (join.HasMember("query"))
+			{
+				const Value& query = join["query"];
+				appendTables(query, sql, ++level);
+			}
+			else
+			{
+				raiseError("commonRetrieve", "Join is missing a join query definition");
+				return false;
+			}
+		}
+		else
+		{
+			raiseError("commonRetrieve", "Join is missing a table definition");
+			return false;
+		}
+	}
+	return true;
+}
+
+/**
+ * Recurse down and add the where cluase and join terms for each
+ * new table joined to the query
+ *
+ * @param query	The JSON query
+ * @param sql	The SQLBuffer we are writing the data to
+ * @param level	The nestign level of the joined table
+ */
+bool Connection::processJoinQueryWhereClause(const Value& query, SQLBuffer& sql, int level)
+{
+	string tag = "t" + to_string(level) + ".";
+	if (!jsonWhereClause(query["where"], sql, tag))
+	{
+		return false;
+	}
+
+	if (query.HasMember("join"))
+	{
+		// Now and the join condition itself
+		string col0, col1;
+		const Value& join = query["join"];
+		if (join.HasMember("on") && join["on"].IsString())
+		{
+			col0 = join["on"].GetString();
+		}
+		else
+		{
+			return false;
+		}
+		if (join.HasMember("table"))
+		{
+			const Value& table = join["table"];
+			if (table.HasMember("column") && table["column"].IsString())
+			{
+				col1 = table["column"].GetString();
+			}
+			else
+			{
+				raiseError("Joined query", "Missing join column in table");
+				return false;
+			}
+		}
+		sql.append(" AND ");
+		sql.append(tag);
+		sql.append(col0);
+		sql.append(" = t");
+		sql.append(level + 1);
+		sql.append(".");
+		sql.append(col1);
+		sql.append(" ");
+		if (join.HasMember("query") && join["query"].IsObject())
+		{
+			sql.append(" AND ");
+			const Value& query = join["query"];
+			processJoinQueryWhereClause(query, sql, level + 1);
+		}
+	}
+	return true;
+}
+
+/**
+ * Find existing payload schema from the DB fledge.service_schema table 
+ *
+ * @param service   The string containing service name 
+ * @param name      The string containing schema name
+ * @return 	    resultSet string containing the output of the sql query executed
+ */
+
+bool Connection::findSchemaFromDB(const std::string &service, const std::string &schema, std::string &resultSet)
+{
+
+	SQLBuffer sql;
+        try
+        {
+		sql.append("select * from fledge.service_schema where service = '");
+		sql.append(service);
+		sql.append("'");
+		sql.append(" and name = '");
+	        sql.append(schema);
+	      	sql.append("';");
+                const char *query = sql.coalesce();
+                logSQL("findSchemaFromDB", query);
+
+                PGresult *res = PQexec(dbConnection, query);
+                delete[] query;
+                if (PQresultStatus(res) == PGRES_TUPLES_OK)
+                {
+                        mapResultSet(res, resultSet);
+                        PQclear(res);
+
+                        return true;
+		}
+		else
+		{
+			char *SQLState = PQresultErrorField(res, PG_DIAG_SQLSTATE);
+                	if (!strcmp(SQLState, "22P02")) // Conversion error
+                 	{
+                        	raiseError("findSchemaFromDB", "Unable to convert data to the required type");
+                 	}
+                 	else
+                 	{
+                        	raiseError("findSchemaFromDB", PQerrorMessage(dbConnection));
+                 	}
+                 	PQclear(res);
+                 	return false;
+         	}
+	}catch (exception e) {
+                	raiseError("findSchemaFromDB", "Internal error: %s", e.what());
+        }
+         
+	return false;
+}
+
+/**
+ * This function parses the fledge.service_schema table payload retrieved in 
+ * and outputs a set of data structures containg the information about the tables
+ * and their columns and indexes
+ *
+ * @param[out] 	version   version retrieved form payload  
+ * @param[in]   res       output containing payload information
+ * @param[out]  tableColumnMap map[tablename ---> set of columns]
+ * @param[out]  tableIndexMap  map[tablename ---> indexes] where each index is a comma separated string of columns
+ * @param[ouy]  schemaCreationRequest which is like this is first schema creation request or
+ *              schema already exist in the DB
+ * @return      true if parsing is successful else false 
+ */
+
+bool Connection::parseDatabaseStorageSchema(int &version,const std::string &res, 
+		 std::unordered_map<std::string, std::unordered_set<columnRec, columnRecHasher, columnRecComparator> > &tableColumnMap,
+		 std::unordered_map<std::string, std::vector<std::string> > &tableIndexMap,
+		 bool &schemaCreationRequest)
+{
+	Document document;
+
+	if (document.Parse(res.c_str()).HasParseError())
+        {
+       		raiseError("parseDatabaseStorageSchema", "%s:%d Failed to parse JSON payload (DB query response) %s at %d",__FUNCTION__, __LINE__, GetParseError_En(document.GetParseError()), document.GetErrorOffset());
+
+	        return false;
+        }
+	if (!document.HasMember("count"))
+	{
+		raiseError("parseDatabaseStorageSchema", "%s:%d count absent from database query response to fledge.service_schema",__FUNCTION__, __LINE__);
+                return false;
+	}
+	int count = document["count"].GetInt();
+	if ( count == 0)
+	{
+		Logger::getLogger()->debug("%s:%d count = 0, returning from function parseDatabaseStorageSchema", __FUNCTION__, __LINE__);
+		schemaCreationRequest = true;
+		return true;
+	}
+        if (!document.HasMember("rows"))
+        {
+        	raiseError("parseDatabaseStorageSchema", "%s:%d rows absent from database query reponse to fledge.service_schema", __FUNCTION__, __LINE__);
+        	return false;
+        }
+        else
+	{
+		Value& rows = document["rows"];
+                if (!rows.IsArray())
+                {
+                	raiseError("parseDatabaseStorageSchema", "%s:%d The property rows in database query reponse to fledge.service_schema must be an array", __FUNCTION__, __LINE__);
+                        return false;
+                }
+                else
+                {
+			if (rows.Size() < 1)
+			{
+				raiseError("parseDatabaseStorageSchema", "%s:%d rows array from database query reponse to fledge.service_schema has size 0", __FUNCTION__, __LINE__);
+		                return false;
+			}
+			// The above check ensures rows[0] can be accessed
+			Value& firstRow = rows[0];
+
+			if (!firstRow.HasMember("version"))
+			{
+				 raiseError("parseDatabaseStorageSchema", "%s:%d rows[0] in fledge.service_schema does not have version", __FUNCTION__, __LINE__);
+				 return false;
+			}
+
+			if(!firstRow["version"].IsInt())
+                        {
+                        	raiseError("parseDatabaseStorageSchema", "%s %d extracting version in rows[0],expecting an int value here", __FUNCTION__, __LINE__);
+				return false;
+                        }
+			version = firstRow["version"].GetInt();
+
+			if (!firstRow.HasMember("definition"))
+                        {
+                                 raiseError("parseDatabaseStorageSchema", "%s:%d rows[0] in fledge.service_schema does not have definition", __FUNCTION__, __LINE__);
+                                 return false;
+                        }
+			if (!firstRow["definition"].IsString())
+			{
+				raiseError("parseDatabaseStorageSchema", "%s:%d The property definition in rows[0] in fledge.service_schema must be a string", __FUNCTION__, __LINE__);
+				return false;
+			}
+			std::string defStr = firstRow["definition"].GetString();
+			if (defStr.empty())
+			{
+				raiseError("parseDatabaseStorageSchema", "%s:%d The rows[0][definition] in fledge.service_schema is empty", __FUNCTION__, __LINE__);
+				return false;
+			}
+
+			Document docDefStr;
+			if (docDefStr.Parse(defStr.c_str()).HasParseError())
+        		{
+                		raiseError("parseDatabaseStorageSchema", "%s:%d Failed to parse JSON starting at definition in database query reponse to fledge.service_schema %s:%d ", __FUNCTION__, __LINE__, GetParseError_En(docDefStr.GetParseError()),docDefStr.GetErrorOffset());
+                		return false;
+        		}
+
+			if (!docDefStr.HasMember("tables"))
+                        {
+                                raiseError("parseDatabaseStorageSchema", "%s:%d tables section not present in payload obtained from fledge.service_schema ",__FUNCTION__, __LINE__);
+                                return false;
+                        }
+
+			Value& tables = docDefStr["tables"];
+			if (!tables.IsArray())
+			{
+				raiseError("parseDatabaseStorageSchema", "%s:%d The tables section obtained from payload in fledge.service_schema must be anarray", __FUNCTION__, __LINE__);
+				return false;
+			}
+
+			// Iterate over the table s list and prepare the data structures
+			for (rapidjson::SizeType i = 0; i < tables.Size(); i++)
+                        {
+				if (!tables[i].HasMember("name"))
+				{
+					raiseError("parseDatabaseStorageSchema", "%s:%d The tables[%d] section in payload in fledge.service_schema does not have name field", __FUNCTION__, __LINE__, i);
+                                	return false;
+				}
+				if (!tables[i]["name"].IsString())
+                        	{
+                                	raiseError("parseDatabaseStorageSchema", "%s:%d The property name in tables[%d] in fledge.service_schema must be a string", __FUNCTION__, __LINE__, i);
+                                	return false;
+                        	}
+                        	std::string name = tables[i]["name"].GetString();
+
+				if (!tables[i].HasMember("columns"))
+                                {
+                                        raiseError("parseDatabaseStorageSchema", "%s:%d The tables[%d] section in payload in fledge.service_schema does not have columns field", __FUNCTION__, __LINE__, i);
+                                        return false;
+                                }
+
+                        	Value& columns = tables[i]["columns"];
+
+				std::unordered_set<columnRec, columnRecHasher, columnRecComparator> columnSet;
+				std::vector<std::string> indexesVec;
+
+	                        if (!columns.IsArray())
+                        	{
+ 	                       		raiseError("parseDatabaseStorageSchema", "%s:%d The property columns in table %s must be an array", __FUNCTION__, __LINE__, name.c_str());
+                                	return false;
+                        	}
+
+				Logger::getLogger()->debug("%s:%d Extracting the columns of table name %s", __FUNCTION__, __LINE__, name.c_str());
+
+                        	for (auto& v : columns.GetArray())
+                        	{
+       	                		if (v.IsObject())
+					{
+						if (v.HasMember("column"))
+                                                {
+                                                	if (!v["column"].IsString())
+                                                        {
+                                                        	Logger::getLogger()->error("%s :%d, table %s,extracting column name, expecting a string value here", __FUNCTION__, __LINE__, name.c_str());
+                                                        }
+                                                        else
+                                                        {
+								columnRec c;
+								c.column = v["column"].GetString();
+								if ( c.column.empty())
+								{
+									raiseError("parseDatabaseStorageSchema", "%s :%d, table %s, column name empty,inconsistent DB", __FUNCTION__, __LINE__, name.c_str());
+									return false;
+								}
+								if (v.HasMember("type"))
+								{
+									if (!v["type"].IsString())
+                                                        		{
+                                                                		Logger::getLogger()->error("%s:%d tablename %s, column = %s, extracting column type, expecting a string value here", __FUNCTION__, __LINE__,name.c_str(), c.column.c_str());
+                                                        		}
+									c.type = v["type"].GetString();
+								}
+
+								if (v.HasMember("size"))
+								{
+									if (!v["size"].IsInt())
+                                                                        {       
+                                                                                Logger::getLogger()->error("%s:%d, tableName = %s, column = %s,extracting column size, expecting an int value here", __FUNCTION__, __LINE__,name.c_str(), c.column.c_str());
+                                                                        }
+									c.sz = v["size"].GetInt();
+								}
+
+								if (v.HasMember("key"))
+                                                		{
+		                                                        if (!v["key"].IsBool())
+                                                        		{
+		                                                                Logger::getLogger()->error("%s:%d, tableName = %s, column = %s,extracting column key, expecting a bool value here", __FUNCTION__, __LINE__, name.c_str(), c.column.c_str());
+                                                        		}
+		                                                        else
+                 		                                        {
+                                                                		if (v["key"].GetBool())
+										{
+											c.key = true;
+										}
+                                                        		}
+								}
+
+								columnSet.insert(c);
+							}
+                                                }
+
+					}
+				}
+
+				Logger::getLogger()->debug("%s:%d Extracting the indexes of tables[%d]", __FUNCTION__, __LINE__, i);
+
+				if (!tables[i].HasMember("indexes"))
+                                {
+                                        Logger::getLogger()->debug("%s:%d The tables[%d] section in payload in fledge.service_schema does not have indexes field", __FUNCTION__, __LINE__, i);
+                                }
+				else
+				{
+
+					Value& indexes = tables[i]["indexes"];
+					if (!indexes.IsArray())
+                                	{
+                                        	raiseError("parseDatabaseStorageSchema", "%s:%d The property indexes under tablename = %s must be an array", __FUNCTION__, __LINE__, name.c_str());
+                                        	return false;
+                                	}
+
+
+					for (auto& v : indexes.GetArray())
+                                	{
+						std::vector<std::string> indexVec;
+						std::string s;
+                                        	if (v.IsObject())
+                                        	{
+                                                	if (v.HasMember("index"))
+                                                	{
+                                                        	if (!v["index"].IsArray())
+                                                        	{
+                                                                	raiseError("parseDatabaseStorageSchema", "%s:%d, tableName = %s, extracting index values, expecting an array here", __FUNCTION__, __LINE__, name.c_str());
+									return false;
+                                                        	}
+                                                        	else
+                                                        	{
+									for (auto& i : v["index"].GetArray())
+									{
+										if (!i.IsString())
+                                                                		{
+                                                                        		raiseError("parseDatabaseStorageSchema", "%s:%d, tableName = %s, extracting index ,expecting a string here", __FUNCTION__, __LINE__, name.c_str());
+                                                                        		return false;
+                                                                		}
+										indexVec.push_back(i.GetString());
+									}
+
+									std::sort(indexVec.begin(), indexVec.end());
+									for ( int i = 0; i < indexVec.size(); ++i)
+									{
+										s.append(indexVec[i]);
+										if ( i < indexVec.size() -1 ) s.append(",");
+									}
+                                                        	}
+                                                	}
+                                        	}
+						indexesVec.push_back(s);
+                                	}
+				}
+
+				tableColumnMap[name] = columnSet;
+				tableIndexMap[name] = indexesVec;
+			}
+		}
+
+	}
+
+	return true;
+}
+/**
+ * Create schema of tables
+ *
+ * @param payload   The  payload containing information about schema of 
+ *                  tables to create
+ * @return true if the tables can be crated successfully
+ */
+int Connection::create_schema(const std::string &payload)
+{
+	Document document;
+	std::string schema;
+	int version;
+	const char *logSection="CreatingSchema";
+	unsigned long rowsAffectedLastCommand = 0;
+	std::unordered_map<std::string, std::unordered_set<columnRec, columnRecHasher, columnRecComparator> > columnMapFromDB;
+        std::unordered_map<std::string, std::vector<std::string> > indexMapFromDB;
+	bool schemaCreationReq = false;
+	std::vector<sqlQuery> queries;
+
+	try 
+	{
+                if (payload.empty())
+                {
+			raiseError("create_schema", "%s:%d function's input parameter payload empty", __FUNCTION__, __LINE__);
+                        return -1;
+                }
+                else
+                {
+                        if (document.Parse(payload.c_str()).HasParseError())
+                        {
+				raiseError("create_schema", "%s:%d Failed to parse JSON payload %s:%d", __FUNCTION__, __LINE__, GetParseError_En(document.GetParseError()), document.GetErrorOffset());
+                                return -1;
+                        }
+			if (!document.HasMember("schema"))
+                        {
+				raiseError("create_schema", "%s:%d schema absent from input parameter JSON payload", __FUNCTION__, __LINE__);
+				return -1;
+			}
+			else
+			{
+				if (!document["schema"].IsString())
+                                {
+                                	raiseError("create_schema", "%s:%d The property schema in JSON payload must be a string", __FUNCTION__, __LINE__);
+                                        return -1;
+                                }
+				schema = document["schema"].GetString();
+
+				if (schema.empty())
+				{
+					raiseError("create_schema", "%s:%d schema obtained from payload is empty", __FUNCTION__, __LINE__);
+                                        return -1;
+				}
+				Logger::getLogger()->debug("%s:%d schema obtained from payload = %s", __FUNCTION__, __LINE__, schema.c_str());
+
+				if (!document.HasMember("service"))
+				{
+					raiseError("create_schema", "%s:%d service absent from payload for schema %s", __FUNCTION__, __LINE__, schema.c_str());
+                                        return -1;
+				}
+				if (!document["service"].IsString())
+                                {
+                                        raiseError("create_schema", "%s:%d The property service in JSON payload must be a string", __FUNCTION__, __LINE__);
+                                        return -1;
+                                }
+
+				std::string service = document["service"].GetString();	
+				if (service.empty())
+				{
+					raiseError("create_schema", "%s:%d empty service name for schema %s", __FUNCTION__, __LINE__, schema.c_str());
+                                        return -1;
+				}
+				Logger::getLogger()->debug("%s:%d service obtained from payload = %s", __FUNCTION__, __LINE__, service.c_str());
+
+				if (!document.HasMember("version"))
+                        	{
+					raiseError("create_schema", "%s:%d version absent from payload for schema %s and service %s", __FUNCTION__, __LINE__, schema.c_str(), service.c_str());
+                                	return -1;
+                        	}
+				else
+				{
+					if(!document["version"].IsInt())
+                                        {
+	                                        raiseError("create_schema", "%s %d version needs to be int for schema %s and service %s", __FUNCTION__, __LINE__, schema.c_str(), service.c_str());
+						return -1;
+                                        }
+
+					version = document["version"].GetInt();
+					Logger::getLogger()->debug("%s:%d version obtained from payload = %d", __FUNCTION__, __LINE__, version);
+					std::string results;
+					if (findSchemaFromDB(service, schema, results))
+					{
+						if (!parseDatabaseStorageSchema(version, results, columnMapFromDB, indexMapFromDB, schemaCreationReq))
+						{
+							raiseError("create_schema", "%s:%d error in parsing Database Storage schema %s for schema  and service %s", __FUNCTION__, __LINE__, schema.c_str(), service.c_str());
+							return -1;
+						}
+					}
+					else
+					{
+						raiseError("create_schema", "%s:%d findSchemaFromDB returned false, error in database query execution for service %s, schema %s", __FUNCTION__, __LINE__, service.c_str(), schema.c_str());
+						return -1;
+					}
+							
+					std::string queryToCreateSchema = "create schema if not exists " + schema + ";" ;
+	                                rowsAffectedLastCommand = purgeOperation(queryToCreateSchema.c_str(), logSection, "Create Schema if not exists ", false);
+					if (rowsAffectedLastCommand == -1)
+					{
+						raiseError("create_schema", "%s:%d Error in creating schema %s in database, query executed = %s",__FUNCTION__,__LINE__, schema.c_str(), queryToCreateSchema.c_str());
+						return -1;
+					}
+				}
+				if (!document.HasMember("tables"))
+                        	{
+					raiseError("create_schema", "%s:%d tables section absent from payload for schema %s and service %s", __FUNCTION__, __LINE__, schema.c_str(), service.c_str());
+                                	return -1;
+                        	}
+				else
+				{
+					Logger::getLogger()->debug("%s:%d Extracting tables from payload for schema %s and service %s", __FUNCTION__, __LINE__, schema.c_str() , service.c_str());
+
+					Value& tables = document["tables"];
+					if (!tables.IsArray())
+                                	{
+                                        	raiseError("create_schema", "%s:%d, Schema %s, Service %s, The property tables must be an array", __FUNCTION__, __LINE__, schema.c_str(), service.c_str());
+                                        	return -1;
+                                	}
+					else
+                          		{
+						std::unordered_set<std::string> unSetTablesInSchemaRequest;
+						std::string sqlDropTables;
+
+						// Iterate over all the table lists in the Schema Creation/Alter request
+                                		for (rapidjson::SizeType i = 0; i < tables.Size(); i++)
+						{
+							if (!tables[i].HasMember("name"))
+                                			{
+			                                        raiseError("create_schema", "%s:%d Schema %s, Service %s : The tables[%d] section in payload does not have name field", __FUNCTION__, __LINE__,schema.c_str(), service.c_str(), i);
+                       				                 return -1;
+                                			}
+                                			if (!tables[i]["name"].IsString())
+                                			{
+                                        			raiseError("create_schema", "%s:%d , Schema %s, Service %s, The property name in tables[%d] must be a string", __FUNCTION__, __LINE__, schema.c_str(), service.c_str(), i);
+                                        			return -1;
+                                			}
+                                
+							std::string name = tables[i]["name"].GetString();
+
+							if (name.empty())
+							{
+								raiseError("create_schema", "%s:%d Schema %s, Service %s, The property name in tables[%d] is empty", __FUNCTION__, __LINE__, schema.c_str(), service.c_str(), i);
+								return -1;	
+							}
+							Logger::getLogger()->debug("%s:%d Extracting columns for schema %s, service %s, table name %s ", __FUNCTION__, __LINE__, schema.c_str(), service.c_str(), name.c_str());
+
+							unSetTablesInSchemaRequest.insert(name);
+
+							if (!tables[i].HasMember("columns"))
+                                                        {
+                                                                raiseError("create_schema", "%s:%d The tables section does not have columns field", __FUNCTION__, __LINE__);
+                                                                return -1;
+                                                        }
+							Value& columns = tables[i]["columns"];
+							if (!columns.IsArray())
+                                                        {
+                                                                raiseError("create_schema", "%s:%d The property columns must be an array", __FUNCTION__, __LINE__);
+                                                                return -1;
+                                                        }
+
+							std::vector<std::string> indexesMatrixFromReq;
+							std::unordered_set<columnRec, columnRecHasher, columnRecComparator> colsPerTableInReq;
+							bool alterTable = false;
+							std::string sql, sqlIdx;
+
+							// if this is schema creation request  or 
+							// this table does not exist in db, then create it 
+							// else alter the table
+							if (schemaCreationReq || (columnMapFromDB.find(name) == columnMapFromDB.end()))
+							{
+								sql = "create table " + schema + "." + name + " (" ;
+							}
+							else
+							{
+								sql = "alter table " + schema + "." + name + " " ;
+								alterTable = true;
+							}
+					
+							// Iterate over the columns array
+							// For each column, find name, type, size, primary key or not
+							// and store in colsPerTableInReq
+							for (auto& v : columns.GetArray())
+							{
+								if (v.IsObject())
+				                                {
+									columnRec c;
+									if (v.HasMember("column"))
+                                        				{
+                                                				if (!v["column"].IsString())
+										{
+											raiseError("create_schema", "%s %d Schema: %s, Service: %s ,table name %s , extracting column name, expecting a string value here", __FUNCTION__, __LINE__, schema.c_str(), service.c_str(), name.c_str());
+											return -1; 
+										}
+										else
+										{
+                                                                			c.column = v["column"].GetString(); 
+											if (c.column.empty())
+											{
+												raiseError("create_schema", "%s %d Schema: %s, Service: %s ,table name %s, extracting column, found empty value for column", __FUNCTION__, __LINE__, schema.c_str(), service.c_str() , name.c_str());
+												return -1;	
+											}
+										}
+									}
+
+									if (v.HasMember("type"))
+									{
+										if (!v["type"].IsString())
+										{
+											raiseError("create_schema", "%s:%d Schema:%s, Service:%s, tableName : %s , extracting type, expecting a string value here", __FUNCTION__, __LINE__, schema.c_str(), service.c_str(), name.c_str());
+											return -1;
+										}
+										else
+										{
+											c.type = v["type"].GetString();
+											if (c.type == "double") c.type = "real";
+											if (!checkValidDataType(c.type))
+											{
+												raiseError("create_schema", "%s:%d Schema:%s, Service:%s, tableName : %s , type %s extracted is not a valid data type", __FUNCTION__, __LINE__, schema.c_str(), service.c_str(), name.c_str(), c.type.c_str());
+												return -1;
+											}
+
+										}
+									}
+
+									if (v.HasMember("size"))
+									{
+										if(!v["size"].IsInt())
+										{
+											raiseError("create_schema", "%s %d Schema:%s, Service:%s, tableName:%s ,extracting size, expecting an int value here", __FUNCTION__, __LINE__, schema.c_str(), service.c_str(), name.c_str());
+											return -1;
+										}
+										else
+										{
+											c.sz = v["size"].GetInt();
+										}
+									}
+
+									if (v.HasMember("key"))
+									{
+										if(!v["key"].IsBool())
+                                                                                {
+											raiseError("create_schema", "%s %d Schema:%s, Service:%s, tableName:%s, extracting key, expecting a bool value here", __FUNCTION__, __LINE__, schema.c_str(), service.c_str(), name.c_str());
+											return -1;
+
+                                                                                }
+                                                                                else
+                                                                                {
+                                                                                         c.key = v["key"].GetBool();
+                                                                                }
+                                                                        }
+
+									colsPerTableInReq.insert(c);
+								}
+							}
+
+							// Iterate over all the indexes per table and store in indexesMatrixFromReq
+
+							if (!tables[i].HasMember("indexes"))
+                                                        {
+								//Indexes are optional,if absent, will not trigger an exit from function
+                                                                Logger::getLogger()->debug("%s:%d Schema:%s, Service:%s, tableName:%s does not have indexes field", __FUNCTION__, __LINE__ ,schema.c_str(), service.c_str(), name.c_str());
+                                                        }
+							else
+							{
+
+								Value& idx = tables[i]["indexes"];
+								if (!idx.IsArray())
+                                                        	{
+									// make sure if indexes are present, their type in JSON is valid
+                                                                	raiseError("create_schema", "%s:%d Schema:%s, Service:%s, tableName:%s The property indexes must be an array", __FUNCTION__, __LINE__, schema.c_str(), service.c_str(), name.c_str());
+									return -1;
+                                                        	}
+								else
+								{
+									Logger::getLogger()->debug("%s:%d Extracting indexes for Schema:%s, Service:%s, tableName: %s", __FUNCTION__, __LINE__, schema.c_str(), service.c_str(), name.c_str());
+
+                        						for (auto& v : idx.GetArray())
+                        						{
+                                        					std::vector<std::string> indexVec;
+										std::string s;	
+				                                        	if (v.IsObject())
+                                        					{
+				                                                	if (v.HasMember("index"))
+                               					                	{
+                                                        					if (!v["index"].IsArray())
+                                                        					{
+				                                                                	raiseError("create_schema", "%s %d Schema:%s, Service:%s, tableName:%s , extracting index values, expecting an array here", __FUNCTION__, __LINE__, schema.c_str(), service.c_str(), name.c_str());
+                               					                                 	return -1;
+                                                        					}
+                                                        					else
+                                                        					{
+													// keep the cols in indexes as a comma separated list of sorted columns
+				                                                                	for (auto& i : v["index"].GetArray())
+                                                                					{
+                                                                        					indexVec.push_back(i.GetString());
+                                                                					}
+
+                                                                					std::sort(indexVec.begin(), indexVec.end());
+													for (auto i = 0; i < indexVec.size(); ++i)
+													{
+														s.append(indexVec[i]);
+														if (i < indexVec.size() -1){
+															s.append(",");
+														}
+													}
+                                                        					}
+                                                					}
+                                        					}
+										indexesMatrixFromReq.push_back(s);
+									}
+								}
+							}
+
+							// Traverse through the colums list found in DB for this table 
+							// and create/alter/delete the colums list
+							//
+
+							unordered_set<columnRec, columnRecHasher, columnRecComparator> *dbCol = nullptr;
+							if (columnMapFromDB.find(name) != columnMapFromDB.end())
+							{
+								dbCol = &columnMapFromDB[name];
+								Logger::getLogger()->debug("%s:%d Schema:%s, Service:%s, tableName: %s found in Database ", __FUNCTION__, __LINE__, schema.c_str(), service.c_str(), name.c_str());
+
+							}
+							else
+							{
+								Logger::getLogger()->debug("%s:%d Schema:%s, Service:%s, tableName: %s could not be found in Database ", __FUNCTION__, __LINE__, schema.c_str(), service.c_str(), name.c_str());
+							}
+
+							bool columnsToAlter = false;
+							for ( auto& v: colsPerTableInReq)
+							{
+								// table creation case
+								if (!alterTable)
+								{
+									sql += v.column + " " + v.type;
+									if (v.type == "varchar")
+									{
+										sql += "(" + std::to_string(v.sz) + ")";	
+									}
+
+									if (v.key == true)
+									{
+										sql += " primary key";
+									}
+									sql +=",";
+								}
+								else
+								{
+									// alter table case, table already exists
+									// check if column already exists in database
+									// if not then add if not a key column
+									if (dbCol != nullptr && (dbCol->find(v) == dbCol->end()))
+									{
+										// if it is not a key then add the column else log error
+										if (!v.key)
+										{
+											sql += "add column ";
+											sql += v.column + " " + v.type;
+			                                                                if (v.type == "varchar")
+               				                                                {
+                        	                                                        	sql += "(" + std::to_string(v.sz) + ")";
+											}
+											sql +=",";
+											columnsToAlter = true;
+										}
+										else
+										{
+											// altering a key is not allowed
+											// column in req does not exist in DB
+											// but is key, not allowed
+											raiseError("create_schema", "%s:%d Schema:%s, Service:%s, tableName:%s, altering key request(%s) is not allowed for an existing table, dropping the schema request", __FUNCTION__, __LINE__, schema.c_str(), service.c_str(), name.c_str(), v.column.c_str());
+											return -1;
+										}
+									}
+									else
+									{
+										// altering an existing column not alllowed
+										// This condition means , column in req already present in DB
+										if (dbCol != nullptr)
+										{
+											auto itr = dbCol->find(v);
+											//Check if the column matches exactly with that present in db , if not same , the reject the request
+											if ( itr->type != v.type || itr->sz != v.sz || itr->key != v.key )
+											{
+                                                                        			raiseError("create_schema", "%s:%d Schema:%s, Service:%s, tableName:%s, altering an existing column %s is not allowed", __FUNCTION__, __LINE__, schema.c_str(), service.c_str(), name.c_str(), v.column.c_str() );
+												return -1;
+											}
+										}
+									}
+								}
+							}
+
+							// If altering the table, drop all the columns which are present
+							// in DB but are not in the request, iterate over DB colums list 
+							// to find out columns which are ppresent in DB, compare with the
+							// incoming request list of columns colsPerTableInReq
+
+							if(alterTable && dbCol)
+							{
+								for ( auto col : *dbCol)
+								{
+									// Make sure the column to be dropped is not a primary key
+									if(colsPerTableInReq.find(col) == colsPerTableInReq.end())
+									{
+										if (!col.key)
+										{
+										// this column is in database but not in latest schema request
+										// need to drop this column
+											sql += "drop column " + col.column + "," ;
+											columnsToAlter = true;
+										}
+										else
+										{
+											raiseError("create_schema", "%s:%d Schema:%s, Service:%s, tableName:%s, dropping th ekey column is not allowed", __FUNCTION__, __LINE__, schema.c_str(), service.c_str(), name.c_str(), col.column.c_str());
+											return -1;
+										}
+									}
+								}
+							}
+							
+							// remove last comma
+							if ( sql[sql.size() - 1] == ',')
+							{
+								sql.erase(sql.size()-1);
+							}
+
+							if (alterTable)
+								sql += " ;";
+							else
+								sql += " );";
+
+							// execute the sql here 
+							// if alterTable is true and no columns to Alter , then dont fire the sqlquery
+							// 
+							if (!(alterTable && !columnsToAlter))
+							{
+								sqlQuery q;
+							        q.query = sql.c_str();
+								q.purgeOpArg = "CreatingSchema - phase 1, creating/altering tables";
+								char msg[MSG_LEN] = {'\0'};
+								snprintf(msg, MSG_LEN, "Function: %s, Schema:%s, Service:%s, tableName:%s, Error in creating/altering tables, command executed = %s",__FUNCTION__, schema.c_str(), service.c_str(), name.c_str(), sql.c_str());
+								q.logMsg = msg;
+
+								queries.push_back(q);
+								
+							}
+                                                       	std::vector<std::string> &indexMatrixFromDB = indexMapFromDB[name];
+                                                        bool indexPresent = false;
+
+							// create the indexes in req and not in DB
+							// iterate over the index creation request and search from 
+							// them in DB, if does not exist create it
+							for (auto &req : indexesMatrixFromReq)
+							{
+								indexPresent = false;
+								for ( auto &row : indexMatrixFromDB)
+								{
+									if (req == row)
+										indexPresent = true;
+								}
+									
+								if(!indexPresent)
+								{
+									sqlIdx = "create index " + name + "_" + getIndexName(req) + " on " + schema + "." + name + "(";
+                                                               		sqlIdx += req; 
+                                                        		sqlIdx += " );";
+
+									sqlQuery q;
+									q.query = sqlIdx.c_str();
+									q.purgeOpArg = "CreatingSchema - phase 2, creating index on tables";
+									char msg[MSG_LEN] = {'\0'};
+									snprintf(msg, MSG_LEN, "Function :%s, Schema:%s, Service:%s, tableName:%s Error in creating indexes command %s",__FUNCTION__, schema.c_str(), service.c_str(), name.c_str(), sqlIdx.c_str());
+									q.logMsg = msg;
+
+									queries.push_back(q);
+
+								}
+							}
+
+							// delete the indexes in DB and not in req
+							// iterate over the indexes list present in DB and compare with the
+							// indexes in teh schema creation request,if not found, then delete them
+							//
+							for (auto &req : indexMatrixFromDB)
+                                                       	{
+                                                       		indexPresent = false;
+                                                               	for ( auto &row : indexesMatrixFromReq)
+                                                               	{
+                                                               		if (req == row)
+                                                                       		indexPresent = true;
+                                                                }
+                                                                if(!indexPresent)
+                                                               	{
+                                                               		sqlIdx = "drop index " + schema + "." + name + "_" + req + ";";
+
+									sqlQuery q;
+									q.query = sqlIdx;
+									q.purgeOpArg = "CreatingSchema - phase 2, dropping index on tables";
+									char msg[MSG_LEN] = {'\0'};
+									snprintf(msg, MSG_LEN, "Function: %s, Schema:%s, Service:%s, tableName:%s, Error in executing drop index command %s",__FUNCTION__, schema.c_str(), service.c_str(), name.c_str(), sqlIdx.c_str());
+									q.logMsg = msg;
+
+									queries.push_back(q);
+                                                                }
+                                                        }
+						}
+							
+
+						// Iterate over all the sqlQuery command and execute them 
+
+						for (sqlQuery& q : queries)
+						{
+							if(!q.query.empty())
+							{
+								rowsAffectedLastCommand = purgeOperation(q.query.c_str(), logSection, q.purgeOpArg.c_str(), false);
+                                                                if (rowsAffectedLastCommand == -1)
+                                                                {
+                                                                	raiseError("create_schema", q.logMsg.c_str());
+                                                                        return -1;
+                                                                }
+							}
+						}
+						//
+						// delete all the tables which are not in the new schema request
+						// but present in db
+
+						sqlDropTables += "drop table if exists ";
+						bool tableToDrop = false;
+						for (auto itr : columnMapFromDB)
+						{
+							if (unSetTablesInSchemaRequest.find(itr.first) == unSetTablesInSchemaRequest.end())
+							{
+								sqlDropTables += schema +"." + itr.first + ",";
+								tableToDrop = true;
+							}
+						}
+						if (sqlDropTables[sqlDropTables.size() -1 ] == ',')
+                                                {
+                                                	sqlDropTables.erase(sqlDropTables.size() -1);
+                                                }
+						sqlDropTables += ";";
+						if (tableToDrop)
+						{
+              						rowsAffectedLastCommand = purgeOperation(sqlDropTables.c_str(), logSection, "Dropping unrequired tables", false);
+							if (rowsAffectedLastCommand == -1)
+                                                        {
+                                                        	raiseError("create_schema", "%s:%d Error in executing drop table command %s",__FUNCTION__,__LINE__, sqlDropTables.c_str());
+                                                                return -1;
+                                                        }
+
+						}
+						// delete payload in fledge.service_schema if already present
+						if(schemaCreationReq == false)
+						{
+							std::string s = "delete from fledge.service_schema where name =  '" + schema + "' and   service = '" + service + "';";
+							rowsAffectedLastCommand = purgeOperation(s.c_str(), logSection, "delete from fledge.service_schema  ", false);
+							if (rowsAffectedLastCommand == -1)
+                                                        {
+	                                                        raiseError("create_schema", "%s:%d Error in executing delete payload from service_schema command =%s",__FUNCTION__, __LINE__, s.c_str());
+                                                                return -1;
+                                                        }
+
+						}
+
+						// insert payload in the fledge.service_schema
+                        			std::string s = "insert into fledge.service_schema(name, service, version, definition) values ('" + schema + "', " +"'" + service + "', " + to_string(version) + ", " + "'" + payload + "') ;" ;
+
+                        		        rowsAffectedLastCommand = purgeOperation(s.c_str(), logSection, "insert in fledge.service_schema  ", false);
+						if (rowsAffectedLastCommand == -1)
+                                                {
+	                                                raiseError("create_schema", "%s:%d Error in executing insert payload into service_schema, command =%s ",__FUNCTION__, __LINE__, s.c_str());
+                                                        return -1;
+                                                }
+					}
+				}
+			}
+	    	}
+	    
+	}
+	catch( std::exception &e){
+		raiseError("create_schema", "%s %d exception caught %s", __FUNCTION__, __LINE__, e.what() );
+		return -1;
+	}
+
+	return 1;
+
+}
+
+/**
+ * This function checks for input string for ',' and returns a string with ',' replaced with '_'
+ *
+ * @param[in]   string to check for ',' 
+ * @return      string with , replaced with _ 
+ */
+
+std::string Connection::getIndexName(std::string s){
+	std::replace_if( s.begin(),s.end(), [](char ch) {return ch ==',';},'_');	
+	return s;
+}
+
+/**
+ * This function checks whether the passed string represent a valid postgres column data type 
+ *
+ * @param[in]   string to check for ','
+ * @return     	true if it is a valid data type , false otherwise 
+ */
+
+bool Connection::checkValidDataType(const std::string &s){
+	return ( s == "varchar" || s ==  "integer" || s ==  "double" || s == "real" || s == "sequence");
+}
+
+/**
+ * Purge readings by asset or purge all readings
+ *
+ * @param asset		The asset name to purge
+ * 			If empty all assets will be removed
+ * @return		The number of removed asset records
+ */
+unsigned int Connection::purgeReadingsAsset(const string& asset)
+{
+SQLBuffer       sql;
+unsigned int rowsAffected;
+
+	sql.append("DELETE FROM fledge.readings");
+
+	if (!asset.empty())
+	{
+		sql.append(" WHERE asset_code = '" + asset + "'");
+	}
+	sql.append(';');
+       
+	const char *query = sql.coalesce();
+        logSQL("PurgeReadingsAsset", query);
+
+	START_TIME;
+
+	PGresult *res = PQexec(dbConnection, query);
+
+	END_TIME;
+
+	delete[] query;
+	if (PQresultStatus(res) == PGRES_COMMAND_OK)
+	{
+		PQclear(res);
+		return atoi(PQcmdTuples(res));
+	}
+	raiseError("PurgeReadingsAsset", PQerrorMessage(dbConnection));
+	PQclear(res);
+	return 0;
 }

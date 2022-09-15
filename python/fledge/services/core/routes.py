@@ -4,6 +4,8 @@
 # See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
+from fledge.services.core import proxy
+
 from fledge.services.core.api import auth
 from fledge.services.core.api import audit as api_audit
 from fledge.services.core.api import browser
@@ -22,6 +24,7 @@ from fledge.services.core.api import south
 from fledge.services.core.api import north
 from fledge.services.core.api import filters
 from fledge.services.core.api import notification
+from fledge.services.core.api.plugins import data as plugin_data
 from fledge.services.core.api.plugins import install as plugins_install, discovery as plugins_discovery
 from fledge.services.core.api.plugins import update as plugins_update
 from fledge.services.core.api.plugins import remove as plugins_remove
@@ -29,7 +32,9 @@ from fledge.services.core.api.snapshot import plugins as snapshot_plugins
 from fledge.services.core.api.snapshot import table as snapshot_table
 from fledge.services.core.api import package_log
 from fledge.services.core.api.repos import configure as configure_repo
-
+from fledge.services.core.api.control_service import script_management
+from fledge.services.core.api.control_service import acl_management
+from fledge.services.core.api import python_packages
 
 __author__ = "Ashish Jabble, Praveen Garg, Massimiliano Pinto, Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017-2018 OSIsoft, LLC"
@@ -53,6 +58,9 @@ def setup(app):
     # auth
     app.router.add_route('POST', '/fledge/login', auth.login)
     app.router.add_route('PUT', '/fledge/logout', auth.logout_me)
+
+    # auth ott
+    app.router.add_route('GET', '/fledge/auth/ott', auth.get_ott)
 
     # logout all active sessions
     app.router.add_route('PUT', '/fledge/{user_id}/logout', auth.logout)
@@ -114,6 +122,7 @@ def setup(app):
     app.router.add_route('GET', '/fledge/service/available', service.get_available)
     app.router.add_route('GET', '/fledge/service/installed', service.get_installed)
     app.router.add_route('PUT', '/fledge/service/{type}/{name}/update', service.update_service)
+    app.router.add_route('POST', '/fledge/service/{service_name}/otp', service.issueOTPToken)
 
     # Task
     app.router.add_route('POST', '/fledge/scheduled/task', task.add_task)
@@ -129,7 +138,9 @@ def setup(app):
     browser.setup(app)
 
     # asset tracker
-    app.router.add_route('GET', '/fledge/track', asset_tracker.get_asset_tracker_events)
+    app.router.add_route('GET',    '/fledge/track', asset_tracker.get_asset_tracker_events)
+    app.router.add_route('PUT',    '/fledge/track/service/{service}/asset/{asset}/event/{event}',
+                         asset_tracker.deprecate_asset_track_entry)
 
     # Statistics - As per doc
     app.router.add_route('GET', '/fledge/statistics', api_statistics.get_statistics)
@@ -180,6 +191,12 @@ def setup(app):
     app.router.add_route('PUT', '/fledge/plugins/{type}/{name}/update', plugins_update.update_plugin)
     app.router.add_route('DELETE', '/fledge/plugins/{type}/{name}', plugins_remove.remove_plugin)
 
+    # plugin data
+    app.router.add_route('GET', '/fledge/service/{service_name}/persist', plugin_data.get_persist_plugins)
+    app.router.add_route('GET', '/fledge/service/{service_name}/plugin/{plugin_name}/data', plugin_data.get)
+    app.router.add_route('POST', '/fledge/service/{service_name}/plugin/{plugin_name}/data', plugin_data.add)
+    app.router.add_route('DELETE', '/fledge/service/{service_name}/plugin/{plugin_name}/data', plugin_data.delete)
+
     # Filters 
     app.router.add_route('POST', '/fledge/filter', filters.create_filter)
     app.router.add_route('PUT', '/fledge/filter/{user_name}/pipeline', filters.add_filters_pipeline)
@@ -197,6 +214,13 @@ def setup(app):
     app.router.add_route('POST', '/fledge/notification', notification.post_notification)
     app.router.add_route('PUT', '/fledge/notification/{notification_name}', notification.put_notification)
     app.router.add_route('DELETE', '/fledge/notification/{notification_name}', notification.delete_notification)
+    app.router.add_route('GET', '/fledge/notification/{notification_name}/delivery', notification.get_delivery_channels)
+    app.router.add_route('POST', '/fledge/notification/{notification_name}/delivery',
+                         notification.post_delivery_channel)
+    app.router.add_route('GET', '/fledge/notification/{notification_name}/delivery/{channel_name}',
+                         notification.get_delivery_channel_configuration)
+    app.router.add_route('DELETE', '/fledge/notification/{notification_name}/delivery/{channel_name}',
+                         notification.delete_delivery_channel)
 
     # Snapshot plugins
     app.router.add_route('GET', '/fledge/snapshot/plugins', snapshot_plugins.get_snapshot)
@@ -216,6 +240,25 @@ def setup(app):
 
     # Repo configure
     app.router.add_route('POST', '/fledge/repository', configure_repo.add_package_repo)
+
+    # Control Service Support
+    # script management
+    script_management.setup(app)
+
+    # Access Control List Management
+    app.router.add_route('POST', '/fledge/ACL', acl_management.add_acl)
+    app.router.add_route('GET', '/fledge/ACL', acl_management.get_all_acls)
+    app.router.add_route('GET', '/fledge/ACL/{acl_name}', acl_management.get_acl)
+    app.router.add_route('PUT', '/fledge/ACL/{acl_name}', acl_management.update_acl)
+    app.router.add_route('DELETE', '/fledge/ACL/{acl_name}', acl_management.delete_acl)
+    app.router.add_route('PUT', '/fledge/service/{service_name}/ACL', acl_management.attach_acl_to_service)
+    app.router.add_route('DELETE', '/fledge/service/{service_name}/ACL', acl_management.detach_acl_from_service)
+
+    app.router.add_route('GET', '/fledge/python/packages', python_packages.get_packages)
+    app.router.add_route('POST', '/fledge/python/package', python_packages.install_package)
+
+    # Proxy Admin API setup with regex
+    proxy.admin_api_setup(app)
 
     # enable cors support
     enable_cors(app)

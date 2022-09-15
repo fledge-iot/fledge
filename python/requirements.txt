@@ -1,10 +1,12 @@
 # Common - REST interface
-aiohttp==3.6.2
+aiohttp==3.8.1
 aiohttp_cors==0.7.0
 cchardet==2.1.4
-yarl==1.5.1
+yarl==1.7.2
 
 pyjwt==1.6.4
+# only required for Public Proxy multipart payload
+requests-toolbelt==0.9.1
 
 # Transformation of data, Apply JqFilter
 # Install pyjq based on python version

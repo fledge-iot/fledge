@@ -39,6 +39,7 @@ docs/_build
 docs/__pycache__/
 docs/.cache/
 docs/plugins
+docs/services
 docs/fledge_plugins.rst
 
 # Compiled Object files
@@ -87,3 +88,9 @@ python/fledge/plugins/south/*
 python/fledge/plugins/filter/*
 python/fledge/plugins/notificationDelivery/*
 python/fledge/plugins/notificationRule/*
+
+# doxygen build
+doxy/
+
+# aspell backups
+*.bak

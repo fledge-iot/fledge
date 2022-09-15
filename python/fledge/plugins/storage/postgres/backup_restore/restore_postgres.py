@@ -654,33 +654,111 @@ class RestoreProcess(FledgeProcess):
         Raises:
         """
 
-        self._logger.debug("{func}".format(func="execute_restore"))
+        def tar_extraction(_file, _ext) -> str:
+            """ Extracts the files from tar.gz backup file
 
+            Args:
+                _file: filename of the backup
+                _ext:  extension of backup file
+            Returns:
+                Full backup filepath
+            Raises:
+            """
+            import json
+            import tarfile
+            import shutil
+            from distutils.dir_util import copy_tree
+
+            # Removes tar.gz
+            filename_base1 = os.path.basename(_file)
+            filename_base2, dummy1 = os.path.splitext(filename_base1)
+            filename_base, dummy2 = os.path.splitext(filename_base2)
+            self._logger.debug("tar_extraction - filename: {} file_extension: {}".format(_file, _ext))
+            extract_path = "{}/extract".format(self._restore_lib.dir_fledge_backup)
+            if not os.path.isdir(extract_path):
+                os.mkdir(extract_path)
+            else:
+                shutil.rmtree(extract_path)
+                os.mkdir(extract_path)
+
+            # Extracts the tar
+            backup_tar = tarfile.open(_file)
+            backup_tar.extractall(extract_path)
+            db_file_from_extract = [entry for entry in backup_tar.getnames() if entry.endswith(".dump")]
+            backup_tar.close()
+
+            # Moves the dump file to the right position
+            db_file_to_restore = db_file_from_extract[0] if db_file_from_extract else "{}.dump".format(filename_base)
+            file_source = "{}/{}".format(extract_path, db_file_to_restore)
+            file_target = "{}/{}.dump".format(self._restore_lib.dir_fledge_backup, filename_base)
+            self._logger.debug("tar_extraction 'db' - source :{}: target :{}: ".format(file_source, file_target))
+            os.rename(file_source, file_target)
+
+            # etc
+            source = "{}/etc".format(extract_path)
+            target = "{}/etc".format(self._restore_lib.dir_fledge_data)
+            self._logger.debug("tar_extraction 'etc' - source :{}: target :{}: ".format(source, target))
+            copy_tree(source, target)
+
+            # external scripts
+            dir_scripts = "{}/scripts".format(extract_path)
+            if os.path.isdir(dir_scripts):
+                target = "{}/scripts".format(self._restore_lib.dir_fledge_data)
+                if not os.path.isdir(target):
+                    os.mkdir(target)
+                source = dir_scripts
+                self._logger.debug("tar_extraction 'scripts' - source :{}: target :{}: ".format(source, target))
+                copy_tree(source, target)
+
+            # software
+            is_software = "{}/software.json".format(extract_path)
+            if os.path.exists(is_software):
+                # we don't need to install software as a part of restore automatically
+                # It is a user responsibility to install
+                with open(is_software, 'r') as f:
+                    data = json.load(f)
+                self._logger.debug("tar_extraction 'data' :{}: ".format(data))
+                software_list = []
+                for p in data['plugins']:
+                    # Exclude inbuilt plugins
+                    if p['packageName'] != '':
+                        software_list.append({p['packageName']: p['version']})
+                for s in data['services']:
+                    # Exclude inbuilt services
+                    if s not in ('storage', 'south', 'north'):
+                        # As such no version available for services, therefore keeping empty
+                        software_list.append({"fledge-service-{}".format(s): ''})
+                self._logger.info(
+                    "Please check install software list: {}; if any of software is not present onto your system, "
+                    "you need to install it manually.".format(software_list))
+            # Remove extract directory
+            shutil.rmtree(extract_path)
+            return file_target
+
+        self._logger.debug("{func}".format(func="execute_restore"))
         # Fetch old backup table entries before restore
         old_backup_entries = self._restore_lib.sl_get_all_backups()
         self._logger.debug("{func} - old backup entries list - {backups}".format(func="execute_restore",
                                                                                  backups=old_backup_entries))
         backup_id, file_name = self._identifies_backup_to_restore()
-
         self._logger.debug("{func} - backup to restore |{id}| - |{file}| ".format(
                                                                                 func="execute_restore",
                                                                                 id=backup_id,
                                                                                 file=file_name))
-
         # Stops Fledge if it is running
         if self._fledge_status() == self.FledgeStatus.RUNNING:
             self._fledge_stop()
-
         self._logger.debug("{func} - Fledge is down".format(func="execute_restore"))
-
         # Executes the restore and then starts Fledge
         try:
-            self._run_restore_command(file_name)
-
-            if self._force_restore:
+            dummy, file_extension = os.path.splitext(file_name)
+            # backward compatibility (<= 1.9.2)
+            file_name_dump = file_name if file_extension == ".dump" else tar_extraction(file_name, file_extension)
+            self._logger.debug("Filename dump: {}".format(file_name_dump))
+            self._run_restore_command(file_name_dump)
+            if self._force_restore and file_extension != ".gz":
                 # Retrieve the backup-id after the restore operation
                 backup_id = self.get_backup_id_from_file_name(file_name)
-
             # Updates the backup status as RESTORED
             self._restore_lib.backup_status_update(backup_id, lib.BackupStatus.RESTORED)
             # Fetch new backup entries after DB fully restored
@@ -692,7 +770,6 @@ class RestoreProcess(FledgeProcess):
             self.insert_backup_entries(old_backup_entries, new_backup_entries)
         except Exception as _ex:
             _message = self._MESSAGES_LIST["e000007"].format(_ex)
-
             self._logger.error(_message)
             raise
 

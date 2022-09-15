@@ -1,8 +1,16 @@
+cmake_minimum_required(VERSION 2.6)
+
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/../../..)
+set(GCOVR_PATH "$ENV{HOME}/.local/bin/gcovr")
+
 # Project configuration
 project(RunTests)
-cmake_minimum_required(VERSION 2.6)
-set(CMAKE_CXX_FLAGS "-std=c++11 ")
-set(CMAKE_CXX_FLAGS_DEBUG "-O0 -ggdb")
+
+include(CodeCoverage)
+append_coverage_compiler_flags()
+
+set(CMAKE_CXX_FLAGS "-std=c++11 -O0")
+set(CMAKE_CXX_FLAGS_DEBUG "-O0 -ggdb --coverage")
 
 # External libraries
 set(LIBCURL_LIB -lcurl)
@@ -13,6 +21,7 @@ set(SERVICE_COMMON_LIB      services-common-lib)
 set(PLUGINS_COMMON_LIB      plugins-common-lib)
 set(PLUGIN_SQLITE           sqlite)
 set(STORAGE_COMMON_LIB      storage-common-lib)
+
 
 # Locate GTest
 find_package(GTest REQUIRED)
@@ -25,10 +34,11 @@ include_directories(../../../../../../C/plugins/storage/common/include)
 include_directories(../../../../../../C/thirdparty/rapidjson/include)
 include_directories(../../../../../../C/plugins/storage/sqlite/include)
 include_directories(../../../../../../C/plugins/storage/sqlite/common/include)
+include_directories(../../../../../../C/plugins/storage/sqlite/schema/include)
 
 # Source files
 file(GLOB TEST_SOURCES tests.cpp)
-file(GLOB COMMON_SOURCES ../sqlite/*.cpp)
+file(GLOB COMMON_SOURCES ../sqlite/*.cpp ../sqlite/schema/*.cpp)
 file(GLOB COMMON_SOURCES ../sqlite/common/*.cpp)
 
 # Check for SQLite3 source tree in specific location
@@ -37,6 +47,21 @@ if(EXISTS ${FLEDGE_SQLITE3_LIBS})
 	message(STATUS "Using SLITE3 source files in ${FLEDGE_SQLITE3_LIBS}")
 	include_directories(${FLEDGE_SQLITE3_LIBS})
 endif()
+
+# Find python3.x dev/lib package
+find_package(PkgConfig REQUIRED)
+if(${CMAKE_VERSION} VERSION_LESS "3.12.0")
+    pkg_check_modules(PYTHON REQUIRED python3)
+else()
+    find_package(Python3 COMPONENTS Interpreter Development)
+endif()
+
+if(${CMAKE_VERSION} VERSION_LESS "3.12.0")
+    link_directories(${PYTHON_LIBRARY_DIRS})
+else()
+    link_directories(${Python3_LIBRARY_DIRS})
+endif()
+
 
 # Exe creation
 link_directories(
@@ -54,3 +79,21 @@ target_link_libraries(${PROJECT_NAME} ${STORAGE_COMMON_LIB})
 target_link_libraries(${PROJECT_NAME} ${LIBCURL_LIB})
 
 target_link_libraries(${PROJECT_NAME} ${GTEST_LIBRARIES} pthread)
+# Add Python 3.x library
+if(${CMAKE_VERSION} VERSION_LESS "3.12.0")
+	target_link_libraries(${PROJECT_NAME} ${PYTHON_LIBRARIES})
+else()
+	target_link_libraries(${PROJECT_NAME} ${Python3_LIBRARIES})
+endif()
+
+setup_target_for_coverage_gcovr_html(
+            NAME CoverageHtml
+            EXECUTABLE ${PROJECT_NAME}
+            DEPENDENCIES ${PROJECT_NAME}
+    )
+
+setup_target_for_coverage_gcovr_xml(
+            NAME CoverageXml
+            EXECUTABLE ${PROJECT_NAME}
+            DEPENDENCIES ${PROJECT_NAME}
+    )

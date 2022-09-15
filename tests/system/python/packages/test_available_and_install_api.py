@@ -22,10 +22,12 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 available_pkg = []
-counter = 3
+""" Hold all the available packages in list """
+counter = 1
+"""  By default One OMF north plugin is pre-installed """
 errors = []
-"""  By default 3 plugins are pre-installed i.e. all north
-"""
+""" Hold all the Package discovery errors in list """
+
 
 @pytest.fixture
 def reset_packages():

@@ -7,6 +7,7 @@
  *
  * Author: Massimiliano Pinto
  */
+
 #include <connection_manager.h>
 #include <connection.h>
 #include <plugin_api.h>
@@ -17,11 +18,13 @@
 #include "rapidjson/document.h"
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
+#include <config_category.h>
 #include <sstream>
 #include <iostream>
 #include <string>
 #include <logger.h>
 #include <plugin_exception.h>
+#include <common.h>
 
 using namespace std;
 using namespace rapidjson;
@@ -31,15 +34,26 @@ using namespace rapidjson;
  */
 extern "C" {
 
+const char *default_config = QUOTE({
+		"poolSize" : {
+			"description" : "The number of connections to create in the intial pool of connections",
+			"type" : "integer",
+			"default" : "5",
+			"displayName" : "Pool Size",
+			"order" : "1"
+		}
+});
+
 /**
  * The plugin information structure
  */
 static PLUGIN_INFORMATION info = {
-	"SQLite3",           // Name
-	"1.1.0",           // Version
-	SP_READINGS,                // Flags
-	PLUGIN_TYPE_STORAGE,        // Type
-	"1.0.0"           // Interface version
+	"SQLite3",		// Name
+	"1.1.0",		// Version
+	SP_READINGS,		// Flags
+	PLUGIN_TYPE_STORAGE,	// Type
+	"1.6.0",		// Interface version
+	default_config
 };
 
 /**
@@ -54,12 +68,20 @@ PLUGIN_INFORMATION *plugin_info()
  * Initialise the plugin, called to get the plugin handle
  * In the case of SQLLite we also get a pool of connections
  * to use.
+ *
+ * @param category	The plugin configuration category
  */
-PLUGIN_HANDLE plugin_init()
+PLUGIN_HANDLE plugin_init(ConfigCategory *category)
 {
 ConnectionManager *manager = ConnectionManager::getInstance();
 
-	manager->growPool(5);
+int poolSize = 5;
+
+	if (category->itemExists("poolSize"))
+	{
+		poolSize = strtol(category->getValue("poolSize").c_str(), NULL, 10);
+	}
+	manager->growPool(poolSize);
 	return manager;
 }
 /**
@@ -113,8 +135,7 @@ Connection        *connection = manager->allocate();
 std::string 	  results;
 unsigned long	  age, size;
 
-	// TODO put flags in common header file
-	if (flags & 0x0002)	// Purge by size
+	if (flags & STORAGE_PURGE_SIZE)	// Purge by size
 	{
 		(void)connection->purgeReadingsByRows(param, flags, sent, results);
 	}
@@ -157,5 +178,17 @@ ConnectionManager *manager = (ConnectionManager *)handle;
 	return true;
 }
 
+/**
+ * Purge given readings asset or all readings from the buffer
+ */
+unsigned int plugin_reading_purge_asset(PLUGIN_HANDLE handle, char *asset)
+{
+ConnectionManager *manager = (ConnectionManager *)handle;
+Connection        *connection = manager->allocate();
+
+	unsigned int deleted = connection->purgeReadingsAsset(asset);
+	manager->release(connection);
+	return deleted;
+}
 };
 

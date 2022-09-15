@@ -6,4 +6,3 @@ Building Fledge
 
     building_fledge/index
     RASPBIAN
-    REDHAT

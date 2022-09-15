@@ -1,0 +1,22 @@
+#!/bin/sh
+# Run a Fledge task written in Python
+if [ "${FLEDGE_ROOT}" = "" ]; then
+	FLEDGE_ROOT=/usr/local/fledge
+fi
+
+if [ ! -d "${FLEDGE_ROOT}" ]; then
+	logger "Fledge home directory missing or incorrectly set environment"
+	exit 1
+fi
+
+if [ ! -d "${FLEDGE_ROOT}/python" ]; then
+	logger "Fledge home directory is missing the Python installation"
+	exit 1
+fi
+
+# We run the Python code from the python directory
+cd "${FLEDGE_ROOT}/python"
+
+# TODO: Do we need to check dispatcher installation and is running state; if not running or not installed exit early?
+
+python3 -m fledge.tasks.automation_script "$@"

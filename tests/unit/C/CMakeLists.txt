@@ -1,9 +1,16 @@
 cmake_minimum_required(VERSION 2.6)
 
-set(CMAKE_CXX_FLAGS "-std=c++11 -O3")
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR})
+set(GCOVR_PATH "$ENV{HOME}/.local/bin/gcovr")
+
+include(CodeCoverage)
+append_coverage_compiler_flags()
+ 
+set(CMAKE_CXX_FLAGS "-std=c++11 -O0")
+
 set(UUIDLIB -luuid)
 set(COMMONLIB -ldl)
- 
+
 EXECUTE_PROCESS( COMMAND grep -o ^NAME=.* /etc/os-release COMMAND cut -f2 -d\" COMMAND sed s/\"//g OUTPUT_VARIABLE os_name )
 EXECUTE_PROCESS( COMMAND grep -o ^VERSION_ID=.* /etc/os-release COMMAND cut -f2 -d\" COMMAND sed s/\"//g OUTPUT_VARIABLE os_version )
 
@@ -30,7 +37,7 @@ find_package(PkgConfig REQUIRED)
 if(${CMAKE_VERSION} VERSION_LESS "3.12.0") 
     pkg_check_modules(PYTHON REQUIRED python3)
 else()
-    find_package(Python COMPONENTS Interpreter Development)
+    find_package(Python3 COMPONENTS Interpreter Development)
 endif()
 
 include_directories(../../../C/common/include)
@@ -45,7 +52,7 @@ include_directories(../../../C/plugins/storage/common/include)
 if(${CMAKE_VERSION} VERSION_LESS "3.12.0") 
     include_directories(${PYTHON_INCLUDE_DIRS})
 else()
-    include_directories(${Python_INCLUDE_DIRS})
+    include_directories(${Python3_INCLUDE_DIRS})
 endif()
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/../lib)
@@ -57,6 +64,7 @@ file(GLOB COMMON_LIB_SOURCES ../../../C/common/*.cpp)
 add_library(common-lib SHARED ${COMMON_LIB_SOURCES})
 target_link_libraries(common-lib ${UUIDLIB})
 target_link_libraries(common-lib ${Boost_LIBRARIES})
+target_link_libraries(common-lib -lcrypto)
 set_target_properties(common-lib PROPERTIES SOVERSION 1)
 
 
@@ -116,3 +124,4 @@ add_subdirectory(cmake_pg)
 add_subdirectory(cmake_sqlite)
 add_subdirectory(cmake_sqlitelb)
 add_subdirectory(cmake_sqliteM)
+

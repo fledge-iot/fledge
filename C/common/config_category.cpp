@@ -473,6 +473,47 @@ string ConfigCategory::getItemAttribute(const string& itemName,
 }
 
 /**
+ * Set the requested attribute of a configuration category item
+ *
+ * @param name	The name of the configuration item to return
+ * @param itemAttribute	The item attribute (such as "file", "order", "readonly"
+ * @param value	The value to set
+ * @return	The configuration item attribute as string
+ * @throws	ConfigItemNotFound if the item does not exist in the category
+ *		ConfigItemAttributeNotFound if the requested attribute
+ *		does not exist for the found item.
+ */
+bool ConfigCategory::setItemAttribute(const string& itemName,
+					const ItemAttribute itemAttribute,
+					const string& value)
+{
+	for (unsigned int i = 0; i < m_items.size(); i++)
+	{
+		if (itemName.compare(m_items[i]->m_name) == 0)
+		{
+			switch (itemAttribute)
+			{
+				case ORDER_ATTR:
+					m_items[i]->m_order = value;
+					return true;
+				case READONLY_ATTR:
+					m_items[i]->m_readonly = value;
+					return true;
+				case MANDATORY_ATTR:
+				    m_items[i]->m_mandatory = value;
+					return true;
+				case FILE_ATTR:
+					m_items[i]->m_file = value;
+					return true;
+				default:
+					return false;
+			}
+		}
+	}
+	return false;
+}
+
+/**
  * Return the type of the configuration category item
  *
  * @param name	The name of the configuration item to return
@@ -1551,6 +1592,14 @@ ConfigCategoryChange::ConfigCategoryChange(const string& json)
 			json.c_str());
 		throw new ConfigMalformed();
 	}
+
+	if (doc.HasMember("parent_category"))
+	{
+		m_parent_name=doc["parent_category"].GetString();
+	} else {
+		m_parent_name="";
+	}
+
 	if (!doc.HasMember("items"))
 	{
 		Logger::getLogger()->error("Configuration change is missing an items element '%s'",

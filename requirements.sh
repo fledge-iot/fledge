@@ -155,13 +155,17 @@ if [[ $YUM_PLATFORM = true ]]; then
 	yum install -y openssl-devel
 	if [[ $os_version == *"7"* ]]; then
 		yum install -y rh-python36
-		yum install -y rh-postgresql96
-		yum install -y rh-postgresql96-postgresql-devel
+		yum install -y rh-postgresql13
+		yum install -y rh-postgresql13-postgresql-devel
 	else
 		yum install -y python36
 		yum install -y postgresql
 		yum install -y postgresql-devel
 	fi
+
+	# Numpy libraries	
+	yum install -y numpy
+
 	yum install -y wget
 	yum install -y zlib-devel
 	yum install -y git
@@ -181,7 +185,10 @@ if [[ $YUM_PLATFORM = true ]]; then
 	yum install -y cmake3
 	# create symlink so that cmake points to cmake3
 	set +e
-	ln -s /usr/bin/cmake3 /usr/bin/cmake
+	# Make a copy of existing cmake
+	cp -p /usr/bin/cmake /usr/bin/cmake.old
+	# Use -f to remove existing cmake binary file
+	ln -f -s /usr/bin/cmake3 /usr/bin/cmake
 	set -e
 
 	if [[ $USE_SCL = true ]]; then
@@ -190,7 +197,6 @@ if [[ $YUM_PLATFORM = true ]]; then
 	service rsyslog start
 
 	sqlite3_build_prepare
-
 	# Attempts a second execution of make if the first fails
 	set +e
 	make
@@ -199,10 +205,11 @@ if [[ $YUM_PLATFORM = true ]]; then
 
 		set -e
 		make
+		# TODO: Use make install to install sqlite3 as a command
 	fi
 	cd $fledge_location
 	set -e
-
+	
 	# Upgrade curl if needed
 	curl_upgrade_evaluates
 
@@ -212,6 +219,8 @@ if [[ $YUM_PLATFORM = true ]]; then
 		# To avoid to stop the execution for any internal error of scl_source
 		set +e
 		source scl_source enable rh-python36
+		python3 -m pip install --upgrade pip
+		python3 -m pip install numpy
 		set -e
 	fi
 
@@ -238,19 +247,21 @@ elif apt --version 2>/dev/null; then
 	apt install -y avahi-daemon ca-certificates curl
 	apt install -y cmake g++ make build-essential autoconf automake uuid-dev
 	apt install -y libtool libboost-dev libboost-system-dev libboost-thread-dev libpq-dev libz-dev
-	apt install -y python-dev python3-dev python3-pip
+	apt install -y python-dev python3-dev python3-pip python3-numpy
+	python3 -m pip install --upgrade pip
 
 	sqlite3_build_prepare
 	make
-
+        
+	apt install -y sqlite3 # make install after sqlite3_build_prepare should be enough to install sqlite3 as a command 
 	apt install -y pkg-config
 
 	# for Kerberos authentication, avoid interactive questions
 	DEBIAN_FRONTEND=noninteractive apt install -yq krb5-user
 	DEBIAN_FRONTEND=noninteractive apt install -yq libcurl4-openssl-dev
 
-	apt install -y cpulimit
+	apt install -y cpulimit 
+	
 else
-	echo "Requirements cannot be automatically installed, please refer README.rst to install requirements manually"
-yum install -y rh-python36
+	echo "Requirements cannot be automatically installed, please refer README.rst to install requirements manually."
 fi

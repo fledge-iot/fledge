@@ -109,6 +109,7 @@ FLEDGE_SCRIPT_SRC         := scripts/fledge
 FLEDGE_UPDATE_SRC         := scripts/extras/fledge_update
 UPDATE_TASK_APT_SRC        := scripts/extras/update_task.apt
 UPDATE_TASK_SNAPPY_SRC     := scripts/extras/update_task.snappy
+UPDATE_TASK_YUM_SRC        := scripts/extras/update_task.yum
 SUDOERS_SRC                := scripts/extras/fledge.sudoers
 SUDOERS_SRC_RH             := scripts/extras/fledge.sudoers_rh
 
@@ -125,15 +126,19 @@ NORTH_SCRIPT_SRC            := scripts/tasks/north
 NORTH_C_SCRIPT_SRC          := scripts/tasks/north_c
 NORTH_SERVICE_C_SCRIPT_SRC  := scripts/services/north_C
 NOTIFICATION_C_SCRIPT_SRC   := scripts/services/notification_c
+DISPATCHER_C_SCRIPT_SRC     := scripts/services/dispatcher_c
+BUCKET_STORAGE_C_SCRIPT_SRC := scripts/services/bucket_storage_c
 PURGE_SCRIPT_SRC            := scripts/tasks/purge
 PURGE_C_SCRIPT_SRC          := scripts/tasks/purge_system
 STATISTICS_SCRIPT_SRC       := scripts/tasks/statistics
 BACKUP_SRC                  := scripts/tasks/backup
 RESTORE_SRC                 := scripts/tasks/restore
 CHECK_CERTS_TASK_SCRIPT_SRC := scripts/tasks/check_certs
+AUTOMATION_TASK_SCRIPT_SRC  := scripts/tasks/automation_script
 CERTIFICATES_SCRIPT_SRC     := scripts/certificates
 AUTH_CERTIFICATES_SCRIPT_SRC := scripts/auth_certificates
 PACKAGE_UPDATE_SCRIPT_SRC   := scripts/package
+FLEDGE_MNT_SCRIPT           := scripts/fledge_mnt
 
 # Custom location of SQLite3 library
 FLEDGE_HAS_SQLITE3_PATH    := /tmp/sqlite3-pkg/src
@@ -339,15 +344,19 @@ scripts_install : $(SCRIPTS_INSTALL_DIR) \
 	install_north_c_script \
 	install_north_service_c_script \
 	install_notification_c_script \
+	install_dispatcher_c_script \
+	install_bucket_storage_c_script \
 	install_purge_script \
 	install_statistics_script \
 	install_storage_script \
 	install_backup_script \
 	install_restore_script \
 	install_check_certificates_script \
+	install_automation_script \
 	install_certificates_script \
 	install_auth_certificates_script \
-	install_package_update_script
+	install_package_update_script \
+	install_fledge_mnt_script
 
 # create scripts install dir
 $(SCRIPTS_INSTALL_DIR) :
@@ -399,6 +408,12 @@ install_north_service_c_script : $(SCRIPT_SERVICES_INSTALL_DIR) $(NORTH_SERVICE_
 install_notification_c_script: $(SCRIPT_SERVICES_INSTALL_DIR) $(NOTIFICATION_C_SCRIPT_SRC)
 	$(CP) $(NOTIFICATION_C_SCRIPT_SRC) $(SCRIPT_SERVICES_INSTALL_DIR)
 
+install_dispatcher_c_script: $(SCRIPT_SERVICES_INSTALL_DIR) $(DISPATCHER_C_SCRIPT_SRC)
+	$(CP) $(DISPATCHER_C_SCRIPT_SRC) $(SCRIPT_SERVICES_INSTALL_DIR)
+
+install_bucket_storage_c_script: $(SCRIPT_SERVICES_INSTALL_DIR) $(BUCKET_STORAGE_C_SCRIPT_SRC)
+	$(CP) $(BUCKET_STORAGE_C_SCRIPT_SRC) $(SCRIPT_SERVICES_INSTALL_DIR)
+
 install_purge_script : $(SCRIPT_TASKS_INSTALL_DIR) $(PURGE_SCRIPT_SRC)
 	$(CP) $(PURGE_SCRIPT_SRC) $(SCRIPT_TASKS_INSTALL_DIR)
 	$(CP) $(PURGE_C_SCRIPT_SRC) $(SCRIPT_TASKS_INSTALL_DIR)
@@ -415,6 +430,9 @@ install_restore_script : $(SCRIPT_TASKS_INSTALL_DIR) $(RESTORE_SRC)
 install_check_certificates_script : $(SCRIPT_TASKS_INSTALL_DIR) $(CHECK_CERTS_TASK_SCRIPT_SRC)
 	$(CP) $(CHECK_CERTS_TASK_SCRIPT_SRC) $(SCRIPT_TASKS_INSTALL_DIR)
 
+install_automation_script : $(SCRIPT_INSTALL_DIR) $(AUTOMATION_TASK_SCRIPT_SRC)
+	$(CP) $(AUTOMATION_TASK_SCRIPT_SRC) $(SCRIPT_TASKS_INSTALL_DIR)
+
 install_storage_script : $(SCRIPT_INSTALL_DIR) $(STORAGE_SCRIPT_SRC)
 	$(CP) $(STORAGE_SCRIPT_SRC) $(SCRIPTS_INSTALL_DIR)
 
@@ -428,6 +446,9 @@ install_package_update_script : $(SCRIPT_INSTALL_DIR) $(PACKAGE_UPDATE_SCRIPT_SR
 	$(CP_DIR) $(PACKAGE_UPDATE_SCRIPT_SRC) $(SCRIPTS_INSTALL_DIR)
 	chmod -R a-w $(SCRIPTS_INSTALL_DIR)/package
 	chmod -R u+x $(SCRIPTS_INSTALL_DIR)/package
+
+install_fledge_mnt_script: $(SCRIPT_INSTALL_DIR) ${FLEDGE_MNT_SCRIPT}
+	$(CP) ${FLEDGE_MNT_SCRIPT} $(SCRIPTS_INSTALL_DIR)
 
 $(SCRIPT_COMMON_INSTALL_DIR) :
 	$(MKDIR_PATH) $@
@@ -469,6 +490,7 @@ bin_install : $(BIN_INSTALL_DIR) $(FOGBENCH_SCRIPT_SRC) $(FLEDGE_SCRIPT_SRC)
 	$(CP) $(FLEDGE_UPDATE_SRC) $(BIN_INSTALL_DIR)
 	$(CP) $(UPDATE_TASK_APT_SRC) $(BIN_INSTALL_DIR)
 	$(CP) $(UPDATE_TASK_SNAPPY_SRC) $(BIN_INSTALL_DIR)
+	$(CP) $(UPDATE_TASK_YUM_SRC) $(BIN_INSTALL_DIR)
 ifneq ("$(PLATFORM_RH)","")
 	$(CP) $(SUDOERS_SRC_RH) $(BIN_INSTALL_DIR)
 else

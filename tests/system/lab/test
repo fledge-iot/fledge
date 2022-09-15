@@ -11,6 +11,7 @@ CRESET="${CPFX}0m"
 # Read config file
 . ./test.config
 
+LAB_ASSET_NAME="PILAB-sinusoid"
 rm -f err.txt
 touch err.txt
 
@@ -22,21 +23,25 @@ display_and_collect_err () {
 
 URL="http://$FLEDGE_IP:8081/fledge"
 
-echo -e INFO: "${CINFO} Add Sinusoid South ${CRESET}"
-curl -sX POST "$URL/service" -d \
-'{
+sinusoid_config=$(cat <<EOF
+{
    "name": "Sine",
    "type": "south",
    "plugin": "sinusoid",
    "enabled": true,
-   "config": {}
-}'
+   "config": {"assetName":{"value": "$LAB_ASSET_NAME" }}
+}
+EOF
+)
+
+echo -e INFO: "${CINFO} Add Sinusoid South ${CRESET}"
+curl -sX POST "$URL/service" -d "$sinusoid_config"
 echo
 
 for LOOP in $(seq ${MAX_RETRIES}); do
     RESULT=`curl -sX GET "$URL/south"`
     # echo ${RESULT}
-    COUNT=`echo ${RESULT} | jq '.services[].assets[]|select(.asset == "sinusoid").count // empty'`
+    COUNT=`echo ${RESULT} | jq '.services[].assets[]|select(.asset == "'${LAB_ASSET_NAME}'").count // empty'`
     if [[ -n "${COUNT}" ]] && [[ ${COUNT} -gt 0 ]]; then break; fi
 done
 if [[ ${LOOP} -eq ${MAX_RETRIES} ]]
@@ -50,7 +55,7 @@ fi
 for LOOP in $(seq ${MAX_RETRIES}); do
     RESULT=`curl -sX GET "$URL/asset"`
     # echo ${RESULT}
-    COUNT=`echo ${RESULT} | jq '.[]|select(.assetCode == "sinusoid")|.count // empty'`
+    COUNT=`echo ${RESULT} | jq '.[]|select(.assetCode == "'${LAB_ASSET_NAME}'")|.count // empty'`
     if [[ -n "$COUNT" ]] && [[ ${COUNT} -gt 0 ]]; then break; fi
 done
 if [[ ${LOOP} -eq ${MAX_RETRIES} ]]
@@ -76,14 +81,14 @@ if [[ ${LOOP} -eq ${MAX_RETRIES} ]]
 fi
 
 for LOOP in $(seq ${MAX_RETRIES}); do
-    RESULT=`curl -sX GET "$URL/asset/sinusoid?seconds=600"`
+    RESULT=`curl -sX GET "$URL/asset/${LAB_ASSET_NAME}?seconds=600"`
     # echo ${RESULT}
     POINT=`echo ${RESULT} | jq '.[0].reading.sinusoid // empty'`
     if [[ -n "$POINT" ]]; then break; fi
 done
 if [[ ${LOOP} -eq ${MAX_RETRIES} ]]
   then
-    display_and_collect_err "TIMEOUT! sinusoid data not seen in sinusoid graph. $URL/asset/sinusoid?seconds=600"
+    display_and_collect_err "TIMEOUT! sinusoid data not seen in sinusoid graph. $URL/asset/${LAB_ASSET_NAME}?seconds=600"
     if [[ ${EXIT_EARLY} -eq 1 ]]; then exit 1; fi
   else
     echo "---- sinusoid data seen in sinusoid graph ----"
@@ -91,34 +96,89 @@ fi
 
 echo "======================= SINUSOID SETUP COMPLETE ======================="
 
+
 setup_north_pi_egress () {
-    # Add PI North
-    curl -sX POST "$URL/scheduled/task" -d \
-    '{
-       "name": "PI Server",
-       "plugin": "OMF",
-       "type": "north",
-       "schedule_repeat": 30,
-       "schedule_type": "3",
-       "schedule_enabled": true,
-       "config": {
-          "PIServerEndpoint": {
-             "value": "Connector Relay"
-          },
-          "ServerHostname": {
-             "value": "'${PI_IP}'"
-          },
-          "ServerPort": {
-             "value": "5460"
-          },
-          "producerToken": {
-             "value": "'${PI_TOKEN}'"
-          },
-          "compression": {
-             "value": "false"
-          }
-       }
-    }'
+    if [[  ${ADD_NORTH_AS_SERVICE} == true ]]
+    then
+        # Add PI North as service
+        curl -sX POST "$URL/service" -d \
+        '{
+           "name": "PI Server",
+           "plugin": "OMF",
+           "type": "north",
+           "enabled": true,
+           "config": {
+              "PIServerEndpoint": {
+                 "value": "PI Web API"
+              },
+              "ServerHostname": {
+                 "value": "'${PI_IP}'"
+              },
+              "ServerPort": {
+                 "value": "443"
+              },
+              "PIWebAPIUserId": {
+                 "value": "'${PI_USER}'"
+              },
+              "PIWebAPIPassword": {
+                 "value": "'${PI_PASSWORD}'"
+              },
+              "NamingScheme": {
+                 "value": "Backward compatibility"
+              },
+              "PIWebAPIAuthenticationMethod": {
+                 "value": "basic"
+              },
+              "compression": {
+                 "value": "true"
+              },
+              "DefaultAFLocation": {
+                 "value": "/PIlabSinelvl1/PIlabSinelvl2/PIlabSinelvl3"
+              }
+           }
+        }'
+      else
+        # Add PI North as task
+        curl -sX POST "$URL/scheduled/task" -d \
+        '{
+           "name": "PI Server",
+           "plugin": "OMF",
+           "type": "north",
+           "schedule_repeat": 30,
+           "schedule_type": "3",
+           "schedule_enabled": true,
+           "config": {
+              "PIServerEndpoint": {
+                 "value": "PI Web API"
+              },
+              "ServerHostname": {
+                 "value": "'${PI_IP}'"
+              },
+              "ServerPort": {
+                 "value": "443"
+              },
+              "PIWebAPIUserId": {
+                 "value": "'${PI_USER}'"
+              },
+              "PIWebAPIPassword": {
+                 "value": "'${PI_PASSWORD}'"
+              },
+              "NamingScheme": {
+                 "value": "Backward compatibility"
+              },
+              "PIWebAPIAuthenticationMethod": {
+                 "value": "basic"
+              },
+              "compression": {
+                 "value": "true"
+              },
+              "DefaultAFLocation": {
+                 "value": "/PIlabSinelvl1/PIlabSinelvl2/PIlabSinelvl3"
+              }
+           }
+        }'
+    fi
+
     echo
 
     for LOOP in $(seq ${MAX_RETRIES}); do
@@ -170,16 +230,15 @@ setup_north_pi_egress () {
 if [[  ${VERIFY_EGRESS_TO_PI} == 1 ]]
   then
      setup_north_pi_egress
+     echo "---- Verify and clean the data sent to PI server ----"
+     python3 verify_clean_pi.py --pi-admin=${PI_USER} --pi-passwd=${PI_PASSWORD} --pi-host=${PI_IP} --pi-port=443 --pi-db=foglamp --asset-name=${LAB_ASSET_NAME}
   else
      echo "======================= SKIPPED PI EGRESS ======================="
 fi
 
 
-
-
-# Add Expression Filter (Square)
-curl -sX POST "$URL/filter" -d \
-'{
+square_filter_config=$(cat <<EOF
+{
    "name": "Square",
    "plugin": "expression",
    "filter_config": {
@@ -187,7 +246,12 @@ curl -sX POST "$URL/filter" -d \
       "expression": "if(sinusoid>0,0.5,-0.5)",
       "enable": "true"
    }
-}'
+}
+EOF
+)
+
+# Add Expression Filter (Square)
+curl -sX POST "$URL/filter" -d "$square_filter_config"
 echo
 # Apply Square to Sine
 curl -sX PUT "$URL/filter/Sine/pipeline?allow_duplicates=true&append_filter=true" -d \
@@ -199,8 +263,8 @@ curl -sX PUT "$URL/filter/Sine/pipeline?allow_duplicates=true&append_filter=true
 echo
 echo "======================= SINUSOID SQUARE FILTER COMPLETE ======================="
 # Add Expression Filter (Max)
-curl -sX POST "$URL/filter" -d \
-'{
+max_filter_config=$(cat <<EOF
+{
    "name": "Max",
    "plugin": "expression",
    "filter_config": {
@@ -208,7 +272,10 @@ curl -sX POST "$URL/filter" -d \
       "expression": "max(sinusoid, square)",
       "enable": "true"
    }
-}'
+}
+EOF
+)
+curl -sX POST "$URL/filter" -d "$max_filter_config"
 echo
 # Apply Max to Sine
 curl -sX PUT "$URL/filter/Sine/pipeline?allow_duplicates=true&append_filter=true" -d \
@@ -220,7 +287,7 @@ curl -sX PUT "$URL/filter/Sine/pipeline?allow_duplicates=true&append_filter=true
 echo
 
 for LOOP in $(seq ${MAX_RETRIES}); do
-    RESULT=`curl -sX GET "$URL/asset/sinusoid?seconds=600"`
+    RESULT=`curl -sX GET "$URL/asset/${LAB_ASSET_NAME}?seconds=600"`
     # echo ${RESULT}
     SQUARE=`echo ${RESULT} | jq '.[0].reading.square // empty'`
     MAX=`echo ${RESULT} | jq '.[0].reading.max // empty'`
@@ -228,7 +295,7 @@ for LOOP in $(seq ${MAX_RETRIES}); do
 done
 if [[ ${LOOP} -eq ${MAX_RETRIES} ]]
  then
-   display_and_collect_err "TIMEOUT! square and max data not seen in sinusoid graph. $URL/asset/sinusoid?seconds=600"
+   display_and_collect_err "TIMEOUT! square and max data not seen in sinusoid graph. $URL/asset/${LAB_ASSET_NAME}?seconds=600"
    if [[ ${EXIT_EARLY} -eq 1 ]]; then exit 1; fi
  else
    echo "---- square and max data seen in sinusoid graph ----"
@@ -413,7 +480,7 @@ curl -sX POST "$URL/service" -d \
 '{
    "name": "Enviro",
    "type": "south",
-   "plugin": "envirophat",
+   "plugin": "rpienviro",
    "enabled": true,
    "config": {
       "assetNamePrefix": {
@@ -503,11 +570,17 @@ curl -sX POST "$URL/notification" -d \
 }'
 echo
 # Set Positive Sine Rule Config (sinusoid.sinusoid > 0)
-curl -sX PUT "$URL/category/rulePositive%20Sine" -d \
-'{
-   "asset": "sinusoid",
-   "datapoint": "sinusoid"
-}'
+
+sine_rule_config_positive=$(cat <<EOF
+{
+   "asset": "${LAB_ASSET_NAME}",
+   "datapoint": "sinusoid",
+   "condition": ">"
+}
+EOF
+)
+
+curl -sX PUT "$URL/category/rulePositive%20Sine" -d "$sine_rule_config_positive"
 echo
 # Set Positive Sine Delivery Config (positive_sine: "positive")
 curl -sX PUT "$URL/category/deliveryPositive%20Sine" -d \
@@ -555,13 +628,17 @@ curl -sX POST "$URL/notification" -d \
 curl  -sX POST "$URL/category/deliveryNegative%20Sine/script/upload" -F "script=@scripts/write_out.py"
 echo
 
-# Set Negative Sine Rule Config (sinusoid.sinusoid < 0)
-curl -sX PUT "$URL/category/ruleNegative%20Sine" -d \
-'{
-   "asset": "sinusoid",
+
+sine_rule_config_negative=$(cat <<EOF
+{
+   "asset": "${LAB_ASSET_NAME}",
    "datapoint": "sinusoid",
    "condition": "<"
-}'
+}
+EOF
+)
+# Set Negative Sine Rule Config (sinusoid.sinusoid < 0)
+curl -sX PUT "$URL/category/ruleNegative%20Sine" -d "$sine_rule_config_negative"
 echo
 
 
@@ -586,10 +663,29 @@ fi
 
 echo "======================= EVENT NEGATIVE SINE COMPLETE ======================="
 
+sinusoid1_config=$(cat <<EOF
+{
+   "name": "sin #1",
+   "type": "south",
+   "plugin": "sinusoid",
+   "enabled": true,
+   "config": {"assetName":{"value": "$LAB_ASSET_NAME" }}
+}
+EOF
+)
+
+rule_config=$(cat <<EOF
+{ "asset":"${LAB_ASSET_NAME}",
+  "datapoint":"sinusoid",
+   "trigger_value": "0.8"
+}
+EOF
+)
 
 event_toggled_sent_clear () {
     echo "Add sinusoid"
-    ADD_SIN_RES=`curl -sX POST "$URL/service" -d '{"name": "sin #1", "plugin": "sinusoid", "type": "south", "enabled":true}'`
+
+    ADD_SIN_RES=`curl -sX POST "$URL/service" -d "$sinusoid1_config"`
     ID=`echo ${ADD_SIN_RES} | jq '.id // empty'`
     NAME=`echo ${ADD_SIN_RES} | jq '.name // empty'`
     echo "$ADD_SIN_RES"
@@ -628,7 +724,7 @@ event_toggled_sent_clear () {
     fi
 
     echo "Set rule"
-    SET_RULE=`curl -sX PUT "$URL/category/ruletest" -d '{"asset":"sinusoid", "datapoint":"sinusoid", "trigger_value": "0.8"}' | jq .`
+    SET_RULE=`curl -sX PUT "$URL/category/ruletest" -d "$rule_config" | jq .`
     echo "$SET_RULE"
 
     for LOOP in $(seq ${MAX_RETRIES}); do
@@ -637,7 +733,7 @@ event_toggled_sent_clear () {
       ASSET=`echo ${RESULT} | jq .asset.value`
       DATAPOINT=`echo ${RESULT} | jq .datapoint.value`
       TRIGGER_VALUE=` echo ${RESULT} | jq .trigger_value.value`
-      if [[ -n "$ASSET" ]] && [[ "$ASSET" == "\"sinusoid\"" ]] &&\
+      if [[ -n "$ASSET" ]] && [[ "$ASSET" == "\"${LAB_ASSET_NAME}\"" ]] &&\
       [[ -n "$DATAPOINT" ]] && [[ "$DATAPOINT" == "\"sinusoid\"" ]] &&\
       [[ -n "$TRIGGER_VALUE" ]] && [[ "$TRIGGER_VALUE" == "\"0.8\"" ]]; then break; fi
     done

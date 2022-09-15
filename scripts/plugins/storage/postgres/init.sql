@@ -478,7 +478,7 @@ CREATE TABLE fledge.statistics_history_daily (
 );
 
 CREATE INDEX statistics_history_daily_ix1
-    ON statistics_history_daily (year);
+    ON fledge.statistics_history_daily (year);
 
 -- Resources table
 -- A resource and be anything that is available or can be done in Fledge. Examples:
@@ -748,20 +748,33 @@ CREATE TABLE fledge.backups (
 CREATE TABLE fledge.version (id CHAR(10));
 
 -- Create the configuration category_children table
+CREATE SEQUENCE fledge.category_children_id_seq
+    INCREMENT 1
+    START 1
+    MINVALUE 1
+    MAXVALUE 9223372036854775807
+    CACHE 1;
+
 CREATE TABLE fledge.category_children (
-       parent	character varying(255)	NOT NULL,
-       child	character varying(255)	NOT NULL,
-       CONSTRAINT config_children_pkey PRIMARY KEY (parent, child) );
+       id integer DEFAULT nextval('fledge.category_children_id_seq'::regclass) NOT NULL,
+       parent character varying(255) NOT NULL,
+       child character varying(255) NOT NULL,
+       CONSTRAINT config_children_pkey PRIMARY KEY(id)
+);
+
+CREATE UNIQUE INDEX config_children_ix1 ON fledge.category_children(parent, child);
 
 -- Create the asset_tracker table
 CREATE TABLE fledge.asset_tracker (
-       id            integer                NOT NULL DEFAULT nextval('fledge.asset_tracker_id_seq'::regclass),
-       asset         character(255)         NOT NULL,
-       event         character varying(50)  NOT NULL,
-       service       character varying(255) NOT NULL,
-       fledge       character varying(50)  NOT NULL,
-       plugin        character varying(50)  NOT NULL,
-       ts            timestamp(6) with time zone NOT NULL DEFAULT now() );
+       id              integer                         NOT NULL DEFAULT nextval('fledge.asset_tracker_id_seq'::regclass),
+       asset           character(255)                  NOT NULL, -- asset name
+       event           character varying(50)           NOT NULL, -- event name
+       service         character varying(255)          NOT NULL, -- service name
+       fledge          character varying(50)           NOT NULL, -- FL service name
+       plugin          character varying(50)           NOT NULL, -- Plugin name
+       deprecated_ts   timestamp(6) with time zone             , -- When an asset record is removed then time will be set else empty and that mean entry has not been deprecated
+       ts              timestamp(6) with time zone     NOT NULL DEFAULT now()
+);
 
 CREATE INDEX asset_tracker_ix1 ON fledge.asset_tracker USING btree (asset);
 CREATE INDEX asset_tracker_ix2 ON fledge.asset_tracker USING btree (service);
@@ -800,10 +813,31 @@ CREATE TABLE fledge.filter_users (
              name        character varying(255)        NOT NULL,
              "user"      character varying(255)        NOT NULL);
 
+-- Create control_script table
+-- Script management for control dispatch service
+CREATE TABLE fledge.control_script (
+             name          character varying(255)        NOT NULL,
+             steps         jsonb                         NOT NULL DEFAULT '{}'::jsonb,
+             acl           character varying(255),
+             CONSTRAINT    control_script_pkey           PRIMARY KEY (name) );
+
+-- Create control_acl table
+-- Access Control List Management for control dispatch service
+CREATE TABLE fledge.control_acl (
+             name          character varying(255)        NOT NULL,
+             service       jsonb                         NOT NULL DEFAULT '{}'::jsonb,
+             url           jsonb                         NOT NULL DEFAULT '{}'::jsonb,
+             CONSTRAINT    control_acl_pkey              PRIMARY KEY (name) );
+
+-- Access Control List usage relation
+CREATE TABLE fledge.acl_usage (
+             name            character varying(255)  NOT NULL,  -- ACL name
+             entity_type     character varying(80)   NOT NULL,  -- associated entity type: service or script 
+             entity_name     character varying(255)  NOT NULL,  -- associated entity name
+             CONSTRAINT      usage_acl_pkey          PRIMARY KEY (name, entity_type, entity_name) );
+
 -- Grants to fledge schema
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA fledge TO PUBLIC;
-
-
 
 ----------------------------------------------------------------------
 -- Initialization phase - DML
@@ -846,6 +880,7 @@ INSERT INTO fledge.log_codes ( code, description )
             ( 'SRVRG', 'Service Registered' ),
             ( 'SRVUN', 'Service Unregistered' ),
             ( 'SRVFL', 'Service Fail' ),
+	    ( 'SRVRS', 'Service Restart' ),
             ( 'NHCOM', 'North Process Complete' ),
             ( 'NHDWN', 'North Destination Unavailable' ),
             ( 'NHAVL', 'North Destination Available' ),
@@ -859,7 +894,14 @@ INSERT INTO fledge.log_codes ( code, description )
             ( 'NTFSD', 'Notification Server Shutdown' ),
             ( 'PKGIN', 'Package installation' ),
             ( 'PKGUP', 'Package updated' ),
-            ( 'PKGRM', 'Package purged' );
+            ( 'PKGRM', 'Package purged' ),
+            ( 'DSPST', 'Dispatcher Startup' ),
+            ( 'DSPSD', 'Dispatcher Shutdown' ),
+	    ( 'ESSRT', 'External Service Startup' ),
+	    ( 'ESSTP', 'External Service Shutdown' ),
+	    ( 'ASTDP', 'Asset deprecated' ),
+	    ( 'ASTUN', 'Asset un-deprecated' ),	
+	    ( 'PIPIN', 'Pip installation' );
 
 --
 -- Configuration parameters
@@ -896,12 +938,17 @@ INSERT INTO fledge.scheduled_processes (name, script) VALUES ('restore', '["task
 
 -- South, Notification, North Tasks
 --
-INSERT INTO fledge.scheduled_processes (name, script)   VALUES ( 'south_c',        '["services/south_c"]'        );
-INSERT INTO fledge.scheduled_processes (name, script)   VALUES ( 'notification_c', '["services/notification_c"]' );
-INSERT INTO fledge.scheduled_processes (name, script)   VALUES ( 'north_c',        '["tasks/north_c"]'           );
-INSERT INTO fledge.scheduled_processes (name, script)   VALUES ( 'north',          '["tasks/north"]'             );
-INSERT INTO fledge.scheduled_processes (name, script)   VALUES ( 'north_C',        '["services/north_C"]'        );
-INSERT INTO fledge.scheduled_processes (name, script)   VALUES ( 'dispatcher_c',   '["services/dispatcher_c"]'   );
+INSERT INTO fledge.scheduled_processes (name, script)   VALUES ( 'south_c',           '["services/south_c"]'          );
+INSERT INTO fledge.scheduled_processes (name, script)   VALUES ( 'notification_c',    '["services/notification_c"]'   );
+INSERT INTO fledge.scheduled_processes (name, script)   VALUES ( 'north_c',           '["tasks/north_c"]'             );
+INSERT INTO fledge.scheduled_processes (name, script)   VALUES ( 'north',             '["tasks/north"]'               );
+INSERT INTO fledge.scheduled_processes (name, script)   VALUES ( 'north_C',           '["services/north_C"]'          );
+INSERT INTO fledge.scheduled_processes (name, script)   VALUES ( 'dispatcher_c',      '["services/dispatcher_c"]'     );
+INSERT INTO fledge.scheduled_processes (name, script)   VALUES ( 'bucket_storage_c',  '["services/bucket_storage_c"]' );
+
+-- Automation script tasks
+--
+INSERT INTO fledge.scheduled_processes ( name, script ) VALUES ( 'automation_script', '["tasks/automation_script"]' );
 
 --
 -- Schedules
@@ -1012,3 +1059,10 @@ INSERT INTO fledge.schedules ( id, schedule_name, process_name, schedule_type,
                 true,                                   -- exclusive
                 true                                    -- enabled
               );
+
+-- The Schema Service table used to hold information about extension schemas
+CREATE TABLE fledge.service_schema (
+             name          character varying(255)        NOT NULL,
+             service       character varying(255)        NOT NULL,
+             version       integer                       NOT NULL,
+             definition    JSON);

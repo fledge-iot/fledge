@@ -21,6 +21,9 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
+
+pytestmark = pytest.mark.skip("Obsolete! South server interface is C++ based now.")
+
 _TEST_CONFIG = {
     'plugin': {
         'description': 'Python module name of the plugin to load',

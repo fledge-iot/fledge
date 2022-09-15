@@ -659,7 +659,6 @@ class TestReadingsStorageAsyncClient:
     @pytest.mark.asyncio
     async def test_purge(self, event_loop):
         # 'PUT', url=put_url, /storage/reading/purge?age=&sent=&flags
-
         fake_storage_srvr = FakeFledgeStorageSrvr(loop=event_loop)
         await fake_storage_srvr.start()
 
@@ -671,7 +670,8 @@ class TestReadingsStorageAsyncClient:
 
         rsc = ReadingsStorageClientAsync(1, 2, mockServiceRecord)
         assert "{}:{}".format(HOST, PORT) == rsc.base_url
-
+        
+        RETAINALL_FLAG = "retainall"
         with pytest.raises(Exception) as excinfo:
             kwargs = dict(flag='blah', age=1, sent_id=0, size=None)
             await rsc.purge(**kwargs)
@@ -679,47 +679,47 @@ class TestReadingsStorageAsyncClient:
         assert "Purge flag valid options are retain or purge only" in str(excinfo.value)
 
         with pytest.raises(Exception) as excinfo:
-            kwargs = dict(age=1, sent_id=0, size=1, flag='retain')
+            kwargs = dict(age=1, sent_id=0, size=1, flag=RETAINALL_FLAG)
             await rsc.purge(**kwargs)
         assert excinfo.type is PurgeOnlyOneOfAgeAndSize
         assert "Purge must specify only one of age or size" in str(excinfo.value)
 
         with pytest.raises(Exception) as excinfo:
-            kwargs = dict(age=None, sent_id=0, size=None, flag='retain')
+            kwargs = dict(age=None, sent_id=0, size=None, flag=RETAINALL_FLAG)
             await rsc.purge(**kwargs)
-        assert excinfo.type is PurgeOneOfAgeAndSize
-        assert "Purge must specify one of age or size" in str(excinfo.value)
+        assert excinfo.type is PurgeOneOfAgeAssetAndSize
+        assert "Purge must specify one of age, size or asset" in str(excinfo.value)
 
         with pytest.raises(Exception) as excinfo:
-            kwargs = dict(age=0, sent_id=0, size=0, flag='retain')
+            kwargs = dict(age=0, sent_id=0, size=0, flag=RETAINALL_FLAG)
             await rsc.purge(**kwargs)
-        assert excinfo.type is PurgeOneOfAgeAndSize
-        assert "Purge must specify one of age or size" in str(excinfo.value)
+        assert excinfo.type is PurgeOneOfAgeAssetAndSize
+        assert "Purge must specify one of age, size or asset" in str(excinfo.value)
 
         # age int
         with pytest.raises(Exception) as excinfo:
-            kwargs = dict(age="1b", sent_id=0, size=None, flag='retain')
+            kwargs = dict(age="1b", sent_id=0, size=None, flag=RETAINALL_FLAG)
             await rsc.purge(**kwargs)
         assert excinfo.type is ValueError
         assert "invalid literal for int() with base 10" in str(excinfo.value)
 
         # size int
         with pytest.raises(Exception) as excinfo:
-            kwargs = dict(age=None, sent_id=0, size="1b", flag='retain')
+            kwargs = dict(age=None, sent_id=0, size="1b", flag=RETAINALL_FLAG)
             await rsc.purge(**kwargs)
         assert excinfo.type is ValueError
         assert "invalid literal for int() with base 10" in str(excinfo.value)
 
         # sent_id int
         with pytest.raises(Exception) as excinfo:
-            kwargs = dict(age=1, sent_id="1b", size=None, flag='retain')
+            kwargs = dict(age=1, sent_id="1b", size=None, flag=RETAINALL_FLAG)
             await rsc.purge(**kwargs)
         assert excinfo.type is ValueError
         assert "invalid literal for int() with base 10" in str(excinfo.value)
 
         with pytest.raises(Exception) as excinfo:
             with patch.object(_LOGGER, "error") as log_e:
-                kwargs = dict(age=-1, sent_id=1, size=None, flag='retain')
+                kwargs = dict(age=-1, sent_id=1, size=None, flag=RETAINALL_FLAG)
                 await rsc.purge(**kwargs)
             log_e.assert_called_once_with('PUT url %s, Error code: %d, reason: %s, details: %s',
                                           '/storage/reading/purge?age=-1&sent=1&flags=retain', 400, 'age should not be less than 0', {"key": "value"})
@@ -727,26 +727,26 @@ class TestReadingsStorageAsyncClient:
 
         with pytest.raises(Exception) as excinfo:
             with patch.object(_LOGGER, "error") as log_e:
-                kwargs = dict(age=None, sent_id=1, size=4294967296, flag='retain')
+                kwargs = dict(age=None, sent_id=1, size=4294967296, flag=RETAINALL_FLAG)
                 await rsc.purge(**kwargs)
             log_e.assert_called_once_with('PUT url %s, Error code: %d, reason: %s, details: %s',
                                           '/storage/reading/purge?size=4294967296&sent=1&flags=retain', 500, 'unsigned int range', {"key": "value"})
         assert excinfo.type is aiohttp.client_exceptions.ContentTypeError
 
-        kwargs = dict(age=1, sent_id=1, size=0, flag='retain')
+        kwargs = dict(age=1, sent_id=1, size=0, flag=RETAINALL_FLAG)
         response = await rsc.purge(**kwargs)
         assert 1 == response["called"]
 
-        kwargs = dict(age=0, sent_id=1, size=1, flag='retain')
-        await rsc.purge(**kwargs)
+        kwargs = dict(age=0, sent_id=1, size=1, flag=RETAINALL_FLAG)
+        response = await rsc.purge(**kwargs)
         assert 1 == response["called"]
 
-        kwargs = dict(age=1, sent_id=1, size=None, flag='retain')
-        await rsc.purge(**kwargs)
+        kwargs = dict(age=1, sent_id=1, size=None, flag=RETAINALL_FLAG)
+        response = await rsc.purge(**kwargs)
         assert 1 == response["called"]
 
-        kwargs = dict(age=None, sent_id=1, size=1, flag='retain')
-        await rsc.purge(**kwargs)
+        kwargs = dict(age=None, sent_id=1, size=1, flag=RETAINALL_FLAG)
+        response = await rsc.purge(**kwargs)
         assert 1 == response["called"]
 
         await fake_storage_srvr.stop()

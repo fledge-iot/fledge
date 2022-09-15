@@ -11,6 +11,7 @@
 
 .. Images
 .. |fledge_architecture| image:: images/fledge_architecture.png
+.. |pipelines| image:: images/pipelines.png
 
 
 .. Links to open in new tabs:
@@ -29,7 +30,7 @@ The following diagram shows the architecture of Fledge:
 
 - Components in blue are **plugins**. Plugins are light-weight modules that enable Fledge to be extended. There are a variety of types of plugins: south-facing, north-facing, storage engine, filters, event rules and event delivery mechanisms. Plugins can be written in python (for fast development) or C++ (for high performance).
 
-- Components in green are **microservices**. They can co-exist in the same operating environment or they can be distributed across multiple environments.
+- Components with a blue line at the top of the box are **microservices**. They can co-exist in the same operating environment or they can be distributed across multiple environments.
 
 |fledge_architecture|
 
@@ -62,17 +63,17 @@ Core functionality includes:
 Storage Layer
 =============
 
-The Storage microservice provides two principal functions: a) maintenance of Fledge configuration and run-time state, and b) storage/buffering of asset data. The type of storage engine is pluggable, so in installations with a small footprint, a plugin for SQLite may be chosen, or in installations with a high number of concurrent requests and larger footprint Postgresql may be suitable. In micro installations, for example on Edge devices, in-memory temporary storage may be the best option.
+The Storage microservice provides two principal functions: a) maintenance of Fledge configuration and run-time state, and b) storage/buffering of asset data. The type of storage engine is pluggable, so in installations with a small footprint, a plugin for SQLite may be chosen, or in installations with a high number of concurrent requests and larger footprint Postgresql may be suitable. In micro installations, for example on Edge devices, or when high bandwidth is required, an in-memory temporary storage may be the best option.
 
-Southbound Microservices
-========================
+South Microservices
+===================
 
-Southbound microservices offer bi-directional communication of data and metadata between Edge devices, such as sensors, actuators or PLCs and Fledge. Smaller systems may have this service installed onboard Edge devices. Southbound components are typically deployed as always-running services, which continuously wait for new data. Alternatively, they can be deployed as single-shot tasks, which periodically spin up, collect data and spin down.
+South microservices offer bi-directional communication of data and metadata between Edge devices, such as sensors, actuators or PLCs and Fledge. Smaller systems may have this service installed onboard Edge devices. South components are typically deployed as always-running services, which continuously wait for new data.
 
-Northbound Microservices
-========================
+North Microservices
+===================
 
-Northbound microservices offer bi-directional communication of data and metadata between the Fledge platform and larger systems located locally or in the cloud. Larger systems may be private and public Cloud data services, proprietary solutions or Fledge instances with larger footprints. Northbound components are typically deployed as one-shot tasks, which periodically spin up and send data which has been batched, then spin down. However, they can also be deployed as continually-running services.
+North microservices offer bi-directional communication of data and metadata between the Fledge platform and larger systems located locally or in the cloud. Larger systems may be private and public Cloud data services, proprietary solutions or Fledge instances with larger footprints. North components are typically deployed as one-shot tasks, which periodically spin up and send data which has been batched, then spin down. However, they can also be deployed as continually-running services.
 
 Filters
 =======
@@ -95,8 +96,18 @@ A sample of existing Filters:
 
 **Rate**: buffer data but don’t send it, then if an error condition occurs, send the previous data.
 
-Event Engine
-============
+**Contrast**: Enhance the contrast of image type data
+
+Filters may be concatenated together to form a data pipeline from the data source to the storage layer, in the south microservice. Of from the storage layer to the destination in the north.
+
++-------------+
+| |pipelines| |
++-------------+
+
+This allows for data processing to be built up via the graphical interface of Fledge with little or no coding required. Filters that are applied in a south service will affect all out going streams whilst those applied in the north only affect the data that is sent on that particular connection to an external system.
+
+Event Service
+==============
 
 The event engine maintains zero or more rule/action pairs. Each rule subscribes to desired asset data, and evaluates it. If the rule triggers, its associated action is executed.
 
@@ -104,7 +115,12 @@ The event engine maintains zero or more rule/action pairs. Each rule subscribes 
 
 **Rules**: the most basic rule evaluates if values are over/under a specified threshold. The Expression plugin will evaluate an arbitrary math equation across one or more assets. The Python35 plugin will execute user-specified python code to one or more assets.
 
-**Actions**: A variety of delivery mechanisms exist to execute a python application, or create arbitrary data, or email/slack/hangout/communicate a message.
+**Actions**: A variety of delivery mechanisms exist to execute a python application, create arbitrary data, alter the configuration of Fledge, send a control message, raise a ticket in a problem ticking system or email/slack/hangout/communicate a message.
+
+Set Point Control Service
+=========================
+
+Fledge is not designed to replace real time control systems, it does however allow for non-time-critical control using the control microservice. Control messages may originate from a number of sources; the north microservice, the event service, the REST API or from scheduled events. It is the job of the control service to route these control messages to the correct destination. It also provides a simple form of scripting to allow control messages to generate chains of writes and operations on the south service and also modify the configuration of the Fledge itself.
 
 REST API
 ========

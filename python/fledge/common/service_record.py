@@ -28,6 +28,7 @@ class ServiceRecord(object):
         Management = 5
         Northbound = 6
         Dispatcher = 7
+        BucketStorage = 8
 
     class Status(IntEnum):
         """Enumeration for Service Status"""
@@ -36,6 +37,7 @@ class ServiceRecord(object):
         Shutdown = 2
         Failed = 3
         Unresponsive = 4
+        Restart = 5
 
     class InvalidServiceType(Exception):
         # TODO: tell allowed service types?
@@ -45,9 +47,9 @@ class ServiceRecord(object):
         # TODO: tell allowed service status?
         pass
 
-    __slots__ = ['_id', '_name', '_type', '_protocol', '_address', '_port', '_management_port', '_status', '_token']
+    __slots__ = ['_id', '_name', '_type', '_protocol', '_address', '_port', '_management_port', '_status']
 
-    def __init__(self, s_id, s_name, s_type, s_protocol, s_address, s_port, m_port, s_token=None):
+    def __init__(self, s_id, s_name, s_type, s_protocol, s_address, s_port, m_port):
         self._id = s_id
         self._name = s_name
         self._type = self.valid_type(s_type)  # check with ServiceRecord.Type, if not a valid type raise error
@@ -58,12 +60,11 @@ class ServiceRecord(object):
             self._port = int(s_port)
         self._management_port = int(m_port)
         self._status = ServiceRecord.Status.Running
-        self._token = s_token if s_token is not None else None
 
     def __repr__(self):
         template = 'service instance id={s._id}: <{s._name}, type={s._type}, protocol={s._protocol}, ' \
                    'address={s._address}, service port={s._port}, management port={s._management_port}, ' \
-                   'status={s._status}, token={s._token}>'
+                   'status={s._status}>'
         return template.format(s=self)
 
     def __str__(self):

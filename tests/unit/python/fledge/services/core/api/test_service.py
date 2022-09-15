@@ -65,15 +65,14 @@ class TestService:
 
         with patch.object(ServiceRegistry._logger, 'info') as log_patch_info:
             # populated service registry
-            ServiceRegistry.register(
-                'name1', 'Storage', 'address1', 1, 1, 'protocol1')
-            ServiceRegistry.register(
-                'name2', 'Southbound', 'address2', 2, 2, 'protocol2')
-            s_id_3 = ServiceRegistry.register(
-                'name3', 'Southbound', 'address3', 3, 3, 'protocol3')
-            s_id_4 = ServiceRegistry.register(
-                'name4', 'Southbound', 'address4', 4, 4, 'protocol4')
-
+            ServiceRegistry.register('name1', 'Storage', 'address1', 1, 1, 'protocol1')
+            ServiceRegistry.register('name2', 'Southbound', 'address2', 2, 2, 'protocol2')
+            s_id_3 = ServiceRegistry.register('name3', 'Southbound', 'address3', 3, 3, 'protocol3')
+            s_id_4 = ServiceRegistry.register('name4', 'Notification', 'address4', 4, 4, 'protocol4')
+            ServiceRegistry.register('name5', 'Management', 'address5', 5, 5, 'http')
+            ServiceRegistry.register('name6', 'Northbound', 'address6', 6, 6, 'http')
+            ServiceRegistry.register('name7', 'Dispatcher', 'address7', 7, 7, 'http')
+            ServiceRegistry.register('name8', 'BucketStorage', 'address8', 8, 8, 'http')
             ServiceRegistry.unregister(s_id_3)
             ServiceRegistry.mark_as_failed(s_id_4)
 
@@ -111,17 +110,102 @@ class TestService:
                         'management_port': 3
                     },
                     {
-                        'type': 'Southbound',
+                        'type': 'Notification',
                         'service_port': 4,
                         'address': 'address4',
                         'protocol': 'protocol4',
                         'status': 'failed',
                         'name': 'name4',
                         'management_port': 4
+                    },
+                    {
+                        'type': 'Management',
+                        'service_port': 5,
+                        'address': 'address5',
+                        'protocol': 'http',
+                        'status': 'running',
+                        'name': 'name5',
+                        'management_port': 5
+                    },
+                    {
+                        'type': 'Northbound',
+                        'service_port': 6,
+                        'address': 'address6',
+                        'protocol': 'http',
+                        'status': 'running',
+                        'name': 'name6',
+                        'management_port': 6
+                    },
+                    {
+                        'type': 'Dispatcher',
+                        'service_port': 7,
+                        'address': 'address7',
+                        'protocol': 'http',
+                        'status': 'running',
+                        'name': 'name7',
+                        'management_port': 7
+                    },
+                    {
+                        'type': 'BucketStorage',
+                        'service_port': 8,
+                        'address': 'address8',
+                        'protocol': 'http',
+                        'status': 'running',
+                        'name': 'name8',
+                        'management_port': 8
                     }
                 ]
             }
-        assert 6 == log_patch_info.call_count
+        assert 10 == log_patch_info.call_count
+
+    @pytest.mark.parametrize("_type", ["blah", 1, "storage"])
+    async def test_bad_get_service_with_type(self, client, _type):
+        svc_type_members = ServiceRecord.Type._member_names_
+        expected_msg = "{} is not a valid service type. Supported types are {}".format(_type, svc_type_members)
+        resp = await client.get('/fledge/service?type={}'.format(_type))
+        assert 400 == resp.status
+        assert expected_msg == resp.reason
+        result = await resp.text()
+        json_response = json.loads(result)
+        assert {"message": expected_msg} == json_response
+
+    async def test_get_service_with_type_not_found(self, client, _type="Notification"):
+        expected_msg = "No record found for {} service type".format(_type)
+        resp = await client.get('/fledge/service?type={}'.format(_type))
+        assert 404 == resp.status
+        assert expected_msg == resp.reason
+        result = await resp.text()
+        json_response = json.loads(result)
+        assert {"message": expected_msg} == json_response
+
+    @pytest.mark.parametrize("_type, svc_record_count", [
+        ("Storage", 1),
+        ("Southbound", 2),
+        ("Northbound", 1),
+        ("Notification", 1),
+        ("Management", 1),
+        ("Dispatcher", 1),
+        ("BucketStorage", 1)
+    ])
+    async def test_get_service_with_type(self, mocker, client, _type, svc_record_count):
+        mocker.patch.object(InterestRegistry, "__init__", return_value=None)
+        mocker.patch.object(InterestRegistry, "get", return_value=list())
+        with patch.object(ServiceRegistry._logger, 'info') as log_patch_info:
+            # populated service registry
+            ServiceRegistry.register('name1', 'Storage', 'address1', 1, 1, 'protocol1')
+            ServiceRegistry.register('name2', 'Southbound', 'address2', 2, 2, 'protocol2')
+            ServiceRegistry.register('name3', 'Northbound', 'address3', 3, 3, 'protocol3')
+            ServiceRegistry.register('name4', 'Southbound', 'address4', 4, 4, 'protocol4')
+            ServiceRegistry.register('name5', 'Notification', 'address5', 5, 5, 'http')
+            ServiceRegistry.register('name6', 'Management', 'address6', 6, 6, 'http')
+            ServiceRegistry.register('name7', 'Dispatcher', 'address7', 7, 7, 'http')
+            ServiceRegistry.register('name8', 'BucketStorage', 'address8', 8, 8, 'http')
+        assert 8 == log_patch_info.call_count
+        resp = await client.get('/fledge/service?type={}'.format(_type))
+        assert 200 == resp.status
+        result = await resp.text()
+        json_response = json.loads(result)
+        assert svc_record_count == len(json_response['services'])
 
     @pytest.mark.parametrize("payload, code, message", [
         ('"blah"', 400, "Data payload must be a valid JSON"''),
@@ -142,8 +226,8 @@ class TestService:
         ('{"name": "test", "plugin": "dht11", "type": "south", "enabled": "0"}', 400,
          'Only "true", "false", true, false are allowed for value of enabled.'),
         ('{"name": "test", "plugin": "dht11"}', 400, "Missing type property in payload."),
-        ('{"name": "test", "plugin": "dht11", "type": "blah"}', 400, "Only south, north, notification, management "
-                                                                     "and dispatcher types are supported."),
+        ('{"name": "test", "plugin": "dht11", "type": "blah"}', 400,
+         "Only south, north, notification, management, dispatcher and bucketstorage types are supported."),
         ('{"name": "test", "type": "south"}', 400, "Missing plugin property for type south in payload.")
     ])
     async def test_add_service_with_bad_params(self, client, code, payload, message):
@@ -263,7 +347,7 @@ class TestService:
         data = {"name": "furnace4", "type": "south", "plugin": "dht11"}
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
-        
+        msg = "A service with {} name already exists.".format(data['name'])
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await self.async_mock(None)
@@ -276,7 +360,10 @@ class TestService:
                     with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
                         resp = await client.post('/fledge/service', data=json.dumps(data))
                         assert 400 == resp.status
-                        assert 'A service with this name already exists.' == resp.reason
+                        assert msg == resp.reason
+                        result = await resp.text()
+                        json_response = json.loads(result)
+                        assert {"message": msg} == json_response
                 patch_get_cat_info.assert_called_once_with(category_name=data['name'])
 
     p1 = '{"name": "furnace4", "type": "south", "plugin": "dht11"}'
@@ -374,8 +461,9 @@ class TestService:
     p1 = '{"name": "DispatcherServer", "type": "dispatcher"}'
     p2 = '{"name": "NotificationServer", "type": "notification"}'
     p3 = '{"name": "ManagementServer", "type": "management"}'
+    p4 = '{"name": "BucketServer", "type": "bucketstorage"}'
 
-    @pytest.mark.parametrize("payload", [p1, p2, p3])
+    @pytest.mark.parametrize("payload", [p1, p2, p3, p4])
     async def test_bad_external_service(self, client, payload):
         data = json.loads(payload)
         with patch('os.path.exists', return_value=False):
@@ -393,8 +481,11 @@ class TestService:
     p4 = '{"name": "DispatcherServer", "type": "dispatcher"}'
     p5 = '{"name": "DispatcherServer", "type": "dispatcher", "enabled": false}'
     p6 = '{"name": "DispatcherServer", "type": "dispatcher", "enabled": true}'
+    p7 = '{"name": "DispatcherServer", "type": "bucketstorage"}'
+    p8 = '{"name": "DispatcherServer", "type": "bucketstorage", "enabled": false}'
+    p9 = '{"name": "DispatcherServer", "type": "bucketstorage", "enabled": true}'
 
-    @pytest.mark.parametrize("payload", [p1, p2, p3, p4, p5, p6])
+    @pytest.mark.parametrize("payload", [p1, p2, p3, p4, p5, p6, p7, p8, p9])
     async def test_add_external_service(self, client, payload):
         data = json.loads(payload)
         sch_id = '45876056-e04c-4cde-8a82-1d8dbbbe6d72'
@@ -418,11 +509,12 @@ class TestService:
 
                     return {'count': 0, 'rows': []}
             if table == 'scheduled_processes':
+                sch_ps = data['type'] if data['type'] != "bucketstorage" else "bucket_storage"
                 assert {"return": ["name"], "where": {"column": "name", "condition": "=",
-                                                      "value": "{}_c".format(data['type']),
+                                                      "value": "{}_c".format(sch_ps),
                                                       "and": {"column": "script", "condition": "=",
                                                               "value": "[\"services/{}_c\"]".format(
-                                                                  data['type'])}}} == _payload
+                                                                  sch_ps)}}} == _payload
                 return {'count': 0, 'rows': []}
 
         expected_insert_resp = {'rows_affected': 1, "response": "inserted"}
@@ -447,9 +539,12 @@ class TestService:
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
                 with patch.object(c_mgr, 'get_category_all_items', return_value=_rv1) as patch_get_cat_info:
                     with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
-                        with patch.object(storage_client_mock, 'insert_into_tbl', return_value=_rv2) as insert_table_patch:
-                            with patch.object(server.Server.scheduler, 'save_schedule', return_value=_rv3) as patch_save_schedule:
-                                with patch.object(server.Server.scheduler, 'get_schedule_by_name', return_value=_rv4) as patch_get_schedule:
+                        with patch.object(storage_client_mock, 'insert_into_tbl',
+                                          return_value=_rv2) as insert_table_patch:
+                            with patch.object(server.Server.scheduler, 'save_schedule',
+                                              return_value=_rv3) as patch_save_schedule:
+                                with patch.object(server.Server.scheduler, 'get_schedule_by_name',
+                                                  return_value=_rv4) as patch_get_schedule:
                                     resp = await client.post('/fledge/service', data=payload)
                                     server.Server.scheduler = None
                                     assert 200 == resp.status
@@ -460,13 +555,15 @@ class TestService:
                             patch_save_schedule.assert_called_once()
                         args, kwargs = insert_table_patch.call_args
                         assert 'scheduled_processes' == args[0]
-                        assert {'name': '{}_c'.format(data['type']), 'script': '["services/{}_c"]'.format(
-                            data['type'])} == json.loads(args[1])
+                        ps = data['type'] if data['type'] != "bucketstorage" else "bucket_storage"
+                        assert {'name': '{}_c'.format(ps), 'script': '["services/{}_c"]'.format(
+                            ps)} == json.loads(args[1])
                 patch_get_cat_info.assert_called_once_with(category_name=data['name'])
 
     @pytest.mark.parametrize("payload, svc_type", [
         ('{"name": "NotificationServer", "type": "notification"}', "notification"),
-        ('{"name": "DispatcherServer", "type": "dispatcher"}', "dispatcher")
+        ('{"name": "DispatcherServer", "type": "dispatcher"}', "dispatcher"),
+        ('{"name": "BucketServer", "type": "bucketstorage"}', "bucketstorage")
     ])
     async def test_dupe_external_service_schedule(self, client, payload, svc_type):
         data = json.loads(payload)
@@ -475,10 +572,11 @@ class TestService:
         def q_result(*arg):
             table = arg[0]
             _payload = json.loads(arg[1])
+            sch_ps = svc_type if svc_type != "bucketstorage" else "bucket_storage"
             if table == 'schedules':
                 if _payload['return'][0] == 'process_name':
                     assert {"return": ["process_name"]} == _payload
-                    return {'rows': [{'process_name': 'stats collector'}, {'process_name': '{}_c'.format(svc_type)}],
+                    return {'rows': [{'process_name': 'stats collector'}, {'process_name': '{}_c'.format(sch_ps)}],
                             'count': 2}
                 else:
                     assert {"return": ["schedule_name"], "where": {"column": "schedule_name", "condition": "=",
@@ -487,10 +585,10 @@ class TestService:
                     return {'count': 0, 'rows': []}
             if table == 'scheduled_processes':
                 assert {"return": ["name"], "where": {"column": "name", "condition": "=",
-                                                      "value": "{}_c".format(svc_type),
+                                                      "value": "{}_c".format(sch_ps),
                                                       "and": {"column": "script", "condition": "=",
                                                               "value": "[\"services/{}_c\"]".format(
-                                                                  svc_type)}}} == _payload
+                                                                  sch_ps)}}} == _payload
                 return {'count': 0, 'rows': []}
 
         expected_insert_resp = {'rows_affected': 1, "response": "inserted"}
@@ -510,15 +608,22 @@ class TestService:
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
                 with patch.object(c_mgr, 'get_category_all_items', return_value=_rv1) as patch_get_cat_info:
                     with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
-                        with patch.object(storage_client_mock, 'insert_into_tbl', return_value=_rv2) as insert_table_patch:
+                        with patch.object(storage_client_mock, 'insert_into_tbl',
+                                          return_value=_rv2) as insert_table_patch:
                             resp = await client.post('/fledge/service', data=payload)
                             server.Server.scheduler = None
                             assert 400 == resp.status
-                            assert 'A {} service schedule already exists.'.format(svc_type.capitalize()) == resp.reason
+                            svc_record = svc_type.capitalize() if svc_type != "bucketstorage" else "BucketStorage"
+                            msg = "A {} service type schedule already exists.".format(svc_record)
+                            assert msg == resp.reason
+                            result = await resp.text()
+                            json_response = json.loads(result)
+                            assert {"message": msg} == json_response
                         args, kwargs = insert_table_patch.call_args
                         assert 'scheduled_processes' == args[0]
                         p = json.loads(args[1])
-                        assert {'name': '{}_c'.format(svc_type), 'script': '["services/{}_c"]'.format(svc_type)} == p
+                        ps = svc_type if svc_type != "bucketstorage" else "bucket_storage"
+                        assert {'name': '{}_c'.format(ps), 'script': '["services/{}_c"]'.format(ps)} == p
                 patch_get_cat_info.assert_called_once_with(category_name=data['name'])
 
     async def test_add_service_with_config(self, client):
@@ -535,7 +640,6 @@ class TestService:
         def q_result(*arg):
             table = arg[0]
             _payload = arg[1]
-
             if table == 'scheduled_processes':
                 assert {'return': ['name'], 'where': {'column': 'name', 'condition': '=', 'value': 'south_c',
                                                       'and': {'column': 'script', 'condition': '=',
@@ -643,24 +747,33 @@ class TestService:
                             },
                         ]
             }
-        
+
+        delete_result = {'response': 'deleted', 'rows_affected': 1}
+        update_result = {'rows_affected': 1, "response": "updated"}
+
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await mock_result()
+            _rv1 = await mock_result()
+            _rv3 = await self.async_mock(delete_result)
+            _rv4 = await self.async_mock(update_result)
         else:
-            _rv = asyncio.ensure_future(mock_result())
+            _rv1 = asyncio.ensure_future(mock_result())
+            _rv3 = asyncio.ensure_future(self.async_mock(delete_result))
+            _rv4 = asyncio.ensure_future(self.async_mock(update_result))
         _rv2 = asyncio.ensure_future(asyncio.sleep(.1))
-        
         mocker.patch.object(connect, 'get_storage_async')
-        get_schedule = mocker.patch.object(service, "get_schedule", return_value=_rv)
+        get_schedule = mocker.patch.object(service, "get_schedule", return_value=_rv1)
         scheduler = mocker.patch.object(server.Server, "scheduler", MagicMock())
         delete_schedule = mocker.patch.object(scheduler, "delete_schedule", return_value=_rv2)
         disable_schedule = mocker.patch.object(scheduler, "disable_schedule", return_value=_rv2)
-        delete_configuration = mocker.patch.object(ConfigurationManager, "delete_category_and_children_recursively", return_value=_rv2)
+        delete_configuration = mocker.patch.object(ConfigurationManager, "delete_category_and_children_recursively",
+                                                   return_value=_rv2)
         get_registry = mocker.patch.object(ServiceRegistry, 'get', return_value=mock_registry)
         remove_registry = mocker.patch.object(ServiceRegistry, 'remove_from_registry')
-        delete_streams = mocker.patch.object(service, "delete_streams", return_value=_rv)
-        delete_plugin_data = mocker.patch.object(service, "delete_plugin_data", return_value=_rv)
+        delete_streams = mocker.patch.object(service, "delete_streams", return_value=_rv3)
+        delete_plugin_data = mocker.patch.object(service, "delete_plugin_data", return_value=_rv3)
+        update_deprecated_ts_in_asset_tracker = mocker.patch.object(service, "update_deprecated_ts_in_asset_tracker",
+                                                                    return_value=_rv4)
 
         mock_registry[0]._status = ServiceRecord.Status.Shutdown
 
@@ -699,6 +812,10 @@ class TestService:
 
         assert 1 == delete_plugin_data.call_count
         args, kwargs = delete_plugin_data.call_args_list[0]
+        assert sch_name in args
+
+        assert 1 == update_deprecated_ts_in_asset_tracker.call_count
+        args, kwargs = update_deprecated_ts_in_asset_tracker.call_args_list[0]
         assert sch_name in args
 
     async def test_delete_service_exception(self, mocker, client):
@@ -939,14 +1056,32 @@ class TestService:
         patch_fetch_available_package.assert_called_once_with('service')
 
     @pytest.mark.parametrize("mock_value1, mock_value2, exp_result", [
-        ([(['/usr/local/fledge/services'], [], [])], [(['/usr/local/fledge/python/fledge/services/management'], [], [])], []),
-        ([(['/usr/local/fledge/services'], [], ['fledge.services.south', 'fledge.services.storage'])], [], ["south", "storage"]),
-        ([(['/usr/local/fledge/services'], [], ['fledge.services.south', 'fledge.services.storage', 'fledge.services.notification'])], [], ["south", "storage", "notification"]),
-        ([(['/usr/local/fledge/services'], [], ['fledge.services.south', 'fledge.services.storage'])], [(['/usr/local/fledge/python/fledge/services/management'], [], [])], ["south", "storage"]),
-        ([(['/usr/local/fledge/services'], [], ['fledge.services.south', 'fledge.services.storage'])], [(['/usr/local/fledge/python/fledge/services/management'], [], ['__main__.py'])], ["south", "storage", "management"]),
-        ([(['/usr/local/fledge/services'], [], ['fledge.services.south', 'fledge.services.storage', 'fledge.services.notification'])], [(['/usr/local/fledge/python/fledge/services/management'], [], ['__main__.py'])], ["south", "storage", "notification", "management"]),
-        ([(['/usr/local/fledge/services'], [], ['fledge.services.south', 'fledge.services.storage', 'fledge.services.north'])], [], ["south", "storage", "north"]),
-        ([(['/usr/local/fledge/services'], [], ['fledge.services.south', 'fledge.services.storage', 'fledge.services.dispatcher'])], [], ["south", "storage", "dispatcher"]),
+        ([(['/usr/local/fledge/services'], [], [])], [(['/usr/local/fledge/python/fledge/services/management'],
+                                                       [], [])], []),
+        ([(['/usr/local/fledge/services'], [], ['fledge.services.south', 'fledge.services.storage'])], [],
+         ["south", "storage"]),
+        ([(['/usr/local/fledge/services'], [],
+           ['fledge.services.south', 'fledge.services.storage', 'fledge.services.notification'])], [],
+         ["south", "storage", "notification"]),
+        ([(['/usr/local/fledge/services'], [], ['fledge.services.south', 'fledge.services.storage'])],
+         [(['/usr/local/fledge/python/fledge/services/management'], [], [])], ["south", "storage"]),
+        ([(['/usr/local/fledge/services'], [], ['fledge.services.south', 'fledge.services.storage'])],
+         [(['/usr/local/fledge/python/fledge/services/management'], [], ['__main__.py'])],
+         ["south", "storage", "management"]),
+        ([(['/usr/local/fledge/services'], [],
+           ['fledge.services.south', 'fledge.services.storage', 'fledge.services.notification'])],
+         [(['/usr/local/fledge/python/fledge/services/management'], [], ['__main__.py'])],
+         ["south", "storage", "notification", "management"]),
+        ([(['/usr/local/fledge/services'], [],
+           ['fledge.services.south', 'fledge.services.storage', 'fledge.services.north'])], [],
+         ["south", "storage", "north"]),
+        ([(['/usr/local/fledge/services'], [],
+           ['fledge.services.south', 'fledge.services.storage', 'fledge.services.dispatcher'])], [],
+         ["south", "storage", "dispatcher"]),
+        ([(['/usr/local/fledge/services'], [],
+           ['fledge.services.south', 'fledge.services.storage', 'fledge.services.north',
+            'fledge.services.notification', 'fledge.services.dispatcher', 'fledge.services.bucket'])], [],
+         ["south", "storage", "north", "notification", "dispatcher", "bucket"])
     ])
     async def test_get_service_installed(self, client, mock_value1, mock_value2, exp_result):
         with patch('os.walk', side_effect=(mock_value1, mock_value2)) as mockwalk:
@@ -971,7 +1106,6 @@ class TestService:
             schedule.schedule_id = sch_id
             return schedule
 
-        
         async def q_result(*arg):
             table = arg[0]
             _payload = json.loads(arg[1])
@@ -1056,6 +1190,7 @@ class TestService:
                 return {'count': 0, 'rows': []}
 
         expected_insert_resp = {'rows_affected': 1, "response": "inserted"}
+        msg = "A Management service type schedule already exists."
 
         server.Server.scheduler = Scheduler(None, None)
         storage_client_mock = MagicMock(StorageClientAsync)
@@ -1079,7 +1214,10 @@ class TestService:
                             resp = await client.post('/fledge/service', data=payload)
                             server.Server.scheduler = None
                             assert 400 == resp.status
-                            assert 'A Management service schedule already exists.' == resp.reason
+                            assert msg == resp.reason
+                            result = await resp.text()
+                            json_response = json.loads(result)
+                            assert {"message": msg} == json_response
                         args, kwargs = insert_table_patch.call_args
                         assert 'scheduled_processes' == args[0]
                         p = json.loads(args[1])

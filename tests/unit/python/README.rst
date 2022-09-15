@@ -11,7 +11,7 @@ By doing this, we can make sure that our unit-tests are not dependent on externa
 minimise the test execution time of unit tests. For example:
 ::
     def mock_request(data, loop):
-        payload = StreamReader(loop=loop)
+        payload = StreamReader("http", loop=loop, limit=1024)
         payload.feed_data(data.encode())
         payload.feed_eof()
 

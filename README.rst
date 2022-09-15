@@ -1,7 +1,20 @@
 .. |br| raw:: html
 
    <br />
+   
+.. Links
+.. |pluginlist| raw:: html
 
+   <a href="https://fledge-iot.readthedocs.io/en/develop/fledge_plugins.html">Fledge Plugins</a>
+   
+   
+.. |quickstart| raw:: html
+
+   <a href="https://fledge-iot.readthedocs.io/en/develop/quick_start/installing.html">Installing Fledge</a>
+
+.. |building| raw:: html
+
+   <a href="https://fledge-iot.readthedocs.io/en/develop/building_fledge/building_fledge.html#building-fledge">Building Fledge</a>
 
 *******
 Fledge
@@ -23,50 +36,36 @@ Fledge is built using a microservices architecture for major component areas, th
 
 - a **Core service** responsible for the management of the other services, the external REST API's, scheduling and monitoring of activities.
 - a **South service** responsible for the communication between Fledge and the sensors/actuators.
-- a **Storage service** responsible for the persistance of configuration and metrics and the buffering of sensor data.
+- a **Storage service** responsible for the persistence of configuration and metrics and the buffering of sensor data.
+
+This core set of services may also be extended using optional services that are available within their own repositories, for example a notification service and a control dispatcher service.
 
 Fledge makes extensive use of plugin components in order to increase the flexibility of the implementation:
 
 - **South plugins** are used to allow for the easy expansion of Fledge to deal with new South devices and South device connection buses.
 - **North plugins** are used to allow for connection to different historians
 - **Datastore plugins** are used to allow Fledge to use different storage mechanisms for persisting meta data and the sensor data
-- **Authentication provider plugins** are used to allow the authentication mechanism to be matched with enterprise requirements or provided internally by Fledge.
+
+The South and North plugins are stored in separate source code repositories which are named in the pattern fledge-south-<device> fledge-north-<service>. A complete list of plugins can be found in the readthedocs documentation for the project. See |pluginlist|.
+
+The optional services, for example the notification service also make use of plugins to extend the capabilities of those services.
 
 The other paradigm that is used extensively within Fledge is the idea of **scheduling processes** to perform specific operations. The Fledge core contains a scheduler which can execute processes based on time schedules or triggered by events. This is used to start processes when an event occurs, such as Fledge starting, or based on a time trigger.
 
 Scheduled processes are used to send data from Fledge to the historian, to purge data from the Fledge data buffer, to gather statistics for historical analysis and perform backups of the Fledge environment.
 |br| |br|
 
+Pre-built packages for Fledge are available, see |quickstart| for details of how to use these.
+
 Building Fledge
 ================
+
+See also |building| in the online documentation.
 
 Build Prerequisites
 -------------------
 
-Fledge is currently based on C/C++ and Python code. The packages needed to build and run Fledge are:
-
-- autoconf 
-- automake 
-- avahi-daemon
-- build-essential
-- cmake
-- curl
-- g++
-- libtool 
-- libboost-dev
-- libboost-system-dev
-- libboost-thread-dev
-- libpq-dev
-- libssl-dev
-- libz-dev
-- make
-- postgresql
-- python3-pip
-- python-dev
-- python3-dev
-- uuid-dev
-- sqlite3
-- libsqlite3-dev
+Fledge is currently based on C/C++ and Python code. The packages needed to build and run Fledge may be installed by running the script *requirements.sh*
 
 
 Linux distributions
@@ -75,35 +74,22 @@ Linux distributions
 Fledge can be built or installed in one of the following Linux distributions :
 
 - Ubuntu Ubuntu 18.04 and Ubuntu 20.04
-- Raspbian Stretch and Buster
-- Red Hat 7.6
-- CentOS 7.6
+- Raspbian Stretch, Buster and Bullseye
 - Coral Mendel
 
-Install the prerequisites on Ubuntu
------------------------------------
+Install the prerequisites
+-------------------------
 
-On Ubuntu-based Linux distributions the packages can be installed with given `requirements.sh <requirements.sh>`_ or manual *apt-get*:
-::
-   apt-get install avahi-daemon curl
-   apt-get install cmake g++ make build-essential autoconf automake uuid-dev
-   apt-get install libtool libboost-dev libboost-system-dev libboost-thread-dev libpq-dev libssl-dev libz-dev
-   apt-get install python-dev python3-dev python3-pip
-   apt-get install postgresql
-   apt-get install sqlite3 libsqlite3-dev
+The prerequisites required to build Fledge can be installed on any of the supported platforms by running the requirements.sh script from this directory.
 
-You may need to use *sudo* to allow *apt-get* to install packages dependent upon your access rights.
+.. code-block:: console
 
-Install the prerequisites on Red Hat/CentOS
--------------------------------------------
-
-On Red Hat and CentOS distributions the required packages can be installed automatically with given `requirements.sh <requirements.sh>`_:
-::
 	sudo ./requirements.sh
 
-You should run this as a user with *sudo* access rights.
+.. note::
 
-
+   This script will use the platforms package management software, such as apt on Ubuntu systems, to install the required packages. This must be done as the root user and hence the need to run requirements.sh using the sudo command
+ 
 Build
 -----
 
@@ -189,20 +175,13 @@ The command returns the status of Fledge on the machine it has been executed.
 If You Use PostgreSQL: Creating the Database Repository
 =======================================================
 
-This version of Fledge relies on SQLite to run. SQLite is embedded into the Storage service, but you may want to use PostgreSQL as a buffer and metadata storage (refer to the documentation on `ReadTheDocs <http://fledge-iot.readthedocs.io>`_ for more info. With a version of PostgreSQL installed via *apt-get* first you need to create a new database user with:
+This version of Fledge relies on SQLite to run. SQLite is embedded into the Storage service, but you may want to use PostgreSQL as a buffer and metadata storage (refer to the documentation on `ReadTheDocs <https://fledge-iot.readthedocs.io/en/develop/building_fledge/building_fledge.html?highlight=appendix#appendix-setting-the-postgresql-database>`_ for more info. With a version of PostgreSQL installed via *apt-get* first you need to create a new database user with:
 ::
    sudo -u postgres createuser -d <user>
 
 where *user* is the name of the Linux user that will run Fledge. The Fledge database user must have *createdb* privileges (i.e. the *-d* argument).
 |br| |br|
 
-
-Known issues
-============
-
-The integration with OCS (OSIsoft Cloud Services) in CentOS 7.6 doesn't work for a problem related to the boost library.
-------------------------------------------------------------------------------------------------------------------------
-|br| |br|
 
 Troubleshooting
 ===============

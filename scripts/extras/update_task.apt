@@ -10,11 +10,12 @@
 # 1. Add the repository key to your apt key list:
 #        wget -q -O - http://archives.fledge-iot.org/KEY.gpg | sudo apt-key add -
 # 2. Add the repository location to your sources list.
-#    Add the following lines to your "/etc/apt/sources.list" file.
-#        deb http://archives.fledge-iot.org/ /
+#    Add the following lines to your "/etc/apt/sources.list" or separate /etc/apt/sources.list.d/fledge.list file.
+#        Below example for ubuntu18.04 64bit machine
+#        echo "deb http://archives.fledge-iot.org/latest/ubuntu1804/x86_64/ / " > /etc/apt/sources.list.d/fledge.list
 ##
 
-__author__="Amarendra K Sinha"
+__author__="Amarendra K Sinha, Ashish Jabble"
 __copyright__="Copyright (c) 2018 OSIsoft, LLC"
 __license__="Apache 2.0"
 __version__="1.1"
@@ -22,9 +23,13 @@ __version__="1.1"
 
 # Set the default value for FLEDGE_ROOT if not set
 if [ "${FLEDGE_ROOT}" = "" ]; then
-	export FLEDGE_ROOT='/usr/local/fledge'
+    export FLEDGE_ROOT='/usr/local/fledge'
 fi
 
+# Set the default value for FLEDGE_DATA if not set
+if [ "${FLEDGE_DATA}" = "" ]; then
+    export FLEDGE_DATA=${FLEDGE_ROOT}/data
+fi
 
 # Include logging: it works only with bash
 . "${FLEDGE_ROOT}/scripts/common/write_log.sh" || exit 1
@@ -32,61 +37,192 @@ fi
 # Ignore signals: 1-SIGHUP, 2-SIGINT, 3-SIGQUIT, 6-SIGABRT, 15-SIGTERM
 trap "" 1 2 3 6 15
 
-
 # Check availability of FLEDGE_ROOT directory
 if [ ! -d "${FLEDGE_ROOT}" ]; then
-        logger -p local0.err -t "Fledge[${$}]" "${TASK_NAME} $0 home directory missing or incorrectly set environment"
+    write_log "" "$0" "err" "home directory missing or incorrectly set environment" "logonly"
+    exit 1
+fi
+
+# Check availability of FLEDGE_DATA directory
+if [ ! -d "${FLEDGE_DATA}" ]; then
+    write_log "" "$0" "err" "Data directory is missing or incorrectly set environment" "logonly"
+    exit 1
+fi
+
+# Set the PYTHONPATH
+export PYTHONPATH=$FLEDGE_ROOT/python
+
+UPGRADE_DONE="N"
+
+# Fledge STOP
+fledge_stop() {
+    STOP_FLEDGE_CMD="${FLEDGE_ROOT}/bin/fledge stop"
+    STOP_FLEDGE_CMD_STATUS=`$STOP_FLEDGE_CMD`
+    sleep 15
+    if [ "${STOP_FLEDGE_CMD_STATUS}" = "" ]; then
+        write_log "" "$0" "err" "cannot run \"${STOP_FLEDGE_CMD}\" command" "logonly"
         exit 1
+    fi
+}
+
+# Commands for Packages to update
+run_update() {
+    # Download and update the package information from all of the configured sources
+    UPDATE_CMD="sudo apt -y update"
+    write_log "" "$0" "info" "Executing ${UPDATE_CMD} command..." "logonly"
+    UPDATE_CMD_OUT=`$UPDATE_CMD`
+    UPDATE_CMD_STATUS="$?"
+    if [ "$UPDATE_CMD_STATUS" != "0" ]; then
+        write_log "" "$0" "err" "Failed on $UPDATE_CMD. Exit: $UPDATE_CMD_STATUS. Out: $UPDATE_CMD_OUT" "all" "pretty"
+        exit 1
+    fi
+}
+
+run_upgrade() {
+    # Check GUI package is installed or not
+    if ! dpkg -l | grep fledge-gui; then
+        UPGRADE_CMD="sudo apt-get -y install fledge"
+        PKG_NAME="fledge"
+    else
+        PKG_NAME="fledge, fledge-gui"
+        UPGRADE_CMD="sudo apt-get -y install fledge fledge-gui"
+    fi
+
+    # Upgrade Package
+    write_log "" "$0" "info" "Executing ${UPGRADE_CMD} command..." "logonly"
+    UPGRADE_CMD_OUT=`$UPGRADE_CMD`
+    UPGRADE_CMD_STATUS="$?"
+    if [ "$UPGRADE_CMD_STATUS" != "0" ]; then
+        write_log "" "$0" "err" "Failed on $UPGRADE_CMD. Exit: $UPGRADE_CMD_STATUS. Out: $UPGRADE_CMD_OUT" "all" "pretty"
+        exit 1
+    fi
+    UPGRADE_DONE="Y"
+}
+
+# Fledge START
+fledge_start() {
+    START_FLEDGE_CMD="${FLEDGE_ROOT}/bin/fledge start"
+    START_FLEDGE_CMD_OUT=`$START_FLEDGE_CMD`
+    START_FLEDGE_CMD_STATUS="$?"
+    if [ "$START_FLEDGE_CMD_OUT" = "" ]; then
+        write_log "" "$0" "err" "Failed on $START_FLEDGE_CMD. Exit: $START_FLEDGE_CMD_STATUS. Out: $START_FLEDGE_CMD_OUT" "all" "pretty"
+        exit 1
+    fi
+
+    msg="'${PKG_NAME}' package updated successfully!"
+    write_log "" "$0" "info" "$msg" "all" "pretty"
+}
+
+# Find the local timestamp
+function local_timestamp
+{
+python3 - <<END
+import datetime
+varDateTime = str(datetime.datetime.now(datetime.timezone.utc).astimezone())
+print (varDateTime)
+END
+}
+
+# Find the REST API URL
+get_rest_api_url () {
+    PID_FILE=${FLEDGE_DATA}/var/run/fledge.core.pid
+    REST_API_URL=`cat ${PID_FILE} | python3 ${FLEDGE_ROOT}/scripts/common/json_parse.py get_rest_api_url_from_pid`
+}
+
+# CREATE Audit trail entry for update package
+audit_trail_entry () {
+    SQL_DATA="log(code, level, log) VALUES('PKGUP', 4, '{\"packageName\": \"${PKG_NAME}\"}');"
+    # Find storage engine value
+    STORAGE=`${FLEDGE_ROOT}/services/fledge.services.storage --plugin | awk '{print $1}'`
+    if [ "${STORAGE}" = "postgres" ]; then
+        INSERT_SQL="INSERT INTO fledge.${SQL_DATA}"
+        SQL_CMD=`psql -d fledge -t -c "${INSERT_SQL}"`
+    elif [ "${STORAGE}" = "sqlite" ] || [ "${STORAGE}" = "sqlitelb" ]; then
+        INSERT_SQL="INSERT INTO ${SQL_DATA}"
+        SQL_CMD=`sqlite3 ${FLEDGE_DATA}/fledge.db "${INSERT_SQL}"`
+    else
+        write_log "" "$0" "err" "Bad storage engine found: ${STORAGE}" "all" "pretty"
+        exit 1
+    fi
+
+    ADD_AUDIT_LOG_STATUS="$?"
+    if [ "$ADD_AUDIT_LOG_STATUS" != "0" ]; then
+        write_log "" "$0" "err" "Failed on execution of ${INSERT_SQL}. Exit: ${ADD_AUDIT_LOG_STATUS}." "all" "pretty"
+        exit 1
+    else
+        msg="Audit trail entry created for '${PKG_NAME}' package update!"
+        write_log "" "$0" "info" "$msg" "all" "pretty"
+    fi
+}
+
+# UPDATE task record entry on completion for given schedule name
+update_task() {
+    SCHEDULE_NAME="Fledge updater on demand"
+    TASK_STATE_COMPLETE="2"
+    EXIT_CODE="0"
+    TIMESTAMP=$(local_timestamp)
+    SQL_QUERY="SET state='$TASK_STATE_COMPLETE',exit_code='$EXIT_CODE',end_time='$TIMESTAMP' WHERE schedule_name='$SCHEDULE_NAME';"
+
+    # Find storage engine value
+    STORAGE=`${FLEDGE_ROOT}/services/fledge.services.storage --plugin | awk '{print $1}'`
+    if [ "${STORAGE}" = "postgres" ]; then
+        UPDATE_SQL_QUERY="UPDATE fledge.tasks ${SQL_QUERY}"
+        SQL_CMD=`psql -d fledge -t -c "${UPDATE_SQL_QUERY}"`
+    elif [ "${STORAGE}" = "sqlite" ] || [ "${STORAGE}" = "sqlitelb" ]; then
+        UPDATE_SQL_QUERY="UPDATE tasks ${SQL_QUERY}"
+        SQL_CMD=`sqlite3 ${FLEDGE_DATA}/fledge.db "${UPDATE_SQL_QUERY}"`
+    else
+        write_log "" "$0" "err" "Bad storage engine found: ${STORAGE}" "all" "pretty"
+        exit 1
+    fi
+
+    UPDATE_TASK_STATUS="$?"
+    if [ "$UPDATE_TASK_STATUS" != "0" ]; then
+        write_log "" "$0" "err" "Failed on execution of ${UPDATE_SQL_QUERY} in engine '${STORAGE}'. Exit: $UPDATE_TASK_STATUS." "all" "pretty"
+        exit 1
+    else
+        msg="'$SCHEDULE_NAME' task state updated successfully"
+        write_log "" "$0" "debug" "$msg" "all" "pretty"
+    fi
+}
+
+# Upgrade check
+upgrade_check() {
+    # System update request
+    run_update
+
+    UPGRADE_CHECK="sudo apt list --upgradable"
+    write_log "" "$0" "info" "Executing ${UPGRADE_CHECK} command..." "logonly"
+    UPGRADE_CMD_OUT=`$UPGRADE_CHECK 2> /dev/null | grep 'fledge/'`
+    UPGRADE_CMD_STATUS="$?"
+    write_log "" "$0" "debug" "Upgrade check result [$UPGRADE_CMD_OUT], retcode $UPGRADE_CMD_STATUS" "all" "pretty"
+    if [ "$UPGRADE_CMD_STATUS" != "0" ]; then
+        write_log "" "$0" "info" "No new Fledge package to upgrade" "all" "pretty"
+	echo 0
+    else
+	echo 1
+    fi
+}
+
+# Main
+
+DO_UPGRADE=`upgrade_check`
+
+if [ "$DO_UPGRADE" = "1" ]; then
+	# Stop Fledge
+	fledge_stop
+
+	# Now run Package upgrade
+	run_upgrade
+
+	# Start Fledge
+	fledge_start
 fi
 
-# Add fledge python path to PYTHONPATH
-export PYTHONPATH="${PYTHONPATH}:${FLEDGE_ROOT}/scripts/common"
-
-# Stop Fledge
-
-STOP_FLEDGE_CMD="${FLEDGE_ROOT}/bin/fledge stop"
-STOP_FLEDGE_CMD_STATUS=`$STOP_FLEDGE_CMD`
-sleep 15
-if [ "${STOP_FLEDGE_CMD_STATUS}" = "" ]; then
-    logger -p local0.err -t "Fledge[${$}]" "err" "${TASK_NAME} $0: cannot run \"${STOP_FLEDGE_CMD}\" command"
-    exit 1
+if [ "$UPGRADE_DONE" = "Y" ]; then
+    # Audit log entry
+    audit_trail_entry
 fi
 
-
-# Now run Fledge update commands.
-UPDATE_CMD="sudo apt -y update"
-FLEDGE_UPDATE_CMD="sudo apt-get -y install fledge"
-
-
-# Update apt-get
-logger -p local0.err -t "Fledge[${$}]" "$TASK_NAME $0: Starting ${UPDATE_CMD} command"
-UPDATE_CMD_OUT=`$UPDATE_CMD`
-UPDATE_CMD_STATUS="$?"
-if [ "$UPDATE_CMD_STATUS" != "0" ]; then
-    logger -p local0.err -t "Fledge[${$}]" "$TASK_NAME $0: Error: $UPDATE_CMD. Exit: $UPDATE_CMD_STATUS. Out: $UPDATE_CMD_OUT"
-    exit 1
-fi
-
-
-# Update Fledge
-logger -p local0.err -t "Fledge[${$}]" "$TASK_NAME $0: Starting ${FLEDGE_UPDATE_CMD} command"
-FLEDGE_UPDATE_CMD_OUT=`$FLEDGE_UPDATE_CMD`
-FLEDGE_UPDATE_CMD_STATUS="$?"
-if [ "$FLEDGE_UPDATE_CMD_STATUS" != "0" ]; then
-    logger -p local0.err -t "Fledge[${$}]" "$TASK_NAME $0: Error: $FLEDGE_UPDATE_CMD. Exit: $FLEDGE_UPDATE_CMD_STATUS. Out: $FLEDGE_UPDATE_CMD_OUT"
-    exit 1
-fi
-
-
-# Start Fledge
-
-START_FLEDGE_CMD="${FLEDGE_ROOT}/bin/fledge start"
-START_FLEDGE_CMD_OUT=`$START_FLEDGE_CMD`
-START_FLEDGE_CMD_STATUS="$?"
-if [ "$START_FLEDGE_CMD_OUT" = "" ]; then
-    logger -p local0.err -t "Fledge[${$}]" "$TASK_NAME $0: Error: $START_FLEDGE_CMD. Exit: $START_FLEDGE_CMD_STATUS. Out: $START_FLEDGE_CMD_OUT"
-    exit 1
-fi
-
-logger -p local0.err -t "Fledge[${$}]" "${TASK_NAME} $0: Fledge updated successfully!"
-echo "Fledge updated successfully!"
+# Update Task Record
+update_task

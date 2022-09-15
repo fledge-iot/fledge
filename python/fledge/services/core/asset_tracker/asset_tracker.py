@@ -43,14 +43,14 @@ class AssetTracker(object):
 
         self._registered_asset_records = []
         try:
-            payload = PayloadBuilder().SELECT("asset", "event", "service", "plugin").payload()
+            payload = PayloadBuilder().SELECT("asset", "event", "service", "plugin", "data").payload()
             results = await self._storage.query_tbl_with_payload('asset_tracker', payload)
             for row in results['rows']:
                 self._registered_asset_records.append(row)
         except Exception as ex:
             _logger.exception('Failed to retrieve asset records, %s', str(ex))
 
-    async def add_asset_record(self, *,  asset, event, service, plugin):
+    async def add_asset_record(self, *,  asset, event, service, plugin, jsondata = {}):
         """
         Args:
              asset: asset code of the record
@@ -59,7 +59,7 @@ class AssetTracker(object):
              plugin: The name of the plugin, that has been loaded by the service.
         """
         # If (asset + event + service + plugin) row combination exists in _find_registered_asset_record then return
-        d = {"asset": asset, "event": event, "service": service, "plugin": plugin}
+        d = {"asset": asset, "event": event, "service": service, "plugin": plugin, "data":jsondata}
         if d in self._registered_asset_records:
             return {}
 
@@ -72,7 +72,8 @@ class AssetTracker(object):
             self.fledge_svc_name = svc_config['value']
 
         try:
-            payload = PayloadBuilder().INSERT(asset=asset, event=event, service=service, plugin=plugin, fledge=self.fledge_svc_name).payload()
+            payload = PayloadBuilder().INSERT(asset=asset, event=event, service=service, plugin=plugin, fledge=self.fledge_svc_name, data=jsondata).payload()
+
             result = await self._storage.insert_into_tbl('asset_tracker', payload)
             response = result['response']
             self._registered_asset_records.append(d)

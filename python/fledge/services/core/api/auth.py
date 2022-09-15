@@ -75,6 +75,27 @@ class OTT:
         pass
 
 
+def __remove_ott_for_user(user_id):
+    """Helper function that removes given user_id from OTT_MAP if the user exists in the map."""
+    try:
+        _user_id = int(user_id)
+    except ValueError as ex:
+        _logger.info("User id given is not an integer.")
+        return
+    for k, v in OTT.OTT_MAP.items():
+        if v[0] == _user_id:
+            OTT.OTT_MAP.pop(k)
+            break
+
+
+def __remove_ott_for_token(given_token):
+    """Helper function that removes given token from OTT_MAP if that token in the map."""
+    for k, v in OTT.OTT_MAP.items():
+        if v[1] == given_token:
+            OTT.OTT_MAP.pop(k)
+            break
+
+
 async def login(request):
     """ Validate user with its username and password
 
@@ -238,6 +259,7 @@ async def logout_me(request):
         _logger.warning("Logout requested with bad user token")
         raise web.HTTPNotFound()
 
+    __remove_ott_for_token(request.token)
     _logger.info("User has been logged out successfully")
     return web.json_response({"logout": True})
 
@@ -261,6 +283,9 @@ async def logout(request):
         if not result['rows_affected']:
             _logger.warning("Logout requested with bad user")
             raise web.HTTPNotFound()
+
+        # Remove OTT token for this user if there.
+        __remove_ott_for_user(user_id)
 
         _logger.info("User with id:<{}> has been logged out successfully".format(int(user_id)))
     else:
@@ -535,6 +560,11 @@ async def update_user(request):
         user = await User.Objects.update(user_id, user_data)
         if user:
             user_info = await User.Objects.get(uid=user_id)
+
+        if 'access_method' in data:
+            # Remove OTT token for this user only if access method is updated.
+            __remove_ott_for_user(user_id)
+
     except ValueError as err:
         msg = str(err)
         raise web.HTTPBadRequest(reason=str(err), body=json.dumps({"message": msg}))
@@ -592,6 +622,10 @@ async def update_password(request):
 
     try:
         await User.Objects.update(int(user_id), {'password': new_password})
+
+        # Remove OTT token for this user if there.
+        __remove_ott_for_user(user_id)
+
     except ValueError as ex:
         _logger.warning(str(ex))
         raise web.HTTPBadRequest(reason=str(ex))
@@ -645,6 +679,8 @@ async def enable_user(request):
                     raise User.DoesNotExist
                 payload = PayloadBuilder().SET(enabled=user_data['enabled']).WHERE(['id', '=', user_id]).payload()
                 result = await storage_client.update_tbl("users", payload)
+                # Remove ott token for this enabled/disabled user.
+                __remove_ott_for_user(user_id)
                 if result['response'] == 'updated':
                     _text = 'enabled' if user_data['enabled'] == 't' else 'disabled'
                     payload = PayloadBuilder().SELECT("id", "uname", "role_id", "enabled").WHERE(
@@ -717,6 +753,10 @@ async def reset(request):
 
     try:
         await User.Objects.update(user_id, user_data)
+
+        # Remove OTT token for this user if there.
+        __remove_ott_for_user(user_id)
+
     except ValueError as ex:
         _logger.warning(str(ex))
         raise web.HTTPBadRequest(reason=str(ex))
@@ -770,6 +810,9 @@ async def delete_user(request):
         result = await User.Objects.delete(user_id)
         if not result['rows_affected']:
             raise User.DoesNotExist
+
+        # Remove OTT token for this user if there.
+        __remove_ott_for_user(user_id)
 
     except ValueError as ex:
         _logger.warning(str(ex))

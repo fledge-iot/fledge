@@ -25,7 +25,7 @@ _help = """
     ----------------------------------------------------------
 """
 _LOGGER = logger.setup(__name__, level=logging.INFO)
-FLEDGE_DATA = os.path.join(os.environ('FLEDGE_ROOT'), 'data')
+FLEDGE_DATA = os.path.join(os.environ.get('FLEDGE_ROOT'), 'data')
 
 
 async def get_storage_health(request: web.Request) -> web.Response:

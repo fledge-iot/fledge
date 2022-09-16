@@ -162,6 +162,13 @@ async def get_updates(request: web.Request) -> web.Response:
         word_list = [w for w in word_list if w != '']
         packages = []
 
+        # For APT the output of apt list is as follows:
+        """
+        $ apt list --upgradable
+        Listing... Done
+        fledge-gui/unknown 1.9.2-440-gf849eed5 all [upgradable from: 1.9.2]
+        fledge-south-sinusoid/unknown 1.9.2-1-g38a138f amd64 [upgradable from: 1.9.2]
+        """
         # Now match the character / . The string before / is the actual package name we want.
         for word in word_list:
             # TODO find regex for yum as well.

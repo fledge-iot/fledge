@@ -81,7 +81,7 @@ const char *default_config = QUOTE({
 			"order" : "6"
 		},
 		"vacuumInterval" : {
-			"description" : "list of assets to exclude from the purge process",
+			"description" : "The interval between execution of a SQLite vacuum command",
 			"type" : "integer",
 			"minimum" : "1",
 			"default" : "6",

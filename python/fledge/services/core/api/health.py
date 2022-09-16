@@ -5,13 +5,12 @@
 # FLEDGE_END
 
 import logging
-import json
 import asyncio
-import shutil
+import json
 
 from aiohttp import web
 from fledge.common import logger
-import os
+from fledge.common.common import _FLEDGE_DATA
 
 
 __author__ = "Deepanshu Yadav"
@@ -25,16 +24,39 @@ _help = """
     ----------------------------------------------------------
 """
 _LOGGER = logger.setup(__name__, level=logging.INFO)
-FLEDGE_DATA = os.path.join(os.environ.get('FLEDGE_ROOT'), 'data')
 
 
 async def get_storage_health(request: web.Request) -> web.Response:
     """
+     Return the health of Storage service.
     Args:
-       request:
+       request: None
 
     Returns:
            Health of Storage service.
+           Sample Response :
+
+           {
+              "uptime": 33,
+              "name": "Fledge Storage",
+              "statistics": {
+                "commonInsert": 30,
+                "commonSimpleQuery": 3,
+                "commonQuery": 91,
+                "commonUpdate": 2,
+                "commonDelete": 1,
+                "readingAppend": 0,
+                "readingFetch": 0,
+                "readingQuery": 1,
+                "readingPurge": 0
+              },
+              "disk": {
+                "used": 95287524,
+                "usage": 82,
+                "available": 20918108,
+                "status": "green"
+              }
+           }
 
     :Example:
            curl -X GET http://localhost:8081/fledge/health/storage
@@ -48,11 +70,10 @@ async def get_storage_health(request: web.Request) -> web.Response:
         service = services[0]
     except DoesNotExist:
         _LOGGER.error("Cannot ping the storage service. It does not exist in service registry.")
-        return
+        raise web.HTTPNotFound(reason="Cannot ping the storage service. It does not exist in service registry.")
     else:
         try:
             from fledge.common.service_record import ServiceRecord
-
             if service._status == ServiceRecord.Status.Running:
 
                 from fledge.common.microservice_management_client.microservice_management_client import \
@@ -60,18 +81,19 @@ async def get_storage_health(request: web.Request) -> web.Response:
 
                 mgt_client = MicroserviceManagementClient(service._address,
                                                           service._management_port)
-                json_response = await mgt_client.ping_service()
-                _LOGGER.info("The response is {}".format(json_response))
-
+                ping_response = await mgt_client.ping_service()
+            else:
+                msg = "The Storage service is not in Running state."
+                raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
         except Exception as ex:
-            _LOGGER.error("Could not ping Storage  due to {}".format(str(ex)))
-            return
+            msg = str(ex)
+            _LOGGER.error("Could not ping Storage  due to {}".format(msg))
+            raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
 
     try:
-        disk_stat = shutil.disk_usage(FLEDGE_DATA)
 
-        json_response['disk'] = {}
-        pip_process = await asyncio.create_subprocess_shell('df -k ' + FLEDGE_DATA,
+        ping_response['disk'] = {}
+        pip_process = await asyncio.create_subprocess_shell('df -k ' + _FLEDGE_DATA,
                                                             stdout=asyncio.subprocess.PIPE,
                                                             stderr=asyncio.subprocess.PIPE)
 
@@ -81,17 +103,21 @@ async def get_storage_health(request: web.Request) -> web.Response:
         used = int(required_stats[2])
         available = int(required_stats[3])
         usage = int(required_stats[4].replace("%", ''))
-        if usage < 90:
+        if usage <= 90:
             status = 'green'
         elif 90 < usage <= 95:
             status = 'yellow'
         else:
             status = 'red'
-        json_response['disk']['used'] = used
-        json_response['disk']['usage'] = usage
-        json_response['disk']['available'] = available
-        json_response['disk']['status'] = status
-        return web.json_response(json_response)
+
+        # fill all the files values retrieved
+        ping_response['disk']['used'] = used
+        ping_response['disk']['usage'] = usage
+        ping_response['disk']['available'] = available
+        ping_response['disk']['status'] = status
+        return web.json_response(ping_response)
+
     except Exception as ex:
-        _LOGGER.error("Could get disk stats due to {}".format(str(ex)))
-        return
+        msg = "Could get disk stats due to {}".format(str(ex))
+        _LOGGER.error(msg)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))

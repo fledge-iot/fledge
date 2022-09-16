@@ -99,6 +99,7 @@ async def get_storage_health(request: web.Request) -> web.Response:
 
         stdout, stderr = await disk_check_process.communicate()
         if disk_check_process.returncode != 0:
+            stderr = stderr.decode("utf-8")
             msg = "Failed to get disk stats! {}".format(str(stderr))
             _LOGGER.error(msg)
             raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))

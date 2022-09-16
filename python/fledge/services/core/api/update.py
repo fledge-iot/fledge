@@ -162,9 +162,10 @@ async def get_updates(request: web.Request) -> web.Response:
 
             # Now match the character / . The string before / is the actual package name we want.
             for word in word_list:
-                word_match = re.findall(r".*[/|]", word)
+                # TODO find regex for yum as well.
+                word_match = re.findall(r".*[/]", word)
                 if len(word_match) > 0:
-                    packages.append(word_match[0].replace('/', '').replace('|', '').strip())
+                    packages.append(word_match[0].replace('/', '').strip())
 
             # Make a set to avoid duplicates.
             upgradable_packages = list(set(packages))

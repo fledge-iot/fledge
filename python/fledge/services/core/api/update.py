@@ -29,8 +29,7 @@ __version__ = "${VERSION}"
 
 _help = """
     -----------------------------------------
-    | PUT             | /fledge/update      |
-    | GET             | /fledge/update      |
+    | PUT, GET            | /fledge/update   |
     -----------------------------------------
 """
 
@@ -130,10 +129,10 @@ async def get_updates(request: web.Request) -> web.Response:
     _platform = platform.platform()
     if "centos" in _platform or "redhat" in _platform:
         update_cmd = "sudo yum update"
-        packages_check_cmd = "sudo yum list updates | grep \^fledge"
+        packages_check_cmd = "yum list updates | grep \^fledge"
     else:
         update_cmd = "sudo apt update"
-        packages_check_cmd = "sudo apt list --upgradable | grep \^fledge"
+        packages_check_cmd = "apt list --upgradable | grep \^fledge"
 
     update_process = await asyncio.create_subprocess_shell(update_cmd,
                                                            stdout=asyncio.subprocess.PIPE,
@@ -145,35 +144,35 @@ async def get_updates(request: web.Request) -> web.Response:
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
 
     installed_packages_process = await asyncio.create_subprocess_shell(packages_check_cmd,
-                                                                 stdout=asyncio.subprocess.PIPE,
-                                                                 stderr=asyncio.subprocess.PIPE)
+                                                                       stdout=asyncio.subprocess.PIPE,
+                                                                       stderr=asyncio.subprocess.PIPE)
 
     stdout, stderr = await installed_packages_process.communicate()
-    if installed_packages_process.returncode == 0:
-        try:
-            process_output = stdout.decode("utf-8")
-            _logger.info(process_output)
-            # split on new-line
-            word_list = re.split(r"\n+", process_output)
-
-            # remove '' from the list
-            word_list = [w for w in word_list if w != '']
-            packages = []
-
-            # Now match the character / . The string before / is the actual package name we want.
-            for word in word_list:
-                # TODO find regex for yum as well.
-                word_match = re.findall(r".*[/]", word)
-                if len(word_match) > 0:
-                    packages.append(word_match[0].replace('/', '').strip())
-
-            # Make a set to avoid duplicates.
-            upgradable_packages = list(set(packages))
-            return web.json_response({'updates': upgradable_packages})
-        except Exception as ex:
-            msg = "Could not retrieve package information due to {}".format(str(ex))
-            _logger.error(msg)
-            raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
-    else:
-        _logger.info("Updates are not available at the moment.")
+    if installed_packages_process.returncode != 0:
+        _logger.info("Nothing to upgrade at the moment. {}".format(stderr))
         return web.json_response({'updates': []})
+
+    try:
+        process_output = stdout.decode("utf-8")
+        _logger.info(process_output)
+        # split on new-line
+        word_list = re.split(r"\n+", process_output)
+
+        # remove '' from the list
+        word_list = [w for w in word_list if w != '']
+        packages = []
+
+        # Now match the character / . The string before / is the actual package name we want.
+        for word in word_list:
+            # TODO find regex for yum as well.
+            word_match = re.findall(r".*[/]", word)
+            if len(word_match) > 0:
+                packages.append(word_match[0].replace('/', '').strip())
+
+        # Make a set to avoid duplicates.
+        upgradable_packages = list(set(packages))
+        return web.json_response({'updates': upgradable_packages})
+    except Exception as ex:
+        msg = "No upgradable packages are found due to {}".format(str(ex))
+        _logger.error(msg)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))

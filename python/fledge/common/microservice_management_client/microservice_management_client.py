@@ -309,7 +309,6 @@ class MicroserviceManagementClient(object):
         async with aiohttp.ClientSession() as session:
             async with session.get('http://{}:{}/fledge/service/ping'.format(self.hostname,
                                                                              self.port)) as resp:
-                _logger.info(resp.status)
                 json_response = await resp.json()
                 self._management_client_conn.close()
                 self.port = None
@@ -328,7 +327,6 @@ class MicroserviceManagementClient(object):
             async with session.put('http://{}:{}/fledge/security'.format(self.hostname,
                                                                          self.port),
                                    data=json.dumps(payload)) as resp:
-                _logger.info(resp.status)
                 json_response = await resp.json()
                 _logger.debug("The response is {}".format(json_response))
                 self._management_client_conn.close()

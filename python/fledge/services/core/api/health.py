@@ -33,7 +33,7 @@ async def get_storage_health(request: web.Request) -> web.Response:
        request: None
 
     Returns:
-           Health of Storage service.
+           Return the health of Storage service & data directory.
            Sample Response :
 
            {
@@ -102,6 +102,12 @@ async def get_storage_health(request: web.Request) -> web.Response:
             _LOGGER.error(msg)
             raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
 
+        # Following output is parsed.
+        """
+            Filesystem     1K-blocks     Used Available Use% Mounted on
+            /dev/sda5      122473072 95449760  20755872  83% /
+
+        """
         disk_stats = stdout.decode("utf-8")
         required_stats = disk_stats.split('\n')[1].split()
         used = int(required_stats[2])
@@ -113,14 +119,14 @@ async def get_storage_health(request: web.Request) -> web.Response:
         elif 90 < usage <= 95:
             status = 'yellow'
 
-        # fill all the files values retrieved
+    except Exception as ex:
+        msg = "Failed to get disk stats! {}".format(str(ex))
+        _LOGGER.error(msg)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+    else:
+        # fill all the fields after values are retrieved
         response['disk']['used'] = used
         response['disk']['usage'] = usage
         response['disk']['available'] = available
         response['disk']['status'] = status
         return web.json_response(response)
-
-    except Exception as ex:
-        msg = "Failed to get disk stats! {}".format(str(ex))
-        _LOGGER.error(msg)
-        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))

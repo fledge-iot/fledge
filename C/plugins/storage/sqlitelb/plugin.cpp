@@ -41,7 +41,15 @@ const char *default_config = QUOTE({
 			"default" : "5",
 			"displayName" : "Pool Size",
 			"order" : "1"
-			}
+			},
+		"vacuumInterval" : {
+			"description" : "list of assets to exclude from the purge process",
+			"type" : "integer",
+			"minimum" : "1",
+			"default" : "6",
+			"displayName" : "Vacuum Interval",
+			"order" : "2"
+		}
 		});
 
 /**
@@ -79,6 +87,10 @@ int poolSize = 5;
 		poolSize = strtol(category->getValue("poolSize").c_str(), NULL, 10);
 	}
 	manager->growPool(poolSize);
+	if (category->itemExists("vacuumInterval"))
+	{
+		manager->setVacuumInterval(strtol(category->getValue("vacuumInterval").c_str(), NULL, 10));
+	}
 	return manager;
 }
 

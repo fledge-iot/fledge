@@ -3337,4 +3337,29 @@ bool Connection::createSchema(const std::string &schema)
 {
 	return m_schemaManager->create(dbHandle, schema);
 }
+
+/**
+ * Execute a SQLite VACUUM command on the database
+ */
+bool Connection::vacuum()
+{
+	char* zErrMsg = NULL;
+	// Exec the statement
+	int rc = SQLexec(dbHandle, "VACUUM;", NULL, NULL, &zErrMsg);
+
+	// Check result
+	if (rc != SQLITE_OK)
+	{
+			const char* errMsg = "Failed to vacuum database ";
+			Logger::getLogger()->error("%s: error %s",
+						   errMsg, zErrMsg);
+			sqlite3_free(zErrMsg);
+			return false;
+	}
+	else
+	{
+		Logger::getLogger()->info("Database vacuum complete");
+	}
+	return true;
+}
 #endif

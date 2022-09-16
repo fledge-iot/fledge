@@ -79,6 +79,14 @@ const char *default_config = QUOTE({
 			"default" : "",
 			"displayName" : "Purge Exclusions",
 			"order" : "6"
+		},
+		"vacuumInterval" : {
+			"description" : "list of assets to exclude from the purge process",
+			"type" : "integer",
+			"minimum" : "1",
+			"default" : "6",
+			"displayName" : "Vacuum Interval",
+			"order" : "7"
 		}
 
 });
@@ -156,6 +164,11 @@ PLUGIN_HANDLE plugin_init(ConfigCategory *category)
 			s = pos + 1;
 		}
 		purge->exclude(StringTrim(exclusions.substr(s, pos)));
+	}
+
+	if (category->itemExists("vacuumInterval"))
+	{
+		manager->setVacuumInterval(strtol(category->getValue("vacuumInterval").c_str(), NULL, 10));
 	}
 
 	return manager;

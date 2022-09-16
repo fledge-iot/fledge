@@ -10,7 +10,7 @@ import json
 
 from aiohttp import web
 from fledge.common import logger
-from fledge.common.common import _FLEDGE_DATA
+from fledge.common.common import _FLEDGE_DATA, _FLEDGE_ROOT
 
 
 __author__ = "Deepanshu Yadav"
@@ -28,7 +28,7 @@ _LOGGER = logger.setup(__name__, level=logging.INFO)
 
 async def get_storage_health(request: web.Request) -> web.Response:
     """
-     Return the health of Storage service.
+     Return the health of Storage service & data directory.
     Args:
        request: None
 
@@ -61,8 +61,7 @@ async def get_storage_health(request: web.Request) -> web.Response:
     :Example:
            curl -X GET http://localhost:8081/fledge/health/storage
     """
-
-    # We need to find the address and management host for the Storage service.
+    # Find the address and management host for the Storage service.
     from fledge.services.core.service_registry.service_registry import ServiceRegistry
     from fledge.services.core.service_registry.exceptions import DoesNotExist
     try:
@@ -82,7 +81,7 @@ async def get_storage_health(request: web.Request) -> web.Response:
 
         mgt_client = MicroserviceManagementClient(service._address,
                                                   service._management_port)
-        ping_response = await mgt_client.ping_service()
+        response = await mgt_client.ping_service()
 
     except Exception as ex:
         msg = str(ex)
@@ -91,14 +90,15 @@ async def get_storage_health(request: web.Request) -> web.Response:
 
     try:
 
-        ping_response['disk'] = {}
-        disk_check_process = await asyncio.create_subprocess_shell('df -k ' + _FLEDGE_DATA,
+        response['disk'] = {}
+        data_dir_path = _FLEDGE_DATA if _FLEDGE_DATA else _FLEDGE_ROOT + '/data'
+        disk_check_process = await asyncio.create_subprocess_shell('df -k ' + data_dir_path,
                                                                    stdout=asyncio.subprocess.PIPE,
                                                                    stderr=asyncio.subprocess.PIPE)
 
         stdout, stderr = await disk_check_process.communicate()
         if disk_check_process.returncode != 0:
-            msg = "Could get disk stats due to {}".format(str(stderr))
+            msg = "Failed to get disk stats! {}".format(str(stderr))
             _LOGGER.error(msg)
             raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
 
@@ -114,13 +114,13 @@ async def get_storage_health(request: web.Request) -> web.Response:
             status = 'yellow'
 
         # fill all the files values retrieved
-        ping_response['disk']['used'] = used
-        ping_response['disk']['usage'] = usage
-        ping_response['disk']['available'] = available
-        ping_response['disk']['status'] = status
-        return web.json_response(ping_response)
+        response['disk']['used'] = used
+        response['disk']['usage'] = usage
+        response['disk']['available'] = available
+        response['disk']['status'] = status
+        return web.json_response(response)
 
     except Exception as ex:
-        msg = "Could get disk stats due to {}".format(str(ex))
+        msg = "Failed to get disk stats! {}".format(str(ex))
         _LOGGER.error(msg)
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))

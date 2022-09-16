@@ -259,7 +259,7 @@ def setup(app):
     app.router.add_route('GET', '/fledge/python/packages', python_packages.get_packages)
     app.router.add_route('POST', '/fledge/python/package', python_packages.install_package)
 
-    app.router.add_route('GET', '/fledge/update', update.update_package)
+    app.router.add_route('GET', '/fledge/update', update.get_updates)
 
     # Proxy Admin API setup with regex
     proxy.admin_api_setup(app)

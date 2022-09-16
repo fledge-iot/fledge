@@ -127,31 +127,29 @@ async def get_updates(request: web.Request) -> web.Response:
          curl -sX GET http://localhost:8081/fledge/update |jq
     """
     _platform = platform.platform()
+    update_cmd = "sudo apt update"
+    upgradable_pkgs_check_cmd = "apt list --upgradable | grep \^fledge"
     if "centos" in _platform or "redhat" in _platform:
         update_cmd = "sudo yum check-update"
-        packages_check_cmd = "yum list updates | grep \^fledge"
-    else:
-        update_cmd = "sudo apt update"
-        packages_check_cmd = "apt list --upgradable | grep \^fledge"
+        upgradable_pkgs_check_cmd = "yum list updates | grep \^fledge"
 
     update_process = await asyncio.create_subprocess_shell(update_cmd,
                                                            stdout=asyncio.subprocess.PIPE,
                                                            stderr=asyncio.subprocess.PIPE)
-
     _, stderr = await update_process.communicate()
     if update_process.returncode != 0:
         msg = "Could not run {} due to {}".format(update_cmd, stderr.decode('utf-8'))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
 
-    installed_packages_process = await asyncio.create_subprocess_shell(packages_check_cmd,
-                                                                       stdout=asyncio.subprocess.PIPE,
-                                                                       stderr=asyncio.subprocess.PIPE)
+    upgradable_pkgs_check_process = await asyncio.create_subprocess_shell(upgradable_pkgs_check_cmd,
+                                                                          stdout=asyncio.subprocess.PIPE,
+                                                                          stderr=asyncio.subprocess.PIPE)
 
-    stdout, stderr = await installed_packages_process.communicate()
-    if installed_packages_process.returncode != 0:
-        _logger.info("Nothing to upgrade at the moment. {}".format(stderr))
-        return web.json_response({'updates': []})
-
+    stdout, stderr = await upgradable_pkgs_check_process.communicate()
+    if upgradable_pkgs_check_process.returncode != 0:
+        _logger.info("Nothing to upgrade at the moment. {}".format(stderr.decode("utf-8")))
+        upgradable_packages = []
+        return web.json_response({'updates': upgradable_packages})
     try:
         process_output = stdout.decode("utf-8")
         _logger.info(process_output)
@@ -179,7 +177,7 @@ async def get_updates(request: web.Request) -> web.Response:
         # Make a set to avoid duplicates.
         upgradable_packages = list(set(packages))
     except Exception as ex:
-        msg = "No upgradable packages are found due to {}".format(str(ex))
+        msg = "Failed to fetch upgradable packages list for the configured repository! {}".format(str(ex))
         _logger.error(msg)
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:

@@ -68,8 +68,9 @@ async def get_storage_health(request: web.Request) -> web.Response:
         services = ServiceRegistry.get(name="Fledge Storage")
         service = services[0]
     except DoesNotExist:
-        _LOGGER.error("Cannot ping the storage service. It does not exist in service registry.")
-        raise web.HTTPNotFound(reason="Cannot ping the storage service. It does not exist in service registry.")
+        msg = "Cannot ping the storage service. It does not exist in service registry."
+        _LOGGER.error(msg)
+        raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     try:
         from fledge.common.service_record import ServiceRecord
         if service._status != ServiceRecord.Status.Running:

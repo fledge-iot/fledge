@@ -13,6 +13,7 @@ import datetime
 import os
 import asyncio
 import re
+import platform
 
 from fledge.services.core import server
 from fledge.common import logger
@@ -113,41 +114,65 @@ async def update_package(request):
 
 
 async def get_updates(request: web.Request) -> web.Response:
-    update_cmd = "apt update"
+    """
+        Gives list of packages for which updates are available.
+
+        Returns JSON Response
+         Sample Response
+         {
+            "updates": [
+            "fledge-south-sinusoid","fledge"
+            ]
+        }
+        Example
+         curl -sX GET http://localhost:8081/fledge/update |jq
+    """
+    _platform = platform.platform()
+    if "centos" in _platform or "redhat" in _platform:
+        update_cmd = "sudo yum update"
+        packages_check_cmd = "sudo yum list updates | grep \^fledge"
+    else:
+        update_cmd = "sudo apt update"
+        packages_check_cmd = "sudo apt list --upgradable | grep \^fledge"
+
     update_process = await asyncio.create_subprocess_shell(update_cmd,
                                                            stdout=asyncio.subprocess.PIPE,
                                                            stderr=asyncio.subprocess.PIPE)
 
-    _, _ = await update_process.communicate()
+    _, stderr = await update_process.communicate()
     if update_process.returncode != 0:
-        _logger.error("Could not run {}".format(update_cmd))
-        return web.json_response({'updates': []})
+        msg = "Could not run {} due to {}".format(update_cmd, stderr.decode('utf-8'))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
 
-    cmd = "apt list --upgradable | grep \^fledge"
-    installed_packages_process = await asyncio.create_subprocess_shell(cmd,
+    installed_packages_process = await asyncio.create_subprocess_shell(packages_check_cmd,
                                                                  stdout=asyncio.subprocess.PIPE,
                                                                  stderr=asyncio.subprocess.PIPE)
 
     stdout, stderr = await installed_packages_process.communicate()
     if installed_packages_process.returncode == 0:
-        process_output = stdout.decode("utf-8")
-        _logger.info(process_output)
-        # split on new-line
-        word_list = re.split(r"\n+", process_output)
+        try:
+            process_output = stdout.decode("utf-8")
+            _logger.info(process_output)
+            # split on new-line
+            word_list = re.split(r"\n+", process_output)
 
-        # remove '' from the list
-        word_list = [w for w in word_list if w != '']
-        packages = []
+            # remove '' from the list
+            word_list = [w for w in word_list if w != '']
+            packages = []
 
-        # Now match the character / . The string before / is the actual package name we want.
-        for word in word_list:
-            word_match = re.findall(r".*[/]", word)
-            if len(word_match) > 0:
-                packages.append(word_match[0].replace('/', ''))
+            # Now match the character / . The string before / is the actual package name we want.
+            for word in word_list:
+                word_match = re.findall(r".*[/|]", word)
+                if len(word_match) > 0:
+                    packages.append(word_match[0].replace('/', '').replace('|', '').strip())
 
-        # Make a set to avoid duplicates.
-        upgradable_packages = list(set(packages))
-        return web.json_response({'updates': upgradable_packages})
+            # Make a set to avoid duplicates.
+            upgradable_packages = list(set(packages))
+            return web.json_response({'updates': upgradable_packages})
+        except Exception as ex:
+            msg = "Could not retrieve package information due to {}".format(str(ex))
+            _logger.error(msg)
+            raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         _logger.info("Updates are not available at the moment.")
         return web.json_response({'updates': []})

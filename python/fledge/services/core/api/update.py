@@ -128,7 +128,7 @@ async def get_updates(request: web.Request) -> web.Response:
     """
     _platform = platform.platform()
     if "centos" in _platform or "redhat" in _platform:
-        update_cmd = "sudo yum update"
+        update_cmd = "sudo yum check-update"
         packages_check_cmd = "yum list updates | grep \^fledge"
     else:
         update_cmd = "sudo apt update"
@@ -171,8 +171,9 @@ async def get_updates(request: web.Request) -> web.Response:
 
         # Make a set to avoid duplicates.
         upgradable_packages = list(set(packages))
-        return web.json_response({'updates': upgradable_packages})
     except Exception as ex:
         msg = "No upgradable packages are found due to {}".format(str(ex))
         _logger.error(msg)
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+    else:
+        return web.json_response({'updates': upgradable_packages})

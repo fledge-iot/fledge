@@ -71,44 +71,47 @@ async def get_storage_health(request: web.Request) -> web.Response:
     except DoesNotExist:
         _LOGGER.error("Cannot ping the storage service. It does not exist in service registry.")
         raise web.HTTPNotFound(reason="Cannot ping the storage service. It does not exist in service registry.")
-    else:
-        try:
-            from fledge.common.service_record import ServiceRecord
-            if service._status == ServiceRecord.Status.Running:
-
-                from fledge.common.microservice_management_client.microservice_management_client import \
-                    MicroserviceManagementClient
-
-                mgt_client = MicroserviceManagementClient(service._address,
-                                                          service._management_port)
-                ping_response = await mgt_client.ping_service()
-            else:
-                msg = "The Storage service is not in Running state."
-                raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
-        except Exception as ex:
-            msg = str(ex)
-            _LOGGER.error("Could not ping Storage  due to {}".format(msg))
+    try:
+        from fledge.common.service_record import ServiceRecord
+        if service._status != ServiceRecord.Status.Running:
+            msg = "The Storage service is not in Running state."
             raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+
+        from fledge.common.microservice_management_client.microservice_management_client import \
+            MicroserviceManagementClient
+
+        mgt_client = MicroserviceManagementClient(service._address,
+                                                  service._management_port)
+        ping_response = await mgt_client.ping_service()
+
+    except Exception as ex:
+        msg = str(ex)
+        _LOGGER.error("Could not ping Storage  due to {}".format(msg))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
 
     try:
 
         ping_response['disk'] = {}
-        pip_process = await asyncio.create_subprocess_shell('df -k ' + _FLEDGE_DATA,
-                                                            stdout=asyncio.subprocess.PIPE,
-                                                            stderr=asyncio.subprocess.PIPE)
+        disk_check_process = await asyncio.create_subprocess_shell('df -k ' + _FLEDGE_DATA,
+                                                                   stdout=asyncio.subprocess.PIPE,
+                                                                   stderr=asyncio.subprocess.PIPE)
 
-        stdout, stderr = await pip_process.communicate()
+        stdout, stderr = await disk_check_process.communicate()
+        if disk_check_process.returncode != 0:
+            msg = "Could get disk stats due to {}".format(str(stderr))
+            _LOGGER.error(msg)
+            raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+
         disk_stats = stdout.decode("utf-8")
         required_stats = disk_stats.split('\n')[1].split()
         used = int(required_stats[2])
         available = int(required_stats[3])
         usage = int(required_stats[4].replace("%", ''))
-        if usage <= 90:
-            status = 'green'
+        status = 'green'
+        if usage > 95:
+            status = 'red'
         elif 90 < usage <= 95:
             status = 'yellow'
-        else:
-            status = 'red'
 
         # fill all the files values retrieved
         ping_response['disk']['used'] = used

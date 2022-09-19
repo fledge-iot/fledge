@@ -27,7 +27,7 @@ _help = """
 _LOGGER = logger.setup(__name__, level=logging.INFO)
 
 
-async def get_disc_usage(given_dir):
+async def get_disk_usage(given_dir):
     """
        Helper function that calculates used, available, usage(in %) for a given directory in file system.
        Returns a tuple of used(in KB's integer), available(in KB's integer), usage(in %)
@@ -119,7 +119,7 @@ async def get_logging_health(request: web.Request) -> web.Response:
 
     try:
         response['disk'] = {}
-        used, available, usage = await get_disc_usage('/var/log')
+        used, available, usage = await get_disk_usage('/var/log')
         # fill all the fields after values are retrieved
         response['disk']['used'] = used
         response['disk']['usage'] = usage
@@ -199,7 +199,7 @@ async def get_storage_health(request: web.Request) -> web.Response:
     try:
         response['disk'] = {}
         data_dir_path = _FLEDGE_DATA if _FLEDGE_DATA else _FLEDGE_ROOT + '/data'
-        used, available, usage = await get_disc_usage(data_dir_path)
+        used, available, usage = await get_disk_usage(data_dir_path)
         status = 'green'
         if usage > 95:
             status = 'red'

@@ -102,7 +102,10 @@ async def get_logging_health(request: web.Request) -> web.Response:
         for s in services_info['services']:
             if s['type'] not in excluded_services:
                 service_name = s["name"]
-                conf_item = await cf_mgr.get_category_item(service_name + "Advanced", "logLevel")
+                cat_name = service_name + "Advanced"
+                if s['type'] == "Storage":
+                    cat_name = "Storage"
+                conf_item = await cf_mgr.get_category_item(cat_name, "logLevel")
                 log_level = conf_item["value"]
                 log_levels.append({"name": service_name, "level": log_level})
         response["levels"] = log_levels

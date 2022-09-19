@@ -26,6 +26,111 @@ _help = """
 _LOGGER = logger.setup(__name__, level=logging.INFO)
 
 
+async def get_disc_usage(given_dir):
+    """
+       Helper function that calculates used, available, usage(in %) for a given directory in file system.
+       Returns a tuple of used(in KB's integer), available(in KB's integer), usage(in %)
+    """
+    disk_check_process = await asyncio.create_subprocess_shell('df -k ' + given_dir,
+                                                               stdout=asyncio.subprocess.PIPE,
+                                                               stderr=asyncio.subprocess.PIPE)
+
+    stdout, stderr = await disk_check_process.communicate()
+    if disk_check_process.returncode != 0:
+        stderr = stderr.decode("utf-8")
+        msg = "Failed to get disk stats! {}".format(str(stderr))
+        _LOGGER.error(msg)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+
+    # Following output is parsed.
+    """
+        Filesystem     1K-blocks     Used Available Use% Mounted on
+        /dev/sda5      122473072 95449760  20755872  83% /
+
+    """
+    disk_stats = stdout.decode("utf-8")
+    required_stats = disk_stats.split('\n')[1].split()
+    used = int(required_stats[2])
+    available = int(required_stats[3])
+    usage = int(required_stats[4].replace("%", ''))
+
+    return used, available, usage
+
+
+async def get_logging_health(request: web.Request) -> web.Response:
+    """
+     Return the health of logging.
+    Args:
+       request: None
+
+    Returns:
+           Return the health of logging.
+           Sample Response :
+
+           {
+              "disk": {
+                "usage": 63,
+                "used": 42936800,
+                "available": 25229400
+              },
+              "levels": [
+                {
+                    "name" : "Sine",
+                    "level" : "info"
+                },
+                {
+                    "name" : "OMF",
+                    "level" : "debug"
+                }
+              ]
+           }
+
+    :Example:
+           curl -X GET http://localhost:8081/fledge/health/logging
+    """
+    response = {}
+    try:
+        from fledge.services.core.api import service as serv_api
+        from fledge.services.core.api import configuration as conf_api
+        request.is_core_mgt = True
+        services_info = await serv_api.get_health(request)
+
+        levels_array = []
+        excluded_services = ["Storage", "Core"]
+        for services_info in services_info['service']:
+            if services_info['type'] not in excluded_services:
+                service_name = services_info["name"]
+                request.category_name = service_name + "Advanced"
+                request.config_item = "logLevel"
+                config_response = await conf_api.get_category_item(request)
+                log_level = config_response["value"]
+                level_dict = dict()
+                level_dict["name"] = service_name
+                level_dict["level"] = log_level
+                levels_array.append(level_dict)
+
+        response["levels"] = levels_array
+    except Exception as ex:
+        msg = "Could not fetch service information.{}".format(str(ex))
+        _LOGGER.error(msg)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+
+    try:
+        response['disk'] = {}
+        used, available, usage = await get_disc_usage('/var/log')
+        # fill all the fields after values are retrieved
+        response['disk']['used'] = used
+        response['disk']['usage'] = usage
+        response['disk']['available'] = available
+
+    except Exception as ex:
+        msg = "Failed to get disk stats of log!{}".format(str(ex))
+        _LOGGER.error(msg)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+    else:
+        return web.json_response(response)
+
+
 async def get_storage_health(request: web.Request) -> web.Response:
     """
      Return the health of Storage service & data directory.
@@ -90,45 +195,23 @@ async def get_storage_health(request: web.Request) -> web.Response:
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
 
     try:
-
         response['disk'] = {}
         data_dir_path = _FLEDGE_DATA if _FLEDGE_DATA else _FLEDGE_ROOT + '/data'
-        disk_check_process = await asyncio.create_subprocess_shell('df -k ' + data_dir_path,
-                                                                   stdout=asyncio.subprocess.PIPE,
-                                                                   stderr=asyncio.subprocess.PIPE)
-
-        stdout, stderr = await disk_check_process.communicate()
-        if disk_check_process.returncode != 0:
-            stderr = stderr.decode("utf-8")
-            msg = "Failed to get disk stats! {}".format(str(stderr))
-            _LOGGER.error(msg)
-            raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
-
-        # Following output is parsed.
-        """
-            Filesystem     1K-blocks     Used Available Use% Mounted on
-            /dev/sda5      122473072 95449760  20755872  83% /
-
-        """
-        disk_stats = stdout.decode("utf-8")
-        required_stats = disk_stats.split('\n')[1].split()
-        used = int(required_stats[2])
-        available = int(required_stats[3])
-        usage = int(required_stats[4].replace("%", ''))
+        used, available, usage = await get_disc_usage(data_dir_path)
         status = 'green'
         if usage > 95:
             status = 'red'
         elif 90 < usage <= 95:
             status = 'yellow'
 
-    except Exception as ex:
-        msg = "Failed to get disk stats! {}".format(str(ex))
-        _LOGGER.error(msg)
-        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
-    else:
         # fill all the fields after values are retrieved
         response['disk']['used'] = used
         response['disk']['usage'] = usage
         response['disk']['available'] = available
         response['disk']['status'] = status
+    except Exception as ex:
+        msg = "Failed to get disk stats! {}".format(str(ex))
+        _LOGGER.error(msg)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+    else:
         return web.json_response(response)

@@ -96,7 +96,6 @@ async def get_logging_health(request: web.Request) -> web.Response:
 
         services_info = serv_api.get_service_records()
         # return services_info
-        _LOGGER.info("services {}".format(services_info))
         levels_array = []
         excluded_services = ["Storage", "Core"]
         for services_info in services_info['services']:

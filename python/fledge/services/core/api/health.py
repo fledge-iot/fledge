@@ -96,22 +96,17 @@ async def get_logging_health(request: web.Request) -> web.Response:
         from fledge.services.core import connect
 
         services_info = serv_api.get_service_records()
-        levels_array = []
-        excluded_services = ["Storage", "Core"]
-        for services_info in services_info['services']:
-            if services_info['type'] not in excluded_services:
-                service_name = services_info["name"]
-                cf_mgr = ConfigurationManager(connect.get_storage_async())
-                category_name = service_name + "Advanced"
-                config_item = "logLevel"
-                category_item = await cf_mgr.get_category_item(category_name, config_item)
-                log_level = category_item["value"]
-                level_dict = dict()
-                level_dict["name"] = service_name
-                level_dict["level"] = log_level
-                levels_array.append(level_dict)
+        log_levels = []
+        excluded_services = ["Core"]
+        cf_mgr = ConfigurationManager(connect.get_storage_async())
+        for s in services_info['services']:
+            if s['type'] not in excluded_services:
+                service_name = s["name"]
+                conf_item = await cf_mgr.get_category_item(service_name + "Advanced", "logLevel")
+                log_level = conf_item["value"]
+                log_levels.append({"name": service_name, "level": log_level})
+        response["levels"] = log_levels
 
-        response["levels"] = levels_array
     except Exception as ex:
         msg = "Could not fetch service information.{}".format(str(ex))
         _LOGGER.error(msg)

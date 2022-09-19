@@ -21,6 +21,7 @@ __version__ = "${VERSION}"
 _help = """
     ----------------------------------------------------------
     | GET            | /fledge/health/storage               |
+    | GET            | /fledge/health/logging               |
     ----------------------------------------------------------
 """
 _LOGGER = logger.setup(__name__, level=logging.INFO)
@@ -95,7 +96,6 @@ async def get_logging_health(request: web.Request) -> web.Response:
         from fledge.services.core import connect
 
         services_info = serv_api.get_service_records()
-        # return services_info
         levels_array = []
         excluded_services = ["Storage", "Core"]
         for services_info in services_info['services']:
@@ -126,7 +126,7 @@ async def get_logging_health(request: web.Request) -> web.Response:
         response['disk']['available'] = available
 
     except Exception as ex:
-        msg = "Failed to get disk stats of log!{}".format(str(ex))
+        msg = "Failed to get disk stats for /var/log !{}".format(str(ex))
         _LOGGER.error(msg)
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:

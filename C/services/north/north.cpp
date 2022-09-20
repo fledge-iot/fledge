@@ -948,7 +948,7 @@ int  NorthService::operation(const string& name, int paramCount, char *names[], 
 	string payload = "{ \"destination\" : \"broadcast\",";
 	payload += "\"operation\" : { \"";
 	payload += name;
-	payload += "\" : { \"";
+	payload += "\" : { ";
 	for (int i = 0; i < paramCount; i++)
 	{
 		payload += "\"";
@@ -959,7 +959,7 @@ int  NorthService::operation(const string& name, int paramCount, char *names[], 
 		if (i < paramCount -1)
 			payload += ",";
 	}
-	payload += "\" } }";
+	payload += " } } }";
 	sendToDispatcher("/dispatch/operation", payload);
 	return -1;
 }

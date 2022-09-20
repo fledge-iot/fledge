@@ -773,7 +773,8 @@ CREATE TABLE fledge.asset_tracker (
        fledge          character varying(50)           NOT NULL, -- FL service name
        plugin          character varying(50)           NOT NULL, -- Plugin name
        deprecated_ts   timestamp(6) with time zone             , -- When an asset record is removed then time will be set else empty and that mean entry has not been deprecated
-       ts              timestamp(6) with time zone     NOT NULL DEFAULT now()
+       ts              timestamp(6) with time zone     NOT NULL DEFAULT now(),
+       data            JSONB DEFAULT '{}'::jsonb;
 );
 
 CREATE INDEX asset_tracker_ix1 ON fledge.asset_tracker USING btree (asset);

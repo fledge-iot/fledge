@@ -11,6 +11,9 @@ import json
 from aiohttp import web
 import datetime
 import os
+import asyncio
+import re
+import platform
 
 from fledge.services.core import server
 from fledge.common import logger
@@ -26,7 +29,7 @@ __version__ = "${VERSION}"
 
 _help = """
     -----------------------------------------
-    | PUT             | /fledge/update      |
+    | PUT, GET            | /fledge/update   |
     -----------------------------------------
 """
 
@@ -107,3 +110,75 @@ async def update_package(request):
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({"status": "Running", "message": status_message})
+
+
+async def get_updates(request: web.Request) -> web.Response:
+    """
+        Gives list of packages for which updates are available.
+
+        Returns JSON Response
+         Sample Response
+         {
+            "updates": [
+            "fledge-south-sinusoid","fledge"
+            ]
+        }
+        Example
+         curl -sX GET http://localhost:8081/fledge/update |jq
+    """
+    _platform = platform.platform()
+    update_cmd = "sudo apt update"
+    upgradable_pkgs_check_cmd = "apt list --upgradable | grep \^fledge"
+    if "centos" in _platform or "redhat" in _platform:
+        update_cmd = "sudo yum check-update"
+        upgradable_pkgs_check_cmd = "yum list updates | grep \^fledge"
+
+    update_process = await asyncio.create_subprocess_shell(update_cmd,
+                                                           stdout=asyncio.subprocess.PIPE,
+                                                           stderr=asyncio.subprocess.PIPE)
+    _, stderr = await update_process.communicate()
+    if update_process.returncode != 0:
+        msg = "Could not run {} due to {}".format(update_cmd, stderr.decode('utf-8'))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+
+    upgradable_pkgs_check_process = await asyncio.create_subprocess_shell(upgradable_pkgs_check_cmd,
+                                                                          stdout=asyncio.subprocess.PIPE,
+                                                                          stderr=asyncio.subprocess.PIPE)
+
+    stdout, stderr = await upgradable_pkgs_check_process.communicate()
+    if upgradable_pkgs_check_process.returncode != 0:
+        _logger.info("Nothing to upgrade at the moment. {}".format(stderr.decode("utf-8")))
+        upgradable_packages = []
+        return web.json_response({'updates': upgradable_packages})
+    try:
+        process_output = stdout.decode("utf-8")
+        _logger.info(process_output)
+        # split on new-line
+        word_list = re.split(r"\n+", process_output)
+
+        # remove '' from the list
+        word_list = [w for w in word_list if w != '']
+        packages = []
+
+        # For APT the output of apt list is as follows:
+        """
+        $ apt list --upgradable
+        Listing... Done
+        fledge-gui/unknown 1.9.2-440-gf849eed5 all [upgradable from: 1.9.2]
+        fledge-south-sinusoid/unknown 1.9.2-1-g38a138f amd64 [upgradable from: 1.9.2]
+        """
+        # Now match the character / . The string before / is the actual package name we want.
+        for word in word_list:
+            # TODO find regex for yum as well.
+            word_match = re.findall(r".*[/]", word)
+            if len(word_match) > 0:
+                packages.append(word_match[0].replace('/', '').strip())
+
+        # Make a set to avoid duplicates.
+        upgradable_packages = list(set(packages))
+    except Exception as ex:
+        msg = "Failed to fetch upgradable packages list for the configured repository! {}".format(str(ex))
+        _logger.error(msg)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+    else:
+        return web.json_response({'updates': upgradable_packages})

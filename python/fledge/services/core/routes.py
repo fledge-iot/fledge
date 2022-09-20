@@ -38,6 +38,7 @@ from fledge.services.core.api import python_packages
 from fledge.services.core.api import health
 
 
+
 __author__ = "Ashish Jabble, Praveen Garg, Massimiliano Pinto, Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017-2018 OSIsoft, LLC"
 __license__ = "Apache 2.0"
@@ -168,6 +169,7 @@ def setup(app):
 
     # Package Update on demand
     app.router.add_route('PUT', '/fledge/update', update.update_package)
+    app.router.add_route('GET', '/fledge/update', update.get_updates)
 
     # certs store
     app.router.add_route('GET', '/fledge/certificate', certificate_store.get_certs)

@@ -869,6 +869,9 @@ class RestoreProcess(FledgeProcess):
         Raises:
         """
 
+        if self.is_dry_run():
+            return
+
         # Setups signals handlers, to avoid the termination of the restore
         # a) SIGINT: Keyboard interrupt
         # b) SIGTERM: kill or system shutdown

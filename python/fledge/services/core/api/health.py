@@ -97,7 +97,7 @@ async def get_logging_health(request: web.Request) -> web.Response:
 
         services_info = serv_api.get_service_records()
         log_levels = []
-        excluded_services = ["Core"]
+        excluded_services = ["Core", "Management"]
         cf_mgr = ConfigurationManager(connect.get_storage_async())
         for s in services_info['services']:
             if s['type'] not in excluded_services:

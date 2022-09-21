@@ -102,7 +102,6 @@ async def get_logging_health(request: web.Request) -> web.Response:
         for row in results["rows"]:
             for item_name, item_info in row["value"].items():
                 if item_name == "logLevel" and item_info['value'] not in excluded_log_levels:
-                    _LOGGER
                     service_name = row["key"].replace("Advanced", "").strip()
                     log_level = item_info['value']
                     log_levels.append({"name": service_name, "level": log_level})

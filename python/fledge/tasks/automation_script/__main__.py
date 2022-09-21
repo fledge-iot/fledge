@@ -30,6 +30,13 @@ if __name__ == '__main__':
     script_name = getattr(namespace, 'name')
     core_management_host = getattr(namespace, 'address')
     core_management_port = getattr(namespace, 'port')
+    dry_run = False
+    for item in args:
+        if item == "--dryrun":
+            dry_run = True
+    # Put any configuration setting here
+    if dry_run:
+        return
     # Get services list
     get_svc_conn = http.client.HTTPConnection("{}:{}".format(core_management_host, core_management_port))
     get_svc_conn.request("GET", '/fledge/service')

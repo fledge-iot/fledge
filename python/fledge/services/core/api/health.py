@@ -91,25 +91,37 @@ async def get_logging_health(request: web.Request) -> web.Response:
     """
     response = {}
     try:
-        from fledge.services.core.api import service as serv_api
+        from fledge.services.core import server
+        from fledge.services.core.scheduler.entities import Schedule
         from fledge.common.configuration_manager import ConfigurationManager
         from fledge.services.core import connect
 
-        services_info = serv_api.get_service_records()
+        schedule_list = await server.Server.scheduler.get_schedules()
+        schedules_info = dict()
+        schedules_info['schedules'] = []
+        schedules = []
+        for sch in schedule_list:
+            schedules.append({
+                'name': sch.name,
+                'processName': sch.process_name,
+                'type': Schedule.Type(int(sch.schedule_type)).name,
+            })
+        schedules_info['schedules'] = schedules
+        schedules_info['schedules'].append({"type": "STARTUP",
+                                            "processName": "storage",
+                                            "name": "Storage"})
         log_levels = []
-        excluded_services = ["Core", "Management"]
         cf_mgr = ConfigurationManager(connect.get_storage_async())
-        for s in services_info['services']:
-            if s['type'] not in excluded_services:
+        for s in schedules_info['schedules']:
+            if s['type'] == "STARTUP" and s['processName'] != "management":
                 service_name = s["name"]
                 cat_name = service_name + "Advanced"
-                if s['type'] == "Storage":
+                if "storage" in s['processName']:
                     cat_name = "Storage"
-                elif s['type'] == "Notification":
+                elif "notification" in s['processName']:
                     cat_name = service_name
-                elif s['type'] == "BucketStorage":
+                elif "bucket" in s['processName']:
                     cat_name = service_name + " Advanced"
-
                 conf_item = await cf_mgr.get_category_item(cat_name, "logLevel")
                 log_level = conf_item["value"]
                 log_levels.append({"name": service_name, "level": log_level})

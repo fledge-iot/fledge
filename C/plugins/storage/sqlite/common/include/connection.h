@@ -159,6 +159,7 @@ class Connection {
 
 		void		shutdownAppendReadings();
 		unsigned int	purgeReadingsAsset(const std::string& asset);
+		bool		vacuum();
 
 	private:
 

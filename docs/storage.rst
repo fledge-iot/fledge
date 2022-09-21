@@ -111,6 +111,8 @@ The SQLite plugin has a more complex set of configuration options that can be us
 
   - **Database allocation size**: The number of databases to create when the above threshold is crossed. Database creation is a slow process and hence the tuning of these parameters can impact performance when an instance receives a large number of new asset names for which it has previously not allocated readings tables.
 
+  - **Vacuum Interval**: The interval in hours between running a database vacuum command to reclaim space. Setting this too high will impact performance, setting it too low will mean that more storage may be required for longer periods.
+
 Installing A PostgreSQL server
 ==============================
 

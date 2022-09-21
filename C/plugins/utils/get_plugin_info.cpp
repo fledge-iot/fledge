@@ -24,15 +24,20 @@ typedef PLUGIN_INFORMATION *(*func_t)();
  *
  * @param argv[1]  relative/absolute path to north/south C plugin shared library
  *
- * @param argv[2]  symbol to extract value from (typically 'plugin_info')
+ * @param argv[2]  symbol to extract value from (defaults 'plugin_info')
  */
 int main(int argc, char *argv[])
 {
   void *hndl;
+  char *routine = (char *)"plugin_info";
 
-  if (argc<2)
+  if (argc == 3)
   {
-    fprintf(stderr, "Insufficient number of args...\n\nUsage: %s <plugin library> <function to fetch plugin info>\n", argv[0]);
+	  routine = argv[2];
+  }
+  else if (argc < 2)
+  {
+    fprintf(stderr, "Insufficient number of args...\n\nUsage: %s <plugin library> [ <function to fetch plugin info> ]\n", argv[0]);
     exit(1);
   }
 
@@ -47,11 +52,11 @@ int main(int argc, char *argv[])
 
   if ((hndl = dlopen(argv[1], RTLD_GLOBAL|RTLD_LAZY)) != NULL)
   {
-    func_t infoEntry = (func_t)dlsym(hndl, argv[2]);
+    func_t infoEntry = (func_t)dlsym(hndl, routine);
     if (infoEntry == NULL)
     {
       // Unable to find plugin_info entry point
-      fprintf(stderr, "Plugin library %s does not support %s function : %s\n", argv[1], argv[2], dlerror());
+      fprintf(stderr, "Plugin library %s does not support %s function : %s\n", argv[1], routine, dlerror());
       dlclose(hndl);
       closelog();
       exit(3);

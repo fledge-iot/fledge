@@ -66,6 +66,7 @@ class FledgeProcess(ABC):
     """ time at which this python process started """
 
     _dryRun = False
+    """ this is a dry run invocation of the process used to populate configuration """
 
     def __init__(self):
         """ All processes must have these three command line arguments passed:

@@ -925,8 +925,8 @@ class SendingProcess(FledgeProcess):
 
             exec_sending_process = self._config['enable']
 
-            if self.isDryRun():
-                return
+            if self.is_dry_run():
+                return False
 
             if self._config['enable']:
 

@@ -202,9 +202,15 @@ class FledgeProcess(ABC):
         """
         return self._core_microservice_management_client.delete_configuration_item(category_name, config_item)
 
-    def isDryRun(self):
+    def is_dry_run(self):
         """
 
-        :return:
+        Return true if this is a dry run of the process. Dry runs are used
+        to allow a task or service to add configuration without that task or
+        service performing whatever operation it normally does. Thus the user
+        can then update the configuration before the task or service is ever
+        started in anger.
+
+        :return: Boolean
         """
         return self._dryRun

@@ -102,3 +102,12 @@ Connection::Connection()
 	}
 
 }
+
+/** 
+ * Add a vacuum funtion, this is not needed for SQLite In Memory, but is here 
+ * to satisfy the interface requirement.
+ */
+bool Connection::vacuum()
+{
+	return true;
+}

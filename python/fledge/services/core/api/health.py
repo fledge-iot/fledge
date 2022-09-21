@@ -96,11 +96,12 @@ async def get_logging_health(request: web.Request) -> web.Response:
 
         payload = PayloadBuilder().SELECT("key", "value").payload()
         _storage_client = connect.get_storage_async()
+        excluded_log_levels = ["error", "warning"]
         results = await _storage_client.query_tbl_with_payload('configuration', payload)
         log_levels = []
         for row in results["rows"]:
             for item_name, item_info in row["value"].items():
-                if item_name == "logLevel":
+                if item_name == "logLevel" and item_info['value'] not in excluded_log_levels:
                     service_name = row["key"]
                     log_level = item_info['value']
                     log_levels.append({"name": service_name, "level": log_level})

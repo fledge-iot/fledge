@@ -91,40 +91,20 @@ async def get_logging_health(request: web.Request) -> web.Response:
     """
     response = {}
     try:
-        from fledge.services.core import server
-        from fledge.services.core.scheduler.entities import Schedule
-        from fledge.common.configuration_manager import ConfigurationManager
+        from fledge.common.storage_client.payload_builder import PayloadBuilder
         from fledge.services.core import connect
 
-        schedule_list = await server.Server.scheduler.get_schedules()
-        schedules_info = dict()
-        schedules_info['schedules'] = []
-        schedules = []
-        for sch in schedule_list:
-            schedules.append({
-                'name': sch.name,
-                'processName': sch.process_name,
-                'type': Schedule.Type(int(sch.schedule_type)).name,
-            })
-        schedules_info['schedules'] = schedules
-        schedules_info['schedules'].append({"type": "STARTUP",
-                                            "processName": "storage",
-                                            "name": "Storage"})
+        payload = PayloadBuilder().SELECT("key", "value").payload()
+        _storage_client = connect.get_storage_async()
+        results = await _storage_client.query_tbl_with_payload('configuration', payload)
         log_levels = []
-        cf_mgr = ConfigurationManager(connect.get_storage_async())
-        for s in schedules_info['schedules']:
-            if s['type'] == "STARTUP" and s['processName'] != "management":
-                service_name = s["name"]
-                cat_name = service_name + "Advanced"
-                if "storage" in s['processName']:
-                    cat_name = "Storage"
-                elif "notification" in s['processName']:
-                    cat_name = service_name
-                elif "bucket" in s['processName']:
-                    cat_name = service_name + " Advanced"
-                conf_item = await cf_mgr.get_category_item(cat_name, "logLevel")
-                log_level = conf_item["value"]
-                log_levels.append({"name": service_name, "level": log_level})
+        for row in results["rows"]:
+            for item_name, item_info in row["value"].items():
+                if item_name == "logLevel":
+                    service_name = row["key"]
+                    log_level = item_info['value']
+                    log_levels.append({"name": service_name, "level": log_level})
+
         response["levels"] = log_levels
 
     except Exception as ex:

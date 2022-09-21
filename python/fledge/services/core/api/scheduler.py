@@ -8,6 +8,8 @@ import json
 import datetime
 import uuid
 from aiohttp import web
+import logging
+from fledge.common import logger
 from fledge.services.core import server
 from fledge.services.core.scheduler.entities import Schedule, StartUpSchedule, TimedSchedule, IntervalSchedule, \
     ManualSchedule, Task
@@ -22,6 +24,7 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 __DEFAULT_LIMIT = 20
+_logger=logger.setup("core_api_scheduler", level=logging.DEBUG)
 
 _help = """
     -------------------------------------------------------------------------------

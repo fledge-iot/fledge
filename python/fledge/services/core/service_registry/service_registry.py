@@ -10,6 +10,7 @@ import uuid
 import asyncio
 import string
 import random
+import logging
 from fledge.common import logger
 from fledge.common.service_record import ServiceRecord
 from fledge.services.core.service_registry import exceptions as service_registry_exceptions
@@ -32,7 +33,7 @@ class ServiceRegistry:
     _bearerTokens = dict()
 
     # INFO - level 20
-    _logger = logger.setup(__name__, level=20)
+    _logger = logger.setup(__name__, level=logging.DEBUG)
 
     @classmethod
     def getStartupToken(cls, name):

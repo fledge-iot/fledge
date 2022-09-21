@@ -135,8 +135,8 @@ class Scheduler(object):
 
         # Initialize class attributes
         if not cls._logger:
-            cls._logger = logger.setup(__name__, level=logging.INFO)
-            # cls._logger = logger.setup(__name__, level=logging.DEBUG)
+            # cls._logger = logger.setup(__name__, level=logging.INFO)
+            cls._logger = logger.setup(__name__, level=logging.DEBUG)
         if not cls._core_management_port:
             cls._core_management_port = core_management_port
         if not cls._core_management_host:
@@ -1009,13 +1009,19 @@ class Scheduler(object):
         Raises:
             ScheduleNotFoundException
         """
+        # self._logger.warn("get_schedule_by_name(): step 1")
         if not self._ready:
             raise NotReadyError()
 
+        # self._logger.warn("get_schedule_by_name(): step 2")
+
         found_id = None
         for (schedule_id, schedule_row) in self._schedules.items():
+            # self._logger.warn("get_schedule_by_name(): step 2.5: self._schedules[{}].name={} looking for {}"
+            #                     .format(schedule_id, self._schedules[schedule_id].name, name))
             if self._schedules[schedule_id].name == name:
                 found_id = schedule_id
+        self._logger.warn("get_schedule_by_name(): step 3: found_id={}, schedule_row={}".format(found_id, schedule_row))
         if found_id is None:
             raise ScheduleNotFoundError(name)
 
@@ -1393,6 +1399,7 @@ class Scheduler(object):
         except KeyError:
             raise ScheduleNotFoundError(schedule_id)
 
+        # self._logger.debug("queue_task 1: schedule_row={}".format(schedule_row))
         if schedule_row.enabled is False:
             self._logger.info("Schedule '%s' is not enabled", schedule_row.name)
             return False
@@ -1402,6 +1409,7 @@ class Scheduler(object):
         except KeyError:
             schedule_execution = self._ScheduleExecution()
             self._schedule_executions[schedule_row.id] = schedule_execution
+        # self._logger.debug("queue_task 2: schedule_execution={}".format(schedule_execution))
 
         if start_now:
             schedule_execution.start_now = True
@@ -1421,6 +1429,7 @@ class Scheduler(object):
 
             NotReadyError
         """
+        # self._logger.debug("delete_schedule(): step 1")
         if not self._ready:
             raise NotReadyError()
 
@@ -1432,12 +1441,14 @@ class Scheduler(object):
         except KeyError:
             raise ScheduleNotFoundError(schedule_id)
 
+        # self._logger.debug("delete_schedule(): step 2")
         del self._schedules[schedule_id]
 
         # TODO: Inspect race conditions with _set_first
         delete_payload = PayloadBuilder() \
             .WHERE(['id', '=', str(schedule_id)]) \
             .payload()
+        # self._logger.debug("delete_schedule(): step 3: delete_payload={}".format(delete_payload))
         try:
             self._logger.debug('Database command: %s', delete_payload)
             res = await self._storage_async.delete_from_tbl("schedules", delete_payload)

@@ -20,6 +20,7 @@ import json
 import signal
 from datetime import datetime, timedelta
 import jwt
+import logging
 
 from fledge.common import logger
 from fledge.common.audit_logger import AuditLogger
@@ -56,7 +57,7 @@ __copyright__ = "Copyright (c) 2017-2021 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-_logger = logger.setup(__name__, level=20)
+_logger = logger.setup(__name__, level=logging.DEBUG)
 
 # FLEDGE_ROOT env variable
 _FLEDGE_DATA = os.getenv("FLEDGE_DATA", default=None)
@@ -1007,7 +1008,7 @@ class Server:
             services_to_stop = list()
 
             for fs in found_services:
-                if fs._name in ("Fledge Storage", "Fledge Core"):
+                if fs._name in ("Fledge Core"):
                     continue
                 if fs._status not in [ServiceRecord.Status.Running, ServiceRecord.Status.Unresponsive]:
                     continue
@@ -1064,7 +1065,7 @@ class Server:
             while True:
                 services_to_stop = list()
                 for fs in found_services:
-                    if fs._name in ("Fledge Storage", "Fledge Core"):
+                    if fs._name in ("Fledge Core"):
                         continue
                     if fs._status not in [ServiceRecord.Status.Running, ServiceRecord.Status.Unresponsive]:
                         continue
@@ -1228,7 +1229,7 @@ class Server:
 
             ServiceRegistry.unregister(service_id)
 
-            if cls._storage_client_async is not None and services[0]._name not in ("Fledge Storage", "Fledge Core"):
+            if cls._storage_client_async is not None and services[0]._name not in ("Fledge Core"):
                 try:
                     cls._audit = AuditLogger(cls._storage_client_async)
                     await cls._audit.information('SRVUN', {'name': services[0]._name})
@@ -1259,7 +1260,7 @@ class Server:
 
             ServiceRegistry.restart(service_id)
 
-            if cls._storage_client_async is not None and services[0]._name not in ("Fledge Storage", "Fledge Core"):
+            if cls._storage_client_async is not None and services[0]._name not in ("Fledge Core"):
                 try:
                     cls._audit = AuditLogger(cls._storage_client_async)
                     await cls._audit.information('SRVRS', {'name': services[0]._name})

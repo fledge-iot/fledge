@@ -253,7 +253,7 @@ ReadingSet *DataLoad::fetchAudit(unsigned int blockSize)
 	tmpReturn->timezone("utc");
 	columns.push_back(tmpReturn);
 
-	columns.push_back(new Returns("log"));
+	columns.push_back(new Returns("log", "reading"));
 	// Build the query with fields, aliases and where
 	Query qStatistics(columns, wId);
 	// Set limit
@@ -262,8 +262,8 @@ ReadingSet *DataLoad::fetchAudit(unsigned int blockSize)
 	Sort* sort = new Sort("id");
 	qStatistics.sort(sort);
 
-	// Query the statistics_history table and get a ReadingSet result
-	return m_storage->queryTableToReadings("statistics_history", qStatistics);
+	// Query the audit  table and get a ReadingSet result
+	return m_storage->queryTableToReadings("log", qStatistics);
 }
 
 /**

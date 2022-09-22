@@ -262,7 +262,9 @@ def setup(app):
     app.router.add_route('GET', '/fledge/python/packages', python_packages.get_packages)
     app.router.add_route('POST', '/fledge/python/package', python_packages.install_package)
 
+    # Health related calls
     app.router.add_route('GET', '/fledge/health/storage', health.get_storage_health)
+    app.router.add_route('GET', '/fledge/health/logging', health.get_logging_health)
 
     # Proxy Admin API setup with regex
     proxy.admin_api_setup(app)

@@ -163,6 +163,9 @@ class BackupProcess(FledgeProcess):
             exceptions.BackupOrRestoreAlreadyRunning
         """
 
+        if self.is_dry_run():
+            return
+
         self._logger.debug("{func}".format(func="init"))
 
         self._backup_lib.evaluate_paths()

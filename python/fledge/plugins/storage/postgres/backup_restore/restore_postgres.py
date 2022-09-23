@@ -979,5 +979,5 @@ if __name__ == "__main__":
             _logger.exception(message)
             sys.exit(1)
     else:
-        # Put any configuration here if required for the backup
+        # Put any configuration here if required for the restore
         sys.exit()

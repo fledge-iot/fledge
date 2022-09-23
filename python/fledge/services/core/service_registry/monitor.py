@@ -119,12 +119,16 @@ class Monitor(object):
                     if self._restart_failed == "auto":
                         # self._logger.debug("step 2")
                         if service_record._type == "Storage":
+                            from fledge.services.core.server import Server  # To avoid cyclic import as server also imports monitor
                             self._logger.debug("step 3: restart storage service")
                             # asyncio.ensure_future(self.start_storage())
-                            # loop = asyncio.get_event_loop()
+                            loop = asyncio.get_event_loop()
                             self._logger.debug("step 4")
-                            # result = await loop.run_in_executor(None, self.start_storage)
-                            start_storage()
+                            loop.run_until_complete(Server.restart_storage())
+                            # # loop = asyncio.get_event_loop()
+                            # self._logger.debug("step 4")
+                            # # result = await loop.run_in_executor(None, self.start_storage)
+                            # start_storage()
                             self._logger.debug("step 5")
                         else:
                             if service_record._id not in self.restarted_services:
@@ -236,6 +240,7 @@ class Monitor(object):
         self._sleep_interval = int(config['sleep_interval']['value'])
         self._ping_timeout = int(config['ping_timeout']['value'])
         self._max_attempts = int(config['max_attempts']['value'])
+        self._max_attempts = 3
         self._restart_failed = config['restart_failed']['value']
 
     async def restart_service(self, service_record):

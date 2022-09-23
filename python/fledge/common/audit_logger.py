@@ -51,6 +51,7 @@ class AuditLogger(AuditLoggerSingleton):
             if not isinstance(storage, StorageClientAsync):
                 raise TypeError('Must be a valid Storage object')
             self._storage = storage
+        _logger.info("**** AuditLogger::init completed")
 
     async def _log(self, level, code, log):
         try:

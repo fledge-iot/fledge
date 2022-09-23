@@ -134,6 +134,7 @@ async def delete_service(request):
     """
     try:
         svc = request.match_info.get('service_name', None)
+        _logger.info("delete_service() called for svc={}".format(svc))
         storage = connect.get_storage_async()
 
         result = await get_schedule(storage, svc)

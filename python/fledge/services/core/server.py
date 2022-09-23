@@ -576,32 +576,49 @@ class Server:
         try:
             cmd_with_args = ['./services/storage', '--address={}'.format(host),
                              '--port={}'.format(m_port)]
+            _logger.info("__start_storage: BEFORE subprocess.call: cmd_with_args={}".format(cmd_with_args))
             subprocess.call(cmd_with_args, cwd=_SCRIPTS_DIR)
+            _logger.info("__start_storage: AFTER subprocess.call")
         except Exception as ex:
             _logger.exception(str(ex))
 
     @classmethod
     async def _start_storage(cls, loop):
+        _logger.info("!!! _start_storage")
         if loop is None:
             loop = asyncio.get_event_loop()
             # callback with args
+
+        _logger.info("call_soon: BEFORE __start_storage")
         loop.call_soon(cls.__start_storage, cls._host, cls.core_management_port)
+        _logger.info("**** _start_storage completed")
+
 
     @classmethod
     async def _get_storage_client(cls):
+        _logger.info("_get_storage_client: step 1")
         storage_service = None
         while storage_service is None and cls._storage_client_async is None:
             try:
+                _logger.info("_get_storage_client: step 2")
                 found_services = ServiceRegistry.get(name="Fledge Storage")
+                _logger.info("_get_storage_client: step 2.5")
                 storage_service = found_services[0]
+                _logger.info("_get_storage_client: step 3")
                 cls._storage_client_async = StorageClientAsync(cls._host, cls.core_management_port, svc=storage_service)
+                _logger.info("_get_storage_client: step 4")
             except (service_registry_exceptions.DoesNotExist, InvalidServiceInstance, StorageServiceUnavailable, Exception) as ex:
+                _logger.info("_get_storage_client: step 5: waiting for 5 secs")
                 await asyncio.sleep(5)
         while cls._readings_client_async is None:
             try:
+                _logger.info("_get_storage_client: step 6")
                 cls._readings_client_async = ReadingsStorageClientAsync(cls._host, cls.core_management_port, svc=storage_service)
+                _logger.info("_get_storage_client: step 7")
             except (service_registry_exceptions.DoesNotExist, InvalidServiceInstance, StorageServiceUnavailable, Exception) as ex:
+                _logger.info("_get_storage_client: step 8: waiting for 5 secs")
                 await asyncio.sleep(5)
+        _logger.info("**** _get_storage_client completed")
 
     @classmethod
     def _start_app(cls, loop, app, host, port, ssl_ctx=None):
@@ -778,7 +795,87 @@ class Server:
     @classmethod
     async def _start_asset_tracker(cls):
         cls._asset_tracker = AssetTracker(cls._storage_client_async)
+        _logger.info("**** _start_asset_tracker: AssetTracker instantiated")
         await cls._asset_tracker.load_asset_records()
+        _logger.info("**** _start_asset_tracker completed")
+
+    @classmethod
+    async def restart_storage(cls):
+        from functools import partial
+
+        try:
+            # host = cls._host
+            try:
+                services = ServiceRegistry.get(name="Fledge Storage")
+                _logger.info("Removing ServiceRegistry entry for Fledge Storage")
+                ServiceRegistry.remove_from_registry(services[0]._id)
+                _logger.info("**** Removed ServiceRegistry entry for Fledge Storage")
+            except service_registry_exceptions.DoesNotExist:
+                _logger.info("**** Tried removing ServiceRegistry entry for Fledge Storage: "
+                             "Got service_registry_exceptions.DoesNotExist")
+                pass
+
+            # address, cls.core_management_port = cls.core_server.sockets[0].getsockname()
+            # _logger.info('Management API started on http://%s:%s', address, cls.core_management_port)
+            # see http://<core_mgt_host>:<core_mgt_port>/fledge/service for registered services
+            _logger.info("**** restart_storage(): step 1")
+            # loop = asyncio.get_event_loop()
+
+            # start storage
+            _logger.info("**** restart_storage(): step 2")
+            # await loop.run_until_complete(cls._start_storage(loop))
+            # await cls._start_storage(None)
+            cls.__start_storage(cls._host, cls.core_management_port)
+            await loop.run_in_executor(None, partial(cls.__start_storage, cls._host, cls.core_management_port))
+
+            self._storage_client_async = None
+            self._readings_client_async = None
+
+            # get storage client
+            _logger.info("**** restart_storage(): step 3")
+            await cls._get_storage_client()
+            #await asyncio.sleep(0.1)
+
+            # if not cls.running_in_safe_mode:
+            #     # If readings table is empty, set last_object of all streams to 0
+            #     cls._check_readings_table(loop)
+
+            _logger.info("**** restart_storage(): step 4")
+            # # obtain configuration manager and interest registry
+            # cls._configuration_manager = ConfigurationManager(cls._storage_client_async)
+            # _logger.info("restart_storage(): step 5")
+            # cls._interest_registry = InterestRegistry(cls._configuration_manager)
+
+            # ************ make sure that it go forward only when storage service is ready
+            storage_service = None
+
+            # while storage_service is None and self._storage_async is None:
+            #     try:
+            #         found_services = ServiceRegistry.get(name="Fledge Storage")
+            #         storage_service = found_services[0]
+            #         self._storage_async = StorageClientAsync(self._core_management_host, self._core_management_port,
+            #                                                  svc=storage_service)
+            #         _logger.info("**** ServiceRegistry entry found for 'Fledge Storage': {}".format(storage_service))
+            #
+            #     except (service_registry_exceptions.DoesNotExist, InvalidServiceInstance, StorageServiceUnavailable,
+            #             Exception) as ex:
+            #         # traceback.print_exc()
+            #         _logger.info("**** ServiceRegistry entry not found for 'Fledge Storage', waiting for 5 secs more")
+            #         await asyncio.sleep(5)
+            # # **************
+
+            _logger.info("**** restart_storage(): step 6")
+            await cls._start_asset_tracker()
+            #await asyncio.sleep(0.1)
+
+            _logger.info("**** restart_storage(): step 7")
+            cls._audit = AuditLogger(cls._storage_client_async)
+            _logger.info("restart_storage(): AuditLogger instantiated again")
+            # await asyncio.sleep(0.1)
+
+        except Exception as e:
+            sys.stderr.write('Error: ' + format(str(e)) + "\n")
+            sys.exit(1)
 
     @classmethod
     def _start_core(cls, loop=None):
@@ -1159,6 +1256,7 @@ class Server:
                 try:
                     if not cls._storage_client_async is None:
                         cls._audit = AuditLogger(cls._storage_client_async)
+                        _logger.info("audit SRVRG for '{}'".format(service_name))
                         await cls._audit.information('SRVRG', {'name': service_name})
                 except Exception as ex:
                     _logger.info("Failed to audit registration: %s", str(ex))

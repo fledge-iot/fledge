@@ -106,6 +106,8 @@ string payload;
 	try {
 		service.asJSON(payload);
 
+		m_logger->info("ManagementClient::registerService: POST to /fledge/service: payload=%s", payload.c_str());
+		
 		auto res = this->getHttpClient()->request("POST", "/fledge/service", payload);
 		Document doc;
 		string response = res->content.string();

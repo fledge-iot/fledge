@@ -162,10 +162,6 @@ class BackupProcess(FledgeProcess):
         Raises:
             exceptions.BackupOrRestoreAlreadyRunning
         """
-
-        if self.is_dry_run():
-            return
-
         self._logger.debug("{func}".format(func="init"))
 
         self._backup_lib.evaluate_paths()
@@ -394,38 +390,31 @@ if __name__ == "__main__":
         print("[FLEDGE] {0} - ERROR - {1}".format(current_time, message), file=sys.stderr)
         sys.exit(1)
 
-    # Starts
-    _logger.info(_MESSAGES_LIST["i000001"])
-
     # Initializes FledgeProcess and Backup classes - handling the command line parameters
     try:
         backup_process = BackupProcess()
-
     except Exception as ex:
         message = _MESSAGES_LIST["e000004"].format(ex)
         _logger.exception(message)
-
-        _logger.info(_MESSAGES_LIST["i000002"])
         sys.exit(1)
 
-    # Executes the backup
-    try:
-        # noinspection PyProtectedMember
-        _logger.debug("{module} - name |{name}| - address |{addr}| - port |{port}|".format(
-            module=_MODULE_NAME,
-            name=backup_process._name,
-            addr=backup_process._core_management_host,
-            port=backup_process._core_management_port))
-
-        backup_process.run()
-
-        _logger.info(_MESSAGES_LIST["i000002"])
-        sys.exit(0)
-
-    except Exception as ex:
-        message = _MESSAGES_LIST["e000002"].format(ex)
-        _logger.exception(message)
-
-        backup_process.shutdown()
-        _logger.info(_MESSAGES_LIST["i000002"])
-        sys.exit(1)
+    if not backup_process.is_dry_run():
+        try:
+            # noinspection PyProtectedMember
+            _logger.debug("{module} - name |{name}| - address |{addr}| - port |{port}|".format(
+                module=_MODULE_NAME,
+                name=backup_process._name,
+                addr=backup_process._core_management_host,
+                port=backup_process._core_management_port))
+            _logger.info(_MESSAGES_LIST["i000001"])
+            backup_process.run()
+            _logger.info(_MESSAGES_LIST["i000002"])
+            sys.exit(0)
+        except Exception as ex:
+            message = _MESSAGES_LIST["e000002"].format(ex)
+            _logger.exception(message)
+            backup_process.shutdown()
+            sys.exit(1)
+    else:
+        # Put any configuration here if required for the backup
+        sys.exit()

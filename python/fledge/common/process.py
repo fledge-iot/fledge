@@ -65,7 +65,7 @@ class FledgeProcess(ABC):
     _start_time = None
     """ time at which this python process started """
 
-    _dryRun = False
+    _dryrun = False
     """ this is a dry run invocation of the process used to populate configuration """
 
     def __init__(self):
@@ -214,4 +214,4 @@ class FledgeProcess(ABC):
 
         :return: Boolean
         """
-        return self._dryRun
+        return self._dryrun

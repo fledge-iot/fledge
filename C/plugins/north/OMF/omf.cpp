@@ -131,7 +131,7 @@ const char *AF_HIERARCHY_1LEVEL_LINK = QUOTE(
  *
  * @param reading           Reading for which the OMF message must be generated
  * @param measurementId     Name/Reference of the object of the Data Archive at which the data must be assigned
- * @param PIServerEndpoint  End point for which the OMF message must be prepared among: PIWebAPI, OCS, EDS...
+ * @param PIServerEndpoint  End point for which the OMF message must be prepared among: PIWebAPI, ADH, OCS, EDS...
  * @param AFHierarchyPrefix Unused at the current stage
  * @param hints             OMF hints for the specific reading for changing the behaviour of the operation
  *
@@ -1148,6 +1148,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 		}
 
 		if (m_PIServerEndpoint == ENDPOINT_CR  ||
+			m_PIServerEndpoint == ENDPOINT_ADH ||
 			m_PIServerEndpoint == ENDPOINT_OCS ||
 			m_PIServerEndpoint == ENDPOINT_EDS
 			)
@@ -1738,6 +1739,7 @@ const std::string OMF::createTypeData(const Reading& reading, OMFHints *hints)
 		// Connector relay / ODS / EDS
 		if (m_PIServerEndpoint == ENDPOINT_CR  ||
 			m_PIServerEndpoint == ENDPOINT_OCS ||
+			m_PIServerEndpoint == ENDPOINT_ADH ||
 			m_PIServerEndpoint == ENDPOINT_EDS
 		   )
 		{
@@ -2082,6 +2084,7 @@ const std::string OMF::createStaticData(const Reading& reading)
 
 	}
 	else if (m_PIServerEndpoint == ENDPOINT_OCS ||
+		 m_PIServerEndpoint == ENDPOINT_ADH ||
 	         m_PIServerEndpoint == ENDPOINT_EDS)
 	{
 		sData.append(assetName);
@@ -2130,8 +2133,9 @@ std::string OMF::createLinkData(const Reading& reading,  std::string& AFHierarch
 
 	// Handles the structure for the Connector Relay
 	// not supported by PI Web API
-	// Connector relay / ODS / EDS
+	// Connector relay / ADH / ODS / EDS
 	if (m_PIServerEndpoint == ENDPOINT_CR  ||
+		m_PIServerEndpoint == ENDPOINT_ADH ||
 		m_PIServerEndpoint == ENDPOINT_OCS ||
 		m_PIServerEndpoint == ENDPOINT_EDS
 		)
@@ -2191,6 +2195,7 @@ std::string OMF::createLinkData(const Reading& reading,  std::string& AFHierarch
 		lData.append(assetName);
 	}
 	else if (m_PIServerEndpoint == ENDPOINT_OCS ||
+			m_PIServerEndpoint == ENDPOINT_ADH ||
 			 m_PIServerEndpoint == ENDPOINT_EDS)
 	{
 		// Add asset_name
@@ -3593,6 +3598,7 @@ long OMF::getAssetTypeId(const string& assetName)
 	// Connector relay / ODS / EDS
 	if (m_PIServerEndpoint == ENDPOINT_CR  ||
 		m_PIServerEndpoint == ENDPOINT_OCS ||
+		m_PIServerEndpoint == ENDPOINT_ADH ||
 		m_PIServerEndpoint == ENDPOINT_EDS
 		)
 	{
@@ -3647,9 +3653,10 @@ long OMF::getNamingScheme(const string& assetName)
 	string AFHierarchyPrefix;
 	string AFHierarchyLevel;
 
-	// Connector relay / ODS / EDS
+	// Connector relay / ADH / ODS / EDS
 	if (m_PIServerEndpoint == ENDPOINT_CR  ||
 		m_PIServerEndpoint == ENDPOINT_OCS ||
+		m_PIServerEndpoint == ENDPOINT_ADH ||
 		m_PIServerEndpoint == ENDPOINT_EDS
 		)
 	{
@@ -3709,9 +3716,10 @@ string OMF::getHashStored(const string& assetName)
 	string AFHierarchyPrefix;
 	string AFHierarchyLevel;
 
-	// Connector relay / ODS / EDS
+	// Connector relay / ADH / ODS / EDS
 	if (m_PIServerEndpoint == ENDPOINT_CR  ||
 		m_PIServerEndpoint == ENDPOINT_OCS ||
+		m_PIServerEndpoint == ENDPOINT_ADH ||
 		m_PIServerEndpoint == ENDPOINT_EDS
 		)
 	{
@@ -3763,8 +3771,9 @@ string OMF::getPathStored(const string& assetName)
 	string AFHierarchyPrefix;
 	string AFHierarchyLevel;
 
-	// Connector relay / ODS / EDS
+	// Connector relay / ADH / OCS / EDS
 	if (m_PIServerEndpoint == ENDPOINT_CR  ||
+		m_PIServerEndpoint == ENDPOINT_ADH ||
 		m_PIServerEndpoint == ENDPOINT_OCS ||
 		m_PIServerEndpoint == ENDPOINT_EDS
 		)
@@ -3816,8 +3825,9 @@ string OMF::getPathOrigStored(const string& assetName)
 	string AFHierarchyPrefix;
 	string AFHierarchyLevel;
 
-	// Connector relay / ODS / EDS
+	// Connector relay / ADH / ODS / EDS
 	if (m_PIServerEndpoint == ENDPOINT_CR  ||
+		m_PIServerEndpoint == ENDPOINT_ADH ||
 		m_PIServerEndpoint == ENDPOINT_OCS ||
 		m_PIServerEndpoint == ENDPOINT_EDS
 		)
@@ -3872,8 +3882,9 @@ bool OMF::setPathStored(const string& assetName, string &afHierarchy)
 	string AFHierarchyPrefix;
 	string AFHierarchyLevel;
 
-	// Connector relay / ODS / EDS
+	// Connector relay / ADH / ODS / EDS
 	if (m_PIServerEndpoint == ENDPOINT_CR  ||
+		m_PIServerEndpoint == ENDPOINT_ADH ||
 		m_PIServerEndpoint == ENDPOINT_OCS ||
 		m_PIServerEndpoint == ENDPOINT_EDS
 		)
@@ -4052,8 +4063,9 @@ bool OMF::setCreatedTypes(const Reading& row, OMFHints *hints)
 	assetName = m_assetName;
 	retrieveAFHierarchyFullPrefixAssetName(assetName, AFHierarchyPrefix, AFHierarchy);
 
-	// Connector relay / ODS / EDS
+	// Connector relay / ADH / ODS / EDS
 	if (m_PIServerEndpoint == ENDPOINT_CR  ||
+		m_PIServerEndpoint == ENDPOINT_ADH ||
 		m_PIServerEndpoint == ENDPOINT_OCS ||
 		m_PIServerEndpoint == ENDPOINT_EDS
 		)

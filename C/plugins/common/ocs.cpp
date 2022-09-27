@@ -89,8 +89,8 @@ std::string OCS::retrieveToken(const string& clientId, const string& clientSecre
 
 	payload =  PAYLOAD_RETRIEVE_TOKEN;
 
-	StringReplace(payload, "CLIENT_ID_PLACEHOLDER",        clientId);
-	StringReplace(payload, "CLIENT_SECRET_ID_PLACEHOLDER", clientSecret);
+	StringReplace(payload, "CLIENT_ID_PLACEHOLDER",        urlEncode(clientId));
+	StringReplace(payload, "CLIENT_SECRET_ID_PLACEHOLDER", urlEncode(clientSecret));
 
 	// Anonymous auth
 	string authMethod = "a";

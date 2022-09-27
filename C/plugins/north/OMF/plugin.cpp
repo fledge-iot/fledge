@@ -88,15 +88,17 @@ using namespace SimpleWeb;
 #define ENDPOINT_URL_PI_WEB_API "https://HOST_PLACEHOLDER:PORT_PLACEHOLDER/piwebapi/omf"
 #define ENDPOINT_URL_CR         "https://HOST_PLACEHOLDER:PORT_PLACEHOLDER/ingress/messages"
 #define ENDPOINT_URL_OCS        "https://dat-b.osisoft.com:PORT_PLACEHOLDER/api/v1/tenants/TENANT_ID_PLACEHOLDER/Namespaces/NAMESPACE_ID_PLACEHOLDER/omf"
+#define ENDPOINT_URL_ADH        "https://uswe.datahub.connect.aveva.com:PORT_PLACEHOLDER/api/v1/tenants/TENANT_ID_PLACEHOLDER/Namespaces/NAMESPACE_ID_PLACEHOLDER/omf"
 #define ENDPOINT_URL_EDS        "http://localhost:PORT_PLACEHOLDER/api/v1/tenants/default/namespaces/default/omf"
 
 static bool s_connected = true;		// if true, access to PI Web API is working
 
 enum OMF_ENDPOINT_PORT {
 	ENDPOINT_PORT_PIWEB_API=443,
-	ENDPOINT_PORT_POINT_CR=5460,
-	ENDPOINT_PORT_POINT_OCS=443,
-	ENDPOINT_PORT_POINT_EDS=5590
+	ENDPOINT_PORT_CR=5460,
+	ENDPOINT_PORT_OCS=443,
+	ENDPOINT_PORT_EDS=5590,
+	ENDPOINT_PORT_ADH=443
 };
 
 /**
@@ -139,7 +141,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 		"PIServerEndpoint": {
 			"description": "Select the endpoint among PI Web API, Connector Relay, OSIsoft Cloud Services or Edge Data Store",
 			"type": "enumeration",
-			"options":["PI Web API", "Connector Relay", "OSIsoft Cloud Services", "Edge Data Store"],
+			"options":["PI Web API", "AVEVA Data Hub", "Connector Relay", "OSIsoft Cloud Services", "Edge Data Store"],
 			"default": "PI Web API",
 			"order": "1",
 			"displayName": "Endpoint"
@@ -307,36 +309,36 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"validity" : "PIServerEndpoint == \"PI Web API\" && PIWebAPIAuthenticationMethod == \"kerberos\""
 		},
 		"OCSNamespace" : {
-			"description" : "Specifies the OCS namespace where the information are stored and it is used for the interaction with the OCS API",
+			"description" : "Specifies the namespace where the information are stored and it is used for the interaction with AVEVA Data Hub or OCS",
 			"type" : "string",
 			"default": "name_space",
 			"order": "23",
-			"displayName" : "OCS Namespace",
-			"validity" : "PIServerEndpoint == \"OSIsoft Cloud Services\""
+			"displayName" : "Namespace",
+			"validity" : "PIServerEndpoint == \"OSIsoft Cloud Services\" || PIServerEndpoint == \"AVEVA Data Hub\""
 		},
 		"OCSTenantId" : {
-			"description" : "Tenant id associated to the specific OCS account",
+			"description" : "Tenant id associated to the specific AVEVA Data Hub or OCS account",
 			"type" : "string",
 			"default": "ocs_tenant_id",
 			"order": "24",
-			"displayName" : "OCS Tenant ID",
-			"validity" : "PIServerEndpoint == \"OSIsoft Cloud Services\""
+			"displayName" : "Tenant ID",
+			"validity" : "PIServerEndpoint == \"OSIsoft Cloud Services\" || PIServerEndpoint == \"AVEVA Data Hub\""
 		},
 		"OCSClientId" : {
-			"description" : "Client id associated to the specific OCS account, it is used to authenticate the source for using the OCS API",
+			"description" : "Client id associated to the specific account, it is used to authenticate when using the AVEVA Data Hub or OCS",
 			"type" : "string",
 			"default": "ocs_client_id",
 			"order": "25",
-			"displayName" : "OCS Client ID",
-			"validity" : "PIServerEndpoint == \"OSIsoft Cloud Services\""
+			"displayName" : "Client ID",
+			"validity" : "PIServerEndpoint == \"OSIsoft Cloud Services\" || PIServerEndpoint == \"AVEVA Data Hub\""
 		},
 		"OCSClientSecret" : {
-			"description" : "Client secret associated to the specific OCS account, it is used to authenticate the source for using the OCS API",
+			"description" : "Client secret associated to the specific account, it is used to authenticate with AVEVA Data Hub or OCS",
 			"type" : "password",
 			"default": "ocs_client_secret",
 			"order": "26",
-			"displayName" : "OCS Client Secret",
-			"validity" : "PIServerEndpoint == \"OSIsoft Cloud Services\""
+			"displayName" : "Client Secret",
+			"validity" : "PIServerEndpoint == \"OSIsoft Cloud Services\" || PIServerEndpoint == \"AVEVA Data Hub\""
 		},
 		"PIWebAPInotBlockingErrors": {
 			"description": "These errors are considered not blocking in the communication with the PI Web API, the sending operation will proceed with the next block of data if one of these is encountered",
@@ -486,21 +488,28 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 			Logger::getLogger()->debug("PI-Server end point manually selected - Connector Relay ");
 			connInfo->PIServerEndpoint = ENDPOINT_CR;
 			url                        = ENDPOINT_URL_CR;
-			endpointPort               = ENDPOINT_PORT_POINT_CR;
+			endpointPort               = ENDPOINT_PORT_CR;
+		}
+		else if(PIServerEndpoint.compare("AVEVA Data Hub") == 0)
+		{
+			Logger::getLogger()->debug("End point manually selected - AVEVA Data Hub");
+			connInfo->PIServerEndpoint = ENDPOINT_ADH;
+			url                        = ENDPOINT_URL_ADH;
+			endpointPort               = ENDPOINT_PORT_ADH;
 		}
 		else if(PIServerEndpoint.compare("OSIsoft Cloud Services") == 0)
 		{
 			Logger::getLogger()->debug("End point manually selected - OSIsoft Cloud Services");
 			connInfo->PIServerEndpoint = ENDPOINT_OCS;
 			url                        = ENDPOINT_URL_OCS;
-			endpointPort               = ENDPOINT_PORT_POINT_OCS;
+			endpointPort               = ENDPOINT_PORT_OCS;
 		}
 		else if(PIServerEndpoint.compare("Edge Data Store") == 0)
 		{
 			Logger::getLogger()->debug("End point manually selected - OSIsoft Cloud Services");
 			connInfo->PIServerEndpoint = ENDPOINT_EDS;
 			url                        = ENDPOINT_URL_EDS;
-			endpointPort               = ENDPOINT_PORT_POINT_EDS;
+			endpointPort               = ENDPOINT_PORT_EDS;
 		}
 		ServerPort = (ServerPort.compare("0") == 0) ? to_string(endpointPort) : ServerPort;
 	}
@@ -845,9 +854,9 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 	connInfo->sender->setOCSClientId         (connInfo->OCSClientId);
 	connInfo->sender->setOCSClientSecret     (connInfo->OCSClientSecret);
 
-	// OCS - retrieves the authentication token
+	// OCS or ADH - retrieves the authentication token
 	// It is retrieved at every send as it can expire and the configuration is only in OCS
-	if (connInfo->PIServerEndpoint == ENDPOINT_OCS)
+	if (connInfo->PIServerEndpoint == ENDPOINT_OCS || connInfo->PIServerEndpoint == ENDPOINT_ADH)
 	{
 		connInfo->OCSToken = OCSRetrieveAuthToken(connInfo);
 		connInfo->sender->setOCSToken  (connInfo->OCSToken);

@@ -17,7 +17,7 @@ Grafana Examples
 The REST API of Fledge provides a way to integrate other applications with Fledge, these applications can control Fledge or that may be used to monitor the operation of Fledge itself or to visualize the data held within a Fledge instance. One such tool is |grafana|. Here we will show some simple examples of how the Fledge REST API can be used with Grafana and the Infinity data source plugin. This is intended to be a simple example, more complex systems can be built using these tools.
 
 Show Fledge Status
-------------------
+-------------------
 
 Using the *GET /fledge/ping* endpoint we can retrieve information about the number of readings read, sent, purged etc. 
 

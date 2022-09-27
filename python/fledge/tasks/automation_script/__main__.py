@@ -7,6 +7,7 @@
 
 """Automation script starter"""
 
+import sys
 import logging
 import json
 import http.client
@@ -30,6 +31,12 @@ if __name__ == '__main__':
     script_name = getattr(namespace, 'name')
     core_management_host = getattr(namespace, 'address')
     core_management_port = getattr(namespace, 'port')
+
+    if '--dryrun' in args:
+        # Put any configuration setting here
+        # if --dryrun option exists in args then simply exit. You can't return because you're not in a function
+        sys.exit()
+
     # Get services list
     get_svc_conn = http.client.HTTPConnection("{}:{}".format(core_management_host, core_management_port))
     get_svc_conn.request("GET", '/fledge/service')

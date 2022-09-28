@@ -113,7 +113,7 @@ enum OMF_ENDPOINT_PORT {
 			"Property does not exist in the type definition",           \
 			"Container is not defined",                                 \
 			"Unable to find the property of the container of type"      \
-		]					                                            \
+		]			                                            \
 	}                                                                   \
 )
 
@@ -121,7 +121,7 @@ enum OMF_ENDPOINT_PORT {
 	{                                                            \
 		"EventInfo" : [                                          \
 			"The specified value is outside the allowable range" \
-		]					                                     \
+		]			                                     \
 	}                                                            \
 )
 

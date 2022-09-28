@@ -14,6 +14,7 @@ __copyright__ = "Copyright (c) 2019 Dianomic Systems Inc."
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
+import sys
 import subprocess
 import http.client
 import json
@@ -121,11 +122,11 @@ def verify_readings(fledge_url, asset_name):
 class TestPython35:
     def test_filter_python35_with_uploaded_script(self, clean_setup_fledge_packages, reset_fledge,
                                                   add_south_http_with_filter, fledge_url, wait_time):
+        generate_json(ASSET_NAME_PY35)
+ 
         # Wait until south service is created
         time.sleep(wait_time * 2)
         verify_south_added(fledge_url, HTTP_SOUTH_SVC_NAME)
-
-        generate_json(ASSET_NAME_PY35)
 
         url = fledge_url + urllib.parse.quote('/fledge/category/{}_py35/script/upload'
                                               .format(HTTP_SOUTH_SVC_NAME))
@@ -301,6 +302,7 @@ class TestPython35:
         assert 4.9 == reading_resp["reading"]["double"]
 
     def test_delete_south_service(self, fledge_url):
+        assert sys.version_info >= (3, 7), "Use Python 3.7 or newer"
         conn = http.client.HTTPConnection(fledge_url)
         conn.request("DELETE", urllib.parse.quote('/fledge/service/{}'
                                                   .format(HTTP_SOUTH_SVC_NAME), safe='?,=,&,/'))

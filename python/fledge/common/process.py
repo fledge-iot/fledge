@@ -65,6 +65,9 @@ class FledgeProcess(ABC):
     _start_time = None
     """ time at which this python process started """
 
+    _dryrun = False
+    """ this is a dry run invocation of the process used to populate configuration """
+
     def __init__(self):
         """ All processes must have these three command line arguments passed:
 
@@ -88,7 +91,9 @@ class FledgeProcess(ABC):
             if self._core_management_port not in r:
                 raise ArgumentParserError("Invalid Port: {}".format(self._core_management_port))
             for item in args:
-                if item.startswith('--'):
+                if item == "--dryrun":
+                    self._dryrun = True
+                elif item.startswith('--'):
                     kv = item.split('=')
                     if len(kv) == 2:
                         if len(kv[1].strip()) == 0:
@@ -198,3 +203,15 @@ class FledgeProcess(ABC):
         """
         return self._core_microservice_management_client.delete_configuration_item(category_name, config_item)
 
+    def is_dry_run(self):
+        """
+
+        Return true if this is a dry run of the process. Dry runs are used
+        to allow a task or service to add configuration without that task or
+        service performing whatever operation it normally does. Thus the user
+        can then update the configuration before the task or service is ever
+        started in anger.
+
+        :return: Boolean
+        """
+        return self._dryrun

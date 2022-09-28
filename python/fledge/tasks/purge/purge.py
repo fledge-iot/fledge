@@ -265,6 +265,8 @@ class Purge(FledgeProcess):
         """
         try:
             config = await self.set_configuration()
+            if self.is_dry_run():
+                return
             total_purged, unsent_purged = await self.purge_data(config)
             await self.write_statistics(total_purged, unsent_purged)
             await self.purge_stats_history(config)

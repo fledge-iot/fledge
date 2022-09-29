@@ -868,7 +868,6 @@ class RestoreProcess(FledgeProcess):
         Returns:
         Raises:
         """
-
         # Setups signals handlers, to avoid the termination of the restore
         # a) SIGINT: Keyboard interrupt
         # b) SIGTERM: kill or system shutdown
@@ -920,7 +919,6 @@ class RestoreProcess(FledgeProcess):
         Raises:
             exceptions.RestoreFailed
         """
-
         self.init()
 
         try:
@@ -952,40 +950,34 @@ if __name__ == "__main__":
         print("[FLEDGE] {0} - ERROR - {1}".format(current_time, message), file=sys.stderr)
         sys.exit(1)
 
-    # Starts
-    _logger.info(_MESSAGES_LIST["i000001"])
-
     # Initializes FledgeProcess and RestoreProcess classes - handling also the command line parameters
     try:
         restore_process = RestoreProcess()
-
     except Exception as ex:
         message = _MESSAGES_LIST["e000004"].format(ex)
         _logger.exception(message)
-
         _logger.info(_MESSAGES_LIST["i000002"])
         sys.exit(1)
 
-    # Executes the Restore
-    try:
-        # noinspection PyProtectedMember
-        _logger.debug("{module} - name |{name}| - address |{addr}| - port |{port}| "
-                      "- file |{file}| - backup_id |{backup_id}| ".format(
-                                                                        module=_MODULE_NAME,
-                                                                        name=restore_process._name,
-                                                                        addr=restore_process._core_management_host,
-                                                                        port=restore_process._core_management_port,
-                                                                        file=restore_process._file_name,
-                                                                        backup_id=restore_process._backup_id))
-
-        restore_process.run()
-
-        _logger.info(_MESSAGES_LIST["i000002"])
-        sys.exit(0)
-
-    except Exception as ex:
-        message = _MESSAGES_LIST["e000002"].format(ex)
-        _logger.exception(message)
-
-        _logger.info(_MESSAGES_LIST["i000002"])
-        sys.exit(1)
+    if not restore_process.is_dry_run():
+        try:
+            # noinspection PyProtectedMember
+            _logger.debug("{module} - name |{name}| - address |{addr}| - port |{port}| "
+                          "- file |{file}| - backup_id |{backup_id}| ".format(
+                                                                            module=_MODULE_NAME,
+                                                                            name=restore_process._name,
+                                                                            addr=restore_process._core_management_host,
+                                                                            port=restore_process._core_management_port,
+                                                                            file=restore_process._file_name,
+                                                                            backup_id=restore_process._backup_id))
+            _logger.info(_MESSAGES_LIST["i000001"])
+            restore_process.run()
+            _logger.info(_MESSAGES_LIST["i000002"])
+            sys.exit(0)
+        except Exception as ex:
+            message = _MESSAGES_LIST["e000002"].format(ex)
+            _logger.exception(message)
+            sys.exit(1)
+    else:
+        # Put any configuration here if required for the restore
+        sys.exit()

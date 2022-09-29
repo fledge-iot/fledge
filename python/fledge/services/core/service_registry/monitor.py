@@ -67,6 +67,7 @@ class Monitor(object):
         """async Monitor loop to monitor registered services"""
         # check health of all micro-services every N seconds
 
+        '''
         def start_storage():
             with  open("/tmp/monitor.log", "w+") as file:
                 file.write("start_storage(): START \n")
@@ -91,6 +92,7 @@ class Monitor(object):
                     self._logger.exception("start_storage(): {}".format(str(ex)))
                 finally:
                     file.close()
+        '''
 
         round_cnt = 0
         check_count = {}  # dict to hold current count of current status.

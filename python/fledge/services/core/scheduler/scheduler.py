@@ -128,6 +128,16 @@ class Scheduler(object):
     _storage = None
     _storage_async = None
 
+    def reset(self):
+        # cls = Scheduler
+        self._logger.info("Scheduler: reset(): START: self={}, self._storage_async.service={}"
+                            .format(self, self._storage_async.service if self._storage_async else "N.A."))
+        # self._core_management_host = None
+        # self._core_management_port = None
+        # self._storage = None
+        self._storage_async = None
+        self._logger.info("Scheduler: reset(): DONE")
+
     def __init__(self, core_management_host=None, core_management_port=None, is_safe_mode=False):
         """Constructor"""
 
@@ -137,6 +147,9 @@ class Scheduler(object):
         if not cls._logger:
             # cls._logger = logger.setup(__name__, level=logging.INFO)
             cls._logger = logger.setup(__name__, level=logging.DEBUG)
+
+        cls._logger.info("Scheduler: __init__: START: cls={}".format(cls))
+
         if not cls._core_management_port:
             cls._core_management_port = core_management_port
         if not cls._core_management_host:
@@ -181,6 +194,8 @@ class Scheduler(object):
         """asynico task for :meth:`purge_tasks`, if scheduled to run"""
         self._restore_backup_id = None # type: int
         """Restore backup id and it will be used when SCHEDULE_RESTORE_ON_DEMAND runs"""
+
+        cls._logger.info("Scheduler: __init__: DONE: cls={}".format(cls))
 
     @property
     def max_completed_task_age(self) -> datetime.timedelta:
@@ -271,6 +286,8 @@ class Scheduler(object):
                 .WHERE(['id', '=', str(task_process.task_id)]) \
                 .payload()
             try:
+                self._logger.info("Scheduler: _wait_for_task_completion: self={}, self._storage_async.service={}"
+                                    .format(self, self._storage_async.service if self._storage_async else "N.A."))
                 self._logger.debug('Database command: %s', update_payload)
                 res = await self._storage_async.update_tbl("tasks", update_payload)
             except Exception:
@@ -371,6 +388,13 @@ class Scheduler(object):
                 .payload()
             try:
                 self._logger.debug('Database command: %s', insert_payload)
+                self._logger.info("Scheduler: 11: self={}, self._storage_async.service={}"
+                                  .format(self, self._storage_async.service if self._storage_async else "N.A."))
+                import traceback
+                trace = ''.join(traceback.format_stack())
+                if not self._storage_async:
+                    self._logger.info("Scheduler: 11: trace={}".format(trace))
+
                 res = await self._storage_async.insert_into_tbl("tasks", insert_payload)
             except Exception:
                 self._logger.exception('Insert failed: %s', insert_payload)
@@ -393,6 +417,8 @@ class Scheduler(object):
         try:
             self._logger.debug('Database command: %s', delete_payload)
             while not self._paused:
+                self._logger.info("Scheduler: 12: self={}, self._storage_async.service={}"
+                                  .format(self, self._storage_async.service if self._storage_async else "N.A."))
                 res = await self._storage_async.delete_from_tbl("tasks", delete_payload)
                 # TODO: Uncomment below when delete count becomes available in storage layer
                 # if res.get("count") < self._DELETE_TASKS_LIMIT:
@@ -673,6 +699,8 @@ class Scheduler(object):
     async def _get_process_scripts(self):
         try:
             self._logger.debug('Database command: %s', "scheduled_processes")
+            self._logger.info("Scheduler: 13: self={}, self._storage_async.service={}"
+                              .format(self, self._storage_async.service if self._storage_async else "N.A."))
             res = await self._storage_async.query_tbl("scheduled_processes")
             for row in res['rows']:
                 self._process_scripts[row.get('name')] = row.get('script')
@@ -684,6 +712,8 @@ class Scheduler(object):
         # TODO: Get processes first, then add to Schedule
         try:
             self._logger.debug('Database command: %s', 'schedules')
+            self._logger.info("Scheduler: 14: self={}, self._storage_async.service={}"
+                              .format(self, self._storage_async.service if self._storage_async else "N.A."))
             res = await self._storage_async.query_tbl("schedules")
 
             for row in res['rows']:
@@ -761,6 +791,8 @@ class Scheduler(object):
             },
         }
 
+        self._logger.info("Scheduler: 15: self={}, self._storage_async.service={}"
+                          .format(self, self._storage_async.service if self._storage_async else "N.A."))
         cfg_manager = ConfigurationManager(self._storage_async)
         await cfg_manager.create_category('SCHEDULER', default_config, 'Scheduler configuration', display_name='Scheduler')
 
@@ -784,12 +816,13 @@ class Scheduler(object):
                 raise NotReadyError("The scheduler was stopped and can not be restarted")
 
             if self._ready:
+                self._logger.info("Scheduler(): start: self._ready is already TRUE")
                 return
 
             if self._start_time:
                 raise NotReadyError("The scheduler is starting")
 
-            self._logger.info("Starting")
+            self._logger.info("Scheduler(): Starting: self={}".format(self))
 
         self._start_time = self.current_time if self.current_time else time.time()
 
@@ -799,15 +832,24 @@ class Scheduler(object):
         # ************ make sure that it go forward only when storage service is ready
         storage_service = None
 
+        self._logger.info("Scheduler: start(): 1. storage_service={}, self._storage_async={}, self._storage_async.service={}"
+                            .format(storage_service, self._storage_async, self._storage_async.service if self._storage_async else "N.A"))
+
         while storage_service is None and self._storage_async is None:
             try:
+                self._logger.info("Scheduler: start(): 1.1")
                 found_services = ServiceRegistry.get(name="Fledge Storage")
+                self._logger.info("Scheduler: start(): 1.2: found_services={}".format(found_services))
                 storage_service = found_services[0]
+                self._logger.info("Scheduler: start(): 1.3: storage_service={}".format(storage_service))
                 self._storage_async = StorageClientAsync(self._core_management_host, self._core_management_port,
                                               svc=storage_service)
+                self._logger.info("Scheduler: start(): 2. self={}, self._storage_async.service={}"
+                                    .format(self, self._storage_async.service if self._storage_async else "N.A."))
 
             except (service_registry_exceptions.DoesNotExist, InvalidServiceInstance, StorageServiceUnavailable,
                     Exception) as ex:
+                self._logger.info("Scheduler: start(): 2.1: Exception: {}".format(str(ex)))
                 # traceback.print_exc()
                 await asyncio.sleep(5)
         # **************
@@ -818,6 +860,9 @@ class Scheduler(object):
         await self._read_config()
         await self._mark_tasks_interrupted()
         await self._read_storage()
+
+        self._logger.info("Scheduler: start(): 3. self={}, self._storage_async.service={}"
+                          .format(self, self._storage_async.service if self._storage_async else "N.A"))
 
         self._ready = True
         if not self._is_safe_mode:
@@ -1091,12 +1136,16 @@ class Scheduler(object):
                 .payload()
             try:
                 self._logger.debug('Database command: %s', update_payload)
+                self._logger.info("Scheduler: 16: self._storage_async.service={}"
+                                  .format(self._storage_async.service if self._storage_async else "N.A."))
                 res = await self._storage_async.update_tbl("schedules", update_payload)
                 if res.get('count') == 0:
                     is_new_schedule = True
             except Exception:
                 self._logger.exception('Update failed: %s', update_payload)
                 raise
+            self._logger.info("Scheduler: 17: self._storage_async.service={}"
+                              .format(self._storage_async.service if self._storage_async else "N.A."))
             audit = AuditLogger(self._storage_async)
             await audit.information('SCHCH', {'schedule': schedule.toDict()})
         else:
@@ -1113,10 +1162,14 @@ class Scheduler(object):
                 .payload()
             try:
                 self._logger.debug('Database command: %s', insert_payload)
+                self._logger.info("Scheduler: 18: self._storage_async.service={}"
+                                  .format(self._storage_async.service if self._storage_async else "N.A."))
                 res = await self._storage_async.insert_into_tbl("schedules", insert_payload)
             except Exception:
                 self._logger.exception('Insert failed: %s', insert_payload)
                 raise
+            self._logger.info("Scheduler: 19: self._storage_async.service={}"
+                              .format(self._storage_async.service if self._storage_async else "N.A."))
             audit = AuditLogger(self._storage_async)
             await audit.information('SCHAD', {'schedule': schedule.toDict()})
 
@@ -1145,6 +1198,8 @@ class Scheduler(object):
             select_payload = PayloadBuilder().WHERE(['name', '=', schedule.process_name]).payload()
             try:
                 self._logger.debug('Database command: %s', select_payload)
+                self._logger.info("Scheduler: 20: self._storage_async.service={}"
+                                  .format(self._storage_async.service if self._storage_async else "N.A."))
                 res = await self._storage_async.query_tbl_with_payload("scheduled_processes", select_payload)
                 for row in res['rows']:
                     self._process_scripts[row.get('name')] = row.get('script')
@@ -1249,6 +1304,8 @@ class Scheduler(object):
         update_payload = PayloadBuilder().SET(enabled='f').WHERE(['id', '=', str(schedule_id)]).payload()
         try:
             self._logger.debug('Database command: %s', update_payload)
+            self._logger.info("Scheduler: 21: self._storage_async.service={}"
+                              .format(self._storage_async.service if self._storage_async else "N.A."))
             res = await self._storage_async.update_tbl("schedules", update_payload)
         except Exception:
             self._logger.exception('Update failed: %s', update_payload)
@@ -1323,6 +1380,8 @@ class Scheduler(object):
             schedule.name,
             str(schedule_id),
             schedule.process_name)
+        self._logger.info("Scheduler: 22: self._storage_async.service={}"
+                          .format(self._storage_async.service if self._storage_async else "N.A."))
         audit = AuditLogger(self._storage_async)
         sch = await self.get_schedule(schedule_id)
         await audit.information('SCHCH', {'schedule': sch.toDict()})
@@ -1355,6 +1414,8 @@ class Scheduler(object):
         update_payload = PayloadBuilder().SET(enabled='t').WHERE(['id', '=', str(schedule_id)]).payload()
         try:
             self._logger.debug('Database command: %s', update_payload)
+            self._logger.info("Scheduler: 23: self._storage_async.service={}"
+                              .format(self._storage_async.service if self._storage_async else "N.A."))
             res = await self._storage_async.update_tbl("schedules", update_payload)
         except Exception:
             self._logger.exception('Update failed: %s', update_payload)
@@ -1374,6 +1435,8 @@ class Scheduler(object):
             schedule.name,
             str(schedule_id),
             schedule.process_name)
+        self._logger.info("Scheduler: 24: self._storage_async.service={}"
+                          .format(self._storage_async.service if self._storage_async else "N.A."))
         audit = AuditLogger(self._storage_async)
         sch = await self.get_schedule(schedule_id)
         await audit.information('SCHCH', { 'schedule': sch.toDict() })
@@ -1451,6 +1514,8 @@ class Scheduler(object):
         # self._logger.debug("delete_schedule(): step 3: delete_payload={}".format(delete_payload))
         try:
             self._logger.debug('Database command: %s', delete_payload)
+            self._logger.info("Scheduler: 25: self._storage_async.service={}"
+                              .format(self._storage_async.service if self._storage_async else "N.A."))
             res = await self._storage_async.delete_from_tbl("schedules", delete_payload)
         except Exception:
             self._logger.exception('Delete failed: %s', delete_payload)
@@ -1494,6 +1559,8 @@ class Scheduler(object):
 
         try:
             self._logger.debug('Database command: %s', query_payload)
+            self._logger.info("Scheduler: 26: self._storage_async.service={}"
+                              .format(self._storage_async.service if self._storage_async else "N.A."))
             res = await self._storage_async.query_tbl_with_payload("tasks", query_payload)
             for row in res['rows']:
                 task = Task()
@@ -1546,6 +1613,8 @@ class Scheduler(object):
 
         try:
             self._logger.debug('Database command: %s', query_payload)
+            self._logger.info("Scheduler: 27: self._storage_async.service={}"
+                              .format(self._storage_async.service if self._storage_async else "N.A."))
             res = await self._storage_async.query_tbl_with_payload("tasks", query_payload)
             for row in res['rows']:
                 task = Task()

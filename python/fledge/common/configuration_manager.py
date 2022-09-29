@@ -33,7 +33,7 @@ __version__ = "${VERSION}"
 
 import logging
 
-_logger = logger.setup(__name__)
+_logger = logger.setup(__name__, level=logging.DEBUG)
 
 # MAKE UPPER_CASE
 _valid_type_strings = sorted(['boolean', 'integer', 'float', 'string', 'IPv4', 'IPv6', 'X509 certificate', 'password',
@@ -151,8 +151,19 @@ class ConfigurationManager(ConfigurationManagerSingleton):
     _cacheManager = None
     _acl_handler = None
 
+    def reset(self):
+        self._storage = None
+        self._registered_interests = None
+        self._registered_interests_child = None
+        self._cacheManager = None
+        self._acl_handler = None
+
     def __init__(self, storage=None):
         ConfigurationManagerSingleton.__init__(self)
+
+        _logger.info("ConfigurationManager: __init__: self._storage={}, storage={}"
+                        .format(self._storage.service if self._storage else "N.A.", storage.service if storage else "N.A."))
+
         if self._storage is None:
             if not isinstance(storage, StorageClientAsync):
                 raise TypeError('Must be a valid Storage object')
@@ -709,6 +720,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             display_name = category_name if display_name is None else display_name
             payload = PayloadBuilder().SET(value=category_val, description=category_description,
                                            display_name=display_name).WHERE(["key", "=", category_name]).payload()
+            _logger.info("ConfigurationManager: _update_category: self._storage.service={}".format(self._storage.service))
             result = await self._storage.update_tbl("configuration", payload)
             response = result['response']
             # Re-read category from DB

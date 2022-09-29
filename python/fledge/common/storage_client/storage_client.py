@@ -16,6 +16,7 @@ import aiohttp
 import http.client
 import json
 import time
+import logging
 from abc import ABC, abstractmethod
 
 from fledge.common import logger
@@ -23,7 +24,7 @@ from fledge.common.service_record import ServiceRecord
 from fledge.common.storage_client.exceptions import *
 from fledge.common.storage_client.utils import Utils
 
-_LOGGER = logger.setup(__name__)
+_LOGGER = logger.setup(__name__, level=logging.DEBUG)
 
 
 class AbstractStorage(ABC):
@@ -53,11 +54,16 @@ class StorageClientAsync(AbstractStorage):
         try:
             if svc:
                 self.service = svc
+                _LOGGER.info("StorageClientAsync: __init__: self.service={}".format(self.service))
             else:
                 self.connect(core_management_host, core_management_port)
+                _LOGGER.info("StorageClientAsync: __init__: self.connect: host={}, port={}".format(
+                                core_management_host, core_management_port))
 
             self.base_url = '{}:{}'.format(self.service._address, self.service._port)
             self.management_api_url = '{}:{}'.format(self.service._address, self.service._management_port)
+            _LOGGER.info("StorageClientAsync: __init__: SERVICE: self.base_url={}".format(self.base_url))
+            _LOGGER.info("StorageClientAsync: __init__: MGMT: self.management_api_url={}".format(self.management_api_url))
         except Exception:
             raise InvalidServiceInstance
 
@@ -105,15 +111,18 @@ class StorageClientAsync(AbstractStorage):
         conn.close()
         response = json.loads(res)
         svc = response["services"][0]
+        _LOGGER.info("storage_client: _get_storage_service: svc={}".format(svc))
         return svc
 
     def connect(self, core_management_host, core_management_port):
         svc = self._get_storage_service(host=core_management_host, port=core_management_port)
         if len(svc) == 0:
+            _LOGGER.info("storage_client: connect: InvalidServiceInstance")
             raise InvalidServiceInstance
         self.service = ServiceRecord(s_id=svc["id"], s_name=svc["name"], s_type=svc["type"], s_port=svc["service_port"],
                                      m_port=svc["management_port"], s_address=svc["address"],
                                      s_protocol=svc["protocol"])
+        _LOGGER.info("storage_client: connect: self.service={}".format(self.service))
 
         return self
 

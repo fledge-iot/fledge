@@ -568,6 +568,7 @@ class Server:
         """Starts the scheduler"""
         _logger.info("Starting scheduler ...")
         cls.scheduler = Scheduler(cls._host, cls.core_management_port, cls.running_in_safe_mode)
+        _logger.info("Instantiated scheduler: cls.scheduler={}".format(cls.scheduler))
         await cls.scheduler.start()
 
     @staticmethod
@@ -581,6 +582,7 @@ class Server:
             _logger.info("__start_storage: AFTER subprocess.call")
         except Exception as ex:
             _logger.exception(str(ex))
+        _logger.info("__start_storage: DONE")
 
     @classmethod
     async def _start_storage(cls, loop):
@@ -602,9 +604,9 @@ class Server:
             try:
                 _logger.info("_get_storage_client: step 2")
                 found_services = ServiceRegistry.get(name="Fledge Storage")
-                _logger.info("_get_storage_client: step 2.5")
+                _logger.info("_get_storage_client: step 2.5: found_services={}".format(found_services))
                 storage_service = found_services[0]
-                _logger.info("_get_storage_client: step 3")
+                _logger.info("_get_storage_client: step 3: storage_service={}".format(storage_service))
                 cls._storage_client_async = StorageClientAsync(cls._host, cls.core_management_port, svc=storage_service)
                 _logger.info("_get_storage_client: step 4")
             except (service_registry_exceptions.DoesNotExist, InvalidServiceInstance, StorageServiceUnavailable, Exception) as ex:
@@ -819,17 +821,18 @@ class Server:
             # _logger.info('Management API started on http://%s:%s', address, cls.core_management_port)
             # see http://<core_mgt_host>:<core_mgt_port>/fledge/service for registered services
             _logger.info("**** restart_storage(): step 1")
-            # loop = asyncio.get_event_loop()
+            loop = asyncio.get_event_loop()
+            loop.set_debug(True)
 
             # start storage
             _logger.info("**** restart_storage(): step 2")
             # await loop.run_until_complete(cls._start_storage(loop))
             # await cls._start_storage(None)
             cls.__start_storage(cls._host, cls.core_management_port)
-            await loop.run_in_executor(None, partial(cls.__start_storage, cls._host, cls.core_management_port))
+            # await loop.run_in_executor(None, partial(cls.__start_storage, cls._host, cls.core_management_port))
 
-            self._storage_client_async = None
-            self._readings_client_async = None
+            cls._storage_client_async = None
+            cls._readings_client_async = None
 
             # get storage client
             _logger.info("**** restart_storage(): step 3")
@@ -840,34 +843,31 @@ class Server:
             #     # If readings table is empty, set last_object of all streams to 0
             #     cls._check_readings_table(loop)
 
+            cls._configuration_manager.reset()
+            cls._configuration_manager = None
+            cls._interest_registry = None
+
             _logger.info("**** restart_storage(): step 4")
-            # # obtain configuration manager and interest registry
-            # cls._configuration_manager = ConfigurationManager(cls._storage_client_async)
-            # _logger.info("restart_storage(): step 5")
-            # cls._interest_registry = InterestRegistry(cls._configuration_manager)
+            # obtain configuration manager and interest registry
+            cls._configuration_manager = ConfigurationManager(cls._storage_client_async)
+            _logger.info("**** restart_storage(): step 5")
+            cls._interest_registry = InterestRegistry(cls._configuration_manager)
 
-            # ************ make sure that it go forward only when storage service is ready
-            storage_service = None
+            _logger.info("**** restart_storage(): step 5.5.1")
+            await cls._stop_scheduler()
+            _logger.info("**** restart_storage(): step 5.5.2")
+            cls.scheduler.reset()
+            _logger.info("**** restart_storage(): step 5.5.3")
+            cls.scheduler = None
+            await cls._start_scheduler()
+            _logger.info("**** restart_storage(): step 5.5.4")
 
-            # while storage_service is None and self._storage_async is None:
-            #     try:
-            #         found_services = ServiceRegistry.get(name="Fledge Storage")
-            #         storage_service = found_services[0]
-            #         self._storage_async = StorageClientAsync(self._core_management_host, self._core_management_port,
-            #                                                  svc=storage_service)
-            #         _logger.info("**** ServiceRegistry entry found for 'Fledge Storage': {}".format(storage_service))
-            #
-            #     except (service_registry_exceptions.DoesNotExist, InvalidServiceInstance, StorageServiceUnavailable,
-            #             Exception) as ex:
-            #         # traceback.print_exc()
-            #         _logger.info("**** ServiceRegistry entry not found for 'Fledge Storage', waiting for 5 secs more")
-            #         await asyncio.sleep(5)
-            # # **************
-
+            cls._asset_tracker = None
             _logger.info("**** restart_storage(): step 6")
             await cls._start_asset_tracker()
             #await asyncio.sleep(0.1)
 
+            cls._audit = None
             _logger.info("**** restart_storage(): step 7")
             cls._audit = AuditLogger(cls._storage_client_async)
             _logger.info("restart_storage(): AuditLogger instantiated again")

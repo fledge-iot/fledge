@@ -83,28 +83,26 @@ In order to discover the services registered within a Fledge instance and what s
 
 The data returned for each service includes
 
-+-----------------+-----------------------------------------------------------------------------+
-| Key             | Description                                                                 |
-+=================+=============================================================================+
-| name            | The name of the service                                                     |
-+-----------------+-----------------------------------------------------------------------------+
-| type            | The service type. This may be one of Northbound, Southbound, Core, Storage, |
-|                 | Notification or Dispatcher. In addition other storage types may also be     |
-|                 | installed to extend the functionality of Fledge.                            |
-+-----------------+-----------------------------------------------------------------------------+
-| address         | The Address the service can be contacted via. Normally localhost or 0.0.0.0 |
-|                 | if the service is running on the same machine as the Core service of the    |
-|                 | Fledge instance.                                                            |
-+-----------------+-----------------------------------------------------------------------------+
-| management_port | The management port the service is using to communicate with the core.      |
-+-----------------+-----------------------------------------------------------------------------+
-| service_port    | The port the service is using to expose the service API of the service.     |
-+-----------------+-----------------------------------------------------------------------------+
-| protocol        | The protocol the service is using for its control API.                      |
-+-----------------+-----------------------------------------------------------------------------+
-| status          | The status of the service. This may be running, shutdown, unresponsive or   |
-|                 | failed.                                                                     |
-+-----------------+-----------------------------------------------------------------------------+
+.. list-table::
+    :widths: 20 50
+    :header-rows: 1
+
+    * - Key
+      - Description
+    * - name
+      - The name of the service.
+    * - type
+      - The service type. This may be one of Northbound, Southbound, Core, Storage, Notification or Dispatcher. In addition other storage types may also be installed to extend the functionality of Fledge.
+    * - address
+      - The Address the service can be contacted via. Normally localhost or 0.0.0.0 if the service is running on the same machine as the Core service of the Fledge instance.
+    * - management_port
+      - The management port the service is using to communicate with the core.
+    * - service_port
+      - The port the service is using to expose the service API of the service.
+    * - protocol
+      - The protocol the service is using for its control API.
+    * - status
+      - The status of the service. This may be running, shutdown, unresponsive or failed.
 
 Parameters
 ~~~~~~~~~~

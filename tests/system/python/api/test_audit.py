@@ -55,16 +55,16 @@ class TestAudit:
         assert Counter([0, 1, 2, 4]) == Counter(index)
 
     @pytest.mark.parametrize("request_params, total_count, audit_count", [
-        ('', 11, 11),
-        ('?limit=1', 11, 1),
-        ('?skip=4', 11, 7),
-        ('?limit=1&skip=8', 11, 1),
+        ('', 13, 13),
+        ('?limit=1', 13, 1),
+        ('?skip=4', 13, 9),
+        ('?limit=1&skip=8', 13, 1),
         ('?source=START', 1, 1),
-        ('?source=CONAD', 10, 10),
-        ('?source=CONAD&limit=1', 10, 1),
-        ('?source=CONAD&skip=1', 10, 9),
-        ('?source=CONAD&skip=6&limit=1', 10, 1),
-        ('?severity=INFORMATION', 11, 11),
+        ('?source=CONAD', 12, 12),
+        ('?source=CONAD&limit=1', 12, 1),
+        ('?source=CONAD&skip=1', 12, 11),
+        ('?source=CONAD&skip=6&limit=1', 12, 1),
+        ('?severity=INFORMATION', 13, 13),
         ('?severity=failure', 0, 0),
         ('?source=CONAD&severity=failure', 0, 0),
         ('?source=START&severity=INFORMATION', 1, 1),
@@ -88,10 +88,10 @@ class TestAudit:
         assert audit_count == len(elems)
 
     @pytest.mark.parametrize("payload, total_count", [
-        ({"source": "LOGGN", "severity": "warning", "details": {"message": "Engine oil pressure low"}}, 12),
-        ({"source": "NHCOM", "severity": "success", "details": {}}, 13),
-        ({"source": "START", "severity": "information", "details": {"message": "fledge started"}}, 14),
-        ({"source": "CONCH", "severity": "failure", "details": {"message": "Scheduler configuration failed"}}, 15)
+        ({"source": "LOGGN", "severity": "warning", "details": {"message": "Engine oil pressure low"}}, 14),
+        ({"source": "NHCOM", "severity": "success", "details": {}}, 15),
+        ({"source": "START", "severity": "information", "details": {"message": "fledge started"}}, 16),
+        ({"source": "CONCH", "severity": "failure", "details": {"message": "Scheduler configuration failed"}}, 17)
     ])
     def test_create_audit_entry(self, fledge_url, payload, total_count):
         conn = http.client.HTTPConnection(fledge_url)

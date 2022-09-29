@@ -6,6 +6,7 @@
 
 """ Test authentication REST API """
 
+import sys
 import os
 import subprocess
 import http.client
@@ -2455,6 +2456,7 @@ class TestAuthCertificateWithTLS:
 
     def test_admin_actions_forbidden_for_regular_user(self):
         """Test that regular user is not able to perform any actions that only an admin can"""
+        assert sys.version_info >= (3, 7), "Use Python 3.7 or newer"
         # Login with regular user
         conn = http.client.HTTPSConnection("localhost", 1995, context=context)
         cert_file_path = os.path.join(os.path.expandvars('${FLEDGE_ROOT}'), 'data/etc/certs/user.cert')

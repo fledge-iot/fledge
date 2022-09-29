@@ -302,7 +302,7 @@ class TestPython35:
         assert 4.9 == reading_resp["reading"]["double"]
 
     def test_delete_south_service(self, fledge_url):
-        assert sys.version_info >= (3, 7), "Use Python 3.7 or newer"
+        assert sys.version_info <= (3, 7), "Use Python 3.7 or older"
         conn = http.client.HTTPConnection(fledge_url)
         conn.request("DELETE", urllib.parse.quote('/fledge/service/{}'
                                                   .format(HTTP_SOUTH_SVC_NAME), safe='?,=,&,/'))

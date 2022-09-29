@@ -1,12 +1,13 @@
-#!/bin/sh
+#!/usr/bin/env bash
 #set -e
 #
 # This is the shell script wrapper for running C unit tests
 #
 jobs="-j4"
-if [ "$1" = "-j*" ]; then
+if [[ "$1" == -j* ]]; then
   jobs="$1"
 fi
+# echo "Using $jobs option for parallel make jobs"
 
 COVERAGE_HTML=0
 COVERAGE_XML=0

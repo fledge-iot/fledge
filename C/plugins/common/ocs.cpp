@@ -23,7 +23,11 @@
 using namespace std;
 using namespace rapidjson;
 
-OCS::OCS()
+OCS::OCS() : m_adh(false)
+{
+}
+
+OCS::OCS(bool adh) : m_adh(adh)
 {
 }
 
@@ -78,7 +82,7 @@ std::string OCS::retrieveToken(const string& clientId, const string& clientSecre
 	vector<pair<string, string>> header;
 	int httpCode;
 
-	endPoint = new SimpleHttps(OCS_HOST,
+	endPoint = new SimpleHttps(m_adh ? ADH_HOST : OCS_HOST,
 							   TIMEOUT_CONNECT,
 							   TIMEOUT_REQUEST,
 							   RETRY_SLEEP_TIME,
@@ -91,6 +95,8 @@ std::string OCS::retrieveToken(const string& clientId, const string& clientSecre
 
 	StringReplace(payload, "CLIENT_ID_PLACEHOLDER",        urlEncode(clientId));
 	StringReplace(payload, "CLIENT_SECRET_ID_PLACEHOLDER", urlEncode(clientSecret));
+
+	Logger::getLogger()->fatal("FIXME: Encoded payload is %s", payload.c_str());
 
 	// Anonymous auth
 	string authMethod = "a";

@@ -88,7 +88,7 @@ using namespace SimpleWeb;
 #define ENDPOINT_URL_PI_WEB_API "https://HOST_PLACEHOLDER:PORT_PLACEHOLDER/piwebapi/omf"
 #define ENDPOINT_URL_CR         "https://HOST_PLACEHOLDER:PORT_PLACEHOLDER/ingress/messages"
 #define ENDPOINT_URL_OCS        "https://dat-b.osisoft.com:PORT_PLACEHOLDER/api/v1/tenants/TENANT_ID_PLACEHOLDER/Namespaces/NAMESPACE_ID_PLACEHOLDER/omf"
-#define ENDPOINT_URL_ADH        "https://uswe.datahub.connect.aveva.com:PORT_PLACEHOLDER/api/v1/tenants/TENANT_ID_PLACEHOLDER/Namespaces/NAMESPACE_ID_PLACEHOLDER/omf"
+#define ENDPOINT_URL_ADH        "https://uswe.datahub.connect.aveva.com:PORT_PLACEHOLDER/api/v1/Tenants/TENANT_ID_PLACEHOLDER/Namespaces/NAMESPACE_ID_PLACEHOLDER/omf"
 #define ENDPOINT_URL_EDS        "http://localhost:PORT_PLACEHOLDER/api/v1/tenants/default/namespaces/default/omf"
 
 static bool s_connected = true;		// if true, access to PI Web API is working
@@ -1435,7 +1435,10 @@ string OCSRetrieveAuthToken(CONNECTOR_INFO* connInfo)
 	string token;
 	OCS *ocs;
 
-	ocs = new OCS();
+	if (connInfo->PIServerEndpoint == ENDPOINT_OCS)
+		ocs = new OCS();
+	else if (connInfo->PIServerEndpoint == ENDPOINT_ADH)
+		ocs = new OCS(true);
 
 	token = ocs->retrieveToken(connInfo->OCSClientId , connInfo->OCSClientSecret);
 

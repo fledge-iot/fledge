@@ -168,7 +168,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"default": "localhost",
 			"order": "4",
 			"displayName": "Server hostname",
-			"validity" : "PIServerEndpoint != \"Edge Data Store\" && PIServerEndpoint != \"OSIsoft Cloud Services\""
+			"validity" : "PIServerEndpoint != \"Edge Data Store\" && PIServerEndpoint != \"OSIsoft Cloud Services\" && PIServerEndpoint != \"AVEVA Data Hub\""
 		},
 		"ServerPort": {
 			"description": "Port on which the endpoint either PI Web API or Connector Relay or Edge Data Store is listening, 0 will use the default one",
@@ -176,7 +176,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"default": "0",
 			"order": "5",
 			"displayName": "Server port, 0=use the default",
-			"validity" : "PIServerEndpoint != \"OSIsoft Cloud Services\""
+			"validity" : "PIServerEndpoint != \"OSIsoft Cloud Services\" && PIServerEndpoint != \"AVEVA Data Hub\""
 		},
 		"producerToken": {
 			"description": "The producer token that represents this Fledge stream",
@@ -506,7 +506,7 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 		}
 		else if(PIServerEndpoint.compare("Edge Data Store") == 0)
 		{
-			Logger::getLogger()->debug("End point manually selected - OSIsoft Cloud Services");
+			Logger::getLogger()->debug("End point manually selected - Edge Data Store");
 			connInfo->PIServerEndpoint = ENDPOINT_EDS;
 			url                        = ENDPOINT_URL_EDS;
 			endpointPort               = ENDPOINT_PORT_EDS;
@@ -855,7 +855,7 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 	connInfo->sender->setOCSClientSecret     (connInfo->OCSClientSecret);
 
 	// OCS or ADH - retrieves the authentication token
-	// It is retrieved at every send as it can expire and the configuration is only in OCS
+	// It is retrieved at every send as it can expire and the configuration is only in OCS and ADH
 	if (connInfo->PIServerEndpoint == ENDPOINT_OCS || connInfo->PIServerEndpoint == ENDPOINT_ADH)
 	{
 		connInfo->OCSToken = OCSRetrieveAuthToken(connInfo);

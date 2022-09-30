@@ -895,7 +895,23 @@ class Server:
                                  "Therefore, starting the service...")
                     loop.run_until_complete(cls.add_and_enable_dispatcher())
                     _logger.info("Dispatcher service started.")
-
+                # dryrun execution of all the tasks that are installed but have schedule type other than STARTUP
+                schedule_list = loop.run_until_complete(cls.scheduler.get_schedules())
+                for sch in schedule_list:
+                    # STARTUP type exclusion
+                    if int(sch.schedule_type) != 1:
+                        schedule_row = cls.scheduler._ScheduleRow(
+                            id=sch.schedule_id,
+                            name=sch.name,
+                            type=sch.schedule_type,
+                            time=(sch.time.hour * 60 * 60 + sch.time.minute * 60 + sch.time.second) if sch.time else 0,
+                            day=sch.day,
+                            repeat=sch.repeat,
+                            repeat_seconds=sch.repeat.total_seconds() if sch.repeat else 0,
+                            exclusive=sch.exclusive,
+                            enabled=sch.enabled,
+                            process_name=sch.process_name)
+                        loop.run_until_complete(cls.scheduler._start_task(schedule_row, dryrun=True))
             # Everything is complete in the startup sequence, write the audit log entry
             cls._audit = AuditLogger(cls._storage_client_async)
             audit_msg = {"message": "Running in safe mode"} if cls.running_in_safe_mode else None

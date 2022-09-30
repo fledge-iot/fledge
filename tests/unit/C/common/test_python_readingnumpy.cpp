@@ -136,10 +136,12 @@ TEST_F(PythonReadingNumpyTest, ArraySort)
 	*(ptr + 4) = 1;
 	DatapointValue buf(buffer);
 	Reading reading("test", new Datapoint("buffer", buf));
+	PyGILState_STATE state = PyGILState_Ensure();  // Take GIL
 	PyObject *pyReading = ((PythonReading *)(&reading))->toPython();
 	PyObject *element = PyUnicode_FromString("buffer");
 	PyObject *obj = callPythonFunc2("array_sort", pyReading, element);
 	PythonReading pyr(obj);
+	PyGILState_Release(state);
 	EXPECT_STREQ(pyr.getAssetName().c_str(), "test");
 	EXPECT_EQ(pyr.getDatapointCount(), 1);
 	Datapoint *dp = pyr.getDatapoint("buffer");
@@ -171,11 +173,13 @@ TEST_F(PythonReadingNumpyTest, ImageFloat)
 	DPImage  *image = new DPImage(64, 96, 8, data);
 	DatapointValue img(image);
 	Reading reading("test", new Datapoint("image", img));
+	PyGILState_STATE state = PyGILState_Ensure();  // Take GIL
 	PyObject *pyReading = ((PythonReading *)(&reading))->toPython();
 	PyObject *element = PyUnicode_FromString("image");
 	PyObject *obj = callPythonFunc2("image_normalise", pyReading, element);
 	EXPECT_NE(obj, (PyObject *)NULL);
 	PythonReading pyr(obj);
+	PyGILState_Release(state); // Release GIL
 	EXPECT_STREQ(pyr.getAssetName().c_str(), "test");
 	EXPECT_EQ(pyr.getDatapointCount(), 1);
 	Datapoint *dp = pyr.getDatapoint("image");

@@ -59,7 +59,8 @@ fetchFledgeReposPyScript='
 import os,json,sys;\
 repos=json.load(sys.stdin);\
 exclude_topic_packages=os.environ["EXCLUDE_FLEDGE_TOPIC_REPOSITORIES"];\
-fRepos = [r["name"] for r in repos if r["name"] not in exclude_topic_packages];\
+all_repos = [r["name"] for r in repos if r["archived"] is False];\
+fRepos = list(set(all_repos) - set(exclude_topic_packages.split()));\
 print("\n".join(fRepos));
 '
 REPOSITORIES=$(echo ${fledgeRepos} | python3 -c "$fetchFledgeReposPyScript" | sort -f)

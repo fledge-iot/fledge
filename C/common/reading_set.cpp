@@ -325,224 +325,9 @@ JSONReading::JSONReading(const Value& json)
 		if (json["reading"].IsObject())
 		{
 			// Add 'reading' values
-			for (auto &m : json["reading"].GetObject()) {
-				switch (m.value.GetType()) {
-					// String
-					case (kStringType): {
-						string str = m.value.GetString();
-						if (str[0] == '_' && str[1] == '_')
-						{
-							// special encoded type
-							size_t pos = str.find_first_of(':');
-							if (str.compare(2, 10, "DATABUFFER") == 0)
-							{
-								DataBuffer *databuffer = new Base64DataBuffer(str.substr(pos + 1));
-								DatapointValue value(databuffer);
-								this->addDatapoint(new Datapoint(m.name.GetString(), value));
-							}
-							else if (str.compare(2, 7, "DPIMAGE") == 0)
-							{
-								DPImage *image = new Base64DPImage(str.substr(pos + 1));
-								DatapointValue value(image);
-								this->addDatapoint(new Datapoint(m.name.GetString(), value));
-							}
-							
-						}
-						else
-						{
-							DatapointValue value(str);
-							this->addDatapoint(new Datapoint(m.name.GetString(), value));
-						}
-						break;
-					}
-
-						// Number
-					case (kNumberType): {
-						if (m.value.IsInt() ||
-						    m.value.IsUint() ||
-						    m.value.IsInt64() ||
-						    m.value.IsUint64()) {
-
-							DatapointValue *value;
-							if (m.value.IsInt()) {
-								value = new DatapointValue((long) m.value.GetInt());
-							} else {
-								// Handle Uint as 64 bits
-								value = new DatapointValue((long) m.value.GetInt64());
-							}
-							this->addDatapoint(new Datapoint(m.name.GetString(),
-											 *value));
-							delete value;
-							break;
-						} else if (m.value.IsDouble()) {
-							DatapointValue value(m.value.GetDouble());
-							this->addDatapoint(new Datapoint(m.name.GetString(),
-											 value));
-							break;
-						} else {
-							string errMsg = "Cannot parse the numeric type";
-							errMsg += " of reading element '";
-							errMsg.append(m.name.GetString());
-							errMsg += "'";
-
-							throw new ReadingSetException(errMsg.c_str());
-							break;
-						}
-					}
-
-					case kArrayType:
-					    {
-						    if ((m.value.GetArray())[0].IsArray())
-						    {
-							    // We have a 2D array
-							    vector< vector<double> *> array;
-							    for (auto& v : m.value.GetArray())
-							    {
-								    vector<double> *arrayValues = new vector<double>;
-								    for (auto& v : m.value.GetArray())
-								    {
-									    if (v.IsDouble())
-									    {
-										    arrayValues->push_back(v.GetDouble());
-									    }
-									    else if (v.IsInt() || v.IsUint())
-									    {
-										    double i = (double)v.GetInt();
-										    arrayValues->push_back(i);
-									    }
-									    else if (v.IsInt64() || v.IsUint64())
-									    {
-										    double i = (double)v.GetInt64();
-										    arrayValues->push_back(i);
-									    }
-								    }
-								    array.push_back(arrayValues);
-							    }
-							    DatapointValue value(array);
-							    this->addDatapoint(new Datapoint(m.name.GetString(),
-												 value));
-						    }
-						    else
-						    {
-							    vector<double> arrayValues;
-							    for (auto& v : m.value.GetArray())
-							    {
-								    if (v.IsDouble())
-								    {
-									    arrayValues.push_back(v.GetDouble());
-								    }
-								    else if (v.IsInt() || v.IsUint())
-								    {
-									    double i = (double)v.GetInt();
-									    arrayValues.push_back(i);
-								    }
-								    else if (v.IsInt64() || v.IsUint64())
-								    {
-									    double i = (double)v.GetInt64();
-									    arrayValues.push_back(i);
-								    }
-							    }
-							    DatapointValue value(arrayValues);
-							    this->addDatapoint(new Datapoint(m.name.GetString(),
-												 value));
-						    }
-						    break;
-						    
-					    }
-					case kObjectType:
-					    {
-						    // TODO This should be recursive
-						vector<Datapoint *> *obj = new vector<Datapoint *>;
-						for (auto &mo : m.value.GetObject()) {
-							switch (mo.value.GetType()) {
-								// String
-								case (kStringType): {
-									DatapointValue value(mo.value.GetString());
-									obj->push_back(new Datapoint(mo.name.GetString(),
-													 value));
-									break;
-								}
-
-									// Number
-								case (kNumberType): {
-									if (mo.value.IsInt() ||
-									    mo.value.IsUint() ||
-									    mo.value.IsInt64() ||
-									    mo.value.IsUint64()) {
-
-										DatapointValue *value;
-										if (mo.value.IsInt() ||
-										    mo.value.IsUint()) {
-											value = new DatapointValue((long) mo.value.GetInt());
-										} else {
-											value = new DatapointValue((long) mo.value.GetInt64());
-										}
-										obj->push_back(new Datapoint(mo.name.GetString(),
-														 *value));
-										delete value;
-										break;
-									} else if (mo.value.IsDouble()) {
-										DatapointValue value(mo.value.GetDouble());
-										obj->push_back(new Datapoint(mo.name.GetString(),
-														 value));
-										break;
-									} else {
-										string errMsg = "Cannot parse the numeric type";
-										errMsg += " of reading element '";
-										errMsg.append(mo.name.GetString());
-										errMsg += "'";
-
-										throw new ReadingSetException(errMsg.c_str());
-										break;
-									}
-								}
-
-								case kArrayType:
-								    {
-									    vector<double> arrayValues;
-									    for (auto& v : mo.value.GetArray())
-									    {
-										    if (v.IsDouble())
-										    {
-											    arrayValues.push_back(v.GetDouble());
-										    }
-										    else if (v.IsInt() || v.IsUint())
-										    {
-											    double i = (double)v.GetInt();
-											    arrayValues.push_back(i);
-										    }
-										    else if (v.IsInt64() || v.IsUint64())
-										    {
-											    double i = (double)v.GetInt64();
-											    arrayValues.push_back(i);
-										    }
-									    }
-									    DatapointValue value(arrayValues);
-									    obj->push_back(new Datapoint(mo.name.GetString(),
-														 value));
-									    break;
-									    
-								}
-							}
-						}
-						DatapointValue value(obj, true);
-						this->addDatapoint(new Datapoint(m.name.GetString(),
-											 value));
-					    break;
-					    }
-
-					default: {
-						string errMsg = "Cannot handle unsupported type '";
-					        errMsg += kTypeNames[m.value.GetType()];
-						errMsg += "' of reading element '";
-						errMsg.append(m.name.GetString());
-						errMsg += "'";
-
-						throw new ReadingSetException(errMsg.c_str());
-
-						break;
-					}
-				}
+			for (auto &m : json["reading"].GetObject())
+			{
+				addDatapoint(datapoint(m.name.GetString(), m.value));
 			}
 		}
 		else
@@ -600,6 +385,129 @@ JSONReading::JSONReading(const Value& json)
 	{
 		Logger::getLogger()->error("Missing reading property for JSON reading, %s", m_asset.c_str());
 	}
+}
+
+/**
+ * Create a Datapoint from a JSON item in a reading
+ *
+ * @param item	The JSON object forthe data point
+ * @return Datapoint* The new data point
+ */
+Datapoint *JSONReading::datapoint(const string& name, const Value& item)
+{
+Datapoint *rval = NULL;
+
+	switch (item.GetType())
+	{
+		// String
+		case (kStringType):
+		{
+			DatapointValue value(item.GetString());
+			rval = new Datapoint(name, value);
+			break;
+		}
+
+		// Number
+		case (kNumberType):
+		{
+			if (item.IsInt() ||
+			    item.IsUint() ||
+			    item.IsInt64() ||
+			    item.IsUint64())
+			{
+
+				DatapointValue *value;
+				if (item.IsInt() || item.IsUint())
+				{
+					value = new DatapointValue((long) item.GetInt());
+				}
+				else
+				{
+					value = new DatapointValue((long) item.GetInt64());
+				}
+				rval = new Datapoint(name, *value);
+				delete value;
+				break;
+			}
+			else if (item.IsDouble())
+			{
+				DatapointValue value(item.GetDouble());
+				rval = new Datapoint(name, value);
+				break;
+			}
+			else
+			{
+				string errMsg = "Cannot parse the numeric type";
+				errMsg += " of reading element '";
+				errMsg.append(name);
+				errMsg += "'";
+
+				throw new ReadingSetException(errMsg.c_str());
+				break;
+			}
+		}
+
+		// Arrays
+		case kArrayType:
+		{
+			vector<double> arrayValues;
+			for (auto& v : item.GetArray())
+			{
+				if (v.IsDouble())
+				{
+					arrayValues.push_back(v.GetDouble());
+				}
+				else if (v.IsInt() || v.IsUint())
+				{
+					double i = (double)v.GetInt();
+					arrayValues.push_back(i);
+				}
+				else if (v.IsInt64() || v.IsUint64())
+				{
+					double i = (double)v.GetInt64();
+					arrayValues.push_back(i);
+				}
+			}
+			DatapointValue value(arrayValues);
+			rval = new Datapoint(name, value);
+			break;
+			    
+		}
+	
+		// Nested object
+		case kObjectType:
+		{
+			vector<Datapoint *> *obj = new vector<Datapoint *>;
+			for (auto &mo : item.GetObject())
+			{
+				obj->push_back(datapoint(mo.name.GetString(), mo.value));
+			}
+			DatapointValue value(obj, true);
+			rval = new Datapoint(name, value);
+			break;
+		}
+
+		case kTrueType:
+		{
+			DatapointValue value("true");
+			rval = new Datapoint(name, value);
+			break;
+		}
+		case kFalseType:
+		{
+			DatapointValue value("false");
+			rval = new Datapoint(name, value);
+			break;
+		}
+
+		default:
+		{
+			char errMsg[80];
+		       	snprintf(errMsg, sizeof(errMsg), "Unhandled type for %s in JSON payload %d", name.c_str(), item.GetType());
+			throw new ReadingSetException(errMsg);
+		}
+	}
+	return rval;
 }
 
 /**

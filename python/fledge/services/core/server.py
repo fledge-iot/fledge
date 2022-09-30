@@ -862,6 +862,14 @@ class Server:
             await cls._start_scheduler()
             _logger.info("**** restart_storage(): step 5.5.4")
 
+            _logger.info("**** restart_storage(): step 5.7.1")
+            await cls.stop_service_monitor()
+            _logger.info("**** restart_storage(): step 5.7.2")
+            cls.service_monitor = None
+            _logger.info("**** restart_storage(): step 5.7.3")
+            await cls._start_service_monitor()
+            _logger.info("**** restart_storage(): step 5.7.4")
+
             cls._asset_tracker = None
             _logger.info("**** restart_storage(): step 6")
             await cls._start_asset_tracker()

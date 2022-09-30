@@ -127,17 +127,6 @@ class TestPython35:
 
         generate_json(ASSET_NAME_PY35)
 
-        call_fogbench(wait_time)
-
-        ping_response = verify_ping(fledge_url)
-        assert 10 == ping_response["dataRead"]
-
-        asset_response = verify_asset(fledge_url, ASSET_NAME_PY35)
-        assert 10 == asset_response["count"]
-
-        reading_resp = verify_readings(fledge_url, ASSET_NAME_PY35)
-        assert 12.25 == reading_resp["reading"]["sensor"]
-
         url = fledge_url + urllib.parse.quote('/fledge/category/{}_py35/script/upload'
                                               .format(HTTP_SOUTH_SVC_NAME))
         script_path = 'script=@{}/readings35.py'.format(DATA_DIR_ROOT)
@@ -148,10 +137,10 @@ class TestPython35:
         call_fogbench(wait_time)
 
         ping_response = verify_ping(fledge_url)
-        assert 20 == ping_response["dataRead"]
+        assert 10 == ping_response["dataRead"]
 
         asset_response = verify_asset(fledge_url, ASSET_NAME_PY35)
-        assert 20 == asset_response["count"]
+        assert 10 == asset_response["count"]
 
         reading_resp = verify_readings(fledge_url, ASSET_NAME_PY35)
         assert 2.45 == reading_resp["reading"]["sensor"]
@@ -177,10 +166,10 @@ class TestPython35:
         call_fogbench(wait_time)
 
         ping_response = verify_ping(fledge_url)
-        assert 30 == ping_response["dataRead"]
+        assert 20 == ping_response["dataRead"]
 
         asset_response = verify_asset(fledge_url, ASSET_NAME_PY35)
-        assert 30 == asset_response["count"]
+        assert 20 == asset_response["count"]
 
         reading_resp = verify_readings(fledge_url, ASSET_NAME_PY35)
         assert 122.5 == reading_resp["reading"]["sensor"]
@@ -197,10 +186,10 @@ class TestPython35:
         call_fogbench(wait_time)
 
         ping_response = verify_ping(fledge_url)
-        assert 40 == ping_response["dataRead"]
+        assert 30 == ping_response["dataRead"]
 
         asset_response = verify_asset(fledge_url, ASSET_NAME_PY35)
-        assert 40 == asset_response["count"]
+        assert 30 == asset_response["count"]
 
         reading_resp = verify_readings(fledge_url, ASSET_NAME_PY35)
         assert 12.25 == reading_resp["reading"]["sensor"]
@@ -212,10 +201,10 @@ class TestPython35:
         call_fogbench(wait_time)
 
         ping_response = verify_ping(fledge_url)
-        assert 50 == ping_response["dataRead"]
+        assert 40 == ping_response["dataRead"]
 
         asset_response = verify_asset(fledge_url, ASSET_NAME_PY35)
-        assert 50 == asset_response["count"]
+        assert 40 == asset_response["count"]
 
         reading_resp = verify_readings(fledge_url, ASSET_NAME_PY35)
         assert 122.5 == reading_resp["reading"]["sensor"]
@@ -234,10 +223,10 @@ class TestPython35:
         call_fogbench(wait_time)
 
         ping_response = verify_ping(fledge_url)
-        assert 60 == ping_response["dataRead"]
+        assert 50 == ping_response["dataRead"]
 
         asset_response = verify_asset(fledge_url, ASSET_NAME_PY35)
-        assert 60 == asset_response["count"]
+        assert 50 == asset_response["count"]
 
         reading_resp = verify_readings(fledge_url, ASSET_NAME_PY35)
         assert 122.5 == reading_resp["reading"]["sensor"]
@@ -257,10 +246,10 @@ class TestPython35:
         call_fogbench(wait_time)
 
         ping_response = verify_ping(fledge_url)
-        assert 70 == ping_response["dataRead"]
+        assert 60 == ping_response["dataRead"]
 
         asset_response = verify_asset(fledge_url, ASSET_NAME_PY35)
-        assert 70 == asset_response["count"]
+        assert 60 == asset_response["count"]
 
         reading_resp = verify_readings(fledge_url, ASSET_NAME_PY35)
         assert 12.25 == reading_resp["reading"]["sensor"]
@@ -302,10 +291,10 @@ class TestPython35:
         call_fogbench(wait_time)
 
         ping_response = verify_ping(fledge_url)
-        assert 80 == ping_response["dataRead"]
+        assert 70 == ping_response["dataRead"]
 
         asset_response = verify_asset(fledge_url, ASSET_NAME_PY35)
-        assert 80 == asset_response["count"]
+        assert 70 == asset_response["count"]
 
         reading_resp = verify_readings(fledge_url, ASSET_NAME_PY35)
         assert 2.45 == reading_resp["reading"]["sensor"]

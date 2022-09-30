@@ -1756,7 +1756,7 @@ bool ManagementClient::addStorageAssetTrackingTuple(const std::string& service,
 		convert << " \"asset\" : \"" << asset << "\", ";
 		convert << " \"event\" : \"" << event << "\", ";
 		convert << " \"deprecated\" :\"" << deprecated << "\", ";
-		convert << " \"data\"  :  { \"datapoints\" : \[ \"" << d << "\" \], ";
+		convert << " \"data\"  :  { \"datapoints\" : \[ \"" << d << "\" ], ";
 		convert << " \"count\" : " << count << " } }";
 
 		auto res = this->getHttpClient()->request("POST", "/fledge/track", convert.str());

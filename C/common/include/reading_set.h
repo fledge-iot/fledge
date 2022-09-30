@@ -71,7 +71,8 @@ class JSONReading : public Reading {
 		unsigned long	getId() const { return m_id; };
 
 	private:
-                void escapeCharacter(std::string& stringToEvaluate, std::string pattern);
+		Datapoint 	*datapoint(const std::string& name, const rapidjson::Value& json);
+                void 		escapeCharacter(std::string& stringToEvaluate, std::string pattern);
 };
 
 class ReadingSetException : public std::exception

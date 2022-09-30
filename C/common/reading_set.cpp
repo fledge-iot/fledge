@@ -402,8 +402,30 @@ Datapoint *rval = NULL;
 		// String
 		case (kStringType):
 		{
-			DatapointValue value(item.GetString());
-			rval = new Datapoint(name, value);
+			string str = item.GetString();
+			if (str[0] == '_' && str[1] == '_')
+			{
+				// special encoded type
+				size_t pos = str.find_first_of(':');
+				if (str.compare(2, 10, "DATABUFFER") == 0)
+				{
+					DataBuffer *databuffer = new Base64DataBuffer(str.substr(pos + 1));
+					DatapointValue value(databuffer);
+					rval = new Datapoint(name, value);
+				}
+				else if (str.compare(2, 7, "DPIMAGE") == 0)
+				{
+					DPImage *image = new Base64DPImage(str.substr(pos + 1));
+					DatapointValue value(image);
+					rval = new Datapoint(name, value);
+				}
+
+			}
+			else
+			{
+				DatapointValue value(item.GetString());
+				rval = new Datapoint(name, value);
+			}
 			break;
 		}
 

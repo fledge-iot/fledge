@@ -185,6 +185,40 @@ class Monitor(object):
 
                     check_count[service_record._id] = 1
 
+                self._logger.debug("step D")
+
+                # async def check_storage_process(self):
+                #     from asyncio.subprocess import PIPE, create_subprocess_exec
+                #     read1, write1 = os.pipe()
+                #     process_1 = await create_subprocess_exec('ps -ef', stdout=write1)
+                #     os.close(write1)
+                #     read2, write2 = os.pipe()
+                #     process_2 = await create_subprocess_exec('grep -v grep', stdin=read1, stdout=write2)
+                #     os.close(read1)
+                #     os.close(write2)
+                #     process_3 = await create_subprocess_exec('grep -q fledge.services.storage', stdin=read2, stdout=PIPE)
+                #     os.close(read2)
+                #     return await process_3.stdout.read()
+                #
+                # rv = await check_storage_process()
+                # self._logger.info("**** Checked for 'fledge.services.storage' entries in ps output: rv={}".format(rv))
+
+                # res = subprocess.run('ps -ef | grep -v grep | grep -q fledge.services.storage')
+                # self._logger.info("**** Checked for 'fledge.services.storage' entries in ps output, res={}, res.returncode={}"
+                #                     .format(res, res.returncode))
+
+                res = subprocess.getoutput('ps -ef | grep fledge\.services\.storage | grep -v grep | wc -l')
+                self._logger.info("**** Number of 'fledge.services.storage' entries in ps output = {}".format(res))
+
+                # check whether storage service has crashed, if so, restart it quickly rather than wait for
+                # self._max_attempts ping failures
+                if service_record._type == "Storage" and service_record._status == ServiceRecord.Status.Unresponsive:
+                        res = subprocess.getoutput('ps -ef | grep fledge.services.storage | grep -v grep | wc -l')
+                        self._logger.info("**** Number of 'fledge.services.storage' entries in ps output = {}".format(res))
+                        if res == '0':
+                            self._logger.info("****** fledge.services.storage is not running, attempting to restart it")
+                            check_count[service_record._id] = self._max_attempts + 1
+
                 if check_count[service_record._id] > self._max_attempts:
                     self._logger.debug("step 7: service_record._name={}, service_record._type={}, type(service_record._type)={}, ServiceRecord.Type.Storage={}"
                                         .format(service_record._name, service_record._type, type(service_record._type), ServiceRecord.Type.Storage))

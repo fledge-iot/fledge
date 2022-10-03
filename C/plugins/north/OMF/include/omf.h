@@ -30,7 +30,8 @@ enum OMF_ENDPOINT {
 	ENDPOINT_PIWEB_API,
 	ENDPOINT_CR,
 	ENDPOINT_OCS,
-	ENDPOINT_EDS
+	ENDPOINT_EDS,
+	ENDPOINT_ADH
 };
 
 // Documentation about the Naming Scheme available at: https://fledge-iot.readthedocs.io/en/latest/OMF.html#naming-scheme

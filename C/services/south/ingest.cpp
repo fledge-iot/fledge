@@ -60,7 +60,7 @@ int Ingest::createStatsDbEntry(const string& assetName)
 	string statistics_key = assetName;
 	for (auto & c: statistics_key) c = toupper(c);
 	
-	// SELECT * FROM fledge.configuration WHERE key = categoryName
+	// SELECT * FROM fledge.statiatics WHERE key = statistics_key
 	const Condition conditionKey(Equals);
 	Where *wKey = new Where("key", conditionKey, statistics_key);
 	Query qKey(wKey);
@@ -215,11 +215,27 @@ void Ingest::updateStats()
 	try {
 		int rv = m_storage.updateTable("statistics", statsUpdates);
 		
-		if (rv<0)
-			Logger::getLogger()->info("%s:%d : Update stats failed, rv=%d", __FUNCTION__, __LINE__, rv);
+		if (rv < 0)
+		{
+			if (++m_statsUpdateFails > STATS_UPDATE_FAIL_THRESHOLD)
+			{
+				Logger::getLogger()->warn("Update of statistics failure has persisted, attempting recovery");
+				createServiceStatsDbEntry();
+				statsDbEntriesCache.clear();
+				m_statsUpdateFails = 0;
+			}
+			else if (m_statsUpdateFails == 1)
+			{
+				Logger::getLogger()->warn("Update of statistics failed");
+			}
+			else
+			{
+				Logger::getLogger()->warn("Update of statistics still failing");
+			}
+		}
 		else
 		{
-			m_discardedReadings=0;
+			m_discardedReadings = 0;
 			statsPendingEntries.clear();
 		}
 	}

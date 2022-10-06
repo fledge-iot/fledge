@@ -699,11 +699,11 @@ fledge_healthcheck() {
 	status=$?
 	if [ $status -ne 0 ]; then
 		echo The rsyslog service does not appear to be running on the machine
-		echo No log entries will be seen on this machine, plesse restart the service.
+		echo No log entries will be seen on this machine, plesse restart the Linux service.
 		echo
 	fi
 
-	month=`date +%Y-%m`
+	month=`date +%Y-%m-%d`
 	if [[ "${auth}" == "required" ]]; then
 		result=`curl -k -s -H "authorization: $token" ${REST_API_URL}/fledge/audit?source=SRVFL`
 	else
@@ -711,11 +711,39 @@ fledge_healthcheck() {
 	fi
 	a=`echo $result | jq '.audit[] | select (.timestamp|test("'$month'.")) .details.name'`
 	if [ "$a" != "" ]; then
-		echo The services have failed at least once this month
+		echo Some services have failed at least once today
 		echo Failures    Service
 		echo $a | sort | uniq -c
 		echo
 	fi
+
+	echo Service State
+	issue=none
+	if [[ "${auth}" == "required" ]]; then
+		result=`curl -k -s -H "authorization: $token" ${REST_API_URL}/fledge/service`
+	else
+		result=`curl -s ${REST_API_URL}/fledge/service`
+	fi
+	a=`echo $result | jq '.services[] | select (.status == "unresponsive") .name'`
+	if [[ "$a" != "" ]]; then
+		echo The services %s are unresponsive
+		issue="some"
+	fi
+	a=`echo $result | jq '.services[] | select (.status == "failed") .name'`
+	if [[ "$a" != "" ]]; then
+		echo The services $a have failed
+		issue="some"
+	fi
+	a=`echo $result | jq '.services[] | select (.status == "shutdown") .name'`
+	if [[ "$a" != "" ]]; then
+		echo The services $a are shutdown
+		issue="some"
+	fi
+	if [[ "$issue" == "none" ]]; then
+		echo All services are running
+	fi
+	echo
+
 	echo Healthcheck completed
 }
 

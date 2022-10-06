@@ -16,13 +16,13 @@
 ## limitations under the License.
 ##--------------------------------------------------------------------
 
-set -e
+#set -e
 #set -x
 
 #
 # This is the startup script for fledge
 #
-USAGE="Usage: `basename ${0}` {start|start --safe-mode|stop|status|reset|purge|kill|help|version}"
+USAGE="Usage: `basename ${0}` {start|start --safe-mode|stop|status|reset|purge|kill|healthcheck|help|version}"
 
 # Check FLEDGE_ROOT
 if [ -z ${FLEDGE_ROOT+x} ]; then
@@ -616,6 +616,7 @@ Arguments:
  stop              - Stop all Fledge services and processes
  kill              - Kill all Fledge services and processes
  status            - Show the status for the Fledge services
+ healthcheck       - Perform a number of checks on the health of the system, Fledge must be running
  reset             - Restore Fledge factory settings
                      WARNING! This command will destroy all your data!
  purge             - Purge all readings data and non-configuration data.
@@ -634,6 +635,64 @@ fledge_purge() {
 
     # Purge data
     source "$FLEDGE_ROOT/scripts/storage" purge
+}
+
+# Perform a healthcheck on the Fledge instance
+fledge_healthcheck() {
+
+	result=`fledge_status "silent"`
+	if [[ $result != "0" ]]; then
+		fledge_log "info" "Fledge appears not to be running, healthcheck should be performed on a running system . Start Fledge first." "all" "pretty"
+		exit 0
+	fi
+
+	echo Fledge Healthcheck
+	echo ==================
+	echo
+
+	a=`curl -s ${REST_API_URL}/fledge/health/logging |jq '.levels[] | {name,level}' | jq 'select (.level == "info") .name'`
+	if [ "$a" != "" ]; then
+		echo The following services have a logging level set to info, $a
+		echo This is probably too high and may result in large log files
+		echo
+	fi
+
+	a=`curl -s ${REST_API_URL}/fledge/health/logging |jq '.levels[] | {name,level}' | jq 'select (.level == "debug") .name'`
+	if [ "$a" != "" ]; then
+		echo The following services have a logging level set to debug $a
+		echo This is probably too high and may result in large log files
+		echo
+	fi
+
+	a=`curl -s ${REST_API_URL}/fledge/health/logging |jq 'select (.disk.usage > 80) .disk.usage'`
+	if [ "$a" != "" ]; then
+		echo The disk space in the logging directory is low, $a%
+		echo
+	fi
+
+	a=`curl -s ${REST_API_URL}/fledge/health/storage |jq 'select (.disk.usage > 80) .disk.usage'`
+	if [ "$a" != "" ]; then
+		echo The disk space in the storage directory is low, $a%
+		echo
+	fi
+
+	service rsyslog status >/dev/null
+	status=$?
+	if [ $status -ne 0 ]; then
+		echo The rsyslog service does not appear to be running on the machine
+		echo No log entries will be seen on this machine, plesse restart the service.
+		echo
+	fi
+
+	month=`date +%Y-%m`
+	a=`curl -s ${REST_API_URL}/fledge/audit?source=SRVFL | jq '.audit[] | select (.timestamp|test("'$month'.")) .details.name'`
+	if [ "$a" != "" ]; then
+		echo The services have failed at least once this month
+		echo Failures    Service
+		echo $a | sort | uniq -c
+		echo
+	fi
+	echo Healthcheck completed
 }
 
 ### Main Logic ###
@@ -735,6 +794,9 @@ case "$1" in
         ;;
     purge)
         fledge_purge
+        ;;
+    healthcheck)
+        fledge_healthcheck
         ;;
     help)
         fledge_help

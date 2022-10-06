@@ -726,7 +726,7 @@ fledge_healthcheck() {
 	fi
 	a=`echo $result | jq '.services[] | select (.status == "unresponsive") .name'`
 	if [[ "$a" != "" ]]; then
-		echo The services %s are unresponsive
+		echo The services $a are unresponsive
 		issue="some"
 	fi
 	a=`echo $result | jq '.services[] | select (.status == "failed") .name'`

@@ -650,28 +650,47 @@ fledge_healthcheck() {
 	echo ==================
 	echo
 
-	a=`curl -s ${REST_API_URL}/fledge/health/logging |jq '.levels[] | {name,level}' | jq 'select (.level == "info") .name'`
-	if [ "$a" != "" ]; then
+	auth="optional"
+	result=`curl -k -s ${REST_API_URL}/fledge/health/logging`
+
+	if [[ "${result}" == "401"* ]]; then
+		token=`fledge_authenticate`
+		if [[ "${token}" =~ "failed" ]]; then
+			fledge_log "info" "Failed authentication when attempting to stop fledge." "all" "pretty"
+			echo "Authentication failed."
+			exit 0
+		fi
+		result=`curl -k -s -H "authorization: $token" ${REST_API_URL}/fledge/health/logging`
+		auth="required"
+	fi
+
+	a=`echo $result | jq '.levels[] | {name,level}' | jq 'select (.level == "info") .name'`
+	if [[ "$a" != "" ]]; then
 		echo The following services have a logging level set to info, $a
 		echo This is probably too high and may result in large log files
 		echo
 	fi
 
-	a=`curl -s ${REST_API_URL}/fledge/health/logging |jq '.levels[] | {name,level}' | jq 'select (.level == "debug") .name'`
-	if [ "$a" != "" ]; then
+	a=`echo $result |jq '.levels[] | {name,level}' | jq 'select (.level == "debug") .name'`
+	if [[ "$a" != "" ]]; then
 		echo The following services have a logging level set to debug $a
 		echo This is probably too high and may result in large log files
 		echo
 	fi
 
-	a=`curl -s ${REST_API_URL}/fledge/health/logging |jq 'select (.disk.usage > 80) .disk.usage'`
-	if [ "$a" != "" ]; then
+	a=`echo $result |jq 'select (.disk.usage > 80) .disk.usage'`
+	if [[ "$a" != "" ]]; then
 		echo The disk space in the logging directory is low, $a%
 		echo
 	fi
 
-	a=`curl -s ${REST_API_URL}/fledge/health/storage |jq 'select (.disk.usage > 80) .disk.usage'`
-	if [ "$a" != "" ]; then
+	if [[ "${auth}" == "required" ]]; then
+		result=`curl -k -s -H "authorization: $token" ${REST_API_URL}/fledge/health/storage`
+	else
+		result=`curl -s ${REST_API_URL}/fledge/health/storage`
+	fi
+	a=`echo $result |jq 'select (.disk.usage > 80) .disk.usage'`
+	if [[ "$a" != "" ]]; then
 		echo The disk space in the storage directory is low, $a%
 		echo
 	fi
@@ -685,7 +704,12 @@ fledge_healthcheck() {
 	fi
 
 	month=`date +%Y-%m`
-	a=`curl -s ${REST_API_URL}/fledge/audit?source=SRVFL | jq '.audit[] | select (.timestamp|test("'$month'.")) .details.name'`
+	if [[ "${auth}" == "required" ]]; then
+		result=`curl -k -s -H "authorization: $token" ${REST_API_URL}/fledge/audit?source=SRVFL`
+	else
+		result=`curl -s ${REST_API_URL}/fledge/audit?source=SRVFL`
+	fi
+	a=`echo $result | jq '.audit[] | select (.timestamp|test("'$month'.")) .details.name'`
 	if [ "$a" != "" ]; then
 		echo The services have failed at least once this month
 		echo Failures    Service

@@ -1170,9 +1170,9 @@ class Scheduler(object):
                 bypass_check = True if previous_enabled != schedule.enabled else None
 
             if is_enabled_modified is True:
-                await self.enable_schedule(schedule.schedule_id, bypass_check=bypass_check, record_audit_trail=False)
+                await self.enable_schedule(schedule.schedule_id, bypass_check=bypass_check, record_audit_trail=is_new_schedule)
             else:
-                await self.disable_schedule(schedule.schedule_id, bypass_check=bypass_check, record_audit_trail=False)
+                await self.disable_schedule(schedule.schedule_id, bypass_check=bypass_check, record_audit_trail=is_new_schedule)
 
     async def remove_service_from_task_processes(self, service_name):
         """

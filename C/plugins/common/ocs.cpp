@@ -96,8 +96,6 @@ std::string OCS::retrieveToken(const string& clientId, const string& clientSecre
 	StringReplace(payload, "CLIENT_ID_PLACEHOLDER",        urlEncode(clientId));
 	StringReplace(payload, "CLIENT_SECRET_ID_PLACEHOLDER", urlEncode(clientSecret));
 
-	Logger::getLogger()->fatal("FIXME: Encoded payload is %s", payload.c_str());
-
 	// Anonymous auth
 	string authMethod = "a";
 	endPoint->setAuthMethod (authMethod);

@@ -54,16 +54,16 @@ class StorageClientAsync(AbstractStorage):
         try:
             if svc:
                 self.service = svc
-                _LOGGER.info("StorageClientAsync: __init__: self.service={}".format(self.service))
+                # _LOGGER.info("StorageClientAsync: __init__: self.service={}".format(self.service))
             else:
                 self.connect(core_management_host, core_management_port)
-                _LOGGER.info("StorageClientAsync: __init__: self.connect: host={}, port={}".format(
-                                core_management_host, core_management_port))
+                # _LOGGER.info("StorageClientAsync: __init__: self.connect: host={}, port={}".format(
+                #                 core_management_host, core_management_port))
 
             self.base_url = '{}:{}'.format(self.service._address, self.service._port)
             self.management_api_url = '{}:{}'.format(self.service._address, self.service._management_port)
-            _LOGGER.info("StorageClientAsync: __init__: SERVICE: self.base_url={}".format(self.base_url))
-            _LOGGER.info("StorageClientAsync: __init__: MGMT: self.management_api_url={}".format(self.management_api_url))
+            # _LOGGER.info("StorageClientAsync: __init__: SERVICE: self.base_url={}".format(self.base_url))
+            # _LOGGER.info("StorageClientAsync: __init__: MGMT: self.management_api_url={}".format(self.management_api_url))
         except Exception:
             raise InvalidServiceInstance
 

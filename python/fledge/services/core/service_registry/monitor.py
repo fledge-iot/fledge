@@ -36,7 +36,7 @@ class Monitor(object):
     _DEFAULT_PING_TIMEOUT = 1
     """Timeout for a response from any given micro-service"""
 
-    _DEFAULT_MAX_ATTEMPTS = 3
+    _DEFAULT_MAX_ATTEMPTS = 15
 
     _DEFAULT_RESTART_FAILED = "auto"
     """Restart failed microservice - manual/auto"""
@@ -185,7 +185,7 @@ class Monitor(object):
 
                     check_count[service_record._id] = 1
 
-                self._logger.debug("step D")
+                # self._logger.debug("step D")
 
                 # async def check_storage_process(self):
                 #     from asyncio.subprocess import PIPE, create_subprocess_exec
@@ -207,8 +207,8 @@ class Monitor(object):
                 # self._logger.info("**** Checked for 'fledge.services.storage' entries in ps output, res={}, res.returncode={}"
                 #                     .format(res, res.returncode))
 
-                res = subprocess.getoutput('ps -ef | grep fledge\.services\.storage | grep -v grep | wc -l')
-                self._logger.info("**** Number of 'fledge.services.storage' entries in ps output = {}".format(res))
+                # res = subprocess.getoutput('ps -ef | grep fledge\.services\.storage | grep -v grep | wc -l')
+                # self._logger.info("**** Number of 'fledge.services.storage' entries in ps output = {}".format(res))
 
                 # check whether storage service has crashed, if so, restart it quickly rather than wait for
                 # self._max_attempts ping failures

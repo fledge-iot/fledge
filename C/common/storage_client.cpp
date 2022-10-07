@@ -18,6 +18,7 @@
 #include <string>
 #include <sstream>
 #include <iostream>
+#include <fstream>
 #include <thread>
 #include <map>
 #include <string_utils.h>
@@ -39,6 +40,11 @@ using HttpClient = SimpleWeb::Client<SimpleWeb::HTTP>;
 
 // handles m_client_map access
 std::mutex sto_mtx_client_map;
+
+bool storage_service_restarted = false;
+std::ostringstream storage_service_urlbase;
+std::string storage_service_host;
+
 
 /**
  * Storage Client constructor
@@ -97,6 +103,7 @@ HttpClient *StorageClient::getHttpClient(void) {
 	if (item  == m_client_map.end() ) {
 
 		// Adding a new HttpClient
+		m_logger->info("StorageClient: Instantiating a new HttpClient object: m_urlbase=%s", m_urlbase.str().c_str());
 		client = new HttpClient(m_urlbase.str());
 		m_client_map[thread_id] = client;
 		m_seqnum_map[thread_id].store(0);
@@ -111,6 +118,36 @@ HttpClient *StorageClient::getHttpClient(void) {
 
 	return (client);
 }
+
+/**
+ * Handle storage service restart
+ */
+void StorageClient::handle_storage_service_restart()
+{
+	if (storage_service_restarted)
+	{
+		storage_service_restarted = false;
+		for (auto & item : m_client_map)
+		{
+			delete item.second;
+		}
+		m_client_map.clear();
+		m_seqnum_map.clear();
+		
+		m_host = storage_service_host;
+		m_urlbase.str("");
+		m_urlbase << storage_service_urlbase.str();
+		storage_service_urlbase.str("");
+		storage_service_host = "";
+
+		/* else
+		{
+			m_logger->fatal("Unable to connect to storage service even after restart, exiting...");
+			exit(1);
+		}*/
+	}
+}
+
 
 /**
  * Append a single reading
@@ -225,7 +262,9 @@ bool StorageClient::readingAppend(const vector<Reading *>& readings)
 		handleUnexpectedResponse("Append readings", res->status_code, resultPayload.str());
 		return false;
 	} catch (exception& ex) {
+		m_logger->info("Exception raised during 'append readings': %s", ex.what());
 		handleException(ex, "append readings");
+		handle_storage_service_restart();
 	}
 	return false;
 }
@@ -1498,17 +1537,68 @@ void StorageClient::handleException(const exception& ex, const char *operation, 
 	// Now implement some recovery strategies
 	if (m_lastException.compare("Connection refused") == 0)
 	{
+		m_logger->error("Storage client: got Connection refused exception, retrying connecting to storage service");
+		int tries = 0;
+		int max_tries = 30;
+		
 		// This is probably because the storage service has gone down
 		if (m_management)
 		{
-			// Get a handle on the storage layer
 			ServiceRecord storageRecord("Fledge Storage");
-			if (!m_management->getService(storageRecord))
+			do
+			{
+				system("ps -ef | grep fledge.services.storage | grep -v grep | wc -l > /tmp/storage_service_instance_count");
+				std::ifstream ifs("/tmp/storage_service_instance_count");
+  				std::string content( (std::istreambuf_iterator<char>(ifs) ),
+                       				 (std::istreambuf_iterator<char>() ));
+				unsigned long count = std::stoul (content, nullptr, 0);
+				system("rm -f /tmp/storage_service_instance_count");
+				if (count == 0)
+				{
+					tries++;
+					m_logger->info("Storage service is still down, tries=%d, waiting...", tries);
+					sleep(1);
+					continue;
+				}
+				else
+					m_logger->info("Storage service is running...");
+				
+				// Get a handle on the storage layer
+				bool rv = m_management->getService(storageRecord);
+				if (rv)
+				{
+					string svc;
+					storageRecord.asJSON(svc);
+					m_logger->info("Storage client: reconnecting to storage service in 10 secs : svc=%s", svc.c_str());
+					sleep(10);  // fix this
+					storage_service_restarted = true;
+					storage_service_urlbase.str("");
+					storage_service_urlbase << storageRecord.getAddress() << ":" << storageRecord.getPort();
+					storage_service_host = storageRecord.getAddress();
+					return;
+				}
+				tries++;
+				m_logger->info("Storage client: Unable to reconnect to storage service, tries=%d", tries);
+				sleep(1);
+			}
+			while(tries < max_tries);
+			
+			if (tries >= max_tries)
 			{
 				m_logger->fatal("Unable to find a storage service from service registry, exiting...");
 				exit(1);
 			}
-			m_urlbase << storageRecord.getAddress() << ":" << storageRecord.getPort();
+			else
+			{
+				m_urlbase.str("");
+				m_urlbase << storageRecord.getAddress() << ":" << storageRecord.getPort();
+				m_logger->info("Storage client: Re-connecting to Storage service @ %s", m_urlbase.str().c_str());
+
+				m_logger->info("Storage client: Deleting all HttpClient objects stored in the client map");
+
+				m_logger->info("Storage service was restarted, cannot complete ongoing request");
+				return;
+			}
 		}
 		if (m_exRepeat >= SC_INITIAL_BACKOFF * 2)
 		{

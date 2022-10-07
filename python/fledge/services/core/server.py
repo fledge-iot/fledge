@@ -870,16 +870,31 @@ class Server:
             await cls._start_service_monitor()
             _logger.info("**** restart_storage(): step 5.7.4")
 
+            # Get the service data and advertise the management port of the core
+            # to allow other microservices to find Fledge
+            # await cls.service_config()
+            # _logger.info("**** restart_storage(): step 6.1")
+            # _logger.info('Announce management API service')
+            # cls.management_announcer = ServiceAnnouncer("core-{}".format(cls._service_name), cls._MANAGEMENT_SERVICE,
+            #                                             cls.core_management_port,
+            #                                             ['The Fledge Core REST API'])
+            # _logger.info("**** restart_storage(): step 6.2")
+
             cls._asset_tracker = None
-            _logger.info("**** restart_storage(): step 6")
+            _logger.info("**** restart_storage(): step 7")
             await cls._start_asset_tracker()
             #await asyncio.sleep(0.1)
 
+            cls._audit.reset()
+            _logger.info("**** restart_storage(): step 8.1")
             cls._audit = None
-            _logger.info("**** restart_storage(): step 7")
+            _logger.info("**** restart_storage(): step 8.2")
             cls._audit = AuditLogger(cls._storage_client_async)
             _logger.info("restart_storage(): AuditLogger instantiated again")
             # await asyncio.sleep(0.1)
+
+            audit_msg = {"message": "Storage service restarted"}
+            await cls._audit.information('START', audit_msg)
 
         except Exception as e:
             sys.stderr.write('Error: ' + format(str(e)) + "\n")

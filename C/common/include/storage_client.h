@@ -91,6 +91,7 @@ class StorageClient {
 		HttpClient 	*getHttpClient(void);
 		bool		openStream();
 		bool		streamReadings(const std::vector<Reading *> & readings);
+		void 		handle_storage_service_restart();
 
 		std::ostringstream 			m_urlbase;
 		std::string				m_host;

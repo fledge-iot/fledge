@@ -74,12 +74,15 @@ HttpClient *ManagementClient::getHttpClient() {
 
 	std::thread::id thread_id = std::this_thread::get_id();
 
+	// m_logger->info("ManagementClient: Checking for HttpClient object: m_urlbase=%s", m_urlbase.str().c_str());
+	
 	m_mtx_client_map.lock();
 	item = m_client_map.find(thread_id);
 
 	if (item  == m_client_map.end() ) {
 
 		// Adding a new HttpClient
+		m_logger->info("ManagementClient: Instantiating a new HttpClient object: m_urlbase=%s", m_urlbase.str().c_str());
 		client = new HttpClient(m_urlbase.str());
 		m_client_map[thread_id] = client;
 	}
@@ -858,7 +861,7 @@ std::vector<AssetTrackingTuple*>& ManagementClient::getAssetTrackingTuples(const
 			return (*vec);
 		}
 	} catch (const SimpleWeb::system_error &e) {
-		m_logger->error("Fetch/parse of asset tracking tuples for service %s failed: %s.", serviceName.c_str(), e.what());
+		m_logger->error("%s: Fetch/parse of asset tracking tuples for service %s failed: %s.", __FUNCTION__, serviceName.c_str(), e.what());
 		//throw;
 	}
 	catch (...) {
@@ -1487,7 +1490,8 @@ AssetTrackingTuple* ManagementClient::getAssetTrackingTuple(const std::string& s
 			return tuple;
 		}
 	} catch (const SimpleWeb::system_error &e) {
-		m_logger->error("Fetch/parse of asset tracking tuples for service %s failed: %s.",
+		m_logger->error("%s: Fetch/parse of asset tracking tuples for service %s failed: %s.",
+				__FUNCTION__,
 				serviceName.c_str(),
 				e.what());
 	} catch (...) {
@@ -1758,7 +1762,7 @@ bool ManagementClient::addStorageAssetTrackingTuple(const std::string& service,
 		convert << " \"asset\" : \"" << asset << "\", ";
 		convert << " \"event\" : \"" << event << "\", ";
 		convert << " \"deprecated\" :\"" << deprecated << "\", ";
-		convert << " \"data\"  :  { \"datapoints\" : \[ \"" << d << "\" \], ";
+		convert << " \"data\"  :  { \"datapoints\" : \[ \"" << d << "\" ], ";
 		convert << " \"count\" : " << count << " } }";
 
 		auto res = this->getHttpClient()->request("POST", "/fledge/track", convert.str());

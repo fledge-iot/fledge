@@ -45,6 +45,9 @@ class AuditLogger(AuditLoggerSingleton):
     _storage = None
     """ The storage client we should use to talk to the storage service """
 
+    def reset(self):
+        self._storage = None
+
     def __init__(self, storage=None):
         AuditLoggerSingleton.__init__(self)
         if self._storage is None:

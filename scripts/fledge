@@ -646,6 +646,8 @@ fledge_healthcheck() {
 		exit 0
 	fi
 
+	export PYTHON_PATH=${FLEDGE_ROOT}
+
 	echo Fledge Healthcheck
 	echo ==================
 	echo
@@ -664,7 +666,7 @@ fledge_healthcheck() {
 		auth="required"
 	fi
 
-	a=`echo $result | jq '.levels[] | {name,level}' | jq 'select (.level == "info") .name'`
+	a=`echo $result | python3 -m scripts.common.loglevel info`
 	if [[ "$a" != "" ]]; then
 		echo The following services have a logging level set to info:
 	        for i in $a; do
@@ -674,7 +676,7 @@ fledge_healthcheck() {
 		echo
 	fi
 
-	a=`echo $result |jq '.levels[] | {name,level}' | jq 'select (.level == "debug") .name'`
+	a=`echo $result | python3 -m scripts.common.loglevel debug`
 	if [[ "$a" != "" ]]; then
 		echo The following services have a logging level set to debug:
 	        for i in $a; do
@@ -684,7 +686,7 @@ fledge_healthcheck() {
 		echo
 	fi
 
-	a=`echo $result |jq 'select (.disk.usage > 80) .disk.usage'`
+	a=`echo $result | python3 -m scripts.common.disk_usage 80`
 	if [[ "$a" != "" ]]; then
 		echo The disk space in the logging directory is low, $a%
 		echo
@@ -695,13 +697,13 @@ fledge_healthcheck() {
 	else
 		result=`curl -s ${REST_API_URL}/fledge/health/storage`
 	fi
-	a=`echo $result |jq 'select (.disk.usage > 80) .disk.usage'`
+	a=`echo $result | python3 -m scripts.common.disk_usage 80`
 	if [[ "$a" != "" ]]; then
 		echo The disk space in the storage directory is low, $a%
 		echo
 	fi
 
-	# the && touch is a trick to defeat the fact we have doen a set -e
+	# the && touch is a trick to defeat the fact we have done a set -e
 	service rsyslog status >/dev/null && touch /dev/null
 	status=$?
 	if [ $status -ne 0 ]; then
@@ -717,12 +719,13 @@ fledge_healthcheck() {
 		result=`curl -s ${REST_API_URL}/fledge/audit?source=SRVFL`
 	fi
 	tmpname=/tmp/fledge.$$
-	echo $result | jq '.audit[] | select (.timestamp|test("'$month'.")) .details.name' | sort | uniq -c >$tmpname
+	#echo $result | jq '.audit[] | select (.timestamp|test("'$month'.")) .details.name' | sort | uniq -c >$tmpname
+	echo $result | python3 -m scripts.common.audittime $month | sort | uniq -c >$tmpname
 	if [[ -s $tmpname ]]; then
 		echo Some services have failed at least once today
 		echo "No. Failures  |  Service"
 		echo "--------------+--------------------"
-		sed -e 's/"/      |  /' -e 's/"//'  $tmpname
+		sed -E 's/([0-9]) /      \1 | /' $tmpname
 		echo
 	fi
 	rm $tmpname
@@ -734,7 +737,8 @@ fledge_healthcheck() {
 	else
 		result=`curl -s ${REST_API_URL}/fledge/service`
 	fi
-	a=`echo $result | jq '.services[] | select (.status == "unresponsive") .name'`
+#	a=`echo $result | jq '.services[] | select (.status == "unresponsive") .name'`
+	a=`echo $result | python3 -m scripts.common.service_status unresponsive`
 	if [[ "$a" != "" ]]; then
 		echo The following services are unresponsive:
 	        for i in $a; do
@@ -742,7 +746,8 @@ fledge_healthcheck() {
 		done
 		issue="some"
 	fi
-	a=`echo $result | jq '.services[] | select (.status == "failed") .name'`
+	#a=`echo $result | jq '.services[] | select (.status == "failed") .name'`
+	a=`echo $result | python3 -m scripts.common.service_status failed`
 	if [[ "$a" != "" ]]; then
 		echo The following services have failed:
 	        for i in $a; do
@@ -750,7 +755,8 @@ fledge_healthcheck() {
 		done
 		issue="some"
 	fi
-	a=`echo $result | jq '.services[] | select (.status == "shutdown") .name'`
+#	a=`echo $result | jq '.services[] | select (.status == "shutdown") .name'`
+	a=`echo $result | python3 -m scripts.common.service_status shutdown`
 	if [[ "$a" != "" ]]; then
 		echo The following services are shutdown:
 	        for i in $a; do

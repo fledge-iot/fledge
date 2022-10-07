@@ -16,7 +16,7 @@
 ## limitations under the License.
 ##--------------------------------------------------------------------
 
-#set -e
+set -e
 #set -x
 
 #
@@ -666,14 +666,20 @@ fledge_healthcheck() {
 
 	a=`echo $result | jq '.levels[] | {name,level}' | jq 'select (.level == "info") .name'`
 	if [[ "$a" != "" ]]; then
-		echo The following services have a logging level set to info, $a
+		echo The following services have a logging level set to info:
+	        for i in $a; do
+			echo $i | sed -e s/\"//g -e 's/^/    /'
+		done
 		echo This is probably too high and may result in large log files
 		echo
 	fi
 
 	a=`echo $result |jq '.levels[] | {name,level}' | jq 'select (.level == "debug") .name'`
 	if [[ "$a" != "" ]]; then
-		echo The following services have a logging level set to debug $a
+		echo The following services have a logging level set to debug:
+	        for i in $a; do
+			echo $i | sed -e s/\"//g -e 's/^/    /'
+		done
 		echo This is probably too high and may result in large log files
 		echo
 	fi
@@ -695,7 +701,8 @@ fledge_healthcheck() {
 		echo
 	fi
 
-	service rsyslog status >/dev/null
+	# the && touch is a trick to defeat the fact we have doen a set -e
+	service rsyslog status >/dev/null && touch /dev/null
 	status=$?
 	if [ $status -ne 0 ]; then
 		echo The rsyslog service does not appear to be running on the machine
@@ -709,13 +716,16 @@ fledge_healthcheck() {
 	else
 		result=`curl -s ${REST_API_URL}/fledge/audit?source=SRVFL`
 	fi
-	a=`echo $result | jq '.audit[] | select (.timestamp|test("'$month'.")) .details.name'`
-	if [ "$a" != "" ]; then
+	tmpname=/tmp/fledge.$$
+	echo $result | jq '.audit[] | select (.timestamp|test("'$month'.")) .details.name' | sort | uniq -c >$tmpname
+	if [[ -s $tmpname ]]; then
 		echo Some services have failed at least once today
-		echo Failures    Service
-		echo $a | sort | uniq -c
+		echo "No. Failures  |  Service"
+		echo "--------------+--------------------"
+		sed -e 's/"/      |  /' -e 's/"//'  $tmpname
 		echo
 	fi
+	rm $tmpname
 
 	echo Service State
 	issue=none
@@ -726,17 +736,26 @@ fledge_healthcheck() {
 	fi
 	a=`echo $result | jq '.services[] | select (.status == "unresponsive") .name'`
 	if [[ "$a" != "" ]]; then
-		echo The services $a are unresponsive
+		echo The following services are unresponsive:
+	        for i in $a; do
+			echo $i | sed -e s/\"//g -e 's/^/    /'
+		done
 		issue="some"
 	fi
 	a=`echo $result | jq '.services[] | select (.status == "failed") .name'`
 	if [[ "$a" != "" ]]; then
-		echo The services $a have failed
+		echo The following services have failed:
+	        for i in $a; do
+			echo $i | sed -e s/\"//g -e 's/^/    /'
+		done
 		issue="some"
 	fi
 	a=`echo $result | jq '.services[] | select (.status == "shutdown") .name'`
 	if [[ "$a" != "" ]]; then
-		echo The services $a are shutdown
+		echo The following services are shutdown:
+	        for i in $a; do
+			echo $i | sed -e s/\"//g -e 's/^/    /'
+		done
 		issue="some"
 	fi
 	if [[ "$issue" == "none" ]]; then

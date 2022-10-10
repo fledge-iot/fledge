@@ -144,7 +144,7 @@ async def get_audit_entries(request):
 
         curl -X GET http://localhost:8081/fledge/audit?limit=5
 
-        curl -X GET http://localhost:8081/fledge/audit?limit=5&skip=3
+        curl -X GET "http://localhost:8081/fledge/audit?limit=5&skip=3"
 
         curl -X GET http://localhost:8081/fledge/audit?skip=2
 
@@ -153,7 +153,9 @@ async def get_audit_entries(request):
         curl -X GET http://localhost:8081/fledge/audit?source=NTFSD,NTFSN,NTFAD,NTFST,NTFDL,NTFCL
         curl -X GET http://localhost:8081/fledge/audit?severity=FAILURE
 
-        curl -X GET http://localhost:8081/fledge/audit?source=LOGGN&severity=INFORMATION&limit=10
+        curl -X GET "http://localhost:8081/fledge/audit?source=LOGGN&severity=INFORMATION&limit=10"
+
+        curl -X GET "http://localhost:8081/fledge/audit?source=CONAD&since=2022-10-10%2009:31:32"
     """
 
     limit = __DEFAULT_LIMIT
@@ -173,6 +175,15 @@ async def get_audit_entries(request):
                 raise ValueError
         except ValueError:
             raise web.HTTPBadRequest(reason="Skip/Offset must be a positive integer")
+
+    # If microsend is required then add .%f into the __DATE_FORMAT & remove the split from datetime string conversion
+    __DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
+    if 'since' in request.query and request.query['since'] != '':
+        try:
+            datetime.strptime(request.query['since'], __DATE_FORMAT)
+        except ValueError:
+            msg = "Incorrect date format, should be {}".format(__DATE_FORMAT)
+            raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
 
     source = None
     source_list = []
@@ -235,21 +246,30 @@ async def get_audit_entries(request):
 
         # SELECT * FROM log <payload.payload()>
         results = await storage_client.query_tbl_with_payload('log', payload.payload())
+        rows = results['rows']
+        # If 'since' datetime string param is passed then filter the records internally from the actual storage result
+        if 'since' in request.query:
+            since_dt = datetime.strptime(request.query['since'].split('.', 1)[0], __DATE_FORMAT)
+            temp_rows = []
+            for row in results["rows"]:
+                convert_dt = datetime.strptime(row['timestamp'].split('.', 1)[0], __DATE_FORMAT)
+                if since_dt <= convert_dt:
+                    temp_rows.append(row)
+            rows = temp_rows
+            total_count = len(rows)
         res = []
-        for row in results['rows']:
+        for row in rows:
             r = dict()
             r["details"] = row["log"]
             severity_level = int(row["level"])
             r["severity"] = Severity(severity_level).name if severity_level in (0, 1, 2, 4) else "UNKNOWN"
             r["source"] = row["code"]
             r["timestamp"] = row["timestamp"]
-
             res.append(r)
-
     except Exception as ex:
         raise web.HTTPInternalServerError(reason=str(ex))
-
-    return web.json_response({'audit': res, 'totalCount': total_count})
+    else:
+        return web.json_response({'audit': res, 'totalCount': total_count})
 
 
 async def get_audit_log_codes(request):

@@ -12,6 +12,7 @@ import json
 import logging
 import subprocess
 import os
+import traceback
 from fledge.common import logger
 from fledge.common.audit_logger import AuditLogger
 from fledge.common.configuration_manager import ConfigurationManager
@@ -43,8 +44,13 @@ class Monitor(object):
 
     _logger = None
 
+    def reset(self):
+        self._monitor_loop_task = None
+
     def __init__(self):
         self._logger = logger.setup(__name__, level=logging.DEBUG)
+
+        self._logger.debug("Monitor: __init__(): traceback={}".format(traceback.extract_stack()))
 
         self._monitor_loop_task = None  # type: asyncio.Task
         """Task for :meth:`_monitor_loop`, to ensure it has finished"""
@@ -102,6 +108,7 @@ class Monitor(object):
             round_cnt += 1
             self._logger.debug("Starting next round#{} of service monitoring, sleep/i:{} ping/t:{} max/a:{}".format(
                 round_cnt, self._sleep_interval, self._ping_timeout, self._max_attempts))
+            self._logger.debug("ServiceRegistry has {} entries: {}".format(len(ServiceRegistry.all()), ServiceRegistry.all()))
             for service_record in ServiceRegistry.all():
                 # self._logger.debug("service_record={}, check_count={}".format(service_record, check_count))
                 if service_record._id not in check_count:
@@ -289,10 +296,16 @@ class Monitor(object):
 
     async def start(self):
         await self._read_config()
+        self._logger.debug("START: _monitor_loop")
         self._monitor_loop_task = asyncio.ensure_future(self._monitor_loop())
 
     async def stop(self):
         try:
             self._monitor_loop_task.cancel()
+            self._logger.debug("STOP: _monitor_loop")
         except asyncio.CancelledError:
+            self._logger.debug("STOP: _monitor_loop: EXCEPTION")
+            pass
+        except Exception as ex:
+            self._logger.debug("STOP: _monitor_loop: EXCEPTION:{}".format(str(ex)))
             pass

@@ -171,6 +171,7 @@ bool StorageClient::readingAppend(Reading& reading)
 		return false;
 	} catch (exception& ex) {
 		handleException(ex, "append reading");
+		handle_storage_service_restart();
 	}
 	return false;
 }
@@ -294,9 +295,11 @@ ResultSet *StorageClient::readingQuery(const Query& query)
 		handleUnexpectedResponse("Query readings", res->status_code, resultPayload.str());
 	} catch (exception& ex) {
 		handleException(ex, "query readings");
+		handle_storage_service_restart();
 		throw;
 	} catch (exception* ex) {
 		handleException(*ex, "query readings");
+		handle_storage_service_restart();
 		delete ex;
 		throw exception();
 	}
@@ -329,9 +332,11 @@ ReadingSet *StorageClient::readingQueryToReadings(const Query& query)
 		handleUnexpectedResponse("Query readings", res->status_code, resultPayload.str());
 	} catch (exception& ex) {
 		handleException(ex, "query readings");
+		handle_storage_service_restart();
 		throw;
 	} catch (exception* ex) {
 		handleException(*ex, "query readings");
+		handle_storage_service_restart();
 		delete ex;
 		throw exception();
 	}
@@ -367,9 +372,11 @@ ReadingSet *StorageClient::readingFetch(const unsigned long readingId, const uns
 		handleUnexpectedResponse("Fetch readings", res->status_code, resultPayload.str());
 	} catch (exception& ex) {
 		handleException(ex, "fetch readings");
+		handle_storage_service_restart();
 		throw;
 	} catch (exception* ex) {
 		handleException(*ex, "fetch readings");
+		handle_storage_service_restart();
 		delete ex;
 		throw exception();
 	}
@@ -400,9 +407,11 @@ PurgeResult StorageClient::readingPurgeByAge(unsigned long age, unsigned long se
 		handleUnexpectedResponse("Purge by age", res->status_code, resultPayload.str());
 	} catch (exception& ex) {
 		handleException(ex, "purge readings by age");
+		handle_storage_service_restart();
 		throw;
 	} catch (exception* ex) {
 		handleException(*ex, "purge readings by age");
+		handle_storage_service_restart();
 		delete ex;
 		throw exception();
 	}
@@ -432,9 +441,11 @@ PurgeResult StorageClient::readingPurgeBySize(unsigned long size, unsigned long 
 		}
 	} catch (exception& ex) {
 		handleException(ex, "purge readings by size");
+		handle_storage_service_restart();
 		throw;
 	} catch (exception* ex) {
 		handleException(*ex, "purge readings by size");
+		handle_storage_service_restart();
 		delete ex;
 		throw exception();
 	}
@@ -461,9 +472,11 @@ PurgeResult StorageClient::readingPurgeByAsset(const string& asset)
 		}
 	} catch (exception& ex) {
 		handleException(ex, "purge readings by size");
+		handle_storage_service_restart();
 		throw;
 	} catch (exception* ex) {
 		handleException(*ex, "purge readings by size");
+		handle_storage_service_restart();
 		delete ex;
 		throw exception();
 	}
@@ -509,9 +522,11 @@ ResultSet *StorageClient::queryTable(const std::string& schema, const std::strin
 		handleUnexpectedResponse("Query table", res->status_code, resultPayload.str());
 	} catch (exception& ex) {
 		handleException(ex, "query table %s", tableName.c_str());
+		handle_storage_service_restart();
 		throw;
 	} catch (exception* ex) {
 		handleException(*ex, "query table %s", tableName.c_str());
+		handle_storage_service_restart();
 		delete ex;
 		throw exception();
 	}
@@ -548,9 +563,11 @@ ReadingSet* StorageClient::queryTableToReadings(const std::string& tableName,
 		handleUnexpectedResponse("Query table", res->status_code, resultPayload.str());
 	} catch (exception& ex) {
 		handleException(ex, "query table %s to readings", tableName.c_str());
+		handle_storage_service_restart();
 		throw;
 	} catch (exception* ex) {
 		handleException(*ex, "query table %s to readings", tableName.c_str());
+		handle_storage_service_restart();
 		delete ex;
 		throw exception();
 	}
@@ -611,6 +628,7 @@ int StorageClient::insertTable(const string& schema, const string& tableName, co
 		handleUnexpectedResponse("Insert table", res->status_code, resultPayload.str());
 	} catch (exception& ex) {
 		handleException(ex, "insert into table %s", tableName.c_str());
+		handle_storage_service_restart();
 		throw;
 	}
 	return 0;
@@ -690,6 +708,7 @@ int StorageClient::updateTable(const string& schema, const string& tableName, co
 		handleUnexpectedResponse("Update table", tableName, res->status_code, resultPayload.str());
 	} catch (exception& ex) {
 		handleException(ex, "update table %s", tableName.c_str());
+		handle_storage_service_restart();
 		throw;
 	}
 	return -1;
@@ -769,6 +788,7 @@ int StorageClient::updateTable(const string& schema, const string& tableName, co
 		handleUnexpectedResponse("Update table", tableName, res->status_code, resultPayload.str());
 	} catch (exception& ex) {
 		handleException(ex, "update table %s", tableName.c_str());
+		handle_storage_service_restart();
 		throw;
 	}
 	return -1;
@@ -853,6 +873,7 @@ int StorageClient::updateTable(const string& schema, const string& tableName, ve
 		handleUnexpectedResponse("Update table", tableName, res->status_code, resultPayload.str());
 	} catch (exception& ex) {
 		handleException(ex, "update table %s", tableName.c_str());
+		handle_storage_service_restart();
 		throw;
 	}
 	return -1;
@@ -927,6 +948,7 @@ int StorageClient::updateTable(const string& schema, const string& tableName, co
 		handleUnexpectedResponse("Update table", tableName, res->status_code, resultPayload.str());
 	} catch (exception& ex) {
 		handleException(ex, "update table %s", tableName.c_str());
+		handle_storage_service_restart();
 		throw;
 	}
 	return -1;
@@ -996,6 +1018,7 @@ int StorageClient::updateTable(const string& schema, const string& tableName, co
 		handleUnexpectedResponse("Update table", tableName, res->status_code, resultPayload.str());
 	} catch (exception& ex) {
 		handleException(ex, "update table %s", tableName.c_str());
+		handle_storage_service_restart();
 		throw;
 	}
 	return -1;
@@ -1069,6 +1092,7 @@ int StorageClient::updateTable(const string& schema, const string& tableName, co
 		handleUnexpectedResponse("Update table", tableName, res->status_code, resultPayload.str());
 	} catch (exception& ex) {
 		handleException(ex, "update table %s", tableName.c_str());
+		handle_storage_service_restart();
 		throw;
 	}
 	return -1;
@@ -1129,6 +1153,7 @@ int StorageClient::deleteTable(const std::string& schema, const std::string& tab
 		handleUnexpectedResponse("Delete from table", tableName, res->status_code, resultPayload.str());
 	} catch (exception& ex) {
 		handleException(ex, "delete table date in %s", tableName.c_str());
+		handle_storage_service_restart();
 		throw;
 	}
 	return -1;
@@ -1218,6 +1243,7 @@ bool StorageClient::registerAssetNotification(const string& assetName,
 	} catch (exception& ex)
 	{
 		handleException(ex, "register asset '%s'", assetName.c_str());
+		handle_storage_service_restart();
 	}
 	return false;
 }
@@ -1258,6 +1284,7 @@ bool StorageClient::unregisterAssetNotification(const string& assetName,
 	} catch (exception& ex)
 	{
 		handleException(ex, "unregister asset '%s'", assetName.c_str());
+		handle_storage_service_restart();
 	}
 	return false;
 }
@@ -1334,6 +1361,7 @@ bool StorageClient::openStream()
 		return false;
 	} catch (exception& ex) {
 		handleException(ex, "create reading stream");
+		handle_storage_service_restart();
 	}
 	m_logger->error("Fallen through!");
 	return false;
@@ -1626,6 +1654,7 @@ bool StorageClient::createSchema(const std::string& payload)
                 return false;
         } catch (exception& ex) {
                 handleException(ex, "post storage schema");
+                handle_storage_service_restart();
         }
         return false;
 }

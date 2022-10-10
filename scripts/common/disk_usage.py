@@ -8,8 +8,8 @@ import json
 import sys
 
 if __name__ == '__main__':
-   json = json.loads(sys.stdin.readline())
-   item = json["disk"]
-   usage=item["usage"]
-   if usage >= int(sys.argv[1]):
-       print(usage)
+    json = json.loads(sys.stdin.readline())
+    item = json["disk"]
+    usage=item["usage"]
+    if usage >= int(sys.argv[1]):
+         print(usage)

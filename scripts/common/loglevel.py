@@ -8,8 +8,8 @@ import json
 import sys
 
 if __name__ == '__main__':
-   level = sys.argv[1]
-   json = json.loads(sys.stdin.readline())
-   for service in json["levels"]:
-       if service["level"] == level:
-           print(service["name"])
+    level = sys.argv[1]
+    json = json.loads(sys.stdin.readline())
+    for service in json["levels"]:
+        if service["level"] == level:
+            print(service["name"])

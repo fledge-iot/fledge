@@ -658,7 +658,7 @@ fledge_healthcheck() {
 	if [[ "${result}" == "401"* ]]; then
 		token=`fledge_authenticate`
 		if [[ "${token}" =~ "failed" ]]; then
-			fledge_log "info" "Failed authentication when attempting to stop fledge." "all" "pretty"
+			fledge_log "info" "Failed authentication when attempting to run fledge healthcheck." "all" "pretty"
 			echo "Authentication failed."
 			exit 0
 		fi

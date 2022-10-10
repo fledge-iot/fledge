@@ -10,8 +10,8 @@ import json
 import sys
 
 if __name__ == '__main__':
-   json = json.loads(sys.stdin.readline())
-   ts = sys.argv[1]
-   for audit in json["audit"]:
-       if audit["timestamp"].startswith(ts):
-           print(audit["details"]["name"])
+    json = json.loads(sys.stdin.readline())
+    ts = sys.argv[1]
+    for audit in json["audit"]:
+         if audit["timestamp"].startswith(ts):
+              print(audit["details"]["name"])

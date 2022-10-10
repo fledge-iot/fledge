@@ -1105,8 +1105,9 @@ bool NorthService::sendToDispatcher(const string& path, const string& payload)
 			if (res->status_code.compare("202 Accepted"))
 			{
 				Logger::getLogger()->error(
-						"Failed to send control operation '%s' to dispatcher service, %s",
-							path.c_str(), res->status_code.c_str());
+						"Failed to send control operation '%s' to dispatcher service, %s %s",
+							path.c_str(), res->status_code.c_str(),
+							res->content.string().c_str());
 				Logger::getLogger()->error("Failed Payload: %s", payload.c_str());
 				return false;
 			}

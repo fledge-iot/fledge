@@ -719,7 +719,6 @@ fledge_healthcheck() {
 		result=`curl -s ${REST_API_URL}/fledge/audit?source=SRVFL`
 	fi
 	tmpname=/tmp/fledge.$$
-	#echo $result | jq '.audit[] | select (.timestamp|test("'$month'.")) .details.name' | sort | uniq -c >$tmpname
 	echo $result | python3 -m scripts.common.audittime $month | sort | uniq -c >$tmpname
 	if [[ -s $tmpname ]]; then
 		echo Some services have failed at least once today
@@ -737,7 +736,6 @@ fledge_healthcheck() {
 	else
 		result=`curl -s ${REST_API_URL}/fledge/service`
 	fi
-#	a=`echo $result | jq '.services[] | select (.status == "unresponsive") .name'`
 	a=`echo $result | python3 -m scripts.common.service_status unresponsive`
 	if [[ "$a" != "" ]]; then
 		echo The following services are unresponsive:
@@ -746,7 +744,6 @@ fledge_healthcheck() {
 		done
 		issue="some"
 	fi
-	#a=`echo $result | jq '.services[] | select (.status == "failed") .name'`
 	a=`echo $result | python3 -m scripts.common.service_status failed`
 	if [[ "$a" != "" ]]; then
 		echo The following services have failed:
@@ -755,7 +752,6 @@ fledge_healthcheck() {
 		done
 		issue="some"
 	fi
-#	a=`echo $result | jq '.services[] | select (.status == "shutdown") .name'`
 	a=`echo $result | python3 -m scripts.common.service_status shutdown`
 	if [[ "$a" != "" ]]; then
 		echo The following services are shutdown:

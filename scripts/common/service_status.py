@@ -1,5 +1,5 @@
 """
-Utility to extract the names of services in a particular state giventhe output of
+Utility to extract the names of services in a particular state given the output of
 the API call GET /fledge/services
 """
 

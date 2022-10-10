@@ -646,8 +646,6 @@ fledge_healthcheck() {
 		exit 0
 	fi
 
-	export PYTHON_PATH=${FLEDGE_ROOT}
-
 	echo Fledge Healthcheck
 	echo ==================
 	echo

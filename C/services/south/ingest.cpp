@@ -1255,15 +1255,9 @@ void Ingest::unDeprecateStorageAssetTrackingRecord(StorageAssetTrackingTuple* cu
 			}
 		}
 	}
-	else
-	{
-                m_logger->error("Failure to get StorageAssetTracking record "
-				"for service '%s', asset '%s'",
-				m_serviceName.c_str(),
-				assetName.c_str());
-	}
 
-	delete updatedTuple;
+	if (updatedTuple != nullptr)
+		delete updatedTuple;
 }
 
 

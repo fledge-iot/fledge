@@ -34,6 +34,11 @@ function table {
   echo "" >> "$output"
 }
 
+if [[ "${GITHUB_ACCESS_TOKEN}" == "" ]]; then
+    echo "You must have set a GitHub access token environment variable; export GITHUB_ACCESS_TOKEN=YOUR_ACCESS_TOKEN"
+    exit 1
+fi
+
 output=$1
 rm -f $output
 header="Authorization: token ${GITHUB_ACCESS_TOKEN}"

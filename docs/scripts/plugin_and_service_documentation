@@ -33,7 +33,7 @@ function plugin_and_service_doc {
   name=$(echo ${repo_name} | sed -e 's/fledge-//' -e "s/${type}-//")
   mkdir -p /tmp/doc.$$
   cd /tmp/doc.$$
-  git clone -b ${DOCBRANCH} --single-branch https://github.com/${org}/${repo_name}.git
+  git clone -b ${DOCBRANCH} --single-branch https://${USERNAME}:${GITHUB_ACCESS_TOKEN}@github.com/${org}/${repo_name}.git
 
   if [[ ${type} != "service" ]]; then
       # cloned directory replaced with installed directory name which is defined in Package file for each repo
@@ -114,6 +114,16 @@ Fledge Notification Delivery Plugins
 .. toctree::
 
 EOFNOTIFY
+
+if [[ "${USERNAME}" == "" ]]; then
+    echo "You must have set a GitHub username environment variable; export USERNAME=YOUR_USERNAME"
+    exit 1
+fi
+
+if [[ "${GITHUB_ACCESS_TOKEN}" == "" ]]; then
+    echo "You must have set a GitHub access token environment variable; export GITHUB_ACCESS_TOKEN=YOUR_ACCESS_TOKEN"
+    exit 1
+fi
 
 header="Authorization: token ${GITHUB_ACCESS_TOKEN}"
 # Get total number of respository pages in fledge org.

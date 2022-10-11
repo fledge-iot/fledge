@@ -27,22 +27,22 @@ function plugin_and_service_doc {
   repo_name=$1
   dest=$2
   dir_type=$3
-  product=`echo ${repo_name} | sed -e 's/-.*//'`
+  product=$(echo ${repo_name} | sed -e 's/-.*//')
   org=fledge-iot
-  type=`echo ${repo_name} | sed -e 's/fledge-//' -e 's/-.*//'`
-  name=`echo ${repo_name} | sed -e 's/fledge-//' -e "s/${type}-//"`
+  type=$(echo ${repo_name} | sed -e 's/fledge-//' -e 's/-.*//')
+  name=$(echo ${repo_name} | sed -e 's/fledge-//' -e "s/${type}-//")
   mkdir -p /tmp/doc.$$
   cd /tmp/doc.$$
   git clone -b ${DOCBRANCH} --single-branch https://github.com/${org}/${repo_name}.git
 
   if [[ ${type} != "service" ]]; then
       # cloned directory replaced with installed directory name which is defined in Package file for each repo
-      installed_plugin_dir_name=`cat ${repo_name}/Package | grep plugin_install_dirname= | sed -e "s/plugin_install_dirname=//g"`
+      installed_plugin_dir_name=$(cat ${repo_name}/Package | grep plugin_install_dirname= | sed -e "s/plugin_install_dirname=//g")
       if [[ ${installed_plugin_dir_name} == "\${plugin_name}" ]]; then
-          installed_plugin_dir_name=`cat ${repo_name}/Package | grep plugin_name= | sed -e "s/plugin_name=//g"`
+          installed_plugin_dir_name=$(cat ${repo_name}/Package | grep plugin_name= | sed -e "s/plugin_name=//g")
       fi
-      old_plugin_name=`echo ${repo_name} | cut -d '-' -f3-`
-      new_plugin_name=`echo ${repo_name/$old_plugin_name/$installed_plugin_dir_name}`
+      old_plugin_name=$(echo ${repo_name} | cut -d '-' -f3-)
+      new_plugin_name=$(echo ${repo_name/$old_plugin_name/$installed_plugin_dir_name})
       if [[ ${repo_name} != ${new_plugin_name} ]]; then
           mv ${repo_name} ${new_plugin_name}
       fi
@@ -115,9 +115,10 @@ Fledge Notification Delivery Plugins
 
 EOFNOTIFY
 
+header="Authorization: token ${GITHUB_ACCESS_TOKEN}"
 # Get total number of respository pages in fledge org.
-fledgeRepoPagesCount=`curl -sI https://api.github.com/orgs/fledge-iot/repos | grep -oP '\d+(?=>; rel="last")'`
-fledgeRepos=$(curl -sX GET https://api.github.com/orgs/fledge-iot/repos\?page=[1-$fledgeRepoPagesCount])
+fledgeRepoPagesCount=$(curl -sI https://api.github.com/orgs/fledge-iot/repos | grep -oP '\d+(?=>; rel="last")')
+fledgeRepos=$(curl -H "$header" -sX GET https://api.github.com/orgs/fledge-iot/repos\?page=[1-$fledgeRepoPagesCount])
 fledgeRepos="$(echo $fledgeRepos | sed 's/\] \[/,/g')"
 fetchTopicReposPyScript='
 import json,sys;\
@@ -125,9 +126,9 @@ repos=json.load(sys.stdin);\
 fRepos = [r["name"] for r in repos["items"]];\
 print("\n".join(fRepos));
 '
-fledge_wip_repos=$(curl -sX GET -H "Accept: application/vnd.github.mercy-preview+json" https://api.github.com/search/repositories?q=topic:wip+org:fledge-iot)
-fledge_poc_repos=$(curl -sX GET -H "Accept: application/vnd.github.mercy-preview+json" https://api.github.com/search/repositories?q=topic:poc+org:fledge-iot)
-fledge_internal_repos=$(curl -sX GET -H "Accept: application/vnd.github.mercy-preview+json" https://api.github.com/search/repositories?q=internal:wip+org:fledge-iot)
+fledge_wip_repos=$(curl -sX GET -H "$header" -H "Accept: application/vnd.github.mercy-preview+json" https://api.github.com/search/repositories?q=topic:wip+org:fledge-iot)
+fledge_poc_repos=$(curl -sX GET -H "$header" -H "Accept: application/vnd.github.mercy-preview+json" https://api.github.com/search/repositories?q=topic:poc+org:fledge-iot)
+fledge_internal_repos=$(curl -sX GET -H "$header" -H "Accept: application/vnd.github.mercy-preview+json" https://api.github.com/search/repositories?q=topic:internal+org:fledge-iot)
 fledge_wip_repos_name=$(echo ${fledge_wip_repos} | python3 -c "$fetchTopicReposPyScript" | sort -f)
 fledge_poc_repos_name=$(echo ${fledge_poc_repos} | python3 -c "$fetchTopicReposPyScript" | sort -f)
 fledge_internal_repos_name=$(echo ${fledge_internal_repos} | python3 -c "$fetchTopicReposPyScript" | sort -f)
@@ -146,7 +147,7 @@ REPOSITORIES=$(echo ${fledgeRepos} | python3 -c "$fetchFledgeReposPyScript" | so
 echo "REPOS LIST: "${REPOSITORIES}
 for repo in ${REPOSITORIES}
 do
-    type=`echo $repo | sed -e 's/fledge-//' -e 's/foglamp-//' -e 's/-.*//'`
+    type=$(echo $repo | sed -e 's/fledge-//' -e 's/foglamp-//' -e 's/-.*//')
     if [ "$type" = "south" -o "$type" = "north" -o $type = "filter" -o $type = "rule" -o $type = "notify" ]; then
         dest=plugins/${type}.rst
         plugin_and_service_doc $repo $dest "plugins"
@@ -163,7 +164,7 @@ cat OMF.rst >> plugins/fledge-north-OMF/index.rst
 sed -i -e 's/Naming_Scheme/Naming_Scheme_plugin/' plugins/fledge-north-OMF/index.rst
 # Create the Threshold rule documentation
 mkdir plugins/fledge-rule-Threshold
-ln -s `pwd`/fledge-rule-Threshold/images plugins/fledge-rule-Threshold/images
+ln -s $(pwd)/fledge-rule-Threshold/images plugins/fledge-rule-Threshold/images
 echo '.. include:: ../../fledge-rule-Threshold/index.rst' > plugins/fledge-rule-Threshold/index.rst
 
 # Always create a fresh set of Service documentation
@@ -187,7 +188,7 @@ SERVICE_REPOS=$(echo "${REPOSITORIES}" | grep -o "[a-zA-Z0-9\-]*-service-[a-zA-Z
 echo "SERVICE REPOS LIST: "${SERVICE_REPOS}
 for repo in ${SERVICE_REPOS}
 do
-    type=`echo $repo | sed -e 's/fledge-//' -e 's/foglamp-//' -e 's/-.*//'`
+    type=$(echo $repo | sed -e 's/fledge-//' -e 's/foglamp-//' -e 's/-.*//')
     dest=services/index.rst
     plugin_and_service_doc $repo $dest "services"
 done

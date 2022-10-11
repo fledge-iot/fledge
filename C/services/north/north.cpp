@@ -1053,7 +1053,8 @@ bool NorthService::sendToService(const string& southService, const string& name,
 			if (res->status_code.compare("200 OK"))
 			{
 				Logger::getLogger()->error("Failed to send set point operation to service %s, %s",
-							southService.c_str(), res->status_code.c_str());
+						southService.c_str(), res->status_code.c_str());
+				Logger::getLogger()->error("Failed Payload: %s", payload.c_str());
 				return false;
 			}
 		} catch (exception& e) {
@@ -1103,8 +1104,11 @@ bool NorthService::sendToDispatcher(const string& path, const string& payload)
 			auto res = http.request("POST", path, payload, headers);
 			if (res->status_code.compare("202 Accepted"))
 			{
-				Logger::getLogger()->error("Failed to send control operation to dispatcher service, %s",
-							res->status_code.c_str());
+				Logger::getLogger()->error(
+						"Failed to send control operation '%s' to dispatcher service, %s %s",
+							path.c_str(), res->status_code.c_str(),
+							res->content.string().c_str());
+				Logger::getLogger()->error("Failed Payload: %s", payload.c_str());
 				return false;
 			}
 		} catch (exception& e) {

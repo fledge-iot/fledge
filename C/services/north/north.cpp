@@ -34,6 +34,7 @@
 #include <config_handler.h>
 #include <syslog.h>
 #include <stdarg.h>
+#include <string_utils.h>
 
 #define SERVICE_TYPE "Northbound"
 
@@ -877,7 +878,9 @@ bool NorthService::write(const string& name, const string& value, const ControlD
 	payload += "\"write\" : { \"";
 	payload += name;
 	payload += "\" : \"";
-	payload += value;
+	string escaped = value;
+	StringEscapeQuotes(escaped);
+	payload += escaped;
 	payload += "\" } }";
 	return sendToDispatcher("/dispatch/write", payload);
 }
@@ -920,7 +923,9 @@ bool NorthService::write(const string& name, const string& value, const ControlD
 	payload += ", \"write\" : { \"";
 	payload += name;
 	payload += "\" : \"";
-	payload += value;
+	string escaped = name;
+	StringEscapeQuotes(escaped);
+	payload += escaped;
 	payload += "\" } }";
 	return sendToDispatcher("/dispatch/write", payload);
 }
@@ -954,7 +959,9 @@ int  NorthService::operation(const string& name, int paramCount, char *names[], 
 		payload += "\"";
 		payload += names[i];
 		payload += "\": \"";
-		payload += parameters[i];
+		string escaped = parameters[i];
+		StringEscapeQuotes(escaped);
+		payload += escaped;
 		payload += "\"";
 		if (i < paramCount -1)
 			payload += ",";
@@ -1004,18 +1011,20 @@ int NorthService::operation(const string& name, int paramCount, char *names[], c
 	}
 	payload += ", \"operation\" : { \"";
 	payload += name;
-	payload += "\" : { \"";
+	payload += "\" : { ";
 	for (int i = 0; i < paramCount; i++)
 	{
 		payload += "\"";
 		payload += names[i];
 		payload += "\": \"";
-		payload += parameters[i];
+		string escaped = parameters[i];
+		StringEscapeQuotes(escaped);
+		payload += escaped;
 		payload += "\"";
 		if (i < paramCount -1)
 			payload += ",";
 	}
-	payload += "\" } }";
+	payload += "} } }";
 	sendToDispatcher("/dispatch/operation", payload);
 	return -1;
 }

@@ -57,7 +57,8 @@ const char *default_config = QUOTE({
 			"type" : "integer",
 			"default" : "3",
 			"displayName" : "No. databases to allocate in advance",
-			"order" : "3"
+			"order" : "3",
+			"maximum" : "20"
 		},
 		"nDbLeftFreeBeforeAllocate" : {
 			"description" : "Allocate new databases when the number of free databases drops below this value",
@@ -138,6 +139,12 @@ PLUGIN_HANDLE plugin_init(ConfigCategory *category)
 	if (category->itemExists("nDbPreallocate"))
 	{
 		storageConfig.nDbPreallocate = strtol(category->getValue("nDbPreallocate").c_str(), NULL, 10);
+		long maxDb = strtol(category->getMaximum("nDbPreallocate").c_str(), NULL, 10);
+		if (maxDb && storageConfig.nDbPreallocate > maxDb)
+		{
+			storageConfig.nDbPreallocate = maxDb;
+			Logger::getLogger()->warn("Restricting maximum number of databases to pre-allocate to %d", maxDb);
+		}
 	}
 
 	if (category->itemExists("nDbLeftFreeBeforeAllocate"))

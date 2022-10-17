@@ -515,7 +515,11 @@ void ReadingsCatalogue::preallocateNewDbsRange(int dbIdStart, int dbIdEnd) {
 	{
 		readingsAvailable = evaluateLastReadingAvailable(NULL, dbId - 1);
 		startReadingsId = 1;
-		createNewDB(NULL,  dbId, startReadingsId, NEW_DB_ATTACH_ALL);
+		if (!createNewDB(NULL,  dbId, startReadingsId, NEW_DB_ATTACH_ALL))
+		{
+			Logger::getLogger()->error("Failed to pre-allocate all readings databases");
+			break;
+		}
 
 		Logger::getLogger()->debug("preallocateNewDbsRange - db created :%d: startReadingsIdOnDB :%d:", dbId, startReadingsId);
 	}

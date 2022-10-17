@@ -61,6 +61,7 @@ class ConnectionManager {
 		bool			     m_shutdown;
 		std::thread		     *m_background;
 		long                         m_vacuumInterval;
+		bool			     m_growthProhibited;
 };
 
 #endif

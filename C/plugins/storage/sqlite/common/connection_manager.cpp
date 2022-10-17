@@ -13,6 +13,8 @@
 #include <connection_manager.h>
 #include <connection.h>
 #include <logger.h>
+#include <exception>
+#include <chrono>
 
 ConnectionManager *ConnectionManager::instance = 0;
 
@@ -28,7 +30,7 @@ static void managerBackground(void *arg)
 /**
  * Default constructor for the connection manager.
  */
-ConnectionManager::ConnectionManager() : m_shutdown(false), m_vacuumInterval(6 * 60 * 60)
+ConnectionManager::ConnectionManager() : m_shutdown(false), m_vacuumInterval(6 * 60 * 60), m_growthProhibited(false)
 {
 	lastError.message = NULL;
 	lastError.entryPoint = NULL;
@@ -73,14 +75,34 @@ ConnectionManager *ConnectionManager::getInstance()
  */
 void ConnectionManager::growPool(unsigned int delta)
 {
+	if (m_growthProhibited)
+	{
+		Logger::getLogger()->warn("Attempt to grow connection pool when growth is prohibited");
+		return;
+	}
 	while (delta-- > 0)
 	{
-		Connection *conn = new Connection();
-		if (m_trace)
-			conn->setTrace(true);
-		idleLock.lock();
-		idle.push_back(conn);
-		idleLock.unlock();
+		try {
+			Connection *conn = new Connection();
+			if (m_trace)
+				conn->setTrace(true);
+			idleLock.lock();
+			idle.push_back(conn);
+			idleLock.unlock();
+		} catch (std::exception& ex) {
+			m_growthProhibited = true;
+			if (idle.size() > 1)	// Give back some resource
+			{
+				idleLock.lock();
+				delete idle.back();
+				idle.pop_back();
+				idleLock.unlock();
+			}
+			Logger::getLogger()->warn(
+				"Connection pool growth has been limited to %d connections due to lack of resource",
+				idle.size() + inUse.size());
+			return;		// Can not create any more connections
+		}
 	}
 }
 
@@ -121,24 +143,42 @@ Connection   *conn;
 Connection *ConnectionManager::allocate()
 {
 Connection *conn = 0;
+int waitfor = 10;
+Logger *logger = Logger::getLogger();
 
-	idleLock.lock();
-	if (idle.empty())
-	{
-		conn = new Connection();
-	}
-	else
-	{
-		conn = idle.front();
-	    	idle.pop_front();
-	}
-	idleLock.unlock();
-	if (conn)
-	{
-		inUseLock.lock();
-		inUse.push_front(conn);
-		inUseLock.unlock();
-	}
+	do {
+		idleLock.lock();
+		if (idle.empty() && m_growthProhibited == false)
+		{
+			try {
+				conn = new Connection();
+			} catch (std::exception& ex) {
+				logger->warn("Unable to create new storage connection");
+			}
+		}
+		else if (!idle.empty())
+		{
+			conn = idle.front();
+			idle.pop_front();
+		}
+		else
+		{
+			logger->debug("Connection pool growth is prohibited and no connections are available");
+		}
+		idleLock.unlock();
+		if (conn)
+		{
+			inUseLock.lock();
+			inUse.push_front(conn);
+			inUseLock.unlock();
+		}
+		else
+		{
+			std::this_thread::sleep_for(std::chrono::milliseconds(waitfor));
+			if (waitfor < 500)
+				waitfor *= 2;
+		}
+	} while (conn == 0);
 	return conn;
 }
 

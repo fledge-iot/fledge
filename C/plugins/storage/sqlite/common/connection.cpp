@@ -570,6 +570,7 @@ Connection::Connection()
 
 				sqlite3_free(zErrMsg);
 				sqlite3_close_v2(dbHandle);
+				throw runtime_error("Failed to attach readings database");
 			}
 			else
 			{
@@ -590,6 +591,8 @@ Connection::Connection()
 				connectErrorTime = time(0);
 
 				sqlite3_free(zErrMsg);
+				sqlite3_close_v2(dbHandle);
+				throw runtime_error("Failed to configure WAL for the readings database");
 			}
 		}
 
@@ -605,6 +608,7 @@ Connection::Connection()
 
 			connectErrorTime = time(0);
 			sqlite3_close_v2(dbHandle);
+			throw runtime_error("Failed to attach all the databases");
 		}
 	}
 

@@ -72,8 +72,13 @@ class TestE2eCsvMultiFltrPi:
         # 3. ivaluecrest    4. ivaluepeak
         asset_dict = {}
         asset_dict['e2e_filters_RMS'] = dp_list
-        clear_pi_system_through_pi_web_api(pi_host, pi_admin, pi_passwd, pi_db,
-                                           [], asset_dict)
+        # For connector relay we should not delete PI Point because
+        # when the PI point is created again (after deletion) the compressing attribute for it
+        # is always true. That means all the data is not stored in PI data archive.
+        # We lose a large proportion of the data because of compressing attribute.
+        # This is problematic for the fixture that verifies the data stored in PI.
+        # clear_pi_system_through_pi_web_api(pi_host, pi_admin, pi_passwd, pi_db,
+        #                                    [], asset_dict)
 
         # Define configuration of fledge south playback service
         south_config = {"assetName": {"value": "{}".format(asset_name)},

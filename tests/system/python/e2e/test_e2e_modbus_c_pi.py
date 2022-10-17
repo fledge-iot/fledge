@@ -82,8 +82,13 @@ class TestE2EModbusCPI:
         dp_list = ['front right', 'rear right', 'front left', 'rear left', '']
         asset_dict = {}
         asset_dict[ASSET_NAME] = dp_list
-        clear_pi_system_through_pi_web_api(pi_host, pi_admin, pi_passwd, pi_db,
-                                           [], asset_dict)
+        # For connector relay we should not delete PI Point because
+        # when the PI point is created again (after deletion) the compressing attribute for it
+        # is always true. That means all the data is not stored in PI data archive.
+        # We lose a large proportion of the data because of compressing attribute.
+        # This is problematic for the fixture that verifies the data stored in PI.
+        # clear_pi_system_through_pi_web_api(pi_host, pi_admin, pi_passwd, pi_db,
+        #                                    [], asset_dict)
 
         add_south(SOUTH_PLUGIN, south_branch, fledge_url, service_name=SVC_NAME, config=cfg,
                   plugin_lang="C", start_service=False, plugin_discovery_name=PLUGIN_NAME)

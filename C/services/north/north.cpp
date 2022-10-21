@@ -224,9 +224,9 @@ pid_t pid;
 	close(1);
 	close(2);
 	// redirect fd's 0,1,2 to /dev/null
-	(void)open("/dev/null", O_RDWR);  	// stdin
-	(void)dup(0);  			// stdout	GCC bug 66425 produces warning
-	(void)dup(0);  			// stderr	GCC bug 66425 produces warning
+	open("/dev/null", O_RDWR);  	// stdin
+	if (dup(0) == -1) {}  		// stdout	GCC bug 66425 produces warning
+	if (dup(0) == -1) {}  		// stderr	GCC bug 66425 produces warning
  	return 0;
 }
 

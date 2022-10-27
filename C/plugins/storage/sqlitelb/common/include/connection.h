@@ -118,6 +118,7 @@ class Connection {
 		bool		aggregateQuery(const rapidjson::Value& payload, std::string& resultSet);
 		bool        	getNow(std::string& Now);
 		unsigned int	purgeReadingsAsset(const std::string& asset);
+		bool		vacuum();
 
 	private:
 #ifndef MEMORY_READING_PLUGIN

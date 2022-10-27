@@ -35,6 +35,9 @@ from fledge.services.core.api.repos import configure as configure_repo
 from fledge.services.core.api.control_service import script_management
 from fledge.services.core.api.control_service import acl_management
 from fledge.services.core.api import python_packages
+from fledge.services.core.api import health
+
+
 
 __author__ = "Ashish Jabble, Praveen Garg, Massimiliano Pinto, Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017-2018 OSIsoft, LLC"
@@ -141,6 +144,7 @@ def setup(app):
     app.router.add_route('GET',    '/fledge/track', asset_tracker.get_asset_tracker_events)
     app.router.add_route('PUT',    '/fledge/track/service/{service}/asset/{asset}/event/{event}',
                          asset_tracker.deprecate_asset_track_entry)
+    app.router.add_route('GET', '/fledge/track/storage/assets', asset_tracker.get_datapoint_usage)
 
     # Statistics - As per doc
     app.router.add_route('GET', '/fledge/statistics', api_statistics.get_statistics)
@@ -165,6 +169,7 @@ def setup(app):
 
     # Package Update on demand
     app.router.add_route('PUT', '/fledge/update', update.update_package)
+    app.router.add_route('GET', '/fledge/update', update.get_updates)
 
     # certs store
     app.router.add_route('GET', '/fledge/certificate', certificate_store.get_certs)
@@ -256,6 +261,10 @@ def setup(app):
 
     app.router.add_route('GET', '/fledge/python/packages', python_packages.get_packages)
     app.router.add_route('POST', '/fledge/python/package', python_packages.install_package)
+
+    # Health related calls
+    app.router.add_route('GET', '/fledge/health/storage', health.get_storage_health)
+    app.router.add_route('GET', '/fledge/health/logging', health.get_logging_health)
 
     # Proxy Admin API setup with regex
     proxy.admin_api_setup(app)

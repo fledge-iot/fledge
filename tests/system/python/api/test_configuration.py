@@ -122,7 +122,20 @@ class TestConfiguration:
                           'key': 'Utilities',
                           'description': 'Utilities',
                           'displayName': 'Utilities',
-                          'children': []
+                          'children': [
+                              {
+                                  'key': 'purge_system',
+                                  'description': 'Configuration of the Purge System',
+                                  'displayName': 'Purge System',
+                                  'children': []
+                              },
+                              {
+                                  'key': 'PURGE_READ',
+                                  'description': 'Purge the readings, log, statistics history table',
+                                  'displayName': 'Purge',
+                                  'children': []
+                              }
+                          ]
             }
         ]
 

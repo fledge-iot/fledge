@@ -773,7 +773,8 @@ CREATE TABLE fledge.asset_tracker (
        fledge          character varying(50)           NOT NULL, -- FL service name
        plugin          character varying(50)           NOT NULL, -- Plugin name
        deprecated_ts   timestamp(6) with time zone             , -- When an asset record is removed then time will be set else empty and that mean entry has not been deprecated
-       ts              timestamp(6) with time zone     NOT NULL DEFAULT now()
+       ts              timestamp(6) with time zone     NOT NULL DEFAULT now(),
+       data            jsonb                           DEFAULT '{}'::jsonb
 );
 
 CREATE INDEX asset_tracker_ix1 ON fledge.asset_tracker USING btree (asset);
@@ -880,7 +881,7 @@ INSERT INTO fledge.log_codes ( code, description )
             ( 'SRVRG', 'Service Registered' ),
             ( 'SRVUN', 'Service Unregistered' ),
             ( 'SRVFL', 'Service Fail' ),
-	    ( 'SRVRS', 'Service Restart' ),
+            ( 'SRVRS', 'Service Restart' ),
             ( 'NHCOM', 'North Process Complete' ),
             ( 'NHDWN', 'North Destination Unavailable' ),
             ( 'NHAVL', 'North Destination Available' ),
@@ -897,11 +898,12 @@ INSERT INTO fledge.log_codes ( code, description )
             ( 'PKGRM', 'Package purged' ),
             ( 'DSPST', 'Dispatcher Startup' ),
             ( 'DSPSD', 'Dispatcher Shutdown' ),
-	    ( 'ESSRT', 'External Service Startup' ),
-	    ( 'ESSTP', 'External Service Shutdown' ),
-	    ( 'ASTDP', 'Asset deprecated' ),
-	    ( 'ASTUN', 'Asset un-deprecated' ),	
-	    ( 'PIPIN', 'Pip installation' );
+            ( 'ESSRT', 'External Service Startup' ),
+            ( 'ESSTP', 'External Service Shutdown' ),
+            ( 'ASTDP', 'Asset deprecated' ),
+            ( 'ASTUN', 'Asset un-deprecated' ),
+            ( 'PIPIN', 'Pip installation' ),
+            ( 'AUMRK', 'Audit Log Marker' );
 
 --
 -- Configuration parameters

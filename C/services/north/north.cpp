@@ -34,6 +34,7 @@
 #include <config_handler.h>
 #include <syslog.h>
 #include <stdarg.h>
+#include <string_utils.h>
 
 #define SERVICE_TYPE "Northbound"
 
@@ -877,7 +878,9 @@ bool NorthService::write(const string& name, const string& value, const ControlD
 	payload += "\"write\" : { \"";
 	payload += name;
 	payload += "\" : \"";
-	payload += value;
+	string escaped = value;
+	StringEscapeQuotes(escaped);
+	payload += escaped;
 	payload += "\" } }";
 	return sendToDispatcher("/dispatch/write", payload);
 }
@@ -920,7 +923,9 @@ bool NorthService::write(const string& name, const string& value, const ControlD
 	payload += ", \"write\" : { \"";
 	payload += name;
 	payload += "\" : \"";
-	payload += value;
+	string escaped = name;
+	StringEscapeQuotes(escaped);
+	payload += escaped;
 	payload += "\" } }";
 	return sendToDispatcher("/dispatch/write", payload);
 }
@@ -948,18 +953,20 @@ int  NorthService::operation(const string& name, int paramCount, char *names[], 
 	string payload = "{ \"destination\" : \"broadcast\",";
 	payload += "\"operation\" : { \"";
 	payload += name;
-	payload += "\" : { \"";
+	payload += "\" : { ";
 	for (int i = 0; i < paramCount; i++)
 	{
 		payload += "\"";
 		payload += names[i];
 		payload += "\": \"";
-		payload += parameters[i];
+		string escaped = parameters[i];
+		StringEscapeQuotes(escaped);
+		payload += escaped;
 		payload += "\"";
 		if (i < paramCount -1)
 			payload += ",";
 	}
-	payload += "\" } }";
+	payload += " } } }";
 	sendToDispatcher("/dispatch/operation", payload);
 	return -1;
 }
@@ -1004,18 +1011,20 @@ int NorthService::operation(const string& name, int paramCount, char *names[], c
 	}
 	payload += ", \"operation\" : { \"";
 	payload += name;
-	payload += "\" : { \"";
+	payload += "\" : { ";
 	for (int i = 0; i < paramCount; i++)
 	{
 		payload += "\"";
 		payload += names[i];
 		payload += "\": \"";
-		payload += parameters[i];
+		string escaped = parameters[i];
+		StringEscapeQuotes(escaped);
+		payload += escaped;
 		payload += "\"";
 		if (i < paramCount -1)
 			payload += ",";
 	}
-	payload += "\" } }";
+	payload += "} } }";
 	sendToDispatcher("/dispatch/operation", payload);
 	return -1;
 }
@@ -1053,7 +1062,8 @@ bool NorthService::sendToService(const string& southService, const string& name,
 			if (res->status_code.compare("200 OK"))
 			{
 				Logger::getLogger()->error("Failed to send set point operation to service %s, %s",
-							southService.c_str(), res->status_code.c_str());
+						southService.c_str(), res->status_code.c_str());
+				Logger::getLogger()->error("Failed Payload: %s", payload.c_str());
 				return false;
 			}
 		} catch (exception& e) {
@@ -1103,8 +1113,11 @@ bool NorthService::sendToDispatcher(const string& path, const string& payload)
 			auto res = http.request("POST", path, payload, headers);
 			if (res->status_code.compare("202 Accepted"))
 			{
-				Logger::getLogger()->error("Failed to send control operation to dispatcher service, %s",
-							res->status_code.c_str());
+				Logger::getLogger()->error(
+						"Failed to send control operation '%s' to dispatcher service, %s %s",
+							path.c_str(), res->status_code.c_str(),
+							res->content.string().c_str());
+				Logger::getLogger()->error("Failed Payload: %s", payload.c_str());
 				return false;
 			}
 		} catch (exception& e) {

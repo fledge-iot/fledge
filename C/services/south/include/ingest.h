@@ -29,6 +29,8 @@
 
 #define INGEST_SUFFIX	"-Ingest"	// Suffix for per service ingest statistic
 
+#define STATS_UPDATE_FAIL_THRESHOLD 10	// After this many update fails try creatign new stats
+
 /**
  * The ingest class is used to ingest asset readings.
  * It maintains a queue of readings to be sent to storage,
@@ -73,6 +75,9 @@ public:
 	void		unDeprecateAssetTrackingRecord(AssetTrackingTuple* currentTuple,
 							const std::string& assetName,
 							const std::string& event);
+	void            unDeprecateStorageAssetTrackingRecord(StorageAssetTrackingTuple* currentTuple,
+                                                        const std::string& assetName, const std::string&, const unsigned int&);
+
 
 private:
 	void				signalStatsUpdate() {
@@ -121,6 +126,7 @@ private:
 	int				m_failCnt;
 	bool				m_storageFailed;
 	int				m_storesFailed;
+	int				m_statsUpdateFails;
 };
 
 #endif

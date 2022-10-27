@@ -187,16 +187,16 @@ static void loadDataThread(SendingProcess *loadData)
 			ReadingSet* readings = NULL;
 			try
 			{
-				bool isReading = !loadData->getDataSourceType().compare("statistics") ? false : true; 
+				string source = loadData->getDataSourceType();
 				//high_resolution_clock::time_point t1 = high_resolution_clock::now();
-				if (isReading)
+				if (source.compare("readings") == 0)
 				{
 					// Read from storage all readings with id > last sent id
 					unsigned long lastReadId = loadData->getLastFetchId() + 1;
 					readings = loadData->getStorageClient()->readingFetch(lastReadId,
 											      loadData->getReadBlockSize());
 				}
-				else
+				else if (source.compare("statistics") == 0)
 				{
 					// SELECT id,
 					//	  key AS asset_code,
@@ -231,9 +231,44 @@ static void loadDataThread(SendingProcess *loadData)
 					Sort* sort = new Sort("id");
 					qStatistics.sort(sort);
 
-					// Query the statistics_history tbale and get a ReadingSet result
+					// Query the statistics_history table and get a ReadingSet result
 					readings = loadData->getStorageClient()->queryTableToReadings("statistics_history",
 												      qStatistics);
+				}
+				else if (source.compare("audit") == 0)
+				{
+					const Condition conditionId(GreaterThan);
+					// WHERE id > lastId
+					Where* wId = new Where("id",
+								conditionId,
+								to_string(loadData->getLastFetchId()));
+					vector<Returns *> columns;
+					// Add colums and needed aliases
+					columns.push_back(new Returns("id"));
+					columns.push_back(new Returns("code", "asset_code"));
+					columns.push_back(new Returns("ts"));
+
+					Returns *tmpReturn = new Returns("ts", "user_ts");
+					tmpReturn->timezone("utc");
+					columns.push_back(tmpReturn);
+
+					columns.push_back(new Returns("log", "reading"));
+					// Build the query with fields, aliases and where
+					Query qLog(columns, wId);
+					// Set limit
+					qLog.limit(loadData->getReadBlockSize());
+					// Set sort
+					Sort* sort = new Sort("id");
+					qLog.sort(sort);
+
+					// Query the log table and get a ReadingSet result
+					readings = loadData->getStorageClient()->queryTableToReadings("log",
+												      qLog);
+				}
+				else
+				{
+					Logger::getLogger()->error("Unsupported source '%s' for north task.",
+		                                source.c_str());
 				}
 				//high_resolution_clock::time_point t2 = high_resolution_clock::now();
 				//auto duration = duration_cast<microseconds>( t2 - t1 ).count();

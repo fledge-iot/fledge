@@ -48,6 +48,8 @@ class StatisticsHistory(FledgeProcess):
             1. INSERT the delta between `value` and `previous_value` into  statistics_history
             2. UPDATE the previous_value in statistics table to be equal to statistics.value at snapshot 
         """
+        if self.is_dry_run():
+            return
         current_time = common_utils.local_timestamp()
         results = await self._storage_async.query_tbl("statistics")
         # Bulk updates payload

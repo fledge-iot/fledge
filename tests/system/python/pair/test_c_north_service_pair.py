@@ -21,7 +21,7 @@ import utils
 
 # Local machine
 local_south_plugin = "sinusoid"
-local_south_asset_name = "sinusoid"
+local_south_asset_name = "north_svc_pair_C_sinusoid"
 local_south_service_name = "Sine #1"
 local_north_plugin = "httpc"
 local_north_service_name = "HN #1"
@@ -29,7 +29,7 @@ local_north_service_name = "HN #1"
 # Remote machine
 remote_south_plugin = "http_south"
 remote_south_service_name = "HS #1"
-remote_south_asset_name = "north_svc_pair_sinusoid"
+remote_south_asset_name = "north_svc_pair_C_sinusoid"
 remote_north_plugin = "OMF"
 remote_north_service_name = "NorthReadingsToPI_WebAPI"
 

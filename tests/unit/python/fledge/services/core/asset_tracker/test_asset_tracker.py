@@ -32,7 +32,7 @@ class TestAssetTracker:
 
     @pytest.mark.parametrize("result, asset_list", [
         ({'rows': [], 'count': 0}, []),
-        ({'rows': [{'event': 'Ingest', 'service': 'sine', 'plugin': 'sinusoid', 'asset': 'sinusoid'}], 'count': 1}, [{'event': 'Ingest', 'service': 'sine', 'asset': 'sinusoid', 'plugin': 'sinusoid'}])
+        ({'rows': [{'event': 'Ingest', 'service': 'sine', 'plugin': 'sinusoid', 'asset': 'sinusoid', 'data': '{}'}], 'count': 1}, [{'event': 'Ingest', 'service': 'sine', 'asset': 'sinusoid', 'plugin': 'sinusoid', 'data':'{}'}])
     ])
     async def test_load_asset_records(self, result, asset_list):
         storage_client_mock = MagicMock(spec=StorageClientAsync)
@@ -51,14 +51,14 @@ class TestAssetTracker:
         with patch.object(asset_tracker._storage, 'query_tbl_with_payload', return_value=_rv) as patch_query_tbl:
             await asset_tracker.load_asset_records()
             assert asset_list == asset_tracker._registered_asset_records
-        patch_query_tbl.assert_called_once_with('asset_tracker', '{"return": ["asset", "event", "service", "plugin"]}')
+        patch_query_tbl.assert_called_once_with('asset_tracker', '{"return": ["asset", "event", "service", "plugin", "data"]}')
 
     async def test_add_asset_record(self):
         storage_client_mock = MagicMock(spec=StorageClientAsync)
         asset_tracker = AssetTracker(storage_client_mock)
         cfg_manager = ConfigurationManager(storage_client_mock)
         asset_tracker._registered_asset_records = []
-        payload = {"plugin": "sinusoid", "asset": "sinusoid", "event": "Ingest", "fledge": "Fledge", "service": "sine"}
+        payload = {"plugin": "sinusoid", "asset": "sinusoid", "event": "Ingest", "fledge": "Fledge", "service": "sine", "data":"{}"}
 
         async def mock_coro():
             return {"default": "Fledge", "value": "Fledge", "type": "string", "description": "Name of this Fledge service"}
@@ -76,7 +76,7 @@ class TestAssetTracker:
 
         with patch.object(cfg_manager, 'get_category_item', return_value=_rv1) as patch_get_cat_item:
             with patch.object(asset_tracker._storage, 'insert_into_tbl', return_value=_rv2) as patch_insert_tbl:
-                result = await asset_tracker.add_asset_record(asset='sinusoid', event='Ingest', service='sine', plugin='sinusoid')
+                result = await asset_tracker.add_asset_record(asset='sinusoid', event='Ingest', service='sine', plugin='sinusoid', jsondata='{}')
                 assert payload == result
             args, kwargs = patch_insert_tbl.call_args
             assert 'asset_tracker' == args[0]

@@ -6,6 +6,7 @@
 .. |omf_plugin_connector_relay_config| image:: images/omf-plugin-connector-relay.jpg
 .. |omf_plugin_eds_config| image:: images/omf-plugin-eds.jpg
 .. |omf_plugin_ocs_config| image:: images/omf-plugin-ocs.jpg
+.. |omf_plugin_adh_config| image:: images/omf-plugin-adh.jpg
 
 .. Links
 .. |OMFHint filter plugin| raw:: html
@@ -86,6 +87,38 @@ Select Edge Data Store from the Endpoint options.
    - **Number Format:** Used to match Fledge data types to the data type configured in PI. The default is float64 but may be set to any OMF datatype that supports floating point values.
    - **Compression:** Compress the readings data before sending them to the Edge Data Store.
 
+AVEVA Data Hub OMF Endpoint
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Go to the Fledge user interface, create a new North instance and select the “OMF” plugin on the first screen.
+The second screen will request the following information:
+
++-------------------------+
+| |omf_plugin_adh_config| |
++-------------------------+
+
+Select AVEVA Data Hubfrom the Endpoint options.
+
+- Basic Information
+   - **Endpoint:** This is the type of OMF endpoint. In this case, choose AVEVA Data Hub.
+   - **Naming scheme:** Defines the naming scheme to be used when creating the PI points within the PI Server. See :ref:`Naming_Scheme`.
+   - **Data Source:** Defines which data is sent to AVEVA Data Hub. Choices are: readings or statistics (that is, Fledge's internal statistics).
+   - **Static Data:** Data to include in every reading sent to AVEVA Data Hub.  For example, you can use this to specify the location of the devices being monitored by the Fledge server.
+- Authentication
+   - **Namespace:** Your namespace within the AVEVA Data Hub.
+   - **Tenant ID:** Your AVEVA Data Hub Tenant ID for your account.
+   - **Client ID:** Your AVEVA Data Hub Client ID for your account.
+   - **Client Secret:** Your AVEVA Data Hub Client Secret.
+- Connection management (These should only be changed with guidance from support)
+   - **Sleep Time Retry:** Number of seconds to wait before retrying the HTTP connection (Fledge doubles this time after each failed attempt).
+   - **Maximum Retry:** Maximum number of times to retry connecting to the AVEVA Data Hub.
+   - **HTTP Timeout:** Number of seconds to wait before Fledge will time out an HTTP connection attempt.
+- Other (Rarely changed)
+   - **Integer Format:** Used to match Fledge data types to the data type configured in AVEVA Data Hub. This defaults to int64 but may be set to any OMF data type compatible with integer data, e.g. int32.
+   - **Number Format:** Used to match Fledge data types to the data type configured in AVEVA Data Hub. The default is float64 but may be set to any OMF datatype that supports floating point values.
+   - **Compression:** Compress the readings data before sending them to AVEVA Data Hub.
+
+
 OSIsoft Cloud Services OMF Endpoint
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -104,10 +137,10 @@ Select OSIsoft Cloud Services from the Endpoint options.
    - **Data Source:** Defines which data is sent to OSIsoft Cloud Services. Choices are: readings or statistics (that is, Fledge's internal statistics).
    - **Static Data:** Data to include in every reading sent to OSIsoft Cloud Services.  For example, you can use this to specify the location of the devices being monitored by the Fledge server.
 - Authentication
-   - **OCS Namespace:** Your namespace within OSIsoft Cloud Services.
-   - **OCS Tenant ID:** Your OSIsoft Cloud Services Tenant ID for your account.
-   - **OCS Client ID:** Your OSIsoft Cloud Services Client ID for your account.
-   - **OCS Client Secret:** Your OSIsoft Cloud Services Client Secret.
+   - **Namespace:** Your namespace within OSIsoft Cloud Services.
+   - **Tenant ID:** Your OSIsoft Cloud Services Tenant ID for your account.
+   - **Client ID:** Your OSIsoft Cloud Services Client ID for your account.
+   - **Client Secret:** Your OSIsoft Cloud Services Client Secret.
 - Connection management (These should only be changed with guidance from support)
    - **Sleep Time Retry:** Number of seconds to wait before retrying the HTTP connection (Fledge doubles this time after each failed attempt).
    - **Maximum Retry:** Maximum number of times to retry connecting to the PI server.

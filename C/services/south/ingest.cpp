@@ -12,6 +12,8 @@
 #include <config_handler.h>
 #include <thread>
 #include <logger.h>
+#include <storage_asset_tracking.h>
+#include <set>
 
 using namespace std;
 
@@ -58,7 +60,7 @@ int Ingest::createStatsDbEntry(const string& assetName)
 	string statistics_key = assetName;
 	for (auto & c: statistics_key) c = toupper(c);
 	
-	// SELECT * FROM fledge.configuration WHERE key = categoryName
+	// SELECT * FROM fledge.statiatics WHERE key = statistics_key
 	const Condition conditionKey(Equals);
 	Where *wKey = new Where("key", conditionKey, statistics_key);
 	Query qKey(wKey);
@@ -213,11 +215,27 @@ void Ingest::updateStats()
 	try {
 		int rv = m_storage.updateTable("statistics", statsUpdates);
 		
-		if (rv<0)
-			Logger::getLogger()->info("%s:%d : Update stats failed, rv=%d", __FUNCTION__, __LINE__, rv);
+		if (rv < 0)
+		{
+			if (++m_statsUpdateFails > STATS_UPDATE_FAIL_THRESHOLD)
+			{
+				Logger::getLogger()->warn("Update of statistics failure has persisted, attempting recovery");
+				createServiceStatsDbEntry();
+				statsDbEntriesCache.clear();
+				m_statsUpdateFails = 0;
+			}
+			else if (m_statsUpdateFails == 1)
+			{
+				Logger::getLogger()->warn("Update of statistics failed");
+			}
+			else
+			{
+				Logger::getLogger()->warn("Update of statistics still failing");
+			}
+		}
 		else
 		{
-			m_discardedReadings=0;
+			m_discardedReadings = 0;
 			statsPendingEntries.clear();
 		}
 	}
@@ -271,6 +289,7 @@ Ingest::Ingest(StorageClient& storage,
 
 	// populate asset tracking cache
 	AssetTracker::getAssetTracker()->populateAssetTrackingCache(m_pluginName, "Ingest");
+	StorageAssetTracker::getStorageAssetTracker()->populateStorageAssetTrackingCache();
 
 	// Create the stats entry for the service
 	createServiceStatsDbEntry();
@@ -452,6 +471,13 @@ void Ingest::waitForQueue()
  */
 void Ingest::processQueue()
 {
+
+/*	typedef struct{
+                std::set<std::string> setDp;
+                unsigned int          count;
+        }dpCountObj;
+*/
+
 	do {
 		/*
 		 * If we have some data that has been previously filtered but failed to send,
@@ -499,14 +525,52 @@ void Ingest::processQueue()
 				m_failCnt = 0;
 				std::map<std::string, int>		statsEntriesCurrQueue;
 				AssetTracker *tracker = AssetTracker::getAssetTracker();
+				StorageAssetTracker *satracker = StorageAssetTracker::getStorageAssetTracker();
+				if ( satracker == nullptr)
+                                {
+                                        Logger::getLogger()->error("%s could not initialize satracker ", __FUNCTION__);
+					return;
+                                }
 
 				string lastAsset = "";
 				int *lastStat = NULL;
+				std::map <std::string , std::set<std::string> > assetDatapointMap;
+
 				for (vector<Reading *>::iterator it = q->begin();
 							 it != q->end(); ++it)
 				{
 					Reading *reading = *it;
 					string assetName = reading->getAssetName();
+                                        const std::vector<Datapoint *> dpVec = reading->getReadingData();
+					std::string temp;
+
+					std::set<std::string> tempSet;
+					// first sort the individual datapoints 
+					// e.g. dp2, dp3, dp1 push them in a set,to make them 
+					// dp1,dp2,dp3
+                                        for ( auto dp : dpVec)
+                                        {
+						temp.clear();
+                                                temp.append(dp->getName());
+						tempSet.insert(temp);
+                                        }
+
+					temp.clear();
+
+					// make a string from sorted datapoints in a reading 
+					int i = 0;
+					for (auto setItr: tempSet)
+					{
+						if ( i> 0) temp.append(",");
+						temp.append(setItr);
+						++i;
+					}
+
+					// Push them in a set so as to avoid duplication of datapoints
+					// a reading of d1, d2, d3 and another d2,d3,d1 , second will be discarded
+
+					assetDatapointMap[assetName].insert(temp);
+
 					if (lastAsset.compare(assetName))
 					{
 						AssetTrackingTuple tuple(m_serviceName,
@@ -538,6 +602,36 @@ void Ingest::processQueue()
 					}
 					delete reading;
 				}
+
+				for (auto itr : assetDatapointMap)
+                                {
+                                        std::set<string> &s = itr.second;
+ 
+                                        for (auto dp : s)
+                                        {
+						unsigned int c = count(dp.begin(), dp.end(), ',');
+                                                StorageAssetTrackingTuple storageTuple(m_serviceName,
+                                                                              m_pluginName,
+                                                                              itr.first,
+                                                                              "store", false, dp, c+1);
+ 
+
+                                        	StorageAssetTrackingTuple* rv = satracker->findStorageAssetTrackingCache(storageTuple);
+                                        	if (rv == NULL)
+                                        	{
+                                                	// Record not found in cache , please update cache
+                                                	Logger::getLogger()->debug("%s:%d record not found in cache ", __FUNCTION__, __LINE__);
+                                                	satracker->addStorageAssetTrackingTuple(storageTuple);
+                                        	}
+                                        	else
+                                        	{
+                                        		//record found undeprecate the record
+                                                	Logger::getLogger()->debug("%s:%d Record found in cache , undeprecate it", __FUNCTION__,__LINE__);
+                                                	unDeprecateStorageAssetTrackingRecord(rv, itr.first, dp, c+1);
+                                        	}
+					}
+                                }
+
 				delete q;
 				m_resendQueues.erase(m_resendQueues.begin());
 				unique_lock<mutex> lck(m_statsMutex);
@@ -674,19 +768,53 @@ void Ingest::processQueue()
 				// check if this requires addition of a new asset tracker tuple
 				// Remove the Readings in the vector
 				AssetTracker *tracker = AssetTracker::getAssetTracker();
+				StorageAssetTracker *satracker = StorageAssetTracker::getStorageAssetTracker();
 
 				string lastAsset;
 				int *lastStat = NULL;
+
+				std::map <std::string, std::set<std::string> > assetDatapointMap;
+
 				for (vector<Reading *>::iterator it = m_data->begin(); it != m_data->end(); ++it)
 				{
-					Reading *reading = *it;
+		               	        Reading *reading = *it;
 					string	assetName = reading->getAssetName();
-					if (lastAsset.compare(assetName))
-					{
+					const std::vector<Datapoint *> dpVec = reading->getReadingData();
+					std::string temp;
+                                        std::set<std::string> tempSet;
+                                        // first sort the individual datapoints
+                                        // e.g. dp2, dp3, dp1 push them in a set,to make them
+                                        // dp1,dp2,dp3
+
+                                        for ( auto dp : dpVec)
+                                        {
+						temp.clear();
+                                                temp.append(dp->getName());
+                                                tempSet.insert(temp);
+                                        }
+                                        temp.clear();
+                                        // make a string from sorted datapoints in a reading
+                                        int i = 0;
+                                        for (auto setItr: tempSet)
+                                        {
+                                                if ( i> 0) temp.append(",");
+                                                temp.append(setItr);
+                                                ++i;
+                                        }
+
+                                        // Push them in a set so as to avoid duplication of datapoints
+                                        // a reading of d1, d2, d3 and another d2,d3,d1 , second will be discarded
+
+                                        assetDatapointMap[assetName].insert(temp);
+
+                                        if (lastAsset.compare(assetName))
+                                        {
+
 						AssetTrackingTuple tuple(m_serviceName,
 									m_pluginName,
 									assetName,
 									"Ingest");
+
 
 						// Check Asset record exists
 						AssetTrackingTuple* res = tracker->findAssetTrackingCache(tuple);
@@ -702,16 +830,52 @@ void Ingest::processQueue()
 											assetName,
 											"Ingest");
 						}
+
 						lastAsset = assetName;
-						lastStat = &statsEntriesCurrQueue[assetName];
-						(*lastStat)++;
-					}
-					else if (lastStat)
-					{
-						(*lastStat)++;
-					}
-					delete reading;
+                                                  lastStat = &statsEntriesCurrQueue[assetName];
+                                                  (*lastStat)++;
+                                          }
+                                          else if (lastStat)
+                                          {
+                                                  (*lastStat)++;
+                                          }
+                                          delete reading;
+
 				}
+
+
+				for (auto itr : assetDatapointMap)
+				{ 
+					for (auto dp : itr.second)
+					{
+						unsigned int c= count(dp.begin(), dp.end(), ',');
+
+						StorageAssetTrackingTuple storageTuple(m_serviceName,
+                                                                              m_pluginName,
+                                                                              itr.first,
+                                                                              "store", false, dp, c+1);
+
+						Logger::getLogger()->debug("%s  Dp string dp = %s", __FUNCTION__, dp.c_str());
+
+                                  		StorageAssetTrackingTuple* rv = satracker->findStorageAssetTrackingCache(storageTuple);
+
+
+                                  		if (rv == NULL)
+                                  		{
+	                                       		// Record not found in cache , please update cache
+							Logger::getLogger()->debug("%s:%d record not found in cache  add it", __FUNCTION__, __LINE__);
+                                                	satracker->addStorageAssetTrackingTuple(storageTuple);
+                                  		}
+                                  		else
+                                  		{
+							//record found undeprecate the record
+							Logger::getLogger()->debug("%s:%d No need for updation , undeprecate it", __FUNCTION__,__LINE__);
+
+                                        		unDeprecateStorageAssetTrackingRecord(rv, itr.first, dp, c+1);
+                                  		}    
+					}
+				}
+
 				{
 					unique_lock<mutex> lck(m_statsMutex);
 					for (auto &it : statsEntriesCurrQueue)
@@ -1005,7 +1169,7 @@ void Ingest::unDeprecateAssetTrackingRecord(AssetTrackingTuple* currentTuple,
 	}
 	else
 	{
-		m_logger->error("Failure to get AssetTracking record " 	
+		m_logger->error("Failure to get AssetTracking record "
 				"for service '%s', asset '%s'",
 				m_serviceName.c_str(),
 				assetName.c_str());
@@ -1013,3 +1177,87 @@ void Ingest::unDeprecateAssetTrackingRecord(AssetTrackingTuple* currentTuple,
 
 	delete updatedTuple;
 }
+
+/**
+ * Load an up-to-date StorageAssetTracking record for the given parameters
+ * and un-deprecate StorageAssetTracking record it has been found as deprecated
+ * Existing cache element is updated
+ *
+ * @param currentTuple          Current StorageAssetTracking record for given assetName
+ * @param assetName             AssetName to fetch from AssetTracking
+ * @param event                 The event type to fetch
+ */
+void Ingest::unDeprecateStorageAssetTrackingRecord(StorageAssetTrackingTuple* currentTuple,
+                                        const string& assetName, const string& datapoints, const unsigned int& count)
+                                        
+{
+
+        // Get up-to-date Asset Tracking record
+        StorageAssetTrackingTuple* updatedTuple =
+                        m_mgtClient->getStorageAssetTrackingTuple(
+                        m_serviceName,
+                        assetName,
+                        "store", 
+			datapoints,
+			count);
+
+	std::string data = "{\"datapoints\":[";
+	data.append(datapoints);
+        data.append("],\"count\":");
+        data.append(to_string(count));
+        data.append("}");
+
+        if (updatedTuple)
+        {
+                if (updatedTuple->isDeprecated())
+                {
+
+                        // Update un-deprecated state in cached object
+                        currentTuple->unDeprecate();
+
+                        m_logger->error(" storage Asset '%s' is being un-deprecated",
+                                        assetName.c_str());
+
+                        // Prepare UPDATE query
+                        const Condition conditionParams(Equals);
+                        Where * wAsset = new Where("asset",
+                                                conditionParams,
+                                                assetName);
+                        Where *wService = new Where("service",
+                                                conditionParams,
+                                                m_serviceName,
+                                                wAsset);
+                        Where *wEvent = new Where("event",
+                                                conditionParams,
+                                                "store",
+                                                wService);
+			Where *wData = new Where("data",
+						conditionParams,
+						data,
+						wEvent);
+
+                        InsertValues unDeprecated;
+
+                        // Set NULL value
+                        unDeprecated.push_back(InsertValue("deprecated_ts"));
+
+                        // Update storage with NULL value
+                        int rv = m_storage.updateTable("asset_tracker",
+                                                        unDeprecated,
+                                                        *wData);
+
+
+                        // Check update operation
+                        if (rv < 0)
+                        {
+                                m_logger->error("Failure while un-deprecating asset '%s'",
+						assetName.c_str());
+			}
+		}
+	}
+
+	if (updatedTuple != nullptr)
+		delete updatedTuple;
+}
+
+

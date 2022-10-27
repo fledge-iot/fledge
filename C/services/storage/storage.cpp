@@ -26,7 +26,8 @@
 #include <config_handler.h>
 #include <plugin_configuration.h>
 
-#define NO_EXIT_STACKTRACE		0		// Set to 1 to make storage loop after stacktrace
+#define NO_EXIT_STACKTRACE		1	// Set to 1 to make storage loop after stacktrace
+						// This is useful to be able to attach a debbugger
 
 extern int makeDaemon(void);
 

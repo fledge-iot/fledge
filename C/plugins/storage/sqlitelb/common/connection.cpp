@@ -524,6 +524,7 @@ Connection::Connection()
 
 		const char *sqlStmt = attachDb.coalesce();
 
+		zErrMsg = NULL;
 		// Exec the statement
 		rc = SQLexec(dbHandle,
 			     sqlStmt,
@@ -551,6 +552,24 @@ Connection::Connection()
 		}
 		//Release sqlStmt buffer
 		delete[] sqlStmt;
+	
+		bool initialiseReadings = false;
+		if (access(dbPathReadings.c_str(), R_OK) == -1)
+		{
+			sqlite3 *dbHandle;
+			// Readings do not exist so set flag to initialise
+			rc = sqlite3_open(dbPathReadings.c_str(), &dbHandle);
+			if(rc != SQLITE_OK)
+			{
+			}
+        		else
+			{
+				// Enables the WAL feature
+				rc = sqlite3_exec(dbHandle, DB_CONFIGURATION, NULL, NULL, NULL);
+			}
+        		sqlite3_close(dbHandle);
+			initialiseReadings = true;
+		}
 
 		// Attach readings database
 		SQLBuffer attachReadingsDb;
@@ -586,6 +605,48 @@ Connection::Connection()
 		}
 		//Release sqlStmt buffer
 		delete[] sqlReadingsStmt;
+
+		if (initialiseReadings)
+		{
+			// Need to initialise the readings
+			char script[180];
+			snprintf(script, sizeof(script),
+					"%s/scripts/plugins/storage/sqlitelb/init_readings.sql",
+					getenv("FLEDGE_ROOT"));
+			SQLBuffer initReadings;
+			initReadings.append(".read ");
+			initReadings.append(script);
+
+			const char *sqlReadingsStmt = initReadings.coalesce();
+
+			// Exec the statement
+			zErrMsg = NULL;
+			rc = SQLexec(dbHandle,
+				     sqlReadingsStmt,
+				     NULL,
+				     NULL,
+				     &zErrMsg);
+
+			// Check result
+			if (rc != SQLITE_OK)
+			{
+				const char* errMsg = "Failed to initialise 'readings' database with";
+				Logger::getLogger()->error("%s '%s': error %s",
+							   errMsg,
+							   sqlReadingsStmt,
+							   zErrMsg);
+				connectErrorTime = time(0);
+
+				sqlite3_free(zErrMsg);
+				sqlite3_close_v2(dbHandle);
+			}
+			else
+			{
+				Logger::getLogger()->info("Initialised readings database");
+			}
+			//Release sqlStmt buffer
+			delete[] sqlReadingsStmt;
+		}
 
 		// Enable the WAL for the readings DB
 		rc = sqlite3_exec(dbHandle, dbConfiguration.c_str(),NULL, NULL, &zErrMsg);

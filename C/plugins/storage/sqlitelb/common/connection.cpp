@@ -608,14 +608,18 @@ Connection::Connection()
 
 		if (initialiseReadings)
 		{
+			// Would really like to run an external script here, but until we have that
+			// worked out we have the SQL needed to create the table and indexes
+			
 			// Need to initialise the readings
-			char script[180];
-			snprintf(script, sizeof(script),
-					"%s/scripts/plugins/storage/sqlitelb/init_readings.sql",
-					getenv("FLEDGE_ROOT"));
 			SQLBuffer initReadings;
-			initReadings.append(".read ");
-			initReadings.append(script);
+			initReadings.append("CREATE TABLE readings.readings (");
+			initReadings.append("id         INTEGER                     PRIMARY KEY AUTOINCREMENT,");
+			initReadings.append("asset_code character varying(50)       NOT NULL,");
+			initReadings.append("reading    JSON                        NOT NULL DEFAULT '{}',");
+			initReadings.append("user_ts    DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f+00:00', 'NOW')),");
+			initReadings.append("ts         DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f+00:00', 'NOW'))");
+			initReadings.append(");");
 
 			const char *sqlReadingsStmt = initReadings.coalesce();
 
@@ -630,7 +634,7 @@ Connection::Connection()
 			// Check result
 			if (rc != SQLITE_OK)
 			{
-				const char* errMsg = "Failed to initialise 'readings' database with";
+				const char* errMsg = "Failed to reate 'readings' table, ";
 				Logger::getLogger()->error("%s '%s': error %s",
 							   errMsg,
 							   sqlReadingsStmt,
@@ -646,6 +650,105 @@ Connection::Connection()
 			}
 			//Release sqlStmt buffer
 			delete[] sqlReadingsStmt;
+
+			SQLBuffer index1;
+			index1.append("CREATE INDEX readings.fki_readings_fk1 ON readings (asset_code, user_ts desc);");
+
+			const char *sqlIndex1Stmt = index1.coalesce();
+
+			// Exec the statement
+			zErrMsg = NULL;
+			rc = SQLexec(dbHandle,
+				     sqlIndex1Stmt,
+				     NULL,
+				     NULL,
+				     &zErrMsg);
+
+			// Check result
+			if (rc != SQLITE_OK)
+			{
+				const char* errMsg = "Failed to create 'readings' index, ";
+				Logger::getLogger()->error("%s '%s': error %s",
+							   errMsg,
+							   sqlIndex1Stmt,
+							   zErrMsg);
+				connectErrorTime = time(0);
+
+				sqlite3_free(zErrMsg);
+				sqlite3_close_v2(dbHandle);
+			}
+			else
+			{
+				Logger::getLogger()->info("Initialised readings database");
+			}
+			//Release sqlStmt buffer
+			delete[] sqlIndex1Stmt;
+
+			SQLBuffer index2;
+			index2.append("CREATE INDEX readings.readings_ix2 ON readings (asset_code);");
+
+			const char *sqlIndex2Stmt = index2.coalesce();
+
+			// Exec the statement
+			zErrMsg = NULL;
+			rc = SQLexec(dbHandle,
+				     sqlIndex2Stmt,
+				     NULL,
+				     NULL,
+				     &zErrMsg);
+
+			// Check result
+			if (rc != SQLITE_OK)
+			{
+				const char* errMsg = "Failed to create 'readings' index, ";
+				Logger::getLogger()->error("%s '%s': error %s",
+							   errMsg,
+							   sqlIndex2Stmt,
+							   zErrMsg);
+				connectErrorTime = time(0);
+
+				sqlite3_free(zErrMsg);
+				sqlite3_close_v2(dbHandle);
+			}
+			else
+			{
+				Logger::getLogger()->info("Initialised readings database");
+			}
+			//Release sqlStmt buffer
+			delete[] sqlIndex2Stmt;
+
+			SQLBuffer index3;
+			index3.append("CREATE INDEX readings.readings_ix3 ON readings (user_ts);");
+
+			const char *sqlIndex3Stmt = index3.coalesce();
+
+			// Exec the statement
+			zErrMsg = NULL;
+			rc = SQLexec(dbHandle,
+				     sqlIndex3Stmt,
+				     NULL,
+				     NULL,
+				     &zErrMsg);
+
+			// Check result
+			if (rc != SQLITE_OK)
+			{
+				const char* errMsg = "Failed to create 'readings' index, ";
+				Logger::getLogger()->error("%s '%s': error %s",
+							   errMsg,
+							   sqlIndex3Stmt,
+							   zErrMsg);
+				connectErrorTime = time(0);
+
+				sqlite3_free(zErrMsg);
+				sqlite3_close_v2(dbHandle);
+			}
+			else
+			{
+				Logger::getLogger()->info("Initialised readings database");
+			}
+			//Release sqlStmt buffer
+			delete[] sqlIndex3Stmt;
 		}
 
 		// Enable the WAL for the readings DB

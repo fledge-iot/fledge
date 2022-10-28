@@ -550,7 +550,7 @@ case "$engine_management" in
        	# SQLite does not support managed storage. Ignore this option
         print_output="silent"
         MANAGED=false
-
+        ;;
     
     "false")
 

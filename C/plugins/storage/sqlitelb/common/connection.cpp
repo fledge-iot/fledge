@@ -634,7 +634,7 @@ Connection::Connection()
 			// Check result
 			if (rc != SQLITE_OK)
 			{
-				const char* errMsg = "Failed to reate 'readings' table, ";
+				const char* errMsg = "Failed to create 'readings' table, ";
 				Logger::getLogger()->error("%s '%s': error %s",
 							   errMsg,
 							   sqlReadingsStmt,

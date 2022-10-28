@@ -23,7 +23,8 @@ static const char *defaultConfiguration = QUOTE({
        		"value" : "sqlite",
 		"default" : "sqlite",
 		"description" : "The main storage plugin to load",
-		"type" : "string",
+		"type" : "enumeration",
+		"options" : [ "sqlite", "sqlitelb", "postgres" ],
 		"displayName" : "Storage Plugin",
 		"order" : "1"
 		},
@@ -31,7 +32,8 @@ static const char *defaultConfiguration = QUOTE({
 		"value" : "",
 		"default" : "",
 		"description" : "The storage plugin to load for readings data. If blank the main storage plugin is used.",
-		"type" : "string",
+		"type" : "enumeration",
+		"options" : [ "sqlite", "sqlitelb", "sqlitememory", "postgres" ],
 		"displayName" : "Readings Plugin",
 		"order" : "2"
 		},
@@ -83,6 +85,9 @@ using namespace rapidjson;
 
 /**
  * Constructor for storage service configuration class.
+ *
+ * TODO Update the options for plugin and readingPlugin with any other storage
+ * plugins that have been installed
  */
 StorageConfiguration::StorageConfiguration()
 {

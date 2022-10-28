@@ -1771,6 +1771,10 @@ bool ManagementClient::addStorageAssetTrackingTuple(const std::string& service,
 								content.c_str());
 			return false;
 		}
+                if (res->status_code[0] == '2') // A 2xx response
+                {
+                        return true;
+                }
 		if (doc.HasMember("fledge"))
 		{
 			const char *reg_id = doc["fledge"].GetString();

@@ -173,36 +173,40 @@ void Ingest::updateStats()
 		}
 		
 		if (it->second)
+		{
+			if (m_statisticsOption == STATS_BOTH || m_statisticsOption == STATS_ASSET)
 			{
-			// Prepare fledge.statistics update
-			key = it->first;
-			for (auto & c: key) c = toupper(c);
+				// Prepare fledge.statistics update
+				key = it->first;
+				for (auto & c: key) c = toupper(c);
 
-			// Prepare "WHERE key = name
-			Where *wPluginStat = new Where("key", conditionStat, key);
+				// Prepare "WHERE key = name
+				Where *wPluginStat = new Where("key", conditionStat, key);
 
-			// Prepare value = value + inc
-			ExpressionValues *updateValue = new ExpressionValues;
-			updateValue->push_back(Expression("value", "+", (int) it->second));
+				// Prepare value = value + inc
+				ExpressionValues *updateValue = new ExpressionValues;
+				updateValue->push_back(Expression("value", "+", (int) it->second));
 
-			statsUpdates.emplace_back(updateValue, wPluginStat);
+				statsUpdates.emplace_back(updateValue, wPluginStat);
+			}
 			readings += it->second;
 		}
 	}
 
-	if(readings)
+	if (readings)
 	{
 		Where *wPluginStat = new Where("key", conditionStat, "READINGS");
 		ExpressionValues *updateValue = new ExpressionValues;
 		updateValue->push_back(Expression("value", "+", (int) readings));
 		statsUpdates.emplace_back(updateValue, wPluginStat);
-	}
-	if(readings)
-	{
-		Where *wPluginStat = new Where("key", conditionStat, m_serviceName + INGEST_SUFFIX);
-		ExpressionValues *updateValue = new ExpressionValues;
-		updateValue->push_back(Expression("value", "+", (int) readings));
-		statsUpdates.emplace_back(updateValue, wPluginStat);
+
+		if (m_statisticsOption == STATS_BOTH || m_statisticsOption == STATS_SERVICE)
+		{
+			Where *wPluginStat = new Where("key", conditionStat, m_serviceName + INGEST_SUFFIX);
+			ExpressionValues *updateValue = new ExpressionValues;
+			updateValue->push_back(Expression("value", "+", (int) readings));
+			statsUpdates.emplace_back(updateValue, wPluginStat);
+		}
 	}
 	if (m_discardedReadings)
 	{
@@ -275,7 +279,8 @@ Ingest::Ingest(StorageClient& storage,
 			m_mgtClient(mgmtClient),
 			m_failCnt(0),
 			m_storageFailed(false),
-			m_storesFailed(0)
+			m_storesFailed(0),
+			m_statisticsOption(STATS_BOTH)
 {
 	m_shutdown = false;
 	m_running = true;
@@ -1260,4 +1265,19 @@ void Ingest::unDeprecateStorageAssetTrackingRecord(StorageAssetTrackingTuple* cu
 		delete updatedTuple;
 }
 
-
+/**
+ * Set the statistics option. The statistics collection regime may be one of
+ * "per asset", "per service" or "per asset & service".
+ *
+ * @param option	The desired statistics collection regime
+ */
+void Ingest::setStatistics(const string& option)
+{
+	unique_lock<mutex> lck(m_statsMutex);
+	if (option.compare("per asset") == 0)
+		m_statisticsOption = STATS_ASSET;
+	else if (option.compare("per service") == 0)
+		m_statisticsOption = STATS_SERVICE;
+	else
+		m_statisticsOption = STATS_BOTH;
+}

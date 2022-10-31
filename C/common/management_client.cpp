@@ -1777,7 +1777,6 @@ bool ManagementClient::addStorageAssetTrackingTuple(const std::string& service,
                 }
 		if (doc.HasMember("fledge"))
 		{
-			const char *reg_id = doc["fledge"].GetString();
 			return true;
 		}
 		else if (doc.HasMember("message"))

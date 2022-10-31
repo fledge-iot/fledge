@@ -1760,6 +1760,11 @@ bool ManagementClient::addStorageAssetTrackingTuple(const std::string& service,
 		convert << " \"count\" : " << count << " } }";
 
 		auto res = this->getHttpClient()->request("POST", "/fledge/track", convert.str());
+		if (res->status_code[0] == '2') // A 2xx response
+                {
+                        return true;
+                }
+
 		Document doc;
 		string content = res->content.string();
 		doc.Parse(content.c_str());
@@ -1770,11 +1775,6 @@ bool ManagementClient::addStorageAssetTrackingTuple(const std::string& service,
 								httpError?"HTTP error during":"Failed to parse result of", 
 								content.c_str());
 			return false;
-		}
-		if (doc.HasMember("fledge"))
-		{
-			const char *reg_id = doc["fledge"].GetString();
-			return true;
 		}
 		else if (doc.HasMember("message"))
 		{

@@ -1776,10 +1776,6 @@ bool ManagementClient::addStorageAssetTrackingTuple(const std::string& service,
 								content.c_str());
 			return false;
 		}
-		if (doc.HasMember("fledge"))
-		{
-			return true;
-		}
 		else if (doc.HasMember("message"))
 		{
 			m_logger->error("%s:%d Failed to add storage asset tracking tuple: %s.",__FUNCTION__, __LINE__,

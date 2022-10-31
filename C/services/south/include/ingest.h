@@ -77,6 +77,7 @@ public:
 							const std::string& event);
 	void            unDeprecateStorageAssetTrackingRecord(StorageAssetTrackingTuple* currentTuple,
                                                         const std::string& assetName, const std::string&, const unsigned int&);
+	void		setStatistics(const std::string& option);
 
 
 private:
@@ -127,6 +128,8 @@ private:
 	bool				m_storageFailed;
 	int				m_storesFailed;
 	int				m_statsUpdateFails;
+	enum { STATS_BOTH, STATS_ASSET, STATS_SERVICE }
+					m_statisticsOption;
 };
 
 #endif

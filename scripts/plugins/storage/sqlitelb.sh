@@ -248,8 +248,11 @@ sqlite_reset_db_fledge() {
     schema=`sqlite3 ${DEFAULT_SQLITE_DB_FILE} 'select name from service_schema;'`
     for f in $schema; do
          rm ${FLEDGE_DATA}/${f}.db*
+          if [ -d "${FLEDGE_DATA}/buckets" ]; then
+            echo "Removed user data from ${FLEDGE_DATA}/buckets"
+            rm -rf ${FLEDGE_DATA}/buckets
+          fi
     done
-
 
     # 1- Drop all databases in DEFAULT_SQLITE_DB_FILE
     if [ -f "${DEFAULT_SQLITE_DB_FILE}" ]; then

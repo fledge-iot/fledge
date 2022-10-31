@@ -41,14 +41,18 @@ const char *default_config = QUOTE({
 		"poolSize" : {
 			"description" : "The number of connections to create in the intial pool of connections",
 			"type" : "integer",
+			"minimum": "1",
+			"maximum": "10",
 			"default" : "5",
 			"displayName" : "Pool Size",
 			"order" : "1"
 		},
 		"nReadingsPerDb" : {
-			"description" : "The number of readings tables in each database that is created",
+			"description" : "The number of unique assets tables to maintain in each database that is created",
 			"type" : "integer",
+			"minimum": "1",
 			"default" : "15",
+			"maximum": "00",
 			"displayName" : "No. Readings per database",
 			"order" : "2"
 		},
@@ -56,6 +60,8 @@ const char *default_config = QUOTE({
 			"description" : "Number of databases to allocate in advance. NOTE: SQLite has a default maximum of 10 attachable databases",
 			"type" : "integer",
 			"default" : "3",
+			"minimum": "1",
+			"maximum" : "10",
 			"displayName" : "No. databases to allocate in advance",
 			"order" : "3"
 		},
@@ -63,6 +69,8 @@ const char *default_config = QUOTE({
 			"description" : "Allocate new databases when the number of free databases drops below this value",
 			"type" : "integer",
 			"default" : "1",
+			"minimum": "1",
+			"maximum": "10",
 			"displayName" : "Database allocation threshold",
 			"order" : "4"
 		},
@@ -70,6 +78,8 @@ const char *default_config = QUOTE({
 			"description" : "The number of databases to create whenever the number of available databases drops below the allocation threshold",
 			"type" : "integer",
 			"default" : "2",
+			"minimum" : "1",
+			"maximum" : "10",
 			"displayName" : "Database allocation size",
 			"order" : "5"
 		},

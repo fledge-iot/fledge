@@ -1760,6 +1760,11 @@ bool ManagementClient::addStorageAssetTrackingTuple(const std::string& service,
 		convert << " \"count\" : " << count << " } }";
 
 		auto res = this->getHttpClient()->request("POST", "/fledge/track", convert.str());
+		if (res->status_code[0] == '2') // A 2xx response
+                {
+                        return true;
+                }
+
 		Document doc;
 		string content = res->content.string();
 		doc.Parse(content.c_str());
@@ -1771,10 +1776,6 @@ bool ManagementClient::addStorageAssetTrackingTuple(const std::string& service,
 								content.c_str());
 			return false;
 		}
-                if (res->status_code[0] == '2') // A 2xx response
-                {
-                        return true;
-                }
 		if (doc.HasMember("fledge"))
 		{
 			return true;

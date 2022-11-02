@@ -549,6 +549,8 @@ void Ingest::processQueue()
                                         const std::vector<Datapoint *> dpVec = reading->getReadingData();
 					std::string temp;
 
+
+		Logger::getLogger()->error("%s:%d ++++++++++++++++++++++++++++++++++++Inside reading loop", __FILE__, __LINE__);
 					std::set<std::string> tempSet;
 					// first sort the individual datapoints 
 					// e.g. dp2, dp3, dp1 push them in a set,to make them 
@@ -562,19 +564,20 @@ void Ingest::processQueue()
 
 					temp.clear();
 
-					// make a string from sorted datapoints in a reading 
-					int i = 0;
-					for (auto setItr: tempSet)
-					{
-						if ( i> 0) temp.append(",");
-						temp.append(setItr);
-						++i;
-					}
-
 					// Push them in a set so as to avoid duplication of datapoints
 					// a reading of d1, d2, d3 and another d2,d3,d1 , second will be discarded
-
-					assetDatapointMap[assetName].insert(temp);
+					//
+					unsigned int c = tempSet.size();
+					for (auto dp: tempSet)
+					{
+						set<string> &s= assetDatapointMap[assetName];
+						if (s.find(dp) == s.end())
+						{
+							Logger::getLogger()->error("%s:%d: Inserting %s in set", __FILE__,__LINE__,dp.c_str()) ;
+							s.insert(dp);
+						}
+					}
+					Logger::getLogger()->error("%s:%d: temSet size = %d",__FILE__,__LINE__, c);
 
 					if (lastAsset.compare(assetName))
 					{
@@ -611,7 +614,11 @@ void Ingest::processQueue()
 				for (auto itr : assetDatapointMap)
                                 {
                                         std::set<string> &s = itr.second;
- 
+					Logger::getLogger()->error("%s:%d, calling updateCache ", __FILE__, __LINE__);
+					satracker->updateCache(s, m_serviceName,m_pluginName, itr.first, "store");
+				}
+
+/* 
                                         for (auto dp : s)
                                         {
 						unsigned int c = count(dp.begin(), dp.end(), ',');
@@ -636,6 +643,7 @@ void Ingest::processQueue()
                                         	}
 					}
                                 }
+				*/
 
 				delete q;
 				m_resendQueues.erase(m_resendQueues.begin());
@@ -786,31 +794,37 @@ void Ingest::processQueue()
 					string	assetName = reading->getAssetName();
 					const std::vector<Datapoint *> dpVec = reading->getReadingData();
 					std::string temp;
+
+			  Logger::getLogger()->error("%s:%d ++++++++++++++++++++++++++++++++++++Inside reading loop", __FILE__, __LINE__);
                                         std::set<std::string> tempSet;
                                         // first sort the individual datapoints
                                         // e.g. dp2, dp3, dp1 push them in a set,to make them
                                         // dp1,dp2,dp3
-
                                         for ( auto dp : dpVec)
                                         {
-						temp.clear();
+                                                temp.clear();
                                                 temp.append(dp->getName());
                                                 tempSet.insert(temp);
                                         }
+
                                         temp.clear();
-                                        // make a string from sorted datapoints in a reading
-                                        int i = 0;
-                                        for (auto setItr: tempSet)
-                                        {
-                                                if ( i> 0) temp.append(",");
-                                                temp.append(setItr);
-                                                ++i;
-                                        }
 
                                         // Push them in a set so as to avoid duplication of datapoints
                                         // a reading of d1, d2, d3 and another d2,d3,d1 , second will be discarded
+                                        //
+                                        unsigned int c = tempSet.size();
+                                        for (auto dp: tempSet)
+                                        {
+                                                set<string> &s= assetDatapointMap[assetName];
+                                                if (s.find(dp) == s.end())
+                                                {
+                                                        Logger::getLogger()->error("%s:%d: Inserting %s in set", __FILE__,__LINE__,dp.c_str()) ;
+                                                        s.insert(dp);
+                                                }
+                                        }
+                                        Logger::getLogger()->error("%s:%d: tempSet size = %d",__FILE__,__LINE__, c);
 
-                                        assetDatapointMap[assetName].insert(temp);
+
 
                                         if (lastAsset.compare(assetName))
                                         {
@@ -848,7 +862,13 @@ void Ingest::processQueue()
 
 				}
 
-
+			     for (auto itr : assetDatapointMap)
+                             {
+                                      std::set<string> &s = itr.second;
+                                      Logger::getLogger()->error("%s:%d, calling updateCache ", __FILE__, __LINE__);
+                                      satracker->updateCache(s, m_serviceName,m_pluginName, itr.first, "store");
+                             }
+/*
 				for (auto itr : assetDatapointMap)
 				{ 
 					for (auto dp : itr.second)
@@ -880,6 +900,7 @@ void Ingest::processQueue()
                                   		}    
 					}
 				}
+				*/
 
 				{
 					unique_lock<mutex> lck(m_statsMutex);

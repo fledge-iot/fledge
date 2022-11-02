@@ -68,7 +68,7 @@ async def auth_middleware(app, handler):
             token = request.headers.get('authorization')
         except:
             token = request.headers.get('Authorization', None)
-        
+
         if token:
             try:
                 # validate the token and get user id
@@ -82,6 +82,9 @@ async def auth_middleware(app, handler):
                 request.token = token
                 # set if user is admin
                 request.user_is_admin = True if int(request.user["role_id"]) == 1 else False
+                # With "view" based user role only read access operation is allowed
+                if int(request.user["role_id"]) == 3 and request.method != 'GET':
+                    raise web.HTTPForbidden
             except(User.InvalidToken, User.TokenExpired) as e:
                 raise web.HTTPUnauthorized(reason=e)
             except (jwt.DecodeError, jwt.ExpiredSignatureError) as e:

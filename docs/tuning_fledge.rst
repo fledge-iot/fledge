@@ -1,5 +1,6 @@
 .. Images
 .. |south_advanced| image:: images/south_advanced.jpg
+.. |stats_options| image:: images/stats_options.jpg
 .. |north_advanced| image:: images/north_advanced.jpg
 .. |service_monitor| image:: images/service_monitor.jpg
 .. |scheduler_advanced| image:: images/scheduler_advanced.jpg
@@ -48,6 +49,18 @@ The south services within Fledge each have a set of advanced configuration optio
   - *Reading Rate Per* - This defines the units to be used in the *Reading Rate* value. It allows the selection of per *second*, *minute* or *hour*.
 
   - *Minimum Log Level* - This configuration option can be used to set the logs that will be seen for this service. It defines the level of logging that is send to the syslog and may be set to *error*, *warning*, *info* or *debug*. Logs of the level selected and higher will be sent to the syslog. You may access the contents of these logs by selecting the log icon in the bottom left of this screen.
+
+  - *Statistics Collection* - This configuration option can be used to control how detailed the statistics collected by the south service are. There are three options that may be selected
+
+    +-----------------+
+    | |stats_options| |
+    +-----------------+
+
+    The default, *per asset & per service* setting will collect one statistic per asset ingested and an overall statistic for the entire service. The *per service* option just collects the overall service ingest statistics and the *per asset* option just collects the statistics for each asset and not for the entire service. 
+
+.. note::
+
+   The *Statistics Collection* setting will not remove any existing statistics, these will remain and remain to be represented in the statistics history. This only impacts new values that are collected. It is recommended that this be set before a service is started for the first time if the desire it to have no statistics values recorded for either assets or the service.
 
 Tuning Buffer Usage
 -------------------

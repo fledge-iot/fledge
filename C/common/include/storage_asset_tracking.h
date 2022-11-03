@@ -83,18 +83,10 @@ namespace std
 
 class ManagementClient;
 
-typedef std::unordered_multiset<StorageAssetTrackingTuple*, std::hash<StorageAssetTrackingTuple*>, StorageAssetTrackingTuplePtrEqual> StorageAssetCacheSet;
+typedef std::unordered_map<StorageAssetTrackingTuple*, std::set<std::string>, std::hash<StorageAssetTrackingTuple*>, StorageAssetTrackingTuplePtrEqual> StorageAssetCacheMap;
 
-typedef std::unordered_multiset<StorageAssetTrackingTuple*, std::hash<StorageAssetTrackingTuple*>, StorageAssetTrackingTuplePtrEqual>::iterator StorageAssetCacheSetItr;
+typedef std::unordered_map<StorageAssetTrackingTuple*, std::set<std::string>, std::hash<StorageAssetTrackingTuple*>, StorageAssetTrackingTuplePtrEqual>::iterator StorageAssetCacheMapItr;
 
-struct StorageAssetCacheSetItrCmp{
-
-	bool operator ()(StorageAssetCacheSetItr x, StorageAssetCacheSetItr y)
-	{
-		return x != y;
-	}
-
-};
 /**
  * The StorageAssetTracker class provides the asset tracking functionality.
  * There are methods to populate asset tracking cache from asset_tracker DB table,
@@ -112,7 +104,8 @@ public:
 	bool 	getFledgeConfigInfo();
 	static  StorageAssetTracker *getStorageAssetTracker();
 	static	void releaseStorageAssetTracker();
-	int 	compareDatapoints(const std::string& dp1, const std::string& dp2);
+	void    updateCache(std::set<std::string> dpSet, StorageAssetTrackingTuple* ptr);
+	bool 	getDeprecated(StorageAssetTrackingTuple* ptr);
 
 private:
 	static StorageAssetTracker	*instance;
@@ -120,8 +113,9 @@ private:
 	std::string                     m_fledgeService;
 	std::string			m_service;
 	std::string			m_event;
+	std::set<std::string> 		getDataPointsSet(std::string strDatapoints);
 
-	StorageAssetCacheSet storageAssetTrackerTuplesCache;
+	StorageAssetCacheMap storageAssetTrackerTuplesCache;
 };
 
 #endif

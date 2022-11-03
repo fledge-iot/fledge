@@ -548,9 +548,6 @@ void Ingest::processQueue()
 					string assetName = reading->getAssetName();
                                         const std::vector<Datapoint *> dpVec = reading->getReadingData();
 					std::string temp;
-
-
-		Logger::getLogger()->error("%s:%d ++++++++++++++++++++++++++++++++++++Inside reading loop", __FILE__, __LINE__);
 					std::set<std::string> tempSet;
 					// first sort the individual datapoints 
 					// e.g. dp2, dp3, dp1 push them in a set,to make them 
@@ -567,17 +564,14 @@ void Ingest::processQueue()
 					// Push them in a set so as to avoid duplication of datapoints
 					// a reading of d1, d2, d3 and another d2,d3,d1 , second will be discarded
 					//
-					unsigned int c = tempSet.size();
 					for (auto dp: tempSet)
 					{
 						set<string> &s= assetDatapointMap[assetName];
 						if (s.find(dp) == s.end())
 						{
-							Logger::getLogger()->error("%s:%d: Inserting %s in set", __FILE__,__LINE__,dp.c_str()) ;
 							s.insert(dp);
 						}
 					}
-					Logger::getLogger()->error("%s:%d: temSet size = %d",__FILE__,__LINE__, c);
 
 					if (lastAsset.compare(assetName))
 					{
@@ -614,36 +608,16 @@ void Ingest::processQueue()
 				for (auto itr : assetDatapointMap)
                                 {
                                         std::set<string> &s = itr.second;
-					Logger::getLogger()->error("%s:%d, calling updateCache ", __FILE__, __LINE__);
-					satracker->updateCache(s, m_serviceName,m_pluginName, itr.first, "store");
-				}
-
-/* 
-                                        for (auto dp : s)
+                                        unsigned int count = s.size();
+                                        StorageAssetTrackingTuple storageTuple(m_serviceName,m_pluginName, itr.first, "store", false, "",count);
+                                        StorageAssetTrackingTuple *ptr = &storageTuple;
+                                        satracker->updateCache(s, ptr);
+                                        bool deprecated = satracker->getDeprecated(ptr);
+                                        if (deprecated == true)
                                         {
-						unsigned int c = count(dp.begin(), dp.end(), ',');
-                                                StorageAssetTrackingTuple storageTuple(m_serviceName,
-                                                                              m_pluginName,
-                                                                              itr.first,
-                                                                              "store", false, dp, c+1);
- 
-
-                                        	StorageAssetTrackingTuple* rv = satracker->findStorageAssetTrackingCache(storageTuple);
-                                        	if (rv == NULL)
-                                        	{
-                                                	// Record not found in cache , please update cache
-                                                	Logger::getLogger()->debug("%s:%d record not found in cache ", __FUNCTION__, __LINE__);
-                                                	satracker->addStorageAssetTrackingTuple(storageTuple);
-                                        	}
-                                        	else
-                                        	{
-                                        		//record found undeprecate the record
-                                                	Logger::getLogger()->debug("%s:%d Record found in cache , undeprecate it", __FUNCTION__,__LINE__);
-                                                	unDeprecateStorageAssetTrackingRecord(rv, itr.first, dp, c+1);
-                                        	}
-					}
+                                                unDeprecateStorageAssetTrackingRecord(ptr, itr.first, getStringFromSet(s), count);
+                                        }
                                 }
-				*/
 
 				delete q;
 				m_resendQueues.erase(m_resendQueues.begin());
@@ -785,17 +759,13 @@ void Ingest::processQueue()
 
 				string lastAsset;
 				int *lastStat = NULL;
-
 				std::map <std::string, std::set<std::string> > assetDatapointMap;
-
 				for (vector<Reading *>::iterator it = m_data->begin(); it != m_data->end(); ++it)
 				{
 		               	        Reading *reading = *it;
 					string	assetName = reading->getAssetName();
 					const std::vector<Datapoint *> dpVec = reading->getReadingData();
 					std::string temp;
-
-			  Logger::getLogger()->error("%s:%d ++++++++++++++++++++++++++++++++++++Inside reading loop", __FILE__, __LINE__);
                                         std::set<std::string> tempSet;
                                         // first sort the individual datapoints
                                         // e.g. dp2, dp3, dp1 push them in a set,to make them
@@ -812,28 +782,21 @@ void Ingest::processQueue()
                                         // Push them in a set so as to avoid duplication of datapoints
                                         // a reading of d1, d2, d3 and another d2,d3,d1 , second will be discarded
                                         //
-                                        unsigned int c = tempSet.size();
                                         for (auto dp: tempSet)
                                         {
                                                 set<string> &s= assetDatapointMap[assetName];
                                                 if (s.find(dp) == s.end())
                                                 {
-                                                        Logger::getLogger()->error("%s:%d: Inserting %s in set", __FILE__,__LINE__,dp.c_str()) ;
                                                         s.insert(dp);
                                                 }
                                         }
-                                        Logger::getLogger()->error("%s:%d: tempSet size = %d",__FILE__,__LINE__, c);
-
-
 
                                         if (lastAsset.compare(assetName))
                                         {
-
 						AssetTrackingTuple tuple(m_serviceName,
 									m_pluginName,
 									assetName,
 									"Ingest");
-
 
 						// Check Asset record exists
 						AssetTrackingTuple* res = tracker->findAssetTrackingCache(tuple);
@@ -862,46 +825,19 @@ void Ingest::processQueue()
 
 				}
 
-			     for (auto itr : assetDatapointMap)
-                             {
-                                      std::set<string> &s = itr.second;
-                                      Logger::getLogger()->error("%s:%d, calling updateCache ", __FILE__, __LINE__);
-                                      satracker->updateCache(s, m_serviceName,m_pluginName, itr.first, "store");
-                             }
-/*
-				for (auto itr : assetDatapointMap)
-				{ 
-					for (auto dp : itr.second)
+			        for (auto itr : assetDatapointMap)
+                                {
+                                        std::set<string> &s = itr.second;
+				        unsigned int count = s.size();
+				        StorageAssetTrackingTuple storageTuple(m_serviceName,m_pluginName, itr.first, "store", false, "",count);
+					StorageAssetTrackingTuple *ptr = &storageTuple;
+                                        satracker->updateCache(s, ptr);
+					bool deprecated = satracker->getDeprecated(ptr);
+					if (deprecated == true)
 					{
-						unsigned int c= count(dp.begin(), dp.end(), ',');
-
-						StorageAssetTrackingTuple storageTuple(m_serviceName,
-                                                                              m_pluginName,
-                                                                              itr.first,
-                                                                              "store", false, dp, c+1);
-
-						Logger::getLogger()->debug("%s  Dp string dp = %s", __FUNCTION__, dp.c_str());
-
-                                  		StorageAssetTrackingTuple* rv = satracker->findStorageAssetTrackingCache(storageTuple);
-
-
-                                  		if (rv == NULL)
-                                  		{
-	                                       		// Record not found in cache , please update cache
-							Logger::getLogger()->debug("%s:%d record not found in cache  add it", __FUNCTION__, __LINE__);
-                                                	satracker->addStorageAssetTrackingTuple(storageTuple);
-                                  		}
-                                  		else
-                                  		{
-							//record found undeprecate the record
-							Logger::getLogger()->debug("%s:%d No need for updation , undeprecate it", __FUNCTION__,__LINE__);
-
-                                        		unDeprecateStorageAssetTrackingRecord(rv, itr.first, dp, c+1);
-                                  		}    
+						unDeprecateStorageAssetTrackingRecord(ptr, itr.first, getStringFromSet(s), count);
 					}
-				}
-				*/
-
+                                }
 				{
 					unique_lock<mutex> lck(m_statsMutex);
 					for (auto &it : statsEntriesCurrQueue)
@@ -1227,12 +1163,12 @@ void Ingest::unDeprecateStorageAssetTrackingRecord(StorageAssetTrackingTuple* cu
 			datapoints,
 			count);
 
-	vector<string> tokens;
+        vector<string> tokens;
         stringstream dpStringStream(datapoints);
         string temp;
         while(getline(dpStringStream, temp, ','))
         {
-	        tokens.push_back(temp);
+                tokens.push_back(temp);
         }
 
 	ostringstream convert;
@@ -1240,7 +1176,7 @@ void Ingest::unDeprecateStorageAssetTrackingRecord(StorageAssetTrackingTuple* cu
         convert << "\"datapoints\":[";
         for (unsigned int i = 0; i < tokens.size() ; ++i)
         {
-	        convert << "\"" << tokens[i].c_str() << "\"" ;
+		convert << "\"" << tokens[i].c_str() << "\"" ;
                 if (i < tokens.size()-1){
 	                convert << ",";
                 }
@@ -1316,4 +1252,21 @@ void Ingest::setStatistics(const string& option)
 		m_statisticsOption = STATS_SERVICE;
 	else
 		m_statisticsOption = STATS_BOTH;
+}
+
+/*
+ * Returns comma-separated string from set of datapoints
+ */
+std::string  Ingest::getStringFromSet(const std::set<std::string> &dpSet)
+{
+	std::string s;
+	for (auto itr: dpSet)
+	{
+		s.append(itr);
+		s.append(",");
+	}
+	// remove the last comma
+	if (s[s.size() -1] == ',')
+		s.pop_back();
+	return s;
 }

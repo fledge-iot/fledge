@@ -253,7 +253,7 @@ std::set<std::string> StorageAssetTracker::getDataPointsSet(std::string strDatap
  */
 
 
-bool StorageAssetTracker::ggetDeprecatedetDeprecated(StorageAssetTrackingTuple* ptr)
+bool StorageAssetTracker::getDeprecated(StorageAssetTrackingTuple* ptr)
 {
 	StorageAssetCacheMapItr it = storageAssetTrackerTuplesCache.find(ptr);
 

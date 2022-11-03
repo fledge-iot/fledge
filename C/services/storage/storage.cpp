@@ -430,7 +430,7 @@ bool StorageService::loadPlugin()
        	if (strcmp(readingPluginName, plugin) == 0 
 			|| strcmp(readingPluginName, "Use main plugin") == 0)
 	{
- 		// Storage plugin and readign plugin are the same, or we have been 
+ 		// Storage plugin and reading plugin are the same, or we have been 
 		// explicitly told to use the storage plugin for reading so no need
 		// to add a reading plugin
 		return true;

@@ -29,9 +29,9 @@ static const char *defaultConfiguration = QUOTE({
 		"order" : "1"
 		},
 	"readingPlugin" : {
-		"value" : "",
-		"default" : "",
-		"description" : "The storage plugin to load for readings data. If blank the main storage plugin is used.",
+		"value" : "Use main plugin",
+		"default" : "Use main plugin",
+		"description" : "The storage plugin to load for readings data.",
 		"type" : "enumeration",
 		"options" : [ "Use main plugin", "sqlite", "sqlitelb", "sqlitememory", "postgres" ],
 		"displayName" : "Readings Plugin",

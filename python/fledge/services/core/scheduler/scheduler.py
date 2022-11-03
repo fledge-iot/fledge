@@ -127,6 +127,15 @@ class Scheduler(object):
     _core_management_port = None
     _storage = None
     _storage_async = None
+    _storage_service_restart = False
+    _scheduler_restart = False
+
+    def pause(self):
+        self._paused = True
+
+    def resume(self):
+        self._paused = False
+        self._resume_check_schedules()
 
     def reset(self):
         # cls = Scheduler
@@ -136,6 +145,7 @@ class Scheduler(object):
         # self._core_management_port = None
         # self._storage = None
         self._storage_async = None
+        self._scheduler_restart = True
         self._logger.info("Scheduler: reset(): DONE")
 
     def __init__(self, core_management_host=None, core_management_port=None, is_safe_mode=False):
@@ -349,6 +359,8 @@ class Scheduler(object):
         task_process.start_time = time.time()
 
         try:
+            self._logger.info("_start_task(): _scheduler_restart={}, starting subprocess with args: {}"
+                              .format(self._scheduler_restart, args_to_exec_printable))
             process = await asyncio.create_subprocess_exec(*args_to_exec, cwd=_SCRIPTS_DIR)
         except EnvironmentError:
             self._logger.exception(
@@ -444,6 +456,8 @@ class Scheduler(object):
         """Starts tasks according to schedules based on the current time"""
         earliest_start_time = None
 
+        self._logger.info("_check_schedules: START")
+
         # Can not iterate over _schedule_executions - it can change mid-iteration
         for schedule_id in list(self._schedule_executions.keys()):
             if self._paused or len(self._task_processes) >= self._max_running_tasks:
@@ -464,6 +478,9 @@ class Scheduler(object):
 
             if schedule.exclusive and schedule_execution.task_processes:
                 continue
+
+            # if schedule.type == Schedule.Type.STARTUP and self._scheduler_restart:
+            #     continue
 
             # next_start_time is None when repeat is None until the
             # task completes, at which time schedule_execution is removed
@@ -639,6 +656,9 @@ class Scheduler(object):
                     schedule_execution.next_start_time = time.time()
                 schedule_execution.next_start_time += advance_seconds
 
+            import traceback
+            self._logger.debug("_schedule_next_task: traceback={}".format(traceback.extract_stack()))
+
             self._logger.info(
                 "Scheduled task for schedule '%s' to start at %s", schedule.name,
                 datetime.datetime.fromtimestamp(schedule_execution.next_start_time))
@@ -717,8 +737,20 @@ class Scheduler(object):
             res = await self._storage_async.query_tbl("schedules")
 
             for row in res['rows']:
+                name = row.get('schedule_name')
+                type = row.get('schedule_type')
+                process_name = row.get('process_name')
+                self._logger.info("schedules table entry: name={}, type={}".format(name, type))
+
+                # Don't restart services for handling storage service restart
+                if self._scheduler_restart and type == Schedule.Type.STARTUP:
+                    self._logger.info("_get_schedules(): Not setting first schedule for service: name={}, process_name={}"
+                                 .format(name, process_name))
+                    continue
+
                 interval_days, interval_dt = self.extract_day_time_from_interval(row.get('schedule_interval'))
-                interval = datetime.timedelta(days=interval_days, hours=interval_dt.hour, minutes=interval_dt.minute, seconds=interval_dt.second)
+                interval = datetime.timedelta(days=interval_days, hours=interval_dt.hour,
+                                              minutes=interval_dt.minute, seconds=interval_dt.second)
 
                 repeat_seconds = None
                 if interval is not None and interval != datetime.timedelta(0):
@@ -801,6 +833,61 @@ class Scheduler(object):
         self._max_completed_task_age = datetime.timedelta(
             seconds=int(config['max_completed_task_age_days']['value']) * self._DAY_SECONDS)
 
+
+    async def reconnect_to_storage(self):
+        """Reconnect to new storage service instance
+
+        When this method returns, an asyncio task is
+        scheduled that starts tasks and monitors their subprocesses. This class
+        does not use threads (tasks run as subprocesses).
+
+        Raises:
+            NotReadyError: Scheduler was stopped
+        """
+        if not self._is_safe_mode:
+            if self._paused or self._schedule_executions is None:
+                raise NotReadyError("The scheduler was stopped and can not be restarted")
+
+            self._logger.info("Scheduler(): Reconnecting to new storage service instance")
+
+        # self._start_time = self.current_time if self.current_time else time.time()
+
+        # FIXME: Move below part code to server.py->_start_core(), line 123, after start of storage and before start
+        #        of scheduler. May need to either pass the storage object or create a storage object here itself.
+        #        Also provide a timeout option.
+        # ************ make sure that it go forward only when storage service is ready
+        storage_service = None
+
+        self._logger.info("Scheduler: reconnect_to_storage(): 1. storage_service={}, self._storage_async={}, self._storage_async.service={}"
+                            .format(storage_service, self._storage_async, self._storage_async.service if self._storage_async else "N.A"))
+
+        while storage_service is None and self._storage_async is None:
+            try:
+                self._logger.info("Scheduler: reconnect_to_storage(): 1.1")
+                found_services = ServiceRegistry.get(name="Fledge Storage")
+                self._logger.info("Scheduler: reconnect_to_storage(): 1.2: found_services={}".format(found_services))
+                storage_service = found_services[0]
+                self._logger.info("Scheduler: reconnect_to_storage(): 1.3: storage_service={}".format(storage_service))
+                self._storage_async = StorageClientAsync(self._core_management_host, self._core_management_port,
+                                              svc=storage_service)
+                self._logger.info("Scheduler: reconnect_to_storage(): 2. self={}, self._storage_async.service={}"
+                                    .format(self, self._storage_async.service if self._storage_async else "N.A."))
+
+            except (service_registry_exceptions.DoesNotExist, InvalidServiceInstance, StorageServiceUnavailable,
+                    Exception) as ex:
+                self._logger.info("Scheduler: reconnect_to_storage(): 2.1: Exception: {}".format(str(ex)))
+                # traceback.print_exc()
+                await asyncio.sleep(5)
+        # **************
+
+        # Everything OK, so now start Scheduler and create Storage instance
+        self._logger.info("Scheduler: reconnect_to_storage: Management port received is %d", self._core_management_port)
+
+        await self._read_config()
+        await self._mark_tasks_interrupted()
+        await self._read_storage()
+        self._scheduler_restart = False
+
     async def start(self):
         """Starts the scheduler
 
@@ -860,6 +947,7 @@ class Scheduler(object):
         await self._read_config()
         await self._mark_tasks_interrupted()
         await self._read_storage()
+        # self._scheduler_restart = False
 
         self._logger.info("Scheduler: start(): 3. self={}, self._storage_async.service={}"
                           .format(self, self._storage_async.service if self._storage_async else "N.A"))

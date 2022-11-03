@@ -715,7 +715,7 @@ class Server:
     @classmethod
     def _reposition_streams_table(cls, loop):
 
-        _logger.info("'fledge.readings' is stored in memory and a restarted has occurred, "
+        _logger.info("'fledge.readings' is stored in memory and a restart has occurred, "
                      "force reset of 'fledge.streams' last_objects")
 
         configuration = loop.run_until_complete(cls._storage_client_async.query_tbl('configuration'))
@@ -802,6 +802,54 @@ class Server:
         _logger.info("**** _start_asset_tracker completed")
 
     @classmethod
+    async def _notify_storage_service_restart(cls):
+        # Callback to notify storage service restart to all microservices
+        _logger.info("_notify_storage_service_restart: START")
+
+        # cfg_mgr = ConfigurationManager()
+        category_value = {}  # await cfg_mgr.get_category_all_items(category_name)
+        category_value['plugin'] = {}
+
+        # {'category': 'rnd', 'items': {
+        #     'plugin': {'description': 'Random data generation plugin', 'type': 'string', 'default': 'Random',
+        #                'readonly': 'true', 'value': 'Random'},
+        #     'asset': {'description': 'Asset name', 'type': 'string', 'default': 'Random', 'displayName': 'Asset Name',
+        #               'mandatory': 'true', 'value': 'Random2'}}}
+
+        payload = {"category" : "storage_service_restart", "items" : category_value}
+        headers = {'content-type': 'application/json'}
+        _logger.info("_notify_storage_service_restart: payload={}".format(payload))
+        _logger.info("_notify_storage_service_restart: json.dumps(payload)={}".format(json.dumps(payload)))
+
+        found_services = ServiceRegistry.get()
+        _logger.info("_notify_storage_service_restart: found_services={}".format(found_services))
+
+        for fs in found_services:
+            if fs._name in ("Fledge Core", "Fledge Storage"):
+                continue
+            if fs._status not in [ServiceRecord.Status.Running, ServiceRecord.Status.Unresponsive]:
+                continue
+
+            url = "{}://{}:{}/fledge/change".format(fs._protocol, fs._address, fs._management_port)
+
+            async with aiohttp.ClientSession() as session:
+                try:
+                    async with session.post(url, data=json.dumps(payload, sort_keys=True), headers=headers) as resp:
+                        result = await resp.text()
+                        status_code = resp.status
+                        if status_code in range(400, 500):
+                            _logger.error("Bad request error code: %d, reason: %s", status_code, resp.reason)
+                        if status_code in range(500, 600):
+                            _logger.error("Server error code: %d, reason: %s", status_code, resp.reason)
+                        _logger.info("notify_storage_service_restart: storage_service_restart indicated to %s service: status_code=%d",
+                                     fs._name, status_code)
+                except Exception as ex:
+                    _logger.exception("Unable to notify microservice %s with uuid %s due to exception: %s",
+                                      fs._name, fs._microservice_uuid, str(ex))
+                    continue
+
+
+    @classmethod
     async def restart_storage(cls):
         from functools import partial
 
@@ -853,13 +901,16 @@ class Server:
             _logger.info("**** restart_storage(): step 5")
             cls._interest_registry = InterestRegistry(cls._configuration_manager)
 
+            # _logger.info("**** restart_storage(): step 5.5")
+            # cls.scheduler.pause()
             _logger.info("**** restart_storage(): step 5.5.1")
-            await cls._stop_scheduler()
+            # await cls._stop_scheduler()
             _logger.info("**** restart_storage(): step 5.5.2")
             cls.scheduler.reset()
-            _logger.info("**** restart_storage(): step 5.5.3")
-            cls.scheduler = None
-            await cls._start_scheduler()
+            # _logger.info("**** restart_storage(): step 5.5.3")
+            # cls.scheduler = None
+            await cls.scheduler.reconnect_to_storage()
+            # await cls.scheduler.start()
             _logger.info("**** restart_storage(): step 5.5.4")
 
             _logger.info("**** restart_storage(): step 5.7.1")
@@ -893,6 +944,14 @@ class Server:
             cls._audit = AuditLogger(cls._storage_client_async)
             _logger.info("restart_storage(): AuditLogger instantiated again")
             # await asyncio.sleep(0.1)
+
+            _logger.info("**** restart_storage(): step 9.1")
+            await cls._notify_storage_service_restart()
+
+            await asyncio.sleep(10)
+            _logger.info("**** restart_storage(): step 9.2")
+            cls.scheduler.resume()
+            _logger.info("**** restart_storage(): step 9.3")
 
             audit_msg = {"message": "Storage service restarted"}
             await cls._audit.information('START', audit_msg)

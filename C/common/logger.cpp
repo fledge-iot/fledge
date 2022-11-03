@@ -19,7 +19,7 @@
 using namespace std;
 
 // uncomment line below to get uSec level timestamps
-// #define ADD_USEC_TS
+#define ADD_USEC_TS
 
 inline long getCurrTimeUsec()
 {

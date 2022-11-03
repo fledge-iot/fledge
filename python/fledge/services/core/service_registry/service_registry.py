@@ -54,6 +54,7 @@ class ServiceRegistry:
         """ Check startup token exists for given service name
         """ 
         foundToken = cls._startupTokens.get(name, None)
+        cls._logger.info("ServiceRegistry::checkStartupToken(): name={}, foundToken={}, token={}".format(name, foundToken, token))
         if foundToken is None or foundToken != token:
             return False
 

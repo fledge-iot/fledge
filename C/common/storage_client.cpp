@@ -55,7 +55,41 @@ StorageClient::StorageClient(const string& hostname, const unsigned short port) 
 	m_pid = getpid();
 	m_logger = Logger::getLogger();
 	m_urlbase << hostname << ":" << port;
+	m_logger->info("StorageClient c'tor 1: m_urlbase=%s", m_urlbase.str().c_str());
 }
+
+/**
+ * Storage Client constructor
+ */
+StorageClient::StorageClient(const string& hostname, const unsigned short port, std::map<std::thread::id, std::atomic<int>>* m) : m_streaming(false), m_management(NULL)
+{
+	m_host = hostname;
+	m_pid = getpid();
+	m_logger = Logger::getLogger();
+	m_urlbase << hostname << ":" << port;
+	m_logger->info("StorageClient c'tor 2: this=%p, m_urlbase=%s", this, m_urlbase.str().c_str());
+	
+	m_logger->info("StorageClient c'tor 2: current thread ID=%u, m=%p", std::this_thread::get_id(), m);
+
+	if (m)
+	{
+		PRINT_FUNC;
+		m_logger->info("StorageClient c'tor 2: BEFORE: m_seqnum_map.size()=%d", m->size());
+		PRINT_FUNC;
+		for (auto & i : *m)
+		{
+			PRINT_FUNC;
+			m_logger->info("StorageClient c'tor 2: thread ID=%u, seqNum=%d", i.first, i.second.load());
+			m_seqnum_map[i.first].store(i.second.load());
+		}
+		PRINT_FUNC;
+	}
+	PRINT_FUNC;
+	m_logger->info("StorageClient c'tor 2: AFTER: m_seqnum_map.size()=%d", m_seqnum_map.size());
+	PRINT_FUNC;
+	m_logger->info("StorageClient c'tor 2: LAST: this=%p, m_urlbase=%s", this, m_urlbase.str().c_str());
+}
+
 
 /**
  * Storage Client constructor
@@ -95,6 +129,8 @@ HttpClient *StorageClient::getHttpClient(void) {
 	std::map<std::thread::id, HttpClient *>::iterator item;
 	HttpClient *client;
 
+	m_logger->info("StorageClient::getHttpClient(): this=%p, m_urlbase=%s", this, m_urlbase.str().c_str());
+
 	std::thread::id thread_id = std::this_thread::get_id();
 
 	sto_mtx_client_map.lock();
@@ -103,10 +139,12 @@ HttpClient *StorageClient::getHttpClient(void) {
 	if (item  == m_client_map.end() ) {
 
 		// Adding a new HttpClient
-		m_logger->info("StorageClient: Instantiating a new HttpClient object: m_urlbase=%s", m_urlbase.str().c_str());
+		m_logger->info("StorageClient::getHttpClient(): Instantiating a new HttpClient object: m_urlbase=%s", m_urlbase.str().c_str());
 		client = new HttpClient(m_urlbase.str());
 		m_client_map[thread_id] = client;
-		m_seqnum_map[thread_id].store(0);
+		m_logger->info("StorageClient::getHttpClient(): thread_id=%u, m_seqnum_map.count(thread_id)=%d", thread_id, m_seqnum_map.count(thread_id));
+		if(m_seqnum_map.count(thread_id) == 0)
+			m_seqnum_map[thread_id].store(0);
 		std::ostringstream ss;
 		ss << std::this_thread::get_id();
 	}
@@ -124,6 +162,7 @@ HttpClient *StorageClient::getHttpClient(void) {
  */
 void StorageClient::handle_storage_service_restart()
 {
+	PRINT_FUNC;
 	if (storage_service_restarted)
 	{
 		storage_service_restarted = false;
@@ -132,10 +171,11 @@ void StorageClient::handle_storage_service_restart()
 			delete item.second;
 		}
 		m_client_map.clear();
-		m_seqnum_map.clear();
+		// m_seqnum_map.clear();
 		
 		m_host = storage_service_host;
 		m_urlbase.str("");
+		m_logger->info("StorageClient::handle_storage_service_restart(): this=%p, m_urlbase=%s", this, m_urlbase.str().c_str());
 		m_urlbase << storage_service_urlbase.str();
 		storage_service_urlbase.str("");
 		storage_service_host = "";
@@ -217,6 +257,8 @@ bool StorageClient::readingAppend(const vector<Reading *>& readings)
 		m_seqnum_map[thread_id].fetch_add(1);
 		ss << m_pid << "#" << thread_id << "_" << m_seqnum_map[thread_id].load();
 		sto_mtx_client_map.unlock();
+
+		m_logger->info("ss=%s", ss.str().c_str());
 
 		SimpleWeb::CaseInsensitiveMultimap headers = {{"SeqNum", ss.str()}};
 
@@ -1216,6 +1258,7 @@ Document doc;
 bool StorageClient::registerAssetNotification(const string& assetName,
 					      const string& callbackUrl)
 {
+	m_logger->info("StorageClient::registerAssetNotification(): this=%p, m_urlbase=%s", this, m_urlbase.str().c_str());
 	try
 	{
 		ostringstream convert;
@@ -1259,6 +1302,7 @@ bool StorageClient::registerAssetNotification(const string& assetName,
 bool StorageClient::unregisterAssetNotification(const string& assetName,
 						const string& callbackUrl)
 {
+	PRINT_FUNC;
 	try
 	{
 		ostringstream convert;
@@ -1271,8 +1315,10 @@ bool StorageClient::unregisterAssetNotification(const string& assetName,
 							  convert.str());
 		if (res->status_code.compare("200 OK") == 0)
 		{
+			PRINT_FUNC;
 			return true;
 		}
+		PRINT_FUNC;
 		ostringstream resultPayload;
 		resultPayload << res->content.rdbuf();
 		handleUnexpectedResponse("Unregister asset",
@@ -1283,8 +1329,9 @@ bool StorageClient::unregisterAssetNotification(const string& assetName,
 		return false;
 	} catch (exception& ex)
 	{
+		PRINT_FUNC;
 		handleException(ex, "unregister asset '%s'", assetName.c_str());
-		handle_storage_service_restart();
+		// handle_storage_service_restart();
 	}
 	return false;
 }
@@ -1572,15 +1619,28 @@ void StorageClient::handleException(const exception& ex, const char *operation, 
 		// This is probably because the storage service has gone down
 		if (m_management)
 		{
+			PRINT_FUNC;
 			ServiceRecord storageRecord("Fledge Storage");
 			do
 			{
+				PRINT_FUNC;
 				system("ps -ef | grep fledge.services.storage | grep -v grep | wc -l > /tmp/storage_service_instance_count");
 				std::ifstream ifs("/tmp/storage_service_instance_count");
   				std::string content( (std::istreambuf_iterator<char>(ifs) ),
                        				 (std::istreambuf_iterator<char>() ));
-				unsigned long count = std::stoul (content, nullptr, 0);
+				unsigned long count = 0;
+				try
+				{
+					count = std::stoul (content, nullptr, 0);
+				} 
+				catch (exception& ex)
+				{
+	                const char *what = ex.what();
+	                Logger::getLogger()->error("%s:%d: stoul Exception: %s", __FUNCTION__, __LINE__, what);
+	        	}
+				Logger::getLogger()->info("%s:%d: storage_service_instance_count=%d", __FUNCTION__, __LINE__, count);
 				system("rm -f /tmp/storage_service_instance_count");
+				PRINT_FUNC;
 				if (count == 0)
 				{
 					tries++;
@@ -1590,19 +1650,24 @@ void StorageClient::handleException(const exception& ex, const char *operation, 
 				}
 				else
 					m_logger->info("Storage service is running...");
+
+				PRINT_FUNC;
 				
 				// Get a handle on the storage layer
 				bool rv = m_management->getService(storageRecord);
+				Logger::getLogger()->info("%s:%d: rv=%d", __FUNCTION__, __LINE__, rv);
 				if (rv)
 				{
 					string svc;
 					storageRecord.asJSON(svc);
 					m_logger->info("Storage client: reconnecting to storage service in 10 secs : svc=%s", svc.c_str());
-					sleep(10);  // fix this
+					sleep(20);  // TODO: avoid this sleep for fixed duration
 					storage_service_restarted = true;
 					storage_service_urlbase.str("");
 					storage_service_urlbase << storageRecord.getAddress() << ":" << storageRecord.getPort();
 					storage_service_host = storageRecord.getAddress();
+					m_logger->info("Storage client: storage_service_restarted=true, storage_service_urlbase=%s, storage_service_host=%s",
+										storage_service_urlbase.str().c_str(), storage_service_host.c_str() );
 					return;
 				}
 				tries++;
@@ -1619,6 +1684,7 @@ void StorageClient::handleException(const exception& ex, const char *operation, 
 			else
 			{
 				m_urlbase.str("");
+				m_logger->info("StorageClient::handleException(): this=%p, m_urlbase=%s", this, m_urlbase.str().c_str());
 				m_urlbase << storageRecord.getAddress() << ":" << storageRecord.getPort();
 				m_logger->info("Storage client: Re-connecting to Storage service @ %s", m_urlbase.str().c_str());
 

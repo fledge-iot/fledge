@@ -848,7 +848,9 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA fledge TO PUBLIC;
 DELETE FROM fledge.roles;
 INSERT INTO fledge.roles ( name, description )
      VALUES ('admin', 'All CRUD privileges'),
-            ('user', 'All CRUD operations and self profile management');
+            ('user', 'All CRUD operations and self profile management'),
+            ('view', 'Only to view the configuration'),
+            ('data-view', 'Only read the data in buffer');
 
 
 -- Users

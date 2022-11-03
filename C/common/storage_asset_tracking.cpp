@@ -66,6 +66,10 @@ void StorageAssetTracker::populateStorageAssetTrackingCache()
 		for (StorageAssetTrackingTuple* & rec : vec)
 		{
 			set<string> setOfDPs = getDataPointsSet(rec->m_datapoints);
+			if (setOfDPs.size() == 0)
+			{
+				Logger::getLogger()->warn("%s:%d Datapoints unavailable for service %s ",  __FUNCTION__, __LINE__, m_service.c_str());
+			}
 			storageAssetTrackerTuplesCache[rec] = setOfDPs;
 		}
 		delete (&vec);
@@ -147,6 +151,13 @@ bool StorageAssetTracker::getFledgeConfigInfo()
         return false;
 }
 
+/**
+ *  Updates datapoints present in the arg dpSet in the cache
+ *
+ * @param dpSet             set of datapoints string values to be updated in cache
+ * @param ptr               StorageAssetTrackingTuple* , as key in cache (map) 
+ * Retval void
+ */
 
 void StorageAssetTracker::updateCache(std::set<std::string> dpSet, StorageAssetTrackingTuple* ptr)
 {
@@ -234,8 +245,13 @@ std::set<std::string> StorageAssetTracker::getDataPointsSet(std::string strDatap
 }
 
 
-// This function takes a StorageAssetTrackingTuple pointer and searches for
-// it in cache, if found then returns its Deprecated status
+/** This function takes a StorageAssetTrackingTuple pointer and searches for
+ *  it in cache, if found then returns its Deprecated status
+ *
+ * @param ptr           StorageAssetTrackingTuple* , as key in cache (map)
+ * Retval bool 		Deprecation status 
+ */
+
 
 bool StorageAssetTracker::getDeprecated(StorageAssetTrackingTuple* ptr)
 {

@@ -161,6 +161,12 @@ bool StorageAssetTracker::getFledgeConfigInfo()
 
 void StorageAssetTracker::updateCache(std::set<std::string> dpSet, StorageAssetTrackingTuple* ptr)
 {
+	if(ptr == nullptr)
+	{
+		Logger::getLogger()->error("%s:%d: StorageAssetTrackingTuple should not be NULL pointer", __FUNCTION__, __LINE__);
+		return;
+	}
+
 	unsigned int sizeOfInputSet = dpSet.size();
         StorageAssetCacheMapItr it = storageAssetTrackerTuplesCache.find(ptr);
 
@@ -169,6 +175,26 @@ void StorageAssetTracker::updateCache(std::set<std::string> dpSet, StorageAssetT
         {
                 Logger::getLogger()->debug("%s:%d :tuple not found in cache ", __FUNCTION__, __LINE__);
 		storageAssetTrackerTuplesCache[ptr] = dpSet;
+
+		std::string strDatapoints;
+                unsigned int count = 0;
+                for (auto itr : dpSet)
+                {
+                        strDatapoints.append(itr);
+                        strDatapoints.append(",");
+                        count++;
+                }
+                if (strDatapoints[strDatapoints.size()-1] == ',')
+                        strDatapoints.pop_back();
+
+	       bool rv = m_mgtClient->addStorageAssetTrackingTuple(ptr->getServiceName(), ptr->getPluginName(), ptr->getAssetName(), ptr->getEventName(), false, strDatapoints, count);
+               if (rv)
+               {
+                       storageAssetTrackerTuplesCache[ptr] = dpSet;
+               }
+               else
+                        Logger::getLogger()->error("%s:%d: Failed to insert storage asset tracking tuple into DB: '%s'", __FUNCTION__, __LINE__, (ptr->getAssetName()).c_str());
+
 		return;
         }
         else
@@ -204,6 +230,12 @@ void StorageAssetTracker::updateCache(std::set<std::string> dpSet, StorageAssetT
 		// remove the last comma
 		if (strDatapoints[strDatapoints.size()-1] == ',')
 			strDatapoints.pop_back();
+
+		if (count <= sizeOfCacheRecord)
+		{
+			// No need to update as count of cache record is not getting increased
+                        return;
+                }
 
 		// Update the DB
 		bool rv = m_mgtClient->addStorageAssetTrackingTuple(ptr->getServiceName(), ptr->getPluginName(), ptr->getAssetName(), ptr->getEventName(), false, strDatapoints, count);

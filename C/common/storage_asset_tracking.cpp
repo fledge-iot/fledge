@@ -253,14 +253,14 @@ std::set<std::string> StorageAssetTracker::getDataPointsSet(std::string strDatap
  */
 
 
-bool StorageAssetTracker::getDeprecated(StorageAssetTrackingTuple* ptr)
+bool StorageAssetTracker::ggetDeprecatedetDeprecated(StorageAssetTrackingTuple* ptr)
 {
 	StorageAssetCacheMapItr it = storageAssetTrackerTuplesCache.find(ptr);
 
         if (it == storageAssetTrackerTuplesCache.end())
         {
                 Logger::getLogger()->debug("%s:%d :tuple not found in cache ", __FUNCTION__, __LINE__);
-		return true;
+		return false;
         }
         else
         {

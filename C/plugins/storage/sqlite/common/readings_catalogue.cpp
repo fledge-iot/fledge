@@ -515,7 +515,11 @@ void ReadingsCatalogue::preallocateNewDbsRange(int dbIdStart, int dbIdEnd) {
 	{
 		readingsAvailable = evaluateLastReadingAvailable(NULL, dbId - 1);
 		startReadingsId = 1;
-		createNewDB(NULL,  dbId, startReadingsId, NEW_DB_ATTACH_ALL);
+		if (!createNewDB(NULL,  dbId, startReadingsId, NEW_DB_ATTACH_ALL))
+		{
+			Logger::getLogger()->error("Failed to preallocated all databases, terminated after creating %d databases", dbId - dbIdStart);
+			break;
+		}
 
 		Logger::getLogger()->debug("preallocateNewDbsRange - db created :%d: startReadingsIdOnDB :%d:", dbId, startReadingsId);
 	}
@@ -1513,6 +1517,12 @@ bool  ReadingsCatalogue::createNewDB(sqlite3 *dbHandle, int newDbId, int startId
 	connAllocated = false;
 	result = true;
 
+	// TODO make this configurable
+	if (newDbId > 9)
+	{
+		return false;
+	}
+
 	ConnectionManager *manager = ConnectionManager::getInstance();
 
 	if (dbHandle == NULL)
@@ -1868,6 +1878,7 @@ ReadingsCatalogue::tyReadingReference  ReadingsCatalogue::getReadingReference(Co
 
 					Logger::getLogger()->debug("getReadingReference - allocate a new db - create new db - dbIdCurrent :%d: dbIdStart :%d: dbIdEnd :%d:", m_dbIdCurrent, dbIdStart, dbIdEnd);
 
+					int dbIdExtended = m_dbIdLast;
 					for (dbId = dbIdStart; dbId <= dbIdEnd; dbId++)
 					{
 						readingsAvailable = evaluateLastReadingAvailable(dbHandle, dbId - 1);
@@ -1878,10 +1889,14 @@ ReadingsCatalogue::tyReadingReference  ReadingsCatalogue::getReadingReference(Co
 						if (success)
 						{
 							Logger::getLogger()->debug("getReadingReference - allocate a new db - create new dbs - dbId :%d: startReadingsIdOnDB :%d:", dbId, startReadingsId);
+							dbIdExtended = dbId;
 						}
 					}
-					m_dbIdLast = dbIdEnd;
-					m_dbIdCurrent++;
+					m_dbIdLast = dbIdExtended;
+					if (m_dbIdCurrent < m_dbIdLast)
+					{
+						m_dbIdCurrent++;
+					}
 					m_dbNAvailable = (m_dbIdLast - m_dbIdCurrent) - m_storageConfigCurrent.nDbLeftFreeBeforeAllocate;
 				}
 

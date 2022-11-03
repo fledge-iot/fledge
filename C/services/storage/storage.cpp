@@ -378,7 +378,7 @@ void StorageService::stop()
 /**
  * Load the configured storage plugin or plugins
  *
- * @return bool	True if the plugins have been l;oaded and support the correct operations
+ * @return bool	True if the plugins have been loaded and support the correct operations
  */
 bool StorageService::loadPlugin()
 {
@@ -425,6 +425,14 @@ bool StorageService::loadPlugin()
 	if (! *readingPluginName)
 	{
 		// Single plugin does everything
+		return true;
+	}
+       	if (strcmp(readingPluginName, plugin) == 0 
+			|| strcmp(readingPluginName, "Use main plugin") == 0)
+	{
+ 		// Storage plugin and readign plugin are the same, or we have been 
+		// explicitly told to use the storage plugin for reading so no need
+		// to add a reading plugin
 		return true;
 	}
 	if (plugin == NULL)

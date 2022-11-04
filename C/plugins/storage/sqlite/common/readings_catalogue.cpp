@@ -1835,6 +1835,7 @@ ReadingsCatalogue::tyReadingReference  ReadingsCatalogue::getReadingReference(Co
 
 		AttachDbSync *attachSync = AttachDbSync::getInstance();
 		attachSync->lock();
+		ReadingsCatalogue::tyReadingReference emptyTableReference = {-1, -1};
 
 		auto item = m_AssetReadingCatalogue.find(asset_code);
 		if (item != m_AssetReadingCatalogue.end())
@@ -1874,7 +1875,16 @@ ReadingsCatalogue::tyReadingReference  ReadingsCatalogue::getReadingReference(Co
 
 						startReadingsId = 1;
 
-						success = createNewDB(dbHandle,  dbId, startReadingsId, NEW_DB_ATTACH_REQUEST);
+						if (getEmptyReadingTable(emptyTableReference))
+						{
+							emptyTableReference.tableId;
+							emptyTableReference.dbId;
+						}
+						else
+						{
+							success = createNewDB(dbHandle,  dbId, startReadingsId, NEW_DB_ATTACH_REQUEST);
+						}
+
 						if (success)
 						{
 							Logger::getLogger()->debug("getReadingReference - allocate a new db - create new dbs - dbId :%d: startReadingsIdOnDB :%d:", dbId, startReadingsId);
@@ -1895,9 +1905,17 @@ ReadingsCatalogue::tyReadingReference  ReadingsCatalogue::getReadingReference(Co
 				{
 					// Associate the asset to the reading_id
 					{
-						ref.tableId = getMaxReadingsId(m_dbIdCurrent) + 1;
-						ref.dbId = m_dbIdCurrent;
-
+						if (emptyTableReference.tableId > 0)
+						{
+							ref.tableId = emptyTableReference.tableId;
+							ref.dbId = emptyTableReference.dbId;
+						}
+						else
+						{
+							ref.tableId = getMaxReadingsId(m_dbIdCurrent) + 1;
+							ref.dbId = m_dbIdCurrent;
+						}
+						
 						auto newItem = make_pair(ref.tableId, ref.dbId);
 						auto newMapValue = make_pair(asset_code, newItem);
 						m_AssetReadingCatalogue.insert(newMapValue);
@@ -1907,11 +1925,20 @@ ReadingsCatalogue::tyReadingReference  ReadingsCatalogue::getReadingReference(Co
 
 					// Allocate the table in the reading catalogue
 					{
-						sql_cmd =
+						if (emptyTableReference.tableId > 0)
+						{
+
+							sql_cmd = 	" UPDATE " READINGS_DB ".asset_reading_catalogue SET asset_code ='" + string(asset_code) + "'" +
+										" WHERE db_id = " + to_string(emptyTableReference.dbId) + " AND table_id = " + to_string(emptyTableReference.tableId) + ";";
+						}
+						else
+						{
+							sql_cmd =
 							"INSERT INTO  " READINGS_DB ".asset_reading_catalogue (table_id, db_id, asset_code) VALUES  ("
 							+ to_string(ref.tableId) + ","
 							+ to_string(ref.dbId) + ","
 							+ "\"" + asset_code + "\")";
+						}
 
 						rc = SQLExec(dbHandle, sql_cmd.c_str());
 						if (rc != SQLITE_OK)
@@ -1931,6 +1958,52 @@ ReadingsCatalogue::tyReadingReference  ReadingsCatalogue::getReadingReference(Co
 
 	return (ref);
 
+}
+
+/**
+ * Get Empty Reading Table
+ *
+ * @param emptyTableReference  An empty reading table reference to be used for the given asset_code
+ * @return         True of success, false on any error
+ *
+ */
+bool ReadingsCatalogue::getEmptyReadingTable(tyReadingReference &emptyTableReference)
+{
+	bool isEmptyTableAvailable = false;
+	sqlite3 *dbHandle;
+	string sql_cmd;
+	sqlite3_stmt *stmt;
+
+	ConnectionManager *manager = ConnectionManager::getInstance();
+	Connection *connection = manager->allocate();
+	dbHandle = connection->getDbHandle();
+	
+	for (auto &item : m_AssetReadingCatalogue)
+	{
+		int tableId = item.second.first;
+		int dbId = item.second.second;
+		sql_cmd = "SELECT COUNT(*) FROM (SELECT 0 FROM readings_" + to_string(dbId) + ".readings_" + to_string(dbId) + "_" + to_string(tableId) + " LIMIT 1)";
+
+		if (sqlite3_prepare_v2(dbHandle, sql_cmd.c_str(), -1, &stmt, NULL) != SQLITE_OK)
+		{
+			raiseError("getEmptyTable", sqlite3_errmsg(dbHandle));
+			return false;
+		}
+
+		if (SQLStep(stmt) == SQLITE_ROW)
+		{
+			if (sqlite3_column_int(stmt, 0) == 0)
+			{
+				isEmptyTableAvailable = true;
+				emptyTableReference.dbId = dbId;
+				emptyTableReference.tableId = tableId;
+			}
+		}
+		sqlite3_finalize(stmt);
+	}
+
+	manager->release(connection);
+	return isEmptyTableAvailable;
 }
 
 /**

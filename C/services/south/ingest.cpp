@@ -1201,11 +1201,27 @@ void Ingest::unDeprecateStorageAssetTrackingRecord(StorageAssetTrackingTuple* cu
 			datapoints,
 			count);
 
-	std::string data = "{\"datapoints\":[";
-	data.append(datapoints);
-        data.append("],\"count\":");
-        data.append(to_string(count));
-        data.append("}");
+	vector<string> tokens;
+        stringstream dpStringStream(datapoints);
+        string temp;
+        while(getline(dpStringStream, temp, ','))
+        {
+	        tokens.push_back(temp);
+        }
+
+	ostringstream convert;
+        convert << "{";
+        convert << "\"datapoints\":[";
+        for (unsigned int i = 0; i < tokens.size() ; ++i)
+        {
+	        convert << "\"" << tokens[i].c_str() << "\"" ;
+                if (i < tokens.size()-1){
+	                convert << ",";
+                }
+        }
+        convert << "]," ;
+        convert << "\"count\":" << to_string(count).c_str();
+        convert << "}";
 
         if (updatedTuple)
         {
@@ -1215,8 +1231,7 @@ void Ingest::unDeprecateStorageAssetTrackingRecord(StorageAssetTrackingTuple* cu
                         // Update un-deprecated state in cached object
                         currentTuple->unDeprecate();
 
-                        m_logger->error(" storage Asset '%s' is being un-deprecated",
-                                        assetName.c_str());
+                        m_logger->info("%s:%d, Asset '%s' is being un-deprecated",__FILE__, __LINE__, assetName.c_str());
 
                         // Prepare UPDATE query
                         const Condition conditionParams(Equals);
@@ -1231,12 +1246,14 @@ void Ingest::unDeprecateStorageAssetTrackingRecord(StorageAssetTrackingTuple* cu
                                                 conditionParams,
                                                 "store",
                                                 wService);
-			Where *wData = new Where("data",
-						conditionParams,
-						data,
-						wEvent);
 
-                        InsertValues unDeprecated;
+			Where *wData = new Where("data",
+                                                conditionParams,
+                                                JSONescape(convert.str()),
+                                                wEvent);
+
+
+			InsertValues unDeprecated;
 
                         // Set NULL value
                         unDeprecated.push_back(InsertValue("deprecated_ts"));
@@ -1246,12 +1263,10 @@ void Ingest::unDeprecateStorageAssetTrackingRecord(StorageAssetTrackingTuple* cu
                                                         unDeprecated,
                                                         *wData);
 
-
                         // Check update operation
                         if (rv < 0)
                         {
-                                m_logger->error("Failure while un-deprecating asset '%s'",
-						assetName.c_str());
+                                m_logger->error("%s:%d, Failure while un-deprecating asset '%s'", __FILE__, __LINE__, assetName.c_str());
 			}
 		}
 	}

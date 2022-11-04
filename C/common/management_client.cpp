@@ -1742,13 +1742,16 @@ bool ManagementClient::addStorageAssetTrackingTuple(const std::string& service,
 					const int& count)
 {
 	ostringstream convert;
-
-	std::string d = datapoints;
-	for ( int i = 0; i < datapoints.size(); ++i)
-	{
-		if (d[i] == ',') d.insert(i, "\",\"" );
-		i = i+2;
-	}
+	std::string d ;
+        for ( int i = 0; i < datapoints.size(); ++i)
+        {
+                if (datapoints[i] == ',')
+                {
+                        d.append("\",\"");
+                }
+                else
+                        d.append(1,datapoints[i]);
+        }
 
 	try {
 		convert << "{ \"service\" : \"" << JSONescape(service) << "\", ";
@@ -1760,6 +1763,11 @@ bool ManagementClient::addStorageAssetTrackingTuple(const std::string& service,
 		convert << " \"count\" : " << count << " } }";
 
 		auto res = this->getHttpClient()->request("POST", "/fledge/track", convert.str());
+		if (res->status_code[0] == '2') // A 2xx response
+                {
+                        return true;
+                }
+
 		Document doc;
 		string content = res->content.string();
 		doc.Parse(content.c_str());
@@ -1770,11 +1778,6 @@ bool ManagementClient::addStorageAssetTrackingTuple(const std::string& service,
 								httpError?"HTTP error during":"Failed to parse result of", 
 								content.c_str());
 			return false;
-		}
-		if (doc.HasMember("fledge"))
-		{
-			const char *reg_id = doc["fledge"].GetString();
-			return true;
 		}
 		else if (doc.HasMember("message"))
 		{

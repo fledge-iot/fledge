@@ -82,22 +82,8 @@ async def auth_middleware(app, handler):
                 request.token = token
                 # set if user is admin
                 request.user_is_admin = True if int(request.user["role_id"]) == 1 else False
-                # With "view" based user role only read access operation is allowed
-                # logout is also allowed
-                if int(request.user["role_id"]) == 3 and request.method != 'GET':
-                    if not str(request.path).endswith('/logout'):
-                        raise web.HTTPForbidden
-                # With "data-view" based user role only browser asset read operation is allowed
-                # logout is also allowed
-                elif int(request.user["role_id"]) == 4:
-                    if request.method == 'GET':
-                        if not str(request.path).startswith('/fledge/asset'):
-                            raise web.HTTPForbidden
-                    elif request.method == 'PUT':
-                        if not str(request.path).endswith('/logout'):
-                            raise web.HTTPForbidden
-                    else:
-                        raise web.HTTPForbidden
+                # validate request path
+                await validate_requests(request)
             except(User.InvalidToken, User.TokenExpired) as e:
                 raise web.HTTPUnauthorized(reason=e)
             except (jwt.DecodeError, jwt.ExpiredSignatureError) as e:
@@ -170,3 +156,22 @@ def handle_api_exception(ex, _class=None, if_trace=0):
 
     return web.Response(status=500, body=json.dumps({'error': err_msg}).encode('utf-8'),
                         content_type='application/json')
+
+
+async def validate_requests(request):
+    # With "view" based user role only read access operation is allowed
+    # logout is also allowed
+    if int(request.user["role_id"]) == 3 and request.method != 'GET':
+        if not str(request.path).endswith('/logout'):
+            raise web.HTTPForbidden
+    # With "data-view" based user role only browser asset read operation is allowed
+    # logout is also allowed
+    elif int(request.user["role_id"]) == 4:
+        if request.method == 'GET':
+            if not str(request.path).startswith('/fledge/asset'):
+                raise web.HTTPForbidden
+        elif request.method == 'PUT':
+            if not str(request.path).endswith('/logout'):
+                raise web.HTTPForbidden
+        else:
+            raise web.HTTPForbidden

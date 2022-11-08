@@ -298,10 +298,28 @@ DefaultConfigCategory *StorageConfiguration::getDefaultCategory()
  * end up reporting the wrong information in the UI when we look at the category, therefore
  * we special case the plugin name and set the default to whatever the current value is
  * for just this property.
+ *
+ * FOGL-7074 Make the plugin selection an enumeration
  */
 void StorageConfiguration::checkCache()
 {
+bool forceUpdate = false;
+
 	if (document->HasMember("plugin"))
+	{
+		Value& item = (*document)["plugin"];
+		if (item.HasMember("type") && item["type"].IsString())
+		{
+			const char *type = item["type"].GetString();
+			if (strcmp(type, "enumeration"))
+			{
+				// It's not an enumeration currently
+				forceUpdate = true;
+			}
+		}
+	}
+
+	if (forceUpdate == false && document->HasMember("plugin"))
 	{
 		Value& item = (*document)["plugin"];
 		if (item.HasMember("type"))
@@ -315,6 +333,7 @@ void StorageConfiguration::checkCache()
 			return;
 		}
 	}
+
 	logger->info("Storage configuration cache is not up to date");
 	Document *newdoc = new Document();
 	newdoc->Parse(defaultConfiguration);

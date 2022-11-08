@@ -24,6 +24,7 @@
 #include <filter_pipeline.h>
 #include <asset_tracking.h>
 #include <service_handler.h>
+#include <set>
 
 #define SERVICE_NAME  "Fledge South"
 
@@ -77,6 +78,9 @@ public:
 							const std::string& event);
 	void            unDeprecateStorageAssetTrackingRecord(StorageAssetTrackingTuple* currentTuple,
                                                         const std::string& assetName, const std::string&, const unsigned int&);
+	void		setStatistics(const std::string& option);
+
+	std::string  	getStringFromSet(const std::set<std::string> &dpSet);
 
 
 private:
@@ -127,6 +131,8 @@ private:
 	bool				m_storageFailed;
 	int				m_storesFailed;
 	int				m_statsUpdateFails;
+	enum { STATS_BOTH, STATS_ASSET, STATS_SERVICE }
+					m_statisticsOption;
 };
 
 #endif

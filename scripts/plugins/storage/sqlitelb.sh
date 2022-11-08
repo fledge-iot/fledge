@@ -45,7 +45,7 @@ if [ "${DEFAULT_SQLITE_DB_FILE_READINGS_FLAG}" ]; then
     export DEFAULT_SQLITE_DB_FILE_READINGS="${DEFAULT_SQLITE_DB_FILE_READINGS_BASE}.db"
 fi
 
-USAGE="Usage: `basename ${0}` {start|stop|status|init|reset|help}"
+USAGE="Usage: `basename ${0}` {start|stop|status|init|reset|purge|help}"
 
 # Check FLEDGE_ROOT
 if [ -z ${FLEDGE_ROOT+x} ]; then
@@ -189,8 +189,8 @@ sqlite_start() {
         FOUND_SCHEMAS=`${SQLITE_SQL} ${DEFAULT_SQLITE_DB_FILE_READINGS} "ATTACH DATABASE '${DEFAULT_SQLITE_DB_FILE_READINGS}' AS 'readings'; SELECT name FROM sqlite_master WHERE type='table'"`
 
         if [ ! "${FOUND_SCHEMAS}" ]; then
-            # Create the readings database
-            sqlite_create_db_readings "$1" "immediate"
+            #  Reset if not found.
+            sqlite_reset_db_readings "$1" "immediate"
         fi
     fi
 
@@ -244,20 +244,15 @@ sqlite_reset_db_fledge() {
         sqlite_log "info" "Building the metadata for the Fledge Plugin '${PLUGIN}' ..." "logonly" "pretty"
     fi
 
-    if [[ -f $DEFAULT_SQLITE_DB_FILE && $2 != "immediate" ]]; then
-    # Remove service schema files as per name
-    schema=$(${SQLITE_SQL} ${DEFAULT_SQLITE_DB_FILE} 'select name from service_schema;')
+    # 0- Remove service schema files
+    schema=`sqlite3 ${DEFAULT_SQLITE_DB_FILE} 'select name from service_schema;'`
     for f in $schema; do
-        echo "Removing $f service schema..."
-        echo "'${FLEDGE_DATA}/${f}.db'"
-        rm -f ${FLEDGE_DATA}/${f}.db*
-        echo "Removal of $f service schema Done!"
-        if [ -d "${FLEDGE_DATA}/buckets" ]; then
+         rm ${FLEDGE_DATA}/${f}.db*
+          if [ -d "${FLEDGE_DATA}/buckets" ]; then
             echo "Removed user data from ${FLEDGE_DATA}/buckets"
             rm -rf ${FLEDGE_DATA}/buckets
-        fi
+          fi
     done
-    fi
 
     # 1- Drop all databases in DEFAULT_SQLITE_DB_FILE
     if [ -f "${DEFAULT_SQLITE_DB_FILE}" ]; then
@@ -347,7 +342,9 @@ sqlite_status() {
         if [[ "$1" == "noisy" ]]; then
             sqlite_log "info" "SQLite 3 database '${DEFAULT_SQLITE_DB_FILE}' ready." "all" "pretty"
         else
-            sqlite_log "info" "SQLite 3 database '${DEFAULT_SQLITE_DB_FILE}' ready." "logonly" "pretty"
+            if [[ "$1" != "skip" ]]; then
+                sqlite_log "info" "SQLite 3 database '${DEFAULT_SQLITE_DB_FILE}' ready." "logonly" "pretty"
+            fi
         fi
         echo "0"
     else
@@ -372,7 +369,9 @@ sqlite_status_readings() {
         if [[ "$1" == "noisy" ]]; then
             sqlite_log "info" "SQLite 3 database '${DEFAULT_SQLITE_DB_FILE_READINGS}' ready." "all" "pretty"
         else
-            sqlite_log "info" "SQLite 3 database '${DEFAULT_SQLITE_DB_FILE_READINGS}' ready." "logonly" "pretty"
+            if [[ "$1" != "skip" ]]; then
+                sqlite_log "info" "SQLite 3 database '${DEFAULT_SQLITE_DB_FILE_READINGS}' ready." "logonly" "pretty"
+            fi
         fi
         echo "0"
     else
@@ -415,7 +414,7 @@ sqlite_schema_update() {
         ret_code=$?
 
         SET_VERSION_MSG="Fledge DB version not found in fledge.'${VERSION_TABLE}', setting version [${NEW_VERSION}]"
-        if [[ "$1" == "noisy" ]]; then
+        if [[ "$2" == "noisy" ]]; then
             sqlite_log "info" "${SET_VERSION_MSG}" "all" "pretty"
         else 
             sqlite_log "info" "${SET_VERSION_MSG}" "logonly" "pretty"
@@ -437,7 +436,9 @@ sqlite_schema_update() {
             fi
         else
             # Just log up-to-date
-            sqlite_log "info" "Fledge DB schema is up to date to version [${CURR_VER}]" "logonly" "pretty"
+            if [[ "$2" != "skip" ]]; then
+                sqlite_log "info" "Fledge DB schema is up to date to version [${CURR_VER}]" "logonly" "pretty"
+            fi
             return 0
         fi
     fi
@@ -544,23 +545,14 @@ if [[ ! -d ${FLEDGE_DATA} ]]; then
 fi
 
 # Extract plugin
-engine_management=`get_engine_management $PLUGIN`
+engine_management="false"
 # Settings if the database is managed by Fledge
 case "$engine_management" in
     "true")
 
-        MANAGED=true
-
-        # Check if sqlitei3 is present in the expected path
-        # We don't need to manage SQLite3 db
-        # This will be removed in next commits
-        SQLITE_SQL="$FLEDGE_ROOT/plugins/storage/sqlite/bin/psql"
-        if ! [[ -x "${SQLITE_SQL}" ]]; then
-            sqlite_log "err" "SQLite program not found: the database server cannot be managed." "all" "pretty"
-            exit 1
-        fi
-
-        print_output="noisy"
+       	# SQLite does not support managed storage. Ignore this option
+        print_output="silent"
+        MANAGED=false
         ;;
     
     "false")

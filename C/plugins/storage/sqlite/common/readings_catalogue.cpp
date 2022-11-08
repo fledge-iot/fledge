@@ -1875,20 +1875,15 @@ ReadingsCatalogue::tyReadingReference  ReadingsCatalogue::getReadingReference(Co
 
 						startReadingsId = 1;
 
-						if (getEmptyReadingTableReference(emptyTableReference))
-						{
-							emptyTableReference.tableId;
-							emptyTableReference.dbId;
-						}
-						else
+						if (!getEmptyReadingTableReference(emptyTableReference))
 						{
 							success = createNewDB(dbHandle,  dbId, startReadingsId, NEW_DB_ATTACH_REQUEST);
+							if (success)
+							{
+								Logger::getLogger()->debug("getReadingReference - allocate a new db - create new dbs - dbId :%d: startReadingsIdOnDB :%d:", dbId, startReadingsId);
+							}
 						}
-
-						if (success)
-						{
-							Logger::getLogger()->debug("getReadingReference - allocate a new db - create new dbs - dbId :%d: startReadingsIdOnDB :%d:", dbId, startReadingsId);
-						}
+						
 					}
 					m_dbIdLast = dbIdEnd;
 					m_dbIdCurrent++;

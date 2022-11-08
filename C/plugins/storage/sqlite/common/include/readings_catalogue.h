@@ -134,7 +134,7 @@ public:
 
 	bool          latestDbUpdate(sqlite3 *dbHandle, int newDbId);
 	void          preallocateNewDbsRange(int dbIdStart, int dbIdEnd);
-	bool          getEmptyReadingTable(tyReadingReference& emptyTableReference);
+	bool          getEmptyReadingTableReference(tyReadingReference& emptyTableReference);
 	tyReadingReference getReadingReference(Connection *connection, const char *asset_code);
 	bool          attachDbsToAllConnections();
 	std::string   sqlConstructMultiDb(std::string &sqlCmdBase, std::vector<std::string>  &assetCodes, bool considerExclusion=false);

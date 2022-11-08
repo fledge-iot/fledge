@@ -1875,7 +1875,7 @@ ReadingsCatalogue::tyReadingReference  ReadingsCatalogue::getReadingReference(Co
 
 						startReadingsId = 1;
 
-						if (getEmptyReadingTable(emptyTableReference))
+						if (getEmptyReadingTableReference(emptyTableReference))
 						{
 							emptyTableReference.tableId;
 							emptyTableReference.dbId;
@@ -1967,7 +1967,7 @@ ReadingsCatalogue::tyReadingReference  ReadingsCatalogue::getReadingReference(Co
  * @return         True of success, false on any error
  *
  */
-bool ReadingsCatalogue::getEmptyReadingTable(tyReadingReference &emptyTableReference)
+bool ReadingsCatalogue::getEmptyReadingTableReference(tyReadingReference &emptyTableReference)
 {
 	bool isEmptyTableAvailable = false;
 	sqlite3 *dbHandle;
@@ -1986,7 +1986,7 @@ bool ReadingsCatalogue::getEmptyReadingTable(tyReadingReference &emptyTableRefer
 
 		if (sqlite3_prepare_v2(dbHandle, sql_cmd.c_str(), -1, &stmt, NULL) != SQLITE_OK)
 		{
-			raiseError("getEmptyTable", sqlite3_errmsg(dbHandle));
+			raiseError("getEmptyReadingTableReference", sqlite3_errmsg(dbHandle));
 			return false;
 		}
 

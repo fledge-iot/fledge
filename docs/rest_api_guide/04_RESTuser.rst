@@ -271,6 +271,84 @@ An array of JSON objects with a series of readings sorted in reverse chronologic
   $
 
 
+
+GET all asset reading time spans
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``GET /fledge/asset/timespan`` - Return newest and oldest timestamp for which we hold readings in the buffer
+
+
+**Response Payload**
+
+An array of JSON objects with a series of readings and the newest and oldest timestamps of the readings held for reach asset
+
+
++------------+--------+--------------------------------------------+------------------------------+
+| Name       | Type   | Description                                | Example                      |
++============+========+============================================+==============================+
+| asset_code | string | The asset code for which the timestamps    | sinusoid                     |
+|            |        | refer                                      |                              |
++------------+--------+--------------------------------------------+------------------------------+
+| oldest     | string | The oldest timestamp held in the buffer    | "2022-11-08 17:07:02.623258" | 
+|            |        | for this asset                             |                              |
++------------+--------+--------------------------------------------+------------------------------+
+| newest     | string | The newest timestamp held in the buffer    | "2022-11-09 14:52:50.069432" |  
+|            |        | for this asset                             |                              |
++------------+--------+--------------------------------------------+------------------------------+
+
+
+**Example**
+
+.. code-block:: console
+
+    $ curl http://localhost:8081/fledge/asset/sinusoid/timespan
+    [
+      {
+        "oldest": "2022-11-08 17:07:02.623258",
+        "newest": "2022-11-09 14:52:50.069432"
+      }
+    ]
+
+
+GET asset reading time span
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``GET /fledge/asset/{code}/timespan`` - Return newest and oldest timestamp for which we hold readings in the buffer
+
+
+**Path Parameters**
+
+- **code** - the asset code to retrieve.
+
+
+**Response Payload**
+
+A JSON object with the newest and oldest timestamps for the asset held in the storage buffer.
+
++---------+--------+--------------------------------------------+------------------------------+
+| Name    | Type   | Description                                | Example                      |
++=========+========+============================================+==============================+
+| oldest  | string | The oldest timestamp held in the buffer    | "2022-11-08 17:07:02.623258" | 
+|         |        | for this asset                             |                              |
++---------+--------+--------------------------------------------+------------------------------+
+| newest  | string | The newest timestamp held in the buffer    | "2022-11-09 14:52:50.069432" |  
+|         |        | for this asset                             |                              |
++---------+--------+--------------------------------------------+------------------------------+
+
+**Example**
+
+.. code-block:: console
+
+    $ curl http://localhost:8081/fledge/asset/timespan|jq
+    [
+      {
+        "oldest": "2022-11-08 17:07:02.623258",
+        "newest": "2022-11-09 14:59:14.069207",
+        "asset_code": "sinusoid"
+      }
+    ]
+
+
 GET timed average asset reading
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

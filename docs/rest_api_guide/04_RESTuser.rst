@@ -87,8 +87,17 @@ GET asset readings
 
 **Request Parameters**
 
-- **limit** - set the limit of the number of readings to return. If not specified, the defaults is 20 readings.
+  - **limit** - set the limit of the number of readings to return. If not specified, the defaults is 20 readings.
+  
+  - **skip** - the number of assets to skip. This is used in conjunction with limit and allows the caller to not just get the last N readings, but to get a set of readings from the past.
 
+  - **seconds** - this is essentially an alternative form of limit, but here the limit is expressed in seconds rather than a number of readings. It will return the readings for the last N seconds. Note that this can not be used in conjunction with the *limit* and *skip* or with *hours* and *minutes* request parameters.
+
+  - **minutes** - this is essentially an alternative form of limit, but here the limit is expressed in minutes rather than a number of readings. It will return the readings for the last N minutes. Note that this can not be used in conjunction with the *limit* and *skip* or with *seconds* and *hours* request parameters.
+
+  - **hours** - this is essentially an alternative form of limit, but here the limit is expressed in hours rather than a number of readings. It will return the readings for the last N hours. Note that this can not be used in conjunction with the *limit* and *skip* or with *seconds* and *minutes* request parameters.
+
+  - **previous** - This is used in conjunction with the *hours*, *minutes* or *seconds* request parameter and allows the caller to get not just the most recent readings but historical readings. The value of *previous* is defined in hours, minutes or seconds dependent upon the parameter it is used with and defines how long ago the data that is returned should end. If the caller passes a set of parameters *seconds=30&previous=120* the call will return 30 seconds worth of data and the newest data returned will be 120 seconds old.
 
 **Response Payload**
 
@@ -135,6 +144,20 @@ An array of JSON objects with the readings data for a series of readings sorted 
     { "reading": { "x": -1, "y": -2, "z": -2 }, "timestamp": "2018-04-19 14:20:42.746" } ]
   $
 
+Using *seconds* and *previous* to obtain historical data.
+
+.. code-block:: console
+
+  $ curl http://localhost:8081/fledge/asset/sinusoid?seconds=5\&previous=60|jq
+  [
+    { "reading": { "sinusoid": 1 }, "timestamp": "2022-11-09 09:37:51.930688" },
+    { "reading": { "sinusoid": 0.994521895 }, "timestamp": "2022-11-09 09:37:50.930887" },
+    { "reading": { "sinusoid": 0.978147601 }, "timestamp": "2022-11-09 09:37:49.933698" },
+    { "reading": { "sinusoid": 0.951056516 }, "timestamp": "2022-11-09 09:37:48.930644" },
+    { "reading": { "sinusoid": 0.913545458 }, "timestamp": "2022-11-09 09:37:47.930950" }
+  ]
+
+The above call returned 5 seconds of data from the current time minus 65 seconds to the current time minus 5 seconds.
 
 GET asset reading
 ~~~~~~~~~~~~~~~~~
@@ -150,7 +173,17 @@ GET asset reading
 
 **Request Parameters**
 
-- **limit** - set the limit of the number of readings to return. If not specified, the defaults is 20 single readings.
+  - **limit** - set the limit of the number of readings to return. If not specified, the defaults is 20 single readings.
+  
+  - **skip** - the number of assets to skip. This is used in conjunction with limit and allows the caller to not just get the last N readings, but to get a set of readings from the past.
+
+  - **seconds** - this is essentially an alternative form of limit, but here the limit is expressed in seconds rather than a number of readings. It will return the readings for the last N seconds. Note that this can not be used in conjunction with the *limit* and *skip* or with *hours* and *minutes* request parameters.
+
+  - **minutes** - this is essentially an alternative form of limit, but here the limit is expressed in minutes rather than a number of readings. It will return the readings for the last N minutes. Note that this can not be used in conjunction with the *limit* and *skip* or with *seconds* and *hours* request parameters.
+
+  - **hours** - this is essentially an alternative form of limit, but here the limit is expressed in hours rather than a number of readings. It will return the readings for the last N hours. Note that this can not be used in conjunction with the *limit* and *skip* or with *seconds* and *minutes* request parameters.
+
+  - **previous** - This is used in conjunction with the *hours*, *minutes* or *seconds* request parameter and allows the caller to get not just the most recent readings but historical readings. The value of *previous* is defined in hours, minutes or seconds dependent upon the parameter it is used with and defines how long ago the data that is returned should end. If the caller passes a set of parameters *seconds=30&previous=120* the call will return 30 seconds worth of data and the newest data returned will be 120 seconds old.
 
 
 **Response Payload**

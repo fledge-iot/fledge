@@ -184,6 +184,9 @@ async def asset(request):
         _and_where = where_window(request, _where)
     elif 'seconds' in request.query or 'minutes' in request.query or 'hours' in request.query:
         _and_where = where_clause(request, _where)
+    elif 'previous' in request.query:
+        msg = "the parameter previous can only be given if one of seconds, minutes or hours is also given"
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     else:
         # Add the order by and limit, offset clause
         _and_where = prepare_limit_skip_payload(request, _where)
@@ -284,6 +287,9 @@ async def asset_reading(request):
         _and_where = where_window(request, _where)
     elif 'seconds' in request.query or 'minutes' in request.query or 'hours' in request.query:
         _and_where = where_clause(request, _where)
+    elif 'previous' in request.query:
+        msg = "the parameter previous can only be given if one of seconds, minutes or hours is also given"
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     else:
         # Add the order by and limit, offset clause
         _and_where = prepare_limit_skip_payload(request, _where)
@@ -344,6 +350,9 @@ async def asset_all_readings_summary(request):
             _and_where = where_window(request, _where)
         elif 'seconds' in request.query or 'minutes' in request.query or 'hours' in request.query:
             _and_where = where_clause(request, _where)
+        elif 'previous' in request.query:
+            msg = "the parameter previous can only be given if one of seconds, minutes or hours is also given"
+            raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
         else:
             # Add limit, offset clause
             _and_where = prepare_limit_skip_payload(request, _where)
@@ -512,6 +521,9 @@ async def asset_averages(request):
         _and_where = where_window(request, _where)
     elif 'seconds' in request.query or 'minutes' in request.query or 'hours' in request.query:
         _and_where = where_clause(request, _where)
+    elif 'previous' in request.query:
+        msg = "the parameter previous can only be given if one of seconds, minutes or hours is also given"
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     else:
         # Add LIMIT, OFFSET
         _and_where = prepare_limit_skip_payload(request, _where)

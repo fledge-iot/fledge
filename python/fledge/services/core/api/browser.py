@@ -174,12 +174,15 @@ async def asset(request):
             curl -sX GET "http://localhost:8081/fledge/asset/fogbench_humidity?limit=1&skip=1&order=asc
             curl -sX GET "http://localhost:8081/fledge/asset/fogbench_humidity?limit=1&skip=1&order=desc
             curl -sX GET http://localhost:8081/fledge/asset/fogbench_humidity?seconds=60
+            curl -sX GET http://localhost:8081/fledge/asset/fogbench_humidity?seconds=60&previous=600
     """
     asset_code = request.match_info.get('asset_code', '')
     _select = PayloadBuilder().SELECT(("reading", "user_ts")).ALIAS("return", ("user_ts", "timestamp")).chain_payload()
 
     _where = PayloadBuilder(_select).WHERE(["asset_code", "=", asset_code]).chain_payload()
-    if 'seconds' in request.query or 'minutes' in request.query or 'hours' in request.query:
+    if 'previous' in request.query and ('seconds' in request.query or 'minutes' in request.query or 'hours' in request.query):
+        _and_where = where_window(request, _where)
+    elif 'seconds' in request.query or 'minutes' in request.query or 'hours' in request.query:
         _and_where = where_clause(request, _where)
     else:
         # Add the order by and limit, offset clause
@@ -277,7 +280,9 @@ async def asset_reading(request):
     _select = PayloadBuilder().SELECT(("user_ts", ["reading", reading])) \
         .ALIAS("return", ("user_ts", "timestamp"), ("reading", reading)).chain_payload()
     _where = PayloadBuilder(_select).WHERE(["asset_code", "=", asset_code]).chain_payload()
-    if 'seconds' in request.query or 'minutes' in request.query or 'hours' in request.query:
+    if 'previous' in request.query and ('seconds' in request.query or 'minutes' in request.query or 'hours' in request.query):
+        _and_where = where_window(request, _where)
+    elif 'seconds' in request.query or 'minutes' in request.query or 'hours' in request.query:
         _and_where = where_clause(request, _where)
     else:
         # Add the order by and limit, offset clause
@@ -335,7 +340,9 @@ async def asset_all_readings_summary(request):
         reading_keys = list(results['rows'][-1]['reading'].keys())
         rows = []
         _where = PayloadBuilder().WHERE(["asset_code", "=", asset_code]).chain_payload()
-        if 'seconds' in request.query or 'minutes' in request.query or 'hours' in request.query:
+        if 'previous' in request.query and ('seconds' in request.query or 'minutes' in request.query or 'hours' in request.query):
+            _and_where = where_window(request, _where)
+        elif 'seconds' in request.query or 'minutes' in request.query or 'hours' in request.query:
             _and_where = where_clause(request, _where)
         else:
             # Add limit, offset clause
@@ -501,7 +508,9 @@ async def asset_averages(request):
                ('reading', 'avg', 'average')).chain_payload()
     _where = PayloadBuilder(_aggregate).WHERE(["asset_code", "=", asset_code]).chain_payload()
 
-    if 'seconds' in request.query or 'minutes' in request.query or 'hours' in request.query:
+    if 'previous' in request.query and ('seconds' in request.query or 'minutes' in request.query or 'hours' in request.query):
+        _and_where = where_window(request, _where)
+    elif 'seconds' in request.query or 'minutes' in request.query or 'hours' in request.query:
         _and_where = where_clause(request, _where)
     else:
         # Add LIMIT, OFFSET
@@ -552,6 +561,33 @@ def where_clause(request, where):
 
     payload = PayloadBuilder(where).AND_WHERE(['user_ts', 'newer', val]).chain_payload()
     return payload
+
+
+def where_window(request, where):
+    val = 0
+    previous = 0
+    try:
+        if 'seconds' in request.query and request.query['seconds'] != '':
+            val = int(request.query['seconds'])
+            previous = int(request.query['previous'])
+        elif 'minutes' in request.query and request.query['minutes'] != '':
+            val = int(request.query['minutes']) * 60
+            previous = int(request.query['previous']) * 60
+        elif 'hours' in request.query and request.query['hours'] != '':
+            val = int(request.query['hours']) * 60 * 60
+            previous = int(request.query['previous']) * 60 * 60
+
+        if val < 0:
+            raise ValueError
+    except ValueError:
+        raise web.HTTPBadRequest(reason="Time must be a positive integer")
+
+    # if no time units then NO AND_WHERE condition applied
+    if val == 0:
+        return where
+
+    payload = PayloadBuilder(where).AND_WHERE(['user_ts', 'newer', val + previous]).chain_payload()
+    return PayloadBuilder(payload).AND_WHERE(['user_ts', 'older', previous]).chain_payload()
 
 
 async def asset_datapoints_with_bucket_size(request: web.Request) -> web.Response:

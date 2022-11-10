@@ -507,11 +507,10 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 		{
 			Logger::getLogger()->debug("End point manually selected - AVEVA Data Hub");
 			connInfo->PIServerEndpoint = ENDPOINT_ADH;
-			if(ADHRegions.compare("US-West") == 0)
-				url = ENDPOINT_URL_ADH;
-			else if (ADHRegions.compare("EU-West") == 0)
+			url = ENDPOINT_URL_ADH;
+			if(ADHRegions.compare("EU-West") == 0)
 				url = ENDPOINT_URL_ADH_EU_WEST;
-			else
+			else if (ADHRegions.compare("Australia") == 0)
 				url = ENDPOINT_URL_ADH_AUSTRALIA;
 			endpointPort               = ENDPOINT_PORT_ADH;
 		}

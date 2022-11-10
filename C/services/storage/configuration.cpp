@@ -23,15 +23,17 @@ static const char *defaultConfiguration = QUOTE({
        		"value" : "sqlite",
 		"default" : "sqlite",
 		"description" : "The main storage plugin to load",
-		"type" : "string",
+		"type" : "enumeration",
+		"options" : [ "sqlite", "sqlitelb", "postgres" ],
 		"displayName" : "Storage Plugin",
 		"order" : "1"
 		},
 	"readingPlugin" : {
-		"value" : "",
-		"default" : "",
-		"description" : "The storage plugin to load for readings data. If blank the main storage plugin is used.",
-		"type" : "string",
+		"value" : "Use main plugin",
+		"default" : "Use main plugin",
+		"description" : "The storage plugin to load for readings data.",
+		"type" : "enumeration",
+		"options" : [ "Use main plugin", "sqlite", "sqlitelb", "sqlitememory", "postgres" ],
 		"displayName" : "Readings Plugin",
 		"order" : "2"
 		},
@@ -83,6 +85,9 @@ using namespace rapidjson;
 
 /**
  * Constructor for storage service configuration class.
+ *
+ * TODO Update the options for plugin and readingPlugin with any other storage
+ * plugins that have been installed
  */
 StorageConfiguration::StorageConfiguration()
 {
@@ -293,10 +298,28 @@ DefaultConfigCategory *StorageConfiguration::getDefaultCategory()
  * end up reporting the wrong information in the UI when we look at the category, therefore
  * we special case the plugin name and set the default to whatever the current value is
  * for just this property.
+ *
+ * FOGL-7074 Make the plugin selection an enumeration
  */
 void StorageConfiguration::checkCache()
 {
+bool forceUpdate = false;
+
 	if (document->HasMember("plugin"))
+	{
+		Value& item = (*document)["plugin"];
+		if (item.HasMember("type") && item["type"].IsString())
+		{
+			const char *type = item["type"].GetString();
+			if (strcmp(type, "enumeration"))
+			{
+				// It's not an enumeration currently
+				forceUpdate = true;
+			}
+		}
+	}
+
+	if (forceUpdate == false && document->HasMember("plugin"))
 	{
 		Value& item = (*document)["plugin"];
 		if (item.HasMember("type"))
@@ -310,6 +333,7 @@ void StorageConfiguration::checkCache()
 			return;
 		}
 	}
+
 	logger->info("Storage configuration cache is not up to date");
 	Document *newdoc = new Document();
 	newdoc->Parse(defaultConfiguration);

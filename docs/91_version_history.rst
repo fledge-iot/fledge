@@ -25,6 +25,51 @@ Version History
 Fledge v2
 ==========
 
+v2.0.1
+-------
+
+Release Date: 2022-10-20
+
+- **Fledge Core**
+
+    - New Features:
+
+       - A new option, healthcheck has been added to the command line script used to start, stop and monitor the instance. This runs a number of checks against the system to detect common misconfigurations and issues with the environment that have been observed to cause issues with the system.
+       - A third source of data is now available for sending to the north plugins, the internal audit log. This contains information such as configuration changes, services failures and other significant events within the Fledge instance. Note that a plugin must indicate it is able to handle audit data before it will be available within the plugin, currently the OPCUA north plugin is able to accept audit data.
+       - The SQLite storage plugins have been updated to periodically reclaim free storage. This is useful for installations that experience short term peaks in storage demand as it will release the storage used during those peaks back to the operating system.
+       - The API to fetch audit log entries has been enhanced to allow a time based filter to be applied. This allows only audit log entries since a given date to be returned to the caller.
+       - A new API has been added that will fetch the list of packages that are available to be updated on the system.
+       - Two new API entry points have been added that return health data for the logging subsystems and the storage service. These are used by the healthcheck option of the fledge command script.
+       - The nesting of JSON objects that represent readings was previously limited to two levels within JSON, this limitation has now been lifted in line with the internal representation of nested objects. This is particularly important when handling audit log data in north plugins and now allows full audit log entries to be transmitted via north plugins.
+       - Improvements have been made to error logs to diagnose certain storage faults. Also the ability to recover from some storage faults connected to gathering of statistics has been added.
+       - Some improvements to the diagnostics for control operations within the system have been made to aid in the development of control pipelines within the system.
+       - The public REST API documentation has been updated to cover more of the entry points supported and also to include examples of calling the asset browsing and statistics APIs using Grafana.
+
+
+    - Bug Fix:
+       
+       - An issue with incorrectly formed JSON when control operations are triggered from the north service has been resolved.
+       - A fix has been added to prevent a crash when the incorrect number of arguments is given to get_plugin_info. Also the function name to extract has been defaulted to be plugin_info.
+       - An issue with control operation parameters which had embedded quotes within the parameter values has been resolved. This previously caused some control operations from north services to not be processed by the control dispatcher service.
+       - When modifying a schedule the audit log entry, SCHCH for that changed, was previously added twice. This has now been resolved.
+       - An issue that prevented a change to the units used for reading rate, e.g. per second, per minute or per hour, not being actioned until a service was restarted has now been fixed. If the rate was also changed then this change would be actioned.
+       - It was possible to set a reading rate of 0 readings, this would cause the south service to fail. It is now not possible to set a rate of 0.
+
+- **Services & Plugins**
+
+    - New Features:
+
+       - Support has been added to the OMF north plugin that allows the AVEVA Data Hub to be specified as a destination.
+       - Documentation has been added for the GCP Pub/Sub north plugin.
+
+
+    - Bug Fix:
+      
+       - The service dispatcher was previously looking at the wrong service type when sending operation messages to south service, this has now been resolved.
+       - A bug in the scale-set filter that caused integer values to remain as integers when scaled to a value that could not be represented in an integer, e.g. scaling down or scaling by a non-integer factor, has been resolved.
+       - The S2OPCUA south plugin provides a configuration option, minimum reporting interval that is used to slow the rate of reporting down for busy items. No reports of changes will be recorded when the change happens more frequently than the value set. In the case of the S2OPCUA plugin this was being ignored. It is now actioned correctly within the plugin.
+
+
 v2.0.0
 -------
 

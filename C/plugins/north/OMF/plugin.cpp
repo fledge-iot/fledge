@@ -510,7 +510,7 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 				StringReplace(url, "REGION_PLACEHOLDER", "uswe");
 			else if(ADHRegions.compare("EU-West") == 0)
 				StringReplace(url, "REGION_PLACEHOLDER", "euno");
-			else if (ADHRegions.compare("Australia") == 0)
+			else if(ADHRegions.compare("Australia") == 0)
 				StringReplace(url, "REGION_PLACEHOLDER", "auea");
 			endpointPort               = ENDPOINT_PORT_ADH;
 		}

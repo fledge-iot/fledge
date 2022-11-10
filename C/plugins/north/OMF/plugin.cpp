@@ -148,12 +148,12 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"displayName": "Endpoint"
 		},
 		"ADHRegions": {
-                        "description": "ADH regions",
+                        "description": "Aveva Data Hub region",
                         "type": "enumeration",
                         "options":["US-West", "EU-West", "Australia"],
                         "default": "US-West",
                         "order": "2",
-                        "displayName": "ADHRegions",
+                        "displayName": "ADH Region",
                         "validity" : "PIServerEndpoint == \"AVEVA Data Hub\""
                 },
 		"SendFullStructure": {

@@ -505,13 +505,13 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 		{
 			Logger::getLogger()->debug("End point manually selected - AVEVA Data Hub");
 			connInfo->PIServerEndpoint = ENDPOINT_ADH;
-			url = ENDPOINT_URL_ADH;
-			if(ADHRegions.compare("US-West") == 0)
-				StringReplace(url, "REGION_PLACEHOLDER", "uswe");
-			else if(ADHRegions.compare("EU-West") == 0)
-				StringReplace(url, "REGION_PLACEHOLDER", "euno");
+			url 			   = ENDPOINT_URL_ADH;
+			std::string region 	   = "uswe";
+			if(ADHRegions.compare("EU-West") == 0)
+               			region = "euno";
 			else if(ADHRegions.compare("Australia") == 0)
-				StringReplace(url, "REGION_PLACEHOLDER", "auea");
+				region = "auea";
+			StringReplace(url, "REGION_PLACEHOLDER", region);
 			endpointPort               = ENDPOINT_PORT_ADH;
 		}
 		else if(PIServerEndpoint.compare("OSIsoft Cloud Services") == 0)

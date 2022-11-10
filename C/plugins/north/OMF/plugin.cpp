@@ -88,9 +88,7 @@ using namespace SimpleWeb;
 #define ENDPOINT_URL_PI_WEB_API "https://HOST_PLACEHOLDER:PORT_PLACEHOLDER/piwebapi/omf"
 #define ENDPOINT_URL_CR         "https://HOST_PLACEHOLDER:PORT_PLACEHOLDER/ingress/messages"
 #define ENDPOINT_URL_OCS        "https://dat-b.osisoft.com:PORT_PLACEHOLDER/api/v1/tenants/TENANT_ID_PLACEHOLDER/Namespaces/NAMESPACE_ID_PLACEHOLDER/omf"
-#define ENDPOINT_URL_ADH        "https://uswe.datahub.connect.aveva.com:PORT_PLACEHOLDER/api/v1/Tenants/TENANT_ID_PLACEHOLDER/Namespaces/NAMESPACE_ID_PLACEHOLDER/omf"
-#define ENDPOINT_URL_ADH_EU_WEST "https://euno.datahub.connect.aveva.com:PORT_PLACEHOLDER/api/v1/Tenants/TENANT_ID_PLACEHOLDER/Namespaces/NAMESPACE_ID_PLACEHOLDER/omf"
-#define ENDPOINT_URL_ADH_AUSTRALIA "https://auea.datahub.connect.aveva.com:PORT_PLACEHOLDER/api/v1/Tenants/TENANT_ID_PLACEHOLDER/Namespaces/NAMESPACE_ID_PLACEHOLDER/omf"
+#define ENDPOINT_URL_ADH        "https://REGION_PLACEHOLDER.datahub.connect.aveva.com:PORT_PLACEHOLDER/api/v1/Tenants/TENANT_ID_PLACEHOLDER/Namespaces/NAMESPACE_ID_PLACEHOLDER/omf"
 
 #define ENDPOINT_URL_EDS        "http://localhost:PORT_PLACEHOLDER/api/v1/tenants/default/namespaces/default/omf"
 
@@ -508,10 +506,12 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 			Logger::getLogger()->debug("End point manually selected - AVEVA Data Hub");
 			connInfo->PIServerEndpoint = ENDPOINT_ADH;
 			url = ENDPOINT_URL_ADH;
-			if(ADHRegions.compare("EU-West") == 0)
-				url = ENDPOINT_URL_ADH_EU_WEST;
+			if(ADHRegions.compare("US-West") == 0)
+				StringReplace(url, "REGION_PLACEHOLDER", "uswe");
+			else if(ADHRegions.compare("EU-West") == 0)
+				StringReplace(url, "REGION_PLACEHOLDER", "euno");
 			else if (ADHRegions.compare("Australia") == 0)
-				url = ENDPOINT_URL_ADH_AUSTRALIA;
+				StringReplace(url, "REGION_PLACEHOLDER", "auea");
 			endpointPort               = ENDPOINT_PORT_ADH;
 		}
 		else if(PIServerEndpoint.compare("OSIsoft Cloud Services") == 0)

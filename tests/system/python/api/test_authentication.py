@@ -112,8 +112,10 @@ class TestAuthenticationAPI:
         r = r.read().decode()
         jdoc = json.loads(r)
         assert {'roles': [{'description': 'All CRUD privileges', 'id': 1, 'name': 'admin'},
-                          {'description': 'All CRUD operations and self profile management',
-                           'id': 2, 'name': 'user'}]} == jdoc
+                          {'description': 'All CRUD operations and self profile management', 'id': 2, 'name': 'user'},
+                          {'id': 3, 'name': 'view', 'description': 'Only to view the configuration'},
+                          {'id': 4, 'name': 'data-view', 'description': 'Only read the data in buffer'}
+                          ]} == jdoc
 
     @pytest.mark.parametrize(("form_data", "expected_values"), [
         ({"username": "any1", "password": "User@123", "real_name": "AJ", "description": "Nerd user"},
@@ -124,7 +126,17 @@ class TestAuthenticationAPI:
                    'description': ''}, 'message': 'admin1 user has been created successfully'}),
         ({"username": "bogus", "password": "Fl3dG$", "role_id": 2},
          {'user': {'userName': 'bogus', 'userId': 5, 'roleId': 2, 'accessMethod': 'any', 'realName': '',
-                   'description': ''}, 'message': 'bogus user has been created successfully'})
+                   'description': ''}, 'message': 'bogus user has been created successfully'}),
+        ({"username": "view", "password": "V!3w@1", "role_id": 3, "real_name": "View",
+          "description": "Only to view the configuration"},
+         {'user': {
+             'userName': 'view', 'userId': 6, 'roleId': 3, 'accessMethod': 'any', 'realName': 'View',
+             'description': 'Only to view the configuration'}, 'message': 'view user has been created successfully'}),
+        ({"username": "dataView", "password": "DV!3w@1", "role_id": 4, "real_name": "DataView",
+          "description": "Only read the data in buffer"},
+         {'user': {
+             'userName': 'dataview', 'userId': 7, 'roleId': 4, 'accessMethod': 'any', 'realName': 'DataView',
+             'description': 'Only read the data in buffer'}, 'message': 'dataview user has been created successfully'})
     ])
     def test_create_user(self, fledge_url, form_data, expected_values):
         conn = http.client.HTTPConnection(fledge_url)

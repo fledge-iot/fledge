@@ -65,9 +65,11 @@ IMAGE_PLACEHOLDER = "Data removed for brevity"
 def setup(app):
     """ Add the routes for the API endpoints supported by the data browser """
     app.router.add_route('GET', '/fledge/asset', asset_counts)
+    app.router.add_route('GET', '/fledge/asset/timespan', asset_timespan)
     app.router.add_route('GET', '/fledge/asset/{asset_code}', asset)
     app.router.add_route('GET', '/fledge/asset/{asset_code}/latest', asset_latest)
     app.router.add_route('GET', '/fledge/asset/{asset_code}/summary', asset_all_readings_summary)
+    app.router.add_route('GET', '/fledge/asset/{asset_code}/timespan', asset_reading_timespan)
     app.router.add_route('GET', '/fledge/asset/{asset_code}/{reading}', asset_reading)
     app.router.add_route('GET', '/fledge/asset/{asset_code}/{reading}/summary', asset_summary)
     app.router.add_route('GET', '/fledge/asset/{asset_code}/{reading}/series', asset_averages)
@@ -860,3 +862,59 @@ async def asset_purge(request):
     else:
         return web.json_response(results)
 
+
+async def asset_timespan(request):
+    """ 
+    Return the timespan of the buffered readings for each asset. The returned data includes the timestamp
+    of the oldest and newest reading for each asset that we hold in the buffer
+
+    :Example:
+            curl -sX GET http://localhost:8081/fledge/asset/timespan
+    """
+    try:
+        payload = PayloadBuilder().AGGREGATE(["min", "user_ts"], ["max", "user_ts"]).GROUP_BY("asset_code") \
+                .ALIAS('aggregate', ('user_ts', 'min', 'oldest'), ('user_ts', 'max', 'newest')).payload()
+        # Call storage service
+        _readings = connect.get_readings_async()
+        results = await _readings.query(payload)
+        response = results['rows']
+    except (KeyError, IndexError) as err:
+        msg = str(err)
+        raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
+    except (TypeError, ValueError) as err:
+        msg = str(err)
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+    except Exception as exc:
+        msg = str(exc)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+    else:
+        return web.json_response(response)
+
+
+async def asset_reading_timespan(request):
+    """ 
+    Return the timespan of the buffered readings for the given asset . The returned data includes the timestamp
+    of the oldest and newest reading for the asset that we hold in the buffer
+
+    :Example:
+            curl -sX GET http://localhost:8081/fledge/asset/sinusoid/timespan
+    """
+    try:
+        asset_code = request.match_info.get('asset_code', '')
+        payload = PayloadBuilder().WHERE(["asset_code", "=", asset_code]).AGGREGATE(["min", "user_ts"], ["max", "user_ts"]) \
+                .ALIAS('aggregate', ('user_ts', 'min', 'oldest'), ('user_ts', 'max', 'newest')).payload()
+        # Call storage service
+        _readings = connect.get_readings_async()
+        results = await _readings.query(payload)
+        response = results['rows'][0]
+    except (KeyError, IndexError) as err:
+        msg = str(err)
+        raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
+    except (TypeError, ValueError) as err:
+        msg = str(err)
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+    except Exception as exc:
+        msg = str(exc)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+    else:
+        return web.json_response(response)

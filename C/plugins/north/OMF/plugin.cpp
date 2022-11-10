@@ -148,7 +148,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"displayName": "Endpoint"
 		},
 		"ADHRegions": {
-                        "description": "Aveva Data Hub region",
+                        "description": "AVEVA Data Hub region",
                         "type": "enumeration",
                         "options":["US-West", "EU-West", "Australia"],
                         "default": "US-West",

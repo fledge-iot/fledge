@@ -301,11 +301,12 @@ An array of JSON objects with a series of readings and the newest and oldest tim
 
 .. code-block:: console
 
-    $ curl http://localhost:8081/fledge/asset/sinusoid/timespan
+    $ curl http://localhost:8081/fledge/asset/timespan
     [
       {
         "oldest": "2022-11-08 17:07:02.623258",
-        "newest": "2022-11-09 14:52:50.069432"
+        "newest": "2022-11-09 14:52:50.069432",
+        "asset_code": "sinusoid"
       }
     ]
 
@@ -343,8 +344,7 @@ A JSON object with the newest and oldest timestamps for the asset held in the st
     [
       {
         "oldest": "2022-11-08 17:07:02.623258",
-        "newest": "2022-11-09 14:59:14.069207",
-        "asset_code": "sinusoid"
+        "newest": "2022-11-09 14:59:14.069207"
       }
     ]
 

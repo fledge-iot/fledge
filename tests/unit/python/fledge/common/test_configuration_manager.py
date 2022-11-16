@@ -852,6 +852,225 @@ class TestConfigurationManager:
         assert test_config_storage is not c_return_value
         assert test_config_new is not test_config_storage
 
+    p1 = {ITEM_NAME: {"description": "test description val", "type": "string", "default": "test default val",
+                      "value": "test value val", "readonly": "true"}}
+    p2 = {ITEM_NAME: {"description": "test description val", "type": "string", "default": "test default val",
+                      "value": "test value val", "readonly": "false", "order": 3}}
+    p3 = {ITEM_NAME: {"description": "test description val", "type": "string", "default": "test default val",
+                      "value": "test value val", "readonly": "true", "order": 3, "length": 80}}
+    p4 = {ITEM_NAME: {"description": "test description val", "type": "integer", "default": "1", "minimum": 0,
+                      "maximum": 5}}
+    p5 = {"test_item_name_storage": {"description": "", "type": "integer", "default": "10", "value": "100",
+                                     "minimum": 10, "maximum": 100, "order": 1, "displayName": "test"}}
+    p6 = {"test_item_name_storage": {"description": "", "type": "integer", 'default': "3", "value": "100",
+                                     "rule": "value < 200", "order": 1}}
+
+    @pytest.mark.parametrize("idx, new_config, keep_original_items", [
+        (1, p1, False), (2, p2, False), (3, p3, False), (4, p4, False), (5, p5, False), (6, p6, False),
+        (1, p1, True), (2, p2, True), (3, p3, True), (4, p4, True), (5, p5, True), (6, p6, True),
+    ])
+    async def test__merge_category_vals_with_optional_attributes(self, reset_singleton, idx, new_config,
+                                                                 keep_original_items):
+        def verify_data_ignore_original_items():
+            assert len(actual_result) == 1
+            actual = list(actual_result.values())[0]
+            if idx == 1:
+                assert ITEM_NAME in actual_result
+                assert 'test_item_name_storage' not in actual_result
+                assert len(actual) == 5
+                assert actual['description'] == "test description val"
+                assert actual['type'] == "string"
+                assert actual['default'] == "test default val"
+                assert actual['value'] == "test value val"
+                assert actual["readonly"] == "true"
+            elif idx == 2:
+                assert ITEM_NAME in actual_result
+                assert 'test_item_name_storage' not in actual_result
+                assert len(actual) == 6
+                assert actual['description'] == "test description val"
+                assert actual['type'] == "string"
+                assert actual['default'] == "test default val"
+                assert actual['value'] == "test value val"
+                assert actual["readonly"] == "false"
+                assert actual['order'] == 3
+            elif idx == 3:
+                assert ITEM_NAME in actual_result
+                assert 'test_item_name_storage' not in actual_result
+                assert len(actual) == 7
+                assert actual['description'] == "test description val"
+                assert actual['type'] == "string"
+                assert actual['default'] == "test default val"
+                assert actual['value'] == "test value val"
+                assert actual["readonly"] == "true"
+                assert actual['order'] == 3
+                assert actual['length'] == 80
+            elif idx == 4:
+                assert ITEM_NAME in actual_result
+                assert 'test_item_name_storage' not in actual_result
+                assert len(actual) == 6
+                assert actual['description'] == "test description val"
+                assert actual['type'] == "integer"
+                assert actual['default'] == "1"
+                assert actual['value'] == "1"
+                assert actual['minimum'] == 0
+                assert actual['maximum'] == 5
+            elif idx == 5:
+                assert ITEM_NAME not in actual_result
+                assert 'test_item_name_storage' in actual_result
+                assert len(actual) == 8
+                assert actual['description'] == ""
+                assert actual['type'] == "integer"
+                assert actual['default'] == "10"
+                assert actual['value'] == "100"
+                assert actual["minimum"] == 10
+                assert actual['maximum'] == 100
+                assert actual['order'] == 1
+                assert actual['displayName'] == "test"
+            elif idx == 6:
+                assert ITEM_NAME not in actual_result
+                assert 'test_item_name_storage' in actual_result
+                assert len(actual) == 6
+                assert actual['description'] == ""
+                assert actual['type'] == "integer"
+                assert actual['default'] == "3"
+                assert actual['value'] == "100"
+                assert actual["order"] == 1
+                assert actual['rule'] == "value < 200"
+
+        def verify_data_include_original_items():
+            assert len(actual_result) == 2
+            item_name1 = ITEM_NAME
+            item_name2 = 'test_item_name_storage'
+            assert item_name1 in actual_result
+            assert item_name2 in actual_result
+            actual_item1 = actual_result[item_name1]
+            actual_item2 = actual_result[item_name2]
+            if idx == 1:
+                assert len(actual_item1) == 5
+                assert actual_item1['description'] == "test description val"
+                assert actual_item1['type'] == "string"
+                assert actual_item1['default'] == "test default val"
+                assert actual_item1['value'] == "test value val"
+                assert actual_item1["readonly"] == "true"
+                assert len(actual_item2) == 7
+                assert actual_item2['description'] == ""
+                assert actual_item2['type'] == "integer"
+                assert actual_item2['default'] == "10"
+                assert actual_item2['value'] == "100"
+                assert actual_item2["minimum"] == 20
+                assert actual_item2["maximum"] == 200
+                assert actual_item2["order"] == 1
+            elif idx == 2:
+                assert len(actual_item1) == 6
+                assert actual_item1['description'] == "test description val"
+                assert actual_item1['type'] == "string"
+                assert actual_item1['default'] == "test default val"
+                assert actual_item1['value'] == "test value val"
+                assert actual_item1["readonly"] == "false"
+                assert actual_item1["order"] == 3
+                assert len(actual_item2) == 7
+                assert actual_item2['description'] == ""
+                assert actual_item2['type'] == "integer"
+                assert actual_item2['default'] == "10"
+                assert actual_item2['value'] == "100"
+                assert actual_item2["minimum"] == 20
+                assert actual_item2["maximum"] == 200
+                assert actual_item2["order"] == 1
+            elif idx == 3:
+                assert len(actual_item1) == 7
+                assert actual_item1['description'] == "test description val"
+                assert actual_item1['type'] == "string"
+                assert actual_item1['default'] == "test default val"
+                assert actual_item1['value'] == "test value val"
+                assert actual_item1["readonly"] == "true"
+                assert actual_item1["order"] == 3
+                assert actual_item1['length'] == 80
+                assert len(actual_item2) == 7
+                assert actual_item2['description'] == ""
+                assert actual_item2['type'] == "integer"
+                assert actual_item2['default'] == "10"
+                assert actual_item2['value'] == "100"
+                assert actual_item2["minimum"] == 20
+                assert actual_item2["maximum"] == 200
+                assert actual_item2["order"] == 1
+            elif idx == 4:
+                assert len(actual_item1) == 6
+                assert actual_item1['description'] == "test description val"
+                assert actual_item1['type'] == "integer"
+                assert actual_item1['default'] == "1"
+                assert actual_item1['value'] == "1"
+                assert actual_item1["minimum"] == 0
+                assert actual_item1['maximum'] == 5
+                assert len(actual_item2) == 7
+                assert actual_item2['description'] == ""
+                assert actual_item2['type'] == "integer"
+                assert actual_item2['default'] == "10"
+                assert actual_item2['value'] == "100"
+                assert actual_item2["minimum"] == 20
+                assert actual_item2["maximum"] == 200
+                assert actual_item2["order"] == 1
+            elif idx == 5:
+                assert len(actual_item1) == 6
+                assert actual_item1['description'] == "test description val"
+                assert actual_item1['type'] == "string"
+                assert actual_item1['default'] == "test default val"
+                assert actual_item1['value'] == "test value val"
+                assert actual_item1["readonly"] == "false"
+                assert actual_item1["order"] == 2
+                assert len(actual_item2) == 8
+                assert actual_item2['description'] == ""
+                assert actual_item2['type'] == "integer"
+                assert actual_item2['default'] == "10"
+                assert actual_item2['value'] == "100"
+                assert actual_item2["minimum"] == 10
+                assert actual_item2["maximum"] == 100
+                assert actual_item2["order"] == 1
+                assert actual_item2["displayName"] == "test"
+            elif idx == 6:
+                assert len(actual_item1) == 6
+                assert actual_item1['description'] == "test description val"
+                assert actual_item1['type'] == "string"
+                assert actual_item1['default'] == "test default val"
+                assert actual_item1['value'] == "test value val"
+                assert actual_item1["readonly"] == "false"
+                assert actual_item1["order"] == 2
+                assert len(actual_item2) == 6
+                assert actual_item2['description'] == ""
+                assert actual_item2['type'] == "integer"
+                assert actual_item2['default'] == "3"
+                assert actual_item2['value'] == "100"
+                assert actual_item2["order"] == 1
+                assert actual_item2["rule"] == "value < 200"
+
+        storage_client_mock = MagicMock(spec=StorageClientAsync)
+        c_mgr = ConfigurationManager(storage_client_mock)
+        storage_config = {
+            "test_item_name_storage": {
+                "description": "",
+                "type": "integer",
+                "default": "10",
+                "value": "100",
+                "minimum": 20,
+                "maximum": 200,
+                "order": 1
+            },
+            ITEM_NAME: {
+                "description": "test description val",
+                "type": "string",
+                "default": "test default val",
+                "value": "test value val",
+                "readonly": "false",
+                "order": 2
+            }
+        }
+        actual_result = await c_mgr._merge_category_vals(
+            new_config, storage_config, keep_original_items=keep_original_items, category_name=CAT_NAME)
+        assert isinstance(actual_result, dict)
+        if keep_original_items:
+            getattr(verify_data_include_original_items, "__call__")()
+        else:
+            getattr(verify_data_ignore_original_items, "__call__")()
+
     @pytest.mark.parametrize("payload, message", [
         ((2, 'catvalue', 'catdesc'), "category_name must be a string"),
         (('catname', 'catvalue', 3), "category_description must be a string")

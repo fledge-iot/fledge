@@ -77,7 +77,7 @@ def setup(app):
     app.router.add_route('GET', '/fledge/asset/{asset_code}/{reading}/bucket/{bucket_size}',
                          asset_readings_with_bucket_size)
     app.router.add_route('GET', '/fledge/structure/asset', asset_structure)
-    # The developer Purge by Asset naem API entry points
+    # The developer Purge by Asset name API entry points
     app.router.add_route('DELETE', '/fledge/asset', asset_purge_all)
     app.router.add_route('DELETE', '/fledge/asset/{asset_code}', asset_purge)
 
@@ -182,7 +182,8 @@ async def asset(request):
     _select = PayloadBuilder().SELECT(("reading", "user_ts")).ALIAS("return", ("user_ts", "timestamp")).chain_payload()
 
     _where = PayloadBuilder(_select).WHERE(["asset_code", "=", asset_code]).chain_payload()
-    if 'previous' in request.query and ('seconds' in request.query or 'minutes' in request.query or 'hours' in request.query):
+    if 'previous' in request.query and (
+            'seconds' in request.query or 'minutes' in request.query or 'hours' in request.query):
         _and_where = where_window(request, _where)
     elif 'seconds' in request.query or 'minutes' in request.query or 'hours' in request.query:
         _and_where = where_clause(request, _where)
@@ -285,7 +286,8 @@ async def asset_reading(request):
     _select = PayloadBuilder().SELECT(("user_ts", ["reading", reading])) \
         .ALIAS("return", ("user_ts", "timestamp"), ("reading", reading)).chain_payload()
     _where = PayloadBuilder(_select).WHERE(["asset_code", "=", asset_code]).chain_payload()
-    if 'previous' in request.query and ('seconds' in request.query or 'minutes' in request.query or 'hours' in request.query):
+    if 'previous' in request.query and (
+            'seconds' in request.query or 'minutes' in request.query or 'hours' in request.query):
         _and_where = where_window(request, _where)
     elif 'seconds' in request.query or 'minutes' in request.query or 'hours' in request.query:
         _and_where = where_clause(request, _where)
@@ -337,7 +339,8 @@ async def asset_all_readings_summary(request):
         asset_code = request.match_info.get('asset_code', '')
         # TODO: Use only the latest asset read to determine the data points to use. This
         # avoids reading every single reading into memory and creating a very big result set See FOGL-2635
-        payload = PayloadBuilder().SELECT("reading").WHERE(["asset_code", "=", asset_code]).LIMIT(1).ORDER_BY(["user_ts", "desc"]).payload()
+        payload = PayloadBuilder().SELECT("reading").WHERE(
+            ["asset_code", "=", asset_code]).LIMIT(1).ORDER_BY(["user_ts", "desc"]).payload()
         _readings = connect.get_readings_async()
         results = await _readings.query(payload)
         if not results['rows']:
@@ -348,7 +351,8 @@ async def asset_all_readings_summary(request):
         reading_keys = list(results['rows'][-1]['reading'].keys())
         rows = []
         _where = PayloadBuilder().WHERE(["asset_code", "=", asset_code]).chain_payload()
-        if 'previous' in request.query and ('seconds' in request.query or 'minutes' in request.query or 'hours' in request.query):
+        if 'previous' in request.query and (
+                'seconds' in request.query or 'minutes' in request.query or 'hours' in request.query):
             _and_where = where_window(request, _where)
         elif 'seconds' in request.query or 'minutes' in request.query or 'hours' in request.query:
             _and_where = where_clause(request, _where)
@@ -519,7 +523,8 @@ async def asset_averages(request):
                ('reading', 'avg', 'average')).chain_payload()
     _where = PayloadBuilder(_aggregate).WHERE(["asset_code", "=", asset_code]).chain_payload()
 
-    if 'previous' in request.query and ('seconds' in request.query or 'minutes' in request.query or 'hours' in request.query):
+    if 'previous' in request.query and (
+            'seconds' in request.query or 'minutes' in request.query or 'hours' in request.query):
         _and_where = where_window(request, _where)
     elif 'seconds' in request.query or 'minutes' in request.query or 'hours' in request.query:
         _and_where = where_clause(request, _where)
@@ -641,22 +646,22 @@ async def asset_datapoints_with_bucket_size(request: web.Request) -> web.Respons
                 raise ValueError('length must be a positive integer')
             length_found = True
             # No user start parameter: decrease default start by the user provided length
-            if start_found == False:
+            if start_found is False:
                 start = ts - length
 
         use_microseconds = False
         # Check subsecond request in start
         start_micros = "{:.6f}".format(start).split('.')[1]
-        if start_found == True and start_micros != '000000':
+        if start_found is True and start_micros != '000000':
             use_microseconds = True
         else:
             # No decimal part, check subsecond request in length
             start_micros = "{:.6f}".format(length).split('.')[1]
-            if length_found == True and start_micros != '000000':
+            if length_found is True and start_micros != '000000':
                 use_microseconds = True
 
         # Build UTC datetime start/stop from start timestamp with/without microseconds
-        if use_microseconds == False:
+        if use_microseconds is False:
             start_date = datetime.datetime.fromtimestamp(start, datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
             stop_date = datetime.datetime.fromtimestamp(start + length, datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
         else:
@@ -732,7 +737,7 @@ async def asset_readings_with_bucket_size(request: web.Request) -> web.Response:
             if length < 0:
                 raise ValueError('length must be a positive integer')
             # No user start parameter: decrease default start by the user provided length
-            if start_found == False:
+            if start_found is False:
                 start = ts - length
 
         # Build datetime from timestamp
@@ -833,11 +838,13 @@ async def asset_structure(request):
 
 # The following two routines are not really browsing data but this is probably a logical
 # place to put them as they share the same URL stem
+
+
 async def asset_purge_all(request):
     """ Purge all the assets for which we have recorded readings
 
     Returns:
-           json result with details of assets putge
+           json result with details of assets purge
 
     :Example:
             curl -sX DELETE http://localhost:8081/fledge/asset
@@ -860,7 +867,7 @@ async def asset_purge_all(request):
                                      {
                                          "start_time": start_time,
                                          "end_time": end_time,
-                                         "rowsRemoved": results['purged'] })
+                                         "rowsRemoved": results['purged']})
     except KeyError:
         msg = results['message']
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
@@ -900,7 +907,7 @@ async def asset_purge(request):
                                          "start_time": start_time,
                                          "end_time": end_time,
                                          "rowsRemoved": results['purged'],
-                                         "asset" : asset_code })
+                                         "asset": asset_code})
     except KeyError:
         msg = results['message']
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
@@ -949,8 +956,9 @@ async def asset_reading_timespan(request):
     """
     try:
         asset_code = request.match_info.get('asset_code', '')
-        payload = PayloadBuilder().WHERE(["asset_code", "=", asset_code]).AGGREGATE(["min", "user_ts"], ["max", "user_ts"]) \
-                .ALIAS('aggregate', ('user_ts', 'min', 'oldest'), ('user_ts', 'max', 'newest')).payload()
+        payload = PayloadBuilder().WHERE(
+            ["asset_code", "=", asset_code]).AGGREGATE(["min", "user_ts"], ["max", "user_ts"]).ALIAS(
+            'aggregate', ('user_ts', 'min', 'oldest'), ('user_ts', 'max', 'newest')).payload()
         # Call storage service
         _readings = connect.get_readings_async()
         results = await _readings.query(payload)

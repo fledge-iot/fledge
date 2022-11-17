@@ -226,11 +226,11 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         for item_name_new, item_val_new in category_val_new_copy.items():
             item_val_storage = category_val_storage_copy.get(item_name_new)
             if item_val_storage is not None:
-                for o_attr in item_val_storage.keys():
-                    # Merge optional attributes
-                    if o_attr in _optional_items:
-                        item_val_new[o_attr] = item_val_storage.get(o_attr)
-                item_val_new['value'] = item_val_storage.get('value')
+                if item_val_new['type'] == item_val_storage.get('type'):
+                    item_val_new['value'] = item_val_storage.get('value')
+                else:
+                    if 'value' not in item_val_new:
+                        item_val_new['value'] = item_val_new['default']
                 category_val_storage_copy.pop(item_name_new)
             if "deprecated" in item_val_new and item_val_new['deprecated'] == 'true':
                 audit = AuditLogger(self._storage)

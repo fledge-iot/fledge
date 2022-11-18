@@ -160,7 +160,7 @@ class TestAssetTracker:
                                                     "and": {"column": "deprecated_ts", "condition": "isnull"}}}}}
         query_result = {'count': 1, 'rows': [{'deprecated_ts': ''}]}
         update_result = {"response": "updated", "rows_affected": 1}
-
+        message = "For {} event, {} asset record entry has been deprecated.".format(event, asset)
         if sys.version_info >= (3, 8):
             _rv = await mock_coro(query_result)
             _rv2 = await mock_coro(update_result)
@@ -183,10 +183,9 @@ class TestAssetTracker:
                                     assert 200 == resp.status
                                     result = await resp.text()
                                     json_response = json.loads(result)
-                                    assert {'success': '{} asset record entry has been deprecated.'.format(
-                                        asset)} == json_response
+                                    assert {'success': message} == json_response
                                 assert 1 == log_info.call_count
-                                log_info.assert_called_once_with("Asset '{}' has been deprecated.".format(asset))
+                                log_info.assert_called_once_with(message)
                             patch_audit.assert_called_once_with(
                                 'ASTDP', {'asset': asset, 'event': audit_event, 'service': service})
                     args, _ = patch_update_tbl.call_args

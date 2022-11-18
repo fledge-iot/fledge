@@ -149,8 +149,9 @@ async def deprecate_asset_track_entry(request: web.Request) -> web.Response:
         msg = str(ex)
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
-        _logger.info("Asset '{}' has been deprecated.".format(asset_name))
-        return web.json_response({'success': "{} asset record entry has been deprecated.".format(asset_name)})
+        msg = "For {} event, {} asset record entry has been deprecated.".format(event_name, asset_name)
+        _logger.info(msg)
+        return web.json_response({'success': msg})
 
 
 async def get_datapoint_usage(request: web.Request) -> web.Response:

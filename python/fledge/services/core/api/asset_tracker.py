@@ -105,15 +105,14 @@ async def deprecate_asset_track_entry(request: web.Request) -> web.Response:
                     # Update deprecated_ts column entry
                     current_time = common_utils.local_timestamp()
                     if event_name in ('Ingest', 'store'):
-                        update_payload = PayloadBuilder().SET(deprecated_ts=current_time).WHERE(
-                            ['service', '=', svc_name]).AND_WHERE(['asset', '=', asset_name]).AND_WHERE(
-                            ['event', 'in', ["Ingest", "store"]]).AND_WHERE(['deprecated_ts', 'isnull']).payload()
                         audit_event_name = "Ingest & store"
+                        and_where_val = ['event', 'in', ["Ingest", "store"]]
                     else:
-                        update_payload = PayloadBuilder().SET(deprecated_ts=current_time).WHERE(
-                            ['service', '=', svc_name]).AND_WHERE(['asset', '=', asset_name]).AND_WHERE(
-                            ['event', '=', event_name]).AND_WHERE(['deprecated_ts', 'isnull']).payload()
                         audit_event_name = event_name
+                        and_where_val = ['event', '=', event_name]
+                    update_payload = PayloadBuilder().SET(deprecated_ts=current_time).WHERE(
+                        ['service', '=', svc_name]).AND_WHERE(['asset', '=', asset_name]).AND_WHERE(
+                        and_where_val).AND_WHERE(['deprecated_ts', 'isnull']).payload()
                     update_result = await storage_client.update_tbl("asset_tracker", update_payload)
                     if 'response' in update_result:
                         response = update_result['response']

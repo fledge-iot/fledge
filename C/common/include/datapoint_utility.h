@@ -27,9 +27,13 @@ namespace DatapointUtility {
     std::string     findStringElement       (Datapoints* dict, const std::string& key);
     Datapoint *     findDatapointElement    (Datapoints* dict, const std::string & key);
 
+    // delete
+    void deleteValue(Datapoints *dps, const std::string & key);
+
     // Function for create element
-    Datapoint * createStringElement  (Datapoints * dps, const std::string & key, const std::string& valueDefault);
-    Datapoint * createDictElement    (Datapoints * dps, const std::string & key);
+    Datapoint *createStringElement  (Datapoints * dps, const std::string & key, const std::string& valueDefault);
+    Datapoint *createIntegerElement (Datapoints * dps, const std::string & key, long valueDefault);
+    Datapoint *createDictElement    (Datapoints * dps, const std::string & key);
 };
 
 #endif  // INCLUDE_DATAPOINT_UTILITY_H_

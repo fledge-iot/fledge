@@ -364,10 +364,10 @@ std::vector<Datapoint*>* Datapoint::parseJson(std::string json) {
 	
 	rapidjson::Document document;
 
-    if (document.Parse(const_cast<char*>(json.c_str())).HasParseError()) {
-        Logger::getLogger()->fatal("Parsing error in protocol configuration");
-
-        printf("Parsing error in protocol configuration\n");
+    const auto & parseResult = document.Parse(const_cast<char*>(json.c_str()));
+    if (parseResult.HasParseError()) {
+        Logger::getLogger()->fatal("Parsing error %d (%s).", parseResult.GetParseError(), json.c_str());
+        printf("Parsing error %d (%s).", parseResult.GetParseError(), json.c_str());
         return nullptr;
     }
 
@@ -400,8 +400,12 @@ std::vector<Datapoint*> * Datapoint::recursiveJson(const rapidjson::Value & docu
 			DatapointValue d(itr->value.GetString());
 			p->push_back(new Datapoint(itr->name.GetString(), d));
 		}
-		else if (itr->value.IsNumber()) {
+		else if (itr->value.IsDouble()) {
 			DatapointValue d(itr->value.GetDouble());
+			p->push_back(new Datapoint(itr->name.GetString(), d));
+		}
+		else if (itr->value.IsNumber() && !itr->value.IsDouble()) {
+			DatapointValue d((long)itr->value.GetInt());
 			p->push_back(new Datapoint(itr->name.GetString(), d));
 		}
 	}

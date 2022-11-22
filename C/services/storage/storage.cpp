@@ -258,11 +258,24 @@ void StorageService::start(string& coreAddress, unsigned short corePort)
 		ManagementClient *client = new ManagementClient(coreAddress, corePort);
 		client->registerService(record);
 
+		// FOGL-7074 upgrade step
+		try {
+			ConfigCategory cat = client->getCategory("Storage");
+			string rp = cat.getValue("readingPlugin");
+			if (rp.empty())
+			{
+				client->setCategoryItemValue("Storage", "readingPlugin",
+						"Use main plugin");
+			}
+		} catch (...) {
+			// ignore
+		}
+
 		// Add the default configuration under the Advanced category
 		unsigned int retryCount = 0;
 		DefaultConfigCategory *conf = config->getDefaultCategory();
 		conf->setDescription(CATEGORY_DESCRIPTION);
-		while (client->addCategory(*conf, true) == false && ++retryCount < 10)
+		while (client->addCategory(*conf, false) == false && ++retryCount < 10)
 		{
 			sleep(2 * retryCount);
 		}

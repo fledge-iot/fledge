@@ -40,9 +40,9 @@ class TestConfigurationManager:
         assert sorted(expected_types) == _valid_type_strings
 
     def test_supported_optional_items(self):
-        assert 10 == len(_optional_items)
-        assert ['deprecated', 'displayName', 'length', 'mandatory', 'maximum', 'minimum', 'order', 'readonly',
-                'rule', 'validity'] == _optional_items
+        assert 11 == len(_optional_items)
+        assert ['deprecated', 'displayName', 'group', 'length', 'mandatory', 'maximum', 'minimum', 'order',
+                'readonly', 'rule', 'validity'] == _optional_items
 
     def test_constructor_no_storage_client_defined_no_storage_client_passed(
             self, reset_singleton):
@@ -3450,16 +3450,28 @@ class TestConfigurationManager:
         (float, 'maximum', '11.2', 'Maximum value should be greater than equal to Minimum value'),
         (int, 'minimum', '30', 'Minimum value should be less than equal to Maximum value'),
         (float, 'minimum', '50.0', 'Minimum value should be less than equal to Maximum value'),
-        (None, 'readonly', '1', "For catname category, entry value must be boolean for optional item name readonly; got <class 'str'>"),
-        (None, 'deprecated', '1', "For catname category, entry value must be boolean for optional item name deprecated; got <class 'str'>"),
+        (None, 'readonly', '1',
+         "For catname category, entry value must be boolean for optional item name readonly; got <class 'str'>"),
+        (None, 'deprecated', '1',
+         "For catname category, entry value must be boolean for optional item name deprecated; got <class 'str'>"),
         (None, 'rule', 2, "For catname category, entry value must be string for optional item rule; got <class 'int'>"),
-        (None, 'displayName', 123, "For catname category, entry value must be string for optional item displayName; got <class 'int'>"),
-        (None, 'length', '1a', "For catname category, entry value must be an integer for optional item length; got <class 'str'>"),
-        (None, 'maximum', 'blah', "For catname category, entry value must be an integer or float for optional item maximum; got <class 'str'>"),
-        (None, 'validity', 12, "For catname category, entry value must be string for optional item validity; got <class 'int'>"),
-        (None, 'mandatory', '1', "For catname category, entry value must be boolean for optional item name mandatory; got <class 'str'>"),
+        (None, 'displayName', 123,
+         "For catname category, entry value must be string for optional item displayName; got <class 'int'>"),
+        (None, 'length', '1a',
+         "For catname category, entry value must be an integer for optional item length; got <class 'str'>"),
+        (None, 'maximum', 'blah',
+         "For catname category, entry value must be an integer or float for optional item maximum; got <class 'str'>"),
+        (None, 'validity', 12,
+         "For catname category, entry value must be string for optional item validity; got <class 'int'>"),
+        (None, 'mandatory', '1',
+         "For catname category, entry value must be boolean for optional item name mandatory; got <class 'str'>"),
+        (None, 'group', 5,
+         "For catname category, entry value must be string for optional item group; got <class 'int'>"),
+        (None, 'group', True,
+         "For catname category, entry value must be string for optional item group; got <class 'bool'>")
     ])
-    async def test_set_optional_value_entry_bad_update(self, reset_singleton, _type, optional_key_name, new_value_entry, exc_msg):
+    async def test_set_optional_value_entry_bad_update(self, reset_singleton, _type, optional_key_name,
+                                                       new_value_entry, exc_msg):
         async def async_mock(return_value):
             return return_value
 
@@ -3477,7 +3489,7 @@ class TestConfigurationManager:
         storage_value_entry = {'length': '255', 'displayName': category_name, 'rule': 'value * 3 == 6',
                                'deprecated': 'false', 'readonly': 'true', 'type': 'string', 'order': '4',
                                'description': 'Test Optional', 'minimum': minimum, 'value': '13', 'maximum': maximum,
-                               'default': '13', 'validity': 'field X is set', 'mandatory': 'false'}
+                               'default': '13', 'validity': 'field X is set', 'mandatory': 'false', 'group': 'Security'}
         
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:

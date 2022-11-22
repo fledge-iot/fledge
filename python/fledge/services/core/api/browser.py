@@ -746,10 +746,9 @@ async def asset_structure(request):
               }
             }
     """
-    payload = PayloadBuilder().GROUP_BY("asset_code").payload()
-
     results = {}
     try:
+        payload = PayloadBuilder().ORDER_BY(["asset_code"]).payload()
         _readings = connect.get_readings_async()
         results = await _readings.query(payload)
         rows = results['rows']

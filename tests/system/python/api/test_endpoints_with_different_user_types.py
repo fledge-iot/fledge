@@ -142,8 +142,7 @@ class TestAPIEndpointsWithViewUserType:
         # asset browse
         ("GET", "/fledge/asset", 200), ("GET", "/fledge/asset/sinusoid", 200),
         ("GET", "/fledge/asset/sinusoid/latest", 200),
-        # TODO: FOGL-7096; it should be with 404
-        ("GET", "/fledge/asset/sinusoid/summary", 500), ("GET", "/fledge/asset/sinusoid/sinusoid", 200),
+        ("GET", "/fledge/asset/sinusoid/summary", 404), ("GET", "/fledge/asset/sinusoid/sinusoid", 200),
         ("GET", "/fledge/asset/sinusoid/sinusoid/summary", 404), ("GET", "/fledge/asset/sinusoid/sinusoid/series", 200),
         ("GET", "/fledge/asset/sinusoid/bucket/1", 200), ("GET", "/fledge/asset/sinusoid/sinusoid/bucket/1", 200),
         ("GET", "/fledge/structure/asset", 200), ("DELETE", "/fledge/asset", 403),
@@ -292,8 +291,7 @@ class TestAPIEndpointsWithDataViewUserType:
         # asset browse
         ("GET", "/fledge/asset", 200), ("GET", "/fledge/asset/sinusoid", 200),
         ("GET", "/fledge/asset/sinusoid/latest", 200),
-        # TODO: FOGL-7096; it should be with 404
-        ("GET", "/fledge/asset/sinusoid/summary", 500), ("GET", "/fledge/asset/sinusoid/sinusoid", 200),
+        ("GET", "/fledge/asset/sinusoid/summary", 404), ("GET", "/fledge/asset/sinusoid/sinusoid", 200),
         ("GET", "/fledge/asset/sinusoid/sinusoid/summary", 404), ("GET", "/fledge/asset/sinusoid/sinusoid/series", 200),
         ("GET", "/fledge/asset/sinusoid/bucket/1", 200), ("GET", "/fledge/asset/sinusoid/sinusoid/bucket/1", 200),
         ("GET", "/fledge/structure/asset", 403), ("DELETE", "/fledge/asset", 403),

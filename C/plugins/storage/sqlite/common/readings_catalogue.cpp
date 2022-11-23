@@ -1969,6 +1969,9 @@ bool ReadingsCatalogue::getEmptyReadingTableReference(tyReadingReference &emptyT
 	string sql_cmd;
 	sqlite3_stmt *stmt;
 
+	// Disable functionality temporarily to avoid regression 
+	return false;
+
 	ConnectionManager *manager = ConnectionManager::getInstance();
 	Connection *connection = manager->allocate();
 	dbHandle = connection->getDbHandle();

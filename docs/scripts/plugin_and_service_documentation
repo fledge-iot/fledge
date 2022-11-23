@@ -1,15 +1,9 @@
 #!/bin/bash
 
-if [[ "${USERNAME}" == "" ]]; then
-    echo "You must have set a GitHub username environment variable; export USERNAME=YOUR_USERNAME"
+if [[ "${USERNAME}" == "" ]] || [[ "${GITHUB_ACCESS_TOKEN}" == "" ]]; then
+    echo "You must have set a GitHub username & access token environment variable. Like export USERNAME=YOUR_USERNAME; export GITHUB_ACCESS_TOKEN=YOUR_ACCESS_TOKEN";
     exit 1
 fi
-
-if [[ "${GITHUB_ACCESS_TOKEN}" == "" ]]; then
-    echo "You must have set a GitHub access token environment variable; export GITHUB_ACCESS_TOKEN=YOUR_ACCESS_TOKEN"
-    exit 1
-fi
-
 # Always create a fresh set of Plugin & Service documentation
 if [ -d plugins ]; then rm -rf plugins; fi
 mkdir plugins

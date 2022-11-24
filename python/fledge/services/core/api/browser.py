@@ -328,7 +328,7 @@ async def asset_all_readings_summary(request):
         _readings = connect.get_readings_async()
         results = await _readings.query(payload)
         if not results['rows']:
-            raise web.HTTPNotFound(reason="{} asset_code not found".format(asset_code))
+            raise KeyError("{} asset_code not found".format(asset_code))
 
         # TODO: FOGL-1768 when support available from storage layer then avoid multiple calls
         # Find keys in readings
@@ -746,10 +746,9 @@ async def asset_structure(request):
               }
             }
     """
-    payload = PayloadBuilder().GROUP_BY("asset_code").payload()
-
     results = {}
     try:
+        payload = PayloadBuilder().ORDER_BY(["asset_code"]).payload()
         _readings = connect.get_readings_async()
         results = await _readings.query(payload)
         rows = results['rows']

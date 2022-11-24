@@ -88,7 +88,8 @@ using namespace SimpleWeb;
 #define ENDPOINT_URL_PI_WEB_API "https://HOST_PLACEHOLDER:PORT_PLACEHOLDER/piwebapi/omf"
 #define ENDPOINT_URL_CR         "https://HOST_PLACEHOLDER:PORT_PLACEHOLDER/ingress/messages"
 #define ENDPOINT_URL_OCS        "https://dat-b.osisoft.com:PORT_PLACEHOLDER/api/v1/tenants/TENANT_ID_PLACEHOLDER/Namespaces/NAMESPACE_ID_PLACEHOLDER/omf"
-#define ENDPOINT_URL_ADH        "https://uswe.datahub.connect.aveva.com:PORT_PLACEHOLDER/api/v1/Tenants/TENANT_ID_PLACEHOLDER/Namespaces/NAMESPACE_ID_PLACEHOLDER/omf"
+#define ENDPOINT_URL_ADH        "https://REGION_PLACEHOLDER.datahub.connect.aveva.com:PORT_PLACEHOLDER/api/v1/Tenants/TENANT_ID_PLACEHOLDER/Namespaces/NAMESPACE_ID_PLACEHOLDER/omf"
+
 #define ENDPOINT_URL_EDS        "http://localhost:PORT_PLACEHOLDER/api/v1/tenants/default/namespaces/default/omf"
 
 static bool s_connected = true;		// if true, access to PI Web API is working
@@ -146,11 +147,20 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"order": "1",
 			"displayName": "Endpoint"
 		},
+		"ADHRegions": {
+                        "description": "AVEVA Data Hub region",
+                        "type": "enumeration",
+                        "options":["US-West", "EU-West", "Australia"],
+                        "default": "US-West",
+                        "order": "2",
+                        "displayName": "ADH Region",
+                        "validity" : "PIServerEndpoint == \"AVEVA Data Hub\""
+                },
 		"SendFullStructure": {
 			"description": "It sends the minimum OMF structural messages to load data into Data Archive if disabled",
 			"type": "boolean",
 			"default": "true",
-			"order": "2",
+			"order": "3",
 			"displayName": "Send full structure",
 			"validity" : "PIServerEndpoint == \"PI Web API\""
 		},
@@ -159,14 +169,14 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"type": "enumeration",
 			"options":["Concise", "Use Type Suffix", "Use Attribute Hash", "Backward compatibility"],
 			"default": "Concise",
-			"order": "3",
+			"order": "4",
 			"displayName": "Naming Scheme"
 		},
 		"ServerHostname": {
 			"description": "Hostname of the server running the endpoint either PI Web API or Connector Relay",
 			"type": "string",
 			"default": "localhost",
-			"order": "4",
+			"order": "5",
 			"displayName": "Server hostname",
 			"validity" : "PIServerEndpoint != \"Edge Data Store\" && PIServerEndpoint != \"OSIsoft Cloud Services\" && PIServerEndpoint != \"AVEVA Data Hub\""
 		},
@@ -174,7 +184,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"description": "Port on which the endpoint either PI Web API or Connector Relay or Edge Data Store is listening, 0 will use the default one",
 			"type": "integer",
 			"default": "0",
-			"order": "5",
+			"order": "6",
 			"displayName": "Server port, 0=use the default",
 			"validity" : "PIServerEndpoint != \"OSIsoft Cloud Services\" && PIServerEndpoint != \"AVEVA Data Hub\""
 		},
@@ -182,7 +192,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"description": "The producer token that represents this Fledge stream",
 			"type": "string",
 			"default": "omf_north_0001",
-			"order": "6",
+			"order": "7",
 			"displayName": "Producer Token",
 			"validity" : "PIServerEndpoint == \"Connector Relay\""
 		},
@@ -191,63 +201,63 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"type": "enumeration",
 			"options":["readings", "statistics"],
 			"default": "readings",
-			"order": "7",
+			"order": "8",
 			"displayName": "Data Source"
 		},
 		"StaticData": {
 			"description": "Static data to include in each sensor reading sent to the PI Server.",
 			"type": "string",
 			"default": "Location: Palo Alto, Company: Dianomic",
-			"order": "8",
+			"order": "9",
 			"displayName": "Static Data"
 		},
 		"OMFRetrySleepTime": {
 			"description": "Seconds between each retry for the communication with the OMF PI Connector Relay, NOTE : the time is doubled at each attempt.",
 			"type": "integer",
 			"default": "1",
-			"order": "9",
+			"order": "10",
 			"displayName": "Sleep Time Retry"
 		},
 		"OMFMaxRetry": {
 			"description": "Max number of retries for the communication with the OMF PI Connector Relay",
 			"type": "integer",
 			"default": "3",
-			"order": "10",
+			"order": "11",
 			"displayName": "Maximum Retry"
 		},
 		"OMFHttpTimeout": {
 			"description": "Timeout in seconds for the HTTP operations with the OMF PI Connector Relay",
 			"type": "integer",
 			"default": "10",
-			"order": "11",
+			"order": "12",
 			"displayName": "HTTP Timeout"
 		},
 		"formatInteger": {
 			"description": "OMF format property to apply to the type Integer",
 			"type": "string",
 			"default": "int64",
-			"order": "12",
+			"order": "13",
 			"displayName": "Integer Format"
 		},
 		"formatNumber": {
 			"description": "OMF format property to apply to the type Number",
 			"type": "string",
 			"default": "float64",
-			"order": "13",
+			"order": "14",
 			"displayName": "Number Format"
 		},
 		"compression": {
 			"description": "Compress readings data before sending to PI server",
 			"type": "boolean",
 			"default": "true",
-			"order": "14",
+			"order": "15",
 			"displayName": "Compression"
 		},
 		"DefaultAFLocation": {
 			"description": "Defines the default location in the Asset Framework hierarchy in which the assets will be created, each level is separated by /, PI Web API only.",
 			"type": "string",
 			"default": "/fledge/data_piwebapi/default",
-			"order": "15",
+			"order": "16",
 			"displayName": "Default Asset Framework Location",
 			"validity" : "PIServerEndpoint == \"PI Web API\""
 		},
@@ -255,7 +265,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"description": "Defines a set of rules to address where assets should be placed in the AF hierarchy.",
 			"type": "JSON",
 			"default": AF_HIERARCHY_RULES,
-			"order": "16",
+			"order": "17",
 			"displayName": "Asset Framework hierarchy rules",
 			"validity" : "PIServerEndpoint == \"PI Web API\""
 
@@ -265,14 +275,14 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"description": "These errors are considered not blocking in the communication with the PI Server, the sending operation will proceed with the next block of data if one of these is encountered",
 			"type": "JSON",
 			"default": NOT_BLOCKING_ERRORS_DEFAULT,
-			"order": "17" ,
+			"order": "18" ,
 			"readonly": "true"
 		},
 		"streamId": {
 			"description": "Identifies the specific stream to handle and the related information, among them the ID of the last object streamed.",
 			"type": "integer",
 			"default": "0",
-			"order": "18" ,
+			"order": "19" ,
 			"readonly": "true"
 		},
 		"PIWebAPIAuthenticationMethod": {
@@ -280,7 +290,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"type": "enumeration",
 			"options":["anonymous", "basic", "kerberos"],
 			"default": "anonymous",
-			"order": "19",
+			"order": "20",
 			"displayName": "PI Web API Authentication Method",
 			"validity" : "PIServerEndpoint == \"PI Web API\""
 		},
@@ -288,7 +298,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"description": "User id of PI Web API to be used with the basic access authentication.",
 			"type": "string",
 			"default": "user_id",
-			"order": "20",
+			"order": "21",
 			"displayName": "PI Web API User Id",
 			"validity" : "PIServerEndpoint == \"PI Web API\" && PIWebAPIAuthenticationMethod == \"basic\""
 		},
@@ -296,7 +306,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"description": "Password of the user of PI Web API to be used with the basic access authentication.",
 			"type": "password",
 			"default": "password",
-			"order": "21" ,
+			"order": "22" ,
 			"displayName": "PI Web API Password",
 			"validity" : "PIServerEndpoint == \"PI Web API\" && PIWebAPIAuthenticationMethod == \"basic\""
 		},
@@ -304,7 +314,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"description": "Keytab file name used for Kerberos authentication in PI Web API.",
 			"type": "string",
 			"default": "piwebapi_kerberos_https.keytab",
-			"order": "22" ,
+			"order": "23" ,
 			"displayName": "PI Web API Kerberos keytab file",
 			"validity" : "PIServerEndpoint == \"PI Web API\" && PIWebAPIAuthenticationMethod == \"kerberos\""
 		},
@@ -312,7 +322,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"description" : "Specifies the namespace where the information are stored and it is used for the interaction with AVEVA Data Hub or OCS",
 			"type" : "string",
 			"default": "name_space",
-			"order": "23",
+			"order": "24",
 			"displayName" : "Namespace",
 			"validity" : "PIServerEndpoint == \"OSIsoft Cloud Services\" || PIServerEndpoint == \"AVEVA Data Hub\""
 		},
@@ -320,7 +330,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"description" : "Tenant id associated to the specific AVEVA Data Hub or OCS account",
 			"type" : "string",
 			"default": "ocs_tenant_id",
-			"order": "24",
+			"order": "25",
 			"displayName" : "Tenant ID",
 			"validity" : "PIServerEndpoint == \"OSIsoft Cloud Services\" || PIServerEndpoint == \"AVEVA Data Hub\""
 		},
@@ -328,7 +338,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"description" : "Client id associated to the specific account, it is used to authenticate when using the AVEVA Data Hub or OCS",
 			"type" : "string",
 			"default": "ocs_client_id",
-			"order": "25",
+			"order": "26",
 			"displayName" : "Client ID",
 			"validity" : "PIServerEndpoint == \"OSIsoft Cloud Services\" || PIServerEndpoint == \"AVEVA Data Hub\""
 		},
@@ -336,7 +346,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"description" : "Client secret associated to the specific account, it is used to authenticate with AVEVA Data Hub or OCS",
 			"type" : "password",
 			"default": "ocs_client_secret",
-			"order": "26",
+			"order": "27",
 			"displayName" : "Client Secret",
 			"validity" : "PIServerEndpoint == \"OSIsoft Cloud Services\" || PIServerEndpoint == \"AVEVA Data Hub\""
 		},
@@ -344,7 +354,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"description": "These errors are considered not blocking in the communication with the PI Web API, the sending operation will proceed with the next block of data if one of these is encountered",
 			"type": "JSON",
 			"default": NOT_BLOCKING_ERRORS_DEFAULT_PI_WEB_API,
-			"order": "27" ,
+			"order": "28" ,
 			"readonly": "true"
 		}
 	}
@@ -470,6 +480,7 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 
 	// PIServerEndpoint handling
 	string PIServerEndpoint = configData->getValue("PIServerEndpoint");
+	string ADHRegions = configData->getValue("ADHRegions");
 	string ServerHostname = configData->getValue("ServerHostname");
 	string ServerPort = configData->getValue("ServerPort");
 	string url;
@@ -494,7 +505,13 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 		{
 			Logger::getLogger()->debug("End point manually selected - AVEVA Data Hub");
 			connInfo->PIServerEndpoint = ENDPOINT_ADH;
-			url                        = ENDPOINT_URL_ADH;
+			url 			   = ENDPOINT_URL_ADH;
+			std::string region 	   = "uswe";
+			if(ADHRegions.compare("EU-West") == 0)
+               			region = "euno";
+			else if(ADHRegions.compare("Australia") == 0)
+				region = "auea";
+			StringReplace(url, "REGION_PLACEHOLDER", region);
 			endpointPort               = ENDPOINT_PORT_ADH;
 		}
 		else if(PIServerEndpoint.compare("OSIsoft Cloud Services") == 0)

@@ -92,7 +92,7 @@ class TestBrowserAssets:
         return loop.run_until_complete(test_client(app))
 
     def test_routes_count(self, app):
-        assert 12 == len(app.router.resources())
+        assert 14 == len(app.router.resources())
 
     def test_routes_info(self, app):
         for index, route in enumerate(app.router.routes()):
@@ -104,40 +104,50 @@ class TestBrowserAssets:
                 assert str(route.handler).startswith("<function asset_counts")
             elif index == 1:
                 assert "GET" == route.method
+                assert type(route.resource) is PlainResource
+                assert "/fledge/asset/timespan" == res_info["path"]
+                assert str(route.handler).startswith("<function asset_timespan")
+            elif index == 2:
+                assert "GET" == route.method
                 assert type(route.resource) is DynamicResource
                 assert "/fledge/asset/{asset_code}" == res_info["formatter"]
                 assert str(route.handler).startswith("<function asset")
-            elif index == 2:
+            elif index == 3:
                 assert "GET" == route.method
                 assert type(route.resource) is DynamicResource
                 assert "/fledge/asset/{asset_code}/latest" == res_info["formatter"]
                 assert str(route.handler).startswith("<function asset_latest")
-            elif index == 3:
+            elif index == 4:
                 assert "GET" == route.method
                 assert type(route.resource) is DynamicResource
                 assert "/fledge/asset/{asset_code}/summary" == res_info["formatter"]
                 assert str(route.handler).startswith("<function asset_all_readings_summary")
-            elif index == 4:
+            elif index == 5:
+                assert "GET" == route.method
+                assert type(route.resource) is DynamicResource
+                assert "/fledge/asset/{asset_code}/timespan" == res_info["formatter"]
+                assert str(route.handler).startswith("<function asset_reading_timespan")
+            elif index == 6:
                 assert "GET" == route.method
                 assert type(route.resource) is DynamicResource
                 assert "/fledge/asset/{asset_code}/{reading}" == res_info["formatter"]
                 assert str(route.handler).startswith("<function asset_reading")
-            elif index == 5:
+            elif index == 7:
                 assert "GET" == route.method
                 assert type(route.resource) is DynamicResource
                 assert "/fledge/asset/{asset_code}/{reading}/summary" == res_info["formatter"]
                 assert str(route.handler).startswith("<function asset_summary")
-            elif index == 6:
+            elif index == 8:
                 assert "GET" == route.method
                 assert type(route.resource) is DynamicResource
                 assert "/fledge/asset/{asset_code}/{reading}/series" == res_info["formatter"]
                 assert str(route.handler).startswith("<function asset_averages")
-            elif index == 7:
+            elif index == 9:
                 assert "GET" == route.method
                 assert type(route.resource) is DynamicResource
                 assert "/fledge/asset/{asset_code}/bucket/{bucket_size}" == res_info["formatter"]
                 assert str(route.handler).startswith("<function asset_datapoints_with_bucket_size")
-            elif index == 8:
+            elif index == 10:
                 assert "GET" == route.method
                 assert type(route.resource) is DynamicResource
                 assert "/fledge/asset/{asset_code}/{reading}/bucket/{bucket_size}" == res_info["formatter"]

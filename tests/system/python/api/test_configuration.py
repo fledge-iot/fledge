@@ -167,7 +167,8 @@ class TestConfiguration:
                 'item2': {'type': 'integer', 'description': 'An Integer check', 'default': '2'},
                 'item3': {'type': 'password', 'description': 'A password check', 'default': 'Fledge'},
                 'item4': {'type': 'string', 'description': 'A string check', 'default': 'fledge'},
-                'item5': {'type': 'script', 'description': 'A script check', 'default': ''}
+                'item5': {'type': 'script', 'description': 'A script check', 'default': ''},
+                'item6': {'type': 'string', 'description': 'A string check', 'default': 'test', 'group': 'Advanced'}
                 }
         payload.update({'value': conf})
         conn = http.client.HTTPConnection(fledge_url)
@@ -179,12 +180,15 @@ class TestConfiguration:
         assert cat_name == jdoc['key']
         assert "a publisher" == jdoc['description']
         assert "Publisher" == jdoc['displayName']
-        expected_value = {'item1': {'type': 'boolean', 'default': 'false', 'value': 'false', 'description': 'A Boolean check'},
-                          'item2': {'type': 'integer', 'description': 'An Integer check', 'default': '2', 'value': '2'},
-                          'item3': {'type': 'password', 'description': 'A password check', 'default': 'Fledge', 'value': "****"},
-                          'item4': {'type': 'string', 'description': 'A string check', 'default': 'fledge', 'value': 'fledge'},
-                          'item5': {'type': 'script', 'description': 'A script check', 'default': '', 'value': ''}
-                          }
+        expected_value = {
+            'item1': {'type': 'boolean', 'default': 'false', 'value': 'false', 'description': 'A Boolean check'},
+            'item2': {'type': 'integer', 'description': 'An Integer check', 'default': '2', 'value': '2'},
+            'item3': {'type': 'password', 'description': 'A password check', 'default': 'Fledge', 'value': "****"},
+            'item4': {'type': 'string', 'description': 'A string check', 'default': 'fledge', 'value': 'fledge'},
+            'item5': {'type': 'script', 'description': 'A script check', 'default': '', 'value': ''},
+            'item6': {'type': 'string', 'description': 'A string check', 'default': 'test', 'value': 'test',
+                      'group': 'Advanced'}
+        }
         assert Counter(expected_value) == Counter(jdoc['value'])
 
     def test_get_category_item(self, fledge_url):
@@ -199,32 +203,71 @@ class TestConfiguration:
         assert 'A Boolean check' == jdoc['description']
         assert 'false' == jdoc['value']
 
+        # Get optional attribute
+        encoded_url = '/fledge/category/{}/item6'.format(quote(cat_name))
+        conn.request("GET", encoded_url)
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        jdoc = json.loads(r)
+        assert 'string' == jdoc['type']
+        assert 'Advanced' == jdoc['group']
+
     def test_set_configuration_item(self, fledge_url):
+        new_value = "true"
         conn = http.client.HTTPConnection(fledge_url)
         encoded_url = '/fledge/category/{}/item1'.format(quote(cat_name))
-        conn.request("PUT", encoded_url, body=json.dumps({"value": "true"}))
+        conn.request("PUT", encoded_url, body=json.dumps({"value": new_value}))
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
         assert 'boolean' == jdoc['type']
+        assert new_value == jdoc['value']
+        assert 'false' == jdoc['default']
 
+        # Verify new value in GET endpoint
         conn.request("GET", encoded_url)
         r = conn.getresponse()
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
         assert 'boolean' == jdoc['type']
-        assert 'true' == jdoc['value']
+        assert new_value == jdoc['value']
         assert 'false' == jdoc['default']
 
+        # set optional attribute
+        new_val = "Security"
+        encoded_url = '/fledge/category/{}/item6'.format(quote(cat_name))
+        conn.request("PUT", encoded_url, body=json.dumps({"group": new_val}))
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        jdoc = json.loads(r)
+        assert 'test' == jdoc['default']
+        assert 'test' == jdoc['value']
+        assert new_val == jdoc['group']
+
+        # Verify new value in GET endpoint
+        conn.request("GET", encoded_url)
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        jdoc = json.loads(r)
+        assert 'test' == jdoc['default']
+        assert 'test' == jdoc['value']
+        assert new_val == jdoc['group']
+
     def test_update_configuration_item_bulk(self, fledge_url):
-        expected = {'item1': {'default': 'false', 'value': 'false', 'description': 'A Boolean check', 'type': 'boolean'},
-                    'item2': {'default': '2', 'value': '1', 'description': 'An Integer check', 'type': 'integer'},
-                    'item3': {'default': 'Fledge', 'value': '****', 'description': 'A password check', 'type': 'password'},
-                    'item4': {'default': 'fledge', 'value': 'new', 'description': 'A string check', 'type': 'string'},
-                    'item5': {'type': 'script', 'description': 'A script check', 'default': '', 'value': ''}
-                    }
+        expected = {
+            'item1': {'type': 'boolean', 'default': 'false', 'value': 'false', 'description': 'A Boolean check'},
+            'item2': {'type': 'integer', 'description': 'An Integer check', 'default': '2', 'value': '1'},
+            'item3': {'type': 'password', 'description': 'A password check', 'default': 'Fledge', 'value': "****"},
+            'item4': {'type': 'string', 'description': 'A string check', 'default': 'fledge', 'value': 'new'},
+            'item5': {'type': 'script', 'description': 'A script check', 'default': '', 'value': ''},
+            'item6': {'type': 'string', 'description': 'A string check', 'default': 'test', 'value': 'test',
+                      'group': 'Security'}
+        }
         conn = http.client.HTTPConnection(fledge_url)
         encoded_url = '/fledge/category/{}'.format(quote(cat_name))
         conn.request("PUT", encoded_url, body=json.dumps({"item1": "false", "item2": "1", "item4": "new"}))
@@ -328,11 +371,15 @@ class TestConfiguration:
         upload_script = 'curl -s  -F "script=@{}" {}  | jq --raw-output ".value,.file,.default,.description,.type"'.format(script_path, url)
         exit_code = os.system(upload_script)
         assert 0 == exit_code
-        expected = {'item4': {'value': 'fledge', 'default': 'fledge', 'type': 'string', 'description': 'A string check'},
-                    'item5': {'default': '', 'value': 'import logging\nfrom logging.handlers import SysLogHandler\n\n\ndef notify35(message):\n    logger = logging.getLogger(__name__)\n    logger.setLevel(level=logging.INFO)\n    handler = SysLogHandler(address=\'/dev/log\')\n    logger.addHandler(handler)\n\n    logger.info("notify35 called with {}".format(message))\n    print("Notification alert: " + str(message))\n', 'file': script_file_path, 'type': 'script', 'description': 'A script check'},
-                    'item3': {'value': '****', 'default': 'Fledge', 'type': 'password', 'description': 'A password check'},
-                    'item1': {'value': 'false', 'default': 'false', 'type': 'boolean', 'description': 'A Boolean check'},
-                    'item2': {'value': '1', 'default': '2', 'type': 'integer', 'description': 'An Integer check'}}
+        expected = {
+            'item1': {'type': 'boolean', 'default': 'false', 'value': 'false', 'description': 'A Boolean check'},
+            'item2': {'type': 'integer', 'description': 'An Integer check', 'default': '2', 'value': '1'},
+            'item3': {'type': 'password', 'description': 'A password check', 'default': 'Fledge', 'value': "****"},
+            'item4': {'type': 'string', 'description': 'A string check', 'default': 'fledge', 'value': 'fledge'},
+            'item5': {'default': '', 'value': 'import logging\nfrom logging.handlers import SysLogHandler\n\n\ndef notify35(message):\n    logger = logging.getLogger(__name__)\n    logger.setLevel(level=logging.INFO)\n    handler = SysLogHandler(address=\'/dev/log\')\n    logger.addHandler(handler)\n\n    logger.info("notify35 called with {}".format(message))\n    print("Notification alert: " + str(message))\n', 'file': script_file_path, 'type': 'script', 'description': 'A script check'},
+            'item6': {'type': 'string', 'description': 'A string check', 'default': 'test', 'value': 'test',
+                      'group': 'Security'}
+        }
         conn = http.client.HTTPConnection(fledge_url)
         conn.request("GET", encoded_url)
         r = conn.getresponse()

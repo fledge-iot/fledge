@@ -158,7 +158,8 @@ if [[ $YUM_PLATFORM = true ]]; then
 		yum install -y rh-postgresql13
 		yum install -y rh-postgresql13-postgresql-devel
 	else
-		yum install -y python36
+		yum install -y python3
+		yum install -y python3-devel
 		yum install -y postgresql
 		yum install -y postgresql-devel
 	fi

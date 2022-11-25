@@ -328,6 +328,10 @@ bool forceUpdate = false;
 			item["default"].SetString(val, strlen(val));
 			Value& rp = (*document)["readingPlugin"];
 			const char *rval = getValue("readingPlugin");
+			if (strlen(rval) == 0)
+			{
+				rval = "Use main plugin";
+			}
 			rp["default"].SetString(rval, strlen(rval));
 			logger->info("Storage configuration cache is up to date");
 			return;
@@ -359,6 +363,10 @@ bool forceUpdate = false;
 			}
 			if (strcmp(name, "readingPlugin") == 0)
 			{
+				if (strlen(val) == 0)
+				{
+					val = "Use main plugin";
+				}
 				newval["default"].SetString(strdup(val), strlen(val));
 				logger->warn("Set default of %s to %s", name, val);
 			}

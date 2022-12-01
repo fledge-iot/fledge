@@ -587,17 +587,15 @@ get_fledge_version() {
 ## Get Fledge rest API URL
 ##
 get_rest_api_url() {
-
     pid_file=${FLEDGE_DATA}/var/run/fledge.core.pid
-    export PYTHONPATH=${FLEDGE_ROOT}
-
-    if [[ -f ${pid_file} ]]; then
-        REST_API_URL=`cat ${pid_file} | python3 -m scripts.common.json_parse  get_rest_api_url_from_pid`
+    # Check whether pid_file exists and its contents are not empty
+    if [[ -s ${pid_file} ]]; then
+        REST_API_URL=$(cat ${pid_file} | python3 -m scripts.common.json_parse  get_rest_api_url_from_pid)
     fi
 
     # Sets a default value if it not possible to determine the proper value using the pid file
     if [ ! "${REST_API_URL}" ]; then
-        export REST_API_URL=http://localhost:8081
+        export REST_API_URL="http://localhost:8081"
     fi
 }
 

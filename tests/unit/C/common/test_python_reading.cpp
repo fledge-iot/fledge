@@ -158,9 +158,11 @@ TEST_F(PythonReadingTest, SimpleSizeLong)
 	long i = 1234;
 	DatapointValue value(i);
 	Reading reading("test", new Datapoint("long", value));
+	PyGILState_STATE state = PyGILState_Ensure();
 	PyObject *pyReading = ((PythonReading *)(&reading))->toPython();
 	PyObject *obj = callPythonFunc("count", pyReading);
 	long rval = PyLong_AsLong(obj);
+	PyGILState_Release(state);
 	EXPECT_EQ(rval, 1);
 }
 
@@ -169,8 +171,10 @@ TEST_F(PythonReadingTest, IsDict)
 	long i = 1234;
 	DatapointValue value(i);
 	Reading reading("test", new Datapoint("long", value));
+	PyGILState_STATE state = PyGILState_Ensure();
 	PyObject *pyReading = ((PythonReading *)(&reading))->toPython();
 	EXPECT_EQ(PyDict_Check(pyReading), true);
+	PyGILState_Release(state);
 }
 
 TEST_F(PythonReadingTest, PyIsDict)
@@ -178,6 +182,7 @@ TEST_F(PythonReadingTest, PyIsDict)
 	long i = 1234;
 	DatapointValue value(i);
 	Reading reading("test", new Datapoint("long", value));
+	PyGILState_STATE state = PyGILState_Ensure();
 	PyObject *pyReading = ((PythonReading *)(&reading))->toPython();
 	EXPECT_EQ(PyDict_Check(pyReading), true);
 	PyObject *obj = callPythonFunc("isDict", pyReading);
@@ -188,6 +193,7 @@ TEST_F(PythonReadingTest, PyIsDict)
 	}
 	else
 		EXPECT_STREQ("Expected object to be returned", "");
+	PyGILState_Release(state);
 }
 
 TEST_F(PythonReadingTest, Py2IsDict)
@@ -195,6 +201,7 @@ TEST_F(PythonReadingTest, Py2IsDict)
 	long i = 1234;
 	DatapointValue value(i);
 	Reading reading("test", new Datapoint("long", value));
+	PyGILState_STATE state = PyGILState_Ensure();
 	PyObject *pyReading = ((PythonReading *)(&reading))->toPython();
 	EXPECT_EQ(PyDict_Check(pyReading), true);
 	PyObject *obj = callPythonFunc("returnIt", pyReading);
@@ -204,6 +211,7 @@ TEST_F(PythonReadingTest, Py2IsDict)
 	}
 	else
 		EXPECT_EQ(true, false);
+	PyGILState_Release(state);
 }
 
 TEST_F(PythonReadingTest, SimpleLong)
@@ -211,6 +219,7 @@ TEST_F(PythonReadingTest, SimpleLong)
 	long i = 1234;
 	DatapointValue value(i);
 	Reading reading("test", new Datapoint("long", value));
+	PyGILState_STATE state = PyGILState_Ensure();
 	PyObject *pyReading = ((PythonReading *)(&reading))->toPython();
 	EXPECT_EQ(PyDict_Check(pyReading), true);
 	PyObject *element = PyUnicode_FromString("long");
@@ -218,6 +227,7 @@ TEST_F(PythonReadingTest, SimpleLong)
 	EXPECT_EQ(PyLong_Check(obj), true);
 	long rval = PyLong_AsLong(obj);
 	EXPECT_EQ(rval, 1234);
+	PyGILState_Release(state);
 }
 
 TEST_F(PythonReadingTest, SimpleDouble)
@@ -225,6 +235,7 @@ TEST_F(PythonReadingTest, SimpleDouble)
 	double i = 1234.5;
 	DatapointValue value(i);
 	Reading reading("test", new Datapoint("double", value));
+	PyGILState_STATE state = PyGILState_Ensure();
 	PyObject *pyReading = ((PythonReading *)(&reading))->toPython();
 	EXPECT_EQ(PyDict_Check(pyReading), true);
 	PyObject *element = PyUnicode_FromString("double");
@@ -232,6 +243,7 @@ TEST_F(PythonReadingTest, SimpleDouble)
 	EXPECT_EQ(PyFloat_Check(obj), true);
 	double rval = PyFloat_AS_DOUBLE(obj);
 	EXPECT_EQ(rval, 1234.5);
+	PyGILState_Release(state);
 }
 
 TEST_F(PythonReadingTest, DictCheck)
@@ -239,24 +251,29 @@ TEST_F(PythonReadingTest, DictCheck)
 	long i = 1234;
 	DatapointValue value(i);
 	Reading reading("test", new Datapoint("long", value));
+	PyGILState_STATE state = PyGILState_Ensure();
 	PyObject *pyReading = ((PythonReading *)(&reading))->toPython();
 	EXPECT_EQ(PyDict_Check(pyReading), true);
+	PyGILState_Release(state);
 }
 
 TEST_F(PythonReadingTest, SimpleSizeString)
 {
 	DatapointValue value("just a string");
 	Reading reading("test", new Datapoint("str", value));
+	PyGILState_STATE state = PyGILState_Ensure();
 	PyObject *pyReading = ((PythonReading *)(&reading))->toPython();
 	PyObject *obj = callPythonFunc("count", pyReading);
 	long rval = PyLong_AsLong(obj);
 	EXPECT_EQ(rval, 1);
+	PyGILState_Release(state);
 }
 
 TEST_F(PythonReadingTest, SimpleString)
 {
 	DatapointValue value("just a string");
 	Reading reading("test", new Datapoint("str", value));
+	PyGILState_STATE state = PyGILState_Ensure();
 	PyObject *pyReading = ((PythonReading *)(&reading))->toPython();
 	PyObject *element = PyUnicode_FromString("str");
 	PyObject *obj = callPythonFunc2("element", pyReading, element);
@@ -270,12 +287,14 @@ TEST_F(PythonReadingTest, SimpleString)
 	{
 		EXPECT_STREQ("Expected a string object", "");
 	}
+	PyGILState_Release(state);
 }
 
 TEST_F(PythonReadingTest, AssetCode)
 {
 	DatapointValue value("just a string");
 	Reading reading("testAsset", new Datapoint("str", value));
+	PyGILState_STATE state = PyGILState_Ensure();
 	PyObject *pyReading = ((PythonReading *)(&reading))->toPython();
 	PyObject *obj = callPythonFunc("assetCode", pyReading);
 	if (obj)
@@ -288,6 +307,7 @@ TEST_F(PythonReadingTest, AssetCode)
 	{
 		EXPECT_STREQ("Expected a string object", "");
 	}
+	PyGILState_Release(state);
 }
 
 TEST_F(PythonReadingTest, TwoDataPoints)
@@ -297,9 +317,11 @@ TEST_F(PythonReadingTest, TwoDataPoints)
 	values.push_back(new Datapoint("s1", value));
 	values.push_back(new Datapoint("s2", value));
 	Reading reading("test", values);
+	PyGILState_STATE state = PyGILState_Ensure();
 	PyObject *pyReading = ((PythonReading *)(&reading))->toPython();
 	PyObject *obj = callPythonFunc("count", pyReading);
 	long rval = PyLong_AsLong(obj);
+	PyGILState_Release(state);
 	EXPECT_EQ(rval, 2);
 }
 
@@ -311,6 +333,7 @@ TEST_F(PythonReadingTest, TwoDifferentDataPoints)
 	values.push_back(new Datapoint("s", v1));
 	values.push_back(new Datapoint("l", v2));
 	Reading reading("test", values);
+	PyGILState_STATE state = PyGILState_Ensure();
 	PyObject *pyReading = ((PythonReading *)(&reading))->toPython();
 	PyObject *obj = callPythonFunc("count", pyReading);
 	long rval = PyLong_AsLong(obj);
@@ -323,6 +346,7 @@ TEST_F(PythonReadingTest, TwoDifferentDataPoints)
 	element = PyUnicode_FromString("l");
 	obj = callPythonFunc2("element", pyReading, element);
 	rval = PyLong_AsLong(obj);
+	PyGILState_Release(state);
 	EXPECT_EQ(rval, 12345678);
 }
 
@@ -333,6 +357,7 @@ TEST_F(PythonReadingTest, TwoDataPointsFetchString1)
 	values.push_back(new Datapoint("s1", value));
 	values.push_back(new Datapoint("s2", value));
 	Reading reading("test", values);
+	PyGILState_STATE state = PyGILState_Ensure();
 	PyObject *pyReading = ((PythonReading *)(&reading))->toPython();
 	PyObject *element = PyUnicode_FromString("s1");
 	PyObject *obj = callPythonFunc2("element", pyReading, element);
@@ -346,6 +371,7 @@ TEST_F(PythonReadingTest, TwoDataPointsFetchString1)
 	{
 		EXPECT_STREQ("Expected a string object", "");
 	}
+	PyGILState_Release(state);
 }
 
 TEST_F(PythonReadingTest, TwoDataPointsFetchString2)
@@ -355,6 +381,7 @@ TEST_F(PythonReadingTest, TwoDataPointsFetchString2)
 	values.push_back(new Datapoint("s1", value));
 	values.push_back(new Datapoint("s2", value));
 	Reading reading("test", values);
+	PyGILState_STATE state = PyGILState_Ensure();
 	PyObject *pyReading = ((PythonReading *)(&reading))->toPython();
 	PyObject *element = PyUnicode_FromString("s2");
 	PyObject *obj = callPythonFunc2("element", pyReading, element);
@@ -368,6 +395,7 @@ TEST_F(PythonReadingTest, TwoDataPointsFetchString2)
 	{
 		EXPECT_STREQ("Expected a string object", "");
 	}
+	PyGILState_Release(state);
 }
 
 TEST_F(PythonReadingTest, DoubleListDataPoint)
@@ -377,6 +405,7 @@ TEST_F(PythonReadingTest, DoubleListDataPoint)
 	values.push_back(3.7);
 	DatapointValue value(values);
 	Reading reading("test", new Datapoint("array", value));
+	PyGILState_STATE state = PyGILState_Ensure();
 	PyObject *pyReading = ((PythonReading *)(&reading))->toPython();
 	PyObject *element = PyUnicode_FromString("array");
 	PyObject *obj = callPythonFunc2("element", pyReading, element);
@@ -388,6 +417,7 @@ TEST_F(PythonReadingTest, DoubleListDataPoint)
 	{
 		EXPECT_STREQ("Expected a LIST object", "");
 	}
+	PyGILState_Release(state);
 }
 
 TEST_F(PythonReadingTest, DictDataPoint)
@@ -398,6 +428,7 @@ TEST_F(PythonReadingTest, DictDataPoint)
 	values->push_back(new Datapoint("s2", value));
 	DatapointValue dict(values, true);
 	Reading reading("test", new Datapoint("child", dict));
+	PyGILState_STATE state = PyGILState_Ensure();
 	PyObject *pyReading = ((PythonReading *)(&reading))->toPython();
 	PyObject *element = PyUnicode_FromString("child");
 	PyObject *obj = callPythonFunc2("element", pyReading, element);
@@ -409,6 +440,7 @@ TEST_F(PythonReadingTest, DictDataPoint)
 	{
 		EXPECT_STREQ("Expected a DICT object", "");
 	}
+	PyGILState_Release(state);
 }
 
 TEST_F(PythonReadingTest, DataBuffer)
@@ -419,6 +451,7 @@ TEST_F(PythonReadingTest, DataBuffer)
 	*(ptr + 1) = 5678;
 	DatapointValue buf(buffer);
 	Reading reading("test", new Datapoint("buffer", buf));
+	PyGILState_STATE state = PyGILState_Ensure();
 	PyObject *pyReading = ((PythonReading *)(&reading))->toPython();
 	PyObject *element = PyUnicode_FromString("buffer");
 	PyObject *obj = callPythonFunc2("element", pyReading, element);
@@ -439,6 +472,7 @@ TEST_F(PythonReadingTest, DataBuffer)
 	{
 		EXPECT_STREQ("Expected a long object", "");
 	}
+	PyGILState_Release(state);
 }
 
 TEST_F(PythonReadingTest, SimpleLongRoundTrip)
@@ -446,6 +480,7 @@ TEST_F(PythonReadingTest, SimpleLongRoundTrip)
 	long i = 1234;
 	DatapointValue value(i);
 	Reading reading("test", new Datapoint("long", value));
+	PyGILState_STATE state = PyGILState_Ensure();
 	PyObject *pyReading = ((PythonReading *)(&reading))->toPython();
 	EXPECT_EQ(PyDict_Check(pyReading), true);
 	PyObject *obj = callPythonFunc("returnIt", pyReading);
@@ -469,12 +504,14 @@ TEST_F(PythonReadingTest, SimpleLongRoundTrip)
 	{
 		EXPECT_STREQ("Expect PythonReading object missing", "");
 	}
+	PyGILState_Release(state);
 }
 
 TEST_F(PythonReadingTest, SimpleStringRoundTrip)
 {
 	DatapointValue value("this is a string");
 	Reading reading("test", new Datapoint("str", value));
+	PyGILState_STATE state = PyGILState_Ensure();
 	PyObject *pyReading = ((PythonReading *)(&reading))->toPython();
 	EXPECT_EQ(PyDict_Check(pyReading), true);
 	PyObject *obj = callPythonFunc("returnIt", pyReading);
@@ -499,6 +536,7 @@ TEST_F(PythonReadingTest, SimpleStringRoundTrip)
 	{
 		EXPECT_STREQ("Expect PythonReading object missing", "");
 	}
+	PyGILState_Release(state);
 }
 
 TEST_F(PythonReadingTest, DataBufferSwapRoundTrip)
@@ -509,6 +547,7 @@ TEST_F(PythonReadingTest, DataBufferSwapRoundTrip)
 	*(ptr + 1) = 5678;
 	DatapointValue buf(buffer);
 	Reading reading("test", new Datapoint("buffer", buf));
+	PyGILState_STATE state = PyGILState_Ensure();
 	PyObject *pyReading = ((PythonReading *)(&reading))->toPython();
 	PyObject *element = PyUnicode_FromString("buffer");
 	PyObject *obj = callPythonFunc2("array_swap", pyReading, element);
@@ -529,6 +568,7 @@ TEST_F(PythonReadingTest, DataBufferSwapRoundTrip)
 		EXPECT_EQ(*ptr, 5678);
 		EXPECT_EQ(*(ptr + 1), 1234);
 	}
+	PyGILState_Release(state);
 }
 
 TEST_F(PythonReadingTest, ImageRoundTrip)
@@ -537,6 +577,7 @@ TEST_F(PythonReadingTest, ImageRoundTrip)
 	DPImage  *image = new DPImage(64, 96, 8, data);
 	DatapointValue img(image);
 	Reading reading("test", new Datapoint("image", img));
+	PyGILState_STATE state = PyGILState_Ensure();
 	PyObject *pyReading = ((PythonReading *)(&reading))->toPython();
 	PyObject *element = PyUnicode_FromString("image");
 	PyObject *obj = callPythonFunc2("image_swap", pyReading, element);
@@ -557,6 +598,7 @@ TEST_F(PythonReadingTest, ImageRoundTrip)
 		EXPECT_EQ(image2->getHeight(), image->getHeight());
 		EXPECT_EQ(image2->getDepth(), image->getDepth());
 	}
+	PyGILState_Release(state);
 }
 
 TEST_F(PythonReadingTest, UpdateAssetCode)
@@ -564,6 +606,7 @@ TEST_F(PythonReadingTest, UpdateAssetCode)
 	long i = 1234;
 	DatapointValue value(i);
 	Reading reading("test", new Datapoint("long", value));
+	PyGILState_STATE state = PyGILState_Ensure();
 	PyObject *pyReading = ((PythonReading *)(&reading))->toPython();
 	EXPECT_EQ(PyDict_Check(pyReading), true);
 	PyObject *newName = PyUnicode_FromString("shorter");
@@ -588,6 +631,7 @@ TEST_F(PythonReadingTest, UpdateAssetCode)
 	{
 		EXPECT_STREQ("Expect PythonReading object missing", "");
 	}
+	PyGILState_Release(state);
 }
 
 TEST_F(PythonReadingTest, Double2DArray)
@@ -603,6 +647,7 @@ TEST_F(PythonReadingTest, Double2DArray)
 
 	DatapointValue value(array);
 	Reading reading("test2d", new Datapoint("array", value));
+	PyGILState_STATE state = PyGILState_Ensure();
 	PyObject *pyReading = ((PythonReading *)(&reading))->toPython();
 	PyObject *element = PyUnicode_FromString("array");
 	PyObject *obj = callPythonFunc2("row_swap", pyReading, element);
@@ -624,6 +669,7 @@ TEST_F(PythonReadingTest, Double2DArray)
 	{
 		EXPECT_STREQ("Expected a LIST object", "");
 	}
+	PyGILState_Release(state);
 }
 
 };

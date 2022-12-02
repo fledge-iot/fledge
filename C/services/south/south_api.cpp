@@ -219,7 +219,7 @@ void SouthApi::operation(shared_ptr<HttpServer::Response> response,
 				}
 				else if (doc.HasMember("parameters"))
 				{
-					string responsePayload = QUOTE({ "message" : "If present, parameters must be a JSON object" });
+					string responsePayload = QUOTE({ "message" : "If present, parameters of an operation must be a JSON object" });
 					m_service->respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
 					return;
 				}
@@ -235,7 +235,7 @@ void SouthApi::operation(shared_ptr<HttpServer::Response> response,
 				}
 				else
 				{
-					string responsePayload = QUOTE({ "status" : "failed" });
+					string responsePayload = QUOTE({ "status" : "plugin returned failed status for operation" });
 					m_service->respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
 				}
 				return;
@@ -247,6 +247,12 @@ void SouthApi::operation(shared_ptr<HttpServer::Response> response,
 				m_service->respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
 				return;
 			}
+		}
+		else
+		{
+			string responsePayload = QUOTE({ "status" : "failed to parse operation payload" });
+			m_service->respond(response, SimpleWeb::StatusCode::client_error_bad_request,responsePayload);
+			return;
 		}
 	} catch (exception &e) {
 	}

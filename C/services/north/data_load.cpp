@@ -253,7 +253,7 @@ ReadingSet *DataLoad::fetchAudit(unsigned int blockSize)
 	tmpReturn->timezone("utc");
 	columns.push_back(tmpReturn);
 
-	columns.push_back(new Returns("log"));
+	columns.push_back(new Returns("log", "reading"));
 	// Build the query with fields, aliases and where
 	Query qStatistics(columns, wId);
 	// Set limit
@@ -262,8 +262,8 @@ ReadingSet *DataLoad::fetchAudit(unsigned int blockSize)
 	Sort* sort = new Sort("id");
 	qStatistics.sort(sort);
 
-	// Query the statistics_history table and get a ReadingSet result
-	return m_storage->queryTableToReadings("statistics_history", qStatistics);
+	// Query the audit  table and get a ReadingSet result
+	return m_storage->queryTableToReadings("log", qStatistics);
 }
 
 /**
@@ -553,7 +553,7 @@ void DataLoad::updateStatistic(const string& key, const string& description, uin
 	// Perform UPDATE fledge.statistics SET value = value + x WHERE key = 'name'
 	int row_affected = m_storage->updateTable("statistics", updateValue, wLastStat);
 
-	if (row_affected == -1)
+	if (row_affected < 1)
 	{
 		// The required row is not in the statistics table yet
 		// this situation happens only at the initial setup
@@ -577,6 +577,10 @@ void DataLoad::updateStatistic(const string& key, const string& description, uin
 				table.c_str(), key.c_str(), description.c_str());
 
                 }
+	}
+	else if (row_affected > 1)
+	{
+		Logger::getLogger()->error("There appear to be multiple rows in the statistics table for %s", key.c_str());
 	}
 }
 

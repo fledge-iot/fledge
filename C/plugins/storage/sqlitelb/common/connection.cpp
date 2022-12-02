@@ -1280,7 +1280,13 @@ std::size_t arr = data.find("inserts");
 		int insert = sqlite3_changes(dbHandle);
 
 		if (insert == 0)
-			raiseError("insert", "Not all inserts within transaction succeeded");
+		{
+			char buf[100];
+			snprintf(buf, sizeof(buf),
+					"Not all inserts within transaction '%s.%s' succeeded",
+					schema.c_str(), table.c_str());
+			raiseError("insert", buf);
+		}
 
 		// Return the status
 		return (insert ? ins : -1);
@@ -1678,7 +1684,11 @@ SQLBuffer	sql;
 
 		if (update == 0)
 		{
-			raiseError("update", "Not all updates within transaction succeeded");
+			char buf[100];
+			snprintf(buf, sizeof(buf),
+					"Not all updates within transaction '%s.%s' succeeded",
+					schema.c_str(), table.c_str());
+			raiseError("update", buf);
 			return_value = -1;
 		}
 		else

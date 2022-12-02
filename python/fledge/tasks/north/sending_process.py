@@ -924,7 +924,6 @@ class SendingProcess(FledgeProcess):
                                          cat_keep_original=True)
 
             exec_sending_process = self._config['enable']
-
             if self._config['enable']:
 
                 # Checks if the plug is defined if not end the execution
@@ -975,6 +974,11 @@ class SendingProcess(FledgeProcess):
     async def run(self):
         global _log_performance
         global _LOGGER
+
+        # Return early if task runs with --dryrun arg
+        # In future if any runtime configuration required for a task then it should be created before it
+        if self.is_dry_run():
+            return
 
         # Setups signals handlers, to properly handle the termination
         # a) SIGTERM - 15 : kill or system shutdown

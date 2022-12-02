@@ -22,7 +22,7 @@ set -e
 #
 # This is the startup script for fledge
 #
-USAGE="Usage: `basename ${0}` {start|start --safe-mode|stop|status|reset|purge|kill|help|version}"
+USAGE="Usage: `basename ${0}` {start|start --safe-mode|stop|status|reset|purge|kill|healthcheck|help|version}"
 
 # Check FLEDGE_ROOT
 if [ -z ${FLEDGE_ROOT+x} ]; then
@@ -616,6 +616,7 @@ Arguments:
  stop              - Stop all Fledge services and processes
  kill              - Kill all Fledge services and processes
  status            - Show the status for the Fledge services
+ healthcheck       - Perform a number of checks on the health of the system, Fledge must be running
  reset             - Restore Fledge factory settings
                      WARNING! This command will destroy all your data!
  purge             - Purge all readings data and non-configuration data.
@@ -634,6 +635,135 @@ fledge_purge() {
 
     # Purge data
     source "$FLEDGE_ROOT/scripts/storage" purge
+}
+
+# Perform a healthcheck on the Fledge instance
+fledge_healthcheck() {
+
+	result=`fledge_status "silent"`
+	if [[ $result != "0" ]]; then
+		fledge_log "info" "Fledge appears not to be running, healthcheck should be performed on a running system . Start Fledge first." "all" "pretty"
+		exit 0
+	fi
+
+	echo Fledge Healthcheck
+	echo ==================
+	echo
+
+	auth="optional"
+	result=`curl -k -s ${REST_API_URL}/fledge/health/logging`
+
+	if [[ "${result}" == "401"* ]]; then
+		token=`fledge_authenticate`
+		if [[ "${token}" =~ "failed" ]]; then
+			fledge_log "info" "Failed authentication when attempting to run fledge healthcheck." "all" "pretty"
+			echo "Authentication failed."
+			exit 0
+		fi
+		result=`curl -k -s -H "authorization: $token" ${REST_API_URL}/fledge/health/logging`
+		auth="required"
+	fi
+
+	a=`echo $result | python3 -m scripts.common.loglevel info`
+	if [[ "$a" != "" ]]; then
+		echo The following services have a logging level set to info:
+	        for i in $a; do
+			echo $i | sed -e s/\"//g -e 's/^/    /'
+		done
+		echo This is probably too high and may result in large log files
+		echo
+	fi
+
+	a=`echo $result | python3 -m scripts.common.loglevel debug`
+	if [[ "$a" != "" ]]; then
+		echo The following services have a logging level set to debug:
+	        for i in $a; do
+			echo $i | sed -e s/\"//g -e 's/^/    /'
+		done
+		echo This is probably too high and may result in large log files
+		echo
+	fi
+
+	a=`echo $result | python3 -m scripts.common.disk_usage 80`
+	if [[ "$a" != "" ]]; then
+		echo The disk space in the logging directory is low, $a%
+		echo
+	fi
+
+	if [[ "${auth}" == "required" ]]; then
+		result=`curl -k -s -H "authorization: $token" ${REST_API_URL}/fledge/health/storage`
+	else
+		result=`curl -s ${REST_API_URL}/fledge/health/storage`
+	fi
+	a=`echo $result | python3 -m scripts.common.disk_usage 80`
+	if [[ "$a" != "" ]]; then
+		echo The disk space in the storage directory is low, $a%
+		echo
+	fi
+
+	# the && touch is a trick to defeat the fact we have done a set -e
+	service rsyslog status >/dev/null && touch /dev/null
+	status=$?
+	if [ $status -ne 0 ]; then
+		echo The rsyslog service does not appear to be running on the machine
+		echo No log entries will be seen on this machine, plesse restart the Linux service.
+		echo
+	fi
+
+	month=`date +%Y-%m-%d`
+	if [[ "${auth}" == "required" ]]; then
+		result=`curl -k -s -H "authorization: $token" ${REST_API_URL}/fledge/audit?source=SRVFL`
+	else
+		result=`curl -s ${REST_API_URL}/fledge/audit?source=SRVFL`
+	fi
+	tmpname=/tmp/fledge.$$
+	echo $result | python3 -m scripts.common.audittime $month | sort | uniq -c >$tmpname
+	if [[ -s $tmpname ]]; then
+		echo Some services have failed at least once today
+		echo "No. Failures  |  Service"
+		echo "--------------+--------------------"
+		sed -E 's/([0-9]) /      \1 | /' $tmpname
+		echo
+	fi
+	rm $tmpname
+
+	echo Service State
+	issue=none
+	if [[ "${auth}" == "required" ]]; then
+		result=`curl -k -s -H "authorization: $token" ${REST_API_URL}/fledge/service`
+	else
+		result=`curl -s ${REST_API_URL}/fledge/service`
+	fi
+	a=`echo $result | python3 -m scripts.common.service_status unresponsive`
+	if [[ "$a" != "" ]]; then
+		echo The following services are unresponsive:
+	        for i in $a; do
+			echo $i | sed -e s/\"//g -e 's/^/    /'
+		done
+		issue="some"
+	fi
+	a=`echo $result | python3 -m scripts.common.service_status failed`
+	if [[ "$a" != "" ]]; then
+		echo The following services have failed:
+	        for i in $a; do
+			echo $i | sed -e s/\"//g -e 's/^/    /'
+		done
+		issue="some"
+	fi
+	a=`echo $result | python3 -m scripts.common.service_status shutdown`
+	if [[ "$a" != "" ]]; then
+		echo The following services are shutdown:
+	        for i in $a; do
+			echo $i | sed -e s/\"//g -e 's/^/    /'
+		done
+		issue="some"
+	fi
+	if [[ "$issue" == "none" ]]; then
+		echo All services are running
+	fi
+	echo
+
+	echo Healthcheck completed
 }
 
 ### Main Logic ###
@@ -735,6 +865,9 @@ case "$1" in
         ;;
     purge)
         fledge_purge
+        ;;
+    healthcheck)
+        fledge_healthcheck
         ;;
     help)
         fledge_help

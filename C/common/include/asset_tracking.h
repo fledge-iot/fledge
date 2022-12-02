@@ -61,6 +61,9 @@ public:
 	{}
 
 	std::string&	getAssetName() { return m_assetName; };
+	std::string     getPluginName() { return m_pluginName;}
+	std::string     getEventName()  { return m_eventName;}
+	std::string	getServiceName() { return m_serviceName;}
 	bool		isDeprecated() { return m_deprecated; };
 	void		unDeprecate() { m_deprecated = false; };
 

@@ -1308,6 +1308,7 @@ class Scheduler(object):
         if dryrun and is_new_schedule:
             await self._start_task(schedule_row, dryrun=True)
             return
+
         if is_enabled_modified is not None:
             if previous_enabled is None:  # New Schedule
                 # For a new schedule, if enabled is set to True, the schedule will be enabled.
@@ -1318,9 +1319,9 @@ class Scheduler(object):
                 bypass_check = True if previous_enabled != schedule.enabled else None
 
             if is_enabled_modified is True:
-                await self.enable_schedule(schedule.schedule_id, bypass_check=bypass_check)
+                await self.enable_schedule(schedule.schedule_id, bypass_check=bypass_check, record_audit_trail=is_new_schedule)
             else:
-                await self.disable_schedule(schedule.schedule_id, bypass_check=bypass_check)
+                await self.disable_schedule(schedule.schedule_id, bypass_check=bypass_check, record_audit_trail=is_new_schedule)
 
     async def remove_service_from_task_processes(self, service_name):
         """
@@ -1363,7 +1364,7 @@ class Scheduler(object):
                                                                                      schedule_type))
         return False
 
-    async def disable_schedule(self, schedule_id: uuid.UUID, bypass_check=None):
+    async def disable_schedule(self, schedule_id: uuid.UUID, bypass_check=None, record_audit_trail=True):
         """
         Find running Schedule, Terminate running process, Disable Schedule, Update database
 
@@ -1468,14 +1469,17 @@ class Scheduler(object):
             schedule.name,
             str(schedule_id),
             schedule.process_name)
+
         self._logger.info("Scheduler: 22: self._storage_async.service={}"
                           .format(self._storage_async.service if self._storage_async else "N.A."))
-        audit = AuditLogger(self._storage_async)
-        sch = await self.get_schedule(schedule_id)
-        await audit.information('SCHCH', {'schedule': sch.toDict()})
+        if record_audit_trail:
+            audit = AuditLogger(self._storage_async)
+            sch = await self.get_schedule(schedule_id)
+            await audit.information('SCHCH', {'schedule': sch.toDict()})
+
         return True, "Schedule successfully disabled"
 
-    async def enable_schedule(self, schedule_id: uuid.UUID, bypass_check=None):
+    async def enable_schedule(self, schedule_id: uuid.UUID, bypass_check=None, record_audit_trail=True):
         """
         Get Schedule, Enable Schedule, Update database, Start Schedule
 
@@ -1523,11 +1527,14 @@ class Scheduler(object):
             schedule.name,
             str(schedule_id),
             schedule.process_name)
+
         self._logger.info("Scheduler: 24: self._storage_async.service={}"
                           .format(self._storage_async.service if self._storage_async else "N.A."))
-        audit = AuditLogger(self._storage_async)
-        sch = await self.get_schedule(schedule_id)
-        await audit.information('SCHCH', { 'schedule': sch.toDict() })
+        if record_audit_trail:
+            audit = AuditLogger(self._storage_async)
+            sch = await self.get_schedule(schedule_id)
+            await audit.information('SCHCH', { 'schedule': sch.toDict() })
+
         return True, "Schedule successfully enabled"
 
     async def queue_task(self, schedule_id: uuid.UUID, start_now=True) -> None:

@@ -45,7 +45,9 @@ class Monitor(object):
     _logger = None
 
     def reset(self):
+        self._monitor_loop_task.cancel()
         self._monitor_loop_task = None
+        self._logger.debug("Monitor: reset()")
 
     def __init__(self):
         self._logger = logger.setup(__name__, level=logging.DEBUG)
@@ -121,7 +123,7 @@ class Monitor(object):
                                                   ServiceRecord.Status.Restart]:
                     continue
 
-                self._logger.debug("Service: {} Status: {}".format(service_record._name, service_record._status))
+                self._logger.debug("id(self)={}: Service: {} Status: {}".format(id(self), service_record._name, service_record._status))
 
                 if service_record._status == ServiceRecord.Status.Failed:
                     # self._logger.debug("step 1")
@@ -297,6 +299,8 @@ class Monitor(object):
     async def start(self):
         await self._read_config()
         self._logger.debug("START: _monitor_loop")
+        s = ''.join(traceback.format_stack())
+        self._logger.debug("START: stacktrace: {}".format(s))
         self._monitor_loop_task = asyncio.ensure_future(self._monitor_loop())
 
     async def stop(self):

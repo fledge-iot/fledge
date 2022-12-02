@@ -917,6 +917,7 @@ class Server:
             await cls.stop_service_monitor()
             _logger.info("**** restart_storage(): step 5.7.2")
             cls.service_monitor.reset()
+            del cls.service_monitor
             cls.service_monitor = None
             _logger.info("**** restart_storage(): step 5.7.3")
             await cls._start_service_monitor()

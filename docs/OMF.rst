@@ -56,6 +56,7 @@ Select PI Web API from the Endpoint options.
    - **Number Format:** Used to match Fledge data types to the data type configured in PI. The default is float64 but may be set to any OMF datatype that supports floating point values.
    - **Compression:** Compress the readings data before sending them to the PI Web API OMF endpoint.
      This setting is not related to data compression in the PI Data Archive.
+   - **Complex Types:** Used to force the plugin to send OMF data types as complex tyes rather than the newer linked types. Linked types are the default way to send data and allows assets to have different sets of data points in different readings.
 
 Edge Data Store OMF Endpoint
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -464,6 +465,10 @@ that adds this hint to ensure this is the case.
 
    "OMFHint"  : { "type" : "pump" }
 
+.. note::
+
+   Tis hint only has meaning when usign the complex type legacy mode with this plugin.
+
 Tag Name Hint
 ~~~~~~~~~~~~~
 
@@ -472,6 +477,17 @@ Specifies that a specific tag name should be used when storing data in the PI Se
 .. code-block:: console
 
    "OMFHint"  : { "tagName" : "AC1246" }
+
+Legacy Type Hint
+~~~~~~~~~~~~~~~~
+
+Use legacy style complex types for this reading rather that the newer linked data types.
+
+.. code-block:: console
+
+   "OMFHint" : { "LegacyType" : "true" }
+
+The allows the older mechanism to be foreced for a single asset.
 
 Datapoint Specific Hint
 ~~~~~~~~~~~~~~~~~~~~~~~

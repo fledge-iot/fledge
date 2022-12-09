@@ -80,6 +80,16 @@ public:
 };
 
 /**
+ * A Legacy type hint, tells the OMF plugin to send complex types for this asset
+ */
+class OMFLegacyTypeHint : public OMFHint
+{
+public:
+	OMFLegacyTypeHint(const std::string& name) { m_hint = name; };
+	~OMFLegacyTypeHint() {};
+};
+
+/**
  * A set of hints for a reading
  *
  * documentation available at:

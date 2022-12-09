@@ -142,6 +142,10 @@ OMFHints::OMFHints(const string& hints)
 			{
 				m_hints.push_back(new OMFAFLocationHint(itr->value.GetString()));
 			}
+			else if (strcmp(name, "LegacyType") == 0)
+			{
+				m_hints.push_back(new OMFLegacyTypeHint(itr->value.GetString()));
+			}
 			else if (strcmp(name, "datapoint") == 0)
 			{
 				const Value &child = itr->value;

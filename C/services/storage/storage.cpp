@@ -92,7 +92,7 @@ string	       coreAddress = "localhost";
 bool	       daemonMode = true;
 string	       myName = SERVICE_NAME;
 bool           returnPlugin = false;
-string	       logLevel = "warning";
+string	       logLevel = "info";
 
 	for (int i = 1; i < argc; i++)
 	{
@@ -129,13 +129,15 @@ string	       logLevel = "warning";
 	}
 
 	StorageService *service = new StorageService(myName);
-	Logger::getLogger()->setMinLevel(logLevel);
+	Logger::getLogger()->setMinLevel("info");
 	if (returnPlugin)
 	{
 		cout << service->getPluginName() << " " << service->getPluginManagedStatus() << endl;
 	}
 	else
 	{
+		Logger::getLogger()->info("%s:%d: StorageService start: coreAddress=%s, corePort=%d",
+									__FUNCTION__, __LINE__, coreAddress.c_str(), corePort);
 		service->start(coreAddress, corePort);
 	}
 	return 0;
@@ -212,13 +214,13 @@ unsigned short servicePort;
 	}
 	if (config->hasValue("logLevel"))
 	{
-		logger->setMinLevel(config->getValue("logLevel"));
+		//logger->setMinLevel(config->getValue("logLevel"));
+		logger->setMinLevel("info");
 	}
 	else
 	{
-		logger->setMinLevel("warning");
+		logger->setMinLevel("info");
 	}
-
 
 	api = new StorageApi(servicePort, threads);
 }
@@ -228,22 +230,25 @@ unsigned short servicePort;
  */
 void StorageService::start(string& coreAddress, unsigned short corePort)
 {
+	Logger::getLogger()->info("%s:%d: StorageService::start called", __FUNCTION__, __LINE__);
 	if (!loadPlugin())
 	{
 		logger->fatal("Failed to load storage plugin.");
 		return;
 	}
+	Logger::getLogger()->info("%s:%d: StorageService::start: loadPlugin done", __FUNCTION__, __LINE__);
 	unsigned short managementPort = (unsigned short)0;
 	if (config->getValue("managementPort"))
 	{
 		managementPort = (unsigned short)atoi(config->getValue("managementPort"));
 	}
-	ManagementApi management(SERVICE_NAME, managementPort);	// Start managemenrt API
+	ManagementApi management(SERVICE_NAME, managementPort);	// Start management API
+	Logger::getLogger()->info("%s:%d: StorageService::start: Management API (HTTP server) started", __FUNCTION__, __LINE__);
 	api->initResources();
-	logger->info("Starting service...");
+	logger->info("Starting service interface...");
 	api->start();
 	management.registerService(this);
-
+	logger->info("Starting management interface...");
 	management.start();
 
 	// Allow time for the listeners to start before we register
@@ -255,8 +260,13 @@ void StorageService::start(string& coreAddress, unsigned short corePort)
 		unsigned short listenerPort = api->getListenerPort();
 		unsigned short managementListener = management.getListenerPort();
 		ServiceRecord record(m_name, "Storage", "http", "localhost", listenerPort, managementListener);
+		string s;
+		record.asJSON(s);
+		logger->info("Adding service record: %s", s.c_str());
 		ManagementClient *client = new ManagementClient(coreAddress, corePort);
+		logger->info("Instantiated management client");
 		client->registerService(record);
+		logger->info("Registered service via management client");
 
 		// Add the default configuration under the Advanced category
 		unsigned int retryCount = 0;
@@ -294,7 +304,7 @@ void StorageService::start(string& coreAddress, unsigned short corePort)
 		} catch (...) {
 		}
 
-		// Regsiter for configuration changes to our category
+		// Register for configuration changes to our category
 		ConfigHandler *configHandler = ConfigHandler::getInstance(client);
 		configHandler->registerCategory(this, STORAGE_CATEGORY);
 

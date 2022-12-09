@@ -44,6 +44,9 @@ async def run(category_name):
     payload = {"category" : category_name, "items" : category_value}
     headers = {'content-type': 'application/json'}
 
+    _LOGGER.warn("change_callback::run(): category_name={}, payload={}".format(category_name, payload))
+    _LOGGER.warn("change_callback::run(): json.dumps(payload)={}".format(json.dumps(payload)))
+
     # for each microservice interested in category_name, notify change
     for i in interest_records:
         # get microservice management server info of microservice through service registry

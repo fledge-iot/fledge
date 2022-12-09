@@ -20,6 +20,7 @@ import json
 import signal
 from datetime import datetime, timedelta
 import jwt
+import logging
 
 from fledge.common import logger
 from fledge.common.audit_logger import AuditLogger
@@ -56,7 +57,7 @@ __copyright__ = "Copyright (c) 2017-2021 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-_logger = logger.setup(__name__, level=20)
+_logger = logger.setup(__name__, level=logging.DEBUG)
 
 # FLEDGE_ROOT env variable
 _FLEDGE_DATA = os.getenv("FLEDGE_DATA", default=None)
@@ -567,6 +568,7 @@ class Server:
         """Starts the scheduler"""
         _logger.info("Starting scheduler ...")
         cls.scheduler = Scheduler(cls._host, cls.core_management_port, cls.running_in_safe_mode)
+        _logger.info("Instantiated scheduler: cls.scheduler={}".format(cls.scheduler))
         await cls.scheduler.start()
 
     @staticmethod
@@ -575,32 +577,50 @@ class Server:
         try:
             cmd_with_args = ['./services/storage', '--address={}'.format(host),
                              '--port={}'.format(m_port)]
+            _logger.info("__start_storage: BEFORE subprocess.call: cmd_with_args={}".format(cmd_with_args))
             subprocess.call(cmd_with_args, cwd=_SCRIPTS_DIR)
+            _logger.info("__start_storage: AFTER subprocess.call")
         except Exception as ex:
             _logger.exception(str(ex))
+        _logger.info("__start_storage: DONE")
 
     @classmethod
     async def _start_storage(cls, loop):
+        _logger.info("!!! _start_storage")
         if loop is None:
             loop = asyncio.get_event_loop()
             # callback with args
+
+        _logger.info("call_soon: BEFORE __start_storage")
         loop.call_soon(cls.__start_storage, cls._host, cls.core_management_port)
+        _logger.info("**** _start_storage completed")
+
 
     @classmethod
     async def _get_storage_client(cls):
+        _logger.info("_get_storage_client: step 1")
         storage_service = None
         while storage_service is None and cls._storage_client_async is None:
             try:
+                _logger.info("_get_storage_client: step 2")
                 found_services = ServiceRegistry.get(name="Fledge Storage")
+                _logger.info("_get_storage_client: step 2.5: found_services={}".format(found_services))
                 storage_service = found_services[0]
+                _logger.info("_get_storage_client: step 3: storage_service={}".format(storage_service))
                 cls._storage_client_async = StorageClientAsync(cls._host, cls.core_management_port, svc=storage_service)
+                _logger.info("_get_storage_client: step 4")
             except (service_registry_exceptions.DoesNotExist, InvalidServiceInstance, StorageServiceUnavailable, Exception) as ex:
+                _logger.info("_get_storage_client: step 5: waiting for 5 secs")
                 await asyncio.sleep(5)
         while cls._readings_client_async is None:
             try:
+                _logger.info("_get_storage_client: step 6")
                 cls._readings_client_async = ReadingsStorageClientAsync(cls._host, cls.core_management_port, svc=storage_service)
+                _logger.info("_get_storage_client: step 7")
             except (service_registry_exceptions.DoesNotExist, InvalidServiceInstance, StorageServiceUnavailable, Exception) as ex:
+                _logger.info("_get_storage_client: step 8: waiting for 5 secs")
                 await asyncio.sleep(5)
+        _logger.info("**** _get_storage_client completed")
 
     @classmethod
     def _start_app(cls, loop, app, host, port, ssl_ctx=None):
@@ -695,7 +715,7 @@ class Server:
     @classmethod
     def _reposition_streams_table(cls, loop):
 
-        _logger.info("'fledge.readings' is stored in memory and a restarted has occurred, "
+        _logger.info("'fledge.readings' is stored in memory and a restart has occurred, "
                      "force reset of 'fledge.streams' last_objects")
 
         configuration = loop.run_until_complete(cls._storage_client_async.query_tbl('configuration'))
@@ -777,7 +797,169 @@ class Server:
     @classmethod
     async def _start_asset_tracker(cls):
         cls._asset_tracker = AssetTracker(cls._storage_client_async)
+        _logger.info("**** _start_asset_tracker: AssetTracker instantiated")
         await cls._asset_tracker.load_asset_records()
+        _logger.info("**** _start_asset_tracker completed")
+
+    @classmethod
+    async def _notify_storage_service_restart(cls):
+        # Callback to notify storage service restart to all microservices
+        _logger.info("_notify_storage_service_restart: START")
+
+        # cfg_mgr = ConfigurationManager()
+        category_value = {}  # await cfg_mgr.get_category_all_items(category_name)
+        category_value['plugin'] = {}
+
+        # {'category': 'rnd', 'items': {
+        #     'plugin': {'description': 'Random data generation plugin', 'type': 'string', 'default': 'Random',
+        #                'readonly': 'true', 'value': 'Random'},
+        #     'asset': {'description': 'Asset name', 'type': 'string', 'default': 'Random', 'displayName': 'Asset Name',
+        #               'mandatory': 'true', 'value': 'Random2'}}}
+
+        payload = {"category" : "storage_service_restart", "items" : category_value}
+        headers = {'content-type': 'application/json'}
+        _logger.info("_notify_storage_service_restart: payload={}".format(payload))
+        _logger.info("_notify_storage_service_restart: json.dumps(payload)={}".format(json.dumps(payload)))
+
+        found_services = ServiceRegistry.get()
+        _logger.info("_notify_storage_service_restart: found_services={}".format(found_services))
+
+        for fs in found_services:
+            if fs._name in ("Fledge Core", "Fledge Storage"):
+                continue
+            if fs._status not in [ServiceRecord.Status.Running, ServiceRecord.Status.Unresponsive]:
+                continue
+
+            url = "{}://{}:{}/fledge/change".format(fs._protocol, fs._address, fs._management_port)
+
+            async with aiohttp.ClientSession() as session:
+                try:
+                    async with session.post(url, data=json.dumps(payload, sort_keys=True), headers=headers) as resp:
+                        result = await resp.text()
+                        status_code = resp.status
+                        if status_code in range(400, 500):
+                            _logger.error("Bad request error code: %d, reason: %s", status_code, resp.reason)
+                        if status_code in range(500, 600):
+                            _logger.error("Server error code: %d, reason: %s", status_code, resp.reason)
+                        _logger.info("notify_storage_service_restart: storage_service_restart indicated to %s service: status_code=%d",
+                                     fs._name, status_code)
+                except Exception as ex:
+                    _logger.exception("Unable to notify microservice %s with uuid %s due to exception: %s",
+                                      fs._name, fs._microservice_uuid, str(ex))
+                    continue
+
+
+    @classmethod
+    async def restart_storage(cls):
+        from functools import partial
+
+        try:
+            # host = cls._host
+            try:
+                services = ServiceRegistry.get(name="Fledge Storage")
+                _logger.info("Removing ServiceRegistry entry for Fledge Storage")
+                ServiceRegistry.remove_from_registry(services[0]._id)
+                _logger.info("**** Removed ServiceRegistry entry for Fledge Storage")
+            except service_registry_exceptions.DoesNotExist:
+                _logger.info("**** Tried removing ServiceRegistry entry for Fledge Storage: "
+                             "Got service_registry_exceptions.DoesNotExist")
+                pass
+
+            # address, cls.core_management_port = cls.core_server.sockets[0].getsockname()
+            # _logger.info('Management API started on http://%s:%s', address, cls.core_management_port)
+            # see http://<core_mgt_host>:<core_mgt_port>/fledge/service for registered services
+            _logger.info("**** restart_storage(): step 1")
+            loop = asyncio.get_event_loop()
+            loop.set_debug(True)
+
+            # start storage
+            _logger.info("**** restart_storage(): step 2")
+            # await loop.run_until_complete(cls._start_storage(loop))
+            # await cls._start_storage(None)
+            cls.__start_storage(cls._host, cls.core_management_port)
+            # await loop.run_in_executor(None, partial(cls.__start_storage, cls._host, cls.core_management_port))
+
+            cls._storage_client_async = None
+            cls._readings_client_async = None
+
+            # get storage client
+            _logger.info("**** restart_storage(): step 3")
+            await cls._get_storage_client()
+            #await asyncio.sleep(0.1)
+
+            # if not cls.running_in_safe_mode:
+            #     # If readings table is empty, set last_object of all streams to 0
+            #     cls._check_readings_table(loop)
+
+            cls._configuration_manager.reset()
+            cls._configuration_manager = None
+            cls._interest_registry = None
+
+            _logger.info("**** restart_storage(): step 4")
+            # obtain configuration manager and interest registry
+            cls._configuration_manager = ConfigurationManager(cls._storage_client_async)
+            _logger.info("**** restart_storage(): step 5")
+            cls._interest_registry = InterestRegistry(cls._configuration_manager)
+
+            # _logger.info("**** restart_storage(): step 5.5")
+            # cls.scheduler.pause()
+            _logger.info("**** restart_storage(): step 5.5.1")
+            # await cls._stop_scheduler()
+            _logger.info("**** restart_storage(): step 5.5.2")
+            cls.scheduler.reset()
+            # _logger.info("**** restart_storage(): step 5.5.3")
+            # cls.scheduler = None
+            await cls.scheduler.reconnect_to_storage()
+            # await cls.scheduler.start()
+            _logger.info("**** restart_storage(): step 5.5.4")
+
+            _logger.info("**** restart_storage(): step 5.7.1")
+            await cls.stop_service_monitor()
+            _logger.info("**** restart_storage(): step 5.7.2")
+            cls.service_monitor.reset()
+            del cls.service_monitor
+            cls.service_monitor = None
+            _logger.info("**** restart_storage(): step 5.7.3")
+            await cls._start_service_monitor()
+            _logger.info("**** restart_storage(): step 5.7.4")
+
+            # Get the service data and advertise the management port of the core
+            # to allow other microservices to find Fledge
+            # await cls.service_config()
+            # _logger.info("**** restart_storage(): step 6.1")
+            # _logger.info('Announce management API service')
+            # cls.management_announcer = ServiceAnnouncer("core-{}".format(cls._service_name), cls._MANAGEMENT_SERVICE,
+            #                                             cls.core_management_port,
+            #                                             ['The Fledge Core REST API'])
+            # _logger.info("**** restart_storage(): step 6.2")
+
+            cls._asset_tracker = None
+            _logger.info("**** restart_storage(): step 7")
+            await cls._start_asset_tracker()
+            #await asyncio.sleep(0.1)
+
+            cls._audit.reset()
+            _logger.info("**** restart_storage(): step 8.1")
+            cls._audit = None
+            _logger.info("**** restart_storage(): step 8.2")
+            cls._audit = AuditLogger(cls._storage_client_async)
+            _logger.info("restart_storage(): AuditLogger instantiated again")
+            # await asyncio.sleep(0.1)
+
+            _logger.info("**** restart_storage(): step 9.1")
+            await cls._notify_storage_service_restart()
+
+            await asyncio.sleep(10)
+            _logger.info("**** restart_storage(): step 9.2")
+            cls.scheduler.resume()
+            _logger.info("**** restart_storage(): step 9.3")
+
+            audit_msg = {"message": "Storage service restarted"}
+            await cls._audit.information('START', audit_msg)
+
+        except Exception as e:
+            sys.stderr.write('Error: ' + format(str(e)) + "\n")
+            sys.exit(1)
 
     @classmethod
     def _start_core(cls, loop=None):
@@ -1023,7 +1205,7 @@ class Server:
             services_to_stop = list()
 
             for fs in found_services:
-                if fs._name in ("Fledge Storage", "Fledge Core"):
+                if fs._name in ("Fledge Core"):
                     continue
                 if fs._status not in [ServiceRecord.Status.Running, ServiceRecord.Status.Unresponsive]:
                     continue
@@ -1080,7 +1262,7 @@ class Server:
             while True:
                 services_to_stop = list()
                 for fs in found_services:
-                    if fs._name in ("Fledge Storage", "Fledge Core"):
+                    if fs._name in ("Fledge Core"):
                         continue
                     if fs._status not in [ServiceRecord.Status.Running, ServiceRecord.Status.Unresponsive]:
                         continue
@@ -1174,6 +1356,7 @@ class Server:
                 try:
                     if not cls._storage_client_async is None:
                         cls._audit = AuditLogger(cls._storage_client_async)
+                        _logger.info("audit SRVRG for '{}'".format(service_name))
                         await cls._audit.information('SRVRG', {'name': service_name})
                 except Exception as ex:
                     _logger.info("Failed to audit registration: %s", str(ex))
@@ -1244,7 +1427,7 @@ class Server:
 
             ServiceRegistry.unregister(service_id)
 
-            if cls._storage_client_async is not None and services[0]._name not in ("Fledge Storage", "Fledge Core"):
+            if cls._storage_client_async is not None and services[0]._name not in ("Fledge Core"):
                 try:
                     cls._audit = AuditLogger(cls._storage_client_async)
                     await cls._audit.information('SRVUN', {'name': services[0]._name})
@@ -1275,7 +1458,7 @@ class Server:
 
             ServiceRegistry.restart(service_id)
 
-            if cls._storage_client_async is not None and services[0]._name not in ("Fledge Storage", "Fledge Core"):
+            if cls._storage_client_async is not None and services[0]._name not in ("Fledge Core"):
                 try:
                     cls._audit = AuditLogger(cls._storage_client_async)
                     await cls._audit.information('SRVRS', {'name': services[0]._name})

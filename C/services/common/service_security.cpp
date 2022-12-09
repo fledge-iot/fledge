@@ -645,6 +645,7 @@ void ServiceAuthHandler::refreshBearerToken()
 
 			// Token exists and it is valid, get expiration time
 			expires_in = bToken.getExpiration() - time(NULL) - 10;
+			expires_in = 300;
 
 			Logger::getLogger()->debug("Bearer token refresh will be called in "
 						"%ld seconds, service '%s'",
@@ -658,6 +659,10 @@ void ServiceAuthHandler::refreshBearerToken()
 			// Thread sleeps for a few seconds, so it can get shutdown indicator
 			std::this_thread::sleep_for(std::chrono::seconds(10));
 			expires_in -= 10;
+			Logger::getLogger()->debug("Bearer token refresh will be called in "
+						"%ld seconds, service '%s'",
+						expires_in,
+						this->getName().c_str());
 			continue;
 		}
 

@@ -188,6 +188,9 @@ string	cachefile;
 		writeCache();
 		return;
 	}
+	
+	logger->info("%s:%d: cachefile %s is accessible", __FUNCTION__, __LINE__, cachefile.c_str());
+
 	try {
 		ifstream ifs(cachefile);
 		IStreamWrapper isw(ifs);
@@ -198,6 +201,7 @@ string	cachefile;
 					GetParseError_En(document->GetParseError()),
 					document->GetErrorOffset());
 		}
+		logger->info("%s:%d: document parsed successfully", __FUNCTION__, __LINE__);
 	} catch (exception ex) {
 		logger->error("Configuration cache failed to read %s.", ex.what());
 	}

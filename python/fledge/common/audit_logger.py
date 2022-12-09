@@ -45,12 +45,16 @@ class AuditLogger(AuditLoggerSingleton):
     _storage = None
     """ The storage client we should use to talk to the storage service """
 
+    def reset(self):
+        self._storage = None
+
     def __init__(self, storage=None):
         AuditLoggerSingleton.__init__(self)
         if self._storage is None:
             if not isinstance(storage, StorageClientAsync):
                 raise TypeError('Must be a valid Storage object')
             self._storage = storage
+        _logger.info("**** AuditLogger::init completed")
 
     async def _log(self, level, code, log):
         try:

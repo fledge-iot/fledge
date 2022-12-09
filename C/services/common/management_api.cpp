@@ -198,9 +198,12 @@ string responsePayload;
 string	category, items, payload;
 
 	payload = request->content.string();
+	Logger::getLogger()->info("ManagementApi::configChange(): payload=%s", payload.c_str());
 	ConfigCategoryChange	conf(payload);
 	ConfigHandler	*handler = ConfigHandler::getInstance(NULL);
+	PRINT_FUNC;
 	handler->configChange(conf.getName(), conf.itemsToJSON(true));
+	PRINT_FUNC;
 	convert << "{ \"message\" ; \"Config change accepted\" }";
 	responsePayload = convert.str();
 	respond(response, responsePayload);

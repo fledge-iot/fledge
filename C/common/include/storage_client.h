@@ -43,6 +43,7 @@ class StorageClient {
 	public:
 		StorageClient(HttpClient *client);
 		StorageClient(const std::string& hostname, const unsigned short port);
+		StorageClient(const std::string& hostname, const unsigned short port, std::map<std::thread::id, std::atomic<int>>*);
 		~StorageClient();
 		ResultSet	*queryTable(const std::string& schema, const std::string& tablename, const Query& query);
 		ResultSet	*queryTable(const std::string& tablename, const Query& query);
@@ -78,6 +79,8 @@ class StorageClient {
 
 		void		registerManagement(ManagementClient *mgmnt) { m_management = mgmnt; };
 		bool 		createSchema(const std::string&);
+		std::map<std::thread::id, std::atomic<int>>* getSeqNumMap() { return &m_seqnum_map; }
+		std::ostringstream& getUrlBase() { return m_urlbase; }
 
 	private:
 		void		handleUnexpectedResponse(const char *operation,
@@ -91,6 +94,7 @@ class StorageClient {
 		HttpClient 	*getHttpClient(void);
 		bool		openStream();
 		bool		streamReadings(const std::vector<Reading *> & readings);
+		void 		handle_storage_service_restart();
 
 		std::ostringstream 			m_urlbase;
 		std::string				m_host;

@@ -491,12 +491,15 @@ void Ingest::processQueue()
 		while (m_resendQueues.size() > 0)
 		{
 			vector<Reading *> *q = *m_resendQueues.begin();
+			m_logger->info("%s:%d: m_storageFailed=%s, m_storesFailed=%d", __FUNCTION__, __LINE__, m_storageFailed?"true":"false", m_storesFailed);
 			if (m_storage.readingAppend(*q) == false)
 			{
+				m_logger->info("%s:%d: m_storageFailed=%s, m_storesFailed=%d, m_failCnt=%d", __FUNCTION__, __LINE__, m_storageFailed?"true":"false", m_storesFailed, m_failCnt);
 				if (!m_storageFailed)
 					m_logger->info("Still unable to resend buffered data, leaving on resend queue.");
 				m_storageFailed = true;
 				m_storesFailed++;
+				m_logger->info("%s:%d: m_storageFailed=%s, m_storesFailed=%d, m_failCnt=%d", __FUNCTION__, __LINE__, m_storageFailed?"true":"false", m_storesFailed, m_failCnt);
 				m_failCnt++;
 				if (m_failCnt > 5)
 				{
@@ -734,10 +737,12 @@ void Ingest::processQueue()
 		{
 			if (m_storage.readingAppend(*m_data) == false)
 			{
+				m_logger->info("%s:%d: m_storageFailed=%s, m_storesFailed=%d", __FUNCTION__, __LINE__, m_storageFailed?"true":"false", m_storesFailed);
 				if (!m_storageFailed)
 					m_logger->warn("Failed to write readings to storage layer, queue for resend");
 				m_storageFailed = true;
 				m_storesFailed++;
+				m_logger->info("%s:%d: m_storageFailed=%s, m_storesFailed=%d", __FUNCTION__, __LINE__, m_storageFailed?"true":"false", m_storesFailed);
 				m_resendQueues.push_back(m_data);
 				m_data = NULL;
 				m_failCnt = 1;

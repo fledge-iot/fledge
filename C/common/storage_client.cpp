@@ -18,6 +18,7 @@
 #include <string>
 #include <sstream>
 #include <iostream>
+#include <fstream>
 #include <thread>
 #include <map>
 #include <string_utils.h>
@@ -40,6 +41,11 @@ using HttpClient = SimpleWeb::Client<SimpleWeb::HTTP>;
 // handles m_client_map access
 std::mutex sto_mtx_client_map;
 
+bool storage_service_restarted = false;
+std::ostringstream storage_service_urlbase;
+std::string storage_service_host;
+
+
 /**
  * Storage Client constructor
  */
@@ -49,7 +55,41 @@ StorageClient::StorageClient(const string& hostname, const unsigned short port) 
 	m_pid = getpid();
 	m_logger = Logger::getLogger();
 	m_urlbase << hostname << ":" << port;
+	m_logger->info("StorageClient c'tor 1: m_urlbase=%s", m_urlbase.str().c_str());
 }
+
+/**
+ * Storage Client constructor
+ */
+StorageClient::StorageClient(const string& hostname, const unsigned short port, std::map<std::thread::id, std::atomic<int>>* m) : m_streaming(false), m_management(NULL)
+{
+	m_host = hostname;
+	m_pid = getpid();
+	m_logger = Logger::getLogger();
+	m_urlbase << hostname << ":" << port;
+	m_logger->info("StorageClient c'tor 2: this=%p, m_urlbase=%s", this, m_urlbase.str().c_str());
+	
+	m_logger->info("StorageClient c'tor 2: current thread ID=%u, m=%p", std::this_thread::get_id(), m);
+
+	if (m)
+	{
+		PRINT_FUNC;
+		m_logger->info("StorageClient c'tor 2: BEFORE: m_seqnum_map.size()=%d", m->size());
+		PRINT_FUNC;
+		for (auto & i : *m)
+		{
+			PRINT_FUNC;
+			m_logger->info("StorageClient c'tor 2: thread ID=%u, seqNum=%d", i.first, i.second.load());
+			m_seqnum_map[i.first].store(i.second.load());
+		}
+		PRINT_FUNC;
+	}
+	PRINT_FUNC;
+	m_logger->info("StorageClient c'tor 2: AFTER: m_seqnum_map.size()=%d", m_seqnum_map.size());
+	PRINT_FUNC;
+	m_logger->info("StorageClient c'tor 2: LAST: this=%p, m_urlbase=%s", this, m_urlbase.str().c_str());
+}
+
 
 /**
  * Storage Client constructor
@@ -89,6 +129,8 @@ HttpClient *StorageClient::getHttpClient(void) {
 	std::map<std::thread::id, HttpClient *>::iterator item;
 	HttpClient *client;
 
+	m_logger->info("StorageClient::getHttpClient(): this=%p, m_urlbase=%s", this, m_urlbase.str().c_str());
+
 	std::thread::id thread_id = std::this_thread::get_id();
 
 	sto_mtx_client_map.lock();
@@ -97,9 +139,12 @@ HttpClient *StorageClient::getHttpClient(void) {
 	if (item  == m_client_map.end() ) {
 
 		// Adding a new HttpClient
+		m_logger->info("StorageClient::getHttpClient(): Instantiating a new HttpClient object: m_urlbase=%s", m_urlbase.str().c_str());
 		client = new HttpClient(m_urlbase.str());
 		m_client_map[thread_id] = client;
-		m_seqnum_map[thread_id].store(0);
+		m_logger->info("StorageClient::getHttpClient(): thread_id=%u, m_seqnum_map.count(thread_id)=%d", thread_id, m_seqnum_map.count(thread_id));
+		if(m_seqnum_map.count(thread_id) == 0)
+			m_seqnum_map[thread_id].store(0);
 		std::ostringstream ss;
 		ss << std::this_thread::get_id();
 	}
@@ -111,6 +156,38 @@ HttpClient *StorageClient::getHttpClient(void) {
 
 	return (client);
 }
+
+/**
+ * Handle storage service restart
+ */
+void StorageClient::handle_storage_service_restart()
+{
+	PRINT_FUNC;
+	if (storage_service_restarted)
+	{
+		storage_service_restarted = false;
+		for (auto & item : m_client_map)
+		{
+			delete item.second;
+		}
+		m_client_map.clear();
+		// m_seqnum_map.clear();
+		
+		m_host = storage_service_host;
+		m_urlbase.str("");
+		m_logger->info("StorageClient::handle_storage_service_restart(): this=%p, m_urlbase=%s", this, m_urlbase.str().c_str());
+		m_urlbase << storage_service_urlbase.str();
+		storage_service_urlbase.str("");
+		storage_service_host = "";
+
+		/* else
+		{
+			m_logger->fatal("Unable to connect to storage service even after restart, exiting...");
+			exit(1);
+		}*/
+	}
+}
+
 
 /**
  * Append a single reading
@@ -134,6 +211,7 @@ bool StorageClient::readingAppend(Reading& reading)
 		return false;
 	} catch (exception& ex) {
 		handleException(ex, "append reading");
+		handle_storage_service_restart();
 	}
 	return false;
 }
@@ -180,6 +258,8 @@ bool StorageClient::readingAppend(const vector<Reading *>& readings)
 		ss << m_pid << "#" << thread_id << "_" << m_seqnum_map[thread_id].load();
 		sto_mtx_client_map.unlock();
 
+		m_logger->info("ss=%s", ss.str().c_str());
+
 		SimpleWeb::CaseInsensitiveMultimap headers = {{"SeqNum", ss.str()}};
 
 #if INSTRUMENT
@@ -225,7 +305,9 @@ bool StorageClient::readingAppend(const vector<Reading *>& readings)
 		handleUnexpectedResponse("Append readings", res->status_code, resultPayload.str());
 		return false;
 	} catch (exception& ex) {
+		m_logger->info("Exception raised during 'append readings': %s", ex.what());
 		handleException(ex, "append readings");
+		handle_storage_service_restart();
 	}
 	return false;
 }
@@ -255,9 +337,11 @@ ResultSet *StorageClient::readingQuery(const Query& query)
 		handleUnexpectedResponse("Query readings", res->status_code, resultPayload.str());
 	} catch (exception& ex) {
 		handleException(ex, "query readings");
+		handle_storage_service_restart();
 		throw;
 	} catch (exception* ex) {
 		handleException(*ex, "query readings");
+		handle_storage_service_restart();
 		delete ex;
 		throw exception();
 	}
@@ -290,9 +374,11 @@ ReadingSet *StorageClient::readingQueryToReadings(const Query& query)
 		handleUnexpectedResponse("Query readings", res->status_code, resultPayload.str());
 	} catch (exception& ex) {
 		handleException(ex, "query readings");
+		handle_storage_service_restart();
 		throw;
 	} catch (exception* ex) {
 		handleException(*ex, "query readings");
+		handle_storage_service_restart();
 		delete ex;
 		throw exception();
 	}
@@ -328,9 +414,11 @@ ReadingSet *StorageClient::readingFetch(const unsigned long readingId, const uns
 		handleUnexpectedResponse("Fetch readings", res->status_code, resultPayload.str());
 	} catch (exception& ex) {
 		handleException(ex, "fetch readings");
+		handle_storage_service_restart();
 		throw;
 	} catch (exception* ex) {
 		handleException(*ex, "fetch readings");
+		handle_storage_service_restart();
 		delete ex;
 		throw exception();
 	}
@@ -361,9 +449,11 @@ PurgeResult StorageClient::readingPurgeByAge(unsigned long age, unsigned long se
 		handleUnexpectedResponse("Purge by age", res->status_code, resultPayload.str());
 	} catch (exception& ex) {
 		handleException(ex, "purge readings by age");
+		handle_storage_service_restart();
 		throw;
 	} catch (exception* ex) {
 		handleException(*ex, "purge readings by age");
+		handle_storage_service_restart();
 		delete ex;
 		throw exception();
 	}
@@ -393,9 +483,11 @@ PurgeResult StorageClient::readingPurgeBySize(unsigned long size, unsigned long 
 		}
 	} catch (exception& ex) {
 		handleException(ex, "purge readings by size");
+		handle_storage_service_restart();
 		throw;
 	} catch (exception* ex) {
 		handleException(*ex, "purge readings by size");
+		handle_storage_service_restart();
 		delete ex;
 		throw exception();
 	}
@@ -422,9 +514,11 @@ PurgeResult StorageClient::readingPurgeByAsset(const string& asset)
 		}
 	} catch (exception& ex) {
 		handleException(ex, "purge readings by size");
+		handle_storage_service_restart();
 		throw;
 	} catch (exception* ex) {
 		handleException(*ex, "purge readings by size");
+		handle_storage_service_restart();
 		delete ex;
 		throw exception();
 	}
@@ -470,9 +564,11 @@ ResultSet *StorageClient::queryTable(const std::string& schema, const std::strin
 		handleUnexpectedResponse("Query table", res->status_code, resultPayload.str());
 	} catch (exception& ex) {
 		handleException(ex, "query table %s", tableName.c_str());
+		handle_storage_service_restart();
 		throw;
 	} catch (exception* ex) {
 		handleException(*ex, "query table %s", tableName.c_str());
+		handle_storage_service_restart();
 		delete ex;
 		throw exception();
 	}
@@ -509,9 +605,11 @@ ReadingSet* StorageClient::queryTableToReadings(const std::string& tableName,
 		handleUnexpectedResponse("Query table", res->status_code, resultPayload.str());
 	} catch (exception& ex) {
 		handleException(ex, "query table %s to readings", tableName.c_str());
+		handle_storage_service_restart();
 		throw;
 	} catch (exception* ex) {
 		handleException(*ex, "query table %s to readings", tableName.c_str());
+		handle_storage_service_restart();
 		delete ex;
 		throw exception();
 	}
@@ -572,6 +670,7 @@ int StorageClient::insertTable(const string& schema, const string& tableName, co
 		handleUnexpectedResponse("Insert table", res->status_code, resultPayload.str());
 	} catch (exception& ex) {
 		handleException(ex, "insert into table %s", tableName.c_str());
+		handle_storage_service_restart();
 		throw;
 	}
 	return 0;
@@ -651,6 +750,7 @@ int StorageClient::updateTable(const string& schema, const string& tableName, co
 		handleUnexpectedResponse("Update table", tableName, res->status_code, resultPayload.str());
 	} catch (exception& ex) {
 		handleException(ex, "update table %s", tableName.c_str());
+		handle_storage_service_restart();
 		throw;
 	}
 	return -1;
@@ -730,6 +830,7 @@ int StorageClient::updateTable(const string& schema, const string& tableName, co
 		handleUnexpectedResponse("Update table", tableName, res->status_code, resultPayload.str());
 	} catch (exception& ex) {
 		handleException(ex, "update table %s", tableName.c_str());
+		handle_storage_service_restart();
 		throw;
 	}
 	return -1;
@@ -814,6 +915,7 @@ int StorageClient::updateTable(const string& schema, const string& tableName, ve
 		handleUnexpectedResponse("Update table", tableName, res->status_code, resultPayload.str());
 	} catch (exception& ex) {
 		handleException(ex, "update table %s", tableName.c_str());
+		handle_storage_service_restart();
 		throw;
 	}
 	return -1;
@@ -888,6 +990,7 @@ int StorageClient::updateTable(const string& schema, const string& tableName, co
 		handleUnexpectedResponse("Update table", tableName, res->status_code, resultPayload.str());
 	} catch (exception& ex) {
 		handleException(ex, "update table %s", tableName.c_str());
+		handle_storage_service_restart();
 		throw;
 	}
 	return -1;
@@ -957,6 +1060,7 @@ int StorageClient::updateTable(const string& schema, const string& tableName, co
 		handleUnexpectedResponse("Update table", tableName, res->status_code, resultPayload.str());
 	} catch (exception& ex) {
 		handleException(ex, "update table %s", tableName.c_str());
+		handle_storage_service_restart();
 		throw;
 	}
 	return -1;
@@ -1030,6 +1134,7 @@ int StorageClient::updateTable(const string& schema, const string& tableName, co
 		handleUnexpectedResponse("Update table", tableName, res->status_code, resultPayload.str());
 	} catch (exception& ex) {
 		handleException(ex, "update table %s", tableName.c_str());
+		handle_storage_service_restart();
 		throw;
 	}
 	return -1;
@@ -1090,6 +1195,7 @@ int StorageClient::deleteTable(const std::string& schema, const std::string& tab
 		handleUnexpectedResponse("Delete from table", tableName, res->status_code, resultPayload.str());
 	} catch (exception& ex) {
 		handleException(ex, "delete table date in %s", tableName.c_str());
+		handle_storage_service_restart();
 		throw;
 	}
 	return -1;
@@ -1152,6 +1258,7 @@ Document doc;
 bool StorageClient::registerAssetNotification(const string& assetName,
 					      const string& callbackUrl)
 {
+	m_logger->info("StorageClient::registerAssetNotification(): this=%p, m_urlbase=%s", this, m_urlbase.str().c_str());
 	try
 	{
 		ostringstream convert;
@@ -1179,6 +1286,7 @@ bool StorageClient::registerAssetNotification(const string& assetName,
 	} catch (exception& ex)
 	{
 		handleException(ex, "register asset '%s'", assetName.c_str());
+		handle_storage_service_restart();
 	}
 	return false;
 }
@@ -1194,6 +1302,7 @@ bool StorageClient::registerAssetNotification(const string& assetName,
 bool StorageClient::unregisterAssetNotification(const string& assetName,
 						const string& callbackUrl)
 {
+	PRINT_FUNC;
 	try
 	{
 		ostringstream convert;
@@ -1206,8 +1315,10 @@ bool StorageClient::unregisterAssetNotification(const string& assetName,
 							  convert.str());
 		if (res->status_code.compare("200 OK") == 0)
 		{
+			PRINT_FUNC;
 			return true;
 		}
+		PRINT_FUNC;
 		ostringstream resultPayload;
 		resultPayload << res->content.rdbuf();
 		handleUnexpectedResponse("Unregister asset",
@@ -1218,7 +1329,9 @@ bool StorageClient::unregisterAssetNotification(const string& assetName,
 		return false;
 	} catch (exception& ex)
 	{
+		PRINT_FUNC;
 		handleException(ex, "unregister asset '%s'", assetName.c_str());
+		// handle_storage_service_restart();
 	}
 	return false;
 }
@@ -1295,6 +1408,7 @@ bool StorageClient::openStream()
 		return false;
 	} catch (exception& ex) {
 		handleException(ex, "create reading stream");
+		handle_storage_service_restart();
 	}
 	m_logger->error("Fallen through!");
 	return false;
@@ -1498,17 +1612,87 @@ void StorageClient::handleException(const exception& ex, const char *operation, 
 	// Now implement some recovery strategies
 	if (m_lastException.compare("Connection refused") == 0)
 	{
+		m_logger->error("Storage client: got Connection refused exception, retrying connecting to storage service");
+		int tries = 0;
+		int max_tries = 30;
+		
 		// This is probably because the storage service has gone down
 		if (m_management)
 		{
-			// Get a handle on the storage layer
+			PRINT_FUNC;
 			ServiceRecord storageRecord("Fledge Storage");
-			if (!m_management->getService(storageRecord))
+			do
+			{
+				PRINT_FUNC;
+				system("ps -ef | grep fledge.services.storage | grep -v grep | wc -l > /tmp/storage_service_instance_count");
+				std::ifstream ifs("/tmp/storage_service_instance_count");
+  				std::string content( (std::istreambuf_iterator<char>(ifs) ),
+                       				 (std::istreambuf_iterator<char>() ));
+				unsigned long count = 0;
+				try
+				{
+					count = std::stoul (content, nullptr, 0);
+				} 
+				catch (exception& ex)
+				{
+	                const char *what = ex.what();
+	                Logger::getLogger()->error("%s:%d: stoul Exception: %s", __FUNCTION__, __LINE__, what);
+	        	}
+				Logger::getLogger()->info("%s:%d: storage_service_instance_count=%d", __FUNCTION__, __LINE__, count);
+				system("rm -f /tmp/storage_service_instance_count");
+				PRINT_FUNC;
+				if (count == 0)
+				{
+					tries++;
+					m_logger->info("Storage service is still down, tries=%d, waiting...", tries);
+					sleep(1);
+					continue;
+				}
+				else
+					m_logger->info("Storage service is running...");
+
+				PRINT_FUNC;
+				
+				// Get a handle on the storage layer
+				bool rv = m_management->getService(storageRecord);
+				Logger::getLogger()->info("%s:%d: rv=%d", __FUNCTION__, __LINE__, rv);
+				if (rv)
+				{
+					string svc;
+					storageRecord.asJSON(svc);
+					m_logger->info("Storage client: reconnecting to storage service in 10 secs : svc=%s", svc.c_str());
+					sleep(20);  // TODO: avoid this sleep for fixed duration
+					storage_service_restarted = true;
+					storage_service_urlbase.str("");
+					storage_service_urlbase << storageRecord.getAddress() << ":" << storageRecord.getPort();
+					storage_service_host = storageRecord.getAddress();
+					m_logger->info("Storage client: storage_service_restarted=true, storage_service_urlbase=%s, storage_service_host=%s",
+										storage_service_urlbase.str().c_str(), storage_service_host.c_str() );
+					return;
+				}
+				tries++;
+				m_logger->info("Storage client: Unable to reconnect to storage service, tries=%d", tries);
+				sleep(1);
+			}
+			while(tries < max_tries);
+			
+			if (tries >= max_tries)
 			{
 				m_logger->fatal("Unable to find a storage service from service registry, exiting...");
 				exit(1);
 			}
-			m_urlbase << storageRecord.getAddress() << ":" << storageRecord.getPort();
+			else
+			{
+				m_urlbase.str("");
+				m_logger->info("StorageClient::handleException(): this=%p, m_urlbase=%s", this, m_urlbase.str().c_str());
+				m_urlbase << storageRecord.getAddress() << ":" << storageRecord.getPort();
+				m_logger->info("Storage client: Re-connecting to Storage service @ %s", m_urlbase.str().c_str());
+
+				m_logger->info("Storage client: Deleting all HttpClient objects stored in the client map");
+
+				m_logger->info("Storage service was restarted, cannot complete ongoing request");
+				return;
+			}
 		}
 		if (m_exRepeat >= SC_INITIAL_BACKOFF * 2)
 		{
@@ -1536,6 +1720,7 @@ bool StorageClient::createSchema(const std::string& payload)
                 return false;
         } catch (exception& ex) {
                 handleException(ex, "post storage schema");
+                handle_storage_service_restart();
         }
         return false;
 }

@@ -47,18 +47,23 @@ ConfigHandler::configChange(const string& category, const string& config)
 {
 
 	m_logger->info("Configuration change notification for %s", category.c_str());
+	PRINT_FUNC;
 	std::unique_lock<std::mutex> lck(m_mutex);
 	pair<CONFIG_MAP::iterator, CONFIG_MAP::iterator> res = m_registrations.equal_range(category);
+	PRINT_FUNC;
 	for (CONFIG_MAP::iterator it = res.first; it != res.second; it++)
 	{
 		// The config change call could effect the registered handlers
 		// we therefore need to guard against the map changing
 		m_change = false;
 		lck.unlock();
+		PRINT_FUNC;
 		it->second->configChange(category, config);
+		PRINT_FUNC;
 		lck.lock();
 		if (m_change) // Something changed
 		{
+			PRINT_FUNC;
 			return;	// Call any other subscribers to this category. In reality there are no others
 		}
 	}

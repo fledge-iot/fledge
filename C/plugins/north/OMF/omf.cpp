@@ -1087,6 +1087,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 
 	// Create the class that deals with the linked data generation
 	OMFLinkedData linkedData(&m_containerSent, &m_assetSent, &m_linkSent, m_PIServerEndpoint);
+	linkedData.setFormats(getFormatType(OMF_TYPE_FLOAT), getFormatType(OMF_TYPE_INTEGER));
 
 	bool pendingSeparator = false;
 	ostringstream jsonData;

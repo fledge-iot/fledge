@@ -103,6 +103,25 @@ string OMFLinkedData::processReading(const Reading& reading, const string&  AFHi
 			{
 				needDelim = true;
 			}
+			string format;
+			if (hints)
+			{
+				const vector<OMFHint *> omfHints = hints->getHints(dpName);
+				for (auto hit = omfHints.cbegin(); hit != omfHints.cend(); hit++)
+				{
+					if (typeid(**hit) == typeid(OMFNumberHint))
+					{
+						format = (*hit)->getHint();
+						break;
+					}
+					if (typeid(**hit) == typeid(OMFIntegerHint))
+					{
+						format = (*hit)->getHint();
+						break;
+					}
+
+				}
+			}
 
 			// Create the link for the asset if not already created
 			string link = assetName + "_" + dpName;
@@ -110,7 +129,7 @@ string OMFLinkedData::processReading(const Reading& reading, const string&  AFHi
 			auto container = m_containerSent->find(link);
 			if (container == m_containerSent->end())
 			{
-				baseType = sendContainer(link, *it);
+				baseType = sendContainer(link, *it, format);
 				m_containerSent->insert(pair<string, string>(link, baseType));
 			}
 			else
@@ -159,9 +178,10 @@ string OMFLinkedData::processReading(const Reading& reading, const string&  AFHi
  *
  * @param linkName	The name to use for the container
  * @param dp		The datapoint to process
- * @param base_type	The base type linked inte contianer
+ * @param format	The format to use based on a hint, this may be empty
+ * @return	The base type linked in the container
  */
-string OMFLinkedData::sendContainer(string& linkName, Datapoint *dp)
+string OMFLinkedData::sendContainer(string& linkName, Datapoint *dp, const string& format)
 {
 	string baseType;
 	switch (dp->getData().getType())
@@ -170,15 +190,44 @@ string OMFLinkedData::sendContainer(string& linkName, Datapoint *dp)
 			baseType = "String";
 			break;
 		case DatapointValue::T_INTEGER:
-		case DatapointValue::T_FLOAT:
-			baseType = "Double";
+		{
+			string intFormat;
+			if (!format.empty())
+				intFormat = format;
+			else
+				intFormat = m_integerFormat;
+			if (intFormat.compare("int64") == 0)
+				baseType = "Integer64";
+			else if (intFormat.compare("int32") == 0)
+				baseType = "Integer32";
+			else if (intFormat.compare("int16") == 0)
+				baseType = "Integer16";
+			else if (intFormat.compare("uint64") == 0)
+				baseType = "UInteger64";
+			else if (intFormat.compare("uint32") == 0)
+				baseType = "UInteger32";
+			else if (intFormat.compare("uint16") == 0)
+				baseType = "UInteger16";
 			break;
+		}
+		case DatapointValue::T_FLOAT:
+		{
+			string doubleFormat;
+			if (!format.empty())
+				doubleFormat = format;
+			else
+				doubleFormat = m_doubleFormat;
+			if (doubleFormat.compare("float64") == 0)
+				baseType = "Double64";
+			else if (doubleFormat.compare("float32") == 0)
+				baseType = "Double32";
+			break;
+		}
 		default:
 			Logger::getLogger()->error("Unsupported type %s", dp->getData().getTypeStr());
 			// Not supported
 			return baseType;
 	}
-	// TODO handle configuration settings and hints around data types
 	
 	string container = "{ \"id\" : \"" + linkName;
 	container += "\", \"typeid\" : \"";

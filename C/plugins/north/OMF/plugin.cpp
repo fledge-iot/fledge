@@ -252,16 +252,18 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 		},
 		"formatInteger": {
 			"description": "OMF format property to apply to the type Integer",
-			"type": "string",
+			"type": "enumeration",
 			"default": "int64",
+			"options": ["int64", "int32", "int16", "uint64", "uint32", "uint16"],
 			"order": "13",
 			"group": "Formats & Types",
 			"displayName": "Integer Format"
 		},
 		"formatNumber": {
 			"description": "OMF format property to apply to the type Number",
-			"type": "string",
+			"type": "enumeration",
 			"default": "float64",
+			"options": ["float64", "float32"],
 			"order": "14",
 			"group": "Formats & Types",
 			"displayName": "Number Format"

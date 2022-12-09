@@ -41,13 +41,21 @@ class OMFLinkedData
 					m_containerSent(containerSent),
 					m_assetSent(assetSent),
 					m_linkSent(linkSent),
-					m_endpoint(PIServerEndpoint) {};
+					m_endpoint(PIServerEndpoint),
+       					m_doubleFormat("float64"),
+					m_integerFormat("int64")
+					{};
 		std::string 	processReading(const Reading& reading,
 				const std::string& DefaultAFLocation = std::string(),
 				OMFHints *hints = NULL);
 		bool		flushContainers(HttpSender& sender, const std::string& path, std::vector<std::pair<std::string, std::string> >& header);
+		void		setFormats(const std::string& doubleFormat, const std::string& integerFormat)
+				{
+					m_doubleFormat = doubleFormat;
+					m_integerFormat = integerFormat;
+				};
 	private:
-		std::string	sendContainer(std::string& link, Datapoint *dp);
+		std::string	sendContainer(std::string& link, Datapoint *dp, const std::string& format);
 		bool		isTypeSupported(DatapointValue& dataPoint)
 				{
 					switch (dataPoint.getType())
@@ -90,5 +98,7 @@ class OMFLinkedData
 		 * The set of containers to flush
 		 */
 		std::string				m_containers;
+		std::string				m_doubleFormat;
+		std::string				m_integerFormat;
 };
 #endif

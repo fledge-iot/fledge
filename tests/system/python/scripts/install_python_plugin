@@ -47,7 +47,7 @@ copy_file_and_requirement () {
         cp -r /tmp/${REPO_NAME}/python/fledge/plugins/${PLUGIN_TYPE}/${PLUGIN_NAME} $FLEDGE_ROOT/python/fledge/plugins/${PLUGIN_TYPE}/
     fi
     req_file=$(find /tmp/${REPO_NAME} -name requirement*.txt)
-    [ ! -z "${req_file}" ] && pip3 install --user -Ir ${req_file} ${USE_PIP_CACHE} || echo "No such external dependency needed for ${PLUGIN_NAME} plugin."
+    [ ! -z "${req_file}" ] && python3 -m pip install --user -Ir ${req_file} ${USE_PIP_CACHE} || echo "No such external dependency needed for ${PLUGIN_NAME} plugin."
 }
 
 clean

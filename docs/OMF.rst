@@ -56,7 +56,7 @@ Select PI Web API from the Endpoint options.
    - **Number Format:** Used to match Fledge data types to the data type configured in PI. The default is float64 but may be set to any OMF datatype that supports floating point values.
    - **Compression:** Compress the readings data before sending them to the PI Web API OMF endpoint.
      This setting is not related to data compression in the PI Data Archive.
-   - **Complex Types:** Used to force the plugin to send OMF data types as complex tyes rather than the newer linked types. Linked types are the default way to send data and allows assets to have different sets of data points in different readings.
+   - **Complex Types:** Used to force the plugin to send OMF data types as complex types rather than the newer linked types. Linked types are the default way to send data and allows assets to have different sets of data points in different readings. See :ref:`Linked_Types`.
 
 Edge Data Store OMF Endpoint
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -467,7 +467,7 @@ that adds this hint to ensure this is the case.
 
 .. note::
 
-   Tis hint only has meaning when usign the complex type legacy mode with this plugin.
+   This hint only has meaning when using the complex type legacy mode with this plugin.
 
 Tag Name Hint
 ~~~~~~~~~~~~~
@@ -487,7 +487,7 @@ Use legacy style complex types for this reading rather that the newer linked dat
 
    "OMFHint" : { "LegacyType" : "true" }
 
-The allows the older mechanism to be foreced for a single asset.
+The allows the older mechanism to be forced for a single asset. See :ref:`Linked_Types`.
 
 Datapoint Specific Hint
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -540,3 +540,13 @@ An OMF Hint is implemented as a string data point on a reading with
 the data point name of *OMFHint*. It can be added at any point in the
 processing of the data, however a specific plugin is available for adding
 the hints, the |OMFHint filter plugin|.
+
+.. _Linked_Types:
+
+Linked Types
+------------
+
+Versions of this plugin prior to 2.1.0 created a complex type within OMF for each asset that included all of the data points within that asset. This suffered from a limitation in that readings had to contain values for all of the data points of an asset in order to be accepted by the OMF end point. Following the introduction of OMF version 1.2 it was possible to use the linking features of OMF to avoid the need to create complex types for an asset and instead create empty assets and link the data points to this shell asset. This allows readings to only contain a subset of datapoints and still be successfully sent to the PI Server, or other end points.
+
+As of version 2.1.0 this linking approach is used for all new assets created, if assets exist within the PI Server from versions of the plugin prior to 2.1.0 then the older, complex types will be used. It is possible to force the plugin to use complex types for all assets, both old and new, using the configuration option. It is also to force a particular asset to use the complex type mechanism using an OMFHint.
+

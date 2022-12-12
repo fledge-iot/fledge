@@ -246,9 +246,9 @@ string OMFLinkedData::sendContainer(string& linkName, Datapoint *dp, const strin
 }
 
 /**
- * Flush the container defintions that have been built up
+ * Flush the container definitions that have been built up
  *
- * @return 	true if the containers where succesfully flished
+ * @return 	true if the containers where succesfully flushed
  */
 bool OMFLinkedData::flushContainers(HttpSender& sender, const string& path, vector<pair<string, string> >& header)
 {

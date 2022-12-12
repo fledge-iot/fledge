@@ -19,13 +19,13 @@
  * A reading is formatted with OMF specifications using the linked
  * type creation scheme supported for OMF Version 1.2 onwards.
  *
- * This is based on the new mechanism discussed at AvevaWorld 2022 and
- * the mechanism is detail in the Google Doc,
+ * This is based on the new mechanism discussed at Aveva World 2022 and
+ * the mechanism is detailed in the Google Doc,
  * https://docs.google.com/document/d/1w0e7VRqX7xzc0lEBLq-sYhgaHE0ABasOa6EC9dJMrMs/edit
  *
- * The principle is to use links to contianers in OMF with each contianer beign a single
+ * The principle is to use links to containers in OMF with each container being a single
  * data point in the asset. There are no specific types for the assets, they share a set
- * of base tyoes vis these links. This should allow for readings that have different sets
+ * of base types via these links. This should allow for readings that have different sets
  * of datapoints for each asset.
  *
  * It is also a goal of this mechanism to move away from the need to persist state data

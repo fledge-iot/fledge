@@ -395,7 +395,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"type": "boolean",
 			"default": "false",
 			"order": "29",
-			"group": "Formats & Tyes",
+			"group": "Formats & Types",
 			"displayName": "Complex Types"
 		}
 	}
@@ -874,7 +874,7 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 	// Check if the endpoint is PI Web API and if the PI Web API server is available
 	if (!IsPIWebAPIConnected(connInfo, version))
 	{
-		Logger::getLogger()->fatal("OMF Endpoint is not avialable");
+		Logger::getLogger()->fatal("OMF Endpoint is not available");
 		return 0;
 	}
 

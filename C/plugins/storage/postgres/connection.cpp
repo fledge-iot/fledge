@@ -443,6 +443,13 @@ SQLBuffer	jsonConstraints;	// Extra constraints to add to where clause
 								sql.append("\"");
 								sql.append((*itr)["column"].GetString());
 								sql.append("\"");
+								Logger::getLogger()->info("itr->HasMember(\"timezone\")=%s", itr->HasMember("timezone")?"True":"False");
+								if (itr->HasMember("timezone") && (*itr)["timezone"].IsString())
+								{
+									sql.append(" AT TIME ZONE '");
+									sql.append((*itr)["timezone"].GetString());
+									sql.append("' ");
+								}
 								sql.append(", '");
 								sql.append((*itr)["format"].GetString());
 								sql.append("')");

@@ -19,7 +19,7 @@
  * A reading is formatted with OMF specifications using the linked
  * type creation scheme supported for OMF Version 1.2 onwards.
  *
- * This is based on the new mechanism discussed at Aveva World 2022 and
+ * This is based on the new mechanism discussed at AVEVA World 2022 and
  * the mechanism is detailed in the Google Doc,
  * https://docs.google.com/document/d/1w0e7VRqX7xzc0lEBLq-sYhgaHE0ABasOa6EC9dJMrMs/edit
  *

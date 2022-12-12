@@ -946,7 +946,7 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 		connInfo->sender->setOCSToken  (connInfo->OCSToken);
 	}
 
-	// Allocate the OMF class that impolements the PI Server data protocol
+	// Allocate the OMF class that implements the PI Server data protocol
 	connInfo->omf = new OMF(*connInfo->sender,
 				connInfo->path,
 				connInfo->assetsDataTypes,

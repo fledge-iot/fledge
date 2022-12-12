@@ -124,7 +124,7 @@ string OMFLinkedData::processReading(const Reading& reading, const string&  AFHi
 			}
 
 			// Create the link for the asset if not already created
-			string link = assetName + "_" + dpName;
+			string link = assetName + "." + dpName;
 			string baseType;
 			auto container = m_containerSent->find(link);
 			if (container == m_containerSent->end())

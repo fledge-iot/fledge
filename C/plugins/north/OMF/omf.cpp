@@ -1324,6 +1324,17 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			outData = linkedData.processReading(*reading, AFHierarchyPrefix, hints);
 			if (asset_sent == m_assetSent.end())
 			{
+				// If the hierarchy has not already been sent then send it
+				if (! AFHierarchySent)
+				{
+					if (!handleAFHierarchy())
+					{
+						m_lastError = true;
+						return 0;
+					}
+					AFHierarchySent = true;
+				}
+
 				string af = createAFLinks(*reading, hints);
 				if (! af.empty())
 				{

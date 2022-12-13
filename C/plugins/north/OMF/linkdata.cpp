@@ -231,7 +231,8 @@ string OMFLinkedData::sendContainer(string& linkName, Datapoint *dp, const strin
 	}
 
 	string dataSource = "Fledge";
-	string uom;
+	string uom, minimum, maximum, interpolation;
+	bool propertyOverrides = false;
 
 
 	if (hints)
@@ -255,6 +256,22 @@ string OMFLinkedData::sendContainer(string& linkName, Datapoint *dp, const strin
 			if (typeid(**it) == typeid(OMFUOMHint))
 			{
 				uom = (*it)->getHint();
+				propertyOverrides = true;
+			}
+			if (typeid(**it) == typeid(OMFMinimumHint))
+			{
+				minimum = (*it)->getHint();
+				propertyOverrides = true;
+			}
+			if (typeid(**it) == typeid(OMFMaximumHint))
+			{
+				maximum = (*it)->getHint();
+				propertyOverrides = true;
+			}
+			if (typeid(**it) == typeid(OMFInterpolationHint))
+			{
+				interpolation = (*it)->getHint();
+				propertyOverrides = true;
 			}
 		}
 	}
@@ -266,12 +283,40 @@ string OMFLinkedData::sendContainer(string& linkName, Datapoint *dp, const strin
 	container += dp->getName();
 	container += "\", \"datasource\" : \"" + dataSource + "\"";
 
-	if (!uom.empty())
+	if (propertyOverrides)
 	{
 		container += ", \"propertyoverrides\" : {";
-		container += "\"uom\" : \"";
-		container += uom;
-		container += "\" }";
+		string delim = "";
+		if (!uom.empty())
+		{
+			delim = ",";
+			container += "\"uom\" : \"";
+			container += uom;
+			container += "\"";
+		}
+		if (!minimum.empty())
+		{
+			container += delim;
+			delim = ",";
+			container += "\"minimum\" : ";
+			container += minimum;
+		}
+		if (!maximum.empty())
+		{
+			container += delim;
+			delim = ",";
+			container += "\"maximum\" : ";
+			container += maximum;
+		}
+		if (!interpolation.empty())
+		{
+			container += delim;
+			delim = ",";
+			container += "\"interpolation\" : \"";
+			container += interpolation;
+			container += "\"";
+		}
+		container += "}";
 	}
 	container += "}";
 

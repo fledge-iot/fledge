@@ -146,6 +146,10 @@ OMFHints::OMFHints(const string& hints)
 			{
 				m_hints.push_back(new OMFLegacyTypeHint(itr->value.GetString()));
 			}
+			else if (strcmp(name, "source") == 0)
+			{
+				m_hints.push_back(new OMFSourceHint(itr->value.GetString()));
+			}
 			else if (strcmp(name, "datapoint") == 0)
 			{
 				const Value &child = itr->value;
@@ -179,6 +183,37 @@ OMFHints::OMFHints(const string& hints)
 								else if (strcmp(name, "tag") == 0)
 								{
 									hints.push_back(new OMFTagHint(dpitr->value.GetString()));
+								}
+								else if (strcmp(name, "uom") == 0)
+								{
+									hints.push_back(new OMFUOMHint(dpitr->value.GetString()));
+								}
+								else if (strcmp(name, "source") == 0)
+								{
+									hints.push_back(new OMFSourceHint(dpitr->value.GetString()));
+								}
+								else if (strcmp(name, "minimum") == 0)
+								{
+									hints.push_back(new OMFMinimumHint(dpitr->value.GetString()));
+								}
+								else if (strcmp(name, "maximum") == 0)
+								{
+									hints.push_back(new OMFMaximumHint(dpitr->value.GetString()));
+								}
+								else if (strcmp(name, "interpolation") == 0)
+								{
+									string interpolation = dpitr->value.GetString();
+									if (interpolation.compare("continuous")
+											&& interpolation.compare("discrete")
+										       && interpolation.compare("stepwisecontinuousleading")
+										       && interpolation.compare("stepwisecontinuousfollowing"))
+									{
+										Logger::getLogger()->warn("Invalid value for interpolation hint for %s, only continuous, discrete, stepwisecontinuousleading, and stepwisecontinuousfollowing are supported", dpname.c_str());
+									}
+									else
+									{
+										hints.push_back(new OMFInterpolationHint(interpolation));
+									}
 								}
 							}
 							m_datapointHints.insert(std::pair<string,vector<OMFHint *>>(dpname, hints));

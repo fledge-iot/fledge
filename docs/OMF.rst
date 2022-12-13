@@ -489,6 +489,16 @@ Use legacy style complex types for this reading rather that the newer linked dat
 
 The allows the older mechanism to be forced for a single asset. See :ref:`Linked_Types`.
 
+Source Hint
+~~~~~~~~~~~
+
+The default data source that is associated with tags in the PI Server is Fledge, however this can be overridden using the data source hint. This hint may be applied to the entire asset or to specific datapoints within the asset.
+
+.. code-block:: console
+
+   "OMFHint" : { "source" : "Fledge23" }
+
+
 Datapoint Specific Hint
 ~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -532,6 +542,45 @@ Note the following when defining an *AFLocation* hint:
   *Note that PI System Explorer does not have the traditional Cut function for AF Elements*.
 - If you move a Container, OMF North will not recreate it.
   If you then edit the AF Location hint, the Container will appear in the new location.
+
+Unit Of Measure Hint
+~~~~~~~~~~~~~~~~~~~~
+
+A unit of measure, or uom hint is used to associate one of the units of
+measurement defined within your PI Server with a particular data point
+within an asset.
+
+.. code-block:: console
+
+   "OMFHint"  : { "datapoint" : { "name" : "height:, "uom" : "meter" } }
+
+Minimum Hint
+~~~~~~~~~~~~
+
+A minimum hint is used to associate a minimum value in the PI Point created for a data point.
+
+.. code-block:: console
+
+   "OMFHint"  : { "datapoint" : { "name" : "height:, "minimum" : "0" } }
+
+Maximum Hint
+~~~~~~~~~~~~
+
+A maximum hint is used to associate a maximum value in the PI Point created for a data point.
+
+.. code-block:: console
+
+   "OMFHint"  : { "datapoint" : { "name" : "height:, "maximum" : "100000" } }
+
+Interpolation
+~~~~~~~~~~~~~
+
+The interpolation hint sets the interpolation value used within the PI Server, interpolation values supported are continuous, discrete, stepwisecontinuousleading, and stepwisecontinuousfollowing.
+
+.. code-block:: console
+
+   "OMFHint"  : { "datapoint" : { "name" : "height:, "interpolation" : "continuous" } }
+
 
 Adding OMF Hints
 ~~~~~~~~~~~~~~~~

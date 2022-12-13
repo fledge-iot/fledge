@@ -129,7 +129,7 @@ string OMFLinkedData::processReading(const Reading& reading, const string&  AFHi
 			auto container = m_containerSent->find(link);
 			if (container == m_containerSent->end())
 			{
-				baseType = sendContainer(link, *it, format);
+				baseType = sendContainer(link, *it, format, hints);
 				m_containerSent->insert(pair<string, string>(link, baseType));
 			}
 			else
@@ -179,9 +179,10 @@ string OMFLinkedData::processReading(const Reading& reading, const string&  AFHi
  * @param linkName	The name to use for the container
  * @param dp		The datapoint to process
  * @param format	The format to use based on a hint, this may be empty
+ * @param hints		Hints related to this asset
  * @return	The base type linked in the container
  */
-string OMFLinkedData::sendContainer(string& linkName, Datapoint *dp, const string& format)
+string OMFLinkedData::sendContainer(string& linkName, Datapoint *dp, const string& format, OMFHints * hints)
 {
 	string baseType;
 	switch (dp->getData().getType())
@@ -228,13 +229,51 @@ string OMFLinkedData::sendContainer(string& linkName, Datapoint *dp, const strin
 			// Not supported
 			return baseType;
 	}
+
+	string dataSource = "Fledge";
+	string uom;
+
+
+	if (hints)
+	{
+		const vector<OMFHint *> omfHints = hints->getHints();
+		for (auto it = omfHints.cbegin(); it != omfHints.end(); it++)
+		{
+			if (typeid(**it) == typeid(OMFSourceHint))
+			{
+				dataSource = (*it)->getHint();
+			}
+		}
+
+		const vector<OMFHint *> dpHints = hints->getHints(dp->getName());
+		for (auto it = dpHints.cbegin(); it != dpHints.end(); it++)
+		{
+			if (typeid(**it) == typeid(OMFSourceHint))
+			{
+				dataSource = (*it)->getHint();
+			}
+			if (typeid(**it) == typeid(OMFUOMHint))
+			{
+				uom = (*it)->getHint();
+			}
+		}
+	}
 	
 	string container = "{ \"id\" : \"" + linkName;
 	container += "\", \"typeid\" : \"";
 	container += baseType;
 	container += "\", \"name\" : \"";
 	container += dp->getName();
-	container += "\", \"datasource\" : \"Fledge\" }";
+	container += "\", \"datasource\" : \"" + dataSource + "\"";
+
+	if (!uom.empty())
+	{
+		container += ", \"propertyoverrides\" : {";
+		container += "\"uom\" : \"";
+		container += uom;
+		container += "\" }";
+	}
+	container += "}";
 
 	Logger::getLogger()->debug("Built container: %s", container.c_str());
 

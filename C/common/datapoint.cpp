@@ -360,11 +360,11 @@ int bscount = 0;
  * @param json : string json 
  * @return vector of datapoints
 */
-std::vector<Datapoint*>* Datapoint::parseJson(std::string json) {
+std::vector<Datapoint*> *Datapoint::parseJson(const std::string& json) {
 	
 	rapidjson::Document document;
 
-    const auto & parseResult = document.Parse(const_cast<char*>(json.c_str()));
+    const auto& parseResult = document.Parse(json.c_str());
     if (parseResult.HasParseError()) {
         Logger::getLogger()->fatal("Parsing error %d (%s).", parseResult.GetParseError(), json.c_str());
         printf("Parsing error %d (%s).", parseResult.GetParseError(), json.c_str());
@@ -383,14 +383,11 @@ std::vector<Datapoint*>* Datapoint::parseJson(std::string json) {
  * @param document : object rapidjon 
  * @return vector of datapoints
 */
-std::vector<Datapoint*> * Datapoint::recursiveJson(const rapidjson::Value & document) {
-	std::vector<Datapoint*> * p = new std::vector<Datapoint*>();
+std::vector<Datapoint*> *Datapoint::recursiveJson(const rapidjson::Value& document) {
+	auto p = new std::vector<Datapoint*>();
 
 	for (rapidjson::Value::ConstMemberIterator itr = document.MemberBegin(); itr != document.MemberEnd(); ++itr)
-	{
-		Logger::getLogger()->debug("Type of member %s is %d",
-			itr->name.GetString(), itr->value.GetType());
-        
+	{       
 		if (itr->value.IsObject()) {
 			std::vector<Datapoint*> * vec = recursiveJson(itr->value);
 			DatapointValue d(vec, true);

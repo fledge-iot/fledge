@@ -26,6 +26,7 @@
 
 # Include common code
 source "${FLEDGE_ROOT}/scripts/common/get_storage_plugin.sh"
+source "${FLEDGE_ROOT}/scripts/common/get_readings_plugin.sh"
 
 PLUGIN_TO_USE=""
 
@@ -40,6 +41,7 @@ storage_log() {
 
 
 PLUGIN_TO_USE=`get_storage_plugin`
+READINGS_PLUGIN_TO_USE=`get_readings_plugin`
 if [[ "${#PLUGIN_TO_USE}" -eq 0 ]]; then
     storage_log "err" "Missing plugin from Fledge storage service" "all" "pretty"
 fi
@@ -54,8 +56,39 @@ if [[ ! -x "$PLUGIN_SCRIPT" ]]; then
 
 fi
 
-# Pass action in $1 and FLEDGE_VERSION in $2
-source "$PLUGIN_SCRIPT" $1 $2
+# The reset must be executed on both the storage and readings plugins, if the
+# readings are stored in a different plugin. On the readings plugin this becomes
+# a purge operation.
+#
+# The purge action is only executed via the readings plugin if defined, or
+# the main storage plugin is not defined.
+
+if [[ "$1" == "reset" ]] ; then
+	# Pass action in $1 and FLEDGE_VERSION in $2
+	source "$PLUGIN_SCRIPT" $1 $2
+
+	if [[ "$PLUGIN_TO_USE" != "$READINGS_PLUGIN_TO_USE" ]]; then
+		READINGS_SCRIPT="$FLEDGE_ROOT/scripts/plugins/storage/$READINGS_PLUGIN_TO_USE.sh"
+		if [[ -x "$READINGS_SCRIPT" ]]; then
+			source "$READINGS_SCRIPT" purge $2
+		fi
+	fi
+elif [[ "$1" == "purge" ]]; then
+	# Pass action in $1 and FLEDGE_VERSION in $2
+
+	if [[ "$PLUGIN_TO_USE" != "$READINGS_PLUGIN_TO_USE" ]]; then
+		READINGS_SCRIPT="$FLEDGE_ROOT/scripts/plugins/storage/$READINGS_PLUGIN_TO_USE.sh"
+		# Soem readings plugins, notably sqlitememory, do not have a script
+		if [[ -x "$READINGS_SCRIPT" ]]; then
+		    source "$READINGS_SCRIPT" $1 $2
+	        fi
+	else
+		source "$PLUGIN_SCRIPT" $1 $2
+	fi
+else
+	# Pass any other operation to the storage plugin
+	source "$PLUGIN_SCRIPT" $1 $2
+fi
 
 # exit cannot be used because the script is sourced.
 #exit $?

@@ -170,6 +170,7 @@ async def validate_requests(request):
            - service (GET call)
            - statistics, statistics history, statistics rate (GET call)
            - user profile (GET call)
+           - roles (GET call)
            - change password (PUT call)
            - logout (PUT call)
     """
@@ -181,7 +182,7 @@ async def validate_requests(request):
     elif int(request.user["role_id"]) == 4:
         if request.method == 'GET':
             supported_endpoints = ['/fledge/asset', '/fledge/ping', '/fledge/statistics',
-                                   '/fledge/user?id={}'.format(user_id)]
+                                   '/fledge/user?id={}'.format(user_id), '/fledge/user/role']
             if not (str(request.rel_url).startswith(tuple(supported_endpoints)
                                                     ) or str(request.rel_url).endswith('/fledge/service')):
                 raise web.HTTPForbidden

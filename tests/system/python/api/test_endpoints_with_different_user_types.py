@@ -249,7 +249,7 @@ class TestAPIEndpointsWithDataViewUserType:
         ("GET", "/fledge/health/storage", 403), ("GET", "/fledge/health/logging", 403),
         # user & roles
         ("GET", "/fledge/user", 403), ("PUT", "/fledge/user", 403), ("PUT", "/fledge/user/1/password", 403),
-        ("PUT", "/fledge/user/4/password", 500), ("GET", "/fledge/user/role", 403),
+        ("PUT", "/fledge/user/4/password", 500), ("GET", "/fledge/user/role", 200),
         # auth
         ("POST", "/fledge/login", 403), ("PUT", "/fledge/31/logout", 401),
         ("GET", "/fledge/auth/ott", 403),

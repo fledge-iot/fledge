@@ -56,7 +56,7 @@ Test Prerequisites
 
 Install the following prerequisites to run a System test ::
 
-   pip3 install pytest
+   python3 -m pip install pytest
 
 Also, Fledge must have:
 

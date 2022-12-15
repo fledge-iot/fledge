@@ -521,13 +521,14 @@ datapoint item.
 .. code-block:: console
 
    "OMFHint"  : { "datapoint" : [
-        { "name" : "voltage:, "number" : "float32", "uom" : "volt" } }
-        { "name" : "current:, "number" : "uint32", "uom" : "milliampere } }
+        { "name" : "voltage:, "number" : "float32", "uom" : "volt" },
+        { "name" : "current:, "number" : "uint32", "uom" : "milliampere }
         ]
+   }
 
 The example above attaches a number hint to both the volatage and current
 datapoints and to the current datapoint it assigns a unit of measure
-of miiliamepere, the unit of measure for the voltage is set to be volts.
+of milliamepere, the unit of measure for the voltage is set to be volts.
 
 Asset Framework Location Hint
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

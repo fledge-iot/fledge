@@ -285,7 +285,9 @@ string OMFLinkedData::sendContainer(string& linkName, Datapoint *dp, const strin
 
 	if (propertyOverrides)
 	{
-		container += ", \"propertyoverrides\" : {";
+		container += ", \"propertyoverrides\" : { \"";
+		container += baseType;
+		container += "\" : {";
 		string delim = "";
 		if (!uom.empty())
 		{
@@ -316,7 +318,7 @@ string OMFLinkedData::sendContainer(string& linkName, Datapoint *dp, const strin
 			container += interpolation;
 			container += "\"";
 		}
-		container += "}";
+		container += "} }";
 	}
 	container += "}";
 

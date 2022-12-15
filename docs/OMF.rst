@@ -514,6 +514,21 @@ to apply.
 The above hint applies to the datapoint *voltage* in the asset and
 applies a *number format* hint to that datapoint.
 
+If more than one datapoint within a reading is required to have OMF hints
+attached to them this may be done by using an array as a child of the
+datapoint item.
+
+.. code-block:: console
+
+   "OMFHint"  : { "datapoint" : [
+        { "name" : "voltage:, "number" : "float32", "uom" : "volt" } }
+        { "name" : "current:, "number" : "uint32", "uom" : "milliampere } }
+        ]
+
+The example above attaches a number hint to both the volatage and current
+datapoints and to the current datapoint it assigns a unit of measure
+of miiliamepere, the unit of measure for the voltage is set to be volts.
+
 Asset Framework Location Hint
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

@@ -384,7 +384,7 @@ std::vector<Datapoint*> *Datapoint::parseJson(const std::string& json) {
  * @return vector of datapoints
 */
 std::vector<Datapoint*> *Datapoint::recursiveJson(const rapidjson::Value& document) {
-	auto p = new std::vector<Datapoint*>();
+	std::vector<Datapoint*>* p = new std::vector<Datapoint*>();
 
 	for (rapidjson::Value::ConstMemberIterator itr = document.MemberBegin(); itr != document.MemberEnd(); ++itr)
 	{       

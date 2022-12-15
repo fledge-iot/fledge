@@ -350,6 +350,14 @@ Connection::Connection()
 			connectErrorTime = time(0);
 		}
 	}
+	
+	logSQL("Set", "session time zone 'UTC' ");
+	PGresult *res = PQexec(dbConnection, " set session time zone 'UTC' ");
+	if (PQresultStatus(res) != PGRES_COMMAND_OK)
+	{
+		Logger::getLogger()->error("set session time zone failed: %s", PQerrorMessage(dbConnection));
+	}
+	PQclear(res);
 }
 
 /**

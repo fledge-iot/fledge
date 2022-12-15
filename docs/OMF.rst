@@ -526,9 +526,9 @@ datapoint item.
         ]
    }
 
-The example above attaches a number hint to both the volatage and current
-datapoints and to the current datapoint it assigns a unit of measure
-of milliamepere, the unit of measure for the voltage is set to be volts.
+The example above attaches a number hint to both the voltage and current
+datapoints and to the current datapoint. It assigns a unit of measure
+of milliampere. The unit of measure for the voltage is set to be volts.
 
 Asset Framework Location Hint
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

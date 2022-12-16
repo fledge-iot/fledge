@@ -43,7 +43,7 @@ Select PI Web API from the Endpoint options.
    - **Asset Framework Hierarchies Rules:** A set of rules that allow specific readings to be placed elsewhere in the Asset Framework. These rules can be based on the name of the asset itself or some metadata associated with the asset. See `Asset Framework Hierarchy Rules`_.
 - PI Web API authentication
    - **PI Web API Authentication Method:** The authentication method to be used: anonymous, basic or kerberos.
-     Anonymous equates to no authentication, basic authentication requires a user name and password, and Kerberos allows integration with your single signon environment.
+     Anonymous equates to no authentication, basic authentication requires a user name and password, and Kerberos allows integration with your Single Sign-On environment.
    - **PI Web API User Id:**  For Basic authentication, the user name to authenticate with the PI Web API.
    - **PI Web API Password:** For Basic authentication, the password of the user we are using to authenticate.
    - **PI Web API Kerberos keytab file:** The Kerberos keytab file used to authenticate.
@@ -98,7 +98,7 @@ The second screen will request the following information:
 | |omf_plugin_adh_config| |
 +-------------------------+
 
-Select AVEVA Data Hubfrom the Endpoint options.
+Select AVEVA Data Hub from the Endpoint options.
 
 - Basic Information
    - **Endpoint:** This is the type of OMF endpoint. In this case, choose AVEVA Data Hub.

@@ -95,7 +95,8 @@ set_target_properties(plugins-common-lib PROPERTIES SOVERSION 1)
 set(LIB_NAME OMF)
 file(GLOB OMF_LIB_SOURCES
         ../../../C/plugins/north/OMF/omf.cpp
-        ../../../C/plugins/north/OMF/omfhints.cpp)
+        ../../../C/plugins/north/OMF/omfhints.cpp
+	../../../C/plugins/north/OMF/linkdata.cpp)
 
 add_library(${LIB_NAME}  SHARED ${OMF_LIB_SOURCES})
 target_link_libraries(${LIB_NAME}

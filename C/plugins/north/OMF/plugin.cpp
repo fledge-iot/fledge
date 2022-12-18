@@ -131,6 +131,20 @@ enum OMF_ENDPOINT_PORT {
 	}                                                                     \
 )
 
+/*
+ * Note that the properties "group" is used to group related items, these will appear in different tabs,
+ * using the group name, in the GUI.
+ *
+ * This GUI functionality has yet to be implemented.
+ *
+ * Current groups used are
+ *	"Authentication"	Items relating to authentication with the endpoint
+ *	"Connection"		Connection tuning items
+ *	"Formats & Types"	Controls for the way formats and tyoes are defined
+ *	"Asset Framework"	Asset framework configuration items
+ *	"Cloud"			Things related to OCS or ADH only
+ *	"Advanced"		Adds to the Advanced tab that already exists
+ */
 const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 	{
 		"plugin": {
@@ -194,6 +208,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"default": "omf_north_0001",
 			"order": "7",
 			"displayName": "Producer Token",
+			"group" : "Authentication",
 			"validity" : "PIServerEndpoint == \"Connector Relay\""
 		},
 		"source": {
@@ -216,6 +231,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"type": "integer",
 			"default": "1",
 			"order": "10",
+			"group": "Connection",
 			"displayName": "Sleep Time Retry"
 		},
 		"OMFMaxRetry": {
@@ -223,6 +239,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"type": "integer",
 			"default": "3",
 			"order": "11",
+			"group": "Connection",
 			"displayName": "Maximum Retry"
 		},
 		"OMFHttpTimeout": {
@@ -230,20 +247,25 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"type": "integer",
 			"default": "10",
 			"order": "12",
+			"group": "Connection",
 			"displayName": "HTTP Timeout"
 		},
 		"formatInteger": {
 			"description": "OMF format property to apply to the type Integer",
-			"type": "string",
+			"type": "enumeration",
 			"default": "int64",
+			"options": ["int64", "int32", "int16", "uint64", "uint32", "uint16"],
 			"order": "13",
+			"group": "Formats & Types",
 			"displayName": "Integer Format"
 		},
 		"formatNumber": {
 			"description": "OMF format property to apply to the type Number",
-			"type": "string",
+			"type": "enumeration",
 			"default": "float64",
+			"options": ["float64", "float32"],
 			"order": "14",
+			"group": "Formats & Types",
 			"displayName": "Number Format"
 		},
 		"compression": {
@@ -251,6 +273,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"type": "boolean",
 			"default": "true",
 			"order": "15",
+			"group": "Connection",
 			"displayName": "Compression"
 		},
 		"DefaultAFLocation": {
@@ -259,6 +282,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"default": "/fledge/data_piwebapi/default",
 			"order": "16",
 			"displayName": "Default Asset Framework Location",
+			"group" : "Asset Framework",
 			"validity" : "PIServerEndpoint == \"PI Web API\""
 		},
 		"AFMap": {
@@ -266,6 +290,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"type": "JSON",
 			"default": AF_HIERARCHY_RULES,
 			"order": "17",
+			"group" : "Asset Framework",
 			"displayName": "Asset Framework hierarchy rules",
 			"validity" : "PIServerEndpoint == \"PI Web API\""
 
@@ -291,6 +316,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"options":["anonymous", "basic", "kerberos"],
 			"default": "anonymous",
 			"order": "20",
+			"group": "Authentication",
 			"displayName": "PI Web API Authentication Method",
 			"validity" : "PIServerEndpoint == \"PI Web API\""
 		},
@@ -299,6 +325,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"type": "string",
 			"default": "user_id",
 			"order": "21",
+			"group": "Authentication",
 			"displayName": "PI Web API User Id",
 			"validity" : "PIServerEndpoint == \"PI Web API\" && PIWebAPIAuthenticationMethod == \"basic\""
 		},
@@ -307,6 +334,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"type": "password",
 			"default": "password",
 			"order": "22" ,
+			"group": "Authentication",
 			"displayName": "PI Web API Password",
 			"validity" : "PIServerEndpoint == \"PI Web API\" && PIWebAPIAuthenticationMethod == \"basic\""
 		},
@@ -315,6 +343,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"type": "string",
 			"default": "piwebapi_kerberos_https.keytab",
 			"order": "23" ,
+			"group": "Authentication",
 			"displayName": "PI Web API Kerberos keytab file",
 			"validity" : "PIServerEndpoint == \"PI Web API\" && PIWebAPIAuthenticationMethod == \"kerberos\""
 		},
@@ -323,6 +352,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"type" : "string",
 			"default": "name_space",
 			"order": "24",
+			"group" : "Cloud",
 			"displayName" : "Namespace",
 			"validity" : "PIServerEndpoint == \"OSIsoft Cloud Services\" || PIServerEndpoint == \"AVEVA Data Hub\""
 		},
@@ -331,6 +361,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"type" : "string",
 			"default": "ocs_tenant_id",
 			"order": "25",
+			"group" : "Cloud",
 			"displayName" : "Tenant ID",
 			"validity" : "PIServerEndpoint == \"OSIsoft Cloud Services\" || PIServerEndpoint == \"AVEVA Data Hub\""
 		},
@@ -339,6 +370,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"type" : "string",
 			"default": "ocs_client_id",
 			"order": "26",
+			"group" : "Cloud",
 			"displayName" : "Client ID",
 			"validity" : "PIServerEndpoint == \"OSIsoft Cloud Services\" || PIServerEndpoint == \"AVEVA Data Hub\""
 		},
@@ -347,6 +379,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"type" : "password",
 			"default": "ocs_client_secret",
 			"order": "27",
+			"group" : "Cloud",
 			"displayName" : "Client Secret",
 			"validity" : "PIServerEndpoint == \"OSIsoft Cloud Services\" || PIServerEndpoint == \"AVEVA Data Hub\""
 		},
@@ -356,6 +389,14 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"default": NOT_BLOCKING_ERRORS_DEFAULT_PI_WEB_API,
 			"order": "28" ,
 			"readonly": "true"
+		},
+		"Legacy": {
+			"description": "Force all data to be sent using complex OMF types",
+			"type": "boolean",
+			"default": "false",
+			"order": "29",
+			"group": "Formats & Types",
+			"displayName": "Complex Types"
 		}
 	}
 );
@@ -415,6 +456,8 @@ typedef struct
 	// Per asset DataTypes
 	std::map<std::string, OMFDataTypes>
 			assetsDataTypes;
+	string		omfversion;
+	bool		legacy;
 } CONNECTOR_INFO;
 
 unsigned long calcTypeShort                (const string& dataTypes);
@@ -427,7 +470,7 @@ void          AuthKerberosSetup            (string& keytabFile, string& keytabFi
 string        OCSRetrieveAuthToken         (CONNECTOR_INFO* connInfo);
 int           PIWebAPIGetVersion           (CONNECTOR_INFO* connInfo, std::string &version, bool logMessage = true);
 double        GetElapsedTime               (struct timeval *startTime);
-bool          IsPIWebAPIConnected          (CONNECTOR_INFO* connInfo);
+bool          IsPIWebAPIConnected          (CONNECTOR_INFO* connInfo, std::string& version);
 
 
 /**
@@ -700,6 +743,13 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 
 	}
 
+	// Fetch legacy OMF type option
+	string legacy = configData->getValue("Legacy");
+	if (legacy == "True" || legacy == "true" || legacy == "TRUE")
+		connInfo->legacy = true;
+	else
+		connInfo->legacy = false;
+
 #if VERBOSE_LOG
 	// Log plugin configuration
 	Logger::getLogger()->info("%s plugin configured: URL=%s, "
@@ -750,7 +800,7 @@ void plugin_start(const PLUGIN_HANDLE handle,
 			      PLUGIN_NAME,
 			      storedData.c_str());
 	}
-	else if(JSONData.HasMember(TYPE_ID_KEY) &&
+	else if (JSONData.HasMember(TYPE_ID_KEY) &&
 		(JSONData[TYPE_ID_KEY].IsString() ||
 		 JSONData[TYPE_ID_KEY].IsNumber()))
 	{
@@ -819,20 +869,37 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 	gettimeofday(&startTime, NULL);
 #endif
 	CONNECTOR_INFO* connInfo = (CONNECTOR_INFO *)handle;
+	string version;
 
 	// Check if the endpoint is PI Web API and if the PI Web API server is available
-	if (!IsPIWebAPIConnected(connInfo))
+	if (!IsPIWebAPIConnected(connInfo, version))
 	{
+		Logger::getLogger()->fatal("OMF Endpoint is not available");
 		return 0;
 	}
 
+	// Until we know better assume OMF 1.2
+	connInfo->omfversion = "1.2";
+	if (version.find("2019") != std::string::npos)
+	{
+		connInfo->omfversion = "1.0";
+	}
+	else if (version.find("2021") != std::string::npos)
+	{
+		connInfo->omfversion = "1.2";
+	}
+
 	/**
-	 * Select the proper library in relation to the need,
-	 * LibcurlHttps is needed to integrate Kerberos as the SimpleHttp does not support it
-	 * the Libcurl integration implements only HTTPS not HTTP at the current stage
+	 * Select the transport library based on the authentication method and transport encryption
+	 * requirements.
+	 *
+	 * LibcurlHttps is used to integrate Kerberos as the SimpleHttp does not support it
+	 * the Libcurl integration implements only HTTPS not HTTP currently. We use SimpleHttp or
+	 * SimpleHttps, as appropriate for the URL given, if not using Kerberos
+	 *
 	 *
 	 * The handler is allocated using "Hostname : port", connect_timeout and request_timeout.
-	 * Default is no timeout at all
+	 * Default is no timeout
 	 */
 	if (connInfo->PIWebAPIAuthMethod.compare("k") == 0)
 	{
@@ -847,18 +914,18 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 		if (connInfo->protocol.compare("http") == 0)
 		{
 			connInfo->sender = new SimpleHttp(connInfo->hostAndPort,
-											  connInfo->timeout,
-											  connInfo->timeout,
-											  connInfo->retrySleepTime,
-											  connInfo->maxRetry);
+							  connInfo->timeout,
+							  connInfo->timeout,
+							  connInfo->retrySleepTime,
+							  connInfo->maxRetry);
 		}
 		else
 		{
 			connInfo->sender = new SimpleHttps(connInfo->hostAndPort,
-											   connInfo->timeout,
-											   connInfo->timeout,
-											   connInfo->retrySleepTime,
-											   connInfo->maxRetry);
+							   connInfo->timeout,
+							   connInfo->timeout,
+							   connInfo->retrySleepTime,
+							   connInfo->maxRetry);
 		}
 	}
 
@@ -879,7 +946,7 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 		connInfo->sender->setOCSToken  (connInfo->OCSToken);
 	}
 
-	// Allocate the PI Server data protocol
+	// Allocate the OMF class that implements the PI Server data protocol
 	connInfo->omf = new OMF(*connInfo->sender,
 				connInfo->path,
 				connInfo->assetsDataTypes,
@@ -893,6 +960,7 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 	connInfo->omf->setPIServerEndpoint(connInfo->PIServerEndpoint);
 	connInfo->omf->setDefaultAFLocation(connInfo->DefaultAFLocation);
 	connInfo->omf->setAFMap(connInfo->AFMap);
+	connInfo->omf->setOMFVersion(connInfo->omfversion);
 
 	// Generates the prefix to have unique asset_id across different levels of hierarchies
 	string AFHierarchyLevel;
@@ -909,7 +977,9 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 	connInfo->omf->setStaticData(&connInfo->staticData);
 	connInfo->omf->setNotBlockingErrors(connInfo->notBlockingErrors);
 
-	// Send data
+	connInfo->omf->setLegacyMode(connInfo->legacy);
+
+	// Send the readings data to the PI Server
 	uint32_t ret = connInfo->omf->sendToServer(readings,
 						   connInfo->compression);
 
@@ -1591,9 +1661,10 @@ double GetElapsedTime(struct timeval *startTime)
  * Check if the PI Web API server is available by reading the product version
  *
  * @param connInfo   The CONNECTOR_INFO data structure
+ * @param version    Returned version string
  * @return           Connection status
  */
-bool IsPIWebAPIConnected(CONNECTOR_INFO* connInfo)
+bool IsPIWebAPIConnected(CONNECTOR_INFO* connInfo, std::string& version)
 {
 	static std::chrono::steady_clock::time_point nextCheck;
 
@@ -1603,7 +1674,6 @@ bool IsPIWebAPIConnected(CONNECTOR_INFO* connInfo)
 
 		if (now >= nextCheck)
 		{
-			std::string version;
 			int httpCode = PIWebAPIGetVersion(connInfo, version, false);
 			if (httpCode >= 500)
 			{

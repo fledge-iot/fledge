@@ -159,11 +159,8 @@ EOF
             plugin_module_path = "{}/python/fledge/plugins/{}/{}".format(_FLEDGE_ROOT, task_type, plugin)
             plugin_info = common.load_and_fetch_python_plugin_info(plugin_module_path, plugin, task_type)
             plugin_config = plugin_info['config']
-            script = '["tasks/north"]'
-            process_name = 'north'
         except FileNotFoundError as ex:
             # Checking for C-type plugins
-            script = '["tasks/north_c"]'
             plugin_info = apiutils.get_plugin_info(plugin, dir=task_type)
             if not plugin_info:
                 msg = "Plugin {} does not appear to be a valid plugin".format(plugin)
@@ -181,10 +178,10 @@ EOF
                 _logger.error(msg)
                 return web.HTTPBadRequest(reason=msg)
             plugin_config = plugin_info['config']
-            process_name = 'north_c'
             if not plugin_config:
                 _logger.exception("Plugin %s import problem from path %s. %s", plugin, plugin_module_path, str(ex))
-                raise web.HTTPNotFound(reason='Plugin "{}" import problem from path "{}"'.format(plugin, plugin_module_path))
+                raise web.HTTPNotFound(reason='Plugin "{}" import problem from path "{}"'.format(plugin,
+                                                                                                 plugin_module_path))
         except TypeError as ex:
             raise web.HTTPBadRequest(reason=str(ex))
         except Exception as ex:
@@ -208,7 +205,6 @@ EOF
             _logger.exception(msg)
             raise web.HTTPBadRequest(reason=msg)
 
-
         # Check whether category name already exists
         category_info = await config_mgr.get_category_all_items(category_name=name)
         if category_info is not None:
@@ -219,6 +215,9 @@ EOF
         if count != 0:
             raise web.HTTPBadRequest(reason='A north instance with this name already exists')
 
+        # Always run with C based sending process task
+        process_name = 'north_c'
+        script = '["tasks/north_c"]'
         # Check that the process name is not already registered
         count = await check_scheduled_processes(storage, process_name)
         if count == 0:  # Create the scheduled process entry for the new task

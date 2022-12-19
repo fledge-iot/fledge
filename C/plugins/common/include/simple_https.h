@@ -46,7 +46,8 @@ class SimpleHttps: public HttpSender
 				const std::string& method = std::string(HTTP_SENDER_DEFAULT_METHOD),
 				const std::string& path = std::string(HTTP_SENDER_DEFAULT_PATH),
 				const std::vector<std::pair<std::string, std::string>>& headers = {},
-				const std::string& payload = std::string()
+				const std::string& payload = std::string(),
+				std::string *response = NULL
 		);
 
 		void setAuthMethod          (std::string& authMethod)           {m_authMethod = authMethod; }

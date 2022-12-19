@@ -231,6 +231,7 @@ void LibcurlHttps::setLibCurlOptions(CURL *sender, const string& path, const vec
  * @param path      The URL path
  * @param headers   The optional headers to send
  * @param payload   The optional data payload (for POST, PUT)
+ * @param resptr    An optional pointer string to use to return the response payload
  * @return          The HTTP code for the cases : 1xx Informational /
  *                                                2xx Success /
  *                                                3xx Redirection
@@ -242,7 +243,8 @@ int LibcurlHttps::sendRequest(
 		const string& method,
 		const string& path,
 		const vector<pair<string, string>>& headers,
-		const string& payload
+		const string& payload,
+		string* resptr
 )
 {
 	// Variables definition
@@ -353,6 +355,10 @@ int LibcurlHttps::sendRequest(
 			StringStripCRLF(httpResponseText);
 
 			m_HTTPResponse = httpResponseText;
+			if (resptr)
+			{
+				*resptr = httpResponseText;
+			}
 		}
 		catch (exception &ex)
 		{
@@ -442,6 +448,10 @@ int LibcurlHttps::sendRequest(
 		else if (httpCode == 400)
 		{
 			throw BadRequest(errorMessage);
+		}
+		else if (httpCode == 409)
+		{
+			throw Conflict(httpResponseText);
 		}
 		else if (httpCode >= 401)
 		{

@@ -13,6 +13,7 @@
 #include <map>
 #include <reading.h>
 #include <OMFHint.h>
+#include <vector>
 
 /**
  * The OMFLinkedData class.
@@ -48,7 +49,7 @@ class OMFLinkedData
 		std::string 	processReading(const Reading& reading,
 				const std::string& DefaultAFLocation = std::string(),
 				OMFHints *hints = NULL);
-		bool		flushContainers(HttpSender& sender, const std::string& path, std::vector<std::pair<std::string, std::string> >& header);
+		bool		flushContainers(HttpSender& sender, const std::string& path, std::vector<std::pair<std::string, std::string> >& header, bool noRecovery);
 		void		setFormats(const std::string& doubleFormat, const std::string& integerFormat)
 				{
 					m_doubleFormat = doubleFormat;
@@ -68,6 +69,8 @@ class OMFLinkedData
 							return false;
 					}
 				};
+		bool		recoverContainerError(HttpSender& sender, const std::string& path, std::string& response);
+		bool		recoverContainer(HttpSender& sender, const std::string& path, const std::string& linkName);
 
 	private:
 		/**
@@ -100,5 +103,33 @@ class OMFLinkedData
 		std::string				m_containers;
 		std::string				m_doubleFormat;
 		std::string				m_integerFormat;
+
+		class StoredContainerData {
+			public:
+				StoredContainerData(const std::string& linkName,
+						    Datapoint *dp,
+						    const std::string& format,
+						    OMFHints *hints) :
+							m_linkName(linkName),
+							m_dp(dp), m_format(format)
+				{
+							m_hints = new OMFHints(hints->getRawHint());
+				};
+				~StoredContainerData()
+				{
+					delete m_hints;
+				}
+				std::string	m_linkName;
+				std::string	m_format;
+				Datapoint	*m_dp;
+				OMFHints	*m_hints;
+		};
+
+		/**
+		 * A vector of data points and link_names sent in the last set
+		 * of container messages. This is used to do error recovery of
+		 * contianer messages.
+		 */
+		std::vector<StoredContainerData *>	m_containerDatapoints;
 };
 #endif

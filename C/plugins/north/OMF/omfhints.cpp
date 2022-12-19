@@ -81,24 +81,24 @@ string OMFHints::getHintForChecksum(const string &hint) {
  */
 OMFHints::OMFHints(const string& hints)
 {
-	string hintsTmp, hintsChksum;
+	string hintsChksum;
 
-	hintsTmp = hints;
-	StringReplaceAll(hintsTmp,"\\","");
+	m_raw = hints;
+	StringReplaceAll(m_raw,"\\","");
 
 	m_chksum = 0;
-	if (hintsTmp[0] == '\"')
+	if (m_raw[0] == '\"')
 	{
 		// Skip any enclosing "'s
-		m_doc.Parse(hintsTmp.substr(1, hintsTmp.length() - 2).c_str());
-		hintsChksum = getHintForChecksum(hintsTmp);
+		m_doc.Parse(m_raw.substr(1, m_raw.length() - 2).c_str());
+		hintsChksum = getHintForChecksum(m_raw);
 		for (int i = 1; i < hintsChksum.length() - 1; i++)
 			m_chksum += hintsChksum[i];
 	}
 	else
 	{
-		m_doc.Parse(hintsTmp.c_str());
-		hintsChksum = getHintForChecksum(hintsTmp);
+		m_doc.Parse(m_raw.c_str());
+		hintsChksum = getHintForChecksum(m_raw);
 		for (int i = 0; i < hintsChksum.length(); i++)
 			m_chksum += hintsChksum[i];
 	}
@@ -110,7 +110,7 @@ OMFHints::OMFHints(const string& hints)
 
 	if (m_doc.HasParseError())
 	{
-		Logger::getLogger()->error("Ignoring OMFHint '%s' parse error in JSON", hintsTmp.c_str());
+		Logger::getLogger()->error("Ignoring OMFHint '%s' parse error in JSON", m_raw.c_str());
 	}
 	else
 	{

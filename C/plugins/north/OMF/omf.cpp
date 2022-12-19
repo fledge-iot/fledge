@@ -1377,7 +1377,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 #endif
 
 	vector<pair<string, string>> containerHeader = OMF::createMessageHeader("Container");
-	linkedData.flushContainers(m_sender, m_path, containerHeader);
+	linkedData.flushContainers(m_sender, m_path, containerHeader, false);
 
 	/**
 	 * Types messages sent, now transform each reading to OMF format.

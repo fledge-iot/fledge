@@ -153,13 +153,16 @@ class OMFHints
 	public:
 		OMFHints(const std::string& hints);
 		~OMFHints();
+		OMFHints(OMFHints *hints);
 		const std::vector<OMFHint *>&
 					getHints() const { return m_hints; };
 		const std::vector<OMFHint *>&
 					getHints(const std::string&) const;
 		const unsigned short	getChecksum() { return m_chksum; };
 		static string          	getHintForChecksum(const string &hint);
+		string			getRawHint() { return m_raw; };
 	private:
+		string			m_raw;
 		rapidjson::Document	m_doc;
 		unsigned short		m_chksum;
 		std::vector<OMFHint *>	m_hints;

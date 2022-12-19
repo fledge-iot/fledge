@@ -40,7 +40,8 @@ class HttpSender
 				const std::string& method = std::string(HTTP_SENDER_DEFAULT_METHOD),
 				const std::string& path = std::string(HTTP_SENDER_DEFAULT_PATH),
 				const std::vector<std::pair<std::string, std::string>>& headers = {},
-				const std::string& payload = std::string()
+				const std::string& payload = std::string(),
+				std::string *response = NULL
 		) = 0;
 
 		virtual std::string getHostPort() = 0;
@@ -65,6 +66,26 @@ class BadRequest : public std::exception {
 	public:
 		// Constructor with parameter
 		BadRequest(const std::string& serverReply)
+		{
+			m_errmsg = serverReply;
+		};
+
+		virtual const char *what() const throw()
+		{
+			return m_errmsg.c_str();
+		}
+
+	private:
+		std::string     m_errmsg;
+};
+
+/**
+ * Conflict exception
+ */
+class Conflict : public std::exception {
+	public:
+		// Constructor with parameter
+		Conflict(const std::string& serverReply)
 		{
 			m_errmsg = serverReply;
 		};

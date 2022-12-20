@@ -1384,6 +1384,7 @@ int Connection::update(const string& schema, const string& table, const string& 
 Document	document;
 SQLBuffer	sql;
 vector<string>  asset_codes;
+bool		allowZero = false;
 
 	int 	row = 0;
 	ostringstream convert;
@@ -1681,6 +1682,21 @@ vector<string>  asset_codes;
 					col++;
 				}
 			}
+			if (iter->HasMember("modifier") && (*iter)["modifier"].IsArray())
+			{
+				const Value& modifier = (*iter)["modifier"];
+				for (Value::ConstValueIterator modifiers = modifier.Begin(); modifiers != modifier.End(); ++modifiers)
+                		{
+					if (iter->IsString())
+					{
+						string mod = iter->GetString();
+						if (mod.compare("allowzero") == 0)
+						{
+							allowZero = true;
+						}
+					}
+				}
+			}
 			if (col == 0)
 			{
 				raiseError("update",
@@ -1757,7 +1773,7 @@ vector<string>  asset_codes;
 
 		int return_value=0;
 
-		if (update == 0)
+		if (update == 0 && allowZero == false)
 		{
 			char buf[100];
 			snprintf(buf, sizeof(buf),

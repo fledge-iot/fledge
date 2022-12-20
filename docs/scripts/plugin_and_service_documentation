@@ -148,7 +148,7 @@ echo '.. include:: ../../fledge-north-OMF.rst' > plugins/fledge-north-OMF/index.
 # Append OMF.rst to the end of the file rather than including it so that we may
 # edit the links to prevent duplicates
 cat OMF.rst >> plugins/fledge-north-OMF/index.rst
-sed -i -e 's/Naming_Scheme/Naming_Scheme_plugin/' plugins/fledge-north-OMF/index.rst
+sed -i -e 's/Naming_Scheme/Naming_Scheme_plugin/' -e 's/Linked_Types/Linked_Types_Plugin/' plugins/fledge-north-OMF/index.rst
 # Create the Threshold rule documentation
 mkdir plugins/fledge-rule-Threshold
 ln -s $(pwd)/fledge-rule-Threshold/images plugins/fledge-rule-Threshold/images

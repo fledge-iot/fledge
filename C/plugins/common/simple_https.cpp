@@ -83,7 +83,6 @@ void SimpleHttps::setProxy(const string& proxy)
  * @param path      The URL path
  * @param headers   The optional headers to send
  * @param payload   The optional data payload (for POST, PUT)
- * @param resptr    Optional respond payload, the caller must delete when no longer required
  * @return          The HTTP code for the cases : 1xx Informational / 2xx Success / 3xx Redirection
  * @throw	    BadRequest for HTTP 400 error
  *		    std::exception as generic exception for all the cases >= 401 Client errors / 5xx Server errors
@@ -92,8 +91,7 @@ int SimpleHttps::sendRequest(
 		const string& method,
 		const string& path,
 		const vector<pair<string, string>>& headers,
-		const string& payload,
-		string *resptr
+		const string& payload
 )
 {
 	SimpleWeb::CaseInsensitiveMultimap header;
@@ -160,10 +158,6 @@ int SimpleHttps::sendRequest(
 
 			retCode = res->status_code;
 			response = res->content.string();
-			if (resptr)
-			{
-				*resptr = response;
-			}
 			m_HTTPResponse = response;
 
 			if (m_log)

@@ -80,15 +80,13 @@ SimpleHttp::~SimpleHttp()
  * @param path      The URL path
  * @param headers   The optional headers to send
  * @param payload   The optional data payload (for POST, PUT)
- * @param resptr    The optional pointer to populate the response
  * @return          The HTTP code on success or 0 on execptions
  */
 int SimpleHttp::sendRequest(
 		const string& method,
 		const string& path,
 		const vector<pair<string, string>>& headers,
-		const string& payload,
-		string *resptr
+		const string& payload
 )
 {
 	SimpleWeb::CaseInsensitiveMultimap header;
@@ -150,10 +148,6 @@ int SimpleHttp::sendRequest(
 
 			retCode = res->status_code;
 			response = res->content.string();
-			if (resptr)
-			{
-				*resptr = response;
-			}
 
 			if (m_log)
 			{

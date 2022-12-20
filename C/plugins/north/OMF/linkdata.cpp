@@ -341,7 +341,11 @@ string OMFLinkedData::sendContainer(string& linkName, Datapoint *dp, const strin
 }
 
 /**
- * Flush the container definitions that have been built up
+ * Flush the container definitions that have been built up. If we get a conflict
+ * exception raised and the parameter noRecovery is not set to true, we will
+ * attempt to resolve the issue. This issue is caused when a container already
+ * exists in the PI Server with the same container ID and a different definition.
+ * The recovery takes the form of sending a container update for the contianer
  *
  * @param sender	The connection on whichto send container data
  * @param path		The path used for the HTTP request
@@ -369,23 +373,13 @@ bool OMFLinkedData::flushContainers(HttpSender& sender, const string& path, vect
 		int res = sender.sendRequest("POST",
 					   path,
 					   header,
-					   payload,
-					   response);
+					   payload);
 		if  ( ! (res >= 200 && res <= 299) )
 		{
 			Logger::getLogger()->error("Flush Containers, HTTP error code %d - %s %s %s",
 						   res,
 						   sender.getHostPort().c_str(),
-						   path.c_str(),
-						   response->c_str());
-			if (noRecovery)
-			{
-				rval = false;
-			}
-			else
-			{
-				rval = recoverContainerError(sender, path, *response);
-			}
+						   path.c_str());
 		}
 	}
 	// Exception raised for HTTP 400 Bad Request
@@ -401,7 +395,7 @@ bool OMFLinkedData::flushContainers(HttpSender& sender, const string& path, vect
 	}
 	catch (const Conflict& e)
 	{
-		Logger::getLogger()->error("Conflict Sending containers, %s - %s %s",
+		Logger::getLogger()->warn("Conflict Sending containers, %s - %s %s",
 									e.what(),
 									sender.getHostPort().c_str(),
 									path.c_str());
@@ -478,9 +472,8 @@ bool OMFLinkedData::recoverContainerError(HttpSender& sender, const string& path
 	doc.Parse(response.c_str());
 	if (doc.HasParseError())
 	{
-		Logger::getLogger()->error("Failed to parse error response for server: %s", response.c_str());
-		Logger::getLogger()->error("Error(offset %u): %s", (unsigned)doc.GetErrorOffset(),
-		        GetParseError_En(doc.GetParseError()));
+		Logger::getLogger()->error("Failed to parse error response for server: %s, at %u, %s", response.c_str(),
+				(unsigned)doc.GetErrorOffset(), GetParseError_En(doc.GetParseError()));
 		return false;
 	}
 	if (doc.HasMember("Messages") && doc["Messages"].IsArray())

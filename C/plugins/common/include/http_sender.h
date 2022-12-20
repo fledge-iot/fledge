@@ -40,8 +40,7 @@ class HttpSender
 				const std::string& method = std::string(HTTP_SENDER_DEFAULT_METHOD),
 				const std::string& path = std::string(HTTP_SENDER_DEFAULT_PATH),
 				const std::vector<std::pair<std::string, std::string>>& headers = {},
-				const std::string& payload = std::string(),
-				std::string *response = NULL
+				const std::string& payload = std::string()
 		) = 0;
 
 		virtual std::string getHostPort() = 0;

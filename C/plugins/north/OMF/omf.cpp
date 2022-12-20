@@ -1077,8 +1077,6 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 	 * - add OMF data to new vector
 	 */
 
-	// Used for logging
-	string json_not_compressed;
 
 	string OMFHintAFHierarchyTmp;
 	string OMFHintAFHierarchy;
@@ -1092,6 +1090,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 	bool pendingSeparator = false;
 	ostringstream jsonData;
 	jsonData << "[";
+	long bufferedCount = 0, sentCount = 0;
 	// Fetch Reading* data
 	for (vector<Reading *>::const_iterator elem = readings.begin();
 						    elem != readings.end();
@@ -1168,13 +1167,13 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 				if (!evaluateAFHierarchyRules(m_assetName, *reading))
 				{
 					m_lastError = true;
-					return 0;
+					return sentCount;
 				}
 			}
 			else
 			{
 				m_lastError = true;
-				return 0;
+				return sentCount;
 			}
 		}
 
@@ -1268,7 +1267,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 						if (!handleAFHierarchy())
 						{
 							m_lastError = true;
-							return 0;
+							return sentCount;
 						}
 
 						AFHierarchySent = true;
@@ -1282,7 +1281,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 					{
 						// Failure
 						m_lastError = true;
-						return 0;
+						return sentCount;
 					}
 				}
 				else
@@ -1303,7 +1302,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 
 						// Failure
 						m_lastError = true;
-						return 0;
+						return sentCount;
 					}
 				}
 
@@ -1314,6 +1313,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			measurementId = generateMeasurementId(m_assetName);
 
 			outData = OMFData(*reading, measurementId, m_PIServerEndpoint, AFHierarchyPrefix, hints ).OMFdataVal();
+			bufferedCount++;
 		}
 		else
 		{
@@ -1330,7 +1330,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 					if (!handleAFHierarchy())
 					{
 						m_lastError = true;
-						return 0;
+						return sentCount;
 					}
 					AFHierarchySent = true;
 				}
@@ -1342,9 +1342,23 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 					outData.append(af);
 				}
 			}
+			bufferedCount++;
 		}
 		if (!outData.empty())
 		{
+			long pos = jsonData.tellp();
+			if (pos + outData.length() > MAX_OMF_PAYLOAD - PAYLOAD_OVERHEAD)
+			{
+				jsonData << "]";
+				string json = jsonData.str();
+				if (!writeBufferedData(json, &linkedData, compression))
+				{
+					return sentCount;
+				}
+				sentCount += bufferedCount;
+				bufferedCount = 0;
+				jsonData.str("[");	// Start a new JSON payload
+			}
 			jsonData << (pendingSeparator ? ", " : "") << outData;
 			pendingSeparator = true;
 		}
@@ -1365,11 +1379,27 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 	jsonData << "]";
 
 	string json = jsonData.str();
-	json_not_compressed = json;
+	if (!writeBufferedData(json, &linkedData, compression))
+	{
+		return sentCount;
+	}
 
+	return sentCount + bufferedCount;
+}
+
+/**
+ * Write out the buffered data
+ *
+ * @param json		The uncompressed buffered data
+ * @param linkedData	The linked data class so that we can send the container messages
+ * @param compression	True if the data should be compressed
+ */
+bool OMF::writeBufferedData(const string& json, OMFLinkedData *linkedData, bool compression)
+{
+	string compressed_json;
 	if (compression)
 	{
-		json = compress_string(json);
+		compressed_json = compress_string(json);
 	}
 
 #if INSTRUMENT
@@ -1377,7 +1407,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 #endif
 
 	vector<pair<string, string>> containerHeader = OMF::createMessageHeader("Container");
-	linkedData.flushContainers(m_sender, m_path, containerHeader, false);
+	linkedData->flushContainers(m_sender, m_path, containerHeader, false);
 
 	/**
 	 * Types messages sent, now transform each reading to OMF format.
@@ -1399,7 +1429,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 		int res = m_sender.sendRequest("POST",
 					       m_path,
 					       readingData,
-					       json);
+					       compression ? compressed_json : json);
 		if  ( ! (res >= 200 && res <= 299) )
 		{
 			Logger::getLogger()->error("Sending JSON readings , "
@@ -1409,7 +1439,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 						   m_path.c_str()
 						   );
 			m_lastError = true;
-			return 0;
+			return false;
 		}
 		// Reset error indicator
 		m_lastError = false;
@@ -1451,8 +1481,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 #endif
 
 
-		// Return number of sent readings to the caller
-		return readings.size();
+		return true;
 	}
 	// Exception raised for HTTP 400 Bad Request
 	catch (const BadRequest& e)
@@ -1515,7 +1544,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 
 			// It returns size instead of 0 as the rows in the block should be skipped in case of an error
 			// as it is considered a not blocking ones.
-			return readings.size();
+			return true;
 		}
 		else
 		{
@@ -1529,7 +1558,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 		}
 		// Failure
 		m_lastError = true;
-		return 0;
+		return false;
 	}
 	catch (const std::exception& e)
 	{
@@ -1544,7 +1573,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 		// Failure
 		m_lastError = true;
 		m_connected = false;
-		return 0;
+		return false;
 	}
 }
 

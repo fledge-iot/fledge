@@ -113,7 +113,14 @@ class OMFLinkedData
 							m_linkName(linkName),
 							m_dp(dp), m_format(format)
 				{
-							m_hints = new OMFHints(hints->getRawHint());
+							if (hints)
+							{
+								m_hints = new OMFHints(hints->getRawHint());
+							}
+							else
+							{
+								m_hints = NULL;
+							}
 				};
 				~StoredContainerData()
 				{

@@ -26,6 +26,9 @@
 #define OMF_TYPE_FLOAT		"number"
 #define OMF_TYPE_UNSUPPORTED	"unsupported"
 
+#define MAX_OMF_PAYLOAD		192 * 1024	// Maximum payload OMF will accept
+#define PAYLOAD_OVERHEAD	10		// An overhead to allow for terminatign the payload etc
+
 enum OMF_ENDPOINT {
 	ENDPOINT_PIWEB_API,
 	ENDPOINT_CR,
@@ -76,6 +79,7 @@ class OMFDataTypes
 };
 
 class OMFHints;
+class OMFLinkedData;
 
 /**
  * The OMF class.
@@ -129,96 +133,98 @@ class OMF
 		 */
 
 		// Method with vector (by reference) of readings
-		uint32_t sendToServer(const std::vector<Reading>& readings,
+		uint32_t	sendToServer(const std::vector<Reading>& readings,
 				      bool skipSentDataTypes = true);
 
 		// Method with vector (by reference) of reading pointers
-		uint32_t sendToServer(const std::vector<Reading *>& readings,
+		uint32_t	sendToServer(const std::vector<Reading *>& readings,
 				      bool compression, bool skipSentDataTypes = true);
 
 		// Send a single reading (by reference)
-		uint32_t sendToServer(const Reading& reading,
+		uint32_t	sendToServer(const Reading& reading,
 				      bool skipSentDataTypes = true);
 
 		// Send a single reading pointer
-		uint32_t sendToServer(const Reading* reading,
+		uint32_t	sendToServer(const Reading* reading,
 				      bool skipSentDataTypes = true);
 
 		// Set saved OMF formats
-		void setFormatType(const std::string &key, std::string &value);
+		void		setFormatType(const std::string &key, std::string &value);
 
 		// Set which PIServer component should be used for the communication
-		void setPIServerEndpoint(const OMF_ENDPOINT PIServerEndpoint);
+		void		setPIServerEndpoint(const OMF_ENDPOINT PIServerEndpoint);
 
 		// Set the naming scheme of the objects in the endpoint
-		void setNamingScheme(const NAMINGSCHEME_ENDPOINT namingScheme) {m_NamingScheme = namingScheme;};
+		void		setNamingScheme(const NAMINGSCHEME_ENDPOINT namingScheme) {m_NamingScheme = namingScheme;};
 
 		// Generate the container id for the given asset
-		std::string generateMeasurementId(const string& assetName);
+		std::string	generateMeasurementId(const string& assetName);
 
 		// Generate a suffix for the given asset in relation to the selected naming schema and the value of the type id
-		std::string generateSuffixType(string &assetName, long typeId);
+		std::string	generateSuffixType(string &assetName, long typeId);
 
 		// Generate a suffix for the given asset in relation to the selected naming schema and the value of the type id
-		long getNamingScheme(const string& assetName);
+		long		getNamingScheme(const string& assetName);
 
-		string getHashStored(const string& assetName);
-		string getPathStored(const string& assetName);
-		string getPathOrigStored(const string& assetName);
-		bool setPathStored(const string& assetName, string &afHierarchy);
-		bool deleteAssetAFH(const string& assetName, string& path);
-		bool createAssetAFH(const string& assetName, string& path);
+		string		getHashStored(const string& assetName);
+		string		getPathStored(const string& assetName);
+		string		getPathOrigStored(const string& assetName);
+		bool		setPathStored(const string& assetName, string &afHierarchy);
+		bool		deleteAssetAFH(const string& assetName, string& path);
+		bool		createAssetAFH(const string& assetName, string& path);
 
 		// Set the first level of hierarchy in Asset Framework in which the assets will be created, PI Web API only.
-		void setDefaultAFLocation(const std::string &DefaultAFLocation);
+		void		setDefaultAFLocation(const std::string &DefaultAFLocation);
 
-		bool setAFMap(const std::string &AFMap);
+		bool		setAFMap(const std::string &AFMap);
 
-		void setSendFullStructure(const bool sendFullStructure) {m_sendFullStructure = sendFullStructure;};
+		void		setSendFullStructure(const bool sendFullStructure) {m_sendFullStructure = sendFullStructure;};
 
-		void setPrefixAFAsset(const std::string &prefixAFAsset);
+		void		setPrefixAFAsset(const std::string &prefixAFAsset);
 
 		// Get saved OMF formats
-		std::string getFormatType(const std::string &key) const;
+		std::string	getFormatType(const std::string &key) const;
 
 		// Set the list of errors considered not blocking
 		// in the communication with the PI Server
-                void setNotBlockingErrors(std::vector<std::string>& );
+                void		setNotBlockingErrors(std::vector<std::string>& );
 
 		// Compress string using gzip
-		std::string compress_string(const std::string& str,
+		std::string	compress_string(const std::string& str,
                             				int compressionlevel = Z_DEFAULT_COMPRESSION);
 
 		// Return current value of global type-id
-		const long getTypeId() const { return m_typeId; };
+		const long	getTypeId() const { return m_typeId; };
 
 		// Check DataTypeError
-		bool isDataTypeError(const char* message);
+		bool		isDataTypeError(const char* message);
 
 		// Map object types found in input data
-		void setMapObjectTypes(const std::vector<Reading *>& data,
+		void		setMapObjectTypes(const std::vector<Reading *>& data,
 					std::map<std::string, Reading*>& dataSuperSet);
 		// Removed mapped object types found in input data
-		void unsetMapObjectTypes(std::map<std::string, Reading*>& dataSuperSet) const;
+		void		unsetMapObjectTypes(std::map<std::string, Reading*>& dataSuperSet) const;
 
-		void setStaticData(std::vector<std::pair<std::string, std::string>> *staticData)
-		{
-			m_staticData = staticData;
-		};
+		void		 setStaticData(std::vector<std::pair<std::string, std::string>> *staticData)
+				{
+					m_staticData = staticData;
+				};
 
-		void generateAFHierarchyPrefixLevel(string& path, string& prefix, string& AFHierarchyLevel);
+		void		generateAFHierarchyPrefixLevel(string& path, string& prefix, string& AFHierarchyLevel);
 
 		// Retrieve private objects
-		map<std::string, std::string> getNamesRules() const { return m_NamesRules; };
-		map<std::string, std::string> getMetadataRulesExist() const { return m_MetadataRulesExist; };
+		map<std::string, std::string>
+				getNamesRules() const { return m_NamesRules; };
+		map<std::string, std::string>
+				getMetadataRulesExist() const { return m_MetadataRulesExist; };
 
-		bool getAFMapEmptyNames() const { return m_AFMapEmptyNames; };
-		bool getAFMapEmptyMetadata() const { return m_AFMapEmptyMetadata; };
+		bool		getAFMapEmptyNames() const { return m_AFMapEmptyNames; };
+		bool		getAFMapEmptyMetadata() const { return m_AFMapEmptyMetadata; };
 
-		bool getConnected() const { return m_connected; };
-		void setConnected(const bool connectionStatus) { m_connected = connectionStatus; };
+		bool		getConnected() const { return m_connected; };
+		void		setConnected(const bool connectionStatus) { m_connected = connectionStatus; };
 
-		void setLegacyMode(bool legacy) { m_legacy = legacy; };
+		void		setLegacyMode(bool legacy) { m_legacy = legacy; };
 
 		static std::string ApplyPIServerNamingRulesObj(const std::string &objName, bool *changed);
 		static std::string ApplyPIServerNamingRulesPath(const std::string &objName, bool *changed);
@@ -234,7 +240,7 @@ private:
 		 * 'Type', 'Container', 'Data'
 		 */
 		const std::vector<std::pair<std::string, std::string>>
-			createMessageHeader(const std::string& type, const std::string& action="create") const;
+				createMessageHeader(const std::string& type, const std::string& action="create") const;
 
 		// Create data for Type message for current row
 		const std::string createTypeData(const Reading& reading, OMFHints *hints);
@@ -246,7 +252,7 @@ private:
 		const std::string createStaticData(const Reading& reading);
 
 		// Create data Link message, with 'Data', for current row
-		std::string createLinkData(const Reading& reading, std::string& AFHierarchyLevel, std::string&  prefix, std::string&  objectPrefix, OMFHints *hints, bool legacy);
+		std::string	 createLinkData(const Reading& reading, std::string& AFHierarchyLevel, std::string&  prefix, std::string&  objectPrefix, OMFHints *hints, bool legacy);
 
 		/**
 		 * Creata data for readings data content, with 'Data', for one row
@@ -256,94 +262,95 @@ private:
 		const std::string createMessageData(Reading& reading);
 
 		// Set the the tagName in an assetName Type message
-		void setAssetTypeTag(const std::string& assetName,
+		void		setAssetTypeTag(const std::string& assetName,
 				     const std::string& tagName,
 				     std::string& data);
 
-		void setAssetTypeTagNew(const std::string& assetName,
+		void		setAssetTypeTagNew(const std::string& assetName,
 							 const std::string& tagName,
 							 std::string& data);
 
 		// Create the OMF data types if needed
-		bool handleDataTypes(const string keyComplete,
+		bool		handleDataTypes(const string keyComplete,
 			                 const Reading& row,
 				             bool skipSendingTypes, OMFHints *hints);
 
 		// Send OMF data types
-		bool sendDataTypes(const Reading& row, OMFHints *hints);
+		bool		sendDataTypes(const Reading& row, OMFHints *hints);
 
 		// Get saved dataType
-		bool getCreatedTypes(const std::string& keyComplete, const Reading& row, OMFHints *hints);
+		bool		getCreatedTypes(const std::string& keyComplete, const Reading& row, OMFHints *hints);
 
 		// Set saved dataType
-		unsigned long calcTypeShort(const Reading& row);
+		unsigned long	calcTypeShort(const Reading& row);
 
 		// Clear data types cache
-		void clearCreatedTypes();
+		void		clearCreatedTypes();
 
 		// Increment type-id value
-		void incrementTypeId();
+		void		incrementTypeId();
 
 		// Handle data type errors
-		bool handleTypeErrors(const string& keyComplete, const Reading& reading, OMFHints*hints);
+		bool		handleTypeErrors(const string& keyComplete, const Reading& reading, OMFHints*hints);
 
-		string errorMessageHandler(const string &msg);
+		string		errorMessageHandler(const string &msg);
 
 		// Extract assetName from error message
-		std::string getAssetNameFromError(const char* message);
+		std::string	getAssetNameFromError(const char* message);
 
 		// Get asset type-id from cached data
-		long getAssetTypeId(const std::string& assetName);
+		long		getAssetTypeId(const std::string& assetName);
 
 		// Increment per asset type-id value
-		void incrementAssetTypeId(const std::string& keyComplete);
-		void incrementAssetTypeIdOnly(const std::string& keyComplete);
+		void		incrementAssetTypeId(const std::string& keyComplete);
+		void		incrementAssetTypeIdOnly(const std::string& keyComplete);
 
 		// Set global type-id as the maximum value of all per asset type-ids
-		void setTypeId();
+		void		setTypeId();
 
 		// Set saved dataType
-		bool setCreatedTypes(const Reading& row, OMFHints *hints);
+		bool		setCreatedTypes(const Reading& row, OMFHints *hints);
 
 		// Remove cached data types enttry for given asset name
-		void clearCreatedTypes(const std::string& keyComplete);
+		void		clearCreatedTypes(const std::string& keyComplete);
 
 		// Add the 1st level of AF hierarchy if the end point is PI Web API
-		void setAFHierarchy();
+		void		setAFHierarchy();
 
-		bool handleAFHierarchy();
-		bool handleAFHierarchySystemWide();
-		bool handleOmfHintHierarchies();
+		bool		handleAFHierarchy();
+		bool		handleAFHierarchySystemWide();
+		bool		handleOmfHintHierarchies();
 
-		bool sendAFHierarchy(std::string AFHierarchy);
+		bool		sendAFHierarchy(std::string AFHierarchy);
 
-		bool sendAFHierarchyLevels(std::string parentPath, std::string path, std::string &lastLevel);
-		bool sendAFHierarchyTypes(const std::string AFHierarchyLevel, const std::string prefix);
-		bool sendAFHierarchyStatic(const std::string AFHierarchyLevel, const std::string prefix);
-		bool sendAFHierarchyLink(std::string parent, std::string child, std::string prefixIdParent, std::string prefixId);
+		bool		sendAFHierarchyLevels(std::string parentPath, std::string path, std::string &lastLevel);
+		bool		sendAFHierarchyTypes(const std::string AFHierarchyLevel, const std::string prefix);
+		bool		sendAFHierarchyStatic(const std::string AFHierarchyLevel, const std::string prefix);
+		bool		sendAFHierarchyLink(std::string parent, std::string child, std::string prefixIdParent, std::string prefixId);
 
-		bool manageAFHierarchyLink(std::string parent, std::string child, std::string prefixIdParent, std::string prefixId, std::string childFull, string action);
+		bool		manageAFHierarchyLink(std::string parent, std::string child, std::string prefixIdParent, std::string prefixId, std::string childFull, string action);
 
-		bool AFHierarchySendMessage(const std::string& msgType, std::string& jsonData, const std::string& action="create");
+		bool		AFHierarchySendMessage(const std::string& msgType, std::string& jsonData, const std::string& action="create");
 
 
-		std::string generateUniquePrefixId(const std::string &path);
-		bool evaluateAFHierarchyRules(const string& assetName, const Reading& reading);
-		void retrieveAFHierarchyPrefixAssetName(const string& assetName, string& prefix, string& AFHierarchyLevel);
-		void retrieveAFHierarchyFullPrefixAssetName(const string& assetName, string& prefix, string& AFHierarchy);
+		std::string	generateUniquePrefixId(const std::string &path);
+		bool		evaluateAFHierarchyRules(const string& assetName, const Reading& reading);
+		void		retrieveAFHierarchyPrefixAssetName(const string& assetName, string& prefix, string& AFHierarchyLevel);
+		void		retrieveAFHierarchyFullPrefixAssetName(const string& assetName, string& prefix, string& AFHierarchy);
 
-		bool createAFHierarchyOmfHint(const string& assetName, const  string &OmfHintHierarchy);
+		bool		createAFHierarchyOmfHint(const string& assetName, const  string &OmfHintHierarchy);
 
-		bool HandleAFMapNames(Document& JSon);
-		bool HandleAFMapMetedata(Document& JSon);
+		bool		HandleAFMapNames(Document& JSon);
+		bool		HandleAFMapMetedata(Document& JSon);
 
 		// Start of support for using linked containers
-		bool sendBaseTypes();
+		bool		sendBaseTypes();
 		// End of support for using linked containers
 		//
-		string createAFLinks(Reading &reading, OMFHints *hints);
+		string		createAFLinks(Reading &reading, OMFHints *hints);
 
 	private:
+		bool		writeBufferedData(const std::string& json, OMFLinkedData *linkedData, bool compression);
 		// Use for the evaluation of the OMFDataTypes.typesShort
 		union t_typeCount {
 			struct
@@ -361,25 +368,25 @@ private:
 			unsigned long valueLong = 0;
 		};
 
-		std::string	          m_assetName;
-		const std::string	  m_path;
-		long			      m_typeId;
-		const std::string	  m_producerToken;
-		OMF_ENDPOINT		  m_PIServerEndpoint;
-		NAMINGSCHEME_ENDPOINT m_NamingScheme;
-		std::string		      m_DefaultAFLocation;
-		bool                  m_sendFullStructure; // If disabled the AF hierarchy is not created.
+		std::string		m_assetName;
+		const std::string	m_path;
+		long			m_typeId;
+		const std::string	m_producerToken;
+		OMF_ENDPOINT		m_PIServerEndpoint;
+		NAMINGSCHEME_ENDPOINT	m_NamingScheme;
+		std::string		m_DefaultAFLocation;
+		bool			m_sendFullStructure; // If disabled the AF hierarchy is not created.
 
 		// Asset Framework Hierarchy Rules handling - Metadata MAP
 		// Documentation: https://fledge-iot.readthedocs.io/en/latest/plugins/fledge-north-OMF/index.html?highlight=hierarchy#asset-framework-hierarchy-rules
 		std::string		m_AFMap;
-		bool            m_AFMapEmptyNames;  // true if there are no rules to manage
-		bool            m_AFMapEmptyMetadata;
+		bool			m_AFMapEmptyNames;  // true if there are no rules to manage
+		bool			m_AFMapEmptyMetadata;
 		std::string		m_AFHierarchyLevel;
 		std::string		m_prefixAFAsset;
-		bool            m_connected;  // true if calls to PI Web API are working 
+		bool			m_connected;  // true if calls to PI Web API are working 
 
-		vector<std::string>  m_afhHierarchyAlreadyCreated={
+		vector<std::string>	m_afhHierarchyAlreadyCreated={
 
 			//  Asset Framework path
 			// {""}

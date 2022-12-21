@@ -1292,9 +1292,9 @@ SQLBuffer	sql;
 				const Value& modifier = (*iter)["modifier"];
 				for (Value::ConstValueIterator modifiers = modifier.Begin(); modifiers != modifier.End(); ++modifiers)
                 		{
-					if (iter->IsString())
+					if (modifiers->IsString())
 					{
-						string mod = iter->GetString();
+						string mod = modifiers->GetString();
 						if (mod.compare("allowzero") == 0)
 						{
 							allowZero = true;

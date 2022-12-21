@@ -110,8 +110,8 @@ class ConfigCategory {
 		bool				isNumber(const std::string& name) const;
 		bool				isDouble(const std::string& name) const;
 		bool				isDeprecated(const std::string& name) const;
-		std::string			toJSON(const bool full=false) const;
-		std::string			itemsToJSON(const bool full=false) const;
+		std::string			toJSON(const bool full=true) const;
+		std::string			itemsToJSON(const bool full=true) const;
 		ConfigCategory& 		operator=(ConfigCategory const& rhs);
 		ConfigCategory& 		operator+=(ConfigCategory const& rhs);
 		void				setItemsValueFromDefault();
@@ -124,7 +124,9 @@ class ConfigCategory {
 					FILE_ATTR,
 					MINIMUM_ATTR,
 					MAXIMUM_ATTR,
-					LENGTH_ATTR};
+					LENGTH_ATTR,
+					VALIDITY_ATTR,
+					GROUP_ATTR};
 		std::string			getItemAttribute(const std::string& itemName,
 								 ItemAttribute itemAttribute) const;
 
@@ -143,7 +145,7 @@ class ConfigCategory {
 					     const std::vector<std::string> options);
 				CategoryItem(const CategoryItem& rhs);
 				// Return both "value" and "default" items
-				std::string	toJSON(const bool full=false) const;
+				std::string	toJSON(const bool full=true) const;
 				// Return only "default" items
 				std::string	defaultToJSON() const;
 
@@ -166,6 +168,8 @@ class ConfigCategory {
 						m_options;
 				std::string 	m_file;
 				ItemType	m_itemType;
+				std::string	m_validity;
+				std::string	m_group;
 		};
 		std::vector<CategoryItem *>	m_items;
 		std::string			m_name;

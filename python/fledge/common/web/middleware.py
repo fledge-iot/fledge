@@ -162,7 +162,7 @@ async def validate_requests(request):
     """
         a) With "view" based user role id=3 only
            - read access operations (GET calls)
-           - change password (PUT call)
+           - change profile (PUT call)
            - logout (PUT call)
         b) With "data-view" based user role id=4 only
            - ping (GET call)
@@ -170,13 +170,13 @@ async def validate_requests(request):
            - service (GET call)
            - statistics, statistics history, statistics rate (GET call)
            - user profile (GET call)
-           - roles (GET call)
-           - change password (PUT call)
+           - user roles (GET call)
+           - change profile (PUT call)
            - logout (PUT call)
     """
     user_id = request.user['id']
     if int(request.user["role_id"]) == 3 and request.method != 'GET':
-        supported_endpoints = ['/fledge/user/{}/password'.format(user_id), '/logout']
+        supported_endpoints = ['/fledge/user', '/fledge/user/{}/password'.format(user_id), '/logout']
         if not str(request.rel_url).endswith(tuple(supported_endpoints)):
             raise web.HTTPForbidden
     elif int(request.user["role_id"]) == 4:
@@ -187,7 +187,7 @@ async def validate_requests(request):
                                                     ) or str(request.rel_url).endswith('/fledge/service')):
                 raise web.HTTPForbidden
         elif request.method == 'PUT':
-            supported_endpoints = ['/fledge/user/{}/password'.format(user_id), '/logout']
+            supported_endpoints = ['/fledge/user', '/fledge/user/{}/password'.format(user_id), '/logout']
             if not str(request.rel_url).endswith(tuple(supported_endpoints)):
                 raise web.HTTPForbidden
         else:

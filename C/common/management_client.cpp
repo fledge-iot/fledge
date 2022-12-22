@@ -884,7 +884,7 @@ bool ManagementClient::addAssetTrackingTuple(const std::string& service,
 	try {
 		convert << "{ \"service\" : \"" << JSONescape(service) << "\", ";
 		convert << " \"plugin\" : \"" << plugin << "\", ";
-		convert << " \"asset\" : \"" << asset << "\", ";
+		convert << " \"asset\" : \"" << JSONescape(asset) << "\", ";
 		convert << " \"event\" : \"" << event << "\" }";
 
 		auto res = this->getHttpClient()->request("POST", "/fledge/track", convert.str());
@@ -1756,7 +1756,7 @@ bool ManagementClient::addStorageAssetTrackingTuple(const std::string& service,
 	try {
 		convert << "{ \"service\" : \"" << JSONescape(service) << "\", ";
 		convert << " \"plugin\" : \"" << plugin << "\", ";
-		convert << " \"asset\" : \"" << asset << "\", ";
+		convert << " \"asset\" : \"" << JSONescape(asset) << "\", ";
 		convert << " \"event\" : \"" << event << "\", ";
 		convert << " \"deprecated\" :\"" << deprecated << "\", ";
 		convert << " \"data\"  :  { \"datapoints\" : \[ \"" << d << "\" ], ";

@@ -877,6 +877,7 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 		Logger::getLogger()->fatal("OMF Endpoint is not available");
 		return 0;
 	}
+Logger::getLogger()->fatal("FIXME: version is %s", version.c_str());
 
 	// Until we know better assume OMF 1.2
 	connInfo->omfversion = "1.2";

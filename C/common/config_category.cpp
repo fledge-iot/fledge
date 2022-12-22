@@ -464,6 +464,10 @@ string ConfigCategory::getItemAttribute(const string& itemName,
 				    return m_items[i]->m_mandatory;
 				case FILE_ATTR:
 					return m_items[i]->m_file;
+				case VALIDITY_ATTR:
+					return m_items[i]->m_validity;
+				case GROUP_ATTR:
+					return m_items[i]->m_group;
 				default:
 					throw new ConfigItemAttributeNotFound();
 			}
@@ -1417,7 +1421,7 @@ ostringstream convert;
 
 		if (!m_validity.empty())
 		{
-			convert << ", \"validity\" : \"" << m_validity << "\"";
+			convert << ", \"validity\" : \"" << JSONescape(m_validity) << "\"";
 		}
 
 		if (!m_group.empty())
@@ -1494,7 +1498,7 @@ ostringstream convert;
 
 	if (!m_validity.empty())
 	{
-		convert << ", \"validity\" : \"" << m_validity << "\"";
+		convert << ", \"validity\" : \"" << JSONescape(m_validity) << "\"";
 	}
 
 	if (!m_group.empty())

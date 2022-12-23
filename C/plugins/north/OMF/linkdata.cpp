@@ -19,6 +19,7 @@
 #include <datapoint.h>
 
 #include <iterator>
+#include <typeinfo>
 
 #include <omflinkeddata.h>
 

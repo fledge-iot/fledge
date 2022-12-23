@@ -336,17 +336,6 @@ def read_data_from_pi():
     def _read_data_from_pi(host, admin, password, pi_database, asset, sensor):
         """ This method reads data from pi web api """
 
-        # List of pi databases
-        dbs = None
-        # PI logical grouping of attributes and child elements
-        elements = None
-        # List of elements
-        url_elements_list = None
-        # Element's recorded data url
-        url_recorded_data = None
-        # Resources in the PI Web API are addressed by WebID, parameter used for deletion of element
-        web_id = None
-
         username_password = "{}:{}".format(admin, password)
         username_password_b64 = base64.b64encode(username_password.encode('ascii')).decode("ascii")
         headers = {'Authorization': 'Basic %s' % username_password_b64}
@@ -358,57 +347,34 @@ def read_data_from_pi():
             # are ignored and do not abort the TLS/SSL handshake.
             ctx.verify_mode = ssl.CERT_NONE
             conn = http.client.HTTPSConnection(host, context=ctx)
-            conn.request("GET", '/piwebapi/assetservers', headers=headers)
+            conn.request("GET", '/piwebapi/dataservers', headers=headers)
             res = conn.getresponse()
             r = json.loads(res.read().decode())
-            dbs = r["Items"][0]["Links"]["Databases"]
-
-            if dbs is not None:
-                conn.request("GET", dbs, headers=headers)
+            points= r["Items"][0]['Links']["Points"]
+            
+            if points is not None:
+                conn.request("GET", points, headers=headers)
                 res = conn.getresponse()
-                r = json.loads(res.read().decode())
-                for el in r["Items"]:
-                    if el["Name"] == pi_database:
-                        elements = el["Links"]["Elements"]
-
-            if elements is not None:
-                conn.request("GET", elements, headers=headers)
-                res = conn.getresponse()
-                r = json.loads(res.read().decode())
-                url_elements_list = r["Items"][0]["Links"]["Elements"]
-
-            if url_elements_list is not None:
-                conn.request("GET", url_elements_list, headers=headers)
-                res = conn.getresponse()
-                r = json.loads(res.read().decode())
-                items = r["Items"]
-                for el in items:
-                    if el["Name"] == asset:
-                        url_recorded_data = el["Links"]["RecordedData"]
-                        web_id = el["WebId"]
-
-            _data_pi = {}
-            if url_recorded_data is not None:
-                conn.request("GET", url_recorded_data, headers=headers)
-                res = conn.getresponse()
-                r = json.loads(res.read().decode())
-                _items = r["Items"]
-                for el in _items:
-                    _recoded_value_list = []
-                    for _head in sensor:
-                        if el["Name"] == _head:
-                            elx = el["Items"]
-                            for _el in elx:
-                                _recoded_value_list.append(_el["Value"])
-                            _data_pi[_head] = _recoded_value_list
-
-                # Delete recorded elements
-                conn.request("DELETE", '/piwebapi/elements/{}'.format(web_id), headers=headers)
-                res = conn.getresponse()
-                res.read()
-
-                return _data_pi
+                r=json.loads(res.read().decode())
+                data = r["Items"]
+                if data is not None:
+                    for el in data:
+                        if el["Name"] == "{}.{}".format(asset, sensor):
+                            value_url = el["Links"]["Value"]
+                            if value_url is not None:
+                                conn.request("GET", value_url, headers=headers)
+                                res = conn.getresponse()
+                                r = json.loads(res.read().decode())
+                                value = r["Value"]
+                else:
+                    raise Exception("Data not found")     
+            else:
+                raise Exception("Points Not Found")
+            print(value)
+            return(value)
+            
         except (KeyError, IndexError, Exception):
+            print("------------Failed to read data----------------")
             return None
 
     return _read_data_from_pi

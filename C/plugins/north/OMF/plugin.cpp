@@ -877,6 +877,7 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 		Logger::getLogger()->fatal("OMF Endpoint is not available");
 		return 0;
 	}
+Logger::getLogger()->fatal("FIXME: version is %s", version.c_str());
 
 	// Above call does not always populate version
 	if (version.empty())
@@ -973,6 +974,12 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 	connInfo->omf->setPIServerEndpoint(connInfo->PIServerEndpoint);
 	connInfo->omf->setDefaultAFLocation(connInfo->DefaultAFLocation);
 	connInfo->omf->setAFMap(connInfo->AFMap);
+#ifdef EDS_OMF_VERSION
+	if (connInfo->PIServerEndpoint == ENDPOINT_EDS)
+	{
+		connInfo->omfversion = EDS_OMF_VERSION;
+	}
+#endif
 	connInfo->omf->setOMFVersion(connInfo->omfversion);
 
 	// Generates the prefix to have unique asset_id across different levels of hierarchies

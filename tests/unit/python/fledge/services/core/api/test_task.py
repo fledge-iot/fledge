@@ -72,7 +72,7 @@ class TestTask:
 
             if table == 'scheduled_processes':
                 assert {'return': ['name'],
-                        'where': {'column': 'name', 'condition': '=', 'value': 'north'}} == json.loads(payload)
+                        'where': {'column': 'name', 'condition': '=', 'value': 'north_c'}} == json.loads(payload)
                 return {'count': 0, 'rows': []}
             if table == 'schedules':
                 assert {'return': ['schedule_name'],
@@ -217,7 +217,7 @@ class TestTask:
 
             if table == 'scheduled_processes':
                 assert {'return': ['name'], 'where': {'column': 'name', 'condition': '=',
-                                                      'value': 'north'}} == json.loads(payload)
+                                                      'value': 'north_c'}} == json.loads(payload)
                 return {'count': 0, 'rows': []}
             if table == 'schedules':
                 assert {'return': ['schedule_name'], 'where': {'column': 'schedule_name', 'condition': '=',
@@ -268,7 +268,6 @@ class TestTask:
             _rv3 = asyncio.ensure_future(self.async_mock(""))
             _rv4 = asyncio.ensure_future(async_mock_get_schedule())
 
-        
         with patch.object(common, 'load_and_fetch_python_plugin_info', return_value=mock_plugin_info):
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
                 with patch.object(c_mgr, 'get_category_all_items', return_value=_rv1) as patch_get_cat_info:
@@ -293,15 +292,16 @@ class TestTask:
                                     patch_save_schedule.assert_called_once()
                                 patch_create_child_cat.assert_called_once_with('North', ['north bound'])
                             calls = [call(category_description='North OMF plugin', category_name='north bound',
-                                          category_value={'plugin': {'description': 'North OMF plugin', 'default': 'omf',
-                                                                     'type': 'string'}}, keep_original_items=True),
+                                          category_value={
+                                              'plugin': {'description': 'North OMF plugin', 'default': 'omf',
+                                                         'type': 'string'}}, keep_original_items=True),
                                      call('North', {}, 'North tasks', True)]
                             patch_create_cat.assert_has_calls(calls)
                         args, kwargs = insert_table_patch.call_args
                         assert 'scheduled_processes' == args[0]
                         p = json.loads(args[1])
-                        assert p['name'] == 'north'
-                        assert p['script'] == '["tasks/north"]'
+                        assert p['name'] == 'north_c'
+                        assert p['script'] == '["tasks/north_c"]'
                 patch_get_cat_info.assert_called_once_with(category_name=data['name'])
 
     @pytest.mark.parametrize(
@@ -372,7 +372,7 @@ class TestTask:
             payload = arg[1]
             if table == 'scheduled_processes':
                 assert {'return': ['name'], 'where': {'column': 'name', 'condition': '=',
-                                                      'value': 'north'}} == json.loads(payload)
+                                                      'value': 'north_c'}} == json.loads(payload)
                 return {'count': 0, 'rows': []}
             if table == 'schedules':
                 assert {'return': ['schedule_name'], 'where': {'column': 'schedule_name', 'condition': '=',
@@ -459,7 +459,8 @@ class TestTask:
                                                           return_value=_rv3) as patch_save_schedule:
                                             with patch.object(server.Server.scheduler, 'get_schedule_by_name',
                                                               return_value=_rv4) as patch_get_schedule:
-                                                resp = await client.post('/fledge/scheduled/task', data=json.dumps(data))
+                                                resp = await client.post('/fledge/scheduled/task',
+                                                                         data=json.dumps(data))
                                                 server.Server.scheduler = None
                                                 assert 200 == resp.status
                                                 result = await resp.text()
@@ -476,8 +477,8 @@ class TestTask:
                         args, kwargs = insert_table_patch.call_args
                         assert 'scheduled_processes' == args[0]
                         p = json.loads(args[1])
-                        assert p['name'] == 'north'
-                        assert p['script'] == '["tasks/north"]'
+                        assert p['name'] == 'north_c'
+                        assert p['script'] == '["tasks/north_c"]'
                 patch_get_cat_info.assert_called_once_with(category_name=data['name'])
 
     async def test_delete_task(self, mocker, client):

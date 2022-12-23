@@ -124,7 +124,9 @@ class ConfigCategory {
 					FILE_ATTR,
 					MINIMUM_ATTR,
 					MAXIMUM_ATTR,
-					LENGTH_ATTR};
+					LENGTH_ATTR,
+					VALIDITY_ATTR,
+					GROUP_ATTR};
 		std::string			getItemAttribute(const std::string& itemName,
 								 ItemAttribute itemAttribute) const;
 
@@ -166,6 +168,8 @@ class ConfigCategory {
 						m_options;
 				std::string 	m_file;
 				ItemType	m_itemType;
+				std::string	m_validity;
+				std::string	m_group;
 		};
 		std::vector<CategoryItem *>	m_items;
 		std::string			m_name;

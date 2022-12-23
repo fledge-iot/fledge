@@ -583,11 +583,12 @@ int StorageClient::insertTable(const string& schema, const string& tableName, co
  * @param tableName	The name of the table into which data will be added
  * @param values	The values to insert into the table
  * @param where		The conditions to match the updated rows
+ * @param modifier	Optional storage modifier
  * @return int		The number of rows updated
  */
-int StorageClient::updateTable(const string& tableName, const InsertValues& values, const Where& where)
+int StorageClient::updateTable(const string& tableName, const InsertValues& values, const Where& where, const UpdateModifier *modifier)
 {
-	return updateTable(DEFAULT_SCHEMA, tableName, values, where);
+	return updateTable(DEFAULT_SCHEMA, tableName, values, where, modifier);
 }
 
 /**
@@ -597,9 +598,10 @@ int StorageClient::updateTable(const string& tableName, const InsertValues& valu
  * @param tableName	The name of the table into which data will be added
  * @param values	The values to insert into the table
  * @param where		The conditions to match the updated rows
+ * @param modifier	Optional storage modifier
  * @return int		The number of rows updated
  */
-int StorageClient::updateTable(const string& schema, const string& tableName, const InsertValues& values, const Where& where)
+int StorageClient::updateTable(const string& schema, const string& tableName, const InsertValues& values, const Where& where, const UpdateModifier *modifier)
 {
 	static HttpClient *httpClient = this->getHttpClient(); // to initialize m_seqnum_map[thread_id] for this thread
 	try {
@@ -614,8 +616,12 @@ int StorageClient::updateTable(const string& schema, const string& tableName, co
 
 		ostringstream convert;
 
-		convert << "{ \"updates\" : [ ";
-		convert << "{ \"where\" : ";
+		convert << "{ \"updates\" : [ {";
+		if (modifier)
+		{
+			convert << "\"modifiers\" : [ \"" << modifier->toJSON() << "\" ], ";
+		}
+		convert << "\"where\" : ";
 		convert << where.toJSON();
 		convert << ", \"values\" : ";
 		convert << values.toJSON();
@@ -662,11 +668,12 @@ int StorageClient::updateTable(const string& schema, const string& tableName, co
  * @param tableName	The name of the table into which data will be added
  * @param values	The expressions to update into the table
  * @param where		The conditions to match the updated rows
+ * @param modifier	Optional update modifier
  * @return int		The number of rows updated
  */
-int StorageClient::updateTable(const string& tableName, const ExpressionValues& values, const Where& where)
+int StorageClient::updateTable(const string& tableName, const ExpressionValues& values, const Where& where, const UpdateModifier *modifier)
 {
-	return updateTable(DEFAULT_SCHEMA, tableName, values, where);
+	return updateTable(DEFAULT_SCHEMA, tableName, values, where, modifier);
 }
 
 /**
@@ -676,9 +683,10 @@ int StorageClient::updateTable(const string& tableName, const ExpressionValues& 
  * @param tableName	The name of the table into which data will be added
  * @param values	The expressions to update into the table
  * @param where		The conditions to match the updated rows
+ * @param modifier	Optional update modifier
  * @return int		The number of rows updated
  */
-int StorageClient::updateTable(const string& schema, const string& tableName, const ExpressionValues& values, const Where& where)
+int StorageClient::updateTable(const string& schema, const string& tableName, const ExpressionValues& values, const Where& where, const UpdateModifier *modifier)
 {
 	static HttpClient *httpClient = this->getHttpClient(); // to initialize m_seqnum_map[thread_id] for this thread
 	try {
@@ -693,8 +701,12 @@ int StorageClient::updateTable(const string& schema, const string& tableName, co
 		
 		ostringstream convert;
 
-		convert << "{ \"updates\" : [ ";
-		convert << "{ \"where\" : ";
+		convert << "{ \"updates\" : [ {";
+		if (modifier)
+		{
+			convert << "\"modifiers\" : [ \"" << modifier->toJSON() << "\" ], ";
+		}
+		convert << "\"where\" : ";
 		convert << where.toJSON();
 		convert << ", \"expressions\" : ";
 		convert << values.toJSON();
@@ -740,11 +752,12 @@ int StorageClient::updateTable(const string& schema, const string& tableName, co
  *
  * @param tableName	The name of the table into which data will be added
  * @param updates	The expressions and condition pairs to update in the table
+ * @param modifier	Optional update modifier
  * @return int		The number of rows updated
  */
-int StorageClient::updateTable(const string& tableName, vector<pair<ExpressionValues *, Where *>>& updates)
+int StorageClient::updateTable(const string& tableName, vector<pair<ExpressionValues *, Where *>>& updates, const UpdateModifier *modifier)
 {
-	return updateTable(DEFAULT_SCHEMA, tableName, updates);
+	return updateTable(DEFAULT_SCHEMA, tableName, updates, modifier);
 }
 
 /**
@@ -753,9 +766,10 @@ int StorageClient::updateTable(const string& tableName, vector<pair<ExpressionVa
  * @param schema	The name of the schema into which data will be added
  * @param tableName	The name of the table into which data will be added
  * @param updates	The expressions and condition pairs to update in the table
+ * @param modifier	Optional update modifier
  * @return int		The number of rows updated
  */
-int StorageClient::updateTable(const string& schema, const string& tableName, vector<pair<ExpressionValues *, Where *>>& updates)
+int StorageClient::updateTable(const string& schema, const string& tableName, vector<pair<ExpressionValues *, Where *>>& updates, const UpdateModifier *modifier)
 {
 	static HttpClient *httpClient = this->getHttpClient(); // to initialize m_seqnum_map[thread_id] for this thread
 	try {
@@ -777,7 +791,12 @@ int StorageClient::updateTable(const string& schema, const string& tableName, ve
 			{
 				convert << ", ";
 			}
-			convert << "{ \"where\" : ";
+			convert << "{ ";
+			if (modifier)
+			{
+				convert << "\"modifiers\" : [ \"" << modifier->toJSON() << "\" ], ";
+			}
+			convert << "\"where\" : ";
 			convert << it->second->toJSON();
 			convert << ", \"expressions\" : ";
 			convert << it->first->toJSON();
@@ -827,11 +846,12 @@ int StorageClient::updateTable(const string& schema, const string& tableName, ve
  * @param values	The values to insert into the table
  * @param expressions	The expression to update inthe table
  * @param where		The conditions to match the updated rows
+ * @param modifier	Optional update modifier
  * @return int		The number of rows updated
  */
-int StorageClient::updateTable(const string& tableName, const InsertValues& values, const ExpressionValues& expressions, const Where& where)
+int StorageClient::updateTable(const string& tableName, const InsertValues& values, const ExpressionValues& expressions, const Where& where, const UpdateModifier *modifier)
 {
-	return updateTable(DEFAULT_SCHEMA, tableName, values, expressions, where);
+	return updateTable(DEFAULT_SCHEMA, tableName, values, expressions, where, modifier);
 }
 
 /**
@@ -842,15 +862,20 @@ int StorageClient::updateTable(const string& tableName, const InsertValues& valu
  * @param values	The values to insert into the table
  * @param expressions	The expression to update inthe table
  * @param where		The conditions to match the updated rows
+ * @param modifier	Optional update modifier
  * @return int		The number of rows updated
  */
-int StorageClient::updateTable(const string& schema, const string& tableName, const InsertValues& values, const ExpressionValues& expressions, const Where& where)
+int StorageClient::updateTable(const string& schema, const string& tableName, const InsertValues& values, const ExpressionValues& expressions, const Where& where, const UpdateModifier *modifier)
 {
 	try {
 		ostringstream convert;
 
-		convert << "{ \"updates\" : [ ";
-		convert << "{ \"where\" : ";
+		convert << "{ \"updates\" : [ { ";
+		if (modifier)
+		{
+			convert << "\"modifiers\" : [ \"" << modifier->toJSON() << "\" ], ";
+		}
+		convert << "\"where\" : ";
 		convert << where.toJSON();
 		convert << ", \"values\" : ";
 		convert << values.toJSON();
@@ -899,11 +924,12 @@ int StorageClient::updateTable(const string& schema, const string& tableName, co
  * @param tableName	The name of the table into which data will be added
  * @param json		The values to insert into the table
  * @param where		The conditions to match the updated rows
+ * @param modifier	Optional update modifier
  * @return int		The number of rows updated
  */
-int StorageClient::updateTable(const string& tableName, const JSONProperties& values, const Where& where)
+int StorageClient::updateTable(const string& tableName, const JSONProperties& values, const Where& where, const UpdateModifier *modifier)
 {
-	return updateTable(DEFAULT_SCHEMA, tableName, values, where);
+	return updateTable(DEFAULT_SCHEMA, tableName, values, where, modifier);
 }
 
 /**
@@ -915,13 +941,17 @@ int StorageClient::updateTable(const string& tableName, const JSONProperties& va
  * @param where		The conditions to match the updated rows
  * @return int		The number of rows updated
  */
-int StorageClient::updateTable(const string& schema, const string& tableName, const JSONProperties& values, const Where& where)
+int StorageClient::updateTable(const string& schema, const string& tableName, const JSONProperties& values, const Where& where, const UpdateModifier *modifier)
 {
 	try {
 		ostringstream convert;
 
-		convert << "{ \"updates\" : [ ";
-		convert << "{ \"where\" : ";
+		convert << "{ \"updates\" : [ {";
+		if (modifier)
+		{
+			convert << "\"modifiers\" : [ \"" << modifier->toJSON() << "\" ]";
+		}
+		convert << "\"where\" : ";
 		convert << where.toJSON();
 		convert << ", ";
 		convert << values.toJSON();
@@ -969,11 +999,12 @@ int StorageClient::updateTable(const string& schema, const string& tableName, co
  * @param values	The values to insert into the table
  * @param jsonProp	The JSON Properties to update
  * @param where		The conditions to match the updated rows
+ * @param modifier	Optional update modifier
  * @return int		The number of rows updated
  */
-int StorageClient::updateTable(const string& tableName, const InsertValues& values, const JSONProperties& jsonProp, const Where& where)
+int StorageClient::updateTable(const string& tableName, const InsertValues& values, const JSONProperties& jsonProp, const Where& where, const UpdateModifier *modifier)
 {
-	return updateTable(DEFAULT_SCHEMA, tableName, values, jsonProp, where);
+	return updateTable(DEFAULT_SCHEMA, tableName, values, jsonProp, where, modifier);
 }
 
 /**
@@ -984,15 +1015,20 @@ int StorageClient::updateTable(const string& tableName, const InsertValues& valu
  * @param values	The values to insert into the table
  * @param jsonProp	The JSON Properties to update
  * @param where		The conditions to match the updated rows
+ * @param modifier	Optional update modifier
  * @return int		The number of rows updated
  */
-int StorageClient::updateTable(const string& schema, const string& tableName, const InsertValues& values, const JSONProperties& jsonProp, const Where& where)
+int StorageClient::updateTable(const string& schema, const string& tableName, const InsertValues& values, const JSONProperties& jsonProp, const Where& where, const UpdateModifier *modifier)
 {
 	try {
 		ostringstream convert;
 
-		convert << "{ \"updates\" : [ ";
-		convert << "{ \"where\" : ";
+		convert << "{ \"updates\" : [ {";
+		if (modifier)
+		{
+			convert << "\"modifiers\" : [ \"" << modifier->toJSON() << "\", ";
+		}
+		convert << "\"where\" : ";
 		convert << where.toJSON();
 		convert << ", \"values\" : ";
 		convert << values.toJSON();

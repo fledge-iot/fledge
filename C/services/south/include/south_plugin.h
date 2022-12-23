@@ -10,6 +10,10 @@
  * Author: Mark Riddoch
  */
 
+#include <thread>
+#include <deque>
+#include <atomic>
+
 #include <plugin.h>
 #include <plugin_manager.h>
 #include <config_category.h>
@@ -50,7 +54,13 @@ public:
 	std::string	shutdownSaveData();
 	bool		write(const std::string& name, const std::string& value);
 	bool		operation(const std::string& name, std::vector<PLUGIN_PARAMETER *>& );
+	void 		callPluginReconf(std::string& newConfig);
 private:
+	
+	std::thread	*reconfThread;
+	std::deque<std::string>	pendingNewConfig;
+	std::atomic<bool> reconfOngoing;
+	
 	PLUGIN_HANDLE	instance;
 	void		(*pluginStartPtr)(PLUGIN_HANDLE);
 	Reading		(*pluginPollPtr)(PLUGIN_HANDLE);

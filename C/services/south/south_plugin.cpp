@@ -36,6 +36,8 @@ SouthPlugin::SouthPlugin(PLUGIN_HANDLE handle, const ConfigCategory& category) :
 					manager->resolveSymbol(handle, "plugin_init");
 	instance = (*pluginInit)(&category);
 
+	reconfOngoing.store(false);
+
 	if (!instance)
 	{
 		Logger::getLogger()->error("plugin_init returned NULL, cannot proceed");
@@ -175,9 +177,15 @@ Reading SouthPlugin::poll()
  */
 ReadingSet* SouthPlugin::pollV2()
 {
-	lock_guard<mutex> guard(mtx2);
-	try {
-        std::vector<Reading *> *vec = this->pluginPollPtrV2(instance);
+	std::vector<Reading *> *vec = NULL;
+	
+	try
+	{
+		{
+			lock_guard<mutex> guard(mtx2);
+			PRINT_FUNC;
+		        vec = this->pluginPollPtrV2(instance);
+		}
         if(vec)
         {
             ReadingSet *set = new ReadingSet(vec);
@@ -198,14 +206,61 @@ ReadingSet* SouthPlugin::pollV2()
 	}
 }
 
+static void reconfThreadMain(void *arg, std::string newConfig)
+{
+	SouthPlugin *sp = (SouthPlugin *)arg;
+	Logger::getLogger()->info("reconfThreadMain(): CALLING sp->callPluginReconf()");
+	sp->callPluginReconf(newConfig);
+	Logger::getLogger()->info("reconfThreadMain(): DONE sp->callPluginReconf()");
+}
+
+void SouthPlugin::callPluginReconf(std::string& newConfig)
+{
+	Logger::getLogger()->info("SouthPlugin::callPluginReconf START");
+	this->pluginReconfigurePtr(&instance, newConfig);
+	Logger::getLogger()->info("SouthPlugin::callPluginReconf DONE");
+}
+
+
 /**
  * Call the reconfigure method in the plugin
  */
 void SouthPlugin::reconfigure(const string& newConfig)
 {
-	lock_guard<mutex> guard(mtx2);
+	std::ostringstream ss;
+	ss << std::this_thread::get_id();
+	Logger::getLogger()->info("SouthPlugin::reconfigure(): threadid=%s", ss.str().c_str());
+	
 	try {
-		this->pluginReconfigurePtr(&instance, newConfig);
+		PRINT_FUNC;
+		bool reconfNow = true;
+		if (reconfOngoing.load())
+		{
+			Logger::getLogger()->info("SouthPlugin::reconfigure(): reconfOngoing is TRUE");
+			if (reconfThread->joinable())
+			{
+				Logger::getLogger()->info("SouthPlugin::reconfigure(): reconfThread is JOINABLE");
+				reconfThread->join();
+				reconfNow = true;
+			}
+			else
+			{
+				Logger::getLogger()->info("SouthPlugin::reconfigure(): reconfThread is NOT JOINABLE");
+				reconfNow = false;
+			}
+		}
+		else
+			Logger::getLogger()->info("SouthPlugin::reconfigure(): reconfOngoing is FALSE");
+		
+		pendingNewConfig.emplace_back(newConfig);
+		
+		if (reconfNow)
+		{
+			std::string reconfStr = pendingNewConfig.front();
+			pendingNewConfig.pop_front();
+			Logger::getLogger()->info("SouthPlugin::reconfigure(): Creating new reconfThread for reconfStr=%s", reconfStr.c_str());
+			reconfThread = new std::thread(reconfThreadMain, this, reconfStr);
+		}
 		if (!instance)
 		{
 			Logger::getLogger()->error("plugin_reconfigure returned NULL, cannot proceed");

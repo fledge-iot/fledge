@@ -241,6 +241,8 @@ SouthService::SouthService(const string& myName, const string& token) :
 
 	logger = new Logger(myName);
 	logger->setMinLevel("warning");
+
+	m_reconfOngoing.store(false);
 }
 
 /**
@@ -812,10 +814,15 @@ void SouthService::restart()
 	logger->info("South service shutdown for restart in progress.");
 }
 
-/**
- * Configuration change notification
- */
-void SouthService::configChange(const string& categoryName, const string& category)
+static void reconfThreadMain(void *arg, std::pair<std::string,std::string> newConfig)
+{
+	SouthService *ss = (SouthService *)arg;
+	Logger::getLogger()->debug("reconfThreadMain(): Spawned new thread for calling sp->callPluginReconf()");
+	ss->handleReconf(newConfig.first, newConfig.second);
+	Logger::getLogger()->debug("reconfThreadMain(): DONE ss->callPluginReconf()");
+}
+
+void SouthService::handleReconf(const string& categoryName, const string& category)
 {
 	logger->info("Configuration change in category %s: %s", categoryName.c_str(),
 			category.c_str());
@@ -937,6 +944,42 @@ void SouthService::configChange(const string& categoryName, const string& catego
 	if (categoryName.compare(m_name+"Security") == 0)
 	{
 		this->updateSecurityCategory(category);
+	}
+}
+
+/**
+ * Configuration change notification
+ */
+void SouthService::configChange(const string& categoryName, const string& category)
+{
+	bool reconfNow = true;
+	if (m_reconfOngoing.load())
+	{
+		Logger::getLogger()->debug("SouthPlugin::reconfigure(): m_reconfOngoing is TRUE");
+		if (m_reconfThread->joinable())
+		{
+			Logger::getLogger()->debug("SouthPlugin::reconfigure(): reconfThread is JOINABLE");
+			m_reconfThread->join();
+			reconfNow = true;
+		}
+		else
+		{
+			Logger::getLogger()->debug("SouthPlugin::reconfigure(): reconfThread is NOT JOINABLE");
+			reconfNow = false;
+		}
+	}
+	else
+		Logger::getLogger()->debug("SouthPlugin::reconfigure(): m_reconfOngoing is FALSE");
+	
+	m_pendingNewConfig.emplace_back(std::make_pair(categoryName, category));
+	
+	if (reconfNow)
+	{
+		auto reconfValues = m_pendingNewConfig.front();
+		m_pendingNewConfig.pop_front();
+		Logger::getLogger()->debug("SouthService::configChange(): Creating new reconfThread for reconfStr: categoryName=%s, category=%s", 
+									reconfValues.first.c_str(), reconfValues.second.c_str());
+		m_reconfThread = new std::thread(reconfThreadMain, this, reconfValues);
 	}
 }
 

@@ -23,6 +23,9 @@ set(common_sources "../../../../../../../../C/common/string_utils.cpp")
  
 # Link runTests with what we want to test and the GTest and pthread library
 add_executable(RunTests ${test_sources} ${common_sources} tests.cpp)
+#setting BOOST_COMPONENTS to use pthread library only
+set(BOOST_COMPONENTS thread)
+find_package(Boost 1.53.0 COMPONENTS ${BOOST_COMPONENTS} REQUIRED)
 target_link_libraries(RunTests ${GTEST_LIBRARIES} pthread)
 
 setup_target_for_coverage_gcovr_html(

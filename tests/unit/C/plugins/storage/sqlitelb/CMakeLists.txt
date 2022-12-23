@@ -83,6 +83,9 @@ target_link_libraries(${PROJECT_NAME} ${PLUGIN_SQLITELB})
 target_link_libraries(${PROJECT_NAME} ${STORAGE_COMMON_LIB})
 target_link_libraries(${PROJECT_NAME} ${LIBCURL_LIB})
 
+#setting BOOST_COMPONENTS to use pthread library only
+set(BOOST_COMPONENTS thread)
+find_package(Boost 1.53.0 COMPONENTS ${BOOST_COMPONENTS} REQUIRED)
 target_link_libraries(${PROJECT_NAME} ${GTEST_LIBRARIES} pthread)
 # Add Python 3.x library
 if(${CMAKE_VERSION} VERSION_LESS "3.12.0")

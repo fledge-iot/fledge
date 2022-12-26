@@ -638,8 +638,8 @@ def pytest_addoption(parser):
     parser.addoption("--pi-token", action="store", default="omf_north_0001",
                      help="OMF Producer Token")
     parser.addoption("--pi-use-legacy", action="store", default="true",
-                     help="Set true if you want to send linked data types otherwise set true.")
-
+                     help="Set false to override the default plugin behaviour i.e. for OMF version >=1.2.x to send linked data types.")
+    
     # OCS Config
     parser.addoption("--ocs-tenant", action="store", default="ocs_tenant_id",
                      help="Tenant id of OCS")

@@ -1,5 +1,5 @@
 ----------------------------------------------------------------------
--- Copyright (c) 2021 OSIsoft, LLC
+-- Copyright (c) 2022 OSIsoft, LLC
 --
 -- Licensed under the Apache License, Version 2.0 (the "License");
 -- you may not use this file except in compliance with the License.
@@ -519,7 +519,7 @@ CREATE INDEX tasks_ix1
 CREATE TABLE fledge.omf_created_objects (
     configuration_key character varying(255)    NOT NULL,            -- FK to fledge.configuration
     type_id           integer                   NOT NULL,            -- Identifies the specific PI Server type
-    asset_code        character varying(50)     NOT NULL,
+    asset_code        character varying(255)    NOT NULL,
     CONSTRAINT omf_created_objects_pkey PRIMARY KEY (configuration_key,type_id, asset_code),
     CONSTRAINT omf_created_objects_fk1 FOREIGN KEY (configuration_key)
     REFERENCES configuration (key) MATCH SIMPLE
@@ -579,6 +579,22 @@ CREATE TABLE fledge.plugin_data (
 	key     character varying(255)    NOT NULL,
 	data    JSON                      NOT NULL DEFAULT '{}',
 	CONSTRAINT plugin_data_pkey PRIMARY KEY (key) );
+
+-- Create packages table
+CREATE TABLE fledge.packages (
+             id                uuid                   NOT NULL, -- PK
+             name              character varying(255) NOT NULL, -- Package name
+             action            character varying(10) NOT NULL, -- APT actions:
+                                                                -- list
+                                                                -- install
+                                                                -- purge
+                                                                -- update
+             status            INTEGER                NOT NULL, -- exit code
+                                                                -- -1       - in-progress
+                                                                --  0       - success
+                                                                -- Non-Zero - failed
+             log_file_uri      character varying(255) NOT NULL, -- Package Log file relative path
+  CONSTRAINT packages_pkey PRIMARY KEY  ( id ) );
 
 -- Create filters table
 CREATE TABLE fledge.filters (

@@ -45,7 +45,7 @@ def change_to_auth_mandatory(fledge_url, wait_time):
 
 
 def test_setup(reset_and_start_fledge, change_to_auth_mandatory, fledge_url, wait_time):
-    time.sleep(wait_time * 2)
+    time.sleep(wait_time * 3)
     conn = http.client.HTTPConnection(fledge_url)
     # Admin login
     conn.request("POST", "/fledge/login", json.dumps({"username": "admin", "password": "fledge"}))

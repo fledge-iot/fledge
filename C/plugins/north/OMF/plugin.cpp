@@ -902,7 +902,7 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 	{
 		connInfo->omfversion = "1.2";
 	}
-	Logger::getLogger()->info("Using OMF Version '%s'", connInfo->omfversion);
+	Logger::getLogger()->info("Using OMF Version '%s'", connInfo->omfversion.c_str());
 	/**
 	 * Select the transport library based on the authentication method and transport encryption
 	 * requirements.

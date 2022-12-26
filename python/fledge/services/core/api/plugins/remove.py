@@ -5,7 +5,6 @@
 # FLEDGE_END
 
 import aiohttp
-import platform
 import os
 import logging
 import json
@@ -14,16 +13,17 @@ import uuid
 import multiprocessing
 
 from aiohttp import web
-from fledge.common import logger
+from fledge.common import logger, utils
+from fledge.common.audit_logger import AuditLogger
+from fledge.common.common import _FLEDGE_ROOT
+from fledge.common.configuration_manager import ConfigurationManager
 from fledge.common.plugin_discovery import PluginDiscovery
+from fledge.common.storage_client.exceptions import StorageServerError
+from fledge.common.storage_client.payload_builder import PayloadBuilder
+from fledge.services.core import connect
 from fledge.services.core.api.plugins import common
 from fledge.services.core.api.plugins.exceptions import *
-from fledge.services.core import connect
-from fledge.common.storage_client.payload_builder import PayloadBuilder
-from fledge.common.configuration_manager import ConfigurationManager
-from fledge.common.common import _FLEDGE_ROOT
-from fledge.common.audit_logger import AuditLogger
-from fledge.common.storage_client.exceptions import StorageServerError
+
 
 __author__ = "Rajesh Kumar"
 __copyright__ = "Copyright (c) 2020, Dianomic Systems Inc."
@@ -240,9 +240,8 @@ def purge_plugin(plugin_type: str, name: str, uid: uuid, storage: connect) -> tu
     name = name.replace('_', '-').lower()
     plugin_name = 'fledge-{}-{}'.format(plugin_type, name)
 
-    get_platform = platform.platform()
     try:
-        if 'centos' in get_platform or 'redhat' in get_platform:
+        if not utils.is_debian():
             rpm_list = os.popen('rpm -qa | grep fledge*').read()
             _logger.debug("rpm list : {}".format(rpm_list))
             if len(rpm_list):

@@ -9,7 +9,6 @@
 
 import logging
 import datetime
-import platform
 import os
 from os.path import basename
 import glob
@@ -19,13 +18,14 @@ import json
 import tarfile
 import fnmatch
 import subprocess
-from fledge.services.core.connect import *
-from fledge.common import logger
+
+from fledge.common import logger, utils
 from fledge.common.common import _FLEDGE_ROOT, _FLEDGE_DATA
 from fledge.common.configuration_manager import ConfigurationManager
 from fledge.common.plugin_discovery import PluginDiscovery
 from fledge.common.storage_client import payload_builder
 from fledge.services.core.api.service import get_service_records, get_service_installed
+from fledge.services.core.connect import *
 
 
 __author__ = "Amarendra K Sinha"
@@ -35,11 +35,8 @@ __version__ = "${VERSION}"
 
 _LOGGER = logger.setup(__name__, level=logging.INFO)
 _NO_OF_FILES_TO_RETAIN = 3
-_SYSLOG_FILE = '/var/log/syslog'
+_SYSLOG_FILE = '/var/log/syslog' if utils.is_debian() else '/var/log/messages'
 _PATH = _FLEDGE_DATA if _FLEDGE_DATA else _FLEDGE_ROOT + '/data'
-
-if ('centos' in platform.platform()) or ('redhat' in platform.platform()):
-    _SYSLOG_FILE = '/var/log/messages'
 
 
 class SupportBuilder:

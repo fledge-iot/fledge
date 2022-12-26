@@ -85,3 +85,42 @@ def add_functions_as_methods(functions):
 def eprint(*args, **kwargs):
     """ eprintf -- convenience print function that prints to stderr """
     print(*args, *kwargs, file=sys.stderr)
+
+
+def read_os_release():
+    """ General information to identifying the operating system """
+    import ast
+    import re
+    os_details = {}
+    try:
+        filename = '/etc/os-release'
+        f = open(filename)
+    except FileNotFoundError:
+        filename = '/usr/lib/os-release'
+        f = open(filename)
+
+    for line_number, line in enumerate(f, start=1):
+        line = line.rstrip()
+        if not line or line.startswith('#'):
+            continue
+        m = re.match(r'([A-Z][A-Z_0-9]+)=(.*)', line)
+        if m:
+            name, val = m.groups()
+            if val and val[0] in '"\'':
+                val = ast.literal_eval(val)
+            os_details.update({name: val})
+    return os_details
+
+
+def is_debian():
+    """
+        To check if the Operating system is of Debian type or Not
+        Examples:
+            a) For an operating system with "ID=centos", an assignment of "ID_LIKE="rhel fedora"" is appropriate
+            b) For an operating system with "ID=ubuntu/raspbian", an assignment of "ID_LIKE=debian" is appropriate.
+    """
+    os_release = read_os_release()
+    id_like = os_release.get('ID_LIKE')
+    if id_like is not None and any(x in id_like.lower() for x in ['centos', 'rhel', 'redhat', 'fedora']):
+        return False
+    return True

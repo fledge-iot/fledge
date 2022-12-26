@@ -13,12 +13,12 @@ import subprocess
 import http.client
 import json
 import time
-import pytest
 from pathlib import Path
-import utils
 from datetime import timezone, datetime
-import itertools
-import platform
+import utils
+import pytest
+from pytest import IS_DEBIAN
+
 
 __author__ = "Yash Tatkondawar"
 __copyright__ = "Copyright (c) 2020 Dianomic Systems Inc."
@@ -67,8 +67,7 @@ def remove_and_add_pkgs(package_build_version):
         assert False, "setup package script failed"
 
     try:
-        os_platform = platform.platform()
-        pkg_mgr = 'yum' if 'centos' in os_platform or 'redhat' in os_platform else 'apt'
+        pkg_mgr = 'apt' if IS_DEBIAN else 'yum'
         subprocess.run(["sudo {} install -y fledge-north-gcp fledge-south-sinusoid".format(pkg_mgr)], shell=True, check=True)
     except subprocess.CalledProcessError:
         assert False, "installation of gcp-gateway and sinusoid packages failed"

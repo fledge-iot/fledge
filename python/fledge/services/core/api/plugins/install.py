@@ -5,7 +5,6 @@
 # FLEDGE_END
 
 import os
-import platform
 import subprocess
 import logging
 import asyncio
@@ -21,17 +20,18 @@ import async_timeout
 from typing import Dict
 from datetime import datetime
 
+from fledge.common import logger, utils
 from fledge.common.common import _FLEDGE_ROOT, _FLEDGE_DATA
-from fledge.services.core.api.plugins import common
-from fledge.common import logger
-from fledge.services.core.api.plugins.exceptions import *
-from fledge.services.core import connect
-from fledge.common.configuration_manager import ConfigurationManager
 from fledge.common.audit_logger import AuditLogger
-from fledge.services.core import server
+from fledge.common.configuration_manager import ConfigurationManager
+from fledge.common.plugin_discovery import PluginDiscovery
 from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.common.storage_client.exceptions import StorageServerError
-from fledge.common.plugin_discovery import PluginDiscovery
+from fledge.services.core import connect
+from fledge.services.core import server
+from fledge.services.core.api.plugins import common
+from fledge.services.core.api.plugins.exceptions import *
+
 
 __author__ = "Ashish Jabble"
 __copyright__ = "Copyright (c) 2019 Dianomic Systems Inc."
@@ -118,8 +118,7 @@ async def add_plugin(request: web.Request) -> web.Response:
             if name not in plugins:
                 raise KeyError('{} plugin is not available for the configured repository'.format(name))
 
-            _platform = platform.platform()
-            pkg_mgt = 'yum' if 'centos' in _platform or 'redhat' in _platform else 'apt'
+            pkg_mgt = 'apt' if utils.is_debian() else 'yum'
             # Insert record into Packages table
             insert_payload = PayloadBuilder().INSERT(id=str(uuid.uuid4()), name=name, action=action, status=-1,
                                                      log_file_uri="").payload()

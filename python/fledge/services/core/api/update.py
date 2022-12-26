@@ -13,10 +13,9 @@ import datetime
 import os
 import asyncio
 import re
-import platform
 
+from fledge.common import logger, utils
 from fledge.services.core import server
-from fledge.common import logger
 from fledge.services.core.scheduler.entities import ManualSchedule
 
 _LOG_LEVEL = 20
@@ -126,10 +125,10 @@ async def get_updates(request: web.Request) -> web.Response:
         Example
          curl -sX GET http://localhost:8081/fledge/update |jq
     """
-    _platform = platform.platform()
-    update_cmd = "sudo apt update"
-    upgradable_pkgs_check_cmd = "apt list --upgradable | grep \^fledge"
-    if "centos" in _platform or "redhat" in _platform:
+    if utils.is_debian():
+        update_cmd = "sudo apt update"
+        upgradable_pkgs_check_cmd = "apt list --upgradable | grep \^fledge"
+    else:
         update_cmd = "sudo yum check-update"
         upgradable_pkgs_check_cmd = "yum list updates | grep \^fledge"
 

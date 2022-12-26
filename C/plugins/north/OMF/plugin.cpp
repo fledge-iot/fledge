@@ -877,7 +877,7 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 		Logger::getLogger()->fatal("OMF Endpoint is not available");
 		return 0;
 	}
-	// FIXME - The above call is not working. Investigate why? 
+	// FIXME - The above call is not working. Investigate why? FOGL-7293
 
 	// Above call does not always populate version
 	if (version.empty())

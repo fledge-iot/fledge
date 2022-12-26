@@ -9,7 +9,6 @@ import sys
 import types
 import logging
 import os
-import platform
 import json
 import glob
 import importlib.util
@@ -17,7 +16,7 @@ from typing import Dict
 from datetime import datetime
 from functools import lru_cache
 
-from fledge.common import logger
+from fledge.common import logger, utils as common_utils
 from fledge.common.common import _FLEDGE_ROOT, _FLEDGE_DATA, _FLEDGE_PLUGIN_PATH
 from fledge.services.core.api import utils
 from fledge.services.core.api.plugins.exceptions import *
@@ -171,9 +170,8 @@ async def fetch_available_packages(package_type: str = "") -> tuple:
 
     stdout_file_path = create_log_file(action="list")
     tmp_log_output_fp = stdout_file_path.split('logs/')[:1][0] + "logs/output.txt"
-    _platform = platform.platform()
     pkg_type = "" if package_type is None else package_type
-    pkg_mgt = 'yum' if 'centos' in _platform or 'redhat' in _platform else 'apt'
+    pkg_mgt = 'apt' if common_utils.is_debian() else 'yum'
     category = await server.Server._configuration_manager.get_category_all_items("Installation")
     max_update_cat_item = category['maxUpdate']
     pkg_cache_mgr = server.Server._package_cache_manager
@@ -186,8 +184,7 @@ async def fetch_available_packages(package_type: str = "") -> tuple:
     if duration_in_sec > (24 / int(max_update_cat_item['value'])) * 60 * 60 or not last_accessed_time:
         _logger.info("Attempting update on {}".format(now))
         cmd = "sudo {} -y update > {} 2>&1".format(pkg_mgt, stdout_file_path)
-        if 'centos' in _platform or 'redhat' in _platform:
-            pkg_mgt = 'yum'
+        if pkg_mgt == 'yum':
             cmd = "sudo {} check-update > {} 2>&1".format(pkg_mgt, stdout_file_path)
         # Execute command
         os.system(cmd)

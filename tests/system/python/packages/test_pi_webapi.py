@@ -106,20 +106,20 @@ def _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_d
 
     af_hierarchy_level_list = AF_HIERARCHY_LEVEL.split("/")
     type_id = 1
-    recorded_datapoint = "{}measurement_{}".format(type_id, asset_name)
+    recorded_datapoint = asset_name
     # Name of asset in the PI server
-    PI_ASSET_NAME = "{}-type{}".format(asset_name, type_id)
+    PI_ASSET_NAME = asset_name
 
     while (data_from_pi is None or data_from_pi == []) and retry_count < retries:
         data_from_pi = read_data_from_pi_web_api(pi_host, pi_admin, pi_passwd, pi_db, af_hierarchy_level_list,
-                                                 PI_ASSET_NAME, {recorded_datapoint})
+                                                 ASSET, DATAPOINT)
         retry_count += 1
         time.sleep(wait_time * 2)
 
     if data_from_pi is None or retry_count == retries:
         assert False, "Failed to read data from PI"
 
-    assert data_from_pi[recorded_datapoint][-1] == DATAPOINT_VALUE
+    assert data_from_pi == DATAPOINT_VALUE
 
 
 @pytest.fixture

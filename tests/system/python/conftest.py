@@ -458,8 +458,12 @@ def read_data_from_pi_web_api():
                 data = r["Items"]
                 if data is not None:
                     value = None
+                    if sensor == '':
+                        search_string = asset
+                    else:
+                        search_string = "{}.{}".format(asset, sensor)
                     for el in data:
-                        if el["Name"] == "{}.{}".format(asset, sensor):
+                        if search_string in el["Name"]:
                             value_url = el["Links"]["Value"]
                             if value_url is not None:
                                 conn.request("GET", value_url, headers=headers)

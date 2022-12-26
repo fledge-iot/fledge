@@ -112,14 +112,14 @@ def _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_d
 
     while (data_from_pi is None or data_from_pi == []) and retry_count < retries:
         data_from_pi = read_data_from_pi_web_api(pi_host, pi_admin, pi_passwd, pi_db, af_hierarchy_level_list,
-                                                 ASSET, DATAPOINT)
+                                                 ASSET, '')
         retry_count += 1
         time.sleep(wait_time * 2)
 
     if data_from_pi is None or retry_count == retries:
         assert False, "Failed to read data from PI"
 
-    assert data_from_pi == DATAPOINT_VALUE
+    assert int(data_from_pi) == DATAPOINT_VALUE
 
 
 @pytest.fixture

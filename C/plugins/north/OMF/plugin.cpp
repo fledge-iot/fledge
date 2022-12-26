@@ -877,12 +877,26 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 		Logger::getLogger()->fatal("OMF Endpoint is not available");
 		return 0;
 	}
+Logger::getLogger()->fatal("FIXME: version is %s", version.c_str());
 
-	// Until we know better assume OMF 1.2
+	// Above call does not always populate version
+	if (version.empty())
+	{
+		PIWebAPIGetVersion(connInfo, version, false);
+	}
+
+	Logger::getLogger()->info("Version is '%s'", version.c_str());
+
+	// Until we know better assume OMF 1.2 as this is the base base point
+	// to give us the flexible type support we need
 	connInfo->omfversion = "1.2";
 	if (version.find("2019") != std::string::npos)
 	{
 		connInfo->omfversion = "1.0";
+	}
+	else if (version.find("2020") != std::string::npos)
+	{
+		connInfo->omfversion = "1.1";
 	}
 	else if (version.find("2021") != std::string::npos)
 	{
@@ -960,6 +974,12 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 	connInfo->omf->setPIServerEndpoint(connInfo->PIServerEndpoint);
 	connInfo->omf->setDefaultAFLocation(connInfo->DefaultAFLocation);
 	connInfo->omf->setAFMap(connInfo->AFMap);
+#ifdef EDS_OMF_VERSION
+	if (connInfo->PIServerEndpoint == ENDPOINT_EDS)
+	{
+		connInfo->omfversion = EDS_OMF_VERSION;
+	}
+#endif
 	connInfo->omf->setOMFVersion(connInfo->omfversion);
 
 	// Generates the prefix to have unique asset_id across different levels of hierarchies
@@ -1505,7 +1525,6 @@ int PIWebAPIGetVersion(CONNECTOR_INFO* connInfo, std::string &version, bool logM
 	_PIWebAPI->setAuthBasicCredentials(connInfo->PIWebAPICredentials);
 
 	int httpCode = _PIWebAPI->GetVersion(connInfo->hostAndPort, version, logMessage);
-
 	delete _PIWebAPI;
 
 	return httpCode;

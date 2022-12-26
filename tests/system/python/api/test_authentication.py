@@ -46,7 +46,7 @@ def change_to_auth_mandatory(reset_and_start_fledge, fledge_url, wait_time):
 
 class TestAuthenticationAPI:
     def test_login_username_regular_user(self, change_to_auth_mandatory, fledge_url, wait_time):
-        time.sleep(wait_time * 2)
+        time.sleep(wait_time * 3)
         conn = http.client.HTTPConnection(fledge_url)
         conn.request("POST", "/fledge/login", json.dumps({"username": "user", "password": "fledge"}))
         r = conn.getresponse()

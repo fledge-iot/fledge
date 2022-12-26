@@ -5,7 +5,6 @@
 # FLEDGE_END
 
 import os
-import platform
 import subprocess
 import json
 import logging
@@ -15,11 +14,10 @@ import urllib.parse
 from pathlib import Path
 from aiohttp import web
 
-from fledge.common import logger
+from fledge.common import logger, utils
 from fledge.common.common import _FLEDGE_ROOT, _FLEDGE_DATA
 from fledge.services.core.support import SupportBuilder
 
-from fledge.common.common import _FLEDGE_ROOT
 
 __author__ = "Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -28,12 +26,8 @@ __version__ = "${VERSION}"
 
 _logger = logger.setup(__name__, level=logging.INFO)
 
-_SYSLOG_FILE = '/var/log/syslog'
-if any(x in platform.platform() for x in ['centos', 'redhat']):
-    _SYSLOG_FILE = '/var/log/messages'
-
+_SYSLOG_FILE = '/var/log/syslog' if utils.is_debian() else '/var/log/messages'
 _SCRIPTS_DIR = "{}/scripts".format(_FLEDGE_ROOT)
-
 __DEFAULT_LIMIT = 20
 __DEFAULT_OFFSET = 0
 __DEFAULT_LOG_SOURCE = 'Fledge'

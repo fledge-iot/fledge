@@ -223,6 +223,9 @@ void doIngestV2(Ingest *ingest, ReadingSet *set)
 }
 
 
+static void reconfThreadMain(void *arg);
+
+
 /**
  * Constructor for the south service
  */
@@ -242,7 +245,7 @@ SouthService::SouthService(const string& myName, const string& token) :
 	logger = new Logger(myName);
 	logger->setMinLevel("warning");
 
-	m_reconfOngoing.store(false);
+	m_reconfThread = new std::thread(reconfThreadMain, this);
 }
 
 /**
@@ -549,6 +552,22 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 						}
 						else // V2 poll method
 						{
+							PRINT_FUNC;
+							while(1)
+							{
+								unsigned int numPendingReconfs;
+								{
+									lock_guard<mutex> guard(m_pendingNewConfigMutex);
+									numPendingReconfs = m_pendingNewConfig.size();
+								}
+								if (numPendingReconfs)
+								{
+									Logger::getLogger()->debug("SouthService::start(): %d entries in m_pendingNewConfig, poll thread yielding CPU", numPendingReconfs);
+									std::this_thread::sleep_for(std::chrono::milliseconds(200));
+								}
+								else
+									break;
+							}
 							ReadingSet *set = southPlugin->pollV2();
 				if (set)
 				{
@@ -814,172 +833,205 @@ void SouthService::restart()
 	logger->info("South service shutdown for restart in progress.");
 }
 
-static void reconfThreadMain(void *arg, std::pair<std::string,std::string> newConfig)
+/**
+ * Separate thread to run plugin_reconf, to avoid blocking 
+ * service's management interface due to long plugin_poll calls
+ */
+static void reconfThreadMain(void *arg)
 {
 	SouthService *ss = (SouthService *)arg;
-	Logger::getLogger()->debug("reconfThreadMain(): Spawned new thread for calling sp->callPluginReconf()");
-	ss->handleReconf(newConfig.first, newConfig.second);
-	Logger::getLogger()->debug("reconfThreadMain(): DONE ss->callPluginReconf()");
+	Logger::getLogger()->info("reconfThreadMain(): Spawned new thread for plugin reconf");
+	while(1)
+	{
+		ss->handlePendingReconf();
+	}
+	Logger::getLogger()->info("reconfThreadMain(): plugin reconf thread exiting");
 }
 
-void SouthService::handleReconf(const string& categoryName, const string& category)
+/**
+ * Handle configuration change notification
+ */
+void SouthService::handlePendingReconf()
 {
-	logger->info("Configuration change in category %s: %s", categoryName.c_str(),
-			category.c_str());
-	if (categoryName.compare(m_name) == 0)
+	Logger::getLogger()->info("SouthService::handlePendingReconf: Going into cv wait");
+	mutex mtx;
+	unique_lock<mutex> lck(mtx);
+	m_cvNewReconf.wait(lck);
+	Logger::getLogger()->info("SouthService::handlePendingReconf: cv wait has completed");
+
+	while(1)
 	{
-		m_config = ConfigCategory(m_name, category);
-		try {
-			southPlugin->reconfigure(category);
-		}
-		catch (...) {
-			logger->fatal("Unrecoverable failure during South plugin reconfigure, south service exiting...");
-			shutdown();
-		}
-		// Let ingest class check for changes to filter pipeline
-		m_ingest->configChange(categoryName, category);
-	}
-	if (categoryName.compare(m_name+"Advanced") == 0)
-	{
-		m_configAdvanced = ConfigCategory(m_name+"Advanced", category);
-		if (m_configAdvanced.itemExists("statistics"))
+		unsigned int numPendingReconfs = 0;
 		{
-			m_ingest->setStatistics(m_configAdvanced.getValue("statistics"));
+			lock_guard<mutex> guard(m_pendingNewConfigMutex);
+			numPendingReconfs = m_pendingNewConfig.size();
+			if (numPendingReconfs)
+				Logger::getLogger()->info("SouthService::handlePendingReconf(): will process %d entries in m_pendingNewConfig", numPendingReconfs);
+			else
+			{
+				Logger::getLogger()->info("SouthService::handlePendingReconf DONE");
+				break;
+			}
 		}
-		if (! southPlugin->isAsync())
+
+		for (unsigned int i=0; i<numPendingReconfs; i++)
 		{
-			try {
-				unsigned long newval = (unsigned long)strtol(m_configAdvanced.getValue("readingsPerSec").c_str(), NULL, 10);
-				if (newval < 1)
-				{
-					logger->warn("Invalid setting of reading rate, defaulting to 1");
-					m_readingsPerSec = 1;
+			logger->info("SouthService::handlePendingReconf(): Handling Configuration change #%d", i);
+			std::pair<std::string,std::string> *reconfValue = NULL;
+			{
+				lock_guard<mutex> guard(m_pendingNewConfigMutex);
+				reconfValue = &m_pendingNewConfig[i];
+			}
+			std::string categoryName = reconfValue->first;
+			std::string category = reconfValue->second;
+			
+			logger->info("Configuration change in category %s: %s", categoryName.c_str(), category.c_str());
+			if (categoryName.compare(m_name) == 0)
+			{
+				m_config = ConfigCategory(m_name, category);
+				try {
+					PRINT_FUNC;
+					southPlugin->reconfigure(category);
+					PRINT_FUNC;
 				}
-				string units = m_configAdvanced.getValue("units");
-				unsigned long dividend = 1000000;
-				if (units.compare("second") == 0)
-					dividend = 1000000;
-				else if (units.compare("minute") == 0)
-					dividend = 60000000;
-				else if (units.compare("hour") == 0)
-					dividend = 3600000000;
-				if (newval != m_readingsPerSec || m_rateUnits.compare(units) != 0)
+				catch (...) {
+					logger->fatal("Unrecoverable failure during South plugin reconfigure, south service exiting...");
+					shutdown();
+				}
+				// Let ingest class check for changes to filter pipeline
+				m_ingest->configChange(categoryName, category);
+			}
+			PRINT_FUNC;
+			if (categoryName.compare(m_name+"Advanced") == 0)
+			{
+				m_configAdvanced = ConfigCategory(m_name+"Advanced", category);
+				if (m_configAdvanced.itemExists("statistics"))
 				{
-					m_readingsPerSec = newval;
-					m_rateUnits = units;
-					close(m_timerfd);
-					unsigned long usecs = dividend / m_readingsPerSec;
-					if (usecs > MAX_SLEEP * 1000000)
+					m_ingest->setStatistics(m_configAdvanced.getValue("statistics"));
+				}
+				if (! southPlugin->isAsync())
+				{
+					try {
+						unsigned long newval = (unsigned long)strtol(m_configAdvanced.getValue("readingsPerSec").c_str(), NULL, 10);
+						if (newval < 1)
+						{
+							logger->warn("Invalid setting of reading rate, defaulting to 1");
+							m_readingsPerSec = 1;
+						}
+						string units = m_configAdvanced.getValue("units");
+						unsigned long dividend = 1000000;
+						if (units.compare("second") == 0)
+							dividend = 1000000;
+						else if (units.compare("minute") == 0)
+							dividend = 60000000;
+						else if (units.compare("hour") == 0)
+							dividend = 3600000000;
+						if (newval != m_readingsPerSec || m_rateUnits.compare(units) != 0)
+						{
+							m_readingsPerSec = newval;
+							m_rateUnits = units;
+							close(m_timerfd);
+							unsigned long usecs = dividend / m_readingsPerSec;
+							if (usecs > MAX_SLEEP * 1000000)
+							{
+								double x = usecs / (MAX_SLEEP * 1000000);
+								m_repeatCnt = ceil(x);
+								usecs /= m_repeatCnt;
+							}
+							else
+							{
+								m_repeatCnt = 1;
+							}
+							m_desiredRate.tv_sec  = (int)(usecs / 1000000);
+							m_desiredRate.tv_usec = (int)(usecs % 1000000);
+							m_currentRate = m_desiredRate;
+							m_timerfd = createTimerFd(m_desiredRate); // interval to be passed is in usecs
+						}
+					} catch (ConfigItemNotFound e) {
+						logger->error("Failed to update poll interval following configuration change");
+					}
+				}
+				unsigned long threshold = 5000;	// This should never be used
+				if (m_configAdvanced.itemExists("bufferThreshold"))
+				{
+					threshold = (unsigned int)strtol(m_configAdvanced.getValue("bufferThreshold").c_str(), NULL, 10);
+					m_ingest->setThreshold(threshold);
+				}
+				if (m_configAdvanced.itemExists("maxSendLatency"))
+				{
+					m_ingest->setTimeout(strtol(m_configAdvanced.getValue("maxSendLatency").c_str(), NULL, 10));
+				}
+				if (m_configAdvanced.itemExists("logLevel"))
+				{
+					string prevLogLevel = logger->getMinLevel();
+					logger->setMinLevel(m_configAdvanced.getValue("logLevel"));
+
+					PluginManager *manager = PluginManager::getInstance();
+					PLUGIN_TYPE type = manager->getPluginImplType(southPlugin->getHandle());
+					logger->debug("%s:%d: South plugin type = %s", __FUNCTION__, __LINE__, (type==PYTHON_PLUGIN)?"PYTHON_PLUGIN":"BINARY_PLUGIN");
+
+					// propagate loglevel change to filter irrespective whether the host plugin is python/binary
+					m_ingest->configChange(categoryName, "logLevel");
+					
+					if (type == PYTHON_PLUGIN)
 					{
-						double x = usecs / (MAX_SLEEP * 1000000);
-						m_repeatCnt = ceil(x);
-						usecs /= m_repeatCnt;
+						// propagate loglevel changes to python filters/plugins, if present
+						logger->debug("prevLogLevel=%s, m_configAdvanced.getValue(\"logLevel\")=%s", prevLogLevel.c_str(), m_configAdvanced.getValue("logLevel").c_str());
+						if (prevLogLevel.compare(m_configAdvanced.getValue("logLevel")) != 0)
+						{
+							logger->debug("%s:%d: calling southPlugin->reconfigure() for updating loglevel", __FUNCTION__, __LINE__);
+							southPlugin->reconfigure("logLevel");
+						}
+					}
+				}
+				if (m_configAdvanced.itemExists("throttle"))
+				{
+					string throt = m_configAdvanced.getValue("throttle");
+					if (throt[0] == 't' || throt[0] == 'T')
+					{
+						m_throttle = true;
+						m_highWater = threshold
+						       	+ (((float)threshold * SOUTH_THROTTLE_HIGH_PERCENT) / 100.0);
+						m_lowWater = threshold
+						       	+ (((float)threshold * SOUTH_THROTTLE_LOW_PERCENT) / 100.0);
+						logger->info("Throttling is enabled, high water mark is set to %ld", m_highWater);
 					}
 					else
 					{
-						m_repeatCnt = 1;
+						m_throttle = false;
 					}
-					m_desiredRate.tv_sec  = (int)(usecs / 1000000);
-					m_desiredRate.tv_usec = (int)(usecs % 1000000);
-					m_currentRate = m_desiredRate;
-					m_timerfd = createTimerFd(m_desiredRate); // interval to be passed is in usecs
-				}
-			} catch (ConfigItemNotFound e) {
-				logger->error("Failed to update poll interval following configuration change");
-			}
-		}
-		unsigned long threshold = 5000;	// This should never be used
-		if (m_configAdvanced.itemExists("bufferThreshold"))
-		{
-			threshold = (unsigned int)strtol(m_configAdvanced.getValue("bufferThreshold").c_str(), NULL, 10);
-			m_ingest->setThreshold(threshold);
-		}
-		if (m_configAdvanced.itemExists("maxSendLatency"))
-		{
-			m_ingest->setTimeout(strtol(m_configAdvanced.getValue("maxSendLatency").c_str(), NULL, 10));
-		}
-		if (m_configAdvanced.itemExists("logLevel"))
-		{
-			string prevLogLevel = logger->getMinLevel();
-			logger->setMinLevel(m_configAdvanced.getValue("logLevel"));
-
-			PluginManager *manager = PluginManager::getInstance();
-			PLUGIN_TYPE type = manager->getPluginImplType(southPlugin->getHandle());
-			logger->debug("%s:%d: South plugin type = %s", __FUNCTION__, __LINE__, (type==PYTHON_PLUGIN)?"PYTHON_PLUGIN":"BINARY_PLUGIN");
-
-			// propagate loglevel change to filter irrespective whether the host plugin is python/binary
-			m_ingest->configChange(categoryName, "logLevel");
-			
-			if (type == PYTHON_PLUGIN)
-			{
-				// propagate loglevel changes to python filters/plugins, if present
-				logger->debug("prevLogLevel=%s, m_configAdvanced.getValue(\"logLevel\")=%s", prevLogLevel.c_str(), m_configAdvanced.getValue("logLevel").c_str());
-				if (prevLogLevel.compare(m_configAdvanced.getValue("logLevel")) != 0)
-				{
-					logger->debug("%s:%d: calling southPlugin->reconfigure() for updating loglevel", __FUNCTION__, __LINE__);
-					southPlugin->reconfigure("logLevel");
 				}
 			}
-		}
-		if (m_configAdvanced.itemExists("throttle"))
-		{
-			string throt = m_configAdvanced.getValue("throttle");
-			if (throt[0] == 't' || throt[0] == 'T')
-			{
-				m_throttle = true;
-				m_highWater = threshold
-				       	+ (((float)threshold * SOUTH_THROTTLE_HIGH_PERCENT) / 100.0);
-				m_lowWater = threshold
-				       	+ (((float)threshold * SOUTH_THROTTLE_LOW_PERCENT) / 100.0);
-				logger->info("Throttling is enabled, high water mark is set to %ld", m_highWater);
-			}
-			else
-			{
-				m_throttle = false;
-			}
-		}
-	}
 
-	// Update the  Security category
-	if (categoryName.compare(m_name+"Security") == 0)
-	{
-		this->updateSecurityCategory(category);
+			// Update the  Security category
+			if (categoryName.compare(m_name+"Security") == 0)
+			{
+				this->updateSecurityCategory(category);
+			}
+			logger->info("SouthService::handlePendingReconf(): Handling of configuration change #%d done", i);
+		}
+		
+		{
+			lock_guard<mutex> guard(m_pendingNewConfigMutex);
+			for (unsigned int i=0; i<numPendingReconfs; i++)
+				m_pendingNewConfig.pop_front();
+			Logger::getLogger()->info("SouthService::handlePendingReconf DONE: first %d entry(ies) removed, m_pendingNewConfig new size=%d", numPendingReconfs, m_pendingNewConfig.size());
+		}
 	}
 }
 
 /**
- * Configuration change notification
+ * Configuration change notification using a separate thread
  */
 void SouthService::configChange(const string& categoryName, const string& category)
 {
-	bool reconfNow = true;
-	if (m_reconfOngoing.load())
+	PRINT_FUNC;
 	{
-		Logger::getLogger()->debug("SouthPlugin::reconfigure(): m_reconfOngoing is TRUE");
-		if (m_reconfThread->joinable())
-		{
-			Logger::getLogger()->debug("SouthPlugin::reconfigure(): reconfThread is JOINABLE");
-			m_reconfThread->join();
-			reconfNow = true;
-		}
-		else
-		{
-			Logger::getLogger()->debug("SouthPlugin::reconfigure(): reconfThread is NOT JOINABLE");
-			reconfNow = false;
-		}
-	}
-	else
-		Logger::getLogger()->debug("SouthPlugin::reconfigure(): m_reconfOngoing is FALSE");
-	
-	m_pendingNewConfig.emplace_back(std::make_pair(categoryName, category));
-	
-	if (reconfNow)
-	{
-		auto reconfValues = m_pendingNewConfig.front();
-		m_pendingNewConfig.pop_front();
-		Logger::getLogger()->debug("SouthService::configChange(): Creating new reconfThread for reconfStr: categoryName=%s, category=%s", 
-									reconfValues.first.c_str(), reconfValues.second.c_str());
-		m_reconfThread = new std::thread(reconfThreadMain, this, reconfValues);
+		lock_guard<mutex> guard(m_pendingNewConfigMutex);
+		m_pendingNewConfig.emplace_back(std::make_pair(categoryName, category));
+		Logger::getLogger()->info("SouthService::reconfigure(): After adding new entry, m_pendingNewConfig.size()=%d", m_pendingNewConfig.size());
+
+		m_cvNewReconf.notify_all();
 	}
 }
 

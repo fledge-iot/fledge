@@ -136,7 +136,7 @@ setup_north_pi_egress () {
                  "value": "/PIlabSinelvl1/PIlabSinelvl2/PIlabSinelvl3"
               },
               "Legacy": {
-                 "value": "true"
+                 "value": "false"
               }
            }
         }'
@@ -179,7 +179,7 @@ setup_north_pi_egress () {
                  "value": "/PIlabSinelvl1/PIlabSinelvl2/PIlabSinelvl3"
               },
               "Legacy": {
-                 "value": "true"
+                 "value": "false"
               }
            }
         }'

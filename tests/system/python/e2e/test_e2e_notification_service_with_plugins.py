@@ -59,8 +59,9 @@ def _configure_and_start_service(service_branch, fledge_url, remove_directories)
 
 def _install_notify_plugin(notify_branch, plugin_name, remove_directories):
     try:
+        # FIXME: notify_branch should be reverted on main FOGL-7260 branch
         subprocess.run(["$FLEDGE_ROOT/tests/system/python/scripts/install_c_plugin {} notify {}".format(
-            notify_branch, plugin_name)], shell=True, check=True, stdout=subprocess.DEVNULL)
+            "compilation-fixes-centos9-stream", plugin_name)], shell=True, check=True, stdout=subprocess.DEVNULL)
     except subprocess.CalledProcessError:
         assert False, "{} installation failed".format(plugin_name)
     finally:

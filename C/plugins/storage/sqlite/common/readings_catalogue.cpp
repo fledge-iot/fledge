@@ -2237,6 +2237,8 @@ string  ReadingsCatalogue::sqlConstructMultiDb(string &sqlCmdBase, vector<string
 				{
 					sprintf(temp, "quote('%s')", assetCode.c_str());
 				}
+				else if (assetCode.find("\'") != string::npos)
+					sprintf(temp, "\"%s\"", assetCode.c_str());
 				else
 					sprintf(temp, "'%s'", assetCode.c_str());
 

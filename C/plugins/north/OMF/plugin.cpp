@@ -980,6 +980,15 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 		connInfo->omfversion = EDS_OMF_VERSION;
 	}
 #endif
+
+// Version for Connector Relay is 1.0 only.
+#ifdef CR_OMF_VERSION
+	if (connInfo->PIServerEndpoint == ENDPOINT_CR)
+	{
+		connInfo->omfversion = CR_OMF_VERSION;
+	}
+#endif
+
 	connInfo->omf->setOMFVersion(connInfo->omfversion);
 
 	// Generates the prefix to have unique asset_id across different levels of hierarchies

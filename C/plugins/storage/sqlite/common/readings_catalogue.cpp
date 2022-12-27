@@ -2232,7 +2232,15 @@ string  ReadingsCatalogue::sqlConstructMultiDb(string &sqlCmdBase, vector<string
 				dbName = generateDbName(item.second.second);
 				dbReadingsName = generateReadingsName(item.second.second, item.second.first);
 
-				StringReplaceAll(sqlCmdTmp, "_assetcode_", assetCode);
+				char temp[100]={'\0'};
+				if (assetCode.find("\"") != string::npos)
+				{
+					sprintf(temp, "quote('%s')", assetCode.c_str());
+				}
+				else
+					sprintf(temp, "'%s'", assetCode.c_str());
+
+				StringReplaceAll(sqlCmdTmp, "_assetcode_", temp);
 				StringReplaceAll (sqlCmdTmp, ".assetcode.", "asset_code");
 				StringReplaceAll(sqlCmdTmp, "_dbname_", dbName);
 				StringReplaceAll(sqlCmdTmp, "_tablename_", dbReadingsName);

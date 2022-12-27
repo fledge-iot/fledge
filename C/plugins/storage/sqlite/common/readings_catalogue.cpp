@@ -1991,8 +1991,8 @@ bool ReadingsCatalogue::loadEmptyAssetReadingCatalogue()
 		sql_cmd = "SELECT COUNT(*) FROM readings_" + to_string(dbId) + ".readings_" + to_string(dbId) + "_" + to_string(tableId) + " ;";
 		if (sqlite3_prepare_v2(dbHandle, sql_cmd.c_str(), -1, &stmt, NULL) != SQLITE_OK)
 		{
-			raiseError("loadEmptyAssetReadingCatalogue", sqlite3_errmsg(dbHandle));
-			return false;
+			sqlite3_finalize(stmt);	
+			continue;
 		}
 
 		if (SQLStep(stmt) == SQLITE_ROW)
@@ -2185,6 +2185,7 @@ int  ReadingsCatalogue::purgeAllReadings(sqlite3 *dbHandle, const char *sqlCmdBa
 		}
 	}
 
+	loadEmptyAssetReadingCatalogue();
 	return(rc);
 
 }

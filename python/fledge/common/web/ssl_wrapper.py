@@ -9,7 +9,7 @@
 import time
 import datetime
 import subprocess
-from fledge.common import logger
+from fledge.common import logger, utils
 
 __author__ = "Amarendra Kumar Sinha"
 __copyright__ = "Copyright (c) 2019 Dianomic Systems"
@@ -80,20 +80,26 @@ class SSLVerifier(object):
     @classmethod
     def verify_against_ca(cls):
         echo_process = subprocess.Popen(['echo', cls.user_cert], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-        a = subprocess.Popen(["openssl", "verify", "-CAfile", cls.ca_cert, "-x509_strict"], stdin=echo_process.stdout, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+        args = ["openssl", "verify", "-CAfile", cls.ca_cert]
+        cmd = "openssl verify -CAfile {}".format(cls.ca_cert)
+        # TODO: Add JIRA for to handle x509 strict check when open ssl version is 3 or so
+        # This is completely a workaround as of now CentOS9 stream has openssl version with 3.0
+        if utils.get_open_ssl_version(version_string=False)[0] < 3:
+            x509_strict = "-x509_strict"
+            args.append(x509_strict)
+            cmd += " {}".format(x509_strict)
+        a = subprocess.Popen(args, stdin=echo_process.stdout, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
         outs, errs = a.communicate()
         if outs is None and errs is None:
-            raise OSError(
-                'Verification error in executing command "{}"'.format("openssl verify -CAfile {} -x509_strict".format(cls.ca_cert)))
+            raise OSError('Verification error in executing command "{}"'.format(cmd))
         if a.returncode != 0:
-            raise OSError(
-                'Verification error in executing command "{}". Error: {}, returncode: {}'.format("openssl verify -CAfile {} -x509_strict".format(cls.ca_cert), errs.decode('utf-8').replace('\n', ''), a.returncode))
+            raise OSError('Verification error in executing command "{}". Error: {}, returncode: {}'.format(
+                cmd, errs.decode('utf-8').replace('\n', ''), a.returncode))
         d = [b for b in outs.decode('utf-8').split('\n') if b != '']
         if "OK" not in d[0]:
             raise SSLVerifier.VerificationError(
                 str(), 'failed verification', errs)
         return d
-
 
     """
         Common x509 options:

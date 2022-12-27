@@ -124,3 +124,17 @@ def is_debian():
     if id_like is not None and any(x in id_like.lower() for x in ['centos', 'rhel', 'redhat', 'fedora']):
         return False
     return True
+
+
+def get_open_ssl_version(version_string=True):
+    """ Open SSL version info
+
+    Args:
+        version_string
+
+    Returns:
+        When version_string is True - The version string of the OpenSSL library loaded by the interpreter
+        When version_string is False - A tuple of five integers representing version information about the OpenSSL library
+    """
+    import ssl
+    return ssl.OPENSSL_VERSION if version_string else ssl.OPENSSL_VERSION_INFO

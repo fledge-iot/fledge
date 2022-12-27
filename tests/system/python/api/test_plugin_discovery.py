@@ -115,7 +115,8 @@ class TestPluginDiscovery:
         assert 'fledge-south-sinusoid' == plugins[0]['packageName']
 
         # install one more south plugin (C version)
-        install_plugin(_type, plugin='random', plugin_lang='C')
+        # FIXME: BRANCH when testing is done in main FOGL-7260 branch
+        install_plugin(_type, plugin='random', plugin_lang='C', branch='compilation-fixes-centos9-stream')
         conn.request("GET", '/fledge/plugins/installed?type={}'.format(_type))
         r = conn.getresponse()
         assert 200 == r.status
@@ -179,7 +180,8 @@ class TestPluginDiscovery:
 
     def test_delivery_plugins_installed(self, fledge_url, _type='notify'):
         # install slack delivery plugin
-        install_plugin(_type, plugin='slack', plugin_lang='C')
+        # FIXME: BRANCH when testing is done in main FOGL-7260 branch
+        install_plugin(_type, plugin='slack', plugin_lang='C', branch='compilation-fixes-centos9-stream')
         conn = http.client.HTTPConnection(fledge_url)
         conn.request("GET", '/fledge/plugins/installed?type={}'.format(_type))
         r = conn.getresponse()
@@ -196,7 +198,8 @@ class TestPluginDiscovery:
 
     def test_rule_plugins_installed(self, fledge_url, _type='rule'):
         # install OutOfBound rule plugin
-        install_plugin(_type, plugin='outofbound', plugin_lang='C')
+        # FIXME: BRANCH when testing is done in main FOGL-7260 branch
+        install_plugin(_type, plugin='outofbound', plugin_lang='C', branch='compilation-fixes-centos9-stream')
         conn = http.client.HTTPConnection(fledge_url)
         conn.request("GET", '/fledge/plugins/installed?type={}'.format(_type))
         r = conn.getresponse()

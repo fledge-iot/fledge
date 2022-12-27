@@ -43,7 +43,8 @@ install_binary_file () {
    then
         # fledge-service-notification repo is required to build notificationRule Plugins
         service_repo_name='fledge-service-notification'
-        git clone -b ${BRANCH_NAME} --single-branch https://github.com/fledge-iot/${service_repo_name}.git /tmp/${service_repo_name}
+        # FIXME: BRANCH_NAME when testing is done in main FOGL-7260 branch
+        git clone -b develop --single-branch https://github.com/fledge-iot/${service_repo_name}.git /tmp/${service_repo_name}
         export NOTIFICATION_SERVICE_INCLUDE_DIRS=/tmp/${service_repo_name}/C/services/common/include
    fi
    

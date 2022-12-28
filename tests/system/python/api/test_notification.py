@@ -106,8 +106,9 @@ class TestNotificationServiceAPI:
         remove_directories(os.path.expandvars('$FLEDGE_ROOT/plugins/notificationDelivery'))
         remove_directories(os.path.expandvars('$FLEDGE_ROOT/plugins/notificationRule'))
         try:
+            # FIXME: notify_branch should be reverted on main FOGL-7260 branch
             subprocess.run(["$FLEDGE_ROOT/tests/system/python/scripts/install_c_plugin {} notify {}".format(
-                notify_branch, NOTIFY_PLUGIN)], shell=True, check=True)
+                "compilation-fixes-centos9-stream", NOTIFY_PLUGIN)], shell=True, check=True)
         except subprocess.CalledProcessError:
             assert False, "{} installation failed".format(NOTIFY_PLUGIN)
         finally:

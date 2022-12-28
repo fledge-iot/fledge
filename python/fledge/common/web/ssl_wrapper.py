@@ -80,21 +80,18 @@ class SSLVerifier(object):
     @classmethod
     def verify_against_ca(cls):
         echo_process = subprocess.Popen(['echo', cls.user_cert], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-        args = ["openssl", "verify", "-CAfile", cls.ca_cert]
-        cmd = "openssl verify -CAfile {}".format(cls.ca_cert)
-        # TODO: Add JIRA for to handle x509 strict check when open ssl version is 3 or so
-        # This is completely a workaround as of now CentOS9 stream has openssl version with 3.0
+        args = "openssl verify -CAfile {}".format(cls.ca_cert)
+        # TODO: FOGL-7302 to handle -x509_strict check when OpenSSL version >=3.x
+        # Removing the -x509_strict flag as an interim solution; as of now only CentOS Stream9 has OpenSSL version 3.0
         if utils.get_open_ssl_version(version_string=False)[0] < 3:
-            x509_strict = "-x509_strict"
-            args.append(x509_strict)
-            cmd += " {}".format(x509_strict)
-        a = subprocess.Popen(args, stdin=echo_process.stdout, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+            args += " -x509_strict"
+        a = subprocess.Popen(args.split(), stdin=echo_process.stdout, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
         outs, errs = a.communicate()
         if outs is None and errs is None:
-            raise OSError('Verification error in executing command "{}"'.format(cmd))
+            raise OSError('Verification error in executing command "{}"'.format(args))
         if a.returncode != 0:
             raise OSError('Verification error in executing command "{}". Error: {}, returncode: {}'.format(
-                cmd, errs.decode('utf-8').replace('\n', ''), a.returncode))
+                args, errs.decode('utf-8').replace('\n', ''), a.returncode))
         d = [b for b in outs.decode('utf-8').split('\n') if b != '']
         if "OK" not in d[0]:
             raise SSLVerifier.VerificationError(

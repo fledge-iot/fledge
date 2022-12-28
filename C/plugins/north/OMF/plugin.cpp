@@ -877,7 +877,7 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 		Logger::getLogger()->fatal("OMF Endpoint is not available");
 		return 0;
 	}
-Logger::getLogger()->fatal("FIXME: version is %s", version.c_str());
+	// FIXME - The above call is not working. Investigate why? FOGL-7293
 
 	// Above call does not always populate version
 	if (version.empty())
@@ -902,7 +902,7 @@ Logger::getLogger()->fatal("FIXME: version is %s", version.c_str());
 	{
 		connInfo->omfversion = "1.2";
 	}
-
+	Logger::getLogger()->info("Using OMF Version '%s'", connInfo->omfversion.c_str());
 	/**
 	 * Select the transport library based on the authentication method and transport encryption
 	 * requirements.

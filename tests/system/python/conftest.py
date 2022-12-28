@@ -219,7 +219,8 @@ def add_north():
 @pytest.fixture
 def start_north_pi_v2():
     def _start_north_pi_server_c(fledge_url, pi_host, pi_port, pi_token, north_plugin="OMF",
-                                 taskname="NorthReadingsToPI", start_task=True, naming_scheme="Backward compatibility"):
+                                 taskname="NorthReadingsToPI", start_task=True, naming_scheme="Backward compatibility",
+                                 pi_use_legacy="true"):
         """Start north task"""
 
         _enabled = "true" if start_task else "false"
@@ -236,7 +237,8 @@ def start_north_pi_v2():
                            "producerToken": {"value": pi_token},
                            "ServerHostname": {"value": pi_host},
                            "ServerPort": {"value": str(pi_port)},
-                           "NamingScheme": {"value": naming_scheme}
+                           "NamingScheme": {"value": naming_scheme},
+                           "Legacy": {"value": pi_use_legacy}
                            }
                 }
         conn.request("POST", '/fledge/scheduled/task', json.dumps(data))
@@ -254,7 +256,8 @@ def start_north_task_omf_web_api():
                                       pi_user=None, pi_pwd=None, north_plugin="OMF",
                                       taskname="NorthReadingsToPI_WebAPI", start_task=True,
                                       naming_scheme="Backward compatibility",
-                                      default_af_location="fledge/room1/machine1"):
+                                      default_af_location="fledge/room1/machine1",
+                                      pi_use_legacy="true"):
         """Start north task"""
 
         _enabled = True if start_task else False
@@ -275,7 +278,8 @@ def start_north_task_omf_web_api():
                            "ServerPort": {"value": str(pi_port)},
                            "compression": {"value": "true"},
                            "DefaultAFLocation": {"value": default_af_location},
-                           "NamingScheme": {"value": naming_scheme}
+                           "NamingScheme": {"value": naming_scheme},
+                           "Legacy": {"value": pi_use_legacy}
                            }
                 }
 
@@ -294,7 +298,8 @@ def start_north_omf_as_a_service():
                                       pi_user=None, pi_pwd=None, north_plugin="OMF",
                                       service_name="NorthReadingsToPI_WebAPI", start=True,
                                       naming_scheme="Backward compatibility",
-                                      default_af_location="fledge/room1/machine1"):
+                                      default_af_location="fledge/room1/machine1",
+                                      pi_use_legacy="true"):
         """Start north service"""
 
         _enabled = True if start else False
@@ -311,7 +316,8 @@ def start_north_omf_as_a_service():
                            "ServerPort": {"value": str(pi_port)},
                            "compression": {"value": "true"},
                            "DefaultAFLocation": {"value": default_af_location},
-                           "NamingScheme": {"value": naming_scheme}
+                           "NamingScheme": {"value": naming_scheme},
+                           "Legacy": {"value": pi_use_legacy}
                            }
                 }
 
@@ -426,98 +432,57 @@ def read_data_from_pi_web_api():
     def _read_data_from_pi_web_api(host, admin, password, pi_database, af_hierarchy_list, asset, sensor):
         """ This method reads data from pi web api """
 
-        # List of pi databases
-        dbs = None
-        # PI logical grouping of attributes and child elements
-        elements = None
-        # List of elements
-        url_elements_list = None
-        # Element's recorded data url
-        url_recorded_data = None
-        # Resources in the PI Web API are addressed by WebID, parameter used for deletion of element
-        web_id = None
-        # List of elements
-        url_elements_data_list = None
-
         username_password = "{}:{}".format(admin, password)
         username_password_b64 = base64.b64encode(username_password.encode('ascii')).decode("ascii")
         headers = {'Authorization': 'Basic %s' % username_password_b64}
 
         try:
-            conn = http.client.HTTPSConnection(host, context=ssl._create_unverified_context())
-            conn.request("GET", '/piwebapi/assetservers', headers=headers)
+            ctx = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
+            ctx.options |= ssl.PROTOCOL_TLSv1_1
+            # With ssl.CERT_NONE as verify_mode, validation errors such as untrusted or expired cert
+            # are ignored and do not abort the TLS/SSL handshake.
+            ctx.verify_mode = ssl.CERT_NONE
+            conn = http.client.HTTPSConnection(host, context=ctx)
+            conn.request("GET", '/piwebapi/dataservers', headers=headers)
             res = conn.getresponse()
             r = json.loads(res.read().decode())
-            dbs = r["Items"][0]["Links"]["Databases"]
-
-            if dbs is not None:
-                conn.request("GET", dbs, headers=headers)
+            points= r["Items"][0]['Links']["Points"]
+            
+            if points is not None:
+                conn.request("GET", points, headers=headers)
                 res = conn.getresponse()
-                r = json.loads(res.read().decode())
-                for el in r["Items"]:
-                    if el["Name"] == pi_database:
-                        url_elements_list = el["Links"]["Elements"]
+                r=json.loads(res.read().decode())
+                data = r["Items"]
+                if data is not None:
+                    value = None
+                    if sensor == '':
+                        search_string = asset
+                    else:
+                        search_string = "{}.{}".format(asset, sensor)
+                    for el in data:
+                        if search_string in el["Name"]:
+                            value_url = el["Links"]["Value"]
+                            if value_url is not None:
+                                conn.request("GET", value_url, headers=headers)
+                                res = conn.getresponse()
+                                r = json.loads(res.read().decode())
+                                value = r["Value"]
+                    if not value:
+                        print("Could not find the latest reading of asset ->{}. sensor->{}".format(asset,
+                                  sensor))
+                        return value
+                    else:
+                        print("The latest value of asset->{}.sensor->{} is {}".format(asset, sensor, value))
+                        return(value)
+                else:
+                    print("Data inside points not found.")
+                    return None     
+            else:
+                print("Could not find the points.")
+                return None
 
-            # This block is for iteration when we have multi-level hierarchy.
-            # For example, if we have DefaultAFLocation as "fledge/room1/machine1" then
-            # it will recursively find elements of "fledge" and then "room1".
-            # And next block is for finding element of "machine1".
-
-            af_level_count = 0
-            for level in af_hierarchy_list[:-1]:
-                if url_elements_list is not None:
-                    conn.request("GET", url_elements_list, headers=headers)
-                    res = conn.getresponse()
-                    r = json.loads(res.read().decode())
-                    for el in r["Items"]:
-                        if el["Name"] == af_hierarchy_list[af_level_count]:
-                            url_elements_list = el["Links"]["Elements"]
-                            if af_level_count == 0:                            
-                                web_id_root = el["WebId"]
-                            af_level_count = af_level_count + 1
-
-            if url_elements_list is not None:
-                conn.request("GET", url_elements_list, headers=headers)
-                res = conn.getresponse()
-                r = json.loads(res.read().decode())
-                items = r["Items"]
-                for el in items:
-                    if el["Name"] == af_hierarchy_list[-1]:
-                        url_elements_data_list = el["Links"]["Elements"]
-
-            if url_elements_data_list is not None:
-                conn.request("GET", url_elements_data_list, headers=headers)
-                res = conn.getresponse()
-                r = json.loads(res.read().decode())
-                items = r["Items"]
-                for el2 in items:
-                    if el2["Name"] == asset:
-                        url_recorded_data = el2["Links"]["RecordedData"]
-                        web_id = el2["WebId"]
-
-            _data_pi = {}
-            if url_recorded_data is not None:
-                conn.request("GET", url_recorded_data, headers=headers)
-                res = conn.getresponse()
-                r = json.loads(res.read().decode())
-                _items = r["Items"]
-                for el in _items:
-                    _recoded_value_list = []
-                    for _head in sensor:
-                        # This checks if the recorded datapoint is present in the items that we retrieve from the PI server.
-                        if _head in el["Name"]:
-                            elx = el["Items"]
-                            for _el in elx:
-                                _recoded_value_list.append(_el["Value"])
-                            _data_pi[_head] = _recoded_value_list
-
-                # Delete recorded elements
-                conn.request("DELETE", '/piwebapi/elements/{}'.format(web_id_root), headers=headers)
-                res = conn.getresponse()
-                res.read()
-
-                return _data_pi
-        except (KeyError, IndexError, Exception):
+        except (KeyError, IndexError, Exception) as ex:
+            print("Failed to read data due to {}".format(ex))
             return None
 
     return _read_data_from_pi_web_api
@@ -668,7 +633,9 @@ def pytest_addoption(parser):
                      help="PI Server user login password")
     parser.addoption("--pi-token", action="store", default="omf_north_0001",
                      help="OMF Producer Token")
-
+    parser.addoption("--pi-use-legacy", action="store", default="true",
+                     help="Set false to override the default plugin behaviour i.e. for OMF version >=1.2.x to send linked data types.")
+    
     # OCS Config
     parser.addoption("--ocs-tenant", action="store", default="ocs_tenant_id",
                      help="Tenant id of OCS")
@@ -856,6 +823,11 @@ def pi_passwd(request):
 @pytest.fixture
 def pi_token(request):
     return request.config.getoption("--pi-token")
+
+
+@pytest.fixture
+def pi_use_legacy(request):
+    return request.config.getoption("--pi-use-legacy")
 
 
 @pytest.fixture

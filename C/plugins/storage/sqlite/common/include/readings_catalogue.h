@@ -46,6 +46,7 @@ typedef struct
 	int nDbPreallocate = 3;
 	int nDbLeftFreeBeforeAllocate = 1;
 	int nDbToAllocate = 2;
+	int nMaxDBAttached = 10;
 
 } STORAGE_CONFIGURATION;
 
@@ -209,8 +210,6 @@ private:
 
 	int           calcMaxReadingUsed();
 	void          dropReadingsTables(sqlite3 *dbHandle, int dbId, int idStart, int idEnd);
-
-
 	int                                           m_dbIdCurrent;            // Current database in use
 	int                                           m_dbIdLast;               // Last database available not already in use
 	int                                           m_dbNAvailable;           // Number of databases available

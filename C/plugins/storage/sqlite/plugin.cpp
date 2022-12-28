@@ -87,6 +87,14 @@ const char *default_config = QUOTE({
 			"default" : "6",
 			"displayName" : "Vacuum Interval",
 			"order" : "7"
+		},
+		"nMaxDBAttached" : {
+			"description" : "The number of database to be attached with single database connection",
+			"type" : "integer",
+			"minimum" : "10",
+			"default" : "10",
+			"displayName" : "Max Attached Database",
+			"order" : "8"
 		}
 
 });
@@ -148,6 +156,10 @@ PLUGIN_HANDLE plugin_init(ConfigCategory *category)
 	if (category->itemExists("nDbToAllocate"))
 	{
 		storageConfig.nDbToAllocate = strtol(category->getValue("nDbToAllocate").c_str(), NULL, 10);
+	}
+	if (category->itemExists("nDbToAllocate"))
+	{
+		storageConfig.nMaxDBAttached = strtol(category->getValue("nMaxDBAttached").c_str(), NULL, 10);
 	}
 
 	ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();

@@ -110,7 +110,7 @@ sqlite3_build_prepare(){
 	cd ${SQLITE_PKG_REPO_NAME}
 	cd src
 	echo "Compiling SQLite3 static library for Fledge ..."
-	./configure --enable-shared=false --enable-static=true --enable-static-shell CFLAGS="-DSQLITE_MAX_COMPOUND_SELECT=900 -DSQLITE_MAX_ATTACHED=62 -DSQLITE_ENABLE_JSON1 -DSQLITE_ENABLE_LOAD_EXTENSION -DSQLITE_ENABLE_COLUMN_METADATA -fno-common -fPIC"
+	./configure --enable-static-shell CFLAGS="-DSQLITE_MAX_COMPOUND_SELECT=900 -DSQLITE_MAX_ATTACHED=62 -DSQLITE_ENABLE_JSON1 -DSQLITE_ENABLE_LOAD_EXTENSION -DSQLITE_ENABLE_COLUMN_METADATA -fno-common -fPIC"
 	autoreconf -f -i
 }
 
@@ -200,7 +200,7 @@ if [[ $YUM_PLATFORM = true ]]; then
 	sqlite3_build_prepare
 	# Attempts a second execution of make if the first fails
 	set +e
-	make
+	make install
 	exit_code=$?
 	if [[ $exit_code != 0 ]]; then
 
@@ -252,9 +252,9 @@ elif apt --version 2>/dev/null; then
 	python3 -m pip install --upgrade pip
 
 	sqlite3_build_prepare
-	make
+	make install
         
-	apt install -y sqlite3 # make install after sqlite3_build_prepare should be enough to install sqlite3 as a command 
+	#apt install -y sqlite3 # make install after sqlite3_build_prepare should be enough to install sqlite3 as a command 
 	apt install -y pkg-config
 
 	# for Kerberos authentication, avoid interactive questions

@@ -815,10 +815,11 @@ void ReadingsCatalogue::multipleReadingsInit(STORAGE_CONFIGURATION &storageConfi
 	m_storageConfigApi.nDbPreallocate = storageConfig.nDbPreallocate;
 	m_storageConfigApi.nDbLeftFreeBeforeAllocate = storageConfig.nDbLeftFreeBeforeAllocate;
 	m_storageConfigApi.nDbToAllocate = storageConfig.nDbToAllocate;
+	m_storageConfigApi.nMaxDBAttached = storageConfig.nMaxDBAttached;
 
 	m_storageConfigCurrent.nDbLeftFreeBeforeAllocate = storageConfig.nDbLeftFreeBeforeAllocate;
 	m_storageConfigCurrent.nDbToAllocate = storageConfig.nDbToAllocate;
-
+	
 	try
 	{
 		configurationRetrieve(dbHandle);
@@ -1821,6 +1822,12 @@ ReadingsCatalogue::tyReadingReference  ReadingsCatalogue::getReadingReference(Co
 	dbHandle = connection->getDbHandle();
 
 	Logger *logger = Logger::getLogger();
+	if (m_storageConfigCurrent.nMaxDBAttached != m_storageConfigApi.nMaxDBAttached)
+	{
+		m_storageConfigCurrent.nMaxDBAttached = m_storageConfigApi.nMaxDBAttached;
+		int oldMaxAttachedDB = sqlite3_limit(dbHandle,SQLITE_LIMIT_ATTACHED,m_storageConfigCurrent.nMaxDBAttached);
+		Logger::getLogger()->debug("getReadingReference - dbHandle :%X: Old Maximum Attached DB LIMIT :%d: New Maximum Attached Database :%d:", dbHandle, oldMaxAttachedDB,m_storageConfigCurrent.nMaxDBAttached );
+	}
 
 	auto item = m_AssetReadingCatalogue.find(asset_code);
 	if (item != m_AssetReadingCatalogue.end())

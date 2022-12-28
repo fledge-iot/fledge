@@ -40,9 +40,8 @@ FILTER_NAME = 'meta'
 def install_plugins():
     plugin_and_service.install('south', plugin='randomwalk')
     plugin_and_service.install('south', plugin='http')
-    # FIXME: BRANCH when testing is done in main FOGL-7260 branch
-    plugin_and_service.install('south', plugin='benchmark', plugin_lang='C', branch='compilation-fixes-centos9-stream')
-    plugin_and_service.install('south', plugin='random', plugin_lang='C', branch='compilation-fixes-centos9-stream')
+    plugin_and_service.install('south', plugin='benchmark', plugin_lang='C')
+    plugin_and_service.install('south', plugin='random', plugin_lang='C')
     plugin_and_service.install('south', plugin='csv-async', plugin_lang='C')
 
 

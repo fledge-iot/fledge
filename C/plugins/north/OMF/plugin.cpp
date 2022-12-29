@@ -1004,8 +1004,14 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 	connInfo->omf->setStaticData(&connInfo->staticData);
 	connInfo->omf->setNotBlockingErrors(connInfo->notBlockingErrors);
 
-	connInfo->omf->setLegacyMode(connInfo->legacy);
-
+	if (connInfo->omfversion == "1.1" || connInfo->omfversion == "1.0") {
+		Logger::getLogger()->warn("Setting Legacy to be true for OMF Version '%s'. Will now create complex data types", connInfo->omfversion.c_str());
+		connInfo->omf->setLegacyMode(true);
+	}
+	else
+	{
+		connInfo->omf->setLegacyMode(connInfo->legacy);
+	}
 	// Send the readings data to the PI Server
 	uint32_t ret = connInfo->omf->sendToServer(readings,
 						   connInfo->compression);

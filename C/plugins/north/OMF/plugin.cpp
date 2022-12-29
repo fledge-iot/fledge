@@ -1005,7 +1005,7 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 	connInfo->omf->setNotBlockingErrors(connInfo->notBlockingErrors);
 
 	if (connInfo->omfversion == "1.1" || connInfo->omfversion == "1.0") {
-		Logger::getLogger()->warn("Setting Legacy to be true for OMF Version '%s'. Will now create complex data types", connInfo->omfversion.c_str());
+		Logger::getLogger()->info("Setting LegacyType to be true for OMF Version '%s'. This will force use old style complex types. ", connInfo->omfversion.c_str());
 		connInfo->omf->setLegacyMode(true);
 	}
 	else

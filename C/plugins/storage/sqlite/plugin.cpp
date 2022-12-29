@@ -92,6 +92,7 @@ const char *default_config = QUOTE({
 			"description" : "The number of database to be attached with single database connection",
 			"type" : "integer",
 			"minimum" : "10",
+			"maximum" : "125",
 			"default" : "10",
 			"displayName" : "Max Attached Database",
 			"order" : "8"

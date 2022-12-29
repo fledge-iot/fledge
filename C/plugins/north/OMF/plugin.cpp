@@ -981,13 +981,11 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 	}
 #endif
 
-// Version for Connector Relay is 1.0 only.
-#ifdef CR_OMF_VERSION
+	// Version for Connector Relay is 1.0 only.
 	if (connInfo->PIServerEndpoint == ENDPOINT_CR)
 	{
 		connInfo->omfversion = CR_OMF_VERSION;
 	}
-#endif
 
 	connInfo->omf->setOMFVersion(connInfo->omfversion);
 

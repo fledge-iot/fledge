@@ -364,16 +364,16 @@ std::vector<Datapoint*> *Datapoint::parseJson(const std::string& json) {
 	
 	rapidjson::Document document;
 
-    const auto& parseResult = document.Parse(json.c_str());
-    if (parseResult.HasParseError()) {
-        Logger::getLogger()->fatal("Parsing error %d (%s).", parseResult.GetParseError(), json.c_str());
-        printf("Parsing error %d (%s).", parseResult.GetParseError(), json.c_str());
-        return nullptr;
-    }
+	const auto& parseResult = document.Parse(json.c_str());
+	if (parseResult.HasParseError()) {
+		Logger::getLogger()->fatal("Parsing error %d (%s).", parseResult.GetParseError(), json.c_str());
+		printf("Parsing error %d (%s).", parseResult.GetParseError(), json.c_str());
+		return nullptr;
+	}
 
-    if (!document.IsObject()) {
-        return nullptr;
-    }
+	if (!document.IsObject()) {
+		return nullptr;
+	}
 	return recursiveJson(document);
 }
 
@@ -387,7 +387,7 @@ std::vector<Datapoint*> *Datapoint::recursiveJson(const rapidjson::Value& docume
 	std::vector<Datapoint*>* p = new std::vector<Datapoint*>();
 
 	for (rapidjson::Value::ConstMemberIterator itr = document.MemberBegin(); itr != document.MemberEnd(); ++itr)
-	{       
+	{	   
 		if (itr->value.IsObject()) {
 			std::vector<Datapoint*> * vec = recursiveJson(itr->value);
 			DatapointValue d(vec, true);

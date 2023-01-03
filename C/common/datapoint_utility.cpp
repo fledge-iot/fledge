@@ -101,7 +101,7 @@ Datapoint *DatapointUtility::findDatapointElement(Datapoints *dict, const string
  *
  * @param dict : parent dictionary
  * @param key : key to research
- * @return correponding string otherwise empty string
+ * @return corresponding string otherwise empty string
 */
 string DatapointUtility::findStringElement(Datapoints *dict, const string& key) {
 	
@@ -121,25 +121,18 @@ string DatapointUtility::findStringElement(Datapoints *dict, const string& key) 
 }
 
 /**
- * Method to delete elements in a vector
+ * Method to delete and to free elements from a vector
  * 
  * @param dps dict of values 
  * @param key key of dict 
 */
 void DatapointUtility::deleteValue(Datapoints *dps, const string& key) {
-	Datapoints::iterator it1 = dps->end();
-	Datapoint *d = nullptr;
 	for (Datapoints::iterator it = dps->begin(); it != dps->end(); it++){
 		if ((*it)->getName() == key) {
-			it1 = it;
-			d = *it;
+			delete (*it);
+			dps->erase(it);
 			break;
 		}
-	}
-
-	if (d != nullptr) {
-		dps->erase(it1);
-		delete d;
 	}
 }
 

@@ -877,7 +877,7 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 		Logger::getLogger()->fatal("OMF Endpoint is not available");
 		return 0;
 	}
-Logger::getLogger()->fatal("FIXME: version is %s", version.c_str());
+	// FIXME - The above call is not working. Investigate why? FOGL-7293
 
 	// Above call does not always populate version
 	if (version.empty())
@@ -902,7 +902,7 @@ Logger::getLogger()->fatal("FIXME: version is %s", version.c_str());
 	{
 		connInfo->omfversion = "1.2";
 	}
-
+	Logger::getLogger()->info("Using OMF Version '%s'", connInfo->omfversion.c_str());
 	/**
 	 * Select the transport library based on the authentication method and transport encryption
 	 * requirements.
@@ -980,6 +980,13 @@ Logger::getLogger()->fatal("FIXME: version is %s", version.c_str());
 		connInfo->omfversion = EDS_OMF_VERSION;
 	}
 #endif
+
+	// Version for Connector Relay is 1.0 only.
+	if (connInfo->PIServerEndpoint == ENDPOINT_CR)
+	{
+		connInfo->omfversion = CR_OMF_VERSION;
+	}
+
 	connInfo->omf->setOMFVersion(connInfo->omfversion);
 
 	// Generates the prefix to have unique asset_id across different levels of hierarchies
@@ -997,8 +1004,14 @@ Logger::getLogger()->fatal("FIXME: version is %s", version.c_str());
 	connInfo->omf->setStaticData(&connInfo->staticData);
 	connInfo->omf->setNotBlockingErrors(connInfo->notBlockingErrors);
 
-	connInfo->omf->setLegacyMode(connInfo->legacy);
-
+	if (connInfo->omfversion == "1.1" || connInfo->omfversion == "1.0") {
+		Logger::getLogger()->info("Setting LegacyType to be true for OMF Version '%s'. This will force use old style complex types. ", connInfo->omfversion.c_str());
+		connInfo->omf->setLegacyMode(true);
+	}
+	else
+	{
+		connInfo->omf->setLegacyMode(connInfo->legacy);
+	}
 	// Send the readings data to the PI Server
 	uint32_t ret = connInfo->omf->sendToServer(readings,
 						   connInfo->compression);

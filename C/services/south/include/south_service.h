@@ -52,7 +52,7 @@ class SouthService : public ServiceAuthHandler {
 		void				shutdown();
 		void				restart();
 		void				configChange(const std::string&, const std::string&);
-		void				configChangeReal(const std::string&, const std::string&);
+		void				processConfigChange(const std::string&, const std::string&);
 		void				configChildCreate(const std::string&,
 								const std::string&,
 								const std::string&){};

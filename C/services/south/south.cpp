@@ -550,7 +550,6 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 						}
 						else // V2 poll method
 						{
-							PRINT_FUNC;
 							while(1)
 							{
 								unsigned int numPendingReconfs;
@@ -558,6 +557,7 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 									lock_guard<mutex> guard(m_pendingNewConfigMutex);
 									numPendingReconfs = m_pendingNewConfig.size();
 								}
+								// if a reconf is pending, make this poll thread yield CPU, sleep_for is needed to sleep this thread for sufficiently long time
 								if (numPendingReconfs)
 								{
 									Logger::getLogger()->debug("SouthService::start(): %d entries in m_pendingNewConfig, poll thread yielding CPU", numPendingReconfs);
@@ -833,8 +833,11 @@ void SouthService::restart()
 
 /**
  * Configuration change notification
+ *
+ * @param categoryName	Category name
+ * @param category	Category value
  */
-void SouthService::configChangeReal(const string& categoryName, const string& category)
+void SouthService::processConfigChange(const string& categoryName, const string& category)
 {
 	logger->info("Configuration change in category %s: %s", categoryName.c_str(),
 			category.c_str());
@@ -975,7 +978,8 @@ static void reconfThreadMain(void *arg)
 }
 
 /**
- * Handle configuration change notification
+ * Handle configuration change notification; called by reconf thread
+ * Waits for some reconf operation(s) to get queued up, then works thru' them
  */
 void SouthService::handlePendingReconf()
 {
@@ -983,7 +987,7 @@ void SouthService::handlePendingReconf()
 	mutex mtx;
 	unique_lock<mutex> lck(mtx);
 	m_cvNewReconf.wait(lck);
-	Logger::getLogger()->debug("SouthService::handlePendingReconf: cv wait has completed");
+	Logger::getLogger()->debug("SouthService::handlePendingReconf: cv wait has completed; some reconf request(s) has/have been queued up");
 
 	while(1)
 	{
@@ -1010,7 +1014,7 @@ void SouthService::handlePendingReconf()
 			}
 			std::string categoryName = reconfValue->first;
 			std::string category = reconfValue->second;
-			configChangeReal(categoryName, category);
+			processConfigChange(categoryName, category);
 
 			logger->debug("SouthService::handlePendingReconf(): Handling of configuration change #%d done", i);
 		}
@@ -1026,10 +1030,12 @@ void SouthService::handlePendingReconf()
 
 /**
  * Configuration change notification using a separate thread
+ *
+ * @param categoryName	Category name
+ * @param category	Category value
  */
 void SouthService::configChange(const string& categoryName, const string& category)
 {
-	PRINT_FUNC;
 	{
 		lock_guard<mutex> guard(m_pendingNewConfigMutex);
 		m_pendingNewConfig.emplace_back(std::make_pair(categoryName, category));

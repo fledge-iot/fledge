@@ -142,8 +142,8 @@ pid_t pid;
 	close(2);
 	// redirect fd's 0,1,2 to /dev/null
 	(void)open("/dev/null", O_RDWR);  	// stdin
-	(void)dup(0);  			// stdout	GCC bug 66425 produces warning
-	(void)dup(0);  			// stderr	GCC bug 66425 produces warning
+	if (dup(0) == -1) {}			// stdout	Workaround for GCC bug 66425 produces warning
+	if (dup(0) == -1) {} 			// stderr	WOrkaround for GCC bug 66425 produces warning
  	return 0;
 }
 
@@ -390,6 +390,11 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		// Instantiate the Ingest class
 		Ingest ingest(storage, timeout, threshold, m_name, pluginName, m_mgtClient);
 		m_ingest = &ingest;
+
+		if (m_configAdvanced.itemExists("statistics"))
+		{
+			m_ingest->setStatistics(m_configAdvanced.getValue("statistics"));
+		}
 
 		try {
 			m_readingsPerSec = 1;
@@ -830,6 +835,10 @@ void SouthService::configChange(const string& categoryName, const string& catego
 	if (categoryName.compare(m_name+"Advanced") == 0)
 	{
 		m_configAdvanced = ConfigCategory(m_name+"Advanced", category);
+		if (m_configAdvanced.itemExists("statistics"))
+		{
+			m_ingest->setStatistics(m_configAdvanced.getValue("statistics"));
+		}
 		if (! southPlugin->isAsync())
 		{
 			try {
@@ -977,6 +986,12 @@ void SouthService::addConfigDefaults(DefaultConfigCategory& defaultConfig)
 	defaultConfig.addItem("logLevel", "Minimum logging level reported",
 			"warning", "warning", logLevels);
 	defaultConfig.setItemDisplayName("logLevel", "Minimum Log Level");
+
+	/* Add the set of logging levels to the service */
+	vector<string>	statistics = { "per asset", "per service", "per asset & service" };
+	defaultConfig.addItem("statistics", "Collect statistics either for every asset ingested, for the service in total or both",
+			"per asset & service", "per asset & service", statistics);
+	defaultConfig.setItemDisplayName("statistics", "Statistics Collection");
 }
 
 /**

@@ -92,6 +92,7 @@ string	       coreAddress = "localhost";
 bool	       daemonMode = true;
 string	       myName = SERVICE_NAME;
 bool           returnPlugin = false;
+bool           returnReadingsPlugin = false;
 string	       logLevel = "warning";
 
 	for (int i = 1; i < argc; i++)
@@ -116,16 +117,26 @@ string	       logLevel = "warning";
 		{
 			returnPlugin = true;
 		}
+		else if (!strncmp(argv[i], "--readingsplugin", 8))
+		{
+			returnReadingsPlugin = true;
+		}
 		else if (!strncmp(argv[i], "--logLevel=", 11))
 		{
 			logLevel = &argv[i][11];
 		}
 	}
 
-	if (returnPlugin == false && daemonMode && makeDaemon() == -1)
+	if (returnPlugin == false && returnReadingsPlugin == false && daemonMode && makeDaemon() == -1)
 	{
 		// Failed to run in daemon mode
 		cout << "Failed to run as deamon - proceeding in interactive mode." << endl;
+	}
+
+	if (returnPlugin && returnReadingsPlugin)
+	{
+		cout << "You can not specify --plugin and --readingsplugin together";
+		exit(1);
 	}
 
 	StorageService *service = new StorageService(myName);
@@ -133,6 +144,10 @@ string	       logLevel = "warning";
 	if (returnPlugin)
 	{
 		cout << service->getPluginName() << " " << service->getPluginManagedStatus() << endl;
+	}
+	else if (returnReadingsPlugin)
+	{
+		cout << service->getReadingPluginName() << " " << service->getPluginManagedStatus() << endl;
 	}
 	else
 	{
@@ -174,8 +189,8 @@ pid_t pid;
 	close(2);
 	// redirect fd's 0,1,2 to /dev/null
 	(void)open("/dev/null", O_RDWR);  	// stdin
-	(void)dup(0);  			// stdout	GCC bug 66425 produces warning
-	(void)dup(0);  			// stderr	GCC bug 66425 produces warning
+	if (dup(0) == -1) {}  			// stdout	Workaround GCC bug 66425 produces warning
+	if (dup(0) == -1) {}  			// stderr	Workaround GCC bug 66425 produces warning
  	return 0;
 }
 
@@ -521,4 +536,17 @@ string StorageService::getPluginName()
 string StorageService::getPluginManagedStatus()
 {
 	return string(config->getValue("managedStatus"));
+}
+
+/**
+ * Return the name of the configured reading plugin
+ */
+string StorageService::getReadingPluginName()
+{
+	string rval = config->getValue("readingPlugin");
+	if (rval.empty())
+	{
+		rval = config->getValue("plugin");
+	}
+	return rval;
 }

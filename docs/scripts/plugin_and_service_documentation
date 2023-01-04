@@ -1,76 +1,14 @@
 #!/bin/bash
 
-# The best default branch to use develop rather than master. As new repository do not have a branch called master any more and having main branch only.
-if [[ "${DOCBRANCH}" == "" ]]; then
-    # NOTE: During release time we need to replace develop and nightly build with actual released version
-    export DOCBRANCH=2.0.1RC
-    export ARCHIVE_BUILD=nightly
-else
-    # only for dev purpose
-    if [[ "${DOCBRANCH}" == FOGL-* ]]; then
-        export DOCBRANCH=${DOCBRANCH}
-        export ARCHIVE_BUILD="fixes\/${DOCBRANCH}"
-    elif [[ "${DOCBRANCH}" == *RC ]]; then
-        export DOCBRANCH=${DOCBRANCH}
-        export ARCHIVE_BUILD=$(echo ${DOCBRANCH} | sed -e 's/RC//g')
-    else
-        export DOCBRANCH=${DOCBRANCH}
-        export ARCHIVE_BUILD=nightly
-    fi
+if [[ "${USERNAME}" == "" ]] || [[ "${GITHUB_ACCESS_TOKEN}" == "" ]]; then
+    echo "You must have set a GitHub username & access token environment variable. Like export USERNAME=YOUR_USERNAME; export GITHUB_ACCESS_TOKEN=YOUR_ACCESS_TOKEN";
+    exit 1
 fi
-
-echo "Default ${DOCBRANCH} branch used for plugin documentation and ${ARCHIVE_BUILD} build used for source code documentation"
-# Tweaks required in plugin developer guide to enable source code documentation
-sed -i 's/ARCHIVE_BUILD_NAME/'"${ARCHIVE_BUILD}"'/g' plugin_developers_guide/00_source_code_doc.rst
-
-function plugin_and_service_doc {
-  repo_name=$1
-  dest=$2
-  dir_type=$3
-  product=$(echo ${repo_name} | sed -e 's/-.*//')
-  org=fledge-iot
-  type=$(echo ${repo_name} | sed -e 's/fledge-//' -e 's/-.*//')
-  name=$(echo ${repo_name} | sed -e 's/fledge-//' -e "s/${type}-//")
-  mkdir -p /tmp/doc.$$
-  cd /tmp/doc.$$
-  git clone -b ${DOCBRANCH} --single-branch https://${USERNAME}:${GITHUB_ACCESS_TOKEN}@github.com/${org}/${repo_name}.git
-
-  if [[ ${type} != "service" ]]; then
-      # cloned directory replaced with installed directory name which is defined in Package file for each repo
-      installed_plugin_dir_name=$(cat ${repo_name}/Package | grep plugin_install_dirname= | sed -e "s/plugin_install_dirname=//g")
-      if [[ ${installed_plugin_dir_name} == "\${plugin_name}" ]]; then
-          installed_plugin_dir_name=$(cat ${repo_name}/Package | grep plugin_name= | sed -e "s/plugin_name=//g")
-      fi
-      old_plugin_name=$(echo ${repo_name} | cut -d '-' -f3-)
-      new_plugin_name=$(echo ${repo_name/$old_plugin_name/$installed_plugin_dir_name})
-      if [[ ${repo_name} != ${new_plugin_name} ]]; then
-          mv ${repo_name} ${new_plugin_name}
-      fi
-      repo_name=${new_plugin_name}
-  else
-      repo_name=fledge-${type}-${name}
-  fi
-  cd -
-  if [ -d /tmp/doc.$$/${repo_name}/docs ]; then
-      rm -rf ${dir_type}/${repo_name}
-      mkdir -p ${dir_type}/${repo_name}
-      cp -r /tmp/doc.$$/${repo_name}/docs/. ${dir_type}/${repo_name}
-      if [ -f ${dir_type}/${repo_name}/index.rst ]; then
-          echo "    ${repo_name}/index" >> $dest
-      else
-          echo "*** WARNING: index.rst file is missing for ${repo_name}."
-      fi
-  else
-      echo "*** WARNING: ${repo_name} docs directory is missing."
-  fi
-  rm -rf /tmp/doc.$$
-}
-
-# Always create a fresh set of Plugin documentation
-if [ -d plugins ]; then
-	rm -rf plugins
-fi
+# Always create a fresh set of Plugin & Service documentation
+if [ -d plugins ]; then rm -rf plugins; fi
 mkdir plugins
+if [ -d services ]; then rm -rf services; fi
+mkdir services
 
 cat > plugins/south.rst << EOFSOUTH
 ********************
@@ -115,18 +53,15 @@ Fledge Notification Delivery Plugins
 
 EOFNOTIFY
 
-if [[ "${USERNAME}" == "" ]]; then
-    echo "You must have set a GitHub username environment variable; export USERNAME=YOUR_USERNAME"
-    exit 1
-fi
-
-if [[ "${GITHUB_ACCESS_TOKEN}" == "" ]]; then
-    echo "You must have set a GitHub access token environment variable; export GITHUB_ACCESS_TOKEN=YOUR_ACCESS_TOKEN"
-    exit 1
-fi
-
+DOCBRANCH="$1"
+# TODO: source code documentation always point to nightly irrespective of the DOCBRANCH
+#  In future may point to specific branch/release version
+ARCHIVE_BUILD="nightly"
+echo "Default ${DOCBRANCH} branch used for plugin documentation and ${ARCHIVE_BUILD} build used for source code documentation"
+# Tweaks required in plugin developer guide to enable source code documentation
+sed -i 's/ARCHIVE_BUILD_NAME/'"${ARCHIVE_BUILD}"'/g' plugin_developers_guide/00_source_code_doc.rst
 header="Authorization: token ${GITHUB_ACCESS_TOKEN}"
-# Get total number of respository pages in fledge org.
+# Get total number of repository pages in fledge org.
 fledgeRepoPagesCount=$(curl -sI https://api.github.com/orgs/fledge-iot/repos | grep -oP '\d+(?=>; rel="last")')
 fledgeRepos=$(curl -H "$header" -sX GET https://api.github.com/orgs/fledge-iot/repos\?page=[1-$fledgeRepoPagesCount])
 fledgeRepos="$(echo $fledgeRepos | sed 's/\] \[/,/g')"
@@ -142,9 +77,8 @@ fledge_internal_repos=$(curl -sX GET -H "$header" -H "Accept: application/vnd.gi
 fledge_wip_repos_name=$(echo ${fledge_wip_repos} | python3 -c "$fetchTopicReposPyScript" | sort -f)
 fledge_poc_repos_name=$(echo ${fledge_poc_repos} | python3 -c "$fetchTopicReposPyScript" | sort -f)
 fledge_internal_repos_name=$(echo ${fledge_internal_repos} | python3 -c "$fetchTopicReposPyScript" | sort -f)
-EXCLUDE_FLEDGE_TOPIC_REPOSITORIES=$(echo ${fledge_wip_repos_name} ${fledge_poc_repos_name} ${fledge_internal_repos_name} | sort -f)
-echo "EXCLUDED FLEDGE TOPIC REPOS..."$EXCLUDE_FLEDGE_TOPIC_REPOSITORIES
-export EXCLUDE_FLEDGE_TOPIC_REPOSITORIES=$EXCLUDE_FLEDGE_TOPIC_REPOSITORIES
+export EXCLUDE_FLEDGE_TOPIC_REPOSITORIES=$(echo ${fledge_wip_repos_name} ${fledge_poc_repos_name} ${fledge_internal_repos_name} | sort -f)
+echo "EXCLUDED FLEDGE TOPIC REPOS LIST: $EXCLUDE_FLEDGE_TOPIC_REPOSITORIES"
 fetchFledgeReposPyScript='
 import os,json,sys;\
 repos=json.load(sys.stdin);\
@@ -155,9 +89,52 @@ print("\n".join(fRepos));
 '
 REPOSITORIES=$(echo ${fledgeRepos} | python3 -c "$fetchFledgeReposPyScript" | sort -f)
 echo "REPOS LIST: "${REPOSITORIES}
+
+function plugin_and_service_doc {
+    repo_name=$1
+    dest=$2
+    dir_type=$3
+    type=$(echo ${repo_name} | sed -e 's/fledge-//' -e 's/-.*//')
+    name=$(echo ${repo_name} | sed -e 's/fledge-//' -e "s/${type}-//")
+    mkdir -p /tmp/doc.$$
+    cd /tmp/doc.$$
+    git clone -b ${DOCBRANCH} --single-branch https://${USERNAME}:${GITHUB_ACCESS_TOKEN}@github.com/fledge-iot/${repo_name}.git
+
+    if [[ ${type} != "service" ]]; then
+        # cloned directory replaced with installed directory name which is defined in Package file for each repo
+        installed_plugin_dir_name=$(cat ${repo_name}/Package | grep plugin_install_dirname= | sed -e "s/plugin_install_dirname=//g")
+        if [[ ${installed_plugin_dir_name} == "\${plugin_name}" ]]; then
+            installed_plugin_dir_name=$(cat ${repo_name}/Package | grep plugin_name= | sed -e "s/plugin_name=//g")
+        fi
+        old_plugin_name=$(echo ${repo_name} | cut -d '-' -f3-)
+        new_plugin_name=$(echo ${repo_name/$old_plugin_name/$installed_plugin_dir_name})
+        if [[ ${repo_name} != ${new_plugin_name} ]]; then
+            mv ${repo_name} ${new_plugin_name}
+        fi
+        repo_name=${new_plugin_name}
+    else
+        repo_name=fledge-${type}-${name}
+    fi
+    cd -
+    if [ -d /tmp/doc.$$/${repo_name}/docs ]; then
+        rm -rf ${dir_type}/${repo_name}
+        mkdir -p ${dir_type}/${repo_name}
+        cp -r /tmp/doc.$$/${repo_name}/docs/. ${dir_type}/${repo_name}
+        if [ -f ${dir_type}/${repo_name}/index.rst ]; then
+            echo "    ${repo_name}/index" >> $dest
+        else
+            echo "*** WARNING: index.rst file is missing for ${repo_name}."
+        fi
+    else
+        echo "*** WARNING: ${repo_name} docs directory is missing."
+    fi
+    rm -rf /tmp/doc.$$
+}
+
+
 for repo in ${REPOSITORIES}
 do
-    type=$(echo $repo | sed -e 's/fledge-//' -e 's/foglamp-//' -e 's/-.*//')
+    type=$(echo $repo | sed -e 's/fledge-//' -e 's/-.*//')
     if [ "$type" = "south" -o "$type" = "north" -o $type = "filter" -o $type = "rule" -o $type = "notify" ]; then
         dest=plugins/${type}.rst
         plugin_and_service_doc $repo $dest "plugins"
@@ -171,17 +148,11 @@ echo '.. include:: ../../fledge-north-OMF.rst' > plugins/fledge-north-OMF/index.
 # Append OMF.rst to the end of the file rather than including it so that we may
 # edit the links to prevent duplicates
 cat OMF.rst >> plugins/fledge-north-OMF/index.rst
-sed -i -e 's/Naming_Scheme/Naming_Scheme_plugin/' plugins/fledge-north-OMF/index.rst
+sed -i -e 's/Naming_Scheme/Naming_Scheme_plugin/' -e 's/Linked_Types/Linked_Types_Plugin/' plugins/fledge-north-OMF/index.rst
 # Create the Threshold rule documentation
 mkdir plugins/fledge-rule-Threshold
 ln -s $(pwd)/fledge-rule-Threshold/images plugins/fledge-rule-Threshold/images
 echo '.. include:: ../../fledge-rule-Threshold/index.rst' > plugins/fledge-rule-Threshold/index.rst
-
-# Always create a fresh set of Service documentation
-if [ -d services ]; then
-	rm -rf services
-fi
-mkdir services
 
 cat > services/index.rst << EOFSERVICES
 *******************
@@ -198,7 +169,7 @@ SERVICE_REPOS=$(echo "${REPOSITORIES}" | grep -o "[a-zA-Z0-9\-]*-service-[a-zA-Z
 echo "SERVICE REPOS LIST: "${SERVICE_REPOS}
 for repo in ${SERVICE_REPOS}
 do
-    type=$(echo $repo | sed -e 's/fledge-//' -e 's/foglamp-//' -e 's/-.*//')
+    type=$(echo $repo | sed -e 's/fledge-//' -e 's/-.*//')
     dest=services/index.rst
     plugin_and_service_doc $repo $dest "services"
 done

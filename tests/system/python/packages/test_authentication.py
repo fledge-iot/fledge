@@ -567,8 +567,10 @@ class TestAuthAnyWithoutTLS:
         r = r.read().decode()
         jdoc = json.loads(r)
         assert {'roles': [{'description': 'All CRUD privileges', 'id': 1, 'name': 'admin'},
-                          {'description': 'All CRUD operations and self profile management',
-                           'id': 2, 'name': 'user'}]} == jdoc
+                          {'description': 'All CRUD operations and self profile management', 'id': 2, 'name': 'user'},
+                          {'id': 3, 'name': 'view', 'description': 'Only to view the configuration'},
+                          {'id': 4, 'name': 'data-view', 'description': 'Only read the data in buffer'}
+                          ]} == jdoc
 
     def test_get_roles_with_certificate_token(self, fledge_url):
         conn = http.client.HTTPConnection(fledge_url)
@@ -578,8 +580,10 @@ class TestAuthAnyWithoutTLS:
         r = r.read().decode()
         jdoc = json.loads(r)
         assert {'roles': [{'description': 'All CRUD privileges', 'id': 1, 'name': 'admin'},
-                          {'description': 'All CRUD operations and self profile management',
-                           'id': 2, 'name': 'user'}]} == jdoc
+                          {'description': 'All CRUD operations and self profile management', 'id': 2, 'name': 'user'},
+                          {'id': 3, 'name': 'view', 'description': 'Only to view the configuration'},
+                          {'id': 4, 'name': 'data-view', 'description': 'Only read the data in buffer'}
+                          ]} == jdoc
 
     @pytest.mark.parametrize(("form_data", "expected_values"), [
         ({"username": "any1", "password": "User@123", "real_name": "AJ", "description": "Nerd user"},
@@ -759,8 +763,7 @@ class TestAuthAnyWithoutTLS:
         _token = jdoc["token"]
 
         # Create User
-        conn.request("POST", "/fledge/admin/user", body=json.dumps({"username": "other",
-                                                                     "password": "User@123"}),
+        conn.request("POST", "/fledge/admin/user", body=json.dumps({"username": "other", "password": "User@123"}),
                      headers={"authorization": _token})
         r = conn.getresponse()
         assert 403 == r.status
@@ -797,8 +800,7 @@ class TestAuthAnyWithoutTLS:
             _token = jdoc["token"]
 
         # Create User
-        conn.request("POST", "/fledge/admin/user", body=json.dumps({"username": "other",
-                                                                     "password": "User@123"}),
+        conn.request("POST", "/fledge/admin/user", body=json.dumps({"username": "other", "password": "User@123"}),
                      headers={"authorization": _token})
         r = conn.getresponse()
         assert 403 == r.status
@@ -962,8 +964,10 @@ class TestAuthPasswordWithoutTLS:
         r = r.read().decode()
         jdoc = json.loads(r)
         assert {'roles': [{'description': 'All CRUD privileges', 'id': 1, 'name': 'admin'},
-                          {'description': 'All CRUD operations and self profile management',
-                           'id': 2, 'name': 'user'}]} == jdoc
+                          {'description': 'All CRUD operations and self profile management', 'id': 2, 'name': 'user'},
+                          {'id': 3, 'name': 'view', 'description': 'Only to view the configuration'},
+                          {'id': 4, 'name': 'data-view', 'description': 'Only read the data in buffer'}
+                          ]} == jdoc
 
     @pytest.mark.parametrize(("form_data", "expected_values"), [
         ({"username": "any1", "password": "User@123", "real_name": "AJ", "description": "Nerd user"},
@@ -1080,8 +1084,7 @@ class TestAuthPasswordWithoutTLS:
         _token = jdoc["token"]
 
         # Create User
-        conn.request("POST", "/fledge/admin/user", body=json.dumps({"username": "other",
-                                                                     "password": "User@123"}),
+        conn.request("POST", "/fledge/admin/user", body=json.dumps({"username": "other", "password": "User@123"}),
                      headers={"authorization": _token})
         r = conn.getresponse()
         assert 403 == r.status
@@ -1269,8 +1272,10 @@ class TestAuthCertificateWithoutTLS:
         r = r.read().decode()
         jdoc = json.loads(r)
         assert {'roles': [{'description': 'All CRUD privileges', 'id': 1, 'name': 'admin'},
-                          {'description': 'All CRUD operations and self profile management',
-                           'id': 2, 'name': 'user'}]} == jdoc
+                          {'description': 'All CRUD operations and self profile management', 'id': 2, 'name': 'user'},
+                          {'id': 3, 'name': 'view', 'description': 'Only to view the configuration'},
+                          {'id': 4, 'name': 'data-view', 'description': 'Only read the data in buffer'}
+                          ]} == jdoc
 
     @pytest.mark.parametrize(("form_data", "expected_values"), [
         ({"username": "any1", "password": "User@123", "real_name": "AJ", "description": "Nerd user"},
@@ -1351,8 +1356,7 @@ class TestAuthCertificateWithoutTLS:
             _token = jdoc["token"]
 
         # Create User
-        conn.request("POST", "/fledge/admin/user", body=json.dumps({"username": "other",
-                                                                     "password": "User@123"}),
+        conn.request("POST", "/fledge/admin/user", body=json.dumps({"username": "other", "password": "User@123"}),
                      headers={"authorization": _token})
         r = conn.getresponse()
         assert 403 == r.status
@@ -1673,8 +1677,10 @@ class TestAuthAnyWithTLS:
         r = r.read().decode()
         jdoc = json.loads(r)
         assert {'roles': [{'description': 'All CRUD privileges', 'id': 1, 'name': 'admin'},
-                          {'description': 'All CRUD operations and self profile management',
-                           'id': 2, 'name': 'user'}]} == jdoc
+                          {'description': 'All CRUD operations and self profile management', 'id': 2, 'name': 'user'},
+                          {'id': 3, 'name': 'view', 'description': 'Only to view the configuration'},
+                          {'id': 4, 'name': 'data-view', 'description': 'Only read the data in buffer'}
+                          ]} == jdoc
 
     def test_get_roles_with_certificate_token(self):
         conn = http.client.HTTPSConnection("localhost", 1995, context=context)
@@ -1684,8 +1690,10 @@ class TestAuthAnyWithTLS:
         r = r.read().decode()
         jdoc = json.loads(r)
         assert {'roles': [{'description': 'All CRUD privileges', 'id': 1, 'name': 'admin'},
-                          {'description': 'All CRUD operations and self profile management',
-                           'id': 2, 'name': 'user'}]} == jdoc
+                          {'description': 'All CRUD operations and self profile management', 'id': 2, 'name': 'user'},
+                          {'id': 3, 'name': 'view', 'description': 'Only to view the configuration'},
+                          {'id': 4, 'name': 'data-view', 'description': 'Only read the data in buffer'}
+                          ]} == jdoc
 
     @pytest.mark.parametrize(("form_data", "expected_values"), [
         ({"username": "any1", "password": "User@123", "real_name": "AJ", "description": "Nerd user"},
@@ -1865,8 +1873,7 @@ class TestAuthAnyWithTLS:
         _token = jdoc["token"]
 
         # Create User
-        conn.request("POST", "/fledge/admin/user", body=json.dumps({"username": "other",
-                                                                     "password": "User@123"}),
+        conn.request("POST", "/fledge/admin/user", body=json.dumps({"username": "other", "password": "User@123"}),
                      headers={"authorization": _token})
         r = conn.getresponse()
         assert 403 == r.status
@@ -1903,8 +1910,7 @@ class TestAuthAnyWithTLS:
             _token = jdoc["token"]
 
         # Create User
-        conn.request("POST", "/fledge/admin/user", body=json.dumps({"username": "other",
-                                                                     "password": "User@123"}),
+        conn.request("POST", "/fledge/admin/user", body=json.dumps({"username": "other", "password": "User@123"}),
                      headers={"authorization": _token})
         r = conn.getresponse()
         assert 403 == r.status
@@ -2072,8 +2078,10 @@ class TestAuthPasswordWithTLS:
         r = r.read().decode()
         jdoc = json.loads(r)
         assert {'roles': [{'description': 'All CRUD privileges', 'id': 1, 'name': 'admin'},
-                          {'description': 'All CRUD operations and self profile management',
-                           'id': 2, 'name': 'user'}]} == jdoc
+                          {'description': 'All CRUD operations and self profile management', 'id': 2, 'name': 'user'},
+                          {'id': 3, 'name': 'view', 'description': 'Only to view the configuration'},
+                          {'id': 4, 'name': 'data-view', 'description': 'Only read the data in buffer'}
+                          ]} == jdoc
 
     @pytest.mark.parametrize(("form_data", "expected_values"), [
         ({"username": "any1", "password": "User@123", "real_name": "AJ", "description": "Nerd user"},
@@ -2190,8 +2198,7 @@ class TestAuthPasswordWithTLS:
         _token = jdoc["token"]
 
         # Create User
-        conn.request("POST", "/fledge/admin/user", body=json.dumps({"username": "other",
-                                                                     "password": "User@123"}),
+        conn.request("POST", "/fledge/admin/user", body=json.dumps({"username": "other", "password": "User@123"}),
                      headers={"authorization": _token})
         r = conn.getresponse()
         assert 403 == r.status
@@ -2386,8 +2393,10 @@ class TestAuthCertificateWithTLS:
         r = r.read().decode()
         jdoc = json.loads(r)
         assert {'roles': [{'description': 'All CRUD privileges', 'id': 1, 'name': 'admin'},
-                          {'description': 'All CRUD operations and self profile management',
-                           'id': 2, 'name': 'user'}]} == jdoc
+                          {'description': 'All CRUD operations and self profile management', 'id': 2, 'name': 'user'},
+                          {'id': 3, 'name': 'view', 'description': 'Only to view the configuration'},
+                          {'id': 4, 'name': 'data-view', 'description': 'Only read the data in buffer'}
+                          ]} == jdoc
 
     @pytest.mark.parametrize(("form_data", "expected_values"), [
         ({"username": "any1", "password": "User@123", "real_name": "AJ", "description": "Nerd user"},
@@ -2468,8 +2477,7 @@ class TestAuthCertificateWithTLS:
             _token = jdoc["token"]
 
         # Create User
-        conn.request("POST", "/fledge/admin/user", body=json.dumps({"username": "other",
-                                                                     "password": "User@123"}),
+        conn.request("POST", "/fledge/admin/user", body=json.dumps({"username": "other", "password": "User@123"}),
                      headers={"authorization": _token})
         r = conn.getresponse()
         assert 403 == r.status

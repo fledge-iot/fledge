@@ -79,7 +79,7 @@ To install the dependencies required to run python tests, run the following two 
 ::
 
     cd $FLEDGE_ROOT/tests/system/python/iprpc
-    pip3 install -r requirements-iprpc-test.txt --user
+    python3 -m pip install -r requirements-iprpc-test.txt --user
 
 
 Test Execution

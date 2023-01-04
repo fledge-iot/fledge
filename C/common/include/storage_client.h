@@ -86,7 +86,10 @@ class StorageClient {
 							  const std::string& callbackUrl);
 		bool		unregisterAssetNotification(const std::string& assetName,
 							    const std::string& callbackUrl);
-
+		bool		registerTableNotification(const std::string& tableName, const std::string& key, 
+								std::vector<std::string> keyValues, const std::string& operation, const std::string& callbackUrl);
+		bool		unregisterTableNotification(const std::string& tableName,
+								const std::string& callbackUrl);
 		void		registerManagement(ManagementClient *mgmnt) { m_management = mgmnt; };
 		bool 		createSchema(const std::string&);
 

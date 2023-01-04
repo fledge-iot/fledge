@@ -35,7 +35,7 @@ import urllib.parse
 from typing import Tuple
 import utils
 import pytest
-from pytest import IS_DEBIAN
+from pytest import PKG_MGR
 
 
 """ First FL instance IP Address """
@@ -141,8 +141,7 @@ SUBSCRIPTION2 = ["ns=2;s={}{}".format(OPCUA_ASSET_NAME, SUPPORTED_DATA_TYPES[0][
 def install_pkg():
     """ Fixture used for to install packages and only used in First FL instance """
     try:
-        pkg_mgr = 'apt' if IS_DEBIAN else 'yum'
-        subprocess.run(["sudo {} install -y {}".format(pkg_mgr, PKG_LIST)], shell=True, check=True)
+        subprocess.run(["sudo {} install -y {}".format(PKG_MGR, PKG_LIST)], shell=True, check=True)
     except subprocess.CalledProcessError:
         assert False, "{} one of installation package failed".format(PKG_LIST)
 

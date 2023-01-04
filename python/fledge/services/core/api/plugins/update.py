@@ -217,10 +217,9 @@ def _update_repo_sources_and_plugin(_type: str, name: str) -> tuple:
     # irrespective of package name defined in the configured repo.
     name = "fledge-{}-{}".format(_type, name.lower())
     stdout_file_path = common.create_log_file(action="update", plugin_name=name)
-    if utils.is_debian():
-        pkg_mgt = 'apt'
-        cmd = "sudo {} -y update > {} 2>&1".format(pkg_mgt, stdout_file_path)
-    else:
+    pkg_mgt = 'apt'
+    cmd = "sudo {} -y update > {} 2>&1".format(pkg_mgt, stdout_file_path)
+    if utils.is_redhat_based():
         pkg_mgt = 'yum'
         cmd = "sudo {} check-update > {} 2>&1".format(pkg_mgt, stdout_file_path)
     ret_code = os.system(cmd)

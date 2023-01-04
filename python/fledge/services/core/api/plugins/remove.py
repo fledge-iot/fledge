@@ -241,7 +241,7 @@ def purge_plugin(plugin_type: str, name: str, uid: uuid, storage: connect) -> tu
     plugin_name = 'fledge-{}-{}'.format(plugin_type, name)
 
     try:
-        if not utils.is_debian():
+        if utils.is_redhat_based():
             rpm_list = os.popen('rpm -qa | grep fledge*').read()
             _logger.debug("rpm list : {}".format(rpm_list))
             if len(rpm_list):

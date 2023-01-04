@@ -17,7 +17,7 @@ from pathlib import Path
 from datetime import timezone, datetime
 import utils
 import pytest
-from pytest import IS_DEBIAN
+from pytest import PKG_MGR
 
 
 __author__ = "Yash Tatkondawar"
@@ -67,8 +67,8 @@ def remove_and_add_pkgs(package_build_version):
         assert False, "setup package script failed"
 
     try:
-        pkg_mgr = 'apt' if IS_DEBIAN else 'yum'
-        subprocess.run(["sudo {} install -y fledge-north-gcp fledge-south-sinusoid".format(pkg_mgr)], shell=True, check=True)
+        subprocess.run(["sudo {} install -y fledge-north-gcp fledge-south-sinusoid".format(PKG_MGR)],
+                       shell=True, check=True)
     except subprocess.CalledProcessError:
         assert False, "installation of gcp-gateway and sinusoid packages failed"
 

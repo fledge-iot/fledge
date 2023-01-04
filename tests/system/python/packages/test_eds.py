@@ -20,7 +20,7 @@ from pathlib import Path
 from datetime import datetime
 import pytest
 import utils
-from pytest import IS_DEBIAN
+from pytest import PKG_MGR
 
 __author__ = "Yash Tatkondawar"
 __copyright__ = "Copyright (c) 2020 Dianomic Systems, Inc."
@@ -72,8 +72,7 @@ def remove_and_add_pkgs(package_build_version):
         assert False, "setup package script failed"
 
     try:
-        pkg_mgr = 'apt' if IS_DEBIAN else 'yum'
-        subprocess.run(["sudo {} install -y fledge-south-sinusoid".format(pkg_mgr)], shell=True, check=True)
+        subprocess.run(["sudo {} install -y fledge-south-sinusoid".format(PKG_MGR)], shell=True, check=True)
     except subprocess.CalledProcessError:
         assert False, "installation of sinusoid package failed"
 

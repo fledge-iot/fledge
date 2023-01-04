@@ -171,7 +171,7 @@ async def fetch_available_packages(package_type: str = "") -> tuple:
     stdout_file_path = create_log_file(action="list")
     tmp_log_output_fp = stdout_file_path.split('logs/')[:1][0] + "logs/output.txt"
     pkg_type = "" if package_type is None else package_type
-    pkg_mgt = 'apt' if common_utils.is_debian() else 'yum'
+    pkg_mgt = 'yum' if common_utils.is_redhat_based() else 'apt'
     category = await server.Server._configuration_manager.get_category_all_items("Installation")
     max_update_cat_item = category['maxUpdate']
     pkg_cache_mgr = server.Server._package_cache_manager

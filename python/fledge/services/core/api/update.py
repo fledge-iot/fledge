@@ -125,10 +125,9 @@ async def get_updates(request: web.Request) -> web.Response:
         Example
          curl -sX GET http://localhost:8081/fledge/update |jq
     """
-    if utils.is_debian():
-        update_cmd = "sudo apt update"
-        upgradable_pkgs_check_cmd = "apt list --upgradable | grep \^fledge"
-    else:
+    update_cmd = "sudo apt update"
+    upgradable_pkgs_check_cmd = "apt list --upgradable | grep \^fledge"
+    if utils.is_redhat_based():
         update_cmd = "sudo yum check-update"
         upgradable_pkgs_check_cmd = "yum list updates | grep \^fledge"
 

@@ -26,7 +26,7 @@ __version__ = "${VERSION}"
 
 _logger = logger.setup(__name__, level=logging.INFO)
 
-_SYSLOG_FILE = '/var/log/syslog' if utils.is_debian() else '/var/log/messages'
+_SYSLOG_FILE = '/var/log/messages' if utils.is_redhat_based() else '/var/log/syslog'
 _SCRIPTS_DIR = "{}/scripts".format(_FLEDGE_ROOT)
 __DEFAULT_LIMIT = 20
 __DEFAULT_OFFSET = 0

@@ -35,7 +35,7 @@ __version__ = "${VERSION}"
 
 _LOGGER = logger.setup(__name__, level=logging.INFO)
 _NO_OF_FILES_TO_RETAIN = 3
-_SYSLOG_FILE = '/var/log/syslog' if utils.is_debian() else '/var/log/messages'
+_SYSLOG_FILE = '/var/log/messages' if utils.is_redhat_based() else '/var/log/syslog'
 _PATH = _FLEDGE_DATA if _FLEDGE_DATA else _FLEDGE_ROOT + '/data'
 
 

@@ -262,7 +262,7 @@ async def add_service(request):
                     delimiter = '.'
                     if str(version).count(delimiter) != 2:
                         raise ValueError('Service semantic version is incorrect; it should be like X.Y.Z')
-                pkg_mgt = 'apt' if utils.is_debian() else 'yum'
+                pkg_mgt = 'yum' if utils.is_redhat_based() else 'apt'
                 # Check Pre-conditions from Packages table
                 # if status is -1 (Already in progress) then return as rejected request
                 storage = connect.get_storage_async()
@@ -682,7 +682,7 @@ def do_update(http_enabled: bool, host: str, port: int, storage: connect, pkg_na
               schedules: list) -> None:
     _logger.info("{} service update started...".format(pkg_name))
     stdout_file_path = common.create_log_file("update", pkg_name)
-    pkg_mgt = 'apt' if utils.is_debian() else 'yum'
+    pkg_mgt = 'yum' if utils.is_redhat_based() else 'apt'
     cmd = "sudo {} -y update > {} 2>&1".format(pkg_mgt, stdout_file_path)
     protocol = "HTTP" if http_enabled else "HTTPS"
     if pkg_mgt == 'yum':

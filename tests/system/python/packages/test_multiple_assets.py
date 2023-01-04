@@ -21,7 +21,7 @@ from pathlib import Path
 
 import pytest
 import utils
-from pytest import IS_DEBIAN
+from pytest import PKG_MGR
 
 
 # This  gives the path of directory where fledge is cloned. test_file < packages < python < system < tests < ROOT
@@ -61,8 +61,7 @@ def remove_and_add_pkgs(package_build_version):
         assert False, "setup package script failed"
 
     try:
-        pkg_mgr = 'apt' if IS_DEBIAN else 'yum'
-        subprocess.run(["sudo {} install -y fledge-south-benchmark".format(pkg_mgr)], shell=True, check=True)
+        subprocess.run(["sudo {} install -y fledge-south-benchmark".format(PKG_MGR)], shell=True, check=True)
     except subprocess.CalledProcessError:
         assert False, "installation of benchmark package failed"
 

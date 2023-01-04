@@ -118,7 +118,7 @@ async def add_plugin(request: web.Request) -> web.Response:
             if name not in plugins:
                 raise KeyError('{} plugin is not available for the configured repository'.format(name))
 
-            pkg_mgt = 'apt' if utils.is_debian() else 'yum'
+            pkg_mgt = 'yum' if utils.is_redhat_based() else 'apt'
             # Insert record into Packages table
             insert_payload = PayloadBuilder().INSERT(id=str(uuid.uuid4()), name=name, action=action, status=-1,
                                                      log_file_uri="").payload()

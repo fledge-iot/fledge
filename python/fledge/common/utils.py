@@ -106,9 +106,9 @@ def read_os_release():
     return os_details
 
 
-def is_debian():
+def is_redhat_based():
     """
-        To check if the Operating system is of Debian type or Not
+        To check if the Operating system is of Red Hat family or Not
         Examples:
             a) For an operating system with "ID=centos", an assignment of "ID_LIKE="rhel fedora"" is appropriate
             b) For an operating system with "ID=ubuntu/raspbian", an assignment of "ID_LIKE=debian" is appropriate.
@@ -116,8 +116,8 @@ def is_debian():
     os_release = read_os_release()
     id_like = os_release.get('ID_LIKE')
     if id_like is not None and any(x in id_like.lower() for x in ['centos', 'rhel', 'redhat', 'fedora']):
-        return False
-    return True
+        return True
+    return False
 
 
 def get_open_ssl_version(version_string=True):

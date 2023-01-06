@@ -57,7 +57,7 @@ The plugin write entry point is defined as follows
 
 .. code-block:: C
 
-     bool plugin_write(PLUGIN_HANDLE *handle, string name, string value)
+     bool plugin_write(PLUGIN_HANDLE handle, string name, string value)
 
 Where the parameters are;
 
@@ -71,9 +71,9 @@ The return value defines if the write was successful or not. True is returned fo
 
 .. code-block:: C
 
-  bool plugin_write(PLUGIN_HANDLE *handle, string& name, string& value)
+  bool plugin_write(PLUGIN_HANDLE handle, string& name, string& value)
   {
-  Random *random = (Random *)handle;
+  	Random *random = static_cast<Random *>(handle);
 
   	return random->write(operation, name, value);
   }
@@ -120,7 +120,7 @@ The plugin write operation entry point is defined as follows
 
 .. code-block:: C
 
-     bool plugin_operation(PLUGIN_HANDLE *handle, string& operation, int count, PLUGIN_PARAMETER **params)
+     bool plugin_operation(PLUGIN_HANDLE handle, string& operation, int count, PLUGIN_PARAMETER **params)
 
 Where the parameters are;
 
@@ -140,9 +140,9 @@ The following example shows the implementation of the plugin operation entry poi
 
 .. code-block:: C
 
-  bool plugin_operation(PLUGIN_HANDLE *handle, string& operation, int count, PLUGIN_PARAMETER **params)
+  bool plugin_operation(PLUGIN_HANDLE handle, string& operation, int count, PLUGIN_PARAMETER **params)
   {
-  Random *random = (Random *)handle;
+  	Random *random = static_cast<Random *>(handle);
 
   	return random->operation(operation, count, params);
   }

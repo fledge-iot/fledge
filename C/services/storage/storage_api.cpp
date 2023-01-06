@@ -557,7 +557,9 @@ string  responsePayload;
 		int rval = plugin->commonInsert(tableName, payload);
 		if (rval != -1)
 		{
+			PRINT_FUNC;
 			registry.processTableInsert(tableName, payload);
+			PRINT_FUNC;
 			responsePayload = "{ \"response\" : \"inserted\", \"rows_affected\" : ";
 			responsePayload += to_string(rval);
 			responsePayload += " }";
@@ -1166,7 +1168,7 @@ Document	doc;
 	{
 		if (doc.HasMember("url"))
 		{
-			registry.registerTable(table, payload);   // doc["url"].GetString());
+			registry.registerTable(table, payload);
 			string resp = " { \"" + table + "\" : \"registered\" }";
 			respond(response, resp);
 		}
@@ -1189,8 +1191,9 @@ string		payload;
 Document	doc;
 
 	payload = request->content.string();
-	// URL decode asset name
+	// URL decode table name
 	table = urlDecode(request->path_match[TABLE_NAME_COMPONENT]);
+	
 	doc.Parse(payload.c_str());
 	if (doc.HasParseError())
 	{
@@ -1203,20 +1206,17 @@ Document	doc;
 	{
 		if (doc.HasMember("url"))
 		{
-			registry.unregisterAsset(table, doc["url"].GetString());
+			registry.unregisterTable(table, payload);
 			string resp = " { \"" + table + "\" : \"unregistered\" }";
 			respond(response, resp);
 		}
 		else
 		{
 			string resp = "{ \"error\" : \"Missing url element in payload\" }";
-			respond(response,
-				SimpleWeb::StatusCode::client_error_bad_request,
-				resp);
+			respond(response, SimpleWeb::StatusCode::client_error_bad_request, resp);
 		}
 	}
 }
-
 
 /**
  * Create a stream for high speed storage ingestion

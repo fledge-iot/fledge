@@ -8,7 +8,6 @@
 """
 import subprocess
 import os
-import platform
 import sys
 import fnmatch
 import http.client
@@ -16,10 +15,10 @@ import json
 import base64
 import ssl
 import shutil
-import pytest
 from urllib.parse import quote
 from pathlib import Path
-import sys
+import pytest
+from fledge.common import utils
 
 
 __author__ = "Vaibhav Singhal"
@@ -133,9 +132,7 @@ def add_south():
             clone_make_install()
         elif installation_type == 'package':
             try:
-                os_platform = platform.platform()
-                pkg_mgr = 'yum' if 'centos' in os_platform or 'redhat' in os_platform else 'apt'
-                subprocess.run(["sudo {} install -y fledge-south-{}".format(pkg_mgr, south_plugin)], shell=True,
+                subprocess.run(["sudo {} install -y fledge-south-{}".format(pytest.PKG_MGR, south_plugin)], shell=True,
                                check=True)
             except subprocess.CalledProcessError:
                 assert False, "{} package installation failed!".format(south_plugin)
@@ -186,9 +183,7 @@ def add_north():
             clone_make_install()
         elif installation_type == 'package':
             try:
-                os_platform = platform.platform()
-                pkg_mgr = 'yum' if 'centos' in os_platform or 'redhat' in os_platform else 'apt'
-                subprocess.run(["sudo {} install -y fledge-north-{}".format(pkg_mgr, north_plugin)], shell=True,
+                subprocess.run(["sudo {} install -y fledge-north-{}".format(pytest.PKG_MGR, north_plugin)], shell=True,
                                check=True)
             except subprocess.CalledProcessError:
                 assert False, "{} package installation failed!".format(north_plugin)
@@ -513,10 +508,8 @@ def add_filter():
                 assert False, "{} filter plugin installation failed".format(filter_plugin)
         elif installation_type == 'package':
             try:
-                os_platform = platform.platform()
-                pkg_mgr = 'yum' if 'centos' in os_platform or 'redhat' in os_platform else 'apt'
-                subprocess.run(["sudo {} install -y fledge-filter-{}".format(pkg_mgr, filter_plugin)], shell=True,
-                               check=True)
+                subprocess.run(["sudo {} install -y fledge-filter-{}".format(pytest.PKG_MGR, filter_plugin)],
+                               shell=True, check=True)
             except subprocess.CalledProcessError:
                 assert False, "{} package installation failed!".format(filter_plugin)
         else:
@@ -982,3 +975,9 @@ def throttled_network_config(request):
 @pytest.fixture
 def start_north_as_service(request):
     return request.config.getoption("--start-north-as-service")
+
+
+def pytest_configure():
+    pytest.OS_PLATFORM_DETAILS = utils.read_os_release()
+    pytest.IS_REDHAT = utils.is_redhat_based()
+    pytest.PKG_MGR = 'yum' if pytest.IS_REDHAT else 'apt'

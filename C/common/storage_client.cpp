@@ -160,7 +160,7 @@ bool StorageClient::readingAppend(const vector<Reading *>& readings)
 	double timeSpan = dur.tv_sec + ((double)dur.tv_usec / 1000000);
 	double rate = (double)readings.size() / timeSpan;
 	// Stream functionality disabled
-	// if (rate > STREAM_THRESHOLD)
+	//if (rate > STREAM_THRESHOLD)
 	if (0)
 	{
 		m_logger->info("Reading rate %.1f readings per second above threshold, attmempting to switch to stream mode", rate);
@@ -1151,7 +1151,7 @@ void StorageClient::handleUnexpectedResponse(const char *operation, const string
 /**
  * Standard logging method for all interactions
  *
- * @param operation	The operation beign undertaken
+ * @param operation	The operation being undertaken
  * @param responseCode	The HTTP response code
  * @param payload	The payload in the response message
  */
@@ -1259,6 +1259,13 @@ bool StorageClient::unregisterAssetNotification(const string& assetName,
 	return false;
 }
 
+/**
+ * Attempt to open a streaming connection to the storage service. We use a REST API
+ * call to create the stream. If successful this call will return a port and a token
+ * to use when sending data via the stream.
+ *
+ * @return bool		Return true if the stream was setup
+ */
 bool StorageClient::openStream()
 {
 	try {
@@ -1358,6 +1365,7 @@ string				lastAsset;
 
 	if (!m_streaming)
 	{
+		m_logger->warn("Attempt to send data via a storage stream when streaming is not setup");
 		return false;
 	}
 
@@ -1385,7 +1393,7 @@ string				lastAsset;
 
 	/*
 	 * Use the writev scatter/gather interface to send the reading headers and reading data.
-	 * We sent chunks of data in order to allow the parallel sendign and unpacking process
+	 * We sent chunks of data in order to allow the parallel sending and unpacking process
 	 * at the two ends. The chunk size is STREAM_BLK_SIZE readings.
 	 */
 	iovp = iovs;
@@ -1408,7 +1416,7 @@ string				lastAsset;
 			phdr->assetLength = assetCode.length() + 1;
 		}
 
-		// Alwayts generate the JSON variant of the data points and send
+		// Always generate the JSON variant of the data points and send
 		payloads[offset] = readings[i]->getDatapointsJSON();
 		phdr->payloadLength = payloads[offset].length() + 1;
 
@@ -1489,6 +1497,7 @@ string				lastAsset;
 		else if (n > length)
 			Logger::getLogger()->fatal("Long write %d < %d", length, n);
 	}
+	Logger::getLogger()->warn("FIXME: Written block of readings via streaming connection");
 	return true;
 }
 

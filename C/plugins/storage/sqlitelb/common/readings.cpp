@@ -22,8 +22,10 @@
 #include <sys/time.h>
 #endif
 
+#define APPEND_BATCH_SIZE	100
+
 // Decode stream data
-#define	RDS_USER_TIMESTAMP(stream, x) 	stream[x]->userTs
+#define	RDS_USER_TIMESTAMP(stream, x) 		stream[x]->userTs
 #define	RDS_ASSET_CODE(stream, x)		stream[x]->assetCode
 #define	RDS_PAYLOAD(stream, x)			&(stream[x]->assetCode[0]) + stream[x]->assetCodeLength
 
@@ -395,7 +397,8 @@ int Connection::readingStream(ReadingStream **readings, bool commit)
 	sqlite3_stmt *stmt;
 	int sqlite3_resut;
 	int rowNumber = -1;
-
+	
+	Logger::getLogger()->warn("FIXME(info): got a reading stream");
 #if INSTRUMENT
 	struct timeval start, t1, t2, t3, t4, t5;
 #endif
@@ -439,6 +442,7 @@ int Connection::readingStream(ReadingStream **readings, bool commit)
 			// Handles - reading
 			payload = RDS_PAYLOAD(readings, i);
 			reading = escape(payload);
+	Logger::getLogger()->warn("FIXME: reading $s, %s", asset_code, payload);
 
 			// Handles - user_ts
 			memset(&timeinfo, 0, sizeof(struct tm));
@@ -584,12 +588,9 @@ int Connection::readingStream(ReadingStream **readings, bool commit)
 	timersub(&t2, &t1, &tm);
 	timeT2 = tm.tv_sec + ((double)tm.tv_usec / 1000000);
 
-	Logger::getLogger()->debug("readingStream row count :%d:", rowNumber);
 
-	Logger::getLogger()->debug("readingStream Timing - stream handling %.3f seconds - commit/finalize %.3f seconds",
-							   timeT1,
-							   timeT2
-	);
+	Logger::getLogger()->warn("readingStream Timing with %d rows - stream handling %.3f seconds - commit/finalize %.3f seconds",
+				rowNumber, timeT1, timeT2);
 #endif
 
 	return rowNumber;
@@ -609,7 +610,7 @@ bool     add_row = false;
 const char   *user_ts;
 const char   *asset_code;
 string        reading;
-sqlite3_stmt *stmt;
+sqlite3_stmt *stmt, *batch_stmt;
 int           sqlite3_resut;
 string        now;
 
@@ -621,7 +622,7 @@ int sleep_time_ms = 0;
 	threadId << std::this_thread::get_id();
 
 #if INSTRUMENT
-	Logger::getLogger()->debug("appendReadings start thread :%s:", threadId.str().c_str());
+	Logger::getLogger()->warn("appendReadings start thread :%s:", threadId.str().c_str());
 
 	struct timeval	start, t1, t2, t3, t4, t5;
 #endif
@@ -650,18 +651,141 @@ int sleep_time_ms = 0;
 	}
 
 	const char *sql_cmd="INSERT INTO  " READINGS_DB_NAME_BASE ".readings ( user_ts, asset_code, reading ) VALUES  (?,?,?)";
+	string cmd = sql_cmd;
+	for (int i = 0; i < APPEND_BATCH_SIZE - 1; i++)
+	{
+		cmd.append(", (?,?,?)");
+	}
 
 	sqlite3_prepare_v2(dbHandle, sql_cmd, strlen(sql_cmd), &stmt, NULL);
+	sqlite3_prepare_v2(dbHandle, cmd.c_str(), cmd.length(), &batch_stmt, NULL);
 	{
 	m_writeAccessOngoing.fetch_add(1);
 	//unique_lock<mutex> lck(db_mutex);
 	sqlite3_exec(dbHandle, "BEGIN TRANSACTION", NULL, NULL, NULL);
 
 #if INSTRUMENT
-		gettimeofday(&t1, NULL);
+	gettimeofday(&t1, NULL);
 #endif
 
-	for (Value::ConstValueIterator itr = readingsValue.Begin(); itr != readingsValue.End(); ++itr)
+	Value::ConstValueIterator itr = readingsValue.Begin();
+	SizeType nReadings = readingsValue.Size();
+	unsigned int nBatches = nReadings / APPEND_BATCH_SIZE;
+       	for (int batch = 0; batch < nBatches; batch++)
+	{
+		int varNo = 1;
+		for (int readingNo = 0; readingNo < APPEND_BATCH_SIZE; readingNo++)
+		{
+			itr++;
+			if (!itr->IsObject())
+			{
+				raiseError("appendReadings","Each reading in the readings array must be an object");
+				sqlite3_exec(dbHandle, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
+				return -1;
+			}
+
+			add_row = true;
+
+			// Handles - user_ts
+			char formatted_date[LEN_BUFFER_DATE] = {0};
+			user_ts = (*itr)["user_ts"].GetString();
+			if (strcmp(user_ts, "now()") == 0)
+			{
+				getNow(now);
+				user_ts = now.c_str();
+			}
+			else
+			{
+				if (! formatDate(formatted_date, sizeof(formatted_date), user_ts) )
+				{
+					raiseError("appendReadings", "Invalid date |%s|", user_ts);
+					add_row = false;
+				}
+				else
+				{
+					user_ts = formatted_date;
+				}
+			}
+
+			if (add_row)
+			{
+				// Handles - asset_code
+				asset_code = (*itr)["asset_code"].GetString();
+
+				// Handles - reading
+				StringBuffer buffer;
+				Writer<StringBuffer> writer(buffer);
+				(*itr)["reading"].Accept(writer);
+				reading = escape(buffer.GetString());
+
+				if (stmt != NULL)
+				{
+
+					sqlite3_bind_text(batch_stmt, varNo++, user_ts, -1, SQLITE_STATIC);
+					sqlite3_bind_text(batch_stmt, varNo++, asset_code, -1, SQLITE_STATIC);
+					sqlite3_bind_text(batch_stmt, varNo++, reading.c_str(), -1, SQLITE_STATIC);
+				}
+			}
+		}
+
+
+		retries =0;
+		sleep_time_ms = 0;
+
+		// Retry mechanism in case SQLlite DB is locked
+		do {
+			// Insert the row using a lock to ensure one insert at time
+			{
+
+				sqlite3_resut = sqlite3_step(batch_stmt);
+
+			}
+			if (sqlite3_resut == SQLITE_LOCKED  )
+			{
+				sleep_time_ms = PREP_CMD_RETRY_BASE + (random() %  PREP_CMD_RETRY_BACKOFF);
+				retries++;
+
+				Logger::getLogger()->info("SQLITE_LOCKED - record :%d: - retry number :%d: sleep time ms :%d:" ,row ,retries ,sleep_time_ms);
+
+				std::this_thread::sleep_for(std::chrono::milliseconds(sleep_time_ms));
+			}
+			if (sqlite3_resut == SQLITE_BUSY)
+			{
+				ostringstream threadId;
+				threadId << std::this_thread::get_id();
+
+				sleep_time_ms = PREP_CMD_RETRY_BASE + (random() %  PREP_CMD_RETRY_BACKOFF);
+				retries++;
+
+				Logger::getLogger()->info("SQLITE_BUSY - thread :%s: - record :%d: - retry number :%d: sleep time ms :%d:", threadId.str().c_str() ,row, retries, sleep_time_ms);
+
+				std::this_thread::sleep_for(std::chrono::milliseconds(sleep_time_ms));
+			}
+		} while (retries < PREP_CMD_MAX_RETRIES && (sqlite3_resut == SQLITE_LOCKED || sqlite3_resut == SQLITE_BUSY));
+
+		if (sqlite3_resut == SQLITE_DONE)
+		{
+			row++;
+
+			sqlite3_clear_bindings(batch_stmt);
+			sqlite3_reset(batch_stmt);
+		}
+		else
+		{
+			raiseError("appendReadings","Inserting a row into SQLIte using a prepared command - asset_code :%s: error :%s: reading :%s: ",
+				asset_code,
+				sqlite3_errmsg(dbHandle),
+				reading.c_str());
+
+			sqlite3_exec(dbHandle, "ROLLBACK TRANSACTION", NULL, NULL, NULL);
+			return -1;
+		}
+
+
+	}
+
+	// Do individual inserts for the remainder of the readings
+	while (itr != readingsValue.End())
 	{
 		if (!itr->IsObject())
 		{
@@ -763,6 +887,7 @@ int sleep_time_ms = 0;
 				}
 			}
 		}
+		itr++;
 	}
 
 	sqlite3_resut = sqlite3_exec(dbHandle, "END TRANSACTION", NULL, NULL, NULL);
@@ -804,7 +929,7 @@ int sleep_time_ms = 0;
 		timersub(&t3, &t2, &tm);
 		timeT3 = tm.tv_sec + ((double)tm.tv_usec / 1000000);
 
-		Logger::getLogger()->debug("appendReadings end   thread :%s: buffer :%10lu: count :%5d: JSON :%6.3f: inserts :%6.3f: finalize :%6.3f:",
+		Logger::getLogger()->warn("appendReadings end   thread :%s: buffer :%10lu: count :%5d: JSON :%6.3f: inserts :%6.3f: finalize :%6.3f:",
 								   threadId.str().c_str(),
 								   strlen(readings),
 								   row,
@@ -1512,13 +1637,16 @@ unsigned int  Connection::purgeReadings(unsigned long age,
 			unsentPurged = unsent;
 		}
 	}
+#if 0
 	if (m_writeAccessOngoing)
 	{
 		while (m_writeAccessOngoing)
 		{
-			std::this_thread::sleep_for(std::chrono::milliseconds(100));
+			logger->warn("Yielding for another write access");
+			std::this_thread::yield();
 		}
 	}
+#endif
 
 	unsigned int deletedRows = 0;
 	char *zErrMsg = NULL;
@@ -1562,7 +1690,7 @@ unsigned int  Connection::purgeReadings(unsigned long age,
 
 			if(usecs>150000)
 			{
-				std::this_thread::sleep_for(std::chrono::milliseconds(100+usecs/10000));
+				std::this_thread::yield();	// Give other threads a chance to run
 			}
 		}
 
@@ -1601,7 +1729,7 @@ unsigned int  Connection::purgeReadings(unsigned long age,
 					purgeBlockSize = MAX_PURGE_DELETE_BLOCK_SIZE;
 				logger->debug("Changed purgeBlockSize to %d", purgeBlockSize);
 			}
-			std::this_thread::sleep_for(std::chrono::milliseconds(100));
+			std::this_thread::yield();	// Give other threads a chance to run
 		}
 		//Logger::getLogger()->debug("Purge delete block #%d with %d readings", blocks, rowsAffected);
 	} while (rowidMin  < rowidLimit);
@@ -1772,7 +1900,7 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 				unsentPurged += rowsAffected;
 			}
 		}
-		std::this_thread::sleep_for(std::chrono::milliseconds(1));
+		std::this_thread::yield();	// Give other threads a chane to run
 	} while (rowcount > rows);
 
 
@@ -1824,13 +1952,15 @@ unsigned int rowsAffected = 0;
 
 	logSQL("ReadingsAssetPurge", query);
 
+#if 0
 	if (m_writeAccessOngoing)
 	{
 		while (m_writeAccessOngoing)
 		{
-			std::this_thread::sleep_for(std::chrono::milliseconds(100));
+			std::this_thread::yield();
 		}
 	}
+#endif
 
 	START_TIME;
 	// Exec DELETE query: no callback, no resultset

@@ -1304,7 +1304,7 @@ bool StorageClient::registerTableNotification(const string& tableName, const str
 					 tableName,
 					 res->status_code,
 					 resultPayload.str());
-		m_logger->error("/storage/table/interest/%s: %s",
+		m_logger->error("POST /storage/table/interest/%s: %s",
 				urlEncode(tableName).c_str(), res->status_code.c_str());
 
 		return false;
@@ -1319,19 +1319,34 @@ bool StorageClient::registerTableNotification(const string& tableName, const str
  * Unregister interest for a table name
  *
  * @param tableName	The table name to unregister interest in
- * @param callbackUrl	The callback URL provided in registration.
+ * @param tableKey	The key of interest in the table
+ * @param tableKeyValues	The key values of interest
+ * @param tableOperation	The table operation of interest (insert/update/delete)
+ * @param callbackUrl	The callback URL to send change data
  * @return		True on success, false otherwise.
  */
-bool StorageClient::unregisterTableNotification(const string& tableName,
-						const string& callbackUrl)
+bool StorageClient::unregisterTableNotification(const string& tableName, const string& key, std::vector<std::string> keyValues,
+					      const string& operation, const string& callbackUrl)
 {
 	try
 	{
+		ostringstream keyValuesStr;
+		for (auto & s : keyValues)
+		{
+			keyValuesStr << "\"" << s << "\"";
+			if (&s != &keyValues.back())
+				keyValuesStr << ", ";
+		}
+		
 		ostringstream convert;
 
-		convert << "{ \"url\" : \"";
-		convert << callbackUrl;
-		convert << "\" }";
+		convert << "{ ";
+		convert << "\"url\" : \"" << callbackUrl << "\", ";
+		convert << "\"key\" : \"" << key << "\", ";
+		convert << "\"values\" : [" << keyValuesStr.str() << "], ";
+		convert << "\"operation\" : \"" << operation << "\" ";
+		convert << "}";
+		
 		auto res = this->getHttpClient()->request("DELETE",
 							  "/storage/table/interest/" + urlEncode(tableName),
 							  convert.str());
@@ -1345,6 +1360,8 @@ bool StorageClient::unregisterTableNotification(const string& tableName,
 					 tableName,
 					 res->status_code,
 					 resultPayload.str());
+		m_logger->error("DELETE /storage/table/interest/%s: %s",
+				urlEncode(tableName).c_str(), res->status_code.c_str());
 
 		return false;
 	} catch (exception& ex)

@@ -557,9 +557,7 @@ string  responsePayload;
 		int rval = plugin->commonInsert(tableName, payload);
 		if (rval != -1)
 		{
-			PRINT_FUNC;
 			registry.processTableInsert(tableName, payload);
-			PRINT_FUNC;
 			responsePayload = "{ \"response\" : \"inserted\", \"rows_affected\" : ";
 			responsePayload += to_string(rval);
 			responsePayload += " }";

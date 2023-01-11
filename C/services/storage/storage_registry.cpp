@@ -95,6 +95,40 @@ StorageRegistry::process(const string& payload)
 }
 
 /**
+ * Process a table insert payload and determine
+ * if any microservice has registered an interest
+ * in this table. Called from StorageApi::commonInsert()
+ *
+ * @param payload	The table insert payload
+ */
+void
+StorageRegistry::processTableInsert(const string& tableName, const string& payload)
+{
+	Logger::getLogger()->debug("StorageRegistry::processTableInsert(): tableName=%s, payload=%s", tableName.c_str(), payload.c_str());
+	
+	if (m_tableRegistrations.size() > 0)
+	{
+		/*
+		 * We have some registrations so queue a copy of the payload
+		 * to be examined in the thread the send table notifications
+		 * to interested parties.
+		 */
+		char *table = strdup(tableName.c_str());
+		char *data = strdup(payload.c_str());
+		
+		if (data != NULL && table != NULL)
+		{
+			time_t now = time(0);
+			TableItem item = make_tuple(now, table, data);
+			lock_guard<mutex> guard(m_qMutex);
+			m_tableInsertQueue.push(item);
+			m_cv.notify_all();
+		}
+	}
+}
+
+
+/**
  * Handle a registration request from a client of the storage layer
  *
  * @param asset		The asset of interest
@@ -131,12 +165,138 @@ StorageRegistry::unregisterAsset(const string& asset, const string& url)
 }
 
 /**
+ * Parse a table subscription (un)register JSON payload
+ *
+ * @param payload	JSON payload describing the interest
+ */
+TableRegistration* StorageRegistry::parseTableSubscriptionPayload(const string& payload)
+{
+	Document	doc;
+	
+	doc.Parse(payload.c_str());
+	if (doc.HasParseError())
+	{
+		Logger::getLogger()->error("StorageRegistry::parseTableSubscriptionPayload(): Parse error in subscription request payload");
+		return NULL;
+	}
+	if (!doc.HasMember("url"))
+	{
+		Logger::getLogger()->error("StorageRegistry::parseTableSubscriptionPayload(): subscription request doesn't have url field");
+		return NULL;
+	}
+	if (!doc.HasMember("key"))
+	{
+		Logger::getLogger()->error("StorageRegistry::parseTableSubscriptionPayload(): subscription request doesn't have url field");
+		return NULL;
+	}
+	if (!doc.HasMember("operation"))
+	{
+		Logger::getLogger()->error("StorageRegistry::parseTableSubscriptionPayload(): subscription request doesn't have url field");
+		return NULL;
+	}
+
+	TableRegistration *reg = new TableRegistration;
+	
+	reg->url = doc["url"].GetString();
+	reg->key = doc["key"].GetString();
+	reg->operation = doc["operation"].GetString();
+	
+	if (reg->key.size())
+	{
+		if (!doc.HasMember("values") || !doc["values"].IsArray())
+		{
+			Logger::getLogger()->error("StorageRegistry::parseTableSubscriptionPayload(): subscription request" \
+										" doesn't have a proper values field, payload=%s", payload.c_str());
+			delete reg;
+			return NULL;
+		}
+		for (auto & v : doc["values"].GetArray())
+    		reg->keyValues.emplace_back(v.GetString());
+	}
+
+	return reg;
+}
+
+/**
+ * Handle a registration request for a table from a client of the storage layer
+ *
+ * @param table		The table of interest
+ * @param payload	JSON payload describing the interest
+ */
+void
+StorageRegistry::registerTable(const string& table, const string& payload)
+{
+	TableRegistration *reg = parseTableSubscriptionPayload(payload); 
+
+	if (!reg)
+	{
+		Logger::getLogger()->info("StorageRegistry::registerTable(): Unable to register invalid Registration entry for table %s, payload=%s", table.c_str(), payload.c_str());
+		return;
+	}
+
+	lock_guard<mutex> guard(m_tableRegistrationsMutex);
+	Logger::getLogger()->info("*** StorageRegistry::registerTable(): Adding registration entry for table %s", table.c_str());
+	m_tableRegistrations.push_back(pair<string *, TableRegistration *>(new string(table), reg));
+}
+
+/**
+ * Handle a request to remove a registration of interest in a table
+ *
+ * @param table		The table of interest
+ * @param payload	JSON payload describing the interest
+ */
+void
+StorageRegistry::unregisterTable(const string& table, const string& payload)
+{
+	TableRegistration *reg = parseTableSubscriptionPayload(payload);
+
+	if (!reg)
+	{
+		Logger::getLogger()->info("StorageRegistry::unregisterTable(): Unable to unregister " \
+								  "invalid Registration entry for table %s, payload=%s", table.c_str(), payload.c_str());
+		return;
+	}
+
+	lock_guard<mutex> guard(m_tableRegistrationsMutex);
+	
+	Logger::getLogger()->info("StorageRegistry::unregisterTable(): m_tableRegistrations.size()=%d", m_tableRegistrations.size());
+	for (auto it = m_tableRegistrations.begin(); it != m_tableRegistrations.end(); )
+	{
+		TableRegistration *reg_it = it->second;
+		if (table.compare(*(it->first)) == 0 && 
+			reg->url.compare(reg_it->url)==0 &&
+			reg->key.compare(reg_it->key)==0 &&
+			reg->operation.compare(reg_it->operation)==0)
+		{
+			// Either no key is to be matched or a key is to be matched against a possible set of values
+			if (reg->key.size()==0 || (reg->key.size()>0 && reg->keyValues == reg_it->keyValues))
+			{
+				delete it->first;
+				delete it->second;
+				it = m_tableRegistrations.erase(it);
+				Logger::getLogger()->info("*** StorageRegistry::unregisterTable(): Removed registration for table %s and url %s", table, reg->key.c_str());
+			}
+			else
+			{
+				++it;
+    		}
+		}
+		else
+		{
+			++it;
+    	}
+	}
+	delete reg;
+}
+
+
+/**
  * The worker function that processes the queue of payloads
  * that may need to be sent to subscribers.
  */
 void
 StorageRegistry::run()
-{
+{	
 	m_running = true;
 	while (m_running)
 	{
@@ -146,7 +306,7 @@ StorageRegistry::run()
 #endif
 		{
 			unique_lock<mutex> mlock(m_cvMutex);
-			while (m_queue.size() == 0)
+			while (m_queue.size() == 0 && m_tableInsertQueue.size() == 0)
 			{
 				m_cv.wait_for(mlock, std::chrono::seconds(REGISTRY_SLEEP_TIME));
 				if (!m_running)
@@ -154,23 +314,53 @@ StorageRegistry::run()
 					return;
 				}
 			}
-			Item item = m_queue.front();
-			m_queue.pop();
-			data = item.second;
-#if CHECK_QTIMES
-			qTime = item.first;
-#endif
-		}
-		if (data)
-		{
-#if CHECK_QTIMES
-			if (time(0) - qTime > QTIME_THRESHOLD)
+			
+			while (!m_queue.empty())
 			{
-				Logger::getLogger()->error("Data has been queued for %d seconds to be sent to registered party", (time(0) - qTime));
-			}
+				Item item = m_queue.front();
+				m_queue.pop();
+				data = item.second;
+#if CHECK_QTIMES
+				qTime = item.first;
 #endif
-			processPayload(data);
-			free(data);
+				if (data)
+				{
+#if CHECK_QTIMES
+					if (time(0) - qTime > QTIME_THRESHOLD)
+					{
+						Logger::getLogger()->error("Readings data has been queued for %d seconds to be sent to registered party", (time(0) - qTime));
+					}
+#endif
+					processPayload(data);
+					free(data);
+				}
+			}
+			
+			while (!m_tableInsertQueue.empty())
+			{
+				char *tableName = NULL;
+				
+				TableItem item = m_tableInsertQueue.front();
+				m_tableInsertQueue.pop();
+				tableName = get<1>(item);
+				data = get<2>(item);
+#if CHECK_QTIMES
+				qTime = item.first;
+#endif
+				if (tableName && data)
+				{
+#if CHECK_QTIMES
+					if (time(0) - qTime > QTIME_THRESHOLD)
+					{
+						Logger::getLogger()->error("Table insert data has been queued for %d seconds to be sent to registered party", (time(0) - qTime));
+					}
+#endif
+					processInsert(tableName, data);
+					free(tableName);
+					free(data);
+				}
+			}
+			
 		}
 	}
 }
@@ -317,3 +507,121 @@ ostringstream convert;
 		Logger::getLogger()->error("filterPayload: exception %s sending reading data to interested party %s", e.what(), url.c_str());
 	}
 }
+
+/**
+ * Process an incoming payload and distribute as required to registered
+ * services
+ *
+ * @param payload	The payload to potentially distribute
+ */
+void
+StorageRegistry::processInsert(char *tableName, char *payload)
+{
+	Logger::getLogger()->debug("StorageRegistry::processInsert(): Handling for table:%s, payload=%s", tableName, payload);
+	Logger::getLogger()->debug("StorageRegistry::processInsert(): m_tableRegistrations.size()=%d", m_tableRegistrations.size());
+	
+	Document	payloadDoc;
+	
+	payloadDoc.Parse(payload);
+	if (payloadDoc.HasParseError())
+	{
+		Logger::getLogger()->error("StorageRegistry::processInsert(): Parse error in payload for table:%s, payload=%s", tableName, payload);
+		return;
+	}
+
+	lock_guard<mutex> guard(m_tableRegistrationsMutex);
+	for (auto & reg : m_tableRegistrations)
+	{
+		if (reg.first->compare(tableName) != 0)
+			continue;
+
+		TableRegistration *tblreg = reg.second;
+
+		// If key is empty string, no need to match key/value pair in payload
+		// Also operation must be "insert" for initial implementation
+		if (tblreg->operation.compare("insert") != 0)
+		{
+			continue;
+		}
+
+		bool match = (tblreg->key.size()==0);
+		if (!match && payloadDoc.HasMember(tblreg->key.c_str()) && payloadDoc[tblreg->key.c_str()].IsString())
+		{
+			string payloadKeyValue = payloadDoc[tblreg->key.c_str()].GetString();
+			if (std::find(tblreg->keyValues.begin(), tblreg->keyValues.end(), payloadKeyValue) != tblreg->keyValues.end())
+				match = true;
+		}
+		if(match)
+		{
+			Logger::getLogger()->info("StorageRegistry::processInsert(): Sending matching payload: table=%s, url=%s, payload=%s", tableName, tblreg->url.c_str(), payload);
+			sendPayload(tblreg->url, payload);
+		}
+		else
+			Logger::getLogger()->debug("StorageRegistry::processInsert(): Ignoring non-matching payload: table=%s, payload=%s", tableName, payload);
+	}
+}
+
+/**
+ * Test function to add some dummy/test table subscriptions
+ */
+void StorageRegistry::insertTestTableReg()
+{
+	string table1("log");
+	string payload1 = R"***( {"url": "http://localhost:8081/dummyTableNotifyUrl", "key": "code", "values":["CONAD", "PURGE", "CONCH", "FSTOP", "SRVRG"], "operation": "insert"} )***";
+
+	string table2("asset_tracker");
+	string payload2 = R"***( {"url": "http://localhost:8081/dummyTableNotifyUrl2", "key": "", "operation": "insert"} )***";
+
+	string table3("asset_tracker");
+	string payload3 = R"***( {"url": "http://localhost:8081/dummyTableNotifyUrl3", "key": "event", "values":["Ingest", "Filter"], "operation": "insert"} )***";
+	
+	Logger::getLogger()->error("StorageRegistry::insertTestTableReg(): table=%s, payload=%s", table1.c_str(), payload1.c_str());
+	registerTable(table1, payload1);
+
+	Logger::getLogger()->error("StorageRegistry::insertTestTableReg(): table=%s, payload=%s", table2.c_str(), payload2.c_str());
+	registerTable(table2, payload2);
+
+	Logger::getLogger()->error("StorageRegistry::insertTestTableReg(): table=%s, payload=%s", table3.c_str(), payload3.c_str());
+	registerTable(table3, payload3);
+}
+
+/**
+ * Test function to remove a dummy/test table subscription
+ *
+ * @param n		The subscription number to remove
+ */
+void StorageRegistry::removeTestTableReg(int n)
+{
+	string table1("log");
+	string payload1 = R"***( {"url": "http://localhost:8081/dummyTableNotifyUrl", "key": "code", "values":["CONAD", "PURGE", "CONCH", "FSTOP", "SRVRG"], "operation": "insert"} )***";
+
+	string table2("asset_tracker");
+	string payload2 = R"***( {"url": "http://localhost:8081/dummyTableNotifyUrl2", "key": "", "operation": "insert"} )***";
+
+	string table3("asset_tracker");
+	string payload3 = R"***( {"url": "http://localhost:8081/dummyTableNotifyUrl3", "key": "event", "values":["Ingest", "Filter"], "operation": "insert"} )***";
+	
+	switch(n)
+	{
+		case 1:
+			unregisterTable(table1, payload1);
+			Logger::getLogger()->error("StorageRegistry::removeTestTableReg(): table=%s, payload=%s", table1.c_str(), payload1.c_str());
+			break;
+
+		case 2:
+			unregisterTable(table2, payload2);
+			Logger::getLogger()->error("StorageRegistry::removeTestTableReg(): table=%s, payload=%s", table2.c_str(), payload2.c_str());
+			break;
+
+		case 3:
+			unregisterTable(table3, payload3);
+			Logger::getLogger()->error("StorageRegistry::removeTestTableReg(): table=%s, payload=%s", table3.c_str(), payload3.c_str());
+			break;
+
+		default:
+			Logger::getLogger()->error("StorageRegistry::removeTestTableReg(): unhandled value n=%d", n);
+			break;
+	}
+}
+
+

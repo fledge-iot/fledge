@@ -1259,6 +1259,119 @@ bool StorageClient::unregisterAssetNotification(const string& assetName,
 	return false;
 }
 
+/**
+ * Register interest for a table
+ *
+ * @param tableName	The table name to register for notification
+ * @param tableKey	The key of interest in the table
+ * @param tableKeyValues	The key values of interest
+ * @param tableOperation	The table operation of interest (insert/update/delete)
+ * @param callbackUrl	The callback URL to send change data
+ * @return		True on success, false otherwise.
+ */
+bool StorageClient::registerTableNotification(const string& tableName, const string& key, std::vector<std::string> keyValues,
+					      const string& operation, const string& callbackUrl)
+{
+	try
+	{
+		ostringstream keyValuesStr;
+		for (auto & s : keyValues)
+		{
+			keyValuesStr << "\"" << s << "\"";
+			if (&s != &keyValues.back())
+				keyValuesStr << ", ";
+		}
+		
+		ostringstream convert;
+
+		convert << "{ ";
+		convert << "\"url\" : \"" << callbackUrl << "\", ";
+		convert << "\"key\" : \"" << key << "\", ";
+		convert << "\"values\" : [" << keyValuesStr.str() << "], ";
+		convert << "\"operation\" : \"" << operation << "\" ";
+		convert << "}";
+		
+		auto res = this->getHttpClient()->request("POST",
+							  "/storage/table/interest/" + urlEncode(tableName),
+							  convert.str());
+		if (res->status_code.compare("200 OK") == 0)
+		{
+			return true;
+		}
+		ostringstream resultPayload;
+		resultPayload << res->content.rdbuf();
+		handleUnexpectedResponse("Register table",
+					 tableName,
+					 res->status_code,
+					 resultPayload.str());
+		m_logger->error("POST /storage/table/interest/%s: %s",
+				urlEncode(tableName).c_str(), res->status_code.c_str());
+
+		return false;
+	} catch (exception& ex)
+	{
+		handleException(ex, "register table '%s'", tableName.c_str());
+	}
+	return false;
+}
+
+/**
+ * Unregister interest for a table name
+ *
+ * @param tableName	The table name to unregister interest in
+ * @param tableKey	The key of interest in the table
+ * @param tableKeyValues	The key values of interest
+ * @param tableOperation	The table operation of interest (insert/update/delete)
+ * @param callbackUrl	The callback URL to send change data
+ * @return		True on success, false otherwise.
+ */
+bool StorageClient::unregisterTableNotification(const string& tableName, const string& key, std::vector<std::string> keyValues,
+					      const string& operation, const string& callbackUrl)
+{
+	try
+	{
+		ostringstream keyValuesStr;
+		for (auto & s : keyValues)
+		{
+			keyValuesStr << "\"" << s << "\"";
+			if (&s != &keyValues.back())
+				keyValuesStr << ", ";
+		}
+		
+		ostringstream convert;
+
+		convert << "{ ";
+		convert << "\"url\" : \"" << callbackUrl << "\", ";
+		convert << "\"key\" : \"" << key << "\", ";
+		convert << "\"values\" : [" << keyValuesStr.str() << "], ";
+		convert << "\"operation\" : \"" << operation << "\" ";
+		convert << "}";
+		
+		auto res = this->getHttpClient()->request("DELETE",
+							  "/storage/table/interest/" + urlEncode(tableName),
+							  convert.str());
+		if (res->status_code.compare("200 OK") == 0)
+		{
+			return true;
+		}
+		ostringstream resultPayload;
+		resultPayload << res->content.rdbuf();
+		handleUnexpectedResponse("Unregister table",
+					 tableName,
+					 res->status_code,
+					 resultPayload.str());
+		m_logger->error("DELETE /storage/table/interest/%s: %s",
+				urlEncode(tableName).c_str(), res->status_code.c_str());
+
+		return false;
+	} catch (exception& ex)
+	{
+		handleException(ex, "unregister table '%s'", tableName.c_str());
+	}
+	return false;
+}
+
+
 bool StorageClient::openStream()
 {
 	try {

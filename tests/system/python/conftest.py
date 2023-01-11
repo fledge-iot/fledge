@@ -18,7 +18,6 @@ import shutil
 from urllib.parse import quote
 from pathlib import Path
 import pytest
-from fledge.common import utils
 
 
 __author__ = "Vaibhav Singhal"
@@ -977,7 +976,40 @@ def start_north_as_service(request):
     return request.config.getoption("--start-north-as-service")
 
 
+def read_os_release():
+    """ General information to identifying the operating system """
+    import ast
+    import re
+    os_details = {}
+    with open('/etc/os-release', encoding="utf-8") as f:
+        for line_number, line in enumerate(f, start=1):
+            line = line.rstrip()
+            if not line or line.startswith('#'):
+                continue
+            m = re.match(r'([A-Z][A-Z_0-9]+)=(.*)', line)
+            if m:
+                name, val = m.groups()
+                if val and val[0] in '"\'':
+                    val = ast.literal_eval(val)
+                os_details.update({name: val})
+    return os_details
+
+
+def is_redhat_based():
+    """
+        To check if the Operating system is of Red Hat family or Not
+        Examples:
+            a) For an operating system with "ID=centos", an assignment of "ID_LIKE="rhel fedora"" is appropriate
+            b) For an operating system with "ID=ubuntu/raspbian", an assignment of "ID_LIKE=debian" is appropriate.
+    """
+    os_release = read_os_release()
+    id_like = os_release.get('ID_LIKE')
+    if id_like is not None and any(x in id_like.lower() for x in ['centos', 'rhel', 'redhat', 'fedora']):
+        return True
+    return False
+
+
 def pytest_configure():
-    pytest.OS_PLATFORM_DETAILS = utils.read_os_release()
-    pytest.IS_REDHAT = utils.is_redhat_based()
+    pytest.OS_PLATFORM_DETAILS = read_os_release()
+    pytest.IS_REDHAT = is_redhat_based()
     pytest.PKG_MGR = 'yum' if pytest.IS_REDHAT else 'apt'

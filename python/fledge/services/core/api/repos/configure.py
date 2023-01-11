@@ -12,7 +12,7 @@ import json
 from aiohttp import web
 
 from fledge.common.common import _FLEDGE_ROOT
-from fledge.common import logger
+from fledge.common import logger, utils
 
 
 __author__ = "Ashish Jabble"
@@ -49,46 +49,56 @@ async def add_package_repo(request: web.Request) -> web.Response:
             raise ValueError('url param is required')
 
         _platform = platform.platform()
-        pkg_mgt = 'yum' if 'centos' in _platform or 'redhat' in _platform else 'apt'
         v_list = ['nightly', 'latest']
         if not (version in v_list or version.startswith('fixes/')):
             if str(version).count('.') != 2:
-                raise ValueError('Invalid version; it should be latest, nightly or a valid semantic version X.Y.Z i.e. major.minor.patch')
+                raise ValueError('Invalid version; it should be latest, '
+                                 'nightly or a valid semantic version X.Y.Z i.e. major.minor.patch')
 
-        if 'x86_64-with-Ubuntu-18.04' in _platform:
-            os_name = "ubuntu1804"
-            architecture = "x86_64"
-            extra_commands = ""
-        elif 'x86_64-with-glib' in _platform:
-            os_name = "ubuntu2004"
-            architecture = "x86_64"
-            extra_commands = ""
-        elif 'armv7l-with-debian' in _platform:
-            os_name = "buster"
-            architecture = "armv7l"
-            extra_commands = ""
-        elif 'armv7l-with-glibc' in _platform:
-            os_name = "bullseye"
-            architecture = "armv7l"
-            extra_commands = ""
-        elif 'aarch64-with-Ubuntu-18.04' in _platform:
-            os_name = "ubuntu1804"
-            architecture = "aarch64"
-            extra_commands = ""
-        elif 'x86_64-with-redhat' in _platform:
-            os_name = "rhel7"
-            architecture = "x86_64"
-            extra_commands = "sudo yum-config-manager --enable 'Red Hat Enterprise Linux Server 7 RHSCL (RPMs)'"
-        elif 'aarch64-with-Mendel' in _platform:
-            os_name = "mendel"
-            architecture = "aarch64"
-            extra_commands = ""
-        elif 'x86_64-with-centos' in _platform:
-            os_name = "centos7"
-            architecture = "x86_64"
-            extra_commands = "sudo yum install -y centos-release-scl-rh epel-release"
+        if utils.is_redhat_based():
+            pkg_mgt = 'yum'
+            if 'x86_64-with-redhat' in _platform:
+                os_name = "rhel7"
+                architecture = "x86_64"
+                extra_commands = "sudo yum-config-manager --enable 'Red Hat Enterprise Linux Server 7 RHSCL (RPMs)'"
+            elif 'x86_64-with-centos' in _platform:
+                os_name = "centos7"
+                architecture = "x86_64"
+                extra_commands = "sudo yum install -y centos-release-scl-rh epel-release"
+            elif 'x86_64-with-glibc' in _platform:
+                os_name = "centos-stream-9"
+                architecture = "x86_64"
+                extra_commands = ""
+            else:
+                raise ValueError("{} is not supported".format(_platform))
         else:
-            raise ValueError("{} is not supported".format(_platform))
+            pkg_mgt = 'apt'
+            if 'x86_64-with-Ubuntu-18.04' in _platform:
+                os_name = "ubuntu1804"
+                architecture = "x86_64"
+                extra_commands = ""
+            elif 'x86_64-with-glib' in _platform:
+                os_name = "ubuntu2004"
+                architecture = "x86_64"
+                extra_commands = ""
+            elif 'armv7l-with-debian' in _platform:
+                os_name = "buster"
+                architecture = "armv7l"
+                extra_commands = ""
+            elif 'armv7l-with-glibc' in _platform:
+                os_name = "bullseye"
+                architecture = "armv7l"
+                extra_commands = ""
+            elif 'aarch64-with-Ubuntu-18.04' in _platform:
+                os_name = "ubuntu1804"
+                architecture = "aarch64"
+                extra_commands = ""
+            elif 'aarch64-with-Mendel' in _platform:
+                os_name = "mendel"
+                architecture = "aarch64"
+                extra_commands = ""
+            else:
+                raise ValueError("{} is not supported".format(_platform))
 
         stdout_file_path = _FLEDGE_ROOT + "/data/configure_repo_output.txt"
         if pkg_mgt == 'yum':
@@ -130,4 +140,3 @@ async def add_package_repo(request: web.Request) -> web.Response:
     else:
         return web.json_response({"message": "Package repository configured successfully.",
                                   "output_log": stdout_file_path})
-

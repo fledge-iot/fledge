@@ -11,10 +11,10 @@ import subprocess
 import http.client
 import json
 import time
-import pytest
-from pathlib import Path
 import ssl
-import platform
+from pathlib import Path
+import pytest
+from pytest import PKG_MGR
 
 __author__ = "Yash Tatkondawar"
 __copyright__ = "Copyright (c) 2019 Dianomic Systems"
@@ -172,9 +172,7 @@ def remove_and_add_fledge_pkgs(package_build_version):
         assert False, "setup package script failed"
 
     try:
-        os_platform = platform.platform()
-        pkg_mgr = 'yum' if 'centos' in os_platform or 'redhat' in os_platform else 'apt'
-        subprocess.run(["sudo {} install -y fledge-south-http-south".format(pkg_mgr)], shell=True, check=True)
+        subprocess.run(["sudo {} install -y fledge-south-http-south".format(PKG_MGR)], shell=True, check=True)
     except subprocess.CalledProcessError:
         assert False, "installation of http-south package failed"
 

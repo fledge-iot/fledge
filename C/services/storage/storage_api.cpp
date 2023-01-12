@@ -1165,7 +1165,7 @@ bool StorageApi::readingStream(ReadingStream **readings, bool commit)
 {
 	int c;
 	for (c = 0; readings[c]; c++);
-	Logger::getLogger()->debug("ReadingStream called with %d", c);
+	Logger::getLogger()->warn("FIXME(debug) ReadingStream called with %d", c);
 	if ((readingPlugin ? readingPlugin : plugin)->hasStreamSupport())
 	{
 		return (readingPlugin ? readingPlugin : plugin)->readingStream(readings, commit);

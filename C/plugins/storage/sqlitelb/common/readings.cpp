@@ -16,7 +16,7 @@
 #include <random>
 
 // 1 enable performance tracking
-#define INSTRUMENT	0
+#define INSTRUMENT	1
 
 #if INSTRUMENT
 #include <sys/time.h>
@@ -442,7 +442,6 @@ int Connection::readingStream(ReadingStream **readings, bool commit)
 			// Handles - reading
 			payload = RDS_PAYLOAD(readings, i);
 			reading = escape(payload);
-	Logger::getLogger()->warn("FIXME: reading $s, %s", asset_code, payload);
 
 			// Handles - user_ts
 			memset(&timeinfo, 0, sizeof(struct tm));

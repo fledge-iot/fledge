@@ -27,7 +27,8 @@
 
 #define EXCEPTION_BUFFER_SIZE 120
 
-#define INSTRUMENT	0
+#define INSTRUMENT		0
+#define ENABLE_STREAMING	1
 
 #if INSTRUMENT
 #include <sys/time.h>
@@ -160,8 +161,8 @@ bool StorageClient::readingAppend(const vector<Reading *>& readings)
 	double timeSpan = dur.tv_sec + ((double)dur.tv_usec / 1000000);
 	double rate = (double)readings.size() / timeSpan;
 	// Stream functionality disabled
-	//if (rate > STREAM_THRESHOLD)
-	if (0)
+#if ENABLE_STREAMING
+	if (rate > STREAM_THRESHOLD)
 	{
 		m_logger->info("Reading rate %.1f readings per second above threshold, attmempting to switch to stream mode", rate);
 		if (openStream())
@@ -171,6 +172,7 @@ bool StorageClient::readingAppend(const vector<Reading *>& readings)
 		}
 		m_logger->warn("Failed to switch to streaming mode");
 	}
+#endif
 	static HttpClient *httpClient = this->getHttpClient(); // to initialize m_seqnum_map[thread_id] for this thread
 	try {
 		std::thread::id thread_id = std::this_thread::get_id();
@@ -1346,6 +1348,33 @@ bool StorageClient::openStream()
 /**
  * Stream a set of readings to the storage service.
  *
+ * The stream uses a TCP connection to the storage system, it sends
+ * blocks of readings to the storage engine and bypasses the usual 
+ * JSON conversion and imoprtantly parsing on the storage system
+ * side.
+ *
+ * A block of readings is introduced by a block header, the block
+ * header contains a magic number, the block number and the count
+ * of the number of readings in a block.
+ *
+ * Each reading within the block is preceeded by a reading header
+ * that contains a magic number, a reading number within the block,
+ * The length of the asset name for the reading, the length of the
+ * payload within the reading. The reading itself follows the herader
+ * and consists of the timestamp as a binary timeval structure, the name
+ * of the asset, including the null terminator. If the asset name length
+ * is 0 then no asset name is sent and the name of the asset is the same
+ * as the previous asset in the block. Following this the paylod is included.
+ *
+ * Each block is sent to the storage layer in a number of chunks rather
+ * that a single write per block. The implementation make use of the
+ * Linux scatter/gather IO calls to reduce the number of copies of data
+ * that are required.
+ *
+ * Currently there is no acknowledement handling as TCP is used as the underlying
+ * transport and the TCP acknowledgement is assumed to be a good enough 
+ * indication of delivery.
+ *
  * TODO Deal with acknowledgements, add error checking/recovery
  *
  * @param readings	The readings to stream
@@ -1356,7 +1385,7 @@ bool StorageClient::streamReadings(const std::vector<Reading *> & readings)
 RDSBlockHeader   		blkhdr;
 RDSReadingHeader 		rdhdrs[STREAM_BLK_SIZE];
 register RDSReadingHeader	*phdr;
-struct { const void *iov_base; size_t iov_len;} iovs[STREAM_BLK_SIZE * 4], *iovp;
+struct iovec			iovs[STREAM_BLK_SIZE * 4], *iovp;
 string				payloads[STREAM_BLK_SIZE];
 struct timeval			tm[STREAM_BLK_SIZE];
 ssize_t				n, length = 0;
@@ -1436,14 +1465,14 @@ string				lastAsset;
 		// If the asset code has changed than add that
 		if (phdr->assetLength)
 		{
-			iovp->iov_base = readings[i]->getAssetName().c_str();
+			iovp->iov_base = (void *)(readings[i]->getAssetName().c_str());	// Cast away const due to iovec definition
 			iovp->iov_len = phdr->assetLength;
 			length += iovp->iov_len;
 			iovp++;
 		}
 
 		// Add the data points themselves
-		iovp->iov_base = payloads[offset].c_str();
+		iovp->iov_base = (void *)(payloads[offset].c_str()); // Cast away const due to iovec definition
 		iovp->iov_len = phdr->payloadLength;
 		length += iovp->iov_len;
 		iovp++;
@@ -1451,6 +1480,7 @@ string				lastAsset;
 		offset++;
 		if (offset == STREAM_BLK_SIZE - 1)
 		{
+			// Send a chunk of readings in the block
 			n = writev(m_stream, (const iovec *)iovs, iovp - iovs);
 			if (n < length)
 			{
@@ -1467,7 +1497,9 @@ string				lastAsset;
 				return false;
 			}
 			else if (n > length)
+			{
 				Logger::getLogger()->fatal("Long write %d < %d", length, n);
+			}
 			offset = 0;
 			length = 0;
 			iovp = iovs;
@@ -1478,6 +1510,7 @@ string				lastAsset;
 			phdr++;
 		}
 	}
+
 	if (length)	// Remaining data to be sent to finish the block
 	{
 		if ((n = writev(m_stream, (const iovec *)iovs, iovp - iovs)) < length)
@@ -1495,9 +1528,11 @@ string				lastAsset;
 			return false;
 		}
 		else if (n > length)
+		{
 			Logger::getLogger()->fatal("Long write %d < %d", length, n);
+		}
 	}
-	Logger::getLogger()->warn("FIXME: Written block of readings via streaming connection");
+	Logger::getLogger()->info("Written block of %d readings via streaming connection", readings.size());
 	return true;
 }
 

@@ -468,6 +468,10 @@ string ConfigCategory::getItemAttribute(const string& itemName,
 					return m_items[i]->m_validity;
 				case GROUP_ATTR:
 					return m_items[i]->m_group;
+				case DISPLAY_NAME_ATTR:
+					return m_items[i]->m_displayName;
+				case DEPRECATED_ATTR:
+					return m_items[i]->m_deprecated;
 				default:
 					throw new ConfigItemAttributeNotFound();
 			}
@@ -523,6 +527,12 @@ bool ConfigCategory::setItemAttribute(const string& itemName,
 					return true;
 				case GROUP_ATTR:
 					m_items[i]->m_group = value;
+					return true;
+				case DISPLAY_NAME_ATTR:
+					m_items[i]->m_displayName = value;
+					return true;
+				case DEPRECATED_ATTR:
+					m_items[i]->m_deprecated = value;
 					return true;
 				default:
 					return false;

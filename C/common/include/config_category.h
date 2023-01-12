@@ -126,7 +126,9 @@ class ConfigCategory {
 					MAXIMUM_ATTR,
 					LENGTH_ATTR,
 					VALIDITY_ATTR,
-					GROUP_ATTR};
+					GROUP_ATTR,
+					DISPLAY_NAME_ATTR,
+					DEPRECATED_ATTR};
 		std::string			getItemAttribute(const std::string& itemName,
 								 ItemAttribute itemAttribute) const;
 
@@ -173,7 +175,7 @@ class ConfigCategory {
 		};
 		std::vector<CategoryItem *>	m_items;
 		std::string			m_name;
-		std::string         m_parent_name;
+		std::string         		m_parent_name;
 		std::string			m_description;
 		std::string			m_displayName;
 

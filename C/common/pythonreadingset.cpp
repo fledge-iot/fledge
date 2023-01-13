@@ -117,7 +117,7 @@ PythonReadingSet::PythonReadingSet(PyObject *set)
 			m_readings.push_back(reading);
 			m_count++;
 			m_last_id = reading->getId();
-			Logger::getLogger()->debug("PythonReadingSet c'tor: LIST: reading->toJSON()='%s' ", reading->toJSON().c_str());
+			// Logger::getLogger()->debug("PythonReadingSet c'tor: LIST: reading->toJSON()='%s' ", reading->toJSON().c_str());
 		}
 	}
 	else if (PyDict_Check(set))
@@ -129,7 +129,7 @@ PythonReadingSet::PythonReadingSet(PyObject *set)
 			m_readings.push_back(reading);
 			m_count++;
 			m_last_id = reading->getId();
-			Logger::getLogger()->debug("PythonReadingSet c'tor: DICT: reading->toJSON()=%s", reading->toJSON().c_str());
+			// Logger::getLogger()->debug("PythonReadingSet c'tor: DICT: reading->toJSON()=%s", reading->toJSON().c_str());
 		}
 	}
 	else

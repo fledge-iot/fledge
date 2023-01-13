@@ -88,7 +88,7 @@ Reading::Reading(const Reading& orig) : m_asset(orig.m_asset),
 {
 	for (auto it = orig.m_values.cbegin(); it != orig.m_values.cend(); it++)
 	{
-		m_values.push_back(new Datapoint(**it));
+		m_values.emplace_back(new Datapoint(**it));
 	}
 }
 
@@ -375,51 +375,97 @@ void Reading::setUserTimestamp(const string& timestamp)
  */
 void Reading::stringToTimestamp(const string& timestamp, struct timeval *ts)
 {
-	char date_time [DATE_TIME_BUFFER_LEN];
+		char date_time [DATE_TIME_BUFFER_LEN];
 
-	strcpy (date_time, timestamp.c_str());
+		strcpy (date_time, timestamp.c_str());
 
-	struct tm tm;
-	memset(&tm, 0, sizeof(struct tm));
-	strptime(date_time, "%Y-%m-%d %H:%M:%S", &tm);
-	// Convert time to epoch - mktime assumes localtime so most adjust for that
-	ts->tv_sec = mktime(&tm);
-	extern long timezone;
-	ts->tv_sec -= timezone;
+		static char cached_timestamp_upto_sec[32] = "";
+		static unsigned long cached_sec_since_epoch = 0;
 
-	// Now process the fractional seconds
-	const char *ptr = date_time;
-	while (*ptr && *ptr != '.')
-		ptr++;
-	if (*ptr)
-	{
-		char *eptr;
-		ts->tv_usec = strtol(ptr + 1, &eptr, 10);
-		int digits = eptr - (ptr + 1);	// Number of digits we have
-		while (digits < 6)
+		// auto start = std::chrono::high_resolution_clock::now();
+		const int timestamp_str_len_till_sec = 19;
+		char timestamp_sec[32];
+		strncpy(timestamp_sec, date_time, timestamp_str_len_till_sec);
+		timestamp_sec[timestamp_str_len_till_sec] = '\0';
+		if(strlen(cached_timestamp_upto_sec) && cached_sec_since_epoch && (strncmp(timestamp_sec, cached_timestamp_upto_sec, timestamp_str_len_till_sec) == 0))
 		{
-			digits++;
-			ts->tv_usec *= 10;
+			ts->tv_sec = cached_sec_since_epoch;
+			// Logger::getLogger()->info("Reading::stringToTimestamp(): cache hit: cached_timestamp_upto_sec=%s, cached_sec_since_epoch=%d", 
+			//														cached_timestamp_upto_sec, cached_sec_since_epoch);
 		}
-	}
-	else
-	{
-		ts->tv_usec = 0;
-	}
+		else
+		{
+			// Logger::getLogger()->info("Reading::stringToTimestamp(): cache miss for: timestamp_sec=%s", 
+			//														timestamp_sec);
 
-	// Get the timezone from the string and convert to UTC
-	ptr = date_time + 10; // Skip date as it contains '-' characters
-	while (*ptr && *ptr != '-' && *ptr != '+')
-		ptr++;
-	if (*ptr)
-	{
-		int h, m;
-		int sign = (*ptr == '+' ? -1 : +1);
-		ptr++;
-		sscanf(ptr, "%02d:%02d", &h, &m);
-		ts->tv_sec += sign * ((3600 * h) + (60 * m));
-	}
+			struct tm tm;
+			memset(&tm, 0, sizeof(struct tm));
+			strptime(date_time, "%Y-%m-%d %H:%M:%S", &tm);
+			// Convert time to epoch - mktime assumes localtime so most adjust for that
+			ts->tv_sec = mktime(&tm);
+
+			extern long timezone;
+			ts->tv_sec -= timezone;
+
+			strncpy(cached_timestamp_upto_sec, timestamp_sec, timestamp_str_len_till_sec);
+			timestamp_sec[timestamp_str_len_till_sec] = '\0';
+			cached_sec_since_epoch = ts->tv_sec;
+		}
+		
+		// Now process the fractional seconds
+		const char *ptr = date_time;
+		while (*ptr && *ptr != '.')
+				ptr++;
+		if (*ptr)
+		{
+				char *eptr;
+				ts->tv_usec = strtol(ptr + 1, &eptr, 10);
+				int digits = eptr - (ptr + 1);	// Number of digits we have
+				while (digits < 6)
+				{
+						digits++;
+						ts->tv_usec *= 10;
+				}
+		}
+		else
+		{
+				ts->tv_usec = 0;
+		}
+
+		// Get the timezone from the string and convert to UTC
+		ptr = date_time + 10; // Skip date as it contains '-' characters
+		while (*ptr && *ptr != '-' && *ptr != '+')
+				ptr++;
+		if (*ptr)
+		{
+				int h, m;
+				int sign = (*ptr == '+' ? -1 : +1);
+				ptr++;
+				sscanf(ptr, "%02d:%02d", &h, &m);
+				ts->tv_sec += sign * ((3600 * h) + (60 * m));
+		}
+			
+#if 0
+        auto end = std::chrono::high_resolution_clock::now();
+        std::ostringstream os;
+        os << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+        /*Logger::getLogger()->error("Reading::stringToTimestamp(): took %s (%d) microseconds for timestamp=%s", 
+                                                                        os.str().c_str(), std::stoul(os.str(), nullptr, 0), timestamp.c_str() ); */
+        
+        acc_time_taken_usec += std::stoul(os.str(), nullptr, 0);
+        reading_count++;
+        // Logger::getLogger()->error("Reading::stringToTimestamp(): acc_time_taken_usec=%d microseconds for %d readings", acc_time_taken_usec, reading_count);
+        
+        if(reading_count >= 80000)
+        {
+                Logger::getLogger()->error("Reading::stringToTimestamp(): took %d usec for %d readings: an average of %f usec per reading", 
+                                                                                acc_time_taken_usec, reading_count, float(acc_time_taken_usec)/reading_count);
+                acc_time_taken_usec = 0;
+                reading_count = 0;
+        }
+#endif
 }
+
 
 /**
  * Escape quotes etc to allow the string to be a property value within

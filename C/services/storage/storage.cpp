@@ -323,7 +323,7 @@ void StorageService::start(string& coreAddress, unsigned short corePort)
 		} catch (...) {
 		}
 
-		// Regsiter for configuration changes to our category
+		// Register for configuration changes to our category
 		ConfigHandler *configHandler = ConfigHandler::getInstance(client);
 		configHandler->registerCategory(this, STORAGE_CATEGORY);
 
@@ -340,7 +340,7 @@ void StorageService::start(string& coreAddress, unsigned short corePort)
 			children1.push_back(conf->getName());
 			client->addChildCategories(STORAGE_CATEGORY, children1);
 
-			// Regsiter for configuration changes to our category
+			// Register for configuration changes to our storage plugin category
 			ConfigHandler *configHandler = ConfigHandler::getInstance(client);
 			configHandler->registerCategory(this, conf->getName());
 
@@ -364,12 +364,18 @@ void StorageService::start(string& coreAddress, unsigned short corePort)
 					children1.push_back(conf->getName());
 					client->addChildCategories(STORAGE_CATEGORY, children1);
 
-					// Regsiter for configuration changes to our category
+					// Regsiter for configuration changes to our reading category category
 					ConfigHandler *configHandler = ConfigHandler::getInstance(client);
 					configHandler->registerCategory(this, conf->getName());
 				}
 			}
 		}
+
+		// Now we are running force the plugin names back to the configuration manager to
+		// make sure they match what we are running. This can be out of sync if the storage
+		// configuration cache has been manaully reset or altered while Fledge was down
+		client->setCategoryItemValue(STORAGE_CATEGORY, "plugin", config->getValue("plugin"));
+		client->setCategoryItemValue(STORAGE_CATEGORY, "readingPlugin", config->getValue("readingPlugin"));
 
 		// Wait for all the API threads to complete
 		api->wait();

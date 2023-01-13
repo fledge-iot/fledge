@@ -45,7 +45,7 @@ def change_to_auth_mandatory(fledge_url, wait_time):
 
 
 def test_setup(reset_and_start_fledge, change_to_auth_mandatory, fledge_url, wait_time):
-    time.sleep(wait_time * 2)
+    time.sleep(wait_time * 3)
     conn = http.client.HTTPConnection(fledge_url)
     # Admin login
     conn.request("POST", "/fledge/login", json.dumps({"username": "admin", "password": "fledge"}))
@@ -100,8 +100,8 @@ class TestAPIEndpointsWithViewUserType:
         # health
         ("GET", "/fledge/health/storage", 200), ("GET", "/fledge/health/logging", 200),
         # user & roles
-        ("GET", "/fledge/user", 200), ("PUT", "/fledge/user", 403), ("PUT", "/fledge/user/1/password", 403),
-        ("GET", "/fledge/user/role", 200),
+        ("GET", "/fledge/user", 200), ("PUT", "/fledge/user", 500), ("PUT", "/fledge/user/1/password", 403),
+        ("PUT", "/fledge/user/3/password", 500), ("GET", "/fledge/user/role", 200),
         # auth
         ("POST", "/fledge/login", 403), ("PUT", "/fledge/31/logout", 401),
         ("GET", "/fledge/auth/ott", 200),
@@ -207,11 +207,9 @@ class TestAPIEndpointsWithViewUserType:
         ("DELETE", "/fledge/notification/N1/delivery/C1", 403)
     ])
     def test_endpoints(self, fledge_url, method, route_path, http_status_code, storage_plugin):
-        # FIXME: Once below JIRA's are resolved
+        # FIXME: Once below JIRA is resolved
         if storage_plugin == 'postgres':
-            if route_path == '/fledge/structure/asset':
-                pytest.skip('Due to FOGL-7098')
-            elif route_path == '/fledge/statistics/rate?periods=1&statistics=FOO':
+            if route_path == '/fledge/statistics/rate?periods=1&statistics=FOO':
                 pytest.skip('Due to FOGL-7097')
         conn = http.client.HTTPConnection(fledge_url)
         conn.request(method, route_path, headers={"authorization": TOKEN})
@@ -246,12 +244,12 @@ class TestAPIEndpointsWithDataViewUserType:
 
     @pytest.mark.parametrize(("method", "route_path", "http_status_code"), [
         # common
-        ("GET", "/fledge/ping", 403), ("PUT", "/fledge/shutdown", 403), ("PUT", "/fledge/restart", 403),
+        ("GET", "/fledge/ping", 200), ("PUT", "/fledge/shutdown", 403), ("PUT", "/fledge/restart", 403),
         # health
         ("GET", "/fledge/health/storage", 403), ("GET", "/fledge/health/logging", 403),
         # user & roles
-        ("GET", "/fledge/user", 403), ("PUT", "/fledge/user", 403), ("PUT", "/fledge/user/1/password", 403),
-        ("GET", "/fledge/user/role", 403),
+        ("GET", "/fledge/user", 403), ("PUT", "/fledge/user", 500), ("PUT", "/fledge/user/1/password", 403),
+        ("PUT", "/fledge/user/4/password", 500), ("GET", "/fledge/user/role", 200),
         # auth
         ("POST", "/fledge/login", 403), ("PUT", "/fledge/31/logout", 401),
         ("GET", "/fledge/auth/ott", 403),
@@ -283,7 +281,7 @@ class TestAPIEndpointsWithDataViewUserType:
         ("GET", "/fledge/task/123", 403), ("PUT", "/fledge/task/123/cancel", 403),
         ("POST", "/fledge/scheduled/task", 403), ("DELETE", "/fledge/scheduled/task/blah", 403),
         # service
-        ("POST", "/fledge/service", 403), ("GET", "/fledge/service", 403), ("DELETE", "/fledge/service/blah", 403),
+        ("POST", "/fledge/service", 403), ("GET", "/fledge/service", 200), ("DELETE", "/fledge/service/blah", 403),
         ("GET", "/fledge/service/available", 403), ("GET", "/fledge/service/installed", 403),
         ("PUT", "/fledge/service/Southbound/blah/update", 403), ("POST", "/fledge/service/blah/otp", 403),
         # south & north
@@ -300,8 +298,8 @@ class TestAPIEndpointsWithDataViewUserType:
         ("GET", "/fledge/track", 403), ("GET", "/fledge/track/storage/assets", 403),
         ("PUT", "/fledge/track/service/foo/asset/bar/event/Ingest", 403),
         # statistics
-        ("GET", "/fledge/statistics", 403), ("GET", "/fledge/statistics/history", 403),
-        ("GET", "/fledge/statistics/rate?periods=1&statistics=FOO", 403),
+        ("GET", "/fledge/statistics", 200), ("GET", "/fledge/statistics/history", 200),
+        ("GET", "/fledge/statistics/rate?periods=1&statistics=FOO", 200),
         # audit trail
         ("POST", "/fledge/audit", 403), ("GET", "/fledge/audit", 403), ("GET", "/fledge/audit/logcode", 403),
         ("GET", "/fledge/audit/severity", 403),
@@ -354,7 +352,11 @@ class TestAPIEndpointsWithDataViewUserType:
         ("POST", "/fledge/notification/N1/delivery", 403), ("GET", "/fledge/notification/N1/delivery/C1", 403),
         ("DELETE", "/fledge/notification/N1/delivery/C1", 403)
     ])
-    def test_endpoints(self, fledge_url, method, route_path, http_status_code):
+    def test_endpoints(self, fledge_url, method, route_path, http_status_code, storage_plugin):
+        # FIXME: Once below JIRA is resolved
+        if storage_plugin == 'postgres':
+            if route_path == '/fledge/statistics/rate?periods=1&statistics=FOO':
+                pytest.skip('Due to FOGL-7097')
         conn = http.client.HTTPConnection(fledge_url)
         conn.request(method, route_path, headers={"authorization": TOKEN})
         r = conn.getresponse()

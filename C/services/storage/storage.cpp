@@ -26,7 +26,8 @@
 #include <config_handler.h>
 #include <plugin_configuration.h>
 
-#define NO_EXIT_STACKTRACE		0		// Set to 1 to make storage loop after stacktrace
+#define NO_EXIT_STACKTRACE		0	// Set to 1 to make storage loop after stacktrace
+						// This is useful to be able to attach a debbugger
 
 extern int makeDaemon(void);
 
@@ -92,6 +93,7 @@ string	       coreAddress = "localhost";
 bool	       daemonMode = true;
 string	       myName = SERVICE_NAME;
 bool           returnPlugin = false;
+bool           returnReadingsPlugin = false;
 string	       logLevel = "warning";
 
 	for (int i = 1; i < argc; i++)
@@ -116,16 +118,26 @@ string	       logLevel = "warning";
 		{
 			returnPlugin = true;
 		}
+		else if (!strncmp(argv[i], "--readingsplugin", 8))
+		{
+			returnReadingsPlugin = true;
+		}
 		else if (!strncmp(argv[i], "--logLevel=", 11))
 		{
 			logLevel = &argv[i][11];
 		}
 	}
 
-	if (returnPlugin == false && daemonMode && makeDaemon() == -1)
+	if (returnPlugin == false && returnReadingsPlugin == false && daemonMode && makeDaemon() == -1)
 	{
 		// Failed to run in daemon mode
 		cout << "Failed to run as deamon - proceeding in interactive mode." << endl;
+	}
+
+	if (returnPlugin && returnReadingsPlugin)
+	{
+		cout << "You can not specify --plugin and --readingsplugin together";
+		exit(1);
 	}
 
 	StorageService *service = new StorageService(myName);
@@ -133,6 +145,10 @@ string	       logLevel = "warning";
 	if (returnPlugin)
 	{
 		cout << service->getPluginName() << " " << service->getPluginManagedStatus() << endl;
+	}
+	else if (returnReadingsPlugin)
+	{
+		cout << service->getReadingPluginName() << " " << service->getPluginManagedStatus() << endl;
 	}
 	else
 	{
@@ -542,4 +558,17 @@ string StorageService::getPluginName()
 string StorageService::getPluginManagedStatus()
 {
 	return string(config->getValue("managedStatus"));
+}
+
+/**
+ * Return the name of the configured reading plugin
+ */
+string StorageService::getReadingPluginName()
+{
+	string rval = config->getValue("readingPlugin");
+	if (rval.empty())
+	{
+		rval = config->getValue("plugin");
+	}
+	return rval;
 }

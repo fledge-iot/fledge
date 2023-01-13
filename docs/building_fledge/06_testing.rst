@@ -192,7 +192,7 @@ Note: This following instructions assume you have downloaded and installed the C
   $ cd fledge-south-coap
   $ sudo cp -r python/fledge/plugins/south/coap /usr/local/fledge/python/fledge/plugins/south/
   $ sudo cp python/requirements-coap.txt /usr/local/fledge/python/
-  $ sudo pip3 install -r /usr/local/fledge/python/requirements-coap.txt
+  $ sudo python3 -m pip install -r /usr/local/fledge/python/requirements-coap.txt
   $ sudo chown -R root:root /usr/local/fledge/python/fledge/plugins/south/coap
   $ curl -sX POST http://localhost:8081/fledge/service -d '{"name": "CoAP", "type": "south", "plugin": "coap", "enabled": true}'
 

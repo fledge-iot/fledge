@@ -128,7 +128,8 @@ class ConfigCategory {
 					VALIDITY_ATTR,
 					GROUP_ATTR,
 					DISPLAY_NAME_ATTR,
-					DEPRECATED_ATTR};
+					DEPRECATED_ATTR,
+					RULE_ATTR};
 		std::string			getItemAttribute(const std::string& itemName,
 								 ItemAttribute itemAttribute) const;
 
@@ -172,6 +173,7 @@ class ConfigCategory {
 				ItemType	m_itemType;
 				std::string	m_validity;
 				std::string	m_group;
+				std::string	m_rule;
 		};
 		std::vector<CategoryItem *>	m_items;
 		std::string			m_name;

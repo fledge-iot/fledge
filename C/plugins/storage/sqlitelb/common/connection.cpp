@@ -1473,6 +1473,7 @@ int Connection::update(const string& schema,
 // Default template parameter uses UTF8 and MemoryPoolAllocator.
 Document	document;
 SQLBuffer	sql;
+bool		allowZero = false;
 
 	int 	row = 0;
 	ostringstream convert;
@@ -1770,6 +1771,21 @@ SQLBuffer	sql;
 					col++;
 				}
 			}
+			if (iter->HasMember("modifier") && (*iter)["modifier"].IsArray())
+			{
+				const Value& modifier = (*iter)["modifier"];
+				for (Value::ConstValueIterator modifiers = modifier.Begin(); modifiers != modifier.End(); ++modifiers)
+                		{
+					if (modifiers->IsString())
+					{
+						string mod = modifiers->GetString();
+						if (mod.compare("allowzero") == 0)
+						{
+							allowZero = true;
+						}
+					}
+				}
+			}
 			if (col == 0)
 			{
 				raiseError("update",
@@ -1846,7 +1862,7 @@ SQLBuffer	sql;
 
 		int return_value=0;
 
-		if (update == 0)
+		if (update == 0 && allowZero == false)
 		{
 			char buf[100];
 			snprintf(buf, sizeof(buf),

@@ -338,6 +338,17 @@ class PayloadBuilder(object):
         return cls
 
     @classmethod
+    def MODIFIER(cls, arg):
+        if arg is None:
+            return cls
+        if not isinstance(arg, list):
+            return cls
+        if len(arg) == 0:
+            return cls
+        cls.query_payload["modifier"] = arg
+        return cls
+
+    @classmethod
     def UPDATE_TABLE(cls, tbl_name):
         return cls.FROM(tbl_name)
 

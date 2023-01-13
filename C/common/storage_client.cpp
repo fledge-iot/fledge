@@ -583,11 +583,12 @@ int StorageClient::insertTable(const string& schema, const string& tableName, co
  * @param tableName	The name of the table into which data will be added
  * @param values	The values to insert into the table
  * @param where		The conditions to match the updated rows
+ * @param modifier	Optional storage modifier
  * @return int		The number of rows updated
  */
-int StorageClient::updateTable(const string& tableName, const InsertValues& values, const Where& where)
+int StorageClient::updateTable(const string& tableName, const InsertValues& values, const Where& where, const UpdateModifier *modifier)
 {
-	return updateTable(DEFAULT_SCHEMA, tableName, values, where);
+	return updateTable(DEFAULT_SCHEMA, tableName, values, where, modifier);
 }
 
 /**
@@ -597,9 +598,10 @@ int StorageClient::updateTable(const string& tableName, const InsertValues& valu
  * @param tableName	The name of the table into which data will be added
  * @param values	The values to insert into the table
  * @param where		The conditions to match the updated rows
+ * @param modifier	Optional storage modifier
  * @return int		The number of rows updated
  */
-int StorageClient::updateTable(const string& schema, const string& tableName, const InsertValues& values, const Where& where)
+int StorageClient::updateTable(const string& schema, const string& tableName, const InsertValues& values, const Where& where, const UpdateModifier *modifier)
 {
 	static HttpClient *httpClient = this->getHttpClient(); // to initialize m_seqnum_map[thread_id] for this thread
 	try {
@@ -614,8 +616,12 @@ int StorageClient::updateTable(const string& schema, const string& tableName, co
 
 		ostringstream convert;
 
-		convert << "{ \"updates\" : [ ";
-		convert << "{ \"where\" : ";
+		convert << "{ \"updates\" : [ {";
+		if (modifier)
+		{
+			convert << "\"modifiers\" : [ \"" << modifier->toJSON() << "\" ], ";
+		}
+		convert << "\"where\" : ";
 		convert << where.toJSON();
 		convert << ", \"values\" : ";
 		convert << values.toJSON();
@@ -662,11 +668,12 @@ int StorageClient::updateTable(const string& schema, const string& tableName, co
  * @param tableName	The name of the table into which data will be added
  * @param values	The expressions to update into the table
  * @param where		The conditions to match the updated rows
+ * @param modifier	Optional update modifier
  * @return int		The number of rows updated
  */
-int StorageClient::updateTable(const string& tableName, const ExpressionValues& values, const Where& where)
+int StorageClient::updateTable(const string& tableName, const ExpressionValues& values, const Where& where, const UpdateModifier *modifier)
 {
-	return updateTable(DEFAULT_SCHEMA, tableName, values, where);
+	return updateTable(DEFAULT_SCHEMA, tableName, values, where, modifier);
 }
 
 /**
@@ -676,9 +683,10 @@ int StorageClient::updateTable(const string& tableName, const ExpressionValues& 
  * @param tableName	The name of the table into which data will be added
  * @param values	The expressions to update into the table
  * @param where		The conditions to match the updated rows
+ * @param modifier	Optional update modifier
  * @return int		The number of rows updated
  */
-int StorageClient::updateTable(const string& schema, const string& tableName, const ExpressionValues& values, const Where& where)
+int StorageClient::updateTable(const string& schema, const string& tableName, const ExpressionValues& values, const Where& where, const UpdateModifier *modifier)
 {
 	static HttpClient *httpClient = this->getHttpClient(); // to initialize m_seqnum_map[thread_id] for this thread
 	try {
@@ -693,8 +701,12 @@ int StorageClient::updateTable(const string& schema, const string& tableName, co
 		
 		ostringstream convert;
 
-		convert << "{ \"updates\" : [ ";
-		convert << "{ \"where\" : ";
+		convert << "{ \"updates\" : [ {";
+		if (modifier)
+		{
+			convert << "\"modifiers\" : [ \"" << modifier->toJSON() << "\" ], ";
+		}
+		convert << "\"where\" : ";
 		convert << where.toJSON();
 		convert << ", \"expressions\" : ";
 		convert << values.toJSON();
@@ -740,11 +752,12 @@ int StorageClient::updateTable(const string& schema, const string& tableName, co
  *
  * @param tableName	The name of the table into which data will be added
  * @param updates	The expressions and condition pairs to update in the table
+ * @param modifier	Optional update modifier
  * @return int		The number of rows updated
  */
-int StorageClient::updateTable(const string& tableName, vector<pair<ExpressionValues *, Where *>>& updates)
+int StorageClient::updateTable(const string& tableName, vector<pair<ExpressionValues *, Where *>>& updates, const UpdateModifier *modifier)
 {
-	return updateTable(DEFAULT_SCHEMA, tableName, updates);
+	return updateTable(DEFAULT_SCHEMA, tableName, updates, modifier);
 }
 
 /**
@@ -753,9 +766,10 @@ int StorageClient::updateTable(const string& tableName, vector<pair<ExpressionVa
  * @param schema	The name of the schema into which data will be added
  * @param tableName	The name of the table into which data will be added
  * @param updates	The expressions and condition pairs to update in the table
+ * @param modifier	Optional update modifier
  * @return int		The number of rows updated
  */
-int StorageClient::updateTable(const string& schema, const string& tableName, vector<pair<ExpressionValues *, Where *>>& updates)
+int StorageClient::updateTable(const string& schema, const string& tableName, vector<pair<ExpressionValues *, Where *>>& updates, const UpdateModifier *modifier)
 {
 	static HttpClient *httpClient = this->getHttpClient(); // to initialize m_seqnum_map[thread_id] for this thread
 	try {
@@ -777,7 +791,12 @@ int StorageClient::updateTable(const string& schema, const string& tableName, ve
 			{
 				convert << ", ";
 			}
-			convert << "{ \"where\" : ";
+			convert << "{ ";
+			if (modifier)
+			{
+				convert << "\"modifiers\" : [ \"" << modifier->toJSON() << "\" ], ";
+			}
+			convert << "\"where\" : ";
 			convert << it->second->toJSON();
 			convert << ", \"expressions\" : ";
 			convert << it->first->toJSON();
@@ -827,11 +846,12 @@ int StorageClient::updateTable(const string& schema, const string& tableName, ve
  * @param values	The values to insert into the table
  * @param expressions	The expression to update inthe table
  * @param where		The conditions to match the updated rows
+ * @param modifier	Optional update modifier
  * @return int		The number of rows updated
  */
-int StorageClient::updateTable(const string& tableName, const InsertValues& values, const ExpressionValues& expressions, const Where& where)
+int StorageClient::updateTable(const string& tableName, const InsertValues& values, const ExpressionValues& expressions, const Where& where, const UpdateModifier *modifier)
 {
-	return updateTable(DEFAULT_SCHEMA, tableName, values, expressions, where);
+	return updateTable(DEFAULT_SCHEMA, tableName, values, expressions, where, modifier);
 }
 
 /**
@@ -842,15 +862,20 @@ int StorageClient::updateTable(const string& tableName, const InsertValues& valu
  * @param values	The values to insert into the table
  * @param expressions	The expression to update inthe table
  * @param where		The conditions to match the updated rows
+ * @param modifier	Optional update modifier
  * @return int		The number of rows updated
  */
-int StorageClient::updateTable(const string& schema, const string& tableName, const InsertValues& values, const ExpressionValues& expressions, const Where& where)
+int StorageClient::updateTable(const string& schema, const string& tableName, const InsertValues& values, const ExpressionValues& expressions, const Where& where, const UpdateModifier *modifier)
 {
 	try {
 		ostringstream convert;
 
-		convert << "{ \"updates\" : [ ";
-		convert << "{ \"where\" : ";
+		convert << "{ \"updates\" : [ { ";
+		if (modifier)
+		{
+			convert << "\"modifiers\" : [ \"" << modifier->toJSON() << "\" ], ";
+		}
+		convert << "\"where\" : ";
 		convert << where.toJSON();
 		convert << ", \"values\" : ";
 		convert << values.toJSON();
@@ -899,11 +924,12 @@ int StorageClient::updateTable(const string& schema, const string& tableName, co
  * @param tableName	The name of the table into which data will be added
  * @param json		The values to insert into the table
  * @param where		The conditions to match the updated rows
+ * @param modifier	Optional update modifier
  * @return int		The number of rows updated
  */
-int StorageClient::updateTable(const string& tableName, const JSONProperties& values, const Where& where)
+int StorageClient::updateTable(const string& tableName, const JSONProperties& values, const Where& where, const UpdateModifier *modifier)
 {
-	return updateTable(DEFAULT_SCHEMA, tableName, values, where);
+	return updateTable(DEFAULT_SCHEMA, tableName, values, where, modifier);
 }
 
 /**
@@ -915,13 +941,17 @@ int StorageClient::updateTable(const string& tableName, const JSONProperties& va
  * @param where		The conditions to match the updated rows
  * @return int		The number of rows updated
  */
-int StorageClient::updateTable(const string& schema, const string& tableName, const JSONProperties& values, const Where& where)
+int StorageClient::updateTable(const string& schema, const string& tableName, const JSONProperties& values, const Where& where, const UpdateModifier *modifier)
 {
 	try {
 		ostringstream convert;
 
-		convert << "{ \"updates\" : [ ";
-		convert << "{ \"where\" : ";
+		convert << "{ \"updates\" : [ {";
+		if (modifier)
+		{
+			convert << "\"modifiers\" : [ \"" << modifier->toJSON() << "\" ]";
+		}
+		convert << "\"where\" : ";
 		convert << where.toJSON();
 		convert << ", ";
 		convert << values.toJSON();
@@ -969,11 +999,12 @@ int StorageClient::updateTable(const string& schema, const string& tableName, co
  * @param values	The values to insert into the table
  * @param jsonProp	The JSON Properties to update
  * @param where		The conditions to match the updated rows
+ * @param modifier	Optional update modifier
  * @return int		The number of rows updated
  */
-int StorageClient::updateTable(const string& tableName, const InsertValues& values, const JSONProperties& jsonProp, const Where& where)
+int StorageClient::updateTable(const string& tableName, const InsertValues& values, const JSONProperties& jsonProp, const Where& where, const UpdateModifier *modifier)
 {
-	return updateTable(DEFAULT_SCHEMA, tableName, values, jsonProp, where);
+	return updateTable(DEFAULT_SCHEMA, tableName, values, jsonProp, where, modifier);
 }
 
 /**
@@ -984,15 +1015,20 @@ int StorageClient::updateTable(const string& tableName, const InsertValues& valu
  * @param values	The values to insert into the table
  * @param jsonProp	The JSON Properties to update
  * @param where		The conditions to match the updated rows
+ * @param modifier	Optional update modifier
  * @return int		The number of rows updated
  */
-int StorageClient::updateTable(const string& schema, const string& tableName, const InsertValues& values, const JSONProperties& jsonProp, const Where& where)
+int StorageClient::updateTable(const string& schema, const string& tableName, const InsertValues& values, const JSONProperties& jsonProp, const Where& where, const UpdateModifier *modifier)
 {
 	try {
 		ostringstream convert;
 
-		convert << "{ \"updates\" : [ ";
-		convert << "{ \"where\" : ";
+		convert << "{ \"updates\" : [ {";
+		if (modifier)
+		{
+			convert << "\"modifiers\" : [ \"" << modifier->toJSON() << "\", ";
+		}
+		convert << "\"where\" : ";
 		convert << where.toJSON();
 		convert << ", \"values\" : ";
 		convert << values.toJSON();
@@ -1222,6 +1258,119 @@ bool StorageClient::unregisterAssetNotification(const string& assetName,
 	}
 	return false;
 }
+
+/**
+ * Register interest for a table
+ *
+ * @param tableName	The table name to register for notification
+ * @param tableKey	The key of interest in the table
+ * @param tableKeyValues	The key values of interest
+ * @param tableOperation	The table operation of interest (insert/update/delete)
+ * @param callbackUrl	The callback URL to send change data
+ * @return		True on success, false otherwise.
+ */
+bool StorageClient::registerTableNotification(const string& tableName, const string& key, std::vector<std::string> keyValues,
+					      const string& operation, const string& callbackUrl)
+{
+	try
+	{
+		ostringstream keyValuesStr;
+		for (auto & s : keyValues)
+		{
+			keyValuesStr << "\"" << s << "\"";
+			if (&s != &keyValues.back())
+				keyValuesStr << ", ";
+		}
+		
+		ostringstream convert;
+
+		convert << "{ ";
+		convert << "\"url\" : \"" << callbackUrl << "\", ";
+		convert << "\"key\" : \"" << key << "\", ";
+		convert << "\"values\" : [" << keyValuesStr.str() << "], ";
+		convert << "\"operation\" : \"" << operation << "\" ";
+		convert << "}";
+		
+		auto res = this->getHttpClient()->request("POST",
+							  "/storage/table/interest/" + urlEncode(tableName),
+							  convert.str());
+		if (res->status_code.compare("200 OK") == 0)
+		{
+			return true;
+		}
+		ostringstream resultPayload;
+		resultPayload << res->content.rdbuf();
+		handleUnexpectedResponse("Register table",
+					 tableName,
+					 res->status_code,
+					 resultPayload.str());
+		m_logger->error("POST /storage/table/interest/%s: %s",
+				urlEncode(tableName).c_str(), res->status_code.c_str());
+
+		return false;
+	} catch (exception& ex)
+	{
+		handleException(ex, "register table '%s'", tableName.c_str());
+	}
+	return false;
+}
+
+/**
+ * Unregister interest for a table name
+ *
+ * @param tableName	The table name to unregister interest in
+ * @param tableKey	The key of interest in the table
+ * @param tableKeyValues	The key values of interest
+ * @param tableOperation	The table operation of interest (insert/update/delete)
+ * @param callbackUrl	The callback URL to send change data
+ * @return		True on success, false otherwise.
+ */
+bool StorageClient::unregisterTableNotification(const string& tableName, const string& key, std::vector<std::string> keyValues,
+					      const string& operation, const string& callbackUrl)
+{
+	try
+	{
+		ostringstream keyValuesStr;
+		for (auto & s : keyValues)
+		{
+			keyValuesStr << "\"" << s << "\"";
+			if (&s != &keyValues.back())
+				keyValuesStr << ", ";
+		}
+		
+		ostringstream convert;
+
+		convert << "{ ";
+		convert << "\"url\" : \"" << callbackUrl << "\", ";
+		convert << "\"key\" : \"" << key << "\", ";
+		convert << "\"values\" : [" << keyValuesStr.str() << "], ";
+		convert << "\"operation\" : \"" << operation << "\" ";
+		convert << "}";
+		
+		auto res = this->getHttpClient()->request("DELETE",
+							  "/storage/table/interest/" + urlEncode(tableName),
+							  convert.str());
+		if (res->status_code.compare("200 OK") == 0)
+		{
+			return true;
+		}
+		ostringstream resultPayload;
+		resultPayload << res->content.rdbuf();
+		handleUnexpectedResponse("Unregister table",
+					 tableName,
+					 res->status_code,
+					 resultPayload.str());
+		m_logger->error("DELETE /storage/table/interest/%s: %s",
+				urlEncode(tableName).c_str(), res->status_code.c_str());
+
+		return false;
+	} catch (exception& ex)
+	{
+		handleException(ex, "unregister table '%s'", tableName.c_str());
+	}
+	return false;
+}
+
 
 bool StorageClient::openStream()
 {

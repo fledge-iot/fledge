@@ -285,7 +285,7 @@ ssize_t n;
 			Logger::getLogger()->info("Stream connection established");
 			m_socket = conn_sock;
 			m_status = AwaitingToken;
-			m_event.events = EPOLLIN | EPOLLRDHUP | EPOLLHUP | EPOLLERR | EPOLLPRI;
+			m_event.events = EPOLLIN | EPOLLRDHUP | EPOLLHUP | EPOLLERR | EPOLLPRI | EPOLLET;
 			m_event.data.ptr = this;
 			if (epoll_ctl(epollfd, EPOLL_CTL_ADD, m_socket, &m_event) == -1)
 			{
@@ -373,7 +373,7 @@ ssize_t n;
 					RDSReadingHeader rdhdr;
 					if (available(m_socket) < sizeof(rdhdr))
 					{
-						Logger::getLogger()->warn("Not enough bytes %d for reading header (socket %d)", available(m_socket), m_socket);
+						Logger::getLogger()->warn("Not enough bytes %d for reading header %d in block %d (socket %d)", available(m_socket), m_readingNo, m_blockNo - 1, m_socket);
 						static bool reported = false;
 						if (!reported)
 						{
@@ -426,7 +426,7 @@ ssize_t n;
 					// We are expecting a reading body
 					if (available(m_socket) < m_readingSize)
 					{
-						Logger::getLogger()->warn("Not enough bytes for reading %d", m_readingSize);
+						Logger::getLogger()->warn("Not enough bytes %d for reading %d in block %d", m_readingSize, m_readingNo, m_blockNo - 1);
 						return;
 					}
 					struct iovec iov[3];
@@ -461,6 +461,7 @@ ssize_t n;
 						memcpy(&m_currentReading->assetCode[0], m_lastAsset.c_str(), m_currentReading->assetCodeLength);
 					}
 					m_readingNo++;
+					m_protocolState = RdHdr;
 					if ((m_readingNo % RDS_BLOCK) == 0)
 					{
 						queueInsert(api, RDS_BLOCK, false);
@@ -474,15 +475,12 @@ ssize_t n;
 						queueInsert(api, m_readingNo % RDS_BLOCK, true);
 						for (uint32_t i = 0; i < m_readingNo % RDS_BLOCK; i++)
 							m_blockPool->release(m_readings[i]);
-					}
-					if (m_readingNo >= m_blockSize)
-					{
 						m_protocolState = BlkHdr;
 						Logger::getLogger()->warn("Waiting for the next block header");
 					}
-					else
+					else if (m_readingNo > m_blockSize)
 					{
-						m_protocolState = RdHdr;
+						Logger::getLogger()->error("Too many readings in block");
 					}
 				}
 			}

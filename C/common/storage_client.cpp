@@ -28,7 +28,9 @@
 #define EXCEPTION_BUFFER_SIZE 120
 
 #define INSTRUMENT		0
-#define ENABLE_STREAMING	1
+// Streaming is currently disabled due to an issue that causes the stream to
+// hang after a period. Set the followign to 1 in order to enable streaming
+#define ENABLE_STREAMING	0
 
 #if INSTRUMENT
 #include <sys/time.h>
@@ -1592,20 +1594,25 @@ string				lastAsset;
 		offset++;
 		if (offset == STREAM_BLK_SIZE - 1)
 		{
+			if (iovp - iovs > STREAM_BLK_SIZE * 4)
+				Logger::getLogger()->error("Too many iov blocks %d", iovp - iovs);
 			// Send a chunk of readings in the block
 			n = writev(m_stream, (const iovec *)iovs, iovp - iovs);
-			if (n < length)
+			if (n == -1)
 			{
 				if (errno == EPIPE || errno == ECONNRESET)
 				{
 					Logger::getLogger()->error("Stream has been closed by the storage service");
 					m_streaming = false;
 				}
-				else
-				{
-					Logger::getLogger()->error("Write of block short, %d < %d: %s",
+				Logger::getLogger()->error("Write of block %d filed: %s",
+							m_readingBlock - 1, strerror(errno));
+				return false;
+			}
+			else if (n < length)
+			{
+				Logger::getLogger()->error("Write of block short, %d < %d: %s",
 							n, length, strerror(errno));
-				}
 				return false;
 			}
 			else if (n > length)
@@ -1625,18 +1632,22 @@ string				lastAsset;
 
 	if (length)	// Remaining data to be sent to finish the block
 	{
-		if ((n = writev(m_stream, (const iovec *)iovs, iovp - iovs)) < length)
+		n = writev(m_stream, (const iovec *)iovs, iovp - iovs);
+		if (n == -1)
 		{
 			if (errno == EPIPE || errno == ECONNRESET)
 			{
 				Logger::getLogger()->error("Stream has been closed by the storage service");
 				m_streaming = false;
 			}
-			else
-			{
-				Logger::getLogger()->error("Write of block short, %d < %d: %s",
+			Logger::getLogger()->error("Write of block %d filed: %s",
+						m_readingBlock - 1, strerror(errno));
+			return false;
+		}
+		else if (n < length)
+		{
+			Logger::getLogger()->error("Write of block short, %d < %d: %s",
 						n, length, strerror(errno));
-			}
 			return false;
 		}
 		else if (n > length)

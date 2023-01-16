@@ -10,8 +10,9 @@ import json
 import asyncio
 
 from aiohttp import web
+from typing import List
+
 from fledge.common import logger
-from fledge.services.core import connect
 from fledge.common.audit_logger import AuditLogger
 from fledge.services.core import connect
 
@@ -28,6 +29,13 @@ _help = """
 """
 _LOGGER = logger.setup(__name__, level=logging.INFO)
 
+
+def get_packages_installed() -> List:
+    package_ws = pkg_resources.WorkingSet()
+    installed_pkgs = [{'package': dist.project_name, 'version': dist.version} for dist in package_ws]
+    return installed_pkgs
+
+
 async def get_packages(request: web.Request) -> web.Response:
     """
     Args:
@@ -39,9 +47,7 @@ async def get_packages(request: web.Request) -> web.Response:
     :Example:
            curl -X GET http://localhost:8081/fledge/python/packages
     """
-    package_ws = pkg_resources.WorkingSet()
-    installed_pkgs = [{'package':dist.project_name,'version': dist.version} for dist in package_ws]
-    return web.json_response({'packages': installed_pkgs})
+    return web.json_response({'packages': get_packages_installed()})
 
 
 async def install_package(request: web.Request) -> web.Response:

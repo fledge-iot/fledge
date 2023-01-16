@@ -9,7 +9,6 @@
 
 import logging
 import datetime
-import platform
 import os
 from os.path import basename
 import glob
@@ -19,13 +18,15 @@ import json
 import tarfile
 import fnmatch
 import subprocess
-from fledge.services.core.connect import *
-from fledge.common import logger
+
+from fledge.common import logger, utils
 from fledge.common.common import _FLEDGE_ROOT, _FLEDGE_DATA
 from fledge.common.configuration_manager import ConfigurationManager
 from fledge.common.plugin_discovery import PluginDiscovery
 from fledge.common.storage_client import payload_builder
+from fledge.services.core.api.python_packages import get_packages_installed
 from fledge.services.core.api.service import get_service_records, get_service_installed
+from fledge.services.core.connect import *
 
 
 __author__ = "Amarendra K Sinha"
@@ -35,11 +36,8 @@ __version__ = "${VERSION}"
 
 _LOGGER = logger.setup(__name__, level=logging.INFO)
 _NO_OF_FILES_TO_RETAIN = 3
-_SYSLOG_FILE = '/var/log/syslog'
+_SYSLOG_FILE = '/var/log/messages' if utils.is_redhat_based() else '/var/log/syslog'
 _PATH = _FLEDGE_DATA if _FLEDGE_DATA else _FLEDGE_ROOT + '/data'
-
-if ('centos' in platform.platform()) or ('redhat' in platform.platform()):
-    _SYSLOG_FILE = '/var/log/messages'
 
 
 class SupportBuilder:
@@ -101,6 +99,7 @@ class SupportBuilder:
                 self.add_script_dir_content(pyz)
                 self.add_package_log_dir_content(pyz)
                 self.add_software_list(pyz, file_spec)
+                self.add_python_packages_list(pyz, file_spec)
             finally:
                 pyz.close()
         except Exception as ex:
@@ -294,6 +293,11 @@ class SupportBuilder:
             "services": get_service_installed()
         }
         temp_file = self._interim_file_path + "/" + "software-{}".format(file_spec)
+        self.write_to_tar(pyz, temp_file, data)
+
+    def add_python_packages_list(self, pyz, file_spec) -> None:
+        data = {'packages': get_packages_installed()}
+        temp_file = self._interim_file_path + "/" + "python-packages-{}".format(file_spec)
         self.write_to_tar(pyz, temp_file, data)
 
     def exclude_pycache(self, tar_info):

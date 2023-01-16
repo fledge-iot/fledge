@@ -9,20 +9,19 @@ import asyncio
 import os
 import logging
 import uuid
-import platform
 import multiprocessing
 import json
 
 from aiohttp import web
-from fledge.common import logger
-from fledge.services.core import connect
-from fledge.common.storage_client.payload_builder import PayloadBuilder
-from fledge.services.core import server
-from fledge.common.plugin_discovery import PluginDiscovery
-from fledge.services.core.api.plugins import common
-from fledge.common.configuration_manager import ConfigurationManager
+from fledge.common import logger, utils
 from fledge.common.audit_logger import AuditLogger
+from fledge.common.configuration_manager import ConfigurationManager
+from fledge.common.plugin_discovery import PluginDiscovery
 from fledge.common.storage_client.exceptions import StorageServerError
+from fledge.common.storage_client.payload_builder import PayloadBuilder
+from fledge.services.core import connect
+from fledge.services.core import server
+from fledge.services.core.api.plugins import common
 
 
 __author__ = "Ashish Jabble"
@@ -32,7 +31,7 @@ __version__ = "${VERSION}"
 
 _help = """
     -------------------------------------------------------------------------------
-    | PUT             | /fledge/plugin/{type}/{name}/update                      |
+    | PUT             | /fledge/plugin/{type}/{name}/update                       |
     -------------------------------------------------------------------------------
 """
 _logger = logger.setup(__name__, level=logging.INFO)
@@ -217,11 +216,10 @@ def _update_repo_sources_and_plugin(_type: str, name: str) -> tuple:
     # sudo apt list command internal so package name always returns in lowercase,
     # irrespective of package name defined in the configured repo.
     name = "fledge-{}-{}".format(_type, name.lower())
-    _platform = platform.platform()
     stdout_file_path = common.create_log_file(action="update", plugin_name=name)
     pkg_mgt = 'apt'
     cmd = "sudo {} -y update > {} 2>&1".format(pkg_mgt, stdout_file_path)
-    if 'centos' in _platform or 'redhat' in _platform:
+    if utils.is_redhat_based():
         pkg_mgt = 'yum'
         cmd = "sudo {} check-update > {} 2>&1".format(pkg_mgt, stdout_file_path)
     ret_code = os.system(cmd)

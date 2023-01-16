@@ -5,12 +5,11 @@
 # FLEDGE_END
 
 import logging
-import pkg_resources
-import json
 import asyncio
-
-from aiohttp import web
+import json
 from typing import List
+import pkg_resources
+from aiohttp import web
 
 from fledge.common import logger
 from fledge.common.audit_logger import AuditLogger
@@ -53,7 +52,7 @@ async def get_packages(request: web.Request) -> web.Response:
 async def install_package(request: web.Request) -> web.Response:
     """
     Args:
-        Request: '{ "package"   :   "numpy", 
+        request: '{ "package"   :   "numpy",
                     "version"   :   "1.2"   #optional
                   }'
 
@@ -84,29 +83,30 @@ async def install_package(request: web.Request) -> web.Response:
     installed_package, installed_version = get_installed_package_info(input_package_name)
 
     if installed_package:
-         #Package already exists
+        # Package already exists
         _LOGGER.info("Package: {} Version: {} already installed.".format(installed_package, installed_version))
         return web.HTTPConflict(reason="Package already installed.", 
-                                body=json.dumps({"message":"Package {} version {} already installed."
+                                body=json.dumps({"message": "Package {} version {} already installed."
                                                 .format(installed_package, installed_version)}))
 
-    #Package not found, install package via pip
-    pip_process = await asyncio.create_subprocess_shell('python3 -m pip install '+ install_args, 
+    # Package not found, install package via pip
+    pip_process = await asyncio.create_subprocess_shell('python3 -m pip install ' + install_args,
                                                         stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
     
     stdout, stderr = await pip_process.communicate()
     if pip_process.returncode == 0:
         _LOGGER.info("Package: {} successfully installed", format(input_package_name))
         try:
-            #Audit log entry: PIPIN
+            # Audit log entry: PIPIN
             storage_client = connect.get_storage_async()
             pip_audit_log = AuditLogger(storage_client)
-            audit_message = {"package":input_package_name, "status": "Success"}
+            audit_message = {"package": input_package_name, "status": "Success"}
             if input_package_version:
                 audit_message["version"] = input_package_version
             await pip_audit_log.information('PIPIN', audit_message)
         except:
-            _LOGGER.exception("Failed to log the audit entry for PIPIN, for package {} install", format(input_package_name))
+            _LOGGER.exception("Failed to log the audit entry for PIPIN, for package {} install", format(
+                input_package_name))
 
         response = "Package {} version {} installed successfully.".format(input_package_name, input_package_version)
         if not input_package_version:

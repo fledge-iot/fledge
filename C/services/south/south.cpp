@@ -39,6 +39,8 @@
 extern int makeDaemon(void);
 extern void handler(int sig);
 
+static void reconfThreadMain(void *arg);
+
 using namespace std;
 
 /**
@@ -222,7 +224,6 @@ void doIngestV2(Ingest *ingest, ReadingSet *set)
 	delete set;
 }
 
-
 /**
  * Constructor for the south service
  */
@@ -241,6 +242,8 @@ SouthService::SouthService(const string& myName, const string& token) :
 
 	logger = new Logger(myName);
 	logger->setMinLevel("warning");
+
+	m_reconfThread = new std::thread(reconfThreadMain, this);
 }
 
 /**
@@ -473,7 +476,7 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 				logger->info("pollInterfaceV2=%s", pollInterfaceV2?"true":"false");
 
 				/*
-				 * Start the plugin. If it fails with an excpetion retry the start with a delay
+				 * Start the plugin. If it fails with an exception, retry the start with a delay
 				 * That delay starts at 500mS and will backoff to 1 minute
 				 *
 				 * We will continue to retry the start until the service is shutdown
@@ -547,6 +550,22 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 						}
 						else // V2 poll method
 						{
+							while(1)
+							{
+								unsigned int numPendingReconfs;
+								{
+									lock_guard<mutex> guard(m_pendingNewConfigMutex);
+									numPendingReconfs = m_pendingNewConfig.size();
+								}
+								// if a reconf is pending, make this poll thread yield CPU, sleep_for is needed to sleep this thread for sufficiently long time
+								if (numPendingReconfs)
+								{
+									Logger::getLogger()->debug("SouthService::start(): %d entries in m_pendingNewConfig, poll thread yielding CPU", numPendingReconfs);
+									std::this_thread::sleep_for(std::chrono::milliseconds(200));
+								}
+								else
+									break;
+							}
 							ReadingSet *set = southPlugin->pollV2();
 				if (set)
 				{
@@ -814,8 +833,11 @@ void SouthService::restart()
 
 /**
  * Configuration change notification
+ *
+ * @param categoryName	Category name
+ * @param category	Category value
  */
-void SouthService::configChange(const string& categoryName, const string& category)
+void SouthService::processConfigChange(const string& categoryName, const string& category)
 {
 	logger->info("Configuration change in category %s: %s", categoryName.c_str(),
 			category.c_str());
@@ -937,6 +959,89 @@ void SouthService::configChange(const string& categoryName, const string& catego
 	if (categoryName.compare(m_name+"Security") == 0)
 	{
 		this->updateSecurityCategory(category);
+	}
+}
+
+/**
+ * Separate thread to run plugin_reconf, to avoid blocking 
+ * service's management interface due to long plugin_poll calls
+ */
+static void reconfThreadMain(void *arg)
+{
+	SouthService *ss = (SouthService *)arg;
+	Logger::getLogger()->info("reconfThreadMain(): Spawned new thread for plugin reconf");
+	while(1)
+	{
+		ss->handlePendingReconf();
+	}
+	Logger::getLogger()->info("reconfThreadMain(): plugin reconf thread exiting");
+}
+
+/**
+ * Handle configuration change notification; called by reconf thread
+ * Waits for some reconf operation(s) to get queued up, then works thru' them
+ */
+void SouthService::handlePendingReconf()
+{
+	Logger::getLogger()->debug("SouthService::handlePendingReconf: Going into cv wait");
+	mutex mtx;
+	unique_lock<mutex> lck(mtx);
+	m_cvNewReconf.wait(lck);
+	Logger::getLogger()->debug("SouthService::handlePendingReconf: cv wait has completed; some reconf request(s) has/have been queued up");
+
+	while(1)
+	{
+		unsigned int numPendingReconfs = 0;
+		{
+			lock_guard<mutex> guard(m_pendingNewConfigMutex);
+			numPendingReconfs = m_pendingNewConfig.size();
+			if (numPendingReconfs)
+				Logger::getLogger()->debug("SouthService::handlePendingReconf(): will process %d entries in m_pendingNewConfig", numPendingReconfs);
+			else
+			{
+				Logger::getLogger()->debug("SouthService::handlePendingReconf DONE");
+				break;
+			}
+		}
+
+		for (unsigned int i=0; i<numPendingReconfs; i++)
+		{
+			logger->debug("SouthService::handlePendingReconf(): Handling Configuration change #%d", i);
+			std::pair<std::string,std::string> *reconfValue = NULL;
+			{
+				lock_guard<mutex> guard(m_pendingNewConfigMutex);
+				reconfValue = &m_pendingNewConfig[i];
+			}
+			std::string categoryName = reconfValue->first;
+			std::string category = reconfValue->second;
+			processConfigChange(categoryName, category);
+
+			logger->debug("SouthService::handlePendingReconf(): Handling of configuration change #%d done", i);
+		}
+		
+		{
+			lock_guard<mutex> guard(m_pendingNewConfigMutex);
+			for (unsigned int i=0; i<numPendingReconfs; i++)
+				m_pendingNewConfig.pop_front();
+			logger->debug("SouthService::handlePendingReconf DONE: first %d entry(ies) removed, m_pendingNewConfig new size=%d", numPendingReconfs, m_pendingNewConfig.size());
+		}
+	}
+}
+
+/**
+ * Configuration change notification using a separate thread
+ *
+ * @param categoryName	Category name
+ * @param category	Category value
+ */
+void SouthService::configChange(const string& categoryName, const string& category)
+{
+	{
+		lock_guard<mutex> guard(m_pendingNewConfigMutex);
+		m_pendingNewConfig.emplace_back(std::make_pair(categoryName, category));
+		Logger::getLogger()->debug("SouthService::reconfigure(): After adding new entry, m_pendingNewConfig.size()=%d", m_pendingNewConfig.size());
+
+		m_cvNewReconf.notify_all();
 	}
 }
 

@@ -34,6 +34,7 @@
  * keys and string values of the parsed JSON. This is destructive on the buffer.
  * However it can be quicker to maek a copy of the raw string and then do in-situ
  * parsing on that copy of the string.
+ * See http://rapidjson.org/md_doc_dom.html#InSituParsing
  *
  * Define a threshold length for the append readings to switch to using in-situ
  * parsing of the JSON to save on memory allocation overheads. Define as 0 to
@@ -565,7 +566,7 @@ int Connection::readingStream(ReadingStream **readings, bool commit)
 			else
 			{
 				raiseError("streamReadings",
-						   "Inserting a row into SQLIte using a prepared command - asset_code :%s: error :%s: reading :%s: ",
+						   "Inserting a row into SQLite using a prepared command - asset_code :%s: error :%s: reading :%s: ",
 						   asset_code,
 						   sqlite3_errmsg(dbHandle),
 						   reading.c_str());
@@ -675,7 +676,7 @@ int Connection::readingStream(ReadingStream **readings, bool commit)
 			else
 			{
 				raiseError("streamReadings",
-						   "Inserting a row into SQLIte using a prepared command - asset_code :%s: error :%s: reading :%s: ",
+						   "Inserting a row into SQLite using a prepared command - asset_code :%s: error :%s: reading :%s: ",
 						   asset_code,
 						   sqlite3_errmsg(dbHandle),
 						   reading.c_str());
@@ -688,7 +689,7 @@ int Connection::readingStream(ReadingStream **readings, bool commit)
 		rowNumber = curReading;
 	} catch (exception e) {
 
-		raiseError("appendReadings", "Inserting a row into SQLIte using a prepared statement  - error :%s:", e.what());
+		raiseError("appendReadings", "Inserting a row into SQLite using a prepared statement  - error :%s:", e.what());
 
 		sqlite3_exec(dbHandle, "ROLLBACK TRANSACTION", NULL, NULL, NULL);
 		m_streamOpenTransaction = true;
@@ -841,15 +842,18 @@ int sleep_time_ms = 0;
 	Value::ConstValueIterator itr = readingsValue.Begin();
 	SizeType nReadings = readingsValue.Size();
 	unsigned int nBatches = nReadings / APPEND_BATCH_SIZE;
+	Logger::getLogger()->debug("Write %d readings in %d batches of %d", nReadings, nBatches, APPEND_BATCH_SIZE);
        	for (int batch = 0; batch < nBatches; batch++)
 	{
 		int varNo = 1;
 		for (int readingNo = 0; readingNo < APPEND_BATCH_SIZE; readingNo++)
 		{
-			itr++;
 			if (!itr->IsObject())
 			{
-				raiseError("appendReadings","Each reading in the readings array must be an object");
+				char err[132];
+				snprintf(err, sizeof(err),
+						"Each reading in the readings array must be an object. Reading %d of batch %d", readingNo, batch);
+				raiseError("appendReadings",err);
 				sqlite3_exec(dbHandle, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
 				if (readingsCopy)
 				{
@@ -900,6 +904,10 @@ int sleep_time_ms = 0;
 					sqlite3_bind_text(batch_stmt, varNo++, reading.c_str(), -1, SQLITE_STATIC);
 				}
 			}
+
+			itr++;
+			if (itr == readingsValue.End())
+				break;
 		}
 
 
@@ -946,7 +954,7 @@ int sleep_time_ms = 0;
 		}
 		else
 		{
-			raiseError("appendReadings","Inserting a row into SQLIte using a prepared command - asset_code :%s: error :%s: reading :%s: ",
+			raiseError("appendReadings","Inserting a row into SQLite using a prepared command - asset_code :%s: error :%s: reading :%s: ",
 				asset_code,
 				sqlite3_errmsg(dbHandle),
 				reading.c_str());
@@ -962,6 +970,7 @@ int sleep_time_ms = 0;
 
 	}
 
+	Logger::getLogger()->debug("Now do the remaining readings");
 	// Do individual inserts for the remainder of the readings
 	while (itr != readingsValue.End())
 	{
@@ -1059,7 +1068,7 @@ int sleep_time_ms = 0;
 				}
 				else
 				{
-					raiseError("appendReadings","Inserting a row into SQLIte using a prepared command - asset_code :%s: error :%s: reading :%s: ",
+					raiseError("appendReadings","Inserting a row into SQLite using a prepared command - asset_code :%s: error :%s: reading :%s: ",
 						asset_code,
 						sqlite3_errmsg(dbHandle),
 						reading.c_str());

@@ -320,7 +320,7 @@ ReadingSet *StorageClient::readingFetch(const unsigned long readingId, const uns
 		{
 			ostringstream resultPayload;
 			resultPayload << res->content.rdbuf();
-			ReadingSet *result = new ReadingSet(resultPayload.str().c_str());
+			ReadingSet *result = new ReadingSet(resultPayload.str());
 			return result;
 		}
 		ostringstream resultPayload;

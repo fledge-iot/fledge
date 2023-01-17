@@ -373,7 +373,7 @@ void StorageService::start(string& coreAddress, unsigned short corePort)
 
 		// Now we are running force the plugin names back to the configuration manager to
 		// make sure they match what we are running. This can be out of sync if the storage
-		// configuration cache has been manaully reset or altered while Fledge was down
+		// configuration cache has been manually reset or altered while Fledge was down
 		client->setCategoryItemValue(STORAGE_CATEGORY, "plugin", config->getValue("plugin"));
 		client->setCategoryItemValue(STORAGE_CATEGORY, "readingPlugin", config->getValue("readingPlugin"));
 

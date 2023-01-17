@@ -16,13 +16,30 @@
 #include <random>
 
 // 1 enable performance tracking
-#define INSTRUMENT	1
+#define INSTRUMENT	0
 
 #if INSTRUMENT
 #include <sys/time.h>
 #endif
 
+/*
+ * The number of readings to insert in a single prepared statement
+ */
 #define APPEND_BATCH_SIZE	100
+
+/*
+ * JSON parsing requires a lot of mempry allocation, which is slow and causes
+ * bottlenecks with thread synchronisation. RapidJSON supports in-situ parsing
+ * whereby it will reuse the storage of the string it is parsing to store the
+ * keys and string values of the parsed JSON. This is destructive on the buffer.
+ * However it can be quicker to maek a copy of the raw string and then do in-situ
+ * parsing on that copy of the string.
+ *
+ * Define a threshold length for the append readings to switch to using in-situ
+ * parsing of the JSON to save on memory allocation overheads. Define as 0 to
+ * disable the in-situ parsing.
+ */
+#define INSITU_THRESHOLD	10240
 
 // Decode stream data
 #define	RDS_USER_TIMESTAMP(stream, x) 		stream[x]->userTs
@@ -758,22 +775,48 @@ int sleep_time_ms = 0;
 	gettimeofday(&start, NULL);
 #endif
 
-	ParseResult ok = doc.Parse(readings);
+	int len = strlen(readings) + 1;
+	char *readingsCopy = NULL;
+	ParseResult ok;
+#if INSITU_THRESHOLD
+	if (len > INSITU_THRESHOLD)
+	{
+		readingsCopy = (char *)malloc(len);
+		memcpy(readingsCopy, readings, len);
+		ok = doc.ParseInsitu(readingsCopy);
+	}
+	else
+#endif
+	{
+		ok = doc.Parse(readings);
+	}
 	if (!ok)
 	{
  		raiseError("appendReadings", GetParseError_En(doc.GetParseError()));
+		if (readingsCopy)
+		{
+			free(readingsCopy);
+		}
 		return -1;
 	}
 
 	if (!doc.HasMember("readings"))
 	{
  		raiseError("appendReadings", "Payload is missing a readings array");
+		if (readingsCopy)
+		{
+			free(readingsCopy);
+		}
 		return -1;
 	}
 	Value &readingsValue = doc["readings"];
 	if (!readingsValue.IsArray())
 	{
 		raiseError("appendReadings", "Payload is missing the readings array");
+		if (readingsCopy)
+		{
+			free(readingsCopy);
+		}
 		return -1;
 	}
 
@@ -808,6 +851,10 @@ int sleep_time_ms = 0;
 			{
 				raiseError("appendReadings","Each reading in the readings array must be an object");
 				sqlite3_exec(dbHandle, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
+				if (readingsCopy)
+				{
+					free(readingsCopy);
+				}
 				return -1;
 			}
 
@@ -892,7 +939,7 @@ int sleep_time_ms = 0;
 
 		if (sqlite3_resut == SQLITE_DONE)
 		{
-			row++;
+			row += APPEND_BATCH_SIZE;
 
 			sqlite3_clear_bindings(batch_stmt);
 			sqlite3_reset(batch_stmt);
@@ -905,6 +952,10 @@ int sleep_time_ms = 0;
 				reading.c_str());
 
 			sqlite3_exec(dbHandle, "ROLLBACK TRANSACTION", NULL, NULL, NULL);
+			if (readingsCopy)
+			{
+				free(readingsCopy);
+			}
 			return -1;
 		}
 
@@ -918,6 +969,10 @@ int sleep_time_ms = 0;
 		{
 			raiseError("appendReadings","Each reading in the readings array must be an object");
 			sqlite3_exec(dbHandle, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
+			if (readingsCopy)
+			{
+				free(readingsCopy);
+			}
 			return -1;
 		}
 
@@ -1010,6 +1065,10 @@ int sleep_time_ms = 0;
 						reading.c_str());
 
 					sqlite3_exec(dbHandle, "ROLLBACK TRANSACTION", NULL, NULL, NULL);
+					if (readingsCopy)
+					{
+						free(readingsCopy);
+					}
 					return -1;
 				}
 			}
@@ -1039,6 +1098,10 @@ int sleep_time_ms = 0;
 		}
 	}
 
+	if (readingsCopy)
+	{
+		free(readingsCopy);
+	}
 #if INSTRUMENT
 		gettimeofday(&t3, NULL);
 #endif

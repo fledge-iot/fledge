@@ -62,7 +62,13 @@ ReadingSet::ReadingSet(const vector<Reading *>* readings) : m_last_id(0)
 
 /**
  * Construct a reading set from a JSON document returned from
- * the Fledge storage service query or notification.
+ * the Fledge storage service query or notification. The JSON
+ * is parsed using the in-situ RapidJSON parser in order to
+ * reduce overhead on what is most likely a large JSON document.
+ *
+ * WARNING: Although the string passed in is defiend as const
+ * this call is destructive to this string and the conntents
+ * of the string should not be used after making this call.
  *
  * @param json	The JSON document (as string) with readings data
  */
@@ -70,16 +76,9 @@ ReadingSet::ReadingSet(const std::string& json) : m_last_id(0)
 {
 	unsigned long rows = 0;
 	Document doc;
-	char *copy = (char *)malloc(json.length() + 1);
-	if (!copy)
-	{
-		throw new ReadingSetException("Insufficient memory to hold reading set");
-	}
-	memcpy(copy, json.c_str(), json.length() + 1);
-	doc.ParseInsitu(copy);
+	doc.ParseInsitu((char *)json.c_str());	// Cast away const in order to use in-situ
 	if (doc.HasParseError())
 	{
-		free(copy);
 		throw new ReadingSetException("Unable to parse results json document");
 	}
 	// Check we have "count" and "rows"
@@ -89,7 +88,6 @@ ReadingSet::ReadingSet(const std::string& json) : m_last_id(0)
 	// Check we have "rows" or "readings"
 	if (!docHasRows && !docHasReadings)
 	{
-		free(copy);
 		throw new ReadingSetException("Missing readings or rows array");
 	}
 
@@ -101,7 +99,6 @@ ReadingSet::ReadingSet(const std::string& json) : m_last_id(0)
 		if (!m_count)
 		{
 			m_last_id = 0;
-			free(copy);
 			return;
 		}
 	}
@@ -122,7 +119,6 @@ ReadingSet::ReadingSet(const std::string& json) : m_last_id(0)
 		{
 			if (!reading.IsObject())
 			{
-				free(copy);
 				throw new ReadingSetException("Expected reading to be an object");
 			}
 			JSONReading *value = new JSONReading(reading);
@@ -149,10 +145,8 @@ ReadingSet::ReadingSet(const std::string& json) : m_last_id(0)
 	}
 	else
 	{
-		free(copy);
 		throw new ReadingSetException("Expected array of rows in result set");
 	}
-	free(copy);
 }
 
 /**

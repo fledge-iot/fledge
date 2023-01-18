@@ -124,13 +124,6 @@ void filter_plugin_ingest_fn(PyObject *ingest_callback,
 					   readingsObj);
 		return;
 	}
-
-#if 0
-	PyObject* objectsRepresentation = PyObject_Repr(readingsObj);
-	const char* s = PyUnicode_AsUTF8(objectsRepresentation);
-	Logger::getLogger()->debug("filter_plugin_ingest_fn:L%d : Py2C: filtered readings=%s", __LINE__, s);
-	Py_CLEAR(objectsRepresentation);
-#endif
 	
 	PythonReadingSet *pyReadingSet = NULL;
     

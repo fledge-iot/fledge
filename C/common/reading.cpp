@@ -12,6 +12,7 @@
 #include <string>
 #include <sstream>
 #include <iostream>
+#include <mutex>
 #include <time.h>
 #include <string.h>
 #include <logger.h>
@@ -237,8 +238,11 @@ void Reading::getFormattedDateTimeStr(const time_t *tv_sec, char *date_time, rea
 	static unsigned long cached_sec_since_epoch = 0;
 	static char cached_date_time_str[DATE_TIME_BUFFER_LEN] = "";
 	static readingTimeFormat cachedDateFormat = (readingTimeFormat) 0xff;
+	static std::mutex mtx;
 
-	if(strlen(cached_date_time_str) && cached_sec_since_epoch && *tv_sec == cached_sec_since_epoch && cachedDateFormat == dateFormat)
+	std::unique_lock<std::mutex> lck(mtx);
+
+	if(*cached_date_time_str && cached_sec_since_epoch && *tv_sec == cached_sec_since_epoch && cachedDateFormat == dateFormat)
 	{
 		strncpy(date_time, cached_date_time_str, DATE_TIME_BUFFER_LEN);
 		date_time[DATE_TIME_BUFFER_LEN-1] = '\0';
@@ -391,37 +395,45 @@ void Reading::setUserTimestamp(const string& timestamp)
  */
 void Reading::stringToTimestamp(const string& timestamp, struct timeval *ts)
 {
-	char date_time [DATE_TIME_BUFFER_LEN];
-
-	strcpy (date_time, timestamp.c_str());
-
+	static std::mutex mtx;
 	static char cached_timestamp_upto_min[32] = "";
 	static unsigned long cached_sec_since_epoch = 0;
 
 	const int timestamp_str_len_till_min = 16;
 	const int timestamp_str_len_till_sec = 19;
-	char timestamp_sec[32];
-	strncpy(timestamp_sec, date_time, timestamp_str_len_till_sec);
-	timestamp_sec[timestamp_str_len_till_sec] = '\0';
-	if(strlen(cached_timestamp_upto_min) && cached_sec_since_epoch && (strncmp(timestamp_sec, cached_timestamp_upto_min, timestamp_str_len_till_min) == 0))
-	{
-		int sec_part = strtoul(timestamp_sec+timestamp_str_len_till_min+1, NULL, 10);
-		ts->tv_sec = cached_sec_since_epoch + sec_part;
-	}
-	else
-	{
-		struct tm tm;
-		memset(&tm, 0, sizeof(struct tm));
-		strptime(date_time, "%Y-%m-%d %H:%M:%S", &tm);
-		// Convert time to epoch - mktime assumes localtime so most adjust for that
-		ts->tv_sec = mktime(&tm);
+	
+	char date_time [DATE_TIME_BUFFER_LEN];
 
-		extern long timezone;
-		ts->tv_sec -= timezone;
+	strcpy (date_time, timestamp.c_str());
 
-		strncpy(cached_timestamp_upto_min, timestamp_sec, timestamp_str_len_till_min);
-		cached_timestamp_upto_min[timestamp_str_len_till_min] = '\0';
-		cached_sec_since_epoch = ts->tv_sec - tm.tm_sec;  // store only for upto-minute part
+	{
+		lock_guard<mutex> guard(mtx);
+		
+		char timestamp_sec[32];
+		strncpy(timestamp_sec, date_time, timestamp_str_len_till_sec);
+		timestamp_sec[timestamp_str_len_till_sec] = '\0';
+		if(*cached_timestamp_upto_min && cached_sec_since_epoch && (strncmp(timestamp_sec, cached_timestamp_upto_min, timestamp_str_len_till_min) == 0))
+		{
+			// cache hit
+			int sec_part = strtoul(timestamp_sec+timestamp_str_len_till_min+1, NULL, 10);
+			ts->tv_sec = cached_sec_since_epoch + sec_part;
+		}
+		else
+		{
+			// cache miss
+			struct tm tm;
+			memset(&tm, 0, sizeof(struct tm));
+			strptime(date_time, "%Y-%m-%d %H:%M:%S", &tm);
+			// Convert time to epoch - mktime assumes localtime so most adjust for that
+			ts->tv_sec = mktime(&tm);
+
+			extern long timezone;
+			ts->tv_sec -= timezone;
+
+			strncpy(cached_timestamp_upto_min, timestamp_sec, timestamp_str_len_till_min);
+			cached_timestamp_upto_min[timestamp_str_len_till_min] = '\0';
+			cached_sec_since_epoch = ts->tv_sec - tm.tm_sec;  // store only for upto-minute part
+		}
 	}
 	
 	// Now process the fractional seconds

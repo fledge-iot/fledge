@@ -4,7 +4,7 @@
  * Copyright (c) 2018 Dianomic Systems
  *
  * Released under the Apache 2.0 Licence
- *
+ 
  * Author: Mark Riddoch, Massimiliano Pinto
  */
 #include <config_category.h>
@@ -468,6 +468,12 @@ string ConfigCategory::getItemAttribute(const string& itemName,
 					return m_items[i]->m_validity;
 				case GROUP_ATTR:
 					return m_items[i]->m_group;
+				case DISPLAY_NAME_ATTR:
+					return m_items[i]->m_displayName;
+				case DEPRECATED_ATTR:
+					return m_items[i]->m_deprecated;
+				case RULE_ATTR:
+					return m_items[i]->m_rule;
 				default:
 					throw new ConfigItemAttributeNotFound();
 			}
@@ -523,6 +529,15 @@ bool ConfigCategory::setItemAttribute(const string& itemName,
 					return true;
 				case GROUP_ATTR:
 					m_items[i]->m_group = value;
+					return true;
+				case DISPLAY_NAME_ATTR:
+					m_items[i]->m_displayName = value;
+					return true;
+				case DEPRECATED_ATTR:
+					m_items[i]->m_deprecated = value;
+					return true;
+				case RULE_ATTR:
+					m_items[i]->m_rule = value;
 					return true;
 				default:
 					return false;
@@ -1057,6 +1072,15 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 		m_group = "";
 	}
 
+	if (item.HasMember("rule"))
+	{
+		m_rule = item["rule"].GetString();
+	}
+	else
+	{
+		m_rule = "";
+	}
+
 	if (item.HasMember("options"))
 	{
 		const Value& options = item["options"];
@@ -1339,6 +1363,7 @@ ConfigCategory::CategoryItem::CategoryItem(const CategoryItem& rhs)
        	m_itemType = rhs.m_itemType;
 	m_validity = rhs.m_validity;
 	m_group = rhs.m_group;
+	m_rule = rhs.m_rule;
 }
 
 /**
@@ -1424,6 +1449,11 @@ ostringstream convert;
 			convert << ", \"validity\" : \"" << JSONescape(m_validity) << "\"";
 		}
 
+		if (!m_rule.empty())
+		{
+			convert << ", \"rule\" : \"" << JSONescape(m_rule) << "\"";
+		}
+
 		if (!m_group.empty())
 		{
 			convert << ", \"group\" : \"" << m_group << "\"";
@@ -1499,6 +1529,11 @@ ostringstream convert;
 	if (!m_validity.empty())
 	{
 		convert << ", \"validity\" : \"" << JSONescape(m_validity) << "\"";
+	}
+
+	if (!m_rule.empty())
+	{
+		convert << ", \"rule\" : \"" << JSONescape(m_rule) << "\"";
 	}
 
 	if (!m_group.empty())

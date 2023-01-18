@@ -2,6 +2,7 @@
  * Fledge PI Server north plugin.
  *
  * Copyright (c) 2018-2022 Dianomic Systems
+ 
  *
  * Released under the Apache 2.0 Licence
  *
@@ -980,6 +981,13 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 		connInfo->omfversion = EDS_OMF_VERSION;
 	}
 #endif
+
+	// Version for Connector Relay is 1.0 only.
+	if (connInfo->PIServerEndpoint == ENDPOINT_CR)
+	{
+		connInfo->omfversion = CR_OMF_VERSION;
+	}
+
 	connInfo->omf->setOMFVersion(connInfo->omfversion);
 
 	// Generates the prefix to have unique asset_id across different levels of hierarchies
@@ -997,8 +1005,14 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 	connInfo->omf->setStaticData(&connInfo->staticData);
 	connInfo->omf->setNotBlockingErrors(connInfo->notBlockingErrors);
 
-	connInfo->omf->setLegacyMode(connInfo->legacy);
-
+	if (connInfo->omfversion == "1.1" || connInfo->omfversion == "1.0") {
+		Logger::getLogger()->info("Setting LegacyType to be true for OMF Version '%s'. This will force use old style complex types. ", connInfo->omfversion.c_str());
+		connInfo->omf->setLegacyMode(true);
+	}
+	else
+	{
+		connInfo->omf->setLegacyMode(connInfo->legacy);
+	}
 	// Send the readings data to the PI Server
 	uint32_t ret = connInfo->omf->sendToServer(readings,
 						   connInfo->compression);

@@ -309,6 +309,17 @@ const char* bigCategory =
 			"\"description\": \"Defines\"} " \
 		"}";
 
+const char *optionals = 
+	"{\"item1\" : { "\
+			"\"type\": \"integer\", \"displayName\": \"Item1\", " \
+			"\"value\": \"3\", \"default\": \"3\", " \
+			"\"description\": \"First Item\", " \
+			"\"group\" : \"Group1\", " \
+			"\"rule\" : \"1 = 0\", " \
+			"\"deprecated\" : \"false\", " \
+			"\"order\": \"10\"} "
+		"}";
+
 TEST(CategoriesTest, Count)
 {
 	ConfigCategories confCategories(categories);
@@ -615,3 +626,17 @@ TEST(CategoryTest, categoryValues)
         ASSERT_EQ(true, complex.getValue("plugin").compare("OMF") == 0);
         ASSERT_EQ(true, complex.getValue("OMFMaxRetry").compare("3") == 0);
 }
+
+
+/**
+ * Test optional attributes
+ */
+TEST(CategoryTest, optionalItems)
+{
+	ConfigCategory category("optional", optionals);
+	ASSERT_EQ(0, category.getItemAttribute("item1", ConfigCategory::GROUP_ATTR).compare("Group1"));
+	ASSERT_EQ(0, category.getItemAttribute("item1", ConfigCategory::DEPRECATED_ATTR).compare("false"));
+	ASSERT_EQ(0, category.getItemAttribute("item1", ConfigCategory::RULE_ATTR).compare("1 = 0"));
+	ASSERT_EQ(0, category.getItemAttribute("item1", ConfigCategory::DISPLAY_NAME_ATTR).compare("Item1"));
+}
+

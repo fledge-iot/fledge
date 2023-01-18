@@ -124,8 +124,9 @@ string	cachefile;
 		m_logger->info("Storage cache %s unreadable, using default configuration: %s.",
 				cachefile.c_str(), m_defaultConfiguration.c_str());
 		ConfigCategory confCategory("tmp", m_defaultConfiguration.c_str());
+		const bool full = true;
 		confCategory.setItemsValueFromDefault();
-		m_document->Parse(confCategory.itemsToJSON().c_str());
+		m_document->Parse(confCategory.itemsToJSON(full).c_str());
 		if (m_document->HasParseError())
 		{
 			m_logger->error("Default configuration failed to parse. %s at %d",

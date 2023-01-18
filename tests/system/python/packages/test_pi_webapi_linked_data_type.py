@@ -27,7 +27,7 @@ import ssl
 import csv
 
 ASSET = "PUMP"
-SOUTH_PLUGINS_LIST = ["sinusoid", "random"]
+SOUTH_PLUGINS_LIST = ["sinusoid", "randomwalk"]
 NORTH_INSTANCE_NAME = "NorthReadingsToPI_WebAPI"
 SOUTH_SERVICE_NAME = "PUMP"
 # This  gives the path of directory where fledge is cloned. test_file < packages < python < system < tests < ROOT
@@ -116,11 +116,11 @@ def start_south_north(add_south, start_north_task_omf_web_api, add_filter, remov
     # south_branch does not matter as these are archives.fledge-iot.org version install
     _config = {"assetName": {"value": ASSET}}
     
-    for plugin in SOUTH_PLUGINS_LIST:
+    for south_plugin in SOUTH_PLUGINS_LIST:
         add_south(south_plugin, None, fledge_url, config=_config, 
-                  service_name="{0}_{1}".format(SOUTH_SERVICE_NAME, plugin), installation_type='package')
+                  service_name="{0}_{1}".format(SOUTH_SERVICE_NAME, south_plugin), installation_type='package')
     
-    start_north_omf_as_a_service(fledge_url, pi_host, pi_port, pi_user=pi_admin, pi_pwd=pi_passwd, pi_use_legacy="false"
+    start_north_omf_as_a_service(fledge_url, pi_host, pi_port, pi_user=pi_admin, pi_pwd=pi_passwd, pi_use_legacy="false",
                                  service_name=NORTH_INSTANCE_NAME, default_af_location=AF_HIERARCHY_LEVEL)
 
 class Test_linked_data_PIWebAPI:

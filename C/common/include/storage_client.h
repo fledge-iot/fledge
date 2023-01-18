@@ -26,7 +26,7 @@
 
 using HttpClient = SimpleWeb::Client<SimpleWeb::HTTP>;
 
-#define STREAM_BLK_SIZE 	50	// Readings to send per write call to a stream
+#define STREAM_BLK_SIZE 	100	// Readings to send per write call to a stream
 #define STREAM_THRESHOLD	25	// Switch to streamed mode above this number of readings per second
 
 // Backup values for repeated storage client exception messages

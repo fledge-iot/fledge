@@ -1256,14 +1256,11 @@ string	responsePayload;
 /**
  * Append the readings that have arrived via a stream to the storage plugin
  *
- * @param readings	A Null terminiunated array of points to ReadingStream structures
+ * @param readings	A Null terminated array of points to ReadingStream structures
  * @param commit	A flag to commit the readings block
  */
 bool StorageApi::readingStream(ReadingStream **readings, bool commit)
 {
-	int c;
-	for (c = 0; readings[c]; c++);
-	Logger::getLogger()->debug("ReadingStream called with %d", c);
 	if ((readingPlugin ? readingPlugin : plugin)->hasStreamSupport())
 	{
 		return (readingPlugin ? readingPlugin : plugin)->readingStream(readings, commit);

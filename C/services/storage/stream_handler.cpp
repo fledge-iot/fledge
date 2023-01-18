@@ -11,7 +11,6 @@
 #include <storage_api.h>
 #include <storage_api.h>
 #include <reading_stream.h>
-#include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <fcntl.h>
@@ -74,11 +73,27 @@ void StreamHandler::handler()
 		}
 		else
 		{
-			int nfds = epoll_wait(m_pollfd, events, MAX_EVENTS, 1);
-			for (int i = 0; i < nfds; i++)
+			/*
+			 * Call epoll_wait with a zero timeout to see if any data is available.
+			 * If not then call with a tiemout. This prevents Linux from scheduling
+			 * us out if there is data on the socket.
+			 */
+			int nfds = epoll_wait(m_pollfd, events, MAX_EVENTS, 100);
+			if (nfds == 0)
 			{
-				Stream *stream = (Stream *)events[i].data.ptr;
-				stream->handleEvent(m_pollfd, m_api, events[i].events);
+				nfds = epoll_wait(m_pollfd, events, MAX_EVENTS, 100);
+			}
+			if (nfds == -1)
+			{
+				Logger::getLogger()->error("Stream epoll error: %s", strerror(errno));
+			}
+			else
+			{
+				for (int i = 0; i < nfds; i++)
+				{
+					Stream *stream = (Stream *)events[i].data.ptr;
+					stream->handleEvent(m_pollfd, m_api, events[i].events);
+				}
 			}
 		}
 	}
@@ -125,6 +140,9 @@ StreamHandler::Stream::~Stream()
  * will connect to this port and then send the token to verify they are the 
  * service that requested the stream to be connected.
  *
+ * The client calls a REST API endpoint in the storage layer to request a streaming
+ * connection which results in this method beign called.
+ *
  * @param epollfd	The epoll descriptor
  * @param token		The single use token the client will send in the connect request
  */
@@ -132,12 +150,14 @@ uint32_t StreamHandler::Stream::create(int epollfd, uint32_t *token)
 {
 struct sockaddr_in	address;
 
+	// Create the memory pool from whuch readings will be allocated
 	if ((m_blockPool = new MemoryPool(BLOCK_POOL_SIZES)) == NULL)
 	{
 		Logger::getLogger()->error("Failed to create memory block pool");
 		return 0;
 	}
 
+	// Open the socket used to listen for the incoming stream connection
 	if ((m_socket = socket(AF_INET, SOCK_STREAM, 0)) < 0)
 	{
 		Logger::getLogger()->error("Failed to create socket: %s", strerror(errno));
@@ -166,13 +186,15 @@ struct sockaddr_in	address;
     	}
 	m_status = Listen;
 
+	// Create the random token that is used to verify the connection comes from the
+	// source that requested the streaming connection
 	srand(m_port + (unsigned int)time(0));
 	m_token = (uint32_t)random() & 0xffffffff;
 	*token = m_token;
 
 	// Add to epoll set
 	m_event.data.ptr = this;
-	m_event.events = EPOLLIN | EPOLLRDHUP;
+	m_event.events = EPOLLIN | EPOLLRDHUP | EPOLLHUP | EPOLLPRI | EPOLLERR;
 	if (epoll_ctl(epollfd, EPOLL_CTL_ADD, m_socket, &m_event) < 0)
 	{
 		Logger::getLogger()->error("Failed to add listening port %d to epoll fileset, %s", m_port, strerror(errno));
@@ -198,6 +220,10 @@ void StreamHandler::Stream::setNonBlocking(int fd)
  * Handle an epoll event. The precise handling will depend
  * on the state of the stream.
  *
+ * One of the things done here is to handle the streaming protocol,
+ * reading the block header the individual reading headers and the
+ * readings themselves. 
+ *
  * TODO Improve memory handling, use seperate threads for inserts, send acknowledgements
  *
  * @param epollfd	The epoll file descriptor
@@ -211,12 +237,38 @@ ssize_t n;
 		// TODO mark this stream for destruction
 		epoll_ctl(epollfd, EPOLL_CTL_DEL, m_socket, &m_event);
 		close(m_socket);
-		Logger::getLogger()->warn("Closing stream...");
+		Logger::getLogger()->error("Closing stream...");
+		m_status = Closed;
+	}
+	if (events & EPOLLHUP)
+	{
+		// TODO mark this stream for destruction
+		epoll_ctl(epollfd, EPOLL_CTL_DEL, m_socket, &m_event);
+		close(m_socket);
+		Logger::getLogger()->error("Hangup on socket Closing stream...");
+		m_status = Closed;
+	}
+	if (events & EPOLLPRI)
+	{
+		// TODO mark this stream for destruction
+		epoll_ctl(epollfd, EPOLL_CTL_DEL, m_socket, &m_event);
+		close(m_socket);
+		Logger::getLogger()->error("Eceptional condition  on socket Closing stream...");
+		m_status = Closed;
+	}
+	if (events & EPOLLERR)
+	{
+		// TODO mark this stream for destruction
+		epoll_ctl(epollfd, EPOLL_CTL_DEL, m_socket, &m_event);
+		close(m_socket);
+		m_status = Closed;
+		Logger::getLogger()->error("Error condition  on socket Closing stream...");
 	}
 	if (events & EPOLLIN)
 	{
 		if (m_status == Listen)
 		{
+			// Accept the connection for the streaming data
 			int conn_sock;
 			struct sockaddr	addr;
 			socklen_t	addrlen = sizeof(addr);
@@ -226,15 +278,19 @@ ssize_t n;
 				Logger::getLogger()->info("Accept failed for streaming socket: %s", strerror(errno));
 				return;
 			}
+
+			// Remove and close the listening socket now we have a connection
 			epoll_ctl(epollfd, EPOLL_CTL_DEL, m_socket, &m_event);
 			close(m_socket);
 			Logger::getLogger()->info("Stream connection established");
 			m_socket = conn_sock;
 			m_status = AwaitingToken;
-			setNonBlocking(m_socket);
-			m_event.events = EPOLLIN | EPOLLRDHUP;
+			m_event.events = EPOLLIN | EPOLLRDHUP | EPOLLHUP | EPOLLERR | EPOLLPRI | EPOLLET;
 			m_event.data.ptr = this;
-			epoll_ctl(epollfd, EPOLL_CTL_ADD, m_socket, &m_event);
+			if (epoll_ctl(epollfd, EPOLL_CTL_ADD, m_socket, &m_event) == -1)
+			{
+				Logger::getLogger()->fatal("Failed to add data socket to epoll set: %s", strerror(errno));
+			}
 		}
 		else if (m_status == AwaitingToken)
 		{
@@ -244,7 +300,10 @@ ssize_t n;
 				return;
 			}
 			if ((n = read(m_socket, &hdr, sizeof(hdr))) != (int)sizeof(hdr))
-				Logger::getLogger()->warn("Token exchange: Short read of %d bytes: %s", n, strerror(errno));
+			{
+				Logger::getLogger()->warn("Token exchange failed: Short read of %d bytes: %s", n, strerror(errno));
+				return;
+			}
 			if (hdr.magic == RDS_CONNECTION_MAGIC && hdr.token == m_token)
 			{
 				m_status = Connected;
@@ -261,6 +320,18 @@ ssize_t n;
 		}
 		else if (m_status == Connected)
 		{
+			/*
+			 * We are connected so loop on the available data reading block headers,
+			 * reading headers and the readings themselves.
+			 *
+			 * We use the available method to see if there is enough data before we
+			 * read in order to avoid blocking in a red call. This also allows to
+			 * not have to set the socket to non-blocking mode. meaning that our
+			 * epoll interaction does not need to be edge triggered.
+			 *
+			 * Once we exhaust the data that is aviaabnle we return and allow the
+			 * epoll to inform us when more data becomes available.
+			 */
 			while (1)
 			{
 				Logger::getLogger()->debug("Connected in protocol state %d, readingNo %d", m_protocolState, m_readingNo);
@@ -274,8 +345,7 @@ ssize_t n;
 					}
 					if ((n = read(m_socket, &blkHdr, sizeof(blkHdr))) != (int)sizeof(blkHdr))
 					{
-						if (errno == EAGAIN)
-							return;
+						// This should never happen as avialable said we had enough data
 						Logger::getLogger()->warn("Block Header: Short read of %d bytes: %s", n, strerror(errno));
 						return;
 					}
@@ -289,26 +359,38 @@ ssize_t n;
 					}
 					if (blkHdr.blockNumber != m_blockNo)
 					{
+						// Somehow we lost a block
 					}
 					m_blockNo++;
 					m_blockSize = blkHdr.count;
 					m_protocolState = RdHdr;
 					m_readingNo = 0;
-					Logger::getLogger()->debug("New block %d of %d readings", blkHdr.blockNumber, blkHdr.count);
+					Logger::getLogger()->info("New block %d of %d readings", blkHdr.blockNumber, blkHdr.count);
 				}
 				else if (m_protocolState == RdHdr)
 				{
+					// We are expecting a reading header
 					RDSReadingHeader rdhdr;
 					if (available(m_socket) < sizeof(rdhdr))
 					{
-						Logger::getLogger()->debug("Not enough bytes for reading header");
+						Logger::getLogger()->warn("Not enough bytes %d for reading header %d in block %d (socket %d)", available(m_socket), m_readingNo, m_blockNo - 1, m_socket);
+						static bool reported = false;
+						if (!reported)
+						{
+							char buf[40];
+							int i;
+							i = recv(m_socket, buf, sizeof(buf), MSG_PEEK);
+							for (int j = 0; j < i; j++)
+								Logger::getLogger()->warn("Byte at %d is %x", j, buf[j]);
+							reported = true;
+						}
 						return;
 					}
-					if (read(m_socket, &rdhdr, sizeof(rdhdr)) < (int)sizeof(rdhdr))
+					int n;
+					if ((n = read(m_socket, &rdhdr, sizeof(rdhdr))) < (int)sizeof(rdhdr))
 					{
-						if (errno == EAGAIN)
-							return;
-						Logger::getLogger()->warn("Not enough bytes for reading header");
+						// Should never happen
+						Logger::getLogger()->warn("Not enough bytes read %d for reading header", n);
 						return;
 					}
 					if (rdhdr.magic != RDS_READING_MAGIC)
@@ -341,28 +423,45 @@ ssize_t n;
 				}
 				else if (m_protocolState == RdBody)
 				{
+					// We are expecting a reading body
 					if (available(m_socket) < m_readingSize)
 					{
-						Logger::getLogger()->debug("Not enough bytes for reading %d", m_readingSize);
+						Logger::getLogger()->warn("Not enough bytes %d for reading %d in block %d", m_readingSize, m_readingNo, m_blockNo - 1);
 						return;
 					}
-					if (m_sameAsset)
+					struct iovec iov[3];
+
+					iov[0].iov_base = &m_currentReading->userTs;
+					iov[0].iov_len = sizeof(struct timeval);
+
+					if (!m_sameAsset)
 					{
-						if ((n = read(m_socket, &m_currentReading->userTs, sizeof(struct timeval))) != (int)sizeof(struct timeval))
-							Logger::getLogger()->warn("Short read of %d bytes for timestamp: %s", n, strerror(errno));
-						size_t plen = m_readingSize - sizeof(struct timeval);
-						uint32_t assetLen = m_currentReading->assetCodeLength;
-						if ((n = read(m_socket, &m_currentReading->assetCode[assetLen], plen)) < (int)plen)
-							Logger::getLogger()->warn("Short read of %d bytes for payload: %s", n, strerror(errno));
-						memcpy(&m_currentReading->assetCode[0], m_lastAsset.c_str(), assetLen);
+						iov[1].iov_base = &m_currentReading->assetCode;
+						iov[1].iov_len = m_currentReading->assetCodeLength;
+						iov[2].iov_base = &m_currentReading->assetCode[m_currentReading->assetCodeLength];
+						iov[2].iov_len = m_currentReading->payloadLength;
+						int n = readv(m_socket, iov, 3);
+						if (n != m_currentReading->assetCodeLength +
+								m_currentReading->payloadLength + sizeof(struct timeval))
+						{
+							Logger::getLogger()->error("Short red for reading");
+						}
+
+						m_lastAsset = m_currentReading->assetCode;
 					}
 					else
 					{
-						if ((n = read(m_socket, &m_currentReading->userTs, m_readingSize)) != (int)m_readingSize)
-							Logger::getLogger()->warn("Short read of %d bytes for reading: %s", n, strerror(errno));
-						m_lastAsset = m_currentReading->assetCode;
+						iov[1].iov_base = &m_currentReading->assetCode[m_currentReading->assetCodeLength];
+						iov[1].iov_len = m_currentReading->payloadLength;
+						int n = readv(m_socket, iov, 2);
+						if (n != m_currentReading->payloadLength + sizeof(struct timeval))
+						{
+							Logger::getLogger()->error("Short red for reading");
+						}
+						memcpy(&m_currentReading->assetCode[0], m_lastAsset.c_str(), m_currentReading->assetCodeLength);
 					}
 					m_readingNo++;
+					m_protocolState = RdHdr;
 					if ((m_readingNo % RDS_BLOCK) == 0)
 					{
 						queueInsert(api, RDS_BLOCK, false);
@@ -376,14 +475,12 @@ ssize_t n;
 						queueInsert(api, m_readingNo % RDS_BLOCK, true);
 						for (uint32_t i = 0; i < m_readingNo % RDS_BLOCK; i++)
 							m_blockPool->release(m_readings[i]);
-					}
-					if (m_readingNo >= m_blockSize)
-					{
 						m_protocolState = BlkHdr;
+						Logger::getLogger()->warn("Waiting for the next block header");
 					}
-					else
+					else if (m_readingNo > m_blockSize)
 					{
-						m_protocolState = RdHdr;
+						Logger::getLogger()->error("Too many readings in block");
 					}
 				}
 			}

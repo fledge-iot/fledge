@@ -226,6 +226,46 @@ ostringstream convert;
 }
 
 /**
+ * Convert time since epoch to a formatted m_timestamp DataTime in UTC 
+ * and use a cache to speed it up
+ * @param tv_sec	Seconds since epoch
+ * @param date_time	Buffer in which to return the formatted timestamp
+ * @param dateFormat	Format: FMT_DEFAULT or FMT_STANDARD
+ */
+void Reading::getFormattedDateTimeStr(const time_t *tv_sec, char *date_time, readingTimeFormat dateFormat) const
+{
+	static unsigned long cached_sec_since_epoch = 0;
+	static char cached_date_time_str[DATE_TIME_BUFFER_LEN] = "";
+
+	if(strlen(cached_date_time_str) && cached_sec_since_epoch && *tv_sec == cached_sec_since_epoch)
+	{
+		strncpy(date_time, cached_date_time_str, DATE_TIME_BUFFER_LEN);
+		date_time[DATE_TIME_BUFFER_LEN-1] = '\0';
+		return;
+	}
+
+	struct tm timeinfo;
+	gmtime_r(tv_sec, &timeinfo);
+
+	/**
+	 * Build date_time with format YYYY-MM-DD HH24:MM:SS.MS+00:00
+	 * this is same as Python3:
+	 * datetime.datetime.now(tz=datetime.timezone.utc)
+	 */
+
+	// Create datetime with seconds
+	std::strftime(date_time, DATE_TIME_BUFFER_LEN,
+	      m_dateTypes[dateFormat].c_str(),
+                  &timeinfo);
+
+	// update cache
+	strncpy(cached_date_time_str, date_time, DATE_TIME_BUFFER_LEN);
+	cached_date_time_str[DATE_TIME_BUFFER_LEN-1] = '\0';
+	cached_sec_since_epoch = *tv_sec;
+}
+
+
+/**
  * Return a formatted m_timestamp DataTime in UTC
  * @param dateFormat    Format: FMT_DEFAULT or FMT_STANDARD
  * @return              The formatted datetime string
@@ -236,20 +276,7 @@ char date_time[DATE_TIME_BUFFER_LEN];
 char micro_s[10];
 char  assetTime[DATE_TIME_BUFFER_LEN + 20];
 
-        // Populate tm structure
-        struct tm timeinfo;
-	gmtime_r(&m_timestamp.tv_sec, &timeinfo);
-
-        /**
-         * Build date_time with format YYYY-MM-DD HH24:MM:SS.MS+00:00
-         * this is same as Python3:
-         * datetime.datetime.now(tz=datetime.timezone.utc)
-         */
-
-        // Create datetime with seconds
-        std::strftime(date_time, sizeof(date_time),
-		      m_dateTypes[dateFormat].c_str(),
-                      &timeinfo);
+	getFormattedDateTimeStr(&m_timestamp.tv_sec, date_time, dateFormat);
 
 	if (dateFormat != FMT_ISO8601 && addMS)
 	{
@@ -293,21 +320,8 @@ const string Reading::getAssetDateUserTime(readingTimeFormat dateFormat, bool ad
 	char micro_s[10];
 	char  assetTime[DATE_TIME_BUFFER_LEN + 20];
 
-	// Populate tm structure with UTC time
-	struct tm timeinfo;
-	gmtime_r(&m_userTimestamp.tv_sec, &timeinfo);
-
-	/**
-	 * Build date_time with format YYYY-MM-DD HH24:MM:SS.MS+00:00
-	 * this is same as Python3:
-	 * datetime.datetime.now(tz=datetime.timezone.utc)
-	 */
-
-	// Create datetime with seconds
-	std::strftime(date_time, sizeof(date_time),
-				  m_dateTypes[dateFormat].c_str(),
-				  &timeinfo);
-
+	getFormattedDateTimeStr(&m_userTimestamp.tv_sec, date_time, dateFormat);
+	
 	if (dateFormat != FMT_ISO8601 && addMS)
 	{
 		// Add microseconds
@@ -375,95 +389,71 @@ void Reading::setUserTimestamp(const string& timestamp)
  */
 void Reading::stringToTimestamp(const string& timestamp, struct timeval *ts)
 {
-		char date_time [DATE_TIME_BUFFER_LEN];
+	char date_time [DATE_TIME_BUFFER_LEN];
 
-		strcpy (date_time, timestamp.c_str());
+	strcpy (date_time, timestamp.c_str());
 
-		static char cached_timestamp_upto_sec[32] = "";
-		static unsigned long cached_sec_since_epoch = 0;
+	static char cached_timestamp_upto_min[32] = "";
+	static unsigned long cached_sec_since_epoch = 0;
 
-		// auto start = std::chrono::high_resolution_clock::now();
-		const int timestamp_str_len_till_sec = 19;
-		char timestamp_sec[32];
-		strncpy(timestamp_sec, date_time, timestamp_str_len_till_sec);
-		timestamp_sec[timestamp_str_len_till_sec] = '\0';
-		if(strlen(cached_timestamp_upto_sec) && cached_sec_since_epoch && (strncmp(timestamp_sec, cached_timestamp_upto_sec, timestamp_str_len_till_sec) == 0))
+	const int timestamp_str_len_till_min = 16;
+	const int timestamp_str_len_till_sec = 19;
+	char timestamp_sec[32];
+	strncpy(timestamp_sec, date_time, timestamp_str_len_till_sec);
+	timestamp_sec[timestamp_str_len_till_sec] = '\0';
+	if(strlen(cached_timestamp_upto_min) && cached_sec_since_epoch && (strncmp(timestamp_sec, cached_timestamp_upto_min, timestamp_str_len_till_min) == 0))
+	{
+		int sec_part = strtoul(timestamp_sec+timestamp_str_len_till_min+1, NULL, 10);
+		ts->tv_sec = cached_sec_since_epoch + sec_part;
+	}
+	else
+	{
+		struct tm tm;
+		memset(&tm, 0, sizeof(struct tm));
+		strptime(date_time, "%Y-%m-%d %H:%M:%S", &tm);
+		// Convert time to epoch - mktime assumes localtime so most adjust for that
+		ts->tv_sec = mktime(&tm);
+
+		extern long timezone;
+		ts->tv_sec -= timezone;
+
+		strncpy(cached_timestamp_upto_min, timestamp_sec, timestamp_str_len_till_min);
+		cached_timestamp_upto_min[timestamp_str_len_till_min] = '\0';
+		cached_sec_since_epoch = ts->tv_sec - tm.tm_sec;  // store only for upto-minute part
+	}
+	
+	// Now process the fractional seconds
+	const char *ptr = date_time;
+	while (*ptr && *ptr != '.')
+		ptr++;
+	if (*ptr)
+	{
+		char *eptr;
+		ts->tv_usec = strtol(ptr + 1, &eptr, 10);
+		int digits = eptr - (ptr + 1);	// Number of digits we have
+		while (digits < 6)
 		{
-			ts->tv_sec = cached_sec_since_epoch;
-			// Logger::getLogger()->info("Reading::stringToTimestamp(): cache hit: cached_timestamp_upto_sec=%s, cached_sec_since_epoch=%d", 
-			//														cached_timestamp_upto_sec, cached_sec_since_epoch);
+			digits++;
+			ts->tv_usec *= 10;
 		}
-		else
-		{
-			// Logger::getLogger()->info("Reading::stringToTimestamp(): cache miss for: timestamp_sec=%s", 
-			//														timestamp_sec);
+	}
+	else
+	{
+		ts->tv_usec = 0;
+	}
 
-			struct tm tm;
-			memset(&tm, 0, sizeof(struct tm));
-			strptime(date_time, "%Y-%m-%d %H:%M:%S", &tm);
-			// Convert time to epoch - mktime assumes localtime so most adjust for that
-			ts->tv_sec = mktime(&tm);
-
-			extern long timezone;
-			ts->tv_sec -= timezone;
-
-			strncpy(cached_timestamp_upto_sec, timestamp_sec, timestamp_str_len_till_sec);
-			timestamp_sec[timestamp_str_len_till_sec] = '\0';
-			cached_sec_since_epoch = ts->tv_sec;
-		}
-		
-		// Now process the fractional seconds
-		const char *ptr = date_time;
-		while (*ptr && *ptr != '.')
-				ptr++;
-		if (*ptr)
-		{
-				char *eptr;
-				ts->tv_usec = strtol(ptr + 1, &eptr, 10);
-				int digits = eptr - (ptr + 1);	// Number of digits we have
-				while (digits < 6)
-				{
-						digits++;
-						ts->tv_usec *= 10;
-				}
-		}
-		else
-		{
-				ts->tv_usec = 0;
-		}
-
-		// Get the timezone from the string and convert to UTC
-		ptr = date_time + 10; // Skip date as it contains '-' characters
-		while (*ptr && *ptr != '-' && *ptr != '+')
-				ptr++;
-		if (*ptr)
-		{
-				int h, m;
-				int sign = (*ptr == '+' ? -1 : +1);
-				ptr++;
-				sscanf(ptr, "%02d:%02d", &h, &m);
-				ts->tv_sec += sign * ((3600 * h) + (60 * m));
-		}
-			
-#if 0
-        auto end = std::chrono::high_resolution_clock::now();
-        std::ostringstream os;
-        os << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-        /*Logger::getLogger()->error("Reading::stringToTimestamp(): took %s (%d) microseconds for timestamp=%s", 
-                                                                        os.str().c_str(), std::stoul(os.str(), nullptr, 0), timestamp.c_str() ); */
-        
-        acc_time_taken_usec += std::stoul(os.str(), nullptr, 0);
-        reading_count++;
-        // Logger::getLogger()->error("Reading::stringToTimestamp(): acc_time_taken_usec=%d microseconds for %d readings", acc_time_taken_usec, reading_count);
-        
-        if(reading_count >= 80000)
-        {
-                Logger::getLogger()->error("Reading::stringToTimestamp(): took %d usec for %d readings: an average of %f usec per reading", 
-                                                                                acc_time_taken_usec, reading_count, float(acc_time_taken_usec)/reading_count);
-                acc_time_taken_usec = 0;
-                reading_count = 0;
-        }
-#endif
+	// Get the timezone from the string and convert to UTC
+	ptr = date_time + 10; // Skip date as it contains '-' characters
+	while (*ptr && *ptr != '-' && *ptr != '+')
+		ptr++;
+	if (*ptr)
+	{
+		int h, m;
+		int sign = (*ptr == '+' ? -1 : +1);
+		h = strtoul(ptr+1, NULL, 10);
+		m = strtoul(ptr+3, NULL, 10);
+		ts->tv_sec += sign * ((3600 * h) + (60 * m));
+	}
 }
 
 

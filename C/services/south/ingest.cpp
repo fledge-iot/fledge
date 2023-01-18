@@ -363,7 +363,7 @@ vector<Reading *> *fullQueue = 0;
 
 	{
 		lock_guard<mutex> guard(m_qMutex);
-		m_queue->push_back(new Reading(reading));
+		m_queue->emplace_back(new Reading(reading));
 		if (m_queue->size() >= m_queueSizeThreshold || m_running == false)
 		{
 			fullQueue = m_queue;

@@ -67,6 +67,7 @@ class Reading {
 
 		typedef enum dateTimeFormat { FMT_DEFAULT, FMT_STANDARD, FMT_ISO8601, FMT_ISO8601MS } readingTimeFormat;
 
+		void	getFormattedDateTimeStr(const time_t *tv_sec, char *date_time, readingTimeFormat dateFormat) const;
 		// Return Reading asset time - ts time
 		const std::string getAssetDateTime(readingTimeFormat datetimeFmt = FMT_DEFAULT, bool addMs = true) const;
 		// Return Reading asset time - user_ts time

@@ -12,6 +12,7 @@
 #include <string>
 #include <sstream>
 #include <iostream>
+#include <mutex>
 #include <time.h>
 #include <string.h>
 #include <logger.h>
@@ -88,7 +89,7 @@ Reading::Reading(const Reading& orig) : m_asset(orig.m_asset),
 {
 	for (auto it = orig.m_values.cbegin(); it != orig.m_values.cend(); it++)
 	{
-		m_values.push_back(new Datapoint(**it));
+		m_values.emplace_back(new Datapoint(**it));
 	}
 }
 
@@ -226,6 +227,51 @@ ostringstream convert;
 }
 
 /**
+ * Convert time since epoch to a formatted m_timestamp DataTime in UTC 
+ * and use a cache to speed it up
+ * @param tv_sec	Seconds since epoch
+ * @param date_time	Buffer in which to return the formatted timestamp
+ * @param dateFormat	Format: FMT_DEFAULT or FMT_STANDARD
+ */
+void Reading::getFormattedDateTimeStr(const time_t *tv_sec, char *date_time, readingTimeFormat dateFormat) const
+{
+	static unsigned long cached_sec_since_epoch = 0;
+	static char cached_date_time_str[DATE_TIME_BUFFER_LEN] = "";
+	static readingTimeFormat cachedDateFormat = (readingTimeFormat) 0xff;
+	static std::mutex mtx;
+
+	std::unique_lock<std::mutex> lck(mtx);
+
+	if(*cached_date_time_str && cached_sec_since_epoch && *tv_sec == cached_sec_since_epoch && cachedDateFormat == dateFormat)
+	{
+		strncpy(date_time, cached_date_time_str, DATE_TIME_BUFFER_LEN);
+		date_time[DATE_TIME_BUFFER_LEN-1] = '\0';
+		return;
+	}
+
+	struct tm timeinfo;
+	gmtime_r(tv_sec, &timeinfo);
+
+	/**
+	 * Build date_time with format YYYY-MM-DD HH24:MM:SS.MS+00:00
+	 * this is same as Python3:
+	 * datetime.datetime.now(tz=datetime.timezone.utc)
+	 */
+
+	// Create datetime with seconds
+	std::strftime(date_time, DATE_TIME_BUFFER_LEN,
+	      m_dateTypes[dateFormat].c_str(),
+                  &timeinfo);
+
+	// update cache
+	strncpy(cached_date_time_str, date_time, DATE_TIME_BUFFER_LEN);
+	cached_date_time_str[DATE_TIME_BUFFER_LEN-1] = '\0';
+	cached_sec_since_epoch = *tv_sec;
+	cachedDateFormat = dateFormat;
+}
+
+
+/**
  * Return a formatted m_timestamp DataTime in UTC
  * @param dateFormat    Format: FMT_DEFAULT or FMT_STANDARD
  * @return              The formatted datetime string
@@ -236,20 +282,7 @@ char date_time[DATE_TIME_BUFFER_LEN];
 char micro_s[10];
 char  assetTime[DATE_TIME_BUFFER_LEN + 20];
 
-        // Populate tm structure
-        struct tm timeinfo;
-	gmtime_r(&m_timestamp.tv_sec, &timeinfo);
-
-        /**
-         * Build date_time with format YYYY-MM-DD HH24:MM:SS.MS+00:00
-         * this is same as Python3:
-         * datetime.datetime.now(tz=datetime.timezone.utc)
-         */
-
-        // Create datetime with seconds
-        std::strftime(date_time, sizeof(date_time),
-		      m_dateTypes[dateFormat].c_str(),
-                      &timeinfo);
+	getFormattedDateTimeStr(&m_timestamp.tv_sec, date_time, dateFormat);
 
 	if (dateFormat != FMT_ISO8601 && addMS)
 	{
@@ -293,21 +326,8 @@ const string Reading::getAssetDateUserTime(readingTimeFormat dateFormat, bool ad
 	char micro_s[10];
 	char  assetTime[DATE_TIME_BUFFER_LEN + 20];
 
-	// Populate tm structure with UTC time
-	struct tm timeinfo;
-	gmtime_r(&m_userTimestamp.tv_sec, &timeinfo);
-
-	/**
-	 * Build date_time with format YYYY-MM-DD HH24:MM:SS.MS+00:00
-	 * this is same as Python3:
-	 * datetime.datetime.now(tz=datetime.timezone.utc)
-	 */
-
-	// Create datetime with seconds
-	std::strftime(date_time, sizeof(date_time),
-				  m_dateTypes[dateFormat].c_str(),
-				  &timeinfo);
-
+	getFormattedDateTimeStr(&m_userTimestamp.tv_sec, date_time, dateFormat);
+	
 	if (dateFormat != FMT_ISO8601 && addMS)
 	{
 		// Add microseconds
@@ -375,18 +395,47 @@ void Reading::setUserTimestamp(const string& timestamp)
  */
 void Reading::stringToTimestamp(const string& timestamp, struct timeval *ts)
 {
+	static std::mutex mtx;
+	static char cached_timestamp_upto_min[32] = "";
+	static unsigned long cached_sec_since_epoch = 0;
+
+	const int timestamp_str_len_till_min = 16;
+	const int timestamp_str_len_till_sec = 19;
+	
 	char date_time [DATE_TIME_BUFFER_LEN];
 
 	strcpy (date_time, timestamp.c_str());
 
-	struct tm tm;
-	memset(&tm, 0, sizeof(struct tm));
-	strptime(date_time, "%Y-%m-%d %H:%M:%S", &tm);
-	// Convert time to epoch - mktime assumes localtime so most adjust for that
-	ts->tv_sec = mktime(&tm);
-	extern long timezone;
-	ts->tv_sec -= timezone;
+	{
+		lock_guard<mutex> guard(mtx);
+		
+		char timestamp_sec[32];
+		strncpy(timestamp_sec, date_time, timestamp_str_len_till_sec);
+		timestamp_sec[timestamp_str_len_till_sec] = '\0';
+		if(*cached_timestamp_upto_min && cached_sec_since_epoch && (strncmp(timestamp_sec, cached_timestamp_upto_min, timestamp_str_len_till_min) == 0))
+		{
+			// cache hit
+			int sec_part = strtoul(timestamp_sec+timestamp_str_len_till_min+1, NULL, 10);
+			ts->tv_sec = cached_sec_since_epoch + sec_part;
+		}
+		else
+		{
+			// cache miss
+			struct tm tm;
+			memset(&tm, 0, sizeof(struct tm));
+			strptime(date_time, "%Y-%m-%d %H:%M:%S", &tm);
+			// Convert time to epoch - mktime assumes localtime so most adjust for that
+			ts->tv_sec = mktime(&tm);
 
+			extern long timezone;
+			ts->tv_sec -= timezone;
+
+			strncpy(cached_timestamp_upto_min, timestamp_sec, timestamp_str_len_till_min);
+			cached_timestamp_upto_min[timestamp_str_len_till_min] = '\0';
+			cached_sec_since_epoch = ts->tv_sec - tm.tm_sec;  // store only for upto-minute part
+		}
+	}
+	
 	// Now process the fractional seconds
 	const char *ptr = date_time;
 	while (*ptr && *ptr != '.')
@@ -415,11 +464,12 @@ void Reading::stringToTimestamp(const string& timestamp, struct timeval *ts)
 	{
 		int h, m;
 		int sign = (*ptr == '+' ? -1 : +1);
-		ptr++;
-		sscanf(ptr, "%02d:%02d", &h, &m);
+		h = strtoul(ptr+1, NULL, 10);
+		m = strtoul(ptr+3, NULL, 10);
 		ts->tv_sec += sign * ((3600 * h) + (60 * m));
 	}
 }
+
 
 /**
  * Escape quotes etc to allow the string to be a property value within

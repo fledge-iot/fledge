@@ -236,8 +236,9 @@ void Reading::getFormattedDateTimeStr(const time_t *tv_sec, char *date_time, rea
 {
 	static unsigned long cached_sec_since_epoch = 0;
 	static char cached_date_time_str[DATE_TIME_BUFFER_LEN] = "";
+	static readingTimeFormat cachedDateFormat = (readingTimeFormat) 0xff;
 
-	if(strlen(cached_date_time_str) && cached_sec_since_epoch && *tv_sec == cached_sec_since_epoch)
+	if(strlen(cached_date_time_str) && cached_sec_since_epoch && *tv_sec == cached_sec_since_epoch && cachedDateFormat == dateFormat)
 	{
 		strncpy(date_time, cached_date_time_str, DATE_TIME_BUFFER_LEN);
 		date_time[DATE_TIME_BUFFER_LEN-1] = '\0';
@@ -262,6 +263,7 @@ void Reading::getFormattedDateTimeStr(const time_t *tv_sec, char *date_time, rea
 	strncpy(cached_date_time_str, date_time, DATE_TIME_BUFFER_LEN);
 	cached_date_time_str[DATE_TIME_BUFFER_LEN-1] = '\0';
 	cached_sec_since_epoch = *tv_sec;
+	cachedDateFormat = dateFormat;
 }
 
 

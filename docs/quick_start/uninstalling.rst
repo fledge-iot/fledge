@@ -10,8 +10,8 @@ Use the ``apt`` or the ``apt-get`` command to uninstall Fledge:
 
   sudo apt -y purge fledge
 
-CentOS Stream 9
-###############
+Red Hat Platform
+################
 
 .. code-block:: console
 

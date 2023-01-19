@@ -5,7 +5,7 @@
 
 .. |RPM PostgreSQL| raw:: html
 
-   <a href="../storage.html#centos-stream-9-install">For CentOS Stream 9</a>
+   <a href="../storage.html#red-hat-install">For Red Hat Platform</a>
 
 .. |Configure Storage Plugin| raw:: html
 

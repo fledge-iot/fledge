@@ -287,24 +287,34 @@ char  assetTime[DATE_TIME_BUFFER_LEN + 20];
 	if (dateFormat != FMT_ISO8601 && addMS)
 	{
 		// Add microseconds
-		snprintf(micro_s,
-			 sizeof(micro_s),
-			 ".%06lu",
-			 m_timestamp.tv_usec);
+		unsigned long usec = m_timestamp.tv_usec;
+		register char *p = micro_s;
+		register unsigned long divisor = 100000;
+		*p++ = '.';
+		for (int i = 0; i < 6; i++)
+		{
+			*p++ = '0' + (usec / divisor % 10);
+			divisor /= 10;
+		}
+		*p = '\0';
 
 		// Add date_time + microseconds
 		if (dateFormat != FMT_ISO8601MS)
 		{
-			snprintf(assetTime, sizeof(assetTime), "%s%s", date_time, micro_s);
+			strcpy(assetTime, date_time);
+			strcat(assetTime, micro_s);
 		}
 		else
 		{
-			string dt(date_time);
-			size_t pos = dt.find_first_of("+");
-			pos--;
-			snprintf(assetTime, sizeof(assetTime), "%s%s%s",
-					dt.substr(0, pos).c_str(),
-				       	micro_s, dt.substr(pos).c_str());
+			register char *p = date_time;
+			while (*p && *p != '+')
+				p++;
+			p--;
+			int n = p - date_time;
+			strncpy(assetTime, date_time, n);
+			assetTime[n] = 0;
+			strcat(assetTime, micro_s);
+			strcat(assetTime, p);
 		}
 		return string(assetTime);
 	}

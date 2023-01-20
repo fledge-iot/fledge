@@ -25,6 +25,50 @@ Version History
 Fledge v2
 ==========
 
+v2.1.1
+-------
+
+Release Date: 2023-01-20
+
+- **Fledge Core**
+
+    - New Features:
+
+       - An erroneous message was being produced when starting the system using the SQLite in memory storage plugin. This has now been resolved.
+       - The configuration category C++ API has been enhanced in the retrieval and setting of all the attributes of a configuration item.
+       - A change has been made to the configuration of the storage plugin such that rather than having to type correct names for storage plugins the user may now select the plugins to use from a drop down list. Note however that the system must still be restarted for the new storage plugin to take effect.
+
+
+    - Bug Fix:
+
+       - Support has been improved for switching between different storage plugins that allows for correct schema creation when using different sqlite plugin variants for configuration and readings storage.
+
+
+- **GUI**
+
+    - New Features:
+
+
+
+    - Bug Fix:
+
+
+
+- **Plugins**
+
+    - New Features:
+
+       - A number of optimisations the SQLite in memory storage plugin and the SQLiteLB storage plugin have been added that increase the rate at which readings can be stored with these plugins.
+
+
+    - Bug Fix:
+
+       - The HTTP North C plugin now supports sending audit log data as well as readings and statistics.
+       - If a query for AF Attributes includes a search string token that does not exist, PI Web API returns an HTTP 400 error. PI Server South now retrieves error messages if this occurs and logs them.
+       - This work item represents a list of issues reported for PI Server South. Work items were created for all actionable issues. All of the new work items have been completed except for one.
+       - The plugin would become unresponsive if the OPC UA server was unavailable or if the server URL was incorrect. The only way to stop the plugin in this state was to shut down Fledge. This has been fixed.
+
+
 v2.1.0
 -------
 

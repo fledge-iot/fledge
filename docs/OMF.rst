@@ -534,8 +534,9 @@ Asset Framework Location Hint
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 An Asset Framework location hint can be added to a reading to control
-the placement of the asset within the Asset Framework. An Asset Framework
-hint would be as follows:
+the placement of the asset within the Asset Framework.
+This hint overrides the path in the *Default Asset Framework Location* for the reading.
+An Asset Framework hint would be as follows:
 
 .. code-block:: console
 
@@ -543,21 +544,27 @@ hint would be as follows:
    
 Note the following when defining an *AFLocation* hint:
 
-- An asset in a Fledge Reading is used to create a `Container in the OSIsoft Asset Framework <https://docs.osisoft.com/bundle/omf-with-pi-web-api/page/container-messages.html>`_.
-  A *Container* is an AF Element with one or more AF Attributes that are mapped to PI Points using the OSIsoft PI Point Data Reference.
-  The name of the AF Element comes from the Fledge Reading asset name.
-  The names of the AF Attributes come from the Fledge Reading datapoint names.
-- If you edit the AF Location hint, the Container will be moved to the new location in the AF hierarchy.
-- If you disable the OMF Hint filter, the Container will not move.
-- If you wish to move a Container, you can do this with the PI System Explorer.
-  Right-click on the AF Element that represents the Container.
+- An asset name in a Fledge Reading is used to create an AF Element in the OSIsoft Asset Framework.
+  Time series data streams become AF Attributes of that AF Element.
+  This means these AF Attributes are mapped to PI Points using the OSIsoft PI Point Data Reference.
+- Deleting the original Reading AF Element is not recommended;
+  if you delete a Reading AF Element, the OMF North plugin will not recreate it.
+- If you wish to move a Reading AF Element, you can do this with the PI System Explorer.
+  Right-click on the AF Element that represents the Reading AF Element.
   Choose Copy.
-  Select the AF Element that will serve as the new parent of the Container.
-  Right-click and choose *Paste*.
-  You can then return to the original Container and delete it.
+  Select the AF Element that will serve as the new parent of the Reading AF Element.
+  Right-click and choose *Paste* or *Paste Reference*.
   *Note that PI System Explorer does not have the traditional Cut function for AF Elements*.
-- If you move a Container, OMF North will not recreate it.
-  If you then edit the AF Location hint, the Container will appear in the new location.
+- For Linked Types
+    - If you define an AF Location hint after the Reading AF Element has been created in the default location,
+      a reference will be created in the location defined by the hint.
+    - If an AF Location hint was in place when the Reading AF Element was created and you then disable the hint,
+      the Reading AF Element will not move. A reference to this AF Element will be created in the Default Asset Framework Location.
+    - If you edit the AF Location hint, the Reading AF Element not move.
+      A reference to the Reading AF Element will be created in the new location.
+- For Complex Types
+    - If you disable the OMF Hint filter, the Reading AF Element will not move.
+    - If you edit the AF Location hint, the Reading AF Element will move to the new location in the AF hierarchy.
 
 Unit Of Measure Hint
 ~~~~~~~~~~~~~~~~~~~~

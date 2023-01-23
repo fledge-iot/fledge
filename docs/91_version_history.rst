@@ -37,7 +37,7 @@ Release Date: 2023-01-20
        - The support bundle has been updated to include a list of the Python packages installed on the machine.
        - The configuration category C++ API has been enhanced in the retrieval and setting of all the attributes of a configuration item.
        - The storage service has been updated to allow other services to subscribe the notifications of inserts into the generic tables.
-       - A change has been made to the configuration of the storage plugin such that rather than having to type correct names for storage plugins the user may now select the plugins from enumerated options, to allow choosing from a drop down list in GUI interface. Note however that the system must still be restarted for the new storage plugin to take effect.  —> This should be mentionedmention in feature of GUI, because we will have feature for selecting storage through drop down.
+       - A change has been made to the configuration of the storage plugin such that rather than having to type correct names for storage plugins the user may now select the plugins from enumerated options, to allow choosing from a drop down list in GUI interface. Note however that the system must still be restarted for the new storage plugin to take effect.
        - A number of optimisations have been made to improve the performance of Python filters within a pipeline.
 
 

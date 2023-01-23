@@ -121,7 +121,15 @@ class ConfigCategory {
 					ORDER_ATTR,
 					READONLY_ATTR,
 					MANDATORY_ATTR,
-					FILE_ATTR};
+					FILE_ATTR,
+					MINIMUM_ATTR,
+					MAXIMUM_ATTR,
+					LENGTH_ATTR,
+					VALIDITY_ATTR,
+					GROUP_ATTR,
+					DISPLAY_NAME_ATTR,
+					DEPRECATED_ATTR,
+					RULE_ATTR};
 		std::string			getItemAttribute(const std::string& itemName,
 								 ItemAttribute itemAttribute) const;
 
@@ -163,10 +171,13 @@ class ConfigCategory {
 						m_options;
 				std::string 	m_file;
 				ItemType	m_itemType;
+				std::string	m_validity;
+				std::string	m_group;
+				std::string	m_rule;
 		};
 		std::vector<CategoryItem *>	m_items;
 		std::string			m_name;
-		std::string         m_parent_name;
+		std::string         		m_parent_name;
 		std::string			m_description;
 		std::string			m_displayName;
 

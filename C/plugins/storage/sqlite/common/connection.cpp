@@ -1356,7 +1356,13 @@ std::size_t arr = data.find("inserts");
 		int insert = sqlite3_changes(dbHandle);
 
 		if (insert == 0)
-			raiseError("insert", "Not all inserts within transaction succeeded");
+		{
+			char buf[100];
+			snprintf(buf, sizeof(buf),
+					"Not all inserts into table '%s.%s' within transaction succeeded",
+					schema.c_str(), table.c_str());
+			raiseError("insert", buf);
+		}
 
 		// Return the status
 		return (insert ? ins : -1);
@@ -1378,6 +1384,7 @@ int Connection::update(const string& schema, const string& table, const string& 
 Document	document;
 SQLBuffer	sql;
 vector<string>  asset_codes;
+bool		allowZero = false;
 
 	int 	row = 0;
 	ostringstream convert;
@@ -1675,6 +1682,21 @@ vector<string>  asset_codes;
 					col++;
 				}
 			}
+			if (iter->HasMember("modifier") && (*iter)["modifier"].IsArray())
+			{
+				const Value& modifier = (*iter)["modifier"];
+				for (Value::ConstValueIterator modifiers = modifier.Begin(); modifiers != modifier.End(); ++modifiers)
+                		{
+					if (modifiers->IsString())
+					{
+						string mod = modifiers->GetString();
+						if (mod.compare("allowzero") == 0)
+						{
+							allowZero = true;
+						}
+					}
+				}
+			}
 			if (col == 0)
 			{
 				raiseError("update",
@@ -1751,9 +1773,13 @@ vector<string>  asset_codes;
 
 		int return_value=0;
 
-		if (update == 0)
+		if (update == 0 && allowZero == false)
 		{
-			raiseError("update", "Not all updates within transaction succeeded");
+			char buf[100];
+			snprintf(buf, sizeof(buf),
+					"Not all updates of table '%s.%s' within transaction succeeded",
+					schema.c_str(), table.c_str());
+			raiseError("update", buf);
 			return_value = -1;
 		}
 		else
@@ -3718,6 +3744,31 @@ bool Connection::processJoinQueryWhereClause(const Value& query, SQLBuffer& sql,
  */
 bool Connection::createSchema(const std::string &schema)
 {
-	m_schemaManager->create(dbHandle, schema);
+	return m_schemaManager->create(dbHandle, schema);
+}
+
+/**
+ * Execute a SQLite VACUUM command on the database
+ */
+bool Connection::vacuum()
+{
+	char* zErrMsg = NULL;
+	// Exec the statement
+	int rc = SQLexec(dbHandle, "VACUUM;", NULL, NULL, &zErrMsg);
+
+	// Check result
+	if (rc != SQLITE_OK)
+	{
+			const char* errMsg = "Failed to vacuum database ";
+			Logger::getLogger()->error("%s: error %s",
+						   errMsg, zErrMsg);
+			sqlite3_free(zErrMsg);
+			return false;
+	}
+	else
+	{
+		Logger::getLogger()->info("Database vacuum complete");
+	}
+	return true;
 }
 #endif

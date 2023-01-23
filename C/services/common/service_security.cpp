@@ -53,6 +53,8 @@ bool ServiceAuthHandler::createSecurityCategories(ManagementClient* mgtClient, b
 	defConfigSecurity.setItemDisplayName("ACL",
 				"Service ACL");
 
+	defConfigSecurity.setDescription(m_name + " Security");
+
 	// Create/Update category name (we pass keep_original_items=true)
 	mgtClient->addCategory(defConfigSecurity, true);
 
@@ -606,7 +608,7 @@ void ServiceAuthHandler::refreshBearerToken()
 			{
 				Logger::getLogger()->warn("Service is being shut down " \
 						"due to bearer token refresh error");
-				this->shutdown();
+				this->restart();
 				break;
 			}
 		}

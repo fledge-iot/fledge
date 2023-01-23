@@ -259,7 +259,9 @@ class User:
         async def refresh_token_expiry(cls, token):
             storage_client = connect.get_storage_async()
             exp = datetime.now() + timedelta(seconds=JWT_EXP_DELTA_SECONDS)
-            payload = PayloadBuilder().SET(token_expiration=str(exp)).WHERE(['token', '=', token]).payload()
+            """ MODIFIER with allowzero is passed in payload so that storage returns rows_affected 0 in any case """
+            payload = PayloadBuilder().SET(token_expiration=str(exp)).WHERE(['token', '=', token]
+                                                                            ).MODIFIER(["allowzero"]).payload()
             await storage_client.update_tbl("user_logins", payload)
 
         @classmethod

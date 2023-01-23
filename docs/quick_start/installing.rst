@@ -5,7 +5,7 @@
 
 .. |RPM PostgreSQL| raw:: html
 
-   <a href="../storage.html#centos-red-hat-install">For RPM Platform</a>
+   <a href="../storage.html#red-hat-install">For Red Hat Platform</a>
 
 .. |Configure Storage Plugin| raw:: html
 
@@ -110,10 +110,11 @@ You may also install multiple packages in a single command. To install the base 
 
    sudo DEBIAN_FRONTEND=noninteractive apt -y install fledge fledge-gui fledge-south-sinusoid
 
-RedHat & CentOS
+
+CentOS Stream 9
 ~~~~~~~~~~~~~~~
 
-The RedHat and CentOS flavors of Linux use a different package management system, known as *yum*. Fledge also supports a package management system for the yum package manager.
+The CentOS use a different package management system, known as *yum*. Fledge also supports a package management system for the yum package manager.
 
 To add the fledge repository to the yum package manager run the command
 
@@ -127,39 +128,18 @@ CentOS users should then create a file called fledge.repo in the directory /etc/
 
    [fledge]
    name=fledge Repository
-   baseurl=http://archives.fledge-iot.org/latest/centos7/x86_64/
+   baseurl=http://archives.fledge-iot.org/latest/centos-stream-9/x86_64/
    enabled=1
    gpgkey=http://archives.fledge-iot.org/RPM-GPG-KEY-fledge
    gpgcheck=1
 
-Users of RedHat systems should do the same, however the files content is slightly different
+There are a few pre-requisites that needs to be installed
 
 .. code-block:: console
 
-
-   [fledge]
-   name=fledge Repository
-   baseurl=http://archives.fledge-iot.org/latest/rhel7/x86_64/
-   enabled=1
-   gpgkey=http://archives.fledge-iot.org/RPM-GPG-KEY-fledge
-   gpgcheck=1
-
-There are a few pre-requisites that need to be installed on these platforms, they differ slightly between the two of them.
-
-On CentOS 7 run the commands
-
-.. code-block:: console
-
-   sudo yum install -y centos-release-scl-rh
-   sudo yum install -y epel-release
-
-
-On RedHat 7 run the command
-
-.. code-block:: console
-
-   sudo yum-config-manager --enable 'Red Hat Software Collections RPMs for Red Hat Enterprise Linux 7 Server from RHUI'
-   sudo yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+    sudo yum install -y epel-release
+    sudo yum -y check-update
+    sudo yum -y update
 
 You can now install and upgrade fledge packages using the yum command. For example to install fledge and the fledge GUI you run the command
 

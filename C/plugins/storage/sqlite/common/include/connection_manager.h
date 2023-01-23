@@ -15,6 +15,7 @@
 #include <plugin_api.h>
 #include <list>
 #include <mutex>
+#include <thread>
 
 class Connection;
 
@@ -37,6 +38,10 @@ class ConnectionManager {
 					  {
 						return &lastError;
 					  }
+		void			  background();
+		void			  setVacuumInterval(long hours) {
+							m_vacuumInterval = 60 * 60 * hours;
+						};
 
 	protected:
 		ConnectionManager();
@@ -53,6 +58,9 @@ class ConnectionManager {
 		std::mutex                   errorLock;
 		PLUGIN_ERROR		     lastError;
 		bool			     m_trace;
+		bool			     m_shutdown;
+		std::thread		     *m_background;
+		long                         m_vacuumInterval;
 };
 
 #endif

@@ -30,6 +30,7 @@ class Connection {
 		void		setTrace(bool flag) { m_logSQL = flag; };
 		static bool 	formatDate(char *formatted_date, size_t formatted_date_size, const char *date);
 		unsigned int	purgeReadingsAsset(const std::string& asset);
+		bool		vacuum() { return true; };
 	private:
 		int 		SQLexec(sqlite3 *db, const char *sql,
 					int (*callback)(void*,int,char**,char**),

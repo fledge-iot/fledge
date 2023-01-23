@@ -524,6 +524,7 @@ Connection::Connection()
 
 		const char *sqlStmt = attachDb.coalesce();
 
+		zErrMsg = NULL;
 		// Exec the statement
 		rc = SQLexec(dbHandle,
 			     sqlStmt,
@@ -551,6 +552,24 @@ Connection::Connection()
 		}
 		//Release sqlStmt buffer
 		delete[] sqlStmt;
+	
+		bool initialiseReadings = false;
+		if (access(dbPathReadings.c_str(), R_OK) == -1)
+		{
+			sqlite3 *dbHandle;
+			// Readings do not exist so set flag to initialise
+			rc = sqlite3_open(dbPathReadings.c_str(), &dbHandle);
+			if(rc != SQLITE_OK)
+			{
+			}
+        		else
+			{
+				// Enables the WAL feature
+				rc = sqlite3_exec(dbHandle, DB_CONFIGURATION, NULL, NULL, NULL);
+			}
+        		sqlite3_close(dbHandle);
+			initialiseReadings = true;
+		}
 
 		// Attach readings database
 		SQLBuffer attachReadingsDb;
@@ -586,6 +605,151 @@ Connection::Connection()
 		}
 		//Release sqlStmt buffer
 		delete[] sqlReadingsStmt;
+
+		if (initialiseReadings)
+		{
+			// Would really like to run an external script here, but until we have that
+			// worked out we have the SQL needed to create the table and indexes
+			
+			// Need to initialise the readings
+			SQLBuffer initReadings;
+			initReadings.append("CREATE TABLE readings.readings (");
+			initReadings.append("id         INTEGER                     PRIMARY KEY AUTOINCREMENT,");
+			initReadings.append("asset_code character varying(50)       NOT NULL,");
+			initReadings.append("reading    JSON                        NOT NULL DEFAULT '{}',");
+			initReadings.append("user_ts    DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f+00:00', 'NOW')),");
+			initReadings.append("ts         DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f+00:00', 'NOW'))");
+			initReadings.append(");");
+
+			const char *sqlReadingsStmt = initReadings.coalesce();
+
+			// Exec the statement
+			zErrMsg = NULL;
+			rc = SQLexec(dbHandle,
+				     sqlReadingsStmt,
+				     NULL,
+				     NULL,
+				     &zErrMsg);
+
+			// Check result
+			if (rc != SQLITE_OK)
+			{
+				const char* errMsg = "Failed to create 'readings' table, ";
+				Logger::getLogger()->error("%s '%s': error %s",
+							   errMsg,
+							   sqlReadingsStmt,
+							   zErrMsg);
+				connectErrorTime = time(0);
+
+				sqlite3_free(zErrMsg);
+				sqlite3_close_v2(dbHandle);
+			}
+			else
+			{
+				Logger::getLogger()->info("Initialised readings database");
+			}
+			//Release sqlStmt buffer
+			delete[] sqlReadingsStmt;
+
+			SQLBuffer index1;
+			index1.append("CREATE INDEX readings.fki_readings_fk1 ON readings (asset_code, user_ts desc);");
+
+			const char *sqlIndex1Stmt = index1.coalesce();
+
+			// Exec the statement
+			zErrMsg = NULL;
+			rc = SQLexec(dbHandle,
+				     sqlIndex1Stmt,
+				     NULL,
+				     NULL,
+				     &zErrMsg);
+
+			// Check result
+			if (rc != SQLITE_OK)
+			{
+				const char* errMsg = "Failed to create 'readings' index, ";
+				Logger::getLogger()->error("%s '%s': error %s",
+							   errMsg,
+							   sqlIndex1Stmt,
+							   zErrMsg);
+				connectErrorTime = time(0);
+
+				sqlite3_free(zErrMsg);
+				sqlite3_close_v2(dbHandle);
+			}
+			else
+			{
+				Logger::getLogger()->info("Initialised readings database");
+			}
+			//Release sqlStmt buffer
+			delete[] sqlIndex1Stmt;
+
+			SQLBuffer index2;
+			index2.append("CREATE INDEX readings.readings_ix2 ON readings (asset_code);");
+
+			const char *sqlIndex2Stmt = index2.coalesce();
+
+			// Exec the statement
+			zErrMsg = NULL;
+			rc = SQLexec(dbHandle,
+				     sqlIndex2Stmt,
+				     NULL,
+				     NULL,
+				     &zErrMsg);
+
+			// Check result
+			if (rc != SQLITE_OK)
+			{
+				const char* errMsg = "Failed to create 'readings' index, ";
+				Logger::getLogger()->error("%s '%s': error %s",
+							   errMsg,
+							   sqlIndex2Stmt,
+							   zErrMsg);
+				connectErrorTime = time(0);
+
+				sqlite3_free(zErrMsg);
+				sqlite3_close_v2(dbHandle);
+			}
+			else
+			{
+				Logger::getLogger()->info("Initialised readings database");
+			}
+			//Release sqlStmt buffer
+			delete[] sqlIndex2Stmt;
+
+			SQLBuffer index3;
+			index3.append("CREATE INDEX readings.readings_ix3 ON readings (user_ts);");
+
+			const char *sqlIndex3Stmt = index3.coalesce();
+
+			// Exec the statement
+			zErrMsg = NULL;
+			rc = SQLexec(dbHandle,
+				     sqlIndex3Stmt,
+				     NULL,
+				     NULL,
+				     &zErrMsg);
+
+			// Check result
+			if (rc != SQLITE_OK)
+			{
+				const char* errMsg = "Failed to create 'readings' index, ";
+				Logger::getLogger()->error("%s '%s': error %s",
+							   errMsg,
+							   sqlIndex3Stmt,
+							   zErrMsg);
+				connectErrorTime = time(0);
+
+				sqlite3_free(zErrMsg);
+				sqlite3_close_v2(dbHandle);
+			}
+			else
+			{
+				Logger::getLogger()->info("Initialised readings database");
+			}
+			//Release sqlStmt buffer
+			delete[] sqlIndex3Stmt;
+		}
 
 		// Enable the WAL for the readings DB
 		rc = sqlite3_exec(dbHandle, dbConfiguration.c_str(),NULL, NULL, &zErrMsg);
@@ -1280,7 +1444,13 @@ std::size_t arr = data.find("inserts");
 		int insert = sqlite3_changes(dbHandle);
 
 		if (insert == 0)
-			raiseError("insert", "Not all inserts within transaction succeeded");
+		{
+			char buf[100];
+			snprintf(buf, sizeof(buf),
+					"Not all inserts within transaction '%s.%s' succeeded",
+					schema.c_str(), table.c_str());
+			raiseError("insert", buf);
+		}
 
 		// Return the status
 		return (insert ? ins : -1);
@@ -1303,6 +1473,7 @@ int Connection::update(const string& schema,
 // Default template parameter uses UTF8 and MemoryPoolAllocator.
 Document	document;
 SQLBuffer	sql;
+bool		allowZero = false;
 
 	int 	row = 0;
 	ostringstream convert;
@@ -1600,6 +1771,21 @@ SQLBuffer	sql;
 					col++;
 				}
 			}
+			if (iter->HasMember("modifier") && (*iter)["modifier"].IsArray())
+			{
+				const Value& modifier = (*iter)["modifier"];
+				for (Value::ConstValueIterator modifiers = modifier.Begin(); modifiers != modifier.End(); ++modifiers)
+                		{
+					if (modifiers->IsString())
+					{
+						string mod = modifiers->GetString();
+						if (mod.compare("allowzero") == 0)
+						{
+							allowZero = true;
+						}
+					}
+				}
+			}
 			if (col == 0)
 			{
 				raiseError("update",
@@ -1676,9 +1862,13 @@ SQLBuffer	sql;
 
 		int return_value=0;
 
-		if (update == 0)
+		if (update == 0 && allowZero == false)
 		{
-			raiseError("update", "Not all updates within transaction succeeded");
+			char buf[100];
+			snprintf(buf, sizeof(buf),
+					"Not all updates within transaction '%s.%s' succeeded",
+					schema.c_str(), table.c_str());
+			raiseError("update", buf);
 			return_value = -1;
 		}
 		else
@@ -3336,5 +3526,30 @@ SQLBuffer sql;
 bool Connection::createSchema(const std::string &schema)
 {
 	return m_schemaManager->create(dbHandle, schema);
+}
+
+/**
+ * Execute a SQLite VACUUM command on the database
+ */
+bool Connection::vacuum()
+{
+	char* zErrMsg = NULL;
+	// Exec the statement
+	int rc = SQLexec(dbHandle, "VACUUM;", NULL, NULL, &zErrMsg);
+
+	// Check result
+	if (rc != SQLITE_OK)
+	{
+			const char* errMsg = "Failed to vacuum database ";
+			Logger::getLogger()->error("%s: error %s",
+						   errMsg, zErrMsg);
+			sqlite3_free(zErrMsg);
+			return false;
+	}
+	else
+	{
+		Logger::getLogger()->info("Database vacuum complete");
+	}
+	return true;
 }
 #endif

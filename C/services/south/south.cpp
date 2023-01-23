@@ -39,6 +39,8 @@
 extern int makeDaemon(void);
 extern void handler(int sig);
 
+static void reconfThreadMain(void *arg);
+
 using namespace std;
 
 /**
@@ -142,8 +144,8 @@ pid_t pid;
 	close(2);
 	// redirect fd's 0,1,2 to /dev/null
 	(void)open("/dev/null", O_RDWR);  	// stdin
-	(void)dup(0);  			// stdout	GCC bug 66425 produces warning
-	(void)dup(0);  			// stderr	GCC bug 66425 produces warning
+	if (dup(0) == -1) {}			// stdout	Workaround for GCC bug 66425 produces warning
+	if (dup(0) == -1) {} 			// stderr	WOrkaround for GCC bug 66425 produces warning
  	return 0;
 }
 
@@ -222,7 +224,6 @@ void doIngestV2(Ingest *ingest, ReadingSet *set)
 	delete set;
 }
 
-
 /**
  * Constructor for the south service
  */
@@ -233,13 +234,16 @@ SouthService::SouthService(const string& myName, const string& token) :
 				m_throttled(false),
 				m_token(token),
 				m_repeatCnt(1),
-				m_dryRun(false)
+				m_dryRun(false),
+				m_requestRestart(false)
 {
 	m_name = myName;
 	m_type = SERVICE_TYPE;
 
 	logger = new Logger(myName);
 	logger->setMinLevel("warning");
+
+	m_reconfThread = new std::thread(reconfThreadMain, this);
 }
 
 /**
@@ -383,16 +387,27 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		}
 
 		m_assetTracker = new AssetTracker(m_mgtClient, m_name);
+		m_storageAssetTracker = new StorageAssetTracker(m_mgtClient, m_name);
 
 		{
 		// Instantiate the Ingest class
 		Ingest ingest(storage, timeout, threshold, m_name, pluginName, m_mgtClient);
 		m_ingest = &ingest;
 
+		if (m_configAdvanced.itemExists("statistics"))
+		{
+			m_ingest->setStatistics(m_configAdvanced.getValue("statistics"));
+		}
+
 		try {
 			m_readingsPerSec = 1;
 			if (m_configAdvanced.itemExists("readingsPerSec"))
 				m_readingsPerSec = (unsigned long)strtol(m_configAdvanced.getValue("readingsPerSec").c_str(), NULL, 10);
+			if (m_readingsPerSec < 1)
+			{
+				logger->warn("Invalid setting of reading rate, defaulting to 1");
+				m_readingsPerSec = 1;
+			}
 		} catch (ConfigItemNotFound e) {
 			logger->info("Defaulting to inline default for poll interval");
 		}
@@ -428,6 +443,7 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 					dividend = 60000000;
 				else if (units.compare("hour") == 0)
 					dividend = 3600000000;
+				m_rateUnits = units;
 				unsigned long usecs = dividend / m_readingsPerSec;
 
 				if (usecs > MAX_SLEEP * 1000000)
@@ -460,7 +476,7 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 				logger->info("pollInterfaceV2=%s", pollInterfaceV2?"true":"false");
 
 				/*
-				 * Start the plugin. If it fails with an excpetion retry the start with a delay
+				 * Start the plugin. If it fails with an exception, retry the start with a delay
 				 * That delay starts at 500mS and will backoff to 1 minute
 				 *
 				 * We will continue to retry the start until the service is shutdown
@@ -534,6 +550,22 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 						}
 						else // V2 poll method
 						{
+							while(1)
+							{
+								unsigned int numPendingReconfs;
+								{
+									lock_guard<mutex> guard(m_pendingNewConfigMutex);
+									numPendingReconfs = m_pendingNewConfig.size();
+								}
+								// if a reconf is pending, make this poll thread yield CPU, sleep_for is needed to sleep this thread for sufficiently long time
+								if (numPendingReconfs)
+								{
+									Logger::getLogger()->debug("SouthService::start(): %d entries in m_pendingNewConfig, poll thread yielding CPU", numPendingReconfs);
+									std::this_thread::sleep_for(std::chrono::milliseconds(200));
+								}
+								else
+									break;
+							}
 							ReadingSet *set = southPlugin->pollV2();
 				if (set)
 				{
@@ -643,7 +675,14 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		// Clean shutdown, unregister the storage service
 		if (!m_dryRun)
 		{
-			m_mgtClient->unregisterService();
+			if (m_requestRestart)
+			{
+				m_mgtClient->restartService();
+			}
+			else
+			{
+				m_mgtClient->unregisterService();
+			}
 		}
 	}
 	management.stop();
@@ -655,6 +694,10 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
  */
 void SouthService::stop()
 {
+	if (m_storageAssetTracker)
+	{
+		m_storageAssetTracker->releaseStorageAssetTracker();
+	}
 	logger->info("Stopping south service...\n");
 }
 
@@ -776,9 +819,25 @@ void SouthService::shutdown()
 }
 
 /**
- * Configuration change notification
+ * Restart request
  */
-void SouthService::configChange(const string& categoryName, const string& category)
+void SouthService::restart()
+{
+	/* Stop recieving new requests and allow existing
+	 * requests to drain.
+	 */
+	m_requestRestart = true;
+	m_shutdown = true;
+	logger->info("South service shutdown for restart in progress.");
+}
+
+/**
+ * Configuration change notification
+ *
+ * @param categoryName	Category name
+ * @param category	Category value
+ */
+void SouthService::processConfigChange(const string& categoryName, const string& category)
 {
 	logger->info("Configuration change in category %s: %s", categoryName.c_str(),
 			category.c_str());
@@ -798,10 +857,19 @@ void SouthService::configChange(const string& categoryName, const string& catego
 	if (categoryName.compare(m_name+"Advanced") == 0)
 	{
 		m_configAdvanced = ConfigCategory(m_name+"Advanced", category);
+		if (m_configAdvanced.itemExists("statistics"))
+		{
+			m_ingest->setStatistics(m_configAdvanced.getValue("statistics"));
+		}
 		if (! southPlugin->isAsync())
 		{
 			try {
 				unsigned long newval = (unsigned long)strtol(m_configAdvanced.getValue("readingsPerSec").c_str(), NULL, 10);
+				if (newval < 1)
+				{
+					logger->warn("Invalid setting of reading rate, defaulting to 1");
+					m_readingsPerSec = 1;
+				}
 				string units = m_configAdvanced.getValue("units");
 				unsigned long dividend = 1000000;
 				if (units.compare("second") == 0)
@@ -810,9 +878,10 @@ void SouthService::configChange(const string& categoryName, const string& catego
 					dividend = 60000000;
 				else if (units.compare("hour") == 0)
 					dividend = 3600000000;
-				if (newval != m_readingsPerSec)
+				if (newval != m_readingsPerSec || m_rateUnits.compare(units) != 0)
 				{
 					m_readingsPerSec = newval;
+					m_rateUnits = units;
 					close(m_timerfd);
 					unsigned long usecs = dividend / m_readingsPerSec;
 					if (usecs > MAX_SLEEP * 1000000)
@@ -894,6 +963,89 @@ void SouthService::configChange(const string& categoryName, const string& catego
 }
 
 /**
+ * Separate thread to run plugin_reconf, to avoid blocking 
+ * service's management interface due to long plugin_poll calls
+ */
+static void reconfThreadMain(void *arg)
+{
+	SouthService *ss = (SouthService *)arg;
+	Logger::getLogger()->info("reconfThreadMain(): Spawned new thread for plugin reconf");
+	while(1)
+	{
+		ss->handlePendingReconf();
+	}
+	Logger::getLogger()->info("reconfThreadMain(): plugin reconf thread exiting");
+}
+
+/**
+ * Handle configuration change notification; called by reconf thread
+ * Waits for some reconf operation(s) to get queued up, then works thru' them
+ */
+void SouthService::handlePendingReconf()
+{
+	Logger::getLogger()->debug("SouthService::handlePendingReconf: Going into cv wait");
+	mutex mtx;
+	unique_lock<mutex> lck(mtx);
+	m_cvNewReconf.wait(lck);
+	Logger::getLogger()->debug("SouthService::handlePendingReconf: cv wait has completed; some reconf request(s) has/have been queued up");
+
+	while(1)
+	{
+		unsigned int numPendingReconfs = 0;
+		{
+			lock_guard<mutex> guard(m_pendingNewConfigMutex);
+			numPendingReconfs = m_pendingNewConfig.size();
+			if (numPendingReconfs)
+				Logger::getLogger()->debug("SouthService::handlePendingReconf(): will process %d entries in m_pendingNewConfig", numPendingReconfs);
+			else
+			{
+				Logger::getLogger()->debug("SouthService::handlePendingReconf DONE");
+				break;
+			}
+		}
+
+		for (unsigned int i=0; i<numPendingReconfs; i++)
+		{
+			logger->debug("SouthService::handlePendingReconf(): Handling Configuration change #%d", i);
+			std::pair<std::string,std::string> *reconfValue = NULL;
+			{
+				lock_guard<mutex> guard(m_pendingNewConfigMutex);
+				reconfValue = &m_pendingNewConfig[i];
+			}
+			std::string categoryName = reconfValue->first;
+			std::string category = reconfValue->second;
+			processConfigChange(categoryName, category);
+
+			logger->debug("SouthService::handlePendingReconf(): Handling of configuration change #%d done", i);
+		}
+		
+		{
+			lock_guard<mutex> guard(m_pendingNewConfigMutex);
+			for (unsigned int i=0; i<numPendingReconfs; i++)
+				m_pendingNewConfig.pop_front();
+			logger->debug("SouthService::handlePendingReconf DONE: first %d entry(ies) removed, m_pendingNewConfig new size=%d", numPendingReconfs, m_pendingNewConfig.size());
+		}
+	}
+}
+
+/**
+ * Configuration change notification using a separate thread
+ *
+ * @param categoryName	Category name
+ * @param category	Category value
+ */
+void SouthService::configChange(const string& categoryName, const string& category)
+{
+	{
+		lock_guard<mutex> guard(m_pendingNewConfigMutex);
+		m_pendingNewConfig.emplace_back(std::make_pair(categoryName, category));
+		Logger::getLogger()->debug("SouthService::reconfigure(): After adding new entry, m_pendingNewConfig.size()=%d", m_pendingNewConfig.size());
+
+		m_cvNewReconf.notify_all();
+	}
+}
+
+/**
  * Add the generic south service configuration options to the advanced
  * category
  *
@@ -911,6 +1063,11 @@ void SouthService::addConfigDefaults(DefaultConfigCategory& defaultConfig)
 		defaultConfig.addItem(defaults[i].name, defaults[i].description,
 			defaults[i].type, defaults[i].value, defaults[i].value);
 		defaultConfig.setItemDisplayName(defaults[i].name, defaults[i].displayName);
+		if (!strcmp(defaults[i].name, "readingsPerSec"))
+		{
+			defaultConfig.setItemAttribute(defaults[i].name, ConfigCategory::MINIMUM_ATTR, "1");
+
+		}
 	}
 
 	if (!isAsync)
@@ -934,6 +1091,12 @@ void SouthService::addConfigDefaults(DefaultConfigCategory& defaultConfig)
 	defaultConfig.addItem("logLevel", "Minimum logging level reported",
 			"warning", "warning", logLevels);
 	defaultConfig.setItemDisplayName("logLevel", "Minimum Log Level");
+
+	/* Add the set of logging levels to the service */
+	vector<string>	statistics = { "per asset", "per service", "per asset & service" };
+	defaultConfig.addItem("statistics", "Collect statistics either for every asset ingested, for the service in total or both",
+			"per asset & service", "per asset & service", statistics);
+	defaultConfig.setItemDisplayName("statistics", "Statistics Collection");
 }
 
 /**

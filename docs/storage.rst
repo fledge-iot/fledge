@@ -111,6 +111,8 @@ The SQLite plugin has a more complex set of configuration options that can be us
 
   - **Database allocation size**: The number of databases to create when the above threshold is crossed. Database creation is a slow process and hence the tuning of these parameters can impact performance when an instance receives a large number of new asset names for which it has previously not allocated readings tables.
 
+  - **Vacuum Interval**: The interval in hours between running a database vacuum command to reclaim space. Setting this too high will impact performance, setting it too low will mean that more storage may be required for longer periods.
+
 Installing A PostgreSQL server
 ==============================
 
@@ -148,43 +150,52 @@ A more generic command is:
 
   sudo -u postgres createuser -d $(whoami)
 
+Red Hat Install
+---------------
 
-CentOS/Red Hat Install
-----------------------
+On Red Hat or other yum based distributions to install postgres:
 
-On CentOS and Red Hat systems, and other RPM based distributions the command is
-
-.. code-block:: console
-
-  sudo yum install -y https://download.postgresql.org/pub/repos/yum/reporpms/EL-7-x86_64/pgdg-redhat-repo-latest.noarch.rpm
-  sudo yum install -y postgresql13-server
-  sudo yum install -y postgresql13-devel
-  sudo yum install -y rh-postgresql13
-  sudo yum install -y rh-postgresql13-postgresql-devel
-  sudo /usr/pgsql-13/bin/postgresql-13-setup initdb
-  sudo systemctl enable postgresql-13
-  sudo systemctl start postgresql-13
-
-
-At this point, Postgres has been configured to start at boot and it should be up and running. You can always check the status of the database server with ``systemctl status postgresql-13``:
+Add PostgreSQL YUM Repository to your System
 
 .. code-block:: console
 
-  sudo systemctl status postgresql-13
+    sudo yum install -y https://download.postgresql.org/pub/repos/yum/reporpms/EL-9-x86_64/pgdg-redhat-repo-latest.noarch.rpm
 
+Check whether PostgreSQL 13 is available using the command shown below
+
+.. code-block:: console
+
+    sudo yum search -y postgresql13
+
+Once you have confirmed that PostgreSQL 13 repositories are available on your system. Then, you can proceed to install PostgreSQL 13
+
+.. code-block:: console
+
+    sudo yum install -y postgresql13 postgresql13-server
+
+Before using the PostgreSQL server, you need to first initialize the database service using the command
+
+.. code-block:: console
+
+    sudo /usr/pgsql-13/bin/postgresql-13-setup initdb
+
+You can then proceed to start the database server as follows
+
+.. code-block:: console
+
+    sudo systemctl enable --now postgresql-13
+
+Confirm if the just started service above is running by checking its status using the command
+
+.. code-block:: console
+
+    sudo systemctl status postgresql-13
 
 Next, you must create a PostgreSQL user that matches your Linux user.
 
 .. code-block:: console
 
   sudo -u postgres createuser -d $(whoami)
-
-Finally, add ``/usr/pgsql-13/bin`` to your PATH environment variable in ``$HOME/.bash_profile``. the new PATH setting in the file should look something like this:
-
-.. code-block:: console
-
-  PATH=$PATH:$HOME/.local/bin:$HOME/bin:/usr/pgsql-13/bin
-
 
 SQLite Plugin Configuration
 ===========================

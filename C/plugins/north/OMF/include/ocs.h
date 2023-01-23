@@ -15,6 +15,7 @@
 using namespace std;
 
 #define OCS_HOST          "dat-b.osisoft.com:443"
+#define ADH_HOST	  "uswe.datahub.connect.aveva.com"
 #define TIMEOUT_CONNECT   10
 #define TIMEOUT_REQUEST   10
 #define RETRY_SLEEP_TIME  1
@@ -31,11 +32,14 @@ class OCS
 {
 	public:
 		OCS();
+		OCS(bool adh);
 
 		// Destructor
 		~OCS();
 
 		string  retrieveToken(const string& clientId, const string& clientSecret);
 		string  extractToken(const string& response);
+	private:
+		bool	m_adh;
 };
 #endif

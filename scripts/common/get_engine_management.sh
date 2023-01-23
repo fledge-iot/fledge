@@ -25,7 +25,13 @@ get_engine_management() {
   storage_info=( $($FLEDGE_ROOT/scripts/services/storage --plugin) )
 
   if [ "${storage_info[0]}" != "$1" ]; then
-    echo ""
+	  # Not the storage plugin, maybe beign used for readings
+    storage_info=( $($FLEDGE_ROOT/scripts/services/storage --readingplugin) )
+    if [ "${storage_info[0]}" != "$1" ]; then
+	    echo ""
+    else
+    	echo "${storage_info[1]}"
+    fi
   else
     echo "${storage_info[1]}"
   fi

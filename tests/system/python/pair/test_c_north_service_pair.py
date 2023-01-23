@@ -21,7 +21,7 @@ import utils
 
 # Local machine
 local_south_plugin = "sinusoid"
-local_south_asset_name = "sinusoid"
+local_south_asset_name = "north_svc_pair_C_sinusoid"
 local_south_service_name = "Sine #1"
 local_north_plugin = "httpc"
 local_north_service_name = "HN #1"
@@ -29,7 +29,7 @@ local_north_service_name = "HN #1"
 # Remote machine
 remote_south_plugin = "http_south"
 remote_south_service_name = "HS #1"
-remote_south_asset_name = "north_svc_pair_sinusoid"
+remote_south_asset_name = "north_svc_pair_C_sinusoid"
 remote_north_plugin = "OMF"
 remote_north_service_name = "NorthReadingsToPI_WebAPI"
 
@@ -257,13 +257,13 @@ def _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_d
 
     af_hierarchy_level_list = AF_HIERARCHY_LEVEL.split("/")
     type_id = 1
-    recorded_datapoint = "{}measurement_{}".format(type_id, asset_name)
+    recorded_datapoint = "{}".format(asset_name)
     # Name of asset in the PI server
-    pi_asset_name = "{}-type{}".format(asset_name, type_id)
+    pi_asset_name = "{}".format(asset_name)
 
     while (data_from_pi is None or data_from_pi == []) and retry_count < retries:
         data_from_pi = read_data_from_pi_web_api(pi_host, pi_admin, pi_passwd, pi_db, af_hierarchy_level_list,
-                                                 pi_asset_name, {recorded_datapoint})
+                                                 pi_asset_name, '')
         retry_count += 1
         time.sleep(wait_time * 2)
 

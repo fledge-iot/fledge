@@ -30,6 +30,7 @@ using HttpServer = SimpleWeb::Server<SimpleWeb::HTTP>;
 using namespace rapidjson;
 
 class AssetTrackingTuple;
+class StorageAssetTrackingTuple;
 
 /**
  * The management client class used by services and tasks to communicate
@@ -44,6 +45,7 @@ class ManagementClient {
 		~ManagementClient();
 		bool 			registerService(const ServiceRecord& service);
 		bool 			unregisterService();
+		bool 			restartService();
 		bool 			getService(ServiceRecord& service);
 		bool			getServices(std::vector<ServiceRecord *>& services);
 		bool			getServices(std::vector<ServiceRecord *>& services, const std::string& type);
@@ -59,10 +61,25 @@ class ManagementClient {
 							   const std::vector<std::string>& children);
 		std::vector<AssetTrackingTuple*>&
 					getAssetTrackingTuples(const std::string serviceName = "");
+		std::vector<StorageAssetTrackingTuple*>&
+ 					getStorageAssetTrackingTuples(const std::string serviceName);
+
+		StorageAssetTrackingTuple* getStorageAssetTrackingTuple(const std::string& serviceName,
+                                                         	const std::string& assetName,
+								const std::string& event, const std::string & dp, const unsigned int& c);
+
 		bool addAssetTrackingTuple(const std::string& service, 
 					   const std::string& plugin, 
 					   const std::string& asset, 
 					   const std::string& event);
+
+		bool addStorageAssetTrackingTuple(const std::string& service,
+                                           const std::string& plugin,
+                                           const std::string& asset,
+                                           const std::string& event,
+					   const bool& deprecated = false,
+					   const std::string& datapoints = "",
+					   const int& count = 0);
 		ConfigCategories	getChildCategories(const std::string& categoryName);
 		HttpClient		*getHttpClient();
 		bool			addAuditEntry(const std::string& serviceName,
@@ -93,10 +110,11 @@ class ManagementClient {
 						std::vector<std::pair<std::string, std::string> > >& endpoints);
 		bool			deleteProxy(const std::string& serviceName);
 		const std::string 	getUrlbase() { return m_urlbase.str(); }
-        ACL			getACL(const std::string& aclName);
+	        ACL			getACL(const std::string& aclName);
 		AssetTrackingTuple*	getAssetTrackingTuple(const std::string& serviceName,
 								const std::string& assetName,
 								const std::string& event);
+		int 			validateDatapoints(std::string dp1, std::string dp2);
 
 	private:
 		std::ostringstream 			m_urlbase;

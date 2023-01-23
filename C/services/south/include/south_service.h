@@ -17,6 +17,7 @@
 #include <ingest.h>
 #include <filter_plugin.h>
 #include <plugin_data.h>
+#include <storage_asset_tracking.h>
 
 #define MAX_SLEEP	5		// Maximum number of seconds the service will sleep during a poll cycle
 
@@ -49,7 +50,9 @@ class SouthService : public ServiceAuthHandler {
 						      unsigned short corePort);
 		void 				stop();
 		void				shutdown();
+		void				restart();
 		void				configChange(const std::string&, const std::string&);
+		void				processConfigChange(const std::string&, const std::string&);
 		void				configChildCreate(const std::string&,
 								const std::string&,
 								const std::string&){};
@@ -59,6 +62,8 @@ class SouthService : public ServiceAuthHandler {
 		bool				setPoint(const std::string& name, const std::string& value);
 		bool				operation(const std::string& name, std::vector<PLUGIN_PARAMETER *>& );
 		void				setDryRun() { m_dryRun = true; };
+		void				handlePendingReconf();
+		
 	private:
 		void				addConfigDefaults(DefaultConfigCategory& defaults);
 		bool 				loadPlugin();
@@ -68,6 +73,11 @@ class SouthService : public ServiceAuthHandler {
 									std::string current_name);
 		void				throttlePoll();
 	private:
+		std::thread			*m_reconfThread;
+		std::deque<std::pair<std::string,std::string>>	m_pendingNewConfig;
+		std::mutex			m_pendingNewConfigMutex;
+		std::condition_variable		m_cvNewReconf;
+	
 		SouthPlugin			*southPlugin;
 		Logger        			*logger;
 		AssetTracker			*m_assetTracker;
@@ -91,5 +101,9 @@ class SouthService : public ServiceAuthHandler {
 		PluginData			*m_pluginData;
 		std::string			m_dataKey;
 		bool				m_dryRun;
+		bool				m_requestRestart;
+		std::string			m_rateUnits;
+		StorageAssetTracker             *m_storageAssetTracker;
+
 };
 #endif

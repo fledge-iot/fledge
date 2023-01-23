@@ -82,8 +82,13 @@ class TestE2ePiEgressWithScalesetFilter:
         asset_dict[ASSET_NAME] = dp_list
         asset_dict["{}{}".format(ASSET_PREFIX, ASSET_NAME)] = dp_list
 
-        clear_pi_system_through_pi_web_api(pi_host, pi_admin, pi_passwd, pi_db,
-                                           [], asset_dict)
+        # For connector relay we should not delete PI Point because
+        # when the PI point is created again (after deletion) the compressing attribute for it
+        # is always true. That means all the data is not stored in PI data archive.
+        # We lose a large proportion of the data because of compressing attribute.
+        # This is problematic for the fixture that verifies the data stored in PI.
+        # clear_pi_system_through_pi_web_api(pi_host, pi_admin, pi_passwd, pi_db,
+        #                                   [], asset_dict)
 
         fogbench_template_path = os.path.join(
             os.path.expandvars('${FLEDGE_ROOT}'), 'data/template.json')

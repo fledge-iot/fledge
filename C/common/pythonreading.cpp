@@ -105,13 +105,13 @@ PythonReading::PythonReading(PyObject *pyReading)
 			// or reading['ema']
 			if (PyUnicode_Check(dKey))   
 			{
-				m_values.push_back(new Datapoint(
+				m_values.emplace_back(new Datapoint(
 					string(PyUnicode_AsUTF8(dKey)),
 					*dataPoint));
 			}
 			else
 			{
-				m_values.push_back(new Datapoint(
+				m_values.emplace_back(new Datapoint(
 					string(PyBytes_AsString(dKey)),
 					*dataPoint));
 			}
@@ -231,7 +231,7 @@ DatapointValue *PythonReading::getDatapointValue(PyObject *value)
 			DatapointValue *dpv = getDatapointValue(dValue);
 			if (dpv)
 			{
-				values->push_back(new Datapoint(string(PyBytes_AsString(dKey)), *dpv));
+				values->emplace_back(new Datapoint(string(PyBytes_AsString(dKey)), *dpv));
 				// Remove temp objects
 				delete dpv;
 			}
@@ -286,7 +286,7 @@ DatapointValue *PythonReading::getDatapointValue(PyObject *value)
 					DatapointValue *dpv = getDatapointValue(val);
 					if (dpv)
 					{
-						values->push_back(new Datapoint(string(PyBytes_AsString(key)), *dpv));
+						values->emplace_back(new Datapoint(string(PyBytes_AsString(key)), *dpv));
 						// Remove temp objects
 						delete dpv;
 					}

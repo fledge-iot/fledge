@@ -19,6 +19,13 @@
 
 #define	OMF_HINT	"OMFHint"
 
+// The following will force the OMF version for EDs endpoints
+// Remove or comment out the line below to prevent the forcing
+// of the version
+#define EDS_OMF_VERSION	"1.0"
+#define CR_OMF_VERSION	"1.0"
+
+
 #define TYPE_ID_DEFAULT     1
 #define FAKE_ASSET_KEY      "_default_start_id_"
 #define OMF_TYPE_STRING		"string"
@@ -30,7 +37,8 @@ enum OMF_ENDPOINT {
 	ENDPOINT_PIWEB_API,
 	ENDPOINT_CR,
 	ENDPOINT_OCS,
-	ENDPOINT_EDS
+	ENDPOINT_EDS,
+	ENDPOINT_ADH
 };
 
 // Documentation about the Naming Scheme available at: https://fledge-iot.readthedocs.io/en/latest/OMF.html#naming-scheme
@@ -99,6 +107,20 @@ class OMF
 
 		// Destructor
 		~OMF();
+
+		void		setOMFVersion(std::string& omfversion)
+				{
+				       	m_OMFVersion = omfversion;
+					if (omfversion.compare("1.0") == 0
+							|| omfversion.compare("1.1") == 0)
+					{
+						m_linkedProperties = false;
+					}
+					else
+					{
+						m_linkedProperties = true;
+					}
+				};
 
 		/**
 		 * Send data to PI Server passing a vector of readings.
@@ -203,6 +225,8 @@ class OMF
 		bool getConnected() const { return m_connected; };
 		void setConnected(const bool connectionStatus) { m_connected = connectionStatus; };
 
+		void setLegacyMode(bool legacy) { m_legacy = legacy; };
+
 		static std::string ApplyPIServerNamingRulesObj(const std::string &objName, bool *changed);
 		static std::string ApplyPIServerNamingRulesPath(const std::string &objName, bool *changed);
 		static std::string ApplyPIServerNamingRulesInvalidChars(const std::string &objName, bool *changed);
@@ -229,7 +253,7 @@ private:
 		const std::string createStaticData(const Reading& reading);
 
 		// Create data Link message, with 'Data', for current row
-		std::string createLinkData(const Reading& reading, std::string& AFHierarchyLevel, std::string&  prefix, std::string&  objectPrefix, OMFHints *hints);
+		std::string createLinkData(const Reading& reading, std::string& AFHierarchyLevel, std::string&  prefix, std::string&  objectPrefix, OMFHints *hints, bool legacy);
 
 		/**
 		 * Creata data for readings data content, with 'Data', for one row
@@ -319,6 +343,12 @@ private:
 
 		bool HandleAFMapNames(Document& JSon);
 		bool HandleAFMapMetedata(Document& JSon);
+
+		// Start of support for using linked containers
+		bool sendBaseTypes();
+		// End of support for using linked containers
+		//
+		string createAFLinks(Reading &reading, OMFHints *hints);
 
 	private:
 		// Use for the evaluation of the OMFDataTypes.typesShort
@@ -434,12 +464,47 @@ private:
 		std::vector<std::pair<std::string, std::string>> *m_staticData;
 
 
+		/**
+		 * The version of OMF we are talking
+		 */
+		std::string		m_OMFVersion;
 
+		/**
+		 * Support sending properties via links
+		 */
+		bool			m_linkedProperties;
+
+		/**
+		 * The container for this asset and data point has been sent in
+		 * this session.
+		 */
+		std::map<std::string, std::string>
+					m_containerSent;
+
+		/**
+		 * The data message for this asset and data point has been sent in
+		 * this session.
+		 */
+		std::map<std::string, bool>
+					m_assetSent;
+
+		/**
+		 * The link for this asset and data point has been sent in
+		 * this session.
+		 */
+		std::map<std::string, bool>
+					m_linkSent;
+
+		/**
+		 * Force the data to be sent using the legacy, complex OMF types
+		 */
+		bool			m_legacy;
 };
 
 /**
  * The OMFData class.
- * A reading is formatted with OMF specifications
+ * A reading is formatted with OMF specifications using the original
+ * type creation scheme implemented by the OMF plugin
  */
 class OMFData
 {

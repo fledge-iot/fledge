@@ -17,9 +17,18 @@
 ConnectionManager *ConnectionManager::instance = 0;
 
 /**
+ * Background thread entry point
+ */
+static void managerBackground(void *arg)
+{
+	ConnectionManager *mgr = (ConnectionManager *)arg;
+	mgr->background();
+}
+
+/**
  * Default constructor for the connection manager.
  */
-ConnectionManager::ConnectionManager()
+ConnectionManager::ConnectionManager() : m_shutdown(false), m_vacuumInterval(6 * 60 * 60)
 {
 	lastError.message = NULL;
 	lastError.entryPoint = NULL;
@@ -27,6 +36,8 @@ ConnectionManager::ConnectionManager()
 		m_trace = true;
 	else
 		m_trace = false;
+	m_background = new std::thread(managerBackground, this);
+	
 }
 
 /**
@@ -35,7 +46,10 @@ ConnectionManager::ConnectionManager()
  */
 void ConnectionManager::shutdown()
 {
+	m_shutdown = true;
 	shrinkPool(idle.size());
+	if (m_background)
+		m_background->join();
 }
 
 /**
@@ -408,4 +422,27 @@ int ConnectionManager::SQLExec(sqlite3 *dbHandle, const char *sqlCmd, char **err
 	}
 
 	return rc;
+}
+
+/**
+ * Background thread used to execute periodic tasks and oversee the database activity.
+ *
+ * We will runt he SQLite vacuum command periodically to allow space to be reclaimed
+ */
+void ConnectionManager::background()
+{
+	time_t nextVacuum = time(0) + m_vacuumInterval;
+
+	while (!m_shutdown)
+	{
+		sleep(15);
+		time_t tim = time(0);
+		if (m_vacuumInterval && tim > nextVacuum)
+		{
+			Connection *con = allocate();
+			con->vacuum();
+			release(con);
+			nextVacuum = time(0) + m_vacuumInterval;
+		}
+	}
 }

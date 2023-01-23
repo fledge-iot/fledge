@@ -396,17 +396,16 @@ class TestConfiguration:
                 assert message.format(item_name) == resp.reason
             patch_get_cat.assert_called_once_with(category_name, item_name)
 
-    @pytest.mark.parametrize("value", [
-        '',
-        'false',
-        'true'
+    @pytest.mark.parametrize("value, optional_key", [
+        ('', 'readonly'), ('false', 'readonly'), ('true', 'readonly'), ('Security', 'group'), ('', 'group')
     ])
-    async def test_set_optional_in_config_item(self, client, value, category_name='rest_api', item_name='http_port', optional_key='readonly'):
+    async def test_set_optional_in_config_item(self, client, value, optional_key,
+                                               category_name='rest_api', item_name='http_port'):
         async def async_mock(return_value):
             return return_value
 
         payload = {optional_key: value}
-        result = {optional_key: 'false', 'value': '8082', 'type': 'integer', 'default': '8081',
+        result = {optional_key: value, 'value': '8082', 'type': 'integer', 'default': '8081',
                   'description': 'The port to accept HTTP connections on'}
 
         storage_client_mock = MagicMock(StorageClientAsync)

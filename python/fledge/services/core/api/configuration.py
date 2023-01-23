@@ -250,12 +250,13 @@ async def set_configuration_item(request):
                        WHEN: if non-admin user is trying to update 
                        THEN: 403 Forbidden case 
     """
-    if request.user and (category_name == 'rest_api' and config_item == 'authentication'):
-        if not request.user_is_admin:
-            msg = "Admin role permissions required to change the {} value for category {}.".format(
-                config_item, category_name)
-            _logger.warning(msg)
-            raise web.HTTPForbidden(reason=msg, body=json.dumps({"message": msg}))
+    if hasattr(request, "user"):
+        if request.user and (category_name == 'rest_api' and config_item == 'authentication'):
+            if not request.user_is_admin:
+                msg = "Admin role permissions required to change the {} value for category {}.".format(
+                    config_item, category_name)
+                _logger.warning(msg)
+                raise web.HTTPForbidden(reason=msg, body=json.dumps({"message": msg}))
 
     data = await request.json()
     cf_mgr = ConfigurationManager(connect.get_storage_async())
@@ -326,13 +327,16 @@ async def update_configuration_item_bulk(request):
                            WHEN: if non-admin user is trying to update 
                            THEN: 403 Forbidden case 
         """
-        config_items = [k for k, v in data.items() if k == 'authentication']
-        if request.user and (category_name == 'rest_api' and config_items):
-            if not request.user_is_admin:
-                msg = "Admin role permissions required to change the authentication value for category {}.".format(
-                    category_name)
-                _logger.warning(msg)
-                return web.HTTPForbidden(reason=msg, body=json.dumps({"message": msg}))
+        
+        
+        if hasattr(request, "user"):
+            config_items = [k for k, v in data.items() if k == 'authentication']
+            if request.user and (category_name == 'rest_api' and config_items):
+                if not request.user_is_admin:
+                    msg = "Admin role permissions required to change the authentication value for category {}.".format(
+                        category_name)
+                    _logger.warning(msg)
+                    return web.HTTPForbidden(reason=msg, body=json.dumps({"message": msg}))
         cf_mgr = ConfigurationManager(connect.get_storage_async())
         try:
             is_core_mgt = request.is_core_mgt

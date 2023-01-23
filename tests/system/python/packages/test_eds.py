@@ -16,11 +16,11 @@ import subprocess
 import http.client
 import json
 import time
-import pytest
 from pathlib import Path
-import utils
 from datetime import datetime
-import platform
+import pytest
+import utils
+from pytest import PKG_MGR
 
 __author__ = "Yash Tatkondawar"
 __copyright__ = "Copyright (c) 2020 Dianomic Systems, Inc."
@@ -72,9 +72,7 @@ def remove_and_add_pkgs(package_build_version):
         assert False, "setup package script failed"
 
     try:
-        os_platform = platform.platform()
-        pkg_mgr = 'yum' if 'centos' in os_platform or 'redhat' in os_platform else 'apt'
-        subprocess.run(["sudo {} install -y fledge-south-sinusoid".format(pkg_mgr)], shell=True, check=True)
+        subprocess.run(["sudo {} install -y fledge-south-sinusoid".format(PKG_MGR)], shell=True, check=True)
     except subprocess.CalledProcessError:
         assert False, "installation of sinusoid package failed"
 

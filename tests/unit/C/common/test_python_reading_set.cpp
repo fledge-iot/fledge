@@ -117,9 +117,11 @@ TEST_F(PythonReadingSetTest, SingleReading)
 	DatapointValue value(i);
 	readings->push_back(new Reading("test", new Datapoint("long", value)));
 	ReadingSet set(readings);
+	PyGILState_STATE state = PyGILState_Ensure();
 	PyObject *pySet = ((PythonReadingSet *)(&set))->toPython();
 	PyObject *obj = callPythonFunc("count", pySet);
 	long rval = PyLong_AsLong(obj);
+	PyGILState_Release(state);
 	EXPECT_EQ(rval, 1);
 }
 
@@ -132,9 +134,11 @@ TEST_F(PythonReadingSetTest, MultipleReadings)
 	readings->push_back(new Reading("test", new Datapoint("long", value)));
 	readings->push_back(new Reading("test", new Datapoint("long", value)));
 	ReadingSet set(readings);
+	PyGILState_STATE state = PyGILState_Ensure();
 	PyObject *pySet = ((PythonReadingSet *)(&set))->toPython();
 	PyObject *obj = callPythonFunc("count", pySet);
 	long rval = PyLong_AsLong(obj);
+	PyGILState_Release(state);
 	EXPECT_EQ(rval, 3);
 }
 }

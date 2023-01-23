@@ -34,6 +34,7 @@
 #include <config_handler.h>
 #include <syslog.h>
 #include <stdarg.h>
+#include <string_utils.h>
 
 #define SERVICE_TYPE "Northbound"
 
@@ -223,9 +224,9 @@ pid_t pid;
 	close(1);
 	close(2);
 	// redirect fd's 0,1,2 to /dev/null
-	(void)open("/dev/null", O_RDWR);  	// stdin
-	(void)dup(0);  			// stdout	GCC bug 66425 produces warning
-	(void)dup(0);  			// stderr	GCC bug 66425 produces warning
+	open("/dev/null", O_RDWR);  	// stdin
+	if (dup(0) == -1) {}  		// stdout	GCC bug 66425 produces warning
+	if (dup(0) == -1) {}  		// stderr	GCC bug 66425 produces warning
  	return 0;
 }
 
@@ -281,7 +282,8 @@ NorthService::NorthService(const string& myName, const string& token) :
 	m_restartPlugin(false),
 	m_token(token),
 	m_allowControl(true),
-	m_dryRun(false)
+	m_dryRun(false),
+	m_requestRestart()
 {
 	m_name = myName;
 	logger = new Logger(myName);
@@ -358,7 +360,11 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 			logger->fatal("Unable to find storage service");
 			if (!m_dryRun)
 			{
-				m_mgtClient->unregisterService();
+
+				if (m_requestRestart)
+					m_mgtClient->restartService();
+				else
+					m_mgtClient->unregisterService();
 			}
 			return;
 		}
@@ -659,6 +665,22 @@ void NorthService::shutdown()
 }
 
 /**
+ * Restart request
+ */
+void NorthService::restart()
+{
+	/* Stop recieving new requests and allow existing
+	 * requests to drain.
+	 */
+	m_requestRestart = true;
+	m_shutdown = true;
+	logger->info("North service shutdown in progress.");
+
+	// Signal main thread to shutdown
+	m_cv.notify_all();
+}
+
+/**
  * Configuration change notification
  */
 void NorthService::configChange(const string& categoryName, const string& category)
@@ -856,7 +878,9 @@ bool NorthService::write(const string& name, const string& value, const ControlD
 	payload += "\"write\" : { \"";
 	payload += name;
 	payload += "\" : \"";
-	payload += value;
+	string escaped = value;
+	StringEscapeQuotes(escaped);
+	payload += escaped;
 	payload += "\" } }";
 	return sendToDispatcher("/dispatch/write", payload);
 }
@@ -899,7 +923,9 @@ bool NorthService::write(const string& name, const string& value, const ControlD
 	payload += ", \"write\" : { \"";
 	payload += name;
 	payload += "\" : \"";
-	payload += value;
+	string escaped = name;
+	StringEscapeQuotes(escaped);
+	payload += escaped;
 	payload += "\" } }";
 	return sendToDispatcher("/dispatch/write", payload);
 }
@@ -927,18 +953,20 @@ int  NorthService::operation(const string& name, int paramCount, char *names[], 
 	string payload = "{ \"destination\" : \"broadcast\",";
 	payload += "\"operation\" : { \"";
 	payload += name;
-	payload += "\" : { \"";
+	payload += "\" : { ";
 	for (int i = 0; i < paramCount; i++)
 	{
 		payload += "\"";
 		payload += names[i];
 		payload += "\": \"";
-		payload += parameters[i];
+		string escaped = parameters[i];
+		StringEscapeQuotes(escaped);
+		payload += escaped;
 		payload += "\"";
 		if (i < paramCount -1)
 			payload += ",";
 	}
-	payload += "\" } }";
+	payload += " } } }";
 	sendToDispatcher("/dispatch/operation", payload);
 	return -1;
 }
@@ -983,18 +1011,20 @@ int NorthService::operation(const string& name, int paramCount, char *names[], c
 	}
 	payload += ", \"operation\" : { \"";
 	payload += name;
-	payload += "\" : { \"";
+	payload += "\" : { ";
 	for (int i = 0; i < paramCount; i++)
 	{
 		payload += "\"";
 		payload += names[i];
 		payload += "\": \"";
-		payload += parameters[i];
+		string escaped = parameters[i];
+		StringEscapeQuotes(escaped);
+		payload += escaped;
 		payload += "\"";
 		if (i < paramCount -1)
 			payload += ",";
 	}
-	payload += "\" } }";
+	payload += "} } }";
 	sendToDispatcher("/dispatch/operation", payload);
 	return -1;
 }
@@ -1032,7 +1062,8 @@ bool NorthService::sendToService(const string& southService, const string& name,
 			if (res->status_code.compare("200 OK"))
 			{
 				Logger::getLogger()->error("Failed to send set point operation to service %s, %s",
-							southService.c_str(), res->status_code.c_str());
+						southService.c_str(), res->status_code.c_str());
+				Logger::getLogger()->error("Failed Payload: %s", payload.c_str());
 				return false;
 			}
 		} catch (exception& e) {
@@ -1082,8 +1113,11 @@ bool NorthService::sendToDispatcher(const string& path, const string& payload)
 			auto res = http.request("POST", path, payload, headers);
 			if (res->status_code.compare("202 Accepted"))
 			{
-				Logger::getLogger()->error("Failed to send control operation to dispatcher service, %s",
-							res->status_code.c_str());
+				Logger::getLogger()->error(
+						"Failed to send control operation '%s' to dispatcher service, %s %s",
+							path.c_str(), res->status_code.c_str(),
+							res->content.string().c_str());
+				Logger::getLogger()->error("Failed Payload: %s", payload.c_str());
 				return false;
 			}
 		} catch (exception& e) {

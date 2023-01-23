@@ -17,7 +17,8 @@ SERVICE_NAME=$2
 [[ -z "${BRANCH_NAME}" ]] && echo "Branch name not found." && exit 1
 [[ -z "${SERVICE_NAME}" ]] && echo "Service name not found." && exit 1
 
-os_name=`(grep -o '^NAME=.*' /etc/os-release | cut -f2 -d\" | sed 's/"//g')`
+os_name=$(grep -o '^NAME=.*' /etc/os-release | cut -f2 -d\" | sed 's/"//g')
+os_version=$(grep -o '^VERSION_ID=.*' /etc/os-release | cut -f2 -d\" | sed 's/"//g')
 REPO_NAME=fledge-service-${SERVICE_NAME}
 
 clean () {
@@ -35,10 +36,12 @@ install_binary_file () {
 	cd /tmp/${REPO_NAME}; ./build.sh -DFLEDGE_INSTALL=${FLEDGE_ROOT}; cd build && make install;
    else
         if [[ $os_name == *"Red Hat"* || $os_name == *"CentOS"* ]]; then    
-            set +e
-            source scl_source enable rh-postgresql13
-            source scl_source enable devtoolset-7
-            set -e
+            if [[ ${os_version} -eq "7" ]]; then
+                set +e
+                source scl_source enable rh-postgresql13
+                source scl_source enable devtoolset-7
+                set -e
+            fi
         fi
         mkdir -p /tmp/${REPO_NAME}/build; cd /tmp/${REPO_NAME}/build; cmake -DFLEDGE_INSTALL=${FLEDGE_ROOT} ..; make -j4 && make install; cd -
    fi   

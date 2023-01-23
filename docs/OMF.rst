@@ -6,6 +6,7 @@
 .. |omf_plugin_connector_relay_config| image:: images/omf-plugin-connector-relay.jpg
 .. |omf_plugin_eds_config| image:: images/omf-plugin-eds.jpg
 .. |omf_plugin_ocs_config| image:: images/omf-plugin-ocs.jpg
+.. |omf_plugin_adh_config| image:: images/omf-plugin-adh.jpg
 
 .. Links
 .. |OMFHint filter plugin| raw:: html
@@ -42,7 +43,7 @@ Select PI Web API from the Endpoint options.
    - **Asset Framework Hierarchies Rules:** A set of rules that allow specific readings to be placed elsewhere in the Asset Framework. These rules can be based on the name of the asset itself or some metadata associated with the asset. See `Asset Framework Hierarchy Rules`_.
 - PI Web API authentication
    - **PI Web API Authentication Method:** The authentication method to be used: anonymous, basic or kerberos.
-     Anonymous equates to no authentication, basic authentication requires a user name and password, and Kerberos allows integration with your single signon environment.
+     Anonymous equates to no authentication, basic authentication requires a user name and password, and Kerberos allows integration with your Single Sign-On environment.
    - **PI Web API User Id:**  For Basic authentication, the user name to authenticate with the PI Web API.
    - **PI Web API Password:** For Basic authentication, the password of the user we are using to authenticate.
    - **PI Web API Kerberos keytab file:** The Kerberos keytab file used to authenticate.
@@ -55,6 +56,7 @@ Select PI Web API from the Endpoint options.
    - **Number Format:** Used to match Fledge data types to the data type configured in PI. The default is float64 but may be set to any OMF datatype that supports floating point values.
    - **Compression:** Compress the readings data before sending them to the PI Web API OMF endpoint.
      This setting is not related to data compression in the PI Data Archive.
+   - **Complex Types:** Used to force the plugin to send OMF data types as complex types rather than the newer linked types. Linked types are the default way to send data and allows assets to have different sets of data points in different readings. See :ref:`Linked_Types`.
 
 Edge Data Store OMF Endpoint
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -86,6 +88,38 @@ Select Edge Data Store from the Endpoint options.
    - **Number Format:** Used to match Fledge data types to the data type configured in PI. The default is float64 but may be set to any OMF datatype that supports floating point values.
    - **Compression:** Compress the readings data before sending them to the Edge Data Store.
 
+AVEVA Data Hub OMF Endpoint
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Go to the Fledge user interface, create a new North instance and select the “OMF” plugin on the first screen.
+The second screen will request the following information:
+
++-------------------------+
+| |omf_plugin_adh_config| |
++-------------------------+
+
+Select AVEVA Data Hub from the Endpoint options.
+
+- Basic Information
+   - **Endpoint:** This is the type of OMF endpoint. In this case, choose AVEVA Data Hub.
+   - **Naming scheme:** Defines the naming scheme to be used when creating the PI points within the PI Server. See :ref:`Naming_Scheme`.
+   - **Data Source:** Defines which data is sent to AVEVA Data Hub. Choices are: readings or statistics (that is, Fledge's internal statistics).
+   - **Static Data:** Data to include in every reading sent to AVEVA Data Hub.  For example, you can use this to specify the location of the devices being monitored by the Fledge server.
+- Authentication
+   - **Namespace:** Your namespace within the AVEVA Data Hub.
+   - **Tenant ID:** Your AVEVA Data Hub Tenant ID for your account.
+   - **Client ID:** Your AVEVA Data Hub Client ID for your account.
+   - **Client Secret:** Your AVEVA Data Hub Client Secret.
+- Connection management (These should only be changed with guidance from support)
+   - **Sleep Time Retry:** Number of seconds to wait before retrying the HTTP connection (Fledge doubles this time after each failed attempt).
+   - **Maximum Retry:** Maximum number of times to retry connecting to the AVEVA Data Hub.
+   - **HTTP Timeout:** Number of seconds to wait before Fledge will time out an HTTP connection attempt.
+- Other (Rarely changed)
+   - **Integer Format:** Used to match Fledge data types to the data type configured in AVEVA Data Hub. This defaults to int64 but may be set to any OMF data type compatible with integer data, e.g. int32.
+   - **Number Format:** Used to match Fledge data types to the data type configured in AVEVA Data Hub. The default is float64 but may be set to any OMF datatype that supports floating point values.
+   - **Compression:** Compress the readings data before sending them to AVEVA Data Hub.
+
+
 OSIsoft Cloud Services OMF Endpoint
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -104,10 +138,10 @@ Select OSIsoft Cloud Services from the Endpoint options.
    - **Data Source:** Defines which data is sent to OSIsoft Cloud Services. Choices are: readings or statistics (that is, Fledge's internal statistics).
    - **Static Data:** Data to include in every reading sent to OSIsoft Cloud Services.  For example, you can use this to specify the location of the devices being monitored by the Fledge server.
 - Authentication
-   - **OCS Namespace:** Your namespace within OSIsoft Cloud Services.
-   - **OCS Tenant ID:** Your OSIsoft Cloud Services Tenant ID for your account.
-   - **OCS Client ID:** Your OSIsoft Cloud Services Client ID for your account.
-   - **OCS Client Secret:** Your OSIsoft Cloud Services Client Secret.
+   - **Namespace:** Your namespace within OSIsoft Cloud Services.
+   - **Tenant ID:** Your OSIsoft Cloud Services Tenant ID for your account.
+   - **Client ID:** Your OSIsoft Cloud Services Client ID for your account.
+   - **Client Secret:** Your OSIsoft Cloud Services Client Secret.
 - Connection management (These should only be changed with guidance from support)
    - **Sleep Time Retry:** Number of seconds to wait before retrying the HTTP connection (Fledge doubles this time after each failed attempt).
    - **Maximum Retry:** Maximum number of times to retry connecting to the PI server.
@@ -316,7 +350,7 @@ and locations. For example
       {
          "room" :
             {
-               "4" : "ElecticalLab",
+               "4" : "ElectricalLab",
                "6" : "FluidLab"
             }
       }
@@ -431,6 +465,10 @@ that adds this hint to ensure this is the case.
 
    "OMFHint"  : { "type" : "pump" }
 
+.. note::
+
+   This hint only has meaning when using the complex type legacy mode with this plugin.
+
 Tag Name Hint
 ~~~~~~~~~~~~~
 
@@ -439,6 +477,27 @@ Specifies that a specific tag name should be used when storing data in the PI Se
 .. code-block:: console
 
    "OMFHint"  : { "tagName" : "AC1246" }
+
+Legacy Type Hint
+~~~~~~~~~~~~~~~~
+
+Use legacy style complex types for this reading rather that the newer linked data types.
+
+.. code-block:: console
+
+   "OMFHint" : { "LegacyType" : "true" }
+
+The allows the older mechanism to be forced for a single asset. See :ref:`Linked_Types`.
+
+Source Hint
+~~~~~~~~~~~
+
+The default data source that is associated with tags in the PI Server is Fledge, however this can be overridden using the data source hint. This hint may be applied to the entire asset or to specific datapoints within the asset.
+
+.. code-block:: console
+
+   "OMFHint" : { "source" : "Fledge23" }
+
 
 Datapoint Specific Hint
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -455,16 +514,89 @@ to apply.
 The above hint applies to the datapoint *voltage* in the asset and
 applies a *number format* hint to that datapoint.
 
+If more than one datapoint within a reading is required to have OMF hints
+attached to them this may be done by using an array as a child of the
+datapoint item.
+
+.. code-block:: console
+
+   "OMFHint"  : { "datapoint" : [
+        { "name" : "voltage:, "number" : "float32", "uom" : "volt" },
+        { "name" : "current:, "number" : "uint32", "uom" : "milliampere }
+        ]
+   }
+
+The example above attaches a number hint to both the voltage and current
+datapoints and to the current datapoint. It assigns a unit of measure
+of milliampere. The unit of measure for the voltage is set to be volts.
+
 Asset Framework Location Hint
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 An Asset Framework location hint can be added to a reading to control
-the placement of that asset within the Asset Framework. An Asset Framework
+the placement of the asset within the Asset Framework. An Asset Framework
 hint would be as follows:
 
 .. code-block:: console
 
    "OMFHint"  : { "AFLocation" : "/UK/London/TowerHill/Floor4" }
+   
+Note the following when defining an *AFLocation* hint:
+
+- An asset in a Fledge Reading is used to create a `Container in the OSIsoft Asset Framework <https://docs.osisoft.com/bundle/omf-with-pi-web-api/page/container-messages.html>`_.
+  A *Container* is an AF Element with one or more AF Attributes that are mapped to PI Points using the OSIsoft PI Point Data Reference.
+  The name of the AF Element comes from the Fledge Reading asset name.
+  The names of the AF Attributes come from the Fledge Reading datapoint names.
+- If you edit the AF Location hint, the Container will be moved to the new location in the AF hierarchy.
+- If you disable the OMF Hint filter, the Container will not move.
+- If you wish to move a Container, you can do this with the PI System Explorer.
+  Right-click on the AF Element that represents the Container.
+  Choose Copy.
+  Select the AF Element that will serve as the new parent of the Container.
+  Right-click and choose *Paste*.
+  You can then return to the original Container and delete it.
+  *Note that PI System Explorer does not have the traditional Cut function for AF Elements*.
+- If you move a Container, OMF North will not recreate it.
+  If you then edit the AF Location hint, the Container will appear in the new location.
+
+Unit Of Measure Hint
+~~~~~~~~~~~~~~~~~~~~
+
+A unit of measure, or uom hint is used to associate one of the units of
+measurement defined within your PI Server with a particular data point
+within an asset.
+
+.. code-block:: console
+
+   "OMFHint"  : { "datapoint" : { "name" : "height:, "uom" : "meter" } }
+
+Minimum Hint
+~~~~~~~~~~~~
+
+A minimum hint is used to associate a minimum value in the PI Point created for a data point.
+
+.. code-block:: console
+
+   "OMFHint"  : { "datapoint" : { "name" : "height:, "minimum" : "0" } }
+
+Maximum Hint
+~~~~~~~~~~~~
+
+A maximum hint is used to associate a maximum value in the PI Point created for a data point.
+
+.. code-block:: console
+
+   "OMFHint"  : { "datapoint" : { "name" : "height:, "maximum" : "100000" } }
+
+Interpolation
+~~~~~~~~~~~~~
+
+The interpolation hint sets the interpolation value used within the PI Server, interpolation values supported are continuous, discrete, stepwisecontinuousleading, and stepwisecontinuousfollowing.
+
+.. code-block:: console
+
+   "OMFHint"  : { "datapoint" : { "name" : "height:, "interpolation" : "continuous" } }
+
 
 Adding OMF Hints
 ~~~~~~~~~~~~~~~~
@@ -473,3 +605,13 @@ An OMF Hint is implemented as a string data point on a reading with
 the data point name of *OMFHint*. It can be added at any point in the
 processing of the data, however a specific plugin is available for adding
 the hints, the |OMFHint filter plugin|.
+
+.. _Linked_Types:
+
+Linked Types
+------------
+
+Versions of this plugin prior to 2.1.0 created a complex type within OMF for each asset that included all of the data points within that asset. This suffered from a limitation in that readings had to contain values for all of the data points of an asset in order to be accepted by the OMF end point. Following the introduction of OMF version 1.2 it was possible to use the linking features of OMF to avoid the need to create complex types for an asset and instead create empty assets and link the data points to this shell asset. This allows readings to only contain a subset of datapoints and still be successfully sent to the PI Server, or other end points.
+
+As of version 2.1.0 this linking approach is used for all new assets created, if assets exist within the PI Server from versions of the plugin prior to 2.1.0 then the older, complex types will be used. It is possible to force the plugin to use complex types for all assets, both old and new, using the configuration option. It is also to force a particular asset to use the complex type mechanism using an OMFHint.
+

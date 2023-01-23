@@ -5,10 +5,12 @@
 # FLEDGE_END
 
 """ auth routes """
-
+import datetime
 import re
 import json
 from collections import OrderedDict
+import jwt
+import logging
 
 from aiohttp import web
 from fledge.services.core.user_model import User
@@ -21,7 +23,7 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-_logger = logger.setup(__name__)
+_logger = logger.setup(__name__, level=logging.INFO)
 
 _help = """
     ------------------------------------------------------------------------------------
@@ -34,6 +36,8 @@ _help = """
     | POST                       | /fledge/login                                      |
     | PUT                        | /fledge/{user_id}/logout                           |
     
+    | GET                        | /fledge/auth/ott                                   |
+
     | POST                       | /fledge/admin/user                                 |
     | PUT                        | /fledge/admin/{user_id}                            |
     | PUT                        | /fledge/admin/{user_id}/enable                     |
@@ -57,6 +61,39 @@ FORBIDDEN_MSG = 'Resource you were trying to reach is absolutely forbidden for s
 # TODO: remove me, use from roles table
 ADMIN_ROLE_ID = 1
 DEFAULT_ROLE_ID = 2
+OTT_TOKEN_EXPIRY_MINUTES = 5
+
+
+class OTT:
+    """
+        Manage the One Time Token assigned to log in for single time and within OTT_TOKEN_EXPIRY_MINUTES
+    """
+
+    OTT_MAP = {}
+
+    def __init__(self):
+        pass
+
+
+def __remove_ott_for_user(user_id):
+    """Helper function that removes given user_id from OTT_MAP if the user exists in the map."""
+    try:
+        _user_id = int(user_id)
+    except ValueError as ex:
+        _logger.info("User id given is not an integer.")
+        return
+    for k, v in OTT.OTT_MAP.items():
+        if v[0] == _user_id:
+            OTT.OTT_MAP.pop(k)
+            break
+
+
+def __remove_ott_for_token(given_token):
+    """Helper function that removes given token from OTT_MAP if that token in the map."""
+    for k, v in OTT.OTT_MAP.items():
+        if v[1] == given_token:
+            OTT.OTT_MAP.pop(k)
+            break
 
 
 async def login(request):
@@ -65,24 +102,30 @@ async def login(request):
     :Example:
         curl -d '{"username": "user", "password": "fledge"}' -X POST http://localhost:8081/fledge/login
         curl -T data/etc/certs/user.cert -X POST http://localhost:8081/fledge/login --insecure (--insecure or -k)
+        curl -d '{"ott": "ott_token"}' -skX POST http://localhost:8081/fledge/login
     """
     auth_method = request.auth_method if 'auth_method' in dir(request) else "any"
     data = await request.text()
+
+    try:
+        # Check ott inside request payload.
+        _data = json.loads(data)
+        if 'ott' in _data:
+            auth_method = "OTT"  # This is for local reference and not a configuration value
+    except json.JSONDecodeError:
+        if auth_method == 'password':
+            raise web.HTTPBadRequest(reason="Use valid username & password to log in.")
+        pass
 
     # Check for appropriate payload per auth_method
     if auth_method == 'certificate':
         if not data.startswith("-----BEGIN CERTIFICATE-----"):
             raise web.HTTPBadRequest(reason="Use a valid certificate to login.")
-    elif auth_method == 'password':
-        try:
-            user_data = json.loads(data)
-        except json.JSONDecodeError:
-            raise web.HTTPBadRequest(reason="Use a valid username and password to login.")
 
     if data.startswith("-----BEGIN CERTIFICATE-----"):
         peername = request.transport.get_extra_info('peername')
         if peername is not None:
-            host, port = peername
+            host, _ = peername
 
         try:
             await User.Objects.verify_certificate(data)
@@ -96,14 +139,26 @@ async def login(request):
             raise web.HTTPUnauthorized(reason="Authentication failed")
         except ValueError as ex:
             raise web.HTTPUnauthorized(reason="Authentication failed: {}".format(str(ex)))
-    else:
-        try:
-            data = json.loads(data)
-        except json.JSONDecodeError:
-            raise web.HTTPBadRequest(reason="Invalid username and/or password.")
+    elif auth_method == "OTT":
 
-        username = data.get('username')
-        password = data.get('password')
+        _ott = _data.get('ott')
+        if _ott not in OTT.OTT_MAP:
+            raise web.HTTPUnauthorized(reason="Authentication failed. Either the given token expired or already used.")
+
+        time_now = datetime.datetime.now()
+        user_id, orig_token, is_admin, initial_time = OTT.OTT_MAP[_ott]
+
+        # remove ott from MAP when used or when expired.
+        OTT.OTT_MAP.pop(_ott, None)
+        if time_now - initial_time <= datetime.timedelta(minutes=OTT_TOKEN_EXPIRY_MINUTES):
+            return web.json_response(
+                {"message": "Logged in successfully", "uid": user_id, "token": orig_token, "admin": is_admin})
+        else:
+            raise web.HTTPUnauthorized(reason="Authentication failed! The given token has expired")
+    else:
+
+        username = _data.get('username')
+        password = _data.get('password')
 
         if not username or not password:
             _logger.warning("Username and password are required to login")
@@ -119,17 +174,71 @@ async def login(request):
             uid, token, is_admin = await User.Objects.login(username, password, host)
         except (User.DoesNotExist, User.PasswordDoesNotMatch, ValueError) as ex:
             _logger.warning(str(ex))
-            return web.HTTPNotFound(reason=str(ex))
+            raise web.HTTPNotFound(reason=str(ex))
         except User.PasswordExpired as ex:
             # delete all user token for this user
             await User.Objects.delete_user_tokens(str(ex))
 
             msg = 'Your password has been expired. Please set your password again'
             _logger.warning(msg)
-            return web.HTTPUnauthorized(reason=msg)
+            raise web.HTTPUnauthorized(reason=msg)
 
-    _logger.info("User with username:<{}> has been logged in successfully".format(username))
-    return web.json_response({"message": "Logged in successfully", "uid": uid, "token": token, "admin": is_admin})
+    _logger.info("User with username:<{}> logged in successfully.".format(username))
+    return web.json_response({"message": "Logged in successfully.", "uid": uid, "token": token, "admin": is_admin})
+
+
+async def get_ott(request):
+    """ Get one time use token (OTT) for login.
+
+        :Example:
+            curl -H "authorization: <token>" -X GET http://localhost:8081/fledge/auth/ott
+    """
+    if request.is_auth_optional:
+        _logger.warning(FORBIDDEN_MSG)
+        raise web.HTTPForbidden
+
+    try:
+        # Fetching user_id and role for given token.
+        original_token = request.token
+        from fledge.services.core import connect
+        from fledge.common.storage_client.payload_builder import PayloadBuilder
+        payload = PayloadBuilder().SELECT("user_id").WHERE(['token', '=', original_token]).payload()
+        storage_client = connect.get_storage_async()
+        result = await storage_client.query_tbl_with_payload("user_logins", payload)
+        if len(result['rows']) == 0:
+            message = "The request token {} does not have a valid user associated with it.".format(original_token)
+            raise web.HTTPBadRequest(reason=message)
+        user_id = result['rows'][0]['user_id']
+        payload_role = PayloadBuilder().SELECT("role_id").WHERE(['id', '=', user_id]).payload()
+        storage_client = connect.get_storage_async()
+        result_role = await storage_client.query_tbl_with_payload("users", payload_role)
+        if len(result_role['rows']) < 1:
+            message = "The request token {} does not have a valid role associated with it.".format(original_token)
+            raise web.HTTPBadRequest(reason=message)
+        # checking if the user is an admin.
+        is_admin = False
+        if int(result_role['rows'][0]['role_id']) == 1:
+            is_admin = True
+    except Exception as ex:
+        raise web.HTTPBadRequest(reason="The request failed due to {}".format(ex))
+    else:
+        now_time = datetime.datetime.now()
+        p = {'uid': user_id, 'exp': now_time}
+        ott_token = jwt.encode(p, JWT_SECRET, JWT_ALGORITHM).decode("utf-8")
+
+        already_existed_token = False
+        key_to_remove = None
+        for k, v in OTT.OTT_MAP.items():
+            if v[1] == original_token:
+                already_existed_token = True
+                key_to_remove = k
+
+        if already_existed_token:
+            OTT.OTT_MAP.pop(key_to_remove, None)
+
+        ott_info = (user_id, original_token, is_admin, now_time)
+        OTT.OTT_MAP[ott_token] = ott_info
+        return web.json_response({"ott": ott_token})
 
 
 async def logout_me(request):
@@ -150,6 +259,7 @@ async def logout_me(request):
         _logger.warning("Logout requested with bad user token")
         raise web.HTTPNotFound()
 
+    __remove_ott_for_token(request.token)
     _logger.info("User has been logged out successfully")
     return web.json_response({"logout": True})
 
@@ -173,6 +283,9 @@ async def logout(request):
         if not result['rows_affected']:
             _logger.warning("Logout requested with bad user")
             raise web.HTTPNotFound()
+
+        # Remove OTT token for this user if there.
+        __remove_ott_for_user(user_id)
 
         _logger.info("User with id:<{}> has been logged out successfully".format(int(user_id)))
     else:
@@ -447,6 +560,11 @@ async def update_user(request):
         user = await User.Objects.update(user_id, user_data)
         if user:
             user_info = await User.Objects.get(uid=user_id)
+
+        if 'access_method' in data:
+            # Remove OTT token for this user only if access method is updated.
+            __remove_ott_for_user(user_id)
+
     except ValueError as err:
         msg = str(err)
         raise web.HTTPBadRequest(reason=str(err), body=json.dumps({"message": msg}))
@@ -504,6 +622,10 @@ async def update_password(request):
 
     try:
         await User.Objects.update(int(user_id), {'password': new_password})
+
+        # Remove OTT token for this user if there.
+        __remove_ott_for_user(user_id)
+
     except ValueError as ex:
         _logger.warning(str(ex))
         raise web.HTTPBadRequest(reason=str(ex))
@@ -557,6 +679,8 @@ async def enable_user(request):
                     raise User.DoesNotExist
                 payload = PayloadBuilder().SET(enabled=user_data['enabled']).WHERE(['id', '=', user_id]).payload()
                 result = await storage_client.update_tbl("users", payload)
+                # Remove ott token for this enabled/disabled user.
+                __remove_ott_for_user(user_id)
                 if result['response'] == 'updated':
                     _text = 'enabled' if user_data['enabled'] == 't' else 'disabled'
                     payload = PayloadBuilder().SELECT("id", "uname", "role_id", "enabled").WHERE(
@@ -629,6 +753,10 @@ async def reset(request):
 
     try:
         await User.Objects.update(user_id, user_data)
+
+        # Remove OTT token for this user if there.
+        __remove_ott_for_user(user_id)
+
     except ValueError as ex:
         _logger.warning(str(ex))
         raise web.HTTPBadRequest(reason=str(ex))
@@ -682,6 +810,9 @@ async def delete_user(request):
         result = await User.Objects.delete(user_id)
         if not result['rows_affected']:
             raise User.DoesNotExist
+
+        # Remove OTT token for this user if there.
+        __remove_ott_for_user(user_id)
 
     except ValueError as ex:
         _logger.warning(str(ex))

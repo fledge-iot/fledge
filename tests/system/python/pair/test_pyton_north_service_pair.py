@@ -21,7 +21,7 @@ import utils
 
 # Local machine
 local_south_plugin = "sinusoid"
-local_south_asset_name = "sinusoid"
+local_south_asset_name = "python-north-service-pair"
 local_south_service_name = "Sine #1"
 local_north_plugin = "http-north"
 local_north_service_name = "HN #1"
@@ -55,7 +55,7 @@ def reset_fledge_local(wait_time):
 
 @pytest.fixture
 def setup_local(reset_fledge_local, add_south, add_north, fledge_url, remote_ip):
-    local_south_config = {"assetName": {"value": remote_south_asset_name}}
+    local_south_config = {"assetName": {"value": local_south_asset_name}}
     add_south(local_south_plugin, None, fledge_url, config=local_south_config,
               service_name="{}".format(local_south_service_name),
               installation_type='package')
@@ -258,13 +258,13 @@ def _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_d
 
     af_hierarchy_level_list = AF_HIERARCHY_LEVEL.split("/")
     type_id = 1
-    recorded_datapoint = "{}measurement_{}".format(type_id, asset_name)
+    recorded_datapoint = "{}".format(asset_name)
     # Name of asset in the PI server
-    pi_asset_name = "{}-type{}".format(asset_name, type_id)
+    pi_asset_name = "{}".format(asset_name)
 
     while (data_from_pi is None or data_from_pi == []) and retry_count < retries:
         data_from_pi = read_data_from_pi_web_api(pi_host, pi_admin, pi_passwd, pi_db, af_hierarchy_level_list,
-                                                 pi_asset_name, {recorded_datapoint})
+                                                 pi_asset_name, '')
         retry_count += 1
         time.sleep(wait_time * 2)
 

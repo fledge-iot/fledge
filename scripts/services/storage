@@ -41,6 +41,9 @@ else
 	if [[ "$1" != "--plugin" ]]; then
             write_log "" "scripts.services.storage" "info" "Fledge storage microservice found in FLEDGE_ROOT location: ${FLEDGE_ROOT}" "logonly" ""
 	fi
+	if [[ "$1" != "--readingsPlugin" ]]; then
+            write_log "" "scripts.services.storage" "info" "Fledge storage microservice found in FLEDGE_ROOT location: ${FLEDGE_ROOT}" "logonly" ""
+	fi
     fi
 fi
 
@@ -54,6 +57,20 @@ if [[ "$1" != "--plugin" ]]; then
     managedEngine=${res[1]}
     # Call plugin check: this will create database if not set yet
    ${pluginScriptPath}/${storagePlugin}.sh init ${FLEDGE_SCHEMA} ${managedEngine}
+fi
+
+if [[ "$1" != "--readingsPlugin" ]]; then
+    # Get db schema
+    FLEDGE_VERSION_FILE="${FLEDGE_ROOT}/VERSION"
+    FLEDGE_SCHEMA=`cat ${FLEDGE_VERSION_FILE} | tr -d ' ' | grep -i "FLEDGE_SCHEMA=" | sed -e 's/\(.*\)=\(.*\)/\2/g'`
+    # Get storage engine
+    res=(`${storageExec} --readingsPlugin`)
+    storagePlugin=${res[0]}
+    managedEngine=${res[1]}
+    # Call plugin check: this will create database if not set yet
+    if [[ -x ${pluginScriptPath}/${storagePlugin}.sh ]]; then
+       ${pluginScriptPath}/${storagePlugin}.sh init ${FLEDGE_SCHEMA} ${managedEngine}
+    fi
 fi
 
 # Run storage service

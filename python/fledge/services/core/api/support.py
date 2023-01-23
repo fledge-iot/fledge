@@ -5,17 +5,19 @@
 # FLEDGE_END
 
 import os
-import platform
 import subprocess
 import json
 import logging
+import datetime
+
 import urllib.parse
 from pathlib import Path
 from aiohttp import web
 
-from fledge.common import logger
+from fledge.common import logger, utils
 from fledge.common.common import _FLEDGE_ROOT, _FLEDGE_DATA
 from fledge.services.core.support import SupportBuilder
+
 
 __author__ = "Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -24,10 +26,8 @@ __version__ = "${VERSION}"
 
 _logger = logger.setup(__name__, level=logging.INFO)
 
-_SYSLOG_FILE = '/var/log/syslog'
-if any(x in platform.platform() for x in ['centos', 'redhat']):
-    _SYSLOG_FILE = '/var/log/messages'
-
+_SYSLOG_FILE = '/var/log/messages' if utils.is_redhat_based() else '/var/log/syslog'
+_SCRIPTS_DIR = "{}/scripts".format(_FLEDGE_ROOT)
 __DEFAULT_LIMIT = 20
 __DEFAULT_OFFSET = 0
 __DEFAULT_LOG_SOURCE = 'Fledge'
@@ -159,7 +159,9 @@ async def get_syslog_entries(request):
         # Get filtered lines
         template = __GET_SYSLOG_CMD_TEMPLATE
         lines = __GET_SYSLOG_TOTAL_MATCHED_LINES
-        non_total_template = __GET_SYSLOG_TEMPLATE_WITH_NON_TOTALS
+
+        levels = ""
+        level = "debug"
         if 'level' in request.query and request.query['level'] != '':
             level = request.query['level'].lower()
             supported_level = ['info', 'warning', 'error', 'debug']
@@ -168,15 +170,16 @@ async def get_syslog_entries(request):
             if level == 'info':
                 template = __GET_SYSLOG_CMD_WITH_INFO_TEMPLATE
                 lines = __GET_SYSLOG_INFO_MATCHED_LINES
-                non_total_template = __GET_SYSLOG_INFO_TEMPLATE_WITH_NON_TOTALS
+                levels = "(INFO|WARNING|ERROR|FATAL)"
             elif level == 'warning':
                 template = __GET_SYSLOG_CMD_WITH_WARNING_TEMPLATE
                 lines = __GET_SYSLOG_WARNING_MATCHED_LINES
-                non_total_template = __GET_SYSLOG_WARNING_TEMPLATE_WITH_NON_TOTALS
+                levels = "(WARNING|ERROR|FATAL)"
             elif level == 'error':
                 template = __GET_SYSLOG_CMD_WITH_ERROR_TEMPLATE
                 lines = __GET_SYSLOG_ERROR_MATCHED_LINES
-                non_total_template = __GET_SYSLOG_ERROR_TEMPLATE_WITH_NON_TOTALS
+                levels = "(ERROR|FATAL)"
+
         response = {}
         # nontotals
         non_totals = request.query['nontotals'].lower() if 'nontotals' in request.query and request.query[
@@ -191,10 +194,18 @@ async def get_syslog_entries(request):
             response['count'] = total_lines
             cmd = template.format(valid_source[source], _SYSLOG_FILE, total_lines - offset, limit)
         else:
-            cmd = non_total_template.format(valid_source[source], _SYSLOG_FILE, offset, limit)
-        a = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE).stdout.readlines()
-        c = [b.decode() for b in a]  # Since "a" contains return value in bytes, convert it to string
-        response['logs'] = c
+            scriptPath = os.path.join(_SCRIPTS_DIR, "common", "get_logs.sh")
+            # cmd = non_total_template.format(valid_source[source], _SYSLOG_FILE, offset, limit)
+            pattern = '({})\[.*\].*{}:'.format(valid_source[source], levels)
+            cmd = '{} -offset {} -limit {} -pattern \'{}\' -logfile {} -source {} -level {}'.format(scriptPath, offset, limit, pattern, _SYSLOG_FILE, source, level)
+            _logger.debug('********* non_totals=true: new shell command: {}'.format(cmd))
+
+        t1 = datetime.datetime.now()
+        rv = subprocess.Popen([cmd], shell=True, stdout=subprocess.PIPE).stdout.readlines()
+        t2 = datetime.datetime.now()
+        rv_str = [b.decode() for b in rv]  # Since "rv" contains return value in bytes, convert it to string
+        _logger.debug('********* Time taken for grep/tail/head subprocess: {} msec'.format((t2 - t1).total_seconds()*1000))
+        response['logs'] = rv_str
     except ValueError as err:
         msg = str(err)
         raise web.HTTPBadRequest(body=json.dumps({"message": msg}), reason=msg)

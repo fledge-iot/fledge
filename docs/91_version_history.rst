@@ -34,38 +34,38 @@ Release Date: 2023-01-20
 
     - New Features:
 
-       - An erroneous message was being produced when starting the system using the SQLite in memory storage plugin. This has now been resolved.
+       - The support bundle has been updated to include a list of the Python packages installed on the machine.
        - The configuration category C++ API has been enhanced in the retrieval and setting of all the attributes of a configuration item.
-       - A change has been made to the configuration of the storage plugin such that rather than having to type correct names for storage plugins the user may now select the plugins to use from a drop down list. Note however that the system must still be restarted for the new storage plugin to take effect.
+       - The storage service has been updated to allow other services to subscribe the notifications of inserts into the generic tables.
+       - A change has been made to the configuration of the storage plugin such that rather than having to type correct names for storage plugins the user may now select the plugins from enumerated options, to allow choosing from a drop down list in GUI interface. Note however that the system must still be restarted for the new storage plugin to take effect.  —> This should be mentionedmention in feature of GUI, because we will have feature for selecting storage through drop down.
+       - A number of optimisations have been made to improve the performance of Python filters within a pipeline.
 
 
     - Bug Fix:
 
-       - Support has been improved for switching between different storage plugins that allows for correct schema creation when using different sqlite plugin variants for configuration and readings storage.
+       - Support has been improved for switching between different storage plugins that allows for correct schema creation when using different SQLite plugin variants for configuration and readings storage.
+       - An erroneous message was being produced when starting the system using the SQLite in memory storage plugin. This has now been resolved.
 
 
 - **GUI**
 
-    - New Features:
-
-
-
     - Bug Fix:
+       
+       - An occasional error that appeared on the Control Script and ACL pages has been resolved.
+       - An issue with editing large scripts or JSON items in the configuration has been resolved.
+       - A text wrapping issue in the system log viewer has been resolved.
 
 
-
-- **Plugins**
+- **Services & Plugins**
 
     - New Features:
 
-       - A number of optimisations the SQLite in memory storage plugin and the SQLiteLB storage plugin have been added that increase the rate at which readings can be stored with these plugins.
+       - A number of optimisations to the SQLite in-memory storage plugin and the SQLiteLB storage plugin have been added that increase the rate at which readings can be stored with these plugins.
 
 
     - Bug Fix:
 
        - The HTTP North C plugin now supports sending audit log data as well as readings and statistics.
-       - If a query for AF Attributes includes a search string token that does not exist, PI Web API returns an HTTP 400 error. PI Server South now retrieves error messages if this occurs and logs them.
-       - This work item represents a list of issues reported for PI Server South. Work items were created for all actionable issues. All of the new work items have been completed except for one.
        - The plugin would become unresponsive if the OPC UA server was unavailable or if the server URL was incorrect. The only way to stop the plugin in this state was to shut down Fledge. This has been fixed.
 
 

@@ -559,12 +559,13 @@ Note the following when defining an *AFLocation* hint:
     - If you define an AF Location hint after the Reading AF Element has been created in the default location,
       a reference will be created in the location defined by the hint.
     - If an AF Location hint was in place when the Reading AF Element was created and you then disable the hint,
-      the Reading AF Element will not move. A reference to this AF Element will be created in the Default Asset Framework Location.
+      a reference will be created in the *Default Asset Framework Location*.
     - If you edit the AF Location hint, the Reading AF Element not move.
       A reference to the Reading AF Element will be created in the new location.
 - For Complex Types
     - If you disable the OMF Hint filter, the Reading AF Element will not move.
     - If you edit the AF Location hint, the Reading AF Element will move to the new location in the AF hierarchy.
+    - No references are created.
 
 Unit Of Measure Hint
 ~~~~~~~~~~~~~~~~~~~~

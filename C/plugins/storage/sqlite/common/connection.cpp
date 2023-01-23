@@ -11,6 +11,7 @@
 #include <connection_manager.h>
 #include <common.h>
 #include <utils.h>
+#include <unistd.h>
 
 #include "readings_catalogue.h"
 
@@ -544,7 +545,14 @@ Connection::Connection()
 		delete[] sqlStmt;
 
 		// Attach readings database - readings_1
+		if (access(dbPathReadings.c_str(), R_OK) != 0)
 		{
+			Logger::getLogger()->info("No readings database, assuming seperate readings plugin is avialable");
+			m_noReadings = true;
+		}
+		else
+		{
+			m_noReadings = false;
 			SQLBuffer attachReadingsDb;
 			attachReadingsDb.append("ATTACH DATABASE '");
 			attachReadingsDb.append(dbPathReadings + "' AS readings_1;");
@@ -595,6 +603,7 @@ Connection::Connection()
 
 	}
 
+	if (!m_noReadings)
 	{
 		// Attach all the defined/used databases
 		ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();

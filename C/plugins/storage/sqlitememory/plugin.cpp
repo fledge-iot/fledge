@@ -24,6 +24,7 @@
 #include <string>
 #include <logger.h>
 #include <plugin_exception.h>
+#include <reading_stream.h>
 #include <common.h>
 
 using namespace std;
@@ -93,6 +94,21 @@ ConnectionManager *manager = (ConnectionManager *)handle;
 Connection        *connection = manager->allocate();
 
 	int result = connection->appendReadings(readings);
+	manager->release(connection);
+	return result;;
+}
+
+/**
+ * Append a stream of readings to the readings buffer
+ */
+int plugin_readingStream(PLUGIN_HANDLE handle, ReadingStream **readings, bool commit)
+{
+	int result = 0;
+	ConnectionManager *manager = (ConnectionManager *)handle;
+	Connection        *connection = manager->allocate();
+
+	result = connection->readingStream(readings, commit);
+
 	manager->release(connection);
 	return result;;
 }

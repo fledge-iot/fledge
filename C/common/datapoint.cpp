@@ -216,7 +216,7 @@ DatapointValue::DatapointValue(const DatapointValue& obj)
 				Datapoint *d = *it;
 				// Add new allocated datapoint to the vector
 				// using copy constructor
-				m_value.dpa->push_back(new Datapoint(*d));
+				m_value.dpa->emplace_back(new Datapoint(*d));
 			}
 
 			break;

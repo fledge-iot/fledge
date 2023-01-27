@@ -16,8 +16,10 @@
 #include <time.h>
 #include <string.h>
 #include <logger.h>
+#include <rapidjson/document.h>
 
 using namespace std;
+using namespace rapidjson;
 
 std::vector<std::string> Reading::m_dateTypes = {
 	DEFAULT_DATE_TIME_FORMAT,
@@ -75,6 +77,51 @@ Reading::Reading(const string& asset, vector<Datapoint *> values, const string& 
 		m_values.push_back(*it);
 	}
 	stringToTimestamp(ts, &m_timestamp);
+	// Initialise m_userTimestamp
+	m_userTimestamp = m_timestamp;
+}
+
+/**
+ * Construct a reading with datapoints given as JSON
+ */
+Reading::Reading(const string& asset, const string& datapoints) : m_asset(asset)
+{
+	Document d;
+	if (d.Parse(datapoints.c_str()).HasParseError())
+	{
+		throw runtime_error("Failed to parse reading datapoints " + datapoints);
+	}
+	for (Value::ConstMemberIterator itr = d.MemberBegin(); itr != d.MemberEnd(); ++itr)
+	{
+		string name = itr->name.GetString();
+		if (itr->value.IsInt64())
+		{
+			long v = itr->value.GetInt64();
+			DatapointValue dpv(v);
+			m_values.push_back(new Datapoint(name, dpv));
+		}
+		else if (itr->value.IsDouble())
+		{
+			double v = itr->value.GetDouble();
+			DatapointValue dpv(v);
+			m_values.push_back(new Datapoint(name, dpv));
+		}
+		else if (itr->value.IsString())
+		{
+			string v = itr->value.GetString();
+			DatapointValue dpv(v);
+			m_values.push_back(new Datapoint(name, dpv));
+		}
+		else if (itr->value.IsObject())
+		{
+			// Map objects as nested datapoints
+			vector<Datapoint *> *values = JSONtoDatapoints(itr->value);
+			DatapointValue dpv(values, true);
+			m_values.push_back(new Datapoint(name, dpv));
+		}
+	}
+	// Store seconds and microseconds
+	gettimeofday(&m_timestamp, NULL);
 	// Initialise m_userTimestamp
 	m_userTimestamp = m_timestamp;
 }
@@ -504,4 +551,45 @@ int bscount = 0;
 		rval += str[i];
 	}
 	return rval;
+}
+
+/**
+ * Convert a JSON Value object to a set of data points
+ *
+ * @param json	The json object to convert
+ */
+vector<Datapoint *> *Reading::JSONtoDatapoints(const Value& json)
+{
+vector<Datapoint *> *values = new vector<Datapoint *>;
+
+	for (Value::ConstMemberIterator itr = json.MemberBegin(); itr != json.MemberEnd(); ++itr)
+	{
+		string name = itr->name.GetString();
+		if (itr->value.IsInt64())
+		{
+			long v = itr->value.GetInt64();
+			DatapointValue dpv(v);
+			values->push_back(new Datapoint(name, dpv));
+		}
+		else if (itr->value.IsDouble())
+		{
+			double v = itr->value.GetDouble();
+			DatapointValue dpv(v);
+			values->push_back(new Datapoint(name, dpv));
+		}
+		else if (itr->value.IsString())
+		{
+			string v = itr->value.GetString();
+			DatapointValue dpv(v);
+			values->push_back(new Datapoint(name, dpv));
+		}
+		else if (itr->value.IsObject())
+		{
+			// Map objects as nested datapoints
+			vector<Datapoint *> *values = JSONtoDatapoints(itr->value);
+			DatapointValue dpv(values, true);
+			values->push_back(new Datapoint(name, dpv));
+		}
+	}
+	return values;
 }

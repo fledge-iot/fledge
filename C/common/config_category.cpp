@@ -1572,9 +1572,9 @@ ostringstream convert;
 	}
 	else if ( m_itemType == ScriptItem )
 	{
-		if (m_default == "\"\"" )
+		if (m_default == "\"\"" ) // Already escaped blank value, No need to escape twice
 		{
-			convert << ", \"default\" : \"\" }";
+			convert << ", \"default\" : " << m_default << " }";
 		}
 		else
 		{

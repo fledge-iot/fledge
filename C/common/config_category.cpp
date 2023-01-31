@@ -1264,8 +1264,7 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 			item["default"].Accept(writer);
 			if (m_default.empty())
 			{
-				m_default = "";
-				
+				m_default = "\"\"";
 			}
 		}
 		else
@@ -1567,12 +1566,21 @@ ostringstream convert;
 	else if (m_itemType == JsonItem ||
 		 m_itemType == NumberItem ||
 		 m_itemType == DoubleItem ||
-		 m_itemType == ScriptItem ||
 		 m_itemType == CodeItem)
 	{
 		convert << ", \"default\" : \"" << JSONescape(m_default) << "\" }";
 	}
-	
+	else if ( m_itemType == ScriptItem )
+	{
+		if (m_default == "\"\"" )
+		{
+			convert << ", \"default\" : \"\" }";
+		}
+		else
+		{
+			convert << ", \"default\" : \"" << JSONescape(m_default) << "\" }";
+		}
+	}
 	return convert.str();
 }
 

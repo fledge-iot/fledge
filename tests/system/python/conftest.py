@@ -485,10 +485,10 @@ def verify_hierarchy_and_get_datapoints_from_pi_web_api():
                         record = dict()
                         if CHECK_AF_ELEMENT_EXISTS['Name'] == asset:
                             record_url = CHECK_AF_ELEMENT_EXISTS['Links']['RecordedData']
-                            conn.request("GET", record_url, headers=headers)
+                            get_record_url = "{}?limit=100000".format(record_url)
+                            conn.request("GET", get_record_url, headers=headers)
                             res = conn.getresponse()
                             items = json.loads(res.read().decode())['Items']
-                            
                             no_of_datapoint_in_pi_server = len(items)
                             Item_matched = False
                             count = 0
@@ -504,6 +504,8 @@ def verify_hierarchy_and_get_datapoints_from_pi_web_api():
                                         raise "Required Data points is not Present --> {}".format(sensor)
                         else:
                             raise "Asset does not exist, Although Hierarchy is correct"
+                        print('no. of sinusoid DPs',len(record['sinusoid']))
+                        print('no. of randomwalk DPs', len(record['randomwalk']))
                         return(record)
                             
                     else:

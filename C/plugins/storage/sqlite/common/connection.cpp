@@ -1189,9 +1189,11 @@ vector<string>  asset_codes;
  */
 int Connection::insert(const string& schema, const string& table, const string& data)
 {
-SQLBuffer	sql;
+string sqlCommand = {};
 Document	document;
 ostringstream convert;
+sqlite3_stmt *stmt;
+int rc;
 std::size_t arr = data.find("inserts");
 
 	if (!m_schemaManager->exists(dbHandle, schema))
@@ -1226,13 +1228,11 @@ std::size_t arr = data.find("inserts");
 		return -1;
 	}
 
-	// Start a trabsaction
-	sql.append("BEGIN TRANSACTION;");
-
 	// Number of inserts
 	int ins = 0;
-
-	// Iterate through insert array
+    int failedInsertCount = 0;
+	
+	// Generate sql query for prepared statement
 	for (Value::ConstValueIterator iter = inserts.Begin();
 					iter != inserts.End();
 					++iter)
@@ -1245,14 +1245,9 @@ std::size_t arr = data.find("inserts");
 		}
 
 		int col = 0;
-		SQLBuffer values;
-
-	 	sql.append("INSERT INTO ");
-		sql.append(schema);
-		sql.append('.');
-		sql.append(table);
-		sql.append(" (");
-
+		
+		sqlCommand = "INSERT INTO " + schema + "." + table + " (";
+		
 		for (Value::ConstMemberIterator itr = (*iter).MemberBegin();
 						itr != (*iter).MemberEnd();
 						++itr)
@@ -1260,122 +1255,140 @@ std::size_t arr = data.find("inserts");
 			// Append column name
 			if (col)
 			{
-				sql.append(", ");
+				sqlCommand += ", ";
 			}
-			sql.append(itr->name.GetString());
- 
-			// Append column value
-			if (col)
+			sqlCommand += itr->name.GetString();
+			col++;
+		}
+		
+		sqlCommand += ") VALUES (";
+		for ( auto i = 0 ; i < col; i++ )
+		{
+			if (i) 
 			{
-				values.append(", ");
+				sqlCommand += ",";
 			}
+			sqlCommand += "?";
+		}
+		sqlCommand += ");";
+		
+		
+		rc = sqlite3_prepare_v2(dbHandle, sqlCommand.c_str(), sqlCommand.size(), &stmt, NULL);
+		if (rc != SQLITE_OK)
+		{
+			raiseError("insert", sqlite3_errmsg(dbHandle));
+			Logger::getLogger()->error("SQL statement: %s", sqlCommand.c_str());
+			return -1;
+		}
+
+		// Bind columns with prepared sql query
+		int columID = 1;
+		for (Value::ConstMemberIterator itr = (*iter).MemberBegin();
+						itr != (*iter).MemberEnd();
+						++itr)
+		{
+			
 			if (itr->value.IsString())
 			{
 				const char *str = itr->value.GetString();
 				if (strcmp(str, "now()") == 0)
 				{
-					values.append(SQLITE3_NOW);
+					sqlite3_bind_text(stmt, columID, SQLITE3_NOW, -1, SQLITE_TRANSIENT);
 				}
 				else
 				{
-					values.append('\'');
-					values.append(escape(str));
-					values.append('\'');
+					sqlite3_bind_text(stmt, columID, escape(str).c_str(), -1, SQLITE_TRANSIENT);
 				}
 			}
-			else if (itr->value.IsDouble())
-				values.append(itr->value.GetDouble());
+			else if (itr->value.IsDouble()) {
+				sqlite3_bind_double(stmt, columID,itr->value.IsDouble());
+			}
+				
 			else if (itr->value.IsInt64())
-				values.append((long)itr->value.GetInt64());
+			{
+				sqlite3_bind_int(stmt, columID,(long)itr->value.GetInt64());
+			}
+				
 			else if (itr->value.IsInt())
-				values.append(itr->value.GetInt());
+			{
+				sqlite3_bind_int(stmt, columID,itr->value.GetInt());
+			}
+				
 			else if (itr->value.IsObject())
 			{
 				StringBuffer buffer;
 				Writer<StringBuffer> writer(buffer);
 				itr->value.Accept(writer);
-				values.append('\'');
-				values.append(escape(buffer.GetString()));
-				values.append('\'');
+				sqlite3_bind_text(stmt, columID, buffer.GetString(), -1, SQLITE_TRANSIENT);
 			}
-			col++;
+			columID++ ;
 		}
-		sql.append(") VALUES (");
-		const char *vals = values.coalesce();
-		sql.append(vals);
-		delete[] vals;
-		sql.append(");");
+		
+		if (sqlite3_exec(dbHandle, "BEGIN TRANSACTION", NULL, NULL, NULL) != SQLITE_OK)
+		{
+			raiseError("insert", sqlite3_errmsg(dbHandle));
+			return -1;
+		}
 
+		m_writeAccessOngoing.fetch_add(1);
+		
+		int sqlite3_resut = sqlite3_step(stmt);
+		
+		m_writeAccessOngoing.fetch_sub(1);
+		
+		if (sqlite3_resut == SQLITE_DONE)
+		{
+			sqlite3_clear_bindings(stmt);
+			sqlite3_reset(stmt);
+		}
+		else
+		{
+			failedInsertCount++;
+			raiseError("insert", sqlite3_errmsg(dbHandle));
+			Logger::getLogger()->error("SQL statement: %s", sqlite3_expanded_sql(stmt));
+			
+			// transaction is still open, do rollback
+			if (sqlite3_get_autocommit(dbHandle) == 0)
+			{
+				rc = sqlite3_exec(dbHandle,"ROLLBACK TRANSACTION;",NULL,NULL,NULL);
+				if (rc != SQLITE_OK)
+				{
+					raiseError("insert rollback", sqlite3_errmsg(dbHandle));
+				}
+			
+			}
+		}
+		
+
+		if (sqlite3_exec(dbHandle, "COMMIT TRANSACTION", NULL, NULL, NULL) != SQLITE_OK)
+		{
+			raiseError("insert", sqlite3_errmsg(dbHandle));
+			return -1;
+		}
+
+		
+		sqlCommand.clear();
+		
 		// Increment row count
 		ins++;
+		
 	}
 
-	sql.append("COMMIT TRANSACTION;");
+	sqlite3_finalize(stmt);
 
-	const char *query = sql.coalesce();
-	logSQL("CommonInsert", query);
-	char *zErrMsg = NULL;
-	int rc;
-
-	// Exec INSERT statement: no callback, no result set
-	m_writeAccessOngoing.fetch_add(1);
-	rc = SQLexec(dbHandle,
-		     query,
-		     NULL,
-		     NULL,
-		     &zErrMsg);
-	m_writeAccessOngoing.fetch_sub(1);
 	if (m_writeAccessOngoing == 0)
 		db_cv.notify_all();
 
-	// Check exec result
-	if (rc != SQLITE_OK )
+	if (failedInsertCount)
 	{
-		raiseError("insert", zErrMsg);
-		Logger::getLogger()->error("SQL statement: %s", query);
-		sqlite3_free(zErrMsg);
-
-		// transaction is still open, do rollback
-		if (sqlite3_get_autocommit(dbHandle) == 0)
-                {
-			rc = SQLexec(dbHandle,
-				     "ROLLBACK TRANSACTION;",
-				     NULL,
-				     NULL,
-				     &zErrMsg);
-			if (rc != SQLITE_OK)
-			{
-				raiseError("insert rollback", zErrMsg);
-				sqlite3_free(zErrMsg);
-			}
-		}
-
-		Logger::getLogger()->error("SQL statement: %s", query);
-		// Release memory for 'query' var
-		delete[] query;
-
-		// Failure
-		return -1;
+		char buf[100];
+		snprintf(buf, sizeof(buf),
+				"Not all inserts into table '%s.%s' within transaction succeeded",
+				schema.c_str(), table.c_str());
+		raiseError("insert", buf);
 	}
-	else
-	{
-		// Release memory for 'query' var
-		delete[] query;
 
-		int insert = sqlite3_changes(dbHandle);
-
-		if (insert == 0)
-		{
-			char buf[100];
-			snprintf(buf, sizeof(buf),
-					"Not all inserts into table '%s.%s' within transaction succeeded",
-					schema.c_str(), table.c_str());
-			raiseError("insert", buf);
-		}
-
-		// Return the status
-		return (insert ? ins : -1);
-	}
+	return (!failedInsertCount ? ins : -1);
 }
 #endif
 

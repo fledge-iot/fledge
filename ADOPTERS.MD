@@ -13,3 +13,4 @@ Transpara - HMI for Process Manufacturers
 Wago - PLC Vendor
 Zededa - VMs for IoT
 RTE France - T&D
+Nueman Aluminium

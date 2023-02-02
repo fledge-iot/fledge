@@ -1463,17 +1463,6 @@ ostringstream convert;
 		{
 			convert << ", \"file\" : \"" << m_file << "\"";
 		}
-		if (m_options.size() > 0)
-		{
-			convert << ", \"options\" : [ ";
-			for (int i = 0; i < m_options.size(); i++)
-			{
-				if (i > 0)
-					convert << ",";
-				convert << "\"" << m_options[i] << "\"";
-			}
-			convert << "]";
-		}
 	}
 	convert << " }";
 

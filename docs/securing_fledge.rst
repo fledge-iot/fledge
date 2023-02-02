@@ -11,6 +11,7 @@
 .. |password_rotation| image:: images/password_rotation.jpg
 .. |user_management| image:: images/user_management.jpg
 .. |add_user| image:: images/add_user.jpg
+.. |update_user| image:: images/update_user.jpg
 .. |delete_user| image:: images/delete_user.jpg
 .. |change_role| image:: images/change_role.jpg
 .. |reset_password| image:: images/reset_password.jpg
@@ -48,7 +49,7 @@ After enabling HTTPS and selecting save you must restart Fledge in order for the
 
 *Note*: if using the default self-signed certificate you might need to authorise the browser to connect to IP:PORT.
 Just open a new browser tab and type the URL https://YOUR_FLEDGE_IP:1995
-
+;
 Then follow browser instruction in order to allow the connection and close the tab.
 In the Fledge GUI you should see the green icon (Fledge is running).
 
@@ -143,10 +144,12 @@ The user management pages allows
   - Resetting user passwords.
   - Changing the role of a user.
 
-Fledge currently supports two roles for users,
+Fledge currently supports four roles for users,
 
-  - **admin**: a user with admin role is able to fully configure Fledge and also manage Fledge users
-  - **user**: a user with this role is able to configure Fledge but can not manage users
+  - **Administrator**: a user with admin role is able to fully configure Fledge and also manage Fledge users
+  - **Editor**: a user with this role is able to configure Fledge but can not manage users
+  - **Viewer**: a user that can only view the configuration of the Fledge instance
+  - **Data viewer**: a user that can only view the data in Fledge and not the configuration of Fledge itself
 
 Adding Users
 ------------
@@ -158,6 +161,15 @@ To add a new user from the *User Management* page select the *Add User* icon in 
 +------------+
 
 You can select a role for the new user, a user name and an initial password for the user. Only users with the role *admin* can add new users.
+
+Update User Details
+-------------------
+
+The edit user option allows the name, authentication method and description of a user to be updated.
+
++---------------+
+| |update_user| |
++---------------+
 
 Changing User Roles
 -------------------

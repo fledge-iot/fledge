@@ -131,7 +131,12 @@ Whenever a user logs into Fledge the age of their password is checked against th
 User Management
 ===============
 
-Once mandatory authentication has been enabled and the currently logged in user has the role *admin*, a new option appears in the GUI, *User Management*.
+The user management option becomes active once the Fledge has been configured to require authentication of users. This is enabled via the *Admin API* page of the *Configuration* menu item. A new menu item *User Management* will appear in the left hand menu.
+
+.. note::
+
+   After setting the Authentication option to Mandatory in the configuration page the Fledge instance should be restarted.
+
 
 +-------------------+
 | |user_management| |
@@ -143,13 +148,17 @@ The user management pages allows
   - Deleting users.
   - Resetting user passwords.
   - Changing the role of a user.
+  - Changing the details of a user
 
-Fledge currently supports four roles for users,
+Fledge currently supports four roles for users:
 
-  - **Administrator**: a user with admin role is able to fully configure Fledge and also manage Fledge users
-  - **Editor**: a user with this role is able to configure Fledge but can not manage users
-  - **Viewer**: a user that can only view the configuration of the Fledge instance
-  - **Data viewer**: a user that can only view the data in Fledge and not the configuration of Fledge itself
+  - **Administrator**: a user with admin role is able to fully configure Fledge, view the data read by the Fledge instance  and also manage Fledge users
+
+  - **Editor**: a user with this role is able to configure Fledge and view the data read by Fledge. The user can not manage other users or add new users.
+
+  - **Viewer**: a user that can only view the configuration of the Fledge instance. The user has no ability to modify the Fledge instance in any way.
+
+  - **Data Viewer**: a user that can only view the data in Fledge and not the configuration of Fledge itself. The user has no ability to modify the Fledge instance in any way.
 
 Adding Users
 ------------

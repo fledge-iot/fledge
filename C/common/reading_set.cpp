@@ -193,6 +193,45 @@ ReadingSet::append(const vector<Reading *>& readings)
 }
 
 /**
+* Deep copy a set of readings to this reading set.
+*/
+bool
+ReadingSet::copy(const ReadingSet& src)
+{
+   vector<Reading *> *readings = new vector<Reading *>;
+   bool copyResult = true;
+   try
+   {
+	   for ( auto rs : src.getAllReadings())
+	   {
+		   std::string assetName = rs->getAssetName();
+		   for ( auto dp : rs->getReadingData())
+		   {
+			   std::string dataPointName  = dp->getName();
+			   DatapointValue dv = dp->getData();
+			   Datapoint *value = new Datapoint(dataPointName, dv);
+			   Reading *in = new Reading(assetName, value);
+			   readings->push_back(in);
+		   }
+	   }
+   }
+   catch(...)
+   {
+	   copyResult = false;
+	   readings->clear();
+	   Logger::getLogger()->error("Copy opeation failed");
+   }
+
+   //Append if All elements have been copied successfully
+   if (copyResult)
+   {
+	   append(*readings);
+   }
+
+   return copyResult;
+}
+
+/**
  * Remove all readings from the reading set and delete the memory
  * After this call the reading set exists but contains no readings.
  */

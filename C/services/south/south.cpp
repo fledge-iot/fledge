@@ -435,29 +435,7 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 			// Get and ingest data
 			if (! southPlugin->isAsync())
 			{
-				string units = m_configAdvanced.getValue("units");
-				unsigned long dividend = 1000000;
-				if (units.compare("second") == 0)
-					dividend = 1000000;
-				else if (units.compare("minute") == 0)
-					dividend = 60000000;
-				else if (units.compare("hour") == 0)
-					dividend = 3600000000;
-				m_rateUnits = units;
-				unsigned long usecs = dividend / m_readingsPerSec;
-
-				if (usecs > MAX_SLEEP * 1000000)
-				{
-					double x = usecs / (MAX_SLEEP * 1000000);
-					m_repeatCnt = ceil(x);
-					usecs /= m_repeatCnt;
-				}
-				else
-				{
-					m_repeatCnt = 1;
-				}
-				m_desiredRate.tv_sec  = (int)(usecs / 1000000);
-				m_desiredRate.tv_usec = (int)(usecs % 1000000);
+				calculateTimerRate();
 				m_timerfd = createTimerFd(m_desiredRate); // interval to be passed is in usecs
 				m_currentRate = m_desiredRate;
 				if (m_timerfd < 0)
@@ -513,22 +491,35 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 
 				while (!m_shutdown)
 				{
-					uint64_t exp;
+					uint64_t exp = 0;
 					ssize_t s;
 					
-					long rep = m_repeatCnt;
-					while (rep > 0)
+					if (m_pollType == POLL_FIXED)
 					{
-						s = read(m_timerfd, &exp, sizeof(uint64_t));
-						if ((unsigned int)s != sizeof(uint64_t))
-							logger->error("timerfd read()");
-						if (exp > 100 && exp > m_readingsPerSec/2)
-						logger->error("%d expiry notifications accumulated", exp);
-						rep--;
-						if (m_shutdown)
+						if (syncToNextPoll())
+							exp = 1;	// Perform one poll
+					}
+					else if (m_pollType == POLL_INTERVAL)
+					{
+						long rep = m_repeatCnt;
+						while (rep > 0)
 						{
-							break;
+							s = read(m_timerfd, &exp, sizeof(uint64_t));
+							if ((unsigned int)s != sizeof(uint64_t))
+								logger->error("timerfd read()");
+							if (exp > 100 && exp > m_readingsPerSec/2)
+							logger->error("%d expiry notifications accumulated", exp);
+							rep--;
+							if (m_shutdown)
+							{
+								break;
+							}
 						}
+					}
+					else if (m_pollType == POLL_ON_DEMAND)
+					{
+						if (onDemandPoll())
+							exp = 1;
 					}
 					if (m_shutdown)
 					{
@@ -814,7 +805,16 @@ void SouthService::shutdown()
 	/* Stop recieving new requests and allow existing
 	 * requests to drain.
 	 */
-	m_shutdown = true;
+	if (m_pollType == POLL_ON_DEMAND)
+	{
+		lock_guard<mutex> lk(m_pollMutex);
+		m_shutdown = true;
+		m_pollCV.notify_all();
+	}
+	else
+	{
+		m_shutdown = true;
+	}
 	logger->info("South service shutdown in progress.");
 }
 
@@ -871,33 +871,36 @@ void SouthService::processConfigChange(const string& categoryName, const string&
 					m_readingsPerSec = 1;
 				}
 				string units = m_configAdvanced.getValue("units");
-				unsigned long dividend = 1000000;
-				if (units.compare("second") == 0)
-					dividend = 1000000;
-				else if (units.compare("minute") == 0)
-					dividend = 60000000;
-				else if (units.compare("hour") == 0)
-					dividend = 3600000000;
-				if (newval != m_readingsPerSec || m_rateUnits.compare(units) != 0)
+				string pollType = m_configAdvanced.getValue("pollType");
+				if (pollType.compare("Fixed Times") == 0)
 				{
+					m_pollType = POLL_FIXED;
+					processNumberList(m_configAdvanced, "pollHours", m_hours);
+					processNumberList(m_configAdvanced, "pollMinutes", m_minutes);
+					processNumberList(m_configAdvanced, "pollSeconds", m_seconds);
+
+					if (m_minutes.size() == 0 && m_hours.size() != 0)
+						m_minutes.push_back(0);
+					if (m_seconds.size() == 0 && m_minutes.size() != 0)
+						m_seconds.push_back(0);
+
+					m_desiredRate.tv_sec  = 1;
+					m_desiredRate.tv_usec = 0;
+				}
+				else if (pollType.compare("Interval") == 0
+						&& (newval != m_readingsPerSec || m_rateUnits.compare(units) != 0))
+				{
+					m_pollType = POLL_INTERVAL;
 					m_readingsPerSec = newval;
 					m_rateUnits = units;
 					close(m_timerfd);
-					unsigned long usecs = dividend / m_readingsPerSec;
-					if (usecs > MAX_SLEEP * 1000000)
-					{
-						double x = usecs / (MAX_SLEEP * 1000000);
-						m_repeatCnt = ceil(x);
-						usecs /= m_repeatCnt;
-					}
-					else
-					{
-						m_repeatCnt = 1;
-					}
-					m_desiredRate.tv_sec  = (int)(usecs / 1000000);
-					m_desiredRate.tv_usec = (int)(usecs % 1000000);
+					calculateTimerRate();
 					m_currentRate = m_desiredRate;
 					m_timerfd = createTimerFd(m_desiredRate); // interval to be passed is in usecs
+				}
+				else if (pollType.compare("On Demand") == 0)
+				{
+					m_pollType = POLL_ON_DEMAND;
 				}
 			} catch (ConfigItemNotFound e) {
 				logger->error("Failed to update poll interval following configuration change");
@@ -1077,6 +1080,40 @@ void SouthService::addConfigDefaults(DefaultConfigCategory& defaultConfig)
 		defaultConfig.addItem("units", "Reading Rate Per",
 				"second", "second", rateUnits);
 		defaultConfig.setItemDisplayName("units", "Reading Rate Per");
+
+		/* Now add the fixed time polling option */
+		vector<string> pollOptions = { "Interval", "Fixed Times", "On Demand" };
+		defaultConfig.addItem("pollType", "Either poll at fixed intervals, at fixed times or when trigger by a poll control operation.",
+				"Interval", "Interval", pollOptions);
+		defaultConfig.setItemDisplayName("pollType", "Poll Type");
+
+		/* Add the validity for interval polling items */
+		defaultConfig.setItemAttribute("readingsPerSec",
+				ConfigCategory::VALIDITY_ATTR, "pollType == \"Interval\"");
+		defaultConfig.setItemAttribute("units",
+				ConfigCategory::VALIDITY_ATTR, "pollType == \"Interval\"");
+		defaultConfig.setItemAttribute("throttle",
+				ConfigCategory::VALIDITY_ATTR, "pollType == \"Interval\"");
+
+		/* Add the three time specifiers */
+		defaultConfig.addItem("pollHours",
+				"List of hours on which to poll or leave empty for all hours",
+				"string", "", "");
+		defaultConfig.setItemDisplayName("pollHours", "Hours");
+		defaultConfig.setItemAttribute("pollHours",
+				ConfigCategory::VALIDITY_ATTR, "pollType == \"Fixed Times\"");
+		defaultConfig.addItem("pollMinutes",
+				"List of minutes on which to poll or leave empty for all minutes",
+				"string", "", "");
+		defaultConfig.setItemDisplayName("pollMinutes", "Minutes");
+		defaultConfig.setItemAttribute("pollMinutes",
+				ConfigCategory::VALIDITY_ATTR, "pollType == \"Fixed Times\"");
+		defaultConfig.addItem("pollSeconds",
+				"Seconds on which to poll expressed as a comma seperated list",
+				"string", "0,15,30,45", "0,15,30,40");
+		defaultConfig.setItemDisplayName("pollSeconds", "Seconds");
+		defaultConfig.setItemAttribute("pollSeconds",
+				ConfigCategory::VALIDITY_ATTR, "pollType == \"Fixed Times\"");
 	}
 
 	if (southPlugin->hasControl())
@@ -1257,7 +1294,21 @@ bool SouthService::setPoint(const string& name, const string& value)
  */
 bool SouthService::operation(const string& operation, vector<PLUGIN_PARAMETER *>& params)
 {
-	if (southPlugin->hasControl())
+	if (operation.compare("poll") == 0)
+	{
+		if (m_pollType == POLL_ON_DEMAND)
+		{
+			m_doPoll = true;
+			m_pollCV.notify_all();
+			return true;
+		}
+		else
+		{
+			logger->warn("Received a poll request for a service that is not enabled for on demand polling");
+			return false;
+		}
+	}
+	else if (southPlugin->hasControl())
 	{
 		return southPlugin->operation(operation, params);
 	}
@@ -1266,4 +1317,303 @@ bool SouthService::operation(const string& operation, vector<PLUGIN_PARAMETER *>
 		logger->warn("Operation %s attempted on plugin that does not support control", operation.c_str());
 		return false;
 	}
+}
+
+/**
+ * Process a list of numbers into a vector of integers.
+ * The list of numbers is obtained from a configuration
+ * item.
+ *
+ * @param category	The configuration category
+ * @param item		Name of the configuration item
+ * @param list		The vector to populate
+ */
+void SouthService::processNumberList(const ConfigCategory& category,
+				const string& item, vector<unsigned long>& list)
+{
+	list.clear();
+	if (!category.itemExists(item))
+	{
+		Logger::getLogger()->warn("Item %s does not exist", item.c_str());
+		return;
+	}
+	string value = category.getValue(item);
+	if (value.length() == 0)
+	{
+		Logger::getLogger()->info("Item %s is empty", item.c_str());
+		return;
+	}
+
+	const char *ptr = value.c_str();
+	char *eptr;
+	while (*ptr)
+	{
+		list.push_back(strtoul(ptr, &eptr, 10));
+		ptr = eptr;
+		if (*ptr == ',')
+			ptr++;
+	}
+}
+
+/**
+ * Calcuate the rate at which the timer should trigger and the repeat
+ * requirement needed to match the requested poll rate
+ */
+void SouthService::calculateTimerRate()
+{
+	string pollType = m_configAdvanced.getValue("pollType");
+	if (pollType.compare("Fixed Times") == 0)
+	{
+		if (m_pollType == POLL_ON_DEMAND)
+		{
+			lock_guard<mutex> lk(m_pollMutex);
+			m_pollType = POLL_FIXED;
+			m_pollCV.notify_all();
+		}
+		m_pollType = POLL_FIXED;
+		processNumberList(m_configAdvanced, "pollHours", m_hours);
+		processNumberList(m_configAdvanced, "pollMinutes", m_minutes);
+		processNumberList(m_configAdvanced, "pollSeconds", m_seconds);
+
+		if (m_minutes.size() == 0 && m_hours.size() != 0)
+			m_minutes.push_back(0);
+		if (m_seconds.size() == 0 && m_minutes.size() != 0)
+			m_seconds.push_back(0);
+
+		m_desiredRate.tv_sec  = 1;
+		m_desiredRate.tv_usec = 0;
+	}
+	else if (pollType.compare("On Demand") == 0)
+	{
+		m_pollType = POLL_ON_DEMAND;
+	}
+	else
+	{
+		if (m_pollType == POLL_ON_DEMAND)
+		{
+			lock_guard<mutex> lk(m_pollMutex);
+			m_pollType = POLL_INTERVAL;
+			m_pollCV.notify_all();
+		}
+		m_pollType = POLL_INTERVAL;
+		string units = m_configAdvanced.getValue("units");
+		unsigned long dividend = 1000000;
+		if (units.compare("second") == 0)
+			dividend = 1000000;
+		else if (units.compare("minute") == 0)
+			dividend = 60000000;
+		else if (units.compare("hour") == 0)
+			dividend = 3600000000;
+		m_rateUnits = units;
+		unsigned long usecs = dividend / m_readingsPerSec;
+
+		if (usecs > MAX_SLEEP * 1000000)
+		{
+			double x = usecs / (MAX_SLEEP * 1000000);
+			m_repeatCnt = ceil(x);
+			usecs /= m_repeatCnt;
+		}
+		else
+		{
+			m_repeatCnt = 1;
+		}
+		m_desiredRate.tv_sec  = (int)(usecs / 1000000);
+		m_desiredRate.tv_usec = (int)(usecs % 1000000);
+	}
+}
+
+/**
+ * Find the next fixed time poll time and wait for that time before returning.
+ * This method will also return if m_shutdown is set.
+ *
+ * @return bool	True if the return is doe to a poll being required.
+ */
+bool SouthService::syncToNextPoll()
+{
+	time_t tim = time(0);
+	struct tm tm;
+	localtime_r(&tim, &tm);
+	unsigned long waitFor;
+
+	if (m_hours.size() == 0 && m_minutes.size() == 0 && m_seconds.size() == 0)
+	{
+		Logger::getLogger()->error("Poll time misconfigured.");
+	}
+	else if (m_hours.size() == 0 && m_minutes.size() == 0)
+	{
+		// Only looking at seconds
+		unsigned int i;
+		for (i = 0; i < m_seconds.size() && m_seconds[i] <= (unsigned)tm.tm_sec; i++)
+		{
+		}
+		if (i == m_seconds.size())
+		{
+			waitFor = (60 - (unsigned)tm.tm_sec) + m_seconds[0];
+		}
+		else
+		{
+			waitFor = m_seconds[i] - (unsigned)tm.tm_sec;
+		}
+	}
+	else if (m_hours.size() == 0)
+	{
+		unsigned int target_min = (unsigned)tm.tm_min;
+		unsigned int min, sec;
+		for (min = 0; min < m_minutes.size() && m_minutes[min] < target_min; min++)
+		{
+		}
+		if (min == m_minutes.size()) // Reset to start of minute list
+		{
+			min = 0;
+		}
+
+		if (m_minutes[min] != target_min)	// Not this minute
+		{
+			sec = 0;	// Always use first setting of seconds
+		}
+		else
+		{
+			for (sec = 0; sec < m_seconds.size() && m_seconds[sec] <= (unsigned)tm.tm_sec; sec++)
+			{
+			}
+			if (sec == m_seconds.size())
+			{
+				// Too late in this minute use next minute setting
+				sec = 0;
+				min++;
+				if (min >= m_minutes[min])
+				{
+					min = 0;
+				}
+			}
+		}
+		waitFor = 0;
+		if (m_minutes[min] > (unsigned)tm.tm_min)
+		{
+			waitFor = 60 * (m_minutes[min] - (unsigned)tm.tm_min);
+		}
+		else if (m_minutes[min] < (unsigned)tm.tm_min)
+		{
+			waitFor = 60 * ((60 - (unsigned)tm.tm_min) + m_minutes[min]);
+		}
+		if (m_seconds[sec] > (unsigned)tm.tm_sec)
+		{
+			waitFor += ((unsigned)tm.tm_sec - m_seconds[sec]);
+		}
+		else
+		{
+			waitFor += ((60 - (unsigned)tm.tm_sec) + m_seconds[sec]);
+		}
+	}
+	else	// Hours, minutes and seconds
+	{
+		unsigned int hour, min, sec;
+		for (hour = 0; hour < m_hours.size() && m_hours[hour] < (unsigned)tm.tm_hour; hour++)
+		{
+		}
+		if (hour == m_hours.size()) // Reset to start of minute list
+		{
+			min = 0;
+			sec = 0;
+			hour = 0;
+		}
+		else if (m_hours[hour] == (unsigned)tm.tm_hour)	// Check for this hour
+		{
+			for (min = 0; min < m_minutes.size() && m_minutes[min] < (unsigned)tm.tm_min; min++)
+			{
+			}
+			if (min < m_minutes.size()) // may still be a trogger in this hor
+			{
+				for (sec = 0; sec < m_seconds.size() && m_seconds[sec] <= (unsigned)tm.tm_sec; sec++)
+				{
+				}
+				if (sec == m_seconds.size())
+				{
+					// Too late in this minute use next minute setting
+					sec = 0;
+					min++;
+					if (min == m_minutes.size())
+					{
+						min = 0;
+						sec = 0;
+						hour++;
+						if (m_hours.size() == hour)
+							hour = 0;
+					}
+				}
+			}
+			else
+			{
+				hour++;
+				min = 0;
+				sec = 0;
+				if (m_hours.size() == hour)
+					hour = 0;
+			}
+		}
+		else
+		{
+			hour++;
+			min = 0;
+			sec = 0;
+			if (m_hours.size() == hour)
+				hour = 0;
+		}
+		waitFor = 0;
+		if (m_hours[hour] > (unsigned)tm.tm_hour)
+		{
+			waitFor += 60 * 60 * (m_hours[hour] - (unsigned)tm.tm_hour);
+		}
+		else if (m_minutes[min] < (unsigned)tm.tm_min)
+		{
+			waitFor += 60 * 60 * ((24 - (unsigned)tm.tm_hour) + m_hours[hour]);
+		}
+		if (m_minutes[min] > (unsigned)tm.tm_min)
+		{
+			waitFor += 60 * (m_minutes[min] - (unsigned)tm.tm_min);
+		}
+		else if (m_minutes[min] < (unsigned)tm.tm_min)
+		{
+			waitFor += 60 * ((60 - (unsigned)tm.tm_min) + m_minutes[min]);
+		}
+		if (m_seconds[sec] > (unsigned)tm.tm_sec)
+		{
+			waitFor += ((unsigned)tm.tm_sec - m_seconds[sec]);
+		}
+		else
+		{
+			waitFor += ((60 - (unsigned)tm.tm_sec) + m_seconds[sec]);
+		}
+	}
+
+
+	uint64_t exp;
+	while (waitFor)
+	{
+		read(m_timerfd, &exp, sizeof(uint64_t));
+		waitFor--;
+		if (m_shutdown)
+			return false;
+		if (m_pollType != POLL_FIXED)	// Configuration has change to the poll type
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
+/**
+ * Wait until either a shutdown request is received or a poll operation
+ *
+ * @return bool		True if the return is due to a new poll request
+ */
+bool SouthService::onDemandPoll()
+{
+	unique_lock<mutex> lk(m_pollMutex);
+	if (! m_shutdown)
+	{
+		m_doPoll = false;
+		m_pollCV.wait(lk);
+	}
+	return m_doPoll;
 }

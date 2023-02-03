@@ -72,6 +72,10 @@ class SouthService : public ServiceAuthHandler {
 									std::string parent_name,
 									std::string current_name);
 		void				throttlePoll();
+		void				processNumberList(const ConfigCategory& cateogry, const std::string& item, std::vector<unsigned long>& list);
+		void				calculateTimerRate();
+		bool				syncToNextPoll();
+		bool				onDemandPoll();
 	private:
 		std::thread			*m_reconfThread;
 		std::deque<std::pair<std::string,std::string>>	m_pendingNewConfig;
@@ -104,6 +108,17 @@ class SouthService : public ServiceAuthHandler {
 		bool				m_requestRestart;
 		std::string			m_rateUnits;
 		StorageAssetTracker             *m_storageAssetTracker;
+		enum { POLL_INTERVAL, POLL_FIXED, POLL_ON_DEMAND }
+						m_pollType;
+		std::vector<unsigned long>	m_hours;
+		std::vector<unsigned long>	m_minutes;
+		std::vector<unsigned long>	m_seconds;
+		std::string			m_hoursStr;
+		std::string			m_minutesStr;
+		std::string			m_secondsStr;
+		std::condition_variable		m_pollCV;
+		std::mutex			m_pollMutex;
+		bool				m_doPoll;
 
 };
 #endif

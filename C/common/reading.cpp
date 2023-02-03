@@ -512,7 +512,7 @@ void Reading::stringToTimestamp(const string& timestamp, struct timeval *ts)
 		int h, m;
 		int sign = (*ptr == '+' ? -1 : +1);
 		h = strtoul(ptr+1, NULL, 10);
-		m = strtoul(ptr+3, NULL, 10);
+		m = strtoul(ptr+4, NULL, 10);
 		ts->tv_sec += sign * ((3600 * h) + (60 * m));
 	}
 }

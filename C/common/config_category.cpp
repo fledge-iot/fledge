@@ -464,6 +464,16 @@ string ConfigCategory::getItemAttribute(const string& itemName,
 				    return m_items[i]->m_mandatory;
 				case FILE_ATTR:
 					return m_items[i]->m_file;
+				case VALIDITY_ATTR:
+					return m_items[i]->m_validity;
+				case GROUP_ATTR:
+					return m_items[i]->m_group;
+				case DISPLAY_NAME_ATTR:
+					return m_items[i]->m_displayName;
+				case DEPRECATED_ATTR:
+					return m_items[i]->m_deprecated;
+				case RULE_ATTR:
+					return m_items[i]->m_rule;
 				default:
 					throw new ConfigItemAttributeNotFound();
 			}
@@ -513,6 +523,21 @@ bool ConfigCategory::setItemAttribute(const string& itemName,
 					return true;
 				case LENGTH_ATTR:
 					m_items[i]->m_length = value;
+					return true;
+				case VALIDITY_ATTR:
+					m_items[i]->m_validity = value;
+					return true;
+				case GROUP_ATTR:
+					m_items[i]->m_group = value;
+					return true;
+				case DISPLAY_NAME_ATTR:
+					m_items[i]->m_displayName = value;
+					return true;
+				case DEPRECATED_ATTR:
+					m_items[i]->m_deprecated = value;
+					return true;
+				case RULE_ATTR:
+					m_items[i]->m_rule = value;
 					return true;
 				default:
 					return false;
@@ -946,7 +971,7 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 		m_order = "";
 	}
 
-    if (item.HasMember("length"))
+	if (item.HasMember("length"))
 	{
 		m_length = item["length"].GetString();
 	}
@@ -1028,6 +1053,32 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 	else
 	{
 		m_displayName = "";
+	}
+
+	if (item.HasMember("validity"))
+	{
+		m_validity = item["validity"].GetString();
+	}
+	else
+	{
+		m_validity = "";
+	}
+	if (item.HasMember("group"))
+	{
+		m_group = item["group"].GetString();
+	}
+	else
+	{
+		m_group = "";
+	}
+
+	if (item.HasMember("rule"))
+	{
+		m_rule = item["rule"].GetString();
+	}
+	else
+	{
+		m_rule = "";
 	}
 
 	if (item.HasMember("options"))
@@ -1310,12 +1361,15 @@ ConfigCategory::CategoryItem::CategoryItem(const CategoryItem& rhs)
 	}
        	m_file = rhs.m_file;
        	m_itemType = rhs.m_itemType;
+	m_validity = rhs.m_validity;
+	m_group = rhs.m_group;
+	m_rule = rhs.m_rule;
 }
 
 /**
  * Create a JSON representation of the configuration item
  *
- * @param full	false is the deafult, true evaluates all the members of the CategoryItem
+ * @param full	false is the default, true evaluates all the members of the CategoryItem
  *
  */
 string ConfigCategory::CategoryItem::toJSON(const bool full) const
@@ -1365,7 +1419,7 @@ ostringstream convert;
 			convert << ", \"order\" : \"" << m_order << "\"";
 		}
 
-        if (!m_length.empty())
+	        if (!m_length.empty())
 		{
 			convert << ", \"length\" : \"" << m_length << "\"";
 		}
@@ -1385,25 +1439,29 @@ ostringstream convert;
 			convert << ", \"readonly\" : \"" << m_readonly << "\"";
 		}
 
-        if (!m_mandatory.empty())
-        {
-            convert << ", \"mandatory\" : \"" << m_mandatory << "\"";
-        }
+		if (!m_mandatory.empty())
+		{
+			convert << ", \"mandatory\" : \"" << m_mandatory << "\"";
+		}
+
+		if (!m_validity.empty())
+		{
+			convert << ", \"validity\" : \"" << JSONescape(m_validity) << "\"";
+		}
+
+		if (!m_rule.empty())
+		{
+			convert << ", \"rule\" : \"" << JSONescape(m_rule) << "\"";
+		}
+
+		if (!m_group.empty())
+		{
+			convert << ", \"group\" : \"" << m_group << "\"";
+		}
 
 		if (!m_file.empty())
 		{
 			convert << ", \"file\" : \"" << m_file << "\"";
-		}
-		if (m_options.size() > 0)
-		{
-			convert << ", \"options\" : [ ";
-			for (int i = 0; i < m_options.size(); i++)
-			{
-				if (i > 0)
-					convert << ",";
-				convert << "\"" << m_options[i] << "\"";
-			}
-			convert << "]";
 		}
 	}
 	convert << " }";
@@ -1432,7 +1490,7 @@ ostringstream convert;
 		convert << ", \"displayName\" : \"" << m_displayName << "\"";
 	}
 
-    if (!m_length.empty())
+	if (!m_length.empty())
 	{
 		convert << ", \"length\" : \"" << m_length << "\"";
 	}
@@ -1452,10 +1510,25 @@ ostringstream convert;
 		convert << ", \"readonly\" : \"" << m_readonly << "\"";
 	}
 
-    if (!m_mandatory.empty())
-    {
-        convert << ", \"mandatory\" : \"" << m_mandatory << "\"";
-    }
+	if (!m_mandatory.empty())
+	{
+		convert << ", \"mandatory\" : \"" << m_mandatory << "\"";
+	}
+
+	if (!m_validity.empty())
+	{
+		convert << ", \"validity\" : \"" << JSONescape(m_validity) << "\"";
+	}
+
+	if (!m_rule.empty())
+	{
+		convert << ", \"rule\" : \"" << JSONescape(m_rule) << "\"";
+	}
+
+	if (!m_group.empty())
+	{
+		convert << ", \"group\" : \"" << m_group << "\"";
+	}
 
 	if (!m_file.empty())
 	{

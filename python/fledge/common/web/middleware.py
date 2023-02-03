@@ -159,19 +159,36 @@ def handle_api_exception(ex, _class=None, if_trace=0):
 
 
 async def validate_requests(request):
-    # With "view" based user role only read access operation is allowed
-    # logout is also allowed
+    """
+        a) With "view" based user role id=3 only
+           - read access operations (GET calls)
+           - change profile (PUT call)
+           - logout (PUT call)
+        b) With "data-view" based user role id=4 only
+           - ping (GET call)
+           - browser asset read operation (GET call)
+           - service (GET call)
+           - statistics, statistics history, statistics rate (GET call)
+           - user profile (GET call)
+           - user roles (GET call)
+           - change profile (PUT call)
+           - logout (PUT call)
+    """
+    user_id = request.user['id']
     if int(request.user["role_id"]) == 3 and request.method != 'GET':
-        if not str(request.path).endswith('/logout'):
+        supported_endpoints = ['/fledge/user', '/fledge/user/{}/password'.format(user_id), '/logout']
+        if not str(request.rel_url).endswith(tuple(supported_endpoints)):
             raise web.HTTPForbidden
-    # With "data-view" based user role only browser asset read operation is allowed
-    # logout is also allowed
     elif int(request.user["role_id"]) == 4:
         if request.method == 'GET':
-            if not str(request.path).startswith('/fledge/asset'):
+            supported_endpoints = ['/fledge/asset', '/fledge/ping', '/fledge/statistics',
+                                   '/fledge/user?id={}'.format(user_id), '/fledge/user/role']
+            if not (str(request.rel_url).startswith(tuple(supported_endpoints)
+                                                    ) or str(request.rel_url).endswith('/fledge/service')):
                 raise web.HTTPForbidden
         elif request.method == 'PUT':
-            if not str(request.path).endswith('/logout'):
+            supported_endpoints = ['/fledge/user', '/fledge/user/{}/password'.format(user_id), '/logout']
+            if not str(request.rel_url).endswith(tuple(supported_endpoints)):
                 raise web.HTTPForbidden
         else:
             raise web.HTTPForbidden

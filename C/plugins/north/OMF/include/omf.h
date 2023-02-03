@@ -19,6 +19,13 @@
 
 #define	OMF_HINT	"OMFHint"
 
+// The following will force the OMF version for EDs endpoints
+// Remove or comment out the line below to prevent the forcing
+// of the version
+#define EDS_OMF_VERSION	"1.0"
+#define CR_OMF_VERSION	"1.0"
+
+
 #define TYPE_ID_DEFAULT     1
 #define FAKE_ASSET_KEY      "_default_start_id_"
 #define OMF_TYPE_STRING		"string"

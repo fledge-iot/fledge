@@ -52,6 +52,7 @@ class SouthService : public ServiceAuthHandler {
 		void				shutdown();
 		void				restart();
 		void				configChange(const std::string&, const std::string&);
+		void				processConfigChange(const std::string&, const std::string&);
 		void				configChildCreate(const std::string&,
 								const std::string&,
 								const std::string&){};
@@ -61,6 +62,8 @@ class SouthService : public ServiceAuthHandler {
 		bool				setPoint(const std::string& name, const std::string& value);
 		bool				operation(const std::string& name, std::vector<PLUGIN_PARAMETER *>& );
 		void				setDryRun() { m_dryRun = true; };
+		void				handlePendingReconf();
+		
 	private:
 		void				addConfigDefaults(DefaultConfigCategory& defaults);
 		bool 				loadPlugin();
@@ -70,6 +73,11 @@ class SouthService : public ServiceAuthHandler {
 									std::string current_name);
 		void				throttlePoll();
 	private:
+		std::thread			*m_reconfThread;
+		std::deque<std::pair<std::string,std::string>>	m_pendingNewConfig;
+		std::mutex			m_pendingNewConfigMutex;
+		std::condition_variable		m_cvNewReconf;
+	
 		SouthPlugin			*southPlugin;
 		Logger        			*logger;
 		AssetTracker			*m_assetTracker;

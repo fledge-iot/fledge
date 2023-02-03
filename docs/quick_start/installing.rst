@@ -3,6 +3,10 @@
 
    <a href="../storage.html#ubuntu-install">For Debian Platform</a>
 
+.. |RPM PostgreSQL| raw:: html
+
+   <a href="../storage.html#red-hat-install">For Red Hat Platform</a>
+
 .. |Configure Storage Plugin| raw:: html
 
    <a href="../storage.html#configuring-the-storage-plugin">Configure Storage Plugin from GUI</a>
@@ -107,6 +111,43 @@ You may also install multiple packages in a single command. To install the base 
    sudo DEBIAN_FRONTEND=noninteractive apt -y install fledge fledge-gui fledge-south-sinusoid
 
 
+CentOS Stream 9
+~~~~~~~~~~~~~~~
+
+The CentOS use a different package management system, known as *yum*. Fledge also supports a package management system for the yum package manager.
+
+To add the fledge repository to the yum package manager run the command
+
+.. code-block:: console
+
+   sudo rpm --import http://archives.fledge-iot.org/RPM-GPG-KEY-fledge
+
+CentOS users should then create a file called fledge.repo in the directory /etc/yum.repos.d and add the following content
+
+.. code-block:: console
+
+   [fledge]
+   name=fledge Repository
+   baseurl=http://archives.fledge-iot.org/latest/centos-stream-9/x86_64/
+   enabled=1
+   gpgkey=http://archives.fledge-iot.org/RPM-GPG-KEY-fledge
+   gpgcheck=1
+
+There are a few pre-requisites that needs to be installed
+
+.. code-block:: console
+
+    sudo yum install -y epel-release
+    sudo yum -y check-update
+    sudo yum -y update
+
+You can now install and upgrade fledge packages using the yum command. For example to install fledge and the fledge GUI you run the command
+
+.. code-block:: console
+
+   sudo yum install -y fledge fledge-gui
+
+
 Installing Fledge downloaded packages
 ######################################
 
@@ -140,6 +181,7 @@ To start Fledge with PostgreSQL, first you need to install the PostgreSQL packag
 
 |Debian PostgreSQL|
 
+|RPM PostgreSQL|
 
 Also you need to change the value of Storage plugin. See |Configure Storage Plugin| or with below curl command
 

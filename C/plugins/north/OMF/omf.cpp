@@ -1203,7 +1203,12 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 		}
 
 		string outData;
-		if (legacyType || m_OMFDataTypes->find(keyComplete) != m_OMFDataTypes->end())
+		// Use old style complex types if the user has forced it via configuration,
+		// we are running against an EDS endpoint or Connector Relay or we have types defined for this
+		// asset already
+		if (legacyType || m_PIServerEndpoint == ENDPOINT_EDS || 
+		        m_PIServerEndpoint == ENDPOINT_CR ||
+				m_OMFDataTypes->find(keyComplete) != m_OMFDataTypes->end())
 		{
 			// Legacy type support
 			if (! usingTagHint)

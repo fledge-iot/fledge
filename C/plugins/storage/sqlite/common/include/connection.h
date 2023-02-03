@@ -160,6 +160,7 @@ class Connection {
 		void		shutdownAppendReadings();
 		unsigned int	purgeReadingsAsset(const std::string& asset);
 		bool		vacuum();
+		bool		supportsReadings() { return ! m_noReadings; };
 
 	private:
 
@@ -213,6 +214,7 @@ class Connection {
 		bool		selectColumns(const rapidjson::Value& document, SQLBuffer& sql, int level);
 		bool 		appendTables(const std::string& schema, const rapidjson::Value& document, SQLBuffer& sql, int level);
 		bool		processJoinQueryWhereClause(const rapidjson::Value& query, SQLBuffer& sql, std::vector<std::string>  &asset_codes, int level);
+		bool		m_noReadings;
 };
 
 #endif

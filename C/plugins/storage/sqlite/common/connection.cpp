@@ -11,6 +11,7 @@
 #include <connection_manager.h>
 #include <common.h>
 #include <utils.h>
+#include <unistd.h>
 
 #include "readings_catalogue.h"
 
@@ -544,7 +545,14 @@ Connection::Connection()
 		delete[] sqlStmt;
 
 		// Attach readings database - readings_1
+		if (access(dbPathReadings.c_str(), R_OK) != 0)
 		{
+			Logger::getLogger()->info("No readings database, assuming seperate readings plugin is avialable");
+			m_noReadings = true;
+		}
+		else
+		{
+			m_noReadings = false;
 			SQLBuffer attachReadingsDb;
 			attachReadingsDb.append("ATTACH DATABASE '");
 			attachReadingsDb.append(dbPathReadings + "' AS readings_1;");
@@ -595,6 +603,7 @@ Connection::Connection()
 
 	}
 
+	if (!m_noReadings)
 	{
 		// Attach all the defined/used databases
 		ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
@@ -1384,6 +1393,7 @@ int Connection::update(const string& schema, const string& table, const string& 
 Document	document;
 SQLBuffer	sql;
 vector<string>  asset_codes;
+bool		allowZero = false;
 
 	int 	row = 0;
 	ostringstream convert;
@@ -1681,6 +1691,21 @@ vector<string>  asset_codes;
 					col++;
 				}
 			}
+			if (iter->HasMember("modifier") && (*iter)["modifier"].IsArray())
+			{
+				const Value& modifier = (*iter)["modifier"];
+				for (Value::ConstValueIterator modifiers = modifier.Begin(); modifiers != modifier.End(); ++modifiers)
+                		{
+					if (modifiers->IsString())
+					{
+						string mod = modifiers->GetString();
+						if (mod.compare("allowzero") == 0)
+						{
+							allowZero = true;
+						}
+					}
+				}
+			}
 			if (col == 0)
 			{
 				raiseError("update",
@@ -1757,7 +1782,7 @@ vector<string>  asset_codes;
 
 		int return_value=0;
 
-		if (update == 0)
+		if (update == 0 && allowZero == false)
 		{
 			char buf[100];
 			snprintf(buf, sizeof(buf),

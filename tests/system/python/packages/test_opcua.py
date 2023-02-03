@@ -31,11 +31,12 @@ __copyright__ = "Copyright (c) 2021 Dianomic Systems, Inc."
 
 import subprocess
 import time
-import utils
-import pytest
-import platform
 import urllib.parse
 from typing import Tuple
+import utils
+import pytest
+from pytest import PKG_MGR
+
 
 """ First FL instance IP Address """
 FL1_INSTANCE_IP = "192.168.1.8"
@@ -140,9 +141,7 @@ SUBSCRIPTION2 = ["ns=2;s={}{}".format(OPCUA_ASSET_NAME, SUPPORTED_DATA_TYPES[0][
 def install_pkg():
     """ Fixture used for to install packages and only used in First FL instance """
     try:
-        os_platform = platform.platform()
-        pkg_mgr = 'yum' if 'centos' in os_platform or 'redhat' in os_platform else 'apt'
-        subprocess.run(["sudo {} install -y {}".format(pkg_mgr, PKG_LIST)], shell=True, check=True)
+        subprocess.run(["sudo {} install -y {}".format(PKG_MGR, PKG_LIST)], shell=True, check=True)
     except subprocess.CalledProcessError:
         assert False, "{} one of installation package failed".format(PKG_LIST)
 

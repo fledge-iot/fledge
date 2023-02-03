@@ -1410,7 +1410,7 @@ std::size_t arr = data.find("inserts");
 
 			m_writeAccessOngoing.fetch_add(1);
 			
-			int sqlite3_resut = sqlite3_step(stmt);
+			int sqlite3_resut = SQLstep(stmt);
 			
 			m_writeAccessOngoing.fetch_sub(1);
 			

@@ -1305,7 +1305,7 @@ std::size_t arr = data.find("inserts");
 
 	// Number of inserts
 	int ins = 0;
-    int failedInsertCount = 0;
+	int failedInsertCount = 0;
 	
 	// Generate sql query for prepared statement
 	for (Value::ConstValueIterator iter = inserts.Begin();
@@ -1379,7 +1379,7 @@ std::size_t arr = data.find("inserts");
 					}
 				}
 				else if (itr->value.IsDouble()) {
-					sqlite3_bind_double(stmt, columID,itr->value.IsDouble());
+					sqlite3_bind_double(stmt, columID,itr->value.GetDouble());
 				}
 					
 				else if (itr->value.IsInt64())

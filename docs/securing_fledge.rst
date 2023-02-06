@@ -135,7 +135,7 @@ The user management option becomes active once the Fledge has been configured to
 
 .. note::
 
-   After setting the Authentication option to Mandatory in the configuration page the Fledge instance should be restarted.
+   After setting the Authentication option to mandatory in the configuration page the Fledge instance should be restarted.
 
 
 +-------------------+
@@ -152,13 +152,15 @@ The user management pages allows
 
 Fledge currently supports four roles for users:
 
-  - **Administrator**: a user with admin role is able to fully configure Fledge, view the data read by the Fledge instance  and also manage Fledge users
+  - **Administrator**: a user with admin role is able to fully configure Fledge, view the data read by the Fledge instance  and also manage Fledge users.
 
   - **Editor**: a user with this role is able to configure Fledge and view the data read by Fledge. The user can not manage other users or add new users.
 
-  - **Viewer**: a user that can only view the configuration of the Fledge instance. The user has no ability to modify the Fledge instance in any way.
+  - **Viewer**: a user that can only view the configuration of the Fledge instance and the data that has been read by Fledge. The user has no ability to modify the Fledge instance in any way.
 
   - **Data Viewer**: a user that can only view the data in Fledge and not the configuration of Fledge itself. The user has no ability to modify the Fledge instance in any way.
+
+Restrictions apply to both the API calls that can be made when authenticated as particular users and the access the user will have to the graphical user interface. Users will observe both menu items will be removed completely or options on certain pages will be unavailable.
 
 Adding Users
 ------------
@@ -174,7 +176,7 @@ You can select a role for the new user, a user name and an initial password for 
 Update User Details
 -------------------
 
-The edit user option allows the name, authentication method and description of a user to be updated.
+The edit user option allows the name, authentication method and description of a user to be updated. This option is only available to users with the *admin* role.
 
 +---------------+
 | |update_user| |

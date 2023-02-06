@@ -21,10 +21,10 @@ static struct {
 			"Maximum time to spend filling buffer before sending", "integer", "5000" },
 	{ "bufferThreshold",	"Maximum buffered Readings",
 			"Number of readings to buffer before sending", "integer", "100" },
-	{ "readingsPerSec",	"Reading Rate",
-			"Number of readings to generate per interval", "integer", "1" },
 	{ "throttle",	"Throttle",
 			"Enable flow control by reducing the poll rate", "boolean", "false" },
+	{ "readingsPerSec",	"Reading Rate",
+			"Number of readings to generate per interval", "integer", "1" },
 	{ NULL, NULL, NULL, NULL, NULL }
 };
 #endif

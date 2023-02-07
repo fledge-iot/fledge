@@ -47,13 +47,17 @@ string OMFLinkedData::processReading(const Reading& reading, const string&  AFHi
 		{
 			if (typeid(**it) == typeid(OMFTagNameHint))
 			{
-				assetName = (*it)->getHint();
-				Logger::getLogger()->info("Using OMF TagName hint: %s", assetName.c_str());
+				string hintValue = (*it)->getHint();
+				Logger::getLogger()->info("Using OMF TagName hint: %s for asset %s",
+					       hintValue.c_str(), assetName.c_str());
+				assetName = hintValue;
 			}
 			if (typeid(**it) == typeid(OMFTagHint))
 			{
-				assetName = (*it)->getHint();
-				Logger::getLogger()->info("Using OMF Tag hint: %s", assetName.c_str());
+				string hintValue = (*it)->getHint();
+				Logger::getLogger()->info("Using OMF Tag hint: %s for asset %s",
+					       hintValue.c_str(), assetName.c_str());
+				assetName = hintValue;
 			}
 		}
 	}
@@ -140,6 +144,7 @@ string OMFLinkedData::processReading(const Reading& reading, const string&  AFHi
 			if (baseType.empty())
 			{
 				// Type is not supported, skip the datapoint
+				skipDatapoints++;;	
 				continue;
 			}
 			if (m_linkSent->find(link) == m_linkSent->end())
@@ -169,6 +174,10 @@ string OMFLinkedData::processReading(const Reading& reading, const string&  AFHi
 			outData.append("\"Time\": \"" + reading.getAssetDateUserTime(Reading::FMT_STANDARD) + "Z" + "\"");
 			outData.append("} ] }");
 		}
+	}
+	if (skipDatapoints > 0)
+	{
+		Logger::getLogger()->warn("The asset %s had a number of datapoints that are nor supported by OMF and have been omitted", reading.getAssetName().c_str());
 	}
 	Logger::getLogger()->debug("Created data messasges %s", outData.c_str());
 	return outData;

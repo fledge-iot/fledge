@@ -1699,6 +1699,8 @@ double GetElapsedTime(struct timeval *startTime)
 bool IsPIWebAPIConnected(CONNECTOR_INFO* connInfo, std::string& version)
 {
 	static std::chrono::steady_clock::time_point nextCheck;
+	static bool reported = false;	// Has the state been reported yet
+	static bool reportedState;	// What was the last reported state
 
 	if (!s_connected && connInfo->PIServerEndpoint == ENDPOINT_PIWEB_API)
 	{
@@ -1713,11 +1715,25 @@ bool IsPIWebAPIConnected(CONNECTOR_INFO* connInfo, std::string& version)
 				now = std::chrono::steady_clock::now();
 				nextCheck = now + std::chrono::seconds(60);
 				Logger::getLogger()->debug("PI Web API %s is not available. HTTP Code: %d", connInfo->hostAndPort.c_str(), httpCode);
+				if (reported == false || reportedState == true)
+				{
+					reportedState = false;
+					reported = true;
+					Logger::getLogger()->error("The PI Web API service %s is not available",
+							connInfo->hostAndPort);
+				}
 			}
 			else
 			{
 				s_connected = true;
 				Logger::getLogger()->info("%s reconnected to %s", version.c_str(), connInfo->hostAndPort.c_str());
+				if (reported == true || reportedState == false)
+				{
+					reportedState = true;
+					reported = true;
+					Logger::getLogger()->warn("The PI Web API service %s has become available",
+							connInfo->hostAndPort);
+				}
 			}
 		}
 	}

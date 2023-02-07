@@ -410,15 +410,15 @@ typedef struct
 {
 	HttpSender	*sender;                // HTTPS connection
 	OMF 		*omf;                   // OMF data protocol
-	bool        sendFullStructure;      // It sends the minimum OMF structural messages to load data into Data Archive if disabled
+	bool		sendFullStructure;      // It sends the minimum OMF structural messages to load data into Data Archive if disabled
 	bool		compression;            // whether to compress readings' data
 	string		protocol;               // http / https
 	string		hostAndPort;            // hostname:port for SimpleHttps
-	unsigned int	retrySleepTime;     // Seconds between each retry
+	unsigned int	retrySleepTime;     	// Seconds between each retry
 	unsigned int	maxRetry;	        // Max number of retries in the communication
 	unsigned int	timeout;	        // connect and operation timeout
-	string		path;		            // PI Server application path
-	long		typeId;		            // OMF protocol type-id prefix
+	string		path;		        // PI Server application path
+	long		typeId;		        // OMF protocol type-id prefix
 	string		producerToken;	        // PI Server connector token
 	string		formatNumber;	        // OMF protocol Number format
 	string		formatInteger;	        // OMF protocol Integer format
@@ -458,6 +458,7 @@ typedef struct
 			assetsDataTypes;
 	string		omfversion;
 	bool		legacy;
+	string		name;
 } CONNECTOR_INFO;
 
 unsigned long calcTypeShort                (const string& dataTypes);
@@ -520,6 +521,7 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 	 */
 	// Allocate connector struct
 	CONNECTOR_INFO *connInfo = new CONNECTOR_INFO;
+	connInfo->name = configData->getName();
 
 	// PIServerEndpoint handling
 	string PIServerEndpoint = configData->getValue("PIServerEndpoint");
@@ -961,7 +963,8 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 	}
 
 	// Allocate the OMF class that implements the PI Server data protocol
-	connInfo->omf = new OMF(*connInfo->sender,
+	connInfo->omf = new OMF(connInfo->name,
+			        *connInfo->sender,
 				connInfo->path,
 				connInfo->assetsDataTypes,
 				connInfo->producerToken);

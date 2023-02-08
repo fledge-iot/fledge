@@ -73,6 +73,8 @@ class StorageClient {
 					const UpdateModifier *modifier = NULL);
 		int		updateTable(const std::string& tableName, const InsertValues& values, const ExpressionValues& expressions,
 					const Where& where, const UpdateModifier *modifier = NULL);
+		int 		updateTable(const std::string& schema, const std::string& tableName, std::vector<std::pair<InsertValues*, Where* >> &updates, const UpdateModifier *modifier);
+
 		int		deleteTable(const std::string& tableName, const Query& query);
 		bool		readingAppend(Reading& reading);
 		bool		readingAppend(const std::vector<Reading *> & readings);

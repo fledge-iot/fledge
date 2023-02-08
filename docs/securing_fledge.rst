@@ -11,6 +11,7 @@
 .. |password_rotation| image:: images/password_rotation.jpg
 .. |user_management| image:: images/user_management.jpg
 .. |add_user| image:: images/add_user.jpg
+.. |update_user| image:: images/update_user.jpg
 .. |delete_user| image:: images/delete_user.jpg
 .. |change_role| image:: images/change_role.jpg
 .. |reset_password| image:: images/reset_password.jpg
@@ -48,7 +49,7 @@ After enabling HTTPS and selecting save you must restart Fledge in order for the
 
 *Note*: if using the default self-signed certificate you might need to authorise the browser to connect to IP:PORT.
 Just open a new browser tab and type the URL https://YOUR_FLEDGE_IP:1995
-
+;
 Then follow browser instruction in order to allow the connection and close the tab.
 In the Fledge GUI you should see the green icon (Fledge is running).
 
@@ -130,7 +131,12 @@ Whenever a user logs into Fledge the age of their password is checked against th
 User Management
 ===============
 
-Once mandatory authentication has been enabled and the currently logged in user has the role *admin*, a new option appears in the GUI, *User Management*.
+The user management option becomes active once the Fledge has been configured to require authentication of users. This is enabled via the *Admin API* page of the *Configuration* menu item. A new menu item *User Management* will appear in the left hand menu.
+
+.. note::
+
+   After setting the Authentication option to mandatory in the configuration page the Fledge instance should be restarted.
+
 
 +-------------------+
 | |user_management| |
@@ -142,11 +148,19 @@ The user management pages allows
   - Deleting users.
   - Resetting user passwords.
   - Changing the role of a user.
+  - Changing the details of a user
 
-Fledge currently supports two roles for users,
+Fledge currently supports four roles for users:
 
-  - **admin**: a user with admin role is able to fully configure Fledge and also manage Fledge users
-  - **user**: a user with this role is able to configure Fledge but can not manage users
+  - **Administrator**: a user with admin role is able to fully configure Fledge, view the data read by the Fledge instance  and also manage Fledge users.
+
+  - **Editor**: a user with this role is able to configure Fledge and view the data read by Fledge. The user can not manage other users or add new users.
+
+  - **Viewer**: a user that can only view the configuration of the Fledge instance and the data that has been read by Fledge. The user has no ability to modify the Fledge instance in any way.
+
+  - **Data Viewer**: a user that can only view the data in Fledge and not the configuration of Fledge itself. The user has no ability to modify the Fledge instance in any way.
+
+Restrictions apply to both the API calls that can be made when authenticated as particular users and the access the user will have to the graphical user interface. Users will observe both menu items will be removed completely or options on certain pages will be unavailable.
 
 Adding Users
 ------------
@@ -158,6 +172,15 @@ To add a new user from the *User Management* page select the *Add User* icon in 
 +------------+
 
 You can select a role for the new user, a user name and an initial password for the user. Only users with the role *admin* can add new users.
+
+Update User Details
+-------------------
+
+The edit user option allows the name, authentication method and description of a user to be updated. This option is only available to users with the *admin* role.
+
++---------------+
+| |update_user| |
++---------------+
 
 Changing User Roles
 -------------------

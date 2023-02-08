@@ -1486,7 +1486,12 @@ void loadSentDataTypes(CONNECTOR_INFO* connInfo,
 	}
 	else
 	{
-		Logger::getLogger()->warn("Persisted data is not of the correct format, ignoring");
+		// There is no stored data when plugin starts first time 
+		if (JSONData.MemberBegin() != JSONData.MemberEnd())
+		{
+			Logger::getLogger()->warn("Persisted data is not of the correct format, ignoring");
+		}
+		
 		OMFDataTypes dataType;
 		dataType.typeId = connInfo->typeId;
 		dataType.types = "{}";

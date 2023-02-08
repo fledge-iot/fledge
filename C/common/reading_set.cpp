@@ -215,11 +215,17 @@ ReadingSet::copy(const ReadingSet& src)
 		   }
 	   }
    }
-   catch(...)
+   catch (std::bad_alloc& ex)
+   {
+		copyResult = false;
+		readings->clear();
+		Logger::getLogger()->error("Insufficient memory :: failed while copying :%d: reading from ReadingSet :%s: ",readings->size()+1, ex.what());
+   }
+   catch (std::exception& ex)
    {
 	   copyResult = false;
 	   readings->clear();
-	   Logger::getLogger()->error("Copy opeation failed");
+	   Logger::getLogger()->error("Unknown exception :: failed while copying :%d: reading from ReadingSet :%s: ",readings->size()+1, ex.what());
    }
 
    //Append if All elements have been copied successfully

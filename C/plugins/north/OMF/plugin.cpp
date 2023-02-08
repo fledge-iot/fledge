@@ -564,7 +564,7 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 			url                        = ENDPOINT_URL_OCS;
 			std::string region 	   = "dat-b";
 			if(ADHRegions.compare("EU-West") == 0)
-               	region = "dat-d";
+				region = "dat-d";
 			else if(ADHRegions.compare("Australia") == 0)
 				Logger::getLogger()->error("OSIsoft Cloud Services are not hosted in Australia");
 			StringReplace(url, "REGION_PLACEHOLDER", region);

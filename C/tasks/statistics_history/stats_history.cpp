@@ -73,12 +73,12 @@ void StatsHistory::run() const
 	} while (keySet->hasNextRow(rowIter));
 
 	int n_rows;
-        if ((n_rows = getStorageClient()->insertTable("statistics_history", historyValues)) != 1)
+        if ((n_rows = getStorageClient()->insertTable("statistics_history", historyValues)) < 1)
         {
-                getLogger()->error("Failed to insert single row to statisitics history table ");
+                getLogger()->error("Failed to insert rows to statisitics history table ");
         }
 
-	if (getStorageClient()->updateTable("statistics", updateValues) != 1)
+	if (getStorageClient()->updateTable("statistics", updateValues) < 1)
         {
                 getLogger()->error("Failed to update rows to statisitics table");
         }
@@ -112,7 +112,6 @@ void StatsHistory::processKey(const string& key, InsertValues& historyValues, ve
 	historyValues.push_back(InsertValue("key", key.c_str()));
 	historyValues.push_back(InsertValue("value", val - prev));
 	historyValues.push_back(InsertValue("history_ts", "now()"));
-
 
 	// Update the previous value in the statistics row
 

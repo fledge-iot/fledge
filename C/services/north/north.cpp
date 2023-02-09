@@ -394,10 +394,17 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 		{
 			logger->debug("Plugin %s requires persisted data", m_pluginName.c_str());
 			m_pluginData = new PluginData(m_storage);
-			string key = m_name + m_pluginName;
-			string storedData = m_pluginData->loadStoredData(key);
-			logger->debug("Starting plugin with storedData: %s", storedData.c_str());
-			northPlugin->startData(storedData);
+			if (!m_dryRun)
+			{
+				string key = m_name + m_pluginName;
+				string storedData = m_pluginData->loadStoredData(key);
+				logger->debug("Starting plugin with storedData: %s", storedData.c_str());
+				northPlugin->startData(storedData);
+			}
+			else
+			{
+				northPlugin->startData("{}");
+			}
 		}
 		else
 		{

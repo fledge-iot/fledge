@@ -895,13 +895,11 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 	// Check if the endpoint is PI Web API and if the PI Web API server is available
 	if (!IsPIWebAPIConnected(connInfo, version))
 	{
-		Logger::getLogger()->fatal("OMF Endpoint is not available");
+		Logger::getLogger()->warn("PI Web API server %s is not available. Unable to send data to PI", connInfo->hostAndPort.c_str());
 		return 0;
 	}
-	// FIXME - The above call is not working. Investigate why? FOGL-7293
 
-	// Above call does not always populate version
-	if (version.empty())
+	if (version.empty() && connInfo->PIServerEndpoint == ENDPOINT_PIWEB_API)
 	{
 		PIWebAPIGetVersion(connInfo, version, false);
 	}

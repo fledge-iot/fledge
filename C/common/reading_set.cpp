@@ -198,40 +198,44 @@ ReadingSet::append(const vector<Reading *>& readings)
 bool
 ReadingSet::copy(const ReadingSet& src)
 {
-   vector<Reading *> *readings = new vector<Reading *>;
+   vector<Reading *> readings;
    bool copyResult = true;
    try
    {
-	   for ( auto rs : src.getAllReadings())
+	   // Iterate over all the readings in ReadingSet
+	   for ( auto &reading : src.getAllReadings())
 	   {
-		   std::string assetName = rs->getAssetName();
-		   for ( auto dp : rs->getReadingData())
+		   std::string assetName = reading->getAssetName();
+		   std::vector<Datapoint *> dataPoints;
+		   // Iterate over all the datapoints associated with one reading
+		   for ( auto &dp : reading->getReadingData())
 		   {
 			   std::string dataPointName  = dp->getName();
 			   DatapointValue dv = dp->getData();
-			   Datapoint *value = new Datapoint(dataPointName, dv);
-			   Reading *in = new Reading(assetName, value);
-			   readings->push_back(in);
+			   dataPoints.emplace_back(new Datapoint(dataPointName, dv));
+			  
 		   }
+		   Reading *in = new Reading(assetName, dataPoints);
+		   readings.emplace_back(in);
 	   }
    }
    catch (std::bad_alloc& ex)
    {
+		Logger::getLogger()->error("Insufficient memory, failed while copying %d reading from ReadingSet %s ",readings.size()+1, ex.what());
 		copyResult = false;
-		readings->clear();
-		Logger::getLogger()->error("Insufficient memory :: failed while copying :%d: reading from ReadingSet :%s: ",readings->size()+1, ex.what());
+		readings.clear();
    }
    catch (std::exception& ex)
    {
+	   Logger::getLogger()->error("Unknown exception, failed while copying %d reading from ReadingSet %s ",readings.size()+1, ex.what());
 	   copyResult = false;
-	   readings->clear();
-	   Logger::getLogger()->error("Unknown exception :: failed while copying :%d: reading from ReadingSet :%s: ",readings->size()+1, ex.what());
+	   readings.clear();
    }
 
    //Append if All elements have been copied successfully
    if (copyResult)
    {
-	   append(*readings);
+	   append(readings);
    }
 
    return copyResult;

@@ -575,6 +575,8 @@ def disable_schedule():
 def pytest_addoption(parser):
     parser.addoption("--storage-plugin", action="store", default="sqlite",
                      help="Database plugin to use for tests")
+    parser.addoption("--readings-plugin", action="store", default="Use main plugin",
+                     help="Readings plugin to use for tests")
     parser.addoption("--fledge-url", action="store", default="localhost:8081",
                      help="Fledge client api url")
     parser.addoption("--use-pip-cache", action="store", default=False,
@@ -704,6 +706,11 @@ def pytest_addoption(parser):
 @pytest.fixture
 def storage_plugin(request):
     return request.config.getoption("--storage-plugin")
+
+
+@pytest.fixture
+def readings_plugin(request):
+    return request.config.getoption("--readings-plugin")
 
 
 @pytest.fixture

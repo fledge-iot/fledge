@@ -62,7 +62,7 @@ def reset_and_start_fledge(storage_plugin):
     else:
         subprocess.run(["sed -i 's/postgres/sqlite/g' $FLEDGE_ROOT/data/etc/storage.json"], shell=True, check=True)
 
-    subprocess.run(["echo YES | $FLEDGE_ROOT/scripts/fledge reset"], shell=True, check=True)
+    subprocess.run(["echo 'YES\nYES' | $FLEDGE_ROOT/scripts/fledge reset"], shell=True, check=True)
     subprocess.run(["$FLEDGE_ROOT/scripts/fledge start"], shell=True)
     stat = subprocess.run(["$FLEDGE_ROOT/scripts/fledge status"], shell=True, stdout=subprocess.PIPE,
                           stderr=subprocess.PIPE)

@@ -144,6 +144,9 @@ FledgeProcess::FledgeProcess(int argc, char** argv) :
 	// Connection to Fledge core microservice
 	m_client = new ManagementClient(m_core_mngt_host, m_core_mngt_port);
 
+	// Create Audit Logger
+	m_auditLogger = new AuditLogger(m_client);
+
 	// Storage layer handle
 	ServiceRecord storageInfo("Fledge Storage");
 

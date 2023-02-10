@@ -87,7 +87,7 @@ using namespace SimpleWeb;
 
 #define ENDPOINT_URL_PI_WEB_API "https://HOST_PLACEHOLDER:PORT_PLACEHOLDER/piwebapi/omf"
 #define ENDPOINT_URL_CR         "https://HOST_PLACEHOLDER:PORT_PLACEHOLDER/ingress/messages"
-#define ENDPOINT_URL_OCS        "https://dat-b.osisoft.com:PORT_PLACEHOLDER/api/v1/tenants/TENANT_ID_PLACEHOLDER/Namespaces/NAMESPACE_ID_PLACEHOLDER/omf"
+#define ENDPOINT_URL_OCS        "https://REGION_PLACEHOLDER.osisoft.com:PORT_PLACEHOLDER/api/v1/tenants/TENANT_ID_PLACEHOLDER/Namespaces/NAMESPACE_ID_PLACEHOLDER/omf"
 #define ENDPOINT_URL_ADH        "https://REGION_PLACEHOLDER.datahub.connect.aveva.com:PORT_PLACEHOLDER/api/v1/Tenants/TENANT_ID_PLACEHOLDER/Namespaces/NAMESPACE_ID_PLACEHOLDER/omf"
 
 #define ENDPOINT_URL_EDS        "http://localhost:PORT_PLACEHOLDER/api/v1/tenants/default/namespaces/default/omf"
@@ -162,14 +162,14 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"displayName": "Endpoint"
 		},
 		"ADHRegions": {
-                        "description": "AVEVA Data Hub region",
-                        "type": "enumeration",
-                        "options":["US-West", "EU-West", "Australia"],
-                        "default": "US-West",
-                        "order": "2",
-                        "displayName": "ADH Region",
-                        "validity" : "PIServerEndpoint == \"AVEVA Data Hub\""
-                },
+			"description": "AVEVA Data Hub or OSIsoft Cloud Services region",
+			"type": "enumeration",
+			"options":["US-West", "EU-West", "Australia"],
+			"default": "US-West",
+			"order": "2",
+			"displayName": "Cloud Service Region",
+			"validity" : "PIServerEndpoint == \"AVEVA Data Hub\" || PIServerEndpoint == \"OSIsoft Cloud Services\""
+		},
 		"SendFullStructure": {
 			"description": "It sends the minimum OMF structural messages to load data into Data Archive if disabled",
 			"type": "boolean",
@@ -564,6 +564,12 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 			Logger::getLogger()->debug("End point manually selected - OSIsoft Cloud Services");
 			connInfo->PIServerEndpoint = ENDPOINT_OCS;
 			url                        = ENDPOINT_URL_OCS;
+			std::string region 	   = "dat-b";
+			if(ADHRegions.compare("EU-West") == 0)
+				region = "dat-d";
+			else if(ADHRegions.compare("Australia") == 0)
+				Logger::getLogger()->error("OSIsoft Cloud Services are not hosted in Australia");
+			StringReplace(url, "REGION_PLACEHOLDER", region);
 			endpointPort               = ENDPOINT_PORT_OCS;
 		}
 		else if(PIServerEndpoint.compare("Edge Data Store") == 0)
@@ -655,26 +661,35 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 	connInfo->OCSClientSecret = OCSClientSecret;
 
 	// PI Web API end-point - evaluates the authentication method requested
-	if (PIWebAPIAuthMethod.compare("anonymous") == 0)
+	if (connInfo->PIServerEndpoint == ENDPOINT_PIWEB_API)
 	{
-		Logger::getLogger()->debug("PI Web API end-point - anonymous authentication");
-		connInfo->PIWebAPIAuthMethod = "a";
-	}
-	else if (PIWebAPIAuthMethod.compare("basic") == 0)
-	{
-		Logger::getLogger()->debug("PI Web API end-point - basic authentication");
-		connInfo->PIWebAPIAuthMethod = "b";
-		connInfo->PIWebAPICredentials = AuthBasicCredentialsGenerate(PIWebAPIUserId, PIWebAPIPassword);
-	}
-	else if (PIWebAPIAuthMethod.compare("kerberos") == 0)
-	{
-		Logger::getLogger()->debug("PI Web API end-point - kerberos authentication");
-		connInfo->PIWebAPIAuthMethod = "k";
-		AuthKerberosSetup(connInfo->KerberosKeytab, KerberosKeytabFileName);
+		if (PIWebAPIAuthMethod.compare("anonymous") == 0)
+		{
+			Logger::getLogger()->debug("PI Web API end-point - anonymous authentication");
+			connInfo->PIWebAPIAuthMethod = "a";
+		}
+		else if (PIWebAPIAuthMethod.compare("basic") == 0)
+		{
+			Logger::getLogger()->debug("PI Web API end-point - basic authentication");
+			connInfo->PIWebAPIAuthMethod = "b";
+			connInfo->PIWebAPICredentials = AuthBasicCredentialsGenerate(PIWebAPIUserId, PIWebAPIPassword);
+		}
+		else if (PIWebAPIAuthMethod.compare("kerberos") == 0)
+		{
+			Logger::getLogger()->debug("PI Web API end-point - kerberos authentication");
+			connInfo->PIWebAPIAuthMethod = "k";
+			AuthKerberosSetup(connInfo->KerberosKeytab, KerberosKeytabFileName);
+		}
+		else
+		{
+			Logger::getLogger()->error("Invalid authentication method for PI Web API :%s: ", PIWebAPIAuthMethod.c_str());
+		}
 	}
 	else
 	{
-		Logger::getLogger()->error("Invalid authentication method for PI Web API :%s: ", PIWebAPIAuthMethod.c_str());
+		// For all other endpoint types, set PI Web API authentication to 'anonymous.'
+		// This prevents the HttpSender from inserting PI Web API authentication headers.
+		connInfo->PIWebAPIAuthMethod = "a";
 	}
 
 	// Use compression ?
@@ -792,6 +807,12 @@ void plugin_start(const PLUGIN_HANDLE handle,
 	Logger* logger = Logger::getLogger();
 	CONNECTOR_INFO* connInfo = (CONNECTOR_INFO *)handle;
 
+	logger->info("Host: %s", connInfo->hostAndPort.c_str());
+	if ((connInfo->PIServerEndpoint == ENDPOINT_OCS) || (connInfo->PIServerEndpoint == ENDPOINT_ADH))
+	{
+		logger->info("Namespace: %s", connInfo->OCSNamespace.c_str());
+	}
+
 	// Parse JSON plugin_data
 	Document JSONData;
 	JSONData.Parse(storedData.c_str());
@@ -876,13 +897,11 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 	// Check if the endpoint is PI Web API and if the PI Web API server is available
 	if (!IsPIWebAPIConnected(connInfo, version))
 	{
-		Logger::getLogger()->fatal("OMF Endpoint is not available");
+		Logger::getLogger()->warn("PI Web API server %s is not available. Unable to send data to PI", connInfo->hostAndPort.c_str());
 		return 0;
 	}
-	// FIXME - The above call is not working. Investigate why? FOGL-7293
 
-	// Above call does not always populate version
-	if (version.empty())
+	if (version.empty() && connInfo->PIServerEndpoint == ENDPOINT_PIWEB_API)
 	{
 		PIWebAPIGetVersion(connInfo, version, false);
 	}
@@ -1728,6 +1747,7 @@ bool IsPIWebAPIConnected(CONNECTOR_INFO* connInfo, std::string& version)
 	{
 		// Endpoints other than PI Web API fail quickly when they are unavailable
 		// so there is no need to check their status in advance.
+		version = "1.0";
 		s_connected = true;
 	}
 

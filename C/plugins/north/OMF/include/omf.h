@@ -503,7 +503,7 @@ private:
 		bool			m_legacy;
 
 		/**
-		 * Assets that have been logged as avign errors. This prevents us
+		 * Assets that have been logged as having errors. This prevents us
 		 * from flooding the logs with reports for the same asset.
 		 */
 		static std::vector<std::string>

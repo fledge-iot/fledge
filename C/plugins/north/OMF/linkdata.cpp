@@ -381,10 +381,10 @@ bool OMFLinkedData::flushContainers(HttpSender& sender, const string& path, vect
 					   payload);
 		if  ( ! (res >= 200 && res <= 299) )
 		{
-			Logger::getLogger()->error("An error occured sending the container data. HTTP code %d - %s %s",
+			Logger::getLogger()->error("An error occurred sending the container data. HTTP code %d - %s %s",
 						   res,
 						   sender.getHostPort().c_str(),
-						   path.c_str());
+						   m_sender.getHTTPResponse());
 			return false;
 		}
 	}
@@ -402,7 +402,7 @@ bool OMFLinkedData::flushContainers(HttpSender& sender, const string& path, vect
 	catch (const std::exception& e)
 	{
 
-		Logger::getLogger()->error("An exception occured when sending container informatin the the OMF endpoint, %s - %s %s",
+		Logger::getLogger()->error("An exception occurred when sending container information the the OMF endpoint, %s - %s %s",
 									e.what(),
 									sender.getHostPort().c_str(),
 									path.c_str());

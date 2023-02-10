@@ -360,7 +360,7 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 					   typeData);
 		if  ( ! (res >= 200 && res <= 299) )
 		{
-			string msg = "An error occured sending the dataType message for the asset " + assetName;
+			string msg = "An error occurred sending the dataType message for the asset " + assetName;
 			msg.append(". HTTP error code " + to_string(res));
 			reportAsset(assetName, "error", msg);
 			return false;
@@ -376,7 +376,7 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 		}
 		string errorMsg = errorMessageHandler(e.what());
 
-		string msg = "An error occured sending the dataType message for the asset " + assetName
+		string msg = "An error occurred sending the dataType message for the asset " + assetName
 				+ ". " + errorMsg;
 		if (m_changeTypeId)
 		{
@@ -395,7 +395,7 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 	{
 		string errorMsg = errorMessageHandler(e.what());
 
-		string msg = "An error occured sending the dataType message for the asset " + assetName
+		string msg = "An error occurred sending the dataType message for the asset " + assetName
 				+ ". " + errorMsg;
 		reportAsset(assetName, "error", msg);
 		m_connected = false;
@@ -418,7 +418,7 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 					   typeContainer);
 		if  ( ! (res >= 200 && res <= 299) )
 		{
-			string msg = "An error occured sending the dataType container message for the asset " + assetName;
+			string msg = "An error occurred sending the dataType container message for the asset " + assetName;
 			msg.append(". HTTP error code " + to_string(res));
 			reportAsset(assetName, "error", msg);
 			return false;
@@ -434,7 +434,7 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 		}
 		string errorMsg = errorMessageHandler(e.what());
 
-		string msg = "An error occured sending the dataType container message for the asset " + assetName
+		string msg = "An error occurred sending the dataType container message for the asset " + assetName
 				+ ". " + errorMsg;
 		if (m_changeTypeId)
 		{
@@ -452,7 +452,7 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 	{
 		string errorMsg = errorMessageHandler(e.what());
 
-		string msg = "An error occured sending the dataType message for the asset " + assetName
+		string msg = "An error occurred sending the dataType message for the asset " + assetName
 				+ ". " + errorMsg;
 		reportAsset(assetName, "error", msg);
 		m_connected = false;
@@ -478,7 +478,7 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 						   typeStaticData);
 			if  ( ! (res >= 200 && res <= 299) )
 			{
-				string msg = "An error occured sending the StaticData dataType message for the asset " + assetName;
+				string msg = "An error occurred sending the StaticData dataType message for the asset " + assetName;
 				msg.append(". HTTP error code " + to_string(res));
 				reportAsset(assetName, "warn", msg);
 				return false;
@@ -494,7 +494,7 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 			}
 			string errorMsg = errorMessageHandler(e.what());
 
-			string msg = "An error occured sending the dataType staticData message for the asset " + assetName
+			string msg = "An error occurred sending the dataType staticData message for the asset " + assetName
 					+ ". " + errorMsg;
 			if (m_changeTypeId)
 			{
@@ -507,7 +507,7 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 		{
 			string errorMsg = errorMessageHandler(e.what());
 
-			string msg = "An error occured sending the dataType staticData message for the asset " + assetName
+			string msg = "An error occurred sending the dataType staticData message for the asset " + assetName
 					+ ". " + errorMsg;
 			reportAsset(assetName, "debug", msg);
 			m_connected = false;
@@ -562,7 +562,7 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 											   payload);
 					if (!(res >= 200 && res <= 299))
 					{
-						string msg = "An error occured sending the link dataType message for the asset " + assetName;
+						string msg = "An error occurred sending the link dataType message for the asset " + assetName;
 						msg.append(". HTTP error code " + to_string(res));
 						reportAsset(assetName, "warn", msg);
 						return false;
@@ -577,7 +577,7 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 						m_changeTypeId = true;
 					}
 					string errorMsg = errorMessageHandler(e.what());
-					string msg = "An error occured sending the dataType link message for the asset " + assetName
+					string msg = "An error occurred sending the dataType link message for the asset " + assetName
 							+ ". " + errorMsg;
 					if (m_changeTypeId)
 					{
@@ -591,7 +591,7 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 				{
 					string errorMsg = errorMessageHandler(e.what());
 
-					string msg = "An error occured sending the dataType staticData message for the asset " + assetName
+					string msg = "An error occurred sending the dataType staticData message for the asset " + assetName
 							+ ". " + errorMsg;
 					reportAsset(assetName, "debug", msg);
 					return false;
@@ -600,7 +600,7 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 		}
 		else
 		{
-			string msg("AF hiererachy is not defined for the asset " + assetName);
+			string msg("AF hierarchy is not defined for the asset " + assetName);
 			reportAsset(assetName, "warn", msg);
 		}
 	}

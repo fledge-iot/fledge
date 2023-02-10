@@ -509,7 +509,7 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 
 			string msg = "An error occured sending the dataType staticData message for the asset " + assetName
 					+ ". " + errorMsg;
-			reportAsset(assetName, "warn", msg);
+			reportAsset(assetName, "debug", msg);
 			m_connected = false;
 			return false;
 		}
@@ -547,13 +547,6 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 					objectPrefix = prefix;
 				}
 
-				Logger::getLogger()->debug("%s - assetName :%s: AFHierarchy :%s: prefix :%s: objectPrefix :%s:  AFHierarchyLevel :%s: ", __FUNCTION__
-										   ,assetName.c_str()
-										   , AFHierarchy.c_str()
-										   , prefix.c_str()
-										   , objectPrefix.c_str()
-										   , AFHierarchyLevel.c_str() );
-
 				// Create data for Static Data message
 				string typeLinkData = OMF::createLinkData(row, AFHierarchyLevel, prefix, objectPrefix, hints, true);
 				string payload = "[" + typeLinkData + "]";
@@ -569,10 +562,9 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 											   payload);
 					if (!(res >= 200 && res <= 299))
 					{
-						Logger::getLogger()->error("Sending JSON dataType message 'Data' (lynk) - error: HTTP code |%d| - %s %s",
-												   res,
-												   m_sender.getHostPort().c_str(),
-												   m_path.c_str());
+						string msg = "An error occured sending the link dataType message for the asset " + assetName;
+						msg.append(". HTTP error code " + to_string(res));
+						reportAsset(assetName, "warn", msg);
 						return false;
 					}
 				}
@@ -585,31 +577,31 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 						m_changeTypeId = true;
 					}
 					string errorMsg = errorMessageHandler(e.what());
+					string msg = "An error occured sending the dataType link message for the asset " + assetName
+							+ ". " + errorMsg;
+					if (m_changeTypeId)
+					{
+						msg.append(". A data type change will take place to try to resolve this error");
+					}
+					reportAsset(assetName, "warn", msg);
 
-					Logger::getLogger()->warn("Sending JSON dataType message 'Data' (lynk) "
-											  "not blocking issue: |%s| - %s - %s %s",
-											  (m_changeTypeId ? "Data Type " : ""),
-											  errorMsg.c_str(),
-											  m_sender.getHostPort().c_str(),
-											  m_path.c_str() );
 					return false;
 				}
 				catch (const std::exception &e)
 				{
 					string errorMsg = errorMessageHandler(e.what());
 
-					Logger::getLogger()->error("Sending JSON dataType message 'Data' (lynk) "
-											   "- generic error: %s - %s %s",
-											   errorMsg.c_str(),
-											   m_sender.getHostPort().c_str(),
-											   m_path.c_str() );
+					string msg = "An error occured sending the dataType staticData message for the asset " + assetName
+							+ ". " + errorMsg;
+					reportAsset(assetName, "debug", msg);
 					return false;
 				}
 			}
 		}
 		else
 		{
-			Logger::getLogger()->error("AF hiererachy is not defined for the asset Name |%s|", assetName.c_str());
+			string msg("AF hiererachy is not defined for the asset " + assetName);
+			reportAsset(assetName, "warn", msg);
 		}
 	}
 	// All data types sent: success
@@ -1048,7 +1040,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 	{
 		if (!sendBaseTypes())
 		{
-			Logger::getLogger()->error("Unable to send base types, linked assets will not be sent");
+			Logger::getLogger()->error("Unable to send base types, linked assets will not be sent. The system will fall back to using complex types.");
 			m_linkedProperties = false;
 		}
 	}

@@ -1433,7 +1433,7 @@ bool SouthService::syncToNextPoll()
 	time_t tim = time(0);
 	struct tm tm;
 	localtime_r(&tim, &tm);
-	unsigned long waitFor;
+	unsigned long waitFor = 1;
 
 	if (m_hours.size() == 0 && m_minutes.size() == 0 && m_seconds.size() == 0)
 	{
@@ -1590,7 +1590,8 @@ bool SouthService::syncToNextPoll()
 	uint64_t exp;
 	while (waitFor)
 	{
-		read(m_timerfd, &exp, sizeof(uint64_t));
+		if (read(m_timerfd, &exp, sizeof(uint64_t)) == -1)
+			return false;
 		waitFor--;
 		if (m_shutdown)
 			return false;

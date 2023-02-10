@@ -32,6 +32,7 @@
 
 #include <basetypes.h>
 #include <omflinkeddata.h>
+#include <audit_logger.h>
 
 using namespace std;
 using namespace rapidjson;
@@ -224,7 +225,8 @@ const string& OMFData::OMFdataVal() const
 /**
  * OMF constructor
  */
-OMF::OMF(HttpSender& sender,
+OMF::OMF(const string& name,
+	HttpSender& sender,
 	 const string& path,
 	 const long id,
 	 const string& token) :
@@ -232,7 +234,8 @@ OMF::OMF(HttpSender& sender,
 	 m_typeId(id),
 	 m_producerToken(token),
 	 m_sender(sender),
-	 m_legacy(false)
+	 m_legacy(false),
+	 m_name(name)
 {
 	m_lastError = false;
 	m_changeTypeId = false;
@@ -244,14 +247,16 @@ OMF::OMF(HttpSender& sender,
  * OMF constructor with per asset data types
  */
 
-OMF::OMF(HttpSender& sender,
+OMF::OMF(const string& name,
+	 HttpSender& sender,
 	 const string& path,
 	 map<string, OMFDataTypes>& types,
 	 const string& token) :
 	 m_path(path),
 	 m_OMFDataTypes(&types),
 	 m_producerToken(token),
-	 m_sender(sender)
+	 m_sender(sender),
+	 m_name(name)
 {
 	// Get starting type-id sequence or set the default value
 	auto it = (*m_OMFDataTypes).find(FAKE_ASSET_KEY);
@@ -4757,4 +4762,27 @@ void OMF::reportAsset(const string& asset, const string& level, const string& ms
 		else
 			Logger::getLogger()->debug(msg);
 	}
+}
+
+/**
+ * Set the connection state
+ *
+ * @param connectionStatus	The target connection status
+ */
+void OMF::setConnected(const bool connectionStatus)
+{
+	if (connectionStatus != m_connected)
+	{
+		// Send an audit event for the change of state
+		string data = "{ \"plugin\" : \"OMF\", \"service\" : \"" + m_name + "\" }";
+		if (!connectionStatus)
+		{
+			AuditLogger::auditLog("NHDWN", "ERROR", data);
+		}
+		else
+		{
+			AuditLogger::auditLog("NHAVL", "INFORMATION", data);
+		}
+	}
+	m_connected = connectionStatus;
 }

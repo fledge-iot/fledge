@@ -384,7 +384,7 @@ bool OMFLinkedData::flushContainers(HttpSender& sender, const string& path, vect
 			Logger::getLogger()->error("An error occurred sending the container data. HTTP code %d - %s %s",
 						   res,
 						   sender.getHostPort().c_str(),
-						   m_sender.getHTTPResponse());
+						   sender.getHTTPResponse().c_str());
 			return false;
 		}
 	}

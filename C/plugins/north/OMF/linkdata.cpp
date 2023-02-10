@@ -132,16 +132,20 @@ string OMFLinkedData::processReading(const Reading& reading, const string&  AFHi
 
 			// Create the link for the asset if not already created
 			string link = assetName + "." + dpName;
-			string baseType;
+			string baseType = getBaseType(*it, format);
 			auto container = m_containerSent->find(link);
 			if (container == m_containerSent->end())
 			{
-				baseType = sendContainer(link, *it, format, hints);
+				sendContainer(link, *it, hints, baseType);
 				m_containerSent->insert(pair<string, string>(link, baseType));
 			}
 			else
 			{
-				baseType =  container->second;
+				if (baseType.compare(container->second) != 0)
+				{
+					sendContainer(link, *it, hints, baseType);
+					(*m_containerSent)[link] = baseType;
+				}
 			}
 			if (baseType.empty())
 			{
@@ -200,15 +204,13 @@ string OMFLinkedData::processReading(const Reading& reading, const string&  AFHi
 }
 
 /**
- * Send the container message for the linked datapoint
+ * Calculate the base type we need to link the container
  *
- * @param linkName	The name to use for the container
  * @param dp		The datapoint to process
  * @param format	The format to use based on a hint, this may be empty
- * @param hints		Hints related to this asset
  * @return	The base type linked in the container
  */
-string OMFLinkedData::sendContainer(string& linkName, Datapoint *dp, const string& format, OMFHints * hints)
+string OMFLinkedData::getBaseType(Datapoint *dp, const string& format)
 {
 	string baseType;
 	switch (dp->getData().getType())
@@ -256,7 +258,18 @@ string OMFLinkedData::sendContainer(string& linkName, Datapoint *dp, const strin
 			// Not supported
 			return baseType;
 	}
+}
 
+/**
+ * Send the container message for the linked datapoint
+ *
+ * @param linkName	The name to use for the container
+ * @param dp		The datapoint to process
+ * @param hints		Hints related to this asset
+ * @param baseType	The baseType we will sue
+ */
+void OMFLinkedData::sendContainer(string& linkName, Datapoint *dp, OMFHints * hints, const string& baseType)
+{
 	string dataSource = "Fledge";
 	string uom, minimum, maximum, interpolation;
 	bool propertyOverrides = false;
@@ -354,8 +367,6 @@ string OMFLinkedData::sendContainer(string& linkName, Datapoint *dp, const strin
 	if (! m_containers.empty())
 		m_containers += ",";
 	m_containers.append(container);
-
-	return baseType;
 }
 
 /**

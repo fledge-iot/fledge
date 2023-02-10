@@ -30,7 +30,7 @@ __version__ = "${VERSION}"
 SERVICE = "notification"
 SERVICE_NAME = "NotificationServer #1"
 NOTIFY_PLUGIN = "python35"
-NOTIFY_INBUILT_RULES = ["Threshold"]
+NOTIFY_INBUILT_RULES = ["Threshold", "DataAvailability"]
 
 
 def _configure_and_start_service(service_branch, fledge_url, remove_directories):
@@ -139,8 +139,9 @@ class TestNotificationService:
         remove_directories(os.environ['FLEDGE_ROOT'] + 'cmake_build/C/plugins/notificationRule')
         jdoc = _get_result(fledge_url, '/fledge/notification/plugin')
         assert [] == jdoc['delivery']
-        assert 1 == len(jdoc['rules'])
-        assert NOTIFY_INBUILT_RULES[0] == jdoc['rules'][0]['name']
+        assert 2 == len(jdoc['rules'])
+        assert NOTIFY_INBUILT_RULES[0] == jdoc['rules'][1]['name']
+        assert NOTIFY_INBUILT_RULES[1] == jdoc['rules'][0]['name']
 
 
 class TestNotificationCRUD:
@@ -164,8 +165,9 @@ class TestNotificationCRUD:
         jdoc = _get_result(fledge_url, '/fledge/notification/plugin')
         assert 1 == len(jdoc['delivery'])
         assert NOTIFY_PLUGIN == jdoc['delivery'][0]['name']
-        assert 1 == len(jdoc['rules'])
-        assert NOTIFY_INBUILT_RULES[0] == jdoc['rules'][0]['name']
+        assert 2 == len(jdoc['rules'])
+        assert NOTIFY_INBUILT_RULES[0] == jdoc['rules'][1]['name']
+        assert NOTIFY_INBUILT_RULES[1] == jdoc['rules'][0]['name']
 
     def test_get_notifications_and_audit_entry(self, fledge_url):
         jdoc = _get_result(fledge_url, '/fledge/notification')

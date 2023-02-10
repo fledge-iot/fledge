@@ -895,7 +895,7 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 	// Check if the endpoint is PI Web API and if the PI Web API server is available
 	if (!IsPIWebAPIConnected(connInfo, version))
 	{
-		Logger::getLogger()->warn("PI Web API server %s is not available. Unable to send data to PI", connInfo->hostAndPort.c_str());
+		// Error already reported by IsPIWebAPIConnected
 		return 0;
 	}
 
@@ -1728,7 +1728,7 @@ bool IsPIWebAPIConnected(CONNECTOR_INFO* connInfo, std::string& version)
 		if (now >= nextCheck)
 		{
 			int httpCode = PIWebAPIGetVersion(connInfo, version, false);
-			if (httpCode >= 500)
+			if (httpCode >= 400)
 			{
 				s_connected = false;
 				now = std::chrono::steady_clock::now();
@@ -1739,7 +1739,7 @@ bool IsPIWebAPIConnected(CONNECTOR_INFO* connInfo, std::string& version)
 					reportedState = false;
 					reported = true;
 					Logger::getLogger()->error("The PI Web API service %s is not available",
-							connInfo->hostAndPort);
+							connInfo->hostAndPort.c_str());
 				}
 			}
 			else
@@ -1751,7 +1751,7 @@ bool IsPIWebAPIConnected(CONNECTOR_INFO* connInfo, std::string& version)
 					reportedState = true;
 					reported = true;
 					Logger::getLogger()->warn("The PI Web API service %s has become available",
-							connInfo->hostAndPort);
+							connInfo->hostAndPort.c_str());
 				}
 			}
 		}

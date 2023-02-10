@@ -135,7 +135,7 @@ class Scheduler(object):
 
         # Initialize class attributes
         if not cls._logger:
-            cls._logger = logger.setup(__name__, level=logging.INFO)
+            cls._logger = logger.setup(__name__, level=logging.WARN)
             # cls._logger = logger.setup(__name__, level=logging.DEBUG)
         if not cls._core_management_port:
             cls._core_management_port = core_management_port

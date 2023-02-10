@@ -233,6 +233,7 @@ class OMF
 
 		static std::string variableValueHandle(const Reading& reading, std::string &AFHierarchy);
 		static bool        extractVariable(string &strToHandle, string &variable, string &value, string &defaultValue);
+		static void   	   reportAsset(const string& asset, const string& level, const string& msg);
 
 private:
 		/**
@@ -349,6 +350,7 @@ private:
 		// End of support for using linked containers
 		//
 		string createAFLinks(Reading &reading, OMFHints *hints);
+
 
 	private:
 		// Use for the evaluation of the OMFDataTypes.typesShort
@@ -499,6 +501,13 @@ private:
 		 * Force the data to be sent using the legacy, complex OMF types
 		 */
 		bool			m_legacy;
+
+		/**
+		 * Assets that have been logged as avign errors. This prevents us
+		 * from flooding the logs with reports for the same asset.
+		 */
+		static std::vector<std::string>
+					m_reportedAssets;
 };
 
 /**

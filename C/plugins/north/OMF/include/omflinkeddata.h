@@ -100,5 +100,6 @@ class OMFLinkedData
 		std::string				m_containers;
 		std::string				m_doubleFormat;
 		std::string				m_integerFormat;
+
 };
 #endif

@@ -20,10 +20,12 @@
 
 #include <iterator>
 #include <typeinfo>
+#include <algorithm>
 
 #include <omflinkeddata.h>
 
 using namespace std;
+
 /**
  * OMFLinkedData constructor, generates the OMF message containing the data
  *
@@ -65,7 +67,7 @@ string OMFLinkedData::processReading(const Reading& reading, const string&  AFHi
 
 	// Get reading data
 	const vector<Datapoint*> data = reading.getReadingData();
-	unsigned long skipDatapoints = 0;
+	vector<string> skippedDatapoints;
 
 	Logger::getLogger()->info("Processing %s with new OMF method", assetName.c_str());
 
@@ -95,7 +97,7 @@ string OMFLinkedData::processReading(const Reading& reading, const string&  AFHi
 		}
 		if (!isTypeSupported((*it)->getData()))
 		{
-			skipDatapoints++;;	
+			skippedDatapoints.push_back(dpName);
 			continue;
 		}
 		else
@@ -144,7 +146,7 @@ string OMFLinkedData::processReading(const Reading& reading, const string&  AFHi
 			if (baseType.empty())
 			{
 				// Type is not supported, skip the datapoint
-				skipDatapoints++;;	
+				skippedDatapoints.push_back(dpName);
 				continue;
 			}
 			if (m_linkSent->find(link) == m_linkSent->end())
@@ -175,9 +177,23 @@ string OMFLinkedData::processReading(const Reading& reading, const string&  AFHi
 			outData.append("} ] }");
 		}
 	}
-	if (skipDatapoints > 0)
+	if (skippedDatapoints.size() > 0)
 	{
-		Logger::getLogger()->warn("The asset %s had a number of datapoints that are nor supported by OMF and have been omitted", reading.getAssetName().c_str());
+		string points;
+		for (string& dp : skippedDatapoints)
+		{
+			if (!points.empty())
+				points.append(", ");
+			points.append(dp);
+		}
+		auto pos = points.find_last_of(",");
+		if (pos != string::npos)
+		{
+			points.replace(pos, 1, " and");
+		}
+		string assetName = reading.getAssetName();
+		string msg = "The asset " + assetName + " had a number of datapoints, " + points + " that are not supported by OMF and have been omitted";
+		OMF::reportAsset(assetName, "warn", msg);
 	}
 	Logger::getLogger()->debug("Created data messasges %s", outData.c_str());
 	return outData;
@@ -235,7 +251,8 @@ string OMFLinkedData::sendContainer(string& linkName, Datapoint *dp, const strin
 			break;
 		}
 		default:
-			Logger::getLogger()->error("Unsupported type %s", dp->getData().getTypeStr());
+			Logger::getLogger()->error("Unsupported type %s for the data point %s", dp->getData().getTypeStr(),
+					dp->getName().c_str());
 			// Not supported
 			return baseType;
 	}
@@ -364,7 +381,7 @@ bool OMFLinkedData::flushContainers(HttpSender& sender, const string& path, vect
 					   payload);
 		if  ( ! (res >= 200 && res <= 299) )
 		{
-			Logger::getLogger()->error("Sending containers, HTTP code %d - %s %s",
+			Logger::getLogger()->error("An error occured sending the container data. HTTP code %d - %s %s",
 						   res,
 						   sender.getHostPort().c_str(),
 						   path.c_str());
@@ -375,7 +392,7 @@ bool OMFLinkedData::flushContainers(HttpSender& sender, const string& path, vect
 	catch (const BadRequest& e)
 	{
 
-		Logger::getLogger()->warn("Sending containers, not blocking issue: %s - %s %s",
+		Logger::getLogger()->warn("The OMF endpoint reported a bad request when sending containers: %s - %s %s",
 				e.what(),
 				sender.getHostPort().c_str(),
 				path.c_str());
@@ -385,7 +402,7 @@ bool OMFLinkedData::flushContainers(HttpSender& sender, const string& path, vect
 	catch (const std::exception& e)
 	{
 
-		Logger::getLogger()->error("Sending containers, %s - %s %s",
+		Logger::getLogger()->error("An exception occured when sending container informatin the the OMF endpoint, %s - %s %s",
 									e.what(),
 									sender.getHostPort().c_str(),
 									path.c_str());

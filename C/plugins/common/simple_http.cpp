@@ -237,7 +237,11 @@ int SimpleHttp::sendRequest(
 		{
 			throw BadRequest(response);
 		}
-		else if (http_code >= 401)
+		else if (http_code == 401)
+		{
+			throw Unauthorized(response);
+		}
+		else if (http_code > 401)
 		{
 			std::stringstream error_message;
 			error_message << "HTTP code |" << to_string(http_code) << "| HTTP error |" << response << "|";

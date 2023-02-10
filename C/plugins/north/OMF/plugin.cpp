@@ -167,6 +167,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"options":["US-West", "EU-West", "Australia"],
 			"default": "US-West",
 			"order": "2",
+			"group" : "Cloud",
 			"displayName": "Cloud Service Region",
 			"validity" : "PIServerEndpoint == \"AVEVA Data Hub\" || PIServerEndpoint == \"OSIsoft Cloud Services\""
 		},

@@ -221,13 +221,13 @@ ReadingSet::copy(const ReadingSet& src)
    }
    catch (std::bad_alloc& ex)
    {
-		Logger::getLogger()->error("Insufficient memory, failed while copying %d reading from ReadingSet %s ",readings.size()+1, ex.what());
+		Logger::getLogger()->error("Insufficient memory, failed while copying %d reading from ReadingSet, %s ",readings.size()+1, ex.what());
 		copyResult = false;
 		readings.clear();
    }
    catch (std::exception& ex)
    {
-	   Logger::getLogger()->error("Unknown exception, failed while copying %d reading from ReadingSet %s ",readings.size()+1, ex.what());
+	   Logger::getLogger()->error("Unknown exception, failed while copying %d reading from ReadingSet, %s ",readings.size()+1, ex.what());
 	   copyResult = false;
 	   readings.clear();
    }

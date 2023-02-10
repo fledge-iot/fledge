@@ -18,6 +18,7 @@
 #include <filter_plugin.h>
 #include <plugin_data.h>
 #include <storage_asset_tracking.h>
+#include <audit_logger.h>
 
 #define MAX_SLEEP	5		// Maximum number of seconds the service will sleep during a poll cycle
 
@@ -119,6 +120,7 @@ class SouthService : public ServiceAuthHandler {
 		std::condition_variable		m_pollCV;
 		std::mutex			m_pollMutex;
 		bool				m_doPoll;
+		AuditLogger			*m_auditLogger;
 
 };
 #endif

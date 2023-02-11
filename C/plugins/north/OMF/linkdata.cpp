@@ -23,6 +23,7 @@
 #include <algorithm>
 
 #include <omflinkeddata.h>
+#include <omferror.h>
 
 using namespace std;
 
@@ -139,9 +140,18 @@ string OMFLinkedData::processReading(const Reading& reading, const string&  AFHi
 				sendContainer(link, *it, hints, baseType);
 				m_containerSent->insert(pair<string, string>(link, baseType));
 			}
-			else
+			else if (baseType.compare(container->second) != 0)
 			{
-				if (baseType.compare(container->second) != 0)
+				if (container->second.compare(0, 6, "Double") == 0 &&
+						(baseType.compare(0, 7, "Integer") == 0
+						 || baseType.compare(0, 8, "UInteger") == 0))
+				{
+					string msg = "Asset " + assetName + " data point " + dpName 
+				       		+ " conversion from floating point to integer is being ignored";
+					OMF::reportAsset(assetName, "warn", msg);
+					baseType = container->second;
+				}
+				else
 				{
 					sendContainer(link, *it, hints, baseType);
 					(*m_containerSent)[link] = baseType;
@@ -402,13 +412,15 @@ bool OMFLinkedData::flushContainers(HttpSender& sender, const string& path, vect
 	// Exception raised for HTTP 400 Bad Request
 	catch (const BadRequest& e)
 	{
+		OMFError error(sender.getHTTPResponse());
+		// FIXME The following is too verbose
+		Logger::getLogger()->warn("The OMF endpoint reported a bad request when sending containers: %d messages",
+				error.messageCount());
+		for (unsigned int i = 0; i < error.messageCount(); i++)
+			Logger::getLogger()->warn("Message %d: %s, %s, %s",
+					i, error.getEventSeverity(i).c_str(), error.getMessage(i).c_str(), error.getEventReason(i).c_str());
 
-		Logger::getLogger()->warn("The OMF endpoint reported a bad request when sending containers: %s - %s %s",
-				e.what(),
-				sender.getHostPort().c_str(),
-				path.c_str());
-
-		return false;
+		return error.hasErrors();
 	}
 	catch (const std::exception& e)
 	{

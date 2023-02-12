@@ -413,12 +413,37 @@ bool OMFLinkedData::flushContainers(HttpSender& sender, const string& path, vect
 	catch (const BadRequest& e)
 	{
 		OMFError error(sender.getHTTPResponse());
-		// FIXME The following is too verbose
-		Logger::getLogger()->warn("The OMF endpoint reported a bad request when sending containers: %d messages",
-				error.messageCount());
-		for (unsigned int i = 0; i < error.messageCount(); i++)
-			Logger::getLogger()->warn("Message %d: %s, %s, %s",
-					i, error.getEventSeverity(i).c_str(), error.getMessage(i).c_str(), error.getEventReason(i).c_str());
+		if (error.hasErrors())
+		{
+			Logger::getLogger()->warn("The OMF endpoint reported a bad request when sending containers: %d messages",
+					error.messageCount());
+			for (unsigned int i = 0; i < error.messageCount(); i++)
+			{
+				Logger::getLogger()->warn("Message %d: %s, %s, %s",
+						i, error.getEventSeverity(i).c_str(), error.getMessage(i).c_str(), error.getEventReason(i).c_str());
+			}
+		}
+
+		return error.hasErrors();
+	}
+	catch (const Conflict& e)
+	{
+		OMFError error(sender.getHTTPResponse());
+		// The following is possibily to verbose
+		if (error.hasErrors())
+		{
+			Logger::getLogger()->warn("The OMF endpoint reported a conflict when sending containers: %d messages",
+					error.messageCount());
+			for (unsigned int i = 0; i < error.messageCount(); i++)
+			{
+				string severity = error.getEventSeverity(i);
+				if (severity.compare("Error") == 0)
+				{
+					Logger::getLogger()->warn("Message %d: %s, %s, %s",
+						i, error.getEventSeverity(i).c_str(), error.getMessage(i).c_str(), error.getEventReason(i).c_str());
+				}
+			}
+		}
 
 		return error.hasErrors();
 	}

@@ -241,6 +241,10 @@ int SimpleHttp::sendRequest(
 		{
 			throw Unauthorized(response);
 		}
+		else if (http_code == 409)
+		{
+			throw Conflict(response);
+		}
 		else if (http_code > 401)
 		{
 			std::stringstream error_message;

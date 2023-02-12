@@ -33,6 +33,7 @@
 #include <basetypes.h>
 #include <omflinkeddata.h>
 #include <audit_logger.h>
+#include <omferror.h>
 
 using namespace std;
 using namespace rapidjson;
@@ -374,6 +375,17 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 	// Exception raised for HTTP 400 Bad Request
 	catch (const BadRequest& e)
 	{
+		OMFError error(m_sender.getHTTPResponse());
+		// FIXME The following is too verbose
+		if (error.hasErrors())
+		{
+			Logger::getLogger()->warn("The OMF endpoint reported a bad request when sending data  types: %d messages",
+					error.messageCount());
+			for (unsigned int i = 0; i < error.messageCount(); i++)
+				Logger::getLogger()->warn("Message %d: %s, %s, %s",
+						i, error.getEventSeverity(i).c_str(), error.getMessage(i).c_str(), error.getEventReason(i).c_str());
+		}
+
 		if (OMF::isDataTypeError(e.what()))
 		{
 			// Data type error: force type-id change
@@ -432,6 +444,19 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 	// Exception raised for HTTP 400 Bad Request
 	catch (const BadRequest& e)
 	{
+		OMFError error(m_sender.getHTTPResponse());
+		// FIXME The following is too verbose
+		if (error.hasErrors())
+		{
+			Logger::getLogger()->warn("The OMF endpoint reported a bad request when sending dta type contianers : %d messages",
+					error.messageCount());
+			for (unsigned int i = 0; i < error.messageCount(); i++)
+			{
+				Logger::getLogger()->warn("Message %d: %s, %s, %s",
+						i, error.getEventSeverity(i).c_str(), error.getMessage(i).c_str(), error.getEventReason(i).c_str());
+			}
+		}
+
 		if (OMF::isDataTypeError(e.what()))
 		{
 			// Data type error: force type-id change
@@ -492,6 +517,19 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 		// Exception raised fof HTTP 400 Bad Request
 		catch (const BadRequest& e)
 		{
+			OMFError error(m_sender.getHTTPResponse());
+			// FIXME The following is too verbose
+			if (error.hasErrors())
+			{
+				Logger::getLogger()->warn("The OMF endpoint reported a bad request when sending Static dataType: %d messages",
+						error.messageCount());
+				for (unsigned int i = 0; i < error.messageCount(); i++)
+				{
+					Logger::getLogger()->warn("Message %d: %s, %s, %s",
+							i, error.getEventSeverity(i).c_str(), error.getMessage(i).c_str(), error.getEventReason(i).c_str());
+				}
+			}
+
 			if (OMF::isDataTypeError(e.what()))
 			{
 				// Data type error: force type-id change
@@ -576,6 +614,20 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 				// Exception raised for HTTP 400 Bad Request
 				catch (const BadRequest &e)
 				{
+					OMFError error(m_sender.getHTTPResponse());
+					// FIXME The following is too verbose
+					if (error.hasErrors())
+					{
+						Logger::getLogger()->warn("The OMF endpoint reported a bad request when sending link types: %d messages",
+								error.messageCount());
+						for (unsigned int i = 0; i < error.messageCount(); i++)
+						{
+							Logger::getLogger()->warn("Message %d: %s, %s, %s",
+									i, error.getEventSeverity(i).c_str(),
+									error.getMessage(i).c_str(), error.getEventReason(i).c_str());
+						}
+					}
+
 					if (OMF::isDataTypeError(e.what()))
 					{
 						// Data type error: force type-id change
@@ -639,6 +691,17 @@ bool OMF::AFHierarchySendMessage(const string& msgType, string& jsonData, const 
 	}
 	catch (const BadRequest& ex)
 	{
+		OMFError error(m_sender.getHTTPResponse());
+		// FIXME The following is too verbose
+		Logger::getLogger()->warn("The OMF endpoint reported a bad request when sending AF hierarchy: %d messages",
+				error.messageCount());
+		for (unsigned int i = 0; i < error.messageCount(); i++)
+		{
+			Logger::getLogger()->warn("Message %d: %s, %s, %s",
+					i, error.getEventSeverity(i).c_str(), error.getMessage(i).c_str(),
+					error.getEventReason(i).c_str());
+		}
+
 		success = false;
 		errorMessage = ex.what();
 	}
@@ -1466,6 +1529,19 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 	// Exception raised for HTTP 400 Bad Request
 	catch (const BadRequest& e)
         {
+		OMFError error(m_sender.getHTTPResponse());
+		// FIXME The following is too verbose
+		if (error.hasErrors())
+		{
+			Logger::getLogger()->warn("The OMF endpoint reported a bad request when sending data: %d messages",
+					error.messageCount());
+			for (unsigned int i = 0; i < error.messageCount(); i++)
+			{
+				Logger::getLogger()->warn("Message %d: %s, %s, %s",
+						i, error.getEventSeverity(i).c_str(), error.getMessage(i).c_str(), error.getEventReason(i).c_str());
+			}
+		}
+
 		if (OMF::isDataTypeError(e.what()))
 		{
 			// Some assets have invalid or redefined data type
@@ -4651,6 +4727,19 @@ bool OMF::sendBaseTypes()
 	// Exception raised for HTTP 400 Bad Request
 	catch (const BadRequest& e)
 	{
+		OMFError error(m_sender.getHTTPResponse());
+		// FIXME The following is too verbose
+		if (error.hasErrors())
+		{
+			Logger::getLogger()->warn("The OMF endpoint reported a bad request when sending base types: %d messages",
+					error.messageCount());
+			for (unsigned int i = 0; i < error.messageCount(); i++)
+			{
+				Logger::getLogger()->warn("Message %d: %s, %s, %s",
+						i, error.getEventSeverity(i).c_str(), error.getMessage(i).c_str(), error.getEventReason(i).c_str());
+			}
+		}
+
 		if (OMF::isDataTypeError(e.what()))
 		{
 			// Data type error: force type-id change

@@ -447,6 +447,10 @@ int LibcurlHttps::sendRequest(
 		{
 			throw Unauthorized(errorMessage);
 		}
+		else if (httpCode == 409)
+		{
+			throw Conflict(errorMessage);
+		}
 		else if (httpCode >= 401)
 		{
 			string errorMessageHTTP;

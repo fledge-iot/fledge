@@ -97,4 +97,24 @@ class Unauthorized  : public std::exception {
 	private:
 		std::string     m_errmsg;
 };
+
+/**
+ * Conflict  exception
+ */
+class Conflict  : public std::exception {
+	public:
+		// Constructor with parameter
+		Conflict (const std::string& serverReply)
+		{
+			m_errmsg = serverReply;
+		};
+
+		virtual const char *what() const throw()
+		{
+			return m_errmsg.c_str();
+		}
+
+	private:
+		std::string     m_errmsg;
+};
 #endif

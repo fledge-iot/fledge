@@ -35,6 +35,7 @@
 #include <syslog.h>
 #include <stdarg.h>
 #include <string_utils.h>
+#include <audit_logger.h>
 
 #define SERVICE_TYPE "Northbound"
 
@@ -327,6 +328,8 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 				managementListener,	// Management port
 				m_token);		// Token);
 		m_mgtClient = new ManagementClient(coreAddress, corePort);
+
+		m_auditLogger = new AuditLogger(m_mgtClient);
 
 		// Create an empty North category if one doesn't exist
 		DefaultConfigCategory northConfig(string("North"), string("{}"));

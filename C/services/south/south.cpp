@@ -286,6 +286,9 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		// Allocate and save ManagementClient object
 		m_mgtClient = new ManagementClient(coreAddress, corePort);
 
+		// Create the audit logger instance
+		m_auditLogger = new AuditLogger(m_mgtClient);
+
 		// Create an empty South category if one doesn't exist
 		DefaultConfigCategory southConfig(string("South"), string("{}"));
 		southConfig.setDescription("South");

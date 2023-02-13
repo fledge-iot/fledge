@@ -12,6 +12,7 @@
 
 #include <storage_client.h>
 #include <management_client.h>
+#include <audit_logger.h>
 #include <string.h>
 
 /**
@@ -44,6 +45,7 @@ class FledgeProcess
 		ManagementClient* 	m_client;
 		StorageClient*		m_storage;
 		Logger*			m_logger;
+		AuditLogger*		m_auditLogger;
 };
 
 #endif

@@ -469,9 +469,9 @@ OMF_ENDPOINT  identifyPIServerEndpoint     (CONNECTOR_INFO* connInfo);
 string        AuthBasicCredentialsGenerate (string& userId, string& password);
 void          AuthKerberosSetup            (string& keytabFile, string& keytabFileName);
 string        OCSRetrieveAuthToken         (CONNECTOR_INFO* connInfo);
-int           PIWebAPIGetVersion           (CONNECTOR_INFO* connInfo, std::string &version, bool logMessage = true);
+int           PIWebAPIGetVersion           (CONNECTOR_INFO* connInfo, bool logMessage = true);
 double        GetElapsedTime               (struct timeval *startTime);
-bool          IsPIWebAPIConnected          (CONNECTOR_INFO* connInfo, std::string& version);
+bool          IsPIWebAPIConnected          (CONNECTOR_INFO* connInfo);
 
 
 /**
@@ -864,7 +864,7 @@ void plugin_start(const PLUGIN_HANDLE handle,
 	s_connected = true;
 	if (connInfo->PIServerEndpoint == ENDPOINT_PIWEB_API)
 	{
-		int httpCode = PIWebAPIGetVersion(connInfo, connInfo->PIWebAPIVersion);
+		int httpCode = PIWebAPIGetVersion(connInfo);
 		if (httpCode >= 200 && httpCode < 400)
 		{
 			Logger::getLogger()->info("%s connected to %s" ,connInfo->PIWebAPIVersion.c_str(), connInfo->hostAndPort.c_str());
@@ -895,15 +895,19 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 	string version;
 
 	// Check if the endpoint is PI Web API and if the PI Web API server is available
-	if (!IsPIWebAPIConnected(connInfo, version))
+	if (!IsPIWebAPIConnected(connInfo))
 	{
 		// Error already reported by IsPIWebAPIConnected
 		return 0;
 	}
 
-	if (version.empty() && connInfo->PIServerEndpoint == ENDPOINT_PIWEB_API)
+	if (connInfo->PIServerEndpoint == ENDPOINT_PIWEB_API)
 	{
-		PIWebAPIGetVersion(connInfo, version, false);
+		version = connInfo->PIWebAPIVersion;
+	}
+	else
+	{
+		version = "1.0";
 	}
 
 	Logger::getLogger()->info("Version is '%s'", version.c_str());
@@ -1544,12 +1548,11 @@ long getMaxTypeId(CONNECTOR_INFO* connInfo)
 /**
  * Calls the PI Web API to retrieve the version
  * 
- * @param    connInfo	The CONNECTOR_INFO data structure
- * @param    version	Returned version string
+ * @param    connInfo	The CONNECTOR_INFO data structure which includes version
  * @param    logMessage	If true, log error messages (default: true)
  * @return   httpCode   HTTP response code
  */
-int PIWebAPIGetVersion(CONNECTOR_INFO* connInfo, std::string &version, bool logMessage)
+int PIWebAPIGetVersion(CONNECTOR_INFO* connInfo, bool logMessage)
 {
 	PIWebAPI *_PIWebAPI;
 
@@ -1559,7 +1562,7 @@ int PIWebAPIGetVersion(CONNECTOR_INFO* connInfo, std::string &version, bool logM
 	_PIWebAPI->setAuthMethod          (connInfo->PIWebAPIAuthMethod);
 	_PIWebAPI->setAuthBasicCredentials(connInfo->PIWebAPICredentials);
 
-	int httpCode = _PIWebAPI->GetVersion(connInfo->hostAndPort, version, logMessage);
+	int httpCode = _PIWebAPI->GetVersion(connInfo->hostAndPort, connInfo->PIWebAPIVersion, logMessage);
 	delete _PIWebAPI;
 
 	return httpCode;
@@ -1715,10 +1718,9 @@ double GetElapsedTime(struct timeval *startTime)
  * Check if the PI Web API server is available by reading the product version
  *
  * @param connInfo   The CONNECTOR_INFO data structure
- * @param version    Returned version string
  * @return           Connection status
  */
-bool IsPIWebAPIConnected(CONNECTOR_INFO* connInfo, std::string& version)
+bool IsPIWebAPIConnected(CONNECTOR_INFO* connInfo)
 {
 	static std::chrono::steady_clock::time_point nextCheck;
 	static bool reported = false;	// Has the state been reported yet
@@ -1730,7 +1732,7 @@ bool IsPIWebAPIConnected(CONNECTOR_INFO* connInfo, std::string& version)
 
 		if (now >= nextCheck)
 		{
-			int httpCode = PIWebAPIGetVersion(connInfo, version, false);
+			int httpCode = PIWebAPIGetVersion(connInfo, false);
 			if (httpCode >= 400)
 			{
 				s_connected = false;
@@ -1748,7 +1750,7 @@ bool IsPIWebAPIConnected(CONNECTOR_INFO* connInfo, std::string& version)
 			else
 			{
 				s_connected = true;
-				Logger::getLogger()->info("%s reconnected to %s", version.c_str(), connInfo->hostAndPort.c_str());
+				Logger::getLogger()->info("%s reconnected to %s", connInfo->PIWebAPIVersion.c_str(), connInfo->hostAndPort.c_str());
 				if (reported == true || reportedState == false)
 				{
 					reportedState = true;
@@ -1763,7 +1765,6 @@ bool IsPIWebAPIConnected(CONNECTOR_INFO* connInfo, std::string& version)
 	{
 		// Endpoints other than PI Web API fail quickly when they are unavailable
 		// so there is no need to check their status in advance.
-		version = "1.0";
 		s_connected = true;
 	}
 

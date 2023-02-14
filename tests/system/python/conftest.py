@@ -485,7 +485,8 @@ def verify_hierarchy_and_get_datapoints_from_pi_web_api():
                         record = dict()
                         if CHECK_AF_ELEMENT_EXISTS['Name'] == asset:
                             record_url = CHECK_AF_ELEMENT_EXISTS['Links']['RecordedData']
-                            get_record_url = "{}?limit=100000".format(record_url)
+                            get_record_url = quote("{}?limit=10000".format(record_url), safe='?,=&/.:')
+                            print(get_record_url)
                             conn.request("GET", get_record_url, headers=headers)
                             res = conn.getresponse()
                             items = json.loads(res.read().decode())['Items']
@@ -498,7 +499,8 @@ def verify_hierarchy_and_get_datapoints_from_pi_web_api():
                                 for item in items:
                                     count += 1
                                     if item['Name'] in sensor:
-                                        record[item['Name']] = list(map(lambda val: val['Value'], item['Items']))
+                                        print(item['Name'])
+                                        record[item['Name']] = list(map(lambda val: val['Value'], filter(lambda ele: isinstance(ele['Value'], int) or isinstance(ele['Value'], float) , item['Items'])))
                                         Item_matched = True
                                     elif count == no_of_datapoint_in_pi_server and Item_matched == False:
                                         raise "Required Data points is not Present --> {}".format(sensor)

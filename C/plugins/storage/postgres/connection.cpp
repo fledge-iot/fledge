@@ -31,6 +31,7 @@
 #include <iostream>
 #include <chrono>
 #include <thread>
+#include <regex>
 
 using namespace std;
 using namespace rapidjson;
@@ -950,6 +951,7 @@ std::size_t arr = data.find("inserts");
 	}
 
 	const char *query = sql.coalesce();
+	
 	logSQL("CommonInsert", query);
 	PGresult *res = PQexec(dbConnection, query);
 	delete[] query;
@@ -1559,7 +1561,9 @@ bool 		add_row = false;
 
 			// Handles - asset_code
 			sql.append(",\'");
-			sql.append((*itr)["asset_code"].GetString());
+			std::string escacpeAsset((*itr)["asset_code"].GetString());
+			escacpeAsset = std::regex_replace(escacpeAsset, std::regex("\'"), "\'\'");
+			sql.append(escacpeAsset);
 			sql.append("', '");
 
 			// Handles - reading
@@ -1575,7 +1579,6 @@ bool 		add_row = false;
 	sql.append(';');
 
 	const char *query = sql.coalesce();
-
 	logSQL("ReadingsAppend", query);
 	PGresult *res = PQexec(dbConnection, query);
 	delete[] query;

@@ -1321,7 +1321,7 @@ vector<string>  asset_codes;
 			// SQL - union of all the readings tables
 			string sql_cmd_base;
 			string sql_cmd_tmp;
-			sql_cmd_base = " SELECT  id, \"_assetcode_\" asset_code, reading, user_ts, ts  FROM _dbname_._tablename_ ";
+			sql_cmd_base = " SELECT  id, \'_assetcode_\' asset_code, reading, user_ts, ts  FROM _dbname_._tablename_ ";
 			sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base, asset_codes);
 			sql_cmd += sql_cmd_tmp;
 
@@ -1614,14 +1614,14 @@ vector<string>  asset_codes;
 						sql_cmd_base += ",  asset_code";
 
 					sql_cmd_base += ", id, reading, user_ts, ts ";
-					StringReplaceAll (sql_cmd_base, "asset_code", " \"_assetcode_\" .assetcode. ");
+					StringReplaceAll (sql_cmd_base, "asset_code", " \'_assetcode_\' .assetcode. ");
 					sql_cmd_base += " FROM _dbname_._tablename_ ";
 
 					delete[] queryTmp;
 				}
 				else
 				{
-					sql_cmd_base = " SELECT ROWID, id, \"_assetcode_\" asset_code, reading, user_ts, ts  FROM _dbname_._tablename_ ";
+					sql_cmd_base = " SELECT ROWID, id, \'_assetcode_\' asset_code, reading, user_ts, ts  FROM _dbname_._tablename_ ";
 				}
 				sql_cmd_tmp = readCat->sqlConstructMultiDb(sql_cmd_base, asset_codes);
 				sql_cmd += sql_cmd_tmp;
@@ -1680,7 +1680,7 @@ vector<string>  asset_codes;
 		char *zErrMsg = NULL;
 		int rc;
 		sqlite3_stmt *stmt;
-
+		
 		logSQL("ReadingsRetrieve", query);
 
 		// Prepare the SQL statement and get the result set

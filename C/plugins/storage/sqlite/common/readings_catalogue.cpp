@@ -20,6 +20,7 @@
 #include <common.h>
 #include "readings_catalogue.h"
 #include <purge_configuration.h>
+#include <regex>
 
 using namespace std;
 using namespace rapidjson;
@@ -1928,11 +1929,15 @@ ReadingsCatalogue::tyReadingReference  ReadingsCatalogue::getReadingReference(Co
 						}
 						else
 						{
+							std::string escacpeAsset(asset_code);
+							escacpeAsset = std::regex_replace(escacpeAsset, std::regex("\""), "\"\"");
+							
 							sql_cmd =
 							"INSERT INTO  " READINGS_DB ".asset_reading_catalogue (table_id, db_id, asset_code) VALUES  ("
 							+ to_string(ref.tableId) + ","
 							+ to_string(ref.dbId) + ","
-							+ "\"" + asset_code + "\")";
+							+ "\"" + escacpeAsset.c_str() + "\")";
+
 						}
 
 						rc = SQLExec(dbHandle, sql_cmd.c_str());
@@ -2231,6 +2236,8 @@ string  ReadingsCatalogue::sqlConstructMultiDb(string &sqlCmdBase, vector<string
 
 				dbName = generateDbName(item.second.second);
 				dbReadingsName = generateReadingsName(item.second.second, item.second.first);
+
+				assetCode = std::regex_replace(assetCode, std::regex("\'"), "\'\'");
 
 				StringReplaceAll(sqlCmdTmp, "_assetcode_", assetCode);
 				StringReplaceAll (sqlCmdTmp, ".assetcode.", "asset_code");

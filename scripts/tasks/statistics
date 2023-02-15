@@ -24,5 +24,5 @@ if [[ $os_name == *"Raspbian"*  ]]; then
 	cpulimit -l 40 -- python3 -m fledge.tasks.statistics "$@"
 else
 	# Standard execution on other platforms
-	python3 -m fledge.tasks.statistics "$@"
+	$FLEDGE_ROOT/tasks/statistics_history "$@"
 fi

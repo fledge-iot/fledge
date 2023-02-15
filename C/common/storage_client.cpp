@@ -544,7 +544,6 @@ int StorageClient::insertTable(const string& tableName, const InsertValues& valu
  */
 int StorageClient::insertTable(const string& schema, const string& tableName, const InsertValues& values)
 {
-	Logger::getLogger()->error("insertTable: started");
 	try {
 		ostringstream convert;
 
@@ -556,7 +555,6 @@ int StorageClient::insertTable(const string& schema, const string& tableName, co
 		resultPayload << res->content.rdbuf();
 		if (res->status_code.compare("200 OK") == 0 || res->status_code.compare("201 Created") == 0)
 		{
-			 Logger::getLogger()->error("insertTable: POST to /storage/schema returned 200 or 201");
 
 			Document doc;
 			doc.Parse(resultPayload.str().c_str());
@@ -1757,7 +1755,6 @@ bool StorageClient::createSchema(const std::string& payload)
  */
 int StorageClient::updateTable(const string& schema, const string& tableName, std::vector<std::pair<InsertValue*, Where*> >& updates, const UpdateModifier *modifier)
 {
-	Logger::getLogger()->error("updateTable start");
         static HttpClient *httpClient = this->getHttpClient(); // to initialize m_seqnum_map[thread_id] for this thread
         try {
                 std::thread::id thread_id = std::this_thread::get_id();
@@ -1787,7 +1784,7 @@ int StorageClient::updateTable(const string& schema, const string& tableName, st
                         convert << "\"where\" : ";
                         convert << it->second->toJSON();
                         convert << ", \"values\" : ";
-                        convert << it->first->toJSON();
+                        convert << " { " << it->first->toJSON() << " } ";
                         convert << " }";
                 }
                 convert << " ] }";
@@ -1796,13 +1793,8 @@ int StorageClient::updateTable(const string& schema, const string& tableName, st
                 snprintf(url, sizeof(url), "/storage/schema/%s/table/%s", schema.c_str(), tableName.c_str());
                 auto res = this->getHttpClient()->request("PUT", url, convert.str(), headers);
 
-
-		Logger::getLogger()->error("updateTable: PUT called %s", convert.str().c_str());
-
 		if (res->status_code.compare("200 OK") == 0)
                 {
-			Logger::getLogger()->error("  updateTable:  PUT returned 200 OK");
-
                         ostringstream resultPayload;
                         resultPayload << res->content.rdbuf();
                         Document doc;
@@ -1831,10 +1823,19 @@ int StorageClient::updateTable(const string& schema, const string& tableName, st
         }
         return -1;
 }
+
+/**
+ * Update data into an arbitrary table
+ *
+ * @param tableName     The name of the table into which data will be added
+ * @param updates       The values to insert into the table
+ * @param where         The conditions to match the updated rows
+ * @param modifier      Optional storage modifier
+ * @return int          The number of rows updated
+ */
+
 int StorageClient::updateTable(const string& tableName, std::vector<std::pair<InsertValue*, Where*> >& updates, const UpdateModifier *modifier)
 {
-
 	return updateTable(DEFAULT_SCHEMA, tableName, updates, modifier);
-
 }
 

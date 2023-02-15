@@ -53,6 +53,7 @@ void StatsHistory::run() const
 	if (m_dryRun)
 		return;
 
+	Logger::getLogger()->error("StatsHistory::run() started");
 	// Get the set of distinct statistics keys
 	Query query(new Returns("key"));
 	query.distinct();
@@ -60,10 +61,11 @@ void StatsHistory::run() const
 
 	ResultSet::RowIterator rowIter = keySet->firstRow();
 	InsertValues historyValues;
-	vector<pair<InsertValues *, Where *>> updateValues;
+	vector<pair<InsertValue *, Where *>> updateValues;
 
         do {
 		string key = (*rowIter)->getColumn("key")->getString();
+		Logger::getLogger()->error("StatsHistory::calling processKey for key:%s", key.c_str());
 		try {
 			processKey(key, historyValues, updateValues);
 		} catch (exception e) {
@@ -72,16 +74,38 @@ void StatsHistory::run() const
                 rowIter = keySet->nextRow(rowIter);
 	} while (keySet->hasNextRow(rowIter));
 
+	Logger::getLogger()->error("+++++++++++++++++++++++calling insertTable");
+
+	Logger::getLogger()->error("+++++++++++++++++++++++processKey::historyValues.size() = %d", historyValues.size());
+	Logger::getLogger()->error("+++++++++++++++++++++++processKey::updateValues.size() = %d", updateValues.size());
 	int n_rows;
         if ((n_rows = getStorageClient()->insertTable("statistics_history", historyValues)) < 1)
         {
                 getLogger()->error("Failed to insert rows to statisitics history table ");
         }
 
+	Logger::getLogger()->error("+++++++++++++++++++++++++++++calling updateTable");
+
 	if (getStorageClient()->updateTable("statistics", updateValues) < 1)
         {
                 getLogger()->error("Failed to update rows to statisitics table");
         }
+
+	for (auto it = updateValues.begin(); it != updateValues.end() ; ++it)
+	{
+		InsertValue *updateValue = it->first;
+		if (updateValue)
+		{
+			delete updateValue;
+			updateValue=nullptr;
+		}
+        	Where *wKey = it->second;
+		if(wKey)
+		{
+			delete wKey;
+			wKey = nullptr;
+		}
+	}
 
 	delete keySet;
 }
@@ -91,14 +115,17 @@ void StatsHistory::run() const
  *
  * @param key	The statistics key to process
  */
-void StatsHistory::processKey(const string& key, InsertValues& historyValues, vector<pair<InsertValues *, Where *>> &updateValues) const
+void StatsHistory::processKey(const string& key, InsertValues& historyValues, std::vector<std::pair<InsertValue*, Where *> > &updateValues) const
 {
 	Query	query(new Where("key", Equals, key));
 
+	Logger::getLogger()->error("processKey start");
 	// Fetch the current and previous valaues for the key
 	query.returns(new Returns("value"));
 	query.returns(new Returns("previous_value"));
 	ResultSet *values = getStorageClient()->queryTable("statistics", query);
+
+	Logger::getLogger()->error("processKey : after query statistics table");
 	if (values->rowCount() != 1)
 	{
 		getLogger()->error("Internal error, failed to get statisitics for key %s", key.c_str());
@@ -115,7 +142,9 @@ void StatsHistory::processKey(const string& key, InsertValues& historyValues, ve
 
 	// Update the previous value in the statistics row
 
-	InsertValues *updateValue = new InsertValues("previous_value", val);
+	InsertValue *updateValue = new InsertValue("previous_value", val);
 	Where *wKey = new Where("key", Equals, key);
 	updateValues.emplace_back(updateValue, wKey);
+
+	Logger::getLogger()->error("processKey end");
 }

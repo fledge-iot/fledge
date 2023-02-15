@@ -12,6 +12,9 @@
  */
 
 #include <process.h>
+#include <vector>
+#include <string>
+#include <utility>
 
 
 /**
@@ -28,7 +31,7 @@ class StatsHistory : public FledgeProcess
 		void			run() const;
 
 	private:
-		void processKey(const string& key, InsertValues& historyValues, vector<pair<InsertValues *, Where *>> &updateValues) const;
+		void processKey(const std::string& key, InsertValues& historyValues, std::vector<std::pair<InsertValue *, Where *> > &updateValues) const;
 
 };
 

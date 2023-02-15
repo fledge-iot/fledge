@@ -472,6 +472,7 @@ string        OCSRetrieveAuthToken         (CONNECTOR_INFO* connInfo);
 int           PIWebAPIGetVersion           (CONNECTOR_INFO* connInfo, bool logMessage = true);
 double        GetElapsedTime               (struct timeval *startTime);
 bool          IsPIWebAPIConnected          (CONNECTOR_INFO* connInfo);
+void          SetOMFVersion                (CONNECTOR_INFO* connInfo);
 
 
 /**
@@ -867,13 +868,20 @@ void plugin_start(const PLUGIN_HANDLE handle,
 		int httpCode = PIWebAPIGetVersion(connInfo);
 		if (httpCode >= 200 && httpCode < 400)
 		{
-			Logger::getLogger()->info("%s connected to %s" ,connInfo->PIWebAPIVersion.c_str(), connInfo->hostAndPort.c_str());
+			SetOMFVersion(connInfo);
+			Logger::getLogger()->info("%s connected to %s OMF Version: %s",
+				connInfo->PIWebAPIVersion.c_str(), connInfo->hostAndPort.c_str(), connInfo->omfversion.c_str());
 			s_connected = true;
 		}
 		else
 		{
 			s_connected = false;
 		}
+	}
+	else
+	{
+		SetOMFVersion(connInfo);
+		Logger::getLogger()->info("OMF Version: %s", connInfo->omfversion.c_str());
 	}
 
 #if INSTRUMENT
@@ -901,33 +909,6 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 		return 0;
 	}
 
-	if (connInfo->PIServerEndpoint == ENDPOINT_PIWEB_API)
-	{
-		version = connInfo->PIWebAPIVersion;
-	}
-	else
-	{
-		version = "1.0";
-	}
-
-	Logger::getLogger()->info("Version is '%s'", version.c_str());
-
-	// Until we know better assume OMF 1.2 as this is the base base point
-	// to give us the flexible type support we need
-	connInfo->omfversion = "1.2";
-	if (version.find("2019") != std::string::npos)
-	{
-		connInfo->omfversion = "1.0";
-	}
-	else if (version.find("2020") != std::string::npos)
-	{
-		connInfo->omfversion = "1.1";
-	}
-	else if (version.find("2021") != std::string::npos)
-	{
-		connInfo->omfversion = "1.2";
-	}
-	Logger::getLogger()->info("Using OMF Version '%s'", connInfo->omfversion.c_str());
 	/**
 	 * Select the transport library based on the authentication method and transport encryption
 	 * requirements.
@@ -1569,6 +1550,39 @@ int PIWebAPIGetVersion(CONNECTOR_INFO* connInfo, bool logMessage)
 }
 
 /**
+ * Set the supported OMF Version for the OMF endpoint 
+ * 
+ * @param    connInfo	The CONNECTOR_INFO data structure
+ */
+void SetOMFVersion(CONNECTOR_INFO* connInfo)
+{
+	if (connInfo->PIServerEndpoint == ENDPOINT_PIWEB_API)
+	{
+		if (connInfo->PIWebAPIVersion.find("2019") != std::string::npos)
+		{
+			connInfo->omfversion = "1.0";
+		}
+		else if (connInfo->PIWebAPIVersion.find("2020") != std::string::npos)
+		{
+			connInfo->omfversion = "1.1";
+		}
+		else if (connInfo->PIWebAPIVersion.find("2021") != std::string::npos)
+		{
+			connInfo->omfversion = "1.2";
+		}
+		else
+		{
+			connInfo->omfversion = "1.2";
+		}
+	}
+	else
+	{
+		// Assume all other OMF endpoint types support OMF Version 1.2
+		connInfo->omfversion = "1.2";
+	}
+}
+
+/**
  * Calls the OCS API to retrieve the authentication token
  * 
  * @param    connInfo	The CONNECTOR_INFO data structure
@@ -1750,7 +1764,9 @@ bool IsPIWebAPIConnected(CONNECTOR_INFO* connInfo)
 			else
 			{
 				s_connected = true;
-				Logger::getLogger()->info("%s reconnected to %s", connInfo->PIWebAPIVersion.c_str(), connInfo->hostAndPort.c_str());
+				SetOMFVersion(connInfo);
+				Logger::getLogger()->info("%s reconnected to %s OMF Version: %s",
+					connInfo->PIWebAPIVersion.c_str(), connInfo->hostAndPort.c_str(), connInfo->omfversion.c_str());
 				if (reported == true || reportedState == false)
 				{
 					reportedState = true;

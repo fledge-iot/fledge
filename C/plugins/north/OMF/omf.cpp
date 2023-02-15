@@ -1459,7 +1459,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 	 */
 
 	// Create header for Readings data
-	vector<pair<string, string>> readingData = OMF::createMessageHeader("Data");
+	vector<pair<string, string>> readingData = OMF::createMessageHeader("Data", "update");
 	if (compression)
 		readingData.push_back(pair<string, string>("compression", "gzip"));
 
@@ -4766,7 +4766,7 @@ bool OMF::sendBaseTypes()
 		m_connected = false;
 		return false;
 	}
-	Logger::getLogger()->info("Base types successully sent");
+	Logger::getLogger()->debug("Base types successfully sent");
 	return true;
 }
 

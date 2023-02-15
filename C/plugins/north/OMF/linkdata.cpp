@@ -28,6 +28,30 @@
 using namespace std;
 
 /**
+ * Create a comma-separated string of all Datapoint names in a Reading
+ *
+ * @param reading	Reading
+ * @return			Datapoint names in the Reading
+ */
+static std::string DataPointNamesAsString(const Reading& reading)
+{
+	std::string dataPointNames;
+
+	for (Datapoint *datapoint : reading.getReadingData())
+	{
+		dataPointNames.append(datapoint->getName());
+		dataPointNames.append(",");
+	}
+
+	if (dataPointNames.size() > 0)
+	{
+		dataPointNames.resize(dataPointNames.size() - 1);	// remove trailing comma
+	}
+
+	return dataPointNames;
+}
+
+/**
  * OMFLinkedData constructor, generates the OMF message containing the data
  *
  * @param reading           Reading for which the OMF message must be generated
@@ -70,7 +94,7 @@ string OMFLinkedData::processReading(const Reading& reading, const string&  AFHi
 	const vector<Datapoint*> data = reading.getReadingData();
 	vector<string> skippedDatapoints;
 
-	Logger::getLogger()->info("Processing %s with new OMF method", assetName.c_str());
+	Logger::getLogger()->debug("Processing %s (%s) using Linked Types", assetName.c_str(), DataPointNamesAsString(reading).c_str());
 
 	bool needDelim = false;
 	if (m_assetSent->find(assetName) == m_assetSent->end())
@@ -209,7 +233,7 @@ string OMFLinkedData::processReading(const Reading& reading, const string&  AFHi
 		string msg = "The asset " + assetName + " had a number of datapoints, " + points + " that are not supported by OMF and have been omitted";
 		OMF::reportAsset(assetName, "warn", msg);
 	}
-	Logger::getLogger()->debug("Created data messasges %s", outData.c_str());
+	Logger::getLogger()->debug("Created data messages %s", outData.c_str());
 	return outData;
 }
 

@@ -43,7 +43,7 @@ OMFError::OMFError(const string& json) : m_messageCount(0)
 	Document doc;
 	if (doc.ParseInsitu(p).HasParseError())
 	{
-		Logger::getLogger()->error("Unable to parse response form ONF endpoint: %s",
+		Logger::getLogger()->error("Unable to parse response form OMF endpoint: %s",
 				GetParseError_En(doc.GetParseError()));
 		Logger::getLogger()->error("Error response was: %s", json.c_str());
 	}

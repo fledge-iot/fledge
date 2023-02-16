@@ -454,7 +454,7 @@ bool OMFLinkedData::flushContainers(HttpSender& sender, const string& path, vect
 	catch (const Conflict& e)
 	{
 		OMFError error(sender.getHTTPResponse());
-		// The following is possibily too verbose
+		// The following is possibly too verbose
 		if (error.hasErrors())
 		{
 			Logger::getLogger()->warn("The OMF endpoint reported a conflict when sending containers: %d messages",
@@ -475,7 +475,7 @@ bool OMFLinkedData::flushContainers(HttpSender& sender, const string& path, vect
 	catch (const std::exception& e)
 	{
 
-		Logger::getLogger()->error("An exception occurred when sending container information the the OMF endpoint, %s - %s %s",
+		Logger::getLogger()->error("An exception occurred when sending container information the OMF endpoint, %s - %s %s",
 									e.what(),
 									sender.getHostPort().c_str(),
 									path.c_str());

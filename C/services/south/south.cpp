@@ -875,6 +875,11 @@ void SouthService::processConfigChange(const string& categoryName, const string&
 				}
 				string units = m_configAdvanced.getValue("units");
 				string pollType = m_configAdvanced.getValue("pollType");
+				bool wakeup = false;
+				if (m_pollType == POLL_ON_DEMAND)
+				{
+					wakeup = true;
+				}
 				if (pollType.compare("Fixed Times") == 0)
 				{
 					m_pollType = POLL_FIXED;
@@ -889,6 +894,11 @@ void SouthService::processConfigChange(const string& categoryName, const string&
 
 					m_desiredRate.tv_sec  = 1;
 					m_desiredRate.tv_usec = 0;
+					if (wakeup)
+					{
+						// Wakup from on demand polling
+						m_pollCV.notify_all();
+					}
 				}
 				else if (pollType.compare("Interval") == 0
 						&& (newval != m_readingsPerSec || m_rateUnits.compare(units) != 0))
@@ -900,6 +910,21 @@ void SouthService::processConfigChange(const string& categoryName, const string&
 					calculateTimerRate();
 					m_currentRate = m_desiredRate;
 					m_timerfd = createTimerFd(m_desiredRate); // interval to be passed is in usecs
+					if (wakeup)
+					{
+						// Wakup from on demand polling
+						m_pollCV.notify_all();
+					}
+				}
+				else if (pollType.compare("Interval") == 0 && m_pollType != POLL_INTERVAL)
+				{
+					// Change to interval mode without the rate changing
+					m_pollType = POLL_INTERVAL;
+					if (wakeup)
+					{
+						// Wakup from on demand polling
+						m_pollCV.notify_all();
+					}
 				}
 				else if (pollType.compare("On Demand") == 0)
 				{

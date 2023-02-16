@@ -1929,14 +1929,14 @@ ReadingsCatalogue::tyReadingReference  ReadingsCatalogue::getReadingReference(Co
 						}
 						else
 						{
-							std::string escacpeAsset(asset_code);
-							escacpeAsset = std::regex_replace(escacpeAsset, std::regex("\""), "\"\"");
+							std::string escacpedAsset(asset_code);
+							escacpedAsset = std::regex_replace(escacpedAsset, std::regex("\""), "\"\"");
 							
 							sql_cmd =
 							"INSERT INTO  " READINGS_DB ".asset_reading_catalogue (table_id, db_id, asset_code) VALUES  ("
 							+ to_string(ref.tableId) + ","
 							+ to_string(ref.dbId) + ","
-							+ "\"" + escacpeAsset.c_str() + "\")";
+							+ "\"" + escacpedAsset.c_str() + "\")";
 
 						}
 

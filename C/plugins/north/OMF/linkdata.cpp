@@ -301,7 +301,7 @@ string OMFLinkedData::getBaseType(Datapoint *dp, const string& format)
  * @param linkName	The name to use for the container
  * @param dp		The datapoint to process
  * @param hints		Hints related to this asset
- * @param baseType	The baseType we will sue
+ * @param baseType	The baseType we will use
  */
 void OMFLinkedData::sendContainer(string& linkName, Datapoint *dp, OMFHints * hints, const string& baseType)
 {
@@ -454,7 +454,7 @@ bool OMFLinkedData::flushContainers(HttpSender& sender, const string& path, vect
 	catch (const Conflict& e)
 	{
 		OMFError error(sender.getHTTPResponse());
-		// The following is possibily to verbose
+		// The following is possibily too verbose
 		if (error.hasErrors())
 		{
 			Logger::getLogger()->warn("The OMF endpoint reported a conflict when sending containers: %d messages",

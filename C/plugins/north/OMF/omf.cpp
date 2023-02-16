@@ -379,7 +379,7 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 		// FIXME The following is too verbose
 		if (error.hasErrors())
 		{
-			Logger::getLogger()->warn("The OMF endpoint reported a bad request when sending data  types: %d messages",
+			Logger::getLogger()->warn("The OMF endpoint reported a bad request when sending data types: %d messages",
 					error.messageCount());
 			for (unsigned int i = 0; i < error.messageCount(); i++)
 				Logger::getLogger()->warn("Message %d: %s, %s, %s",

@@ -35,6 +35,7 @@
 #include <syslog.h>
 #include <stdarg.h>
 #include <string_utils.h>
+#include <audit_logger.h>
 
 #define SERVICE_TYPE "Northbound"
 
@@ -328,6 +329,8 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 				m_token);		// Token);
 		m_mgtClient = new ManagementClient(coreAddress, corePort);
 
+		m_auditLogger = new AuditLogger(m_mgtClient);
+
 		// Create an empty North category if one doesn't exist
 		DefaultConfigCategory northConfig(string("North"), string("{}"));
 		northConfig.setDescription("North");
@@ -390,19 +393,23 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 		}
 
 		// Deal with persisted data and start the plugin
-		if (northPlugin->persistData())
+		if (!m_dryRun)
 		{
-			logger->debug("Plugin %s requires persisted data", m_pluginName.c_str());
-			m_pluginData = new PluginData(m_storage);
-			string key = m_name + m_pluginName;
-			string storedData = m_pluginData->loadStoredData(key);
-			logger->debug("Starting plugin with storedData: %s", storedData.c_str());
-			northPlugin->startData(storedData);
-		}
-		else
-		{
-			logger->debug("Start %s plugin", m_pluginName.c_str());
-			northPlugin->start();
+			if (northPlugin->persistData())
+			{
+				logger->debug("Plugin %s requires persisted data", m_pluginName.c_str());
+				m_pluginData = new PluginData(m_storage);
+				string key = m_name + m_pluginName;
+				string storedData = m_pluginData->loadStoredData(key);
+				logger->debug("Starting plugin with storedData: %s", storedData.c_str());
+				northPlugin->startData(storedData);
+				
+			}
+			else
+			{
+				logger->debug("Start %s plugin", m_pluginName.c_str());
+				northPlugin->start();
+			}
 		}
 
 		// Create default security category
@@ -464,7 +471,7 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 
 
 		// Shutdown the north plugin
-		if (northPlugin)
+		if (northPlugin && !m_dryRun)
 		{
 			if (m_pluginData)
 			{

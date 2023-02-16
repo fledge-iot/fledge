@@ -8,6 +8,8 @@
  * Author: Mark Riddoch
  */
 #include <rapidjson/document.h>
+#include "rapidjson/stringbuffer.h"
+#include <rapidjson/writer.h>
 #include "storage_registry.h"
 #include "client_http.hpp"
 #include "server_http.hpp"
@@ -127,6 +129,38 @@ StorageRegistry::processTableInsert(const string& tableName, const string& paylo
 	}
 }
 
+/**
+ * Process a table update payload and determine
+ * if any microservice has registered an interest
+ * in this table. Called from StorageApi::commonUpdate()
+ *
+ * @param payload	The table insert payload
+ */
+void
+StorageRegistry::processTableUpdate(const string& tableName, const string& payload)
+{
+	Logger::getLogger()->info("Checking for registered interest in table %s with update %s", tableName.c_str(), payload.c_str());
+	
+	if (m_tableRegistrations.size() > 0)
+	{
+		/*
+		 * We have some registrations so queue a copy of the payload
+		 * to be examined in the thread the send table notifications
+		 * to interested parties.
+		 */
+		char *table = strdup(tableName.c_str());
+		char *data = strdup(payload.c_str());
+		
+		if (data != NULL && table != NULL)
+		{
+			time_t now = time(0);
+			TableItem item = make_tuple(now, table, data);
+			lock_guard<mutex> guard(m_qMutex);
+			m_tableUpdateQueue.push(item);
+			m_cv.notify_all();
+		}
+	}
+}
 
 /**
  * Handle a registration request from a client of the storage layer
@@ -211,7 +245,7 @@ TableRegistration* StorageRegistry::parseTableSubscriptionPayload(const string& 
 			return NULL;
 		}
 		for (auto & v : doc["values"].GetArray())
-    		reg->keyValues.emplace_back(v.GetString());
+	    		reg->keyValues.emplace_back(v.GetString());
 	}
 
 	return reg;
@@ -230,7 +264,7 @@ StorageRegistry::registerTable(const string& table, const string& payload)
 
 	if (!reg)
 	{
-		Logger::getLogger()->info("StorageRegistry::registerTable(): Unable to register invalid Registration entry for table %s, payload=%s", table.c_str(), payload.c_str());
+		Logger::getLogger()->error("StorageRegistry::registerTable(): Unable to register invalid Registration entry for table %s, payload=%s", table.c_str(), payload.c_str());
 		return;
 	}
 
@@ -360,6 +394,31 @@ StorageRegistry::run()
 					free(data);
 				}
 			}
+
+			while (!m_tableUpdateQueue.empty())
+			{
+				char *tableName = NULL;
+				
+				TableItem item = m_tableUpdateQueue.front();
+				m_tableUpdateQueue.pop();
+				tableName = get<1>(item);
+				data = get<2>(item);
+#if CHECK_QTIMES
+				qTime = item.first;
+#endif
+				if (tableName && data)
+				{
+#if CHECK_QTIMES
+					if (time(0) - qTime > QTIME_THRESHOLD)
+					{
+						Logger::getLogger()->error("Table update data has been queued for %d seconds to be sent to registered party", (time(0) - qTime));
+					}
+#endif
+					processUpdate(tableName, data);
+					free(tableName);
+					free(data);
+				}
+			}
 			
 		}
 	}
@@ -414,7 +473,7 @@ bool allDone = true;
  * @param payload	The payload to send
  */
 void
-StorageRegistry::sendPayload(const string& url, char *payload)
+StorageRegistry::sendPayload(const string& url, const char *payload)
 {
 	size_t found = url.find_first_of("://");
 	size_t found1 = url.find_first_of("/", found + 3);
@@ -525,7 +584,7 @@ StorageRegistry::processInsert(char *tableName, char *payload)
 	payloadDoc.Parse(payload);
 	if (payloadDoc.HasParseError())
 	{
-		Logger::getLogger()->error("StorageRegistry::processInsert(): Parse error in payload for table:%s, payload=%s", tableName, payload);
+		Logger::getLogger()->error("Internal error unable to parse payload for insert into table %s, payload is %s", tableName, payload);
 		return;
 	}
 
@@ -544,20 +603,174 @@ StorageRegistry::processInsert(char *tableName, char *payload)
 			continue;
 		}
 
-		bool match = (tblreg->key.size()==0);
-		if (!match && payloadDoc.HasMember(tblreg->key.c_str()) && payloadDoc[tblreg->key.c_str()].IsString())
+		if (tblreg->key.size() == 0)
 		{
-			string payloadKeyValue = payloadDoc[tblreg->key.c_str()].GetString();
-			if (std::find(tblreg->keyValues.begin(), tblreg->keyValues.end(), payloadKeyValue) != tblreg->keyValues.end())
-				match = true;
-		}
-		if(match)
-		{
-			Logger::getLogger()->info("StorageRegistry::processInsert(): Sending matching payload: table=%s, url=%s, payload=%s", tableName, tblreg->url.c_str(), payload);
 			sendPayload(tblreg->url, payload);
 		}
 		else
-			Logger::getLogger()->debug("StorageRegistry::processInsert(): Ignoring non-matching payload: table=%s, payload=%s", tableName, payload);
+		{
+			if (payloadDoc.HasMember("inserts") && payloadDoc["inserts"].IsArray())
+			{
+				// We have multiple inserts in the payload, parse each one and send
+				// only the insert for which the key has been registered
+				Value &inserts = payloadDoc["inserts"];
+				for (Value::ConstValueIterator iter = inserts.Begin();
+						iter != inserts.End(); ++iter)
+				{
+					if (iter->HasMember(tblreg->key.c_str()))
+					{
+						string payloadKeyValue = (*iter)[tblreg->key.c_str()].GetString();
+						if (std::find(tblreg->keyValues.begin(), tblreg->keyValues.end(), payloadKeyValue) != tblreg->keyValues.end())
+						{
+							StringBuffer buffer;
+							Writer<StringBuffer> writer(buffer);
+							iter->Accept(writer);
+
+							const char *output = buffer.GetString();
+							sendPayload(tblreg->url, output);
+						}
+					}
+				}
+			}
+			else
+			{
+				if (payloadDoc.HasMember(tblreg->key.c_str()) && payloadDoc[tblreg->key.c_str()].IsString())
+				{
+					string payloadKeyValue = payloadDoc[tblreg->key.c_str()].GetString();
+					if (std::find(tblreg->keyValues.begin(), tblreg->keyValues.end(), payloadKeyValue) != tblreg->keyValues.end())
+					{
+						sendPayload(tblreg->url, payload);
+					}
+				}
+			}
+		}
+	}
+}
+
+/**
+ * Process an incoming payload and distribute as required to registered
+ * services
+ *
+ * @param payload	The payload to potentially distribute
+ */
+void
+StorageRegistry::processUpdate(char *tableName, char *payload)
+{
+	Document	doc;
+
+	doc.Parse(payload);
+	if (doc.HasParseError())
+	{
+		Logger::getLogger()->error("Unable to parse table update payload for table %s, request is %s", tableName, payload);
+		return;
+	}
+
+	lock_guard<mutex> guard(m_tableRegistrationsMutex);
+	for (auto & reg : m_tableRegistrations)
+	{
+		if (reg.first->compare(tableName) != 0)
+			continue;
+
+		TableRegistration *tblreg = reg.second;
+
+		// If key is empty string, no need to match key/value pair in payload
+		if (tblreg->operation.compare("update") != 0)
+		{
+			continue;
+		}
+
+		if (tblreg->key.empty())
+		{
+			// No key to match, send alll updates to table
+			sendPayload(tblreg->url, payload);
+		}
+		else
+		{
+			if (doc.HasMember("updates") && doc["updates"].IsArray())
+			{
+				// Multiple updates in a single call
+				Value &updates = doc["updates"];
+				for (Value::ConstValueIterator iter = updates.Begin();
+						iter != updates.End(); ++iter)
+				{
+					const Value& where = (*iter)["where"];
+					if (where.HasMember("column") && where["column"].IsString() &&
+							where.HasMember("value") && where["value"].IsString())
+					{
+						string updateKey = where["column"].GetString();
+						string keyValue = where["value"].GetString();
+						if (updateKey.compare(tblreg->key) == 0 &&
+								std::find(tblreg->keyValues.begin(), tblreg->keyValues.end(), keyValue)
+								!= tblreg->keyValues.end())
+						{
+							if (iter->HasMember("values"))
+							{
+								const Value& values = (*iter)["values"];
+								StringBuffer buffer;
+								Writer<StringBuffer> writer(buffer);
+								values.Accept(writer);
+
+								const char *output = buffer.GetString();
+								sendPayload(tblreg->url, output);
+							}
+							else if (iter->HasMember("expressions"))
+							{
+								const Value& expressions = (*iter)["expressions"];
+								for (Value::ConstValueIterator expr = expressions.Begin();
+										expr != expressions.End(); ++expr)
+								{
+									StringBuffer buffer;
+									Writer<StringBuffer> writer(buffer);
+									expr->Accept(writer);
+	
+									const char *output = buffer.GetString();
+									sendPayload(tblreg->url, output);
+								}
+							}
+						}
+					}
+				}
+			}
+			else if (doc.HasMember("where") && doc["where"].IsObject())
+			{
+				const Value& where = doc["where"];
+				if (where.HasMember("column") && where["column"].IsString() &&
+						where.HasMember("value") && where["value"].IsString())
+				{
+					string updateKey = where["column"].GetString();
+					string keyValue = where["value"].GetString();
+					if (updateKey.compare(tblreg->key) == 0 &&
+							std::find(tblreg->keyValues.begin(), tblreg->keyValues.end(), keyValue)
+							!= tblreg->keyValues.end())
+					{
+						if (doc.HasMember("values"))
+						{
+							const Value& values = doc["values"];
+							StringBuffer buffer;
+							Writer<StringBuffer> writer(buffer);
+							values.Accept(writer);
+
+							const char *output = buffer.GetString();
+							sendPayload(tblreg->url, output);
+						}
+						else if (doc.HasMember("expressions"))
+						{
+							const Value& expressions = doc["expressions"];
+							for (Value::ConstValueIterator expr = expressions.Begin();
+									expr != expressions.End(); ++expr)
+							{
+								StringBuffer buffer;
+								Writer<StringBuffer> writer(buffer);
+								expr->Accept(writer);
+
+								const char *output = buffer.GetString();
+								sendPayload(tblreg->url, output);
+							}
+						}
+					}
+				}
+			}
+		}
 	}
 }
 

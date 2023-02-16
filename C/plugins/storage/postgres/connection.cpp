@@ -1578,9 +1578,9 @@ bool 		add_row = false;
 
 			// Handles - asset_code
 			sql.append(",\'");
-			std::string escacpedAsset((*itr)["asset_code"].GetString());
-			escacpedAsset = std::regex_replace(escacpedAsset, std::regex("\'"), "\'\'");
-			sql.append(escacpedAsset);
+			std::string escapedAsset((*itr)["asset_code"].GetString());
+			escapedAsset = std::regex_replace(escapedAsset, std::regex("\'"), "\'\'");
+			sql.append(escapedAsset);
 			sql.append("', '");
 
 			// Handles - reading

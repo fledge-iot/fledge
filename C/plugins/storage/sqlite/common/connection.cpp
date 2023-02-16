@@ -1299,7 +1299,7 @@ std::size_t arr = data.find("inserts");
 					}
 					else
 					{	
-						sqlite3_bind_text(stmt, columID, escape(str).c_str(), -1, SQLITE_TRANSIENT);
+						sqlite3_bind_text(stmt, columID, str, -1, SQLITE_TRANSIENT);
 					}
 				}
 				else if (itr->value.IsDouble()) {

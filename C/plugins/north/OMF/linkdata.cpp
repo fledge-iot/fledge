@@ -292,6 +292,7 @@ string OMFLinkedData::getBaseType(Datapoint *dp, const string& format)
 			// Not supported
 			return baseType;
 	}
+	return baseType;
 }
 
 /**

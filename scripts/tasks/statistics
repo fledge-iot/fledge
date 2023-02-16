@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run a Fledge south service written in Python
+# Run a Fledge south service written in C
 if [ "${FLEDGE_ROOT}" = "" ]; then
 	FLEDGE_ROOT=/usr/local/fledge
 fi
@@ -9,19 +9,19 @@ if [ ! -d "${FLEDGE_ROOT}" ]; then
 	exit 1
 fi
 
-if [ ! -d "${FLEDGE_ROOT}/python" ]; then
-	logger "Fledge home directory is missing the Python installation"
+if [ ! -d "${FLEDGE_ROOT}/tasks" ]; then
+	logger "Fledge home directory is missing the C installation"
 	exit 1
 fi
 
-# We run the Python code from the python directory
-cd "${FLEDGE_ROOT}/python"
+# We run the C code from the tasks directory
+cd "${FLEDGE_ROOT}/tasks"
 
 os_name=`(grep -o '^NAME=.*' /etc/os-release | cut -f2 -d\" | sed 's/"//g')`
 
 if [[ $os_name == *"Raspbian"*  ]]; then
 
-	cpulimit -l 40 -- python3 -m fledge.tasks.statistics "$@"
+	cpulimit -l 40 -- $FLEDGE_ROOT/tasks/statistics_history "$@"
 else
 	# Standard execution on other platforms
 	$FLEDGE_ROOT/tasks/statistics_history "$@"

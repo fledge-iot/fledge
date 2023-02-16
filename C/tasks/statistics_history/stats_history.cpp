@@ -64,7 +64,6 @@ void StatsHistory::run() const
 
         do {
 		string key = (*rowIter)->getColumn("key")->getString();
-		Logger::getLogger()->error("StatsHistory::calling processKey for key:%s", key.c_str());
 		try {
 			processKey(key, historyValues, updateValues);
 		} catch (exception e) {
@@ -104,9 +103,12 @@ void StatsHistory::run() const
 }
 
 /**
- * Process a single statistics key
+ * Process statistics keys
  *
- * @param key	The statistics key to process
+ * @param key	         The statistics key to process
+ * @param historyValues  Values to be inserted in statistics_history
+ * @param updateValues   Values to be updated in statistics
+ * @return void
  */
 void StatsHistory::processKey(const string& key, InsertValues& historyValues, std::vector<std::pair<InsertValue*, Where *> > &updateValues) const
 {

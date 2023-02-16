@@ -27,7 +27,10 @@
 
 #define EXCEPTION_BUFFER_SIZE 120
 
-#define INSTRUMENT	0
+#define INSTRUMENT		0
+// Streaming is currently disabled due to an issue that causes the stream to
+// hang after a period. Set the followign to 1 in order to enable streaming
+#define ENABLE_STREAMING	0
 
 #if INSTRUMENT
 #include <sys/time.h>
@@ -160,8 +163,8 @@ bool StorageClient::readingAppend(const vector<Reading *>& readings)
 	double timeSpan = dur.tv_sec + ((double)dur.tv_usec / 1000000);
 	double rate = (double)readings.size() / timeSpan;
 	// Stream functionality disabled
-	// if (rate > STREAM_THRESHOLD)
-	if (0)
+#if ENABLE_STREAMING
+	if (rate > STREAM_THRESHOLD)
 	{
 		m_logger->info("Reading rate %.1f readings per second above threshold, attmempting to switch to stream mode", rate);
 		if (openStream())
@@ -171,6 +174,7 @@ bool StorageClient::readingAppend(const vector<Reading *>& readings)
 		}
 		m_logger->warn("Failed to switch to streaming mode");
 	}
+#endif
 	static HttpClient *httpClient = this->getHttpClient(); // to initialize m_seqnum_map[thread_id] for this thread
 	try {
 		std::thread::id thread_id = std::this_thread::get_id();
@@ -583,11 +587,12 @@ int StorageClient::insertTable(const string& schema, const string& tableName, co
  * @param tableName	The name of the table into which data will be added
  * @param values	The values to insert into the table
  * @param where		The conditions to match the updated rows
+ * @param modifier	Optional storage modifier
  * @return int		The number of rows updated
  */
-int StorageClient::updateTable(const string& tableName, const InsertValues& values, const Where& where)
+int StorageClient::updateTable(const string& tableName, const InsertValues& values, const Where& where, const UpdateModifier *modifier)
 {
-	return updateTable(DEFAULT_SCHEMA, tableName, values, where);
+	return updateTable(DEFAULT_SCHEMA, tableName, values, where, modifier);
 }
 
 /**
@@ -597,9 +602,10 @@ int StorageClient::updateTable(const string& tableName, const InsertValues& valu
  * @param tableName	The name of the table into which data will be added
  * @param values	The values to insert into the table
  * @param where		The conditions to match the updated rows
+ * @param modifier	Optional storage modifier
  * @return int		The number of rows updated
  */
-int StorageClient::updateTable(const string& schema, const string& tableName, const InsertValues& values, const Where& where)
+int StorageClient::updateTable(const string& schema, const string& tableName, const InsertValues& values, const Where& where, const UpdateModifier *modifier)
 {
 	static HttpClient *httpClient = this->getHttpClient(); // to initialize m_seqnum_map[thread_id] for this thread
 	try {
@@ -614,8 +620,12 @@ int StorageClient::updateTable(const string& schema, const string& tableName, co
 
 		ostringstream convert;
 
-		convert << "{ \"updates\" : [ ";
-		convert << "{ \"where\" : ";
+		convert << "{ \"updates\" : [ {";
+		if (modifier)
+		{
+			convert << "\"modifiers\" : [ \"" << modifier->toJSON() << "\" ], ";
+		}
+		convert << "\"where\" : ";
 		convert << where.toJSON();
 		convert << ", \"values\" : ";
 		convert << values.toJSON();
@@ -662,11 +672,12 @@ int StorageClient::updateTable(const string& schema, const string& tableName, co
  * @param tableName	The name of the table into which data will be added
  * @param values	The expressions to update into the table
  * @param where		The conditions to match the updated rows
+ * @param modifier	Optional update modifier
  * @return int		The number of rows updated
  */
-int StorageClient::updateTable(const string& tableName, const ExpressionValues& values, const Where& where)
+int StorageClient::updateTable(const string& tableName, const ExpressionValues& values, const Where& where, const UpdateModifier *modifier)
 {
-	return updateTable(DEFAULT_SCHEMA, tableName, values, where);
+	return updateTable(DEFAULT_SCHEMA, tableName, values, where, modifier);
 }
 
 /**
@@ -676,9 +687,10 @@ int StorageClient::updateTable(const string& tableName, const ExpressionValues& 
  * @param tableName	The name of the table into which data will be added
  * @param values	The expressions to update into the table
  * @param where		The conditions to match the updated rows
+ * @param modifier	Optional update modifier
  * @return int		The number of rows updated
  */
-int StorageClient::updateTable(const string& schema, const string& tableName, const ExpressionValues& values, const Where& where)
+int StorageClient::updateTable(const string& schema, const string& tableName, const ExpressionValues& values, const Where& where, const UpdateModifier *modifier)
 {
 	static HttpClient *httpClient = this->getHttpClient(); // to initialize m_seqnum_map[thread_id] for this thread
 	try {
@@ -693,8 +705,12 @@ int StorageClient::updateTable(const string& schema, const string& tableName, co
 		
 		ostringstream convert;
 
-		convert << "{ \"updates\" : [ ";
-		convert << "{ \"where\" : ";
+		convert << "{ \"updates\" : [ {";
+		if (modifier)
+		{
+			convert << "\"modifiers\" : [ \"" << modifier->toJSON() << "\" ], ";
+		}
+		convert << "\"where\" : ";
 		convert << where.toJSON();
 		convert << ", \"expressions\" : ";
 		convert << values.toJSON();
@@ -740,11 +756,12 @@ int StorageClient::updateTable(const string& schema, const string& tableName, co
  *
  * @param tableName	The name of the table into which data will be added
  * @param updates	The expressions and condition pairs to update in the table
+ * @param modifier	Optional update modifier
  * @return int		The number of rows updated
  */
-int StorageClient::updateTable(const string& tableName, vector<pair<ExpressionValues *, Where *>>& updates)
+int StorageClient::updateTable(const string& tableName, vector<pair<ExpressionValues *, Where *>>& updates, const UpdateModifier *modifier)
 {
-	return updateTable(DEFAULT_SCHEMA, tableName, updates);
+	return updateTable(DEFAULT_SCHEMA, tableName, updates, modifier);
 }
 
 /**
@@ -753,9 +770,10 @@ int StorageClient::updateTable(const string& tableName, vector<pair<ExpressionVa
  * @param schema	The name of the schema into which data will be added
  * @param tableName	The name of the table into which data will be added
  * @param updates	The expressions and condition pairs to update in the table
+ * @param modifier	Optional update modifier
  * @return int		The number of rows updated
  */
-int StorageClient::updateTable(const string& schema, const string& tableName, vector<pair<ExpressionValues *, Where *>>& updates)
+int StorageClient::updateTable(const string& schema, const string& tableName, vector<pair<ExpressionValues *, Where *>>& updates, const UpdateModifier *modifier)
 {
 	static HttpClient *httpClient = this->getHttpClient(); // to initialize m_seqnum_map[thread_id] for this thread
 	try {
@@ -777,7 +795,12 @@ int StorageClient::updateTable(const string& schema, const string& tableName, ve
 			{
 				convert << ", ";
 			}
-			convert << "{ \"where\" : ";
+			convert << "{ ";
+			if (modifier)
+			{
+				convert << "\"modifiers\" : [ \"" << modifier->toJSON() << "\" ], ";
+			}
+			convert << "\"where\" : ";
 			convert << it->second->toJSON();
 			convert << ", \"expressions\" : ";
 			convert << it->first->toJSON();
@@ -827,11 +850,12 @@ int StorageClient::updateTable(const string& schema, const string& tableName, ve
  * @param values	The values to insert into the table
  * @param expressions	The expression to update inthe table
  * @param where		The conditions to match the updated rows
+ * @param modifier	Optional update modifier
  * @return int		The number of rows updated
  */
-int StorageClient::updateTable(const string& tableName, const InsertValues& values, const ExpressionValues& expressions, const Where& where)
+int StorageClient::updateTable(const string& tableName, const InsertValues& values, const ExpressionValues& expressions, const Where& where, const UpdateModifier *modifier)
 {
-	return updateTable(DEFAULT_SCHEMA, tableName, values, expressions, where);
+	return updateTable(DEFAULT_SCHEMA, tableName, values, expressions, where, modifier);
 }
 
 /**
@@ -842,15 +866,20 @@ int StorageClient::updateTable(const string& tableName, const InsertValues& valu
  * @param values	The values to insert into the table
  * @param expressions	The expression to update inthe table
  * @param where		The conditions to match the updated rows
+ * @param modifier	Optional update modifier
  * @return int		The number of rows updated
  */
-int StorageClient::updateTable(const string& schema, const string& tableName, const InsertValues& values, const ExpressionValues& expressions, const Where& where)
+int StorageClient::updateTable(const string& schema, const string& tableName, const InsertValues& values, const ExpressionValues& expressions, const Where& where, const UpdateModifier *modifier)
 {
 	try {
 		ostringstream convert;
 
-		convert << "{ \"updates\" : [ ";
-		convert << "{ \"where\" : ";
+		convert << "{ \"updates\" : [ { ";
+		if (modifier)
+		{
+			convert << "\"modifiers\" : [ \"" << modifier->toJSON() << "\" ], ";
+		}
+		convert << "\"where\" : ";
 		convert << where.toJSON();
 		convert << ", \"values\" : ";
 		convert << values.toJSON();
@@ -899,11 +928,12 @@ int StorageClient::updateTable(const string& schema, const string& tableName, co
  * @param tableName	The name of the table into which data will be added
  * @param json		The values to insert into the table
  * @param where		The conditions to match the updated rows
+ * @param modifier	Optional update modifier
  * @return int		The number of rows updated
  */
-int StorageClient::updateTable(const string& tableName, const JSONProperties& values, const Where& where)
+int StorageClient::updateTable(const string& tableName, const JSONProperties& values, const Where& where, const UpdateModifier *modifier)
 {
-	return updateTable(DEFAULT_SCHEMA, tableName, values, where);
+	return updateTable(DEFAULT_SCHEMA, tableName, values, where, modifier);
 }
 
 /**
@@ -915,13 +945,17 @@ int StorageClient::updateTable(const string& tableName, const JSONProperties& va
  * @param where		The conditions to match the updated rows
  * @return int		The number of rows updated
  */
-int StorageClient::updateTable(const string& schema, const string& tableName, const JSONProperties& values, const Where& where)
+int StorageClient::updateTable(const string& schema, const string& tableName, const JSONProperties& values, const Where& where, const UpdateModifier *modifier)
 {
 	try {
 		ostringstream convert;
 
-		convert << "{ \"updates\" : [ ";
-		convert << "{ \"where\" : ";
+		convert << "{ \"updates\" : [ {";
+		if (modifier)
+		{
+			convert << "\"modifiers\" : [ \"" << modifier->toJSON() << "\" ]";
+		}
+		convert << "\"where\" : ";
 		convert << where.toJSON();
 		convert << ", ";
 		convert << values.toJSON();
@@ -969,11 +1003,12 @@ int StorageClient::updateTable(const string& schema, const string& tableName, co
  * @param values	The values to insert into the table
  * @param jsonProp	The JSON Properties to update
  * @param where		The conditions to match the updated rows
+ * @param modifier	Optional update modifier
  * @return int		The number of rows updated
  */
-int StorageClient::updateTable(const string& tableName, const InsertValues& values, const JSONProperties& jsonProp, const Where& where)
+int StorageClient::updateTable(const string& tableName, const InsertValues& values, const JSONProperties& jsonProp, const Where& where, const UpdateModifier *modifier)
 {
-	return updateTable(DEFAULT_SCHEMA, tableName, values, jsonProp, where);
+	return updateTable(DEFAULT_SCHEMA, tableName, values, jsonProp, where, modifier);
 }
 
 /**
@@ -984,15 +1019,20 @@ int StorageClient::updateTable(const string& tableName, const InsertValues& valu
  * @param values	The values to insert into the table
  * @param jsonProp	The JSON Properties to update
  * @param where		The conditions to match the updated rows
+ * @param modifier	Optional update modifier
  * @return int		The number of rows updated
  */
-int StorageClient::updateTable(const string& schema, const string& tableName, const InsertValues& values, const JSONProperties& jsonProp, const Where& where)
+int StorageClient::updateTable(const string& schema, const string& tableName, const InsertValues& values, const JSONProperties& jsonProp, const Where& where, const UpdateModifier *modifier)
 {
 	try {
 		ostringstream convert;
 
-		convert << "{ \"updates\" : [ ";
-		convert << "{ \"where\" : ";
+		convert << "{ \"updates\" : [ {";
+		if (modifier)
+		{
+			convert << "\"modifiers\" : [ \"" << modifier->toJSON() << "\", ";
+		}
+		convert << "\"where\" : ";
 		convert << where.toJSON();
 		convert << ", \"values\" : ";
 		convert << values.toJSON();
@@ -1115,7 +1155,7 @@ void StorageClient::handleUnexpectedResponse(const char *operation, const string
 /**
  * Standard logging method for all interactions
  *
- * @param operation	The operation beign undertaken
+ * @param operation	The operation being undertaken
  * @param responseCode	The HTTP response code
  * @param payload	The payload in the response message
  */
@@ -1223,6 +1263,125 @@ bool StorageClient::unregisterAssetNotification(const string& assetName,
 	return false;
 }
 
+/**
+ * Register interest for a table
+ *
+ * @param tableName	The table name to register for notification
+ * @param tableKey	The key of interest in the table
+ * @param tableKeyValues	The key values of interest
+ * @param tableOperation	The table operation of interest (insert/update/delete)
+ * @param callbackUrl	The callback URL to send change data
+ * @return		True on success, false otherwise.
+ */
+bool StorageClient::registerTableNotification(const string& tableName, const string& key, std::vector<std::string> keyValues,
+					      const string& operation, const string& callbackUrl)
+{
+	try
+	{
+		ostringstream keyValuesStr;
+		for (auto & s : keyValues)
+		{
+			keyValuesStr << "\"" << s << "\"";
+			if (&s != &keyValues.back())
+				keyValuesStr << ", ";
+		}
+		
+		ostringstream convert;
+
+		convert << "{ ";
+		convert << "\"url\" : \"" << callbackUrl << "\", ";
+		convert << "\"key\" : \"" << key << "\", ";
+		convert << "\"values\" : [" << keyValuesStr.str() << "], ";
+		convert << "\"operation\" : \"" << operation << "\" ";
+		convert << "}";
+		
+		auto res = this->getHttpClient()->request("POST",
+							  "/storage/table/interest/" + urlEncode(tableName),
+							  convert.str());
+		if (res->status_code.compare("200 OK") == 0)
+		{
+			return true;
+		}
+		ostringstream resultPayload;
+		resultPayload << res->content.rdbuf();
+		handleUnexpectedResponse("Register table",
+					 tableName,
+					 res->status_code,
+					 resultPayload.str());
+		m_logger->error("POST /storage/table/interest/%s: %s",
+				urlEncode(tableName).c_str(), res->status_code.c_str());
+
+		return false;
+	} catch (exception& ex)
+	{
+		handleException(ex, "register table '%s'", tableName.c_str());
+	}
+	return false;
+}
+
+/**
+ * Unregister interest for a table name
+ *
+ * @param tableName	The table name to unregister interest in
+ * @param tableKey	The key of interest in the table
+ * @param tableKeyValues	The key values of interest
+ * @param tableOperation	The table operation of interest (insert/update/delete)
+ * @param callbackUrl	The callback URL to send change data
+ * @return		True on success, false otherwise.
+ */
+bool StorageClient::unregisterTableNotification(const string& tableName, const string& key, std::vector<std::string> keyValues,
+					      const string& operation, const string& callbackUrl)
+{
+	try
+	{
+		ostringstream keyValuesStr;
+		for (auto & s : keyValues)
+		{
+			keyValuesStr << "\"" << s << "\"";
+			if (&s != &keyValues.back())
+				keyValuesStr << ", ";
+		}
+		
+		ostringstream convert;
+
+		convert << "{ ";
+		convert << "\"url\" : \"" << callbackUrl << "\", ";
+		convert << "\"key\" : \"" << key << "\", ";
+		convert << "\"values\" : [" << keyValuesStr.str() << "], ";
+		convert << "\"operation\" : \"" << operation << "\" ";
+		convert << "}";
+		
+		auto res = this->getHttpClient()->request("DELETE",
+							  "/storage/table/interest/" + urlEncode(tableName),
+							  convert.str());
+		if (res->status_code.compare("200 OK") == 0)
+		{
+			return true;
+		}
+		ostringstream resultPayload;
+		resultPayload << res->content.rdbuf();
+		handleUnexpectedResponse("Unregister table",
+					 tableName,
+					 res->status_code,
+					 resultPayload.str());
+		m_logger->error("DELETE /storage/table/interest/%s: %s",
+				urlEncode(tableName).c_str(), res->status_code.c_str());
+
+		return false;
+	} catch (exception& ex)
+	{
+		handleException(ex, "unregister table '%s'", tableName.c_str());
+	}
+	return false;
+}
+
+/*
+ * Attempt to open a streaming connection to the storage service. We use a REST API
+ * call to create the stream. If successful this call will return a port and a token
+ * to use when sending data via the stream.
+ *
+ * @return bool		Return true if the stream was setup
+ */
 bool StorageClient::openStream()
 {
 	try {
@@ -1303,6 +1462,33 @@ bool StorageClient::openStream()
 /**
  * Stream a set of readings to the storage service.
  *
+ * The stream uses a TCP connection to the storage system, it sends
+ * blocks of readings to the storage engine and bypasses the usual 
+ * JSON conversion and imoprtantly parsing on the storage system
+ * side.
+ *
+ * A block of readings is introduced by a block header, the block
+ * header contains a magic number, the block number and the count
+ * of the number of readings in a block.
+ *
+ * Each reading within the block is preceeded by a reading header
+ * that contains a magic number, a reading number within the block,
+ * The length of the asset name for the reading, the length of the
+ * payload within the reading. The reading itself follows the herader
+ * and consists of the timestamp as a binary timeval structure, the name
+ * of the asset, including the null terminator. If the asset name length
+ * is 0 then no asset name is sent and the name of the asset is the same
+ * as the previous asset in the block. Following this the paylod is included.
+ *
+ * Each block is sent to the storage layer in a number of chunks rather
+ * that a single write per block. The implementation make use of the
+ * Linux scatter/gather IO calls to reduce the number of copies of data
+ * that are required.
+ *
+ * Currently there is no acknowledement handling as TCP is used as the underlying
+ * transport and the TCP acknowledgement is assumed to be a good enough 
+ * indication of delivery.
+ *
  * TODO Deal with acknowledgements, add error checking/recovery
  *
  * @param readings	The readings to stream
@@ -1313,7 +1499,7 @@ bool StorageClient::streamReadings(const std::vector<Reading *> & readings)
 RDSBlockHeader   		blkhdr;
 RDSReadingHeader 		rdhdrs[STREAM_BLK_SIZE];
 register RDSReadingHeader	*phdr;
-struct { const void *iov_base; size_t iov_len;} iovs[STREAM_BLK_SIZE * 4], *iovp;
+struct iovec			iovs[STREAM_BLK_SIZE * 4], *iovp;
 string				payloads[STREAM_BLK_SIZE];
 struct timeval			tm[STREAM_BLK_SIZE];
 ssize_t				n, length = 0;
@@ -1322,6 +1508,7 @@ string				lastAsset;
 
 	if (!m_streaming)
 	{
+		m_logger->warn("Attempt to send data via a storage stream when streaming is not setup");
 		return false;
 	}
 
@@ -1337,7 +1524,7 @@ string				lastAsset;
 	{
 		if (errno == EPIPE || errno == ECONNRESET)
 		{
-			Logger::getLogger()->warn("Storage service has closed stream unexpectedly");
+			Logger::getLogger()->error("Storage service has closed stream unexpectedly");
 			m_streaming = false;
 		}
 		else
@@ -1349,7 +1536,7 @@ string				lastAsset;
 
 	/*
 	 * Use the writev scatter/gather interface to send the reading headers and reading data.
-	 * We sent chunks of data in order to allow the parallel sendign and unpacking process
+	 * We sent chunks of data in order to allow the parallel sending and unpacking process
 	 * at the two ends. The chunk size is STREAM_BLK_SIZE readings.
 	 */
 	iovp = iovs;
@@ -1372,7 +1559,7 @@ string				lastAsset;
 			phdr->assetLength = assetCode.length() + 1;
 		}
 
-		// Alwayts generate the JSON variant of the data points and send
+		// Always generate the JSON variant of the data points and send
 		payloads[offset] = readings[i]->getDatapointsJSON();
 		phdr->payloadLength = payloads[offset].length() + 1;
 
@@ -1392,14 +1579,14 @@ string				lastAsset;
 		// If the asset code has changed than add that
 		if (phdr->assetLength)
 		{
-			iovp->iov_base = readings[i]->getAssetName().c_str();
+			iovp->iov_base = (void *)(readings[i]->getAssetName().c_str());	// Cast away const due to iovec definition
 			iovp->iov_len = phdr->assetLength;
 			length += iovp->iov_len;
 			iovp++;
 		}
 
 		// Add the data points themselves
-		iovp->iov_base = payloads[offset].c_str();
+		iovp->iov_base = (void *)(payloads[offset].c_str()); // Cast away const due to iovec definition
 		iovp->iov_len = phdr->payloadLength;
 		length += iovp->iov_len;
 		iovp++;
@@ -1407,23 +1594,31 @@ string				lastAsset;
 		offset++;
 		if (offset == STREAM_BLK_SIZE - 1)
 		{
+			if (iovp - iovs > STREAM_BLK_SIZE * 4)
+				Logger::getLogger()->error("Too many iov blocks %d", iovp - iovs);
+			// Send a chunk of readings in the block
 			n = writev(m_stream, (const iovec *)iovs, iovp - iovs);
-			if (n < length)
+			if (n == -1)
 			{
 				if (errno == EPIPE || errno == ECONNRESET)
 				{
 					Logger::getLogger()->error("Stream has been closed by the storage service");
 					m_streaming = false;
 				}
-				else
-				{
-					Logger::getLogger()->error("Write of block short, %d < %d: %s",
+				Logger::getLogger()->error("Write of block %d filed: %s",
+							m_readingBlock - 1, strerror(errno));
+				return false;
+			}
+			else if (n < length)
+			{
+				Logger::getLogger()->error("Write of block short, %d < %d: %s",
 							n, length, strerror(errno));
-				}
 				return false;
 			}
 			else if (n > length)
+			{
 				Logger::getLogger()->fatal("Long write %d < %d", length, n);
+			}
 			offset = 0;
 			length = 0;
 			iovp = iovs;
@@ -1434,25 +1629,33 @@ string				lastAsset;
 			phdr++;
 		}
 	}
+
 	if (length)	// Remaining data to be sent to finish the block
 	{
-		if ((n = writev(m_stream, (const iovec *)iovs, iovp - iovs)) < length)
+		n = writev(m_stream, (const iovec *)iovs, iovp - iovs);
+		if (n == -1)
 		{
 			if (errno == EPIPE || errno == ECONNRESET)
 			{
 				Logger::getLogger()->error("Stream has been closed by the storage service");
 				m_streaming = false;
 			}
-			else
-			{
-				Logger::getLogger()->error("Write of block short, %d < %d: %s",
+			Logger::getLogger()->error("Write of block %d filed: %s",
+						m_readingBlock - 1, strerror(errno));
+			return false;
+		}
+		else if (n < length)
+		{
+			Logger::getLogger()->error("Write of block short, %d < %d: %s",
 						n, length, strerror(errno));
-			}
 			return false;
 		}
 		else if (n > length)
+		{
 			Logger::getLogger()->fatal("Long write %d < %d", length, n);
+		}
 	}
+	Logger::getLogger()->info("Written block of %d readings via streaming connection", readings.size());
 	return true;
 }
 

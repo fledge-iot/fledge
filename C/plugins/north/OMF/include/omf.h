@@ -19,6 +19,13 @@
 
 #define	OMF_HINT	"OMFHint"
 
+// The following will force the OMF version for EDs endpoints
+// Remove or comment out the line below to prevent the forcing
+// of the version
+#define EDS_OMF_VERSION	"1.0"
+#define CR_OMF_VERSION	"1.0"
+
+
 #define TYPE_ID_DEFAULT     1
 #define FAKE_ASSET_KEY      "_default_start_id_"
 #define OMF_TYPE_STRING		"string"
@@ -88,12 +95,14 @@ class OMF
 		 * Constructor:
 		 * pass server URL path, OMF_type_id and producerToken.
 		 */
-		OMF(HttpSender& sender,
+		OMF(const std::string& name,
+		    HttpSender& sender,
                     const std::string& path,
 		    const long typeId,
 		    const std::string& producerToken);
 
-		OMF(HttpSender& sender,
+		OMF(const std::string& name,
+		    HttpSender& sender,
 		    const std::string& path,
 		    std::map<std::string, OMFDataTypes>& types,
 		    const std::string& producerToken);
@@ -216,7 +225,7 @@ class OMF
 		bool getAFMapEmptyMetadata() const { return m_AFMapEmptyMetadata; };
 
 		bool getConnected() const { return m_connected; };
-		void setConnected(const bool connectionStatus) { m_connected = connectionStatus; };
+		void setConnected(const bool connectionStatus);
 
 		void setLegacyMode(bool legacy) { m_legacy = legacy; };
 
@@ -492,6 +501,11 @@ private:
 		 * Force the data to be sent using the legacy, complex OMF types
 		 */
 		bool			m_legacy;
+
+		/**
+		 * Service name
+		 */
+		const std::string	m_name;
 };
 
 /**

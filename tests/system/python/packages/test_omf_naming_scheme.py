@@ -155,14 +155,14 @@ def _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_d
 
     while (data_from_pi is None or data_from_pi == []) and retry_count < retries:
         data_from_pi = read_data_from_pi_web_api(pi_host, pi_admin, pi_passwd, pi_db, af_hierarchy_level_list,
-                                                 pi_asset_name, {recorded_datapoint})
+                                                 pi_asset_name, '')
         retry_count += 1
         time.sleep(wait_time * 2)
 
     if data_from_pi is None or retry_count == retries:
         assert False, "Failed to read data from PI"
 
-    assert data_from_pi[recorded_datapoint][-1] == DATAPOINT_VALUE
+    assert int(data_from_pi) == DATAPOINT_VALUE
 
 
 class TestOMFNamingScheme:
@@ -246,7 +246,7 @@ class TestOMFNamingScheme:
             type_id = 1
             recorded_datapoint = "{}".format(south_asset_name)
             # Name of asset in the PI server
-            pi_asset_name = "{}-type{}".format(south_asset_name, type_id)
+            pi_asset_name = "{}".format(south_asset_name)
             _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries,
                            recorded_datapoint, pi_asset_name)
 
@@ -286,7 +286,7 @@ class TestOMFNamingScheme:
 
         if not skip_verify_north_interface:
             type_id = 1
-            recorded_datapoint = "{}measurement_{}".format(type_id, south_asset_name)
+            recorded_datapoint = "{}".format(south_asset_name)
             # Name of asset in the PI server
             pi_asset_name = "{}".format(south_asset_name)
             _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries,
@@ -328,8 +328,8 @@ class TestOMFNamingScheme:
 
         if not skip_verify_north_interface:
             type_id = 1
-            recorded_datapoint = "{}measurement_{}".format(type_id, south_asset_name)
+            recorded_datapoint = "{}".format(south_asset_name)
             # Name of asset in the PI server
-            pi_asset_name = "{}-type{}".format(south_asset_name, type_id)
+            pi_asset_name = "{}".format(south_asset_name)
             _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries,
                            recorded_datapoint, pi_asset_name)

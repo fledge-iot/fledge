@@ -1,0 +1,11 @@
+{
+  "values": {
+    "value": "token_expiration"
+  },
+  "where": {
+    "column": "token",
+    "condition": "=",
+    "value": "TOKEN"
+  },
+  "modifier": ["allowzero"]
+}

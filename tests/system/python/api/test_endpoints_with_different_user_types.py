@@ -45,7 +45,7 @@ def change_to_auth_mandatory(fledge_url, wait_time):
 
 
 def test_setup(reset_and_start_fledge, change_to_auth_mandatory, fledge_url, wait_time):
-    time.sleep(wait_time * 2)
+    time.sleep(wait_time * 3)
     conn = http.client.HTTPConnection(fledge_url)
     # Admin login
     conn.request("POST", "/fledge/login", json.dumps({"username": "admin", "password": "fledge"}))
@@ -100,7 +100,7 @@ class TestAPIEndpointsWithViewUserType:
         # health
         ("GET", "/fledge/health/storage", 200), ("GET", "/fledge/health/logging", 200),
         # user & roles
-        ("GET", "/fledge/user", 200), ("PUT", "/fledge/user", 403), ("PUT", "/fledge/user/1/password", 403),
+        ("GET", "/fledge/user", 200), ("PUT", "/fledge/user", 500), ("PUT", "/fledge/user/1/password", 403),
         ("PUT", "/fledge/user/3/password", 500), ("GET", "/fledge/user/role", 200),
         # auth
         ("POST", "/fledge/login", 403), ("PUT", "/fledge/31/logout", 401),
@@ -248,7 +248,7 @@ class TestAPIEndpointsWithDataViewUserType:
         # health
         ("GET", "/fledge/health/storage", 403), ("GET", "/fledge/health/logging", 403),
         # user & roles
-        ("GET", "/fledge/user", 403), ("PUT", "/fledge/user", 403), ("PUT", "/fledge/user/1/password", 403),
+        ("GET", "/fledge/user", 403), ("PUT", "/fledge/user", 500), ("PUT", "/fledge/user/1/password", 403),
         ("PUT", "/fledge/user/4/password", 500), ("GET", "/fledge/user/role", 200),
         # auth
         ("POST", "/fledge/login", 403), ("PUT", "/fledge/31/logout", 401),

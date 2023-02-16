@@ -22,8 +22,28 @@
 #include <sys/time.h>
 #endif
 
+/*
+ * The number of readings to insert in a single prepared statement
+ */
+#define APPEND_BATCH_SIZE	100
+
+/*
+ * JSON parsing requires a lot of mempry allocation, which is slow and causes
+ * bottlenecks with thread synchronisation. RapidJSON supports in-situ parsing
+ * whereby it will reuse the storage of the string it is parsing to store the
+ * keys and string values of the parsed JSON. This is destructive on the buffer.
+ * However it can be quicker to maek a copy of the raw string and then do in-situ
+ * parsing on that copy of the string.
+ * See http://rapidjson.org/md_doc_dom.html#InSituParsing
+ *
+ * Define a threshold length for the append readings to switch to using in-situ
+ * parsing of the JSON to save on memory allocation overheads. Define as 0 to
+ * disable the in-situ parsing.
+ */
+#define INSITU_THRESHOLD	10240
+
 // Decode stream data
-#define	RDS_USER_TIMESTAMP(stream, x) 	stream[x]->userTs
+#define	RDS_USER_TIMESTAMP(stream, x) 		stream[x]->userTs
 #define	RDS_ASSET_CODE(stream, x)		stream[x]->assetCode
 #define	RDS_PAYLOAD(stream, x)			&(stream[x]->assetCode[0]) + stream[x]->assetCodeLength
 
@@ -392,15 +412,23 @@ int Connection::readingStream(ReadingStream **readings, bool commit)
 	int sleep_time_ms = 0;
 
 	// SQLite related
-	sqlite3_stmt *stmt;
+	sqlite3_stmt *stmt, *batch_stmt;
 	int sqlite3_resut;
 	int rowNumber = -1;
-
+	
 #if INSTRUMENT
 	struct timeval start, t1, t2, t3, t4, t5;
 #endif
 
-	const char *sql_cmd = "INSERT INTO  " READINGS_DB_NAME_BASE ".readings ( asset_code, reading, user_ts ) VALUES  (?,?,?)";
+	const char *sql_cmd = "INSERT INTO  " READINGS_DB_NAME_BASE ".readings ( user_ts, asset_code, reading ) VALUES  (?,?,?)";
+	string cmd = sql_cmd;
+	for (int i = 0; i < APPEND_BATCH_SIZE - 1; i++)
+	{
+		cmd.append(", (?,?,?)");
+	}
+
+	sqlite3_prepare_v2(dbHandle, sql_cmd, strlen(sql_cmd), &stmt, NULL);
+	sqlite3_prepare_v2(dbHandle, cmd.c_str(), cmd.length(), &batch_stmt, NULL);
 
 	if (sqlite3_prepare_v2(dbHandle, sql_cmd, strlen(sql_cmd), &stmt, NULL) != SQLITE_OK)
 	{
@@ -427,24 +455,144 @@ int Connection::readingStream(ReadingStream **readings, bool commit)
 	gettimeofday(&start, NULL);
 #endif
 
+	int nReadings;
+	for (nReadings = 0; readings[nReadings]; nReadings++);
+
 	try
 	{
-		for (i = 0; readings[i]; i++)
+		
+		unsigned int nBatches = nReadings / APPEND_BATCH_SIZE;
+		int curReading = 0;
+	       	for (int batch = 0; batch < nBatches; batch++)
+		{
+			int varNo = 1;
+			for (int readingNo = 0; readingNo < APPEND_BATCH_SIZE; readingNo++)
+			{
+				add_row = true;
+
+				// Handles - asset_code
+				asset_code = RDS_ASSET_CODE(readings, curReading);
+
+				// Handles - reading
+				payload = RDS_PAYLOAD(readings, curReading);
+				reading = escape(payload);
+
+				// Handles - user_ts
+				memset(&timeinfo, 0, sizeof(struct tm));
+				gmtime_r(&RDS_USER_TIMESTAMP(readings, curReading).tv_sec, &timeinfo);
+				std::strftime(ts, sizeof(ts), "%Y-%m-%d %H:%M:%S", &timeinfo);
+				snprintf(micro_s, sizeof(micro_s), ".%06lu", RDS_USER_TIMESTAMP(readings, curReading).tv_usec);
+
+				formatted_date[0] = {0};
+				strncat(ts, micro_s, 10);
+				user_ts = ts;
+				if (strcmp(user_ts, "now()") == 0)
+				{
+					getNow(now);
+					user_ts = now.c_str();
+				}
+				else
+				{
+					if (!formatDate(formatted_date, sizeof(formatted_date), user_ts))
+					{
+						raiseError("streamReadings", "Invalid date |%s|", user_ts);
+						add_row = false;
+					}
+					else
+					{
+						user_ts = formatted_date;
+					}
+				}
+
+				if (add_row)
+				{
+					if (batch_stmt != NULL)
+					{
+						sqlite3_bind_text(batch_stmt, varNo++, user_ts,         -1, SQLITE_STATIC);
+						sqlite3_bind_text(batch_stmt, varNo++, asset_code,      -1, SQLITE_STATIC);
+						sqlite3_bind_text(batch_stmt, varNo++, reading.c_str(), -1, SQLITE_STATIC);
+					}
+				}
+				curReading++;
+			}
+			// Write the batch
+
+			retries = 0;
+			sleep_time_ms = 0;
+
+			// Retry mechanism in case SQLlite DB is locked
+			do {
+				// Insert the row using a lock to ensure one insert at time
+				{
+					m_writeAccessOngoing.fetch_add(1);
+					//unique_lock<mutex> lck(db_mutex);
+
+					sqlite3_resut = sqlite3_step(batch_stmt);
+
+					m_writeAccessOngoing.fetch_sub(1);
+					//db_cv.notify_all();
+				}
+
+				if (sqlite3_resut == SQLITE_LOCKED  )
+				{
+					sleep_time_ms = PREP_CMD_RETRY_BASE + (random() %  PREP_CMD_RETRY_BACKOFF);
+					retries++;
+
+					Logger::getLogger()->info("SQLITE_LOCKED - record :%d: - retry number :%d: sleep time ms :%d:",i, retries, sleep_time_ms);
+
+					std::this_thread::sleep_for(std::chrono::milliseconds(sleep_time_ms));
+				}
+				if (sqlite3_resut == SQLITE_BUSY)
+				{
+					ostringstream threadId;
+					threadId << std::this_thread::get_id();
+
+					sleep_time_ms = PREP_CMD_RETRY_BASE + (random() %  PREP_CMD_RETRY_BACKOFF);
+					retries++;
+
+					Logger::getLogger()->info("SQLITE_BUSY - thread :%s: - record :%d: - retry number :%d: sleep time ms :%d:", threadId.str().c_str() ,i , retries, sleep_time_ms);
+
+					std::this_thread::sleep_for(std::chrono::milliseconds(sleep_time_ms));
+				}
+			} while (retries < PREP_CMD_MAX_RETRIES && (sqlite3_resut == SQLITE_LOCKED || sqlite3_resut == SQLITE_BUSY));
+
+			if (sqlite3_resut == SQLITE_DONE)
+			{
+				rowNumber++;
+
+				sqlite3_clear_bindings(batch_stmt);
+				sqlite3_reset(batch_stmt);
+			}
+			else
+			{
+				raiseError("streamReadings",
+						   "Inserting a row into SQLite using a prepared command - asset_code :%s: error :%s: reading :%s: ",
+						   asset_code,
+						   sqlite3_errmsg(dbHandle),
+						   reading.c_str());
+
+				sqlite3_exec(dbHandle, "ROLLBACK TRANSACTION", NULL, NULL, NULL);
+				m_streamOpenTransaction = true;
+				return -1;
+			}
+		}
+
+		while (readings[curReading])
 		{
 			add_row = true;
 
 			// Handles - asset_code
-			asset_code = RDS_ASSET_CODE(readings, i);
+			asset_code = RDS_ASSET_CODE(readings, curReading);
 
 			// Handles - reading
-			payload = RDS_PAYLOAD(readings, i);
+			payload = RDS_PAYLOAD(readings, curReading);
 			reading = escape(payload);
 
 			// Handles - user_ts
 			memset(&timeinfo, 0, sizeof(struct tm));
-			gmtime_r(&RDS_USER_TIMESTAMP(readings, i).tv_sec, &timeinfo);
+			gmtime_r(&RDS_USER_TIMESTAMP(readings, curReading).tv_sec, &timeinfo);
 			std::strftime(ts, sizeof(ts), "%Y-%m-%d %H:%M:%S", &timeinfo);
-			snprintf(micro_s, sizeof(micro_s), ".%06lu", RDS_USER_TIMESTAMP(readings, i).tv_usec);
+			snprintf(micro_s, sizeof(micro_s), ".%06lu", RDS_USER_TIMESTAMP(readings, curReading).tv_usec);
 
 			formatted_date[0] = {0};
 			strncat(ts, micro_s, 10);
@@ -458,7 +606,7 @@ int Connection::readingStream(ReadingStream **readings, bool commit)
 			{
 				if (!formatDate(formatted_date, sizeof(formatted_date), user_ts))
 				{
-					raiseError("appendReadings", "Invalid date |%s|", user_ts);
+					raiseError("streamReadings", "Invalid date |%s|", user_ts);
 					add_row = false;
 				}
 				else
@@ -469,78 +617,79 @@ int Connection::readingStream(ReadingStream **readings, bool commit)
 
 			if (add_row)
 			{
-				if (stmt != NULL)
+				if (batch_stmt != NULL)
 				{
-					sqlite3_bind_text(stmt, 1, asset_code,      -1, SQLITE_STATIC);
-					sqlite3_bind_text(stmt, 2, reading.c_str(), -1, SQLITE_STATIC);
-					sqlite3_bind_text(stmt, 3, user_ts,         -1, SQLITE_STATIC);
-
-					retries =0;
-					sleep_time_ms = 0;
-
-					// Retry mechanism in case SQLlite DB is locked
-					do {
-						// Insert the row using a lock to ensure one insert at time
-						{
-							m_writeAccessOngoing.fetch_add(1);
-							//unique_lock<mutex> lck(db_mutex);
-
-							sqlite3_resut = sqlite3_step(stmt);
-
-							m_writeAccessOngoing.fetch_sub(1);
-							//db_cv.notify_all();
-						}
-
-						if (sqlite3_resut == SQLITE_LOCKED  )
-						{
-							sleep_time_ms = PREP_CMD_RETRY_BASE + (random() %  PREP_CMD_RETRY_BACKOFF);
-							retries++;
-
-							Logger::getLogger()->info("SQLITE_LOCKED - record :%d: - retry number :%d: sleep time ms :%d:",i, retries, sleep_time_ms);
-
-							std::this_thread::sleep_for(std::chrono::milliseconds(sleep_time_ms));
-						}
-						if (sqlite3_resut == SQLITE_BUSY)
-						{
-							ostringstream threadId;
-							threadId << std::this_thread::get_id();
-
-							sleep_time_ms = PREP_CMD_RETRY_BASE + (random() %  PREP_CMD_RETRY_BACKOFF);
-							retries++;
-
-							Logger::getLogger()->info("SQLITE_BUSY - thread :%s: - record :%d: - retry number :%d: sleep time ms :%d:", threadId.str().c_str() ,i , retries, sleep_time_ms);
-
-							std::this_thread::sleep_for(std::chrono::milliseconds(sleep_time_ms));
-						}
-					} while (retries < PREP_CMD_MAX_RETRIES && (sqlite3_resut == SQLITE_LOCKED || sqlite3_resut == SQLITE_BUSY));
-
-					if (sqlite3_resut == SQLITE_DONE)
-					{
-						rowNumber++;
-
-						sqlite3_clear_bindings(stmt);
-						sqlite3_reset(stmt);
-					}
-					else
-					{
-						raiseError("appendReadings",
-								   "Inserting a row into SQLIte using a prepared command - asset_code :%s: error :%s: reading :%s: ",
-								   asset_code,
-								   sqlite3_errmsg(dbHandle),
-								   reading.c_str());
-
-						sqlite3_exec(dbHandle, "ROLLBACK TRANSACTION", NULL, NULL, NULL);
-						m_streamOpenTransaction = true;
-						return -1;
-					}
+					sqlite3_bind_text(stmt, 1, user_ts,         -1, SQLITE_STATIC);
+					sqlite3_bind_text(stmt, 2, asset_code,      -1, SQLITE_STATIC);
+					sqlite3_bind_text(stmt, 3, reading.c_str(), -1, SQLITE_STATIC);
 				}
 			}
-		}
-		rowNumber = i;
+			curReading++;
 
+
+			retries =0;
+			sleep_time_ms = 0;
+
+			// Retry mechanism in case SQLlite DB is locked
+			do {
+				// Insert the row using a lock to ensure one insert at time
+				{
+					m_writeAccessOngoing.fetch_add(1);
+					//unique_lock<mutex> lck(db_mutex);
+
+					sqlite3_resut = sqlite3_step(stmt);
+
+					m_writeAccessOngoing.fetch_sub(1);
+					//db_cv.notify_all();
+				}
+
+				if (sqlite3_resut == SQLITE_LOCKED  )
+				{
+					sleep_time_ms = PREP_CMD_RETRY_BASE + (random() %  PREP_CMD_RETRY_BACKOFF);
+					retries++;
+
+					Logger::getLogger()->info("SQLITE_LOCKED - record :%d: - retry number :%d: sleep time ms :%d:",i, retries, sleep_time_ms);
+
+					std::this_thread::sleep_for(std::chrono::milliseconds(sleep_time_ms));
+				}
+				if (sqlite3_resut == SQLITE_BUSY)
+				{
+					ostringstream threadId;
+					threadId << std::this_thread::get_id();
+
+					sleep_time_ms = PREP_CMD_RETRY_BASE + (random() %  PREP_CMD_RETRY_BACKOFF);
+					retries++;
+
+					Logger::getLogger()->info("SQLITE_BUSY - thread :%s: - record :%d: - retry number :%d: sleep time ms :%d:", threadId.str().c_str() ,i , retries, sleep_time_ms);
+
+					std::this_thread::sleep_for(std::chrono::milliseconds(sleep_time_ms));
+				}
+			} while (retries < PREP_CMD_MAX_RETRIES && (sqlite3_resut == SQLITE_LOCKED || sqlite3_resut == SQLITE_BUSY));
+
+			if (sqlite3_resut == SQLITE_DONE)
+			{
+				rowNumber++;
+
+				sqlite3_clear_bindings(stmt);
+				sqlite3_reset(stmt);
+			}
+			else
+			{
+				raiseError("streamReadings",
+						   "Inserting a row into SQLite using a prepared command - asset_code :%s: error :%s: reading :%s: ",
+						   asset_code,
+						   sqlite3_errmsg(dbHandle),
+						   reading.c_str());
+
+				sqlite3_exec(dbHandle, "ROLLBACK TRANSACTION", NULL, NULL, NULL);
+				m_streamOpenTransaction = true;
+				return -1;
+			}
+		}
+		rowNumber = curReading;
 	} catch (exception e) {
 
-		raiseError("appendReadings", "Inserting a row into SQLIte using a prepared command - error :%s:", e.what());
+		raiseError("appendReadings", "Inserting a row into SQLite using a prepared statement  - error :%s:", e.what());
 
 		sqlite3_exec(dbHandle, "ROLLBACK TRANSACTION", NULL, NULL, NULL);
 		m_streamOpenTransaction = true;
@@ -584,12 +733,9 @@ int Connection::readingStream(ReadingStream **readings, bool commit)
 	timersub(&t2, &t1, &tm);
 	timeT2 = tm.tv_sec + ((double)tm.tv_usec / 1000000);
 
-	Logger::getLogger()->debug("readingStream row count :%d:", rowNumber);
 
-	Logger::getLogger()->debug("readingStream Timing - stream handling %.3f seconds - commit/finalize %.3f seconds",
-							   timeT1,
-							   timeT2
-	);
+	Logger::getLogger()->warn("readingStream Timing with %d rows - stream handling %.3f seconds - commit/finalize %.3f seconds",
+				rowNumber, timeT1, timeT2);
 #endif
 
 	return rowNumber;
@@ -609,7 +755,7 @@ bool     add_row = false;
 const char   *user_ts;
 const char   *asset_code;
 string        reading;
-sqlite3_stmt *stmt;
+sqlite3_stmt *stmt, *batch_stmt;
 int           sqlite3_resut;
 string        now;
 
@@ -621,7 +767,7 @@ int sleep_time_ms = 0;
 	threadId << std::this_thread::get_id();
 
 #if INSTRUMENT
-	Logger::getLogger()->debug("appendReadings start thread :%s:", threadId.str().c_str());
+	Logger::getLogger()->warn("appendReadings start thread :%s:", threadId.str().c_str());
 
 	struct timeval	start, t1, t2, t3, t4, t5;
 #endif
@@ -630,43 +776,212 @@ int sleep_time_ms = 0;
 	gettimeofday(&start, NULL);
 #endif
 
-	ParseResult ok = doc.Parse(readings);
+	int len = strlen(readings) + 1;
+	char *readingsCopy = NULL;
+	ParseResult ok;
+#if INSITU_THRESHOLD
+	if (len > INSITU_THRESHOLD)
+	{
+		readingsCopy = (char *)malloc(len);
+		memcpy(readingsCopy, readings, len);
+		ok = doc.ParseInsitu(readingsCopy);
+	}
+	else
+#endif
+	{
+		ok = doc.Parse(readings);
+	}
 	if (!ok)
 	{
  		raiseError("appendReadings", GetParseError_En(doc.GetParseError()));
+		if (readingsCopy)
+		{
+			free(readingsCopy);
+		}
 		return -1;
 	}
 
 	if (!doc.HasMember("readings"))
 	{
  		raiseError("appendReadings", "Payload is missing a readings array");
+		if (readingsCopy)
+		{
+			free(readingsCopy);
+		}
 		return -1;
 	}
 	Value &readingsValue = doc["readings"];
 	if (!readingsValue.IsArray())
 	{
 		raiseError("appendReadings", "Payload is missing the readings array");
+		if (readingsCopy)
+		{
+			free(readingsCopy);
+		}
 		return -1;
 	}
 
 	const char *sql_cmd="INSERT INTO  " READINGS_DB_NAME_BASE ".readings ( user_ts, asset_code, reading ) VALUES  (?,?,?)";
+	string cmd = sql_cmd;
+	for (int i = 0; i < APPEND_BATCH_SIZE - 1; i++)
+	{
+		cmd.append(", (?,?,?)");
+	}
 
 	sqlite3_prepare_v2(dbHandle, sql_cmd, strlen(sql_cmd), &stmt, NULL);
+	sqlite3_prepare_v2(dbHandle, cmd.c_str(), cmd.length(), &batch_stmt, NULL);
 	{
 	m_writeAccessOngoing.fetch_add(1);
 	//unique_lock<mutex> lck(db_mutex);
 	sqlite3_exec(dbHandle, "BEGIN TRANSACTION", NULL, NULL, NULL);
 
 #if INSTRUMENT
-		gettimeofday(&t1, NULL);
+	gettimeofday(&t1, NULL);
 #endif
 
-	for (Value::ConstValueIterator itr = readingsValue.Begin(); itr != readingsValue.End(); ++itr)
+	Value::ConstValueIterator itr = readingsValue.Begin();
+	SizeType nReadings = readingsValue.Size();
+	unsigned int nBatches = nReadings / APPEND_BATCH_SIZE;
+	Logger::getLogger()->debug("Write %d readings in %d batches of %d", nReadings, nBatches, APPEND_BATCH_SIZE);
+       	for (int batch = 0; batch < nBatches; batch++)
+	{
+		int varNo = 1;
+		for (int readingNo = 0; readingNo < APPEND_BATCH_SIZE; readingNo++)
+		{
+			if (!itr->IsObject())
+			{
+				char err[132];
+				snprintf(err, sizeof(err),
+						"Each reading in the readings array must be an object. Reading %d of batch %d", readingNo, batch);
+				raiseError("appendReadings",err);
+				sqlite3_exec(dbHandle, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
+				if (readingsCopy)
+				{
+					free(readingsCopy);
+				}
+				return -1;
+			}
+
+			add_row = true;
+
+			// Handles - user_ts
+			char formatted_date[LEN_BUFFER_DATE] = {0};
+			user_ts = (*itr)["user_ts"].GetString();
+			if (strcmp(user_ts, "now()") == 0)
+			{
+				getNow(now);
+				user_ts = now.c_str();
+			}
+			else
+			{
+				if (! formatDate(formatted_date, sizeof(formatted_date), user_ts) )
+				{
+					raiseError("appendReadings", "Invalid date |%s|", user_ts);
+					add_row = false;
+				}
+				else
+				{
+					user_ts = formatted_date;
+				}
+			}
+
+			if (add_row)
+			{
+				// Handles - asset_code
+				asset_code = (*itr)["asset_code"].GetString();
+
+				// Handles - reading
+				StringBuffer buffer;
+				Writer<StringBuffer> writer(buffer);
+				(*itr)["reading"].Accept(writer);
+				reading = escape(buffer.GetString());
+
+				if (stmt != NULL)
+				{
+
+					sqlite3_bind_text(batch_stmt, varNo++, user_ts, -1, SQLITE_STATIC);
+					sqlite3_bind_text(batch_stmt, varNo++, asset_code, -1, SQLITE_STATIC);
+					sqlite3_bind_text(batch_stmt, varNo++, reading.c_str(), -1, SQLITE_STATIC);
+				}
+			}
+
+			itr++;
+			if (itr == readingsValue.End())
+				break;
+		}
+
+
+		retries =0;
+		sleep_time_ms = 0;
+
+		// Retry mechanism in case SQLlite DB is locked
+		do {
+			// Insert the row using a lock to ensure one insert at time
+			{
+
+				sqlite3_resut = sqlite3_step(batch_stmt);
+
+			}
+			if (sqlite3_resut == SQLITE_LOCKED  )
+			{
+				sleep_time_ms = PREP_CMD_RETRY_BASE + (random() %  PREP_CMD_RETRY_BACKOFF);
+				retries++;
+
+				Logger::getLogger()->info("SQLITE_LOCKED - record :%d: - retry number :%d: sleep time ms :%d:" ,row ,retries ,sleep_time_ms);
+
+				std::this_thread::sleep_for(std::chrono::milliseconds(sleep_time_ms));
+			}
+			if (sqlite3_resut == SQLITE_BUSY)
+			{
+				ostringstream threadId;
+				threadId << std::this_thread::get_id();
+
+				sleep_time_ms = PREP_CMD_RETRY_BASE + (random() %  PREP_CMD_RETRY_BACKOFF);
+				retries++;
+
+				Logger::getLogger()->info("SQLITE_BUSY - thread :%s: - record :%d: - retry number :%d: sleep time ms :%d:", threadId.str().c_str() ,row, retries, sleep_time_ms);
+
+				std::this_thread::sleep_for(std::chrono::milliseconds(sleep_time_ms));
+			}
+		} while (retries < PREP_CMD_MAX_RETRIES && (sqlite3_resut == SQLITE_LOCKED || sqlite3_resut == SQLITE_BUSY));
+
+		if (sqlite3_resut == SQLITE_DONE)
+		{
+			row += APPEND_BATCH_SIZE;
+
+			sqlite3_clear_bindings(batch_stmt);
+			sqlite3_reset(batch_stmt);
+		}
+		else
+		{
+			raiseError("appendReadings","Inserting a row into SQLite using a prepared command - asset_code :%s: error :%s: reading :%s: ",
+				asset_code,
+				sqlite3_errmsg(dbHandle),
+				reading.c_str());
+
+			sqlite3_exec(dbHandle, "ROLLBACK TRANSACTION", NULL, NULL, NULL);
+			if (readingsCopy)
+			{
+				free(readingsCopy);
+			}
+			return -1;
+		}
+
+
+	}
+
+	Logger::getLogger()->debug("Now do the remaining readings");
+	// Do individual inserts for the remainder of the readings
+	while (itr != readingsValue.End())
 	{
 		if (!itr->IsObject())
 		{
 			raiseError("appendReadings","Each reading in the readings array must be an object");
 			sqlite3_exec(dbHandle, "ROLLBACK TRANSACTION;", NULL, NULL, NULL);
+			if (readingsCopy)
+			{
+				free(readingsCopy);
+			}
 			return -1;
 		}
 
@@ -753,16 +1068,21 @@ int sleep_time_ms = 0;
 				}
 				else
 				{
-					raiseError("appendReadings","Inserting a row into SQLIte using a prepared command - asset_code :%s: error :%s: reading :%s: ",
+					raiseError("appendReadings","Inserting a row into SQLite using a prepared command - asset_code :%s: error :%s: reading :%s: ",
 						asset_code,
 						sqlite3_errmsg(dbHandle),
 						reading.c_str());
 
 					sqlite3_exec(dbHandle, "ROLLBACK TRANSACTION", NULL, NULL, NULL);
+					if (readingsCopy)
+					{
+						free(readingsCopy);
+					}
 					return -1;
 				}
 			}
 		}
+		itr++;
 	}
 
 	sqlite3_resut = sqlite3_exec(dbHandle, "END TRANSACTION", NULL, NULL, NULL);
@@ -787,6 +1107,10 @@ int sleep_time_ms = 0;
 		}
 	}
 
+	if (readingsCopy)
+	{
+		free(readingsCopy);
+	}
 #if INSTRUMENT
 		gettimeofday(&t3, NULL);
 #endif
@@ -804,7 +1128,7 @@ int sleep_time_ms = 0;
 		timersub(&t3, &t2, &tm);
 		timeT3 = tm.tv_sec + ((double)tm.tv_usec / 1000000);
 
-		Logger::getLogger()->debug("appendReadings end   thread :%s: buffer :%10lu: count :%5d: JSON :%6.3f: inserts :%6.3f: finalize :%6.3f:",
+		Logger::getLogger()->warn("appendReadings end   thread :%s: buffer :%10lu: count :%5d: JSON :%6.3f: inserts :%6.3f: finalize :%6.3f:",
 								   threadId.str().c_str(),
 								   strlen(readings),
 								   row,
@@ -1292,7 +1616,7 @@ unsigned int  Connection::purgeReadings(unsigned long age,
 	/*
 	 * We fetch the current rowid and limit the purge process to work on just
 	 * those rows present in the database when the purge process started.
-	 * This provents us looping in the purge process if new readings become
+	 * This prevents us looping in the purge process if new readings become
 	 * eligible for purging at a rate that is faster than we can purge them.
 	 */
 	{
@@ -1391,7 +1715,8 @@ unsigned int  Connection::purgeReadings(unsigned long age,
 		}
 
 		unsigned long m=l;
-
+		sqlite3_stmt *idStmt;
+		bool isMinId = false;
 		while (l <= r)
 		{
 			unsigned long midRowId = 0;
@@ -1401,26 +1726,29 @@ unsigned int  Connection::purgeReadings(unsigned long age,
 
 			// e.g. select id from readings where rowid = 219867307 AND user_ts < datetime('now' , '-24 hours', 'utc');
 			SQLBuffer sqlBuffer;
-			sqlBuffer.append("select id from " READINGS_DB_NAME_BASE "." READINGS_TABLE " where rowid = ");
-			sqlBuffer.append(m);
-			sqlBuffer.append(" AND user_ts < datetime('now' , '-");
-			sqlBuffer.append(age);
+			sqlBuffer.append("select id from " READINGS_DB_NAME_BASE "." READINGS_TABLE " where rowid = ?");
+			sqlBuffer.append(" AND user_ts < datetime('now' , '-?");
 			sqlBuffer.append(" hours');");
+			
 			const char *query = sqlBuffer.coalesce();
 
+			rc = sqlite3_prepare_v2(dbHandle, query, -1, &idStmt, NULL);
+		
+			sqlite3_bind_int(idStmt, 1,(unsigned long) m);
+			sqlite3_bind_int(idStmt, 2,(unsigned long) age);
 
-			rc = SQLexec(dbHandle,
-						 query,
-						 rowidCallback,
-						 &midRowId,
-						 &zErrMsg);
-
-			delete[] query;
-
-			if (rc != SQLITE_OK)
+			if (SQLstep(idStmt) == SQLITE_ROW)
 			{
-				raiseError("purge - phase 1, fetching midRowId ", zErrMsg);
-				sqlite3_free(zErrMsg);
+				midRowId = sqlite3_column_int(idStmt, 0);
+				isMinId = true;
+			}
+			delete[] query;
+			sqlite3_clear_bindings(idStmt);
+			sqlite3_reset(idStmt);
+
+			if (rc == SQLITE_ERROR)
+			{
+				raiseError("purge - phase 1, fetching midRowId ", sqlite3_errmsg(dbHandle));
 				return 0;
 			}
 
@@ -1437,6 +1765,11 @@ unsigned int  Connection::purgeReadings(unsigned long age,
 				// search in later/right half
 				l = m + 1;
 			}
+		}
+
+		if(isMinId)
+		{
+			sqlite3_finalize(idStmt);
 		}
 
 		rowidLimit = m;
@@ -1512,18 +1845,22 @@ unsigned int  Connection::purgeReadings(unsigned long age,
 			unsentPurged = unsent;
 		}
 	}
+#if 0
 	if (m_writeAccessOngoing)
 	{
 		while (m_writeAccessOngoing)
 		{
-			std::this_thread::sleep_for(std::chrono::milliseconds(100));
+			logger->warn("Yielding for another write access");
+			std::this_thread::yield();
 		}
 	}
+#endif
 
 	unsigned int deletedRows = 0;
-	char *zErrMsg = NULL;
 	unsigned int rowsAffected, totTime=0, prevBlocks=0, prevTotTime=0;
 	logger->info("Purge about to delete readings # %ld to %ld", rowidMin, rowidLimit);
+	sqlite3_stmt *stmt;
+	bool rowsAvailableToPurge = false;
 	while (rowidMin < rowidLimit)
 	{
 		blocks++;
@@ -1532,50 +1869,60 @@ unsigned int  Connection::purgeReadings(unsigned long age,
 		{
 			rowidMin = rowidLimit;
 		}
-		SQLBuffer sql;
-		sql.append("DELETE FROM " READINGS_DB_NAME_BASE "." READINGS_TABLE " WHERE rowid <= ");
-		sql.append(rowidMin);
-		sql.append(';');
-		const char *query = sql.coalesce();
-		logSQL("ReadingsPurge", query);
-
+		
 		int rc;
+		{
+			SQLBuffer sql;
+			sql.append("DELETE FROM " READINGS_DB_NAME_BASE "." READINGS_TABLE " WHERE rowid <= ? ;");
+			const char *query = sql.coalesce();
+			
+			rc = sqlite3_prepare_v2(dbHandle, query, strlen(query), &stmt, NULL);
+			if (rc != SQLITE_OK)
+			{
+				raiseError("purgeReadings", sqlite3_errmsg(dbHandle));
+				Logger::getLogger()->error("SQL statement: %s", query);
+				return 0;
+			}
+			delete[] query;
+		}
+		sqlite3_bind_int(stmt, 1,(unsigned long) rowidMin);
+		rowsAvailableToPurge = true;
 		{
 			//unique_lock<mutex> lck(db_mutex);
 //		if (m_writeAccessOngoing) db_cv.wait(lck);
 
 			START_TIME;
 			// Exec DELETE query: no callback, no resultset
-			rc = SQLexec(dbHandle,
-						 query,
-						 NULL,
-						 NULL,
-						 &zErrMsg);
+			rc = SQLstep(stmt);
+
 			END_TIME;
+			
+			logSQL("ReadingsPurge", sqlite3_expanded_sql(stmt));
 
-			logger->debug("%s - DELETE - query :%s: rowsAffected :%ld:",  __FUNCTION__, query ,rowsAffected);
-
-			// Release memory for 'query' var
-			delete[] query;
+			logger->debug("%s - DELETE - query :%s: rowsAffected :%ld:",  __FUNCTION__, sqlite3_expanded_sql(stmt) ,rowsAffected);
 
 			totTime += usecs;
 
 			if(usecs>150000)
 			{
-				std::this_thread::sleep_for(std::chrono::milliseconds(100+usecs/10000));
+				std::this_thread::yield();	// Give other threads a chance to run
 			}
 		}
-
-		if (rc != SQLITE_OK)
+		if (rc == SQLITE_DONE)
 		{
-			raiseError("purge - phase 3", zErrMsg);
-			sqlite3_free(zErrMsg);
+			sqlite3_clear_bindings(stmt);
+			sqlite3_reset(stmt);
+		}
+		else
+		{
+			raiseError("purge - phase 3", sqlite3_errmsg(dbHandle));
 			return 0;
 		}
-
+		
 		// Get db changes
 		rowsAffected = sqlite3_changes(dbHandle);
 		deletedRows += rowsAffected;
+		
 		logger->debug("Purge delete block #%d with %d readings", blocks, rowsAffected);
 
 		if(blocks % RECALC_PURGE_BLOCK_SIZE_NUM_BLOCKS == 0)
@@ -1601,11 +1948,16 @@ unsigned int  Connection::purgeReadings(unsigned long age,
 					purgeBlockSize = MAX_PURGE_DELETE_BLOCK_SIZE;
 				logger->debug("Changed purgeBlockSize to %d", purgeBlockSize);
 			}
-			std::this_thread::sleep_for(std::chrono::milliseconds(100));
+			std::this_thread::yield();	// Give other threads a chance to run
 		}
 		//Logger::getLogger()->debug("Purge delete block #%d with %d readings", blocks, rowsAffected);
 	} while (rowidMin  < rowidLimit);
-
+	
+	if (rowsAvailableToPurge)
+	{
+		sqlite3_finalize(stmt);
+	}
+	
 	unsentRetained = maxrowidLimit - rowidLimit;
 
 	numReadings = maxrowidLimit +1 - minrowidLimit - deletedRows;
@@ -1674,6 +2026,8 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 
 	char *zErrMsg = NULL;
 	int rc;
+	sqlite3_stmt *stmt;
+	sqlite3_stmt *idStmt;
 	rc = SQLexec(dbHandle,
 				 "select count(rowid) from " READINGS_DB_NAME_BASE "." READINGS_TABLE ";",
 		rowidCallback,
@@ -1703,24 +2057,35 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 	numReadings = rowcount;
 	rowsAffected = 0;
 	deletedRows = 0;
-
+	bool rowsAvailableToPurge = true;
 	do
 	{
 		if (rowcount <= rows)
 		{
 			logger->info("Row count %d is less than required rows %d", rowcount, rows);
+			rowsAvailableToPurge = false;
 			break;
 		}
+		
+		SQLBuffer sqlBuffer;
+		sqlBuffer.append("select min(id) from " READINGS_DB_NAME_BASE "." READINGS_TABLE ";");
+		const char *query = sqlBuffer.coalesce();
 
-		rc = SQLexec(dbHandle,
-					 "select min(id) from " READINGS_DB_NAME_BASE "." READINGS_TABLE ";",
-			rowidCallback,
-			&minId,
-			&zErrMsg);
+		rc = sqlite3_prepare_v2(dbHandle, query, -1, &idStmt, NULL);
 
-		if (rc != SQLITE_OK)
+		if (SQLstep(idStmt) == SQLITE_ROW)
 		{
-			raiseError("purge - phaase 0, fetching minimum id", zErrMsg);
+			minId = sqlite3_column_int(idStmt, 0);
+		}
+
+		delete[] query;
+
+		sqlite3_clear_bindings(idStmt);
+		sqlite3_reset(idStmt);
+		
+		if (rc == SQLITE_ERROR)
+		{
+			raiseError("purge - phaase 0, fetching minimum id", sqlite3_errmsg(dbHandle));
 			sqlite3_free(zErrMsg);
 			return 0;
 		}
@@ -1737,27 +2102,43 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 				deletePoint = limit;
 			}
 		}
-		SQLBuffer sql;
+		
+		{
+			SQLBuffer sql;
+			logger->info("RowCount %lu, Max Id %lu, min Id %lu, delete point %lu", rowcount, maxId, minId, deletePoint);
+			
+			sql.append("delete from " READINGS_DB_NAME_BASE "." READINGS_TABLE "  where id <= ? ;");
+			const char *query = sql.coalesce();
 
-		logger->info("RowCount %lu, Max Id %lu, min Id %lu, delete point %lu", rowcount, maxId, minId, deletePoint);
+			rc = sqlite3_prepare_v2(dbHandle, query, strlen(query), &stmt, NULL);
+			
+			if (rc != SQLITE_OK)
+			{
+				raiseError("purgeReadingsByRows", sqlite3_errmsg(dbHandle));
+				Logger::getLogger()->error("SQL statement: %s", query);
+				return 0;
+			}
+			delete[] query;
+		}
+		sqlite3_bind_int(stmt, 1,(unsigned long) deletePoint);
 
-		sql.append("delete from " READINGS_DB_NAME_BASE "." READINGS_TABLE "  where id <= ");
-		sql.append(deletePoint);
-		const char *query = sql.coalesce();
 		{
 			//unique_lock<mutex> lck(db_mutex);
 //			if (m_writeAccessOngoing) db_cv.wait(lck);
 
 			// Exec DELETE query: no callback, no resultset
-			rc = SQLexec(dbHandle, query, NULL, NULL, &zErrMsg);
+			rc = SQLstep(stmt);
+			if (rc == SQLITE_DONE)
+			{
+				sqlite3_clear_bindings(stmt);
+				sqlite3_reset(stmt);
+			}
 			rowsAffected = sqlite3_changes(dbHandle);
 
 			deletedRows += rowsAffected;
 			numReadings -= rowsAffected;
 			rowcount    -= rowsAffected;
 
-			// Release memory for 'query' var
-			delete[] query;
 			logger->debug("Deleted %lu rows", rowsAffected);
 			if (rowsAffected == 0)
 			{
@@ -1772,10 +2153,15 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 				unsentPurged += rowsAffected;
 			}
 		}
-		std::this_thread::sleep_for(std::chrono::milliseconds(1));
+		std::this_thread::yield();	// Give other threads a chane to run
 	} while (rowcount > rows);
 
-
+	if (rowsAvailableToPurge)
+	{
+		sqlite3_finalize(idStmt);
+		sqlite3_finalize(stmt);
+	}
+	
 
 	if (limit)
 	{
@@ -1824,13 +2210,15 @@ unsigned int rowsAffected = 0;
 
 	logSQL("ReadingsAssetPurge", query);
 
+#if 0
 	if (m_writeAccessOngoing)
 	{
 		while (m_writeAccessOngoing)
 		{
-			std::this_thread::sleep_for(std::chrono::milliseconds(100));
+			std::this_thread::yield();
 		}
 	}
+#endif
 
 	START_TIME;
 	// Exec DELETE query: no callback, no resultset

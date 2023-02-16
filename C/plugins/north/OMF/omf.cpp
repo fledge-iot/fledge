@@ -32,6 +32,7 @@
 
 #include <basetypes.h>
 #include <omflinkeddata.h>
+#include <audit_logger.h>
 
 using namespace std;
 using namespace rapidjson;
@@ -223,7 +224,8 @@ const string& OMFData::OMFdataVal() const
 /**
  * OMF constructor
  */
-OMF::OMF(HttpSender& sender,
+OMF::OMF(const string& name,
+	HttpSender& sender,
 	 const string& path,
 	 const long id,
 	 const string& token) :
@@ -231,7 +233,8 @@ OMF::OMF(HttpSender& sender,
 	 m_typeId(id),
 	 m_producerToken(token),
 	 m_sender(sender),
-	 m_legacy(false)
+	 m_legacy(false),
+	 m_name(name)
 {
 	m_lastError = false;
 	m_changeTypeId = false;
@@ -243,14 +246,16 @@ OMF::OMF(HttpSender& sender,
  * OMF constructor with per asset data types
  */
 
-OMF::OMF(HttpSender& sender,
+OMF::OMF(const string& name,
+	 HttpSender& sender,
 	 const string& path,
 	 map<string, OMFDataTypes>& types,
 	 const string& token) :
 	 m_path(path),
 	 m_OMFDataTypes(&types),
 	 m_producerToken(token),
-	 m_sender(sender)
+	 m_sender(sender),
+	 m_name(name)
 {
 	// Get starting type-id sequence or set the default value
 	auto it = (*m_OMFDataTypes).find(FAKE_ASSET_KEY);
@@ -1203,7 +1208,12 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 		}
 
 		string outData;
-		if (legacyType || m_OMFDataTypes->find(keyComplete) != m_OMFDataTypes->end())
+		// Use old style complex types if the user has forced it via configuration,
+		// we are running against an EDS endpoint or Connector Relay or we have types defined for this
+		// asset already
+		if (legacyType || m_PIServerEndpoint == ENDPOINT_EDS || 
+		        m_PIServerEndpoint == ENDPOINT_CR ||
+				m_OMFDataTypes->find(keyComplete) != m_OMFDataTypes->end())
 		{
 			// Legacy type support
 			if (! usingTagHint)
@@ -4728,4 +4738,25 @@ string AFDataMessage;
 		}
 	}
 	return AFDataMessage;
+}
+
+/**
+ * Set the connection state
+ */
+void OMF::setConnected(const bool connectionStatus)
+{
+	if (connectionStatus != m_connected)
+	{
+		// Send an audit event for the change of state
+		string data = "{ \"plugin\" : \"OMF\", \"service\" : \"" + m_name + "\" }";
+		if (!connectionStatus)
+		{
+			AuditLogger::auditLog("NHDWN", "ERROR", data);
+		}
+		else
+		{
+			AuditLogger::auditLog("NHAVL", "INFORMATION", data);
+		}
+	}
+	m_connected = connectionStatus;
 }

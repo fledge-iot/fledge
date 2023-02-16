@@ -797,6 +797,10 @@ void ReadingsCatalogue::multipleReadingsInit(STORAGE_CONFIGURATION &storageConfi
 
 	ConnectionManager *manager = ConnectionManager::getInstance();
 	Connection *connection = manager->allocate();
+	if (! connection->supportsReadings())
+	{
+		return;
+	}
 	dbHandle = connection->getDbHandle();
 
 

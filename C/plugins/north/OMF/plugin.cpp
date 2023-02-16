@@ -87,7 +87,7 @@ using namespace SimpleWeb;
 
 #define ENDPOINT_URL_PI_WEB_API "https://HOST_PLACEHOLDER:PORT_PLACEHOLDER/piwebapi/omf"
 #define ENDPOINT_URL_CR         "https://HOST_PLACEHOLDER:PORT_PLACEHOLDER/ingress/messages"
-#define ENDPOINT_URL_OCS        "https://dat-b.osisoft.com:PORT_PLACEHOLDER/api/v1/tenants/TENANT_ID_PLACEHOLDER/Namespaces/NAMESPACE_ID_PLACEHOLDER/omf"
+#define ENDPOINT_URL_OCS        "https://REGION_PLACEHOLDER.osisoft.com:PORT_PLACEHOLDER/api/v1/tenants/TENANT_ID_PLACEHOLDER/Namespaces/NAMESPACE_ID_PLACEHOLDER/omf"
 #define ENDPOINT_URL_ADH        "https://REGION_PLACEHOLDER.datahub.connect.aveva.com:PORT_PLACEHOLDER/api/v1/Tenants/TENANT_ID_PLACEHOLDER/Namespaces/NAMESPACE_ID_PLACEHOLDER/omf"
 
 #define ENDPOINT_URL_EDS        "http://localhost:PORT_PLACEHOLDER/api/v1/tenants/default/namespaces/default/omf"
@@ -162,14 +162,14 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"displayName": "Endpoint"
 		},
 		"ADHRegions": {
-                        "description": "AVEVA Data Hub region",
-                        "type": "enumeration",
-                        "options":["US-West", "EU-West", "Australia"],
-                        "default": "US-West",
-                        "order": "2",
-                        "displayName": "ADH Region",
-                        "validity" : "PIServerEndpoint == \"AVEVA Data Hub\""
-                },
+			"description": "AVEVA Data Hub or OSIsoft Cloud Services region",
+			"type": "enumeration",
+			"options":["US-West", "EU-West", "Australia"],
+			"default": "US-West",
+			"order": "2",
+			"displayName": "Cloud Service Region",
+			"validity" : "PIServerEndpoint == \"AVEVA Data Hub\" || PIServerEndpoint == \"OSIsoft Cloud Services\""
+		},
 		"SendFullStructure": {
 			"description": "It sends the minimum OMF structural messages to load data into Data Archive if disabled",
 			"type": "boolean",
@@ -410,15 +410,15 @@ typedef struct
 {
 	HttpSender	*sender;                // HTTPS connection
 	OMF 		*omf;                   // OMF data protocol
-	bool        sendFullStructure;      // It sends the minimum OMF structural messages to load data into Data Archive if disabled
+	bool		sendFullStructure;      // It sends the minimum OMF structural messages to load data into Data Archive if disabled
 	bool		compression;            // whether to compress readings' data
 	string		protocol;               // http / https
 	string		hostAndPort;            // hostname:port for SimpleHttps
-	unsigned int	retrySleepTime;     // Seconds between each retry
+	unsigned int	retrySleepTime;     	// Seconds between each retry
 	unsigned int	maxRetry;	        // Max number of retries in the communication
 	unsigned int	timeout;	        // connect and operation timeout
-	string		path;		            // PI Server application path
-	long		typeId;		            // OMF protocol type-id prefix
+	string		path;		        // PI Server application path
+	long		typeId;		        // OMF protocol type-id prefix
 	string		producerToken;	        // PI Server connector token
 	string		formatNumber;	        // OMF protocol Number format
 	string		formatInteger;	        // OMF protocol Integer format
@@ -458,6 +458,7 @@ typedef struct
 			assetsDataTypes;
 	string		omfversion;
 	bool		legacy;
+	string		name;
 } CONNECTOR_INFO;
 
 unsigned long calcTypeShort                (const string& dataTypes);
@@ -520,6 +521,7 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 	 */
 	// Allocate connector struct
 	CONNECTOR_INFO *connInfo = new CONNECTOR_INFO;
+	connInfo->name = configData->getName();
 
 	// PIServerEndpoint handling
 	string PIServerEndpoint = configData->getValue("PIServerEndpoint");
@@ -562,6 +564,12 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 			Logger::getLogger()->debug("End point manually selected - OSIsoft Cloud Services");
 			connInfo->PIServerEndpoint = ENDPOINT_OCS;
 			url                        = ENDPOINT_URL_OCS;
+			std::string region 	   = "dat-b";
+			if(ADHRegions.compare("EU-West") == 0)
+				region = "dat-d";
+			else if(ADHRegions.compare("Australia") == 0)
+				Logger::getLogger()->error("OSIsoft Cloud Services are not hosted in Australia");
+			StringReplace(url, "REGION_PLACEHOLDER", region);
 			endpointPort               = ENDPOINT_PORT_OCS;
 		}
 		else if(PIServerEndpoint.compare("Edge Data Store") == 0)
@@ -653,26 +661,35 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 	connInfo->OCSClientSecret = OCSClientSecret;
 
 	// PI Web API end-point - evaluates the authentication method requested
-	if (PIWebAPIAuthMethod.compare("anonymous") == 0)
+	if (connInfo->PIServerEndpoint == ENDPOINT_PIWEB_API)
 	{
-		Logger::getLogger()->debug("PI Web API end-point - anonymous authentication");
-		connInfo->PIWebAPIAuthMethod = "a";
-	}
-	else if (PIWebAPIAuthMethod.compare("basic") == 0)
-	{
-		Logger::getLogger()->debug("PI Web API end-point - basic authentication");
-		connInfo->PIWebAPIAuthMethod = "b";
-		connInfo->PIWebAPICredentials = AuthBasicCredentialsGenerate(PIWebAPIUserId, PIWebAPIPassword);
-	}
-	else if (PIWebAPIAuthMethod.compare("kerberos") == 0)
-	{
-		Logger::getLogger()->debug("PI Web API end-point - kerberos authentication");
-		connInfo->PIWebAPIAuthMethod = "k";
-		AuthKerberosSetup(connInfo->KerberosKeytab, KerberosKeytabFileName);
+		if (PIWebAPIAuthMethod.compare("anonymous") == 0)
+		{
+			Logger::getLogger()->debug("PI Web API end-point - anonymous authentication");
+			connInfo->PIWebAPIAuthMethod = "a";
+		}
+		else if (PIWebAPIAuthMethod.compare("basic") == 0)
+		{
+			Logger::getLogger()->debug("PI Web API end-point - basic authentication");
+			connInfo->PIWebAPIAuthMethod = "b";
+			connInfo->PIWebAPICredentials = AuthBasicCredentialsGenerate(PIWebAPIUserId, PIWebAPIPassword);
+		}
+		else if (PIWebAPIAuthMethod.compare("kerberos") == 0)
+		{
+			Logger::getLogger()->debug("PI Web API end-point - kerberos authentication");
+			connInfo->PIWebAPIAuthMethod = "k";
+			AuthKerberosSetup(connInfo->KerberosKeytab, KerberosKeytabFileName);
+		}
+		else
+		{
+			Logger::getLogger()->error("Invalid authentication method for PI Web API :%s: ", PIWebAPIAuthMethod.c_str());
+		}
 	}
 	else
 	{
-		Logger::getLogger()->error("Invalid authentication method for PI Web API :%s: ", PIWebAPIAuthMethod.c_str());
+		// For all other endpoint types, set PI Web API authentication to 'anonymous.'
+		// This prevents the HttpSender from inserting PI Web API authentication headers.
+		connInfo->PIWebAPIAuthMethod = "a";
 	}
 
 	// Use compression ?
@@ -790,6 +807,12 @@ void plugin_start(const PLUGIN_HANDLE handle,
 	Logger* logger = Logger::getLogger();
 	CONNECTOR_INFO* connInfo = (CONNECTOR_INFO *)handle;
 
+	logger->info("Host: %s", connInfo->hostAndPort.c_str());
+	if ((connInfo->PIServerEndpoint == ENDPOINT_OCS) || (connInfo->PIServerEndpoint == ENDPOINT_ADH))
+	{
+		logger->info("Namespace: %s", connInfo->OCSNamespace.c_str());
+	}
+
 	// Parse JSON plugin_data
 	Document JSONData;
 	JSONData.Parse(storedData.c_str());
@@ -874,21 +897,33 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 	// Check if the endpoint is PI Web API and if the PI Web API server is available
 	if (!IsPIWebAPIConnected(connInfo, version))
 	{
-		Logger::getLogger()->fatal("OMF Endpoint is not available");
+		Logger::getLogger()->warn("PI Web API server %s is not available. Unable to send data to PI", connInfo->hostAndPort.c_str());
 		return 0;
 	}
 
-	// Until we know better assume OMF 1.2
+	if (version.empty() && connInfo->PIServerEndpoint == ENDPOINT_PIWEB_API)
+	{
+		PIWebAPIGetVersion(connInfo, version, false);
+	}
+
+	Logger::getLogger()->info("Version is '%s'", version.c_str());
+
+	// Until we know better assume OMF 1.2 as this is the base base point
+	// to give us the flexible type support we need
 	connInfo->omfversion = "1.2";
 	if (version.find("2019") != std::string::npos)
 	{
 		connInfo->omfversion = "1.0";
 	}
+	else if (version.find("2020") != std::string::npos)
+	{
+		connInfo->omfversion = "1.1";
+	}
 	else if (version.find("2021") != std::string::npos)
 	{
 		connInfo->omfversion = "1.2";
 	}
-
+	Logger::getLogger()->info("Using OMF Version '%s'", connInfo->omfversion.c_str());
 	/**
 	 * Select the transport library based on the authentication method and transport encryption
 	 * requirements.
@@ -947,7 +982,8 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 	}
 
 	// Allocate the OMF class that implements the PI Server data protocol
-	connInfo->omf = new OMF(*connInfo->sender,
+	connInfo->omf = new OMF(connInfo->name,
+			        *connInfo->sender,
 				connInfo->path,
 				connInfo->assetsDataTypes,
 				connInfo->producerToken);
@@ -960,6 +996,19 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 	connInfo->omf->setPIServerEndpoint(connInfo->PIServerEndpoint);
 	connInfo->omf->setDefaultAFLocation(connInfo->DefaultAFLocation);
 	connInfo->omf->setAFMap(connInfo->AFMap);
+#ifdef EDS_OMF_VERSION
+	if (connInfo->PIServerEndpoint == ENDPOINT_EDS)
+	{
+		connInfo->omfversion = EDS_OMF_VERSION;
+	}
+#endif
+
+	// Version for Connector Relay is 1.0 only.
+	if (connInfo->PIServerEndpoint == ENDPOINT_CR)
+	{
+		connInfo->omfversion = CR_OMF_VERSION;
+	}
+
 	connInfo->omf->setOMFVersion(connInfo->omfversion);
 
 	// Generates the prefix to have unique asset_id across different levels of hierarchies
@@ -977,8 +1026,14 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 	connInfo->omf->setStaticData(&connInfo->staticData);
 	connInfo->omf->setNotBlockingErrors(connInfo->notBlockingErrors);
 
-	connInfo->omf->setLegacyMode(connInfo->legacy);
-
+	if (connInfo->omfversion == "1.1" || connInfo->omfversion == "1.0") {
+		Logger::getLogger()->info("Setting LegacyType to be true for OMF Version '%s'. This will force use old style complex types. ", connInfo->omfversion.c_str());
+		connInfo->omf->setLegacyMode(true);
+	}
+	else
+	{
+		connInfo->omf->setLegacyMode(connInfo->legacy);
+	}
 	// Send the readings data to the PI Server
 	uint32_t ret = connInfo->omf->sendToServer(readings,
 						   connInfo->compression);
@@ -1453,7 +1508,12 @@ void loadSentDataTypes(CONNECTOR_INFO* connInfo,
 	}
 	else
 	{
-		Logger::getLogger()->warn("Persisted data is not of the correct format, ignoring");
+		// There is no stored data when plugin starts first time 
+		if (JSONData.MemberBegin() != JSONData.MemberEnd())
+		{
+			Logger::getLogger()->warn("Persisted data is not of the correct format, ignoring");
+		}
+		
 		OMFDataTypes dataType;
 		dataType.typeId = connInfo->typeId;
 		dataType.types = "{}";
@@ -1505,7 +1565,6 @@ int PIWebAPIGetVersion(CONNECTOR_INFO* connInfo, std::string &version, bool logM
 	_PIWebAPI->setAuthBasicCredentials(connInfo->PIWebAPICredentials);
 
 	int httpCode = _PIWebAPI->GetVersion(connInfo->hostAndPort, version, logMessage);
-
 	delete _PIWebAPI;
 
 	return httpCode;
@@ -1693,6 +1752,7 @@ bool IsPIWebAPIConnected(CONNECTOR_INFO* connInfo, std::string& version)
 	{
 		// Endpoints other than PI Web API fail quickly when they are unavailable
 		// so there is no need to check their status in advance.
+		version = "1.0";
 		s_connected = true;
 	}
 

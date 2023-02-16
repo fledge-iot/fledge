@@ -258,13 +258,13 @@ def _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_d
 
     af_hierarchy_level_list = AF_HIERARCHY_LEVEL.split("/")
     type_id = 1
-    recorded_datapoint = "{}measurement_{}".format(type_id, asset_name)
+    recorded_datapoint = "{}".format(asset_name)
     # Name of asset in the PI server
-    pi_asset_name = "{}-type{}".format(asset_name, type_id)
+    pi_asset_name = "{}".format(asset_name)
 
     while (data_from_pi is None or data_from_pi == []) and retry_count < retries:
         data_from_pi = read_data_from_pi_web_api(pi_host, pi_admin, pi_passwd, pi_db, af_hierarchy_level_list,
-                                                 pi_asset_name, {recorded_datapoint})
+                                                 pi_asset_name, '')
         retry_count += 1
         time.sleep(wait_time * 2)
 

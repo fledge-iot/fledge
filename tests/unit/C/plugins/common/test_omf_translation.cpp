@@ -318,7 +318,7 @@ TEST(OMF_transation, OneReading)
 TEST(OMF_transation, SuperSet)
 {
 	SimpleHttps sender("0.0.0.0:0", 10, 10, 10, 1);
-	OMF omf(sender, "/", 1, "ABC");
+	OMF omf("test", sender, "/", 1, "ABC");
 	// Build a ReadingSet from JSON
 	ReadingSet readingSet(readings_with_different_datapoints);
 	vector<Reading *>readings = readingSet.getAllReadings();
@@ -444,7 +444,7 @@ TEST(OMF_AfHierarchy, HandleAFMapNamesGood)
 
 	// Dummy initializations
 	SimpleHttps sender("0.0.0.0:0", 10, 10, 10, 1);
-	OMF omf(sender, "/", 1, "ABC");
+	OMF omf("test", sender, "/", 1, "ABC");
 
 	omf.setAFMap(af_hierarchy_test01);
 
@@ -474,7 +474,7 @@ TEST(OMF_AfHierarchy, HandleAFMapEmpty)
 
 	// Dummy initializations
 	SimpleHttps sender("0.0.0.0:0", 10, 10, 10, 1);
-	OMF omf(sender, "/", 1, "ABC");
+	OMF omf("test", sender, "/", 1, "ABC");
 
 	// Test
 	omf.setAFMap(af_hierarchy_test02);
@@ -494,7 +494,7 @@ TEST(OMF_AfHierarchy, HandleAFMapNamesBad)
 
 	// Dummy initializations
 	SimpleHttps sender("0.0.0.0:0", 10, 10, 10, 1);
-	OMF omf(sender, "/", 1, "ABC");
+	OMF omf("test", sender, "/", 1, "ABC");
 
 	omf.setAFMap(af_hierarchy_test01);
 	MetadataRulesExist = omf.getMetadataRulesExist();
@@ -510,7 +510,7 @@ TEST(PiServer_NamingRules, NamingRulesCheck)
 
 	// Dummy initializations
 	SimpleHttps sender("0.0.0.0:0", 10, 10, 10, 1);
-	OMF omf(sender, "/", 1, "ABC");
+	OMF omf("test", sender, "/", 1, "ABC");
 
 	ASSERT_EQ(omf.ApplyPIServerNamingRulesInvalidChars("asset_1", &changed), "asset_1");
 	ASSERT_EQ(changed, false);
@@ -547,7 +547,7 @@ TEST(PiServer_NamingRules, Suffix)
 	string assetName;
 	// Dummy initializations
 	SimpleHttps sender("0.0.0.0:0", 10, 10, 10, 1);
-	OMF omf(sender, "/", 1, "ABC");
+	OMF omf("test", sender, "/", 1, "ABC");
 
 	assetName = "asset_1";
 
@@ -578,7 +578,7 @@ TEST(PiServer_NamingRules, Prefix)
 
 	// Dummy initializations
 	SimpleHttps sender("0.0.0.0:0", 10, 10, 10, 1);
-	OMF omf(sender, "/", 1, "ABC");
+	OMF omf("test", sender, "/", 1, "ABC");
 
 	asset="asset_1";
 

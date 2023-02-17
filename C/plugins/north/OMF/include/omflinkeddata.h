@@ -55,7 +55,8 @@ class OMFLinkedData
 					m_integerFormat = integerFormat;
 				};
 	private:
-		std::string	sendContainer(std::string& link, Datapoint *dp, const std::string& format,  OMFHints * hints);
+		std::string	getBaseType(Datapoint *dp, const std::string& format);
+		void		sendContainer(std::string& link, Datapoint *dp, OMFHints * hints, const std::string& baseType);
 		bool		isTypeSupported(DatapointValue& dataPoint)
 				{
 					switch (dataPoint.getType())
@@ -100,5 +101,6 @@ class OMFLinkedData
 		std::string				m_containers;
 		std::string				m_doubleFormat;
 		std::string				m_integerFormat;
+
 };
 #endif

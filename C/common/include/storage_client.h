@@ -98,6 +98,10 @@ class StorageClient {
 								std::vector<std::string> keyValues, const std::string& operation, const std::string& callbackUrl);
 		void		registerManagement(ManagementClient *mgmnt) { m_management = mgmnt; };
 		bool 		createSchema(const std::string&);
+		int 		insertTable(const std::string& schema, const std::string& tableName, const std::vector<InsertValues>& values);
+		int 		insertTable(const std::string& tableName, const std::vector<InsertValues>& values);
+
+
 
 	private:
 		void		handleUnexpectedResponse(const char *operation,

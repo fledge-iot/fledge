@@ -550,6 +550,8 @@ int StorageClient::insertTable(const string& schema, const string& tableName, co
 		convert << values.toJSON();
 		char url[128];
 		snprintf(url, sizeof(url), "/storage/schema/%s/table/%s", schema.c_str(), tableName.c_str());
+
+		Logger::getLogger()->error("insertTable %s ",  convert.str().c_str());
 		auto res = this->getHttpClient()->request("POST", url, convert.str());
 		ostringstream resultPayload;
 		resultPayload << res->content.rdbuf();
@@ -1837,5 +1839,71 @@ int StorageClient::updateTable(const string& schema, const string& tableName, st
 int StorageClient::updateTable(const string& tableName, std::vector<std::pair<InsertValue*, Where*> >& updates, const UpdateModifier *modifier)
 {
 	return updateTable(DEFAULT_SCHEMA, tableName, updates, modifier);
+}
+
+int StorageClient::insertTable(const string& tableName, const std::vector<InsertValues>&  values)
+{
+	Logger::getLogger()->error("========================insertTable called");
+	return insertTable(DEFAULT_SCHEMA, tableName, values);
+}
+/**
+ * Insert data into an arbitrary table
+ *
+ * @param schema        The name of the schema to insert into
+ * @param tableName     The name of the table into which data will be added
+ * @param values        The values to insert into the table
+ * @return int          The number of rows inserted
+ */
+int StorageClient::insertTable(const string& schema, const string& tableName, const std::vector<InsertValues>&  values)
+{
+        try {
+//                ostringstream convert;
+
+//                convert << values.toJSON();
+
+		ostringstream convert;
+               // convert << "{ \"inserts\" : [ ";
+
+                for (std::vector<InsertValues>::const_iterator it = values.cbegin();
+                                                 it != values.cend(); ++it)
+                {
+                        if (it != values.cbegin())
+                        {
+                                convert << ", ";
+                        }
+                        convert <<  it->toJSON() ;
+                }
+                //convert << " ] }";
+
+
+                char url[128];
+                snprintf(url, sizeof(url), "/storage/schema/%s/table/%s", schema.c_str(), tableName.c_str());
+
+                Logger::getLogger()->error("+++++++++++++++++++++++insertTable: convert.str() =  %s ",  convert.str().c_str());
+                auto res = this->getHttpClient()->request("POST", url, convert.str());
+                ostringstream resultPayload;
+                resultPayload << res->content.rdbuf();
+                if (res->status_code.compare("200 OK") == 0 || res->status_code.compare("201 Created") == 0)
+                {
+
+                        Document doc;
+                        doc.Parse(resultPayload.str().c_str());
+                        if (doc.HasParseError())
+                        {
+                                m_logger->info("POST result %s.", res->status_code.c_str());
+                                m_logger->error("Failed to parse result of insertTable. %s. Document is %s",
+                                                GetParseError_En(doc.GetParseError()),
+                                                resultPayload.str().c_str());
+                                return -1;
+                        }
+                        else if (doc.HasMember("message"))
+	                       return doc["rows_affected"].GetInt();
+                }
+                handleUnexpectedResponse("Insert table", res->status_code, resultPayload.str());
+        } catch (exception& ex) {
+                handleException(ex, "insert into table %s", tableName.c_str());
+                throw;
+        }
+        return 0;
 }
 

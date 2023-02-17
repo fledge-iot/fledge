@@ -50,6 +50,7 @@ void StatsHistory::run() const
 	std::signal(SIGSTOP, signalHandler);
 	std::signal(SIGTERM, signalHandler);
 
+	Logger::getLogger()->error("run start");
 	if (m_dryRun)
 		return;
 
@@ -59,11 +60,13 @@ void StatsHistory::run() const
 	ResultSet *keySet = getStorageClient()->queryTable("statistics", query);
 
 	ResultSet::RowIterator rowIter = keySet->firstRow();
-	InsertValues historyValues;
+	std::vector<InsertValues> historyValues;
 	vector<pair<InsertValue *, Where *>> updateValues;
 
         do {
 		string key = (*rowIter)->getColumn("key")->getString();
+
+		Logger::getLogger()->error("key = %s" , key.c_str());
 		try {
 			processKey(key, historyValues, updateValues);
 		} catch (exception e) {
@@ -73,10 +76,23 @@ void StatsHistory::run() const
 	} while (keySet->hasNextRow(rowIter));
 
 	int n_rows;
+
+	for ( auto it = historyValues.begin(); it != historyValues.end() ; ++it )
+	{
+		InsertValues temp = *it;
+		for ( auto i : temp)
+		{
+			Logger::getLogger()->error(" insertvalue.size() = %d", temp.size());
+		}
+
+	}
+	Logger::getLogger()->error("++++++++++++++++++++++++++++++calling inserttable ");
         if ((n_rows = getStorageClient()->insertTable("statistics_history", historyValues)) < 1)
         {
                 getLogger()->error("Failed to insert rows to statisitics history table ");
         }
+
+
 
 	if (getStorageClient()->updateTable("statistics", updateValues) < 1)
         {
@@ -100,6 +116,9 @@ void StatsHistory::run() const
 	}
 
 	delete keySet;
+
+	Logger::getLogger()->error("run end");
+
 }
 
 /**
@@ -110,7 +129,7 @@ void StatsHistory::run() const
  * @param updateValues   Values to be updated in statistics
  * @return void
  */
-void StatsHistory::processKey(const string& key, InsertValues& historyValues, std::vector<std::pair<InsertValue*, Where *> > &updateValues) const
+void StatsHistory::processKey(const std::string& key, std::vector<InsertValues> &historyValues, std::vector<std::pair<InsertValue*, Where *> > &updateValues) const
 {
 	Query	query(new Where("key", Equals, key));
 
@@ -127,11 +146,14 @@ void StatsHistory::processKey(const string& key, InsertValues& historyValues, st
 	int val = ((*values)[0])->getColumn("value")->getInteger();
 	int prev = ((*values)[0])->getColumn("previous_value")->getInteger();
 	delete values;
-	
+
+	InsertValues iValue;	
 	// Insert the row into the configuration history
-	historyValues.push_back(InsertValue("key", key.c_str()));
-	historyValues.push_back(InsertValue("value", val - prev));
-	historyValues.push_back(InsertValue("history_ts", "now()"));
+	iValue.push_back(InsertValue("key", key.c_str()));
+	iValue.push_back(InsertValue("value", val - prev));
+	iValue.push_back(InsertValue("history_ts", "now()"));
+
+	historyValues.push_back(iValue);
 
 	// Update the previous value in the statistics row
 

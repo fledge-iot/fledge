@@ -31,7 +31,7 @@ class StatsHistory : public FledgeProcess
 		void			run() const;
 
 	private:
-		void processKey(const std::string& key, InsertValues& historyValues, 
+		void processKey(const std::string& key, std::vector<InsertValues> &historyValues, 
 			std::vector<std::pair<InsertValue *, Where *> > &updateValues) const;
 
 };

@@ -9,14 +9,6 @@ if [ ! -d "${FLEDGE_ROOT}" ]; then
 	exit 1
 fi
 
-if [ ! -d "${FLEDGE_ROOT}/tasks" ]; then
-	logger "Fledge home directory is missing the C installation"
-	exit 1
-fi
-
-# We run the C code from the tasks directory
-cd "${FLEDGE_ROOT}/tasks"
-
 os_name=`(grep -o '^NAME=.*' /etc/os-release | cut -f2 -d\" | sed 's/"//g')`
 
 if [[ $os_name == *"Raspbian"*  ]]; then
@@ -24,5 +16,6 @@ if [[ $os_name == *"Raspbian"*  ]]; then
 	cpulimit -l 40 -- $FLEDGE_ROOT/tasks/statistics_history "$@"
 else
 	# Standard execution on other platforms
+	logger "XYZ $FLEDGE_ROOT"
 	$FLEDGE_ROOT/tasks/statistics_history "$@"
 fi

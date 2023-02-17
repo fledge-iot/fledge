@@ -19,6 +19,18 @@
 .. |update_certificate| image:: images/update_certificate.jpg
 
 
+.. Links
+.. |REST API| raw:: html
+
+   <a href="rest_api_guide/02_RESTauthentication.html">REST API</a>
+
+.. |Require User Login| raw:: html
+
+    <a href="#requiring-user-login">Require User Login</a>
+
+.. |User Management| raw:: html
+
+    <a href="#user-management">User Management</a>
 
 *****************
 Securing Fledge
@@ -243,3 +255,47 @@ To add a new certificate select the *Import* icon in the top right of the certif
 +----------------------+
 
 A dialog will appear that allows a key file and/or a certificate file to be selected and uploaded to the *Certificate Store*. An option allows to allow overwrite of an existing certificate. By default certificates may not be overwritten.
+
+
+Generate a new auth certificates for user login
+-----------------------------------------------
+
+Default ca certificate is available inside $FLEDGE_DATA/etc/certs and named as ca.cert. Also default admin and non-admin certs are available in the same location which will be used for Login with Certificate in Fledge i.e admin.cert, user.cert. See |Require User Login|
+
+Below are the steps to create custom certificate along with existing fledge based ca signed for auth certificates.
+
+a) Create a new certificate for username. Let say **test**
+
+.. code-block:: console
+
+    $ cd $FLEDGE_ROOT
+    $ ./scripts/auth_certificates user test 365
+
+    Here script arguments are: $1=user $2=FLEDGE_USERNAME $3=SSL_DAYS_EXPIRATION
+
+And now you can find **test** cert inside $FLEDGE_DATA/etc/certs/
+
+b) Now, it's time to create user with name **test** (case sensitive). Also only admin can create user. Below are the cURL Commands
+
+.. code-block:: console
+
+    $ AUTH_TOKEN=$(curl -d '{"username": "admin", "password": "fledge"}' -sX POST <PROTOCOL>://<FLEDGE_IP>:<FLEDGE_REST_API_PORT>/fledge/login | jq '.token' | tr -d '""')
+    $ curl -H "authorization: $AUTH_TOKEN" -skX POST <PROTOCOL>://<FLEDGE_IP>:<FLEDGE_REST_API_PORT>/fledge/admin/user -d '{"username":"test","real_name":"Test","access_method":"cert","description":"Non-admin based role","role_id":2}'
+
+.. note::
+
+    role_id:2 (non-admin user) | if new user requires admin privileges then pass role_id:1
+
+You may also refer the documentation of |REST API| cURL commands. If you are not comfortable with cURL commands then use the GUI steps |User Management| and make sure Login with admin user.
+
+.. note::
+
+   Steps a (cert creation) and b (create user) can be executed in any order.
+
+c) Now you can login with the newly created user **test**, with the following cURL
+
+.. code-block:: console
+
+    $ curl -T $FLEDGE_DATA/etc/certs/test.cert -skX POST <PROTOCOL>://<FLEDGE_IP>:<FLEDGE_REST_API_PORT>/fledge/login
+
+Or use GUI |Require User Login|

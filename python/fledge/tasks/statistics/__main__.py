@@ -20,4 +20,5 @@ if __name__ == '__main__':
     _logger = logger.setup("StatisticsHistory")
     statistics_history_process = StatisticsHistory()
     loop = asyncio.get_event_loop()
+    _logger.error("XYZ stats")
     loop.run_until_complete(statistics_history_process.run())

@@ -1325,7 +1325,7 @@ std::size_t arr = data.find("inserts");
 				}
 				columID++ ;
 			}
-		
+			
 			if (sqlite3_exec(dbHandle, "BEGIN TRANSACTION", NULL, NULL, NULL) != SQLITE_OK)
 			{
 				raiseError("insert", sqlite3_errmsg(dbHandle));

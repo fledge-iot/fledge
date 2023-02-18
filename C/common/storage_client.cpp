@@ -555,7 +555,6 @@ int StorageClient::insertTable(const string& schema, const string& tableName, co
 		resultPayload << res->content.rdbuf();
 		if (res->status_code.compare("200 OK") == 0 || res->status_code.compare("201 Created") == 0)
 		{
-
 			Document doc;
 			doc.Parse(resultPayload.str().c_str());
 			if (doc.HasParseError())

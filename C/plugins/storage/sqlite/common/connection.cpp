@@ -1193,7 +1193,6 @@ Document	document;
 ostringstream convert;
 sqlite3_stmt *stmt;
 int rc;
-
 std::size_t arr = data.find("inserts");
 
 	if (!m_schemaManager->exists(dbHandle, schema))
@@ -1295,7 +1294,6 @@ std::size_t arr = data.find("inserts");
 				if (itr->value.IsString())
 				{
 					const char *str = itr->value.GetString();
-
 					if (strcmp(str, "now()") == 0)
 					{
 						sqlite3_bind_text(stmt, columID, SQLITE3_NOW, -1, SQLITE_TRANSIENT);
@@ -1335,7 +1333,6 @@ std::size_t arr = data.find("inserts");
 				return -1;
 			}
 
-
 			m_writeAccessOngoing.fetch_add(1);
 
 			int sqlite3_resut = SQLstep(stmt);
@@ -1346,7 +1343,6 @@ std::size_t arr = data.find("inserts");
 			{
 				sqlite3_clear_bindings(stmt);
 				sqlite3_reset(stmt);
-
 			}
 			else
 			{
@@ -1364,7 +1360,6 @@ std::size_t arr = data.find("inserts");
 					}
 				
 				}
-
 			}
 			
 			if (sqlite3_exec(dbHandle, "COMMIT TRANSACTION", NULL, NULL, NULL) != SQLITE_OK)

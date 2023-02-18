@@ -1828,7 +1828,6 @@ int StorageClient::updateTable(const string& schema, const string& tableName, st
  *
  * @param tableName     The name of the table into which data will be added
  * @param updates       The values to insert into the table
- * @param where         The conditions to match the updated rows
  * @param modifier      Optional storage modifier
  * @return int          The number of rows updated
  */

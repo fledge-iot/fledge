@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run a Fledge south task written in C
+# Run a Fledge task written in C
 if [ "${FLEDGE_ROOT}" = "" ]; then
 	FLEDGE_ROOT=/usr/local/fledge
 fi

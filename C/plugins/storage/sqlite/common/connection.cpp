@@ -1194,7 +1194,6 @@ ostringstream convert;
 sqlite3_stmt *stmt;
 int rc;
 
-Logger::getLogger()->error("+++++++++++++++++++++++++++++++++++++++++++data = %s", data.c_str());
 std::size_t arr = data.find("inserts");
 
 	if (!m_schemaManager->exists(dbHandle, schema))
@@ -1262,7 +1261,6 @@ std::size_t arr = data.find("inserts");
 				}
 				sql.append(itr->name.GetString());
 
-				Logger::getLogger()->error("sql = %s ", itr->name.GetString());
 				col++;
 			}
 			
@@ -1278,7 +1276,6 @@ std::size_t arr = data.find("inserts");
 			sql.append(");");
 			
 			const char *query = sql.coalesce();
-			Logger::getLogger()->error("insert::query = %s", query);
 			
 			rc = sqlite3_prepare_v2(dbHandle, query, -1, &stmt, NULL);
 			if (rc != SQLITE_OK)
@@ -1299,7 +1296,6 @@ std::size_t arr = data.find("inserts");
 				{
 					const char *str = itr->value.GetString();
 
-					Logger::getLogger()->error("insert::str %s", str);
 					if (strcmp(str, "now()") == 0)
 					{
 						sqlite3_bind_text(stmt, columID, SQLITE3_NOW, -1, SQLITE_TRANSIENT);
@@ -1311,19 +1307,16 @@ std::size_t arr = data.find("inserts");
 				}
 				else if (itr->value.IsDouble()) {
 					sqlite3_bind_double(stmt, columID,itr->value.GetDouble());
-					Logger::getLogger()->error("insert::itr->value.GetDouble() %d", itr->value.GetDouble());
 				}
 					
 				else if (itr->value.IsInt64())
 				{
 					sqlite3_bind_int(stmt, columID,(long)itr->value.GetInt64());
-					Logger::getLogger()->error("insert::itr->value.GetInt() %d", (long)itr->value.GetInt64());
 				}
 					
 				else if (itr->value.IsInt())
 				{
 					sqlite3_bind_int(stmt, columID,itr->value.GetInt());
-					Logger::getLogger()->error("insert::itr->value.GetInt() %d", (long)itr->value.GetInt());
 				}
 					
 				else if (itr->value.IsObject())
@@ -1332,38 +1325,28 @@ std::size_t arr = data.find("inserts");
 					Writer<StringBuffer> writer(buffer);
 					itr->value.Accept(writer);
 					sqlite3_bind_text(stmt, columID, buffer.GetString(), -1, SQLITE_TRANSIENT);
-					Logger::getLogger()->error("insert::buffer.GetString() %s", buffer.GetString());
 				}
 				columID++ ;
 			}
 		
-			Logger::getLogger()->error("++++++++++++++++insert ::executing sqlite3 dbHandle");	
 			if (sqlite3_exec(dbHandle, "BEGIN TRANSACTION", NULL, NULL, NULL) != SQLITE_OK)
 			{
 				raiseError("insert", sqlite3_errmsg(dbHandle));
 				return -1;
 			}
 
-			Logger::getLogger()->error("LOG1");
 
 			m_writeAccessOngoing.fetch_add(1);
 
-			Logger::getLogger()->error("LOG2");
-			
 			int sqlite3_resut = SQLstep(stmt);
 		
-			Logger::getLogger()->error("LOG3");	
 			m_writeAccessOngoing.fetch_sub(1);
 
-			Logger::getLogger()->error("LOG4");
-			
 			if (sqlite3_resut == SQLITE_DONE)
 			{
-				Logger::getLogger()->error("LOG5");
 				sqlite3_clear_bindings(stmt);
 				sqlite3_reset(stmt);
 
-				Logger::getLogger()->error("LOG6");
 			}
 			else
 			{
@@ -1371,7 +1354,6 @@ std::size_t arr = data.find("inserts");
 				raiseError("insert", sqlite3_errmsg(dbHandle));
 				Logger::getLogger()->error("SQL statement: %s", sqlite3_expanded_sql(stmt));
 			
-			Logger::getLogger()->error("LOG7");
 				// transaction is still open, do rollback
 				if (sqlite3_get_autocommit(dbHandle) == 0)
 				{
@@ -1383,18 +1365,14 @@ std::size_t arr = data.find("inserts");
 				
 				}
 
-				Logger::getLogger()->error("LOG8");
 			}
 			
-		Logger::getLogger()->error("LOG9");
 			if (sqlite3_exec(dbHandle, "COMMIT TRANSACTION", NULL, NULL, NULL) != SQLITE_OK)
 			{
 				raiseError("insert", sqlite3_errmsg(dbHandle));
 				return -1;
 			}
 
-			Logger::getLogger()->error("LOG10");
-		
 			delete[] query;
 		}
 		// Increment row count

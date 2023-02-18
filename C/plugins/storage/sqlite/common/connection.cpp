@@ -1333,11 +1333,11 @@ std::size_t arr = data.find("inserts");
 			}
 
 			m_writeAccessOngoing.fetch_add(1);
-
+			
 			int sqlite3_resut = SQLstep(stmt);
-		
+			
 			m_writeAccessOngoing.fetch_sub(1);
-
+			
 			if (sqlite3_resut == SQLITE_DONE)
 			{
 				sqlite3_clear_bindings(stmt);
@@ -1348,7 +1348,7 @@ std::size_t arr = data.find("inserts");
 				failedInsertCount++;
 				raiseError("insert", sqlite3_errmsg(dbHandle));
 				Logger::getLogger()->error("SQL statement: %s", sqlite3_expanded_sql(stmt));
-			
+				
 				// transaction is still open, do rollback
 				if (sqlite3_get_autocommit(dbHandle) == 0)
 				{

@@ -50,7 +50,6 @@ void StatsHistory::run() const
 	std::signal(SIGSTOP, signalHandler);
 	std::signal(SIGTERM, signalHandler);
 
-	Logger::getLogger()->error("run start");
 	if (m_dryRun)
 		return;
 
@@ -66,7 +65,6 @@ void StatsHistory::run() const
         do {
 		string key = (*rowIter)->getColumn("key")->getString();
 
-		Logger::getLogger()->error("key = %s" , key.c_str());
 		try {
 			processKey(key, historyValues, updateValues);
 		} catch (exception e) {
@@ -77,22 +75,10 @@ void StatsHistory::run() const
 
 	int n_rows;
 
-	for ( auto it = historyValues.begin(); it != historyValues.end() ; ++it )
-	{
-		InsertValues temp = *it;
-		for ( auto i : temp)
-		{
-			Logger::getLogger()->error(" insertvalue.size() = %d", temp.size());
-		}
-
-	}
-	Logger::getLogger()->error("++++++++++++++++++++++++++++++calling inserttable ");
         if ((n_rows = getStorageClient()->insertTable("statistics_history", historyValues)) < 1)
         {
                 getLogger()->error("Failed to insert rows to statisitics history table ");
         }
-
-
 
 	if (getStorageClient()->updateTable("statistics", updateValues) < 1)
         {
@@ -116,9 +102,6 @@ void StatsHistory::run() const
 	}
 
 	delete keySet;
-
-	Logger::getLogger()->error("run end");
-
 }
 
 /**

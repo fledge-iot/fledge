@@ -10,7 +10,7 @@
 
 #include <stats_history.h>
 #include <csignal>
-
+#define MAXSIZE 200
 
 using namespace std;
 
@@ -147,11 +147,19 @@ void StatsHistory::processKey(const std::string& key, std::vector<InsertValues> 
 	int prev = ((*values)[0])->getColumn("previous_value")->getInteger();
 	delete values;
 
-	InsertValues iValue;	
+	InsertValues iValue;
+
+	time_t t;
+	struct tm *tmp ;
+	char localTime[MAXSIZE];
+	time(&t);	
+	tmp = localtime(&t);
+	strftime(localTime, sizeof(localTime), "%Y-%m-%d %H:%M:%s", tmp);
+
 	// Insert the row into the configuration history
 	iValue.push_back(InsertValue("key", key.c_str()));
 	iValue.push_back(InsertValue("value", val - prev));
-	iValue.push_back(InsertValue("history_ts", "now()"));
+	iValue.push_back(InsertValue("history_ts", localTime));
 
 	historyValues.push_back(iValue);
 

@@ -1841,9 +1841,15 @@ int StorageClient::updateTable(const string& tableName, std::vector<std::pair<In
 	return updateTable(DEFAULT_SCHEMA, tableName, updates, modifier);
 }
 
+/**
+ * Insert data into an arbitrary table
+ *
+ * @param tableName     The name of the table into which data will be added
+ * @param values        The values to insert into the table
+ * @return int          The number of rows inserted
+ */
 int StorageClient::insertTable(const string& tableName, const std::vector<InsertValues>&  values)
 {
-	Logger::getLogger()->error("========================insertTable called");
 	return insertTable(DEFAULT_SCHEMA, tableName, values);
 }
 /**
@@ -1857,13 +1863,7 @@ int StorageClient::insertTable(const string& tableName, const std::vector<Insert
 int StorageClient::insertTable(const string& schema, const string& tableName, const std::vector<InsertValues>&  values)
 {
         try {
-//                ostringstream convert;
-
-//                convert << values.toJSON();
-
 		ostringstream convert;
-               // convert << "{ \"inserts\" : [ ";
-
                 for (std::vector<InsertValues>::const_iterator it = values.cbegin();
                                                  it != values.cend(); ++it)
                 {
@@ -1873,13 +1873,10 @@ int StorageClient::insertTable(const string& schema, const string& tableName, co
                         }
                         convert <<  it->toJSON() ;
                 }
-                //convert << " ] }";
-
 
                 char url[128];
                 snprintf(url, sizeof(url), "/storage/schema/%s/table/%s", schema.c_str(), tableName.c_str());
 
-                Logger::getLogger()->error("+++++++++++++++++++++++insertTable: convert.str() =  %s ",  convert.str().c_str());
                 auto res = this->getHttpClient()->request("POST", url, convert.str());
                 ostringstream resultPayload;
                 resultPayload << res->content.rdbuf();
@@ -1896,8 +1893,10 @@ int StorageClient::insertTable(const string& schema, const string& tableName, co
                                                 resultPayload.str().c_str());
                                 return -1;
                         }
-                        else if (doc.HasMember("message"))
+                        else if (doc.HasMember("rows_affected"))
+			{
 	                       return doc["rows_affected"].GetInt();
+			}
                 }
                 handleUnexpectedResponse("Insert table", res->status_code, resultPayload.str());
         } catch (exception& ex) {
@@ -1906,4 +1905,3 @@ int StorageClient::insertTable(const string& schema, const string& tableName, co
         }
         return 0;
 }
-

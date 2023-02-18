@@ -1259,7 +1259,6 @@ std::size_t arr = data.find("inserts");
 					sql.append(", ");
 				}
 				sql.append(itr->name.GetString());
-
 				col++;
 			}
 			

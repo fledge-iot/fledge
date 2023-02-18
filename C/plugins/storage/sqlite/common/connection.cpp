@@ -1361,13 +1361,13 @@ std::size_t arr = data.find("inserts");
 				}
 			}
 			
-			
+
 			if (sqlite3_exec(dbHandle, "COMMIT TRANSACTION", NULL, NULL, NULL) != SQLITE_OK)
 			{
 				raiseError("insert", sqlite3_errmsg(dbHandle));
 				return -1;
 			}
-			
+
 			delete[] query;
 		}
 		// Increment row count

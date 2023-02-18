@@ -1367,7 +1367,7 @@ std::size_t arr = data.find("inserts");
 				raiseError("insert", sqlite3_errmsg(dbHandle));
 				return -1;
 			}
-
+		
 			delete[] query;
 		}
 		// Increment row count

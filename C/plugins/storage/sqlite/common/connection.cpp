@@ -1191,7 +1191,7 @@ int Connection::insert(const string& schema, const string& table, const string& 
 {
 Document	document;
 ostringstream convert;
-sqlite3_stmt *stmt;
+sqlite3_stmt *stmt = NULL;
 int rc;
 std::size_t arr = data.find("inserts");
 
@@ -1280,8 +1280,10 @@ std::size_t arr = data.find("inserts");
 			{
 				raiseError("insert", sqlite3_errmsg(dbHandle));
 				Logger::getLogger()->error("SQL statement: %s", query);
+				delete[] query;
 				return -1;
 			}
+			delete[] query;
 
 			// Bind columns with prepared sql query
 			int columID = 1;
@@ -1328,6 +1330,8 @@ std::size_t arr = data.find("inserts");
 			
 			if (sqlite3_exec(dbHandle, "BEGIN TRANSACTION", NULL, NULL, NULL) != SQLITE_OK)
 			{
+				if (stmt)
+					sqlite3_finalize(stmt);
 				raiseError("insert", sqlite3_errmsg(dbHandle));
 				return -1;
 			}
@@ -1364,11 +1368,12 @@ std::size_t arr = data.find("inserts");
 
 			if (sqlite3_exec(dbHandle, "COMMIT TRANSACTION", NULL, NULL, NULL) != SQLITE_OK)
 			{
+				if (stmt)
+					sqlite3_finalize(stmt);
 				raiseError("insert", sqlite3_errmsg(dbHandle));
 				return -1;
 			}
 		
-			delete[] query;
 		}
 		// Increment row count
 		ins++;

@@ -332,8 +332,10 @@ bool forceUpdate = false;
 			{
 				rval = "Use main plugin";
 			}
-			rp["default"].SetString(strdup(rval), strlen(rval));
-			rp["value"].SetString(strdup(rval), strlen(rval));
+			char *ncrval = strdup(rval);
+			rp["default"].SetString(ncrval, strlen(rval));
+			rp["value"].SetString(ncrval, strlen(rval));
+			free(ncrval);
 			logger->info("Storage configuration cache is up to date");
 			return;
 		}

@@ -1141,7 +1141,7 @@ vector<string>  asset_codes;
 		const char *query = sql.coalesce();
 		char *zErrMsg = NULL;
 		int rc;
-		sqlite3_stmt *stmt;
+		sqlite3_stmt *stmt = NULL;
 
 		logSQL("CommonRetrive", query);
 
@@ -1153,6 +1153,8 @@ vector<string>  asset_codes;
 			raiseError("retrieve", sqlite3_errmsg(dbHandle));
 			Logger::getLogger()->error("SQL statement: %s", query);
 			delete[] query;
+			if (stmt)
+				sqlite3_finalize(stmt);
 			return false;
 		}
 
@@ -1278,6 +1280,10 @@ std::size_t arr = data.find("inserts");
 			rc = sqlite3_prepare_v2(dbHandle, query, -1, &stmt, NULL);
 			if (rc != SQLITE_OK)
 			{
+				if (stmt)
+				{
+					sqlite3_finalize(stmt);
+				}
 				raiseError("insert", sqlite3_errmsg(dbHandle));
 				Logger::getLogger()->error("SQL statement: %s", query);
 				delete[] query;
@@ -1330,8 +1336,12 @@ std::size_t arr = data.find("inserts");
 			
 			if (sqlite3_exec(dbHandle, "BEGIN TRANSACTION", NULL, NULL, NULL) != SQLITE_OK)
 			{
+				sqlite3_clear_bindings(stmt);
+				sqlite3_reset(stmt);
 				if (stmt)
+				{
 					sqlite3_finalize(stmt);
+				}
 				raiseError("insert", sqlite3_errmsg(dbHandle));
 				return -1;
 			}
@@ -1352,6 +1362,9 @@ std::size_t arr = data.find("inserts");
 				failedInsertCount++;
 				raiseError("insert", sqlite3_errmsg(dbHandle));
 				Logger::getLogger()->error("SQL statement: %s", sqlite3_expanded_sql(stmt));
+
+				sqlite3_clear_bindings(stmt);
+				sqlite3_reset(stmt);
 				
 				// transaction is still open, do rollback
 				if (sqlite3_get_autocommit(dbHandle) == 0)
@@ -1369,7 +1382,9 @@ std::size_t arr = data.find("inserts");
 			if (sqlite3_exec(dbHandle, "COMMIT TRANSACTION", NULL, NULL, NULL) != SQLITE_OK)
 			{
 				if (stmt)
+				{
 					sqlite3_finalize(stmt);
+				}
 				raiseError("insert", sqlite3_errmsg(dbHandle));
 				return -1;
 			}
@@ -3085,10 +3100,13 @@ int Connection::SQLexec(sqlite3 *db, const char *sql, int (*callback)(void*,int,
 {
 int retries = 0, rc;
 
+	*errmsg = NULL;
 	do {
 #if DO_PROFILE
 		ProfileItem *prof = new ProfileItem(sql);
 #endif
+		if (*errmsg)
+			sqlite3_free(*errmsg);
 		rc = sqlite3_exec(db, sql, callback, cbArg, errmsg);
 #if DO_PROFILE
 		prof->complete();
@@ -3463,7 +3481,7 @@ SQLBuffer sql;
 		const char *query = sql.coalesce();
 		char *zErrMsg = NULL;
 		int rc;
-		sqlite3_stmt *stmt;
+		sqlite3_stmt *stmt = NULL;
 
 		logSQL("GetTableSnapshots", query);
 
@@ -3474,6 +3492,8 @@ SQLBuffer sql;
 		{
 			raiseError("get_table_snapshots", sqlite3_errmsg(dbHandle));
 			Logger::getLogger()->error("SQL statement: %s", query);
+			if (stmt)
+				sqlite3_finalize(stmt);
 			delete[] query;
 			return false;
 		}

@@ -1265,6 +1265,7 @@ int Connection::insert(const std::string& schema,
 			const std::string& table,
 			const std::string& data)
 {
+string sqlCommand = {};
 Document	document;
 ostringstream convert;
 sqlite3_stmt *stmt;
@@ -1319,133 +1320,131 @@ std::size_t arr = data.find("inserts");
 			return -1;
 		}
 
-		{
-			int col = 0;
-			SQLBuffer sql;
-			SQLBuffer values;
-			sql.append("INSERT INTO " + schema + "." + table + " (");
-			
-			for (Value::ConstMemberIterator itr = (*iter).MemberBegin();
-							itr != (*iter).MemberEnd();
-							++itr)
-			{
-				// Append column name
-				if (col)
-				{
-					sql.append(", ");
-				}
-				sql.append(itr->name.GetString());
-				col++;
-			}
-			
-			sql.append(") VALUES (");
-			for ( auto i = 0 ; i < col; i++ )
-			{
-				if (i) 
-				{
-					sql.append(",");
-				}
-				sql.append("?");
-			}
-			sql.append(");");
-			
-			const char *query = sql.coalesce();
-			
-			rc = sqlite3_prepare_v2(dbHandle, query, -1, &stmt, NULL);
-			if (rc != SQLITE_OK)
-			{
-				raiseError("insert", sqlite3_errmsg(dbHandle));
-				Logger::getLogger()->error("SQL statement: %s", query);
-				return -1;
-			}
-
-			// Bind columns with prepared sql query
-			int columID = 1;
-			for (Value::ConstMemberIterator itr = (*iter).MemberBegin();
-							itr != (*iter).MemberEnd();
-							++itr)
-			{
-				
-				if (itr->value.IsString())
-				{
-					const char *str = itr->value.GetString();
-					if (strcmp(str, "now()") == 0)
-					{
-						sqlite3_bind_text(stmt, columID, SQLITE3_NOW, -1, SQLITE_TRANSIENT);
-					}
-					else
-					{	
-						sqlite3_bind_text(stmt, columID, escape(str).c_str(), -1, SQLITE_TRANSIENT);
-					}
-				}
-				else if (itr->value.IsDouble()) {
-					sqlite3_bind_double(stmt, columID,itr->value.IsDouble());
-				}
-					
-				else if (itr->value.IsInt64())
-				{
-					sqlite3_bind_int(stmt, columID,(long)itr->value.GetInt64());
-				}
-					
-				else if (itr->value.IsInt())
-				{
-					sqlite3_bind_int(stmt, columID,itr->value.GetInt());
-				}
-					
-				else if (itr->value.IsObject())
-				{
-					StringBuffer buffer;
-					Writer<StringBuffer> writer(buffer);
-					itr->value.Accept(writer);
-					sqlite3_bind_text(stmt, columID, buffer.GetString(), -1, SQLITE_TRANSIENT);
-				}
-				columID++ ;
-			}
-			
-			if (sqlite3_exec(dbHandle, "BEGIN TRANSACTION", NULL, NULL, NULL) != SQLITE_OK)
-			{
-				raiseError("insert", sqlite3_errmsg(dbHandle));
-				return -1;
-			}
-
-			m_writeAccessOngoing.fetch_add(1);
-			
-			int sqlite3_resut = sqlite3_step(stmt);
-			
-			m_writeAccessOngoing.fetch_sub(1);
-			
-			if (sqlite3_resut == SQLITE_DONE)
-			{
-				sqlite3_clear_bindings(stmt);
-				sqlite3_reset(stmt);
-			}
-			else
-			{
-				failedInsertCount++;
-				raiseError("insert", sqlite3_errmsg(dbHandle));
-				Logger::getLogger()->error("SQL statement: %s", sqlite3_expanded_sql(stmt));
-				
-				// transaction is still open, do rollback
-				if (sqlite3_get_autocommit(dbHandle) == 0)
-				{
-					rc = sqlite3_exec(dbHandle,"ROLLBACK TRANSACTION;",NULL,NULL,NULL);
-					if (rc != SQLITE_OK)
-					{
-						raiseError("insert rollback", sqlite3_errmsg(dbHandle));
-					}
-				
-				}
-			}
-			
-
-			if (sqlite3_exec(dbHandle, "COMMIT TRANSACTION", NULL, NULL, NULL) != SQLITE_OK)
-			{
-				raiseError("insert", sqlite3_errmsg(dbHandle));
-				return -1;
-			}
+		int col = 0;
 		
-			delete[] query;
+		sqlCommand = "INSERT INTO " + schema + "." + table + " (";
+		
+		for (Value::ConstMemberIterator itr = (*iter).MemberBegin();
+						itr != (*iter).MemberEnd();
+						++itr)
+		{
+			// Append column name
+			if (col)
+			{
+				sqlCommand += ", ";
+			}
+			sqlCommand += itr->name.GetString();
+			col++;
 		}
+		
+		sqlCommand += ") VALUES (";
+		for ( auto i = 0 ; i < col; i++ )
+		{
+			if (i) 
+			{
+				sqlCommand += ",";
+			}
+			sqlCommand += "?";
+		}
+		sqlCommand += ");";
+		
+		
+		rc = sqlite3_prepare_v2(dbHandle, sqlCommand.c_str(), sqlCommand.size(), &stmt, NULL);
+		if (rc != SQLITE_OK)
+		{
+			raiseError("insert", sqlite3_errmsg(dbHandle));
+			Logger::getLogger()->error("SQL statement: %s", sqlCommand.c_str());
+			return -1;
+		}
+
+		// Bind columns with prepared sql query
+		int columID = 1;
+		for (Value::ConstMemberIterator itr = (*iter).MemberBegin();
+						itr != (*iter).MemberEnd();
+						++itr)
+		{
+			
+			if (itr->value.IsString())
+			{
+				const char *str = itr->value.GetString();
+				if (strcmp(str, "now()") == 0)
+				{
+					sqlite3_bind_text(stmt, columID, SQLITE3_NOW, -1, SQLITE_TRANSIENT);
+				}
+				else
+				{
+					sqlite3_bind_text(stmt, columID, escape(str).c_str(), -1, SQLITE_TRANSIENT);
+				}
+			}
+			else if (itr->value.IsDouble()) {
+				sqlite3_bind_double(stmt, columID,itr->value.IsDouble());
+			}
+				
+			else if (itr->value.IsInt64())
+			{
+				sqlite3_bind_int(stmt, columID,(long)itr->value.GetInt64());
+			}
+				
+			else if (itr->value.IsInt())
+			{
+				sqlite3_bind_int(stmt, columID,itr->value.GetInt());
+			}
+				
+			else if (itr->value.IsObject())
+			{
+				StringBuffer buffer;
+				Writer<StringBuffer> writer(buffer);
+				itr->value.Accept(writer);
+				sqlite3_bind_text(stmt, columID, buffer.GetString(), -1, SQLITE_TRANSIENT);
+			}
+			columID++ ;
+		}
+		
+		if (sqlite3_exec(dbHandle, "BEGIN TRANSACTION", NULL, NULL, NULL) != SQLITE_OK)
+		{
+			raiseError("insert", sqlite3_errmsg(dbHandle));
+			return -1;
+		}
+
+		m_writeAccessOngoing.fetch_add(1);
+		
+		int sqlite3_resut = sqlite3_step(stmt);
+		
+		m_writeAccessOngoing.fetch_sub(1);
+		
+		if (sqlite3_resut == SQLITE_DONE)
+		{
+			sqlite3_clear_bindings(stmt);
+			sqlite3_reset(stmt);
+		}
+		else
+		{
+			failedInsertCount++;
+			raiseError("insert", sqlite3_errmsg(dbHandle));
+			Logger::getLogger()->error("SQL statement: %s", sqlite3_expanded_sql(stmt));
+			
+			// transaction is still open, do rollback
+			if (sqlite3_get_autocommit(dbHandle) == 0)
+			{
+				rc = sqlite3_exec(dbHandle,"ROLLBACK TRANSACTION;",NULL,NULL,NULL);
+				if (rc != SQLITE_OK)
+				{
+					raiseError("insert rollback", sqlite3_errmsg(dbHandle));
+				}
+			
+			}
+		}
+		
+
+		if (sqlite3_exec(dbHandle, "COMMIT TRANSACTION", NULL, NULL, NULL) != SQLITE_OK)
+		{
+			raiseError("insert", sqlite3_errmsg(dbHandle));
+			return -1;
+		}
+
+		
+		sqlCommand.clear();
+		
 		// Increment row count
 		ins++;
 		

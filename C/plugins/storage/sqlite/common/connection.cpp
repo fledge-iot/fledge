@@ -3190,6 +3190,15 @@ int retries = 0, rc;
 }
 #endif
 
+/**
+ * Execute a step command on a prepared statement but add the ability to retry on error.
+ *
+ * It is assumed that binding has already taken place and that those bound
+ * vaiables are maintained for all retries.
+ *
+ * @param statement	The prepared statement to step
+ * @return int		The status of the final sqlite3_step that was issued
+ */
 int Connection::SQLstep(sqlite3_stmt *statement)
 {
 int retries = 0, rc;

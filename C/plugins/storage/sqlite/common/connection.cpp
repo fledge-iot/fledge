@@ -3198,6 +3198,10 @@ int retries = 0, rc;
 #if DO_PROFILE
 		ProfileItem *prof = new ProfileItem(sqlite3_sql(statement));
 #endif
+		if (retries)
+		{
+			sqlite3_reset(statement);
+		}
 		rc = sqlite3_step(statement);
 #if DO_PROFILE
 		prof->complete();

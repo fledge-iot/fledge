@@ -335,7 +335,6 @@ bool forceUpdate = false;
 			char *ncrval = strdup(rval);
 			rp["default"].SetString(ncrval, strlen(rval));
 			rp["value"].SetString(ncrval, strlen(rval));
-			free(ncrval);
 			logger->info("Storage configuration cache is up to date");
 			return;
 		}

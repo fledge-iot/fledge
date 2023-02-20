@@ -340,7 +340,7 @@ StorageRegistry::run()
 #endif
 		{
 			unique_lock<mutex> mlock(m_cvMutex);
-			while (m_queue.size() == 0 && m_tableInsertQueue.size() == 0)
+			while (m_queue.size() == 0 && m_tableInsertQueue.size() == 0 && m_tableUpdateQueue.size() == 0)
 			{
 				m_cv.wait_for(mlock, std::chrono::seconds(REGISTRY_SLEEP_TIME));
 				if (!m_running)

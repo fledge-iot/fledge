@@ -1154,7 +1154,9 @@ vector<string>  asset_codes;
 			Logger::getLogger()->error("SQL statement: %s", query);
 			delete[] query;
 			if (stmt)
+			{
 				sqlite3_finalize(stmt);
+			}
 			return false;
 		}
 
@@ -3106,7 +3108,10 @@ int retries = 0, rc;
 		ProfileItem *prof = new ProfileItem(sql);
 #endif
 		if (*errmsg)
+		{
 			sqlite3_free(*errmsg);
+			*errmsg = NULL;
+		}
 		rc = sqlite3_exec(db, sql, callback, cbArg, errmsg);
 #if DO_PROFILE
 		prof->complete();

@@ -1,24 +1,27 @@
 #!/usr/bin/env bash
 
+FLEDGE_ROOT="/usr/local/fledge"
+
 _postgres() {
     sudo apt install -y postgresql
     sudo -u postgres createuser -d "$(whoami)"
-    sudo sed -i 's/"plugin":{"value":"sqlite"/"plugin":{"value":"postgres"/g' /usr/local/fledge/data/etc/storage.json
-    sudo sed -i 's/"readingPlugin":{"value":"sqlitememory"/"readingPlugin":{"value":""/g' /usr/local/fledge/data/etc/storage.json
+    [[ -f $FLEDGE_ROOT/data/etc/storage.json ]] && echo $(jq -c --arg STORAGE_PLUGIN_VAL "postgres" '.plugin.value=$STORAGE_PLUGIN_VAL' $FLEDGE_ROOT/data/etc/storage.json) > $FLEDGE_ROOT/data/etc/storage.json || true
+    [[ -f $FLEDGE_ROOT/data/etc/storage.json ]] && echo $(jq -c --arg READING_PLUGIN_VAL "Use main plugin" '.readingPlugin.value=$READING_PLUGIN_VAL' $FLEDGE_ROOT/data/etc/storage.json) > $FLEDGE_ROOT/data/etc/storage.json || true
 }
+
 _sqliteinmemory () {
-    sudo sed -i 's/"plugin":{"value":"postgres"/"plugin":{"value":"sqlite"/g' /usr/local/fledge/data/etc/storage.json
-    sudo sed -i 's/"readingPlugin":{"value":""/"readingPlugin":{"value":"sqlitememory"/g' /usr/local/fledge/data/etc/storage.json
+    [[ -f $FLEDGE_ROOT/data/etc/storage.json ]] && echo $(jq -c --arg STORAGE_PLUGIN_VAL "sqlite" '.plugin.value=$STORAGE_PLUGIN_VAL' $FLEDGE_ROOT/data/etc/storage.json) > $FLEDGE_ROOT/data/etc/storage.json || true
+    [[ -f $FLEDGE_ROOT/data/etc/storage.json ]] && echo $(jq -c --arg READING_PLUGIN_VAL "sqlitememory" '.readingPlugin.value=$READING_PLUGIN_VAL' $FLEDGE_ROOT/data/etc/storage.json) > $FLEDGE_ROOT/data/etc/storage.json || true
 }
 
 _sqlite () {
-    sudo sed -i 's/"plugin":{"value":"postgres"/"plugin":{"value":"sqlite"/g' /usr/local/fledge/data/etc/storage.json
-    sudo sed -i 's/"readingPlugin":{"value":"sqlitememory"/"readingPlugin":{"value":""/g' /usr/local/fledge/data/etc/storage.json
+    [[ -f $FLEDGE_ROOT/data/etc/storage.json ]] && echo $(jq -c --arg STORAGE_PLUGIN_VAL "sqlite" '.plugin.value=$STORAGE_PLUGIN_VAL' $FLEDGE_ROOT/data/etc/storage.json) > $FLEDGE_ROOT/data/etc/storage.json || true
+    [[ -f $FLEDGE_ROOT/data/etc/storage.json ]] && echo $(jq -c --arg READING_PLUGIN_VAL "Use main plugin" '.readingPlugin.value=$READING_PLUGIN_VAL' $FLEDGE_ROOT/data/etc/storage.json) > $FLEDGE_ROOT/data/etc/storage.json || true
 }
 
 _sqlitelb () {
-    sudo sed -i 's/"plugin":{"value":"sqlite"/"plugin":{"value":"sqlitelb"/g' /usr/local/fledge/data/etc/storage.json
-    sudo sed -i 's/"readingPlugin":{"value":"sqlitememory"/"readingPlugin":{"value":""/g' /usr/local/fledge/data/etc/storage.json
+    [[ -f $FLEDGE_ROOT/data/etc/storage.json ]] && echo $(jq -c --arg STORAGE_PLUGIN_VAL "sqlitelb" '.plugin.value=$STORAGE_PLUGIN_VAL' $FLEDGE_ROOT/data/etc/storage.json) > $FLEDGE_ROOT/data/etc/storage.json || true
+    [[ -f $FLEDGE_ROOT/data/etc/storage.json ]] && echo $(jq -c --arg READING_PLUGIN_VAL "Use main plugin" '.readingPlugin.value=$READING_PLUGIN_VAL' $FLEDGE_ROOT/data/etc/storage.json) > $FLEDGE_ROOT/data/etc/storage.json || true
 }
 
 # check for storage plugin
@@ -39,7 +42,7 @@ fi
 
 echo "Stopping Fledge using systemctl ..."
 sudo systemctl stop fledge
-echo "YES" | /usr/local/fledge/bin/fledge reset || exit 1
+echo -e "YES\nYES" | $FLEDGE_ROOT/bin/fledge reset || exit 1
 echo
 echo "Starting Fledge using systemctl ..."
 sudo systemctl start fledge

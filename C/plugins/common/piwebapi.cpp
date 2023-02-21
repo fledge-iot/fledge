@@ -150,6 +150,14 @@ int PIWebAPI::GetVersion(const string& host, string &version, bool logMessage)
 		}
 		httpCode = (int) SimpleWeb::StatusCode::client_error_bad_request;
 	}
+	catch (const Unauthorized& ex)
+	{
+		if (logMessage)
+		{
+			Logger::getLogger()->error("The PI Web API server at %s has rejected our request due to an authentication issue. Please check the authentication method and credentials are correctly configured.", host.c_str());
+		}
+		httpCode = (int) SimpleWeb::StatusCode::client_error_unauthorized;
+	}
 	catch (exception &ex)
 	{
 		if (logMessage)

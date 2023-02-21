@@ -57,12 +57,12 @@ def reset_and_start_fledge(storage_plugin):
     assert os.environ.get('FLEDGE_ROOT') is not None
 
     subprocess.run(["$FLEDGE_ROOT/scripts/fledge kill"], shell=True, check=True)
-    if storage_plugin == 'postgres':
-        subprocess.run(["sed -i 's/sqlite/postgres/g' $FLEDGE_ROOT/data/etc/storage.json"], shell=True, check=True)
-    else:
-        subprocess.run(["sed -i 's/postgres/sqlite/g' $FLEDGE_ROOT/data/etc/storage.json"], shell=True, check=True)
-
-    subprocess.run(["echo YES | $FLEDGE_ROOT/scripts/fledge reset"], shell=True, check=True)
+    storage_plugin_val = "postgres" if storage_plugin == 'postgres' else "sqlite"
+    subprocess.run(
+        ["echo $(jq -c --arg STORAGE_PLUGIN_VAL {} '.plugin.value=$STORAGE_PLUGIN_VAL' "
+         "$FLEDGE_ROOT/data/etc/storage.json) > $FLEDGE_ROOT/data/etc/storage.json".format(storage_plugin_val)],
+        shell=True, check=True)
+    subprocess.run(["echo 'YES\nYES' | $FLEDGE_ROOT/scripts/fledge reset"], shell=True, check=True)
     subprocess.run(["$FLEDGE_ROOT/scripts/fledge start"], shell=True)
     stat = subprocess.run(["$FLEDGE_ROOT/scripts/fledge status"], shell=True, stdout=subprocess.PIPE,
                           stderr=subprocess.PIPE)
@@ -675,6 +675,8 @@ def disable_schedule():
 def pytest_addoption(parser):
     parser.addoption("--storage-plugin", action="store", default="sqlite",
                      help="Database plugin to use for tests")
+    parser.addoption("--readings-plugin", action="store", default="Use main plugin",
+                     help="Readings plugin to use for tests")
     parser.addoption("--fledge-url", action="store", default="localhost:8081",
                      help="Fledge client api url")
     parser.addoption("--use-pip-cache", action="store", default=False,
@@ -804,6 +806,11 @@ def pytest_addoption(parser):
 @pytest.fixture
 def storage_plugin(request):
     return request.config.getoption("--storage-plugin")
+
+
+@pytest.fixture
+def readings_plugin(request):
+    return request.config.getoption("--readings-plugin")
 
 
 @pytest.fixture

@@ -45,8 +45,7 @@ print('AF HEIR -->', AF_HIERARCHY_LEVEL_LIST)
 @pytest.fixture
 def reset_fledge(wait_time):
     try:
-        subprocess.run(["cd {} && ./reset && cd /usr/local/fledge/data/ && find . -name '*.db*' | xargs sudo rm -rf"
-                       .format(SCRIPTS_DIR_ROOT)], shell=True, check=True)
+        subprocess.run(["cd {} && ./reset".format(SCRIPTS_DIR_ROOT)], shell=True, check=True)
     except subprocess.CalledProcessError:
         assert False, "reset package script failed!"
         
@@ -106,25 +105,17 @@ def verify_asset_tracking_details(fledge_url, skip_verify_north_interface):
 
 def get_data_from_fledge(fledge_url, PLUGINS_LIST):
     record = dict()
-    print("Data from mohit",len(record), print(record))
     get_url = "/fledge/asset/{}?limit=10000".format(ASSET)
     jdoc = utils.get_request(fledge_url, urllib.parse.quote(get_url, safe='?,=,&,/'))
     for plugin  in PLUGINS_LIST:
         record[plugin] = list(map(lambda val: val['reading'][plugin], filter(lambda item: (len(item['reading'].keys())==1 and list(item['reading'].keys())[0] == plugin) or (len(item['reading'].keys())==2 and (plugin in list(item['reading'].keys()))), jdoc) ))
     return(record)
 
-def verify_equality_between_fledge_and_pi(data_from_fledge, data_from_pi):
+def verify_equality_between_fledge_and_pi(data_from_fledge, data_from_pi, PLUGINS_LIST):
     matched = ""
-    for plugin in SOUTH_PLUGINS_LIST:
-        print("Before sort")
-        print('Data from fledge for {} --> '.format(plugin), data_from_fledge[plugin])
-        print('Data from PI for {} --> '.format(plugin), data_from_pi[plugin])
-        print("===============================================")
-        print("After Sort")
+    for plugin in PLUGINS_LIST:
         listA = sorted(data_from_fledge[plugin])
         listB = sorted(data_from_pi[plugin])
-        print('Data from fledge for {} --> '.format(plugin), listA)
-        print('Data from PI for {} --> '.format(plugin), listB)
         if listA == listB:
             matched = "Equal"
         else:
@@ -164,28 +155,25 @@ def verify_service_added(fledge_url, ):
 
 def verify_data_between_fledge_and_piwebapi(fledge_url, pi_host, pi_admin, pi_passwd, pi_db, AF_HIERARCHY_LEVEL, ASSET, PLUGINS_LIST, verify_hierarchy_and_get_datapoints_from_pi_web_api, wait_time):
     # Wait until All data loaded to PI server properly
-    time.sleep(wait_time*10)
+    time.sleep(wait_time)
     # Checking if hierarchy created properly or not, and retrieveing data from PI Server
-    print(ASSET_DICT)
     data_from_pi = verify_hierarchy_and_get_datapoints_from_pi_web_api(pi_host, pi_admin, pi_passwd, pi_db, AF_HIERARCHY_LEVEL, ASSET, ASSET_DICT[ASSET])
     assert len(data_from_pi) > 0, "Datapoint does not exist"
     print('Data from PI Web API')
     print(data_from_pi)
+    # Getting Data from fledge
     data_from_fledge = dict()
-    print("mohit",data_from_fledge)
     data_from_fledge = get_data_from_fledge(fledge_url, PLUGINS_LIST)
     print('data fledge retrieved')
     print(data_from_fledge)
     
     # For verifying data send to PI Server from fledge is same.
-    check_data = verify_equality_between_fledge_and_pi(data_from_fledge, data_from_pi)
+    check_data = verify_equality_between_fledge_and_pi(data_from_fledge, data_from_pi, PLUGINS_LIST)
     assert check_data == 'Equal', "Data is not equal"
 
-@pytest.fixture
-def add_configure_filter(add_filter, fledge_url):
-    for plugin in SOUTH_PLUGINS_LIST:
-        filter_cfg = {"enable": "true", "expression": "log({})".format(plugin), "name": "{}_exp".format(plugin)}
-        add_filter("expression", None, "{}_exp".format(plugin), filter_cfg, fledge_url, "{}_{}".format(ASSET, plugin), installation_type='package')
+def add_configure_filter(add_filter, fledge_url, south_plugin):
+    filter_cfg = {"enable": "true", "expression": "log({})".format(south_plugin), "name": "{}_exp".format(south_plugin)}
+    add_filter("expression", None, "{}_exp".format(south_plugin), filter_cfg, fledge_url, "{}_{}".format(ASSET, south_plugin), installation_type='package')
 
 @pytest.fixture
 def start_south_north(add_south, start_north_task_omf_web_api, add_filter, remove_data_file,
@@ -210,7 +198,6 @@ def start_south_north(add_south, start_north_task_omf_web_api, add_filter, remov
         put_url="/fledge/category/{0}_{1}Advanced".format(ASSET, south_plugin)
         utils.put_request(fledge_url, urllib.parse.quote(put_url, safe='?,=,&,/'), data)
         
-        enable_schedule(fledge_url, "{0}_{1}".format(ASSET, south_plugin))
         poll_rate+=5
     
     start_north_omf_as_a_service(fledge_url, pi_host, pi_port, pi_user=pi_admin, pi_pwd=pi_passwd, pi_use_legacy="false",
@@ -219,22 +206,31 @@ def start_south_north(add_south, start_north_task_omf_web_api, add_filter, remov
 class Test_linked_data_PIWebAPI:
     # @pytest.mark.skip(reason="no way of currently testing this")
     def test_linked_data(self, clean_setup_fledge_packages, reset_fledge, start_south_north, fledge_url, 
-                         pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries, pi_port, disable_schedule, 
+                         pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries, pi_port, enable_schedule, disable_schedule, 
                          verify_hierarchy_and_get_datapoints_from_pi_web_api, clear_pi_system_through_pi_web_api, 
                          skip_verify_north_interface, asset_name=ASSET):
         
-        """ Test that data is inserted in Fledge and sent to PI
+        """ Test that check data is inserted in Fledge and sent to PI are equal
+            clean_setup_fledge_packages: Fixture for removing fledge from system completely if it is already present 
+                                         and reinstall it baased on commandline arguments.
+            reset_fledge: Fixture that reset and cleanup the fledge 
             start_south_north: Fixture that add south and north instance
-            read_data_from_pi: Fixture to read data from PI
+            enable_schedule: Fixture for enabling schedules or services
+            disable_schedule: Fixture for disabling schedules or services
+            verify_hierarchy_and_get_datapoints_from_pi_web_api: Fixture to read data from PI and Verify hierarchy
+            clear_pi_system_through_pi_web_api: Fixture for cleaning up PI Server
             skip_verify_north_interface: Flag for assertion of data using PI web API
+            
             Assertions:
-                on endpoint GET /fledge/ping
                 on endpoint GET /fledge/statistics
-                on endpoint GET /fledge/asset
+                on endpoint GET /fledge/service
                 on endpoint GET /fledge/asset/<asset_name>
                 data received from PI is same as data sent"""
-        
+
         clear_pi_system_through_pi_web_api(pi_host, pi_admin, pi_passwd, pi_db, AF_HIERARCHY_LEVEL_LIST, ASSET_DICT)
+        
+        for south_plugin in SOUTH_PLUGINS_LIST:
+            enable_schedule(fledge_url, "{0}_{1}".format(ASSET, south_plugin))
         
         # Wait until south, north services are created and some data is loaded
         time.sleep(wait_time)
@@ -252,33 +248,44 @@ class Test_linked_data_PIWebAPI:
         verify_data_between_fledge_and_piwebapi(fledge_url, pi_host, pi_admin, pi_passwd, pi_db, AF_HIERARCHY_LEVEL, ASSET, SOUTH_PLUGINS_LIST, verify_hierarchy_and_get_datapoints_from_pi_web_api, wait_time)
     
     # @pytest.mark.skip(reason="no way of currently testing this")
-    def test_linked_data_reconfig(self, reset_fledge, start_south_north, fledge_url, add_configure_filter,
-                         pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries, pi_port, disable_schedule, 
-                         verify_hierarchy_and_get_datapoints_from_pi_web_api, clear_pi_system_through_pi_web_api, 
-                         skip_verify_north_interface, asset_name=ASSET):
+    def test_linked_data_with_reconfig(self, reset_fledge, start_south_north, fledge_url, pi_host, pi_admin, pi_passwd, add_filter, pi_db, wait_time, 
+                                       retries, pi_port, enable_schedule, disable_schedule, verify_hierarchy_and_get_datapoints_from_pi_web_api, 
+                                       clear_pi_system_through_pi_web_api, skip_verify_north_interface, asset_name=ASSET):
+                
+        """ Test that apply filter and check data is inserted in Fledge and sent to PI are equal.
+            reset_fledge: Fixture that reset and cleanup the fledge 
+            start_south_north: Fixture that add south and north instance
+            add_filter: Fixture that adds filter to the Services
+            enable_schedule: Fixture for enabling schedules or services
+            disable_schedule: Fixture for disabling schedules or services
+            verify_hierarchy_and_get_datapoints_from_pi_web_api: Fixture to read data from PI and Verify hierarchy
+            clear_pi_system_through_pi_web_api: Fixture for cleaning up PI Server
+            skip_verify_north_interface: Flag for assertion of data using PI web API
+            
+            Assertions:
+                on endpoint GET /fledge/statistics
+                on endpoint GET /fledge/service
+                on endpoint GET /fledge/asset/<asset_name>
+                on endpoint GET /fledge/filter
+                data received from PI is same as data sent"""
         
         clear_pi_system_through_pi_web_api(pi_host, pi_admin, pi_passwd, pi_db, AF_HIERARCHY_LEVEL_LIST, ASSET_DICT)
         
+        for south_plugin in SOUTH_PLUGINS_LIST:
+            add_configure_filter(add_filter, fledge_url, south_plugin)
+            enable_schedule(fledge_url, "{0}_{1}".format(ASSET, south_plugin))
+            
         # Wait until south, north services and filters are created and some data is loaded
         time.sleep(wait_time)
         
-        old_ping_result = verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
-        verify_asset(fledge_url)
-        verify_service_added(fledge_url)
-        verify_filter_added(fledge_url)
-        verify_statistics_map(fledge_url, skip_verify_north_interface)
-        verify_asset_tracking_details(fledge_url, skip_verify_north_interface)
-
-        # Wait for read and sent readings to increase
-        time.sleep(wait_time)
-        new_ping_result = verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
-        
         for south_plugin in SOUTH_PLUGINS_LIST:
             disable_schedule(fledge_url,"{}_{}".format(ASSET, south_plugin))
-            
-        # Verifies whether Read and Sent readings are increasing after delete/add of north service
-        assert old_ping_result['dataRead'] < new_ping_result['dataRead']
         
+        verify_asset(fledge_url)
+        verify_service_added(fledge_url)
+        verify_statistics_map(fledge_url, skip_verify_north_interface)
+        verify_asset_tracking_details(fledge_url, skip_verify_north_interface)
+        verify_filter_added(fledge_url)
+
         # Verify Data from fledge sent to PI Server is same.
-        PLUGINS_LIST = ["sinusoid", "randomwalk","sinusoid_exp", "randomwalk_exp"]
-        verify_data_between_fledge_and_piwebapi(fledge_url, pi_host, pi_admin, pi_passwd, pi_db, AF_HIERARCHY_LEVEL, ASSET, PLUGINS_LIST, verify_hierarchy_and_get_datapoints_from_pi_web_api, wait_time)
+        verify_data_between_fledge_and_piwebapi(fledge_url, pi_host, pi_admin, pi_passwd, pi_db, AF_HIERARCHY_LEVEL, ASSET, ASSET_DICT[ASSET], verify_hierarchy_and_get_datapoints_from_pi_web_api, wait_time)

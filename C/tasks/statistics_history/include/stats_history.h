@@ -33,6 +33,8 @@ class StatsHistory : public FledgeProcess
 	private:
 		void processKey(const std::string& key, std::vector<InsertValues> &historyValues, 
 			std::vector<std::pair<InsertValue *, Where *> > &updateValues) const;
+		std::string getTime(void) const;
+
 
 };
 

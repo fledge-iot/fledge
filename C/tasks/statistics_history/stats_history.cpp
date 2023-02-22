@@ -10,7 +10,13 @@
 
 #include <stats_history.h>
 #include <csignal>
+#include <time.h>
+#include <sys/time.h>
+
 #define MAXSIZE 200
+#define DATETIME_MAX_LEN 52
+#define MICROSECONDS_FORMAT_LEN	10
+#define DATETIME_FORMAT_DEFAULT	"%Y-%m-%d %H:%M:%S"
 
 using namespace std;
 
@@ -45,6 +51,7 @@ StatsHistory::~StatsHistory()
  */
 void StatsHistory::run() const
 {
+
 	// We handle these signals, add more if needed
 	std::signal(SIGINT,  signalHandler);
 	std::signal(SIGSTOP, signalHandler);
@@ -62,27 +69,30 @@ void StatsHistory::run() const
 	std::vector<InsertValues> historyValues;
 	vector<pair<InsertValue *, Where *>> updateValues;
 
-        do {
+        while (keySet->hasNextRow(rowIter) || keySet->isLastRow(rowIter) )
+	{
 		string key = (*rowIter)->getColumn("key")->getString();
-
 		try {
 			processKey(key, historyValues, updateValues);
 		} catch (exception e) {
 			getLogger()->error("Failed to process statisitics key %s, %s", key, e.what());
 		}
-                rowIter = keySet->nextRow(rowIter);
-	} while (keySet->hasNextRow(rowIter));
+		if (!keySet->isLastRow(rowIter))
+                	rowIter = keySet->nextRow(rowIter);
+		else
+			break;
+	}
 
 	int n_rows;
 
         if ((n_rows = getStorageClient()->insertTable("statistics_history", historyValues)) < 1)
         {
-                getLogger()->error("Failed to insert rows to statisitics history table ");
+                getLogger()->error("Failed to insert rows to statistics history table ");
         }
 
 	if (getStorageClient()->updateTable("statistics", updateValues) < 1)
         {
-                getLogger()->error("Failed to update rows to statisitics table");
+                getLogger()->error("Failed to update rows to statistics table");
         }
 
 	for (auto it = updateValues.begin(); it != updateValues.end() ; ++it)
@@ -102,6 +112,7 @@ void StatsHistory::run() const
 	}
 
 	delete keySet;
+
 }
 
 /**
@@ -131,18 +142,13 @@ void StatsHistory::processKey(const std::string& key, std::vector<InsertValues> 
 	delete values;
 
 	InsertValues iValue;
-
-	time_t t;
-	struct tm *tmp ;
-	char localTime[MAXSIZE];
-	time(&t);	
-	tmp = localtime(&t);
-	strftime(localTime, sizeof(localTime), "%Y-%m-%d %H:%M:%s", tmp);
-
+	std::string dateTimeStr = getTime();
 	// Insert the row into the configuration history
+	//
+
 	iValue.push_back(InsertValue("key", key.c_str()));
 	iValue.push_back(InsertValue("value", val - prev));
-	iValue.push_back(InsertValue("history_ts", localTime));
+	iValue.push_back(InsertValue("history_ts", dateTimeStr));
 
 	historyValues.push_back(iValue);
 
@@ -152,3 +158,27 @@ void StatsHistory::processKey(const std::string& key, std::vector<InsertValues> 
 	Where *wKey = new Where("key", Equals, key);
 	updateValues.emplace_back(updateValue, wKey);
 }
+
+std::string StatsHistory::getTime(void) const
+{
+   struct timeval tv ;
+   struct tm timeinfo;
+   gettimeofday(&tv, NULL);
+   gmtime_r(&tv.tv_sec, &timeinfo);
+   char date_time[DATETIME_MAX_LEN];
+   // Create datetime with seconds
+   strftime(date_time,
+	    sizeof(date_time),
+	    DATETIME_FORMAT_DEFAULT,
+	    &timeinfo);
+   std::string dateTimeUTC = date_time;
+   char micro_s[MICROSECONDS_FORMAT_LEN];
+	// Add microseconds
+   snprintf(micro_s,
+            sizeof(micro_s),
+	    ".%06lu",
+	    tv.tv_usec);
+   dateTimeUTC.append(micro_s);
+   return dateTimeUTC;
+}
+

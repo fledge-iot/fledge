@@ -25,6 +25,70 @@ Version History
 Fledge v2
 ==========
 
+v2.1.1
+-------
+
+Release Date: 2023-02-21
+
+- **Fledge Core**
+
+    - New Features:
+       
+       - Plugins that run within the south and north services and north tasks now have access to the audit logging system.
+       - The documentation regarding handling and updating certificates used for authentication has been updated. 
+       - Changes have been made to the purge process in the sqlitelb and sqliteinmemory plugins in order to improve performance.
+       - The south plugin now supports three different modes of polling. Polling at fixed intervals from the time started, polling at fixed times or polling on demand via the control mechanisms.
+       - The support bundle has been updated to include a list of the Python packages installed on the machine.
+       - The configuration category C++ API has been enhanced in the retrieval and setting of all the attributes of a configuration item.
+       - The storage service has been updated to allow other services to subscribe the notifications of inserts into the generic tables.
+       - A change has been made to the configuration of the storage plugin such that rather than having to type correct names for storage plugins the user may now select the plugins to use from a drop down list. Note however that the system must still be restarted for the new storage plugin to take effect.
+       - A number of optimisations have been made to improve the performance of Python filters within a pipeline.
+
+
+    - Bug Fix:
+
+       - An issue that caused the retrieval of system logs for services with white space in the name of the service has been resolved.
+       - An erroneous message was being produced when starting the system using the SQLite in memory storage plugin. This has now been resolved.
+       - Support has been improved for switching between different storage plugins that allows for correct schema creation when using different sqlite plugin variants for configuration and readings storage.
+
+
+- **GUI**
+
+    - Bug Fix:
+
+       - An issue with the handling of script type items whose name was not also script in the user interface that meant that scripts with different names were incorrectly handled has been resolved.
+       - An occasional error that appeared on the Control Script and ACL pages has been resolved.
+       - An issue with editing large scripts or JSON items in the configuration has been resolved.
+       - An issue that caused services with quotes in the name to disappear from the user interface has been resolved.
+       - A text wrapping issue in the system log viewer has been resolved.
+
+
+- **Services & Plugins**
+
+    - New Features:
+
+       - There have been improvements to the OMF north plugin to prevent an issue that could cause the plugging to stop sending data if the type of an individual datapoint changed repeatedly between integer and floating point values. The logging of the the plugin has also been improved, with clearing messages and less repetition of error conditions that persist for long periods.
+       - The audit logger has been made available to plugins running within the notification service.
+       - Support for multiple data centers for OSIsoft Cloud Services (OCS) has been added. OCS is hosted in the US-West and EU-West regions.
+       - A number of optimisations to the SQLite in-memory storage plugin and the SQLiteLB storage plugin have been added that increase the rate at which readings can be stored with these plugins.
+       - The notification service documentation has been updated to include examples of notifications based on statistics and audit logs.
+       - The notification mechanism has been updated to accept raw statistics and statistics rates as an input for notification rules. This allows alerts to be raised for pipeline flows and other internal tasks that generate statistics.
+       - The control dispatcher now has access to the audit logging system.
+       - Notifications can now register for audit log entries to be sent to notification rules. This allows notification to be made based on internal state changes of the system.
+
+
+    - Bug Fix:
+       
+       - An issue with the Modbus-TCP & S7 plugins which caused the polling to fail has been resolved.
+       - A problem with the J1708 & J1939 plugins that caused them to fail if added disabled and then later enabling them has been resolved.
+       - The HTTP North C plugin now supports sending audit log data as well as readings and statistics.
+       - A problem that caused the Azure IoT Core north plugin to fail to send data has been corrected.
+       - The control map configuration item of the Modbus C plugin was incorrectly described, this has now been resolved.
+       - A product version check was made incorrectly if the OMF endpoint type was not PI Web API. This has been fixed.
+       - The plugin would become unresponsive if the OPC UA server was unavailable or if the server URL was incorrect. The only way to stop the plugin in this state was to shut down Fledge. This has been fixed.
+       - Documentation of the AF Location OMFHint in the OMF North plugin page has been updated to include an outline of differences in behaviors between Complex Types and the new Linked Types configuration.
+
+
 v2.1.0
 -------
 
@@ -45,7 +109,7 @@ Release Date: 2022-12-26
       
        - The reset and purge scripts have been improved such that if the reading plugin is different from the storage plugin the data will be removed from the appropriate plugins.
        - A problem that prevented items from being disabled in the user interface when they were not valid for the current configuration has been resolved.
-       - An issue that would sometimes cause the error `Not all updates in a transaction succeeded` to be logged when updating the users access token has been resolved.
+       - An issue that would sometimes cause the error "Not all updates in a transaction succeeded" to be logged when updating the users access token has been resolved.
        - An issue that could cause properties of configuration items to be lost or incorrectly updated has been resolved.
 
 

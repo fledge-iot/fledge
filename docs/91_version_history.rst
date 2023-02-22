@@ -109,7 +109,7 @@ Release Date: 2022-12-26
       
        - The reset and purge scripts have been improved such that if the reading plugin is different from the storage plugin the data will be removed from the appropriate plugins.
        - A problem that prevented items from being disabled in the user interface when they were not valid for the current configuration has been resolved.
-       - An issue that would sometimes cause the error "Not all updates in a transaction succeeded" to be logged when updating the users access token has been resolved.
+       - An issue that would sometimes cause the error `Not all updates in a transaction succeeded` to be logged when updating the users access token has been resolved.
        - An issue that could cause properties of configuration items to be lost or incorrectly updated has been resolved.
 
 

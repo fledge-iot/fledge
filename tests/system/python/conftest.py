@@ -434,7 +434,6 @@ def verify_hierarchy_and_get_datapoints_from_pi_web_api():
         AF_HIERARCHY_LIST=af_hierarchy_list.split('/')[1:]
         AF_HIERARCHY_COUNT=len(AF_HIERARCHY_LIST)
         
-        print(AF_HIERARCHY_LIST)
         try:
             ctx = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
             ctx.options |= ssl.PROTOCOL_TLSv1_1
@@ -454,7 +453,7 @@ def verify_hierarchy_and_get_datapoints_from_pi_web_api():
                 r = json.loads(res.read().decode())
                 items = r['Items']
                 CHECK_DATABASE_EXISTS = list(filter(lambda items: items['Name'] == pi_database, items))[0]
-                # pprint(CHECK_DATABASE_EXISTS)
+                
                 if len(CHECK_DATABASE_EXISTS) > 0:
                     elements_url = CHECK_DATABASE_EXISTS['Links']['Elements']
                 else:
@@ -465,12 +464,10 @@ def verify_hierarchy_and_get_datapoints_from_pi_web_api():
                     res = conn.getresponse()
                     r = json.loads(res.read().decode())
                     items = r['Items']
-                    # pprint(items)
-                    print('-----------')
+                    
                     CHECK_AF_ELEMENT_EXISTS = list(filter(lambda items: items['Name'] == AF_HIERARCHY_LIST[0], items))[0]
                     if len(CHECK_AF_ELEMENT_EXISTS) != 0:
-                        # print('Exists')
-                        # pprint(CHECK_AF_ELEMENT_EXISTS)
+                        
                         counter =  0
                         while counter < AF_HIERARCHY_COUNT:
                             if CHECK_AF_ELEMENT_EXISTS['Name'] == AF_HIERARCHY_LIST[counter]:
@@ -506,8 +503,7 @@ def verify_hierarchy_and_get_datapoints_from_pi_web_api():
                                         raise "Required Data points is not Present --> {}".format(sensor)
                         else:
                             raise "Asset does not exist, Although Hierarchy is correct"
-                        print('no. of sinusoid DPs',len(record['sinusoid']))
-                        print('no. of randomwalk DPs', len(record['randomwalk']))
+                        
                         return(record)
                             
                     else:

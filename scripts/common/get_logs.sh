@@ -3,7 +3,6 @@
 __author__="Amandeep Singh Arora"
 __version__="1.0"
 
-
 # open a log file at FD 2 for debugging purposes
 > /tmp/fl_syslog.log
 exec 2<&-
@@ -15,6 +14,7 @@ NUM_LOGFILE_LINES_TO_CHECK_INITIALLY=2000
 offset=100
 limit=5
 pattern=""
+keyword=""
 level="debug"
 logfile="/var/log/syslog"
 sourceApp="fledge"
@@ -22,6 +22,7 @@ sourceApp="fledge"
 while [ "$#" -gt 0 ]; do
   case "$1" in
     -pattern) pattern="$2"; shift 2;;
+    -keyword) keyword="$2"; shift 2;;
     -offset) offset="$2"; shift 2;;
     -limit) limit="$2"; shift 2;;
     -level) level="$2"; shift 2;;
@@ -31,6 +32,16 @@ while [ "$#" -gt 0 ]; do
 done
 
 sum=$(($offset + $limit))
+factor_search=${#keyword}
+if [[ $factor_search -gt 0 ]]; then
+    factor_keyword="$sourceApp:$level:$keyword:"
+    full_pattern="$pattern.*$keyword"
+else
+    factor_keyword="$sourceApp:$level:"
+    full_pattern="$pattern"
+fi
+
+
 echo "" >&2
 echo "****************************************************************************************" >&2
 echo "************************************* START ********************************************" >&2
@@ -50,24 +61,28 @@ if [[ $script_runs -gt ${RECALC_AFTER_N_SCRIPT_RUNS} ]]; then
 	echo -n "$script_runs" > /tmp/fl_syslog_script_runs
 fi
 echo -n "$script_runs" > /tmp/fl_syslog_script_runs
-echo "offset=$offset, limit=$limit, sum=$sum, pattern=$pattern, sourceApp=$sourceApp, level=$level, script_runs=$script_runs" >&2
+echo "offset=$offset, limit=$limit, sum=$sum, pattern=$full_pattern, sourceApp=$sourceApp, level=$level, script_runs=$script_runs" >&2
 
 # calculate how many log lines are to be checked to get 'n' result lines for a given service and log level
 # if for getting 100 lines of interest, 6400 last syslog lines need to be checked, then factor would be 64
 factor=2
 if [[ $script_runs -eq 0 ]]; then
-	factor=$((${NUM_LOGFILE_LINES_TO_CHECK_INITIALLY} / $sum))
-	[[ $factor -lt 2 ]] && factor=2
+    factor=$((${NUM_LOGFILE_LINES_TO_CHECK_INITIALLY} / $sum))
+    [[ $factor -lt 2 ]] && factor=2
 else
-	if [ -f /tmp/fl_syslog_factor ]; then
-		echo "Reading factor value from /tmp/fl_syslog_factor" >&2
-		factor=$(grep "$sourceApp:$level:" /tmp/fl_syslog_factor | cut -d: -f3)
-		echo "Read factor value of '$factor' from /tmp/fl_syslog_factor" >&2
-		[ -z $factor ] && factor=2 && echo "Using factor value of $factor" >&2
-	else
-		[ -z $factor ] && factor=2 && echo "Using factor value of $factor; file '/tmp/fl_syslog_factor' is missing" >&2
-		echo "Starting with factor=$factor" >&2
-	fi
+    if [ -f /tmp/fl_syslog_factor ]; then
+        echo "Reading factor value from /tmp/fl_syslog_factor" >&2
+        if [[ $factor_search -gt 0 ]]; then
+            factor_value=$(grep "$factor_keyword" /tmp/fl_syslog_factor | rev | cut -d: -f1 | rev)
+        else
+            factor_value=$(grep "$factor_keyword[0-9]+$" /tmp/fl_syslog_factor | rev | cut -d: -f1 | rev)
+        fi
+        echo "Read factor value of '$factor' from /tmp/fl_syslog_factor" >&2
+        [ -z $factor ] && factor=2 && echo "Using factor value of $factor" >&2
+    else
+        [ -z $factor ] && factor=2 && echo "Using factor value of $factor; file '/tmp/fl_syslog_factor' is missing" >&2
+        echo "Starting with factor=$factor" >&2
+    fi
 fi
 
 tmpfile=$(mktemp)
@@ -84,7 +99,7 @@ do
 
 	echo "loop_iters=$loop_iters: factor=$factor, lines=$lines, tmpfile=$tmpfile" >&2
 
-	cmd="tail -n $lines $logfile | grep -a -E '${pattern}' > $tmpfile"
+	cmd="tail -n $lines $logfile | grep -a -E '${full_pattern}' > $tmpfile"
 	echo "cmd=$cmd, filesz=$filesz" >&2
 	eval "$cmd"
 	t2=$(date +%s%N)
@@ -98,8 +113,8 @@ do
 		rm $tmpfile
 
 		touch /tmp/fl_syslog_factor
-		grep -v "$sourceApp:$level:" /tmp/fl_syslog_factor > /tmp/fl_syslog_factor.out; mv /tmp/fl_syslog_factor.out /tmp/fl_syslog_factor
-		echo "$sourceApp:$level:$factor" >> /tmp/fl_syslog_factor
+		grep -v "$factor_keyword" /tmp/fl_syslog_factor > /tmp/fl_syslog_factor.out; mv /tmp/fl_syslog_factor.out /tmp/fl_syslog_factor
+		echo "$factor_keyword$factor" >> /tmp/fl_syslog_factor
 		break
 	else
         	new_factor=$factor
@@ -118,8 +133,8 @@ do
 		echo "Log results END:" >&2
 		rm $tmpfile
 		touch /tmp/fl_syslog_factor
-		grep -v "$sourceApp:$level:" /tmp/fl_syslog_factor > /tmp/fl_syslog_factor.out; mv /tmp/fl_syslog_factor.out /tmp/fl_syslog_factor
-		echo "$sourceApp:$level:$factor" >> /tmp/fl_syslog_factor
+		grep -v "$factor_keyword" /tmp/fl_syslog_factor > /tmp/fl_syslog_factor.out; mv /tmp/fl_syslog_factor.out /tmp/fl_syslog_factor
+		echo "$factor_keyword$factor" >> /tmp/fl_syslog_factor
 		break
 	fi
 

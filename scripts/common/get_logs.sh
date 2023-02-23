@@ -31,14 +31,15 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 
+
 sum=$(($offset + $limit))
 factor_search=${#keyword}
 if [[ $factor_search -gt 0 ]]; then
     factor_keyword="$sourceApp:$level:$keyword:"
-    full_pattern="$pattern.*$keyword"
+    search_pattern="grep -a -E '${pattern}' | grep -F '$keyword'"
 else
     factor_keyword="$sourceApp:$level:"
-    full_pattern="$pattern"
+    search_pattern="grep -a -E '${pattern}'"
 fi
 
 
@@ -61,7 +62,7 @@ if [[ $script_runs -gt ${RECALC_AFTER_N_SCRIPT_RUNS} ]]; then
 	echo -n "$script_runs" > /tmp/fl_syslog_script_runs
 fi
 echo -n "$script_runs" > /tmp/fl_syslog_script_runs
-echo "offset=$offset, limit=$limit, sum=$sum, pattern=$full_pattern, sourceApp=$sourceApp, level=$level, script_runs=$script_runs" >&2
+echo "offset=$offset, limit=$limit, sum=$sum, pattern=$search_pattern, sourceApp=$sourceApp, level=$level, script_runs=$script_runs" >&2
 
 # calculate how many log lines are to be checked to get 'n' result lines for a given service and log level
 # if for getting 100 lines of interest, 6400 last syslog lines need to be checked, then factor would be 64
@@ -99,7 +100,7 @@ do
 
 	echo "loop_iters=$loop_iters: factor=$factor, lines=$lines, tmpfile=$tmpfile" >&2
 
-	cmd="tail -n $lines $logfile | grep -a -E '${full_pattern}' > $tmpfile"
+	cmd="tail -n $lines $logfile | ${search_pattern} > $tmpfile"
 	echo "cmd=$cmd, filesz=$filesz" >&2
 	eval "$cmd"
 	t2=$(date +%s%N)

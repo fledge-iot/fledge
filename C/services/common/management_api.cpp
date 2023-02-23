@@ -197,11 +197,23 @@ ostringstream convert;
 string responsePayload;
 string	category, items, payload;
 
-	payload = request->content.string();
-	ConfigCategoryChange	conf(payload);
-	ConfigHandler	*handler = ConfigHandler::getInstance(NULL);
-	handler->configChange(conf.getName(), conf.itemsToJSON(true));
-	convert << "{ \"message\" ; \"Config change accepted\" }";
+	try
+	{
+		payload = request->content.string();
+		ConfigCategoryChange	conf(payload);
+		ConfigHandler	*handler = ConfigHandler::getInstance(NULL);
+		handler->configChange(conf.getName(), conf.itemsToJSON(true));
+		convert << "{ \"message\" ; \"Config change accepted\" }";
+	}
+	catch(const ConfigMalformed& e)
+	{
+		convert << "{ \"exception\" : \"ConfigMalformed\",  \"message\" : \"" << e.what() << "\"}";
+	}
+	catch(const std::exception& e)
+	{
+		convert << "{ \"exception\" : \"Any\",  \"message\" : \"" << e.what() << "\"}";
+	}
+	
 	responsePayload = convert.str();
 	respond(response, responsePayload);
 }

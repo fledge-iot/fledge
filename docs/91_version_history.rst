@@ -72,17 +72,17 @@ Release Date: 2023-02-21
        - There have been improvements to the OMF north plugin to prevent an issue that could cause the plugging to stop sending data if the type of an individual datapoint changed repeatedly between integer and floating point values. The logging of the the plugin has also been improved, with clearing messages and less repetition of error conditions that persist for long periods.
        - The audit logger has been made available to plugins running within the notification service.
        - The control dispatcher now has access to the audit logging system.
-       - The notification service documentation has been updated to include examples of notifications based on statistics and audit logs.
        - The notification mechanism has been updated to accept raw statistics and statistics rates as an input for notification rules. This allows alerts to be raised for pipeline flows and other internal tasks that generate statistics.       
        - Notifications can now register for audit log entries to be sent to notification rules. This allows notification to be made based on internal state changes of the system.
        - A number of optimisations to the SQLite in-memory storage plugin and the SQLiteLB storage plugin have been added that increase the rate at which readings can be stored with these plugins.
+       - The notification service documentation has been updated to include examples of notifications based on statistics and audit logs.
        
 
     - Bug Fix:
        
        - An issue with the Modbus-TCP & S7 plugins which caused the polling to fail has been resolved.
        - The control map configuration item of the Modbus C plugin was incorrectly described, this has now been resolved.
-       - A problem with the J1708 & J1939 plugins that caused them to fail if added disabled and then later enabling them has been resolved.
+       - A problem with the J1708 plugin that caused them to fail if added disabled and then later enabling them has been resolved.
        - A problem that caused the Azure IoT Core north plugin to fail to send data has been corrected.
        - The plugin would become unresponsive if the OPC UA server was unavailable or if the server URL was incorrect. The only way to stop the plugin in this state was to shut down Fledge. This has been fixed.
        - The HTTP North C plugin now supports sending audit log data as well as readings and statistics.

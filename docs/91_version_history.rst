@@ -34,15 +34,15 @@ Release Date: 2023-02-21
 
     - New Features:
        
-       - Plugins that run within the south and north services and north tasks now have access to the audit logging system.
-       - The documentation regarding handling and updating certificates used for authentication has been updated. 
-       - Changes have been made to the purge process in the sqlitelb and sqliteinmemory plugins in order to improve performance.
        - The south plugin now supports three different modes of polling. Polling at fixed intervals from the time started, polling at fixed times or polling on demand via the control mechanisms.
+       - Plugins that run within the south and north services and north tasks now have access to the audit logging system.
+       - A number of optimisations have been made to improve the performance of Python filters within a pipeline.
        - The support bundle has been updated to include a list of the Python packages installed on the machine.
        - The configuration category C++ API has been enhanced in the retrieval and setting of all the attributes of a configuration item.
-       - The storage service has been updated to allow other services to subscribe the notifications of inserts into the generic tables.
+       - Changes have been made to the purge process in the sqlitelb and sqliteinmemory plugins in order to improve performance.
        - A change has been made to the configuration of the storage plugin such that rather than having to type correct names for storage plugins the user may now select the plugins to use from a drop down list. Note however that the system must still be restarted for the new storage plugin to take effect.
-       - A number of optimisations have been made to improve the performance of Python filters within a pipeline.
+       - The storage service has been updated to allow other services to subscribe the notifications of inserts into the generic tables.
+       - The documentation regarding handling and updating certificates used for authentication has been updated.
 
 
     - Bug Fix:
@@ -56,10 +56,10 @@ Release Date: 2023-02-21
 
     - Bug Fix:
 
-       - An issue with the handling of script type items whose name was not also script in the user interface that meant that scripts with different names were incorrectly handled has been resolved.
-       - An occasional error that appeared on the Control Script and ACL pages has been resolved.
-       - An issue with editing large scripts or JSON items in the configuration has been resolved.
        - An issue that caused services with quotes in the name to disappear from the user interface has been resolved.
+       - An issue with the handling of script type items whose name was not also script in the user interface that meant that scripts with different names were incorrectly handled has been resolved.
+       - An issue with editing large scripts or JSON items in the configuration has been resolved.
+       - An occasional error that appeared on the Control Script and ACL pages has been resolved.
        - A text wrapping issue in the system log viewer has been resolved.
 
 
@@ -67,25 +67,26 @@ Release Date: 2023-02-21
 
     - New Features:
 
+       - A new south plugin, fledge-south-J1939, has been created to collect data into Fledge.
+       - Support for multiple data centers for OSIsoft Cloud Services (OCS) has been added. OCS is hosted in the US-West and EU-West regions.
        - There have been improvements to the OMF north plugin to prevent an issue that could cause the plugging to stop sending data if the type of an individual datapoint changed repeatedly between integer and floating point values. The logging of the the plugin has also been improved, with clearing messages and less repetition of error conditions that persist for long periods.
        - The audit logger has been made available to plugins running within the notification service.
-       - Support for multiple data centers for OSIsoft Cloud Services (OCS) has been added. OCS is hosted in the US-West and EU-West regions.
-       - A number of optimisations to the SQLite in-memory storage plugin and the SQLiteLB storage plugin have been added that increase the rate at which readings can be stored with these plugins.
-       - The notification service documentation has been updated to include examples of notifications based on statistics and audit logs.
-       - The notification mechanism has been updated to accept raw statistics and statistics rates as an input for notification rules. This allows alerts to be raised for pipeline flows and other internal tasks that generate statistics.
        - The control dispatcher now has access to the audit logging system.
+       - The notification service documentation has been updated to include examples of notifications based on statistics and audit logs.
+       - The notification mechanism has been updated to accept raw statistics and statistics rates as an input for notification rules. This allows alerts to be raised for pipeline flows and other internal tasks that generate statistics.       
        - Notifications can now register for audit log entries to be sent to notification rules. This allows notification to be made based on internal state changes of the system.
-
+       - A number of optimisations to the SQLite in-memory storage plugin and the SQLiteLB storage plugin have been added that increase the rate at which readings can be stored with these plugins.
+       
 
     - Bug Fix:
        
        - An issue with the Modbus-TCP & S7 plugins which caused the polling to fail has been resolved.
-       - A problem with the J1708 & J1939 plugins that caused them to fail if added disabled and then later enabling them has been resolved.
-       - The HTTP North C plugin now supports sending audit log data as well as readings and statistics.
-       - A problem that caused the Azure IoT Core north plugin to fail to send data has been corrected.
        - The control map configuration item of the Modbus C plugin was incorrectly described, this has now been resolved.
-       - A product version check was made incorrectly if the OMF endpoint type was not PI Web API. This has been fixed.
+       - A problem with the J1708 & J1939 plugins that caused them to fail if added disabled and then later enabling them has been resolved.
+       - A problem that caused the Azure IoT Core north plugin to fail to send data has been corrected.
        - The plugin would become unresponsive if the OPC UA server was unavailable or if the server URL was incorrect. The only way to stop the plugin in this state was to shut down Fledge. This has been fixed.
+       - The HTTP North C plugin now supports sending audit log data as well as readings and statistics.
+       - A product version check was made incorrectly if the OMF endpoint type was not PI Web API. This has been fixed.
        - Documentation of the AF Location OMFHint in the OMF North plugin page has been updated to include an outline of differences in behaviors between Complex Types and the new Linked Types configuration.
 
 

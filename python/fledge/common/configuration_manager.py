@@ -91,9 +91,11 @@ class ConfigurationCache(object):
         for category_name in self.cache:
             if oldest_entry is None:
                 oldest_entry = category_name
-            elif self.cache[category_name]['date_accessed'] < self.cache[oldest_entry]['date_accessed']:
+            elif self.cache[category_name].get('date_accessed') and self.cache[oldest_entry].get('date_accessed') \
+                    and self.cache[category_name]['date_accessed'] < self.cache[oldest_entry]['date_accessed']:
                 oldest_entry = category_name
-        self.cache.pop(oldest_entry)
+        if oldest_entry:
+            self.cache.pop(oldest_entry)
 
     def remove(self, key):
         """Remove the entry with given key name"""

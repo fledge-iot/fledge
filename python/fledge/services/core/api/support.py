@@ -132,7 +132,7 @@ async def get_syslog_entries(request):
         curl -sX GET "http://localhost:8081/fledge/syslog?nontotals=true&source=<svc_name>|<task_name>"
         curl -sX GET "http://localhost:8081/fledge/syslog?nontotals=true&limit=5"
         curl -sX GET "http://localhost:8081/fledge/syslog?nontotals=true&limit=100&offset=50"
-        curl -sX GET "http://localhost:8081/fledge/syslog?nontotals=true&limit=100&offset=50&keyword=fledge"
+        curl -sX GET "http://localhost:8081/fledge/syslog?nontotals=true&limit=100&offset=50&keyword=fledge.services"
         curl -sX GET "http://localhost:8081/fledge/syslog?nontotals=true&source=<svc_name>|<task_name>&limit=10&offset=50"
         curl -sX GET "http://localhost:8081/fledge/syslog?nontotals=true&source=<svc_name>|<task_name>"
     """
@@ -184,7 +184,7 @@ async def get_syslog_entries(request):
         # keyword
         keyword = ''
         if 'keyword' in request.query and request.query['keyword'] != '':
-            keyword = request.query['keyword'].strip()
+            keyword = request.query['keyword']
         response = {}
         # nontotals
         non_totals = request.query['nontotals'].lower() if 'nontotals' in request.query and request.query[

@@ -161,24 +161,26 @@ void StatsHistory::processKey(const std::string& key, std::vector<InsertValues> 
 
 std::string StatsHistory::getTime(void) const
 {
-   struct timeval tv ;
-   struct tm timeinfo;
-   gettimeofday(&tv, NULL);
-   gmtime_r(&tv.tv_sec, &timeinfo);
-   char date_time[DATETIME_MAX_LEN];
-   // Create datetime with seconds
-   strftime(date_time,
-	    sizeof(date_time),
-	    DATETIME_FORMAT_DEFAULT,
-	    &timeinfo);
-   std::string dateTimeUTC = date_time;
-   char micro_s[MICROSECONDS_FORMAT_LEN];
+	struct timeval tv ;
+	struct tm* timeinfo;
+	gettimeofday(&tv, NULL);
+	timeinfo = localtime(&tv.tv_sec);
+	char date_time[DATETIME_MAX_LEN];
+	// Create datetime with seconds
+	strftime(date_time,
+		    sizeof(date_time),
+		    DATETIME_FORMAT_DEFAULT,
+		    timeinfo);
+
+	std::string dateTimeLocal = date_time;
+	char micro_s[MICROSECONDS_FORMAT_LEN];
 	// Add microseconds
-   snprintf(micro_s,
-            sizeof(micro_s),
-	    ".%06lu",
-	    tv.tv_usec);
-   dateTimeUTC.append(micro_s);
-   return dateTimeUTC;
+	snprintf(micro_s,
+		    sizeof(micro_s),
+		    ".%06lu",
+		    tv.tv_usec);
+
+	dateTimeLocal.append(micro_s);
+	return dateTimeLocal;
 }
 

@@ -142,7 +142,10 @@ class PluginDiscovery(object):
                         pkg_name = ''
                         # Only OMF is an inbuilt plugin
                         if name.lower() != 'omf':
-                            pkg_name = 'fledge-{}-{}'.format(plugin_type, name.lower().replace("_", "-"))
+                            if name.lower() == "modbusc": # if there are other such, we can map from a dict
+                                pkg_name = 'fledge-{}-{}'.format(plugin_type, "modbus")
+                            else:
+                                pkg_name = 'fledge-{}-{}'.format(plugin_type, name.lower().replace("_", "-"))
 
                         plugin_config = {'name': name,
                                          'type': plugin_type,

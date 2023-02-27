@@ -605,7 +605,7 @@ async def update_service(request: web.Request) -> web.Response:
 
         # Check requested service is installed or not
         installed_services = get_service_installed()
-        # TODO: Test for `bucket` for name in installed_services content
+        # TODO: Test for `bucket`/`management` for name in installed_services content
         if name not in installed_services:
             raise KeyError("{} service is not installed yet. Hence update is not possible.".format(name))
 

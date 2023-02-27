@@ -593,12 +593,19 @@ async def update_service(request: web.Request) -> web.Response:
     name = request.match_info.get('name', None)
     try:
         _type = _type.lower()
-        # TODO: 5141 - once done we need to fix for dispatcher type as well
-        if _type != 'notification':
-            raise ValueError("Invalid service type. Must be 'notification'")
+        if _type in ('notification', 'dispatcher', 'bucket_storage', 'management'):
+            raise ValueError("Invalid service type.")
 
-        # Check requested service name is installed or not
+        # process_name for bucket storage service schedule is bucket_storage_c hence type here must be bucket_storage?
+        # process_name for management schedule is management and python based; Check added for schedule stuff
+
+        # NOTE: `bucketstorage` repository name with `BucketStorage` type in service registry has package name *-`bucket`.
+        # URL: /fledge/service/bucket_storage/bucket/update ?! *EXTERNAL*
+        # URL: /fledge/service/management/management/update ?! *EXTERNAL*
+
+        # Check requested service is installed or not
         installed_services = get_service_installed()
+        # TODO: Test for `bucket` for name in installed_services content
         if name not in installed_services:
             raise KeyError("{} service is not installed yet. Hence update is not possible.".format(name))
 
@@ -622,8 +629,10 @@ async def update_service(request: web.Request) -> web.Response:
             await storage_client.delete_from_tbl("packages", delete_payload)
 
         # process_name always ends with "_c" suffix
-        payload = PayloadBuilder().SELECT("id", "enabled", "schedule_name").WHERE(['process_name', '=', '{}_c'.format(
-            _type)]).payload()
+        _where_clause = ['process_name', '=', '{}_c'.format(_type)]
+        if _type == 'management':
+            _where_clause = ['process_name', '=', '{}'.format(_type)]
+        payload = PayloadBuilder().SELECT("id", "enabled", "schedule_name").WHERE(_where_clause).payload()
         result = await storage_client.query_tbl_with_payload('schedules', payload)
         sch_info = result['rows']
         sch_list = []
@@ -641,6 +650,7 @@ async def update_service(request: web.Request) -> web.Response:
         result = await storage_client.insert_into_tbl("packages", insert_payload)
         if result['response'] == "inserted" and result['rows_affected'] == 1:
             pn = "{}-{}".format(action, name)
+            # Protocol is always http:// on core_management_port
             p = multiprocessing.Process(name=pn, target=do_update, args=(server.Server.is_rest_server_http_enabled,
                                                                          server.Server._host,
                                                                          server.Server.core_management_port,
@@ -685,7 +695,10 @@ def do_update(http_enabled: bool, host: str, port: int, storage: connect, pkg_na
     stdout_file_path = common.create_log_file("update", pkg_name)
     pkg_mgt = 'yum' if utils.is_redhat_based() else 'apt'
     cmd = "sudo {} -y update > {} 2>&1".format(pkg_mgt, stdout_file_path)
-    protocol = "HTTP" if http_enabled else "HTTPS"
+
+    # Protocol is always http:// on core_management_port
+    protocol = "HTTP" # if http_enabled else "HTTPS"
+
     if pkg_mgt == 'yum':
         cmd = "sudo {} check-update > {} 2>&1".format(pkg_mgt, stdout_file_path)
     ret_code = os.system(cmd)

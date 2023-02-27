@@ -203,14 +203,14 @@ ReadingSet::copy(const ReadingSet& src)
 	try
 	{
 		// Iterate over all the readings in ReadingSet
-		for ( auto &reading : src.getAllReadings())
+		for (auto const &reading : src.getAllReadings())
 		{
 			std::string assetName = reading->getAssetName();
 			std::vector<Datapoint *> dataPoints;
 			try
 			{
 				// Iterate over all the datapoints associated with one reading
-				for ( auto &dp : reading->getReadingData())
+				for (auto const &dp : reading->getReadingData())
 				{
 					std::string dataPointName  = dp->getName();
 					DatapointValue dv = dp->getData();
@@ -223,20 +223,22 @@ ReadingSet::copy(const ReadingSet& src)
 			{
 				Logger::getLogger()->error("Insufficient memory, failed while copying dataPoints from ReadingSet, %s ", ex.what());
 				copyResult = false;
-				for (auto dp : dataPoints)
+				for (auto const &dp : dataPoints)
 				{
 					delete dp;
 				}
+				dataPoints.clear();
 				throw;
 			}
 			catch (std::exception& ex)
 			{
 				Logger::getLogger()->error("Unknown exception, failed while copying datapoint from ReadingSet, %s ", ex.what());
 				copyResult = false;
-				for (auto dp : dataPoints)
+				for (auto const &dp : dataPoints)
 				{
 					delete dp;
 				}
+				dataPoints.clear();
 				throw;
 			}
 			
@@ -249,7 +251,7 @@ ReadingSet::copy(const ReadingSet& src)
    {
 		Logger::getLogger()->error("Insufficient memory, failed while copying %d reading from ReadingSet, %s ",readings.size()+1, ex.what());
 		copyResult = false;
-		for (auto r : readings)
+		for (auto const &r : readings)
 		{
 			delete r;
 		}
@@ -259,7 +261,7 @@ ReadingSet::copy(const ReadingSet& src)
    {
 		Logger::getLogger()->error("Unknown exception, failed while copying %d reading from ReadingSet, %s ",readings.size()+1, ex.what());
 		copyResult = false;
-		for (auto r : readings)
+		for (auto const &r : readings)
 		{
 			delete r;
 		}

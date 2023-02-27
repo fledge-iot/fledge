@@ -13,6 +13,8 @@
 .. |OMF_Connection| image:: images/OMF_Connection.jpg
 .. |OMF_Default| image:: images/OMF_Default.jpg
 .. |OMF_Format| image:: images/OMF_Format.jpg
+.. |OMF_Endpoints| image:: images/OMF_Endpoints.jpg
+.. |ADH_Regions| image:: images/ADH_Regions.jpg
 
 .. Links
 .. |OMFHint filter plugin| raw:: html
@@ -116,6 +118,10 @@ The *Default Configuration* tab contains the most commonly modified items
 
   - **Endpoint**: The type of OMF end point we are connecting with. The options available are
 
+    +-----------------+
+    | |OMF_Endpoints| | 
+    +-----------------+
+
     - *PI Web API* - A connection to a PI Server that supports the OMF option of the PI Web API. This is the preferred mechanism for sending data to a PI Server.
 
     - *AVEVA Data Hub* - The AVEVA cloud service.
@@ -145,6 +151,8 @@ The *Default Configuration* tab contains the most commonly modified items
 
 Asset Framework
 ~~~~~~~~~~~~~~~
+
+The OMF plugins has the ability to interact with the PI Asset Framework and put data into the desired locations within the asset framework. It allows a default location to be specified and also a set of rules to be defined that will override that default location.
 
 +----------+
 | |OMF_AF| |
@@ -193,6 +201,10 @@ The *Cloud* tab contains configuration items that are required if the chosen OMF
 
   - **Cloud Service Region**: - The region in which your AVEVA Data Hub or OSISoft Cloud Services service is located.
 
+    +---------------+
+    | |ADH_Regions| |
+    +---------------+
+
   - **Namespace**: Your namespace within the AVEVA Data Hub or OSISoft Cloud Service.
 
   - **Tenant ID**: Your AVEVA Data Hub or OSISoft Cloud Services Tenant ID for your account.
@@ -203,6 +215,8 @@ The *Cloud* tab contains configuration items that are required if the chosen OMF
 
 Connection
 ~~~~~~~~~~
+
+The *Connection* tab allows a set of tuning parameters to be set for the connection from the OMF plugin to the OMF End point.
 
 +------------------+
 | |OMF_Connection| |
@@ -220,6 +234,8 @@ Connection
 Formats & Types
 ~~~~~~~~~~~~~~~
 
+The *Formats & Types* tab provides a means to specify the detail types that will be used and the way complex assets are mapped to OMF types to also be configured.
+
 +--------------+
 | |OMF_Format| |
 +--------------+
@@ -228,7 +244,8 @@ Formats & Types
 
    - **Number Format**: Used to match Fledge data types to the data type configured in PI. The default is float64 but may be set to any OMF datatype that supports floating point values.
 
-   - **Complex Types**: Versions of the OMF plugin prior to 2.1 support complex types in which each asset would have a corresponding OMF type created for it. With the introduction of OMF Version 1.2 support in version 2.1.0 of the plugin support has been added for linked types. These are more versatile and allow for asset structures to change dynamically. The linked types are now the default, however setting this option can force the older complex types to be used.  See :ref:`Linked_Types`.
+   - **Complex Types**: Versions of the OMF plugin prior to 2.1 support complex types in which each asset would have a corresponding OMF type created for it. With the introduction of OMF Version 1.2 support in version 2.1.0 of the plugin support has been added for linked types. These are more versatile and allow for asset structures to change dynamically. The linked types are now the default, however setting this option can force the older complex types to be used.  See :ref:`Linked_Types`. Versions of the PI Server from 2020 or before will always use the complex types. The plugin will normally automatically detect this, however if the detection does not correctly enforce this setting then this opion should be enabled by the user.
+
 .. _Naming_Scheme:
 
 Naming Scheme

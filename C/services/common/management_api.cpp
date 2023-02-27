@@ -195,13 +195,25 @@ void ManagementApi::configChange(shared_ptr<HttpServer::Response> response, shar
 {
 ostringstream convert;
 string responsePayload;
-string	category, items, payload;
+string payload;
 
-	payload = request->content.string();
-	ConfigCategoryChange	conf(payload);
-	ConfigHandler	*handler = ConfigHandler::getInstance(NULL);
-	handler->configChange(conf.getName(), conf.itemsToJSON(true));
-	convert << "{ \"message\" ; \"Config change accepted\" }";
+	try
+	{	
+		payload = request->content.string();
+		ConfigCategoryChange conf(payload);
+		ConfigHandler	*handler = ConfigHandler::getInstance(NULL);
+		handler->configChange(conf.getName(), conf.itemsToJSON(true));
+		convert << "{ \"message\" : \"Config change accepted\" }";
+	}
+	catch(const std::exception& e)
+	{
+		convert << "{ \"exception\" : \"" << e.what() << "\" }";
+	}
+	catch(...)
+	{
+		convert << "{ \"exception\" : \"generic\" }";
+	}
+	
 	responsePayload = convert.str();
 	respond(response, responsePayload);
 }

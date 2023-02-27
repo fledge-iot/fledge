@@ -50,7 +50,7 @@ TEST(READINGSET, DeepCopyCheckReadingFromNestedJSON)
     auto r1 = readingSet1->getAllReadings();
     auto dp1 = r1[0]->getReadingData();
 
-    // Fetch neted datapoints
+    // Fetch nested datapoints
     ASSERT_EQ(dp1[0]->getName(), "degrees");
     ASSERT_EQ(dp1[0]->getData().toString(), "[200.65, 34.45, 500.36]");
     ASSERT_EQ(dp1[1]->getName(), "pressure");
@@ -63,7 +63,7 @@ TEST(READINGSET, DeepCopyCheckReadingFromNestedJSON)
     ASSERT_EQ(dp2[1]->getName(), "pressure");
     ASSERT_EQ(dp2[1]->getData().toString(), "{\"floor1\":30, \"floor2\":34, \"floor3\":36}");
 
-    // Check the address od datapoints
+    // Check the address of datapoints
     ASSERT_NE(dp1[0], dp2[0]);
     ASSERT_NE(dp1[1], dp2[1]);
 

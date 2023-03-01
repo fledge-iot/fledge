@@ -14,7 +14,7 @@
 
 .. |audit_trail| raw:: html
 
-   <a href="../../rest_api_guide/03_RESTadmin.html#audit">Audit Trail</a>
+   <a href="../rest_api_guide/03_RESTadmin.html#audit">Audit Trail</a>
 
 
 
@@ -360,7 +360,7 @@ We have used the properties *type* and *default* to define properties of the con
    * - order
      - Used in the user interface to give an indication of how high up in the dialogue to place this item.
    * - group
-     - Used to group related items together. The main use of this is within the GUI which will turn each group into a tab in the creation adn edit screens.
+     - Used to group related items together. The main use of this is within the GUI which will turn each group into a tab in the creation and edit screens.
    * - readonly
      - A boolean property that can be used to include items that can not be altered by the API.
    * - rule

@@ -627,10 +627,10 @@ async def update_service(request: web.Request) -> web.Response:
                 ['name', '=', package_name]).payload()
             await storage_client.delete_from_tbl("packages", delete_payload)
 
-        # process_name always ends with "_c" suffix
         _where_clause = ['process_name', '=', '{}_c'.format(_type)]
         if _type == 'management':
             _where_clause = ['process_name', '=', '{}'.format(_type)]
+
         payload = PayloadBuilder().SELECT("id", "enabled", "schedule_name").WHERE(_where_clause).payload()
         result = await storage_client.query_tbl_with_payload('schedules', payload)
         sch_info = result['rows']

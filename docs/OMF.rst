@@ -105,7 +105,7 @@ The configuration of the plugin is split into a number of tabs in order to reduc
 
   - **Security Configuration**: The configuration options that impact the security of the service that is running OMF.
 
-  - **Developer**: This tab is only visible if the developer features of Fledge have been enabled and will give access to the features aimed at a plugin or pipeline developing.
+  - **Developer**: This tab is only visible if the developer features of Fledge have been enabled and will give access to the features aimed at a plugin or pipeline developer.
 
 Default Configuration
 ~~~~~~~~~~~~~~~~~~~~~
@@ -126,7 +126,7 @@ The *Default Configuration* tab contains the most commonly modified items
 
     - *AVEVA Data Hub* - The AVEVA cloud service.
 
-    - *Connector Relay* - The previous way to send data to a PI Server before PI Web API supported OMF. This should only be used for older PI Servers that do not have the support available within Pi Web API.
+    - *Connector Relay* - The previous way to send data to a PI Server before PI Web API supported OMF. This should only be used for older PI Servers that do not have the support available within PI Web API.
 
     - *OSISoft Cloud Services* - The original OSISoft cloud service, this is currently being replaced with the AVEVA Data Hub.
 
@@ -244,7 +244,7 @@ The *Formats & Types* tab provides a means to specify the detail types that will
 
    - **Number Format**: Used to match Fledge data types to the data type configured in PI. The default is float64 but may be set to any OMF datatype that supports floating point values.
 
-   - **Complex Types**: Versions of the OMF plugin prior to 2.1 support complex types in which each asset would have a corresponding OMF type created for it. With the introduction of OMF Version 1.2 support in version 2.1.0 of the plugin support has been added for linked types. These are more versatile and allow for asset structures to change dynamically. The linked types are now the default, however setting this option can force the older complex types to be used.  See :ref:`Linked_Types`. Versions of the PI Server from 2020 or before will always use the complex types. The plugin will normally automatically detect this, however if the detection does not correctly enforce this setting then this opion should be enabled by the user.
+   - **Complex Types**: Versions of the OMF plugin prior to 2.1 support complex types in which each asset would have a corresponding OMF type created for it. With the introduction of OMF Version 1.2 support in version 2.1.0 of the plugin support has been added for linked types. These are more versatile and allow for asset structures to change dynamically. The linked types are now the default, however setting this option can force the older complex types to be used.  See :ref:`Linked_Types`. Versions of the PI Server from 2020 or before will always use the complex types. The plugin will normally automatically detect this, however if the detection does not correctly enforce this setting then this option should be enabled by the user.
 
 .. _Naming_Scheme:
 

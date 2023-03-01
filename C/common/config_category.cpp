@@ -4,7 +4,7 @@
  * Copyright (c) 2018 Dianomic Systems
  *
  * Released under the Apache 2.0 Licence
- 
+ *
  * Author: Mark Riddoch, Massimiliano Pinto
  */
 #include <config_category.h>

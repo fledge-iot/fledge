@@ -2,7 +2,6 @@
  * Fledge PI Server north plugin.
  *
  * Copyright (c) 2018-2022 Dianomic Systems
- 
  *
  * Released under the Apache 2.0 Licence
  *

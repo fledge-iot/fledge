@@ -423,6 +423,102 @@ def clear_pi_system_through_pi_web_api():
 
     return clear_pi_system_pi_web_api
 
+@pytest.fixture
+def verify_hierarchy_and_get_datapoints_from_pi_web_api():
+    def _verify_hierarchy_and_get_datapoints_from_pi_web_api(host, admin, password, pi_database, af_hierarchy_list, asset, sensor):
+        """ This method verifies hierarchy created in pi web api is correctly """
+    
+        username_password = "{}:{}".format(admin, password)
+        username_password_b64 = base64.b64encode(username_password.encode('ascii')).decode("ascii")
+        headers = {'Authorization': 'Basic %s' % username_password_b64}
+        AF_HIERARCHY_LIST=af_hierarchy_list.split('/')[1:]
+        AF_HIERARCHY_COUNT=len(AF_HIERARCHY_LIST)
+        
+        try:
+            ctx = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
+            ctx.options |= ssl.PROTOCOL_TLSv1_1
+            # With ssl.CERT_NONE as verify_mode, validation errors such as untrusted or expired cert
+            # are ignored and do not abort the TLS/SSL handshake.
+            ctx.verify_mode = ssl.CERT_NONE
+            conn = http.client.HTTPSConnection(host, context=ctx)
+            conn = http.client.HTTPSConnection(host, context=ctx)
+            conn.request("GET", '/piwebapi/assetservers', headers=headers)
+            res = conn.getresponse()
+            r = json.loads(res.read().decode())
+            dbs_url= r['Items'][0]['Links']['Databases']
+            print(dbs_url)
+            if dbs_url is not None:
+                conn.request("GET", dbs_url, headers=headers)
+                res = conn.getresponse()
+                r = json.loads(res.read().decode())
+                items = r['Items']
+                CHECK_DATABASE_EXISTS = list(filter(lambda items: items['Name'] == pi_database, items))[0]
+                
+                if len(CHECK_DATABASE_EXISTS) > 0:
+                    elements_url = CHECK_DATABASE_EXISTS['Links']['Elements']
+                else:
+                    raise Exception('Database not exist')
+                
+                if elements_url is not None:
+                    conn.request("GET", elements_url, headers=headers)
+                    res = conn.getresponse()
+                    r = json.loads(res.read().decode())
+                    items = r['Items']
+                    
+                    CHECK_AF_ELEMENT_EXISTS = list(filter(lambda items: items['Name'] == AF_HIERARCHY_LIST[0], items))[0]
+                    if len(CHECK_AF_ELEMENT_EXISTS) != 0:
+                        
+                        counter =  0
+                        while counter < AF_HIERARCHY_COUNT:
+                            if CHECK_AF_ELEMENT_EXISTS['Name'] == AF_HIERARCHY_LIST[counter]:
+                                counter+=1
+                                elements_url = CHECK_AF_ELEMENT_EXISTS['Links']['Elements']
+                                conn.request("GET", elements_url, headers=headers)
+                                res = conn.getresponse()
+                                CHECK_AF_ELEMENT_EXISTS = json.loads(res.read().decode())['Items'][0]
+                            else:
+                                raise Exception("AF Heirarchy is incorrect")
+                            
+                        record = dict()
+                        if CHECK_AF_ELEMENT_EXISTS['Name'] == asset:
+                            record_url = CHECK_AF_ELEMENT_EXISTS['Links']['RecordedData']
+                            get_record_url = quote("{}?limit=10000".format(record_url), safe='?,=&/.:')
+                            print(get_record_url)
+                            conn.request("GET", get_record_url, headers=headers)
+                            res = conn.getresponse()
+                            items = json.loads(res.read().decode())['Items']
+                            no_of_datapoint_in_pi_server = len(items)
+                            Item_matched = False
+                            count = 0
+                            if no_of_datapoint_in_pi_server == 0:
+                                raise "Data points are not created in PI Server"
+                            else:
+                                for item in items:
+                                    count += 1
+                                    if item['Name'] in sensor:
+                                        print(item['Name'])
+                                        record[item['Name']] = list(map(lambda val: val['Value'], filter(lambda ele: isinstance(ele['Value'], int) or isinstance(ele['Value'], float) , item['Items'])))
+                                        Item_matched = True
+                                    elif count == no_of_datapoint_in_pi_server and Item_matched == False:
+                                        raise "Required Data points is not Present --> {}".format(sensor)
+                        else:
+                            raise "Asset does not exist, Although Hierarchy is correct"
+                        
+                        return(record)
+                            
+                    else:
+                        raise Exception("AF Root not exists")
+                else:
+                    raise Exception("Elements URL not found")
+            else:
+                raise Exception("DataBase URL not found")
+                
+            
+        except (KeyError, IndexError, Exception) as ex:
+            print("Failed to read data due to {}".format(ex))
+            return None
+        
+    return(_verify_hierarchy_and_get_datapoints_from_pi_web_api)
 
 @pytest.fixture
 def read_data_from_pi_web_api():

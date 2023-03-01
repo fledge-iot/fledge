@@ -273,8 +273,7 @@ void filter_plugin_ingest_fn(PLUGIN_HANDLE handle, READINGSET *data)
 						  readingsList);
 	Py_CLEAR(pFunc);
 	// Remove input data
-	delete (ReadingSet *)data;
-	data = NULL;
+	data->removeAll();
 
 	// Handle returned data
 	if (!pReturn)
@@ -285,6 +284,34 @@ void filter_plugin_ingest_fn(PLUGIN_HANDLE handle, READINGSET *data)
 		logErrorMessage();
 	}
 
+	PythonReadingSet *filteredReadingSet = NULL;
+
+	if (pReturn)
+	{
+		// Check we have a list of readings
+		if (PyList_Check(readingsList))
+		{
+			try
+			{
+				// Create ReadingSet from Python reading list
+				filteredReadingSet = new PythonReadingSet(readingsList);
+				data->append(filteredReadingSet);
+				delete filteredReadingSet;
+			}
+			catch (std::exception e)
+			{
+				Logger::getLogger()->warn("Unable to create a PythonReadingSet, error: %s", e.what());
+				filteredReadingSet = NULL;
+			}
+		}
+		else
+		{
+			Logger::getLogger()->error("Filter did not return a Python List "
+						   "but object type %s",
+						   Py_TYPE(readingsList)->tp_name);
+		}
+	}
+	
 	// Remove readings to dict
 	Py_CLEAR(readingsList);
 	// Remove CallFunction result

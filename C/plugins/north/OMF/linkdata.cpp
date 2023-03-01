@@ -20,10 +20,37 @@
 
 #include <iterator>
 #include <typeinfo>
+#include <algorithm>
 
 #include <omflinkeddata.h>
+#include <omferror.h>
 
 using namespace std;
+
+/**
+ * Create a comma-separated string of all Datapoint names in a Reading
+ *
+ * @param reading	Reading
+ * @return			Datapoint names in the Reading
+ */
+static std::string DataPointNamesAsString(const Reading& reading)
+{
+	std::string dataPointNames;
+
+	for (Datapoint *datapoint : reading.getReadingData())
+	{
+		dataPointNames.append(datapoint->getName());
+		dataPointNames.append(",");
+	}
+
+	if (dataPointNames.size() > 0)
+	{
+		dataPointNames.resize(dataPointNames.size() - 1);	// remove trailing comma
+	}
+
+	return dataPointNames;
+}
+
 /**
  * OMFLinkedData constructor, generates the OMF message containing the data
  *
@@ -47,13 +74,17 @@ string OMFLinkedData::processReading(const Reading& reading, const string&  AFHi
 		{
 			if (typeid(**it) == typeid(OMFTagNameHint))
 			{
-				assetName = (*it)->getHint();
-				Logger::getLogger()->info("Using OMF TagName hint: %s", assetName.c_str());
+				string hintValue = (*it)->getHint();
+				Logger::getLogger()->info("Using OMF TagName hint: %s for asset %s",
+					       hintValue.c_str(), assetName.c_str());
+				assetName = hintValue;
 			}
 			if (typeid(**it) == typeid(OMFTagHint))
 			{
-				assetName = (*it)->getHint();
-				Logger::getLogger()->info("Using OMF Tag hint: %s", assetName.c_str());
+				string hintValue = (*it)->getHint();
+				Logger::getLogger()->info("Using OMF Tag hint: %s for asset %s",
+					       hintValue.c_str(), assetName.c_str());
+				assetName = hintValue;
 			}
 		}
 	}
@@ -61,9 +92,9 @@ string OMFLinkedData::processReading(const Reading& reading, const string&  AFHi
 
 	// Get reading data
 	const vector<Datapoint*> data = reading.getReadingData();
-	unsigned long skipDatapoints = 0;
+	vector<string> skippedDatapoints;
 
-	Logger::getLogger()->info("Processing %s with new OMF method", assetName.c_str());
+	Logger::getLogger()->debug("Processing %s (%s) using Linked Types", assetName.c_str(), DataPointNamesAsString(reading).c_str());
 
 	bool needDelim = false;
 	if (m_assetSent->find(assetName) == m_assetSent->end())
@@ -91,7 +122,7 @@ string OMFLinkedData::processReading(const Reading& reading, const string&  AFHi
 		}
 		if (!isTypeSupported((*it)->getData()))
 		{
-			skipDatapoints++;;	
+			skippedDatapoints.push_back(dpName);
 			continue;
 		}
 		else
@@ -126,20 +157,34 @@ string OMFLinkedData::processReading(const Reading& reading, const string&  AFHi
 
 			// Create the link for the asset if not already created
 			string link = assetName + "." + dpName;
-			string baseType;
+			string baseType = getBaseType(*it, format);
 			auto container = m_containerSent->find(link);
 			if (container == m_containerSent->end())
 			{
-				baseType = sendContainer(link, *it, format, hints);
+				sendContainer(link, *it, hints, baseType);
 				m_containerSent->insert(pair<string, string>(link, baseType));
 			}
-			else
+			else if (baseType.compare(container->second) != 0)
 			{
-				baseType =  container->second;
+				if (container->second.compare(0, 6, "Double") == 0 &&
+						(baseType.compare(0, 7, "Integer") == 0
+						 || baseType.compare(0, 8, "UInteger") == 0))
+				{
+					string msg = "Asset " + assetName + " data point " + dpName 
+				       		+ " conversion from floating point to integer is being ignored";
+					OMF::reportAsset(assetName, "warn", msg);
+					baseType = container->second;
+				}
+				else
+				{
+					sendContainer(link, *it, hints, baseType);
+					(*m_containerSent)[link] = baseType;
+				}
 			}
 			if (baseType.empty())
 			{
 				// Type is not supported, skip the datapoint
+				skippedDatapoints.push_back(dpName);
 				continue;
 			}
 			if (m_linkSent->find(link) == m_linkSent->end())
@@ -170,20 +215,36 @@ string OMFLinkedData::processReading(const Reading& reading, const string&  AFHi
 			outData.append("} ] }");
 		}
 	}
-	Logger::getLogger()->debug("Created data messasges %s", outData.c_str());
+	if (skippedDatapoints.size() > 0)
+	{
+		string points;
+		for (string& dp : skippedDatapoints)
+		{
+			if (!points.empty())
+				points.append(", ");
+			points.append(dp);
+		}
+		auto pos = points.find_last_of(",");
+		if (pos != string::npos)
+		{
+			points.replace(pos, 1, " and");
+		}
+		string assetName = reading.getAssetName();
+		string msg = "The asset " + assetName + " had a number of datapoints, " + points + " that are not supported by OMF and have been omitted";
+		OMF::reportAsset(assetName, "warn", msg);
+	}
+	Logger::getLogger()->debug("Created data messages %s", outData.c_str());
 	return outData;
 }
 
 /**
- * Send the container message for the linked datapoint
+ * Calculate the base type we need to link the container
  *
- * @param linkName	The name to use for the container
  * @param dp		The datapoint to process
  * @param format	The format to use based on a hint, this may be empty
- * @param hints		Hints related to this asset
  * @return	The base type linked in the container
  */
-string OMFLinkedData::sendContainer(string& linkName, Datapoint *dp, const string& format, OMFHints * hints)
+string OMFLinkedData::getBaseType(Datapoint *dp, const string& format)
 {
 	string baseType;
 	switch (dp->getData().getType())
@@ -226,11 +287,24 @@ string OMFLinkedData::sendContainer(string& linkName, Datapoint *dp, const strin
 			break;
 		}
 		default:
-			Logger::getLogger()->error("Unsupported type %s", dp->getData().getTypeStr());
+			Logger::getLogger()->error("Unsupported type %s for the data point %s", dp->getData().getTypeStr(),
+					dp->getName().c_str());
 			// Not supported
 			return baseType;
 	}
+	return baseType;
+}
 
+/**
+ * Send the container message for the linked datapoint
+ *
+ * @param linkName	The name to use for the container
+ * @param dp		The datapoint to process
+ * @param hints		Hints related to this asset
+ * @param baseType	The baseType we will use
+ */
+void OMFLinkedData::sendContainer(string& linkName, Datapoint *dp, OMFHints * hints, const string& baseType)
+{
 	string dataSource = "Fledge";
 	string uom, minimum, maximum, interpolation;
 	bool propertyOverrides = false;
@@ -328,8 +402,6 @@ string OMFLinkedData::sendContainer(string& linkName, Datapoint *dp, const strin
 	if (! m_containers.empty())
 		m_containers += ",";
 	m_containers.append(container);
-
-	return baseType;
 }
 
 /**
@@ -355,28 +427,55 @@ bool OMFLinkedData::flushContainers(HttpSender& sender, const string& path, vect
 					   payload);
 		if  ( ! (res >= 200 && res <= 299) )
 		{
-			Logger::getLogger()->error("Sending containers, HTTP code %d - %s %s",
+			Logger::getLogger()->error("An error occurred sending the container data. HTTP code %d - %s %s",
 						   res,
 						   sender.getHostPort().c_str(),
-						   path.c_str());
+						   sender.getHTTPResponse().c_str());
 			return false;
 		}
 	}
 	// Exception raised for HTTP 400 Bad Request
 	catch (const BadRequest& e)
 	{
+		OMFError error(sender.getHTTPResponse());
+		if (error.hasErrors())
+		{
+			Logger::getLogger()->warn("The OMF endpoint reported a bad request when sending containers: %d messages",
+					error.messageCount());
+			for (unsigned int i = 0; i < error.messageCount(); i++)
+			{
+				Logger::getLogger()->warn("Message %d: %s, %s, %s",
+						i, error.getEventSeverity(i).c_str(), error.getMessage(i).c_str(), error.getEventReason(i).c_str());
+			}
+		}
 
-		Logger::getLogger()->warn("Sending containers, not blocking issue: %s - %s %s",
-				e.what(),
-				sender.getHostPort().c_str(),
-				path.c_str());
+		return error.hasErrors();
+	}
+	catch (const Conflict& e)
+	{
+		OMFError error(sender.getHTTPResponse());
+		// The following is possibly too verbose
+		if (error.hasErrors())
+		{
+			Logger::getLogger()->warn("The OMF endpoint reported a conflict when sending containers: %d messages",
+					error.messageCount());
+			for (unsigned int i = 0; i < error.messageCount(); i++)
+			{
+				string severity = error.getEventSeverity(i);
+				if (severity.compare("Error") == 0)
+				{
+					Logger::getLogger()->warn("Message %d: %s, %s, %s",
+						i, error.getEventSeverity(i).c_str(), error.getMessage(i).c_str(), error.getEventReason(i).c_str());
+				}
+			}
+		}
 
-		return false;
+		return error.hasErrors();
 	}
 	catch (const std::exception& e)
 	{
 
-		Logger::getLogger()->error("Sending containers, %s - %s %s",
+		Logger::getLogger()->error("An exception occurred when sending container information the OMF endpoint, %s - %s %s",
 									e.what(),
 									sender.getHostPort().c_str(),
 									path.c_str());

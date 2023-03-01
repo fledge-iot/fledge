@@ -13,10 +13,12 @@
 .. |OMF_Persisted| image:: images/OMF_Persisted.png
 .. |PersistedPlugins| image:: images/PersistedPlugins.png
 .. |PersistedActions| image:: images/PersistActions.png
+.. |OMF_Formats| image:: images/OMF_Formats.jpg
 
 *****************************************
 Troubleshooting the PI Server integration
 *****************************************
+
 
 This section describes how to troubleshoot issues with the PI Server integration
 using Fledge version >= 1.9.1 and PI Web API 2019 SP1 1.13.0.6518
@@ -27,10 +29,23 @@ using Fledge version >= 1.9.1 and PI Web API 2019 SP1 1.13.0.6518
 - `Error messages and causes`_
 - `Possible solutions to common problems`_
 
+Fledge 2.1.0 and later
+======================
+
+In version 2.1 of Fledge a major change was introduced to the OMF plugin in the form of support for OMF version 1.2. This provides for a different method of adding data to the OMF end points that greatly improves the flexibility and removes the need to create complex types in OMF to map onto the Fledge reading structure.
+When upgrading from a version prior to 2.1 where data had previously been sent to OMF, the plugin will continue to use the older, pre-OMF 1.2 method to add data. This ensures that data will continue to be written to the same tags within the PI Server or other OMF end points. New data, not previously sent to OMF will be written using the newer OMF 1.2 mechanism.
+
+It is possible to force the OMF plugin to always send data in the pre-OMF 1.2 format, using complex OMF data types, by turning on the option *Complex Types* in the *Formats & Types* tab of the plugin configuration.
+
++---------------+
+| |OMF_Formats| |
++---------------+
+
 Log files
 =========
 
 Fledge logs messages at error and warning levels by default, it is possible to increase the verbosity of messages logged to include information and debug messages also. This is done by altering the minimum log level setting for the north service or task. To change the minimal log level within the graphical user interface select the north service or task, click on the advanced settings link and then select a new minimal log level from the option list presented.
+
 The name of the north instance should be used to extract just the logs about the PI Server integration, as in this example:
 
 screenshot from the Fledge GUI
@@ -147,8 +162,8 @@ Managing Plugin Persisted Data
 
 This is not a feature that users would ordinarily need to be concerned with, however it is possible to enable *Developer Features* in the Fledge User Interface that will provide a mechanism to manage this data.
 
-Enable Develop Features
-~~~~~~~~~~~~~~~~~~~~~~~
+Enable Developer Features
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Navigate to the *Settings* page of the GUI and toggle on the *Developer Features* check box on the bottom left of the page.
 

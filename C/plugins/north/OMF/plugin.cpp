@@ -470,9 +470,10 @@ OMF_ENDPOINT  identifyPIServerEndpoint     (CONNECTOR_INFO* connInfo);
 string        AuthBasicCredentialsGenerate (string& userId, string& password);
 void          AuthKerberosSetup            (string& keytabFile, string& keytabFileName);
 string        OCSRetrieveAuthToken         (CONNECTOR_INFO* connInfo);
-int           PIWebAPIGetVersion           (CONNECTOR_INFO* connInfo, std::string &version, bool logMessage = true);
+int           PIWebAPIGetVersion           (CONNECTOR_INFO* connInfo, bool logMessage = true);
 double        GetElapsedTime               (struct timeval *startTime);
-bool          IsPIWebAPIConnected          (CONNECTOR_INFO* connInfo, std::string& version);
+bool          IsPIWebAPIConnected          (CONNECTOR_INFO* connInfo);
+void          SetOMFVersion                (CONNECTOR_INFO* connInfo);
 
 
 /**
@@ -865,16 +866,23 @@ void plugin_start(const PLUGIN_HANDLE handle,
 	s_connected = true;
 	if (connInfo->PIServerEndpoint == ENDPOINT_PIWEB_API)
 	{
-		int httpCode = PIWebAPIGetVersion(connInfo, connInfo->PIWebAPIVersion);
+		int httpCode = PIWebAPIGetVersion(connInfo);
 		if (httpCode >= 200 && httpCode < 400)
 		{
-			Logger::getLogger()->info("%s connected to %s" ,connInfo->PIWebAPIVersion.c_str(), connInfo->hostAndPort.c_str());
+			SetOMFVersion(connInfo);
+			Logger::getLogger()->info("%s connected to %s OMF Version: %s",
+				connInfo->PIWebAPIVersion.c_str(), connInfo->hostAndPort.c_str(), connInfo->omfversion.c_str());
 			s_connected = true;
 		}
 		else
 		{
 			s_connected = false;
 		}
+	}
+	else
+	{
+		SetOMFVersion(connInfo);
+		Logger::getLogger()->info("OMF Version: %s", connInfo->omfversion.c_str());
 	}
 
 #if INSTRUMENT
@@ -896,35 +904,12 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 	string version;
 
 	// Check if the endpoint is PI Web API and if the PI Web API server is available
-	if (!IsPIWebAPIConnected(connInfo, version))
+	if (!IsPIWebAPIConnected(connInfo))
 	{
-		Logger::getLogger()->warn("PI Web API server %s is not available. Unable to send data to PI", connInfo->hostAndPort.c_str());
+		// Error already reported by IsPIWebAPIConnected
 		return 0;
 	}
 
-	if (version.empty() && connInfo->PIServerEndpoint == ENDPOINT_PIWEB_API)
-	{
-		PIWebAPIGetVersion(connInfo, version, false);
-	}
-
-	Logger::getLogger()->info("Version is '%s'", version.c_str());
-
-	// Until we know better assume OMF 1.2 as this is the base base point
-	// to give us the flexible type support we need
-	connInfo->omfversion = "1.2";
-	if (version.find("2019") != std::string::npos)
-	{
-		connInfo->omfversion = "1.0";
-	}
-	else if (version.find("2020") != std::string::npos)
-	{
-		connInfo->omfversion = "1.1";
-	}
-	else if (version.find("2021") != std::string::npos)
-	{
-		connInfo->omfversion = "1.2";
-	}
-	Logger::getLogger()->info("Using OMF Version '%s'", connInfo->omfversion.c_str());
 	/**
 	 * Select the transport library based on the authentication method and transport encryption
 	 * requirements.
@@ -1509,7 +1494,12 @@ void loadSentDataTypes(CONNECTOR_INFO* connInfo,
 	}
 	else
 	{
-		Logger::getLogger()->warn("Persisted data is not of the correct format, ignoring");
+		// There is no stored data when plugin starts first time 
+		if (JSONData.MemberBegin() != JSONData.MemberEnd())
+		{
+			Logger::getLogger()->warn("Persisted data is not of the correct format, ignoring");
+		}
+		
 		OMFDataTypes dataType;
 		dataType.typeId = connInfo->typeId;
 		dataType.types = "{}";
@@ -1545,12 +1535,11 @@ long getMaxTypeId(CONNECTOR_INFO* connInfo)
 /**
  * Calls the PI Web API to retrieve the version
  * 
- * @param    connInfo	The CONNECTOR_INFO data structure
- * @param    version	Returned version string
+ * @param    connInfo	The CONNECTOR_INFO data structure which includes version
  * @param    logMessage	If true, log error messages (default: true)
  * @return   httpCode   HTTP response code
  */
-int PIWebAPIGetVersion(CONNECTOR_INFO* connInfo, std::string &version, bool logMessage)
+int PIWebAPIGetVersion(CONNECTOR_INFO* connInfo, bool logMessage)
 {
 	PIWebAPI *_PIWebAPI;
 
@@ -1560,10 +1549,43 @@ int PIWebAPIGetVersion(CONNECTOR_INFO* connInfo, std::string &version, bool logM
 	_PIWebAPI->setAuthMethod          (connInfo->PIWebAPIAuthMethod);
 	_PIWebAPI->setAuthBasicCredentials(connInfo->PIWebAPICredentials);
 
-	int httpCode = _PIWebAPI->GetVersion(connInfo->hostAndPort, version, logMessage);
+	int httpCode = _PIWebAPI->GetVersion(connInfo->hostAndPort, connInfo->PIWebAPIVersion, logMessage);
 	delete _PIWebAPI;
 
 	return httpCode;
+}
+
+/**
+ * Set the supported OMF Version for the OMF endpoint 
+ * 
+ * @param    connInfo	The CONNECTOR_INFO data structure
+ */
+void SetOMFVersion(CONNECTOR_INFO* connInfo)
+{
+	if (connInfo->PIServerEndpoint == ENDPOINT_PIWEB_API)
+	{
+		if (connInfo->PIWebAPIVersion.find("2019") != std::string::npos)
+		{
+			connInfo->omfversion = "1.0";
+		}
+		else if (connInfo->PIWebAPIVersion.find("2020") != std::string::npos)
+		{
+			connInfo->omfversion = "1.1";
+		}
+		else if (connInfo->PIWebAPIVersion.find("2021") != std::string::npos)
+		{
+			connInfo->omfversion = "1.2";
+		}
+		else
+		{
+			connInfo->omfversion = "1.2";
+		}
+	}
+	else
+	{
+		// Assume all other OMF endpoint types support OMF Version 1.2
+		connInfo->omfversion = "1.2";
+	}
 }
 
 /**
@@ -1716,12 +1738,13 @@ double GetElapsedTime(struct timeval *startTime)
  * Check if the PI Web API server is available by reading the product version
  *
  * @param connInfo   The CONNECTOR_INFO data structure
- * @param version    Returned version string
  * @return           Connection status
  */
-bool IsPIWebAPIConnected(CONNECTOR_INFO* connInfo, std::string& version)
+bool IsPIWebAPIConnected(CONNECTOR_INFO* connInfo)
 {
 	static std::chrono::steady_clock::time_point nextCheck;
+	static bool reported = false;	// Has the state been reported yet
+	static bool reportedState;	// What was the last reported state
 
 	if (!s_connected && connInfo->PIServerEndpoint == ENDPOINT_PIWEB_API)
 	{
@@ -1729,18 +1752,34 @@ bool IsPIWebAPIConnected(CONNECTOR_INFO* connInfo, std::string& version)
 
 		if (now >= nextCheck)
 		{
-			int httpCode = PIWebAPIGetVersion(connInfo, version, false);
-			if (httpCode >= 500)
+			int httpCode = PIWebAPIGetVersion(connInfo, false);
+			if (httpCode >= 400)
 			{
 				s_connected = false;
 				now = std::chrono::steady_clock::now();
 				nextCheck = now + std::chrono::seconds(60);
 				Logger::getLogger()->debug("PI Web API %s is not available. HTTP Code: %d", connInfo->hostAndPort.c_str(), httpCode);
+				if (reported == false || reportedState == true)
+				{
+					reportedState = false;
+					reported = true;
+					Logger::getLogger()->error("The PI Web API service %s is not available",
+							connInfo->hostAndPort.c_str());
+				}
 			}
 			else
 			{
 				s_connected = true;
-				Logger::getLogger()->info("%s reconnected to %s", version.c_str(), connInfo->hostAndPort.c_str());
+				SetOMFVersion(connInfo);
+				Logger::getLogger()->info("%s reconnected to %s OMF Version: %s",
+					connInfo->PIWebAPIVersion.c_str(), connInfo->hostAndPort.c_str(), connInfo->omfversion.c_str());
+				if (reported == true || reportedState == false)
+				{
+					reportedState = true;
+					reported = true;
+					Logger::getLogger()->warn("The PI Web API service %s has become available",
+							connInfo->hostAndPort.c_str());
+				}
 			}
 		}
 	}
@@ -1748,7 +1787,6 @@ bool IsPIWebAPIConnected(CONNECTOR_INFO* connInfo, std::string& version)
 	{
 		// Endpoints other than PI Web API fail quickly when they are unavailable
 		// so there is no need to check their status in advance.
-		version = "1.0";
 		s_connected = true;
 	}
 

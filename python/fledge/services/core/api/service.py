@@ -597,7 +597,7 @@ async def update_service(request: web.Request) -> web.Response:
             raise ValueError("Invalid service type.")
 
         # process_name for bucket storage service schedule is bucket_storage_c hence type here must be bucket_storage?
-        # process_name for management schedule is management and python based; Check added for schedule stuff
+        # process_name for management service schedule is management and python based; Check added for schedule stuff
 
         # NOTE: `bucketstorage` repository name with `BucketStorage` type in service registry has package name *-`bucket`.
         # URL: /fledge/service/bucket_storage/bucket/update ?! *EXTERNAL*
@@ -605,7 +605,6 @@ async def update_service(request: web.Request) -> web.Response:
 
         # Check requested service is installed or not
         installed_services = get_service_installed()
-        # TODO: Test for `bucket`/`management` for name in installed_services content
         if name not in installed_services:
             raise KeyError("{} service is not installed yet. Hence update is not possible.".format(name))
 

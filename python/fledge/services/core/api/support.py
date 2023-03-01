@@ -197,7 +197,7 @@ async def get_syslog_entries(request):
             scriptPath = os.path.join(_SCRIPTS_DIR, "common", "get_logs.sh")
             # cmd = non_total_template.format(valid_source[source], _SYSLOG_FILE, offset, limit)
             pattern = '({})\[.*\].*{}:'.format(valid_source[source], levels)
-            cmd = '{} -offset {} -limit {} -pattern \'{}\' -logfile {} -source {} -level {}'.format(scriptPath, offset, limit, pattern, _SYSLOG_FILE, source, level)
+            cmd = '{} -offset {} -limit {} -pattern \'{}\' -logfile {} -source \'{}\' -level {}'.format(scriptPath, offset, limit, pattern, _SYSLOG_FILE, source, level)
             _logger.debug('********* non_totals=true: new shell command: {}'.format(cmd))
 
         t1 = datetime.datetime.now()

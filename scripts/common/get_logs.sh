@@ -33,8 +33,8 @@ done
 
 
 sum=$(($offset + $limit))
-factor_search=${#keyword}
-if [[ $factor_search -gt 0 ]]; then
+keyword_len=${#keyword}
+if [[ $keyword_len -gt 0 ]]; then
     factor_keyword="$sourceApp:$level:$keyword:"
     search_pattern="grep -a -E '${pattern}' | grep -F '$keyword'"
 else
@@ -73,7 +73,7 @@ if [[ $script_runs -eq 0 ]]; then
 else
     if [ -f /tmp/fl_syslog_factor ]; then
         echo "Reading factor value from /tmp/fl_syslog_factor" >&2
-        if [[ $factor_search -gt 0 ]]; then
+        if [[ $keyword_len -gt 0 ]]; then
             factor_value=$(grep "$factor_keyword" /tmp/fl_syslog_factor | rev | cut -d: -f1 | rev)
         else
             factor_value=$(grep "$factor_keyword[0-9]+$" /tmp/fl_syslog_factor | rev | cut -d: -f1 | rev)

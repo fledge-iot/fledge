@@ -48,6 +48,7 @@ class ReadingSet {
 		void				append(const std::vector<Reading *> &);
 		void				removeAll();
 		void				clear();
+		bool				copy(const ReadingSet& src);
 
 	protected:
 		unsigned long			m_count;

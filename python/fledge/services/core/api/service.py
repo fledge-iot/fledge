@@ -593,7 +593,7 @@ async def update_service(request: web.Request) -> web.Response:
     name = request.match_info.get('name', None)
     try:
         _type = _type.lower()
-        if _type in ('notification', 'dispatcher', 'bucket_storage', 'management'):
+        if _type not in ('notification', 'dispatcher', 'bucket_storage', 'management'):
             raise ValueError("Invalid service type.")
 
         # process_name for bucket storage service schedule is bucket_storage_c hence type here must be bucket_storage?

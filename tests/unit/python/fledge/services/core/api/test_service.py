@@ -1233,7 +1233,7 @@ class TestService:
     async def test_bad_type_update_package(self, client, param):
         resp = await client.put('/fledge/service/{}/name/update'.format(param), data=None)
         assert 400 == resp.status
-        assert "Invalid service type. Must be 'notification'" == resp.reason
+        assert "Invalid service type.'" == resp.reason
 
     async def test_bad_update_package(self, client, _type="notification", name="notification"):
         svc_list = ["storage", "south"]

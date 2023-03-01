@@ -103,7 +103,7 @@ The configuration of the plugin is split into a number of tabs in order to reduc
 
   - **Advanced Configuration**: Configuration of the service or task that is supporting the OMF plugin.
 
-  - **Security Configuration**: The configuration options that impact the security if the service that is running OMF.
+  - **Security Configuration**: The configuration options that impact the security of the service that is running OMF.
 
   - **Developer**: This tab is only visible if the developer features of Fledge have been enabled and will give access to the features aimed at a plugin or pipeline developing.
 

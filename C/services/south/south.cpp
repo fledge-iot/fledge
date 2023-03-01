@@ -394,13 +394,15 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 
 		{
 		// Instantiate the Ingest class
-		Ingest ingest(storage, timeout, threshold, m_name, pluginName, m_mgtClient);
+		Ingest ingest(storage, m_name, pluginName, m_mgtClient);
 		m_ingest = &ingest;
 
 		if (m_configAdvanced.itemExists("statistics"))
 		{
 			m_ingest->setStatistics(m_configAdvanced.getValue("statistics"));
 		}
+
+		m_ingest->start(timeout, threshold);	// Start the ingest threads running
 
 		try {
 			m_readingsPerSec = 1;

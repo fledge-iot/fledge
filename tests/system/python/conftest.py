@@ -798,6 +798,12 @@ def pytest_addoption(parser):
     parser.addoption("--start-north-as-service", action="store", type=bool, default=True,
                      help="Whether start the north as a service.")
 
+    # Fogbench Config
+    parser.addoption("--fogbench-host", action="store", default="localhost",
+                     help="Fogbench Host IP")
+                     
+    parser.addoption("--fogbench-port", action="store", default="5683", type=int,
+                     help="Fogbench Port")
 
 @pytest.fixture
 def storage_plugin(request):
@@ -1116,3 +1122,12 @@ def pytest_configure():
     pytest.OS_PLATFORM_DETAILS = read_os_release()
     pytest.IS_REDHAT = is_redhat_based()
     pytest.PKG_MGR = 'yum' if pytest.IS_REDHAT else 'apt'
+
+@pytest.fixture
+def fogbench_host(request):
+    return request.config.getoption("--fogbench-host")
+
+
+@pytest.fixture
+def fogbench_port(request):
+    return request.config.getoption("--fogbench-port")

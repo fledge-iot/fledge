@@ -42,6 +42,7 @@ Fledge Notification Rule Plugins
 
 .. toctree::
 
+    fledge-rule-DataAvailability/index
     fledge-rule-Threshold/index
 EOFRULE
 cat > plugins/notify.rst << EOFNOTIFY
@@ -153,6 +154,10 @@ sed -i -e 's/Naming_Scheme/Naming_Scheme_plugin/' -e 's/Linked_Types/Linked_Type
 mkdir plugins/fledge-rule-Threshold
 ln -s $(pwd)/fledge-rule-Threshold/images plugins/fledge-rule-Threshold/images
 echo '.. include:: ../../fledge-rule-Threshold/index.rst' > plugins/fledge-rule-Threshold/index.rst
+# Create the DataAvailability rule documentation
+mkdir plugins/fledge-rule-DataAvailability
+ln -s $(pwd)/fledge-rule-DataAvailability/images plugins/fledge-rule-DataAvailability/images
+echo '.. include:: ../../fledge-rule-DataAvailability/index.rst' > plugins/fledge-rule-DataAvailability/index.rst
 
 cat > services/index.rst << EOFSERVICES
 *******************

@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-
 # FLEDGE_BEGIN
 # See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
@@ -13,6 +12,7 @@ import inspect
 import ipaddress
 import datetime
 import os
+import logging
 from math import *
 import collections
 import ast
@@ -30,8 +30,6 @@ __author__ = "Ashwin Gopalakrishnan, Ashish Jabble, Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
-
-import logging
 
 _logger = logger.setup(__name__)
 
@@ -191,11 +189,24 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                         'Callback module %s run method must be a coroutine function', callback)
                     raise AttributeError('Callback module {} run method must be a coroutine function'.format(callback))
                 await cb.run(category_name)
+        else:
+            if category_name == "LOGGING":
+                from fledge.services.core import server
+                from fledge.common.logger import Logger
+                log_level = self._cacheManager.cache[category_name]['value']['logLevel']['value']
+                if log_level == 'debug':
+                    logging_level = logging.DEBUG
+                elif log_level == 'info':
+                    logging_level = logging.INFO
+                elif log_level == 'warning':
+                    logging_level = logging.WARNING
+                else:
+                    logging_level = logging.ERROR
+                server.Server._log_level = logging_level
+                Logger().set_level(logging_level)
 
     async def _run_callbacks_child(self, parent_category_name, child_category, operation):
-
         callbacks = self._registered_interests_child.get(parent_category_name)
-
         if callbacks is not None:
             for callback in callbacks:
                 try:

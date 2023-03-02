@@ -13,14 +13,14 @@ from aiohttp import web
 import jwt
 
 from fledge.services.core.user_model import User
-from fledge.common import logger
+from fledge.common.logger import Logger
 
 __author__ = "Praveen Garg"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-_logger = logger.setup(__name__)
+_logger = Logger().get_logger(__name__)
 
 
 async def error_middleware(app, handler):
@@ -42,7 +42,7 @@ async def error_middleware(app, handler):
 
 async def optional_auth_middleware(app, handler):
     async def middleware(request):
-        _logger.info("Received %s request for %s", request.method, request.path)
+        _logger.debug("Received %s request for %s", request.method, request.path)
         request.is_auth_optional = True
         request.user = None
         return await handler(request)
@@ -54,7 +54,7 @@ async def auth_middleware(app, handler):
         # if `rest_api` config has `authentication` set to mandatory then:
         #   request must carry auth header,
         #   actual value will be checked too and if bad then 401: unauthorized will be returned
-        _logger.info("Received %s request for %s", request.method, request.path)
+        _logger.debug("Received %s request for %s", request.method, request.path)
 
         request.is_auth_optional = False
         request.user = None

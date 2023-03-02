@@ -18,7 +18,7 @@ import subprocess
 import signal
 from typing import List
 
-from fledge.common import logger
+from fledge.common.logger import Logger
 from fledge.common import utils as common_utils
 from fledge.common.audit_logger import AuditLogger
 from fledge.common.storage_client.exceptions import *
@@ -135,8 +135,7 @@ class Scheduler(object):
 
         # Initialize class attributes
         if not cls._logger:
-            cls._logger = logger.setup(__name__, level=logging.INFO)
-            # cls._logger = logger.setup(__name__, level=logging.DEBUG)
+            cls._logger = Logger().get_logger(__name__)
         if not cls._core_management_port:
             cls._core_management_port = core_management_port
         if not cls._core_management_host:

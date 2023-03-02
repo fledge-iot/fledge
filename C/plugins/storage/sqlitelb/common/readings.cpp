@@ -899,9 +899,9 @@ int sleep_time_ms = 0;
 				if (stmt != NULL)
 				{
 
-					sqlite3_bind_text(batch_stmt, varNo++, user_ts, -1, SQLITE_STATIC);
-					sqlite3_bind_text(batch_stmt, varNo++, asset_code, -1, SQLITE_STATIC);
-					sqlite3_bind_text(batch_stmt, varNo++, reading.c_str(), -1, SQLITE_STATIC);
+					sqlite3_bind_text(batch_stmt, varNo++, user_ts, -1, SQLITE_TRANSIENT);
+					sqlite3_bind_text(batch_stmt, varNo++, asset_code, -1, SQLITE_TRANSIENT);
+					sqlite3_bind_text(batch_stmt, varNo++, reading.c_str(), -1, SQLITE_TRANSIENT);
 				}
 			}
 
@@ -1021,9 +1021,9 @@ int sleep_time_ms = 0;
 
 			if(stmt != NULL) {
 
-				sqlite3_bind_text(stmt, 1, user_ts         ,-1, SQLITE_STATIC);
-				sqlite3_bind_text(stmt, 2, asset_code      ,-1, SQLITE_STATIC);
-				sqlite3_bind_text(stmt, 3, reading.c_str(), -1, SQLITE_STATIC);
+				sqlite3_bind_text(stmt, 1, user_ts         ,-1, SQLITE_TRANSIENT);
+				sqlite3_bind_text(stmt, 2, asset_code      ,-1, SQLITE_TRANSIENT);
+				sqlite3_bind_text(stmt, 3, reading.c_str(), -1, SQLITE_TRANSIENT);
 
 				retries =0;
 				sleep_time_ms = 0;

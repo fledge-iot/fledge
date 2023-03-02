@@ -439,14 +439,14 @@ Writing Audit Trail
 
 Plugins are able to write records to the audit trail. These records must use one of the predefined audit code that are support by the system. See |audit_trail| for details of the supported audit codes within the system.
 
-In C++ you use the *AuditLogger* class to write these audit trail entries, this is a singleton object that is access vi the getLogger method.
+In C++ you use the *AuditLogger* class to write these audit trail entries, this is a singleton object that is access via the getLogger method.
 
 .. code-block:: C
 
    AuditLogger *audit = AuditLogger::getLogger();
    audit->audit("NHDWN", "INFORMATION");
 
-There is also a convenience function that can be used if you not not want to define a local pointer the AuditLogger
+There is also a convenience function that can be used if you not want to define a local pointer the AuditLogger
 
 .. code-block:: C
 

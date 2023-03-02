@@ -207,8 +207,16 @@ bool Connection::applyColumnDateTimeFormat(sqlite3_stmt *pStmt,
 					// Column metadata found and column datatype is "pzDataType"
 					formatStmt = string("SELECT strftime('");
 					formatStmt += string(F_DATEH24_MS);
-					formatStmt += "', '" + string((char *) sqlite3_column_text(pStmt, i));
-					formatStmt += "')";
+					
+					string columnText ((char *) sqlite3_column_text(pStmt, i));
+					if (columnText.find("strftime") != string::npos)
+					{
+						formatStmt += "', " + columnText + ")";
+					}
+					else
+					{
+						formatStmt += "', '" + columnText + "')";
+					}
 
 					apply_format = true;
 

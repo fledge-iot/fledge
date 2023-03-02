@@ -21,7 +21,7 @@ from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.common.storage_client.storage_client import StorageClientAsync
 from fledge.common.storage_client.exceptions import StorageServerError
 from fledge.common.storage_client.utils import Utils
-from fledge.common import logger
+from fledge.common.logger import Logger
 from fledge.common.common import _FLEDGE_ROOT, _FLEDGE_DATA
 from fledge.common.audit_logger import AuditLogger
 from fledge.common.acl_manager import ACLManager
@@ -31,7 +31,7 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-_logger = logger.setup(__name__)
+_logger = Logger().get_logger(__name__)
 
 # MAKE UPPER_CASE
 _valid_type_strings = sorted(['boolean', 'integer', 'float', 'string', 'IPv4', 'IPv6', 'X509 certificate', 'password',
@@ -194,14 +194,15 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 from fledge.services.core import server
                 from fledge.common.logger import Logger
                 log_level = self._cacheManager.cache[category_name]['value']['logLevel']['value']
+                logging_level = logging.WARNING
                 if log_level == 'debug':
                     logging_level = logging.DEBUG
                 elif log_level == 'info':
                     logging_level = logging.INFO
-                elif log_level == 'warning':
-                    logging_level = logging.WARNING
-                else:
+                elif log_level == 'error':
                     logging_level = logging.ERROR
+                elif log_level == 'critical':
+                    logging_level = logging.CRITICAL
                 server.Server._log_level = logging_level
                 Logger().set_level(logging_level)
 

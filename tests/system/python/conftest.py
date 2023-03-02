@@ -800,10 +800,10 @@ def pytest_addoption(parser):
 
     # Fogbench Config
     parser.addoption("--fogbench-host", action="store", default="localhost",
-                     help="Fogbench Host IP")
+                     help="FogBench Destination Host Address")
                      
     parser.addoption("--fogbench-port", action="store", default="5683", type=int,
-                     help="Fogbench Port")
+                     help="FogBench Destination Port")
 
 @pytest.fixture
 def storage_plugin(request):

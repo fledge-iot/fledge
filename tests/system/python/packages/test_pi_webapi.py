@@ -179,7 +179,7 @@ class TestPackagesCoAP_PI_WebAPI:
                 data received from PI is same as data sent"""
 
         conn = http.client.HTTPConnection(fledge_url)
-        # Time to get coap service started
+        # Time to get CoAP service started
         time.sleep(2)
         subprocess.run(
             ["cd $FLEDGE_ROOT/extras/python; python3 -m fogbench -t ../../data/{} --host {} --port {}; cd -".format(TEMPLATE_NAME, fogbench_host, fogbench_port)],
@@ -212,7 +212,7 @@ class TestPackagesCoAP_PI_WebAPI:
                 on endpoint GET /fledge/track"""
 
         conn = http.client.HTTPConnection(fledge_url)
-        # Time to get coap service started
+        # Time to get CoAP service started
         time.sleep(2)
         subprocess.run(
             ["cd $FLEDGE_ROOT/extras/python; python3 -m fogbench -t ../../data/{} --host {} --port {}; cd -".format(TEMPLATE_NAME, fogbench_host, fogbench_port)],

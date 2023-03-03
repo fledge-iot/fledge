@@ -608,21 +608,21 @@ class Server:
         await cls.scheduler.start()
 
     @staticmethod
-    def __start_storage(host, m_port, log):
-        log.info("Start storage, from directory {}".format(_SCRIPTS_DIR))
+    def __start_storage(host, m_port):
+        _logger.info("Start storage, from directory {}".format(_SCRIPTS_DIR))
         try:
             cmd_with_args = ['./services/storage', '--address={}'.format(host),
                              '--port={}'.format(m_port)]
             subprocess.call(cmd_with_args, cwd=_SCRIPTS_DIR)
         except Exception as ex:
-            log.exception(str(ex))
+            _logger.exception(str(ex))
 
     @classmethod
     async def _start_storage(cls, loop):
         if loop is None:
             loop = asyncio.get_event_loop()
         # callback with args
-        loop.call_soon(cls.__start_storage, cls._host, cls.core_management_port, _logger)
+        loop.call_soon(cls.__start_storage, cls._host, cls.core_management_port)
 
     @classmethod
     async def _get_storage_client(cls):

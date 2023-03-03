@@ -187,19 +187,10 @@ class Logger:
         _logger.propagate = False
         return _logger
 
-    def set_level(self, level_number: int):
+    def set_level(self, level_name: str):
         """Sets the root logger level. That means all child loggers will inherit this feature from it.
         Args:
-            level_number: Numeric logging level for the message
-        """
-        logging.root.setLevel(level_number)
-
-    def get_numeric_log_level(self, level_name: str) -> int:
-        """Get the numeric value of log level
-        Args:
-            level_name: Log level name in string
-        Returns:
-            Log numeric value
+            level_name: logging level
         """
         if level_name == 'debug':
             log_level = logging.DEBUG
@@ -211,4 +202,4 @@ class Logger:
             log_level = logging.CRITICAL
         else:
             log_level = logging.WARNING
-        return log_level
+        logging.root.setLevel(log_level)

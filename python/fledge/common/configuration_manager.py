@@ -193,8 +193,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             if category_name == "LOGGING":
                 from fledge.services.core import server
                 from fledge.common.logger import Logger
-                log_level = self._cacheManager.cache[category_name]['value']['logLevel']['value']
-                logging_level = Logger().get_numeric_log_level(log_level)
+                logging_level = self._cacheManager.cache[category_name]['value']['logLevel']['value']
                 server.Server._log_level = logging_level
                 Logger().set_level(logging_level)
 

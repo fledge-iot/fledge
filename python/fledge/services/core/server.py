@@ -10,6 +10,7 @@
 import asyncio
 import logging
 import os
+import logging
 import subprocess
 import sys
 import ssl
@@ -22,7 +23,7 @@ import signal
 from datetime import datetime, timedelta
 import jwt
 
-from fledge.common.logger import Logger
+from fledge.common import logger
 from fledge.common.audit_logger import AuditLogger
 from fledge.common.configuration_manager import ConfigurationManager
 
@@ -57,6 +58,7 @@ __copyright__ = "Copyright (c) 2017-2021 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
+_logger = logger.setup(__name__, level=logging.INFO)
 
 # FLEDGE_ROOT env variable
 _FLEDGE_DATA = os.getenv("FLEDGE_DATA", default=None)
@@ -278,26 +280,20 @@ class Server:
             'order': '10'
         },
     }
+
     _LOGGING_DEFAULT_CONFIG = {
-            'logLevel': {
-                         'description': 'Minimum logging level reported for Core server',
-                         'type': 'enumeration',
-                         'displayName': 'Minimum Log Level',
-                         'options': ['debug', 'info', 'warning', 'error', 'critical'],
-                         'default': 'info'
-             }
+        'logLevel': {
+            'description': 'Minimum logging level reported for Core server',
+            'type': 'enumeration',
+            'displayName': 'Minimum Log Level',
+            'options': ['debug', 'info', 'warning', 'error', 'critical'],
+            'default': 'warning',
+            'order': '1'
+        }
     }
 
-    _log_level = logging.WARNING
-    """ Numeric logging level for Core """
-
-    # TODO: Python core server should have INFO log level; we need to filtered out the logs for this file.
-    # from fledge.common import logger
-
-    _logger = Logger().get_logger(__name__)
-    # FIXME: If LOGGING category exists then set level from the DB value
-    logging.root.setLevel(_log_level)
-    """ Create Logger singleton class instance and set the root level to WARNING """
+    _log_level = _LOGGING_DEFAULT_CONFIG['logLevel']['default']
+    """ Common logging level for Core """
 
     _start_time = time.time()
     """ Start time of core process """
@@ -428,11 +424,11 @@ class Server:
         key = certs_dir + '/{}.key'.format(cls.cert_file_name)
 
         if not os.path.isfile(cert) or not os.path.isfile(key):
-            cls._logger.warning("%s certificate files are missing. Hence using default certificate.", cls.cert_file_name)
+            _logger.warning("%s certificate files are missing. Hence using default certificate.", cls.cert_file_name)
             cert = certs_dir + '/fledge.cert'
             key = certs_dir + '/fledge.key'
             if not os.path.isfile(cert) or not os.path.isfile(key):
-                cls._logger.error("Certificates are missing")
+                _logger.error("Certificates are missing")
                 raise RuntimeError
 
         return cert, key
@@ -453,19 +449,19 @@ class Server:
             try:
                 cls.is_auth_required = True if config['authentication']['value'] == "mandatory" else False
             except KeyError:
-                cls._logger.error("error in retrieving authentication info")
+                _logger.error("error in retrieving authentication info")
                 raise
 
             try:
                 cls.auth_method = config['authMethod']['value']
             except KeyError:
-                cls._logger.error("error in retrieving authentication method info")
+                _logger.error("error in retrieving authentication method info")
                 raise
 
             try:
                 cls.cert_file_name = config['certificateName']['value']
             except KeyError:
-                cls._logger.error("error in retrieving certificateName info")
+                _logger.error("error in retrieving certificateName info")
                 raise
 
             try:
@@ -478,14 +474,14 @@ class Server:
                     else config['httpsPort']['value']
                 cls.rest_server_port = int(port_from_config)
             except KeyError:
-                cls._logger.error("error in retrieving port info")
+                _logger.error("error in retrieving port info")
                 raise
             except ValueError:
-                cls._logger.error("error in parsing port value, received %s with type %s",
+                _logger.error("error in parsing port value, received %s with type %s",
                               port_from_config, type(port_from_config))
                 raise
         except Exception as ex:
-            cls._logger.exception(str(ex))
+            _logger.exception(str(ex))
             raise
 
     @classmethod
@@ -498,7 +494,7 @@ class Server:
             category = 'service'
 
             if cls._configuration_manager is None:
-                cls._logger.error("No configuration manager available")
+                _logger.error("No configuration manager available")
             await cls._configuration_manager.create_category(category, config, 'Fledge Service', True, display_name='Fledge Service')
             config = await cls._configuration_manager.get_category_all_items(category)
 
@@ -511,7 +507,7 @@ class Server:
             except KeyError:
                 cls._service_description = 'Fledge REST Services'
         except Exception as ex:
-            cls._logger.exception(str(ex))
+            _logger.exception(str(ex))
             raise
 
     @classmethod
@@ -524,7 +520,7 @@ class Server:
             category = 'Installation'
 
             if cls._configuration_manager is None:
-                cls._logger.error("No configuration manager available")
+                _logger.error("No configuration manager available")
             await cls._configuration_manager.create_category(category, config, 'Installation', True,
                                                              display_name='Installation')
             await cls._configuration_manager.get_category_all_items(category)
@@ -532,11 +528,11 @@ class Server:
             cls._package_cache_manager = {"update": {"last_accessed_time": ""},
                                           "upgrade": {"last_accessed_time": ""}, "list": {"last_accessed_time": ""}}
         except Exception as ex:
-            cls._logger.exception(str(ex))
+            _logger.exception(str(ex))
             raise
 
     @classmethod
-    async def logger_config(cls):
+    async def core_logger_setup(cls):
         """ Get the logging level configuration """
         try:
             config = cls._LOGGING_DEFAULT_CONFIG
@@ -547,9 +543,11 @@ class Server:
             await cls._configuration_manager.create_category(category, config, description, True,
                                                              display_name='Logging')
             config = await cls._configuration_manager.get_category_all_items(category)
-            cls._log_level = Logger().get_numeric_log_level(config['logLevel']['value'])
+            cls._log_level = config['logLevel']['value']
+            from fledge.common.logger import Logger
+            Logger().set_level(cls._log_level)
         except Exception as ex:
-            cls._logger.exception(str(ex))
+            _logger.exception(str(ex))
             raise
 
     @staticmethod
@@ -591,18 +589,18 @@ class Server:
         """Starts the micro-service monitor"""
         cls.service_monitor = Monitor()
         await cls.service_monitor.start()
-        cls._logger.info("Services monitoring started ...")
+        _logger.info("Services monitoring started ...")
 
     @classmethod
     async def stop_service_monitor(cls):
         """Stops the micro-service monitor"""
         await cls.service_monitor.stop()
-        cls._logger.info("Services monitoring stopped.")
+        _logger.info("Services monitoring stopped.")
 
     @classmethod
     async def _start_scheduler(cls):
         """Starts the scheduler"""
-        cls._logger.info("Starting scheduler ...")
+        _logger.info("Starting scheduler ...")
         cls.scheduler = Scheduler(cls._host, cls.core_management_port, cls.running_in_safe_mode)
         await cls.scheduler.start()
 
@@ -621,7 +619,7 @@ class Server:
         if loop is None:
             loop = asyncio.get_event_loop()
         # callback with args
-        loop.call_soon(cls.__start_storage, cls._host, cls.core_management_port, cls._logger)
+        loop.call_soon(cls.__start_storage, cls._host, cls.core_management_port, _logger)
 
     @classmethod
     async def _get_storage_client(cls):
@@ -674,9 +672,9 @@ class Server:
         """ Remove PID file """
         try:
             os.remove(cls._pidfile)
-            cls._logger.info("Fledge PID file [" + cls._pidfile + "] removed.")
+            _logger.info("Fledge PID file [" + cls._pidfile + "] removed.")
         except Exception as ex:
-            cls._logger.error("Fledge PID file remove error: [" + ex.__class__.__name__ + "], (" + format(str(ex)) + ")")
+            _logger.error("Fledge PID file remove error: [" + ex.__class__.__name__ + "], (" + format(str(ex)) + ")")
 
     @classmethod
     def _write_pid(cls, api_address, api_port):
@@ -687,7 +685,7 @@ class Server:
 
             # Check for existing PID file and log a message """
             if cls._pidfile_exists() is True:
-                cls._logger.warn("A Fledge PID file has been found: [" + \
+                _logger.warn("A Fledge PID file has been found: [" + \
                              cls._pidfile + "] found, ignoring it.")
 
             # Get the running script PID
@@ -700,15 +698,15 @@ class Server:
             except FileNotFoundError:
                 try:
                     os.makedirs(os.path.dirname(cls._pidfile))
-                    cls._logger.info("The PID directory [" + os.path.dirname(cls._pidfile) + "] has been created")
+                    _logger.info("The PID directory [" + os.path.dirname(cls._pidfile) + "] has been created")
                     fh = open(cls._pidfile, 'w+')
                 except Exception as ex:
                     errmsg = "PID dir create error: [" + ex.__class__.__name__ + "], (" + format(str(ex)) + ")"
-                    cls._logger.error(errmsg)
+                    _logger.error(errmsg)
                     raise
             except Exception as ex:
                 errmsg = "Fledge PID file create error: [" + ex.__class__.__name__ + "], (" + format(str(ex)) + ")"
-                cls._logger.error(errmsg)
+                _logger.error(errmsg)
                 raise
 
             # Build the JSON object to write into PID file
@@ -724,7 +722,7 @@ class Server:
 
             # Close the PID file
             fh.close()
-            cls._logger.info("PID [" + str(pid) + "] written in [" + cls._pidfile + "]")
+            _logger.info("PID [" + str(pid) + "] written in [" + cls._pidfile + "]")
         except Exception as e:
             sys.stderr.write('Error: ' + format(str(e)) + "\n")
             sys.exit(1)
@@ -732,7 +730,7 @@ class Server:
     @classmethod
     def _reposition_streams_table(cls, loop):
 
-        cls._logger.info("'fledge.readings' is stored in memory and a restarted has occurred, "
+        _logger.info("'fledge.readings' is stored in memory and a restarted has occurred, "
                      "force reset of 'fledge.streams' last_objects")
 
         configuration = loop.run_until_complete(cls._storage_client_async.query_tbl('configuration'))
@@ -784,7 +782,7 @@ class Server:
             if streams_row_exists:
                 cls._reposition_streams_table(loop)
         else:
-            cls._logger.info("'fledge.readings' is not empty; 'fledge.streams' last_objects reset is not required")
+            _logger.info("'fledge.readings' is not empty; 'fledge.streams' last_objects reset is not required")
 
     @classmethod
     async def _config_parents(cls):
@@ -793,7 +791,7 @@ class Server:
             await cls._configuration_manager.create_category("General", {}, 'General', True)
             await cls._configuration_manager.create_child_category("General", ["service", "rest_api", "Installation"])
         except KeyError:
-            cls._logger.error('Failed to create General parent configuration category for service')
+            _logger.error('Failed to create General parent configuration category for service')
             raise
 
         # Create the parent category for all advanced configuration categories
@@ -801,14 +799,14 @@ class Server:
             await cls._configuration_manager.create_category("Advanced", {}, 'Advanced', True)
             await cls._configuration_manager.create_child_category("Advanced", ["SMNTR", "SCHEDULER", "LOGGING"])
         except KeyError:
-            cls._logger.error('Failed to create Advanced parent configuration category for service')
+            _logger.error('Failed to create Advanced parent configuration category for service')
             raise
 
         # Create the parent category for all Utilities configuration categories
         try:
             await cls._configuration_manager.create_category("Utilities", {}, "Utilities", True)
         except KeyError:
-            cls._logger.error('Failed to create Utilities parent configuration category for task')
+            _logger.error('Failed to create Utilities parent configuration category for task')
             raise
 
     @classmethod
@@ -819,16 +817,16 @@ class Server:
     @classmethod
     def _start_core(cls, loop=None):
         if cls.running_in_safe_mode:
-            cls._logger.info("Starting in SAFE MODE ...")
+            _logger.info("Starting in SAFE MODE ...")
         else:
-            cls._logger.info("Starting ...")
+            _logger.info("Starting ...")
         try:
             host = cls._host
 
             cls.core_app = cls._make_core_app()
             cls.core_server, cls.core_server_handler = cls._start_app(loop, cls.core_app, host, 0)
             address, cls.core_management_port = cls.core_server.sockets[0].getsockname()
-            cls._logger.info('Management API started on http://%s:%s', address, cls.core_management_port)
+            _logger.info('Management API started on http://%s:%s', address, cls.core_management_port)
             # see http://<core_mgt_host>:<core_mgt_port>/fledge/service for registered services
             # start storage
             loop.run_until_complete(cls._start_storage(loop))
@@ -845,7 +843,7 @@ class Server:
             cls._interest_registry = InterestRegistry(cls._configuration_manager)
 
             # Logging category
-            loop.run_until_complete(cls.logger_config())
+            loop.run_until_complete(cls.core_logger_setup())
 
             # start scheduler
             # see scheduler.py start def FIXME
@@ -866,7 +864,7 @@ class Server:
             ssl_ctx = None
             if not cls.is_rest_server_http_enabled:
                 cert, key = cls.get_certificates()
-                cls._logger.info('Loading certificates %s and key %s', cert, key)
+                _logger.info('Loading certificates %s and key %s', cert, key)
 
                 # Verification handling of a tls cert
                 with open(cert, 'r') as tls_cert_content:
@@ -874,16 +872,16 @@ class Server:
                 SSLVerifier.set_user_cert(tls_cert)
                 if SSLVerifier.is_expired():
                     msg = 'Certificate `{}` expired on {}'.format(cls.cert_file_name, SSLVerifier.get_enddate())
-                    cls._logger.error(msg)
+                    _logger.error(msg)
 
                     if cls.running_in_safe_mode:
                         cls.is_rest_server_http_enabled = True
                         # TODO: Should cls.rest_server_port be set to configured http port, as is_rest_server_http_enabled has been set to True?
                         msg = "Running in safe mode withOUT https on port {}".format(cls.rest_server_port)
-                        cls._logger.info(msg)
+                        _logger.info(msg)
                     else:
                         msg = 'Start in safe-mode to fix this problem!'
-                        cls._logger.warning(msg)
+                        _logger.warning(msg)
                         raise SSLVerifier.VerificationError(msg)
                 else:
                     ssl_ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
@@ -892,7 +890,7 @@ class Server:
             # Get the service data and advertise the management port of the core
             # to allow other microservices to find Fledge
             loop.run_until_complete(cls.service_config())
-            cls._logger.info('Announce management API service')
+            _logger.info('Announce management API service')
             cls.management_announcer = ServiceAnnouncer("core-{}".format(cls._service_name), cls._MANAGEMENT_SERVICE, cls.core_management_port,
                                                         ['The Fledge Core REST API'])
 
@@ -902,7 +900,7 @@ class Server:
             # Write PID file with REST API details
             cls._write_pid(address, service_server_port)
 
-            cls._logger.info('REST API Server started on %s://%s:%s', 'http' if cls.is_rest_server_http_enabled else 'https',
+            _logger.info('REST API Server started on %s://%s:%s', 'http' if cls.is_rest_server_http_enabled else 'https',
                          address, service_server_port)
 
             # All services are up so now we can advertise the Admin and User REST API's
@@ -931,10 +929,10 @@ class Server:
                 # b) found then check the status of its schedule and take action
                 is_dispatcher = loop.run_until_complete(cls.is_dispatcher_running(cls._storage_client_async))
                 if not is_dispatcher:
-                    cls._logger.info("Dispatcher service installation found on the system, but not in running state. "
+                    _logger.info("Dispatcher service installation found on the system, but not in running state. "
                                  "Therefore, starting the service...")
                     loop.run_until_complete(cls.add_and_enable_dispatcher())
-                    cls._logger.info("Dispatcher service started.")
+                    _logger.info("Dispatcher service started.")
                 # dryrun execution of all the tasks that are installed but have schedule type other than STARTUP
                 schedule_list = loop.run_until_complete(cls.scheduler.get_schedules())
                 for sch in schedule_list:
@@ -1032,7 +1030,7 @@ class Server:
         await cls.service_app.shutdown()
         await cls.service_server_handler.shutdown(60.0)
         await cls.service_app.cleanup()
-        cls._logger.info("Rest server stopped.")
+        _logger.info("Rest server stopped.")
 
     @classmethod
     async def stop_storage(cls):
@@ -1045,7 +1043,7 @@ class Server:
 
         svc = found_services[0]
         if svc is None:
-            cls._logger.info("Fledge Storage shut down requested, but could not be found.")
+            _logger.info("Fledge Storage shut down requested, but could not be found.")
             return
         await cls._request_microservice_shutdown(svc)
 
@@ -1070,7 +1068,7 @@ class Server:
                 services_to_stop.append(fs)
 
             if len(services_to_stop) == 0:
-                cls._logger.info("No service found except the core, and(or) storage.")
+                _logger.info("No service found except the core, and(or) storage.")
                 return
 
             tasks = [cls._request_microservice_shutdown(svc) for svc in services_to_stop]
@@ -1078,7 +1076,7 @@ class Server:
         except service_registry_exceptions.DoesNotExist:
             pass
         except Exception as ex:
-            cls._logger.exception(str(ex))
+            _logger.exception(str(ex))
 
     @classmethod
     async def _request_microservice_shutdown(cls, svc):
@@ -1091,15 +1089,15 @@ class Server:
                 result = await resp.text()
                 status_code = resp.status
                 if status_code in range(400, 500):
-                    cls._logger.error("Bad request error code: %d, reason: %s", status_code, resp.reason)
+                    _logger.error("Bad request error code: %d, reason: %s", status_code, resp.reason)
                     raise web.HTTPBadRequest(reason=resp.reason)
                 if status_code in range(500, 600):
-                    cls._logger.error("Server error code: %d, reason: %s", status_code, resp.reason)
+                    _logger.error("Server error code: %d, reason: %s", status_code, resp.reason)
                     raise web.HTTPInternalServerError(reason=resp.reason)
                 try:
                     response = json.loads(result)
                     response['message']
-                    cls._logger.info("Shutdown scheduled for %s service %s. %s", svc._type, svc._name, response['message'])
+                    _logger.info("Shutdown scheduled for %s service %s. %s", svc._type, svc._name, response['message'])
                 except KeyError:
                     raise
 
@@ -1126,15 +1124,15 @@ class Server:
                         continue
                     services_to_stop.append(fs)
                 if len(services_to_stop) == 0:
-                    cls._logger.info("All microservices, except Core and Storage, have been shutdown.")
+                    _logger.info("All microservices, except Core and Storage, have been shutdown.")
                     return
                 if shutdown_threshold > _service_shutdown_threshold:
                     for fs in services_to_stop:
                         pids = get_process_id(fs._name)
                         for pid in pids:
-                            cls._logger.error("Microservice:%s status: %s has NOT been shutdown. Killing it...", fs._name, fs._status)
+                            _logger.error("Microservice:%s status: %s has NOT been shutdown. Killing it...", fs._name, fs._status)
                             os.kill(pid, signal.SIGKILL)
-                            cls._logger.info("KILLED Microservice:%s...", fs._name)
+                            _logger.info("KILLED Microservice:%s...", fs._name)
                     return
                 await asyncio.sleep(2)
                 shutdown_threshold += 2
@@ -1143,14 +1141,14 @@ class Server:
         except service_registry_exceptions.DoesNotExist:
             pass
         except Exception as ex:
-            cls._logger.exception(str(ex))
+            _logger.exception(str(ex))
 
     @classmethod
     async def _stop_scheduler(cls):
         try:
             await cls.scheduler.stop()
         except TimeoutError as e:
-            cls._logger.exception('Unable to stop the scheduler')
+            _logger.exception('Unable to stop the scheduler')
             raise e
 
     @classmethod
@@ -1216,7 +1214,7 @@ class Server:
                         cls._audit = AuditLogger(cls._storage_client_async)
                         await cls._audit.information('SRVRG', {'name': service_name})
                 except Exception as ex:
-                    cls._logger.info("Failed to audit registration: %s", str(ex))
+                    _logger.info("Failed to audit registration: %s", str(ex))
             except service_registry_exceptions.AlreadyExistsWithTheSameName:
                 raise web.HTTPBadRequest(reason='A Service with the same name already exists')
             except service_registry_exceptions.AlreadyExistsWithTheSameAddressAndPort:
@@ -1258,7 +1256,7 @@ class Server:
                 'bearer_token': bearer_token
             }
 
-            cls._logger.debug("For service: {} SERVER RESPONSE: {}".format(service_name, _response))
+            _logger.debug("For service: {} SERVER RESPONSE: {}".format(service_name, _response))
 
             return web.json_response(_response)
 
@@ -1289,7 +1287,7 @@ class Server:
                     cls._audit = AuditLogger(cls._storage_client_async)
                     await cls._audit.information('SRVUN', {'name': services[0]._name})
                 except Exception as ex:
-                    cls._logger.exception(str(ex))
+                    _logger.exception(str(ex))
 
             _resp = {'id': str(service_id), 'message': 'Service unregistered'}
 
@@ -1320,7 +1318,7 @@ class Server:
                     cls._audit = AuditLogger(cls._storage_client_async)
                     await cls._audit.information('SRVRS', {'name': services[0]._name})
                 except Exception as ex:
-                    cls._logger.exception(str(ex))
+                    _logger.exception(str(ex))
 
             _resp = {'id': str(service_id), 'message': 'Service restart requested'}
 
@@ -1484,7 +1482,7 @@ class Server:
             loop = request.loop
             # allow some time
             await asyncio.sleep(2.0, loop=loop)
-            cls._logger.info("Stopping the Fledge Core event loop. Good Bye!")
+            _logger.info("Stopping the Fledge Core event loop. Good Bye!")
             loop.stop()
 
             return web.json_response({'message': 'Fledge stopped successfully. '
@@ -1502,7 +1500,7 @@ class Server:
             loop = request.loop
             # allow some time
             await asyncio.sleep(2.0, loop=loop)
-            cls._logger.info("Stopping the Fledge Core event loop. Good Bye!")
+            _logger.info("Stopping the Fledge Core event loop. Good Bye!")
             loop.stop()
 
             if 'safe-mode' in sys.argv:
@@ -1907,7 +1905,7 @@ class Server:
             res = await storage.query_tbl_with_payload('schedules', payload)
             for sch in res['rows']:
                 if sch['process_name'] == 'dispatcher_c' and sch['enabled'] == 'f':
-                    cls._logger.info("Dispatcher service found but not in enabled state. "
+                    _logger.info("Dispatcher service found but not in enabled state. "
                                  "Therefore, {} schedule name is enabled".format(sch['schedule_name']))
                     await cls.scheduler.enable_schedule(uuid.UUID(sch["id"]))
                     return True

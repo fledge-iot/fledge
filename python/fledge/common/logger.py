@@ -10,8 +10,8 @@ import subprocess
 import logging
 from logging.handlers import SysLogHandler
 
-__author__ = "Praveen Garg"
-__copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
+__author__ = "Praveen Garg, Ashish Jabble"
+__copyright__ = "Copyright (c) 2017-2023 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
@@ -193,3 +193,22 @@ class Logger:
             level_number: Numeric logging level for the message
         """
         logging.root.setLevel(level_number)
+
+    def get_numeric_log_level(self, level_name: str) -> int:
+        """Get the numeric value of log level
+        Args:
+            level_name: Log level name in string
+        Returns:
+            Log numeric value
+        """
+        if level_name == 'debug':
+            log_level = logging.DEBUG
+        elif level_name == 'info':
+            log_level = logging.INFO
+        elif level_name == 'error':
+            log_level = logging.ERROR
+        elif level_name == 'critical':
+            log_level = logging.CRITICAL
+        else:
+            log_level = logging.WARNING
+        return log_level

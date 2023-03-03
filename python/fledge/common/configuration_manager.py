@@ -81,7 +81,7 @@ class ConfigurationCache(object):
         display_name = category_name if display_name is None else display_name
         self.cache[category_name] = {'date_accessed': datetime.datetime.now(), 'description': category_description,
                                      'value': category_val, 'displayName': display_name}
-        _logger.info("Updated Configuration Cache %s", self.cache)
+        _logger.debug("Updated Configuration Cache %s", self.cache)
 
     def remove_oldest(self):
         """Remove the entry that has the oldest accessed date"""
@@ -194,15 +194,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 from fledge.services.core import server
                 from fledge.common.logger import Logger
                 log_level = self._cacheManager.cache[category_name]['value']['logLevel']['value']
-                logging_level = logging.WARNING
-                if log_level == 'debug':
-                    logging_level = logging.DEBUG
-                elif log_level == 'info':
-                    logging_level = logging.INFO
-                elif log_level == 'error':
-                    logging_level = logging.ERROR
-                elif log_level == 'critical':
-                    logging_level = logging.CRITICAL
+                logging_level = Logger().get_numeric_log_level(log_level)
                 server.Server._log_level = logging_level
                 Logger().set_level(logging_level)
 
@@ -1430,13 +1422,13 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             payload = PayloadBuilder().WHERE(["child", "=", cat]).payload()
             result = await self._storage.delete_from_tbl("category_children", payload)
             if result['response'] == 'deleted':
-                _logger.info('Deleted parent in category_children: %s', cat)
+                _logger.info('Deleted parent in category_children: {}'.format(cat))
 
             # Remove category.
             payload = PayloadBuilder().WHERE(["key", "=", cat]).payload()
             result = await self._storage.delete_from_tbl("configuration", payload)
             if result['response'] == 'deleted':
-                _logger.info('Deleted parent category from configuration: %s', cat)
+                _logger.info('Deleted parent category from configuration: {}'.format(cat))
                 audit = AuditLogger(self._storage)
                 audit_details = {'categoryDeleted': cat}
                 # FIXME: FOGL-2140

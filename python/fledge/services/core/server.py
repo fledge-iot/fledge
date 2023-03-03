@@ -289,7 +289,7 @@ class Server:
     }
 
     _log_level = logging.WARNING
-    """ Numeric logging level for the message """
+    """ Numeric logging level for Core """
 
     # TODO: Python core server should have INFO log level; we need to filtered out the logs for this file.
     # from fledge.common import logger
@@ -536,27 +536,18 @@ class Server:
             raise
 
     @classmethod
-    async def log_config(cls):
+    async def logger_config(cls):
         """ Get the logging level configuration """
         try:
             config = cls._LOGGING_DEFAULT_CONFIG
             category = 'LOGGING'
             description = "Logging Level of Core Server"
             if cls._configuration_manager is None:
-                cls._logger.error("No configuration manager available.")
+                cls._configuration_manager = ConfigurationManager(cls._storage_client_async)
             await cls._configuration_manager.create_category(category, config, description, True,
                                                              display_name='Logging')
             config = await cls._configuration_manager.get_category_all_items(category)
-            log_level = config['logLevel']['value']
-            if log_level == 'debug':
-                logging_level = logging.DEBUG
-            elif log_level == 'info':
-                logging_level = logging.INFO
-            elif log_level == 'warning':
-                logging_level = logging.WARNING
-            else:
-                logging_level = logging.ERROR
-            cls._log_level = logging_level
+            cls._log_level = Logger().get_numeric_log_level(config['logLevel']['value'])
         except Exception as ex:
             cls._logger.exception(str(ex))
             raise
@@ -616,20 +607,21 @@ class Server:
         await cls.scheduler.start()
 
     @staticmethod
-    def __start_storage(host, m_port):
-        cmd_with_args = ['./services/storage', '--address={}'.format(host), '--port={}'.format(m_port)]
-        subprocess.call(cmd_with_args, cwd=_SCRIPTS_DIR)
+    def __start_storage(host, m_port, log):
+        log.info("Start storage, from directory {}".format(_SCRIPTS_DIR))
+        try:
+            cmd_with_args = ['./services/storage', '--address={}'.format(host),
+                             '--port={}'.format(m_port)]
+            subprocess.call(cmd_with_args, cwd=_SCRIPTS_DIR)
+        except Exception as ex:
+            log.exception(str(ex))
 
     @classmethod
     async def _start_storage(cls, loop):
         if loop is None:
             loop = asyncio.get_event_loop()
-        try:
-            # callback with args
-            cls._logger.info("Start storage, from directory {}".format(_SCRIPTS_DIR))
-            loop.call_soon(cls.__start_storage, cls._host, cls.core_management_port)
-        except Exception as ex:
-            cls._logger.exception(str(ex))
+        # callback with args
+        loop.call_soon(cls.__start_storage, cls._host, cls.core_management_port, cls._logger)
 
     @classmethod
     async def _get_storage_client(cls):
@@ -853,7 +845,7 @@ class Server:
             cls._interest_registry = InterestRegistry(cls._configuration_manager)
 
             # Logging category
-            loop.run_until_complete(cls.log_config())
+            loop.run_until_complete(cls.logger_config())
 
             # start scheduler
             # see scheduler.py start def FIXME

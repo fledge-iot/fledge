@@ -8,7 +8,6 @@
 """Core server module"""
 
 import asyncio
-import logging
 import os
 import logging
 import subprocess
@@ -571,6 +570,8 @@ class Server:
             mwares.append(middleware.auth_middleware)
 
         app = web.Application(middlewares=mwares, client_max_size=AIOHTTP_CLIENT_MAX_SIZE)
+        # aiohttp web server logging level always set to warning
+        web.access_logger.setLevel(logging.WARNING)
         admin_routes.setup(app)
         return app
 
@@ -581,6 +582,8 @@ class Server:
         :rtype: web.Application
         """
         app = web.Application(middlewares=[middleware.error_middleware], client_max_size=AIOHTTP_CLIENT_MAX_SIZE)
+        # aiohttp web server logging level always set to warning
+        web.access_logger.setLevel(logging.WARNING)
         management_routes.setup(app, cls, True)
         return app
 

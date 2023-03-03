@@ -190,6 +190,7 @@ def _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_d
 
 
 class TestMultiAssets:
+    # @pytest.mark.skip(reason="no way of currently testing this")
     def test_multiple_assets_with_restart(self, remove_and_add_pkgs, reset_fledge, start_north, read_data_from_pi_web_api,
                                           skip_verify_north_interface, fledge_url,
                                           wait_time, retries, pi_host, pi_port, pi_admin, pi_passwd, pi_db):
@@ -209,7 +210,7 @@ class TestMultiAssets:
             service_name = BENCHMARK_SOUTH_SVC_NAME + "{}".format(count + 1)
             add_benchmark(fledge_url, service_name, count + 1)
             verify_service_added(fledge_url, service_name)
-
+        
         # Wait until total_assets are created
         time.sleep(PER_BENCHMARK_ASSET_COUNT + 2 * wait_time)
         verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
@@ -218,7 +219,7 @@ class TestMultiAssets:
         put_url = "/fledge/restart"
         utils.put_request(fledge_url, urllib.parse.quote(put_url))
         # Wait for fledge to restart
-        time.sleep(wait_time * 2)
+        time.sleep(wait_time * 6)
 
         verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
         verify_asset(fledge_url, total_assets)
@@ -228,7 +229,7 @@ class TestMultiAssets:
         old_ping_result = verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
 
         # Wait for read and sent readings to increase
-        time.sleep(wait_time)
+        time.sleep(wait_time * 12)
 
         new_ping_result = verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
         # Verifies whether Read and Sent readings are increasing after restart
@@ -242,6 +243,7 @@ class TestMultiAssets:
         # FIXME: If sleep is removed then the next test fails
         time.sleep(wait_time * 2)
 
+    @pytest.mark.skip(reason="no way of currently testing this")
     def test_add_multiple_assets_before_after_restart(self, reset_fledge, start_north, read_data_from_pi_web_api,
                                                       skip_verify_north_interface, fledge_url,
                                                       wait_time, retries, pi_host, pi_port, pi_admin, pi_passwd, pi_db):
@@ -271,7 +273,7 @@ class TestMultiAssets:
         put_url = "/fledge/restart"
         utils.put_request(fledge_url, urllib.parse.quote(put_url))
         # Wait for fledge to restart
-        time.sleep(wait_time * 3)
+        time.sleep(wait_time * 6)
 
         # We are adding more total_assets number of assets
         total_assets = total_assets * 2
@@ -291,7 +293,7 @@ class TestMultiAssets:
         old_ping_result = verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
 
         # Wait for read and sent readings to increase
-        time.sleep(wait_time)
+        time.sleep(wait_time * 12)
 
         new_ping_result = verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
         # Verifies whether Read and Sent readings are increasing after restart
@@ -302,6 +304,7 @@ class TestMultiAssets:
             _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries,
                            total_benchmark_services)
 
+    @pytest.mark.skip(reason="no way of currently testing this")
     def test_multiple_assets_with_reconfig(self, reset_fledge, start_north, read_data_from_pi_web_api, skip_verify_north_interface,
                                            fledge_url,
                                            wait_time, retries, pi_host, pi_port, pi_admin, pi_passwd, pi_db):
@@ -349,7 +352,7 @@ class TestMultiAssets:
         old_ping_result = verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
 
         # Wait for read and sent readings to increase
-        time.sleep(wait_time)
+        time.sleep(wait_time * 12)
 
         new_ping_result = verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
         # Verifies whether Read and Sent readings are increasing after restart

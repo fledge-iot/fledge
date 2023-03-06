@@ -283,6 +283,11 @@ SendingProcess::SendingProcess(int argc, char** argv) : FledgeProcess(argc, argv
 
         // Init plugin with merged configuration from Fledge API
 	this->m_plugin->init(config);
+	
+	if(m_dryRun)
+	{
+		return;
+	}
 
 	if (this->m_plugin->m_plugin_data)
 	{

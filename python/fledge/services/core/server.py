@@ -25,11 +25,10 @@ import jwt
 from fledge.common import logger
 from fledge.common.audit_logger import AuditLogger
 from fledge.common.configuration_manager import ConfigurationManager
-
-from fledge.common.web import middleware
 from fledge.common.storage_client.exceptions import *
 from fledge.common.storage_client.storage_client import StorageClientAsync
 from fledge.common.storage_client.storage_client import ReadingsStorageClientAsync
+from fledge.common.web import middleware
 
 from fledge.services.core import routes as admin_routes
 from fledge.services.core.api import configuration as conf_api
@@ -543,8 +542,8 @@ class Server:
                                                              display_name='Logging')
             config = await cls._configuration_manager.get_category_all_items(category)
             cls._log_level = config['logLevel']['value']
-            from fledge.common.logger import Logger
-            Logger().set_level(cls._log_level)
+            from fledge.common.logger import FLCoreLogger
+            FLCoreLogger().set_level(cls._log_level)
         except Exception as ex:
             _logger.exception(str(ex))
             raise

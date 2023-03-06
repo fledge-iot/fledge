@@ -13,14 +13,14 @@ from aiohttp import web
 import jwt
 
 from fledge.services.core.user_model import User
-from fledge.common.logger import Logger
+from fledge.common.logger import FLCoreLogger
 
 __author__ = "Praveen Garg"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-_logger = Logger().get_logger(__name__)
+_logger = FLCoreLogger().get_logger(__name__)
 
 
 async def error_middleware(app, handler):

@@ -21,7 +21,7 @@ from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.common.storage_client.storage_client import StorageClientAsync
 from fledge.common.storage_client.exceptions import StorageServerError
 from fledge.common.storage_client.utils import Utils
-from fledge.common.logger import Logger
+from fledge.common.logger import FLCoreLogger
 from fledge.common.common import _FLEDGE_ROOT, _FLEDGE_DATA
 from fledge.common.audit_logger import AuditLogger
 from fledge.common.acl_manager import ACLManager
@@ -31,7 +31,7 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-_logger = Logger().get_logger(__name__)
+_logger = FLCoreLogger().get_logger(__name__)
 
 # MAKE UPPER_CASE
 _valid_type_strings = sorted(['boolean', 'integer', 'float', 'string', 'IPv4', 'IPv6', 'X509 certificate', 'password',
@@ -192,10 +192,9 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         else:
             if category_name == "LOGGING":
                 from fledge.services.core import server
-                from fledge.common.logger import Logger
                 logging_level = self._cacheManager.cache[category_name]['value']['logLevel']['value']
                 server.Server._log_level = logging_level
-                Logger().set_level(logging_level)
+                FLCoreLogger().set_level(logging_level)
 
     async def _run_callbacks_child(self, parent_category_name, child_category, operation):
         callbacks = self._registered_interests_child.get(parent_category_name)

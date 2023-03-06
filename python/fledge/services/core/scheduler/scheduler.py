@@ -18,13 +18,13 @@ import subprocess
 import signal
 from typing import List
 
-from fledge.common.logger import Logger
 from fledge.common import utils as common_utils
 from fledge.common.audit_logger import AuditLogger
+from fledge.common.configuration_manager import ConfigurationManager
+from fledge.common.logger import FLCoreLogger
 from fledge.common.storage_client.exceptions import *
 from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.common.storage_client.storage_client import StorageClientAsync
-from fledge.common.configuration_manager import ConfigurationManager
 from fledge.services.core.scheduler.entities import *
 from fledge.services.core.scheduler.exceptions import *
 from fledge.services.core.service_registry.service_registry import ServiceRegistry
@@ -135,7 +135,7 @@ class Scheduler(object):
 
         # Initialize class attributes
         if not cls._logger:
-            cls._logger = Logger().get_logger(__name__)
+            cls._logger = FLCoreLogger().get_logger(__name__)
         if not cls._core_management_port:
             cls._core_management_port = core_management_port
         if not cls._core_management_host:

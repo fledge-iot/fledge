@@ -116,9 +116,9 @@ def setup(logger_name: str = None,
     return logger
 
 
-class Logger:
+class FLCoreLogger:
     """
-    Singleton Logger class. This class is only instantiated ONCE. It is to keep a consistent
+    Singleton FLCoreLogger class. This class is only instantiated ONCE. It is to keep a consistent
     criteria for the logger throughout the application if need to be called upon.
     It serves as the criteria for initiating logger for modules. It creates child loggers.
     It's important to note these are child loggers as any changes made to the root logger

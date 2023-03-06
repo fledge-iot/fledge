@@ -53,7 +53,7 @@ static void worker(StorageRegistry *registry)
  * the storage layer is minimally impacted by the registration and
  * delivery of these messages to interested microservices.
  */
-StorageRegistry::StorageRegistry()
+StorageRegistry::StorageRegistry() : m_thread(NULL)
 {
 	m_thread = new thread(worker, this);
 }
@@ -64,7 +64,12 @@ StorageRegistry::StorageRegistry()
 StorageRegistry::~StorageRegistry()
 {
 	m_running = false;
-	m_thread->join();
+	if (m_thread)
+	{
+		m_thread->join();
+		delete m_thread;
+		m_thread = NULL;
+	}
 }
 
 /**

@@ -7,15 +7,15 @@
 import os
 import subprocess
 import json
-import logging
 import datetime
 
 import urllib.parse
 from pathlib import Path
 from aiohttp import web
 
-from fledge.common import logger, utils
+from fledge.common import utils
 from fledge.common.common import _FLEDGE_ROOT, _FLEDGE_DATA
+from fledge.common.logger import FLCoreLogger
 from fledge.services.core.support import SupportBuilder
 
 
@@ -24,7 +24,7 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-_logger = logger.setup(__name__, level=logging.INFO)
+_logger = FLCoreLogger().get_logger(__name__)
 
 _SYSLOG_FILE = '/var/log/messages' if utils.is_redhat_based() else '/var/log/syslog'
 _SCRIPTS_DIR = "{}/scripts".format(_FLEDGE_ROOT)

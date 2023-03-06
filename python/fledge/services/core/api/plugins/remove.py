@@ -6,17 +6,17 @@
 
 import aiohttp
 import os
-import logging
 import json
 import asyncio
 import uuid
 import multiprocessing
 
 from aiohttp import web
-from fledge.common import logger, utils
+from fledge.common import utils
 from fledge.common.audit_logger import AuditLogger
 from fledge.common.common import _FLEDGE_ROOT
 from fledge.common.configuration_manager import ConfigurationManager
+from fledge.common.logger import FLCoreLogger
 from fledge.common.plugin_discovery import PluginDiscovery
 from fledge.common.storage_client.exceptions import StorageServerError
 from fledge.common.storage_client.payload_builder import PayloadBuilder
@@ -36,8 +36,7 @@ _help = """
     -------------------------------------------------------------------------------
 """
 
-_logger = logger.setup(__name__, level=logging.INFO)
-
+_logger = FLCoreLogger().get_logger(__name__)
 valid_plugin_types = ['north', 'south', 'filter', 'notify', 'rule']
 PYTHON_PLUGIN_PATH = _FLEDGE_ROOT+'/python/fledge/plugins/'
 C_PLUGINS_PATH = _FLEDGE_ROOT+'/plugins/'
@@ -75,7 +74,7 @@ async def remove_plugin(request: web.Request) -> web.Response:
         if plugin_type in ['notify', 'rule']:
             notification_instances_plugin_used_in = await _check_plugin_usage_in_notification_instances(name)
             if notification_instances_plugin_used_in:
-                err_msg = "{} cannot be removed. This is being used by {} instances".format(
+                err_msg = "{} cannot be removed. This is being used by {} instances.".format(
                     name, notification_instances_plugin_used_in)
                 _logger.error(err_msg)
                 raise RuntimeError(err_msg)
@@ -88,7 +87,7 @@ async def remove_plugin(request: web.Request) -> web.Response:
                 raise RuntimeError(e)
             else:
                 _logger.info("No entry found for {name} plugin in asset tracker; or "
-                             "{name} plugin may have been added in disabled state & never used".format(name=name))
+                             "{name} plugin may have been added in disabled state & never used.".format(name=name))
         # Check Pre-conditions from Packages table
         # if status is -1 (Already in progress) then return as rejected request
         action = 'purge'
@@ -220,11 +219,11 @@ async def _put_refresh_cache(protocol: str, host: int, port: int) -> None:
             result = await resp.text()
             status_code = resp.status
             if status_code in range(400, 500):
-                _logger.error("Bad request error code: %d, reason: %s when refresh cache", status_code, resp.reason)
+                _logger.error("Bad request error code: {}, reason: {} when refresh cache".format(status_code, resp.reason))
             if status_code in range(500, 600):
-                _logger.error("Server error code: %d, reason: %s when refresh cache", status_code, resp.reason)
+                _logger.error("Server error code: {}, reason: {} when refresh cache".format(status_code, resp.reason))
             response = json.loads(result)
-            _logger.debug("PUT Refresh Cache response: %s", response)
+            _logger.debug("PUT Refresh Cache response: {}".format(response))
 
 
 def purge_plugin(plugin_type: str, name: str, uid: uuid, storage: connect) -> tuple:
@@ -281,7 +280,7 @@ def purge_plugin(plugin_type: str, name: str, uid: uuid, storage: connect) -> tu
             audit = AuditLogger(storage)
             audit_detail = {'package_name': "fledge-{}-{}".format(plugin_type, name)}
             loop.run_until_complete(audit.information('PKGRM', audit_detail))
-            _logger.info('{} plugin purged successfully'.format(name))
+            _logger.info('{} plugin purged successfully.'.format(name))
     except KeyError:
         # This case is for non-package installation - python plugin path will be tried first and then C
         _logger.info("Trying removal of manually installed plugin...")

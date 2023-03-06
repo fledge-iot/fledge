@@ -8,16 +8,15 @@ import json
 from functools import lru_cache
 from aiohttp import web
 
-from fledge.services.core import server
 from fledge.common.configuration_manager import ConfigurationManager
-from fledge.common.storage_client.payload_builder import PayloadBuilder
+from fledge.common.logger import FLCoreLogger
 from fledge.common.plugin_discovery import PluginDiscovery
-from fledge.services.core import connect
-from fledge.services.core.scheduler.entities import Task
 from fledge.common.service_record import ServiceRecord
+from fledge.common.storage_client.payload_builder import PayloadBuilder
+from fledge.services.core import connect, server
+from fledge.services.core.scheduler.entities import Task
 from fledge.services.core.service_registry.service_registry import ServiceRegistry
 from fledge.services.core.service_registry.exceptions import DoesNotExist
-from fledge.common import logger
 
 __author__ = "Praveen Garg"
 __copyright__ = "Copyright (c) 2018 OSIsoft, LLC"
@@ -29,7 +28,7 @@ _help = """
     | GET                 | /fledge/north                                         |
     -------------------------------------------------------------------------------
 """
-_logger = logger.setup(__name__)
+_logger = FLCoreLogger().get_logger(__name__)
 
 
 async def _get_sent_stats(storage_client, north_schedules):

@@ -7,7 +7,6 @@
 """Common Definitions"""
 import sys
 import types
-import logging
 import os
 import json
 import glob
@@ -16,8 +15,9 @@ from typing import Dict
 from datetime import datetime
 from functools import lru_cache
 
-from fledge.common import logger, utils as common_utils
+from fledge.common import utils as common_utils
 from fledge.common.common import _FLEDGE_ROOT, _FLEDGE_DATA, _FLEDGE_PLUGIN_PATH
+from fledge.common.logger import FLCoreLogger
 from fledge.services.core.api import utils
 from fledge.services.core.api.plugins.exceptions import *
 
@@ -27,7 +27,7 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 
-_logger = logger.setup(__name__, level=logging.INFO)
+_logger = FLCoreLogger().get_logger(__name__)
 _NO_OF_FILES_TO_RETAIN = 10
 
 
@@ -135,9 +135,11 @@ def load_and_fetch_c_hybrid_plugin_info(plugin_name: str, is_config: bool, plugi
                         if is_config:
                             plugin_info.update({'config': temp})
                     else:
-                        _logger.warning("{} hybrid plugin is not installed which is required for {}".format(connection_name, plugin_name))
+                        _logger.warning("{} hybrid plugin is not installed which is required for {}".format(
+                            connection_name, plugin_name))
                 else:
-                    _logger.warning("{} hybrid plugin is not installed which is required for {}".format(connection_name, plugin_name))
+                    _logger.warning("{} hybrid plugin is not installed which is required for {}".format(
+                        connection_name, plugin_name))
             else:
                 raise Exception('Required {} keys are missing for json file'.format(json_file_keys))
     return plugin_info
@@ -182,7 +184,7 @@ async def fetch_available_packages(package_type: str = "") -> tuple:
     # If max update per day is set to 1, then an update can not occurs until 24 hours after the last accessed update.
     # If set to 2 then this drops to 12 hours between updates, 3 would result in 8 hours between calls and so on.
     if duration_in_sec > (24 / int(max_update_cat_item['value'])) * 60 * 60 or not last_accessed_time:
-        _logger.info("Attempting update on {}".format(now))
+        _logger.info("Attempting update on {}...".format(now))
         cmd = "sudo {} -y update > {} 2>&1".format(pkg_mgt, stdout_file_path)
         if pkg_mgt == 'yum':
             cmd = "sudo {} check-update > {} 2>&1".format(pkg_mgt, stdout_file_path)
@@ -192,7 +194,7 @@ async def fetch_available_packages(package_type: str = "") -> tuple:
         # fetch available package caching always clear on every update request
         _get_available_packages.cache_clear()
     else:
-        _logger.warning("Maximum update exceeds the limit for the day")
+        _logger.warning("Maximum update exceeds the limit for the day.")
     ttl_cat_item_val = int(category['listAvailablePackagesCacheTTL']['value'])
     if ttl_cat_item_val > 0:
         last_accessed_time = pkg_cache_mgr['list']['last_accessed_time']

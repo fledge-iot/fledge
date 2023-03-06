@@ -12,10 +12,10 @@ import urllib.parse
 from typing import Dict
 from aiohttp import web
 
-from fledge.common import logger
 from fledge.common.audit_logger import AuditLogger
 from fledge.common.common import _FLEDGE_ROOT, _FLEDGE_DATA
 from fledge.common.configuration_manager import ConfigurationManager, _optional_items
+from fledge.common.logger import FLCoreLogger
 from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.services.core import connect
 
@@ -39,7 +39,7 @@ _help = """
 """
 
 script_dir = _FLEDGE_DATA + '/scripts/' if _FLEDGE_DATA else _FLEDGE_ROOT + "/data/scripts/"
-_logger = logger.setup(__name__)
+_logger = FLCoreLogger().get_logger(__name__)
 
 #################################
 #  Configuration Manager
@@ -327,8 +327,6 @@ async def update_configuration_item_bulk(request):
                            WHEN: if non-admin user is trying to update 
                            THEN: 403 Forbidden case 
         """
-        
-        
         if hasattr(request, "user"):
             config_items = [k for k, v in data.items() if k == 'authentication']
             if request.user and (category_name == 'rest_api' and config_items):

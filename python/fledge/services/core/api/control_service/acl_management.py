@@ -5,18 +5,16 @@
 # FLEDGE_END
 
 import json
-import logging
 from aiohttp import web
 
-
-from fledge.common import logger
+from fledge.common.acl_manager import ACLManager
 from fledge.common.configuration_manager import ConfigurationManager
+from fledge.common.logger import FLCoreLogger
 from fledge.common.storage_client.exceptions import StorageServerError
 from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.common.web.middleware import has_permission
 from fledge.services.core import connect
 from fledge.services.core.api.control_service.exceptions import *
-from fledge.common.acl_manager import ACLManager
 
 
 __author__ = "Ashish Jabble, Massimiliano Pinto"
@@ -33,7 +31,7 @@ _help = """
     --------------------------------------------------------------
 """
 
-_logger = logger.setup(__name__, level=logging.INFO)
+_logger = FLCoreLogger().get_logger(__name__)
 
 
 async def get_all_acls(request: web.Request) -> web.Response:

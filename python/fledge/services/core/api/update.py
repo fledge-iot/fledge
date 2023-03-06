@@ -14,12 +14,12 @@ import os
 import asyncio
 import re
 
-from fledge.common import logger, utils
+from fledge.common import utils
+from fledge.common.logger import FLCoreLogger
 from fledge.services.core import server
 from fledge.services.core.scheduler.entities import ManualSchedule
 
-_LOG_LEVEL = 20
-_logger = logger.setup(__name__, level=_LOG_LEVEL)
+_logger = FLCoreLogger().get_logger(__name__)
 
 __author__ = "Massimiliano Pinto"
 __copyright__ = "Copyright (c) 2018 OSIsoft, LLC"

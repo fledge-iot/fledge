@@ -4,13 +4,13 @@
 # See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
-import logging
 import json
 
 from aiohttp import web
+
+from fledge.common.logger import FLCoreLogger
 from fledge.common.plugin_discovery import PluginDiscovery
 from fledge.services.core.api.plugins import common
-from fledge.common import logger
 from fledge.services.core.api.plugins.exceptions import *
 
 __author__ = "Amarendra K Sinha, Ashish Jabble"
@@ -25,7 +25,8 @@ _help = """
     | GET             | /fledge/plugins/available                                |
     -------------------------------------------------------------------------------
 """
-_logger = logger.setup(__name__, level=logging.INFO)
+
+_logger = FLCoreLogger().get_logger(__name__)
 
 
 async def get_plugins_installed(request):

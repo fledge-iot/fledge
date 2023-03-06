@@ -43,11 +43,11 @@ import json
 
 from aiohttp import web
 
+from fledge.common.logger import FLCoreLogger
 from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.services.core import connect
-from fledge.common import logger
 
-_logger = logger.setup(__name__)
+_logger = FLCoreLogger().get_logger(__name__)
 
 __author__ = "Mark Riddoch, Ashish Jabble, Massimiliano Pinto"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -849,11 +849,11 @@ async def asset_purge_all(request):
             curl -sX DELETE http://localhost:8081/fledge/asset
     """
     try:
-        from fledge.common.audit_logger import AuditLogger
+        _logger.warning("Manual purge of all assets has been requested.")
         # Call storage service
-        _logger.warning("Manual purge of all assets has been requested")
         _readings = connect.get_readings_async()
         # Get AuditLogger
+        from fledge.common.audit_logger import AuditLogger
         _audit = AuditLogger(_readings)
 
         start_time = time.strftime('%Y-%m-%d %H:%M:%S.%s', time.localtime(time.time()))
@@ -886,13 +886,13 @@ async def asset_purge(request):
             curl -sX DELETE http://localhost:8081/fledge/asset/fogbench_humidity
     """
     asset_code = request.match_info.get('asset_code', '')
-    _logger.warning("Manual purge of '%s' asset has been requested", asset_code)
+    _logger.warning("Manual purge of '{}' asset has been requested.".format(asset_code))
 
     try:
-        from fledge.common.audit_logger import AuditLogger
         # Call storage service
         _readings = connect.get_readings_async()
         # Get AuditLogger
+        from fledge.common.audit_logger import AuditLogger
         _audit = AuditLogger(_readings)
 
         start_time = time.strftime('%Y-%m-%d %H:%M:%S.%s', time.localtime(time.time()))

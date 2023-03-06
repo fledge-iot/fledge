@@ -5,7 +5,6 @@
 # FLEDGE_END
 
 """Backup and Restore Rest API support"""
-import logging
 import os
 import sys
 import tarfile
@@ -15,9 +14,10 @@ from aiohttp import web
 from enum import IntEnum
 from collections import OrderedDict
 
-from fledge.common import logger
-from fledge.common.audit_logger import AuditLogger
 from fledge.common.common import _FLEDGE_ROOT, _FLEDGE_DATA
+from fledge.common.audit_logger import AuditLogger
+from fledge.common.logger import FLCoreLogger
+
 from fledge.common.storage_client import payload_builder
 from fledge.plugins.storage.common import exceptions
 from fledge.services.core import connect
@@ -47,7 +47,7 @@ _help = """
     -----------------------------------------------------------------------------------
 """
 
-_logger = logger.setup(__name__, level=logging.INFO)
+_logger = FLCoreLogger().get_logger(__name__)
 
 
 class Status(IntEnum):

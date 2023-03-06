@@ -15,7 +15,7 @@ from aiohttp import web
 
 from typing import Dict, List
 from fledge.common import utils
-from fledge.common import logger
+from fledge.common.logger import FLCoreLogger
 from fledge.common.service_record import ServiceRecord
 from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.common.storage_client.exceptions import StorageServerError
@@ -49,8 +49,7 @@ _help = """
     | POST                | /fledge/service/{service_name}/otp                   |
     ------------------------------------------------------------------------------
 """
-
-_logger = logger.setup()
+_logger = FLCoreLogger().get_logger(__name__)
 
 #################################
 #  Service

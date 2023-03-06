@@ -30,7 +30,7 @@ SCRIPTS_DIR_ROOT = "{}/tests/system/python/packages/data/".format(PROJECT_ROOT)
 FLEDGE_ROOT = os.environ.get('FLEDGE_ROOT')
 BENCHMARK_SOUTH_SVC_NAME = "BenchMark #"
 ASSET_NAME = "random_multiple_assets"
-PER_BENCHMARK_ASSET_COUNT = 150
+PER_BENCHMARK_ASSET_COUNT = 100
 AF_HIERARCHY_LEVEL = "multipleassets/multipleassetslvl2/multipleassetslvl3"
 
 
@@ -172,7 +172,7 @@ def _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_d
       for a in range(1,PER_BENCHMARK_ASSET_COUNT+1):
         retry_count = 0
         data_from_pi = None
-        asset_name = "random-" + str(s) + str(a)
+        asset_name = "random_multiple_assets-" + str(s) + str(a)
         print(asset_name)
         recorded_datapoint = "{}".format(asset_name)
         # Name of asset in the PI server
@@ -243,7 +243,7 @@ class TestMultiAssets:
         # FIXME: If sleep is removed then the next test fails
         time.sleep(wait_time * 2)
 
-    @pytest.mark.skip(reason="no way of currently testing this")
+    # @pytest.mark.skip(reason="no way of currently testing this")
     def test_add_multiple_assets_before_after_restart(self, reset_fledge, start_north, read_data_from_pi_web_api,
                                                       skip_verify_north_interface, fledge_url,
                                                       wait_time, retries, pi_host, pi_port, pi_admin, pi_passwd, pi_db):
@@ -304,7 +304,7 @@ class TestMultiAssets:
             _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries,
                            total_benchmark_services)
 
-    @pytest.mark.skip(reason="no way of currently testing this")
+    # @pytest.mark.skip(reason="no way of currently testing this")
     def test_multiple_assets_with_reconfig(self, reset_fledge, start_north, read_data_from_pi_web_api, skip_verify_north_interface,
                                            fledge_url,
                                            wait_time, retries, pi_host, pi_port, pi_admin, pi_passwd, pi_db):

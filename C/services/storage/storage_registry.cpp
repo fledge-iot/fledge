@@ -171,6 +171,7 @@ StorageRegistry::processTableUpdate(const string& tableName, const string& paylo
 void
 StorageRegistry::registerAsset(const string& asset, const string& url)
 {
+	lock_guard<mutex> guard(m_registrationsMutex);
 	m_registrations.push_back(pair<string *, string *>(new string(asset), new string(url)));
 }
 
@@ -183,6 +184,7 @@ StorageRegistry::registerAsset(const string& asset, const string& url)
 void
 StorageRegistry::unregisterAsset(const string& asset, const string& url)
 {
+	lock_guard<mutex> guard(m_registrationsMutex);
 	for (auto it = m_registrations.begin(); it != m_registrations.end(); )
 	{
 		if (asset.compare(*(it->first)) == 0 && url.compare(*(it->second)) == 0)
@@ -239,8 +241,8 @@ TableRegistration* StorageRegistry::parseTableSubscriptionPayload(const string& 
 	{
 		if (!doc.HasMember("values") || !doc["values"].IsArray())
 		{
-			Logger::getLogger()->error("StorageRegistry::parseTableSubscriptionPayload(): subscription request" \
-										" doesn't have a proper values field, payload=%s", payload.c_str());
+			Logger::getLogger()->error("Subscription request" \
+					" doesn't have a proper values field, payload=%s", payload.c_str());
 			delete reg;
 			return NULL;
 		}
@@ -264,12 +266,13 @@ StorageRegistry::registerTable(const string& table, const string& payload)
 
 	if (!reg)
 	{
-		Logger::getLogger()->error("StorageRegistry::registerTable(): Unable to register invalid Registration entry for table %s, payload=%s", table.c_str(), payload.c_str());
+		Logger::getLogger()->error("Unable to register invalid Registration entry for table %s, payload %s",
+				table.c_str(), payload.c_str());
 		return;
 	}
 
 	lock_guard<mutex> guard(m_tableRegistrationsMutex);
-	Logger::getLogger()->info("*** StorageRegistry::registerTable(): Adding registration entry for table %s", table.c_str());
+	Logger::getLogger()->info("Adding registration entry for table %s", table.c_str());
 	m_tableRegistrations.push_back(pair<string *, TableRegistration *>(new string(table), reg));
 }
 
@@ -286,15 +289,16 @@ StorageRegistry::unregisterTable(const string& table, const string& payload)
 
 	if (!reg)
 	{
-		Logger::getLogger()->info("StorageRegistry::unregisterTable(): Unable to unregister " \
-								  "invalid Registration entry for table %s, payload=%s", table.c_str(), payload.c_str());
+		Logger::getLogger()->info("Invalid Registration entry for table %s, payload %s",
+				table.c_str(), payload.c_str());
 		return;
 	}
 
 	lock_guard<mutex> guard(m_tableRegistrationsMutex);
 	
-	Logger::getLogger()->info("StorageRegistry::unregisterTable(): m_tableRegistrations.size()=%d", m_tableRegistrations.size());
-	for (auto it = m_tableRegistrations.begin(); it != m_tableRegistrations.end(); )
+	Logger::getLogger()->info("%d entries registered interest in table operations", m_tableRegistrations.size());
+	bool found = false;
+	for (auto it = m_tableRegistrations.begin(); found == false && it != m_tableRegistrations.end(); )
 	{
 		TableRegistration *reg_it = it->second;
 		if (table.compare(*(it->first)) == 0 && 
@@ -308,17 +312,24 @@ StorageRegistry::unregisterTable(const string& table, const string& payload)
 				delete it->first;
 				delete it->second;
 				it = m_tableRegistrations.erase(it);
-				Logger::getLogger()->info("*** StorageRegistry::unregisterTable(): Removed registration for table %s and url %s", table, reg->key.c_str());
+				Logger::getLogger()->info("Removed registration for table %s and url %s", table, reg->key.c_str());
+				found = true;
 			}
 			else
 			{
 				++it;
-    		}
+    			}
 		}
 		else
 		{
 			++it;
-    	}
+    		}
+	}
+	if (!found)
+	{
+		Logger::getLogger()->warn(
+				"Failed to remove subscription for table '%s' using key '%s' with operation '%s' and url '%s'",
+				table.c_str(), reg->key.c_str(), reg->operation.c_str(), reg->url.c_str());
 	}
 	delete reg;
 }
@@ -340,7 +351,7 @@ StorageRegistry::run()
 #endif
 		{
 			unique_lock<mutex> mlock(m_cvMutex);
-			while (m_queue.size() == 0 && m_tableInsertQueue.size() == 0)
+			while (m_queue.size() == 0 && m_tableInsertQueue.size() == 0 && m_tableUpdateQueue.size() == 0)
 			{
 				m_cv.wait_for(mlock, std::chrono::seconds(REGISTRY_SLEEP_TIME));
 				if (!m_running)
@@ -434,6 +445,8 @@ void
 StorageRegistry::processPayload(char *payload)
 {
 bool allDone = true;
+
+	lock_guard<mutex> guard(m_registrationsMutex);
 
 	// First of all deal with those that registered for all assets
 	for (REGISTRY::const_iterator it = m_registrations.cbegin(); it != m_registrations.cend(); it++)

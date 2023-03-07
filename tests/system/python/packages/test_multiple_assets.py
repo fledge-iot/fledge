@@ -30,12 +30,12 @@ SCRIPTS_DIR_ROOT = "{}/tests/system/python/packages/data/".format(PROJECT_ROOT)
 FLEDGE_ROOT = os.environ.get('FLEDGE_ROOT')
 BENCHMARK_SOUTH_SVC_NAME = "BenchMark #"
 ASSET_NAME = "random_multiple_assets"
-PER_BENCHMARK_ASSET_COUNT = 100
+# PER_BENCHMARK_ASSET_COUNT = 100
 AF_HIERARCHY_LEVEL = "multipleassets/multipleassetslvl2/multipleassetslvl3"
 
 
 @pytest.fixture
-def reset_fledge(wait_time):
+def reset_fledge():
     try:
         subprocess.run(["cd {}/tests/system/python/scripts/package && ./reset"
                        .format(PROJECT_ROOT)], shell=True, check=True)
@@ -43,7 +43,7 @@ def reset_fledge(wait_time):
         assert False, "reset package script failed!"
 
     # Wait for fledge server to start
-    time.sleep(wait_time)
+    time.sleep(10)
 
 
 @pytest.fixture
@@ -67,7 +67,7 @@ def remove_and_add_pkgs(package_build_version):
 
 
 @pytest.fixture
-def start_north(start_north_omf_as_a_service, fledge_url,
+def start_north(start_north_omf_as_a_service, fledge_url, no_of_assets,
                       pi_host, pi_port, pi_admin, pi_passwd, clear_pi_system_through_pi_web_api, pi_db):
     global north_schedule_id
 
@@ -78,6 +78,7 @@ def start_north(start_north_omf_as_a_service, fledge_url,
     asset_dict = {}
 
     no_of_services = 6
+    PER_BENCHMARK_ASSET_COUNT=(no_of_assets//no_of_services)
     for service_count in range(no_of_services):
         for asst_count in range(PER_BENCHMARK_ASSET_COUNT):
             asset_name = ASSET_NAME + "-{}{}".format(service_count + 1, asst_count + 1)
@@ -93,7 +94,7 @@ def start_north(start_north_omf_as_a_service, fledge_url,
     yield start_north
 
 
-def add_benchmark(fledge_url, name, count):
+def add_benchmark(fledge_url, name, count, PER_BENCHMARK_ASSET_COUNT):
     data = {
         "name": name,
         "type": "south",
@@ -119,7 +120,7 @@ def verify_service_added(fledge_url, name):
     assert name in [s["name"] for s in result["services"]]
 
 
-def verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries):
+def verify_ping(fledge_url, skip_verify_north_interface, retries):
     get_url = "/fledge/ping"
     ping_result = utils.get_request(fledge_url, get_url)
     assert "dataRead" in ping_result
@@ -134,7 +135,7 @@ def verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries):
             if sent >= 1:
                 break
             else:
-                time.sleep(wait_time)
+                time.sleep(10)
 
             retry_count += 1
             ping_result = utils.get_request(fledge_url, get_url)
@@ -163,7 +164,7 @@ def verify_asset_tracking_details(fledge_url, total_assets, total_benchmark_serv
             assert "Benchmark" in [s["plugin"] for s in tracking_details["track"]]
 
 
-def _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries, total_benchmark_services):
+def _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, retries, total_benchmark_services, PER_BENCHMARK_ASSET_COUNT):
 
     af_hierarchy_level_list = AF_HIERARCHY_LEVEL.split("/")
     type_id = 1
@@ -183,7 +184,7 @@ def _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_d
                                                      pi_asset_name, '')
             if data_from_pi is None:
                 retry_count += 1
-                time.sleep(wait_time)
+                time.sleep(10)
     
         if data_from_pi is None or retry_count == retries:
             assert False, "Failed to read data from PI"
@@ -192,7 +193,7 @@ def _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_d
 class TestMultiAssets:
     # @pytest.mark.skip(reason="no way of currently testing this")
     def test_multiple_assets_with_restart(self, remove_and_add_pkgs, reset_fledge, start_north, read_data_from_pi_web_api,
-                                          skip_verify_north_interface, fledge_url,
+                                          skip_verify_north_interface, fledge_url, no_of_assets,
                                           wait_time, retries, pi_host, pi_port, pi_admin, pi_passwd, pi_db):
         """ Test multiple benchmark services with multiple assets are created in fledge, also verifies assets after
             restarting fledge.
@@ -204,48 +205,51 @@ class TestMultiAssets:
                 on endpoint GET /fledge/asset"""
 
         total_benchmark_services = 6
+        PER_BENCHMARK_ASSET_COUNT = (no_of_assets//total_benchmark_services)
         total_assets = PER_BENCHMARK_ASSET_COUNT * total_benchmark_services
 
         for count in range(total_benchmark_services):
             service_name = BENCHMARK_SOUTH_SVC_NAME + "{}".format(count + 1)
-            add_benchmark(fledge_url, service_name, count + 1)
+            add_benchmark(fledge_url, service_name, count + 1, PER_BENCHMARK_ASSET_COUNT)
             verify_service_added(fledge_url, service_name)
         
         # Wait until total_assets are created
-        time.sleep(PER_BENCHMARK_ASSET_COUNT + 2 * wait_time)
-        verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
+        time.sleep(PER_BENCHMARK_ASSET_COUNT + 30)
+        verify_ping(fledge_url, skip_verify_north_interface, retries)
         verify_asset(fledge_url, total_assets)
 
         put_url = "/fledge/restart"
         utils.put_request(fledge_url, urllib.parse.quote(put_url))
-        # Wait for fledge to restart
-        time.sleep(wait_time * 6)
+        # Wait for fledge to restart. Fledge is taking 1 minute to restart when there are more than 200 Assets.
+        time.sleep(60)
 
-        verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
+        verify_ping(fledge_url, skip_verify_north_interface, retries)
         verify_asset(fledge_url, total_assets)
 
         verify_asset_tracking_details(fledge_url, total_assets, total_benchmark_services, PER_BENCHMARK_ASSET_COUNT)
 
-        old_ping_result = verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
+        old_ping_result = verify_ping(fledge_url, skip_verify_north_interface, retries)
 
         # Wait for read and sent readings to increase
-        time.sleep(wait_time * 12)
+        # Sent readings start increasing after 2 mins when mins when assets are more than 200 hundred and 
+        # it may take 10 mins when assets are 800-900.
+        time.sleep(wait_time)
 
-        new_ping_result = verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
+        new_ping_result = verify_ping(fledge_url, skip_verify_north_interface, retries)
         # Verifies whether Read and Sent readings are increasing after restart
         assert old_ping_result['dataRead'] < new_ping_result['dataRead']
 
         if not skip_verify_north_interface:
             assert old_ping_result['dataSent'] < new_ping_result['dataSent']
-            _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries,
-                           total_benchmark_services)
+            _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, retries,
+                           total_benchmark_services, PER_BENCHMARK_ASSET_COUNT)
 
         # FIXME: If sleep is removed then the next test fails
-        time.sleep(wait_time * 2)
+        time.sleep(30)
 
     # @pytest.mark.skip(reason="no way of currently testing this")
     def test_add_multiple_assets_before_after_restart(self, reset_fledge, start_north, read_data_from_pi_web_api,
-                                                      skip_verify_north_interface, fledge_url,
+                                                      skip_verify_north_interface, fledge_url, no_of_assets,
                                                       wait_time, retries, pi_host, pi_port, pi_admin, pi_passwd, pi_db):
         """ Test addition of multiple assets before and after restarting fledge.
             reset_fledge: Fixture to reset fledge
@@ -255,58 +259,61 @@ class TestMultiAssets:
                 on endpoint GET /fledge/asset"""
 
         total_benchmark_services = 3
+        PER_BENCHMARK_ASSET_COUNT = (no_of_assets//(total_benchmark_services*2))
         # Total number of assets that would be created
         total_assets = PER_BENCHMARK_ASSET_COUNT * total_benchmark_services
 
         for count in range(total_benchmark_services):
             service_name = BENCHMARK_SOUTH_SVC_NAME + "{}".format(count + 1)
-            add_benchmark(fledge_url, service_name, count + 1)
+            add_benchmark(fledge_url, service_name, count + 1, PER_BENCHMARK_ASSET_COUNT)
             verify_service_added(fledge_url, service_name)
 
         # Wait until total_assets are created
-        time.sleep(PER_BENCHMARK_ASSET_COUNT + 2 * wait_time)
-        verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
+        time.sleep(PER_BENCHMARK_ASSET_COUNT + 30)
+        verify_ping(fledge_url, skip_verify_north_interface, retries)
         verify_asset(fledge_url, total_assets)
 
         verify_asset_tracking_details(fledge_url, total_assets, total_benchmark_services, PER_BENCHMARK_ASSET_COUNT)
 
         put_url = "/fledge/restart"
         utils.put_request(fledge_url, urllib.parse.quote(put_url))
-        # Wait for fledge to restart
-        time.sleep(wait_time * 6)
+        # Wait for fledge to restart. Fledge is taking 1 minute to restart when there are more than 200 Assets.
+        time.sleep(60)
 
         # We are adding more total_assets number of assets
         total_assets = total_assets * 2
 
         for count in range(total_benchmark_services):
             service_name = BENCHMARK_SOUTH_SVC_NAME + "{}".format(count + 4)
-            add_benchmark(fledge_url, service_name, count + 4)
+            add_benchmark(fledge_url, service_name, count + 4, PER_BENCHMARK_ASSET_COUNT)
             verify_service_added(fledge_url, service_name)
 
         # Wait until total_assets are created
-        time.sleep(PER_BENCHMARK_ASSET_COUNT + 2 * wait_time)
-        verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
+        time.sleep(PER_BENCHMARK_ASSET_COUNT + 30)
+        verify_ping(fledge_url, skip_verify_north_interface, retries)
         verify_asset(fledge_url, total_assets)
 
         verify_asset_tracking_details(fledge_url, total_assets, total_benchmark_services * 2, PER_BENCHMARK_ASSET_COUNT)
 
-        old_ping_result = verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
+        old_ping_result = verify_ping(fledge_url, skip_verify_north_interface, retries)
 
         # Wait for read and sent readings to increase
-        time.sleep(wait_time * 12)
+        # Sent readings start increasing after 2 mins when mins when assets are more than 200 hundred and 
+        # it may take 10 mins when assets are 800-900.
+        time.sleep(wait_time)
 
-        new_ping_result = verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
+        new_ping_result = verify_ping(fledge_url, skip_verify_north_interface, retries)
         # Verifies whether Read and Sent readings are increasing after restart
         assert old_ping_result['dataRead'] < new_ping_result['dataRead']
 
         if not skip_verify_north_interface:
             assert old_ping_result['dataSent'] < new_ping_result['dataSent']
-            _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries,
-                           total_benchmark_services)
+            _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, retries,
+                           total_benchmark_services, PER_BENCHMARK_ASSET_COUNT)
 
     # @pytest.mark.skip(reason="no way of currently testing this")
     def test_multiple_assets_with_reconfig(self, reset_fledge, start_north, read_data_from_pi_web_api, skip_verify_north_interface,
-                                           fledge_url,
+                                           fledge_url, no_of_assets,
                                            wait_time, retries, pi_host, pi_port, pi_admin, pi_passwd, pi_db):
         """ Test addition of multiple assets with reconfiguration of south service.
             reset_fledge: Fixture to reset fledge
@@ -316,18 +323,21 @@ class TestMultiAssets:
                 on endpoint GET /fledge/asset"""
 
         total_benchmark_services = 3
+        PER_BENCHMARK_ASSET_COUNT = (no_of_assets//(total_benchmark_services*2))
         num_assets = 2 * PER_BENCHMARK_ASSET_COUNT
         # Total number of assets that would be created
+
+        # Number of assets that would be created initially
         total_assets = PER_BENCHMARK_ASSET_COUNT * total_benchmark_services
 
         for count in range(total_benchmark_services):
             service_name = BENCHMARK_SOUTH_SVC_NAME + "{}".format(count + 1)
-            add_benchmark(fledge_url, service_name, count + 1)
+            add_benchmark(fledge_url, service_name, count + 1, PER_BENCHMARK_ASSET_COUNT)
             verify_service_added(fledge_url, service_name)
 
         # Wait until total_assets are created
-        time.sleep(PER_BENCHMARK_ASSET_COUNT + 2 * wait_time)
-        verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
+        time.sleep(PER_BENCHMARK_ASSET_COUNT + 30)
+        verify_ping(fledge_url, skip_verify_north_interface, retries)
         verify_asset(fledge_url, total_assets)
 
         verify_asset_tracking_details(fledge_url, total_assets, total_benchmark_services, PER_BENCHMARK_ASSET_COUNT)
@@ -343,22 +353,24 @@ class TestMultiAssets:
         total_assets = total_assets * 2
 
         # Wait until total_assets are created
-        time.sleep(num_assets + 2 * wait_time)
-        verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
+        time.sleep(num_assets + 30)
+        verify_ping(fledge_url, skip_verify_north_interface, retries)
         verify_asset(fledge_url, total_assets)
 
         verify_asset_tracking_details(fledge_url, total_assets, total_benchmark_services, num_assets)
 
-        old_ping_result = verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
+        old_ping_result = verify_ping(fledge_url, skip_verify_north_interface, retries)
 
         # Wait for read and sent readings to increase
-        time.sleep(wait_time * 12)
+        # Sent readings start increasing after 2 mins when mins when assets are more than 200 hundred and 
+        # it may take 10 mins when assets are 800-900.
+        time.sleep(wait_time)
 
-        new_ping_result = verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
+        new_ping_result = verify_ping(fledge_url, skip_verify_north_interface, retries)
         # Verifies whether Read and Sent readings are increasing after restart
         assert old_ping_result['dataRead'] < new_ping_result['dataRead']
 
         if not skip_verify_north_interface:
             assert old_ping_result['dataSent'] < new_ping_result['dataSent']
-            _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries,
-                           total_benchmark_services)
+            _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, retries,
+                           total_benchmark_services, PER_BENCHMARK_ASSET_COUNT)

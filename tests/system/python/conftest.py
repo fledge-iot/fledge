@@ -703,6 +703,7 @@ def pytest_addoption(parser):
                      help="Name of the South Service")
     parser.addoption("--asset-name", action="store", default="SystemTest",
                      help="Name of asset")
+    parser.addoption("--no-of-assets", action="store", default=300, type=int, help="Total No. of Assets that will be created")
 
     # Filter Args
     parser.addoption("--filter-branch", action="store", default="develop", help="Filter plugin repo branch")
@@ -798,6 +799,9 @@ def pytest_addoption(parser):
     parser.addoption("--start-north-as-service", action="store", type=bool, default=True,
                      help="Whether start the north as a service.")
 
+@pytest.fixture
+def no_of_assets(request):
+    return request.config.getoption("--no-of-assets")
 
 @pytest.fixture
 def storage_plugin(request):

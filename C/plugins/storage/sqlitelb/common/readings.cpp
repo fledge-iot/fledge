@@ -899,9 +899,9 @@ int sleep_time_ms = 0;
 				if (stmt != NULL)
 				{
 
-					sqlite3_bind_text(batch_stmt, varNo++, user_ts, -1, SQLITE_STATIC);
-					sqlite3_bind_text(batch_stmt, varNo++, asset_code, -1, SQLITE_STATIC);
-					sqlite3_bind_text(batch_stmt, varNo++, reading.c_str(), -1, SQLITE_STATIC);
+					sqlite3_bind_text(batch_stmt, varNo++, user_ts, -1, SQLITE_TRANSIENT);
+					sqlite3_bind_text(batch_stmt, varNo++, asset_code, -1, SQLITE_TRANSIENT);
+					sqlite3_bind_text(batch_stmt, varNo++, reading.c_str(), -1, SQLITE_TRANSIENT);
 				}
 			}
 
@@ -1021,9 +1021,9 @@ int sleep_time_ms = 0;
 
 			if(stmt != NULL) {
 
-				sqlite3_bind_text(stmt, 1, user_ts         ,-1, SQLITE_STATIC);
-				sqlite3_bind_text(stmt, 2, asset_code      ,-1, SQLITE_STATIC);
-				sqlite3_bind_text(stmt, 3, reading.c_str(), -1, SQLITE_STATIC);
+				sqlite3_bind_text(stmt, 1, user_ts         ,-1, SQLITE_TRANSIENT);
+				sqlite3_bind_text(stmt, 2, asset_code      ,-1, SQLITE_TRANSIENT);
+				sqlite3_bind_text(stmt, 3, reading.c_str(), -1, SQLITE_TRANSIENT);
 
 				retries =0;
 				sleep_time_ms = 0;
@@ -1616,7 +1616,7 @@ unsigned int  Connection::purgeReadings(unsigned long age,
 	/*
 	 * We fetch the current rowid and limit the purge process to work on just
 	 * those rows present in the database when the purge process started.
-	 * This provents us looping in the purge process if new readings become
+	 * This prevents us looping in the purge process if new readings become
 	 * eligible for purging at a rate that is faster than we can purge them.
 	 */
 	{
@@ -1715,7 +1715,8 @@ unsigned int  Connection::purgeReadings(unsigned long age,
 		}
 
 		unsigned long m=l;
-
+		sqlite3_stmt *idStmt;
+		bool isMinId = false;
 		while (l <= r)
 		{
 			unsigned long midRowId = 0;
@@ -1725,26 +1726,29 @@ unsigned int  Connection::purgeReadings(unsigned long age,
 
 			// e.g. select id from readings where rowid = 219867307 AND user_ts < datetime('now' , '-24 hours', 'utc');
 			SQLBuffer sqlBuffer;
-			sqlBuffer.append("select id from " READINGS_DB_NAME_BASE "." READINGS_TABLE " where rowid = ");
-			sqlBuffer.append(m);
-			sqlBuffer.append(" AND user_ts < datetime('now' , '-");
-			sqlBuffer.append(age);
+			sqlBuffer.append("select id from " READINGS_DB_NAME_BASE "." READINGS_TABLE " where rowid = ?");
+			sqlBuffer.append(" AND user_ts < datetime('now' , '-?");
 			sqlBuffer.append(" hours');");
+			
 			const char *query = sqlBuffer.coalesce();
 
+			rc = sqlite3_prepare_v2(dbHandle, query, -1, &idStmt, NULL);
+		
+			sqlite3_bind_int(idStmt, 1,(unsigned long) m);
+			sqlite3_bind_int(idStmt, 2,(unsigned long) age);
 
-			rc = SQLexec(dbHandle,
-						 query,
-						 rowidCallback,
-						 &midRowId,
-						 &zErrMsg);
-
-			delete[] query;
-
-			if (rc != SQLITE_OK)
+			if (SQLstep(idStmt) == SQLITE_ROW)
 			{
-				raiseError("purge - phase 1, fetching midRowId ", zErrMsg);
-				sqlite3_free(zErrMsg);
+				midRowId = sqlite3_column_int(idStmt, 0);
+				isMinId = true;
+			}
+			delete[] query;
+			sqlite3_clear_bindings(idStmt);
+			sqlite3_reset(idStmt);
+
+			if (rc == SQLITE_ERROR)
+			{
+				raiseError("purge - phase 1, fetching midRowId ", sqlite3_errmsg(dbHandle));
 				return 0;
 			}
 
@@ -1761,6 +1765,11 @@ unsigned int  Connection::purgeReadings(unsigned long age,
 				// search in later/right half
 				l = m + 1;
 			}
+		}
+
+		if(isMinId)
+		{
+			sqlite3_finalize(idStmt);
 		}
 
 		rowidLimit = m;
@@ -1848,9 +1857,10 @@ unsigned int  Connection::purgeReadings(unsigned long age,
 #endif
 
 	unsigned int deletedRows = 0;
-	char *zErrMsg = NULL;
 	unsigned int rowsAffected, totTime=0, prevBlocks=0, prevTotTime=0;
 	logger->info("Purge about to delete readings # %ld to %ld", rowidMin, rowidLimit);
+	sqlite3_stmt *stmt;
+	bool rowsAvailableToPurge = false;
 	while (rowidMin < rowidLimit)
 	{
 		blocks++;
@@ -1859,31 +1869,37 @@ unsigned int  Connection::purgeReadings(unsigned long age,
 		{
 			rowidMin = rowidLimit;
 		}
-		SQLBuffer sql;
-		sql.append("DELETE FROM " READINGS_DB_NAME_BASE "." READINGS_TABLE " WHERE rowid <= ");
-		sql.append(rowidMin);
-		sql.append(';');
-		const char *query = sql.coalesce();
-		logSQL("ReadingsPurge", query);
-
+		
 		int rc;
+		{
+			SQLBuffer sql;
+			sql.append("DELETE FROM " READINGS_DB_NAME_BASE "." READINGS_TABLE " WHERE rowid <= ? ;");
+			const char *query = sql.coalesce();
+			
+			rc = sqlite3_prepare_v2(dbHandle, query, strlen(query), &stmt, NULL);
+			if (rc != SQLITE_OK)
+			{
+				raiseError("purgeReadings", sqlite3_errmsg(dbHandle));
+				Logger::getLogger()->error("SQL statement: %s", query);
+				return 0;
+			}
+			delete[] query;
+		}
+		sqlite3_bind_int(stmt, 1,(unsigned long) rowidMin);
+		rowsAvailableToPurge = true;
 		{
 			//unique_lock<mutex> lck(db_mutex);
 //		if (m_writeAccessOngoing) db_cv.wait(lck);
 
 			START_TIME;
 			// Exec DELETE query: no callback, no resultset
-			rc = SQLexec(dbHandle,
-						 query,
-						 NULL,
-						 NULL,
-						 &zErrMsg);
+			rc = SQLstep(stmt);
+
 			END_TIME;
+			
+			logSQL("ReadingsPurge", sqlite3_expanded_sql(stmt));
 
-			logger->debug("%s - DELETE - query :%s: rowsAffected :%ld:",  __FUNCTION__, query ,rowsAffected);
-
-			// Release memory for 'query' var
-			delete[] query;
+			logger->debug("%s - DELETE - query :%s: rowsAffected :%ld:",  __FUNCTION__, sqlite3_expanded_sql(stmt) ,rowsAffected);
 
 			totTime += usecs;
 
@@ -1892,17 +1908,21 @@ unsigned int  Connection::purgeReadings(unsigned long age,
 				std::this_thread::yield();	// Give other threads a chance to run
 			}
 		}
-
-		if (rc != SQLITE_OK)
+		if (rc == SQLITE_DONE)
 		{
-			raiseError("purge - phase 3", zErrMsg);
-			sqlite3_free(zErrMsg);
+			sqlite3_clear_bindings(stmt);
+			sqlite3_reset(stmt);
+		}
+		else
+		{
+			raiseError("purge - phase 3", sqlite3_errmsg(dbHandle));
 			return 0;
 		}
-
+		
 		// Get db changes
 		rowsAffected = sqlite3_changes(dbHandle);
 		deletedRows += rowsAffected;
+		
 		logger->debug("Purge delete block #%d with %d readings", blocks, rowsAffected);
 
 		if(blocks % RECALC_PURGE_BLOCK_SIZE_NUM_BLOCKS == 0)
@@ -1932,7 +1952,12 @@ unsigned int  Connection::purgeReadings(unsigned long age,
 		}
 		//Logger::getLogger()->debug("Purge delete block #%d with %d readings", blocks, rowsAffected);
 	} while (rowidMin  < rowidLimit);
-
+	
+	if (rowsAvailableToPurge)
+	{
+		sqlite3_finalize(stmt);
+	}
+	
 	unsentRetained = maxrowidLimit - rowidLimit;
 
 	numReadings = maxrowidLimit +1 - minrowidLimit - deletedRows;
@@ -2001,6 +2026,8 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 
 	char *zErrMsg = NULL;
 	int rc;
+	sqlite3_stmt *stmt;
+	sqlite3_stmt *idStmt;
 	rc = SQLexec(dbHandle,
 				 "select count(rowid) from " READINGS_DB_NAME_BASE "." READINGS_TABLE ";",
 		rowidCallback,
@@ -2030,24 +2057,35 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 	numReadings = rowcount;
 	rowsAffected = 0;
 	deletedRows = 0;
-
+	bool rowsAvailableToPurge = true;
 	do
 	{
 		if (rowcount <= rows)
 		{
 			logger->info("Row count %d is less than required rows %d", rowcount, rows);
+			rowsAvailableToPurge = false;
 			break;
 		}
+		
+		SQLBuffer sqlBuffer;
+		sqlBuffer.append("select min(id) from " READINGS_DB_NAME_BASE "." READINGS_TABLE ";");
+		const char *query = sqlBuffer.coalesce();
 
-		rc = SQLexec(dbHandle,
-					 "select min(id) from " READINGS_DB_NAME_BASE "." READINGS_TABLE ";",
-			rowidCallback,
-			&minId,
-			&zErrMsg);
+		rc = sqlite3_prepare_v2(dbHandle, query, -1, &idStmt, NULL);
 
-		if (rc != SQLITE_OK)
+		if (SQLstep(idStmt) == SQLITE_ROW)
 		{
-			raiseError("purge - phaase 0, fetching minimum id", zErrMsg);
+			minId = sqlite3_column_int(idStmt, 0);
+		}
+
+		delete[] query;
+
+		sqlite3_clear_bindings(idStmt);
+		sqlite3_reset(idStmt);
+		
+		if (rc == SQLITE_ERROR)
+		{
+			raiseError("purge - phaase 0, fetching minimum id", sqlite3_errmsg(dbHandle));
 			sqlite3_free(zErrMsg);
 			return 0;
 		}
@@ -2064,27 +2102,43 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 				deletePoint = limit;
 			}
 		}
-		SQLBuffer sql;
+		
+		{
+			SQLBuffer sql;
+			logger->info("RowCount %lu, Max Id %lu, min Id %lu, delete point %lu", rowcount, maxId, minId, deletePoint);
+			
+			sql.append("delete from " READINGS_DB_NAME_BASE "." READINGS_TABLE "  where id <= ? ;");
+			const char *query = sql.coalesce();
 
-		logger->info("RowCount %lu, Max Id %lu, min Id %lu, delete point %lu", rowcount, maxId, minId, deletePoint);
+			rc = sqlite3_prepare_v2(dbHandle, query, strlen(query), &stmt, NULL);
+			
+			if (rc != SQLITE_OK)
+			{
+				raiseError("purgeReadingsByRows", sqlite3_errmsg(dbHandle));
+				Logger::getLogger()->error("SQL statement: %s", query);
+				return 0;
+			}
+			delete[] query;
+		}
+		sqlite3_bind_int(stmt, 1,(unsigned long) deletePoint);
 
-		sql.append("delete from " READINGS_DB_NAME_BASE "." READINGS_TABLE "  where id <= ");
-		sql.append(deletePoint);
-		const char *query = sql.coalesce();
 		{
 			//unique_lock<mutex> lck(db_mutex);
 //			if (m_writeAccessOngoing) db_cv.wait(lck);
 
 			// Exec DELETE query: no callback, no resultset
-			rc = SQLexec(dbHandle, query, NULL, NULL, &zErrMsg);
+			rc = SQLstep(stmt);
+			if (rc == SQLITE_DONE)
+			{
+				sqlite3_clear_bindings(stmt);
+				sqlite3_reset(stmt);
+			}
 			rowsAffected = sqlite3_changes(dbHandle);
 
 			deletedRows += rowsAffected;
 			numReadings -= rowsAffected;
 			rowcount    -= rowsAffected;
 
-			// Release memory for 'query' var
-			delete[] query;
 			logger->debug("Deleted %lu rows", rowsAffected);
 			if (rowsAffected == 0)
 			{
@@ -2102,7 +2156,12 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 		std::this_thread::yield();	// Give other threads a chane to run
 	} while (rowcount > rows);
 
-
+	if (rowsAvailableToPurge)
+	{
+		sqlite3_finalize(idStmt);
+		sqlite3_finalize(stmt);
+	}
+	
 
 	if (limit)
 	{

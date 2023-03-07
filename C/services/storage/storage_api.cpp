@@ -634,6 +634,7 @@ string	responsePayload;
 		int rval = plugin->commonUpdate(tableName, payload);
 		if (rval != -1)
 		{
+			registry.processTableUpdate(tableName, payload);
 			responsePayload = "{ \"response\" : \"updated\", \"rows_affected\"  : ";
 			responsePayload += to_string(rval);
 			responsePayload += " }";
@@ -1544,6 +1545,7 @@ string  responsePayload;
                 int rval = plugin->commonInsert(tableName, payload, const_cast<char*>(schemaName.c_str()));
                 if (rval != -1)
                 {
+			registry.processTableInsert(tableName, payload);
                         responsePayload = "{ \"response\" : \"inserted\", \"rows_affected\" : ";
                         responsePayload += to_string(rval);
                         responsePayload += " }";
@@ -1622,6 +1624,7 @@ string  responsePayload;
                 int rval = plugin->commonUpdate(tableName, payload, const_cast<char*>(schemaName.c_str()));
                 if (rval != -1)
                 {
+			registry.processTableUpdate(tableName, payload);
                         responsePayload = "{ \"response\" : \"updated\", \"rows_affected\"  : ";
                         responsePayload += to_string(rval);
                         responsePayload += " }";

@@ -56,6 +56,11 @@ static void statsThread(Ingest *ingest)
  */
 int Ingest::createStatsDbEntry(const string& assetName)
 {
+	if (m_statisticsOption == STATS_SERVICE)
+	{
+		// No asset stats required
+		return 0;
+	}
 	// Prepare fledge.statistics update
 	string statistics_key = assetName;
 	for (auto & c: statistics_key) c = toupper(c);
@@ -105,6 +110,11 @@ int Ingest::createStatsDbEntry(const string& assetName)
  */
 int Ingest::createServiceStatsDbEntry()
 {
+	if (m_statisticsOption == STATS_ASSET)
+	{
+		// No service stats required
+		return 0;
+	}
 	// SELECT * FROM fledge.configuration WHERE key = categoryName
 	const Condition conditionKey(Equals);
 	Where *wKey = new Where("key", conditionKey, m_serviceName + INGEST_SUFFIX);
@@ -259,21 +269,14 @@ void Ingest::updateStats()
  * storage layer based on time. This thread in created in
  * the constructor and will terminate when the destructor
  * is called.
- * TODO - try to reduce the number of arguments in c'tor
  *
  * @param storage	The storage client to use
- * @param timeout	Maximum time before sending a queue of readings in milliseconds
- * @param threshold	Length of queue before sending readings
  */
 Ingest::Ingest(StorageClient& storage,
-		long timeout,
-		unsigned int threshold,
 		const std::string& serviceName,
 		const std::string& pluginName,
 		ManagementClient *mgmtClient) :
 			m_storage(storage),
-			m_timeout(timeout),
-			m_queueSizeThreshold(threshold),
 			m_serviceName(serviceName),
 			m_pluginName(pluginName),
 			m_mgtClient(mgmtClient),
@@ -285,8 +288,6 @@ Ingest::Ingest(StorageClient& storage,
 	m_shutdown = false;
 	m_running = true;
 	m_queue = new vector<Reading *>();
-	m_thread = new thread(ingestThread, this);
-	m_statsThread = new thread(statsThread, this);
 	m_logger = Logger::getLogger();
 	m_data = NULL;
 	m_discardedReadings = 0;
@@ -300,6 +301,20 @@ Ingest::Ingest(StorageClient& storage,
 	createServiceStatsDbEntry();
 
 	m_filterPipeline = NULL;
+}
+
+/**
+ * Start the ingest threads
+ *
+ * @param timeout	Maximum time before sending a queue of readings in milliseconds
+ * @param threshold	Length of queue before sending readings
+ */
+void Ingest::start(long timeout, unsigned int threshold)
+{
+	m_timeout = timeout;
+	m_queueSizeThreshold = threshold;
+	m_thread = new thread(ingestThread, this);
+	m_statsThread = new thread(statsThread, this);
 }
 
 /**
@@ -363,7 +378,7 @@ vector<Reading *> *fullQueue = 0;
 
 	{
 		lock_guard<mutex> guard(m_qMutex);
-		m_queue->push_back(new Reading(reading));
+		m_queue->emplace_back(new Reading(reading));
 		if (m_queue->size() >= m_queueSizeThreshold || m_running == false)
 		{
 			fullQueue = m_queue;

@@ -68,9 +68,18 @@ if [[ "$1" != "--readingsPlugin" ]]; then
     storagePlugin=${res[0]}
     managedEngine=${res[1]}
     # Call plugin check: this will create database if not set yet
-   ${pluginScriptPath}/${storagePlugin}.sh init ${FLEDGE_SCHEMA} ${managedEngine}
+    if [[ -x ${pluginScriptPath}/${storagePlugin}.sh ]]; then
+       ${pluginScriptPath}/${storagePlugin}.sh init ${FLEDGE_SCHEMA} ${managedEngine}
+    fi
 fi
 
 # Run storage service
-${storageExec} "$@"
+if [[ "$VALGRIND_STORAGE" = "y" ]]; then
+	if [[ -f "$HOME/storage.valgrind.out" ]]; then
+		rm $HOME/storage.valgrind.out
+	fi
+	valgrind --leak-check=full --trace-children=yes --log-file=$HOME/storage.valgrind.out ${storageExec} "$@"
+else
+	${storageExec} "$@"
+fi
 exit 0

@@ -199,6 +199,91 @@ ReadingSet::append(const vector<Reading *>& readings)
 }
 
 /**
+* Deep copy a set of readings to this reading set.
+*/
+bool
+ReadingSet::copy(const ReadingSet& src)
+{
+	vector<Reading *> readings;
+	bool copyResult = true;
+	try
+	{
+		// Iterate over all the readings in ReadingSet
+		for (auto const &reading : src.getAllReadings())
+		{
+			std::string assetName = reading->getAssetName();
+			std::vector<Datapoint *> dataPoints;
+			try
+			{
+				// Iterate over all the datapoints associated with one reading
+				for (auto const &dp : reading->getReadingData())
+				{
+					std::string dataPointName  = dp->getName();
+					DatapointValue dv = dp->getData();
+					dataPoints.emplace_back(new Datapoint(dataPointName, dv));
+					
+				}
+			}
+			// Catch exception while copying datapoints
+			catch(std::bad_alloc& ex)
+			{
+				Logger::getLogger()->error("Insufficient memory, failed while copying dataPoints from ReadingSet, %s ", ex.what());
+				copyResult = false;
+				for (auto const &dp : dataPoints)
+				{
+					delete dp;
+				}
+				dataPoints.clear();
+				throw;
+			}
+			catch (std::exception& ex)
+			{
+				Logger::getLogger()->error("Unknown exception, failed while copying datapoint from ReadingSet, %s ", ex.what());
+				copyResult = false;
+				for (auto const &dp : dataPoints)
+				{
+					delete dp;
+				}
+				dataPoints.clear();
+				throw;
+			}
+			
+			Reading *in = new Reading(assetName, dataPoints);
+			readings.emplace_back(in);
+	   }
+   }
+   // Catch exception while copying readings
+   catch (std::bad_alloc& ex)
+   {
+		Logger::getLogger()->error("Insufficient memory, failed while copying %d reading from ReadingSet, %s ",readings.size()+1, ex.what());
+		copyResult = false;
+		for (auto const &r : readings)
+		{
+			delete r;
+		}
+		readings.clear();
+   }
+   catch (std::exception& ex)
+   {
+		Logger::getLogger()->error("Unknown exception, failed while copying %d reading from ReadingSet, %s ",readings.size()+1, ex.what());
+		copyResult = false;
+		for (auto const &r : readings)
+		{
+			delete r;
+		}
+		readings.clear();
+   }
+
+   //Append if All elements have been copied successfully
+   if (copyResult)
+   {
+	   append(readings);
+   }
+
+   return copyResult;
+}
+
+/**
  * Remove all readings from the reading set and delete the memory
  * After this call the reading set exists but contains no readings.
  */

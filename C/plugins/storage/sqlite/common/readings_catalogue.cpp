@@ -796,6 +796,10 @@ void ReadingsCatalogue::multipleReadingsInit(STORAGE_CONFIGURATION &storageConfi
 
 	ConnectionManager *manager = ConnectionManager::getInstance();
 	Connection *connection = manager->allocate();
+	if (! connection->supportsReadings())
+	{
+		return;
+	}
 	dbHandle = connection->getDbHandle();
 
 
@@ -2423,18 +2427,20 @@ int ReadingsCatalogue::SQLExec(sqlite3 *dbHandle, const char *sqlCmd, char **err
 {
 	int retries = 0, rc;
 
+	if (errMsg)
+	{
+		*errMsg = NULL;
+	}
 	Logger::getLogger()->debug("SQLExec: cmd :%s: ", sqlCmd);
 
 	do {
-		if (errMsg == NULL)
+		if (errMsg && *errMsg)
 		{
-			rc = sqlite3_exec(dbHandle, sqlCmd, NULL, NULL, NULL);
+			sqlite3_free(*errMsg);
+			*errMsg = NULL;
 		}
-		else
-		{
-			rc = sqlite3_exec(dbHandle, sqlCmd, NULL, NULL, errMsg);
-			Logger::getLogger()->debug("SQLExec: rc :%d: ", rc);
-		}
+		rc = sqlite3_exec(dbHandle, sqlCmd, NULL, NULL, errMsg);
+		Logger::getLogger()->debug("SQLExec: rc :%d: ", rc);
 
 		retries++;
 		if (rc == SQLITE_LOCKED || rc == SQLITE_BUSY)

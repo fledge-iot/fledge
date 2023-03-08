@@ -634,6 +634,7 @@ string	responsePayload;
 		int rval = plugin->commonUpdate(tableName, payload);
 		if (rval != -1)
 		{
+			registry.processTableUpdate(tableName, payload);
 			responsePayload = "{ \"response\" : \"updated\", \"rows_affected\"  : ";
 			responsePayload += to_string(rval);
 			responsePayload += " }";
@@ -1256,14 +1257,11 @@ string	responsePayload;
 /**
  * Append the readings that have arrived via a stream to the storage plugin
  *
- * @param readings	A Null terminiunated array of points to ReadingStream structures
+ * @param readings	A Null terminated array of points to ReadingStream structures
  * @param commit	A flag to commit the readings block
  */
 bool StorageApi::readingStream(ReadingStream **readings, bool commit)
 {
-	int c;
-	for (c = 0; readings[c]; c++);
-	Logger::getLogger()->debug("ReadingStream called with %d", c);
 	if ((readingPlugin ? readingPlugin : plugin)->hasStreamSupport())
 	{
 		return (readingPlugin ? readingPlugin : plugin)->readingStream(readings, commit);
@@ -1547,6 +1545,7 @@ string  responsePayload;
                 int rval = plugin->commonInsert(tableName, payload, const_cast<char*>(schemaName.c_str()));
                 if (rval != -1)
                 {
+			registry.processTableInsert(tableName, payload);
                         responsePayload = "{ \"response\" : \"inserted\", \"rows_affected\" : ";
                         responsePayload += to_string(rval);
                         responsePayload += " }";
@@ -1625,6 +1624,7 @@ string  responsePayload;
                 int rval = plugin->commonUpdate(tableName, payload, const_cast<char*>(schemaName.c_str()));
                 if (rval != -1)
                 {
+			registry.processTableUpdate(tableName, payload);
                         responsePayload = "{ \"response\" : \"updated\", \"rows_affected\"  : ";
                         responsePayload += to_string(rval);
                         responsePayload += " }";

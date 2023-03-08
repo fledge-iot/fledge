@@ -150,6 +150,52 @@ A more generic command is:
 
   sudo -u postgres createuser -d $(whoami)
 
+Red Hat Install
+---------------
+
+On Red Hat or other yum based distributions to install postgres:
+
+Add PostgreSQL YUM Repository to your System
+
+.. code-block:: console
+
+    sudo yum install -y https://download.postgresql.org/pub/repos/yum/reporpms/EL-9-x86_64/pgdg-redhat-repo-latest.noarch.rpm
+
+Check whether PostgreSQL 13 is available using the command shown below
+
+.. code-block:: console
+
+    sudo yum search -y postgresql13
+
+Once you have confirmed that PostgreSQL 13 repositories are available on your system. Then, you can proceed to install PostgreSQL 13
+
+.. code-block:: console
+
+    sudo yum install -y postgresql13 postgresql13-server
+
+Before using the PostgreSQL server, you need to first initialize the database service using the command
+
+.. code-block:: console
+
+    sudo /usr/pgsql-13/bin/postgresql-13-setup initdb
+
+You can then proceed to start the database server as follows
+
+.. code-block:: console
+
+    sudo systemctl enable --now postgresql-13
+
+Confirm if the just started service above is running by checking its status using the command
+
+.. code-block:: console
+
+    sudo systemctl status postgresql-13
+
+Next, you must create a PostgreSQL user that matches your Linux user.
+
+.. code-block:: console
+
+  sudo -u postgres createuser -d $(whoami)
 
 SQLite Plugin Configuration
 ===========================

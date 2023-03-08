@@ -9,6 +9,7 @@
 .. |sqlitelb_config| image:: images/sqlitelb_config.png
 .. |postgres_config| image:: images/postgres_config.png
 .. |sqlitememory_config| image:: images/sqlitememory_config.png
+.. |poll_type| image:: images/poll_type.png
 
 ***************
 Tuning Fledge
@@ -42,11 +43,29 @@ The south services within Fledge each have a set of advanced configuration optio
 
   - *Maximum buffered Readings* - This is the maximum number of readings the south service will buffer before attempting to send those readings onward to the storage service. This and the setting above work together to define the buffering strategy of the south service.
 
-  - *Reading Rate* - The rate at which polling occurs for this south service. This parameter only has effect if your south plugin is polled, asynchronous south services do not use this parameter. The units are defined by the setting of the *Reading Rate Per* item.
-
   - *Throttle* - If enabled this allows the reading rate to be throttled by the south service. The service will attempt to poll at the rate defined by *Reading Rate*, however if this is not possible, because the readings are being forwarded out of the south service at a lower rate, the reading rate will be reduced to prevent the buffering in the south service from becoming overrun.
 
+  - *Reading Rate* - The rate at which polling occurs for this south service. This parameter only has effect if your south plugin is polled, asynchronous south services do not use this parameter. The units are defined by the setting of the *Reading Rate Per* item.
+
   - *Reading Rate Per* - This defines the units to be used in the *Reading Rate* value. It allows the selection of per *second*, *minute* or *hour*.
+
+  - *Poll Type* - This defines the mechanism used to control the poll requests that will be sent to the plugin. Three options are currently available, interval polling and fixed time polling and polling on demand.
+
+    +-------------+
+    | |poll_type| |
+    +-------------+
+
+    - *Interval* polling will issue a poll request at a fixed rate, that rate being determined by the *Reading Rate* and *Reading Rate Per* settings described above. The first poll request will be issued after startup of the plugin and will not be synchronized to any time or other events within the system.
+
+    - *Fixed Times* polling will issue poll requests at fixed times that are defined by a set of hours, minutes and seconds. These times are defined in the local time zone of the machine that is running the Fledge instance.
+
+    - *On Demand* polling will not perform any regular polling, instead it will wait for a control operation to be sent to the service. That operation is named *polll* and takes no arguments. This allow a poll to be trigger by the control mechanisms from notifications, schedules, north services or API requests.
+
+  - *Hours* - This defines the hours when a poll request will be made. The hours are expressed using the 24 hour clock, with poll requests being made only when the current hour matches one of the hours in the coma separated list of hours. If the *Hours* field is left blank then poll will be issued during every hour of the day.
+
+  - *Minutes* - This defines the minutes in the day when poll requests are made. Poll requests are only made when the current minute matches one of the minutes in the comma separated list of minutes. If the *Minutes* field is left blank then poll requests will be made in any minute within the hour.
+
+  - *Seconds* - This defines the seconds when a poll requests will be made. Seconds is a comma separated list of seconds, poll requests are made when the current second match one of the seconds in the list. If *Fixed Times* polling is selected then the *Seconds* field must not be empty.
 
   - *Minimum Log Level* - This configuration option can be used to set the logs that will be seen for this service. It defines the level of logging that is send to the syslog and may be set to *error*, *warning*, *info* or *debug*. Logs of the level selected and higher will be sent to the syslog. You may access the contents of these logs by selecting the log icon in the bottom left of this screen.
 
@@ -61,6 +80,29 @@ The south services within Fledge each have a set of advanced configuration optio
 .. note::
 
    The *Statistics Collection* setting will not remove any existing statistics, these will remain and remain to be represented in the statistics history. This only impacts new values that are collected. It is recommended that this be set before a service is started for the first time if the desire it to have no statistics values recorded for either assets or the service.
+
+Fixed Time Polling
+------------------
+
+The fixed time polling can be used in a number of ways to control when poll requests occur, amongst the possible scenarios are;
+
+ - Poll at fixed times within a minute or hour.
+
+ - Poll only for certain periods of the day.
+
+To poll at fixed, regular times then simply set the times when a poll is required. For example to poll every 15 seconds at 0 seconds past the minute, 15, 30 and 45 seconds past the hour, simply st the *Seconds* field to have the value 0, 15, 30, 45 and leave the minutes and hours blank.
+
+If you wished to poll at the hour and every 15 minutes thereafter set the *Minutes* field to 0, 15, 30 and 45 and set the *Seconds* field to 0. Settings *Seconds* to another single value, for example 30, would simply move the poll time to be 0 minutes and 30 seconds, 15 minutes and 30 seconds etc. If multiple values of seconds are given then multiple polls would occur. For example if *Minutes* is set to 0, 15, 30, 45 and *Seconds* is set to 0, 30. A poll would occur at 0 minutes and 0 seconds, 0 minutes and 30 seconds, 15 minutes and 0 seconds, 15 minutes and thirty seconds.
+
+The *Hours* field, if not left empty, would work in the same way as the minutes above.
+
+Another use of the feature is to only poll at certain times of the day. As an example, if we wished to poll every 15 minutes between the hours of 8am and 5pm then we can set the *Hours* field to be 8,9,10,11,12,13,14,15,16 and the *Minutes* field to be 0, 15, 30, 45. The seconds field can be left as 0.
+
+.. note::
+
+   The last poll of the day would be at 16:45 in the above configuration.
+
+Although the intervals between poll times shown in the above examples have all been equal, there is no requirement for this to be the case.
 
 Tuning Buffer Usage
 -------------------
@@ -150,7 +192,9 @@ postgres
 
 In most cases the default *sqlite* storage plugin is perfectly acceptable, however if very high data rates, or huge volumes of data (i.e. large images at a reasonably high rate) are ingested this plugin can start to exhibit issues. This usually exhibits itself by large queues building in the south service or in extreme cases by transaction failure messages in the log for the storage service. If this happens then the recommended course of action is to either switch to a plugin that stores data in memory rather than on external storage, *sqlitememory*, or investigate the media where the data is stored. Low performance storage will adversely impact the *sqlite* plugin.
 
-The *sqlite* plugin may also prove less than optimal if you are ingested many hundreds of different assets in the same Fledge instance. The *sqlite* plugin has been optimized to allow concurrent south services to write to the storage in parallel. This is done by the use of multiple databases to improve the concurrency, however there is a limit, imposed by the number of open databases that can be supported. If this limit is exceeded it is recommend to switch to the *sqlitelb* plugin. There are configuration options regarding how these databases are used that can change the point at which it becomes necessary to switch to the other plugin.
+The *sqlite* plugin may also prove less than optimal if you are ingesting many hundreds of different assets in the same Fledge instance. The *sqlite* plugin has been optimized to allow concurrent south services to write to the storage in parallel. This is done by the use of multiple databases to improve the concurrency, however there is a limit, imposed by the number of open databases that can be supported. If this limit is exceeded it is recommend to switch to the *sqlitelb* plugin. There are configuration options regarding how these databases are used that can change the point at which it becomes necessary to switch to the other plugin.
+
+If you wish to use the same plugin to both store the configuration data and the reading data then you may either choose the same plugin for both or select the option *Use main plugin* for the *Reading Plugin* value. Use the later is perhaps a slightly safer option as changes to the *Storage Plugin* will then automatically cause the readings to use that same plugin.
 
 Configuring Storage Plugins
 ###########################
@@ -176,6 +220,8 @@ The storage plugins to use can be selected in the *Advanced* section of the *Con
 - **Service Port**: Normally the storage service will dynamically create a service port that will be used by the storage service. Setting this to a value other than 0 will cause a fixed port to be used. This can be useful when developing a new storage plugin or to allow access to a non-fledge application to the storage layer. This should only be changed with extreme caution.
 
 - **Management Port**: Normally the storage service will dynamically create a management port that will be used by the storage service. Setting this to a value other than 0 will cause a fixed port to be used. This can be useful when developing a new storage plugin.
+
+- **Log Level**: This control the level at which the storage plugin will output logs. 
 
 Changing will be saved once the *save* button is pressed. Fledge uses a mechanism whereby this data is not only saved in the configuration database, but also cached to a file called *storage.json* in the *etc* directory of the data directory. This is required such that Fledge can find the configuration database during the boot process. If the configuration becomes corrupt for some reason simply removing this file and restarting Fledge will cause the default configuration to be restored. The location of the Fledge data directory will depend upon how you installed Fledge and the environment variables used to run Fledge.
 

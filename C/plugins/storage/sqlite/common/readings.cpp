@@ -416,6 +416,12 @@ int Connection::readingStream(ReadingStream **readings, bool commit)
 	int sqlite3_resut;
 	int rowNumber = -1;
 
+	if (m_noReadings)
+	{
+		Logger::getLogger()->error("Attempt to stream readings to plugin that has no storage for readings");
+		return 0;
+	}
+
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();
 	ReadingsCatalogue *readCatalogue = ReadingsCatalogue::getInstance();
@@ -644,7 +650,8 @@ void Connection::setUsedDbId(int dbId) {
 /**
  * Wait until all the threads executing the appendReadings are shutted down
  */
-void  Connection::shutdownAppendReadings() {
+void  Connection::shutdownAppendReadings()
+{
 
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();
@@ -695,6 +702,12 @@ int sleep_time_ms = 0;
 int stmtArraySize;
 std::thread::id tid = std::this_thread::get_id();
 ostringstream threadId;
+
+	if (m_noReadings)
+	{
+		Logger::getLogger()->error("Attempt to append readings to plugin that has no storage for readings");
+		return 0;
+	}
 
 	threadId << tid;
 
@@ -1070,6 +1083,12 @@ unsigned int minGlobalId;
 unsigned int idWindow;
 unsigned long rowsCount;
 
+	if (m_noReadings)
+	{
+		Logger::getLogger()->error("Attempt to fetch readings to plugin that has no storage for readings");
+		return false;
+	}
+
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();
 	ReadingsCatalogue *readCatalogue = ReadingsCatalogue::getInstance();
@@ -1278,12 +1297,19 @@ string modifierInt;
 
 vector<string>  asset_codes;
 
+	if (m_noReadings)
+	{
+		Logger::getLogger()->error("Attempt to retrieve readings to plugin that has no storage for readings");
+		return false;
+	}
+
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();
 	ReadingsCatalogue *readCatalogue = ReadingsCatalogue::getInstance();
 
+	if (readCatalogue)
 	{
-		// Attaches the needed databases if the queue is not empty
+		// Attaches the required databases if the queue is not empty
 		AttachDbSync *attachSync = AttachDbSync::getInstance();
 		attachSync->lock();
 
@@ -1292,6 +1318,10 @@ vector<string>  asset_codes;
 			readCatalogue->connectionAttachDbList(this->getDbHandle(), m_NewDbIdList);
 		}
 		attachSync->unlock();
+	}
+	else
+	{
+		Logger::getLogger()->error("Readings catalogue not avialable");
 	}
 
 	try {
@@ -1735,6 +1765,12 @@ int blocks = 0;
 bool flag_retain;
 
 vector<string>  assetCodes;
+
+	if (m_noReadings)
+	{
+		Logger::getLogger()->error("Attempt to purge readings from plugin that has no storage for readings");
+		return 0;
+	}
 
 	Logger *logger = Logger::getLogger();
 
@@ -2255,6 +2291,12 @@ bool flag_retain;
 
 	Logger *logger = Logger::getLogger();
 
+	if (m_noReadings)
+	{
+		logger->error("Attempt to purge readings from plugin that has no storage for readings");
+		return 0;
+	}
+
 	ostringstream threadId;
 	threadId << std::this_thread::get_id();
 	ReadingsCatalogue *readCatalogue = ReadingsCatalogue::getInstance();
@@ -2551,6 +2593,10 @@ char *zErrMsg = NULL;
 int rc;
 sqlite3_stmt *stmt;
 
+	if (m_noReadings)
+	{
+		return 0;
+	}
 	ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
 	if (readCat == NULL)
 	{

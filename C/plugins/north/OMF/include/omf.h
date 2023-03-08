@@ -95,12 +95,14 @@ class OMF
 		 * Constructor:
 		 * pass server URL path, OMF_type_id and producerToken.
 		 */
-		OMF(HttpSender& sender,
+		OMF(const std::string& name,
+		    HttpSender& sender,
                     const std::string& path,
 		    const long typeId,
 		    const std::string& producerToken);
 
-		OMF(HttpSender& sender,
+		OMF(const std::string& name,
+		    HttpSender& sender,
 		    const std::string& path,
 		    std::map<std::string, OMFDataTypes>& types,
 		    const std::string& producerToken);
@@ -223,7 +225,7 @@ class OMF
 		bool getAFMapEmptyMetadata() const { return m_AFMapEmptyMetadata; };
 
 		bool getConnected() const { return m_connected; };
-		void setConnected(const bool connectionStatus) { m_connected = connectionStatus; };
+		void setConnected(const bool connectionStatus);
 
 		void setLegacyMode(bool legacy) { m_legacy = legacy; };
 
@@ -233,6 +235,7 @@ class OMF
 
 		static std::string variableValueHandle(const Reading& reading, std::string &AFHierarchy);
 		static bool        extractVariable(string &strToHandle, string &variable, string &value, string &defaultValue);
+		static void   	   reportAsset(const string& asset, const string& level, const string& msg);
 
 private:
 		/**
@@ -349,6 +352,7 @@ private:
 		// End of support for using linked containers
 		//
 		string createAFLinks(Reading &reading, OMFHints *hints);
+
 
 	private:
 		// Use for the evaluation of the OMFDataTypes.typesShort
@@ -499,6 +503,17 @@ private:
 		 * Force the data to be sent using the legacy, complex OMF types
 		 */
 		bool			m_legacy;
+
+		/**
+		 * Assets that have been logged as having errors. This prevents us
+		 * from flooding the logs with reports for the same asset.
+		 */
+		static std::vector<std::string>
+					m_reportedAssets;
+		/**
+		 * Service name
+		 */
+		const std::string	m_name;
 };
 
 /**

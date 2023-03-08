@@ -60,6 +60,7 @@ class StorageRegistry {
 		std::queue<StorageRegistry::TableItem>
 						m_tableUpdateQueue;
 		std::mutex			m_qMutex;
+		std::mutex			m_registrationsMutex;
 		std::mutex			m_tableRegistrationsMutex;
 		std::thread			*m_thread;
 		std::condition_variable		m_cv;

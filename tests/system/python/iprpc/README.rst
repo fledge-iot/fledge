@@ -72,15 +72,6 @@ While testing following settings can be present.
 Running Fledge System tests involving iprpc
 ===========================================
 
-Test Prerequisites
-------------------
-
-To install the dependencies required to run python tests, run the following two commands from FLEDGE_ROOT
-::
-
-    cd $FLEDGE_ROOT/tests/system/python/iprpc
-    python3 -m pip install -r requirements-iprpc-test.txt --user
-
 
 Test Execution
 --------------

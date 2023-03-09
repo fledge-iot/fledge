@@ -167,6 +167,7 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"options":["US-West", "EU-West", "Australia"],
 			"default": "US-West",
 			"order": "2",
+			"group" : "Cloud",
 			"displayName": "Cloud Service Region",
 			"validity" : "PIServerEndpoint == \"AVEVA Data Hub\" || PIServerEndpoint == \"OSIsoft Cloud Services\""
 		},
@@ -528,6 +529,10 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 	string PIServerEndpoint = configData->getValue("PIServerEndpoint");
 	string ADHRegions = configData->getValue("ADHRegions");
 	string ServerHostname = configData->getValue("ServerHostname");
+	if (gethostbyname(ServerHostname.c_str()) == NULL)
+	{
+		Logger::getLogger()->warn("Unable to resolve server hostname '%s'. This should be a valid hostname or IP Address.", ServerHostname.c_str());
+	}
 	string ServerPort = configData->getValue("ServerPort");
 	string url;
 	string NamingScheme = configData->getValue("NamingScheme");

@@ -391,6 +391,11 @@ int ConnectionManager::SQLExec(sqlite3 *dbHandle, const char *sqlCmd, char **err
 		}
 		else
 		{
+			if (*errMsg)
+			{
+				sqlite3_free(*errMsg);
+				*errMsg = NULL;
+			}
 			rc = sqlite3_exec(dbHandle, sqlCmd, NULL, NULL, errMsg);
 			Logger::getLogger()->debug("SQLExec: rc :%d: ", rc);
 		}

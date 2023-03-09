@@ -112,9 +112,9 @@ Default Configuration
 
 The *Default Configuration* tab contains the most commonly modified items
 
-+--------------+
-| |OMF_Deault| |
-+--------------+
++---------------+
+| |OMF_Default| |
++---------------+
 
   - **Endpoint**: The type of OMF end point we are connecting with. The options available are
 

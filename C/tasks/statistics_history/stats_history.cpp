@@ -61,11 +61,6 @@ void StatsHistory::run() const
 		return;
 
 	// Get the set of distinct statistics keys
-	/*Query query(new Returns("key"));
-	query.distinct();
-	ResultSet *keySet = getStorageClient()->queryTable("statistics", query);
-	*/
-
 	Query query(new Returns("key"));
 	query.distinct();
         query.returns(new Returns("value"));
@@ -81,7 +76,6 @@ void StatsHistory::run() const
         while (keySet->hasNextRow(rowIter) || keySet->isLastRow(rowIter) )
 	{
 		string key = (*rowIter)->getColumn("key")->getString();
-		getLogger()->error("key = %s", key.c_str());
 		int val = (*rowIter)->getColumn("value")->getInteger();
         	int prev = (*rowIter)->getColumn("previous_value")->getInteger();
 

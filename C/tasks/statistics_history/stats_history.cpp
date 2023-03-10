@@ -136,7 +136,7 @@ void StatsHistory::processKey(const std::string& key, std::vector<InsertValues> 
 {
 	InsertValues iValue;
 
-	// Insert the row into the configuration history
+	// Insert the row into the statistics history
 	// create an object of InsertValues and push in historyValues vector
 	// for batch insertion
 	iValue.push_back(InsertValue("key", key.c_str()));

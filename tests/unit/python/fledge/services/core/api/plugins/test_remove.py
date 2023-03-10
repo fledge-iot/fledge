@@ -101,7 +101,7 @@ class TestPluginRemove:
                 with patch.object(plugins_remove._logger, "error") as log_err_patch:
                     resp = await client.delete('/fledge/plugins/{}/{}'.format(_type, name), data=None)
                     assert 400 == resp.status
-                    expected_msg = "{} cannot be removed. This is being used by {} instances".format(name, svc_list)
+                    expected_msg = "{} cannot be removed. This is being used by {} instances.".format(name, svc_list)
                     assert expected_msg == resp.reason
                     result = await resp.text()
                     response = json.loads(result)
@@ -139,7 +139,7 @@ class TestPluginRemove:
                     resp = await client.delete('/fledge/plugins/{}/{}'.format(plugin_type, plugin_installed_dirname),
                                                data=None)
                     assert 400 == resp.status
-                    expected_msg = "{} cannot be removed. This is being used by {} instances".format(
+                    expected_msg = "{} cannot be removed. This is being used by {} instances.".format(
                         plugin_installed_dirname, notify_instances_list)
                     assert expected_msg == resp.reason
                     result = await resp.text()
@@ -203,7 +203,7 @@ class TestPluginRemove:
                 assert 1 == log_info_patch.call_count
                 log_info_patch.assert_called_once_with(
                     'No entry found for http_south plugin in asset tracker; '
-                    'or {} plugin may have been added in disabled state & never used'.format(name))
+                    'or {} plugin may have been added in disabled state & never used.'.format(name))
             plugin_usage_patch.assert_called_once_with(_type, name)
         plugin_installed_patch.assert_called_once_with(_type, False)
 
@@ -295,6 +295,6 @@ class TestPluginRemove:
                 assert 1 == log_info_patch.call_count
                 log_info_patch.assert_called_once_with(
                     'No entry found for http_south plugin in asset tracker; '
-                    'or {} plugin may have been added in disabled state & never used'.format(name))
+                    'or {} plugin may have been added in disabled state & never used.'.format(name))
             plugin_usage_patch.assert_called_once_with(_type, name)
         plugin_installed_patch.assert_called_once_with(_type, False)

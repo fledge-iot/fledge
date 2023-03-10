@@ -81,7 +81,7 @@ async def remove_plugin(request: web.Request) -> web.Response:
         else:
             get_tracked_plugins = await _check_plugin_usage(plugin_type, name)
             if get_tracked_plugins:
-                e = "{} cannot be removed. This is being used by {} instances".\
+                e = "{} cannot be removed. This is being used by {} instances.".\
                     format(name, get_tracked_plugins[0]['service_list'])
                 _logger.error(e)
                 raise RuntimeError(e)

@@ -122,22 +122,22 @@ class TestAuthOptional:
     async def test_get_user_exception_by_param(self, client, request_params, error_msg, arg1, arg2):
         with patch.object(middleware._logger, 'debug') as patch_logger_info:
             with patch.object(User.Objects, 'get', side_effect=User.DoesNotExist(error_msg)) as patch_user_get:
-                with patch.object(auth._logger, 'warning') as patch_logger:
+                with patch.object(auth._logger, 'warning') as patch_auth_logger:
                     resp = await client.get('/fledge/user{}'.format(request_params))
                     assert 404 == resp.status
                     assert error_msg == resp.reason
-                patch_logger.assert_called_once_with(error_msg)
+                patch_auth_logger.assert_called_once_with(error_msg)
             patch_user_get.assert_called_once_with(arg1, arg2)
         patch_logger_info.assert_called_once_with('Received %s request for %s', 'GET', '/fledge/user')
 
     @pytest.mark.parametrize("request_params", ['?id=0', '?id=blah', '?id=-1'])
     async def test_get_bad_user_id_param_exception(self, client, request_params):
         with patch.object(middleware._logger, 'debug') as patch_logger_info:
-            with patch.object(auth._logger, 'warning') as patch_logger:
+            with patch.object(auth._logger, 'error') as patch_auth_logger:
                 resp = await client.get('/fledge/user{}'.format(request_params))
                 assert 400 == resp.status
                 assert 'Bad user id' == resp.reason
-            patch_logger.assert_called_once_with('Get user requested with bad user id')
+            patch_auth_logger.assert_called_once_with('Get user requested with bad user id.')
         patch_logger_info.assert_called_once_with('Received %s request for %s', 'GET', '/fledge/user')
 
     @pytest.mark.parametrize("request_data", [
@@ -152,11 +152,11 @@ class TestAuthOptional:
     ])
     async def test_bad_login(self, client, request_data):
         with patch.object(middleware._logger, 'debug') as patch_logger_info:
-            with patch.object(auth._logger, 'warning') as patch_logger:
+            with patch.object(auth._logger, 'warning') as patch_auth_logger:
                 resp = await client.post('/fledge/login', data=json.dumps(request_data))
                 assert 400 == resp.status
                 assert 'Username or password is missing' == resp.reason
-            patch_logger.assert_called_once_with('Username and password are required to login')
+            patch_auth_logger.assert_called_once_with('Username and password are required to login.')
         patch_logger_info.assert_called_once_with('Received %s request for %s', 'POST', '/fledge/login')
 
     @pytest.mark.parametrize("request_data, status_code, exception_name, msg", [
@@ -164,7 +164,8 @@ class TestAuthOptional:
         ({"username": "admin", "password": "blah"}, 404, User.PasswordDoesNotMatch, 'Username or Password do not match'),
         ({"username": "admin", "password": 123}, 404, User.PasswordDoesNotMatch, 'Username or Password do not match'),
         ({"username": 1, "password": 1}, 404, ValueError, 'Username should be a valid string'),
-        ({"username": "user", "password": "fledge"}, 401, User.PasswordExpired, 'Your password has been expired. Please set your password again')
+        ({"username": "user", "password": "fledge"}, 401, User.PasswordExpired,
+         'Your password has been expired. Please set your password again.')
     ])
     async def test_login_exception(self, client, request_data, status_code, exception_name, msg):
         
@@ -177,11 +178,11 @@ class TestAuthOptional:
         with patch.object(middleware._logger, 'debug') as patch_logger_info:
             with patch.object(User.Objects, 'login', side_effect=exception_name(msg)) as patch_user_login:
                 with patch.object(User.Objects, 'delete_user_tokens', return_value=_rv) as patch_delete_token:
-                    with patch.object(auth._logger, 'warning') as patch_logger:
+                    with patch.object(auth._logger, 'warning') as patch_auth_logger:
                         resp = await client.post('/fledge/login', data=json.dumps(request_data))
                         assert status_code == resp.status
                         assert msg == resp.reason
-                    patch_logger.assert_called_once_with(msg)
+                    patch_auth_logger.assert_called_once_with(msg)
                 if status_code == 401:
                     patch_delete_token.assert_called_once_with(msg)
             # TODO: host arg patch transport.request.extra_info
@@ -207,7 +208,7 @@ class TestAuthOptional:
         
         with patch.object(middleware._logger, 'debug') as patch_logger_info:
             with patch.object(User.Objects, 'login', return_value=_rv) as patch_user_login:
-                with patch.object(auth._logger, 'info') as patch_logger:
+                with patch.object(auth._logger, 'info') as patch_auth_logger:
                     resp = await client.post('/fledge/login', data=json.dumps(request_data))
                     assert 200 == resp.status
                     r = await resp.text()
@@ -215,7 +216,7 @@ class TestAuthOptional:
                     assert ret_val[0] == actual['uid']
                     assert ret_val[1] == actual['token']
                     assert ret_val[2] == actual['admin']
-                patch_logger.assert_called_once_with('User with username:<{}> logged in successfully.'.format(request_data['username']))
+                patch_auth_logger.assert_called_once_with('User with username:<{}> logged in successfully.'.format(request_data['username']))
             # TODO: host arg patch transport.request.extra_info
             args, kwargs = patch_user_login.call_args
             assert request_data['username'] == args[0]

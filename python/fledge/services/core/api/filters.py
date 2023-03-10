@@ -134,11 +134,11 @@ async def create_filter(request: web.Request) -> web.Response:
             return web.json_response({'filter': filter_name, 'description': filter_desc, 'value': category_info})
     except ValueError as err:
         msg = str(err)
-        _LOGGER.error("Add filter, caught value error exception: {}".format(msg))
+        _LOGGER.error("Add filter, caught value error: {}".format(msg))
         raise web.HTTPNotFound(reason=msg)
     except TypeError as err:
         msg = str(err)
-        _LOGGER.error("Add filter, caught type error exception: {}".format(msg))
+        _LOGGER.error("Add filter, caught type error: {}".format(msg))
         raise web.HTTPBadRequest(reason=msg)
     except StorageServerError as ex:
         await _delete_configuration_category(storage, filter_name)  # Revert configuration entry

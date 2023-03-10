@@ -203,7 +203,7 @@ EOF
 
         if result['count'] >= 1:            
             msg = 'Unable to reuse name {0}, already used by a previous task.'.format(name)
-            _logger.exception(msg)
+            _logger.error(msg)
             raise web.HTTPBadRequest(reason=msg)
 
         # Check whether category name already exists
@@ -226,7 +226,7 @@ EOF
             try:
                 res = await storage.insert_into_tbl("scheduled_processes", payload)
             except StorageServerError as ex:
-                _logger.error("Failed to create scheduled process due to {}".format(str(ex)))
+                _logger.error("Failed to create scheduled process due to {}".format(ex.error))
                 raise web.HTTPInternalServerError(reason='Failed to create north instance.')
             except Exception as ex:
                 _logger.exception("Failed to create scheduled process due to {}".format(str(ex)))

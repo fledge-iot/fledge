@@ -53,7 +53,7 @@ MIN_USERNAME_LENGTH = 4
 USERNAME_REGEX_PATTERN = '^[a-zA-Z0-9_.-]+$'
 PASSWORD_REGEX_PATTERN = '((?=.*\d)(?=.*[A-Z])(?=.*\W).{6,}$)'
 PASSWORD_ERROR_MSG = 'Password must contain at least one digit, one lowercase, one uppercase & one special character ' \
-                     'and length of minimum 6 characters'
+                     'and length of minimum 6 characters.'
 
 FORBIDDEN_MSG = 'Resource you were trying to reach is absolutely forbidden for some reason'
 
@@ -505,7 +505,7 @@ async def update_me(request):
                 msg = str(exc)
                 raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
-        msg = "Nothing to update"
+        msg = "Nothing to update."
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     return web.json_response({"message": message})
 
@@ -536,24 +536,24 @@ async def update_user(request):
     user_data = {}
     if 'real_name' in data:
         if len(real_name.strip()) == 0:
-            msg = "Real Name should not be empty"
+            msg = "Real Name should not be empty."
             raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
         else:
             user_data.update({"real_name": real_name.strip()})
     if 'access_method' in data:
         if len(access_method.strip()) == 0:
-            msg = "Access method should not be empty"
+            msg = "Access method should not be empty."
             raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
         else:
             valid_access_method = ('any', 'pwd', 'cert')
             if access_method not in valid_access_method:
-                msg = "Accepted access method values are {}".format(valid_access_method)
+                msg = "Accepted access method values are {}.".format(valid_access_method)
                 raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
             user_data.update({"access_method": access_method.strip()})
     if 'description' in data:
         user_data.update({"description": description.strip()})
     if not user_data:
-        msg = "Nothing to update"
+        msg = "Nothing to update."
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     try:
         user = await User.Objects.update(user_id, user_data)
@@ -624,7 +624,6 @@ async def update_password(request):
 
         # Remove OTT token for this user if there.
         __remove_ott_for_user(user_id)
-
     except ValueError as ex:
         _logger.error(str(ex))
         raise web.HTTPBadRequest(reason=str(ex))
@@ -702,7 +701,7 @@ async def enable_user(request):
     except Exception as exc:
         msg = str(exc)
         raise web.HTTPInternalServerError(reason=str(exc), body=json.dumps({"message": msg}))
-    return web.json_response({'message': 'User with id:<{}> has been {} successfully'.format(int(user_id), _text)})
+    return web.json_response({'message': 'User with id:<{}> has been {} successfully.'.format(int(user_id), _text)})
 
 
 @has_permission("admin")

@@ -45,8 +45,12 @@ class TestUtils:
             patch_lib.assert_called_once_with(plugin_name, 'south')
         patch_util.assert_called_once_with('get_plugin_info')
 
-    @pytest.mark.parametrize("exc_name", [Exception, OSError, subprocess.CalledProcessError])
-    def test_get_plugin_info_exception(self, exc_name):
+    @pytest.mark.parametrize("exc_name, msg", [
+        (Exception, ""),
+        (OSError, ""),
+        (subprocess.CalledProcessError, "__init__() missing 2 required positional arguments: 'returncode' and 'cmd'")
+    ])
+    def test_get_plugin_info_exception(self, exc_name, msg):
         plugin_name = 'OMF'
         plugin_lib_path = 'fledge/plugins/north/{}/lib{}'.format(plugin_name, plugin_name)
         with patch.object(utils, '_find_c_util', return_value='plugins/utils/get_plugin_info') as patch_util:
@@ -56,8 +60,7 @@ class TestUtils:
                         assert {} == utils.get_plugin_info(plugin_name, dir='south')
                     assert 1 == patch_logger.call_count
                     args, kwargs = patch_logger.call_args
-                    assert '%s C plugin get info failed due to %s' == args[0]
-                    assert plugin_name == args[1]
+                    assert '{} C plugin get info failed due to {}'.format(plugin_name, msg) == args[0]
             patch_lib.assert_called_once_with(plugin_name, 'south')
         patch_util.assert_called_once_with('get_plugin_info')
 

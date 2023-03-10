@@ -136,12 +136,18 @@ void StatsHistory::processKey(const std::string& key, std::vector<InsertValues> 
 {
 	InsertValues iValue;
 
+	// Insert the row into the configuration history
+	// create an object of InsertValues and push in historyValues vector
+	// for batch insertion
 	iValue.push_back(InsertValue("key", key.c_str()));
 	iValue.push_back(InsertValue("value", val - prev));
 	iValue.push_back(InsertValue("history_ts", dateTimeStr));
 
 	historyValues.push_back(iValue);
 
+	// Update the previous value in the statistics row
+	// create an object of InsertValue and push in updateValues vector
+	// for batch updation
 	InsertValue *updateValue = new InsertValue("previous_value", val);
 	Where *wKey = new Where("key", Equals, key);
 	updateValues.emplace_back(updateValue, wKey);

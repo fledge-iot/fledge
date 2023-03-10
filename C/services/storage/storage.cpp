@@ -140,19 +140,19 @@ string	       logLevel = "warning";
 		exit(1);
 	}
 
-	StorageService *service = new StorageService(myName);
+	StorageService service(myName);
 	Logger::getLogger()->setMinLevel(logLevel);
 	if (returnPlugin)
 	{
-		cout << service->getPluginName() << " " << service->getPluginManagedStatus() << endl;
+		cout << service.getPluginName() << " " << service.getPluginManagedStatus() << endl;
 	}
 	else if (returnReadingsPlugin)
 	{
-		cout << service->getReadingPluginName() << " " << service->getPluginManagedStatus() << endl;
+		cout << service.getReadingPluginName() << " " << service.getPluginManagedStatus() << endl;
 	}
 	else
 	{
-		service->start(coreAddress, corePort);
+		service.start(coreAddress, corePort);
 	}
 	return 0;
 }
@@ -237,6 +237,13 @@ unsigned short servicePort;
 
 
 	api = new StorageApi(servicePort, threads);
+}
+
+/**
+ * Storage Service destructor
+ */
+StorageService::~StorageService()
+{
 }
 
 /**

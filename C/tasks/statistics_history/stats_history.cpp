@@ -61,19 +61,32 @@ void StatsHistory::run() const
 		return;
 
 	// Get the set of distinct statistics keys
-	Query query(new Returns("key"));
+	/*Query query(new Returns("key"));
 	query.distinct();
 	ResultSet *keySet = getStorageClient()->queryTable("statistics", query);
+	*/
+
+	Query query(new Returns("key"));
+	query.distinct();
+        query.returns(new Returns("value"));
+        query.returns(new Returns("previous_value"));
+        ResultSet *keySet = getStorageClient()->queryTable("statistics", query);
 
 	ResultSet::RowIterator rowIter = keySet->firstRow();
 	std::vector<InsertValues> historyValues;
 	vector<pair<InsertValue *, Where *>> updateValues;
 
+	std::string dateTimeStr = getTime();
+
         while (keySet->hasNextRow(rowIter) || keySet->isLastRow(rowIter) )
 	{
 		string key = (*rowIter)->getColumn("key")->getString();
+		getLogger()->error("key = %s", key.c_str());
+		int val = (*rowIter)->getColumn("value")->getInteger();
+        	int prev = (*rowIter)->getColumn("previous_value")->getInteger();
+
 		try {
-			processKey(key, historyValues, updateValues);
+			processKey(key, historyValues, updateValues, dateTimeStr, val, prev);
 		} catch (exception e) {
 			getLogger()->error("Failed to process statisitics key %s, %s", key, e.what());
 		}
@@ -112,7 +125,6 @@ void StatsHistory::run() const
 	}
 
 	delete keySet;
-
 }
 
 /**
@@ -121,38 +133,20 @@ void StatsHistory::run() const
  * @param key	         The statistics key to process
  * @param historyValues  Values to be inserted in statistics_history
  * @param updateValues   Values to be updated in statistics
+ * @param dateTimeStr    Local time with microseconds precision 
+ * @param val		 int 
+ * @param prev		 int 
  * @return void
  */
-void StatsHistory::processKey(const std::string& key, std::vector<InsertValues> &historyValues, std::vector<std::pair<InsertValue*, Where *> > &updateValues) const
+void StatsHistory::processKey(const std::string& key, std::vector<InsertValues> &historyValues, std::vector<std::pair<InsertValue*, Where *> > &updateValues, std::string dateTimeStr, int val, int prev) const
 {
-	Query	query(new Where("key", Equals, key));
-
-	// Fetch the current and previous valaues for the key
-	query.returns(new Returns("value"));
-	query.returns(new Returns("previous_value"));
-	ResultSet *values = getStorageClient()->queryTable("statistics", query);
-
-	if (values->rowCount() != 1)
-	{
-		getLogger()->error("Internal error, failed to get statisitics for key %s", key.c_str());
-		return;
-	}
-	int val = ((*values)[0])->getColumn("value")->getInteger();
-	int prev = ((*values)[0])->getColumn("previous_value")->getInteger();
-	delete values;
-
 	InsertValues iValue;
-	std::string dateTimeStr = getTime();
-	// Insert the row into the configuration history
-	//
 
 	iValue.push_back(InsertValue("key", key.c_str()));
 	iValue.push_back(InsertValue("value", val - prev));
 	iValue.push_back(InsertValue("history_ts", dateTimeStr));
 
 	historyValues.push_back(iValue);
-
-	// Update the previous value in the statistics row
 
 	InsertValue *updateValue = new InsertValue("previous_value", val);
 	Where *wKey = new Where("key", Equals, key);

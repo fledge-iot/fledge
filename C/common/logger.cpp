@@ -159,8 +159,7 @@ void Logger::fatal(const string& msg, ...)
 
 string *Logger::format( const std::string& format, va_list args)
 {
-char	buf[1000];
-
-	  vsnprintf(buf, sizeof(buf), format.c_str(), args);
-	  return new string(buf);
+	char  buf[10000];
+	vsnprintf(buf, sizeof(buf), format.c_str(), args);
+	return new string(buf);
 }

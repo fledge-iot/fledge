@@ -138,9 +138,11 @@ ConfigCategory::ConfigCategory(const string& name, const string& json) : m_name(
 {
 	Document doc;
 	doc.Parse(json.c_str());
+	// REMOVE ME
+	Logger::getLogger()->error("ConfigCategory::ConfigCategory %s", json.c_str());
 	if (doc.HasParseError())
 	{
-		Logger::getLogger()->error("Configuration parse error in category '%s', %s: %s at %d",
+		Logger::getLogger()->error("X Configuration parse error in category '%s', %s: %s at %d",
 			name.c_str(), json.c_str(),
 			GetParseError_En(doc.GetParseError()), (unsigned)doc.GetErrorOffset());
 		throw new ConfigMalformed();

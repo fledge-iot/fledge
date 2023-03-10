@@ -202,6 +202,8 @@ string payload;
 		payload = request->content.string();
 		ConfigCategoryChange conf(payload);
 		ConfigHandler	*handler = ConfigHandler::getInstance(NULL);
+		// CHECK HERE.... Looks like the payoad item is unescaped here and then
+		// fledge/C/common/config_category.cpp failed to parse that
 		handler->configChange(conf.getName(), conf.itemsToJSON(true));
 		convert << "{ \"message\" : \"Config change accepted\" }";
 	}

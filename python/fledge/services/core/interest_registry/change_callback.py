@@ -43,7 +43,7 @@ async def run(category_name):
     category_value = await cfg_mgr.get_category_all_items(category_name)
     payload = {"category" : category_name, "items" : category_value}
     headers = {'content-type': 'application/json'}
-
+    _LOGGER.error("CHANGE CALLBACK PAYLOAD TO BE SENT %s", json.dumps(payload, sort_keys=True))
     # for each microservice interested in category_name, notify change
     for i in interest_records:
         # get microservice management server info of microservice through service registry

@@ -13,7 +13,6 @@
 #include <time.h>
 #include <sys/time.h>
 
-#define MAXSIZE 200
 #define DATETIME_MAX_LEN 52
 #define MICROSECONDS_FORMAT_LEN	10
 #define DATETIME_FORMAT_DEFAULT	"%Y-%m-%d %H:%M:%S"
@@ -91,7 +90,6 @@ void StatsHistory::run() const
 	}
 
 	int n_rows;
-
         if ((n_rows = getStorageClient()->insertTable("statistics_history", historyValues)) < 1)
         {
                 getLogger()->error("Failed to insert rows to statistics history table ");

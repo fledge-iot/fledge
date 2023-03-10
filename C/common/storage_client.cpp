@@ -1870,7 +1870,7 @@ int StorageClient::insertTable(const string& schema, const string& tableName, co
                         convert <<  it->toJSON() ;
                 }
 
-                char url[128];
+                char url[1000];
                 snprintf(url, sizeof(url), "/storage/schema/%s/table/%s", schema.c_str(), tableName.c_str());
 
                 auto res = this->getHttpClient()->request("POST", url, convert.str());

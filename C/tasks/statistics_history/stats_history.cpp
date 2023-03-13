@@ -151,6 +151,13 @@ void StatsHistory::processKey(const std::string& key, std::vector<InsertValues> 
 	updateValues.emplace_back(updateValue, wKey);
 }
 
+/**
+ * getTime() function returns the localTime with microseconds precision  
+ *
+ * @param  void 
+ * @return std::string localTime
+ */
+
 std::string StatsHistory::getTime(void) const
 {
 	struct timeval tv ;

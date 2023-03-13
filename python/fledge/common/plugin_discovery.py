@@ -149,8 +149,11 @@ class PluginDiscovery(object):
                                          'description': jdoc['config']['plugin']['description'],
                                          'version': jdoc['version'],
                                          'installedDirectory': '{}/{}'.format(installed_dir_name, name),
-                                         'packageName': pkg_name
-                                        }
+                                         'packageName': get_package_name(
+                                             "fledge-{}-".format(plugin_type),
+                                             "{}/plugins/{}/{}/.Package".format(utils._FLEDGE_ROOT, installed_dir_name, name),
+                                             pkg_name)
+                                         }
                         if is_config:
                             plugin_config.update({'config': jdoc['config']})
                         configs.append(plugin_config)
@@ -185,14 +188,14 @@ class PluginDiscovery(object):
                 # Only OMF is an inbuilt plugin
                 if name.lower() != 'omf':
                     pkg_name = 'fledge-{}-{}'.format(plugin_type, name.lower().replace("_", "-"))
-
                 plugin_config = {
                     'name': plugin_info['config']['plugin']['default'],
                     'type': plugin_type,
                     'description': plugin_info['config']['plugin']['description'],
                     'version': plugin_info['version'],
                     'installedDirectory': '{}/{}'.format(installed_dir_name, name),
-                    'packageName': pkg_name
+                    'packageName': get_package_name("fledge-{}-".format(plugin_type),
+                                                    "{}/.Package".format(plugin_dir), pkg_name)
                 }
             else:
                 _logger.warning("Plugin {} is discarded due to invalid type".format(plugin_dir))
@@ -208,3 +211,22 @@ class PluginDiscovery(object):
 
         return plugin_config
 
+
+def get_package_name(prefix: str, filepath: str, internal_name: str) -> str:
+    """ Get Package name on the basis of .Package file
+    Args:
+        prefix:    package prefix which is used for file content matching
+        filepath:  Check .Package file in given path
+        internal_name:  If .Package file is missing then use old internal way
+    """
+    try:
+        # open file in read mode
+        with open(filepath, 'r') as read_obj:
+            line = read_obj.read().strip('\n')
+    except Exception:
+        # If .Package file not found then return internal package name
+        # which is most likely a case of non-package environment setup
+        return internal_name
+    else:
+        # if Package file content is empty then return internal package name Else Package file content
+        return internal_name if prefix not in line else line

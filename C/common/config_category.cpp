@@ -1156,32 +1156,25 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 		rapidjson::StringBuffer strbuf;
 		rapidjson::Writer<rapidjson::StringBuffer> writer(strbuf);
 		item["value"].Accept(writer);
-		m_value = strbuf.GetString();
 
 		if (m_itemType == ScriptItem ||
 		    m_itemType == CodeItem)
 		{
-			if (m_value.empty())
-			{
-				m_value = "\"\"";
-			}
+			m_value = strbuf.GetString();
 		}
 		else
 		{
-			if (m_value.length() >= 2 &&
-			   m_value[0] == '\"' &&
-			   m_value[m_value.length() - 1] == '\"') {
-				m_value = m_value.substr(1, m_value.length() - 2);
-			}
-			else
-			{
-				m_value = "\"\"";
-			}
-			
+			m_value = JSONunescape(strbuf.GetString());
+
 			if (m_options.size() == 0)
 				m_itemType = StringItem;
 			else
 				m_itemType = EnumerationItem;
+		}
+
+		if (m_value.empty())
+		{
+			m_value = "\"\"";
 		}
 	}
 	// Item "value" is a Double
@@ -1269,31 +1262,22 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 		rapidjson::StringBuffer strbuf;
 		rapidjson::Writer<rapidjson::StringBuffer> writer(strbuf);
 		item["default"].Accept(writer);
-
 		if (m_itemType == ScriptItem ||
 		    m_itemType == CodeItem)
 		{
-			if (m_default.empty())
-			{
-				m_default = "\"\"";
-			}
+			m_default = strbuf.GetString();
 		}
 		else
 		{
-			if (m_value.length() >= 2 &&
-			   m_value[0] == '\"' &&
-			   m_value[m_value.length() - 1] == '\"') {
-				m_value = m_value.substr(1, m_value.length() - 2);
-			}
-			else
-			{
-				m_value = "\"\"";
-			}
-			
+			m_default = JSONunescape(strbuf.GetString());
 			if (m_options.size() == 0)
 				m_itemType = StringItem;
 			else
 				m_itemType = EnumerationItem;
+		}
+		if (m_default.empty())
+		{
+			m_default = "\"\"";
 		}
 	}
 	// Item "default" is a Double

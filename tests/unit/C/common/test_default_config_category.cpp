@@ -46,6 +46,9 @@ const char *default_myCategory_quoted = "{\"description\": {"
 		"\"value\": {\"first\" : \"Fledge\", \"second\" : \"json\" },"
 		"\"default\": {\"first\" : \"Fledge\", \"second\" : \"json\" },"
 		"\"description\": \"A JSON configuration parameter\"}}";
+
+const char *default_myCategory_quotedSpecial = R"DQS({ "description": { "type": "string", "value": "The \"Fledge\" administra\tive API", "default": "The \"Fledge\" admini\\strative API", "description": "The description of this \"Fledge\" service"}, "name": { "type": "string", "value": "\"Fledge\"", "default": "\"Fledge\"", "description": "The name of this \"Fledge\" service"}, "complex": { "type": "json", "value": {"first" : "Fledge", "second" : "json" }, "default": {"first" : "Fledge", "second" : "json" }, "description": "A JSON configuration parameter"}})DQS";
+
 /**
  * The JSON output from DefaulltCategory::toJSON has "default" values olny
  */
@@ -140,6 +143,8 @@ const char *myDefCategoryRemoveItems = "{" \
 			"} "\
 		"}";
 
+
+const char *default_json_quotedSpecial = R"SDQ({ "key" : "test \"a\"", "description" : "Test \"description\"", "value" : {"description" : { "description" : "The description of this \"Fledge\" service", "type" : "string", "default" : "The \"Fledge\" admini\\strative API" }, "name" : { "description" : "The name of this \"Fledge\" service", "type" : "string", "default" : "\"Fledge\"" }, "complex" : { "description" : "A JSON configuration parameter", "type" : "json", "default" : "{\"first\":\"Fledge\",\"second\":\"json\"}" }} })SDQ";
 
 TEST(DefaultCategoriesTest, Count)
 {
@@ -325,4 +330,15 @@ TEST(DefaultCategoryTest, removeItemsType)
 
 }
 
+/**
+ * Test special quoted chars
+ */
 
+TEST(DefaultCategoryTestQuoted, toJSONQuotedSpecial)
+{
+	DefaultConfigCategory confCategory("test \"a\"", default_myCategory_quotedSpecial);
+	confCategory.setDescription("Test \"description\"");
+
+	// Only "default" value in the output
+	ASSERT_EQ(0, confCategory.toJSON().compare(default_json_quotedSpecial));
+}

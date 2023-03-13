@@ -2654,7 +2654,7 @@ sqlite3_stmt *stmt;
 			sqlite3_free(zErrMsg);
 			return 0;
 		}
-
+		readCat->loadEmptyAssetReadingCatalogue();
 		// Get numbwer of affected rows
                 return (unsigned int)sqlite3_changes(dbHandle);
 	}

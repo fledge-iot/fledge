@@ -1152,14 +1152,15 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 	// Item "value" is just a string
 	else if (item.HasMember("value") && item["value"].IsString())
 	{
+		// Get content of script type item as is
+		rapidjson::StringBuffer strbuf;
+		rapidjson::Writer<rapidjson::StringBuffer> writer(strbuf);
+		item["value"].Accept(writer);
+		m_value = strbuf.GetString();
+
 		if (m_itemType == ScriptItem ||
 		    m_itemType == CodeItem)
 		{
-			// Get content of script type item as is
-			rapidjson::StringBuffer strbuf;
-			rapidjson::Writer<rapidjson::StringBuffer> writer(strbuf);
-			item["value"].Accept(writer);
-			m_value = strbuf.GetString();
 			if (m_value.empty())
 			{
 				m_value = "\"\"";
@@ -1167,7 +1168,16 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 		}
 		else
 		{
-			m_value = item["value"].GetString();
+			if (m_value.length() >= 2 &&
+			   m_value[0] == '\"' &&
+			   m_value[m_value.length() - 1] == '\"') {
+				m_value = m_value.substr(1, m_value.length() - 2);
+			}
+			else
+			{
+				m_value = "\"\"";
+			}
+			
 			if (m_options.size() == 0)
 				m_itemType = StringItem;
 			else
@@ -1255,13 +1265,14 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 	// Item "default" is just a string
 	else if (item.HasMember("default") && item["default"].IsString())
 	{
+		// Get content of script type item as is
+		rapidjson::StringBuffer strbuf;
+		rapidjson::Writer<rapidjson::StringBuffer> writer(strbuf);
+		item["default"].Accept(writer);
+
 		if (m_itemType == ScriptItem ||
 		    m_itemType == CodeItem)
 		{
-			// Get content of script type item as is
-			rapidjson::StringBuffer strbuf;
-			rapidjson::Writer<rapidjson::StringBuffer> writer(strbuf);
-			item["default"].Accept(writer);
 			if (m_default.empty())
 			{
 				m_default = "\"\"";
@@ -1269,7 +1280,16 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 		}
 		else
 		{
-			m_default = item["default"].GetString();
+			if (m_value.length() >= 2 &&
+			   m_value[0] == '\"' &&
+			   m_value[m_value.length() - 1] == '\"') {
+				m_value = m_value.substr(1, m_value.length() - 2);
+			}
+			else
+			{
+				m_value = "\"\"";
+			}
+			
 			if (m_options.size() == 0)
 				m_itemType = StringItem;
 			else

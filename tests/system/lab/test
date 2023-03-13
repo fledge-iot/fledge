@@ -135,7 +135,7 @@ setup_north_pi_egress () {
                  "value": "true"
               },
               "DefaultAFLocation": {
-                 "value": "/PIlabSinelvl1/PIlabSinelvl2/PIlabSinelvl3"
+                 "value": "'"${AF_HIERARCHY_LEVEL}"'"
               },
               "Legacy": {
                  "value": "false"
@@ -178,7 +178,7 @@ setup_north_pi_egress () {
                  "value": "true"
               },
               "DefaultAFLocation": {
-                 "value": "/PIlabSinelvl1/PIlabSinelvl2/PIlabSinelvl3"
+                 "value": "'"${AF_HIERARCHY_LEVEL}"'"
               },
               "Legacy": {
                  "value": "false"

@@ -191,13 +191,13 @@ setup_north_pi_egress () {
     
     # Wait for OMF to start  up properly
     sleep 60
-
+   
     for LOOP in $(seq ${MAX_RETRIES}); do
         RESULT=`curl -sX GET "$URL/north"`
         # echo ${RESULT}
         SENT=`echo ${RESULT} | jq '.[0].sent // empty'`
         if [[ -n "$SENT" ]] && [[ "$SENT" -gt 0 ]]; then break; fi
-	sleep 10
+        sleep 10
     done
     if [[ ${LOOP} -eq ${MAX_RETRIES} ]]
      then
@@ -212,7 +212,7 @@ setup_north_pi_egress () {
         # echo ${RESULT}
         SENT=`echo ${RESULT} | jq '.dataSent // empty'`
         if [[ -n "$SENT" ]] && [[ "$SENT" -gt 0 ]]; then break; fi
-	sleep 10
+        sleep 10
     done
     if [[ ${LOOP} -eq ${MAX_RETRIES} ]]
      then
@@ -227,7 +227,7 @@ setup_north_pi_egress () {
         # echo ${RESULT}
         POINT=`echo ${RESULT} | jq '.statistics[0]."PI Server" // empty'`
         if [[ -n "$POINT" ]] && [[ "$POINT" -gt 0 ]]; then break; fi
-	sleep 10
+        sleep 10
     done
     if [[ ${LOOP} -eq ${MAX_RETRIES} ]]
      then
@@ -865,7 +865,6 @@ echo "======================= TOGGLE EVENT NTFSN and NTFCL TEST COMPLETE =======
 if [[  ${VERIFY_EGRESS_TO_PI} == 1 ]]
   then
      setup_north_pi_egress
-     sleep 30
      curl -X PUT  http://localhost:8081/fledge/schedule/disable -d '{"schedule_name": "PI Server"}'
      echo "---- Verify and clean the data sent to PI server ----"
      python3 verify_clean_pi.py --pi-admin=${PI_USER} --pi-passwd=${PI_PASSWORD} --pi-host=${PI_IP} --pi-port=443 --pi-db=foglamp --asset-name=${LAB_ASSET_NAME}

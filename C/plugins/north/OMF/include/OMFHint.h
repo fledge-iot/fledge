@@ -80,6 +80,67 @@ public:
 };
 
 /**
+ * A Legacy type hint, tells the OMF plugin to send complex types for this asset
+ */
+class OMFLegacyTypeHint : public OMFHint
+{
+public:
+	OMFLegacyTypeHint(const std::string& name) { m_hint = name; };
+	~OMFLegacyTypeHint() {};
+};
+
+/**
+ * A Source hint, defines the data source for the asset or datapoint
+ */
+class OMFSourceHint : public OMFHint
+{
+public:
+	OMFSourceHint(const std::string& name) { m_hint = name; };
+	~OMFSourceHint() {};
+};
+
+/**
+ * A unit of measurement hint, defines the unit of measurement for a datapoint
+ */
+class OMFUOMHint : public OMFHint
+{
+public:
+	OMFUOMHint(const std::string& name) { m_hint = name; };
+	~OMFUOMHint() {};
+};
+
+
+/**
+ * A minimum hint, defines the minimum value for a property
+ */
+class OMFMinimumHint : public OMFHint
+{
+public:
+	OMFMinimumHint(const std::string& name) { m_hint = name; };
+	~OMFMinimumHint() {};
+};
+
+
+/**
+ * A maximum hint, defines the maximum value for a property
+ */
+class OMFMaximumHint : public OMFHint
+{
+public:
+	OMFMaximumHint(const std::string& name) { m_hint = name; };
+	~OMFMaximumHint() {};
+};
+
+/**
+ * A interpolation hint, defines the interpolation value for a property
+ */
+class OMFInterpolationHint : public OMFHint
+{
+public:
+	OMFInterpolationHint(const std::string& name) { m_hint = name; };
+	~OMFInterpolationHint() {};
+};
+/**
  * A set of hints for a reading
  *
  * documentation available at:

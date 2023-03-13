@@ -39,7 +39,7 @@ _logger = logger.setup(__name__)
 _valid_type_strings = sorted(['boolean', 'integer', 'float', 'string', 'IPv4', 'IPv6', 'X509 certificate', 'password',
                               'JSON', 'URL', 'enumeration', 'script', 'code', 'northTask', 'ACL'])
 _optional_items = sorted(['readonly', 'order', 'length', 'maximum', 'minimum', 'rule', 'deprecated', 'displayName',
-                          'validity', 'mandatory'])
+                          'validity', 'mandatory', 'group'])
 RESERVED_CATG = ['South', 'North', 'General', 'Advanced', 'Utilities', 'rest_api', 'Security', 'service', 'SCHEDULER',
                  'SMNTR', 'PURGE_READ', 'Notifications']
 
@@ -91,9 +91,11 @@ class ConfigurationCache(object):
         for category_name in self.cache:
             if oldest_entry is None:
                 oldest_entry = category_name
-            elif self.cache[category_name]['date_accessed'] < self.cache[oldest_entry]['date_accessed']:
+            elif self.cache[category_name].get('date_accessed') and self.cache[oldest_entry].get('date_accessed') \
+                    and self.cache[category_name]['date_accessed'] < self.cache[oldest_entry]['date_accessed']:
                 oldest_entry = category_name
-        self.cache.pop(oldest_entry)
+        if oldest_entry:
+            self.cache.pop(oldest_entry)
 
     def remove(self, key):
         """Remove the entry with given key name"""
@@ -226,11 +228,11 @@ class ConfigurationManager(ConfigurationManagerSingleton):
         for item_name_new, item_val_new in category_val_new_copy.items():
             item_val_storage = category_val_storage_copy.get(item_name_new)
             if item_val_storage is not None:
-                for o_attr in item_val_storage.keys():
-                    # Merge optional attributes
-                    if o_attr in _optional_items:
-                        item_val_new[o_attr] = item_val_storage.get(o_attr)
-                item_val_new['value'] = item_val_storage.get('value')
+                if item_val_new['type'] == item_val_storage.get('type'):
+                    item_val_new['value'] = item_val_storage.get('value')
+                else:
+                    if 'value' not in item_val_new:
+                        item_val_new['value'] = item_val_new['default']
                 category_val_storage_copy.pop(item_name_new)
             if "deprecated" in item_val_new and item_val_new['deprecated'] == 'true':
                 audit = AuditLogger(self._storage)
@@ -263,7 +265,8 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                                 .format(category_name, item_name, type(item_val)))
 
             optional_item_entries = {'readonly': 0, 'order': 0, 'length': 0, 'maximum': 0, 'minimum': 0,
-                                     'deprecated': 0, 'displayName': 0, 'rule': 0, 'validity': 0, 'mandatory': 0}
+                                     'deprecated': 0, 'displayName': 0, 'rule': 0, 'validity': 0, 'mandatory': 0,
+                                     'group': 0}
             expected_item_entries = {'description': 0, 'default': 0, 'type': 0}
 
             if require_entry_value:
@@ -327,7 +330,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                                                                                                          entry_val)) is False:
                             raise ValueError('For {} category, entry value must be an integer or float for item name '
                                              '{}; got {}'.format(category_name, entry_name, type(entry_val)))
-                    elif entry_name == 'rule' or entry_name == 'displayName' or entry_name == 'validity':
+                    elif entry_name in ('displayName', 'group', 'rule', 'validity'):
                         if not isinstance(entry_val, str):
                             raise ValueError('For {} category, entry value must be string for item name {}; got {}'
                                              .format(category_name, entry_name, type(entry_val)))
@@ -975,7 +978,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                                                                                                            new_value_entry)) is False:
                         raise ValueError('For {} category, entry value must be an integer or float for optional item '
                                          '{}; got {}'.format(category_name, optional_entry_name, type(new_value_entry)))
-                elif optional_entry_name == 'rule' or optional_entry_name == 'displayName' or optional_entry_name == 'validity':
+                elif optional_entry_name in ('displayName', 'group', 'rule', 'validity'):
                     if not isinstance(new_value_entry, str):
                         raise ValueError('For {} category, entry value must be string for optional item {}; got {}'
                                          .format(category_name, optional_entry_name, type(new_value_entry)))

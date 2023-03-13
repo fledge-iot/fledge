@@ -8,7 +8,6 @@
 """
 import subprocess
 import os
-import platform
 import sys
 import fnmatch
 import http.client
@@ -16,10 +15,9 @@ import json
 import base64
 import ssl
 import shutil
-import pytest
 from urllib.parse import quote
 from pathlib import Path
-import sys
+import pytest
 
 
 __author__ = "Vaibhav Singhal"
@@ -59,12 +57,12 @@ def reset_and_start_fledge(storage_plugin):
     assert os.environ.get('FLEDGE_ROOT') is not None
 
     subprocess.run(["$FLEDGE_ROOT/scripts/fledge kill"], shell=True, check=True)
-    if storage_plugin == 'postgres':
-        subprocess.run(["sed -i 's/sqlite/postgres/g' $FLEDGE_ROOT/data/etc/storage.json"], shell=True, check=True)
-    else:
-        subprocess.run(["sed -i 's/postgres/sqlite/g' $FLEDGE_ROOT/data/etc/storage.json"], shell=True, check=True)
-
-    subprocess.run(["echo YES | $FLEDGE_ROOT/scripts/fledge reset"], shell=True, check=True)
+    storage_plugin_val = "postgres" if storage_plugin == 'postgres' else "sqlite"
+    subprocess.run(
+        ["echo $(jq -c --arg STORAGE_PLUGIN_VAL {} '.plugin.value=$STORAGE_PLUGIN_VAL' "
+         "$FLEDGE_ROOT/data/etc/storage.json) > $FLEDGE_ROOT/data/etc/storage.json".format(storage_plugin_val)],
+        shell=True, check=True)
+    subprocess.run(["echo 'YES\nYES' | $FLEDGE_ROOT/scripts/fledge reset"], shell=True, check=True)
     subprocess.run(["$FLEDGE_ROOT/scripts/fledge start"], shell=True)
     stat = subprocess.run(["$FLEDGE_ROOT/scripts/fledge status"], shell=True, stdout=subprocess.PIPE,
                           stderr=subprocess.PIPE)
@@ -133,9 +131,7 @@ def add_south():
             clone_make_install()
         elif installation_type == 'package':
             try:
-                os_platform = platform.platform()
-                pkg_mgr = 'yum' if 'centos' in os_platform or 'redhat' in os_platform else 'apt'
-                subprocess.run(["sudo {} install -y fledge-south-{}".format(pkg_mgr, south_plugin)], shell=True,
+                subprocess.run(["sudo {} install -y fledge-south-{}".format(pytest.PKG_MGR, south_plugin)], shell=True,
                                check=True)
             except subprocess.CalledProcessError:
                 assert False, "{} package installation failed!".format(south_plugin)
@@ -186,9 +182,7 @@ def add_north():
             clone_make_install()
         elif installation_type == 'package':
             try:
-                os_platform = platform.platform()
-                pkg_mgr = 'yum' if 'centos' in os_platform or 'redhat' in os_platform else 'apt'
-                subprocess.run(["sudo {} install -y fledge-north-{}".format(pkg_mgr, north_plugin)], shell=True,
+                subprocess.run(["sudo {} install -y fledge-north-{}".format(pytest.PKG_MGR, north_plugin)], shell=True,
                                check=True)
             except subprocess.CalledProcessError:
                 assert False, "{} package installation failed!".format(north_plugin)
@@ -222,7 +216,8 @@ def add_north():
 @pytest.fixture
 def start_north_pi_v2():
     def _start_north_pi_server_c(fledge_url, pi_host, pi_port, pi_token, north_plugin="OMF",
-                                 taskname="NorthReadingsToPI", start_task=True, naming_scheme="Backward compatibility"):
+                                 taskname="NorthReadingsToPI", start_task=True, naming_scheme="Backward compatibility",
+                                 pi_use_legacy="true"):
         """Start north task"""
 
         _enabled = "true" if start_task else "false"
@@ -239,7 +234,8 @@ def start_north_pi_v2():
                            "producerToken": {"value": pi_token},
                            "ServerHostname": {"value": pi_host},
                            "ServerPort": {"value": str(pi_port)},
-                           "NamingScheme": {"value": naming_scheme}
+                           "NamingScheme": {"value": naming_scheme},
+                           "Legacy": {"value": pi_use_legacy}
                            }
                 }
         conn.request("POST", '/fledge/scheduled/task', json.dumps(data))
@@ -257,7 +253,8 @@ def start_north_task_omf_web_api():
                                       pi_user=None, pi_pwd=None, north_plugin="OMF",
                                       taskname="NorthReadingsToPI_WebAPI", start_task=True,
                                       naming_scheme="Backward compatibility",
-                                      default_af_location="fledge/room1/machine1"):
+                                      default_af_location="fledge/room1/machine1",
+                                      pi_use_legacy="true"):
         """Start north task"""
 
         _enabled = True if start_task else False
@@ -278,7 +275,8 @@ def start_north_task_omf_web_api():
                            "ServerPort": {"value": str(pi_port)},
                            "compression": {"value": "true"},
                            "DefaultAFLocation": {"value": default_af_location},
-                           "NamingScheme": {"value": naming_scheme}
+                           "NamingScheme": {"value": naming_scheme},
+                           "Legacy": {"value": pi_use_legacy}
                            }
                 }
 
@@ -297,7 +295,8 @@ def start_north_omf_as_a_service():
                                       pi_user=None, pi_pwd=None, north_plugin="OMF",
                                       service_name="NorthReadingsToPI_WebAPI", start=True,
                                       naming_scheme="Backward compatibility",
-                                      default_af_location="fledge/room1/machine1"):
+                                      default_af_location="fledge/room1/machine1",
+                                      pi_use_legacy="true"):
         """Start north service"""
 
         _enabled = True if start else False
@@ -314,7 +313,8 @@ def start_north_omf_as_a_service():
                            "ServerPort": {"value": str(pi_port)},
                            "compression": {"value": "true"},
                            "DefaultAFLocation": {"value": default_af_location},
-                           "NamingScheme": {"value": naming_scheme}
+                           "NamingScheme": {"value": naming_scheme},
+                           "Legacy": {"value": pi_use_legacy}
                            }
                 }
 
@@ -423,104 +423,159 @@ def clear_pi_system_through_pi_web_api():
 
     return clear_pi_system_pi_web_api
 
+@pytest.fixture
+def verify_hierarchy_and_get_datapoints_from_pi_web_api():
+    def _verify_hierarchy_and_get_datapoints_from_pi_web_api(host, admin, password, pi_database, af_hierarchy_list, asset, sensor):
+        """ This method verifies hierarchy created in pi web api is correctly """
+    
+        username_password = "{}:{}".format(admin, password)
+        username_password_b64 = base64.b64encode(username_password.encode('ascii')).decode("ascii")
+        headers = {'Authorization': 'Basic %s' % username_password_b64}
+        AF_HIERARCHY_LIST=af_hierarchy_list.split('/')[1:]
+        AF_HIERARCHY_COUNT=len(AF_HIERARCHY_LIST)
+        
+        try:
+            ctx = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
+            ctx.options |= ssl.PROTOCOL_TLSv1_1
+            # With ssl.CERT_NONE as verify_mode, validation errors such as untrusted or expired cert
+            # are ignored and do not abort the TLS/SSL handshake.
+            ctx.verify_mode = ssl.CERT_NONE
+            conn = http.client.HTTPSConnection(host, context=ctx)
+            conn = http.client.HTTPSConnection(host, context=ctx)
+            conn.request("GET", '/piwebapi/assetservers', headers=headers)
+            res = conn.getresponse()
+            r = json.loads(res.read().decode())
+            dbs_url= r['Items'][0]['Links']['Databases']
+            print(dbs_url)
+            if dbs_url is not None:
+                conn.request("GET", dbs_url, headers=headers)
+                res = conn.getresponse()
+                r = json.loads(res.read().decode())
+                items = r['Items']
+                CHECK_DATABASE_EXISTS = list(filter(lambda items: items['Name'] == pi_database, items))[0]
+                
+                if len(CHECK_DATABASE_EXISTS) > 0:
+                    elements_url = CHECK_DATABASE_EXISTS['Links']['Elements']
+                else:
+                    raise Exception('Database not exist')
+                
+                if elements_url is not None:
+                    conn.request("GET", elements_url, headers=headers)
+                    res = conn.getresponse()
+                    r = json.loads(res.read().decode())
+                    items = r['Items']
+                    
+                    CHECK_AF_ELEMENT_EXISTS = list(filter(lambda items: items['Name'] == AF_HIERARCHY_LIST[0], items))[0]
+                    if len(CHECK_AF_ELEMENT_EXISTS) != 0:
+                        
+                        counter =  0
+                        while counter < AF_HIERARCHY_COUNT:
+                            if CHECK_AF_ELEMENT_EXISTS['Name'] == AF_HIERARCHY_LIST[counter]:
+                                counter+=1
+                                elements_url = CHECK_AF_ELEMENT_EXISTS['Links']['Elements']
+                                conn.request("GET", elements_url, headers=headers)
+                                res = conn.getresponse()
+                                CHECK_AF_ELEMENT_EXISTS = json.loads(res.read().decode())['Items'][0]
+                            else:
+                                raise Exception("AF Heirarchy is incorrect")
+                            
+                        record = dict()
+                        if CHECK_AF_ELEMENT_EXISTS['Name'] == asset:
+                            record_url = CHECK_AF_ELEMENT_EXISTS['Links']['RecordedData']
+                            get_record_url = quote("{}?limit=10000".format(record_url), safe='?,=&/.:')
+                            print(get_record_url)
+                            conn.request("GET", get_record_url, headers=headers)
+                            res = conn.getresponse()
+                            items = json.loads(res.read().decode())['Items']
+                            no_of_datapoint_in_pi_server = len(items)
+                            Item_matched = False
+                            count = 0
+                            if no_of_datapoint_in_pi_server == 0:
+                                raise "Data points are not created in PI Server"
+                            else:
+                                for item in items:
+                                    count += 1
+                                    if item['Name'] in sensor:
+                                        print(item['Name'])
+                                        record[item['Name']] = list(map(lambda val: val['Value'], filter(lambda ele: isinstance(ele['Value'], int) or isinstance(ele['Value'], float) , item['Items'])))
+                                        Item_matched = True
+                                    elif count == no_of_datapoint_in_pi_server and Item_matched == False:
+                                        raise "Required Data points is not Present --> {}".format(sensor)
+                        else:
+                            raise "Asset does not exist, Although Hierarchy is correct"
+                        
+                        return(record)
+                            
+                    else:
+                        raise Exception("AF Root not exists")
+                else:
+                    raise Exception("Elements URL not found")
+            else:
+                raise Exception("DataBase URL not found")
+                
+            
+        except (KeyError, IndexError, Exception) as ex:
+            print("Failed to read data due to {}".format(ex))
+            return None
+        
+    return(_verify_hierarchy_and_get_datapoints_from_pi_web_api)
 
 @pytest.fixture
 def read_data_from_pi_web_api():
     def _read_data_from_pi_web_api(host, admin, password, pi_database, af_hierarchy_list, asset, sensor):
         """ This method reads data from pi web api """
 
-        # List of pi databases
-        dbs = None
-        # PI logical grouping of attributes and child elements
-        elements = None
-        # List of elements
-        url_elements_list = None
-        # Element's recorded data url
-        url_recorded_data = None
-        # Resources in the PI Web API are addressed by WebID, parameter used for deletion of element
-        web_id = None
-        # List of elements
-        url_elements_data_list = None
-
         username_password = "{}:{}".format(admin, password)
         username_password_b64 = base64.b64encode(username_password.encode('ascii')).decode("ascii")
         headers = {'Authorization': 'Basic %s' % username_password_b64}
 
         try:
-            conn = http.client.HTTPSConnection(host, context=ssl._create_unverified_context())
-            conn.request("GET", '/piwebapi/assetservers', headers=headers)
+            ctx = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
+            ctx.options |= ssl.PROTOCOL_TLSv1_1
+            # With ssl.CERT_NONE as verify_mode, validation errors such as untrusted or expired cert
+            # are ignored and do not abort the TLS/SSL handshake.
+            ctx.verify_mode = ssl.CERT_NONE
+            conn = http.client.HTTPSConnection(host, context=ctx)
+            conn.request("GET", '/piwebapi/dataservers', headers=headers)
             res = conn.getresponse()
             r = json.loads(res.read().decode())
-            dbs = r["Items"][0]["Links"]["Databases"]
-
-            if dbs is not None:
-                conn.request("GET", dbs, headers=headers)
+            points= r["Items"][0]['Links']["Points"]
+            
+            if points is not None:
+                conn.request("GET", points, headers=headers)
                 res = conn.getresponse()
-                r = json.loads(res.read().decode())
-                for el in r["Items"]:
-                    if el["Name"] == pi_database:
-                        url_elements_list = el["Links"]["Elements"]
+                r=json.loads(res.read().decode())
+                data = r["Items"]
+                if data is not None:
+                    value = None
+                    if sensor == '':
+                        search_string = asset
+                    else:
+                        search_string = "{}.{}".format(asset, sensor)
+                    for el in data:
+                        if search_string in el["Name"]:
+                            value_url = el["Links"]["Value"]
+                            if value_url is not None:
+                                conn.request("GET", value_url, headers=headers)
+                                res = conn.getresponse()
+                                r = json.loads(res.read().decode())
+                                value = r["Value"]
+                    if not value:
+                        print("Could not find the latest reading of asset ->{}. sensor->{}".format(asset,
+                                  sensor))
+                        return value
+                    else:
+                        print("The latest value of asset->{}.sensor->{} is {}".format(asset, sensor, value))
+                        return(value)
+                else:
+                    print("Data inside points not found.")
+                    return None     
+            else:
+                print("Could not find the points.")
+                return None
 
-            # This block is for iteration when we have multi-level hierarchy.
-            # For example, if we have DefaultAFLocation as "fledge/room1/machine1" then
-            # it will recursively find elements of "fledge" and then "room1".
-            # And next block is for finding element of "machine1".
-
-            af_level_count = 0
-            for level in af_hierarchy_list[:-1]:
-                if url_elements_list is not None:
-                    conn.request("GET", url_elements_list, headers=headers)
-                    res = conn.getresponse()
-                    r = json.loads(res.read().decode())
-                    for el in r["Items"]:
-                        if el["Name"] == af_hierarchy_list[af_level_count]:
-                            url_elements_list = el["Links"]["Elements"]
-                            if af_level_count == 0:                            
-                                web_id_root = el["WebId"]
-                            af_level_count = af_level_count + 1
-
-            if url_elements_list is not None:
-                conn.request("GET", url_elements_list, headers=headers)
-                res = conn.getresponse()
-                r = json.loads(res.read().decode())
-                items = r["Items"]
-                for el in items:
-                    if el["Name"] == af_hierarchy_list[-1]:
-                        url_elements_data_list = el["Links"]["Elements"]
-
-            if url_elements_data_list is not None:
-                conn.request("GET", url_elements_data_list, headers=headers)
-                res = conn.getresponse()
-                r = json.loads(res.read().decode())
-                items = r["Items"]
-                for el2 in items:
-                    if el2["Name"] == asset:
-                        url_recorded_data = el2["Links"]["RecordedData"]
-                        web_id = el2["WebId"]
-
-            _data_pi = {}
-            if url_recorded_data is not None:
-                conn.request("GET", url_recorded_data, headers=headers)
-                res = conn.getresponse()
-                r = json.loads(res.read().decode())
-                _items = r["Items"]
-                for el in _items:
-                    _recoded_value_list = []
-                    for _head in sensor:
-                        # This checks if the recorded datapoint is present in the items that we retrieve from the PI server.
-                        if _head in el["Name"]:
-                            elx = el["Items"]
-                            for _el in elx:
-                                _recoded_value_list.append(_el["Value"])
-                            _data_pi[_head] = _recoded_value_list
-
-                # Delete recorded elements
-                conn.request("DELETE", '/piwebapi/elements/{}'.format(web_id_root), headers=headers)
-                res = conn.getresponse()
-                res.read()
-
-                return _data_pi
-        except (KeyError, IndexError, Exception):
+        except (KeyError, IndexError, Exception) as ex:
+            print("Failed to read data due to {}".format(ex))
             return None
 
     return _read_data_from_pi_web_api
@@ -548,10 +603,8 @@ def add_filter():
                 assert False, "{} filter plugin installation failed".format(filter_plugin)
         elif installation_type == 'package':
             try:
-                os_platform = platform.platform()
-                pkg_mgr = 'yum' if 'centos' in os_platform or 'redhat' in os_platform else 'apt'
-                subprocess.run(["sudo {} install -y fledge-filter-{}".format(pkg_mgr, filter_plugin)], shell=True,
-                               check=True)
+                subprocess.run(["sudo {} install -y fledge-filter-{}".format(pytest.PKG_MGR, filter_plugin)],
+                               shell=True, check=True)
             except subprocess.CalledProcessError:
                 assert False, "{} package installation failed!".format(filter_plugin)
         else:
@@ -618,6 +671,8 @@ def disable_schedule():
 def pytest_addoption(parser):
     parser.addoption("--storage-plugin", action="store", default="sqlite",
                      help="Database plugin to use for tests")
+    parser.addoption("--readings-plugin", action="store", default="Use main plugin",
+                     help="Readings plugin to use for tests")
     parser.addoption("--fledge-url", action="store", default="localhost:8081",
                      help="Fledge client api url")
     parser.addoption("--use-pip-cache", action="store", default=False,
@@ -672,7 +727,9 @@ def pytest_addoption(parser):
                      help="PI Server user login password")
     parser.addoption("--pi-token", action="store", default="omf_north_0001",
                      help="OMF Producer Token")
-
+    parser.addoption("--pi-use-legacy", action="store", default="true",
+                     help="Set false to override the default plugin behaviour i.e. for OMF version >=1.2.x to send linked data types.")
+    
     # OCS Config
     parser.addoption("--ocs-tenant", action="store", default="ocs_tenant_id",
                      help="Tenant id of OCS")
@@ -745,6 +802,11 @@ def pytest_addoption(parser):
 @pytest.fixture
 def storage_plugin(request):
     return request.config.getoption("--storage-plugin")
+
+
+@pytest.fixture
+def readings_plugin(request):
+    return request.config.getoption("--readings-plugin")
 
 
 @pytest.fixture
@@ -860,6 +922,11 @@ def pi_passwd(request):
 @pytest.fixture
 def pi_token(request):
     return request.config.getoption("--pi-token")
+
+
+@pytest.fixture
+def pi_use_legacy(request):
+    return request.config.getoption("--pi-use-legacy")
 
 
 @pytest.fixture
@@ -1010,3 +1077,42 @@ def throttled_network_config(request):
 @pytest.fixture
 def start_north_as_service(request):
     return request.config.getoption("--start-north-as-service")
+
+
+def read_os_release():
+    """ General information to identifying the operating system """
+    import ast
+    import re
+    os_details = {}
+    with open('/etc/os-release', encoding="utf-8") as f:
+        for line_number, line in enumerate(f, start=1):
+            line = line.rstrip()
+            if not line or line.startswith('#'):
+                continue
+            m = re.match(r'([A-Z][A-Z_0-9]+)=(.*)', line)
+            if m:
+                name, val = m.groups()
+                if val and val[0] in '"\'':
+                    val = ast.literal_eval(val)
+                os_details.update({name: val})
+    return os_details
+
+
+def is_redhat_based():
+    """
+        To check if the Operating system is of Red Hat family or Not
+        Examples:
+            a) For an operating system with "ID=centos", an assignment of "ID_LIKE="rhel fedora"" is appropriate
+            b) For an operating system with "ID=ubuntu/raspbian", an assignment of "ID_LIKE=debian" is appropriate.
+    """
+    os_release = read_os_release()
+    id_like = os_release.get('ID_LIKE')
+    if id_like is not None and any(x in id_like.lower() for x in ['centos', 'rhel', 'redhat', 'fedora']):
+        return True
+    return False
+
+
+def pytest_configure():
+    pytest.OS_PLATFORM_DETAILS = read_os_release()
+    pytest.IS_REDHAT = is_redhat_based()
+    pytest.PKG_MGR = 'yum' if pytest.IS_REDHAT else 'apt'

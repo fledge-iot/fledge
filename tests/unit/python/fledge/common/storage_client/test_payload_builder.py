@@ -516,6 +516,14 @@ class TestPayloadBuilderUpdate:
         res = PayloadBuilder().SET(value=input_set).WHERE(input_where).UPDATE_TABLE(input_table).payload()
         assert expected == json.loads(res)
 
+    @pytest.mark.parametrize("input_set, input_where, input_modifier, expected", [
+        ("token_expiration", ["token", "=", "TOKEN"], ["allowzero"],
+         _payload("data/payload_modifier_set_where.json")),
+    ])
+    def test_modifier_with_set_where_payload(self, input_set, input_where, input_modifier, expected):
+        res = PayloadBuilder().SET(value=input_set).WHERE(input_where).MODIFIER(input_modifier).payload()
+        assert expected == json.loads(res)
+
 
 @pytest.allure.feature("unit")
 @pytest.allure.story("payload_builder")

@@ -9,7 +9,6 @@ import asyncio
 import os
 import datetime
 import uuid
-import platform
 import json
 import multiprocessing
 from aiohttp import web
@@ -263,9 +262,7 @@ async def add_service(request):
                     delimiter = '.'
                     if str(version).count(delimiter) != 2:
                         raise ValueError('Service semantic version is incorrect; it should be like X.Y.Z')
-
-                _platform = platform.platform()
-                pkg_mgt = 'yum' if 'centos' in _platform or 'redhat' in _platform else 'apt'
+                pkg_mgt = 'yum' if utils.is_redhat_based() else 'apt'
                 # Check Pre-conditions from Packages table
                 # if status is -1 (Already in progress) then return as rejected request
                 storage = connect.get_storage_async()
@@ -356,16 +353,17 @@ async def add_service(request):
                 plugin_info = common.load_and_fetch_python_plugin_info(plugin_module_path, plugin, service_type)
                 plugin_config = plugin_info['config']
                 if not plugin_config:
-                    _logger.exception("Plugin %s import problem from path %s", plugin, plugin_module_path)
-                    raise web.HTTPNotFound(reason='Plugin "{}" import problem from path "{}".'.format(
-                        plugin, plugin_module_path))
+                    msg = "Plugin '{}' import problem from path '{}''.".format(plugin, plugin_module_path)
+                    _logger.exception(msg)
+                    raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
             except FileNotFoundError as ex:
                 # Checking for C-type plugins
                 plugin_config = load_c_plugin(plugin, service_type)
+                plugin_module_path = "{}/plugins/{}/{}".format(_FLEDGE_ROOT, service_type, plugin)
                 if not plugin_config:
-                    _logger.exception("Plugin %s import problem from path %s. %s", plugin, plugin_module_path, str(ex))
-                    raise web.HTTPNotFound(reason='Plugin "{}" import problem from path "{}".'.format(
-                        plugin, plugin_module_path))
+                    msg = "Plugin '{}' not found in path '{}'.".format(plugin, plugin_module_path)
+                    _logger.exception("{} Detailed error logs are: {}".format(msg, str(ex)))
+                    raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
             except TypeError as ex:
                 _logger.exception(str(ex))
                 raise web.HTTPBadRequest(reason=str(ex))
@@ -684,13 +682,11 @@ async def _put_schedule(protocol: str, host: str, port: int, sch_id: uuid, is_en
 def do_update(http_enabled: bool, host: str, port: int, storage: connect, pkg_name: str, uid: str,
               schedules: list) -> None:
     _logger.info("{} service update started...".format(pkg_name))
-    _platform = platform.platform()
     stdout_file_path = common.create_log_file("update", pkg_name)
-    pkg_mgt = 'apt'
+    pkg_mgt = 'yum' if utils.is_redhat_based() else 'apt'
     cmd = "sudo {} -y update > {} 2>&1".format(pkg_mgt, stdout_file_path)
     protocol = "HTTP" if http_enabled else "HTTPS"
-    if 'centos' in _platform or 'redhat' in _platform:
-        pkg_mgt = 'yum'
+    if pkg_mgt == 'yum':
         cmd = "sudo {} check-update > {} 2>&1".format(pkg_mgt, stdout_file_path)
     ret_code = os.system(cmd)
     # sudo apt/yum -y install only happens when update is without any error

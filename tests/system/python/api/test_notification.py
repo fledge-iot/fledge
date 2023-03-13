@@ -23,7 +23,7 @@ __version__ = "${VERSION}"
 SERVICE = "notification"
 SERVICE_NAME = "Notification Server #1"
 NOTIFY_PLUGIN = "slack"
-NOTIFY_INBUILT_RULES = ["Threshold"]
+NOTIFY_INBUILT_RULES = ["Threshold", "DataAvailability"]
 DATA = {"name": "Test - 1",
         "description": "Test4_Notification",
         "rule": NOTIFY_INBUILT_RULES[0],
@@ -174,7 +174,9 @@ class TestNotificationServiceAPI:
         assert 2 == len(jdoc)
         assert NOTIFY_PLUGIN == jdoc['delivery'][0]['name']
         assert "notify" == jdoc['delivery'][0]['type']
-        assert 1 == len(jdoc['rules'])
+        assert 2 == len(jdoc['rules'])
+        assert NOTIFY_INBUILT_RULES[0] == jdoc['rules'][1]['name']
+        assert NOTIFY_INBUILT_RULES[1] == jdoc['rules'][0]['name']
 
     @pytest.mark.parametrize("test_input, expected_error", [
         ({"rule": "+"}, '400: Invalid rule property in payload.'),

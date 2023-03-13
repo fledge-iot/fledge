@@ -11,6 +11,7 @@
 #include <connection_manager.h>
 #include <common.h>
 #include <utils.h>
+#include <unistd.h>
 
 #include "readings_catalogue.h"
 
@@ -206,8 +207,16 @@ bool Connection::applyColumnDateTimeFormat(sqlite3_stmt *pStmt,
 					// Column metadata found and column datatype is "pzDataType"
 					formatStmt = string("SELECT strftime('");
 					formatStmt += string(F_DATEH24_MS);
-					formatStmt += "', '" + string((char *) sqlite3_column_text(pStmt, i));
-					formatStmt += "')";
+					
+					string columnText ((char *) sqlite3_column_text(pStmt, i));
+					if (columnText.find("strftime") != string::npos)
+					{
+						formatStmt += "', " + columnText + ")";
+					}
+					else
+					{
+						formatStmt += "', '" + columnText + "')";
+					}
 
 					apply_format = true;
 
@@ -544,7 +553,14 @@ Connection::Connection()
 		delete[] sqlStmt;
 
 		// Attach readings database - readings_1
+		if (access(dbPathReadings.c_str(), R_OK) != 0)
 		{
+			Logger::getLogger()->info("No readings database, assuming seperate readings plugin is avialable");
+			m_noReadings = true;
+		}
+		else
+		{
+			m_noReadings = false;
 			SQLBuffer attachReadingsDb;
 			attachReadingsDb.append("ATTACH DATABASE '");
 			attachReadingsDb.append(dbPathReadings + "' AS readings_1;");
@@ -595,6 +611,7 @@ Connection::Connection()
 
 	}
 
+	if (!m_noReadings)
 	{
 		// Attach all the defined/used databases
 		ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
@@ -1132,7 +1149,7 @@ vector<string>  asset_codes;
 		const char *query = sql.coalesce();
 		char *zErrMsg = NULL;
 		int rc;
-		sqlite3_stmt *stmt;
+		sqlite3_stmt *stmt = NULL;
 
 		logSQL("CommonRetrive", query);
 
@@ -1144,6 +1161,10 @@ vector<string>  asset_codes;
 			raiseError("retrieve", sqlite3_errmsg(dbHandle));
 			Logger::getLogger()->error("SQL statement: %s", query);
 			delete[] query;
+			if (stmt)
+			{
+				sqlite3_finalize(stmt);
+			}
 			return false;
 		}
 
@@ -1180,9 +1201,10 @@ vector<string>  asset_codes;
  */
 int Connection::insert(const string& schema, const string& table, const string& data)
 {
-SQLBuffer	sql;
 Document	document;
 ostringstream convert;
+sqlite3_stmt *stmt = NULL;
+int rc;
 std::size_t arr = data.find("inserts");
 
 	if (!m_schemaManager->exists(dbHandle, schema))
@@ -1217,13 +1239,11 @@ std::size_t arr = data.find("inserts");
 		return -1;
 	}
 
-	// Start a trabsaction
-	sql.append("BEGIN TRANSACTION;");
-
 	// Number of inserts
 	int ins = 0;
-
-	// Iterate through insert array
+	int failedInsertCount = 0;
+	
+	// Generate sql query for prepared statement
 	for (Value::ConstValueIterator iter = inserts.Begin();
 					iter != inserts.End();
 					++iter)
@@ -1235,138 +1255,171 @@ std::size_t arr = data.find("inserts");
 			return -1;
 		}
 
-		int col = 0;
-		SQLBuffer values;
-
-	 	sql.append("INSERT INTO ");
-		sql.append(schema);
-		sql.append('.');
-		sql.append(table);
-		sql.append(" (");
-
-		for (Value::ConstMemberIterator itr = (*iter).MemberBegin();
-						itr != (*iter).MemberEnd();
-						++itr)
 		{
-			// Append column name
-			if (col)
+			int col = 0;
+			SQLBuffer sql;
+			SQLBuffer values;
+			sql.append("INSERT INTO " + schema + "." + table + " (");
+			
+			for (Value::ConstMemberIterator itr = (*iter).MemberBegin();
+							itr != (*iter).MemberEnd();
+							++itr)
 			{
-				sql.append(", ");
-			}
-			sql.append(itr->name.GetString());
- 
-			// Append column value
-			if (col)
-			{
-				values.append(", ");
-			}
-			if (itr->value.IsString())
-			{
-				const char *str = itr->value.GetString();
-				if (strcmp(str, "now()") == 0)
+				// Append column name
+				if (col)
 				{
-					values.append(SQLITE3_NOW);
+					sql.append(", ");
 				}
-				else
-				{
-					values.append('\'');
-					values.append(escape(str));
-					values.append('\'');
-				}
+				sql.append(itr->name.GetString());
+				col++;
 			}
-			else if (itr->value.IsDouble())
-				values.append(itr->value.GetDouble());
-			else if (itr->value.IsInt64())
-				values.append((long)itr->value.GetInt64());
-			else if (itr->value.IsInt())
-				values.append(itr->value.GetInt());
-			else if (itr->value.IsObject())
+			
+			sql.append(") VALUES (");
+			for ( auto i = 0 ; i < col; i++ )
 			{
-				StringBuffer buffer;
-				Writer<StringBuffer> writer(buffer);
-				itr->value.Accept(writer);
-				values.append('\'');
-				values.append(escape(buffer.GetString()));
-				values.append('\'');
+				if (i) 
+				{
+					sql.append(",");
+				}
+				sql.append("?");
 			}
-			col++;
-		}
-		sql.append(") VALUES (");
-		const char *vals = values.coalesce();
-		sql.append(vals);
-		delete[] vals;
-		sql.append(");");
+			sql.append(");");
+			
+			const char *query = sql.coalesce();
+			
+			rc = sqlite3_prepare_v2(dbHandle, query, -1, &stmt, NULL);
+			if (rc != SQLITE_OK)
+			{
+				if (stmt)
+				{
+					sqlite3_finalize(stmt);
+				}
+				raiseError("insert", sqlite3_errmsg(dbHandle));
+				Logger::getLogger()->error("SQL statement: %s", query);
+				delete[] query;
+				return -1;
+			}
+			delete[] query;
 
+			// Bind columns with prepared sql query
+			int columID = 1;
+			for (Value::ConstMemberIterator itr = (*iter).MemberBegin();
+							itr != (*iter).MemberEnd();
+							++itr)
+			{
+				
+				if (itr->value.IsString())
+				{
+					const char *str = itr->value.GetString();
+					if (strcmp(str, "now()") == 0)
+					{
+						sqlite3_bind_text(stmt, columID, SQLITE3_NOW, -1, SQLITE_TRANSIENT);
+					}
+					else
+					{	
+						sqlite3_bind_text(stmt, columID, escape(str).c_str(), -1, SQLITE_TRANSIENT);
+					}
+				}
+				else if (itr->value.IsDouble()) {
+					sqlite3_bind_double(stmt, columID,itr->value.GetDouble());
+				}
+					
+				else if (itr->value.IsInt64())
+				{
+					sqlite3_bind_int(stmt, columID,(long)itr->value.GetInt64());
+				}
+					
+				else if (itr->value.IsInt())
+				{
+					sqlite3_bind_int(stmt, columID,itr->value.GetInt());
+				}
+					
+				else if (itr->value.IsObject())
+				{
+					StringBuffer buffer;
+					Writer<StringBuffer> writer(buffer);
+					itr->value.Accept(writer);
+					sqlite3_bind_text(stmt, columID, buffer.GetString(), -1, SQLITE_TRANSIENT);
+				}
+				columID++ ;
+			}
+			
+			if (sqlite3_exec(dbHandle, "BEGIN TRANSACTION", NULL, NULL, NULL) != SQLITE_OK)
+			{
+				sqlite3_clear_bindings(stmt);
+				sqlite3_reset(stmt);
+				if (stmt)
+				{
+					sqlite3_finalize(stmt);
+				}
+				raiseError("insert", sqlite3_errmsg(dbHandle));
+				return -1;
+			}
+
+			m_writeAccessOngoing.fetch_add(1);
+			
+			int sqlite3_resut = SQLstep(stmt);
+			
+			m_writeAccessOngoing.fetch_sub(1);
+			
+			if (sqlite3_resut == SQLITE_DONE)
+			{
+				sqlite3_clear_bindings(stmt);
+				sqlite3_reset(stmt);
+			}
+			else
+			{
+				failedInsertCount++;
+				raiseError("insert", sqlite3_errmsg(dbHandle));
+				Logger::getLogger()->error("SQL statement: %s", sqlite3_expanded_sql(stmt));
+
+				sqlite3_clear_bindings(stmt);
+				sqlite3_reset(stmt);
+				
+				// transaction is still open, do rollback
+				if (sqlite3_get_autocommit(dbHandle) == 0)
+				{
+					rc = sqlite3_exec(dbHandle,"ROLLBACK TRANSACTION;",NULL,NULL,NULL);
+					if (rc != SQLITE_OK)
+					{
+						raiseError("insert rollback", sqlite3_errmsg(dbHandle));
+					}
+				
+				}
+			}
+			
+
+			if (sqlite3_exec(dbHandle, "COMMIT TRANSACTION", NULL, NULL, NULL) != SQLITE_OK)
+			{
+				if (stmt)
+				{
+					sqlite3_finalize(stmt);
+				}
+				raiseError("insert", sqlite3_errmsg(dbHandle));
+				return -1;
+			}
+		
+		}
 		// Increment row count
 		ins++;
+		
 	}
 
-	sql.append("COMMIT TRANSACTION;");
+	sqlite3_finalize(stmt);
 
-	const char *query = sql.coalesce();
-	logSQL("CommonInsert", query);
-	char *zErrMsg = NULL;
-	int rc;
-
-	// Exec INSERT statement: no callback, no result set
-	m_writeAccessOngoing.fetch_add(1);
-	rc = SQLexec(dbHandle,
-		     query,
-		     NULL,
-		     NULL,
-		     &zErrMsg);
-	m_writeAccessOngoing.fetch_sub(1);
 	if (m_writeAccessOngoing == 0)
 		db_cv.notify_all();
 
-	// Check exec result
-	if (rc != SQLITE_OK )
+	if (failedInsertCount)
 	{
-		raiseError("insert", zErrMsg);
-		Logger::getLogger()->error("SQL statement: %s", query);
-		sqlite3_free(zErrMsg);
-
-		// transaction is still open, do rollback
-		if (sqlite3_get_autocommit(dbHandle) == 0)
-                {
-			rc = SQLexec(dbHandle,
-				     "ROLLBACK TRANSACTION;",
-				     NULL,
-				     NULL,
-				     &zErrMsg);
-			if (rc != SQLITE_OK)
-			{
-				raiseError("insert rollback", zErrMsg);
-				sqlite3_free(zErrMsg);
-			}
-		}
-
-		Logger::getLogger()->error("SQL statement: %s", query);
-		// Release memory for 'query' var
-		delete[] query;
-
-		// Failure
-		return -1;
+		char buf[100];
+		snprintf(buf, sizeof(buf),
+				"Not all inserts into table '%s.%s' within transaction succeeded",
+				schema.c_str(), table.c_str());
+		raiseError("insert", buf);
 	}
-	else
-	{
-		// Release memory for 'query' var
-		delete[] query;
 
-		int insert = sqlite3_changes(dbHandle);
-
-		if (insert == 0)
-		{
-			char buf[100];
-			snprintf(buf, sizeof(buf),
-					"Not all inserts into table '%s.%s' within transaction succeeded",
-					schema.c_str(), table.c_str());
-			raiseError("insert", buf);
-		}
-
-		// Return the status
-		return (insert ? ins : -1);
-	}
+	return (!failedInsertCount ? ins : -1);
 }
 #endif
 
@@ -1384,6 +1437,7 @@ int Connection::update(const string& schema, const string& table, const string& 
 Document	document;
 SQLBuffer	sql;
 vector<string>  asset_codes;
+bool		allowZero = false;
 
 	int 	row = 0;
 	ostringstream convert;
@@ -1681,6 +1735,21 @@ vector<string>  asset_codes;
 					col++;
 				}
 			}
+			if (iter->HasMember("modifier") && (*iter)["modifier"].IsArray())
+			{
+				const Value& modifier = (*iter)["modifier"];
+				for (Value::ConstValueIterator modifiers = modifier.Begin(); modifiers != modifier.End(); ++modifiers)
+                		{
+					if (modifiers->IsString())
+					{
+						string mod = modifiers->GetString();
+						if (mod.compare("allowzero") == 0)
+						{
+							allowZero = true;
+						}
+					}
+				}
+			}
 			if (col == 0)
 			{
 				raiseError("update",
@@ -1757,7 +1826,7 @@ vector<string>  asset_codes;
 
 		int return_value=0;
 
-		if (update == 0)
+		if (update == 0 && allowZero == false)
 		{
 			char buf[100];
 			snprintf(buf, sizeof(buf),
@@ -3041,10 +3110,16 @@ int Connection::SQLexec(sqlite3 *db, const char *sql, int (*callback)(void*,int,
 {
 int retries = 0, rc;
 
+	*errmsg = NULL;
 	do {
 #if DO_PROFILE
 		ProfileItem *prof = new ProfileItem(sql);
 #endif
+		if (*errmsg)
+		{
+			sqlite3_free(*errmsg);
+			*errmsg = NULL;
+		}
 		rc = sqlite3_exec(db, sql, callback, cbArg, errmsg);
 #if DO_PROFILE
 		prof->complete();
@@ -3128,6 +3203,15 @@ int retries = 0, rc;
 }
 #endif
 
+/**
+ * Execute a step command on a prepared statement but add the ability to retry on error.
+ *
+ * It is assumed that binding has already taken place and that those bound
+ * vaiables are maintained for all retries.
+ *
+ * @param statement	The prepared statement to step
+ * @return int		The status of the final sqlite3_step that was issued
+ */
 int Connection::SQLstep(sqlite3_stmt *statement)
 {
 int retries = 0, rc;
@@ -3136,6 +3220,10 @@ int retries = 0, rc;
 #if DO_PROFILE
 		ProfileItem *prof = new ProfileItem(sqlite3_sql(statement));
 #endif
+		if (retries)
+		{
+			sqlite3_reset(statement);
+		}
 		rc = sqlite3_step(statement);
 #if DO_PROFILE
 		prof->complete();
@@ -3419,7 +3507,7 @@ SQLBuffer sql;
 		const char *query = sql.coalesce();
 		char *zErrMsg = NULL;
 		int rc;
-		sqlite3_stmt *stmt;
+		sqlite3_stmt *stmt = NULL;
 
 		logSQL("GetTableSnapshots", query);
 
@@ -3430,6 +3518,8 @@ SQLBuffer sql;
 		{
 			raiseError("get_table_snapshots", sqlite3_errmsg(dbHandle));
 			Logger::getLogger()->error("SQL statement: %s", query);
+			if (stmt)
+				sqlite3_finalize(stmt);
 			delete[] query;
 			return false;
 		}

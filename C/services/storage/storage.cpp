@@ -26,7 +26,8 @@
 #include <config_handler.h>
 #include <plugin_configuration.h>
 
-#define NO_EXIT_STACKTRACE		0		// Set to 1 to make storage loop after stacktrace
+#define NO_EXIT_STACKTRACE		0	// Set to 1 to make storage loop after stacktrace
+						// This is useful to be able to attach a debbugger
 
 extern int makeDaemon(void);
 
@@ -92,6 +93,7 @@ string	       coreAddress = "localhost";
 bool	       daemonMode = true;
 string	       myName = SERVICE_NAME;
 bool           returnPlugin = false;
+bool           returnReadingsPlugin = false;
 string	       logLevel = "warning";
 
 	for (int i = 1; i < argc; i++)
@@ -116,27 +118,41 @@ string	       logLevel = "warning";
 		{
 			returnPlugin = true;
 		}
+		else if (!strncmp(argv[i], "--readingsplugin", 8))
+		{
+			returnReadingsPlugin = true;
+		}
 		else if (!strncmp(argv[i], "--logLevel=", 11))
 		{
 			logLevel = &argv[i][11];
 		}
 	}
 
-	if (returnPlugin == false && daemonMode && makeDaemon() == -1)
+	if (returnPlugin == false && returnReadingsPlugin == false && daemonMode && makeDaemon() == -1)
 	{
 		// Failed to run in daemon mode
 		cout << "Failed to run as deamon - proceeding in interactive mode." << endl;
 	}
 
-	StorageService *service = new StorageService(myName);
+	if (returnPlugin && returnReadingsPlugin)
+	{
+		cout << "You can not specify --plugin and --readingsplugin together";
+		exit(1);
+	}
+
+	StorageService service(myName);
 	Logger::getLogger()->setMinLevel(logLevel);
 	if (returnPlugin)
 	{
-		cout << service->getPluginName() << " " << service->getPluginManagedStatus() << endl;
+		cout << service.getPluginName() << " " << service.getPluginManagedStatus() << endl;
+	}
+	else if (returnReadingsPlugin)
+	{
+		cout << service.getReadingPluginName() << " " << service.getPluginManagedStatus() << endl;
 	}
 	else
 	{
-		service->start(coreAddress, corePort);
+		service.start(coreAddress, corePort);
 	}
 	return 0;
 }
@@ -224,6 +240,13 @@ unsigned short servicePort;
 }
 
 /**
+ * Storage Service destructor
+ */
+StorageService::~StorageService()
+{
+}
+
+/**
  * Start the storage service
  */
 void StorageService::start(string& coreAddress, unsigned short corePort)
@@ -258,11 +281,24 @@ void StorageService::start(string& coreAddress, unsigned short corePort)
 		ManagementClient *client = new ManagementClient(coreAddress, corePort);
 		client->registerService(record);
 
+		// FOGL-7074 upgrade step
+		try {
+			ConfigCategory cat = client->getCategory("Storage");
+			string rp = cat.getValue("readingPlugin");
+			if (rp.empty())
+			{
+				client->setCategoryItemValue("Storage", "readingPlugin",
+						"Use main plugin");
+			}
+		} catch (...) {
+			// ignore
+		}
+
 		// Add the default configuration under the Advanced category
 		unsigned int retryCount = 0;
 		DefaultConfigCategory *conf = config->getDefaultCategory();
 		conf->setDescription(CATEGORY_DESCRIPTION);
-		while (client->addCategory(*conf, true) == false && ++retryCount < 10)
+		while (client->addCategory(*conf, false) == false && ++retryCount < 10)
 		{
 			sleep(2 * retryCount);
 		}
@@ -294,7 +330,7 @@ void StorageService::start(string& coreAddress, unsigned short corePort)
 		} catch (...) {
 		}
 
-		// Regsiter for configuration changes to our category
+		// Register for configuration changes to our category
 		ConfigHandler *configHandler = ConfigHandler::getInstance(client);
 		configHandler->registerCategory(this, STORAGE_CATEGORY);
 
@@ -311,7 +347,7 @@ void StorageService::start(string& coreAddress, unsigned short corePort)
 			children1.push_back(conf->getName());
 			client->addChildCategories(STORAGE_CATEGORY, children1);
 
-			// Regsiter for configuration changes to our category
+			// Register for configuration changes to our storage plugin category
 			ConfigHandler *configHandler = ConfigHandler::getInstance(client);
 			configHandler->registerCategory(this, conf->getName());
 
@@ -335,12 +371,18 @@ void StorageService::start(string& coreAddress, unsigned short corePort)
 					children1.push_back(conf->getName());
 					client->addChildCategories(STORAGE_CATEGORY, children1);
 
-					// Regsiter for configuration changes to our category
+					// Regsiter for configuration changes to our reading category category
 					ConfigHandler *configHandler = ConfigHandler::getInstance(client);
 					configHandler->registerCategory(this, conf->getName());
 				}
 			}
 		}
+
+		// Now we are running force the plugin names back to the configuration manager to
+		// make sure they match what we are running. This can be out of sync if the storage
+		// configuration cache has been manually reset or altered while Fledge was down
+		client->setCategoryItemValue(STORAGE_CATEGORY, "plugin", config->getValue("plugin"));
+		client->setCategoryItemValue(STORAGE_CATEGORY, "readingPlugin", config->getValue("readingPlugin"));
 
 		// Wait for all the API threads to complete
 		api->wait();
@@ -378,7 +420,7 @@ void StorageService::stop()
 /**
  * Load the configured storage plugin or plugins
  *
- * @return bool	True if the plugins have been l;oaded and support the correct operations
+ * @return bool	True if the plugins have been loaded and support the correct operations
  */
 bool StorageService::loadPlugin()
 {
@@ -425,6 +467,14 @@ bool StorageService::loadPlugin()
 	if (! *readingPluginName)
 	{
 		// Single plugin does everything
+		return true;
+	}
+       	if (strcmp(readingPluginName, plugin) == 0 
+			|| strcmp(readingPluginName, "Use main plugin") == 0)
+	{
+ 		// Storage plugin and reading plugin are the same, or we have been 
+		// explicitly told to use the storage plugin for reading so no need
+		// to add a reading plugin
 		return true;
 	}
 	if (plugin == NULL)
@@ -521,4 +571,17 @@ string StorageService::getPluginName()
 string StorageService::getPluginManagedStatus()
 {
 	return string(config->getValue("managedStatus"));
+}
+
+/**
+ * Return the name of the configured reading plugin
+ */
+string StorageService::getReadingPluginName()
+{
+	string rval = config->getValue("readingPlugin");
+	if (rval.empty())
+	{
+		rval = config->getValue("plugin");
+	}
+	return rval;
 }

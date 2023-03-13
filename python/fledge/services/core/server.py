@@ -64,7 +64,7 @@ _FLEDGE_ROOT = os.getenv("FLEDGE_ROOT", default='/usr/local/fledge')
 _SCRIPTS_DIR = os.path.expanduser(_FLEDGE_ROOT + '/scripts')
 
 # PID dir and filename
-_FLEDGE_PID_DIR= "/var/run"
+_FLEDGE_PID_DIR = "/var/run"
 _FLEDGE_PID_FILE = "fledge.core.pid"
 
 
@@ -626,7 +626,7 @@ class Server:
     def _pidfile_exists(cls):
         """ Check whether the PID file exists """
         try:
-            fh = open(cls._pidfile,'r')
+            fh = open(cls._pidfile, 'r')
             fh.close()
             return True
         except (FileNotFoundError, IOError, TypeError):
@@ -675,11 +675,11 @@ class Server:
                 raise
 
             # Build the JSON object to write into PID file
-            info_data = {'processID' : pid,\
-                         'adminAPI' : {\
+            info_data = {'processID': pid,\
+                         'adminAPI': {\
                              "protocol": "HTTP" if cls.is_rest_server_http_enabled else "HTTPS",\
                              "addresses": [api_address],\
-                             "port": api_port }\
+                             "port": api_port}\
                         }
 
             # Write data into PID file
@@ -1071,7 +1071,7 @@ class Server:
             """Return process ids found by (partial) name or regex."""
             child = subprocess.Popen(['pgrep', '-f', 'name={}'.format(name)], stdout=subprocess.PIPE, shell=False)
             response = child.communicate()[0]
-            return [int(pid) for pid in response.split()]
+            return [int(_pid) for _pid in response.split()]
 
         try:
             shutdown_threshold = 0
@@ -1198,8 +1198,8 @@ class Server:
                 # Add public token claims
                 claims = {
                              'aud': service_type,
-                             'sub' : service_name,
-                             'iss' : SERVICE_JWT_AUDIENCE,
+                             'sub': service_name,
+                             'iss': SERVICE_JWT_AUDIENCE,
                              'exp': exp
                          }
 
@@ -1215,7 +1215,7 @@ class Server:
             _response = {
                 'id': registered_service_id,
                 'message': "Service registered successfully",
-                'bearer_token' : bearer_token
+                'bearer_token': bearer_token
             }
 
             _logger.debug("For service: {} SERVER RESPONSE: {}".format(service_name, _response))
@@ -1290,7 +1290,6 @@ class Server:
         except Exception as ex:
             msg = str(ex)
             raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
-
 
     @classmethod
     async def get_service(cls, request):
@@ -1642,7 +1641,7 @@ class Server:
         if not isinstance(data, dict):
             raise ValueError('Data payload must be a dictionary')
 
-        jsondata=data.get("data")
+        jsondata = data.get("data")
 
         try:
             if jsondata is None:
@@ -1673,7 +1672,6 @@ class Server:
         try:
             schedule_id = request.match_info.get('schedule_id', None)
             is_enabled = data.get('value', False)
-            _logger.exception("{} is_enabled: {}".format(cls.core_management_port, is_enabled))
             if is_enabled:
                 status, reason = await cls.scheduler.enable_schedule(uuid.UUID(schedule_id))
             else:
@@ -1764,9 +1762,9 @@ class Server:
             raise ValueError('Data payload must be a dictionary')
 
         try:
-            code=data.get("source")
-            level=data.get("severity")
-            message=data.get("details")
+            code = data.get("source")
+            level = data.get("severity")
+            message = data.get("details")
 
             # Add audit entry code and message for the given level
             await getattr(cls._audit, str(level).lower())(code, message)
@@ -1818,10 +1816,10 @@ class Server:
             ret = jwt.decode(token,
                          SERVICE_JWT_SECRET,
                          algorithms=[SERVICE_JWT_ALGORITHM],
-                         options = {"verify_signature": True, "verify_aud": False, "verify_exp": True})
+                         options={"verify_signature": True, "verify_aud": False, "verify_exp": True})
             return ret
         except Exception as e:
-            return { 'error' : str(e) }
+            return {'error': str(e)}
 
     @classmethod
     async def refresh_token(cls, request):
@@ -1841,14 +1839,14 @@ class Server:
         try:
             claims = cls.get_token_common(request)
             # Expiration set to now + delta
-            claims['exp'] =  int(time.time()) + SERVICE_JWT_EXP_DELTA_SECONDS
+            claims['exp'] = int(time.time()) + SERVICE_JWT_EXP_DELTA_SECONDS
             bearer_token = jwt.encode(claims,
                                       SERVICE_JWT_SECRET,
                                       SERVICE_JWT_ALGORITHM).decode("utf-8")
 
             # Replace bearer_token for the service
             ServiceRegistry.addBearerToken(claims['sub'], bearer_token)
-            ret = {'bearer_token' : bearer_token}
+            ret = {'bearer_token': bearer_token}
 
             return web.json_response(ret)
 

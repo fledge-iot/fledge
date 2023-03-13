@@ -62,36 +62,15 @@ void StorageAssetTracker::populateStorageAssetTrackingCache()
 
 	try {
 		std::vector<StorageAssetTrackingTuple*>& vec = m_mgtClient->getStorageAssetTrackingTuples(m_service);
+
 		for (StorageAssetTrackingTuple* & rec : vec)
 		{
-			auto it = storageAssetTrackerTuplesCache.find(rec);
-			if (it == storageAssetTrackerTuplesCache.end())
+			set<string> setOfDPs = getDataPointsSet(rec->m_datapoints);
+			if (setOfDPs.size() == 0)
 			{
-				// tuple not found in cache , so add it
-				storageAssetTrackerTuplesCache.insert(rec);
+				Logger::getLogger()->warn("%s:%d Datapoints unavailable for service %s ",  __FUNCTION__, __LINE__, m_service.c_str());
 			}
-			else
-			{
-				// tuple present and count value < count of reading, update cache
-				if ((*it)->m_maxCount < rec->m_maxCount)
-				{
-					storageAssetTrackerTuplesCache.erase(it);
-					storageAssetTrackerTuplesCache.insert(rec);
-				}
-				else if ((*it)->m_maxCount == rec->m_maxCount)
-				{
-					// case where counts are same but datapoints are different
-					// "a", "b", "c" and "a", "b", "foo"
-					// keep both the records
-					if ((*it)->m_datapoints.compare(rec->m_datapoints))
-					{
-						storageAssetTrackerTuplesCache.insert(rec);
-					}
-				}
-			}
-
-			Logger::getLogger()->debug("%s:%d Added storage asset tracker tuple to cache: '%s'", __FUNCTION__, __LINE__,
-					rec->assetToString().c_str());
+			storageAssetTrackerTuplesCache[rec] = setOfDPs;
 		}
 		delete (&vec);
 	}
@@ -101,129 +80,7 @@ void StorageAssetTracker::populateStorageAssetTrackingCache()
 		return;
 	}
 
-
 	return;
-}
-
-/**
- * Find whether the Storage asset tracking tuple exists in the cache or not
- *
- * Return the pointer to the tuple 
- *
- * @param tuple        StorageAssetTrackingTuple Type
- * @return	       A pointer to StorageAssetTrackingTuple in cache or null
- */
-
-
-StorageAssetTrackingTuple* StorageAssetTracker::findStorageAssetTrackingCache(StorageAssetTrackingTuple& tuple)	
-{
-	StorageAssetTrackingTuple *ptr = &tuple;
-	std::unordered_multiset<StorageAssetTrackingTuple*>::const_iterator it = storageAssetTrackerTuplesCache.find(ptr);
-
-	if (it == storageAssetTrackerTuplesCache.end())
-	{
-	        Logger::getLogger()->debug("%s:%d :tuple not found in cache ", __FUNCTION__, __LINE__);
-		return NULL;
-	}
-	else
-	{
-		auto rangeItr = storageAssetTrackerTuplesCache.equal_range(ptr);
-
-		unsigned int max = 0;
-		std::set<StorageAssetCacheSetItr, StorageAssetCacheSetItrCmp> maxItr;
-		for(auto r = rangeItr.first; r != rangeItr.second; ++r)
-		{
-			// case where maxcount in cache greater than tuple arg, simply return that itr to cache
-			if ((*r)->m_maxCount > ptr->m_maxCount)
-			{
-				return (*r);
-			}
-			if ((*r)->m_maxCount > max)
-			{
-				max = (*r)->m_maxCount;
-
-				Logger::getLogger()->debug("%s:%d, max value = %d", __FILE__, __LINE__, max);
-			}
-		}
-
-		for(auto r = rangeItr.first; r != rangeItr.second; ++r)
-                {
-			//prepare set of iterators with maxiumum value
-                        if ((*r)->m_maxCount == max)
-                        {
-				maxItr.insert(r);
-                        }
-                }
-
-
-		for(auto r = rangeItr.first; r != rangeItr.second; ++r)
-                {
-
-		 	// tuple present and its value > count of max in cache, update in cache, remove rest
-			if ( ptr->m_maxCount > max)
-			{
-				Logger::getLogger()->debug("%s:%d tuple present and count value < count of reading, update cache, erased dp%s ", __FUNCTION__,  __LINE__, (*it)->m_datapoints.c_str());
-
-				storageAssetTrackerTuplesCache.erase(rangeItr.first, rangeItr.second); 
-				return NULL;
-       		        }
-               
-		       	else if (ptr->m_maxCount == max)
-                	{
-                		// case where counts are same but datapoints are different
-                		// "a", "b", "c" and "a", "b", "foo"
-                		// keep both the records incoming and max already present in cache
-				// delete rest
-
-				// for all the records which have less count than maxItr and incoming, delete
-				if (maxItr.find(r) == maxItr.end())
-				{
-					storageAssetTrackerTuplesCache.erase(r);
-				}
-				else
-				{
-
-					// incoming has same count as maximum, check their dps
-					
-					if (compareDatapoints(ptr->m_datapoints,(*r)->m_datapoints))
-					{
-						// dps different however count same , need to update in cache
-						return NULL;
-					}
-					else
-					{
-						// dps same and count also same , dont update
-						return *r;
-					}
-				}
-			}
-			
-		}		
-				
-		// dont need updation , return pointer to tuple in cache
-		return *it;
-	}
-}
-
-/**
- * Add storage asset tracking tuple via microservice management API and in cache
- *
- * @param tuple		New tuple to add in DB and in cache
- */
-void StorageAssetTracker::addStorageAssetTrackingTuple(StorageAssetTrackingTuple& tuple)
-{
-	std::unordered_multiset<StorageAssetTrackingTuple*>::const_iterator it = storageAssetTrackerTuplesCache.find(&tuple);
-
-	bool rv = m_mgtClient->addStorageAssetTrackingTuple(tuple.m_serviceName, tuple.m_pluginName, tuple.m_assetName, tuple.m_eventName, false, tuple.m_datapoints, tuple.m_maxCount);
-
-	if (rv) // insert into cache only if DB operation succeeded
-	{
-		StorageAssetTrackingTuple *ptr = new StorageAssetTrackingTuple(tuple);
-		storageAssetTrackerTuplesCache.insert(ptr);
-		Logger::getLogger()->info("%s:%d: Added tuple to cache: %s, insert in db successful ", __FUNCTION__, __LINE__, tuple.assetToString().c_str());
-	}
-	else
-		Logger::getLogger()->error("%s:%d: Failed to insert storage asset tracking tuple into DB: '%s'", __FUNCTION__, __LINE__, tuple.assetToString().c_str());
 }
 
 /**
@@ -294,28 +151,153 @@ bool StorageAssetTracker::getFledgeConfigInfo()
         return false;
 }
 
-
 /**
- * Compare the Datapoints in StorageAssetTracker, they can be '"' enclosed
+ *  Updates datapoints present in the arg dpSet in the cache
  *
- * @return int  result of comparison of datapoints strings , 0 when equal
+ * @param dpSet             set of datapoints string values to be updated in cache
+ * @param ptr               StorageAssetTrackingTuple* , as key in cache (map) 
+ * Retval void
  */
-int StorageAssetTracker::compareDatapoints(const std::string& dp1, const std::string& dp2)
+
+void StorageAssetTracker::updateCache(std::set<std::string> dpSet, StorageAssetTrackingTuple* ptr)
 {
-	std::string temp1, temp2;
-	for( int i = 0; i < dp1.size() ; ++i)
+	if(ptr == nullptr)
 	{
-		if (dp1[i] != '"')
-			temp1.push_back(dp1[i]);
+		Logger::getLogger()->error("%s:%d: StorageAssetTrackingTuple should not be NULL pointer", __FUNCTION__, __LINE__);
+		return;
 	}
 
-	for( int i = 0; i < dp2.size() ; ++i)
-        {
-                if (dp2[i] != '"')
-                        temp2.push_back(dp2[i]);
-        }
+	unsigned int sizeOfInputSet = dpSet.size();
+        StorageAssetCacheMapItr it = storageAssetTrackerTuplesCache.find(ptr);
 
-	return temp1.compare(temp2);
+	// search for the record in cache , if not present, simply update cache and return
+        if (it == storageAssetTrackerTuplesCache.end())
+        {
+                Logger::getLogger()->debug("%s:%d :tuple not found in cache ", __FUNCTION__, __LINE__);
+		storageAssetTrackerTuplesCache[ptr] = dpSet;
+
+		std::string strDatapoints;
+                unsigned int count = 0;
+                for (auto itr : dpSet)
+                {
+                        strDatapoints.append(itr);
+                        strDatapoints.append(",");
+                        count++;
+                }
+                if (strDatapoints[strDatapoints.size()-1] == ',')
+                        strDatapoints.pop_back();
+
+	       bool rv = m_mgtClient->addStorageAssetTrackingTuple(ptr->getServiceName(), ptr->getPluginName(), ptr->getAssetName(), ptr->getEventName(), false, strDatapoints, count);
+               if (rv)
+               {
+                       storageAssetTrackerTuplesCache[ptr] = dpSet;
+               }
+               else
+                        Logger::getLogger()->error("%s:%d: Failed to insert storage asset tracking tuple into DB: '%s'", __FUNCTION__, __LINE__, (ptr->getAssetName()).c_str());
+
+		return;
+        }
+        else
+        {
+		// record is found in cache , compare the datapoints of the argument ptr to that present in the cache
+		// update the cache with datapoints present in argument record but  absent in cache
+		//
+		std::set<std::string> &cacheRecord = it->second;
+		unsigned int sizeOfCacheRecord = cacheRecord.size();
+
+		// store all the datapoints to be updated in string strDatapoints which is sent to management_client
+		std::string strDatapoints;
+		unsigned int count = 0;
+		for (auto itr : cacheRecord)
+		{
+			strDatapoints.append(itr);
+			strDatapoints.append(",");
+			count++;
+		}
+
+		// check which datapoints are not present in cache record, and need to be updated 
+		// in cache and db, store them in string strDatapoints, in comma-separated format
+		for(auto itr: dpSet)
+                {
+                        if (cacheRecord.find(itr) == cacheRecord.end())
+                        {
+				strDatapoints.append(itr);
+	                        strDatapoints.append(",");
+				count++;
+                        }
+                }
+
+		// remove the last comma
+		if (strDatapoints[strDatapoints.size()-1] == ',')
+			strDatapoints.pop_back();
+
+		if (count <= sizeOfCacheRecord)
+		{
+			// No need to update as count of cache record is not getting increased
+                        return;
+                }
+
+		// Update the DB
+		bool rv = m_mgtClient->addStorageAssetTrackingTuple(ptr->getServiceName(), ptr->getPluginName(), ptr->getAssetName(), ptr->getEventName(), false, strDatapoints, count);
+		if(rv)
+		{
+			// if update of DB successful , then update the CacheRecord
+			for(auto itr: dpSet)
+                	{
+                        	if (cacheRecord.find(itr) == cacheRecord.end())
+                        	{
+                                	cacheRecord.insert(itr);
+                        	}
+                	}
+		}
+		else
+		{
+			// Log error if Update DB unsuccessful
+			 Logger::getLogger()->error("%s:%d: Failed to insert storage asset tracking tuple into DB: '%s'", __FUNCTION__, __LINE__, (ptr->getAssetName()).c_str());
+
+		}
+	}
+}
+
+//This function takes a string of datapoints in comma-separated format and returns 
+//set of string datapoint values 
+std::set<std::string> StorageAssetTracker::getDataPointsSet(std::string strDatapoints)
+{
+
+	std::set<std::string> tokens;
+    	stringstream st(strDatapoints);
+	std::string temp;
+
+    	while(getline(st, temp, ','))
+    	{
+        	tokens.insert(temp);
+    	}
+
+	return tokens;
 }
 
 
+/** This function takes a StorageAssetTrackingTuple pointer and searches for
+ *  it in cache, if found then returns its Deprecated status
+ *
+ * @param ptr           StorageAssetTrackingTuple* , as key in cache (map)
+ * Retval bool 		Deprecation status 
+ */
+
+
+bool StorageAssetTracker::getDeprecated(StorageAssetTrackingTuple* ptr)
+{
+	StorageAssetCacheMapItr it = storageAssetTrackerTuplesCache.find(ptr);
+
+        if (it == storageAssetTrackerTuplesCache.end())
+        {
+                Logger::getLogger()->debug("%s:%d :tuple not found in cache ", __FUNCTION__, __LINE__);
+		return false;
+        }
+        else
+        {
+		return (it->first)->isDeprecated();
+	}
+
+	return false;
+}

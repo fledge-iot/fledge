@@ -7,11 +7,25 @@
 .. |omf_plugin_eds_config| image:: images/omf-plugin-eds.jpg
 .. |omf_plugin_ocs_config| image:: images/omf-plugin-ocs.jpg
 .. |omf_plugin_adh_config| image:: images/omf-plugin-adh.jpg
+.. |OMF_AF| image:: images/OMF_AF.jpg
+.. |OMF_Auth| image:: images/OMF_Auth.jpg
+.. |OMF_Cloud| image:: images/OMF_Cloud.jpg
+.. |OMF_Connection| image:: images/OMF_Connection.jpg
+.. |OMF_Default| image:: images/OMF_Default.jpg
+.. |OMF_Format| image:: images/OMF_Format.jpg
+.. |OMF_Endpoints| image:: images/OMF_Endpoints.jpg
+.. |ADH_Regions| image:: images/ADH_Regions.jpg
 
 .. Links
 .. |OMFHint filter plugin| raw:: html
 
    <a href="../fledge-filter-omfhint/index.html">OMFHint filter plugin</a>
+
+
+OMF End Points
+--------------
+
+The OMF Plugin within Fledge supports a number of different OMF Endpoints for sending data out of Fledge.
 
 PI Web API OMF Endpoint
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -19,137 +33,22 @@ PI Web API OMF Endpoint
 To use the PI Web API OMF endpoint first ensure the OMF option was included in your PI Server when it was installed.  
 
 Now go to the Fledge user interface, create a new North instance and select the “OMF” plugin on the first screen.
-The second screen will request the following information:
+In the second screen select the PI Web API as the OMF endpoint.
 
-+----------------------------+
-| |omf_plugin_pi_web_config| |
-+----------------------------+
+AVEVA Data Hub
+~~~~~~~~~~~~~~
 
-Select PI Web API from the Endpoint options.
+The cloud service from AVEVA that allows you to store your data in the AVEVA cloud.
 
-- Basic Information
-   - **Endpoint:** This is the type of OMF endpoint. In this case, choose PI Web API.
-   - **Send full structure:** Used to control if Asset Framework structure messages are sent to the PI Server. If this is turned off then the data will not be placed in the Asset Framework.
-   - **Naming scheme:** Defines the naming scheme to be used when creating the PI points in the PI Data Archive. See :ref:`Naming_Scheme`.
-   - **Server hostname:** The hostname or address of the PI Web API server. This is normally the same address as the PI Server.
-   - **Server port:** The port the PI Web API OMF endpoint is listening on. Leave as 0 if you are using the default port.
-   - **Data Source:** Defines which data is sent to the PI Server. Choices are: readings or statistics (that is, Fledge's internal statistics).
-   - **Static Data:** Data to include in every reading sent to PI. For example, you can use this to specify the location of the devices being monitored by the Fledge server.
-- Asset Framework
-   - **Default Asset Framework Location:** The location in the Asset Framework hierarchy into which the data will be inserted.
-     All data will be inserted at this point in the Asset Framework hierarchy unless a later rule overrides this.
-     Note this field does not include the name of the target Asset Framework Database;
-     the target database is defined on the PI Web API server by the PI Web API Admin Utility.
-   - **Asset Framework Hierarchies Rules:** A set of rules that allow specific readings to be placed elsewhere in the Asset Framework. These rules can be based on the name of the asset itself or some metadata associated with the asset. See `Asset Framework Hierarchy Rules`_.
-- PI Web API authentication
-   - **PI Web API Authentication Method:** The authentication method to be used: anonymous, basic or kerberos.
-     Anonymous equates to no authentication, basic authentication requires a user name and password, and Kerberos allows integration with your single signon environment.
-   - **PI Web API User Id:**  For Basic authentication, the user name to authenticate with the PI Web API.
-   - **PI Web API Password:** For Basic authentication, the password of the user we are using to authenticate.
-   - **PI Web API Kerberos keytab file:** The Kerberos keytab file used to authenticate.
-- Connection management (These should only be changed with guidance from support)
-   - **Sleep Time Retry:** Number of seconds to wait before retrying the HTTP connection (Fledge doubles this time after each failed attempt).
-   - **Maximum Retry:** Maximum number of times to retry connecting to the PI Server.
-   - **HTTP Timeout:** Number of seconds to wait before Fledge will time out an HTTP connection attempt.
-- Other (Rarely changed)
-   - **Integer Format:** Used to match Fledge data types to the data type configured in PI. This defaults to int64 but may be set to any OMF data type compatible with integer data, e.g. int32.
-   - **Number Format:** Used to match Fledge data types to the data type configured in PI. The default is float64 but may be set to any OMF datatype that supports floating point values.
-   - **Compression:** Compress the readings data before sending them to the PI Web API OMF endpoint.
-     This setting is not related to data compression in the PI Data Archive.
+.. _Edge_Data_Store:
 
 Edge Data Store OMF Endpoint
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 To use the OSIsoft Edge Data Store first install Edge Data Store on the same machine as your Fledge instance. It is a limitation of Edge Data Store that it must reside on the same host as any system that connects to it with OMF.
 
-Now go to the Fledge user interface, create a new North instance and select the “OMF” plugin on the first screen.
-The second screen will request the following information:
 
-+-------------------------+
-| |omf_plugin_eds_config| |
-+-------------------------+
-
-Select Edge Data Store from the Endpoint options.
-
-- Basic Information
-   - **Endpoint:** This is the type of OMF endpoint. In this case, choose Edge Data Store.
-   - **Naming scheme:** Defines the naming scheme to be used when creating the PI points within the PI Server. See :ref:`Naming_Scheme`.
-   - **Server hostname:** Normally the hostname or address of the OMF endpoint. For Edge Data Store, this must be *localhost*.
-   - **Server port:** The port the Edge Data Store is listening on. Leave as 0 if you are using the default port.
-   - **Data Source:** Defines which data is sent to the Edge Data Store. Choices are: readings or statistics (that is, Fledge's internal statistics).
-   - **Static Data:** Data to include in every reading sent to PI. For example, you can use this to specify the location of the devices being monitored by the Fledge server.
-- Connection management (These should only be changed with guidance from support)
-   - **Sleep Time Retry:** Number of seconds to wait before retrying the HTTP connection (Fledge doubles this time after each failed attempt).
-   - **Maximum Retry:** Maximum number of times to retry connecting to the PI server.
-   - **HTTP Timeout:** Number of seconds to wait before Fledge will time out an HTTP connection attempt.
-- Other (Rarely changed)
-   - **Integer Format:** Used to match Fledge data types to the data type configured in PI. This defaults to int64 but may be set to any OMF data type compatible with integer data, e.g. int32.
-   - **Number Format:** Used to match Fledge data types to the data type configured in PI. The default is float64 but may be set to any OMF datatype that supports floating point values.
-   - **Compression:** Compress the readings data before sending them to the Edge Data Store.
-
-AVEVA Data Hub OMF Endpoint
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Go to the Fledge user interface, create a new North instance and select the “OMF” plugin on the first screen.
-The second screen will request the following information:
-
-+-------------------------+
-| |omf_plugin_adh_config| |
-+-------------------------+
-
-Select AVEVA Data Hubfrom the Endpoint options.
-
-- Basic Information
-   - **Endpoint:** This is the type of OMF endpoint. In this case, choose AVEVA Data Hub.
-   - **Naming scheme:** Defines the naming scheme to be used when creating the PI points within the PI Server. See :ref:`Naming_Scheme`.
-   - **Data Source:** Defines which data is sent to AVEVA Data Hub. Choices are: readings or statistics (that is, Fledge's internal statistics).
-   - **Static Data:** Data to include in every reading sent to AVEVA Data Hub.  For example, you can use this to specify the location of the devices being monitored by the Fledge server.
-- Authentication
-   - **Namespace:** Your namespace within the AVEVA Data Hub.
-   - **Tenant ID:** Your AVEVA Data Hub Tenant ID for your account.
-   - **Client ID:** Your AVEVA Data Hub Client ID for your account.
-   - **Client Secret:** Your AVEVA Data Hub Client Secret.
-- Connection management (These should only be changed with guidance from support)
-   - **Sleep Time Retry:** Number of seconds to wait before retrying the HTTP connection (Fledge doubles this time after each failed attempt).
-   - **Maximum Retry:** Maximum number of times to retry connecting to the AVEVA Data Hub.
-   - **HTTP Timeout:** Number of seconds to wait before Fledge will time out an HTTP connection attempt.
-- Other (Rarely changed)
-   - **Integer Format:** Used to match Fledge data types to the data type configured in AVEVA Data Hub. This defaults to int64 but may be set to any OMF data type compatible with integer data, e.g. int32.
-   - **Number Format:** Used to match Fledge data types to the data type configured in AVEVA Data Hub. The default is float64 but may be set to any OMF datatype that supports floating point values.
-   - **Compression:** Compress the readings data before sending them to AVEVA Data Hub.
-
-
-OSIsoft Cloud Services OMF Endpoint
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Go to the Fledge user interface, create a new North instance and select the “OMF” plugin on the first screen.
-The second screen will request the following information:
-
-+-------------------------+
-| |omf_plugin_ocs_config| |
-+-------------------------+
-
-Select OSIsoft Cloud Services from the Endpoint options.
-
-- Basic Information
-   - **Endpoint:** This is the type of OMF endpoint. In this case, choose OSIsoft Cloud Services.
-   - **Naming scheme:** Defines the naming scheme to be used when creating the PI points within the PI Server. See :ref:`Naming_Scheme`.
-   - **Data Source:** Defines which data is sent to OSIsoft Cloud Services. Choices are: readings or statistics (that is, Fledge's internal statistics).
-   - **Static Data:** Data to include in every reading sent to OSIsoft Cloud Services.  For example, you can use this to specify the location of the devices being monitored by the Fledge server.
-- Authentication
-   - **Namespace:** Your namespace within OSIsoft Cloud Services.
-   - **Tenant ID:** Your OSIsoft Cloud Services Tenant ID for your account.
-   - **Client ID:** Your OSIsoft Cloud Services Client ID for your account.
-   - **Client Secret:** Your OSIsoft Cloud Services Client Secret.
-- Connection management (These should only be changed with guidance from support)
-   - **Sleep Time Retry:** Number of seconds to wait before retrying the HTTP connection (Fledge doubles this time after each failed attempt).
-   - **Maximum Retry:** Maximum number of times to retry connecting to the PI server.
-   - **HTTP Timeout:** Number of seconds to wait before Fledge will time out an HTTP connection attempt.
-- Other (Rarely changed)
-   - **Integer Format:** Used to match Fledge data types to the data type configured in PI. This defaults to int64 but may be set to any OMF data type compatible with integer data, e.g. int32.
-   - **Number Format:** Used to match Fledge data types to the data type configured in PI. The default is float64 but may be set to any OMF datatype that supports floating point values.
-   - **Compression:** Compress the readings data before sending them to OSIsoft Cloud Services.
-
+.. _Connector_Relay:
 
 PI Connector Relay
 ~~~~~~~~~~~~~~~~~~
@@ -178,28 +77,174 @@ Connect the new application to the PI Connector Relay by selecting the new Fledg
 
 Finally, select the new Fledge application. Click "More" at the bottom of the Configuration panel. Make note of the Producer Token and Relay Ingress URL.
 
-Now go to the Fledge user interface, create a new North instance and select the “OMF” plugin on the first screen.
-The second screen will request the following information:
+Now go to the Fledge user interface, create a new North instance and select the “OMF” plugin on the first screen. Continue with the configuration, choosing the connector relay as the end point to be connected.
 
-+-------------------------------------+
-| |omf_plugin_connector_relay_config| |
-+-------------------------------------+
+OSISoft Cloud Services
+~~~~~~~~~~~~~~~~~~~~~~
 
-- Basic Information
-   - **Endpoint:** This is the type of OMF endpoint. In this case, choose Connector Relay.
-   - **Server hostname:** The hostname or address of the PI Connector Relay.
-   - **Server port:** The port the PI Connector Relay is listening on. Leave as 0 if you are using the default port.
-   - **Producer Token:** The Producer Token provided by the PI Relay Data Connection Manager.
-   - **Data Source:** Defines which data is sent to the PI Connector Relay. Choices are: readings or statistics (that is, Fledge's internal statistics).
-   - **Static Data:** Data to include in every reading sent to PI.  For example, you can use this to specify the location of the devices being monitored by the Fledge server.
-- Connection management (These should only be changed with guidance from support)
-   - **Sleep Time Retry:** Number of seconds to wait before retrying the HTTP connection (Fledge doubles this time after each failed attempt).
-   - **Maximum Retry:** Maximum number of times to retry connecting to the PI server.
-   - **HTTP Timeout:** Number of seconds to wait before Fledge will time out an HTTP connection attempt.
-- Other (Rarely changed)
-   - **Integer Format:** Used to match Fledge data types to the data type configured in PI. This defaults to int64 but may be set to any OMF data type compatible with integer data, e.g. int32.
-   - **Number Format:** Used to match Fledge data types to the data type configured in PI. The default is float64 but may be set to any OMF datatype that supports floating point values.
-   - **Compression:** Compress the readings data before sending it to the PI System.
+The original cloud services from OSISoft, this has now been superseded by AVEVA Data Hub, and should only be used to support existing workloads. All new installations should use AVEVA Data Hub.
+
+Configuration
+-------------
+
+The configuration of the plugin is split into a number of tabs in order to reduce the size of each set of values to enter. Each tab contains a set of related items.
+
+  - **Default Configuration**: This tab contains the base set of configuration items that are most commonly changed.
+
+  - **Asset Framework**: The configuration that impacts the location with the asset framework in which the data will be placed.
+
+  - **Authentication**: The configuration required to authenticate with the OMF end point.
+
+  - **Cloud**: Configuration specific to using the cloud end points for OCS and ADH.
+
+  - **Connection**: This tab contains the configuration items that can be used to tune the connection to the OMF end point.
+
+  - **Formats & Types**: The configuration relating to how types are used and formatted with the OMF data.
+
+  - **Advanced Configuration**: Configuration of the service or task that is supporting the OMF plugin.
+
+  - **Security Configuration**: The configuration options that impact the security of the service that is running OMF.
+
+  - **Developer**: This tab is only visible if the developer features of Fledge have been enabled and will give access to the features aimed at a plugin or pipeline developer.
+
+Default Configuration
+~~~~~~~~~~~~~~~~~~~~~
+
+The *Default Configuration* tab contains the most commonly modified items
+
++---------------+
+| |OMF_Default| |
++---------------+
+
+  - **Endpoint**: The type of OMF end point we are connecting with. The options available are
+
+    +-----------------+
+    | |OMF_Endpoints| | 
+    +-----------------+
+
+    - *PI Web API* - A connection to a PI Server that supports the OMF option of the PI Web API. This is the preferred mechanism for sending data to a PI Server.
+
+    - *AVEVA Data Hub* - The AVEVA cloud service.
+
+    - *Connector Relay* - The previous way to send data to a PI Server before PI Web API supported OMF. This should only be used for older PI Servers that do not have the support available within PI Web API.
+
+    - *OSISoft Cloud Services* - The original OSISoft cloud service, this is currently being replaced with the AVEVA Data Hub.
+
+    - *Edge Data Store* - The OSISoft Edge Data Store 
+
+  - **Send full structure**: Used to control if Asset Framework structure messages are sent to the PI Server. If this is turned off then the data will not be placed in the Asset Framework.
+     
+  - **Naming scheme**: Defines the naming scheme to be used when creating the PI points in the PI Data Archive. See :ref:`Naming_Scheme`.
+
+  - **Server hostname**: The hostname or address of the OMF end point. This is only valid if the end point is a PI Server either with PI Web API or the Connector Relay. This is normally the same address as the PI Server.
+
+  - **Server port**: The port the PI Web API OMF endpoint is listening on. Leave as 0 if you are using the default port.
+
+  - **Data Source**: Defines which data is sent to the OMF end point. The options available are
+    
+    - *readings* - The data that has been ingested into Fledge via the South services.
+     
+    - *statistics* - Fledge's internal statistics.
+
+   - **Static Data**: Data to include in every reading sent to OMF. For example, you can use this to specify the location of the devices being monitored by the Fledge server.
+
+
+Asset Framework
+~~~~~~~~~~~~~~~
+
+The OMF plugins has the ability to interact with the PI Asset Framework and put data into the desired locations within the asset framework. It allows a default location to be specified and also a set of rules to be defined that will override that default location.
+
++----------+
+| |OMF_AF| |
++----------+
+
+   - **Default Asset Framework Location**: The location in the Asset Framework hierarchy into which the data will be inserted.
+     All data will be inserted at this point in the Asset Framework hierarchy unless a later rule overrides this.
+     Note this field does not include the name of the target Asset Framework Database;
+     the target database is defined on the PI Web API server by the PI Web API Admin Utility.
+
+   - **Asset Framework Hierarchies Rules**: A set of rules that allow specific readings to be placed elsewhere in the Asset Framework. These rules can be based on the name of the asset itself or some metadata associated with the asset. See `Asset Framework Hierarchy Rules`_.
+
+Authentication
+~~~~~~~~~~~~~~
+
+The *Authentication* tab allows the configuration of authentication between the OMF plugin and the OMF endpoint.
+
++------------+
+| |OMF_Auth| |
++------------+
+
+   - **Producer Token**: The Producer Token provided by the PI Relay Data Connection Manager. This is only required when using the older Connector Relay end point for sending data to a PI Server.
+
+   - **PI Web API Authentication Method**: The authentication method to be used: 
+
+     - *anonymous* - Anonymous equates to no authentication.
+      
+     - *basic* - basic authentication requires a user name and password
+       
+     - *kerberos* - Kerberos allows integration with your Single Sign-On environment.
+
+   - **PI Web API User Id**:  For Basic authentication, the user name to authenticate with the PI Web API.
+
+   - **PI Web API Password**: For Basic authentication, the password of the user we are using to authenticate.
+   
+   - **PI Web API Kerberos keytab file**: The Kerberos keytab file used to authenticate.
+
+Cloud
+~~~~~
+
+The *Cloud* tab contains configuration items that are required if the chosen OMF end point is either AVEVA Data Hub or OSISoft Cloud Services.
+
++-------------+
+| |OMF_Cloud| |
++-------------+
+
+  - **Cloud Service Region**: - The region in which your AVEVA Data Hub or OSISoft Cloud Services service is located.
+
+    +---------------+
+    | |ADH_Regions| |
+    +---------------+
+
+  - **Namespace**: Your namespace within the AVEVA Data Hub or OSISoft Cloud Service.
+
+  - **Tenant ID**: Your AVEVA Data Hub or OSISoft Cloud Services Tenant ID for your account.
+
+  - **Client ID**: Your AVEVA Data Hub or OSISoft Cloud Services Client ID for your account.
+
+  - **Client Secret**: Your AVEVA Data Hub or OSISoft Cloud Services Client Secret.
+
+Connection
+~~~~~~~~~~
+
+The *Connection* tab allows a set of tuning parameters to be set for the connection from the OMF plugin to the OMF End point.
+
++------------------+
+| |OMF_Connection| |
++------------------+
+
+
+   - **Sleep Time Retry**: Number of seconds to wait before retrying the connection (Fledge doubles this time after each failed attempt).
+
+   - **Maximum Retry**: Maximum number of times to retry connecting to the OMF Endpoint.
+
+   - **HTTP Timeout**: Number of seconds to wait before Fledge will time out an HTTP connection attempt.
+
+   - **Compression**: Compress the readings data before sending them to the OMF endpoint.
+
+Formats & Types
+~~~~~~~~~~~~~~~
+
+The *Formats & Types* tab provides a means to specify the detail types that will be used and the way complex assets are mapped to OMF types to also be configured.
+
++--------------+
+| |OMF_Format| |
++--------------+
+
+   - **Integer Format**: Used to match Fledge data types to the data type configured in PI. This defaults to int64 but may be set to any OMF data type compatible with integer data, e.g. int32.
+
+   - **Number Format**: Used to match Fledge data types to the data type configured in PI. The default is float64 but may be set to any OMF datatype that supports floating point values.
+
+   - **Complex Types**: Versions of the OMF plugin prior to 2.1 support complex types in which each asset would have a corresponding OMF type created for it. With the introduction of OMF Version 1.2 support in version 2.1.0 of the plugin support has been added for linked types. These are more versatile and allow for asset structures to change dynamically. The linked types are now the default, however setting this option can force the older complex types to be used.  See :ref:`Linked_Types`. Versions of the PI Server from 2020 or before will always use the complex types. The plugin will normally automatically detect this, however if the detection does not correctly enforce this setting then this option should be enabled by the user.
 
 .. _Naming_Scheme:
 
@@ -464,6 +509,10 @@ that adds this hint to ensure this is the case.
 
    "OMFHint"  : { "type" : "pump" }
 
+.. note::
+
+   This hint only has meaning when using the complex type legacy mode with this plugin.
+
 Tag Name Hint
 ~~~~~~~~~~~~~
 
@@ -472,6 +521,27 @@ Specifies that a specific tag name should be used when storing data in the PI Se
 .. code-block:: console
 
    "OMFHint"  : { "tagName" : "AC1246" }
+
+Legacy Type Hint
+~~~~~~~~~~~~~~~~
+
+Use legacy style complex types for this reading rather that the newer linked data types.
+
+.. code-block:: console
+
+   "OMFHint" : { "LegacyType" : "true" }
+
+The allows the older mechanism to be forced for a single asset. See :ref:`Linked_Types`.
+
+Source Hint
+~~~~~~~~~~~
+
+The default data source that is associated with tags in the PI Server is Fledge, however this can be overridden using the data source hint. This hint may be applied to the entire asset or to specific datapoints within the asset.
+
+.. code-block:: console
+
+   "OMFHint" : { "source" : "Fledge23" }
+
 
 Datapoint Specific Hint
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -488,12 +558,29 @@ to apply.
 The above hint applies to the datapoint *voltage* in the asset and
 applies a *number format* hint to that datapoint.
 
+If more than one datapoint within a reading is required to have OMF hints
+attached to them this may be done by using an array as a child of the
+datapoint item.
+
+.. code-block:: console
+
+   "OMFHint"  : { "datapoint" : [
+        { "name" : "voltage:, "number" : "float32", "uom" : "volt" },
+        { "name" : "current:, "number" : "uint32", "uom" : "milliampere }
+        ]
+   }
+
+The example above attaches a number hint to both the voltage and current
+datapoints and to the current datapoint. It assigns a unit of measure
+of milliampere. The unit of measure for the voltage is set to be volts.
+
 Asset Framework Location Hint
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 An Asset Framework location hint can be added to a reading to control
-the placement of the asset within the Asset Framework. An Asset Framework
-hint would be as follows:
+the placement of the asset within the Asset Framework.
+This hint overrides the path in the *Default Asset Framework Location* for the reading.
+An Asset Framework hint would be as follows:
 
 .. code-block:: console
 
@@ -501,21 +588,67 @@ hint would be as follows:
    
 Note the following when defining an *AFLocation* hint:
 
-- An asset in a Fledge Reading is used to create a `Container in the OSIsoft Asset Framework <https://docs.osisoft.com/bundle/omf-with-pi-web-api/page/container-messages.html>`_.
-  A *Container* is an AF Element with one or more AF Attributes that are mapped to PI Points using the OSIsoft PI Point Data Reference.
-  The name of the AF Element comes from the Fledge Reading asset name.
-  The names of the AF Attributes come from the Fledge Reading datapoint names.
-- If you edit the AF Location hint, the Container will be moved to the new location in the AF hierarchy.
-- If you disable the OMF Hint filter, the Container will not move.
-- If you wish to move a Container, you can do this with the PI System Explorer.
-  Right-click on the AF Element that represents the Container.
+- An asset name in a Fledge Reading is used to create an AF Element in the OSIsoft Asset Framework.
+  Time series data streams become AF Attributes of that AF Element.
+  This means these AF Attributes are mapped to PI Points using the OSIsoft PI Point Data Reference.
+- Deleting the original Reading AF Element is not recommended;
+  if you delete a Reading AF Element, the OMF North plugin will not recreate it.
+- If you wish to move a Reading AF Element, you can do this with the PI System Explorer.
+  Right-click on the AF Element that represents the Reading AF Element.
   Choose Copy.
-  Select the AF Element that will serve as the new parent of the Container.
-  Right-click and choose *Paste*.
-  You can then return to the original Container and delete it.
+  Select the AF Element that will serve as the new parent of the Reading AF Element.
+  Right-click and choose *Paste* or *Paste Reference*.
   *Note that PI System Explorer does not have the traditional Cut function for AF Elements*.
-- If you move a Container, OMF North will not recreate it.
-  If you then edit the AF Location hint, the Container will appear in the new location.
+- For Linked Types
+    - If you define an AF Location hint after the Reading AF Element has been created in the default location,
+      a reference will be created in the location defined by the hint.
+    - If an AF Location hint was in place when the Reading AF Element was created and you then disable the hint,
+      a reference will be created in the *Default Asset Framework Location*.
+    - If you edit the AF Location hint, the Reading AF Element not move.
+      A reference to the Reading AF Element will be created in the new location.
+- For Complex Types
+    - If you disable the OMF Hint filter, the Reading AF Element will not move.
+    - If you edit the AF Location hint, the Reading AF Element will move to the new location in the AF hierarchy.
+    - No references are created.
+
+Unit Of Measure Hint
+~~~~~~~~~~~~~~~~~~~~
+
+A unit of measure, or uom hint is used to associate one of the units of
+measurement defined within your PI Server with a particular data point
+within an asset.
+
+.. code-block:: console
+
+   "OMFHint"  : { "datapoint" : { "name" : "height:, "uom" : "meter" } }
+
+Minimum Hint
+~~~~~~~~~~~~
+
+A minimum hint is used to associate a minimum value in the PI Point created for a data point.
+
+.. code-block:: console
+
+   "OMFHint"  : { "datapoint" : { "name" : "height:, "minimum" : "0" } }
+
+Maximum Hint
+~~~~~~~~~~~~
+
+A maximum hint is used to associate a maximum value in the PI Point created for a data point.
+
+.. code-block:: console
+
+   "OMFHint"  : { "datapoint" : { "name" : "height:, "maximum" : "100000" } }
+
+Interpolation
+~~~~~~~~~~~~~
+
+The interpolation hint sets the interpolation value used within the PI Server, interpolation values supported are continuous, discrete, stepwisecontinuousleading, and stepwisecontinuousfollowing.
+
+.. code-block:: console
+
+   "OMFHint"  : { "datapoint" : { "name" : "height:, "interpolation" : "continuous" } }
+
 
 Adding OMF Hints
 ~~~~~~~~~~~~~~~~
@@ -524,3 +657,13 @@ An OMF Hint is implemented as a string data point on a reading with
 the data point name of *OMFHint*. It can be added at any point in the
 processing of the data, however a specific plugin is available for adding
 the hints, the |OMFHint filter plugin|.
+
+.. _Linked_Types:
+
+Linked Types
+------------
+
+Versions of this plugin prior to 2.1.0 created a complex type within OMF for each asset that included all of the data points within that asset. This suffered from a limitation in that readings had to contain values for all of the data points of an asset in order to be accepted by the OMF end point. Following the introduction of OMF version 1.2 it was possible to use the linking features of OMF to avoid the need to create complex types for an asset and instead create empty assets and link the data points to this shell asset. This allows readings to only contain a subset of datapoints and still be successfully sent to the PI Server, or other end points.
+
+As of version 2.1.0 this linking approach is used for all new assets created, if assets exist within the PI Server from versions of the plugin prior to 2.1.0 then the older, complex types will be used. It is possible to force the plugin to use complex types for all assets, both old and new, using the configuration option. It is also to force a particular asset to use the complex type mechanism using an OMFHint.
+

@@ -43,7 +43,7 @@ You can test Fledge from your development environment or after installing Fledge
 
 To install the dependencies required to run python tests, run the following command from FLEDGE_ROOT
 ::
-   pip3 install -r python/requirements-test.txt --user
+   python3 -m pip install -r python/requirements-test.txt --user
    sudo apt install jq libxslt-dev
 
 

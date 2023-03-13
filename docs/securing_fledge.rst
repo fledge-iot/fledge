@@ -11,6 +11,7 @@
 .. |password_rotation| image:: images/password_rotation.jpg
 .. |user_management| image:: images/user_management.jpg
 .. |add_user| image:: images/add_user.jpg
+.. |update_user| image:: images/update_user.jpg
 .. |delete_user| image:: images/delete_user.jpg
 .. |change_role| image:: images/change_role.jpg
 .. |reset_password| image:: images/reset_password.jpg
@@ -18,6 +19,18 @@
 .. |update_certificate| image:: images/update_certificate.jpg
 
 
+.. Links
+.. |REST API| raw:: html
+
+   <a href="rest_api_guide/02_RESTauthentication.html">REST API</a>
+
+.. |Require User Login| raw:: html
+
+    <a href="#requiring-user-login">Require User Login</a>
+
+.. |User Management| raw:: html
+
+    <a href="#user-management">User Management</a>
 
 *****************
 Securing Fledge
@@ -48,7 +61,7 @@ After enabling HTTPS and selecting save you must restart Fledge in order for the
 
 *Note*: if using the default self-signed certificate you might need to authorise the browser to connect to IP:PORT.
 Just open a new browser tab and type the URL https://YOUR_FLEDGE_IP:1995
-
+;
 Then follow browser instruction in order to allow the connection and close the tab.
 In the Fledge GUI you should see the green icon (Fledge is running).
 
@@ -130,7 +143,12 @@ Whenever a user logs into Fledge the age of their password is checked against th
 User Management
 ===============
 
-Once mandatory authentication has been enabled and the currently logged in user has the role *admin*, a new option appears in the GUI, *User Management*.
+The user management option becomes active once the Fledge has been configured to require authentication of users. This is enabled via the *Admin API* page of the *Configuration* menu item. A new menu item *User Management* will appear in the left hand menu.
+
+.. note::
+
+   After setting the Authentication option to mandatory in the configuration page the Fledge instance should be restarted.
+
 
 +-------------------+
 | |user_management| |
@@ -142,11 +160,19 @@ The user management pages allows
   - Deleting users.
   - Resetting user passwords.
   - Changing the role of a user.
+  - Changing the details of a user
 
-Fledge currently supports two roles for users,
+Fledge currently supports four roles for users:
 
-  - **admin**: a user with admin role is able to fully configure Fledge and also manage Fledge users
-  - **user**: a user with this role is able to configure Fledge but can not manage users
+  - **Administrator**: a user with admin role is able to fully configure Fledge, view the data read by the Fledge instance  and also manage Fledge users.
+
+  - **Editor**: a user with this role is able to configure Fledge and view the data read by Fledge. The user can not manage other users or add new users.
+
+  - **Viewer**: a user that can only view the configuration of the Fledge instance and the data that has been read by Fledge. The user has no ability to modify the Fledge instance in any way.
+
+  - **Data Viewer**: a user that can only view the data in Fledge and not the configuration of Fledge itself. The user has no ability to modify the Fledge instance in any way.
+
+Restrictions apply to both the API calls that can be made when authenticated as particular users and the access the user will have to the graphical user interface. Users will observe both menu items will be removed completely or options on certain pages will be unavailable.
 
 Adding Users
 ------------
@@ -158,6 +184,15 @@ To add a new user from the *User Management* page select the *Add User* icon in 
 +------------+
 
 You can select a role for the new user, a user name and an initial password for the user. Only users with the role *admin* can add new users.
+
+Update User Details
+-------------------
+
+The edit user option allows the name, authentication method and description of a user to be updated. This option is only available to users with the *admin* role.
+
++---------------+
+| |update_user| |
++---------------+
 
 Changing User Roles
 -------------------
@@ -220,3 +255,47 @@ To add a new certificate select the *Import* icon in the top right of the certif
 +----------------------+
 
 A dialog will appear that allows a key file and/or a certificate file to be selected and uploaded to the *Certificate Store*. An option allows to allow overwrite of an existing certificate. By default certificates may not be overwritten.
+
+
+Generate a new auth certificates for user login
+-----------------------------------------------
+
+Default ca certificate is available inside $FLEDGE_DATA/etc/certs and named as ca.cert. Also default admin and non-admin certs are available in the same location which will be used for Login with Certificate in Fledge i.e admin.cert, user.cert. See |Require User Login|
+
+Below are the steps to create custom certificate along with existing fledge based ca signed for auth certificates.
+
+a) Create a new certificate for username. Let say **test**
+
+.. code-block:: console
+
+    $ cd $FLEDGE_ROOT
+    $ ./scripts/auth_certificates user test 365
+
+    Here script arguments are: $1=user $2=FLEDGE_USERNAME $3=SSL_DAYS_EXPIRATION
+
+And now you can find **test** cert inside $FLEDGE_DATA/etc/certs/
+
+b) Now, it's time to create user with name **test** (case sensitive). Also only admin can create user. Below are the cURL Commands
+
+.. code-block:: console
+
+    $ AUTH_TOKEN=$(curl -d '{"username": "admin", "password": "fledge"}' -sX POST <PROTOCOL>://<FLEDGE_IP>:<FLEDGE_REST_API_PORT>/fledge/login | jq '.token' | tr -d '""')
+    $ curl -H "authorization: $AUTH_TOKEN" -skX POST <PROTOCOL>://<FLEDGE_IP>:<FLEDGE_REST_API_PORT>/fledge/admin/user -d '{"username":"test","real_name":"Test","access_method":"cert","description":"Non-admin based role","role_id":2}'
+
+.. note::
+
+    role_id:2 (non-admin user) | if new user requires admin privileges then pass role_id:1
+
+You may also refer the documentation of |REST API| cURL commands. If you are not comfortable with cURL commands then use the GUI steps |User Management| and make sure Login with admin user.
+
+.. note::
+
+   Steps a (cert creation) and b (create user) can be executed in any order.
+
+c) Now you can login with the newly created user **test**, with the following cURL
+
+.. code-block:: console
+
+    $ curl -T $FLEDGE_DATA/etc/certs/test.cert -skX POST <PROTOCOL>://<FLEDGE_IP>:<FLEDGE_REST_API_PORT>/fledge/login
+
+Or use GUI |Require User Login|

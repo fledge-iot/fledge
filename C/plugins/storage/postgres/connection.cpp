@@ -350,6 +350,14 @@ Connection::Connection()
 			connectErrorTime = time(0);
 		}
 	}
+	
+	logSQL("Set", "session time zone 'UTC' ");
+	PGresult *res = PQexec(dbConnection, " set session time zone 'UTC' ");
+	if (PQresultStatus(res) != PGRES_COMMAND_OK)
+	{
+		Logger::getLogger()->error("set session time zone failed: %s", PQerrorMessage(dbConnection));
+	}
+	PQclear(res);
 }
 
 /**
@@ -967,6 +975,7 @@ SQLBuffer	sql;
 
 	int 	row = 0;
 	ostringstream convert;
+	bool 	allowZero = false;
 
 	std::size_t arr = payload.find("updates");
 	bool changeReqd = (arr == std::string::npos || arr > 8);
@@ -1278,6 +1287,21 @@ SQLBuffer	sql;
 					return false;
 				}
 			}
+			if (iter->HasMember("modifier") && (*iter)["modifier"].IsArray())
+			{
+				const Value& modifier = (*iter)["modifier"];
+				for (Value::ConstValueIterator modifiers = modifier.Begin(); modifiers != modifier.End(); ++modifiers)
+                		{
+					if (modifiers->IsString())
+					{
+						string mod = modifiers->GetString();
+						if (mod.compare("allowzero") == 0)
+						{
+							allowZero = true;
+						}
+					}
+				}
+			}
 		sql.append(';');
 		}
 	}
@@ -1288,7 +1312,8 @@ SQLBuffer	sql;
 	delete[] query;
 	if (PQresultStatus(res) == PGRES_COMMAND_OK)
 	{
-		if (atoi(PQcmdTuples(res)) == 0)
+		int rowsUpdated = atoi(PQcmdTuples(res));
+		if (rowsUpdated == 0 && allowZero == false)
 		{
  			raiseError("update", "No rows where updated");
 			return -1;

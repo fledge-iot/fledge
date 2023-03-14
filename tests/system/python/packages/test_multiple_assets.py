@@ -76,9 +76,9 @@ def start_north(start_north_omf_as_a_service, fledge_url, num_assets,
     asset_dict = {}
 
     no_of_services = 6
-    PER_BENCHMARK_ASSET_COUNT=(num_assets//no_of_services)
+    num_assets_per_service=(num_assets//no_of_services)
     for service_count in range(no_of_services):
-        for asst_count in range(PER_BENCHMARK_ASSET_COUNT):
+        for asst_count in range(num_assets_per_service):
             asset_name = ASSET_NAME + "-{}{}".format(service_count + 1, asst_count + 1)
             asset_dict[asset_name] = dp_list
 
@@ -92,7 +92,7 @@ def start_north(start_north_omf_as_a_service, fledge_url, num_assets,
     yield start_north
 
 
-def add_benchmark(fledge_url, name, count, PER_BENCHMARK_ASSET_COUNT):
+def add_benchmark(fledge_url, name, count, num_assets_per_service):
     data = {
         "name": name,
         "type": "south",
@@ -103,7 +103,7 @@ def add_benchmark(fledge_url, name, count, PER_BENCHMARK_ASSET_COUNT):
                 "value": "{}-{}".format(ASSET_NAME, count)
             },
             "numAssets": {
-                "value": "{}".format(PER_BENCHMARK_ASSET_COUNT)
+                "value": "{}".format(num_assets_per_service)
             }
         }
     }
@@ -162,13 +162,13 @@ def verify_asset_tracking_details(fledge_url, total_assets, total_benchmark_serv
             assert "Benchmark" in [s["plugin"] for s in tracking_details["track"]]
 
 
-def _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries, total_benchmark_services, PER_BENCHMARK_ASSET_COUNT):
+def _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries, total_benchmark_services, num_assets_per_service):
 
     af_hierarchy_level_list = AF_HIERARCHY_LEVEL.split("/")
     type_id = 1
     
     for s in range(1,total_benchmark_services+1):
-      for a in range(1,PER_BENCHMARK_ASSET_COUNT+1):
+      for a in range(1,num_assets_per_service+1):
         retry_count = 0
         data_from_pi = None
         asset_name = "random_multiple_assets-" + str(s) + str(a)
@@ -203,16 +203,16 @@ class TestMultiAssets:
                 on endpoint GET /fledge/asset"""
 
         total_benchmark_services = 6
-        PER_BENCHMARK_ASSET_COUNT = (num_assets//total_benchmark_services)
-        total_assets = PER_BENCHMARK_ASSET_COUNT * total_benchmark_services
+        num_assets_per_service = (num_assets//total_benchmark_services)
+        total_assets = num_assets_per_service * total_benchmark_services
 
         for count in range(total_benchmark_services):
             service_name = BENCHMARK_SOUTH_SVC_NAME + "{}".format(count + 1)
-            add_benchmark(fledge_url, service_name, count + 1, PER_BENCHMARK_ASSET_COUNT)
+            add_benchmark(fledge_url, service_name, count + 1, num_assets_per_service)
             verify_service_added(fledge_url, service_name)
         
         # Wait until total_assets are created
-        time.sleep(PER_BENCHMARK_ASSET_COUNT + 2 * wait_time)
+        time.sleep(num_assets_per_service + 2 * wait_time)
         verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
         verify_asset(fledge_url, total_assets)
 
@@ -224,17 +224,17 @@ class TestMultiAssets:
         verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
         verify_asset(fledge_url, total_assets)
 
-        verify_asset_tracking_details(fledge_url, total_assets, total_benchmark_services, PER_BENCHMARK_ASSET_COUNT)
+        verify_asset_tracking_details(fledge_url, total_assets, total_benchmark_services, num_assets_per_service)
 
         old_ping_result = verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
 
         # Wait for read and sent readings to increase
-        # Sent readings start increasing after 2 mins when mins when assets are more than 200 hundred and 
-        # it may take 10 mins when assets are 800-900.
-        if num_assets<800:
+        # Sent readings start increasing after 2 mins when assets are more than 200 hundred and 
+        # it may take more 10 mins when assets are 800-900.
+        if num_assets < 800:
             time.sleep(wait_time * 12)
         else:
-            time.sleep(wait_time * 60)
+            time.sleep(wait_time * 72)
 
         new_ping_result = verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
         # Verifies whether Read and Sent readings are increasing after restart
@@ -243,7 +243,7 @@ class TestMultiAssets:
         if not skip_verify_north_interface:
             assert old_ping_result['dataSent'] < new_ping_result['dataSent']
             _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries,
-                           total_benchmark_services, PER_BENCHMARK_ASSET_COUNT)
+                           total_benchmark_services, num_assets_per_service)
 
         # FIXME: If sleep is removed then the next test fails
         time.sleep(wait_time * 2)
@@ -260,21 +260,21 @@ class TestMultiAssets:
                 on endpoint GET /fledge/asset"""
 
         total_benchmark_services = 3
-        PER_BENCHMARK_ASSET_COUNT = (num_assets//(total_benchmark_services*2))
+        num_assets_per_service = (num_assets//(total_benchmark_services*2))
         # Total number of assets that would be created
-        total_assets = PER_BENCHMARK_ASSET_COUNT * total_benchmark_services
+        total_assets = num_assets_per_service * total_benchmark_services
 
         for count in range(total_benchmark_services):
             service_name = BENCHMARK_SOUTH_SVC_NAME + "{}".format(count + 1)
-            add_benchmark(fledge_url, service_name, count + 1, PER_BENCHMARK_ASSET_COUNT)
+            add_benchmark(fledge_url, service_name, count + 1, num_assets_per_service)
             verify_service_added(fledge_url, service_name)
 
         # Wait until total_assets are created
-        time.sleep(PER_BENCHMARK_ASSET_COUNT + 2 * wait_time)
+        time.sleep(num_assets_per_service + 2 * wait_time)
         verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
         verify_asset(fledge_url, total_assets)
 
-        verify_asset_tracking_details(fledge_url, total_assets, total_benchmark_services, PER_BENCHMARK_ASSET_COUNT)
+        verify_asset_tracking_details(fledge_url, total_assets, total_benchmark_services, num_assets_per_service)
 
         put_url = "/fledge/restart"
         utils.put_request(fledge_url, urllib.parse.quote(put_url))
@@ -286,25 +286,25 @@ class TestMultiAssets:
 
         for count in range(total_benchmark_services):
             service_name = BENCHMARK_SOUTH_SVC_NAME + "{}".format(count + 4)
-            add_benchmark(fledge_url, service_name, count + 4, PER_BENCHMARK_ASSET_COUNT)
+            add_benchmark(fledge_url, service_name, count + 4, num_assets_per_service)
             verify_service_added(fledge_url, service_name)
 
         # Wait until total_assets are created
-        time.sleep(PER_BENCHMARK_ASSET_COUNT + 2 * wait_time)
+        time.sleep(num_assets_per_service + 2 * wait_time)
         verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
         verify_asset(fledge_url, total_assets)
 
-        verify_asset_tracking_details(fledge_url, total_assets, total_benchmark_services * 2, PER_BENCHMARK_ASSET_COUNT)
+        verify_asset_tracking_details(fledge_url, total_assets, total_benchmark_services * 2, num_assets_per_service)
 
         old_ping_result = verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
 
         # Wait for read and sent readings to increase
-        # Sent readings start increasing after 2 mins when mins when assets are more than 200 hundred and 
-        # it may take 10 mins when assets are 800-900.
-        if num_assets<800:
+        # Sent readings start increasing after 2 mins when assets are more than 200 hundred and 
+        # it may take more 10 mins when assets are 800-900.
+        if num_assets < 800:
             time.sleep(wait_time * 12)
         else:
-            time.sleep(wait_time * 60)
+            time.sleep(wait_time * 72)
 
         new_ping_result = verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
         # Verifies whether Read and Sent readings are increasing after restart
@@ -313,7 +313,7 @@ class TestMultiAssets:
         if not skip_verify_north_interface:
             assert old_ping_result['dataSent'] < new_ping_result['dataSent']
             _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries,
-                           total_benchmark_services, PER_BENCHMARK_ASSET_COUNT)
+                           total_benchmark_services, num_assets_per_service)
 
     # @pytest.mark.skip(reason="no way of currently testing this")
     def test_multiple_assets_with_reconfig(self, reset_fledge, start_north, read_data_from_pi_web_api, skip_verify_north_interface,
@@ -327,24 +327,24 @@ class TestMultiAssets:
                 on endpoint GET /fledge/asset"""
 
         total_benchmark_services = 3
-        PER_BENCHMARK_ASSET_COUNT = (num_assets//(total_benchmark_services*2))
-        num_assets = 2 * PER_BENCHMARK_ASSET_COUNT
+        num_assets_per_service = (num_assets//(total_benchmark_services*2))
+        num_assets = 2 * num_assets_per_service
         # Total number of assets that would be created
 
         # Number of assets that would be created initially
-        total_assets = PER_BENCHMARK_ASSET_COUNT * total_benchmark_services
+        total_assets = num_assets_per_service * total_benchmark_services
 
         for count in range(total_benchmark_services):
             service_name = BENCHMARK_SOUTH_SVC_NAME + "{}".format(count + 1)
-            add_benchmark(fledge_url, service_name, count + 1, PER_BENCHMARK_ASSET_COUNT)
+            add_benchmark(fledge_url, service_name, count + 1, num_assets_per_service)
             verify_service_added(fledge_url, service_name)
 
         # Wait until total_assets are created
-        time.sleep(PER_BENCHMARK_ASSET_COUNT + 2 * wait_time)
+        time.sleep(num_assets_per_service + 2 * wait_time)
         verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
         verify_asset(fledge_url, total_assets)
 
-        verify_asset_tracking_details(fledge_url, total_assets, total_benchmark_services, PER_BENCHMARK_ASSET_COUNT)
+        verify_asset_tracking_details(fledge_url, total_assets, total_benchmark_services, num_assets_per_service)
 
         # With reconfig, number of assets are doubled in each south service
         payload = {"numAssets": "{}".format(num_assets)}
@@ -366,12 +366,12 @@ class TestMultiAssets:
         old_ping_result = verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
 
         # Wait for read and sent readings to increase
-        # Sent readings start increasing after 2 mins when mins when assets are more than 200 hundred and 
-        # it may take 10 mins when assets are 800-900.
-        if num_assets<800:
+        # Sent readings start increasing after 2 mins when assets are more than 200 hundred and 
+        # it may take more 10 mins when assets are 800-900.
+        if num_assets < 800:
             time.sleep(wait_time * 12)
         else:
-            time.sleep(wait_time * 60)
+            time.sleep(wait_time * 72)
 
         new_ping_result = verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
         # Verifies whether Read and Sent readings are increasing after restart
@@ -380,4 +380,4 @@ class TestMultiAssets:
         if not skip_verify_north_interface:
             assert old_ping_result['dataSent'] < new_ping_result['dataSent']
             _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries,
-                           total_benchmark_services, PER_BENCHMARK_ASSET_COUNT)
+                           total_benchmark_services, num_assets_per_service)

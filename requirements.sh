@@ -245,7 +245,8 @@ elif apt --version 2>/dev/null; then
 	# avoid interactive questions
 	DEBIAN_FRONTEND=noninteractive apt install -yq libssl-dev
 
-	apt install -y avahi-daemon ca-certificates curl
+	if uname -a | grep -i moxa > /dev/null; then sudo apt purge -y libcurl3 && sudo apt install -y libcurl3=7.52.1-5+deb9u16 curl=7.52.1-5+deb9u16; fi
+	apt install -y avahi-daemon ca-certificates
 	apt install -y cmake g++ make build-essential autoconf automake uuid-dev
 	apt install -y libtool libboost-dev libboost-system-dev libboost-thread-dev libpq-dev libz-dev
 	apt install -y python-dev python3-dev python3-pip python3-numpy

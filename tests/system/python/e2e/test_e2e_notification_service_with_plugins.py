@@ -324,6 +324,7 @@ class TestSentAndReceiveNotification:
 class TestStartStopNotificationService:
     def test_shutdown_service_with_schedule_disable(self, fledge_url, disable_schedule, wait_time):
         disable_schedule(fledge_url, SERVICE_NAME)
+        pause_for_x_seconds(x=wait_time)
         _verify_service(fledge_url, status='shutdown')
         pause_for_x_seconds(x=wait_time)
         # After shutdown there should be 1 entry for NTFSD (shutdown)

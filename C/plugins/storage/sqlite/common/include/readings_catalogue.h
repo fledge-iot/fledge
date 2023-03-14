@@ -131,10 +131,11 @@ public:
 
 	void          preallocateReadingsTables(int dbId);
 	bool          loadAssetReadingCatalogue();
+	bool          loadEmptyAssetReadingCatalogue();
 
 	bool          latestDbUpdate(sqlite3 *dbHandle, int newDbId);
 	void          preallocateNewDbsRange(int dbIdStart, int dbIdEnd);
-	bool          getEmptyReadingTableReference(tyReadingReference& emptyTableReference);
+	tyReadingReference getEmptyReadingTableReference(std::string& asset);
 	tyReadingReference getReadingReference(Connection *connection, const char *asset_code);
 	bool          attachDbsToAllConnections();
 	std::string   sqlConstructMultiDb(std::string &sqlCmdBase, std::vector<std::string>  &assetCodes, bool considerExclusion=false);
@@ -220,6 +221,10 @@ private:
 	int                                           m_nReadingsAvailable = 0; // Number of readings tables available
 	std::map <std::string, std::pair<int, int>>   m_AssetReadingCatalogue={ // In memory structure to identify in which database/table an asset is stored
 
+		// asset_code  - reading Table Id, Db Id
+		// {"",         ,{1               ,1 }}
+	};
+	std::map <std::string, std::pair<int, int>>   m_EmptyAssetReadingCatalogue={ // In memory structure to identify in which database/table an asset is empty 
 		// asset_code  - reading Table Id, Db Id
 		// {"",         ,{1               ,1 }}
 	};

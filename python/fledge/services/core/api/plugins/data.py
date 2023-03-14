@@ -72,6 +72,7 @@ async def get_persist_plugins(request: web.Request) -> web.Response:
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
+        _logger.error("Get persist plugins failed. Found error: {}".format(msg))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({'persistent': plugins})
@@ -106,6 +107,7 @@ async def get(request: web.Request) -> web.Response:
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
+        _logger.error("Get plugin data failed. Found error: {}".format(msg))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({'data': data})
@@ -152,6 +154,7 @@ async def add(request: web.Request) -> web.Response:
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
+        _logger.error("Plugin data create failed. Found error: {}".format(msg))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({'result': "{} key added successfully.".format(key)})
@@ -191,6 +194,7 @@ async def delete(request: web.Request) -> web.Response:
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
+        _logger.error("Plugin data delete failed. Found error: {}".format(msg))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({'result': "{} deleted successfully.".format(key)})

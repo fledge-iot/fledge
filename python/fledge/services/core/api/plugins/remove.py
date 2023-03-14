@@ -76,14 +76,14 @@ async def remove_plugin(request: web.Request) -> web.Response:
             if notification_instances_plugin_used_in:
                 err_msg = "{} cannot be removed. This is being used by {} instances.".format(
                     name, notification_instances_plugin_used_in)
-                _logger.error(err_msg)
+                _logger.warning(err_msg)
                 raise RuntimeError(err_msg)
         else:
             get_tracked_plugins = await _check_plugin_usage(plugin_type, name)
             if get_tracked_plugins:
                 e = "{} cannot be removed. This is being used by {} instances.".\
                     format(name, get_tracked_plugins[0]['service_list'])
-                _logger.error(e)
+                _logger.warning(e)
                 raise RuntimeError(e)
             else:
                 _logger.info("No entry found for {name} plugin in asset tracker; or "
@@ -136,7 +136,9 @@ async def remove_plugin(request: web.Request) -> web.Response:
         msg = str(err)
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": "Storage error: {}".format(msg)}))
     except Exception as ex:
-        raise web.HTTPInternalServerError(reason=str(ex), body=json.dumps({'message': str(ex)}))
+        msg = str(ex)
+        _logger.error("Remove Plugin failed. Found error: {}".format(msg))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({'message': msg}))
     else:
         return web.json_response(result_payload)
 

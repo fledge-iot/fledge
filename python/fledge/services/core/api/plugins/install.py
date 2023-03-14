@@ -189,7 +189,9 @@ async def add_plugin(request: web.Request) -> web.Response:
     except (TypeError, ValueError) as ex:
         raise web.HTTPBadRequest(reason=str(ex))
     except Exception as ex:
-        raise web.HTTPInternalServerError(reason=str(ex))
+        msg = str(ex)
+        _LOGGER.error("Install Plugin failed. Found error: {}".format(msg))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({'message': msg}))
     else:
         return web.json_response(result_payload)
 
@@ -257,7 +259,7 @@ def copy_file_install_requirement(dir_files: list, plugin_type: str, file_name: 
     if so_1_file:
         if not so_file:
             err_msg = "Symlink file is missing."
-            _LOGGER.error(err_msg)
+            _LOGGER.debug(err_msg)
             raise FileNotFoundError(err_msg)
     _dir = []
     for s in dir_files:
@@ -325,7 +327,7 @@ def install_package_from_repo(name: str, pkg_mgt: str, version: str, uid: uuid, 
             # If max upgrade per day is set to 1, then an upgrade can not occurs until 24 hours after the last accessed upgrade.
             # If set to 2 then this drops to 12 hours between upgrades, 3 would result in 8 hours between calls and so on.
             if duration_in_sec > (24 / int(max_upgrade_cat_item['value'])) * 60 * 60 or not last_accessed_time:
-                _LOGGER.info("Attempting upgrade on {}...".format(now))
+                _LOGGER.info("Attempting {} upgrade on {}...".format(pkg_mgt, now))
                 cmd = "sudo {} -y upgrade".format(pkg_mgt) if pkg_mgt == 'apt' else "sudo {} -y update".format(pkg_mgt)
                 ret_code = os.system(cmd + " > {} 2>&1".format(stdout_file_path))
                 if ret_code != 0:
@@ -336,7 +338,7 @@ def install_package_from_repo(name: str, pkg_mgt: str, version: str, uid: uuid, 
                 else:
                     pkg_cache_mgr['upgrade']['last_accessed_time'] = now
             else:
-                _LOGGER.warning("Maximum upgrade exceeds the limit for the day.")
+                _LOGGER.warning("Maximum {} upgrade exceeds the limit for the day.".format(pkg_mgt))
             msg = "updated"
     cmd = "sudo {} -y install {}".format(pkg_mgt, name)
     if version:

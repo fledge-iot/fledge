@@ -76,7 +76,6 @@ async def update_package(request):
             manual_schedule = ManualSchedule()
 
             if not manual_schedule:
-                _logger.error(error_message)
                 raise ValueError(error_message)
             # Set schedule fields
             manual_schedule.name = _FLEDGE_MANUAL_UPDATE_SCHEDULE
@@ -106,6 +105,7 @@ async def update_package(request):
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
+        _logger.error("Update Package failed. Found error: {}".format(msg))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({"status": "Running", "message": status_message})
@@ -150,7 +150,7 @@ async def get_updates(request: web.Request) -> web.Response:
         return web.json_response({'updates': upgradable_packages})
     try:
         process_output = stdout.decode("utf-8")
-        _logger.info(process_output)
+        _logger.debug(process_output)
         # split on new-line
         word_list = re.split(r"\n+", process_output)
 

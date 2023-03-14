@@ -79,7 +79,6 @@ def __remove_ott_for_user(user_id):
     try:
         _user_id = int(user_id)
     except ValueError:
-        _logger.error("User id given is not an integer.")
         return
     for k, v in OTT.OTT_MAP.items():
         if v[0] == _user_id:
@@ -160,7 +159,6 @@ async def login(request):
         password = _data.get('password')
 
         if not username or not password:
-            _logger.warning("Username and password are required to login.")
             raise web.HTTPBadRequest(reason="Username or password is missing")
 
         username = str(username).lower()
@@ -172,12 +170,10 @@ async def login(request):
         try:
             uid, token, is_admin = await User.Objects.login(username, password, host)
         except (User.DoesNotExist, User.PasswordDoesNotMatch, ValueError) as ex:
-            _logger.warning(str(ex))
             raise web.HTTPNotFound(reason=str(ex))
         except User.PasswordExpired as ex:
             # delete all user token for this user
             await User.Objects.delete_user_tokens(str(ex))
-
             msg = 'Your password has been expired. Please set your password again.'
             _logger.warning(msg)
             raise web.HTTPUnauthorized(reason=msg)
@@ -219,7 +215,9 @@ async def get_ott(request):
         if int(result_role['rows'][0]['role_id']) == 1:
             is_admin = True
     except Exception as ex:
-        raise web.HTTPBadRequest(reason="The request failed due to {}".format(ex))
+        msg = str(ex)
+        _logger.error("OTT token failed. Found error: {}".format(msg))
+        raise web.HTTPBadRequest(reason="The request failed due to {}".format(msg))
     else:
         now_time = datetime.datetime.now()
         p = {'uid': user_id, 'exp': now_time}
@@ -286,7 +284,7 @@ async def logout(request):
         # Remove OTT token for this user if there.
         __remove_ott_for_user(user_id)
 
-        _logger.info("User with id:<{}> has been logged out successfully.".format(int(user_id)))
+        _logger.info("User with ID:<{}> has been logged out successfully.".format(int(user_id)))
     else:
         # requester is not an admin but trying to take action for another user
         raise web.HTTPUnauthorized(reason="admin privileges are required to logout other user")
@@ -322,8 +320,7 @@ async def get_user(request):
             if user_id <= 0:
                 raise ValueError
         except ValueError:
-            _logger.error("Get user requested with bad user id.")
-            raise web.HTTPBadRequest(reason="Bad user id")
+            raise web.HTTPBadRequest(reason="Bad user ID")
 
     if 'username' in request.query and request.query['username'] != '':
         user_name = request.query['username'].lower()
@@ -341,7 +338,6 @@ async def get_user(request):
             result = u
         except User.DoesNotExist as ex:
             msg = str(ex)
-            _logger.warning(msg)
             raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     else:
         users = await User.Objects.all()
@@ -388,44 +384,36 @@ async def create_user(request):
 
     if not username:
         msg = "Username is required to create user."
-        _logger.error(msg)
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
 
     if not isinstance(username, str) or not isinstance(access_method, str) or not isinstance(real_name, str) \
             or not isinstance(description, str):
         msg = "Values should be passed in string."
-        _logger.error(msg)
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
 
     username = username.lower().strip().replace(" ", "")
     if len(username) < MIN_USERNAME_LENGTH:
         msg = "Username should be of minimum 4 characters."
-        _logger.error(msg)
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     if not re.match(USERNAME_REGEX_PATTERN, username):
         msg = "Dot, hyphen, underscore special characters are allowed for username."
-        _logger.error(msg)
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
 
     if access_method.lower() not in ['any', 'cert', 'pwd']:
         msg = "Invalid access method. Must be 'any' or 'cert' or 'pwd'."
-        _logger.error(msg)
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
 
     if access_method == 'pwd' and not password:
         msg = "Password should not be an empty."
-        _logger.error(msg)
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
 
     if access_method != 'cert':
         if password is not None:
             if not re.match(PASSWORD_REGEX_PATTERN, str(password)):
-                _logger.error(PASSWORD_ERROR_MSG)
                 raise web.HTTPBadRequest(reason=PASSWORD_ERROR_MSG, body=json.dumps({"message": PASSWORD_ERROR_MSG}))
 
     if not (await is_valid_role(role_id)):
-        msg = "Invalid role id."
-        _logger.error(msg)
+        msg = "Invalid role ID."
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     try:
         await User.Objects.get(username=username)
@@ -451,11 +439,10 @@ async def create_user(request):
             u["description"] = user.pop('description')
     except ValueError as err:
         msg = str(err)
-        _logger.error(msg)
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except Exception as exc:
         msg = str(exc)
-        _logger.exception(str(exc))
+        _logger.error("Create user failed. Found error:{}".format(msg))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     msg = "{} user has been created successfully.".format(username)
     _logger.info(msg)
@@ -503,6 +490,7 @@ async def update_me(request):
                 raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
             except Exception as exc:
                 msg = str(exc)
+                _logger.error("Update profile user failed. Found error: {}".format(msg))
                 raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         msg = "Nothing to update."
@@ -568,10 +556,11 @@ async def update_user(request):
         msg = str(err)
         raise web.HTTPBadRequest(reason=str(err), body=json.dumps({"message": msg}))
     except User.DoesNotExist:
-        msg = "User with id:<{}> does not exist".format(int(user_id))
+        msg = "User with ID:<{}> does not exist".format(int(user_id))
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as exc:
         msg = str(exc)
+        _logger.error("Update user by admin failed. Found error: {}".format(msg))
         raise web.HTTPInternalServerError(reason=str(exc), body=json.dumps({"message": msg}))
     return web.json_response({'user_info': user_info})
 
@@ -590,7 +579,7 @@ async def update_password(request):
     try:
         int(user_id)
     except ValueError:
-        msg = "User id should be in integer."
+        msg = "User ID should be in integer."
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
 
     data = await request.json()
@@ -598,25 +587,20 @@ async def update_password(request):
     new_password = data.get('new_password')
     if not current_password or not new_password:
         msg = "Current or new password is missing."
-        _logger.error(msg)
         raise web.HTTPBadRequest(reason=msg)
 
     if new_password and not isinstance(new_password, str):
-        _logger.error(PASSWORD_ERROR_MSG)
         raise web.HTTPBadRequest(reason=PASSWORD_ERROR_MSG)
     if new_password and not re.match(PASSWORD_REGEX_PATTERN, new_password):
-        _logger.error(PASSWORD_ERROR_MSG)
         raise web.HTTPBadRequest(reason=PASSWORD_ERROR_MSG)
 
     if current_password == new_password:
         msg = "New password should not be same as current password."
-        _logger.error(msg)
         raise web.HTTPBadRequest(reason=msg)
 
     user_id = await User.Objects.is_user_exists(user_id, current_password)
     if not user_id:
         msg = 'Invalid current password.'
-        _logger.warning(msg)
         raise web.HTTPNotFound(reason=msg)
 
     try:
@@ -625,21 +609,19 @@ async def update_password(request):
         # Remove OTT token for this user if there.
         __remove_ott_for_user(user_id)
     except ValueError as ex:
-        _logger.error(str(ex))
         raise web.HTTPBadRequest(reason=str(ex))
     except User.DoesNotExist:
-        msg = "User with id:<{}> does not exist.".format(int(user_id))
-        _logger.error(msg)
+        msg = "User with ID:<{}> does not exist.".format(int(user_id))
         raise web.HTTPNotFound(reason=msg)
     except User.PasswordAlreadyUsed:
         msg = "The new password should be different from previous 3 used."
-        _logger.warning(msg)
         raise web.HTTPBadRequest(reason=msg)
     except Exception as exc:
-        _logger.exception(str(exc))
-        raise web.HTTPInternalServerError(reason=str(exc))
+        msg = str(exc)
+        _logger.error("Update user failed. Found error: {}".format(msg))
+        raise web.HTTPInternalServerError(reason=msg)
 
-    msg = "Password has been updated successfully for user id:<{}>.".format(int(user_id))
+    msg = "Password has been updated successfully for user ID:<{}>.".format(int(user_id))
     _logger.info(msg)
     return web.json_response({'message': msg})
 
@@ -696,12 +678,13 @@ async def enable_user(request):
         msg = str(err)
         raise web.HTTPBadRequest(reason=str(err), body=json.dumps({"message": msg}))
     except User.DoesNotExist:
-        msg = "User with id:<{}> does not exist.".format(int(user_id))
+        msg = "User with ID:<{}> does not exist.".format(int(user_id))
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as exc:
         msg = str(exc)
+        _logger.error("Enable/Disable user failed. Found error: {}".format(msg))
         raise web.HTTPInternalServerError(reason=str(exc), body=json.dumps({"message": msg}))
-    return web.json_response({'message': 'User with id:<{}> has been {} successfully.'.format(int(user_id), _text)})
+    return web.json_response({'message': 'User with ID:<{}> has been {} successfully.'.format(int(user_id), _text)})
 
 
 @has_permission("admin")
@@ -728,19 +711,15 @@ async def reset(request):
 
     if not role_id and not password:
         msg = "Nothing to update the user."
-        _logger.warning(msg)
         raise web.HTTPBadRequest(reason=msg)
 
     if role_id and not (await is_valid_role(role_id)):
         msg = "Invalid or bad role id."
-        _logger.error(msg)
         return web.HTTPBadRequest(reason=msg)
 
     if password and not isinstance(password, str):
-        _logger.error(PASSWORD_ERROR_MSG)
         raise web.HTTPBadRequest(reason=PASSWORD_ERROR_MSG)
     if password and not re.match(PASSWORD_REGEX_PATTERN, password):
-        _logger.error(PASSWORD_ERROR_MSG)
         raise web.HTTPBadRequest(reason=PASSWORD_ERROR_MSG)
 
     user_data = {}
@@ -756,21 +735,20 @@ async def reset(request):
         __remove_ott_for_user(user_id)
 
     except ValueError as ex:
-        _logger.error(str(ex))
         raise web.HTTPBadRequest(reason=str(ex))
     except User.DoesNotExist:
-        msg = "User with id:<{}> does not exist.".format(int(user_id))
-        _logger.error(msg)
+        msg = "User with ID:<{}> does not exist.".format(int(user_id))
         raise web.HTTPNotFound(reason=msg)
     except User.PasswordAlreadyUsed:
         msg = "The new password should be different from previous 3 used."
         _logger.warning(msg)
         raise web.HTTPBadRequest(reason=msg)
     except Exception as exc:
-        _logger.exception(str(exc))
-        raise web.HTTPInternalServerError(reason=str(exc))
+        msg = str(exc)
+        _logger.error("Reset user failed. Found error: {}".format(msg))
+        raise web.HTTPInternalServerError(reason=msg)
 
-    msg = "User with id:<{}> has been updated successfully.".format(int(user_id))
+    msg = "User with ID:<{}> has been updated successfully.".format(int(user_id))
     _logger.info(msg)
     return web.json_response({'message': msg})
 
@@ -790,7 +768,6 @@ async def delete_user(request):
     try:
         user_id = int(request.match_info.get('user_id'))
     except ValueError as ex:
-        _logger.error(str(ex))
         raise web.HTTPBadRequest(reason=str(ex))
 
     if user_id == 1:
@@ -813,17 +790,16 @@ async def delete_user(request):
         __remove_ott_for_user(user_id)
 
     except ValueError as ex:
-        _logger.error(str(ex))
         raise web.HTTPBadRequest(reason=str(ex))
     except User.DoesNotExist:
-        msg = "User with id:<{}> does not exist.".format(int(user_id))
-        _logger.error(msg)
+        msg = "User with ID:<{}> does not exist.".format(int(user_id))
         raise web.HTTPNotFound(reason=msg)
     except Exception as exc:
-        _logger.exception(str(exc))
-        raise web.HTTPInternalServerError(reason=str(exc))
+        msg = str(exc)
+        _logger.error("Delete user failed. Found error: {}".format(msg))
+        raise web.HTTPInternalServerError(reason=msg)
 
-    _logger.info("User with id:<{}> has been deleted successfully.".format(int(user_id)))
+    _logger.info("User with ID:<{}> has been deleted successfully.".format(int(user_id)))
 
     return web.json_response({'message': "User has been deleted successfully."})
 

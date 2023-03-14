@@ -165,7 +165,9 @@ async def create_category(request):
     except LookupError as ex:
         raise web.HTTPNotFound(reason=str(ex))
     except Exception as ex:
-        raise web.HTTPInternalServerError(reason=str(ex))
+        msg = str(ex)
+        _logger.error("Create category failed. Found error: {}".format(msg))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     return web.json_response(result)
 
 
@@ -189,7 +191,9 @@ async def delete_category(request):
     except (ValueError, TypeError) as ex:
         raise web.HTTPBadRequest(reason=ex)
     except Exception as ex:
-        raise web.HTTPInternalServerError(reason=ex)
+        msg = str(ex)
+        _logger.error("Delete category failed. Found error: {}".format(msg))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({'result': 'Category {} deleted successfully.'.format(category_name)})
 
@@ -354,7 +358,9 @@ async def update_configuration_item_bulk(request):
     except (ValueError, TypeError) as ex:
         raise web.HTTPBadRequest(reason=ex)
     except Exception as ex:
-        raise web.HTTPInternalServerError(reason=ex)
+        msg = str(ex)
+        _logger.error("Bulk update category failed. Found error: {}".format(msg))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         cat = await cf_mgr.get_category_all_items(category_name)
         try:
@@ -430,7 +436,9 @@ async def add_configuration_item(request):
     except NameError as ex:
         raise web.HTTPNotFound(reason=str(ex))
     except Exception as ex:
-        raise web.HTTPInternalServerError(reason=str(ex))
+        msg = str(ex)
+        _logger.error("Create config item failed. Found error: {}".format(msg))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
 
     return web.json_response({"message": "{} config item has been saved for {} category".format(new_config_item, category_name)})
 
@@ -656,7 +664,9 @@ async def upload_script(request):
 
     except Exception as ex:
         os.remove(script_file_path)
-        raise web.HTTPBadRequest(reason=ex)
+        msg = str(ex)
+        _logger.error("Upload script for a config item failed. Found error: {}".format(msg))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         result = await cf_mgr.get_category_item(category_name, config_item)
         return web.json_response(result)

@@ -37,7 +37,6 @@ def get_plugin_info(name, dir):
             _logger.error("{} C plugin get info failed due to {}".format(name, str(err)))
         return {}
     except ValueError as err:
-        _logger.error(str(err))
         return {}
     except Exception as ex:
         _logger.error("{} C plugin get info failed due to {}".format(name, str(ex)))

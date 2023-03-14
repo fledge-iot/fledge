@@ -184,7 +184,7 @@ async def fetch_available_packages(package_type: str = "") -> tuple:
     # If max update per day is set to 1, then an update can not occurs until 24 hours after the last accessed update.
     # If set to 2 then this drops to 12 hours between updates, 3 would result in 8 hours between calls and so on.
     if duration_in_sec > (24 / int(max_update_cat_item['value'])) * 60 * 60 or not last_accessed_time:
-        _logger.info("Attempting update on {}...".format(now))
+        _logger.info("Attempting {} update on {}...".format(pkg_mgt, now))
         cmd = "sudo {} -y update > {} 2>&1".format(pkg_mgt, stdout_file_path)
         if pkg_mgt == 'yum':
             cmd = "sudo {} check-update > {} 2>&1".format(pkg_mgt, stdout_file_path)
@@ -194,7 +194,7 @@ async def fetch_available_packages(package_type: str = "") -> tuple:
         # fetch available package caching always clear on every update request
         _get_available_packages.cache_clear()
     else:
-        _logger.warning("Maximum update exceeds the limit for the day.")
+        _logger.warning("Maximum {} update exceeds the limit for the day.".format(pkg_mgt))
     ttl_cat_item_val = int(category['listAvailablePackagesCacheTTL']['value'])
     if ttl_cat_item_val > 0:
         last_accessed_time = pkg_cache_mgr['list']['last_accessed_time']

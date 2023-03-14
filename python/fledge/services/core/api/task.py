@@ -164,29 +164,24 @@ EOF
             plugin_info = apiutils.get_plugin_info(plugin, dir=task_type)
             if not plugin_info:
                 msg = "Plugin {} does not appear to be a valid plugin.".format(plugin)
-                _logger.error(msg)
                 return web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
             valid_c_plugin_info_keys = ['name', 'version', 'type', 'interface', 'flag', 'config']
             for k in valid_c_plugin_info_keys:
                 if k not in list(plugin_info.keys()):
                     msg = "Plugin info does not appear to be a valid for {} plugin. '{}' item not found.".format(
                         plugin, k)
-                    _logger.error(msg)
                     return web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
             if plugin_info['type'] != task_type:
                 msg = "Plugin of {} type is not supported.".format(plugin_info['type'])
-                _logger.error(msg)
                 return web.HTTPBadRequest(reason=msg)
             plugin_config = plugin_info['config']
             if not plugin_config:
-                _logger.exception("Plugin {} import problem from path {} due to {}".format(plugin,
-                                                                                     plugin_module_path, str(ex)))
-                raise web.HTTPNotFound(reason='Plugin "{}" import problem from path "{}"'.format(plugin,
-                                                                                                 plugin_module_path))
+                raise web.HTTPNotFound(reason='Plugin "{}" import problem from path "{}"'.format(
+                    plugin, plugin_module_path))
         except TypeError as ex:
             raise web.HTTPBadRequest(reason=str(ex))
         except Exception as ex:
-            _logger.exception("Failed to fetch plugin configuration due to {}".format(str(ex)))
+            _logger.error("Failed to fetch plugin configuration due to {}".format(str(ex)))
             raise web.HTTPInternalServerError(reason='Failed to fetch plugin configuration.')
 
         storage = connect.get_storage_async()
@@ -203,7 +198,7 @@ EOF
 
         if result['count'] >= 1:            
             msg = 'Unable to reuse name {0}, already used by a previous task.'.format(name)
-            _logger.error(msg)
+            _logger.warning(msg)
             raise web.HTTPBadRequest(reason=msg)
 
         # Check whether category name already exists
@@ -226,10 +221,10 @@ EOF
             try:
                 res = await storage.insert_into_tbl("scheduled_processes", payload)
             except StorageServerError as ex:
-                _logger.error("Failed to create scheduled process due to {}".format(ex.error))
+                _logger.exception("Failed to create scheduled process due to {}".format(ex.error))
                 raise web.HTTPInternalServerError(reason='Failed to create north instance.')
             except Exception as ex:
-                _logger.exception("Failed to create scheduled process due to {}".format(str(ex)))
+                _logger.error("Failed to create scheduled process due to {}".format(str(ex)))
                 raise web.HTTPInternalServerError(reason='Failed to create north instance.')
 
         # If successful then create a configuration entry from plugin configuration
@@ -252,7 +247,7 @@ EOF
                     await config_mgr.set_category_item_value_entry(name, k, v['value'])
         except Exception as ex:
             await config_mgr.delete_category_and_children_recursively(name)
-            _logger.exception("Failed to create plugin configuration due to {}".format(str(ex)))
+            _logger.error("Failed to create plugin configuration due to {}".format(str(ex)))
             raise web.HTTPInternalServerError(reason='Failed to create plugin configuration. {}'.format(ex))
 
         # If all successful then lastly add a schedule to run the new task at startup
@@ -277,7 +272,7 @@ EOF
             schedule = await server.Server.scheduler.get_schedule_by_name(name)
         except StorageServerError as ex:
             await config_mgr.delete_category_and_children_recursively(name)
-            _logger.error("Failed to create north instance due to {}".format(ex.error))
+            _logger.exception("Failed to create north instance due to {}".format(ex.error))
             raise web.HTTPInternalServerError(reason='Failed to create north instance.')
         except Exception as ex:
             await config_mgr.delete_category_and_children_recursively(name)
@@ -325,9 +320,10 @@ async def delete_task(request):
         await delete_plugin_data(storage, north_instance)
         # update deprecated timestamp in asset_tracker
         await update_deprecated_ts_in_asset_tracker(storage, north_instance)
-
     except Exception as ex:
-        raise web.HTTPInternalServerError(reason=ex)
+        msg = str(ex)
+        _logger.error("Delete task failed. Found error: {}".format(msg))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({'result': 'North instance {} deleted successfully.'.format(north_instance)})
 

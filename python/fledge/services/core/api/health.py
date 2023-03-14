@@ -109,7 +109,7 @@ async def get_logging_health(request: web.Request) -> web.Response:
 
     except Exception as ex:
         msg = "Could not fetch service information due to {}".format(str(ex))
-        _LOGGER.exception(msg)
+        _LOGGER.error(msg)
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
 
     try:
@@ -122,7 +122,7 @@ async def get_logging_health(request: web.Request) -> web.Response:
 
     except Exception as ex:
         msg = "Failed to get disk stats for /var/log due to {}".format(str(ex))
-        _LOGGER.exception(msg)
+        _LOGGER.error(msg)
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(response)
@@ -208,7 +208,7 @@ async def get_storage_health(request: web.Request) -> web.Response:
         response['disk']['status'] = status
     except Exception as ex:
         msg = "Failed to get disk stats for storage service due to {}".format(str(ex))
-        _LOGGER.exception(msg)
+        _LOGGER.error(msg)
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(response)

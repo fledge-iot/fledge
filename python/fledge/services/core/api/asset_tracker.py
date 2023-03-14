@@ -69,6 +69,7 @@ async def get_asset_tracker_events(request: web.Request) -> web.Response:
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
+        _logger.error("Get asset tracker events failed. Found error: {}".format(msg))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({'track': response})
@@ -121,7 +122,7 @@ async def deprecate_asset_track_entry(request: web.Request) -> web.Response:
                             audit_details = {'asset': asset_name, 'service': svc_name, 'event': audit_event_name}
                             await audit.information('ASTDP', audit_details)
                         except:
-                            _logger.info("Failed to log the audit entry for {} deprecation.".format(asset_name))
+                            _logger.warning("Failed to log the audit entry for {} deprecation.".format(asset_name))
                             pass
                     else:
                         raise StorageServerError
@@ -143,6 +144,7 @@ async def deprecate_asset_track_entry(request: web.Request) -> web.Response:
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
+        _logger.error("Deprecate asset entry failed. Found error: {}".format(msg))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         msg = "For {} event, {} asset record entry has been deprecated.".format(event_name, asset_name)
@@ -236,6 +238,7 @@ async def get_datapoint_usage(request: web.Request) -> web.Response:
         raise web.HTTPBadRequest(reason=err_response, body=json.dumps({"message": err_response}))
     except Exception as ex:
         msg = str(ex)
+        _logger.error("Get asset tracker store datapoints failed. Found error: {}".format(msg))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(response)

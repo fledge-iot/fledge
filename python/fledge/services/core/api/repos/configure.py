@@ -136,7 +136,9 @@ async def add_package_repo(request: web.Request) -> web.Response:
         raise web.HTTPBadRequest(body=json.dumps({"message": "Failed to configure package repository",
                                                   "output_log": msg}), reason=msg)
     except Exception as ex:
-        raise web.HTTPInternalServerError(reason=str(ex))
+        msg = str(ex)
+        _LOGGER.error("Add Package repo failed. Found error: {}".format(msg))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({"message": "Package repository configured successfully.",
                                   "output_log": stdout_file_path})

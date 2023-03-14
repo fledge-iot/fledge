@@ -141,6 +141,7 @@ async def add_schedule_and_configuration(request: web.Request) -> web.Response:
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
+        _logger.error("Automation script schedule task failed. Found error: {}".format(msg))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         msg = "Schedule and configuration is created for an automation script with name {}".format(name)
@@ -190,6 +191,7 @@ async def get_all(request: web.Request) -> web.Response:
                     scripts.append(row)
     except Exception as ex:
         msg = str(ex)
+        _logger.error("Get Control script failed. Found error: {}".format(msg))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({"scripts": scripts})
@@ -246,6 +248,7 @@ async def get_by_name(request: web.Request) -> web.Response:
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
+        _logger.error("Get Control script by name failed. Found error: {}".format(msg))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(rows)
@@ -331,6 +334,7 @@ async def add(request: web.Request) -> web.Response:
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
+        _logger.error("Control script create failed. Found error: {}".format(msg))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(result)
@@ -422,6 +426,7 @@ async def update(request: web.Request) -> web.Response:
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
+        _logger.error("Control script update failed. Found error: {}".format(msg))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({"message": message})
@@ -481,6 +486,7 @@ async def delete(request: web.Request) -> web.Response:
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
+        _logger.error("Control script delete failed. Found error: {}".format(msg))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({"message": message})

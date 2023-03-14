@@ -73,6 +73,7 @@ async def get_acl(request: web.Request) -> web.Response:
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
+        _logger.error("Get ACL failed. Found error: {}".format(msg))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(acl_info)
@@ -139,6 +140,7 @@ async def add_acl(request: web.Request) -> web.Response:
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
+        _logger.error("ACL create failed. Found error: {}".format(msg))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(result)
@@ -204,6 +206,7 @@ async def update_acl(request: web.Request) -> web.Response:
         raise web.HTTPBadRequest(reason=message, body=json.dumps({"message": message}))
     except Exception as ex:
         message = str(ex)
+        _logger.error("ACL update failed. Found error: {}".format(message))
         raise web.HTTPInternalServerError(reason=message, body=json.dumps({"message": message}))
     else:
         # Fetch service name associated with acl
@@ -261,6 +264,7 @@ async def delete_acl(request: web.Request) -> web.Response:
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
+        _logger.error("ACL delete failed. Found error: {}".format(msg))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({"message": message})
@@ -273,8 +277,8 @@ async def attach_acl_to_service(request: web.Request) -> web.Response:
     :Example:
         curl -H "authorization: $AUTH_TOKEN" -sX PUT http://localhost:8081/fledge/service/Sine/ACL -d '{"acl_name": "testACL"}'
     """
+    svc_name = request.match_info.get('service_name', None)
     try:
-        svc_name = request.match_info.get('service_name', None)
         storage = connect.get_storage_async()
         payload = PayloadBuilder().SELECT(["id", "enabled"]).WHERE(['schedule_name', '=', svc_name]).payload()
         # check service name existence
@@ -348,6 +352,7 @@ async def attach_acl_to_service(request: web.Request) -> web.Response:
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
+        _logger.error("Attach ACL to {} service failed. Found error: {}".format(svc_name, msg))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         # Call service security endpoint with attachACL = acl_name
@@ -365,8 +370,8 @@ async def detach_acl_from_service(request: web.Request) -> web.Response:
     :Example:
         curl -H "authorization: $AUTH_TOKEN" -sX DELETE http://localhost:8081/fledge/service/Sine/ACL
     """
+    svc_name = request.match_info.get('service_name', None)
     try:
-        svc_name = request.match_info.get('service_name', None)
         storage = connect.get_storage_async()
         payload = PayloadBuilder().SELECT(["id", "enabled"]).WHERE(['schedule_name', '=', svc_name]).payload()
         # check service name existence
@@ -423,6 +428,7 @@ async def detach_acl_from_service(request: web.Request) -> web.Response:
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
+        _logger.error("Detach ACL from {} service failed. Found error: {}".format(svc_name, msg))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({"message": message})

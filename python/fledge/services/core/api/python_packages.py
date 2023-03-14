@@ -83,7 +83,7 @@ async def install_package(request: web.Request) -> web.Response:
 
     if installed_package:
         # Package already exists
-        _LOGGER.info("Package: {} Version: {} already installed.".format(installed_package, installed_version))
+        _LOGGER.warning("Package: {} Version: {} already installed.".format(installed_package, installed_version))
         return web.HTTPConflict(reason="Package already installed.", 
                                 body=json.dumps({"message": "Package {} version {} already installed."
                                                 .format(installed_package, installed_version)}))
@@ -104,7 +104,7 @@ async def install_package(request: web.Request) -> web.Response:
                 audit_message["version"] = input_package_version
             await pip_audit_log.information('PIPIN', audit_message)
         except:
-            _LOGGER.exception("Failed to log the audit entry for PIPIN, for package {} install", format(
+            _LOGGER.error("Failed to log the audit entry for PIPIN, for package {} install", format(
                 input_package_name))
 
         response = "Package {} version {} installed successfully.".format(input_package_name, input_package_version)

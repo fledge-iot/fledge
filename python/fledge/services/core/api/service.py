@@ -364,10 +364,9 @@ async def add_service(request):
                     _logger.exception("{} Detailed error logs are: {}".format(msg, str(ex)))
                     raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
             except TypeError as ex:
-                _logger.exception(str(ex))
                 raise web.HTTPBadRequest(reason=str(ex))
             except Exception as ex:
-                _logger.exception("Failed to fetch plugin configuration. %s", str(ex))
+                _logger.error("Failed to fetch plugin configuration. %s", str(ex))
                 raise web.HTTPInternalServerError(reason='Failed to fetch plugin configuration')
         elif service_type == 'notification':
             if not os.path.exists(_FLEDGE_ROOT + "/services/fledge.services.{}".format(service_type)):
@@ -421,7 +420,7 @@ async def add_service(request):
                 _logger.exception("Failed to create scheduled process. %s", ex.error)
                 raise web.HTTPInternalServerError(reason='Failed to create service.')
             except Exception as ex:
-                _logger.exception("Failed to create scheduled process. %s", str(ex))
+                _logger.error("Failed to create scheduled process. %s", str(ex))
                 raise web.HTTPInternalServerError(reason='Failed to create service.')
 
         # check that notification service is not already registered, right now notification service LIMIT to 1
@@ -474,7 +473,7 @@ async def add_service(request):
 
             except Exception as ex:
                 await config_mgr.delete_category_and_children_recursively(name)
-                _logger.exception("Failed to create plugin configuration. %s", str(ex))
+                _logger.error("Failed to create plugin configuration. %s", str(ex))
                 raise web.HTTPInternalServerError(reason='Failed to create plugin configuration. {}'.format(ex))
 
         # If all successful then lastly add a schedule to run the new service at startup
@@ -496,7 +495,7 @@ async def add_service(request):
             raise web.HTTPInternalServerError(reason='Failed to create service.')
         except Exception as ex:
             await config_mgr.delete_category_and_children_recursively(name)
-            _logger.exception("Failed to create service. %s", str(ex))
+            _logger.error("Failed to create service. %s", str(ex))
             raise web.HTTPInternalServerError(reason='Failed to create service.')
     except ValueError as err:
         msg = str(err)

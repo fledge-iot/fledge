@@ -134,20 +134,19 @@ async def create_filter(request: web.Request) -> web.Response:
             return web.json_response({'filter': filter_name, 'description': filter_desc, 'value': category_info})
     except ValueError as err:
         msg = str(err)
-        _LOGGER.error("Add filter, caught value error: {}".format(msg))
         raise web.HTTPNotFound(reason=msg)
     except TypeError as err:
         msg = str(err)
-        _LOGGER.error("Add filter, caught type error: {}".format(msg))
         raise web.HTTPBadRequest(reason=msg)
     except StorageServerError as ex:
+        msg = ex.error
         await _delete_configuration_category(storage, filter_name)  # Revert configuration entry
-        _LOGGER.exception("Failed to create filter with: {}".format(ex.error))
-        raise web.HTTPInternalServerError(reason='Failed to create filter.')
+        _LOGGER.exception("Failed to create filter with: {}".format(msg))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
-        _LOGGER.exception("Add filter, caught exception: {}".format(msg))
-        raise web.HTTPInternalServerError(reason=msg)
+        _LOGGER.error("Add filter, caught exception: {}".format(msg))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
 
 
 async def add_filters_pipeline(request: web.Request) -> web.Response:
@@ -273,20 +272,18 @@ async def add_filters_pipeline(request: web.Request) -> web.Response:
                 {'result': "Filter pipeline {} updated successfully".format(json.loads(result['value']))})
     except ValueError as err:
         msg = str(err)
-        _LOGGER.error("Add filters pipeline, caught value error: {}".format(msg))
         raise web.HTTPNotFound(reason=msg)
     except TypeError as err:
         msg = str(err)
-        _LOGGER.error("Add filters pipeline, caught type error: {}".format(msg))
         raise web.HTTPBadRequest(reason=msg)
     except StorageServerError as ex:
-        msg = str(ex.error)
-        _LOGGER.error("Add filters pipeline, caught storage error: {}".format(msg))
-        raise web.HTTPInternalServerError(reason=msg)
+        msg = ex.error
+        _LOGGER.exception("Add filters pipeline, caught storage error: {}".format(msg))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
-        _LOGGER.exception("Add filters pipeline, caught exception: {}".format(msg))
-        raise web.HTTPInternalServerError(reason=msg)
+        _LOGGER.error("Add filters pipeline, caught exception: {}".format(msg))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
 
 
 async def get_filter(request: web.Request) -> web.Response:
@@ -323,14 +320,17 @@ async def get_filter(request: web.Request) -> web.Response:
             users.append(row["user"])
         filter_detail.update({"users": users})
     except StorageServerError as ex:
-        _LOGGER.error("Get {} filter, caught exception: {}".format(filter_name, str(ex.error)))
-        raise web.HTTPInternalServerError(reason=str(ex.error))
+        msg = ex.error
+        _LOGGER.exception("Get {} filter, caught storage exception: {}".format(filter_name, msg))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     except ValueError as err:
         raise web.HTTPNotFound(reason=str(err))
     except TypeError as err:
         raise web.HTTPBadRequest(reason=str(err))
     except Exception as ex:
-        raise web.HTTPInternalServerError(reason=str(ex))
+        msg = str(ex)
+        _LOGGER.error("Get {} filter, caught exception: {}".format(filter_name, msg))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({'filter': filter_detail})
 
@@ -346,10 +346,13 @@ async def get_filters(request: web.Request) -> web.Response:
         result = await storage.query_tbl("filters")
         filters = result["rows"]
     except StorageServerError as ex:
-        _LOGGER.error("Get all filters, caught exception: {}".format(str(ex.error)))
-        raise web.HTTPInternalServerError(reason=str(ex.error))
+        msg = ex.error
+        _LOGGER.exception("Get all filters, caught storage exception: {}".format(msg))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
-        raise web.HTTPInternalServerError(reason=str(ex))
+        msg = str(ex)
+        _LOGGER.error("Get all filters, caught exception: {}".format(msg))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({'filters': filters})
 
@@ -373,15 +376,17 @@ async def get_filter_pipeline(request: web.Request) -> web.Response:
         filter_value_from_storage = json.loads(category_info['filter']['value'])
     except KeyError:
         msg = "No filter pipeline exists for {}.".format(user_name)
-        _LOGGER.error(msg)
         raise web.HTTPNotFound(reason=msg)
     except StorageServerError as ex:
-        _LOGGER.exception("Get {} filter pipeline, caught exception: {}".format(user_name, str(ex.error)))
-        raise web.HTTPInternalServerError(reason=str(ex.error))
+        msg = ex.error
+        _LOGGER.exception("Get {} filter pipeline, caught storage exception: {}".format(user_name, msg))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     except ValueError as err:
         raise web.HTTPNotFound(reason=str(err))
     except Exception as ex:
-        raise web.HTTPInternalServerError(reason=str(ex))
+        msg = str(ex)
+        _LOGGER.error("Get filter pipeline, caught exception: {}".format(msg))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({'result': filter_value_from_storage})
 
@@ -435,14 +440,17 @@ async def delete_filter(request: web.Request) -> web.Response:
                     ['plugin', '=', filter_name]).payload()
                 await storage.update_tbl("asset_tracker", update_payload)
     except StorageServerError as ex:
-        _LOGGER.exception("Delete {} filter, caught exception: {}".format(filter_name, str(ex.error)))
-        raise web.HTTPInternalServerError(reason=str(ex.error))
+        msg = ex.error
+        _LOGGER.exception("Delete {} filter, caught storage exception: {}".format(filter_name, msg))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     except ValueError as err:
         raise web.HTTPNotFound(reason=str(err))
     except TypeError as err:
         raise web.HTTPBadRequest(reason=str(err))
     except Exception as ex:
-        raise web.HTTPInternalServerError(reason=str(ex))
+        msg = str(ex)
+        _LOGGER.error("Delete {} filter, caught exception: {}".format(filter_name, msg))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({'result': "Filter {} deleted successfully.".format(filter_name)})
 

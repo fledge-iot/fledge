@@ -109,7 +109,9 @@ async def create_support_bundle(request):
     try:
         bundle_name = await SupportBuilder(support_dir).build()
     except Exception as ex:
-        raise web.HTTPInternalServerError(reason='Support bundle could not be created. {}'.format(str(ex)))
+        msg = 'Support bundle create failed. Found error: {}'.format(str(ex))
+        _logger.error(msg)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
 
     return web.json_response({"bundle created": bundle_name})
 
@@ -219,6 +221,7 @@ async def get_syslog_entries(request):
         raise web.HTTPBadRequest(body=json.dumps({"message": msg}), reason=msg)
     except (OSError, Exception) as ex:
         msg = str(ex)
+        _logger.error("Get syslog entries failed. Found error: {}".format(msg))
         raise web.HTTPInternalServerError(body=json.dumps({"message": msg}), reason=msg)
 
     return web.json_response(response)

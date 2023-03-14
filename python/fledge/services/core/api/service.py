@@ -353,16 +353,17 @@ async def add_service(request):
                 plugin_info = common.load_and_fetch_python_plugin_info(plugin_module_path, plugin, service_type)
                 plugin_config = plugin_info['config']
                 if not plugin_config:
-                    _logger.exception("Plugin %s import problem from path %s", plugin, plugin_module_path)
-                    raise web.HTTPNotFound(reason='Plugin "{}" import problem from path "{}".'.format(
-                        plugin, plugin_module_path))
+                    msg = "Plugin '{}' import problem from path '{}''.".format(plugin, plugin_module_path)
+                    _logger.exception(msg)
+                    raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
             except FileNotFoundError as ex:
                 # Checking for C-type plugins
                 plugin_config = load_c_plugin(plugin, service_type)
+                plugin_module_path = "{}/plugins/{}/{}".format(_FLEDGE_ROOT, service_type, plugin)
                 if not plugin_config:
-                    _logger.exception("Plugin %s import problem from path %s. %s", plugin, plugin_module_path, str(ex))
-                    raise web.HTTPNotFound(reason='Plugin "{}" import problem from path "{}".'.format(
-                        plugin, plugin_module_path))
+                    msg = "Plugin '{}' not found in path '{}'.".format(plugin, plugin_module_path)
+                    _logger.exception("{} Detailed error logs are: {}".format(msg, str(ex)))
+                    raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
             except TypeError as ex:
                 _logger.exception(str(ex))
                 raise web.HTTPBadRequest(reason=str(ex))

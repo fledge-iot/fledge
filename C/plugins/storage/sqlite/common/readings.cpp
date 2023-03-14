@@ -1307,8 +1307,9 @@ vector<string>  asset_codes;
 	threadId << std::this_thread::get_id();
 	ReadingsCatalogue *readCatalogue = ReadingsCatalogue::getInstance();
 
+	if (readCatalogue)
 	{
-		// Attaches the needed databases if the queue is not empty
+		// Attaches the required databases if the queue is not empty
 		AttachDbSync *attachSync = AttachDbSync::getInstance();
 		attachSync->lock();
 
@@ -1317,6 +1318,10 @@ vector<string>  asset_codes;
 			readCatalogue->connectionAttachDbList(this->getDbHandle(), m_NewDbIdList);
 		}
 		attachSync->unlock();
+	}
+	else
+	{
+		Logger::getLogger()->error("Readings catalogue not avialable");
 	}
 
 	try {
@@ -2649,7 +2654,7 @@ sqlite3_stmt *stmt;
 			sqlite3_free(zErrMsg);
 			return 0;
 		}
-
+		readCat->loadEmptyAssetReadingCatalogue();
 		// Get numbwer of affected rows
                 return (unsigned int)sqlite3_changes(dbHandle);
 	}

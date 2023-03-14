@@ -42,8 +42,6 @@ class Ingest : public ServiceHandler {
 
 public:
 	Ingest(StorageClient& storage,
-		long timeout,
-		unsigned int threshold,
 		const std::string& serviceName,
 		const std::string& pluginName,
 		ManagementClient *mgmtClient);
@@ -51,6 +49,7 @@ public:
 
 	void		ingest(const Reading& reading);
 	void		ingest(const std::vector<Reading *> *vec);
+	void		start(long timeout, unsigned int threshold);
 	bool		running();
     	bool		isStopping();
 	bool		isRunning() { return !m_shutdown; };

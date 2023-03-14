@@ -42,6 +42,7 @@ Fledge Notification Rule Plugins
 
 .. toctree::
 
+    fledge-rule-DataAvailability/index
     fledge-rule-Threshold/index
 EOFRULE
 cat > plugins/notify.rst << EOFNOTIFY
@@ -148,11 +149,15 @@ echo '.. include:: ../../fledge-north-OMF.rst' > plugins/fledge-north-OMF/index.
 # Append OMF.rst to the end of the file rather than including it so that we may
 # edit the links to prevent duplicates
 cat OMF.rst >> plugins/fledge-north-OMF/index.rst
-sed -i -e 's/Naming_Scheme/Naming_Scheme_plugin/' -e 's/Linked_Types/Linked_Types_Plugin/' plugins/fledge-north-OMF/index.rst
+sed -i -e 's/Naming_Scheme/Naming_Scheme_plugin/' -e 's/Linked_Types/Linked_Types_Plugin/' -e 's/Edge_Data_Store/Edge_Data_Store_OMF_Endpoint/' -e 's/_Connector_Relay/PI_Connector_Relay/' plugins/fledge-north-OMF/index.rst
 # Create the Threshold rule documentation
 mkdir plugins/fledge-rule-Threshold
 ln -s $(pwd)/fledge-rule-Threshold/images plugins/fledge-rule-Threshold/images
 echo '.. include:: ../../fledge-rule-Threshold/index.rst' > plugins/fledge-rule-Threshold/index.rst
+# Create the DataAvailability rule documentation
+mkdir plugins/fledge-rule-DataAvailability
+ln -s $(pwd)/fledge-rule-DataAvailability/images plugins/fledge-rule-DataAvailability/images
+echo '.. include:: ../../fledge-rule-DataAvailability/index.rst' > plugins/fledge-rule-DataAvailability/index.rst
 
 cat > services/index.rst << EOFSERVICES
 *******************

@@ -1161,6 +1161,10 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 		    m_itemType == CodeItem)
 		{
 			m_value = strbuf.GetString();
+			if (m_value.empty())
+			{
+				m_value = "\"\"";
+			}
 		}
 		else
 		{
@@ -1170,11 +1174,6 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 				m_itemType = StringItem;
 			else
 				m_itemType = EnumerationItem;
-		}
-
-		if (m_value.empty())
-		{
-			m_value = "\"\"";
 		}
 	}
 	// Item "value" is a Double
@@ -1266,6 +1265,10 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 		    m_itemType == CodeItem)
 		{
 			m_default = strbuf.GetString();
+			if (m_default.empty())
+			{
+				m_default = "\"\"";
+			}
 		}
 		else
 		{
@@ -1274,10 +1277,6 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 				m_itemType = StringItem;
 			else
 				m_itemType = EnumerationItem;
-		}
-		if (m_default.empty())
-		{
-			m_default = "\"\"";
 		}
 	}
 	// Item "default" is a Double

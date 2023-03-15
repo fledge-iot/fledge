@@ -190,14 +190,25 @@ setup_north_pi_egress () {
     echo
     
     # Wait for OMF to start  up properly
-    sleep 60
+    for LOOP in $(seq ${MAX_RETRIES}); do
+      RESULT=$(curl -sX GET  "$URL/service" | jq '.services[] | select (.name == "PI Server")| .status' | tr -d \")
+      if [[ "${RESULT}" -eq "running" ]];then 
+         break
+      fi
+    done
+    if [[ ${LOOP} -eq ${MAX_RETRIES} ]]
+    then
+       display_and_collect_err "TIMEOUT! Unable to start North Service"
+       if [[ ${EXIT_EARLY} -eq 1 ]]; then exit 1; fi
+    else
+       echo "---- North Service is started properly ----"
+    fi
    
     for LOOP in $(seq ${MAX_RETRIES}); do
         RESULT=`curl -sX GET "$URL/north"`
         # echo ${RESULT}
         SENT=`echo ${RESULT} | jq '.[0].sent // empty'`
         if [[ -n "$SENT" ]] && [[ "$SENT" -gt 0 ]]; then break; fi
-        sleep 10
     done
     if [[ ${LOOP} -eq ${MAX_RETRIES} ]]
      then
@@ -212,7 +223,6 @@ setup_north_pi_egress () {
         # echo ${RESULT}
         SENT=`echo ${RESULT} | jq '.dataSent // empty'`
         if [[ -n "$SENT" ]] && [[ "$SENT" -gt 0 ]]; then break; fi
-        sleep 10
     done
     if [[ ${LOOP} -eq ${MAX_RETRIES} ]]
      then
@@ -227,7 +237,6 @@ setup_north_pi_egress () {
         # echo ${RESULT}
         POINT=`echo ${RESULT} | jq '.statistics[0]."PI Server" // empty'`
         if [[ -n "$POINT" ]] && [[ "$POINT" -gt 0 ]]; then break; fi
-        sleep 10
     done
     if [[ ${LOOP} -eq ${MAX_RETRIES} ]]
      then
@@ -865,12 +874,26 @@ echo "======================= TOGGLE EVENT NTFSN and NTFCL TEST COMPLETE =======
 if [[  ${VERIFY_EGRESS_TO_PI} == 1 ]]
   then
      setup_north_pi_egress
-     curl -X PUT  http://localhost:8081/fledge/schedule/disable -d '{"schedule_name": "PI Server"}'
-     # Wait for North Service to shutdowm properly.
-     sleep 60
+     # Diabling North Service
+     curl -sX PUT "$URL/schedule/disable" -d '{"schedule_name": "PI Server"}'
+     for LOOP in $(seq ${MAX_RETRIES}); do
+        RESULT=$(curl -sX GET  "$URL/service" | jq '.services[] | select (.name == "PI Server")| .status' | tr -d \")
+        if [[ "${RESULT}" -eq "shutdown" ]];then 
+           break
+        fi
+     done
+     
+     if [[ ${LOOP} -eq ${MAX_RETRIES} ]]
+     then
+       display_and_collect_err "TIMEOUT! Unable to Disable North Service, AF Heirarchy of PI Server may get disturbed"
+       if [[ ${EXIT_EARLY} -eq 1 ]]; then exit 1; fi
+     else
+       echo
+       echo "---- North Service is disabled properly ----"
+     fi
      echo "---- Verify and clean the data sent to PI server ----"
-     python3 verify_clean_pi.py --pi-admin=${PI_USER} --pi-passwd=${PI_PASSWORD} --pi-host=${PI_IP} --pi-port=443 --pi-db=foglamp --asset-name=${LAB_ASSET_NAME}
-  else
+     python3 verify_clean_pi.py --pi-admin="${PI_USER}" --pi-passwd="${PI_PASSWORD}" --pi-host="${PI_IP}" --pi-port="${PI_PORT}" --pi-db="${PI_DB}" --asset-name="${LAB_ASSET_NAME}"
+else
      echo "======================= SKIPPED PI EGRESS ======================="
 fi
 

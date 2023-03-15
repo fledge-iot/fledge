@@ -122,10 +122,11 @@ curl_tmp_path="/tmp/${curl_filename}"
 curl_fledge_version="7.65.3"
 curl_rhel_version="7.29"
 
-fledge_location=`pwd`
-os_name=`(grep -o '^NAME=.*' /etc/os-release | cut -f2 -d\" | sed 's/"//g')`
-os_version=`(grep -o '^VERSION_ID=.*' /etc/os-release | cut -f2 -d\" | sed 's/"//g')`
-echo "Platform is ${os_name}, Version: ${os_version}"
+fledge_location=$(pwd)
+system_information=$(uname -a)
+os_name=$(grep -o '^NAME=.*' /etc/os-release | cut -f2 -d\" | sed 's/"//g')
+os_version=$(grep -o '^VERSION_ID=.*' /etc/os-release | cut -f2 -d\" | sed 's/"//g')
+echo "System Information: ${system_information}; Platform is ${os_name}, Version: ${os_version}"
 
 USE_SCL=false
 YUM_PLATFORM=false
@@ -245,7 +246,15 @@ elif apt --version 2>/dev/null; then
 	# avoid interactive questions
 	DEBIAN_FRONTEND=noninteractive apt install -yq libssl-dev
 
-	apt install -y avahi-daemon ca-certificates curl
+	apt install -y avahi-daemon ca-certificates
+    if [[ ${system_information} == *"Moxa"* ]]; then
+        # https://packages.debian.org/stretch/libcurl4-openssl-dev
+        curl_version_on_moxa="7.52.1-5+deb9u16"
+        # libcurl4-openssl-dev requires libcurl3 ${curl_version_on_moxa}; as with curl 7.52.1-5+deb9u17 installed
+        apt install -y --allow-downgrades libcurl3=${curl_version_on_moxa} curl=${curl_version_on_moxa}
+    else
+        apt install -y curl
+    fi
 	apt install -y cmake g++ make build-essential autoconf automake uuid-dev
 	apt install -y libtool libboost-dev libboost-system-dev libboost-thread-dev libpq-dev libz-dev
 	apt install -y python-dev python3-dev python3-pip python3-numpy

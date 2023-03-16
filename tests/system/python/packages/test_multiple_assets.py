@@ -142,10 +142,15 @@ def verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries):
     return ping_result
 
 
-def verify_asset(fledge_url, total_assets):
-    get_url = "/fledge/asset"
-    result = utils.get_request(fledge_url, get_url)
-    assert len(result), "No asset found"
+def verify_asset(fledge_url, total_assets, count, wait_time):
+    for i in range(count):
+        get_url = "/fledge/asset"
+        result = utils.get_request(fledge_url, get_url)
+        asset_created = len(result)
+        if (total_assets == asset_created):
+            print("Total {} asset created".format(asset_created))
+            return
+        time.sleep(wait_time * 6)
     assert total_assets == len(result)
 
 
@@ -189,10 +194,9 @@ def _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_d
 
 
 class TestMultiAssets:
-    # @pytest.mark.skip(reason="no way of currently testing this")
     def test_multiple_assets_with_restart(self, remove_and_add_pkgs, reset_fledge, start_north, read_data_from_pi_web_api,
-                                          skip_verify_north_interface, fledge_url, num_assets,
-                                          wait_time, retries, pi_host, pi_port, pi_admin, pi_passwd, pi_db):
+                                          skip_verify_north_interface, fledge_url, num_assets, wait_time, retries, pi_host, 
+                                          pi_port, pi_admin, pi_passwd, pi_db):
         """ Test multiple benchmark services with multiple assets are created in fledge, also verifies assets after
             restarting fledge.
             remove_and_add_pkgs: Fixture to remove and install latest fledge packages
@@ -211,10 +215,11 @@ class TestMultiAssets:
             add_benchmark(fledge_url, service_name, count + 1, num_assets_per_service)
             verify_service_added(fledge_url, service_name)
         
-        # Wait until total_assets are created
-        time.sleep(num_assets_per_service + 2 * wait_time)
+        # Sleep for few seconds, So that some data can be ingested into the Fledge
+        time.sleep(wait_time * 3)
+        
         verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
-        verify_asset(fledge_url, total_assets)
+        verify_asset(fledge_url, total_assets, num_assets//100, wait_time)
 
         put_url = "/fledge/restart"
         utils.put_request(fledge_url, urllib.parse.quote(put_url))
@@ -222,20 +227,14 @@ class TestMultiAssets:
         time.sleep(wait_time * 6)
 
         verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
-        verify_asset(fledge_url, total_assets)
-
+        verify_asset(fledge_url, total_assets, num_assets//100, wait_time)
         verify_asset_tracking_details(fledge_url, total_assets, total_benchmark_services, num_assets_per_service)
 
         old_ping_result = verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
 
-        # Wait for read and sent readings to increase
-        # Sent readings start increasing after 2 mins when assets are more than 200 hundred and 
-        # it may take more 10 mins when assets are 800-900.
-        if num_assets < 800:
-            time.sleep(wait_time * 12)
-        else:
-            time.sleep(wait_time * 72)
-
+        # Sleep for few seconds to verify data ingestion into Fledge is increasing or not after restart.
+        time.sleep(wait_time * 3)
+        
         new_ping_result = verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
         # Verifies whether Read and Sent readings are increasing after restart
         assert old_ping_result['dataRead'] < new_ping_result['dataRead']
@@ -248,7 +247,6 @@ class TestMultiAssets:
         # FIXME: If sleep is removed then the next test fails
         time.sleep(wait_time * 2)
 
-    # @pytest.mark.skip(reason="no way of currently testing this")
     def test_add_multiple_assets_before_after_restart(self, reset_fledge, start_north, read_data_from_pi_web_api,
                                                       skip_verify_north_interface, fledge_url, num_assets,
                                                       wait_time, retries, pi_host, pi_port, pi_admin, pi_passwd, pi_db):
@@ -269,10 +267,12 @@ class TestMultiAssets:
             add_benchmark(fledge_url, service_name, count + 1, num_assets_per_service)
             verify_service_added(fledge_url, service_name)
 
-        # Wait until total_assets are created
-        time.sleep(num_assets_per_service + 2 * wait_time)
+        
+        # Sleep for few seconds, So that some data can be ingested into the Fledge.
+        time.sleep(wait_time * 3)
+        
         verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
-        verify_asset(fledge_url, total_assets)
+        verify_asset(fledge_url, total_assets, num_assets//100, wait_time)
 
         verify_asset_tracking_details(fledge_url, total_assets, total_benchmark_services, num_assets_per_service)
 
@@ -289,22 +289,14 @@ class TestMultiAssets:
             add_benchmark(fledge_url, service_name, count + 4, num_assets_per_service)
             verify_service_added(fledge_url, service_name)
 
-        # Wait until total_assets are created
-        time.sleep(num_assets_per_service + 2 * wait_time)
         verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
-        verify_asset(fledge_url, total_assets)
-
+        verify_asset(fledge_url, total_assets, num_assets//100, wait_time)
         verify_asset_tracking_details(fledge_url, total_assets, total_benchmark_services * 2, num_assets_per_service)
 
         old_ping_result = verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
 
-        # Wait for read and sent readings to increase
-        # Sent readings start increasing after 2 mins when assets are more than 200 hundred and 
-        # it may take more 10 mins when assets are 800-900.
-        if num_assets < 800:
-            time.sleep(wait_time * 12)
-        else:
-            time.sleep(wait_time * 72)
+        # Sleep for few seconds to verify data ingestion into Fledge is increasing or not after adding more services.
+        time.sleep(wait_time * 3)
 
         new_ping_result = verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
         # Verifies whether Read and Sent readings are increasing after restart
@@ -313,9 +305,8 @@ class TestMultiAssets:
         if not skip_verify_north_interface:
             assert old_ping_result['dataSent'] < new_ping_result['dataSent']
             _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries,
-                           total_benchmark_services, num_assets_per_service)
+                           total_benchmark_services * 2, num_assets_per_service)
 
-    # @pytest.mark.skip(reason="no way of currently testing this")
     def test_multiple_assets_with_reconfig(self, reset_fledge, start_north, read_data_from_pi_web_api, skip_verify_north_interface,
                                            fledge_url, num_assets,
                                            wait_time, retries, pi_host, pi_port, pi_admin, pi_passwd, pi_db):
@@ -328,8 +319,6 @@ class TestMultiAssets:
 
         total_benchmark_services = 3
         num_assets_per_service = (num_assets//(total_benchmark_services*2))
-        num_assets = 2 * num_assets_per_service
-        # Total number of assets that would be created
 
         # Number of assets that would be created initially
         total_assets = num_assets_per_service * total_benchmark_services
@@ -339,15 +328,16 @@ class TestMultiAssets:
             add_benchmark(fledge_url, service_name, count + 1, num_assets_per_service)
             verify_service_added(fledge_url, service_name)
 
-        # Wait until total_assets are created
-        time.sleep(num_assets_per_service + 2 * wait_time)
+        # Sleep for few seconds, So that some data can be ingested into the Fledge
+        time.sleep(wait_time * 3)
+        
         verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
-        verify_asset(fledge_url, total_assets)
-
+        verify_asset(fledge_url, total_assets, num_assets//100, wait_time)
         verify_asset_tracking_details(fledge_url, total_assets, total_benchmark_services, num_assets_per_service)
 
         # With reconfig, number of assets are doubled in each south service
-        payload = {"numAssets": "{}".format(num_assets)}
+        num_assets_per_service = 2 * num_assets_per_service
+        payload = {"numAssets": "{}".format(num_assets_per_service)}
         for count in range(total_benchmark_services):
             service_name = BENCHMARK_SOUTH_SVC_NAME + "{}".format(count + 1)
             put_url = "/fledge/category/{}".format(service_name)
@@ -356,22 +346,14 @@ class TestMultiAssets:
         # In reconfig number of assets are doubled
         total_assets = total_assets * 2
 
-        # Wait until total_assets are created
-        time.sleep(num_assets + 2 * wait_time)
         verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
-        verify_asset(fledge_url, total_assets)
-
-        verify_asset_tracking_details(fledge_url, total_assets, total_benchmark_services, num_assets)
+        verify_asset(fledge_url, total_assets, num_assets//100, wait_time)
+        verify_asset_tracking_details(fledge_url, total_assets, total_benchmark_services, num_assets_per_service)
 
         old_ping_result = verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
-
-        # Wait for read and sent readings to increase
-        # Sent readings start increasing after 2 mins when assets are more than 200 hundred and 
-        # it may take more 10 mins when assets are 800-900.
-        if num_assets < 800:
-            time.sleep(wait_time * 12)
-        else:
-            time.sleep(wait_time * 72)
+        
+        # Sleep for few seconds to verify data ingestion into Fledge is increasing or not after reconfig of south services.
+        time.sleep(wait_time * 3)
 
         new_ping_result = verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
         # Verifies whether Read and Sent readings are increasing after restart

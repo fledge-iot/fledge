@@ -105,7 +105,7 @@ async def update_package(request):
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
-        _logger.error("Update Package failed. Found error: {}".format(msg))
+        _logger.error("Failed to update Fledge package.{}".format(msg))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({"status": "Running", "message": status_message})

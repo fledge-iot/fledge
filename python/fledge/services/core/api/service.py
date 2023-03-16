@@ -366,7 +366,7 @@ async def add_service(request):
             except TypeError as ex:
                 raise web.HTTPBadRequest(reason=str(ex))
             except Exception as ex:
-                _logger.error("Failed to fetch plugin configuration. %s", str(ex))
+                _logger.error("Failed to fetch plugin info config item. {}".format(str(ex)))
                 raise web.HTTPInternalServerError(reason='Failed to fetch plugin configuration')
         elif service_type == 'notification':
             if not os.path.exists(_FLEDGE_ROOT + "/services/fledge.services.{}".format(service_type)):
@@ -470,11 +470,11 @@ async def add_service(request):
                         raise ValueError('Config must be a JSON object')
                     for k, v in config.items():
                         await config_mgr.set_category_item_value_entry(name, k, v['value'])
-
             except Exception as ex:
                 await config_mgr.delete_category_and_children_recursively(name)
-                _logger.error("Failed to create plugin configuration. %s", str(ex))
-                raise web.HTTPInternalServerError(reason='Failed to create plugin configuration. {}'.format(ex))
+                msg = "Failed to create plugin configuration while adding service. {}".format(str(ex))
+                _logger.error(msg)
+                raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
 
         # If all successful then lastly add a schedule to run the new service at startup
         try:

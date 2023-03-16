@@ -81,11 +81,11 @@ async def get_plugins_available(request: web.Request) -> web.Response:
     except ValueError as e:
         raise web.HTTPBadRequest(reason=e)
     except PackageError as e:
-        msg = "Fetch available plugins package request failed"
+        msg = "Fetch available plugins package request failed."
         raise web.HTTPBadRequest(body=json.dumps({"message": msg, "link": str(e)}), reason=msg)
     except Exception as ex:
         msg = str(ex)
-        _logger.error("Get Plugins available is failed. Found error: {}".format(msg))
+        _logger.error("Failed to get plugins available list. {}".format(msg))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
 
     return web.json_response({"plugins": plugins, "link": log_path})

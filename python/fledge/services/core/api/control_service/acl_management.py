@@ -73,7 +73,7 @@ async def get_acl(request: web.Request) -> web.Response:
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
-        _logger.error("Get ACL failed. Found error: {}".format(msg))
+        _logger.error("Failed to get {} ACL. {}".format(name, msg))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(acl_info)
@@ -140,7 +140,7 @@ async def add_acl(request: web.Request) -> web.Response:
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
-        _logger.error("ACL create failed. Found error: {}".format(msg))
+        _logger.error("Failed to create ACL. {}".format(msg))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(result)
@@ -206,7 +206,7 @@ async def update_acl(request: web.Request) -> web.Response:
         raise web.HTTPBadRequest(reason=message, body=json.dumps({"message": message}))
     except Exception as ex:
         message = str(ex)
-        _logger.error("ACL update failed. Found error: {}".format(message))
+        _logger.error("Failed to update {} ACL. {}".format(name, message))
         raise web.HTTPInternalServerError(reason=message, body=json.dumps({"message": message}))
     else:
         # Fetch service name associated with acl
@@ -264,7 +264,7 @@ async def delete_acl(request: web.Request) -> web.Response:
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
-        _logger.error("ACL delete failed. Found error: {}".format(msg))
+        _logger.error("Failed to delete {} ACL. {}".format(name, msg))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({"message": message})
@@ -352,7 +352,7 @@ async def attach_acl_to_service(request: web.Request) -> web.Response:
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
-        _logger.error("Attach ACL to {} service failed. Found error: {}".format(svc_name, msg))
+        _logger.error("Attach ACL to {} service failed. {}".format(svc_name, msg))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         # Call service security endpoint with attachACL = acl_name
@@ -428,7 +428,7 @@ async def detach_acl_from_service(request: web.Request) -> web.Response:
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
-        _logger.error("Detach ACL from {} service failed. Found error: {}".format(svc_name, msg))
+        _logger.error("Detach ACL from {} service failed. {}".format(svc_name, msg))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({"message": message})

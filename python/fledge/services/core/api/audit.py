@@ -119,19 +119,18 @@ async def create_audit_entry(request):
     except AttributeError as e:
         # Return error for wrong severity method
         err_msg = "severity type {} is not supported".format(severity)
-        _logger.warning(err_msg)
         raise web.HTTPNotFound(reason=err_msg, body=json.dumps({"message": err_msg}))
     except StorageServerError as ex:
         if int(ex.code) in range(400, 500):
             err_msg = 'Audit entry cannot be logged. {}'.format(ex.error['message'])
-            _logger.warning(err_msg)
             raise web.HTTPBadRequest(reason=err_msg, body=json.dumps({"message": err_msg}))
         else:
             err_msg = 'Failed to log audit entry. {}'.format(ex.error['message'])
+            _logger.warning(err_msg)
             raise web.HTTPInternalServerError(reason=err_msg, body=json.dumps({"message": err_msg}))
     except Exception as ex:
         msg = str(ex)
-        _logger.error("Audit log entry failed. Found error: {}".format(msg))
+        _logger.error("Failed to log audit entry. {}".format(msg))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(message)
@@ -271,7 +270,7 @@ async def get_audit_entries(request):
             res.append(r)
     except Exception as ex:
         msg = str(ex)
-        _logger.error("Get Audit log entry failed. Found error: {}".format(msg))
+        _logger.error("Get Audit log entry failed. {}".format(msg))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({'audit': res, 'totalCount': total_count})

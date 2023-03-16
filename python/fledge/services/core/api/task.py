@@ -291,8 +291,8 @@ async def delete_task(request):
         :Example:
             curl -X DELETE http://localhost:8081/fledge/scheduled/task/<task name>
     """
+    north_instance = request.match_info.get('task_name', None)
     try:
-        north_instance = request.match_info.get('task_name', None)
         storage = connect.get_storage_async()
 
         result = await get_schedule(storage, north_instance)
@@ -322,7 +322,7 @@ async def delete_task(request):
         await update_deprecated_ts_in_asset_tracker(storage, north_instance)
     except Exception as ex:
         msg = str(ex)
-        _logger.error("Delete task failed. Found error: {}".format(msg))
+        _logger.error("Failed to delete {} north task. {}".format(north_instance, msg))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({'result': 'North instance {} deleted successfully.'.format(north_instance)})

@@ -143,7 +143,7 @@ async def get_package_status(request: web.Request) -> web.Response:
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as exc:
         msg = str(exc)
-        _LOGGER.error("Get Package log status failed. Found error: {}".format(msg))
+        _LOGGER.error("Failed tp get package log status for {} action. {}".format(action, msg))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({"packageStatus": result})

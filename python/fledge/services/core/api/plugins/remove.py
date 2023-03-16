@@ -137,7 +137,7 @@ async def remove_plugin(request: web.Request) -> web.Response:
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": "Storage error: {}".format(msg)}))
     except Exception as ex:
         msg = str(ex)
-        _logger.error("Remove Plugin failed. Found error: {}".format(msg))
+        _logger.error("Failed to remove {} plugin. {}".format(name, msg))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({'message': msg}))
     else:
         return web.json_response(result_payload)

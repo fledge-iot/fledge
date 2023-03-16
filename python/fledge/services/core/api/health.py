@@ -38,7 +38,7 @@ async def get_disk_usage(given_dir):
     stdout, stderr = await disk_check_process.communicate()
     if disk_check_process.returncode != 0:
         stderr = stderr.decode("utf-8")
-        msg = "Failed to get disk stats of {} directory due to {}".format(given_dir, str(stderr))
+        msg = "Failed to get disk stats of {} directory. {}".format(given_dir, str(stderr))
         _LOGGER.error(msg)
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
 
@@ -108,7 +108,7 @@ async def get_logging_health(request: web.Request) -> web.Response:
         response["levels"] = log_levels
 
     except Exception as ex:
-        msg = "Could not fetch service information due to {}".format(str(ex))
+        msg = "Could not fetch service information. {}".format(str(ex))
         _LOGGER.error(msg)
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
 
@@ -121,7 +121,7 @@ async def get_logging_health(request: web.Request) -> web.Response:
         response['disk']['available'] = available
 
     except Exception as ex:
-        msg = "Failed to get disk stats for /var/log due to {}".format(str(ex))
+        msg = "Failed to get disk stats for /var/log. {}".format(str(ex))
         _LOGGER.error(msg)
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
@@ -188,7 +188,7 @@ async def get_storage_health(request: web.Request) -> web.Response:
 
     except Exception as ex:
         msg = str(ex)
-        _LOGGER.error("Could not ping Storage due to {}".format(msg))
+        _LOGGER.error("Could not ping the Storage service. {}".format(msg))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
 
     try:
@@ -207,7 +207,7 @@ async def get_storage_health(request: web.Request) -> web.Response:
         response['disk']['available'] = available
         response['disk']['status'] = status
     except Exception as ex:
-        msg = "Failed to get disk stats for storage service due to {}".format(str(ex))
+        msg = "Failed to get disk stats for Storage service. {}".format(str(ex))
         _LOGGER.error(msg)
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:

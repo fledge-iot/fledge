@@ -69,7 +69,7 @@ async def get_asset_tracker_events(request: web.Request) -> web.Response:
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
-        _logger.error("Get asset tracker events failed. Found error: {}".format(msg))
+        _logger.error("Failed to get asset tracker events. {}".format(msg))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({'track': response})
@@ -144,7 +144,8 @@ async def deprecate_asset_track_entry(request: web.Request) -> web.Response:
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
-        _logger.error("Deprecate asset entry failed. Found error: {}".format(msg))
+        _logger.error("Deprecate {} asset entry failed for {} service with {} event. {}".format(
+            asset_name, svc_name, event_name, msg))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         msg = "For {} event, {} asset record entry has been deprecated.".format(event_name, asset_name)
@@ -238,7 +239,7 @@ async def get_datapoint_usage(request: web.Request) -> web.Response:
         raise web.HTTPBadRequest(reason=err_response, body=json.dumps({"message": err_response}))
     except Exception as ex:
         msg = str(ex)
-        _logger.error("Get asset tracker store datapoints failed. Found error: {}".format(msg))
+        _logger.error("Failed to get asset tracker store datapoints. {}".format(msg))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(response)

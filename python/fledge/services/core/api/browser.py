@@ -154,7 +154,7 @@ async def asset_counts(request):
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except Exception as exc:
         msg = str(exc)
-        _logger.error("Get all assets failed. Found error: {}".format(msg))
+        _logger.error("Failed to get all assets. {}".format(msg))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(asset_json)
@@ -220,7 +220,7 @@ async def asset(request):
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except Exception as exc:
         msg = str(exc)
-        _logger.error("Get asset by asset code failed. Found error: {}".format(msg))
+        _logger.error("Failed to get {} asset. {}".format(asset_code, msg))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(response)
@@ -247,7 +247,7 @@ async def asset_latest(request: web.Request) -> web.Response:
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except Exception as exc:
         msg = str(exc)
-        _logger.error("Get latest asset failed. Found error: {}".format(msg))
+        _logger.error("Failed to get latest {} asset. {}".format(asset_code, msg))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(response)
@@ -316,7 +316,7 @@ async def asset_reading(request):
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except Exception as exc:
         msg = str(exc)
-        _logger.error("Get asset reading failed. Found error: {}".format(msg))
+        _logger.error("Failed to get {} asset for {} reading. {}".format(asset_code, reading, msg))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(response)
@@ -392,7 +392,7 @@ async def asset_all_readings_summary(request):
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except Exception as exc:
         msg = str(exc)
-        _logger.error("Get asset all readings summary failed. Found error: {}".format(msg))
+        _logger.error("Failed to get {} asset readings summary. {}".format(asset_code, msg))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(response)
@@ -458,7 +458,7 @@ async def asset_summary(request):
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as exc:
         msg = str(exc)
-        _logger.error("Get asset summary failed. Found error: {}".format(msg))
+        _logger.error("Failed to get {} asset {} reading summary. {}".format(asset_code, reading, msg))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({reading: response})
@@ -560,7 +560,7 @@ async def asset_averages(request):
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except Exception as exc:
         msg = str(exc)
-        _logger.error("Get asset average readings failed. Found error: {}".format(msg))
+        _logger.error("Failed to get average of {} readings for {} asset. {}".format(reading, asset_code, msg))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(response)
@@ -695,7 +695,7 @@ async def asset_datapoints_with_bucket_size(request: web.Request) -> web.Respons
         raise web.HTTPBadRequest(reason=e)
     except Exception as ex:
         msg = str(ex)
-        _logger.error("Get asset datapoints with bucket size failed. Found error: {}".format(msg))
+        _logger.error("Failed to get {} asset datapoints with {} bucket size. {}".format(asset_code, bucket_size, msg))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(response)
@@ -774,7 +774,8 @@ async def asset_readings_with_bucket_size(request: web.Request) -> web.Response:
         raise web.HTTPBadRequest(reason=e)
     except Exception as ex:
         msg = str(ex)
-        _logger.error("Get asset readings with bucket size failed. Found error: {}".format(msg))
+        _logger.error("Failed to get {} readings of {} asset with {} bucket size. {}".format(
+            reading, asset_code, bucket_size, msg))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(response)
@@ -842,7 +843,7 @@ async def asset_structure(request):
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
-        _logger.error("Get asset structure failed. Found error: {}".format(msg))
+        _logger.error("Failed to get assets structure. {}".format(msg))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(asset_json)
@@ -884,7 +885,7 @@ async def asset_purge_all(request):
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except Exception as exc:
         msg = str(exc)
-        _logger.error("Get purge all assets failed. Found error: {}".format(msg))
+        _logger.error("Failed to purge all assets. {}".format(msg))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(results)
@@ -925,7 +926,7 @@ async def asset_purge(request):
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except Exception as exc:
         msg = str(exc)
-        _logger.error("Get purge a particular asset failed. Found error: {}".format(msg))
+        _logger.error("Failed to purge {} asset. {}".format(asset_code, msg))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(results)
@@ -954,7 +955,7 @@ async def asset_timespan(request):
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except Exception as exc:
         msg = str(exc)
-        _logger.error("Get timespan of buffered readings for each asset failed. Found error: {}".format(msg))
+        _logger.error("Failed to get timespan of buffered readings for assets. {}".format(msg))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(response)
@@ -985,7 +986,7 @@ async def asset_reading_timespan(request):
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except Exception as exc:
         msg = str(exc)
-        _logger.error("Get timespan of buffered readings for given asset failed. Found error: {}".format(msg))
+        _logger.error("Failed to get timespan of buffered readings for {} asset. {}".format(asset_code, msg))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(response)

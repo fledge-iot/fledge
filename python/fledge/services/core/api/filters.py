@@ -276,8 +276,8 @@ async def add_filters_pipeline(request: web.Request) -> web.Response:
     except TypeError as err:
         msg = str(err)
         raise web.HTTPBadRequest(reason=msg)
-    except StorageServerError as ex:
-        msg = ex.error
+    except StorageServerError as e:
+        msg = e.error
         _LOGGER.exception("Add filters pipeline, caught storage error: {}".format(msg))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
@@ -321,7 +321,7 @@ async def get_filter(request: web.Request) -> web.Response:
         filter_detail.update({"users": users})
     except StorageServerError as ex:
         msg = ex.error
-        _LOGGER.exception("Get {} filter, caught storage exception: {}".format(filter_name, msg))
+        _LOGGER.exception("Failed to get filter name: {}. Storage error occurred: {}".format(filter_name, msg))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     except ValueError as err:
         raise web.HTTPNotFound(reason=str(err))
@@ -379,7 +379,7 @@ async def get_filter_pipeline(request: web.Request) -> web.Response:
         raise web.HTTPNotFound(reason=msg)
     except StorageServerError as ex:
         msg = ex.error
-        _LOGGER.exception("Get {} filter pipeline, caught storage exception: {}".format(user_name, msg))
+        _LOGGER.exception("Failed to delete filter pipeline {}. Storage error occurred: {}".format(user_name, msg))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     except ValueError as err:
         raise web.HTTPNotFound(reason=str(err))

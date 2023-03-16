@@ -11,14 +11,13 @@ from aiohttp import web
 import pytest
 import sys
 
-from fledge.services.core import routes
-from fledge.services.core import connect
-from fledge.common.storage_client.storage_client import StorageClientAsync
-from fledge.common.storage_client.exceptions import StorageServerError
-from fledge.services.core.api import filters
-from fledge.services.core.api.filters import _LOGGER
 from fledge.common.configuration_manager import ConfigurationManager
-from fledge.services.core.api import utils as apiutils
+from fledge.common.storage_client.exceptions import StorageServerError
+from fledge.common.storage_client.storage_client import StorageClientAsync
+from fledge.services.core import connect, routes
+from fledge.services.core.api import filters, utils as apiutils
+from fledge.services.core.api.filters import _LOGGER
+from fledge.services.core.api.plugins import common
 
 __author__ = "Ashish Jabble"
 __copyright__ = "Copyright (c) 2018 OSIsoft, LLC"
@@ -71,8 +70,8 @@ class TestFilters:
                     assert 500 == resp.status
                     assert "something went wrong" == resp.reason
                 assert 1 == patch_logger.call_count
-                patch_logger.assert_called_once_with('Get all filters, caught exception: {}'.format(
-                    'something went wrong'))
+                args, kwargs = patch_logger.call_args
+                assert 'Get all filters, caught storage exception: {}'.format('something went wrong') in args[0]
             query_tbl_patch.assert_called_once_with('filters')
 
     async def test_get_filters_exception(self, client):
@@ -89,9 +88,11 @@ class TestFilters:
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl', return_value=_rv) as query_tbl_patch:
-                resp = await client.get('/fledge/filter')
-                assert 500 == resp.status
-                assert "'rows'" == resp.reason
+                with patch.object(_LOGGER, 'error') as patch_logger:
+                    resp = await client.get('/fledge/filter')
+                    assert 500 == resp.status
+                    assert "'rows'" == resp.reason
+                assert 1 == patch_logger.call_count
             query_tbl_patch.assert_called_once_with('filters')
 
     async def test_get_filter_by_name(self, client):
@@ -190,8 +191,9 @@ class TestFilters:
                     assert 500 == resp.status
                     assert "something went wrong" == resp.reason
                 assert 1 == patch_logger.call_count
-                patch_logger.assert_called_once_with('Get {} filter, caught exception: {}'.format(
-                    filter_name, 'something went wrong'))
+                args, kwargs = patch_logger.call_args
+                assert 'Failed to get filter name: {}. Storage error occurred: {}'.format(
+                    filter_name, 'something went wrong') in args[0]
             get_cat_info_patch.assert_called_once_with(filter_name)
 
     async def test_get_filter_by_name_type_error(self, client):
@@ -212,9 +214,11 @@ class TestFilters:
         cf_mgr = ConfigurationManager(storage_client_mock)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(cf_mgr, 'get_category_all_items', side_effect=Exception) as get_cat_info_patch:
-                resp = await client.get('/fledge/filter/{}'.format(filter_name))
-                assert 500 == resp.status
-                assert resp.reason is ''
+                with patch.object(_LOGGER, 'error') as patch_logger:
+                    resp = await client.get('/fledge/filter/{}'.format(filter_name))
+                    assert 500 == resp.status
+                    assert resp.reason is ''
+                assert 1 == patch_logger.call_count
             get_cat_info_patch.assert_called_once_with(filter_name)
 
     @pytest.mark.parametrize("data", [
@@ -225,12 +229,9 @@ class TestFilters:
     ])
     async def test_bad_create_filter(self, client, data):
         msg = "Filter name, plugin name are mandatory."
-        with patch.object(_LOGGER, 'error') as log_exc:
-            resp = await client.post('/fledge/filter'.format("bench"), data=json.dumps(data))
-            assert 400 == resp.status
-            assert msg == resp.reason
-        assert 1 == log_exc.call_count
-        log_exc.assert_called_once_with('Add filter, caught type error: {}'.format(msg))
+        resp = await client.post('/fledge/filter'.format("bench"), data=json.dumps(data))
+        assert 400 == resp.status
+        assert msg == resp.reason
 
     async def test_create_filter_value_error_1(self, client):
         storage_client_mock = MagicMock(StorageClientAsync)
@@ -244,13 +245,10 @@ class TestFilters:
         msg = "This 'test' filter already exists"
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(cf_mgr, 'get_category_all_items', return_value=_rv) as get_cat_info_patch:
-                with patch.object(_LOGGER, 'error') as patch_logger:
-                    resp = await client.post('/fledge/filter'.format("bench"), data=json.dumps(
-                        {"name": "test", "plugin": "benchmark"}))
-                    assert 404 == resp.status
-                    assert msg == resp.reason
-                assert 1 == patch_logger.call_count
-                patch_logger.assert_called_once_with("Add filter, caught value error: {}".format(msg))
+                resp = await client.post('/fledge/filter'.format("bench"), data=json.dumps(
+                    {"name": "test", "plugin": "benchmark"}))
+                assert 404 == resp.status
+                assert msg == resp.reason
             get_cat_info_patch.assert_called_once_with(category_name='test')
 
     async def test_create_filter_value_error_2(self, client):
@@ -267,12 +265,12 @@ class TestFilters:
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(cf_mgr, 'get_category_all_items', return_value=_rv) as get_cat_info_patch:
                 with patch.object(apiutils, 'get_plugin_info', return_value=None) as api_utils_patch:
-                    with patch.object(_LOGGER, 'error') as patch_logger:
-                        resp = await client.post('/fledge/filter'.format("bench"), data=json.dumps({"name": "test", "plugin": plugin_name}))
+                    with patch.object(common._logger, 'warning') as patch_logger:
+                        resp = await client.post('/fledge/filter'.format("bench"), data=json.dumps(
+                            {"name": "test", "plugin": plugin_name}))
                         assert 404 == resp.status
                         assert msg == resp.reason
-                    assert 1 == patch_logger.call_count
-                    patch_logger.assert_called_once_with("Add filter, caught value error: {}".format(msg))
+                    assert 2 == patch_logger.call_count
                 api_utils_patch.assert_called_once_with(plugin_name, dir='filter')
             get_cat_info_patch.assert_called_once_with(category_name='test')
 
@@ -288,18 +286,17 @@ class TestFilters:
             _rv = asyncio.ensure_future(self.async_mock(None))
         msg = "Loaded plugin 'python35', type 'south', doesn't match the specified one '{}', type 'filter'".format(
             plugin_name)
+        ret_val = {"config": {'plugin': {'description': 'Python 3.5 filter plugin', 'type': 'string',
+                                         'default': 'python35'}}, "type": "south"}
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(cf_mgr, 'get_category_all_items', return_value=_rv) as get_cat_info_patch:
-                with patch.object(apiutils, 'get_plugin_info', return_value=
-                {"config": {'plugin': {'description': 'Python 3.5 filter plugin', 'type': 'string',
-                                       'default': 'python35'}}, "type": "south"}) as api_utils_patch:
-                    with patch.object(_LOGGER, 'error') as patch_logger:
+                with patch.object(apiutils, 'get_plugin_info', return_value=ret_val) as api_utils_patch:
+                    with patch.object(common._logger, 'warning') as patch_logger:
                         resp = await client.post('/fledge/filter'.format("bench"), data=json.dumps(
                             {"name": "test", "plugin": plugin_name}))
                         assert 404 == resp.status
                         assert msg == resp.reason
-                    assert 1 == patch_logger.call_count
-                    patch_logger.assert_called_once_with("Add filter, caught value error: {}".format(msg))
+                    assert 2 == patch_logger.call_count
                 api_utils_patch.assert_called_once_with(plugin_name, dir='filter')
             get_cat_info_patch.assert_called_once_with(category_name='test')
 
@@ -322,14 +319,12 @@ class TestFilters:
                     with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv2) as query_tbl_patch:
                         with patch.object(storage_client_mock, 'insert_into_tbl', return_value=_rv1) as insert_tbl_patch:
                             with patch.object(cf_mgr, 'create_category', return_value=_rv1) as create_cat_patch:
-                                with patch.object(_LOGGER, 'error') as patch_logger:
+                                with patch.object(common._logger, 'warning') as patch_logger:
                                     resp = await client.post('/fledge/filter'.format("bench"), data=json.dumps(
                                         {"name": "test", "plugin": plugin_name, "filter_config": "blah"}))
                                     assert 404 == resp.status
                                     assert msg == resp.reason
-                                assert 1 == patch_logger.call_count
-                                patch_logger.assert_called_once_with(
-                                    "Add filter, caught value error: {}".format(msg))
+                                assert 2 == patch_logger.call_count
                             create_cat_patch.assert_called_once_with(
                                 category_description="Configuration of 'test' filter for plugin 'filter'",
                                 category_name='test', category_value=
@@ -366,14 +361,14 @@ class TestFilters:
                     with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=StorageServerError(
                             None, None, error='something went wrong')):
                         with patch.object(filters, '_delete_configuration_category', return_value=_rv) as _delete_cfg_patch:
-                            with patch.object(_LOGGER, 'exception') as log_exc:
-                                resp = await client.post('/fledge/filter'.format("bench"), data=json.dumps(
-                                    {"name": name, "plugin": plugin_name}))
-                                assert 500 == resp.status
-                                assert 'Failed to create filter.' == resp.reason
-                            assert 1 == log_exc.call_count
-                            log_exc.assert_called_once_with('Failed to create filter with: {}'.format(
-                                'something went wrong'))
+                            with patch.object(_LOGGER, 'error') as patch_logger:
+                                with patch.object(common._logger, 'warning') as patch_logger2:
+                                    resp = await client.post('/fledge/filter'.format("bench"), data=json.dumps(
+                                        {"name": name, "plugin": plugin_name}))
+                                    assert 500 == resp.status
+                                    assert 'something went wrong' == resp.reason
+                                assert 2 == patch_logger2.call_count
+                            assert 1 == patch_logger.call_count
                         args, kwargs = _delete_cfg_patch.call_args
                         assert name == args[1]
                 api_utils_patch.assert_called_once_with(plugin_name, dir='filter')
@@ -386,13 +381,13 @@ class TestFilters:
         name = 'test'
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(cf_mgr, 'get_category_all_items', side_effect=Exception) as get_cat_info_patch:
-                with patch.object(_LOGGER, 'exception') as log_exc:
+                with patch.object(_LOGGER, 'error') as patch_logger:
                     resp = await client.post('/fledge/filter'.format("bench"), data=json.dumps(
                         {"name": name, "plugin": plugin_name}))
                     assert 500 == resp.status
                     assert resp.reason is ''
-                assert 1 == log_exc.call_count
-                log_exc.assert_called_once_with('Add filter, caught exception: ')
+                assert 1 == patch_logger.call_count
+                patch_logger.assert_called_once_with('Add filter, caught exception: ')
             get_cat_info_patch.assert_called_once_with(category_name=name)
 
     async def test_create_filter(self, client):
@@ -420,11 +415,14 @@ class TestFilters:
                         with patch.object(storage_client_mock, 'insert_into_tbl', return_value=_rv1) as insert_tbl_patch:
                             with patch.object(cf_mgr, 'create_category', return_value=_rv1) as create_cat_patch:
                                 with patch.object(cf_mgr, 'update_configuration_item_bulk', return_value=_rv1) as update_cfg_bulk_patch:
-                                    resp = await client.post('/fledge/filter'.format("bench"), data=json.dumps({"name": name, "plugin": plugin_name, "filter_config": {}}))
-                                    assert 200 == resp.status
-                                    r = await resp.text()
-                                    json_response = json.loads(r)
-                                    assert {'filter': name, 'description': "Configuration of 'test' filter for plugin 'filter'", 'value': {}} == json_response
+                                    with patch.object(common._logger, 'warning') as patch_logger2:
+                                        resp = await client.post('/fledge/filter'.format("bench"), data=json.dumps(
+                                            {"name": name, "plugin": plugin_name, "filter_config": {}}))
+                                        assert 200 == resp.status
+                                        r = await resp.text()
+                                        json_response = json.loads(r)
+                                        assert {'filter': name, 'description': "Configuration of 'test' filter for plugin 'filter'", 'value': {}} == json_response
+                                    assert 2 == patch_logger2.call_count
                                 update_cfg_bulk_patch.assert_called_once_with(name, {})
                             create_cat_patch.assert_called_once_with(category_description="Configuration of 'test' filter for plugin 'filter'", category_name='test', category_value={'plugin': {'description': 'Python 3.5 filter plugin', 'type': 'string', 'default': 'filter'}}, keep_original_items=True)
                         args, kwargs = insert_tbl_patch.call_args_list[0]
@@ -534,20 +532,17 @@ class TestFilters:
                     assert 500 == resp.status
                     assert "something went wrong" == resp.reason
                 assert 1 == patch_logger.call_count
-                patch_logger.assert_called_once_with('Delete {} filter, caught exception: {}'.format(
+                patch_logger.assert_called_once_with('Delete {} filter, caught storage exception: {}'.format(
                     filter_name, 'something went wrong'))
             get_cat_info_patch.assert_called_once_with(
                 'filters', '{"where": {"column": "name", "condition": "=", "value": "AssetFilter"}}')
 
     async def test_add_filter_pipeline_type_error(self, client):
         msg = "Pipeline must be a list of filters or an empty value"
-        with patch.object(_LOGGER, 'error') as patch_logger:
-            resp = await client.put('/fledge/filter/{}/pipeline'.format("bench"), data=json.dumps(
-                {"pipeline": "AssetFilter"}))
-            assert 400 == resp.status
-            assert msg == resp.reason
-        assert 1 == patch_logger.call_count
-        patch_logger.assert_called_once_with('Add filters pipeline, caught type error: {}'.format(msg))
+        resp = await client.put('/fledge/filter/{}/pipeline'.format("bench"), data=json.dumps(
+            {"pipeline": "AssetFilter"}))
+        assert 400 == resp.status
+        assert msg == resp.reason
 
     @pytest.mark.parametrize("request_param, param, val", [
         ('?append_filter=T', 'append_filter', 't'),
@@ -565,12 +560,10 @@ class TestFilters:
     ])
     async def test_add_filter_pipeline_bad_request_param_val(self, client, request_param, param, val):
         user = "bench"
-        with patch.object(_LOGGER, 'error') as patch_logger:
-            resp = await client.put('/fledge/filter/{}/pipeline{}'.format(user, request_param), data=json.dumps(
-                {"pipeline": ["AssetFilter"]}))
-            assert 404 == resp.status
-            assert "Only 'true' and 'false' are allowed for {}. {} given.".format(param, val) == resp.reason
-        assert 1 == patch_logger.call_count
+        resp = await client.put('/fledge/filter/{}/pipeline{}'.format(user, request_param), data=json.dumps(
+            {"pipeline": ["AssetFilter"]}))
+        assert 404 == resp.status
+        assert "Only 'true' and 'false' are allowed for {}. {} given.".format(param, val) == resp.reason
 
     async def test_add_filter_pipeline_value_error_1(self, client):
         user = "bench"
@@ -585,14 +578,10 @@ class TestFilters:
         msg = "No such '{}' category found.".format(user)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(cf_mgr, 'get_category_all_items', return_value=_rv) as get_cat_info_patch:
-                with patch.object(_LOGGER, 'error') as patch_logger:
-                    resp = await client.put('/fledge/filter/{}/pipeline'.format(user), data=json.dumps(
-                        {"pipeline": ["AssetFilter"]}))
-                    assert 404 == resp.status
-                    assert msg == resp.reason
-                assert 1 == patch_logger.call_count
-                patch_logger.assert_called_once_with(
-                    'Add filters pipeline, caught value error: {}'.format(msg))
+                resp = await client.put('/fledge/filter/{}/pipeline'.format(user), data=json.dumps(
+                    {"pipeline": ["AssetFilter"]}))
+                assert 404 == resp.status
+                assert msg == resp.reason
             get_cat_info_patch.assert_called_once_with(category_name=user)
 
     async def test_add_filter_pipeline_value_error_2(self, client):
@@ -608,14 +597,10 @@ class TestFilters:
         msg = "No such '{}' category found.".format(user)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(cf_mgr, 'get_category_all_items', return_value=_rv) as get_cat_info_patch:
-                with patch.object(_LOGGER, 'error') as patch_logger:
-                    resp = await client.put('/fledge/filter/{}/pipeline'.format(user), data=json.dumps(
-                        {"pipeline": ["AssetFilter"]}))
-                    assert 404 == resp.status
-                    assert msg == resp.reason
-                assert 1 == patch_logger.call_count
-                patch_logger.assert_called_once_with(
-                    'Add filters pipeline, caught value error: {}'.format(msg))
+                resp = await client.put('/fledge/filter/{}/pipeline'.format(user), data=json.dumps(
+                    {"pipeline": ["AssetFilter"]}))
+                assert 404 == resp.status
+                assert msg == resp.reason
             get_cat_info_patch.assert_called_once_with(category_name=user)
 
     async def test_add_filter_pipeline_value_error_3(self, client):
@@ -637,15 +622,12 @@ class TestFilters:
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(cf_mgr, 'get_category_all_items', return_value=_rv1) as get_cat_info_patch:
                 with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv2) as query_tbl_patch:
-                    with patch.object(_LOGGER, 'error') as patch_logger:
-                        resp = await client.put('/fledge/filter/{}/pipeline'.format(user), data=json.dumps(
-                            {"pipeline": ["AssetFilter"]}))
-                        assert 404 == resp.status
-                        assert msg == resp.reason
-                    assert 1 == patch_logger.call_count
-                    patch_logger.assert_called_once_with(
-                        'Add filters pipeline, caught value error: {}'.format(msg))
-                query_tbl_patch.assert_called_once_with('filters', '{"where": {"column": "name", "condition": "=", "value": "AssetFilter"}}')
+                    resp = await client.put('/fledge/filter/{}/pipeline'.format(user), data=json.dumps(
+                        {"pipeline": ["AssetFilter"]}))
+                    assert 404 == resp.status
+                    assert msg == resp.reason
+                query_tbl_patch.assert_called_once_with(
+                    'filters', '{"where": {"column": "name", "condition": "=", "value": "AssetFilter"}}')
             get_cat_info_patch.assert_called_once_with(category_name=user)
 
     async def test_add_filter_pipeline_value_error_4(self, client):
@@ -682,14 +664,10 @@ class TestFilters:
                             with patch.object(filters, '_add_child_filters',
                                               return_value=_rv3) as _add_child_patch:
                                 with patch.object(cf_mgr, 'get_category_item', return_value=_rv3) as get_cat_item_patch:
-                                    with patch.object(_LOGGER, 'error') as patch_logger:
-                                        resp = await client.put('/fledge/filter/{}/pipeline'.format(user),
-                                                                data=json.dumps({"pipeline": ["AssetFilter"]}))
-                                        assert 404 == resp.status
-                                        assert msg == resp.reason
-                                    assert 1 == patch_logger.call_count
-                                    patch_logger.assert_called_once_with(
-                                        'Add filters pipeline, caught value error: {}'.format(msg))
+                                    resp = await client.put('/fledge/filter/{}/pipeline'.format(user),
+                                                            data=json.dumps({"pipeline": ["AssetFilter"]}))
+                                    assert 404 == resp.status
+                                    assert msg == resp.reason
                                 get_cat_item_patch.assert_called_once_with(user, 'filter')
                             args, kwargs = _add_child_patch.call_args
                             assert user == args[2]
@@ -725,8 +703,6 @@ class TestFilters:
                         assert 500 == resp.status
                         assert "something went wrong" == resp.reason
                     assert 1 == patch_logger.call_count
-                    patch_logger.assert_called_once_with('Add filters pipeline, caught storage error: {}'.format(
-                        'something went wrong'))
             get_cat_info_patch.assert_called_once_with(category_name=user)
 
     async def test_add_filter_pipeline(self, client):
@@ -900,12 +876,9 @@ class TestFilters:
         msg = "No filter pipeline exists for {}.".format(user)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(cf_mgr, 'get_category_all_items', return_value=_rv) as get_cat_info_patch:
-                with patch.object(_LOGGER, 'error') as patch_logger:
-                    resp = await client.get('/fledge/filter/{}/pipeline'.format(user))
-                    assert 404 == resp.status
-                    assert msg == resp.reason
-                assert 1 == patch_logger.call_count
-                patch_logger.assert_called_once_with(msg)
+                resp = await client.get('/fledge/filter/{}/pipeline'.format(user))
+                assert 404 == resp.status
+                assert msg == resp.reason
             get_cat_info_patch.assert_called_once_with(category_name=user)
 
     async def test_get_filter_pipeline_storage_error(self, client):
@@ -913,14 +886,16 @@ class TestFilters:
         cf_mgr = ConfigurationManager(storage_client_mock)
         user = "Random"
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(cf_mgr, 'get_category_all_items', side_effect=StorageServerError(None, None, error='something went wrong')) as get_cat_info_patch:
-                with patch.object(_LOGGER, 'exception') as log_exc:
+            with patch.object(cf_mgr, 'get_category_all_items', side_effect=StorageServerError(
+                    None, None, error='something went wrong')) as get_cat_info_patch:
+                with patch.object(_LOGGER, 'error') as patch_logger:
                     resp = await client.get('/fledge/filter/{}/pipeline'.format(user))
                     assert 500 == resp.status
                     assert "something went wrong" == resp.reason
-                assert 1 == log_exc.call_count
-                log_exc.assert_called_once_with('Get {} filter pipeline, caught exception: {}'.format(
-                    user, 'something went wrong'))
+                assert 1 == patch_logger.call_count
+                patch_logger.assert_called_once_with(
+                    'Failed to delete filter pipeline {}. Storage error occurred: {}'.format(
+                        user, 'something went wrong'), exc_info=True)
             get_cat_info_patch.assert_called_once_with(category_name=user)
 
     async def test_get_filter_pipeline_exception(self, client):
@@ -929,9 +904,11 @@ class TestFilters:
         cf_mgr = ConfigurationManager(storage_client_mock)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(cf_mgr, 'get_category_all_items', side_effect=Exception) as get_cat_info_patch:
-                resp = await client.get('/fledge/filter/{}/pipeline'.format(user))
-                assert 500 == resp.status
-                assert resp.reason is ''
+                with patch.object(_LOGGER, 'error') as patch_logger:
+                    resp = await client.get('/fledge/filter/{}/pipeline'.format(user))
+                    assert 500 == resp.status
+                    assert resp.reason is ''
+                assert 1 == patch_logger.call_count
             get_cat_info_patch.assert_called_once_with(category_name=user)
 
     @pytest.mark.skip(reason='Incomplete')

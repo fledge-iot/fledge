@@ -180,9 +180,11 @@ class TestAudit:
     async def test_get_audit_http_exception(self, client):
         msg = 'Internal Server Error'
         with patch.object(connect, 'get_storage_async', side_effect=Exception(msg)):
-            resp = await client.get('/fledge/audit')
-            assert 500 == resp.status
-            assert msg == resp.reason
+            with patch.object(audit._logger, 'error') as patch_logger:
+                resp = await client.get('/fledge/audit')
+                assert 500 == resp.status
+                assert msg == resp.reason
+            assert 1 == patch_logger.call_count
 
     async def test_create_audit_entry(self, client, loop):
         request_data = {"source": "LMTR", "severity": "warning", "details": {"message": "Engine oil pressure low"}}
@@ -233,6 +235,8 @@ class TestAudit:
     async def test_create_audit_entry_with_exception(self, client):
         request_data = {"source": "LMTR", "severity": "blah", "details": {"message": "Engine oil pressure low"}}
         with patch.object(AuditLogger, "__init__", return_value=""):
-            resp = await client.post('/fledge/audit', data=json.dumps(request_data))
-            assert 500 == resp.status
-            assert "__init__() should return None, not 'str'" == resp.reason
+            with patch.object(audit._logger, 'error') as patch_logger:
+                resp = await client.post('/fledge/audit', data=json.dumps(request_data))
+                assert 500 == resp.status
+                assert "__init__() should return None, not 'str'" == resp.reason
+            assert 1 == patch_logger.call_count

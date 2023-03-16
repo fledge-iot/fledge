@@ -107,7 +107,7 @@ class TestTask:
         
         with patch.object(common, 'load_and_fetch_python_plugin_info', side_effect=[mock_plugin_info]):
             with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-                with patch.object(_logger, 'exception') as patch_logger:
+                with patch.object(_logger, 'error') as patch_logger:
                     with patch.object(c_mgr, 'get_category_all_items',
                                       return_value=_rv) as patch_get_cat_info:
                         with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
@@ -115,8 +115,8 @@ class TestTask:
                                 resp = await client.post('/fledge/scheduled/task', data=json.dumps(data))
                                 assert 500 == resp.status
                                 assert 'Failed to create north instance.' == resp.reason
-                        assert 1 == patch_logger.call_count
                     patch_get_cat_info.assert_called_once_with(category_name=data['name'])
+                assert 1 == patch_logger.call_count
 
     async def test_dupe_category_name_add_task(self, client):
 
@@ -342,7 +342,7 @@ class TestTask:
         }
 
         storage_client_mock = MagicMock(StorageClientAsync)
-        with patch.object(_logger, 'error') as patch_logger:
+        with patch.object(_logger, 'warning') as patch_logger:
             with patch.object(common, 'load_and_fetch_python_plugin_info', side_effect=[mock_plugin_info]):
                 with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
                     with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
@@ -572,9 +572,12 @@ class TestTask:
 
         mocker.patch.object(connect, 'get_storage_async')
         mocker.patch.object(task, "get_schedule", side_effect=Exception)
-        resp = await client.delete("/fledge/scheduled/task/Test")
-        assert 500 == resp.status
-        assert resp.reason is ''
+        with patch.object(_logger, 'error') as patch_logger:
+            resp = await client.delete("/fledge/scheduled/task/Test")
+            assert 500 == resp.status
+            assert resp.reason is ''
+        assert 1 == patch_logger.call_count
+        patch_logger.assert_called_once_with('Failed to delete Test north task. ')
 
         async def mock_bad_result():
             return {"count": 0, "rows": []}

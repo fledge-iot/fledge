@@ -98,7 +98,7 @@ class TestPluginRemove:
         with patch.object(PluginDiscovery, 'get_plugins_installed', return_value=plugin_installed
                           ) as plugin_installed_patch:
             with patch.object(plugins_remove, '_check_plugin_usage', return_value=_rv) as plugin_usage_patch:
-                with patch.object(plugins_remove._logger, "error") as log_err_patch:
+                with patch.object(plugins_remove._logger, "warning") as patch_logger:
                     resp = await client.delete('/fledge/plugins/{}/{}'.format(_type, name), data=None)
                     assert 400 == resp.status
                     expected_msg = "{} cannot be removed. This is being used by {} instances.".format(name, svc_list)
@@ -106,8 +106,8 @@ class TestPluginRemove:
                     result = await resp.text()
                     response = json.loads(result)
                     assert {'message': expected_msg} == response
-                assert 1 == log_err_patch.call_count
-                log_err_patch.assert_called_once_with(expected_msg)
+                assert 1 == patch_logger.call_count
+                patch_logger.assert_called_once_with(expected_msg)
             plugin_usage_patch.assert_called_once_with(_type, name)
         plugin_installed_patch.assert_called_once_with(_type, False)
 
@@ -135,7 +135,7 @@ class TestPluginRemove:
         with patch.object(PluginDiscovery, 'get_plugins_installed', return_value=plugin_installed
                           ) as plugin_installed_patch:
             with patch.object(plugins_remove, '_check_plugin_usage_in_notification_instances', return_value=_rv) as plugin_usage_patch:
-                with patch.object(plugins_remove._logger, "error") as log_err_patch:
+                with patch.object(plugins_remove._logger, "warning") as patch_logger:
                     resp = await client.delete('/fledge/plugins/{}/{}'.format(plugin_type, plugin_installed_dirname),
                                                data=None)
                     assert 400 == resp.status
@@ -145,8 +145,8 @@ class TestPluginRemove:
                     result = await resp.text()
                     response = json.loads(result)
                     assert {'message': expected_msg} == response
-                assert 1 == log_err_patch.call_count
-                log_err_patch.assert_called_once_with(expected_msg)
+                assert 1 == patch_logger.call_count
+                patch_logger.assert_called_once_with(expected_msg)
             plugin_usage_patch.assert_called_once_with(plugin_installed_dirname)
         plugin_installed_patch.assert_called_once_with(plugin_type_installed_dir, False)
 

@@ -37,11 +37,7 @@ class TestUtils:
         plugin_name = 'Random'
         with patch.object(utils, '_find_c_util', return_value='plugins/utils/get_plugin_info') as patch_util:
             with patch.object(utils, '_find_c_lib', return_value=None) as patch_lib:
-                with patch.object(utils._logger, 'error') as patch_logger:
-                    assert {} == utils.get_plugin_info(plugin_name, dir='south')
-                assert 1 == patch_logger.call_count
-                args, kwargs = patch_logger.call_args
-                assert 'The plugin {} does not exist'.format(plugin_name) == args[0]
+                assert {} == utils.get_plugin_info(plugin_name, dir='south')
             patch_lib.assert_called_once_with(plugin_name, 'south')
         patch_util.assert_called_once_with('get_plugin_info')
 

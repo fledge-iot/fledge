@@ -111,9 +111,11 @@ class TestBackup:
     async def test_get_backups_exceptions(self, client):
         msg = "Internal Server Error"
         with patch.object(connect, 'get_storage_async', side_effect=Exception(msg)):
-            resp = await client.get('/fledge/backup')
-            assert 500 == resp.status
-            assert msg == resp.reason
+            with patch.object(backup_restore._logger, 'error') as patch_logger:
+                resp = await client.get('/fledge/backup')
+                assert 500 == resp.status
+                assert msg == resp.reason
+            assert 1 == patch_logger.call_count
 
     async def test_create_backup(self, client):
         async def mock_create():
@@ -135,9 +137,11 @@ class TestBackup:
     async def test_create_backup_exception(self, client):
         msg = "Internal Server Error"
         with patch.object(connect, 'get_storage_async', side_effect=Exception(msg)):
-            resp = await client.post('/fledge/backup')
-            assert 500 == resp.status
-            assert msg == resp.reason
+            with patch.object(backup_restore._logger, 'error') as patch_logger:
+                resp = await client.post('/fledge/backup')
+                assert 500 == resp.status
+                assert msg == resp.reason
+            assert 1 == patch_logger.call_count
 
     async def test_get_backup_details(self, client):
         storage_client_mock = MagicMock(StorageClientAsync)
@@ -167,9 +171,12 @@ class TestBackup:
         storage_client_mock = MagicMock(StorageClientAsync)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(Backup, 'get_backup_details', side_effect=input_exception):
-                resp = await client.get('/fledge/backup/{}'.format(8))
-                assert response_code == resp.status
-                assert response_message == resp.reason
+                with patch.object(backup_restore._logger, 'error') as patch_logger:
+                    resp = await client.get('/fledge/backup/{}'.format(8))
+                    assert response_code == resp.status
+                    assert response_message == resp.reason
+                if response_code == 500:
+                    assert 1 == patch_logger.call_count
 
     async def test_get_backup_details_bad_data(self, client):
         resp = await client.get('/fledge/backup/{}'.format('BLA'))
@@ -201,9 +208,12 @@ class TestBackup:
         storage_client_mock = MagicMock(StorageClientAsync)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(Backup, 'delete_backup', side_effect=input_exception):
-                resp = await client.delete('/fledge/backup/{}'.format(8))
-                assert response_code == resp.status
-                assert response_message == resp.reason
+                with patch.object(backup_restore._logger, 'error') as patch_logger:
+                    resp = await client.delete('/fledge/backup/{}'.format(8))
+                    assert response_code == resp.status
+                    assert response_message == resp.reason
+                if response_code == 500:
+                    assert 1 == patch_logger.call_count
 
     async def test_delete_backup_bad_data(self, client):
         resp = await client.delete('/fledge/backup/{}'.format('BLA'))
@@ -235,12 +245,15 @@ class TestBackup:
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(Backup, 'get_backup_details', side_effect=input_exception):
                 with patch('os.path.isfile', return_value=False):
-                    resp = await client.get('/fledge/backup/{}/download'.format(8))
-                    assert response_code == resp.status
-                    assert response_message == resp.reason
-                    result = await resp.text()
-                    json_response = json.loads(result)
-                    assert {"message": response_message} == json_response
+                    with patch.object(backup_restore._logger, 'error') as patch_logger:
+                        resp = await client.get('/fledge/backup/{}/download'.format(8))
+                        assert response_code == resp.status
+                        assert response_message == resp.reason
+                        result = await resp.text()
+                        json_response = json.loads(result)
+                        assert {"message": response_message} == json_response
+                    if response_code == 500:
+                        assert 1 == patch_logger.call_count
 
     async def test_get_backup_download(self, client):
         # FIXME: py3.9 fails to recognise this in default installed mimetypes known-file
@@ -308,6 +321,9 @@ class TestRestore:
         storage_client_mock = MagicMock(StorageClientAsync)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(Restore, 'restore_backup', side_effect=input_exception):
-                resp = await client.put('/fledge/backup/{}/restore'.format(backup_id))
-                assert code == resp.status
-                assert message == resp.reason
+                with patch.object(backup_restore._logger, 'error') as patch_logger:
+                    resp = await client.put('/fledge/backup/{}/restore'.format(backup_id))
+                    assert code == resp.status
+                    assert message == resp.reason
+                if code == 500:
+                    assert 1 == patch_logger.call_count

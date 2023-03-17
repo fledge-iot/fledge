@@ -90,6 +90,12 @@ class TestConfiguration:
                      'description': 'Scheduler configuration',
                      'displayName': 'Scheduler',
                      'children': []
+                  },
+                  {
+                      "key": "LOGGING",
+                      "description": "Logging Level of Core Server",
+                      "displayName": "Logging",
+                      'children': []
                   }
               ]
           },

@@ -28,6 +28,8 @@
 #include <math.h>
 #include <sys/time.h>
 
+#include "json_utils.h"
+
 #include <iostream>
 #include <chrono>
 #include <thread>

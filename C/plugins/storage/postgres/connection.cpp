@@ -1234,8 +1234,11 @@ SQLBuffer	sql;
 						}
 						else
 						{
+							StringBuffer buffer;
+							Writer<StringBuffer> writer(buffer);
+							value.Accept(writer);
 							sql.append("'\"");
-							sql.append(escape_double_quotes(escape(str)));
+							sql.append(escape_double_quotes(escape(JSONunescape(buffer.GetString()))));
 							sql.append("\"'");
 						}
 					}

@@ -1,6 +1,7 @@
 import argparse
 from pathlib import Path
 import sys
+from datetime import datetime
 
 PROJECT_ROOT = Path(__file__).absolute().parent.parent.parent.parent
 sys.path.append('{}/tests/system/common'.format(PROJECT_ROOT))
@@ -11,6 +12,7 @@ retry_count = 0
 data_from_pi = None
 retries = 6
 wait_time = 10
+today = datetime.now().strftime("%Y_%m_%d")
 
 parser = argparse.ArgumentParser(description="PI server",
                                  formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -34,7 +36,7 @@ pi_passwd = args["pi_passwd"]
 pi_db = args["pi_db"]
 asset_name = args["asset_name"]
 
-af_hierarchy_level = "PIlabSinelvl1/PIlabSinelvl2/PIlabSinelvl3"
+af_hierarchy_level = "{}_PIlabSinelvl1/PIlabSinelvl2/PIlabSinelvl3".format(today)
 af_hierarchy_level_list = af_hierarchy_level.split("/")
 
 clear_pi_system_pi_web_api(pi_host, pi_admin, pi_passwd, pi_db, af_hierarchy_level_list,

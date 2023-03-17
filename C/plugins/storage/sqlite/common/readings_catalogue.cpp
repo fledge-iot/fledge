@@ -849,6 +849,7 @@ void ReadingsCatalogue::multipleReadingsInit(STORAGE_CONFIGURATION &storageConfi
 		preallocateReadingsTables(0);   // on the last database
 
 		evaluateGlobalId();
+		loadEmptyAssetReadingCatalogue();
 	}
 	catch (exception& e)
 	{
@@ -1839,8 +1840,9 @@ ReadingsCatalogue::tyReadingReference  ReadingsCatalogue::getReadingReference(Co
 
 		AttachDbSync *attachSync = AttachDbSync::getInstance();
 		attachSync->lock();
+		
 		ReadingsCatalogue::tyReadingReference emptyTableReference = {-1, -1};
-
+		std::string emptyAsset = {};
 		auto item = m_AssetReadingCatalogue.find(asset_code);
 		if (item != m_AssetReadingCatalogue.end())
 		{
@@ -1849,53 +1851,60 @@ ReadingsCatalogue::tyReadingReference  ReadingsCatalogue::getReadingReference(Co
 		}
 		else
 		{
-			//# Allocate a new block of readings table
+			
 			if (! isReadingAvailable () )
 			{
-				Logger::getLogger()->debug("getReadingReference - allocate a new db, dbNAvailable :%d:", m_dbNAvailable);
-
-				if (m_dbNAvailable > 0)
+				//No Readding table available... Get empty reading table 
+				emptyTableReference = getEmptyReadingTableReference(emptyAsset);
+				if ( !emptyAsset.empty() )
 				{
-					// DBs already created are available
-					m_dbIdCurrent++;
-					m_dbNAvailable--;
-					m_nReadingsAvailable = getNReadingsAllocate();
-
-					Logger::getLogger()->debug("getReadingReference - allocate a new db, db already available - dbIdCurrent :%d: dbIdLast :%d: dbNAvailable  :%d: nReadingsAvailable :%d:  ", m_dbIdCurrent, m_dbIdLast, m_dbNAvailable, m_nReadingsAvailable);
+					ref = emptyTableReference;
 				}
-				else
+				else 
 				{
-					// Allocates new DBs
-					int dbId, dbIdStart, dbIdEnd;
+					//# Allocate a new block of readings table
+					Logger::getLogger()->debug("getReadingReference - allocate a new db, dbNAvailable :%d:", m_dbNAvailable);
 
-					dbIdStart = m_dbIdLast +1;
-					dbIdEnd = m_dbIdLast + m_storageConfigCurrent.nDbToAllocate;
-
-					Logger::getLogger()->debug("getReadingReference - allocate a new db - create new db - dbIdCurrent :%d: dbIdStart :%d: dbIdEnd :%d:", m_dbIdCurrent, dbIdStart, dbIdEnd);
-
-					for (dbId = dbIdStart; dbId <= dbIdEnd; dbId++)
+					if (m_dbNAvailable > 0)
 					{
-						readingsAvailable = evaluateLastReadingAvailable(dbHandle, dbId - 1);
+						// DBs already created are available
+						m_dbIdCurrent++;
+						m_dbNAvailable--;
+						m_nReadingsAvailable = getNReadingsAllocate();
 
-						startReadingsId = 1;
+						Logger::getLogger()->debug("getReadingReference - allocate a new db, db already available - dbIdCurrent :%d: dbIdLast :%d: dbNAvailable  :%d: nReadingsAvailable :%d:  ", m_dbIdCurrent, m_dbIdLast, m_dbNAvailable, m_nReadingsAvailable);
+					}
+					else
+					{
+						// Allocates new DBs
+						int dbId, dbIdStart, dbIdEnd;
 
-						if (!getEmptyReadingTableReference(emptyTableReference))
+						dbIdStart = m_dbIdLast +1;
+						dbIdEnd = m_dbIdLast + m_storageConfigCurrent.nDbToAllocate;
+
+						Logger::getLogger()->debug("getReadingReference - allocate a new db - create new db - dbIdCurrent :%d: dbIdStart :%d: dbIdEnd :%d:", m_dbIdCurrent, dbIdStart, dbIdEnd);
+
+						for (dbId = dbIdStart; dbId <= dbIdEnd; dbId++)
 						{
+							readingsAvailable = evaluateLastReadingAvailable(dbHandle, dbId - 1);
+
+							startReadingsId = 1;
+
 							success = createNewDB(dbHandle,  dbId, startReadingsId, NEW_DB_ATTACH_REQUEST);
 							if (success)
 							{
 								Logger::getLogger()->debug("getReadingReference - allocate a new db - create new dbs - dbId :%d: startReadingsIdOnDB :%d:", dbId, startReadingsId);
 							}
 						}
-						
+						m_dbIdLast = dbIdEnd;
+						m_dbIdCurrent++;
+						m_dbNAvailable = (m_dbIdLast - m_dbIdCurrent) - m_storageConfigCurrent.nDbLeftFreeBeforeAllocate;
 					}
-					m_dbIdLast = dbIdEnd;
-					m_dbIdCurrent++;
-					m_dbNAvailable = (m_dbIdLast - m_dbIdCurrent) - m_storageConfigCurrent.nDbLeftFreeBeforeAllocate;
-				}
 
-				ref.tableId = -1;
-				ref.dbId = -1;
+					ref.tableId = -1;
+					ref.dbId = -1;
+				}
+				
 			}
 
 			if (success)
@@ -1903,49 +1912,53 @@ ReadingsCatalogue::tyReadingReference  ReadingsCatalogue::getReadingReference(Co
 				// Associate a reading table to the asset
 				{
 					// Associate the asset to the reading_id
+					if (emptyAsset.empty())
 					{
-						if (emptyTableReference.tableId > 0)
-						{
-							ref.tableId = emptyTableReference.tableId;
-							ref.dbId = emptyTableReference.dbId;
-						}
-						else
-						{
-							ref.tableId = getMaxReadingsId(m_dbIdCurrent) + 1;
-							ref.dbId = m_dbIdCurrent;
-						}
-						
+						ref.tableId = getMaxReadingsId(m_dbIdCurrent) + 1;
+						ref.dbId = m_dbIdCurrent;
+					}
+
+					{
+						m_EmptyAssetReadingCatalogue.erase(emptyAsset);
+						m_AssetReadingCatalogue.erase(emptyAsset);
 						auto newItem = make_pair(ref.tableId, ref.dbId);
 						auto newMapValue = make_pair(asset_code, newItem);
 						m_AssetReadingCatalogue.insert(newMapValue);
 					}
 
-					Logger::getLogger()->debug("getReadingReference - allocate a new reading table for the asset :%s: db Id :%d: readings Id :%d: ", asset_code, ref.dbId, ref.tableId);
-
 					// Allocate the table in the reading catalogue
+					if (emptyAsset.empty())
 					{
-						if (emptyTableReference.tableId > 0)
-						{
-
-							sql_cmd = 	" UPDATE " READINGS_DB ".asset_reading_catalogue SET asset_code ='" + string(asset_code) + "'" +
-										" WHERE db_id = " + to_string(emptyTableReference.dbId) + " AND table_id = " + to_string(emptyTableReference.tableId) + ";";
-						}
-						else
-						{
-							sql_cmd =
+						sql_cmd =
 							"INSERT INTO  " READINGS_DB ".asset_reading_catalogue (table_id, db_id, asset_code) VALUES  ("
 							+ to_string(ref.tableId) + ","
 							+ to_string(ref.dbId) + ","
 							+ "\"" + asset_code + "\")";
-						}
+						
+							Logger::getLogger()->debug("getReadingReference - allocate a new reading table for the asset :%s: db Id :%d: readings Id :%d: ", asset_code, ref.dbId, ref.tableId);
+	
+					}
+					else
+					{
+						sql_cmd = 	" UPDATE " READINGS_DB ".asset_reading_catalogue SET asset_code ='" + string(asset_code) + "'" +
+										" WHERE db_id = " + to_string(ref.dbId) + " AND table_id = " + to_string(ref.tableId) + ";";
 
+						Logger::getLogger()->debug("getReadingReference - Use empty table %readings_%d_%d: ",ref.dbId,ref.tableId);
+					}
+					
+					{
 						rc = SQLExec(dbHandle, sql_cmd.c_str());
 						if (rc != SQLITE_OK)
 						{
 							msg = string(sqlite3_errmsg(dbHandle)) + " asset :" + asset_code + ":";
 							raiseError("asset_reading_catalogue update", msg.c_str());
 						}
-						allocateReadingAvailable();
+
+						if (emptyAsset.empty())
+						{
+							allocateReadingAvailable();
+						}
+						
 					}
 
 				}
@@ -1960,52 +1973,73 @@ ReadingsCatalogue::tyReadingReference  ReadingsCatalogue::getReadingReference(Co
 }
 
 /**
- * Get Empty Reading Table
- *
- * @param emptyTableReference  An empty reading table reference to be used for the given asset_code
- * @return         True of success, false on any error
+ * Loads the empty reading table catalogue
  *
  */
-bool ReadingsCatalogue::getEmptyReadingTableReference(tyReadingReference &emptyTableReference)
+bool ReadingsCatalogue::loadEmptyAssetReadingCatalogue()
 {
-	bool isEmptyTableAvailable = false;
 	sqlite3 *dbHandle;
 	string sql_cmd;
 	sqlite3_stmt *stmt;
-
-	// Disable functionality temporarily to avoid regression 
-	return false;
-
 	ConnectionManager *manager = ConnectionManager::getInstance();
 	Connection *connection = manager->allocate();
 	dbHandle = connection->getDbHandle();
-	
+	m_EmptyAssetReadingCatalogue.clear();
+			
 	for (auto &item : m_AssetReadingCatalogue)
 	{
-		int tableId = item.second.first;
-		int dbId = item.second.second;
-		sql_cmd = "SELECT COUNT(*) FROM (SELECT 0 FROM readings_" + to_string(dbId) + ".readings_" + to_string(dbId) + "_" + to_string(tableId) + " LIMIT 1)";
-
+		string asset_name = item.first; // Asset
+		int tableId = item.second.first; // tableId;
+		int dbId = item.second.second; // dbId;
+		
+		sql_cmd = "SELECT COUNT(*) FROM readings_" + to_string(dbId) + ".readings_" + to_string(dbId) + "_" + to_string(tableId) + " ;";
 		if (sqlite3_prepare_v2(dbHandle, sql_cmd.c_str(), -1, &stmt, NULL) != SQLITE_OK)
 		{
-			raiseError("getEmptyReadingTableReference", sqlite3_errmsg(dbHandle));
-			return false;
+			sqlite3_finalize(stmt);	
+			continue;
 		}
 
 		if (SQLStep(stmt) == SQLITE_ROW)
 		{
 			if (sqlite3_column_int(stmt, 0) == 0)
 			{
-				isEmptyTableAvailable = true;
-				emptyTableReference.dbId = dbId;
-				emptyTableReference.tableId = tableId;
+				auto newItem = make_pair(tableId,dbId);
+				auto newMapValue = make_pair(asset_name,newItem);
+				m_EmptyAssetReadingCatalogue.insert(newMapValue);
+				
 			}
 		}
 		sqlite3_finalize(stmt);
+		
 	}
-
 	manager->release(connection);
-	return isEmptyTableAvailable;
+	return true;
+}
+
+/**
+ *  Get Empty Reading Table
+ *
+ * @param    asset emptyAsset, copies value of asset for which empty table is found
+ * @return         the reading id associated to the provided empty table
+ */
+ReadingsCatalogue::tyReadingReference ReadingsCatalogue::getEmptyReadingTableReference(std::string& asset)
+{
+	ReadingsCatalogue::tyReadingReference emptyTableReference = {-1, -1};
+	if (m_EmptyAssetReadingCatalogue.size() == 0)
+	{
+		loadEmptyAssetReadingCatalogue();
+	}
+	
+	auto it = m_EmptyAssetReadingCatalogue.begin();
+	if (it != m_EmptyAssetReadingCatalogue.end())
+	{
+		asset = it->first;
+		emptyTableReference.tableId = it->second.first;
+		emptyTableReference.dbId = it->second.second;
+		
+	}
+	
+	return emptyTableReference;
 }
 
 /**
@@ -2155,6 +2189,7 @@ int  ReadingsCatalogue::purgeAllReadings(sqlite3 *dbHandle, const char *sqlCmdBa
 		}
 	}
 
+	loadEmptyAssetReadingCatalogue();
 	return(rc);
 
 }
@@ -2427,18 +2462,20 @@ int ReadingsCatalogue::SQLExec(sqlite3 *dbHandle, const char *sqlCmd, char **err
 {
 	int retries = 0, rc;
 
+	if (errMsg)
+	{
+		*errMsg = NULL;
+	}
 	Logger::getLogger()->debug("SQLExec: cmd :%s: ", sqlCmd);
 
 	do {
-		if (errMsg == NULL)
+		if (errMsg && *errMsg)
 		{
-			rc = sqlite3_exec(dbHandle, sqlCmd, NULL, NULL, NULL);
+			sqlite3_free(*errMsg);
+			*errMsg = NULL;
 		}
-		else
-		{
-			rc = sqlite3_exec(dbHandle, sqlCmd, NULL, NULL, errMsg);
-			Logger::getLogger()->debug("SQLExec: rc :%d: ", rc);
-		}
+		rc = sqlite3_exec(dbHandle, sqlCmd, NULL, NULL, errMsg);
+		Logger::getLogger()->debug("SQLExec: rc :%d: ", rc);
 
 		retries++;
 		if (rc == SQLITE_LOCKED || rc == SQLITE_BUSY)

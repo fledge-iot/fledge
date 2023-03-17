@@ -165,7 +165,7 @@ def start_south_north(add_south, start_north_task_omf_web_api, remove_data_file,
 class TestPackagesCoAP_PI_WebAPI:
 
     def test_omf_task(self, clean_setup_fledge_packages, reset_fledge, start_south_north, read_data_from_pi_web_api,
-                        fledge_url, pi_host, pi_admin, pi_passwd, pi_db,
+                        fledge_url, pi_host, pi_admin, pi_passwd, pi_db, fogbench_host, fogbench_port,
                         wait_time, retries, skip_verify_north_interface, asset_name=ASSET):
         """ Test that data is inserted in Fledge and sent to PI
             start_south_north: Fixture that add south and north instance
@@ -179,8 +179,10 @@ class TestPackagesCoAP_PI_WebAPI:
                 data received from PI is same as data sent"""
 
         conn = http.client.HTTPConnection(fledge_url)
+        # Time to get CoAP service started
+        time.sleep(2)
         subprocess.run(
-            ["cd $FLEDGE_ROOT/extras/python; python3 -m fogbench -t ../../data/{}; cd -".format(TEMPLATE_NAME)],
+            ["cd $FLEDGE_ROOT/extras/python; python3 -m fogbench -t ../../data/{} --host {} --port {}; cd -".format(TEMPLATE_NAME, fogbench_host, fogbench_port)],
             shell=True, check=True)
 
         time.sleep(wait_time)
@@ -195,7 +197,7 @@ class TestPackagesCoAP_PI_WebAPI:
                            asset_name)
 
     def test_omf_task_with_reconfig(self, reset_fledge, start_south_north, read_data_from_pi_web_api,
-                                       skip_verify_north_interface, fledge_url,
+                                       skip_verify_north_interface, fledge_url, fogbench_host, fogbench_port,
                                        wait_time, retries, pi_host, pi_port, pi_admin, pi_passwd, pi_db,
                                        asset_name=ASSET):
         """ Test OMF as a North task by reconfiguring it.
@@ -210,8 +212,10 @@ class TestPackagesCoAP_PI_WebAPI:
                 on endpoint GET /fledge/track"""
 
         conn = http.client.HTTPConnection(fledge_url)
+        # Time to get CoAP service started
+        time.sleep(2)
         subprocess.run(
-            ["cd $FLEDGE_ROOT/extras/python; python3 -m fogbench -t ../../data/{}; cd -".format(TEMPLATE_NAME)],
+            ["cd $FLEDGE_ROOT/extras/python; python3 -m fogbench -t ../../data/{} --host {} --port {}; cd -".format(TEMPLATE_NAME, fogbench_host, fogbench_port)],
             shell=True, check=True)
 
         time.sleep(wait_time)
@@ -231,7 +235,7 @@ class TestPackagesCoAP_PI_WebAPI:
 
         conn = http.client.HTTPConnection(fledge_url)
         subprocess.run(
-            ["cd $FLEDGE_ROOT/extras/python; python3 -m fogbench -t ../../data/{}; cd -".format(TEMPLATE_NAME)],
+            ["cd $FLEDGE_ROOT/extras/python; python3 -m fogbench -t ../../data/{} --host {} --port {}; cd -".format(TEMPLATE_NAME, fogbench_host, fogbench_port)],
             shell=True, check=True)
 
         # Wait for the OMF schedule to run.
@@ -257,7 +261,7 @@ class TestPackagesCoAP_PI_WebAPI:
 
         conn = http.client.HTTPConnection(fledge_url)
         subprocess.run(
-            ["cd $FLEDGE_ROOT/extras/python; python3 -m fogbench -t ../../data/{}; cd -".format(TEMPLATE_NAME)],
+            ["cd $FLEDGE_ROOT/extras/python; python3 -m fogbench -t ../../data/{} --host {} --port {}; cd -".format(TEMPLATE_NAME, fogbench_host, fogbench_port)],
             shell=True, check=True)
 
         # Wait for the OMF schedule to run.

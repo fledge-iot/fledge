@@ -347,7 +347,12 @@ class TestMultiAssets:
         total_assets = total_assets * 2
 
         verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
-        verify_asset(fledge_url, total_assets, num_assets//100, wait_time)
+        
+        # FIX ME: FOGL-7567, Due to increase in timing of asset creation, time spent in reconfig asset also increases.
+        #  Remove the WAIT_FIX, Once FOGL-7567 is resolved.
+        WAIT_FIX = 4 + num_assets//100
+        
+        verify_asset(fledge_url, total_assets, WAIT_FIX, wait_time)
         verify_asset_tracking_details(fledge_url, total_assets, total_benchmark_services, num_assets_per_service)
 
         old_ping_result = verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)

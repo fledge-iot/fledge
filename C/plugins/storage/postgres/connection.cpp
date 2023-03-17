@@ -28,6 +28,8 @@
 #include <math.h>
 #include <sys/time.h>
 
+#include "json_utils.h"
+
 #include <iostream>
 #include <chrono>
 #include <thread>
@@ -1234,8 +1236,11 @@ SQLBuffer	sql;
 						}
 						else
 						{
+							StringBuffer buffer;
+							Writer<StringBuffer> writer(buffer);
+							value.Accept(writer);
 							sql.append("'\"");
-							sql.append(escape_double_quotes(escape(str)));
+							sql.append(escape_double_quotes(escape(JSONunescape(buffer.GetString()))));
 							sql.append("\"'");
 						}
 					}

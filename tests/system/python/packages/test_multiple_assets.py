@@ -110,13 +110,20 @@ def add_benchmark(fledge_url, name, count, num_assets_per_service):
     post_url = "/fledge/service"
     utils.post_request(fledge_url, post_url, data)
 
+def verify_restart(retries):
+    for i in range(retries):
+        time.sleep(30)
+        RETVAL, OUTPUT = subprocess.getstatusoutput('systemctl status fledge | grep Active')
+        assert RETVAL == 0
+        if 'active' in OUTPUT:
+            return
+    assert 'active' in OUTPUT
 
 def verify_service_added(fledge_url, name):
     get_url = "/fledge/south"
     result = utils.get_request(fledge_url, get_url)
     assert len(result["services"])
     assert name in [s["name"] for s in result["services"]]
-
 
 def verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries):
     get_url = "/fledge/ping"
@@ -223,8 +230,8 @@ class TestMultiAssets:
 
         put_url = "/fledge/restart"
         utils.put_request(fledge_url, urllib.parse.quote(put_url))
-        # Wait for fledge to restart. Fledge is taking 1 minute to restart when there are more than 200 Assets.
-        time.sleep(wait_time * 6)
+        # Wait for fledge to restart
+        verify_restart(retries)
 
         verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
         verify_asset(fledge_url, total_assets, num_assets//100, wait_time)
@@ -278,8 +285,8 @@ class TestMultiAssets:
 
         put_url = "/fledge/restart"
         utils.put_request(fledge_url, urllib.parse.quote(put_url))
-        # Wait for fledge to restart. Fledge is taking 1 minute to restart when there are more than 200 Assets.
-        time.sleep(wait_time * 6)
+        # Wait for fledge to restart
+        verify_restart(retries)
 
         # We are adding more total_assets number of assets
         total_assets = total_assets * 2

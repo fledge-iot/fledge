@@ -40,21 +40,21 @@ _config_reading_db () {
 # check for storage plugin
 . ./test.config
 
-if [[  ${STORAGE} == "postgres" && ${READING_PLUGIN_STORAGE} == "Use main plugin" ]]
+if [[  ${STORAGE} == "postgres" && ${READING_PLUGIN_DB} == "Use main plugin" ]]
 then
    _postgres
-elif [[  ${STORAGE} == "sqlite-in-memory" && ${READING_PLUGIN_STORAGE} == "Use main plugin" ]]
+elif [[  ${STORAGE} == "sqlite-in-memory" && ${READING_PLUGIN_DB} == "Use main plugin" ]]
 then
   _sqliteinmemory
-elif [[  ${STORAGE} == "sqlitelb" && ${READING_PLUGIN_STORAGE} == "Use main plugin" ]]
+elif [[  ${STORAGE} == "sqlitelb" && ${READING_PLUGIN_DB} == "Use main plugin" ]]
 then
   _sqlitelb
-elif [[ ${STORAGE} == "sqlite" && ${READING_PLUGIN_STORAGE} == "Use main plugin" ]]
+elif [[ ${STORAGE} == "sqlite" && ${READING_PLUGIN_DB} == "Use main plugin" ]]
 then
   _sqlite
-elif [[ ${STORAGE} == @(sqlite|postgres|sqlitelb) && ${READING_PLUGIN_STORAGE} != "Use main plugin"  ]]
+elif [[ ${STORAGE} == @(sqlite|postgres|sqlitelb) && ${READING_PLUGIN_DB} != "Use main plugin"  ]]
 then
-  _config_reading_db ${STORAGE} ${READING_PLUGIN_STORAGE}
+  _config_reading_db ${STORAGE} ${READING_PLUGIN_DB}
 fi
 
 echo "Stopping Fledge using systemctl ..."

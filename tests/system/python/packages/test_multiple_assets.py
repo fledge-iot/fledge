@@ -110,14 +110,14 @@ def add_benchmark(fledge_url, name, count, num_assets_per_service):
     post_url = "/fledge/service"
     utils.post_request(fledge_url, post_url, data)
 
-def verify_restart(retries):
+def verify_restart(fledge_url, retries):
     for i in range(retries):
         time.sleep(30)
-        RETVAL, OUTPUT = subprocess.getstatusoutput('systemctl status fledge | grep Active')
-        assert RETVAL == 0
-        if 'active' in OUTPUT:
+        get_url = '/fledge/ping'
+        ping_result = utils.get_request(fledge_url, get_url)
+        if ping_result['uptime'] > 0:
             return
-    assert 'active' in OUTPUT
+    assert ping_result['uptime'] > 0
 
 def verify_service_added(fledge_url, name):
     get_url = "/fledge/south"
@@ -231,7 +231,7 @@ class TestMultiAssets:
         put_url = "/fledge/restart"
         utils.put_request(fledge_url, urllib.parse.quote(put_url))
         # Wait for fledge to restart
-        verify_restart(retries)
+        verify_restart(fledge_url, retries)
 
         verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
         verify_asset(fledge_url, total_assets, num_assets//100, wait_time)
@@ -286,7 +286,7 @@ class TestMultiAssets:
         put_url = "/fledge/restart"
         utils.put_request(fledge_url, urllib.parse.quote(put_url))
         # Wait for fledge to restart
-        verify_restart(retries)
+        verify_restart(fledge_url, retries)
 
         # We are adding more total_assets number of assets
         total_assets = total_assets * 2
@@ -313,7 +313,7 @@ class TestMultiAssets:
             assert old_ping_result['dataSent'] < new_ping_result['dataSent']
             _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries,
                            total_benchmark_services * 2, num_assets_per_service)
-
+    
     def test_multiple_assets_with_reconfig(self, reset_fledge, start_north, read_data_from_pi_web_api, skip_verify_north_interface,
                                            fledge_url, num_assets,
                                            wait_time, retries, pi_host, pi_port, pi_admin, pi_passwd, pi_db):

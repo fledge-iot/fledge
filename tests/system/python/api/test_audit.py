@@ -86,7 +86,6 @@ class TestAudit:
         jdoc = json.loads(r)
         elems = jdoc['audit']
         assert len(jdoc), "No data found"
-        print(jdoc['totalCount'], len(elems))
         assert total_count == jdoc['totalCount']
         assert audit_count == len(elems)
 
@@ -125,12 +124,12 @@ class TestAudit:
         if storage_plugin == 'sqlite':
             pytest.skip('TODO: FOGL-2124 Enable foreign key constraint in SQLite')
 
+        msg = "Audit entry cannot be logged."
         conn = http.client.HTTPConnection(fledge_url)
         conn.request('POST', '/fledge/audit', body=json.dumps(payload))
         r = conn.getresponse()
         assert 400 == r.status
-        assert 'Bad Request' in r.reason
+        assert msg in r.reason
         r = r.read().decode()
         jdoc = json.loads(r)
-        print(jdoc)
-        assert "Audit entry cannot be logged" in jdoc['message']
+        assert msg in jdoc['message']

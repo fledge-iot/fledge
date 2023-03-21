@@ -679,6 +679,8 @@ def pytest_addoption(parser):
                      help="use pip cache is requirement is available")
     parser.addoption("--wait-time", action="store", default=5, type=int,
                      help="Generic wait time between processes to run")
+    parser.addoption("--wait-fix", action="store", default=0, type=int,
+                     help="Extra wait time required for process to run")
     parser.addoption("--retries", action="store", default=3, type=int,
                      help="Number of tries for polling")
     # TODO: Temporary fixture, to be used with value False for environments where PI Web API is not stable
@@ -703,7 +705,7 @@ def pytest_addoption(parser):
                      help="Name of the South Service")
     parser.addoption("--asset-name", action="store", default="SystemTest",
                      help="Name of asset")
-    parser.addoption("--num-assets", action="store", default=300, type=int, help="Total No. of Assets that will be created")
+    parser.addoption("--num-assets", action="store", default=300, type=int, help="Total No. of Assets to be created")
 
     # Filter Args
     parser.addoption("--filter-branch", action="store", default="develop", help="Filter plugin repo branch")
@@ -899,7 +901,10 @@ def fledge_url(request):
 def wait_time(request):
     return request.config.getoption("--wait-time")
 
-
+@pytest.fixture
+def wait_fix(request):
+    return request.config.getoption("--wait-fix")
+    
 @pytest.fixture
 def retries(request):
     return request.config.getoption("--retries")

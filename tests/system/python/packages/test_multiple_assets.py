@@ -77,6 +77,7 @@ def start_north(start_north_omf_as_a_service, fledge_url, num_assets,
 
     no_of_services = 6
     num_assets_per_service=(num_assets//no_of_services)
+    # Creates assets dictionary for PI server cleanup
     for service_count in range(no_of_services):
         for asst_count in range(num_assets_per_service):
             asset_name = ASSET_NAME + "-{}{}".format(service_count + 1, asst_count + 1)
@@ -179,8 +180,8 @@ def _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_d
     af_hierarchy_level_list = AF_HIERARCHY_LEVEL.split("/")
     type_id = 1
     
-    for s in range(1,total_benchmark_services+1):
-      for a in range(1,num_assets_per_service+1):
+    for s in range(1, total_benchmark_services+1):
+      for a in range(1, num_assets_per_service+1):
         retry_count = 0
         data_from_pi = None
         asset_name = "random_multiple_assets-" + str(s) + str(a)
@@ -222,7 +223,7 @@ class TestMultiAssets:
             add_benchmark(fledge_url, service_name, count + 1, num_assets_per_service)
             verify_service_added(fledge_url, service_name)
         
-        # Sleep for few seconds, So that some data can be ingested into the Fledge
+        # Sleep for few seconds, So that data from south service can be ingested into the Fledge
         time.sleep(wait_time * 3)
         
         verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)

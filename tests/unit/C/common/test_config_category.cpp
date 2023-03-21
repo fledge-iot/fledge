@@ -47,6 +47,8 @@ const char *myCategory_quoted = "{\"description\": {"
 		"\"default\": {\"first\" : \"Fledge\", \"second\" : \"json\" },"
 		"\"description\": \"A JSON configuration parameter\"}}";
 
+const char *myCategory_quotedSpecial = R"QQ({"description": { "value": "The \"Fledge\" admini\\strative API", "type": "string", "default": "The \"Fledge\" administra\tive API", "description": "The description of this \"Fledge\" service"}, "name": { "value": "\"Fledge\"", "type": "string", "default": "\"Fledge\"", "description": "The name of this \"Fledge\" service"}, "complex": { "value": { "first" : "Fledge", "second" : "json" }, "type": "json", "default": {"first" : "Fledge", "second" : "json" }, "description": "A JSON configuration parameter"} })QQ";
+
 const char *myCategoryDisplayName = "{\"description\": {"
 		"\"value\": \"The Fledge administrative API\","
 		"\"type\": \"string\","
@@ -319,6 +321,8 @@ const char *optionals =
 			"\"deprecated\" : \"false\", " \
 			"\"order\": \"10\"} "
 		"}";
+
+const char *json_quotedSpecial = R"QS({ "key" : "test \"a\"", "description" : "Test \"description\"", "value" : {"description" : { "description" : "The description of this \"Fledge\" service", "type" : "string", "value" : "The \"Fledge\" admini\\strative API", "default" : "The \"Fledge\" administra\tive API" }, "name" : { "description" : "The name of this \"Fledge\" service", "type" : "string", "value" : "\"Fledge\"", "default" : "\"Fledge\"" }, "complex" : { "description" : "A JSON configuration parameter", "type" : "json", "value" : {"first":"Fledge","second":"json"}, "default" : {"first":"Fledge","second":"json"} }} })QS";
 
 TEST(CategoriesTest, Count)
 {
@@ -640,3 +644,13 @@ TEST(CategoryTest, optionalItems)
 	ASSERT_EQ(0, category.getItemAttribute("item1", ConfigCategory::DISPLAY_NAME_ATTR).compare("Item1"));
 }
 
+/**
+ * Special quotes for \\s and \\t
+ */
+
+TEST(CategoryTestQuoted, toJSONQuotedSpecial)
+{
+	ConfigCategory confCategory("test \"a\"", myCategory_quotedSpecial);
+	confCategory.setDescription("Test \"description\"");
+	ASSERT_EQ(0, confCategory.toJSON().compare(json_quotedSpecial));
+}

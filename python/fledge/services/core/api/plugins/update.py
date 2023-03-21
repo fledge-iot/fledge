@@ -24,7 +24,7 @@ from fledge.services.core.api.plugins import common
 
 
 __author__ = "Ashish Jabble"
-__copyright__ = "Copyright (c) 2019, Dianomic Systems Inc."
+__copyright__ = "Copyright (c) 2019-2023, Dianomic Systems Inc."
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
@@ -52,6 +52,9 @@ async def update_plugin(request: web.Request) -> web.Response:
         _type = _type.lower()
         if _type not in ['north', 'south', 'filter', 'notify', 'rule']:
             raise ValueError("Invalid plugin type. Must be one of 'south' , north', 'filter', 'notify' or 'rule'")
+        # only OMF is an inbuilt plugin
+        if name.lower() == 'omf':
+            raise ValueError("Cannot update an inbuilt {} plugin.".format(name.upper()))
         if _type == 'notify':
             installed_dir_name = 'notificationDelivery'
         elif _type == 'rule':
@@ -169,11 +172,13 @@ async def update_plugin(request: web.Request) -> web.Response:
         raise web.HTTPNotFound(reason=str(ex))
     except ValueError as ex:
         raise web.HTTPBadRequest(reason=str(ex))
-    except StorageServerError as err:
-        msg = str(err)
+    except StorageServerError as e:
+        msg = e.error
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": "Storage error: {}".format(msg)}))
     except Exception as ex:
-        raise web.HTTPInternalServerError(reason=str(ex))
+        msg = str(ex)
+        _logger.error("Failed to update {} plugin. {}".format(name, msg))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({'message': msg}))
     else:
         return web.json_response(result_payload)
 

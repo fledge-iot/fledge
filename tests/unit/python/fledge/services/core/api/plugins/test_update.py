@@ -51,6 +51,12 @@ class TestPluginUpdate:
         assert 400 == resp.status
         assert "Invalid plugin type. Must be one of 'south' , north', 'filter', 'notify' or 'rule'" == resp.reason
 
+    @pytest.mark.parametrize("name", ["OMF", "omf", "Omf"])
+    async def test_bad_update_of_inbuilt_plugin(self, client, name):
+        resp = await client.put('/fledge/plugins/north/{}/update'.format(name), data=None)
+        assert 400 == resp.status
+        assert "Cannot update an inbuilt OMF plugin." == resp.reason
+
     @pytest.mark.parametrize("_type, plugin_installed_dirname", [
         ('south', 'Random'),
         ('north', 'http_north')

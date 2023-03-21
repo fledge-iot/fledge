@@ -314,8 +314,8 @@ class TestMultiAssets:
             _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries,
                            total_benchmark_services * 2, num_assets_per_service)
     
-    def test_multiple_assets_with_reconfig(self, reset_fledge, start_north, read_data_from_pi_web_api, skip_verify_north_interface,
-                                           fledge_url, num_assets,
+    def test_multiple_assets_with_reconfig(self, reset_fledge, start_north, read_data_from_pi_web_api, 
+                                           skip_verify_north_interface, fledge_url, num_assets, wait_fix, 
                                            wait_time, retries, pi_host, pi_port, pi_admin, pi_passwd, pi_db):
         """ Test addition of multiple assets with reconfiguration of south service.
             reset_fledge: Fixture to reset fledge
@@ -356,8 +356,8 @@ class TestMultiAssets:
         verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
         
         # FIX ME: FOGL-7567, Due to increase in timing of asset creation, time spent in reconfig asset also increases.
-        #  Remove the WAIT_FIX, Once FOGL-7567 is resolved.
-        WAIT_FIX = 4 + num_assets//100
+        # Remove the WAIT_FIX, Once FOGL-7567 is resolved.
+        WAIT_FIX =  wait_fix + num_assets//100
         
         verify_asset(fledge_url, total_assets, WAIT_FIX, wait_time)
         verify_asset_tracking_details(fledge_url, total_assets, total_benchmark_services, num_assets_per_service)

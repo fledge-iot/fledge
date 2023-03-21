@@ -19,8 +19,7 @@ from fledge.common.configuration_manager import ConfigurationManager
 from fledge.common.plugin_discovery import PluginDiscovery
 from fledge.common.storage_client.exceptions import StorageServerError
 from fledge.common.storage_client.payload_builder import PayloadBuilder
-from fledge.services.core import connect
-from fledge.services.core import server
+from fledge.services.core import connect, server
 from fledge.services.core.api.plugins import common
 
 
@@ -60,11 +59,23 @@ async def update_plugin(request: web.Request) -> web.Response:
         else:
             installed_dir_name = _type
 
+        # Check requested plugin name is installed or not
+        installed_plugins = PluginDiscovery.get_plugins_installed(installed_dir_name, False)
+        plugin_info = [(_plugin["name"], _plugin["packageName"]) for _plugin in installed_plugins]
+        package_name = "fledge-{}-{}".format(_type, name.lower().replace('_', '-'))
+        plugin_found = False
+        for p in plugin_info:
+            if p[0] == name:
+                package_name = p[1]
+                plugin_found = True
+                break
+        if not plugin_found:
+            raise KeyError("{} plugin is not yet installed. So update is not possible.".format(name))
+
         # Check Pre-conditions from Packages table
         # if status is -1 (Already in progress) then return as rejected request
         result_payload = {}
         action = 'update'
-        package_name = "fledge-{}-{}".format(_type, name.lower().replace('_', '-'))
         storage_client = connect.get_storage_async()
         select_payload = PayloadBuilder().SELECT("status").WHERE(['action', '=', action]).AND_WHERE(
             ['name', '=', package_name]).payload()
@@ -73,21 +84,15 @@ async def update_plugin(request: web.Request) -> web.Response:
         if response:
             exit_code = response[0]['status']
             if exit_code == -1:
-                msg = "{} package {} already in progress".format(package_name, action)
+                msg = "{} package {} already in progress.".format(package_name, action)
                 return web.HTTPTooManyRequests(reason=msg, body=json.dumps({"message": msg}))
             # Remove old entry from table for other cases
             delete_payload = PayloadBuilder().WHERE(['action', '=', action]).AND_WHERE(
                 ['name', '=', package_name]).payload()
             await storage_client.delete_from_tbl("packages", delete_payload)
 
-        # Check requested plugin name is installed or not
-        installed_plugins = PluginDiscovery.get_plugins_installed(installed_dir_name, False)
-        installed_plugin_name = [p_name["name"] for p_name in installed_plugins]
-        if name not in installed_plugin_name:
-            raise KeyError("{} plugin is not yet installed. So update is not possible.".format(name))
-
-        sch_list = []
-        notification_list = []
+        schedules = []
+        notifications = []
         if _type in ['notify', 'rule']:
             # Check Notification service is enabled or not
             payload = PayloadBuilder().SELECT("id", "enabled", "schedule_name").WHERE(['process_name', '=',
@@ -109,8 +114,10 @@ async def update_plugin(request: web.Request) -> web.Response:
                         _logger.warning("Disabling {} notification instance, as {} {} plugin is being updated...".format(
                             notification_name, name, _type))
                         await config_mgr.set_category_item_value_entry(notification_name, "enable", "false")
-                        notification_list.append(notification_name)
+                        notifications.append(notification_name)
         else:
+            # FIXME: if any south/north service or task doesnot have tracked by Fledge;
+            #  then we need to handle the case to disable the service or task if enabled
             # Tracked plugins from asset tracker
             tracked_plugins = await _get_plugin_and_sch_name_from_asset_tracker(_type)
             filters_used_by = []
@@ -131,7 +138,7 @@ async def update_plugin(request: web.Request) -> web.Response:
                         if status:
                             _logger.warning("Disabling {} {} instance, as {} plugin is being updated...".format(
                                 p['service'], _type, name))
-                            sch_list.append(sch_info[0]['id'])
+                            schedules.append(sch_info[0]['id'])
         # Insert record into Packages table
         insert_payload = PayloadBuilder().INSERT(id=str(uuid.uuid4()), name=package_name, action=action, status=-1,
                                                  log_file_uri="").payload()
@@ -145,11 +152,12 @@ async def update_plugin(request: web.Request) -> web.Response:
             if response:
                 pn = "{}-{}".format(action, name)
                 uid = response[0]['id']
-                p = multiprocessing.Process(name=pn, target=do_update, args=(server.Server.is_rest_server_http_enabled,
-                                                                             server.Server._host,
-                                                                             server.Server.core_management_port,
-                                                                             storage_client, _type, name, uid, sch_list,
-                                                                             notification_list))
+                p = multiprocessing.Process(name=pn,
+                                            target=do_update,
+                                            args=(server.Server.is_rest_server_http_enabled,
+                                                  server.Server._host, server.Server.core_management_port,
+                                                  storage_client, installed_dir_name, _type, name, package_name, uid,
+                                                  schedules, notifications))
                 p.daemon = True
                 p.start()
                 msg = "{} {} started.".format(package_name, action)
@@ -173,10 +181,13 @@ async def update_plugin(request: web.Request) -> web.Response:
 async def _get_plugin_and_sch_name_from_asset_tracker(_type: str) -> list:
     if _type == "south":
         event_name = "Ingest"
-    elif _type == 'filter':
+    elif _type == "filter":
         event_name = "Filter"
-    else:
+    elif _type == "north":
         event_name = "Egress"
+    else:
+        # Return empty if _type is different
+        return []
     storage_client = connect.get_storage_async()
     payload = PayloadBuilder().SELECT("plugin", "service").WHERE(['event', '=', event_name]).payload()
     result = await storage_client.query_tbl_with_payload('asset_tracker', payload)
@@ -207,16 +218,8 @@ async def _put_schedule(protocol: str, host: str, port: int, sch_id: uuid, is_en
             _logger.debug("PUT Schedule response: %s", response)
 
 
-def _update_repo_sources_and_plugin(_type: str, name: str) -> tuple:
-    # Below check is needed for python plugins
-    # For Example: installed_plugin_dir=wind_turbine; package_name=wind-turbine
-    name = name.replace("_", "-")
-
-    # For endpoint curl -X GET http://localhost:8081/fledge/plugins/available we used
-    # sudo apt list command internal so package name always returns in lowercase,
-    # irrespective of package name defined in the configured repo.
-    name = "fledge-{}-{}".format(_type, name.lower())
-    stdout_file_path = common.create_log_file(action="update", plugin_name=name)
+def _update_repo_sources_and_plugin(pkg_name: str) -> tuple:
+    stdout_file_path = common.create_log_file(action="update", plugin_name=pkg_name)
     pkg_mgt = 'apt'
     cmd = "sudo {} -y update > {} 2>&1".format(pkg_mgt, stdout_file_path)
     if utils.is_redhat_based():
@@ -225,7 +228,7 @@ def _update_repo_sources_and_plugin(_type: str, name: str) -> tuple:
     ret_code = os.system(cmd)
     # sudo apt/yum -y install only happens when update is without any error
     if ret_code == 0:
-        cmd = "sudo {} -y install {} >> {} 2>&1".format(pkg_mgt, name, stdout_file_path)
+        cmd = "sudo {} -y install {} >> {} 2>&1".format(pkg_mgt, pkg_name, stdout_file_path)
         ret_code = os.system(cmd)
 
     # relative log file link
@@ -233,11 +236,11 @@ def _update_repo_sources_and_plugin(_type: str, name: str) -> tuple:
     return ret_code, link
 
 
-def do_update(http_enabled: bool, host: str, port: int, storage: connect, _type: str, name: str, uid: str,
-              schedules: list, notifications: list) -> None:
-    _logger.info("{} plugin update started...".format(name))
+def do_update(http_enabled: bool, host: str, port: int, storage: connect, dir_name: str, _type: str, plugin_name: str,
+              pkg_name: str, uid: str, schedules: list, notifications: list) -> None:
+    _logger.info("{} package update started...".format(pkg_name))
     protocol = "HTTP" if http_enabled else "HTTPS"
-    code, link = _update_repo_sources_and_plugin(_type, name)
+    code, link = _update_repo_sources_and_plugin(pkg_name)
 
     # Update record in Packages table
     payload = PayloadBuilder().SET(status=code, log_file_uri=link).WHERE(['id', '=', uid]).payload()
@@ -247,9 +250,13 @@ def do_update(http_enabled: bool, host: str, port: int, storage: connect, _type:
     if code == 0:
         # Audit info
         audit = AuditLogger(storage)
-        audit_detail = {'packageName': "fledge-{}-{}".format(_type, name.replace("_", "-"))}
+        installed_plugins = PluginDiscovery.get_plugins_installed(dir_name, False)
+        version = [p["version"] for p in installed_plugins if p['name'] == plugin_name]
+        audit_detail = {'packageName': pkg_name}
+        if version:
+            audit_detail['version'] = version[0]
         loop.run_until_complete(audit.information('PKGUP', audit_detail))
-        _logger.info('{} plugin updated successfully'.format(name))
+        _logger.info('{} package updated successfully.'.format(pkg_name))
 
     # Restart the services which were disabled before plugin update
     for sch in schedules:

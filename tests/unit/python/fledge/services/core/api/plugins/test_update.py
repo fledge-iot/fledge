@@ -70,7 +70,7 @@ class TestPluginUpdate:
             "status": -1,
             "log_file_uri": ""
         }]}
-        msg = '{} package update already in progress'.format(pkg_name)
+        msg = '{} package update already in progress.'.format(pkg_name)
         storage_client_mock = MagicMock(StorageClientAsync)
         
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
@@ -78,57 +78,44 @@ class TestPluginUpdate:
             _rv = await async_mock(select_row_resp)
         else:
             _rv = asyncio.ensure_future(async_mock(select_row_resp))
-        
-        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'query_tbl_with_payload',
-                              return_value=_rv) as query_tbl_patch:
-                resp = await client.put('/fledge/plugins/{}/{}/update'.format(_type, plugin_installed_dirname),
-                                        data=None)
-                assert 429 == resp.status
-                assert msg == resp.reason
-                r = await resp.text()
-                actual = json.loads(r)
-                assert {'message': msg} == actual
-            args, kwargs = query_tbl_patch.call_args_list[0]
-            assert 'packages' == args[0]
-            assert payload == json.loads(args[1])
+
+        plugin_installed = [{"name": plugin_installed_dirname, "type": _type, "description": "{} plugin".format(_type),
+                             "version": "2.1.0", "installedDirectory": "{}/{}".format(_type, plugin_installed_dirname),
+                             "packageName": pkg_name}]
+        with patch.object(PluginDiscovery, 'get_plugins_installed',
+                          return_value=plugin_installed) as plugin_installed_patch:
+            with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+                with patch.object(storage_client_mock, 'query_tbl_with_payload',
+                                  return_value=_rv) as query_tbl_patch:
+                    resp = await client.put('/fledge/plugins/{}/{}/update'.format(_type, plugin_installed_dirname),
+                                            data=None)
+                    assert 429 == resp.status
+                    assert msg == resp.reason
+                    r = await resp.text()
+                    actual = json.loads(r)
+                    assert {'message': msg} == actual
+                args, kwargs = query_tbl_patch.call_args_list[0]
+                assert 'packages' == args[0]
+                assert payload == json.loads(args[1])
+        plugin_installed_patch.assert_called_once_with(_type, False)
 
     @pytest.mark.parametrize("_type, plugin_installed_dirname", [
         ('south', 'Random'),
         ('north', 'http_north')
     ])
     async def test_plugin_not_found(self, client, _type, plugin_installed_dirname):
-        async def async_mock(return_value):
-            return return_value
-
         plugin_name = 'sinusoid'
         pkg_name = "fledge-{}-{}".format(_type, plugin_installed_dirname.lower().replace("_", "-"))
-        payload = {"return": ["status"], "where": {"column": "action", "condition": "=", "value": "update",
-                                                   "and": {"column": "name", "condition": "=", "value": pkg_name}}}
         plugin_installed = [{"name": plugin_name, "type": _type, "description": "{} plugin".format(_type),
                              "version": "1.8.1", "installedDirectory": "{}/{}".format(_type, plugin_name),
                              "packageName": pkg_name}]
-        storage_client_mock = MagicMock(StorageClientAsync)
-        
-        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
-        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-            _rv = await async_mock({'count': 0, 'rows': []})
-        else:
-            _rv = asyncio.ensure_future(async_mock({'count': 0, 'rows': []}))        
-        
-        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv) as query_tbl_patch:
-                with patch.object(PluginDiscovery, 'get_plugins_installed', return_value=plugin_installed
-                                  ) as plugin_installed_patch:
-                    resp = await client.put('/fledge/plugins/{}/{}/update'.format(_type, plugin_installed_dirname),
-                                            data=None)
-                    assert 404 == resp.status
-                    assert "'{} plugin is not yet installed. So update is not possible.'".format(
-                        plugin_installed_dirname) == resp.reason
-                plugin_installed_patch.assert_called_once_with(_type, False)
-            args, kwargs = query_tbl_patch.call_args_list[0]
-            assert 'packages' == args[0]
-            assert payload == json.loads(args[1])
+        with patch.object(PluginDiscovery, 'get_plugins_installed',
+                          return_value=plugin_installed) as plugin_installed_patch:
+            resp = await client.put('/fledge/plugins/{}/{}/update'.format(_type, plugin_installed_dirname), data=None)
+            assert 404 == resp.status
+            assert "'{} plugin is not yet installed. So update is not possible.'".format(
+                plugin_installed_dirname) == resp.reason
+        plugin_installed_patch.assert_called_once_with(_type, False)
 
     @pytest.mark.parametrize("_type, plugin_installed_dirname", [
         ('south', 'Random'),

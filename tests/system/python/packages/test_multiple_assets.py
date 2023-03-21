@@ -151,6 +151,8 @@ def verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries):
 
 
 def verify_asset(fledge_url, total_assets, count, wait_time):
+    # Check whether "total_assets" are created or not by calling "/fledge/asset" endpoint for "count" number of iterations
+    # In each iteration sleep for wait_time * 6, i.e., 60 seconds..
     for i in range(count):
         get_url = "/fledge/asset"
         result = utils.get_request(fledge_url, get_url)
@@ -158,6 +160,8 @@ def verify_asset(fledge_url, total_assets, count, wait_time):
         if (total_assets == asset_created):
             print("Total {} asset created".format(asset_created))
             return
+        # Fledge takes 60 seconds to create 100 assets.
+        # Added sleep for "wait_time * 6", So that we can changes sleep time by changing value of wait_time from the jenkins job in future if required.
         time.sleep(wait_time * 6)
     assert total_assets == len(result)
 
@@ -216,6 +220,7 @@ class TestMultiAssets:
 
         total_benchmark_services = 6
         num_assets_per_service = (num_assets//total_benchmark_services)
+        # Total number of assets that would be created, total_assets variable is used instead of num_assets to handle case where num_assets is not divisible by 3 or 6. Since we are creating 3 or 6 services and each service should create equal num ber of aasets.
         total_assets = num_assets_per_service * total_benchmark_services
 
         for count in range(total_benchmark_services):
@@ -227,6 +232,7 @@ class TestMultiAssets:
         time.sleep(wait_time * 3)
         
         verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
+        # num//assets return integer value that passes to count
         verify_asset(fledge_url, total_assets, num_assets//100, wait_time)
 
         put_url = "/fledge/restart"
@@ -235,6 +241,7 @@ class TestMultiAssets:
         verify_restart(fledge_url, retries)
 
         verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
+        # num//assets return integer value that passes to count
         verify_asset(fledge_url, total_assets, num_assets//100, wait_time)
         verify_asset_tracking_details(fledge_url, total_assets, total_benchmark_services, num_assets_per_service)
 
@@ -267,19 +274,20 @@ class TestMultiAssets:
 
         total_benchmark_services = 3
         num_assets_per_service = (num_assets//(total_benchmark_services*2))
-        # Total number of assets that would be created
+        # Total number of assets that would be created, total_assets variable is used instead of num_assets to handle case where num_assets is not divisible by 3 or 6. Since we are creating 3 or 6 services and each service should create equal num ber of aasets.
         total_assets = num_assets_per_service * total_benchmark_services
-
+        
         for count in range(total_benchmark_services):
             service_name = BENCHMARK_SOUTH_SVC_NAME + "{}".format(count + 1)
             add_benchmark(fledge_url, service_name, count + 1, num_assets_per_service)
             verify_service_added(fledge_url, service_name)
 
         
-        # Sleep for few seconds, So that some data can be ingested into the Fledge.
+        # Sleep for few seconds, So that data from south service can be ingested into the Fledge.
         time.sleep(wait_time * 3)
         
         verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
+        # num//assets return integer value that passes to count
         verify_asset(fledge_url, total_assets, num_assets//100, wait_time)
 
         verify_asset_tracking_details(fledge_url, total_assets, total_benchmark_services, num_assets_per_service)
@@ -298,6 +306,7 @@ class TestMultiAssets:
             verify_service_added(fledge_url, service_name)
 
         verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
+        # num//assets return integer value that passes to count
         verify_asset(fledge_url, total_assets, num_assets//100, wait_time)
         verify_asset_tracking_details(fledge_url, total_assets, total_benchmark_services * 2, num_assets_per_service)
 
@@ -312,6 +321,7 @@ class TestMultiAssets:
 
         if not skip_verify_north_interface:
             assert old_ping_result['dataSent'] < new_ping_result['dataSent']
+            # Initially total_benchmark_services is 3 but after the restart the 3 more south services are added. So, total_benchmark_services * 2 is 6
             _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries,
                            total_benchmark_services * 2, num_assets_per_service)
     
@@ -327,7 +337,7 @@ class TestMultiAssets:
 
         total_benchmark_services = 3
         num_assets_per_service = (num_assets//(total_benchmark_services*2))
-
+        # total_assets variable is used instead of num_assets to handle case where num_assets is not divisible by 3 or 6. Since we are creating 3 or 6 services and each service should create equal num ber of aasets.
         # Number of assets that would be created initially
         total_assets = num_assets_per_service * total_benchmark_services
 
@@ -336,10 +346,11 @@ class TestMultiAssets:
             add_benchmark(fledge_url, service_name, count + 1, num_assets_per_service)
             verify_service_added(fledge_url, service_name)
 
-        # Sleep for few seconds, So that some data can be ingested into the Fledge
+        # Sleep for few seconds, So that data from south service can be ingested into the Fledge
         time.sleep(wait_time * 3)
         
         verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
+        # num//assets return integer value that passes to count
         verify_asset(fledge_url, total_assets, num_assets//100, wait_time)
         verify_asset_tracking_details(fledge_url, total_assets, total_benchmark_services, num_assets_per_service)
 

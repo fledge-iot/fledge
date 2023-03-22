@@ -12,12 +12,12 @@ import asyncio
 
 from aiohttp import web
 
-from fledge.services.core import routes
-from fledge.services.core import connect
+from fledge.common.plugin_discovery import PluginDiscovery
+from fledge.common.storage_client.storage_client import StorageClientAsync
+from fledge.services.core import connect, routes
+from fledge.services.core.api import common
 from fledge.services.core.api.plugins import remove as plugins_remove
 from fledge.services.core.api.plugins.exceptions import *
-from fledge.common.storage_client.storage_client import StorageClientAsync
-from fledge.common.plugin_discovery import PluginDiscovery
 
 
 __author__ = "Ashish Jabble"
@@ -36,28 +36,25 @@ class TestPluginRemove:
         routes.setup(app)
         return loop.run_until_complete(test_client(app))
 
-    @pytest.mark.parametrize("_type", [
-        "blah",
-        1,
-        "notificationDelivery"
-        "notificationRule"
-    ])
+    RUN_TESTS_BEFORE_210_VERSION = False if common.get_version() <= "2.1.0" else True
+
+    @pytest.mark.skipif(RUN_TESTS_BEFORE_210_VERSION, reason="requires lesser or equal to core 2.1.0 version")
+    @pytest.mark.parametrize("_type", ["blah", 1, "notificationDelivery", "notificationRule"])
     async def test_bad_type_plugin(self, client, _type):
         resp = await client.delete('/fledge/plugins/{}/name'.format(_type), data=None)
         assert 400 == resp.status
         assert "Invalid plugin type. Please provide valid type: ['north', 'south', 'filter', 'notify', 'rule']" == \
                resp.reason
 
+    @pytest.mark.skipif(RUN_TESTS_BEFORE_210_VERSION, reason="requires lesser or equal to core 2.1.0 version")
     @pytest.mark.parametrize("name", ["OMF", "omf", "Omf"])
     async def test_bad_update_of_inbuilt_plugin(self, client, name):
         resp = await client.delete('/fledge/plugins/north/{}'.format(name), data=None)
         assert 400 == resp.status
         assert "Cannot delete an inbuilt OMF plugin." == resp.reason
 
-    @pytest.mark.parametrize("name", [
-        "http-south",
-        "random"
-    ])
+    @pytest.mark.skipif(RUN_TESTS_BEFORE_210_VERSION, reason="requires lesser or equal to core 2.1.0 version")
+    @pytest.mark.parametrize("name", ["http-south", "random"])
     async def test_bad_name_plugin(self, client, name):
         plugin_installed = [{"name": "sinusoid", "type": "south", "description": "Sinusoid Poll Plugin",
                              "version": "1.8.1", "installedDirectory": "south/sinusoid",
@@ -80,6 +77,7 @@ class TestPluginRemove:
             assert {'message': expected_msg} == response
         plugin_installed_patch.assert_called_once_with('south', False)
 
+    @pytest.mark.skipif(RUN_TESTS_BEFORE_210_VERSION, reason="requires lesser or equal to core 2.1.0 version")
     async def test_plugin_in_use(self, client):
         async def async_mock(return_value):
             return return_value
@@ -117,6 +115,7 @@ class TestPluginRemove:
             plugin_usage_patch.assert_called_once_with(_type, name)
         plugin_installed_patch.assert_called_once_with(_type, False)
 
+    @pytest.mark.skipif(RUN_TESTS_BEFORE_210_VERSION, reason="requires lesser or equal to core 2.1.0 version")
     async def test_notify_plugin_in_use(self, client):
         async def async_mock(return_value):
             return return_value
@@ -156,6 +155,7 @@ class TestPluginRemove:
             plugin_usage_patch.assert_called_once_with(plugin_installed_dirname)
         plugin_installed_patch.assert_called_once_with(plugin_type_installed_dir, False)
 
+    @pytest.mark.skipif(RUN_TESTS_BEFORE_210_VERSION, reason="requires lesser or equal to core 2.1.0 version")
     async def test_package_already_in_progress(self, client):
         async def async_mock(return_value):
             return return_value
@@ -213,6 +213,7 @@ class TestPluginRemove:
             plugin_usage_patch.assert_called_once_with(_type, name)
         plugin_installed_patch.assert_called_once_with(_type, False)
 
+    @pytest.mark.skipif(RUN_TESTS_BEFORE_210_VERSION, reason="requires lesser or equal to core 2.1.0 version")
     async def test_package_when_not_in_use(self, client):
         
         async def async_mock(return_value):

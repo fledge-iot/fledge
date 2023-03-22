@@ -29,13 +29,14 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 _help = """
-    -------------------------------------------------------------------------------
-    | PUT             | /fledge/plugin/{type}/{name}/update                       |
-    -------------------------------------------------------------------------------
+    ------------------------------------------------------------------------
+    | PUT             | /fledge/plugins/{package_name}                     |
+    ------------------------------------------------------------------------
 """
 _logger = logger.setup(__name__, level=logging.INFO)
 
 
+# only work with core 2.1.0 onwards version
 async def update_package(request: web.Request) -> web.Response:
     """ Update Package
 
@@ -177,6 +178,7 @@ async def update_package(request: web.Request) -> web.Response:
         return web.json_response(final_response)
 
 
+# only work with lesser or equal to version of core 2.1.0 version
 async def update_plugin(request: web.Request) -> web.Response:
     """ update plugin
 

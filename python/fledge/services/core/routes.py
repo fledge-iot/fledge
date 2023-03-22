@@ -182,6 +182,7 @@ def setup(app):
         app.router.add_route('PUT', '/fledge/plugins/{type}/{name}/update', plugins_update.update_plugin)
         app.router.add_route('DELETE', '/fledge/plugins/{type}/{name}', plugins_remove.remove_plugin)
     else:
+        # routes available 2.1.0 onwards
         app.router.add_route('PUT', '/fledge/plugins/{package_name}', plugins_update.update_package)
         app.router.add_route('DELETE', '/fledge/plugins/{package_name}', plugins_remove.remove_package)
     # plugin data

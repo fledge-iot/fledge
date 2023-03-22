@@ -31,9 +31,9 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 _help = """
-    -------------------------------------------------------------------------------
-    | DELETE             | /fledge/plugins/{plugin-type}/{plugin-name}            |
-    -------------------------------------------------------------------------------
+    --------------------------------------------------------------------
+    | DELETE             | /fledge/plugins/{package_name}              |
+    --------------------------------------------------------------------
 """
 
 _logger = logger.setup(__name__, level=logging.INFO)
@@ -43,7 +43,7 @@ PYTHON_PLUGIN_PATH = _FLEDGE_ROOT+'/python/fledge/plugins/'
 C_PLUGINS_PATH = _FLEDGE_ROOT+'/plugins/'
 
 
-# only work with above version of core 2.1.0 version
+# only work with core 2.1.0 onwards version
 async def remove_package(request: web.Request) -> web.Response:
     """Remove installed Package
 
@@ -59,7 +59,7 @@ async def remove_package(request: web.Request) -> web.Response:
     try:
         package_name = request.match_info.get('package_name', "fledge-")
         package_name = package_name.replace(" ", "")
-        response = {}
+        final_response = {}
         if not package_name.startswith("fledge-"):
             raise ValueError("Package name should start with 'fledge-' prefix.")
         plugin_type = package_name.split("-", 2)[1]
@@ -132,7 +132,7 @@ async def remove_package(request: web.Request) -> web.Response:
                 p.start()
                 msg = "{} plugin remove started.".format(plugin_name)
                 status_link = "fledge/package/{}/status?id={}".format(action, uid)
-                response = {"message": msg, "id": uid, "statusLink": status_link}
+                final_response = {"message": msg, "id": uid, "statusLink": status_link}
         else:
             raise StorageServerError
     except (ValueError, RuntimeError) as err:
@@ -149,7 +149,7 @@ async def remove_package(request: web.Request) -> web.Response:
         _logger.error("Failed to delete {} package. {}".format(package_name, msg))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({'message': msg}))
     else:
-        return web.json_response(response)
+        return web.json_response(final_response)
 
 
 def _uninstall(pkg_name: str, version: str, uid: uuid, storage: connect) -> tuple:

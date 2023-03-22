@@ -1860,6 +1860,7 @@ int StorageClient::insertTable(const string& schema, const string& tableName, co
 {
         try {
 		ostringstream convert;
+		convert << "{ \"inserts\": [" ;
                 for (std::vector<InsertValues>::const_iterator it = values.cbegin();
                                                  it != values.cend(); ++it)
                 {
@@ -1869,6 +1870,7 @@ int StorageClient::insertTable(const string& schema, const string& tableName, co
                         }
                         convert <<  it->toJSON() ;
                 }
+		convert << "]}";
 
                 char url[1000];
                 snprintf(url, sizeof(url), "/storage/schema/%s/table/%s", schema.c_str(), tableName.c_str());

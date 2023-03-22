@@ -42,7 +42,7 @@
 #define SQLITE3_NOW_READING     "strftime('%Y-%m-%d %H:%M:%f000+00:00', 'now')"
 #define SQLITE3_FLEDGE_DATETIME_TYPE "DATETIME"
 
-#define  DB_CONFIGURATION "PRAGMA busy_timeout = 5000; PRAGMA cache_size = -4000; PRAGMA journal_mode = WAL; PRAGMA secure_delete = off; PRAGMA journal_size_limit = 4096000;"
+#define  DB_CONFIGURATION "PRAGMA busy_timeout = 5000; PRAGMA cache_size = -4000; PRAGMA journal_mode = WAL; PRAGMA secure_delete = off; PRAGMA journal_size_limit = 4096000; PRAGMA foreign_keys = ON;"
 
 // Set plugin name for log messages
 #ifndef PLUGIN_LOG_NAME

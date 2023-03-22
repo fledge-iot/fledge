@@ -499,7 +499,10 @@ Connection::Connection()
 		int rc;
 		char *zErrMsg = NULL;
 
-		string dbConfiguration = "PRAGMA busy_timeout = 5000; PRAGMA cache_size = -4000; PRAGMA journal_mode = WAL; PRAGMA secure_delete = off; PRAGMA journal_size_limit = 4096000;";
+		// Better defined as in C/plugins/storage/sqlite/common/include/connection.h
+		// #define  DB_CONFIGURATION "PRAGMA busy_timeout = 5000; PRAGMA cache_size = -4000; PRAGMA journal_mode = WAL; PRAGMA secure_delete = off; PRAGMA journal_size_limit = 4096000; PRAGMA foreign_keys = ON;"
+
+		string dbConfiguration = "PRAGMA busy_timeout = 5000; PRAGMA cache_size = -4000; PRAGMA journal_mode = WAL; PRAGMA secure_delete = off; PRAGMA journal_size_limit = 4096000; PRAGMA foreign_keys = ON;";
 
 		// Enable the WAL for the fledge DB
 		rc = sqlite3_exec(dbHandle, dbConfiguration.c_str(), NULL, NULL, &zErrMsg);

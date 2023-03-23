@@ -722,7 +722,7 @@ class TestScriptManagement:
 
         query_payload = {"return": ["name", "steps", "acl"], "where": {"column": "name", "condition": "=",
                                                                        "value": script_name}}
-        message = "Schedule and configuration is created for an automation script with name {}".format(script_name)
+        message = "Schedule and configuration is created for control script {}".format(script_name)
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):

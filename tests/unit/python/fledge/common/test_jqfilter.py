@@ -10,7 +10,7 @@
 from unittest.mock import patch
 import pytest
 import pyjq
-from fledge.common import logger
+from fledge.common.logger import FLCoreLogger
 from fledge.common.jqfilter import JQFilter
 
 __author__ = "Vaibhav Singhal"
@@ -23,9 +23,9 @@ __version__ = "${VERSION}"
 @pytest.allure.story("common", "jqfilter")
 class TestJQFilter:
     def test_init(self):
-        with patch.object(logger, "setup") as log:
+        with patch.object(FLCoreLogger, "get_logger") as log:
             jqfilter_instance = JQFilter()
-        assert isinstance(jqfilter_instance, JQFilter)
+            assert isinstance(jqfilter_instance, JQFilter)
         log.assert_called_once_with("JQFilter")
 
     @pytest.mark.parametrize("input_filter_string, input_reading_block, expected_return", [

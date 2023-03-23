@@ -5,7 +5,7 @@
 # FLEDGE_END
 
 import json
-from fledge.common import logger
+from fledge.common.logger import FLCoreLogger
 from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.common.storage_client.storage_client import StorageClientAsync
 
@@ -15,8 +15,7 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-
-_logger = logger.setup(__name__)
+_logger = FLCoreLogger().get_logger(__name__)
 
 
 async def create_statistics(storage=None):

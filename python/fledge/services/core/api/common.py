@@ -157,9 +157,11 @@ async def shutdown(request):
         return web.json_response({'message': 'Fledge shutdown has been scheduled. '
                                              'Wait for few seconds for process cleanup.'})
     except TimeoutError as err:
-        raise web.HTTPInternalServerError(reason=str(err))
+        raise web.HTTPRequestTimeout(reason=str(err))
     except Exception as ex:
-        raise web.HTTPInternalServerError(reason=str(ex))
+        msg = str(ex)
+        _logger.error("Error while stopping Fledge server: {}".format(msg))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
 
 
 def do_shutdown(request):
@@ -168,7 +170,7 @@ def do_shutdown(request):
         loop = request.loop
         asyncio.ensure_future(server.Server.shutdown(request), loop=loop)
     except RuntimeError as e:
-        _logger.exception("Error while stopping Fledge server: {}".format(str(e)))
+        _logger.error("Error while stopping Fledge server: {}".format(str(e)))
         raise
 
 
@@ -182,9 +184,10 @@ async def restart(request):
         _logger.info("Executing controlled shutdown and start")
         asyncio.ensure_future(server.Server.restart(request), loop=request.loop)
         return web.json_response({'message': 'Fledge restart has been scheduled.'})
-    except TimeoutError as e:
-        _logger.exception("Error while stopping Fledge server: %s", e)
-        raise web.HTTPInternalServerError(reason=e)
+    except TimeoutError as err:
+        msg = str(err)
+        raise web.HTTPRequestTimeout(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
-        _logger.exception("Error while stopping Fledge server: %s", ex)
-        raise web.HTTPInternalServerError(reason=ex)
+        msg = str(ex)
+        _logger.error("Error while stopping Fledge server: {}".format(msg))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))

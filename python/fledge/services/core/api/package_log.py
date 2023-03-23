@@ -5,7 +5,6 @@
 # FLEDGE_END
 
 import os
-import logging
 import json
 from datetime import datetime
 
@@ -13,7 +12,7 @@ from pathlib import Path
 from aiohttp import web
 
 from fledge.common.common import _FLEDGE_ROOT, _FLEDGE_DATA
-from fledge.common import logger
+from fledge.common.logger import FLCoreLogger
 from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.services.core import connect
 
@@ -31,7 +30,7 @@ _help = """
 """
 valid_extension = '.log'
 valid_actions = ('list', 'install', 'purge', 'update')
-_LOGGER = logger.setup(__name__, level=logging.INFO)
+_LOGGER = FLCoreLogger().get_logger(__name__)
 
 
 async def get_logs(request: web.Request) -> web.Response:
@@ -136,11 +135,15 @@ async def get_package_status(request: web.Request) -> web.Response:
             tmp['logFileURI'] = r['log_file_uri']
             del tmp['log_file_uri']
             result.append(tmp)
-    except ValueError as err_msg:
-        raise web.HTTPBadRequest(reason=err_msg, body=json.dumps({"message": str(err_msg)}))
-    except KeyError as err_msg:
-        raise web.HTTPNotFound(reason=err_msg, body=json.dumps({"message": str(err_msg)}))
+    except ValueError as err:
+        msg = str(err)
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+    except KeyError as err:
+        msg = str(err)
+        raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as exc:
-        raise web.HTTPInternalServerError(reason=str(exc))
+        msg = str(exc)
+        _LOGGER.error("Failed tp get package log status for {} action. {}".format(action, msg))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({"packageStatus": result})

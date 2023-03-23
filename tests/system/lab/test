@@ -12,6 +12,8 @@ CRESET="${CPFX}0m"
 . ./test.config
 
 LAB_ASSET_NAME="PILAB-sinusoid"
+AF_HIERARCHY_LEVEL="/$(date +%F | tr - _)_PIlabSinelvl1/PIlabSinelvl2/PIlabSinelvl3"
+
 rm -f err.txt
 touch err.txt
 
@@ -133,7 +135,7 @@ setup_north_pi_egress () {
                  "value": "true"
               },
               "DefaultAFLocation": {
-                 "value": "/PIlabSinelvl1/PIlabSinelvl2/PIlabSinelvl3"
+                 "value": "'"${AF_HIERARCHY_LEVEL}"'"
               },
               "Legacy": {
                  "value": "false"
@@ -176,7 +178,7 @@ setup_north_pi_egress () {
                  "value": "true"
               },
               "DefaultAFLocation": {
-                 "value": "/PIlabSinelvl1/PIlabSinelvl2/PIlabSinelvl3"
+                 "value": "'"${AF_HIERARCHY_LEVEL}"'"
               },
               "Legacy": {
                  "value": "false"
@@ -186,7 +188,22 @@ setup_north_pi_egress () {
     fi
 
     echo
-
+    
+    # Wait for OMF to start  up properly
+    for LOOP in $(seq ${MAX_RETRIES}); do
+      RESULT=$(curl -sX GET  "$URL/service" | jq '.services[] | select (.name == "PI Server")| .status' | tr -d \")
+      if [[ "${RESULT}" -eq "running" ]];then 
+         break
+      fi
+    done
+    if [[ ${LOOP} -eq ${MAX_RETRIES} ]]
+    then
+       display_and_collect_err "TIMEOUT! Unable to start North Service"
+       if [[ ${EXIT_EARLY} -eq 1 ]]; then exit 1; fi
+    else
+       echo "---- North Service is started properly ----"
+    fi
+   
     for LOOP in $(seq ${MAX_RETRIES}); do
         RESULT=`curl -sX GET "$URL/north"`
         # echo ${RESULT}
@@ -232,15 +249,6 @@ setup_north_pi_egress () {
    echo "======================= PI SETUP COMPLETE ======================="
 
 }
-
-if [[  ${VERIFY_EGRESS_TO_PI} == 1 ]]
-  then
-     setup_north_pi_egress
-     echo "---- Verify and clean the data sent to PI server ----"
-     python3 verify_clean_pi.py --pi-admin=${PI_USER} --pi-passwd=${PI_PASSWORD} --pi-host=${PI_IP} --pi-port=443 --pi-db=foglamp --asset-name=${LAB_ASSET_NAME}
-  else
-     echo "======================= SKIPPED PI EGRESS ======================="
-fi
 
 
 square_filter_config=$(cat <<EOF
@@ -863,14 +871,40 @@ event_toggled_sent_clear
 
 echo "======================= TOGGLE EVENT NTFSN and NTFCL TEST COMPLETE ======================="
 
+if [[  ${VERIFY_EGRESS_TO_PI} == 1 ]]
+  then
+     setup_north_pi_egress
+     # Diabling North Service
+     curl -sX PUT "$URL/schedule/disable" -d '{"schedule_name": "PI Server"}'
+     for LOOP in $(seq ${MAX_RETRIES}); do
+        RESULT=$(curl -sX GET  "$URL/service" | jq '.services[] | select (.name == "PI Server")| .status' | tr -d \")
+        if [[ "${RESULT}" -eq "shutdown" ]];then 
+           break
+        fi
+     done
+     
+     if [[ ${LOOP} -eq ${MAX_RETRIES} ]]
+     then
+       display_and_collect_err "TIMEOUT! Unable to Disable North Service, AF Heirarchy of PI Server may get disturbed"
+       if [[ ${EXIT_EARLY} -eq 1 ]]; then exit 1; fi
+     else
+       echo
+       echo "---- North Service is disabled properly ----"
+     fi
+     echo "---- Verify and clean the data sent to PI server ----"
+     python3 verify_clean_pi.py --pi-admin="${PI_USER}" --pi-passwd="${PI_PASSWORD}" --pi-host="${PI_IP}" --pi-port="${PI_PORT}" --pi-db="${PI_DB}" --asset-name="${LAB_ASSET_NAME}"
+else
+     echo "======================= SKIPPED PI EGRESS ======================="
+fi
+
 
 ERRORS="$(wc -c <"err.txt")"
 if [[ ${ERRORS} -ne 0 ]]
- then
+then
     echo "============================= TESTS FAILED! ============================="
     cat err.txt
     exit 1
- else
+else
     echo "======================================================\
           =================== S U C C E S S ====================\
           ======================================================"

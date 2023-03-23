@@ -266,7 +266,7 @@ class TestService:
             _rv = asyncio.ensure_future(self.async_mock(None))
         
         with patch.object(common, 'load_and_fetch_python_plugin_info', side_effect=[mock_plugin_info]):
-            with patch.object(service._logger, 'exception') as ex_logger:
+            with patch.object(service._logger, 'error') as patch_logger:
                 with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
                     with patch.object(c_mgr, 'get_category_all_items',
                                       return_value=_rv) as patch_get_cat_info:
@@ -284,7 +284,7 @@ class TestService:
                                                                       'value': '[\"services/south_c\"]'}}
                                 } == p2
                     patch_get_cat_info.assert_called_once_with(category_name=data['name'])
-            assert 1 == ex_logger.call_count
+            assert 1 == patch_logger.call_count
 
     async def test_dupe_category_name_add_service(self, client):
         mock_plugin_info = {

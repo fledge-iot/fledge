@@ -594,12 +594,8 @@ async def update_service(request: web.Request) -> web.Response:
         if _type not in ('notification', 'dispatcher', 'bucket_storage', 'management'):
             raise ValueError("Invalid service type.")
 
-        # process_name for bucket storage service schedule is bucket_storage_c hence type here must be bucket_storage?
-        # process_name for management service schedule is management and python based; Check added for schedule stuff
-
         # NOTE: `bucketstorage` repository name with `BucketStorage` type in service registry has package name *-`bucket`.
-        # URL: /fledge/service/bucket_storage/bucket/update ?! *EXTERNAL*
-        # URL: /fledge/service/management/management/update ?! *EXTERNAL*
+        # URL: /fledge/service/bucket_storage/bucket/update
 
         # Check requested service is installed or not
         installed_services = get_service_installed()
@@ -647,7 +643,7 @@ async def update_service(request: web.Request) -> web.Response:
         result = await storage_client.insert_into_tbl("packages", insert_payload)
         if result['response'] == "inserted" and result['rows_affected'] == 1:
             pn = "{}-{}".format(action, name)
-            # Protocol is always http:// on core_management_port
+            # Scheme is always http:// on core_management_port
             p = multiprocessing.Process(name=pn, target=do_update, args=(server.Server.is_rest_server_http_enabled,
                                                                          server.Server._host,
                                                                          server.Server.core_management_port,
@@ -694,7 +690,7 @@ def do_update(http_enabled: bool, host: str, port: int, storage: connect, pkg_na
     cmd = "sudo {} -y update > {} 2>&1".format(pkg_mgt, stdout_file_path)
 
     # Protocol is always http:// on core_management_port
-    protocol = "HTTP" # if http_enabled else "HTTPS"
+    protocol = "HTTP"
 
     if pkg_mgt == 'yum':
         cmd = "sudo {} check-update > {} 2>&1".format(pkg_mgt, stdout_file_path)

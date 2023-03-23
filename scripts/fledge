@@ -534,7 +534,9 @@ fledge_status() {
                 ps -ef | grep -v 'cpulimit*' | grep -o 'python3 -m fledge.tasks.*' | grep -o 'fledge.tasks.*' | grep -v 'fledge.tasks\.\*' || true
 
                 # Show Tasks in C code
-                ps -ef | grep './tasks.' | grep -v python3 | grep -v grep | grep -v awk | awk '{printf "tasks/sending_process "; for(i=9;i<=NF;++i) printf $i FS; printf "\n"}' || true
+                ps -ef | grep 'fledge/tasks/sending_process' | grep -v python3 | grep -v grep | grep -v awk | awk '{printf "tasks/sending_process "; for(i=9;i<=NF;++i) printf $i FS; printf "\n"}' || true
+                ps -ef | grep 'fledge/tasks/purge_system' | grep -v python3 | grep -v grep | grep -v awk | awk '{printf "tasks/purge_system "; for(i=9;i<=NF;++i) printf $i FS; printf "\n"}' || true
+                ps -ef | grep 'fledge/tasks/statistics_history' | grep -v python3 | grep -v grep | grep -v awk | awk '{printf "tasks/statistics_history "; for(i=9;i<=NF;++i) printf $i FS; printf "\n"}' || true
             fi
             ;;
         *)

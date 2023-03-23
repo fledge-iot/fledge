@@ -86,8 +86,10 @@ class TestAssetTracker:
         storage_client_mock = MagicMock(StorageClientAsync)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv):
-                resp = await client.put('/fledge/track/service/XXX/asset/XXX/event/XXXX')
-                assert 500 == resp.status
+                with patch.object(_logger, 'error') as patch_logger:
+                    resp = await client.put('/fledge/track/service/XXX/asset/XXX/event/XXXX')
+                    assert 500 == resp.status
+                assert 1 == patch_logger.call_count
 
     async def test_deprecate_entry_not_found(self, client):
         result = {"count": 0, "rows": []}

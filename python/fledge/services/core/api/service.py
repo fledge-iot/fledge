@@ -15,7 +15,7 @@ from aiohttp import web
 
 from typing import Dict, List
 from fledge.common import utils
-from fledge.common import logger
+from fledge.common.logger import FLCoreLogger
 from fledge.common.service_record import ServiceRecord
 from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.common.storage_client.exceptions import StorageServerError
@@ -49,8 +49,7 @@ _help = """
     | POST                | /fledge/service/{service_name}/otp                   |
     ------------------------------------------------------------------------------
 """
-
-_logger = logger.setup()
+_logger = FLCoreLogger().get_logger(__name__)
 
 #################################
 #  Service
@@ -365,10 +364,9 @@ async def add_service(request):
                     _logger.exception("{} Detailed error logs are: {}".format(msg, str(ex)))
                     raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
             except TypeError as ex:
-                _logger.exception(str(ex))
                 raise web.HTTPBadRequest(reason=str(ex))
             except Exception as ex:
-                _logger.exception("Failed to fetch plugin configuration. %s", str(ex))
+                _logger.error("Failed to fetch plugin info config item. {}".format(str(ex)))
                 raise web.HTTPInternalServerError(reason='Failed to fetch plugin configuration')
         elif service_type == 'notification':
             if not os.path.exists(_FLEDGE_ROOT + "/services/fledge.services.{}".format(service_type)):
@@ -422,7 +420,7 @@ async def add_service(request):
                 _logger.exception("Failed to create scheduled process. %s", ex.error)
                 raise web.HTTPInternalServerError(reason='Failed to create service.')
             except Exception as ex:
-                _logger.exception("Failed to create scheduled process. %s", str(ex))
+                _logger.error("Failed to create scheduled process. %s", str(ex))
                 raise web.HTTPInternalServerError(reason='Failed to create service.')
 
         # check that notification service is not already registered, right now notification service LIMIT to 1
@@ -472,11 +470,11 @@ async def add_service(request):
                         raise ValueError('Config must be a JSON object')
                     for k, v in config.items():
                         await config_mgr.set_category_item_value_entry(name, k, v['value'])
-
             except Exception as ex:
                 await config_mgr.delete_category_and_children_recursively(name)
-                _logger.exception("Failed to create plugin configuration. %s", str(ex))
-                raise web.HTTPInternalServerError(reason='Failed to create plugin configuration. {}'.format(ex))
+                msg = "Failed to create plugin configuration while adding service. {}".format(str(ex))
+                _logger.error(msg)
+                raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
 
         # If all successful then lastly add a schedule to run the new service at startup
         try:
@@ -497,7 +495,7 @@ async def add_service(request):
             raise web.HTTPInternalServerError(reason='Failed to create service.')
         except Exception as ex:
             await config_mgr.delete_category_and_children_recursively(name)
-            _logger.exception("Failed to create service. %s", str(ex))
+            _logger.error("Failed to create service. %s", str(ex))
             raise web.HTTPInternalServerError(reason='Failed to create service.')
     except ValueError as err:
         msg = str(err)

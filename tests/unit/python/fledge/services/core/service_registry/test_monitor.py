@@ -94,7 +94,6 @@ class TestMonitor:
             """
             print(ServiceRegistry.get(idx=s_id_1)[0]._status)
 
-
     @pytest.mark.asyncio
     async def test__monitor_exceed_attempts(self, mocker):
         class AsyncSessionContextManagerMock(MagicMock):
@@ -113,8 +112,14 @@ class TestMonitor:
             pass
 
         # register a service
-        s_id_1 = ServiceRegistry.register(
-            'sname1', 'Storage', 'saddress1', 1, 1, 'protocol1')
+        with patch.object(ServiceRegistry._logger, 'info') as log_info:
+            s_id_1 = ServiceRegistry.register(
+                'sname1', 'Storage', 'saddress1', 1, 1, 'protocol1')
+        assert 1 == log_info.call_count
+        args, kwargs = log_info.call_args
+        assert args[0].startswith('Registered service instance id=')
+        assert args[0].endswith(': <sname1, type=Storage, protocol=protocol1, address=saddress1, '
+                                'service port=1, management port=1, status=1>')
         monitor = Monitor()
         monitor._sleep_interval = Monitor._DEFAULT_SLEEP_INTERVAL
         monitor._max_attempts = Monitor._DEFAULT_MAX_ATTEMPTS

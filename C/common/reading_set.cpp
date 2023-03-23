@@ -62,7 +62,13 @@ ReadingSet::ReadingSet(const vector<Reading *>* readings) : m_last_id(0)
 
 /**
  * Construct a reading set from a JSON document returned from
- * the Fledge storage service query or notification.
+ * the Fledge storage service query or notification. The JSON
+ * is parsed using the in-situ RapidJSON parser in order to
+ * reduce overhead on what is most likely a large JSON document.
+ *
+ * WARNING: Although the string passed in is defiend as const
+ * this call is destructive to this string and the conntents
+ * of the string should not be used after making this call.
  *
  * @param json	The JSON document (as string) with readings data
  */
@@ -70,7 +76,7 @@ ReadingSet::ReadingSet(const std::string& json) : m_last_id(0)
 {
 	unsigned long rows = 0;
 	Document doc;
-	doc.Parse(json.c_str());
+	doc.ParseInsitu((char *)json.c_str());	// Cast away const in order to use in-situ
 	if (doc.HasParseError())
 	{
 		throw new ReadingSetException("Unable to parse results json document");

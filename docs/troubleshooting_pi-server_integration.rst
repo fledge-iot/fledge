@@ -30,7 +30,7 @@ using Fledge version >= 1.9.1 and PI Web API 2019 SP1 1.13.0.6518
 - `Possible solutions to common problems`_
 
 Fledge 2.1.0 and later
-======================
+=======================
 
 In version 2.1 of Fledge a major change was introduced to the OMF plugin in the form of support for OMF version 1.2. This provides for a different method of adding data to the OMF end points that greatly improves the flexibility and removes the need to create complex types in OMF to map onto the Fledge reading structure.
 When upgrading from a version prior to 2.1 where data had previously been sent to OMF, the plugin will continue to use the older, pre-OMF 1.2 method to add data. This ensures that data will continue to be written to the same tags within the PI Server or other OMF end points. New data, not previously sent to OMF will be written using the newer OMF 1.2 mechanism.

@@ -12,6 +12,12 @@
 
    <a href="035_CPP.html">C++ Support Classes</a>
 
+.. |audit_trail| raw:: html
+
+   <a href="../rest_api_guide/03_RESTadmin.html#audit">Audit Trail</a>
+
+
+
 .. Links in new tabs
 
 .. =============================================
@@ -353,6 +359,8 @@ We have used the properties *type* and *default* to define properties of the con
      - Only used for enumeration type elements. This is a JSON array of string that contains the options in the enumeration.
    * - order
      - Used in the user interface to give an indication of how high up in the dialogue to place this item.
+   * - group
+     - Used to group related items together. The main use of this is within the GUI which will turn each group into a tab in the creation and edit screens.
    * - readonly
      - A boolean property that can be used to include items that can not be altered by the API.
    * - rule
@@ -425,3 +433,22 @@ The code that connects to the device should then look at the *discovered* config
 The example here was written in C++, there is nothing that is specific to C++ however and the same approach can be taken in Python.
 
 One thing to note however, the *plugin_info* call is used in the display of available plugins, discovery code that is very slow will impact the performance of plugin selection.
+
+Writing Audit Trail
+~~~~~~~~~~~~~~~~~~~
+
+Plugins are able to write records to the audit trail. These records must use one of the predefined audit code that are support by the system. See |audit_trail| for details of the supported audit codes within the system.
+
+In C++ you use the *AuditLogger* class to write these audit trail entries, this is a singleton object that is access via the getLogger method.
+
+.. code-block:: C
+
+   AuditLogger *audit = AuditLogger::getLogger();
+   audit->audit("NHDWN", "INFORMATION");
+
+There is also a convenience function that can be used if you not want to define a local pointer the AuditLogger
+
+.. code-block:: C
+
+   AuditLogger::auditLog("NHAVL", "INFORMATION");
+

@@ -178,11 +178,20 @@ async def asset(request):
             curl -sX GET "http://localhost:8081/fledge/asset/fogbench_humidity?limit=1&skip=1&order=desc
             curl -sX GET http://localhost:8081/fledge/asset/fogbench_humidity?seconds=60
             curl -sX GET http://localhost:8081/fledge/asset/fogbench_humidity?seconds=60&previous=600
+            curl -sX GET "http://localhost:8081/fledge/asset/fogbench_humidity?additional=sinusoid,random&seconds=600"
     """
     asset_code = request.match_info.get('asset_code', '')
-    _select = PayloadBuilder().SELECT(("reading", "user_ts")).ALIAS("return", ("user_ts", "timestamp")).chain_payload()
-
-    _where = PayloadBuilder(_select).WHERE(["asset_code", "=", asset_code]).chain_payload()
+    # A comma separated list of additional assets to generate the readings to display multiple graphs in GUI
+    if 'additional' in request.query:
+        additional_assets = "{},{}".format(asset_code, request.query['additional'])
+        additional_asset_codes = additional_assets.split(',')
+        _select = PayloadBuilder().SELECT(("asset_code", "reading", "user_ts")).ALIAS(
+            "return", ("user_ts", "timestamp")).chain_payload()
+        _where = PayloadBuilder(_select).WHERE(["asset_code", "in", additional_asset_codes]).chain_payload()
+    else:
+        _select = PayloadBuilder().SELECT(("reading", "user_ts")).ALIAS(
+            "return", ("user_ts", "timestamp")).chain_payload()
+        _where = PayloadBuilder(_select).WHERE(["asset_code", "=", asset_code]).chain_payload()
     if 'previous' in request.query and (
             'seconds' in request.query or 'minutes' in request.query or 'hours' in request.query):
         _and_where = where_window(request, _where)
@@ -214,7 +223,18 @@ async def asset(request):
                     for item_name2, item_val2 in item_val.items():
                         if isinstance(item_val2, str) and item_val2.startswith(tuple(DATAPOINT_TYPES)):
                             data[item_name][item_name2] = IMAGE_PLACEHOLDER if is_image_excluded(request) else item_val2
-        response = rows
+        # Group the readings value by asset_code in case of additional multiple assets
+        if 'additional' in request.query:
+            response_by_asset_code = {}
+            for aacl in additional_asset_codes:
+                response_by_asset_code[aacl] = []
+            for r in rows:
+                if r['asset_code'] in additional_asset_codes:
+                    response_by_asset_code[r['asset_code']].extend([r])
+                    r.pop('asset_code')
+            response = response_by_asset_code
+        else:
+            response = rows
     except KeyError:
         msg = results['message']
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))

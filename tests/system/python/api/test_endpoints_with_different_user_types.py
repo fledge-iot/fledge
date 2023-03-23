@@ -65,7 +65,7 @@ def test_setup(reset_and_start_fledge, change_to_auth_mandatory, fledge_url, wai
     assert 200 == r.status
     r = r.read().decode()
     jdoc = json.loads(r)
-    assert "{} user has been created successfully".format(VIEW_USERNAME) == jdoc["message"]
+    assert "{} user has been created successfully.".format(VIEW_USERNAME) == jdoc["message"]
 
     # Create Data view user
     data_view_payload = {"username": DATA_VIEW_USERNAME, "password": DATA_VIEW_PWD, "role_id": 4,
@@ -76,7 +76,7 @@ def test_setup(reset_and_start_fledge, change_to_auth_mandatory, fledge_url, wai
     assert 200 == r.status
     r = r.read().decode()
     jdoc = json.loads(r)
-    assert "{} user has been created successfully".format(DATA_VIEW_USERNAME) == jdoc["message"]
+    assert "{} user has been created successfully.".format(DATA_VIEW_USERNAME) == jdoc["message"]
 
 
 class TestAPIEndpointsWithViewUserType:

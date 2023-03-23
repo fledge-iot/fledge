@@ -7,10 +7,10 @@
 """Common Plugin Discovery Class"""
 
 import os
-from fledge.common import logger
+from fledge.common.logger import FLCoreLogger
+from fledge.plugins.common import utils as common_utils
 from fledge.services.core.api import utils
 from fledge.services.core.api.plugins import common
-from fledge.plugins.common import utils as common_utils
 
 
 __author__ = "Amarendra K Sinha, Ashish Jabble"
@@ -18,8 +18,7 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-
-_logger = logger.setup(__name__)
+_logger = FLCoreLogger().get_logger(__name__)
 
 
 class PluginDiscovery(object):

@@ -8,6 +8,7 @@
 
 import aiohttp
 import asyncio
+import logging
 from fledge.common import logger
 
 __author__ = "Amarendra Kumar Sinha"
@@ -16,7 +17,7 @@ __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 
-_logger = logger.setup(__name__, level=20)
+_logger = logger.setup(__name__, level=logging.INFO)
 
 _MAX_ATTEMPTS = 15
 """Number of max attempts for finding a heartbeat of service"""
@@ -41,7 +42,7 @@ async def ping_service(service, loop=None):
                 attempt_count += 1
                 await asyncio.sleep(1.5, loop=loop)
         if attempt_count <= _MAX_ATTEMPTS:
-            _logger.info('Ping received for Service %s id %s at url %s', service._name, service._id, url_ping)
+            _logger.debug('Ping received for Service %s id %s at url %s', service._name, service._id, url_ping)
             return True
     _logger.error('Ping not received for Service %s id %s at url %s attempt_count %s', service._name, service._id,
                        url_ping, attempt_count)

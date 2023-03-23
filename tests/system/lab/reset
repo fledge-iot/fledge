@@ -19,7 +19,7 @@ _config_reading_db () {
 # check for storage plugin
 . ./test.config
 
-if [[  ${STORAGE} == @(sqlite|postgres|sqlitelb) && ${READING_PLUGIN_DB} == @(Use main plugin|sqlite-in-memory|sqlite|postgres|sqlitelb) ]]
+if [[  ${STORAGE} == @(sqlite|postgres|sqlitelb) && ${READING_PLUGIN_DB} == @(Use main plugin|sqlitememory|sqlite|postgres|sqlitelb) ]]
 then
    _config_reading_db "${STORAGE}" "${READING_PLUGIN_DB}"
 else

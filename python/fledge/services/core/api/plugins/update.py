@@ -7,15 +7,15 @@
 import aiohttp
 import asyncio
 import os
-import logging
 import uuid
 import multiprocessing
 import json
 
 from aiohttp import web
-from fledge.common import logger, utils
+from fledge.common import utils
 from fledge.common.audit_logger import AuditLogger
 from fledge.common.configuration_manager import ConfigurationManager
+from fledge.common.logger import FLCoreLogger
 from fledge.common.plugin_discovery import PluginDiscovery
 from fledge.common.storage_client.exceptions import StorageServerError
 from fledge.common.storage_client.payload_builder import PayloadBuilder
@@ -33,7 +33,7 @@ _help = """
     | PUT             | /fledge/plugins/{package_name}                     |
     ------------------------------------------------------------------------
 """
-_logger = logger.setup(__name__, level=logging.INFO)
+_logger = FLCoreLogger().get_logger(__name__)
 
 
 # only work with core 2.1.0 onwards version
@@ -352,11 +352,11 @@ async def _put_schedule(protocol: str, host: str, port: int, sch_id: uuid, is_en
             result = await resp.text()
             status_code = resp.status
             if status_code in range(400, 500):
-                _logger.error("Bad request error code: %d, reason: %s when PUT schedule", status_code, resp.reason)
+                _logger.error("Bad request error code: {}, reason: {} when PUT schedule".format(status_code, resp.reason))
             if status_code in range(500, 600):
-                _logger.error("Server error code: %d, reason: %s when PUT schedule", status_code, resp.reason)
+                _logger.error("Server error code: {}, reason: {} when PUT schedule".format(status_code, resp.reason))
             response = json.loads(result)
-            _logger.debug("PUT Schedule response: %s", response)
+            _logger.debug("PUT Schedule response: {}".format(response))
 
 
 def _update_repo_sources_and_plugin(pkg_name: str) -> tuple:
@@ -398,7 +398,6 @@ def do_update(http_enabled: bool, host: str, port: int, storage: connect, _type:
             audit_detail['version'] = version[0]
         loop.run_until_complete(audit.information('PKGUP', audit_detail))
         _logger.info('{} package updated successfully.'.format(pkg_name))
-
     # Restart the services which were disabled before plugin update
     for sch in schedules:
         loop.run_until_complete(_put_schedule(protocol, host, port, uuid.UUID(sch), True))

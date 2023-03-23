@@ -9,11 +9,11 @@ import json
 
 from aiohttp import web
 
-from fledge.common import logger
+from fledge.common.common import _FLEDGE_ROOT, _FLEDGE_DATA
+from fledge.common.configuration_manager import ConfigurationManager
+from fledge.common.logger import FLCoreLogger
 from fledge.common.web.middleware import has_permission
 from fledge.services.core import connect
-from fledge.common.configuration_manager import ConfigurationManager
-from fledge.common.common import _FLEDGE_ROOT, _FLEDGE_DATA
 
 __author__ = "Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -27,8 +27,8 @@ _help = """
     | DELETE           | /fledge/certificate/{name}                              |
     -------------------------------------------------------------------------------
 """
-FORBIDDEN_MSG = 'Resource you were trying to reach is absolutely forbidden for some reason'
-_logger = logger.setup(__name__)
+FORBIDDEN_MSG = 'Resource you were trying to reach is absolutely forbidden for some reason.'
+_logger = FLCoreLogger().get_logger(__name__)
 
 
 async def get_certs(request):

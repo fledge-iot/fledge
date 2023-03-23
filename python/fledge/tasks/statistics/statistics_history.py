@@ -12,10 +12,10 @@ stores the delta value (statistics.value - statistics.previous_value) in the sta
 """
 import json
 
-from fledge.common.storage_client.payload_builder import PayloadBuilder
-from fledge.common import logger
-from fledge.common.process import FledgeProcess
 from fledge.common import utils as common_utils
+from fledge.common.logger import FLCoreLogger
+from fledge.common.process import FledgeProcess
+from fledge.common.storage_client.payload_builder import PayloadBuilder
 
 __author__ = "Ori Shadmon, Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSI Soft, LLC"
@@ -29,7 +29,7 @@ class StatisticsHistory(FledgeProcess):
 
     def __init__(self):
         super().__init__()
-        self._logger = logger.setup("StatisticsHistory")
+        self._logger = FLCoreLogger().get_logger("StatisticsHistory")
 
     async def _bulk_update_previous_value(self, payload):
         """ UPDATE previous_value of column to have the same value as snapshot

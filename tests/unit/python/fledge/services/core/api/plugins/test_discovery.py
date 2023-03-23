@@ -170,7 +170,7 @@ class TestPluginDiscoveryApi:
 
     async def test_bad_get_plugins_available(self, client):
         log_path = "log/190801-12-01-05.log"
-        msg = "Fetch available plugins package request failed"
+        msg = "Fetch available plugins package request failed."
         with patch.object(common, 'fetch_available_packages', side_effect=PackageError(log_path)) as patch_fetch_available_package:
             resp = await client.get('/fledge/plugins/available')
             assert 400 == resp.status

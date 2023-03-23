@@ -21,7 +21,7 @@ _config_reading_db () {
 
 if [[  ${STORAGE} == @(sqlite|postgres|sqlitelb) && ${READING_PLUGIN_DB} == @(Use main plugin|sqlite-in-memory|sqlite|postgres|sqlitelb) ]]
 then
-   _config_reading_db ${STORAGE} ${READING_PLUGIN_DB}
+   _config_reading_db "${STORAGE}" "${READING_PLUGIN_DB}"
 else
   echo "Invalid Storage Configuration"
   exit 1

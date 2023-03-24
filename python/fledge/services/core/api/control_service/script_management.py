@@ -5,22 +5,20 @@
 # FLEDGE_END
 
 import json
-import logging
 import datetime
 import uuid
 
 from aiohttp import web
 
-from fledge.common import logger
+from fledge.common.acl_manager import ACLManager
 from fledge.common.configuration_manager import ConfigurationManager
+from fledge.common.logger import FLCoreLogger
 from fledge.common.storage_client.exceptions import StorageServerError
 from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.common.web.middleware import has_permission
-from fledge.services.core import connect
-from fledge.services.core import server
+from fledge.services.core import connect, server
 from fledge.services.core.scheduler.entities import Schedule, ManualSchedule
 from fledge.services.core.api.control_service.exceptions import *
-from fledge.common.acl_manager import ACLManager
 
 
 __author__ = "Ashish Jabble"
@@ -36,7 +34,7 @@ _help = """
     -----------------------------------------------------------------------
 """
 
-_logger = logger.setup(__name__, level=logging.INFO)
+_logger = FLCoreLogger().get_logger(__name__)
 
 
 def setup(app):
@@ -143,9 +141,10 @@ async def add_schedule_and_configuration(request: web.Request) -> web.Response:
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
+        _logger.error("Failed to add schedule task for control script {}. {}".format(name, msg))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
-        msg = "Schedule and configuration is created for an automation script with name {}".format(name)
+        msg = "Schedule and configuration is created for control script {}".format(name)
         return web.json_response({"message": msg})
 
 
@@ -192,6 +191,7 @@ async def get_all(request: web.Request) -> web.Response:
                     scripts.append(row)
     except Exception as ex:
         msg = str(ex)
+        _logger.error("Get Control script failed. {}".format(msg))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({"scripts": scripts})
@@ -248,6 +248,7 @@ async def get_by_name(request: web.Request) -> web.Response:
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
+        _logger.error("Get Control script by name failed. {}".format(msg))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(rows)
@@ -333,6 +334,7 @@ async def add(request: web.Request) -> web.Response:
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
+        _logger.error("Control script create failed. {}".format(msg))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(result)
@@ -424,6 +426,7 @@ async def update(request: web.Request) -> web.Response:
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
+        _logger.error("Control script update failed. {}".format(msg))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({"message": message})
@@ -483,6 +486,7 @@ async def delete(request: web.Request) -> web.Response:
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
+        _logger.error("Control script delete failed. {}".format(msg))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({"message": message})

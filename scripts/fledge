@@ -536,7 +536,7 @@ fledge_status() {
                 # Show Tasks in C code
                 for task_name in `ls ${FLEDGE_ROOT}/tasks`
                 do
-                    ps -ef | grep "fledge/tasks/$task_name" | grep -v python3 | grep -v grep | grep -v awk | awk -v tn="tasks/$task_name " '{printf tn ; for(i=9;i<=NF;++i) printf $i FS; printf "\n"}' || true
+                    ps -ef | grep "./tasks/$task_name" | grep -v python3 | grep -v grep | grep -v awk | awk  '{printf "tasks/'$task_name' " ; for(i=9;i<=NF;++i) printf $i FS; printf "\n"}' || true
                 done
             fi
             ;;

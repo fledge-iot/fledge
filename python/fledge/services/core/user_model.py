@@ -12,13 +12,13 @@ import hashlib
 from datetime import datetime, timedelta
 import jwt
 
-from fledge.services.core import connect
+from fledge.common.common import _FLEDGE_ROOT, _FLEDGE_DATA
+from fledge.common.configuration_manager import ConfigurationManager
+from fledge.common.logger import FLCoreLogger
 from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.common.storage_client.exceptions import StorageServerError
-from fledge.common.configuration_manager import ConfigurationManager
-from fledge.common import logger
 from fledge.common.web.ssl_wrapper import SSLVerifier
-from fledge.common.common import _FLEDGE_ROOT, _FLEDGE_DATA
+from fledge.services.core import connect
 
 __author__ = "Praveen Garg, Ashish Jabble, Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -32,7 +32,7 @@ JWT_EXP_DELTA_SECONDS = 30*60  # 30 minutes
 ERROR_MSG = 'Something went wrong'
 USED_PASSWORD_HISTORY_COUNT = 3
 
-_logger = logger.setup(__name__)
+_logger = FLCoreLogger().get_logger(__name__)
 
 
 class User:

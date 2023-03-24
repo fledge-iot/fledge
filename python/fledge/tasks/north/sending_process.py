@@ -33,8 +33,8 @@ from fledge.common.storage_client import payload_builder
 from fledge.common import statistics
 from fledge.common.jqfilter import JQFilter
 from fledge.common.audit_logger import AuditLogger
+from fledge.common.logger import FLCoreLogger
 from fledge.common.process import FledgeProcess
-from fledge.common import logger
 from fledge.common.common import _FLEDGE_ROOT
 from fledge.services.core.api.plugins import common
 
@@ -93,7 +93,7 @@ _MESSAGES_LIST = {
 }
 """ Messages used for Information, Warning and Error notice """
 
-_LOGGER = logger.setup(__name__)
+_LOGGER = FLCoreLogger().get_logger(__name__)
 _event_loop = ""
 _log_performance = False
 """ Enable/Disable performance logging, enabled using a command line parameter"""

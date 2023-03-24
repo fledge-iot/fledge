@@ -284,16 +284,16 @@ class TestUploadCertStoreIfAuthenticationIsMandatory:
             _rv1 = asyncio.ensure_future(mock_coro(user['id']))
             _rv2 = asyncio.ensure_future(mock_coro(None))
             _rv3 = asyncio.ensure_future(mock_coro(user))
-        patch_logger_info = mocker.patch.object(middleware._logger, 'info')
+        patch_logger_debug = mocker.patch.object(middleware._logger, 'debug')
         patch_validate_token = mocker.patch.object(User.Objects, 'validate_token', return_value=_rv1)
         patch_refresh_token = mocker.patch.object(User.Objects, 'refresh_token_expiry', return_value=_rv2)
         patch_user_get = mocker.patch.object(User.Objects, 'get', return_value=_rv3)
-        return patch_logger_info, patch_validate_token, patch_refresh_token, patch_user_get
+        return patch_logger_debug, patch_validate_token, patch_refresh_token, patch_user_get
 
     async def test_bad_upload_when_admin_role_is_required(self, client, certs_path, mocker):
         files = {'key': open(str(certs_path / 'certs/fledge.key'), 'rb'),
                  'cert': open(str(certs_path / 'certs/fledge.cert'), 'rb')}
-        patch_logger_info, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
+        patch_logger_debug, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
             mocker, is_admin=False)
         msg = 'admin role permissions required to overwrite the default installed auth/TLS certificates.'
         with patch.object(certificate_store._logger, 'warning') as patch_logger:
@@ -307,11 +307,11 @@ class TestUploadCertStoreIfAuthenticationIsMandatory:
         patch_user_get.assert_called_once_with(uid=2)
         patch_refresh_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
         patch_validate_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
-        patch_logger_info.assert_called_once_with('Received %s request for %s', 'POST', '/fledge/certificate')
+        patch_logger_debug.assert_called_once_with('Received %s request for %s', 'POST', '/fledge/certificate')
 
     async def test_bad_upload_when_cert_in_use_and_with_non_admin_role(self, client, certs_path, mocker):
         files = {'cert': open(str(certs_path / 'certs/test.cer'), 'rb')}
-        patch_logger_info, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
+        patch_logger_debug, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
             mocker, is_admin=False)
         msg = 'Certificate with name test.cer is configured to be used, ' \
               'An `admin` role permissions required to add/overwrite.'
@@ -335,12 +335,12 @@ class TestUploadCertStoreIfAuthenticationIsMandatory:
         patch_user_get.assert_called_once_with(uid=2)
         patch_refresh_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
         patch_validate_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
-        patch_logger_info.assert_called_once_with('Received %s request for %s', 'POST', '/fledge/certificate')
+        patch_logger_debug.assert_called_once_with('Received %s request for %s', 'POST', '/fledge/certificate')
 
     async def test_upload_as_admin(self, client, certs_path, mocker):
         files = {'key': open(str(certs_path / 'certs/fledge.key'), 'rb'),
                  'cert': open(str(certs_path / 'certs/fledge.cert'), 'rb')}
-        patch_logger_info, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
+        patch_logger_debug, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
             mocker)
         with patch.object(certificate_store, '_get_certs_dir', return_value=certs_path / 'certs'):
             with patch.object(certificate_store, '_find_file', return_value=[]) as patch_find_file:
@@ -357,12 +357,12 @@ class TestUploadCertStoreIfAuthenticationIsMandatory:
         patch_user_get.assert_called_once_with(uid=1)
         patch_refresh_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
         patch_validate_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
-        patch_logger_info.assert_called_once_with('Received %s request for %s', 'POST', '/fledge/certificate')
+        patch_logger_debug.assert_called_once_with('Received %s request for %s', 'POST', '/fledge/certificate')
 
     @pytest.mark.parametrize("filename", ["fledge.pem", "fledge.cert", "test.cer", "test.crt"])
     async def test_upload_with_cert_only(self, client, certs_path, mocker, filename):
         files = {'cert': open(str(certs_path / 'certs/{}'.format(filename)), 'rb')}
-        patch_logger_info, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
+        patch_logger_debug, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
             mocker)
         with patch.object(certificate_store, '_get_certs_dir', return_value=certs_path / 'certs/pem'):
             with patch.object(certificate_store, '_find_file', return_value=[]) as patch_find_file:
@@ -377,13 +377,13 @@ class TestUploadCertStoreIfAuthenticationIsMandatory:
         patch_user_get.assert_called_once_with(uid=1)
         patch_refresh_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
         patch_validate_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
-        patch_logger_info.assert_called_once_with('Received %s request for %s', 'POST', '/fledge/certificate')
+        patch_logger_debug.assert_called_once_with('Received %s request for %s', 'POST', '/fledge/certificate')
 
     async def test_file_upload_with_overwrite(self, client, certs_path, mocker):
         files = {'key': open(str(certs_path / 'certs/fledge.key'), 'rb'),
                  'cert': open(str(certs_path / 'certs/fledge.cert'), 'rb'),
                  'overwrite': '1'}
-        patch_logger_info, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
+        patch_logger_debug, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
             mocker)
         with patch.object(certificate_store, '_get_certs_dir', return_value=certs_path / 'certs'):
             with patch.object(certificate_store, '_find_file', return_value=[]) as patch_find_file:
@@ -400,13 +400,13 @@ class TestUploadCertStoreIfAuthenticationIsMandatory:
         patch_user_get.assert_called_once_with(uid=1)
         patch_refresh_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
         patch_validate_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
-        patch_logger_info.assert_called_once_with('Received %s request for %s', 'POST', '/fledge/certificate')
+        patch_logger_debug.assert_called_once_with('Received %s request for %s', 'POST', '/fledge/certificate')
 
     async def test_bad_extension_key_file_upload(self, client, certs_path, mocker):
         key_valid_extensions = ('.key', '.pem')
         files = {'cert': open(str(certs_path / 'certs/fledge.cert'), 'rb'),
                  'key': open(str(certs_path / 'certs/fledge.txt'), 'rb')}
-        patch_logger_info, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
+        patch_logger_debug, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
             mocker)
         resp = await client.post('/fledge/certificate', data=files, headers=self.AUTH_HEADER)
         assert 400 == resp.status
@@ -414,12 +414,12 @@ class TestUploadCertStoreIfAuthenticationIsMandatory:
         patch_user_get.assert_called_once_with(uid=1)
         patch_refresh_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
         patch_validate_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
-        patch_logger_info.assert_called_once_with('Received %s request for %s', 'POST', '/fledge/certificate')
+        patch_logger_debug.assert_called_once_with('Received %s request for %s', 'POST', '/fledge/certificate')
 
     async def test_upload_with_existing_and_no_overwrite(self, client, certs_path, mocker):
         files = {'key': open(str(certs_path / 'certs/fledge.key'), 'rb'),
                  'cert': open(str(certs_path / 'certs/fledge.cert'), 'rb')}
-        patch_logger_info, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
+        patch_logger_debug, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
             mocker)
         with patch.object(certificate_store, '_get_certs_dir', return_value=certs_path / 'certs'):
             with patch.object(certificate_store, '_find_file', return_value=["v"]) as patch_file:
@@ -433,7 +433,7 @@ class TestUploadCertStoreIfAuthenticationIsMandatory:
         patch_user_get.assert_called_once_with(uid=1)
         patch_refresh_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
         patch_validate_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
-        patch_logger_info.assert_called_once_with('Received %s request for %s', 'POST', '/fledge/certificate')
+        patch_logger_debug.assert_called_once_with('Received %s request for %s', 'POST', '/fledge/certificate')
 
 
 @pytest.allure.feature("unit")
@@ -460,11 +460,11 @@ class TestDeleteCertStoreIfAuthenticationIsMandatory:
             _rv1 = asyncio.ensure_future(mock_coro(user['id']))
             _rv2 = asyncio.ensure_future(mock_coro(None))
             _rv3 = asyncio.ensure_future(mock_coro(user))
-        patch_logger_info = mocker.patch.object(middleware._logger, 'info')
+        patch_logger_debug = mocker.patch.object(middleware._logger, 'debug')
         patch_validate_token = mocker.patch.object(User.Objects, 'validate_token', return_value=_rv1)
         patch_refresh_token = mocker.patch.object(User.Objects, 'refresh_token_expiry', return_value=_rv2)
         patch_user_get = mocker.patch.object(User.Objects, 'get', return_value=_rv3)
-        return patch_logger_info, patch_validate_token, patch_refresh_token, patch_user_get
+        return patch_logger_debug, patch_validate_token, patch_refresh_token, patch_user_get
 
     @pytest.mark.parametrize("cert_name, actual_code, actual_reason", [
         ('root.pem', 404, "Certificate with name root.pem does not exist"),
@@ -473,7 +473,7 @@ class TestDeleteCertStoreIfAuthenticationIsMandatory:
     async def test_bad_delete_cert_with_invalid_filename(self, client, mocker, cert_name, actual_code, actual_reason):
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
-        patch_logger_info, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
+        patch_logger_debug, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
             mocker)
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
@@ -496,7 +496,7 @@ class TestDeleteCertStoreIfAuthenticationIsMandatory:
         patch_user_get.assert_called_once_with(uid=1)
         patch_refresh_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
         patch_validate_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
-        patch_logger_info.assert_called_once_with('Received %s request for %s', 'DELETE',
+        patch_logger_debug.assert_called_once_with('Received %s request for %s', 'DELETE',
                                                   '/fledge/certificate/{}'.format(cert_name))
 
     @pytest.mark.parametrize("cert_name, actual_code, actual_reason", [
@@ -504,7 +504,7 @@ class TestDeleteCertStoreIfAuthenticationIsMandatory:
                           "('.cert', '.cer', '.csr', '.crl', '.crt', '.der', '.json', '.key', '.pem', '.p12', '.pfx')")
     ])
     async def test_bad_delete_cert(self, client, mocker, cert_name, actual_code, actual_reason):
-        patch_logger_info, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
+        patch_logger_debug, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
             mocker)
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         _payload = [{'id': '1'}]
@@ -519,7 +519,7 @@ class TestDeleteCertStoreIfAuthenticationIsMandatory:
         patch_user_get.assert_called_once_with(uid=1)
         patch_refresh_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
         patch_validate_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
-        patch_logger_info.assert_called_once_with('Received %s request for %s', 'DELETE',
+        patch_logger_debug.assert_called_once_with('Received %s request for %s', 'DELETE',
                                                   '/fledge/certificate/{}'.format(cert_name))
 
     async def test_delete_cert_if_configured_to_use(self, client, mocker):
@@ -528,7 +528,7 @@ class TestDeleteCertStoreIfAuthenticationIsMandatory:
         cert_name = 'fledge.cert'
         msg = 'Certificate with name {} is configured for use, you can not delete but overwrite if required.'.format(
             cert_name)
-        patch_logger_info, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
+        patch_logger_debug, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
             mocker)
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
@@ -553,7 +553,7 @@ class TestDeleteCertStoreIfAuthenticationIsMandatory:
         patch_user_get.assert_called_once_with(uid=1)
         patch_refresh_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
         patch_validate_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
-        patch_logger_info.assert_called_once_with('Received %s request for %s', 'DELETE',
+        patch_logger_debug.assert_called_once_with('Received %s request for %s', 'DELETE',
                                                   '/fledge/certificate/{}'.format(cert_name))
 
     async def test_bad_type_delete_cert(self, client, mocker):
@@ -561,7 +561,7 @@ class TestDeleteCertStoreIfAuthenticationIsMandatory:
         c_mgr = ConfigurationManager(storage_client_mock)
         cert_name = 'server.cert'
         msg = 'Only cert and key are allowed for the value of type param'
-        patch_logger_info, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
+        patch_logger_debug, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
             mocker)
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
@@ -586,7 +586,7 @@ class TestDeleteCertStoreIfAuthenticationIsMandatory:
         patch_user_get.assert_called_once_with(uid=1)
         patch_refresh_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
         patch_validate_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
-        patch_logger_info.assert_called_once_with('Received %s request for %s', 'DELETE',
+        patch_logger_debug.assert_called_once_with('Received %s request for %s', 'DELETE',
                                                   '/fledge/certificate/{}'.format(cert_name))
 
     @pytest.mark.parametrize("cert_name, param", [
@@ -599,7 +599,7 @@ class TestDeleteCertStoreIfAuthenticationIsMandatory:
     async def test_delete_cert_with_type(self, client, mocker, cert_name, param):
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
-        patch_logger_info, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
+        patch_logger_debug, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
             mocker)
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         cat_info = {'certificateName':  {'value': 'foo'},  'authCertificateName':  {'value': 'ca'}}
@@ -626,13 +626,13 @@ class TestDeleteCertStoreIfAuthenticationIsMandatory:
         patch_user_get.assert_called_once_with(uid=1)
         patch_refresh_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
         patch_validate_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
-        patch_logger_info.assert_called_once_with('Received %s request for %s', 'DELETE',
+        patch_logger_debug.assert_called_once_with('Received %s request for %s', 'DELETE',
                                                   '/fledge/certificate/{}'.format(cert_name))
 
     async def test_delete_cert(self, client, mocker, certs_path, cert_name='server.cert'):
         storage_client_mock = MagicMock(StorageClientAsync)
         c_mgr = ConfigurationManager(storage_client_mock)
-        patch_logger_info, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
+        patch_logger_debug, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
             mocker)
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
@@ -662,7 +662,7 @@ class TestDeleteCertStoreIfAuthenticationIsMandatory:
         patch_user_get.assert_called_once_with(uid=1)
         patch_refresh_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
         patch_validate_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
-        patch_logger_info.assert_called_once_with('Received %s request for %s', 'DELETE',
+        patch_logger_debug.assert_called_once_with('Received %s request for %s', 'DELETE',
                                                   '/fledge/certificate/{}'.format(cert_name))    
 
 

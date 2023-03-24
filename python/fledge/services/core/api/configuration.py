@@ -12,10 +12,10 @@ import urllib.parse
 from typing import Dict
 from aiohttp import web
 
-from fledge.common import logger
 from fledge.common.audit_logger import AuditLogger
 from fledge.common.common import _FLEDGE_ROOT, _FLEDGE_DATA
 from fledge.common.configuration_manager import ConfigurationManager, _optional_items
+from fledge.common.logger import FLCoreLogger
 from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.services.core import connect
 
@@ -39,7 +39,7 @@ _help = """
 """
 
 script_dir = _FLEDGE_DATA + '/scripts/' if _FLEDGE_DATA else _FLEDGE_ROOT + "/data/scripts/"
-_logger = logger.setup(__name__)
+_logger = FLCoreLogger().get_logger(__name__)
 
 #################################
 #  Configuration Manager
@@ -165,7 +165,9 @@ async def create_category(request):
     except LookupError as ex:
         raise web.HTTPNotFound(reason=str(ex))
     except Exception as ex:
-        raise web.HTTPInternalServerError(reason=str(ex))
+        msg = str(ex)
+        _logger.error("Failed to create category. {}".format(msg))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     return web.json_response(result)
 
 
@@ -189,7 +191,9 @@ async def delete_category(request):
     except (ValueError, TypeError) as ex:
         raise web.HTTPBadRequest(reason=ex)
     except Exception as ex:
-        raise web.HTTPInternalServerError(reason=ex)
+        msg = str(ex)
+        _logger.error("Failed to delete {} category. {}".format(category_name, msg))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({'result': 'Category {} deleted successfully.'.format(category_name)})
 
@@ -327,8 +331,6 @@ async def update_configuration_item_bulk(request):
                            WHEN: if non-admin user is trying to update 
                            THEN: 403 Forbidden case 
         """
-        
-        
         if hasattr(request, "user"):
             config_items = [k for k, v in data.items() if k == 'authentication']
             if request.user and (category_name == 'rest_api' and config_items):
@@ -356,7 +358,9 @@ async def update_configuration_item_bulk(request):
     except (ValueError, TypeError) as ex:
         raise web.HTTPBadRequest(reason=ex)
     except Exception as ex:
-        raise web.HTTPInternalServerError(reason=ex)
+        msg = str(ex)
+        _logger.error("Failed to bulk update {} category. {}".format(category_name, msg))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         cat = await cf_mgr.get_category_all_items(category_name)
         try:
@@ -432,7 +436,9 @@ async def add_configuration_item(request):
     except NameError as ex:
         raise web.HTTPNotFound(reason=str(ex))
     except Exception as ex:
-        raise web.HTTPInternalServerError(reason=str(ex))
+        msg = str(ex)
+        _logger.error("Failed to create {} config item for {} category. {}".format(new_config_item, category_name, msg))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
 
     return web.json_response({"message": "{} config item has been saved for {} category".format(new_config_item, category_name)})
 
@@ -509,7 +515,10 @@ async def get_child_category(request):
         children = await cf_mgr.get_category_child(category_name)
     except ValueError as ex:
         raise web.HTTPNotFound(reason=str(ex))
-
+    except Exception as ex:
+        msg = str(ex)
+        _logger.error("Failed to get the child {} category. {}".format(category_name, msg))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     return web.json_response({"categories": children})
 
 
@@ -540,7 +549,10 @@ async def create_child_category(request):
         raise web.HTTPBadRequest(reason=str(ex))
     except ValueError as ex:
         raise web.HTTPNotFound(reason=str(ex))
-
+    except Exception as ex:
+        msg = str(ex)
+        _logger.error("Failed to create the child relationship for {} category. {}".format(category_name, msg))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     return web.json_response(r)
 
 
@@ -568,7 +580,11 @@ async def delete_child_category(request):
         raise web.HTTPBadRequest(reason=str(ex))
     except ValueError as ex:
         raise web.HTTPNotFound(reason=str(ex))
-
+    except Exception as ex:
+        msg = str(ex)
+        _logger.error("Failed to delete the {} child of {} category. {}".format(
+            child_category, category_name, msg))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     return web.json_response({"children": result})
 
 
@@ -594,7 +610,10 @@ async def delete_parent_category(request):
         raise web.HTTPBadRequest(reason=str(ex))
     except ValueError as ex:
         raise web.HTTPNotFound(reason=str(ex))
-
+    except Exception as ex:
+        msg = str(ex)
+        _logger.error("Failed to delete the parent-child relationship of {} category. {}".format(category_name, msg))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     return web.json_response({"message": "Parent-child relationship for the parent-{} is deleted".format(category_name)})
 
 
@@ -658,7 +677,10 @@ async def upload_script(request):
 
     except Exception as ex:
         os.remove(script_file_path)
-        raise web.HTTPBadRequest(reason=ex)
+        msg = str(ex)
+        _logger.error("Failed to upload script for {} config item of {} category. {}".format(
+            config_item, category_name, msg))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         result = await cf_mgr.get_category_item(category_name, config_item)
         return web.json_response(result)

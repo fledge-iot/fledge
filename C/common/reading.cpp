@@ -586,8 +586,8 @@ vector<Datapoint *> *values = new vector<Datapoint *>;
 		else if (itr->value.IsObject())
 		{
 			// Map objects as nested datapoints
-			vector<Datapoint *> *values = JSONtoDatapoints(itr->value);
-			DatapointValue dpv(values, true);
+			vector<Datapoint *> *nestedValues = JSONtoDatapoints(itr->value);
+			DatapointValue dpv(nestedValues, true);
 			values->push_back(new Datapoint(name, dpv));
 		}
 	}

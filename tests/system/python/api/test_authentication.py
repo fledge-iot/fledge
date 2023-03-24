@@ -120,23 +120,23 @@ class TestAuthenticationAPI:
     @pytest.mark.parametrize(("form_data", "expected_values"), [
         ({"username": "any1", "password": "User@123", "real_name": "AJ", "description": "Nerd user"},
          {'user': {'userName': 'any1', 'userId': 3, 'roleId': 2, 'accessMethod': 'any', 'realName': 'AJ',
-                   'description': 'Nerd user'}, 'message': 'any1 user has been created successfully'}),
+                   'description': 'Nerd user'}, 'message': 'any1 user has been created successfully.'}),
         ({"username": "admin1", "password": "F0gl@mp!", "role_id": 1},
          {'user': {'userName': 'admin1', 'userId': 4, 'roleId': 1, 'accessMethod': 'any', 'realName': '',
-                   'description': ''}, 'message': 'admin1 user has been created successfully'}),
+                   'description': ''}, 'message': 'admin1 user has been created successfully.'}),
         ({"username": "bogus", "password": "Fl3dG$", "role_id": 2},
          {'user': {'userName': 'bogus', 'userId': 5, 'roleId': 2, 'accessMethod': 'any', 'realName': '',
-                   'description': ''}, 'message': 'bogus user has been created successfully'}),
+                   'description': ''}, 'message': 'bogus user has been created successfully.'}),
         ({"username": "view", "password": "V!3w@1", "role_id": 3, "real_name": "View",
           "description": "Only to view the configuration"},
          {'user': {
              'userName': 'view', 'userId': 6, 'roleId': 3, 'accessMethod': 'any', 'realName': 'View',
-             'description': 'Only to view the configuration'}, 'message': 'view user has been created successfully'}),
+             'description': 'Only to view the configuration'}, 'message': 'view user has been created successfully.'}),
         ({"username": "dataView", "password": "DV!3w@1", "role_id": 4, "real_name": "DataView",
           "description": "Only read the data in buffer"},
          {'user': {
              'userName': 'dataview', 'userId': 7, 'roleId': 4, 'accessMethod': 'any', 'realName': 'DataView',
-             'description': 'Only read the data in buffer'}, 'message': 'dataview user has been created successfully'})
+             'description': 'Only read the data in buffer'}, 'message': 'dataview user has been created successfully.'})
     ])
     def test_create_user(self, fledge_url, form_data, expected_values):
         conn = http.client.HTTPConnection(fledge_url)
@@ -157,7 +157,7 @@ class TestAuthenticationAPI:
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert {'message': 'Password has been updated successfully for user id:<{}>'.format(uid)} == jdoc
+        assert {'message': 'Password has been updated successfully for user ID:<{}>.'.format(uid)} == jdoc
 
     def test_update_user(self, fledge_url):
         uid = 5
@@ -213,7 +213,7 @@ class TestAuthenticationAPI:
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert {'message': 'User with id:<{}> has been disabled successfully'.format(uid)} == jdoc
+        assert {'message': 'User with ID:<{}> has been disabled successfully.'.format(uid)} == jdoc
 
         # Fetch users list again and check disabled user does not exist in the response
         conn.request("GET", "/fledge/user", headers={"authorization": TOKEN})
@@ -234,7 +234,7 @@ class TestAuthenticationAPI:
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert {'message': 'User with id:<{}> has been updated successfully'.format(uid)} == jdoc
+        assert {'message': 'User with ID:<{}> has been updated successfully.'.format(uid)} == jdoc
 
     def test_delete_user(self, fledge_url):
         conn = http.client.HTTPConnection(fledge_url)
@@ -243,7 +243,7 @@ class TestAuthenticationAPI:
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert {'message': "User has been deleted successfully"} == jdoc
+        assert {'message': "User has been deleted successfully."} == jdoc
 
     def test_logout_all(self, fledge_url):
         conn = http.client.HTTPConnection(fledge_url)

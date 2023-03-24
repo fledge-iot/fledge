@@ -4,15 +4,14 @@
 # See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
-import logging
 import asyncio
 import json
 from typing import List
 import pkg_resources
 from aiohttp import web
 
-from fledge.common import logger
 from fledge.common.audit_logger import AuditLogger
+from fledge.common.logger import FLCoreLogger
 from fledge.services.core import connect
 
 __author__ = "Himanshu Vimal"
@@ -26,7 +25,7 @@ _help = """
     | POST           | /fledge/python/package                |
     ----------------------------------------------------------
 """
-_LOGGER = logger.setup(__name__, level=logging.INFO)
+_LOGGER = FLCoreLogger().get_logger(__name__)
 
 
 def get_packages_installed() -> List:
@@ -84,7 +83,7 @@ async def install_package(request: web.Request) -> web.Response:
 
     if installed_package:
         # Package already exists
-        _LOGGER.info("Package: {} Version: {} already installed.".format(installed_package, installed_version))
+        _LOGGER.warning("Package: {} Version: {} already installed.".format(installed_package, installed_version))
         return web.HTTPConflict(reason="Package already installed.", 
                                 body=json.dumps({"message": "Package {} version {} already installed."
                                                 .format(installed_package, installed_version)}))
@@ -95,7 +94,7 @@ async def install_package(request: web.Request) -> web.Response:
     
     stdout, stderr = await pip_process.communicate()
     if pip_process.returncode == 0:
-        _LOGGER.info("Package: {} successfully installed", format(input_package_name))
+        _LOGGER.info("Package: {} successfully installed.", format(input_package_name))
         try:
             # Audit log entry: PIPIN
             storage_client = connect.get_storage_async()
@@ -105,7 +104,7 @@ async def install_package(request: web.Request) -> web.Response:
                 audit_message["version"] = input_package_version
             await pip_audit_log.information('PIPIN', audit_message)
         except:
-            _LOGGER.exception("Failed to log the audit entry for PIPIN, for package {} install", format(
+            _LOGGER.error("Failed to log the audit entry for PIPIN, for package {} install", format(
                 input_package_name))
 
         response = "Package {} version {} installed successfully.".format(input_package_name, input_package_version)

@@ -4,12 +4,11 @@
 # See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
-import logging
 import json
 import urllib.parse
 from aiohttp import web
 
-from fledge.common import logger
+from fledge.common.logger import FLCoreLogger
 from fledge.common.plugin_discovery import PluginDiscovery
 from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.plugins.common import utils as common_utils
@@ -29,7 +28,7 @@ _help = """
     ---------------------------------------------------------------------------------------
 """
 FORBIDDEN_MSG = "Resource you were trying to reach is absolutely forbidden!"
-_logger = logger.setup(__name__, level=logging.INFO)
+_logger = FLCoreLogger().get_logger(__name__)
 
 
 async def get_persist_plugins(request: web.Request) -> web.Response:
@@ -73,6 +72,7 @@ async def get_persist_plugins(request: web.Request) -> web.Response:
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
+        _logger.error("Failed to get persist plugins. {}".format(msg))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({'persistent': plugins})
@@ -107,6 +107,7 @@ async def get(request: web.Request) -> web.Response:
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
+        _logger.error("Failed to get {} plugin data for {} service. {}".format(plugin, service, msg))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({'data': data})
@@ -153,6 +154,7 @@ async def add(request: web.Request) -> web.Response:
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
+        _logger.error("Failed to create plugin data. {}".format(msg))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({'result': "{} key added successfully.".format(key)})
@@ -192,6 +194,7 @@ async def delete(request: web.Request) -> web.Response:
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
+        _logger.error("Failed to delete {} plugin data for {} service. {}".format(plugin, service, msg))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({'result': "{} deleted successfully.".format(key)})

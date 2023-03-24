@@ -13,11 +13,11 @@ from aiohttp import web
 import pytest
 
 from fledge.common.audit_logger import AuditLogger
-from fledge.common.storage_client.storage_client import StorageClientAsync
 from fledge.common.configuration_manager import ConfigurationManager, ConfigurationManagerSingleton, _logger
+from fledge.common.storage_client.storage_client import StorageClientAsync
 from fledge.common.web import middleware
-from fledge.services.core import routes
-from fledge.services.core import connect
+from fledge.services.core import connect, routes
+from fledge.services.core.api import configuration
 
 
 __author__ = "Ashish Jabble"
@@ -569,8 +569,8 @@ class TestConfiguration:
         ({"key": "test", "description": "des"}, "\"'value' param required to create a category\""),
         ({"key": "test", "value": "val"}, "\"'description' param required to create a category\""),
         ({"description": "desc", "value": "val"}, "\"'key' param required to create a category\""),
-        ({"key":"test", "description":"test", "value": {"test1": {"type": "string", "description": "d", "default": "",
-                                                                  "mandatory": "true"}}},
+        ({"key": "test", "description": "test", "value":
+            {"test1": {"type": "string", "description": "d", "default": "", "mandatory": "true"}}},
          "For test category, A default value must be given for test1"),
         ({"key": "", "description": "test", "value": "val"}, "Key should not be empty"),
         ({"key": " ", "description": "test", "value": "val"}, "Key should not be empty")
@@ -578,9 +578,10 @@ class TestConfiguration:
     async def test_create_category_bad_request(self, client, payload, message):
         storage_client_mock = MagicMock(StorageClientAsync)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            resp = await client.post('/fledge/category', data=json.dumps(payload))
-            assert 400 == resp.status
-            assert message == resp.reason
+            with patch.object(_logger, 'error'):
+                resp = await client.post('/fledge/category', data=json.dumps(payload))
+                assert 400 == resp.status
+                assert message == resp.reason
 
     @pytest.mark.parametrize("payload, hide_password", [
         ({"key": "T1", "description": "Test"}, False),
@@ -682,9 +683,11 @@ class TestConfiguration:
         payload = {"key": name, "description": desc, "value": info}
         msg = 'Something went wrong'
         with patch.object(connect, 'get_storage_async', side_effect=Exception(msg)):
-            resp = await client.post('/fledge/category', data=json.dumps(payload))
-            assert 500 == resp.status
-            assert msg == resp.reason
+            with patch.object(configuration._logger, 'error') as patch_logger:
+                resp = await client.post('/fledge/category', data=json.dumps(payload))
+                assert 500 == resp.status
+                assert msg == resp.reason
+            assert 1 == patch_logger.call_count
 
     @pytest.mark.parametrize("payload, message", [
         # FIXME: keys order mismatch assertion
@@ -813,9 +816,11 @@ class TestConfiguration:
         data = {"default": "d", "description": "Test description", "type": "boolean"}
         msg = 'Internal Server Error'
         with patch.object(connect, 'get_storage_async', side_effect=Exception(msg)):
-            resp = await client.post('/fledge/category/{}/{}'.format("blah", "blah"), data=json.dumps(data))
-            assert 500 == resp.status
-            assert msg == resp.reason
+            with patch.object(configuration._logger, 'error') as patch_logger:
+                resp = await client.post('/fledge/category/{}/{}'.format("blah", "blah"), data=json.dumps(data))
+                assert 500 == resp.status
+                assert msg == resp.reason
+            assert 1 == patch_logger.call_count
 
     async def test_get_child_category(self, client):
         @asyncio.coroutine
@@ -972,9 +977,12 @@ class TestConfiguration:
         c_mgr = ConfigurationManager(storage_client_mock)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(c_mgr, 'get_category_item', side_effect=exception_name) as patch_get_cat_item:
-                resp = await client.put('/fledge/category/{}'.format(category_name), data=json.dumps(payload))
-                assert code == resp.status
-                assert resp.reason is ''
+                with patch.object(configuration._logger, 'error') as patch_logger:
+                    resp = await client.put('/fledge/category/{}'.format(category_name), data=json.dumps(payload))
+                    assert code == resp.status
+                    assert resp.reason is ''
+                if code == 500:
+                    assert 1 == patch_logger.call_count
             patch_get_cat_item.assert_called_once_with(category_name, config_item_name)
 
     async def test_update_bulk_config_item_not_found(self, client, category_name='rest_api'):

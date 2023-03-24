@@ -57,15 +57,14 @@ class TestUtils:
             await server.start_server(loop=loop)
 
             # WHEN the service is pinged with a valid URL
-            with patch.object(utils._logger, "info") as log:
+            with patch.object(utils._logger, "debug") as patch_logger:
                 service = ServiceRecord("d", "test", "Southbound", "http", server.host, 1, server.port)
                 url_ping = "{}://{}:{}/fledge/service/ping".format(service._protocol, service._address, service._management_port)
                 log_params = 'Ping received for Service %s id %s at url %s', service._name, service._id, url_ping
                 resp = await utils.ping_service(service, loop=loop)
-
-            # THEN ping response is received
-            assert resp is True
-            log.assert_called_once_with(*log_params)
+                # THEN ping response is received
+                assert resp is True
+            patch_logger.assert_called_once_with(*log_params)
 
     async def test_ping_service_fail_bad_url(self, aiohttp_server, loop):
         # GIVEN a service is running at a given URL
@@ -86,9 +85,8 @@ class TestUtils:
                 log_params = 'Ping not received for Service %s id %s at url %s attempt_count %s', service._name, service._id, \
                        url_ping, utils._MAX_ATTEMPTS+1
                 resp = await utils.ping_service(service, loop=loop)
-
-            # THEN ping response is NOT received
-            assert resp is False
+                # THEN ping response is NOT received
+                assert resp is False
             log.assert_called_once_with(*log_params)
 
     async def test_shutdown_service_pass(self, aiohttp_server, loop):
@@ -107,14 +105,12 @@ class TestUtils:
                 service = ServiceRecord("d", "test", "Southbound", "http", server.host, 1, server.port)
                 url_shutdown = "{}://{}:{}/fledge/service/shutdown".format(service._protocol, service._address,
                                                                             service._management_port)
-                log_params1 = "Shutting down the %s service %s ...", service._type, service._name
-                log_params2 = 'Service %s, id %s at url %s successfully shutdown', service._name, service._id, url_shutdown
+                log_params = 'Service %s, id %s at url %s successfully shutdown', service._name, service._id, url_shutdown
                 resp = await utils.shutdown_service(service, loop=loop)
-
-            # THEN shutdown returns success
-            assert resp is True
-            log.assert_called_with(*log_params2)
+                # THEN shutdown returns success
+                assert resp is True
             assert 2 == log.call_count
+            log.assert_called_with(*log_params)
 
     async def test_shutdown_service_fail_bad_url(self, aiohttp_server, loop):
         # GIVEN a service is running at a given URL
@@ -133,8 +129,8 @@ class TestUtils:
                     service = ServiceRecord("d", "test", "Southbound", "http", server.host, 1, server.port+1)
                     log_params1 = "Shutting down the %s service %s ...", service._type, service._name
                     resp = await utils.shutdown_service(service, loop=loop)
-
-            # THEN shutdown fails
-            assert resp is False
+                    # THEN shutdown fails
+                    assert resp is False
+                assert log2.called is True
+            assert log1.called is True
             log1.assert_called_with(*log_params1)
-            assert log2.called is True

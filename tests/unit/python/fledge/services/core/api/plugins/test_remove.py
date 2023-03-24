@@ -12,12 +12,12 @@ import asyncio
 
 from aiohttp import web
 
-from fledge.services.core import routes
-from fledge.services.core import connect
+from fledge.common.plugin_discovery import PluginDiscovery
+from fledge.common.storage_client.storage_client import StorageClientAsync
+from fledge.services.core import connect, routes
+from fledge.services.core.api import common
 from fledge.services.core.api.plugins import remove as plugins_remove
 from fledge.services.core.api.plugins.exceptions import *
-from fledge.common.storage_client.storage_client import StorageClientAsync
-from fledge.common.plugin_discovery import PluginDiscovery
 
 
 __author__ = "Ashish Jabble"
@@ -36,22 +36,25 @@ class TestPluginRemove:
         routes.setup(app)
         return loop.run_until_complete(test_client(app))
 
-    @pytest.mark.parametrize("_type", [
-        "blah",
-        1,
-        "notificationDelivery"
-        "notificationRule"
-    ])
+    RUN_TESTS_BEFORE_210_VERSION = False if common.get_version() <= "2.1.0" else True
+
+    @pytest.mark.skipif(RUN_TESTS_BEFORE_210_VERSION, reason="requires lesser or equal to core 2.1.0 version")
+    @pytest.mark.parametrize("_type", ["blah", 1, "notificationDelivery", "notificationRule"])
     async def test_bad_type_plugin(self, client, _type):
         resp = await client.delete('/fledge/plugins/{}/name'.format(_type), data=None)
         assert 400 == resp.status
         assert "Invalid plugin type. Please provide valid type: ['north', 'south', 'filter', 'notify', 'rule']" == \
                resp.reason
 
-    @pytest.mark.parametrize("name", [
-        "http-south",
-        "random"
-    ])
+    @pytest.mark.skipif(RUN_TESTS_BEFORE_210_VERSION, reason="requires lesser or equal to core 2.1.0 version")
+    @pytest.mark.parametrize("name", ["OMF", "omf", "Omf"])
+    async def test_bad_update_of_inbuilt_plugin(self, client, name):
+        resp = await client.delete('/fledge/plugins/north/{}'.format(name), data=None)
+        assert 400 == resp.status
+        assert "Cannot delete an inbuilt OMF plugin." == resp.reason
+
+    @pytest.mark.skipif(RUN_TESTS_BEFORE_210_VERSION, reason="requires lesser or equal to core 2.1.0 version")
+    @pytest.mark.parametrize("name", ["http-south", "random"])
     async def test_bad_name_plugin(self, client, name):
         plugin_installed = [{"name": "sinusoid", "type": "south", "description": "Sinusoid Poll Plugin",
                              "version": "1.8.1", "installedDirectory": "south/sinusoid",
@@ -67,13 +70,14 @@ class TestPluginRemove:
                           ) as plugin_installed_patch:
             resp = await client.delete('/fledge/plugins/south/{}'.format(name), data=None)
             assert 404 == resp.status
-            expected_msg = "'Invalid plugin name {} or plugin is not installed'".format(name)
+            expected_msg = "'Invalid plugin name {} or plugin is not installed.'".format(name)
             assert expected_msg == resp.reason
             result = await resp.text()
             response = json.loads(result)
             assert {'message': expected_msg} == response
         plugin_installed_patch.assert_called_once_with('south', False)
 
+    @pytest.mark.skipif(RUN_TESTS_BEFORE_210_VERSION, reason="requires lesser or equal to core 2.1.0 version")
     async def test_plugin_in_use(self, client):
         async def async_mock(return_value):
             return return_value
@@ -98,19 +102,20 @@ class TestPluginRemove:
         with patch.object(PluginDiscovery, 'get_plugins_installed', return_value=plugin_installed
                           ) as plugin_installed_patch:
             with patch.object(plugins_remove, '_check_plugin_usage', return_value=_rv) as plugin_usage_patch:
-                with patch.object(plugins_remove._logger, "error") as log_err_patch:
+                with patch.object(plugins_remove._logger, "warning") as patch_logger:
                     resp = await client.delete('/fledge/plugins/{}/{}'.format(_type, name), data=None)
                     assert 400 == resp.status
-                    expected_msg = "{} cannot be removed. This is being used by {} instances".format(name, svc_list)
+                    expected_msg = "{} cannot be removed. This is being used by {} instances.".format(name, svc_list)
                     assert expected_msg == resp.reason
                     result = await resp.text()
                     response = json.loads(result)
                     assert {'message': expected_msg} == response
-                assert 1 == log_err_patch.call_count
-                log_err_patch.assert_called_once_with(expected_msg)
+                assert 1 == patch_logger.call_count
+                patch_logger.assert_called_once_with(expected_msg)
             plugin_usage_patch.assert_called_once_with(_type, name)
         plugin_installed_patch.assert_called_once_with(_type, False)
 
+    @pytest.mark.skipif(RUN_TESTS_BEFORE_210_VERSION, reason="requires lesser or equal to core 2.1.0 version")
     async def test_notify_plugin_in_use(self, client):
         async def async_mock(return_value):
             return return_value
@@ -135,28 +140,29 @@ class TestPluginRemove:
         with patch.object(PluginDiscovery, 'get_plugins_installed', return_value=plugin_installed
                           ) as plugin_installed_patch:
             with patch.object(plugins_remove, '_check_plugin_usage_in_notification_instances', return_value=_rv) as plugin_usage_patch:
-                with patch.object(plugins_remove._logger, "error") as log_err_patch:
+                with patch.object(plugins_remove._logger, "warning") as patch_logger:
                     resp = await client.delete('/fledge/plugins/{}/{}'.format(plugin_type, plugin_installed_dirname),
                                                data=None)
                     assert 400 == resp.status
-                    expected_msg = "{} cannot be removed. This is being used by {} instances".format(
+                    expected_msg = "{} cannot be removed. This is being used by {} instances.".format(
                         plugin_installed_dirname, notify_instances_list)
                     assert expected_msg == resp.reason
                     result = await resp.text()
                     response = json.loads(result)
                     assert {'message': expected_msg} == response
-                assert 1 == log_err_patch.call_count
-                log_err_patch.assert_called_once_with(expected_msg)
+                assert 1 == patch_logger.call_count
+                patch_logger.assert_called_once_with(expected_msg)
             plugin_usage_patch.assert_called_once_with(plugin_installed_dirname)
         plugin_installed_patch.assert_called_once_with(plugin_type_installed_dir, False)
 
+    @pytest.mark.skipif(RUN_TESTS_BEFORE_210_VERSION, reason="requires lesser or equal to core 2.1.0 version")
     async def test_package_already_in_progress(self, client):
         async def async_mock(return_value):
             return return_value
 
         _type = "south"
         name = 'http_south'
-        pkg_name = "fledge-south-http-south"
+        pkg_name = "fledge-south-http"
         payload = {"return": ["status"], "where": {"column": "action", "condition": "=", "value": "purge",
                                                    "and": {"column": "name", "condition": "=", "value": pkg_name}}}
         select_row_resp = {'count': 1, 'rows': [{
@@ -166,14 +172,14 @@ class TestPluginRemove:
             "status": -1,
             "log_file_uri": ""
         }]}
-        expected_msg = '{} package purge already in progress'.format(pkg_name)
+        expected_msg = '{} package purge already in progress.'.format(pkg_name)
         storage_client_mock = MagicMock(StorageClientAsync)
         plugin_installed = [{"name": "sinusoid", "type": _type, "description": "Sinusoid Poll Plugin",
                              "version": "1.8.1", "installedDirectory": "{}/{}".format(_type, name),
                              "packageName": "fledge-{}-sinusoid".format(_type)},
                             {"name": name, "type": _type, "description": "HTTP Listener South Plugin",
                              "version": "1.8.1", "installedDirectory": "{}/{}".format(_type, name),
-                             "packageName": "fledge-{}-{}".format(_type, name)}
+                             "packageName": pkg_name}
                             ]
         
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
@@ -203,10 +209,11 @@ class TestPluginRemove:
                 assert 1 == log_info_patch.call_count
                 log_info_patch.assert_called_once_with(
                     'No entry found for http_south plugin in asset tracker; '
-                    'or {} plugin may have been added in disabled state & never used'.format(name))
+                    'or {} plugin may have been added in disabled state & never used.'.format(name))
             plugin_usage_patch.assert_called_once_with(_type, name)
         plugin_installed_patch.assert_called_once_with(_type, False)
 
+    @pytest.mark.skipif(RUN_TESTS_BEFORE_210_VERSION, reason="requires lesser or equal to core 2.1.0 version")
     async def test_package_when_not_in_use(self, client):
         
         async def async_mock(return_value):
@@ -214,7 +221,7 @@ class TestPluginRemove:
         
         _type = "south"
         name = 'http_south'
-        pkg_name = "fledge-south-http-south"
+        pkg_name = "fledge-south-http"
         payload = {"return": ["status"], "where": {"column": "action", "condition": "=", "value": "purge",
                                                    "and": {"column": "name", "condition": "=", "value": pkg_name}}}
         select_row_resp = {'count': 1, 'rows': [{
@@ -241,7 +248,7 @@ class TestPluginRemove:
                              "packageName": "fledge-{}-sinusoid".format(_type)},
                             {"name": name, "type": _type, "description": "HTTP Listener South Plugin",
                              "version": "1.8.1", "installedDirectory": "{}/{}".format(_type, name),
-                             "packageName": "fledge-{}-{}".format(_type, name)}
+                             "packageName": pkg_name}
                             ]
         
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
@@ -276,7 +283,7 @@ class TestPluginRemove:
                                         result = await resp.text()
                                         response = json.loads(result)
                                         assert 'id' in response
-                                        assert '{} plugin purge started.'.format(name) == response['message']
+                                        assert '{} plugin remove started.'.format(name) == response['message']
                                         assert response['statusLink'].startswith('fledge/package/purge/status?id=')
                                 args, kwargs = insert_tbl_patch.call_args_list[0]
                                 assert 'packages' == args[0]
@@ -295,6 +302,6 @@ class TestPluginRemove:
                 assert 1 == log_info_patch.call_count
                 log_info_patch.assert_called_once_with(
                     'No entry found for http_south plugin in asset tracker; '
-                    'or {} plugin may have been added in disabled state & never used'.format(name))
+                    'or {} plugin may have been added in disabled state & never used.'.format(name))
             plugin_usage_patch.assert_called_once_with(_type, name)
         plugin_installed_patch.assert_called_once_with(_type, False)

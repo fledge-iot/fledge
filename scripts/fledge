@@ -534,7 +534,10 @@ fledge_status() {
                 ps -ef | grep -v 'cpulimit*' | grep -o 'python3 -m fledge.tasks.*' | grep -o 'fledge.tasks.*' | grep -v 'fledge.tasks\.\*' || true
 
                 # Show Tasks in C code
-                ps -ef | grep './tasks.' | grep -v python3 | grep -v grep | grep -v awk | awk '{printf "tasks/sending_process "; for(i=9;i<=NF;++i) printf $i FS; printf "\n"}' || true
+                for task_name in `ls ${FLEDGE_ROOT}/tasks`
+                do
+                    ps -ef | grep "./tasks/$task_name" | grep -v python3 | grep -v grep | grep -v awk | awk  '{printf "tasks/'$task_name' " ; for(i=9;i<=NF;++i) printf $i FS; printf "\n"}' || true
+                done
             fi
             ;;
         *)

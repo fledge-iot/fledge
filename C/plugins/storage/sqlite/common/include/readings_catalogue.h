@@ -131,11 +131,10 @@ public:
 
 	void          preallocateReadingsTables(int dbId);
 	bool          loadAssetReadingCatalogue();
-	bool          loadEmptyAssetReadingCatalogue();
+	bool          loadEmptyAssetReadingCatalogue(bool clean = true);
 
 	bool          latestDbUpdate(sqlite3 *dbHandle, int newDbId);
 	void          preallocateNewDbsRange(int dbIdStart, int dbIdEnd);
-	tyReadingReference getEmptyReadingTableReference(std::string& asset);
 	tyReadingReference getReadingReference(Connection *connection, const char *asset_code);
 	bool          attachDbsToAllConnections();
 	std::string   sqlConstructMultiDb(std::string &sqlCmdBase, std::vector<std::string>  &assetCodes, bool considerExclusion=false);
@@ -177,7 +176,7 @@ private:
 
 	} tyReadingsAvailable;
 
-	ReadingsCatalogue(){};
+	ReadingsCatalogue() { };
 
 	bool          createNewDB(sqlite3 *dbHandle, int newDbId,  int startId, NEW_DB_OPERATION attachAllDb);
 	int           getUsedTablesDbId(int dbId);
@@ -228,6 +227,7 @@ private:
 		// asset_code  - reading Table Id, Db Id
 		// {"",         ,{1               ,1 }}
 	};
+	std::mutex m_emptyReadingTableMutex;
 public:
 	TransactionBoundary				m_tx;
 

@@ -7,27 +7,6 @@ install_postgres() {
   sudo -u postgres createuser -d "$(whoami)"
 }
 
-_postgres() {
-    install_postgres
-    [[ -f $FLEDGE_ROOT/data/etc/storage.json ]] && echo $(jq -c --arg STORAGE_PLUGIN_VAL "postgres" '.plugin.value=$STORAGE_PLUGIN_VAL' $FLEDGE_ROOT/data/etc/storage.json) > $FLEDGE_ROOT/data/etc/storage.json || true
-    [[ -f $FLEDGE_ROOT/data/etc/storage.json ]] && echo $(jq -c --arg READING_PLUGIN_VAL "Use main plugin" '.readingPlugin.value=$READING_PLUGIN_VAL' $FLEDGE_ROOT/data/etc/storage.json) > $FLEDGE_ROOT/data/etc/storage.json || true
-}
-
-_sqliteinmemory () {
-    [[ -f $FLEDGE_ROOT/data/etc/storage.json ]] && echo $(jq -c --arg STORAGE_PLUGIN_VAL "sqlite" '.plugin.value=$STORAGE_PLUGIN_VAL' $FLEDGE_ROOT/data/etc/storage.json) > $FLEDGE_ROOT/data/etc/storage.json || true
-    [[ -f $FLEDGE_ROOT/data/etc/storage.json ]] && echo $(jq -c --arg READING_PLUGIN_VAL "sqlitememory" '.readingPlugin.value=$READING_PLUGIN_VAL' $FLEDGE_ROOT/data/etc/storage.json) > $FLEDGE_ROOT/data/etc/storage.json || true
-}
-
-_sqlite () {
-    [[ -f $FLEDGE_ROOT/data/etc/storage.json ]] && echo $(jq -c --arg STORAGE_PLUGIN_VAL "sqlite" '.plugin.value=$STORAGE_PLUGIN_VAL' $FLEDGE_ROOT/data/etc/storage.json) > $FLEDGE_ROOT/data/etc/storage.json || true
-    [[ -f $FLEDGE_ROOT/data/etc/storage.json ]] && echo $(jq -c --arg READING_PLUGIN_VAL "Use main plugin" '.readingPlugin.value=$READING_PLUGIN_VAL' $FLEDGE_ROOT/data/etc/storage.json) > $FLEDGE_ROOT/data/etc/storage.json || true
-}
-
-_sqlitelb () {
-    [[ -f $FLEDGE_ROOT/data/etc/storage.json ]] && echo $(jq -c --arg STORAGE_PLUGIN_VAL "sqlitelb" '.plugin.value=$STORAGE_PLUGIN_VAL' $FLEDGE_ROOT/data/etc/storage.json) > $FLEDGE_ROOT/data/etc/storage.json || true
-    [[ -f $FLEDGE_ROOT/data/etc/storage.json ]] && echo $(jq -c --arg READING_PLUGIN_VAL "Use main plugin" '.readingPlugin.value=$READING_PLUGIN_VAL' $FLEDGE_ROOT/data/etc/storage.json) > $FLEDGE_ROOT/data/etc/storage.json || true
-}
-
 _config_reading_db () {
   if [[ "postgres" == @($1|$2) ]]
   then
@@ -40,21 +19,12 @@ _config_reading_db () {
 # check for storage plugin
 . ./test.config
 
-if [[  ${STORAGE} == "postgres" && ${READING_PLUGIN_DB} == "Use main plugin" ]]
+if [[  ${STORAGE} == @(sqlite|postgres|sqlitelb) && ${READING_PLUGIN_DB} == @(Use main plugin|sqlitememory|sqlite|postgres|sqlitelb) ]]
 then
-   _postgres
-elif [[  ${STORAGE} == "sqlite-in-memory" && ${READING_PLUGIN_DB} == "Use main plugin" ]]
-then
-  _sqliteinmemory
-elif [[  ${STORAGE} == "sqlitelb" && ${READING_PLUGIN_DB} == "Use main plugin" ]]
-then
-  _sqlitelb
-elif [[ ${STORAGE} == "sqlite" && ${READING_PLUGIN_DB} == "Use main plugin" ]]
-then
-  _sqlite
-elif [[ ${STORAGE} == @(sqlite|postgres|sqlitelb) && ${READING_PLUGIN_DB} != "Use main plugin"  ]]
-then
-  _config_reading_db ${STORAGE} ${READING_PLUGIN_DB}
+   _config_reading_db "${STORAGE}" "${READING_PLUGIN_DB}"
+else
+  echo "Invalid Storage Configuration"
+  exit 1
 fi
 
 echo "Stopping Fledge using systemctl ..."

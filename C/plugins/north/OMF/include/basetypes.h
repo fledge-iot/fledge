@@ -52,7 +52,7 @@ static const char *baseOMFTypes = QUOTE(
 	      "properties":{
 		 "Integer16":{
 		    "type":["integer","null"],
-		    "format":"int16",
+		    "format":"int16"
 		 },
 		 "Time":{
 		    "type":"string",
@@ -68,7 +68,7 @@ static const char *baseOMFTypes = QUOTE(
 	      "properties":{
 		 "Integer32":{
 		    "type":["integer","null"],
-		    "format":"int32",
+		    "format":"int32"
 		 },
 		 "Time":{
 		    "type":"string",
@@ -84,7 +84,7 @@ static const char *baseOMFTypes = QUOTE(
 	      "properties":{
 		 "Integer64":{
 		    "type":["integer","null"],
-		    "format":"int64",
+		    "format":"int64"
 		 },
 		 "Time":{
 		    "type":"string",
@@ -100,7 +100,7 @@ static const char *baseOMFTypes = QUOTE(
 	      "properties":{
 		 "UInteger16":{
 		    "type":["integer","null"],
-		    "format":"uint16",
+		    "format":"uint16"
 		 },
 		 "Time":{
 		    "type":"string",
@@ -116,7 +116,7 @@ static const char *baseOMFTypes = QUOTE(
 	      "properties":{
 		 "UInteger32":{
 		    "type":["integer","null"],
-		    "format":"uint32",
+		    "format":"uint32"
 		 },
 		 "Time":{
 		    "type":"string",
@@ -132,7 +132,7 @@ static const char *baseOMFTypes = QUOTE(
 	      "properties":{
 		 "UInteger64":{
 		    "type":["integer","null"],
-		    "format":"uint64",
+		    "format":"uint64"
 		 },
 		 "Time":{
 		    "type":"string",

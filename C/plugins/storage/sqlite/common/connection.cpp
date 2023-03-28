@@ -482,7 +482,7 @@ Connection::Connection()
 		const char* dbErrMsg = sqlite3_errmsg(dbHandle);
 		const char* errMsg = "Failed to open the SQLite3 database";
 
-		Logger::getLogger()->error("%s '%s': %s",
+		logger->error("%s '%s': %s",
 					   dbErrMsg,
 					   dbPath.c_str(),
 					   dbErrMsg);
@@ -506,7 +506,7 @@ Connection::Connection()
 		if (rc != SQLITE_OK)
 		{
 			string errMsg = "Failed to set WAL from the fledge DB - " DB_CONFIGURATION;
-			Logger::getLogger()->error("%s : error %s",
+			logger->error("%s : error %s",
 			                           DB_CONFIGURATION,
 									   zErrMsg);
 			connectErrorTime = time(0);
@@ -535,7 +535,7 @@ Connection::Connection()
 		if (rc != SQLITE_OK)
 		{
 			const char* errMsg = "Failed to attach 'fledge' database in";
-			Logger::getLogger()->error("%s '%s': error %s",
+			logger->error("%s '%s': error %s",
 						   errMsg,
 						   sqlStmt,
 						   zErrMsg);
@@ -546,7 +546,7 @@ Connection::Connection()
 		}
 		else
 		{
-			Logger::getLogger()->info("Connected to SQLite3 database: %s",
+			logger->info("Connected to SQLite3 database: %s",
 						  dbPath.c_str());
 		}
 		//Release sqlStmt buffer
@@ -555,7 +555,7 @@ Connection::Connection()
 		// Attach readings database - readings_1
 		if (access(dbPathReadings.c_str(), R_OK) != 0)
 		{
-			Logger::getLogger()->info("No readings database, assuming seperate readings plugin is avialable");
+			logger->info("No readings database, assuming seperate readings plugin is avialable");
 			m_noReadings = true;
 		}
 		else
@@ -578,7 +578,7 @@ Connection::Connection()
 			if (rc != SQLITE_OK)
 			{
 				const char* errMsg = "Failed to attach 'readings' database in";
-				Logger::getLogger()->error("%s '%s': error %s",
+				logger->error("%s '%s': error %s",
 										   errMsg,
 										   sqlReadingsStmt,
 										   zErrMsg);
@@ -589,7 +589,7 @@ Connection::Connection()
 			}
 			else
 			{
-				Logger::getLogger()->info("Connected to SQLite3 database: %s",
+				logger->info("Connected to SQLite3 database: %s",
 										  dbPath.c_str());
 			}
 			//Release sqlStmt buffer
@@ -607,6 +607,9 @@ Connection::Connection()
 
 				sqlite3_free(zErrMsg);
 			}
+
+			ReadingsCatalogue *catalogue = ReadingsCatalogue::getInstance();
+			catalogue->createReadingsOverflowTable(dbHandle, 1);
 		}
 
 	}
@@ -618,11 +621,19 @@ Connection::Connection()
 		if ( !readCat->connectionAttachAllDbs(dbHandle) )
 		{
 			const char* errMsg = "Failed to attach all the dbs to the connection :%X:'readings' database in";
-			Logger::getLogger()->error("%s '%s': error %s", errMsg, dbHandle);
+			logger->error("%s '%s': error %s", errMsg, dbHandle);
 
 			connectErrorTime = time(0);
 			sqlite3_close_v2(dbHandle);
 		}
+		else
+		{
+			logger->info("Attached all %d readings databases to connection", readCat->getReadingsCount());
+		}
+	}
+	else
+	{
+		logger->info("Connection will not attach to readings tables");
 	}
 
 	m_schemaManager = SchemaManager::getInstance();

@@ -180,7 +180,7 @@ void StorageAssetTracker::updateCache(std::set<std::string> dpSet, StorageAssetT
                 unsigned int count = 0;
                 for (auto itr : dpSet)
                 {
-                        strDatapoints.append(itr);
+                        strDatapoints.append(std::regex_replace(itr, std::regex("\""), "\\\""));
                         strDatapoints.append(",");
                         count++;
                 }
@@ -210,7 +210,7 @@ void StorageAssetTracker::updateCache(std::set<std::string> dpSet, StorageAssetT
 		unsigned int count = 0;
 		for (auto itr : cacheRecord)
 		{
-			strDatapoints.append(itr);
+			strDatapoints.append(std::regex_replace(itr, std::regex("\""), "\\\""));
 			strDatapoints.append(",");
 			count++;
 		}
@@ -221,7 +221,7 @@ void StorageAssetTracker::updateCache(std::set<std::string> dpSet, StorageAssetT
                 {
                         if (cacheRecord.find(itr) == cacheRecord.end())
                         {
-				strDatapoints.append(itr);
+				strDatapoints.append(std::regex_replace(itr, std::regex("\""), "\\\""));
 	                        strDatapoints.append(",");
 				count++;
                         }

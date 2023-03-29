@@ -880,7 +880,7 @@ ostringstream threadId;
 			StringBuffer buffer;
 			Writer<StringBuffer> writer(buffer);
 			(*itr)["reading"].Accept(writer);
-			reading = escape(buffer.GetString());
+			reading = buffer.GetString();
 
 			if(stmt != NULL) {
 				// First reading, use the id as transaction start

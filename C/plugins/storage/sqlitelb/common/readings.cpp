@@ -1017,7 +1017,7 @@ int sleep_time_ms = 0;
 			StringBuffer buffer;
 			Writer<StringBuffer> writer(buffer);
 			(*itr)["reading"].Accept(writer);
-			reading = escape(buffer.GetString());
+			reading = buffer.GetString();
 
 			if(stmt != NULL) {
 

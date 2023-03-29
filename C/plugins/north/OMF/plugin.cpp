@@ -1554,6 +1554,37 @@ int PIWebAPIGetVersion(CONNECTOR_INFO* connInfo, bool logMessage)
 	return httpCode;
 }
 
+/**
+ * Finds major and minor product version numbers in a version string
+ * 
+ * @param    versionString		Version string of the form x.x.x.x where x's are integers
+ * @param    major				Major product version returned (first digit)
+ * @param    minor				Minor product version returned (second digit)
+ */
+static void ParseProductVersion(std::string &versionString, int *major, int *minor)
+{
+	*major = 0;
+	*minor = 0;
+	size_t last = 0;
+	size_t next = versionString.find(".", last);
+	if (next != string::npos)
+	{
+		*major = atoi(versionString.substr(last, next - last).c_str());
+		last = next + 1;
+		next = versionString.find(".", last);
+		if (next != string::npos)
+		{
+			*minor = atoi(versionString.substr(last, next - last).c_str());
+		}
+	}
+}
+
+/**
+ * Parses the Edge Data Store version string from the /productinformation REST response
+ * 
+ * @param    json		REST response from /api/v1/diagnostics/productinformation
+ * @return   version	Edge Data Store version string
+ */
 static std::string ParseEDSProductInformation(std::string json)
 {
 	std::string version;
@@ -1579,6 +1610,12 @@ static std::string ParseEDSProductInformation(std::string json)
 	return version;
 }
 
+/**
+ * Calls the Edge Data Store product information endpoint to get the EDS version
+ * 
+ * @param    connInfo	The CONNECTOR_INFO data structure
+ * @return   HttpCode	REST response code
+ */
 int EDSGetVersion(CONNECTOR_INFO *connInfo)
 {
 	int res;
@@ -1656,19 +1693,7 @@ void SetOMFVersion(CONNECTOR_INFO *connInfo)
 		{
 			int major = 0;
 			int minor = 0;
-			size_t last = 0;
-			size_t next = connInfo->RestServerVersion.find(".", last);
-			if (next != string::npos)
-			{
-				major = atoi(connInfo->RestServerVersion.substr(last, next - last).c_str());
-				last = next + 1;
-				next = connInfo->RestServerVersion.find(".", last);
-				if (next != string::npos)
-				{
-					minor = atoi(connInfo->RestServerVersion.substr(last, next - last).c_str());
-				}
-			}
-
+			ParseProductVersion(connInfo->RestServerVersion, &major, &minor);
 			if ((major > 1) || (major == 1 && minor > 0))
 			{
 				connInfo->omfversion = "1.2";

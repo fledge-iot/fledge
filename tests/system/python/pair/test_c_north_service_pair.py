@@ -667,7 +667,7 @@ class TestCNorthService:
 
         delete_url = "/fledge/filter/{}".format(filter_name)
         resp = utils.delete_request(fledge_url, urllib.parse.quote(delete_url))
-        assert "Filter {} deleted successfully".format(filter_name) == resp['result']
+        assert "Filter {} deleted successfully.".format(filter_name) == resp['result']
 
         # Re-add filter in enabled mode
         filter_cfg_scale = {"enable": "true"}

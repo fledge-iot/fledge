@@ -938,8 +938,8 @@ class Server:
                 # dryrun execution of all the tasks that are installed but have schedule type other than STARTUP
                 schedule_list = loop.run_until_complete(cls.scheduler.get_schedules())
                 for sch in schedule_list:
-                    # STARTUP type exclusion
-                    if int(sch.schedule_type) != 1:
+                    # STARTUP type schedules and special FledgeUpdater schedule process name exclusion to avoid dryrun
+                    if int(sch.schedule_type) != 1 and sch.process_name != "FledgeUpdater":
                         schedule_row = cls.scheduler._ScheduleRow(
                             id=sch.schedule_id,
                             name=sch.name,

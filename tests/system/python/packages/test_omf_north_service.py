@@ -636,7 +636,7 @@ class TestOMFNorthServicewithFilters:
 
         delete_url = "/fledge/filter/{}".format(filter1_name)
         resp = utils.delete_request(fledge_url, delete_url)
-        assert "Filter {} deleted successfully".format(filter1_name) == resp['result']
+        assert "Filter {} deleted successfully.".format(filter1_name) == resp['result']
 
         filter_cfg_scale = {"enable": "true"}
         add_filter("scale", None, filter1_name, filter_cfg_scale, fledge_url, north_service_name,

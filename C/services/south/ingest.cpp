@@ -1086,7 +1086,7 @@ void Ingest::unDeprecateAssetTrackingRecord(AssetTrackingTuple* currentTuple,
 			m_serviceName,
 			assetName,
 			event);
-
+	std::string escapedAssetName = std::regex_replace(assetName, std::regex("\""), "\\\"");
 	if (updatedTuple)
 	{
 		if (updatedTuple->isDeprecated())
@@ -1101,7 +1101,7 @@ void Ingest::unDeprecateAssetTrackingRecord(AssetTrackingTuple* currentTuple,
 			const Condition conditionParams(Equals);
 			Where * wAsset = new Where("asset",
 						conditionParams,
-						assetName);
+						escapedAssetName);
 			Where *wService = new Where("service",
 						conditionParams,
 						m_serviceName,
@@ -1129,7 +1129,7 @@ void Ingest::unDeprecateAssetTrackingRecord(AssetTrackingTuple* currentTuple,
 			}
 			else
 			{
-				string audit_details = "{\"asset\" : \"" + assetName +
+				string audit_details = "{\"asset\" : \"" + escapedAssetName +
 							"\", \"service\" : \"" + m_serviceName +
 							"\", \"event\" : \"" + event + "\"}";
 				// Add AuditLog entry
@@ -1177,7 +1177,7 @@ void Ingest::unDeprecateStorageAssetTrackingRecord(StorageAssetTrackingTuple* cu
                         "store", 
 			datapoints,
 			count);
-
+		std::string escapedAssetName = std::regex_replace(assetName, std::regex("\""), "\\\"");
         vector<string> tokens;
         stringstream dpStringStream(datapoints);
         string temp;
@@ -1214,7 +1214,7 @@ void Ingest::unDeprecateStorageAssetTrackingRecord(StorageAssetTrackingTuple* cu
                         const Condition conditionParams(Equals);
                         Where * wAsset = new Where("asset",
                                                 conditionParams,
-                                                assetName);
+                                                escapedAssetName);
                         Where *wService = new Where("service",
                                                 conditionParams,
                                                 m_serviceName,

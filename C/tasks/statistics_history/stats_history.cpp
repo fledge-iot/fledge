@@ -75,6 +75,7 @@ void StatsHistory::run() const
         while (keySet->hasNextRow(rowIter) || keySet->isLastRow(rowIter) )
 	{
 		string key = (*rowIter)->getColumn("key")->getString();
+		key = std::regex_replace(key, std::regex("\""), "\\\"");
 		int val = (*rowIter)->getColumn("value")->getInteger();
         	int prev = (*rowIter)->getColumn("previous_value")->getInteger();
 

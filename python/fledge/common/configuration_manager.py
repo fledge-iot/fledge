@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-
 # FLEDGE_BEGIN
 # See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
@@ -13,6 +12,7 @@ import inspect
 import ipaddress
 import datetime
 import os
+import logging
 from math import *
 import collections
 import ast
@@ -21,7 +21,7 @@ from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.common.storage_client.storage_client import StorageClientAsync
 from fledge.common.storage_client.exceptions import StorageServerError
 from fledge.common.storage_client.utils import Utils
-from fledge.common import logger
+from fledge.common.logger import FLCoreLogger
 from fledge.common.common import _FLEDGE_ROOT, _FLEDGE_DATA
 from fledge.common.audit_logger import AuditLogger
 from fledge.common.acl_manager import ACLManager
@@ -31,9 +31,7 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-import logging
-
-_logger = logger.setup(__name__)
+_logger = FLCoreLogger().get_logger(__name__)
 
 # MAKE UPPER_CASE
 _valid_type_strings = sorted(['boolean', 'integer', 'float', 'string', 'IPv4', 'IPv6', 'X509 certificate', 'password',
@@ -83,7 +81,7 @@ class ConfigurationCache(object):
         display_name = category_name if display_name is None else display_name
         self.cache[category_name] = {'date_accessed': datetime.datetime.now(), 'description': category_description,
                                      'value': category_val, 'displayName': display_name}
-        _logger.info("Updated Configuration Cache %s", self.cache)
+        _logger.debug("Updated Configuration Cache %s", self.cache)
 
     def remove_oldest(self):
         """Remove the entry that has the oldest accessed date"""
@@ -191,11 +189,15 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                         'Callback module %s run method must be a coroutine function', callback)
                     raise AttributeError('Callback module {} run method must be a coroutine function'.format(callback))
                 await cb.run(category_name)
+        else:
+            if category_name == "LOGGING":
+                from fledge.services.core import server
+                logging_level = self._cacheManager.cache[category_name]['value']['logLevel']['value']
+                server.Server._log_level = logging_level
+                FLCoreLogger().set_level(logging_level)
 
     async def _run_callbacks_child(self, parent_category_name, child_category, operation):
-
         callbacks = self._registered_interests_child.get(parent_category_name)
-
         if callbacks is not None:
             for callback in callbacks:
                 try:
@@ -1418,13 +1420,13 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             payload = PayloadBuilder().WHERE(["child", "=", cat]).payload()
             result = await self._storage.delete_from_tbl("category_children", payload)
             if result['response'] == 'deleted':
-                _logger.info('Deleted parent in category_children: %s', cat)
+                _logger.info('Deleted parent in category_children: {}'.format(cat))
 
             # Remove category.
             payload = PayloadBuilder().WHERE(["key", "=", cat]).payload()
             result = await self._storage.delete_from_tbl("configuration", payload)
             if result['response'] == 'deleted':
-                _logger.info('Deleted parent category from configuration: %s', cat)
+                _logger.info('Deleted parent category from configuration: {}'.format(cat))
                 audit = AuditLogger(self._storage)
                 audit_details = {'categoryDeleted': cat}
                 # FIXME: FOGL-2140

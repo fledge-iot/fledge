@@ -49,6 +49,12 @@ class StorageClient {
 		ResultSet	*queryTable(const std::string& tablename, const Query& query);
 		ReadingSet	*queryTableToReadings(const std::string& tableName, const Query& query);
 		int 		insertTable(const std::string& schema, const std::string& tableName, const InsertValues& values);
+		int             insertTable(const std::string& schema, const std::string& tableName,
+                                                const std::vector<InsertValues>& values);
+                int             insertTable(const std::string& tableName, const std::vector<InsertValues>& values);
+
+
+
 		int		updateTable(const std::string& schema, const std::string& tableName, const InsertValues& values,
 					const Where& where, const UpdateModifier *modifier = NULL);
 		int		updateTable(const std::string& schema, const std::string& tableName, const JSONProperties& json,
@@ -73,6 +79,12 @@ class StorageClient {
 					const UpdateModifier *modifier = NULL);
 		int		updateTable(const std::string& tableName, const InsertValues& values, const ExpressionValues& expressions,
 					const Where& where, const UpdateModifier *modifier = NULL);
+		int 		updateTable(const std::string& schema, const std::string& tableName, 
+					std::vector<std::pair<InsertValue*, Where* > > &updates, const UpdateModifier *modifier);
+
+		int 		updateTable(const std::string& tableName, std::vector<std::pair<InsertValue*, Where*> >& updates, 
+					const UpdateModifier *modifier = NULL);
+
 		int		deleteTable(const std::string& tableName, const Query& query);
 		bool		readingAppend(Reading& reading);
 		bool		readingAppend(const std::vector<Reading *> & readings);

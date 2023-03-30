@@ -679,6 +679,8 @@ def pytest_addoption(parser):
                      help="use pip cache is requirement is available")
     parser.addoption("--wait-time", action="store", default=5, type=int,
                      help="Generic wait time between processes to run")
+    parser.addoption("--wait-fix", action="store", default=0, type=int,
+                     help="Extra wait time required for process to run")
     parser.addoption("--retries", action="store", default=3, type=int,
                      help="Number of tries for polling")
     # TODO: Temporary fixture, to be used with value False for environments where PI Web API is not stable
@@ -703,6 +705,7 @@ def pytest_addoption(parser):
                      help="Name of the South Service")
     parser.addoption("--asset-name", action="store", default="SystemTest",
                      help="Name of asset")
+    parser.addoption("--num-assets", action="store", default=300, type=int, help="Total No. of Assets to be created")
 
     # Filter Args
     parser.addoption("--filter-branch", action="store", default="develop", help="Filter plugin repo branch")
@@ -798,7 +801,17 @@ def pytest_addoption(parser):
     parser.addoption("--start-north-as-service", action="store", type=bool, default=True,
                      help="Whether start the north as a service.")
 
+    # Fogbench Config
+    parser.addoption("--fogbench-host", action="store", default="localhost",
+                     help="FogBench Destination Host Address")
+                     
+    parser.addoption("--fogbench-port", action="store", default="5683", type=int,
+                     help="FogBench Destination Port")
 
+@pytest.fixture
+def num_assets(request):
+    return request.config.getoption("--num-assets")
+    
 @pytest.fixture
 def storage_plugin(request):
     return request.config.getoption("--storage-plugin")
@@ -888,7 +901,10 @@ def fledge_url(request):
 def wait_time(request):
     return request.config.getoption("--wait-time")
 
-
+@pytest.fixture
+def wait_fix(request):
+    return request.config.getoption("--wait-fix")
+    
 @pytest.fixture
 def retries(request):
     return request.config.getoption("--retries")
@@ -1116,3 +1132,12 @@ def pytest_configure():
     pytest.OS_PLATFORM_DETAILS = read_os_release()
     pytest.IS_REDHAT = is_redhat_based()
     pytest.PKG_MGR = 'yum' if pytest.IS_REDHAT else 'apt'
+
+@pytest.fixture
+def fogbench_host(request):
+    return request.config.getoption("--fogbench-host")
+
+
+@pytest.fixture
+def fogbench_port(request):
+    return request.config.getoption("--fogbench-port")

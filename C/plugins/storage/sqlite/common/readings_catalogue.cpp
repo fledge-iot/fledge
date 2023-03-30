@@ -925,7 +925,8 @@ void ReadingsCatalogue::multipleReadingsInit(STORAGE_CONFIGURATION &storageConfi
 		preallocateReadingsTables(0);   // on the last database
 
 		evaluateGlobalId();
-		loadEmptyAssetReadingCatalogue();
+		std::thread th(&ReadingsCatalogue::loadEmptyAssetReadingCatalogue,this,true);
+		th.detach();
 	}
 	catch (exception& e)
 	{
@@ -2016,7 +2017,7 @@ ReadingsCatalogue::tyReadingReference  ReadingsCatalogue::getReadingReference(Co
 			
 			if (! isReadingAvailable ())
 			{
-				// No Readding table available... Get empty reading table 
+				// No Reading table available... Get empty reading table 
 				emptyTableReference = getEmptyReadingTableReference(emptyAsset);
 				if ( !emptyAsset.empty() )
 				{
@@ -2172,16 +2173,25 @@ ReadingsCatalogue::tyReadingReference  ReadingsCatalogue::getReadingReference(Co
  * Loads the empty reading table catalogue
  *
  */
-bool ReadingsCatalogue::loadEmptyAssetReadingCatalogue()
+bool ReadingsCatalogue::loadEmptyAssetReadingCatalogue(bool clean)
 {
+	std::lock_guard<std::mutex> guard(m_emptyReadingTableMutex);
 	sqlite3 *dbHandle;
 	string sql_cmd;
 	sqlite3_stmt *stmt;
 	ConnectionManager *manager = ConnectionManager::getInstance();
 	Connection *connection = manager->allocate();
 	dbHandle = connection->getDbHandle();
-	m_EmptyAssetReadingCatalogue.clear();
-			
+	
+	if (clean)
+	{
+		m_EmptyAssetReadingCatalogue.clear();
+	}
+
+	// Do not populate m_EmptyAssetReadingCatalogue if data is already there
+	if (m_EmptyAssetReadingCatalogue.size())	
+		return true;
+
 	for (auto &item : m_AssetReadingCatalogue)
 	{
 		string asset_name = item.first; // Asset
@@ -2229,16 +2239,15 @@ ReadingsCatalogue::tyReadingReference ReadingsCatalogue::getEmptyReadingTableRef
 	{
 		loadEmptyAssetReadingCatalogue();
 	}
-	
+
 	auto it = m_EmptyAssetReadingCatalogue.begin();
 	if (it != m_EmptyAssetReadingCatalogue.end())
 	{
 		asset = it->first;
 		emptyTableReference.tableId = it->second.first;
 		emptyTableReference.dbId = it->second.second;
-		
 	}
-	
+
 	return emptyTableReference;
 }
 
@@ -2388,7 +2397,8 @@ int  ReadingsCatalogue::purgeAllReadings(sqlite3 *dbHandle, const char *sqlCmdBa
 		}
 	}
 
-	loadEmptyAssetReadingCatalogue();
+	std::thread th(&ReadingsCatalogue::loadEmptyAssetReadingCatalogue,this,false);
+	th.detach();
 	return(rc);
 
 }

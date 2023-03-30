@@ -133,7 +133,7 @@ public:
 
 	void          preallocateReadingsTables(int dbId);
 	bool          loadAssetReadingCatalogue();
-	bool          loadEmptyAssetReadingCatalogue();
+	bool          loadEmptyAssetReadingCatalogue(bool clean = true);
 
 	bool          latestDbUpdate(sqlite3 *dbHandle, int newDbId);
 	int           preallocateNewDbsRange(int dbIdStart, int dbIdEnd);
@@ -241,6 +241,7 @@ private:
 	int	       m_attachLimit;
 	int	       m_maxOverflowUsed;
 	int	       m_compounds; 	// Max number of compound statements
+	std::mutex     m_emptyReadingTableMutex;
 public:
 	TransactionBoundary				m_tx;
 

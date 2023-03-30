@@ -6,6 +6,9 @@
 .. |view_times| image:: ../images/view_times.jpg
 .. |view_spreadsheet| image:: ../images/view_spreadsheet.jpg
 .. |gui_settings| image:: ../images/gui_settings.jpg
+.. |multi_graph1| image:: ../images/multi_graph1.jpg
+.. |multi_graph2| image:: ../images/multi_graph2.jpg
+.. |multi_graph3| image:: ../images/multi_graph3.jpg
 
 Viewing Data
 ############
@@ -41,13 +44,32 @@ It is also possible to change the default duration of a graph when it is first d
 | |gui_settings| |
 +----------------+
 
-This can be useful when very high frequency data is ingested into the system as it will prevent the inital graph that is displayed from pulling large amounts of data from the system and slowing down the response of the system and the GUI.
+This can be useful when very high frequency data is ingested into the system as it will prevent the initial graph that is displayed from pulling large amounts of data from the system and slowing down the response of the system and the GUI.
 
 Where an asset contains multiple data points each of these is displayed in a different colour. Graphs for particular data points can be toggled on and off by clicking on the key at the top of the graph. Those data points not should will be indicated by striking through the name of the data point.
 
 +-------------+
 | |view_hide| |
 +-------------+
+
+It is also possible to overlay the graphs for other assets onto the asset you are viewing.
+
++----------------+
+| |multi_graph1| |
++----------------+
+
+Using the pull down menu above the graph you may select another asset to add to the graph.
+
++----------------+
+| |multi_graph2| |
++----------------+
+
+All the data points from that asset will then be added to the graph. Multiple assets may be chosen from this pull down in order to build up more complex sets of graphs, individual data points for any of the assets may be hidden as above, or an entire asset may be removed from the graph by clicking on the **x** next to the asset name.
+
++----------------+
+| |multi_graph3| |
++----------------+
+
 
 A summary tab is also available, this will show the minimum, maximum and average values for each of the data points. Click on *Summary* to show the summary tab.
 

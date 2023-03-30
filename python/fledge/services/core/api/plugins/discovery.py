@@ -4,13 +4,13 @@
 # See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
-import logging
 import json
 
 from aiohttp import web
+
+from fledge.common.logger import FLCoreLogger
 from fledge.common.plugin_discovery import PluginDiscovery
 from fledge.services.core.api.plugins import common
-from fledge.common import logger
 from fledge.services.core.api.plugins.exceptions import *
 
 __author__ = "Amarendra K Sinha, Ashish Jabble"
@@ -25,7 +25,8 @@ _help = """
     | GET             | /fledge/plugins/available                                |
     -------------------------------------------------------------------------------
 """
-_logger = logger.setup(__name__, level=logging.INFO)
+
+_logger = FLCoreLogger().get_logger(__name__)
 
 
 async def get_plugins_installed(request):
@@ -80,9 +81,11 @@ async def get_plugins_available(request: web.Request) -> web.Response:
     except ValueError as e:
         raise web.HTTPBadRequest(reason=e)
     except PackageError as e:
-        msg = "Fetch available plugins package request failed"
+        msg = "Fetch available plugins package request failed."
         raise web.HTTPBadRequest(body=json.dumps({"message": msg, "link": str(e)}), reason=msg)
     except Exception as ex:
-        raise web.HTTPInternalServerError(reason=ex)
+        msg = str(ex)
+        _logger.error("Failed to get plugins available list. {}".format(msg))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
 
     return web.json_response({"plugins": plugins, "link": log_path})

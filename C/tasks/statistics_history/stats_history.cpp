@@ -10,7 +10,12 @@
 
 #include <stats_history.h>
 #include <csignal>
+#include <time.h>
+#include <sys/time.h>
 
+#define DATETIME_MAX_LEN 52
+#define MICROSECONDS_FORMAT_LEN	10
+#define DATETIME_FORMAT_DEFAULT	"%Y-%m-%d %H:%M:%S"
 
 using namespace std;
 
@@ -45,6 +50,7 @@ StatsHistory::~StatsHistory()
  */
 void StatsHistory::run() const
 {
+
 	// We handle these signals, add more if needed
 	std::signal(SIGINT,  signalHandler);
 	std::signal(SIGSTOP, signalHandler);
@@ -56,61 +62,124 @@ void StatsHistory::run() const
 	// Get the set of distinct statistics keys
 	Query query(new Returns("key"));
 	query.distinct();
-	ResultSet *keySet = getStorageClient()->queryTable("statistics", query);
+        query.returns(new Returns("value"));
+        query.returns(new Returns("previous_value"));
+        ResultSet *keySet = getStorageClient()->queryTable("statistics", query);
 
 	ResultSet::RowIterator rowIter = keySet->firstRow();
+	std::vector<InsertValues> historyValues;
+	vector<pair<InsertValue *, Where *>> updateValues;
 
-        do {
+	std::string dateTimeStr = getTime();
+
+        while (keySet->hasNextRow(rowIter) || keySet->isLastRow(rowIter) )
+	{
 		string key = (*rowIter)->getColumn("key")->getString();
+		int val = (*rowIter)->getColumn("value")->getInteger();
+        	int prev = (*rowIter)->getColumn("previous_value")->getInteger();
+
 		try {
-			processKey(key);
+			processKey(key, historyValues, updateValues, dateTimeStr, val, prev);
 		} catch (exception e) {
 			getLogger()->error("Failed to process statisitics key %s, %s", key, e.what());
 		}
-                rowIter = keySet->nextRow(rowIter);
-	} while (keySet->hasNextRow(rowIter));
+		if (!keySet->isLastRow(rowIter))
+                	rowIter = keySet->nextRow(rowIter);
+		else
+			break;
+	}
+
+	int n_rows;
+        if ((n_rows = getStorageClient()->insertTable("statistics_history", historyValues)) < 1)
+        {
+                getLogger()->error("Failed to insert rows to statistics history table ");
+        }
+
+	if (getStorageClient()->updateTable("statistics", updateValues) < 1)
+        {
+                getLogger()->error("Failed to update rows to statistics table");
+        }
+
+	for (auto it = updateValues.begin(); it != updateValues.end() ; ++it)
+	{
+		InsertValue *updateValue = it->first;
+		if (updateValue)
+		{
+			delete updateValue;
+			updateValue=nullptr;
+		}
+        	Where *wKey = it->second;
+		if(wKey)
+		{
+			delete wKey;
+			wKey = nullptr;
+		}
+	}
 
 	delete keySet;
 }
 
 /**
- * Process a single statistics key
+ * Process statistics keys
  *
- * @param key	The statistics key to process
+ * @param key	         The statistics key to process
+ * @param historyValues  Values to be inserted in statistics_history
+ * @param updateValues   Values to be updated in statistics
+ * @param dateTimeStr    Local time with microseconds precision 
+ * @param val		 int 
+ * @param prev		 int 
+ * @return void
  */
-void StatsHistory::processKey(const string& key) const
+void StatsHistory::processKey(const std::string& key, std::vector<InsertValues> &historyValues, std::vector<std::pair<InsertValue*, Where *> > &updateValues, std::string dateTimeStr, int val, int prev) const
 {
-Query	query(new Where("key", Equals, key));
+	InsertValues iValue;
 
-	// Fetch the current and previous valaues for the key
-	query.returns(new Returns("value"));
-	query.returns(new Returns("previous_value"));
-	ResultSet *values = getStorageClient()->queryTable("statistics", query);
-	if (values->rowCount() != 1)
-	{
-		getLogger()->error("Internal error, failed to get statisitics for key %s", key.c_str());
-		return;
-	}
-	int val = ((*values)[0])->getColumn("value")->getInteger();
-	int prev = ((*values)[0])->getColumn("previous_value")->getInteger();
-	delete values;
-	
-	// Insert the row into the configuration history
-	InsertValues historyValues;
-	historyValues.push_back(InsertValue("key", key.c_str()));
-	historyValues.push_back(InsertValue("value", val - prev));
-	historyValues.push_back(InsertValue("history_ts", "now()"));
-	int n_rows;
-	if ((n_rows = getStorageClient()->insertTable("statistics_history", historyValues)) != 1)
-	{
-		getLogger()->error("Failed to insert single row to statisitics history table for key %s", key.c_str());
-	}
+	// Insert the row into the statistics history
+	// create an object of InsertValues and push in historyValues vector
+	// for batch insertion
+	iValue.push_back(InsertValue("key", key.c_str()));
+	iValue.push_back(InsertValue("value", val - prev));
+	iValue.push_back(InsertValue("history_ts", dateTimeStr));
+
+	historyValues.push_back(iValue);
 
 	// Update the previous value in the statistics row
-	InsertValues updateValues;
-	updateValues.push_back(InsertValue("previous_value", val));
-	if (getStorageClient()->updateTable("statistics", updateValues, Where("key", Equals, key)) != 1)
-	{
-		getLogger()->error("Failed to update single row to statisitics table for key %s", key.c_str());
-	}
+	// create an object of InsertValue and push in updateValues vector
+	// for batch updation
+	InsertValue *updateValue = new InsertValue("previous_value", val);
+	Where *wKey = new Where("key", Equals, key);
+	updateValues.emplace_back(updateValue, wKey);
 }
+
+/**
+ * getTime() function returns the localTime with microseconds precision  
+ *
+ * @param  void 
+ * @return std::string localTime
+ */
+
+std::string StatsHistory::getTime(void) const
+{
+	struct timeval tv ;
+	struct tm* timeinfo;
+	gettimeofday(&tv, NULL);
+	timeinfo = localtime(&tv.tv_sec);
+	char date_time[DATETIME_MAX_LEN];
+	// Create datetime with seconds
+	strftime(date_time,
+		    sizeof(date_time),
+		    DATETIME_FORMAT_DEFAULT,
+		    timeinfo);
+
+	std::string dateTimeLocal = date_time;
+	char micro_s[MICROSECONDS_FORMAT_LEN];
+	// Add microseconds
+	snprintf(micro_s,
+		    sizeof(micro_s),
+		    ".%06lu",
+		    tv.tv_usec);
+
+	dateTimeLocal.append(micro_s);
+	return dateTimeLocal;
+}
+

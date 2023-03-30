@@ -632,16 +632,19 @@ class TestServer:
             assert (request_data['name'], request_data['type'], request_data['address'],  request_data['service_port'], request_data['management_port'], 'http', None) == args
 
     async def test_register_service(self, client):
-        async def async_mock(return_value):
-            return return_value
+        async def async_mock():
+            return ""
 
         Server._storage_client = MagicMock(StorageClientAsync)
         Server._storage_client_async = MagicMock(StorageClientAsync)
-        request_data = {"type": "Storage", "name": "Storage Services", "address": "127.0.0.1", "service_port": 8090, "management_port": 1090}
+        request_data = {"type": "Storage", "name": "Storage Services", "address": "127.0.0.1", "service_port": 8090,
+                        "management_port": 1090}
+        _rv = await async_mock() if sys.version_info.major == 3 and sys.version_info.minor >= 8 else \
+            asyncio.ensure_future(async_mock())
         with patch.object(ServiceRegistry, 'getStartupToken', return_value=None):
             with patch.object(ServiceRegistry, 'register', return_value='1') as patch_register:
                 with patch.object(AuditLogger, '__init__', return_value=None):
-                    with patch.object(AuditLogger, 'information', return_value=(await async_mock(None))) as audit_info_patch:
+                    with patch.object(AuditLogger, 'information', return_value=_rv) as audit_info_patch:
                         resp = await client.post('/fledge/service', data=json.dumps(request_data))
                         assert 200 == resp.status
                         r = await resp.text()
@@ -651,7 +654,8 @@ class TestServer:
                     assert 'SRVRG' == args[0]
                     assert {'name': request_data['name']} == args[1]
             args, _ = patch_register.call_args
-            assert (request_data['name'], request_data['type'], request_data['address'], request_data['service_port'], request_data['management_port'], 'http', None) == args
+            assert (request_data['name'], request_data['type'], request_data['address'],
+                    request_data['service_port'], request_data['management_port'], 'http', None) == args
 
     async def test_service_not_found_when_unregister(self, client):
         with patch.object(ServiceRegistry, 'get', side_effect=service_registry_exceptions.DoesNotExist) as patch_unregister:
@@ -677,10 +681,12 @@ class TestServer:
         data.append(record)
         Server._storage_client = MagicMock(StorageClientAsync)
         Server._storage_client_async = MagicMock(StorageClientAsync)
+        _rv = await async_mock() if sys.version_info.major == 3 and sys.version_info.minor >= 8 else\
+            asyncio.ensure_future(async_mock())
         with patch.object(ServiceRegistry, 'get', return_value=data) as patch_get_unregister:
             with patch.object(ServiceRegistry, 'unregister') as patch_unregister:
                 with patch.object(AuditLogger, '__init__', return_value=None):
-                    with patch.object(AuditLogger, 'information', return_value=(await async_mock())) as audit_info_patch:
+                    with patch.object(AuditLogger, 'information', return_value=_rv) as audit_info_patch:
                         resp = await client.delete('/fledge/service/{}'.format(service_id))
                         assert 200 == resp.status
                         r = await resp.text()

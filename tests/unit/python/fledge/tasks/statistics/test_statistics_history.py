@@ -12,10 +12,10 @@ import pytest
 import sys
 
 import ast
-from fledge.common import logger
-from fledge.common.storage_client.storage_client import StorageClientAsync
-from fledge.tasks.statistics.statistics_history import StatisticsHistory
+from fledge.common.logger import FLCoreLogger
 from fledge.common.process import FledgeProcess
+from fledge.tasks.statistics.statistics_history import StatisticsHistory
+from fledge.common.storage_client.storage_client import StorageClientAsync
 
 __author__ = "Vaibhav Singhal"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -42,7 +42,7 @@ class TestStatisticsHistory:
     async def test_init(self):
         """Test that creating an instance of StatisticsHistory calls init of FledgeProcess and creates loggers"""
         with patch.object(FledgeProcess, "__init__") as mock_process:
-            with patch.object(logger, "setup") as log:
+            with patch.object(FLCoreLogger, "get_logger") as log:
                 sh = StatisticsHistory()
                 assert isinstance(sh, StatisticsHistory)
             log.assert_called_once_with("StatisticsHistory")
@@ -56,7 +56,7 @@ class TestStatisticsHistory:
             _rv = asyncio.ensure_future(mock_coro(None))
         
         with patch.object(FledgeProcess, '__init__'):
-            with patch.object(logger, "setup"):
+            with patch.object(FLCoreLogger, "get_logger"):
                 sh = StatisticsHistory()
                 sh._storage_async = MagicMock(spec=StorageClientAsync)
                 payload = {'updates': [{'where': {'value': 'Bla', 'condition': '=', 'column': 'key'}, 'values': {'previous_value': 1}}]}
@@ -70,7 +70,7 @@ class TestStatisticsHistory:
 
     async def test_run(self):
         with patch.object(FledgeProcess, '__init__'):
-            with patch.object(logger, "setup"):
+            with patch.object(FLCoreLogger, "get_logger"):
                 sh = StatisticsHistory()
                 sh._storage_async = MagicMock(spec=StorageClientAsync)
                 retval = {'count': 2,

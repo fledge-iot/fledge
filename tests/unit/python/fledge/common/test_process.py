@@ -5,6 +5,7 @@ import sys
 
 from unittest.mock import patch
 
+from fledge.common import process
 from fledge.common.storage_client.storage_client import ReadingsStorageClientAsync, StorageClientAsync
 from fledge.common.process import FledgeProcess, ArgumentParserError
 from fledge.common.microservice_management_client.microservice_management_client import MicroserviceManagementClient
@@ -39,9 +40,11 @@ class TestFledgeProcess:
                 pass
         with patch.object(sys, 'argv', argslist):
             with pytest.raises(ArgumentParserError) as excinfo:
-                fp = FledgeProcessImp()
-        assert '' in str(
-            excinfo.value)
+                with patch.object(process._logger, "error") as patch_logger:
+                    fp = FledgeProcessImp()
+                assert 1 == patch_logger.call_count
+                patch_logger.assert_called_once_with()
+            assert '' in str(excinfo.value)
 
     def test_constructor_good(self):
         class FledgeProcessImp(FledgeProcess):

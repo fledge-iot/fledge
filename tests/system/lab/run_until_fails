@@ -25,11 +25,7 @@ for i in $(seq ${ITERATIONS}); do
   echo "Run $i"
   echo "***************"
   echo "***************"
-  ./reset
-  ./test
-  if [[ $? -ne 0 ]]
-  then
-    exit 1
-  fi
+  ./reset || exit 1
+  ./test || exit 1
 done
 

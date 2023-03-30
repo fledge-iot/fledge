@@ -11,5 +11,5 @@ fi
 
 ./remove
 ./install ${VERSION}
-./reset
+./reset || exit 1
 ./test

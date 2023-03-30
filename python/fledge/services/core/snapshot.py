@@ -15,8 +15,8 @@ import fnmatch
 import time
 from collections import OrderedDict
 
-from fledge.common import logger
 from fledge.common.common import _FLEDGE_ROOT
+from fledge.common.logger import FLCoreLogger
 
 
 __author__ = "Amarendra K Sinha"
@@ -24,9 +24,9 @@ __copyright__ = "Copyright (c) 2019 Dianomic Systems"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-_LOGGER = logger.setup(__name__)
 _NO_OF_FILES_TO_RETAIN = 3
 SNAPSHOT_PREFIX = "snapshot-plugin"
+_LOGGER = FLCoreLogger().get_logger(__name__)
 
 
 class SnapshotPluginBuilder:

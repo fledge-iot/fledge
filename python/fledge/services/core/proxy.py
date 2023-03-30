@@ -5,12 +5,11 @@
 # FLEDGE_END
 
 import json
-import logging
 import urllib.parse
 import aiohttp
 
 from aiohttp import web
-from fledge.common import logger
+from fledge.common.logger import FLCoreLogger
 from fledge.services.core import server
 from fledge.services.core.service_registry.service_registry import ServiceRegistry
 from fledge.services.core.service_registry import exceptions as service_registry_exceptions
@@ -20,7 +19,7 @@ __copyright__ = "Copyright (c) 2022 Dianomic Systems Inc."
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-_logger = logger.setup(__name__, level=logging.INFO)
+_logger = FLCoreLogger().get_logger(__name__)
 
 
 def setup(app):

@@ -153,7 +153,7 @@ class TestPluginRemove:
                 assert 1 == patch_logger.call_count
                 patch_logger.assert_called_once_with(expected_msg)
             plugin_usage_patch.assert_called_once_with(plugin_installed_dirname)
-        plugin_installed_patch.assert_called_once_with(plugin_type_installed_dir, False)
+        plugin_installed_patch.assert_called_once_with(plugin_type, False)
 
     @pytest.mark.skipif(RUN_TESTS_BEFORE_210_VERSION, reason="requires lesser or equal to core 2.1.0 version")
     async def test_package_already_in_progress(self, client):

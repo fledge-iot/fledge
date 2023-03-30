@@ -205,14 +205,8 @@ async def remove_plugin(request: web.Request) -> web.Response:
         # only OMF is an inbuilt plugin
         if name.lower() == 'omf':
             raise ValueError("Cannot delete an inbuilt {} plugin.".format(name.upper()))
-        if plugin_type == 'notify':
-            installed_dir_name = 'notificationDelivery'
-        elif plugin_type == 'rule':
-            installed_dir_name = 'notificationRule'
-        else:
-            installed_dir_name = plugin_type
         result_payload = {}
-        installed_plugins = PluginDiscovery.get_plugins_installed(installed_dir_name, False)
+        installed_plugins = PluginDiscovery.get_plugins_installed(plugin_type, False)
         plugin_info = [(_plugin["name"], _plugin["packageName"], _plugin["version"]) for _plugin in installed_plugins]
         package_name = "fledge-{}-{}".format(plugin_type, name.lower().replace("_", "-"))
         plugin_found = False
@@ -225,7 +219,6 @@ async def remove_plugin(request: web.Request) -> web.Response:
                 break
         if not plugin_found:
             raise KeyError("Invalid plugin name {} or plugin is not installed.".format(name))
-
         if plugin_type in ['notify', 'rule']:
             notification_instances_plugin_used_in = await _check_plugin_usage_in_notification_instances(name)
             if notification_instances_plugin_used_in:
@@ -387,7 +380,6 @@ async def _put_refresh_cache(protocol: str, host: int, port: int) -> None:
 
 def purge_plugin(plugin_type: str, plugin_name: str, pkg_name: str, version: str, uid: uuid, storage: connect) -> tuple:
     from fledge.services.core.server import Server
-
     _logger.info("{} plugin remove started...".format(pkg_name))
     is_package = True
     stdout_file_path = ''

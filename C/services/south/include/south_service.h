@@ -77,6 +77,7 @@ class SouthService : public ServiceAuthHandler {
 		void				calculateTimerRate();
 		bool				syncToNextPoll();
 		bool				onDemandPoll();
+		void				checkPendingReconfigure();
 	private:
 		std::thread			*m_reconfThread;
 		std::deque<std::pair<std::string,std::string>>	m_pendingNewConfig;

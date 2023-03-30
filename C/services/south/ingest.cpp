@@ -67,7 +67,7 @@ int Ingest::createStatsDbEntry(const string& assetName)
 	
 	// SELECT * FROM fledge.statiatics WHERE key = statistics_key
 	const Condition conditionKey(Equals);
-	Where *wKey = new Where("key", conditionKey, statistics_key);
+	Where *wKey = new Where("key", conditionKey, JSONescape(statistics_key));
 	Query qKey(wKey);
 
 	ResultSet* result = 0;
@@ -80,8 +80,8 @@ int Ingest::createStatsDbEntry(const string& assetName)
 		{
 			// Prepare insert values for insertTable
 			InsertValues newStatsEntry;
-			newStatsEntry.push_back(InsertValue("key", statistics_key));
-			newStatsEntry.push_back(InsertValue("description", string("Readings received from asset ")+assetName));
+			newStatsEntry.push_back(InsertValue("key", JSONescape(statistics_key)));
+			newStatsEntry.push_back(InsertValue("description", string("Readings received from asset ")+JSONescape(assetName)));
 			// Set "value" field for insert using the JSON document object
 			newStatsEntry.push_back(InsertValue("value", 0));
 			newStatsEntry.push_back(InsertValue("previous_value", 0));
@@ -191,7 +191,7 @@ void Ingest::updateStats()
 				for (auto & c: key) c = toupper(c);
 
 				// Prepare "WHERE key = name
-				Where *wPluginStat = new Where("key", conditionStat, key);
+				Where *wPluginStat = new Where("key", conditionStat, JSONescape(key));
 
 				// Prepare value = value + inc
 				ExpressionValues *updateValue = new ExpressionValues;

@@ -21,6 +21,8 @@
 #include <vector>
 #include <atomic>
 
+#define TRACK_CONNECTION_USER		1 // Set to one to get dianositcs about connection pool use
+
 #define _DB_NAME                  "/fledge.db"
 #define READINGS_DB_NAME_BASE     "readings"
 #define READINGS_DB_FILE_NAME     "/" READINGS_DB_NAME_BASE "_1.db"
@@ -161,6 +163,11 @@ class Connection {
 		unsigned int	purgeReadingsAsset(const std::string& asset);
 		bool		vacuum();
 		bool		supportsReadings() { return ! m_noReadings; };
+#if TRACK_CONNECTION_USER
+		void		setUsage(std::string usage) { m_usage = usage; };
+		void		clearUsage() { m_usage = ""; };
+		std::string	getUsage() { return m_usage; };
+#endif
 
 	private:
 
@@ -215,6 +222,9 @@ class Connection {
 		bool 		appendTables(const std::string& schema, const rapidjson::Value& document, SQLBuffer& sql, int level);
 		bool		processJoinQueryWhereClause(const rapidjson::Value& query, SQLBuffer& sql, std::vector<std::string>  &asset_codes, int level);
 		bool		m_noReadings;
+#if TRACK_CONNECTION_USER
+		std::string	m_usage;
+#endif
 };
 
 #endif

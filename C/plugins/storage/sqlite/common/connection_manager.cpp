@@ -114,7 +114,8 @@ void ConnectionManager::growPool(unsigned int delta)
 		inUseLock.lock();
 		int inUseCount = inUse.size();
 		inUseLock.unlock();
-		Logger::getLogger()->warn("Connection pool growth restricted due to failure to create %d connections, %d idle connectios & %d connection in use currently", failures, idleCount, inUseCount);
+		Logger::getLogger()->warn("Connection pool growth restricted due to failure to create %d connections, %d idle connections & %d connection in use currently", failures, idleCount, inUseCount);
+		noConnectionsDiagnostic();
 	}
 }
 
@@ -159,7 +160,13 @@ Connection *conn = 0;
 	idleLock.lock();
 	if (idle.empty())
 	{
-		conn = new Connection();
+		try {
+			conn = new Connection();
+		} catch (...) {
+			conn = NULL;
+			Logger::getLogger()->error("Failed to create database connection to allocate");
+			noConnectionsDiagnostic();
+		}
 	}
 	else
 	{
@@ -394,6 +401,9 @@ bool ConnectionManager::attachRequestNewDb(int newDbId, sqlite3 *dbHandle)
  */
 void ConnectionManager::release(Connection *conn)
 {
+#if TRACK_CONNECTION_USER
+	conn->clearUsage();
+#endif
 	inUseLock.lock();
 	inUse.remove(conn);
 	inUseLock.unlock();
@@ -519,4 +529,19 @@ bool ConnectionManager::allowMoreDatabases()
 		return false;
 	}
 	return true;
+}
+
+void ConnectionManager::noConnectionsDiagnostic()
+{
+#if TRACK_CONNECTION_USER
+	Logger *logger = Logger::getLogger();
+
+	inUseLock.lock();
+	logger->warn("There are %d connections in use currently", inUse.size());
+	for (auto conn : inUse)
+	{
+		logger->warn("  Connection is use by %s", conn->getUsage().c_str());
+	}
+	inUseLock.unlock();
+#endif
 }

@@ -55,6 +55,7 @@ class ConnectionManager {
 		static ConnectionManager     *instance;
 		int		       	     SQLExec(sqlite3 *dbHandle, const char *sqlCmd,
 							char **errMsg);
+		void			     noConnectionsDiagnostic();
 
 	protected:
 		std::list<Connection *>      idle;

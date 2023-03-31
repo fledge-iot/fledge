@@ -519,6 +519,13 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 							{
 								break;
 							}
+							checkPendingReconfigure();
+							if (rep > m_repeatCnt)
+							{
+								// Reconfigure has resulted in more frequent
+								// polling
+								rep = m_repeatCnt;
+							}
 						}
 					}
 					else if (m_pollType == POLL_ON_DEMAND)
@@ -546,46 +553,31 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 						}
 						else // V2 poll method
 						{
-							while(1)
-							{
-								unsigned int numPendingReconfs;
-								{
-									lock_guard<mutex> guard(m_pendingNewConfigMutex);
-									numPendingReconfs = m_pendingNewConfig.size();
-								}
-								// if a reconf is pending, make this poll thread yield CPU, sleep_for is needed to sleep this thread for sufficiently long time
-								if (numPendingReconfs)
-								{
-									Logger::getLogger()->debug("SouthService::start(): %d entries in m_pendingNewConfig, poll thread yielding CPU", numPendingReconfs);
-									std::this_thread::sleep_for(std::chrono::milliseconds(200));
-								}
-								else
-									break;
-							}
+							checkPendingReconfigure();
 							ReadingSet *set = southPlugin->pollV2();
-				if (set)
-				{
-				    std::vector<Reading *> *vec = set->getAllReadingsPtr();
-				    std::vector<Reading *> *vec2 = new std::vector<Reading *>;
-				    if (!vec)
-				    {
-					Logger::getLogger()->info("%s:%d: V2 poll method: vec is NULL", __FUNCTION__, __LINE__);
-					continue;
-				    }
-				    else
-				    {
-					for (auto & r : *vec)
-					{
-					    Reading *r2 = new Reading(*r); // Need to copy reading objects here, since "del set" below would remove encapsulated reading objects
-					    vec2->emplace_back(r2);
-					}
-				    }
+							if (set)
+							{
+							    std::vector<Reading *> *vec = set->getAllReadingsPtr();
+							    std::vector<Reading *> *vec2 = new std::vector<Reading *>;
+							    if (!vec)
+							    {
+								Logger::getLogger()->info("%s:%d: V2 poll method: vec is NULL", __FUNCTION__, __LINE__);
+								continue;
+							    }
+							    else
+							    {
+								for (auto & r : *vec)
+								{
+								    Reading *r2 = new Reading(*r); // Need to copy reading objects here, since "del set" below would remove encapsulated reading objects
+								    vec2->emplace_back(r2);
+								}
+							    }
 
-							ingest.ingest(vec2);
-							pollCount += (int) vec2->size();
-							delete vec2; 	// each reading object inside vector has been allocated on heap and moved to Ingest class's internal queue
-							delete set;
-				}
+										ingest.ingest(vec2);
+										pollCount += (int) vec2->size();
+										delete vec2; 	// each reading object inside vector has been allocated on heap and moved to Ingest class's internal queue
+										delete set;
+							}
 						}
 						throttlePoll();
 					}
@@ -1647,4 +1639,28 @@ bool SouthService::onDemandPoll()
 		m_pollCV.wait(lk);
 	}
 	return m_doPoll;
+}
+
+/**
+ * Check to see if there is a reconfiguration option blocking in another
+ * thread and yield until that reconfiguration has occured.
+ */
+void SouthService::checkPendingReconfigure()
+{
+	while(1)
+	{
+		unsigned int numPendingReconfs;
+		{
+			lock_guard<mutex> guard(m_pendingNewConfigMutex);
+			numPendingReconfs = m_pendingNewConfig.size();
+		}
+		// if a reconf is pending, make this poll thread yield CPU, sleep_for is needed to sleep this thread for sufficiently long time
+		if (numPendingReconfs)
+		{
+			Logger::getLogger()->debug("SouthService::start(): %d entries in m_pendingNewConfig, poll thread yielding CPU", numPendingReconfs);
+			std::this_thread::sleep_for(std::chrono::milliseconds(200));
+		}
+		else
+			return;
+	}
 }

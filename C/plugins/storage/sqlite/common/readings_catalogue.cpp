@@ -2546,20 +2546,19 @@ string  ReadingsCatalogue::sqlConstructOverflow(string &sqlCmdBase, vector<strin
 		sqlCmd += sqlCmdTmp;
 		if (! assetCodes.empty())
 		{
-			sqlCmd += " WHERE asset_code in [";
+			sqlCmd += " WHERE ";
 			bool first = true;
 			for (auto& code : assetCodes)
 			{
 				if (!first)
 				{
-					sqlCmd += ",";
+					sqlCmd += " or ";
 					first = false;
 				}
-				sqlCmd += "\"";
+				sqlCmd += "asset_code = \'";
 				sqlCmd += code;
-				sqlCmd += "\"";
+				sqlCmd += "\'";
 			}
-			sqlCmd += "] ";
 		}
 
 		if (groupBy)

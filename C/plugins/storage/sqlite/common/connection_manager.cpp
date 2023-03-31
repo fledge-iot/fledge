@@ -92,14 +92,29 @@ void ConnectionManager::growPool(unsigned int delta)
 			       " due to excessive file descriptor usage");
 		return;
 	}
+	int failures = 0;
 	while (delta-- > 0)
 	{
-		Connection *conn = new Connection();
-		if (m_trace)
-			conn->setTrace(true);
+		try {
+			Connection *conn = new Connection();
+			if (m_trace)
+				conn->setTrace(true);
+			idleLock.lock();
+			idle.push_back(conn);
+			idleLock.unlock();
+		} catch (...) {
+			failures++;
+		}
+	}
+	if (failures > 0)
+	{
 		idleLock.lock();
-		idle.push_back(conn);
+		int idleCount = idle.size();
 		idleLock.unlock();
+		inUseLock.lock();
+		int inUseCount = inUse.size();
+		inUseLock.unlock();
+		Logger::getLogger()->warn("Connection pool growth restricted due to failure to create %d connections, %d idle connectios & %d connection in use currently", failures, idleCount, inUseCount);
 	}
 }
 

@@ -620,11 +620,12 @@ Connection::Connection()
 		ReadingsCatalogue *readCat = ReadingsCatalogue::getInstance();
 		if ( !readCat->connectionAttachAllDbs(dbHandle) )
 		{
-			const char* errMsg = "Failed to attach all the dbs to the connection :%X:'readings' database in";
-			logger->error("%s '%s': error %s", errMsg, dbHandle);
+			const char* errMsg = "Failed to attach all the databases to the connection database in";
+			logger->error(errMsg);
 
 			connectErrorTime = time(0);
 			sqlite3_close_v2(dbHandle);
+			throw new runtime_error(errMsg);
 		}
 		else
 		{

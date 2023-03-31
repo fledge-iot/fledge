@@ -42,9 +42,10 @@ class ConnectionManager {
 						return &lastError;
 					  }
 		void			  background();
-		void			  setVacuumInterval(long hours) {
-							m_vacuumInterval = 60 * 60 * hours;
-						};
+		void			  setVacuumInterval(long hours)
+					  {
+						m_vacuumInterval = 60 * 60 * hours;
+					  };
 		bool			  allowMoreDatabases();
 
 	protected:

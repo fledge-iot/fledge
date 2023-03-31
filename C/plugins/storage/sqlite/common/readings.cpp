@@ -823,8 +823,14 @@ ostringstream threadId;
 			// Handles - asset_code
 			asset_code = (*itr)["asset_code"].GetString();
 
+			if (strlen(asset_code) == 0)
+			{
+				Logger::getLogger()->warn("Sqlite appendReadings - empty asset code value, row ignored.");
+				stmt = NULL;
+			}
+
 			//# A different asset is managed respect the previous one
-			if (lastAsset.compare(asset_code)!= 0)
+			if (strlen(asset_code) && lastAsset.compare(asset_code) != 0)
 			{
 				ReadingsCatalogue::tyReadingReference ref;
 

@@ -142,6 +142,7 @@ bool ReadingsCatalogue::evaluateGlobalId ()
 	if (sqlite3_prepare_v2(dbHandle,sql_cmd.c_str(),-1, &stmt,NULL) != SQLITE_OK)
 	{
 		raiseError("evaluateGlobalId", sqlite3_errmsg(dbHandle));
+		manager->release(connection);
 		return false;
 	}
 
@@ -157,6 +158,7 @@ bool ReadingsCatalogue::evaluateGlobalId ()
 		if (SQLExec(dbHandle, sql_cmd.c_str()) != SQLITE_OK)
 		{
 			raiseError("evaluateGlobalId", sqlite3_errmsg(dbHandle));
+			manager->release(connection);
 			return false;
 		}
 	}
@@ -184,6 +186,7 @@ bool ReadingsCatalogue::evaluateGlobalId ()
 	if (SQLExec(dbHandle, sql_cmd.c_str()) != SQLITE_OK)
 	{
 		raiseError("evaluateGlobalId", sqlite3_errmsg(dbHandle));
+		manager->release(connection);
 		return false;
 	}
 
@@ -220,6 +223,7 @@ bool ReadingsCatalogue::storeGlobalId ()
 	if (SQLExec(dbHandle, sql_cmd.c_str()) != SQLITE_OK)
 	{
 		raiseError("storeGlobalId", sqlite3_errmsg(dbHandle));
+		manager->release(connection);
 		return false;
 	}
 
@@ -448,6 +452,7 @@ bool  ReadingsCatalogue::loadAssetReadingCatalogue()
 	if (sqlite3_prepare_v2(dbHandle,sql_cmd,-1, &stmt,NULL) != SQLITE_OK)
 	{
 		raiseError("retrieve asset_reading_catalogue", sqlite3_errmsg(dbHandle));
+		manager->release(connection);
 		return false;
 	}
 	else
@@ -870,6 +875,7 @@ void ReadingsCatalogue::multipleReadingsInit(STORAGE_CONFIGURATION &storageConfi
 	Connection *connection = manager->allocate();
 	if (! connection->supportsReadings())
 	{
+		manager->release(connection);
 		return;
 	}
 	dbHandle = connection->getDbHandle();
@@ -1762,6 +1768,10 @@ bool  ReadingsCatalogue::createReadingsTables(sqlite3 *dbHandle, int dbId, int i
 		if (rc != SQLITE_OK)
 		{
 			raiseError("createReadingsTables", sqlite3_errmsg(dbHandle));
+			if (newConnection)
+			{
+				manager->release(connection);
+			}
 			return false;
 		}
 
@@ -1769,6 +1779,10 @@ bool  ReadingsCatalogue::createReadingsTables(sqlite3 *dbHandle, int dbId, int i
 		if (rc != SQLITE_OK)
 		{
 			raiseError("createReadingsTables", sqlite3_errmsg(dbHandle));
+			if (newConnection)
+			{
+				manager->release(connection);
+			}
 			return false;
 		}
 	}
@@ -2190,7 +2204,10 @@ bool ReadingsCatalogue::loadEmptyAssetReadingCatalogue(bool clean)
 
 	// Do not populate m_EmptyAssetReadingCatalogue if data is already there
 	if (m_EmptyAssetReadingCatalogue.size())	
+	{
+		manager->release(connection);
 		return true;
+	}
 
 	for (auto &item : m_AssetReadingCatalogue)
 	{

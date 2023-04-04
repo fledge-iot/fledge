@@ -21,6 +21,14 @@ __version__ = "${VERSION}"
 
 _logger = FLCoreLogger().get_logger(__name__)
 
+_help = """
+    -----------------------------------------------------------------------------------
+    | GET POST                   |        /fledge/control/pipeline                    |
+    | GET PUT DELETE             |        /fledge/control/pipeline/{id}               |
+    | GET                        |        /fledge/control/lookup                      |
+    -----------------------------------------------------------------------------------
+"""
+
 
 def setup(app):
     app.router.add_route('GET', '/fledge/control/lookup', get_lookup)

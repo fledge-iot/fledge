@@ -27,6 +27,7 @@ def setup(app):
     app.router.add_route('POST', '/fledge/control/pipeline', create)
     app.router.add_route('GET', '/fledge/control/pipeline', get_all)
     app.router.add_route('GET', '/fledge/control/pipeline/{id}', get_by_id)
+    app.router.add_route('PUT', '/fledge/control/pipeline/{id}', update)
 
 
 async def get_lookup(request: web.Request) -> web.Response:
@@ -168,6 +169,50 @@ async def get_by_id(request: web.Request) -> web.Response:
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(pipeline)
+
+
+async def update(request: web.Request) -> web.Response:
+    """Update an existing pipeline within the system
+
+    :Example:
+        curl -sX PUT http://localhost:8081/fledge/control/pipeline/1 -d '{"filters": ["F3", "F2"]}'
+        curl -sX PUT http://localhost:8081/fledge/control/pipeline/13 -d '{"name": "Changed"}'
+        curl -sX PUT http://localhost:8081/fledge/control/pipeline/9 -d '{"enable": "false", "execution": "exclusive", "filters": [], "source": {"type": 1, "name": "1"}, "destination": {"type": 3, "name": 1}}'
+    """
+    cpid = request.match_info.get('id', None)
+    try:
+        pipeline = await _get_pipeline(cpid)
+        data = await request.json()
+        columns = await _check_parameters(data)
+        storage = connect.get_storage_async()
+        if columns:
+            payload = PayloadBuilder().SET(**columns).WHERE(['cpid', '=', cpid]).payload()
+            await storage.update_tbl("control_pipelines", payload)
+        filters = data.get('filters', None)
+        if filters is not None:
+            go_ahead = await _check_filters(storage, filters)
+            if go_ahead:
+                # remove old filters if exists
+                await _remove_filters(storage, pipeline['filters'], cpid)
+                # Update new filters
+                new_filters = await _update_filters(storage, cpid, pipeline['name'], filters)
+                if not new_filters:
+                    raise ValueError('Filters do not exist as per the given list {}'.format(filters))
+            else:
+                raise ValueError('Filters do not exist as per the given list {}'.format(filters))
+    except ValueError as err:
+        msg = str(err)
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+    except KeyError as err:
+        msg = str(err)
+        raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
+    except Exception as ex:
+        msg = str(ex)
+        _logger.error("Failed to update pipeline having ID:{}. {}".format(cpid, msg))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+    else:
+        return web.json_response(
+            {"message": "Control Pipeline with ID:<{}> has been updated successfully.".format(cpid)})
 
 
 async def _get_all_lookups(tbl_name=None):

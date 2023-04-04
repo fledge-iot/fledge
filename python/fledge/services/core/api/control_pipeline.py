@@ -25,6 +25,8 @@ _logger = FLCoreLogger().get_logger(__name__)
 def setup(app):
     app.router.add_route('GET', '/fledge/control/lookup', get_lookup)
     app.router.add_route('POST', '/fledge/control/pipeline', create)
+    app.router.add_route('GET', '/fledge/control/pipeline', get_all)
+    app.router.add_route('GET', '/fledge/control/pipeline/{id}', get_by_id)
 
 
 async def get_lookup(request: web.Request) -> web.Response:
@@ -109,6 +111,63 @@ async def create(request: web.Request) -> web.Response:
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(final_result)
+
+
+async def get_all(request: web.Request) -> web.Response:
+    """List of all control pipelines within the system
+
+    :Example:
+        curl -sX GET http://localhost:8081/fledge/control/pipeline
+    """
+    try:
+        storage = connect.get_storage_async()
+        result = await storage.query_tbl("control_pipelines")
+        control_pipelines = []
+        source_lookup = await _get_all_lookups("control_source")
+        des_lookup = await _get_all_lookups("control_destination")
+        for r in result["rows"]:
+            source_name = [s['name'] for s in source_lookup if r['stype'] == s['cpsid']]
+            des_name = [s['name'] for s in des_lookup if r['dtype'] == s['cpdid']]
+            temp = {
+                'id': r['cpid'],
+                'name': r['name'],
+                'source': {'type': ''.join(source_name), 'name': r['sname']} if r['stype'] else {},
+                'destination': {'type': ''.join(des_name), 'name': r['dname']} if r['dtype'] else {},
+                'enabled': False if r['enabled'] == 'f' else True,
+                'execution': r['execution']
+            }
+            result = await _get_table_column_by_value("control_filters", "cpid", r['cpid'])
+            temp.update({'filters': [r['fname'] for r in result["rows"]]})
+            control_pipelines.append(temp)
+    except Exception as ex:
+        msg = str(ex)
+        _logger.error("Failed to get all pipelines. {}".format(msg))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+    else:
+        return web.json_response({'pipelines': control_pipelines})
+
+
+async def get_by_id(request: web.Request) -> web.Response:
+    """Fetch the pipeline within the system
+
+    :Example:
+        curl -sX GET http://localhost:8081/fledge/control/pipeline/2
+    """
+    cpid = request.match_info.get('id', None)
+    try:
+        pipeline = await _get_pipeline(cpid)
+    except ValueError as err:
+        msg = str(err)
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+    except KeyError as err:
+        msg = str(err)
+        raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
+    except Exception as ex:
+        msg = str(ex)
+        _logger.error("Failed to fetch details of pipeline having ID:{}. {}".format(cpid, msg))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+    else:
+        return web.json_response(pipeline)
 
 
 async def _get_all_lookups(tbl_name=None):

@@ -28,6 +28,7 @@ def setup(app):
     app.router.add_route('GET', '/fledge/control/pipeline', get_all)
     app.router.add_route('GET', '/fledge/control/pipeline/{id}', get_by_id)
     app.router.add_route('PUT', '/fledge/control/pipeline/{id}', update)
+    app.router.add_route('DELETE', '/fledge/control/pipeline/{id}', delete)
 
 
 async def get_lookup(request: web.Request) -> web.Response:
@@ -213,6 +214,37 @@ async def update(request: web.Request) -> web.Response:
     else:
         return web.json_response(
             {"message": "Control Pipeline with ID:<{}> has been updated successfully.".format(cpid)})
+
+
+async def delete(request: web.Request) -> web.Response:
+    """Delete an existing pipeline within the system.
+    Also remove the filters along with configuration that are part of pipeline
+
+    :Example:
+        curl -sX DELETE http://localhost:8081/fledge/control/pipeline/1
+    """
+    cpid = request.match_info.get('id', None)
+    try:
+        storage = connect.get_storage_async()
+        pipeline = await _get_pipeline(cpid)
+        # Remove filters if exists and also delete the entry from control_filter table
+        await _remove_filters(storage, pipeline['filters'], cpid)
+        # Delete entry from control_pipelines
+        payload = PayloadBuilder().WHERE(['cpid', '=', pipeline['id']]).payload()
+        await storage.delete_from_tbl("control_pipelines", payload)
+    except KeyError as err:
+        msg = str(err)
+        raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
+    except ValueError as err:
+        msg = str(err)
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+    except Exception as ex:
+        msg = str(ex)
+        _logger.error("Failed to delete pipeline having ID:{}. {}".format(cpid, msg))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+    else:
+        return web.json_response(
+            {"message": "Control Pipeline with ID:<{}> has been deleted successfully.".format(cpid)})
 
 
 async def _get_all_lookups(tbl_name=None):

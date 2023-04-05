@@ -1138,7 +1138,15 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     else:
                         await self._update_category(category_name, category_val_prepared, category_description,
                                                     display_name)
-
+                        diff = set(category_val_prepared) - set(category_val_storage)
+                        if diff:
+                            audit = AuditLogger(self._storage)
+                            audit_details = {
+                                'category': category_name,
+                                'oldValue': category_val_storage,
+                                'newValue': category_val_prepared
+                            }
+                            await audit.information('CONCH', audit_details)
             is_acl, config_item, found_cat_name, found_value = await \
                 self.search_for_ACL_recursive_from_cat_name(category_name)
             _logger.debug("check if there is {} create category function  for category {} ".format(is_acl,

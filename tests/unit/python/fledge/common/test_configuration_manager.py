@@ -1258,15 +1258,22 @@ class TestConfigurationManager:
 
         with patch.object(ConfigurationManager, '_validate_category_val', side_effect=[_se, _se]) as valpatch:
             with patch.object(ConfigurationManager, '_read_category_val', return_value=_rv1) as readpatch:
-                with patch.object(ConfigurationManager, '_read_all_category_names', return_value=_rv2) as read_all_patch:
+                with patch.object(ConfigurationManager, '_read_all_category_names',
+                                  return_value=_rv2) as read_all_patch:
                     with patch.object(ConfigurationManager, '_merge_category_vals', return_value=_rv3) as mergepatch:
                         with patch.object(ConfigurationManager, '_run_callbacks', return_value=_rv4) as callbackpatch:
-                            with patch.object(ConfigurationManager, '_update_category', return_value=_rv4) as updatepatch:
-                                with patch.object(ConfigurationManager, 'search_for_ACL_recursive_from_cat_name',
-                                                  return_value=_sr) as searchaclpatch:
-                                    cat = await c_mgr.create_category('catname', 'catvalue', 'catdesc')
-                                    assert cat is None
-                                searchaclpatch.assert_called_once_with('catname')
+                            with patch.object(ConfigurationManager, '_update_category',
+                                              return_value=_rv4) as updatepatch:
+                                with patch.object(AuditLogger, '__init__', return_value=None):
+                                    with patch.object(AuditLogger, 'information', return_value=_rv4) as auditinfopatch:
+                                        with patch.object(ConfigurationManager,
+                                                          'search_for_ACL_recursive_from_cat_name',
+                                                          return_value=_sr) as searchaclpatch:
+                                            cat = await c_mgr.create_category('catname', 'catvalue', 'catdesc')
+                                            assert cat is None
+                                        searchaclpatch.assert_called_once_with('catname')
+                                    auditinfopatch.assert_called_once_with(
+                                        'CONCH', {'category': 'catname', 'oldValue': {}, 'newValue': {'bla': 'bla'}})
                             updatepatch.assert_called_once_with('catname', {'bla': 'bla'}, 'catdesc', 'catname')
                         callbackpatch.assert_called_once_with('catname')
                     mergepatch.assert_called_once_with({}, {}, False, 'catname')

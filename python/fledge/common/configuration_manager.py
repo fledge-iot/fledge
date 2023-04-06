@@ -1143,6 +1143,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                             audit = AuditLogger(self._storage)
                             audit_details = {
                                 'category': category_name,
+                                'item': "configurationChange",
                                 'oldValue': category_val_storage,
                                 'newValue': category_val_prepared
                             }

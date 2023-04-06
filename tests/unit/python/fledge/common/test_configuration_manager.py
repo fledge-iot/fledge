@@ -1273,7 +1273,8 @@ class TestConfigurationManager:
                                             assert cat is None
                                         searchaclpatch.assert_called_once_with('catname')
                                     auditinfopatch.assert_called_once_with(
-                                        'CONCH', {'category': 'catname', 'oldValue': {}, 'newValue': {'bla': 'bla'}})
+                                        'CONCH', {'category': 'catname', 'item': 'configurationChange', 'oldValue': {},
+                                                  'newValue': {'bla': 'bla'}})
                             updatepatch.assert_called_once_with('catname', {'bla': 'bla'}, 'catdesc', 'catname')
                         callbackpatch.assert_called_once_with('catname')
                     mergepatch.assert_called_once_with({}, {}, False, 'catname')

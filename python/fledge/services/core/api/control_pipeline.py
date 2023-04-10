@@ -77,10 +77,10 @@ async def create(request: web.Request) -> web.Response:
     source or destination
 
     :Example:
-        curl -sX POST http://localhost:8081/fledge/control/pipeline -d '{"name": "pump", "enable": "true", "execution": "shared", "source": {"type": 2, "name": "pump"}, "destination": {}}'
-        curl -sX POST http://localhost:8081/fledge/control/pipeline -d '{"name": "broadcast", "enable": "true", "execution": "exclusive", "source": {}, "destination": {"type": 4}}'
+        curl -sX POST http://localhost:8081/fledge/control/pipeline -d '{"name": "pump", "enable": "true", "execution": "shared", "source": {"type": 2, "name": "pump"}}'
+        curl -sX POST http://localhost:8081/fledge/control/pipeline -d '{"name": "broadcast", "enable": "true", "execution": "exclusive", "destination": {"type": 4}}'
         curl -sX POST http://localhost:8081/fledge/control/pipeline -d '{"name": "opcua_pump", "enable": "true", "execution": "shared", "source": {"type": 2, "name": "opcua"}, "destination": {"type": 2, "name": "pump1"}}'
-        curl -sX POST http://localhost:8081/fledge/control/pipeline -d '{"name": "Test", "enable": "true", "source": {}, "destination": {}, "filters": ["Filter1", "Filter2"]}'
+        curl -sX POST http://localhost:8081/fledge/control/pipeline -d '{"name": "Test", "enable": "true", "filters": ["Filter1", "Filter2"]}'
     """
     try:
         data = await request.json()
@@ -91,12 +91,20 @@ async def create(request: web.Request) -> web.Response:
         insert_result = await storage.insert_into_tbl("control_pipelines", payload)
         pipeline_name = column_names['name']
         pipeline_filter = data.get('filters', None)
-        source = {'type': column_names["stype"], 'name': column_names["sname"]}
-        destination = {'type': column_names["dtype"], 'name': column_names["dname"]}
+        source_type = column_names.get("stype")
+        source = {'type': column_names["stype"], 'name': column_names["sname"]} if source_type else None
+        des_type = column_names.get("dtype")
+        destination = {'type': column_names["dtype"], 'name': column_names["dname"]} if des_type else None
         if insert_result['response'] == "inserted" and insert_result['rows_affected'] == 1:
             final_result = await _pipeline_in_use(pipeline_name, source, destination, info=True)
-            final_result["stype"] = await _get_lookup_value('source', final_result["stype"])
-            final_result["dtype"] = await _get_lookup_value('destination', final_result["dtype"])
+            final_result['source'] = {"type": await _get_lookup_value('source', final_result["stype"]),
+                                      "name": final_result['sname']}
+            final_result['destination'] = {"type": await _get_lookup_value('destination', final_result["dtype"]),
+                                           "name": final_result['dname']}
+            final_result.pop('stype', None)
+            final_result.pop('sname', None)
+            final_result.pop('dtype', None)
+            final_result.pop('dname', None)
             final_result['enabled'] = False if final_result['enabled'] == 'f' else True
             final_result['filters'] = []
             if pipeline_filter:
@@ -186,7 +194,7 @@ async def update(request: web.Request) -> web.Response:
     :Example:
         curl -sX PUT http://localhost:8081/fledge/control/pipeline/1 -d '{"filters": ["F3", "F2"]}'
         curl -sX PUT http://localhost:8081/fledge/control/pipeline/13 -d '{"name": "Changed"}'
-        curl -sX PUT http://localhost:8081/fledge/control/pipeline/9 -d '{"enable": "false", "execution": "exclusive", "filters": [], "source": {"type": 1, "name": "1"}, "destination": {"type": 3, "name": 1}}'
+        curl -sX PUT http://localhost:8081/fledge/control/pipeline/9 -d '{"enable": "false", "execution": "exclusive", "filters": [], "source": {"type": 1, "name": "Universal"}, "destination": {"type": 3, "name": "TestScript"}}'
     """
     cpid = request.match_info.get('id', None)
     try:
@@ -199,14 +207,15 @@ async def update(request: web.Request) -> web.Response:
             await storage.update_tbl("control_pipelines", payload)
         filters = data.get('filters', None)
         if filters is not None:
-            go_ahead = await _check_filters(storage, filters)
+            go_ahead = await _check_filters(storage, filters) if filters else True
             if go_ahead:
                 # remove old filters if exists
                 await _remove_filters(storage, pipeline['filters'], cpid)
-                # Update new filters
-                new_filters = await _update_filters(storage, cpid, pipeline['name'], filters)
-                if not new_filters:
-                    raise ValueError('Filters do not exist as per the given list {}'.format(filters))
+                if filters:
+                    # Update new filters
+                    new_filters = await _update_filters(storage, cpid, pipeline['name'], filters)
+                    if not new_filters:
+                        raise ValueError('Filters do not exist as per the given list {}'.format(filters))
             else:
                 raise ValueError('Filters do not exist as per the given list {}'.format(filters))
     except ValueError as err:
@@ -281,21 +290,13 @@ async def _get_pipeline(cpid, filters=True):
     if not rows:
         raise KeyError("Pipeline having ID: {} not found.".format(cpid))
     r = rows[0]
-    sname = ""
-    dname = ""
-    if r['stype']:
-        sname = await _get_lookup_value("source", r['stype'])
-        if not sname:
-            raise ValueError("Invalid source type found.")
-    if r['dtype']:
-        dname = await _get_lookup_value("destination", r['dtype'])
-        if not dname:
-            raise ValueError("Invalid destination type found.")
     pipeline = {
         'id': r['cpid'],
         'name': r['name'],
-        'source': {'type': sname, 'name': r['sname']} if r['stype'] else {},
-        'destination': {'type': dname, 'name': r['dname']} if r['dtype'] else {},
+        'source': {'type': await _get_lookup_value("source", r['stype']),
+                   'name': r['sname']} if r['stype'] else {'type': 0, 'name': ''},
+        'destination': {'type': await _get_lookup_value("destination", r['dtype']),
+                        'name': r['dname']} if r['dtype'] else {'type': 0, 'name': ''},
         'enabled': False if r['enabled'] == 'f' else True,
         'execution': r['execution']
     }
@@ -310,8 +311,8 @@ async def _pipeline_in_use(name, source, destination, info=False):
     result = await _get_table_column_by_value("control_pipelines", "name", name)
     rows = result["rows"]
     row = None
-    new_data = {'source': source if source else {'type': '', 'name': ''},
-                'destination': destination if destination else {'type': '', 'name': ''}
+    new_data = {'source': source if source else {'type': 0, 'name': ''},
+                'destination': destination if destination else {'type': 0, 'name': ''}
                 }
     is_matched = False
     for r in rows:
@@ -382,7 +383,9 @@ async def _check_parameters(payload):
             if source_type is not None:
                 if not isinstance(source_type, int):
                     raise ValueError("Source type should be an integer value.")
-                # TODO: source type validation
+                stype = await _get_lookup_value("source", source_type)
+                if not stype:
+                    raise ValueError("Invalid source type found.")
             else:
                 raise ValueError('Source type is missing.')
             if source_name is not None:
@@ -398,7 +401,7 @@ async def _check_parameters(payload):
             else:
                 raise ValueError('Source name is missing.')
         else:
-            column_names["stype"] = ""
+            column_names["stype"] = 0
             column_names["sname"] = ""
     # destination
     destination = payload.get('destination', None)
@@ -411,7 +414,9 @@ async def _check_parameters(payload):
             if des_type is not None:
                 if not isinstance(des_type, int):
                     raise ValueError("Destination type should be an integer value.")
-                # TODO: destination type validation
+                dtype = await _get_lookup_value("destination", des_type)
+                if not dtype:
+                    raise ValueError("Invalid destination type found.")
             else:
                 raise ValueError('Destination type is missing.')
             # Note: when destination type is Broadcast; no name is applied
@@ -434,7 +439,7 @@ async def _check_parameters(payload):
                 column_names["dtype"] = des_type
                 column_names["dname"] = des_name
         else:
-            column_names["dtype"] = ""
+            column_names["dtype"] = 0
             column_names["dname"] = ""
     if name:
         # Check unique pipeline

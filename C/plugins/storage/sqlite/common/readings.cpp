@@ -984,11 +984,28 @@ ostringstream threadId;
 						reading.c_str(),
 						dbHandle);
 
+					sqlite3_clear_bindings(stmt);
+					sqlite3_reset(stmt);
+
 					sqlite3_exec(dbHandle, "ROLLBACK TRANSACTION", NULL, NULL, NULL);
 					m_appendCount--;
 
 					// Clear transaction boundary for this thread
 					readCatalogue->m_tx.ClearThreadTransaction(tid);
+
+					// Finalize sqlite structures
+					for (auto &item : readingsStmt)
+					{
+						if(item != nullptr)
+						{
+
+							if (sqlite3_finalize(item) != SQLITE_OK)
+							{
+								raiseError("appendReadings","freeing SQLite in memory structure - error '%s'", sqlite3_errmsg(dbHandle));
+							}
+						}
+
+					}
 					return -1;
 				}
 			}

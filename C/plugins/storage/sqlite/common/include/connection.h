@@ -21,7 +21,7 @@
 #include <vector>
 #include <atomic>
 
-#define TRACK_CONNECTION_USER		1 // Set to one to get dianositcs about connection pool use
+#define TRACK_CONNECTION_USER		0 // Set to 1 to get dianositcs about connection pool use
 
 #define _DB_NAME                  "/fledge.db"
 #define READINGS_DB_NAME_BASE     "readings"

@@ -134,6 +134,10 @@ bool ReadingsCatalogue::evaluateGlobalId ()
 
 	ConnectionManager *manager = ConnectionManager::getInstance();
 	Connection *connection = manager->allocate();
+#if TRACK_CONNECTION_USER
+	string usage = "Evaluate Global ID";
+	connection->setUsage(usage);
+#endif
 	dbHandle = connection->getDbHandle();
 
 	// Retrieves the global_id from thd DB
@@ -216,6 +220,10 @@ bool ReadingsCatalogue::storeGlobalId ()
 
 	ConnectionManager *manager = ConnectionManager::getInstance();
 	Connection *connection = manager->allocate();
+#if TRACK_CONNECTION_USER
+	string usage = "Store Global ID";
+	connection->setUsage(usage);
+#endif
 	dbHandle = connection->getDbHandle();
 
 	sql_cmd = " UPDATE " READINGS_DB ".configuration_readings SET global_id=" + to_string(m_ReadingsGlobalId);
@@ -435,6 +443,10 @@ bool  ReadingsCatalogue::loadAssetReadingCatalogue()
 
 	ConnectionManager *manager = ConnectionManager::getInstance();
 	Connection        *connection = manager->allocate();
+#if TRACK_CONNECTION_USER
+	string usage = "Load Asset Reading Catalogue";
+	connection->setUsage(usage);
+#endif
 	dbHandle = connection->getDbHandle();
 
 	// loads readings catalog from the db
@@ -839,6 +851,10 @@ bool ReadingsCatalogue::attachDbsToAllConnections()
 
 	ConnectionManager *manager = ConnectionManager::getInstance();
 	Connection        *connection = manager->allocate();
+#if TRACK_CONNECTION_USER
+	string usage = "Attach DBs to all connections";
+	connection->setUsage(usage);
+#endif
 
 	getAllDbs(dbIdList);
 
@@ -873,6 +889,10 @@ void ReadingsCatalogue::multipleReadingsInit(STORAGE_CONFIGURATION &storageConfi
 
 	ConnectionManager *manager = ConnectionManager::getInstance();
 	Connection *connection = manager->allocate();
+#if TRACK_CONNECTION_USER
+	string usage = "Multiple readings init";
+	connection->setUsage(usage);
+#endif
 	if (! connection->supportsReadings())
 	{
 		manager->release(connection);
@@ -1615,6 +1635,10 @@ bool  ReadingsCatalogue::createNewDB(sqlite3 *dbHandle, int newDbId, int startId
 	if (dbHandle == NULL)
 	{
 		connection = manager->allocate();
+#if TRACK_CONNECTION_USER
+	string usage = "Create New database";
+	connection->setUsage(usage);
+#endif
 		dbHandle = connection->getDbHandle();
 		connAllocated = true;
 	}
@@ -1736,6 +1760,10 @@ bool  ReadingsCatalogue::createReadingsTables(sqlite3 *dbHandle, int dbId, int i
 	if (dbHandle == NULL)
 	{
 		connection = manager->allocate();
+#if TRACK_CONNECTION_USER
+	string usage = "Create Readings Tables";
+	connection->setUsage(usage);
+#endif
 		dbHandle = connection->getDbHandle();
 		newConnection = true;
 	}
@@ -1901,6 +1929,10 @@ ReadingsCatalogue::tyReadingsAvailable  ReadingsCatalogue::evaluateLastReadingAv
 	if (dbHandle == NULL)
 	{
 		connection = manager->allocate();
+#if TRACK_CONNECTION_USER
+	string usage = "Evaluate last reading available";
+	connection->setUsage(usage);
+#endif
 		dbHandle = connection->getDbHandle();
 		connAllocated = true;
 	}
@@ -2194,8 +2226,6 @@ bool ReadingsCatalogue::loadEmptyAssetReadingCatalogue(bool clean)
 	string sql_cmd;
 	sqlite3_stmt *stmt;
 	ConnectionManager *manager = ConnectionManager::getInstance();
-	Connection *connection = manager->allocate();
-	dbHandle = connection->getDbHandle();
 	
 	if (clean)
 	{
@@ -2205,10 +2235,15 @@ bool ReadingsCatalogue::loadEmptyAssetReadingCatalogue(bool clean)
 	// Do not populate m_EmptyAssetReadingCatalogue if data is already there
 	if (m_EmptyAssetReadingCatalogue.size())	
 	{
-		manager->release(connection);
 		return true;
 	}
 
+	Connection *connection = manager->allocate();
+#if TRACK_CONNECTION_USER
+	string usage = "Load empty sset reading catalogue";
+	connection->setUsage(usage);
+#endif
+	dbHandle = connection->getDbHandle();
 	for (auto &item : m_AssetReadingCatalogue)
 	{
 		string asset_name = item.first; // Asset

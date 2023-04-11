@@ -60,6 +60,7 @@ class StorageApi {
 
 public:
 	StorageApi(const unsigned short port, const unsigned  int threads);
+	~StorageApi();
         static StorageApi *getInstance();
 	void	initResources();
 	void	setPlugin(StoragePlugin *);

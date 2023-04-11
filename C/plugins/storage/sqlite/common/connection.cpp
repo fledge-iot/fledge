@@ -1358,10 +1358,10 @@ std::size_t arr = data.find("inserts");
 			
 			if (sqlite3_exec(dbHandle, "BEGIN TRANSACTION", NULL, NULL, NULL) != SQLITE_OK)
 			{
-				sqlite3_clear_bindings(stmt);
-				sqlite3_reset(stmt);
 				if (stmt)
 				{
+					sqlite3_clear_bindings(stmt);
+					sqlite3_reset(stmt);
 					sqlite3_finalize(stmt);
 				}
 				raiseError("insert", sqlite3_errmsg(dbHandle));
@@ -1374,20 +1374,12 @@ std::size_t arr = data.find("inserts");
 			
 			m_writeAccessOngoing.fetch_sub(1);
 			
-			if (sqlite3_resut == SQLITE_DONE)
-			{
-				sqlite3_clear_bindings(stmt);
-				sqlite3_reset(stmt);
-			}
-			else
+			if (sqlite3_resut != SQLITE_DONE)
 			{
 				failedInsertCount++;
 				raiseError("insert", sqlite3_errmsg(dbHandle));
 				Logger::getLogger()->error("SQL statement: %s", sqlite3_expanded_sql(stmt));
 
-				sqlite3_clear_bindings(stmt);
-				sqlite3_reset(stmt);
-				
 				// transaction is still open, do rollback
 				if (sqlite3_get_autocommit(dbHandle) == 0)
 				{
@@ -1399,6 +1391,8 @@ std::size_t arr = data.find("inserts");
 				
 				}
 			}
+			sqlite3_clear_bindings(stmt);
+			sqlite3_reset(stmt);
 			
 
 			if (sqlite3_exec(dbHandle, "COMMIT TRANSACTION", NULL, NULL, NULL) != SQLITE_OK)
@@ -1410,14 +1404,13 @@ std::size_t arr = data.find("inserts");
 				raiseError("insert", sqlite3_errmsg(dbHandle));
 				return -1;
 			}
-		
+			sqlite3_finalize(stmt);
 		}
 		// Increment row count
 		ins++;
 		
 	}
 
-	sqlite3_finalize(stmt);
 
 	if (m_writeAccessOngoing == 0)
 		db_cv.notify_all();

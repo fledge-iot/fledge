@@ -82,12 +82,12 @@ class TestE2eFogPairPi:
                                                                                                       remote_fledge_path)], shell=True, check=True)
         storage_plugin_val = "postgres" if storage_plugin == 'postgres' else "sqlite"
         # Check whether storage.json file exist on remote machine or not, if it doesn't exist then raise assertion otherwise update its storage plugin value.
-        ssh = subprocess.Popen(["ssh", "-i","{}".format(key_path), "{}@{}".format(remote_user, remote_ip), "cat {}/data/etc/storage.json".format(remote_fledge_path)], shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        ssh = subprocess.Popen(["ssh", "-o", "UserKnownHostsFile=/dev/null", "-o", "StrictHostKeyChecking=no", "-i", "{}".format(key_path), "{}@{}".format(remote_user, remote_ip), "cat {}/data/etc/storage.json".format(remote_fledge_path)], shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         result = ssh.stdout.readlines()
         assert [] != result, "storage.json file not found on the remote machine {}".format(remote_ip)
         data = json.loads(result[0])
         data['plugin']['value'] = storage_plugin_val
-        ssh = subprocess.Popen(["ssh", "-i","{}".format(key_path), "{}@{}".format(remote_user, remote_ip), "echo '" + json.dumps(data) + "' > {}/data/etc/storage.json".format(remote_fledge_path) ], shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        ssh = subprocess.Popen(["ssh", "-o", "UserKnownHostsFile=/dev/null", "-o", "StrictHostKeyChecking=no", "-i", "{}".format(key_path), "{}@{}".format(remote_user, remote_ip), "echo '" + json.dumps(data) + "' > {}/data/etc/storage.json".format(remote_fledge_path) ], shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         subprocess.run(["ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i {} {}@{} 'export FLEDGE_ROOT={};echo \"YES\nYES\" | $FLEDGE_ROOT/scripts/fledge reset'".format(key_path, remote_user, remote_ip, remote_fledge_path)], shell=True, check=True)
         subprocess.run(["ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i {} {}@{} 'export FLEDGE_ROOT={};$FLEDGE_ROOT/scripts/fledge start'".format(key_path, remote_user, remote_ip, remote_fledge_path)], shell=True)
         stat = subprocess.run(["ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i {} {}@{} 'export FLEDGE_ROOT={}; $FLEDGE_ROOT/scripts/fledge status'".format(key_path, remote_user, remote_ip, remote_fledge_path)], shell=True, stdout=subprocess.PIPE)

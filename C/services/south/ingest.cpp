@@ -330,6 +330,17 @@ Ingest::~Ingest()
 {
 	m_shutdown = true;
 	m_running = false;
+	
+	// Cleanup filters
+	{
+		lock_guard<mutex> guard(m_pipelineMutex);
+		if (m_filterPipeline)
+		{
+			m_filterPipeline->setShuttingDown();
+			m_filterPipeline->cleanupFilters(m_serviceName);  // filter's shutdown API could potentially try to feed some new readings using the async ingest mechnanism
+		}
+	}
+	
 	m_cv.notify_one();
 	m_thread->join();
 	processQueue();
@@ -339,13 +350,12 @@ Ingest::~Ingest()
 	delete m_queue;
 	delete m_thread;
 	delete m_statsThread;
-	//delete m_data;
-	
-	// Cleanup filters - no other threads are running so no need for the lock
-	if (m_filterPipeline)
+
+	// Delete filter pipeline
 	{
-		m_filterPipeline->cleanupFilters(m_serviceName);
-		delete m_filterPipeline;
+		lock_guard<mutex> guard(m_pipelineMutex);
+		if (m_filterPipeline)
+			delete m_filterPipeline;
 	}
 }
 
@@ -491,13 +501,6 @@ void Ingest::waitForQueue()
  */
 void Ingest::processQueue()
 {
-
-/*	typedef struct{
-                std::set<std::string> setDp;
-                unsigned int          count;
-        }dpCountObj;
-*/
-
 	do {
 		/*
 		 * If we have some data that has been previously filtered but failed to send,
@@ -646,11 +649,14 @@ void Ingest::processQueue()
 			lock_guard<mutex> fqguard(m_fqMutex);
 			if (m_fullQueues.empty())
 			{
-				// Block of code to execute holding the mutex
-				lock_guard<mutex> guard(m_qMutex);
-				std::vector<Reading *> *newQ = new vector<Reading *>;
-				m_data = m_queue;
-				m_queue = newQ;
+				if (!m_shutdown)
+				{
+					// Block of code to execute holding the mutex
+					lock_guard<mutex> guard(m_qMutex);
+					std::vector<Reading *> *newQ = new vector<Reading *>;
+					m_data = m_queue;
+					m_queue = newQ;
+				}
 			}
 			else
 			{
@@ -676,7 +682,7 @@ void Ingest::processQueue()
 		 */
 		{
 			lock_guard<mutex> guard(m_pipelineMutex);
-			if (m_filterPipeline)
+			if (m_filterPipeline && !m_filterPipeline->isShuttingDown())
 			{
 				FilterPlugin *firstFilter = m_filterPipeline->getFirstFilterPlugin();
 				if (firstFilter)
@@ -713,24 +719,27 @@ void Ingest::processQueue()
 		 * Check the first reading in the list to see if we are meeting the
 		 * latency configuration we have been set
 		 */
-		vector<Reading *>::iterator itr = m_data->begin();
-		if (itr != m_data->cend())
+		if (m_data)
 		{
-			Reading *firstReading = *itr;
-			struct timeval tmFirst, tmNow, dur;
-			gettimeofday(&tmNow, NULL);
-			firstReading->getUserTimestamp(&tmFirst);
-			timersub(&tmNow, &tmFirst, &dur);
-			long latency = dur.tv_sec * 1000 + (dur.tv_usec / 1000);
-			if (latency > m_timeout && m_highLatency == false)
+			vector<Reading *>::iterator itr = m_data->begin();
+			if (itr != m_data->cend())
 			{
-				m_logger->warn("Current send latency of %ldmS exceeds requested maximum latency of %dmS", latency, m_timeout);
-				m_highLatency = true;
-			}
-			else if (latency <= m_timeout / 1000 && m_highLatency)
-			{
-				m_logger->warn("Send latency now within requested limits");
-				m_highLatency = false;
+				Reading *firstReading = *itr;
+				struct timeval tmFirst, tmNow, dur;
+				gettimeofday(&tmNow, NULL);
+				firstReading->getUserTimestamp(&tmFirst);
+				timersub(&tmNow, &tmFirst, &dur);
+				long latency = dur.tv_sec * 1000 + (dur.tv_usec / 1000);
+				if (latency > m_timeout && m_highLatency == false)
+				{
+					m_logger->warn("Current send latency of %ldmS exceeds requested maximum latency of %dmS", latency, m_timeout);
+					m_highLatency = true;
+				}
+				else if (latency <= m_timeout / 1000 && m_highLatency)
+				{
+					m_logger->warn("Send latency now within requested limits");
+					m_highLatency = false;
+				}
 			}
 		}
 			
@@ -745,7 +754,7 @@ void Ingest::processQueue()
 		 *	2- some readings removed
 		 *	3- New set of readings
 		 */
-		if (!m_data->empty())
+		if (m_data && !m_data->empty())
 		{
 			if (m_storage.readingAppend(*m_data) == false)
 			{
@@ -966,8 +975,19 @@ void Ingest::useFilteredData(OUTPUT_HANDLE *outHandle,
 	Ingest* ingest = (Ingest *)outHandle;
 	if (ingest->m_data != readingSet->getAllReadingsPtr())
 	{
-		ingest->m_data->clear();// Remove any pointers still in the vector
-		*(ingest->m_data) = readingSet->getAllReadings();
+		if (ingest->m_data)
+		{
+			ingest->m_data->clear();// Remove any pointers still in the vector
+			*(ingest->m_data) = readingSet->getAllReadings();
+		}
+		else
+		{
+			ingest->m_data = new std::vector<Reading *>;
+			for (auto & r : readingSet->getAllReadings())
+			{
+				ingest->m_data->emplace_back(new Reading(*r)); // Need to copy reading objects here, since "del readingSet" below would remove encapsulated reading objects also
+			}
+		}
 	}
 	readingSet->clear();
 	delete readingSet;

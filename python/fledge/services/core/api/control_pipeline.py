@@ -149,8 +149,10 @@ async def get_all(request: web.Request) -> web.Response:
             temp = {
                 'id': r['cpid'],
                 'name': r['name'],
-                'source': {'type': ''.join(source_name), 'name': r['sname']} if r['stype'] else {},
-                'destination': {'type': ''.join(des_name), 'name': r['dname']} if r['dtype'] else {},
+                'source': {
+                    'type': ''.join(source_name), 'name': r['sname']} if r['stype'] else {'type': '', 'name': ''},
+                'destination': {
+                    'type': ''.join(des_name), 'name': r['dname']} if r['dtype'] else {'type': '', 'name': ''},
                 'enabled': False if r['enabled'] == 'f' else True,
                 'execution': r['execution']
             }
@@ -293,10 +295,10 @@ async def _get_pipeline(cpid, filters=True):
     pipeline = {
         'id': r['cpid'],
         'name': r['name'],
-        'source': {'type': await _get_lookup_value("source", r['stype']),
-                   'name': r['sname']} if r['stype'] else {'type': 0, 'name': ''},
-        'destination': {'type': await _get_lookup_value("destination", r['dtype']),
-                        'name': r['dname']} if r['dtype'] else {'type': 0, 'name': ''},
+        'source': {'type': await _get_lookup_value("source", r['stype']), 'name': r['sname']
+                   } if r['stype'] else {'type': '', 'name': ''},
+        'destination': {'type': await _get_lookup_value("destination", r['dtype']), 'name': r['dname']
+                        } if r['dtype'] else {'type': '', 'name': ''},
         'enabled': False if r['enabled'] == 'f' else True,
         'execution': r['execution']
     }

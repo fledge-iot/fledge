@@ -7,6 +7,7 @@
 """ Fledge Logger """
 import os
 import subprocess
+import traceback
 import logging
 from logging.handlers import SysLogHandler
 
@@ -23,10 +24,10 @@ r"""Send log entries to /var/log/syslog
 """
 CONSOLE = 1
 """Send log entries to STDERR"""
-
-
-FLEDGE_LOGS_DESTINATION = 'FLEDGE_LOGS_DESTINATION'  # env variable
-default_destination = SYSLOG    # default for fledge
+FLEDGE_LOGS_DESTINATION = 'FLEDGE_LOGS_DESTINATION'
+"""Log destination environment variable"""
+default_destination = SYSLOG
+"""Default destination of logger"""
 
 
 def set_default_destination(destination: int):
@@ -116,6 +117,18 @@ def setup(logger_name: str = None,
     return logger
 
 
+def multiline_stack_trace(ex, msg=None, ex_traceback=None):
+    """Splitting the log messages at the newline/carriage return.
+    Used in separation of log for each frame in the stack trace"""
+    if ex_traceback is None:
+        ex_traceback = ex.__traceback__
+    trace_msg = traceback.format_exception(ex.__class__, ex, ex_traceback)
+    if msg is not None and msg:
+        trace_msg[:0] = ["{}\n".format(msg)]
+    lines = [line.strip('\n') for line in trace_msg]
+    return lines
+
+
 class FLCoreLogger:
     """
     Singleton FLCoreLogger class. This class is only instantiated ONCE. It is to keep a consistent
@@ -203,3 +216,6 @@ class FLCoreLogger:
         else:
             log_level = logging.WARNING
         logging.root.setLevel(log_level)
+
+    def multiline_traceback(self, ex, msg=None, ex_traceback=None):
+        return multiline_stack_trace(ex, msg, ex_traceback)

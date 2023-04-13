@@ -176,6 +176,7 @@ EOF
                 return web.HTTPBadRequest(reason=msg)
             plugin_config = plugin_info['config']
             if not plugin_config:
+                plugin_module_path = "{}/plugins/{}/{}".format(_FLEDGE_ROOT, task_type, plugin)
                 raise web.HTTPNotFound(reason='Plugin "{}" import problem from path "{}"'.format(
                     plugin, plugin_module_path))
         except TypeError as ex:

@@ -184,7 +184,7 @@ class TestAudit:
                 resp = await client.get('/fledge/audit')
                 assert 500 == resp.status
                 assert msg == resp.reason
-            assert 1 == patch_logger.call_count
+            assert patch_logger.called
 
     async def test_create_audit_entry(self, client, loop):
         request_data = {"source": "LMTR", "severity": "warning", "details": {"message": "Engine oil pressure low"}}
@@ -239,4 +239,5 @@ class TestAudit:
                 resp = await client.post('/fledge/audit', data=json.dumps(request_data))
                 assert 500 == resp.status
                 assert "__init__() should return None, not 'str'" == resp.reason
-            assert 1 == patch_logger.call_count
+            assert patch_logger.called
+

@@ -282,7 +282,7 @@ SendingProcess::SendingProcess(int argc, char** argv) : FledgeProcess(argc, argv
         }
 
         // Init plugin with merged configuration from Fledge API
-		//Fixme : FOGL-7667- Implement support to access management client and storage client for north plugins
+		// FIXME : FOGL-7667- Implement support to access management client and storage client for north plugins
 	config.addItem("mgmt_client_url_base", "Management client host and port",
                              "string", "127.0.0.1:0",
                              this->getManagementClient()->getUrlbase());

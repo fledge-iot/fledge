@@ -8,7 +8,11 @@
 import os
 import subprocess
 import logging
+import inspect
+import traceback
 from logging.handlers import SysLogHandler
+from functools import wraps
+
 
 __author__ = "Praveen Garg, Ashish Jabble"
 __copyright__ = "Copyright (c) 2017-2023 OSIsoft, LLC"
@@ -23,10 +27,10 @@ r"""Send log entries to /var/log/syslog
 """
 CONSOLE = 1
 """Send log entries to STDERR"""
-
-
-FLEDGE_LOGS_DESTINATION = 'FLEDGE_LOGS_DESTINATION'  # env variable
-default_destination = SYSLOG    # default for fledge
+FLEDGE_LOGS_DESTINATION = 'FLEDGE_LOGS_DESTINATION'
+"""Log destination environment variable"""
+default_destination = SYSLOG
+"""Default destination of logger"""
 
 
 def set_default_destination(destination: int):
@@ -105,6 +109,9 @@ def setup(logger_name: str = None,
     else:
         raise ValueError("Invalid destination {}".format(destination))
 
+    # save the old logging.error function
+    __logging_error = logger.error
+
     # TODO: Consider using %r with message when using syslog .. \n looks better than #
     fmt = '{}[%(process)d] %(levelname)s: %(module)s: %(name)s: %(message)s'.format(get_process_name())
     formatter = logging.Formatter(fmt=fmt)
@@ -113,6 +120,20 @@ def setup(logger_name: str = None,
         logger.setLevel(level)
     logger.addHandler(handler)
     logger.propagate = propagate
+
+    @wraps(logger.error)
+    def error(msg, *args, **kwargs):
+        if isinstance(msg, Exception):
+            trace_msg = traceback.format_exception(msg.__class__, msg, msg.__traceback__)
+            if args:
+                trace_msg[:0] = ["{}\n".format(args[0])]
+            [__logging_error(line.strip('\n')) for line in trace_msg]
+        else:
+            [__logging_error(m) for m in msg.splitlines()]
+
+    # overwrite the default logging.error
+    logger.error = error
+
     return logger
 
 
@@ -181,10 +202,37 @@ class FLCoreLogger:
             logger: returns logger for module
         """
         _logger = logging.getLogger(logger_name)
+
+        # save the old logging.error function
+        __logging_error = _logger.error
+
         console_handler = self.get_console_handler()
         syslog_handler = self.get_syslog_handler()
         self.add_handlers(_logger, [syslog_handler, console_handler])
         _logger.propagate = False
+
+        @wraps(_logger.error)
+        def error(msg, *args, **kwargs):
+            """Case: When we pass exception in error and having different args
+            For example:
+            a) _logger.error(ex)
+            b) _logger.error(ex, "Failed to add data.")
+            """
+            if isinstance(msg, Exception):
+                trace_msg = traceback.format_exception(msg.__class__, msg, msg.__traceback__)
+                if args:
+                    trace_msg[:0] = ["{}\n".format(args[0])]
+                [__logging_error(line.strip('\n')) for line in trace_msg]
+            else:
+                """Case: When we pass string in error
+                For example:  
+                a) _logger.error(str(ex))
+                b) _logger.error("Failed to add data for key: {} along with error:{}".format("Test", str(ex)))
+                """
+                [__logging_error(m) for m in msg.splitlines()]
+
+        # overwrite the default logging.error
+        _logger.error = error
         return _logger
 
     def set_level(self, level_name: str):

@@ -143,11 +143,6 @@ void DatapointValue::deleteNestedDPV()
 		delete m_value.a;
 		m_value.a = NULL;
 	}
-	else if (m_type == T_IMAGE)
-	{
-		delete m_value.image;
-		m_value.a = NULL;
-	}
 	else if (m_type == T_DATABUFFER)
 	{
 		delete m_value.dataBuffer;
@@ -409,3 +404,4 @@ std::vector<Datapoint*> *Datapoint::recursiveJson(const rapidjson::Value& docume
 
 	return p;
 }
+

@@ -272,8 +272,6 @@ void filter_plugin_ingest_fn(PLUGIN_HANDLE handle, READINGSET *data)
 						  handle,
 						  readingsList);
 	Py_CLEAR(pFunc);
-	// Remove input data
-	data->removeAll();
 
 	// Handle returned data
 	if (!pReturn)
@@ -295,8 +293,15 @@ void filter_plugin_ingest_fn(PLUGIN_HANDLE handle, READINGSET *data)
 			{
 				// Create ReadingSet from Python reading list
 				filteredReadingSet = new PythonReadingSet(readingsList);
-				data->append(filteredReadingSet);
+
+				// Remove input data
+				data->removeAll();
+
+				// Append filtered readings
+				data->append(filteredReadingSet->getAllReadings());
+
 				delete filteredReadingSet;
+				filteredReadingSet = NULL;
 			}
 			catch (std::exception e)
 			{

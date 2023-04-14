@@ -27,7 +27,7 @@ def get_plugin_info(name, dir):
         out, err = p.communicate()
         res = out.decode("utf-8")
         jdoc = json.loads(res)
-    except OSError as err:
+    except (OSError, ValueError) as err:
         _logger.error("{} C plugin get info failed due to {}".format(name, str(err)))
         return {}
     except subprocess.CalledProcessError as err:
@@ -35,8 +35,6 @@ def get_plugin_info(name, dir):
             _logger.error("{} C plugin get info failed '{}' due to {}".format(name, err.output, str(err)))
         else:
             _logger.error("{} C plugin get info failed due to {}".format(name, str(err)))
-        return {}
-    except ValueError as err:
         return {}
     except Exception as ex:
         _logger.error("{} C plugin get info failed due to {}".format(name, str(ex)))

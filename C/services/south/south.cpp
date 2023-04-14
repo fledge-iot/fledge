@@ -760,6 +760,7 @@ bool SouthService::loadPlugin()
 			// Removes all the m_items already present in the category
 			m_config.removeItems();
 			m_config = m_mgtClient->getCategory(m_name);
+			// FIXME : FOGL-7667- Implement support to access management client and storage client for north plugins
 			m_config.addItem("mgmt_client_url_base", "Management client host and port",
                              "string", "127.0.0.1:0",
                              m_mgtClient->getUrlbase());

@@ -12,7 +12,7 @@ from fledge.common.logger import FLCoreLogger
 from fledge.common.configuration_manager import ConfigurationManager
 from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.common.storage_client.exceptions import StorageServerError
-from fledge.services.core import connect
+from fledge.services.core import connect, server
 
 __author__ = "Ashish Jabble"
 __copyright__ = "Copyright (c) 2023 Dianomic Systems Inc."
@@ -86,16 +86,22 @@ async def create(request: web.Request) -> web.Response:
         data = await request.json()
         # Create entry in control_pipelines table
         column_names = await _check_parameters(data)
+        source_type = column_names.get("stype")
+        if source_type is None:
+            column_names['stype'] = 0
+            column_names['sname'] = ''
+        des_type = column_names.get("dtype")
+        if des_type is None:
+            column_names['dtype'] = 0
+            column_names['dname'] = ''
         payload = PayloadBuilder().INSERT(**column_names).payload()
         storage = connect.get_storage_async()
         insert_result = await storage.insert_into_tbl("control_pipelines", payload)
         pipeline_name = column_names['name']
         pipeline_filter = data.get('filters', None)
-        source_type = column_names.get("stype")
-        source = {'type': column_names["stype"], 'name': column_names["sname"]} if source_type else None
-        des_type = column_names.get("dtype")
-        destination = {'type': column_names["dtype"], 'name': column_names["dname"]} if des_type else None
         if insert_result['response'] == "inserted" and insert_result['rows_affected'] == 1:
+            source = {'type': column_names["stype"], 'name': column_names["sname"]}
+            destination = {'type': column_names["dtype"], 'name': column_names["dname"]}
             final_result = await _pipeline_in_use(pipeline_name, source, destination, info=True)
             final_result['source'] = {"type": await _get_lookup_value('source', final_result["stype"]),
                                       "name": final_result['sname']}
@@ -125,7 +131,7 @@ async def create(request: web.Request) -> web.Response:
         raise web.HTTPBadRequest(body=json.dumps({"message": msg}), reason=msg)
     except Exception as ex:
         msg = str(ex)
-        _logger.error("Failed to create pipeline: {}. {}".format(pipeline_name, msg))
+        _logger.error("Failed to create pipeline: {}. {}".format(data.get('name'), msg))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(final_result)
@@ -396,8 +402,7 @@ async def _check_parameters(payload):
                 source_name = source_name.strip()
                 if len(source_name) == 0:
                     raise ValueError('Source name cannot be empty.')
-                # source['name'] = source_name
-                # TODO: source name validation from API
+                await _validate_lookup_name("source", source_type, source_name)
                 column_names["stype"] = source_type
                 column_names["sname"] = source_name
             else:
@@ -429,8 +434,7 @@ async def _check_parameters(payload):
                     des_name = des_name.strip()
                     if len(des_name) == 0:
                         raise ValueError('Destination name cannot be empty.')
-                    # TODO: destination name validation from API
-                    # destination['name'] = des_name
+                    await _validate_lookup_name("destination", des_type, des_name)
                     column_names["dtype"] = des_type
                     column_names["dname"] = des_name
                 else:
@@ -454,6 +458,49 @@ async def _check_parameters(payload):
         if not isinstance(filters, list):
             raise ValueError('Pipeline filters should be passed in list.')
     return column_names
+
+
+async def _validate_lookup_name(lookup_name, _type, value):
+    storage = connect.get_storage_async()
+    config_mgr = ConfigurationManager(storage)
+
+    async def get_schedules():
+        schedules = await server.Server.scheduler.get_schedules()
+        if not any(sch.name == value for sch in schedules):
+            raise ValueError("'{}' not a valid service or schedule name.".format(value))
+
+    async def get_control_scripts():
+        script_payload = PayloadBuilder().SELECT("name").payload()
+        scripts = await storage.query_tbl_with_payload('control_script', script_payload)
+        if not any(s['name'] == value for s in scripts['rows']):
+            raise ValueError("'{}' not a valid script name.".format(value))
+
+    async def get_assets():
+        asset_payload = PayloadBuilder().DISTINCT(["asset"]).payload()
+        assets = await storage.query_tbl_with_payload('asset_tracker', asset_payload)
+        if not any(ac['asset'] == value for ac in assets['rows']):
+            raise ValueError("'{}' not a valid asset name.".format(value))
+
+    async def get_notifications():
+        all_notifications = await config_mgr._read_all_child_category_names("Notifications")
+        if not any(notify['child'] == value for notify in all_notifications):
+            raise ValueError("'{}' not a valid notification instance name.".format(value))
+
+    if (lookup_name == "source" and _type in [2, 5]) or (lookup_name == 'destination' and _type == 1):
+        # Verify schedule name
+        await get_schedules()
+    elif (lookup_name == "source" and _type == 6) or (lookup_name == 'destination' and _type == 3):
+        # Verify control script name
+        await get_control_scripts()
+    elif lookup_name == "source" and _type == 4:
+        # Verify notification instance name
+        await get_notifications()
+    elif lookup_name == "destination" and _type == 2:
+        # Verify asset name
+        await get_assets()
+    else:
+        """No validation required for source id 1(Any), 3(API) & destination id 4(Broadcast)"""
+        pass
 
 
 async def _remove_filters(storage, filters, cp_id):

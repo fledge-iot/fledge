@@ -8,7 +8,6 @@
 import os
 import subprocess
 import logging
-import inspect
 import traceback
 from logging.handlers import SysLogHandler
 from functools import wraps
@@ -213,12 +212,12 @@ class FLCoreLogger:
 
         @wraps(_logger.error)
         def error(msg, *args, **kwargs):
-            """Case: When we pass exception in error and having different args
-            For example:
-            a) _logger.error(ex)
-            b) _logger.error(ex, "Failed to add data.")
-            """
+            """Override error logger to print multi-line traceback and error string with newline"""
             if isinstance(msg, Exception):
+                """For example:
+                    a) _logger.error(ex)
+                    b) _logger.error(ex, "Failed to add data.")
+                """
                 trace_msg = traceback.format_exception(msg.__class__, msg, msg.__traceback__)
                 if args:
                     trace_msg[:0] = ["{}\n".format(args[0])]
@@ -227,7 +226,8 @@ class FLCoreLogger:
                 """Case: When we pass string in error
                 For example:  
                 a) _logger.error(str(ex))
-                b) _logger.error("Failed to add data for key: {} along with error:{}".format("Test", str(ex)))
+                b) _logger.error("Failed to log audit trail entry")
+                c) _logger.error("Failed to log audit trail entry '{}' \n{}".format(code, str(ex))) 
                 """
                 [__logging_error(m) for m in msg.splitlines()]
 

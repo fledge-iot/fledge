@@ -13,6 +13,8 @@
 #include "connection.h"
 #include <thread>
 
+#define	OVERFLOW_TABLE_ID	0	// Table ID to use for the overflow table
+
 /**
  * This class handles per thread started transaction boundaries:
  */
@@ -134,21 +136,26 @@ public:
 	bool          loadEmptyAssetReadingCatalogue(bool clean = true);
 
 	bool          latestDbUpdate(sqlite3 *dbHandle, int newDbId);
-	void          preallocateNewDbsRange(int dbIdStart, int dbIdEnd);
+	int           preallocateNewDbsRange(int dbIdStart, int dbIdEnd);
+	tyReadingReference getEmptyReadingTableReference(std::string& asset);
 	tyReadingReference getReadingReference(Connection *connection, const char *asset_code);
 	bool          attachDbsToAllConnections();
 	std::string   sqlConstructMultiDb(std::string &sqlCmdBase, std::vector<std::string>  &assetCodes, bool considerExclusion=false);
+	std::string   sqlConstructOverflow(std::string &sqlCmdBase, std::vector<std::string>  &assetCodes, bool considerExclusion=false, bool groupBy = false);
 	int           purgeAllReadings(sqlite3 *dbHandle, const char *sqlCmdBase, char **errMsg = NULL, unsigned long *rowsAffected = NULL);
 
 	bool          connectionAttachAllDbs(sqlite3 *dbHandle);
 	bool          connectionAttachDbList(sqlite3 *dbHandle, std::vector<int> &dbIdList);
-	bool          attachDb(sqlite3 *dbHandle, std::string &path, std::string &alias);
+	bool          attachDb(sqlite3 *dbHandle, std::string &path, std::string &alias, int dbId);
 	void          detachDb(sqlite3 *dbHandle, std::string &alias);
 
 	void          setUsedDbId(int dbId);
 	int           extractReadingsIdFromName(std::string tableName);
 	int           extractDbIdFromName(std::string tableName);
 	int           SQLExec(sqlite3 *dbHandle, const char *sqlCmd,  char **errMsg = NULL);
+	bool	      createReadingsOverflowTable(sqlite3 *dbHandle, int dbId);
+	int	      getMaxAttached() { return m_attachLimit; };
+
 
 private:
 	STORAGE_CONFIGURATION m_storageConfigCurrent;                           // The current configuration of the multiple readings
@@ -176,7 +183,7 @@ private:
 
 	} tyReadingsAvailable;
 
-	ReadingsCatalogue() { };
+	ReadingsCatalogue();
 
 	bool          createNewDB(sqlite3 *dbHandle, int newDbId,  int startId, NEW_DB_OPERATION attachAllDb);
 	int           getUsedTablesDbId(int dbId);
@@ -199,7 +206,7 @@ private:
 	void          dbsRemove(int startId, int endId);
 	void          storeReadingsConfiguration (sqlite3 *dbHandle);
 	ACTION        changesLogicDBs(int dbIdCurrent , int dbIdLast, int nDbPreallocateCurrent, int nDbPreallocateRequest, int nDbLeftFreeBeforeAllocate);
-	ACTION           changesLogicTables(int maxUsed ,int Current, int Request);
+	ACTION        changesLogicTables(int maxUsed ,int Current, int Request);
 	int           retrieveDbIdFromTableId(int tableId);
 
 	void          configChangeAddDb(sqlite3 *dbHandle);
@@ -211,13 +218,16 @@ private:
 	void          dropReadingsTables(sqlite3 *dbHandle, int dbId, int idStart, int idEnd);
 
 
-	int                                           m_dbIdCurrent;            // Current database in use
-	int                                           m_dbIdLast;               // Last database available not already in use
-	int                                           m_dbNAvailable;           // Number of databases available
-	std::vector<int>                              m_dbIdList;               // Databases already created but not in use
+	int           m_dbIdCurrent;            // Current database in use
+	int           m_dbIdLast;               // Last database available not already in use
+	int           m_dbNAvailable;           // Number of databases available
+	std::vector<int>
+		      m_dbIdList;               // Databases already created but not in use
 
-	std::atomic<int>                              m_ReadingsGlobalId;       // Global row id shared among all the readings table
-	int                                           m_nReadingsAvailable = 0; // Number of readings tables available
+	std::atomic<int>
+  		      m_ReadingsGlobalId;       // Global row id shared among all the readings table
+	int
+ 		      m_nReadingsAvailable = 0; // Number of readings tables available
 	std::map <std::string, std::pair<int, int>>   m_AssetReadingCatalogue={ // In memory structure to identify in which database/table an asset is stored
 
 		// asset_code  - reading Table Id, Db Id
@@ -227,7 +237,11 @@ private:
 		// asset_code  - reading Table Id, Db Id
 		// {"",         ,{1               ,1 }}
 	};
-	std::mutex m_emptyReadingTableMutex;
+	int	       m_nextOverflow;	// The next database to use for overflow assets
+	int	       m_attachLimit;
+	int	       m_maxOverflowUsed;
+	int	       m_compounds; 	// Max number of compound statements
+	std::mutex     m_emptyReadingTableMutex;
 public:
 	TransactionBoundary				m_tx;
 

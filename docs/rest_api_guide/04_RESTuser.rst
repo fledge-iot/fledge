@@ -55,32 +55,26 @@ An array of JSON objects, one per asset.
       - Type
       - Description
       - Example
-    * - assetCode
-      - string
-      - The code of the asset
-      - fogbench/accelerometer
     * - count
       - number
       - The number of recorded readings for the asset code
-      - 180
+      - 11
+    * - assetCode
+      - string
+      - The code of the asset
+      - asset_1
 
 **Example**
 
 .. code-block:: console
 
   $ curl -sX GET http://localhost:8081/fledge/asset
-  [ { "count": 18, "assetCode": "fogbench/accelerometer" },
-    { "count": 18, "assetCode": "fogbench/gyroscope" },
-    { "count": 18, "assetCode": "fogbench/humidity" },
-    { "count": 18, "assetCode": "fogbench/luxometer" },
-    { "count": 18, "assetCode": "fogbench/magnetometer" },
-    { "count": 18, "assetCode": "fogbench/mouse" },
-    { "count": 18, "assetCode": "fogbench/pressure" },
-    { "count": 18, "assetCode": "fogbench/switch" },
-    { "count": 18, "assetCode": "fogbench/temperature" },
-    { "count": 18, "assetCode": "fogbench/wall clock" } ]
+  [
+    {"count": 11, "assetCode": "asset_1"},
+    {"count": 11, "assetCode": "asset_2"},
+    {"count": 11, "assetCode": "asset_3"}
+  ]
   $
-
 
 GET asset readings
 ~~~~~~~~~~~~~~~~~~
@@ -119,46 +113,35 @@ An array of JSON objects with the readings data for a series of readings sorted 
       - Type
       - Description
       - Example
-    * - timestamp
-      - timestamp
-      - The time at which the reading was received
-      - 2018-04-16 14:33:18.215
     * - reading
       - JSON object
       - The JSON reading object received from the sensor
-      - {"reading": {"x":0, "y":0, "z":1}
+      - {"pressure": 885.7}
+    * - timestamp
+      - timestamp
+      - The time at which the reading was received
+      - 2023-04-14 12:04:34.603963
 
 **Example**
 
 .. code-block:: console
 
-  $ curl -sX GET http://localhost:8081/fledge/asset/fogbench%2Faccelerometer
-  [ { "reading": { "x": 0, "y": -2, "z": 0 }, "timestamp": "2018-04-19 14:20:59.692" },
-    { "reading": { "x": 0, "y": 0, "z": -1 }, "timestamp": "2018-04-19 14:20:54.643" },
-    { "reading": { "x": -1, "y": 2, "z": 1 }, "timestamp": "2018-04-19 14:20:49.899" },
-    { "reading": { "x": -1, "y": -1, "z": 1 }, "timestamp": "2018-04-19 14:20:47.026" },
-    { "reading": { "x": -1, "y": -2, "z": -2 }, "timestamp": "2018-04-19 14:20:42.746" },
-    { "reading": { "x": 0, "y": 2, "z": 0 }, "timestamp": "2018-04-19 14:20:37.418" },
-    { "reading": { "x": -2, "y": -1, "z": 2 }, "timestamp": "2018-04-19 14:20:32.650" },
-    { "reading": { "x": 0, "y": 0, "z": 1 }, "timestamp": "2018-04-19 14:06:05.870" },
-    { "reading": { "x": 1, "y": 1, "z": 1 }, "timestamp": "2018-04-19 14:06:05.870" },
-    { "reading": { "x": 0, "y": 0, "z": -1 }, "timestamp": "2018-04-19 14:06:05.869" },
-    { "reading": { "x": 2, "y": -1, "z": 0 }, "timestamp": "2018-04-19 14:06:05.868" },
-    { "reading": { "x": -1, "y": -2, "z": 2 }, "timestamp": "2018-04-19 14:06:05.867" },
-    { "reading": { "x": 2, "y": 1, "z": 1 }, "timestamp": "2018-04-19 14:06:05.867" },
-    { "reading": { "x": 1, "y": -2, "z": 1 }, "timestamp": "2018-04-19 14:06:05.866" },
-    { "reading": { "x": 2, "y": -1, "z": 1 }, "timestamp": "2018-04-19 14:06:05.865" },
-    { "reading": { "x": 0, "y": -1, "z": 2 }, "timestamp": "2018-04-19 14:06:05.865" },
-    { "reading": { "x": 0, "y": -2, "z": 1 }, "timestamp": "2018-04-19 14:06:05.864" },
-    { "reading": { "x": -1, "y": -2, "z": 0 }, "timestamp": "2018-04-19 13:45:15.881" } ]
+  $ curl -sX GET http://localhost:8081/fledge/asset/asset_3
+  [
+    {"reading": {"pressure": 885.7}, "timestamp": "2023-04-14 12:04:34.603963"},
+    {"reading": {"pressure": 846.3}, "timestamp": "2023-04-14 12:02:39.150127"},
+    {"reading": {"pressure": 913.0}, "timestamp": "2023-04-14 12:02:26.616218"},
+    {"reading": {"pressure": 994.7}, "timestamp": "2023-04-14 12:02:11.171338"},
+    {"reading": {"pressure": 960.2}, "timestamp": "2023-04-14 12:01:56.979426"}
+  ]
   $
 
-  $ curl -sX GET http://localhost:8081/fledge/asset/fogbench%2Faccelerometer?limit=5
-  [ { "reading": { "x": 0, "y": -2, "z": 0 }, "timestamp": "2018-04-19 14:20:59.692" },
-    { "reading": { "x": 0, "y": 0, "z": -1 }, "timestamp": "2018-04-19 14:20:54.643" },
-    { "reading": { "x": -1, "y": 2, "z": 1 }, "timestamp": "2018-04-19 14:20:49.899" },
-    { "reading": { "x": -1, "y": -1, "z": 1 }, "timestamp": "2018-04-19 14:20:47.026" },
-    { "reading": { "x": -1, "y": -2, "z": -2 }, "timestamp": "2018-04-19 14:20:42.746" } ]
+  $ curl -sX GET http://localhost:8081/fledge/asset/asset_3?limit=3
+  [
+    {"reading": {"pressure": 885.7}, "timestamp": "2023-04-14 12:04:34.603963"},
+    {"reading": {"pressure": 846.3}, "timestamp": "2023-04-14 12:02:39.150127"},
+    {"reading": {"pressure": 913.0}, "timestamp": "2023-04-14 12:02:26.616218"}
+  ]
   $
 
 Using *seconds* and *previous* to obtain historical data.
@@ -218,43 +201,32 @@ An array of JSON objects with a series of readings sorted in reverse chronologic
     * - timestamp
       - timestamp
       - The time at which the reading was received
-      - 2018-04-16 14:33:18.215
-    * - {reading}
+      - 2023-04-14 12:04:34.603937
+    * - reading
       - JSON object
       - The value of the specified reading
-      - {"temperature": 20}
+      - {"lux": 47705.68}
 
 **Example**
 
 .. code-block:: console
 
-  $ curl -sX GET http://localhost:8081/fledge/asset/fogbench%2Fhumidity/temperature
-  [ { "temperature": 20, "timestamp": "2018-04-19 14:20:59.692" },
-    { "temperature": 33, "timestamp": "2018-04-19 14:20:54.643" },
-    { "temperature": 35, "timestamp": "2018-04-19 14:20:49.899" },
-    { "temperature": 0, "timestamp": "2018-04-19 14:20:47.026" },
-    { "temperature": 37, "timestamp": "2018-04-19 14:20:42.746" },
-    { "temperature": 47, "timestamp": "2018-04-19 14:20:37.418" },
-    { "temperature": 26, "timestamp": "2018-04-19 14:20:32.650" },
-    { "temperature": 12, "timestamp": "2018-04-19 14:06:05.870" },
-    { "temperature": 38, "timestamp": "2018-04-19 14:06:05.869" },
-    { "temperature": 7, "timestamp": "2018-04-19 14:06:05.869" },
-    { "temperature": 21, "timestamp": "2018-04-19 14:06:05.868" },
-    { "temperature": 5, "timestamp": "2018-04-19 14:06:05.867" },
-    { "temperature": 40, "timestamp": "2018-04-19 14:06:05.867" },
-    { "temperature": 39, "timestamp": "2018-04-19 14:06:05.866" },
-    { "temperature": 29, "timestamp": "2018-04-19 14:06:05.865" },
-    { "temperature": 41, "timestamp": "2018-04-19 14:06:05.865" },
-    { "temperature": 46, "timestamp": "2018-04-19 14:06:05.864" },
-    { "temperature": 10, "timestamp": "2018-04-19 13:45:15.881" } ]
+  $ curl -sX GET http://localhost:8081/fledge/asset/asset_2/lux
+  [
+    {"timestamp": "2023-04-14 12:04:34.603937", "lux": 47705.68},
+    {"timestamp": "2023-04-14 12:02:39.150106", "lux": 97967.9},
+    {"timestamp": "2023-04-14 12:02:26.616200", "lux": 28788.154},
+    {"timestamp": "2023-04-14 12:02:11.171319", "lux": 57992.674},
+    {"timestamp": "2023-04-14 12:01:56.979407", "lux": 10373.945}
+  ]
   $
 
-  $ curl -sX GET http://localhost:8081/fledge/asset/fogbench%2Faccelerometer?limit=5
-  [ { "temperature": 20, "timestamp": "2018-04-19 14:20:59.692" },
-    { "temperature": 33, "timestamp": "2018-04-19 14:20:54.643" },
-    { "temperature": 35, "timestamp": "2018-04-19 14:20:49.899" },
-    { "temperature": 0, "timestamp": "2018-04-19 14:20:47.026" },
-    { "temperature": 37, "timestamp": "2018-04-19 14:20:42.746" } ]
+  $ curl -sX GET http://localhost:8081/fledge/asset/asset_2/lux?limit=3
+  [
+    {"timestamp": "2023-04-14 11:25:05.672528", "lux": 75723.923},
+    {"timestamp": "2023-04-14 11:24:49.767983", "lux": 50475.99},
+    {"timestamp": "2023-04-14 11:23:15.672528", "lux": 75723.923}
+  ]
   $
 
 
@@ -282,27 +254,26 @@ A JSON object of a reading by asset code.
       - Type
       - Description
       - Example
-    * - {reading}.max
-      - number
-      - The maximum value of the set of sensor values selected in the query string
-      - 47
-    * - {reading}.min
+    * - .lux.min
       - number
       - The minimum value of the set of sensor values selected in the query string
-      - 0
-    * - {reading}.average
+      - 10373.945
+    * - .lux.max
+      - number
+      - The maximum value of the set of sensor values selected in the query string
+      - 97967.9
+    * - .lux.average
       - number
       - The average value of the set of sensor values selected in the query string
-      - 27
+      - 48565.6706
 
 **Example**
 
 .. code-block:: console
 
-  $ curl -sX GET http://localhost:8081/fledge/asset/fogbench%2Fhumidity/temperature/summary
-  { "temperature": { "max": 47, "min": 0, "average": 27 } }
+  $ curl -sX GET http://localhost:8081/fledge/asset/asset_2/lux/summary
+    {"lux": {"min": 10373.945, "max": 97967.9, "average": 48565.6706}}
   $
-
 
 GET all asset reading timespan
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -322,18 +293,18 @@ An array of JSON objects with newest and oldest timestamps of the readings held 
       - Type
       - Description
       - Example
+    * - oldest
+      - string
+      - The oldest timestamp held in the buffer for this asset
+      - 2022-11-08 17:07:02.623258
+    * - newest
+      - string
+      - The newest timestamp held in the buffer for this asset
+      - 2022-11-09 14:52:50.069432
     * - asset_code
       - string
       - The asset code for which the timestamps refer
       - sinusoid
-    * - oldest
-      - string
-      - The oldest timestamp held in the buffer for this asset
-      - "2022-11-08 17:07:02.623258"
-    * - newest
-      - string
-      - The newest timestamp held in the buffer for this asset
-      - "2022-11-09 14:52:50.069432"
 
 **Example**
 
@@ -374,11 +345,11 @@ A JSON object with the newest and oldest timestamps for the asset held in the st
     * - oldest
       - string
       - The oldest timestamp held in the buffer for this asset
-      - "2022-11-08 17:07:02.623258"
+      - 2022-11-08 17:07:02.623258
     * - newest
       - string
       - The newest timestamp held in the buffer for this asset
-      - "2022-11-09 14:52:50.069432"
+      - 2022-11-09 14:52:50.069432
 
 **Example**
 
@@ -428,58 +399,52 @@ An array of JSON objects with a series of readings sorted in reverse chronologic
       - Type
       - Description
       - Example
-    * - timestamp
-      - timestamp
-      - The time the reading represents
-      - 2018-04-16 14:33:18
-    * - max
-      - number
-      - The maximum value of the set of sensor values selected in the query string
-      - 47
     * - min
       - number
       - The minimum value of the set of sensor values selected in the query string
-      - 0
+      - 47705.68
+    * - max
+      - number
+      - The maximum value of the set of sensor values selected in the query string
+      - 47705.68
     * - average
       - number
       - The average value of the set of sensor values selected in the query string
-      - 27
+      - 47705.68
+    * - timestamp
+      - timestamp
+      - The time the reading represents
+      - 2023-04-14 12:04:34
 
 **Example**
 
 .. code-block:: console
 
-  $ curl -sX GET http://localhost:8081/fledge/asset/fogbench%2Fhumidity/temperature/series
-  [ { "timestamp": "2018-04-19 14:20:59", "max": 20, "min": 20, "average": 20 },
-    { "timestamp": "2018-04-19 14:20:54", "max": 33, "min": 33, "average": 33 },
-    { "timestamp": "2018-04-19 14:20:49", "max": 35, "min": 35, "average": 35 },
-    { "timestamp": "2018-04-19 14:20:47", "max": 0,  "min": 0,  "average": 0  },
-    { "timestamp": "2018-04-19 14:20:42", "max": 37, "min": 37, "average": 37 },
-    { "timestamp": "2018-04-19 14:20:37", "max": 47, "min": 47, "average": 47 },
-    { "timestamp": "2018-04-19 14:20:32", "max": 26, "min": 26, "average": 26 },
-    { "timestamp": "2018-04-19 14:06:05", "max": 46, "min": 5,  "average": 27.8 },
-    { "timestamp": "2018-04-19 13:45:15", "max": 10, "min": 10, "average": 10 } ]
+  $ curl -sX GET http://localhost:8081/fledge/asset/asset_2/lux/series
+  [
+    {"min": 47705.68, "max": 47705.68, "average": 47705.68, "timestamp": "2023-04-14 12:04:34"},
+    {"min": 97967.9, "max": 97967.9, "average": 97967.9, "timestamp": "2023-04-14 12:02:39"},
+    {"min": 28788.154, "max": 28788.154, "average": 28788.154, "timestamp": "2023-04-14 12:02:26"},
+    {"min": 57992.674, "max": 57992.674, "average": 57992.674, "timestamp": "2023-04-14 12:02:11"},
+    {"min": 10373.945, "max": 10373.945, "average": 10373.945, "timestamp": "2023-04-14 12:01:56"}
+  ]
   $
 
-  $ curl -sX GET http://localhost:8081/fledge/asset/fogbench%2Fhumidity/temperature/series?limit=5
-  [ { "timestamp": "2018-04-19 14:20:59", "max": 20, "min": 20, "average": 20 },
-    { "timestamp": "2018-04-19 14:20:54", "max": 33, "min": 33, "average": 33 },
-    { "timestamp": "2018-04-19 14:20:49", "max": 35, "min": 35, "average": 35 },
-    { "timestamp": "2018-04-19 14:20:47", "max": 0,  "min": 0,  "average": 0  },
-    { "timestamp": "2018-04-19 14:20:42", "max": 37, "min": 37, "average": 37 } ]
+  $ curl -sX GET http://localhost:8081/fledge/asset/asset_2/lux/series?limit=3
+  [
+    {"min": 47705.68, "max": 47705.68, "average": 47705.68, "timestamp": "2023-04-14 12:04:34"},
+    {"min": 97967.9, "max": 97967.9, "average": 97967.9, "timestamp": "2023-04-14 12:02:39"},
+    {"min": 28788.154, "max": 28788.154, "average": 28788.154, "timestamp": "2023-04-14 12:02:26"}
+  ]
 
 Using *seconds* and *previous* to obtain historical data.
 
 .. code-block:: console
 
-    $ curl http://localhost:8081/fledge/asset/fogbench%2Fhumidity/temperature/series?seconds=5\&previous=60|jq
+    $ curl -sX GET http://localhost:8081/fledge/asset/asset_2/lux/series?seconds=5\&previous=60
     [
-        { "timestamp": "2022-11-09 09:37:51.930688", "max": 20, "min": 20, "average": 20 },
-        { "timestamp": "2022-11-09 09:37:50.930887", "max": 33, "min": 33, "average": 33 },
-        { "timestamp": "2022-11-09 09:37:49.933698", "max": 0, "min": 0, "average": 0    },
-        { "timestamp": "2022-11-09 09:37:48.930644", "max": 5, "min": 1, "average": 4    },
-        { "timestamp": "2022-11-09 09:37:47.930950", "max": 0, "min": 37, "average": 37  }
+        {"min": 47705.68, "max": 47705.68, "average": 47705.68, "timestamp": "2023-04-14 12:04:34"}
     ]
-    $
+  $
 
 The above call returned 5 seconds of data from the current time minus 65 seconds to the current time minus 5 seconds.

@@ -244,6 +244,8 @@ unsigned short servicePort;
  */
 StorageService::~StorageService()
 {
+	delete config;
+	delete logger;
 }
 
 /**

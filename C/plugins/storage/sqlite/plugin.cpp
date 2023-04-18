@@ -41,14 +41,18 @@ const char *default_config = QUOTE({
 		"poolSize" : {
 			"description" : "The number of connections to create in the intial pool of connections",
 			"type" : "integer",
+			"minimum": "1",
+			"maximum": "10",
 			"default" : "5",
 			"displayName" : "Pool Size",
 			"order" : "1"
 		},
 		"nReadingsPerDb" : {
-			"description" : "The number of readings tables in each database that is created",
+			"description" : "The number of unique assets tables to maintain in each database that is created",
 			"type" : "integer",
+			"minimum": "1",
 			"default" : "15",
+			"maximum": "00",
 			"displayName" : "No. Readings per database",
 			"order" : "2"
 		},
@@ -56,6 +60,8 @@ const char *default_config = QUOTE({
 			"description" : "Number of databases to allocate in advance. NOTE: SQLite has a default maximum of 10 attachable databases",
 			"type" : "integer",
 			"default" : "3",
+			"minimum": "1",
+			"maximum" : "10",
 			"displayName" : "No. databases to allocate in advance",
 			"order" : "3"
 		},
@@ -63,6 +69,8 @@ const char *default_config = QUOTE({
 			"description" : "Allocate new databases when the number of free databases drops below this value",
 			"type" : "integer",
 			"default" : "1",
+			"minimum": "1",
+			"maximum": "10",
 			"displayName" : "Database allocation threshold",
 			"order" : "4"
 		},
@@ -70,6 +78,8 @@ const char *default_config = QUOTE({
 			"description" : "The number of databases to create whenever the number of available databases drops below the allocation threshold",
 			"type" : "integer",
 			"default" : "2",
+			"minimum" : "1",
+			"maximum" : "10",
 			"displayName" : "Database allocation size",
 			"order" : "5"
 		},
@@ -182,6 +192,10 @@ int plugin_common_insert(PLUGIN_HANDLE handle, char *schema, char *table, char *
 ConnectionManager *manager = (ConnectionManager *)handle;
 Connection        *connection = manager->allocate();
 
+#if TRACK_CONNECTION_USER
+	string usage = "Insert into " + string(table);
+	connection->setUsage(usage);
+#endif
 	int result = connection->insert(std::string(schema), std::string(table), std::string(data));
 	manager->release(connection);
 	return result;
@@ -196,6 +210,10 @@ ConnectionManager *manager = (ConnectionManager *)handle;
 Connection        *connection = manager->allocate();
 std::string results;
 
+#if TRACK_CONNECTION_USER
+	string usage = "Retrieve from " + string(table);
+	connection->setUsage(usage);
+#endif
 	bool rval = connection->retrieve(std::string(schema), std::string(table), std::string(query), results);
 	manager->release(connection);
 	if (rval)
@@ -213,6 +231,11 @@ int plugin_common_update(PLUGIN_HANDLE handle, char *schema, char *table, char *
 ConnectionManager *manager = (ConnectionManager *)handle;
 Connection        *connection = manager->allocate();
 
+#if TRACK_CONNECTION_USER
+	string usage = "Update " + string(table);
+	connection->setUsage(usage);
+#endif
+
 	int result = connection->update(std::string(schema), std::string(table), std::string(data));
 	manager->release(connection);
 	return result;
@@ -226,6 +249,10 @@ int plugin_common_delete(PLUGIN_HANDLE handle, char *schema, char *table, char *
 ConnectionManager *manager = (ConnectionManager *)handle;
 Connection        *connection = manager->allocate();
 
+#if TRACK_CONNECTION_USER
+	string usage = "Delete from " + string(table);
+	connection->setUsage(usage);
+#endif
 	int result = connection->deleteRows(std::string(schema), std::string(table), std::string(condition));
 	manager->release(connection);
 	return result;
@@ -239,6 +266,10 @@ int plugin_reading_append(PLUGIN_HANDLE handle, char *readings)
 ConnectionManager *manager = (ConnectionManager *)handle;
 Connection        *connection = manager->allocate();
 
+#if TRACK_CONNECTION_USER
+	string usage = "Reading append";
+	connection->setUsage(usage);
+#endif
 	int result = connection->appendReadings(readings);
 	manager->release(connection);
 	return result;;
@@ -252,6 +283,11 @@ int plugin_readingStream(PLUGIN_HANDLE handle, ReadingStream **readings, bool co
 	int result = 0;
 	ConnectionManager *manager = (ConnectionManager *)handle;
 	Connection        *connection = manager->allocate();
+
+#if TRACK_CONNECTION_USER
+	string usage = "Reading Stream";
+	connection->setUsage(usage);
+#endif
 
 	result = connection->readingStream(readings, commit);
 
@@ -268,6 +304,11 @@ ConnectionManager *manager = (ConnectionManager *)handle;
 Connection        *connection = manager->allocate();
 std::string	  resultSet;
 
+#if TRACK_CONNECTION_USER
+	string usage = "Fetch readings";
+	connection->setUsage(usage);
+#endif
+
 	connection->fetchReadings(id, blksize, resultSet);
 	manager->release(connection);
 	return strdup(resultSet.c_str());
@@ -281,6 +322,11 @@ char *plugin_reading_retrieve(PLUGIN_HANDLE handle, char *condition)
 ConnectionManager *manager = (ConnectionManager *)handle;
 Connection        *connection = manager->allocate();
 std::string results;
+
+#if TRACK_CONNECTION_USER
+	string usage = "Reading retrieve";
+	connection->setUsage(usage);
+#endif
 
 	connection->retrieveReadings(std::string(condition), results);
 	manager->release(connection);
@@ -297,6 +343,10 @@ Connection        *connection = manager->allocate();
 std::string 	  results;
 unsigned long	  age, size;
 
+#if TRACK_CONNECTION_USER
+	string usage = "Purge";
+	connection->setUsage(usage);
+#endif
 	if (flags & STORAGE_PURGE_SIZE)
 	{
 		(void)connection->purgeReadingsByRows(param, flags, sent, results);
@@ -338,6 +388,10 @@ ConnectionManager *manager = (ConnectionManager *)handle;
 
 	Connection        *connection = manager->allocate();
 
+#if TRACK_CONNECTION_USER
+	string usage = "Shutdown";
+	connection->setUsage(usage);
+#endif
 	if (connection->supportsReadings())
 	{
 		connection->shutdownAppendReadings();
@@ -369,6 +423,10 @@ int plugin_create_table_snapshot(PLUGIN_HANDLE handle,
 ConnectionManager *manager = (ConnectionManager *)handle;
 Connection        *connection = manager->allocate();
 
+#if TRACK_CONNECTION_USER
+	string usage = "Snapshot " + string(table);
+	connection->setUsage(usage);
+#endif
         int result = connection->create_table_snapshot(std::string(table),
 							std::string(id));
         manager->release(connection);
@@ -390,6 +448,10 @@ int plugin_load_table_snapshot(PLUGIN_HANDLE handle,
 ConnectionManager *manager = (ConnectionManager *)handle;
 Connection        *connection = manager->allocate();
 
+#if TRACK_CONNECTION_USER
+	string usage = "Load snapshot " + string(table);
+	connection->setUsage(usage);
+#endif
         int result = connection->load_table_snapshot(std::string(table),
 						     std::string(id));
         manager->release(connection);
@@ -412,6 +474,10 @@ int plugin_delete_table_snapshot(PLUGIN_HANDLE handle,
 ConnectionManager *manager = (ConnectionManager *)handle;
 Connection        *connection = manager->allocate();
 
+#if TRACK_CONNECTION_USER
+	string usage = "Delete snapshot " + string(table);
+	connection->setUsage(usage);
+#endif
         int result = connection->delete_table_snapshot(std::string(table),
 							std::string(id));
         manager->release(connection);
@@ -433,6 +499,10 @@ ConnectionManager *manager = (ConnectionManager *)handle;
 Connection        *connection = manager->allocate();
 std::string results;
 
+#if TRACK_CONNECTION_USER
+	string usage = "Get table snapshots" + string(table);
+	connection->setUsage(usage);
+#endif
 	bool rval = connection->get_table_snapshots(std::string(table), results);
 	manager->release(connection);
 
@@ -454,6 +524,10 @@ int plugin_createSchema(PLUGIN_HANDLE handle, char *definition)
 	ConnectionManager *manager = (ConnectionManager *)handle;
 	Connection        *connection = manager->allocate();
 
+#if TRACK_CONNECTION_USER
+	string usage = "Create schema";
+	connection->setUsage(usage);
+#endif
 	int result = connection->createSchema(std::string(definition));
 	manager->release(connection);
 	return result;
@@ -467,6 +541,10 @@ unsigned int plugin_reading_purge_asset(PLUGIN_HANDLE handle, char *asset)
 ConnectionManager *manager = (ConnectionManager *)handle;
 Connection        *connection = manager->allocate();
 
+#if TRACK_CONNECTION_USER
+	string usage = "Purge asset ";
+	connection->setUsage(usage);
+#endif
 	unsigned int deleted = connection->purgeReadingsAsset(asset);
 	manager->release(connection);
 	return deleted;

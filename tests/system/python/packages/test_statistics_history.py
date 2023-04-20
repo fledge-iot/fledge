@@ -70,7 +70,7 @@ def start_south_north(start_north_omf_as_a_service, add_south, fledge_url,
 @pytest.fixture
 def add_notification_service(service_branch, fledge_url, wait_time):
     try:
-        subprocess.run(["sudo apt install -y fledge-service-notification"], shell=True, check=True)
+        subprocess.run(["sudo apt install -y fledge-service-notification fledge-notify-asset"], shell=True, check=True)
     except subprocess.CalledProcessError:
         assert False, "notification service installation failed"
 
@@ -83,8 +83,21 @@ def add_notification_service(service_branch, fledge_url, wait_time):
     time.sleep(wait_time)
     verify_service_added(fledge_url, NOTIF_SERVICE_NAME)
 
-    payload = {"name": "test #1", "description": "test notification instance", "rule": "Threshold", "rule_config": {"source": "Statistics History", "asset": "READINGS", "trigger_value": "10.0"}, 
-                "channel": "asset", "delivery_config": {"enable": "true"}, "notification_type": "retriggered", "retrigger_time": "30", "enabled": True}
+    payload = {
+        "name": "test #1",
+        "description": "test notification instance",
+        "rule": "Threshold",
+        "rule_config": {
+            "source": "Statistics History",
+            "asset": "READINGS",
+            "trigger_value": "10.0",
+        },
+        "channel": "asset",
+        "delivery_config": {"enable": "true"},
+        "notification_type": "retriggered",
+        "retrigger_time": "30",
+        "enabled": True,
+    }
     post_url = "/fledge/notification"
     utils.post_request(fledge_url, post_url, payload)
     
@@ -141,8 +154,17 @@ def _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_d
 
 
 class TestStatisticsHistory:
-    def test_stats_readings(self, reset_fledge, start_south_north, add_notification_service, fledge_url,
+    def test_stats_readings(self, clean_setup_fledge_packages, reset_fledge, start_south_north, add_notification_service, fledge_url,
                  wait_time, skip_verify_north_interface, retries, read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db):
+        """ Test NTFSN triggered or not with source as statistics history and name as READINGS in threshold rule.
+            clean_setup_fledge_packages: Fixture to remove and install latest fledge packages
+            reset_fledge: Fixture to reset fledge
+            start_south_north: Fixtures to add and start south and north services
+            add_notification_service: Fixture to add notification service with rule and delivery plugins
+            Assertions:
+                on endpoint GET /fledge/audit
+                on endpoint GET /fledge/ping
+                on endpoint GET /fledge/statistics/history """
         time.sleep(wait_time * 4)
 
         verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
@@ -169,7 +191,11 @@ class TestStatisticsHistory:
             _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries)
 
     def test_stats_south_asset_ingest(self, fledge_url, wait_time, skip_verify_north_interface, retries):
-
+        """ Test NTFSN triggered or not with source as statistics history and name as ingested south asset in threshold rule.
+            Assertions:
+                on endpoint GET /fledge/audit
+                on endpoint GET /fledge/ping
+                on endpoint GET /fledge/statistics/history """
         # Change the config of threshold, name of statistics - READINGS replaced with name of asset - Sine #1-Ingest
         put_url = "/fledge/category/ruletest #1"
         data = {"asset": "Sine #1-Ingest"}
@@ -196,10 +222,14 @@ class TestStatisticsHistory:
             assert 0 < r["statistics"][0]["Sine #1-Ingest"]
         
     def test_stats_south_asset(self, fledge_url, wait_time, skip_verify_north_interface, retries):
-
+        """ Test NTFSN triggered or not with source as statistics history and name as south asset name in threshold rule.
+            Assertions:
+                on endpoint GET /fledge/audit
+                on endpoint GET /fledge/ping
+                on endpoint GET /fledge/statistics/history """
         # Change the config of threshold, name of statistics - READINGS replaced with name of asset - Sine #1-Ingest
         put_url = "/fledge/category/ruletest #1"
-        data = {"asset": "SINUSOID"}
+        data = {"asset": SOUTH_ASSET_NAME.upper()}
         utils.put_request(fledge_url, urllib.parse.quote(put_url), data)
         
         verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
@@ -219,5 +249,5 @@ class TestStatisticsHistory:
         
         get_url = "/fledge/statistics/history?minutes=10"
         r = utils.get_request(fledge_url, get_url)
-        if "SINUSOID" in r["statistics"][0]:
-            assert 0 < r["statistics"][0]["SINUSOID"]
+        if SOUTH_ASSET_NAME.upper() in r["statistics"][0]:
+            assert 0 < r["statistics"][0][SOUTH_ASSET_NAME.upper()]

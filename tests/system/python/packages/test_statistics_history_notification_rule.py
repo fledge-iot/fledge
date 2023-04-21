@@ -2,9 +2,9 @@
 # See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
-""" Test statistics history System tests:
+""" Test statistics history notification rule system tests:
         Creates notification instance with source as statistics history in threshold rule
-        and notify asset plugin for sending the notifications.
+        and notify asset plugin for triggering the notifications based on rules.
 """
 
 __author__ = "Yash Tatkondawar"

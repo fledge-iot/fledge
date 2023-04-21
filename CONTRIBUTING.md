@@ -103,7 +103,7 @@ repository with the fledge-{plugin-type}-{plugin-name}.git repository, for examp
    # Assign the original repo to a remote called "upstream"
    git remote add upstream https://github.com/fledge-iot/fledge-south-sinusoid.git
    ```
-Repeat futher steps which we mentioned [here](#pull-requests)
+Repeat further steps which we mentioned [here](#pull-requests)
 
 If you wish to create a new plugin then contact the maintainers and we
 will create a blank base repository for you to add your code into.

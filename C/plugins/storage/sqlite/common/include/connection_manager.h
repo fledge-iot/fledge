@@ -17,6 +17,9 @@
 #include <mutex>
 #include <thread>
 
+#define NO_DESCRIPTORS_PER_DB	3	// 3 deascriptors per database when using WAL mode
+#define DESCRIPTOR_THRESHOLD	75	// Percentage of descriptors that can be used on database connections
+
 class Connection;
 
 /**
@@ -30,7 +33,7 @@ class ConnectionManager {
 		Connection                *allocate();
 		bool                      attachNewDb(std::string &path, std::string &alias);
 		bool                      attachRequestNewDb(int newDbId, sqlite3 *dbHandle);
-		bool 					  detachNewDb(std::string &alias);
+		bool 			  detachNewDb(std::string &alias);
 		void                      release(Connection *);
 		void			  shutdown();
 		void			  setError(const char *, const char *, bool);
@@ -39,16 +42,20 @@ class ConnectionManager {
 						return &lastError;
 					  }
 		void			  background();
-		void			  setVacuumInterval(long hours) {
-							m_vacuumInterval = 60 * 60 * hours;
-						};
+		void			  setVacuumInterval(long hours)
+					  {
+						m_vacuumInterval = 60 * 60 * hours;
+					  };
+		bool			  allowMoreDatabases();
 
 	protected:
 		ConnectionManager();
 
 	private:
 		static ConnectionManager     *instance;
-		int SQLExec(sqlite3 *dbHandle, const char *sqlCmd, char **errMsg);
+		int		       	     SQLExec(sqlite3 *dbHandle, const char *sqlCmd,
+							char **errMsg);
+		void			     noConnectionsDiagnostic();
 
 	protected:
 		std::list<Connection *>      idle;
@@ -61,6 +68,8 @@ class ConnectionManager {
 		bool			     m_shutdown;
 		std::thread		     *m_background;
 		long                         m_vacuumInterval;
+		unsigned int		     m_descriptorLimit;
+		unsigned int		     m_attachedDatabases;
 };
 
 #endif

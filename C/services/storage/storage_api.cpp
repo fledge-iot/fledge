@@ -397,6 +397,19 @@ StorageApi::StorageApi(const unsigned short port, const unsigned int threads) : 
 }
 
 /**
+ * Destructor for the storage API class. There is only ever one StorageApi class
+ * in existance and it lives for the entire duration of the storage service, so this
+ * is really for completerness rather than any pracitical use.
+ */
+StorageApi::~StorageApi()
+{
+	if (m_server)
+	{
+		delete m_server;
+	}
+}
+
+/**
  * Return the singleton instance of the StorageAPI class
  */
 StorageApi *StorageApi::getInstance()

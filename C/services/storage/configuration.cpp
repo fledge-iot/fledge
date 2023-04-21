@@ -98,6 +98,14 @@ StorageConfiguration::StorageConfiguration()
 }
 
 /**
+ * Storage configuration destructor
+ */
+StorageConfiguration::~StorageConfiguration()
+{
+	delete document;
+}
+
+/**
  * Return if a value exsits for the cached configuration category
  */
 bool StorageConfiguration::hasValue(const string& key)

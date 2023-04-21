@@ -32,6 +32,7 @@
 class StorageConfiguration {
   public:
     StorageConfiguration();
+    ~StorageConfiguration();
     const char            *getValue(const std::string& key);
     bool		  hasValue(const std::string& key);
     bool                  setValue(const std::string& key, const std::string& value);

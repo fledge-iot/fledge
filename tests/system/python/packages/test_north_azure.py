@@ -160,9 +160,27 @@ def _verify_egress(azure_storage_account_url, azure_storage_account_key, azure_s
       asset_collected.extend(list(map(lambda d: d['asset'], json.loads(ele)["Body"])))
     
     assert any(filter(lambda x: ASSET in x, asset_collected))
+
+@pytest.fixture
+def add_south_north_task(add_south, add_north, fledge_url, azure_host, azure_device, azure_key):
+    """ This fixture
+        add_south: Fixture that adds a south service with given configuration
+        add_north: Fixture that adds a north service with given configuration
+
+    """
+    
+    # south_branch does not matter as these are archives.fledge-iot.org version install
+    add_south(SOUTH_PLUGIN, None, fledge_url, service_name=SOUTH_SERVICE_NAME, start_service=False, installation_type='package')
+    
+    _config = {
+        "primaryConnectionString": {"value":"HostName={};DeviceId={};SharedAccessKey={}".format(azure_host, azure_device, azure_key)}
+        }
+    # north_branch does not matter as these are archives.fledge-iot.org version install
+    add_north(fledge_url, NORTH_PLUGIN_NAME, None, installation_type='package', north_instance_name=NORTH_SERVICE_NAME, 
+              config=_config, schedule_repeat_time=10, enabled=False, plugin_discovery_name=NORTH_PLUGIN_DISCOVERY_NAME, is_task=True)
     
 @pytest.fixture
-def add_south_north(add_south, add_north, fledge_url, azure_host, azure_device, azure_key):
+def add_south_north_service(add_south, add_north, fledge_url, azure_host, azure_device, azure_key):
     """ This fixture
         add_south: Fixture that adds a south service with given configuration
         add_north: Fixture that adds a north service with given configuration
@@ -185,7 +203,7 @@ def config_south(fledge_url, ASSET):
 
 class TestNorthAzureIoTHubDevicePlugin:
     
-    def test_send(self, clean_setup_fledge_packages, reset_fledge, add_south_north, fledge_url, enable_schedule, 
+    def test_send(self, clean_setup_fledge_packages, reset_fledge, add_south_north_service, fledge_url, enable_schedule, 
                   disable_schedule, azure_host, azure_device, azure_key, wait_time, retries, skip_verify_north_interface,
                   azure_storage_account_url, azure_storage_account_key, azure_storage_container):
         
@@ -193,7 +211,7 @@ class TestNorthAzureIoTHubDevicePlugin:
             clean_setup_fledge_packages: Fixture for removing fledge from system completely if it is already present 
                                          and reinstall it baased on commandline arguments.
             reset_fledge: Fixture that reset and cleanup the fledge 
-            add_south_north: Fixture that add south and north instance in disable mode
+            add_south_north_service: Fixture that add south and north instance in disable mode
             enable_schedule: Fixture for enabling schedules or services
             disable_schedule: Fixture for disabling schedules or services
             
@@ -215,13 +233,14 @@ class TestNorthAzureIoTHubDevicePlugin:
         verify_statistics_map(fledge_url, skip_verify_north_interface)
         verify_asset_tracking_details(fledge_url, skip_verify_north_interface, ASSET)
         
-        # Azure Iot Hub take 130 seconds to show the data sents to it
-        time.sleep(130)
+        # Azure Iot Hub take 150 seconds to show the data sents to it
+        time.sleep(150)
         
         if not skip_verify_north_interface:
             _verify_egress(azure_storage_account_url, azure_storage_account_key, azure_storage_container, wait_time, retries, ASSET)
 
-    def test_mqtt_over_websocket_reconfig(self, reset_fledge, add_south_north, fledge_url, enable_schedule, disable_schedule,
+    
+    def test_mqtt_over_websocket_reconfig(self, reset_fledge, add_south_north_service, fledge_url, enable_schedule, disable_schedule,
                                           azure_host, azure_device, azure_key, azure_storage_account_url, azure_storage_account_key, 
                                           azure_storage_container, wait_time, retries, skip_verify_north_interface):
         # Update Asset name
@@ -246,8 +265,37 @@ class TestNorthAzureIoTHubDevicePlugin:
         verify_statistics_map(fledge_url, skip_verify_north_interface)
         verify_asset_tracking_details(fledge_url, skip_verify_north_interface, ASSET)
         
-        # Azure Iot Hub take 130 seconds to show the data sents to it
-        time.sleep(130)
+        # Azure Iot Hub take 150 seconds to show the data sents to it
+        time.sleep(150)
         
         if not skip_verify_north_interface:
             _verify_egress(azure_storage_account_url, azure_storage_account_key, azure_storage_container, wait_time, retries, ASSET)
+
+
+    
+    def test_disable_enable(self, reset_fledge, add_south_north_service, fledge_url, enable_schedule, disable_schedule,
+                            azure_host, azure_device, azure_key, azure_storage_account_url, azure_storage_account_key, 
+                            azure_storage_container, wait_time, retries, skip_verify_north_interface):
+        
+        for i in range(2):
+            # Update Asset name
+            ASSET = "test3.{}_FOGL-7352_system".format(i)
+            config_south(fledge_url, ASSET)
+            
+            # Enable South Service for 10 Seonds
+            enable_schedule(fledge_url, SOUTH_SERVICE_NAME)
+            time.sleep(wait_time)
+            disable_schedule(fledge_url, SOUTH_SERVICE_NAME)
+            
+            # Enable North Service for sending data to Azure-IOT-Hub
+            enable_schedule(fledge_url, NORTH_SERVICE_NAME)
+            
+            verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
+            verify_asset(fledge_url, ASSET)
+            verify_statistics_map(fledge_url, skip_verify_north_interface)
+            
+            # Azure Iot Hub take 150 seconds to show the data sents to it
+            time.sleep(150)
+            disable_schedule(fledge_url, NORTH_SERVICE_NAME)
+            if not skip_verify_north_interface:
+                _verify_egress(azure_storage_account_url, azure_storage_account_key, azure_storage_container, wait_time, retries, ASSET)

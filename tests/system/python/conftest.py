@@ -153,7 +153,7 @@ def add_south():
 @pytest.fixture
 def add_north():
     def _add_fledge_north(fledge_url, north_plugin, north_branch, installation_type='make', north_instance_name="play",
-                          config=None,
+                          config=None, schedule_repeat_time=30, 
                           plugin_lang="python", use_pip_cache=True, enabled=True, plugin_discovery_name=None,
                           is_task=True):
         """Add north plugin and start the service/task by default"""
@@ -191,9 +191,10 @@ def add_north():
 
         if is_task:
             # Create north task
-            data = {"name": "{}".format(north_instance_name), "type": "North",
+            data = {"name": "{}".format(north_instance_name), "type": "north",
                     "plugin": "{}".format(plugin_discovery_name),
-                    "schedule_enabled": _enabled, "schedule_repeat": 30, "schedule_type": "3", "config": _config}
+                    "schedule_enabled": _enabled, "schedule_repeat": "{}".format(schedule_repeat_time), "schedule_type": "3", "config": _config}
+            print(data)
             conn.request("POST", '/fledge/scheduled/task', json.dumps(data))
         else:
             # Create north service

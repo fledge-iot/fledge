@@ -299,3 +299,102 @@ class TestNorthAzureIoTHubDevicePlugin:
             disable_schedule(fledge_url, NORTH_SERVICE_NAME)
             if not skip_verify_north_interface:
                 _verify_egress(azure_storage_account_url, azure_storage_account_key, azure_storage_container, wait_time, retries, ASSET)
+
+
+class TestNorthAzureIoTHubDevicePluginTask:
+    
+    def test_send_as_a_task(self, reset_fledge, add_south_north_task, fledge_url, enable_schedule, disable_schedule, 
+                       azure_host, azure_device, azure_key, azure_storage_account_url, azure_storage_account_key, 
+                       azure_storage_container, wait_time, retries, skip_verify_north_interface):
+        
+        # Update Asset name
+        ASSET = "test5_FOGL-7352_system"
+        config_south(fledge_url, ASSET)
+        
+        # Enable South Service for 30 Seonds
+        enable_schedule(fledge_url, SOUTH_SERVICE_NAME)
+        time.sleep(wait_time * 3)
+        disable_schedule(fledge_url, SOUTH_SERVICE_NAME)
+        
+        # Enable North Service for sending data to Azure-IOT-Hub
+        enable_schedule(fledge_url, NORTH_SERVICE_NAME)
+        
+        verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
+        verify_asset(fledge_url, ASSET)
+        verify_statistics_map(fledge_url, skip_verify_north_interface)
+        verify_asset_tracking_details(fledge_url, skip_verify_north_interface, ASSET)
+        
+        # Azure Iot Hub take 150 seconds to show the data sents to it
+        time.sleep(150)
+        
+        if not skip_verify_north_interface:
+            _verify_egress(azure_storage_account_url, azure_storage_account_key, azure_storage_container, wait_time, retries, ASSET)
+    
+    
+    def test_mqtt_over_websocket_reconfig_task(self, reset_fledge, add_south_north_task, fledge_url, enable_schedule, disable_schedule,
+                                          azure_host, azure_device, azure_key, azure_storage_account_url, azure_storage_account_key, 
+                                          azure_storage_container, wait_time, retries, skip_verify_north_interface):
+        # Update Asset name
+        ASSET = "test6_FOGL-7352_system"
+        config_south(fledge_url, ASSET)
+        
+        # Enable South Service for 10 Seonds
+        enable_schedule(fledge_url, SOUTH_SERVICE_NAME)
+        time.sleep(wait_time)
+        disable_schedule(fledge_url, SOUTH_SERVICE_NAME)
+        
+        # Enable MQTT over websocket
+        payload = {"websockets": "true"}
+        put_url = "/fledge/category/{}".format(NORTH_SERVICE_NAME)
+        utils.put_request(fledge_url, urllib.parse.quote(put_url), payload)
+        
+        # Enable North Service for sending data to Azure-IOT-Hub
+        enable_schedule(fledge_url, NORTH_SERVICE_NAME)
+        
+        verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
+        verify_asset(fledge_url, ASSET)
+        verify_statistics_map(fledge_url, skip_verify_north_interface)
+        verify_asset_tracking_details(fledge_url, skip_verify_north_interface, ASSET)
+        
+        # Azure Iot Hub take 150 seconds to show the data sents to it
+        time.sleep(150)
+        
+        if not skip_verify_north_interface:
+            _verify_egress(azure_storage_account_url, azure_storage_account_key, azure_storage_container, wait_time, retries, ASSET)
+
+
+    def test_disable_enable_task(self, reset_fledge, add_south_north_task, fledge_url, enable_schedule, disable_schedule,
+                            azure_host, azure_device, azure_key, azure_storage_account_url, azure_storage_account_key, 
+                            azure_storage_container, wait_time, retries, skip_verify_north_interface):
+        
+        for i in range(2):
+            # Update Asset name
+            ASSET = "test7.{}_FOGL-7352_system".format(i)
+            config_south(fledge_url, ASSET)
+            
+            # Enable South Service for 10 Seonds
+            enable_schedule(fledge_url, SOUTH_SERVICE_NAME)
+            time.sleep(wait_time)
+            disable_schedule(fledge_url, SOUTH_SERVICE_NAME)
+            
+            # Enable North Service for sending data to Azure-IOT-Hub
+            enable_schedule(fledge_url, NORTH_SERVICE_NAME)
+            
+            verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
+            verify_asset(fledge_url, ASSET)
+            verify_statistics_map(fledge_url, skip_verify_north_interface)
+            
+            # Azure Iot Hub take 150 seconds to show the data sents to it
+            time.sleep(150)
+            disable_schedule(fledge_url, NORTH_SERVICE_NAME)
+            if not skip_verify_north_interface:
+                _verify_egress(azure_storage_account_url, azure_storage_account_key, azure_storage_container, wait_time, retries, ASSET)
+    
+    
+    @pytest.mark.skip(reason="To be implemented")
+    def test_invalid_connstr(self, reset_fledge, add_south_north_service, fledge_url, wait_time, retries):
+        pass
+    
+    @pytest.mark.skip(reason="To be implemented")
+    def test_invalid_connstr_sharedkey(self, reset_fledge, add_south_north_service, fledge_url, wait_time, retries):
+        pass

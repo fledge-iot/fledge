@@ -108,9 +108,6 @@ def setup(logger_name: str = None,
     else:
         raise ValueError("Invalid destination {}".format(destination))
 
-    # save the old logging.error function
-    __logging_error = logger.error
-
     # TODO: Consider using %r with message when using syslog .. \n looks better than #
     fmt = '{}[%(process)d] %(levelname)s: %(module)s: %(name)s: %(message)s'.format(get_process_name())
     formatter = logging.Formatter(fmt=fmt)
@@ -120,26 +117,51 @@ def setup(logger_name: str = None,
     logger.addHandler(handler)
     logger.propagate = propagate
 
-    @wraps(logger.error)
+    # Call error override
+    error_override(logger)
+    return logger
+
+
+def error_override(_logger: logging.Logger) -> None:
+    """Override error logger to print multi-line traceback and error string with newline
+    Args:
+        _logger: Logger Object
+
+    Returns:
+        None
+    """
+    # save the old logging.error function
+    __logging_error = _logger.error
+
+    @wraps(_logger.error)
     def error(msg, *args, **kwargs):
         if isinstance(msg, Exception):
+            """For example:
+                a) _logger.error(ex)
+                b) _logger.error(ex, "Failed to add data.")
+            """
             trace_msg = traceback.format_exception(msg.__class__, msg, msg.__traceback__)
             if args:
                 trace_msg[:0] = ["{}\n".format(args[0])]
             [__logging_error(line.strip('\n')) for line in trace_msg]
         else:
             if isinstance(msg, str):
+                """For example:
+                    a) _logger.error(str(ex))
+                    b) _logger.error("Failed to log audit trail entry")
+                    c) _logger.error('Failed to log audit trail entry for code: %s', "CONCH")
+                    d) _logger.error('Failed to log audit trail entry for code: {log_code}'.format(log_code="CONAD"))
+                    e) _logger.error('Failed to log audit trail entry for code: {0}'.format("CONAD"))
+                    f) _logger.error("Failed to log audit trail entry for code '{}' \n{}".format("CONCH", "Next line"))
+                """
                 if args:
                     msg = msg % args
                 [__logging_error(m) for m in msg.splitlines()]
             else:
                 # Default logging error
                 __logging_error(msg)
-
     # overwrite the default logging.error
-    logger.error = error
-
-    return logger
+    _logger.error = error
 
 
 class FLCoreLogger:
@@ -207,46 +229,12 @@ class FLCoreLogger:
             logger: returns logger for module
         """
         _logger = logging.getLogger(logger_name)
-
-        # save the old logging.error function
-        __logging_error = _logger.error
-
         console_handler = self.get_console_handler()
         syslog_handler = self.get_syslog_handler()
         self.add_handlers(_logger, [syslog_handler, console_handler])
         _logger.propagate = False
-
-        @wraps(_logger.error)
-        def error(msg, *args, **kwargs):
-            """Override error logger to print multi-line traceback and error string with newline"""
-            if isinstance(msg, Exception):
-                """For example:
-                    a) _logger.error(ex)
-                    b) _logger.error(ex, "Failed to add data.")
-                """
-                trace_msg = traceback.format_exception(msg.__class__, msg, msg.__traceback__)
-                if args:
-                    trace_msg[:0] = ["{}\n".format(args[0])]
-                [__logging_error(line.strip('\n')) for line in trace_msg]
-            else:
-                if isinstance(msg, str):
-                    """For example:
-                        a) _logger.error(str(ex))
-                        b) _logger.error("Failed to log audit trail entry")
-                        c) _logger.error('Failed to log audit trail entry for code: %s', "CONCH")
-                        d) _logger.error('Failed to log audit trail entry for code: {log_code}'.format(log_code="CONAD"))
-                        e) _logger.error('Failed to log audit trail entry for code: {0}'.format("CONAD"))
-                        f) _logger.error("Failed to log audit trail entry for code '{}' \n{}".format("CONCH", "Next line"))
-                    """
-                    if args:
-                        msg = msg % args
-                    [__logging_error(m) for m in msg.splitlines()]
-                else:
-                    # Default logging error
-                    __logging_error(msg)
-
-        # overwrite the default logging.error
-        _logger.error = error
+        # Call error override
+        error_override(_logger)
         return _logger
 
     def set_level(self, level_name: str):

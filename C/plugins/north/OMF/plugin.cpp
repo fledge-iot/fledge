@@ -1580,7 +1580,8 @@ static void ParseProductVersion(std::string &versionString, int *major, int *min
 }
 
 /**
- * Parses the Edge Data Store version string from the /productinformation REST response
+ * Parses the Edge Data Store version string from the /productinformation REST response.
+ * Note that the response format differs between EDS 2020 and EDS 2023.
  * 
  * @param    json		REST response from /api/v1/diagnostics/productinformation
  * @return   version	Edge Data Store version string
@@ -1595,9 +1596,14 @@ static std::string ParseEDSProductInformation(std::string json)
 	{
 		try
 		{
-			if (doc.HasMember("Edge Data Store"))
+			if (doc.HasMember("Edge Data Store"))	// EDS 2020 response
 			{
 				const rapidjson::Value &EDS = doc["Edge Data Store"];
+				version = EDS.GetString();
+			}
+			else if (doc.HasMember("Product Version"))	// EDS 2023 response
+			{
+				const rapidjson::Value &EDS = doc["Product Version"];
 				version = EDS.GetString();
 			}
 		}

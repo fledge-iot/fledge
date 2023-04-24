@@ -128,7 +128,13 @@ def setup(logger_name: str = None,
                 trace_msg[:0] = ["{}\n".format(args[0])]
             [__logging_error(line.strip('\n')) for line in trace_msg]
         else:
-            [__logging_error(m) for m in msg.splitlines()]
+            if isinstance(msg, str):
+                if args:
+                    msg = msg % args
+                [__logging_error(m) for m in msg.splitlines()]
+            else:
+                # Default logging error
+                __logging_error(msg)
 
     # overwrite the default logging.error
     logger.error = error
@@ -223,13 +229,21 @@ class FLCoreLogger:
                     trace_msg[:0] = ["{}\n".format(args[0])]
                 [__logging_error(line.strip('\n')) for line in trace_msg]
             else:
-                """Case: When we pass string in error
-                For example:  
-                a) _logger.error(str(ex))
-                b) _logger.error("Failed to log audit trail entry")
-                c) _logger.error("Failed to log audit trail entry '{}' \n{}".format(code, str(ex))) 
-                """
-                [__logging_error(m) for m in msg.splitlines()]
+                if isinstance(msg, str):
+                    """For example:
+                        a) _logger.error(str(ex))
+                        b) _logger.error("Failed to log audit trail entry")
+                        c) _logger.error('Failed to log audit trail entry for code: %s', "CONCH")
+                        d) _logger.error('Failed to log audit trail entry for code: {log_code}'.format(log_code="CONAD"))
+                        e) _logger.error('Failed to log audit trail entry for code: {0}'.format("CONAD"))
+                        f) _logger.error("Failed to log audit trail entry for code '{}' \n{}".format("CONCH", "Next line"))
+                    """
+                    if args:
+                        msg = msg % args
+                    [__logging_error(m) for m in msg.splitlines()]
+                else:
+                    # Default logging error
+                    __logging_error(msg)
 
         # overwrite the default logging.error
         _logger.error = error

@@ -18,9 +18,6 @@ import shutil
 from urllib.parse import quote
 from pathlib import Path
 import pytest
-from azure.storage.blob import BlobServiceClient
-import pandas as pd
-import time
 
 __author__ = "Vaibhav Singhal"
 __copyright__ = "Copyright (c) 2019 Dianomic Systems"
@@ -582,48 +579,6 @@ def read_data_from_pi_web_api():
 
     return _read_data_from_pi_web_api
 
-@pytest.fixture
-def read_data_from_azure():
-    def _read_data_from_azure_iot(storage_account_url,storage_account_key, container_name, LOCALJSONFILE):
-        
-        try:
-            t1=time.time()
-            blob_service_client_instance = BlobServiceClient(account_url=storage_account_url, credential=storage_account_key)
-
-            container_client = blob_service_client_instance.get_container_client(container=container_name)
-
-            blob_list = container_client.list_blobs()
-
-            for blob in blob_list:
-                BLOBNAME = blob.name
-                print(f"Name: {blob.name}")
-
-
-            blob_client_instance = blob_service_client_instance.get_blob_client(container_name, BLOBNAME, snapshot=None)
-            with open(LOCALJSONFILE, "wb") as my_blob:
-                blob_data = blob_client_instance.download_blob()
-                blob_data.readinto(my_blob)
-            t2=time.time()
-            print(("It takes %s seconds to download "+BLOBNAME) % (t2 - t1))
-
-            # {iothub}    /{partition}/{YYYY}/{MM}/{DD}/{HH}/{mm}  
-            # foglamp-test/01        /2023  /04  /15  /20   /08.json
-            # LOCALFILE is the file path
-            dataframe_blobdata = pd.read_csv(LOCALJSONFILE)
-            print('the size of the data is: %d rows and  %d columns' % dataframe_blobdata.shape)
-            
-            with open(LOCALJSONFILE) as _file:
-                data = json.load(_file)
-                
-            print(data)
-            return data
-            
-        except (Exception) as ex:
-            print("Failed to read data due to {}".format(ex))
-            return None
-        
-    return _read_data_from_azure_iot
-
 
 @pytest.fixture
 def add_filter():
@@ -862,13 +817,13 @@ def pytest_addoption(parser):
     parser.addoption("--azure-key", action="store", default="azure-iot-key",
                      help="Azure-IoT SharedAccess key")
     
-    parser.addoption("--storage-account-url", action="store", default="storage-account-url",
+    parser.addoption("--azure-storage-account-url", action="store", default="azure-storage-account-url",
                      help="Azure Storage Account URL")
     
-    parser.addoption("--storage-account-key", action="store", default="storage-account-key",
+    parser.addoption("--azure-storage-account-key", action="store", default="azure-storage-account-key",
                      help="Azure Storage Account Access Key")
     
-    parser.addoption("--container-name", action="store", default="container-name",
+    parser.addoption("--azure-storage-container", action="store", default="azure_storage_container",
                      help="Container Name in Azure where data is stored")
 
 @pytest.fixture
@@ -1218,13 +1173,13 @@ def azure_key(request):
     return request.config.getoption("--azure-key")
 
 @pytest.fixture
-def storage_account_url(request):
-    return request.config.getoption("--storage-account-url")
+def azure_storage_account_url(request):
+    return request.config.getoption("--azure-storage-account-url")
 
 @pytest.fixture
-def storage_account_key(request):
-    return request.config.getoption("--storage-account-key")
+def azure_storage_account_key(request):
+    return request.config.getoption("--azure-storage-account-key")
 
 @pytest.fixture
-def container_name(request):
-    return request.config.getoption("--container-name")
+def azure_storage_container(request):
+    return request.config.getoption("--azure-storage-container")

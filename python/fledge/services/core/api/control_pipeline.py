@@ -80,6 +80,7 @@ async def create(request: web.Request) -> web.Response:
         curl -sX POST http://localhost:8081/fledge/control/pipeline -d '{"name": "pump", "enable": "true", "execution": "shared", "source": {"type": 2, "name": "pump"}}'
         curl -sX POST http://localhost:8081/fledge/control/pipeline -d '{"name": "broadcast", "enable": "true", "execution": "exclusive", "destination": {"type": 4}}'
         curl -sX POST http://localhost:8081/fledge/control/pipeline -d '{"name": "opcua_pump", "enable": "true", "execution": "shared", "source": {"type": 2, "name": "opcua"}, "destination": {"type": 2, "name": "pump1"}}'
+        curl -sX POST http://localhost:8081/fledge/control/pipeline -d '{"name": "opcua_pump", "enable": "true", "execution": "exclusive", "source": {"type": 2, "name": "southOpcua"}, "destination": {"type": 1, "name": "northOpcua"}, "filters": ["Filter1"]}'
         curl -sX POST http://localhost:8081/fledge/control/pipeline -d '{"name": "Test", "enable": "true", "filters": ["Filter1", "Filter2"]}'
     """
     try:
@@ -548,7 +549,6 @@ async def _update_filters(storage, cp_id, cp_name, cp_filters):
             v['default'] = v['value']
             v.pop('value', None)
         # Create category
-        # TODO: parent-child relation?
         cat_name = "ctrl_{}_{}".format(cp_name, fname)
         await cf_mgr.create_category(category_name=cat_name,
                                      category_description="Filter of {} control pipeline.".format(
@@ -563,4 +563,9 @@ async def _update_filters(storage, cp_id, cp_name, cp_filters):
         payload = PayloadBuilder().INSERT(**column_names).payload()
         await storage.insert_into_tbl("control_filters", payload)
         new_filters.append(cat_name)
+    try:
+        # Create parent-child relation with Dispatcher service
+        await cf_mgr.create_child_category("dispatcher", new_filters)
+    except:
+        pass
     return new_filters

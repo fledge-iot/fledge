@@ -22,7 +22,6 @@ import utils
 from pathlib import Path
 import urllib.parse
 from azure.storage.blob import BlobServiceClient
-import pandas as pd
 import json
 
 # This  gives the path of directory where fledge is cloned. test_file < packages < python < system < tests < ROOT
@@ -82,7 +81,14 @@ def read_data_from_azure_storage_container(azure_storage_account_url,azure_stora
     except (Exception) as ex:
         print("Failed to read data due to {}".format(ex))
         return None
-        
+
+def verify_invalid_config(fledge_url):
+    get_url = "/fledge/ping"
+    ping_result = utils.get_request(fledge_url, get_url)
+    assert "dataRead" in ping_result
+    assert 0 < ping_result['dataRead'], "South data NOT seen in ping header"
+    assert "dataSent" in ping_result
+    assert 0 == ping_result['dataSent'], "Data sent to Azure Iot Hub"
 
 def verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries):
     get_url = "/fledge/ping"
@@ -201,6 +207,7 @@ def config_south(fledge_url, ASSET):
     put_url = "/fledge/category/{}".format(SOUTH_SERVICE_NAME)
     utils.put_request(fledge_url, urllib.parse.quote(put_url), payload)
 
+
 class TestNorthAzureIoTHubDevicePlugin:
     
     def test_send(self, clean_setup_fledge_packages, reset_fledge, add_south_north_service, fledge_url, enable_schedule, 
@@ -220,9 +227,9 @@ class TestNorthAzureIoTHubDevicePlugin:
         ASSET = "test1_FOGL-7352_system"
         config_south(fledge_url, ASSET)
         
-        # Enable South Service for 30 Seonds
+        # Enable South Service for 10 Seonds
         enable_schedule(fledge_url, SOUTH_SERVICE_NAME)
-        time.sleep(wait_time * 3)
+        time.sleep(wait_time)
         disable_schedule(fledge_url, SOUTH_SERVICE_NAME)
         
         # Enable North Service for sending data to Azure-IOT-Hub
@@ -300,7 +307,6 @@ class TestNorthAzureIoTHubDevicePlugin:
             if not skip_verify_north_interface:
                 _verify_egress(azure_storage_account_url, azure_storage_account_key, azure_storage_container, wait_time, retries, ASSET)
 
-
 class TestNorthAzureIoTHubDevicePluginTask:
     
     def test_send_as_a_task(self, reset_fledge, add_south_north_task, fledge_url, enable_schedule, disable_schedule, 
@@ -311,9 +317,9 @@ class TestNorthAzureIoTHubDevicePluginTask:
         ASSET = "test5_FOGL-7352_system"
         config_south(fledge_url, ASSET)
         
-        # Enable South Service for 30 Seonds
+        # Enable South Service for 10 Seonds
         enable_schedule(fledge_url, SOUTH_SERVICE_NAME)
-        time.sleep(wait_time * 3)
+        time.sleep(wait_time)
         disable_schedule(fledge_url, SOUTH_SERVICE_NAME)
         
         # Enable North Service for sending data to Azure-IOT-Hub
@@ -390,11 +396,60 @@ class TestNorthAzureIoTHubDevicePluginTask:
             if not skip_verify_north_interface:
                 _verify_egress(azure_storage_account_url, azure_storage_account_key, azure_storage_container, wait_time, retries, ASSET)
     
+class TestNorthAzureIoTHubDevicePluginInvalidConfig:
+
+    def test_invalid_connstr(self, reset_fledge, add_south, add_north, fledge_url, enable_schedule, disable_schedule, wait_time, retries):
+        
+        # Add South and North
+        add_south(SOUTH_PLUGIN, None, fledge_url, service_name=SOUTH_SERVICE_NAME, start_service=False, installation_type='package')
+        
+        _config = {
+        "primaryConnectionString": {"value":"InvalidConfig"}
+        }
+        # north_branch does not matter as these are archives.fledge-iot.org version install
+        add_north(fledge_url, NORTH_PLUGIN_NAME, None, installation_type='package', north_instance_name=NORTH_SERVICE_NAME, 
+                  config=_config, enabled=False, plugin_discovery_name=NORTH_PLUGIN_DISCOVERY_NAME, is_task=False)
+        
+        # Update Asset name
+        ASSET = "test8_FOGL-7352_system"
+        config_south(fledge_url, ASSET)
+        
+        # Enable South Service for 10 Seonds
+        enable_schedule(fledge_url, SOUTH_SERVICE_NAME)
+        time.sleep(wait_time)
+        disable_schedule(fledge_url, SOUTH_SERVICE_NAME)
+        
+        # Enable North Service for sending data to Azure-IOT-Hub
+        enable_schedule(fledge_url, NORTH_SERVICE_NAME)
+        
+        verify_invalid_config(fledge_url)
+
     
-    @pytest.mark.skip(reason="To be implemented")
-    def test_invalid_connstr(self, reset_fledge, add_south_north_service, fledge_url, wait_time, retries):
-        pass
     
-    @pytest.mark.skip(reason="To be implemented")
-    def test_invalid_connstr_sharedkey(self, reset_fledge, add_south_north_service, fledge_url, wait_time, retries):
-        pass
+    def test_invalid_connstr_sharedkey(self, reset_fledge, add_south, add_north, fledge_url, enable_schedule, disable_schedule, 
+                                       wait_time, retries, azure_host, azure_device, azure_key):
+        
+        # Add South and North
+        add_south(SOUTH_PLUGIN, None, fledge_url, service_name=SOUTH_SERVICE_NAME, start_service=False, installation_type='package')
+        
+        _config = {
+            "primaryConnectionString": {"value":"HostName={};DeviceId={};SharedAccessKey={}".format(azure_host, azure_device, azure_key[:-5])}
+        }
+        # north_branch does not matter as these are archives.fledge-iot.org version install
+        add_north(fledge_url, NORTH_PLUGIN_NAME, None, installation_type='package', north_instance_name=NORTH_SERVICE_NAME, 
+                  config=_config, enabled=False, plugin_discovery_name=NORTH_PLUGIN_DISCOVERY_NAME, is_task=False)
+        
+        # Update Asset name
+        ASSET = "test9_FOGL-7352_system"
+        config_south(fledge_url, ASSET)
+        
+        # Enable South Service for 10 Seonds
+        enable_schedule(fledge_url, SOUTH_SERVICE_NAME)
+        time.sleep(wait_time)
+        disable_schedule(fledge_url, SOUTH_SERVICE_NAME)
+        
+        # Enable North Service for sending data to Azure-IOT-Hub
+        enable_schedule(fledge_url, NORTH_SERVICE_NAME)
+        
+        verify_invalid_config(fledge_url)
+        

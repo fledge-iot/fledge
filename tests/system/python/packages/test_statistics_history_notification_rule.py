@@ -71,14 +71,14 @@ def start_north(start_north_omf_as_a_service, fledge_url,
     yield start_north
 
 @pytest.fixture
-def add_notification_service(service_branch, fledge_url, wait_time):
+def add_notification_service(fledge_url, wait_time, enabled="true"):
     try:
-        subprocess.run(["sudo apt install -y fledge-service-notification fledge-notify-asset"], shell=True, check=True)
+        subprocess.run(["sudo {} install -y fledge-service-notification fledge-notify-asset".format(pytest.PKG_MGR)], shell=True, check=True)
     except subprocess.CalledProcessError:
         assert False, "notification service installation failed"
 
     # Enable service
-    data = {"name": NOTIF_SERVICE_NAME, "type": "notification", "enabled": "true"}
+    data = {"name": NOTIF_SERVICE_NAME, "type": "notification", "enabled": enabled}
     print (data)
     utils.post_request(fledge_url, "/fledge/service", data)
 
@@ -86,6 +86,8 @@ def add_notification_service(service_branch, fledge_url, wait_time):
     time.sleep(wait_time)
     verify_service_added(fledge_url, NOTIF_SERVICE_NAME)
 
+@pytest.fixture
+def add_notification_instance(fledge_url, enabled=True):
     payload = {
         "name": "test #1",
         "description": "test notification instance",
@@ -99,13 +101,13 @@ def add_notification_service(service_branch, fledge_url, wait_time):
         "delivery_config": {"enable": "true"},
         "notification_type": "retriggered",
         "retrigger_time": "30",
-        "enabled": True,
+        "enabled": enabled,
     }
     post_url = "/fledge/notification"
     utils.post_request(fledge_url, post_url, payload)
     
-    get_url = "/fledge/notification"
-    resp = utils.get_request(fledge_url, get_url)
+    notification_url = "/fledge/notification"
+    resp = utils.get_request(fledge_url, notification_url)
     assert "test #1" in [s["name"] for s in resp["notifications"]]
 
 def verify_service_added(fledge_url, name):
@@ -157,7 +159,7 @@ def _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_d
 
 
 class TestStatisticsHistoryBasedNotificationRuleOnIngress:
-    def test_stats_readings_south(self, clean_setup_fledge_packages, reset_fledge, start_south, add_notification_service, fledge_url,
+    def test_stats_readings_south(self, clean_setup_fledge_packages, reset_fledge, start_south, add_notification_service, add_notification_instance, fledge_url,
                  skip_verify_north_interface, wait_time, retries):
         """ Test NTFSN triggered or not with source as statistics history and name as READINGS in threshold rule.
             clean_setup_fledge_packages: Fixture to remove and install latest fledge packages
@@ -180,7 +182,7 @@ class TestStatisticsHistoryBasedNotificationRuleOnIngress:
         for audit_detail in resp1['audit']:
             if "test #1" == audit_detail['details']['name']:
                 assert "NTFSN" == audit_detail['source']
-        # Waiting for 60 sec to get more NTFSN entries
+        # Waiting for 60 sec to get 2 more NTFSN entries if rule is triggered properly
         time.sleep(60)
         resp2 = utils.get_request(fledge_url, get_url)
         assert len(resp2['audit']) - len(resp1['audit']) == 2, "ERROR: NTFSN not triggered properly"

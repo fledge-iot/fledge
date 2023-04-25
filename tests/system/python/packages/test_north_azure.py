@@ -23,6 +23,8 @@ from pathlib import Path
 import urllib.parse
 from azure.storage.blob import BlobServiceClient
 import json
+import sys
+import datetime
 
 # This  gives the path of directory where fledge is cloned. test_file < packages < python < system < tests < ROOT
 PROJECT_ROOT = subprocess.getoutput("git rev-parse --show-toplevel")
@@ -307,6 +309,7 @@ class TestNorthAzureIoTHubDevicePlugin:
             if not skip_verify_north_interface:
                 _verify_egress(azure_storage_account_url, azure_storage_account_key, azure_storage_container, wait_time, retries, ASSET)
 
+
 class TestNorthAzureIoTHubDevicePluginTask:
     
     def test_send_as_a_task(self, reset_fledge, add_south_north_task, fledge_url, enable_schedule, disable_schedule, 
@@ -395,7 +398,8 @@ class TestNorthAzureIoTHubDevicePluginTask:
             disable_schedule(fledge_url, NORTH_SERVICE_NAME)
             if not skip_verify_north_interface:
                 _verify_egress(azure_storage_account_url, azure_storage_account_key, azure_storage_container, wait_time, retries, ASSET)
-    
+
+
 class TestNorthAzureIoTHubDevicePluginInvalidConfig:
 
     def test_invalid_connstr(self, reset_fledge, add_south, add_north, fledge_url, enable_schedule, disable_schedule, wait_time, retries):
@@ -425,7 +429,6 @@ class TestNorthAzureIoTHubDevicePluginInvalidConfig:
         verify_invalid_config(fledge_url)
 
     
-    
     def test_invalid_connstr_sharedkey(self, reset_fledge, add_south, add_north, fledge_url, enable_schedule, disable_schedule, 
                                        wait_time, retries, azure_host, azure_device, azure_key):
         
@@ -452,4 +455,41 @@ class TestNorthAzureIoTHubDevicePluginInvalidConfig:
         enable_schedule(fledge_url, NORTH_SERVICE_NAME)
         
         verify_invalid_config(fledge_url)
+
+
+class TestNorthAzureIoTHubDevicePluginLongRun:
+    @pytest.mark.skipif("--skip-long-run-test" in sys.argv, reason = "Skipping long run test based on parameter passed")
+    def test_send_long_run(self, reset_fledge, add_south_north_service, fledge_url, enable_schedule, 
+                           disable_schedule, azure_host, azure_device, azure_key, wait_time, retries, skip_verify_north_interface,
+                           azure_storage_account_url, azure_storage_account_key, azure_storage_container, long_run_time):
         
+        START_TIME = datetime.datetime.now()
+        current_iteration = 1
+        # Update Asset name
+        ASSET = "test10_FOGL-7352_system"
+        config_south(fledge_url, ASSET)
+        
+        
+        # Enable South Service for ingesting data into fledge
+        enable_schedule(fledge_url, SOUTH_SERVICE_NAME)
+        
+        time.sleep(wait_time)
+        # Enable North Service for sending data to Azure-IOT-Hub
+        enable_schedule(fledge_url, NORTH_SERVICE_NAME)
+        
+        while (datetime.datetime.now() - START_TIME).seconds <= (int(long_run_time) * 60):
+            verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
+            verify_asset(fledge_url, ASSET)
+            verify_statistics_map(fledge_url, skip_verify_north_interface)
+            verify_asset_tracking_details(fledge_url, skip_verify_north_interface, ASSET)
+            
+            # Azure Iot Hub take 150 seconds to show the data sents to it
+            time.sleep(150)
+            
+            if not skip_verify_north_interface:
+                _verify_egress(azure_storage_account_url, azure_storage_account_key, azure_storage_container, wait_time, retries, ASSET)
+                
+            print('Successfully ran {} iterations'.format(current_iteration), datetime.datetime.now())
+            current_iteration += 1
+            current_duration = (datetime.datetime.now() - START_TIME).seconds
+            

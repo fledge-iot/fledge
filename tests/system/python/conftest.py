@@ -826,6 +826,12 @@ def pytest_addoption(parser):
     
     parser.addoption("--azure-storage-container", action="store", default="azure_storage_container",
                      help="Container Name in Azure where data is stored")
+    
+    parser.addoption("--long-run-time", action="store", default="60",
+                    help="The number of minute for which a test should run")
+    
+    parser.addoption("--skip-long-run-test", action="store_true",
+                    help="Fixture to skip execution of long run tests")
 
 @pytest.fixture
 def num_assets(request):
@@ -1184,3 +1190,11 @@ def azure_storage_account_key(request):
 @pytest.fixture
 def azure_storage_container(request):
     return request.config.getoption("--azure-storage-container")
+
+@pytest.fixture
+def long_run_time(request):
+    return request.config.getoption("--long-run-time")
+
+@pytest.fixture
+def skip_long_run_test(request):
+    return request.config.getoption("--skip-long-run-test")

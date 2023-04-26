@@ -397,17 +397,24 @@ async def _check_parameters(payload):
                     raise ValueError("Invalid source type found.")
             else:
                 raise ValueError('Source type is missing.')
-            if source_name is not None:
-                if not isinstance(source_name, str):
-                    raise ValueError("Source name should be a string value.")
-                source_name = source_name.strip()
-                if len(source_name) == 0:
-                    raise ValueError('Source name cannot be empty.')
-                await _validate_lookup_name("source", source_type, source_name)
+            # Note: when source type is Any; no name is applied
+            if source_type != 1:
+                if source_name is not None:
+                    if not isinstance(source_name, str):
+                        raise ValueError("Source name should be a string value.")
+                    source_name = source_name.strip()
+                    if len(source_name) == 0:
+                        raise ValueError('Source name cannot be empty.')
+                    await _validate_lookup_name("source", source_type, source_name)
+                    column_names["stype"] = source_type
+                    column_names["sname"] = source_name
+                else:
+                    raise ValueError('Source name is missing.')
+            else:
+                source_name = ''
+                source = {'type': source_type, 'name': source_name}
                 column_names["stype"] = source_type
                 column_names["sname"] = source_name
-            else:
-                raise ValueError('Source name is missing.')
         else:
             column_names["stype"] = 0
             column_names["sname"] = ""

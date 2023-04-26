@@ -165,7 +165,7 @@ def verify_eds_data():
     return r
 
 class TestDataAvailabilityAuditBasedNotificationRuleOnIngress:
-    def test_data_availability_multiple_audit(self, reset_fledge, add_notification_service, add_notification_instance, start_south, fledge_url,
+    def test_data_availability_multiple_audit(self, clean_setup_fledge_packages, reset_fledge, add_notification_service, add_notification_instance, start_south, fledge_url,
                  skip_verify_north_interface, wait_time, retries):
         """ Test NTFSN triggered or not with CONAD, SCHAD.
             clean_setup_fledge_packages: Fixture to remove and install latest fledge packages
@@ -229,14 +229,33 @@ class TestDataAvailabilityAuditBasedNotificationRuleOnIngress:
         
         # Add new service
         south_plugin = "sinusoid"
-        config = {"assetName": {"value": SOUTH_ASSET_NAME}}
+        config = {"assetName": {"value": "sine-test"}}
         # south_branch does not matter as these are archives.fledge-iot.org version install
-        add_south(south_plugin, None, fledge_url, service_name=SOUTH_SERVICE_NAME, installation_type='package', config=config)
+        add_south(south_plugin, None, fledge_url, service_name="sine-test", installation_type='package', config=config)
 
         time.sleep(wait_time)
         get_url = "/fledge/audit?source=NTFSN"
         resp2 = utils.get_request(fledge_url, get_url)
-        assert len(resp2['audit']) > len(resp1['audit']), "ERROR: NTFSN not triggered properly on CONCH"
+        assert len(resp2['audit']) > len(resp1['audit']), "ERROR: NTFSN not triggered properly with * audit code"
+
+class TestDataAvailabilityAssetBasedNotificationRuleOnIngress:
+    def test_data_availability_asset(self, fledge_url, add_south, skip_verify_north_interface, wait_time, retries):
+        """ Test NTFSN triggered or not with all audit changes.
+                on endpoint GET /fledge/audit
+                on endpoint GET /fledge/ping
+                on endpoint GET /fledge/category """
+        get_url = "/fledge/audit?source=NTFSN"
+        resp1 = utils.get_request(fledge_url, get_url)
+
+        # Change the configuration of rule plugin
+        put_url = "/fledge/category/ruletest #1"
+        data = {"auditCode": "", "assetCode": SOUTH_ASSET_NAME}
+        utils.put_request(fledge_url, urllib.parse.quote(put_url), data)
+
+        time.sleep(wait_time)
+        get_url = "/fledge/audit?source=NTFSN"
+        resp2 = utils.get_request(fledge_url, get_url)
+        assert len(resp2['audit']) > len(resp1['audit']), "ERROR: NTFSN not triggered properly with asset code"
 
 class TestDataAvailabilityBasedNotificationRuleOnEgress:
     def test_data_availability_north(self, check_eds_installed, reset_eds, start_north, fledge_url,

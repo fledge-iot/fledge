@@ -145,7 +145,7 @@ async def remove_package(request: web.Request) -> web.Response:
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": "Storage error: {}".format(msg)}))
     except Exception as ex:
         msg = str(ex)
-        _logger.error("Failed to delete {} package. {}".format(package_name, msg))
+        _logger.error(ex, "Failed to delete {} package.".format(package_name))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({'message': msg}))
     else:
         return web.json_response(final_response)
@@ -287,7 +287,7 @@ async def remove_plugin(request: web.Request) -> web.Response:
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": "Storage error: {}".format(msg)}))
     except Exception as ex:
         msg = str(ex)
-        _logger.error("Failed to remove {} plugin. {}".format(name, msg))
+        _logger.error(ex, "Failed to remove {} plugin.".format(name))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({'message': msg}))
     else:
         return web.json_response(result_payload)
@@ -443,6 +443,6 @@ def purge_plugin(plugin_type: str, plugin_name: str, pkg_name: str, version: str
                 raise OSError("While deleting, invalid plugin path found for {}".format(plugin_name))
         except Exception as ex:
             code = 1
-            _logger.error("Error in removing plugin: {}".format(str(ex)))
+            _logger.error(ex, "Error in removing plugin.")
         _logger.info('{} plugin removed successfully.'.format(plugin_name))
     return code, stdout_file_path, is_package

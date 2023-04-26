@@ -66,7 +66,7 @@ async def get_lookup(request: web.Request) -> web.Response:
                 response = {'controlLookup': lookup}
     except Exception as ex:
         msg = str(ex)
-        _logger.error("Failed to get all control lookups. {}".format(msg))
+        _logger.error(ex, "Failed to get all control lookups.")
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(response)
@@ -132,7 +132,7 @@ async def create(request: web.Request) -> web.Response:
         raise web.HTTPBadRequest(body=json.dumps({"message": msg}), reason=msg)
     except Exception as ex:
         msg = str(ex)
-        _logger.error("Failed to create pipeline: {}. {}".format(data.get('name'), msg))
+        _logger.error(ex, "Failed to create pipeline: {}.".format(data.get('name')))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(final_result)
@@ -168,7 +168,7 @@ async def get_all(request: web.Request) -> web.Response:
             control_pipelines.append(temp)
     except Exception as ex:
         msg = str(ex)
-        _logger.error("Failed to get all pipelines. {}".format(msg))
+        _logger.error(ex, "Failed to get all pipelines.")
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({'pipelines': control_pipelines})
@@ -191,7 +191,7 @@ async def get_by_id(request: web.Request) -> web.Response:
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
-        _logger.error("Failed to fetch details of pipeline having ID:{}. {}".format(cpid, msg))
+        _logger.error(ex, "Failed to fetch details of pipeline having ID: <{}>.".format(cpid))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(pipeline)
@@ -235,7 +235,7 @@ async def update(request: web.Request) -> web.Response:
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
-        _logger.error("Failed to update pipeline having ID:{}. {}".format(cpid, msg))
+        _logger.error(ex, "Failed to update pipeline having ID: <{}>.".format(cpid))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(
@@ -266,7 +266,7 @@ async def delete(request: web.Request) -> web.Response:
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
-        _logger.error("Failed to delete pipeline having ID:{}. {}".format(cpid, msg))
+        _logger.error(ex, "Failed to delete pipeline having ID: <{}>.".format(cpid))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(

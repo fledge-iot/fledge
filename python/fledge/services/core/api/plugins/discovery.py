@@ -85,7 +85,7 @@ async def get_plugins_available(request: web.Request) -> web.Response:
         raise web.HTTPBadRequest(body=json.dumps({"message": msg, "link": str(e)}), reason=msg)
     except Exception as ex:
         msg = str(ex)
-        _logger.error("Failed to get plugins available list. {}".format(msg))
+        _logger.error(ex, "Failed to get plugins available list.")
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
 
     return web.json_response({"plugins": plugins, "link": log_path})

@@ -1473,7 +1473,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 _logger.info("Removing file %s for category %s", f, category_name)
                 os.remove(f)
         except Exception as ex:
-            _logger.error('Failed to delete file(s) for category %s. Exception %s', category_name, str(ex))
+            _logger.error(ex, 'Failed to delete file(s) for category {}.'.format(category_name))
             # raise ex
 
     def register_interest_child(self, category_name, callback):

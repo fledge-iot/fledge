@@ -116,7 +116,7 @@ async def get_backups(request):
             res.append(r)
     except Exception as ex:
         msg = str(ex)
-        _logger.error("Get all backups failed. {}".format(msg))
+        _logger.error(ex, "Get all backups failed.")
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     return web.json_response({"backups": res})
 
@@ -131,7 +131,7 @@ async def create_backup(request):
         status = await backup.create_backup()
     except Exception as ex:
         msg = str(ex)
-        _logger.error("Failed to create Backup. {}".format(msg))
+        _logger.error(ex, "Failed to create Backup.")
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     return web.json_response({"status": status})
 
@@ -158,7 +158,7 @@ async def get_backup_details(request):
         raise web.HTTPNotFound(reason='Backup id {} does not exist'.format(backup_id))
     except Exception as ex:
         msg = str(ex)
-        _logger.error("Failed to fetch backup details for ID: <{}>. {}".format(backup_id, msg))
+        _logger.error(ex, "Failed to fetch backup details for ID: <{}>.".format(backup_id))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     return web.json_response(resp)
 
@@ -206,7 +206,7 @@ async def get_backup_download(request):
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
-        _logger.error("Failed to backup download for ID:<{}>. {}".format(backup_id, msg))
+        _logger.error(ex, "Failed to backup download for ID: <{}>.".format(backup_id))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.FileResponse(path=gz_path)
@@ -229,7 +229,7 @@ async def delete_backup(request):
         raise web.HTTPNotFound(reason='Backup id {} does not exist'.format(backup_id))
     except Exception as ex:
         msg = str(ex)
-        _logger.error("Failed to delete Backup ID:<{}>. {}".format(backup_id, msg))
+        _logger.error(ex, "Failed to delete Backup ID: <{}>.".format(backup_id))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
 
 
@@ -252,7 +252,7 @@ async def restore_backup(request):
         raise web.HTTPNotFound(reason='Backup with {} does not exist'.format(backup_id))
     except Exception as ex:
         msg = str(ex)
-        _logger.error("Failed to restore Backup ID:<{}>. {}".format(backup_id, msg))
+        _logger.error(ex, "Failed to restore Backup ID: <{}>.".format(backup_id))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
 
 
@@ -357,7 +357,7 @@ async def upload_backup(request: web.Request) -> web.Response:
         raise web.HTTPNotImplemented(reason=msg, body=json.dumps({"message": msg}))
     except Exception as exc:
         msg = str(exc)
-        _logger.error("Failed to upload Backup. {}".format(msg))
+        _logger.error(exc, "Failed to upload Backup.")
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         msg = "{} backup uploaded successfully.".format(file_name)

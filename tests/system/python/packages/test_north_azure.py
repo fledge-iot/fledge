@@ -21,10 +21,16 @@ import time
 import utils
 from pathlib import Path
 import urllib.parse
-from azure.storage.blob import BlobServiceClient
 import json
 import sys
 import datetime
+
+try:
+    subprocess.run(["python3 -m pip install azure-storage-blob==12.13.1"], shell=True, check=True)
+except subprocess.CalledProcessError:
+    assert False, "Failed to install azure-storage-blob modqule"
+
+from azure.storage.blob import BlobServiceClient
 
 # This  gives the path of directory where fledge is cloned. test_file < packages < python < system < tests < ROOT
 PROJECT_ROOT = subprocess.getoutput("git rev-parse --show-toplevel")
@@ -251,7 +257,7 @@ class TestNorthAzureIoTHubDevicePlugin:
         verify_statistics_map(fledge_url, skip_verify_north_interface)
         verify_asset_tracking_details(fledge_url, skip_verify_north_interface, ASSET)
         
-        # Azure Iot Hub take 150 seconds to show the data sents to it
+        # Storage blob JSON will be created every 2 minutes
         time.sleep(150)
         
         if not skip_verify_north_interface:
@@ -283,7 +289,7 @@ class TestNorthAzureIoTHubDevicePlugin:
         verify_statistics_map(fledge_url, skip_verify_north_interface)
         verify_asset_tracking_details(fledge_url, skip_verify_north_interface, ASSET)
         
-        # Azure Iot Hub take 150 seconds to show the data sents to it
+        # Storage blob JSON will be created every 2 minutes
         time.sleep(150)
         
         if not skip_verify_north_interface:
@@ -311,7 +317,7 @@ class TestNorthAzureIoTHubDevicePlugin:
             verify_asset(fledge_url, ASSET)
             verify_statistics_map(fledge_url, skip_verify_north_interface)
             
-            # Azure Iot Hub take 150 seconds to show the data sents to it
+            # Storage blob JSON will be created every 2 minutes
             time.sleep(150)
             disable_schedule(fledge_url, NORTH_SERVICE_NAME)
             if not skip_verify_north_interface:
@@ -354,7 +360,7 @@ class TestNorthAzureIoTHubDevicePlugin:
         verify_statistics_map(fledge_url, skip_verify_north_interface)
         verify_asset_tracking_details(fledge_url, skip_verify_north_interface, ASSET)
         
-        # Azure Iot Hub take 150 seconds to show the data sents to it
+        # Storage blob JSON will be created every 2 minutes
         time.sleep(150)
         
         if not skip_verify_north_interface:
@@ -384,7 +390,7 @@ class TestNorthAzureIoTHubDevicePluginTask:
         verify_statistics_map(fledge_url, skip_verify_north_interface)
         verify_asset_tracking_details(fledge_url, skip_verify_north_interface, ASSET)
         
-        # Azure Iot Hub take 150 seconds to show the data sents to it
+        # Storage blob JSON will be created every 2 minutes
         time.sleep(150)
         
         if not skip_verify_north_interface:
@@ -416,7 +422,7 @@ class TestNorthAzureIoTHubDevicePluginTask:
         verify_statistics_map(fledge_url, skip_verify_north_interface)
         verify_asset_tracking_details(fledge_url, skip_verify_north_interface, ASSET)
         
-        # Azure Iot Hub take 150 seconds to show the data sents to it
+        # Storage blob JSON will be created every 2 minutes
         time.sleep(150)
         
         if not skip_verify_north_interface:
@@ -444,7 +450,7 @@ class TestNorthAzureIoTHubDevicePluginTask:
             verify_asset(fledge_url, ASSET)
             verify_statistics_map(fledge_url, skip_verify_north_interface)
             
-            # Azure Iot Hub take 150 seconds to show the data sents to it
+            # Storage blob JSON will be created every 2 minutes
             time.sleep(150)
             disable_schedule(fledge_url, NORTH_SERVICE_NAME)
             if not skip_verify_north_interface:
@@ -486,7 +492,7 @@ class TestNorthAzureIoTHubDevicePluginTask:
         verify_statistics_map(fledge_url, skip_verify_north_interface)
         verify_asset_tracking_details(fledge_url, skip_verify_north_interface, ASSET)
         
-        # Azure Iot Hub take 150 seconds to show the data sents to it
+        # Storage blob JSON will be created every 2 minutes
         time.sleep(150)
         
         if not skip_verify_north_interface:
@@ -553,7 +559,7 @@ class TestNorthAzureIoTHubDevicePluginInvalidConfig:
 
 class TestNorthAzureIoTHubDevicePluginLongRun:
     
-    def test_send_long_run(self, reset_fledge, add_south_north_service, fledge_url, enable_schedule, 
+    def test_send_long_run(self, clean_setup_fledge_packages, reset_fledge, add_south_north_service, fledge_url, enable_schedule, 
                            disable_schedule, azure_host, azure_device, azure_key, wait_time, retries, skip_verify_north_interface,
                            azure_storage_account_url, azure_storage_account_key, azure_storage_container, long_run_time):
         
@@ -577,7 +583,7 @@ class TestNorthAzureIoTHubDevicePluginLongRun:
             verify_statistics_map(fledge_url, skip_verify_north_interface)
             verify_asset_tracking_details(fledge_url, skip_verify_north_interface, ASSET)
             
-            # Azure Iot Hub take 150 seconds to show the data sents to it
+            # Storage blob JSON will be created every 2 minutes
             time.sleep(150)
             
             if not skip_verify_north_interface:

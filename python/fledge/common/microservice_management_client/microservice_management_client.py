@@ -55,7 +55,8 @@ class MicroserviceManagementClient(object):
         try:
             response["id"]
         except (KeyError, Exception) as ex:
-            _logger.exception("Could not register the microservice, From request %s, Reason: %s", json.dumps(service_registration_payload), str(ex))
+            _logger.exception(ex, "Could not register the microservice, From request {}".format(
+                json.dumps(service_registration_payload)))
             raise
 
         return response
@@ -86,8 +87,7 @@ class MicroserviceManagementClient(object):
         try:
             response["id"]
         except (KeyError, Exception) as ex:
-            _logger.exception("Could not unregister the micro-service having uuid %s, Reason: %s",
-                              microservice_id, str(ex))
+            _logger.exception(ex, "Could not unregister the micro-service having uuid {}".format(microservice_id))
             raise
 
         return response
@@ -117,8 +117,7 @@ class MicroserviceManagementClient(object):
         try:
             response["id"]
         except (KeyError, Exception) as ex:
-            _logger.exception("Could not register interest, for request payload %s, Reason: %s",
-                              payload, str(ex))
+            _logger.exception(ex, "Could not register interest, for request payload {}".format(payload))
             raise
 
         return response
@@ -145,7 +144,7 @@ class MicroserviceManagementClient(object):
         try:
             response["id"]
         except (KeyError, Exception) as ex:
-            _logger.exception("Could not unregister interest for %s, Reason: %s", registered_interest_id, str(ex))
+            _logger.exception(ex, "Could not unregister interest for {}".format(registered_interest_id))
             raise
 
         return response
@@ -179,7 +178,7 @@ class MicroserviceManagementClient(object):
         try:
             response["services"]
         except (KeyError, Exception) as ex:
-            _logger.exception("Could not find the micro-service for requested url %s, Reason: %s", url, str(ex))
+            _logger.exception(ex, "Could not find the micro-service for requested url {}".format(url))
             raise
 
         return response

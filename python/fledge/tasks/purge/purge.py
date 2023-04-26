@@ -273,4 +273,4 @@ class Purge(FledgeProcess):
             await self.purge_stats_history(config)
             await self.purge_audit_trail_log(config)
         except Exception as ex:
-            self._logger.exception(str(ex))
+            self._logger.exception(ex)

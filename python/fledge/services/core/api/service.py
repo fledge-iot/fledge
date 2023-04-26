@@ -361,7 +361,7 @@ async def add_service(request):
                 plugin_module_path = "{}/plugins/{}/{}".format(_FLEDGE_ROOT, service_type, plugin)
                 if not plugin_config:
                     msg = "Plugin '{}' not found in path '{}'.".format(plugin, plugin_module_path)
-                    _logger.exception("{} Detailed error logs are: {}".format(msg, str(ex)))
+                    _logger.exception(ex, msg)
                     raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
             except TypeError as ex:
                 raise web.HTTPBadRequest(reason=str(ex))

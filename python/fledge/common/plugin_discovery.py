@@ -206,7 +206,7 @@ class PluginDiscovery(object):
         except FileNotFoundError as ex:
             _logger.error('Plugin "{}" import problem from path "{}". {}'.format(plugin_dir, plugin_module_path, str(ex)))
         except Exception as ex:
-            _logger.exception('Plugin "{}" raised exception "{}" while fetching config'.format(plugin_dir, str(ex)))
+            _logger.exception(ex, 'Plugin "{}" failed while fetching config'.format(plugin_dir))
 
         return plugin_config
 

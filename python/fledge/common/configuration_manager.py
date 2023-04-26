@@ -673,7 +673,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             await audit.information('CONCH', audit_details)
 
         except Exception as ex:
-            _logger.exception('Unable to bulk update config items %s', str(ex))
+            _logger.exception(ex, 'Unable to bulk update config items')
             raise
 
         try:
@@ -751,8 +751,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                                                children) if root is not None else await self._read_all_category_names()
             return info
         except:
-            _logger.exception(
-                'Unable to read all category names')
+            _logger.exception('Unable to read all category names')
             raise
 
     async def get_category_all_items(self, category_name):
@@ -782,8 +781,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                                           category["display_name"])
             return category_value
         except:
-            _logger.exception(
-                'Unable to get all category names based on category_name %s', category_name)
+            _logger.exception('Unable to get all category names based on category_name {}'.format(category_name))
             raise
 
     async def get_category_item(self, category_name, item_name):

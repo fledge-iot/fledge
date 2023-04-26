@@ -64,7 +64,7 @@ async def run(category_name):
                     if status_code in range(500, 600):
                         _LOGGER.error("Server error code: %d, reason: %s", status_code, resp.reason)
             except Exception as ex:
-                _LOGGER.exception("Unable to notify microservice with uuid %s due to exception: %s", i._microservice_uuid, str(ex))
+                _LOGGER.exception(ex, "Unable to notify microservice with uuid {}".format(i._microservice_uuid))
                 continue
 
 
@@ -110,8 +110,9 @@ async def run_child_create(parent_category_name, child_category_list):
                         if status_code in range(500, 600):
                             _LOGGER.error("Server error code: %d, reason: %s", status_code, resp.reason)
                 except Exception as ex:
-                    _LOGGER.exception("Unable to notify microservice with uuid %s due to exception: %s", i._microservice_uuid, str(ex))
+                    _LOGGER.exception(ex, "Unable to notify microservice with uuid {}".format(i._microservice_uuid))
                     continue
+
 
 async def run_child_delete(parent_category_name, child_category):
     """ Call the child_delete Management API
@@ -154,8 +155,9 @@ async def run_child_delete(parent_category_name, child_category):
                     if status_code in range(500, 600):
                         _LOGGER.error("Server error code: %d, reason: %s", status_code, resp.reason)
             except Exception as ex:
-                _LOGGER.exception("Unable to notify microservice with uuid %s due to exception: %s", i._microservice_uuid, str(ex))
+                _LOGGER.exception(ex, "Unable to notify microservice with uuid {}".format(i._microservice_uuid))
                 continue
+
 
 async def run_child(parent_category_name, child_category_list, operation):
     """ Callback run by configuration category to notify changes to interested microservices

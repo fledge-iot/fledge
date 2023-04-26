@@ -18,6 +18,7 @@ import urllib.parse
 import json
 from pathlib import Path
 import http
+from datetime import datetime
 import pytest
 import utils
 from pytest import PKG_MGR
@@ -27,6 +28,7 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.parent
 SCRIPTS_DIR_ROOT = "{}/tests/system/python/packages/data/".format(PROJECT_ROOT)
 FLEDGE_ROOT = os.environ.get('FLEDGE_ROOT')
 SOUTH_SERVICE_NAME = "Sine #1"
+SOUTH_DP_NAME="sinusoid"
 SOUTH_ASSET_NAME = "{}_sinusoid_assets".format(time.strftime("%Y%m%d"))
 NORTH_PLUGIN = "OMF"
 TASK_NAME = "EDS #1"
@@ -109,7 +111,7 @@ def add_notification_instance(fledge_url, wait_time, enabled=True):
         "description": "test notification instance",
         "rule": "DataAvailability",
         "rule_config": {
-            "auditCode": "CONCH"
+            "auditCode": "CONAD,SCHAD"
         },
         "channel": "asset",
         "delivery_config": {"enable": "true"},
@@ -153,29 +155,19 @@ def verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries):
         assert 1 <= sent, "Failed to send data via PI Web API using Basic auth"
     return ping_result
 
-def _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries):
+def verify_eds_data():
+    eds_data_url = "/api/v1/tenants/default/namespaces/default/streams/1measurement_{}/Data/Last".format(SOUTH_ASSET_NAME)
+    print (eds_data_url)
+    con = http.client.HTTPConnection("localhost", 5590)
+    con.request("GET", eds_data_url)
+    resp = con.getresponse()
+    r = json.loads(resp.read().decode())
+    return r
 
-    af_hierarchy_level_list = AF_HIERARCHY_LEVEL.split("/")
-    retry_count = 0
-    data_from_pi = None
-    # Name of asset in the PI server
-    pi_asset_name = "{}".format(SOUTH_ASSET_NAME)
-
-    while (data_from_pi is None or data_from_pi == []) and retry_count < retries:
-        data_from_pi = read_data_from_pi_web_api(pi_host, pi_admin, pi_passwd, pi_db, af_hierarchy_level_list,
-                                                    pi_asset_name, '')
-        if data_from_pi is None:
-            retry_count += 1
-            time.sleep(wait_time)
-
-    if data_from_pi is None or retry_count == retries:
-        assert False, "Failed to read data from PI"
-
-
-class TestDataAvailabilityBasedNotificationRuleOnIngress:
-    def test_data_availability_south(self, reset_fledge, start_south, add_notification_service, add_notification_instance, fledge_url,
+class TestDataAvailabilityAuditBasedNotificationRuleOnIngress:
+    def test_data_availability_multiple_audit(self, reset_fledge, add_notification_service, add_notification_instance, start_south, fledge_url,
                  skip_verify_north_interface, wait_time, retries):
-        """ Test NTFSN triggered or not with configuration change in sinusoid plugin.
+        """ Test NTFSN triggered or not with CONAD, SCHAD.
             clean_setup_fledge_packages: Fixture to remove and install latest fledge packages
             reset_fledge: Fixture to reset fledge
             start_south: Fixtures to add and start south services
@@ -184,21 +176,11 @@ class TestDataAvailabilityBasedNotificationRuleOnIngress:
             Assertions:
                 on endpoint GET /fledge/audit
                 on endpoint GET /fledge/ping
-                on endpoint GET /fledge/statistics/history """
+                on endpoint GET /fledge/category """
         time.sleep(wait_time)
 
         verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
-        
-        get_url = "/fledge/audit?source=NTFSN"
-        resp = utils.get_request(fledge_url, get_url)
-        print (len(resp['audit']))
-        
-        # Change the configuration of sinusoid plugin
-        put_url = "/fledge/category/Sine #1Advanced"
-        data = {"readingsPerSec": "10"}
-        utils.put_request(fledge_url, urllib.parse.quote(put_url), data)
 
-        time.sleep(wait_time)
         get_url = "/fledge/audit?source=NTFSN"
         resp1 = utils.get_request(fledge_url, get_url)
         print (len(resp1['audit']))
@@ -207,23 +189,71 @@ class TestDataAvailabilityBasedNotificationRuleOnIngress:
         assert "test #1" in [s["details"]["name"] for s in resp1["audit"]]
         for audit_detail in resp1['audit']:
             if "test #1" == audit_detail['details']['name']:
-                assert "NTFSN" == audit_detail['source'], "ERROR: NTFSN not triggered properly on CONCH"
+                assert "NTFSN" == audit_detail['source'], "ERROR: NTFSN not triggered properly on CONAD or SCHAD"
 
-
-class TestDataAvailabilityBasedNotificationRuleOnEgress:
-    def test_data_availability_north(self, start_north, fledge_url,
-                 wait_time, skip_verify_north_interface, retries):
-        """ Test NTFSN triggered or not with source as statistics history and name as READINGS in threshold rule.
-            clean_setup_fledge_packages: Fixture to remove and install latest fledge packages
-            reset_fledge: Fixture to reset fledge
-            start_south_north: Fixtures to add and start south and north services
-            add_notification_service: Fixture to add notification service with rule and delivery plugins
-            Assertions:
+    def test_data_availability_single_audit(self, fledge_url, skip_verify_north_interface, wait_time, retries):
+        """ Test NTFSN triggered or not with CONCH in sinusoid plugin.
                 on endpoint GET /fledge/audit
                 on endpoint GET /fledge/ping
-                on endpoint GET /fledge/statistics/history """
+                on endpoint GET /fledge/category """
+        get_url = "/fledge/audit?source=NTFSN"
+        resp1 = utils.get_request(fledge_url, get_url)
+
+        # Change the configuration of rule plugin
+        put_url = "/fledge/category/ruletest #1"
+        data = {"auditCode": "CONCH"}
+        utils.put_request(fledge_url, urllib.parse.quote(put_url), data)
+        
+        # Change the configuration of sinusoid plugin
+        put_url = "/fledge/category/Sine #1Advanced"
+        data = {"readingsPerSec": "10"}
+        utils.put_request(fledge_url, urllib.parse.quote(put_url), data)
+
+        time.sleep(wait_time)
+        get_url = "/fledge/audit?source=NTFSN"
+        resp2 = utils.get_request(fledge_url, get_url)
+        assert len(resp2['audit']) - len(resp1['audit']) == 1, "ERROR: NTFSN not triggered properly on CONCH"
+
+    def test_data_availability_all_audit(self, fledge_url, add_south, skip_verify_north_interface, wait_time, retries):
+        """ Test NTFSN triggered or not with all audit changes.
+                on endpoint GET /fledge/audit
+                on endpoint GET /fledge/ping
+                on endpoint GET /fledge/category """
+        get_url = "/fledge/audit?source=NTFSN"
+        resp1 = utils.get_request(fledge_url, get_url)
+
+        # Change the configuration of rule plugin
+        put_url = "/fledge/category/ruletest #1"
+        data = {"auditCode": "*"}
+        utils.put_request(fledge_url, urllib.parse.quote(put_url), data)
+        
+        # Add new service
+        south_plugin = "sinusoid"
+        config = {"assetName": {"value": SOUTH_ASSET_NAME}}
+        # south_branch does not matter as these are archives.fledge-iot.org version install
+        add_south(south_plugin, None, fledge_url, service_name=SOUTH_SERVICE_NAME, installation_type='package', config=config)
+
+        time.sleep(wait_time)
+        get_url = "/fledge/audit?source=NTFSN"
+        resp2 = utils.get_request(fledge_url, get_url)
+        assert len(resp2['audit']) > len(resp1['audit']), "ERROR: NTFSN not triggered properly on CONCH"
+
+class TestDataAvailabilityBasedNotificationRuleOnEgress:
+    def test_data_availability_north(self, check_eds_installed, reset_eds, start_north, fledge_url,
+                 wait_time, skip_verify_north_interface, retries):
+        """ Test NTFSN triggered or not with configuration change in north EDS plugin.
+            start_north: Fixtures to add and start south services
+            Assertions:
+                on endpoint GET /fledge/audit
+                on endpoint GET /fledge/ping """
         
         get_url = "/fledge/audit?source=NTFSN"
         resp2 = utils.get_request(fledge_url, get_url)
         assert len(resp2['audit'])
         print (len(resp2['audit']))
+        
+        time.sleep(wait_time)
+        r = verify_eds_data()
+        assert SOUTH_DP_NAME in r, "Data in EDS not found!"
+        ts = r.get("Time")
+        assert ts.find(datetime.now().strftime("%Y-%m-%d")) != -1, "Latest data not found in EDS!"

@@ -668,6 +668,23 @@ def disable_schedule():
     return _disable_sch
 
 
+
+@pytest.fixture(scope="session", autouse=True)
+def collect_support_bundle():
+    def _collect_support_bundle(fledge_url):
+        conn = http.client.HTTPConnection(fledge_url)
+        conn.request("POST", "fledge/support")
+        r = conn.getresponse()
+        assert 200 == r.status
+        r = r.read().decode()
+        jdoc = json.loads(r)
+        assert jdoc["bundle created"]
+        
+        subprocess.run(["cp {} $FLEDGE_ROOT/.".format(jdoc["bundle created"])], shell=True, check=True)
+        
+    return _collect_support_bundle
+
+
 def pytest_addoption(parser):
     parser.addoption("--storage-plugin", action="store", default="sqlite",
                      help="Database plugin to use for tests")

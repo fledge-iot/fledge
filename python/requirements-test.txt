@@ -18,4 +18,3 @@ yarl==1.7.2
 
 # For Azure IoT Hub
 azure-storage-blob==12.13.1
-pandas==1.1.5

@@ -105,7 +105,7 @@ def add_notification_service(fledge_url, wait_time, enabled="true"):
     verify_service_added(fledge_url, NOTIF_SERVICE_NAME)
 
 @pytest.fixture
-def add_notification_instance(fledge_url, wait_time, enabled=True):
+def add_notification_instance(fledge_url, enabled=True):
     payload = {
         "name": "test #1",
         "description": "test notification instance",
@@ -258,18 +258,31 @@ class TestDataAvailabilityAssetBasedNotificationRuleOnIngress:
         assert len(resp2['audit']) > len(resp1['audit']), "ERROR: NTFSN not triggered properly with asset code"
 
 class TestDataAvailabilityBasedNotificationRuleOnEgress:
-    def test_data_availability_north(self, check_eds_installed, reset_eds, start_north, fledge_url,
-                 wait_time, skip_verify_north_interface, retries):
+    def test_data_availability_north(self, check_eds_installed, reset_fledge, add_notification_service, add_notification_instance,
+                 reset_eds, start_north, fledge_url, wait_time, skip_verify_north_interface, add_south, retries):
         """ Test NTFSN triggered or not with configuration change in north EDS plugin.
             start_north: Fixtures to add and start south services
             Assertions:
                 on endpoint GET /fledge/audit
                 on endpoint GET /fledge/ping """
         
+        # Change the configuration of rule plugin
+        put_url = "/fledge/category/ruletest #1"
+        data = {"auditCode": "", "assetCode": SOUTH_ASSET_NAME}
+        utils.put_request(fledge_url, urllib.parse.quote(put_url), data)
+        
+        # Add new service
+        south_plugin = "sinusoid"
+        config = {"assetName": {"value": SOUTH_ASSET_NAME}}
+        # south_branch does not matter as these are archives.fledge-iot.org version install
+        add_south(south_plugin, None, fledge_url, service_name="sine-test", installation_type='package', config=config)
+
+        get_url = "/fledge/audit?source=NTFSN"
+        resp1 = utils.get_request(fledge_url, get_url)
+        
         get_url = "/fledge/audit?source=NTFSN"
         resp2 = utils.get_request(fledge_url, get_url)
-        assert len(resp2['audit'])
-        print (len(resp2['audit']))
+        assert len(resp2['audit']) > len(resp1['audit']), "ERROR: NTFSN not triggered properly with asset code"
         
         time.sleep(wait_time)
         r = verify_eds_data()

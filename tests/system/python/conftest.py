@@ -668,7 +668,7 @@ def disable_schedule():
     return _disable_sch
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture(scope="function", autouse=True)
 def collect_support_bundle(request):
     def _collect_support_bundle():
         conn = http.client.HTTPConnection("{}".format(url))
@@ -678,6 +678,9 @@ def collect_support_bundle(request):
         r = r.read().decode()
         jdoc = json.loads(r)
         assert jdoc["bundle created"]
+        PROJECT_ROOT = subprocess.getoutput("git rev-parse --show-toplevel")
+        subprocess.run(["mkdir -p {0}/support/ && cp -r {1} {0}/support/.".format(PROJECT_ROOT, jdoc["bundle created"])], shell=True, check=True)
+         
     url = request.config.getoption("--fledge-url")
     request.addfinalizer(_collect_support_bundle)
 

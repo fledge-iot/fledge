@@ -152,7 +152,7 @@ def verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries):
             retry_count += 1
             ping_result = utils.get_request(fledge_url, get_url)
 
-        assert 1 <= sent, "Failed to send data via PI Web API using Basic auth"
+        assert 1 <= sent, "Failed to send data to Edge Data Store"
     return ping_result
 
 def verify_eds_data():
@@ -179,7 +179,7 @@ class TestDataAvailabilityAuditBasedNotificationRuleOnIngress:
                 on endpoint GET /fledge/category """
         time.sleep(wait_time)
 
-        verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
+        verify_ping(fledge_url, True, wait_time, retries)
 
         get_url = "/fledge/audit?source=NTFSN"
         resp1 = utils.get_request(fledge_url, get_url)
@@ -285,6 +285,7 @@ class TestDataAvailabilityBasedNotificationRuleOnEgress:
         assert len(resp2['audit']) > len(resp1['audit']), "ERROR: NTFSN not triggered properly with asset code"
         
         time.sleep(wait_time)
+        verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
         r = verify_eds_data()
         assert SOUTH_DP_NAME in r, "Data in EDS not found!"
         ts = r.get("Time")

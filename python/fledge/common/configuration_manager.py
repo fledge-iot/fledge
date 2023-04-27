@@ -781,7 +781,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                                           category["display_name"])
             return category_value
         except:
-            _logger.exception('Unable to get all category names based on category_name {}'.format(category_name))
+            _logger.exception('Unable to get all category items of {} category.'.format(category_name))
             raise
 
     async def get_category_item(self, category_name, item_name):

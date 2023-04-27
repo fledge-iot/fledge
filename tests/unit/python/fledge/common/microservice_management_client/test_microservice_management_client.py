@@ -60,8 +60,8 @@ class TestMicroserviceManagementClient:
                         ms_mgt_client.register_service({})
                     assert excinfo.type is KeyError
                 assert 1 == log_exc.call_count
-                log_exc.assert_called_once_with('Could not register the microservice, From request %s, Reason: %s', '{}'
-                                                , "'id'")
+                args = log_exc.call_args
+                assert 'Could not register the microservice, From request {}'.format('{}') == args[0][1]
             response_patch.assert_called_once_with()
         request_patch.assert_called_once_with(body='{}', method='POST', url='/fledge/service')
 
@@ -117,10 +117,10 @@ class TestMicroserviceManagementClient:
                 with patch.object(_logger, "error") as log_error:
                     with pytest.raises(Exception) as excinfo:
                         ms_mgt_client.unregister_service('someid')
-                        assert excinfo.type is KeyError
-                    assert 1 == log_error.call_count
-                    log_error.assert_called_once_with('Could not unregister the micro-service having '
-                                                      'uuid %s, Reason: %s', 'someid', "'id'", exc_info=True)
+                    assert excinfo.type is KeyError
+                assert 1 == log_error.call_count
+                args = log_error.call_args
+                assert 'Could not unregister the micro-service having uuid {}'.format('someid') == args[0][1]
             response_patch.assert_called_once_with()
         request_patch.assert_called_once_with(method='DELETE', url='/fledge/service/someid')
 
@@ -169,25 +169,24 @@ class TestMicroserviceManagementClient:
     def test_register_interest_no_id(self):
         microservice_management_host = 'host1'
         microservice_management_port = 1
-        ms_mgt_client = MicroserviceManagementClient(
-            microservice_management_host, microservice_management_port)
+        ms_mgt_client = MicroserviceManagementClient(microservice_management_host, microservice_management_port)
         response_mock = MagicMock(type=HTTPResponse)
         undecoded_data_mock = MagicMock()
         response_mock.read.return_value = undecoded_data_mock
         undecoded_data_mock.decode.return_value = json.dumps({'notid': 'bla'})
         response_mock.status = 200
+        payload = '{"category": "cat", "service": "msid"}'
         with patch.object(HTTPConnection, 'request') as request_patch:
             with patch.object(HTTPConnection, 'getresponse', return_value=response_mock) as response_patch:
                 with patch.object(_logger, "error") as log_error:
                     with pytest.raises(Exception) as excinfo:
                         ms_mgt_client.register_interest('cat', 'msid')
-                        assert excinfo.type is KeyError
+                    assert excinfo.type is KeyError
                 assert 1 == log_error.call_count
-                log_error.assert_called_once_with('Could not register interest, for request payload %s, Reason: %s',
-                                                  '{"category": "cat", "service": "msid"}', "'id'", exc_info=True)
+                args = log_error.call_args
+                assert 'Could not register interest, for request payload {}'.format(payload) == args[0][1]
             response_patch.assert_called_once_with()
-        request_patch.assert_called_once_with(body='{"category": "cat", "service": "msid"}', method='POST',
-                                              url='/fledge/interest')
+        request_patch.assert_called_once_with(body=payload, method='POST', url='/fledge/interest')
 
     @pytest.mark.parametrize("status_code, host", [(450, 'Client'), (550, 'Server')])
     def test_register_interest_status_client_err(self, status_code, host):
@@ -244,8 +243,8 @@ class TestMicroserviceManagementClient:
                         ms_mgt_client.unregister_interest('someid')
                     assert excinfo.type is KeyError
                 assert 1 == log_error.call_count
-                log_error.assert_called_once_with('Could not unregister interest for %s, Reason: %s', 'someid',
-                                                  "'id'", exc_info=True)
+                args = log_error.call_args
+                assert 'Could not unregister interest for {}'.format('someid') == args[0][1]
             response_patch.assert_called_once_with()
         request_patch.assert_called_once_with(method='DELETE', url='/fledge/interest/someid')
 
@@ -313,8 +312,9 @@ class TestMicroserviceManagementClient:
                         ms_mgt_client.get_services('foo', 'bar')
                     assert excinfo.type is KeyError
                 assert 1 == log_error.call_count
-                log_error.assert_called_once_with('Could not find the micro-service for requested url %s, Reason: %s',
-                                                  '/fledge/service?name=foo&type=bar', "'services'", exc_info=True)
+                args = log_error.call_args
+                assert 'Could not find the micro-service for requested url {}'.format(
+                    '/fledge/service?name=foo&type=bar') == args[0][1]
             response_patch.assert_called_once_with()
         request_patch.assert_called_once_with(method='GET', url='/fledge/service?name=foo&type=bar')
 

@@ -560,24 +560,24 @@ class TestPluginDiscovery:
 
     @pytest.mark.parametrize("exc_name, log_exc_name, msg", [
         (FileNotFoundError, "error", 'Plugin "modbus" import problem from path "modbus".'),
-        (Exception, "exception", 'Plugin "modbus" raised exception "" while fetching config')
+        (Exception, "exception", 'Plugin "modbus" failed while fetching config')
     ])
     def test_bad_get_south_plugin_config(self, exc_name, log_exc_name, msg):
         with patch.object(_logger, log_exc_name) as patch_log_exc:
             with patch.object(common, 'load_and_fetch_python_plugin_info', side_effect=[exc_name]):
                 PluginDiscovery.get_plugin_config("modbus", "south", "south", False)
         assert 1 == patch_log_exc.call_count
-        args, kwargs = patch_log_exc.call_args
-        assert msg in args[0]
+        args = patch_log_exc.call_args
+        assert msg == args[0][1]
 
     @pytest.mark.parametrize("exc_name, log_exc_name, msg", [
         (FileNotFoundError, "error", 'Plugin "http" import problem from path "http".'),
-        (Exception, "exception", 'Plugin "http" raised exception "" while fetching config')
+        (Exception, "exception", 'Plugin "http" failed while fetching config')
     ])
     def test_bad_get_north_plugin_config(self, exc_name, log_exc_name, msg):
         with patch.object(_logger, log_exc_name) as patch_log_exc:
             with patch.object(common, 'load_and_fetch_python_plugin_info', side_effect=[exc_name]):
                 PluginDiscovery.get_plugin_config("http", "north", "north", False)
         assert 1 == patch_log_exc.call_count
-        args, kwargs = patch_log_exc.call_args
-        assert msg in args[0]
+        args = patch_log_exc.call_args
+        assert msg == args[0][1]

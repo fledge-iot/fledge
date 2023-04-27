@@ -96,7 +96,8 @@ async def run_child_create(parent_category_name, child_category_list):
             try:
                 service_record = ServiceRegistry.get(idx=i._microservice_uuid)[0]
             except service_registry_exceptions.DoesNotExist:
-                _LOGGER.exception("Unable to notify microservice with uuid %s as it is not found in the service registry", i._microservice_uuid)
+                _LOGGER.exception("Unable to notify microservice with uuid {} as it is not "
+                                  "found in the service registry".format(i._microservice_uuid))
                 continue
             url = "{}://{}:{}/fledge/child_create".format(service_record._protocol, service_record._address, service_record._management_port)
 

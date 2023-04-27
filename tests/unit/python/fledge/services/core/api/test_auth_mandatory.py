@@ -270,7 +270,7 @@ class TestAuthMandatory:
                             with patch.object(auth, 'is_valid_role', return_value=_rv4) as patch_role:
                                 with patch.object(User.Objects, 'create', side_effect=Exception(
                                         exc_msg)) as patch_create_user:
-                                    with patch.object(auth._logger, 'error') as patch_audit_logger_exc:
+                                    with patch.object(auth._logger, 'error') as patch_logger:
                                         resp = await client.post('/fledge/admin/user', data=json.dumps(request_data),
                                                                  headers=ADMIN_USER_HEADER)
                                         assert 500 == resp.status
@@ -278,8 +278,8 @@ class TestAuthMandatory:
                                         result = await resp.text()
                                         json_response = json.loads(result)
                                         assert {"message": exc_msg} == json_response
-                                    patch_audit_logger_exc.assert_called_once_with('Failed to create user. {}'.format(
-                                        exc_msg))
+                                    args = patch_logger.call_args
+                                    assert 'Failed to create user.' == args[0][1]
                                 patch_create_user.assert_called_once_with(request_data['username'],
                                                                           request_data['password'], 2, 'any', '', '')
                             patch_role.assert_called_once_with(2)
@@ -540,7 +540,7 @@ class TestAuthMandatory:
         request_data = {"current_password": "fledge", "new_password": "F0gl@mp"}
         uid = 2
         msg = 'Something went wrong'
-        logger_msg = 'Failed to update the user ID:<{}>. {}'.format(uid, msg)
+        logger_msg = 'Failed to update the user ID:<{}>.'.format(uid)
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         _rv = await mock_coro(uid) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(uid))
         with patch.object(middleware._logger, 'debug') as patch_logger_debug:
@@ -550,7 +550,8 @@ class TestAuthMandatory:
                         resp = await client.put('/fledge/user/{}/password'.format(uid), data=json.dumps(request_data))
                         assert 500 == resp.status
                         assert msg == resp.reason
-                    patch_logger.assert_called_once_with(logger_msg)
+                    args = patch_logger.call_args
+                    assert logger_msg == args[0][1]
                 patch_update.assert_called_once_with(2, {'password': request_data['new_password']})
             patch_user_exists.assert_called_once_with(str(uid), request_data['current_password'])
         patch_logger_debug.assert_called_once_with('Received %s request for %s',
@@ -725,13 +726,14 @@ class TestAuthMandatory:
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         _rv = await mock_coro(ret_val) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(ret_val))
         with patch.object(User.Objects, 'get_role_id_by_name', return_value=_rv) as patch_role_id:
-            with patch.object(auth._logger, 'error') as patch_auth_logger_exc:
+            with patch.object(auth._logger, 'error') as patch_logger:
                 with patch.object(User.Objects, 'delete', side_effect=Exception(msg)) as patch_user_delete:
                     resp = await client.delete('/fledge/admin/2/delete', headers=ADMIN_USER_HEADER)
                     assert 500 == resp.status
                     assert msg == resp.reason
                 patch_user_delete.assert_called_once_with(2)
-            patch_auth_logger_exc.assert_called_once_with('Failed to delete the user ID:<2>. {}'.format(msg))
+            args = patch_logger.call_args
+            assert 'Failed to delete the user ID:<2>.' == args[0][1]
         patch_role_id.assert_called_once_with('admin')
         patch_user_get.assert_called_once_with(uid=1)
         patch_refresh_token.assert_called_once_with(ADMIN_USER_HEADER['Authorization'])
@@ -1017,7 +1019,7 @@ class TestAuthMandatory:
         request_data = {'role_id': '2'}
         user_id = 2
         msg = 'Something went wrong'
-        logger_msg = 'Failed to reset the user ID:<{}>. {}'.format(user_id, msg)
+        logger_msg = 'Failed to reset the user ID:<{}>.'.format(user_id)
 
         patch_logger_debug, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
             mocker)
@@ -1037,7 +1039,8 @@ class TestAuthMandatory:
                                                 headers=ADMIN_USER_HEADER)
                         assert 500 == resp.status
                         assert msg == resp.reason
-                    patch_logger.assert_called_once_with(logger_msg)
+                    args = patch_logger.call_args
+                    assert logger_msg == args[0][1]
                 patch_update.assert_called_once_with(str(user_id), request_data)
             patch_role.assert_called_once_with(request_data['role_id'])
         patch_role_id.assert_called_once_with('admin')

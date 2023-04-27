@@ -63,11 +63,19 @@ class TestAuthOptional:
 
     @pytest.mark.parametrize("ret_val, exp_result", [
         ([], []),
-        ([{'uname': 'admin', 'role_id': '1', 'access_method': 'any', 'id': '1', 'real_name': 'Admin', 'description': 'Admin user'}, {'uname': 'user', 'role_id': '2', 'access_method': 'any', 'id': '2', 'real_name': 'Non-admin', 'description': 'Normal user'}],
-         [{"userId": "1", "userName": "admin", "roleId": "1", "accessMethod": "any", "realName": "Admin", "description": "Admin user"}, {"userId": "2", "userName": "user", "roleId": "2", "accessMethod": "any", "realName": "Non-admin", "description": "Normal user"}])
+        ([{'uname': 'admin', 'role_id': '1', 'access_method': 'any', 'id': '1', 'real_name': 'Admin',
+           'description': 'Admin user', 'enabled': 't'},
+          {'uname': 'user', 'role_id': '2', 'access_method': 'any', 'id': '2', 'real_name': 'Non-admin',
+           'description': 'Normal user', 'enabled': 't'},
+          {'uname': 'dviewer', 'role_id': '3', 'access_method': 'any', 'id': '3', 'real_name': 'Data-Viewer',
+           'description': 'Data user', 'enabled': 'f'}
+          ],
+         [{"userId": "1", "userName": "admin", "roleId": "1", "accessMethod": "any", "realName": "Admin",
+           "description": "Admin user"},
+          {"userId": "2", "userName": "user", "roleId": "2", "accessMethod": "any", "realName": "Non-admin",
+           "description": "Normal user"}])
     ])
     async def test_get_all_users(self, client, ret_val, exp_result):
-        
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro(ret_val)

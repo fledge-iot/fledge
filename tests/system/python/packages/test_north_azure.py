@@ -28,7 +28,7 @@ import datetime
 try:
     subprocess.run(["python3 -m pip install azure-storage-blob==12.13.1"], shell=True, check=True)
 except subprocess.CalledProcessError:
-    assert False, "Failed to install azure-storage-blob modqule"
+    assert False, "Failed to install azure-storage-blob module"
 
 from azure.storage.blob import BlobServiceClient
 
@@ -77,7 +77,6 @@ def read_data_from_azure_storage_container(azure_storage_account_url,azure_stora
         with open(LOCALJSONFILE) as handler:
             data = handler.readlines()
             
-        print(data)
         return data
         
     except (Exception) as ex:
@@ -257,8 +256,8 @@ class TestNorthAzureIoTHubDevicePlugin:
         # Storage blob JSON will be created every 2 minutes
         time.sleep(150)
         
-        if not skip_verify_north_interface:
-            _verify_egress(azure_storage_account_url, azure_storage_account_key, azure_storage_container, wait_time, retries, ASSET)
+        
+        _verify_egress(azure_storage_account_url, azure_storage_account_key, azure_storage_container, wait_time, retries, ASSET)
 
     
     def test_mqtt_over_websocket_reconfig(self, reset_fledge, add_south_north_service, fledge_url, enable_schedule, disable_schedule,
@@ -303,8 +302,8 @@ class TestNorthAzureIoTHubDevicePlugin:
         # Storage blob JSON will be created every 2 minutes
         time.sleep(150)
         
-        if not skip_verify_north_interface:
-            _verify_egress(azure_storage_account_url, azure_storage_account_key, azure_storage_container, wait_time, retries, ASSET)
+        
+        _verify_egress(azure_storage_account_url, azure_storage_account_key, azure_storage_container, wait_time, retries, ASSET)
 
     
     def test_disable_enable(self, reset_fledge, add_south_north_service, fledge_url, enable_schedule, disable_schedule,
@@ -346,8 +345,8 @@ class TestNorthAzureIoTHubDevicePlugin:
             # Storage blob JSON will be created every 2 minutes
             time.sleep(150)
             disable_schedule(fledge_url, NORTH_SERVICE_NAME)
-            if not skip_verify_north_interface:
-                _verify_egress(azure_storage_account_url, azure_storage_account_key, azure_storage_container, wait_time, retries, ASSET)
+            
+            _verify_egress(azure_storage_account_url, azure_storage_account_key, azure_storage_container, wait_time, retries, ASSET)
     
        
     def test_send_with_filter(self, reset_fledge, add_south_north_service, fledge_url, enable_schedule, disable_schedule,
@@ -402,8 +401,8 @@ class TestNorthAzureIoTHubDevicePlugin:
         # Storage blob JSON will be created every 2 minutes
         time.sleep(150)
         
-        if not skip_verify_north_interface:
-            _verify_egress(azure_storage_account_url, azure_storage_account_key, azure_storage_container, wait_time, retries, ASSET)
+        
+        _verify_egress(azure_storage_account_url, azure_storage_account_key, azure_storage_container, wait_time, retries, ASSET)
 
 
 class TestNorthAzureIoTHubDevicePluginTask:
@@ -445,8 +444,8 @@ class TestNorthAzureIoTHubDevicePluginTask:
         # Storage blob JSON will be created every 2 minutes
         time.sleep(150)
         
-        if not skip_verify_north_interface:
-            _verify_egress(azure_storage_account_url, azure_storage_account_key, azure_storage_container, wait_time, retries, ASSET)
+        
+        _verify_egress(azure_storage_account_url, azure_storage_account_key, azure_storage_container, wait_time, retries, ASSET)
     
     
     def test_mqtt_over_websocket_reconfig_task(self, reset_fledge, add_south_north_task, fledge_url, enable_schedule, disable_schedule,
@@ -492,8 +491,8 @@ class TestNorthAzureIoTHubDevicePluginTask:
         # Storage blob JSON will be created every 2 minutes
         time.sleep(150)
         
-        if not skip_verify_north_interface:
-            _verify_egress(azure_storage_account_url, azure_storage_account_key, azure_storage_container, wait_time, retries, ASSET)
+        
+        _verify_egress(azure_storage_account_url, azure_storage_account_key, azure_storage_container, wait_time, retries, ASSET)
 
     
     def test_disable_enable_task(self, reset_fledge, add_south_north_task, fledge_url, enable_schedule, disable_schedule,
@@ -534,8 +533,8 @@ class TestNorthAzureIoTHubDevicePluginTask:
             # Storage blob JSON will be created every 2 minutes
             time.sleep(150)
             disable_schedule(fledge_url, NORTH_SERVICE_NAME)
-            if not skip_verify_north_interface:
-                _verify_egress(azure_storage_account_url, azure_storage_account_key, azure_storage_container, wait_time, retries, ASSET)
+            
+            _verify_egress(azure_storage_account_url, azure_storage_account_key, azure_storage_container, wait_time, retries, ASSET)
                 
     def test_send_with_filter_task(self, reset_fledge, add_south_north_task, fledge_url, enable_schedule, disable_schedule,
                                    azure_host, azure_device, azure_key, azure_storage_account_url, azure_storage_account_key, 
@@ -589,8 +588,8 @@ class TestNorthAzureIoTHubDevicePluginTask:
         # Storage blob JSON will be created every 2 minutes
         time.sleep(150)
         
-        if not skip_verify_north_interface:
-            _verify_egress(azure_storage_account_url, azure_storage_account_key, azure_storage_container, wait_time, retries, ASSET)
+        
+        _verify_egress(azure_storage_account_url, azure_storage_account_key, azure_storage_container, wait_time, retries, ASSET)
 
 
 
@@ -715,8 +714,8 @@ class TestNorthAzureIoTHubDevicePluginLongRun:
             # Storage blob JSON will be created every 2 minutes
             time.sleep(150)
             
-            if not skip_verify_north_interface:
-                _verify_egress(azure_storage_account_url, azure_storage_account_key, azure_storage_container, wait_time, retries, ASSET)
+            
+            _verify_egress(azure_storage_account_url, azure_storage_account_key, azure_storage_container, wait_time, retries, ASSET)
                 
             print('Successfully ran {} iterations'.format(current_iteration), datetime.datetime.now())
             current_iteration += 1

@@ -728,7 +728,11 @@ INSERT INTO fledge.log_codes ( code, description )
             ( 'ASTDP', 'Asset deprecated' ),
             ( 'ASTUN', 'Asset un-deprecated' ),
             ( 'PIPIN', 'Pip installation' ),
-            ( 'AUMRK', 'Audit Log Marker' );
+            ( 'AUMRK', 'Audit Log Marker' ),
+            ( 'USRAD', 'User Added' ),
+            ( 'USRDL', 'User Deleted' ),
+            ( 'USRCH', 'User Changed' ),
+            ( 'USRRS', 'User Restored' );
 
 --
 -- Configuration parameters

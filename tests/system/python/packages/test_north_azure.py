@@ -37,7 +37,6 @@ PROJECT_ROOT = subprocess.getoutput("git rev-parse --show-toplevel")
 SCRIPTS_DIR_ROOT = "{}/tests/system/python/scripts/package/".format(PROJECT_ROOT)
 SOUTH_SERVICE_NAME = "FOGL-7352_sysinfo"
 SOUTH_PLUGIN = "systeminfo"
-# ASSET = "FOGL-7352_system"
 NORTH_SERVICE_NAME = "FOGL-7352_azure"
 NORTH_PLUGIN_NAME = "azure-iot"
 NORTH_PLUGIN_DISCOVERY_NAME = "azure_iot"
@@ -74,12 +73,6 @@ def read_data_from_azure_storage_container(azure_storage_account_url,azure_stora
             blob_data.readinto(my_blob)
         t2=time.time()
         print(("It takes %s seconds to download "+BLOBNAME) % (t2 - t1))
-
-        # {iothub}    /{partition}/{YYYY}/{MM}/{DD}/{HH}/{mm}  
-        # foglamp-test/01        /2023  /04  /15  /20   /08.json
-        # LOCALFILE is the file path
-        # dataframe_blobdata = pd.read_csv(LOCALJSONFILE)
-        # print('the size of the data is: %d rows and  %d columns' % dataframe_blobdata.shape)
         
         with open(LOCALJSONFILE) as handler:
             data = handler.readlines()
@@ -162,7 +155,6 @@ def _verify_egress(azure_storage_account_url, azure_storage_account_key, azure_s
     while (data_from_azure is None or len(data_from_azure) == 0) and retry_count < retries:
         data_from_azure = read_data_from_azure_storage_container(azure_storage_account_url,azure_storage_account_key, azure_storage_container)
 
-        # print(data_from_azure)
         if data_from_azure is None:
             retry_count += 1
             time.sleep(wait_time)
@@ -231,14 +223,19 @@ class TestNorthAzureIoTHubDevicePlugin:
                   disable_schedule, azure_host, azure_device, azure_key, wait_time, retries, skip_verify_north_interface,
                   azure_storage_account_url, azure_storage_account_key, azure_storage_container):
         
-        """ Test that check data is inserted in Fledge and sent to Azure-IoT Hub.
+        """ Test that check data is inserted in Fledge and sent to Azure-IoT Hub or not.
             clean_setup_fledge_packages: Fixture for removing fledge from system completely if it is already present 
                                          and reinstall it baased on commandline arguments.
             reset_fledge: Fixture that reset and cleanup the fledge 
             add_south_north_service: Fixture that add south and north instance in disable mode
             enable_schedule: Fixture for enabling schedules or services
             disable_schedule: Fixture for disabling schedules or services
-            
+            azure_host: Fixture that provide Hostname of Azure IoT Hub
+            azure_device: Fixture that provide ID of Device deployed in Azure IoT Hub
+            azure_key: Fixture that provide access key of Azure IoT Hub
+            azure_storage_account_url: Fixture that provide URL for accessing Storage Blob of Azure
+            azure_storage_account_key: Fixture that provide access key for accessing Storage Blob
+            azure_storage_container: Fixture that provides name of container deployed in Azure
         """
         # Update Asset name
         ASSET = "test1_FOGL-7352_system"
@@ -267,6 +264,20 @@ class TestNorthAzureIoTHubDevicePlugin:
     def test_mqtt_over_websocket_reconfig(self, reset_fledge, add_south_north_service, fledge_url, enable_schedule, disable_schedule,
                                           azure_host, azure_device, azure_key, azure_storage_account_url, azure_storage_account_key, 
                                           azure_storage_container, wait_time, retries, skip_verify_north_interface):
+        
+        """ Test that enable MQTT over websocket then check data inserted into Fledge and sent to Azure-IoT Hub or not.
+            
+            reset_fledge: Fixture that reset and cleanup the fledge 
+            add_south_north_service: Fixture that add south and north instance in disable mode
+            enable_schedule: Fixture for enabling schedules or services
+            disable_schedule: Fixture for disabling schedules or services
+            azure_host: Fixture that provide Hostname of Azure IoT Hub
+            azure_device: Fixture that provide ID of Device deployed in Azure IoT Hub
+            azure_key: Fixture that provide access key of Azure IoT Hub
+            azure_storage_account_url: Fixture that provide URL for accessing Storage Blob of Azure
+            azure_storage_account_key: Fixture that provide access key for accessing Storage Blob
+            azure_storage_container: Fixture that provides name of container deployed in Azure
+        """
         # Update Asset name
         ASSET = "test2_FOGL-7352_system"
         config_south(fledge_url, ASSET)
@@ -300,6 +311,21 @@ class TestNorthAzureIoTHubDevicePlugin:
                             azure_host, azure_device, azure_key, azure_storage_account_url, azure_storage_account_key, 
                             azure_storage_container, wait_time, retries, skip_verify_north_interface):
         
+        """ Test that enable and disable south and north service perioically then 
+            check data inserted into Fledge and sent to Azure-IoT Hub or not.
+            
+            reset_fledge: Fixture that reset and cleanup the fledge 
+            add_south_north_service: Fixture that add south and north instance in disable mode
+            enable_schedule: Fixture for enabling schedules or services
+            disable_schedule: Fixture for disabling schedules or services
+            azure_host: Fixture that provide Hostname of Azure IoT Hub
+            azure_device: Fixture that provide ID of Device deployed in Azure IoT Hub
+            azure_key: Fixture that provide access key of Azure IoT Hub
+            azure_storage_account_url: Fixture that provide URL for accessing Storage Blob of Azure
+            azure_storage_account_key: Fixture that provide access key for accessing Storage Blob
+            azure_storage_container: Fixture that provides name of container deployed in Azure
+        """
+        
         for i in range(2):
             # Update Asset name
             ASSET = "test3.{}_FOGL-7352_system".format(i)
@@ -328,6 +354,21 @@ class TestNorthAzureIoTHubDevicePlugin:
                               azure_host, azure_device, azure_key, azure_storage_account_url, azure_storage_account_key, 
                               azure_storage_container, wait_time, retries, skip_verify_north_interface, add_filter):
         
+        """ Test that attach filters to North service and enable and disable filter periodically 
+            then check data inserted into Fledge and sent to Azure-IoT Hub or not.
+            
+            reset_fledge: Fixture that reset and cleanup the fledge 
+            add_south_north_service: Fixture that add south and north instance in disable mode
+            enable_schedule: Fixture for enabling schedules or services
+            disable_schedule: Fixture for disabling schedules or services
+            azure_host: Fixture that provide Hostname of Azure IoT Hub
+            azure_device: Fixture that provide ID of Device deployed in Azure IoT Hub
+            azure_key: Fixture that provide access key of Azure IoT Hub
+            azure_storage_account_url: Fixture that provide URL for accessing Storage Blob of Azure
+            azure_storage_account_key: Fixture that provide access key for accessing Storage Blob
+            azure_storage_container: Fixture that provides name of container deployed in Azure
+            add_filter:Fixture that add filter to south and north Instances
+        """
         # Update Asset name
         ASSET = "test4_FOGL-7352_system"
         config_south(fledge_url, ASSET)
@@ -344,12 +385,10 @@ class TestNorthAzureIoTHubDevicePlugin:
         print("On/Off of filter starts")
         count = 0
         while count<3:
-            print("Disabling Filter")
             # For Disabling filter
             update_filter_config(fledge_url, NORTH_PLUGIN_NAME, 'false')
             time.sleep(wait_time*2)
             
-            print("Enabling Filter")
             # For enabling filter
             update_filter_config(fledge_url, NORTH_PLUGIN_NAME, 'true')
             time.sleep(wait_time*2)
@@ -370,9 +409,22 @@ class TestNorthAzureIoTHubDevicePlugin:
 class TestNorthAzureIoTHubDevicePluginTask:
         
     def test_send_as_a_task(self, reset_fledge, add_south_north_task, fledge_url, enable_schedule, disable_schedule, 
-                       azure_host, azure_device, azure_key, azure_storage_account_url, azure_storage_account_key, 
-                       azure_storage_container, wait_time, retries, skip_verify_north_interface):
+                            azure_host, azure_device, azure_key, azure_storage_account_url, azure_storage_account_key, 
+                            azure_storage_container, wait_time, retries, skip_verify_north_interface):
         
+        """ Test that creates south and north bound as task and check data is inserted in Fledge and sent to Azure-IoT Hub or not.
+            
+            reset_fledge: Fixture that reset and cleanup the fledge 
+            add_south_north_task: Fixture that add south and north instance in disable mode
+            enable_schedule: Fixture for enabling schedules or services
+            disable_schedule: Fixture for disabling schedules or services
+            azure_host: Fixture that provide Hostname of Azure IoT Hub
+            azure_device: Fixture that provide ID of Device deployed in Azure IoT Hub
+            azure_key: Fixture that provide access key of Azure IoT Hub
+            azure_storage_account_url: Fixture that provide URL for accessing Storage Blob of Azure
+            azure_storage_account_key: Fixture that provide access key for accessing Storage Blob
+            azure_storage_container: Fixture that provides name of container deployed in Azure
+        """
         # Update Asset name
         ASSET = "test5_FOGL-7352_system"
         config_south(fledge_url, ASSET)
@@ -398,8 +450,23 @@ class TestNorthAzureIoTHubDevicePluginTask:
     
     
     def test_mqtt_over_websocket_reconfig_task(self, reset_fledge, add_south_north_task, fledge_url, enable_schedule, disable_schedule,
-                                          azure_host, azure_device, azure_key, azure_storage_account_url, azure_storage_account_key, 
-                                          azure_storage_container, wait_time, retries, skip_verify_north_interface):
+                                               azure_host, azure_device, azure_key, azure_storage_account_url, azure_storage_account_key, 
+                                               azure_storage_container, wait_time, retries, skip_verify_north_interface):
+        
+        """ Test that creates south and north bound as task as well as enable MQTT over websocket then
+            check data inserted in Fledge and sent to Azure-IoT Hub or not.
+            
+            reset_fledge: Fixture that reset and cleanup the fledge 
+            add_south_north_task: Fixture that add south and north instance in disable mode
+            enable_schedule: Fixture for enabling schedules or services
+            disable_schedule: Fixture for disabling schedules or services
+            azure_host: Fixture that provide Hostname of Azure IoT Hub
+            azure_device: Fixture that provide ID of Device deployed in Azure IoT Hub
+            azure_key: Fixture that provide access key of Azure IoT Hub
+            azure_storage_account_url: Fixture that provide URL for accessing Storage Blob of Azure
+            azure_storage_account_key: Fixture that provide access key for accessing Storage Blob
+            azure_storage_container: Fixture that provides name of container deployed in Azure
+        """
         # Update Asset name
         ASSET = "test6_FOGL-7352_system"
         config_south(fledge_url, ASSET)
@@ -430,9 +497,23 @@ class TestNorthAzureIoTHubDevicePluginTask:
 
     
     def test_disable_enable_task(self, reset_fledge, add_south_north_task, fledge_url, enable_schedule, disable_schedule,
-                            azure_host, azure_device, azure_key, azure_storage_account_url, azure_storage_account_key, 
-                            azure_storage_container, wait_time, retries, skip_verify_north_interface):
+                                 azure_host, azure_device, azure_key, azure_storage_account_url, azure_storage_account_key, 
+                                 azure_storage_container, wait_time, retries, skip_verify_north_interface):
         
+        """ Test that creates south and north bound as task as enable and disable them periodically then 
+            check data inserted in Fledge and sent to Azure-IoT Hub or not.
+            
+            reset_fledge: Fixture that reset and cleanup the fledge 
+            add_south_north_task: Fixture that add south and north instance in disable mode
+            enable_schedule: Fixture for enabling schedules or services
+            disable_schedule: Fixture for disabling schedules or services
+            azure_host: Fixture that provide Hostname of Azure IoT Hub
+            azure_device: Fixture that provide ID of Device deployed in Azure IoT Hub
+            azure_key: Fixture that provide access key of Azure IoT Hub
+            azure_storage_account_url: Fixture that provide URL for accessing Storage Blob of Azure
+            azure_storage_account_key: Fixture that provide access key for accessing Storage Blob
+            azure_storage_container: Fixture that provides name of container deployed in Azure
+        """
         for i in range(2):
             # Update Asset name
             ASSET = "test7.{}_FOGL-7352_system".format(i)
@@ -457,9 +538,24 @@ class TestNorthAzureIoTHubDevicePluginTask:
                 _verify_egress(azure_storage_account_url, azure_storage_account_key, azure_storage_container, wait_time, retries, ASSET)
                 
     def test_send_with_filter_task(self, reset_fledge, add_south_north_task, fledge_url, enable_schedule, disable_schedule,
-                              azure_host, azure_device, azure_key, azure_storage_account_url, azure_storage_account_key, 
-                              azure_storage_container, wait_time, retries, skip_verify_north_interface, add_filter):
+                                   azure_host, azure_device, azure_key, azure_storage_account_url, azure_storage_account_key, 
+                                   azure_storage_container, wait_time, retries, skip_verify_north_interface, add_filter):
         
+        """ Test that creates south and north bound as task and attach filters to North Bound as well as
+            enable and disable filters periodically then check data inserted in Fledge and sent to Azure-IoT Hub or not.
+            
+            reset_fledge: Fixture that reset and cleanup the fledge 
+            add_south_north_task: Fixture that add south and north instance in disable mode
+            enable_schedule: Fixture for enabling schedules or services
+            disable_schedule: Fixture for disabling schedules or services
+            azure_host: Fixture that provide Hostname of Azure IoT Hub
+            azure_device: Fixture that provide ID of Device deployed in Azure IoT Hub
+            azure_key: Fixture that provide access key of Azure IoT Hub
+            azure_storage_account_url: Fixture that provide URL for accessing Storage Blob of Azure
+            azure_storage_account_key: Fixture that provide access key for accessing Storage Blob
+            azure_storage_container: Fixture that provides name of container deployed in Azure
+            add_filter: Fixture that add fiter to south or north instances.
+        """
         # Update Asset name
         ASSET = "test8_FOGL-7352_system"
         config_south(fledge_url, ASSET)
@@ -476,12 +572,10 @@ class TestNorthAzureIoTHubDevicePluginTask:
         print("On/Off of filter starts")
         count = 0
         while count<3:
-            print("Disabling Filter")
             # For Disabling filter
             update_filter_config(fledge_url, NORTH_PLUGIN_NAME, 'false')
             time.sleep(wait_time*2)
             
-            print("Enabling Filter")
             # For enabling filter
             update_filter_config(fledge_url, NORTH_PLUGIN_NAME, 'true')
             time.sleep(wait_time*2)
@@ -504,6 +598,14 @@ class TestNorthAzureIoTHubDevicePluginInvalidConfig:
 
     def test_invalid_connstr(self, reset_fledge, add_south, add_north, fledge_url, enable_schedule, disable_schedule, wait_time, retries):
         
+        """ Test that checks connection string of north azure plugin is invalid or not.
+        
+            reset_fledge: Fixture that reset and cleanup the fledge 
+            add_south: Fixture that south Instance in disable mode
+            add_north: Fixture that add north instance in disable mode
+            enable_schedule: Fixture for enabling schedules or services
+            disable_schedule: Fixture for disabling schedules or services
+        """
         # Add South and North
         add_south(SOUTH_PLUGIN, None, fledge_url, service_name=SOUTH_SERVICE_NAME, start_service=False, installation_type='package')
         
@@ -532,6 +634,17 @@ class TestNorthAzureIoTHubDevicePluginInvalidConfig:
     def test_invalid_connstr_sharedkey(self, reset_fledge, add_south, add_north, fledge_url, enable_schedule, disable_schedule, 
                                        wait_time, retries, azure_host, azure_device, azure_key):
         
+        """ Test that checks shared key passed to connection string of north azure plugin is invalid or not.
+        
+            reset_fledge: Fixture that reset and cleanup the fledge 
+            add_south: Fixture that south Instance in disable mode
+            add_north: Fixture that add north instance in disable mode
+            enable_schedule: Fixture for enabling schedules or services
+            disable_schedule: Fixture for disabling schedules or services
+            azure_host: Fixture that provide Hostname of Azure IoT Hub
+            azure_device: Fixture that provide ID of Device deployed in Azure IoT Hub
+            azure_key: Fixture that provide access key of Azure IoT Hub
+        """
         # Add South and North
         add_south(SOUTH_PLUGIN, None, fledge_url, service_name=SOUTH_SERVICE_NAME, start_service=False, installation_type='package')
         
@@ -561,8 +674,24 @@ class TestNorthAzureIoTHubDevicePluginLongRun:
     
     def test_send_long_run(self, clean_setup_fledge_packages, reset_fledge, add_south_north_service, fledge_url, enable_schedule, 
                            disable_schedule, azure_host, azure_device, azure_key, wait_time, retries, skip_verify_north_interface,
-                           azure_storage_account_url, azure_storage_account_key, azure_storage_container, long_run_time):
+                           azure_storage_account_url, azure_storage_account_key, azure_storage_container, run_time):
         
+        """ Test that check data is inserted in Fledge and sent to Azure-IoT Hub for long duration based parameter passed.
+        
+            clean_setup_fledge_packages: Fixture for removing fledge from system completely if it is already present 
+                                         and reinstall it baased on commandline arguments.
+            reset_fledge: Fixture that reset and cleanup the fledge 
+            add_south_north_service: Fixture that add south and north instance in disable mode
+            enable_schedule: Fixture for enabling schedules or services
+            disable_schedule: Fixture for disabling schedules or services
+            azure_host: Fixture that provide Hostname of Azure IoT Hub
+            azure_device: Fixture that provide ID of Device deployed in Azure IoT Hub
+            azure_key: Fixture that provide access key of Azure IoT Hub
+            azure_storage_account_url: Fixture that provide URL for accessing Storage Blob of Azure
+            azure_storage_account_key: Fixture that provide access key for accessing Storage Blob
+            azure_storage_container: Fixture that provides name of container deployed in Azure
+            run_time: Fixture that defines durration for which this test will be executed.
+        """        
         START_TIME = datetime.datetime.now()
         current_iteration = 1
         # Update Asset name
@@ -577,7 +706,7 @@ class TestNorthAzureIoTHubDevicePluginLongRun:
         # Enable North Service for sending data to Azure-IOT-Hub
         enable_schedule(fledge_url, NORTH_SERVICE_NAME)
         
-        while (datetime.datetime.now() - START_TIME).seconds <= (int(long_run_time) * 60):
+        while (datetime.datetime.now() - START_TIME).seconds <= (int(run_time) * 60):
             verify_ping(fledge_url, skip_verify_north_interface, wait_time, retries)
             verify_asset(fledge_url, ASSET)
             verify_statistics_map(fledge_url, skip_verify_north_interface)

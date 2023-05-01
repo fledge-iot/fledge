@@ -141,7 +141,8 @@ class User:
                 # first delete the active login references
                 await cls.delete_user_tokens(user_id)
 
-                payload = PayloadBuilder().SET(enabled="f").WHERE(['id', '=', user_id]).AND_WHERE(['enabled', '=', 't']).payload()
+                payload = PayloadBuilder().SET(enabled="f").WHERE(['id', '=', user_id]).AND_WHERE(
+                    ['enabled', '=', 't']).payload()
                 result = await storage_client.update_tbl("users", payload)
                 # USRDL audit trail entry
                 audit = AuditLogger(storage_client)

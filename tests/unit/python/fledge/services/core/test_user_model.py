@@ -1,20 +1,21 @@
 # -*- coding: utf-8 -*-
-
 # FLEDGE_BEGIN
 # See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
+import copy
 import json
 import asyncio
 from unittest.mock import MagicMock, patch
-import pytest
 import sys
+import pytest
 
-from fledge.services.core import connect
+from fledge.common.audit_logger import AuditLogger
+from fledge.common.configuration_manager import ConfigurationManager
 from fledge.common.storage_client.storage_client import StorageClientAsync
 from fledge.common.storage_client.exceptions import StorageServerError
+from fledge.services.core import connect
 from fledge.services.core.user_model import User
-from fledge.common.configuration_manager import ConfigurationManager
 
 __author__ = "Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -172,19 +173,27 @@ class TestUserModel:
         expected = {'rows_affected': 1, "response": "inserted"}
         payload = {"pwd": "dd7171406eaf4baa8bc805857f719bca", "role_id": 1, "uname": "aj", 'access_method': 'any',
                    'description': '', 'real_name': ''}
+        audit_details = copy.deepcopy(payload)
+        audit_details.pop('pwd', None)
+        audit_details['message'] = "'{}' username created for '{}' user.".format(payload['uname'], payload['real_name'])
         storage_client_mock = MagicMock(StorageClientAsync)
         
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro(expected)
+            _rv3 = await mock_coro(None)
         else:
-            _rv = asyncio.ensure_future(mock_coro(expected))        
+            _rv = asyncio.ensure_future(mock_coro(expected))
+            _rv3 = asyncio.ensure_future(mock_coro(None))
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(User.Objects, 'hash_password', return_value=hashed_password) as hash_pwd_patch:
                 with patch.object(storage_client_mock, 'insert_into_tbl', return_value=_rv) as insert_tbl_patch:
-                    actual = await User.Objects.create("aj", "fledge", 1)
-                    assert actual == expected
+                    with patch.object(AuditLogger, '__init__', return_value=None):
+                        with patch.object(AuditLogger, 'information', return_value=_rv3) as patch_audit:
+                            actual = await User.Objects.create("aj", "fledge", 1)
+                            assert actual == expected
+                        patch_audit.assert_called_once_with('USRAD', audit_details)
                 assert 1 == insert_tbl_patch.call_count
                 assert insert_tbl_patch.called is True
                 args, kwargs = insert_tbl_patch.call_args

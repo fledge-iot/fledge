@@ -4,14 +4,14 @@
 # See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
-""" Fledge user entity class with CRUD operations to Storage layer
-
-"""
+"""Fledge user entity class with CRUD operations to Storage layer"""
+import json
 import uuid
 import hashlib
 from datetime import datetime, timedelta
 import jwt
 
+from fledge.common.audit_logger import AuditLogger
 from fledge.common.common import _FLEDGE_ROOT, _FLEDGE_DATA
 from fledge.common.configuration_manager import ConfigurationManager
 from fledge.common.logger import FLCoreLogger
@@ -110,6 +110,12 @@ class User:
                                               description=description).payload()
             try:
                 result = await storage_client.insert_into_tbl("users", payload)
+                # USRAD audit trail entry
+                audit = AuditLogger(storage_client)
+                audit_details = json.loads(payload)
+                audit_details.pop('pwd', None)
+                audit_details['message'] = "'{}' username created for '{}' user.".format(username, real_name)
+                await audit.information('USRAD', audit_details)
             except StorageServerError as ex:
                 if ex.error["retryable"]:
                     pass  # retry INSERT

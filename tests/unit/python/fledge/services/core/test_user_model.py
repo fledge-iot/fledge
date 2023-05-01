@@ -181,16 +181,16 @@ class TestUserModel:
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv = await mock_coro(expected)
-            _rv3 = await mock_coro(None)
+            _rv2 = await mock_coro(None)
         else:
             _rv = asyncio.ensure_future(mock_coro(expected))
-            _rv3 = asyncio.ensure_future(mock_coro(None))
+            _rv2 = asyncio.ensure_future(mock_coro(None))
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(User.Objects, 'hash_password', return_value=hashed_password) as hash_pwd_patch:
                 with patch.object(storage_client_mock, 'insert_into_tbl', return_value=_rv) as insert_tbl_patch:
                     with patch.object(AuditLogger, '__init__', return_value=None):
-                        with patch.object(AuditLogger, 'information', return_value=_rv3) as patch_audit:
+                        with patch.object(AuditLogger, 'information', return_value=_rv2) as patch_audit:
                             actual = await User.Objects.create("aj", "fledge", 1)
                             assert actual == expected
                         patch_audit.assert_called_once_with('USRAD', audit_details)
@@ -234,20 +234,26 @@ class TestUserModel:
         r2 = {'response': 'updated', 'rows_affected': 1}
 
         storage_client_mock = MagicMock(StorageClientAsync)
-        
+        user_id = 2
+        audit_details = {"user_id": user_id, "message": "User ID: <{}> has been disabled.".format(user_id)}
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv1 = await mock_coro(r1)
             _rv2 = await mock_coro(r2)
+            _rv3 = await mock_coro(None)
         else:
             _rv1 = asyncio.ensure_future(mock_coro(r1))
             _rv2 = asyncio.ensure_future(mock_coro(r2))
-        
+            _rv3 = asyncio.ensure_future(mock_coro(None))
+
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'delete_from_tbl', return_value=_rv1) as delete_tbl_patch:
                 with patch.object(storage_client_mock, 'update_tbl', return_value=_rv2) as update_tbl_patch:
-                    actual = await User.Objects.delete(2)
-                    assert r2 == actual
+                    with patch.object(AuditLogger, '__init__', return_value=None):
+                        with patch.object(AuditLogger, 'information', return_value=_rv3) as patch_audit:
+                            actual = await User.Objects.delete(user_id)
+                            assert r2 == actual
+                        patch_audit.assert_called_once_with('USRDL', audit_details)
                 update_tbl_patch.assert_called_once_with('users', p2)
             delete_tbl_patch.assert_called_once_with('user_logins', p1)
 

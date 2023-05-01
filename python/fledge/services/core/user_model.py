@@ -143,6 +143,10 @@ class User:
 
                 payload = PayloadBuilder().SET(enabled="f").WHERE(['id', '=', user_id]).AND_WHERE(['enabled', '=', 't']).payload()
                 result = await storage_client.update_tbl("users", payload)
+                # USRDL audit trail entry
+                audit = AuditLogger(storage_client)
+                await audit.information(
+                    'USRDL', {"user_id": user_id, "message": "User ID: <{}> has been disabled.".format(user_id)})
             except StorageServerError as ex:
                 if ex.error["retryable"]:
                     pass  # retry INSERT

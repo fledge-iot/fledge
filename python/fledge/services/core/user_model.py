@@ -216,9 +216,7 @@ class User:
         @classmethod
         async def all(cls):
             storage_client = connect.get_storage_async()
-            payload = PayloadBuilder().SELECT("id", "uname", "role_id", "access_method", "real_name",
-                                              "description").WHERE(['enabled', '=', 't']).payload()
-            result = await storage_client.query_tbl_with_payload('users', payload)
+            result = await storage_client.query_tbl('users')
             return result['rows']
 
         @classmethod

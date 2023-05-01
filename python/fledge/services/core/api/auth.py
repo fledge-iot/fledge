@@ -341,14 +341,15 @@ async def get_user(request):
         users = await User.Objects.all()
         res = []
         for row in users:
-            u = OrderedDict()
-            u["userId"] = row["id"]
-            u["userName"] = row["uname"]
-            u["roleId"] = row["role_id"]
-            u["accessMethod"] = row["access_method"]
-            u["realName"] = row["real_name"]
-            u["description"] = row["description"]
-            res.append(u)
+            if row['enabled'] == 't':
+                u = OrderedDict()
+                u["userId"] = row["id"]
+                u["userName"] = row["uname"]
+                u["roleId"] = row["role_id"]
+                u["accessMethod"] = row["access_method"]
+                u["realName"] = row["real_name"]
+                u["description"] = row["description"]
+                res.append(u)
         result = {'users': res}
 
     return web.json_response(result)
@@ -413,15 +414,12 @@ async def create_user(request):
     if not (await is_valid_role(role_id)):
         msg = "Invalid role ID."
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
-    try:
-        await User.Objects.get(username=username)
-    except User.DoesNotExist:
-        pass
-    else:
+    users = await User.Objects.all()
+    unames = [u['uname'] for u in users]
+    if username in unames:
         msg = "Username already exists."
         _logger.warning(msg)
         raise web.HTTPConflict(reason=msg, body=json.dumps({"message": msg}))
-
     u = dict()
     try:
         result = await User.Objects.create(username, password, role_id, access_method, real_name, description)

@@ -87,7 +87,6 @@ class TestUserModel:
 
     async def test_get_all(self):
         expected = {'rows': [], 'count': 0}
-        payload = '{"return": ["id", "uname", "role_id", "access_method", "real_name", "description"], "where": {"column": "enabled", "condition": "=", "value": "t"}}'
         storage_client_mock = MagicMock(StorageClientAsync)
         
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
@@ -97,10 +96,10 @@ class TestUserModel:
             _rv = asyncio.ensure_future(mock_coro(expected))
         
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv) as query_tbl_patch:
+            with patch.object(storage_client_mock, 'query_tbl', return_value=_rv) as query_tbl_patch:
                 actual = await User.Objects.all()
                 assert actual == expected['rows']
-            query_tbl_patch.assert_called_once_with('users', payload)
+            query_tbl_patch.assert_called_once_with('users')
 
     @pytest.mark.parametrize("kwargs, payload", [
         ({'username': None, 'uid': None}, '{"return": ["id", "uname", "role_id", "access_method", "real_name", "description"], "where": {"column": "enabled", "condition": "=", "value": "t"}}'),

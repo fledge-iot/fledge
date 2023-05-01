@@ -165,29 +165,35 @@ class User:
             """
             if not user_data:
                 return False
-            kwargs = dict()
+            old_data = await cls.get(uid=user_id)
+            new_kwargs = {}
+            old_kwargs = {}
             if 'access_method' in user_data:
-                kwargs.update({"access_method": user_data['access_method']})
+                old_kwargs["access_method"] = old_data['access_method']
+                new_kwargs.update({"access_method": user_data['access_method']})
             if 'real_name' in user_data:
-                kwargs.update({"real_name": user_data['real_name']})
+                old_kwargs["real_name"] = old_data['real_name']
+                new_kwargs.update({"real_name": user_data['real_name']})
             if 'description' in user_data:
-                kwargs.update({"description": user_data['description']})
+                old_kwargs["description"] = old_data['description']
+                new_kwargs.update({"description": user_data['description']})
             if 'role_id' in user_data:
-                kwargs.update({"role_id": user_data['role_id']})
+                old_kwargs["role_id"] = old_data['role_id']
+                new_kwargs.update({"role_id": user_data['role_id']})
             storage_client = connect.get_storage_async()
-
             hashed_pwd = None
             pwd_history_list = []
             if 'password' in user_data:
                 if len(user_data['password']):
                     hashed_pwd = cls.hash_password(user_data['password'])
                     current_datetime = datetime.now()
-                    kwargs.update({"pwd": hashed_pwd, "pwd_last_changed": str(current_datetime)})
+                    old_kwargs["pwd"] = "****"
+                    new_kwargs.update({"pwd": hashed_pwd, "pwd_last_changed": str(current_datetime)})
 
                     # get password history list
                     pwd_history_list = await cls._get_password_history(storage_client, user_id, user_data)
             try:
-                payload = PayloadBuilder().SET(**kwargs).WHERE(['id', '=', user_id]).AND_WHERE(
+                payload = PayloadBuilder().SET(**new_kwargs).WHERE(['id', '=', user_id]).AND_WHERE(
                     ['enabled', '=', 't']).payload()
                 result = await storage_client.update_tbl("users", payload)
                 if result['rows_affected']:
@@ -201,6 +207,14 @@ class User:
                         await cls._insert_pwd_history_with_oldest_pwd_deletion_if_count_exceeds(
                             storage_client, user_id, hashed_pwd, pwd_history_list)
 
+                    # USRCH audit trail entry
+                    audit = AuditLogger(storage_client)
+                    if 'pwd' in new_kwargs:
+                        new_kwargs['pwd'] = "Password has been updated."
+                        new_kwargs.pop('pwd_last_changed', None)
+                    await audit.information(
+                        'USRCH', {'user_id': user_id, 'old_value': old_kwargs, 'new_value': new_kwargs,
+                                  "message": "'{}' user has been changed.".format(old_data['uname'])})
                     return True
             except StorageServerError as ex:
                 if ex.error["retryable"]:

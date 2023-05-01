@@ -120,7 +120,7 @@ class TestMicroserviceManagementClient:
                     assert excinfo.type is KeyError
                 assert 1 == log_error.call_count
                 args = log_error.call_args
-                assert 'Could not unregister the micro-service having uuid {}'.format('someid') == args[0][1]
+                assert 'Could not unregister the microservice having UUID {}'.format('someid') == args[0][1]
             response_patch.assert_called_once_with()
         request_patch.assert_called_once_with(method='DELETE', url='/fledge/service/someid')
 
@@ -313,7 +313,7 @@ class TestMicroserviceManagementClient:
                     assert excinfo.type is KeyError
                 assert 1 == log_error.call_count
                 args = log_error.call_args
-                assert 'Could not find the micro-service for requested url {}'.format(
+                assert 'Could not find the microservice for requested url {}'.format(
                     '/fledge/service?name=foo&type=bar') == args[0][1]
             response_patch.assert_called_once_with()
         request_patch.assert_called_once_with(method='GET', url='/fledge/service?name=foo&type=bar')
@@ -354,7 +354,7 @@ class TestMicroserviceManagementClient:
         test_dict = {
             'ping_timeout': {
                 'type': 'integer',
-                'description': 'Timeout for a response from any given micro-service. (must be greater than 0)',
+                'description': 'Timeout for a response from any given microservice. (must be greater than 0)',
                 'value': '1',
                 'default': '1'},
             'sleep_interval': {
@@ -406,7 +406,7 @@ class TestMicroserviceManagementClient:
         response_mock.read.return_value = undecoded_data_mock
         test_dict = {
                 'type': 'integer',
-                'description': 'Timeout for a response from any given micro-service. (must be greater than 0)',
+                'description': 'Timeout for a response from any given microservice. (must be greater than 0)',
                 'value': '1',
                 'default': '1'
         }
@@ -457,7 +457,7 @@ class TestMicroserviceManagementClient:
             'value': {
                 'ping_timeout': {
                     'type': 'integer',
-                    'description': 'Timeout for a response from any given micro-service. (must be greater than 0)',
+                    'description': 'Timeout for a response from any given microservice. (must be greater than 0)',
                     'value': '1',
                     'default': '1'},
                 'sleep_interval': {
@@ -495,7 +495,7 @@ class TestMicroserviceManagementClient:
             'value': {
                 'ping_timeout': {
                     'type': 'integer',
-                    'description': 'Timeout for a response from any given micro-service. (must be greater than 0)',
+                    'description': 'Timeout for a response from any given microservice. (must be greater than 0)',
                     'value': '1',
                     'default': '1'},
                 'sleep_interval': {
@@ -540,7 +540,7 @@ class TestMicroserviceManagementClient:
             'value': {
                 'ping_timeout': {
                     'type': 'integer',
-                    'description': 'Timeout for a response from any given micro-service. (must be greater than 0)',
+                    'description': 'Timeout for a response from any given microservice. (must be greater than 0)',
                     'value': '1',
                     'default': '1'},
                 'sleep_interval': {
@@ -559,7 +559,7 @@ class TestMicroserviceManagementClient:
             'value': {
                 'ping_timeout': {
                     'type': 'integer',
-                    'description': 'Timeout for a response from any given micro-service. (must be greater than 0)',
+                    'description': 'Timeout for a response from any given microservice. (must be greater than 0)',
                     'value': '1',
                     'default': '1'},
                 'sleep_interval': {

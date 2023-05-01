@@ -116,7 +116,7 @@ async def get_backups(request):
             res.append(r)
     except Exception as ex:
         msg = str(ex)
-        _logger.error(ex, "Get all backups failed.")
+        _logger.error(ex, "Failed to get the list of Backup records.")
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     return web.json_response({"backups": res})
 
@@ -206,7 +206,7 @@ async def get_backup_download(request):
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
-        _logger.error(ex, "Failed to backup download for ID: <{}>.".format(backup_id))
+        _logger.error(ex, "Failed to download Backup file for ID: <{}>.".format(backup_id))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.FileResponse(path=gz_path)

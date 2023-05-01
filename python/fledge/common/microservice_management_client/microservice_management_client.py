@@ -87,7 +87,7 @@ class MicroserviceManagementClient(object):
         try:
             response["id"]
         except (KeyError, Exception) as ex:
-            _logger.exception(ex, "Could not unregister the micro-service having uuid {}".format(microservice_id))
+            _logger.exception(ex, "Could not unregister the microservice having UUID {}".format(microservice_id))
             raise
 
         return response
@@ -178,7 +178,7 @@ class MicroserviceManagementClient(object):
         try:
             response["services"]
         except (KeyError, Exception) as ex:
-            _logger.exception(ex, "Could not find the micro-service for requested url {}".format(url))
+            _logger.exception(ex, "Could not find the microservice for requested url {}".format(url))
             raise
 
         return response

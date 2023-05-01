@@ -270,7 +270,7 @@ async def get_audit_entries(request):
             res.append(r)
     except Exception as ex:
         msg = str(ex)
-        _logger.error(ex, "Get Audit log entry failed.")
+        _logger.error(ex, "Failed to get Audit log entry.")
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({'audit': res, 'totalCount': total_count})

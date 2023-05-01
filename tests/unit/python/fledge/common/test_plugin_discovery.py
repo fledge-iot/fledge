@@ -559,8 +559,8 @@ class TestPluginDiscovery:
             assert exc_count == patch_log_exc.call_count
 
     @pytest.mark.parametrize("exc_name, log_exc_name, msg", [
-        (FileNotFoundError, "error", 'Plugin "modbus" import problem from path "modbus".'),
-        (Exception, "exception", 'Plugin "modbus" failed while fetching config')
+        (FileNotFoundError, "error", 'Import problem from path "modbus" for modbus plugin.'),
+        (Exception, "exception", 'Failed to fetch config for modbus plugin.')
     ])
     def test_bad_get_south_plugin_config(self, exc_name, log_exc_name, msg):
         with patch.object(_logger, log_exc_name) as patch_log_exc:
@@ -571,8 +571,8 @@ class TestPluginDiscovery:
         assert msg == args[0][1]
 
     @pytest.mark.parametrize("exc_name, log_exc_name, msg", [
-        (FileNotFoundError, "error", 'Plugin "http" import problem from path "http".'),
-        (Exception, "exception", 'Plugin "http" failed while fetching config')
+        (FileNotFoundError, "error", 'Import problem from path "http" for http plugin.'),
+        (Exception, "exception", 'Failed to fetch config for http plugin.')
     ])
     def test_bad_get_north_plugin_config(self, exc_name, log_exc_name, msg):
         with patch.object(_logger, log_exc_name) as patch_log_exc:

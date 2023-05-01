@@ -143,7 +143,7 @@ class Statistics(object):
             """ The error may be because the key has been created in another process, reload keys """
             await self._load_keys()
             if key not in self._registered_keys:
-                _logger.exception(ex, 'Unable to create new statistic {}'.format(key))
+                _logger.exception(ex, 'Unable to create new statistic {} key.'.format(key))
                 raise
 
     async def _load_keys(self):

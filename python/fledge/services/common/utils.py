@@ -63,7 +63,7 @@ async def shutdown_service(service, loop=None):
                 if not status_code == 200:
                     raise Exception(message=text)
     except Exception as ex:
-        _logger.exception(ex, 'Error in {} Service shutdown'.format(service._name))
+        _logger.exception(ex, 'Failed to shutdown {} service.'.format(service._name))
         return False
     else:
         _logger.info('Service %s, id %s at url %s successfully shutdown', service._name, service._id, url_shutdown)

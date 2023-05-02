@@ -18,7 +18,7 @@ import shutil
 from urllib.parse import quote
 from pathlib import Path
 import pytest
-
+from helper import utils
 
 __author__ = "Vaibhav Singhal"
 __copyright__ = "Copyright (c) 2019 Dianomic Systems"
@@ -212,6 +212,62 @@ def add_north():
 
     return _add_fledge_north
 
+@pytest.fixture
+def add_service():
+    def _add_service(fledge_url, service_branch, installation_type = "make", service_name = "play",
+                     plugin_lang="python", use_pip_cache = True, enabled = True, wait_time, retries):
+        """ Add Service Instance and start the insatnce by default """
+        
+        _enabled = "true" if enabled else "false"
+        
+        def clone_make_install():
+            try:
+                if plugin_lang == "python":
+                    subprocess.run(
+                        ["$FLEDGE_ROOT/tests/system/python/scripts/install_python_plugin {} service {} {}".format(
+                            service_branch, service_plugin, use_pip_cache)], shell=True, check=True)
+                else:
+                    subprocess.run(["$FLEDGE_ROOT/tests/system/python/scripts/install_c_service {} {}".format(
+                        service_branch, service_plugin)], shell=True, check=True)
+            except subprocess.CalledProcessError:
+                assert False, "{} plugin installation failed".format(service_plugin)
+                
+        if installation_type == 'make':
+            clone_make_install()
+        elif installation_type == 'package':
+            try:
+                subprocess.run(["sudo {} install -y fledge-service-{}".format(pytest.PKG_MGR, service_plugin)], shell=True,
+                            check=True)
+            except subprocess.CalledProcessError:
+                assert False, "{} package installation failed!".format(service_plugin)
+        else:
+            print("Skipped {} plugin installation. Installation mechanism is set to {}.".format(service_plugin, installation_type))
+        
+        
+        # Add service
+        if service_plugin == "notification":
+            data = {"name": "{}".format(service_name), "type": "notification", "enabled": _enabled}
+            print(data)
+            retval = utils.post_request(fledge_url, "/fledge/service", data)
+            assert service_name == retval["name"]
+            return retval
+        
+        elif service_plugin == "dispatcher":
+            #  Restart fledge and verify dispatcher service is added
+            utils.put_request(fledge_url, "/fledge/restart", None)
+            for i in range(retries):
+                time.sleep(30)
+                get_url = '/fledge/ping'
+                ping_result = utils.get_request(fledge_url, get_url)
+                if ping_result['uptime'] > 0:
+                    break
+            assert ping_result['uptime'] > 0
+            
+            retval =  utils.get_request(fledge_url, "/fledge/service")
+            retval = retval["services"][2]
+            return retval
+        
+    return _add_service
 
 @pytest.fixture
 def start_north_pi_v2():

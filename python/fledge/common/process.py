@@ -100,7 +100,7 @@ class FledgeProcess(ABC):
                             raise ArgumentParserError("Invalid value {} for optional arg {}".format(kv[1], kv[0]))
 
         except ArgumentParserError as ex:
-            _logger.error("Arg parser error: %s", str(ex))
+            _logger.error(ex, "Arg parser error.")
             raise
 
         self._core_microservice_management_client = MicroserviceManagementClient(self._core_management_host,

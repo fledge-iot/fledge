@@ -387,7 +387,8 @@ class TestFilters:
                     assert 500 == resp.status
                     assert resp.reason is ''
                 assert 1 == patch_logger.call_count
-                patch_logger.assert_called_once_with('Add filter, caught exception: ')
+                args = patch_logger.call_args
+                assert 'Add filter failed.' == args[0][1]
             get_cat_info_patch.assert_called_once_with(category_name=name)
 
     async def test_create_filter(self, client):

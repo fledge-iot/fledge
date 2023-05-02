@@ -60,7 +60,7 @@ class AuditLogger(AuditLoggerSingleton):
             await self._storage.insert_into_tbl("log", payload)
 
         except (StorageServerError, Exception) as ex:
-            _logger.error("Failed to log audit trail entry '{}': {}".format(code, str(ex)))
+            _logger.error(ex, "Failed to log audit trail entry '{}'.".format(code))
             raise ex
 
     async def success(self, code, log):

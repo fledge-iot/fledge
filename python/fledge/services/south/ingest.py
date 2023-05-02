@@ -382,7 +382,7 @@ class Ingest(object):
                 except Exception as ex:
                     attempt += 1
 
-                    _LOGGER.exception('Insert failed on attempt #%s, list index: %s | %s', attempt, list_index, str(ex))
+                    _LOGGER.exception(ex, 'Insert failed on attempt #{}, list index: {}'.format(attempt, list_index))
 
                     if cls._stop or attempt >= _MAX_ATTEMPTS:
                         # Stopping. Discard the entire list upon failure.
@@ -432,7 +432,7 @@ class Ingest(object):
             cls._discarded_readings_stats += discarded_readings
             for key in sensor_readings:
                 cls._sensor_stats[key] += sensor_readings[key]
-            _LOGGER.exception('An error occurred while writing sensor statistics, Error: %s', str(ex))
+            _LOGGER.exception(ex, 'An error occurred while writing sensor statistics')
 
     @classmethod
     def is_available(cls) -> bool:

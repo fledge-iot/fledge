@@ -172,7 +172,7 @@ async def update_package(request: web.Request) -> web.Response:
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": "Storage error: {}".format(msg)}))
     except Exception as ex:
         msg = str(ex)
-        _logger.error("Failed to update {} package. {}".format(package_name, msg))
+        _logger.error(ex, "Failed to update {} package.".format(package_name))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({'message': msg}))
     else:
         return web.json_response(final_response)
@@ -313,7 +313,7 @@ async def update_plugin(request: web.Request) -> web.Response:
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": "Storage error: {}".format(msg)}))
     except Exception as ex:
         msg = str(ex)
-        _logger.error("Failed to update {} plugin. {}".format(name, msg))
+        _logger.error(ex, "Failed to update {} plugin.".format(name))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({'message': msg}))
     else:
         return web.json_response(result_payload)

@@ -133,7 +133,7 @@ class TestBundleSupport:
                 assert {"bundle created": "support-180301-13-35-23.tar.gz"} == jdict
 
     async def test_create_support_bundle_exception(self, client):
-        msg = "Failed to create support bundle. blah"
+        msg = "Failed to create support bundle."
         with patch.object(SupportBuilder, "__init__", return_value=None):
             with patch.object(SupportBuilder, "build", side_effect=RuntimeError("blah")):
                 with patch.object(support._logger, "error") as patch_logger:
@@ -141,6 +141,8 @@ class TestBundleSupport:
                     assert 500 == resp.status
                     assert msg == resp.reason
                 assert 1 == patch_logger.call_count
+                args = patch_logger.call_args
+                assert msg == args[0][1]
 
     async def test_get_syslog_entries_all_ok(self, client):
         def mock_syslog():

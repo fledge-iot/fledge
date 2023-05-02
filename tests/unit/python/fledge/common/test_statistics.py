@@ -170,8 +170,8 @@ class TestStatistics:
         with patch.object(statistics._logger, 'exception') as logger_exception:
             with patch.object(s._storage, 'query_tbl_with_payload', return_value=_rv):
                 await s._load_keys()
-        args, kwargs = logger_exception.call_args
-        assert args[0] == 'Failed to retrieve statistics keys, %s'
+        args = logger_exception.call_args
+        assert args[0][1] == 'Failed to retrieve statistics keys'
 
     async def test_update(self):
         storage_client_mock = MagicMock(spec=StorageClientAsync)
@@ -212,13 +212,13 @@ class TestStatistics:
     async def test_update_exception(self):
         storage_client_mock = MagicMock(spec=StorageClientAsync)
         s = statistics.Statistics(storage_client_mock)
-        msg = 'Unable to update statistics value based on statistics_key %s and value_increment %d,' \
-              ' error %s', 'BUFFERED', 5, ''
+        msg = 'Unable to update statistics value based on statistics_key {} and value_increment {}'.format('BUFFERED', 5)
         with patch.object(s._storage, 'update_tbl', side_effect=Exception()):
             with pytest.raises(Exception):
                 with patch.object(statistics._logger, 'exception') as logger_exception:
                     await s.update('BUFFERED', 5)
-            logger_exception.assert_called_once_with(*msg)
+                args = logger_exception.call_args
+                assert msg == args[0][1]
 
     async def test_add_update(self):
         stat_dict = {'FOGBENCH/TEMPERATURE': 1}

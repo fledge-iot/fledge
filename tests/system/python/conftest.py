@@ -19,6 +19,7 @@ from urllib.parse import quote
 from pathlib import Path
 import pytest
 import time
+from helpers import utils
 
 __author__ = "Vaibhav Singhal"
 __copyright__ = "Copyright (c) 2019 Dianomic Systems"
@@ -672,25 +673,22 @@ def disable_schedule():
 @pytest.fixture(scope="function", autouse=True)
 def collect_support_bundle(request):
     def _collect_support_bundle():
-        PROJECT_ROOT = subprocess.getoutput("git rev-parse --show-toplevel")
+        PROJECT_ROOT = Path(__file__).absolute().parent.parent.parent.parent
+        
         try:
-            conn = http.client.HTTPConnection("{}".format(url))
-            conn.request("POST", "/fledge/support")
-            r = conn.getresponse()
-            assert 200 == r.status
-            r = r.read().decode()
-            jdoc = json.loads(r)
+            jdoc = utils.post_request(url, "/fledge/support", None)
             assert jdoc["bundle created"]
-            subprocess.run(["mkdir -p {0}/support/ && cp -r {1} {0}/support/.".format(PROJECT_ROOT, jdoc["bundle created"])], shell=True, check=True)
+            copy_to = "mkdir -p {0}/support/ && cp -r {1} {0}/support".format(PROJECT_ROOT, jdoc['bundle created'])
+            subprocess.run(["{}/.".format(copy_to)], shell=True, check=True)
         except Exception as e:
             print("\n Failed to get Support Bundle from Fledge REST API due to {}".format(str(e)))
             print("Copying syslog")
-            OS_NAME = subprocess.getoutput('cat /etc/os-release  | grep -E ^NAME= | cut -d= -f2 | tr -d \\" ')
-            if OS_NAME == 'Ubuntu':
-                LOG_FILE = "/var/log/syslog"
-            elif OS_NAME == 'CentOS Stream':
+            if pytest.PKG_MGR == 'yum':
                 LOG_FILE = "/var/log/messages"  
-            subprocess.run(["mkdir -p {0}/support/ && cp {1} {0}/support/syslog_{2}".format(PROJECT_ROOT, LOG_FILE, time.strftime("%Y_%m_%d_%H_%M_%S"))], shell=True, check=True)  
+            else:
+                LOG_FILE = "/var/log/syslog"
+            copy_to = "mkdir -p {0}/support/ && cp -r {1} {0}/support".format(PROJECT_ROOT, LOG_FILE)
+            subprocess.run(["{0}/syslog_{1}".format(copy_to, time.strftime("%Y_%m_%d_%H_%M_%S"))], shell=True, check=True)  
          
     url = request.config.getoption("--fledge-url")
     request.addfinalizer(_collect_support_bundle)

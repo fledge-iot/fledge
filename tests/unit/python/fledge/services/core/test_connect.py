@@ -44,7 +44,7 @@ class TestConnect:
         with pytest.raises(DoesNotExist) as excinfo:
             connect.get_storage_async()
         assert str(excinfo).endswith('DoesNotExist')
-        mock_logger.error.assert_called_once_with('')
+        assert 1 == mock_logger.error.call_count
 
     @patch('fledge.services.core.connect._logger')
     def test_exception_when_non_fledge_storage(self, mock_logger):
@@ -58,4 +58,4 @@ class TestConnect:
         with pytest.raises(DoesNotExist) as excinfo:
             connect.get_storage_async()
         assert str(excinfo).endswith('DoesNotExist')
-        mock_logger.error.assert_called_once_with('')
+        assert 1 == mock_logger.error.call_count

@@ -105,7 +105,7 @@ async def update_package(request):
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
-        _logger.error("Failed to update Fledge package.{}".format(msg))
+        _logger.error(ex, "Failed to update Fledge package.")
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({"status": "Running", "message": status_message})
@@ -175,8 +175,8 @@ async def get_updates(request: web.Request) -> web.Response:
         # Make a set to avoid duplicates.
         upgradable_packages = list(set(packages))
     except Exception as ex:
-        msg = "Failed to fetch upgradable packages list for the configured repository! {}".format(str(ex))
-        _logger.error(msg)
-        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+        msg = "Failed to fetch upgradable packages list for the configured repository!"
+        _logger.error(ex, msg)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": "{} {}".format(msg, str(ex))}))
     else:
         return web.json_response({'updates': upgradable_packages})

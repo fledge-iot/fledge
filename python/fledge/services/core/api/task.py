@@ -182,8 +182,9 @@ EOF
         except TypeError as ex:
             raise web.HTTPBadRequest(reason=str(ex))
         except Exception as ex:
-            _logger.error("Failed to fetch plugin configuration due to {}".format(str(ex)))
-            raise web.HTTPInternalServerError(reason='Failed to fetch plugin configuration.')
+            msg = "Failed to fetch plugin configuration."
+            _logger.error(ex, msg)
+            raise web.HTTPInternalServerError(reason=msg)
 
         storage = connect.get_storage_async()
         config_mgr = ConfigurationManager(storage)
@@ -225,7 +226,7 @@ EOF
                 _logger.exception("Failed to create scheduled process due to {}".format(ex.error))
                 raise web.HTTPInternalServerError(reason='Failed to create north instance.')
             except Exception as ex:
-                _logger.error("Failed to create scheduled process due to {}".format(str(ex)))
+                _logger.error(ex, "Failed to create scheduled process.")
                 raise web.HTTPInternalServerError(reason='Failed to create north instance.')
 
         # If successful then create a configuration entry from plugin configuration
@@ -248,7 +249,7 @@ EOF
                     await config_mgr.set_category_item_value_entry(name, k, v['value'])
         except Exception as ex:
             await config_mgr.delete_category_and_children_recursively(name)
-            _logger.error("Failed to create plugin configuration due to {}".format(str(ex)))
+            _logger.error(ex, "Failed to create plugin configuration.")
             raise web.HTTPInternalServerError(reason='Failed to create plugin configuration. {}'.format(ex))
 
         # If all successful then lastly add a schedule to run the new task at startup
@@ -277,7 +278,7 @@ EOF
             raise web.HTTPInternalServerError(reason='Failed to create north instance.')
         except Exception as ex:
             await config_mgr.delete_category_and_children_recursively(name)
-            _logger.error("Failed to create north instance due to {}".format(str(ex)))
+            _logger.error(ex, "Failed to create north instance.")
             raise web.HTTPInternalServerError(reason='Failed to create north instance.')
 
     except ValueError as e:
@@ -323,7 +324,7 @@ async def delete_task(request):
         await update_deprecated_ts_in_asset_tracker(storage, north_instance)
     except Exception as ex:
         msg = str(ex)
-        _logger.error("Failed to delete {} north task. {}".format(north_instance, msg))
+        _logger.error(ex, "Failed to delete {} north task.".format(north_instance))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({'result': 'North instance {} deleted successfully.'.format(north_instance)})

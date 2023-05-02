@@ -145,7 +145,7 @@ async def create_filter(request: web.Request) -> web.Response:
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
-        _LOGGER.error("Add filter, caught exception: {}".format(msg))
+        _LOGGER.error(ex, "Add filter failed.")
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
 
 
@@ -282,7 +282,7 @@ async def add_filters_pipeline(request: web.Request) -> web.Response:
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
-        _LOGGER.error("Add filters pipeline, caught exception: {}".format(msg))
+        _LOGGER.error(ex, "Add filters pipeline failed.")
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
 
 
@@ -329,7 +329,7 @@ async def get_filter(request: web.Request) -> web.Response:
         raise web.HTTPBadRequest(reason=str(err))
     except Exception as ex:
         msg = str(ex)
-        _LOGGER.error("Get {} filter, caught exception: {}".format(filter_name, msg))
+        _LOGGER.error(ex, "Get {} filter failed.".format(filter_name))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({'filter': filter_detail})
@@ -351,7 +351,7 @@ async def get_filters(request: web.Request) -> web.Response:
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
-        _LOGGER.error("Get all filters, caught exception: {}".format(msg))
+        _LOGGER.error(ex, "Get all filters failed.")
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({'filters': filters})
@@ -385,7 +385,7 @@ async def get_filter_pipeline(request: web.Request) -> web.Response:
         raise web.HTTPNotFound(reason=str(err))
     except Exception as ex:
         msg = str(ex)
-        _LOGGER.error("Get filter pipeline, caught exception: {}".format(msg))
+        _LOGGER.error(ex, "Get filter pipeline failed.")
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({'result': filter_value_from_storage})
@@ -449,7 +449,7 @@ async def delete_filter(request: web.Request) -> web.Response:
         raise web.HTTPBadRequest(reason=str(err))
     except Exception as ex:
         msg = str(ex)
-        _LOGGER.error("Delete {} filter, caught exception: {}".format(filter_name, msg))
+        _LOGGER.error(ex, "Delete {} filter failed.".format(filter_name))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({'result': "Filter {} deleted successfully.".format(filter_name)})

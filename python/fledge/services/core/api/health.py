@@ -108,9 +108,9 @@ async def get_logging_health(request: web.Request) -> web.Response:
         response["levels"] = log_levels
 
     except Exception as ex:
-        msg = "Could not fetch service information. {}".format(str(ex))
-        _LOGGER.error(msg)
-        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+        msg = "Could not fetch service information."
+        _LOGGER.error(ex, msg)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": "{} {}".format(msg, str(ex))}))
 
     try:
         response['disk'] = {}
@@ -121,9 +121,9 @@ async def get_logging_health(request: web.Request) -> web.Response:
         response['disk']['available'] = available
 
     except Exception as ex:
-        msg = "Failed to get disk stats for /var/log. {}".format(str(ex))
-        _LOGGER.error(msg)
-        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+        msg = "Failed to get disk stats for /var/log."
+        _LOGGER.error(ex, msg)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": "{} {}".format(msg, str(ex))}))
     else:
         return web.json_response(response)
 
@@ -188,7 +188,7 @@ async def get_storage_health(request: web.Request) -> web.Response:
 
     except Exception as ex:
         msg = str(ex)
-        _LOGGER.error("Could not ping the Storage service. {}".format(msg))
+        _LOGGER.error(ex, "Could not ping the Storage service.")
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
 
     try:
@@ -207,8 +207,8 @@ async def get_storage_health(request: web.Request) -> web.Response:
         response['disk']['available'] = available
         response['disk']['status'] = status
     except Exception as ex:
-        msg = "Failed to get disk stats for Storage service. {}".format(str(ex))
-        _LOGGER.error(msg)
-        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+        msg = "Failed to get disk stats for Storage service."
+        _LOGGER.error(ex, msg)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": "{} {}".format(msg, str(ex))}))
     else:
         return web.json_response(response)

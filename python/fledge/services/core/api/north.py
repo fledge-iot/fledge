@@ -185,7 +185,7 @@ async def get_north_schedules(request):
         return web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
-        _logger.error("Failed to get the north schedules. {}".format(msg))
+        _logger.error(ex, "Failed to get the north schedules.")
         return web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(north_schedules)

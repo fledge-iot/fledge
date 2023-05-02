@@ -361,12 +361,12 @@ async def add_service(request):
                 plugin_module_path = "{}/plugins/{}/{}".format(_FLEDGE_ROOT, service_type, plugin)
                 if not plugin_config:
                     msg = "Plugin '{}' not found in path '{}'.".format(plugin, plugin_module_path)
-                    _logger.exception("{} Detailed error logs are: {}".format(msg, str(ex)))
+                    _logger.exception(ex, msg)
                     raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
             except TypeError as ex:
                 raise web.HTTPBadRequest(reason=str(ex))
             except Exception as ex:
-                _logger.error("Failed to fetch plugin info config item. {}".format(str(ex)))
+                _logger.error(ex, "Failed to fetch plugin info config item.")
                 raise web.HTTPInternalServerError(reason='Failed to fetch plugin configuration')
         elif service_type == 'notification':
             if not os.path.exists(_FLEDGE_ROOT + "/services/fledge.services.{}".format(service_type)):
@@ -420,7 +420,7 @@ async def add_service(request):
                 _logger.exception("Failed to create scheduled process. %s", ex.error)
                 raise web.HTTPInternalServerError(reason='Failed to create service.')
             except Exception as ex:
-                _logger.error("Failed to create scheduled process. %s", str(ex))
+                _logger.error(ex, "Failed to create scheduled process.")
                 raise web.HTTPInternalServerError(reason='Failed to create service.')
 
         # check that notification service is not already registered, right now notification service LIMIT to 1
@@ -472,8 +472,8 @@ async def add_service(request):
                         await config_mgr.set_category_item_value_entry(name, k, v['value'])
             except Exception as ex:
                 await config_mgr.delete_category_and_children_recursively(name)
-                msg = "Failed to create plugin configuration while adding service. {}".format(str(ex))
-                _logger.error(msg)
+                msg = "Failed to create plugin configuration while adding service."
+                _logger.error(ex, msg)
                 raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
 
         # If all successful then lastly add a schedule to run the new service at startup
@@ -495,7 +495,7 @@ async def add_service(request):
             raise web.HTTPInternalServerError(reason='Failed to create service.')
         except Exception as ex:
             await config_mgr.delete_category_and_children_recursively(name)
-            _logger.error("Failed to create service. %s", str(ex))
+            _logger.error(ex, "Failed to create service.")
             raise web.HTTPInternalServerError(reason='Failed to create service.')
     except ValueError as err:
         msg = str(err)

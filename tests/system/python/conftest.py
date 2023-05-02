@@ -266,10 +266,14 @@ def add_service():
             assert ping_result['uptime'] > 0
             
             retval =  utils.get_request(fledge_url, "/fledge/service")
-            retval = retval["services"][2]
+            for ele in retval["services"]:
+                if ele["name"] == "dispatcher":
+                    retval = ele
             return retval
         
     return _add_service
+
+@pytest.
 
 @pytest.fixture
 def start_north_pi_v2():

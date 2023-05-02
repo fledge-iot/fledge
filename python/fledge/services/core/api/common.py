@@ -160,7 +160,7 @@ async def shutdown(request):
         raise web.HTTPRequestTimeout(reason=str(err))
     except Exception as ex:
         msg = str(ex)
-        _logger.error("Error while stopping Fledge server: {}".format(msg))
+        _logger.error(ex, "Error while stopping Fledge server.")
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
 
 
@@ -170,7 +170,7 @@ def do_shutdown(request):
         loop = request.loop
         asyncio.ensure_future(server.Server.shutdown(request), loop=loop)
     except RuntimeError as e:
-        _logger.error("Error while stopping Fledge server: {}".format(str(e)))
+        _logger.error(e, "Error while stopping Fledge server.")
         raise
 
 
@@ -189,5 +189,5 @@ async def restart(request):
         raise web.HTTPRequestTimeout(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
-        _logger.error("Error while stopping Fledge server: {}".format(msg))
+        _logger.error(ex, "Error while stopping Fledge server.")
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))

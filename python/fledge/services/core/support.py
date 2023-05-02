@@ -57,7 +57,7 @@ class SupportBuilder:
             self._interim_file_path = support_dir
             self._storage = get_storage_async()  # from fledge.services.core.connect
         except (OSError, Exception) as ex:
-            _LOGGER.error("Error in initializing SupportBuilder class: %s ", str(ex))
+            _LOGGER.error(ex, "Error in initializing SupportBuilder class.")
             raise RuntimeError(str(ex))
 
     async def build(self):
@@ -103,7 +103,7 @@ class SupportBuilder:
             finally:
                 pyz.close()
         except Exception as ex:
-            _LOGGER.error("Error in creating Support .tar.gz file: %s ", str(ex))
+            _LOGGER.error(ex, "Error in creating Support .tar.gz file.")
             raise RuntimeError(str(ex))
 
         self.check_and_delete_temp_files(self._interim_file_path)

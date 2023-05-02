@@ -216,7 +216,7 @@ async def get_ott(request):
             is_admin = True
     except Exception as ex:
         msg = str(ex)
-        _logger.error("OTT token failed. {}".format(msg))
+        _logger.error(ex, "OTT token failed.")
         raise web.HTTPBadRequest(reason="The request failed due to {}".format(msg))
     else:
         now_time = datetime.datetime.now()
@@ -438,7 +438,7 @@ async def create_user(request):
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except Exception as exc:
         msg = str(exc)
-        _logger.error("Failed to create user. {}".format(msg))
+        _logger.error(exc, "Failed to create user.")
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     msg = "{} user has been created successfully.".format(username)
     _logger.info(msg)
@@ -486,7 +486,7 @@ async def update_me(request):
                 raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
             except Exception as exc:
                 msg = str(exc)
-                _logger.error("Failed to update the user <{}> profile. {}".format(int(user_id), msg))
+                _logger.error(exc, "Failed to update the user <{}> profile.".format(int(user_id)))
                 raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         msg = "Nothing to update."
@@ -556,7 +556,7 @@ async def update_user(request):
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as exc:
         msg = str(exc)
-        _logger.error("Failed to update the user ID:<{}>. {}".format(user_id, msg))
+        _logger.error(exc, "Failed to update the user ID:<{}>.".format(user_id))
         raise web.HTTPInternalServerError(reason=str(exc), body=json.dumps({"message": msg}))
     return web.json_response({'user_info': user_info})
 
@@ -614,7 +614,7 @@ async def update_password(request):
         raise web.HTTPBadRequest(reason=msg)
     except Exception as exc:
         msg = str(exc)
-        _logger.error("Failed to update the user ID:<{}>. {}".format(user_id, msg))
+        _logger.error(exc, "Failed to update the user ID:<{}>.".format(user_id))
         raise web.HTTPInternalServerError(reason=msg)
 
     msg = "Password has been updated successfully for user ID:<{}>.".format(int(user_id))
@@ -678,7 +678,7 @@ async def enable_user(request):
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as exc:
         msg = str(exc)
-        _logger.error("Failed to enable/disable user ID:<{}>. {}".format(user_id, msg))
+        _logger.error(exc, "Failed to enable/disable user ID:<{}>.".format(user_id))
         raise web.HTTPInternalServerError(reason=str(exc), body=json.dumps({"message": msg}))
     return web.json_response({'message': 'User with ID:<{}> has been {} successfully.'.format(int(user_id), _text)})
 
@@ -741,7 +741,7 @@ async def reset(request):
         raise web.HTTPBadRequest(reason=msg)
     except Exception as exc:
         msg = str(exc)
-        _logger.error("Failed to reset the user ID:<{}>. {}".format(user_id, msg))
+        _logger.error(exc, "Failed to reset the user ID:<{}>.".format(user_id))
         raise web.HTTPInternalServerError(reason=msg)
 
     msg = "User with ID:<{}> has been updated successfully.".format(int(user_id))
@@ -792,7 +792,7 @@ async def delete_user(request):
         raise web.HTTPNotFound(reason=msg)
     except Exception as exc:
         msg = str(exc)
-        _logger.error("Failed to delete the user ID:<{}>. {}".format(user_id, msg))
+        _logger.error(exc, "Failed to delete the user ID:<{}>.".format(user_id))
         raise web.HTTPInternalServerError(reason=msg)
 
     _logger.info("User with ID:<{}> has been deleted successfully.".format(int(user_id)))

@@ -204,9 +204,9 @@ class PluginDiscovery(object):
         except DeprecationWarning:
             _logger.warning('"{}" plugin is deprecated'.format(plugin_dir.split('/')[-1]))
         except FileNotFoundError as ex:
-            _logger.error('Plugin "{}" import problem from path "{}". {}'.format(plugin_dir, plugin_module_path, str(ex)))
+            _logger.error(ex, 'Import problem from path "{}" for {} plugin.'.format(plugin_module_path, plugin_dir))
         except Exception as ex:
-            _logger.exception('Plugin "{}" raised exception "{}" while fetching config'.format(plugin_dir, str(ex)))
+            _logger.exception(ex, 'Failed to fetch config for {} plugin.'.format(plugin_dir))
 
         return plugin_config
 

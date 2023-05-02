@@ -95,7 +95,7 @@ class ACLManager(ACLManagerSingleton):
                     self._pending_notifications.pop(entity_name)
 
             except Exception as ex:
-                _logger.error("Could not notify {} due to {}".format(entity_name, str(ex)))
+                _logger.error(ex, "Could not notify {}.".format(entity_name))
 
     async def handle_update_for_acl_usage(self, entity_name, acl_name, entity_type,
                                           message="updateACL"):

@@ -847,7 +847,7 @@ class Scheduler(object):
                 try:
                     await self._purge_tasks_task
                 except Exception as ex:
-                    self._logger.exception('An exception was raised by Scheduler._purge_tasks %s', str(ex))
+                    self._logger.exception(ex, 'An exception was raised by Scheduler._purge_tasks.')
 
             self._resume_check_schedules()
 
@@ -855,7 +855,7 @@ class Scheduler(object):
             try:
                 await self._scheduler_loop_task
             except Exception as ex:
-                self._logger.exception('An exception was raised by Scheduler._scheduler_loop %s', str(ex))
+                self._logger.exception(ex, 'An exception was raised by Scheduler._scheduler_loop')
             self._scheduler_loop_task = None
 
         # Can not iterate over _task_processes - it can change mid-iteration

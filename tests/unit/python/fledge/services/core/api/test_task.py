@@ -577,7 +577,8 @@ class TestTask:
             assert 500 == resp.status
             assert resp.reason is ''
         assert 1 == patch_logger.call_count
-        patch_logger.assert_called_once_with('Failed to delete Test north task. ')
+        args = patch_logger.call_args
+        assert 'Failed to delete Test north task.' == args[0][1]
 
         async def mock_bad_result():
             return {"count": 0, "rows": []}

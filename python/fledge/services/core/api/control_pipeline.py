@@ -66,7 +66,7 @@ async def get_lookup(request: web.Request) -> web.Response:
                 response = {'controlLookup': lookup}
     except Exception as ex:
         msg = str(ex)
-        _logger.error("Failed to get all control lookups. {}".format(msg))
+        _logger.error(ex, "Failed to get all control lookups.")
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(response)
@@ -132,7 +132,7 @@ async def create(request: web.Request) -> web.Response:
         raise web.HTTPBadRequest(body=json.dumps({"message": msg}), reason=msg)
     except Exception as ex:
         msg = str(ex)
-        _logger.error("Failed to create pipeline: {}. {}".format(data.get('name'), msg))
+        _logger.error(ex, "Failed to create pipeline: {}.".format(data.get('name')))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(final_result)
@@ -168,7 +168,7 @@ async def get_all(request: web.Request) -> web.Response:
             control_pipelines.append(temp)
     except Exception as ex:
         msg = str(ex)
-        _logger.error("Failed to get all pipelines. {}".format(msg))
+        _logger.error(ex, "Failed to get all pipelines.")
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({'pipelines': control_pipelines})
@@ -191,7 +191,7 @@ async def get_by_id(request: web.Request) -> web.Response:
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
-        _logger.error("Failed to fetch details of pipeline having ID:{}. {}".format(cpid, msg))
+        _logger.error(ex, "Failed to fetch details of pipeline having ID: <{}>.".format(cpid))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(pipeline)
@@ -235,7 +235,7 @@ async def update(request: web.Request) -> web.Response:
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
-        _logger.error("Failed to update pipeline having ID:{}. {}".format(cpid, msg))
+        _logger.error(ex, "Failed to update pipeline having ID: <{}>.".format(cpid))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(
@@ -266,7 +266,7 @@ async def delete(request: web.Request) -> web.Response:
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
-        _logger.error("Failed to delete pipeline having ID:{}. {}".format(cpid, msg))
+        _logger.error(ex, "Failed to delete pipeline having ID: <{}>.".format(cpid))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(
@@ -397,17 +397,24 @@ async def _check_parameters(payload):
                     raise ValueError("Invalid source type found.")
             else:
                 raise ValueError('Source type is missing.')
-            if source_name is not None:
-                if not isinstance(source_name, str):
-                    raise ValueError("Source name should be a string value.")
-                source_name = source_name.strip()
-                if len(source_name) == 0:
-                    raise ValueError('Source name cannot be empty.')
-                await _validate_lookup_name("source", source_type, source_name)
+            # Note: when source type is Any; no name is applied
+            if source_type != 1:
+                if source_name is not None:
+                    if not isinstance(source_name, str):
+                        raise ValueError("Source name should be a string value.")
+                    source_name = source_name.strip()
+                    if len(source_name) == 0:
+                        raise ValueError('Source name cannot be empty.')
+                    await _validate_lookup_name("source", source_type, source_name)
+                    column_names["stype"] = source_type
+                    column_names["sname"] = source_name
+                else:
+                    raise ValueError('Source name is missing.')
+            else:
+                source_name = ''
+                source = {'type': source_type, 'name': source_name}
                 column_names["stype"] = source_type
                 column_names["sname"] = source_name
-            else:
-                raise ValueError('Source name is missing.')
         else:
             column_names["stype"] = 0
             column_names["sname"] = ""
@@ -467,8 +474,16 @@ async def _validate_lookup_name(lookup_name, _type, value):
 
     async def get_schedules():
         schedules = await server.Server.scheduler.get_schedules()
-        if not any(sch.name == value for sch in schedules):
-            raise ValueError("'{}' not a valid service or schedule name.".format(value))
+        if _type == 5:
+            # Verify against all type of schedules; we might filter out STARTUP type schedules?
+            if not any(sch.name == value for sch in schedules):
+                raise ValueError("'{}' not a valid schedule name.".format(value))
+        else:
+            # Verify against STARTUP type schedule and having South, North based service;
+            # we might filter out source with South and destination with North?
+            if not any(sch.name == value for sch in schedules
+                       if sch.schedule_type == 1 and sch.process_name in ('south_c', 'north_C')):
+                raise ValueError("'{}' not a valid service.".format(value))
 
     async def get_control_scripts():
         script_payload = PayloadBuilder().SELECT("name").payload()
@@ -487,8 +502,8 @@ async def _validate_lookup_name(lookup_name, _type, value):
         if not any(notify['child'] == value for notify in all_notifications):
             raise ValueError("'{}' not a valid notification instance name.".format(value))
 
-    if (lookup_name == "source" and _type in [2, 5]) or (lookup_name == 'destination' and _type == 1):
-        # Verify schedule name
+    if (lookup_name == "source" and _type == 2) or (lookup_name == 'destination' and _type == 1):
+        # Verify schedule name in startup type and south, north based schedules
         await get_schedules()
     elif (lookup_name == "source" and _type == 6) or (lookup_name == 'destination' and _type == 3):
         # Verify control script name
@@ -496,6 +511,9 @@ async def _validate_lookup_name(lookup_name, _type, value):
     elif lookup_name == "source" and _type == 4:
         # Verify notification instance name
         await get_notifications()
+    elif lookup_name == "source" and _type == 5:
+        # Verify schedule name in all type of schedules
+        await get_schedules()
     elif lookup_name == "destination" and _type == 2:
         # Verify asset name
         await get_assets()

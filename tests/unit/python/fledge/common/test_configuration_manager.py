@@ -1754,7 +1754,7 @@ class TestConfigurationManager:
                     await c_mgr.get_category_all_items(category_name)
             readpatch.assert_called_once_with(category_name)
         assert 1 == log_exc.call_count
-        log_exc.assert_called_once_with('Unable to get all category names based on category_name %s', 'catname')
+        log_exc.assert_called_once_with('Unable to get all category items of {} category.'.format(category_name))
 
     async def test_get_category_item_good(self, reset_singleton):
 

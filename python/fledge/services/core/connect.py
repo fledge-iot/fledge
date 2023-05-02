@@ -24,7 +24,7 @@ def get_storage_async():
         storage_svc = services[0]
         _storage = StorageClientAsync(core_management_host=None, core_management_port=None, svc=storage_svc)
     except Exception as ex:
-        _logger.error(str(ex))
+        _logger.error(ex)
         raise
     return _storage
 
@@ -37,6 +37,6 @@ def get_readings_async():
         storage_svc = services[0]
         _readings = ReadingsStorageClientAsync(core_mgt_host=None, core_mgt_port=None, svc=storage_svc)
     except Exception as ex:
-        _logger.error(str(ex))
+        _logger.error(ex)
         raise
     return _readings

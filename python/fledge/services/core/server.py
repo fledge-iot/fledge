@@ -479,7 +479,7 @@ class Server:
                               port_from_config, type(port_from_config))
                 raise
         except Exception as ex:
-            _logger.exception(str(ex))
+            _logger.exception(ex)
             raise
 
     @classmethod
@@ -505,7 +505,7 @@ class Server:
             except KeyError:
                 cls._service_description = 'Fledge REST Services'
         except Exception as ex:
-            _logger.exception(str(ex))
+            _logger.exception(ex)
             raise
 
     @classmethod
@@ -526,7 +526,7 @@ class Server:
             cls._package_cache_manager = {"update": {"last_accessed_time": ""},
                                           "upgrade": {"last_accessed_time": ""}, "list": {"last_accessed_time": ""}}
         except Exception as ex:
-            _logger.exception(str(ex))
+            _logger.exception(ex)
             raise
 
     @classmethod
@@ -545,7 +545,7 @@ class Server:
             from fledge.common.logger import FLCoreLogger
             FLCoreLogger().set_level(cls._log_level)
         except Exception as ex:
-            _logger.exception(str(ex))
+            _logger.exception(ex)
             raise
 
     @staticmethod
@@ -614,7 +614,7 @@ class Server:
                              '--port={}'.format(m_port)]
             subprocess.call(cmd_with_args, cwd=_SCRIPTS_DIR)
         except Exception as ex:
-            _logger.exception(str(ex))
+            _logger.exception(ex)
 
     @classmethod
     async def _start_storage(cls, loop):
@@ -1078,7 +1078,7 @@ class Server:
         except service_registry_exceptions.DoesNotExist:
             pass
         except Exception as ex:
-            _logger.exception(str(ex))
+            _logger.exception(ex)
 
     @classmethod
     async def _request_microservice_shutdown(cls, svc):
@@ -1143,7 +1143,7 @@ class Server:
         except service_registry_exceptions.DoesNotExist:
             pass
         except Exception as ex:
-            _logger.exception(str(ex))
+            _logger.exception(ex)
 
     @classmethod
     async def _stop_scheduler(cls):
@@ -1289,7 +1289,7 @@ class Server:
                     cls._audit = AuditLogger(cls._storage_client_async)
                     await cls._audit.information('SRVUN', {'name': services[0]._name})
                 except Exception as ex:
-                    _logger.exception(str(ex))
+                    _logger.exception(ex)
 
             _resp = {'id': str(service_id), 'message': 'Service unregistered'}
 
@@ -1320,7 +1320,7 @@ class Server:
                     cls._audit = AuditLogger(cls._storage_client_async)
                     await cls._audit.information('SRVRS', {'name': services[0]._name})
                 except Exception as ex:
-                    _logger.exception(str(ex))
+                    _logger.exception(ex)
 
             _resp = {'id': str(service_id), 'message': 'Service restart requested'}
 

@@ -130,7 +130,7 @@ async def create_audit_entry(request):
             raise web.HTTPInternalServerError(reason=err_msg, body=json.dumps({"message": err_msg}))
     except Exception as ex:
         msg = str(ex)
-        _logger.error("Failed to log audit entry. {}".format(msg))
+        _logger.error(ex, "Failed to log audit entry.")
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(message)
@@ -270,7 +270,7 @@ async def get_audit_entries(request):
             res.append(r)
     except Exception as ex:
         msg = str(ex)
-        _logger.error("Get Audit log entry failed. {}".format(msg))
+        _logger.error(ex, "Failed to get Audit log entry.")
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({'audit': res, 'totalCount': total_count})

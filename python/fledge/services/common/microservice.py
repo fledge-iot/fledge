@@ -85,7 +85,7 @@ class FledgeMicroservice(FledgeProcess):
             res = self.register_service_with_core(self._get_service_registration_payload())
             self._microservice_id = res["id"]
         except Exception as ex:
-            _logger.exception('Unable to intialize FledgeMicroservice due to exception %s', str(ex))
+            _logger.exception(ex, 'Unable to initialize FledgeMicroservice')
             raise
 
     def _make_microservice_management_app(self):

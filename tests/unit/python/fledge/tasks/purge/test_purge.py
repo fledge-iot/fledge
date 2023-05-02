@@ -330,4 +330,5 @@ class TestPurge:
                         with patch.object(p, 'write_statistics'):
                             await p.run()
                 # Test the negative case when function purge_data raise some exception
-                p._logger.exception.assert_called_once_with("")
+                assert 1 == p._logger.exception.call_count
+

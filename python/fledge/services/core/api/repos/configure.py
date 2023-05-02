@@ -136,9 +136,9 @@ async def add_package_repo(request: web.Request) -> web.Response:
         raise web.HTTPBadRequest(body=json.dumps({"message": "Failed to configure package repository",
                                                   "output_log": msg}), reason=msg)
     except Exception as ex:
-        msg = str(ex)
-        _LOGGER.error("Failed to configure archive package repository setup. {}".format(msg))
-        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+        msg = "Failed to configure archive package repository setup."
+        _LOGGER.error(ex, msg)
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": "{} {}".format(msg, str(ex))}))
     else:
         return web.json_response({"message": "Package repository configured successfully.",
                                   "output_log": stdout_file_path})

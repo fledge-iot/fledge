@@ -610,10 +610,9 @@ class TestScheduler:
         calls = [call('Processing stop request'), call('Stopped')]
         log_info.assert_has_calls(calls, any_order=True)
 
-        # TODO: Find why these exceptions are being raised despite mocking _purge_tasks_task, _scheduler_loop_task
-        calls = [call('An exception was raised by Scheduler._purge_tasks %s', "object MagicMock can't be used in 'await' expression"),
-                 call('An exception was raised by Scheduler._scheduler_loop %s', "object MagicMock can't be used in 'await' expression")]
-        log_exception.assert_has_calls(calls)
+        # FIXME: Find why exception is being raised despite mocking _scheduler_loop_task
+        args = log_exception.call_args
+        assert 'An exception was raised by Scheduler._scheduler_loop' == args[0][1]
 
     @pytest.mark.asyncio
     async def test_get_scheduled_processes(self, mocker):

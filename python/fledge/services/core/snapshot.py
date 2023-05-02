@@ -44,7 +44,7 @@ class SnapshotPluginBuilder:
             self._out_file_path = snapshot_plugin_dir
             self._interim_file_path = snapshot_plugin_dir
         except (OSError, Exception) as ex:
-            _LOGGER.error("Error in initializing SnapshotPluginBuilder class: %s ", str(ex))
+            _LOGGER.error(ex, "Error in initializing SnapshotPluginBuilder class.")
             raise RuntimeError(str(ex))
 
     async def build(self):
@@ -76,7 +76,7 @@ class SnapshotPluginBuilder:
         except Exception as ex:
             if os.path.isfile(tar_file_name):
                 os.remove(tar_file_name)
-            _LOGGER.error("Error in creating Snapshot .tar.gz file: %s ", str(ex))
+            _LOGGER.error(ex, "Error in creating Snapshot .tar.gz file.")
             raise RuntimeError(str(ex))
 
         self.check_and_delete_temp_files(self._interim_file_path)
@@ -98,7 +98,7 @@ class SnapshotPluginBuilder:
                 _LOGGER.warning("Removing plugin snapshot file %s.", _path)
                 os.remove(_path)
         except OSError as ex:
-            _LOGGER.error("ERROR while deleting plugin file", str(ex))
+            _LOGGER.error(ex, "ERROR while deleting plugin file.")
 
     def check_and_delete_temp_files(self, snapshot_plugin_dir):
         # Delete all non *.tar.gz files

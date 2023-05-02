@@ -160,7 +160,8 @@ class TestFledgeMicroservice:
                                             with patch.object(_logger, 'exception') as logger_patch:
                                                 with pytest.raises(Exception) as excinfo:
                                                     fm = FledgeMicroserviceImp()
-        logger_patch.assert_called_once_with('Unable to intialize FledgeMicroservice due to exception %s', '')
+                                            args = logger_patch.call_args
+                                            assert 'Unable to initialize FledgeMicroservice' == args[0][1]
 
     @pytest.mark.asyncio
     async def test_ping(self, loop):

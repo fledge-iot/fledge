@@ -86,7 +86,7 @@ async def create(request: web.Request) -> web.Response:
     try:
         data = await request.json()
         # Create entry in control_pipelines table
-        column_names = await _check_parameters(data)
+        column_names = await _check_parameters(data, request)
         source_type = column_names.get("stype")
         if source_type is None:
             column_names['stype'] = 0
@@ -209,7 +209,7 @@ async def update(request: web.Request) -> web.Response:
     try:
         pipeline = await _get_pipeline(cpid)
         data = await request.json()
-        columns = await _check_parameters(data)
+        columns = await _check_parameters(data, request)
         storage = connect.get_storage_async()
         if columns:
             payload = PayloadBuilder().SET(**columns).WHERE(['cpid', '=', cpid]).payload()
@@ -348,7 +348,7 @@ async def _get_lookup_value(_type, value):
     return ''.join(name)
 
 
-async def _check_parameters(payload):
+async def _check_parameters(payload, request):
     column_names = {}
     # name
     name = payload.get('name', None)
@@ -392,8 +392,8 @@ async def _check_parameters(payload):
                     raise ValueError("Invalid source type found.")
             else:
                 raise ValueError('Source type is missing.')
-            # Note: when source type is Any; no name is applied
-            if source_type != 1:
+            # Note: when source type is Any or API; no name is applied
+            if source_type not in (1, 3):
                 if source_name is not None:
                     if not isinstance(source_name, str):
                         raise ValueError("Source name should be a string value.")
@@ -407,6 +407,8 @@ async def _check_parameters(payload):
                     raise ValueError('Source name is missing.')
             else:
                 source_name = ''
+                if source_type == 3:
+                    source_name = request.user["uname"] if hasattr(request, "user") and request.user else "anonymous"
                 source = {'type': source_type, 'name': source_name}
                 column_names["stype"] = source_type
                 column_names["sname"] = source_name

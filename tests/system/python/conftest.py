@@ -18,8 +18,8 @@ import shutil
 from urllib.parse import quote
 from pathlib import Path
 import pytest
-from helper import utils
-
+from helpers import utils
+import time
 
 __author__ = "Vaibhav Singhal"
 __copyright__ = "Copyright (c) 2019 Dianomic Systems"
@@ -216,45 +216,46 @@ def add_north():
 
 @pytest.fixture
 def add_service():
-    def _add_service(fledge_url, service_branch, installation_type = "make", service_name = "play",
-                     plugin_lang="python", use_pip_cache = True, enabled = True, wait_time, retries):
+    def _add_service(fledge_url, service, service_branch, retries, installation_type = "make", service_name = "play",
+                     use_pip_cache = True, enabled = True):
         """ Add Service Instance and start the insatnce by default """
         
+        retval = utils.get_request(fledge_url, "/fledge/service")
+        for ele in retval["services"]:
+            if ele["type"].lower() == service:
+                return ele
+        
+        PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
+        print(PROJECT_ROOT)
         _enabled = "true" if enabled else "false"
         
         def clone_make_install():
             try:
-                if plugin_lang == "python":
-                    subprocess.run(
-                        ["$FLEDGE_ROOT/tests/system/python/scripts/install_python_plugin {} service {} {}".format(
-                            service_branch, service_plugin, use_pip_cache)], shell=True, check=True)
-                else:
-                    subprocess.run(["$FLEDGE_ROOT/tests/system/python/scripts/install_c_service {} {}".format(
-                        service_branch, service_plugin)], shell=True, check=True)
+                subprocess.run(["{}/tests/system/python/scripts/install_c_service {} {}".format(
+                    PROJECT_ROOT, service_branch, service)], shell=True, check=True)
             except subprocess.CalledProcessError:
-                assert False, "{} plugin installation failed".format(service_plugin)
+                assert False, "{} service  installation failed".format(service)
                 
         if installation_type == 'make':
             clone_make_install()
         elif installation_type == 'package':
             try:
-                subprocess.run(["sudo {} install -y fledge-service-{}".format(pytest.PKG_MGR, service_plugin)], shell=True,
+                subprocess.run(["sudo {} install -y fledge-service-{}".format(pytest.PKG_MGR, service)], shell=True,
                             check=True)
             except subprocess.CalledProcessError:
-                assert False, "{} package installation failed!".format(service_plugin)
+                assert False, "{} package installation failed!".format(service)
         else:
-            print("Skipped {} plugin installation. Installation mechanism is set to {}.".format(service_plugin, installation_type))
+            print("Skipped {} service installation. Installation mechanism is set to {}.".format(service, installation_type))
         
         
         # Add service
-        if service_plugin == "notification":
+        if service == "notification":
             data = {"name": "{}".format(service_name), "type": "notification", "enabled": _enabled}
-            print(data)
             retval = utils.post_request(fledge_url, "/fledge/service", data)
             assert service_name == retval["name"]
             return retval
         
-        elif service_plugin == "dispatcher":
+        elif service == "dispatcher":
             #  Restart fledge and verify dispatcher service is added
             utils.put_request(fledge_url, "/fledge/restart", None)
             for i in range(retries):
@@ -268,17 +269,20 @@ def add_service():
             retval =  utils.get_request(fledge_url, "/fledge/service")
             for ele in retval["services"]:
                 if ele["name"] == "dispatcher":
-                    retval = ele
-            return retval
+                    return ele
+            
         
     return _add_service
 
 @pytest.fixture
 def add_notification_instance():
-    def _add_notification_instance(fledge_url, rule_plugin="Threshold", rule_branch=None, delivery_plugin, delivery_branch,
-                                   rule_plugin_discovery_name=None, delivery_plugin_discovery_name=None, rule_config=None, delivery_config=None,
+    def _add_notification_instance(fledge_url, delivery_plugin, delivery_branch , rule_config, delivery_config, rule_plugin="Threshold", 
+                                   rule_branch=None, rule_plugin_discovery_name=None, delivery_plugin_discovery_name=None,
                                    rule_plugin_lang="python", delivery_plugin_lang="python", installation_type='make', notification_type="one shot",
                                    notification_instance_name="play", retrigger_time=30, use_pip_cache=True, enabled=True):
+        
+        PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
+        print(PROJECT_ROOT)
         
         if rule_plugin_discovery_name is None:
             rule_plugin_discovery_name = rule_plugin
@@ -292,11 +296,11 @@ def add_notification_instance():
             try:
                 if plugin_lang == "python":
                     subprocess.run(
-                        ["$FLEDGE_ROOT/tests/system/python/scripts/install_python_plugin {} {} {} {}".format(
-                            plugin_branch, plugin_type, plugin, use_pip_cache)], shell=True, check=True)
+                        ["{}/tests/system/python/scripts/install_python_plugin {} {} {} {}".format(
+                            PROJECT_ROOT, plugin_branch, plugin_type, plugin, use_pip_cache)], shell=True, check=True)
                 else:
-                    subprocess.run(["$FLEDGE_ROOT/tests/system/python/scripts/install_c_plugin {} {} {}".format(
-                        plugin_branch, plugin_type, plugin)], shell=True, check=True)
+                    subprocess.run(["{}/tests/system/python/scripts/install_c_plugin {} {} {}".format(
+                        PROJECT_ROOT, plugin_branch, plugin_type, plugin)], shell=True, check=True)
             except subprocess.CalledProcessError:
                 assert False, "{} plugin installation failed".format(plugin)
 
@@ -308,34 +312,41 @@ def add_notification_instance():
             clone_make_install(delivery_branch, "notificationDelivery", delivery_plugin, delivery_plugin_lang)
             
         elif installation_type == 'package':
+            print(rule_plugin)
             try:
-                if rule_plugin != "Threshold" or rule_plugin != "DataAvailability":
+                if rule_plugin not in ["Threshold", "DataAvailability"]:
                     subprocess.run(["sudo {} install -y fledge-rule-{}".format(pytest.PKG_MGR, rule_plugin)], shell=True,
                                check=True)
-                subprocess.run(["sudo {} install -y fledge-north-{}".format(pytest.PKG_MGR, delivery_plugin)], shell=True,
-                               check=True)
+                    
             except subprocess.CalledProcessError:
-                assert False, "Package installation of {} or {} failed!".format(rule, delivery_plugin)
+                assert False, "Package installation of {} failed!".format(rule_plugin)
+                
+            try :
+                subprocess.run(["sudo {} install -y fledge-notify-{}".format(pytest.PKG_MGR, delivery_plugin)], shell=True,
+                               check=True)
+                
+            except subprocess.CalledProcessError:
+                assert False, "Package installation of {} failed!".format(delivery_plugin)
         else:
             print("Skipped {} and {} plugin installation. Installation mechanism is set to {}.".format(rule_plugin, delivery_plugin,
                                                                                                 installation_type))
 
         
-        data = {"name": "{}".format(notification_instance_name), 
-                "description": "{} notification instance",
-                "rule_config": "{}".format(rule_config), 
+        data = {
+                "name": "{}".format(notification_instance_name), 
+                "description": "{} notification instance".format(notification_instance_name),
+                "rule_config": rule_config, 
                 "rule": "{}".format(rule_plugin), 
-                "delivery_config": "{}".format(delivery_config)
+                "delivery_config": delivery_config,
                 "channel": "{}".format(delivery_plugin),
                 "notification_type": "{}".format(notification_type),
                 "enabled": _enabled, 
-                "retrigger_time": "{}".format(schedule_repeat_time), 
+                "retrigger_time": "{}".format(retrigger_time), 
                 }
-        print(data)
         
         retval = utils.post_request(fledge_url, "/fledge/notification", data)
-        
-        assert notification_instance_name == retval["notifications"][0]["name"]
+        print(retval)
+        assert "Notification {} created successfully".format(notification_instance_name) == retval["result"]
         return retval
     
     return _add_notification_instance

@@ -77,11 +77,11 @@ async def create(request: web.Request) -> web.Response:
     source or destination
 
     :Example:
-        curl -sX POST http://localhost:8081/fledge/control/pipeline -d '{"name": "pump", "enable": "true", "execution": "shared", "source": {"type": 2, "name": "pump"}}'
-        curl -sX POST http://localhost:8081/fledge/control/pipeline -d '{"name": "broadcast", "enable": "true", "execution": "exclusive", "destination": {"type": 4}}'
-        curl -sX POST http://localhost:8081/fledge/control/pipeline -d '{"name": "opcua_pump", "enable": "true", "execution": "shared", "source": {"type": 2, "name": "opcua"}, "destination": {"type": 2, "name": "pump1"}}'
-        curl -sX POST http://localhost:8081/fledge/control/pipeline -d '{"name": "opcua_pump", "enable": "true", "execution": "exclusive", "source": {"type": 2, "name": "southOpcua"}, "destination": {"type": 1, "name": "northOpcua"}, "filters": ["Filter1"]}'
-        curl -sX POST http://localhost:8081/fledge/control/pipeline -d '{"name": "Test", "enable": "true", "filters": ["Filter1", "Filter2"]}'
+        curl -sX POST http://localhost:8081/fledge/control/pipeline -d '{"name": "pump", "enabled": true, "execution": "shared", "source": {"type": 2, "name": "pump"}}'
+        curl -sX POST http://localhost:8081/fledge/control/pipeline -d '{"name": "broadcast", "enabled": true, "execution": "exclusive", "destination": {"type": 4}}'
+        curl -sX POST http://localhost:8081/fledge/control/pipeline -d '{"name": "opcua_pump", "enabled": true, "execution": "shared", "source": {"type": 2, "name": "opcua"}, "destination": {"type": 2, "name": "pump1"}}'
+        curl -sX POST http://localhost:8081/fledge/control/pipeline -d '{"name": "opcua_pump", "enabled": true, "execution": "exclusive", "source": {"type": 2, "name": "southOpcua"}, "destination": {"type": 1, "name": "northOpcua"}, "filters": ["Filter1"]}'
+        curl -sX POST http://localhost:8081/fledge/control/pipeline -d '{"name": "Test", "enabled": false, "filters": ["Filter1", "Filter2"]}'
     """
     try:
         data = await request.json()
@@ -203,7 +203,7 @@ async def update(request: web.Request) -> web.Response:
     :Example:
         curl -sX PUT http://localhost:8081/fledge/control/pipeline/1 -d '{"filters": ["F3", "F2"]}'
         curl -sX PUT http://localhost:8081/fledge/control/pipeline/13 -d '{"name": "Changed"}'
-        curl -sX PUT http://localhost:8081/fledge/control/pipeline/9 -d '{"enable": "false", "execution": "exclusive", "filters": [], "source": {"type": 1, "name": "Universal"}, "destination": {"type": 3, "name": "TestScript"}}'
+        curl -sX PUT http://localhost:8081/fledge/control/pipeline/9 -d '{"enabled": false, "execution": "exclusive", "filters": [], "source": {"type": 1, "name": "Universal"}, "destination": {"type": 3, "name": "TestScript"}}'
     """
     cpid = request.match_info.get('id', None)
     try:
@@ -359,17 +359,12 @@ async def _check_parameters(payload):
         if len(name) == 0:
             raise ValueError('Pipeline name cannot be empty.')
         column_names['name'] = name
-    # enable
-    enabled = payload.get('enable', None)
+    # enabled
+    enabled = payload.get('enabled', None)
     if enabled is not None:
-        if not isinstance(enabled, str):
-            raise ValueError('Enable should be in string.')
-        enabled = enabled.strip()
-        if len(enabled) == 0:
-            raise ValueError('Enable value cannot be empty.')
-        if enabled.lower() not in ["true", "false"]:
-            raise ValueError('Enable value either True or False.')
-        column_names['enabled'] = 't' if enabled.lower() == 'true' else 'f'
+        if not isinstance(enabled, bool):
+            raise ValueError('Enabled should be a bool.')
+        column_names['enabled'] = 't' if enabled else 'f'
     # execution
     execution = payload.get('execution', None)
     if execution is not None:
@@ -397,17 +392,24 @@ async def _check_parameters(payload):
                     raise ValueError("Invalid source type found.")
             else:
                 raise ValueError('Source type is missing.')
-            if source_name is not None:
-                if not isinstance(source_name, str):
-                    raise ValueError("Source name should be a string value.")
-                source_name = source_name.strip()
-                if len(source_name) == 0:
-                    raise ValueError('Source name cannot be empty.')
-                await _validate_lookup_name("source", source_type, source_name)
+            # Note: when source type is Any; no name is applied
+            if source_type != 1:
+                if source_name is not None:
+                    if not isinstance(source_name, str):
+                        raise ValueError("Source name should be a string value.")
+                    source_name = source_name.strip()
+                    if len(source_name) == 0:
+                        raise ValueError('Source name cannot be empty.')
+                    await _validate_lookup_name("source", source_type, source_name)
+                    column_names["stype"] = source_type
+                    column_names["sname"] = source_name
+                else:
+                    raise ValueError('Source name is missing.')
+            else:
+                source_name = ''
+                source = {'type': source_type, 'name': source_name}
                 column_names["stype"] = source_type
                 column_names["sname"] = source_name
-            else:
-                raise ValueError('Source name is missing.')
         else:
             column_names["stype"] = 0
             column_names["sname"] = ""
@@ -467,8 +469,16 @@ async def _validate_lookup_name(lookup_name, _type, value):
 
     async def get_schedules():
         schedules = await server.Server.scheduler.get_schedules()
-        if not any(sch.name == value for sch in schedules):
-            raise ValueError("'{}' not a valid service or schedule name.".format(value))
+        if _type == 5:
+            # Verify against all type of schedules; we might filter out STARTUP type schedules?
+            if not any(sch.name == value for sch in schedules):
+                raise ValueError("'{}' not a valid schedule name.".format(value))
+        else:
+            # Verify against STARTUP type schedule and having South, North based service;
+            # we might filter out source with South and destination with North?
+            if not any(sch.name == value for sch in schedules
+                       if sch.schedule_type == 1 and sch.process_name in ('south_c', 'north_C')):
+                raise ValueError("'{}' not a valid service.".format(value))
 
     async def get_control_scripts():
         script_payload = PayloadBuilder().SELECT("name").payload()
@@ -487,8 +497,8 @@ async def _validate_lookup_name(lookup_name, _type, value):
         if not any(notify['child'] == value for notify in all_notifications):
             raise ValueError("'{}' not a valid notification instance name.".format(value))
 
-    if (lookup_name == "source" and _type in [2, 5]) or (lookup_name == 'destination' and _type == 1):
-        # Verify schedule name
+    if (lookup_name == "source" and _type == 2) or (lookup_name == 'destination' and _type == 1):
+        # Verify schedule name in startup type and south, north based schedules
         await get_schedules()
     elif (lookup_name == "source" and _type == 6) or (lookup_name == 'destination' and _type == 3):
         # Verify control script name
@@ -496,6 +506,9 @@ async def _validate_lookup_name(lookup_name, _type, value):
     elif lookup_name == "source" and _type == 4:
         # Verify notification instance name
         await get_notifications()
+    elif lookup_name == "source" and _type == 5:
+        # Verify schedule name in all type of schedules
+        await get_schedules()
     elif lookup_name == "destination" and _type == 2:
         # Verify asset name
         await get_assets()

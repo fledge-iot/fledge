@@ -671,26 +671,25 @@ def disable_schedule():
 
 
 @pytest.fixture(scope="function", autouse=True)
-def collect_support_bundle(request):
+def collect_support_bundle(request, fledge_url):
     def _collect_support_bundle():
         PROJECT_ROOT = Path(__file__).absolute().parent.parent.parent.parent
         
         try:
-            jdoc = utils.post_request(url, "/fledge/support", None)
+            jdoc = utils.post_request(fledge_url, "/fledge/support", None)
             assert jdoc["bundle created"]
-            copy_to = "mkdir -p {0}/support/ && cp -r {1} {0}/support".format(PROJECT_ROOT, jdoc['bundle created'])
-            subprocess.run(["{}/.".format(copy_to)], shell=True, check=True)
+            copy_to_cmd = "mkdir -p {0}/support/ && cp -r {1} {0}/support".format(PROJECT_ROOT, jdoc['bundle created'])
+            subprocess.run([copy_to_cmd], shell=True, check=True)
         except Exception as e:
-            print("\n Failed to get Support Bundle from Fledge REST API due to {}".format(str(e)))
+            print("\n Failed to get Support Bundle. \n {}".format(str(e)))
             print("Copying syslog")
+            log_file = "/var/log/syslog"
             if pytest.PKG_MGR == 'yum':
-                LOG_FILE = "/var/log/messages"  
-            else:
-                LOG_FILE = "/var/log/syslog"
-            copy_to = "mkdir -p {0}/support/ && cp -r {1} {0}/support".format(PROJECT_ROOT, LOG_FILE)
-            subprocess.run(["{0}/syslog_{1}".format(copy_to, time.strftime("%Y_%m_%d_%H_%M_%S"))], shell=True, check=True)  
-         
-    url = request.config.getoption("--fledge-url")
+                log_file = "/var/log/messages"  
+            ts = time.strftime("%Y_%m_%d_%H_%M_%S")
+            copy_to_cmd = "mkdir -p {0}/support/logs/ && cp {1} {0}/support/logs/syslog_{2}".format(PROJECT_ROOT, log_file, ts)
+            subprocess.run([copy_to_cmd], shell=True, check=True)  
+    
     request.addfinalizer(_collect_support_bundle)
 
 

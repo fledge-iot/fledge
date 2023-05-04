@@ -77,16 +77,16 @@ async def create(request: web.Request) -> web.Response:
     source or destination
 
     :Example:
-        curl -sX POST http://localhost:8081/fledge/control/pipeline -d '{"name": "pump", "enable": "true", "execution": "shared", "source": {"type": 2, "name": "pump"}}'
-        curl -sX POST http://localhost:8081/fledge/control/pipeline -d '{"name": "broadcast", "enable": "true", "execution": "exclusive", "destination": {"type": 4}}'
-        curl -sX POST http://localhost:8081/fledge/control/pipeline -d '{"name": "opcua_pump", "enable": "true", "execution": "shared", "source": {"type": 2, "name": "opcua"}, "destination": {"type": 2, "name": "pump1"}}'
-        curl -sX POST http://localhost:8081/fledge/control/pipeline -d '{"name": "opcua_pump", "enable": "true", "execution": "exclusive", "source": {"type": 2, "name": "southOpcua"}, "destination": {"type": 1, "name": "northOpcua"}, "filters": ["Filter1"]}'
-        curl -sX POST http://localhost:8081/fledge/control/pipeline -d '{"name": "Test", "enable": "true", "filters": ["Filter1", "Filter2"]}'
+        curl -sX POST http://localhost:8081/fledge/control/pipeline -d '{"name": "pump", "enabled": true, "execution": "shared", "source": {"type": 2, "name": "pump"}}'
+        curl -sX POST http://localhost:8081/fledge/control/pipeline -d '{"name": "broadcast", "enabled": true, "execution": "exclusive", "destination": {"type": 4}}'
+        curl -sX POST http://localhost:8081/fledge/control/pipeline -d '{"name": "opcua_pump", "enabled": true, "execution": "shared", "source": {"type": 2, "name": "opcua"}, "destination": {"type": 2, "name": "pump1"}}'
+        curl -sX POST http://localhost:8081/fledge/control/pipeline -d '{"name": "opcua_pump", "enabled": true, "execution": "exclusive", "source": {"type": 2, "name": "southOpcua"}, "destination": {"type": 1, "name": "northOpcua"}, "filters": ["Filter1"]}'
+        curl -sX POST http://localhost:8081/fledge/control/pipeline -d '{"name": "Test", "enabled": false, "filters": ["Filter1", "Filter2"]}'
     """
     try:
         data = await request.json()
         # Create entry in control_pipelines table
-        column_names = await _check_parameters(data)
+        column_names = await _check_parameters(data, request)
         source_type = column_names.get("stype")
         if source_type is None:
             column_names['stype'] = 0
@@ -203,13 +203,13 @@ async def update(request: web.Request) -> web.Response:
     :Example:
         curl -sX PUT http://localhost:8081/fledge/control/pipeline/1 -d '{"filters": ["F3", "F2"]}'
         curl -sX PUT http://localhost:8081/fledge/control/pipeline/13 -d '{"name": "Changed"}'
-        curl -sX PUT http://localhost:8081/fledge/control/pipeline/9 -d '{"enable": "false", "execution": "exclusive", "filters": [], "source": {"type": 1, "name": "Universal"}, "destination": {"type": 3, "name": "TestScript"}}'
+        curl -sX PUT http://localhost:8081/fledge/control/pipeline/9 -d '{"enabled": false, "execution": "exclusive", "filters": [], "source": {"type": 1, "name": "Universal"}, "destination": {"type": 3, "name": "TestScript"}}'
     """
     cpid = request.match_info.get('id', None)
     try:
         pipeline = await _get_pipeline(cpid)
         data = await request.json()
-        columns = await _check_parameters(data)
+        columns = await _check_parameters(data, request)
         storage = connect.get_storage_async()
         if columns:
             payload = PayloadBuilder().SET(**columns).WHERE(['cpid', '=', cpid]).payload()
@@ -348,7 +348,7 @@ async def _get_lookup_value(_type, value):
     return ''.join(name)
 
 
-async def _check_parameters(payload):
+async def _check_parameters(payload, request):
     column_names = {}
     # name
     name = payload.get('name', None)
@@ -359,17 +359,12 @@ async def _check_parameters(payload):
         if len(name) == 0:
             raise ValueError('Pipeline name cannot be empty.')
         column_names['name'] = name
-    # enable
-    enabled = payload.get('enable', None)
+    # enabled
+    enabled = payload.get('enabled', None)
     if enabled is not None:
-        if not isinstance(enabled, str):
-            raise ValueError('Enable should be in string.')
-        enabled = enabled.strip()
-        if len(enabled) == 0:
-            raise ValueError('Enable value cannot be empty.')
-        if enabled.lower() not in ["true", "false"]:
-            raise ValueError('Enable value either True or False.')
-        column_names['enabled'] = 't' if enabled.lower() == 'true' else 'f'
+        if not isinstance(enabled, bool):
+            raise ValueError('Enabled should be a bool.')
+        column_names['enabled'] = 't' if enabled else 'f'
     # execution
     execution = payload.get('execution', None)
     if execution is not None:
@@ -397,8 +392,8 @@ async def _check_parameters(payload):
                     raise ValueError("Invalid source type found.")
             else:
                 raise ValueError('Source type is missing.')
-            # Note: when source type is Any; no name is applied
-            if source_type != 1:
+            # Note: when source type is Any or API; no name is applied
+            if source_type not in (1, 3):
                 if source_name is not None:
                     if not isinstance(source_name, str):
                         raise ValueError("Source name should be a string value.")
@@ -412,6 +407,8 @@ async def _check_parameters(payload):
                     raise ValueError('Source name is missing.')
             else:
                 source_name = ''
+                if source_type == 3:
+                    source_name = request.user["uname"] if hasattr(request, "user") and request.user else "anonymous"
                 source = {'type': source_type, 'name': source_name}
                 column_names["stype"] = source_type
                 column_names["sname"] = source_name

@@ -11,14 +11,13 @@ from aiohttp import web
 import pytest
 import sys
 
-from fledge.common.web import middleware
-from fledge.services.core import routes
-from fledge.services.core import connect
+from fledge.common.audit_logger import AuditLogger
 from fledge.common.storage_client.storage_client import StorageClientAsync
-from fledge.services.core.user_model import User
-from fledge.services.core.api import auth
-from fledge.services.core import server
+from fledge.common.web import middleware
 from fledge.common.web.ssl_wrapper import SSLVerifier
+from fledge.services.core import connect, routes, server
+from fledge.services.core.api import auth
+from fledge.services.core.user_model import User
 
 __author__ = "Ashish Jabble"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -876,27 +875,36 @@ class TestAuthMandatory:
     ])
     async def test_enable_user(self, client, mocker, request_data):
         uid = 2
-        user_record = {'rows': [{'id': uid, 'role_id': '1', 'uname': 'AJ'}], 'count': 1}
-        update_user_record = {'rows': [{'id': uid, 'role_id': '1', 'uname': 'AJ', 'enabled': request_data['enabled']}],
-                              'count': 1}
+        if request_data['enabled'].lower() == 'true':
+            _modified_enabled_val = 't'
+            _text = 'enabled'
+            _payload = '{"values": {"enabled": "t"}, "where": {"column": "id", "condition": "=", "value": "2"}}'
+        else:
+            _modified_enabled_val = 'f'
+            _text = 'disabled'
+            _payload = '{"values": {"enabled": "f"}, "where": {"column": "id", "condition": "=", "value": "2"}}'
+
+        user_record = {'rows': [{'id': uid, 'role_id': '1', 'uname': 'AJ', 'enabled': 't'}], 'count': 1}
+        update_user_record = {'rows': [{'id': uid, 'role_id': '1', 'uname': 'AJ',
+                                        'enabled': _modified_enabled_val}], 'count': 1}
         update_result = {"rows_affected": 1, "response": "updated"}
-        update_payload = '{"values": {"enabled": "t"}, "where": {"column": "id", "condition": "=", "value": "2"}}'
-        _text, _enable, _payload = ('enabled', 't', '{"values": {"enabled": "t"}, '
-                                                    '"where": {"column": "id", "condition": "=", "value": "2"}}') \
-            if str(request_data['enabled']).lower() == 'true' else (
-            'disabled', 'f', '{"values": {"enabled": "f"}, "where": {"column": "id", "condition": "=", "value": "2"}}')
         patch_logger_debug, patch_validate_token, patch_refresh_token, patch_user_get = await self.auth_token_fixture(
             mocker)
+        audit_details = {'user_id': uid, 'old_value': {'enabled': 't'},
+                         'new_value': {'enabled': _modified_enabled_val},
+                         'message': "'AJ' user has been {}.".format(_text)}
         storage_client_mock = MagicMock(StorageClientAsync)
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
             _rv1 = await mock_coro([{'id': '1'}])
             _rv2 = await mock_coro(update_result)
+            _rv3 = await mock_coro(None)
             _se1 = await mock_coro(user_record)
             _se2 = await mock_coro(update_user_record)
         else:
             _rv1 = asyncio.ensure_future(mock_coro([{'id': '1'}]))
             _rv2 = asyncio.ensure_future(mock_coro(update_result))
+            _rv3 = asyncio.ensure_future(mock_coro(None))
             _se1 = asyncio.ensure_future(mock_coro(user_record))
             _se2 = asyncio.ensure_future(mock_coro(update_user_record))
 
@@ -906,11 +914,15 @@ class TestAuthMandatory:
                                   side_effect=[_se1, _se2]) as q_tbl_patch:
                     with patch.object(storage_client_mock, 'update_tbl',
                                       return_value=_rv2) as update_tbl_patch:
-                        resp = await client.put('/fledge/admin/{}/enable'.format(uid), data=json.dumps(request_data),
-                                                headers=ADMIN_USER_HEADER)
-                        assert 200 == resp.status
-                        r = await resp.text()
-                        assert {"message": "User with ID:<2> has been {} successfully.".format(_text)} == json.loads(r)
+                        with patch.object(AuditLogger, '__init__', return_value=None):
+                            with patch.object(AuditLogger, 'information', return_value=_rv3) as patch_audit:
+                                resp = await client.put('/fledge/admin/{}/enable'.format(uid), data=json.dumps(
+                                    request_data), headers=ADMIN_USER_HEADER)
+                                assert 200 == resp.status
+                                r = await resp.text()
+                                assert {"message": "User with ID:<2> has been {} successfully.".format(_text)
+                                        } == json.loads(r)
+                            patch_audit.assert_called_once_with('USRCH', audit_details)
                     update_tbl_patch.assert_called_once_with('users', _payload)
                 assert 2 == q_tbl_patch.call_count
                 args, kwargs = q_tbl_patch.call_args_list[0]

@@ -12,6 +12,7 @@ from collections import OrderedDict
 import jwt
 from aiohttp import web
 
+from fledge.common.audit_logger import AuditLogger
 from fledge.common.logger import FLCoreLogger
 from fledge.common.web.middleware import has_permission
 from fledge.common.web.ssl_wrapper import SSLVerifier
@@ -275,13 +276,10 @@ async def logout(request):
 
     if int(request.user["role_id"]) == ADMIN_ROLE_ID or int(request.user["id"]) == int(user_id):
         result = await User.Objects.delete_user_tokens(user_id)
-
         if not result['rows_affected']:
             raise web.HTTPNotFound()
-
         # Remove OTT token for this user if there.
         __remove_ott_for_user(user_id)
-
         _logger.info("User with ID:<{}> has been logged out successfully.".format(int(user_id)))
     else:
         # requester is not an admin but trying to take action for another user
@@ -547,7 +545,6 @@ async def update_user(request):
         if 'access_method' in data:
             # Remove OTT token for this user only if access method is updated.
             __remove_ott_for_user(user_id)
-
     except ValueError as err:
         msg = str(err)
         raise web.HTTPBadRequest(reason=str(err), body=json.dumps({"message": msg}))
@@ -601,7 +598,6 @@ async def update_password(request):
 
     try:
         await User.Objects.update(int(user_id), {'password': new_password})
-
         # Remove OTT token for this user if there.
         __remove_ott_for_user(user_id)
     except ValueError as ex:
@@ -650,8 +646,8 @@ async def enable_user(request):
                 payload = PayloadBuilder().SELECT("id", "uname", "role_id", "enabled").WHERE(
                     ['id', '=', user_id]).payload()
                 storage_client = connect.get_storage_async()
-                result = await storage_client.query_tbl_with_payload('users', payload)
-                if len(result['rows']) == 0:
+                old_result = await storage_client.query_tbl_with_payload('users', payload)
+                if len(old_result['rows']) == 0:
                     raise User.DoesNotExist
                 payload = PayloadBuilder().SET(enabled=user_data['enabled']).WHERE(['id', '=', user_id]).payload()
                 result = await storage_client.update_tbl("users", payload)
@@ -661,9 +657,15 @@ async def enable_user(request):
                     _text = 'enabled' if user_data['enabled'] == 't' else 'disabled'
                     payload = PayloadBuilder().SELECT("id", "uname", "role_id", "enabled").WHERE(
                         ['id', '=', user_id]).payload()
-                    result = await storage_client.query_tbl_with_payload('users', payload)
-                    if len(result['rows']) == 0:
+                    new_result = await storage_client.query_tbl_with_payload('users', payload)
+                    if len(new_result['rows']) == 0:
                         raise User.DoesNotExist
+                    # USRCH audit trail entry
+                    audit = AuditLogger(storage_client)
+                    await audit.information(
+                        'USRCH', {'user_id': int(user_id), 'old_value': {'enabled': old_result['rows'][0]['enabled']},
+                                  'new_value': {'enabled': new_result['rows'][0]['enabled']},
+                                  "message": "'{}' user has been {}.".format(new_result['rows'][0]['uname'], _text)})
                 else:
                     raise ValueError('Something went wrong during update. Check Syslogs.')
             else:
@@ -723,13 +725,13 @@ async def reset(request):
         user_data.update({'role_id': data['role_id']})
     if 'password' in data:
         user_data.update({'password': data['password']})
-
+    if not user_data:
+        msg = "Nothing to update."
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     try:
         await User.Objects.update(user_id, user_data)
-
         # Remove OTT token for this user if there.
         __remove_ott_for_user(user_id)
-
     except ValueError as ex:
         raise web.HTTPBadRequest(reason=str(ex))
     except User.DoesNotExist:
@@ -781,10 +783,8 @@ async def delete_user(request):
         result = await User.Objects.delete(user_id)
         if not result['rows_affected']:
             raise User.DoesNotExist
-
         # Remove OTT token for this user if there.
         __remove_ott_for_user(user_id)
-
     except ValueError as ex:
         raise web.HTTPBadRequest(reason=str(ex))
     except User.DoesNotExist:

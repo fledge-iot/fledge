@@ -452,6 +452,20 @@ async def _check_parameters(payload, request):
         else:
             column_names["dtype"] = 0
             column_names["dname"] = ""
+    if source is not None and destination is not None:
+        error_msg = "Pipeline is not allowed with same type of source and destination."
+        # Service
+        if source_type == 2 and des_type == 1:
+            schedules = await server.Server.scheduler.get_schedules()
+            south_schedules = [sch.name for sch in schedules if sch.schedule_type == 1 and sch.process_name == "south_c"]
+            north_schedules = [sch.name for sch in schedules if
+                               sch.schedule_type == 1 and sch.process_name == "north_C"]
+            if (source_name in south_schedules and des_name in south_schedules) or (
+                    source_name in north_schedules and des_name in north_schedules):
+                raise ValueError(error_msg)
+        # Script
+        if source_type == 6 and des_type == 3:
+            raise ValueError(error_msg)
     if name:
         # Check unique pipeline
         if await _pipeline_in_use(name, source, destination):
@@ -472,12 +486,11 @@ async def _validate_lookup_name(lookup_name, _type, value):
     async def get_schedules():
         schedules = await server.Server.scheduler.get_schedules()
         if _type == 5:
-            # Verify against all type of schedules; we might filter out STARTUP type schedules?
+            # Verify against all type of schedules
             if not any(sch.name == value for sch in schedules):
                 raise ValueError("'{}' not a valid schedule name.".format(value))
         else:
-            # Verify against STARTUP type schedule and having South, North based service;
-            # we might filter out source with South and destination with North?
+            # Verify against STARTUP type schedule and having South, North based service
             if not any(sch.name == value for sch in schedules
                        if sch.schedule_type == 1 and sch.process_name in ('south_c', 'north_C')):
                 raise ValueError("'{}' not a valid service.".format(value))
@@ -515,7 +528,7 @@ async def _validate_lookup_name(lookup_name, _type, value):
         # Verify asset name
         await get_assets()
     else:
-        """No validation required for source id 1(Any), 3(API) & destination id 4(Broadcast)"""
+        """No validation required for source id 1(Any) & destination id 4(Broadcast)"""
         pass
 
 

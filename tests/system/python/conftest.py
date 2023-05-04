@@ -218,7 +218,17 @@ def add_north():
 def add_service():
     def _add_service(fledge_url, service, service_branch, retries, installation_type = "make", service_name = "play",
                      use_pip_cache = True, enabled = True):
-        """ Add Service Instance and start the insatnce by default """
+        
+        """ 
+            Fixture to add Service and start the start service by default 
+            service: Service to be installed
+            service_branch: Branch of service to be installed
+            retries: Number of tries for polling
+            installation_type: Type of installation for service i.e. make or package
+            serice_name: Name that will be given to service to be installed
+            use_pip_cache: use pip cache in requirements installation
+            enabled: Flag to enable or disable notification instace
+        """
         
         retval = utils.get_request(fledge_url, "/fledge/service")
         for ele in retval["services"]:
@@ -226,8 +236,6 @@ def add_service():
                 return ele
         
         PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
-        print(PROJECT_ROOT)
-        _enabled = "true" if enabled else "false"
         
         def clone_make_install():
             try:
@@ -250,7 +258,7 @@ def add_service():
         
         # Add service
         if service == "notification":
-            data = {"name": "{}".format(service_name), "type": "notification", "enabled": _enabled}
+            data = {"name": "{}".format(service_name), "type": "notification", "enabled": enabled}
             retval = utils.post_request(fledge_url, "/fledge/service", data)
             assert service_name == retval["name"]
             return retval
@@ -278,41 +286,48 @@ def add_service():
 def add_notification_instance():
     def _add_notification_instance(fledge_url, delivery_plugin, delivery_branch , rule_config, delivery_config, rule_plugin="Threshold", 
                                    rule_branch=None, rule_plugin_discovery_name=None, delivery_plugin_discovery_name=None,
-                                   rule_plugin_lang="python", delivery_plugin_lang="python", installation_type='make', notification_type="one shot",
-                                   notification_instance_name="play", retrigger_time=30, use_pip_cache=True, enabled=True):
-        
+                                   installation_type='make', notification_type="one shot", notification_instance_name="play", 
+                                   retrigger_time=30, use_pip_cache=True, enabled=True):
+        """
+            Fixture to add Service Instance and start the insatnce by default
+            delivery_plugin: Notify or Delivery plugin to be installed
+            delivery_branch: Branch of Notify or Delivery plugin to be installed
+            rule_config: Configuration required for Rule plugin
+            delivery_config: Configuration required for Delivery plugin
+            rule_plugin: Rule plugin to be installed, by default Threshold and DataAvailability plugin is installed 
+            rule_branch: Branch of Rule plugin to be installed
+            rule_plugin_discovery_name: Name to identify the Rule Plugin after installation 
+            delivery_plugin_discovery_name: Name to identify the Delivery Plugin after installation 
+            installation_type: Type of installation for plugins i.e. make or package
+            notification_type: Type of notification to be triggered i.e. one_shot, retriggered, toggle
+            notification_instance_name: Name that will be given to notification instance to be created
+            retrigger_time: Interval between retriggered notifications
+            use_pip_cache: use pip cache in requirements installation
+            enabled: Flag to enable or disable notification instace
+        """
         PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
-        print(PROJECT_ROOT)
         
         if rule_plugin_discovery_name is None:
             rule_plugin_discovery_name = rule_plugin
             
         if delivery_plugin_discovery_name is None:
             delivery_plugin_discovery_name = delivery_plugin
-            
-        _enabled = "true" if enabled else "false"
 
-        def clone_make_install(plugin_branch, plugin_type, plugin, plugin_lang):
+        def clone_make_install(plugin_branch, plugin_type, plugin):
             try:
-                if plugin_lang == "python":
-                    subprocess.run(
-                        ["{}/tests/system/python/scripts/install_python_plugin {} {} {} {}".format(
-                            PROJECT_ROOT, plugin_branch, plugin_type, plugin, use_pip_cache)], shell=True, check=True)
-                else:
-                    subprocess.run(["{}/tests/system/python/scripts/install_c_plugin {} {} {}".format(
-                        PROJECT_ROOT, plugin_branch, plugin_type, plugin)], shell=True, check=True)
+                subprocess.run(["{}/tests/system/python/scripts/install_c_plugin {} {} {}".format(
+                    PROJECT_ROOT, plugin_branch, plugin_type, plugin)], shell=True, check=True)
             except subprocess.CalledProcessError:
                 assert False, "{} plugin installation failed".format(plugin)
 
         if installation_type == 'make':
             # First Install Rule Plugin if Rule Plugin is not Threshold
-            if rule_plugin != "Threshold" or rule_plugin != "DataAvailability":
-                clone_make_install(rule_branch, "notificationRule", rule_plugin, rule_plugin_lang)
+            if rule_plugin not in  ("Threshold","DataAvailability"):
+                clone_make_install(rule_branch, "rule", rule_plugin)
             
-            clone_make_install(delivery_branch, "notificationDelivery", delivery_plugin, delivery_plugin_lang)
+            clone_make_install(delivery_branch, "notify", delivery_plugin)
             
         elif installation_type == 'package':
-            print(rule_plugin)
             try:
                 if rule_plugin not in ["Threshold", "DataAvailability"]:
                     subprocess.run(["sudo {} install -y fledge-rule-{}".format(pytest.PKG_MGR, rule_plugin)], shell=True,
@@ -333,19 +348,18 @@ def add_notification_instance():
 
         
         data = {
-                "name": "{}".format(notification_instance_name), 
-                "description": "{} notification instance".format(notification_instance_name),
-                "rule_config": rule_config, 
-                "rule": "{}".format(rule_plugin), 
+                "name": notification_instance_name,
+                "description": notification_instance_name,
+                "rule_config": rule_config,
+                "rule": rule_plugin,
                 "delivery_config": delivery_config,
-                "channel": "{}".format(delivery_plugin),
-                "notification_type": "{}".format(notification_type),
-                "enabled": _enabled, 
-                "retrigger_time": "{}".format(retrigger_time), 
+                "channel": delivery_plugin,
+                "notification_type": notification_type,
+                "enabled": enabled, 
+                "retrigger_time": retrigger_time,
                 }
         
         retval = utils.post_request(fledge_url, "/fledge/notification", data)
-        print(retval)
         assert "Notification {} created successfully".format(notification_instance_name) == retval["result"]
         return retval
     

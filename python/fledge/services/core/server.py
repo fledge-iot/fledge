@@ -1244,9 +1244,7 @@ class Server:
                          }
 
                 # Create JWT token
-                bearer_token = jwt.encode(claims,
-                                      SERVICE_JWT_SECRET,
-                                      SERVICE_JWT_ALGORITHM).decode("utf-8") if token is not None else ""
+                bearer_token = jwt.encode(claims, SERVICE_JWT_SECRET, SERVICE_JWT_ALGORITHM) if token is not None else ""
 
                 # Add the bearer token for that service being registered
                 ServiceRegistry.addBearerToken(service_name, bearer_token)
@@ -1853,10 +1851,8 @@ class Server:
         """ Validate service bearer token
         """
         try:
-            ret = jwt.decode(token,
-                         SERVICE_JWT_SECRET,
-                         algorithms=[SERVICE_JWT_ALGORITHM],
-                         options={"verify_signature": True, "verify_aud": False, "verify_exp": True})
+            ret = jwt.decode(token, SERVICE_JWT_SECRET, algorithms=[SERVICE_JWT_ALGORITHM],
+                             options={"verify_signature": True, "verify_aud": False, "verify_exp": True})
             return ret
         except Exception as e:
             return {'error': str(e)}
@@ -1880,9 +1876,7 @@ class Server:
             claims = cls.get_token_common(request)
             # Expiration set to now + delta
             claims['exp'] = int(time.time()) + SERVICE_JWT_EXP_DELTA_SECONDS
-            bearer_token = jwt.encode(claims,
-                                      SERVICE_JWT_SECRET,
-                                      SERVICE_JWT_ALGORITHM).decode("utf-8")
+            bearer_token = jwt.encode(claims, SERVICE_JWT_SECRET, SERVICE_JWT_ALGORITHM)
 
             # Replace bearer_token for the service
             ServiceRegistry.addBearerToken(claims['sub'], bearer_token)

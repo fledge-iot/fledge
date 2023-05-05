@@ -11,5 +11,28 @@ fi
 
 cd "${FLEDGE_ROOT}/services"
 
-./fledge.services.south "$@"
+runvalgrind=n
+if [ "$VALGRIND_SOUTH" != "" ]; then
+	for i in "$@"; do
+		case $i in
+			--name=*)
+				name=`echo $i | sed -e s/--name=//`
+				;;
+		esac
+	done
+	services=$(echo $VALGRIND_SOUTH | tr ";" "\n")
+	for service in $services; do
+		if [ "$service" = "$name" ]; then
+			runvalgrind=y
+		fi
+	done
+fi
+
+if [ "$runvalgrind" = "y" ]; then
+	file="$HOME/south.${name}.valgrind.out"
+	rm -f "$file"
+	valgrind  --leak-check=full --trace-children=yes --log-file="$file" ./fledge.services.south "$@"
+else
+	./fledge.services.south "$@"
+fi
 

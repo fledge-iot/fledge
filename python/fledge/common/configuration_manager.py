@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-
 # FLEDGE_BEGIN
 # See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
@@ -13,6 +12,7 @@ import inspect
 import ipaddress
 import datetime
 import os
+import logging
 from math import *
 import collections
 import ast
@@ -21,7 +21,7 @@ from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.common.storage_client.storage_client import StorageClientAsync
 from fledge.common.storage_client.exceptions import StorageServerError
 from fledge.common.storage_client.utils import Utils
-from fledge.common import logger
+from fledge.common.logger import FLCoreLogger
 from fledge.common.common import _FLEDGE_ROOT, _FLEDGE_DATA
 from fledge.common.audit_logger import AuditLogger
 from fledge.common.acl_manager import ACLManager
@@ -31,9 +31,7 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-import logging
-
-_logger = logger.setup(__name__)
+_logger = FLCoreLogger().get_logger(__name__)
 
 # MAKE UPPER_CASE
 _valid_type_strings = sorted(['boolean', 'integer', 'float', 'string', 'IPv4', 'IPv6', 'X509 certificate', 'password',
@@ -83,7 +81,7 @@ class ConfigurationCache(object):
         display_name = category_name if display_name is None else display_name
         self.cache[category_name] = {'date_accessed': datetime.datetime.now(), 'description': category_description,
                                      'value': category_val, 'displayName': display_name}
-        _logger.info("Updated Configuration Cache %s", self.cache)
+        _logger.debug("Updated Configuration Cache %s", self.cache)
 
     def remove_oldest(self):
         """Remove the entry that has the oldest accessed date"""
@@ -191,11 +189,15 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                         'Callback module %s run method must be a coroutine function', callback)
                     raise AttributeError('Callback module {} run method must be a coroutine function'.format(callback))
                 await cb.run(category_name)
+        else:
+            if category_name == "LOGGING":
+                from fledge.services.core import server
+                logging_level = self._cacheManager.cache[category_name]['value']['logLevel']['value']
+                server.Server._log_level = logging_level
+                FLCoreLogger().set_level(logging_level)
 
     async def _run_callbacks_child(self, parent_category_name, child_category, operation):
-
         callbacks = self._registered_interests_child.get(parent_category_name)
-
         if callbacks is not None:
             for callback in callbacks:
                 try:
@@ -671,7 +673,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             await audit.information('CONCH', audit_details)
 
         except Exception as ex:
-            _logger.exception('Unable to bulk update config items %s', str(ex))
+            _logger.exception(ex, 'Unable to bulk update config items')
             raise
 
         try:
@@ -749,8 +751,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                                                children) if root is not None else await self._read_all_category_names()
             return info
         except:
-            _logger.exception(
-                'Unable to read all category names')
+            _logger.exception('Unable to read all category names')
             raise
 
     async def get_category_all_items(self, category_name):
@@ -780,8 +781,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                                           category["display_name"])
             return category_value
         except:
-            _logger.exception(
-                'Unable to get all category names based on category_name %s', category_name)
+            _logger.exception('Unable to get all category items of {} category.'.format(category_name))
             raise
 
     async def get_category_item(self, category_name, item_name):
@@ -1136,7 +1136,16 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     else:
                         await self._update_category(category_name, category_val_prepared, category_description,
                                                     display_name)
-
+                        diff = set(category_val_prepared) - set(category_val_storage)
+                        if diff:
+                            audit = AuditLogger(self._storage)
+                            audit_details = {
+                                'category': category_name,
+                                'item': "configurationChange",
+                                'oldValue': category_val_storage,
+                                'newValue': category_val_prepared
+                            }
+                            await audit.information('CONCH', audit_details)
             is_acl, config_item, found_cat_name, found_value = await \
                 self.search_for_ACL_recursive_from_cat_name(category_name)
             _logger.debug("check if there is {} create category function  for category {} ".format(is_acl,
@@ -1418,13 +1427,13 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             payload = PayloadBuilder().WHERE(["child", "=", cat]).payload()
             result = await self._storage.delete_from_tbl("category_children", payload)
             if result['response'] == 'deleted':
-                _logger.info('Deleted parent in category_children: %s', cat)
+                _logger.info('Deleted parent in category_children: {}'.format(cat))
 
             # Remove category.
             payload = PayloadBuilder().WHERE(["key", "=", cat]).payload()
             result = await self._storage.delete_from_tbl("configuration", payload)
             if result['response'] == 'deleted':
-                _logger.info('Deleted parent category from configuration: %s', cat)
+                _logger.info('Deleted parent category from configuration: {}'.format(cat))
                 audit = AuditLogger(self._storage)
                 audit_details = {'categoryDeleted': cat}
                 # FIXME: FOGL-2140
@@ -1464,7 +1473,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 _logger.info("Removing file %s for category %s", f, category_name)
                 os.remove(f)
         except Exception as ex:
-            _logger.error('Failed to delete file(s) for category %s. Exception %s', category_name, str(ex))
+            _logger.error(ex, 'Failed to delete file(s) for category {}.'.format(category_name))
             # raise ex
 
     def register_interest_child(self, category_name, callback):

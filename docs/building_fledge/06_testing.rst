@@ -263,34 +263,14 @@ The template file looks like this:
 
   $ cat /usr/local/fledge/data/extras/fogbench/fogbench_sensor_coap.template.json
   [
-    { "name"          : "fogbench_luxometer",
-      "sensor_values" : [ { "name": "lux", "type": "number", "min": 0, "max": 130000, "precision":3 } ] },
-    { "name"          : "fogbench_pressure",
-      "sensor_values" : [ { "name": "pressure", "type": "number", "min": 800.0, "max": 1100.0, "precision":1 } ] },
-    { "name"          : "fogbench_humidity",
-      "sensor_values" : [ { "name": "humidity",    "type": "number", "min": 0.0, "max": 100.0 },
-                          { "name": "temperature", "type": "number", "min": 0.0, "max": 50.0  } ] },
-    { "name"          : "fogbench_temperature",
-      "sensor_values" : [ { "name": "object", "type": "number", "min": 0.0, "max": 50.0 },
-                          { "name": "ambient", "type": "number", "min": 0.0, "max": 50.0 } ] },
-    { "name"          : "fogbench_accelerometer",
-      "sensor_values" : [ { "name": "x", "type": "number", "min": -2.0, "max": 2.0 },
-                          { "name": "y", "type": "number", "min": -2.0, "max": 2.0 },
-                          { "name": "z", "type": "number", "min": -2.0, "max": 2.0 } ] },
-    { "name"          : "fogbench_gyroscope",
-      "sensor_values" : [ { "name": "x", "type": "number", "min": -255.0, "max": 255.0 },
-                          { "name": "y", "type": "number", "min": -255.0, "max": 255.0 },
-                          { "name": "z", "type": "number", "min": -255.0, "max": 255.0 } ] },
-    { "name"          : "fogbench_magnetometer",
-      "sensor_values" : [ { "name": "x", "type": "number", "min": -255.0, "max": 255.0 },
-                          { "name": "y", "type": "number", "min": -255.0, "max": 255.0 },
-                          { "name": "z", "type": "number", "min": -255.0, "max": 255.0 } ] },
-    { "name"          : "fogbench_mouse",
-      "sensor_values" : [ { "name": "button", "type": "enum", "list": [ "up", "down" ] } ] },
-    { "name"          : "fogbench_switch",
-      "sensor_values" : [ { "name": "button", "type": "enum", "list": [ "up", "down" ] } ] },
-    { "name"          : "fogbench_wall clock",
-      "sensor_values" : [ { "name": "tick", "type": "enum", "list": [ "tock" ] } ] }
+      { "name"          : "asset_1",
+        "sensor_values" : [ { "name": "dp_1", "type": "number", "min": -2.0, "max": 2.0 },
+                            { "name": "dp_1", "type": "number", "min": -2.0, "max": 2.0 },
+                            { "name": "dp_1", "type": "number", "min": -2.0, "max": 2.0 } ] },
+      { "name"          : "asset_2",
+        "sensor_values" : [ { "name": "lux", "type": "number", "min": 0, "max": 130000, "precision":3 } ] },
+      { "name"          : "asset_3",
+        "sensor_values" : [ { "name": "pressure", "type": "number", "min": 800.0, "max": 1100.0, "precision":1 } ] }
   ]
   $
 
@@ -304,66 +284,67 @@ Now you should have all the information necessary to test the CoAP South microse
 
 - ``$FLEDGE_ROOT/scripts/extras/fogbench`` ``-t $FLEDGE_ROOT/data/extras/fogbench/fogbench_sensor_coap.template.json``, if you are in a development environment, with the *FLEDGE_ROOT* environment variable set with the path to your project repository folder
 - ``$FLEDGE_ROOT/bin/fogbench -t $FLEDGE_DATA/extras/fogbench/fogbench_sensor_coap.template.json``, if you are in a deployed environment, with *FLEDGE_ROOT* and *FLEDGE_DATA* set correctly.
-  - If you have installed Fledge in the default location (i.e. */usr/local/fledge*), type ``cd /usr/local/fledge;bin/fogbench -t data/extras/fogbench/fogbench_sensor_coap.template.json``.
-- ``fledge.fogbench`` ``-t /snap/fledge/current/usr/local/fledge/data/extras/fogbench/fogbench_sensor_coap.template.json``, if you have installed a snap version of Fledge.
+  - If you have installed Fledge in the default location (i.e. */usr/local/fledge*), type ``/usr/local/fledge/bin/fogbench -t data/extras/fogbench/fogbench_sensor_coap.template.json``.
 
 In development environment the output of your command should be:
 
 .. code-block:: console
 
-  $ $FLEDGE_ROOT/scripts/extras/fogbench -t data/extras/fogbench/fogbench_sensor_coap.template.json
-  >>> Make sure south CoAP plugin service is running & listening on specified host and port
-  Total Statistics:
+  $ $FLEDGE_ROOT/scripts/extras/fogbench -t $FLEDGE_ROOT/data/extras/fogbench/fogbench_sensor_coap.template.json
+    >>> Make sure south CoAP plugin service is running
+     & listening on specified host and port
 
-  Start Time: 2017-12-17 07:17:50.615433
-  Ene Time:   2017-12-17 07:17:50.650620
+    Total Statistics:
 
-  Total Messages Transferred: 10
-  Total Bytes Transferred:    2880
+    Start Time: 2023-04-14 11:15:50.679366
+    End Time:   2023-04-14 11:15:50.711856
 
-  Total Iterations: 1
-  Total Messages per Iteration: 10.0
-  Total Bytes per Iteration:    2880.0
+    Total Messages Transferred: 3
+    Total Bytes Transferred:    720
 
-  Min messages/second: 284.19586779208225
-  Max messages/second: 284.19586779208225
-  Avg messages/second: 284.19586779208225
+    Total Iterations: 1
+    Total Messages per Iteration: 3.0
+    Total Bytes per Iteration:    720.0
 
-  Min Bytes/second: 81848.4099241197
-  Max Bytes/second: 81848.4099241197
-  Avg Bytes/second: 81848.4099241197
+    Min messages/second: 92.33610341643583
+    Max messages/second: 92.33610341643583
+    Avg messages/second: 92.33610341643583
+
+    Min Bytes/second: 22160.6648199446
+    Max Bytes/second: 22160.6648199446
+    Avg Bytes/second: 22160.6648199446
   $
 
-Congratulations! You have just inserted data into Fledge from the CoAP South microservice. More specifically, the output informs you that the data inserted has been composed by 10 different messages for a total of 2,880 Bytes, for an average of 284 messages per second and 81,848 Bytes per second.
+Congratulations! You have just inserted data into Fledge from the CoAP South microservice. More specifically, the output informs you that the data inserted has been composed by 10 different messages for a total of 720 Bytes, for an average of 92 messages per second and 22,160 Bytes per second.
 
 If you want to stress Fledge a bit, you may insert the same data sample several times, by using the *-I* or *--iterations* argument:
 
 .. code-block:: console
 
   $ $FLEDGE_ROOT/scripts/extras/fogbench -t data/extras/fogbench/fogbench_sensor_coap.template.json -I 100
-  >>> Make sure south CoAP plugin service is running & listening on specified host and port
-  Total Statistics:
+    >>> Make sure south CoAP plugin service is running & listening on specified host and port
+    Total Statistics:
 
-  Start Time: 2017-12-17 07:33:40.568130
-  End Time:   2017-12-17 07:33:43.205626
+    Start Time: 2023-04-14 11:18:03.586924
+    End Time:   2023-04-14 11:18:04.582291
 
-  Total Messages Transferred: 1000
-  Total Bytes Transferred:    288000
+    Total Messages Transferred: 300
+    Total Bytes Transferred:    72000
 
-  Total Iterations: 100
-  Total Messages per Iteration: 10.0
-  Total Bytes per Iteration:    2880.0
+    Total Iterations: 100
+    Total Messages per Iteration: 3.0
+    Total Bytes per Iteration:    720.0
 
-  Min messages/second: 98.3032852957946
-  Max messages/second: 625.860558267618
-  Avg messages/second: 455.15247432732866
+    Min messages/second: 90.53597295992274
+    Max messages/second: 454.33893684688775
+    Avg messages/second: 323.7178365566367
 
-  Min Bytes/second: 28311.346165188843
-  Max Bytes/second: 180247.840781074
-  Avg Bytes/second: 131083.9126062706
+    Min Bytes/second: 21728.63351038146
+    Max Bytes/second: 109041.34484325306
+    Avg Bytes/second: 77692.28077359282
   $
 
-Here we have inserted the same set of data 100 times, therefore the total number of Bytes inserted is 288,000. The performance and insertion rates varies with each iteration and *fogbench* presents the minimum, maximum and average values.
+Here we have inserted the same set of data 100 times, therefore the total number of Bytes inserted is 72,000. The performance and insertion rates varies with each iteration and *fogbench* presents the minimum, maximum and average values.
 
 
 Checking What's Inside Fledge
@@ -374,13 +355,13 @@ We can check if Fledge has now stored what we have inserted from the South micro
 .. code-block:: console
 
   $ curl -s http://localhost:8081/fledge/asset ; echo
-  [{"assetCode": "fogbench_switch", "count": 11}, {"assetCode": "fogbench_temperature", "count": 11}, {"assetCode": "fogbench_humidity", "count": 11}, {"assetCode": "fogbench_luxometer", "count": 11}, {"assetCode": "fogbench_accelerometer", "count": 11}, {"assetCode": "wall clock", "count": 11}, {"assetCode": "fogbench_magnetometer", "count": 11}, {"assetCode": "mouse", "count": 11}, {"assetCode": "fogbench_pressure", "count": 11}, {"assetCode": "fogbench_gyroscope", "count": 11}]
+    [{"count": 11, "assetCode": "asset_1"}, {"count": 11, "assetCode": "asset_2"}, {"count": 11, "assetCode": "asset_3"}]
   $
 
 The output of the asset entry point provides a list of assets buffered in Fledge and the count of elements stored. The output is a JSON array with two elements:
 
-- **assetCode** : the name of the sensor or device that provides the data
-- **count** : the number of occurrences of the asset in the buffer
+- **count** : the number of occurrences of the asset in the buffer.
+- **assetCode** : the name of the sensor or device that provides the data.
 
 
 Feeding East/West Applications
@@ -390,52 +371,52 @@ Let's suppose that we are interested in the data collected for one of the assets
 
 .. code-block:: console
 
-  $ curl -s http://localhost:8081/fledge/asset/fogbench_temperature ; echo
-  [{"timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41}}, {"timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41}}, {"timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41}}, {"timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41}}, {"timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41}}, {"timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41}}, {"timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41}}, {"timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41}}, {"timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41}}, {"timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41}}, {"timestamp": "2017-12-18 10:38:12.580", "reading": {"ambient": 33, "object": 7}}] 
+  $ curl -s http://localhost:8081/fledge/asset/asset_2 ; echo
+    [{"reading": {"lux": 75723.923}, "timestamp": "2023-04-14 11:25:05.672528"}, {"reading": {"lux": 50475.99}, "timestamp": "2023-04-14 11:24:49.767983"}, {"reading": {"lux": 50475.99}, "timestamp": "2023-04-14 11:24:49.767983"}, {"reading": {"lux": 50475.99}, "timestamp": "2023-04-14 11:24:49.767983"}, {"reading": {"lux": 50475.99}, "timestamp": "2023-04-14 11:24:49.767983"}, {"reading": {"lux": 50475.99}, "timestamp": "2023-04-14 11:24:49.767983"}, {"reading": {"lux": 50475.99}, "timestamp": "2023-04-14 11:24:49.767983"}, {"reading": {"lux": 50475.99}, "timestamp": "2023-04-14 11:24:49.767983"}, {"reading": {"lux": 50475.99}, "timestamp": "2023-04-14 11:24:49.767983"}, {"reading": {"lux": 50475.99}, "timestamp": "2023-04-14 11:24:49.767983"}, {"reading": {"lux": 50475.99}, "timestamp": "2023-04-14 11:24:49.767983"}]
   $
 
 Let's see the JSON output on a more readable format:
 
 .. code-block:: json
 
-  [ { "timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41} },
-    { "timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41} },
-    { "timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41} },
-    { "timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41} },
-    { "timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41} },
-    { "timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41} },
-    { "timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41} },
-    { "timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41} },
-    { "timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41} },
-    { "timestamp": "2017-12-18 10:38:29.652", "reading": {"ambient": 13, "object": 41} },
-    { "timestamp": "2017-12-18 10:38:12.580", "reading": {"ambient": 33, "object": 7} } ]
+    [
+     {"reading": {"lux": 75723.923}, "timestamp": "2023-04-14 11:25:05.672528"},
+     {"reading": {"lux": 50475.99}, "timestamp": "2023-04-14 11:24:49.767983"},
+     {"reading": {"lux": 50475.99}, "timestamp": "2023-04-14 11:24:49.767983"},
+     {"reading": {"lux": 50475.99}, "timestamp": "2023-04-14 11:24:49.767983"},
+     {"reading": {"lux": 50475.99}, "timestamp": "2023-04-14 11:24:49.767983"},
+     {"reading": {"lux": 50475.99}, "timestamp": "2023-04-14 11:24:49.767983"},
+     {"reading": {"lux": 50475.99}, "timestamp": "2023-04-14 11:24:49.767983"},
+     {"reading": {"lux": 50475.99}, "timestamp": "2023-04-14 11:24:49.767983"},
+     {"reading": {"lux": 50475.99}, "timestamp": "2023-04-14 11:24:49.767983"},
+     {"reading": {"lux": 50475.99}, "timestamp": "2023-04-14 11:24:49.767983"},
+     {"reading": {"lux": 50475.99}, "timestamp": "2023-04-14 11:24:49.767983"}
+   ]
 
 The JSON structure depends on the sensor and the plugin used to capture the data. In this case, the values shown are:
 
+- **reading** : a JSON structure that is the set of data points provided by the sensor. In this case only datapoint named lux:
+- **lux** : the lux meter value
 - **timestamp** : the timestamp generated by the sensors. In this case, since we have inserted 10 times the same value and one time a new value using *fogbench*, the result is 10 timestamps with the same value and one timestamp with a different value.
-- **reading** : a JSON structure that is the set of data points provided by the sensor. In this case:
-- **ambient** : the ambient temperature in Celsius
-- **object** : the object temperature in Celsius. Again, the values are repeated 10 times, due to the iteration executed by *fogbench*, plus an isolated element, so there are 11 readings in total. Also, it is very unlikely that in a real sensor the ambient and the object temperature differ so much, but here we are using a random number generator.
 
-
-You can dig even more in the data and extract only a subset of the reading. Fog example, you can select the ambient temperature and limit to the last 5 readings:
+You can dig even more in the data and extract only a subset of the reading. Fog example, you can select the lux and limit to the last 5 readings:
 
 
 .. code-block:: console
 
-  $ curl -s http://localhost:8081/fledge/asset/fogbench_temperature/ambient?limit=5 ; echo
-  [ { "ambient": 13, "timestamp": "2017-12-18 10:38:29.652" },
-    { "ambient": 13, "timestamp": "2017-12-18 10:38:29.652" }
-    { "ambient": 13, "timestamp": "2017-12-18 10:38:29.652" },
-    { "ambient": 13, "timestamp": "2017-12-18 10:38:29.652" },
-    { "ambient": 13, "timestamp": "2017-12-18 10:38:29.652" } ]
+  $ curl -s http://localhost:8081/fledge/asset/asset_2/lux?limit=5 ; echo
+    [
+     {"timestamp": "2023-04-14 11:25:05.672528", "lux": 75723.923},
+     {"timestamp": "2023-04-14 11:24:49.767983", "lux": 50475.99},
+     {"timestamp": "2023-04-14 11:24:49.767983", "lux": 50475.99},
+     {"timestamp": "2023-04-14 11:24:49.767983", "lux": 50475.99},
+     {"timestamp": "2023-04-14 11:24:49.767983", "lux": 50475.99}
+    ]
   $
-
 
 We have beautified the JSON output for you, so it is more readable.
 
 .. note:: When you select a specific element in the reading, the timestamp and the element are presented in the opposite order compared to the previous example. This is a known issue that will be fixed in the next version.
-
 
 Sending Greetings to the Northern Hemisphere
 ============================================

@@ -43,11 +43,11 @@ import json
 
 from aiohttp import web
 
+from fledge.common.logger import FLCoreLogger
 from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.services.core import connect
-from fledge.common import logger
 
-_logger = logger.setup(__name__)
+_logger = FLCoreLogger().get_logger(__name__)
 
 __author__ = "Mark Riddoch, Ashish Jabble, Massimiliano Pinto"
 __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
@@ -154,6 +154,7 @@ async def asset_counts(request):
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except Exception as exc:
         msg = str(exc)
+        _logger.error(exc, "Failed to get all assets.")
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(asset_json)
@@ -177,11 +178,20 @@ async def asset(request):
             curl -sX GET "http://localhost:8081/fledge/asset/fogbench_humidity?limit=1&skip=1&order=desc
             curl -sX GET http://localhost:8081/fledge/asset/fogbench_humidity?seconds=60
             curl -sX GET http://localhost:8081/fledge/asset/fogbench_humidity?seconds=60&previous=600
+            curl -sX GET "http://localhost:8081/fledge/asset/fogbench_humidity?additional=sinusoid,random&seconds=600"
     """
     asset_code = request.match_info.get('asset_code', '')
-    _select = PayloadBuilder().SELECT(("reading", "user_ts")).ALIAS("return", ("user_ts", "timestamp")).chain_payload()
-
-    _where = PayloadBuilder(_select).WHERE(["asset_code", "=", asset_code]).chain_payload()
+    # A comma separated list of additional assets to generate the readings to display multiple graphs in GUI
+    if 'additional' in request.query:
+        additional_assets = "{},{}".format(asset_code, request.query['additional'])
+        additional_asset_codes = additional_assets.split(',')
+        _select = PayloadBuilder().SELECT(("asset_code", "reading", "user_ts")).ALIAS(
+            "return", ("user_ts", "timestamp")).chain_payload()
+        _where = PayloadBuilder(_select).WHERE(["asset_code", "in", additional_asset_codes]).chain_payload()
+    else:
+        _select = PayloadBuilder().SELECT(("reading", "user_ts")).ALIAS(
+            "return", ("user_ts", "timestamp")).chain_payload()
+        _where = PayloadBuilder(_select).WHERE(["asset_code", "=", asset_code]).chain_payload()
     if 'previous' in request.query and (
             'seconds' in request.query or 'minutes' in request.query or 'hours' in request.query):
         _and_where = where_window(request, _where)
@@ -213,12 +223,24 @@ async def asset(request):
                     for item_name2, item_val2 in item_val.items():
                         if isinstance(item_val2, str) and item_val2.startswith(tuple(DATAPOINT_TYPES)):
                             data[item_name][item_name2] = IMAGE_PLACEHOLDER if is_image_excluded(request) else item_val2
-        response = rows
+        # Group the readings value by asset_code in case of additional multiple assets
+        if 'additional' in request.query:
+            response_by_asset_code = {}
+            for aacl in additional_asset_codes:
+                response_by_asset_code[aacl] = []
+            for r in rows:
+                if r['asset_code'] in additional_asset_codes:
+                    response_by_asset_code[r['asset_code']].extend([r])
+                    r.pop('asset_code')
+            response = response_by_asset_code
+        else:
+            response = rows
     except KeyError:
         msg = results['message']
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except Exception as exc:
         msg = str(exc)
+        _logger.error(exc, "Failed to get {} asset.".format(asset_code))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(response)
@@ -245,6 +267,7 @@ async def asset_latest(request: web.Request) -> web.Response:
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except Exception as exc:
         msg = str(exc)
+        _logger.error(exc, "Failed to get latest {} asset.".format(asset_code))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(response)
@@ -313,6 +336,7 @@ async def asset_reading(request):
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except Exception as exc:
         msg = str(exc)
+        _logger.error(exc, "Failed to get {} asset for {} reading.".format(asset_code, reading))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(response)
@@ -388,6 +412,7 @@ async def asset_all_readings_summary(request):
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except Exception as exc:
         msg = str(exc)
+        _logger.error(exc, "Failed to get {} asset readings summary.".format(asset_code))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(response)
@@ -453,6 +478,7 @@ async def asset_summary(request):
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as exc:
         msg = str(exc)
+        _logger.error(exc, "Failed to get {} asset {} reading summary.".format(asset_code, reading))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({reading: response})
@@ -554,6 +580,7 @@ async def asset_averages(request):
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except Exception as exc:
         msg = str(exc)
+        _logger.error(exc, "Failed to get average of {} readings for {} asset.".format(reading, asset_code))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(response)
@@ -686,8 +713,10 @@ async def asset_datapoints_with_bucket_size(request: web.Request) -> web.Respons
         raise web.HTTPNotFound(reason=e)
     except (TypeError, ValueError) as e:
         raise web.HTTPBadRequest(reason=e)
-    except Exception as e:
-        raise web.HTTPInternalServerError(reason=str(e))
+    except Exception as ex:
+        msg = str(ex)
+        _logger.error(ex, "Failed to get {} asset datapoints with {} bucket size.".format(asset_code, bucket_size))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(response)
 
@@ -763,8 +792,11 @@ async def asset_readings_with_bucket_size(request: web.Request) -> web.Response:
         raise web.HTTPNotFound(reason=e)
     except (TypeError, ValueError) as e:
         raise web.HTTPBadRequest(reason=e)
-    except Exception as e:
-        raise web.HTTPInternalServerError(reason=str(e))
+    except Exception as ex:
+        msg = str(ex)
+        _logger.error(ex, "Failed to get {} readings of {} asset with {} bucket size.".format(
+            reading, asset_code, bucket_size))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(response)
 
@@ -831,6 +863,7 @@ async def asset_structure(request):
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
+        _logger.error(ex, "Failed to get assets structure.")
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(asset_json)
@@ -849,11 +882,11 @@ async def asset_purge_all(request):
             curl -sX DELETE http://localhost:8081/fledge/asset
     """
     try:
-        from fledge.common.audit_logger import AuditLogger
+        _logger.warning("Manual purge of all assets has been requested.")
         # Call storage service
-        _logger.warning("Manual purge of all assets has been requested")
         _readings = connect.get_readings_async()
         # Get AuditLogger
+        from fledge.common.audit_logger import AuditLogger
         _audit = AuditLogger(_readings)
 
         start_time = time.strftime('%Y-%m-%d %H:%M:%S.%s', time.localtime(time.time()))
@@ -872,6 +905,7 @@ async def asset_purge_all(request):
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except Exception as exc:
         msg = str(exc)
+        _logger.error(exc, "Failed to purge all assets.")
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(results)
@@ -886,13 +920,13 @@ async def asset_purge(request):
             curl -sX DELETE http://localhost:8081/fledge/asset/fogbench_humidity
     """
     asset_code = request.match_info.get('asset_code', '')
-    _logger.warning("Manual purge of '%s' asset has been requested", asset_code)
+    _logger.warning("Manual purge of '{}' asset has been requested.".format(asset_code))
 
     try:
-        from fledge.common.audit_logger import AuditLogger
         # Call storage service
         _readings = connect.get_readings_async()
         # Get AuditLogger
+        from fledge.common.audit_logger import AuditLogger
         _audit = AuditLogger(_readings)
 
         start_time = time.strftime('%Y-%m-%d %H:%M:%S.%s', time.localtime(time.time()))
@@ -912,6 +946,7 @@ async def asset_purge(request):
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except Exception as exc:
         msg = str(exc)
+        _logger.error(exc, "Failed to purge {} asset.".format(asset_code))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(results)
@@ -940,6 +975,7 @@ async def asset_timespan(request):
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except Exception as exc:
         msg = str(exc)
+        _logger.error(exc, "Failed to get timespan of buffered readings for assets.")
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(response)
@@ -970,6 +1006,7 @@ async def asset_reading_timespan(request):
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except Exception as exc:
         msg = str(exc)
+        _logger.error(exc, "Failed to get timespan of buffered readings for {} asset.".format(asset_code))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(response)

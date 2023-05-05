@@ -257,9 +257,11 @@ class TestChangeCallback:
 
         with patch.object(ConfigurationManager, 'get_category_all_items', return_value=_rv) as cm_get_patch:
             with patch.object(aiohttp.ClientSession, 'post', side_effect=Exception) as post_patch:
-                with patch.object(cb._LOGGER, 'exception') as exception_patch:
+                with patch.object(cb._LOGGER, 'exception') as patch_logger:
                     await cb.run('catname1')
-                exception_patch.assert_called_once_with(
-                    'Unable to notify microservice with uuid %s due to exception: %s', s_id_1, '')
-            post_patch.assert_has_calls([call('http://saddress1:1/fledge/change', data='{"category": "catname1", "items": null}', headers={'content-type': 'application/json'})])
+                args = patch_logger.call_args
+                assert 'Unable to notify microservice with uuid {}'.format(s_id_1) == args[0][1]
+            post_patch.assert_has_calls(
+                [call('http://saddress1:1/fledge/change', data='{"category": "catname1", "items": null}',
+                      headers={'content-type': 'application/json'})])
         cm_get_patch.assert_called_once_with('catname1')

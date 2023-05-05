@@ -5,7 +5,7 @@
 # FLEDGE_END
 
 import json
-from fledge.common import logger
+from fledge.common.logger import FLCoreLogger
 from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.common.storage_client.storage_client import StorageClientAsync
 
@@ -15,8 +15,7 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-
-_logger = logger.setup(__name__)
+_logger = FLCoreLogger().get_logger(__name__)
 
 
 async def create_statistics(storage=None):
@@ -71,7 +70,7 @@ class Statistics(object):
                 payload['updates'].append(json.loads(payload_item))
             await self._storage.update_tbl("statistics", json.dumps(payload, sort_keys=False))
         except Exception as ex:
-            _logger.exception('Unable to bulk update statistics %s', str(ex))
+            _logger.exception(ex, 'Unable to bulk update statistics')
             raise
 
     async def update(self, key, value_increment):
@@ -97,9 +96,9 @@ class Statistics(object):
                 .payload()
             await self._storage.update_tbl("statistics", payload)
         except Exception as ex:
-            _logger.exception(
-                'Unable to update statistics value based on statistics_key %s and value_increment %d, error %s'
-                , key, value_increment, str(ex))
+            msg = 'Unable to update statistics value based on statistics_key {} and value_increment {}'.format(
+                key, value_increment)
+            _logger.exception(ex, msg)
             raise
 
     async def add_update(self, sensor_stat_dict):
@@ -126,9 +125,9 @@ class Statistics(object):
                 _logger.exception('Statistics key %s has not been registered', key)
                 raise
             except Exception as ex:
-                _logger.exception(
-                    'Unable to update statistics value based on statistics_key %s and value_increment %s, error %s'
-                    , key, value_increment, str(ex))
+                msg = 'Unable to update statistics value based on statistics_key {} and value_increment {}'.format(
+                    key, value_increment)
+                _logger.exception(ex, msg)
                 raise
 
     async def register(self, key, description):
@@ -144,7 +143,7 @@ class Statistics(object):
             """ The error may be because the key has been created in another process, reload keys """
             await self._load_keys()
             if key not in self._registered_keys:
-                _logger.exception('Unable to create new statistic %s, error %s', key, str(ex))
+                _logger.exception(ex, 'Unable to create new statistic {} key.'.format(key))
                 raise
 
     async def _load_keys(self):
@@ -155,4 +154,4 @@ class Statistics(object):
             for row in results['rows']:
                 self._registered_keys.append(row['key'])
         except Exception as ex:
-            _logger.exception('Failed to retrieve statistics keys, %s', str(ex))
+            _logger.exception(ex, 'Failed to retrieve statistics keys')

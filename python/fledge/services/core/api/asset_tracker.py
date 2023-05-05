@@ -4,19 +4,16 @@
 # See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 import json
-import logging
 
 from aiohttp import web
 import urllib.parse
 
 from fledge.common import utils as common_utils
+from fledge.common.audit_logger import AuditLogger
+from fledge.common.logger import FLCoreLogger
 from fledge.common.storage_client.exceptions import StorageServerError
 from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.services.core import connect
-
-from fledge.common.audit_logger import AuditLogger
-from fledge.common import logger
-
 
 __author__ = "Ashish Jabble"
 __copyright__ = "Copyright (c) 2018 OSIsoft, LLC"
@@ -30,7 +27,7 @@ _help = """
     -----------------------------------------------------------------------------------------
 """
 
-_logger = logger.setup(__name__, level=logging.INFO)
+_logger = FLCoreLogger().get_logger(__name__)
 
 
 async def get_asset_tracker_events(request: web.Request) -> web.Response:
@@ -72,6 +69,7 @@ async def get_asset_tracker_events(request: web.Request) -> web.Response:
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
+        _logger.error(ex, "Failed to get asset tracker events.")
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({'track': response})
@@ -146,6 +144,8 @@ async def deprecate_asset_track_entry(request: web.Request) -> web.Response:
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
+        _logger.error(ex, "Deprecate {} asset entry failed for {} service with {} event.".format(
+            asset_name, svc_name, event_name))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         msg = "For {} event, {} asset record entry has been deprecated.".format(event_name, asset_name)
@@ -239,6 +239,7 @@ async def get_datapoint_usage(request: web.Request) -> web.Response:
         raise web.HTTPBadRequest(reason=err_response, body=json.dumps({"message": err_response}))
     except Exception as ex:
         msg = str(ex)
+        _logger.error(ex, "Failed to get asset tracker store datapoints.")
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(response)

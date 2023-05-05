@@ -4,20 +4,18 @@
 # See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
-from fledge.common import logger
+from fledge.common.configuration_manager import ConfigurationManager
+from fledge.common.logger import FLCoreLogger
 from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.common.storage_client.storage_client import StorageClientAsync
 from fledge.common.storage_client.exceptions import StorageServerError
-from fledge.common.configuration_manager import ConfigurationManager
-
 
 __author__ = "Ashish Jabble"
 __copyright__ = "Copyright (c) 2018 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-
-_logger = logger.setup(__name__)
+_logger = FLCoreLogger().get_logger(__name__)
 
 
 class AssetTracker(object):
@@ -48,7 +46,7 @@ class AssetTracker(object):
             for row in results['rows']:
                 self._registered_asset_records.append(row)
         except Exception as ex:
-            _logger.exception('Failed to retrieve asset records, %s', str(ex))
+            _logger.exception(ex, 'Failed to retrieve asset records')
 
     async def add_asset_record(self, *,  asset, event, service, plugin, jsondata = {}):
         """

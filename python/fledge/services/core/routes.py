@@ -5,38 +5,20 @@
 # FLEDGE_END
 
 from fledge.services.core import proxy
-
-from fledge.services.core.api import auth
+from fledge.services.core.api import asset_tracker, auth, backup_restore, browser, certificate_store, filters, health, notification, north, package_log, python_packages, south, support, service, task, update
 from fledge.services.core.api import audit as api_audit
-from fledge.services.core.api import browser
 from fledge.services.core.api import common as api_common
 from fledge.services.core.api import configuration as api_configuration
 from fledge.services.core.api import scheduler as api_scheduler
 from fledge.services.core.api import statistics as api_statistics
-from fledge.services.core.api import backup_restore
-from fledge.services.core.api import update
-from fledge.services.core.api import service
-from fledge.services.core.api import certificate_store
-from fledge.services.core.api import support
-from fledge.services.core.api import task
-from fledge.services.core.api import asset_tracker
-from fledge.services.core.api import south
-from fledge.services.core.api import north
-from fledge.services.core.api import filters
-from fledge.services.core.api import notification
+from fledge.services.core.api.control_service import script_management, acl_management, pipeline
 from fledge.services.core.api.plugins import data as plugin_data
 from fledge.services.core.api.plugins import install as plugins_install, discovery as plugins_discovery
 from fledge.services.core.api.plugins import update as plugins_update
 from fledge.services.core.api.plugins import remove as plugins_remove
+from fledge.services.core.api.repos import configure as configure_repo
 from fledge.services.core.api.snapshot import plugins as snapshot_plugins
 from fledge.services.core.api.snapshot import table as snapshot_table
-from fledge.services.core.api import package_log
-from fledge.services.core.api.repos import configure as configure_repo
-from fledge.services.core.api.control_service import script_management
-from fledge.services.core.api.control_service import acl_management
-from fledge.services.core.api import python_packages
-from fledge.services.core.api import health
-
 
 
 __author__ = "Ashish Jabble, Praveen Garg, Massimiliano Pinto, Amarendra K Sinha"
@@ -193,9 +175,15 @@ def setup(app):
     app.router.add_route('GET', '/fledge/plugins/installed', plugins_discovery.get_plugins_installed)
     app.router.add_route('GET', '/fledge/plugins/available', plugins_discovery.get_plugins_available)
     app.router.add_route('POST', '/fledge/plugins', plugins_install.add_plugin)
-    app.router.add_route('PUT', '/fledge/plugins/{type}/{name}/update', plugins_update.update_plugin)
-    app.router.add_route('DELETE', '/fledge/plugins/{type}/{name}', plugins_remove.remove_plugin)
-
+    if api_common.get_version() <= "2.1.0":
+        """Note: This is only for to maintain the backward compatibility. (having core version<=2.1.0)
+         Plugin Update & Delete routes on the basis of type & installed name"""
+        app.router.add_route('PUT', '/fledge/plugins/{type}/{name}/update', plugins_update.update_plugin)
+        app.router.add_route('DELETE', '/fledge/plugins/{type}/{name}', plugins_remove.remove_plugin)
+    else:
+        # routes available 2.1.0 onwards
+        app.router.add_route('PUT', '/fledge/plugins/{package_name}', plugins_update.update_package)
+        app.router.add_route('DELETE', '/fledge/plugins/{package_name}', plugins_remove.remove_package)
     # plugin data
     app.router.add_route('GET', '/fledge/service/{service_name}/persist', plugin_data.get_persist_plugins)
     app.router.add_route('GET', '/fledge/service/{service_name}/plugin/{plugin_name}/data', plugin_data.get)
@@ -258,6 +246,9 @@ def setup(app):
     app.router.add_route('DELETE', '/fledge/ACL/{acl_name}', acl_management.delete_acl)
     app.router.add_route('PUT', '/fledge/service/{service_name}/ACL', acl_management.attach_acl_to_service)
     app.router.add_route('DELETE', '/fledge/service/{service_name}/ACL', acl_management.detach_acl_from_service)
+
+    # Control Pipelines
+    pipeline.setup(app)
 
     app.router.add_route('GET', '/fledge/python/packages', python_packages.get_packages)
     app.router.add_route('POST', '/fledge/python/package', python_packages.install_package)

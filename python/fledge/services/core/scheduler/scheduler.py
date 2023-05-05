@@ -18,13 +18,13 @@ import subprocess
 import signal
 from typing import List
 
-from fledge.common import logger
 from fledge.common import utils as common_utils
 from fledge.common.audit_logger import AuditLogger
+from fledge.common.configuration_manager import ConfigurationManager
+from fledge.common.logger import FLCoreLogger
 from fledge.common.storage_client.exceptions import *
 from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.common.storage_client.storage_client import StorageClientAsync
-from fledge.common.configuration_manager import ConfigurationManager
 from fledge.services.core.scheduler.entities import *
 from fledge.services.core.scheduler.exceptions import *
 from fledge.services.core.service_registry.service_registry import ServiceRegistry
@@ -135,8 +135,7 @@ class Scheduler(object):
 
         # Initialize class attributes
         if not cls._logger:
-            cls._logger = logger.setup(__name__, level=logging.INFO)
-            # cls._logger = logger.setup(__name__, level=logging.DEBUG)
+            cls._logger = FLCoreLogger().get_logger(__name__)
         if not cls._core_management_port:
             cls._core_management_port = core_management_port
         if not cls._core_management_host:
@@ -848,7 +847,7 @@ class Scheduler(object):
                 try:
                     await self._purge_tasks_task
                 except Exception as ex:
-                    self._logger.exception('An exception was raised by Scheduler._purge_tasks %s', str(ex))
+                    self._logger.exception(ex, 'An exception was raised by Scheduler._purge_tasks.')
 
             self._resume_check_schedules()
 
@@ -856,7 +855,7 @@ class Scheduler(object):
             try:
                 await self._scheduler_loop_task
             except Exception as ex:
-                self._logger.exception('An exception was raised by Scheduler._scheduler_loop %s', str(ex))
+                self._logger.exception(ex, 'An exception was raised by Scheduler._scheduler_loop')
             self._scheduler_loop_task = None
 
         # Can not iterate over _task_processes - it can change mid-iteration

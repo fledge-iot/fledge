@@ -25,7 +25,7 @@ ifneq ("$(PLATFORM_RH)","")
 else
 	PIP_INSTALL_REQUIREMENTS := python3 -m pip install -Ir
 	PYTHON_BUILD_PACKAGE = python3 setup.py build -b ../$(PYTHON_BUILD_DIR)
-	CMAKE := cmake
+	CMAKE := cmake -DCMAKE_BUILD_TYPE=Debug
 endif
 
 MKDIR_PATH := mkdir -p
@@ -61,6 +61,7 @@ CMAKE_SOUTH_BINARY            := $(CMAKE_SERVICES_DIR)/south/fledge.services.sou
 CMAKE_NORTH_SERVICE_BINARY    := $(CMAKE_SERVICES_DIR)/north/fledge.services.north
 CMAKE_NORTH_BINARY            := $(CMAKE_TASKS_DIR)/north/sending_process/sending_process
 CMAKE_PURGE_SYSTEM_BINARY     := $(CMAKE_TASKS_DIR)/purge_system/purge_system
+CMAKE_STATISTICS_BINARY       := $(CMAKE_TASKS_DIR)/statistics_history/statistics_history
 CMAKE_PLUGINS_DIR             := $(CURRENT_DIR)/$(CMAKE_BUILD_DIR)/C/plugins
 DEV_SERVICES_DIR              := $(CURRENT_DIR)/services
 DEV_TASKS_DIR                 := $(CURRENT_DIR)/tasks
@@ -70,6 +71,7 @@ SYMLINK_SOUTH_BINARY          := $(DEV_SERVICES_DIR)/fledge.services.south
 SYMLINK_NORTH_SERVICE_BINARY  := $(DEV_SERVICES_DIR)/fledge.services.north
 SYMLINK_NORTH_BINARY          := $(DEV_TASKS_DIR)/sending_process
 SYMLINK_PURGE_SYSTEM_BINARY   := $(DEV_TASKS_DIR)/purge_system
+SYMLINK_STATISTICS_BINARY     := $(DEV_TASKS_DIR)/statistics_history
 ASYNC_INGEST_PYMODULE         := $(CURRENT_DIR)/python/async_ingest.so*
 FILTER_INGEST_PYMODULE        := $(CURRENT_DIR)/python/filter_ingest.so*
 
@@ -166,7 +168,7 @@ PACKAGE_NAME=Fledge
 # generally prepare the development tree to allow for core to be run
 default : apply_version \
 	generate_selfcertificate \
-	c_build $(SYMLINK_STORAGE_BINARY) $(SYMLINK_SOUTH_BINARY) $(SYMLINK_NORTH_SERVICE_BINARY) $(SYMLINK_NORTH_BINARY) $(SYMLINK_PURGE_SYSTEM_BINARY) $(SYMLINK_PLUGINS_DIR) \
+	c_build $(SYMLINK_STORAGE_BINARY) $(SYMLINK_SOUTH_BINARY) $(SYMLINK_NORTH_SERVICE_BINARY) $(SYMLINK_NORTH_BINARY) $(SYMLINK_PURGE_SYSTEM_BINARY) $(SYMLINK_STATISTICS_BINARY) $(SYMLINK_PLUGINS_DIR) \
 	python_build python_requirements_user
 
 apply_version :
@@ -288,6 +290,11 @@ $(SYMLINK_NORTH_BINARY) : $(DEV_TASKS_DIR)
 # create symlink to purge_system binary
 $(SYMLINK_PURGE_SYSTEM_BINARY) : $(DEV_TASKS_DIR)
 	$(LN) $(CMAKE_PURGE_SYSTEM_BINARY) $(SYMLINK_PURGE_SYSTEM_BINARY)
+
+# create symlink to purge_system binary
+$(SYMLINK_STATISTICS_BINARY) : $(DEV_TASKS_DIR)
+	$(LN) $(CMAKE_STATISTICS_BINARY) $(SYMLINK_STATISTICS_BINARY)
+
 
 # create tasks dir
 $(DEV_TASKS_DIR) :

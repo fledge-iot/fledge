@@ -98,6 +98,14 @@ StorageConfiguration::StorageConfiguration()
 }
 
 /**
+ * Storage configuration destructor
+ */
+StorageConfiguration::~StorageConfiguration()
+{
+	delete document;
+}
+
+/**
  * Return if a value exsits for the cached configuration category
  */
 bool StorageConfiguration::hasValue(const string& key)
@@ -332,8 +340,9 @@ bool forceUpdate = false;
 			{
 				rval = "Use main plugin";
 			}
-			rp["default"].SetString(strdup(rval), strlen(rval));
-			rp["value"].SetString(strdup(rval), strlen(rval));
+			char *ncrval = strdup(rval);
+			rp["default"].SetString(ncrval, strlen(rval));
+			rp["value"].SetString(ncrval, strlen(rval));
 			logger->info("Storage configuration cache is up to date");
 			return;
 		}

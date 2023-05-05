@@ -6,8 +6,6 @@
 
 """ Provides utility functions to build a Fledge Support bundle.
 """
-
-import logging
 import datetime
 import os
 from os.path import basename
@@ -19,9 +17,10 @@ import tarfile
 import fnmatch
 import subprocess
 
-from fledge.common import logger, utils
+from fledge.common import utils
 from fledge.common.common import _FLEDGE_ROOT, _FLEDGE_DATA
 from fledge.common.configuration_manager import ConfigurationManager
+from fledge.common.logger import FLCoreLogger
 from fledge.common.plugin_discovery import PluginDiscovery
 from fledge.common.storage_client import payload_builder
 from fledge.services.core.api.python_packages import get_packages_installed
@@ -34,7 +33,8 @@ __copyright__ = "Copyright (c) 2017 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-_LOGGER = logger.setup(__name__, level=logging.INFO)
+_LOGGER = FLCoreLogger().get_logger(__name__)
+
 _NO_OF_FILES_TO_RETAIN = 3
 _SYSLOG_FILE = '/var/log/messages' if utils.is_redhat_based() else '/var/log/syslog'
 _PATH = _FLEDGE_DATA if _FLEDGE_DATA else _FLEDGE_ROOT + '/data'
@@ -57,7 +57,7 @@ class SupportBuilder:
             self._interim_file_path = support_dir
             self._storage = get_storage_async()  # from fledge.services.core.connect
         except (OSError, Exception) as ex:
-            _LOGGER.error("Error in initializing SupportBuilder class: %s ", str(ex))
+            _LOGGER.error(ex, "Error in initializing SupportBuilder class.")
             raise RuntimeError(str(ex))
 
     async def build(self):
@@ -103,7 +103,7 @@ class SupportBuilder:
             finally:
                 pyz.close()
         except Exception as ex:
-            _LOGGER.error("Error in creating Support .tar.gz file: %s ", str(ex))
+            _LOGGER.error(ex, "Error in creating Support .tar.gz file.")
             raise RuntimeError(str(ex))
 
         self.check_and_delete_temp_files(self._interim_file_path)

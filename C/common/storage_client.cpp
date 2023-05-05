@@ -324,7 +324,7 @@ ReadingSet *StorageClient::readingFetch(const unsigned long readingId, const uns
 		{
 			ostringstream resultPayload;
 			resultPayload << res->content.rdbuf();
-			ReadingSet *result = new ReadingSet(resultPayload.str().c_str());
+			ReadingSet *result = new ReadingSet(resultPayload.str());
 			return result;
 		}
 		ostringstream resultPayload;
@@ -1741,4 +1741,165 @@ bool StorageClient::createSchema(const std::string& payload)
                 handleException(ex, "post storage schema");
         }
         return false;
+}
+
+/**
+ * Update data into an arbitrary table
+ *
+ * @param schema        The name of the schema into which data will be added
+ * @param tableName     The name of the table into which data will be added
+ * @param updates       The values and condition pairs to update in the table
+ * @param modifier      Optional update modifier
+ * @return int          The number of rows updated
+ */
+int StorageClient::updateTable(const string& schema, const string& tableName, std::vector<std::pair<InsertValue*, Where*> >& updates, const UpdateModifier *modifier)
+{
+        static HttpClient *httpClient = this->getHttpClient(); // to initialize m_seqnum_map[thread_id] for this thread
+        try {
+                std::thread::id thread_id = std::this_thread::get_id();
+                ostringstream ss;
+                sto_mtx_client_map.lock();
+                m_seqnum_map[thread_id].fetch_add(1);
+                ss << m_pid << "#" << thread_id << "_" << m_seqnum_map[thread_id].load();
+                sto_mtx_client_map.unlock();
+
+                SimpleWeb::CaseInsensitiveMultimap headers = {{"SeqNum", ss.str()}};
+
+                ostringstream convert;
+                convert << "{ \"updates\" : [ ";
+
+		for (vector<pair<InsertValue *, Where *>>::const_iterator it = updates.cbegin();
+                                                 it != updates.cend(); ++it)
+                {
+                        if (it != updates.cbegin())
+                        {
+                                convert << ", ";
+                        }
+                        convert << "{ ";
+                        if (modifier)
+                        {
+                                convert << "\"modifiers\" : [ \"" << modifier->toJSON() << "\" ], ";
+                        }
+                        convert << "\"where\" : ";
+                        convert << it->second->toJSON();
+                        convert << ", \"values\" : ";
+                        convert << " { " << it->first->toJSON() << " } ";
+                        convert << " }";
+                }
+                convert << " ] }";
+
+                char url[128];
+                snprintf(url, sizeof(url), "/storage/schema/%s/table/%s", schema.c_str(), tableName.c_str());
+                auto res = this->getHttpClient()->request("PUT", url, convert.str(), headers);
+
+		if (res->status_code.compare("200 OK") == 0)
+                {
+                        ostringstream resultPayload;
+                        resultPayload << res->content.rdbuf();
+                        Document doc;
+                        doc.Parse(resultPayload.str().c_str());
+                        if (doc.HasParseError())
+                        {
+                                m_logger->info("PUT result %s.", res->status_code.c_str());
+                                m_logger->error("Failed to parse result of updateTable. %s",
+                                                GetParseError_En(doc.GetParseError()));
+                                return -1;
+                        }
+                        else if (doc.HasMember("message"))
+                        {
+                                m_logger->error("Failed to update table data: %s",
+                                        doc["message"].GetString());
+                                return -1;
+                        }
+                        return doc["rows_affected"].GetInt();
+                }
+                ostringstream resultPayload;
+                resultPayload << res->content.rdbuf();
+                handleUnexpectedResponse("Update table", tableName, res->status_code, resultPayload.str());
+        } catch (exception& ex) {
+                handleException(ex, "update table %s", tableName.c_str());
+                throw;
+        }
+        return -1;
+}
+
+/**
+ * Update data into an arbitrary table
+ *
+ * @param tableName     The name of the table into which data will be added
+ * @param updates       The values to insert into the table
+ * @param modifier      Optional storage modifier
+ * @return int          The number of rows updated
+ */
+
+int StorageClient::updateTable(const string& tableName, std::vector<std::pair<InsertValue*, Where*> >& updates, const UpdateModifier *modifier)
+{
+	return updateTable(DEFAULT_SCHEMA, tableName, updates, modifier);
+}
+
+/**
+ * Insert data into an arbitrary table
+ *
+ * @param tableName     The name of the table into which data will be added
+ * @param values        The values to insert into the table
+ * @return int          The number of rows inserted
+ */
+int StorageClient::insertTable(const string& tableName, const std::vector<InsertValues>&  values)
+{
+	return insertTable(DEFAULT_SCHEMA, tableName, values);
+}
+/**
+ * Insert data into an arbitrary table
+ *
+ * @param schema        The name of the schema to insert into
+ * @param tableName     The name of the table into which data will be added
+ * @param values        The values to insert into the table
+ * @return int          The number of rows inserted
+ */
+int StorageClient::insertTable(const string& schema, const string& tableName, const std::vector<InsertValues>&  values)
+{
+        try {
+		ostringstream convert;
+		convert << "{ \"inserts\": [" ;
+                for (std::vector<InsertValues>::const_iterator it = values.cbegin();
+                                                 it != values.cend(); ++it)
+                {
+                        if (it != values.cbegin())
+                        {
+                                convert << ", ";
+                        }
+                        convert <<  it->toJSON() ;
+                }
+		convert << "]}";
+
+                char url[1000];
+                snprintf(url, sizeof(url), "/storage/schema/%s/table/%s", schema.c_str(), tableName.c_str());
+
+                auto res = this->getHttpClient()->request("POST", url, convert.str());
+                ostringstream resultPayload;
+                resultPayload << res->content.rdbuf();
+                if (res->status_code.compare("200 OK") == 0 || res->status_code.compare("201 Created") == 0)
+                {
+
+                        Document doc;
+                        doc.Parse(resultPayload.str().c_str());
+                        if (doc.HasParseError())
+                        {
+                                m_logger->info("POST result %s.", res->status_code.c_str());
+                                m_logger->error("Failed to parse result of insertTable. %s. Document is %s",
+                                                GetParseError_En(doc.GetParseError()),
+                                                resultPayload.str().c_str());
+                                return -1;
+                        }
+                        else if (doc.HasMember("rows_affected"))
+			{
+	                       return doc["rows_affected"].GetInt();
+			}
+                }
+                handleUnexpectedResponse("Insert table", res->status_code, resultPayload.str());
+        } catch (exception& ex) {
+                handleException(ex, "insert into table %s", tableName.c_str());
+                throw;
+        }
+        return 0;
 }

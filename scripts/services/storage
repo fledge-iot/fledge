@@ -56,10 +56,17 @@ if [[ "$1" != "--plugin" ]]; then
     storagePlugin=${res[0]}
     managedEngine=${res[1]}
     # Call plugin check: this will create database if not set yet
-   ${pluginScriptPath}/${storagePlugin}.sh init ${FLEDGE_SCHEMA} ${managedEngine}
-fi
-
-if [[ "$1" != "--readingsPlugin" ]]; then
+    ${pluginScriptPath}/${storagePlugin}.sh init ${FLEDGE_SCHEMA} ${managedEngine}
+    if [[ "$VALGRIND_STORAGE" = "y" ]]; then
+		write_log "" "scripts.services.storage" "warn" "Running storage service under valgrind" "logonly" ""
+		if [[ -f "$HOME/storage.valgrind.out" ]]; then
+			rm $HOME/storage.valgrind.out
+		fi
+		valgrind --leak-check=full --show-leak-kinds=all --trace-children=yes --log-file=$HOME/storage.valgrind.out ${storageExec} "$@" -d &
+    else
+		${storageExec} "$@"
+    fi
+elif [[ "$1" != "--readingsPlugin" ]]; then
     # Get db schema
     FLEDGE_VERSION_FILE="${FLEDGE_ROOT}/VERSION"
     FLEDGE_SCHEMA=`cat ${FLEDGE_VERSION_FILE} | tr -d ' ' | grep -i "FLEDGE_SCHEMA=" | sed -e 's/\(.*\)=\(.*\)/\2/g'`
@@ -71,8 +78,14 @@ if [[ "$1" != "--readingsPlugin" ]]; then
     if [[ -x ${pluginScriptPath}/${storagePlugin}.sh ]]; then
        ${pluginScriptPath}/${storagePlugin}.sh init ${FLEDGE_SCHEMA} ${managedEngine}
     fi
+    ${storageExec} "$@"
+elif [[ "$VALGRIND_STORAGE" = "y" ]]; then
+        write_log "" "scripts.services.storage" "warn" "Running storage service under valgrind" "logonly" ""
+	if [[ -f "$HOME/storage.valgrind.out" ]]; then
+		rm $HOME/storage.valgrind.out
+	fi
+	valgrind --leak-check=full --show-leak-kinds=all --trace-children=yes --log-file=$HOME/storage.valgrind.out ${storageExec} "$@" -d &
+else
+	${storageExec} "$@"
 fi
-
-# Run storage service
-${storageExec} "$@"
 exit 0

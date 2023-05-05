@@ -890,6 +890,12 @@ int sleep_time_ms = 0;
 				// Handles - asset_code
 				asset_code = (*itr)["asset_code"].GetString();
 
+				if (strlen(asset_code) == 0)
+				{
+					Logger::getLogger()->warn("Sqlitelb appendReadings - empty asset code value, row is ignored");
+					itr++;
+					continue;
+				}
 				// Handles - reading
 				StringBuffer buffer;
 				Writer<StringBuffer> writer(buffer);
@@ -1012,6 +1018,13 @@ int sleep_time_ms = 0;
 		{
 			// Handles - asset_code
 			asset_code = (*itr)["asset_code"].GetString();
+
+			if (strlen(asset_code) == 0)
+			{
+				Logger::getLogger()->warn("Sqlitelb appendReadings - empty asset code value, row is ignored");
+				itr++;
+				continue;
+			}
 
 			// Handles - reading
 			StringBuffer buffer;

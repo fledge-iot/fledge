@@ -12,6 +12,8 @@
 #define TO_STRING_(...) #__VA_ARGS__
 #define QUOTE(...) TO_STRING(__VA_ARGS__)
 
+#define DELTA_SECONDS_BEFORE_TOKEN_EXPIRATION 120
+
 using namespace std;
 using HttpServer = SimpleWeb::Server<SimpleWeb::HTTP>;
 
@@ -593,7 +595,7 @@ void ServiceAuthHandler::refreshBearerToken()
 
 	// While server is running get bearer token
 	// and sleeps for a few secods.
-	// When expires_in - 10 seconds is done
+	// When expires_in - DELTA_SECONDS_BEFORE_TOKEN_EXPIRATION seconds is done
 	// then get new token and sleep again
 	while (this->isRunning())
 	{
@@ -644,7 +646,7 @@ void ServiceAuthHandler::refreshBearerToken()
 			current_token = bToken.token();
 
 			// Token exists and it is valid, get expiration time
-			expires_in = bToken.getExpiration() - time(NULL) - 10;
+			expires_in = bToken.getExpiration() - time(NULL) - DELTA_SECONDS_BEFORE_TOKEN_EXPIRATION;
 
 			Logger::getLogger()->debug("Bearer token refresh will be called in "
 						"%ld seconds, service '%s'",

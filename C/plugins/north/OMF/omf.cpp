@@ -1459,7 +1459,8 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 	 */
 
 	// Create header for Readings data
-	vector<pair<string, string>> readingData = OMF::createMessageHeader("Data", "update");
+	std::string action = (this->m_OMFVersion.compare("1.2") == 0) ? "update" : "create";
+	vector<pair<string, string>> readingData = OMF::createMessageHeader("Data", action);
 	if (compression)
 		readingData.push_back(pair<string, string>("compression", "gzip"));
 

@@ -431,7 +431,7 @@ typedef struct
 
 	string		prefixAFAsset;          // Prefix to generate unique asste id
 	string		PIWebAPIProductTitle;
-	string		PIWebAPIVersion;
+	string		RestServerVersion;
 	string		PIWebAPIAuthMethod;     // Authentication method to be used with the PI Web API.
 	string		PIWebAPICredentials;    // Credentials is the base64 encoding of id and password joined by a single colon (:)
 	string 		KerberosKeytab;         // Kerberos authentication keytab file
@@ -471,6 +471,7 @@ string        AuthBasicCredentialsGenerate (string& userId, string& password);
 void          AuthKerberosSetup            (string& keytabFile, string& keytabFileName);
 string        OCSRetrieveAuthToken         (CONNECTOR_INFO* connInfo);
 int           PIWebAPIGetVersion           (CONNECTOR_INFO* connInfo, bool logMessage = true);
+int           EDSGetVersion                (CONNECTOR_INFO* connInfo);
 double        GetElapsedTime               (struct timeval *startTime);
 bool          IsPIWebAPIConnected          (CONNECTOR_INFO* connInfo);
 void          SetOMFVersion                (CONNECTOR_INFO* connInfo);
@@ -529,6 +530,10 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 	string PIServerEndpoint = configData->getValue("PIServerEndpoint");
 	string ADHRegions = configData->getValue("ADHRegions");
 	string ServerHostname = configData->getValue("ServerHostname");
+	if (gethostbyname(ServerHostname.c_str()) == NULL)
+	{
+		Logger::getLogger()->warn("Unable to resolve server hostname '%s'. This should be a valid hostname or IP Address.", ServerHostname.c_str());
+	}
 	string ServerPort = configData->getValue("ServerPort");
 	string url;
 	string NamingScheme = configData->getValue("NamingScheme");
@@ -871,13 +876,19 @@ void plugin_start(const PLUGIN_HANDLE handle,
 		{
 			SetOMFVersion(connInfo);
 			Logger::getLogger()->info("%s connected to %s OMF Version: %s",
-				connInfo->PIWebAPIVersion.c_str(), connInfo->hostAndPort.c_str(), connInfo->omfversion.c_str());
+				connInfo->RestServerVersion.c_str(), connInfo->hostAndPort.c_str(), connInfo->omfversion.c_str());
 			s_connected = true;
 		}
 		else
 		{
 			s_connected = false;
 		}
+	}
+	else if (connInfo->PIServerEndpoint == ENDPOINT_EDS)
+	{
+		EDSGetVersion(connInfo);
+		SetOMFVersion(connInfo);
+		Logger::getLogger()->info("Edge Data Store %s OMF Version: %s", connInfo->RestServerVersion.c_str(), connInfo->omfversion.c_str());
 	}
 	else
 	{
@@ -982,18 +993,6 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 	connInfo->omf->setPIServerEndpoint(connInfo->PIServerEndpoint);
 	connInfo->omf->setDefaultAFLocation(connInfo->DefaultAFLocation);
 	connInfo->omf->setAFMap(connInfo->AFMap);
-#ifdef EDS_OMF_VERSION
-	if (connInfo->PIServerEndpoint == ENDPOINT_EDS)
-	{
-		connInfo->omfversion = EDS_OMF_VERSION;
-	}
-#endif
-
-	// Version for Connector Relay is 1.0 only.
-	if (connInfo->PIServerEndpoint == ENDPOINT_CR)
-	{
-		connInfo->omfversion = CR_OMF_VERSION;
-	}
 
 	connInfo->omf->setOMFVersion(connInfo->omfversion);
 
@@ -1549,10 +1548,120 @@ int PIWebAPIGetVersion(CONNECTOR_INFO* connInfo, bool logMessage)
 	_PIWebAPI->setAuthMethod          (connInfo->PIWebAPIAuthMethod);
 	_PIWebAPI->setAuthBasicCredentials(connInfo->PIWebAPICredentials);
 
-	int httpCode = _PIWebAPI->GetVersion(connInfo->hostAndPort, connInfo->PIWebAPIVersion, logMessage);
+	int httpCode = _PIWebAPI->GetVersion(connInfo->hostAndPort, connInfo->RestServerVersion, logMessage);
 	delete _PIWebAPI;
 
 	return httpCode;
+}
+
+/**
+ * Finds major and minor product version numbers in a version string
+ * 
+ * @param    versionString		Version string of the form x.x.x.x where x's are integers
+ * @param    major				Major product version returned (first digit)
+ * @param    minor				Minor product version returned (second digit)
+ */
+static void ParseProductVersion(std::string &versionString, int *major, int *minor)
+{
+	*major = 0;
+	*minor = 0;
+	size_t last = 0;
+	size_t next = versionString.find(".", last);
+	if (next != string::npos)
+	{
+		*major = atoi(versionString.substr(last, next - last).c_str());
+		last = next + 1;
+		next = versionString.find(".", last);
+		if (next != string::npos)
+		{
+			*minor = atoi(versionString.substr(last, next - last).c_str());
+		}
+	}
+}
+
+/**
+ * Parses the Edge Data Store version string from the /productinformation REST response.
+ * Note that the response format differs between EDS 2020 and EDS 2023.
+ * 
+ * @param    json		REST response from /api/v1/diagnostics/productinformation
+ * @return   version	Edge Data Store version string
+ */
+static std::string ParseEDSProductInformation(std::string json)
+{
+	std::string version;
+
+	Document doc;
+
+	if (!doc.Parse(json.c_str()).HasParseError())
+	{
+		try
+		{
+			if (doc.HasMember("Edge Data Store"))	// EDS 2020 response
+			{
+				const rapidjson::Value &EDS = doc["Edge Data Store"];
+				version = EDS.GetString();
+			}
+			else if (doc.HasMember("Product Version"))	// EDS 2023 response
+			{
+				const rapidjson::Value &EDS = doc["Product Version"];
+				version = EDS.GetString();
+			}
+		}
+		catch (...)
+		{
+		}
+	}
+
+	Logger::getLogger()->debug("Edge Data Store Version: %s JSON: %s", version.c_str(), json.c_str());
+	return version;
+}
+
+/**
+ * Calls the Edge Data Store product information endpoint to get the EDS version
+ * 
+ * @param    connInfo	The CONNECTOR_INFO data structure
+ * @return   HttpCode	REST response code
+ */
+int EDSGetVersion(CONNECTOR_INFO *connInfo)
+{
+	int res;
+
+	HttpSender *endPoint = new SimpleHttp(connInfo->hostAndPort,
+										   connInfo->timeout,
+										   connInfo->timeout,
+										   connInfo->retrySleepTime,
+										   connInfo->maxRetry);
+
+	try
+	{
+		string path = "http://" + connInfo->hostAndPort + "/api/v1/diagnostics/productinformation";
+		vector<pair<string, string>> headers;
+		connInfo->RestServerVersion.clear();
+
+		res = endPoint->sendRequest("GET", path, headers, std::string(""));
+		if (res >= 200 && res <= 299)
+		{
+			connInfo->RestServerVersion = ParseEDSProductInformation(endPoint->getHTTPResponse());
+		}
+	}
+	catch (const BadRequest &ex)
+	{
+		Logger::getLogger()->error("Edge Data Store productinformation BadRequest exception: %s", ex.what());
+		res = 400;
+	}
+	catch (const std::exception &ex)
+	{
+		Logger::getLogger()->error("Edge Data Store productinformation exception: %s", ex.what());
+		res = 400;
+	}
+	catch (...)
+	{
+		Logger::getLogger()->error("Edge Data Store productinformation generic exception");
+		res = 400;
+	}
+
+	delete endPoint;
+	return res;
 }
 
 /**
@@ -1560,19 +1669,20 @@ int PIWebAPIGetVersion(CONNECTOR_INFO* connInfo, bool logMessage)
  * 
  * @param    connInfo	The CONNECTOR_INFO data structure
  */
-void SetOMFVersion(CONNECTOR_INFO* connInfo)
+void SetOMFVersion(CONNECTOR_INFO *connInfo)
 {
-	if (connInfo->PIServerEndpoint == ENDPOINT_PIWEB_API)
+	switch (connInfo->PIServerEndpoint)
 	{
-		if (connInfo->PIWebAPIVersion.find("2019") != std::string::npos)
+	case ENDPOINT_PIWEB_API:
+		if (connInfo->RestServerVersion.find("2019") != std::string::npos)
 		{
 			connInfo->omfversion = "1.0";
 		}
-		else if (connInfo->PIWebAPIVersion.find("2020") != std::string::npos)
+		else if (connInfo->RestServerVersion.find("2020") != std::string::npos)
 		{
 			connInfo->omfversion = "1.1";
 		}
-		else if (connInfo->PIWebAPIVersion.find("2021") != std::string::npos)
+		else if (connInfo->RestServerVersion.find("2021") != std::string::npos)
 		{
 			connInfo->omfversion = "1.2";
 		}
@@ -1580,11 +1690,34 @@ void SetOMFVersion(CONNECTOR_INFO* connInfo)
 		{
 			connInfo->omfversion = "1.2";
 		}
-	}
-	else
-	{
-		// Assume all other OMF endpoint types support OMF Version 1.2
-		connInfo->omfversion = "1.2";
+		break;
+	case ENDPOINT_EDS:
+		// Edge Data Store versions with supported OMF versions:
+		// EDS 2020 (1.0.0.609)				OMF 1.0, 1.1
+		// EDS 2023 (1.1.1.46)				OMF 1.0, 1.1, 1.2
+		// EDS 2023 Patch 1 (1.1.3.2)		OMF 1.0, 1.1, 1.2
+		{
+			int major = 0;
+			int minor = 0;
+			ParseProductVersion(connInfo->RestServerVersion, &major, &minor);
+			if ((major > 1) || (major == 1 && minor > 0))
+			{
+				connInfo->omfversion = "1.2";
+			}
+			else
+			{
+				connInfo->omfversion = EDS_OMF_VERSION;
+			}
+		}
+		break;
+	case ENDPOINT_CR:
+		connInfo->omfversion = CR_OMF_VERSION;
+		break;
+	case ENDPOINT_OCS:
+	case ENDPOINT_ADH:
+	default:
+		connInfo->omfversion = "1.2"; // assume cloud service OMF endpoint types support OMF 1.2
+		break;
 	}
 }
 
@@ -1772,7 +1905,7 @@ bool IsPIWebAPIConnected(CONNECTOR_INFO* connInfo)
 				s_connected = true;
 				SetOMFVersion(connInfo);
 				Logger::getLogger()->info("%s reconnected to %s OMF Version: %s",
-					connInfo->PIWebAPIVersion.c_str(), connInfo->hostAndPort.c_str(), connInfo->omfversion.c_str());
+					connInfo->RestServerVersion.c_str(), connInfo->hostAndPort.c_str(), connInfo->omfversion.c_str());
 				if (reported == true || reportedState == false)
 				{
 					reportedState = true;

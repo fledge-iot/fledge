@@ -52,6 +52,8 @@ public:
 	// Check FilterPipeline is ready for data ingest
 	bool		isReady() { return m_ready; };
 	bool		hasChanged(const std::string pipeline) const { return m_pipeline != pipeline; }
+	bool		isShuttingDown() { return m_shutdown; };
+	void 		setShuttingDown() { m_shutdown = true; }
 
 private:
 	PLUGIN_HANDLE	loadFilterPlugin(const std::string& filterName);
@@ -66,6 +68,7 @@ protected:
 				m_filterCategories;
 	std::string		m_pipeline;
 	bool		m_ready;
+	bool		m_shutdown;
 	ServiceHandler		*m_serviceHandler;
 };
 

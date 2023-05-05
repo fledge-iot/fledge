@@ -1152,13 +1152,14 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 	// Item "value" is just a string
 	else if (item.HasMember("value") && item["value"].IsString())
 	{
+		// Get content of script type item as is
+		rapidjson::StringBuffer strbuf;
+		rapidjson::Writer<rapidjson::StringBuffer> writer(strbuf);
+		item["value"].Accept(writer);
+
 		if (m_itemType == ScriptItem ||
 		    m_itemType == CodeItem)
 		{
-			// Get content of script type item as is
-			rapidjson::StringBuffer strbuf;
-			rapidjson::Writer<rapidjson::StringBuffer> writer(strbuf);
-			item["value"].Accept(writer);
 			m_value = strbuf.GetString();
 			if (m_value.empty())
 			{
@@ -1167,7 +1168,8 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 		}
 		else
 		{
-			m_value = item["value"].GetString();
+			m_value = JSONunescape(strbuf.GetString());
+
 			if (m_options.size() == 0)
 				m_itemType = StringItem;
 			else
@@ -1255,13 +1257,14 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 	// Item "default" is just a string
 	else if (item.HasMember("default") && item["default"].IsString())
 	{
+		// Get content of script type item as is
+		rapidjson::StringBuffer strbuf;
+		rapidjson::Writer<rapidjson::StringBuffer> writer(strbuf);
+		item["default"].Accept(writer);
 		if (m_itemType == ScriptItem ||
 		    m_itemType == CodeItem)
 		{
-			// Get content of script type item as is
-			rapidjson::StringBuffer strbuf;
-			rapidjson::Writer<rapidjson::StringBuffer> writer(strbuf);
-			item["default"].Accept(writer);
+			m_default = strbuf.GetString();
 			if (m_default.empty())
 			{
 				m_default = "\"\"";
@@ -1269,7 +1272,7 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 		}
 		else
 		{
-			m_default = item["default"].GetString();
+			m_default = JSONunescape(strbuf.GetString());
 			if (m_options.size() == 0)
 				m_itemType = StringItem;
 			else

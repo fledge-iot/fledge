@@ -9,6 +9,7 @@
 
 import asyncio
 import os
+import logging
 import subprocess
 import sys
 import ssl
@@ -24,11 +25,10 @@ import jwt
 from fledge.common import logger
 from fledge.common.audit_logger import AuditLogger
 from fledge.common.configuration_manager import ConfigurationManager
-
-from fledge.common.web import middleware
 from fledge.common.storage_client.exceptions import *
 from fledge.common.storage_client.storage_client import StorageClientAsync
 from fledge.common.storage_client.storage_client import ReadingsStorageClientAsync
+from fledge.common.web import middleware
 
 from fledge.services.core import routes as admin_routes
 from fledge.services.core.api import configuration as conf_api
@@ -56,7 +56,7 @@ __copyright__ = "Copyright (c) 2017-2021 OSIsoft, LLC"
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
-_logger = logger.setup(__name__, level=20)
+_logger = logger.setup(__name__, level=logging.INFO)
 
 # FLEDGE_ROOT env variable
 _FLEDGE_DATA = os.getenv("FLEDGE_DATA", default=None)
@@ -279,6 +279,20 @@ class Server:
         },
     }
 
+    _LOGGING_DEFAULT_CONFIG = {
+        'logLevel': {
+            'description': 'Minimum logging level reported for Core server',
+            'type': 'enumeration',
+            'displayName': 'Minimum Log Level',
+            'options': ['debug', 'info', 'warning', 'error', 'critical'],
+            'default': 'warning',
+            'order': '1'
+        }
+    }
+
+    _log_level = _LOGGING_DEFAULT_CONFIG['logLevel']['default']
+    """ Common logging level for Core """
+
     _start_time = time.time()
     """ Start time of core process """
 
@@ -465,7 +479,7 @@ class Server:
                               port_from_config, type(port_from_config))
                 raise
         except Exception as ex:
-            _logger.exception(str(ex))
+            _logger.exception(ex)
             raise
 
     @classmethod
@@ -491,7 +505,7 @@ class Server:
             except KeyError:
                 cls._service_description = 'Fledge REST Services'
         except Exception as ex:
-            _logger.exception(str(ex))
+            _logger.exception(ex)
             raise
 
     @classmethod
@@ -512,7 +526,26 @@ class Server:
             cls._package_cache_manager = {"update": {"last_accessed_time": ""},
                                           "upgrade": {"last_accessed_time": ""}, "list": {"last_accessed_time": ""}}
         except Exception as ex:
-            _logger.exception(str(ex))
+            _logger.exception(ex)
+            raise
+
+    @classmethod
+    async def core_logger_setup(cls):
+        """ Get the logging level configuration """
+        try:
+            config = cls._LOGGING_DEFAULT_CONFIG
+            category = 'LOGGING'
+            description = "Logging Level of Core Server"
+            if cls._configuration_manager is None:
+                cls._configuration_manager = ConfigurationManager(cls._storage_client_async)
+            await cls._configuration_manager.create_category(category, config, description, True,
+                                                             display_name='Logging')
+            config = await cls._configuration_manager.get_category_all_items(category)
+            cls._log_level = config['logLevel']['value']
+            from fledge.common.logger import FLCoreLogger
+            FLCoreLogger().set_level(cls._log_level)
+        except Exception as ex:
+            _logger.exception(ex)
             raise
 
     @staticmethod
@@ -536,6 +569,8 @@ class Server:
             mwares.append(middleware.auth_middleware)
 
         app = web.Application(middlewares=mwares, client_max_size=AIOHTTP_CLIENT_MAX_SIZE)
+        # aiohttp web server logging level always set to warning
+        web.access_logger.setLevel(logging.WARNING)
         admin_routes.setup(app)
         return app
 
@@ -546,6 +581,8 @@ class Server:
         :rtype: web.Application
         """
         app = web.Application(middlewares=[middleware.error_middleware], client_max_size=AIOHTTP_CLIENT_MAX_SIZE)
+        # aiohttp web server logging level always set to warning
+        web.access_logger.setLevel(logging.WARNING)
         management_routes.setup(app, cls, True)
         return app
 
@@ -571,19 +608,19 @@ class Server:
 
     @staticmethod
     def __start_storage(host, m_port):
-        _logger.info("Start storage, from directory %s", _SCRIPTS_DIR)
+        _logger.info("Start storage, from directory {}".format(_SCRIPTS_DIR))
         try:
             cmd_with_args = ['./services/storage', '--address={}'.format(host),
                              '--port={}'.format(m_port)]
             subprocess.call(cmd_with_args, cwd=_SCRIPTS_DIR)
         except Exception as ex:
-            _logger.exception(str(ex))
+            _logger.exception(ex)
 
     @classmethod
     async def _start_storage(cls, loop):
         if loop is None:
             loop = asyncio.get_event_loop()
-            # callback with args
+        # callback with args
         loop.call_soon(cls.__start_storage, cls._host, cls.core_management_port)
 
     @classmethod
@@ -762,7 +799,7 @@ class Server:
         # Create the parent category for all advanced configuration categories
         try:
             await cls._configuration_manager.create_category("Advanced", {}, 'Advanced', True)
-            await cls._configuration_manager.create_child_category("Advanced", ["SMNTR", "SCHEDULER"])
+            await cls._configuration_manager.create_child_category("Advanced", ["SMNTR", "SCHEDULER", "LOGGING"])
         except KeyError:
             _logger.error('Failed to create Advanced parent configuration category for service')
             raise
@@ -806,6 +843,9 @@ class Server:
             # obtain configuration manager and interest registry
             cls._configuration_manager = ConfigurationManager(cls._storage_client_async)
             cls._interest_registry = InterestRegistry(cls._configuration_manager)
+
+            # Logging category
+            loop.run_until_complete(cls.core_logger_setup())
 
             # start scheduler
             # see scheduler.py start def FIXME
@@ -898,8 +938,8 @@ class Server:
                 # dryrun execution of all the tasks that are installed but have schedule type other than STARTUP
                 schedule_list = loop.run_until_complete(cls.scheduler.get_schedules())
                 for sch in schedule_list:
-                    # STARTUP type exclusion
-                    if int(sch.schedule_type) != 1:
+                    # STARTUP type schedules and special FledgeUpdater schedule process name exclusion to avoid dryrun
+                    if int(sch.schedule_type) != 1 and sch.process_name != "FledgeUpdater":
                         schedule_row = cls.scheduler._ScheduleRow(
                             id=sch.schedule_id,
                             name=sch.name,
@@ -1038,7 +1078,7 @@ class Server:
         except service_registry_exceptions.DoesNotExist:
             pass
         except Exception as ex:
-            _logger.exception(str(ex))
+            _logger.exception(ex)
 
     @classmethod
     async def _request_microservice_shutdown(cls, svc):
@@ -1103,7 +1143,7 @@ class Server:
         except service_registry_exceptions.DoesNotExist:
             pass
         except Exception as ex:
-            _logger.exception(str(ex))
+            _logger.exception(ex)
 
     @classmethod
     async def _stop_scheduler(cls):
@@ -1155,7 +1195,7 @@ class Server:
 
             if token is None and ServiceRegistry.getStartupToken(service_name) is not None:
                 raise web.HTTPBadRequest(body=json.dumps({"message": 'Required registration token is missing.'}))
-            
+
             # If token, then check single use token verification; if bad then return 4XX
             if token is not None:
                 if not isinstance(token, str):
@@ -1164,7 +1204,7 @@ class Server:
 
                 # Check startup token exists
                 if ServiceRegistry.checkStartupToken(service_name, token) == False:
-                    msg = 'Token for the service was not found' 
+                    msg = 'Token for the service was not found'
                     raise web.HTTPBadRequest(reason=msg)
 
             try:
@@ -1249,7 +1289,7 @@ class Server:
                     cls._audit = AuditLogger(cls._storage_client_async)
                     await cls._audit.information('SRVUN', {'name': services[0]._name})
                 except Exception as ex:
-                    _logger.exception(str(ex))
+                    _logger.exception(ex)
 
             _resp = {'id': str(service_id), 'message': 'Service unregistered'}
 
@@ -1280,7 +1320,7 @@ class Server:
                     cls._audit = AuditLogger(cls._storage_client_async)
                     await cls._audit.information('SRVRS', {'name': services[0]._name})
                 except Exception as ex:
-                    _logger.exception(str(ex))
+                    _logger.exception(ex)
 
             _resp = {'id': str(service_id), 'message': 'Service restart requested'}
 
@@ -1345,13 +1385,13 @@ class Server:
     async def get_auth_token(cls, request: web.Request) -> web.Response:
         """ get auth token
             :Example:
-                curl -sX GET -H "{'Authorization': 'Bearer ..'}" http://localhost:<core mgt port>/fledge/service/authtoken 
+                curl -sX GET -H "{'Authorization': 'Bearer ..'}" http://localhost:<core mgt port>/fledge/service/authtoken
         """
         async def cert_login(ca_cert):
             certs_dir = _FLEDGE_DATA + '/etc/certs' if _FLEDGE_DATA else _FLEDGE_ROOT + "/data/etc/certs"
             ca_cert_file = "{}/{}.cert".format(certs_dir, ca_cert)
             SSLVerifier.set_ca_cert(ca_cert_file)
-            # FIXME: allow to supply content and any cert name as placed with configured CA sign 
+            # FIXME: allow to supply content and any cert name as placed with configured CA sign
             with open('{}/{}'.format(certs_dir, "admin.cert"), 'r') as content_file:
                 cert_content = content_file.read()
             SSLVerifier.set_user_cert(cert_content)
@@ -1364,13 +1404,13 @@ class Server:
             cfg_mgr = ConfigurationManager(cls._storage_client_async)
             category_info = await cfg_mgr.get_category_all_items('rest_api')
             is_auth_optional = True if category_info['authentication']['value'].lower() == 'optional' else False
-            
+
             if is_auth_optional:
                 raise api_exception.AuthenticationIsOptional
-            
+
             auth_method = category_info['authMethod']['value']
-            ca_cert_name = category_info['authCertificateName']['value']          
-            
+            ca_cert_name = category_info['authCertificateName']['value']
+
             try:
                 auth_header = request.headers.get('Authorization', None)
             except:
@@ -1464,7 +1504,7 @@ class Server:
             await asyncio.sleep(2.0, loop=loop)
             _logger.info("Stopping the Fledge Core event loop. Good Bye!")
             loop.stop()
-            
+
             if 'safe-mode' in sys.argv:
                 sys.argv.remove('safe-mode')
                 sys.argv.append('')
@@ -1656,7 +1696,7 @@ class Server:
                                                                    service=data.get("service"),
                                                                    event=data.get("event"),
                                                                    jsondata=data.get("data"))
-                                                                   
+
         except (TypeError, StorageServerError) as ex:
             raise web.HTTPBadRequest(reason=str(ex))
         except ValueError as ex:
@@ -1776,7 +1816,7 @@ class Server:
             message = {'timestamp': str(timestamp),
                        'source': code,
                        'severity': level,
-                       'details': message 
+                       'details': message
                       }
 
         except (TypeError, StorageServerError) as ex:
@@ -1907,7 +1947,7 @@ class Server:
 
         if not "Bearer " in auth_header:
             msg = "Invalid Authorization token"
-            # FIXME: raise UNAUTHORISED here and among other places 
+            # FIXME: raise UNAUTHORISED here and among other places
             #   and JSON body to have message key
             raise web.HTTPBadRequest(reason=msg, body=json.dumps({"error": msg}))
 

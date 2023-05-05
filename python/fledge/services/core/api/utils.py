@@ -9,10 +9,10 @@ import subprocess
 import os
 import json
 
-from fledge.common import logger
 from fledge.common.common import _FLEDGE_ROOT, _FLEDGE_PLUGIN_PATH
+from fledge.common.logger import FLCoreLogger
 
-_logger = logger.setup(__name__)
+_logger = FLCoreLogger().get_logger(__name__)
 _lib_path = _FLEDGE_ROOT + "/" + "plugins"
 
 
@@ -27,20 +27,17 @@ def get_plugin_info(name, dir):
         out, err = p.communicate()
         res = out.decode("utf-8")
         jdoc = json.loads(res)
-    except OSError as err:
-        _logger.error("%s C plugin get info failed due to %s", name, str(err))
+    except (OSError, ValueError) as err:
+        _logger.error(err, "{} C plugin get info failed.".format(name))
         return {}
     except subprocess.CalledProcessError as err:
         if err.output is not None:
-            _logger.error("%s C plugin get info failed '%s' due to %s", name, err.output, str(err))
+            _logger.error(err, "{} C plugin get info failed '{}'.".format(name, err.output))
         else:
-            _logger.error("%s C plugin get info failed due to %s", name, str(err))
-        return {}
-    except ValueError as err:
-        _logger.error(str(err))
+            _logger.error(err, "{} C plugin get info failed.".format(name))
         return {}
     except Exception as ex:
-        _logger.exception("%s C plugin get info failed due to %s", name, str(ex))
+        _logger.error(ex, "{} C plugin get info failed.".format(name))
         return {}
     else:
         return jdoc
@@ -97,7 +94,7 @@ def _find_plugins_from_env(_plugin_path: list) -> list:
                 if subdirs[0]:
                     _plugin_path.append(l)
                 else:
-                    _logger.warning("{} subdir type not found".format(l))
+                    _logger.warning("{} subdir type not found.".format(l))
             else:
-                _logger.warning("{} dir path not found".format(l))
+                _logger.warning("{} dir path not found.".format(l))
     return _plugin_path

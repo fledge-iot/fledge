@@ -9,7 +9,7 @@
 
 import pyjq
 
-from fledge.common import logger
+from fledge.common.logger import FLCoreLogger
 
 __author__ = "Vaibhav Singhal"
 __copyright__ = "Copyright (c) 2017 OSI Soft, LLC"
@@ -25,7 +25,7 @@ class JQFilter:
 
     def __init__(self):
         """Initialise the JQFilter"""
-        self._logger = logger.setup("JQFilter")
+        self._logger = FLCoreLogger().get_logger("JQFilter")
 
     def transform(self, reading_block, filter_string):
         """
@@ -45,8 +45,8 @@ class JQFilter:
         try:
             return pyjq.all(filter_string, reading_block)
         except TypeError as ex:
-            self._logger.error("Invalid JSON passed, exception %s", str(ex))
+            self._logger.error(ex, "Invalid JSON passed during jq transform.")
             raise
         except ValueError as ex:
-            self._logger.error("Failed to transform, please check the transformation rule, exception %s", str(ex))
+            self._logger.error(ex, "Failed to transform, please check the transformation rule.")
             raise

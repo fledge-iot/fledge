@@ -40,8 +40,8 @@ class TestUtils:
                 with patch.object(utils._logger, 'error') as patch_logger:
                     assert {} == utils.get_plugin_info(plugin_name, dir='south')
                 assert 1 == patch_logger.call_count
-                args, kwargs = patch_logger.call_args
-                assert 'The plugin {} does not exist'.format(plugin_name) == args[0]
+                args = patch_logger.call_args
+                assert '{} C plugin get info failed.'.format(plugin_name) == args[0][1]
             patch_lib.assert_called_once_with(plugin_name, 'south')
         patch_util.assert_called_once_with('get_plugin_info')
 
@@ -55,9 +55,8 @@ class TestUtils:
                     with patch.object(utils._logger, 'error') as patch_logger:
                         assert {} == utils.get_plugin_info(plugin_name, dir='south')
                     assert 1 == patch_logger.call_count
-                    args, kwargs = patch_logger.call_args
-                    assert '%s C plugin get info failed due to %s' == args[0]
-                    assert plugin_name == args[1]
+                    args = patch_logger.call_args
+                    assert '{} C plugin get info failed.'.format(plugin_name) == args[0][1]
             patch_lib.assert_called_once_with(plugin_name, 'south')
         patch_util.assert_called_once_with('get_plugin_info')
 

@@ -31,13 +31,14 @@ Statistics reported by Purge process are:
 import time
 from datetime import datetime, timedelta
 
+from fledge.common import statistics
 from fledge.common.audit_logger import AuditLogger
 from fledge.common.configuration_manager import ConfigurationManager
-from fledge.common import statistics
-from fledge.common.storage_client.payload_builder import PayloadBuilder
-from fledge.common import logger
-from fledge.common.storage_client.exceptions import *
+from fledge.common.logger import FLCoreLogger
 from fledge.common.process import FledgeProcess
+from fledge.common.storage_client.payload_builder import PayloadBuilder
+from fledge.common.storage_client.exceptions import *
+
 
 __author__ = "Ori Shadmon, Vaibhav Singhal, Mark Riddoch, Amarendra K Sinha"
 __copyright__ = "Copyright (c) 2017 OSI Soft, LLC"
@@ -94,7 +95,7 @@ class Purge(FledgeProcess):
 
     def __init__(self):
         super().__init__()
-        self._logger = logger.setup("Data Purge")
+        self._logger = FLCoreLogger().get_logger("Data Purge")
         self._audit = AuditLogger(self._storage_async)
 
     async def write_statistics(self, total_purged, unsent_purged):
@@ -272,4 +273,4 @@ class Purge(FledgeProcess):
             await self.purge_stats_history(config)
             await self.purge_audit_trail_log(config)
         except Exception as ex:
-            self._logger.exception(str(ex))
+            self._logger.exception(ex)

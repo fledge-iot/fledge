@@ -6,6 +6,7 @@
 
 import asyncio
 import datetime
+import logging
 import uuid
 import time
 import json
@@ -28,6 +29,7 @@ __version__ = "${VERSION}"
 async def mock_task():
     return ""
 
+
 async def mock_process():
     m = MagicMock()
     m.pid = 9999
@@ -38,6 +40,7 @@ async def mock_process():
 @pytest.allure.feature("unit")
 @pytest.allure.story("scheduler")
 class TestScheduler:
+
     async def scheduler_fixture(self, mocker):
         # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
         if sys.version_info.major == 3 and sys.version_info.minor >= 8:
@@ -46,6 +49,7 @@ class TestScheduler:
             _rv = asyncio.ensure_future(mock_process())
         
         scheduler = Scheduler()
+        scheduler._logger.level = logging.INFO
         scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
         scheduler._storage_async = MockStorageAsync(core_management_host=None, core_management_port=None)
         mocker.patch.object(scheduler, '_schedule_first_task')
@@ -253,6 +257,7 @@ class TestScheduler:
         # TODO: Mandatory - Add negative tests for full code coverage
         # GIVEN
         scheduler = Scheduler()
+        scheduler._logger.level = logging.INFO
         scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
         scheduler._storage_async = MockStorageAsync(core_management_host=None, core_management_port=None)
         log_info = mocker.patch.object(scheduler._logger, "info")
@@ -605,10 +610,9 @@ class TestScheduler:
         calls = [call('Processing stop request'), call('Stopped')]
         log_info.assert_has_calls(calls, any_order=True)
 
-        # TODO: Find why these exceptions are being raised despite mocking _purge_tasks_task, _scheduler_loop_task
-        calls = [call('An exception was raised by Scheduler._purge_tasks %s', "object MagicMock can't be used in 'await' expression"),
-                 call('An exception was raised by Scheduler._scheduler_loop %s', "object MagicMock can't be used in 'await' expression")]
-        log_exception.assert_has_calls(calls)
+        # FIXME: Find why exception is being raised despite mocking _scheduler_loop_task
+        args = log_exception.call_args
+        assert 'An exception was raised by Scheduler._scheduler_loop' == args[0][1]
 
     @pytest.mark.asyncio
     async def test_get_scheduled_processes(self, mocker):
@@ -754,7 +758,6 @@ class TestScheduler:
         audit_logger = mocker.patch.object(AuditLogger, 'information', return_value=asyncio.ensure_future(mock_task()))
         first_task = mocker.patch.object(scheduler, '_schedule_first_task')
         resume_sch = mocker.patch.object(scheduler, '_resume_check_schedules')
-        log_info = mocker.patch.object(scheduler._logger, "info")
 
         enable_schedule = mocker.patch.object(scheduler, "enable_schedule", return_value=mock_coro())
         disable_schedule = mocker.patch.object(scheduler, "disable_schedule", return_value=mock_coro())
@@ -804,7 +807,6 @@ class TestScheduler:
         audit_logger = mocker.patch.object(AuditLogger, 'information', return_value=asyncio.ensure_future(mock_task()))
         first_task = mocker.patch.object(scheduler, '_schedule_first_task')
         resume_sch = mocker.patch.object(scheduler, '_resume_check_schedules')
-        log_info = mocker.patch.object(scheduler._logger, "info")
         schedule_id = uuid.UUID("2b614d26-760f-11e7-b5a5-be2e44b06b34")  # OMF to PI North
         schedule_row = scheduler._ScheduleRow(
             id=schedule_id,
@@ -848,7 +850,6 @@ class TestScheduler:
         audit_logger = mocker.patch.object(AuditLogger, 'information', return_value=asyncio.ensure_future(mock_task()))
         first_task = mocker.patch.object(scheduler, '_schedule_first_task')
         resume_sch = mocker.patch.object(scheduler, '_resume_check_schedules')
-        log_info = mocker.patch.object(scheduler._logger, "info")
         schedule_id = uuid.UUID("2b614d26-760f-11e7-b5a5-be2e44b06b34")  # OMF to PI North
         schedule_row = scheduler._ScheduleRow(
             id=schedule_id,
@@ -1091,7 +1092,6 @@ class TestScheduler:
         scheduler._storage = MockStorage(core_management_host=None, core_management_port=None)
         scheduler._storage_async = MockStorageAsync(core_management_host=None, core_management_port=None)
         mocker.patch.object(scheduler, '_schedule_first_task')
-        # log_info = mocker.patch.object(scheduler._logger, "info")
         await scheduler._get_schedules()
         sch_id = uuid.UUID("cea17db8-6ccc-11e7-907b-a6006ad3dba0")  # backup
 
@@ -1437,6 +1437,12 @@ class TestScheduler:
     async def test__terminate_child_processes(self, mocker):
         pass
 
+    @pytest.mark.asyncio
+    async def test_cleanup(self):
+        scheduler = Scheduler()
+        scheduler._logger.level = logging.WARNING
+
+
 class MockStorage(StorageClientAsync):
     def __init__(self, core_management_host=None, core_management_port=None):
         super().__init__(core_management_host, core_management_port)
@@ -1451,6 +1457,7 @@ class MockStorage(StorageClientAsync):
                 "address": "0.0.0.0",
                 "protocol": "http"
         }
+
 
 class MockStorageAsync(StorageClientAsync):
     schedules = [

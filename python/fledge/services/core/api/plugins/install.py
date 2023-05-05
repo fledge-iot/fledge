@@ -6,7 +6,6 @@
 
 import os
 import subprocess
-import logging
 import asyncio
 import tarfile
 import hashlib
@@ -20,15 +19,15 @@ import async_timeout
 from typing import Dict
 from datetime import datetime
 
-from fledge.common import logger, utils
-from fledge.common.common import _FLEDGE_ROOT, _FLEDGE_DATA
+from fledge.common import utils
 from fledge.common.audit_logger import AuditLogger
+from fledge.common.common import _FLEDGE_ROOT, _FLEDGE_DATA
 from fledge.common.configuration_manager import ConfigurationManager
+from fledge.common.logger import FLCoreLogger
 from fledge.common.plugin_discovery import PluginDiscovery
 from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.common.storage_client.exceptions import StorageServerError
-from fledge.services.core import connect
-from fledge.services.core import server
+from fledge.services.core import connect, server
 from fledge.services.core.api.plugins import common
 from fledge.services.core.api.plugins.exceptions import *
 
@@ -46,7 +45,7 @@ _help = """
 _TIME_OUT = 120
 _CHUNK_SIZE = 1024
 _PATH = _FLEDGE_DATA + '/plugins/' if _FLEDGE_DATA else _FLEDGE_ROOT + '/data/plugins/'
-_LOGGER = logger.setup(__name__, level=logging.INFO)
+_LOGGER = FLCoreLogger().get_logger(__name__)
 
 
 async def add_plugin(request: web.Request) -> web.Response:
@@ -190,7 +189,9 @@ async def add_plugin(request: web.Request) -> web.Response:
     except (TypeError, ValueError) as ex:
         raise web.HTTPBadRequest(reason=str(ex))
     except Exception as ex:
-        raise web.HTTPInternalServerError(reason=str(ex))
+        msg = str(ex)
+        _LOGGER.error(ex, "Failed to install plugin.")
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({'message': msg}))
     else:
         return web.json_response(result_payload)
 
@@ -228,15 +229,15 @@ def install_package(file_name: str, pkg_mgt: str) -> tuple:
     pkg_file_path = "/data/plugins/{}".format(file_name)
     stdout_file_path = "/data/plugins/output.txt"
     cmd = "sudo {} -y install {} > {} 2>&1".format(pkg_mgt, _FLEDGE_ROOT + pkg_file_path, _FLEDGE_ROOT + stdout_file_path)
-    _LOGGER.debug("CMD....{}".format(cmd))
+    _LOGGER.debug("Install Package with command: {}".format(cmd))
     ret_code = os.system(cmd)
-    _LOGGER.debug("Return Code....{}".format(ret_code))
+    _LOGGER.debug("Package install return code: {}".format(ret_code))
     msg = ""
     with open("{}".format(_FLEDGE_ROOT + stdout_file_path), 'r') as fh:
         for line in fh:
             line = line.rstrip("\n")
             msg += line
-    _LOGGER.debug("Message.....{}".format(msg))
+    _LOGGER.debug("Package install message: {}".format(msg))
     # Remove stdout file
     cmd = "{}/extras/C/cmdutil rm {}".format(_FLEDGE_ROOT, stdout_file_path)
     subprocess.run([cmd], stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
@@ -257,8 +258,9 @@ def copy_file_install_requirement(dir_files: list, plugin_type: str, file_name: 
 
     if so_1_file:
         if not so_file:
-            _LOGGER.error("Symlink file is missing")
-            raise FileNotFoundError("Symlink file is missing")
+            err_msg = "Symlink file is missing."
+            _LOGGER.debug(err_msg)
+            raise FileNotFoundError(err_msg)
     _dir = []
     for s in dir_files:
         _dir.append(s.split("/")[-1])
@@ -325,7 +327,7 @@ def install_package_from_repo(name: str, pkg_mgt: str, version: str, uid: uuid, 
             # If max upgrade per day is set to 1, then an upgrade can not occurs until 24 hours after the last accessed upgrade.
             # If set to 2 then this drops to 12 hours between upgrades, 3 would result in 8 hours between calls and so on.
             if duration_in_sec > (24 / int(max_upgrade_cat_item['value'])) * 60 * 60 or not last_accessed_time:
-                _LOGGER.info("Attempting upgrade on {}".format(now))
+                _LOGGER.info("Attempting {} upgrade on {}...".format(pkg_mgt, now))
                 cmd = "sudo {} -y upgrade".format(pkg_mgt) if pkg_mgt == 'apt' else "sudo {} -y update".format(pkg_mgt)
                 ret_code = os.system(cmd + " > {} 2>&1".format(stdout_file_path))
                 if ret_code != 0:
@@ -336,7 +338,7 @@ def install_package_from_repo(name: str, pkg_mgt: str, version: str, uid: uuid, 
                 else:
                     pkg_cache_mgr['upgrade']['last_accessed_time'] = now
             else:
-                _LOGGER.warning("Maximum upgrade exceeds the limit for the day")
+                _LOGGER.warning("Maximum {} upgrade exceeds the limit for the day.".format(pkg_mgt))
             msg = "updated"
     cmd = "sudo {} -y install {}".format(pkg_mgt, name)
     if version:
@@ -352,7 +354,7 @@ def install_package_from_repo(name: str, pkg_mgt: str, version: str, uid: uuid, 
         audit_detail = {'packageName': name}
         log_code = 'PKGUP' if msg == 'updated' else 'PKGIN'
         loop.run_until_complete(audit.information(log_code, audit_detail))
-        _LOGGER.info('{} plugin {} successfully'.format(name, msg))
+        _LOGGER.info('{} plugin {} successfully.'.format(name, msg))
 
 
 async def check_upgrade_on_install() -> Dict:

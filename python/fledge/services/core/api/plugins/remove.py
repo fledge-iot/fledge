@@ -6,17 +6,17 @@
 
 import aiohttp
 import os
-import logging
 import json
 import asyncio
 import uuid
 import multiprocessing
 
 from aiohttp import web
-from fledge.common import logger, utils
+from fledge.common import utils
 from fledge.common.audit_logger import AuditLogger
 from fledge.common.common import _FLEDGE_ROOT
 from fledge.common.configuration_manager import ConfigurationManager
+from fledge.common.logger import FLCoreLogger
 from fledge.common.plugin_discovery import PluginDiscovery
 from fledge.common.storage_client.exceptions import StorageServerError
 from fledge.common.storage_client.payload_builder import PayloadBuilder
@@ -25,24 +25,164 @@ from fledge.services.core.api.plugins import common
 from fledge.services.core.api.plugins.exceptions import *
 
 
-__author__ = "Rajesh Kumar"
-__copyright__ = "Copyright (c) 2020, Dianomic Systems Inc."
+__author__ = "Rajesh Kumar, Ashish Jabble"
+__copyright__ = "Copyright (c) 2020-2023, Dianomic Systems Inc."
 __license__ = "Apache 2.0"
 __version__ = "${VERSION}"
 
 _help = """
-    -------------------------------------------------------------------------------
-    | DELETE             | /fledge/plugins/{plugin-type}/{plugin-name}            |
-    -------------------------------------------------------------------------------
+    --------------------------------------------------------------------
+    | DELETE             | /fledge/plugins/{package_name}              |
+    --------------------------------------------------------------------
 """
 
-_logger = logger.setup(__name__, level=logging.INFO)
-
+_logger = FLCoreLogger().get_logger(__name__)
 valid_plugin_types = ['north', 'south', 'filter', 'notify', 'rule']
 PYTHON_PLUGIN_PATH = _FLEDGE_ROOT+'/python/fledge/plugins/'
 C_PLUGINS_PATH = _FLEDGE_ROOT+'/plugins/'
 
 
+# only work with core 2.1.0 onwards version
+async def remove_package(request: web.Request) -> web.Response:
+    """Remove installed Package
+
+    package_name: package name of plugin
+
+    Example:
+        curl -sX DELETE http://localhost:8081/fledge/plugins/fledge-south-modbus
+        curl -sX DELETE http://localhost:8081/fledge/plugins/fledge-north-http-north
+        curl -sX DELETE http://localhost:8081/fledge/plugins/fledge-filter-scale
+        curl -sX DELETE http://localhost:8081/fledge/plugins/fledge-notify-alexa
+        curl -sX DELETE http://localhost:8081/fledge/plugins/fledge-rule-watchdog
+    """
+    try:
+        package_name = request.match_info.get('package_name', "fledge-")
+        package_name = package_name.replace(" ", "")
+        final_response = {}
+        if not package_name.startswith("fledge-"):
+            raise ValueError("Package name should start with 'fledge-' prefix.")
+        plugin_type = package_name.split("-", 2)[1]
+        if not plugin_type:
+            raise ValueError('Invalid Package name. Check and verify the package name in plugins installed.')
+        if plugin_type not in valid_plugin_types:
+            raise ValueError("Invalid plugin type. Please provide valid type: {}".format(valid_plugin_types))
+        installed_plugins = PluginDiscovery.get_plugins_installed(plugin_type, False)
+        plugin_info = [(_plugin["name"], _plugin["version"]) for _plugin in installed_plugins
+                       if _plugin["packageName"] == package_name]
+        if not plugin_info:
+            raise KeyError("{} package not found. Either package is not installed or missing in plugins installed."
+                           "".format(package_name))
+        plugin_name = plugin_info[0][0]
+        plugin_version = plugin_info[0][1]
+        if plugin_type in ['notify', 'rule']:
+            notification_instances_plugin_used_in = await _check_plugin_usage_in_notification_instances(plugin_name)
+            if notification_instances_plugin_used_in:
+                err_msg = "{} cannot be removed. This is being used by {} instances.".format(
+                    plugin_name, notification_instances_plugin_used_in)
+                _logger.warning(err_msg)
+                raise RuntimeError(err_msg)
+        else:
+            get_tracked_plugins = await _check_plugin_usage(plugin_type, plugin_name)
+            if get_tracked_plugins:
+                e = "{} cannot be removed. This is being used by {} instances.". \
+                    format(plugin_name, get_tracked_plugins[0]['service_list'])
+                _logger.warning(e)
+                raise RuntimeError(e)
+            else:
+                _logger.info("No entry found for {name} plugin in asset tracker; "
+                             "or {name} plugin may have been added in disabled state & never used."
+                             "".format(name=plugin_name))
+        # Check Pre-conditions from Packages table
+        # if status is -1 (Already in progress) then return as rejected request
+        action = 'purge'
+        storage = connect.get_storage_async()
+        select_payload = PayloadBuilder().SELECT("status").WHERE(['action', '=', action]).AND_WHERE(
+            ['name', '=', package_name]).payload()
+        result = await storage.query_tbl_with_payload('packages', select_payload)
+        response = result['rows']
+        if response:
+            exit_code = response[0]['status']
+            if exit_code == -1:
+                msg = "{} package purge already in progress.".format(package_name)
+                return web.HTTPTooManyRequests(reason=msg, body=json.dumps({"message": msg}))
+            # Remove old entry from table for other cases
+            delete_payload = PayloadBuilder().WHERE(['action', '=', action]).AND_WHERE(
+                ['name', '=', package_name]).payload()
+            await storage.delete_from_tbl("packages", delete_payload)
+
+        # Insert record into Packages table
+        insert_payload = PayloadBuilder().INSERT(id=str(uuid.uuid4()), name=package_name, action=action,
+                                                 status=-1, log_file_uri="").payload()
+        result = await storage.insert_into_tbl("packages", insert_payload)
+        response = result['response']
+        if response:
+            select_payload = PayloadBuilder().SELECT("id").WHERE(['action', '=', action]).AND_WHERE(
+                ['name', '=', package_name]).payload()
+            result = await storage.query_tbl_with_payload('packages', select_payload)
+            response = result['rows']
+            if response:
+                pn = "{}-{}".format(action, plugin_name)
+                uid = response[0]['id']
+                p = multiprocessing.Process(name=pn,
+                                            target=_uninstall,
+                                            args=(package_name, plugin_version, uid, storage)
+                                            )
+                p.daemon = True
+                p.start()
+                msg = "{} plugin remove started.".format(plugin_name)
+                status_link = "fledge/package/{}/status?id={}".format(action, uid)
+                final_response = {"message": msg, "id": uid, "statusLink": status_link}
+        else:
+            raise StorageServerError
+    except (ValueError, RuntimeError) as err:
+        msg = str(err)
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({'message': msg}))
+    except KeyError as err:
+        msg = str(err)
+        raise web.HTTPNotFound(reason=msg, body=json.dumps({'message': msg}))
+    except StorageServerError as e:
+        msg = e.error
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": "Storage error: {}".format(msg)}))
+    except Exception as ex:
+        msg = str(ex)
+        _logger.error(ex, "Failed to delete {} package.".format(package_name))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({'message': msg}))
+    else:
+        return web.json_response(final_response)
+
+
+def _uninstall(pkg_name: str, version: str, uid: uuid, storage: connect) -> tuple:
+    from fledge.services.core.server import Server
+    _logger.info("{} package removal started...".format(pkg_name))
+    stdout_file_path = ''
+    try:
+        stdout_file_path = common.create_log_file(action='remove', plugin_name=pkg_name)
+        link = "log/" + stdout_file_path.split("/")[-1]
+        if utils.is_redhat_based():
+            cmd = "sudo yum -y remove {} > {} 2>&1".format(pkg_name, stdout_file_path)
+        else:
+            cmd = "sudo apt -y purge {} > {} 2>&1".format(pkg_name, stdout_file_path)
+        code = os.system(cmd)
+        # Update record in Packages table
+        payload = PayloadBuilder().SET(status=code, log_file_uri=link).WHERE(['id', '=', uid]).payload()
+        loop = asyncio.new_event_loop()
+        loop.run_until_complete(storage.update_tbl("packages", payload))
+        if code == 0:
+            # Clear internal cache
+            loop.run_until_complete(_put_refresh_cache(Server.is_rest_server_http_enabled,
+                                                       Server._host, Server.core_management_port))
+            # Audit logger
+            audit = AuditLogger(storage)
+            audit_detail = {'package_name': pkg_name, 'version': version}
+            loop.run_until_complete(audit.information('PKGRM', audit_detail))
+            _logger.info('{} removed successfully.'.format(pkg_name))
+    except Exception:
+        # Non-Zero integer - Case of fail
+        code = 1
+    return code, stdout_file_path
+
+
+# only work with lesser or equal to version of core 2.1.0 version
 async def remove_plugin(request: web.Request) -> web.Response:
     """ Remove installed plugin from fledge
 
@@ -62,37 +202,43 @@ async def remove_plugin(request: web.Request) -> web.Response:
         plugin_type = str(plugin_type).lower()
         if plugin_type not in valid_plugin_types:
             raise ValueError("Invalid plugin type. Please provide valid type: {}".format(valid_plugin_types))
-        if plugin_type == 'notify':
-            installed_dir_name = 'notificationDelivery'
-        elif plugin_type == 'rule':
-            installed_dir_name = 'notificationRule'
-        else:
-            installed_dir_name = plugin_type
+        # only OMF is an inbuilt plugin
+        if name.lower() == 'omf':
+            raise ValueError("Cannot delete an inbuilt {} plugin.".format(name.upper()))
         result_payload = {}
-        installed_plugin = PluginDiscovery.get_plugins_installed(installed_dir_name, False)
-        if name not in [plugin['name'] for plugin in installed_plugin]:
-            raise KeyError("Invalid plugin name {} or plugin is not installed".format(name))
+        installed_plugins = PluginDiscovery.get_plugins_installed(plugin_type, False)
+        plugin_info = [(_plugin["name"], _plugin["packageName"], _plugin["version"]) for _plugin in installed_plugins]
+        package_name = "fledge-{}-{}".format(plugin_type, name.lower().replace("_", "-"))
+        plugin_found = False
+        plugin_version = None
+        for p in plugin_info:
+            if p[0] == name:
+                package_name = p[1]
+                plugin_version = p[2]
+                plugin_found = True
+                break
+        if not plugin_found:
+            raise KeyError("Invalid plugin name {} or plugin is not installed.".format(name))
         if plugin_type in ['notify', 'rule']:
             notification_instances_plugin_used_in = await _check_plugin_usage_in_notification_instances(name)
             if notification_instances_plugin_used_in:
-                err_msg = "{} cannot be removed. This is being used by {} instances".format(
+                err_msg = "{} cannot be removed. This is being used by {} instances.".format(
                     name, notification_instances_plugin_used_in)
-                _logger.error(err_msg)
+                _logger.warning(err_msg)
                 raise RuntimeError(err_msg)
         else:
             get_tracked_plugins = await _check_plugin_usage(plugin_type, name)
             if get_tracked_plugins:
-                e = "{} cannot be removed. This is being used by {} instances".\
+                e = "{} cannot be removed. This is being used by {} instances.".\
                     format(name, get_tracked_plugins[0]['service_list'])
-                _logger.error(e)
+                _logger.warning(e)
                 raise RuntimeError(e)
             else:
                 _logger.info("No entry found for {name} plugin in asset tracker; or "
-                             "{name} plugin may have been added in disabled state & never used".format(name=name))
+                             "{name} plugin may have been added in disabled state & never used.".format(name=name))
         # Check Pre-conditions from Packages table
         # if status is -1 (Already in progress) then return as rejected request
         action = 'purge'
-        package_name = "fledge-{}-{}".format(plugin_type, name.lower().replace("_", "-"))
         storage = connect.get_storage_async()
         select_payload = PayloadBuilder().SELECT("status").WHERE(['action', '=', action]).AND_WHERE(
             ['name', '=', package_name]).payload()
@@ -101,7 +247,7 @@ async def remove_plugin(request: web.Request) -> web.Response:
         if response:
             exit_code = response[0]['status']
             if exit_code == -1:
-                msg = "{} package purge already in progress".format(package_name)
+                msg = "{} package purge already in progress.".format(package_name)
                 return web.HTTPTooManyRequests(reason=msg, body=json.dumps({"message": msg}))
             # Remove old entry from table for other cases
             delete_payload = PayloadBuilder().WHERE(['action', '=', action]).AND_WHERE(
@@ -121,10 +267,13 @@ async def remove_plugin(request: web.Request) -> web.Response:
             if response:
                 pn = "{}-{}".format(action, name)
                 uid = response[0]['id']
-                p = multiprocessing.Process(name=pn, target=purge_plugin, args=(plugin_type, name, uid, storage))
+                p = multiprocessing.Process(name=pn,
+                                            target=purge_plugin,
+                                            args=(plugin_type, name, package_name, plugin_version, uid, storage)
+                                            )
                 p.daemon = True
                 p.start()
-                msg = "{} plugin purge started.".format(name)
+                msg = "{} plugin remove started.".format(name)
                 status_link = "fledge/package/{}/status?id={}".format(action, uid)
                 result_payload = {"message": msg, "id": uid, "statusLink": status_link}
         else:
@@ -133,11 +282,13 @@ async def remove_plugin(request: web.Request) -> web.Response:
         raise web.HTTPBadRequest(reason=str(err), body=json.dumps({'message': str(err)}))
     except KeyError as err:
         raise web.HTTPNotFound(reason=str(err), body=json.dumps({'message': str(err)}))
-    except StorageServerError as err:
-        msg = str(err)
+    except StorageServerError as e:
+        msg = e.error
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": "Storage error: {}".format(msg)}))
     except Exception as ex:
-        raise web.HTTPInternalServerError(reason=str(ex), body=json.dumps({'message': str(ex)}))
+        msg = str(ex)
+        _logger.error(ex, "Failed to remove {} plugin.".format(name))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({'message': msg}))
     else:
         return web.json_response(result_payload)
 
@@ -220,52 +371,44 @@ async def _put_refresh_cache(protocol: str, host: int, port: int) -> None:
             result = await resp.text()
             status_code = resp.status
             if status_code in range(400, 500):
-                _logger.error("Bad request error code: %d, reason: %s when refresh cache", status_code, resp.reason)
+                _logger.error("Bad request error code: {}, reason: {} when refresh cache".format(status_code, resp.reason))
             if status_code in range(500, 600):
-                _logger.error("Server error code: %d, reason: %s when refresh cache", status_code, resp.reason)
+                _logger.error("Server error code: {}, reason: {} when refresh cache".format(status_code, resp.reason))
             response = json.loads(result)
-            _logger.debug("PUT Refresh Cache response: %s", response)
+            _logger.debug("PUT Refresh Cache response: {}".format(response))
 
 
-def purge_plugin(plugin_type: str, name: str, uid: uuid, storage: connect) -> tuple:
+def purge_plugin(plugin_type: str, plugin_name: str, pkg_name: str, version: str, uid: uuid, storage: connect) -> tuple:
     from fledge.services.core.server import Server
-
-    # FIXME: non-package removal
-    _logger.info("{} plugin purge started...".format(name))
+    _logger.info("{} plugin remove started...".format(pkg_name))
     is_package = True
     stdout_file_path = ''
-    original_name = name
-    # Special case handling - installed directory name Vs package name
-    # For example: Plugins like http_south Vs http-south
-    name = name.replace('_', '-').lower()
-    plugin_name = 'fledge-{}-{}'.format(plugin_type, name)
-
     try:
         if utils.is_redhat_based():
             rpm_list = os.popen('rpm -qa | grep fledge*').read()
             _logger.debug("rpm list : {}".format(rpm_list))
             if len(rpm_list):
-                f = rpm_list.find(plugin_name)
+                f = rpm_list.find(pkg_name)
                 if f == -1:
                     raise KeyError
             else:
                 raise KeyError
-            stdout_file_path = common.create_log_file(action='remove', plugin_name=plugin_name)
+            stdout_file_path = common.create_log_file(action='remove', plugin_name=pkg_name)
             link = "log/" + stdout_file_path.split("/")[-1]
-            cmd = "sudo yum -y remove {} > {} 2>&1".format(plugin_name, stdout_file_path)
+            cmd = "sudo yum -y remove {} > {} 2>&1".format(pkg_name, stdout_file_path)
         else:
             dpkg_list = os.popen('dpkg --list "fledge*" 2>/dev/null')
             ls_output = dpkg_list.read()
             _logger.debug("dpkg list output: {}".format(ls_output))
             if len(ls_output):
-                f = ls_output.find(plugin_name)
+                f = ls_output.find(pkg_name)
                 if f == -1:
                     raise KeyError
             else:
                 raise KeyError
-            stdout_file_path = common.create_log_file(action='remove', plugin_name=plugin_name)
+            stdout_file_path = common.create_log_file(action='remove', plugin_name=pkg_name)
             link = "log/" + stdout_file_path.split("/")[-1]
-            cmd = "sudo apt -y purge {} > {} 2>&1".format(plugin_name, stdout_file_path)
+            cmd = "sudo apt -y purge {} > {} 2>&1".format(pkg_name, stdout_file_path)
 
         code = os.system(cmd)
         # Update record in Packages table
@@ -279,9 +422,9 @@ def purge_plugin(plugin_type: str, name: str, uid: uuid, storage: connect) -> tu
                                                        Server._host, Server.core_management_port))
             # Audit info
             audit = AuditLogger(storage)
-            audit_detail = {'package_name': "fledge-{}-{}".format(plugin_type, name)}
+            audit_detail = {'package_name': pkg_name, 'version': version}
             loop.run_until_complete(audit.information('PKGRM', audit_detail))
-            _logger.info('{} plugin purged successfully'.format(name))
+            _logger.info('{} plugin removed successfully.'.format(pkg_name))
     except KeyError:
         # This case is for non-package installation - python plugin path will be tried first and then C
         _logger.info("Trying removal of manually installed plugin...")
@@ -289,16 +432,17 @@ def purge_plugin(plugin_type: str, name: str, uid: uuid, storage: connect) -> tu
         if plugin_type in ['notify', 'rule']:
             plugin_type = 'notificationDelivery' if plugin_type == 'notify' else 'notificationRule'
         try:
-            path = PYTHON_PLUGIN_PATH+'{}/{}'.format(plugin_type, original_name)
+            path = PYTHON_PLUGIN_PATH+'{}/{}'.format(plugin_type, plugin_name)
             if not os.path.isdir(path):
-                path = C_PLUGINS_PATH + '{}/{}'.format(plugin_type, original_name)
+                path = C_PLUGINS_PATH + '{}/{}'.format(plugin_type, plugin_name)
             rm_cmd = 'rm -rv {}'.format(path)
             if os.path.exists("{}/bin".format(_FLEDGE_ROOT)) and os.path.exists("{}/bin/fledge".format(_FLEDGE_ROOT)):
                 rm_cmd = 'sudo rm -rv {}'.format(path)
             code = os.system(rm_cmd)
             if code != 0:
-                raise OSError("While deleting, invalid plugin path found for {}".format(original_name))
+                raise OSError("While deleting, invalid plugin path found for {}".format(plugin_name))
         except Exception as ex:
             code = 1
-            _logger.error("Error in removing plugin: {}".format(str(ex)))
+            _logger.error(ex, "Error in removing plugin.")
+        _logger.info('{} plugin removed successfully.'.format(plugin_name))
     return code, stdout_file_path, is_package

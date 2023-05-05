@@ -19,7 +19,6 @@ from urllib.parse import quote
 from pathlib import Path
 import pytest
 
-
 __author__ = "Vaibhav Singhal"
 __copyright__ = "Copyright (c) 2019 Dianomic Systems"
 __license__ = "Apache 2.0"
@@ -154,7 +153,7 @@ def add_south():
 @pytest.fixture
 def add_north():
     def _add_fledge_north(fledge_url, north_plugin, north_branch, installation_type='make', north_instance_name="play",
-                          config=None,
+                          config=None, schedule_repeat_time=30, 
                           plugin_lang="python", use_pip_cache=True, enabled=True, plugin_discovery_name=None,
                           is_task=True):
         """Add north plugin and start the service/task by default"""
@@ -192,9 +191,10 @@ def add_north():
 
         if is_task:
             # Create north task
-            data = {"name": "{}".format(north_instance_name), "type": "North",
+            data = {"name": "{}".format(north_instance_name), "type": "north",
                     "plugin": "{}".format(plugin_discovery_name),
-                    "schedule_enabled": _enabled, "schedule_repeat": 30, "schedule_type": "3", "config": _config}
+                    "schedule_enabled": _enabled, "schedule_repeat": "{}".format(schedule_repeat_time), "schedule_type": "3", "config": _config}
+            print(data)
             conn.request("POST", '/fledge/scheduled/task', json.dumps(data))
         else:
             # Create north service
@@ -679,6 +679,8 @@ def pytest_addoption(parser):
                      help="use pip cache is requirement is available")
     parser.addoption("--wait-time", action="store", default=5, type=int,
                      help="Generic wait time between processes to run")
+    parser.addoption("--wait-fix", action="store", default=0, type=int,
+                     help="Extra wait time required for process to run")
     parser.addoption("--retries", action="store", default=3, type=int,
                      help="Number of tries for polling")
     # TODO: Temporary fixture, to be used with value False for environments where PI Web API is not stable
@@ -703,6 +705,7 @@ def pytest_addoption(parser):
                      help="Name of the South Service")
     parser.addoption("--asset-name", action="store", default="SystemTest",
                      help="Name of asset")
+    parser.addoption("--num-assets", action="store", default=300, type=int, help="Total No. of Assets to be created")
 
     # Filter Args
     parser.addoption("--filter-branch", action="store", default="develop", help="Filter plugin repo branch")
@@ -798,7 +801,39 @@ def pytest_addoption(parser):
     parser.addoption("--start-north-as-service", action="store", type=bool, default=True,
                      help="Whether start the north as a service.")
 
+    # Fogbench Config
+    parser.addoption("--fogbench-host", action="store", default="localhost",
+                     help="FogBench Destination Host Address")
+                     
+    parser.addoption("--fogbench-port", action="store", default="5683", type=int,
+                     help="FogBench Destination Port")
+    
+    # Azure-IoT Config
+    parser.addoption("--azure-host", action="store", default="azure-server",
+                     help="Azure-IoT Host Name")
+    
+    parser.addoption("--azure-device", action="store", default="azure-iot-device",
+                     help="Azure-IoT Device ID")
+    
+    parser.addoption("--azure-key", action="store", default="azure-iot-key",
+                     help="Azure-IoT SharedAccess key")
+    
+    parser.addoption("--azure-storage-account-url", action="store", default="azure-storage-account-url",
+                     help="Azure Storage Account URL")
+    
+    parser.addoption("--azure-storage-account-key", action="store", default="azure-storage-account-key",
+                     help="Azure Storage Account Access Key")
+    
+    parser.addoption("--azure-storage-container", action="store", default="azure_storage_container",
+                     help="Container Name in Azure where data is stored")
+    
+    parser.addoption("--run-time", action="store", default="60",
+                    help="The number of minute for which a test should run")
 
+@pytest.fixture
+def num_assets(request):
+    return request.config.getoption("--num-assets")
+    
 @pytest.fixture
 def storage_plugin(request):
     return request.config.getoption("--storage-plugin")
@@ -888,7 +923,10 @@ def fledge_url(request):
 def wait_time(request):
     return request.config.getoption("--wait-time")
 
-
+@pytest.fixture
+def wait_fix(request):
+    return request.config.getoption("--wait-fix")
+    
 @pytest.fixture
 def retries(request):
     return request.config.getoption("--retries")
@@ -1116,3 +1154,40 @@ def pytest_configure():
     pytest.OS_PLATFORM_DETAILS = read_os_release()
     pytest.IS_REDHAT = is_redhat_based()
     pytest.PKG_MGR = 'yum' if pytest.IS_REDHAT else 'apt'
+
+@pytest.fixture
+def fogbench_host(request):
+    return request.config.getoption("--fogbench-host")
+
+
+@pytest.fixture
+def fogbench_port(request):
+    return request.config.getoption("--fogbench-port")
+
+@pytest.fixture
+def azure_host(request):
+    return request.config.getoption("--azure-host")
+
+@pytest.fixture
+def azure_device(request):
+    return request.config.getoption("--azure-device")
+
+@pytest.fixture
+def azure_key(request):
+    return request.config.getoption("--azure-key")
+
+@pytest.fixture
+def azure_storage_account_url(request):
+    return request.config.getoption("--azure-storage-account-url")
+
+@pytest.fixture
+def azure_storage_account_key(request):
+    return request.config.getoption("--azure-storage-account-key")
+
+@pytest.fixture
+def azure_storage_container(request):
+    return request.config.getoption("--azure-storage-container")
+
+@pytest.fixture
+def run_time(request):
+    return request.config.getoption("--run-time")

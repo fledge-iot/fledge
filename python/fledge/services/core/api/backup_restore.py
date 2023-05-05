@@ -5,7 +5,6 @@
 # FLEDGE_END
 
 """Backup and Restore Rest API support"""
-import logging
 import os
 import sys
 import tarfile
@@ -15,9 +14,10 @@ from aiohttp import web
 from enum import IntEnum
 from collections import OrderedDict
 
-from fledge.common import logger
-from fledge.common.audit_logger import AuditLogger
 from fledge.common.common import _FLEDGE_ROOT, _FLEDGE_DATA
+from fledge.common.audit_logger import AuditLogger
+from fledge.common.logger import FLCoreLogger
+
 from fledge.common.storage_client import payload_builder
 from fledge.plugins.storage.common import exceptions
 from fledge.services.core import connect
@@ -47,7 +47,7 @@ _help = """
     -----------------------------------------------------------------------------------
 """
 
-_logger = logger.setup(__name__, level=logging.INFO)
+_logger = FLCoreLogger().get_logger(__name__)
 
 
 class Status(IntEnum):
@@ -114,10 +114,10 @@ async def get_backups(request):
             r["date"] = row["ts"]
             r["status"] = _get_status(int(row["status"]))
             res.append(r)
-
     except Exception as ex:
-        raise web.HTTPInternalServerError(reason=str(ex))
-
+        msg = str(ex)
+        _logger.error(ex, "Failed to get the list of Backup records.")
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     return web.json_response({"backups": res})
 
 
@@ -130,8 +130,9 @@ async def create_backup(request):
         backup = Backup(connect.get_storage_async())
         status = await backup.create_backup()
     except Exception as ex:
-        raise web.HTTPInternalServerError(reason=str(ex))
-
+        msg = str(ex)
+        _logger.error(ex, "Failed to create Backup.")
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     return web.json_response({"status": status})
 
 
@@ -156,8 +157,9 @@ async def get_backup_details(request):
     except exceptions.DoesNotExist:
         raise web.HTTPNotFound(reason='Backup id {} does not exist'.format(backup_id))
     except Exception as ex:
-        raise web.HTTPInternalServerError(reason=(str(ex)))
-
+        msg = str(ex)
+        _logger.error(ex, "Failed to fetch backup details for ID: <{}>.".format(backup_id))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     return web.json_response(resp)
 
 
@@ -204,6 +206,7 @@ async def get_backup_download(request):
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
+        _logger.error(ex, "Failed to download Backup file for ID: <{}>.".format(backup_id))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.FileResponse(path=gz_path)
@@ -225,7 +228,9 @@ async def delete_backup(request):
     except exceptions.DoesNotExist:
         raise web.HTTPNotFound(reason='Backup id {} does not exist'.format(backup_id))
     except Exception as ex:
-        raise web.HTTPInternalServerError(reason=str(ex))
+        msg = str(ex)
+        _logger.error(ex, "Failed to delete Backup ID: <{}>.".format(backup_id))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
 
 
 async def restore_backup(request):
@@ -246,7 +251,9 @@ async def restore_backup(request):
     except exceptions.DoesNotExist:
         raise web.HTTPNotFound(reason='Backup with {} does not exist'.format(backup_id))
     except Exception as ex:
-        raise web.HTTPInternalServerError(reason=str(ex))
+        msg = str(ex)
+        _logger.error(ex, "Failed to restore Backup ID: <{}>.".format(backup_id))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
 
 
 async def get_backup_status(request):
@@ -350,6 +357,7 @@ async def upload_backup(request: web.Request) -> web.Response:
         raise web.HTTPNotImplemented(reason=msg, body=json.dumps({"message": msg}))
     except Exception as exc:
         msg = str(exc)
+        _logger.error(exc, "Failed to upload Backup.")
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         msg = "{} backup uploaded successfully.".format(file_name)

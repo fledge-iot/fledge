@@ -225,7 +225,7 @@ def add_service():
             service_branch: Branch of service to be installed
             retries: Number of tries for polling
             installation_type: Type of installation for service i.e. make or package
-            serice_name: Name that will be given to service to be installed
+            service_name: Name that will be given to service to be installed
             use_pip_cache: use pip cache in requirements installation
             enabled: Flag to enable or disable notification instace
         """
@@ -253,7 +253,7 @@ def add_service():
             except subprocess.CalledProcessError:
                 assert False, "{} package installation failed!".format(service)
         else:
-            print("Skipped {} service installation. Installation mechanism is set to {}.".format(service, installation_type))
+            return("Skipped {} service installation. Installation mechanism is set to {}.".format(service, installation_type))
         
         
         # Add service
@@ -284,16 +284,16 @@ def add_service():
 
 @pytest.fixture
 def add_notification_instance():
-    def _add_notification_instance(fledge_url, delivery_plugin, delivery_branch , rule_config, delivery_config, rule_plugin="Threshold", 
-                                   rule_branch=None, rule_plugin_discovery_name=None, delivery_plugin_discovery_name=None,
-                                   installation_type='make', notification_type="one shot", notification_instance_name="play", 
-                                   retrigger_time=30, use_pip_cache=True, enabled=True):
+    def _add_notification_instance(fledge_url, delivery_plugin, delivery_branch , rule_config=None, delivery_config=None, 
+                                   rule_plugin="Threshold", rule_branch=None, rule_plugin_discovery_name=None, 
+                                   delivery_plugin_discovery_name=None, installation_type='make', notification_type="one shot",
+                                   notification_instance_name="play", retrigger_time=30, use_pip_cache=True, enabled=True):
         """
-            Fixture to add Service Instance and start the insatnce by default
+            Fixture to add Service instance and start the insatnce by default
             delivery_plugin: Notify or Delivery plugin to be installed
             delivery_branch: Branch of Notify or Delivery plugin to be installed
-            rule_config: Configuration required for Rule plugin
-            delivery_config: Configuration required for Delivery plugin
+            rule_config: Configuration of Rule plugin
+            delivery_config: Configuration of Delivery plugin
             rule_plugin: Rule plugin to be installed, by default Threshold and DataAvailability plugin is installed 
             rule_branch: Branch of Rule plugin to be installed
             rule_plugin_discovery_name: Name to identify the Rule Plugin after installation 
@@ -313,6 +313,9 @@ def add_notification_instance():
         if delivery_plugin_discovery_name is None:
             delivery_plugin_discovery_name = delivery_plugin
 
+        _rule_config = rule_config if rule_config is not None else {}
+        _delivery_config = delivery_config if delivery_config is not None else {}
+        
         def clone_make_install(plugin_branch, plugin_type, plugin):
             try:
                 subprocess.run(["{}/tests/system/python/scripts/install_c_plugin {} {} {}".format(
@@ -343,16 +346,15 @@ def add_notification_instance():
             except subprocess.CalledProcessError:
                 assert False, "Package installation of {} failed!".format(delivery_plugin)
         else:
-            print("Skipped {} and {} plugin installation. Installation mechanism is set to {}.".format(rule_plugin, delivery_plugin,
+            return("Skipped {} and {} plugin installation. Installation mechanism is set to {}.".format(rule_plugin, delivery_plugin,
                                                                                                 installation_type))
 
-        
         data = {
                 "name": notification_instance_name,
-                "description": notification_instance_name,
-                "rule_config": rule_config,
+                "description": "{} notification instance".format(notification_instance_name),
+                "rule_config": _rule_config,
                 "rule": rule_plugin,
-                "delivery_config": delivery_config,
+                "delivery_config": _delivery_config,
                 "channel": delivery_plugin,
                 "notification_type": notification_type,
                 "enabled": enabled, 

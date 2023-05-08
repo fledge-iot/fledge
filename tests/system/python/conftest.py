@@ -17,9 +17,10 @@ import ssl
 import shutil
 from urllib.parse import quote
 from pathlib import Path
+import time
 import pytest
 from helpers import utils
-import time
+
 
 __author__ = "Vaibhav Singhal"
 __copyright__ = "Copyright (c) 2019 Dianomic Systems"
@@ -230,6 +231,7 @@ def add_service():
             enabled: Flag to enable or disable notification instace
         """
         
+        # Check if the service is already installed installed
         retval = utils.get_request(fledge_url, "/fledge/service")
         for ele in retval["services"]:
             if ele["type"].lower() == service:
@@ -237,6 +239,7 @@ def add_service():
         
         PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
         
+        # Install Service
         def clone_make_install():
             try:
                 subprocess.run(["{}/tests/system/python/scripts/install_c_service {} {}".format(
@@ -255,36 +258,17 @@ def add_service():
         else:
             return("Skipped {} service installation. Installation mechanism is set to {}.".format(service, installation_type))
         
-        
-        # Add service
-        if service == "notification":
-            data = {"name": "{}".format(service_name), "type": "notification", "enabled": enabled}
-            retval = utils.post_request(fledge_url, "/fledge/service", data)
-            assert service_name == retval["name"]
-            return retval
-        
-        elif service == "dispatcher":
-            #  Restart fledge and verify dispatcher service is added
-            utils.put_request(fledge_url, "/fledge/restart", None)
-            for i in range(retries):
-                time.sleep(30)
-                get_url = '/fledge/ping'
-                ping_result = utils.get_request(fledge_url, get_url)
-                if ping_result['uptime'] > 0:
-                    break
-            assert ping_result['uptime'] > 0
-            
-            retval =  utils.get_request(fledge_url, "/fledge/service")
-            for ele in retval["services"]:
-                if ele["name"] == "dispatcher":
-                    return ele
-            
+        # Add Service
+        data = {"name": "{}".format(service_name), "type": "{}".format(service), "enabled": enabled}
+        retval = utils.post_request(fledge_url, "/fledge/service", data)
+        assert service_name == retval["name"]
+        return retval
         
     return _add_service
 
 @pytest.fixture
 def add_notification_instance():
-    def _add_notification_instance(fledge_url, delivery_plugin, delivery_branch , rule_config=None, delivery_config=None, 
+    def _add_notification_instance(fledge_url, delivery_plugin, delivery_branch , rule_config={}, delivery_config={}, 
                                    rule_plugin="Threshold", rule_branch=None, rule_plugin_discovery_name=None, 
                                    delivery_plugin_discovery_name=None, installation_type='make', notification_type="one shot",
                                    notification_instance_name="play", retrigger_time=30, use_pip_cache=True, enabled=True):
@@ -313,9 +297,6 @@ def add_notification_instance():
         if delivery_plugin_discovery_name is None:
             delivery_plugin_discovery_name = delivery_plugin
 
-        _rule_config = rule_config if rule_config is not None else {}
-        _delivery_config = delivery_config if delivery_config is not None else {}
-        
         def clone_make_install(plugin_branch, plugin_type, plugin):
             try:
                 subprocess.run(["{}/tests/system/python/scripts/install_c_plugin {} {} {}".format(
@@ -324,7 +305,7 @@ def add_notification_instance():
                 assert False, "{} plugin installation failed".format(plugin)
 
         if installation_type == 'make':
-            # First Install Rule Plugin if Rule Plugin is not Threshold
+            # Install Rule Plugin if it is not Threshold or DataAvailability
             if rule_plugin not in  ("Threshold","DataAvailability"):
                 clone_make_install(rule_branch, "rule", rule_plugin)
             
@@ -352,13 +333,13 @@ def add_notification_instance():
         data = {
                 "name": notification_instance_name,
                 "description": "{} notification instance".format(notification_instance_name),
-                "rule_config": _rule_config,
+                "rule_config": rule_config,
                 "rule": rule_plugin,
-                "delivery_config": _delivery_config,
+                "delivery_config": delivery_config,
                 "channel": delivery_plugin,
                 "notification_type": notification_type,
                 "enabled": enabled, 
-                "retrigger_time": retrigger_time,
+                "retrigger_time": "{}".format(retrigger_time),
                 }
         
         retval = utils.post_request(fledge_url, "/fledge/notification", data)

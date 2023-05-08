@@ -207,8 +207,9 @@ async def update(request: web.Request) -> web.Response:
     """
     cpid = request.match_info.get('id', None)
     try:
-        pipeline = await _get_pipeline(cpid)
         data = await request.json()
+        name = data.get('name', None)
+        pipeline = await _check_unique_pipeline(name, cpid)
         columns = await _check_parameters(data, request)
         storage = connect.get_storage_async()
         if columns:
@@ -467,10 +468,12 @@ async def _check_parameters(payload, request):
         if source_type == 6 and des_type == 3:
             raise ValueError(error_msg)
     if name:
-        # Check unique pipeline
-        if await _pipeline_in_use(name, source, destination):
-            raise ValueError("{} control pipeline must be unique and there must be no other pipelines "
-                             "with the same source and destination.".format(name))
+        cpid = request.match_info.get('id', None)
+        if cpid is None:
+            # Check unique pipeline in case of creation
+            if await _pipeline_in_use(name, source, destination):
+                raise ValueError("{} control pipeline must be unique and there must be no other pipelines "
+                                 "with the same source and destination.".format(name))
     # filters
     filters = payload.get('filters', None)
     if filters is not None:
@@ -597,3 +600,23 @@ async def _update_filters(storage, cp_id, cp_name, cp_filters):
     except:
         pass
     return new_filters
+
+
+async def _check_unique_pipeline(name, cpid=None):
+    pipeline = await _get_pipeline(cpid)
+    if name is not None:
+        name = name.strip()
+        """Disallow pipeline name cases when cpid is not None: 
+           a) If given pipeline have already attached filters.
+           b) If given pipeline name already exists in DB.
+        """
+        if name != pipeline['name']:
+            pipeline_filter_result = await _get_table_column_by_value("control_filters", "cpid", cpid)
+            if pipeline_filter_result['rows']:
+                raise ValueError('Filters have already attached to {} pipeline. '
+                                 'So, pipeline name cannot be changed.'.format(pipeline['name']))
+            pipeline_result = await _get_table_column_by_value("control_pipelines", "name", name)
+            if pipeline_result['rows']:
+                raise ValueError('{} pipeline already in use. So pipeline name cannot be changed.'.format(name))
+    return pipeline
+

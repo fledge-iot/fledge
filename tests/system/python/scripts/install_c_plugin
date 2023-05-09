@@ -28,9 +28,9 @@ if [[ "${PLUGIN_TYPE}" = "rule" || "${PLUGIN_TYPE}" == "notify" ]]; then sudo rm
 clean () {
    rm -rf /tmp/${REPO_NAME}
    if [[ "${PLUGIN_TYPE}" = "rule" ]]; then
-      sudo rm -rf ${FLEDGE_ROOT}/plugins/notificationRule/${PLUGIN_NAME}
+      rm -rf ${FLEDGE_ROOT}/plugins/notificationRule/${PLUGIN_NAME}
    elif [[ "${PLUGIN_TYPE}" == "notify" ]]; then
-      sudo rm -rf ${FLEDGE_ROOT}/plugins/notificationDelivery/${PLUGIN_NAME}
+      rm -rf ${FLEDGE_ROOT}/plugins/notificationDelivery/${PLUGIN_NAME}
    fi
    rm -rf ${FLEDGE_ROOT}/plugins/${PLUGIN_TYPE}/${PLUGIN_NAME}
 }

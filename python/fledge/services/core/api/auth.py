@@ -222,8 +222,7 @@ async def get_ott(request):
     else:
         now_time = datetime.datetime.now()
         p = {'uid': user_id, 'exp': now_time}
-        ott_token = jwt.encode(p, JWT_SECRET, JWT_ALGORITHM).decode("utf-8")
-
+        ott_token = jwt.encode(p, JWT_SECRET, JWT_ALGORITHM)
         already_existed_token = False
         key_to_remove = None
         for k, v in OTT.OTT_MAP.items():

@@ -4,8 +4,8 @@ aiohttp_cors==0.7.0
 cchardet==2.1.4;python_version<"3.9"
 cchardet==2.1.7;python_version>="3.9"
 yarl==1.7.2
+pyjwt==2.4.0
 
-pyjwt==1.6.4
 # only required for Public Proxy multipart payload
 requests-toolbelt==0.9.1
 

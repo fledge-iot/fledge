@@ -71,41 +71,26 @@ def start_north(start_north_omf_as_a_service, fledge_url,
     yield start_north
 
 @pytest.fixture
-def add_notification_service(fledge_url, wait_time, enabled="true"):
-    try:
-        subprocess.run(["sudo {} install -y fledge-service-notification fledge-notify-asset".format(pytest.PKG_MGR)], shell=True, check=True)
-    except subprocess.CalledProcessError:
-        assert False, "notification service installation failed"
-
-    # Enable service
-    data = {"name": NOTIF_SERVICE_NAME, "type": "notification", "enabled": enabled}
-    print (data)
-    utils.post_request(fledge_url, "/fledge/service", data)
-
+def start_notification(fledge_url, add_service, add_notification_instance,wait_time, retries):
+    
+    # Install and Add Notification Service
+    add_service(fledge_url, "notification", None, retries, installation_type='package', service_name=NOTIF_SERVICE_NAME)
+    
     # Wait and verify service created or not
     time.sleep(wait_time)
     verify_service_added(fledge_url, NOTIF_SERVICE_NAME)
-
-@pytest.fixture
-def add_notification_instance(fledge_url, enabled=True):
-    payload = {
-        "name": "test #1",
-        "description": "test notification instance",
-        "rule": "Threshold",
-        "rule_config": {
+    
+    # Add Notification Instance
+    rule_config = {
             "source": "Statistics History",
             "asset": "READINGS",
             "trigger_value": "10.0",
-        },
-        "channel": "asset",
-        "delivery_config": {"enable": "true"},
-        "notification_type": "retriggered",
-        "retrigger_time": "30",
-        "enabled": enabled,
-    }
-    post_url = "/fledge/notification"
-    utils.post_request(fledge_url, post_url, payload)
+        }
+    delivery_config = {"enable": "true"}
+    add_notification_instance(fledge_url, "asset", None, rule_config=rule_config, delivery_config=delivery_config, installation_type='package', 
+                              notification_type="retriggered", notification_instance_name="test #1", retrigger_time=30)
     
+    # Verify Notification Instance created or not
     notification_url = "/fledge/notification"
     resp = utils.get_request(fledge_url, notification_url)
     assert "test #1" in [s["name"] for s in resp["notifications"]]
@@ -159,13 +144,13 @@ def _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_d
 
 
 class TestStatisticsHistoryBasedNotificationRuleOnIngress:
-    def test_stats_readings_south(self, clean_setup_fledge_packages, reset_fledge, start_south, add_notification_service, add_notification_instance, fledge_url,
+    def test_stats_readings_south(self, clean_setup_fledge_packages, reset_fledge, start_south, start_notification, fledge_url,
                  skip_verify_north_interface, wait_time, retries):
         """ Test NTFSN triggered or not with source as statistics history and name as READINGS in threshold rule.
             clean_setup_fledge_packages: Fixture to remove and install latest fledge packages
             reset_fledge: Fixture to reset fledge
             start_south: Fixtures to add and start south services
-            add_notification_service: Fixture to add notification service with rule and delivery plugins
+            start_notification: Fixture to add and start notification service with rule and delivery plugins
             Assertions:
                 on endpoint GET /fledge/audit
                 on endpoint GET /fledge/ping
@@ -256,13 +241,12 @@ class TestStatisticsHistoryBasedNotificationRuleOnIngress:
 
 
 class TestStatisticsHistoryBasedNotificationRuleOnEgress:
-    def test_stats_readings_north(self, start_north, fledge_url,
-                 wait_time, skip_verify_north_interface, retries, read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db):
+    def test_stats_readings_north(self, start_north, fledge_url, wait_time, skip_verify_north_interface, retries, 
+                                  read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db):
         """ Test NTFSN triggered or not with source as statistics history and name as READINGS in threshold rule.
             clean_setup_fledge_packages: Fixture to remove and install latest fledge packages
             reset_fledge: Fixture to reset fledge
             start_south_north: Fixtures to add and start south and north services
-            add_notification_service: Fixture to add notification service with rule and delivery plugins
             Assertions:
                 on endpoint GET /fledge/audit
                 on endpoint GET /fledge/ping

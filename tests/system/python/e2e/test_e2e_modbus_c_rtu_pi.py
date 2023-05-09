@@ -90,7 +90,7 @@ class TestE2EModbusC_RTU_PI:
 
         remove_directories("/tmp/fledge-south-{}".format(SOUTH_PLUGIN.lower()))
 
-    def test_end_to_end(self, start_south_north, enable_schedule, disable_schedule, fledge_url, read_data_from_pi, pi_host, pi_admin,
+    def test_end_to_end(self, collect_support_bundle, start_south_north, enable_schedule, disable_schedule, fledge_url, read_data_from_pi, pi_host, pi_admin,
                         pi_passwd, pi_db, wait_time, retries, skip_verify_north_interface):
         """ Test that data is inserted in Fledge using modbus-c south plugin and sent to PI
             start_south_north: Fixture that starts Fledge with south service and north instance

@@ -670,7 +670,7 @@ def disable_schedule():
     return _disable_sch
 
 
-@pytest.fixture(scope="function", autouse=True)
+@pytest.fixture(scope="function")
 def collect_support_bundle(request, fledge_url):
     def _collect_support_bundle():
         PROJECT_ROOT = Path(__file__).absolute().parent.parent.parent.parent

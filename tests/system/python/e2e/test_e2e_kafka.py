@@ -118,7 +118,7 @@ class TestE2EKafka:
         remove_directories("/tmp/fledge-south-{}".format(SOUTH_PLUGIN_NAME))
         remove_directories("/tmp/fledge-north-{}".format(NORTH_PLUGIN_NAME.lower()))
 
-    def test_end_to_end(self, start_south_north, fledge_url, wait_time, kafka_host, kafka_rest_port, kafka_topic,
+    def test_end_to_end(self, collect_support_bundle, start_south_north, fledge_url, wait_time, kafka_host, kafka_rest_port, kafka_topic,
                         skip_verify_north_interface):
         """ Test that data is inserted in Fledge and sent to Kafka
             start_south_north: Fixture that starts Fledge with south and north instance

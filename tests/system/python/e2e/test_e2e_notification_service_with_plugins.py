@@ -112,7 +112,7 @@ def pause_for_x_seconds(x=1):
 
 
 class TestNotificationService:
-    def test_service(self, reset_and_start_fledge, service_branch, fledge_url, wait_time, retries, remove_directories):
+    def test_service(self, collect_support_bundle, reset_and_start_fledge, service_branch, fledge_url, wait_time, retries, remove_directories):
         _configure_and_start_service(service_branch, fledge_url, remove_directories)
 
         retry_count = 0
@@ -132,7 +132,7 @@ class TestNotificationService:
         _verify_service(fledge_url, status='running')
         _verify_audit_log_entry(fledge_url, '/fledge/audit?source=NTFST', name=SERVICE_NAME)
 
-    def test_get_default_notification_plugins(self, fledge_url, remove_directories):
+    def test_get_default_notification_plugins(self, collect_support_bundle, fledge_url, remove_directories):
         remove_directories(os.environ['FLEDGE_ROOT'] + '/plugins/notificationDelivery')
         remove_directories(os.environ['FLEDGE_ROOT'] + '/plugins/notificationRule')
         remove_directories(os.environ['FLEDGE_ROOT'] + 'cmake_build/C/plugins/notificationDelivery')
@@ -154,14 +154,13 @@ class TestNotificationCRUD:
         {"name": "Test #3", "description": "Test 3 notification", "rule": NOTIFY_INBUILT_RULES[0],
          "channel": NOTIFY_PLUGIN, "enabled": "false", "notification_type": "one shot"}
     ])
-    def test_create_notification_instances_with_default_rule_and_channel_python35(self, fledge_url, notify_branch,
-                                                                                  data,
-                                                                                  remove_directories):
+    def test_create_notification_instances_with_default_rule_and_channel_python35(self, collect_support_bundle, fledge_url, notify_branch,
+                                                                                  data, remove_directories):
         if data['name'] == 'Test 1':
             _install_notify_plugin(notify_branch, NOTIFY_PLUGIN, remove_directories)
         _add_notification_instance(fledge_url, data)
 
-    def test_inbuilt_rule_plugin_and_notify_python35_delivery(self, fledge_url):
+    def test_inbuilt_rule_plugin_and_notify_python35_delivery(self, collect_support_bundle, fledge_url):
         jdoc = _get_result(fledge_url, '/fledge/notification/plugin')
         assert 1 == len(jdoc['delivery'])
         assert NOTIFY_PLUGIN == jdoc['delivery'][0]['name']
@@ -169,7 +168,7 @@ class TestNotificationCRUD:
         assert NOTIFY_INBUILT_RULES[0] == jdoc['rules'][1]['name']
         assert NOTIFY_INBUILT_RULES[1] == jdoc['rules'][0]['name']
 
-    def test_get_notifications_and_audit_entry(self, fledge_url):
+    def test_get_notifications_and_audit_entry(self, collect_support_bundle, fledge_url):
         jdoc = _get_result(fledge_url, '/fledge/notification')
         assert 3 == len(jdoc['notifications'])
 
@@ -177,7 +176,7 @@ class TestNotificationCRUD:
         jdoc = _get_result(fledge_url, '/fledge/audit?source=NTFAD')
         assert 3 == jdoc['totalCount']
 
-    def test_update_notification(self, fledge_url, name="Test 1"):
+    def test_update_notification(self, collect_support_bundle, fledge_url, name="Test 1"):
         conn = http.client.HTTPConnection(fledge_url)
         data = {"notification_type": "toggled"}
         conn.request("PUT", '/fledge/notification/{}'.format(urllib.parse.quote(name))
@@ -192,7 +191,7 @@ class TestNotificationCRUD:
         jdoc = _get_result(fledge_url, '/fledge/notification/{}'.format(urllib.parse.quote(name)))
         assert "toggled" == jdoc['notification']['notificationType']
 
-    def test_delete_notification(self, fledge_url, name="Test #3"):
+    def test_delete_notification(self, collect_support_bundle, fledge_url, name="Test #3"):
         conn = http.client.HTTPConnection(fledge_url)
         conn.request("DELETE", '/fledge/notification/{}'.format(urllib.parse.quote(name)))
         r = conn.getresponse()
@@ -293,7 +292,7 @@ class TestSentAndReceiveNotification:
         r = conn.getresponse()
         assert 200 == r.status
 
-    def test_sent_and_receive_notification(self, fledge_url, start_south, wait_time):
+    def test_sent_and_receive_notification(self, collect_support_bundle, fledge_url, start_south, wait_time):
         data = {"name": "Test4",
                 "description": "Test4_Notification",
                 "rule": NOTIFY_INBUILT_RULES[0],
@@ -322,7 +321,7 @@ class TestSentAndReceiveNotification:
 
 
 class TestStartStopNotificationService:
-    def test_shutdown_service_with_schedule_disable(self, fledge_url, disable_schedule, wait_time):
+    def test_shutdown_service_with_schedule_disable(self, collect_support_bundle, fledge_url, disable_schedule, wait_time):
         disable_schedule(fledge_url, SERVICE_NAME)
         pause_for_x_seconds(x=wait_time)
         _verify_service(fledge_url, status='shutdown')
@@ -330,7 +329,7 @@ class TestStartStopNotificationService:
         # After shutdown there should be 1 entry for NTFSD (shutdown)
         _verify_audit_log_entry(fledge_url, '/fledge/audit?source=NTFSD', name=SERVICE_NAME, count=1)
 
-    def test_restart_notification_service(self, fledge_url, enable_schedule, wait_time):
+    def test_restart_notification_service(self, collect_support_bundle, fledge_url, enable_schedule, wait_time):
         enable_schedule(fledge_url, SERVICE_NAME)
         pause_for_x_seconds(x=wait_time)
         _verify_service(fledge_url, status='running')

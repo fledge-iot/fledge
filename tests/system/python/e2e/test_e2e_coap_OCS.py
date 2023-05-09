@@ -155,7 +155,7 @@ def read_data_from_ocs():
 
 @pytest.mark.skip(reason="OCS is currently disabled!")
 class TestE2EOCS:
-    def test_end_to_end(self, start_south_north, read_data_from_ocs, fledge_url, wait_time, retries,
+    def test_end_to_end(self, collect_support_bundle, start_south_north, read_data_from_ocs, fledge_url, wait_time, retries,
                         ocs_client_id, ocs_client_secret, ocs_tenant, ocs_namespace, asset_name="endToEndCoAP"):
         """ Test that data is inserted in Fledge and sent to OCS
             start_south_north: Fixture that starts Fledge with south and north instance

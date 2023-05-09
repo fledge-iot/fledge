@@ -281,7 +281,7 @@ class TestE2eFogPairPi:
 
         assert Counter(data_from_pi[CSV_HEADERS][-len(expected_read_values):]) == Counter(expected_read_values)
 
-    def test_end_to_end(self, start_south_north_remote, start_south_north_local,
+    def test_end_to_end(self, collect_support_bundle, start_south_north_remote, start_south_north_local,
                         read_data_from_pi, retries, pi_host, pi_admin, pi_passwd, pi_db,
                         fledge_url, remote_ip, wait_time, skip_verify_north_interface):
         """ Test that data is inserted in Fledge (local instance) using playback south plugin,

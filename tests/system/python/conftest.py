@@ -217,18 +217,18 @@ def add_north():
 
 @pytest.fixture
 def add_service():
-    def _add_service(fledge_url, service, service_branch, retries, installation_type = "make", service_name = "play",
-                     use_pip_cache = True, enabled = True):
+    def _add_service(fledge_url, service, service_branch, retries, installation_type = "make", service_name = "svc@123",
+                     enabled = True):
         
         """ 
-            Fixture to add Service and start the start service by default 
+            Fixture to add Service and start the start service by default
+            fledge_url: IP address or domain to access fledge
             service: Service to be installed
             service_branch: Branch of service to be installed
             retries: Number of tries for polling
             installation_type: Type of installation for service i.e. make or package
             service_name: Name that will be given to service to be installed
-            use_pip_cache: use pip cache in requirements installation
-            enabled: Flag to enable or disable notification instace
+            enabled: Flag to enable or disable notification instance
         """
         
         # Check if the service is already installed installed
@@ -271,9 +271,10 @@ def add_notification_instance():
     def _add_notification_instance(fledge_url, delivery_plugin, delivery_branch , rule_config={}, delivery_config={}, 
                                    rule_plugin="Threshold", rule_branch=None, rule_plugin_discovery_name=None, 
                                    delivery_plugin_discovery_name=None, installation_type='make', notification_type="one shot",
-                                   notification_instance_name="play", retrigger_time=30, use_pip_cache=True, enabled=True):
+                                   notification_instance_name="noti@123", retrigger_time=30, enabled=True):
         """
-            Fixture to add Service instance and start the insatnce by default
+            Fixture to add Service instance and start the instance by default
+            fledge_url: IP address or domain to access fledge
             delivery_plugin: Notify or Delivery plugin to be installed
             delivery_branch: Branch of Notify or Delivery plugin to be installed
             rule_config: Configuration of Rule plugin
@@ -286,8 +287,7 @@ def add_notification_instance():
             notification_type: Type of notification to be triggered i.e. one_shot, retriggered, toggle
             notification_instance_name: Name that will be given to notification instance to be created
             retrigger_time: Interval between retriggered notifications
-            use_pip_cache: use pip cache in requirements installation
-            enabled: Flag to enable or disable notification instace
+            enabled: Flag to enable or disable notification instance
         """
         PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
         

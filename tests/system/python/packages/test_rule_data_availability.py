@@ -89,39 +89,23 @@ def start_north(fledge_url, enabled=True):
     utils.post_request(fledge_url, post_url, data)
 
 @pytest.fixture
-def add_notification_service(fledge_url, wait_time, enabled="true"):
-    try:
-        subprocess.run(["sudo {} install -y fledge-service-notification fledge-notify-asset".format(pytest.PKG_MGR)], shell=True, check=True)
-    except subprocess.CalledProcessError:
-        assert False, "notification service installation failed"
-
-    # Enable service
-    data = {"name": NOTIF_SERVICE_NAME, "type": "notification", "enabled": enabled}
-    print (data)
-    utils.post_request(fledge_url, "/fledge/service", data)
-
+def start_notification(fledge_url, add_service, add_notification_instance,wait_time, retries):
+    
+    # Install and Add Notification Service
+    add_service(fledge_url, "notification", None, retries, installation_type='package', service_name=NOTIF_SERVICE_NAME)
+    
     # Wait and verify service created or not
     time.sleep(wait_time)
     verify_service_added(fledge_url, NOTIF_SERVICE_NAME)
-
-@pytest.fixture
-def add_notification_instance(fledge_url, enabled=True):
-    payload = {
-        "name": "test #1",
-        "description": "test notification instance",
-        "rule": "DataAvailability",
-        "rule_config": {
-            "auditCode": "CONAD,SCHAD"
-        },
-        "channel": "asset",
-        "delivery_config": {"enable": "true"},
-        "notification_type": "retriggered",
-        "retrigger_time": "5",
-        "enabled": enabled
-    }
-    post_url = "/fledge/notification"
-    utils.post_request(fledge_url, post_url, payload)
     
+    # Add Notification Instance
+    rule_config = {"auditCode": "CONAD,SCHAD"}
+    delivery_config = {"enable": "true"}
+    add_notification_instance(fledge_url, "asset", None, rule_config=rule_config, delivery_config=delivery_config, 
+                              rule_plugin="DataAvailability", installation_type='package', notification_type="retriggered",
+                              notification_instance_name="test #1", retrigger_time=5)
+    
+    # Verify Notification Instance created or not
     notification_url = "/fledge/notification"
     resp = utils.get_request(fledge_url, notification_url)
     assert "test #1" in [s["name"] for s in resp["notifications"]]
@@ -165,14 +149,13 @@ def verify_eds_data():
     return r
 
 class TestDataAvailabilityAuditBasedNotificationRuleOnIngress:
-    def test_data_availability_multiple_audit(self, clean_setup_fledge_packages, reset_fledge, add_notification_service, add_notification_instance, start_south, fledge_url,
-                 skip_verify_north_interface, wait_time, retries):
+    def test_data_availability_multiple_audit(self, clean_setup_fledge_packages, reset_fledge, start_notification, 
+                                              start_south, fledge_url, skip_verify_north_interface, wait_time, retries):
         """ Test NTFSN triggered or not with CONAD, SCHAD.
             clean_setup_fledge_packages: Fixture to remove and install latest fledge packages
             reset_fledge: Fixture to reset fledge
             start_south: Fixtures to add and start south services
-            add_notification_service: Fixture to add notification service
-            add_notification_instance: Fixture to add notification instance
+            start_notification: Fixture to add and start notification service with rule and delivery plugins
             Assertions:
                 on endpoint GET /fledge/audit
                 on endpoint GET /fledge/ping
@@ -258,8 +241,8 @@ class TestDataAvailabilityAssetBasedNotificationRuleOnIngress:
         assert len(resp2['audit']) > len(resp1['audit']), "ERROR: NTFSN not triggered properly with asset code"
 
 class TestDataAvailabilityBasedNotificationRuleOnEgress:
-    def test_data_availability_north(self, check_eds_installed, reset_fledge, add_notification_service, add_notification_instance,
-                 reset_eds, start_north, fledge_url, wait_time, skip_verify_north_interface, add_south, retries):
+    def test_data_availability_north(self, check_eds_installed, reset_fledge, start_notification, reset_eds, 
+                                     start_north, fledge_url, wait_time, skip_verify_north_interface, add_south, retries):
         """ Test NTFSN triggered or not with configuration change in north EDS plugin.
             start_north: Fixtures to add and start south services
             Assertions:

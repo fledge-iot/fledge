@@ -80,7 +80,7 @@ async def create(request: web.Request) -> web.Response:
         curl -sX POST http://localhost:8081/fledge/control/pipeline -d '{"name": "pump", "enabled": true, "execution": "shared", "source": {"type": 2, "name": "pump"}}'
         curl -sX POST http://localhost:8081/fledge/control/pipeline -d '{"name": "broadcast", "enabled": true, "execution": "exclusive", "destination": {"type": 4}}'
         curl -sX POST http://localhost:8081/fledge/control/pipeline -d '{"name": "opcua_pump", "enabled": true, "execution": "shared", "source": {"type": 2, "name": "opcua"}, "destination": {"type": 2, "name": "pump1"}}'
-        curl -sX POST http://localhost:8081/fledge/control/pipeline -d '{"name": "opcua_pump", "enabled": true, "execution": "exclusive", "source": {"type": 2, "name": "southOpcua"}, "destination": {"type": 1, "name": "northOpcua"}, "filters": ["Filter1"]}'
+        curl -sX POST http://localhost:8081/fledge/control/pipeline -d '{"name": "opcua_pump1", "enabled": true, "execution": "exclusive", "source": {"type": 2, "name": "southOpcua"}, "destination": {"type": 1, "name": "northOpcua"}, "filters": ["Filter1"]}'
         curl -sX POST http://localhost:8081/fledge/control/pipeline -d '{"name": "Test", "enabled": false, "filters": ["Filter1", "Filter2"]}'
     """
     try:
@@ -209,6 +209,7 @@ async def update(request: web.Request) -> web.Response:
     try:
         pipeline = await _get_pipeline(cpid)
         data = await request.json()
+        data['old_pipeline_name'] = pipeline['name']
         columns = await _check_parameters(data, request)
         storage = connect.get_storage_async()
         if columns:
@@ -286,9 +287,11 @@ async def _get_all_lookups(tbl_name=None):
     return {"source": source_lookup, "destination": des_lookup}
 
 
-async def _get_table_column_by_value(table, column_name, column_value):
+async def _get_table_column_by_value(table, column_name, column_value, limit=None):
     storage = connect.get_storage_async()
     payload = PayloadBuilder().WHERE([column_name, '=', column_value]).payload()
+    if limit is not None:
+        payload = PayloadBuilder().WHERE([column_name, '=', column_value]).LIMIT(limit).payload()
     result = await storage.query_tbl_with_payload(table, payload)
     return result
 
@@ -358,6 +361,9 @@ async def _check_parameters(payload, request):
         name = name.strip()
         if len(name) == 0:
             raise ValueError('Pipeline name cannot be empty.')
+        cpid = request.match_info.get('id', None)
+        old_name = payload.get('old_pipeline_name', None)
+        await _check_unique_pipeline(name, old_name, cpid)
         column_names['name'] = name
     # enabled
     enabled = payload.get('enabled', None)
@@ -466,11 +472,6 @@ async def _check_parameters(payload, request):
         # Script
         if source_type == 6 and des_type == 3:
             raise ValueError(error_msg)
-    if name:
-        # Check unique pipeline
-        if await _pipeline_in_use(name, source, destination):
-            raise ValueError("{} control pipeline must be unique and there must be no other pipelines "
-                             "with the same source and destination.".format(name))
     # filters
     filters = payload.get('filters', None)
     if filters is not None:
@@ -597,3 +598,22 @@ async def _update_filters(storage, cp_id, cp_name, cp_filters):
     except:
         pass
     return new_filters
+
+
+async def _check_unique_pipeline(name, old_name=None, cpid=None):
+    """Disallow pipeline name cases:
+       a) If given pipeline name already exists in DB.
+       b) If given pipeline has already attached filters.
+    """
+    if cpid is not None:
+        if name != old_name:
+            pipeline_filter_result = await _get_table_column_by_value("control_filters", "cpid", cpid, limit=1)
+            if pipeline_filter_result['rows']:
+                raise ValueError('Filters are attached. Pipeline name cannot be changed.')
+            pipeline_result = await _get_table_column_by_value("control_pipelines", "name", name, limit=1)
+            if pipeline_result['rows']:
+                raise ValueError('{} pipeline already exists, name cannot be changed.'.format(name))
+    else:
+        pipeline_result = await _get_table_column_by_value("control_pipelines", "name", name, limit=1)
+        if pipeline_result['rows']:
+            raise ValueError('{} pipeline already exists with the same name.'.format(name))

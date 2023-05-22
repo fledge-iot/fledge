@@ -22,7 +22,7 @@ PLUGIN_NAME=$3
 os_name=$(grep -o '^NAME=.*' /etc/os-release | cut -f2 -d\" | sed 's/"//g')
 os_version=$(grep -o '^VERSION_ID=.*' /etc/os-release | cut -f2 -d\" | sed 's/"//g')
 REPO_NAME=fledge-${PLUGIN_TYPE}-${PLUGIN_NAME,,}
-if [[ "${PLUGIN_TYPE}" = "rule" || "${PLUGIN_TYPE}" == "notify" ]]; then rm -rf /tmp/fledge-service-notification; fi
+if [[ "${PLUGIN_TYPE}" = "rule" ]] || [[ "${PLUGIN_TYPE}" == "notify" ]]; then rm -rf /tmp/fledge-service-notification; fi
 
 
 clean () {

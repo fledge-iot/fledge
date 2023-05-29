@@ -125,13 +125,13 @@ Reading::Reading(const string& asset, const string& datapoints) : m_asset(asset)
 			for (auto& v : itr->value.GetArray())
 			{
 				if (v.IsNumber())
-					arr.push_back(v.GetDouble());
+					arr.emplace_back(v.GetDouble());
 				else
 					throw runtime_error("Only numeric lists are currently supported in datapoints");
 			}
 
 			DatapointValue dpv(arr);
-			m_values.push_back(new Datapoint(name, dpv));
+			m_values.emplace_back(new Datapoint(name, dpv));
 		}
 	}
 	// Store seconds and microseconds
@@ -610,13 +610,13 @@ vector<Datapoint *> *values = new vector<Datapoint *>;
 			for (auto& v : itr->value.GetArray())
 			{
 				if (v.IsNumber())
-					arr.push_back(v.GetDouble());
+					arr.emplace_back(v.GetDouble());
 				else
 					throw runtime_error("Only numeric lists are currently supported in datapoints");
 			}
 
 			DatapointValue dpv(arr);
-			values->push_back(new Datapoint(name, dpv));
+			values->emplace_back(new Datapoint(name, dpv));
 		}
 	}
 	return values;

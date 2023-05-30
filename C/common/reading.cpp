@@ -119,6 +119,20 @@ Reading::Reading(const string& asset, const string& datapoints) : m_asset(asset)
 			DatapointValue dpv(values, true);
 			m_values.push_back(new Datapoint(name, dpv));
 		}
+		else if (itr->value.IsArray())
+		{
+			vector<double> arr;
+			for (auto& v : itr->value.GetArray())
+			{
+				if (v.IsNumber())
+					arr.emplace_back(v.GetDouble());
+				else
+					throw runtime_error("Only numeric lists are currently supported in datapoints");
+			}
+
+			DatapointValue dpv(arr);
+			m_values.emplace_back(new Datapoint(name, dpv));
+		}
 	}
 	// Store seconds and microseconds
 	gettimeofday(&m_timestamp, NULL);
@@ -589,6 +603,20 @@ vector<Datapoint *> *values = new vector<Datapoint *>;
 			vector<Datapoint *> *nestedValues = JSONtoDatapoints(itr->value);
 			DatapointValue dpv(nestedValues, true);
 			values->push_back(new Datapoint(name, dpv));
+		}
+		else if (itr->value.IsArray())
+		{
+			vector<double> arr;
+			for (auto& v : itr->value.GetArray())
+			{
+				if (v.IsNumber())
+					arr.emplace_back(v.GetDouble());
+				else
+					throw runtime_error("Only numeric lists are currently supported in datapoints");
+			}
+
+			DatapointValue dpv(arr);
+			values->emplace_back(new Datapoint(name, dpv));
 		}
 	}
 	return values;

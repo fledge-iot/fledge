@@ -33,7 +33,7 @@
 #include <iostream>
 #include <chrono>
 #include <thread>
-#include <regex>
+#include "string_utils.h"
 
 using namespace std;
 using namespace rapidjson;
@@ -1590,7 +1590,10 @@ bool 		add_row = false;
 
 			// Handles - asset_code
 			sql.append(",\'");
-			sql.append(asset_code);
+			// replace single quote ' to ''
+			std::string escapedAsset(asset_code);
+			SingleToDouble(escapedAsset, "'", "''");
+			sql.append(escapedAsset);
 			sql.append("', '");
 
 			// Handles - reading

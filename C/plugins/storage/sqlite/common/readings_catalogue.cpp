@@ -2143,7 +2143,8 @@ ReadingsCatalogue::tyReadingReference  ReadingsCatalogue::getReadingReference(Co
 					auto newMapValue = make_pair(asset_code, newItem);
 					m_AssetReadingCatalogue.insert(newMapValue);
 				}
-
+				std::string escapedAsset(asset_code);
+				SingleToDouble(escapedAsset,"\"", "\"\"");
 				// Allocate the table in the reading catalogue
 				if (emptyAsset.empty())
 				{
@@ -2151,14 +2152,14 @@ ReadingsCatalogue::tyReadingReference  ReadingsCatalogue::getReadingReference(Co
 						"INSERT INTO  " READINGS_DB ".asset_reading_catalogue (table_id, db_id, asset_code) VALUES  ("
 						+ to_string(ref.tableId) + ","
 						+ to_string(ref.dbId) + ","
-						+ "\"" + asset_code + "\")";
+						+ "\"" + escapedAsset + "\")";
 					
 						Logger::getLogger()->debug("getReadingReference - allocate a new reading table for the asset '%s' db Id %d readings Id %d ", asset_code, ref.dbId, ref.tableId);
 
 				}
 				else
 				{
-					sql_cmd = 	" UPDATE " READINGS_DB ".asset_reading_catalogue SET asset_code ='" + string(asset_code) + "'" +
+					sql_cmd = 	" UPDATE " READINGS_DB ".asset_reading_catalogue SET asset_code ='" + escapedAsset + "'" +
 									" WHERE db_id = " + to_string(ref.dbId) + " AND table_id = " + to_string(ref.tableId) + ";";
 
 					Logger::getLogger()->debug("getReadingReference - Use empty table %readings_%d_%d: ",ref.dbId,ref.tableId);
@@ -2187,10 +2188,12 @@ ReadingsCatalogue::tyReadingReference  ReadingsCatalogue::getReadingReference(Co
 				auto newItem = make_pair(0, m_nextOverflow);
 				auto newMapValue = make_pair(asset_code, newItem);
 				m_AssetReadingCatalogue.insert(newMapValue);
+				std::string escapedAsset(asset_code);
+				SingleToDouble(escapedAsset,"\"", "\"\"");
 				sql_cmd =
 					"INSERT INTO  " READINGS_DB ".asset_reading_catalogue (table_id, db_id, asset_code) VALUES  ( 0,"
 					+ to_string(m_nextOverflow) + ","
-					+ "\"" + asset_code + "\")";
+					+ "\"" + escapedAsset + "\")";
 				rc = SQLExec(dbHandle, sql_cmd.c_str());
 				if (rc != SQLITE_OK)
 				{
@@ -2539,7 +2542,7 @@ string  ReadingsCatalogue::sqlConstructMultiDb(string &sqlCmdBase, vector<string
 				dbName = generateDbName(item.second.second);
 				dbReadingsName = generateReadingsName(item.second.second, item.second.first);
 
-				assetCode = std::regex_replace(assetCode, std::regex("\'"), "\'\'");
+				SingleToDouble(assetCode,"\"", "\"\"");
 
 				StringReplaceAll(sqlCmdTmp, "_assetcode_", assetCode);
 				StringReplaceAll (sqlCmdTmp, ".assetcode.", "asset_code");

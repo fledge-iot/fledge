@@ -24,6 +24,10 @@ void StringReplaceAll(std::string& StringToManage,
 					  const std::string& StringToSearch,
 					  const std::string& StringReplacement);
 
+void SingleToDouble(std::string& StringToManage,
+					  const std::string& StringToSearch,
+					  const std::string& StringReplacement);
+
 string StringSlashFix(const string& stringToFix);
 std::string evaluateParentPath(const std::string& path, char separator);
 std::string extractLastLevel(const std::string& path, char separator);

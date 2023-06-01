@@ -445,3 +445,23 @@ bool IsRegex(const string &str) {
 
 	return (nChar != 0);
 }
+
+/**
+ * Convert single character to double character
+ *
+ * @param out StringToManage    string in which apply the search and replacement
+ * @param     StringToSearch    string to search and replace
+ * @param     StringToReplace   substitution string
+ *
+ */
+void SingleToDouble(std::string& StringToManage,
+		   const std::string& StringToSearch,
+		   const std::string& StringReplacement)
+{
+	size_t pos = 0;
+	while (std::string::npos != (pos = StringToManage.find(StringToSearch, pos)))
+	{
+		StringToManage.replace(pos, 1, StringReplacement);
+		pos += 2;
+	}
+}

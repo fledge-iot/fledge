@@ -46,7 +46,7 @@ class AssetTracker(object):
             for row in results['rows']:
                 self._registered_asset_records.append(row)
         except Exception as ex:
-            _logger.exception('Failed to retrieve asset records, %s', str(ex))
+            _logger.exception(ex, 'Failed to retrieve asset records')
 
     async def add_asset_record(self, *,  asset, event, service, plugin, jsondata = {}):
         """

@@ -673,7 +673,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
             await audit.information('CONCH', audit_details)
 
         except Exception as ex:
-            _logger.exception('Unable to bulk update config items %s', str(ex))
+            _logger.exception(ex, 'Unable to bulk update config items')
             raise
 
         try:
@@ -751,8 +751,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                                                children) if root is not None else await self._read_all_category_names()
             return info
         except:
-            _logger.exception(
-                'Unable to read all category names')
+            _logger.exception('Unable to read all category names')
             raise
 
     async def get_category_all_items(self, category_name):
@@ -782,8 +781,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                                           category["display_name"])
             return category_value
         except:
-            _logger.exception(
-                'Unable to get all category names based on category_name %s', category_name)
+            _logger.exception('Unable to get all category items of {} category.'.format(category_name))
             raise
 
     async def get_category_item(self, category_name, item_name):
@@ -1138,7 +1136,16 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                     else:
                         await self._update_category(category_name, category_val_prepared, category_description,
                                                     display_name)
-
+                        diff = set(category_val_prepared) - set(category_val_storage)
+                        if diff:
+                            audit = AuditLogger(self._storage)
+                            audit_details = {
+                                'category': category_name,
+                                'item': "configurationChange",
+                                'oldValue': category_val_storage,
+                                'newValue': category_val_prepared
+                            }
+                            await audit.information('CONCH', audit_details)
             is_acl, config_item, found_cat_name, found_value = await \
                 self.search_for_ACL_recursive_from_cat_name(category_name)
             _logger.debug("check if there is {} create category function  for category {} ".format(is_acl,
@@ -1466,7 +1473,7 @@ class ConfigurationManager(ConfigurationManagerSingleton):
                 _logger.info("Removing file %s for category %s", f, category_name)
                 os.remove(f)
         except Exception as ex:
-            _logger.error('Failed to delete file(s) for category %s. Exception %s', category_name, str(ex))
+            _logger.error(ex, 'Failed to delete file(s) for category {}.'.format(category_name))
             # raise ex
 
     def register_interest_child(self, category_name, callback):

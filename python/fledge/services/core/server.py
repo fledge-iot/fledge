@@ -479,7 +479,7 @@ class Server:
                               port_from_config, type(port_from_config))
                 raise
         except Exception as ex:
-            _logger.exception(str(ex))
+            _logger.exception(ex)
             raise
 
     @classmethod
@@ -505,7 +505,7 @@ class Server:
             except KeyError:
                 cls._service_description = 'Fledge REST Services'
         except Exception as ex:
-            _logger.exception(str(ex))
+            _logger.exception(ex)
             raise
 
     @classmethod
@@ -526,7 +526,7 @@ class Server:
             cls._package_cache_manager = {"update": {"last_accessed_time": ""},
                                           "upgrade": {"last_accessed_time": ""}, "list": {"last_accessed_time": ""}}
         except Exception as ex:
-            _logger.exception(str(ex))
+            _logger.exception(ex)
             raise
 
     @classmethod
@@ -545,7 +545,7 @@ class Server:
             from fledge.common.logger import FLCoreLogger
             FLCoreLogger().set_level(cls._log_level)
         except Exception as ex:
-            _logger.exception(str(ex))
+            _logger.exception(ex)
             raise
 
     @staticmethod
@@ -614,7 +614,7 @@ class Server:
                              '--port={}'.format(m_port)]
             subprocess.call(cmd_with_args, cwd=_SCRIPTS_DIR)
         except Exception as ex:
-            _logger.exception(str(ex))
+            _logger.exception(ex)
 
     @classmethod
     async def _start_storage(cls, loop):
@@ -1078,7 +1078,7 @@ class Server:
         except service_registry_exceptions.DoesNotExist:
             pass
         except Exception as ex:
-            _logger.exception(str(ex))
+            _logger.exception(ex)
 
     @classmethod
     async def _request_microservice_shutdown(cls, svc):
@@ -1143,7 +1143,7 @@ class Server:
         except service_registry_exceptions.DoesNotExist:
             pass
         except Exception as ex:
-            _logger.exception(str(ex))
+            _logger.exception(ex)
 
     @classmethod
     async def _stop_scheduler(cls):
@@ -1244,9 +1244,7 @@ class Server:
                          }
 
                 # Create JWT token
-                bearer_token = jwt.encode(claims,
-                                      SERVICE_JWT_SECRET,
-                                      SERVICE_JWT_ALGORITHM).decode("utf-8") if token is not None else ""
+                bearer_token = jwt.encode(claims, SERVICE_JWT_SECRET, SERVICE_JWT_ALGORITHM) if token is not None else ""
 
                 # Add the bearer token for that service being registered
                 ServiceRegistry.addBearerToken(service_name, bearer_token)
@@ -1289,7 +1287,7 @@ class Server:
                     cls._audit = AuditLogger(cls._storage_client_async)
                     await cls._audit.information('SRVUN', {'name': services[0]._name})
                 except Exception as ex:
-                    _logger.exception(str(ex))
+                    _logger.exception(ex)
 
             _resp = {'id': str(service_id), 'message': 'Service unregistered'}
 
@@ -1320,7 +1318,7 @@ class Server:
                     cls._audit = AuditLogger(cls._storage_client_async)
                     await cls._audit.information('SRVRS', {'name': services[0]._name})
                 except Exception as ex:
-                    _logger.exception(str(ex))
+                    _logger.exception(ex)
 
             _resp = {'id': str(service_id), 'message': 'Service restart requested'}
 
@@ -1853,10 +1851,8 @@ class Server:
         """ Validate service bearer token
         """
         try:
-            ret = jwt.decode(token,
-                         SERVICE_JWT_SECRET,
-                         algorithms=[SERVICE_JWT_ALGORITHM],
-                         options={"verify_signature": True, "verify_aud": False, "verify_exp": True})
+            ret = jwt.decode(token, SERVICE_JWT_SECRET, algorithms=[SERVICE_JWT_ALGORITHM],
+                             options={"verify_signature": True, "verify_aud": False, "verify_exp": True})
             return ret
         except Exception as e:
             return {'error': str(e)}
@@ -1880,9 +1876,7 @@ class Server:
             claims = cls.get_token_common(request)
             # Expiration set to now + delta
             claims['exp'] = int(time.time()) + SERVICE_JWT_EXP_DELTA_SECONDS
-            bearer_token = jwt.encode(claims,
-                                      SERVICE_JWT_SECRET,
-                                      SERVICE_JWT_ALGORITHM).decode("utf-8")
+            bearer_token = jwt.encode(claims, SERVICE_JWT_SECRET, SERVICE_JWT_ALGORITHM)
 
             # Replace bearer_token for the service
             ServiceRegistry.addBearerToken(claims['sub'], bearer_token)

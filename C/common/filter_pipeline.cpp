@@ -29,7 +29,7 @@ using namespace std;
  * @param serviceName	Name of the service to which this pipeline applies
  */
 FilterPipeline::FilterPipeline(ManagementClient* mgtClient, StorageClient& storage, string serviceName) : 
-			mgtClient(mgtClient), storage(storage), serviceName(serviceName), m_ready(false)
+			mgtClient(mgtClient), storage(storage), serviceName(serviceName), m_ready(false), m_shutdown(false)
 {
 }
 

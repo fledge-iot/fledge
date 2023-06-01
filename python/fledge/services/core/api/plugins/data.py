@@ -72,7 +72,7 @@ async def get_persist_plugins(request: web.Request) -> web.Response:
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
-        _logger.error("Failed to get persist plugins. {}".format(msg))
+        _logger.error(ex, "Failed to get persist plugins.")
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({'persistent': plugins})
@@ -107,7 +107,7 @@ async def get(request: web.Request) -> web.Response:
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
-        _logger.error("Failed to get {} plugin data for {} service. {}".format(plugin, service, msg))
+        _logger.error(ex, "Failed to get {} plugin data for {} service.".format(plugin, service))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({'data': data})
@@ -154,7 +154,7 @@ async def add(request: web.Request) -> web.Response:
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
-        _logger.error("Failed to create plugin data. {}".format(msg))
+        _logger.error(ex, "Failed to create plugin data.")
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({'result': "{} key added successfully.".format(key)})
@@ -194,7 +194,7 @@ async def delete(request: web.Request) -> web.Response:
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
-        _logger.error("Failed to delete {} plugin data for {} service. {}".format(plugin, service, msg))
+        _logger.error(ex, "Failed to delete {} plugin data for {} service.".format(plugin, service))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({'result': "{} deleted successfully.".format(key)})

@@ -57,7 +57,7 @@ async def get_plugin(request):
         delivery_plugins = json.loads(await _hit_get_url(url))
     except Exception as ex:
         msg = str(ex)
-        _logger.error("Failed to get notification plugin list. {}".format(msg))
+        _logger.error(ex, "Failed to get notification plugin list.")
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({'rules': rule_plugins, 'delivery': delivery_plugins})
@@ -114,7 +114,7 @@ async def get_notification(request):
         raise web.HTTPBadRequest(reason=str(ex))
     except Exception as ex:
         msg = str(ex)
-        _logger.error("Failed to get {} notification instance. {}".format(notif, msg))
+        _logger.error(ex, "Failed to get {} notification instance.".format(notif))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({'notification': notification})
@@ -152,7 +152,7 @@ async def get_notifications(request):
             notifications.append(notification)
     except Exception as ex:
         msg = str(ex)
-        _logger.error("Failed to get notification instances. {}".format(msg))
+        _logger.error(ex, "Failed to get notification instances.")
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({'notifications': notifications})
@@ -289,7 +289,7 @@ async def post_notification(request):
         raise web.HTTPBadRequest(reason=str(ex))
     except Exception as ex:
         msg = str(ex)
-        _logger.error("Failed to create notification instance. {}".format(msg))
+        _logger.error(ex, "Failed to create notification instance.")
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({'result': "Notification {} created successfully".format(name)})
@@ -445,7 +445,7 @@ async def put_notification(request):
         raise web.HTTPNotFound(reason=str(e))
     except Exception as ex:
         msg = str(ex)
-        _logger.error("Failed to update {} notification instance. {}".format(notif, msg))
+        _logger.error(ex, "Failed to update {} notification instance.".format(notif))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         # TODO: Start notification after update
@@ -486,7 +486,7 @@ async def delete_notification(request):
         raise web.HTTPBadRequest(reason=str(ex))
     except Exception as ex:
         msg = str(ex)
-        _logger.error("Failed to delete {} notification instance. {}".format(notif, msg))
+        _logger.error(ex, "Failed to delete {} notification instance.".format(notif))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({'result': 'Notification {} deleted successfully.'.format(notif)})
@@ -539,8 +539,8 @@ async def _update_configurations(config_mgr, name, notification_config, rule_con
             category_name = "delivery{}".format(name)
             await config_mgr.update_configuration_item_bulk(category_name, delivery_config)
     except Exception as ex:
-        msg = "Failed to update {} notification configuration. {}".format(name, str(ex))
-        _logger.error(msg)
+        msg = "Failed to update {} notification configuration.".format(name)
+        _logger.error(ex, msg)
         return web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
 
 
@@ -639,7 +639,7 @@ async def get_delivery_channels(request: web.Request) -> web.Response:
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
-        _logger.error("Failed to get delivery channels of {} notification. {}".format(notification_instance_name, msg))
+        _logger.error(ex, "Failed to get delivery channels of {} notification.".format(notification_instance_name))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({"channels": channels})
@@ -700,8 +700,7 @@ async def post_delivery_channel(request: web.Request) -> web.Response:
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
-        _logger.error("Failed to create delivery channel of {} notification. {}".format(
-            notification_instance_name, msg))
+        _logger.error(ex, "Failed to create delivery channel of {} notification".format(notification_instance_name))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({"category": channel_name, "description": channel_description,
@@ -734,8 +733,8 @@ async def get_delivery_channel_configuration(request: web.Request) -> web.Respon
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
-        _logger.error("Failed to get delivery channel configuration of {} notification. {}".format(
-            notification_instance_name, msg))
+        _logger.error(ex, "Failed to get delivery channel configuration of {} notification.".format(
+            notification_instance_name))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({"config": channel_config})
@@ -790,8 +789,7 @@ async def delete_delivery_channel(request: web.Request) -> web.Response:
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
-        _logger.error("Failed to delete delivery channel of {} notification. {}".format(
-            notification_instance_name, msg))
+        _logger.error(ex, "Failed to delete delivery channel of {} notification.".format(notification_instance_name))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({"channels": channels})

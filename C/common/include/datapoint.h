@@ -141,7 +141,21 @@ class DatapointValue {
 		 */
 		~DatapointValue();
 
-		
+		/**
+                 * Set the value of a datapoint, this may
+                 * also cause the type to be changed.
+                 * @param value An string value to set
+                 */
+                void setValue(std::string value)
+                {
+                        if(m_value.str)
+                        {
+                                delete m_value.str;
+                        }
+                        m_value.str = new std::string(value);
+                        m_type = T_STRING;
+                }
+	
 		/**
 		 * Set the value of a datapoint, this may
 		 * also cause the type to be changed.

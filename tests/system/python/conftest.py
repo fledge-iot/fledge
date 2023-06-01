@@ -17,7 +17,9 @@ import ssl
 import shutil
 from urllib.parse import quote
 from pathlib import Path
+import time
 import pytest
+from helpers import utils
 
 
 __author__ = "Vaibhav Singhal"
@@ -154,7 +156,7 @@ def add_south():
 @pytest.fixture
 def add_north():
     def _add_fledge_north(fledge_url, north_plugin, north_branch, installation_type='make', north_instance_name="play",
-                          config=None,
+                          config=None, schedule_repeat_time=30, 
                           plugin_lang="python", use_pip_cache=True, enabled=True, plugin_discovery_name=None,
                           is_task=True):
         """Add north plugin and start the service/task by default"""
@@ -192,9 +194,10 @@ def add_north():
 
         if is_task:
             # Create north task
-            data = {"name": "{}".format(north_instance_name), "type": "North",
+            data = {"name": "{}".format(north_instance_name), "type": "north",
                     "plugin": "{}".format(plugin_discovery_name),
-                    "schedule_enabled": _enabled, "schedule_repeat": 30, "schedule_type": "3", "config": _config}
+                    "schedule_enabled": _enabled, "schedule_repeat": "{}".format(schedule_repeat_time), "schedule_type": "3", "config": _config}
+            print(data)
             conn.request("POST", '/fledge/scheduled/task', json.dumps(data))
         else:
             # Create north service
@@ -212,6 +215,138 @@ def add_north():
 
     return _add_fledge_north
 
+@pytest.fixture
+def add_service():
+    def _add_service(fledge_url, service, service_branch, retries, installation_type = "make", service_name = "svc@123",
+                     enabled = True):
+        
+        """ 
+            Fixture to add Service and start the start service by default
+            fledge_url: IP address or domain to access fledge
+            service: Service to be installed
+            service_branch: Branch of service to be installed
+            retries: Number of tries for polling
+            installation_type: Type of installation for service i.e. make or package
+            service_name: Name that will be given to service to be installed
+            enabled: Flag to enable or disable notification instance
+        """
+        
+        # Check if the service is already installed installed
+        retval = utils.get_request(fledge_url, "/fledge/service")
+        for ele in retval["services"]:
+            if ele["type"].lower() == service:
+                return ele
+        
+        PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
+        
+        # Install Service
+        def clone_make_install():
+            try:
+                subprocess.run(["{}/tests/system/python/scripts/install_c_service {} {}".format(
+                    PROJECT_ROOT, service_branch, service)], shell=True, check=True)
+            except subprocess.CalledProcessError:
+                assert False, "{} service  installation failed".format(service)
+                
+        if installation_type == 'make':
+            clone_make_install()
+        elif installation_type == 'package':
+            try:
+                subprocess.run(["sudo {} install -y fledge-service-{}".format(pytest.PKG_MGR, service)], shell=True,
+                            check=True)
+            except subprocess.CalledProcessError:
+                assert False, "{} package installation failed!".format(service)
+        else:
+            return("Skipped {} service installation. Installation mechanism is set to {}.".format(service, installation_type))
+        
+        # Add Service
+        data = {"name": "{}".format(service_name), "type": "{}".format(service), "enabled": enabled}
+        retval = utils.post_request(fledge_url, "/fledge/service", data)
+        assert service_name == retval["name"]
+        return retval
+        
+    return _add_service
+
+@pytest.fixture
+def add_notification_instance():
+    def _add_notification_instance(fledge_url, delivery_plugin, delivery_branch , rule_config={}, delivery_config={}, 
+                                   rule_plugin="Threshold", rule_branch=None, rule_plugin_discovery_name=None, 
+                                   delivery_plugin_discovery_name=None, installation_type='make', notification_type="one shot",
+                                   notification_instance_name="noti@123", retrigger_time=30, enabled=True):
+        """
+            Fixture to add Service instance and start the instance by default
+            fledge_url: IP address or domain to access fledge
+            delivery_plugin: Notify or Delivery plugin to be installed
+            delivery_branch: Branch of Notify or Delivery plugin to be installed
+            rule_config: Configuration of Rule plugin
+            delivery_config: Configuration of Delivery plugin
+            rule_plugin: Rule plugin to be installed, by default Threshold and DataAvailability plugin is installed 
+            rule_branch: Branch of Rule plugin to be installed
+            rule_plugin_discovery_name: Name to identify the Rule Plugin after installation 
+            delivery_plugin_discovery_name: Name to identify the Delivery Plugin after installation 
+            installation_type: Type of installation for plugins i.e. make or package
+            notification_type: Type of notification to be triggered i.e. one_shot, retriggered, toggle
+            notification_instance_name: Name that will be given to notification instance to be created
+            retrigger_time: Interval between retriggered notifications
+            enabled: Flag to enable or disable notification instance
+        """
+        PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
+        
+        if rule_plugin_discovery_name is None:
+            rule_plugin_discovery_name = rule_plugin
+            
+        if delivery_plugin_discovery_name is None:
+            delivery_plugin_discovery_name = delivery_plugin
+
+        def clone_make_install(plugin_branch, plugin_type, plugin):
+            try:
+                subprocess.run(["{}/tests/system/python/scripts/install_c_plugin {} {} {}".format(
+                    PROJECT_ROOT, plugin_branch, plugin_type, plugin)], shell=True, check=True)
+            except subprocess.CalledProcessError:
+                assert False, "{} plugin installation failed".format(plugin)
+
+        if installation_type == 'make':
+            # Install Rule Plugin if it is not Threshold or DataAvailability
+            if rule_plugin not in  ("Threshold","DataAvailability"):
+                clone_make_install(rule_branch, "rule", rule_plugin)
+            
+            clone_make_install(delivery_branch, "notify", delivery_plugin)
+            
+        elif installation_type == 'package':
+            try:
+                if rule_plugin not in ["Threshold", "DataAvailability"]:
+                    subprocess.run(["sudo {} install -y fledge-rule-{}".format(pytest.PKG_MGR, rule_plugin)], shell=True,
+                               check=True)
+                    
+            except subprocess.CalledProcessError:
+                assert False, "Package installation of {} failed!".format(rule_plugin)
+                
+            try :
+                subprocess.run(["sudo {} install -y fledge-notify-{}".format(pytest.PKG_MGR, delivery_plugin)], shell=True,
+                               check=True)
+                
+            except subprocess.CalledProcessError:
+                assert False, "Package installation of {} failed!".format(delivery_plugin)
+        else:
+            return("Skipped {} and {} plugin installation. Installation mechanism is set to {}.".format(rule_plugin, delivery_plugin,
+                                                                                                installation_type))
+
+        data = {
+                "name": notification_instance_name,
+                "description": "{} notification instance".format(notification_instance_name),
+                "rule_config": rule_config,
+                "rule": rule_plugin_discovery_name,
+                "delivery_config": delivery_config,
+                "channel": delivery_plugin_discovery_name,
+                "notification_type": notification_type,
+                "enabled": enabled, 
+                "retrigger_time": "{}".format(retrigger_time),
+                }
+        
+        retval = utils.post_request(fledge_url, "/fledge/notification", data)
+        assert "Notification {} created successfully".format(notification_instance_name) == retval["result"]
+        return retval
+    
+    return _add_notification_instance
 
 @pytest.fixture
 def start_north_pi_v2():
@@ -807,6 +942,28 @@ def pytest_addoption(parser):
                      
     parser.addoption("--fogbench-port", action="store", default="5683", type=int,
                      help="FogBench Destination Port")
+    
+    # Azure-IoT Config
+    parser.addoption("--azure-host", action="store", default="azure-server",
+                     help="Azure-IoT Host Name")
+    
+    parser.addoption("--azure-device", action="store", default="azure-iot-device",
+                     help="Azure-IoT Device ID")
+    
+    parser.addoption("--azure-key", action="store", default="azure-iot-key",
+                     help="Azure-IoT SharedAccess key")
+    
+    parser.addoption("--azure-storage-account-url", action="store", default="azure-storage-account-url",
+                     help="Azure Storage Account URL")
+    
+    parser.addoption("--azure-storage-account-key", action="store", default="azure-storage-account-key",
+                     help="Azure Storage Account Access Key")
+    
+    parser.addoption("--azure-storage-container", action="store", default="azure_storage_container",
+                     help="Container Name in Azure where data is stored")
+    
+    parser.addoption("--run-time", action="store", default="60",
+                    help="The number of minute for which a test should run")
 
 @pytest.fixture
 def num_assets(request):
@@ -1141,3 +1298,31 @@ def fogbench_host(request):
 @pytest.fixture
 def fogbench_port(request):
     return request.config.getoption("--fogbench-port")
+
+@pytest.fixture
+def azure_host(request):
+    return request.config.getoption("--azure-host")
+
+@pytest.fixture
+def azure_device(request):
+    return request.config.getoption("--azure-device")
+
+@pytest.fixture
+def azure_key(request):
+    return request.config.getoption("--azure-key")
+
+@pytest.fixture
+def azure_storage_account_url(request):
+    return request.config.getoption("--azure-storage-account-url")
+
+@pytest.fixture
+def azure_storage_account_key(request):
+    return request.config.getoption("--azure-storage-account-key")
+
+@pytest.fixture
+def azure_storage_container(request):
+    return request.config.getoption("--azure-storage-container")
+
+@pytest.fixture
+def run_time(request):
+    return request.config.getoption("--run-time")

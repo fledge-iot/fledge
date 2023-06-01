@@ -1518,8 +1518,6 @@ bool 		add_row = false;
 		return -1;
 	}
 
-	sql.append("INSERT INTO fledge.readings ( user_ts, asset_code, reading ) VALUES ");
-
 	if (!doc.HasMember("readings"))
 	{
 		raiseError("appendReadings", "Payload is missing a readings array");
@@ -1531,6 +1529,9 @@ bool 		add_row = false;
 		raiseError("appendReadings", "Payload is missing the readings array");
 		return -1;
 	}
+
+	sql.append("INSERT INTO fledge.readings ( user_ts, asset_code, reading ) VALUES ");
+
 	for (Value::ConstValueIterator itr = rdings.Begin(); itr != rdings.End(); ++itr)
 	{
 		if (!itr->IsObject())
@@ -1540,6 +1541,12 @@ bool 		add_row = false;
 			return -1;
 		}
 		add_row = true;
+		const char *asset_code = (*itr)["asset_code"].GetString();
+		if (strlen(asset_code) == 0)
+		{
+			Logger::getLogger()->warn("Postgres appendReadings - empty asset code value, row is ignored");
+			continue;
+		}
 
 		const char *str = (*itr)["user_ts"].GetString();
 		// Check if the string is a function
@@ -1583,9 +1590,7 @@ bool 		add_row = false;
 
 			// Handles - asset_code
 			sql.append(",\'");
-			std::string escapedAsset((*itr)["asset_code"].GetString());
-			escapedAsset = std::regex_replace(escapedAsset, std::regex("\'"), "\'\'");
-			sql.append(escapedAsset);
+			sql.append(asset_code);
 			sql.append("', '");
 
 			// Handles - reading
@@ -1601,17 +1606,26 @@ bool 		add_row = false;
 	sql.append(';');
 
 	const char *query = sql.coalesce();
-	logSQL("ReadingsAppend", query);
-	PGresult *res = PQexec(dbConnection, query);
-	delete[] query;
-	if (PQresultStatus(res) == PGRES_COMMAND_OK)
+
+	if (row > 0)
 	{
+		logSQL("ReadingsAppend", query);
+		PGresult *res = PQexec(dbConnection, query);
+		delete[] query;
+		if (PQresultStatus(res) == PGRES_COMMAND_OK)
+		{
+			PQclear(res);
+			return atoi(PQcmdTuples(res));
+		}
+ 		raiseError("appendReadings", PQerrorMessage(dbConnection));
 		PQclear(res);
-		return atoi(PQcmdTuples(res));
+		return -1;
 	}
- 	raiseError("appendReadings", PQerrorMessage(dbConnection));
-	PQclear(res);
-	return -1;
+	else
+	{
+		delete[] query;
+		return 0;
+	}
 }
 
 /**

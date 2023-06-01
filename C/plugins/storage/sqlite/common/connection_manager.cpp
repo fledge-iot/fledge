@@ -9,9 +9,12 @@
  */
 #include <sqlite3.h>
 #include <unistd.h>
+#include <sys/time.h>
+#include <sys/resource.h>
 
 #include <connection_manager.h>
 #include <connection.h>
+#include <readings_catalogue.h>
 #include <logger.h>
 
 ConnectionManager *ConnectionManager::instance = 0;
@@ -28,7 +31,9 @@ static void managerBackground(void *arg)
 /**
  * Default constructor for the connection manager.
  */
-ConnectionManager::ConnectionManager() : m_shutdown(false), m_vacuumInterval(6 * 60 * 60)
+ConnectionManager::ConnectionManager() : m_shutdown(false),
+					m_vacuumInterval(6 * 60 * 60),
+					m_attachedDatabases(0)
 {
 	lastError.message = NULL;
 	lastError.entryPoint = NULL;
@@ -37,6 +42,11 @@ ConnectionManager::ConnectionManager() : m_shutdown(false), m_vacuumInterval(6 *
 	else
 		m_trace = false;
 	m_background = new std::thread(managerBackground, this);
+
+        struct rlimit lim;
+        getrlimit(RLIMIT_NOFILE, &lim);
+	m_descriptorLimit = lim.rlim_cur;
+
 	
 }
 
@@ -73,14 +83,39 @@ ConnectionManager *ConnectionManager::getInstance()
  */
 void ConnectionManager::growPool(unsigned int delta)
 {
+	int poolSize = idle.size() + inUse.size();
+
+	if ((delta + poolSize) * m_attachedDatabases * NO_DESCRIPTORS_PER_DB
+			> (DESCRIPTOR_THRESHOLD * m_descriptorLimit) / 100)
+	{
+		Logger::getLogger()->warn("Request to grow database connection pool rejected"
+			       " due to excessive file descriptor usage");
+		return;
+	}
+	int failures = 0;
 	while (delta-- > 0)
 	{
-		Connection *conn = new Connection();
-		if (m_trace)
-			conn->setTrace(true);
+		try {
+			Connection *conn = new Connection();
+			if (m_trace)
+				conn->setTrace(true);
+			idleLock.lock();
+			idle.push_back(conn);
+			idleLock.unlock();
+		} catch (...) {
+			failures++;
+		}
+	}
+	if (failures > 0)
+	{
 		idleLock.lock();
-		idle.push_back(conn);
+		int idleCount = idle.size();
 		idleLock.unlock();
+		inUseLock.lock();
+		int inUseCount = inUse.size();
+		inUseLock.unlock();
+		Logger::getLogger()->warn("Connection pool growth restricted due to failure to create %d connections, %d idle connections & %d connection in use currently", failures, idleCount, inUseCount);
+		noConnectionsDiagnostic();
 	}
 }
 
@@ -125,7 +160,13 @@ Connection *conn = 0;
 	idleLock.lock();
 	if (idle.empty())
 	{
-		conn = new Connection();
+		try {
+			conn = new Connection();
+		} catch (...) {
+			conn = NULL;
+			Logger::getLogger()->error("Failed to create database connection to allocate");
+			noConnectionsDiagnostic();
+		}
 	}
 	else
 	{
@@ -156,6 +197,14 @@ bool ConnectionManager::attachNewDb(std::string &path, std::string &alias)
 	bool result;
 	char *zErrMsg = NULL;
 
+	int poolSize = idle.size() + inUse.size();
+	if (poolSize * m_attachedDatabases * NO_DESCRIPTORS_PER_DB 
+			> (DESCRIPTOR_THRESHOLD * m_descriptorLimit) / 100)
+	{
+		Logger::getLogger()->warn("Request to attach new database rejected"
+			       " due to excessive file descriptor usage");
+		return false;
+	}
 	result = true;
 
 	sqlCmd = "ATTACH DATABASE '" + path + "' AS " + alias + ";";
@@ -164,48 +213,49 @@ bool ConnectionManager::attachNewDb(std::string &path, std::string &alias)
 	inUseLock.lock();
 
 	// attach the DB to all idle connections
+	for (auto conn : idle)
 	{
-
-		for ( auto conn : idle) {
-
-			dbHandle = conn->getDbHandle();
-			rc = SQLExec (dbHandle, sqlCmd.c_str(), &zErrMsg);
-			if (rc != SQLITE_OK)
-			{
-				Logger::getLogger()->error("attachNewDb - It was not possible to attach the db :%s: to an idle connection, error :%s:", path.c_str(), zErrMsg);
-				sqlite3_free(zErrMsg);
-				result = false;
-				break;
-			}
-
-			Logger::getLogger()->debug("attachNewDb idle dbHandle :%X: sqlCmd :%s: ", dbHandle, sqlCmd.c_str());
-
+		dbHandle = conn->getDbHandle();
+		rc = SQLExec (dbHandle, sqlCmd.c_str(), &zErrMsg);
+		if (rc != SQLITE_OK)
+		{
+			Logger::getLogger()->error("attachNewDb - It was not possible to attach the db :%s: to an idle connection, error :%s:", path.c_str(), zErrMsg);
+			sqlite3_free(zErrMsg);
+			result = false;
+			// TODO We are potentially left in an inconsistant state with the new database
+			// attached to some connections but not all. 
+			break;
 		}
+
+
+		Logger::getLogger()->debug("attachNewDb idle dbHandle :%X: sqlCmd :%s: ", dbHandle, sqlCmd.c_str());
+
 	}
 
 	if (result)
 	{
 		// attach the DB to all inUse connections
+		for (auto conn : inUse)
 		{
-
-			for ( auto conn : inUse) {
-
-				dbHandle = conn->getDbHandle();
-				rc = SQLExec (dbHandle, sqlCmd.c_str(), &zErrMsg);
-				if (rc != SQLITE_OK)
-				{
-					Logger::getLogger()->error("attachNewDb - It was not possible to attach the db :%s: to an inUse connection, error :%s:", path.c_str() ,zErrMsg);
-					sqlite3_free(zErrMsg);
-					result = false;
-					break;
-				}
-
-				Logger::getLogger()->debug("attachNewDb inUse dbHandle :%X: sqlCmd :%s: ", dbHandle, sqlCmd.c_str());
+			dbHandle = conn->getDbHandle();
+			rc = SQLExec (dbHandle, sqlCmd.c_str(), &zErrMsg);
+			if (rc != SQLITE_OK)
+			{
+				Logger::getLogger()->error("attachNewDb - It was not possible to attach the db :%s: to an inUse connection, error :%s:", path.c_str() ,zErrMsg);
+				sqlite3_free(zErrMsg);
+				result = false;
+				// TODO We are potentially left in an inconsistant state with the new
+				// database attached to some connections but not all. 
+				break;
 			}
+
+			Logger::getLogger()->debug("attachNewDb inUse dbHandle :%X: sqlCmd :%s: ", dbHandle, sqlCmd.c_str());
 		}
 	}
-	idleLock.unlock();
+	m_attachedDatabases++;
+
 	inUseLock.unlock();
+	idleLock.unlock();
 
 	return (result);
 }
@@ -231,44 +281,41 @@ bool ConnectionManager::detachNewDb(std::string &alias)
 	inUseLock.lock();
 
 	// attach the DB to all idle connections
+	for (auto conn : idle)
 	{
-		for ( auto conn : idle) {
-
-			dbHandle = conn->getDbHandle();
-			rc = SQLExec (dbHandle, sqlCmd.c_str(), &zErrMsg);
-			if (rc != SQLITE_OK)
-			{
-				Logger::getLogger()->error("detachNewDb - It was not possible to detach the db :%s: from an idle connection, error :%s:", alias.c_str(), zErrMsg);
-				sqlite3_free(zErrMsg);
-				result = false;
-				break;
-			}
-			Logger::getLogger()->debug("detachNewDb - idle dbHandle :%X: sqlCmd :%s: ", dbHandle, sqlCmd.c_str());
+		dbHandle = conn->getDbHandle();
+		rc = SQLExec (dbHandle, sqlCmd.c_str(), &zErrMsg);
+		if (rc != SQLITE_OK)
+		{
+			Logger::getLogger()->error("detachNewDb - It was not possible to detach the db :%s: from an idle connection, error :%s:", alias.c_str(), zErrMsg);
+			sqlite3_free(zErrMsg);
+			result = false;
+			break;
 		}
+		Logger::getLogger()->debug("detachNewDb - idle dbHandle :%X: sqlCmd :%s: ", dbHandle, sqlCmd.c_str());
 	}
 
 	if (result)
 	{
 		// attach the DB to all inUse connections
+		for (auto conn : inUse)
 		{
-
-			for ( auto conn : inUse) {
-
-				dbHandle = conn->getDbHandle();
-				rc = SQLExec (dbHandle, sqlCmd.c_str(), &zErrMsg);
-				if (rc != SQLITE_OK)
-				{
-					Logger::getLogger()->error("detachNewDb - It was not possible to detach the db :%s: from an inUse connection, error :%s:", alias.c_str() ,zErrMsg);
-					sqlite3_free(zErrMsg);
-					result = false;
-					break;
-				}
-				Logger::getLogger()->debug("detachNewDb - inUse dbHandle :%X: sqlCmd :%s: ", dbHandle, sqlCmd.c_str());
+			dbHandle = conn->getDbHandle();
+			rc = SQLExec (dbHandle, sqlCmd.c_str(), &zErrMsg);
+			if (rc != SQLITE_OK)
+			{
+				Logger::getLogger()->error("detachNewDb - It was not possible to detach the db :%s: from an inUse connection, error :%s:", alias.c_str() ,zErrMsg);
+				sqlite3_free(zErrMsg);
+				result = false;
+				break;
 			}
+			Logger::getLogger()->debug("detachNewDb - inUse dbHandle :%X: sqlCmd :%s: ", dbHandle, sqlCmd.c_str());
 		}
 	}
-	idleLock.unlock();
+	m_attachedDatabases--;
+
 	inUseLock.unlock();
+	idleLock.unlock();
 
 	return (result);
 }
@@ -289,28 +336,33 @@ bool ConnectionManager::attachRequestNewDb(int newDbId, sqlite3 *dbHandle)
 	bool result;
 	char *zErrMsg = NULL;
 
+	int poolSize = idle.size() + inUse.size();
+	if (poolSize * m_attachedDatabases * NO_DESCRIPTORS_PER_DB 
+			> (DESCRIPTOR_THRESHOLD * m_descriptorLimit) / 100)
+	{
+		Logger::getLogger()->warn("Request to attach nwe database rejected"
+			       " due to excessive file descriptor usage");
+		return false;
+	}
 	result = true;
 
 	idleLock.lock();
 	inUseLock.lock();
 
 	// attach the DB to all idle connections
+	for (auto conn : idle)
 	{
+		if (dbHandle == conn->getDbHandle())
+		{
+			Logger::getLogger()->debug("attachRequestNewDb - idle skipped dbHandle :%X: sqlCmd :%s: ", conn->getDbHandle(), sqlCmd.c_str());
 
-		for ( auto conn : idle) {
+		} else
+		{
+			conn->setUsedDbId(newDbId);
 
-			if (dbHandle == conn->getDbHandle())
-			{
-				Logger::getLogger()->debug("attachRequestNewDb - idle skipped dbHandle :%X: sqlCmd :%s: ", conn->getDbHandle(), sqlCmd.c_str());
-
-			} else
-			{
-				conn->setUsedDbId(newDbId);
-
-				Logger::getLogger()->debug("attachRequestNewDb - idle, dbHandle :%X: sqlCmd :%s: ", conn->getDbHandle(), sqlCmd.c_str());
-			}
-
+			Logger::getLogger()->debug("attachRequestNewDb - idle, dbHandle :%X: sqlCmd :%s: ", conn->getDbHandle(), sqlCmd.c_str());
 		}
+
 	}
 
 	if (result)
@@ -318,7 +370,7 @@ bool ConnectionManager::attachRequestNewDb(int newDbId, sqlite3 *dbHandle)
 		// attach the DB to all inUse connections
 		{
 
-			for ( auto conn : inUse) {
+			for (auto conn : inUse) {
 
 				if (dbHandle == conn->getDbHandle())
 				{
@@ -332,8 +384,10 @@ bool ConnectionManager::attachRequestNewDb(int newDbId, sqlite3 *dbHandle)
 			}
 		}
 	}
-	idleLock.unlock();
+	m_attachedDatabases++;
+
 	inUseLock.unlock();
+	idleLock.unlock();
 
 	return (result);
 }
@@ -347,6 +401,9 @@ bool ConnectionManager::attachRequestNewDb(int newDbId, sqlite3 *dbHandle)
  */
 void ConnectionManager::release(Connection *conn)
 {
+#if TRACK_CONNECTION_USER
+	conn->clearUsage();
+#endif
 	inUseLock.lock();
 	inUse.remove(conn);
 	inUseLock.unlock();
@@ -450,4 +507,41 @@ void ConnectionManager::background()
 			nextVacuum = time(0) + m_vacuumInterval;
 		}
 	}
+}
+
+/**
+ * Determine if we can allow another database to be created and attached to all the
+ * connections.
+ *
+ * @return True if we can create anotehr database.
+ */
+bool ConnectionManager::allowMoreDatabases()
+{
+	// Allow for a couple of user defined schemas as well as the fledge database
+	if (m_attachedDatabases + 4 > ReadingsCatalogue::getInstance()->getMaxAttached())
+	{
+		return false;
+	}
+	int poolSize = idle.size() + inUse.size();
+	if (poolSize * (m_attachedDatabases + 1) * NO_DESCRIPTORS_PER_DB 
+			> (DESCRIPTOR_THRESHOLD * m_descriptorLimit) / 100)
+	{
+		return false;
+	}
+	return true;
+}
+
+void ConnectionManager::noConnectionsDiagnostic()
+{
+#if TRACK_CONNECTION_USER
+	Logger *logger = Logger::getLogger();
+
+	inUseLock.lock();
+	logger->warn("There are %d connections in use currently", inUse.size());
+	for (auto conn : inUse)
+	{
+		logger->warn("  Connection is use by %s", conn->getUsage().c_str());
+	}
+	inUseLock.unlock();
+#endif
 }

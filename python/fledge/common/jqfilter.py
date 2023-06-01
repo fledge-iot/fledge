@@ -45,8 +45,8 @@ class JQFilter:
         try:
             return pyjq.all(filter_string, reading_block)
         except TypeError as ex:
-            self._logger.error("Invalid JSON passed, exception %s", str(ex))
+            self._logger.error(ex, "Invalid JSON passed during jq transform.")
             raise
         except ValueError as ex:
-            self._logger.error("Failed to transform, please check the transformation rule, exception %s", str(ex))
+            self._logger.error(ex, "Failed to transform, please check the transformation rule.")
             raise

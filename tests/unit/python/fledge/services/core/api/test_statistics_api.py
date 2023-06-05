@@ -492,24 +492,21 @@ class TestStatistics:
         assert 400 == resp.status
         assert msg == resp.reason
 
-    async def test_get_statistics_rate(self, client, params='?periods=1,5&statistics=readings'):
-        output = {'rates': {'readings': {'1': 120.52585669781932, '5': 120.52585669781932}}}
+    async def test_get_statistics_rate(self, client, params='?periods=1,5&statistics=READINGS'):
+        output = {'rates': {'READINGS': {'1': 24180.5, '5': 4836.1}}}
         p1 = {'where': {'value': 'stats collector', 'condition': '=', 'column': 'process_name'},
               'return': ['schedule_interval']}
-        p2 = {"return": ["key"], "aggregate": [{"operation": "sum", "column": "value"},
-                                               {"operation": "count", "column": "value"}],
-              "where": {"column": "history_ts", "condition": ">=", "value": "1590126369.123255",
+        p2 = {"return": ["key"], "aggregate": [{"operation": "sum", "column": "value"}],
+              "where": {"column": "history_ts", "condition": ">=", "value": "1684995048.726104",
                         "and": {"column": "key", "condition": "=", "value": "READINGS"}}, "group": "key"}
-        p3 = {"return": ["key"], "aggregate": [{"operation": "sum", "column": "value"},
-                                               {"operation": "count", "column": "value"}],
-              "where": {"column": "history_ts", "condition": ">=", "value": "1590126369.123255",
+        p3 = {"return": ["key"], "aggregate": [{"operation": "sum", "column": "value"}],
+              "where": {"column": "history_ts", "condition": ">=", "value": "1684994808.726297",
                         "and": {"column": "key", "condition": "=", "value": "READINGS"}}, "group": "key"}
 
         @asyncio.coroutine
         def q_result(*args):
             table = args[0]
             payload = args[1]
-
             if table == 'schedules':
                 assert p1 == json.loads(payload)
                 return {"rows": [{"schedule_interval": "00:00:15"}]}

@@ -548,12 +548,12 @@ void Ingest::processQueue()
 				m_failCnt = 0;
 				std::map<std::string, int>		statsEntriesCurrQueue;
 				AssetTracker *tracker = AssetTracker::getAssetTracker();
-				StorageAssetTracker *satracker = StorageAssetTracker::getStorageAssetTracker();
+				/*StorageAssetTracker *satracker = StorageAssetTracker::getStorageAssetTracker();
 				if ( satracker == nullptr)
                                 {
                                         Logger::getLogger()->error("%s could not initialize satracker ", __FUNCTION__);
 					return;
-                                }
+                                }*/
 
 				string lastAsset = "";
 				int *lastStat = NULL;
@@ -599,7 +599,7 @@ void Ingest::processQueue()
 									"Ingest");
 
 						// Check Asset record exists
-						AssetTrackingTuple* res = tracker->findAssetTrackingCache(tuple);
+						/*AssetTrackingTuple* res = tracker->findAssetTrackingCache(tuple);
 						if (res == NULL)
 						{
 							// Record non in cache, add it
@@ -611,7 +611,7 @@ void Ingest::processQueue()
 							unDeprecateAssetTrackingRecord(res,
 											assetName,
 											"Ingest");
-						}
+						}*/
 						lastAsset = assetName;
 						lastStat = &(statsEntriesCurrQueue[assetName]);
 						(*lastStat)++;
@@ -629,12 +629,12 @@ void Ingest::processQueue()
                                         unsigned int count = s.size();
                                         StorageAssetTrackingTuple storageTuple(m_serviceName,m_pluginName, itr.first, "store", false, "",count);
                                         StorageAssetTrackingTuple *ptr = &storageTuple;
-                                        satracker->updateCache(s, ptr);
+                                        /*satracker->updateCache(s, ptr);
                                         bool deprecated = satracker->getDeprecated(ptr);
                                         if (deprecated == true)
                                         {
                                                 unDeprecateStorageAssetTrackingRecord(ptr, itr.first, getStringFromSet(s), count);
-                                        }
+                                        }*/
                                 }
 
 				delete q;
@@ -779,7 +779,7 @@ void Ingest::processQueue()
 				// check if this requires addition of a new asset tracker tuple
 				// Remove the Readings in the vector
 				AssetTracker *tracker = AssetTracker::getAssetTracker();
-				StorageAssetTracker *satracker = StorageAssetTracker::getStorageAssetTracker();
+				//StorageAssetTracker *satracker = StorageAssetTracker::getStorageAssetTracker();
 
 				string lastAsset;
 				int *lastStat = NULL;
@@ -823,7 +823,7 @@ void Ingest::processQueue()
 									"Ingest");
 
 						// Check Asset record exists
-						AssetTrackingTuple* res = tracker->findAssetTrackingCache(tuple);
+						/*AssetTrackingTuple* res = tracker->findAssetTrackingCache(tuple);
 						if (res == NULL)
 						{
 							// Record not in cache, add it
@@ -835,7 +835,7 @@ void Ingest::processQueue()
 							unDeprecateAssetTrackingRecord(res,
 											assetName,
 											"Ingest");
-						}
+						}*/
 
 						lastAsset = assetName;
                                                   lastStat = &statsEntriesCurrQueue[assetName];
@@ -855,12 +855,12 @@ void Ingest::processQueue()
 				        unsigned int count = s.size();
 				        StorageAssetTrackingTuple storageTuple(m_serviceName,m_pluginName, itr.first, "store", false, "",count);
 					StorageAssetTrackingTuple *ptr = &storageTuple;
-                                        satracker->updateCache(s, ptr);
+                                        /*satracker->updateCache(s, ptr);
 					bool deprecated = satracker->getDeprecated(ptr);
 					if (deprecated == true)
 					{
 						unDeprecateStorageAssetTrackingRecord(ptr, itr.first, getStringFromSet(s), count);
-					}
+					}*/
                                 }
 				{
 					unique_lock<mutex> lck(m_statsMutex);

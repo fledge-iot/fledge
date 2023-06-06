@@ -283,7 +283,8 @@ Ingest::Ingest(StorageClient& storage,
 			m_failCnt(0),
 			m_storageFailed(false),
 			m_storesFailed(0),
-			m_statisticsOption(STATS_BOTH)
+			m_statisticsOption(STATS_BOTH),
+			m_highWater(0)
 {
 	m_shutdown = false;
 	m_running = true;
@@ -1304,4 +1305,26 @@ std::string  Ingest::getStringFromSet(const std::set<std::string> &dpSet)
 	if (s[s.size() -1] == ',')
 		s.pop_back();
 	return s;
+}
+
+/**
+ * Implement flow control backoff for the async ingest mechanism
+ */
+void Ingest::flowControl()
+{
+	if (m_highWater == 0)	// No flow control
+	{
+		return;
+	}
+	if (m_highWater < queueLength())
+	{
+		int cnt = 0, delay = 20;
+		while (cnt++ < 10 && queueLength() > m_lowWater)
+		{
+			this_thread::sleep_for(chrono::milliseconds(delay));
+			delay *= 2;
+			if (delay > 200)
+				delay = 200;
+		}
+	}
 }

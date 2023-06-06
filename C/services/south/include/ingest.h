@@ -80,6 +80,8 @@ public:
 	void		setStatistics(const std::string& option);
 
 	std::string  	getStringFromSet(const std::set<std::string> &dpSet);
+	void		setFlowControl(unsigned int lowWater, unsigned int highWater) { m_lowWater = lowWater; m_highWater = highWater; };
+	void		flowControl();
 
 
 private:
@@ -132,6 +134,8 @@ private:
 	int				m_statsUpdateFails;
 	enum { STATS_BOTH, STATS_ASSET, STATS_SERVICE }
 					m_statisticsOption;
+	unsigned int			m_highWater;
+	unsigned int			m_lowWater;
 };
 
 #endif

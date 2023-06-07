@@ -30,7 +30,9 @@
 
 #define INGEST_SUFFIX	"-Ingest"	// Suffix for per service ingest statistic
 
-#define STATS_UPDATE_FAIL_THRESHOLD 10	// After this many update fails try creatign new stats
+#define STATS_UPDATE_FAIL_THRESHOLD 10	// After this many update fails try creating new stats
+
+#define DEPRECATED_CACHE_AGE	600	// Maximum allowed aged of the deprecated asset cache
 
 /**
  * The ingest class is used to ingest asset readings.
@@ -132,6 +134,9 @@ private:
 	int				m_statsUpdateFails;
 	enum { STATS_BOTH, STATS_ASSET, STATS_SERVICE }
 					m_statisticsOption;
+	AssetTrackingTable		*m_deprecated;
+	time_t				m_deprecatedAgeOut;
+	time_t				m_deprecatedAgeOutStorage;
 };
 
 #endif

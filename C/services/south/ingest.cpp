@@ -1100,6 +1100,25 @@ void Ingest::unDeprecateAssetTrackingRecord(AssetTrackingTuple* currentTuple,
 					const string& assetName,
 					const string& event)
 {
+
+	if (m_deprecatedAgeOut < time(0))
+	{
+		m_deprecated = m_mgtClient->getDeprecatedAssetTrackingTuples();
+		m_deprecatedAgeOut = time(0) + DEPRECATED_CACHE_AGE;
+	}
+	if (m_deprecated && m_deprecated->find(assetName))
+	{
+		// The asset is deprecated possibly
+		m_deprecated->remove(assetName);
+	}
+	else
+	{
+		// The asset is not believed to be deprecated so return. If
+		// it has been deprecated since we last loaded the cache this
+		// will leave the asset incorrectly deprecated. This will be
+		// resolved next time the cache is reloaded
+		return;
+	}
 	// Get up-to-date Asset Tracking record 
 	AssetTrackingTuple* updatedTuple =
 			m_mgtClient->getAssetTrackingTuple(

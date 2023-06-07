@@ -136,6 +136,7 @@ private:
 					m_statisticsOption;
 	AssetTrackingTable		*m_deprecated;
 	time_t				m_deprecatedAgeOut;
+	time_t				m_deprecatedAgeOutStorage;
 };
 
 #endif

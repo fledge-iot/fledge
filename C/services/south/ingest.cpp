@@ -301,6 +301,11 @@ Ingest::Ingest(StorageClient& storage,
 	createServiceStatsDbEntry();
 
 	m_filterPipeline = NULL;
+
+	m_deprecated = NULL;
+
+	m_deprecatedAgeOut = 0;
+	m_deprecatedAgeOutStorage = 0;
 }
 
 /**
@@ -357,6 +362,8 @@ Ingest::~Ingest()
 		if (m_filterPipeline)
 			delete m_filterPipeline;
 	}
+
+	delete m_deprecated;
 }
 
 /**
@@ -1100,6 +1107,26 @@ void Ingest::unDeprecateAssetTrackingRecord(AssetTrackingTuple* currentTuple,
 					const string& assetName,
 					const string& event)
 {
+	time_t now = time(0);
+	if (m_deprecatedAgeOut < now)
+	{
+		delete m_deprecated;
+		m_deprecated = m_mgtClient->getDeprecatedAssetTrackingTuples();
+		m_deprecatedAgeOut = now + DEPRECATED_CACHE_AGE;
+	}
+	if (m_deprecated && m_deprecated->find(assetName))
+	{
+		// The asset is deprecated possibly
+		m_deprecated->remove(assetName);
+	}
+	else
+	{
+		// The asset is not believed to be deprecated so return. If
+		// it has been deprecated since we last loaded the cache this
+		// will leave the asset incorrectly deprecated. This will be
+		// resolved next time the cache is reloaded
+		return;
+	}
 	// Get up-to-date Asset Tracking record 
 	AssetTrackingTuple* updatedTuple =
 			m_mgtClient->getAssetTrackingTuple(
@@ -1182,12 +1209,26 @@ void Ingest::unDeprecateAssetTrackingRecord(AssetTrackingTuple* currentTuple,
  *
  * @param currentTuple          Current StorageAssetTracking record for given assetName
  * @param assetName             AssetName to fetch from AssetTracking
- * @param event                 The event type to fetch
+ * @param  datapoints           The datapoints comma separated list
+ * @param count			The number of datapoints per asset
  */
 void Ingest::unDeprecateStorageAssetTrackingRecord(StorageAssetTrackingTuple* currentTuple,
-                                        const string& assetName, const string& datapoints, const unsigned int& count)
+                                        const string& assetName,
+					const string& datapoints,
+					const unsigned int& count)
                                         
 {
+	time_t now = time(0);
+	if (m_deprecatedAgeOutStorage < now)
+	{
+		m_deprecatedAgeOutStorage = now + DEPRECATED_CACHE_AGE;
+	}
+	else
+	{
+		// Nothing to do right now
+		return;
+	}
+
 
         // Get up-to-date Asset Tracking record
         StorageAssetTrackingTuple* updatedTuple =

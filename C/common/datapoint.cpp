@@ -396,8 +396,8 @@ std::vector<Datapoint*> *Datapoint::recursiveJson(const rapidjson::Value& docume
 			DatapointValue d(itr->value.GetDouble());
 			p->push_back(new Datapoint(itr->name.GetString(), d));
 		}
-		else if (itr->value.IsNumber() && !itr->value.IsDouble()) {
-			DatapointValue d((long)itr->value.GetInt());
+		else if (itr->value.IsNumber() && itr->value.IsInt64()) {
+			DatapointValue d((long)itr->value.GetInt64());
 			p->push_back(new Datapoint(itr->name.GetString(), d));
 		}
 	}

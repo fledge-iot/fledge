@@ -14,6 +14,10 @@
 #include <sstream>
 #include <unordered_set>
 #include <management_client.h>
+#include <queue>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
 
 /**
  * The AssetTrackingTuple class is used to represent an asset
@@ -109,7 +113,7 @@ class AssetTracker {
 
 public:
 	AssetTracker(ManagementClient *mgtClient, std::string service);
-	~AssetTracker() {}
+	~AssetTracker();
 	static AssetTracker *getAssetTracker();
 	void	populateAssetTrackingCache(std::string plugin, std::string event);
 	bool	checkAssetTrackingCache(AssetTrackingTuple& tuple);
@@ -127,16 +131,24 @@ public:
 		{
 			return getService("Egress", asset);
 		};
+	void	workerThread();
 
 private:
 	std::string
 		getService(const std::string& event, const std::string& asset);
+	void	queue(AssetTrackingTuple *tuple);
 
 private:
-	static AssetTracker	*instance;
-	ManagementClient	*m_mgtClient;
-	std::string		m_service;
-	std::unordered_set<AssetTrackingTuple*, std::hash<AssetTrackingTuple*>, AssetTrackingTuplePtrEqual>	assetTrackerTuplesCache;
+	static AssetTracker			*instance;
+	ManagementClient			*m_mgtClient;
+	std::string				m_service;
+	std::unordered_set<AssetTrackingTuple*, std::hash<AssetTrackingTuple*>, AssetTrackingTuplePtrEqual>
+						assetTrackerTuplesCache;
+	std::queue<AssetTrackingTuple *>	m_pending;	// Tuples that are not yet written to the storage
+	std::thread				*m_thread;
+	bool					m_shutdown;
+	std::condition_variable			m_cv;
+	std::mutex				m_mutex;
 };
 
 /**

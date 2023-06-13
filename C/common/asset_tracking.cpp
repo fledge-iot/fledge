@@ -17,6 +17,15 @@ using namespace std;
 AssetTracker *AssetTracker::instance = 0;
 
 /**
+ * Worker thread entry point
+ */
+static void worker(void *arg)
+{
+	AssetTracker *tracker = (AssetTracker *)arg;
+	tracker->workerThread();
+}
+
+/**
  * Get asset tracker singleton instance for the current south service
  *
  * @return	Singleton asset tracker instance
@@ -36,6 +45,33 @@ AssetTracker::AssetTracker(ManagementClient *mgtClient, string service)
 	: m_mgtClient(mgtClient), m_service(service)
 {
 	instance = this;
+	m_shutdown = false;
+	m_thread = new thread(worker, this);
+}
+
+/**
+ * Destructor for the asset tracker. We must make sure any pending
+ * tuples are written out before the asset tracker is destroyed.
+ */
+AssetTracker::~AssetTracker()
+{
+	m_shutdown = true;
+	// Signal the worker thread to flush the queue
+	{
+		unique_lock<mutex> lck(m_mutex);
+		m_cv.notify_all();
+	}
+	while (m_pending.size())
+	{
+		// Wait for pending queue to drain
+		this_thread::sleep_for(chrono::milliseconds(10));
+	}
+	if (m_thread)
+	{
+		m_thread->join();
+		delete m_thread;
+		m_thread = NULL;
+	}
 }
 
 /**
@@ -83,6 +119,12 @@ bool AssetTracker::checkAssetTrackingCache(AssetTrackingTuple& tuple)
 		return true;
 }
 
+/**
+ * Lookup tuple in the asset tracker cache
+ *
+ * @param tuple		The tuple to lookup
+ * @return		NULL if the tuple is not in the cache or the tuple from the cache
+ */
 AssetTrackingTuple* AssetTracker::findAssetTrackingCache(AssetTrackingTuple& tuple)	
 {
 	AssetTrackingTuple *ptr = &tuple;
@@ -107,15 +149,10 @@ void AssetTracker::addAssetTrackingTuple(AssetTrackingTuple& tuple)
 	std::unordered_set<AssetTrackingTuple*>::const_iterator it = assetTrackerTuplesCache.find(&tuple);
 	if (it == assetTrackerTuplesCache.end())
 	{
-		bool rv = m_mgtClient->addAssetTrackingTuple(tuple.m_serviceName, tuple.m_pluginName, tuple.m_assetName, tuple.m_eventName);
-		if (rv) // insert into cache only if DB operation succeeded
-		{
-			AssetTrackingTuple *ptr = new AssetTrackingTuple(tuple);
-			assetTrackerTuplesCache.insert(ptr);
-			Logger::getLogger()->info("addAssetTrackingTuple(): Added tuple to cache: '%s'", tuple.assetToString().c_str());
-		}
-		else
-			Logger::getLogger()->error("addAssetTrackingTuple(): Failed to insert asset tracking tuple into DB: '%s'", tuple.assetToString().c_str());
+		AssetTrackingTuple *ptr = new AssetTrackingTuple(tuple);
+		queue(ptr);
+		assetTrackerTuplesCache.insert(ptr);
+		Logger::getLogger()->info("addAssetTrackingTuple(): Added tuple to cache: '%s'", tuple.assetToString().c_str());
 	}
 }
 
@@ -142,7 +179,7 @@ void AssetTracker::addAssetTrackingTuple(string plugin, string asset, string eve
 }
 
 /**
- * Return the name of the service responsible for particulr event of the named asset
+ * Return the name of the service responsible for particular event of the named asset
  *
  * @param event	The event of interest
  * @param asset	The asset we are interested in
@@ -234,5 +271,37 @@ void AssetTrackingTable::remove(const string& name)
 	{
 		m_tuples.erase(ret);
 		delete ret->second;	// Free the tuple
+	}
+}
+
+/**
+ * Queue an asset tuple for writing to the database.
+ */
+void AssetTracker::queue(AssetTrackingTuple *tuple)
+{
+	unique_lock<mutex> lck(m_mutex);
+	m_pending.push(tuple);
+	m_cv.notify_all();
+}
+
+/**
+ * The worker thread that will flush any pending asset tuples to
+ * the database.
+ */
+void AssetTracker::workerThread()
+{
+	unique_lock<mutex> lck(m_mutex);
+	while (m_pending.empty() && m_shutdown == false)
+	{
+		m_cv.wait(lck);
+	}
+
+	while (!m_pending.empty())
+	{
+		AssetTrackingTuple *tuple = m_pending.front();
+		// Write the tuple - ideally we like a bulk update here or to go direct to the
+		// database. However we need the Fledge service name for that
+		bool rv = m_mgtClient->addAssetTrackingTuple(tuple->m_serviceName, tuple->m_pluginName, tuple->m_assetName, tuple->m_eventName);
+		m_pending.pop();
 	}
 }

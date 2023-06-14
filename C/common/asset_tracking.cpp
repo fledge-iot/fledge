@@ -10,6 +10,7 @@
 
 #include <logger.h>
 #include <asset_tracking.h>
+#include <config_category.h>
 
 using namespace std;
 
@@ -47,6 +48,17 @@ AssetTracker::AssetTracker(ManagementClient *mgtClient, string service)
 	instance = this;
 	m_shutdown = false;
 	m_thread = new thread(worker, this);
+
+	try {
+		// Find out the name of the fledge service
+		ConfigCategory category = mgtClient->getCategory("service");
+		if (category.itemExists("name"))
+		{
+			m_fledgeName = category.getValue("name");
+		}
+	} catch (exception& ex) {
+		Logger::getLogger()->error("Unable to fetch the service category, %s", ex.what());
+	}
 }
 
 /**
@@ -293,14 +305,24 @@ void AssetTracker::workerThread()
 	unique_lock<mutex> lck(m_mutex);
 	while (m_pending.empty() && m_shutdown == false)
 	{
-		m_cv.wait(lck);
+		m_cv.wait_for(lck, chrono::milliseconds(500));
+		processQueue();
 	}
+	// Process any items left in the queue at shutdown
+	processQueue();
+}
 
+/**
+ * Process the queue of asset tracking tuple
+ */
+void AssetTracker::processQueue()
+{
 	while (!m_pending.empty())
 	{
 		AssetTrackingTuple *tuple = m_pending.front();
-		// Write the tuple - ideally we like a bulk update here or to go direct to the
-		// database. However we need the Fledge service name for that
+		// Write the tuple - ideally we would like a bulk update here or to go direct to the
+		// database. However we need the Fledge service name for that, which is now in
+		// the member variable m_fledgeName
 		bool rv = m_mgtClient->addAssetTrackingTuple(tuple->m_serviceName, tuple->m_pluginName, tuple->m_assetName, tuple->m_eventName);
 		m_pending.pop();
 	}

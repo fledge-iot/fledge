@@ -137,6 +137,7 @@ private:
 	std::string
 		getService(const std::string& event, const std::string& asset);
 	void	queue(AssetTrackingTuple *tuple);
+	void	processQueue();
 
 private:
 	static AssetTracker			*instance;
@@ -149,6 +150,7 @@ private:
 	bool					m_shutdown;
 	std::condition_variable			m_cv;
 	std::mutex				m_mutex;
+	std::string				m_fledgeName;
 };
 
 /**

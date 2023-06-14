@@ -169,8 +169,7 @@ def _uninstall(pkg_name: str, version: str, uid: uuid, storage: connect) -> tupl
         loop.run_until_complete(storage.update_tbl("packages", payload))
         if code == 0:
             # Clear internal cache
-            loop.run_until_complete(_put_refresh_cache(Server.is_rest_server_http_enabled,
-                                                       Server._host, Server.core_management_port))
+            loop.run_until_complete(_put_refresh_cache("http", Server._host, Server.core_management_port))
             # Audit logger
             audit = AuditLogger(storage)
             audit_detail = {'package_name': pkg_name, 'version': version}
@@ -364,7 +363,7 @@ async def _check_plugin_usage_in_notification_instances(plugin_name: str) -> lis
 async def _put_refresh_cache(protocol: str, host: int, port: int) -> None:
     management_api_url = '{}://{}:{}/fledge/cache'.format(protocol, host, port)
     headers = {'content-type': 'application/json'}
-    verify_ssl = False if protocol == 'HTTP' else True
+    verify_ssl = False
     connector = aiohttp.TCPConnector(verify_ssl=verify_ssl)
     async with aiohttp.ClientSession(connector=connector) as session:
         async with session.put(management_api_url, data=json.dumps({}), headers=headers) as resp:
@@ -418,8 +417,7 @@ def purge_plugin(plugin_type: str, plugin_name: str, pkg_name: str, version: str
 
         if code == 0:
             # Clear internal cache
-            loop.run_until_complete(_put_refresh_cache(Server.is_rest_server_http_enabled,
-                                                       Server._host, Server.core_management_port))
+            loop.run_until_complete(_put_refresh_cache("http", Server._host, Server.core_management_port))
             # Audit info
             audit = AuditLogger(storage)
             audit_detail = {'package_name': pkg_name, 'version': version}

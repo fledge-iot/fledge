@@ -47,6 +47,7 @@ AssetTracker::AssetTracker(ManagementClient *mgtClient, string service)
 {
 	instance = this;
 	m_shutdown = false;
+	m_storageClient = NULL;
 	m_thread = new thread(worker, this);
 
 	try {
@@ -59,6 +60,26 @@ AssetTracker::AssetTracker(ManagementClient *mgtClient, string service)
 	} catch (exception& ex) {
 		Logger::getLogger()->error("Unable to fetch the service category, %s", ex.what());
 	}
+
+	try {
+		// Get a handle on the storage layer
+		ServiceRecord storageRecord("Fledge Storage");
+		if (!m_mgtClient->getService(storageRecord))
+		{
+			Logger::getLogger()->fatal("Unable to find storage service");
+			return;
+		}
+		Logger::getLogger()->info("Connect to storage on %s:%d",
+				storageRecord.getAddress().c_str(),
+				storageRecord.getPort());
+
+		
+		m_storageClient = new StorageClient(storageRecord.getAddress(),
+						storageRecord.getPort());
+	} catch (exception& ex) {
+		Logger::getLogger()->error("Failed to create storage client", ex.what());
+	}
+
 }
 
 /**
@@ -83,6 +104,11 @@ AssetTracker::~AssetTracker()
 		m_thread->join();
 		delete m_thread;
 		m_thread = NULL;
+	}
+
+	if (m_storageClient)
+	{
+		delete m_storageClient;
 	}
 }
 
@@ -317,13 +343,42 @@ void AssetTracker::workerThread()
  */
 void AssetTracker::processQueue()
 {
+vector<InsertValues>	values;
+static bool warned = false;
+
 	while (!m_pending.empty())
 	{
 		AssetTrackingTuple *tuple = m_pending.front();
 		// Write the tuple - ideally we would like a bulk update here or to go direct to the
 		// database. However we need the Fledge service name for that, which is now in
 		// the member variable m_fledgeName
-		bool rv = m_mgtClient->addAssetTrackingTuple(tuple->m_serviceName, tuple->m_pluginName, tuple->m_assetName, tuple->m_eventName);
+		if (!m_storageClient)
+		{
+			// Fall back to using interface to the core
+			if (!warned)
+				Logger::getLogger()->warn("Asset tracker falling back to core API");
+			warned = true;
+			bool rv = m_mgtClient->addAssetTrackingTuple(tuple->m_serviceName, tuple->m_pluginName, tuple->m_assetName, tuple->m_eventName);
+		}
+		else
+		{
+			InsertValues iValue;
+			iValue.push_back(InsertValue("asset", tuple->m_assetName));
+			iValue.push_back(InsertValue("event", tuple->m_eventName));
+			iValue.push_back(InsertValue("service", tuple->m_serviceName));
+			iValue.push_back(InsertValue("fledge", m_fledgeName));
+			iValue.push_back(InsertValue("plugin", tuple->m_pluginName));
+			values.push_back(iValue);
+		}
 		m_pending.pop();
+	}
+	if (m_storageClient)
+	{
+		int n_rows = m_storageClient->insertTable("asset_tracker", values);
+		if (n_rows != values.size())
+		{
+			Logger::getLogger()->warn("The asset tracker failed to insert all records %d of %d inserted",
+					n_rows, values.size());
+		}
 	}
 }

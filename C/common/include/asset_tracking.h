@@ -18,6 +18,7 @@
 #include <thread>
 #include <mutex>
 #include <condition_variable>
+#include <storage_client.h>
 
 /**
  * The AssetTrackingTuple class is used to represent an asset
@@ -151,6 +152,7 @@ private:
 	std::condition_variable			m_cv;
 	std::mutex				m_mutex;
 	std::string				m_fledgeName;
+	StorageClient				*m_storageClient;
 };
 
 /**

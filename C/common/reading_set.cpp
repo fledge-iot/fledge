@@ -54,7 +54,7 @@ ReadingSet::ReadingSet(const vector<Reading *>* readings) : m_last_id(0)
 	m_count = readings->size();
 	for (auto it = readings->begin(); it != readings->end(); ++it)
 	{
-		if ((*it)->getId() > m_last_id)
+		if ((*it)->hasId() && (*it)->getId() > m_last_id)
 			m_last_id = (*it)->getId();
 		m_readings.push_back(*it);
 	}

@@ -42,7 +42,6 @@ else
     search_pattern="grep -a -E '${pattern}'"
 fi
 
-
 echo "" >&2
 echo "****************************************************************************************" >&2
 echo "************************************* START ********************************************" >&2
@@ -67,46 +66,47 @@ echo "offset=$offset, limit=$limit, sum=$sum, pattern=$search_pattern, sourceApp
 # calculate how many log lines are to be checked to get 'n' result lines for a given service and log level
 # if for getting 100 lines of interest, 6400 last syslog lines need to be checked, then factor would be 64
 factor=2
+initial_factor=$((${NUM_LOGFILE_LINES_TO_CHECK_INITIALLY} / $sum))
 if [[ $script_runs -eq 0 ]]; then
-    factor=$((${NUM_LOGFILE_LINES_TO_CHECK_INITIALLY} / $sum))
+    factor=$initial_factor
     [[ $factor -lt 2 ]] && factor=2
 else
     if [ -f /tmp/fl_syslog_factor ]; then
         echo "Reading factor value from /tmp/fl_syslog_factor" >&2
         if [[ $keyword_len -gt 0 ]]; then
-            factor_value=$(grep "$factor_keyword" /tmp/fl_syslog_factor | rev | cut -d: -f1 | rev)
+            cmd="grep '$factor_keyword' /tmp/fl_syslog_factor | rev | cut -d: -f1 | rev"
         else
-            factor_value=$(grep "$factor_keyword[0-9]+$" /tmp/fl_syslog_factor | rev | cut -d: -f1 | rev)
+            cmd="grep '$factor_keyword[0-9][0-9]*$' /tmp/fl_syslog_factor | rev | cut -d: -f1 | rev"
         fi
+        echo "Read factor cmd='$cmd'" >&2
+        factor=$(eval $cmd)
         echo "Read factor value of '$factor' from /tmp/fl_syslog_factor" >&2
-        [ -z $factor ] && factor=2 && echo "Using factor value of $factor" >&2
+        [ -z $factor ] && factor=$initial_factor && echo "Using factor value of $factor" >&2
     else
-        [ -z $factor ] && factor=2 && echo "Using factor value of $factor; file '/tmp/fl_syslog_factor' is missing" >&2
+        [ -z $factor ] && factor=$initial_factor && echo "Using factor value of $factor; file '/tmp/fl_syslog_factor' is missing" >&2
         echo "Starting with factor=$factor" >&2
     fi
+
 fi
 
 tmpfile=$(mktemp)
 loop_iters=0
+logfile_line_count=$(wc -l < $logfile)
 
 # check the last 'n' lines of syslog for log lines of interest, else keep doubling 'n' till syslog file size
 while [ 1 ];
 do
 	t1=$(date +%s%N)
-	filesz=$(stat -c%s $logfile)
-	filesz_dbl=$(($filesz * 2))
-
-	lines=$(($factor * $sum))
-
-	echo "loop_iters=$loop_iters: factor=$factor, lines=$lines, tmpfile=$tmpfile" >&2
-
-	cmd="tail -n $lines $logfile | ${search_pattern} > $tmpfile"
-	echo "cmd=$cmd, filesz=$filesz" >&2
+	lines_to_check=$(($factor * $sum))
+  echo >&2
+	echo "loop_iters=$loop_iters: factor=$factor, lines=$lines_to_check, tmpfile=$tmpfile" >&2
+	cmd="tail -n $lines_to_check $logfile | ${search_pattern} > $tmpfile"
+	echo "cmd=$cmd, logfile line count=$logfile_line_count" >&2
 	eval "$cmd"
 	t2=$(date +%s%N)
 	t_diff=$(((t2 - t1)/1000000))
 	count=$(wc -l < $tmpfile)
-	echo "Got $count matching log lines in last $lines lines of syslog file; processing time=${t_diff}ms" >&2
+	echo "Got $count matching log lines in last $lines_to_check lines of syslog file; processing time=${t_diff}ms" >&2
 
 	if [[ $count -ge $sum ]]; then
 		echo "Got sufficient number of matching log lines, current factor value of $factor is good" >&2
@@ -117,16 +117,10 @@ do
 		grep -v "$factor_keyword" /tmp/fl_syslog_factor > /tmp/fl_syslog_factor.out; mv /tmp/fl_syslog_factor.out /tmp/fl_syslog_factor
 		echo "$factor_keyword$factor" >> /tmp/fl_syslog_factor
 		break
-	else
-        	new_factor=$factor
-		[[ $count -ne 0 ]] && ( new_factor=$(($lines / $count)) && new_factor=$(($new_factor + 1)) )
-		echo "factor=$factor, new_factor=$new_factor" >&2
-		[[ $new_factor -eq $factor ]] && [[ $lines -lt $filesz_dbl ]] && factor=$(($factor * 2)) || factor=$new_factor
-		echo "Didn't get sufficient number of matching log lines, trying factor=$factor" >&2
 	fi
 
-	if [[ $lines -gt $filesz_dbl ]]; then
-		echo "Cannot increase factor value any further; filesz=$filesz, lines=$lines" >&2
+	if [[ $lines_to_check -gt $logfile_line_count ]]; then
+		echo "Cannot increase factor value any further; logfile line count=$logfile_line_count, lines=$lines_to_check" >&2
 
 		cat $tmpfile | tail -n $sum | head -n $limit
 		echo "Log results START:" >&2
@@ -138,6 +132,9 @@ do
 		echo "$factor_keyword$factor" >> /tmp/fl_syslog_factor
 		break
 	fi
+
+    factor=$(($factor * 2))
+    echo "Didn't get sufficient number of matching log lines, trying factor=$factor" >&2
 
 	loop_iters=$(($loop_iters + 1))
 done

@@ -98,7 +98,7 @@ while [ 1 ];
 do
 	t1=$(date +%s%N)
 	lines_to_check=$(($factor * $sum))
-  echo >&2
+	echo >&2
 	echo "loop_iters=$loop_iters: factor=$factor, lines=$lines_to_check, tmpfile=$tmpfile" >&2
 	cmd="tail -n $lines_to_check $logfile | ${search_pattern} > $tmpfile"
 	echo "cmd=$cmd, logfile line count=$logfile_line_count" >&2

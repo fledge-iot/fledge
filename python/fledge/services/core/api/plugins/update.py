@@ -380,7 +380,10 @@ def _update_repo_sources_and_plugin(pkg_name: str) -> tuple:
 def do_update(http_enabled: bool, host: str, port: int, storage: connect, _type: str, plugin_name: str,
               pkg_name: str, uid: str, schedules: list, notifications: list) -> None:
     _logger.info("{} package update started...".format(pkg_name))
-    protocol = "HTTP" if http_enabled else "HTTPS"
+    
+    # Protocol is always http:// on core_management_port
+    protocol = "HTTP"
+
     code, link = _update_repo_sources_and_plugin(pkg_name)
 
     # Update record in Packages table

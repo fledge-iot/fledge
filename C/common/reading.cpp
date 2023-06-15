@@ -35,7 +35,7 @@ std::vector<std::string> Reading::m_dateTypes = {
  * Each actual datavalue that relates to that asset is held within an
  * instance of a Datapoint class.
  */
-Reading::Reading(const string& asset, Datapoint *value) : m_asset(asset)
+Reading::Reading(const string& asset, Datapoint *value) : m_asset(asset), m_has_id(false)
 {
 	m_values.push_back(value);
 	// Store seconds and microseconds
@@ -51,7 +51,7 @@ Reading::Reading(const string& asset, Datapoint *value) : m_asset(asset)
  * Each actual datavalue that relates to that asset is held within an
  * instance of a Datapoint class.
  */
-Reading::Reading(const string& asset, vector<Datapoint *> values) : m_asset(asset)
+Reading::Reading(const string& asset, vector<Datapoint *> values) : m_asset(asset), m_has_id(false)
 {
 	for (auto it = values.cbegin(); it != values.cend(); it++)
 	{
@@ -70,7 +70,7 @@ Reading::Reading(const string& asset, vector<Datapoint *> values) : m_asset(asse
  * Each actual datavalue that relates to that asset is held within an
  * instance of a Datapoint class.
  */
-Reading::Reading(const string& asset, vector<Datapoint *> values, const string& ts) : m_asset(asset)
+Reading::Reading(const string& asset, vector<Datapoint *> values, const string& ts) : m_asset(asset), m_has_id(false)
 {
 	for (auto it = values.cbegin(); it != values.cend(); it++)
 	{
@@ -84,7 +84,7 @@ Reading::Reading(const string& asset, vector<Datapoint *> values, const string& 
 /**
  * Construct a reading with datapoints given as JSON
  */
-Reading::Reading(const string& asset, const string& datapoints) : m_asset(asset)
+Reading::Reading(const string& asset, const string& datapoints) : m_asset(asset), m_has_id(false)
 {
 	Document d;
 	if (d.Parse(datapoints.c_str()).HasParseError())

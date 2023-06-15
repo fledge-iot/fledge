@@ -11,8 +11,7 @@ FLEDGE_TEST_BRANCH=$1     #here fledge_test_branch means branch of fledge reposi
 
 cleanup(){
   # Removing temporary files, fledge and its plugin repository cloned by previous build of the Job 
-  echo "Removing Cloned repository and tmp files"
-  rm -rf /tmp/*valgrind*.log /tmp/*valgrind*.xml
+  echo "Removing Cloned repository and log files"
   rm -rf fledge* reports && echo 'Done.'
 }
 
@@ -98,7 +97,7 @@ generate_valgrind_logs(){
   echo 'Creating reports directory';
   mkdir -p reports/test1 ; ls -lrth
   echo 'copying reports '
-  cp -rf /tmp/*valgrind*.log /tmp/*valgrind*.xml reports/test1/.  && echo 'copied'
+  cp -rf /tmp/*valgrind*.log reports/test1/. && echo 'copied'
   rm -rf fledge*
 }
 

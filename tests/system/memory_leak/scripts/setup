@@ -17,6 +17,7 @@ echo "UNAME is "${UNAME}
 sudo apt -y  install git
 
 # cloning fledge
+echo "Cloning Fledge branch $BRANCH"
 git clone -b $BRANCH  https://github.com/fledge-iot/fledge.git &&  cd fledge && chmod +x requirements.sh && sh -x requirements.sh ;
 
 echo 'Changing CMakelists'
@@ -34,22 +35,22 @@ export FLEDGE_ROOT=`pwd` && cd ..;
 
 # modifying script
 echo 'fledge root path is set to  ${FLEDGE_ROOT}'
-valgrind_conf=' --tool=memcheck  --fullpath-after=  --xml=yes  --log-file=\/tmp\/south_valgrind.log --child-silent-after-fork=no --leak-check=full --show-leak-kinds=all --track-origins=yes '
+valgrind_conf=' --tool=memcheck --leak-check=full --show-leak-kinds=all'
 
 psouth_c=${FLEDGE_ROOT}/scripts/services/south_c
 echo $psouth_c
 sudo sed -i 's#/usr/local/fledge#'"$FLEDGE_ROOT"'#g' ${psouth_c}
-sudo sed -i '/.\/fledge.services.south.*/s/^/valgrind -v --xml-file=\/tmp\/south_valgrind_%p.xml  '"$valgrind_conf"'  /' ${psouth_c}
+sudo sed -i '/.\/fledge.services.south.*/s/^/valgrind --log-file=\/tmp\/south_valgrind.log '"$valgrind_conf"' /' ${psouth_c}
 
 pnorth_C=${FLEDGE_ROOT}/scripts/services/north_C
 echo $pnorth_C
 sudo sed -i 's#/usr/local/fledge#'"$FLEDGE_ROOT"'#g' ${pnorth_C}
-sudo sed -i '/.\/fledge.services.north.*/s/^/valgrind -v  --xml-file=\/tmp\/north_valgrind_%p.xml '"$valgrind_conf"'  /' ${pnorth_C}
+sudo sed -i '/.\/fledge.services.north.*/s/^/valgrind --log-file=\/tmp\/north_valgrind.log '"$valgrind_conf"' /' ${pnorth_C}
 
 pstorage=${FLEDGE_ROOT}/scripts/services/storage
 echo $pstorage
 sudo sed -i 's#/usr/local/fledge#'"$FLEDGE_ROOT"'#g' ${pstorage}
-sudo sed -i '/\${storageExec} \"\$@\"/s/^/valgrind -v   --xml-file=\/tmp\/storage_valgrind_%p.xml '"$valgrind_conf"'  /' ${pstorage}
+sudo sed -i '/\${storageExec} \"\$@\"/s/^/valgrind --log-file=\/tmp\/storage_valgrind.log '"$valgrind_conf"' /' ${pstorage}
 
 # cloning plugins based on parameters passed to the script, Currently only installing sinusoid
 for i in ${1}

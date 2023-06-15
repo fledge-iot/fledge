@@ -537,7 +537,7 @@ Datapoint *rval = NULL;
 			}
 			else if (item.IsInt64())
 			{
-				DatapointValue value(item.GetInt64());
+				DatapointValue value((long)item.GetInt64());
 				rval = new Datapoint(name, value);
 				break;
 			}

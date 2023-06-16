@@ -84,6 +84,9 @@ void DataSender::sendThread()
 
 				// Set readings removal
 				removeReadings = vec->size() == 0;
+			} else {
+				// If no reading sent, set readings removal
+				removeReadings = true;
 			}
 		} else {
 			// All readings filtered out

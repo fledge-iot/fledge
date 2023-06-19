@@ -17,7 +17,7 @@ cleanup(){
 
 # Setting up Fledge and installing its plugin
 setup(){
-   ./scripts/setup fledge-south-sinusoid  ${FLEDGE_TEST_BRANCH} 
+   ./scripts/setup "fledge-south-sinusoid fledge-south-random"  "${FLEDGE_TEST_BRANCH}"
 }
 
 reset_fledge(){
@@ -25,7 +25,7 @@ reset_fledge(){
 }
 
 add_sinusoid(){ 
-  echo -e INFO: "Add South"
+  echo -e INFO: "Add South Sinusoid"
   curl -sX POST "$FLEDGE_URL/service" -d \
   '{
      "name": "Sine",
@@ -43,6 +43,25 @@ add_sinusoid(){
   echo
 }
 
+add_randomwalk(){
+  echo -e INFO: "Add South Randomwalk"
+  curl -sX POST "$FLEDGE_URL/service" -d \
+  '{
+     "name": "Random",
+     "type": "south",
+     "plugin": "Random",
+     "enabled": true,
+     "config": {}
+  }'
+  echo
+  echo 'Updating Readings per second'
+
+  sleep 60
+
+  curl -sX PUT "$FLEDGE_URL/category/RandomAdvanced" -d '{ "readingsPerSec": "100"}'
+  echo
+
+}
 setup_north_pi_egress () {
   # Add PI North as service
   echo 'Setting up North'
@@ -105,6 +124,7 @@ cleanup
 setup
 reset_fledge
 add_sinusoid
+add_randomwalk
 setup_north_pi_egress
 collect_data
 generate_valgrind_logs 

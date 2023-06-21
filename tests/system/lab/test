@@ -899,19 +899,18 @@ else
 fi
 
 echo "===================== COLLECTING SUPPORT BUNDLE ============================"
-SUPPORT_BUNDLE_DIR="$PROJECT_ROOT/support"
+support_bundle="$PROJECT_ROOT/support"
 BUNDLE=$(curl -sX POST "$URL/support")
 if jq -e 'has("bundle created")' <<< "$BUNDLE" > /dev/null; then
     echo "Support Bundle Created"
-    rm -rf "$SUPPORT_BUNDLE_DIR" && mkdir -p "$SUPPORT_BUNDLE_DIR" && \
-    cp -r /usr/local/fledge/data/support/* "$SUPPORT_BUNDLE_DIR"/. && \
-    echo "Support Bundle Saved to $SUPPORT_BUNDLE_DIR"
+    rm -rf "$support_bundle" && mkdir -p "$support_bundle" && \
+    cp -r /usr/local/fledge/data/support/* "$support_bundle"/. && \
+    echo "Support bundle has been saved to path: $support_bundle"
 else
     echo "Failed to Create support bundle"
-    echo "Copying Syslog"
     rm -rf "$PROJECT_ROOT"/support && mkdir -p "$PROJECT_ROOT"/support && \
     cp /var/log/syslog "$PROJECT_ROOT"/support/. && \
-    echo "Syslog Saved to $SUPPORT_BUNDLE_DIR"
+    echo "Syslog Saved to $support_bundle"
 fi
 echo "===================== COLLECTED SUPPORT BUNDLE ============================"
 

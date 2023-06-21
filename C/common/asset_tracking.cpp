@@ -179,3 +179,60 @@ string AssetTracker::getService(const std::string& event, const std::string& ass
 		throw runtime_error("Fetching service for asset not yet implemented");
 	}
 }
+
+/**
+ * Constructor for an asset tracking tuple table
+ */
+AssetTrackingTable::AssetTrackingTable()
+{
+}
+
+/**
+ * Destructor for asset tracking tuple table
+ */
+AssetTrackingTable::~AssetTrackingTable()
+{
+	for (auto t : m_tuples)
+	{
+		delete t.second;
+	}
+}
+
+/**
+ * Add a tuple to an asset tracking table
+ *
+ * @param tuple	Pointer to the asset tracking tuple to add
+ */
+void	AssetTrackingTable::add(AssetTrackingTuple *tuple)
+{
+	auto ret = m_tuples.insert(pair<string, AssetTrackingTuple *>(tuple->getAssetName(), tuple));
+	if (ret.second == false)
+		delete tuple;	// Already exists
+}
+
+/**
+ * Find the named asset tuple and return a pointer to te asset
+ *
+ * @param name	The name of the asset to lookup
+ * @return AssetTrackingTupple* 	The matchign tuple or NULL
+ */
+AssetTrackingTuple *AssetTrackingTable::find(const string& name)
+{
+	auto ret = m_tuples.find(name);
+	if (ret != m_tuples.end())
+		return ret->second;
+	return NULL;
+}
+
+/**
+ * Remove an asset tracking tuple from the table
+ */
+void AssetTrackingTable::remove(const string& name)
+{
+	auto ret = m_tuples.find(name);
+	if (ret != m_tuples.end())
+	{
+		m_tuples.erase(ret);
+		delete ret->second;	// Free the tuple
+	}
+}

@@ -139,4 +139,20 @@ private:
 	std::unordered_set<AssetTrackingTuple*, std::hash<AssetTrackingTuple*>, AssetTrackingTuplePtrEqual>	assetTrackerTuplesCache;
 };
 
+/**
+ * A class to hold a set of asset tracking tuples that allows
+ * lookup by name.
+ */
+class AssetTrackingTable {
+	public:
+		AssetTrackingTable();
+		~AssetTrackingTable();
+		void			add(AssetTrackingTuple *tuple);
+		void			remove(const std::string& name);
+		AssetTrackingTuple	*find(const std::string& name);
+	private:
+		std::map<std::string, AssetTrackingTuple *>
+				m_tuples;
+};
+
 #endif

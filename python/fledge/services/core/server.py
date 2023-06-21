@@ -149,7 +149,8 @@ class Server:
             'type': 'string',
             'default': 'Fledge',
             'displayName': 'Name',
-            'order': '1'
+            'order': '1',
+            'mandatory': "true"
         },
         'description': {
             'description': 'Description of this Fledge service',

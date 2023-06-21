@@ -242,6 +242,7 @@ SouthService::SouthService(const string& myName, const string& token) :
 {
 	m_name = myName;
 	m_type = SERVICE_TYPE;
+	m_pollType = POLL_INTERVAL;
 
 	logger = new Logger(myName);
 	logger->setMinLevel("warning");

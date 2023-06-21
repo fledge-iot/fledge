@@ -85,7 +85,9 @@ void DataSender::sendThread()
 				// Set readings removal
 				removeReadings = vec->size() == 0;
 			} else {
-				// If no reading sent, set readings removal
+				// TODO: FOGL-7884: Reuse unsent readings without 
+				// fetching again from storage.
+				// If failed to send reading, set readings removal to prevent memory leak
 				removeReadings = true;
 			}
 		} else {

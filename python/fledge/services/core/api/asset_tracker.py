@@ -43,6 +43,7 @@ async def get_asset_tracker_events(request: web.Request) -> web.Response:
             curl -sX GET http://localhost:8081/fledge/track?asset=XXX
             curl -sX GET http://localhost:8081/fledge/track?event=XXX
             curl -sX GET http://localhost:8081/fledge/track?service=XXX
+            curl -sX GET http://localhost:8081/fledge/track?deprecated=true
             curl -sX GET http://localhost:8081/fledge/track?event=XXX&asset=XXX&service=XXX
     """
     payload = PayloadBuilder().SELECT("asset", "event", "service", "fledge", "plugin", "ts", "deprecated_ts", "data") \
@@ -58,6 +59,10 @@ async def get_asset_tracker_events(request: web.Request) -> web.Response:
     if 'service' in request.query and request.query['service'] != '':
         service = urllib.parse.unquote(request.query['service'])
         payload.AND_WHERE(['service', '=', service])
+    if 'deprecated' in request.query and request.query['deprecated'] != '':
+        deprecated = request.query['deprecated'].strip().lower()
+        if deprecated == "true":
+            payload.AND_WHERE(['deprecated_ts', "notnull"])
 
     storage_client = connect.get_storage_async()
     payload = PayloadBuilder(payload.chain_payload())

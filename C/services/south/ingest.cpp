@@ -989,11 +989,8 @@ void Ingest::useFilteredData(OUTPUT_HANDLE *outHandle,
 		}
 		else
 		{
-			ingest->m_data = new std::vector<Reading *>;
-			for (auto & r : readingSet->getAllReadings())
-			{
-				ingest->m_data->emplace_back(new Reading(*r)); // Need to copy reading objects here, since "del readingSet" below would remove encapsulated reading objects also
-			}
+			// move reading vector to ingest
+			ingest->m_data = readingSet->moveAllReadings();
 		}
 	}
 	readingSet->clear();

@@ -553,7 +553,6 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 							if (set)
 							{
 							    std::vector<Reading *> *vec = set->getAllReadingsPtr();
-							    std::vector<Reading *> *vec2 = new std::vector<Reading *>;
 							    if (!vec)
 							    {
 								Logger::getLogger()->info("%s:%d: V2 poll method: vec is NULL", __FUNCTION__, __LINE__);

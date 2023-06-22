@@ -102,9 +102,18 @@ void NorthPlugin::startData(const string& storedData)
  */
 uint32_t NorthPlugin::send(const vector<Reading *>& readings)
 {
-	lock_guard<mutex> guard(mtx2);
+	mtx2.lock();
 	try {
-		return this->pluginSendPtr(m_instance, readings);
+		int ret = this->pluginSendPtr(m_instance, readings);
+                if (ret == 0)
+                {
+                        mtx2.unlock();
+                        usleep(500);
+                        return 0;
+                }
+                mtx2.unlock();
+                return ret;
+
 	} catch (exception& e) {
 		Logger::getLogger()->fatal("Unhandled exception raised in north plugin send(), %s",
 			e.what());

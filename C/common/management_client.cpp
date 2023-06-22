@@ -13,7 +13,6 @@
 #include <service_record.h>
 #include <string_utils.h>
 #include <asset_tracking.h>
-#include <storage_asset_tracking.h>
 #include <bearer_token.h>
 #include <crypto.hpp>
 #include <rapidjson/error/en.h>

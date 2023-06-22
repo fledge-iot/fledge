@@ -5,7 +5,7 @@
  *
  * Released under the Apache 2.0 Licence
  *
- * Author: Amandeep Singh Arora
+ * Author: Amandeep Singh Arora, Massimiliano Pinto
  */
 
 #include <logger.h>
@@ -190,7 +190,7 @@ void AssetTracker::addAssetTrackingTuple(AssetTrackingTuple& tuple)
 		AssetTrackingTuple *ptr = new AssetTrackingTuple(tuple);
 		queue(ptr);
 		assetTrackerTuplesCache.insert(ptr);
-		Logger::getLogger()->info("addAssetTrackingTuple(): Added tuple to cache: '%s'", tuple.assetToString().c_str());
+		Logger::getLogger()->debug("addAssetTrackingTuple(): Added tuple to cache: '%s'", tuple.assetToString().c_str());
 	}
 }
 
@@ -315,7 +315,7 @@ void AssetTrackingTable::remove(const string& name)
 /**
  * Queue an asset tuple for writing to the database.
  */
-void AssetTracker::queue(AssetTrackingTuple *tuple)
+void AssetTracker::queue(TrackingTuple *tuple)
 {
 	unique_lock<mutex> lck(m_mutex);
 	m_pending.push(tuple);
@@ -348,32 +348,38 @@ static bool warned = false;
 
 	while (!m_pending.empty())
 	{
-		AssetTrackingTuple *tuple = m_pending.front();
+		// Get first element as TrackingTuple calss
+		TrackingTuple *tuple = m_pending.front();
 		// Write the tuple - ideally we would like a bulk update here or to go direct to the
 		// database. However we need the Fledge service name for that, which is now in
 		// the member variable m_fledgeName
-		if (!m_storageClient)
+
+		bool warn = warned;
+		// Call class specialised processData routine:
+		// - 1 Insert asset tracker data via Fledge API as fallback
+		// or
+		// - get values for direct DB operation
+                InsertValues iValue = tuple->processData(m_storageClient != NULL,
+							m_mgtClient,
+							warn,
+							m_fledgeName);
+		warned = warn;
+
+		// Bulk DB insert when queue is empty
+		if (iValue.size() > 0)
 		{
-			// Fall back to using interface to the core
-			if (!warned)
-				Logger::getLogger()->warn("Asset tracker falling back to core API");
-			warned = true;
-			bool rv = m_mgtClient->addAssetTrackingTuple(tuple->m_serviceName, tuple->m_pluginName, tuple->m_assetName, tuple->m_eventName);
-		}
-		else
-		{
-			InsertValues iValue;
-			iValue.push_back(InsertValue("asset", tuple->m_assetName));
-			iValue.push_back(InsertValue("event", tuple->m_eventName));
-			iValue.push_back(InsertValue("service", tuple->m_serviceName));
-			iValue.push_back(InsertValue("fledge", m_fledgeName));
-			iValue.push_back(InsertValue("plugin", tuple->m_pluginName));
 			values.push_back(iValue);
 		}
+
+		// Remove element
 		m_pending.pop();
+
 	}
-	if (m_storageClient)
+
+	// Queue processed, bulk direct DB data insert could be done
+	if (m_storageClient && values.size() > 0)
 	{
+                // Bulk DB insert
 		int n_rows = m_storageClient->insertTable("asset_tracker", values);
 		if (n_rows != values.size())
 		{
@@ -382,3 +388,413 @@ static bool warned = false;
 		}
 	}
 }
+
+/**
+ * Fetch all storage asset tracking tuples from DB and populate local cache
+ *
+ * Return the vector of deprecated asset names
+ *
+ */
+void AssetTracker::populateStorageAssetTrackingCache()
+{
+
+	try {
+		std::vector<StorageAssetTrackingTuple*>& vec =
+			(std::vector<StorageAssetTrackingTuple*>&) m_mgtClient->getStorageAssetTrackingTuples(m_service);
+
+		for (StorageAssetTrackingTuple* & rec : vec)
+		{
+			set<string> setOfDPs = getDataPointsSet(rec->m_datapoints);
+			if (setOfDPs.size() == 0)
+			{
+				Logger::getLogger()->warn("%s:%d Datapoints unavailable for service %s ",
+							__FUNCTION__,
+							__LINE__,
+							m_service.c_str());
+			}
+			// Add item into cache
+			storageAssetTrackerTuplesCache[rec] = setOfDPs;
+		}
+		delete (&vec);
+	}
+	catch (...)
+	{
+		Logger::getLogger()->error("%s:%d Failed to populate storage asset " \
+					"tracking tuples' cache",
+					__FUNCTION__,
+					__LINE__);
+		return;
+	}
+
+	return;
+}
+
+//This function takes a string of datapoints in comma-separated format and returns
+//set of string datapoint values
+std::set<std::string> AssetTracker::getDataPointsSet(std::string strDatapoints)
+{
+	std::set<std::string> tokens;
+	stringstream st(strDatapoints);
+	std::string temp;
+
+	while(getline(st, temp, ','))
+	{
+		tokens.insert(temp);
+	}
+
+	return tokens;
+}
+
+/**
+ * Return Plugin Information in the Fledge configuration
+ *
+ * @return bool True if the plugin info could be obtained
+ */
+bool AssetTracker::getFledgeConfigInfo()
+{
+	Logger::getLogger()->error("StorageAssetTracker::getPluginInfo start");
+	try {
+		string url = "/fledge/category/service";
+		if (!m_mgtClient)
+		{
+			Logger::getLogger()->error("%s:%d, m_mgtClient Ptr is NULL",
+						__FUNCTION__,
+						__LINE__);
+			return false;
+		}
+
+		auto res = m_mgtClient->getHttpClient()->request("GET", url.c_str());
+		Document doc;
+		string response = res->content.string();
+		doc.Parse(response.c_str());
+		if (doc.HasParseError())
+		{
+			bool httpError = (isdigit(response[0]) &&
+					isdigit(response[1]) &&
+					isdigit(response[2]) &&
+					response[3]==':');
+			Logger::getLogger()->error("%s fetching service record: %s\n",
+					httpError?"HTTP error while":"Failed to parse result of",
+					response.c_str());
+			return false;
+		}
+		else if (doc.HasMember("message"))
+		{
+			Logger::getLogger()->error("Failed to fetch /fledge/category/service %s.",
+			doc["message"].GetString());
+			return false;
+		}
+		else
+		{
+			Value& serviceName = doc["name"];
+			if (!serviceName.IsObject())
+			{
+				Logger::getLogger()->error("%s:%d, serviceName is not an object",
+							__FUNCTION__,
+						       	__LINE__);
+				return false;
+			}
+
+			if (!serviceName.HasMember("value"))
+			{
+				Logger::getLogger()->error("%s:%d, serviceName has no member value",
+							__FUNCTION__,
+							__LINE__);
+				return false;
+
+			}
+			Value& serviceVal = serviceName["value"];
+			if ( !serviceVal.IsString())
+			{
+				Logger::getLogger()->error("%s:%d, serviceVal is not a string",
+							__FUNCTION__,
+							__LINE__);
+				return false;
+			}
+
+			m_fledgeName = serviceVal.GetString();
+			Logger::getLogger()->error("%s:%d, m_plugin value = %s",
+						__FUNCTION__,
+						__LINE__,
+						m_fledgeName.c_str());
+			return true;
+		}
+
+	} catch (const SimpleWeb::system_error &e) {
+		Logger::getLogger()->error("Get service failed %s.", e.what());
+		return false;
+	}
+
+	return false;
+}
+
+/** This function takes a StorageAssetTrackingTuple pointer and searches for
+ *  it in cache, if found then returns its Deprecated status
+ *
+ * @param ptr	StorageAssetTrackingTuple* , as key in cache (map)
+ * @return bool	Deprecation status
+ */
+bool AssetTracker::getDeprecated(StorageAssetTrackingTuple* ptr)
+{
+        StorageAssetCacheMapItr it = storageAssetTrackerTuplesCache.find(ptr);
+
+        if (it == storageAssetTrackerTuplesCache.end())
+        {
+                Logger::getLogger()->debug("%s:%d :tuple not found in cache",
+					__FUNCTION__,
+					__LINE__);
+                return false;
+        }
+        else
+        {
+                return (it->first)->isDeprecated();
+        }
+
+        return false;
+}
+
+/**
+ *  Updates datapoints present in the arg dpSet in the cache
+ *
+ * @param dpSet		set of datapoints string values to be updated in cache
+ * @param ptr		StorageAssetTrackingTuple* , as key in cache (map)
+ * Retval void
+ */
+
+void AssetTracker::updateCache(std::set<std::string> dpSet, StorageAssetTrackingTuple* ptr)
+{
+	if(ptr == nullptr)
+	{
+		Logger::getLogger()->error("%s:%d: StorageAssetTrackingTuple should not be NULL pointer",
+					__FUNCTION__,
+					__LINE__);
+		return;
+	}
+
+	unsigned int sizeOfInputSet = dpSet.size();
+	StorageAssetCacheMapItr it = storageAssetTrackerTuplesCache.find(ptr);
+
+	// search for the record in cache , if not present, simply update cache and return
+	if (it == storageAssetTrackerTuplesCache.end())
+	{
+		Logger::getLogger()->debug("%s:%d :tuple not found in cache ",
+					__FUNCTION__,
+					__LINE__);
+
+		std::string strDatapoints;
+		unsigned int count = 0;
+		for (auto itr : dpSet)
+		{
+			strDatapoints.append(itr);
+			strDatapoints.append(",");
+			count++;
+		}
+		if (strDatapoints[strDatapoints.size()-1] == ',')
+		{
+			strDatapoints.pop_back();
+		}
+
+		// Add StorageAssetTrackingTuple to the process queue
+		addStorageAssetTrackingTuple(*ptr, strDatapoints, count);
+
+		// Add tuple to its cache
+		storageAssetTrackerTuplesCache[ptr] = dpSet;
+
+		return;
+	}
+	else
+	{
+		// record is found in cache , compare the datapoints of the argument ptr to that present in the cache
+		// update the cache with datapoints present in argument record but  absent in cache
+
+		std::set<std::string> &cacheRecord = it->second;
+		unsigned int sizeOfCacheRecord = cacheRecord.size();
+
+		// store all the datapoints to be updated in string strDatapoints which is sent to management_client
+		std::string strDatapoints;
+		unsigned int count = 0;
+		for (auto itr : cacheRecord)
+		{
+			strDatapoints.append(itr);
+			strDatapoints.append(",");
+			count++;
+		}
+
+		// check which datapoints are not present in cache record, and need to be updated
+		// in cache and db, store them in string strDatapoints, in comma-separated format
+		for(auto itr: dpSet)
+		{
+			if (cacheRecord.find(itr) == cacheRecord.end())
+			{
+				strDatapoints.append(itr);
+				strDatapoints.append(",");
+				count++;
+			}
+		}
+
+		// remove the last comma
+		if (strDatapoints[strDatapoints.size()-1] == ',')
+		{
+			strDatapoints.pop_back();
+		}
+
+		if (count <= sizeOfCacheRecord)
+		{
+			// No need to update as count of cache record is not getting increased
+			return;
+		}
+
+		// Add StorageAssetTrackingTuple to the process queue
+		addStorageAssetTrackingTuple(*ptr, strDatapoints, count);
+
+		// if update of DB successful , then update the CacheRecord
+		for(auto itr: dpSet)
+		{
+			if (cacheRecord.find(itr) == cacheRecord.end())
+			{
+				cacheRecord.insert(itr);
+			}
+		}
+	}
+}
+
+/**
+ * Add asset tracking tuple via microservice management API and in cache
+ *
+ * @param tuple         New tuple to add  to the queue
+ * @param datapoints	comma separated list of datapoints
+ * @param dpCount	Number of datapoints
+ */
+void AssetTracker::addStorageAssetTrackingTuple(StorageAssetTrackingTuple& tuple,
+						string &datapoints,
+						unsigned int dpCount)
+{
+	// Create new tuple from input one
+	StorageAssetTrackingTuple *ptr = new StorageAssetTrackingTuple(tuple);
+
+	// Add datapoints and count needed for data insert
+	ptr->m_datapoints = datapoints;
+	ptr->m_maxCount = dpCount;
+
+	// Add new tuple to processing queue
+	queue(ptr);
+}
+
+/**
+ * Insert AssetTrackingTuple data via Fledge core API
+ * or prepare InsertValues object for direct DB operation
+ *
+ * @param storage	Boolean for storage being available
+ * @param mgtClient	ManagementClient object pointer
+ * @param warned	Boolean ireference updated for logging operation
+ * @param instanceName	Fledge instance name
+ * @return 		InsertValues object
+ */
+InsertValues AssetTrackingTuple::processData(bool storage,
+					ManagementClient *mgtClient,
+					bool &warned,
+					string &instanceName)
+{
+	InsertValues iValue;
+
+	// Write the tuple - ideally we would like a bulk update here or to go direct to the
+	// database. However we need the Fledge service name  passed in instanceName
+	if (!storage)
+	{
+		// Fall back to using interface to the core
+		if (!warned)
+		{
+			Logger::getLogger()->warn("Asset tracker falling back to core API");
+		}
+		warned = true;
+
+		mgtClient->addAssetTrackingTuple(m_serviceName,
+					m_pluginName,
+					m_assetName,
+					m_eventName);
+	}
+	else
+	{
+		iValue.push_back(InsertValue("asset",   m_assetName));
+		iValue.push_back(InsertValue("event",   m_eventName));
+		iValue.push_back(InsertValue("service", m_serviceName));
+		iValue.push_back(InsertValue("fledge",  instanceName));
+		iValue.push_back(InsertValue("plugin",  m_pluginName));
+	}
+
+	return iValue;
+}
+
+/**
+ * Insert StorageAssetTrackingTuple data via Fledge core API
+ * or prepare InsertValues object for direct DB operation
+ *
+ * @param storage	Boolean for storage being available
+ * @param mgtClient	ManagementClient object pointer
+ * @param warned	Boolean ireference updated for logging operation
+ * @param instanceName	Fledge instance name
+ * @return 		InsertValues object
+ */
+InsertValues StorageAssetTrackingTuple::processData(bool storage,
+						ManagementClient *mgtClient,
+						bool &warned,
+						string &instanceName)
+{
+	InsertValues iValue;
+
+	// Write the tuple - ideally we would like a bulk update here or to go direct to the
+	// database. However we need the Fledge service name for that, which is now in
+	// the member variable m_fledgeName
+	if (!storage)
+	{
+		// Fall back to using interface to the core
+		if (!warned)
+		{
+			Logger::getLogger()->warn("Storage Asset tracker falling back to core API");
+		}
+		warned = true;
+
+		// Insert tuple via Fledge core API
+		mgtClient->addStorageAssetTrackingTuple(m_serviceName,
+							m_pluginName,
+							m_assetName,
+							m_eventName,
+							false,
+							m_datapoints,
+							m_maxCount);
+	}
+	else
+	{
+		iValue.push_back(InsertValue("asset",	m_assetName));
+		iValue.push_back(InsertValue("event",	m_eventName));
+		iValue.push_back(InsertValue("service",	m_serviceName));
+		iValue.push_back(InsertValue("fledge",	instanceName));
+		iValue.push_back(InsertValue("plugin",	m_pluginName));
+
+		// prepare JSON datapoints
+		string datapoints = "\"";
+		for ( int i = 0; i < m_datapoints.size(); ++i)
+		{
+			if (m_datapoints[i] == ',')
+			{
+				datapoints.append("\",\"");
+			}
+			else
+			{
+				datapoints.append(1,m_datapoints[i]);
+			}
+		}
+		datapoints.append("\"");
+
+		Document doc;
+		string jsonData = "{\"count\": " +
+				std::to_string(m_maxCount) +
+				", \"datapoints\": [" +
+				datapoints + "]}";
+		doc.Parse(jsonData.c_str());
+		iValue.push_back(InsertValue("data", doc));
+	}
+
+	return iValue;
+}
+

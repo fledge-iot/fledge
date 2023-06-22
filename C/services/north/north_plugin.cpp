@@ -105,23 +105,23 @@ uint32_t NorthPlugin::send(const vector<Reading *>& readings)
 	mtx2.lock();
 	try {
 		int ret = this->pluginSendPtr(m_instance, readings);
+		mtx2.unlock();
                 if (ret == 0)
                 {
-                        mtx2.unlock();
-                        usleep(500);
-                        return 0;
+                	usleep(500);
                 }
-                mtx2.unlock();
                 return ret;
 
 	} catch (exception& e) {
 		Logger::getLogger()->fatal("Unhandled exception raised in north plugin send(), %s",
 			e.what());
+		mtx2.unlock();
 		throw;
 	} catch (...) {
 		std::exception_ptr p = std::current_exception();
 		Logger::getLogger()->fatal("Unhandled exception raised in north plugin send(), %s",
 			p ? p.__cxa_exception_type()->name() : "unknown exception");
+		mtx2.unlock();
 		throw;
 	}
 }

@@ -110,6 +110,13 @@ AssetTracker::~AssetTracker()
 	{
 		delete m_storageClient;
 	}
+	if (m_storageClient)
+	{
+		delete m_storageClient;
+		m_storageClient = NULL;
+	}
+	assetTrackerTuplesCache.clear();
+	storageAssetTrackerTuplesCache.clear();
 }
 
 /**

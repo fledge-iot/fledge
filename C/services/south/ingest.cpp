@@ -363,7 +363,8 @@ Ingest::~Ingest()
 			delete m_filterPipeline;
 	}
 
-	delete m_deprecated;
+	if (m_deprecated)
+		delete m_deprecated;
 }
 
 /**

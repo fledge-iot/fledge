@@ -24,6 +24,7 @@ display_and_collect_err () {
 
 
 URL="http://$FLEDGE_IP:8081/fledge"
+PROJECT_ROOT=$(git rev-parse --show-toplevel)
 
 sinusoid_config=$(cat <<EOF
 {
@@ -897,6 +898,21 @@ else
      echo "======================= SKIPPED PI EGRESS ======================="
 fi
 
+echo "===================== COLLECTING SUPPORT BUNDLE ============================"
+SUPPORT_BUNDLE_DIR="$PROJECT_ROOT/support_bundle"
+BUNDLE=$(curl -sX POST "$URL/support")
+if jq -e 'has("bundle created")' <<< "$BUNDLE" > /dev/null; then
+    echo "Support Bundle Created"
+    rm -rf "$SUPPORT_BUNDLE_DIR" && mkdir -p "$SUPPORT_BUNDLE_DIR" && \
+    cp -r /usr/local/fledge/data/support/* "$SUPPORT_BUNDLE_DIR"/. && \
+    echo "Support bundle has been saved to path: $SUPPORT_BUNDLE_DIR"
+else
+    echo "Failed to Create support bundle"
+    rm -rf "$SUPPORT_BUNDLE_DIR" && mkdir -p "$SUPPORT_BUNDLE_DIR" && \
+    cp /var/log/syslog "$SUPPORT_BUNDLE_DIR"/. && \
+    echo "Syslog Saved to $SUPPORT_BUNDLE_DIR"
+fi
+echo "===================== COLLECTED SUPPORT BUNDLE ============================"
 
 ERRORS="$(wc -c <"err.txt")"
 if [[ ${ERRORS} -ne 0 ]]

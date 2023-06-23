@@ -681,6 +681,10 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
  */
 void SouthService::stop()
 {
+	delete m_assetTracker;
+	delete m_auditLogger;
+	delete m_mgtClient;
+
 	logger->info("Stopping south service...\n");
 }
 

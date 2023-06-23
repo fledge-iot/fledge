@@ -382,7 +382,6 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 					       	+ (((float)threshold * SOUTH_THROTTLE_HIGH_PERCENT) / 100.0);
 					m_lowWater = threshold
 					       	+ (((float)threshold * SOUTH_THROTTLE_LOW_PERCENT) / 100.0);
-					m_ingest->setFlowControl(m_lowWater, m_highWater);
 					logger->info("Throttling is enabled, high water mark is set to %ld", m_highWater);
 				}
 				else
@@ -401,6 +400,10 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		// Instantiate the Ingest class
 		Ingest ingest(storage, m_name, pluginName, m_mgtClient);
 		m_ingest = &ingest;
+		if (m_throttle)
+		{
+			m_ingest->setFlowControl(m_lowWater, m_highWater);
+		}
 
 		if (m_configAdvanced.itemExists("statistics"))
 		{

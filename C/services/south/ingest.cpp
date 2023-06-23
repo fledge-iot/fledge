@@ -1349,7 +1349,18 @@ std::string  Ingest::getStringFromSet(const std::set<std::string> &dpSet)
 }
 
 /**
- * Implement flow control backoff for the async ingest mechanism
+ * Implement flow control backoff for the async ingest mechanism.
+ *
+ * The flow control is "soft" in that it will only wait for a maximum
+ * amount of time before continuing regardless of the queue length.
+ *
+ * The mechanism is to have a high water and low water mark. When the queue
+ * get longer than the high water mark we wait until the queue drains below
+ * the low water mark before proceeding.
+ *
+ * The wait is done with a backoff algorithm that start at AFC_SLEEP_INCREMENT
+ * and doubles each time we have not dropped below the low water mark. It will
+ * sleep for a maximum of AFC_SLEEP_MAX before testing again.
  */
 void Ingest::flowControl()
 {
@@ -1359,13 +1370,19 @@ void Ingest::flowControl()
 	}
 	if (m_highWater < queueLength())
 	{
-		int cnt = 0, delay = 20;
-		while (cnt++ < 10 && queueLength() > m_lowWater)
+		m_logger->debug("Waiting for ingest queue to drain");
+		int total = 0, delay = AFC_SLEEP_INCREMENT;
+		while (total < AFC_MAX_WAIT && queueLength() > m_lowWater)
 		{
 			this_thread::sleep_for(chrono::milliseconds(delay));
+			total += delay;
 			delay *= 2;
-			if (delay > 200)
-				delay = 200;
+			if (delay > AFC_SLEEP_MAX)
+			{
+				delay = AFC_SLEEP_MAX;
+			}
 		}
+		m_logger->debug("Ingest queue has %s", queueLength() > m_lowWater
+			       	? "failed to drain in sufficient time" : "has drained");
 	}
 }

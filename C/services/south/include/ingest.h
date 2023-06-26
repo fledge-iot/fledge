@@ -30,7 +30,17 @@
 
 #define INGEST_SUFFIX	"-Ingest"	// Suffix for per service ingest statistic
 
-#define STATS_UPDATE_FAIL_THRESHOLD 10	// After this many update fails try creatign new stats
+#define STATS_UPDATE_FAIL_THRESHOLD 10	// After this many update fails try creating new stats
+
+#define DEPRECATED_CACHE_AGE	600	// Maximum allowed aged of the deprecated asset cache
+
+/*
+ * Constants related to flow control for async south services.
+ *
+ */
+#define	AFC_SLEEP_INCREMENT	20	// Number of milliseconds to wait for readings to drain
+#define AFC_SLEEP_MAX		200	// Maximum sleep tiem in ms between tests
+#define AFC_MAX_WAIT		5000	// Maximum amount of time we wait for the queue to drain
 
 /**
  * The ingest class is used to ingest asset readings.
@@ -80,6 +90,8 @@ public:
 	void		setStatistics(const std::string& option);
 
 	std::string  	getStringFromSet(const std::set<std::string> &dpSet);
+	void		setFlowControl(unsigned int lowWater, unsigned int highWater) { m_lowWater = lowWater; m_highWater = highWater; };
+	void		flowControl();
 
 
 private:
@@ -132,6 +144,11 @@ private:
 	int				m_statsUpdateFails;
 	enum { STATS_BOTH, STATS_ASSET, STATS_SERVICE }
 					m_statisticsOption;
+	unsigned int			m_highWater;
+	unsigned int			m_lowWater;
+	AssetTrackingTable		*m_deprecated;
+	time_t				m_deprecatedAgeOut;
+	time_t				m_deprecatedAgeOutStorage;
 };
 
 #endif

@@ -202,26 +202,29 @@ void doIngest(Ingest *ingest, Reading reading)
 
 void doIngestV2(Ingest *ingest, ReadingSet *set)
 {
-    std::vector<Reading *> *vec = set->getAllReadingsPtr();
-    std::vector<Reading *> *vec2 = new std::vector<Reading *>;
-    if (!vec)
-    {
-        Logger::getLogger()->info("%s:%d: V2 async ingest method: vec is NULL", __FUNCTION__, __LINE__);
-        return;
-    }
-    else
-    {
-        for (auto & r : *vec)
-        {
-            Reading *r2 = new Reading(*r); // Need to copy reading objects here, since "del set" below would remove encapsulated reading objects also
-            vec2->emplace_back(r2);
-        }
-    }
-    Logger::getLogger()->debug("%s:%d: V2 async ingest method returned: vec->size()=%d", __FUNCTION__, __LINE__, vec->size());
+	std::vector<Reading *> *vec = set->getAllReadingsPtr();
+	std::vector<Reading *> *vec2 = new std::vector<Reading *>;
+	if (!vec)
+	{
+		Logger::getLogger()->info("%s:%d: V2 async ingest method: vec is NULL", __FUNCTION__, __LINE__);
+		return;
+	}
+	else
+	{
+		// TODO Remove the need for this copy of all the readings
+		for (auto & r : *vec)
+		{
+			Reading *r2 = new Reading(*r); // Need to copy reading objects here, since "del set" below would remove encapsulated reading objects also
+			vec2->emplace_back(r2);
+		}
+	}
+	Logger::getLogger()->debug("%s:%d: V2 async ingest method returned: vec->size()=%d", __FUNCTION__, __LINE__, vec->size());
 
 	ingest->ingest(vec2);
 	delete vec2; 	// each reading object inside vector has been allocated on heap and moved to Ingest class's internal queue
 	delete set;
+
+	ingest->flowControl();
 }
 
 /**
@@ -239,6 +242,7 @@ SouthService::SouthService(const string& myName, const string& token) :
 {
 	m_name = myName;
 	m_type = SERVICE_TYPE;
+	m_pollType = POLL_INTERVAL;
 
 	logger = new Logger(myName);
 	logger->setMinLevel("warning");
@@ -396,6 +400,10 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		// Instantiate the Ingest class
 		Ingest ingest(storage, m_name, pluginName, m_mgtClient);
 		m_ingest = &ingest;
+		if (m_throttle)
+		{
+			m_ingest->setFlowControl(m_lowWater, m_highWater);
+		}
 
 		if (m_configAdvanced.itemExists("statistics"))
 		{

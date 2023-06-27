@@ -43,8 +43,17 @@ class TestPackageLog:
         return "{}/logs".format(pathlib.Path(__file__).parent)
 
     async def test_get_logs(self, client, logs_path):
-        files = ["190801-13-21-56.log", "190801-13-18-02-fledge-north-httpc-install.log",
-                 "190801-14-55-25-fledge-south-sinusoid-install.log", "191024-04-21-56-list.log"]
+        files = ["190801-13-21-56.log",
+                 "190801-13-18-02-fledge-north-httpc-install.log",
+                 "190801-14-55-25-fledge-south-sinusoid-install.log",
+                 "191024-04-21-56-list.log",
+                 "230619-10-20-31-fledge-south-http-south-remove.log",
+                 "230619-10-17-36-fledge-south-s2opcua-update.log",
+                 "trace.log",
+                 "20230609_093006_Trace_00000.log",
+                 "trace.txt",
+                 "syslog"
+                 ]
         with patch.object(package_log, '_get_logs_dir', side_effect=[logs_path]):
             with patch('os.walk') as mockwalk:
                 mockwalk.return_value = [(str(logs_path), [], files)]
@@ -53,19 +62,39 @@ class TestPackageLog:
                 res = await resp.text()
                 jdict = json.loads(res)
                 logs = jdict["logs"]
-                assert 4 == len(logs)
-                assert files[0] == logs[0]['filename']
-                assert "2019-08-01 13:21:56" == logs[0]['timestamp']
-                assert "" == logs[0]['name']
-                assert files[1] == logs[1]['filename']
-                assert "2019-08-01 13:18:02" == logs[1]['timestamp']
-                assert "fledge-north-httpc-install" == logs[1]['name']
-                assert files[2] == logs[2]['filename']
-                assert "2019-08-01 14:55:25" == logs[2]['timestamp']
-                assert "fledge-south-sinusoid-install" == logs[2]['name']
-                assert files[3] == logs[3]['filename']
-                assert "2019-10-24 04:21:56" == logs[3]['timestamp']
-                assert "list" == logs[3]['name']
+                assert len(files) - 2 == len(logs)
+                obj = logs[0]
+                assert files[0] == obj['filename']
+                assert "2019-08-01 13:21:56" == obj['timestamp']
+                assert "190801-13-21-56" == obj['name']
+                obj = logs[1]
+                assert files[1] == obj['filename']
+                assert "2019-08-01 13:18:02" == obj['timestamp']
+                assert "fledge-north-httpc-install" == obj['name']
+                obj = logs[2]
+                assert files[2] == obj['filename']
+                assert "2019-08-01 14:55:25" == obj['timestamp']
+                assert "fledge-south-sinusoid-install" == obj['name']
+                obj = logs[3]
+                assert files[3] == obj['filename']
+                assert "2019-10-24 04:21:56" == obj['timestamp']
+                assert "list" == obj['name']
+                obj = logs[4]
+                assert files[4] == obj['filename']
+                assert "2023-06-19 10:20:31" == obj['timestamp']
+                assert "fledge-south-http-south-remove" == obj['name']
+                obj = logs[5]
+                assert files[5] == obj['filename']
+                assert "2023-06-19 10:17:36" == obj['timestamp']
+                assert "fledge-south-s2opcua-update" == obj['name']
+                obj = logs[6]
+                assert files[6] == obj['filename']
+                assert len(obj['timestamp']) > 0
+                assert "trace" == obj['name']
+                obj = logs[7]
+                assert files[7] == obj['filename']
+                assert len(obj['timestamp']) > 0
+                assert "20230609_093006_Trace_00000" == obj['name']
             mockwalk.assert_called_once_with(logs_path)
 
     async def test_get_log_by_name_with_invalid_extension(self, client):

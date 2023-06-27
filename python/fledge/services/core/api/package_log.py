@@ -48,19 +48,24 @@ async def get_logs(request: web.Request) -> web.Response:
 
     result = []
     for f in found_files:
-        # Empty log name for update cmd
-        name = ""
-        t1 = f.split(".log")
-        t2 = t1[0].split("-fledge")
-        t3 = t2[0].split("-")
-        t4 = t1[0].split("-list")
-        if len(t2) >= 2:
-            name = "fledge{}".format(t2[1])
-        if len(t4) >= 2:
-            name = "list"
-        dt = "{}-{}-{}-{}".format(t3[0], t3[1], t3[2], t3[3])
-        ts = datetime.strptime(dt, "%y%m%d-%H-%M-%S").strftime('%Y-%m-%d %H:%M:%S')
-        result.append({"timestamp": ts, "name": name, "filename": f})
+        if f.endswith(valid_extension):
+            t1 = f.split(".log")
+            t2 = t1[0].split("-fledge")
+            t3 = t2[0].split("-")
+            t4 = t1[0].split("-list")
+            if len(t2) >= 2:
+                name = "fledge{}".format(t2[1])
+            elif len(t4) >= 2:
+                name = "list"
+            else:
+                name = t1[0]
+            if len(t3) >= 4:
+                dt = "{}-{}-{}-{}".format(t3[0], t3[1], t3[2], t3[3])
+                ts = datetime.strptime(dt, "%y%m%d-%H-%M-%S").strftime('%Y-%m-%d %H:%M:%S')
+            else:
+                dt = datetime.now()
+                ts = dt.strftime("%Y-%m-%d %H:%M:%S")
+            result.append({"timestamp": ts, "name": name, "filename": f})
 
     return web.json_response({"logs": result})
 
@@ -143,7 +148,7 @@ async def get_package_status(request: web.Request) -> web.Response:
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as exc:
         msg = str(exc)
-        _LOGGER.error(exc, "Failed tp get package log status for {} action.".format(action))
+        _LOGGER.error(exc, "Failed to get package log status for {} action.".format(action))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({"packageStatus": result})

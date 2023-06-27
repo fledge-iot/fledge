@@ -70,6 +70,7 @@ class SupportBuilder:
                 await self.add_fledge_version_and_schema(pyz)
                 self.add_syslog_fledge(pyz, file_spec)
                 self.add_syslog_storage(pyz, file_spec)
+                self.add_syslog_utility(pyz)
                 cf_mgr = ConfigurationManager(self._storage)
                 try:
                     south_cat = await cf_mgr.get_category_child("South")
@@ -142,7 +143,7 @@ class SupportBuilder:
             subprocess.call("grep -a '{}' {} > {}".format("Fledge", _SYSLOG_FILE, temp_file), shell=True)
         except OSError as ex:
             raise RuntimeError("Error in creating {}. Error-{}".format(temp_file, str(ex)))
-        pyz.add(temp_file, arcname=basename(temp_file))
+        pyz.add(temp_file, arcname='logs/sys/{}'.format(basename(temp_file)))
 
     def add_syslog_storage(self, pyz, file_spec):
         # The contents of the syslog file that relate to the database layer (postgres)
@@ -151,7 +152,7 @@ class SupportBuilder:
             subprocess.call("grep -a '{}' {} > {}".format("Fledge Storage", _SYSLOG_FILE, temp_file), shell=True)
         except OSError as ex:
             raise RuntimeError("Error in creating {}. Error-{}".format(temp_file, str(ex)))
-        pyz.add(temp_file, arcname=basename(temp_file))
+        pyz.add(temp_file, arcname='logs/sys/{}'.format(basename(temp_file)))
 
     def add_syslog_service(self, pyz, file_spec, service):
         # The fledge entries from the syslog file for a service or task
@@ -160,9 +161,16 @@ class SupportBuilder:
         temp_file = self._interim_file_path + "/" + "syslog-{}-{}".format(tmp_svc, file_spec)
         try:
             subprocess.call("grep -a -E '(Fledge {})\[' {} > {}".format(service, _SYSLOG_FILE, temp_file), shell=True)
-            pyz.add(temp_file, arcname=basename(temp_file))
+            pyz.add(temp_file, arcname='logs/sys/{}'.format(basename(temp_file)))
         except Exception as ex:
             raise RuntimeError("Error in creating {}. Error-{}".format(temp_file, str(ex)))
+
+    def add_syslog_utility(self, pyz):
+        # syslog utility files
+        for filename in os.listdir("/tmp"):
+            if filename.startswith("fl_syslog"):
+                temp_file = "/tmp/{}".format(filename)
+                pyz.add(temp_file, arcname='logs/sys/{}'.format(filename))
 
     async def add_table_configuration(self, pyz, file_spec):
         # The contents of the configuration table from the storage layer
@@ -285,7 +293,7 @@ class SupportBuilder:
         script_package_logs_path = _PATH + '/logs'
         if os.path.exists(script_package_logs_path):
             # recursively 'true' by default and __pycache__ dir excluded
-            pyz.add(script_package_logs_path, arcname='package_logs', filter=self.exclude_pycache)
+            pyz.add(script_package_logs_path, arcname='logs/package', filter=self.exclude_pycache)
 
     def add_software_list(self, pyz, file_spec) -> None:
         data = {

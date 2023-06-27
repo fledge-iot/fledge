@@ -85,11 +85,10 @@ public:
 	void		unDeprecateAssetTrackingRecord(AssetTrackingTuple* currentTuple,
 							const std::string& assetName,
 							const std::string& event);
-	void            unDeprecateStorageAssetTrackingRecord(StorageAssetTrackingTuple* currentTuple,
-                                                        const std::string& assetName,
+	void		unDeprecateStorageAssetTrackingRecord(StorageAssetTrackingTuple* currentTuple,
+							const std::string& assetName,
 							const std::string&,
-							const unsigned int&,
-							AssetTracker *tracker);
+							const unsigned int&);
 	void		setStatistics(const std::string& option);
 
 	std::string  	getStringFromSet(const std::set<std::string> &dpSet);

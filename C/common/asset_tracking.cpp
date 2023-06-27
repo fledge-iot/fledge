@@ -380,7 +380,6 @@ static bool warned = false;
 
 		// Remove element
 		m_pending.pop();
-
 	}
 
 	// Queue processed, bulk direct DB data insert could be done
@@ -804,4 +803,22 @@ InsertValues StorageAssetTrackingTuple::processData(bool storage,
 
 	return iValue;
 }
+/**
+ * Check if a StorageAssetTrackingTuple is in cache
+ *
+ * @param tuple	The StorageAssetTrackingTuple to find
+ * @return	Pointer to found tuple or NULL
+ */
+StorageAssetTrackingTuple* AssetTracker::findStorageAssetTrackingCache(StorageAssetTrackingTuple& tuple)
+{
+	StorageAssetCacheMapItr it = storageAssetTrackerTuplesCache.find(&tuple);
 
+        if (it == storageAssetTrackerTuplesCache.end())
+	{
+		return NULL;
+	}
+	else
+	{
+		return it->first;
+	}
+}

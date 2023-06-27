@@ -163,6 +163,7 @@ public:
 	unsigned int	getMaxCount() { return m_maxCount; }
 	std::string	getDataPoints() { return m_datapoints; }
 	void		unDeprecate() { m_deprecated = false; };
+	void		setDeprecate() { m_deprecated = true; };
 
 	InsertValues	processData(bool storage,
 				ManagementClient *mgtClient,
@@ -246,6 +247,8 @@ public:
 	void	addStorageAssetTrackingTuple(StorageAssetTrackingTuple& tuple,
 						std::string &datapoints,
 						unsigned int numPoints);
+	StorageAssetTrackingTuple*
+		findStorageAssetTrackingCache(StorageAssetTrackingTuple& tuple);
 	std::string
 		getIngestService(const std::string& asset)
 		{

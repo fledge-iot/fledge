@@ -633,10 +633,10 @@ void Ingest::processQueue()
 				}
 
 				for (auto itr : assetDatapointMap)
-                                {
-                                        std::set<string> &s = itr.second;
-                                        unsigned int count = s.size();
-                                        StorageAssetTrackingTuple storageTuple(m_serviceName,
+				{
+					std::set<string> &s = itr.second;
+					unsigned int count = s.size();
+					StorageAssetTrackingTuple storageTuple(m_serviceName,
 										m_pluginName,
 										itr.first,
 										"store",
@@ -644,24 +644,19 @@ void Ingest::processQueue()
 										"",
 										count);
 
-                                        StorageAssetTrackingTuple *ptr = &storageTuple;
+					StorageAssetTrackingTuple *ptr = &storageTuple;
 
 					// Update SAsset Tracker database and cache
-                                        tracker->updateCache(s, ptr);
-
-					// Handle deprecated assets
-                                        bool deprecated = tracker->getDeprecated(ptr);
-                                        if (deprecated == true)
-                                        {
-                                                unDeprecateStorageAssetTrackingRecord(ptr, itr.first, getStringFromSet(s), count);
-                                        }
-                                }
+					tracker->updateCache(s, ptr);
+				}
 
 				delete q;
 				m_resendQueues.erase(m_resendQueues.begin());
 				unique_lock<mutex> lck(m_statsMutex);
 				for (auto &it : statsEntriesCurrQueue)
+				{
 					statsPendingEntries[it.first] += it.second;
+				]
 			}
 		}
 
@@ -868,9 +863,9 @@ void Ingest::processQueue()
 
 				}
 
-			        for (auto itr : assetDatapointMap)
-                                {
-                                        std::set<string> &s = itr.second;
+				for (auto itr : assetDatapointMap)
+				{
+					std::set<string> &s = itr.second;
 				        unsigned int count = s.size();
 				        StorageAssetTrackingTuple storageTuple(m_serviceName,
 										m_pluginName,
@@ -883,19 +878,14 @@ void Ingest::processQueue()
 					StorageAssetTrackingTuple *ptr = &storageTuple;
 
 					// Update SAsset Tracker database and cache
-                                        tracker->updateCache(s, ptr);
-
-					// Handle deprecated assets
-					bool deprecated = tracker->getDeprecated(ptr);
-					if (deprecated == true)
-					{
-						unDeprecateStorageAssetTrackingRecord(ptr, itr.first, getStringFromSet(s), count);
-					}
-                                }
+					tracker->updateCache(s, ptr);
+				}
 				{
 					unique_lock<mutex> lck(m_statsMutex);
 					for (auto &it : statsEntriesCurrQueue)
+					{
 						statsPendingEntries[it.first] += it.second;
+					}
 				}
 			}
 		}
@@ -1157,6 +1147,7 @@ void Ingest::unDeprecateAssetTrackingRecord(AssetTrackingTuple* currentTuple,
 			assetName,
 			event);
 
+	bool unDeprecateDataPoints = false;
 	if (updatedTuple)
 	{
 		if (updatedTuple->isDeprecated())
@@ -1209,8 +1200,11 @@ void Ingest::unDeprecateAssetTrackingRecord(AssetTrackingTuple* currentTuple,
 							" for un-deprecated asset '%s'",
 							assetName.c_str());
 				}
-				m_logger->info("Asset '%s' has been un-deprecated",
-						assetName.c_str());
+				m_logger->info("Asset '%s' has been un-deprecated, event '%s'",
+						assetName.c_str(),
+						event.c_str());
+
+				unDeprecateDataPoints = true;
 			}
 		}
 	}
@@ -1223,6 +1217,47 @@ void Ingest::unDeprecateAssetTrackingRecord(AssetTrackingTuple* currentTuple,
 	}
 
 	delete updatedTuple;
+
+	// Undeprecate all "store" events related to the serviceName and assetName
+	if (unDeprecateDataPoints)
+	{
+		// Prepare UPDATE query
+		const Condition conditionParams(Equals);
+		Where * wAsset = new Where("asset",
+					conditionParams,
+					assetName);
+		Where *wService = new Where("service",
+					conditionParams,
+					m_serviceName,
+					wAsset);
+		Where *wEvent = new Where("event",
+					conditionParams,
+					"store",
+					wService);
+
+		InsertValues unDeprecated;
+
+		// Set NULL value
+		unDeprecated.push_back(InsertValue("deprecated_ts"));
+        
+		// Update storage with NULL value
+		int rv = m_storage.updateTable("asset_tracker",
+						unDeprecated,
+						*wEvent);
+
+		// Check update operation
+		if (rv < 0)
+		{
+			m_logger->error("Failure while un-deprecating asset '%s'",
+					assetName.c_str());
+		}
+		else
+		{
+			m_logger->info("Asset '%s' has been un-deprecated, event '%s'",
+					assetName.c_str(),
+					"store");
+		}
+	}
 }
 
 /**

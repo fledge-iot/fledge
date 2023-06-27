@@ -656,7 +656,7 @@ void Ingest::processQueue()
 				for (auto &it : statsEntriesCurrQueue)
 				{
 					statsPendingEntries[it.first] += it.second;
-				]
+				}
 			}
 		}
 

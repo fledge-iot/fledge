@@ -933,7 +933,7 @@ bool NorthService::write(const string& name, const string& value, const ControlD
 	payload += ", \"write\" : { \"";
 	payload += name;
 	payload += "\" : \"";
-	string escaped = name;
+	string escaped = value;
 	StringEscapeQuotes(escaped);
 	payload += escaped;
 	payload += "\" } }";
@@ -1100,6 +1100,7 @@ bool NorthService::sendToService(const string& southService, const string& name,
  */
 bool NorthService::sendToDispatcher(const string& path, const string& payload)
 {
+	Logger::getLogger()->debug("Dispatch %s with %s", path.c_str(), payload.c_str());
 	// Send the control message to the south service
 	try {
 		ServiceRecord service("dispatcher");

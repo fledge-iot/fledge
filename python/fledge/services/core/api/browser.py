@@ -179,6 +179,8 @@ async def asset(request):
             curl -sX GET http://localhost:8081/fledge/asset/fogbench_humidity?seconds=60
             curl -sX GET http://localhost:8081/fledge/asset/fogbench_humidity?seconds=60&previous=600
             curl -sX GET "http://localhost:8081/fledge/asset/fogbench_humidity?additional=sinusoid,random&seconds=600"
+            curl -sX GET "http://localhost:8081/fledge/asset/sinusoid?mostrecent=true&seconds=600"
+            curl -sX GET "http://localhost:8081/fledge/asset/sinusoid?mostrecent=true&seconds=60&additional=randomwalk"
     """
     asset_code = request.match_info.get('asset_code', '')
     # A comma separated list of additional assets to generate the readings to display multiple graphs in GUI
@@ -195,8 +197,32 @@ async def asset(request):
     if 'previous' in request.query and (
             'seconds' in request.query or 'minutes' in request.query or 'hours' in request.query):
         _and_where = where_window(request, _where)
-    elif 'seconds' in request.query or 'minutes' in request.query or 'hours' in request.query:
+    elif 'mostrecent' not in request.query and (
+            'seconds' in request.query or 'minutes' in request.query or 'hours' in request.query):
         _and_where = where_clause(request, _where)
+    elif 'mostrecent' in request.query and 'seconds' in request.query:
+        if str(request.query['mostrecent']).lower() == 'true':
+            # To get latest reading for an asset's
+            asset_codes = additional_asset_codes if 'additional' in request.query else [asset_code]
+            _readings = connect.get_readings_async()
+            date_times = []
+            dt_format = '%Y-%m-%d %H:%M:%S.%f'
+            for ac in asset_codes:
+                payload = PayloadBuilder().SELECT("user_ts").ALIAS("return", ("user_ts", "timestamp")).WHERE(
+                    ["asset_code", "=", ac]).LIMIT(1).ORDER_BY(["user_ts", "desc"]).payload()
+                results = await _readings.query(payload)
+                response = results['rows']
+                if response and 'timestamp' in response[0]:
+                    date_times.append(datetime.datetime.strptime(response[0]['timestamp'], dt_format))
+            most_recent_ts = max(date_times)
+            # _logger.debug("DTS: {} most_recent_ts: {}".format(date_times, most_recent_ts))
+            window = int(request.query['seconds'])
+            to_ts = most_recent_ts - datetime.timedelta(seconds=window)
+            most_recent_str = most_recent_ts.strftime(dt_format)
+            to_str = to_ts.strftime(dt_format)
+            # _logger.debug("user_ts <={} TO user_ts>{}".format(most_recent_str, to_str))
+            _and_where = PayloadBuilder(_where).AND_WHERE(['user_ts', '<=', most_recent_str]).AND_WHERE(
+                ['user_ts', '>', to_str]).chain_payload()
     elif 'previous' in request.query:
         msg = "the parameter previous can only be given if one of seconds, minutes or hours is also given"
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
@@ -211,7 +237,6 @@ async def asset(request):
         if _order not in ('asc', 'desc'):
             msg = "order must be asc or desc"
             raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
-
     payload = PayloadBuilder(_and_where).ORDER_BY(["user_ts", _order]).payload()
     try:
         _readings = connect.get_readings_async()

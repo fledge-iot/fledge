@@ -880,6 +880,7 @@ void Ingest::processQueue()
 					// Update SAsset Tracker database and cache
 					tracker->updateCache(s, ptr);
 				}
+
 				{
 					unique_lock<mutex> lck(m_statsMutex);
 					for (auto &it : statsEntriesCurrQueue)

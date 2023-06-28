@@ -25,13 +25,14 @@
  * Tracking abstract base class to be passed in the process data queue
  */
 class TrackingTuple {
-	public:
+public:
 	TrackingTuple() {};
 	virtual ~TrackingTuple() = default;
 	virtual InsertValues processData(bool storage_connected,
 					ManagementClient *mgtClient,
 					bool &warned,
 					std::string &instanceName) = 0;
+	virtual std::string assetToString() = 0;
 };
 
 
@@ -154,7 +155,8 @@ public:
 			", asset:" << m_assetName <<
 			", event:" << m_eventName <<
 			", deprecated:" << m_deprecated <<
-			", m_datapoints:" << m_datapoints << ", m_maxCount:" << m_maxCount;
+			", m_datapoints:" << m_datapoints <<
+			", m_maxCount:" << m_maxCount;
 		return o.str();
 	};
 
@@ -245,8 +247,8 @@ public:
 	void	addAssetTrackingTuple(AssetTrackingTuple& tuple);
 	void	addAssetTrackingTuple(std::string plugin, std::string asset, std::string event);
 	void	addStorageAssetTrackingTuple(StorageAssetTrackingTuple& tuple,
-						std::string &datapoints,
-						unsigned int numPoints);
+					std::set<std::string>& dpSet,
+					bool addObj = false);
 	StorageAssetTrackingTuple*
 		findStorageAssetTrackingCache(StorageAssetTrackingTuple& tuple);
 	std::string
@@ -263,6 +265,8 @@ public:
 
 	bool	getDeprecated(StorageAssetTrackingTuple* ptr);
 	void	updateCache(std::set<std::string> dpSet, StorageAssetTrackingTuple* ptr);
+	std::set<std::string>
+		*getStorageAssetTrackingCacheData(StorageAssetTrackingTuple* tuple);
 
 private:
 	std::string

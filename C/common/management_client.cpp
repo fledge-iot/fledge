@@ -826,6 +826,12 @@ std::vector<AssetTrackingTuple*>& ManagementClient::getAssetTrackingTuples(const
 						throw runtime_error("Expected asset tracker tuple to be an object");
 					}
 
+					// Do not load "store" events as they bill be loaded by getStorageAssetTrackingTuples()
+					if (rec["event"].GetString() == "store")
+					{
+						continue;
+					}
+
 					// Note: deprecatedTimestamp NULL value is returned as ""
 					// otherwise it's a string DATE
 					bool deprecated = rec.HasMember("deprecatedTimestamp") &&
@@ -1640,7 +1646,9 @@ ACL ManagementClient::getACL(const string& aclName)
  */
 StorageAssetTrackingTuple* ManagementClient::getStorageAssetTrackingTuple(const std::string& serviceName,
                                                         const std::string& assetName,
-                                                        const std::string& event, const std::string& dp, const unsigned int& c)
+                                                        const std::string& event,
+							const std::string& dp,
+							const unsigned int& c)
 {
 	
         StorageAssetTrackingTuple* tuple = NULL;
@@ -1748,7 +1756,9 @@ StorageAssetTrackingTuple* ManagementClient::getStorageAssetTrackingTuple(const 
 					if(validateDatapoints(dp,datapoints))
 					{
 						//datapoints in db not same as in arg, continue
-						m_logger->debug("%s:%d :Datapoints in db not same as in arg",__FUNCTION__, __LINE__);
+						m_logger->debug("%s:%d :Datapoints in db not same as in arg",
+								__FUNCTION__,
+								__LINE__);
 						continue;
 					}
 					
@@ -1765,7 +1775,9 @@ StorageAssetTrackingTuple* ManagementClient::getStorageAssetTrackingTuple(const 
 					if ( count != c)
 					{
 						// count not same, continue
-						m_logger->debug("%s:%d :count in db not same as received in arg", __FUNCTION__, __LINE__);
+						m_logger->debug("%s:%d :count in db not same as received in arg",
+								__FUNCTION__,
+								__LINE__);
 						continue;
 					}
 
@@ -1774,7 +1786,9 @@ StorageAssetTrackingTuple* ManagementClient::getStorageAssetTrackingTuple(const 
                                                                         rec["plugin"].GetString(),
                                                                         rec["asset"].GetString(),
                                                                         rec["event"].GetString(),
-                                                                        deprecated, datapoints, count);
+                                                                        deprecated,
+									datapoints,
+									count);
 
                                         m_logger->debug("%s:%d : Adding StorageAssetTracker tuple for service %s: %s:%s:%s, " \
                                                         "deprecated state is %d, datapoints %s , count %d",__FUNCTION__, __LINE__,

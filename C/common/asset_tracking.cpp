@@ -109,13 +109,11 @@ AssetTracker::~AssetTracker()
 	if (m_storageClient)
 	{
 		delete m_storageClient;
-	}
-	if (m_storageClient)
-	{
-		delete m_storageClient;
 		m_storageClient = NULL;
 	}
+
 	assetTrackerTuplesCache.clear();
+
 	storageAssetTrackerTuplesCache.clear();
 }
 
@@ -133,7 +131,7 @@ void AssetTracker::populateAssetTrackingCache(string /*plugin*/, string /*event*
 		std::vector<AssetTrackingTuple*>& vec = m_mgtClient->getAssetTrackingTuples(m_service);
 		for (AssetTrackingTuple* & rec : vec)
 		{
-			assetTrackerTuplesCache.insert(rec);
+			assetTrackerTuplesCache.emplace(rec);
 		}
 		delete (&vec);
 	}
@@ -195,8 +193,11 @@ void AssetTracker::addAssetTrackingTuple(AssetTrackingTuple& tuple)
 	if (it == assetTrackerTuplesCache.end())
 	{
 		AssetTrackingTuple *ptr = new AssetTrackingTuple(tuple);
+
+		assetTrackerTuplesCache.emplace(ptr);
+
 		queue(ptr);
-		assetTrackerTuplesCache.insert(ptr);
+
 		Logger::getLogger()->debug("addAssetTrackingTuple(): Added tuple to cache: '%s'", tuple.assetToString().c_str());
 	}
 }
@@ -325,7 +326,7 @@ void AssetTrackingTable::remove(const string& name)
 void AssetTracker::queue(TrackingTuple *tuple)
 {
 	unique_lock<mutex> lck(m_mutex);
-	m_pending.push(tuple);
+	m_pending.emplace(tuple);
 	m_cv.notify_all();
 }
 
@@ -357,6 +358,7 @@ static bool warned = false;
 	{
 		// Get first element as TrackingTuple calss
 		TrackingTuple *tuple = m_pending.front();
+
 		// Write the tuple - ideally we would like a bulk update here or to go direct to the
 		// database. However we need the Fledge service name for that, which is now in
 		// the member variable m_fledgeName
@@ -366,7 +368,8 @@ static bool warned = false;
 		// - 1 Insert asset tracker data via Fledge API as fallback
 		// or
 		// - get values for direct DB operation
-                InsertValues iValue = tuple->processData(m_storageClient != NULL,
+
+		InsertValues iValue = tuple->processData(m_storageClient != NULL,
 							m_mgtClient,
 							warn,
 							m_fledgeName);
@@ -419,7 +422,7 @@ void AssetTracker::populateStorageAssetTrackingCache()
 							m_service.c_str());
 			}
 			// Add item into cache
-			storageAssetTrackerTuplesCache[rec] = setOfDPs;
+			storageAssetTrackerTuplesCache.emplace(rec, setOfDPs);
 		}
 		delete (&vec);
 	}
@@ -577,39 +580,30 @@ void AssetTracker::updateCache(std::set<std::string> dpSet, StorageAssetTracking
 		return;
 	}
 
-	unsigned int sizeOfInputSet = dpSet.size();
 	StorageAssetCacheMapItr it = storageAssetTrackerTuplesCache.find(ptr);
-
 	// search for the record in cache , if not present, simply update cache and return
 	if (it == storageAssetTrackerTuplesCache.end())
 	{
-		Logger::getLogger()->debug("%s:%d :tuple not found in cache ",
+		Logger::getLogger()->debug("%s:%d :tuple not found in cache '%s', ptr '%p'",
 					__FUNCTION__,
-					__LINE__);
+					__LINE__,
+					ptr->assetToString().c_str(),
+					ptr);
 
-		std::string strDatapoints;
-		unsigned int count = 0;
-		for (auto itr : dpSet)
-		{
-			strDatapoints.append(itr);
-			strDatapoints.append(",");
-			count++;
-		}
-		if (strDatapoints[strDatapoints.size()-1] == ',')
-		{
-			strDatapoints.pop_back();
-		}
-
-		// Add StorageAssetTrackingTuple to the process queue
-		addStorageAssetTrackingTuple(*ptr, strDatapoints, count);
-
-		// Add tuple to its cache
-		storageAssetTrackerTuplesCache[ptr] = dpSet;
+		// Create new tuple, add it to processing queue and to cache
+		addStorageAssetTrackingTuple(*ptr, dpSet, true);
 
 		return;
 	}
 	else
 	{
+		Logger::getLogger()->debug("%s:%d :tuple found in cache '%p', '%s': datapoints '%d'",
+					__FUNCTION__,
+					__LINE__,
+					(it->first),
+					(it->first)->assetToString().c_str(),
+					(it->second).size());
+
 		// record is found in cache , compare the datapoints of the argument ptr to that present in the cache
 		// update the cache with datapoints present in argument record but  absent in cache
 
@@ -650,8 +644,8 @@ void AssetTracker::updateCache(std::set<std::string> dpSet, StorageAssetTracking
 			return;
 		}
 
-		// Add StorageAssetTrackingTuple to the process queue
-		addStorageAssetTrackingTuple(*ptr, strDatapoints, count);
+		// Add current StorageAssetTrackingTuple to the process queue
+		addStorageAssetTrackingTuple(*(it->first), dpSet);
 
 		// if update of DB successful , then update the CacheRecord
 		for(auto itr: dpSet)
@@ -668,22 +662,52 @@ void AssetTracker::updateCache(std::set<std::string> dpSet, StorageAssetTracking
  * Add asset tracking tuple via microservice management API and in cache
  *
  * @param tuple         New tuple to add  to the queue
- * @param datapoints	comma separated list of datapoints
- * @param dpCount	Number of datapoints
+ * @param dpSet		Set of datapoints to handle
+ * @param addObj	Create a new obj for cache and queue if true.
+ * 			Otherwise just add current tuple to processing queue.
  */
 void AssetTracker::addStorageAssetTrackingTuple(StorageAssetTrackingTuple& tuple,
-						string &datapoints,
-						unsigned int dpCount)
+						std::set<std::string>& dpSet,
+						bool addObj)
 {
-	// Create new tuple from input one
-	StorageAssetTrackingTuple *ptr = new StorageAssetTrackingTuple(tuple);
+	// Create a comma separated list of datapoints
+	std::string strDatapoints;
+	unsigned int count = 0;
+	for (auto itr : dpSet)
+	{
+		strDatapoints.append(itr);
+		strDatapoints.append(",");
+		count++;
+	}
+	if (strDatapoints[strDatapoints.size()-1] == ',')
+	{
+		strDatapoints.pop_back();
+	}
 
-	// Add datapoints and count needed for data insert
-	ptr->m_datapoints = datapoints;
-	ptr->m_maxCount = dpCount;
+	if (addObj)
+	{
+		// Create new tuple from input one
+		StorageAssetTrackingTuple *ptr = new StorageAssetTrackingTuple(tuple);
 
-	// Add new tuple to processing queue
-	queue(ptr);
+		// Add new tuple to storage asset cache
+		storageAssetTrackerTuplesCache.emplace(ptr, dpSet);
+
+		// Add datapoints and count needed for data insert
+		ptr->m_datapoints = strDatapoints;
+		ptr->m_maxCount = count;
+
+		// Add new tuple to processing queue
+		queue(ptr);
+	}
+	else
+	{
+		// Add datapoints and count needed for data insert
+		tuple.m_datapoints = strDatapoints;
+		tuple.m_maxCount = count;
+
+		// Just add current tuple to processing queue
+		queue(&tuple);
+	}
 }
 
 /**
@@ -803,6 +827,7 @@ InsertValues StorageAssetTrackingTuple::processData(bool storage,
 
 	return iValue;
 }
+
 /**
  * Check if a StorageAssetTrackingTuple is in cache
  *
@@ -820,5 +845,25 @@ StorageAssetTrackingTuple* AssetTracker::findStorageAssetTrackingCache(StorageAs
 	else
 	{
 		return it->first;
+	}
+}
+
+/**
+ * Get stored value in the StorageAssetTrackingTuple cache for the given tuple
+ *
+ * @param tuple	The StorageAssetTrackingTuple to find
+ * @return	Pointer to found std::set<std::string> result or NULL if tuble does not exist
+ */
+std::set<std::string>* AssetTracker::getStorageAssetTrackingCacheData(StorageAssetTrackingTuple* tuple)
+{
+	StorageAssetCacheMapItr it = storageAssetTrackerTuplesCache.find(tuple);
+
+        if (it == storageAssetTrackerTuplesCache.end())
+	{
+		return NULL;
+	}
+	else
+	{
+		return &(it->second);
 	}
 }

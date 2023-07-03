@@ -54,6 +54,7 @@ class Reading {
 		const std::vector<Datapoint *>	getReadingData() const { return m_values; };
 		// Return refrerence to Reading datapoints
 		std::vector<Datapoint *>&	getReadingData() { return m_values; };
+		bool				hasId() const { return m_has_id; };
 		unsigned long			getId() const { return m_id; };
 		unsigned long			getTimestamp() const { return (unsigned long)m_timestamp.tv_sec; };
 		unsigned long			getUserTimestamp() const { return (unsigned long)m_userTimestamp.tv_sec; };

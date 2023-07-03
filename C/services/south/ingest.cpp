@@ -283,7 +283,8 @@ Ingest::Ingest(StorageClient& storage,
 			m_failCnt(0),
 			m_storageFailed(false),
 			m_storesFailed(0),
-			m_statisticsOption(STATS_BOTH)
+			m_statisticsOption(STATS_BOTH),
+			m_highWater(0)
 {
 	m_shutdown = false;
 	m_running = true;
@@ -1342,4 +1343,43 @@ std::string  Ingest::getStringFromSet(const std::set<std::string> &dpSet)
 	if (s[s.size() -1] == ',')
 		s.pop_back();
 	return s;
+}
+
+/**
+ * Implement flow control backoff for the async ingest mechanism.
+ *
+ * The flow control is "soft" in that it will only wait for a maximum
+ * amount of time before continuing regardless of the queue length.
+ *
+ * The mechanism is to have a high water and low water mark. When the queue
+ * get longer than the high water mark we wait until the queue drains below
+ * the low water mark before proceeding.
+ *
+ * The wait is done with a backoff algorithm that start at AFC_SLEEP_INCREMENT
+ * and doubles each time we have not dropped below the low water mark. It will
+ * sleep for a maximum of AFC_SLEEP_MAX before testing again.
+ */
+void Ingest::flowControl()
+{
+	if (m_highWater == 0)	// No flow control
+	{
+		return;
+	}
+	if (m_highWater < queueLength())
+	{
+		m_logger->debug("Waiting for ingest queue to drain");
+		int total = 0, delay = AFC_SLEEP_INCREMENT;
+		while (total < AFC_MAX_WAIT && queueLength() > m_lowWater)
+		{
+			this_thread::sleep_for(chrono::milliseconds(delay));
+			total += delay;
+			delay *= 2;
+			if (delay > AFC_SLEEP_MAX)
+			{
+				delay = AFC_SLEEP_MAX;
+			}
+		}
+		m_logger->debug("Ingest queue has %s", queueLength() > m_lowWater
+			       	? "failed to drain in sufficient time" : "has drained");
+	}
 }

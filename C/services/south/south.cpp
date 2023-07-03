@@ -216,6 +216,8 @@ void doIngestV2(Ingest *ingest, ReadingSet *set)
 	ingest->ingest(vec2);
 	delete vec2; 	// each reading object inside vector has been allocated on heap and moved to Ingest class's internal queue
 	delete set;
+
+	ingest->flowControl();
 }
 
 /**
@@ -391,6 +393,10 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		// Instantiate the Ingest class
 		Ingest ingest(storage, m_name, pluginName, m_mgtClient);
 		m_ingest = &ingest;
+		if (m_throttle)
+		{
+			m_ingest->setFlowControl(m_lowWater, m_highWater);
+		}
 
 		if (m_configAdvanced.itemExists("statistics"))
 		{

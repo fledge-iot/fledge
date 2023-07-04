@@ -882,7 +882,8 @@ bool NorthService::write(const string& name, const string& value, const ControlD
 	}
 	// Build payload for dispatcher service
 	string payload = "{ \"destination\" : \"broadcast\",";
-	payload += "\"write\" : { \"";
+	payload += controlSource();
+	payload += ", \"write\" : { \"";
 	payload += name;
 	payload += "\" : \"";
 	string escaped = value;
@@ -927,10 +928,12 @@ bool NorthService::write(const string& name, const string& value, const ControlD
 			payload += "broadcast\"";
 			break;
 	}
+	payload += ", ";
+	payload += controlSource();
 	payload += ", \"write\" : { \"";
 	payload += name;
 	payload += "\" : \"";
-	string escaped = name;
+	string escaped = value;
 	StringEscapeQuotes(escaped);
 	payload += escaped;
 	payload += "\" } }";
@@ -958,7 +961,8 @@ int  NorthService::operation(const string& name, int paramCount, char *names[], 
 	}
 	// Build payload for dispatcher service
 	string payload = "{ \"destination\" : \"broadcast\",";
-	payload += "\"operation\" : { \"";
+	payload += controlSource();
+	payload += ", \"operation\" : { \"";
 	payload += name;
 	payload += "\" : { ";
 	for (int i = 0; i < paramCount; i++)
@@ -1016,6 +1020,8 @@ int NorthService::operation(const string& name, int paramCount, char *names[], c
 			payload += "broadcast\"";
 			break;
 	}
+	payload += ", ";
+	payload += controlSource();
 	payload += ", \"operation\" : { \"";
 	payload += name;
 	payload += "\" : { ";
@@ -1094,6 +1100,7 @@ bool NorthService::sendToService(const string& southService, const string& name,
  */
 bool NorthService::sendToDispatcher(const string& path, const string& payload)
 {
+	Logger::getLogger()->debug("Dispatch %s with %s", path.c_str(), payload.c_str());
 	// Send the control message to the south service
 	try {
 		ServiceRecord service("dispatcher");
@@ -1140,4 +1147,19 @@ bool NorthService::sendToDispatcher(const string& path, const string& payload)
 		return false;
 	}
 
+}
+
+/**
+ * Return the control source for control operations. This is used
+ * for pipeline matching.
+ *
+ * @return string	The control source
+ */
+string NorthService::controlSource()
+{
+	string source = "\"source\" : \"service\", \"source_name\" : \"";
+	source += m_name;
+	source += "\"";
+
+	return source;
 }

@@ -58,7 +58,7 @@ function table {
             if [[ ${is_branch_exists} -gt 0 ]]; then
                 description=$(echo "$fledgeRepos" | python3 -c 'import json,sys;repos=json.load(sys.stdin);fRepo = [r for r in repos if r["name"] == "'"${repo}"'" ];print(fRepo[0]["description"])')
                 if [[ "${description}" = "None" ]]; then description="A ${name} ${type} plugin"; fi
-                echo "    * - ${name}" >> "$output"
+                echo "    * - |${repo}|" >> "$output"
                 echo "      - ${description}" >> "$output"
             fi
         fi
@@ -67,9 +67,23 @@ function table {
         echo "    * - OMF" >> "$output"
         echo "      - Send data to OSIsoft PI Server, Edge Data Store or OSIsoft Cloud Services" >> "$output"
     fi
+}
+
+function links {
+    list="$1"
+    for repo in ${list}
+    do
+        type=$(echo "${repo}" | sed -e 's/fledge-//' -e 's/-.*//')
+        name=$(echo "${repo}" | sed -e 's/fledge-//' -e "s/${type}-//")
+	echo ".. |${repo}| raw:: html" >> $output
+	echo "" >> $output
+	echo "   <a href=\"plugins/$repo/index.html\">$name</a>" >> $output
+	echo "" >> $output
+    done
     echo "" >> "$output"
 }
 
+links "$REPOSITORIES"
 cat >> $output << EOF1
 Fledge Plugins
 ==============

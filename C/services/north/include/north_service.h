@@ -59,6 +59,7 @@ class NorthService : public ServiceAuthHandler {
 		void 				createConfigCategories(DefaultConfigCategory configCategory, std::string parent_name,std::string current_name);
 		void				restartPlugin();
 	private:
+		std::string			controlSource();
 		bool				sendToService(const std::string& southService, const std::string& name, const std::string& value);
 		bool				sendToDispatcher(const std::string& path, const std::string& payload);
 		DataLoad			*m_dataLoad;

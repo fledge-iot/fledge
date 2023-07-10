@@ -12,7 +12,6 @@
 #include <config_handler.h>
 #include <thread>
 #include <logger.h>
-#include <storage_asset_tracking.h>
 #include <set>
 
 using namespace std;
@@ -294,9 +293,10 @@ Ingest::Ingest(StorageClient& storage,
 	m_discardedReadings = 0;
 	m_highLatency = false;
 
-	// populate asset tracking cache
-	AssetTracker::getAssetTracker()->populateAssetTrackingCache(m_pluginName, "Ingest");
-	StorageAssetTracker::getStorageAssetTracker()->populateStorageAssetTrackingCache();
+	// populate asset and storage asset tracking cache
+	AssetTracker *as = AssetTracker::getAssetTracker();
+	as->populateAssetTrackingCache(m_pluginName, "Ingest");
+	as->populateStorageAssetTrackingCache();
 
 	// Create the stats entry for the service
 	createServiceStatsDbEntry();
@@ -364,7 +364,8 @@ Ingest::~Ingest()
 			delete m_filterPipeline;
 	}
 
-	delete m_deprecated;
+	if (m_deprecated)
+		delete m_deprecated;
 }
 
 /**
@@ -556,10 +557,10 @@ void Ingest::processQueue()
 				m_failCnt = 0;
 				std::map<std::string, int>		statsEntriesCurrQueue;
 				AssetTracker *tracker = AssetTracker::getAssetTracker();
-				StorageAssetTracker *satracker = StorageAssetTracker::getStorageAssetTracker();
-				if ( satracker == nullptr)
+				if (tracker == nullptr)
                                 {
-                                        Logger::getLogger()->error("%s could not initialize satracker ", __FUNCTION__);
+                                        Logger::getLogger()->error("%s could not initialize asset tracker",
+								__FUNCTION__);
 					return;
                                 }
 
@@ -632,24 +633,30 @@ void Ingest::processQueue()
 				}
 
 				for (auto itr : assetDatapointMap)
-                                {
-                                        std::set<string> &s = itr.second;
-                                        unsigned int count = s.size();
-                                        StorageAssetTrackingTuple storageTuple(m_serviceName,m_pluginName, itr.first, "store", false, "",count);
-                                        StorageAssetTrackingTuple *ptr = &storageTuple;
-                                        satracker->updateCache(s, ptr);
-                                        bool deprecated = satracker->getDeprecated(ptr);
-                                        if (deprecated == true)
-                                        {
-                                                unDeprecateStorageAssetTrackingRecord(ptr, itr.first, getStringFromSet(s), count);
-                                        }
-                                }
+				{
+					std::set<string> &s = itr.second;
+					unsigned int count = s.size();
+					StorageAssetTrackingTuple storageTuple(m_serviceName,
+										m_pluginName,
+										itr.first,
+										"store",
+										false,
+										"",
+										count);
+
+					StorageAssetTrackingTuple *ptr = &storageTuple;
+
+					// Update SAsset Tracker database and cache
+					tracker->updateCache(s, ptr);
+				}
 
 				delete q;
 				m_resendQueues.erase(m_resendQueues.begin());
 				unique_lock<mutex> lck(m_statsMutex);
 				for (auto &it : statsEntriesCurrQueue)
+				{
 					statsPendingEntries[it.first] += it.second;
+				}
 			}
 		}
 
@@ -787,7 +794,6 @@ void Ingest::processQueue()
 				// check if this requires addition of a new asset tracker tuple
 				// Remove the Readings in the vector
 				AssetTracker *tracker = AssetTracker::getAssetTracker();
-				StorageAssetTracker *satracker = StorageAssetTracker::getStorageAssetTracker();
 
 				string lastAsset;
 				int *lastStat = NULL;
@@ -857,23 +863,30 @@ void Ingest::processQueue()
 
 				}
 
-			        for (auto itr : assetDatapointMap)
-                                {
-                                        std::set<string> &s = itr.second;
+				for (auto itr : assetDatapointMap)
+				{
+					std::set<string> &s = itr.second;
 				        unsigned int count = s.size();
-				        StorageAssetTrackingTuple storageTuple(m_serviceName,m_pluginName, itr.first, "store", false, "",count);
+				        StorageAssetTrackingTuple storageTuple(m_serviceName,
+										m_pluginName,
+										itr.first,
+										"store",
+										false,
+										"",
+										count);
+
 					StorageAssetTrackingTuple *ptr = &storageTuple;
-                                        satracker->updateCache(s, ptr);
-					bool deprecated = satracker->getDeprecated(ptr);
-					if (deprecated == true)
-					{
-						unDeprecateStorageAssetTrackingRecord(ptr, itr.first, getStringFromSet(s), count);
-					}
-                                }
+
+					// Update SAsset Tracker database and cache
+					tracker->updateCache(s, ptr);
+				}
+
 				{
 					unique_lock<mutex> lck(m_statsMutex);
 					for (auto &it : statsEntriesCurrQueue)
+					{
 						statsPendingEntries[it.first] += it.second;
+					}
 				}
 			}
 		}
@@ -1135,6 +1148,7 @@ void Ingest::unDeprecateAssetTrackingRecord(AssetTrackingTuple* currentTuple,
 			assetName,
 			event);
 
+	bool unDeprecateDataPoints = false;
 	if (updatedTuple)
 	{
 		if (updatedTuple->isDeprecated())
@@ -1187,8 +1201,11 @@ void Ingest::unDeprecateAssetTrackingRecord(AssetTrackingTuple* currentTuple,
 							" for un-deprecated asset '%s'",
 							assetName.c_str());
 				}
-				m_logger->info("Asset '%s' has been un-deprecated",
-						assetName.c_str());
+				m_logger->info("Asset '%s' has been un-deprecated, event '%s'",
+						assetName.c_str(),
+						event.c_str());
+
+				unDeprecateDataPoints = true;
 			}
 		}
 	}
@@ -1201,6 +1218,47 @@ void Ingest::unDeprecateAssetTrackingRecord(AssetTrackingTuple* currentTuple,
 	}
 
 	delete updatedTuple;
+
+	// Undeprecate all "store" events related to the serviceName and assetName
+	if (unDeprecateDataPoints)
+	{
+		// Prepare UPDATE query
+		const Condition conditionParams(Equals);
+		Where * wAsset = new Where("asset",
+					conditionParams,
+					assetName);
+		Where *wService = new Where("service",
+					conditionParams,
+					m_serviceName,
+					wAsset);
+		Where *wEvent = new Where("event",
+					conditionParams,
+					"store",
+					wService);
+
+		InsertValues unDeprecated;
+
+		// Set NULL value
+		unDeprecated.push_back(InsertValue("deprecated_ts"));
+        
+		// Update storage with NULL value
+		int rv = m_storage.updateTable("asset_tracker",
+						unDeprecated,
+						*wEvent);
+
+		// Check update operation
+		if (rv < 0)
+		{
+			m_logger->error("Failure while un-deprecating asset '%s'",
+					assetName.c_str());
+		}
+		else
+		{
+			m_logger->info("Asset '%s' has been un-deprecated, event '%s'",
+					assetName.c_str(),
+					"store");
+		}
+	}
 }
 
 /**

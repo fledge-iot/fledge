@@ -231,7 +231,14 @@ DatapointValue *PythonReading::getDatapointValue(PyObject *value)
 			DatapointValue *dpv = getDatapointValue(dValue);
 			if (dpv)
 			{
-				values->emplace_back(new Datapoint(string(PyBytes_AsString(dKey)), *dpv));
+		               if (PyUnicode_Check(dKey))
+                               {
+                                     values->emplace_back(new Datapoint(string(PyUnicode_AsUTF8(dKey)), *dpv));
+                               }
+                               else
+                               {
+                                     values->emplace_back(new Datapoint(string(PyBytes_AsString(dKey)), *dpv));
+                               }
 				// Remove temp objects
 				delete dpv;
 			}

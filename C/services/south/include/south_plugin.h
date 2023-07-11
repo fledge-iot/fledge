@@ -52,6 +52,7 @@ public:
 	bool		operation(const std::string& name, std::vector<PLUGIN_PARAMETER *>& );
 private:
 	PLUGIN_HANDLE	instance;
+	bool		m_started; // Plugin started indicator, for async plugins
 	void		(*pluginStartPtr)(PLUGIN_HANDLE);
 	Reading		(*pluginPollPtr)(PLUGIN_HANDLE);
 	std::vector<Reading*>* (*pluginPollPtrV2)(PLUGIN_HANDLE);

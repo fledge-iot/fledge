@@ -387,7 +387,6 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		}
 
 		m_assetTracker = new AssetTracker(m_mgtClient, m_name);
-		m_storageAssetTracker = new StorageAssetTracker(m_mgtClient, m_name);
 
 		{
 		// Instantiate the Ingest class
@@ -675,10 +674,10 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
  */
 void SouthService::stop()
 {
-	if (m_storageAssetTracker)
-	{
-		m_storageAssetTracker->releaseStorageAssetTracker();
-	}
+	delete m_assetTracker;
+	delete m_auditLogger;
+	delete m_mgtClient;
+
 	logger->info("Stopping south service...\n");
 }
 

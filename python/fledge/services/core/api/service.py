@@ -644,8 +644,11 @@ async def update_service(request: web.Request) -> web.Response:
         if result['response'] == "inserted" and result['rows_affected'] == 1:
             pn = "{}-{}".format(action, name)
             # Scheme is always http:// on core_management_port
-            p = multiprocessing.Process(name=pn, target=do_update, args=(
-                server.Server._host, server.Server.core_management_port, storage_client, package_name, uid, sch_list))
+            p = multiprocessing.Process(name=pn,
+                                        target=do_update,
+                                        args=("http", server.Server._host,
+                                              server.Server.core_management_port, storage_client, package_name,
+                                              uid, sch_list))
             p.daemon = True
             p.start()
             msg = "{} {} started".format(package_name, action)
@@ -663,8 +666,8 @@ async def update_service(request: web.Request) -> web.Response:
         return web.json_response(result_payload)
 
 
-async def _put_schedule(host: str, port: int, sch_id: uuid, is_enabled: bool) -> None:
-    management_api_url = 'http://{}:{}/fledge/schedule/{}/enable'.format(host, port, sch_id)
+async def _put_schedule(protocol: str, host: str, port: int, sch_id: uuid, is_enabled: bool) -> None:
+    management_api_url = '{}://{}:{}/fledge/schedule/{}/enable'.format(protocol, host, port, sch_id)
     headers = {'content-type': 'application/json'}
     verify_ssl = False
     connector = aiohttp.TCPConnector(verify_ssl=verify_ssl)
@@ -680,7 +683,7 @@ async def _put_schedule(host: str, port: int, sch_id: uuid, is_enabled: bool) ->
             _logger.debug("PUT Schedule response: %s", response)
 
 
-def do_update(host: str, port: int, storage: connect, pkg_name: str, uid: str, schedules: list) -> None:
+def do_update(protocol: str, host: str, port: int, storage: connect, pkg_name: str, uid: str, schedules: list) -> None:
     _logger.info("{} service update started...".format(pkg_name))
     stdout_file_path = common.create_log_file("update", pkg_name)
     pkg_mgt = 'yum' if utils.is_redhat_based() else 'apt'
@@ -712,7 +715,7 @@ def do_update(host: str, port: int, storage: connect, pkg_name: str, uid: str, s
 
     # Restart the service which was disabled before service update
     for sch in schedules:
-        loop.run_until_complete(_put_schedule(host, port, uuid.UUID(sch), True))
+        loop.run_until_complete(_put_schedule(protocol, host, port, uuid.UUID(sch), True))
 
 
 @has_permission("admin")

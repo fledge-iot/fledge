@@ -148,9 +148,11 @@ async def update_package(request: web.Request) -> web.Response:
             if response:
                 pn = "{}-{}".format(action, package_name)
                 uid = response[0]['id']
-                p = multiprocessing.Process(name=pn, target=do_update, args=(
-                    server.Server._host, server.Server.core_management_port, storage_client, plugin_type, plugin_name,
-                    package_name, uid, schedules, notifications))
+                p = multiprocessing.Process(name=pn,
+                                            target=do_update,
+                                            args=("http", server.Server._host,
+                                                  server.Server.core_management_port, storage_client, plugin_type,
+                                                  plugin_name, package_name, uid, schedules, notifications))
                 p.daemon = True
                 p.start()
                 msg = "{} {} started.".format(package_name, action)
@@ -290,7 +292,7 @@ async def update_plugin(request: web.Request) -> web.Response:
                 uid = response[0]['id']
                 p = multiprocessing.Process(name=pn,
                                             target=do_update,
-                                            args=(server.Server.is_rest_server_http_enabled,
+                                            args=("http",
                                                   server.Server._host, server.Server.core_management_port,
                                                   storage_client, _type, name, package_name, uid,
                                                   schedules, notifications))
@@ -339,9 +341,9 @@ async def _get_sch_id_and_enabled_by_name(name: str) -> list:
     return result['rows']
 
 
-async def _put_schedule(host: str, port: int, sch_id: uuid, is_enabled: bool) -> None:
+async def _put_schedule(protocol: str, host: str, port: int, sch_id: uuid, is_enabled: bool) -> None:
     # Scheme is always http:// on core_management_port
-    management_api_url = 'http://{}:{}/fledge/schedule/{}/enable'.format(host, port, sch_id)
+    management_api_url = '{}://{}:{}/fledge/schedule/{}/enable'.format(protocol, host, port, sch_id)
     headers = {'content-type': 'application/json'}
     verify_ssl = False
     connector = aiohttp.TCPConnector(verify_ssl=verify_ssl)
@@ -375,7 +377,7 @@ def _update_repo_sources_and_plugin(pkg_name: str) -> tuple:
     return ret_code, link
 
 
-def do_update(host: str, port: int, storage: connect, _type: str, plugin_name: str,
+def do_update(protocol: str, host: str, port: int, storage: connect, _type: str, plugin_name: str,
               pkg_name: str, uid: str, schedules: list, notifications: list) -> None:
     _logger.info("{} package update started...".format(pkg_name))
 
@@ -396,9 +398,10 @@ def do_update(host: str, port: int, storage: connect, _type: str, plugin_name: s
             audit_detail['version'] = version[0]
         loop.run_until_complete(audit.information('PKGUP', audit_detail))
         _logger.info('{} package updated successfully.'.format(pkg_name))
+
     # Restart the services which were disabled before plugin update
     for sch in schedules:
-        loop.run_until_complete(_put_schedule(host, port, uuid.UUID(sch), True))
+        loop.run_until_complete(_put_schedule(protocol, host, port, uuid.UUID(sch), True))
 
     # Below case is applicable for the notification plugins ONLY
     # Enabled back configuration categories which were disabled during update process

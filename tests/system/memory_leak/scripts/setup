@@ -35,30 +35,32 @@ export FLEDGE_ROOT=`pwd` && cd ..;
 
 # modifying script
 echo 'fledge root path is set to  ${FLEDGE_ROOT}'
-valgrind_conf=' --tool=memcheck --leak-check=full --show-leak-kinds=all'
+valgrind_conf=' --tool=memcheck --leak-check=full --show-leak-kinds=all --fullpath-after='
 
 psouth_c=${FLEDGE_ROOT}/scripts/services/south_c
 echo $psouth_c
 sudo sed -i 's#/usr/local/fledge#'"$FLEDGE_ROOT"'#g' ${psouth_c}
-sudo sed -i '/.\/fledge.services.south.*/s/^/valgrind --log-file=\/tmp\/south_valgrind.log '"$valgrind_conf"' /' ${psouth_c}
+sudo sed -i '/.\/fledge.services.south.*/s/^/valgrind --xml=yes --xml-file=\/tmp\/south_valgrind_%p.xml --log-file=\/tmp\/south_valgrind.log '"$valgrind_conf"' /' ${psouth_c}
 
 pnorth_C=${FLEDGE_ROOT}/scripts/services/north_C
 echo $pnorth_C
 sudo sed -i 's#/usr/local/fledge#'"$FLEDGE_ROOT"'#g' ${pnorth_C}
-sudo sed -i '/.\/fledge.services.north.*/s/^/valgrind --log-file=\/tmp\/north_valgrind.log '"$valgrind_conf"' /' ${pnorth_C}
+sudo sed -i '/.\/fledge.services.north.*/s/^/valgrind --xml=yes --xml-file=\/tmp\/north_valgrind_%p.xml  --log-file=\/tmp\/north_valgrind.log '"$valgrind_conf"' /' ${pnorth_C}
 
 pstorage=${FLEDGE_ROOT}/scripts/services/storage
 echo $pstorage
 sudo sed -i 's#/usr/local/fledge#'"$FLEDGE_ROOT"'#g' ${pstorage}
-sudo sed -i '/\${storageExec} \"\$@\"/s/^/valgrind --log-file=\/tmp\/storage_valgrind.log '"$valgrind_conf"' /' ${pstorage}
+sudo sed -i '/\${storageExec} \"\$@\"/s/^/valgrind --xml=yes --xml-file=\/tmp\/storage_valgrind_%p.xml  --log-file=\/tmp\/storage_valgrind.log '"$valgrind_conf"' /' ${pstorage}
 
 # cloning plugins based on parameters passed to the script, Currently only installing sinusoid
-for i in ${1}
+
+IFS=' ' read -ra plugin_list <<< "${1}"
+for i in "${plugin_list[@]}"
 do
 	echo $i
 	git clone  https://github.com/fledge-iot/${i}.git && cd ${i}; plugin_dir=`pwd`
 
-        # Cheking requirements.sh file exists or not, to install plugins dependencies
+	# Cheking requirements.sh file exists or not, to install plugins dependencies
 	if [[ -f ${plugin_dir}/requirements.sh  ]]
 	then
 		./${plugin_dir}/requirements.sh
@@ -70,7 +72,7 @@ do
 		sed -i 's|c++11 -O3|c++11 -O0 -ggdb|g'  ${plugin_dir}/CMakeLists.txt
 		# building C based plugin
 		echo 'Building C plugin'
-		mkdir -p build && cd build && cmake -DFLEDGE_INSTALL=${FLEDGE_ROOT} -DFLEDGE_ROOT=${FLEDGE_ROOT} .. && make  && make install
+		mkdir -p build && cd build && cmake -DFLEDGE_INSTALL=${FLEDGE_ROOT} -DFLEDGE_ROOT=${FLEDGE_ROOT} .. && make  && make install && cd ..
 	else 
 		# Checking requirements.txt file exists or not, to install plugins dependencies (if any)
 		if [[ -f ${plugin_dir}/requirements.txt  ]]
@@ -82,8 +84,7 @@ do
 		sudo cp -r $plugin_dir/python $FLEDGE_ROOT/
 		echo 'Copied.'
 	fi
-	cd ../..
+	cd ../
 done
 echo 'Current location - '; pwd;
 echo 'End of setup'
-

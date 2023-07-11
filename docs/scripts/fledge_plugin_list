@@ -78,7 +78,7 @@ function table {
         fi
     done
     if [[ ${tableType} = "north" ]]; then
-        echo "    * - OMF" >> "$output"
+        echo "    * - \`OMF <"plugins/fledge-north-OMF/index.html">\`__" >> "$output"
         echo "      - Send data to OSIsoft PI Server, Edge Data Store or OSIsoft Cloud Services" >> "$output"
     fi
 }

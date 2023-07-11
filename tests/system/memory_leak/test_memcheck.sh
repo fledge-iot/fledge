@@ -7,7 +7,7 @@ source config.sh
 
 export FLEDGE_ROOT=$(pwd)/fledge
 
-FLEDGE_TEST_BRANCH="$1"    # here Branch means branch of fledge repository that is needed to be scanned through valgrind, default is develop
+FLEDGE_TEST_BRANCH="$1"    # here fledge_test_branch means branch of fledge repository that is needed to be scanned, default is develop
 
 cleanup(){
   # Removing temporary files, fledge and its plugin repository cloned by previous build of the Job 

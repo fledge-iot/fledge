@@ -644,10 +644,11 @@ async def update_service(request: web.Request) -> web.Response:
         if result['response'] == "inserted" and result['rows_affected'] == 1:
             pn = "{}-{}".format(action, name)
             # Scheme is always http:// on core_management_port
-            p = multiprocessing.Process(name=pn, target=do_update, args=(server.Server.is_rest_server_http_enabled,
-                                                                         server.Server._host,
-                                                                         server.Server.core_management_port,
-                                                                         storage_client, package_name, uid, sch_list))
+            p = multiprocessing.Process(name=pn,
+                                        target=do_update,
+                                        args=("http", server.Server._host,
+                                              server.Server.core_management_port, storage_client, package_name,
+                                              uid, sch_list))
             p.daemon = True
             p.start()
             msg = "{} {} started".format(package_name, action)
@@ -668,7 +669,7 @@ async def update_service(request: web.Request) -> web.Response:
 async def _put_schedule(protocol: str, host: str, port: int, sch_id: uuid, is_enabled: bool) -> None:
     management_api_url = '{}://{}:{}/fledge/schedule/{}/enable'.format(protocol, host, port, sch_id)
     headers = {'content-type': 'application/json'}
-    verify_ssl = False if protocol == 'HTTP' else True
+    verify_ssl = False
     connector = aiohttp.TCPConnector(verify_ssl=verify_ssl)
     async with aiohttp.ClientSession(connector=connector) as session:
         async with session.put(management_api_url, data=json.dumps({"value": is_enabled}), headers=headers) as resp:
@@ -682,16 +683,11 @@ async def _put_schedule(protocol: str, host: str, port: int, sch_id: uuid, is_en
             _logger.debug("PUT Schedule response: %s", response)
 
 
-def do_update(http_enabled: bool, host: str, port: int, storage: connect, pkg_name: str, uid: str,
-              schedules: list) -> None:
+def do_update(protocol: str, host: str, port: int, storage: connect, pkg_name: str, uid: str, schedules: list) -> None:
     _logger.info("{} service update started...".format(pkg_name))
     stdout_file_path = common.create_log_file("update", pkg_name)
     pkg_mgt = 'yum' if utils.is_redhat_based() else 'apt'
     cmd = "sudo {} -y update > {} 2>&1".format(pkg_mgt, stdout_file_path)
-
-    # Protocol is always http:// on core_management_port
-    protocol = "HTTP"
-
     if pkg_mgt == 'yum':
         cmd = "sudo {} check-update > {} 2>&1".format(pkg_mgt, stdout_file_path)
     ret_code = os.system(cmd)

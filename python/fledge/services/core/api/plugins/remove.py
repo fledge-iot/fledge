@@ -361,6 +361,7 @@ async def _check_plugin_usage_in_notification_instances(plugin_name: str) -> lis
 
 
 async def _put_refresh_cache(protocol: str, host: int, port: int) -> None:
+    # Scheme is always http:// on core_management_port
     management_api_url = '{}://{}:{}/fledge/cache'.format(protocol, host, port)
     headers = {'content-type': 'application/json'}
     verify_ssl = False

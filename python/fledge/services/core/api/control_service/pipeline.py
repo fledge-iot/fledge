@@ -255,7 +255,7 @@ async def delete(request: web.Request) -> web.Response:
         storage = connect.get_storage_async()
         pipeline = await _get_pipeline(cpid)
         # Remove filters if exists and also delete the entry from control_filter table
-        await _remove_filters(storage, pipeline['filters'], cpid)
+        await _remove_filters(storage, pipeline['filters'], cpid, pipeline['name'])
         # Delete entry from control_pipelines
         payload = PayloadBuilder().WHERE(['cpid', '=', pipeline['id']]).payload()
         await storage.delete_from_tbl("control_pipelines", payload)
@@ -533,7 +533,7 @@ async def _validate_lookup_name(lookup_name, _type, value):
         pass
 
 
-async def _remove_filters(storage, filters, cp_id):
+async def _remove_filters(storage, filters, cp_id, cp_name=None):
     cf_mgr = ConfigurationManager(storage)
     if filters:
         for f in filters:
@@ -542,6 +542,8 @@ async def _remove_filters(storage, filters, cp_id):
             await storage.delete_from_tbl("control_filters", payload)
             # Delete the related category
             await cf_mgr.delete_category_and_children_recursively(f)
+            if cp_name is not None:
+                await cf_mgr.delete_category_and_children_recursively(f.split("ctrl_{}_".format(cp_name))[1])
 
 
 async def _check_filters(storage, cp_filters):
@@ -562,6 +564,7 @@ async def _check_filters(storage, cp_filters):
 async def _update_filters(storage, cp_id, cp_name, cp_filters):
     cf_mgr = ConfigurationManager(storage)
     new_filters = []
+    children = []
     if not cp_filters:
         return new_filters
 
@@ -592,9 +595,11 @@ async def _update_filters(storage, cp_id, cp_name, cp_filters):
         payload = PayloadBuilder().INSERT(**column_names).payload()
         await storage.insert_into_tbl("control_filters", payload)
         new_filters.append(cat_name)
+        children.append(cat_name)
+        children.extend([fname])
     try:
         # Create parent-child relation with Dispatcher service
-        await cf_mgr.create_child_category("dispatcher", new_filters)
+        await cf_mgr.create_child_category("dispatcher", children)
     except:
         pass
     return new_filters

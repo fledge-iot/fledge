@@ -179,6 +179,14 @@ const char *PLUGIN_DEFAULT_CONFIG_INFO = QUOTE(
 			"displayName": "Send full structure",
 			"validity" : "PIServerEndpoint == \"PI Web API\""
 		},
+		"SkipContainerCheck": {
+			"description": "Skip container existence check and creation if enabled.",
+			"type": "boolean",
+			"default": "true",
+			"order": "3",
+			"displayName": "Skip container checking and creation",
+			"validity" : "PIServerEndpoint == \"PI Web API\""
+		},
 		"NamingScheme": {
 			"description": "Define the naming scheme of the objects in the endpoint",
 			"type": "enumeration",
@@ -412,6 +420,7 @@ typedef struct
 	HttpSender	*sender;                // HTTPS connection
 	OMF 		*omf;                   // OMF data protocol
 	bool		sendFullStructure;      // It sends the minimum OMF structural messages to load data into Data Archive if disabled
+	bool		skipContainerCheck;     // Temporary setting to skip container existence and creation for performance testing ONLY
 	bool		compression;            // whether to compress readings' data
 	string		protocol;               // http / https
 	string		hostAndPort;            // hostname:port for SimpleHttps
@@ -598,8 +607,17 @@ PLUGIN_HANDLE plugin_init(ConfigCategory* configData)
 			connInfo->sendFullStructure = true;
 		else
 			connInfo->sendFullStructure = false;
-	} else {
+		// Use SendFullStructure ?
+		string skipCont = configData->getValue("SkipContainerCheck");
+
+		if (skipCont == "True" || skipCont == "true" || skipCont == "TRUE")
+			connInfo->skipContainerCheck = true;
+		else
+			connInfo->skipContainerCheck = false;
+	} 
+	else {
 		connInfo->sendFullStructure = true;
+		connInfo->skipContainerCheck = true;
 	}
 
 	unsigned int retrySleepTime = atoi(configData->getValue("OMFRetrySleepTime").c_str());
@@ -987,6 +1005,7 @@ uint32_t plugin_send(const PLUGIN_HANDLE handle,
 
 	connInfo->omf->setConnected(s_connected);
 	connInfo->omf->setSendFullStructure(connInfo->sendFullStructure);
+	connInfo->omf->setSkipContainerCheck(connInfo->skipContainerCheck);
 
 	// Set PIServerEndpoint configuration
 	connInfo->omf->setNamingScheme(connInfo->NamingScheme);

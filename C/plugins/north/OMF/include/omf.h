@@ -184,6 +184,7 @@ class OMF
 		bool setAFMap(const std::string &AFMap);
 
 		void setSendFullStructure(const bool sendFullStructure) {m_sendFullStructure = sendFullStructure;};
+		void setSkipContainerCheck(const bool skipContainerCheck) {m_skipContainerCheck = skipContainerCheck;};
 
 		void setPrefixAFAsset(const std::string &prefixAFAsset);
 
@@ -380,6 +381,7 @@ private:
 		NAMINGSCHEME_ENDPOINT m_NamingScheme;
 		std::string		      m_DefaultAFLocation;
 		bool                  m_sendFullStructure; // If disabled the AF hierarchy is not created.
+		bool                  m_skipContainerCheck; // If disabled, container creation is skipped
 
 		// Asset Framework Hierarchy Rules handling - Metadata MAP
 		// Documentation: https://fledge-iot.readthedocs.io/en/latest/plugins/fledge-north-OMF/index.html?highlight=hierarchy#asset-framework-hierarchy-rules

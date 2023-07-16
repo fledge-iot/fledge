@@ -47,7 +47,8 @@ class OMFLinkedData
 					{};
 		std::string 	processReading(const Reading& reading,
 				const std::string& DefaultAFLocation = std::string(),
-				OMFHints *hints = NULL);
+				OMFHints *hints = NULL,
+				const bool& skipContainerCheck = 0);
 		bool		flushContainers(HttpSender& sender, const std::string& path, std::vector<std::pair<std::string, std::string> >& header);
 		void		setFormats(const std::string& doubleFormat, const std::string& integerFormat)
 				{

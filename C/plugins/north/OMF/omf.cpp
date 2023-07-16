@@ -1391,10 +1391,10 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 		{
 			// We do this before the send so we know if it was sent for the first time
 			// in the processReading call
-			auto asset_sent = m_assetSent.find(m_assetName);
+  			auto asset_sent = m_assetSent.find(m_assetName);
 			// Send data for this reading using the new mechanism
-			outData = linkedData.processReading(*reading, AFHierarchyPrefix, hints);
-			if (asset_sent == m_assetSent.end())
+			outData = linkedData.processReading(*reading, AFHierarchyPrefix, hints,m_skipContainerCheck);
+			/*if (asset_sent == m_assetSent.end())
 			{
 				// If the hierarchy has not already been sent then send it
 				if (! AFHierarchySent)
@@ -1413,7 +1413,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 					outData.append(",");
 					outData.append(af);
 				}
-			}
+			}*/
 		}
 		if (!outData.empty())
 		{

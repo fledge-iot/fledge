@@ -59,7 +59,7 @@ static std::string DataPointNamesAsString(const Reading& reading)
  * @param hints             OMF hints for the specific reading for changing the behaviour of the operation
  *
  */
-string OMFLinkedData::processReading(const Reading& reading, const string&  AFHierarchyPrefix, OMFHints *hints)
+string OMFLinkedData::processReading(const Reading& reading, const string&  AFHierarchyPrefix, OMFHints *hints, const bool& skipContainerCheck)
 {
 	string outData;
 	bool changed;
@@ -97,6 +97,7 @@ string OMFLinkedData::processReading(const Reading& reading, const string&  AFHi
 	Logger::getLogger()->debug("Processing %s (%s) using Linked Types", assetName.c_str(), DataPointNamesAsString(reading).c_str());
 
 	bool needDelim = false;
+	/* skip asset creation
 	if (m_assetSent->find(assetName) == m_assetSent->end())
 	{
 		// Send the data message to create the asset instance
@@ -107,7 +108,7 @@ string OMFLinkedData::processReading(const Reading& reading, const string&  AFHi
 		needDelim = true;
 		m_assetSent->insert(pair<string, bool>(assetName, true));
 	}
-
+        */
 	/**
 	 * This loop creates the data values for each of the datapoints in the
 	 * reading.
@@ -158,12 +159,16 @@ string OMFLinkedData::processReading(const Reading& reading, const string&  AFHi
 			// Create the link for the asset if not already created
 			string link = assetName + "." + dpName;
 			string baseType = getBaseType(*it, format);
-			auto container = m_containerSent->find(link);
-			if (container == m_containerSent->end())
-			{
-				sendContainer(link, *it, hints, baseType);
-				m_containerSent->insert(pair<string, string>(link, baseType));
+                        if(!skipContainerCheck){
+		            auto container = m_containerSent->find(link);
+                            if (container == m_containerSent->end())
+                            {
+                                    // assume container can't be found and create
+                                    sendContainer(link, *it, hints, baseType);
+                                    m_containerSent->insert(pair<string, string>(link, baseType));
+                            }
 			}
+			/*
 			else if (baseType.compare(container->second) != 0)
 			{
 				if (container->second.compare(0, 6, "Double") == 0 &&
@@ -181,13 +186,14 @@ string OMFLinkedData::processReading(const Reading& reading, const string&  AFHi
 					(*m_containerSent)[link] = baseType;
 				}
 			}
+                        }
 			if (baseType.empty())
 			{
 				// Type is not supported, skip the datapoint
 				skippedDatapoints.push_back(dpName);
 				continue;
-			}
-			if (m_linkSent->find(link) == m_linkSent->end())
+			}*/
+			/*if (m_linkSent->find(link) == m_linkSent->end())
 			{
 				outData.append("{ \"typeid\":\"__Link\",");
 				outData.append("\"values\":[ { \"source\" : {");
@@ -199,7 +205,7 @@ string OMFLinkedData::processReading(const Reading& reading, const string&  AFHi
 				outData.append("\" } } ] },");
 
 				m_linkSent->insert(pair<string, bool>(link, true));
-			}
+			}*/
 
 			// Convert reading data into the OMF JSON string
 			outData.append("{\"containerid\": \"" + link);

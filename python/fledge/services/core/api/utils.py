@@ -4,25 +4,25 @@
 # See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
-
 import subprocess
 import os
 import json
-
 from fledge.common.common import _FLEDGE_ROOT, _FLEDGE_PLUGIN_PATH
 from fledge.common.logger import FLCoreLogger
 
 _logger = FLCoreLogger().get_logger(__name__)
 _lib_path = _FLEDGE_ROOT + "/" + "plugins"
 
+C_PLUGIN_UTIL_PATH = _FLEDGE_ROOT + "/extras/C/get_plugin_info" if os.path.isdir(_FLEDGE_ROOT + "/extras/C") \
+        else _FLEDGE_ROOT + "/cmake_build/C/plugins/utils/get_plugin_info"
+
 
 def get_plugin_info(name, dir):
     try:
-        arg1 = _find_c_util('get_plugin_info')
         arg2 = _find_c_lib(name, dir)
         if arg2 is None:
             raise ValueError('The plugin {} does not exist'.format(name))
-        cmd_with_args = [arg1, arg2, "plugin_info"]
+        cmd_with_args = [C_PLUGIN_UTIL_PATH, arg2, "plugin_info"]
         p = subprocess.Popen(cmd_with_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         out, err = p.communicate()
         res = out.decode("utf-8")
@@ -43,25 +43,22 @@ def get_plugin_info(name, dir):
         return jdoc
 
 
-def _find_c_lib(name, dir):
-    _path = [_lib_path + "/" + dir]
+def _find_c_lib(name, installed_dir):
+    _path = [_lib_path + "/" + installed_dir]
     _path = _find_plugins_from_env(_path)
+    lib_path = None
+
     for fp in _path:
         for path, subdirs, files in os.walk(fp):
             for fname in files:
                 # C-binary file
                 if fname.endswith("lib{}.so".format(name)):
-                    return os.path.join(path, fname)
-    return None
-
-
-def _find_c_util(name):
-    for path, subdirs, files in os.walk(_FLEDGE_ROOT):
-        for fname in files:
-            # C-utility file
-            if fname == name:
-                return os.path.join(path, fname)
-    return None
+                    lib_path = os.path.join(path, fname)
+                    break
+            else:
+                continue
+            break
+    return lib_path
 
 
 def find_c_plugin_libs(direction):
@@ -69,32 +66,30 @@ def find_c_plugin_libs(direction):
     _path = [_lib_path]
     _path = _find_plugins_from_env(_path)
     for fp in _path:
-        for root, dirs, files in os.walk(fp + "/" + direction):
-            for name in dirs:
-                p = os.path.join(root, name)
-                for path, subdirs, f in os.walk(p):
-                    for fname in f:
-                        # C-binary file
-                        if fname.endswith('.so'):
-                            # Replace lib and .so from fname
-                            libraries.append((fname.replace("lib", "").replace(".so", ""), 'binary'))
-                        # For Hybrid plugins
-                        if direction == 'south' and fname.endswith('.json'):
-                            libraries.append((fname.replace(".json", ""), 'json'))
+        if os.path.isdir(fp + "/" + direction):
+            for name in os.listdir(fp + "/" + direction):
+                p = fp + "/" + direction + "/" + name
+                for fname in os.listdir(p):
+                    if fname.endswith('.so'):
+                        # Replace lib and .so from fname
+                        libraries.append((fname.replace("lib", "").replace(".so", ""), 'binary'))
+                    # For Hybrid plugins
+                    if direction == 'south' and fname.endswith('.json'):
+                        libraries.append((fname.replace(".json", ""), 'json'))
     return libraries
 
 
 def _find_plugins_from_env(_plugin_path: list) -> list:
     if _FLEDGE_PLUGIN_PATH:
         my_list = _FLEDGE_PLUGIN_PATH.split(";")
-        for l in my_list:
-            dir_found = os.path.isdir(l)
+        for ml in my_list:
+            dir_found = os.path.isdir(ml)
             if dir_found:
-                subdirs = [dirs for x, dirs, files in os.walk(l)]
+                subdirs = [dirs for x, dirs, files in os.walk(ml)]
                 if subdirs[0]:
-                    _plugin_path.append(l)
+                    _plugin_path.append(ml)
                 else:
-                    _logger.warning("{} subdir type not found.".format(l))
+                    _logger.warning("{} subdir type not found.".format(ml))
             else:
-                _logger.warning("{} dir path not found.".format(l))
+                _logger.warning("{} dir path not found.".format(ml))
     return _plugin_path

@@ -202,23 +202,16 @@ void doIngest(Ingest *ingest, Reading reading)
 
 void doIngestV2(Ingest *ingest, ReadingSet *set)
 {
-	std::vector<Reading *> *vec = set->getAllReadingsPtr();
-	std::vector<Reading *> *vec2 = new std::vector<Reading *>;
-	if (!vec)
-	{
-		Logger::getLogger()->info("%s:%d: V2 async ingest method: vec is NULL", __FUNCTION__, __LINE__);
-		return;
-	}
-	else
-	{
-		// TODO Remove the need for this copy of all the readings
-		for (auto & r : *vec)
-		{
-			Reading *r2 = new Reading(*r); // Need to copy reading objects here, since "del set" below would remove encapsulated reading objects also
-			vec2->emplace_back(r2);
-		}
-	}
-	Logger::getLogger()->debug("%s:%d: V2 async ingest method returned: vec->size()=%d", __FUNCTION__, __LINE__, vec->size());
+    std::vector<Reading *> *vec = set->getAllReadingsPtr();
+    if (!vec)
+    {
+        Logger::getLogger()->info("%s:%d: V2 async ingest method: vec is NULL", __FUNCTION__, __LINE__);
+        return;
+    }
+	// move reading vector from set to new vector vec2
+    std::vector<Reading *> *vec2 = set->moveAllReadings();
+    
+    Logger::getLogger()->debug("%s:%d: V2 async ingest method returned: vec->size()=%d", __FUNCTION__, __LINE__, vec->size());
 
 	ingest->ingest(vec2);
 	delete vec2; 	// each reading object inside vector has been allocated on heap and moved to Ingest class's internal queue
@@ -565,25 +558,17 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 							if (set)
 							{
 							    std::vector<Reading *> *vec = set->getAllReadingsPtr();
-							    std::vector<Reading *> *vec2 = new std::vector<Reading *>;
 							    if (!vec)
 							    {
 								Logger::getLogger()->info("%s:%d: V2 poll method: vec is NULL", __FUNCTION__, __LINE__);
 								continue;
 							    }
-							    else
-							    {
-								for (auto & r : *vec)
-								{
-								    Reading *r2 = new Reading(*r); // Need to copy reading objects here, since "del set" below would remove encapsulated reading objects
-								    vec2->emplace_back(r2);
-								}
-							    }
-
-										ingest.ingest(vec2);
-										pollCount += (int) vec2->size();
-										delete vec2; 	// each reading object inside vector has been allocated on heap and moved to Ingest class's internal queue
-										delete set;
+							    // move reading vector from set to vec2
+								std::vector<Reading *> *vec2 = set->moveAllReadings();
+								ingest.ingest(vec2);
+								pollCount += (int) vec2->size();
+								delete vec2; 	// each reading object inside vector has been allocated on heap and moved to Ingest class's internal queue
+								delete set;
 							}
 						}
 						throttlePoll();

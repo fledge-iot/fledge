@@ -307,6 +307,36 @@ ReadingSet::clear()
 }
 
 /**
+ * Remove readings from the vector and return a reference to new vector
+ * containing readings*
+*/
+std::vector<Reading*>* ReadingSet::moveAllReadings()
+{
+	std::vector<Reading*>* transferredPtr = new std::vector<Reading*>(std::move(m_readings));
+	m_count = 0;
+	m_last_id = 0;
+	m_readings.clear();
+
+	return transferredPtr;
+}
+
+/**
+ * Remove reading from vector based on index and return its pointer
+*/
+Reading* ReadingSet::removeReading(unsigned long id)
+{
+	if (id >= m_readings.size()) {
+        return nullptr;
+    }
+
+	Reading* reading = m_readings[id];
+    m_readings.erase(m_readings.begin() + id);
+    m_count--;
+
+    return reading;
+}
+
+/**
  * Return the ID of the nth reading in the reading set
  *
  * @param pos	The position of the reading to return the ID for

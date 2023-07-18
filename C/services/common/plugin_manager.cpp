@@ -77,7 +77,8 @@ void updateJsonPluginConfig(PLUGIN_INFORMATION *info, string json_plugin_name, s
 	doc.Parse(json_plugin_defaults.c_str());
 	if (doc.HasParseError())
 	{
-		logger->error("doc JSON parsing failed");
+		logger->error("Parse error in plugin '%s' defaults: %s at %d", json_plugin_name.c_str(),
+					GetParseError_En(doc.GetParseError()), (unsigned)doc.GetErrorOffset());
 		return;
 	}
 
@@ -85,7 +86,8 @@ void updateJsonPluginConfig(PLUGIN_INFORMATION *info, string json_plugin_name, s
 	docBase.Parse(info->config);
 	if (docBase.HasParseError())
 	{
-		logger->error("docBase JSON parsing failed");
+		logger->error("Parse error in plugin '%s' information defaults: %s at %d", json_plugin_name.c_str(),
+					GetParseError_En(doc.GetParseError()), (unsigned)doc.GetErrorOffset());
 		return;
 	}
 

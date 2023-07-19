@@ -56,6 +56,8 @@ Currently only the notification method is fully implemented within Fledge.
 
 The use of a notification in the Fledge instance itself provides the fastest response for an edge notification. All the processing for this is done on the edge by Fledge itself.
 
+As with the data ingress and egress features of Fledge it is also possible to build filter pipelines in the control paths in order to alter the behavior and process the data in the control path.
+
 Edge Based Control
 ------------------
 

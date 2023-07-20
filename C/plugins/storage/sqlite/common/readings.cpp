@@ -1659,13 +1659,11 @@ vector<string>  asset_codes;
 					sql.append(' ');
 				}
 
-				sql.append("id, asset_code, reading, strftime(')" F_DATEH24_SEC);
-				sql.append("(', user_ts, '");
+				sql.append("id, asset_code, reading, strftime('" F_DATEH24_SEC "', user_ts, '");
 				sql.append(timezone);
-				sql.append("')  || substr(user_ts, instr(user_ts, '.'), 7) AS user_ts, strftime(')" F_DATEH24_MS);
-			       	sql.append("(', ts, '");
+				sql.append("')  || substr(user_ts, instr(user_ts, '.'), 7) AS user_ts, strftime('" F_DATEH24_MS "', ts, '");
 				sql.append(timezone);
-				sql.append("') AS ts FROM  )");
+				sql.append("') AS ts FROM  ");
 			}
 			{
 

@@ -1241,7 +1241,8 @@ int retrieve;
 /**
  * Perform a query against the readings table
  *
- * retrieveReadings, used by the API, returns timestamp in localtime.
+ * retrieveReadings, used by the API, returns timestamp in utc unless
+ * otherwise requested.
  *
  */
 bool Connection::retrieveReadings(const string& condition, string& resultSet)
@@ -1252,6 +1253,7 @@ SQLBuffer	sql;
 // Extra constraints to add to where clause
 SQLBuffer	jsonConstraints;
 bool		isAggregate = false;
+const char	*timezone = "utc";
 
 	try {
 		if (dbHandle == NULL)
@@ -1267,7 +1269,7 @@ bool		isAggregate = false;
 						id,
 						asset_code,
 						reading,
-						strftime(')" F_DATEH24_SEC R"(', user_ts, 'localtime')  ||
+						strftime(')" F_DATEH24_SEC R"(', user_ts, 'utc')  ||
 						substr(user_ts, instr(user_ts, '.'), 7) AS user_ts,
 						strftime(')" F_DATEH24_MS R"(', ts, 'localtime') AS ts
 					FROM )" READINGS_DB_NAME_BASE R"(.readings)";
@@ -1280,6 +1282,11 @@ bool		isAggregate = false;
 			{
 				raiseError("retrieve", "Failed to parse JSON payload");
 				return false;
+			}
+
+			if (document.HasMember("timezone") && document["timezone"].IsString())
+			{
+				timezone = document["timezone"].GetString();
 			}
 
 			// timebucket aggregate all datapoints
@@ -1327,14 +1334,18 @@ bool		isAggregate = false;
 						if (strcmp(itr->GetString() ,"user_ts") == 0)
 						{
 							// Display without TZ expression and microseconds also
-							sql.append(" strftime('" F_DATEH24_SEC "', user_ts, 'localtime') ");
+							sql.append(" strftime('" F_DATEH24_SEC "', user_ts, '");
+							sql.append(timezone);
+							sql.append("') ");
 							sql.append(" || substr(user_ts, instr(user_ts, '.'), 7) ");
 							sql.append(" as  user_ts ");
 						}
 						else if (strcmp(itr->GetString() ,"ts") == 0)
 						{
 							// Display without TZ expression and microseconds also
-							sql.append(" strftime('" F_DATEH24_MS "', ts, 'localtime') ");
+							sql.append(" strftime('" F_DATEH24_MS "', ts, '");
+							sql.append(timezone);
+							sql.append("') ");
 							sql.append(" as ts ");
 						}
 						else
@@ -1446,7 +1457,9 @@ bool		isAggregate = false;
 								{
 									// Extract milliseconds and microseconds for the user_ts fields
 
-									sql.append("strftime('" F_DATEH24_SEC "', user_ts, 'localtime') ");
+									sql.append("strftime('" F_DATEH24_SEC "', user_ts, '");
+									sql.append(timezone);
+									sql.append("') ");
 									sql.append(" || substr(user_ts, instr(user_ts, '.'), 7) ");
 									if (! itr->HasMember("alias"))
 									{
@@ -1458,7 +1471,9 @@ bool		isAggregate = false;
 								{
 									sql.append("strftime('" F_DATEH24_MS "', ");
 									sql.append((*itr)["column"].GetString());
-									sql.append(", 'localtime')");
+									sql.append(", '");
+									sql.append(timezone);
+									sql.append("')");
 									if (! itr->HasMember("alias"))
 									{
 										sql.append(" AS ");
@@ -1501,16 +1516,13 @@ bool		isAggregate = false;
 					sql.append(' ');
 				}
 
-				const char *sql_cmd = R"(
-						id,
-						asset_code,
-						reading,
-						strftime(')" F_DATEH24_SEC R"(', user_ts, 'localtime')  ||
-						substr(user_ts, instr(user_ts, '.'), 7) AS user_ts,
-						strftime(')" F_DATEH24_MS R"(', ts, 'localtime') AS ts
-                    FROM  )" READINGS_DB_NAME_BASE R"(.)";
+				sql.append("id, asset_code, reading, strftime('" F_DATEH24_SEC "', user_ts, '");
+				sql.append(timezone);
+				sql.append("')  || substr(user_ts, instr(user_ts, '.'), 7) AS user_ts,");
+				sql.append("strftime('" F_DATEH24_MS "', ts, '");
+				sql.append(timezone);
+				sql.append("') AS ts FROM " READINGS_DB_NAME_BASE ".");
 
-				sql.append(sql_cmd);
 			}
 			sql.append("readings");
 			if (document.HasMember("where"))

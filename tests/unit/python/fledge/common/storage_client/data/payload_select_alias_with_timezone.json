@@ -1,0 +1,7 @@
+{
+	"return": [{
+		"column": "user_ts",
+		"alias": "timestamp",
+		"timezone": "utc"
+	}]
+}

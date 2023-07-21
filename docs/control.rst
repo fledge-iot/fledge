@@ -433,26 +433,26 @@ Pipeline Connections
 
 The control pipelines are not defined against a particular end point as they are with the data pipelines, they are defined separately and part of that definition includes the input and output end points to which the control pipeline may be attached. The input and output of a control pipeline may be defined as being able to connect to one of a set of endpoints.
 
-+--------------+-------------+----------------------------------------------------------------------------------------+
-| Type         | Endpoints   | Description                                                                            |
-+==============+=============+========================================================================================+
-| Any          | Both        | The pipeline can connection to any source or destination. This is only used in         |
-|              |             | situations where an exact match for an endpoint can not be satisfied.                  |
-+--------------+-------------+----------------------------------------------------------------------------------------+
-| API          | Source      | The source of the request is an API call the the public API of the Fledge instance.    |
-+--------------+-------------+----------------------------------------------------------------------------------------+
++--------------+-------------+-----------------------------------------------------------------------------------------+
+| Type         | Endpoints   | Description                                                                             |
++==============+=============+=========================================================================================+
+| Any          | Both        | The pipeline can connection to any source or destination. This is only used in          |
+|              |             | situations where an exact match for an endpoint can not be satisfied.                   |
++--------------+-------------+-----------------------------------------------------------------------------------------+
+| API          | Source      | The source of the request is an API call the the public API of the Fledge instance.     |
++--------------+-------------+-----------------------------------------------------------------------------------------+
 | Asset        | Destination | The data will be sent to the service that is responsible for ingesting the named asset. |
-+--------------+-------------+----------------------------------------------------------------------------------------+
-| Broadcast    | Destination | The requests will be sent to all south services that support control.                  |
-+--------------+-------------+----------------------------------------------------------------------------------------+
-| Notification | Source      | The request originated from the named notification.                                    |
-+--------------+-------------+----------------------------------------------------------------------------------------+
-| Schedule     | Source      | The request originated from a schedule.                                                |
-+--------------+-------------+----------------------------------------------------------------------------------------+
-| Script       | Both        | The request is either originating from a script or being sent to a script.             |
-+--------------+-------------+----------------------------------------------------------------------------------------+
-| Service      | Both        | The request is either coming from a named service or going to a named service.         |
-+--------------+-------------+----------------------------------------------------------------------------------------+
++--------------+-------------+-----------------------------------------------------------------------------------------+
+| Broadcast    | Destination | The requests will be sent to all south services that support control.                   |
++--------------+-------------+-----------------------------------------------------------------------------------------+
+| Notification | Source      | The request originated from the named notification.                                     |
++--------------+-------------+-----------------------------------------------------------------------------------------+
+| Schedule     | Source      | The request originated from a schedule.                                                 |
++--------------+-------------+-----------------------------------------------------------------------------------------+
+| Script       | Both        | The request is either originating from a script or being sent to a script.              |
++--------------+-------------+-----------------------------------------------------------------------------------------+
+| Service      | Both        | The request is either coming from a named service or going to a named service.          |
++--------------+-------------+-----------------------------------------------------------------------------------------+
 
 Control pipelines are always executed in the control dispatcher service. When a request comes into the service it will look for a pipeline to pass that request through. This process will look at the source of the request and the destination of the request. If a pipeline that has source and destination endpoints that are an exact match for the source and destination of the control request then the control request will be processed through that pipeline.
 

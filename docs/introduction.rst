@@ -9,7 +9,6 @@
 
 .. |DataPipelines| raw:: html
 
-
    <a href="building_pipelines.html">Developing Data Pipelines</a>
 
 Introduction to Fledge

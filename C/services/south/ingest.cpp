@@ -390,6 +390,8 @@ bool Ingest::isStopping()
 
 /**
  * Add a reading to the reading queue
+ *
+ * @param reading	The single reading to ingest
  */
 void Ingest::ingest(const Reading& reading)
 {
@@ -411,10 +413,13 @@ vector<Reading *> *fullQueue = 0;
 	}
 	if (m_fullQueues.size())
 		m_cv.notify_all();
+	m_performance->collect("queueLegnth", (long)queueLength());
 }
 
 /**
  * Add a set of readings to the reading queue
+ *
+ * @param vec	A vector of readings to ingest
  */
 void Ingest::ingest(const vector<Reading *> *vec)
 {
@@ -452,14 +457,16 @@ unsigned int nFullQueues = 0;
 	{
 		m_cv.notify_all();
 	}
+	m_performance->collect("queueLegnth", (long)queueLength());
+	m_performance->collect("ingestCount", (long)vec->size());
 }
 
 /**
  * Work out how long to wait based on age of oldest queued reading
- * We do this in a seperaste function so that we can
- * lock the qMutex to access the oldest element in the queue
+ * We do this in a seperate function so that we can lock the qMutex
+ * to access the oldest element in the queue
  *
- * @return the tiem to wait
+ * @return the time to wait
  */
 long Ingest::calculateWaitTime()
 {
@@ -745,6 +752,7 @@ void Ingest::processQueue()
 				firstReading->getUserTimestamp(&tmFirst);
 				timersub(&tmNow, &tmFirst, &dur);
 				long latency = dur.tv_sec * 1000 + (dur.tv_usec / 1000);
+				m_performance->collect("readLatency", latency);
 				if (latency > m_timeout && m_highLatency == false)
 				{
 					m_logger->warn("Current send latency of %ldmS exceeds requested maximum latency of %dmS", latency, m_timeout);

@@ -85,14 +85,15 @@ public:
 	void		unDeprecateAssetTrackingRecord(AssetTrackingTuple* currentTuple,
 							const std::string& assetName,
 							const std::string& event);
-	void            unDeprecateStorageAssetTrackingRecord(StorageAssetTrackingTuple* currentTuple,
-                                                        const std::string& assetName, const std::string&, const unsigned int&);
+	void		unDeprecateStorageAssetTrackingRecord(StorageAssetTrackingTuple* currentTuple,
+							const std::string& assetName,
+							const std::string&,
+							const unsigned int&);
 	void		setStatistics(const std::string& option);
 
 	std::string  	getStringFromSet(const std::set<std::string> &dpSet);
 	void		setFlowControl(unsigned int lowWater, unsigned int highWater) { m_lowWater = lowWater; m_highWater = highWater; };
 	void		flowControl();
-
 
 private:
 	void				signalStatsUpdate() {

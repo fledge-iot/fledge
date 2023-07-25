@@ -1264,6 +1264,7 @@ struct timeval now, res;
 		m_lastThrottle = now;
 		m_throttled = true;
 		logger->warn("%s Throttled down poll, rate is now %.1f%% of desired rate", m_name.c_str(), (desired * 100) / rate);
+		m_perfMonitor->collect("throttled rate", (long)(rate * 1000));
 	}
 	else if (m_throttled && m_ingest->queueLength() < m_lowWater && res.tv_sec > SOUTH_THROTTLE_UP_INTERVAL)
 	{
@@ -1296,6 +1297,7 @@ struct timeval now, res;
 			{
 				logger->warn("%s Throttled up poll, rate is now %.1f%% of desired rate", m_name.c_str(), (desired * 100) / rate);
 			}
+			m_perfMonitor->collect("throttled rate", (long)(rate * 1000));
 			close(m_timerfd);
 			m_timerfd = createTimerFd(m_currentRate); // interval to be passed is in usecs
 			m_lastThrottle = now;

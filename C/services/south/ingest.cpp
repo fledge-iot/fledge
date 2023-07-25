@@ -1447,5 +1447,6 @@ void Ingest::flowControl()
 		}
 		m_logger->debug("Ingest queue has %s", queueLength() > m_lowWater
 			       	? "failed to drain in sufficient time" : "has drained");
+		m_performance->collect("flow controlled", total);
 	}
 }

@@ -217,17 +217,21 @@ async def update(request: web.Request) -> web.Response:
             await storage.update_tbl("control_pipelines", payload)
         filters = data.get('filters', None)
         if filters is not None:
-            go_ahead = await _check_filters(storage, filters) if filters else True
-            if go_ahead:
-                # remove old filters if exists
-                await _remove_filters(storage, pipeline['filters'], cpid)
-                if filters:
-                    # Update new filters
-                    new_filters = await _update_filters(storage, cpid, pipeline['name'], filters)
-                    if not new_filters:
-                        raise ValueError('Filters do not exist as per the given list {}'.format(filters))
+            # Case: When filters payload is empty then remove all filters
+            if not filters:
+                await _remove_filters(storage, pipeline['filters'], cpid, pipeline['name'])
             else:
-                raise ValueError('Filters do not exist as per the given list {}'.format(filters))
+                go_ahead = await _check_filters(storage, filters) if filters else True
+                if go_ahead:
+                    if filters:
+                        result_filters = await _get_table_column_by_value("control_filters", "cpid", cpid)
+                        db_filters = None
+                        if result_filters['rows']:
+                            db_filters = [r['fname'].replace("ctrl_{}_".format(pipeline['name']), ''
+                                                             ) for r in result_filters['rows']]
+                        await _update_filters(storage, cpid, pipeline['name'], filters, db_filters)
+                else:
+                    raise ValueError('Filters do not exist as per the given list {}'.format(filters))
     except ValueError as err:
         msg = str(err)
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
@@ -289,7 +293,10 @@ async def _get_all_lookups(tbl_name=None):
 
 async def _get_table_column_by_value(table, column_name, column_value, limit=None):
     storage = connect.get_storage_async()
-    payload = PayloadBuilder().WHERE([column_name, '=', column_value]).payload()
+    if table == "control_filters":
+        payload = PayloadBuilder().WHERE([column_name, '=', column_value]).ORDER_BY(["forder", "asc"]).payload()
+    else:
+        payload = PayloadBuilder().WHERE([column_name, '=', column_value]).payload()
     if limit is not None:
         payload = PayloadBuilder().WHERE([column_name, '=', column_value]).LIMIT(limit).payload()
     result = await storage.query_tbl_with_payload(table, payload)
@@ -540,10 +547,15 @@ async def _remove_filters(storage, filters, cp_id, cp_name=None):
             # Delete entry from control_filter table
             payload = PayloadBuilder().WHERE(['cpid', '=', cp_id]).AND_WHERE(['fname', '=', f]).payload()
             await storage.delete_from_tbl("control_filters", payload)
-            # Delete the related category
+
+            # Delete filter from filters table
+            filter_name = f.replace("ctrl_{}_".format(cp_name), '')
+            payload = PayloadBuilder().WHERE(['name', '=', filter_name]).payload()
+            await storage.delete_from_tbl("filters", payload)
+
+            # Delete the filters category
             await cf_mgr.delete_category_and_children_recursively(f)
-            if cp_name is not None:
-                await cf_mgr.delete_category_and_children_recursively(f.split("ctrl_{}_".format(cp_name))[1])
+            await cf_mgr.delete_category_and_children_recursively(filter_name)
 
 
 async def _check_filters(storage, cp_filters):
@@ -561,47 +573,60 @@ async def _check_filters(storage, cp_filters):
     return is_exist
 
 
-async def _update_filters(storage, cp_id, cp_name, cp_filters):
+async def _update_filters(storage, cp_id, cp_name, cp_filters, db_filters=None):
+    if db_filters is None:
+        db_filters = []
     cf_mgr = ConfigurationManager(storage)
     new_filters = []
     children = []
-    if not cp_filters:
-        return new_filters
 
-    for fid, fname in enumerate(cp_filters, start=1):
-        # get plugin config of filter
-        category_value = await cf_mgr.get_category_all_items(category_name=fname)
-        cat_value = copy.deepcopy(category_value)
-        if cat_value is None:
-            raise ValueError(
-                "{} category does not exist during {} control pipeline filter.".format(
-                    fname, cp_name))
-        # Copy value in default and remove value KV pair for creating new category
-        for k, v in cat_value.items():
-            v['default'] = v['value']
-            v.pop('value', None)
-        # Create category
-        cat_name = "ctrl_{}_{}".format(cp_name, fname)
-        await cf_mgr.create_category(category_name=cat_name,
-                                     category_description="Filter of {} control pipeline.".format(
-                                         cp_name),
-                                     category_value=cat_value,
-                                     keep_original_items=True)
-        new_category = await cf_mgr.get_category_all_items(cat_name)
-        if new_category is None:
-            raise KeyError("No such {} category found.".format(new_category))
-        # Create entry in control_filters table
-        column_names = {"cpid": cp_id, "forder": fid, "fname": cat_name}
-        payload = PayloadBuilder().INSERT(**column_names).payload()
-        await storage.insert_into_tbl("control_filters", payload)
-        new_filters.append(cat_name)
-        children.append(cat_name)
-        children.extend([fname])
-    try:
-        # Create parent-child relation with Dispatcher service
-        await cf_mgr.create_child_category("dispatcher", children)
-    except:
-        pass
+    insert_filters = set(cp_filters) - set(db_filters)
+    update_filters = set(cp_filters) & set(db_filters)
+    delete_filters = set(db_filters) - set(cp_filters)
+
+    if insert_filters:
+        for fid, fname in enumerate(insert_filters, start=1):
+            # get plugin config of filter
+            category_value = await cf_mgr.get_category_all_items(category_name=fname)
+            cat_value = copy.deepcopy(category_value)
+            if cat_value is None:
+                raise ValueError(
+                    "{} category does not exist during {} control pipeline filter.".format(
+                        fname, cp_name))
+            # Copy value in default and remove value KV pair for creating new category
+            for k, v in cat_value.items():
+                v['default'] = v['value']
+                v.pop('value', None)
+            # Create category
+            cat_name = "ctrl_{}_{}".format(cp_name, fname)
+            await cf_mgr.create_category(category_name=cat_name,
+                                         category_description="Filter of {} control pipeline.".format(
+                                             cp_name),
+                                         category_value=cat_value,
+                                         keep_original_items=True)
+            new_category = await cf_mgr.get_category_all_items(cat_name)
+            if new_category is None:
+                raise KeyError("No such {} category found.".format(new_category))
+            # Create entry in control_filters table
+            column_names = {"cpid": cp_id, "forder": fid, "fname": cat_name}
+            payload = PayloadBuilder().INSERT(**column_names).payload()
+            await storage.insert_into_tbl("control_filters", payload)
+            new_filters.append(cat_name)
+            children.append(cat_name)
+            children.extend([fname])
+        try:
+            # Create parent-child relation with Dispatcher service
+            await cf_mgr.create_child_category("dispatcher", children)
+        except:
+            pass
+    if update_filters:
+        # only order
+        for fid, fname in enumerate(cp_filters, start=1):
+            payload = PayloadBuilder().SET(forder=fid).WHERE(["fname", "=", "ctrl_{}_{}".format(cp_name, fname)]).AND_WHERE(["cpid", "=", cp_id]).payload()
+            await storage.update_tbl("control_filters", payload)
+    if delete_filters:
+        del_filters = ["ctrl_{}_{}".format(cp_name, f) for f in list(delete_filters)]
+        await _remove_filters(storage, del_filters, cp_id, cp_name)
     return new_filters
 
 

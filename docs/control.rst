@@ -21,6 +21,7 @@
 .. |pipeline_source| image:: images/control/pipeline_source.jpg
 .. |pipeline_filter_add| image:: images/control/pipeline_filter_add.jpg
 .. |pipeline_filter_config| image:: images/control/pipeline_filter_config.jpg
+.. |pipeline_context_menu| image:: images/control/pipeline_context_menu.jpg
 .. |pipeline_destination| image:: images/control/pipeline_destination.jpg
 
 .. Links
@@ -419,14 +420,16 @@ This reading can then be manipulated by a filter in the same way as in any other
 
 In the case of an operation the mapping is very similar, except that the asset_code in the reading becomes the operation name and the data points are the parameters of the operation.
 
-For example if an operation *Start Fan* required a parameter of *Fan Speed* then a reading with an asset code of *Start Fan* with a single datapoint called *Fan Speed* would be created and passed through the filter pipeline.
+For example, if an operation *Start Fan* required a parameter of *Fan Speed* then a reading with an asset_code of *Start Fan* with a single datapoint called *Fan Speed* would be created and passed through the filter pipeline.
 
 Data Types
 ~~~~~~~~~~
 
 The values of all set points and the parameters of all operations are passed in the control services and between services as string representations, however they are converted to appropriate types when passed through the filter pipeline. If a value can be represented as an integer it will be and likewise for floating point values.
 
-Currently complex types such as Image, Data Buffer and Array data can not be represented in the control pipelines.
+.. note::
+
+   Currently complex types such as Image, Data Buffer and Array data can not be represented in the control pipelines.
 
 Pipeline Connections
 --------------------
@@ -439,7 +442,7 @@ The control pipelines are not defined against a particular end point as they are
 | Any          | Both        | The pipeline can connection to any source or destination. This is only used in          |
 |              |             | situations where an exact match for an endpoint can not be satisfied.                   |
 +--------------+-------------+-----------------------------------------------------------------------------------------+
-| API          | Source      | The source of the request is an API call the the public API of the Fledge instance.     |
+| API          | Source      | The source of the request is an API call to the public API of the Fledge instance.      |
 +--------------+-------------+-----------------------------------------------------------------------------------------+
 | Asset        | Destination | The data will be sent to the service that is responsible for ingesting the named asset. |
 +--------------+-------------+-----------------------------------------------------------------------------------------+
@@ -528,7 +531,7 @@ Clicking on the add option will display the screen to add a new control pipeline
   - **Filters**: The filters in the pipeline. Click on *Add new filter* to add a new filter to the pipeline.
 
 
-    Clicking on the *Add filter* link will display a dialogue in which the filter plugin can be chosen and named.
+    Clicking on the *Add filter* link will display a dialog in which the filter plugin can be chosen and named.
 
     +-----------------------+
     | |pipeline_filter_add| |

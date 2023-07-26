@@ -1163,7 +1163,7 @@ INSERT INTO fledge.control_destination ( name, description )
 
 
 CREATE TABLE fledge.monitors (
-	service		character varying(80) NOT NULL,   -- 
+	service		character varying(255) NOT NULL,   -- 
 	monitor 	character varying(80) NOT NULL,
 	minimum		bigint,
 	maximum		bigint,
@@ -1172,5 +1172,5 @@ CREATE TABLE fledge.monitors (
 	timestamp    	timestamp(6) with time zone NOT NULL DEFAULT now()
 
 -- Index: log_ix1 - For queries by code
-CREATE INDEX fledge.monitor_ix1
+CREATE INDEX monitor_ix1
     ON fledge.monitors(service, monitor);

@@ -413,7 +413,7 @@ vector<Reading *> *fullQueue = 0;
 	}
 	if (m_fullQueues.size())
 		m_cv.notify_all();
-	m_performance->collect("queueLegnth", (long)queueLength());
+	m_performance->collect("queueLength", (long)queueLength());
 }
 
 /**
@@ -457,13 +457,13 @@ unsigned int nFullQueues = 0;
 	{
 		m_cv.notify_all();
 	}
-	m_performance->collect("queueLegnth", (long)queueLength());
+	m_performance->collect("queueLength", (long)queueLength());
 	m_performance->collect("ingestCount", (long)vec->size());
 }
 
 /**
  * Work out how long to wait based on age of oldest queued reading
- * We do this in a seperate function so that we can lock the qMutex
+ * We do this in a separate function so that we can lock the qMutex
  * to access the oldest element in the queue
  *
  * @return the time to wait

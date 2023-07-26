@@ -917,7 +917,7 @@ INSERT INTO fledge.control_destination ( name, description )
             ('Broadcast', 'No name is applied and pipeline will be considered for any control writes or operations to broadcast destinations.');
 
 CREATE TABLE fledge.monitors (
-	service		character varying(80) NOT NULL,   -- 
+	service		character varying(255) NOT NULL,   -- 
 	monitor 	character varying(80) NOT NULL,
 	minimum		integer,
 	maximum		integer,
@@ -926,5 +926,5 @@ CREATE TABLE fledge.monitors (
 	timestamp    	DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW'))
 );
 
-CREATE INDEX fledge.monitor_ix1
+CREATE INDEX monitor_ix1
     ON log(service, monitor);

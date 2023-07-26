@@ -231,7 +231,8 @@ SouthService::SouthService(const string& myName, const string& token) :
 				m_token(token),
 				m_repeatCnt(1),
 				m_dryRun(false),
-				m_requestRestart(false)
+				m_requestRestart(false),
+				m_perfMonitor(NULL)
 {
 	m_name = myName;
 	m_type = SERVICE_TYPE;
@@ -335,6 +336,8 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		StorageClient storage(storageRecord.getAddress(),
 						storageRecord.getPort());
 		storage.registerManagement(m_mgtClient);
+
+		m_perfMonitor = new PerformanceMonitor(m_name, &storage);
 		unsigned int threshold = 100;
 		long timeout = 5000;
 		std::string pluginName;
@@ -391,6 +394,7 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		{
 		// Instantiate the Ingest class
 		Ingest ingest(storage, m_name, pluginName, m_mgtClient);
+		ingest.setPerfMon(m_perfMonitor);
 		m_ingest = &ingest;
 		if (m_throttle)
 		{
@@ -400,6 +404,15 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		if (m_configAdvanced.itemExists("statistics"))
 		{
 			m_ingest->setStatistics(m_configAdvanced.getValue("statistics"));
+		}
+
+		if (m_configAdvanced.itemExists("perfmon"))
+		{
+			string perf = m_configAdvanced.getValue("perfmon");
+			if (perf.compare("true") == 0)
+				m_perfMonitor->setCollecting(true);
+			else
+				m_perfMonitor->setCollecting(false);
 		}
 
 		m_ingest->start(timeout, threshold);	// Start the ingest threads running
@@ -850,6 +863,14 @@ void SouthService::processConfigChange(const string& categoryName, const string&
 		{
 			m_ingest->setStatistics(m_configAdvanced.getValue("statistics"));
 		}
+		if (m_configAdvanced.itemExists("perfmon"))
+		{
+			string perf = m_configAdvanced.getValue("perfmon");
+			if (perf.compare("true") == 0)
+				m_perfMonitor->setCollecting(true);
+			else
+				m_perfMonitor->setCollecting(false);
+		}
 		if (! southPlugin->isAsync())
 		{
 			try {
@@ -1148,6 +1169,9 @@ void SouthService::addConfigDefaults(DefaultConfigCategory& defaultConfig)
 	defaultConfig.addItem("statistics", "Collect statistics either for every asset ingested, for the service in total or both",
 			"per asset & service", "per asset & service", statistics);
 	defaultConfig.setItemDisplayName("statistics", "Statistics Collection");
+	defaultConfig.addItem("perfmon", "Track and store performance counters",
+			       "boolean", "false", "false");
+	defaultConfig.setItemDisplayName("perfmon", "Performance Counters");
 }
 
 /**
@@ -1240,6 +1264,7 @@ struct timeval now, res;
 		m_lastThrottle = now;
 		m_throttled = true;
 		logger->warn("%s Throttled down poll, rate is now %.1f%% of desired rate", m_name.c_str(), (desired * 100) / rate);
+		m_perfMonitor->collect("throttled rate", (long)(rate * 1000));
 	}
 	else if (m_throttled && m_ingest->queueLength() < m_lowWater && res.tv_sec > SOUTH_THROTTLE_UP_INTERVAL)
 	{
@@ -1272,6 +1297,7 @@ struct timeval now, res;
 			{
 				logger->warn("%s Throttled up poll, rate is now %.1f%% of desired rate", m_name.c_str(), (desired * 100) / rate);
 			}
+			m_perfMonitor->collect("throttled rate", (long)(rate * 1000));
 			close(m_timerfd);
 			m_timerfd = createTimerFd(m_currentRate); // interval to be passed is in usecs
 			m_lastThrottle = now;

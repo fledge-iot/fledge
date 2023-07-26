@@ -676,7 +676,8 @@ INSERT INTO fledge.roles ( name, description )
      VALUES ('admin', 'All CRUD privileges'),
             ('user', 'All CRUD operations and self profile management'),
             ('view', 'Only to view the configuration'),
-            ('data-view', 'Only read the data in buffer');
+            ('data-view', 'Only read the data in buffer'),
+            ('control', 'Same as editor can do and also have access for control scripts and pipelines');
 
 -- Users
 DELETE FROM fledge.users;

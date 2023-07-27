@@ -9,5 +9,5 @@ CREATE TABLE fledge.monitors (
 	timestamp    	DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW'))
 );
 
-CREATE INDEX monitor_ix1
-    ON fledge.monitors(service, monitor);
+CREATE INDEX monitors_ix1
+    ON monitors(service, monitor);

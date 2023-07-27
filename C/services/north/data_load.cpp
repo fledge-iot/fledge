@@ -598,13 +598,18 @@ void DataLoad::configChange(const string& category, const string& newConfig)
 	{
 		/**
 		 * The category that has changed is the one for the north service itself.
-		 * The only item that concerns us here is the filter item that defines
-		 * the filter pipeline. We extract that item and check to see if it defines
-		 * a pipeline that is different to the one we currently have.
+		 * The only items that concerns us here is the filter item that defines
+		 * the filter pipeline and the data source. If the item is the filter pipeline
+		 * we extract that item and check to see if it defines a pipeline that is
+		 * different to the one we currently have.
 		 *
-		 * If it is we destroy the current pipeline and create a new one.
+		 * If it is the filter pipeline we destroy the current pipeline and create a new one.
 		 */
 		ConfigCategory config("tmp", newConfig);
+		if (config.itemExists("source"))
+		{
+			setDataSource(config.getValue("source"));
+		}
 		string newPipeline = "";
 		if (config.itemExists("filter"))
 		{

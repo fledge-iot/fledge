@@ -44,5 +44,8 @@ std::string StringTrim(const std::string& str);
 
 bool IsRegex(const string &str);
 
+std::string StringAround(const std::string& str, unsigned int pos,
+		unsigned int after = 30, unsigned int before = 10);
+
 
 #endif

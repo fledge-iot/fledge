@@ -445,3 +445,24 @@ bool IsRegex(const string &str) {
 
 	return (nChar != 0);
 }
+
+/**
+ * Return a new string that extracts from the passed in string either side
+ * of a position within the string.
+ *
+ * @param str	The string to return a portion of
+ * @param pos	The position aroudn which to extract a portion
+ * @param after	The numebr of characters after the position to return, defualts to 30 if omitted
+ * @param before The numebr of characters before the position to return, defauilts to 10
+ */
+std::string StringAround(const std::string& str, unsigned int pos,
+		unsigned int after, unsigned int before)
+{
+	size_t	start = pos - before;
+	size_t	len = before + after;
+	if (start < 0)
+		start = 0;
+	if (start + len > str.length())
+		len = str.length() - start;
+	return str.substr(start, len);
+}

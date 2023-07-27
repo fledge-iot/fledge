@@ -906,12 +906,12 @@ CREATE TABLE fledge.control_filters (
              );
 
 CREATE TABLE fledge.monitors (
-             service		character varying(255) NOT NULL,
-             monitor 	    character varying(80) NOT NULL,
-             minimum		bigint,
-             maximum		bigint,
-             average		bigint,
-             samples		bigint,
+             service        character varying(255) NOT NULL,
+             monitor        character varying(80) NOT NULL,
+             minimum        bigint,
+             maximum        bigint,
+             average        bigint,
+             samples        bigint,
              ts             timestamp(6) with time zone NOT NULL DEFAULT now()
              );
 

@@ -160,11 +160,13 @@ def handle_api_exception(ex, _class=None, if_trace=0):
 
 async def validate_requests(request):
     """
-        a) With "view" based user role id=3 only
+        a) With "normal" based user role id=2 only
+           - restrict operations of Control scripts and pipelines except GET
+        b) With "view" based user role id=3 only
            - read access operations (GET calls)
            - change profile (PUT call)
            - logout (PUT call)
-        b) With "data-view" based user role id=4 only
+        c) With "data-view" based user role id=4 only
            - ping (GET call)
            - browser asset read operation (GET call)
            - service (GET call)
@@ -173,9 +175,16 @@ async def validate_requests(request):
            - user roles (GET call)
            - change profile (PUT call)
            - logout (PUT call)
+        d) With "control" based user role id=5 only
+           - same as normal user can do
+           - All CRUD's privileges for control scripts
+           - All CRUD's privileges for control pipelines
     """
     user_id = request.user['id']
-    if int(request.user["role_id"]) == 3 and request.method != 'GET':
+    if int(request.user["role_id"]) == 2 and request.method != 'GET':
+        if str(request.rel_url).startswith('/fledge/control'):
+            raise web.HTTPForbidden
+    elif int(request.user["role_id"]) == 3 and request.method != 'GET':
         supported_endpoints = ['/fledge/user', '/fledge/user/{}/password'.format(user_id), '/logout']
         if not str(request.rel_url).endswith(tuple(supported_endpoints)):
             raise web.HTTPForbidden

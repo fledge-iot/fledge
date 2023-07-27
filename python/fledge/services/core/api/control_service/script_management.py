@@ -49,7 +49,6 @@ def setup(app):
     app.router.add_route('DELETE', '/fledge/control/script/{script_name}', delete)
 
 
-@has_permission("admin")
 async def add_schedule_and_configuration(request: web.Request) -> web.Response:
     """ Create a schedule and configuration category for the task
        :Example:
@@ -254,7 +253,6 @@ async def get_by_name(request: web.Request) -> web.Response:
         return web.json_response(rows)
 
 
-@has_permission("admin")
 async def add(request: web.Request) -> web.Response:
     """ Add a script
 
@@ -340,7 +338,6 @@ async def add(request: web.Request) -> web.Response:
         return web.json_response(result)
 
 
-@has_permission("admin")
 async def update(request: web.Request) -> web.Response:
     """ Update a script
     Only the steps & ACL parameters can be updated
@@ -432,7 +429,6 @@ async def update(request: web.Request) -> web.Response:
         return web.json_response({"message": message})
 
 
-@has_permission("admin")
 async def delete(request: web.Request) -> web.Response:
     """ Delete a script
 

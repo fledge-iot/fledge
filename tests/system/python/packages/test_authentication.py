@@ -34,6 +34,14 @@ SCRIPTS_DIR_ROOT = "{}/tests/system/python/packages/data/".format(PROJECT_ROOT)
 context = ssl._create_unverified_context()
 
 LOGIN_SUCCESS_MSG = "Logged in successfully."
+ROLES = {'roles': [
+    {'description': 'All CRUD privileges', 'id': 1, 'name': 'admin'},
+    {'description': 'All CRUD operations and self profile management', 'id': 2, 'name': 'user'},
+    {'id': 3, 'name': 'view', 'description': 'Only to view the configuration'},
+    {'id': 4, 'name': 'data-view', 'description': 'Only read the data in buffer'},
+    {'id': 5, 'name': 'control',
+     'description': 'Same as editor can do and also have access for control scripts and pipelines'}
+]}
 
 
 def send_data_using_fogbench(wait_time):
@@ -564,11 +572,7 @@ class TestAuthAnyWithoutTLS:
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert {'roles': [{'description': 'All CRUD privileges', 'id': 1, 'name': 'admin'},
-                          {'description': 'All CRUD operations and self profile management', 'id': 2, 'name': 'user'},
-                          {'id': 3, 'name': 'view', 'description': 'Only to view the configuration'},
-                          {'id': 4, 'name': 'data-view', 'description': 'Only read the data in buffer'}
-                          ]} == jdoc
+        assert ROLES == jdoc
 
     def test_get_roles_with_certificate_token(self, fledge_url):
         conn = http.client.HTTPConnection(fledge_url)
@@ -577,11 +581,7 @@ class TestAuthAnyWithoutTLS:
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert {'roles': [{'description': 'All CRUD privileges', 'id': 1, 'name': 'admin'},
-                          {'description': 'All CRUD operations and self profile management', 'id': 2, 'name': 'user'},
-                          {'id': 3, 'name': 'view', 'description': 'Only to view the configuration'},
-                          {'id': 4, 'name': 'data-view', 'description': 'Only read the data in buffer'}
-                          ]} == jdoc
+        assert ROLES == jdoc
 
     @pytest.mark.parametrize(("form_data", "expected_values"), [
         ({"username": "any1", "password": "User@123", "real_name": "AJ", "description": "Nerd user"},
@@ -961,11 +961,7 @@ class TestAuthPasswordWithoutTLS:
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert {'roles': [{'description': 'All CRUD privileges', 'id': 1, 'name': 'admin'},
-                          {'description': 'All CRUD operations and self profile management', 'id': 2, 'name': 'user'},
-                          {'id': 3, 'name': 'view', 'description': 'Only to view the configuration'},
-                          {'id': 4, 'name': 'data-view', 'description': 'Only read the data in buffer'}
-                          ]} == jdoc
+        assert ROLES == jdoc
 
     @pytest.mark.parametrize(("form_data", "expected_values"), [
         ({"username": "any1", "password": "User@123", "real_name": "AJ", "description": "Nerd user"},
@@ -1269,11 +1265,7 @@ class TestAuthCertificateWithoutTLS:
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert {'roles': [{'description': 'All CRUD privileges', 'id': 1, 'name': 'admin'},
-                          {'description': 'All CRUD operations and self profile management', 'id': 2, 'name': 'user'},
-                          {'id': 3, 'name': 'view', 'description': 'Only to view the configuration'},
-                          {'id': 4, 'name': 'data-view', 'description': 'Only read the data in buffer'}
-                          ]} == jdoc
+        assert ROLES == jdoc
 
     @pytest.mark.parametrize(("form_data", "expected_values"), [
         ({"username": "any1", "password": "User@123", "real_name": "AJ", "description": "Nerd user"},
@@ -1674,11 +1666,7 @@ class TestAuthAnyWithTLS:
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert {'roles': [{'description': 'All CRUD privileges', 'id': 1, 'name': 'admin'},
-                          {'description': 'All CRUD operations and self profile management', 'id': 2, 'name': 'user'},
-                          {'id': 3, 'name': 'view', 'description': 'Only to view the configuration'},
-                          {'id': 4, 'name': 'data-view', 'description': 'Only read the data in buffer'}
-                          ]} == jdoc
+        assert ROLES == jdoc
 
     def test_get_roles_with_certificate_token(self):
         conn = http.client.HTTPSConnection("localhost", 1995, context=context)
@@ -1687,11 +1675,7 @@ class TestAuthAnyWithTLS:
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert {'roles': [{'description': 'All CRUD privileges', 'id': 1, 'name': 'admin'},
-                          {'description': 'All CRUD operations and self profile management', 'id': 2, 'name': 'user'},
-                          {'id': 3, 'name': 'view', 'description': 'Only to view the configuration'},
-                          {'id': 4, 'name': 'data-view', 'description': 'Only read the data in buffer'}
-                          ]} == jdoc
+        assert ROLES == jdoc
 
     @pytest.mark.parametrize(("form_data", "expected_values"), [
         ({"username": "any1", "password": "User@123", "real_name": "AJ", "description": "Nerd user"},
@@ -2075,11 +2059,7 @@ class TestAuthPasswordWithTLS:
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert {'roles': [{'description': 'All CRUD privileges', 'id': 1, 'name': 'admin'},
-                          {'description': 'All CRUD operations and self profile management', 'id': 2, 'name': 'user'},
-                          {'id': 3, 'name': 'view', 'description': 'Only to view the configuration'},
-                          {'id': 4, 'name': 'data-view', 'description': 'Only read the data in buffer'}
-                          ]} == jdoc
+        assert ROLES == jdoc
 
     @pytest.mark.parametrize(("form_data", "expected_values"), [
         ({"username": "any1", "password": "User@123", "real_name": "AJ", "description": "Nerd user"},
@@ -2390,11 +2370,7 @@ class TestAuthCertificateWithTLS:
         assert 200 == r.status
         r = r.read().decode()
         jdoc = json.loads(r)
-        assert {'roles': [{'description': 'All CRUD privileges', 'id': 1, 'name': 'admin'},
-                          {'description': 'All CRUD operations and self profile management', 'id': 2, 'name': 'user'},
-                          {'id': 3, 'name': 'view', 'description': 'Only to view the configuration'},
-                          {'id': 4, 'name': 'data-view', 'description': 'Only read the data in buffer'}
-                          ]} == jdoc
+        assert ROLES == jdoc
 
     @pytest.mark.parametrize(("form_data", "expected_values"), [
         ({"username": "any1", "password": "User@123", "real_name": "AJ", "description": "Nerd user"},

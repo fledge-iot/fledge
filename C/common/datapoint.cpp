@@ -369,7 +369,7 @@ std::vector<Datapoint*> *Datapoint::parseJson(const std::string& json) {
 	if (!document.IsObject()) {
 		return nullptr;
 	}
-	return recursiveJson(document);
+	return Datapoint::recursiveJson(document);
 }
 
 /**
@@ -384,7 +384,7 @@ std::vector<Datapoint*> *Datapoint::recursiveJson(const rapidjson::Value& docume
 	for (rapidjson::Value::ConstMemberIterator itr = document.MemberBegin(); itr != document.MemberEnd(); ++itr)
 	{	   
 		if (itr->value.IsObject()) {
-			std::vector<Datapoint*> * vec = recursiveJson(itr->value);
+			std::vector<Datapoint*> * vec = Datapoint::recursiveJson(itr->value);
 			DatapointValue d(vec, true);
 			p->push_back(new Datapoint(itr->name.GetString(), d));
 		}

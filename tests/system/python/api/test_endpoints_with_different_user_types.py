@@ -496,9 +496,10 @@ class TestAPIEndpointsWithControlUserType:
         ("GET", "/fledge/package/install/status", 404),
         # plugins
         ("GET", "/fledge/plugins/installed", 200),
-        # ("GET", "/fledge/plugins/available", 200), -- checked manually and commented out only to avoid apt-update
-        ("POST", "/fledge/plugins", 400), ("PUT", "/fledge/plugins/south/sinusoid/update", 404),
-        ("DELETE", "/fledge/plugins/south/sinusoid", 404), ("GET", "/fledge/service/foo/persist", 404),
+        # ("GET", "/fledge/plugins/available", 200), -- checked manually and commented out only to avoid apt operations
+        # ("PUT", "/fledge/plugins/south/sinusoid/update", 200),
+        # ("DELETE", "/fledge/plugins/south/sinusoid", 404),
+        ("POST", "/fledge/plugins", 400), ("GET", "/fledge/service/foo/persist", 404),
         ("GET", "/fledge/service/foo/plugin/omf/data", 404), ("POST", "/fledge/service/foo/plugin/omf/data", 404),
         ("DELETE", "/fledge/service/foo/plugin/omf/data", 404),
         # filters

@@ -35,8 +35,10 @@ all_repos = [r["name"] for r in repos if r["archived"] is False];\
 fRepos = list(set(all_repos) - set(exclude_topic_packages.split()));\
 print("\n".join(fRepos));
 '
-REPOSITORIES=$(echo ${fledgeRepos} | python3 -c "$fetchFledgeReposPyScript" | sort -f)
-echo "REPOS LIST: "${REPOSITORIES}
+REPOS=$(echo ${fledgeRepos} | python3 -c "$fetchFledgeReposPyScript" | sort -f)
+INBUILT_PLUGINS="fledge-north-OMF fledge-rule-Threshold fledge-rule-DataAvailability"
+REPOSITORIES=$(echo ${REPOS} ${INBUILT_PLUGINS} | xargs -n1 | sort -f | xargs)
+echo "REPOSITORIES LIST: "${REPOSITORIES}
 
 function table {
     list="$1"
@@ -48,9 +50,7 @@ function table {
     echo "" >> "$output"
     echo "    * - Name" >> "$output"
     echo "      - Description" >> "$output"
-    INBUILT_PLUGINS="fledge-north-OMF fledge-rule-Threshold fledge-rule-DataAvailability"
-    REPOS=$(echo ${list} ${INBUILT_PLUGINS} | xargs -n1 | sort | xargs)
-    for repo in ${REPOS}
+    for repo in ${list}
     do
         type=$(echo "${repo}" | sed -e 's/fledge-//' -e 's/-.*//')
         name=$(echo "${repo}" | sed -e 's/fledge-//' -e "s/${type}-//")

@@ -85,10 +85,10 @@ all_repos = [r["name"] for r in repos if r["archived"] is False];\
 fRepos = list(set(all_repos) - set(exclude_topic_packages.split()));\
 print("\n".join(fRepos));
 '
-REPOSITORIES=$(echo ${fledgeRepos} | python3 -c "$fetchFledgeReposPyScript" | sort -f)
+REPOS=$(echo ${fledgeRepos} | python3 -c "$fetchFledgeReposPyScript" | sort -f)
 INBUILT_PLUGINS="fledge-north-OMF fledge-rule-Threshold fledge-rule-DataAvailability"
-REPOSITORIES=$(echo ${REPOSITORIES} ${INBUILT_PLUGINS} | xargs -n1 | sort | xargs)
-echo "REPOS LIST: "${REPOSITORIES}
+REPOSITORIES=$(echo ${REPOS} ${INBUILT_PLUGINS} | xargs -n1 | sort -f | xargs)
+echo "REPOSITORIES LIST: "${REPOSITORIES}
 
 function plugin_and_service_doc {
     repo_name=$1

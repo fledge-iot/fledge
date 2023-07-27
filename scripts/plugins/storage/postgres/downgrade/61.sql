@@ -1,1 +1,2 @@
--- To be filled with FOGL-7980 changes
+DROP TABLE IF EXISTS fledge.monitors;
+DROP INDEX IF EXISTS fledge.monitors_ix1;

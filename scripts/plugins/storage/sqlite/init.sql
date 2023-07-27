@@ -666,6 +666,20 @@ CREATE TABLE fledge.control_filters (
              REFERENCES       control_pipelines (cpid)    MATCH SIMPLE ON UPDATE NO ACTION ON DELETE NO ACTION
              );
 
+-- Create monitors table
+CREATE TABLE fledge.monitors (
+             service       character varying(255) NOT NULL,
+             monitor       character varying(80) NOT NULL,
+             minimum       integer,
+             maximum       integer,
+             average       integer,
+             samples       integer,
+             ts            DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f+00:00', 'NOW'))
+             );
+
+CREATE INDEX monitors_ix1
+    ON monitors(service, monitor);
+
 ----------------------------------------------------------------------
 -- Initialization phase - DML
 ----------------------------------------------------------------------
@@ -917,3 +931,4 @@ INSERT INTO fledge.control_destination ( name, description )
             ('Asset', 'A name of asset that is being controlled.'),
             ('Script', 'A name of script that will be executed.'),
             ('Broadcast', 'No name is applied and pipeline will be considered for any control writes or operations to broadcast destinations.');
+

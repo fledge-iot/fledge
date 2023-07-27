@@ -48,39 +48,50 @@ function table {
     echo "" >> "$output"
     echo "    * - Name" >> "$output"
     echo "      - Description" >> "$output"
-    for repo in ${list}
+    INBUILT_PLUGINS="fledge-north-OMF fledge-rule-Threshold fledge-rule-DataAvailability"
+    REPOS=$(echo ${list} ${INBUILT_PLUGINS} | xargs -n1 | sort | xargs)
+    for repo in ${REPOS}
     do
         type=$(echo "${repo}" | sed -e 's/fledge-//' -e 's/-.*//')
         name=$(echo "${repo}" | sed -e 's/fledge-//' -e "s/${type}-//")
         if [[ ${type} = "$tableType" ]]; then
-            rm -rf ${repo}
-            git clone https://${USERNAME}:${GITHUB_ACCESS_TOKEN}@github.com/fledge-iot/${repo}.git --branch ${DOCBRANCH} >/dev/null 2>&1
-            is_branch_exists=$?
-            if [[ ${is_branch_exists} -eq 0 ]]; then
-                description=$(echo "$fledgeRepos" | python3 -c 'import json,sys;repos=json.load(sys.stdin);fRepo = [r for r in repos if r["name"] == "'"${repo}"'" ];print(fRepo[0]["description"])')
-                if [[ "${description}" = "None" ]]; then description="A ${name} ${type} plugin"; fi
-                # cloned directory replaced with installed directory name which is defined in Package file for each repo
-                installed_plugin_dir_name=$(cat ${repo}/Package | grep plugin_install_dirname= | sed -e "s/plugin_install_dirname=//g")
-                if [[ $installed_plugin_dir_name == "\${plugin_name}" ]]; then
-                    installed_plugin_dir_name=$(cat ${repo}/Package | grep plugin_name= | sed -e "s/plugin_name=//g")
+            if grep -q "$repo" <<< "$INBUILT_PLUGINS"; then
+                if [[ $repo == "fledge-north-OMF" ]]; then
+                    echo "    * - \`omf <"plugins/fledge-north-OMF/index.html">\`__" >> "$output"
+                    echo "      - Send data to OSIsoft PI Server, Edge Data Store or OSIsoft Cloud Services" >> "$output"
+                elif [[ $repo == "fledge-rule-DataAvailability" ]]; then
+                    echo "    * - \`data-availability <"plugins/fledge-rule-DataAvailability/index.html">\`__" >> "$output"
+                    echo "      - Triggers every time when it receives data that matches an asset code or audit code those given in the configuration" >> "$output"
+                elif [[ $repo == "fledge-rule-Threshold" ]]; then
+                    echo "    * - \`threshold <"plugins/fledge-rule-Threshold/index.html">\`__" >> "$output"
+                    echo "      - Detect the value of a data point within an asset going above or below a set threshold" >> "$output"
                 fi
-                old_plugin_name=$(echo ${repo} | cut -d '-' -f3-)
-                new_plugin_name=$(echo ${repo/$old_plugin_name/$installed_plugin_dir_name})
-                # Only link when doc exists in plugins directory
-                if [[ -d ${repo}/docs && -f ${repo}/docs/index.rst ]]; then
-                    echo "    * - \`$name <"plugins/$new_plugin_name/index.html">\`__" >> "$output"
                 else
-                    echo "    * - ${name}" >> "$output"
-                fi
-                echo "      - ${description}" >> "$output"
+                    rm -rf ${repo}
+                    git clone https://${USERNAME}:${GITHUB_ACCESS_TOKEN}@github.com/fledge-iot/${repo}.git --branch ${DOCBRANCH} >/dev/null 2>&1
+                    is_branch_exists=$?
+                    if [[ ${is_branch_exists} -eq 0 ]]; then
+                        description=$(echo "$fledgeRepos" | python3 -c 'import json,sys;repos=json.load(sys.stdin);fRepo = [r for r in repos if r["name"] == "'"${repo}"'" ];print(fRepo[0]["description"])')
+                        if [[ "${description}" = "None" ]]; then description="A ${name} ${type} plugin"; fi
+                        # cloned directory replaced with installed directory name which is defined in Package file for each repo
+                        installed_plugin_dir_name=$(cat ${repo}/Package | grep plugin_install_dirname= | sed -e "s/plugin_install_dirname=//g")
+                        if [[ $installed_plugin_dir_name == "\${plugin_name}" ]]; then
+                            installed_plugin_dir_name=$(cat ${repo}/Package | grep plugin_name= | sed -e "s/plugin_name=//g")
+                        fi
+                        old_plugin_name=$(echo ${repo} | cut -d '-' -f3-)
+                        new_plugin_name=$(echo ${repo/$old_plugin_name/$installed_plugin_dir_name})
+                        # Only link when doc exists in plugins directory
+                        if [[ -d ${repo}/docs && -f ${repo}/docs/index.rst ]]; then
+                            echo "    * - \`$name <"plugins/$new_plugin_name/index.html">\`__" >> "$output"
+                        else
+                            echo "    * - ${name}" >> "$output"
+                        fi
+                        echo "      - ${description}" >> "$output"
+                    fi
+                    rm -rf ${repo}
             fi
-            rm -rf ${repo}
         fi
     done
-    if [[ ${tableType} = "north" ]]; then
-        echo "    * - \`OMF <"plugins/fledge-north-OMF/index.html">\`__" >> "$output"
-        echo "      - Send data to OSIsoft PI Server, Edge Data Store or OSIsoft Cloud Services" >> "$output"
-    fi
 }
 
 cat >> $output << EOF1

@@ -905,6 +905,19 @@ CREATE TABLE fledge.control_filters (
              CONSTRAINT       control_filters_fk1              FOREIGN KEY (cpid) REFERENCES fledge.control_pipelines (cpid)  MATCH SIMPLE ON UPDATE NO ACTION ON DELETE NO ACTION
              );
 
+CREATE TABLE fledge.monitors (
+	service		character varying(255) NOT NULL,
+	monitor 	character varying(80) NOT NULL,
+	minimum		bigint,
+	maximum		bigint,
+	average		bigint,
+	samples		bigint,
+	timestamp   timestamp(6) with time zone NOT NULL DEFAULT now());
+
+CREATE INDEX monitors_ix1
+    ON fledge.monitors(service, monitor);
+
+
 -- Grants to fledge schema
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA fledge TO PUBLIC;
 
@@ -1160,17 +1173,3 @@ INSERT INTO fledge.control_destination ( name, description )
             ('Asset', 'A name of asset that is being controlled.'),
             ('Script', 'A name of script that will be executed.'),
             ('Broadcast', 'No name is applied and pipeline will be considered for any control writes or operations to broadcast destinations.');
-
-
-CREATE TABLE fledge.monitors (
-	service		character varying(255) NOT NULL,   -- 
-	monitor 	character varying(80) NOT NULL,
-	minimum		bigint,
-	maximum		bigint,
-	average		bigint,
-	samples		bigint,
-	timestamp    	timestamp(6) with time zone NOT NULL DEFAULT now()
-
--- Index: log_ix1 - For queries by code
-CREATE INDEX monitor_ix1
-    ON fledge.monitors(service, monitor);

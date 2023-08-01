@@ -905,6 +905,20 @@ CREATE TABLE fledge.control_filters (
              CONSTRAINT       control_filters_fk1              FOREIGN KEY (cpid) REFERENCES fledge.control_pipelines (cpid)  MATCH SIMPLE ON UPDATE NO ACTION ON DELETE NO ACTION
              );
 
+CREATE TABLE fledge.monitors (
+             service        character varying(255) NOT NULL,
+             monitor        character varying(80) NOT NULL,
+             minimum        bigint,
+             maximum        bigint,
+             average        bigint,
+             samples        bigint,
+             ts             timestamp(6) with time zone NOT NULL DEFAULT now()
+             );
+
+CREATE INDEX monitors_ix1
+    ON fledge.monitors(service, monitor);
+
+
 -- Grants to fledge schema
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA fledge TO PUBLIC;
 
@@ -918,7 +932,8 @@ INSERT INTO fledge.roles ( name, description )
      VALUES ('admin', 'All CRUD privileges'),
             ('user', 'All CRUD operations and self profile management'),
             ('view', 'Only to view the configuration'),
-            ('data-view', 'Only read the data in buffer');
+            ('data-view', 'Only read the data in buffer'),
+            ('control', 'Same as editor can do and also have access for control scripts and pipelines');
 
 
 -- Users

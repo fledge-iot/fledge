@@ -14,13 +14,30 @@
 .. |north_map4| image:: images/north_map4.jpg
 .. |opcua_server| image:: images/opcua_server.jpg
 .. |dispatcher_config| image:: images/dispatcher-config.jpg
+.. |pipeline_list| image:: images/control/pipeline_list.jpg
+.. |pipeline_add| image:: images/control/pipeline_add.jpg
+.. |pipeline_menu| image:: images/control/pipeline_menu.jpg
+.. |pipeline_model| image:: images/control/pipeline_model.jpg
+.. |pipeline_source| image:: images/control/pipeline_source.jpg
+.. |pipeline_filter_add| image:: images/control/pipeline_filter_add.jpg
+.. |pipeline_filter_config| image:: images/control/pipeline_filter_config.jpg
+.. |pipeline_context_menu| image:: images/control/pipeline_context_menu.jpg
+.. |pipeline_destination| image:: images/control/pipeline_destination.jpg
 
+.. Links
+.. |ExpressionFilter| raw:: html
+
+   <a href="plugins/fledge-filter-expression/index.html">expression filter</a>
+
+.. |DeltaFilter| raw:: html
+
+   <a href="plugins/fledge-filter-delta/index.html">delta filter</a>
 
 ************************
 Fledge Control Features
 ************************
 
-Fledge supports facilities that allows control of devices via the south service and plugins. This control in known as *set point control* as it is not intended for real time critical control of devices but rather to modify the behavior of a device based on one of many different information flows. The latency involved in these control operations is highly dependent on the control path itself and also the scheduling limitations of the underlying operating system. Hence the caveat that the control functions are not real time or guaranteed to be actioned within a specified time window.
+Fledge supports facilities that allows control of devices via the south service and plugins. This control in known as *set point control* as it is not intended for real time critical control of devices but rather to modify the behavior of a device based on one of many different information flows. The latency involved in these control operations is highly dependent on the control path itself and also the scheduling limitations of the underlying operating system. Hence the caveat that the control functions are not real time or guaranteed to be actioned within a specified time window. This does not mean however that they can not be used for non-critical closed loop control, however we would not advise the use of this functionality in safety critical situations.
 
 Control Functions
 =================
@@ -55,6 +72,8 @@ Set point control may be invoked via a number of paths with Fledge
 Currently only the notification method is fully implemented within Fledge.
 
 The use of a notification in the Fledge instance itself provides the fastest response for an edge notification. All the processing for this is done on the edge by Fledge itself.
+
+As with the data ingress and egress features of Fledge it is also possible to build filter pipelines in the control paths in order to alter the behavior and process the data in the control path. Pipelines in the control path as defined between the different end point of control operations and are defined such that the same pipeline can be utilised by multiple control paths. See :ref:`ControlPipelines`
 
 Edge Based Control
 ------------------
@@ -380,3 +399,172 @@ Advanced Configuration
   - **Minimum Log Level**: Allows the minimum level at which logs will get written to the system log to be defined.
 
   - **Maximum number of dispatcher threads**: Dispatcher threads are used to execute automation scripts. Each script utilizes a single thread for the duration of the execution of the script. Therefore this setting determines how many scripts can be executed in parallel.
+
+.. _ControlPipelines:
+
+Control Pipelines
+=================
+
+A control pipeline is very similar to pipelines in Fledge's data path, i.e. the ingress pipelines of a south service or the egress pipelines in the north data path. A control pipeline comprises an order set of filters through which the data in the control path is pushed. Each individual filter in the pipeline can add, remove or modify the data as it flows through the filter, in this case the data however are the set point write and operations.
+
+The flow of control requests is organised in such a way that the same filters that are used for data ingress in a south service or data egress in a north service can be used for control pipelines. This is done by mapping control data to asset names and datapoint names and value in the control path pipeline.
+
+Mapping Rules
+-------------
+
+For a set point write the name of the asset will always be set to *reading*, the asset that is created will have a set of datapoints, one per each setpoint write operation that is to be executed. The name of the datapoint is the name of the set point to be written and the value of the datapoint is the value to to set.
+
+For example, if a set point write wishes to set the *Pump Speed* set point to *80* and the *Pump Running* set point to *True* then the reading that would be created and passed to the filter would have the asset_code of *reading* and two data points, one called *Pump Speed* with a value of *80* and another called *Pump Running* with a value of *True*.
+
+This reading can then be manipulated by a filter in the same way as in any other pipeline. For example the |ExpressionFilter| filter could be used to scale the pump speed. If the required was to multiply the pump speed by 10, then the expression defined would be *Pump Speed * 10* .
+
+In the case of an operation the mapping is very similar, except that the asset_code in the reading becomes the operation name and the data points are the parameters of the operation.
+
+For example, if an operation *Start Fan* required a parameter of *Fan Speed* then a reading with an asset_code of *Start Fan* with a single datapoint called *Fan Speed* would be created and passed through the filter pipeline.
+
+Data Types
+~~~~~~~~~~
+
+The values of all set points and the parameters of all operations are passed in the control services and between services as string representations, however they are converted to appropriate types when passed through the filter pipeline. If a value can be represented as an integer it will be and likewise for floating point values.
+
+.. note::
+
+   Currently complex types such as Image, Data Buffer and Array data can not be represented in the control pipelines.
+
+Pipeline Connections
+--------------------
+
+The control pipelines are not defined against a particular end point as they are with the data pipelines, they are defined separately and part of that definition includes the input and output end points to which the control pipeline may be attached. The input and output of a control pipeline may be defined as being able to connect to one of a set of endpoints.
+
+.. list-table::
+    :widths: 20 20 70
+    :header-rows: 1
+
+    * - Type
+      - Endpoints
+      - Description
+    * - Any
+      - Both
+      - The pipeline can connection to any source or destination. This is only used in situations where an exact match for an endpoint can not be satisfied.
+    * - API
+      - Source
+      - The source of the request is an API call to the public API of the Fledge instance.
+    * - Asset
+      - Destination
+      - The data will be sent to the service that is responsible for ingesting the named asset.
+    * - Broadcast
+      - Destination
+      - The requests will be sent to all south services that support control.
+    * - Notification
+      - Source
+      - The request originated from the named notification.
+    * - Schedule
+      - Source
+      - The request originated from a schedule.
+    * - Script
+      - Source
+      - The request is either originating from a script or being sent to a script.
+    * - Service
+      - Source
+      - The request is either coming from a named service or going to a named service.
+
+Control pipelines are always executed in the control dispatcher service. When a request comes into the service it will look for a pipeline to pass that request through. This process will look at the source of the request and the destination of the request. If a pipeline that has source and destination endpoints that are an exact match for the source and destination of the control request then the control request will be processed through that pipeline.
+
+If no exact match is found then the source of the request will be checked against the defined pipelines for a match with the specified source and a destination of *any*. If there is a pipeline that matches these criteria it will be used. If not then a check is made for a pipeline with a source of *any* and a destination that matches the destination of this request.
+
+If all the above tests fail then a final test is made for a pipeline with a source of *any* and a destination of *any*. If no match occurs then the request is processed without passing through any filters.
+
+If a request is processed by a script in the control dispatcher then this request may pass through multiple filters, one from the source to the script and then one for each script step that performs a set point write or operation. Each of these may be a different pipeline.
+
+Pipeline Execution Models
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+When a pipeline is defined it may be set to use a *Shared* execution model or an *Exclusive* execution model. This is only important if any of the filters in the pipeline persist state that impacts future processing.
+
+In a *Shared* execution model one pipeline instance will be created and any requests that use resolve to the pipeline will share the same instance of the pipeline. This saves creating multiple objects within the control dispatcher and is the preferred model to use.
+
+However if the filters in the pipeline store previous data and use it to influence future decisions, such as the |DeltaFilter| this behavior is undesirable as requests from different sources or destined for different destinations may interfere with each other. In this case the *Exclusive* execution model should be used.
+
+In an *Exclusive* execution model a new instance of the pipeline will be created for each distinct source and destination of the control request that utilises the pipeline. This ensures that the different instances of the pipeline can not interfere with each other.
+
+Control Pipeline Management
+---------------------------
+
+The Fledge Graphical User Interface provides a mechanism to manage the control pipelines, this is found in the Control sub menu under the pipelines item.
+
++-----------------+
+| |pipeline_menu| |
++-----------------+
+
+The user is presented with a list of the pipelines that have been created to date and an option in the top right corner to add a new pipeline.
+
++-----------------+
+| |pipeline_list| |
++-----------------+
+
+The list displays the name of the pipeline, the source and destination of the pipeline, the filters in the pipeline, the execution model and the enabled/disabled state of the pipeline.
+
+The user has a number of actions that may be taken from this screen.
+
+  - Enable or disable the pipeline by clicking on the checkbox to the left of the pipeline name
+
+  - Click on the name of the plugin to view and edit the pipeline.
+
+  - Click on the three vertical dots to view the content menu.
+
+    +-------------------------+
+    | |pipeline_context_menu| |
+    +-------------------------+
+
+    Currently the only operation that is supported is delete.
+
+  - Click on the Add option in the top right corner to define a new pipeline.
+
+Adding A Control Pipeline
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Clicking on the add option will display the screen to add a new control pipeline.
+
++----------------+
+| |pipeline_add| |
++----------------+
+
+  - **Name**: The name of the control pipeline. This should be a unique name that is used to identify the control pipeline.
+
+  - **Execution**: The execution model to use to run this pipeline. In most cases the *Shared* execution model is sufficient.
+
+  - **Source**: The control source that this pipeline should be considered to be used by.
+
+    +-------------------+
+    | |pipeline_source| |
+    +-------------------+
+
+  - **Filters**: The filters in the pipeline. Click on *Add new filter* to add a new filter to the pipeline.
+
+
+    Clicking on the *Add filter* link will display a dialog in which the filter plugin can be chosen and named.
+
+    +-----------------------+
+    | |pipeline_filter_add| |
+    +-----------------------+
+
+    Clicking on next from this dialog will display the configuration for the chosen filter, in this case we have chosen the |ExpressionFilter|
+
+    +--------------------------+
+    | |pipeline_filter_config| |
+    +--------------------------+
+
+    The filter should then be configured in the same way as it would for data path pipelines.
+
+    On clicking *Done* the dialog will disappear and the original screen shown with the new pipeline displayed. In the list of filters. More filters can be added by clicking on the *Add new filter* link. If multiple filters are in the pipeline that can be re-ordered by dragging them around to change the order.
+
+  - **Destination**: The control destination that this pipeline will considered to be used with.
+
+    +------------------------+
+    | |pipeline_destination| |
+    +------------------------+
+
+  - **Enabled**: Enable the execution of the pipeline
+
+Finally click on the *Save* button to save the new control pipeline.
+

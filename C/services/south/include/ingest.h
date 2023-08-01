@@ -25,6 +25,7 @@
 #include <asset_tracking.h>
 #include <service_handler.h>
 #include <set>
+#include <perfmonitors.h>
 
 #define SERVICE_NAME  "Fledge South"
 
@@ -85,14 +86,19 @@ public:
 	void		unDeprecateAssetTrackingRecord(AssetTrackingTuple* currentTuple,
 							const std::string& assetName,
 							const std::string& event);
-	void            unDeprecateStorageAssetTrackingRecord(StorageAssetTrackingTuple* currentTuple,
-                                                        const std::string& assetName, const std::string&, const unsigned int&);
+	void		unDeprecateStorageAssetTrackingRecord(StorageAssetTrackingTuple* currentTuple,
+							const std::string& assetName,
+							const std::string&,
+							const unsigned int&);
 	void		setStatistics(const std::string& option);
 
 	std::string  	getStringFromSet(const std::set<std::string> &dpSet);
 	void		setFlowControl(unsigned int lowWater, unsigned int highWater) { m_lowWater = lowWater; m_highWater = highWater; };
 	void		flowControl();
-
+	void		setPerfMon(PerformanceMonitor *mon)
+			{
+				m_performance = mon;
+			};
 
 private:
 	void				signalStatsUpdate() {
@@ -149,6 +155,7 @@ private:
 	AssetTrackingTable		*m_deprecated;
 	time_t				m_deprecatedAgeOut;
 	time_t				m_deprecatedAgeOutStorage;
+	PerformanceMonitor		*m_performance;
 };
 
 #endif

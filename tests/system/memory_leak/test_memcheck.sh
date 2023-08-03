@@ -9,6 +9,8 @@ export FLEDGE_ROOT=$(pwd)/fledge
 
 FLEDGE_TEST_BRANCH="$1"    # here fledge_test_branch means branch of fledge repository that is needed to be scanned, default is develop
 
+COLLECT_FILES="$2"
+
 cleanup(){
   # Removing temporary files, fledge and its plugin repository cloned by previous build of the Job 
   echo "Removing Cloned repository and log files"
@@ -17,7 +19,7 @@ cleanup(){
 
 # Setting up Fledge and installing its plugin
 setup(){
-   ./scripts/setup "fledge-south-sinusoid fledge-south-random"  "${FLEDGE_TEST_BRANCH}"
+   ./scripts/setup "fledge-south-sinusoid fledge-south-random"  "${FLEDGE_TEST_BRANCH}" "${COLLECT_FILES}"
 }
 
 reset_fledge(){
@@ -116,7 +118,11 @@ generate_valgrind_logs(){
   echo 'Creating reports directory';
   mkdir -p reports/test1 ; ls -lrth
   echo 'copying reports '
-  cp -rf /tmp/*valgrind*.log /tmp/*valgrind*.xml reports/test1/. && echo 'copied'
+  if [[ "${COLLECT_FILES}" == "LOGS" ]]; then
+   cp -rf /tmp/*valgrind*.log reports/test1/. && echo 'copied'
+  else
+   cp -rf /tmp/*valgrind*.xml reports/test1/. && echo 'copied'
+  fi
 }
 
 cleanup

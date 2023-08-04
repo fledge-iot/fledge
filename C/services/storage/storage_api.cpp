@@ -1676,6 +1676,7 @@ string  responsePayload;
                 int rval = plugin->commonDelete(tableName, payload, const_cast<char*>(schemaName.c_str()));
                 if (rval != -1)
                 {
+			registry.processTableDelete(tableName, payload);
                         responsePayload = "{ \"response\" : \"deleted\", \"rows_affected\"  : ";
                         responsePayload += to_string(rval);
                         responsePayload += " }";

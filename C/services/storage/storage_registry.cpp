@@ -170,7 +170,7 @@ StorageRegistry::processTableUpdate(const string& tableName, const string& paylo
 /**
  * Process a table delete payload and determine
  * if any microservice has registered an interest
- * in this table. Called from StorageApi::commonUpdate()
+ * in this table. Called from StorageApi::commonDelete()
  *
  * @param payload	The table delete payload
  */
@@ -554,7 +554,6 @@ StorageRegistry::sendPayload(const string& url, const char *payload)
 	size_t found1 = url.find_first_of("/", found + 3);
 	string hostport = url.substr(found+3, found1 - found - 3);
 	string resource = url.substr(found1);
-	Logger::getLogger()->error("FIXME: Send to %s payload %s", url.c_str(), payload);
 	HttpClient client(hostport);
 	try {
 		client.request("POST", resource, payload);
@@ -880,7 +879,6 @@ StorageRegistry::processDelete(char *tableName, char *payload)
 		{
 			continue;
 		}
-
 		if (tblreg->key.empty())
 		{
 			// No key to match, send all updates to table
@@ -888,52 +886,7 @@ StorageRegistry::processDelete(char *tableName, char *payload)
 		}
 		else
 		{
-			if (doc.HasMember("updates") && doc["updates"].IsArray())
-			{
-				// Multiple updates in a single call
-				Value &updates = doc["updates"];
-				for (Value::ConstValueIterator iter = updates.Begin();
-						iter != updates.End(); ++iter)
-				{
-					const Value& where = (*iter)["where"];
-					if (where.HasMember("column") && where["column"].IsString() &&
-							where.HasMember("value") && where["value"].IsString())
-					{
-						string updateKey = where["column"].GetString();
-						string keyValue = where["value"].GetString();
-						if (updateKey.compare(tblreg->key) == 0 &&
-								std::find(tblreg->keyValues.begin(), tblreg->keyValues.end(), keyValue)
-								!= tblreg->keyValues.end())
-						{
-							if (iter->HasMember("values"))
-							{
-								const Value& values = (*iter)["values"];
-								StringBuffer buffer;
-								Writer<StringBuffer> writer(buffer);
-								values.Accept(writer);
-
-								const char *output = buffer.GetString();
-								sendPayload(tblreg->url, output);
-							}
-							else if (iter->HasMember("expressions"))
-							{
-								const Value& expressions = (*iter)["expressions"];
-								for (Value::ConstValueIterator expr = expressions.Begin();
-										expr != expressions.End(); ++expr)
-								{
-									StringBuffer buffer;
-									Writer<StringBuffer> writer(buffer);
-									expr->Accept(writer);
-	
-									const char *output = buffer.GetString();
-									sendPayload(tblreg->url, output);
-								}
-							}
-						}
-					}
-				}
-			}
-			else if (doc.HasMember("where") && doc["where"].IsObject())
+			if (doc.HasMember("where") && doc["where"].IsObject())
 			{
 				const Value& where = doc["where"];
 				if (where.HasMember("column") && where["column"].IsString() &&
@@ -945,30 +898,12 @@ StorageRegistry::processDelete(char *tableName, char *payload)
 							std::find(tblreg->keyValues.begin(), tblreg->keyValues.end(), keyValue)
 							!= tblreg->keyValues.end())
 					{
-						if (doc.HasMember("values"))
-						{
-							const Value& values = doc["values"];
-							StringBuffer buffer;
-							Writer<StringBuffer> writer(buffer);
-							values.Accept(writer);
+						StringBuffer buffer;
+						Writer<StringBuffer> writer(buffer);
+						where.Accept(writer);
 
-							const char *output = buffer.GetString();
-							sendPayload(tblreg->url, output);
-						}
-						else if (doc.HasMember("expressions"))
-						{
-							const Value& expressions = doc["expressions"];
-							for (Value::ConstValueIterator expr = expressions.Begin();
-									expr != expressions.End(); ++expr)
-							{
-								StringBuffer buffer;
-								Writer<StringBuffer> writer(buffer);
-								expr->Accept(writer);
-
-								const char *output = buffer.GetString();
-								sendPayload(tblreg->url, output);
-							}
-						}
+						const char *output = buffer.GetString();
+						sendPayload(tblreg->url, output);
 					}
 				}
 			}

@@ -297,8 +297,8 @@ void filter_plugin_ingest_fn(PLUGIN_HANDLE handle, READINGSET *data)
 				// Remove input data
 				data->removeAll();
 
-				// Append filtered readings
-				data->append(filteredReadingSet->getAllReadings());
+				// Append filtered readings;  append will empty the passed reading set as well
+				data->append(filteredReadingSet);
 
 				delete filteredReadingSet;
 				filteredReadingSet = NULL;

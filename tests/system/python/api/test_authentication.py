@@ -114,7 +114,9 @@ class TestAuthenticationAPI:
         assert {'roles': [{'description': 'All CRUD privileges', 'id': 1, 'name': 'admin'},
                           {'description': 'All CRUD operations and self profile management', 'id': 2, 'name': 'user'},
                           {'id': 3, 'name': 'view', 'description': 'Only to view the configuration'},
-                          {'id': 4, 'name': 'data-view', 'description': 'Only read the data in buffer'}
+                          {'id': 4, 'name': 'data-view', 'description': 'Only read the data in buffer'},
+                          {'id': 5, 'name': 'control', 'description':
+                              'Same as editor can do and also have access for control scripts and pipelines'}
                           ]} == jdoc
 
     @pytest.mark.parametrize(("form_data", "expected_values"), [
@@ -136,7 +138,14 @@ class TestAuthenticationAPI:
           "description": "Only read the data in buffer"},
          {'user': {
              'userName': 'dataview', 'userId': 7, 'roleId': 4, 'accessMethod': 'any', 'realName': 'DataView',
-             'description': 'Only read the data in buffer'}, 'message': 'dataview user has been created successfully.'})
+             'description': 'Only read the data in buffer'}, 'message': 'dataview user has been created successfully.'}
+         ),
+        ({"username": "control", "password": "C0ntrol!", "role_id": 5, "real_name": "Control",
+          "description": "Same as editor can do and also have access for control scripts and pipelines"},
+         {'user': {
+             'userName': 'control', 'userId': 8, 'roleId': 5, 'accessMethod': 'any', 'realName': 'Control',
+             'description': 'Same as editor can do and also have access for control scripts and pipelines'},
+             'message': 'control user has been created successfully.'})
     ])
     def test_create_user(self, fledge_url, form_data, expected_values):
         conn = http.client.HTTPConnection(fledge_url)

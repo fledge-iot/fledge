@@ -34,6 +34,7 @@ class StorageRegistry {
 		void		process(const std::string& payload);
 		void		processTableInsert(const std::string& tableName, const std::string& payload);
 		void		processTableUpdate(const std::string& tableName, const std::string& payload);
+		void		processTableDelete(const std::string& tableName, const std::string& payload);
 		void		registerTable(const std::string& table, const std::string& url);
 		void		unregisterTable(const std::string& table, const std::string& url);
 		void		run();
@@ -43,6 +44,7 @@ class StorageRegistry {
 		void		filterPayload(const std::string& url, char *payload, const std::string& asset);
 		void		processInsert(char *tableName, char *payload);
 		void		processUpdate(char *tableName, char *payload);
+		void		processDelete(char *tableName, char *payload);
 		TableRegistration*
 				parseTableSubscriptionPayload(const std::string& payload);
 		void 		insertTestTableReg();
@@ -59,6 +61,8 @@ class StorageRegistry {
 						m_tableInsertQueue;
 		std::queue<StorageRegistry::TableItem>
 						m_tableUpdateQueue;
+		std::queue<StorageRegistry::TableItem>
+						m_tableDeleteQueue;
 		std::mutex			m_qMutex;
 		std::mutex			m_registrationsMutex;
 		std::mutex			m_tableRegistrationsMutex;

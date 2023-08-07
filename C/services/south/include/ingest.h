@@ -25,6 +25,7 @@
 #include <asset_tracking.h>
 #include <service_handler.h>
 #include <set>
+#include <perfmonitors.h>
 
 #define SERVICE_NAME  "Fledge South"
 
@@ -94,6 +95,10 @@ public:
 	std::string  	getStringFromSet(const std::set<std::string> &dpSet);
 	void		setFlowControl(unsigned int lowWater, unsigned int highWater) { m_lowWater = lowWater; m_highWater = highWater; };
 	void		flowControl();
+	void		setPerfMon(PerformanceMonitor *mon)
+			{
+				m_performance = mon;
+			};
 
 private:
 	void				signalStatsUpdate() {
@@ -150,6 +155,7 @@ private:
 	AssetTrackingTable		*m_deprecated;
 	time_t				m_deprecatedAgeOut;
 	time_t				m_deprecatedAgeOutStorage;
+	PerformanceMonitor		*m_performance;
 };
 
 #endif

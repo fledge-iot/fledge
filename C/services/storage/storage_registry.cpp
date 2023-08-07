@@ -139,7 +139,7 @@ StorageRegistry::processTableInsert(const string& tableName, const string& paylo
  * if any microservice has registered an interest
  * in this table. Called from StorageApi::commonUpdate()
  *
- * @param payload	The table insert payload
+ * @param payload	The table update payload
  */
 void
 StorageRegistry::processTableUpdate(const string& tableName, const string& payload)
@@ -162,6 +162,39 @@ StorageRegistry::processTableUpdate(const string& tableName, const string& paylo
 			TableItem item = make_tuple(now, table, data);
 			lock_guard<mutex> guard(m_qMutex);
 			m_tableUpdateQueue.push(item);
+			m_cv.notify_all();
+		}
+	}
+}
+
+/**
+ * Process a table delete payload and determine
+ * if any microservice has registered an interest
+ * in this table. Called from StorageApi::commonDelete()
+ *
+ * @param payload	The table delete payload
+ */
+void
+StorageRegistry::processTableDelete(const string& tableName, const string& payload)
+{
+	Logger::getLogger()->info("Checking for registered interest in table %s with delete %s", tableName.c_str(), payload.c_str());
+	
+	if (m_tableRegistrations.size() > 0)
+	{
+		/*
+		 * We have some registrations so queue a copy of the payload
+		 * to be examined in the thread the send table notifications
+		 * to interested parties.
+		 */
+		char *table = strdup(tableName.c_str());
+		char *data = strdup(payload.c_str());
+		
+		if (data != NULL && table != NULL)
+		{
+			time_t now = time(0);
+			TableItem item = make_tuple(now, table, data);
+			lock_guard<mutex> guard(m_qMutex);
+			m_tableDeleteQueue.push(item);
 			m_cv.notify_all();
 		}
 	}
@@ -356,7 +389,7 @@ StorageRegistry::run()
 #endif
 		{
 			unique_lock<mutex> mlock(m_cvMutex);
-			while (m_queue.size() == 0 && m_tableInsertQueue.size() == 0 && m_tableUpdateQueue.size() == 0)
+			while (m_queue.size() == 0 && m_tableInsertQueue.size() == 0 && m_tableUpdateQueue.size() == 0 && m_tableDeleteQueue.size() == 0)
 			{
 				m_cv.wait_for(mlock, std::chrono::seconds(REGISTRY_SLEEP_TIME));
 				if (!m_running)
@@ -435,7 +468,31 @@ StorageRegistry::run()
 					free(data);
 				}
 			}
-			
+
+			while (!m_tableDeleteQueue.empty())
+			{
+				char *tableName = NULL;
+				
+				TableItem item = m_tableDeleteQueue.front();
+				m_tableDeleteQueue.pop();
+				tableName = get<1>(item);
+				data = get<2>(item);
+#if CHECK_QTIMES
+				qTime = item.first;
+#endif
+				if (tableName && data)
+				{
+#if CHECK_QTIMES
+					if (time(0) - qTime > QTIME_THRESHOLD)
+					{
+						Logger::getLogger()->error("Table delete data has been queued for %d seconds to be sent to registered party", (time(0) - qTime));
+					}
+#endif
+					processDelete(tableName, data);
+					free(tableName);
+					free(data);
+				}
+			}
 		}
 	}
 }
@@ -497,7 +554,6 @@ StorageRegistry::sendPayload(const string& url, const char *payload)
 	size_t found1 = url.find_first_of("/", found + 3);
 	string hostport = url.substr(found+3, found1 - found - 3);
 	string resource = url.substr(found1);
-
 	HttpClient client(hostport);
 	try {
 		client.request("POST", resource, payload);
@@ -699,7 +755,7 @@ StorageRegistry::processUpdate(char *tableName, char *payload)
 
 		if (tblreg->key.empty())
 		{
-			// No key to match, send alll updates to table
+			// No key to match, send all updates to table
 			sendPayload(tblreg->url, payload);
 		}
 		else
@@ -785,6 +841,69 @@ StorageRegistry::processUpdate(char *tableName, char *payload)
 								sendPayload(tblreg->url, output);
 							}
 						}
+					}
+				}
+			}
+		}
+	}
+}
+
+/**
+ * Process an incoming payload and distribute as required to registered
+ * services
+ *
+ * @param payload	The payload to potentially distribute
+ */
+void
+StorageRegistry::processDelete(char *tableName, char *payload)
+{
+	Document	doc;
+
+	doc.Parse(payload);
+	if (doc.HasParseError())
+	{
+		Logger::getLogger()->error("Unable to parse table delete payload for table %s, request is %s", tableName, payload);
+		return;
+	}
+
+	lock_guard<mutex> guard(m_tableRegistrationsMutex);
+	for (auto & reg : m_tableRegistrations)
+	{
+		if (reg.first->compare(tableName) != 0)
+			continue;
+
+		TableRegistration *tblreg = reg.second;
+
+		// If key is empty string, no need to match key/value pair in payload
+		if (tblreg->operation.compare("delete") != 0)
+		{
+			continue;
+		}
+		if (tblreg->key.empty())
+		{
+			// No key to match, send all updates to table
+			sendPayload(tblreg->url, payload);
+		}
+		else
+		{
+			if (doc.HasMember("where") && doc["where"].IsObject())
+			{
+				const Value& where = doc["where"];
+				if (where.HasMember("column") && where["column"].IsString() &&
+						where.HasMember("value") && where["value"].IsString())
+				{
+					string updateKey = where["column"].GetString();
+					string keyValue = where["value"].GetString();
+					if (updateKey.compare(tblreg->key) == 0 &&
+							std::find(tblreg->keyValues.begin(), tblreg->keyValues.end(), keyValue)
+							!= tblreg->keyValues.end())
+					{
+						StringBuffer buffer;
+						Writer<StringBuffer> writer(buffer);
+						where.Accept(writer);
+
+						const char *output = buffer.GetString();
+						sendPayload(tblreg->url, output);
 					}
 				}
 			}

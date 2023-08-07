@@ -136,8 +136,8 @@ public:
 				m_pluginName(plugin),
 				m_assetName(asset),
 				m_eventName(event),
-				m_deprecated(deprecated),
 				m_datapoints(datapoints),
+				m_deprecated(deprecated),
 				m_maxCount(c) {};
 
 	inline bool operator==(const StorageAssetTrackingTuple& x) const

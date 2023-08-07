@@ -132,13 +132,14 @@ public:
 				const std::string& event,
 				const bool& deprecated = false,
 				const std::string& datapoints = "",
-				unsigned int c = 0) : m_serviceName(service),
-				m_pluginName(plugin),
-				m_assetName(asset),
-				m_eventName(event),
-				m_datapoints(datapoints),
-				m_deprecated(deprecated),
-				m_maxCount(c) {};
+				unsigned int c = 0) : m_datapoints(datapoints),
+					m_maxCount(c),
+					m_serviceName(service),
+					m_pluginName(plugin),
+					m_assetName(asset),
+					m_eventName(event),
+					m_deprecated(deprecated)
+				{};
 
 	inline bool operator==(const StorageAssetTrackingTuple& x) const
 	{

@@ -94,6 +94,7 @@ class SupportBuilder:
                 await self.add_table_statistics_history(pyz, file_spec)
                 await self.add_table_plugin_data(pyz, file_spec)
                 await self.add_table_streams(pyz, file_spec)
+                await self.add_table_monitors(pyz, file_spec)
                 self.add_service_registry(pyz, file_spec)
                 self.add_machine_resources(pyz, file_spec)
                 self.add_psinfo(pyz, file_spec)
@@ -223,6 +224,12 @@ class SupportBuilder:
             .ORDER_BY(['id', 'ASC']) \
             .payload()
         data = await self._storage.query_tbl_with_payload("streams", payload)
+        self.write_to_tar(pyz, temp_file, data)
+
+    async def add_table_monitors(self, pyz, file_spec):
+        # The contents of the monitors table from the storage layer
+        temp_file = self._interim_file_path + "/" + "monitors-{}".format(file_spec)
+        data = await self._storage.query_tbl("monitors")
         self.write_to_tar(pyz, temp_file, data)
 
     def add_service_registry(self, pyz, file_spec):

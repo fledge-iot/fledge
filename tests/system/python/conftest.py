@@ -810,7 +810,7 @@ def collect_support_bundle(request, fledge_url):
         try:
             jdoc = utils.post_request(fledge_url, "/fledge/support", None)
             assert jdoc["bundle created"]
-            copy_to_cmd = "mkdir -p {0}/support/ && cp -r {1} {0}/support".format(PROJECT_ROOT, jdoc['bundle created'])
+            copy_to_cmd = f"mkdir -p {PROJECT_ROOT}/support/ && cp -r {jdoc['bundle created']} {PROJECT_ROOT}/support/"
             subprocess.run([copy_to_cmd], shell=True, check=True)
         except Exception as e:
             print("\n Failed to get Support Bundle. \n {}".format(str(e)))
@@ -819,7 +819,7 @@ def collect_support_bundle(request, fledge_url):
             if pytest.PKG_MGR == 'yum':
                 log_file = "/var/log/messages"  
             ts = time.strftime("%Y_%m_%d_%H_%M_%S")
-            copy_to_cmd = "mkdir -p {0}/support/logs/ && cp {1} {0}/support/logs/syslog_{2}".format(PROJECT_ROOT, log_file, ts)
+            copy_to_cmd = f"mkdir -p {PROJECT_ROOT}/support/logs/ && grep -i 'fledge' {log_file} > {PROJECT_ROOT}/support/logs/syslog_{ts}"
             subprocess.run([copy_to_cmd], shell=True, check=True)  
     
     request.addfinalizer(_collect_support_bundle)

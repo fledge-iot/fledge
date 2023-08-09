@@ -243,8 +243,8 @@ async def delete_acl(request: web.Request) -> web.Response:
                 if services or scripts:
                     message = "{} is associated with an entity. So cannot delete." \
                                  " Make sure to remove all the usages of this ACL.".format(name)
-                    _logger.info(message)
-                    return web.json_response({"message": message})
+                    _logger.warning(message)
+                    return web.HTTPConflict(reason=message, body=json.dumps({"message": message}))
 
                 delete_result = await storage.delete_from_tbl("control_acl", payload)
                 if 'response' in delete_result:

@@ -80,7 +80,7 @@ async def create(request: web.Request) -> web.Response:
         curl -sX POST http://localhost:8081/fledge/control/pipeline -d '{"name": "pump", "enabled": true, "execution": "shared", "source": {"type": 2, "name": "pump"}}'
         curl -sX POST http://localhost:8081/fledge/control/pipeline -d '{"name": "broadcast", "enabled": true, "execution": "exclusive", "destination": {"type": 4}}'
         curl -sX POST http://localhost:8081/fledge/control/pipeline -d '{"name": "opcua_pump", "enabled": true, "execution": "shared", "source": {"type": 2, "name": "opcua"}, "destination": {"type": 2, "name": "pump1"}}'
-        curl -sX POST http://localhost:8081/fledge/control/pipeline -d '{"name": "opcua_pump", "enabled": true, "execution": "exclusive", "source": {"type": 2, "name": "southOpcua"}, "destination": {"type": 1, "name": "northOpcua"}, "filters": ["Filter1"]}'
+        curl -sX POST http://localhost:8081/fledge/control/pipeline -d '{"name": "opcua_pump1", "enabled": true, "execution": "exclusive", "source": {"type": 2, "name": "southOpcua"}, "destination": {"type": 1, "name": "northOpcua"}, "filters": ["Filter1"]}'
         curl -sX POST http://localhost:8081/fledge/control/pipeline -d '{"name": "Test", "enabled": false, "filters": ["Filter1", "Filter2"]}'
     """
     try:
@@ -209,6 +209,7 @@ async def update(request: web.Request) -> web.Response:
     try:
         pipeline = await _get_pipeline(cpid)
         data = await request.json()
+        data['old_pipeline_name'] = pipeline['name']
         columns = await _check_parameters(data, request)
         storage = connect.get_storage_async()
         if columns:
@@ -216,17 +217,21 @@ async def update(request: web.Request) -> web.Response:
             await storage.update_tbl("control_pipelines", payload)
         filters = data.get('filters', None)
         if filters is not None:
-            go_ahead = await _check_filters(storage, filters) if filters else True
-            if go_ahead:
-                # remove old filters if exists
-                await _remove_filters(storage, pipeline['filters'], cpid)
-                if filters:
-                    # Update new filters
-                    new_filters = await _update_filters(storage, cpid, pipeline['name'], filters)
-                    if not new_filters:
-                        raise ValueError('Filters do not exist as per the given list {}'.format(filters))
+            # Case: When filters payload is empty then remove all filters
+            if not filters:
+                await _remove_filters(storage, pipeline['filters'], cpid, pipeline['name'])
             else:
-                raise ValueError('Filters do not exist as per the given list {}'.format(filters))
+                go_ahead = await _check_filters(storage, filters) if filters else True
+                if go_ahead:
+                    if filters:
+                        result_filters = await _get_table_column_by_value("control_filters", "cpid", cpid)
+                        db_filters = None
+                        if result_filters['rows']:
+                            db_filters = [r['fname'].replace("ctrl_{}_".format(pipeline['name']), ''
+                                                             ) for r in result_filters['rows']]
+                        await _update_filters(storage, cpid, pipeline['name'], filters, db_filters)
+                else:
+                    raise ValueError('Filters do not exist as per the given list {}'.format(filters))
     except ValueError as err:
         msg = str(err)
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
@@ -254,7 +259,7 @@ async def delete(request: web.Request) -> web.Response:
         storage = connect.get_storage_async()
         pipeline = await _get_pipeline(cpid)
         # Remove filters if exists and also delete the entry from control_filter table
-        await _remove_filters(storage, pipeline['filters'], cpid)
+        await _remove_filters(storage, pipeline['filters'], cpid, pipeline['name'])
         # Delete entry from control_pipelines
         payload = PayloadBuilder().WHERE(['cpid', '=', pipeline['id']]).payload()
         await storage.delete_from_tbl("control_pipelines", payload)
@@ -286,9 +291,14 @@ async def _get_all_lookups(tbl_name=None):
     return {"source": source_lookup, "destination": des_lookup}
 
 
-async def _get_table_column_by_value(table, column_name, column_value):
+async def _get_table_column_by_value(table, column_name, column_value, limit=None):
     storage = connect.get_storage_async()
-    payload = PayloadBuilder().WHERE([column_name, '=', column_value]).payload()
+    if table == "control_filters":
+        payload = PayloadBuilder().WHERE([column_name, '=', column_value]).ORDER_BY(["forder", "asc"]).payload()
+    else:
+        payload = PayloadBuilder().WHERE([column_name, '=', column_value]).payload()
+    if limit is not None:
+        payload = PayloadBuilder().WHERE([column_name, '=', column_value]).LIMIT(limit).payload()
     result = await storage.query_tbl_with_payload(table, payload)
     return result
 
@@ -358,6 +368,9 @@ async def _check_parameters(payload, request):
         name = name.strip()
         if len(name) == 0:
             raise ValueError('Pipeline name cannot be empty.')
+        cpid = request.match_info.get('id', None)
+        old_name = payload.get('old_pipeline_name', None)
+        await _check_unique_pipeline(name, old_name, cpid)
         column_names['name'] = name
     # enabled
     enabled = payload.get('enabled', None)
@@ -466,11 +479,6 @@ async def _check_parameters(payload, request):
         # Script
         if source_type == 6 and des_type == 3:
             raise ValueError(error_msg)
-    if name:
-        # Check unique pipeline
-        if await _pipeline_in_use(name, source, destination):
-            raise ValueError("{} control pipeline must be unique and there must be no other pipelines "
-                             "with the same source and destination.".format(name))
     # filters
     filters = payload.get('filters', None)
     if filters is not None:
@@ -532,15 +540,22 @@ async def _validate_lookup_name(lookup_name, _type, value):
         pass
 
 
-async def _remove_filters(storage, filters, cp_id):
+async def _remove_filters(storage, filters, cp_id, cp_name=None):
     cf_mgr = ConfigurationManager(storage)
     if filters:
         for f in filters:
             # Delete entry from control_filter table
             payload = PayloadBuilder().WHERE(['cpid', '=', cp_id]).AND_WHERE(['fname', '=', f]).payload()
             await storage.delete_from_tbl("control_filters", payload)
-            # Delete the related category
+
+            # Delete filter from filters table
+            filter_name = f.replace("ctrl_{}_".format(cp_name), '')
+            payload = PayloadBuilder().WHERE(['name', '=', filter_name]).payload()
+            await storage.delete_from_tbl("filters", payload)
+
+            # Delete the filters category
             await cf_mgr.delete_category_and_children_recursively(f)
+            await cf_mgr.delete_category_and_children_recursively(filter_name)
 
 
 async def _check_filters(storage, cp_filters):
@@ -558,42 +573,77 @@ async def _check_filters(storage, cp_filters):
     return is_exist
 
 
-async def _update_filters(storage, cp_id, cp_name, cp_filters):
+async def _update_filters(storage, cp_id, cp_name, cp_filters, db_filters=None):
+    if db_filters is None:
+        db_filters = []
     cf_mgr = ConfigurationManager(storage)
     new_filters = []
-    if not cp_filters:
-        return new_filters
+    children = []
 
-    for fid, fname in enumerate(cp_filters, start=1):
-        # get plugin config of filter
-        category_value = await cf_mgr.get_category_all_items(category_name=fname)
-        cat_value = copy.deepcopy(category_value)
-        if cat_value is None:
-            raise ValueError(
-                "{} category does not exist during {} control pipeline filter.".format(
-                    fname, cp_name))
-        # Copy value in default and remove value KV pair for creating new category
-        for k, v in cat_value.items():
-            v['default'] = v['value']
-            v.pop('value', None)
-        # Create category
-        cat_name = "ctrl_{}_{}".format(cp_name, fname)
-        await cf_mgr.create_category(category_name=cat_name,
-                                     category_description="Filter of {} control pipeline.".format(
-                                         cp_name),
-                                     category_value=cat_value,
-                                     keep_original_items=True)
-        new_category = await cf_mgr.get_category_all_items(cat_name)
-        if new_category is None:
-            raise KeyError("No such {} category found.".format(new_category))
-        # Create entry in control_filters table
-        column_names = {"cpid": cp_id, "forder": fid, "fname": cat_name}
-        payload = PayloadBuilder().INSERT(**column_names).payload()
-        await storage.insert_into_tbl("control_filters", payload)
-        new_filters.append(cat_name)
-    try:
-        # Create parent-child relation with Dispatcher service
-        await cf_mgr.create_child_category("dispatcher", new_filters)
-    except:
-        pass
+    insert_filters = set(cp_filters) - set(db_filters)
+    update_filters = set(cp_filters) & set(db_filters)
+    delete_filters = set(db_filters) - set(cp_filters)
+
+    if insert_filters:
+        for fid, fname in enumerate(insert_filters, start=1):
+            # get plugin config of filter
+            category_value = await cf_mgr.get_category_all_items(category_name=fname)
+            cat_value = copy.deepcopy(category_value)
+            if cat_value is None:
+                raise ValueError(
+                    "{} category does not exist during {} control pipeline filter.".format(
+                        fname, cp_name))
+            # Copy value in default and remove value KV pair for creating new category
+            for k, v in cat_value.items():
+                v['default'] = v['value']
+                v.pop('value', None)
+            # Create category
+            cat_name = "ctrl_{}_{}".format(cp_name, fname)
+            await cf_mgr.create_category(category_name=cat_name,
+                                         category_description="Filter of {} control pipeline.".format(
+                                             cp_name),
+                                         category_value=cat_value,
+                                         keep_original_items=True)
+            new_category = await cf_mgr.get_category_all_items(cat_name)
+            if new_category is None:
+                raise KeyError("No such {} category found.".format(new_category))
+            # Create entry in control_filters table
+            column_names = {"cpid": cp_id, "forder": fid, "fname": cat_name}
+            payload = PayloadBuilder().INSERT(**column_names).payload()
+            await storage.insert_into_tbl("control_filters", payload)
+            new_filters.append(cat_name)
+            children.append(cat_name)
+            children.extend([fname])
+        try:
+            # Create parent-child relation with Dispatcher service
+            await cf_mgr.create_child_category("dispatcher", children)
+        except:
+            pass
+    if update_filters:
+        # only order
+        for fid, fname in enumerate(cp_filters, start=1):
+            payload = PayloadBuilder().SET(forder=fid).WHERE(["fname", "=", "ctrl_{}_{}".format(cp_name, fname)]).AND_WHERE(["cpid", "=", cp_id]).payload()
+            await storage.update_tbl("control_filters", payload)
+    if delete_filters:
+        del_filters = ["ctrl_{}_{}".format(cp_name, f) for f in list(delete_filters)]
+        await _remove_filters(storage, del_filters, cp_id, cp_name)
     return new_filters
+
+
+async def _check_unique_pipeline(name, old_name=None, cpid=None):
+    """Disallow pipeline name cases:
+       a) If given pipeline name already exists in DB.
+       b) If given pipeline has already attached filters.
+    """
+    if cpid is not None:
+        if name != old_name:
+            pipeline_filter_result = await _get_table_column_by_value("control_filters", "cpid", cpid, limit=1)
+            if pipeline_filter_result['rows']:
+                raise ValueError('Filters are attached. Pipeline name cannot be changed.')
+            pipeline_result = await _get_table_column_by_value("control_pipelines", "name", name, limit=1)
+            if pipeline_result['rows']:
+                raise ValueError('{} pipeline already exists, name cannot be changed.'.format(name))
+    else:
+        pipeline_result = await _get_table_column_by_value("control_pipelines", "name", name, limit=1)
+        if pipeline_result['rows']:
+            raise ValueError('{} pipeline already exists with the same name.'.format(name))

@@ -25,7 +25,6 @@ Fledge North Plugins
 
 .. toctree::
 
-    fledge-north-OMF/index
 EOFNORTH
 cat > plugins/filter.rst << EOFFILTER
 *********************
@@ -42,8 +41,6 @@ Fledge Notification Rule Plugins
 
 .. toctree::
 
-    fledge-rule-DataAvailability/index
-    fledge-rule-Threshold/index
 EOFRULE
 cat > plugins/notify.rst << EOFNOTIFY
 ************************************
@@ -88,8 +85,10 @@ all_repos = [r["name"] for r in repos if r["archived"] is False];\
 fRepos = list(set(all_repos) - set(exclude_topic_packages.split()));\
 print("\n".join(fRepos));
 '
-REPOSITORIES=$(echo ${fledgeRepos} | python3 -c "$fetchFledgeReposPyScript" | sort -f)
-echo "REPOS LIST: "${REPOSITORIES}
+REPOS=$(echo ${fledgeRepos} | python3 -c "$fetchFledgeReposPyScript" | sort -f)
+INBUILT_PLUGINS="fledge-north-OMF fledge-rule-Threshold fledge-rule-DataAvailability"
+REPOSITORIES=$(echo ${REPOS} ${INBUILT_PLUGINS} | xargs -n1 | sort -f | xargs)
+echo "REPOSITORIES LIST: "${REPOSITORIES}
 
 function plugin_and_service_doc {
     repo_name=$1
@@ -132,32 +131,37 @@ function plugin_and_service_doc {
     rm -rf /tmp/doc.$$
 }
 
-
 for repo in ${REPOSITORIES}
 do
     type=$(echo $repo | sed -e 's/fledge-//' -e 's/-.*//')
-    if [ "$type" = "south" -o "$type" = "north" -o $type = "filter" -o $type = "rule" -o $type = "notify" ]; then
-        dest=plugins/${type}.rst
+    dest=plugins/${type}.rst
+    if grep -q "$repo" <<< "$INBUILT_PLUGINS"; then
+        if [[ $repo == "fledge-north-OMF" ]]; then
+            name="fledge-north-OMF"
+            echo "    ${name}/index" >> $dest
+            mkdir plugins/${name}
+            ln -s ../../images plugins/${name}/images
+            echo '.. include:: ../../fledge-north-OMF.rst' > plugins/${name}/index.rst
+            # Append OMF.rst to the end of the file rather than including it so that we may edit the links to prevent duplicates
+            cat OMF.rst >> plugins/${name}/index.rst
+            sed -i -e 's/Naming_Scheme/Naming_Scheme_plugin/' -e 's/Linked_Types/Linked_Types_Plugin/' -e 's/Edge_Data_Store/Edge_Data_Store_OMF_Endpoint/' -e 's/_Connector_Relay/PI_Connector_Relay/' plugins/${name}/index.rst
+        elif [[ $repo == "fledge-rule-DataAvailability" ]]; then
+            name="fledge-rule-DataAvailability"
+            echo "    ${name}/index" >> $dest
+            mkdir plugins/${name}
+            ln -s $(pwd)/${name}/images plugins/${name}/images
+            echo '.. include:: ../../fledge-rule-DataAvailability/index.rst' > plugins/${name}/index.rst
+        elif [[ $repo == "fledge-rule-Threshold" ]]; then
+            name="fledge-rule-Threshold"
+            echo "    ${name}/index" >> $dest
+            mkdir plugins/${name}
+            ln -s $(pwd)/${name}/images plugins/${name}/images
+            echo '.. include:: ../../fledge-rule-Threshold/index.rst' > plugins/${name}/index.rst
+        fi
+    elif [ "$type" = "south" -o "$type" = "north" -o $type = "filter" -o $type = "rule" -o $type = "notify" ]; then
         plugin_and_service_doc $repo $dest "plugins"
     fi
 done
-
-# Deal with builtin plugin documentation
-mkdir plugins/fledge-north-OMF
-ln -s ../../images plugins/fledge-north-OMF/images
-echo '.. include:: ../../fledge-north-OMF.rst' > plugins/fledge-north-OMF/index.rst
-# Append OMF.rst to the end of the file rather than including it so that we may
-# edit the links to prevent duplicates
-cat OMF.rst >> plugins/fledge-north-OMF/index.rst
-sed -i -e 's/Naming_Scheme/Naming_Scheme_plugin/' -e 's/Linked_Types/Linked_Types_Plugin/' -e 's/Edge_Data_Store/Edge_Data_Store_OMF_Endpoint/' -e 's/_Connector_Relay/PI_Connector_Relay/' plugins/fledge-north-OMF/index.rst
-# Create the Threshold rule documentation
-mkdir plugins/fledge-rule-Threshold
-ln -s $(pwd)/fledge-rule-Threshold/images plugins/fledge-rule-Threshold/images
-echo '.. include:: ../../fledge-rule-Threshold/index.rst' > plugins/fledge-rule-Threshold/index.rst
-# Create the DataAvailability rule documentation
-mkdir plugins/fledge-rule-DataAvailability
-ln -s $(pwd)/fledge-rule-DataAvailability/images plugins/fledge-rule-DataAvailability/images
-echo '.. include:: ../../fledge-rule-DataAvailability/index.rst' > plugins/fledge-rule-DataAvailability/index.rst
 
 cat > services/index.rst << EOFSERVICES
 *******************

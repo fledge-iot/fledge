@@ -70,6 +70,7 @@ class SupportBuilder:
                 await self.add_fledge_version_and_schema(pyz)
                 self.add_syslog_fledge(pyz, file_spec)
                 self.add_syslog_storage(pyz, file_spec)
+                self.add_syslog_utility(pyz)
                 cf_mgr = ConfigurationManager(self._storage)
                 try:
                     south_cat = await cf_mgr.get_category_child("South")
@@ -86,10 +87,11 @@ class SupportBuilder:
                             self.add_syslog_service(pyz, file_spec, task)
                 except:
                     pass
-                await self.add_table_configuration(pyz, file_spec)
-                await self.add_table_audit_log(pyz, file_spec)
-                await self.add_table_schedules(pyz, file_spec)
-                await self.add_table_scheduled_processes(pyz, file_spec)
+                db_tables = {"configuration": "category", "log": "audit", "schedules": "schedule",
+                             "scheduled_processes": "schedule-process", "monitors": "service-monitoring",
+                             "statistics": "statistics"}
+                for tbl_name, file_name in sorted(db_tables.items()):
+                    await self.add_db_content(pyz, file_spec, tbl_name, file_name)
                 await self.add_table_statistics_history(pyz, file_spec)
                 await self.add_table_plugin_data(pyz, file_spec)
                 await self.add_table_streams(pyz, file_spec)
@@ -142,7 +144,7 @@ class SupportBuilder:
             subprocess.call("grep -a '{}' {} > {}".format("Fledge", _SYSLOG_FILE, temp_file), shell=True)
         except OSError as ex:
             raise RuntimeError("Error in creating {}. Error-{}".format(temp_file, str(ex)))
-        pyz.add(temp_file, arcname=basename(temp_file))
+        pyz.add(temp_file, arcname='logs/sys/{}'.format(basename(temp_file)))
 
     def add_syslog_storage(self, pyz, file_spec):
         # The contents of the syslog file that relate to the database layer (postgres)
@@ -151,7 +153,7 @@ class SupportBuilder:
             subprocess.call("grep -a '{}' {} > {}".format("Fledge Storage", _SYSLOG_FILE, temp_file), shell=True)
         except OSError as ex:
             raise RuntimeError("Error in creating {}. Error-{}".format(temp_file, str(ex)))
-        pyz.add(temp_file, arcname=basename(temp_file))
+        pyz.add(temp_file, arcname='logs/sys/{}'.format(basename(temp_file)))
 
     def add_syslog_service(self, pyz, file_spec, service):
         # The fledge entries from the syslog file for a service or task
@@ -160,31 +162,20 @@ class SupportBuilder:
         temp_file = self._interim_file_path + "/" + "syslog-{}-{}".format(tmp_svc, file_spec)
         try:
             subprocess.call("grep -a -E '(Fledge {})\[' {} > {}".format(service, _SYSLOG_FILE, temp_file), shell=True)
-            pyz.add(temp_file, arcname=basename(temp_file))
+            pyz.add(temp_file, arcname='logs/sys/{}'.format(basename(temp_file)))
         except Exception as ex:
             raise RuntimeError("Error in creating {}. Error-{}".format(temp_file, str(ex)))
 
-    async def add_table_configuration(self, pyz, file_spec):
-        # The contents of the configuration table from the storage layer
-        temp_file = self._interim_file_path + "/" + "configuration-{}".format(file_spec)
-        data = await self._storage.query_tbl("configuration")
-        self.write_to_tar(pyz, temp_file, data)
+    def add_syslog_utility(self, pyz):
+        # syslog utility files
+        for filename in os.listdir("/tmp"):
+            if filename.startswith("fl_syslog"):
+                temp_file = "/tmp/{}".format(filename)
+                pyz.add(temp_file, arcname='logs/sys/{}'.format(filename))
 
-    async def add_table_audit_log(self, pyz, file_spec):
-        # The contents of the audit log from the storage layer
-        temp_file = self._interim_file_path + "/" + "audit-{}".format(file_spec)
-        data = await self._storage.query_tbl("log")
-        self.write_to_tar(pyz, temp_file, data)
-
-    async def add_table_schedules(self, pyz, file_spec):
-        # The contents of the schedules table from the storage layer
-        temp_file = self._interim_file_path + "/" + "schedules-{}".format(file_spec)
-        data = await self._storage.query_tbl("schedules")
-        self.write_to_tar(pyz, temp_file, data)
-
-    async def add_table_scheduled_processes(self, pyz, file_spec):
-        temp_file = self._interim_file_path + "/" + "scheduled_processes-{}".format(file_spec)
-        data = await self._storage.query_tbl("scheduled_processes")
+    async def add_db_content(self, pyz, file_spec, tbl_name, file_name):
+        temp_file = "{}/{}-{}".format(self._interim_file_path, file_name, file_spec)
+        data = await self._storage.query_tbl(tbl_name)
         self.write_to_tar(pyz, temp_file, data)
 
     async def add_table_statistics_history(self, pyz, file_spec):
@@ -285,7 +276,7 @@ class SupportBuilder:
         script_package_logs_path = _PATH + '/logs'
         if os.path.exists(script_package_logs_path):
             # recursively 'true' by default and __pycache__ dir excluded
-            pyz.add(script_package_logs_path, arcname='package_logs', filter=self.exclude_pycache)
+            pyz.add(script_package_logs_path, arcname='logs/package', filter=self.exclude_pycache)
 
     def add_software_list(self, pyz, file_spec) -> None:
         data = {

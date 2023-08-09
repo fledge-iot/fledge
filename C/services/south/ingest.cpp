@@ -12,7 +12,6 @@
 #include <config_handler.h>
 #include <thread>
 #include <logger.h>
-#include <storage_asset_tracking.h>
 #include <set>
 
 using namespace std;
@@ -283,7 +282,8 @@ Ingest::Ingest(StorageClient& storage,
 			m_failCnt(0),
 			m_storageFailed(false),
 			m_storesFailed(0),
-			m_statisticsOption(STATS_BOTH)
+			m_statisticsOption(STATS_BOTH),
+			m_highWater(0)
 {
 	m_shutdown = false;
 	m_running = true;
@@ -293,14 +293,20 @@ Ingest::Ingest(StorageClient& storage,
 	m_discardedReadings = 0;
 	m_highLatency = false;
 
-	// populate asset tracking cache
-	AssetTracker::getAssetTracker()->populateAssetTrackingCache(m_pluginName, "Ingest");
-	StorageAssetTracker::getStorageAssetTracker()->populateStorageAssetTrackingCache();
+	// populate asset and storage asset tracking cache
+	AssetTracker *as = AssetTracker::getAssetTracker();
+	as->populateAssetTrackingCache(m_pluginName, "Ingest");
+	as->populateStorageAssetTrackingCache();
 
 	// Create the stats entry for the service
 	createServiceStatsDbEntry();
 
 	m_filterPipeline = NULL;
+
+	m_deprecated = NULL;
+
+	m_deprecatedAgeOut = 0;
+	m_deprecatedAgeOutStorage = 0;
 }
 
 /**
@@ -357,6 +363,9 @@ Ingest::~Ingest()
 		if (m_filterPipeline)
 			delete m_filterPipeline;
 	}
+
+	if (m_deprecated)
+		delete m_deprecated;
 }
 
 /**
@@ -381,6 +390,8 @@ bool Ingest::isStopping()
 
 /**
  * Add a reading to the reading queue
+ *
+ * @param reading	The single reading to ingest
  */
 void Ingest::ingest(const Reading& reading)
 {
@@ -402,10 +413,13 @@ vector<Reading *> *fullQueue = 0;
 	}
 	if (m_fullQueues.size())
 		m_cv.notify_all();
+	m_performance->collect("queueLength", (long)queueLength());
 }
 
 /**
  * Add a set of readings to the reading queue
+ *
+ * @param vec	A vector of readings to ingest
  */
 void Ingest::ingest(const vector<Reading *> *vec)
 {
@@ -443,14 +457,16 @@ unsigned int nFullQueues = 0;
 	{
 		m_cv.notify_all();
 	}
+	m_performance->collect("queueLength", (long)queueLength());
+	m_performance->collect("ingestCount", (long)vec->size());
 }
 
 /**
  * Work out how long to wait based on age of oldest queued reading
- * We do this in a seperaste function so that we can
- * lock the qMutex to access the oldest element in the queue
+ * We do this in a separate function so that we can lock the qMutex
+ * to access the oldest element in the queue
  *
- * @return the tiem to wait
+ * @return the time to wait
  */
 long Ingest::calculateWaitTime()
 {
@@ -548,10 +564,10 @@ void Ingest::processQueue()
 				m_failCnt = 0;
 				std::map<std::string, int>		statsEntriesCurrQueue;
 				AssetTracker *tracker = AssetTracker::getAssetTracker();
-				StorageAssetTracker *satracker = StorageAssetTracker::getStorageAssetTracker();
-				if ( satracker == nullptr)
+				if (tracker == nullptr)
                                 {
-                                        Logger::getLogger()->error("%s could not initialize satracker ", __FUNCTION__);
+                                        Logger::getLogger()->error("%s could not initialize asset tracker",
+								__FUNCTION__);
 					return;
                                 }
 
@@ -624,24 +640,30 @@ void Ingest::processQueue()
 				}
 
 				for (auto itr : assetDatapointMap)
-                                {
-                                        std::set<string> &s = itr.second;
-                                        unsigned int count = s.size();
-                                        StorageAssetTrackingTuple storageTuple(m_serviceName,m_pluginName, itr.first, "store", false, "",count);
-                                        StorageAssetTrackingTuple *ptr = &storageTuple;
-                                        satracker->updateCache(s, ptr);
-                                        bool deprecated = satracker->getDeprecated(ptr);
-                                        if (deprecated == true)
-                                        {
-                                                unDeprecateStorageAssetTrackingRecord(ptr, itr.first, getStringFromSet(s), count);
-                                        }
-                                }
+				{
+					std::set<string> &s = itr.second;
+					unsigned int count = s.size();
+					StorageAssetTrackingTuple storageTuple(m_serviceName,
+										m_pluginName,
+										itr.first,
+										"store",
+										false,
+										"",
+										count);
+
+					StorageAssetTrackingTuple *ptr = &storageTuple;
+
+					// Update SAsset Tracker database and cache
+					tracker->updateCache(s, ptr);
+				}
 
 				delete q;
 				m_resendQueues.erase(m_resendQueues.begin());
 				unique_lock<mutex> lck(m_statsMutex);
 				for (auto &it : statsEntriesCurrQueue)
+				{
 					statsPendingEntries[it.first] += it.second;
+				}
 			}
 		}
 
@@ -730,6 +752,7 @@ void Ingest::processQueue()
 				firstReading->getUserTimestamp(&tmFirst);
 				timersub(&tmNow, &tmFirst, &dur);
 				long latency = dur.tv_sec * 1000 + (dur.tv_usec / 1000);
+				m_performance->collect("readLatency", latency);
 				if (latency > m_timeout && m_highLatency == false)
 				{
 					m_logger->warn("Current send latency of %ldmS exceeds requested maximum latency of %dmS", latency, m_timeout);
@@ -779,7 +802,6 @@ void Ingest::processQueue()
 				// check if this requires addition of a new asset tracker tuple
 				// Remove the Readings in the vector
 				AssetTracker *tracker = AssetTracker::getAssetTracker();
-				StorageAssetTracker *satracker = StorageAssetTracker::getStorageAssetTracker();
 
 				string lastAsset;
 				int *lastStat = NULL;
@@ -849,23 +871,30 @@ void Ingest::processQueue()
 
 				}
 
-			        for (auto itr : assetDatapointMap)
-                                {
-                                        std::set<string> &s = itr.second;
+				for (auto itr : assetDatapointMap)
+				{
+					std::set<string> &s = itr.second;
 				        unsigned int count = s.size();
-				        StorageAssetTrackingTuple storageTuple(m_serviceName,m_pluginName, itr.first, "store", false, "",count);
+				        StorageAssetTrackingTuple storageTuple(m_serviceName,
+										m_pluginName,
+										itr.first,
+										"store",
+										false,
+										"",
+										count);
+
 					StorageAssetTrackingTuple *ptr = &storageTuple;
-                                        satracker->updateCache(s, ptr);
-					bool deprecated = satracker->getDeprecated(ptr);
-					if (deprecated == true)
-					{
-						unDeprecateStorageAssetTrackingRecord(ptr, itr.first, getStringFromSet(s), count);
-					}
-                                }
+
+					// Update SAsset Tracker database and cache
+					tracker->updateCache(s, ptr);
+				}
+
 				{
 					unique_lock<mutex> lck(m_statsMutex);
 					for (auto &it : statsEntriesCurrQueue)
+					{
 						statsPendingEntries[it.first] += it.second;
+					}
 				}
 			}
 		}
@@ -982,11 +1011,8 @@ void Ingest::useFilteredData(OUTPUT_HANDLE *outHandle,
 		}
 		else
 		{
-			ingest->m_data = new std::vector<Reading *>;
-			for (auto & r : readingSet->getAllReadings())
-			{
-				ingest->m_data->emplace_back(new Reading(*r)); // Need to copy reading objects here, since "del readingSet" below would remove encapsulated reading objects also
-			}
+			// move reading vector to ingest
+			ingest->m_data = readingSet->moveAllReadings();
 		}
 	}
 	readingSet->clear();
@@ -1100,6 +1126,26 @@ void Ingest::unDeprecateAssetTrackingRecord(AssetTrackingTuple* currentTuple,
 					const string& assetName,
 					const string& event)
 {
+	time_t now = time(0);
+	if (m_deprecatedAgeOut < now)
+	{
+		delete m_deprecated;
+		m_deprecated = m_mgtClient->getDeprecatedAssetTrackingTuples();
+		m_deprecatedAgeOut = now + DEPRECATED_CACHE_AGE;
+	}
+	if (m_deprecated && m_deprecated->find(assetName))
+	{
+		// The asset is deprecated possibly
+		m_deprecated->remove(assetName);
+	}
+	else
+	{
+		// The asset is not believed to be deprecated so return. If
+		// it has been deprecated since we last loaded the cache this
+		// will leave the asset incorrectly deprecated. This will be
+		// resolved next time the cache is reloaded
+		return;
+	}
 	// Get up-to-date Asset Tracking record 
 	AssetTrackingTuple* updatedTuple =
 			m_mgtClient->getAssetTrackingTuple(
@@ -1107,6 +1153,7 @@ void Ingest::unDeprecateAssetTrackingRecord(AssetTrackingTuple* currentTuple,
 			assetName,
 			event);
 
+	bool unDeprecateDataPoints = false;
 	if (updatedTuple)
 	{
 		if (updatedTuple->isDeprecated())
@@ -1159,8 +1206,11 @@ void Ingest::unDeprecateAssetTrackingRecord(AssetTrackingTuple* currentTuple,
 							" for un-deprecated asset '%s'",
 							assetName.c_str());
 				}
-				m_logger->info("Asset '%s' has been un-deprecated",
-						assetName.c_str());
+				m_logger->info("Asset '%s' has been un-deprecated, event '%s'",
+						assetName.c_str(),
+						event.c_str());
+
+				unDeprecateDataPoints = true;
 			}
 		}
 	}
@@ -1173,6 +1223,47 @@ void Ingest::unDeprecateAssetTrackingRecord(AssetTrackingTuple* currentTuple,
 	}
 
 	delete updatedTuple;
+
+	// Undeprecate all "store" events related to the serviceName and assetName
+	if (unDeprecateDataPoints)
+	{
+		// Prepare UPDATE query
+		const Condition conditionParams(Equals);
+		Where * wAsset = new Where("asset",
+					conditionParams,
+					assetName);
+		Where *wService = new Where("service",
+					conditionParams,
+					m_serviceName,
+					wAsset);
+		Where *wEvent = new Where("event",
+					conditionParams,
+					"store",
+					wService);
+
+		InsertValues unDeprecated;
+
+		// Set NULL value
+		unDeprecated.push_back(InsertValue("deprecated_ts"));
+        
+		// Update storage with NULL value
+		int rv = m_storage.updateTable("asset_tracker",
+						unDeprecated,
+						*wEvent);
+
+		// Check update operation
+		if (rv < 0)
+		{
+			m_logger->error("Failure while un-deprecating asset '%s'",
+					assetName.c_str());
+		}
+		else
+		{
+			m_logger->info("Asset '%s' has been un-deprecated, event '%s'",
+					assetName.c_str(),
+					"store");
+		}
+	}
 }
 
 /**
@@ -1182,12 +1273,26 @@ void Ingest::unDeprecateAssetTrackingRecord(AssetTrackingTuple* currentTuple,
  *
  * @param currentTuple          Current StorageAssetTracking record for given assetName
  * @param assetName             AssetName to fetch from AssetTracking
- * @param event                 The event type to fetch
+ * @param  datapoints           The datapoints comma separated list
+ * @param count			The number of datapoints per asset
  */
 void Ingest::unDeprecateStorageAssetTrackingRecord(StorageAssetTrackingTuple* currentTuple,
-                                        const string& assetName, const string& datapoints, const unsigned int& count)
+                                        const string& assetName,
+					const string& datapoints,
+					const unsigned int& count)
                                         
 {
+	time_t now = time(0);
+	if (m_deprecatedAgeOutStorage < now)
+	{
+		m_deprecatedAgeOutStorage = now + DEPRECATED_CACHE_AGE;
+	}
+	else
+	{
+		// Nothing to do right now
+		return;
+	}
+
 
         // Get up-to-date Asset Tracking record
         StorageAssetTrackingTuple* updatedTuple =
@@ -1304,4 +1409,44 @@ std::string  Ingest::getStringFromSet(const std::set<std::string> &dpSet)
 	if (s[s.size() -1] == ',')
 		s.pop_back();
 	return s;
+}
+
+/**
+ * Implement flow control backoff for the async ingest mechanism.
+ *
+ * The flow control is "soft" in that it will only wait for a maximum
+ * amount of time before continuing regardless of the queue length.
+ *
+ * The mechanism is to have a high water and low water mark. When the queue
+ * get longer than the high water mark we wait until the queue drains below
+ * the low water mark before proceeding.
+ *
+ * The wait is done with a backoff algorithm that start at AFC_SLEEP_INCREMENT
+ * and doubles each time we have not dropped below the low water mark. It will
+ * sleep for a maximum of AFC_SLEEP_MAX before testing again.
+ */
+void Ingest::flowControl()
+{
+	if (m_highWater == 0)	// No flow control
+	{
+		return;
+	}
+	if (m_highWater < queueLength())
+	{
+		m_logger->debug("Waiting for ingest queue to drain");
+		int total = 0, delay = AFC_SLEEP_INCREMENT;
+		while (total < AFC_MAX_WAIT && queueLength() > m_lowWater)
+		{
+			this_thread::sleep_for(chrono::milliseconds(delay));
+			total += delay;
+			delay *= 2;
+			if (delay > AFC_SLEEP_MAX)
+			{
+				delay = AFC_SLEEP_MAX;
+			}
+		}
+		m_logger->debug("Ingest queue has %s", queueLength() > m_lowWater
+			       	? "failed to drain in sufficient time" : "has drained");
+		m_performance->collect("flow controlled", total);
+	}
 }

@@ -22,11 +22,12 @@ PLUGIN_NAME=$3
 os_name=$(grep -o '^NAME=.*' /etc/os-release | cut -f2 -d\" | sed 's/"//g')
 os_version=$(grep -o '^VERSION_ID=.*' /etc/os-release | cut -f2 -d\" | sed 's/"//g')
 REPO_NAME=fledge-${PLUGIN_TYPE}-${PLUGIN_NAME,,}
-if [[ "${PLUGIN_TYPE}" = "rule" ]]; then rm -rf /tmp/fledge-service-notification; fi
+if [[ "${PLUGIN_TYPE}" = "rule" || "${PLUGIN_TYPE}" == "notify" ]]; then rm -rf /tmp/fledge-service-notification; fi
 
 
 clean () {
    rm -rf /tmp/${REPO_NAME}
+   if [[ "${PLUGIN_TYPE}" = "rule" ]]; then rm -rf ${FLEDGE_ROOT}/plugins/notificationRule/${PLUGIN_NAME} ; elif [[ "${PLUGIN_TYPE}" == "notify" ]]; then rm -rf ${FLEDGE_ROOT}/plugins/notificationDelivery/${PLUGIN_NAME} ; fi
    rm -rf ${FLEDGE_ROOT}/plugins/${PLUGIN_TYPE}/${PLUGIN_NAME}
 }
 
@@ -40,8 +41,9 @@ install_requirement (){
 }
 
 install_binary_file () {
-   if [[ "${PLUGIN_TYPE}" = "rule" ]]
+   if [[ "${PLUGIN_TYPE}" = "rule" || "${PLUGIN_TYPE}" == "notify" ]]
    then
+   
         # fledge-service-notification repo is required to build notificationRule Plugins
         service_repo_name='fledge-service-notification'
         git clone -b ${BRANCH_NAME} --single-branch https://github.com/fledge-iot/${service_repo_name}.git /tmp/${service_repo_name}

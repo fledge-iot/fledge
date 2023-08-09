@@ -30,8 +30,8 @@ URLS = ['fledge/asset',
         '/fledge/asset/fogbench%2fhumidity/temperature/series']
 
 PAYLOADS = ['{"aggregate": {"column": "*", "alias": "count", "operation": "count"}, "group": "asset_code"}',
-            '{"return": ["reading", {"column": "user_ts", "alias": "timestamp"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity"}, "limit": 20, "sort": {"column": "user_ts", "direction": "desc"}}',
-            '{"return": [{"column": "user_ts", "alias": "timestamp"}, {"json": {"properties": "temperature", "column": "reading"}, "alias": "temperature"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity"}, "limit": 20, "sort": {"column": "user_ts", "direction": "desc"}}',
+            '{"return": ["reading", {"column": "user_ts", "alias": "timestamp", "timezone": "utc"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity"}, "limit": 20, "sort": {"column": "user_ts", "direction": "desc"}}',
+            '{"return": [{"column": "user_ts", "alias": "timestamp", "timezone": "utc"}, {"json": {"properties": "temperature", "column": "reading"}, "alias": "temperature"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity"}, "limit": 20, "sort": {"column": "user_ts", "direction": "desc"}}',
             '{"aggregate": [{"operation": "min", "alias": "min", "json": {"properties": "temperature", "column": "reading"}}, {"operation": "max", "alias": "max", "json": {"properties": "temperature", "column": "reading"}}, {"operation": "avg", "alias": "average", "json": {"properties": "temperature", "column": "reading"}}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity"}, "group": {"format": "YYYY-MM-DD HH24:MI:SS", "column": "user_ts", "alias": "timestamp"}, "limit": 20, "sort": {"column": "user_ts", "direction": "desc"}}'
             ]
 RESULTS = [{'rows': [{'count': 10, 'asset_code': 'TI sensorTag/luxometer'}], 'count': 1},
@@ -49,9 +49,9 @@ FILTERING_IMAGE_URLS = [
     ]
 
 FILTERING_IMAGE_PAYLOADS = [
-    '{"return": ["reading", {"column": "user_ts", "alias": "timestamp"}], "where": {"column": "asset_code", "condition": "=", "value": "testcard"}, "limit": 20, "sort": {"column": "user_ts", "direction": "desc"}}',
+    '{"return": ["reading", {"column": "user_ts", "alias": "timestamp", "timezone": "utc"}], "where": {"column": "asset_code", "condition": "=", "value": "testcard"}, "limit": 20, "sort": {"column": "user_ts", "direction": "desc"}}',
     '{"return": ["reading"], "where": {"column": "asset_code", "condition": "=", "value": "testcard"}, "limit": 20, "sort": {"column": "user_ts", "direction": "desc"}}',
-    '{"return": [{"column": "user_ts", "alias": "timestamp"}, {"json": {"column": "reading", "properties": "testcard"}, "alias": "testcard"}], "where": {"column": "asset_code", "condition": "=", "value": "testcard"}, "limit": 20, "sort": {"column": "user_ts", "direction": "desc"}}',
+    '{"return": [{"column": "user_ts", "alias": "timestamp", "timezone": "utc"}, {"json": {"column": "reading", "properties": "testcard"}, "alias": "testcard"}], "where": {"column": "asset_code", "condition": "=", "value": "testcard"}, "limit": 20, "sort": {"column": "user_ts", "direction": "desc"}}',
     '{"aggregate": [{"operation": "min", "json": {"column": "reading", "properties": "testcard"}, "alias": "min"}, {"operation": "max", "json": {"column": "reading", "properties": "testcard"}, "alias": "max"}, {"operation": "avg", "json": {"column": "reading", "properties": "testcard"}, "alias": "average"}], "where": {"column": "asset_code", "condition": "=", "value": "testcard"}}',
     '{"aggregate": [{"operation": "min", "json": {"column": "reading", "properties": "testcard"}, "alias": "min"}, {"operation": "max", "json": {"column": "reading", "properties": "testcard"}, "alias": "max"}, {"operation": "avg", "json": {"column": "reading", "properties": "testcard"}, "alias": "average"}], "where": {"column": "asset_code", "condition": "=", "value": "testcard"}, "limit": 20, "group": {"column": "user_ts", "alias": "timestamp", "format": "YYYY-MM-DD HH24:MI:SS"}, "sort": {"column": "user_ts", "direction": "desc"}}'
 ]
@@ -333,16 +333,16 @@ class TestBrowserAssets:
         assert response_message == resp.reason
 
     @pytest.mark.parametrize("request_params, payload", [
-        ('?limit=5', '{"return": [{"alias": "timestamp", "column": "user_ts"}, {"json": {"properties": "temperature", "column": "reading"}, "alias": "temperature"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity"}, "limit": 5, "sort": {"column": "user_ts", "direction": "desc"}}'),
-        ('?skip=1', '{"return": [{"alias": "timestamp", "column": "user_ts"}, {"json": {"properties": "temperature", "column": "reading"}, "alias": "temperature"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity"}, "limit": 20, "skip": 1, "sort": {"column": "user_ts", "direction": "desc"}}'),
-        ('?limit=5&skip=1', '{"return": [{"alias": "timestamp", "column": "user_ts"}, {"json": {"properties": "temperature", "column": "reading"}, "alias": "temperature"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity"}, "limit": 5, "skip": 1, "sort": {"column": "user_ts", "direction": "desc"}}'),
-        ('?seconds=3600', '{"return": [{"alias": "timestamp", "column": "user_ts"}, {"json": {"properties": "temperature", "column": "reading"}, "alias": "temperature"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity", "and": {"column": "user_ts", "condition": "newer", "value": 3600}}, "sort": {"column": "user_ts", "direction": "desc"}}'),
-        ('?minutes=20', '{"return": [{"alias": "timestamp", "column": "user_ts"}, {"json": {"properties": "temperature", "column": "reading"}, "alias": "temperature"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity", "and": {"column": "user_ts", "condition": "newer", "value": 1200}}, "sort": {"column": "user_ts", "direction": "desc"}}'),
-        ('?hours=3', '{"return": [{"alias": "timestamp", "column": "user_ts"}, {"json": {"properties": "temperature", "column": "reading"}, "alias": "temperature"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity", "and": {"column": "user_ts", "condition": "newer", "value": 10800}}, "sort": {"column": "user_ts", "direction": "desc"}}'),
-        ('?seconds=60&minutes=10', '{"return": [{"alias": "timestamp", "column": "user_ts"}, {"json": {"properties": "temperature", "column": "reading"}, "alias": "temperature"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity", "and": {"column": "user_ts", "condition": "newer", "value": 60}}, "sort": {"column": "user_ts", "direction": "desc"}}'),
-        ('?seconds=600&hours=1', '{"return": [{"alias": "timestamp", "column": "user_ts"}, {"json": {"properties": "temperature", "column": "reading"}, "alias": "temperature"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity", "and": {"column": "user_ts", "condition": "newer", "value": 600}}, "sort": {"column": "user_ts", "direction": "desc"}}'),
-        ('?minutes=20&hours=1', '{"return": [{"alias": "timestamp", "column": "user_ts"}, {"json": {"properties": "temperature", "column": "reading"}, "alias": "temperature"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity", "and": {"column": "user_ts", "condition": "newer", "value": 1200}}, "sort": {"column": "user_ts", "direction": "desc"}}'),
-        ('?seconds=10&minutes=10&hours=1', '{"return": [{"alias": "timestamp", "column": "user_ts"}, {"json": {"properties": "temperature", "column": "reading"}, "alias": "temperature"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity", "and": {"column": "user_ts", "condition": "newer", "value": 10}}, "sort": {"column": "user_ts", "direction": "desc"}}')
+        ('?limit=5', '{"return": [{"alias": "timestamp", "column": "user_ts", "timezone": "utc"}, {"json": {"properties": "temperature", "column": "reading"}, "alias": "temperature"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity"}, "limit": 5, "sort": {"column": "user_ts", "direction": "desc"}}'),
+        ('?skip=1', '{"return": [{"alias": "timestamp", "column": "user_ts", "timezone": "utc"}, {"json": {"properties": "temperature", "column": "reading"}, "alias": "temperature"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity"}, "limit": 20, "skip": 1, "sort": {"column": "user_ts", "direction": "desc"}}'),
+        ('?limit=5&skip=1', '{"return": [{"alias": "timestamp", "column": "user_ts", "timezone": "utc"}, {"json": {"properties": "temperature", "column": "reading"}, "alias": "temperature"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity"}, "limit": 5, "skip": 1, "sort": {"column": "user_ts", "direction": "desc"}}'),
+        ('?seconds=3600', '{"return": [{"alias": "timestamp", "column": "user_ts", "timezone": "utc"}, {"json": {"properties": "temperature", "column": "reading"}, "alias": "temperature"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity", "and": {"column": "user_ts", "condition": "newer", "value": 3600}}, "sort": {"column": "user_ts", "direction": "desc"}}'),
+        ('?minutes=20', '{"return": [{"alias": "timestamp", "column": "user_ts", "timezone": "utc"}, {"json": {"properties": "temperature", "column": "reading"}, "alias": "temperature"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity", "and": {"column": "user_ts", "condition": "newer", "value": 1200}}, "sort": {"column": "user_ts", "direction": "desc"}}'),
+        ('?hours=3', '{"return": [{"alias": "timestamp", "column": "user_ts", "timezone": "utc"}, {"json": {"properties": "temperature", "column": "reading"}, "alias": "temperature"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity", "and": {"column": "user_ts", "condition": "newer", "value": 10800}}, "sort": {"column": "user_ts", "direction": "desc"}}'),
+        ('?seconds=60&minutes=10', '{"return": [{"alias": "timestamp", "column": "user_ts", "timezone": "utc"}, {"json": {"properties": "temperature", "column": "reading"}, "alias": "temperature"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity", "and": {"column": "user_ts", "condition": "newer", "value": 60}}, "sort": {"column": "user_ts", "direction": "desc"}}'),
+        ('?seconds=600&hours=1', '{"return": [{"alias": "timestamp", "column": "user_ts", "timezone": "utc"}, {"json": {"properties": "temperature", "column": "reading"}, "alias": "temperature"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity", "and": {"column": "user_ts", "condition": "newer", "value": 600}}, "sort": {"column": "user_ts", "direction": "desc"}}'),
+        ('?minutes=20&hours=1', '{"return": [{"alias": "timestamp", "column": "user_ts", "timezone": "utc"}, {"json": {"properties": "temperature", "column": "reading"}, "alias": "temperature"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity", "and": {"column": "user_ts", "condition": "newer", "value": 1200}}, "sort": {"column": "user_ts", "direction": "desc"}}'),
+        ('?seconds=10&minutes=10&hours=1', '{"return": [{"alias": "timestamp", "column": "user_ts", "timezone": "utc"}, {"json": {"properties": "temperature", "column": "reading"}, "alias": "temperature"}], "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity", "and": {"column": "user_ts", "condition": "newer", "value": 10}}, "sort": {"column": "user_ts", "direction": "desc"}}')
     ])
     async def test_limit_skip_time_units_payload(self, client, request_params, payload):
         readings_storage_client_mock = MagicMock(ReadingsStorageClientAsync)
@@ -536,19 +536,19 @@ class TestBrowserAssets:
 
     @pytest.mark.parametrize("request_params, payload", [
         ('?limit=5&skip=1&order=asc',
-         '{"return": ["reading", {"column": "user_ts", "alias": "timestamp"}],'
+         '{"return": ["reading", {"column": "user_ts", "alias": "timestamp", "timezone": "utc"}],'
          ' "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity"},'
          ' "skip": 1, "limit": 5, '
          '"sort": {"column": "user_ts", "direction": "asc"}}'
          ),
         ('?limit=5&skip=1&order=desc',
-         '{"return": ["reading", {"column": "user_ts", "alias": "timestamp"}],'
+         '{"return": ["reading", {"column": "user_ts", "alias": "timestamp", "timezone": "utc"}],'
          ' "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity"},'
          ' "skip": 1,"limit": 5, '
          '"sort": {"column": "user_ts", "direction": "desc"}}'
          ),
         ('?limit=5&skip=1',
-         '{"return": ["reading", {"column": "user_ts", "alias": "timestamp"}],'
+         '{"return": ["reading", {"column": "user_ts", "alias": "timestamp", "timezone": "utc"}],'
          ' "where": {"column": "asset_code", "condition": "=", "value": "fogbench/humidity"},'
          ' "skip": 1,"limit": 5, '
          '"sort": {"column": "user_ts", "direction": "desc"}}'
@@ -622,15 +622,15 @@ class TestBrowserAssets:
                 query_patch.assert_called_once_with(args[0])
 
     @pytest.mark.parametrize("request_url, payload, is_image_excluded", [
-        ('fledge/asset/testcard?images=include', '{"return": ["reading", {"column": "user_ts", "alias": "timestamp"}], '
-                                                 '"where": {"column": "asset_code", "condition": "=", '
-                                                 '"value": "testcard"}, "limit": 20, "sort": {"column": "user_ts", '
-                                                 '"direction": "desc"}}',
+        ('fledge/asset/testcard?images=include',
+         '{"return": ["reading", {"column": "user_ts", "alias": "timestamp", "timezone": "utc"}], '
+         '"where": {"column": "asset_code", "condition": "=", "value": "testcard"}, "limit": 20, '
+         '"sort": {"column": "user_ts", "direction": "desc"}}',
          True),
-        ('fledge/asset/testcard?images=exclude', '{"return": ["reading", {"column": "user_ts", "alias": "timestamp"}], '
-                                                 '"where": {"column": "asset_code", "condition": "=", '
-                                                 '"value": "testcard"}, "limit": 20, "sort": {"column": "user_ts", '
-                                                 '"direction": "desc"}}',
+        ('fledge/asset/testcard?images=exclude',
+         '{"return": ["reading", {"column": "user_ts", "alias": "timestamp", "timezone": "utc"}], '
+         '"where": {"column": "asset_code", "condition": "=", "value": "testcard"}, "limit": 20, '
+         '"sort": {"column": "user_ts", "direction": "desc"}}',
          False)
     ])
     async def test_data_with_images_request_param(self, client, request_url, payload, is_image_excluded):

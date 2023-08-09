@@ -40,6 +40,11 @@ class ReadingSet {
 		// Return the reference of readings
 		std::vector<Reading *>*		getAllReadingsPtr() { return &m_readings; };
 
+		// Remove readings from reading set and return reference to readings
+		std::vector<Reading *>* moveAllReadings();
+		// Delete a reading from reading set and return pointer of deleted reading
+		Reading* removeReading(unsigned long id);
+		
 		// Return the reading id of the last  data element
 		unsigned long			getLastId() const { return m_last_id; };
 		unsigned long			getReadingId(uint32_t pos);

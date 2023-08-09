@@ -54,7 +54,7 @@ ReadingSet::ReadingSet(const vector<Reading *>* readings) : m_last_id(0)
 	m_count = readings->size();
 	for (auto it = readings->begin(); it != readings->end(); ++it)
 	{
-		if ((*it)->getId() > m_last_id)
+		if ((*it)->hasId() && (*it)->getId() > m_last_id)
 			m_last_id = (*it)->getId();
 		m_readings.push_back(*it);
 	}
@@ -307,6 +307,36 @@ ReadingSet::clear()
 }
 
 /**
+ * Remove readings from the vector and return a reference to new vector
+ * containing readings*
+*/
+std::vector<Reading*>* ReadingSet::moveAllReadings()
+{
+	std::vector<Reading*>* transferredPtr = new std::vector<Reading*>(std::move(m_readings));
+	m_count = 0;
+	m_last_id = 0;
+	m_readings.clear();
+
+	return transferredPtr;
+}
+
+/**
+ * Remove reading from vector based on index and return its pointer
+*/
+Reading* ReadingSet::removeReading(unsigned long id)
+{
+	if (id >= m_readings.size()) {
+        return nullptr;
+    }
+
+	Reading* reading = m_readings[id];
+    m_readings.erase(m_readings.begin() + id);
+    m_count--;
+
+    return reading;
+}
+
+/**
  * Return the ID of the nth reading in the reading set
  *
  * @param pos	The position of the reading to return the ID for
@@ -523,23 +553,28 @@ Datapoint *rval = NULL;
 		// Number
 		case (kNumberType):
 		{
-			if (item.IsInt() ||
-			    item.IsUint() ||
-			    item.IsInt64() ||
-			    item.IsUint64())
+			if (item.IsInt())
 			{
-
-				DatapointValue *value;
-				if (item.IsInt() || item.IsUint())
-				{
-					value = new DatapointValue((long) item.GetInt());
-				}
-				else
-				{
-					value = new DatapointValue((long) item.GetInt64());
-				}
-				rval = new Datapoint(name, *value);
-				delete value;
+				DatapointValue value((long)item.GetInt());
+				rval = new Datapoint(name, value);
+				break;
+			}
+			else if (item.IsUint())
+			{
+				DatapointValue value((long)item.GetUint());
+				rval = new Datapoint(name, value);
+				break;
+			}
+			else if (item.IsInt64())
+			{
+				DatapointValue value((long)item.GetInt64());
+				rval = new Datapoint(name, value);
+				break;
+			}
+			else if (item.IsUint64())
+			{
+				DatapointValue value((long)item.GetUint64());
+				rval = new Datapoint(name, value);
 				break;
 			}
 			else if (item.IsDouble())

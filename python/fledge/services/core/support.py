@@ -92,6 +92,9 @@ class SupportBuilder:
                              "statistics": "statistics"}
                 for tbl_name, file_name in sorted(db_tables.items()):
                     await self.add_db_content(pyz, file_spec, tbl_name, file_name)
+                await self.add_table_statistics_history(pyz, file_spec)
+                await self.add_table_plugin_data(pyz, file_spec)
+                await self.add_table_streams(pyz, file_spec)
                 self.add_service_registry(pyz, file_spec)
                 self.add_machine_resources(pyz, file_spec)
                 self.add_psinfo(pyz, file_spec)

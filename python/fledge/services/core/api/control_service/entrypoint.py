@@ -295,7 +295,7 @@ async def get_by_name(request: web.Request) -> web.Response:
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
-        _logger.error(ex, "Failed to fetch details of entry point for a given name: <{}>.".format(name))
+        _logger.error(ex, "Failed to fetch details of {} entrypoint.".format(name))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(response)
@@ -324,7 +324,7 @@ async def delete(request: web.Request) -> web.Response:
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
-        _logger.error(ex, "Failed to delete entry point for a given name: <{}>.".format(name))
+        _logger.error(ex, "Failed to delete of {} entrypoint.".format(name))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({"message": "{} control entrypoint has been deleted successfully.".format(name)})
@@ -346,7 +346,7 @@ async def update(request: web.Request) -> web.Response:
         # TODO: update
     except Exception as ex:
         msg = str(ex)
-        _logger.error(ex, "Failed to update the details of entry point for a given name: <{}>.".format(name))
+        _logger.error(ex, "Failed to update the details of {} entrypoint.".format(name))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({"message": "To be Implemented"})
@@ -357,4 +357,39 @@ async def update_request(request: web.Request) -> web.Response:
     :Example:
         curl -sX PUT http://localhost:8081/fledge/control/request/SetLatheSpeed -d '{"distance": "13"}'
     """
-    return web.json_response({"message": "To be Implemented"})
+    name = request.match_info.get('name', None)
+    try:
+        storage = connect.get_storage_async()
+        payload = PayloadBuilder().WHERE(["name", '=', name]).payload()
+        result = await storage.query_tbl_with_payload("control_api", payload)
+        if not result['rows']:
+            raise KeyError('{} control entrypoint not found.'.format(name))
+        result = await storage.query_tbl_with_payload("control_api_parameters", payload)
+        if request.user is not None:
+            # Admin and Control roles can always call entrypoints. But for a user it must match in list of allowed users
+            if request.user["role_id"] not in (1, 5):
+                acl_result = await storage.query_tbl_with_payload("control_api_acl", payload)
+                allowed_user = [r['user'] for r in acl_result['rows']]
+                if request.user["uname"] not in allowed_user:
+                    raise ValueError("Operation is not allowed for the {} user.".format(request.user['uname']))
+        data = await request.json()
+        payload = {"updates": []}
+        for k, v in data.items():
+            for r in result['rows']:
+                if r['parameter'] == k:
+                    if isinstance(v, str):
+                        payload_item = PayloadBuilder().SET(value=v).WHERE(["name", "=", name]).AND_WHERE(["parameter", "=", k]).payload()
+                        payload['updates'].append(json.loads(payload_item))
+                        break
+                    else:
+                        raise ValueError("Value should be in string for {} parameter.".format(k))
+        await storage.update_tbl("control_api_parameters", json.dumps(payload))
+    except ValueError as err:
+        msg = str(err)
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+    except Exception as ex:
+        msg = str(ex)
+        _logger.error(ex, "Failed to update the control request details of {} entrypoint.".format(name))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+    else:
+        return web.json_response({"message": "To be Implemented"})

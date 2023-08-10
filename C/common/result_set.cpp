@@ -95,7 +95,7 @@ ResultSet::ResultSet(const std::string& json)
 							rowValue->append(new ColumnValue(string(item->value.GetString())));
 							break;
 						case INT_COLUMN:
-							rowValue->append(new ColumnValue(item->value.GetInt64()));
+							rowValue->append(new ColumnValue((long)(item->value.GetInt64())));
 							break;
 						case NUMBER_COLUMN:
 							rowValue->append(new ColumnValue(item->value.GetDouble()));

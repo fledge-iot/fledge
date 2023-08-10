@@ -74,10 +74,11 @@ async def _get_destination(identifier):
     return dest_converted[0]
 
 
-async def _check_parameters(payload):
-    required_keys = {"name", "description", "type", "destination", "constants", "variables"}
-    if not all(k in payload.keys() for k in required_keys):
-        raise KeyError("{} required keys are missing in request payload.".format(required_keys))
+async def _check_parameters(payload, skip_required=False):
+    if not skip_required:
+        required_keys = {"name", "description", "type", "destination", "constants", "variables"}
+        if not all(k in payload.keys() for k in required_keys):
+            raise KeyError("{} required keys are missing in request payload.".format(required_keys))
     final = {}
     name = payload.get('name', None)
     if name is not None:
@@ -343,13 +344,28 @@ async def update(request: web.Request) -> web.Response:
         if not result['rows']:
             raise KeyError('{} control entrypoint not found.'.format(name))
         data = await request.json()
-        # TODO: update
+        columns = await _check_parameters(data, skip_required=True)
+        # TODO: rename
+        if 'name' in columns:
+            del columns['name']
+        # TODO:  "constants", "variables", "allow"
+        possible_keys = {"name", "description", "type", "operation_name", "destination", "destination_arg", "anonymous"}
+        if 'type' in columns:
+            columns['operation_name'] = columns['operation_name'] if columns['type'] == 1 else ""
+        if 'destination_arg' in columns:
+            dest = await _get_destination(columns['destination'])
+            columns['destination_arg'] = columns[dest] if columns['destination'] else ""
+        entries_to_remove = set(columns) - set(possible_keys)
+        for k in entries_to_remove:
+            del columns[k]
+        payload = PayloadBuilder().SET(**columns).WHERE(['name', '=', name]).payload()
+        await storage.update_tbl("control_api", payload)
     except Exception as ex:
         msg = str(ex)
         _logger.error(ex, "Failed to update the details of {} entrypoint.".format(name))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
-        return web.json_response({"message": "To be Implemented"})
+        return web.json_response({"message": "{} control entrypoint has been updated successfully.".format(name)})
 
 
 async def update_request(request: web.Request) -> web.Response:
@@ -392,4 +408,4 @@ async def update_request(request: web.Request) -> web.Response:
         _logger.error(ex, "Failed to update the control request details of {} entrypoint.".format(name))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
-        return web.json_response({"message": "To be Implemented"})
+        return web.json_response({"message": "{} control entrypoint URL called.".format(name)})

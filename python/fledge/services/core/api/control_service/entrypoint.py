@@ -31,7 +31,8 @@ _help = """
                        of users given when entrypoint was created.
     -----------------------------------------------------------------------------------------------------------------
     | GET POST                       |        /fledge/control/manage                                                 |
-    | GET DELETE                     |        /fledge/control/manage/{name}                                          |
+    | GET PUT DELETE                 |        /fledge/control/manage/{name}                                          |
+    | PUT                            |        /fledge/control/request/{name}                                          |
     ------------------------------------------------------------------------------------------------------------------
 """
 
@@ -40,7 +41,9 @@ def setup(app):
     app.router.add_route('POST', '/fledge/control/manage', create)
     app.router.add_route('GET', '/fledge/control/manage', get_all)
     app.router.add_route('GET', '/fledge/control/manage/{name}', get_by_name)
+    app.router.add_route('PUT', '/fledge/control/manage/{name}', update)
     app.router.add_route('DELETE', '/fledge/control/manage/{name}', delete)
+    app.router.add_route('PUT', '/fledge/control/request/{name}', update_request)
 
 
 class EntryPointType(IntEnum):
@@ -321,3 +324,33 @@ async def delete(request: web.Request) -> web.Response:
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({"message": "{} control entrypoint has been deleted successfully.".format(name)})
+
+
+async def update(request: web.Request) -> web.Response:
+    """Update a control entrypoint
+    :Example:
+        curl -sX PUT http://localhost:8081/fledge/control/manage/SetLatheSpeed -d '{"name": "Changed"}'
+    """
+    name = request.match_info.get('name', None)
+    try:
+        storage = connect.get_storage_async()
+        payload = PayloadBuilder().WHERE(["name", '=', name]).payload()
+        result = await storage.query_tbl_with_payload("control_api", payload)
+        if not result['rows']:
+            raise KeyError('{} control entrypoint not found.'.format(name))
+        data = await request.json()
+        # TODO: update
+    except Exception as ex:
+        msg = str(ex)
+        _logger.error(ex, "Failed to update the details of entry point for a given name: <{}>.".format(name))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+    else:
+        return web.json_response({"message": "To be Implemented"})
+
+
+async def update_request(request: web.Request) -> web.Response:
+    """API control entry  points can be called with PUT operation to URL form
+    :Example:
+        curl -sX PUT http://localhost:8081/fledge/control/request/SetLatheSpeed -d '{"distance": "13"}'
+    """
+    return web.json_response({"message": "To be Implemented"})

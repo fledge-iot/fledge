@@ -31,7 +31,7 @@ _help = """
                        of users given when entrypoint was created.
     -----------------------------------------------------------------------------------------------------------------
     | GET POST                       |        /fledge/control/manage                                                 |
-    | GET                            |        /fledge/control/manage/{name}                                          |
+    | GET DELETE                     |        /fledge/control/manage/{name}                                          |
     ------------------------------------------------------------------------------------------------------------------
 """
 
@@ -40,6 +40,7 @@ def setup(app):
     app.router.add_route('POST', '/fledge/control/manage', create)
     app.router.add_route('GET', '/fledge/control/manage', get_all)
     app.router.add_route('GET', '/fledge/control/manage/{name}', get_by_name)
+    app.router.add_route('DELETE', '/fledge/control/manage/{name}', delete)
 
 
 class EntryPointType(IntEnum):
@@ -291,3 +292,32 @@ async def get_by_name(request: web.Request) -> web.Response:
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(response)
+
+
+async def delete(request: web.Request) -> web.Response:
+    """Delete a control entrypoint
+    :Example:
+        curl -sX DELETE http://localhost:8081/fledge/control/manage/SetLatheSpeed
+    """
+    name = request.match_info.get('name', None)
+    try:
+        storage = connect.get_storage_async()
+        payload = PayloadBuilder().WHERE(["name", '=', name]).payload()
+        result = await storage.query_tbl_with_payload("control_api", payload)
+        if not result['rows']:
+            raise KeyError('{} control entrypoint not found.'.format(name))
+        await storage.delete_from_tbl("control_api_acl", payload)
+        await storage.delete_from_tbl("control_api_parameters", payload)
+        await storage.delete_from_tbl("control_api", payload)
+    except ValueError as err:
+        msg = str(err)
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+    except KeyError as err:
+        msg = str(err)
+        raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
+    except Exception as ex:
+        msg = str(ex)
+        _logger.error(ex, "Failed to delete entry point for a given name: <{}>.".format(name))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+    else:
+        return web.json_response({"message": "{} control entrypoint has been deleted successfully.".format(name)})

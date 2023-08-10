@@ -188,6 +188,11 @@ async def create(request: web.Request) -> web.Response:
         data = await request.json()
         payload = await _check_parameters(data)
         name = payload['name']
+        storage = connect.get_storage_async()
+        result = await storage.query_tbl("control_api")
+        entrypoints = [r['name'] for r in result['rows']]
+        if name in entrypoints:
+            raise ValueError('{} control entrypoint is already in use.'.format(name))
         # add common data keys in control_api table
         control_api_column_name = {"name": name,
                                    "description": payload['description'],
@@ -199,7 +204,6 @@ async def create(request: web.Request) -> web.Response:
                                    "anonymous": payload['anonymous']
                                    }
         api_insert_payload = PayloadBuilder().INSERT(**control_api_column_name).payload()
-        storage = connect.get_storage_async()
         insert_api_result = await storage.insert_into_tbl("control_api", api_insert_payload)
         if insert_api_result['rows_affected'] == 1:
             # add if any params data keys in control_api_parameters table

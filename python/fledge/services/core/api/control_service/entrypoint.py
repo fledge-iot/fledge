@@ -31,6 +31,7 @@ _help = """
                        of users given when entrypoint was created.
     -----------------------------------------------------------------------------------------------------------------
     | GET POST                       |        /fledge/control/manage                                                 |
+    | GET                            |        /fledge/control/manage/{name}                                          |
     ------------------------------------------------------------------------------------------------------------------
 """
 
@@ -38,6 +39,7 @@ _help = """
 def setup(app):
     app.router.add_route('POST', '/fledge/control/manage', create)
     app.router.add_route('GET', '/fledge/control/manage', get_all)
+    app.router.add_route('GET', '/fledge/control/manage/{name}', get_by_name)
 
 
 class EntryPointType(IntEnum):
@@ -238,3 +240,54 @@ async def get_all(request: web.Request) -> web.Response:
         entrypoint.append({"name": r['name'], "description": r['description'],
                            "permitted": True if r['anonymous'] == 't' else False})
     return web.json_response({"controls": entrypoint})
+
+
+async def get_by_name(request: web.Request) -> web.Response:
+    """Get a control entrypoint by name
+    :Example:
+        curl -sX GET http://localhost:8081/fledge/control/manage/SetLatheSpeed
+    """
+    # TODO: forbidden when permitted is false on the basis of anonymous
+    name = request.match_info.get('name', None)
+    try:
+        storage = connect.get_storage_async()
+        payload = PayloadBuilder().WHERE(["name", '=', name]).payload()
+        result = await storage.query_tbl_with_payload("control_api", payload)
+        if not result['rows']:
+            raise KeyError('{} control entrypoint not found.'.format(name))
+        response = result['rows'][0]
+        response['type'] = await _get_type(response['type'])
+        response['destination'] = await _get_destination(response['destination'])
+        if response['destination'] != "broadcast":
+            response[response['destination']] = response['destination_arg']
+        del response['destination_arg']
+        param_result = await storage.query_tbl_with_payload("control_api_parameters", payload)
+        if param_result['rows']:
+            constants = {}
+            variables = {}
+            for r in param_result['rows']:
+                if r['constant'] == 't':
+                    constants[r['parameter']] = r['value']
+                else:
+                    variables[r['parameter']] = r['value']
+            response['constants'] = constants
+            response['variables'] = variables
+        response['allow'] = ""
+        acl_result = await storage.query_tbl_with_payload("control_api_acl", payload)
+        if acl_result['rows']:
+            users = []
+            for r in acl_result['rows']:
+                users.append(r['user'])
+            response['allow'] = users
+    except ValueError as err:
+        msg = str(err)
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+    except KeyError as err:
+        msg = str(err)
+        raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
+    except Exception as ex:
+        msg = str(ex)
+        _logger.error(ex, "Failed to fetch details of entry point for a given name: <{}>.".format(name))
+        raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
+    else:
+        return web.json_response(response)

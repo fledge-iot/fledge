@@ -49,7 +49,8 @@ class TestPayloadBuilderRead:
 
     @pytest.mark.parametrize("test_input, expected", [
         (("reading", "user_ts"),
-         {"return": ["reading", {"format": "YYYY-MM-DD HH24:MI:SS.MS", "column": "user_ts", "alias": "timestamp"}]})
+         {"return": ["reading", {"format": "YYYY-MM-DD HH24:MI:SS.MS", "column": "user_ts",
+                                 "alias": "timestamp", "timezone": "utc"}]})
     ])
     def test_select_payload_with_alias_and_format(self, test_input, expected):
         res = PayloadBuilder().SELECT(test_input).ALIAS('return', ('user_ts', 'timestamp')).\
@@ -68,6 +69,13 @@ class TestPayloadBuilderRead:
     ])
     def test_select_payload_with_alias3(self, test_input, expected):
         res = PayloadBuilder().SELECT(test_input).ALIAS('return', ('name', 'my_name'), ('id', 'my_id')).payload()
+        assert expected == json.loads(res)
+
+    @pytest.mark.parametrize("test_input, expected", [
+        ("user_ts", _payload("data/payload_select_alias_with_timezone.json"))
+    ])
+    def test_select_payload_with_alias_with_timezone(self, test_input, expected):
+        res = PayloadBuilder().SELECT(test_input).ALIAS('return', ('user_ts', 'timestamp'), ('timezone', 'utc')).payload()
         assert expected == json.loads(res)
 
     @pytest.mark.parametrize("test_input, expected", [

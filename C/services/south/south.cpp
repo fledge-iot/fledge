@@ -202,23 +202,16 @@ void doIngest(Ingest *ingest, Reading reading)
 
 void doIngestV2(Ingest *ingest, ReadingSet *set)
 {
-	std::vector<Reading *> *vec = set->getAllReadingsPtr();
-	std::vector<Reading *> *vec2 = new std::vector<Reading *>;
-	if (!vec)
-	{
-		Logger::getLogger()->info("%s:%d: V2 async ingest method: vec is NULL", __FUNCTION__, __LINE__);
-		return;
-	}
-	else
-	{
-		// TODO Remove the need for this copy of all the readings
-		for (auto & r : *vec)
-		{
-			Reading *r2 = new Reading(*r); // Need to copy reading objects here, since "del set" below would remove encapsulated reading objects also
-			vec2->emplace_back(r2);
-		}
-	}
-	Logger::getLogger()->debug("%s:%d: V2 async ingest method returned: vec->size()=%d", __FUNCTION__, __LINE__, vec->size());
+    std::vector<Reading *> *vec = set->getAllReadingsPtr();
+    if (!vec)
+    {
+        Logger::getLogger()->info("%s:%d: V2 async ingest method: vec is NULL", __FUNCTION__, __LINE__);
+        return;
+    }
+	// move reading vector from set to new vector vec2
+    std::vector<Reading *> *vec2 = set->moveAllReadings();
+    
+    Logger::getLogger()->debug("%s:%d: V2 async ingest method returned: vec->size()=%d", __FUNCTION__, __LINE__, vec->size());
 
 	ingest->ingest(vec2);
 	delete vec2; 	// each reading object inside vector has been allocated on heap and moved to Ingest class's internal queue
@@ -238,7 +231,8 @@ SouthService::SouthService(const string& myName, const string& token) :
 				m_token(token),
 				m_repeatCnt(1),
 				m_dryRun(false),
-				m_requestRestart(false)
+				m_requestRestart(false),
+				m_perfMonitor(NULL)
 {
 	m_name = myName;
 	m_type = SERVICE_TYPE;
@@ -342,6 +336,8 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		StorageClient storage(storageRecord.getAddress(),
 						storageRecord.getPort());
 		storage.registerManagement(m_mgtClient);
+
+		m_perfMonitor = new PerformanceMonitor(m_name, &storage);
 		unsigned int threshold = 100;
 		long timeout = 5000;
 		std::string pluginName;
@@ -398,6 +394,7 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		{
 		// Instantiate the Ingest class
 		Ingest ingest(storage, m_name, pluginName, m_mgtClient);
+		ingest.setPerfMon(m_perfMonitor);
 		m_ingest = &ingest;
 		if (m_throttle)
 		{
@@ -407,6 +404,15 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		if (m_configAdvanced.itemExists("statistics"))
 		{
 			m_ingest->setStatistics(m_configAdvanced.getValue("statistics"));
+		}
+
+		if (m_configAdvanced.itemExists("perfmon"))
+		{
+			string perf = m_configAdvanced.getValue("perfmon");
+			if (perf.compare("true") == 0)
+				m_perfMonitor->setCollecting(true);
+			else
+				m_perfMonitor->setCollecting(false);
 		}
 
 		m_ingest->start(timeout, threshold);	// Start the ingest threads running
@@ -565,25 +571,17 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 							if (set)
 							{
 							    std::vector<Reading *> *vec = set->getAllReadingsPtr();
-							    std::vector<Reading *> *vec2 = new std::vector<Reading *>;
 							    if (!vec)
 							    {
 								Logger::getLogger()->info("%s:%d: V2 poll method: vec is NULL", __FUNCTION__, __LINE__);
 								continue;
 							    }
-							    else
-							    {
-								for (auto & r : *vec)
-								{
-								    Reading *r2 = new Reading(*r); // Need to copy reading objects here, since "del set" below would remove encapsulated reading objects
-								    vec2->emplace_back(r2);
-								}
-							    }
-
-										ingest.ingest(vec2);
-										pollCount += (int) vec2->size();
-										delete vec2; 	// each reading object inside vector has been allocated on heap and moved to Ingest class's internal queue
-										delete set;
+							    // move reading vector from set to vec2
+								std::vector<Reading *> *vec2 = set->moveAllReadings();
+								ingest.ingest(vec2);
+								pollCount += (int) vec2->size();
+								delete vec2; 	// each reading object inside vector has been allocated on heap and moved to Ingest class's internal queue
+								delete set;
 							}
 						}
 						throttlePoll();
@@ -864,6 +862,14 @@ void SouthService::processConfigChange(const string& categoryName, const string&
 		if (m_configAdvanced.itemExists("statistics"))
 		{
 			m_ingest->setStatistics(m_configAdvanced.getValue("statistics"));
+		}
+		if (m_configAdvanced.itemExists("perfmon"))
+		{
+			string perf = m_configAdvanced.getValue("perfmon");
+			if (perf.compare("true") == 0)
+				m_perfMonitor->setCollecting(true);
+			else
+				m_perfMonitor->setCollecting(false);
 		}
 		if (! southPlugin->isAsync())
 		{
@@ -1163,6 +1169,9 @@ void SouthService::addConfigDefaults(DefaultConfigCategory& defaultConfig)
 	defaultConfig.addItem("statistics", "Collect statistics either for every asset ingested, for the service in total or both",
 			"per asset & service", "per asset & service", statistics);
 	defaultConfig.setItemDisplayName("statistics", "Statistics Collection");
+	defaultConfig.addItem("perfmon", "Track and store performance counters",
+			       "boolean", "false", "false");
+	defaultConfig.setItemDisplayName("perfmon", "Performance Counters");
 }
 
 /**
@@ -1255,6 +1264,7 @@ struct timeval now, res;
 		m_lastThrottle = now;
 		m_throttled = true;
 		logger->warn("%s Throttled down poll, rate is now %.1f%% of desired rate", m_name.c_str(), (desired * 100) / rate);
+		m_perfMonitor->collect("throttled rate", (long)(rate * 1000));
 	}
 	else if (m_throttled && m_ingest->queueLength() < m_lowWater && res.tv_sec > SOUTH_THROTTLE_UP_INTERVAL)
 	{
@@ -1287,6 +1297,7 @@ struct timeval now, res;
 			{
 				logger->warn("%s Throttled up poll, rate is now %.1f%% of desired rate", m_name.c_str(), (desired * 100) / rate);
 			}
+			m_perfMonitor->collect("throttled rate", (long)(rate * 1000));
 			close(m_timerfd);
 			m_timerfd = createTimerFd(m_currentRate); // interval to be passed is in usecs
 			m_lastThrottle = now;

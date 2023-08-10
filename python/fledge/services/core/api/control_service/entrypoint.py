@@ -30,14 +30,15 @@ _help = """
                       - any user role can make request to control entrypoint but the username must match one in list
                        of users given when entrypoint was created.
     -----------------------------------------------------------------------------------------------------------------
-    | POST                       |        /fledge/control/manage                                                    |
+    | GET POST                       |        /fledge/control/manage                                                 |
     ------------------------------------------------------------------------------------------------------------------
 """
 
 
 def setup(app):
     app.router.add_route('POST', '/fledge/control/manage', create)
-    
+    app.router.add_route('GET', '/fledge/control/manage', get_all)
+
 
 class EntryPointType(IntEnum):
     WRITE = 0
@@ -218,3 +219,22 @@ async def create(request: web.Request) -> web.Response:
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({"message": "{} control entrypoint has been created successfully.".format(name)})
+
+
+async def get_all(request: web.Request) -> web.Response:
+    """Get a list of all control entrypoints
+     :Example:
+         curl -sX GET http://localhost:8081/fledge/control/manage
+     """
+    storage = connect.get_storage_async()
+    result = await storage.query_tbl("control_api")
+    entrypoint = []
+    for r in result["rows"]:
+        """permitted: means user is able to make the API call
+        This is on the basis of anonymous flag if true then permitted true
+        If anonymous flag is false then list of allowed users to determine if the specific user can make the call
+        """
+        # TODO: verify the user when anonymous is false and set permitted value based on it
+        entrypoint.append({"name": r['name'], "description": r['description'],
+                           "permitted": True if r['anonymous'] == 't' else False})
+    return web.json_response({"controls": entrypoint})

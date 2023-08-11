@@ -1119,10 +1119,14 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 			check.Parse(m_value.c_str());
 			if (check.HasParseError())
 			{
+				Logger::getLogger()->error("The JSON configuration item %s has a parse error: %s",
+					m_name.c_str(), GetParseError_En(check.GetParseError()));
 				throw new runtime_error(GetParseError_En(check.GetParseError()));
 			}
 			if (!check.IsObject())
 			{
+				Logger::getLogger()->error("The JSON configuration item %s is not a valid JSON objects",
+						m_name.c_str());
 				throw new runtime_error("'value' JSON property is not an object");
 			}
 		}
@@ -1223,10 +1227,14 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 			check.Parse(m_default.c_str());
 			if (check.HasParseError())
 			{
+				Logger::getLogger()->error("The JSON configuration item %s has a parse error in the default value: %s",
+					m_name.c_str(), GetParseError_En(check.GetParseError()));
 				throw new runtime_error(GetParseError_En(check.GetParseError()));
 			}
 			if (!check.IsObject())
 			{
+				Logger::getLogger()->error("The JSON configuration item %s default is not a valid JSON object",
+						m_name.c_str());
 				throw new runtime_error("'default' JSON property is not an object");
 			}
 		}

@@ -27,6 +27,9 @@ def get_plugin_info(name, dir):
         out, err = p.communicate()
         res = out.decode("utf-8")
         jdoc = json.loads(res)
+    except json.decoder.JSONDecodeError as err:
+        _logger.error("Failed to parse JSON data returned from the plugin information of {}, {} line {} column {}".format(name, err.msg, err.lineno, err.colno))
+        return {}
     except (OSError, ValueError) as err:
         _logger.error(err, "{} C plugin get info failed.".format(name))
         return {}

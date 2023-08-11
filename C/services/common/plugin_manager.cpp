@@ -28,6 +28,7 @@
 #include "rapidjson/error/en.h"
 #include <algorithm>
 #include <config_category.h>
+#include <string_utils.h>
 
 using namespace std;
 using namespace rapidjson;
@@ -77,8 +78,9 @@ void updateJsonPluginConfig(PLUGIN_INFORMATION *info, string json_plugin_name, s
 	doc.Parse(json_plugin_defaults.c_str());
 	if (doc.HasParseError())
 	{
-		logger->error("Parse error in plugin '%s' defaults: %s at %d", json_plugin_name.c_str(),
-					GetParseError_En(doc.GetParseError()), (unsigned)doc.GetErrorOffset());
+		logger->error("Parse error in plugin '%s' defaults: %s at %d '%s'", json_plugin_name.c_str(),
+					GetParseError_En(doc.GetParseError()), (unsigned)doc.GetErrorOffset(),
+                        StringAround(json_plugin_defaults, (unsigned)doc.GetErrorOffset()));
 		return;
 	}
 
@@ -86,8 +88,9 @@ void updateJsonPluginConfig(PLUGIN_INFORMATION *info, string json_plugin_name, s
 	docBase.Parse(info->config);
 	if (docBase.HasParseError())
 	{
-		logger->error("Parse error in plugin '%s' information defaults: %s at %d", json_plugin_name.c_str(),
-					GetParseError_En(doc.GetParseError()), (unsigned)doc.GetErrorOffset());
+		logger->error("Parse error in plugin '%s' information defaults: %s at %d '%s'", json_plugin_name.c_str(),
+					GetParseError_En(doc.GetParseError()), (unsigned)doc.GetErrorOffset(),
+                        			StringAround(info->config, (unsigned)doc.GetErrorOffset()));
 		return;
 	}
 
@@ -178,7 +181,9 @@ void updateJsonPluginConfig(PLUGIN_INFORMATION *info, string json_plugin_name, s
 	doc2.Parse(info->config);
 	if (doc2.HasParseError())
 	{
-		logger->error("doc2 JSON parsing failed");
+		logger->error("Parse error in information returned from plugin: %s at %d '%s'", 
+					GetParseError_En(doc2.GetParseError()), (unsigned)doc2.GetErrorOffset(),
+                        			StringAround(info->config, (unsigned)doc2.GetErrorOffset()));
 	}
 	if (doc2.HasMember("plugin"))
 	{
@@ -210,7 +215,7 @@ void updateJsonPluginConfig(PLUGIN_INFORMATION *info, string json_plugin_name, s
  * @param    type		The plugin type
  * @return   string		The absolute path of plugin
  */
-string findPlugin(string name, string _type, string _plugin_path, PLUGIN_TYPE type)
+string PluginManager::findPlugin(string name, string _type, string _plugin_path, PLUGIN_TYPE type)
 {
 	if (type != BINARY_PLUGIN && type != PYTHON_PLUGIN && type != JSON_PLUGIN)
 	{

@@ -163,7 +163,7 @@ std::string StatsHistory::getTime(void) const
 	struct timeval tv ;
 	struct tm* timeinfo;
 	gettimeofday(&tv, NULL);
-	timeinfo = localtime(&tv.tv_sec);
+	timeinfo = gmtime(&tv.tv_sec);
 	char date_time[DATETIME_MAX_LEN];
 	// Create datetime with seconds
 	strftime(date_time,

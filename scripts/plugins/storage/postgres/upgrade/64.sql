@@ -16,13 +16,13 @@ CREATE TABLE fledge.control_api_parameters (
              parameter        character  varying(255)     NOT NULL                 ,       -- name of parameter
              value            character  varying(255)                              ,       -- value of parameter if constant otherwise default
              constant         boolean                     NOT NULL                 ,       -- parameter is either a constant or variable
-             FOREIGN KEY (name) REFERENCES control_api (name)
+             CONSTRAINT       control_api_parameters_fk1  FOREIGN KEY (name) REFERENCES fledge.control_api (name)  MATCH SIMPLE ON UPDATE NO ACTION ON DELETE NO ACTION
              );
 
 -- Create control_api_acl table
 CREATE TABLE fledge.control_api_acl (
              name             character  varying(255)     NOT NULL                 ,       -- foreign key to fledge.control_api
-             user             character  varying(255)     NOT NULL                 ,       -- foreign key to fledge.users
-             FOREIGN KEY (name) REFERENCES control_api (name)                      ,
-             FOREIGN KEY (user) REFERENCES users (uname)
+             "user"           character  varying(255)     NOT NULL                 ,       -- foreign key to fledge.users
+             CONSTRAINT       control_api_acl_fk1         FOREIGN KEY (name) REFERENCES fledge.control_api (name)  MATCH SIMPLE ON UPDATE NO ACTION ON DELETE NO ACTION,
+             CONSTRAINT       control_api_acl_fk2         FOREIGN KEY ("user") REFERENCES fledge.users (uname)  MATCH SIMPLE ON UPDATE NO ACTION ON DELETE NO ACTION
              );

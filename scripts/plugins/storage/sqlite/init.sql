@@ -672,7 +672,7 @@ CREATE TABLE fledge.control_api (
              description      character  varying(255)     NOT NULL                 ,       -- description of control API
              type             integer                     NOT NULL                 ,       -- 0 for write and 1 for operation
              operation_name   character  varying(255)                              ,       -- name of the operation and only valid if type is operation
-             destination      integer                     NOT NULL                 ,       -- destination of request; 0-broadcast, 1-service, 2-asset, 3-script           operation_name   character  varying(255)                              ,       -- name of the operation and only valid if type is operation
+             destination      integer                     NOT NULL                 ,       -- destination of request; 0-broadcast, 1-service, 2-asset, 3-script
              destination_arg  character  varying(255)                              ,       -- name of the destination and only used if destination is non-zero
              anonymous        boolean                     NOT NULL DEFAULT  'f'    ,       -- anonymous callers to make request to control API; by default false
              CONSTRAINT       control_api_pname           PRIMARY KEY (name)

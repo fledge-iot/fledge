@@ -927,7 +927,8 @@ INSERT INTO fledge.control_source ( name, description )
 -- Control Destination
 DELETE FROM fledge.control_destination;
 INSERT INTO fledge.control_destination ( name, description )
-     VALUES ('Service', 'A name of service that is being controlled.'),
+     VALUES ('Any', 'Any destination.'),
+            ('Service', 'A name of service that is being controlled.'),
             ('Asset', 'A name of asset that is being controlled.'),
             ('Script', 'A name of script that will be executed.'),
             ('Broadcast', 'No name is applied and pipeline will be considered for any control writes or operations to broadcast destinations.');

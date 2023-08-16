@@ -8,6 +8,7 @@ import json
 from aiohttp import web
 
 from fledge.common.acl_manager import ACLManager
+from fledge.common.audit_logger import AuditLogger
 from fledge.common.configuration_manager import ConfigurationManager
 from fledge.common.logger import FLCoreLogger
 from fledge.common.storage_client.exceptions import StorageServerError
@@ -124,6 +125,9 @@ async def add_acl(request: web.Request) -> web.Response:
             if 'response' in insert_control_acl_result:
                 if insert_control_acl_result['response'] == "inserted":
                     result = {"name": name, "service": json.loads(services), "url": json.loads(urls)}
+                    # ACLAD audit trail entry
+                    audit = AuditLogger(storage)
+                    await audit.information('ACLAD', result)
             else:
                 raise StorageServerError(insert_control_acl_result)
         else:

@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from aiohttp import web
 
+from fledge.common.audit_logger import AuditLogger
 from fledge.common.configuration_manager import ConfigurationManager
 from fledge.common.storage_client.storage_client import StorageClientAsync
 from fledge.common.web import middleware
@@ -138,19 +139,26 @@ class TestACLManagement:
         if sys.version_info >= (3, 8):
             value = await mock_coro(result)
             insert_value = await mock_coro(insert_result)
+            _rv = await mock_coro(None)
         else:
             value = asyncio.ensure_future(mock_coro(result))
             insert_value = asyncio.ensure_future(mock_coro(insert_result))
+            _rv = asyncio.ensure_future(mock_coro(None))
         storage_client_mock = MagicMock(StorageClientAsync)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=value) as query_tbl_patch:
                 with patch.object(storage_client_mock, 'insert_into_tbl', return_value=insert_value
                                   ) as insert_tbl_patch:
-                    resp = await client.post('/fledge/ACL', data=json.dumps(request_payload))
-                    assert 200 == resp.status
-                    result = await resp.text()
-                    json_response = json.loads(result)
-                    assert {'name': acl_name, 'service': [], 'url': []} == json_response
+                    with patch.object(AuditLogger, '__init__', return_value=None):
+                        with patch.object(AuditLogger, 'information', return_value=_rv) as audit_info_patch:
+                            resp = await client.post('/fledge/ACL', data=json.dumps(request_payload))
+                            assert 200 == resp.status
+                            result = await resp.text()
+                            json_response = json.loads(result)
+                            assert {'name': acl_name, 'service': [], 'url': []} == json_response
+                        args, _ = audit_info_patch.call_args
+                        assert 'ACLAD' == args[0]
+                        assert request_payload == args[1]
                 args, _ = insert_tbl_patch.call_args_list[0]
                 assert 'control_acl' == args[0]
                 assert {'name': acl_name, 'service': '[]', 'url': '[]'} == json.loads(args[1])

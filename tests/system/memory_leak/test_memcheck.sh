@@ -9,7 +9,13 @@ export FLEDGE_ROOT=$(pwd)/fledge
 
 FLEDGE_TEST_BRANCH="$1"    # here fledge_test_branch means branch of fledge repository that is needed to be scanned, default is develop
 
-COLLECT_FILES="$2"
+COLLECT_FILES="${2:-LOGS}"
+
+if [[  ${COLLECT_FILES} != @(LOGS|XML|) ]]
+then
+   echo "Invalid argument ${COLLECT_FILES}. Please provide valid arguments: XML or LOGS."
+   exit 1
+fi
 
 cleanup(){
   # Removing temporary files, fledge and its plugin repository cloned by previous build of the Job 
@@ -118,11 +124,9 @@ generate_valgrind_logs(){
   echo 'Creating reports directory';
   mkdir -p reports/test1 ; ls -lrth
   echo 'copying reports '
-  if [[ "${COLLECT_FILES}" == "LOGS" ]]; then
-   cp -rf /tmp/*valgrind*.log reports/test1/. && echo 'copied'
-  else
-   cp -rf /tmp/*valgrind*.xml reports/test1/. && echo 'copied'
-  fi
+  extension="xml"
+  if [[ "${COLLECT_FILES}" == "LOGS" ]]; then extension="log"; fi
+  cp -rf /tmp/*valgrind*.${extension} reports/. && echo 'copied'
 }
 
 cleanup

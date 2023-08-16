@@ -53,7 +53,7 @@ sudo sed -i 's#/usr/local/fledge#'"$FLEDGE_ROOT"'#g' ${pnorth_C}
 if [[ "${COLLECT_FILES}" == "LOGS" ]]; then
 	sudo sed -i '/.\/fledge.services.north.*/s/^/valgrind --log-file=\/tmp\/north_valgrind.log '"$valgrind_conf"' /' ${pnorth_C}
 else
-	sudo sed -i '/.\/fledge.services.south.*/s/^/valgrind --xml=yes --xml-file=\/tmp\/north_valgrind_%p.xml --track-origins=yes '"$valgrind_conf"' /' ${psouth_c}
+	sudo sed -i '/.\/fledge.services.north.*/s/^/valgrind --xml=yes --xml-file=\/tmp\/north_valgrind_%p.xml --track-origins=yes '"$valgrind_conf"' /' ${pnorth_C}
 fi
 
 pstorage=${FLEDGE_ROOT}/scripts/services/storage
@@ -62,7 +62,7 @@ sudo sed -i 's#/usr/local/fledge#'"$FLEDGE_ROOT"'#g' ${pstorage}
 if [[ "${COLLECT_FILES}" == "LOGS" ]]; then
 	sudo sed -i '/\${storageExec} \"\$@\"/s/^/valgrind --log-file=\/tmp\/storage_valgrind.log '"$valgrind_conf"' /' ${pstorage}
 else
-	sudo sed -i '/.\/fledge.services.south.*/s/^/valgrind --xml=yes --xml-file=\/tmp\/storage_valgrind_%p.xml --track-origins=yes '"$valgrind_conf"' /' ${psouth_c}
+	sudo sed -i '/\${storageExec} \"\$@\"/s/^/valgrind --xml=yes --xml-file=\/tmp\/storage_valgrind_%p.xml --track-origins=yes '"$valgrind_conf"' /' ${pstorage}
 fi
 
 # cloning plugins based on parameters passed to the script, Currently only installing sinusoid

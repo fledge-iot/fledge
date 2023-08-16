@@ -280,12 +280,13 @@ class TestACLManagement:
         payload = {"return": ["name"], "where": {"column": "name", "condition": "=", "value": acl_name}}
         delete_payload = {"where": {"column": "name", "condition": "=", "value": acl_name}}
         delete_result = {"response": "deleted", "rows_affected": 1}
+        message = '{} ACL deleted successfully.'.format(acl_name)
         if sys.version_info >= (3, 8):
-            value = await mock_coro(result)
             del_value = await mock_coro(delete_result)
+            arv = await mock_coro(None)
         else:
-            value = asyncio.ensure_future(mock_coro(result))
             del_value = asyncio.ensure_future(mock_coro(delete_result))
+            arv = asyncio.ensure_future(mock_coro(None))
 
         acl_query_payload_service = {"return": ["entity_name"], "where": {"column": "entity_type",
                                                                           "condition": "=",
@@ -318,13 +319,19 @@ class TestACLManagement:
                 return {}
 
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result) as query_tbl_patch:
-                with patch.object(storage_client_mock, 'delete_from_tbl', return_value=del_value) as patch_delete_tbl:
-                    resp = await client.delete('/fledge/ACL/{}'.format(acl_name))
-                    assert 200 == resp.status
-                    result = await resp.text()
-                    json_response = json.loads(result)
-                    assert {'message': '{} ACL deleted successfully.'.format(acl_name)} == json_response
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
+                with patch.object(storage_client_mock, 'delete_from_tbl', return_value=del_value
+                                  ) as patch_delete_tbl:
+                    with patch.object(AuditLogger, '__init__', return_value=None):
+                        with patch.object(AuditLogger, 'information', return_value=arv) as audit_info_patch:
+                            resp = await client.delete('/fledge/ACL/{}'.format(acl_name))
+                            assert 200 == resp.status
+                            result = await resp.text()
+                            json_response = json.loads(result)
+                            assert {'message': message} == json_response
+                        args, _ = audit_info_patch.call_args
+                        assert 'ACLDL' == args[0]
+                        assert message == args[1]
                 delete_args, _ = patch_delete_tbl.call_args
                 assert 'control_acl' == delete_args[0]
                 assert delete_payload == json.loads(delete_args[1])

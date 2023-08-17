@@ -1,4 +1,5 @@
 import asyncio
+import copy
 import json
 import sys
 import uuid
@@ -376,7 +377,8 @@ class TestScriptManagement:
         req_payload = {"steps": []}
         result = {"count": 0, "rows": []}
         value = await mock_coro(result) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(result))
-        query_payload = {"return": ["name"], "where": {"column": "name", "condition": "=", "value": script_name}}
+        query_payload = {"return": ["steps", "acl"],
+                         "where": {"column": "name", "condition": "=", "value": script_name}}
         message = "No such {} script found.".format(script_name)
         storage_client_mock = MagicMock(StorageClientAsync)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
@@ -396,7 +398,8 @@ class TestScriptManagement:
         acl_name = "blah"
         payload = {"steps": [{"write": {"order": 1, "speed": 420}}], "acl": acl_name}
         script_result = {"count": 1, "rows": [{"name": script_name, "steps": [{"write": {"order": 1, "speed": 420}}]}]}
-        script_query_payload = {"return": ["name"], "where": {"column": "name", "condition": "=", "value": script_name}}
+        script_query_payload = {"return": ["steps", "acl"],
+                                "where": {"column": "name", "condition": "=", "value": script_name}}
         acl_query_payload = {"return": ["name"], "where": {"column": "name", "condition": "=", "value": acl_name}}
         acl_result = {"count": 0, "rows": []}
 
@@ -429,12 +432,13 @@ class TestScriptManagement:
     async def test_update_script(self, client, payload):
         script_name = "test"
         acl_name = "testACL"
-        script_result = {"count": 1, "rows": [{"name": script_name, "steps": [{"write": {"order": 1, "speed": 420}}]}]}
+        script_result = {"count": 1, "rows": [{"steps": [{"write": {"order": 1, "speed": 420}}]}]}
         update_result = {"response": "updated", "rows_affected": 1}
         steps_payload = payload["steps"]
         update_value = await mock_coro(update_result) if sys.version_info >= (3, 8) else \
             asyncio.ensure_future(mock_coro(update_result))
-        script_query_payload = {"return": ["name"], "where": {"column": "name", "condition": "=", "value": script_name}}
+        script_query_payload = {"return": ["steps", "acl"],
+                                "where": {"column": "name", "condition": "=", "value": script_name}}
         acl_query_payload = {"return": ["name"], "where": {"column": "name", "condition": "=", "value": acl_name}}
         acl_result = {"count": 1, "rows": [{"name": acl_name, "service": [], "url": []}]}
         insert_result = {"response": "inserted", "rows_affected": 1}
@@ -462,22 +466,31 @@ class TestScriptManagement:
                         'entity_name': script_name} == json.loads(payload_ins)
                 return insert_result
 
+        arv = await mock_coro(None) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(None))
         storage_client_mock = MagicMock(StorageClientAsync)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
                 with patch.object(storage_client_mock, 'update_tbl', return_value=update_value) as patch_update_tbl:
                     with patch.object(storage_client_mock, 'insert_into_tbl', side_effect=i_result):
-                        resp = await client.put('/fledge/control/script/{}'.format(script_name),
-                                                data=json.dumps(payload))
-                        assert 200 == resp.status
-                        result = await resp.text()
-                        json_response = json.loads(result)
-                        assert {"message": "Control script {} updated successfully.".format(script_name)}\
-                               == json_response
+                        with patch.object(AuditLogger, '__init__', return_value=None):
+                            with patch.object(AuditLogger, 'information', return_value=arv) as audit_info_patch:
+                                resp = await client.put('/fledge/control/script/{}'.format(script_name),
+                                                        data=json.dumps(payload))
+                                assert 200 == resp.status
+                                result = await resp.text()
+                                json_response = json.loads(result)
+                                assert {"message": "Control script {} updated successfully.".format(script_name)}\
+                                       == json_response
+                        args, _ = audit_info_patch.call_args
+                        audit = copy.deepcopy(payload)
+                        if 'acl' not in payload:
+                            audit['acl'] = ""
+                        audit_info_patch.assert_called_once_with(
+                            'CTSCH', {"script": audit, "old_script": script_result['rows']})
                 update_args, _ = patch_update_tbl.call_args
                 assert 'control_script' == update_args[0]
-                update_payload = {"values": payload, "where": {"column": "name", "condition": "=",
-                                                               "value": script_name}}
+                update_payload = {"values": payload,
+                                  "where": {"column": "name", "condition": "=", "value": script_name}}
                 update_payload["values"]["steps"] = str(steps_payload)
                 assert update_payload == json.loads(update_args[1])
 

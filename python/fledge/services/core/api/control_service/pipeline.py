@@ -77,10 +77,11 @@ async def create(request: web.Request) -> web.Response:
     source or destination
 
     :Example:
+        curl -sX POST http://localhost:8081/fledge/control/pipeline -d '{"name": "wildcard", "enabled": true, "execution": "shared", "source": {"type": 1}, "destination": {"type": 1}}'
         curl -sX POST http://localhost:8081/fledge/control/pipeline -d '{"name": "pump", "enabled": true, "execution": "shared", "source": {"type": 2, "name": "pump"}}'
-        curl -sX POST http://localhost:8081/fledge/control/pipeline -d '{"name": "broadcast", "enabled": true, "execution": "exclusive", "destination": {"type": 4}}'
-        curl -sX POST http://localhost:8081/fledge/control/pipeline -d '{"name": "opcua_pump", "enabled": true, "execution": "shared", "source": {"type": 2, "name": "opcua"}, "destination": {"type": 2, "name": "pump1"}}'
-        curl -sX POST http://localhost:8081/fledge/control/pipeline -d '{"name": "opcua_pump1", "enabled": true, "execution": "exclusive", "source": {"type": 2, "name": "southOpcua"}, "destination": {"type": 1, "name": "northOpcua"}, "filters": ["Filter1"]}'
+        curl -sX POST http://localhost:8081/fledge/control/pipeline -d '{"name": "broadcast", "enabled": true, "execution": "exclusive", "destination": {"type": 5}}'
+        curl -sX POST http://localhost:8081/fledge/control/pipeline -d '{"name": "opcua_pump", "enabled": true, "execution": "shared", "source": {"type": 2, "name": "opcua"}, "destination": {"type": 3, "name": "pump1"}}'
+        curl -sX POST http://localhost:8081/fledge/control/pipeline -d '{"name": "opcua_pump1", "enabled": true, "execution": "exclusive", "source": {"type": 2, "name": "southOpcua"}, "destination": {"type": 2, "name": "northOpcua"}, "filters": ["Filter1"]}'
         curl -sX POST http://localhost:8081/fledge/control/pipeline -d '{"name": "Test", "enabled": false, "filters": ["Filter1", "Filter2"]}'
     """
     try:
@@ -203,7 +204,7 @@ async def update(request: web.Request) -> web.Response:
     :Example:
         curl -sX PUT http://localhost:8081/fledge/control/pipeline/1 -d '{"filters": ["F3", "F2"]}'
         curl -sX PUT http://localhost:8081/fledge/control/pipeline/13 -d '{"name": "Changed"}'
-        curl -sX PUT http://localhost:8081/fledge/control/pipeline/9 -d '{"enabled": false, "execution": "exclusive", "filters": [], "source": {"type": 1, "name": "Universal"}, "destination": {"type": 3, "name": "TestScript"}}'
+        curl -sX PUT http://localhost:8081/fledge/control/pipeline/9 -d '{"enabled": false, "execution": "exclusive", "filters": [], "source": {"type": 1, "name": "Universal"}, "destination": {"type": 4, "name": "TestScript"}}'
     """
     cpid = request.match_info.get('id', None)
     try:
@@ -444,8 +445,8 @@ async def _check_parameters(payload, request):
                     raise ValueError("Invalid destination type found.")
             else:
                 raise ValueError('Destination type is missing.')
-            # Note: when destination type is Broadcast; no name is applied
-            if des_type != 4:
+            # Note: when destination type is Any or Broadcast; no name is applied
+            if des_type not in (1, 5):
                 if des_name is not None:
                     if not isinstance(des_name, str):
                         raise ValueError("Destination name should be a string value.")
@@ -468,7 +469,7 @@ async def _check_parameters(payload, request):
     if source is not None and destination is not None:
         error_msg = "Pipeline is not allowed with same type of source and destination."
         # Service
-        if source_type == 2 and des_type == 1:
+        if source_type == 2 and des_type == 2:
             schedules = await server.Server.scheduler.get_schedules()
             south_schedules = [sch.name for sch in schedules if sch.schedule_type == 1 and sch.process_name == "south_c"]
             north_schedules = [sch.name for sch in schedules if
@@ -477,7 +478,7 @@ async def _check_parameters(payload, request):
                     source_name in north_schedules and des_name in north_schedules):
                 raise ValueError(error_msg)
         # Script
-        if source_type == 6 and des_type == 3:
+        if source_type == 6 and des_type == 4:
             raise ValueError(error_msg)
     # filters
     filters = payload.get('filters', None)
@@ -520,10 +521,10 @@ async def _validate_lookup_name(lookup_name, _type, value):
         if not any(notify['child'] == value for notify in all_notifications):
             raise ValueError("'{}' not a valid notification instance name.".format(value))
 
-    if (lookup_name == "source" and _type == 2) or (lookup_name == 'destination' and _type == 1):
+    if (lookup_name == "source" and _type == 2) or (lookup_name == 'destination' and _type == 2):
         # Verify schedule name in startup type and south, north based schedules
         await get_schedules()
-    elif (lookup_name == "source" and _type == 6) or (lookup_name == 'destination' and _type == 3):
+    elif (lookup_name == "source" and _type == 6) or (lookup_name == 'destination' and _type == 4):
         # Verify control script name
         await get_control_scripts()
     elif lookup_name == "source" and _type == 4:
@@ -532,7 +533,7 @@ async def _validate_lookup_name(lookup_name, _type, value):
     elif lookup_name == "source" and _type == 5:
         # Verify schedule name in all type of schedules
         await get_schedules()
-    elif lookup_name == "destination" and _type == 2:
+    elif lookup_name == "destination" and _type == 3:
         # Verify asset name
         await get_assets()
     else:

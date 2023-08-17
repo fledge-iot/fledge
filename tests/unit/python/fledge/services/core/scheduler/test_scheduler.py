@@ -830,9 +830,12 @@ class TestScheduler:
         # THEN
         assert len(scheduler._storage_async.schedules) == len(scheduler._schedules)
         assert 1 == audit_logger.call_count
-        calls = [call('SCHCH', {'schedule': {'name': 'Test Schedule', 'enabled': True, 'repeat': 30.0,
-                                             'exclusive': False, 'day': 1, 'time': '0:0:0',
-                                             'processName': 'TestProcess', 'type': Schedule.Type.TIMED}})]
+
+        new = {'schedule': {'name': 'Test Schedule', 'enabled': True, 'repeat': 30.0, 'exclusive': False, 'day': 1,
+                            'time': '0:0:0', 'processName': 'TestProcess', 'type': Schedule.Type.TIMED}}
+        old = {'old_schedule': {'enabled': True, 'exclusive': True, 'name': 'OMF to PI north',
+                                'processName': 'North Readings to PI', 'repeat': 30.0, 'type': Schedule.Type.INTERVAL}}
+        calls = [call('SCHCH', {**new, **old})]
         audit_logger.assert_has_calls(calls, any_order=True)
         assert 1 == first_task.call_count
         assert 1 == resume_sch.call_count
@@ -873,9 +876,11 @@ class TestScheduler:
         # THEN
         assert len(scheduler._storage_async.schedules) == len(scheduler._schedules)
         assert 1 == audit_logger.call_count
-        calls = [call('SCHCH', {'schedule': {'name': 'Test Schedule', 'enabled': True, 'repeat': 30.0,
-                                             'exclusive': False, 'day': 1, 'time': '0:0:0',
-                                             'processName': 'TestProcess', 'type': Schedule.Type.TIMED}})]
+        new = {'schedule': {'name': 'Test Schedule', 'enabled': True, 'repeat': 30.0, 'exclusive': False, 'day': 1,
+                            'time': '0:0:0', 'processName': 'TestProcess', 'type': Schedule.Type.TIMED}}
+        old = {'old_schedule': {'enabled': True, 'exclusive': True, 'name': 'OMF to PI north',
+                                'processName': 'North Readings to PI', 'repeat': 30.0, 'type': Schedule.Type.INTERVAL}}
+        calls = [call('SCHCH', {**new, **old})]
         audit_logger.assert_has_calls(calls, any_order=True)
         assert 1 == first_task.call_count
         assert 1 == resume_sch.call_count
@@ -982,9 +987,13 @@ class TestScheduler:
                       '2b614d26-760f-11e7-b5a5-be2e44b06b34', 'North Readings to PI')]
         log_info.assert_has_calls(calls)
         assert 1 == audit_logger.call_count
-        calls = [call('SCHCH', {'schedule': {'name': 'OMF to PI north', 'repeat': 30.0, 'enabled': False,
+        new = {'schedule': {'name': 'OMF to PI north', 'repeat': 30.0, 'enabled': False,
                                              'type': Schedule.Type.INTERVAL, 'exclusive': True,
-                                             'processName': 'North Readings to PI'}})]
+                                             'processName': 'North Readings to PI'}}
+        old = {'old_schedule': {'name': 'OMF to PI north', 'repeat': 30.0, 'enabled': True,
+                                             'type': Schedule.Type.INTERVAL, 'exclusive': True,
+                                             'processName': 'North Readings to PI'}}
+        calls = [call('SCHCH', {**new, **old})]
         audit_logger.assert_has_calls(calls, any_order=True)
 
     @pytest.mark.asyncio
@@ -1051,7 +1060,11 @@ class TestScheduler:
         calls = [call("Enabled Schedule '%s/%s' process '%s'\n", 'backup hourly', 'd1631422-9ec6-11e7-abc4-cec278b6b50a', 'backup')]
         log_info.assert_has_calls(calls, any_order=True)
         assert 1 == audit_logger.call_count
-        calls = [call('SCHCH', {'schedule': {'name': 'backup hourly', 'type': Schedule.Type.INTERVAL, 'processName': 'backup', 'exclusive': True, 'repeat': 3600.0, 'enabled': True}})]
+        new = {'schedule': {'name': 'backup hourly', 'type': Schedule.Type.INTERVAL, 'processName': 'backup',
+                            'exclusive': True, 'repeat': 3600.0, 'enabled': True}}
+        old = {'old_schedule': {'name': 'backup hourly', 'type': Schedule.Type.INTERVAL, 'processName': 'backup',
+                            'exclusive': True, 'repeat': 3600.0, 'enabled': False}}
+        calls = [call('SCHCH', {**new, **old})]
         audit_logger.assert_has_calls(calls, any_order=True)
 
     @pytest.mark.asyncio

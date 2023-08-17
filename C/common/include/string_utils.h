@@ -23,13 +23,13 @@ void StringReplaceAll(std::string& StringToManage,
 					  const std::string& StringToSearch,
 					  const std::string& StringReplacement);
 
-string StringSlashFix(const string& stringToFix);
+std::string StringSlashFix(const std::string& stringToFix);
 std::string evaluateParentPath(const std::string& path, char separator);
 std::string extractLastLevel(const std::string& path, char separator);
 
 void   StringStripCRLF(std::string& StringToManage);
-string StringStripWhiteSpacesAll(const std::string& original);
-string StringStripWhiteSpacesExtra(const  std::string& original);
+std::string StringStripWhiteSpacesAll(const std::string& original);
+std::string StringStripWhiteSpacesExtra(const  std::string& original);
 void StringStripQuotes(std::string& StringToManage);
 
 std::string urlEncode(const std::string& s);

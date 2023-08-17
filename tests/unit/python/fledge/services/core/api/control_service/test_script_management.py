@@ -1,5 +1,4 @@
 import asyncio
-import copy
 import json
 import sys
 import uuid
@@ -482,11 +481,8 @@ class TestScriptManagement:
                                 assert {"message": "Control script {} updated successfully.".format(script_name)}\
                                        == json_response
                         args, _ = audit_info_patch.call_args
-                        audit = copy.deepcopy(payload)
-                        if 'acl' not in payload:
-                            audit['acl'] = ""
                         audit_info_patch.assert_called_once_with(
-                            'CTSCH', {"script": audit, "old_script": script_result['rows']})
+                            'CTSCH', {"script": payload, "old_script": script_result['rows']})
                 update_args, _ = patch_update_tbl.call_args
                 assert 'control_script' == update_args[0]
                 update_payload = {"values": payload,

@@ -363,7 +363,7 @@ async def update(request: web.Request) -> web.Response:
                 raise ValueError('ACL must be a string.')
             acl = acl.strip()
         set_values = {}
-        values = {'steps': [], 'acl': ""}
+        values = {}
         if steps is not None:
             values['steps'] = steps
             set_values["steps"] = _validate_steps_and_convert_to_str(steps)

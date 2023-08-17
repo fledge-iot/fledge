@@ -287,9 +287,7 @@ class TestScriptManagement:
                             result = await resp.text()
                             json_response = json.loads(result)
                             assert {'name': script_name, 'steps': []} == json_response
-                        args, _ = audit_info_patch.call_args
-                        assert 'CTSAD' == args[0]
-                        assert request_payload == args[1]
+                        audit_info_patch.assert_called_once_with('CTSAD', request_payload)
                 args, _ = insert_tbl_patch.call_args_list[0]
                 assert 'control_script' == args[0]
                 expected = json.loads(args[1])
@@ -346,9 +344,7 @@ class TestScriptManagement:
                             result = await resp.text()
                             json_response = json.loads(result)
                             assert request_payload == json_response
-                        args, _ = audit_info_patch.call_args
-                        assert 'CTSAD' == args[0]
-                        assert request_payload == args[1]
+                        audit_info_patch.assert_called_once_with('CTSAD', request_payload)
 
     @pytest.mark.parametrize("payload, message", [
         ({}, "Nothing to update for the given payload."),
@@ -516,6 +512,9 @@ class TestScriptManagement:
         q_result = {"count": 0, "rows": [
             {"name": script_name, "steps": [{"delay": {"order": 0, "duration": 9003}}], "acl": ""}]}
         q_payload = {"return": ["name"], "where": {"column": "name", "condition": "=", "value": script_name}}
+        q_tbl_payload = {"return": ["name"], "where": {"column": "entity_type", "condition": "=", "value": "script",
+                                                       "and": {"column": "entity_name", "condition": "=",
+                                                               "value": script_name}}}
         delete_payload = {"where": {"column": "name", "condition": "=", "value": script_name}}
         delete_result = {"response": "deleted", "rows_affected": 1}
         disable_sch_result = (True, "Schedule successfully disabled")
@@ -547,11 +546,13 @@ class TestScriptManagement:
             get_sch = await mock_schedule(script_name)
             disable_sch = await mock_coro(disable_sch_result)
             delete_sch = await mock_coro(delete_sch_result)
+            arv = await mock_coro(None)
         else:
             del_cat_and_child = asyncio.ensure_future(mock_coro(delete_result))
             get_sch = asyncio.ensure_future(mock_schedule(script_name))
             disable_sch = asyncio.ensure_future(mock_coro(disable_sch_result))
             delete_sch = asyncio.ensure_future(mock_coro(delete_sch_result))
+            arv = asyncio.ensure_future(mock_coro(None))
 
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(c_mgr, 'delete_category_and_children_recursively',
@@ -566,11 +567,20 @@ class TestScriptManagement:
                                               side_effect=query_schedule) as patch_query_tbl:
                                 with patch.object(storage_client_mock, 'delete_from_tbl',
                                                   side_effect=d_schedule) as patch_delete_tbl:
-                                    resp = await client.delete('/fledge/control/script/{}'.format(script_name))
-                                    assert 200 == resp.status
-                                    result = await resp.text()
-                                    json_response = json.loads(result)
-                                    assert {'message': message} == json_response
+                                    with patch.object(AuditLogger, '__init__', return_value=None):
+                                        with patch.object(AuditLogger, 'information',
+                                                          return_value=arv) as audit_info_patch:
+                                            resp = await client.delete('/fledge/control/script/{}'.format(script_name))
+                                            assert 200 == resp.status
+                                            result = await resp.text()
+                                            json_response = json.loads(result)
+                                            assert {'message': message} == json_response
+                                        audit_info_patch.assert_called_once_with('CTSDL', {'message': message})
+                                patch_delete_tbl.assert_called_once_with(
+                                    'control_script', json.dumps(delete_payload))
+                            args, _ = patch_query_tbl.call_args
+                            assert 'acl_usage' == args[0]
+                            assert json.dumps(q_tbl_payload) == args[1]
                         patch_delete_sch.assert_called_once_with(uuid.UUID(schedule_id))
                     patch_disable_sch.assert_called_once_with(uuid.UUID(schedule_id))
                 patch_get_schedules.assert_called_once_with()
@@ -585,6 +595,10 @@ class TestScriptManagement:
         q_payload = {"return": ["name"], "where": {"column": "name", "condition": "=", "value": script_name}}
         delete_payload = {"where": {"column": "name", "condition": "=", "value": script_name}}
         delete_result = {"response": "deleted", "rows_affected": 1}
+        message = '{} script deleted successfully.'.format(script_name)
+        q_tbl_payload = {"return": ["name"], "where": {"column": "entity_type", "condition": "=", "value": "script",
+                                                       "and": {"column": "entity_name", "condition": "=",
+                                                               "value": script_name}}}
 
         @asyncio.coroutine
         def query_result(*args):
@@ -606,17 +620,27 @@ class TestScriptManagement:
             elif table == "acl_usage":
                 return delete_result
 
+        arv = await mock_coro(None) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(None))
+
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(c_mgr, 'delete_category_and_children_recursively', side_effect=Exception):
                 with patch.object(storage_client_mock, 'query_tbl_with_payload',
                                   side_effect=query_result) as patch_query_tbl:
                     with patch.object(storage_client_mock, 'delete_from_tbl',
                                       side_effect=d_result) as patch_delete_tbl:
-                        resp = await client.delete('/fledge/control/script/{}'.format(script_name))
-                        assert 200 == resp.status
-                        result = await resp.text()
-                        json_response = json.loads(result)
-                        assert {'message': '{} script deleted successfully.'.format(script_name)} == json_response
+                        with patch.object(AuditLogger, '__init__', return_value=None):
+                            with patch.object(AuditLogger, 'information',
+                                              return_value=arv) as audit_info_patch:
+                                resp = await client.delete('/fledge/control/script/{}'.format(script_name))
+                                assert 200 == resp.status
+                                result = await resp.text()
+                                json_response = json.loads(result)
+                                assert {'message': message} == json_response
+                            audit_info_patch.assert_called_once_with('CTSDL', {'message': message})
+                    patch_delete_tbl.assert_called_once_with('control_script', json.dumps(delete_payload))
+                args, _ = patch_query_tbl.call_args
+                assert 'acl_usage' == args[0]
+                assert json.dumps(q_tbl_payload) == args[1]
 
     @pytest.mark.parametrize("payload, message", [
         ({}, "parameters field is required."),

@@ -452,8 +452,8 @@ bool IsRegex(const string &str) {
  *
  * @param str	The string to return a portion of
  * @param pos	The position around which to extract a portion
- * @param after	The number of characters after the position to return, defualts to 30 if omitted
- * @param before The number of characters before the position to return, defauilts to 10
+ * @param after	The number of characters after the position to return, defaults to 30 if omitted
+ * @param before The number of characters before the position to return, defaults to 10
  */
 std::string StringAround(const std::string& str, unsigned int pos,
 		unsigned int after, unsigned int before)

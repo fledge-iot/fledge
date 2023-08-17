@@ -137,6 +137,9 @@ async def create(request: web.Request) -> web.Response:
         _logger.error(ex, "Failed to create pipeline: {}.".format(data.get('name')))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
+        # CTPAD audit trail entry
+        audit = AuditLogger(storage)
+        await audit.information('CTPAD', final_result)
         return web.json_response(final_result)
 
 

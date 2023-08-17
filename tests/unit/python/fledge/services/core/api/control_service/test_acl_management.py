@@ -156,9 +156,7 @@ class TestACLManagement:
                             result = await resp.text()
                             json_response = json.loads(result)
                             assert {'name': acl_name, 'service': [], 'url': []} == json_response
-                        args, _ = audit_info_patch.call_args
-                        assert 'ACLAD' == args[0]
-                        assert request_payload == args[1]
+                        audit_info_patch.assert_called_once_with('ACLAD', request_payload)
                 args, _ = insert_tbl_patch.call_args_list[0]
                 assert 'control_acl' == args[0]
                 assert {'name': acl_name, 'service': '[]', 'url': '[]'} == json.loads(args[1])
@@ -334,9 +332,7 @@ class TestACLManagement:
                             result = await resp.text()
                             json_response = json.loads(result)
                             assert {'message': message} == json_response
-                        args, _ = audit_info_patch.call_args
-                        assert 'ACLDL' == args[0]
-                        assert message == args[1]
+                        audit_info_patch.assert_called_once_with('ACLDL', {'message': message})
                 delete_args, _ = patch_delete_tbl.call_args
                 assert 'control_acl' == delete_args[0]
                 assert delete_payload == json.loads(delete_args[1])

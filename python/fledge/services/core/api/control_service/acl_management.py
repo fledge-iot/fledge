@@ -258,7 +258,7 @@ async def delete_acl(request: web.Request) -> web.Response:
                         message = "{} ACL deleted successfully.".format(name)
                         # ACLDL audit trail entry
                         audit = AuditLogger(storage)
-                        await audit.information('ACLDL', message)
+                        await audit.information('ACLDL', {"message": message})
                 else:
                     raise StorageServerError(delete_result)
             else:

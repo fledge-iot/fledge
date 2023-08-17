@@ -1090,8 +1090,7 @@ class Scheduler(object):
             except Exception:
                 self._logger.exception('Update failed: %s', update_payload)
                 raise
-            audit = AuditLogger(self._storage_async)
-            await audit.information('SCHCH', {'schedule': schedule.toDict()})
+            await self.audit_trail_entry(prev_schedule_row, schedule)
         else:
             insert_payload = PayloadBuilder() \
                 .INSERT(id=str(schedule.schedule_id),
@@ -1237,6 +1236,7 @@ class Scheduler(object):
             return True, "Schedule {} already disabled".format(str(schedule_id))
 
         # Disable Schedule - update the schedule in memory
+        prev_schedule_row = self._schedules[schedule_id]
         self._schedules[schedule_id] = self._schedules[schedule_id]._replace(enabled=False)
 
         # Update database
@@ -1318,9 +1318,8 @@ class Scheduler(object):
             str(schedule_id),
             schedule.process_name)
         if record_audit_trail:
-            audit = AuditLogger(self._storage_async)
-            sch = await self.get_schedule(schedule_id)
-            await audit.information('SCHCH', {'schedule': sch.toDict()})
+            new_schedule_row = await self.get_schedule(schedule_id)
+            await self.audit_trail_entry(prev_schedule_row, new_schedule_row)
         return True, "Schedule successfully disabled"
 
     async def enable_schedule(self, schedule_id: uuid.UUID, bypass_check=None, record_audit_trail=True):
@@ -1344,6 +1343,7 @@ class Scheduler(object):
             return True, "Schedule is already enabled"
 
         # Enable Schedule
+        prev_schedule_row = self._schedules[schedule_id]
         self._schedules[schedule_id] = self._schedules[schedule_id]._replace(enabled=True)
 
         # Update database
@@ -1370,9 +1370,8 @@ class Scheduler(object):
             str(schedule_id),
             schedule.process_name)
         if record_audit_trail:
-            audit = AuditLogger(self._storage_async)
-            sch = await self.get_schedule(schedule_id)
-            await audit.information('SCHCH', { 'schedule': sch.toDict() })
+            new_schedule_row = await self.get_schedule(schedule_id)
+            await self.audit_trail_entry(prev_schedule_row, new_schedule_row)
         return True, "Schedule successfully enabled"
 
     async def queue_task(self, schedule_id: uuid.UUID, start_now=True) -> None:
@@ -1632,3 +1631,19 @@ class Scheduler(object):
         interval_time = datetime.datetime.strptime(interval_time, "%H:%M:%S")
 
         return int(interval_days), interval_time
+
+    async def audit_trail_entry(self, old_row, new_row):
+        audit = AuditLogger(self._storage_async)
+        old_schedule = {"name": old_row.name,
+                        'type': old_row.type,
+                        "processName": old_row.process_name,
+                        "repeat": old_row.repeat.total_seconds() if old_row.repeat else 0,
+                        "enabled": True if old_row.enabled else False,
+                        "exclusive": True if old_row.exclusive else False
+                        }
+        # Timed schedule KV pairs
+        if old_row.type == 2:
+            old_schedule["time"] = "{}:{}:{}".format(old_row.time.hour, old_row.time.minute, old_row.time.second
+                                                     ) if old_row.time else '00:00:00'
+            old_schedule["day"] = old_row.day if old_row.day else 0
+        await audit.information('SCHCH', {'schedule': new_row.toDict(), 'old_schedule': old_schedule})

@@ -11,7 +11,7 @@ from fledge.services.core.api import common as api_common
 from fledge.services.core.api import configuration as api_configuration
 from fledge.services.core.api import scheduler as api_scheduler
 from fledge.services.core.api import statistics as api_statistics
-from fledge.services.core.api.control_service import script_management, acl_management, pipeline
+from fledge.services.core.api.control_service import script_management, acl_management, pipeline, entrypoint
 from fledge.services.core.api.plugins import data as plugin_data
 from fledge.services.core.api.plugins import install as plugins_install, discovery as plugins_discovery
 from fledge.services.core.api.plugins import update as plugins_update
@@ -250,6 +250,10 @@ def setup(app):
     # Control Pipelines
     pipeline.setup(app)
 
+    # Control Entrypoint
+    entrypoint.setup(app)
+
+    # Python packages
     app.router.add_route('GET', '/fledge/python/packages', python_packages.get_packages)
     app.router.add_route('POST', '/fledge/python/package', python_packages.install_package)
 

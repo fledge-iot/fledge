@@ -8,6 +8,7 @@ import json
 from aiohttp import web
 
 from fledge.common.acl_manager import ACLManager
+from fledge.common.audit_logger import AuditLogger
 from fledge.common.configuration_manager import ConfigurationManager
 from fledge.common.logger import FLCoreLogger
 from fledge.common.storage_client.exceptions import StorageServerError
@@ -124,6 +125,9 @@ async def add_acl(request: web.Request) -> web.Response:
             if 'response' in insert_control_acl_result:
                 if insert_control_acl_result['response'] == "inserted":
                     result = {"name": name, "service": json.loads(services), "url": json.loads(urls)}
+                    # ACLAD audit trail entry
+                    audit = AuditLogger(storage)
+                    await audit.information('ACLAD', result)
             else:
                 raise StorageServerError(insert_control_acl_result)
         else:
@@ -170,13 +174,12 @@ async def update_acl(request: web.Request) -> web.Response:
         if url is not None and not isinstance(url, list):
             raise TypeError('url must be a list.')
         storage = connect.get_storage_async()
-        payload = PayloadBuilder().SELECT("name").WHERE(['name', '=', name]).payload()
+        payload = PayloadBuilder().SELECT("service", "url").WHERE(['name', '=', name]).payload()
         result = await storage.query_tbl_with_payload('control_acl', payload)
         message = ""
         if 'rows' in result:
             if result['rows']:
                 update_query = PayloadBuilder()
-                
                 set_values = {}
                 if service is not None:
                     set_values["service"] = json.dumps(service)
@@ -184,11 +187,14 @@ async def update_acl(request: web.Request) -> web.Response:
                     set_values["url"] = json.dumps(url)
                 
                 update_query.SET(**set_values).WHERE(['name', '=', name])
-
                 update_result = await storage.update_tbl("control_acl", update_query.payload())
                 if 'response' in update_result:
                     if update_result['response'] == "updated":
                         message = "ACL {} updated successfully.".format(name)
+                        # ACLCH audit trail entry
+                        audit = AuditLogger(storage)
+                        values = {'service': service, 'url': url}
+                        await audit.information('ACLCH', {'acl': values, 'old_acl': result['rows']})
                 else:
                     raise StorageServerError(update_result)
             else:
@@ -250,6 +256,9 @@ async def delete_acl(request: web.Request) -> web.Response:
                 if 'response' in delete_result:
                     if delete_result['response'] == "deleted":
                         message = "{} ACL deleted successfully.".format(name)
+                        # ACLDL audit trail entry
+                        audit = AuditLogger(storage)
+                        await audit.information('ACLDL', {"message": message})
                 else:
                     raise StorageServerError(delete_result)
             else:

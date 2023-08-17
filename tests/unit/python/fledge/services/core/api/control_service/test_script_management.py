@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from aiohttp import web
 
+from fledge.common.audit_logger import AuditLogger
 from fledge.common.configuration_manager import ConfigurationManager
 from fledge.common.storage_client.storage_client import StorageClientAsync
 from fledge.common.web import middleware
@@ -268,19 +269,27 @@ class TestScriptManagement:
         if sys.version_info >= (3, 8):
             value = await mock_coro(result)
             insert_value = await mock_coro(insert_result)
+            arv = await mock_coro(None)
         else:
             value = asyncio.ensure_future(mock_coro(result))
             insert_value = asyncio.ensure_future(mock_coro(insert_result))
+            arv = asyncio.ensure_future(mock_coro(None))
         storage_client_mock = MagicMock(StorageClientAsync)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=value) as query_tbl_patch:
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=value
+                              ) as query_tbl_patch:
                 with patch.object(storage_client_mock, 'insert_into_tbl', return_value=insert_value
                                   ) as insert_tbl_patch:
-                    resp = await client.post('/fledge/control/script', data=json.dumps(request_payload))
-                    assert 200 == resp.status
-                    result = await resp.text()
-                    json_response = json.loads(result)
-                    assert {'name': script_name, 'steps': []} == json_response
+                    with patch.object(AuditLogger, '__init__', return_value=None):
+                        with patch.object(AuditLogger, 'information', return_value=arv) as audit_info_patch:
+                            resp = await client.post('/fledge/control/script', data=json.dumps(request_payload))
+                            assert 200 == resp.status
+                            result = await resp.text()
+                            json_response = json.loads(result)
+                            assert {'name': script_name, 'steps': []} == json_response
+                        args, _ = audit_info_patch.call_args
+                        assert 'CTSAD' == args[0]
+                        assert request_payload == args[1]
                 args, _ = insert_tbl_patch.call_args_list[0]
                 assert 'control_script' == args[0]
                 expected = json.loads(args[1])
@@ -299,8 +308,7 @@ class TestScriptManagement:
         insert_result = {"response": "inserted", "rows_affected": 1}
         script_query_payload = {"return": ["name"], "where": {"column": "name", "condition": "=", "value": script_name}}
         acl_query_payload = {"return": ["name"], "where": {"column": "name", "condition": "=", "value": acl_name}}
-        insert_value = await mock_coro(insert_result) if sys.version_info >= (3, 8) else \
-            asyncio.ensure_future(mock_coro(insert_result))
+        arv = await mock_coro(None) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(None))
 
         @asyncio.coroutine
         def q_result(*args):
@@ -323,19 +331,24 @@ class TestScriptManagement:
             payload = args[1]
             if table == 'control_script':
                 assert {'name': script_name, 'steps': '[]', 'acl': acl_name} == json.loads(payload)
-                return insert_result
             elif table == "acl_usage":
-                assert {'name': acl_name, 'entity_type': 'script',
-                        'entity_name': script_name} == json.loads(payload)
-                return insert_result
+                assert {'name': acl_name, 'entity_type': 'script', 'entity_name': script_name} == json.loads(payload)
+            return insert_result
 
         storage_client_mock = MagicMock(StorageClientAsync)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
-                with patch.object(storage_client_mock, 'insert_into_tbl', side_effect=i_result
-                                  ) as insert_tbl_patch:
-                    resp = await client.post('/fledge/control/script', data=json.dumps(request_payload))
-                    assert 200 == resp.status
+                with patch.object(storage_client_mock, 'insert_into_tbl', side_effect=i_result):
+                    with patch.object(AuditLogger, '__init__', return_value=None):
+                        with patch.object(AuditLogger, 'information', return_value=arv) as audit_info_patch:
+                            resp = await client.post('/fledge/control/script', data=json.dumps(request_payload))
+                            assert 200 == resp.status
+                            result = await resp.text()
+                            json_response = json.loads(result)
+                            assert request_payload == json_response
+                        args, _ = audit_info_patch.call_args
+                        assert 'CTSAD' == args[0]
+                        assert request_payload == args[1]
 
     @pytest.mark.parametrize("payload, message", [
         ({}, "Nothing to update for the given payload."),

@@ -11,11 +11,11 @@ import uuid
 from aiohttp import web
 
 from fledge.common.acl_manager import ACLManager
+from fledge.common.audit_logger import AuditLogger
 from fledge.common.configuration_manager import ConfigurationManager
 from fledge.common.logger import FLCoreLogger
 from fledge.common.storage_client.exceptions import StorageServerError
 from fledge.common.storage_client.payload_builder import PayloadBuilder
-from fledge.common.web.middleware import has_permission
 from fledge.services.core import connect, server
 from fledge.services.core.scheduler.entities import Schedule, ManualSchedule
 from fledge.services.core.api.control_service.exceptions import *
@@ -313,6 +313,9 @@ async def add(request: web.Request) -> web.Response:
                     if acl is not None:
                         # Append ACL into response if acl exists in payload
                         result["acl"] = acl
+                    # CTSAD audit trail entry
+                    audit = AuditLogger(storage)
+                    await audit.information('CTSAD', result)
             else:
                 raise StorageServerError(insert_control_script_result)
         else:

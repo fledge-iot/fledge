@@ -1,4 +1,5 @@
 import asyncio
+import copy
 import json
 import sys
 import uuid
@@ -7,6 +8,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from aiohttp import web
 
+from fledge.common.audit_logger import AuditLogger
 from fledge.common.configuration_manager import ConfigurationManager
 from fledge.common.storage_client.storage_client import StorageClientAsync
 from fledge.common.web import middleware
@@ -268,19 +270,25 @@ class TestScriptManagement:
         if sys.version_info >= (3, 8):
             value = await mock_coro(result)
             insert_value = await mock_coro(insert_result)
+            arv = await mock_coro(None)
         else:
             value = asyncio.ensure_future(mock_coro(result))
             insert_value = asyncio.ensure_future(mock_coro(insert_result))
+            arv = asyncio.ensure_future(mock_coro(None))
         storage_client_mock = MagicMock(StorageClientAsync)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
-            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=value) as query_tbl_patch:
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=value
+                              ) as query_tbl_patch:
                 with patch.object(storage_client_mock, 'insert_into_tbl', return_value=insert_value
                                   ) as insert_tbl_patch:
-                    resp = await client.post('/fledge/control/script', data=json.dumps(request_payload))
-                    assert 200 == resp.status
-                    result = await resp.text()
-                    json_response = json.loads(result)
-                    assert {'name': script_name, 'steps': []} == json_response
+                    with patch.object(AuditLogger, '__init__', return_value=None):
+                        with patch.object(AuditLogger, 'information', return_value=arv) as audit_info_patch:
+                            resp = await client.post('/fledge/control/script', data=json.dumps(request_payload))
+                            assert 200 == resp.status
+                            result = await resp.text()
+                            json_response = json.loads(result)
+                            assert {'name': script_name, 'steps': []} == json_response
+                        audit_info_patch.assert_called_once_with('CTSAD', request_payload)
                 args, _ = insert_tbl_patch.call_args_list[0]
                 assert 'control_script' == args[0]
                 expected = json.loads(args[1])
@@ -299,8 +307,7 @@ class TestScriptManagement:
         insert_result = {"response": "inserted", "rows_affected": 1}
         script_query_payload = {"return": ["name"], "where": {"column": "name", "condition": "=", "value": script_name}}
         acl_query_payload = {"return": ["name"], "where": {"column": "name", "condition": "=", "value": acl_name}}
-        insert_value = await mock_coro(insert_result) if sys.version_info >= (3, 8) else \
-            asyncio.ensure_future(mock_coro(insert_result))
+        arv = await mock_coro(None) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(None))
 
         @asyncio.coroutine
         def q_result(*args):
@@ -323,19 +330,22 @@ class TestScriptManagement:
             payload = args[1]
             if table == 'control_script':
                 assert {'name': script_name, 'steps': '[]', 'acl': acl_name} == json.loads(payload)
-                return insert_result
             elif table == "acl_usage":
-                assert {'name': acl_name, 'entity_type': 'script',
-                        'entity_name': script_name} == json.loads(payload)
-                return insert_result
+                assert {'name': acl_name, 'entity_type': 'script', 'entity_name': script_name} == json.loads(payload)
+            return insert_result
 
         storage_client_mock = MagicMock(StorageClientAsync)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
-                with patch.object(storage_client_mock, 'insert_into_tbl', side_effect=i_result
-                                  ) as insert_tbl_patch:
-                    resp = await client.post('/fledge/control/script', data=json.dumps(request_payload))
-                    assert 200 == resp.status
+                with patch.object(storage_client_mock, 'insert_into_tbl', side_effect=i_result):
+                    with patch.object(AuditLogger, '__init__', return_value=None):
+                        with patch.object(AuditLogger, 'information', return_value=arv) as audit_info_patch:
+                            resp = await client.post('/fledge/control/script', data=json.dumps(request_payload))
+                            assert 200 == resp.status
+                            result = await resp.text()
+                            json_response = json.loads(result)
+                            assert request_payload == json_response
+                        audit_info_patch.assert_called_once_with('CTSAD', request_payload)
 
     @pytest.mark.parametrize("payload, message", [
         ({}, "Nothing to update for the given payload."),
@@ -367,7 +377,8 @@ class TestScriptManagement:
         req_payload = {"steps": []}
         result = {"count": 0, "rows": []}
         value = await mock_coro(result) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(result))
-        query_payload = {"return": ["name"], "where": {"column": "name", "condition": "=", "value": script_name}}
+        query_payload = {"return": ["steps", "acl"],
+                         "where": {"column": "name", "condition": "=", "value": script_name}}
         message = "No such {} script found.".format(script_name)
         storage_client_mock = MagicMock(StorageClientAsync)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
@@ -387,7 +398,8 @@ class TestScriptManagement:
         acl_name = "blah"
         payload = {"steps": [{"write": {"order": 1, "speed": 420}}], "acl": acl_name}
         script_result = {"count": 1, "rows": [{"name": script_name, "steps": [{"write": {"order": 1, "speed": 420}}]}]}
-        script_query_payload = {"return": ["name"], "where": {"column": "name", "condition": "=", "value": script_name}}
+        script_query_payload = {"return": ["steps", "acl"],
+                                "where": {"column": "name", "condition": "=", "value": script_name}}
         acl_query_payload = {"return": ["name"], "where": {"column": "name", "condition": "=", "value": acl_name}}
         acl_result = {"count": 0, "rows": []}
 
@@ -420,12 +432,13 @@ class TestScriptManagement:
     async def test_update_script(self, client, payload):
         script_name = "test"
         acl_name = "testACL"
-        script_result = {"count": 1, "rows": [{"name": script_name, "steps": [{"write": {"order": 1, "speed": 420}}]}]}
+        script_result = {"count": 1, "rows": [{"steps": [{"write": {"order": 1, "speed": 420}}]}]}
         update_result = {"response": "updated", "rows_affected": 1}
         steps_payload = payload["steps"]
         update_value = await mock_coro(update_result) if sys.version_info >= (3, 8) else \
             asyncio.ensure_future(mock_coro(update_result))
-        script_query_payload = {"return": ["name"], "where": {"column": "name", "condition": "=", "value": script_name}}
+        script_query_payload = {"return": ["steps", "acl"],
+                                "where": {"column": "name", "condition": "=", "value": script_name}}
         acl_query_payload = {"return": ["name"], "where": {"column": "name", "condition": "=", "value": acl_name}}
         acl_result = {"count": 1, "rows": [{"name": acl_name, "service": [], "url": []}]}
         insert_result = {"response": "inserted", "rows_affected": 1}
@@ -453,22 +466,31 @@ class TestScriptManagement:
                         'entity_name': script_name} == json.loads(payload_ins)
                 return insert_result
 
+        arv = await mock_coro(None) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(None))
         storage_client_mock = MagicMock(StorageClientAsync)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(storage_client_mock, 'query_tbl_with_payload', side_effect=q_result):
                 with patch.object(storage_client_mock, 'update_tbl', return_value=update_value) as patch_update_tbl:
                     with patch.object(storage_client_mock, 'insert_into_tbl', side_effect=i_result):
-                        resp = await client.put('/fledge/control/script/{}'.format(script_name),
-                                                data=json.dumps(payload))
-                        assert 200 == resp.status
-                        result = await resp.text()
-                        json_response = json.loads(result)
-                        assert {"message": "Control script {} updated successfully.".format(script_name)}\
-                               == json_response
+                        with patch.object(AuditLogger, '__init__', return_value=None):
+                            with patch.object(AuditLogger, 'information', return_value=arv) as audit_info_patch:
+                                resp = await client.put('/fledge/control/script/{}'.format(script_name),
+                                                        data=json.dumps(payload))
+                                assert 200 == resp.status
+                                result = await resp.text()
+                                json_response = json.loads(result)
+                                assert {"message": "Control script {} updated successfully.".format(script_name)}\
+                                       == json_response
+                        args, _ = audit_info_patch.call_args
+                        audit = copy.deepcopy(payload)
+                        if 'acl' not in payload:
+                            audit['acl'] = ""
+                        audit_info_patch.assert_called_once_with(
+                            'CTSCH', {"script": audit, "old_script": script_result['rows']})
                 update_args, _ = patch_update_tbl.call_args
                 assert 'control_script' == update_args[0]
-                update_payload = {"values": payload, "where": {"column": "name", "condition": "=",
-                                                               "value": script_name}}
+                update_payload = {"values": payload,
+                                  "where": {"column": "name", "condition": "=", "value": script_name}}
                 update_payload["values"]["steps"] = str(steps_payload)
                 assert update_payload == json.loads(update_args[1])
 
@@ -503,6 +525,9 @@ class TestScriptManagement:
         q_result = {"count": 0, "rows": [
             {"name": script_name, "steps": [{"delay": {"order": 0, "duration": 9003}}], "acl": ""}]}
         q_payload = {"return": ["name"], "where": {"column": "name", "condition": "=", "value": script_name}}
+        q_tbl_payload = {"return": ["name"], "where": {"column": "entity_type", "condition": "=", "value": "script",
+                                                       "and": {"column": "entity_name", "condition": "=",
+                                                               "value": script_name}}}
         delete_payload = {"where": {"column": "name", "condition": "=", "value": script_name}}
         delete_result = {"response": "deleted", "rows_affected": 1}
         disable_sch_result = (True, "Schedule successfully disabled")
@@ -534,11 +559,13 @@ class TestScriptManagement:
             get_sch = await mock_schedule(script_name)
             disable_sch = await mock_coro(disable_sch_result)
             delete_sch = await mock_coro(delete_sch_result)
+            arv = await mock_coro(None)
         else:
             del_cat_and_child = asyncio.ensure_future(mock_coro(delete_result))
             get_sch = asyncio.ensure_future(mock_schedule(script_name))
             disable_sch = asyncio.ensure_future(mock_coro(disable_sch_result))
             delete_sch = asyncio.ensure_future(mock_coro(delete_sch_result))
+            arv = asyncio.ensure_future(mock_coro(None))
 
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(c_mgr, 'delete_category_and_children_recursively',
@@ -553,11 +580,20 @@ class TestScriptManagement:
                                               side_effect=query_schedule) as patch_query_tbl:
                                 with patch.object(storage_client_mock, 'delete_from_tbl',
                                                   side_effect=d_schedule) as patch_delete_tbl:
-                                    resp = await client.delete('/fledge/control/script/{}'.format(script_name))
-                                    assert 200 == resp.status
-                                    result = await resp.text()
-                                    json_response = json.loads(result)
-                                    assert {'message': message} == json_response
+                                    with patch.object(AuditLogger, '__init__', return_value=None):
+                                        with patch.object(AuditLogger, 'information',
+                                                          return_value=arv) as audit_info_patch:
+                                            resp = await client.delete('/fledge/control/script/{}'.format(script_name))
+                                            assert 200 == resp.status
+                                            result = await resp.text()
+                                            json_response = json.loads(result)
+                                            assert {'message': message} == json_response
+                                        audit_info_patch.assert_called_once_with('CTSDL', {'message': message})
+                                patch_delete_tbl.assert_called_once_with(
+                                    'control_script', json.dumps(delete_payload))
+                            args, _ = patch_query_tbl.call_args
+                            assert 'acl_usage' == args[0]
+                            assert json.dumps(q_tbl_payload) == args[1]
                         patch_delete_sch.assert_called_once_with(uuid.UUID(schedule_id))
                     patch_disable_sch.assert_called_once_with(uuid.UUID(schedule_id))
                 patch_get_schedules.assert_called_once_with()
@@ -572,6 +608,10 @@ class TestScriptManagement:
         q_payload = {"return": ["name"], "where": {"column": "name", "condition": "=", "value": script_name}}
         delete_payload = {"where": {"column": "name", "condition": "=", "value": script_name}}
         delete_result = {"response": "deleted", "rows_affected": 1}
+        message = '{} script deleted successfully.'.format(script_name)
+        q_tbl_payload = {"return": ["name"], "where": {"column": "entity_type", "condition": "=", "value": "script",
+                                                       "and": {"column": "entity_name", "condition": "=",
+                                                               "value": script_name}}}
 
         @asyncio.coroutine
         def query_result(*args):
@@ -593,17 +633,27 @@ class TestScriptManagement:
             elif table == "acl_usage":
                 return delete_result
 
+        arv = await mock_coro(None) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(None))
+
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
             with patch.object(c_mgr, 'delete_category_and_children_recursively', side_effect=Exception):
                 with patch.object(storage_client_mock, 'query_tbl_with_payload',
                                   side_effect=query_result) as patch_query_tbl:
                     with patch.object(storage_client_mock, 'delete_from_tbl',
                                       side_effect=d_result) as patch_delete_tbl:
-                        resp = await client.delete('/fledge/control/script/{}'.format(script_name))
-                        assert 200 == resp.status
-                        result = await resp.text()
-                        json_response = json.loads(result)
-                        assert {'message': '{} script deleted successfully.'.format(script_name)} == json_response
+                        with patch.object(AuditLogger, '__init__', return_value=None):
+                            with patch.object(AuditLogger, 'information',
+                                              return_value=arv) as audit_info_patch:
+                                resp = await client.delete('/fledge/control/script/{}'.format(script_name))
+                                assert 200 == resp.status
+                                result = await resp.text()
+                                json_response = json.loads(result)
+                                assert {'message': message} == json_response
+                            audit_info_patch.assert_called_once_with('CTSDL', {'message': message})
+                    patch_delete_tbl.assert_called_once_with('control_script', json.dumps(delete_payload))
+                args, _ = patch_query_tbl.call_args
+                assert 'acl_usage' == args[0]
+                assert json.dumps(q_tbl_payload) == args[1]
 
     @pytest.mark.parametrize("payload, message", [
         ({}, "parameters field is required."),

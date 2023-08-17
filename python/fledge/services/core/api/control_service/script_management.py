@@ -11,11 +11,11 @@ import uuid
 from aiohttp import web
 
 from fledge.common.acl_manager import ACLManager
+from fledge.common.audit_logger import AuditLogger
 from fledge.common.configuration_manager import ConfigurationManager
 from fledge.common.logger import FLCoreLogger
 from fledge.common.storage_client.exceptions import StorageServerError
 from fledge.common.storage_client.payload_builder import PayloadBuilder
-from fledge.common.web.middleware import has_permission
 from fledge.services.core import connect, server
 from fledge.services.core.scheduler.entities import Schedule, ManualSchedule
 from fledge.services.core.api.control_service.exceptions import *
@@ -313,6 +313,9 @@ async def add(request: web.Request) -> web.Response:
                     if acl is not None:
                         # Append ACL into response if acl exists in payload
                         result["acl"] = acl
+                    # CTSAD audit trail entry
+                    audit = AuditLogger(storage)
+                    await audit.information('CTSAD', result)
             else:
                 raise StorageServerError(insert_control_script_result)
         else:
@@ -360,11 +363,13 @@ async def update(request: web.Request) -> web.Response:
                 raise ValueError('ACL must be a string.')
             acl = acl.strip()
         set_values = {}
+        values = {'steps': [], 'acl': ""}
         if steps is not None:
+            values['steps'] = steps
             set_values["steps"] = _validate_steps_and_convert_to_str(steps)
         storage = connect.get_storage_async()
         # Check existence of script record
-        payload = PayloadBuilder().SELECT("name").WHERE(['name', '=', name]).payload()
+        payload = PayloadBuilder().SELECT("steps", "acl").WHERE(['name', '=', name]).payload()
         result = await storage.query_tbl_with_payload('control_script', payload)
         message = ""
         if 'rows' in result:
@@ -380,6 +385,7 @@ async def update(request: web.Request) -> web.Response:
                         else:
                             raise StorageServerError(acl_result)
                     set_values["acl"] = acl
+                    values["acl"] = acl
                 # Update script record
                 update_query = PayloadBuilder()
                 update_query.SET(**set_values).WHERE(['name', '=', name])
@@ -406,6 +412,9 @@ async def update(request: web.Request) -> web.Response:
                 if 'response' in update_result:
                     if update_result['response'] == "updated":
                         message = "Control script {} updated successfully.".format(name)
+                        # CTSCH audit trail entry
+                        audit = AuditLogger(storage)
+                        await audit.information('CTSCH', {'script': values, 'old_script': result['rows']})
                 else:
                     raise StorageServerError(update_result)
             else:
@@ -468,6 +477,9 @@ async def delete(request: web.Request) -> web.Response:
                 if 'response' in delete_result:
                     if delete_result['response'] == "deleted":
                         message = "{} script deleted successfully.".format(name)
+                        # CTSDL audit trail entry
+                        audit = AuditLogger(storage)
+                        await audit.information('CTSDL', {'message': message})
                 else:
                     raise StorageServerError(delete_result)
             else:

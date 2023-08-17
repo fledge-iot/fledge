@@ -245,6 +245,10 @@ async def update(request: web.Request) -> web.Response:
         _logger.error(ex, "Failed to update pipeline having ID: <{}>.".format(cpid))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
+        # CTPCH audit trail entry
+        audit = AuditLogger(storage)
+        updated_pipeline = await _get_pipeline(cpid)
+        await audit.information('CTPCH', {"pipeline": updated_pipeline, "old_pipeline": pipeline})
         return web.json_response(
             {"message": "Control Pipeline with ID:<{}> has been updated successfully.".format(cpid)})
 

@@ -674,5 +674,5 @@ TEST(CategoryTestQuoted, toJSONQuotedSpecial)
 
 TEST(Categorytest, parseError)
 {
-	EXCEPT_THROW(confCategory("parseTest", json_parse_error), ConfigMalformed);
+	EXPECT_THROW(ConfCategory("parseTest", json_parse_error), ConfigMalformed);
 }

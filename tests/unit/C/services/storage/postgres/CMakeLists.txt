@@ -7,7 +7,9 @@ set(GCOVR_PATH "$ENV{HOME}/.local/bin/gcovr")
 project(RunTests)
 
 set(CMAKE_CXX_FLAGS "-std=c++11 -O0")
- 
+
+set(COMMON_LIB common-lib)
+
 include(CodeCoverage)
 append_coverage_compiler_flags()
 
@@ -20,10 +22,6 @@ include_directories(../../../../../../C/common/include)
 include_directories(../../../../../../C/thirdparty/rapidjson/include)
 
 file(GLOB test_sources "../../../../../../C/services/storage/configuration.cpp")
-file(GLOB logger_sources "../../../../../../C/common/logger.cpp")
-file(GLOB config_sources "../../../../../../C/common/config_category.cpp")
-file(GLOB config_sources "../../../../../../C/common/string_utils.cpp")
-file(GLOB utils_sources "../../../../../../C/common/json_utils.cpp")
  
 # Link runTests with what we want to test and the GTest and pthread library
 add_executable(RunTests ${test_sources} ${logger_sources} ${config_sources} ${utils_sources} tests.cpp)
@@ -31,6 +29,7 @@ add_executable(RunTests ${test_sources} ${logger_sources} ${config_sources} ${ut
 set(BOOST_COMPONENTS thread)
 find_package(Boost 1.53.0 COMPONENTS ${BOOST_COMPONENTS} REQUIRED)
 target_link_libraries(RunTests ${GTEST_LIBRARIES} pthread)
+target_link_libraries(RunTests ${COMMON_LIB})
 
 setup_target_for_coverage_gcovr_html(
             NAME CoverageHtml

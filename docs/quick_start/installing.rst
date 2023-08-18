@@ -198,3 +198,64 @@ Also you need to change the value of Storage plugin. See |Configure Storage Plug
     }
 
 Now, it's time to restart Fledge. Thereafter you will see Fledge is running with PostgreSQL.
+
+
+Using Docker Containerizer to install Fledge
+#############################################
+
+Fledge is provided a private registry. No auth/TLS yet on this private registry for docker container.
+
+Useful instructions are given below for it's setup:
+
+- Edit the daemon.json file, whose default location is /etc/docker/daemon.json on Linux, If the daemon.json file does not exist, create it. Assuming there are no other settings in the file, it should have the following contents:
+
+.. code-block:: console
+
+    { "insecure-registries":["52.3.255.136:5000"] }
+
+- Restart Docker for the changes to take effect. sudo systemctl restart docker.service
+
+- Check using "sudo docker info" command, you should have following in output:
+
+.. code-block:: console
+
+    Insecure Registries:
+    52.3.255.136:5000
+    127.0.0.0/8
+
+You may also refer the docker documentation for the setup `here <https://docs.docker.com/registry/insecure/>`_.
+
+Ubuntu 20.04
+~~~~~~~~~~~~
+
+- To pull the docker registry
+
+.. code-block:: console
+
+    docker pull 54.204.128.201:5000/fledge:latest-ubuntu2004
+
+- To run the docker container
+
+.. code-block:: console
+
+    docker run -d --name fledge -p 8081:8081 -p 1995:1995 -p 8082:80 54.204.128.201:5000/fledge:latest-ubuntu2004
+
+Here, GUI is forwarded to host port 8082, it can be any port and omitted if port 80 is free.
+
+- Now you can see both Fledge and Fledge-GUI is running. You can check below commands in your host machine.
+
+.. code-block:: console
+
+    Fledge: curl -sX GET http://localhost:8081/fledge/ping
+    GUI: http://localhost:8082
+
+- To attach to running container
+
+.. code-block:: console
+
+    docker exec -it fledge bash
+
+.. note::
+    For Ubuntu 18.04 setup, you just need to replace ubuntu2004 with ubuntu1804.
+    At the moment only ubuntu20.04 and ubuntu18.04 (x86_64) images are available.
+

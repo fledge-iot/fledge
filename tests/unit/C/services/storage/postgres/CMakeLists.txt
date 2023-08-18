@@ -22,6 +22,7 @@ include_directories(../../../../../../C/thirdparty/rapidjson/include)
 file(GLOB test_sources "../../../../../../C/services/storage/configuration.cpp")
 file(GLOB logger_sources "../../../../../../C/common/logger.cpp")
 file(GLOB config_sources "../../../../../../C/common/config_category.cpp")
+file(GLOB config_sources "../../../../../../C/common/string_utils.cpp")
 file(GLOB utils_sources "../../../../../../C/common/json_utils.cpp")
  
 # Link runTests with what we want to test and the GTest and pthread library

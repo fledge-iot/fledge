@@ -3,7 +3,7 @@
 #
 # This is the shell script wrapper for running C unit tests
 #
-jobs="-j1"
+jobs="-j4"
 if [[ "$1" == -j* ]]; then
   jobs="$1"
 fi
@@ -37,8 +37,6 @@ if [ -f "./CMakeLists.txt" ] ; then
 	echo "Compiling libraries..."
 	(rm -rf build && mkdir -p build && cd build && cmake -DCMAKE_BUILD_TYPE=Debug .. && make ${jobs} && cd ..) 
 	echo "done"
-	echo "Looking for StringAround"
-	nm lib/libcommon-lib.so.1 | grep StringAround
 fi
 
 cmakefile=`find . -name CMakeLists.txt | grep -v "\.\/CMakeLists.txt" `

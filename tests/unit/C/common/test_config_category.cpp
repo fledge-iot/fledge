@@ -324,6 +324,23 @@ const char *optionals =
 
 const char *json_quotedSpecial = R"QS({ "key" : "test \"a\"", "description" : "Test \"description\"", "value" : {"description" : { "description" : "The description of this \"Fledge\" service", "type" : "string", "value" : "The \"Fledge\" admini\\strative API", "default" : "The \"Fledge\" administra\tive API" }, "name" : { "description" : "The name of this \"Fledge\" service", "type" : "string", "value" : "\"Fledge\"", "default" : "\"Fledge\"" }, "complex" : { "description" : "A JSON configuration parameter", "type" : "json", "value" : {"first":"Fledge","second":"json"}, "default" : {"first":"Fledge","second":"json"} }} })QS";
 
+const char *json_parse_error = "{\"description\": {"
+		"\"value\": \"The Fledge administrative API\","
+		"\"type\": \"string\","
+		"\"default\": \"The Fledge administrative API\","
+		"\"description\": \"The description of this Fledge service\"},"
+	"\"name\": {"
+		"\"value\": \"Fledge\","
+		"\"type\": \"string\","
+		"\"default\": \"Fledge\","
+		"\"description\": \"The name of this Fledge service\"},"
+		"error : here,"
+        "\"complex\": {" \
+		"\"value\": { \"first\" : \"Fledge\", \"second\" : \"json\" },"
+		"\"type\": \"json\","
+		"\"default\": {\"first\" : \"Fledge\", \"second\" : \"json\" },"
+		"\"description\": \"A JSON configuration parameter\"}}";
+
 TEST(CategoriesTest, Count)
 {
 	ConfigCategories confCategories(categories);
@@ -653,4 +670,9 @@ TEST(CategoryTestQuoted, toJSONQuotedSpecial)
 	ConfigCategory confCategory("test \"a\"", myCategory_quotedSpecial);
 	confCategory.setDescription("Test \"description\"");
 	ASSERT_EQ(0, confCategory.toJSON().compare(json_quotedSpecial));
+}
+
+TEST(Categorytest, parseError)
+{
+	EXPECT_THROW(ConfigCategory("parseTest", json_parse_error), ConfigMalformed*);
 }

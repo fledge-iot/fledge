@@ -458,11 +458,7 @@ bool IsRegex(const string &str) {
 std::string StringAround(const std::string& str, unsigned int pos,
 		unsigned int after, unsigned int before)
 {
-	size_t	start = pos - before;
+	size_t	start = pos > before ? (pos - before) : 0;
 	size_t	len = before + after;
-	if (start < 0)
-		start = 0;
-	if (start + len > str.length())
-		len = str.length() - start;
 	return str.substr(start, len);
 }

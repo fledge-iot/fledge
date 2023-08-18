@@ -215,4 +215,15 @@ TEST(TestIsRegex, AllCases)
 
 
 
-
+TEST(TestAround, Extract)
+{
+	string longString("not shownpreamble123This part is after the location");
+	string s = StringAround(longString, 19);
+	EXPECT_STREQ(s.c_str(), "preamble123This part is after the locati");
+	s = StringAround(longString, 19, 10);
+	EXPECT_STREQ(s.c_str(), "preamble123This part ");
+	s = StringAround(longString, 19, 10, 5);
+	EXPECT_STREQ(s.c_str(), "ble123This part");
+	s = StringAround(longString, 5);
+	EXPECT_STREQ(s.c_str(), longString.c_str());
+}

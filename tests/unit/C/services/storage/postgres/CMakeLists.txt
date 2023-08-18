@@ -29,6 +29,8 @@ add_executable(RunTests ${test_sources} ${logger_sources} ${config_sources} ${ut
 set(BOOST_COMPONENTS thread)
 find_package(Boost 1.53.0 COMPONENTS ${BOOST_COMPONENTS} REQUIRED)
 target_link_libraries(RunTests ${GTEST_LIBRARIES} pthread)
+
+link_directories(${PROJECT_BINARY_DIR}/../../../../lib)
 target_link_libraries(RunTests ${COMMON_LIB})
 
 setup_target_for_coverage_gcovr_html(

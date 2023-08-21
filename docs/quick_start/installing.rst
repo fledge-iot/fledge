@@ -128,7 +128,7 @@ CentOS users should then create a file called fledge.repo in the directory /etc/
 
    [fledge]
    name=fledge Repository
-   baseurl=http://archives.fledge-iot.org/latest/centos-stream-9/x86_64/
+   baseurl=http://archives.fledge-iot.org/nightly/centos-stream-9/x86_64/
    enabled=1
    gpgkey=http://archives.fledge-iot.org/RPM-GPG-KEY-fledge
    gpgcheck=1

@@ -122,7 +122,7 @@ collect_data(){
 
 generate_valgrind_logs(){
   echo 'Creating reports directory';
-  mkdir -p reports/test1 ; ls -lrth
+  mkdir -p reports/ ; ls -lrth
   echo 'copying reports '
   extension="xml"
   if [[ "${COLLECT_FILES}" == "LOGS" ]]; then extension="log"; fi

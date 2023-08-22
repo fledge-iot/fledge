@@ -206,7 +206,6 @@ if [[ $YUM_PLATFORM = true ]]; then
 
 		set -e
 		make
-		# TODO: Use make install to install sqlite3 as a command
 		make install
 	fi
 	cd $fledge_location

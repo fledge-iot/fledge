@@ -407,6 +407,11 @@ StorageApi::~StorageApi()
 	{
 		delete m_server;
 	}
+	m_instance = NULL;
+	if (m_thread)
+	{
+		delete m_thread;
+	}
 }
 
 /**

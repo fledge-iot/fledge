@@ -211,7 +211,7 @@ The following steps describe how to install Fledge using these containers:
 
 .. code-block:: console
 
-    { "insecure-registries":["52.3.255.136:5000"] }
+    { "insecure-registries":["54.204.128.201:5000"] }
 
 - Restart Docker for the changes to take effect
 

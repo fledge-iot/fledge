@@ -52,11 +52,19 @@ DataLoad::~DataLoad()
 	m_cv.notify_all();
 	m_fetchCV.notify_all();
 	m_thread->join();
+	delete m_thread;
 	if (m_pipeline)
 	{
 		m_pipeline->cleanupFilters(m_name);
 		delete m_pipeline;
 	}
+	// Clear out the queue of readings
+	unique_lock<mutex> lck(m_qMutex);	// Should not need to do this
+	for (auto &item : m_queue)
+	{
+		delete item;
+	}
+	m_queue.clear();
 	Logger::getLogger()->info("Data load shutdown complete");
 }
 
@@ -293,7 +301,9 @@ unsigned long DataLoad::getLastSentId()
 			// Get column value
 			ResultSet::ColumnValue* theVal = row->getColumn("last_object");
 			// Set found id
-			return (unsigned long)theVal->getInteger();
+			unsigned long rval = (unsigned long)theVal->getInteger();
+			delete lastObjectId;
+			return rval;
 		}
 	}
 	// Free result set

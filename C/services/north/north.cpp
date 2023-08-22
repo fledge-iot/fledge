@@ -277,6 +277,8 @@ int	size;
  */
 NorthService::NorthService(const string& myName, const string& token) :
 	m_dataLoad(NULL),
+	m_dataSender(NULL),
+	m_assetTracker(NULL),
 	m_shutdown(false),
 	m_storage(NULL),
 	m_pluginData(NULL),
@@ -284,7 +286,8 @@ NorthService::NorthService(const string& myName, const string& token) :
 	m_token(token),
 	m_allowControl(true),
 	m_dryRun(false),
-	m_requestRestart()
+	m_requestRestart(),
+	m_auditLogger(NULL)
 {
 	m_name = myName;
 	logger = new Logger(myName);
@@ -298,6 +301,17 @@ NorthService::~NorthService()
 {
 	if (m_storage)
 		delete m_storage;
+	if (m_dataLoad)
+		delete m_dataLoad;
+	if (m_dataSender)
+		delete m_dataSender;
+	if (m_pluginData)
+		delete m_pluginData;
+	if (m_assetTracker)
+		delete m_assetTracker;
+	if (m_auditLogger)
+		delete m_auditLogger;
+	delete logger;
 }
 
 /**

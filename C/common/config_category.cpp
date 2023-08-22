@@ -20,6 +20,7 @@
 #include <stdlib.h>
 #include <logger.h>
 #include <stdexcept>
+#include <string_utils.h>
 
 
 using namespace std;
@@ -44,8 +45,8 @@ ConfigCategories::ConfigCategories(const std::string& json)
 	doc.Parse(json.c_str());
 	if (doc.HasParseError())
 	{
-		Logger::getLogger()->error("Configuration parse error in %s: %s at %d", json.c_str(),
-			GetParseError_En(doc.GetParseError()), (unsigned)doc.GetErrorOffset());
+		Logger::getLogger()->error("Configuration parse error in %s: %s at %d, '%s'", json.c_str(),
+			GetParseError_En(doc.GetParseError()), (unsigned)doc.GetErrorOffset(), StringAround(json, (unsigned)doc.GetErrorOffset()).c_str());
 		throw new ConfigMalformed();
 	}
 	if (doc.HasMember("categories"))
@@ -140,9 +141,10 @@ ConfigCategory::ConfigCategory(const string& name, const string& json) : m_name(
 	doc.Parse(json.c_str());
 	if (doc.HasParseError())
 	{
-		Logger::getLogger()->error("Configuration parse error in category '%s', %s: %s at %d",
+		Logger::getLogger()->error("Configuration parse error in category '%s', %s: %s at %d, '%s'",
 			name.c_str(), json.c_str(),
-			GetParseError_En(doc.GetParseError()), (unsigned)doc.GetErrorOffset());
+			GetParseError_En(doc.GetParseError()), (unsigned)doc.GetErrorOffset(),
+			StringAround(json, (unsigned)doc.GetErrorOffset()));
 		throw new ConfigMalformed();
 	}
 	
@@ -1117,10 +1119,14 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 			check.Parse(m_value.c_str());
 			if (check.HasParseError())
 			{
+				Logger::getLogger()->error("The JSON configuration item %s has a parse error: %s",
+					m_name.c_str(), GetParseError_En(check.GetParseError()));
 				throw new runtime_error(GetParseError_En(check.GetParseError()));
 			}
 			if (!check.IsObject())
 			{
+				Logger::getLogger()->error("The JSON configuration item %s is not a valid JSON objects",
+						m_name.c_str());
 				throw new runtime_error("'value' JSON property is not an object");
 			}
 		}
@@ -1221,10 +1227,14 @@ ConfigCategory::CategoryItem::CategoryItem(const string& name,
 			check.Parse(m_default.c_str());
 			if (check.HasParseError())
 			{
+				Logger::getLogger()->error("The JSON configuration item %s has a parse error in the default value: %s",
+					m_name.c_str(), GetParseError_En(check.GetParseError()));
 				throw new runtime_error(GetParseError_En(check.GetParseError()));
 			}
 			if (!check.IsObject())
 			{
+				Logger::getLogger()->error("The JSON configuration item %s default is not a valid JSON object",
+						m_name.c_str());
 				throw new runtime_error("'default' JSON property is not an object");
 			}
 		}

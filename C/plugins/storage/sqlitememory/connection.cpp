@@ -171,14 +171,12 @@ sqlite3_backup *backup;
 		if (backup = sqlite3_backup_init(file, "main", dbHandle, READINGS_TABLE_MEM))
 		{
 			rc = sqlite3_backup_step(backup, -1);
-			Logger::getLogger()->fatal("FIXME: backupstep return %d", rc);
 			(void)sqlite3_backup_finish(backup);
 			Logger::getLogger()->info("Persisted data from in memory database to %s", pathname.c_str());
 		}
 		rc = sqlite3_errcode(file);
 		if (rc != SQLITE_OK)
 		{
-			Logger::getLogger()->warn("Persisting in-memory database failed: %s", sqlite3_errmsg(dbHandle));
 			Logger::getLogger()->warn("Persisting in-memory database failed: %s", sqlite3_errmsg(file));
 		}
 

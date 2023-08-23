@@ -315,4 +315,6 @@ The storage plugin configuration can be found in the *Advanced* section of the *
 
     Although the pool size denotes the number of parallel operations that can take place, database locking considerations may reduce the number of actual operations in progress at any point in time.
 
+ - **Persist Data**: Control the persisting of the in-memory database on shutdown. If enabled the in-memory database will be persisted on shutdown of Fledge and reloaded when Fledge is next started. Selecting this option will slow down the shutdown and startup processing for Fledge.
 
+ - **Persist File**: This defines the name of the file to which the in-memory database willbe persisted.

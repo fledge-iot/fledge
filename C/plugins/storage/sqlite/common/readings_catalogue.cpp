@@ -17,7 +17,7 @@
 #include <string_utils.h>
 #include <connection.h>
 #include <connection_manager.h>
-#include <common.h>
+#include <sqlite_common.h>
 #include "readings_catalogue.h"
 #include <purge_configuration.h>
 

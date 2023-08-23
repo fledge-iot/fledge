@@ -23,6 +23,7 @@ include_directories(../../../thirdparty/rapidjson/include)
 # Add sqlitelb plugin header files
 include_directories(../sqlitelb/include)
 include_directories(../sqlitelb/common/include)
+include_directories(../sqlite/common/include)
 
 link_directories(${PROJECT_BINARY_DIR}/../../../lib)
 

@@ -584,7 +584,8 @@ class TestScriptManagement:
                                             result = await resp.text()
                                             json_response = json.loads(result)
                                             assert {'message': message} == json_response
-                                        audit_info_patch.assert_called_once_with('CTSDL', {'message': message})
+                                        audit_info_patch.assert_called_once_with(
+                                            'CTSDL', {'message': message, "name": script_name})
                                 patch_delete_tbl.assert_called_once_with(
                                     'control_script', json.dumps(delete_payload))
                             args, _ = patch_query_tbl.call_args
@@ -645,8 +646,9 @@ class TestScriptManagement:
                                 result = await resp.text()
                                 json_response = json.loads(result)
                                 assert {'message': message} == json_response
-                            audit_info_patch.assert_called_once_with('CTSDL', {'message': message})
-                    patch_delete_tbl.assert_called_once_with('control_script', json.dumps(delete_payload))
+                            audit_info_patch.assert_called_once_with(
+                                'CTSDL', {'message': message, "name": script_name})
+                            patch_delete_tbl.assert_called_once_with('control_script', json.dumps(delete_payload))
                 args, _ = patch_query_tbl.call_args
                 assert 'acl_usage' == args[0]
                 assert json.dumps(q_tbl_payload) == args[1]

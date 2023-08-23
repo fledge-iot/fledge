@@ -479,7 +479,7 @@ async def delete(request: web.Request) -> web.Response:
                         message = "{} script deleted successfully.".format(name)
                         # CTSDL audit trail entry
                         audit = AuditLogger(storage)
-                        await audit.information('CTSDL', {'message': message})
+                        await audit.information('CTSDL', {'message': message, "name": name})
                 else:
                     raise StorageServerError(delete_result)
             else:

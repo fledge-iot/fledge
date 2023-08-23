@@ -284,9 +284,11 @@ async def delete(request: web.Request) -> web.Response:
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         message = {"message": "Control Pipeline with ID:<{}> has been deleted successfully.".format(cpid)}
+        audit_details = message
+        audit_details["name"] = pipeline['name']
         # CTPDL audit trail entry
         audit = AuditLogger(storage)
-        await audit.information('CTPDL', message)
+        await audit.information('CTPDL', audit_details)
         return web.json_response(message)
 
 

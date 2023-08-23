@@ -332,7 +332,7 @@ class TestACLManagement:
                             result = await resp.text()
                             json_response = json.loads(result)
                             assert {'message': message} == json_response
-                        audit_info_patch.assert_called_once_with('ACLDL', {'message': message})
+                        audit_info_patch.assert_called_once_with('ACLDL', {'message': message, "name": acl_name})
                 delete_args, _ = patch_delete_tbl.call_args
                 assert 'control_acl' == delete_args[0]
                 assert delete_payload == json.loads(delete_args[1])

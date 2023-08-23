@@ -8,6 +8,7 @@
 
 set(SQLITE_MIN_VERSION "3.11.0")
 # Check wether path of compiled libsqlite3.a and .h files exists
+set(FLEDGE_SQLITE3_LIBS "/usr/local" CACHE INTERNAL "")
 if (EXISTS ${FLEDGE_SQLITE3_LIBS})
     find_path(SQLITE_INCLUDE_DIR sqlite3.h PATHS ${FLEDGE_SQLITE3_LIBS})
     find_library(SQLITE_LIBRARIES NAMES libsqlite3.a PATHS "${FLEDGE_SQLITE3_LIBS}/.libs")

@@ -43,7 +43,7 @@ const char *default_config = QUOTE({
 			"order" : "1"
 		},
 		"filename" : {
-			"description" : "The name of the file to which the in memory database should be persisted",
+			"description" : "The name of the file to which the in-memory database should be persisted",
 			"type" : "string",
 			"default" : "inmemory",
 			"displayName" : "Persist File",
@@ -51,7 +51,7 @@ const char *default_config = QUOTE({
 			"validity": "persist == \"true\""
 		},
 		"persist" : {
-			"description" : "Enable the persistance of the in memory database between executions",
+			"description" : "Enable the persistence of the in-memory database between executions",
 			"type" : "boolean",
 			"default" : "false",
 			"displayName" : "Persist Data",

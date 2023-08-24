@@ -141,7 +141,7 @@ sqlite3_backup *backup;
 		{
 			(void)sqlite3_backup_step(backup, -1);
 			(void)sqlite3_backup_finish(backup);
-			Logger::getLogger()->info("Reloaded persisted data to in memory database");
+			Logger::getLogger()->info("Reloaded persisted data to in-memory database");
 		}
 		rc = sqlite3_errcode(dbHandle);
 
@@ -172,7 +172,7 @@ sqlite3_backup *backup;
 		{
 			rc = sqlite3_backup_step(backup, -1);
 			(void)sqlite3_backup_finish(backup);
-			Logger::getLogger()->info("Persisted data from in memory database to %s", pathname.c_str());
+			Logger::getLogger()->info("Persisted data from in-memory database to %s", pathname.c_str());
 		}
 		rc = sqlite3_errcode(file);
 		if (rc != SQLITE_OK)

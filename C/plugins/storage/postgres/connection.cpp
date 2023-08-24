@@ -329,7 +329,7 @@ bool Connection::aggregateQuery(const Value& payload, string& resultSet)
 /**
  * Create a database connection
  */
-Connection::Connection()
+Connection::Connection() : m_maxReadingRows(INSERT_ROW_LIMIT)
 {
 	const char *defaultConninfo = "dbname = fledge";
 	char *connInfo = NULL;
@@ -1519,7 +1519,7 @@ bool 		add_row = false;
 	if (!doc.HasMember("readings"))
 	{
 		raiseError("appendReadings", "Payload is missing a readings array");
-	return -1;
+		return -1;
 	}
 	Value &rdings = doc["readings"];
 	if (!rdings.IsArray())
@@ -1528,10 +1528,32 @@ bool 		add_row = false;
 		return -1;
 	}
 
-	sql.append("INSERT INTO fledge.readings ( user_ts, asset_code, reading ) VALUES ");
+	const char *head = "INSERT INTO fledge.readings ( user_ts, asset_code, reading ) VALUES ";
+	sql.append(head);
 
+	int count = 0;
 	for (Value::ConstValueIterator itr = rdings.Begin(); itr != rdings.End(); ++itr)
 	{
+		if (count == m_maxReadingRows)
+		{
+			sql.append(';');
+
+			const char *query = sql.coalesce();
+			logSQL("ReadingsAppend", query);
+			PGresult *res = PQexec(dbConnection, query);
+			delete[] query;
+			if (PQresultStatus(res) != PGRES_COMMAND_OK)
+			{
+				raiseError("appendReadings", PQerrorMessage(dbConnection));
+				PQclear(res);
+				return -1;
+			}
+			PQclear(res);
+
+			sql.clear();
+			sql.append(head);
+			count = 0;
+		}
 		if (!itr->IsObject())
 		{
 			raiseError("appendReadings",
@@ -1550,7 +1572,7 @@ bool 		add_row = false;
 		// Check if the string is a function
 		if (isFunction(str))
 		{
-			if (row)
+			if (count)
 				sql.append(", (");
 			else
 				sql.append('(');
@@ -1567,7 +1589,7 @@ bool 		add_row = false;
 			}
 			else
 			{
-				if (row)
+				if (count)
 				{
 					sql.append(", (");
 				}
@@ -1585,6 +1607,7 @@ bool 		add_row = false;
 		if (add_row)
 		{
 			row++;
+			count++;
 
 			// Handles - asset_code
 			sql.append(",\'");
@@ -1600,6 +1623,12 @@ bool 		add_row = false;
 
 			sql.append(')');
 		}
+	}
+
+	if (count == 0)
+	{
+		// No rows in final block
+		return 0;
 	}
 	sql.append(';');
 

@@ -1992,19 +1992,22 @@ unsigned int  Connection::purgeReadings(unsigned long age,
 		unsentPurged = deletedRows;
 	}
 
+	gettimeofday(&endTv, NULL);
+	unsigned long duration = (1000000 * (endTv.tv_sec - startTv.tv_sec)) + endTv.tv_usec - startTv.tv_usec;
+
 	ostringstream convert;
 
 	convert << "{ \"removed\" : " << deletedRows << ", ";
 	convert << " \"unsentPurged\" : " << unsentPurged << ", ";
 	convert << " \"unsentRetained\" : " << unsentRetained << ", ";
-	convert << " \"readings\" : " << numReadings << " }";
+	convert << " \"readings\" : " << numReadings << ", ";
+	convert << " \"method\" : \"time\", ";
+	convert << " \"duration\" : " << duration << " }";
 
 	result = convert.str();
 
 	//logger->debug("Purge result=%s", result.c_str());
 
-	gettimeofday(&endTv, NULL);
-	unsigned long duration = (1000000 * (endTv.tv_sec - startTv.tv_sec)) + endTv.tv_usec - startTv.tv_usec;
 	logger->info("Purge process complete in %d blocks in %lduS", blocks, duration);
 
 	Logger::getLogger()->debug("%s - age :%lu: flag_retain :%x: sent :%lu: result :%s:", __FUNCTION__, age, flags, flag_retain, result.c_str() );
@@ -2028,10 +2031,12 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 	unsigned long rowsAffected;
 	unsigned long deletePoint;
 	bool flag_retain;
+	struct timeval startTv, endTv;
 
 
 	Logger *logger = Logger::getLogger();
 
+	gettimeofday(&startTv, NULL);
 	flag_retain = false;
 
 	if ( (flags & STORAGE_PURGE_RETAIN_ANY) || (flags & STORAGE_PURGE_RETAIN_ALL) )
@@ -2083,6 +2088,37 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 	rowsAffected = 0;
 	deletedRows = 0;
 	bool rowsAvailableToPurge = true;
+
+	// Create the prepared statements
+	SQLBuffer sqlBuffer;
+	sqlBuffer.append("select min(id) from " READINGS_DB_NAME_BASE "." READINGS_TABLE ";");
+	const char *idquery = sqlBuffer.coalesce();
+
+	rc = sqlite3_prepare_v2(dbHandle, idquery, -1, &idStmt, NULL);
+	if (rc != SQLITE_OK)
+	{
+		raiseError("purgeReadingsByRows", sqlite3_errmsg(dbHandle));
+		Logger::getLogger()->error("SQL statement: %s", idquery);
+		delete[] idquery;
+		return 0;
+	}
+	delete[] idquery;
+
+	SQLBuffer sql;
+	sql.append("delete from " READINGS_DB_NAME_BASE "." READINGS_TABLE "  where id <= ? ;");
+	const char *delquery = sql.coalesce();
+
+	rc = sqlite3_prepare_v2(dbHandle, delquery, strlen(delquery), &stmt, NULL);
+	
+	if (rc != SQLITE_OK)
+	{
+		raiseError("purgeReadingsByRows", sqlite3_errmsg(dbHandle));
+		Logger::getLogger()->error("SQL statement: %s", delquery);
+		delete[] delquery;
+		return 0;
+	}
+	delete[] delquery;
+
 	do
 	{
 		if (rowcount <= rows)
@@ -2091,19 +2127,12 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 			rowsAvailableToPurge = false;
 			break;
 		}
-		
-		SQLBuffer sqlBuffer;
-		sqlBuffer.append("select min(id) from " READINGS_DB_NAME_BASE "." READINGS_TABLE ";");
-		const char *query = sqlBuffer.coalesce();
-
-		rc = sqlite3_prepare_v2(dbHandle, query, -1, &idStmt, NULL);
 
 		if (SQLstep(idStmt) == SQLITE_ROW)
 		{
 			minId = sqlite3_column_int(idStmt, 0);
 		}
 
-		delete[] query;
 
 		sqlite3_clear_bindings(idStmt);
 		sqlite3_reset(idStmt);
@@ -2129,28 +2158,12 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 		}
 		
 		{
-			SQLBuffer sql;
 			logger->info("RowCount %lu, Max Id %lu, min Id %lu, delete point %lu", rowcount, maxId, minId, deletePoint);
 			
-			sql.append("delete from " READINGS_DB_NAME_BASE "." READINGS_TABLE "  where id <= ? ;");
-			const char *query = sql.coalesce();
-
-			rc = sqlite3_prepare_v2(dbHandle, query, strlen(query), &stmt, NULL);
-			
-			if (rc != SQLITE_OK)
-			{
-				raiseError("purgeReadingsByRows", sqlite3_errmsg(dbHandle));
-				Logger::getLogger()->error("SQL statement: %s", query);
-				return 0;
-			}
-			delete[] query;
 		}
 		sqlite3_bind_int(stmt, 1,(unsigned long) deletePoint);
 
 		{
-			//unique_lock<mutex> lck(db_mutex);
-//			if (m_writeAccessOngoing) db_cv.wait(lck);
-
 			// Exec DELETE query: no callback, no resultset
 			rc = SQLstep(stmt);
 			if (rc == SQLITE_DONE)
@@ -2193,12 +2206,17 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 		unsentRetained = numReadings - rows;
 	}
 
+	gettimeofday(&endTv, NULL);
+	unsigned long duration = (1000000 * (endTv.tv_sec - startTv.tv_sec)) + endTv.tv_usec - startTv.tv_usec;
+
 	ostringstream convert;
 
 	convert << "{ \"removed\" : " << deletedRows << ", ";
 	convert << " \"unsentPurged\" : " << unsentPurged << ", ";
 	convert << " \"unsentRetained\" : " << unsentRetained << ", ";
-	convert << " \"readings\" : " << numReadings << " }";
+	convert << " \"readings\" : " << numReadings << ", ";
+	convert << " \"method\" : \"rows\", ";
+	convert << " \"duration\" : " << duration << " }";
 
 	result = convert.str();
 

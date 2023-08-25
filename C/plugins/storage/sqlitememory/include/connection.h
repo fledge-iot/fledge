@@ -15,6 +15,11 @@
 #include <rapidjson/document.h>
 #include <sqlite3.h>
 
+WARNING: THIS FILE IS NOT USED
+
+#define	READINGS_TABLE		"readings"
+#define	READINGS_TABLE_MEM	READINGS_TABLE "_1"
+
 class Connection {
 	public:
 		Connection();
@@ -30,7 +35,9 @@ class Connection {
 		void		setTrace(bool flag) { m_logSQL = flag; };
 		static bool 	formatDate(char *formatted_date, size_t formatted_date_size, const char *date);
 		unsigned int	purgeReadingsAsset(const std::string& asset);
-		bool		vacuum() { return true; };
+		bool		vacuum();
+		bool		loadDatabase(const std::string& filname);
+		bool		saveDatabase(const std::string& filname);
 	private:
 		int 		SQLexec(sqlite3 *db, const char *sql,
 					int (*callback)(void*,int,char**,char**),

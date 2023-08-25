@@ -7,9 +7,9 @@
  *
  * Author: Massimiliano Pinto
  */
+#include <sqlite_common.h>
 #include <connection.h>
 #include <connection_manager.h>
-#include <common.h>
 #include <utils.h>
 #include <unistd.h>
 

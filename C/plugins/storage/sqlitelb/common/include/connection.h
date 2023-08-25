@@ -119,6 +119,10 @@ class Connection {
 		bool        	getNow(std::string& Now);
 		unsigned int	purgeReadingsAsset(const std::string& asset);
 		bool		vacuum();
+#ifdef MEMORY_READING_PLUGIN
+		bool		loadDatabase(const std::string& filname);
+		bool		saveDatabase(const std::string& filname);
+#endif
 
 	private:
 #ifndef MEMORY_READING_PLUGIN

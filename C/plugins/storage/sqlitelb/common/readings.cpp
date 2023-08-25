@@ -11,7 +11,7 @@
 #include <math.h>
 #include <connection.h>
 #include <connection_manager.h>
-#include <common.h>
+#include <sqlite_common.h>
 #include <reading_stream.h>
 #include <random>
 

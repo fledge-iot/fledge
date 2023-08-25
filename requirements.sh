@@ -207,6 +207,8 @@ if [[ $YUM_PLATFORM = true ]]; then
 		set -e
 		make
 		make install
+	else
+	    make install
 	fi
 	cd $fledge_location
 	set -e

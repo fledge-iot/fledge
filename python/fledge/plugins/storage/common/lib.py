@@ -9,6 +9,7 @@ import time
 import os
 import asyncio
 import json
+import datetime
 from enum import IntEnum
 
 from fledge.common import logger
@@ -403,17 +404,10 @@ class BackupRestoreLib(object):
         Returns:
         Raises:
         """
-
         _logger.debug("{func} - file name |{file}| ".format(func="sl_backup_status_create", file=_file_name))
-
-        payload = payload_builder.PayloadBuilder() \
-            .INSERT(file_name=_file_name,
-                    ts="now()",
-                    type=_type,
-                    status=_status,
-                    exit_code=0) \
-            .payload()
-
+        payload = payload_builder.PayloadBuilder().INSERT(
+            file_name=_file_name, ts=datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"), type=_type,
+            status=_status, exit_code=0).payload()
         asyncio.get_event_loop().run_until_complete(self._storage.insert_into_tbl(self.STORAGE_TABLE_BACKUPS, payload))
 
     def sl_backup_status_update(self, _id, _status, _exit_code):
@@ -426,17 +420,11 @@ class BackupRestoreLib(object):
         Returns:
         Raises:
         """
-
         _logger.debug("{func} - id |{file}| ".format(func="sl_backup_status_update", file=_id))
-
-        payload = payload_builder.PayloadBuilder() \
-            .SET(status=_status,
-                 ts="now()",
-                 exit_code=_exit_code) \
-            .WHERE(['id', '=', _id]) \
-            .payload()
-
-        asyncio.get_event_loop().run_until_complete( self._storage.update_tbl(self.STORAGE_TABLE_BACKUPS, payload))
+        payload = payload_builder.PayloadBuilder().SET(
+            status=_status, ts=datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"), exit_code=_exit_code
+        ).WHERE(['id', '=', _id]).payload()
+        asyncio.get_event_loop().run_until_complete(self._storage.update_tbl(self.STORAGE_TABLE_BACKUPS, payload))
 
     def sl_get_backup_details_from_file_name(self, _file_name):
         """ Retrieves backup information from file name

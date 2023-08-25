@@ -8,8 +8,9 @@ import copy
 import json
 from aiohttp import web
 
-from fledge.common.logger import FLCoreLogger
+from fledge.common.audit_logger import AuditLogger
 from fledge.common.configuration_manager import ConfigurationManager
+from fledge.common.logger import FLCoreLogger
 from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.common.storage_client.exceptions import StorageServerError
 from fledge.services.core import connect, server
@@ -136,6 +137,9 @@ async def create(request: web.Request) -> web.Response:
         _logger.error(ex, "Failed to create pipeline: {}.".format(data.get('name')))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
+        # CTPAD audit trail entry
+        audit = AuditLogger(storage)
+        await audit.information('CTPAD', final_result)
         return web.json_response(final_result)
 
 
@@ -244,6 +248,10 @@ async def update(request: web.Request) -> web.Response:
         _logger.error(ex, "Failed to update pipeline having ID: <{}>.".format(cpid))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
+        # CTPCH audit trail entry
+        audit = AuditLogger(storage)
+        updated_pipeline = await _get_pipeline(cpid)
+        await audit.information('CTPCH', {"pipeline": updated_pipeline, "old_pipeline": pipeline})
         return web.json_response(
             {"message": "Control Pipeline with ID:<{}> has been updated successfully.".format(cpid)})
 
@@ -275,8 +283,13 @@ async def delete(request: web.Request) -> web.Response:
         _logger.error(ex, "Failed to delete pipeline having ID: <{}>.".format(cpid))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
-        return web.json_response(
-            {"message": "Control Pipeline with ID:<{}> has been deleted successfully.".format(cpid)})
+        message = {"message": "Control Pipeline with ID:<{}> has been deleted successfully.".format(cpid)}
+        audit_details = message
+        audit_details["name"] = pipeline['name']
+        # CTPDL audit trail entry
+        audit = AuditLogger(storage)
+        await audit.information('CTPDL', audit_details)
+        return web.json_response(message)
 
 
 async def _get_all_lookups(tbl_name=None):

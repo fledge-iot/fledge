@@ -6,8 +6,8 @@ set(CMAKE_CXX_FLAGS_DEBUG "-O0 -ggdb")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 set(STORAGE_COMMON_LIB storage-common-lib)
 
-# Path of compiled libsqlite3.a and .h files: /usr/local
-set(FLEDGE_SQLITE3_LIBS "/usr/local" CACHE INTERNAL "")
+# Path of compiled sqlite3 file: /usr/local/bin
+set(FLEDGE_SQLITE3_LIBS "/usr/local/bin" CACHE INTERNAL "")
 
 # Find source files
 # Add sqlitelb plugin common files
@@ -23,6 +23,7 @@ include_directories(../../../thirdparty/rapidjson/include)
 # Add sqlitelb plugin header files
 include_directories(../sqlitelb/include)
 include_directories(../sqlitelb/common/include)
+include_directories(../sqlite/common/include)
 
 link_directories(${PROJECT_BINARY_DIR}/../../../lib)
 

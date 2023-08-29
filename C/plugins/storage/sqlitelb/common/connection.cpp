@@ -9,7 +9,7 @@
  */
 #include <connection.h>
 #include <connection_manager.h>
-#include <common.h>
+#include <sqlite_common.h>
 #include <utils.h>
 #ifndef MEMORY_READING_PLUGIN
 #include <schema.h>

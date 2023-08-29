@@ -6,8 +6,8 @@ set(CMAKE_CXX_FLAGS_DEBUG "-O0 -ggdb")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 set(STORAGE_COMMON_LIB storage-common-lib)
 
-# Path of compiled libsqlite3.a and .h files: /usr/local
-set(FLEDGE_SQLITE3_LIBS "/usr/local" CACHE INTERNAL "")
+# Path of compiled sqlite3 file: /usr/local/bin
+set(FLEDGE_SQLITE3_LIBS "/usr/local/bin" CACHE INTERNAL "")
 
 # Find source files
 file(GLOB SOURCES ./common/*.cpp ../sqlite/schema/*.cpp *.cpp)
@@ -16,6 +16,7 @@ file(GLOB SOURCES ./common/*.cpp ../sqlite/schema/*.cpp *.cpp)
 include_directories(./include)
 include_directories(./common/include)
 include_directories(../sqlite/schema/include)
+include_directories(../sqlite/common/include)
 include_directories(../../../common/include)
 include_directories(../../../services/common/include)
 include_directories(../common/include)

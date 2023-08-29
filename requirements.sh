@@ -206,7 +206,9 @@ if [[ $YUM_PLATFORM = true ]]; then
 
 		set -e
 		make
-		# TODO: Use make install to install sqlite3 as a command
+		make install
+	else
+	    make install
 	fi
 	cd $fledge_location
 	set -e
@@ -253,6 +255,7 @@ elif apt --version 2>/dev/null; then
 
 	sqlite3_build_prepare
 	make
+	make install
         
 	apt install -y sqlite3 # make install after sqlite3_build_prepare should be enough to install sqlite3 as a command 
 	apt install -y pkg-config

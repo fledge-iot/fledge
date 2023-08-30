@@ -9,9 +9,9 @@
  */
 
 #include <math.h>
+#include <sqlite_common.h>
 #include <connection.h>
 #include <connection_manager.h>
-#include <common.h>
 #include <reading_stream.h>
 #include <random>
 #include <utils.h>

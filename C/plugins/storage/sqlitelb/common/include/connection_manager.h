@@ -37,7 +37,13 @@ class ConnectionManager {
 		void			  setVacuumInterval(long hours) {
 						m_vacuumInterval = 60 * 60 * hours;
 					  };
-
+		void			  setPersist(bool persist, const std::string& filename = "")
+					  {
+						m_persist = persist;
+						m_filename = filename;
+					   }
+		bool			   persist() { return m_persist; };
+		std::string		   filename() { return m_filename; };
 	protected:
 		ConnectionManager();
 
@@ -54,6 +60,8 @@ class ConnectionManager {
 		bool			     m_shutdown;
 		std::thread		     *m_background;
 		long			     m_vacuumInterval;
+		bool			     m_persist;
+		std::string	             m_filename;
 };
 
 #endif

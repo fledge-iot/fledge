@@ -52,6 +52,8 @@ Connection::Connection()
 					");";
 
 	const char * createReadingsFk = "CREATE INDEX fki_" READINGS_TABLE_MEM "_fk1 ON " READINGS_TABLE_MEM " (asset_code);";
+	const char * createReadingsIdx1 = "CREATE INDEX ix1_" READINGS_TABLE_MEM " ON " READINGS_TABLE_MEM " (asset_code, user_ts desc);";
+	const char * createReadingsIdx2 = "CREATE INDEX ix2_" READINGS_TABLE_MEM " ON " READINGS_TABLE_MEM " (user_ts);";
 
 	// Allow usage of URI for filename
         sqlite3_config(SQLITE_CONFIG_URI, 1);
@@ -101,6 +103,18 @@ Connection::Connection()
 				  NULL,
 				  NULL);
 
+                // Idx1
+		rc = sqlite3_exec(dbHandle,
+				  createReadingsIdx1,
+				  NULL,
+				  NULL,
+				  NULL);
+                // Idx2
+		rc = sqlite3_exec(dbHandle,
+				  createReadingsIdx2,
+				  NULL,
+				  NULL,
+				  NULL);
 	}
 
 }

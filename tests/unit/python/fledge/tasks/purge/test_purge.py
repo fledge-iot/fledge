@@ -106,7 +106,7 @@ class TestPurge:
     async def store_purge(self, **kwargs):
         if kwargs.get('age') == '-1' or kwargs.get('size') == '-1':
             raise StorageServerError(400, "Bla", "Some Error")
-        return {"readings": 10, "removed": 1, "unsentPurged": 2, "unsentRetained": 7}
+        return {"readings": 10, "removed": 1, "unsentPurged": 2, "unsentRetained": 7, "duration": 100, "method":"mock"}
 
     config = {"purgeAgeSize": {"retainUnsent": {"value": "purge unsent"}, "age": {"value": "72"}, "size": {"value": "20"}},
               "purgeAge": {"retainUnsent": {"value": "purge unsent"}, "age": {"value": "72"}, "size": {"value": "0"}},

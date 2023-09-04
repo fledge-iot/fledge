@@ -72,18 +72,22 @@ void Logger::setMinLevel(const string& level)
 	{
 		setlogmask(LOG_UPTO(LOG_INFO));
 		levelString = level;
+		m_level = LOG_INFO;
 	} else if (level.compare("warning") == 0)
 	{
 		setlogmask(LOG_UPTO(LOG_WARNING));
 		levelString = level;
+		m_level = LOG_WARNING;
 	} else if (level.compare("debug") == 0)
 	{
 		setlogmask(LOG_UPTO(LOG_DEBUG));
 		levelString = level;
+		m_level = LOG_DEBUG;
 	} else if (level.compare("error") == 0)
 	{
 		setlogmask(LOG_UPTO(LOG_ERR));
 		levelString = level;
+		m_level = LOG_ERR;
 	} else
 	{
 		error("Request to set unsupported log level %s", level.c_str());
@@ -92,6 +96,10 @@ void Logger::setMinLevel(const string& level)
 
 void Logger::debug(const string& msg, ...)
 {
+	if (m_level == LOG_ERR || m_level == LOG_WARNING || m_level == LOG_INFO)
+	{
+		return;
+	}
 	va_list args;
 	va_start(args, msg);
 	string *fmt = format(msg, args);
@@ -111,6 +119,10 @@ void Logger::printLongString(const string& s)
 
 void Logger::info(const string& msg, ...)
 {
+	if (m_level == LOG_ERR || m_level == LOG_WARNING)
+	{
+		return;
+	}
 	va_list args;
 	va_start(args, msg);
 	string *fmt = format(msg, args);

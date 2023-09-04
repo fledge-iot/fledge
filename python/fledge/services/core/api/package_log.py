@@ -63,7 +63,7 @@ async def get_logs(request: web.Request) -> web.Response:
                 dt = "{}-{}-{}-{}".format(t3[0], t3[1], t3[2], t3[3])
                 ts = datetime.strptime(dt, "%y%m%d-%H-%M-%S").strftime('%Y-%m-%d %H:%M:%S')
             else:
-                dt = datetime.now()
+                dt = datetime.utcnow()
                 ts = dt.strftime("%Y-%m-%d %H:%M:%S")
             result.append({"timestamp": ts, "name": name, "filename": f})
 

@@ -229,7 +229,7 @@ def create_log_file(action: str = "", plugin_name: str = "") -> str:
     logs_dir = '/logs/'
     _PATH = _FLEDGE_DATA + logs_dir if _FLEDGE_DATA else _FLEDGE_ROOT + '/data{}'.format(logs_dir)
     # YYMMDD-HH-MM-SS-{plugin_name}.log
-    file_spec = datetime.now().strftime('%y%m%d-%H-%M-%S')
+    file_spec = datetime.utcnow().strftime('%y%m%d-%H-%M-%S')
     if not action:
         log_file_name = "{}-{}.log".format(file_spec, plugin_name) if plugin_name else "{}.log".format(file_spec)
     else:

@@ -62,7 +62,7 @@ class SupportBuilder:
 
     async def build(self):
         try:
-            today = datetime.datetime.now()
+            today = datetime.datetime.utcnow()
             file_spec = today.strftime('%y%m%d-%H-%M-%S')
             tar_file_name = self._out_file_path+"/"+"support-{}.tar.gz".format(file_spec)
             pyz = tarfile.open(tar_file_name, "w:gz")

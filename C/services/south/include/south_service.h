@@ -47,6 +47,7 @@ class SouthService : public ServiceAuthHandler {
 	public:
 		SouthService(const std::string& name,
 			const std::string& token = "");
+		virtual				~SouthService();
 		void 				start(std::string& coreAddress,
 						      unsigned short corePort);
 		void 				stop();

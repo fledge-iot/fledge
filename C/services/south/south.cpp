@@ -105,8 +105,12 @@ bool	       dryrun = false;
 	{
 		service->setDryRun();
 	}
-	Logger::getLogger()->setMinLevel(logLevel);
+	Logger *logger = Logger::getLogger();
+	logger->setMinLevel(logLevel);
+	// Start the service. This will oly return whren the serivce is shutdown
 	service->start(coreAddress, corePort);
+	delete service;
+	delete logger;
 	return 0;
 }
 
@@ -224,14 +228,18 @@ void doIngestV2(Ingest *ingest, ReadingSet *set)
  * Constructor for the south service
  */
 SouthService::SouthService(const string& myName, const string& token) :
+				southPlugin(NULL),
+				m_assetTracker(NULL),
 				m_shutdown(false),
 				m_readingsPerSec(1),
 				m_throttle(false),
 				m_throttled(false),
 				m_token(token),
 				m_repeatCnt(1),
+				m_pluginData(NULL),
 				m_dryRun(false),
 				m_requestRestart(false),
+				m_auditLogger(NULL),
 				m_perfMonitor(NULL)
 {
 	m_name = myName;
@@ -242,6 +250,17 @@ SouthService::SouthService(const string& myName, const string& token) :
 	logger->setMinLevel("warning");
 
 	m_reconfThread = new std::thread(reconfThreadMain, this);
+}
+
+/**
+ * Destructor for south service
+ */
+SouthService::~SouthService()
+{
+	if (m_pluginData)
+		delete m_pluginData;
+	if (m_perfMonitor)
+		delete m_perfMonitor;
 }
 
 /**

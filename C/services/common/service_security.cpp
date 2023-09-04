@@ -95,7 +95,7 @@ bool ServiceAuthHandler::createSecurityCategories(ManagementClient* mgtClient, b
 	// Start thread for automatic bearer token refresh, before expiration
 	if (this->getType() != "Southbound" && dryRun == false)
 	{
-		new thread(bearer_token_refresh_thread, this);
+		m_refreshThread = new thread(bearer_token_refresh_thread, this);
 	}
 
 	return true;

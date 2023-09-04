@@ -189,6 +189,8 @@ bool		dryRun = false;
 	}
 	Logger::getLogger()->setMinLevel(logLevel);
 	service->start(coreAddress, corePort);
+
+	delete service;
 	return 0;
 }
 
@@ -311,6 +313,8 @@ NorthService::~NorthService()
 		delete m_assetTracker;
 	if (m_auditLogger)
 		delete m_auditLogger;
+	if (m_mgtClient)
+		delete m_mgtClient;
 	delete logger;
 }
 

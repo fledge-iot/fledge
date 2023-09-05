@@ -280,6 +280,7 @@ int	size;
 NorthService::NorthService(const string& myName, const string& token) :
 	m_dataLoad(NULL),
 	m_dataSender(NULL),
+	northPlugin(NULL),
 	m_assetTracker(NULL),
 	m_shutdown(false),
 	m_storage(NULL),
@@ -301,6 +302,8 @@ NorthService::NorthService(const string& myName, const string& token) :
  */
 NorthService::~NorthService()
 {
+	if (northPlugin)
+		delete northPlugin;
 	if (m_storage)
 		delete m_storage;
 	if (m_dataLoad)
@@ -483,8 +486,10 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 
 		m_dataLoad->shutdown();		// Forces the data load to return from any blocking fetch call
 		delete m_dataSender;
+		m_dataSender = NULL;
 		logger->debug("North service data sender has shut down");
 		delete m_dataLoad;
+		m_dataLoad = NULL;
 		logger->debug("North service shutting down plugin");
 
 
@@ -821,6 +826,7 @@ void NorthService::restartPlugin()
 	}
 
 	delete northPlugin;
+	northPlugin = NULL;
 	loadPlugin();
 	// Deal with persisted data and start the plugin
 	if (northPlugin->persistData())

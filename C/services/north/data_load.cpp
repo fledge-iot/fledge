@@ -60,11 +60,12 @@ DataLoad::~DataLoad()
 	}
 	// Clear out the queue of readings
 	unique_lock<mutex> lck(m_qMutex);	// Should not need to do this
-	for (auto &item : m_queue)
+	while (! m_queue.empty())
 	{
-		delete item;
+		ReadingSet *readings = m_queue.front();
+		delete readings;
+		m_queue.pop_front();
 	}
-	m_queue.clear();
 	Logger::getLogger()->info("Data load shutdown complete");
 }
 

@@ -257,6 +257,7 @@ SouthService::SouthService(const string& myName, const string& token) :
  */
 SouthService::~SouthService()
 {
+	m_cvNewReconf.notify_all();	// Wakeup the reconfigure thread to terminate it
 	if (m_pluginData)
 		delete m_pluginData;
 	if (m_perfMonitor)
@@ -1027,10 +1028,7 @@ static void reconfThreadMain(void *arg)
 {
 	SouthService *ss = (SouthService *)arg;
 	Logger::getLogger()->info("reconfThreadMain(): Spawned new thread for plugin reconf");
-	while(1)
-	{
-		ss->handlePendingReconf();
-	}
+	ss->handlePendingReconf();
 	Logger::getLogger()->info("reconfThreadMain(): plugin reconf thread exiting");
 }
 
@@ -1040,47 +1038,50 @@ static void reconfThreadMain(void *arg)
  */
 void SouthService::handlePendingReconf()
 {
-	Logger::getLogger()->debug("SouthService::handlePendingReconf: Going into cv wait");
-	mutex mtx;
-	unique_lock<mutex> lck(mtx);
-	m_cvNewReconf.wait(lck);
-	Logger::getLogger()->debug("SouthService::handlePendingReconf: cv wait has completed; some reconf request(s) has/have been queued up");
-
-	while(1)
+	while (isRunning())
 	{
-		unsigned int numPendingReconfs = 0;
-		{
-			lock_guard<mutex> guard(m_pendingNewConfigMutex);
-			numPendingReconfs = m_pendingNewConfig.size();
-			if (numPendingReconfs)
-				Logger::getLogger()->debug("SouthService::handlePendingReconf(): will process %d entries in m_pendingNewConfig", numPendingReconfs);
-			else
-			{
-				Logger::getLogger()->debug("SouthService::handlePendingReconf DONE");
-				break;
-			}
-		}
+		Logger::getLogger()->debug("SouthService::handlePendingReconf: Going into cv wait");
+		mutex mtx;
+		unique_lock<mutex> lck(mtx);
+		m_cvNewReconf.wait(lck);
+		Logger::getLogger()->debug("SouthService::handlePendingReconf: cv wait has completed; some reconf request(s) has/have been queued up");
 
-		for (unsigned int i=0; i<numPendingReconfs; i++)
+		while (isRunning())
 		{
-			logger->debug("SouthService::handlePendingReconf(): Handling Configuration change #%d", i);
-			std::pair<std::string,std::string> *reconfValue = NULL;
+			unsigned int numPendingReconfs = 0;
 			{
 				lock_guard<mutex> guard(m_pendingNewConfigMutex);
-				reconfValue = &m_pendingNewConfig[i];
+				numPendingReconfs = m_pendingNewConfig.size();
+				if (numPendingReconfs)
+					Logger::getLogger()->debug("SouthService::handlePendingReconf(): will process %d entries in m_pendingNewConfig", numPendingReconfs);
+				else
+				{
+					Logger::getLogger()->debug("SouthService::handlePendingReconf DONE");
+					break;
+				}
 			}
-			std::string categoryName = reconfValue->first;
-			std::string category = reconfValue->second;
-			processConfigChange(categoryName, category);
 
-			logger->debug("SouthService::handlePendingReconf(): Handling of configuration change #%d done", i);
-		}
-		
-		{
-			lock_guard<mutex> guard(m_pendingNewConfigMutex);
 			for (unsigned int i=0; i<numPendingReconfs; i++)
-				m_pendingNewConfig.pop_front();
-			logger->debug("SouthService::handlePendingReconf DONE: first %d entry(ies) removed, m_pendingNewConfig new size=%d", numPendingReconfs, m_pendingNewConfig.size());
+			{
+				logger->debug("SouthService::handlePendingReconf(): Handling Configuration change #%d", i);
+				std::pair<std::string,std::string> *reconfValue = NULL;
+				{
+					lock_guard<mutex> guard(m_pendingNewConfigMutex);
+					reconfValue = &m_pendingNewConfig[i];
+				}
+				std::string categoryName = reconfValue->first;
+				std::string category = reconfValue->second;
+				processConfigChange(categoryName, category);
+
+				logger->debug("SouthService::handlePendingReconf(): Handling of configuration change #%d done", i);
+			}
+			
+			{
+				lock_guard<mutex> guard(m_pendingNewConfigMutex);
+				for (unsigned int i=0; i<numPendingReconfs; i++)
+					m_pendingNewConfig.pop_front();
+				logger->debug("SouthService::handlePendingReconf DONE: first %d entry(ies) removed, m_pendingNewConfig new size=%d", numPendingReconfs, m_pendingNewConfig.size());
+			}
 		}
 	}
 }

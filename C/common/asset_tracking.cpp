@@ -112,8 +112,16 @@ AssetTracker::~AssetTracker()
 		m_storageClient = NULL;
 	}
 
+	for (auto& item : assetTrackerTuplesCache)
+	{
+		delete item;
+	}
 	assetTrackerTuplesCache.clear();
 
+	for (auto& store : storageAssetTrackerTuplesCache)
+	{
+		delete store.first;
+	}
 	storageAssetTrackerTuplesCache.clear();
 }
 

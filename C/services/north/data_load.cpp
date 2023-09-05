@@ -195,6 +195,11 @@ ReadingSet *readings = NULL;
 			bufferReadings(readings);
 			return;
 		}
+		else if (readings)
+		{
+			// Delete the empty readings set
+			delete readings;
+		}
 		else
 		{
 			// Logger::getLogger()->debug("DataLoad::readBlock(): No readings available");

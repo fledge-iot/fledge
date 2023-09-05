@@ -113,6 +113,13 @@ SouthPlugin::SouthPlugin(PLUGIN_HANDLE handle, const ConfigCategory& category) :
 }
 
 /**
+ * South plugin destructor
+ */
+SouthPlugin::~SouthPlugin()
+{
+}
+
+/**
  * Call the start method in the plugin
  */
 void SouthPlugin::start()

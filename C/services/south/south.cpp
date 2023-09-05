@@ -258,6 +258,8 @@ SouthService::SouthService(const string& myName, const string& token) :
 SouthService::~SouthService()
 {
 	m_cvNewReconf.notify_all();	// Wakeup the reconfigure thread to terminate it
+	m_reconfThread->join();
+	delete m_reconfThread;
 	if (m_pluginData)
 		delete m_pluginData;
 	if (m_perfMonitor)
@@ -682,6 +684,8 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 			{
 				southPlugin->shutdown();
 			}
+			delete southPlugin;
+			southPlugin = NULL;
 		}
 		}
 		

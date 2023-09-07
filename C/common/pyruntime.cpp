@@ -49,6 +49,7 @@ PythonRuntime::PythonRuntime()
  */
 PythonRuntime::~PythonRuntime()
 {
+	PyGILState_STATE gstate = PyGILState_Ensure();
 	Py_Finalize();
 }
 

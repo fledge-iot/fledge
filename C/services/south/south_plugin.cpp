@@ -194,6 +194,7 @@ ReadingSet* SouthPlugin::pollV2()
 		if(vec)
 		{
 			ReadingSet *set = new ReadingSet(vec);
+			vec->clear();
 			delete vec;
 			return set;  // this->pluginPollPtrV2(instance);
         	}

@@ -268,7 +268,13 @@ SouthService::~SouthService()
 	delete m_assetTracker;
 	delete m_auditLogger;
 	delete m_mgtClient;
+
+	// We would like to shutdown the Python environment if it
+	// was running. However this causes a segmentation fault within Python
+	// so we currently can not do this
+#if PYTHON_SHUTDOWN
 	PythonRuntime::shutdown();	// Shutdown and release Python resources
+#endif
 }
 
 /**

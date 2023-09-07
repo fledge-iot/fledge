@@ -33,6 +33,7 @@
 #include <filter_plugin.h>
 #include <config_handler.h>
 #include <syslog.h>
+#include <pyruntime.h>
 
 #define SERVICE_TYPE "Southbound"
 
@@ -267,6 +268,7 @@ SouthService::~SouthService()
 	delete m_assetTracker;
 	delete m_auditLogger;
 	delete m_mgtClient;
+	PythonRuntime::shutdown();	// Shutdown and release Python resources
 }
 
 /**

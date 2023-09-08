@@ -14,7 +14,7 @@ using namespace rapidjson;
 using namespace SimpleWeb;
 
 /**
- * Constructor for the OMFImforation class
+ * Constructor for the OMFInformation class
  */
 OMFInformation::OMFInformation(ConfigCategory *config) : m_sender(NULL), m_omf(NULL)
 {
@@ -274,7 +274,7 @@ OMFInformation::OMFInformation(ConfigCategory *config) : m_sender(NULL), m_omf(N
 }
 
 /**
- * Destructor for the OMFInformaiton class.
+ * Destructor for the OMFInformation class.
  */
 OMFInformation::~OMFInformation()
 {

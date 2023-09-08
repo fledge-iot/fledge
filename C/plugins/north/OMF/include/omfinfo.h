@@ -96,9 +96,9 @@ enum OMF_ENDPOINT_PORT {
 )
 
 /**
- * A class that holds the configuration informaiton for the OMF plugin.
+ * A class that holds the configuration information for the OMF plugin.
  *
- * Note this is the first stage of refactorign the OMF pluigns and represents
+ * Note this is the first stage of refactoring the OMF pluigns and represents
  * the CONNECTOR_INFO structure of original plugin as a class
  */
 class OMFInformation {

@@ -1712,7 +1712,9 @@ unsigned int  Connection::purgeReadings(unsigned long age, unsigned int flags, u
 	result = "{ \"removed\" : 0, ";
 	result += " \"unsentPurged\" : 0, ";
 	result += " \"unsentRetained\" : 0, ";
-	result += " \"readings\" : 0 }";
+	result += " \"readings\" : 0, ";
+	result += " \"method\" : \"age\", ";
+	result += " \"duration\" : 0 }";
 
 	logger->info("Purge starting...");
 	gettimeofday(&startTv, NULL);
@@ -1928,20 +1930,21 @@ unsigned int  Connection::purgeReadings(unsigned long age, unsigned int flags, u
 
 	ostringstream convert;
 
+	unsigned long duration;
+	gettimeofday(&endTv, NULL);
+	duration = (1000000 * (endTv.tv_sec - startTv.tv_sec)) + endTv.tv_usec - startTv.tv_usec;
+
 	convert << "{ \"removed\" : "       << deletedRows    << ", ";
 	convert << " \"unsentPurged\" : "   << unsentPurged   << ", ";
 	convert << " \"unsentRetained\" : " << unsentRetained << ", ";
-	convert << " \"readings\" : "       << numReadings    << " }";
+	convert << " \"readings\" : "       << numReadings    << ", ";
+	convert << " \"method\" : \"age\", ";
+	convert << " \"duration\" : "       << duration       << " }";
 
 	result = convert.str();
 
-	{ // Timing
-		unsigned long duration;
-		gettimeofday(&endTv, NULL);
-		duration = (1000000 * (endTv.tv_sec - startTv.tv_sec)) + endTv.tv_usec - startTv.tv_usec;
-		duration = duration / 1000; // milliseconds
-		logger->info("Purge process complete in %d blocks in %ld milliseconds", blocks, duration);
-	}
+	duration = duration / 1000; // milliseconds
+	logger->info("Purge process complete in %d blocks in %ld milliseconds", blocks, duration);
 
 	Logger::getLogger()->debug("%s - age :%lu: flag_retain :%x: sent :%lu: result :%s:", __FUNCTION__, age, flags, flag_retain, result.c_str() );
 
@@ -2013,6 +2016,7 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 	unsigned long rowcount, minId, maxId;
 	unsigned long rowsAffectedLastComand;
 	unsigned long deletePoint;
+	struct timeval startTv, endTv;
 
 	string sqlCommand;
 	bool flag_retain;
@@ -2021,6 +2025,7 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 
 	Logger *logger = Logger::getLogger();
 
+	gettimeofday(&startTv, NULL);
 	flag_retain = false;
 
 	if ( (flags & STORAGE_PURGE_RETAIN_ANY) || (flags & STORAGE_PURGE_RETAIN_ALL) )
@@ -2113,12 +2118,17 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 		unsentRetained = numReadings - rows;
 	}
 
+	gettimeofday(&endTv, NULL);
+	unsigned long duration = (1000000 * (endTv.tv_sec - startTv.tv_sec)) + endTv.tv_usec - startTv.tv_usec;
+
 	ostringstream convert;
 
 	convert << "{ \"removed\" : " << deletedRows << ", ";
 	convert << " \"unsentPurged\" : " << unsentPurged << ", ";
 	convert << " \"unsentRetained\" : " << unsentRetained << ", ";
-	convert << " \"readings\" : " << numReadings << " }";
+	convert << " \"readings\" : " << numReadings << ", ";
+	convert << " \"method\" : \"rows\", ";
+	convert << " \"duration\" : " << duration << " }";
 
 	result = convert.str();
 

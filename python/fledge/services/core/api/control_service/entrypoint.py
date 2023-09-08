@@ -352,13 +352,13 @@ async def update(request: web.Request) -> web.Response:
         entry_point_result = await storage.query_tbl_with_payload("control_api", payload)
         if not entry_point_result['rows']:
             msg = '{} control entrypoint not found.'.format(name)
-            return web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
+            raise KeyError(msg)
         try:
             data = await request.json()
             columns = await _check_parameters(data, skip_required=True)
         except Exception as ex:
             msg = str(ex)
-            return web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+            raise ValueError(msg)
         # TODO: FOGL-8037 rename
         if 'name' in columns:
             del columns['name']
@@ -430,7 +430,13 @@ async def update(request: web.Request) -> web.Response:
                 await storage.update_tbl("control_api", payload)
         else:
             msg = "Nothing to update. No valid key value pair found in payload."
-            return web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+            raise ValueError(msg)
+    except ValueError as err:
+        msg = str(err)
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+    except KeyError as err:
+        msg = str(err)
+        raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
         _logger.error(ex, "Failed to update the details of {} entrypoint.".format(name))

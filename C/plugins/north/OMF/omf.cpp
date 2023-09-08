@@ -236,7 +236,8 @@ OMF::OMF(const string& name,
 	 m_producerToken(token),
 	 m_sender(sender),
 	 m_legacy(false),
-	 m_name(name)
+	 m_name(name),
+	 m_baseTypesSent(false)
 {
 	m_lastError = false;
 	m_changeTypeId = false;
@@ -1104,12 +1105,16 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 	gettimeofday(&start, NULL);
 #endif
 
-	if (m_linkedProperties)
+	if (m_linkedProperties && m_baseTypesSent == false)
 	{
 		if (!sendBaseTypes())
 		{
 			Logger::getLogger()->error("Unable to send base types, linked assets will not be sent. The system will fall back to using complex types.");
 			m_linkedProperties = false;
+		}
+		else
+		{
+			m_baseTypesSent = true;
 		}
 	}
 

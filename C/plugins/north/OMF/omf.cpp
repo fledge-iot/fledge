@@ -490,7 +490,8 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 		return false;
 	}
 
-	if (m_sendFullStructure) {
+	if (m_sendFullStructure)
+	{
 
 
 		// Create header for Static data
@@ -557,11 +558,8 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 			m_connected = false;
 			return false;
 		}
-	}
 
 
-	if (m_sendFullStructure)
-	{
 		// Create header for Link data
 		vector<pair<string, string>> resLinkData = OMF::createMessageHeader("Data");
 
@@ -1336,8 +1334,8 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 					}
 				}
 
-				if (m_sendFullStructure) {
-
+				if (m_sendFullStructure)
+				{
 					// The AF hierarchy is created/recreated if an OMF type message is sent
 					// it sends the hierarchy once
 					if (sendDataTypes and ! AFHierarchySent)
@@ -1399,7 +1397,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			auto asset_sent = m_assetSent.find(m_assetName);
 			// Send data for this reading using the new mechanism
 			outData = linkedData.processReading(*reading, AFHierarchyPrefix, hints);
-			if (asset_sent == m_assetSent.end())
+			if (m_sendFullStructure && asset_sent == m_assetSent.end())
 			{
 				// If the hierarchy has not already been sent then send it
 				if (! AFHierarchySent)
@@ -1884,8 +1882,8 @@ const std::string OMF::createTypeData(const Reading& reading, OMFHints *hints)
 
 	string tData="[";
 
-	if (m_sendFullStructure) {
-
+	if (m_sendFullStructure)
+	{
 		// Add the Static data part
 		tData.append("{ \"type\": \"object\", \"properties\": { ");
 		for (auto it = m_staticData->cbegin(); it != m_staticData->cend(); ++it)
@@ -4779,7 +4777,7 @@ bool OMF::sendBaseTypes()
 /**
  * Create the messages to link the asset into the right place in the AF structure
  *
- * @param reading	The reading beign sent
+ * @param reading	The reading being sent
  * @param hints		OMF Hints for this reading
  */
 string OMF::createAFLinks(Reading& reading, OMFHints *hints)

@@ -76,7 +76,7 @@ async def _get_destination(identifier):
 
 async def _check_parameters(payload, skip_required=False):
     if not skip_required:
-        required_keys = {"name", "description", "type", "destination", "constants", "variables"}
+        required_keys = {"name", "description", "type", "destination"}
         if not all(k in payload.keys() for k in required_keys):
             raise KeyError("{} required keys are missing in request payload.".format(required_keys))
     final = {}
@@ -156,20 +156,24 @@ async def _check_parameters(payload, skip_required=False):
     constants = payload.get('constants', None)
     if constants is not None:
         if not isinstance(constants, dict):
-            raise ValueError('constants should be an object.')
-        # TODO: need confirmation on validation
-        if not constants:
+            raise ValueError('constants should be dictionary.')
+        if not constants and  _type == EntryPointType.WRITE.name.lower():
             raise ValueError('constants should not be empty.')
         final['constants'] = constants
+    else:
+        if _type == EntryPointType.WRITE.name.lower():
+            raise ValueError("For type write constants must have passed in payload and cannot have empty value.")
 
     variables = payload.get('variables', None)
     if variables is not None:
         if not isinstance(variables, dict):
-            raise ValueError('variables should be an object.')
-        # TODO: need confirmation on validation
-        if not variables:
+            raise ValueError('variables should be a dictionary.')
+        if not variables and _type == EntryPointType.WRITE.name.lower():
             raise ValueError('variables should not be empty.')
         final['variables'] = variables
+    else:
+        if _type == EntryPointType.WRITE.name.lower():
+            raise ValueError("For type write variables must have passed in payload and cannot have empty value.")
 
     allow = payload.get('allow', None)
     if allow is not None:
@@ -208,14 +212,16 @@ async def create(request: web.Request) -> web.Response:
         insert_api_result = await storage.insert_into_tbl("control_api", api_insert_payload)
         if insert_api_result['rows_affected'] == 1:
             # add if any params data keys in control_api_parameters table
-            for k, v in payload['constants'].items():
-                control_api_params_column_name = {"name": name, "parameter": k, "value": v, "constant": 't'}
-                api_params_insert_payload = PayloadBuilder().INSERT(**control_api_params_column_name).payload()
-                await storage.insert_into_tbl("control_api_parameters", api_params_insert_payload)
-            for k, v in payload['variables'].items():
-                control_api_params_column_name = {"name": name, "parameter": k, "value": v, "constant": 'f'}
-                api_params_insert_payload = PayloadBuilder().INSERT(**control_api_params_column_name).payload()
-                await storage.insert_into_tbl("control_api_parameters", api_params_insert_payload)
+            if 'constants' in payload:
+                for k, v in payload['constants'].items():
+                    control_api_params_column_name = {"name": name, "parameter": k, "value": v, "constant": 't'}
+                    api_params_insert_payload = PayloadBuilder().INSERT(**control_api_params_column_name).payload()
+                    await storage.insert_into_tbl("control_api_parameters", api_params_insert_payload)
+            if 'variables' in payload:
+                for k, v in payload['variables'].items():
+                    control_api_params_column_name = {"name": name, "parameter": k, "value": v, "constant": 'f'}
+                    api_params_insert_payload = PayloadBuilder().INSERT(**control_api_params_column_name).payload()
+                    await storage.insert_into_tbl("control_api_parameters", api_params_insert_payload)
             # add if any users in control_api_acl table
             for u in payload['allow']:
                 control_acl_column_name = {"name": name, "user": u}
@@ -271,14 +277,17 @@ async def get_by_name(request: web.Request) -> web.Response:
             response[response['destination']] = response['destination_arg']
         del response['destination_arg']
         param_result = await storage.query_tbl_with_payload("control_api_parameters", payload)
+        constants = {}
+        variables = {}
         if param_result['rows']:
-            constants = {}
-            variables = {}
             for r in param_result['rows']:
                 if r['constant'] == 't':
                     constants[r['parameter']] = r['value']
                 else:
                     variables[r['parameter']] = r['value']
+            response['constants'] = constants
+            response['variables'] = variables
+        else:
             response['constants'] = constants
             response['variables'] = variables
         response['allow'] = ""

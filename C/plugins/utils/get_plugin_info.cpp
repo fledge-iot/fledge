@@ -41,14 +41,15 @@ int main(int argc, char *argv[])
     exit(1);
   }
 
+  openlog("Fledge PluginInfo", LOG_PID|LOG_CONS, LOG_USER);
+  setlogmask(LOG_UPTO(LOG_WARNING));
+
   if (access(argv[1], F_OK|R_OK) != 0)
   {
-    fprintf(stderr, "Unable to access library file '%s', exiting...\n", argv[1]);
+    syslog(LOG_ERR, "Unable to access library file '%s', exiting...\n", argv[1]);
     exit(2);
   }
 
-  openlog(argv[0], LOG_PID|LOG_CONS, LOG_USER);
-  setlogmask(LOG_UPTO(LOG_WARNING));
 
   if ((hndl = dlopen(argv[1], RTLD_GLOBAL|RTLD_LAZY)) != NULL)
   {
@@ -56,7 +57,7 @@ int main(int argc, char *argv[])
     if (infoEntry == NULL)
     {
       // Unable to find plugin_info entry point
-      fprintf(stderr, "Plugin library %s does not support %s function : %s\n", argv[1], routine, dlerror());
+      syslog(LOG_ERR, "Plugin library %s does not support %s function : %s\n", argv[1], routine, dlerror());
       dlclose(hndl);
       closelog();
       exit(3);
@@ -66,7 +67,7 @@ int main(int argc, char *argv[])
   }
   else
   {
-    fprintf(stderr, "dlopen failed: %s\n", dlerror());
+    syslog(LOG_ERR, "dlopen failed: %s\n", dlerror());
   }
   closelog();
   

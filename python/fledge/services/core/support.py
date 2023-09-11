@@ -62,7 +62,7 @@ class SupportBuilder:
 
     async def build(self):
         try:
-            today = datetime.datetime.now()
+            today = datetime.datetime.utcnow()
             file_spec = today.strftime('%y%m%d-%H-%M-%S')
             tar_file_name = self._out_file_path+"/"+"support-{}.tar.gz".format(file_spec)
             pyz = tarfile.open(tar_file_name, "w:gz")
@@ -87,10 +87,11 @@ class SupportBuilder:
                             self.add_syslog_service(pyz, file_spec, task)
                 except:
                     pass
-                await self.add_table_configuration(pyz, file_spec)
-                await self.add_table_audit_log(pyz, file_spec)
-                await self.add_table_schedules(pyz, file_spec)
-                await self.add_table_scheduled_processes(pyz, file_spec)
+                db_tables = {"configuration": "category", "log": "audit", "schedules": "schedule",
+                             "scheduled_processes": "schedule-process", "monitors": "service-monitoring",
+                             "statistics": "statistics"}
+                for tbl_name, file_name in sorted(db_tables.items()):
+                    await self.add_db_content(pyz, file_spec, tbl_name, file_name)
                 await self.add_table_statistics_history(pyz, file_spec)
                 await self.add_table_plugin_data(pyz, file_spec)
                 await self.add_table_streams(pyz, file_spec)
@@ -172,27 +173,9 @@ class SupportBuilder:
                 temp_file = "/tmp/{}".format(filename)
                 pyz.add(temp_file, arcname='logs/sys/{}'.format(filename))
 
-    async def add_table_configuration(self, pyz, file_spec):
-        # The contents of the configuration table from the storage layer
-        temp_file = self._interim_file_path + "/" + "configuration-{}".format(file_spec)
-        data = await self._storage.query_tbl("configuration")
-        self.write_to_tar(pyz, temp_file, data)
-
-    async def add_table_audit_log(self, pyz, file_spec):
-        # The contents of the audit log from the storage layer
-        temp_file = self._interim_file_path + "/" + "audit-{}".format(file_spec)
-        data = await self._storage.query_tbl("log")
-        self.write_to_tar(pyz, temp_file, data)
-
-    async def add_table_schedules(self, pyz, file_spec):
-        # The contents of the schedules table from the storage layer
-        temp_file = self._interim_file_path + "/" + "schedules-{}".format(file_spec)
-        data = await self._storage.query_tbl("schedules")
-        self.write_to_tar(pyz, temp_file, data)
-
-    async def add_table_scheduled_processes(self, pyz, file_spec):
-        temp_file = self._interim_file_path + "/" + "scheduled_processes-{}".format(file_spec)
-        data = await self._storage.query_tbl("scheduled_processes")
+    async def add_db_content(self, pyz, file_spec, tbl_name, file_name):
+        temp_file = "{}/{}-{}".format(self._interim_file_path, file_name, file_spec)
+        data = await self._storage.query_tbl(tbl_name)
         self.write_to_tar(pyz, temp_file, data)
 
     async def add_table_statistics_history(self, pyz, file_spec):

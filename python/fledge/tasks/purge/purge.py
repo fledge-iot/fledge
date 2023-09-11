@@ -131,6 +131,8 @@ class Purge(FledgeProcess):
         total_rows_removed = 0
         unsent_rows_removed = 0
         unsent_retained = 0
+        duration = 0
+        method = None
         start_time = time.strftime('%Y-%m-%d %H:%M:%S.%s', time.localtime(time.time()))
 
         if config['retainUnsent']['value'].lower() == "purge unsent":
@@ -205,6 +207,8 @@ class Purge(FledgeProcess):
                     total_rows_removed = result['removed']
                     unsent_rows_removed = result['unsentPurged']
                     unsent_retained = result['unsentRetained']
+                    duration += result['duration']
+                    method = result['method']
         except ValueError:
             self._logger.error("purge_data - Configuration item age {} should be integer!".format(
                 config['age']['value']))
@@ -219,7 +223,13 @@ class Purge(FledgeProcess):
                 if result is not None:
                     total_rows_removed += result['removed']
                     unsent_rows_removed += result['unsentPurged']
-                    unsent_retained += result['unsentRetained']
+                    unsent_retained = result['unsentRetained']
+                    duration += result['duration']
+                    if method is None:
+                        method = result['method']
+                    else:
+                        method += " and "
+                        method += result['method']
         except ValueError:
             self._logger.error("purge_data - Configuration item size {} should be integer!".format(
                 config['size']['value']))
@@ -235,7 +245,9 @@ class Purge(FledgeProcess):
                                                     "end_time": end_time,
                                                     "rowsRemoved": total_rows_removed,
                                                     "unsentRowsRemoved": unsent_rows_removed,
-                                                    "rowsRetained": unsent_retained
+                                                    "rowsRetained": unsent_retained,
+                                                    "duration": duration,
+                                                    "method": method
                                                     })
         else:
             self._logger.info("No rows purged")

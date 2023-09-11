@@ -32,6 +32,13 @@ class MemConnectionManager {
 					     {
 						return &lastError;
 					     }
+		void			     setPersist(bool persist, const std::string& filename = "")
+					     {
+						     m_persist = persist;
+						     m_filename = filename;
+					     }
+		bool			     persist() { return m_persist; };
+		std::string		     filename() { return m_filename; };
 
 	private:
 		MemConnectionManager();
@@ -43,6 +50,8 @@ class MemConnectionManager {
 		std::mutex                   errorLock;
 		PLUGIN_ERROR		     lastError;
 		bool			     m_trace;
+		bool			     m_persist;
+		std::string		     m_filename;
 };
 
 #endif

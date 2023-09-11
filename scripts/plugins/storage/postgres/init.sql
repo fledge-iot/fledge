@@ -905,6 +905,35 @@ CREATE TABLE fledge.control_filters (
              CONSTRAINT       control_filters_fk1              FOREIGN KEY (cpid) REFERENCES fledge.control_pipelines (cpid)  MATCH SIMPLE ON UPDATE NO ACTION ON DELETE NO ACTION
              );
 
+-- Create control_api table
+CREATE TABLE fledge.control_api (
+             name             character  varying(255)     NOT NULL                 ,       -- control API name
+             description      character  varying(255)     NOT NULL                 ,       -- description of control API
+             type             integer                     NOT NULL                 ,       -- 0 for write and 1 for operation
+             operation_name   character  varying(255)                              ,       -- name of the operation and only valid if type is operation
+             destination      integer                     NOT NULL                 ,       -- destination of request; 0-broadcast, 1-service, 2-asset, 3-script
+             destination_arg  character  varying(255)                              ,       -- name of the destination and only used if destination is non-zero
+             anonymous        boolean                     NOT NULL DEFAULT  'f'    ,       -- anonymous callers to make request to control API; by default false
+             CONSTRAINT       control_api_pname           PRIMARY KEY (name)
+             );
+
+-- Create control_api_parameters table
+CREATE TABLE fledge.control_api_parameters (
+             name             character  varying(255)     NOT NULL                 ,       -- foreign key to fledge.control_api
+             parameter        character  varying(255)     NOT NULL                 ,       -- name of parameter
+             value            character  varying(255)                              ,       -- value of parameter if constant otherwise default
+             constant         boolean                     NOT NULL                 ,       -- parameter is either a constant or variable
+             CONSTRAINT       control_api_parameters_fk1  FOREIGN KEY (name) REFERENCES fledge.control_api (name)  MATCH SIMPLE ON UPDATE NO ACTION ON DELETE NO ACTION
+             );
+
+-- Create control_api_acl table
+CREATE TABLE fledge.control_api_acl (
+             name             character  varying(255)     NOT NULL                 ,       -- foreign key to fledge.control_api
+             "user"           character  varying(255)     NOT NULL                 ,       -- foreign key to fledge.users
+             CONSTRAINT       control_api_acl_fk1         FOREIGN KEY (name) REFERENCES fledge.control_api (name)  MATCH SIMPLE ON UPDATE NO ACTION ON DELETE NO ACTION,
+             CONSTRAINT       control_api_acl_fk2         FOREIGN KEY ("user") REFERENCES fledge.users (uname)  MATCH SIMPLE ON UPDATE NO ACTION ON DELETE NO ACTION
+             );
+
 CREATE TABLE fledge.monitors (
              service        character varying(255) NOT NULL,
              monitor        character varying(80) NOT NULL,
@@ -992,7 +1021,11 @@ INSERT INTO fledge.log_codes ( code, description )
             ( 'USRAD', 'User Added' ),
             ( 'USRDL', 'User Deleted' ),
             ( 'USRCH', 'User Changed' ),
-            ( 'USRRS', 'User Restored' );
+            ( 'USRRS', 'User Restored' ),
+            ( 'ACLAD', 'ACL Added' ),( 'ACLCH', 'ACL Changed' ),( 'ACLDL', 'ACL Deleted' ),
+            ( 'CTSAD', 'Control Script Added' ),( 'CTSCH', 'Control Script Changed' ),('CTSDL', 'Control Script Deleted' ),
+            ( 'CTPAD', 'Control Pipeline Added' ),( 'CTPCH', 'Control Pipeline Changed' ),('CTPDL', 'Control Pipeline Deleted' )
+            ;
 
 --
 -- Configuration parameters
@@ -1171,7 +1204,8 @@ INSERT INTO fledge.control_source ( name, description )
 -- Insert predefined entries for Control Destination
 DELETE FROM fledge.control_destination;
 INSERT INTO fledge.control_destination ( name, description )
-     VALUES ('Service', 'A name of service that is being controlled.'),
+     VALUES ('Any', 'Any destination.'),
+            ('Service', 'A name of service that is being controlled.'),
             ('Asset', 'A name of asset that is being controlled.'),
             ('Script', 'A name of script that will be executed.'),
             ('Broadcast', 'No name is applied and pipeline will be considered for any control writes or operations to broadcast destinations.');

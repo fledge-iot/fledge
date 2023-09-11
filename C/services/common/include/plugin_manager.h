@@ -58,6 +58,7 @@ class PluginManager {
 
 	private:
                 PluginManager();
+		std::string	findPlugin(std::string name, std::string _type, std::string _plugin_path, PLUGIN_TYPE type);
 
 	private:
                 std::list<PLUGIN_HANDLE>		plugins;
@@ -69,7 +70,7 @@ class PluginManager {
                 std::map<PLUGIN_HANDLE, PluginHandle*>
 							pluginHandleMap;
                 Logger*					logger;
-				tPluginType				m_pluginType;
+		tPluginType				m_pluginType;
 };
 
 #endif

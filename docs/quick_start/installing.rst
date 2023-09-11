@@ -198,3 +198,80 @@ Also you need to change the value of Storage plugin. See |Configure Storage Plug
     }
 
 Now, it's time to restart Fledge. Thereafter you will see Fledge is running with PostgreSQL.
+
+
+Using Docker Containerizer to install Fledge
+#############################################
+
+Fledge Docker containers are provided in a private repository. This repository has no authentication or encryption associated with it.
+
+The following steps describe how to install Fledge using these containers:
+
+- Edit the daemon.json file, whose default location is /etc/docker/daemon.json on Linux, If the daemon.json file does not exist, create it. Assuming there are no other settings in the file, it should have the following contents:
+
+.. code-block:: console
+
+    { "insecure-registries":["54.204.128.201:5000"] }
+
+- Restart Docker for the changes to take effect
+
+.. code-block:: console
+
+    sudo systemctl restart docker.service
+
+- Check using command
+
+.. code-block:: console
+
+    docker info
+
+You should see the following output:
+
+.. code-block:: console
+
+    Insecure Registries:
+    52.3.255.136:5000
+    127.0.0.0/8
+
+You may also refer to the Docker documentation `here <https://docs.docker.com/registry/insecure/>`_.
+
+Ubuntu 20.04
+~~~~~~~~~~~~
+
+- To pull the Docker registry
+
+.. code-block:: console
+
+    docker pull 54.204.128.201:5000/fledge:latest-ubuntu2004
+
+- To run the Docker container
+
+.. code-block:: console
+
+    docker run -d --name fledge -p 8081:8081 -p 1995:1995 -p 8082:80 54.204.128.201:5000/fledge:latest-ubuntu2004
+
+Here, The GUI is forwarded to port 8082 on the host machine, it can be any port and omitted if port 80 is free.
+
+- It is possible to check if Fledge and the Fledge GUI are running by using the following commands on the host machine
+
+*Fledge*
+
+.. code-block:: console
+
+    curl -sX GET http://localhost:8081/fledge/ping
+
+*Fledge GUI*
+
+.. code-block:: console
+
+    http://localhost:8082
+
+- To attach to the running container
+
+.. code-block:: console
+
+    docker exec -it fledge bash
+
+.. note::
+    For Ubuntu 18.04 setup, you just need to replace ubuntu2004 with ubuntu1804.
+    Images are currently only available for Ubuntu version 18.04 and 20.04.

@@ -7,9 +7,9 @@
  *
  * Author: Massimiliano Pinto
  */
+#include <sqlite_common.h>
 #include <connection.h>
 #include <connection_manager.h>
-#include <common.h>
 #include <utils.h>
 #include <unistd.h>
 
@@ -1085,7 +1085,7 @@ vector<string>  asset_codes;
 			 
 				if (document.HasMember("join"))
 				{
-					if (!jsonWhereClause(document["where"], sql, asset_codes, true, "t0."))
+					if (!jsonWhereClause(document["where"], sql, asset_codes, false, "t0."))
 					{
 						return false;
 					}
@@ -1130,7 +1130,7 @@ vector<string>  asset_codes;
 				}
 				else if (document.HasMember("where"))
 				{
-					if (!jsonWhereClause(document["where"], sql, asset_codes, true))
+					if (!jsonWhereClause(document["where"], sql, asset_codes, false))
 					{
 						raiseError("retrieve", "Failed to add where clause");
 						return false;

@@ -40,6 +40,7 @@ class Logger {
 		std::string 	*format(const std::string& msg, va_list ap);
 		static Logger   *instance;
 		std::string     levelString;
+		int		m_level;
 };
 
 #endif

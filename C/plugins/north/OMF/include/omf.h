@@ -516,7 +516,7 @@ private:
 		const std::string	m_name;
 
 		/**
-		 * Has base types been sent to the PI Server
+		 * Have base types been sent to the PI Server
 		 */
 		bool			m_baseTypesSent;
 };

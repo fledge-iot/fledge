@@ -362,7 +362,7 @@ async def update(request: web.Request) -> web.Response:
         # TODO: FOGL-8037 rename
         if 'name' in columns:
             del columns['name']
-        # TODO: FOGL-8037 "allow", "destination", "destination_arg"
+        # TODO: FOGL-8037 "allow"
         possible_keys = {"name", "description", "type", "operation_name", "destination", "destination_arg",
                          "anonymous", "constants", "variables"}
         if 'type' in columns:
@@ -370,12 +370,9 @@ async def update(request: web.Request) -> web.Response:
         if 'destination_arg' in columns:
             dest = await _get_destination(columns['destination'])
             columns['destination_arg'] = columns[dest] if columns['destination'] else ""
-            columns[columns['destination']] = columns['destination_arg']
-            del columns['destination_arg']
         entries_to_remove = set(columns) - set(possible_keys)
         for k in entries_to_remove:
             del columns[k]
-
         control_api_columns = {}
         if columns:
             for k, v in columns.items():

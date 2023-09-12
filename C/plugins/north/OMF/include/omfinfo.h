@@ -129,7 +129,7 @@ class OMFInformation {
 		Logger		*m_logger;
 		HttpSender	*m_sender;              // HTTPS connection
 		OMF 		*m_omf;                 // OMF data protocol
-		bool		m_sendFullStructure;    // It sends the minimum OMF structural messages to load data into Data Archive if disabled
+		bool		m_sendFullStructure;    // It sends the minimum OMF structural messages to load data into PI Data Archive if disabled
 		bool		m_compression;          // whether to compress readings' data
 		string		m_protocol;             // http / https
 		string		m_hostAndPort;          // hostname:port for SimpleHttps
@@ -148,7 +148,7 @@ class OMFInformation {
 		string		m_AFMap;                // Defines a set of rules to address where assets should be placed in the AF hierarchy.
 						//    https://fledge-iot.readthedocs.io/en/latest/OMF.html#asset-framework-hierarchy-rules
 
-		string		m_prefixAFAsset;        // Prefix to generate unique asste id
+		string		m_prefixAFAsset;        // Prefix to generate unique asset id
 		string		m_PIWebAPIProductTitle;
 		string		m_RestServerVersion;
 		string		m_PIWebAPIAuthMethod;   // Authentication method to be used with the PI Web API.

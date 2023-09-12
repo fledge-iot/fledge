@@ -449,7 +449,7 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 		// FIXME The following is too verbose
 		if (error.hasErrors())
 		{
-			Logger::getLogger()->warn("The OMF endpoint reported a bad request when sending dta type contianers : %d messages",
+			Logger::getLogger()->warn("The OMF endpoint reported a bad request when sending data type containers : %d messages",
 					error.messageCount());
 			for (unsigned int i = 0; i < error.messageCount(); i++)
 			{
@@ -492,8 +492,6 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 
 	if (m_sendFullStructure)
 	{
-
-
 		// Create header for Static data
 		vector<pair<string, string>> resStaticData = OMF::createMessageHeader("Data");
 		// Create data for Static Data message
@@ -4704,7 +4702,7 @@ std::string OMF::ApplyPIServerNamingRulesPath(const std::string &objName, bool *
 /**
  * Send the base types that we use to define all the data point values
  *
- * @return true If the data types were sent correctly. Otherwsie false.
+ * @return true If the data types were sent correctly. Otherwise false.
  */
 bool OMF::sendBaseTypes()
 {

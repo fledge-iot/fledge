@@ -131,9 +131,11 @@ PythonReading::PythonReading(PyObject *pyReading)
 	{
 		// Set id
 		m_id = PyLong_AsUnsignedLong(id);
+		m_has_id = true;
 	}
 	else
 	{
+		m_has_id = false;
 		m_id = 0;
 	}
 

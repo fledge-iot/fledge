@@ -236,7 +236,8 @@ OMF::OMF(const string& name,
 	 m_producerToken(token),
 	 m_sender(sender),
 	 m_legacy(false),
-	 m_name(name)
+	 m_name(name),
+	 m_baseTypesSent(false)
 {
 	m_lastError = false;
 	m_changeTypeId = false;
@@ -448,7 +449,7 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 		// FIXME The following is too verbose
 		if (error.hasErrors())
 		{
-			Logger::getLogger()->warn("The OMF endpoint reported a bad request when sending dta type contianers : %d messages",
+			Logger::getLogger()->warn("The OMF endpoint reported a bad request when sending data type containers : %d messages",
 					error.messageCount());
 			for (unsigned int i = 0; i < error.messageCount(); i++)
 			{
@@ -489,9 +490,8 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 		return false;
 	}
 
-	if (m_sendFullStructure) {
-
-
+	if (m_sendFullStructure)
+	{
 		// Create header for Static data
 		vector<pair<string, string>> resStaticData = OMF::createMessageHeader("Data");
 		// Create data for Static Data message
@@ -556,11 +556,8 @@ bool OMF::sendDataTypes(const Reading& row, OMFHints *hints)
 			m_connected = false;
 			return false;
 		}
-	}
 
 
-	if (m_sendFullStructure)
-	{
 		// Create header for Link data
 		vector<pair<string, string>> resLinkData = OMF::createMessageHeader("Data");
 
@@ -1104,12 +1101,16 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 	gettimeofday(&start, NULL);
 #endif
 
-	if (m_linkedProperties)
+	if (m_linkedProperties && m_baseTypesSent == false)
 	{
 		if (!sendBaseTypes())
 		{
 			Logger::getLogger()->error("Unable to send base types, linked assets will not be sent. The system will fall back to using complex types.");
 			m_linkedProperties = false;
+		}
+		else
+		{
+			m_baseTypesSent = true;
 		}
 	}
 
@@ -1331,8 +1332,8 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 					}
 				}
 
-				if (m_sendFullStructure) {
-
+				if (m_sendFullStructure)
+				{
 					// The AF hierarchy is created/recreated if an OMF type message is sent
 					// it sends the hierarchy once
 					if (sendDataTypes and ! AFHierarchySent)
@@ -1394,7 +1395,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			auto asset_sent = m_assetSent.find(m_assetName);
 			// Send data for this reading using the new mechanism
 			outData = linkedData.processReading(*reading, AFHierarchyPrefix, hints);
-			if (asset_sent == m_assetSent.end())
+			if (m_sendFullStructure && asset_sent == m_assetSent.end())
 			{
 				// If the hierarchy has not already been sent then send it
 				if (! AFHierarchySent)
@@ -1879,8 +1880,8 @@ const std::string OMF::createTypeData(const Reading& reading, OMFHints *hints)
 
 	string tData="[";
 
-	if (m_sendFullStructure) {
-
+	if (m_sendFullStructure)
+	{
 		// Add the Static data part
 		tData.append("{ \"type\": \"object\", \"properties\": { ");
 		for (auto it = m_staticData->cbegin(); it != m_staticData->cend(); ++it)
@@ -4701,7 +4702,7 @@ std::string OMF::ApplyPIServerNamingRulesPath(const std::string &objName, bool *
 /**
  * Send the base types that we use to define all the data point values
  *
- * @return true If the data types were sent correctly. Otherwsie false.
+ * @return true If the data types were sent correctly. Otherwise false.
  */
 bool OMF::sendBaseTypes()
 {
@@ -4774,7 +4775,7 @@ bool OMF::sendBaseTypes()
 /**
  * Create the messages to link the asset into the right place in the AF structure
  *
- * @param reading	The reading beign sent
+ * @param reading	The reading being sent
  * @param hints		OMF Hints for this reading
  */
 string OMF::createAFLinks(Reading& reading, OMFHints *hints)

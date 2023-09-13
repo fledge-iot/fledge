@@ -514,6 +514,11 @@ private:
 		 * Service name
 		 */
 		const std::string	m_name;
+
+		/**
+		 * Have base types been sent to the PI Server
+		 */
+		bool			m_baseTypesSent;
 };
 
 /**

@@ -146,7 +146,7 @@ The *Default Configuration* tab contains the most commonly modified items
      
     - *statistics* - Fledge's internal statistics.
 
-   - **Static Data**: Data to include in every reading sent to OMF. For example, you can use this to specify the location of the devices being monitored by the Fledge server.
+  - **Static Data**: Data to include in every reading sent to OMF. For example, you can use this to specify the location of the devices being monitored by the Fledge server.
 
 
 Asset Framework

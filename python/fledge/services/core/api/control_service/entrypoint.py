@@ -8,6 +8,7 @@ import json
 from aiohttp import web
 from enum import IntEnum
 
+from fledge.common.audit_logger import AuditLogger
 from fledge.common.logger import FLCoreLogger
 from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.services.core import connect, server
@@ -337,7 +338,11 @@ async def delete(request: web.Request) -> web.Response:
         _logger.error(ex, "Failed to delete of {} entrypoint.".format(name))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
-        return web.json_response({"message": "{} control entrypoint has been deleted successfully.".format(name)})
+        message = "{} control entrypoint has been deleted successfully.".format(name)
+        # CTEDL audit trail entry
+        audit = AuditLogger(storage)
+        await audit.information('CTEDL', {"message": message, "name": name})
+        return web.json_response({"message": message})
 
 
 async def update(request: web.Request) -> web.Response:

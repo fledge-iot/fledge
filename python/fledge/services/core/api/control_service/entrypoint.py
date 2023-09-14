@@ -236,6 +236,13 @@ async def create(request: web.Request) -> web.Response:
         _logger.error(ex, "Failed to create control entrypoint.")
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
+        # CTEAD audit trail entry
+        audit = AuditLogger(storage)
+        if 'constants' not in data:
+            data['constants'] = {}
+        if 'variables' not in data:
+            data['variables'] = {}
+        await audit.information('CTEAD', data)
         return web.json_response({"message": "{} control entrypoint has been created successfully.".format(name)})
 
 

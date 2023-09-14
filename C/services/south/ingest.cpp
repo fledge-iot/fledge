@@ -717,10 +717,37 @@ void Ingest::processQueue()
 						std::this_thread::sleep_for(std::chrono::milliseconds(150));
 					}
 
+					if(m_data && m_data->size())
+						Logger::getLogger()->info("%s:%d: m_data->size()=%d, first rdngPtr=%p, first rdng=%s", __FUNCTION__, __LINE__, m_data->size(), (*m_data)[0], (*m_data)[0]->toJSON().c_str());
 					ReadingSet *readingSet = new ReadingSet(m_data);
+					PRINT_FUNC;
 					m_data->clear();
+					PRINT_FUNC;
 					// Pass readingSet to filter chain
 					firstFilter->ingest(readingSet);
+					PRINT_FUNC;
+					if(m_data && m_data->size())
+						Logger::getLogger()->info("%s:%d: m_data->size()=%d, first rdngPtr=%p, first rdng=%s", __FUNCTION__, __LINE__, m_data->size(), (*m_data)[0], (*m_data)[0]->toJSON().c_str());
+					if(readingSet && readingSet->getCount())
+						Logger::getLogger()->info("%s:%d: readingSet->getAllReadingsPtr()->size()=%d, first rdngPtr=%p, first rdng=%s", __FUNCTION__, __LINE__, 
+																			readingSet->getAllReadingsPtr()->size(), readingSet->getAllReadings()[0], 
+																			readingSet->getAllReadings()[0]->toJSON().c_str());
+
+					Logger::getLogger()->info("%s:%d: m_data->size()=%d", __FUNCTION__, __LINE__, m_data->size());
+#if 0
+					// Remove the readings in the vector
+					for(auto & rdng : *m_data)
+						delete rdng;
+					PRINT_FUNC;
+					m_data->clear();// Remove the pointers still in the vector
+					PRINT_FUNC;
+					
+					// move reading vector to ingest
+					// *(ingest->m_data) = readingSet->getAllReadings();
+					m_data = readingSet->moveAllReadings();
+					if(m_data && m_data->size())
+						Logger::getLogger()->info("%s:%d: m_data->size()=%d, first rdngPtr=%p, first rdng=%s", __FUNCTION__, __LINE__, m_data->size(), (*m_data)[0], (*m_data)[0]->toJSON().c_str());
+#endif
 
 					/*
 					 * If filtering removed all the readings then simply clean up m_data and
@@ -728,21 +755,26 @@ void Ingest::processQueue()
 					 */
 					if (m_data->size() == 0)
 					{
+						PRINT_FUNC;
 						delete m_data;
 						m_data = NULL;
 						return;
 					}
+					PRINT_FUNC;
 				}
 			}
 		}
 
-
+		PRINT_FUNC;
+		
 		/*
 		 * Check the first reading in the list to see if we are meeting the
 		 * latency configuration we have been set
 		 */
 		if (m_data)
 		{
+			if(m_data->size())
+				Logger::getLogger()->info("%s:%d: m_data->size()=%d, first rdngPtr=%p, first rdng=%s", __FUNCTION__, __LINE__, m_data->size(), (*m_data)[0],  (*m_data)[0]->toJSON().c_str());
 			vector<Reading *>::iterator itr = m_data->begin();
 			if (itr != m_data->cend())
 			{
@@ -779,7 +811,12 @@ void Ingest::processQueue()
 		 */
 		if (m_data && !m_data->empty())
 		{
-			if (m_storage.readingAppend(*m_data) == false)
+			if(m_data->size())
+				Logger::getLogger()->info("%s:%d: m_data->size()=%d, first rdngPtr=%p, first rdng=%s", __FUNCTION__, __LINE__, m_data->size(), (*m_data)[0],  (*m_data)[0]->toJSON().c_str());
+			bool rv = m_storage.readingAppend(*m_data);
+			if(m_data->size())
+				Logger::getLogger()->info("%s:%d: m_data->size()=%d, first rdngPtr=%p, first rdng=%s", __FUNCTION__, __LINE__, m_data->size(), (*m_data)[0],  (*m_data)[0]->toJSON().c_str());
+			if (rv == false)
 			{
 				if (!m_storageFailed)
 					m_logger->warn("Failed to write readings to storage layer, queue for resend");
@@ -791,12 +828,14 @@ void Ingest::processQueue()
 			}
 			else
 			{
+				PRINT_FUNC;
 				if (m_storageFailed)
 				{
 					m_logger->warn("Storage operational after %d failures", m_storesFailed);
 					m_storageFailed = false;
 					m_storesFailed = 0;
 				}
+				PRINT_FUNC;
 				m_failCnt = 0;
 				std::map<std::string, int>		statsEntriesCurrQueue;
 				// check if this requires addition of a new asset tracker tuple
@@ -806,6 +845,10 @@ void Ingest::processQueue()
 				string lastAsset;
 				int *lastStat = NULL;
 				std::map <std::string, std::set<std::string> > assetDatapointMap;
+				
+				if(m_data->size())
+					Logger::getLogger()->info("%s:%d: m_data->size()=%d, first rdngPtr=%p, first rdng=%s", __FUNCTION__, __LINE__, m_data->size(), (*m_data)[0],  (*m_data)[0]->toJSON().c_str());
+				
 				for (vector<Reading *>::iterator it = m_data->begin(); it != m_data->end(); ++it)
 				{
 		               	        Reading *reading = *it;
@@ -899,11 +942,19 @@ void Ingest::processQueue()
 			}
 		}
 
+		if(m_data && m_data->size())
+			Logger::getLogger()->info("%s:%d: m_data->size()=%d, first rdngPtr=%p, first rdng=%s", __FUNCTION__, __LINE__, m_data->size(), (*m_data)[0],  (*m_data)[0]->toJSON().c_str());
+
 		if (m_data)
 		{
+			PRINT_FUNC;
 			delete m_data;
+			PRINT_FUNC;
 			m_data = NULL;
+			PRINT_FUNC;
 		}
+		if(m_data && m_data->size())
+			Logger::getLogger()->info("%s:%d: m_data->size()=%d, first rdngPtr=%p, first rdng=%s", __FUNCTION__, __LINE__, m_data->size(), (*m_data)[0],  (*m_data)[0]->toJSON().c_str());
 		signalStatsUpdate();
 	} while (! m_fullQueues.empty());
 }
@@ -1001,22 +1052,44 @@ void Ingest::passToOnwardFilter(OUTPUT_HANDLE *outHandle,
 void Ingest::useFilteredData(OUTPUT_HANDLE *outHandle,
 			     READINGSET *readingSet)
 {
+	PRINT_FUNC;
 	Ingest* ingest = (Ingest *)outHandle;
+
+	if(ingest->m_data->size() && readingSet->getAllReadingsPtr()->size())
+		Logger::getLogger()->info("%s:%d: ingest->m_data->size()=%d, first rdngPtr=%p", __FUNCTION__, __LINE__, ingest->m_data->size(), readingSet->getAllReadings()[0]);
+	
 	if (ingest->m_data != readingSet->getAllReadingsPtr())
 	{
+		PRINT_FUNC;
 		if (ingest->m_data)
 		{
-			ingest->m_data->clear();// Remove any pointers still in the vector
-			*(ingest->m_data) = readingSet->getAllReadings();
+			Logger::getLogger()->info("%s:%d: ingest->m_data->size()=%d", __FUNCTION__, __LINE__, ingest->m_data->size());
+			// Remove the readings in the vector
+			for(auto & rdng : *(ingest->m_data))
+				delete rdng;
+			ingest->m_data->clear();// Remove the pointers still in the vector
+			
+			// move reading vector to ingest
+			// *(ingest->m_data) = readingSet->getAllReadings();
+			ingest->m_data = readingSet->moveAllReadings();
 		}
 		else
 		{
+			PRINT_FUNC;
 			// move reading vector to ingest
 			ingest->m_data = readingSet->moveAllReadings();
 		}
 	}
+	else
+	{
+		Logger::getLogger()->info("%s:%d: INPUT READINGSET MODIFIED BY FILTER: ingest->m_data=%p, readingSet->getAllReadingsPtr()=%p", 
+																	__FUNCTION__, __LINE__, ingest->m_data, readingSet->getAllReadingsPtr());
+	}
+	PRINT_FUNC;
 	readingSet->clear();
+	PRINT_FUNC;
 	delete readingSet;
+	PRINT_FUNC;
 }
 
 /**

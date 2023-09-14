@@ -270,41 +270,9 @@ async def get_by_name(request: web.Request) -> web.Response:
     :Example:
         curl -sX GET http://localhost:8081/fledge/control/manage/SetLatheSpeed
     """
-    # TODO: FOGL-8037  forbidden when permitted is false on the basis of anonymous
-    name = request.match_info.get('name', None)
     try:
-        storage = connect.get_storage_async()
-        payload = PayloadBuilder().WHERE(["name", '=', name]).payload()
-        result = await storage.query_tbl_with_payload("control_api", payload)
-        if not result['rows']:
-            raise KeyError('{} control entrypoint not found.'.format(name))
-        response = result['rows'][0]
-        response['type'] = await _get_type(response['type'])
-        response['destination'] = await _get_destination(response['destination'])
-        if response['destination'] != "broadcast":
-            response[response['destination']] = response['destination_arg']
-        del response['destination_arg']
-        param_result = await storage.query_tbl_with_payload("control_api_parameters", payload)
-        constants = {}
-        variables = {}
-        if param_result['rows']:
-            for r in param_result['rows']:
-                if r['constant'] == 't':
-                    constants[r['parameter']] = r['value']
-                else:
-                    variables[r['parameter']] = r['value']
-            response['constants'] = constants
-            response['variables'] = variables
-        else:
-            response['constants'] = constants
-            response['variables'] = variables
-        response['allow'] = ""
-        acl_result = await storage.query_tbl_with_payload("control_api_acl", payload)
-        if acl_result['rows']:
-            users = []
-            for r in acl_result['rows']:
-                users.append(r['user'])
-            response['allow'] = users
+        ep_name = request.match_info.get('name', None)
+        response = await _get_entrypoint(ep_name)
     except ValueError as err:
         msg = str(err)
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
@@ -313,7 +281,7 @@ async def get_by_name(request: web.Request) -> web.Response:
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
-        _logger.error(ex, "Failed to fetch details of {} entrypoint.".format(name))
+        _logger.error(ex, "Failed to fetch details of {} entrypoint.".format(ep_name))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(response)
@@ -355,7 +323,7 @@ async def delete(request: web.Request) -> web.Response:
 async def update(request: web.Request) -> web.Response:
     """Update a control entrypoint
     :Example:
-        curl -sX PUT http://localhost:8081/fledge/control/manage/SetLatheSpeed -d '{"name": "Changed"}'
+        curl -sX PUT http://localhost:8081/fledge/control/manage/SetLatheSpeed -d '{"description": "Updated", "anonymous": false}'
     """
     name = request.match_info.get('name', None)
     try:
@@ -371,6 +339,8 @@ async def update(request: web.Request) -> web.Response:
         except Exception as ex:
             msg = str(ex)
             raise ValueError(msg)
+
+        old_entrypoint = await _get_entrypoint(name)
         # TODO: FOGL-8037 rename
         if 'name' in columns:
             del columns['name']
@@ -451,6 +421,10 @@ async def update(request: web.Request) -> web.Response:
         _logger.error(ex, "Failed to update the details of {} entrypoint.".format(name))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
+        # CTECH audit trail entry
+        result = await _get_entrypoint(name)
+        audit = AuditLogger(storage)
+        await audit.information('CTECH', {'entrypoint': result, 'old_entrypoint': old_entrypoint})
         return web.json_response({"message": "{} control entrypoint has been updated successfully.".format(name)})
 
 
@@ -495,3 +469,40 @@ async def update_request(request: web.Request) -> web.Response:
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({"message": "{} control entrypoint URL called.".format(name)})
+
+
+async def _get_entrypoint(name):
+    # TODO: FOGL-8037  forbidden when permitted is false on the basis of anonymous
+    storage = connect.get_storage_async()
+    payload = PayloadBuilder().WHERE(["name", '=', name]).payload()
+    result = await storage.query_tbl_with_payload("control_api", payload)
+    if not result['rows']:
+        raise KeyError('{} control entrypoint not found.'.format(name))
+    response = result['rows'][0]
+    response['type'] = await _get_type(response['type'])
+    response['destination'] = await _get_destination(response['destination'])
+    if response['destination'] != "broadcast":
+        response[response['destination']] = response['destination_arg']
+    del response['destination_arg']
+    param_result = await storage.query_tbl_with_payload("control_api_parameters", payload)
+    constants = {}
+    variables = {}
+    if param_result['rows']:
+        for r in param_result['rows']:
+            if r['constant'] == 't':
+                constants[r['parameter']] = r['value']
+            else:
+                variables[r['parameter']] = r['value']
+        response['constants'] = constants
+        response['variables'] = variables
+    else:
+        response['constants'] = constants
+        response['variables'] = variables
+    response['allow'] = ""
+    acl_result = await storage.query_tbl_with_payload("control_api_acl", payload)
+    if acl_result['rows']:
+        users = []
+        for r in acl_result['rows']:
+            users.append(r['user'])
+        response['allow'] = users
+    return response

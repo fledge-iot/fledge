@@ -446,20 +446,28 @@ async def update_request(request: web.Request) -> web.Response:
             if request.user["role_id"] not in (1, 5):
                 acl_result = await storage.query_tbl_with_payload("control_api_acl", payload)
                 allowed_user = [r['user'] for r in acl_result['rows']]
+                # TODO: FOGL-8037 - If allowed user list is empty then should we allow to proceed with update request?
+                # How about viewer and data viewer role access to this route?
+                # as of now simply reject with Forbidden 403
                 if request.user["uname"] not in allowed_user:
                     raise ValueError("Operation is not allowed for the {} user.".format(request.user['uname']))
         data = await request.json()
         payload = {"updates": []}
         for k, v in data.items():
             for r in result['rows']:
+                # TODO: FOGL-8037 - validation of constants and variables key - 400 or simply ignore?
                 if r['parameter'] == k:
                     if isinstance(v, str):
-                        payload_item = PayloadBuilder().SET(value=v).WHERE(["name", "=", name]).AND_WHERE(["parameter", "=", k]).payload()
+                        payload_item = PayloadBuilder().SET(value=v).WHERE(["name", "=", name]).AND_WHERE(
+                            ["parameter", "=", k]).payload()
                         payload['updates'].append(json.loads(payload_item))
                         break
                     else:
                         raise ValueError("Value should be in string for {} parameter.".format(k))
         await storage.update_tbl("control_api_parameters", json.dumps(payload))
+    except KeyError as err:
+        msg = str(err)
+        raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except ValueError as err:
         msg = str(err)
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))

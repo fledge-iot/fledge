@@ -181,13 +181,18 @@ async def validate_requests(request):
            - All CRUD's privileges for control pipelines
     """
     user_id = request.user['id']
+    # Normal/Editor user
     if int(request.user["role_id"]) == 2 and request.method != 'GET':
-        if str(request.rel_url).startswith('/fledge/control'):
+        # Special case: Allowed control entrypoint update request and handling of rejection in its handler
+        if str(request.rel_url).startswith('/fledge/control') and not str(request.rel_url).startswith(
+                '/fledge/control/request'):
             raise web.HTTPForbidden
+    # Viewer user
     elif int(request.user["role_id"]) == 3 and request.method != 'GET':
         supported_endpoints = ['/fledge/user', '/fledge/user/{}/password'.format(user_id), '/logout']
         if not str(request.rel_url).endswith(tuple(supported_endpoints)):
             raise web.HTTPForbidden
+    # Data Viewer user
     elif int(request.user["role_id"]) == 4:
         if request.method == 'GET':
             supported_endpoints = ['/fledge/asset', '/fledge/ping', '/fledge/statistics',

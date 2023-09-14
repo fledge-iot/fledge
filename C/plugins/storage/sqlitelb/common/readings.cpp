@@ -1635,6 +1635,8 @@ unsigned int  Connection::purgeReadings(unsigned long age,
 	result += " \"unsentPurged\" : 0, ";
 	result += " \"unsentRetained\" : 0, ";
 	result += " \"readings\" : 0 }";
+	result += " \"method\" : \"time\", ";
+	result += " \"duration\" : 0 }";
 
 	logger->info("Purge starting...");
 	gettimeofday(&startTv, NULL);

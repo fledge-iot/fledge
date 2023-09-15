@@ -32,6 +32,10 @@ class ConnectionManager {
 					  {
 						return &lastError;
 					  }
+		void			  setMaxReadingRows(long rows)
+					  {
+						  m_maxReadingRows = rows;
+					  }
 
 	private:
 		ConnectionManager();
@@ -43,6 +47,7 @@ class ConnectionManager {
 		std::mutex                   errorLock;
 		PLUGIN_ERROR		     lastError;
 		bool			     m_logSQL;
+		long			     m_maxReadingRows;
 };
 
 #endif

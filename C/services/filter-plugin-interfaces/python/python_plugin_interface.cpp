@@ -287,9 +287,11 @@ void filter_plugin_ingest_fn(PLUGIN_HANDLE handle, READINGSET *data)
 	}
 	PRINT_FUNC;
 
+	data->removeAll();
+	delete data;
+
 #if 0
 	PythonReadingSet *filteredReadingSet = NULL;
-
 	if (pReturn)
 	{
 		// Check we have a list of readings

@@ -60,6 +60,7 @@ void ConnectionManager::growPool(unsigned int delta)
 	{
 		Connection *conn = new Connection();
 		conn->setTrace(m_logSQL);
+		conn->setMaxReadingRows(m_maxReadingRows);
 		idleLock.lock();
 		idle.push_back(conn);
 		idleLock.unlock();
@@ -108,6 +109,8 @@ Connection *conn = 0;
 	if (idle.empty())
 	{
 		conn = new Connection();
+		conn->setTrace(m_logSQL);
+		conn->setMaxReadingRows(m_maxReadingRows);
 	}
 	else
 	{

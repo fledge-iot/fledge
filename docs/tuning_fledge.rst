@@ -294,6 +294,14 @@ The storage plugin configuration can be found in the *Advanced* section of the *
    
     This pool size is only the initial size, the storage service will grow the pool if required, however setting a realistic initial pool size will improve the ramp up performance of Fledge.
 
+  - **Max. Insert Rows**: The maximum number of readings that will be inserted in a single call to Postgres. This is a tuning parameter that has two effects on the system
+
+    - It limits the size, and hence memory requirements, for a single insert statement
+
+    - It prevents very long running insert transactions from blocking access to the readings table
+
+    This parameter is useful on systems with very high data ingest rates or when the ingest contains sporadic large bursts of readings, to limit resource usage and database lock contention.
+
 .. note::
 
    Although the pool size denotes the number of parallel operations that can take place, database locking considerations may reduce the number of actual operations in progress at any point in time.

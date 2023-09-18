@@ -333,9 +333,9 @@ void filter_plugin_ingest_fn(PLUGIN_HANDLE handle, READINGSET *data)
 
 	// Release GIL
 	PyGILState_Release(state);
-	if(data && data->getAllReadingsPtr()->size())
+	/* if(data && data->getAllReadingsPtr()->size())
 		Logger::getLogger()->info("%s:%d: data->getCount()=%d, first rdngPtr=%p, first rdng=%s", __FUNCTION__, __LINE__, data->getAllReadingsPtr()->size(), 
-																								data->getAllReadings()[0], data->getAllReadings()[0]->toJSON().c_str());
+																								data->getAllReadings()[0], data->getAllReadings()[0]->toJSON().c_str()); */
 	
 }
 

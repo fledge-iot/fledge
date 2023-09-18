@@ -725,9 +725,9 @@ void Ingest::processQueue()
 					// Pass readingSet to filter chain
 					firstFilter->ingest(readingSet);
 
-					if (readingSet && readingSet->getAllReadingsPtr() && readingSet->getAllReadingsPtr()->size())
+					/* if (readingSet && readingSet->getAllReadingsPtr() && readingSet->getAllReadingsPtr()->size())
 						Logger::getLogger()->info("%s:%d: readingSet->getAllReadingsPtr()->size()=%d, readingSet->getAllReadings()[0] (@ %p)=%s", __FUNCTION__, __LINE__, 
-												readingSet->getAllReadingsPtr()->size(), readingSet->getAllReadings()[0], readingSet->getAllReadings()[0]->toJSON().c_str());
+												readingSet->getAllReadingsPtr()->size(), readingSet->getAllReadings()[0], readingSet->getAllReadings()[0]->toJSON().c_str()); */
 
 					/*
 					 * If filtering removed all the readings then simply clean up m_data and

@@ -28,7 +28,7 @@ class ReadingSet {
 		ReadingSet();
 		ReadingSet(const std::string& json);
 		ReadingSet(const std::vector<Reading *>* readings);
-		virtual ~ReadingSet();
+		~ReadingSet();			// This should be virtual
 
 		unsigned long			getCount() const { return m_count; };
 		const Reading			*operator[] (const unsigned int idx) {

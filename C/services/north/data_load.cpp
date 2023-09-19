@@ -372,7 +372,10 @@ ReadingSet *DataLoad::fetchReadings(bool wait)
 	}
 	ReadingSet *rval = m_queue.front();
 	m_queue.pop_front();
-	triggerRead(m_blockSize);
+	if (m_queue.size() < 5)	// Read another block if we have less than 5 already queued
+	{
+		triggerRead(m_blockSize);
+	}
 	return rval;
 }
 

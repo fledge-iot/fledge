@@ -304,6 +304,8 @@ void
 ReadingSet::clear()
 {
 	m_readings.clear();
+	m_count = 0;
+	m_last_id = 0;
 }
 
 /**
@@ -325,15 +327,16 @@ std::vector<Reading*>* ReadingSet::moveAllReadings()
 */
 Reading* ReadingSet::removeReading(unsigned long id)
 {
-	if (id >= m_readings.size()) {
-        return nullptr;
-    }
+	if (id >= m_readings.size())
+	{
+		return nullptr;
+	}
 
 	Reading* reading = m_readings[id];
-    m_readings.erase(m_readings.begin() + id);
-    m_count--;
+	m_readings.erase(m_readings.begin() + id);
+	m_count--;
 
-    return reading;
+	return reading;
 }
 
 /**

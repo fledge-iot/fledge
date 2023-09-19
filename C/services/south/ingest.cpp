@@ -456,7 +456,7 @@ unsigned int nFullQueues = 0;
 		// Get the readings in the set
 		for (auto & rdng : *vec)
 		{
-			m_queue->emplace_back(rdng);
+			m_queue->push_back(rdng);
 		}
 		if (m_queue->size() >= m_queueSizeThreshold || m_running == false)
 		{

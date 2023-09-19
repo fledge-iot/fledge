@@ -32,7 +32,8 @@ class TestAudit:
                               'USRAD', 'USRDL', 'USRCH', 'USRRS',
                               'ACLAD', 'ACLCH', 'ACLDL',
                               'CTSAD', 'CTSCH', 'CTSDL',
-                              'CTPAD', 'CTPCH', 'CTPDL'
+                              'CTPAD', 'CTPCH', 'CTPDL',
+                              'CTEAD', 'CTECH', 'CTEDL'
                               ]
         conn = http.client.HTTPConnection(fledge_url)
         conn.request("GET", '/fledge/audit/logcode')

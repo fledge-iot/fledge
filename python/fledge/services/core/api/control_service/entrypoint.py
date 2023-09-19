@@ -8,6 +8,7 @@ import json
 from aiohttp import web
 from enum import IntEnum
 
+from fledge.common.audit_logger import AuditLogger
 from fledge.common.logger import FLCoreLogger
 from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.services.core import connect, server
@@ -76,7 +77,7 @@ async def _get_destination(identifier):
 
 async def _check_parameters(payload, skip_required=False):
     if not skip_required:
-        required_keys = {"name", "description", "type", "destination", "constants", "variables"}
+        required_keys = {"name", "description", "type", "destination"}
         if not all(k in payload.keys() for k in required_keys):
             raise KeyError("{} required keys are missing in request payload.".format(required_keys))
     final = {}
@@ -156,26 +157,30 @@ async def _check_parameters(payload, skip_required=False):
     constants = payload.get('constants', None)
     if constants is not None:
         if not isinstance(constants, dict):
-            raise ValueError('constants should be an object.')
-        # TODO: need confirmation on validation
-        if not constants:
+            raise ValueError('constants should be dictionary.')
+        if not constants and  _type == EntryPointType.WRITE.name.lower():
             raise ValueError('constants should not be empty.')
         final['constants'] = constants
+    else:
+        if _type == EntryPointType.WRITE.name.lower():
+            raise ValueError("For type write constants must have passed in payload and cannot have empty value.")
 
     variables = payload.get('variables', None)
     if variables is not None:
         if not isinstance(variables, dict):
-            raise ValueError('variables should be an object.')
-        # TODO: need confirmation on validation
-        if not variables:
+            raise ValueError('variables should be a dictionary.')
+        if not variables and _type == EntryPointType.WRITE.name.lower():
             raise ValueError('variables should not be empty.')
         final['variables'] = variables
+    else:
+        if _type == EntryPointType.WRITE.name.lower():
+            raise ValueError("For type write variables must have passed in payload and cannot have empty value.")
 
     allow = payload.get('allow', None)
     if allow is not None:
         if not isinstance(allow, list):
             raise ValueError('allow should be an array of list of users.')
-        # FIXME: get usernames validation
+        # TODO: FOGL-8037 get usernames validation
         final['allow'] = allow
     return final
 
@@ -208,14 +213,16 @@ async def create(request: web.Request) -> web.Response:
         insert_api_result = await storage.insert_into_tbl("control_api", api_insert_payload)
         if insert_api_result['rows_affected'] == 1:
             # add if any params data keys in control_api_parameters table
-            for k, v in payload['constants'].items():
-                control_api_params_column_name = {"name": name, "parameter": k, "value": v, "constant": 't'}
-                api_params_insert_payload = PayloadBuilder().INSERT(**control_api_params_column_name).payload()
-                await storage.insert_into_tbl("control_api_parameters", api_params_insert_payload)
-            for k, v in payload['variables'].items():
-                control_api_params_column_name = {"name": name, "parameter": k, "value": v, "constant": 'f'}
-                api_params_insert_payload = PayloadBuilder().INSERT(**control_api_params_column_name).payload()
-                await storage.insert_into_tbl("control_api_parameters", api_params_insert_payload)
+            if 'constants' in payload:
+                for k, v in payload['constants'].items():
+                    control_api_params_column_name = {"name": name, "parameter": k, "value": v, "constant": 't'}
+                    api_params_insert_payload = PayloadBuilder().INSERT(**control_api_params_column_name).payload()
+                    await storage.insert_into_tbl("control_api_parameters", api_params_insert_payload)
+            if 'variables' in payload:
+                for k, v in payload['variables'].items():
+                    control_api_params_column_name = {"name": name, "parameter": k, "value": v, "constant": 'f'}
+                    api_params_insert_payload = PayloadBuilder().INSERT(**control_api_params_column_name).payload()
+                    await storage.insert_into_tbl("control_api_parameters", api_params_insert_payload)
             # add if any users in control_api_acl table
             for u in payload['allow']:
                 control_acl_column_name = {"name": name, "user": u}
@@ -229,6 +236,13 @@ async def create(request: web.Request) -> web.Response:
         _logger.error(ex, "Failed to create control entrypoint.")
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
+        # CTEAD audit trail entry
+        audit = AuditLogger(storage)
+        if 'constants' not in data:
+            data['constants'] = {}
+        if 'variables' not in data:
+            data['variables'] = {}
+        await audit.information('CTEAD', data)
         return web.json_response({"message": "{} control entrypoint has been created successfully.".format(name)})
 
 
@@ -245,7 +259,7 @@ async def get_all(request: web.Request) -> web.Response:
         This is on the basis of anonymous flag if true then permitted true
         If anonymous flag is false then list of allowed users to determine if the specific user can make the call
         """
-        # TODO: verify the user when anonymous is false and set permitted value based on it
+        # TODO: FOGL-8037 verify the user when anonymous is false and set permitted value based on it
         entrypoint.append({"name": r['name'], "description": r['description'],
                            "permitted": True if r['anonymous'] == 't' else False})
     return web.json_response({"controls": entrypoint})
@@ -256,38 +270,9 @@ async def get_by_name(request: web.Request) -> web.Response:
     :Example:
         curl -sX GET http://localhost:8081/fledge/control/manage/SetLatheSpeed
     """
-    # TODO: forbidden when permitted is false on the basis of anonymous
-    name = request.match_info.get('name', None)
     try:
-        storage = connect.get_storage_async()
-        payload = PayloadBuilder().WHERE(["name", '=', name]).payload()
-        result = await storage.query_tbl_with_payload("control_api", payload)
-        if not result['rows']:
-            raise KeyError('{} control entrypoint not found.'.format(name))
-        response = result['rows'][0]
-        response['type'] = await _get_type(response['type'])
-        response['destination'] = await _get_destination(response['destination'])
-        if response['destination'] != "broadcast":
-            response[response['destination']] = response['destination_arg']
-        del response['destination_arg']
-        param_result = await storage.query_tbl_with_payload("control_api_parameters", payload)
-        if param_result['rows']:
-            constants = {}
-            variables = {}
-            for r in param_result['rows']:
-                if r['constant'] == 't':
-                    constants[r['parameter']] = r['value']
-                else:
-                    variables[r['parameter']] = r['value']
-            response['constants'] = constants
-            response['variables'] = variables
-        response['allow'] = ""
-        acl_result = await storage.query_tbl_with_payload("control_api_acl", payload)
-        if acl_result['rows']:
-            users = []
-            for r in acl_result['rows']:
-                users.append(r['user'])
-            response['allow'] = users
+        ep_name = request.match_info.get('name', None)
+        response = await _get_entrypoint(ep_name)
     except ValueError as err:
         msg = str(err)
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
@@ -296,7 +281,7 @@ async def get_by_name(request: web.Request) -> web.Response:
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
-        _logger.error(ex, "Failed to fetch details of {} entrypoint.".format(name))
+        _logger.error(ex, "Failed to fetch details of {} entrypoint.".format(ep_name))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response(response)
@@ -328,28 +313,40 @@ async def delete(request: web.Request) -> web.Response:
         _logger.error(ex, "Failed to delete of {} entrypoint.".format(name))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
-        return web.json_response({"message": "{} control entrypoint has been deleted successfully.".format(name)})
+        message = "{} control entrypoint has been deleted successfully.".format(name)
+        # CTEDL audit trail entry
+        audit = AuditLogger(storage)
+        await audit.information('CTEDL', {"message": message, "name": name})
+        return web.json_response({"message": message})
 
 
 async def update(request: web.Request) -> web.Response:
     """Update a control entrypoint
     :Example:
-        curl -sX PUT http://localhost:8081/fledge/control/manage/SetLatheSpeed -d '{"name": "Changed"}'
+        curl -sX PUT http://localhost:8081/fledge/control/manage/SetLatheSpeed -d '{"description": "Updated", "anonymous": false}'
     """
     name = request.match_info.get('name', None)
     try:
         storage = connect.get_storage_async()
         payload = PayloadBuilder().WHERE(["name", '=', name]).payload()
-        result = await storage.query_tbl_with_payload("control_api", payload)
-        if not result['rows']:
-            raise KeyError('{} control entrypoint not found.'.format(name))
-        data = await request.json()
-        columns = await _check_parameters(data, skip_required=True)
-        # TODO: rename
+        entry_point_result = await storage.query_tbl_with_payload("control_api", payload)
+        if not entry_point_result['rows']:
+            msg = '{} control entrypoint not found.'.format(name)
+            raise KeyError(msg)
+        try:
+            data = await request.json()
+            columns = await _check_parameters(data, skip_required=True)
+        except Exception as ex:
+            msg = str(ex)
+            raise ValueError(msg)
+
+        old_entrypoint = await _get_entrypoint(name)
+        # TODO: FOGL-8037 rename
         if 'name' in columns:
             del columns['name']
-        # TODO:  "constants", "variables", "allow"
-        possible_keys = {"name", "description", "type", "operation_name", "destination", "destination_arg", "anonymous"}
+        # TODO: FOGL-8037 "allow"
+        possible_keys = {"name", "description", "type", "operation_name", "destination", "destination_arg",
+                         "anonymous", "constants", "variables"}
         if 'type' in columns:
             columns['operation_name'] = columns['operation_name'] if columns['type'] == 1 else ""
         if 'destination_arg' in columns:
@@ -358,13 +355,76 @@ async def update(request: web.Request) -> web.Response:
         entries_to_remove = set(columns) - set(possible_keys)
         for k in entries_to_remove:
             del columns[k]
-        payload = PayloadBuilder().SET(**columns).WHERE(['name', '=', name]).payload()
-        await storage.update_tbl("control_api", payload)
+        control_api_columns = {}
+        if columns:
+            for k, v in columns.items():
+                if k == "constants":
+                    constant_payload = PayloadBuilder().WHERE(["name", '=', name]).AND_WHERE(
+                        ["constant", '=', 't']).chain_payload()
+                    if v:
+                        # constants update in any type
+                        for k1, v1 in v.items():
+                            get_payload = PayloadBuilder(constant_payload).payload()
+                            param_result = await storage.query_tbl_with_payload("control_api_parameters", get_payload)
+                            if param_result['rows']:
+                                update_payload = PayloadBuilder(constant_payload).SET(parameter=k1, value=v1).payload()
+                                await storage.update_tbl("control_api_parameters", update_payload)
+                            else:
+                                control_api_params_column_name = {"name": name, "parameter": k1, "value": v1,
+                                                                  "constant": 't'}
+                                api_params_insert_payload = PayloadBuilder().INSERT(
+                                    **control_api_params_column_name).payload()
+                                await storage.insert_into_tbl("control_api_parameters", api_params_insert_payload)
+                    else:
+                        # empty only allowed for operation type
+                        if entry_point_result['rows'][0]['type'] == 1:
+                            del_payload = PayloadBuilder(constant_payload).payload()
+                            await storage.delete_from_tbl("control_api_parameters", del_payload)
+                elif k == "variables":
+                    variable_payload = PayloadBuilder().WHERE(["name", '=', name]).AND_WHERE(
+                        ["constant", '=', 'f']).chain_payload()
+                    if v:
+                        # variables update in any type
+                        for k2, v2 in v.items():
+                            get_payload = PayloadBuilder(variable_payload).payload()
+                            param_result = await storage.query_tbl_with_payload("control_api_parameters", get_payload)
+                            if param_result['rows']:
+                                update_payload = PayloadBuilder(variable_payload).SET(parameter=k2, value=v2).payload()
+                                await storage.update_tbl("control_api_parameters", update_payload)
+                            else:
+                                control_api_params_column_name = {"name": name, "parameter": k2, "value": v2,
+                                                                  "constant": 'f'}
+                                api_params_insert_payload = PayloadBuilder().INSERT(
+                                    **control_api_params_column_name).payload()
+                                await storage.insert_into_tbl("control_api_parameters", api_params_insert_payload)
+                    else:
+                        # empty only allowed for operation type
+                        if entry_point_result['rows'][0]['type'] == 1:
+                            del_payload = PayloadBuilder(variable_payload).payload()
+                            await storage.delete_from_tbl("control_api_parameters", del_payload)
+                else:
+                    control_api_columns[k] = v
+            if control_api_columns:
+                payload = PayloadBuilder().SET(**control_api_columns).WHERE(['name', '=', name]).payload()
+                await storage.update_tbl("control_api", payload)
+        else:
+            msg = "Nothing to update. No valid key value pair found in payload."
+            raise ValueError(msg)
+    except ValueError as err:
+        msg = str(err)
+        raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
+    except KeyError as err:
+        msg = str(err)
+        raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
         _logger.error(ex, "Failed to update the details of {} entrypoint.".format(name))
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
+        # CTECH audit trail entry
+        result = await _get_entrypoint(name)
+        audit = AuditLogger(storage)
+        await audit.information('CTECH', {'entrypoint': result, 'old_entrypoint': old_entrypoint})
         return web.json_response({"message": "{} control entrypoint has been updated successfully.".format(name)})
 
 
@@ -386,20 +446,28 @@ async def update_request(request: web.Request) -> web.Response:
             if request.user["role_id"] not in (1, 5):
                 acl_result = await storage.query_tbl_with_payload("control_api_acl", payload)
                 allowed_user = [r['user'] for r in acl_result['rows']]
+                # TODO: FOGL-8037 - If allowed user list is empty then should we allow to proceed with update request?
+                # How about viewer and data viewer role access to this route?
+                # as of now simply reject with Forbidden 403
                 if request.user["uname"] not in allowed_user:
                     raise ValueError("Operation is not allowed for the {} user.".format(request.user['uname']))
         data = await request.json()
         payload = {"updates": []}
         for k, v in data.items():
             for r in result['rows']:
+                # TODO: FOGL-8037 - validation of constants and variables key - 400 or simply ignore?
                 if r['parameter'] == k:
                     if isinstance(v, str):
-                        payload_item = PayloadBuilder().SET(value=v).WHERE(["name", "=", name]).AND_WHERE(["parameter", "=", k]).payload()
+                        payload_item = PayloadBuilder().SET(value=v).WHERE(["name", "=", name]).AND_WHERE(
+                            ["parameter", "=", k]).payload()
                         payload['updates'].append(json.loads(payload_item))
                         break
                     else:
                         raise ValueError("Value should be in string for {} parameter.".format(k))
         await storage.update_tbl("control_api_parameters", json.dumps(payload))
+    except KeyError as err:
+        msg = str(err)
+        raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except ValueError as err:
         msg = str(err)
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
@@ -409,3 +477,40 @@ async def update_request(request: web.Request) -> web.Response:
         raise web.HTTPInternalServerError(reason=msg, body=json.dumps({"message": msg}))
     else:
         return web.json_response({"message": "{} control entrypoint URL called.".format(name)})
+
+
+async def _get_entrypoint(name):
+    # TODO: FOGL-8037  forbidden when permitted is false on the basis of anonymous
+    storage = connect.get_storage_async()
+    payload = PayloadBuilder().WHERE(["name", '=', name]).payload()
+    result = await storage.query_tbl_with_payload("control_api", payload)
+    if not result['rows']:
+        raise KeyError('{} control entrypoint not found.'.format(name))
+    response = result['rows'][0]
+    response['type'] = await _get_type(response['type'])
+    response['destination'] = await _get_destination(response['destination'])
+    if response['destination'] != "broadcast":
+        response[response['destination']] = response['destination_arg']
+    del response['destination_arg']
+    param_result = await storage.query_tbl_with_payload("control_api_parameters", payload)
+    constants = {}
+    variables = {}
+    if param_result['rows']:
+        for r in param_result['rows']:
+            if r['constant'] == 't':
+                constants[r['parameter']] = r['value']
+            else:
+                variables[r['parameter']] = r['value']
+        response['constants'] = constants
+        response['variables'] = variables
+    else:
+        response['constants'] = constants
+        response['variables'] = variables
+    response['allow'] = ""
+    acl_result = await storage.query_tbl_with_payload("control_api_acl", payload)
+    if acl_result['rows']:
+        users = []
+        for r in acl_result['rows']:
+            users.append(r['user'])
+        response['allow'] = users
+    return response

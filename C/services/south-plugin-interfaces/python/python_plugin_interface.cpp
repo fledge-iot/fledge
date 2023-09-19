@@ -531,9 +531,24 @@ std::vector<Reading *>* plugin_poll_fn(PLUGIN_HANDLE handle)
 
 		if (pyReadingSet)
 		{
+#if 1
+			// Old way do copy
+			std::vector<Reading *> *vec = pyReadingSet->getAllReadingsPtr();
+       			std::vector<Reading *> *vec2 = new std::vector<Reading *>;
+
+			for (auto & r : *vec)
+			{
+				Reading *r2 = new Reading(*r); // Need to copy reading objects here, since "del pyReadingSet" below would remove encapsulated reading objects
+				vec2->emplace_back(r2);
+			}
+
+			delete pyReadingSet;
+			return vec2;
+#else
 			std::vector<Reading *> *vec2 = pyReadingSet->moveAllReadings();
 			delete pyReadingSet;
 			return vec2;
+#endif
 		}
 		else
 		{

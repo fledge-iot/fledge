@@ -587,10 +587,16 @@ class ReadingsStorageClientAsync(StorageClientAsync):
         async with aiohttp.ClientSession() as session:
             async with session.put(url, data=None) as resp:
                 status_code = resp.status
-                jdoc = await resp.json()
-                if status_code not in range(200, 209):
-                    _LOGGER.error("PUT url %s, Error code: %d, reason: %s, details: %s", put_url, resp.status,
-                                  resp.reason, jdoc)
-                    raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
-
+                try:
+                    jdoc = await resp.json()
+                    if status_code not in range(200, 209):
+                        _LOGGER.error("PUT url %s, Error code: %d, reason: %s, details: %s", put_url, resp.status,
+                                      resp.reason, jdoc)
+                        raise StorageServerError(code=resp.status, reason=resp.reason, error=jdoc)
+                except ValueError as err:
+                    jdoc = None
+                    _LOGGER.error(err, "Failed to parse JSON data returned of purge from the storage reading plugin.")
+                except Exception as ex:
+                    jdoc = None
+                    _LOGGER.error(ex, "Purge readings is failed.")
         return jdoc

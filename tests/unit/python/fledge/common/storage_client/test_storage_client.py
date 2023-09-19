@@ -672,6 +672,7 @@ class TestReadingsStorageAsyncClient:
         assert "{}:{}".format(HOST, PORT) == rsc.base_url
         
         RETAINALL_FLAG = "retainall"
+        PURGE = "purge"
         with pytest.raises(Exception) as excinfo:
             kwargs = dict(flag='blah', age=1, sent_id=0, size=None)
             await rsc.purge(**kwargs)
@@ -717,21 +718,17 @@ class TestReadingsStorageAsyncClient:
         assert excinfo.type is ValueError
         assert "invalid literal for int() with base 10" in str(excinfo.value)
 
-        with pytest.raises(Exception) as excinfo:
-            with patch.object(_LOGGER, "error") as log_e:
-                kwargs = dict(age=-1, sent_id=1, size=None, flag=RETAINALL_FLAG)
-                await rsc.purge(**kwargs)
-            log_e.assert_called_once_with('PUT url %s, Error code: %d, reason: %s, details: %s',
-                                          '/storage/reading/purge?age=-1&sent=1&flags=retain', 400, 'age should not be less than 0', {"key": "value"})
-        assert excinfo.type is aiohttp.client_exceptions.ContentTypeError
+        with patch.object(_LOGGER, "error") as log_e:
+            kwargs = dict(age=-1, sent_id=1, size=None, flag=RETAINALL_FLAG)
+            result = await rsc.purge(**kwargs)
+            assert result is None
+        log_e.assert_called()
 
-        with pytest.raises(Exception) as excinfo:
-            with patch.object(_LOGGER, "error") as log_e:
-                kwargs = dict(age=None, sent_id=1, size=4294967296, flag=RETAINALL_FLAG)
-                await rsc.purge(**kwargs)
-            log_e.assert_called_once_with('PUT url %s, Error code: %d, reason: %s, details: %s',
-                                          '/storage/reading/purge?size=4294967296&sent=1&flags=retain', 500, 'unsigned int range', {"key": "value"})
-        assert excinfo.type is aiohttp.client_exceptions.ContentTypeError
+        with patch.object(_LOGGER, "error") as log_e:
+            kwargs = dict(age=None, sent_id=1, size=4294967296, flag=RETAINALL_FLAG)
+            result = await rsc.purge(**kwargs)
+            assert result is None
+        log_e.assert_called()
 
         kwargs = dict(age=1, sent_id=1, size=0, flag=RETAINALL_FLAG)
         response = await rsc.purge(**kwargs)
@@ -746,6 +743,26 @@ class TestReadingsStorageAsyncClient:
         assert 1 == response["called"]
 
         kwargs = dict(age=None, sent_id=1, size=1, flag=RETAINALL_FLAG)
+        response = await rsc.purge(**kwargs)
+        assert 1 == response["called"]
+
+        with patch.object(_LOGGER, "error") as log_e:
+            kwargs = dict(age=-1, sent_id=1, size=None, flag=PURGE)
+            result = await rsc.purge(**kwargs)
+            assert result is None
+        log_e.assert_called()
+
+        with patch.object(_LOGGER, "error") as log_e:
+            kwargs = dict(age=None, sent_id=1, size=4294967296, flag=PURGE)
+            result = await rsc.purge(**kwargs)
+            assert result is None
+        log_e.assert_called()
+
+        kwargs = dict(age=10, sent_id=1, size=None, flag=PURGE)
+        response = await rsc.purge(**kwargs)
+        assert 1 == response["called"]
+
+        kwargs = dict(age=None, sent_id=1, size=100, flag=PURGE)
         response = await rsc.purge(**kwargs)
         assert 1 == response["called"]
 

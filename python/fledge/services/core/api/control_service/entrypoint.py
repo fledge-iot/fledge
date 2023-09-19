@@ -4,11 +4,13 @@
 # See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
+import os
 import json
 from aiohttp import web
 from enum import IntEnum
 
 from fledge.common.audit_logger import AuditLogger
+from fledge.common.common import _FLEDGE_ROOT
 from fledge.common.logger import FLCoreLogger
 from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.services.core import connect, server
@@ -435,7 +437,19 @@ async def update_request(request: web.Request) -> web.Response:
     """
     name = request.match_info.get('name', None)
     try:
+        # check the dispatcher installation
+        if not os.path.exists(_FLEDGE_ROOT + "/services/fledge.services.dispatcher"):
+            raise KeyError('Dispatcher service is not installed.')
+        # check the dispatcher service state
         storage = connect.get_storage_async()
+        dispatcher_payload = PayloadBuilder().SELECT("enabled").WHERE(['process_name', '=', 'dispatcher_c']).payload()
+        dispatcher_result = await storage.query_tbl_with_payload('schedules', dispatcher_payload)
+        if not dispatcher_result["rows"]:
+            raise KeyError('Schedule not found for dispatcher service.')
+        else:
+            if dispatcher_result["rows"][0]["enabled"] == "f":
+                raise ValueError('Dispatcher service is in disabled state.')
+
         payload = PayloadBuilder().WHERE(["name", '=', name]).payload()
         result = await storage.query_tbl_with_payload("control_api", payload)
         if not result['rows']:

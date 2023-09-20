@@ -648,6 +648,12 @@ async def update_schedule(request):
         if not sch:
             raise ScheduleNotFoundError(schedule_id)
 
+        # Restrict name and type properties for STARTUP type schedules
+        if 'name' in data and Schedule.Type(int(sch.schedule_type)).name == "STARTUP":
+            raise ValueError("{} is a STARTUP schedule type and cannot be renamed.".format(sch.name))
+        if 'type' in data and Schedule.Type(int(sch.schedule_type)).name == "STARTUP":
+            raise ValueError("{} is a STARTUP schedule type and cannot be changed its type.".format(sch.name))
+
         curr_value = dict()
         curr_value['schedule_id'] = sch.schedule_id
         curr_value['schedule_process_name'] = sch.process_name

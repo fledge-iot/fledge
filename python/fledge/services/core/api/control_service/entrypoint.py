@@ -4,16 +4,15 @@
 # See: http://fledge-iot.readthedocs.io/
 # FLEDGE_END
 
-import os
 import json
-import aiohttp
 
-from aiohttp import web
 from enum import IntEnum
+import aiohttp
+from aiohttp import web
 
 from fledge.common.audit_logger import AuditLogger
-from fledge.common.common import _FLEDGE_ROOT
 from fledge.common.logger import FLCoreLogger
+from fledge.common.service_record import ServiceRecord
 from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.services.core import connect, server
 from fledge.services.core.service_registry.service_registry import ServiceRegistry
@@ -441,24 +440,19 @@ async def update_request(request: web.Request) -> web.Response:
     """
     name = request.match_info.get('name', None)
     try:
-        # check the dispatcher installation
-        if not os.path.exists(_FLEDGE_ROOT + "/services/fledge.services.dispatcher"):
-            raise KeyError('Dispatcher service is not installed.')
         # check the dispatcher service state
-        storage = connect.get_storage_async()
-        dispatcher_payload = PayloadBuilder().SELECT("enabled").WHERE(['process_name', '=', 'dispatcher_c']).payload()
-        dispatcher_result = await storage.query_tbl_with_payload('schedules', dispatcher_payload)
-        if not dispatcher_result["rows"]:
-            raise KeyError('Schedule not found for dispatcher service.')
-        else:
-            if dispatcher_result["rows"][0]["enabled"] == "f":
-                raise ValueError('Dispatcher service is in disabled state.')
+        try:
+            service = ServiceRegistry.get(s_type="Dispatcher")
+            if service[0]._status != ServiceRecord.Status.Running:
+                raise ValueError('The Dispatcher service is not in Running state.')
+        except service_registry_exceptions.DoesNotExist:
+            raise ValueError('Dispatcher service is either not installed or not added.')
 
         ep_info = await _get_entrypoint(name)
         username = "Anonymous"
         if request.user is not None:
             # Admin and Control role users can always call entrypoints.
-            # For others it must match from the list of allowed users
+            # For others, it must be matched from the list of allowed users
             if request.user["role_id"] not in (1, 5):
                 allowed_user = [r for r in ep_info['allow']]
                 # TODO: FOGL-8037 - If allowed user list is empty then should we allow to proceed with update request?

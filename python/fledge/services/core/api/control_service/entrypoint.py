@@ -12,6 +12,7 @@ from fledge.common.audit_logger import AuditLogger
 from fledge.common.logger import FLCoreLogger
 from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.services.core import connect, server
+from fledge.services.core.user_model import User
 
 
 __author__ = "Ashish Jabble"
@@ -180,7 +181,12 @@ async def _check_parameters(payload, skip_required=False):
     if allow is not None:
         if not isinstance(allow, list):
             raise ValueError('allow should be an array of list of users.')
-        # TODO: FOGL-8037 get usernames validation
+        if allow:
+            users = await User.Objects.all()
+            usernames = [u['uname'] for u in users]
+            invalid_users = list(set(payload['allow']) - set(usernames))
+            if invalid_users:
+                raise ValueError('Invalid user {} found.'.format(invalid_users))
         final['allow'] = allow
     return final
 
@@ -188,7 +194,7 @@ async def _check_parameters(payload, skip_required=False):
 async def create(request: web.Request) -> web.Response:
     """Create a control entrypoint
      :Example:
-         curl -sX POST http://localhost:8081/fledge/control/manage -d '{"name": "SetLatheSpeed", "description": "Set the speed of the lathe", "type": "write", "destination": "asset", "asset": "lathe", "constants": {"units": "spin"}, "variables": {"rpm": "100"}, "allow":["AJ"], "anonymous": "reject"}'
+         curl -sX POST http://localhost:8081/fledge/control/manage -d '{"name": "SetLatheSpeed", "description": "Set the speed of the lathe", "type": "write", "destination": "asset", "asset": "lathe", "constants": {"units": "spin"}, "variables": {"rpm": "100"}, "allow":["user"], "anonymous": false}'
      """
     try:
         data = await request.json()
@@ -224,10 +230,11 @@ async def create(request: web.Request) -> web.Response:
                     api_params_insert_payload = PayloadBuilder().INSERT(**control_api_params_column_name).payload()
                     await storage.insert_into_tbl("control_api_parameters", api_params_insert_payload)
             # add if any users in control_api_acl table
-            for u in payload['allow']:
-                control_acl_column_name = {"name": name, "user": u}
-                acl_insert_payload = PayloadBuilder().INSERT(**control_acl_column_name).payload()
-                await storage.insert_into_tbl("control_api_acl", acl_insert_payload)
+            if 'allow' in payload:
+                for u in payload['allow']:
+                    control_acl_column_name = {"name": name, "user": u}
+                    acl_insert_payload = PayloadBuilder().INSERT(**control_acl_column_name).payload()
+                    await storage.insert_into_tbl("control_api_acl", acl_insert_payload)
     except (KeyError, ValueError) as err:
         msg = str(err)
         raise web.HTTPBadRequest(body=json.dumps({"message": msg}), reason=msg)
@@ -323,9 +330,9 @@ async def delete(request: web.Request) -> web.Response:
 async def update(request: web.Request) -> web.Response:
     """Update a control entrypoint
     :Example:
-        curl -sX PUT "http://localhost:8081/fledge/control/manage/SetLatheSpeed" -d '{"constants": {"x": "486"}, "variables": {"rpm": "1200"}, "description": "Perform lathesim", "anonymous": false, "destination": "script", "script": "S4"}'
+        curl -sX PUT "http://localhost:8081/fledge/control/manage/SetLatheSpeed" -d '{"constants": {"x": "486"}, "variables": {"rpm": "1200"}, "description": "Perform lathesim", "anonymous": false, "destination": "script", "script": "S4", "allow": ["user"]}'
         curl -sX PUT http://localhost:8081/fledge/control/manage/SetLatheSpeed -d '{"description": "Updated", "anonymous": false, "allow": []}'
-        curl -sX PUT http://localhost:8081/fledge/control/manage/SetLatheSpeed -d '{"allow": ["user", "ashish"]}'
+        curl -sX PUT http://localhost:8081/fledge/control/manage/SetLatheSpeed -d '{"allow": ["user"]}'
     """
     name = request.match_info.get('name', None)
     try:

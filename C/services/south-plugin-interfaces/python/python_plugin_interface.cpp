@@ -531,7 +531,7 @@ std::vector<Reading *>* plugin_poll_fn(PLUGIN_HANDLE handle)
 
 		if (pyReadingSet)
 		{
-#if 1
+#if 0
 			// Old way do copy
 			std::vector<Reading *> *vec = pyReadingSet->getAllReadingsPtr();
        			std::vector<Reading *> *vec2 = new std::vector<Reading *>;

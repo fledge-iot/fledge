@@ -7,11 +7,13 @@
 
 import asyncio
 import json
-from unittest.mock import MagicMock, patch, call
 from datetime import timedelta, datetime
+from unittest.mock import MagicMock, patch, call
+from uuid import UUID
+
+import sys
 import uuid
 import pytest
-import sys
 
 from aiohttp import web
 from fledge.services.core import routes
@@ -586,7 +588,7 @@ class TestSchedules:
     @pytest.mark.parametrize("request_data, expected_response", [
         ({"name": "new"},
          {'schedule': {'id': '{}'.format(_random_uuid), 'time': 0, 'processName': 'bar', 'repeat': 30.0,
-                       'exclusive': True, 'enabled': True, 'type': 'STARTUP', 'day': None, 'name': 'new'}}),
+                       'exclusive': True, 'enabled': True, 'type': 'INTERVAL', 'day': None, 'name': 'new'}})
         ])
     async def test_update_schedule(self, client, request_data, expected_response):
         async def mock_coro():
@@ -618,13 +620,13 @@ class TestSchedules:
             return [schedule1, schedule2, schedule3]
 
         async def mock_schedule(*args):
-            schedule = StartUpSchedule()
+            schedule = IntervalSchedule()
             schedule.schedule_id = self._random_uuid
             schedule.exclusive = True
             schedule.enabled = True
             schedule.process_name = "bar"
             schedule.repeat = timedelta(seconds=30)
-            schedule.time = None
+            schedule.time = 0
             schedule.day = None
             schedule.name = "foo" if args[0] == 1 else "new"
             return schedule
@@ -659,7 +661,7 @@ class TestSchedules:
                         assert 2 == patch_get_schedule.call_count
                         assert call(uuid.UUID(str(self._random_uuid))) == patch_get_schedule.call_args
                     arguments, kwargs = patch_save_schedule.call_args
-                    assert isinstance(arguments[0], StartUpSchedule)
+                    assert isinstance(arguments[0], IntervalSchedule)
                 patch_get_schedules.assert_called_once_with()
 
     async def test_update_schedule_bad_param(self, client):
@@ -670,6 +672,131 @@ class TestSchedules:
         result = await resp.text()
         json_response = json.loads(result)
         assert {'message': error_msg} == json_response
+
+    @pytest.mark.parametrize("payload, status_code, message", [
+        ({"name": "Updated"}, 400, "South Service is a STARTUP schedule type and cannot be renamed."),
+        ({"type": 3}, 400, "South Service is a STARTUP schedule type and cannot be changed its type."),
+        ({"name": "Updated", "type": 3}, 400, "South Service is a STARTUP schedule type and cannot be renamed."),
+        ({"name": "Updated", "enabled": False}, 400, "South Service is a STARTUP schedule type and cannot be renamed."),
+        ({"type": 4, "enabled": False}, 400, "South Service is a STARTUP schedule type and cannot be changed its type.")
+    ])
+    async def test_bad_update_startup_schedule(self, client, payload, status_code, message):
+        uuid = "5affb5d1-96bb-4334-96ea-f91904cacc9b"
+
+        async def mock_schedule():
+            schedule = StartUpSchedule()
+            schedule.schedule_id = self._random_uuid
+            schedule.exclusive = True
+            schedule.enabled = True
+            schedule.process_name = "south_c"
+            schedule.repeat = 0
+            schedule.time = 0
+            schedule.day = None
+            schedule.name = "South Service"
+            return schedule
+
+        _rv1 = await mock_schedule() if sys.version_info.major == 3 and sys.version_info.minor >= 8 \
+            else asyncio.ensure_future(mock_schedule())
+        with patch.object(server.Server.scheduler, 'get_schedule', return_value=_rv1) as patch_get_schedule:
+            resp = await client.put('/fledge/schedule/{}'.format(uuid), data=json.dumps(payload))
+            assert status_code == resp.status
+            assert message == resp.reason
+        patch_get_schedule.assert_called_once_with(UUID(uuid))
+
+    @pytest.mark.parametrize("payload", [
+        ({"enabled": True}),
+        ({"enabled": False}),
+        ({"exclusive": False}),
+        ({"exclusive": True}),
+        ({"exclusive": True, "enabled": False}),
+        ({"exclusive": False, "enabled": True}),
+        ({"exclusive": False, "enabled": False}),
+        ({"exclusive": True, "enabled": True}),
+    ])
+    async def test_good_update_startup_schedule(self, client, payload):
+        startup_uuid = "5affb5d1-96bb-4334-96ea-f91904cacc9b"
+
+        async def mock_coro():
+            return ""
+
+        async def mock_schedules():
+            schedule1 = ManualSchedule()
+            schedule1.schedule_id = self._random_uuid
+            schedule1.exclusive = True
+            schedule1.enabled = True
+            schedule1.name = "purge"
+            schedule1.process_name = "purge"
+
+            schedule2 = StartUpSchedule()
+            schedule2.schedule_id = startup_uuid
+            schedule2.exclusive = True
+            schedule2.enabled = True
+            schedule2.name = "South Service"
+            schedule2.process_name = "south_c"
+            schedule2.repeat = 0
+            schedule2.time = 0
+            schedule2.day = None
+
+            schedule3 = IntervalSchedule()
+            schedule3.schedule_id = self._random_uuid
+            schedule3.repeat = timedelta(seconds=15)
+            schedule3.exclusive = True
+            schedule3.enabled = True
+            schedule3.name = "stats collection"
+            schedule3.process_name = "stats collector"
+
+            return [schedule1, schedule2, schedule3]
+
+        async def mock_schedule():
+            sch = await mock_schedules()
+            return sch[1]
+
+        async def final_schedule():
+            schedule = StartUpSchedule()
+            schedule.schedule_id = startup_uuid
+            schedule.exclusive = payload['exclusive'] if 'exclusive' in payload else True
+            schedule.enabled = payload['enabled'] if 'enabled' in payload else True
+            schedule.name = "South Service"
+            schedule.process_name = "south_c"
+            schedule.repeat = 0
+            schedule.time = 0
+            schedule.day = None
+            return schedule
+
+        storage_client_mock = MagicMock(StorageClientAsync)
+        response = {'rows': [{'name': 'SCH'}], 'count': 1}
+        # Changed in version 3.8: patch() now returns an AsyncMock if the target is an async function.
+        if sys.version_info.major == 3 and sys.version_info.minor >= 8:
+            _rv0 = await mock_coro_response(response)
+            _rv1 = await mock_schedule()
+            _rv11 = await final_schedule()
+            _rv2 = await mock_coro()
+            _rv3 = await mock_schedules()
+        else:
+            _rv0 = asyncio.ensure_future(mock_coro_response(response))
+            _rv1 = asyncio.ensure_future(mock_schedule())
+            _rv11 = asyncio.ensure_future(final_schedule())
+            _rv2 = asyncio.ensure_future(mock_coro())
+            _rv3 = asyncio.ensure_future(mock_schedules())
+
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=_rv0):
+                with patch.object(server.Server.scheduler, 'get_schedule', side_effect=[_rv1, _rv11]):
+                    with patch.object(server.Server.scheduler, 'save_schedule', return_value=_rv2
+                                      ) as patch_save_schedule:
+                        with patch.object(server.Server.scheduler, 'get_schedules', return_value=_rv3
+                                          ) as patch_get_schedules:
+                            resp = await client.put('/fledge/schedule/{}'.format(startup_uuid), data=json.dumps(payload))
+                            assert 200 == resp.status
+                            result = await resp.text()
+                            json_response = json.loads(result)
+                            if 'exclusive' in payload:
+                                assert payload['exclusive'] == json_response['schedule']['exclusive']
+                            if 'enabled' in payload:
+                                assert payload['enabled'] == json_response['schedule']['enabled']
+                        assert 1 == patch_get_schedules.call_count
+                    arguments, kwargs = patch_save_schedule.call_args
+                    assert isinstance(arguments[0], StartUpSchedule)
 
     async def test_update_schedule_data_not_exist(self, client):
         async def mock_coro():
@@ -715,14 +842,14 @@ class TestSchedules:
     ])
     async def test_update_schedule_bad_data(self, client, request_data, response_code, error_message, storage_return):
         async def mock_coro():
-            schedule = StartUpSchedule()
+            schedule = IntervalSchedule()
             schedule.schedule_id = self._random_uuid
             schedule.exclusive = True
             schedule.enabled = True
             schedule.name = "foo"
             schedule.process_name = "bar"
             schedule.repeat = timedelta(seconds=30)
-            schedule.time = None
+            schedule.time = 0
             schedule.day = None
             return schedule
 
@@ -775,13 +902,13 @@ class TestSchedules:
             return [schedule1, schedule2]
 
         async def mock_schedule(*args):
-            schedule = StartUpSchedule()
+            schedule = ManualSchedule()
             schedule.schedule_id = self._random_uuid
             schedule.exclusive = True
             schedule.enabled = True
             schedule.process_name = "bar"
-            schedule.repeat = timedelta(seconds=30)
-            schedule.time = None
+            schedule.repeat = 0
+            schedule.time = 0
             schedule.day = None
             schedule.name = "foo" if args[0] == 1 else "new"
             return schedule

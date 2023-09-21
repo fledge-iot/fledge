@@ -5,13 +5,18 @@
 # FLEDGE_END
 
 import json
-from aiohttp import web
+
 from enum import IntEnum
+import aiohttp
+from aiohttp import web
 
 from fledge.common.audit_logger import AuditLogger
 from fledge.common.logger import FLCoreLogger
+from fledge.common.service_record import ServiceRecord
 from fledge.common.storage_client.payload_builder import PayloadBuilder
 from fledge.services.core import connect, server
+from fledge.services.core.service_registry.service_registry import ServiceRegistry
+from fledge.services.core.service_registry import exceptions as service_registry_exceptions
 
 
 __author__ = "Ashish Jabble"
@@ -158,7 +163,7 @@ async def _check_parameters(payload, skip_required=False):
     if constants is not None:
         if not isinstance(constants, dict):
             raise ValueError('constants should be dictionary.')
-        if not constants and  _type == EntryPointType.WRITE.name.lower():
+        if not constants and _type == EntryPointType.WRITE.name.lower():
             raise ValueError('constants should not be empty.')
         final['constants'] = constants
     else:
@@ -435,36 +440,47 @@ async def update_request(request: web.Request) -> web.Response:
     """
     name = request.match_info.get('name', None)
     try:
-        storage = connect.get_storage_async()
-        payload = PayloadBuilder().WHERE(["name", '=', name]).payload()
-        result = await storage.query_tbl_with_payload("control_api", payload)
-        if not result['rows']:
-            raise KeyError('{} control entrypoint not found.'.format(name))
-        result = await storage.query_tbl_with_payload("control_api_parameters", payload)
+        # check the dispatcher service state
+        try:
+            service = ServiceRegistry.get(s_type="Dispatcher")
+            if service[0]._status != ServiceRecord.Status.Running:
+                raise ValueError('The Dispatcher service is not in Running state.')
+        except service_registry_exceptions.DoesNotExist:
+            raise ValueError('Dispatcher service is either not installed or not added.')
+
+        ep_info = await _get_entrypoint(name)
+        username = "Anonymous"
         if request.user is not None:
-            # Admin and Control roles can always call entrypoints. But for a user it must match in list of allowed users
+            # Admin and Control role users can always call entrypoints.
+            # For others, it must be matched from the list of allowed users
             if request.user["role_id"] not in (1, 5):
-                acl_result = await storage.query_tbl_with_payload("control_api_acl", payload)
-                allowed_user = [r['user'] for r in acl_result['rows']]
+                allowed_user = [r for r in ep_info['allow']]
                 # TODO: FOGL-8037 - If allowed user list is empty then should we allow to proceed with update request?
                 # How about viewer and data viewer role access to this route?
                 # as of now simply reject with Forbidden 403
                 if request.user["uname"] not in allowed_user:
                     raise ValueError("Operation is not allowed for the {} user.".format(request.user['uname']))
+            username = request.user["uname"]
+
         data = await request.json()
-        payload = {"updates": []}
-        for k, v in data.items():
-            for r in result['rows']:
-                # TODO: FOGL-8037 - validation of constants and variables key - 400 or simply ignore?
-                if r['parameter'] == k:
-                    if isinstance(v, str):
-                        payload_item = PayloadBuilder().SET(value=v).WHERE(["name", "=", name]).AND_WHERE(
-                            ["parameter", "=", k]).payload()
-                        payload['updates'].append(json.loads(payload_item))
-                        break
-                    else:
-                        raise ValueError("Value should be in string for {} parameter.".format(k))
-        await storage.update_tbl("control_api_parameters", json.dumps(payload))
+        dispatch_payload = {"destination": ep_info['destination'], "source": "API", "source_name": username}
+        # If destination is broadcast then name KV pair is excluded from dispatch payload
+        if str(ep_info['destination']).lower() != 'broadcast':
+            dispatch_payload["name"] = ep_info[ep_info['destination']]
+        constant_dict = {key: data.get(key, ep_info["constants"][key]) for key in ep_info["constants"]}
+        variables_dict = {key: data.get(key, ep_info["variables"][key]) for key in ep_info["variables"]}
+        params = {**constant_dict, **variables_dict}
+        if not params:
+            raise ValueError("Nothing to update as given entrypoint do not have the parameters.")
+        if ep_info['type'] == 'write':
+            url = "dispatch/write"
+            dispatch_payload["write"] = params
+        else:
+            url = "dispatch/operation"
+            dispatch_payload["operation"] = {ep_info["operation_name"]: params if params else {}}
+        _logger.debug("DISPATCH PAYLOAD: {}".format(dispatch_payload))
+        svc, bearer_token = await _get_service_record_info_along_with_bearer_token()
+        await _call_dispatcher_service_api(svc._protocol, svc._address, svc._port, url, bearer_token, dispatch_payload)
     except KeyError as err:
         msg = str(err)
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
@@ -514,3 +530,36 @@ async def _get_entrypoint(name):
             users.append(r['user'])
         response['allow'] = users
     return response
+
+
+async def _get_service_record_info_along_with_bearer_token():
+    try:
+        service = ServiceRegistry.get(s_type="Dispatcher")
+        svc_name = service[0]._name
+        token = ServiceRegistry.getBearerToken(svc_name)
+    except service_registry_exceptions.DoesNotExist:
+        msg = "No service available with type Dispatcher."
+        raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
+    else:
+        return service[0], token
+
+
+async def _call_dispatcher_service_api(protocol: str, address: str, port: int, uri: str, token: str, payload: dict):
+    # Custom Request header
+    headers = {}
+    if token is not None:
+        headers['Authorization'] = "Bearer {}".format(token)
+    url = "{}://{}:{}/{}".format(protocol, address, port, uri)
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, data=json.dumps(payload), headers=headers) as resp:
+                message = await resp.text()
+                response = (resp.status, message)
+                if resp.status not in range(200, 209):
+                    _logger.error("POST Request Error: Http status code: {}, reason: {}, response: {}".format(
+                        resp.status, resp.reason, message))
+    except Exception as ex:
+        raise Exception(str(ex))
+    else:
+        # Return Tuple - (http statuscode, message)
+        return response

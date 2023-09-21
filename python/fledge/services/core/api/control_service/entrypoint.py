@@ -323,7 +323,9 @@ async def delete(request: web.Request) -> web.Response:
 async def update(request: web.Request) -> web.Response:
     """Update a control entrypoint
     :Example:
-        curl -sX PUT http://localhost:8081/fledge/control/manage/SetLatheSpeed -d '{"description": "Updated", "anonymous": false}'
+        curl -sX PUT "http://localhost:8081/fledge/control/manage/SetLatheSpeed" -d '{"constants": {"x": "486"}, "variables": {"rpm": "1200"}, "description": "Perform lathesim", "anonymous": false, "destination": "script", "script": "S4"}'
+        curl -sX PUT http://localhost:8081/fledge/control/manage/SetLatheSpeed -d '{"description": "Updated", "anonymous": false, "allow": []}'
+        curl -sX PUT http://localhost:8081/fledge/control/manage/SetLatheSpeed -d '{"allow": ["user", "ashish"]}'
     """
     name = request.match_info.get('name', None)
     try:
@@ -339,14 +341,12 @@ async def update(request: web.Request) -> web.Response:
         except Exception as ex:
             msg = str(ex)
             raise ValueError(msg)
-
         old_entrypoint = await _get_entrypoint(name)
         # TODO: FOGL-8037 rename
         if 'name' in columns:
             del columns['name']
-        # TODO: FOGL-8037 "allow"
         possible_keys = {"name", "description", "type", "operation_name", "destination", "destination_arg",
-                         "anonymous", "constants", "variables"}
+                         "anonymous", "constants", "variables", "allow"}
         if 'type' in columns:
             columns['operation_name'] = columns['operation_name'] if columns['type'] == 1 else ""
         if 'destination_arg' in columns:
@@ -402,6 +402,19 @@ async def update(request: web.Request) -> web.Response:
                         if entry_point_result['rows'][0]['type'] == 1:
                             del_payload = PayloadBuilder(variable_payload).payload()
                             await storage.delete_from_tbl("control_api_parameters", del_payload)
+                elif k == "allow":
+                    allowed_users = [u for u in v]
+                    db_allow_users = old_entrypoint["allow"]
+                    insert_case = set(allowed_users) - set(db_allow_users)
+                    for _user in insert_case:
+                        acl_cols = {"name": name, "user": _user}
+                        acl_insert_payload = PayloadBuilder().INSERT(**acl_cols).payload()
+                        await storage.insert_into_tbl("control_api_acl", acl_insert_payload)
+                    delete_case = set(db_allow_users) - set(allowed_users)
+                    for _user in delete_case:
+                        acl_delete_payload = PayloadBuilder().WHERE(["name", '=', name]
+                                                                    ).AND_WHERE(["user", '=', _user]).payload()
+                        await storage.delete_from_tbl("control_api_acl", acl_delete_payload)
                 else:
                     control_api_columns[k] = v
             if control_api_columns:
@@ -506,7 +519,7 @@ async def _get_entrypoint(name):
     else:
         response['constants'] = constants
         response['variables'] = variables
-    response['allow'] = ""
+    response['allow'] = []
     acl_result = await storage.query_tbl_with_payload("control_api_acl", payload)
     if acl_result['rows']:
         users = []

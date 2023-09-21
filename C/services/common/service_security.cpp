@@ -597,7 +597,7 @@ void ServiceAuthHandler::refreshBearerToken()
 	// and sleeps for a few secods.
 	// When expires_in - DELTA_SECONDS_BEFORE_TOKEN_EXPIRATION seconds is done
 	// then get new token and sleep again
-	while (this->isRunning())
+	while (m_refreshRunning)
 	{
 		if (k >= max_retries)
 		{
@@ -606,7 +606,7 @@ void ServiceAuthHandler::refreshBearerToken()
 			Logger::getLogger()->error(msg.c_str());
 
 			// Shutdown service
-			if (this->isRunning())
+			if (m_refreshRunning)
 			{
 				Logger::getLogger()->warn("Service is being shut down " \
 						"due to bearer token refresh error");
@@ -665,7 +665,7 @@ void ServiceAuthHandler::refreshBearerToken()
 
 		// A shutdown maybe is set, since last check: check it now
 		// refresh_token core API endpoint
-		if (!this->isRunning())
+		if (!m_refreshRunning)
 		{
 			Logger::getLogger()->info("Service is being shut down: " \
 						"refresh thread does not call " \

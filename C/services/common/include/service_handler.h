@@ -35,8 +35,8 @@ class ServiceHandler
 class ServiceAuthHandler : public ServiceHandler
 {
 	public:
-		ServiceAuthHandler() : m_refreshThread(NULL) {};
-		virtual ~ServiceAuthHandler() { if (m_refreshThread) delete m_refreshThread; };
+		ServiceAuthHandler() : m_refreshThread(NULL), m_refreshRunning(true) {};
+		virtual ~ServiceAuthHandler() { if (m_refreshThread) { m_refreshRunning = false; m_refreshThread->join(); delete m_refreshThread; } };
 		std::string&	getName() { return m_name; };
 		std::string&	getType() { return m_type; };
 		bool		createSecurityCategories(ManagementClient* mgtClient, bool dryRun);
@@ -108,6 +108,7 @@ class ServiceAuthHandler : public ServiceHandler
 		// Service ACL
 		ACL		m_service_acl;
 		std::thread	*m_refreshThread;
+		bool		m_refreshRunning;
 };
 
 #endif

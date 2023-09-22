@@ -718,9 +718,6 @@ void Ingest::processQueue()
 					}
 
 					ReadingSet *readingSet = new ReadingSet(m_data);
-					if (readingSet && readingSet->getAllReadingsPtr() && readingSet->getAllReadingsPtr()->size())
-						Logger::getLogger()->debug("%s:%d: readingSet->getAllReadingsPtr()->size()=%d, readingSet->getAllReadings()[0] (@ %p)=%s", __FUNCTION__, __LINE__, 
-												readingSet->getAllReadingsPtr()->size(), readingSet->getAllReadings()[0], readingSet->getAllReadings()[0]->toJSON().c_str());
 					m_data->clear();
 					// Pass readingSet to filter chain
 					firstFilter->ingest(readingSet);
@@ -745,8 +742,6 @@ void Ingest::processQueue()
 		 */
 		if (m_data)
 		{
-			if(m_data->size())
-				Logger::getLogger()->debug("%s:%d: m_data->size()=%d, first rdngPtr=%p, first rdng=%s", __FUNCTION__, __LINE__, m_data->size(), (*m_data)[0],  (*m_data)[0]->toJSON().c_str());
 			vector<Reading *>::iterator itr = m_data->begin();
 			if (itr != m_data->cend())
 			{
@@ -811,9 +806,6 @@ void Ingest::processQueue()
 				int *lastStat = NULL;
 				std::map <std::string, std::set<std::string> > assetDatapointMap;
 
-				if(m_data && m_data->size())
-					Logger::getLogger()->debug("%s:%d: m_data->size()=%d, first rdngPtr=%p, first rdng=%s", __FUNCTION__, __LINE__, m_data->size(), (*m_data)[0],  (*m_data)[0]->toJSON().c_str());
-				
 				for (vector<Reading *>::iterator it = m_data->begin(); it != m_data->end(); ++it)
 				{
 		               	        Reading *reading = *it;
@@ -912,9 +904,6 @@ void Ingest::processQueue()
 			}
 		}
 
-		if(m_data && m_data->size())
-			Logger::getLogger()->debug("%s:%d: m_data->size()=%d, first rdngPtr=%p, first rdng=%s", __FUNCTION__, __LINE__, m_data->size(), (*m_data)[0],  (*m_data)[0]->toJSON().c_str());
-
 		if (m_data)
 		{
 			delete m_data;
@@ -990,10 +979,6 @@ void Ingest::passToOnwardFilter(OUTPUT_HANDLE *outHandle,
 	// Get next filter in the pipeline
 	FilterPlugin *next = (FilterPlugin *)outHandle;
 
-	if (readingSet && readingSet->getAllReadingsPtr() && readingSet->getAllReadingsPtr()->size())
-		Logger::getLogger()->debug("%s:%d: readingSet->getAllReadingsPtr()->size()=%d, readingSet->getAllReadings()[0] (@ %p)=%s", __FUNCTION__, __LINE__, 
-								readingSet->getAllReadingsPtr()->size(), readingSet->getAllReadings()[0], readingSet->getAllReadings()[0]->toJSON().c_str());
-	
 	// Pass readings to next filter
 	next->ingest(readingSet);
 }
@@ -1024,21 +1009,10 @@ void Ingest::useFilteredData(OUTPUT_HANDLE *outHandle,
 {
 	Ingest* ingest = (Ingest *)outHandle;
 
-	if (readingSet && readingSet->getAllReadingsPtr() && readingSet->getAllReadingsPtr()->size())
-		Logger::getLogger()->debug("%s:%d: readingSet->getAllReadingsPtr()->size()=%d, readingSet->getAllReadings()[0] (@ %p)=%s", __FUNCTION__, __LINE__, 
-								readingSet->getAllReadingsPtr()->size(), readingSet->getAllReadings()[0], readingSet->getAllReadings()[0]->toJSON().c_str());
-		
-	if(ingest->m_data->size() && readingSet->getAllReadingsPtr()->size())
-		Logger::getLogger()->debug("%s:%d: ingest->m_data->size()=%d, first rdngPtr=%p", __FUNCTION__, __LINE__, ingest->m_data->size(), readingSet->getAllReadings()[0]);
-	
 	if (ingest->m_data != readingSet->getAllReadingsPtr())
 	{
 		if (ingest->m_data && ingest->m_data->size())
 		{
-			Logger::getLogger()->debug("%s:%d: ingest->m_data->size()=%d", __FUNCTION__, __LINE__, ingest->m_data->size());
-			Logger::getLogger()->debug("%s:%d: ingest->m_data->size()=%d, first rdngPtr=%p", __FUNCTION__, __LINE__, ingest->m_data->size(), ((*(ingest->m_data))[0]));
-			Logger::getLogger()->debug("%s:%d: ingest->m_data->size()=%d, first rdngPtr=%p, first rdng=%s", __FUNCTION__, __LINE__, ingest->m_data->size(), 
-																					((*(ingest->m_data))[0]), ((*(ingest->m_data))[0])->toJSON().c_str());
 			// Remove the readings in the vector
 			for(auto & rdng : *(ingest->m_data))
 				delete rdng;
@@ -1047,7 +1021,6 @@ void Ingest::useFilteredData(OUTPUT_HANDLE *outHandle,
 			
 			// move reading vector to ingest
 			*(ingest->m_data) = readingSet->getAllReadings();
-			Logger::getLogger()->debug("%s:%d: ingest->m_data->size()=%d, first rdng=%s", __FUNCTION__, __LINE__, ingest->m_data->size(), (*(ingest->m_data))[0]->toJSON().c_str());
 		}
 		else
 		{
@@ -1059,11 +1032,6 @@ void Ingest::useFilteredData(OUTPUT_HANDLE *outHandle,
 	{
 		Logger::getLogger()->info("%s:%d: INPUT READINGSET MODIFIED BY FILTER: ingest->m_data=%p, readingSet->getAllReadingsPtr()=%p", 
 																	__FUNCTION__, __LINE__, ingest->m_data, readingSet->getAllReadingsPtr());
-	}
-	
-	if (ingest->m_data)
-	{
-		Logger::getLogger()->debug("%s:%d: ingest->m_data->size()=%d", __FUNCTION__, __LINE__, ingest->m_data->size());
 	}
 	
 	readingSet->clear();

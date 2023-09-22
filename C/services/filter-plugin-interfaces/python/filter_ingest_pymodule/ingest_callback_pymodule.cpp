@@ -167,7 +167,7 @@ void filter_plugin_async_ingest_fn(PyObject *ingest_callback,
 		// Get ingest object parameter
 		void *data = PyCapsule_GetPointer(ingest_obj_ref_data, NULL);
 
-		Logger::getLogger()->info("%s:%d: cb function at address %p", __FUNCTION__, __LINE__, *cb);
+		Logger::getLogger()->debug("%s:%d: cb function at address %p", __FUNCTION__, __LINE__, *cb);
 		// Invoke callback method for ReadingSet filter ingestion
 		(*cb)(data, pyReadingSet);
 	}

@@ -284,7 +284,7 @@ private:
 	std::string				m_service;
 	std::unordered_set<AssetTrackingTuple*, std::hash<AssetTrackingTuple*>, AssetTrackingTuplePtrEqual>
 						assetTrackerTuplesCache;
-	std::queue<TrackingTuple *>	m_pending;	// Tuples that are not yet written to the storage
+	std::queue<TrackingTuple *>		m_pending;	// Tuples that are not yet written to the storage
 	std::thread				*m_thread;
 	bool					m_shutdown;
 	std::condition_variable			m_cv;

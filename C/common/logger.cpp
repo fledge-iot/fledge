@@ -51,6 +51,9 @@ static char ident[80];
 Logger::~Logger()
 {
 	closelog();
+	// Stop the getLogger() call returning a deleted instance
+	if (instance == this)
+		instance = NULL;
 }
 
 Logger *Logger::getLogger()

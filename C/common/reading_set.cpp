@@ -164,30 +164,44 @@ ReadingSet::~ReadingSet()
 /**
  * Append the readings in a second reading set to this reading set.
  * The readings are removed from the original reading set
+ *
+ * @param readings	A ReadingSet to append to the current ReadingSet
  */
 void
 ReadingSet::append(ReadingSet *readings)
 {
-	append(readings->getAllReadings());
+	vector<Reading *> *vec = readings->getAllReadingsPtr();
+	append(*vec);
 	readings->clear();
 }
 
 /**
  * Append the readings in a second reading set to this reading set.
  * The readings are removed from the original reading set
+ *
+ * @param readings	A ReadingSet to append to the current ReadingSet
  */
 void
 ReadingSet::append(ReadingSet& readings)
 {
-	append(readings.getAllReadings());
+	vector<Reading *> *vec = readings.getAllReadingsPtr();
+	append(*vec);
 	readings.clear();
 }
 
 /**
- * Append a set of readings to this reading set.
+ * Append a set of readings to this reading set. The
+ * readings are not copied, but rather moved from the
+ * vector, with the resulting vector havign the values
+ * removed on return.
+ *
+ * It is assumed the readings in the vector have been
+ * created with the new operator.
+ *
+ * @param readings	A vector of Reading pointers to append to the ReadingSet
  */
 void
-ReadingSet::append(const vector<Reading *>& readings)
+ReadingSet::append(vector<Reading *>& readings)
 {
 	for (auto it = readings.cbegin(); it != readings.cend(); it++)
 	{
@@ -196,6 +210,7 @@ ReadingSet::append(const vector<Reading *>& readings)
 		m_readings.push_back(*it);
 		m_count++;
 	}
+	readings.clear();
 }
 
 /**
@@ -295,6 +310,8 @@ ReadingSet::removeAll()
 		delete *it;
 	}
 	m_readings.clear();
+	m_count = 0;
+	m_last_id = 0;
 }
 
 /**
@@ -304,6 +321,8 @@ void
 ReadingSet::clear()
 {
 	m_readings.clear();
+	m_count = 0;
+	m_last_id = 0;
 }
 
 /**
@@ -325,15 +344,16 @@ std::vector<Reading*>* ReadingSet::moveAllReadings()
 */
 Reading* ReadingSet::removeReading(unsigned long id)
 {
-	if (id >= m_readings.size()) {
-        return nullptr;
-    }
+	if (id >= m_readings.size())
+	{
+		return nullptr;
+	}
 
 	Reading* reading = m_readings[id];
-    m_readings.erase(m_readings.begin() + id);
-    m_count--;
+	m_readings.erase(m_readings.begin() + id);
+	m_count--;
 
-    return reading;
+	return reading;
 }
 
 /**

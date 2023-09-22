@@ -106,6 +106,11 @@ void DataSender::sendThread()
 			readings = NULL;
 		}
 	}
+	if (readings)
+	{
+		// Rremove any readings we had failed to send before shutting down
+		delete readings;
+	}
 	m_logger->info("Sending thread shutdown");
 }
 

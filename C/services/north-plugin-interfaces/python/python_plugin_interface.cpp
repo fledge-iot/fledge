@@ -415,17 +415,10 @@ uint32_t plugin_send_fn(PLUGIN_HANDLE handle, const std::vector<Reading *>& read
 	}
 
 	// Create a dict of readings
-	// 1 create empty ReadingSet
-	ReadingSet set;
+	// 1 create a PythonReadingSet object
+	PythonReadingSet *pyReadingSet = (PythonReadingSet *) &readings;
 
-	// 2 append all input readings:
-	// Note: the readings elements are pointers
-	set.append(readings);
-
-	// 3 create a PythonReadingSet object
-	PythonReadingSet *pyReadingSet = (PythonReadingSet *) &set;
-
-	// 4 create PyObject
+	// 2 create PyObject
 	PyObject* readingsList = pyReadingSet->toPython(true);
 	    
 	numReadingsSent = call_plugin_send_coroutine(pFunc, handle, readingsList);
@@ -433,11 +426,6 @@ uint32_t plugin_send_fn(PLUGIN_HANDLE handle, const std::vector<Reading *>& read
 				__LINE__,
 				numReadingsSent);
    
-	// Remove all elements in readings vector
-	// without freeing them as the reagings pointers
-	// will be be freed by the caller of plugin_send_fn
-	set.clear();
-
 	// Remove python object
 	Py_CLEAR(readingsList);
 	Py_CLEAR(pFunc);

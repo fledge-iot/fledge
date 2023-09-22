@@ -353,7 +353,30 @@ Ingest::~Ingest()
 	m_statsCv.notify_one();
 	m_statsThread->join();
 	updateStats();
+	// Cleanup and readings left in the various queues
+	for (auto& reading : *m_queue)
+	{
+		delete reading;
+	}
 	delete m_queue;
+	for (auto& q : m_resendQueues)
+	{
+		for (auto& rq : *q)
+		{
+			delete rq;
+		}
+		delete q;
+	}
+	while (m_fullQueues.size() > 0)
+	{
+		vector<Reading *> *q = m_fullQueues.front();
+		for (auto& rq : *q)
+		{
+			delete rq;
+		}
+		delete q;
+		m_fullQueues.pop();
+	}
 	delete m_thread;
 	delete m_statsThread;
 

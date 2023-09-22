@@ -20,6 +20,7 @@
 class PythonReading : public Reading {
 	public:
 		PythonReading(PyObject *pyReading);
+		~PythonReading() {};
 		PyObject 		*toPython(bool changeKeys = false, bool bytesString = false);
 		static std::string	errorMessage();
 		static bool		isArray(PyObject *);

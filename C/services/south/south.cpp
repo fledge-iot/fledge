@@ -33,6 +33,7 @@
 #include <filter_plugin.h>
 #include <config_handler.h>
 #include <syslog.h>
+#include <pyruntime.h>
 
 #define SERVICE_TYPE "Southbound"
 
@@ -105,8 +106,12 @@ bool	       dryrun = false;
 	{
 		service->setDryRun();
 	}
-	Logger::getLogger()->setMinLevel(logLevel);
+	Logger *logger = Logger::getLogger();
+	logger->setMinLevel(logLevel);
+	// Start the service. This will oly return whren the serivce is shutdown
 	service->start(coreAddress, corePort);
+	delete service;
+	delete logger;
 	return 0;
 }
 
@@ -224,14 +229,18 @@ void doIngestV2(Ingest *ingest, ReadingSet *set)
  * Constructor for the south service
  */
 SouthService::SouthService(const string& myName, const string& token) :
+				southPlugin(NULL),
+				m_assetTracker(NULL),
 				m_shutdown(false),
 				m_readingsPerSec(1),
 				m_throttle(false),
 				m_throttled(false),
 				m_token(token),
 				m_repeatCnt(1),
+				m_pluginData(NULL),
 				m_dryRun(false),
 				m_requestRestart(false),
+				m_auditLogger(NULL),
 				m_perfMonitor(NULL)
 {
 	m_name = myName;
@@ -242,6 +251,30 @@ SouthService::SouthService(const string& myName, const string& token) :
 	logger->setMinLevel("warning");
 
 	m_reconfThread = new std::thread(reconfThreadMain, this);
+}
+
+/**
+ * Destructor for south service
+ */
+SouthService::~SouthService()
+{
+	m_cvNewReconf.notify_all();	// Wakeup the reconfigure thread to terminate it
+	m_reconfThread->join();
+	delete m_reconfThread;
+	if (m_pluginData)
+		delete m_pluginData;
+	if (m_perfMonitor)
+		delete m_perfMonitor;
+	delete m_assetTracker;
+	delete m_auditLogger;
+	delete m_mgtClient;
+
+	// We would like to shutdown the Python environment if it
+	// was running. However this causes a segmentation fault within Python
+	// so we currently can not do this
+#if PYTHON_SHUTDOWN
+	PythonRuntime::shutdown();	// Shutdown and release Python resources
+#endif
 }
 
 /**
@@ -662,6 +695,8 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 			{
 				southPlugin->shutdown();
 			}
+			delete southPlugin;
+			southPlugin = NULL;
 		}
 		}
 		
@@ -687,9 +722,6 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
  */
 void SouthService::stop()
 {
-	delete m_assetTracker;
-	delete m_auditLogger;
-	delete m_mgtClient;
 
 	logger->info("Stopping south service...\n");
 }
@@ -1008,10 +1040,7 @@ static void reconfThreadMain(void *arg)
 {
 	SouthService *ss = (SouthService *)arg;
 	Logger::getLogger()->info("reconfThreadMain(): Spawned new thread for plugin reconf");
-	while(1)
-	{
-		ss->handlePendingReconf();
-	}
+	ss->handlePendingReconf();
 	Logger::getLogger()->info("reconfThreadMain(): plugin reconf thread exiting");
 }
 
@@ -1021,47 +1050,50 @@ static void reconfThreadMain(void *arg)
  */
 void SouthService::handlePendingReconf()
 {
-	Logger::getLogger()->debug("SouthService::handlePendingReconf: Going into cv wait");
-	mutex mtx;
-	unique_lock<mutex> lck(mtx);
-	m_cvNewReconf.wait(lck);
-	Logger::getLogger()->debug("SouthService::handlePendingReconf: cv wait has completed; some reconf request(s) has/have been queued up");
-
-	while(1)
+	while (isRunning())
 	{
-		unsigned int numPendingReconfs = 0;
-		{
-			lock_guard<mutex> guard(m_pendingNewConfigMutex);
-			numPendingReconfs = m_pendingNewConfig.size();
-			if (numPendingReconfs)
-				Logger::getLogger()->debug("SouthService::handlePendingReconf(): will process %d entries in m_pendingNewConfig", numPendingReconfs);
-			else
-			{
-				Logger::getLogger()->debug("SouthService::handlePendingReconf DONE");
-				break;
-			}
-		}
+		Logger::getLogger()->debug("SouthService::handlePendingReconf: Going into cv wait");
+		mutex mtx;
+		unique_lock<mutex> lck(mtx);
+		m_cvNewReconf.wait(lck);
+		Logger::getLogger()->debug("SouthService::handlePendingReconf: cv wait has completed; some reconf request(s) has/have been queued up");
 
-		for (unsigned int i=0; i<numPendingReconfs; i++)
+		while (isRunning())
 		{
-			logger->debug("SouthService::handlePendingReconf(): Handling Configuration change #%d", i);
-			std::pair<std::string,std::string> *reconfValue = NULL;
+			unsigned int numPendingReconfs = 0;
 			{
 				lock_guard<mutex> guard(m_pendingNewConfigMutex);
-				reconfValue = &m_pendingNewConfig[i];
+				numPendingReconfs = m_pendingNewConfig.size();
+				if (numPendingReconfs)
+					Logger::getLogger()->debug("SouthService::handlePendingReconf(): will process %d entries in m_pendingNewConfig", numPendingReconfs);
+				else
+				{
+					Logger::getLogger()->debug("SouthService::handlePendingReconf DONE");
+					break;
+				}
 			}
-			std::string categoryName = reconfValue->first;
-			std::string category = reconfValue->second;
-			processConfigChange(categoryName, category);
 
-			logger->debug("SouthService::handlePendingReconf(): Handling of configuration change #%d done", i);
-		}
-		
-		{
-			lock_guard<mutex> guard(m_pendingNewConfigMutex);
 			for (unsigned int i=0; i<numPendingReconfs; i++)
-				m_pendingNewConfig.pop_front();
-			logger->debug("SouthService::handlePendingReconf DONE: first %d entry(ies) removed, m_pendingNewConfig new size=%d", numPendingReconfs, m_pendingNewConfig.size());
+			{
+				logger->debug("SouthService::handlePendingReconf(): Handling Configuration change #%d", i);
+				std::pair<std::string,std::string> *reconfValue = NULL;
+				{
+					lock_guard<mutex> guard(m_pendingNewConfigMutex);
+					reconfValue = &m_pendingNewConfig[i];
+				}
+				std::string categoryName = reconfValue->first;
+				std::string category = reconfValue->second;
+				processConfigChange(categoryName, category);
+
+				logger->debug("SouthService::handlePendingReconf(): Handling of configuration change #%d done", i);
+			}
+			
+			{
+				lock_guard<mutex> guard(m_pendingNewConfigMutex);
+				for (unsigned int i=0; i<numPendingReconfs; i++)
+					m_pendingNewConfig.pop_front();
+				logger->debug("SouthService::handlePendingReconf DONE: first %d entry(ies) removed, m_pendingNewConfig new size=%d", numPendingReconfs, m_pendingNewConfig.size());
+			}
 		}
 	}
 }

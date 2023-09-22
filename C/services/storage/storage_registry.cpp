@@ -48,13 +48,14 @@ static void worker(StorageRegistry *registry)
  * code, or * for all assets, that URL will then be called when new
  * data arrives for the particular asset.
  *
- * The servce registry maintians a worker thread that is responsible
+ * The service registry maintians a worker thread that is responsible
  * for sending these notifications such that the main flow of data into
  * the storage layer is minimally impacted by the registration and
  * delivery of these messages to interested microservices.
  */
 StorageRegistry::StorageRegistry() : m_thread(NULL)
 {
+	m_running = true;
 	m_thread = new thread(worker, this);
 }
 
@@ -64,12 +65,22 @@ StorageRegistry::StorageRegistry() : m_thread(NULL)
 StorageRegistry::~StorageRegistry()
 {
 	m_running = false;
+	m_cv.notify_all();
 	if (m_thread)
 	{
-		m_thread->join();
+		if (m_thread->joinable())
+			m_thread->join();
 		delete m_thread;
 		m_thread = NULL;
 	}
+	while (!m_queue.empty())
+		m_queue.pop();
+	while (!m_tableInsertQueue.empty())
+		m_tableInsertQueue.pop();
+	while (!m_tableUpdateQueue.empty())
+		m_tableUpdateQueue.pop();
+	while (!m_tableDeleteQueue.empty())
+		m_tableDeleteQueue.pop();
 }
 
 /**
@@ -380,7 +391,6 @@ StorageRegistry::unregisterTable(const string& table, const string& payload)
 void
 StorageRegistry::run()
 {	
-	m_running = true;
 	while (m_running)
 	{
 		char *data = NULL;

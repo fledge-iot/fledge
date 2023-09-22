@@ -719,15 +719,11 @@ void Ingest::processQueue()
 
 					ReadingSet *readingSet = new ReadingSet(m_data);
 					if (readingSet && readingSet->getAllReadingsPtr() && readingSet->getAllReadingsPtr()->size())
-						Logger::getLogger()->info("%s:%d: readingSet->getAllReadingsPtr()->size()=%d, readingSet->getAllReadings()[0] (@ %p)=%s", __FUNCTION__, __LINE__, 
+						Logger::getLogger()->debug("%s:%d: readingSet->getAllReadingsPtr()->size()=%d, readingSet->getAllReadings()[0] (@ %p)=%s", __FUNCTION__, __LINE__, 
 												readingSet->getAllReadingsPtr()->size(), readingSet->getAllReadings()[0], readingSet->getAllReadings()[0]->toJSON().c_str());
 					m_data->clear();
 					// Pass readingSet to filter chain
 					firstFilter->ingest(readingSet);
-
-					/* if (readingSet && readingSet->getAllReadingsPtr() && readingSet->getAllReadingsPtr()->size())
-						Logger::getLogger()->info("%s:%d: readingSet->getAllReadingsPtr()->size()=%d, readingSet->getAllReadings()[0] (@ %p)=%s", __FUNCTION__, __LINE__, 
-												readingSet->getAllReadingsPtr()->size(), readingSet->getAllReadings()[0], readingSet->getAllReadings()[0]->toJSON().c_str()); */
 
 					/*
 					 * If filtering removed all the readings then simply clean up m_data and
@@ -735,18 +731,14 @@ void Ingest::processQueue()
 					 */
 					if (m_data->size() == 0)
 					{
-						PRINT_FUNC;
 						delete m_data;
 						m_data = NULL;
 						return;
 					}
-					PRINT_FUNC;
 				}
 			}
 		}
 
-		PRINT_FUNC;
-		
 		/*
 		 * Check the first reading in the list to see if we are meeting the
 		 * latency configuration we have been set
@@ -754,7 +746,7 @@ void Ingest::processQueue()
 		if (m_data)
 		{
 			if(m_data->size())
-				Logger::getLogger()->info("%s:%d: m_data->size()=%d, first rdngPtr=%p, first rdng=%s", __FUNCTION__, __LINE__, m_data->size(), (*m_data)[0],  (*m_data)[0]->toJSON().c_str());
+				Logger::getLogger()->debug("%s:%d: m_data->size()=%d, first rdngPtr=%p, first rdng=%s", __FUNCTION__, __LINE__, m_data->size(), (*m_data)[0],  (*m_data)[0]->toJSON().c_str());
 			vector<Reading *>::iterator itr = m_data->begin();
 			if (itr != m_data->cend())
 			{
@@ -789,10 +781,8 @@ void Ingest::processQueue()
 		 *	2- some readings removed
 		 *	3- New set of readings
 		 */
-		PRINT_FUNC;
 		if (m_data && m_data->size())
 		{
-			PRINT_FUNC;
 			if (m_storage.readingAppend(*m_data) == false)
 			{
 				if (!m_storageFailed)
@@ -805,14 +795,12 @@ void Ingest::processQueue()
 			}
 			else
 			{
-				PRINT_FUNC;
 				if (m_storageFailed)
 				{
 					m_logger->warn("Storage operational after %d failures", m_storesFailed);
 					m_storageFailed = false;
 					m_storesFailed = 0;
 				}
-				PRINT_FUNC;
 				m_failCnt = 0;
 				std::map<std::string, int>		statsEntriesCurrQueue;
 				// check if this requires addition of a new asset tracker tuple
@@ -823,14 +811,11 @@ void Ingest::processQueue()
 				int *lastStat = NULL;
 				std::map <std::string, std::set<std::string> > assetDatapointMap;
 
-				PRINT_FUNC;
 				if(m_data && m_data->size())
 					Logger::getLogger()->info("%s:%d: m_data->size()=%d, first rdngPtr=%p, first rdng=%s", __FUNCTION__, __LINE__, m_data->size(), (*m_data)[0],  (*m_data)[0]->toJSON().c_str());
-				PRINT_FUNC;
 				
 				for (vector<Reading *>::iterator it = m_data->begin(); it != m_data->end(); ++it)
 				{
-					PRINT_FUNC;
 		               	        Reading *reading = *it;
 					string	assetName = reading->getAssetName();
 					const std::vector<Datapoint *> dpVec = reading->getReadingData();
@@ -847,7 +832,6 @@ void Ingest::processQueue()
                                         }
 
                                         temp.clear();
-										PRINT_FUNC;
 
                                         // Push them in a set so as to avoid duplication of datapoints
                                         // a reading of d1, d2, d3 and another d2,d3,d1 , second will be discarded
@@ -860,7 +844,6 @@ void Ingest::processQueue()
                                                         s.insert(dp);
                                                 }
                                         }
-										PRINT_FUNC;
 
                                         if (lastAsset.compare(assetName))
                                         {
@@ -883,7 +866,6 @@ void Ingest::processQueue()
 											assetName,
 											"Ingest");
 						}
-						PRINT_FUNC;
 
 						lastAsset = assetName;
                                                   lastStat = &statsEntriesCurrQueue[assetName];
@@ -893,19 +875,14 @@ void Ingest::processQueue()
                                           {
                                                   (*lastStat)++;
                                           }
-										  PRINT_FUNC;
                                           // delete reading;
-										  // PRINT_FUNC;
 
 				}
-				PRINT_FUNC;
 				for( auto & rdng : *m_data)
 				{
 					delete rdng;
 				}
-				PRINT_FUNC;
 				m_data->clear();
-				PRINT_FUNC;
 
 				for (auto itr : assetDatapointMap)
 				{
@@ -932,21 +909,16 @@ void Ingest::processQueue()
 						statsPendingEntries[it.first] += it.second;
 					}
 				}
-				PRINT_FUNC;
 			}
 		}
-		PRINT_FUNC;
 
 		if(m_data && m_data->size())
 			Logger::getLogger()->info("%s:%d: m_data->size()=%d, first rdngPtr=%p, first rdng=%s", __FUNCTION__, __LINE__, m_data->size(), (*m_data)[0],  (*m_data)[0]->toJSON().c_str());
 
 		if (m_data)
 		{
-			PRINT_FUNC;
 			delete m_data;
-			PRINT_FUNC;
 			m_data = NULL;
-			PRINT_FUNC;
 		}
 		signalStatsUpdate();
 	} while (! m_fullQueues.empty());
@@ -1019,7 +991,7 @@ void Ingest::passToOnwardFilter(OUTPUT_HANDLE *outHandle,
 	FilterPlugin *next = (FilterPlugin *)outHandle;
 
 	if (readingSet && readingSet->getAllReadingsPtr() && readingSet->getAllReadingsPtr()->size())
-		Logger::getLogger()->info("%s:%d: readingSet->getAllReadingsPtr()->size()=%d, readingSet->getAllReadings()[0] (@ %p)=%s", __FUNCTION__, __LINE__, 
+		Logger::getLogger()->debug("%s:%d: readingSet->getAllReadingsPtr()->size()=%d, readingSet->getAllReadings()[0] (@ %p)=%s", __FUNCTION__, __LINE__, 
 								readingSet->getAllReadingsPtr()->size(), readingSet->getAllReadings()[0], readingSet->getAllReadings()[0]->toJSON().c_str());
 	
 	// Pass readings to next filter
@@ -1050,7 +1022,6 @@ void Ingest::passToOnwardFilter(OUTPUT_HANDLE *outHandle,
 void Ingest::useFilteredData(OUTPUT_HANDLE *outHandle,
 			     READINGSET *readingSet)
 {
-	PRINT_FUNC;
 	Ingest* ingest = (Ingest *)outHandle;
 
 	if (readingSet && readingSet->getAllReadingsPtr() && readingSet->getAllReadingsPtr()->size())
@@ -1062,7 +1033,6 @@ void Ingest::useFilteredData(OUTPUT_HANDLE *outHandle,
 	
 	if (ingest->m_data != readingSet->getAllReadingsPtr())
 	{
-		PRINT_FUNC;
 		if (ingest->m_data && ingest->m_data->size())
 		{
 			Logger::getLogger()->info("%s:%d: ingest->m_data->size()=%d", __FUNCTION__, __LINE__, ingest->m_data->size());
@@ -1095,16 +1065,10 @@ void Ingest::useFilteredData(OUTPUT_HANDLE *outHandle,
 	if (ingest->m_data)
 	{
 		Logger::getLogger()->info("%s:%d: ingest->m_data->size()=%d", __FUNCTION__, __LINE__, ingest->m_data->size());
-		// Logger::getLogger()->info("%s:%d: ingest->m_data->size()=%d, first rdngPtr=%p", __FUNCTION__, __LINE__, ingest->m_data->size(), ((*(ingest->m_data))[0]));
-		// Logger::getLogger()->info("%s:%d: ingest->m_data->size()=%d, first rdngPtr=%p, first rdng=%s", __FUNCTION__, __LINE__, ingest->m_data->size(), 
-		// 																		((*(ingest->m_data))[0]), ((*(ingest->m_data))[0])->toJSON().c_str());
 	}
 	
-	PRINT_FUNC;
 	readingSet->clear();
-	PRINT_FUNC;
 	delete readingSet;
-	PRINT_FUNC;
 }
 
 /**

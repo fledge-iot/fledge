@@ -133,10 +133,8 @@ void filter_plugin_async_ingest_fn(PyObject *ingest_callback,
 	{
 		try
 		{
-			PRINT_FUNC;
 			// Get vector of Readings from Python object
 			pyReadingSet = new PythonReadingSet(readingsObj);
-			PRINT_FUNC;
 		}
 		catch (std::exception e)
 		{
@@ -144,7 +142,7 @@ void filter_plugin_async_ingest_fn(PyObject *ingest_callback,
 			pyReadingSet = NULL;
 		}
         
-		Logger::getLogger()->info("%s:%d, pyReadingSet=%p, pyReadingSet readings count=%d", 
+		Logger::getLogger()->debug("%s:%d, pyReadingSet=%p, pyReadingSet readings count=%d", 
                                     __FUNCTION__, __LINE__, pyReadingSet, pyReadingSet?pyReadingSet->getCount():0);
 	}
 	else
@@ -172,7 +170,6 @@ void filter_plugin_async_ingest_fn(PyObject *ingest_callback,
 		Logger::getLogger()->info("%s:%d: cb function at address %p", __FUNCTION__, __LINE__, *cb);
 		// Invoke callback method for ReadingSet filter ingestion
 		(*cb)(data, pyReadingSet);
-		PRINT_FUNC;
 	}
 	else
 	{

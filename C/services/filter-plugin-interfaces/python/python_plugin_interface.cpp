@@ -262,19 +262,15 @@ void filter_plugin_ingest_fn(PLUGIN_HANDLE handle, READINGSET *data)
 	}
 
 	Logger::getLogger()->debug("C2Py: filter_plugin_ingest_fn():L%d: data->getCount()=%d", __LINE__, data->getCount());
-	PRINT_FUNC;
 	
 	// Create a readingList of readings to be filtered
 	PythonReadingSet *pyReadingSet = (PythonReadingSet *) data;
-	PRINT_FUNC;
 	PyObject* readingsList = pyReadingSet->toPython();
-	PRINT_FUNC;
 
 	PyObject* pReturn = PyObject_CallFunction(pFunc,
 						  "OO",
 						  handle,
 						  readingsList);
-	PRINT_FUNC;
 	Py_CLEAR(pFunc);
 
 	// Handle returned data
@@ -285,7 +281,6 @@ void filter_plugin_ingest_fn(PLUGIN_HANDLE handle, READINGSET *data)
 					   pName.c_str());
 		logErrorMessage();
 	}
-	PRINT_FUNC;
 
 	data->removeAll();
 	delete data;
@@ -333,10 +328,6 @@ void filter_plugin_ingest_fn(PLUGIN_HANDLE handle, READINGSET *data)
 
 	// Release GIL
 	PyGILState_Release(state);
-	/* if(data && data->getAllReadingsPtr()->size())
-		Logger::getLogger()->info("%s:%d: data->getCount()=%d, first rdngPtr=%p, first rdng=%s", __FUNCTION__, __LINE__, data->getAllReadingsPtr()->size(), 
-																								data->getAllReadings()[0], data->getAllReadings()[0]->toJSON().c_str()); */
-	
 }
 
 /**

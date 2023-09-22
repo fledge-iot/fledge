@@ -1634,7 +1634,7 @@ unsigned int  Connection::purgeReadings(unsigned long age,
 	result = "{ \"removed\" : 0, ";
 	result += " \"unsentPurged\" : 0, ";
 	result += " \"unsentRetained\" : 0, ";
-	result += " \"readings\" : 0 }";
+	result += " \"readings\" : 0, ";
 	result += " \"method\" : \"time\", ";
 	result += " \"duration\" : 0 }";
 

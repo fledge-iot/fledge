@@ -12,6 +12,7 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <unordered_map>
 #include <reading.h>
 #include <http_sender.h>
 #include <zlib.h>
@@ -482,21 +483,21 @@ private:
 		 * The container for this asset and data point has been sent in
 		 * this session.
 		 */
-		std::map<std::string, std::string>
+		std::unordered_map<std::string, std::string>
 					m_containerSent;
 
 		/**
 		 * The data message for this asset and data point has been sent in
 		 * this session.
 		 */
-		std::map<std::string, bool>
+		std::unordered_map<std::string, bool>
 					m_assetSent;
 
 		/**
 		 * The link for this asset and data point has been sent in
 		 * this session.
 		 */
-		std::map<std::string, bool>
+		std::unordered_map<std::string, bool>
 					m_linkSent;
 
 		/**

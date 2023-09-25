@@ -15,7 +15,7 @@ if [ "$VALGRIND_NORTH" != "" ]; then
 	for i in "$@"; do
 		case $i in
 			--name=*)
-				name=i"`echo $i | sed -e s/--name=//`"
+				name="`echo $i | sed -e s/--name=//`"
 				;;
 		esac
 	done

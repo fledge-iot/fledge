@@ -30,7 +30,7 @@ inline long getCurrTimeUsec()
 
 Logger *Logger::instance = 0;
 
-Logger::Logger(const string& application)
+Logger::Logger(const string& application) : m_level(LOG_WARNING)
 {
 static char ident[80];
 

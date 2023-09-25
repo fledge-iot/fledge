@@ -759,7 +759,6 @@ void Ingest::processQueue()
 			}
 		}
 
-
 		/*
 		 * Check the first reading in the list to see if we are meeting the
 		 * latency configuration we have been set
@@ -800,7 +799,7 @@ void Ingest::processQueue()
 		 *	2- some readings removed
 		 *	3- New set of readings
 		 */
-		if (m_data && !m_data->empty())
+		if (m_data && m_data->size())
 		{
 			if (m_storage.readingAppend(*m_data) == false)
 			{
@@ -829,6 +828,7 @@ void Ingest::processQueue()
 				string lastAsset;
 				int *lastStat = NULL;
 				std::map <std::string, std::set<std::string> > assetDatapointMap;
+
 				for (vector<Reading *>::iterator it = m_data->begin(); it != m_data->end(); ++it)
 				{
 		               	        Reading *reading = *it;
@@ -890,9 +890,14 @@ void Ingest::processQueue()
                                           {
                                                   (*lastStat)++;
                                           }
-                                          delete reading;
+                                          // delete reading;
 
 				}
+				for( auto & rdng : *m_data)
+				{
+					delete rdng;
+				}
+				m_data->clear();
 
 				for (auto itr : assetDatapointMap)
 				{
@@ -996,6 +1001,7 @@ void Ingest::passToOnwardFilter(OUTPUT_HANDLE *outHandle,
 {
 	// Get next filter in the pipeline
 	FilterPlugin *next = (FilterPlugin *)outHandle;
+
 	// Pass readings to next filter
 	next->ingest(readingSet);
 }
@@ -1025,11 +1031,18 @@ void Ingest::useFilteredData(OUTPUT_HANDLE *outHandle,
 			     READINGSET *readingSet)
 {
 	Ingest* ingest = (Ingest *)outHandle;
+
 	if (ingest->m_data != readingSet->getAllReadingsPtr())
 	{
-		if (ingest->m_data)
+		if (ingest->m_data && ingest->m_data->size())
 		{
-			ingest->m_data->clear();// Remove any pointers still in the vector
+			// Remove the readings in the vector
+			for(auto & rdng : *(ingest->m_data))
+				delete rdng;
+			ingest->m_data->clear();// Remove the pointers still in the vector
+			
+			
+			// move reading vector to ingest
 			*(ingest->m_data) = readingSet->getAllReadings();
 		}
 		else
@@ -1038,6 +1051,12 @@ void Ingest::useFilteredData(OUTPUT_HANDLE *outHandle,
 			ingest->m_data = readingSet->moveAllReadings();
 		}
 	}
+	else
+	{
+		Logger::getLogger()->info("%s:%d: INPUT READINGSET MODIFIED BY FILTER: ingest->m_data=%p, readingSet->getAllReadingsPtr()=%p", 
+																	__FUNCTION__, __LINE__, ingest->m_data, readingSet->getAllReadingsPtr());
+	}
+	
 	readingSet->clear();
 	delete readingSet;
 }

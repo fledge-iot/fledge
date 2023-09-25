@@ -52,10 +52,19 @@ DataLoad::~DataLoad()
 	m_cv.notify_all();
 	m_fetchCV.notify_all();
 	m_thread->join();
+	delete m_thread;
 	if (m_pipeline)
 	{
 		m_pipeline->cleanupFilters(m_name);
 		delete m_pipeline;
+	}
+	// Clear out the queue of readings
+	unique_lock<mutex> lck(m_qMutex);	// Should not need to do this
+	while (! m_queue.empty())
+	{
+		ReadingSet *readings = m_queue.front();
+		delete readings;
+		m_queue.pop_front();
 	}
 	Logger::getLogger()->info("Data load shutdown complete");
 }
@@ -186,6 +195,11 @@ ReadingSet *readings = NULL;
 			bufferReadings(readings);
 			return;
 		}
+		else if (readings)
+		{
+			// Delete the empty readings set
+			delete readings;
+		}
 		else
 		{
 			// Logger::getLogger()->debug("DataLoad::readBlock(): No readings available");
@@ -293,7 +307,9 @@ unsigned long DataLoad::getLastSentId()
 			// Get column value
 			ResultSet::ColumnValue* theVal = row->getColumn("last_object");
 			// Set found id
-			return (unsigned long)theVal->getInteger();
+			unsigned long rval = (unsigned long)theVal->getInteger();
+			delete lastObjectId;
+			return rval;
 		}
 	}
 	// Free result set
@@ -356,7 +372,10 @@ ReadingSet *DataLoad::fetchReadings(bool wait)
 	}
 	ReadingSet *rval = m_queue.front();
 	m_queue.pop_front();
-	triggerRead(m_blockSize);
+	if (m_queue.size() < 5)	// Read another block if we have less than 5 already queued
+	{
+		triggerRead(m_blockSize);
+	}
 	return rval;
 }
 

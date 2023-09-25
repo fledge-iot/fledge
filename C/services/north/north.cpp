@@ -189,6 +189,8 @@ bool		dryRun = false;
 	}
 	Logger::getLogger()->setMinLevel(logLevel);
 	service->start(coreAddress, corePort);
+
+	delete service;
 	return 0;
 }
 
@@ -277,6 +279,9 @@ int	size;
  */
 NorthService::NorthService(const string& myName, const string& token) :
 	m_dataLoad(NULL),
+	m_dataSender(NULL),
+	northPlugin(NULL),
+	m_assetTracker(NULL),
 	m_shutdown(false),
 	m_storage(NULL),
 	m_pluginData(NULL),
@@ -284,7 +289,8 @@ NorthService::NorthService(const string& myName, const string& token) :
 	m_token(token),
 	m_allowControl(true),
 	m_dryRun(false),
-	m_requestRestart()
+	m_requestRestart(),
+	m_auditLogger(NULL)
 {
 	m_name = myName;
 	logger = new Logger(myName);
@@ -296,8 +302,23 @@ NorthService::NorthService(const string& myName, const string& token) :
  */
 NorthService::~NorthService()
 {
+	if (northPlugin)
+		delete northPlugin;
 	if (m_storage)
 		delete m_storage;
+	if (m_dataLoad)
+		delete m_dataLoad;
+	if (m_dataSender)
+		delete m_dataSender;
+	if (m_pluginData)
+		delete m_pluginData;
+	if (m_assetTracker)
+		delete m_assetTracker;
+	if (m_auditLogger)
+		delete m_auditLogger;
+	if (m_mgtClient)
+		delete m_mgtClient;
+	delete logger;
 }
 
 /**
@@ -465,8 +486,10 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 
 		m_dataLoad->shutdown();		// Forces the data load to return from any blocking fetch call
 		delete m_dataSender;
+		m_dataSender = NULL;
 		logger->debug("North service data sender has shut down");
 		delete m_dataLoad;
+		m_dataLoad = NULL;
 		logger->debug("North service shutting down plugin");
 
 
@@ -803,6 +826,7 @@ void NorthService::restartPlugin()
 	}
 
 	delete northPlugin;
+	northPlugin = NULL;
 	loadPlugin();
 	// Deal with persisted data and start the plugin
 	if (northPlugin->persistData())

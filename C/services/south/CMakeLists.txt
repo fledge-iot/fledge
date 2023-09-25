@@ -1,6 +1,7 @@
 cmake_minimum_required (VERSION 2.8.8)
 project (South)
 
+
 set(CMAKE_CXX_FLAGS_DEBUG "-O0 -ggdb -DPy_DEBUG")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -Wextra -Wsign-conversion")
 set(DLLIB -ldl)
@@ -28,7 +29,39 @@ if(APPLE)
     set(OPENSSL_ROOT_DIR "/usr/local/opt/openssl")
 endif()
 
+# Find python3.x dev/lib package
+find_package(PkgConfig REQUIRED)
+if(${CMAKE_VERSION} VERSION_LESS "3.12.0")
+    pkg_check_modules(PYTHON REQUIRED python3)
+else()
+    if("${OS_NAME}" STREQUAL "mendel")
+        # We will explicitly set include path later for NumPy.
+        find_package(Python3 REQUIRED COMPONENTS Interpreter Development )
+    else()
+        find_package(Python3 REQUIRED COMPONENTS Interpreter Development NumPy)
+    endif()
+endif()
+
 file(GLOB south_src "*.cpp")
+
+# Add Python 3.x header files
+if(${CMAKE_VERSION} VERSION_LESS "3.12.0")
+    include_directories(${PYTHON_INCLUDE_DIRS})
+else()
+    if("${OS_NAME}" STREQUAL "mendel")
+        # The following command gets the location of NumPy.
+        execute_process(
+            COMMAND python3
+                -c "import numpy; print(numpy.get_include())"
+                OUTPUT_VARIABLE Python3_NUMPY_INCLUDE_DIRS
+                OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
+        # Now we can add include directories as usual.
+        include_directories(${Python3_INCLUDE_DIRS} ${Python3_NUMPY_INCLUDE_DIRS})
+    else()
+        include_directories(${Python3_INCLUDE_DIRS} ${Python3_NUMPY_INCLUDE_DIRS})
+    endif()
+endif()
 
 link_directories(${PROJECT_BINARY_DIR}/../../lib)
 

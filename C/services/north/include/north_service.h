@@ -34,7 +34,7 @@ class NorthService : public ServiceAuthHandler {
 	public:
 		NorthService(const std::string& name,
 				const std::string& token = "");
-		~NorthService();
+		virtual ~NorthService();
 		void 				start(std::string& coreAddress,
 						      unsigned short corePort);
 		void 				stop();

@@ -113,6 +113,13 @@ SouthPlugin::SouthPlugin(PLUGIN_HANDLE handle, const ConfigCategory& category) :
 }
 
 /**
+ * South plugin destructor
+ */
+SouthPlugin::~SouthPlugin()
+{
+}
+
+/**
  * Call the start method in the plugin
  */
 void SouthPlugin::start()
@@ -183,15 +190,16 @@ ReadingSet* SouthPlugin::pollV2()
 {
 	lock_guard<mutex> guard(mtx2);
 	try {
-        std::vector<Reading *> *vec = this->pluginPollPtrV2(instance);
-        if(vec)
-        {
-            ReadingSet *set = new ReadingSet(vec);
-            delete vec;
-    		return set;  // this->pluginPollPtrV2(instance);
-        }
-        else
-            return NULL;
+		std::vector<Reading *> *vec = this->pluginPollPtrV2(instance);
+		if(vec)
+		{
+			ReadingSet *set = new ReadingSet(vec);
+			vec->clear();
+			delete vec;
+			return set;  // this->pluginPollPtrV2(instance);
+        	}
+		else
+			return NULL;
 	} catch (exception& e) {
 		Logger::getLogger()->fatal("Unhandled exception raised in v2 south plugin poll(), %s",
 			e.what());

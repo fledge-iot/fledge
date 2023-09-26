@@ -363,13 +363,13 @@ async def update(request: web.Request) -> web.Response:
                 raise ValueError('ACL must be a string.')
             acl = acl.strip()
         set_values = {}
-        values = {}
+        values = {'name': name}
         if steps is not None:
             values['steps'] = steps
             set_values["steps"] = _validate_steps_and_convert_to_str(steps)
         storage = connect.get_storage_async()
         # Check existence of script record
-        payload = PayloadBuilder().SELECT("steps", "acl").WHERE(['name', '=', name]).payload()
+        payload = PayloadBuilder().SELECT("name", "steps", "acl").WHERE(['name', '=', name]).payload()
         result = await storage.query_tbl_with_payload('control_script', payload)
         message = ""
         if 'rows' in result:
@@ -414,7 +414,7 @@ async def update(request: web.Request) -> web.Response:
                         message = "Control script {} updated successfully.".format(name)
                         # CTSCH audit trail entry
                         audit = AuditLogger(storage)
-                        await audit.information('CTSCH', {'script': values, 'old_script': result['rows']})
+                        await audit.information('CTSCH', {'script': values, 'old_script': result['rows'][0]})
                 else:
                     raise StorageServerError(update_result)
             else:

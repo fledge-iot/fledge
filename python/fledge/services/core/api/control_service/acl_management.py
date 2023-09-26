@@ -174,7 +174,7 @@ async def update_acl(request: web.Request) -> web.Response:
         if url is not None and not isinstance(url, list):
             raise TypeError('url must be a list.')
         storage = connect.get_storage_async()
-        payload = PayloadBuilder().SELECT("service", "url").WHERE(['name', '=', name]).payload()
+        payload = PayloadBuilder().SELECT("name", "service", "url").WHERE(['name', '=', name]).payload()
         result = await storage.query_tbl_with_payload('control_acl', payload)
         message = ""
         if 'rows' in result:
@@ -193,8 +193,8 @@ async def update_acl(request: web.Request) -> web.Response:
                         message = "ACL {} updated successfully.".format(name)
                         # ACLCH audit trail entry
                         audit = AuditLogger(storage)
-                        values = {'service': service, 'url': url}
-                        await audit.information('ACLCH', {'acl': values, 'old_acl': result['rows']})
+                        values = {'name': name, 'service': service, 'url': url}
+                        await audit.information('ACLCH', {'acl': values, 'old_acl': result['rows'][0]})
                 else:
                     raise StorageServerError(update_result)
             else:

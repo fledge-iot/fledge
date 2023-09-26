@@ -493,7 +493,6 @@ async def update_request(request: web.Request) -> web.Response:
 
 
 async def _get_entrypoint(name):
-    # TODO: FOGL-8037  forbidden when permitted is false on the basis of anonymous
     storage = connect.get_storage_async()
     payload = PayloadBuilder().WHERE(["name", '=', name]).payload()
     result = await storage.query_tbl_with_payload("control_api", payload)
@@ -505,6 +504,7 @@ async def _get_entrypoint(name):
     if response['destination'] != "broadcast":
         response[response['destination']] = response['destination_arg']
     del response['destination_arg']
+    response['anonymous'] = True if response['anonymous'] == 't' else False
     param_result = await storage.query_tbl_with_payload("control_api_parameters", payload)
     constants = {}
     variables = {}

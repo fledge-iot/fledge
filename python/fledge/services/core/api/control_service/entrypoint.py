@@ -271,9 +271,23 @@ async def get_all(request: web.Request) -> web.Response:
         This is on the basis of anonymous flag if true then permitted true
         If anonymous flag is false then list of allowed users to determine if the specific user can make the call
         """
-        # TODO: FOGL-8037 verify the user when anonymous is false and set permitted value based on it
-        entrypoint.append({"name": r['name'], "description": r['description'],
-                           "permitted": True if r['anonymous'] == 't' else False})
+        if request.is_auth_optional is True:
+            permitted = True
+        else:
+            if r['anonymous'] == 't':
+                permitted = True
+            else:
+                if request.user["role_id"] not in (1, 5):
+                    payload = PayloadBuilder().WHERE(["name", '=', r['name']]).payload()
+                    acl_result = await storage.query_tbl_with_payload("control_api_acl", payload)
+                    if acl_result['rows']:
+                        users = [r['user'] for r in acl_result['rows']]
+                        permitted = False if request.user["uname"] not in users else True
+                    else:
+                        permitted = False
+                else:
+                    permitted = True
+        entrypoint.append({"name": r['name'], "description": r['description'], "permitted": permitted})
     return web.json_response({"controls": entrypoint})
 
 

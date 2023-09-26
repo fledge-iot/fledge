@@ -25,6 +25,14 @@
 #include <omflinkeddata.h>
 #include <omferror.h>
 
+/**
+ * In order to cut down on the number of string copies made whilst building
+ * the OMF message for a reading we reseeve a number of bytes in a string and
+ * each time we get close to filling the string we reserve mode. The value below
+ * defines the increment we use to grow the string reservation.
+ */
+#define RESERVE_INCREMENT	100
+
 using namespace std;
 
 /**
@@ -63,6 +71,8 @@ string OMFLinkedData::processReading(const Reading& reading, const string&  AFHi
 {
 	string outData;
 	bool changed;
+	int reserved = RESERVE_INCREMENT;
+	outData.reserve(reserved);
 
 
 	string assetName = reading.getAssetName();
@@ -114,6 +124,11 @@ string OMFLinkedData::processReading(const Reading& reading, const string&  AFHi
 	 */
 	for (vector<Datapoint*>::const_iterator it = data.begin(); it != data.end(); ++it)
 	{
+		if (reserved - outData.size() < RESERVE_INCREMENT / 2)
+		{
+			reserved += RESERVE_INCREMENT;
+			outData.reserve(reserved);
+		}
 		string dpName = (*it)->getName();
 		if (dpName.compare(OMF_HINT) == 0)
 		{

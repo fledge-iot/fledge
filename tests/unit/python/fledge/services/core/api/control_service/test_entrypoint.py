@@ -301,3 +301,72 @@ class TestEntrypoint:
             args, kwargs = patch_query_tbl.call_args
             assert 'control_api' == args[0]
             assert payload == json.loads(args[1])
+
+    @pytest.mark.parametrize("ep_type", ["operation", "write"])
+    async def test_update_request_entrypoint(self, client, ep_type):
+        from fledge.services.core.service_registry.service_registry import ServiceRegistry
+        from fledge.common.service_record import ServiceRecord
+
+        ServiceRegistry._registry = []
+
+        with patch.object(ServiceRegistry._logger, 'info'):
+            ServiceRegistry.register('Fledge Storage', 'Storage', '127.0.0.1', 1, 1, 'http')
+            ServiceRegistry.register('Dispatcher Service', 'Dispatcher', '127.0.0.1', 8, 8, 'http')
+
+        ep_name = "SetLatheSpeed"
+        if ep_type == "operation":
+            storage_result = {'name': ep_name, 'description': 'Perform speed of lathe', 'type': 'operation',
+                              'operation_name': 'Speed', 'destination': 'broadcast', 'anonymous': False,
+                              'constants': {'x': '640', 'y': '480'}, 'variables': {'rpm': '800', 'distance': '138'},
+                              'allow': []}
+            dispatch_payload = {'destination': 'broadcast', 'source': 'API', 'source_name': 'Anonymous',
+                                'operation': {'Speed': {'x': '420', 'y': '480', 'rpm': '800', 'distance': '200'}}}
+            payload = {"x": "420", "distance": "200"}
+            dispatch_endpoint = 'dispatch/operation'
+        else:
+            storage_result = {'name': ep_name, 'description': 'Perform speed of lathe', 'type': 'write',
+                              'destination': 'broadcast', 'anonymous': False, 'constants': {'x': '640', 'y': '480'},
+                              'variables': {'rpm': '800', 'distance': '138'}, 'allow': ['admin', 'user']}
+            payload = {"rpm": "1200"}
+            dispatch_endpoint = 'dispatch/write'
+            dispatch_payload = {'destination': 'broadcast', 'source': 'API', 'source_name': 'Anonymous',
+                                'write': {'x': '640', 'y': '480', 'rpm': '1200', 'distance': '138'}}
+
+        svc_info = (ServiceRecord("d607c5be-792f-4993-96b7-b513674e7d3b",
+                                  ep_name, "Dispatcher", "http", "127.0.0.1", "8118", "8118"), "Token")
+
+        if sys.version_info >= (3, 8):
+            rv1 = await mock_coro(storage_result)
+            rv2 = await mock_coro(svc_info)
+            rv3 = await mock_coro(None)
+        else:
+            rv1 = asyncio.ensure_future(mock_coro(storage_result))
+            rv2 = asyncio.ensure_future(mock_coro(svc_info))
+            rv3 = asyncio.ensure_future(mock_coro(None))
+
+        with patch.object(entrypoint, '_get_entrypoint', return_value=rv1):
+            with patch.object(entrypoint, '_get_service_record_info_along_with_bearer_token',
+                              return_value=rv2) as patch_service:
+                with patch.object(entrypoint, '_call_dispatcher_service_api',
+                                  return_value=rv3) as patch_call_service:
+                    resp = await client.put('/fledge/control/request/{}'.format(ep_name), data=json.dumps(payload))
+                    assert 200 == resp.status
+                    result = await resp.text()
+                    json_response = json.loads(result)
+                    assert {'message': '{} control entrypoint URL called.'.format(ep_name)} == json_response
+                    if ep_type == "operation":
+                        op = dispatch_payload['operation']['Speed']
+                        assert storage_result['constants']['x'] != op['x']
+                        assert storage_result['constants']['y'] == op['y']
+                        assert storage_result['variables']['distance'] != op['distance']
+                        assert storage_result['variables']['rpm'] == op['rpm']
+                    else:
+                        write = dispatch_payload['write']
+                        assert storage_result['constants']['x'] == write['x']
+                        assert storage_result['constants']['y'] == write['y']
+                        assert storage_result['variables']['distance'] == write['distance']
+                        assert storage_result['variables']['rpm'] != write['rpm']
+                patch_call_service.assert_called_once_with('http', '127.0.0.1', 8118, dispatch_endpoint,
+                                                           svc_info[1], dispatch_payload)
+            patch_service.assert_called_once_with()
+

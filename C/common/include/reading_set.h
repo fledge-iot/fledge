@@ -30,7 +30,7 @@ class ReadingSet {
 		ReadingSet(const std::vector<Reading *>* readings);
 		virtual ~ReadingSet();
 
-		unsigned long			getCount() const { return m_count; };
+		unsigned long			getCount() const { return m_readings.size(); };
 		const Reading			*operator[] (const unsigned int idx) {
 							return m_readings[idx];
 						};

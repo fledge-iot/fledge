@@ -183,7 +183,8 @@ class TestACLManagement:
         req_payload = {"service": []}
         result = {"count": 0, "rows": []}
         value = await mock_coro(result) if sys.version_info >= (3, 8) else asyncio.ensure_future(mock_coro(result))
-        query_payload = {"return": ["service", "url"], "where": {"column": "name", "condition": "=", "value": acl_name}}
+        query_payload = {"return": ["name", "service", "url"], "where": {
+            "column": "name", "condition": "=", "value": acl_name}}
         message = "ACL with name {} is not found.".format(acl_name)
         storage_client_mock = MagicMock(StorageClientAsync)
         with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
@@ -211,7 +212,7 @@ class TestACLManagement:
         acl_q_result = {"count": 0, "rows": []}
         update_result = {"response": "updated", "rows_affected": 1}
         query_tbl_result = {"count": 1, "rows": [{"name": acl_name, "service": [], "url": []}]}
-        query_payload = {"return": ["service", "url"], "where": {"column": "name", "condition": "=", "value": acl_name}}
+        query_payload = {"return": ["name", "service", "url"], "where": {"column": "name", "condition": "=", "value": acl_name}}
         if sys.version_info >= (3, 8):
             arv = await mock_coro(None)
             update_value = await mock_coro(update_result)
@@ -251,7 +252,8 @@ class TestACLManagement:
                         assert 'ACLCH' == args[0]
                         if 'url' not in payload:
                             payload['url'] = None
-                        assert {"acl": payload, "old_acl": query_tbl_result['rows']} == args[1]
+                        payload['name'] = acl_name
+                        assert {"acl": payload, "old_acl": query_tbl_result['rows'][0]} == args[1]
                 update_args, _ = patch_update_tbl.call_args
                 assert 'control_acl' == update_args[0]
 

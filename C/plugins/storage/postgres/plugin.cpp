@@ -107,6 +107,12 @@ int plugin_common_insert(PLUGIN_HANDLE handle, char *schema, char *table, char *
 ConnectionManager *manager = (ConnectionManager *)handle;
 Connection        *connection = manager->allocate();
 
+	if (connection == NULL)
+	{
+		Logger::getLogger()->fatal("No database connections available");
+		return NULL;
+	}
+
 
 	int result = connection->insert(std::string(OR_DEFAULT_SCHEMA(schema)) + "." + std::string(table), std::string(data));
 	manager->release(connection);
@@ -121,6 +127,12 @@ const char *plugin_common_retrieve(PLUGIN_HANDLE handle, char *schema, char *tab
 ConnectionManager *manager = (ConnectionManager *)handle;
 Connection        *connection = manager->allocate();
 std::string results;
+
+	if (connection == NULL)
+	{
+		Logger::getLogger()->fatal("No database connections available");
+		return NULL;
+	}
 
 	bool rval = connection->retrieve(std::string(OR_DEFAULT_SCHEMA(schema)) + "." + std::string(table), std::string(query), results);
 	manager->release(connection);
@@ -139,6 +151,12 @@ int plugin_common_update(PLUGIN_HANDLE handle, char *schema, char *table, char *
 ConnectionManager *manager = (ConnectionManager *)handle;
 Connection        *connection = manager->allocate();
 
+	if (connection == NULL)
+	{
+		Logger::getLogger()->fatal("No database connections available");
+		return NULL;
+	}
+
 	int result = connection->update(std::string(OR_DEFAULT_SCHEMA(schema)) + "." + std::string(table), std::string(data));
 	manager->release(connection);
 	return result;
@@ -152,6 +170,12 @@ int plugin_common_delete(PLUGIN_HANDLE handle, char *schema , char *table, char 
 ConnectionManager *manager = (ConnectionManager *)handle;
 Connection        *connection = manager->allocate();
 
+	if (connection == NULL)
+	{
+		Logger::getLogger()->fatal("No database connections available");
+		return NULL;
+	}
+
 	int result = connection->deleteRows(std::string(OR_DEFAULT_SCHEMA(schema)) + "." + std::string(table), std::string(condition));
 	manager->release(connection);
 	return result;
@@ -164,6 +188,12 @@ int plugin_reading_append(PLUGIN_HANDLE handle, char *readings)
 {
 ConnectionManager *manager = (ConnectionManager *)handle;
 Connection        *connection = manager->allocate();
+
+	if (connection == NULL)
+	{
+		Logger::getLogger()->fatal("No database connections available");
+		return NULL;
+	}
 
 	int result = connection->appendReadings(readings);
 	manager->release(connection);
@@ -179,6 +209,12 @@ ConnectionManager *manager = (ConnectionManager *)handle;
 Connection        *connection = manager->allocate();
 std::string	  resultSet;
 
+	if (connection == NULL)
+	{
+		Logger::getLogger()->fatal("No database connections available");
+		return NULL;
+	}
+
 	connection->fetchReadings(id, blksize, resultSet);
 	manager->release(connection);
 	return strdup(resultSet.c_str());
@@ -192,6 +228,12 @@ char *plugin_reading_retrieve(PLUGIN_HANDLE handle, char *condition)
 ConnectionManager *manager = (ConnectionManager *)handle;
 Connection        *connection = manager->allocate();
 std::string results;
+
+	if (connection == NULL)
+	{
+		Logger::getLogger()->fatal("No database connections available");
+		return NULL;
+	}
 
 	connection->retrieveReadings(std::string(condition), results);
 	manager->release(connection);
@@ -207,6 +249,12 @@ ConnectionManager *manager = (ConnectionManager *)handle;
 Connection        *connection = manager->allocate();
 std::string 	  results;
 unsigned long	  age, size;
+
+	if (connection == NULL)
+	{
+		Logger::getLogger()->fatal("No database connections available");
+		return NULL;
+	}
 
 	if (flags & STORAGE_PURGE_SIZE)
 	{
@@ -270,6 +318,12 @@ int plugin_create_table_snapshot(PLUGIN_HANDLE handle,
 ConnectionManager *manager = (ConnectionManager *)handle;
 Connection        *connection = manager->allocate();
 
+	if (connection == NULL)
+	{
+		Logger::getLogger()->fatal("No database connections available");
+		return NULL;
+	}
+
         int result = connection->create_table_snapshot(std::string(table),
 							std::string(id));
         manager->release(connection);
@@ -290,6 +344,12 @@ int plugin_load_table_snapshot(PLUGIN_HANDLE handle,
 {
 ConnectionManager *manager = (ConnectionManager *)handle;
 Connection        *connection = manager->allocate();
+
+	if (connection == NULL)
+	{
+		Logger::getLogger()->fatal("No database connections available");
+		return NULL;
+	}
 
         int result = connection->load_table_snapshot(std::string(table),
 						     std::string(id));
@@ -313,6 +373,12 @@ int plugin_delete_table_snapshot(PLUGIN_HANDLE handle,
 ConnectionManager *manager = (ConnectionManager *)handle;
 Connection        *connection = manager->allocate();
 
+	if (connection == NULL)
+	{
+		Logger::getLogger()->fatal("No database connections available");
+		return NULL;
+	}
+
         int result = connection->delete_table_snapshot(std::string(table),
 							std::string(id));
         manager->release(connection);
@@ -332,6 +398,12 @@ const char* plugin_get_table_snapshots(PLUGIN_HANDLE handle,
 ConnectionManager *manager = (ConnectionManager *)handle;
 Connection        *connection = manager->allocate();
 std::string results;
+
+	if (connection == NULL)
+	{
+		Logger::getLogger()->fatal("No database connections available");
+		return NULL;
+	}
 
 	bool rval = connection->get_table_snapshots(std::string(table), results);
 	manager->release(connection);
@@ -353,6 +425,12 @@ int plugin_createSchema(PLUGIN_HANDLE handle,
 	ConnectionManager *manager = (ConnectionManager *)handle;
 	Connection        *connection = manager->allocate();
 
+	if (connection == NULL)
+	{
+		Logger::getLogger()->fatal("No database connections available");
+		return NULL;
+	}
+
 	int result = connection->create_schema(std::string(payload));
         manager->release(connection);
         return result;
@@ -363,6 +441,12 @@ int plugin_schema_update(PLUGIN_HANDLE handle,
 {
 	ConnectionManager *manager = (ConnectionManager *)handle;
         Connection        *connection = manager->allocate();
+
+	if (connection == NULL)
+	{
+		Logger::getLogger()->fatal("No database connections available");
+		return NULL;
+	}
 
 	// create_schema handles both create and update schema
 	// schema value gets parsed from the payload
@@ -379,6 +463,12 @@ unsigned int plugin_reading_purge_asset(PLUGIN_HANDLE handle, char *asset)
 {
 ConnectionManager *manager = (ConnectionManager *)handle;
 Connection        *connection = manager->allocate();
+
+	if (connection == NULL)
+	{
+		Logger::getLogger()->fatal("No database connections available");
+		return NULL;
+	}
 
 	unsigned int deleted = connection->purgeReadingsAsset(asset);
 	manager->release(connection);

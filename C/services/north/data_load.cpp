@@ -195,7 +195,10 @@ int n_waits = 0;
 			m_lastFetched = readings->getLastId();
 			bufferReadings(readings);
 			if (m_perfMonitor)
+			{
 				m_perfMonitor->collect("No of waits for data", n_waits);
+				m_perfMonitor->collect("Block utilisation %", (readings->getCount() * 100) / blockSize);
+			}
 			return;
 		}
 		else if (readings)

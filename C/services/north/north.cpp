@@ -360,7 +360,7 @@ void NorthService::start(string& coreAddress, unsigned short corePort)
 		northConfig.setDescription("North");
 		m_mgtClient->addCategory(northConfig, true);
 
-		// Fetch Confguration
+		// Fetch Configuration
 		m_config = m_mgtClient->getCategory(m_name);
 		if (!loadPlugin())
 		{

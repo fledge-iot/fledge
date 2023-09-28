@@ -56,3 +56,42 @@ class TestEntrypoint:
                 assert 'controls' in json_response
                 assert expected_api_response == json_response
             patch_query_tbl.assert_called_once_with('control_api')
+
+    @pytest.mark.parametrize("exception, message, status_code", [
+        (ValueError, 'name should be in string.', 400),
+        (KeyError, 'EP control entrypoint not found.', 404),
+        (KeyError, '', 404),
+        (Exception, 'Interval Server error.', 500)
+    ])
+    async def test_bad_get_entrypoint_by_name(self, client, exception, message, status_code):
+        ep_name = "EP"
+        with patch.object(entrypoint, '_get_entrypoint', side_effect=exception(message)):
+            with patch.object(entrypoint._logger, 'error') as patch_logger:
+                resp = await client.get('/fledge/control/manage/{}'.format(ep_name))
+                assert status_code == resp.status
+                assert message == resp.reason
+                result = await resp.text()
+                json_response = json.loads(result)
+                assert {"message": message} == json_response
+            if exception == Exception:
+                patch_logger.assert_called()
+
+    async def test_get_entrypoint_by_name(self, client):
+        ep_name = "EP"
+        storage_result = {'name': ep_name, 'description': 'EP1', 'type': 'operation', 'operation_name': 'OP1',
+                          'destination': 'broadcast', 'anonymous': True, 'constants': {'x': '640', 'y': '480'},
+                          'variables': {'rpm': '800', 'distance': '138'}, 'allow': ['admin', 'user']}
+        if sys.version_info >= (3, 8):
+            rv1 = await mock_coro(storage_result)
+            rv2 = await mock_coro(True)
+        else:
+            rv1 = asyncio.ensure_future(mock_coro(storage_result))
+            rv2 = asyncio.ensure_future(mock_coro(True))
+        with patch.object(entrypoint, '_get_entrypoint', return_value=rv1):
+            with patch.object(entrypoint, '_get_permitted', return_value=rv2):
+                resp = await client.get('/fledge/control/manage/{}'.format(ep_name))
+                assert 200 == resp.status
+                json_response = json.loads(await resp.text())
+                assert 'permitted' in json_response
+                assert storage_result == json_response
+

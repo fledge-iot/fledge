@@ -234,3 +234,70 @@ class TestEntrypoint:
                     patch_update_tbl.assert_called_once_with('control_api', update_payload)
                 assert 2 == patch_entrypoint.call_count
             patch_query_tbl.assert_called_once_with('control_api', query_payload)
+
+    async def test_delete_entrypoint_not_found(self, client):
+        ep_name = "EP"
+        message = '{} control entrypoint not found.'.format(ep_name)
+        payload = {"where": {"column": "name", "condition": "=", "value": ep_name}}
+        storage_client_mock = MagicMock(StorageClientAsync)
+        storage_result = {"count": 0, "rows": []}
+        rv = await mock_coro(storage_result) if sys.version_info >= (3, 8) else asyncio.ensure_future(
+            mock_coro(storage_result))
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=rv
+                              ) as patch_query_tbl:
+                resp = await client.delete('/fledge/control/manage/{}'.format(ep_name))
+                assert 404 == resp.status
+                assert message == resp.reason
+                result = await resp.text()
+                json_response = json.loads(result)
+                assert {"message": message} == json_response
+            args, kwargs = patch_query_tbl.call_args
+            assert 'control_api' == args[0]
+            assert payload == json.loads(args[1])
+
+    async def test_delete_entrypoint(self, client):
+        ep_name = "EP"
+        payload = {"where": {"column": "name", "condition": "=", "value": ep_name}}
+        storage_result = {"count": 0, "rows": [
+            {'name': ep_name, 'description': 'EP1', 'type': 'operation', 'operation_name': 'OP1',
+             'destination': 'broadcast', 'anonymous': True, 'constants': {'x': '640', 'y': '480'},
+             'variables': {'rpm': '800', 'distance': '138'}, 'allow': ['admin', 'user']}]}
+        message = "{} control entrypoint has been deleted successfully.".format(ep_name)
+        if sys.version_info >= (3, 8):
+            rv1 = await mock_coro(storage_result)
+            rv2 = await mock_coro(None)
+            arv = await mock_coro(None)
+        else:
+            rv1 = asyncio.ensure_future(mock_coro(storage_result))
+            rv2 = asyncio.ensure_future(mock_coro(None))
+            arv = asyncio.ensure_future(mock_coro(None))
+        storage_client_mock = MagicMock(StorageClientAsync)
+        del_payload = {"where": {"column": "name", "condition": "=", "value": ep_name}}
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=rv1
+                              ) as patch_query_tbl:
+                with patch.object(storage_client_mock, 'delete_from_tbl', return_value=rv2
+                                  ) as patch_delete_tbl:
+                    with patch.object(AuditLogger, '__init__', return_value=None):
+                        with patch.object(AuditLogger, 'information', return_value=arv) as audit_info_patch:
+                            resp = await client.delete('/fledge/control/manage/{}'.format(ep_name))
+                            assert 200 == resp.status
+                            result = await resp.text()
+                            json_response = json.loads(result)
+                            assert {"message": message} == json_response
+                        audit_info_patch.assert_called_once_with('CTEDL', {'message': message, "name": ep_name})
+                assert 3 == patch_delete_tbl.call_count
+                del_args = patch_delete_tbl.call_args_list
+                args1, _ = del_args[0]
+                assert 'control_api_acl' == args1[0]
+                assert del_payload == json.loads(args1[1])
+                args2, _ = del_args[1]
+                assert 'control_api_parameters' == args2[0]
+                assert del_payload == json.loads(args2[1])
+                args3, _ = del_args[2]
+                assert 'control_api' == args3[0]
+                assert del_payload == json.loads(args3[1])
+            args, kwargs = patch_query_tbl.call_args
+            assert 'control_api' == args[0]
+            assert payload == json.loads(args[1])

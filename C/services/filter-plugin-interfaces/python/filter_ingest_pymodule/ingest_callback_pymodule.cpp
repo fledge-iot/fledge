@@ -19,7 +19,7 @@ extern "C" {
 
 typedef void (*INGEST_CB_DATA)(void *, PythonReadingSet *);
 
-static void filter_plugin_ingest_fn(PyObject *ingest_callback,
+static void filter_plugin_async_ingest_fn(PyObject *ingest_callback,
 				    PyObject *ingest_obj_ref_data,
 				    PyObject *readingsObj);
 
@@ -50,7 +50,7 @@ static PyObject *filter_ingest_callback(PyObject *self, PyObject *args)
 	}
 
 	// Invoke callback routine
-	filter_plugin_ingest_fn(callback,
+	filter_plugin_async_ingest_fn(callback,
 				ingestData,
 				readingList);
 
@@ -106,7 +106,7 @@ PyInit_filter_ingest(void)
  * @param    ingest_obj_ref_data        Object parameter for callback routine
  * @param    readingsObj                Readongs data as PyObject
  */
-void filter_plugin_ingest_fn(PyObject *ingest_callback,
+void filter_plugin_async_ingest_fn(PyObject *ingest_callback,
 			     PyObject *ingest_obj_ref_data,
 			     PyObject *readingsObj)
 {
@@ -115,10 +115,11 @@ void filter_plugin_ingest_fn(PyObject *ingest_callback,
 	    readingsObj == NULL)
 	{
 		Logger::getLogger()->error("PyC interface error: "
-					   "filter_plugin_ingest_fn: "
+					   "%s: "
 					   "filter_ingest_callback=%p, "
 					   "ingest_obj_ref_data=%p, "
 					   "readingsObj=%p",
+					   __FUNCTION__,
 					   ingest_callback,
 					   ingest_obj_ref_data,
 					   readingsObj);
@@ -166,6 +167,7 @@ void filter_plugin_ingest_fn(PyObject *ingest_callback,
 		// Get ingest object parameter
 		void *data = PyCapsule_GetPointer(ingest_obj_ref_data, NULL);
 
+		Logger::getLogger()->debug("%s:%d: cb function at address %p", __FUNCTION__, __LINE__, *cb);
 		// Invoke callback method for ReadingSet filter ingestion
 		(*cb)(data, pyReadingSet);
 	}

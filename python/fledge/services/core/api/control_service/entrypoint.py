@@ -266,14 +266,9 @@ async def get_all(request: web.Request) -> web.Response:
     storage = connect.get_storage_async()
     result = await storage.query_tbl("control_api")
     entrypoint = []
-    for r in result["rows"]:
-        """permitted: means user is able to make the API call
-        This is on the basis of anonymous flag if true then permitted true
-        If anonymous flag is false then list of allowed users to determine if the specific user can make the call
-        """
-        # TODO: FOGL-8037 verify the user when anonymous is false and set permitted value based on it
-        entrypoint.append({"name": r['name'], "description": r['description'],
-                           "permitted": True if r['anonymous'] == 't' else False})
+    for row in result["rows"]:
+        permitted = await _get_permitted(request, storage, row)
+        entrypoint.append({"name": row['name'], "description": row['description'], "permitted": permitted})
     return web.json_response({"controls": entrypoint})
 
 
@@ -282,14 +277,15 @@ async def get_by_name(request: web.Request) -> web.Response:
     :Example:
         curl -sX GET http://localhost:8081/fledge/control/manage/SetLatheSpeed
     """
+    ep_name = request.match_info.get('name', None)
     try:
-        ep_name = request.match_info.get('name', None)
         response = await _get_entrypoint(ep_name)
+        response['permitted'] = await _get_permitted(request, None, response)
     except ValueError as err:
         msg = str(err)
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except KeyError as err:
-        msg = str(err)
+        msg = str(err.args[0])
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
@@ -318,7 +314,7 @@ async def delete(request: web.Request) -> web.Response:
         msg = str(err)
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except KeyError as err:
-        msg = str(err)
+        msg = str(err.args[0])
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
@@ -338,6 +334,7 @@ async def update(request: web.Request) -> web.Response:
         curl -sX PUT "http://localhost:8081/fledge/control/manage/SetLatheSpeed" -d '{"constants": {"x": "486"}, "variables": {"rpm": "1200"}, "description": "Perform lathesim", "anonymous": false, "destination": "script", "script": "S4", "allow": ["user"]}'
         curl -sX PUT http://localhost:8081/fledge/control/manage/SetLatheSpeed -d '{"description": "Updated", "anonymous": false, "allow": []}'
         curl -sX PUT http://localhost:8081/fledge/control/manage/SetLatheSpeed -d '{"allow": ["user"]}'
+        curl -sX PUT http://localhost:8081/fledge/control/manage/SetLatheSpeed -d '{"variables":{"rpm":"800", "distance": "138"}, "constants": {"x": "640", "y": "480"}}'
     """
     name = request.match_info.get('name', None)
     try:
@@ -371,49 +368,11 @@ async def update(request: web.Request) -> web.Response:
         if columns:
             for k, v in columns.items():
                 if k == "constants":
-                    constant_payload = PayloadBuilder().WHERE(["name", '=', name]).AND_WHERE(
-                        ["constant", '=', 't']).chain_payload()
-                    if v:
-                        # constants update in any type
-                        for k1, v1 in v.items():
-                            get_payload = PayloadBuilder(constant_payload).payload()
-                            param_result = await storage.query_tbl_with_payload("control_api_parameters", get_payload)
-                            if param_result['rows']:
-                                update_payload = PayloadBuilder(constant_payload).SET(parameter=k1, value=v1).payload()
-                                await storage.update_tbl("control_api_parameters", update_payload)
-                            else:
-                                control_api_params_column_name = {"name": name, "parameter": k1, "value": v1,
-                                                                  "constant": 't'}
-                                api_params_insert_payload = PayloadBuilder().INSERT(
-                                    **control_api_params_column_name).payload()
-                                await storage.insert_into_tbl("control_api_parameters", api_params_insert_payload)
-                    else:
-                        # empty only allowed for operation type
-                        if entry_point_result['rows'][0]['type'] == 1:
-                            del_payload = PayloadBuilder(constant_payload).payload()
-                            await storage.delete_from_tbl("control_api_parameters", del_payload)
+                    await _update_params(
+                        name, old_entrypoint['constants'], columns['constants'], 't', storage)
                 elif k == "variables":
-                    variable_payload = PayloadBuilder().WHERE(["name", '=', name]).AND_WHERE(
-                        ["constant", '=', 'f']).chain_payload()
-                    if v:
-                        # variables update in any type
-                        for k2, v2 in v.items():
-                            get_payload = PayloadBuilder(variable_payload).payload()
-                            param_result = await storage.query_tbl_with_payload("control_api_parameters", get_payload)
-                            if param_result['rows']:
-                                update_payload = PayloadBuilder(variable_payload).SET(parameter=k2, value=v2).payload()
-                                await storage.update_tbl("control_api_parameters", update_payload)
-                            else:
-                                control_api_params_column_name = {"name": name, "parameter": k2, "value": v2,
-                                                                  "constant": 'f'}
-                                api_params_insert_payload = PayloadBuilder().INSERT(
-                                    **control_api_params_column_name).payload()
-                                await storage.insert_into_tbl("control_api_parameters", api_params_insert_payload)
-                    else:
-                        # empty only allowed for operation type
-                        if entry_point_result['rows'][0]['type'] == 1:
-                            del_payload = PayloadBuilder(variable_payload).payload()
-                            await storage.delete_from_tbl("control_api_parameters", del_payload)
+                    await _update_params(
+                        name, old_entrypoint['variables'], columns['variables'], 'f', storage)
                 elif k == "allow":
                     allowed_users = [u for u in v]
                     db_allow_users = old_entrypoint["allow"]
@@ -516,7 +475,6 @@ async def update_request(request: web.Request) -> web.Response:
 
 
 async def _get_entrypoint(name):
-    # TODO: FOGL-8037  forbidden when permitted is false on the basis of anonymous
     storage = connect.get_storage_async()
     payload = PayloadBuilder().WHERE(["name", '=', name]).payload()
     result = await storage.query_tbl_with_payload("control_api", payload)
@@ -528,6 +486,7 @@ async def _get_entrypoint(name):
     if response['destination'] != "broadcast":
         response[response['destination']] = response['destination_arg']
     del response['destination_arg']
+    response['anonymous'] = True if response['anonymous'] == 't' else False
     param_result = await storage.query_tbl_with_payload("control_api_parameters", payload)
     constants = {}
     variables = {}
@@ -583,3 +542,50 @@ async def _call_dispatcher_service_api(protocol: str, address: str, port: int, u
     else:
         # Return Tuple - (http statuscode, message)
         return response
+
+
+async def _update_params(ep_name: str, old_param: dict, new_param: dict, is_constant: str, _storage: connect):
+    insert_case = set(new_param) - set(old_param)
+    update_case = set(new_param) & set(old_param)
+    delete_case = set(old_param) - set(new_param)
+
+    for uc in update_case:
+        update_payload = PayloadBuilder().WHERE(["name", '=', ep_name]).AND_WHERE(
+            ["constant", '=', is_constant]).AND_WHERE(["parameter", '=', uc]).SET(value=new_param[uc]).payload()
+        await _storage.update_tbl("control_api_parameters", update_payload)
+
+    for dc in delete_case:
+        delete_payload = PayloadBuilder().WHERE(["name", '=', ep_name]).AND_WHERE(
+            ["constant", '=', is_constant]).AND_WHERE(["parameter", '=', dc]).payload()
+        await _storage.delete_from_tbl("control_api_parameters", delete_payload)
+
+    for ic in insert_case:
+        column_name = {"name": ep_name, "parameter": ic, "value": new_param[ic], "constant": is_constant}
+        api_params_insert_payload = PayloadBuilder().INSERT(**column_name).payload()
+        await _storage.insert_into_tbl("control_api_parameters", api_params_insert_payload)
+
+
+async def _get_permitted(request: web.Request, _storage: connect, ep: dict):
+    """permitted: means user is able to make the API call
+          This is on the basis of anonymous flag if true then permitted true
+          If anonymous flag is false then list of allowed users to determine if the specific user can make the call
+       Note: In case of authentication optional permitted always true
+    """
+    if _storage is None:
+        _storage = connect.get_storage_async()
+
+    if request.is_auth_optional is True:
+        return True
+    if ep['anonymous'] == 't' or ep['anonymous'] is True:
+        return True
+
+    permitted = False
+    if request.user["role_id"] not in (1, 5):  # Admin, Control
+        payload = PayloadBuilder().WHERE(["name", '=', ep['name']]).payload()
+        acl_result = await _storage.query_tbl_with_payload("control_api_acl", payload)
+        if acl_result['rows']:
+            users = [r['user'] for r in acl_result['rows']]
+            permitted = False if request.user["uname"] not in users else True
+    else:
+        permitted = True
+    return permitted

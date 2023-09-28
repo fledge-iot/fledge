@@ -95,3 +95,71 @@ class TestEntrypoint:
                 assert 'permitted' in json_response
                 assert storage_result == json_response
 
+    async def test_create_entrypoint_in_use(self, client):
+        ep_name = "SetLatheSpeed"
+        payload = {"name": ep_name, "description": "Set the speed of the lathe", "type": "write",
+                   "destination": "asset", "asset": "lathe", "constants": {"units": "spin"},
+                   "variables": {"rpm": "100"}, "allow": [], "anonymous": False}
+        storage_client_mock = MagicMock(StorageClientAsync)
+        storage_result = {"count": 1, "rows": [{"name": ep_name}]}
+        rv = await mock_coro(storage_result) if sys.version_info >= (3, 8) else asyncio.ensure_future(
+            mock_coro(storage_result))
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'query_tbl', return_value=rv) as patch_query_tbl:
+                resp = await client.post('/fledge/control/manage', data=json.dumps(payload))
+                assert 400 == resp.status
+                result = await resp.text()
+                json_response = json.loads(result)
+                assert {'message': '{} control entrypoint is already in use.'.format(ep_name)} == json_response
+            patch_query_tbl.assert_called_once_with('control_api')
+
+    async def test_create_entrypoint(self, client):
+        ep_name = "SetLatheSpeed"
+        payload = {"name": ep_name, "description": "Set the speed of the lathe", "type": "write",
+                   "destination": "asset", "asset": "lathe", "constants": {"units": "spin"},
+                   "variables": {"rpm": "100"}, "allow": [], "anonymous": False}
+        storage_client_mock = MagicMock(StorageClientAsync)
+        storage_result = {"count": 0, "rows": []}
+        insert_result = {"response": "inserted", "rows_affected": 1}
+
+        @asyncio.coroutine
+        def i_result(*args):
+            table = args[0]
+            insert_payload = args[1]
+            if table == 'control_api':
+                p = {'name': payload['name'], 'description': payload['description'], 'type': 0, 'operation_name': '',
+                     'destination': 2, 'destination_arg': payload['asset'],
+                     'anonymous': 'f' if payload['anonymous'] is False else 't'}
+                assert p == json.loads(insert_payload)
+            elif table == 'control_api_parameters':
+                if json.loads(insert_payload)['constant'] == 't':
+                    assert {'name': ep_name, 'parameter': 'units', 'value': 'spin', 'constant': 't'
+                            } == json.loads(insert_payload)
+                else:
+                    assert {'name': ep_name, 'parameter': 'rpm', 'value': '100', 'constant': 'f'
+                            } == json.loads(insert_payload)
+            elif table == 'control_api_acl':
+                # allow is empty in given payload
+                # TODO: in future
+                pass
+            return insert_result
+
+        if sys.version_info >= (3, 8):
+            rv = await mock_coro(storage_result)
+            arv = await mock_coro(None)
+        else:
+            rv = asyncio.ensure_future(mock_coro(storage_result))
+            arv = asyncio.ensure_future(mock_coro(None))
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'query_tbl', return_value=rv) as patch_query_tbl:
+                with patch.object(storage_client_mock, 'insert_into_tbl', side_effect=i_result):
+                    with patch.object(AuditLogger, '__init__', return_value=None):
+                        with patch.object(AuditLogger, 'information', return_value=arv) as audit_info_patch:
+                            resp = await client.post('/fledge/control/manage', data=json.dumps(payload))
+                            assert 200 == resp.status
+                            result = await resp.text()
+                            json_response = json.loads(result)
+                            assert {'message': '{} control entrypoint has been created successfully.'.format(ep_name)
+                                    } == json_response
+                        audit_info_patch.assert_called_once_with('CTEAD', payload)
+            patch_query_tbl.assert_called_once_with('control_api')

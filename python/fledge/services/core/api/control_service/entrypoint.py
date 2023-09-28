@@ -398,7 +398,7 @@ async def update(request: web.Request) -> web.Response:
         msg = str(err)
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except KeyError as err:
-        msg = str(err)
+        msg = str(err.args[0])
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
@@ -461,7 +461,7 @@ async def update_request(request: web.Request) -> web.Response:
         svc, bearer_token = await _get_service_record_info_along_with_bearer_token()
         await _call_dispatcher_service_api(svc._protocol, svc._address, svc._port, url, bearer_token, dispatch_payload)
     except KeyError as err:
-        msg = str(err)
+        msg = str(err.args[0])
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except ValueError as err:
         msg = str(err)

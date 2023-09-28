@@ -163,3 +163,74 @@ class TestEntrypoint:
                                     } == json_response
                         audit_info_patch.assert_called_once_with('CTEAD', payload)
             patch_query_tbl.assert_called_once_with('control_api')
+
+    async def test_update_entrypoint_not_found(self, client):
+        ep_name = "EP"
+        message = '{} control entrypoint not found.'.format(ep_name)
+        payload = {"where": {"column": "name", "condition": "=", "value": ep_name}}
+        storage_client_mock = MagicMock(StorageClientAsync)
+        storage_result = {"count": 0, "rows": []}
+        rv = await mock_coro(storage_result) if sys.version_info >= (3, 8) else asyncio.ensure_future(
+            mock_coro(storage_result))
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=rv
+                              ) as patch_query_tbl:
+                resp = await client.put('/fledge/control/manage/{}'.format(ep_name))
+                assert 404 == resp.status
+                assert message == resp.reason
+                result = await resp.text()
+                json_response = json.loads(result)
+                assert {"message": message} == json_response
+            args, kwargs = patch_query_tbl.call_args
+            assert 'control_api' == args[0]
+            assert payload == json.loads(args[1])
+
+    async def test_update_entrypoint(self, client):
+        storage_client_mock = MagicMock(StorageClientAsync)
+        ep_name = "SetLatheSpeed"
+        payload = {"description": "Updated"}
+        query_payload = '{"where": {"column": "name", "condition": "=", "value": "SetLatheSpeed"}}'
+        storage_result = {"count": 1, "rows": [{"name": ep_name}]}
+        ep_info = {'name': ep_name, 'description': 'Perform speed of lathe', 'type': 'operation',
+                   'operation_name': 'Speed', 'destination': 'broadcast', 'anonymous': False,
+                   'constants': {'x': '640', 'y': '480'}, 'variables': {'rpm': '800', 'distance': '138'}, 'allow': []}
+        new_ep_info = {'name': ep_name, 'description': payload['description'], 'type': 'operation',
+                       'operation_name': 'Speed', 'destination': 'broadcast', 'anonymous': False,
+                       'constants': {'x': '640', 'y': '480'}, 'variables': {'rpm': '800', 'distance': '138'},
+                       'allow': []}
+
+        update_payload = ('{"values": {"description": "Updated"}, '
+                          '"where": {"column": "name", "condition": "=", "value": "SetLatheSpeed"}}')
+        update_result = {"response": "updated", "rows_affected": 1}
+        if sys.version_info >= (3, 8):
+            rv1 = await mock_coro(storage_result)
+            rv2 = await mock_coro(ep_info)
+            rv3 = await mock_coro(new_ep_info)
+            rv4 = await mock_coro(update_result)
+            arv = await mock_coro(None)
+        else:
+            rv1 = asyncio.ensure_future(mock_coro(storage_result))
+            arv = asyncio.ensure_future(mock_coro(None))
+            rv2 = asyncio.ensure_future(mock_coro(ep_info))
+            rv3 = asyncio.ensure_future(mock_coro(new_ep_info))
+            rv4 = asyncio.ensure_future(mock_coro(update_result))
+        with patch.object(connect, 'get_storage_async', return_value=storage_client_mock):
+            with patch.object(storage_client_mock, 'query_tbl_with_payload', return_value=rv1
+                              ) as patch_query_tbl:
+                with patch.object(entrypoint, '_get_entrypoint', side_effect=[rv2, rv3]) as patch_entrypoint:
+                    with patch.object(storage_client_mock, 'update_tbl', return_value=rv4) as patch_update_tbl:
+                        with patch.object(AuditLogger, '__init__', return_value=None):
+                            with patch.object(AuditLogger, 'information', return_value=arv
+                                              ) as audit_info_patch:
+                                resp = await client.put('/fledge/control/manage/{}'.format(ep_name),
+                                                        data=json.dumps(payload))
+                                assert 200 == resp.status
+                                result = await resp.text()
+                                json_response = json.loads(result)
+                                assert {'message': '{} control entrypoint has been updated successfully.'.format(
+                                    ep_name)} == json_response
+                            audit_info_patch.assert_called_once_with(
+                                'CTECH', {"entrypoint": new_ep_info, "old_entrypoint": ep_info})
+                    patch_update_tbl.assert_called_once_with('control_api', update_payload)
+                assert 2 == patch_entrypoint.call_count
+            patch_query_tbl.assert_called_once_with('control_api', query_payload)

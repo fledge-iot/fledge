@@ -42,7 +42,7 @@ static bool isTypeSupported(DatapointValue& dataPoint);
 vector<string> OMF::m_reportedAssets;
 
 // 1 enable performance tracking
-#define INSTRUMENT	1
+#define INSTRUMENT	0
 
 #define  AFHierarchySeparator '/'
 #define  AF_TYPES_SUFFIX       "-type"      // The asset name is composed by: asset name + AF_TYPES_SUFFIX + incremental id of the type
@@ -237,7 +237,8 @@ OMF::OMF(const string& name,
 	 m_sender(sender),
 	 m_legacy(false),
 	 m_name(name),
-	 m_baseTypesSent(false)
+	 m_baseTypesSent(false),
+	 m_linkedProperties(true)
 {
 	m_lastError = false;
 	m_changeTypeId = false;

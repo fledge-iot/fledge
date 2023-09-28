@@ -107,7 +107,7 @@ string OMFLinkedData::processReading(const Reading& reading, const string&  AFHi
 	Logger::getLogger()->debug("Processing %s (%s) using Linked Types", assetName.c_str(), DataPointNamesAsString(reading).c_str());
 
 	bool needDelim = false;
-	if (m_assetSent->find(assetName) == m_assetSent->end())
+	if (m_assetSent->count(assetName) == 0)
 	{
 		// Send the data message to create the asset instance
 		outData.append("{ \"typeid\":\"FledgeAsset\", \"values\":[ { \"AssetId\":\"");

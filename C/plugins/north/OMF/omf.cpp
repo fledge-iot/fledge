@@ -1115,6 +1115,10 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 		}
 	}
 
+	// TODO We do not need the superset stuff if we are using linked data types,
+	// this would save us interating over the dat aan extra time and reduce our
+	// memory footprint
+	//
 	// Create a superset of all the datapoints for each assetName
 	// the superset[assetName] is then passed to routines which handles
 	// creation of OMF data types. This is used for the initial type

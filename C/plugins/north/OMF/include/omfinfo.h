@@ -56,7 +56,6 @@
 
 #define ENDPOINT_URL_EDS        "http://localhost:PORT_PLACEHOLDER/api/v1/tenants/default/namespaces/default/omf"
 
-static bool s_connected = true;		// if true, access to PI Web API is working
 
 enum OMF_ENDPOINT_PORT {
 	ENDPOINT_PORT_PIWEB_API=443,
@@ -179,5 +178,6 @@ class OMFInformation {
 		string		m_omfversion;
 		bool		m_legacy;
 		string		m_name;
+		bool		m_connected;
 };
 #endif

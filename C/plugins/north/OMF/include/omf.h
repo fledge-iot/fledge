@@ -125,6 +125,11 @@ class OMF
 					}
 				};
 
+		void		setSender(HttpSender& sender)
+				{
+					m_sender = sender;
+				};
+
 		/**
 		 * Send data to PI Server passing a vector of readings.
 		 *

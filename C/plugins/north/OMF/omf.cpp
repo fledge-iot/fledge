@@ -259,7 +259,9 @@ OMF::OMF(const string& name,
 	 m_OMFDataTypes(&types),
 	 m_producerToken(token),
 	 m_sender(sender),
-	 m_name(name)
+	 m_name(name),
+	 m_baseTypesSent(false),
+	 m_linkedProperties(true)
 {
 	// Get starting type-id sequence or set the default value
 	auto it = (*m_OMFDataTypes).find(FAKE_ASSET_KEY);

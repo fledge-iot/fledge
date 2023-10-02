@@ -16,7 +16,7 @@ using namespace SimpleWeb;
 /**
  * Constructor for the OMFInformation class
  */
-OMFInformation::OMFInformation(ConfigCategory *config) : m_sender(NULL), m_omf(NULL)
+OMFInformation::OMFInformation(ConfigCategory *config) : m_sender(NULL), m_omf(NULL), m_connected(false)
 {
 
 	m_logger = Logger::getLogger();
@@ -348,7 +348,7 @@ void OMFInformation::start(const string& storedData)
 	}
 
 	// Retrieve the PI Web API Version
-	s_connected = true;
+	m_connected = true;
 	if (m_PIServerEndpoint == ENDPOINT_PIWEB_API)
 	{
 		int httpCode = PIWebAPIGetVersion();
@@ -357,11 +357,11 @@ void OMFInformation::start(const string& storedData)
 			SetOMFVersion();
 			Logger::getLogger()->info("%s connected to %s OMF Version: %s",
 				m_RestServerVersion.c_str(), m_hostAndPort.c_str(), m_omfversion.c_str());
-			s_connected = true;
+			m_connected = true;
 		}
 		else
 		{
-			s_connected = false;
+			m_connected = false;
 		}
 	}
 	else if (m_PIServerEndpoint == ENDPOINT_EDS)
@@ -396,6 +396,14 @@ uint32_t OMFInformation::send(const vector<Reading *>& readings)
 	{
 		// Error already reported by IsPIWebAPIConnected
 		return 0;
+	}
+
+	if (m_sender && m_connected == false)
+	{
+		// TODO Make the info when reconnection has been proved to work
+		Logger::getLogger()->warn("Connection failed creating a new sender");
+		delete m_sender;
+		m_sender = NULL;
 	}
 
 	if (!m_sender)
@@ -448,6 +456,12 @@ uint32_t OMFInformation::send(const vector<Reading *>& readings)
 		m_sender->setOCSTenantId         (m_OCSTenantId);
 		m_sender->setOCSClientId         (m_OCSClientId);
 		m_sender->setOCSClientSecret     (m_OCSClientSecret);
+
+		if (m_omf)
+		{
+			// Created a new sender after a connection failure
+			m_omf->setSender(*m_sender);
+		}
 	}
 
 	// OCS or ADH - retrieves the authentication token
@@ -464,7 +478,7 @@ uint32_t OMFInformation::send(const vector<Reading *>& readings)
 		m_omf = new OMF(m_name, *m_sender, m_path, m_assetsDataTypes,
 				m_producerToken);
 
-		m_omf->setConnected(s_connected);
+		m_omf->setConnected(m_connected);
 		m_omf->setSendFullStructure(m_sendFullStructure);
 
 		// Set PIServerEndpoint configuration
@@ -517,11 +531,11 @@ uint32_t OMFInformation::send(const vector<Reading *>& readings)
 
 	// Write a warning if the connection to PI Web API has been lost
 	bool updatedConnected = m_omf->getConnected();
-	if (m_PIServerEndpoint == ENDPOINT_PIWEB_API && s_connected && !updatedConnected)
+	if (m_PIServerEndpoint == ENDPOINT_PIWEB_API && m_connected && !updatedConnected)
 	{
 		Logger::getLogger()->warn("Connection to PI Web API at %s has been lost", m_hostAndPort.c_str());
 	}
-	s_connected = updatedConnected;
+	m_connected = updatedConnected;
 	
 #if INSTRUMENT
 	Logger::getLogger()->debug("plugin_send elapsed time: %6.3f seconds, NumValues: %u", GetElapsedTime(&startTime), ret);
@@ -1333,7 +1347,7 @@ bool OMFInformation::IsPIWebAPIConnected()
 	static bool reported = false;	// Has the state been reported yet
 	static bool reportedState;	// What was the last reported state
 
-	if (!s_connected && m_PIServerEndpoint == ENDPOINT_PIWEB_API)
+	if (!m_connected && m_PIServerEndpoint == ENDPOINT_PIWEB_API)
 	{
 		std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
 
@@ -1342,7 +1356,7 @@ bool OMFInformation::IsPIWebAPIConnected()
 			int httpCode = PIWebAPIGetVersion(false);
 			if (httpCode >= 400)
 			{
-				s_connected = false;
+				m_connected = false;
 				now = std::chrono::steady_clock::now();
 				nextCheck = now + std::chrono::seconds(60);
 				Logger::getLogger()->debug("PI Web API %s is not available. HTTP Code: %d", m_hostAndPort.c_str(), httpCode);
@@ -1356,7 +1370,7 @@ bool OMFInformation::IsPIWebAPIConnected()
 			}
 			else
 			{
-				s_connected = true;
+				m_connected = true;
 				SetOMFVersion();
 				Logger::getLogger()->info("%s reconnected to %s OMF Version: %s",
 					m_RestServerVersion.c_str(), m_hostAndPort.c_str(), m_omfversion.c_str());
@@ -1374,8 +1388,8 @@ bool OMFInformation::IsPIWebAPIConnected()
 	{
 		// Endpoints other than PI Web API fail quickly when they are unavailable
 		// so there is no need to check their status in advance.
-		s_connected = true;
+		m_connected = true;
 	}
 
-	return s_connected;
+	return m_connected;
 }

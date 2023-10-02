@@ -112,7 +112,7 @@ async def _check_parameters(payload, skip_required=False):
             raise ValueError('Control entrypoint type cannot be empty.')
         ept_names = [ept.name.lower() for ept in EntryPointType]
         if _type not in ept_names:
-            raise ValueError('Possible types are: {}'.format(ept_names))
+            raise ValueError('Possible types are: {}.'.format(ept_names))
         if _type == EntryPointType.OPERATION.name.lower():
             operation_name = payload.get('operation_name', None)
             if operation_name is not None:
@@ -122,7 +122,7 @@ async def _check_parameters(payload, skip_required=False):
                 if len(operation_name) == 0:
                     raise ValueError('Control entrypoint operation name cannot be empty.')
             else:
-                raise KeyError('operation_name KV pair is missing')
+                raise KeyError('operation_name KV pair is missing.')
             final['operation_name'] = operation_name
         final['type'] = await _get_type(_type)
 
@@ -135,7 +135,7 @@ async def _check_parameters(payload, skip_required=False):
             raise ValueError('Control entrypoint destination cannot be empty.')
         dest_names = [d.name.lower() for d in Destination]
         if destination not in dest_names:
-            raise ValueError('Possible destination values are: {}'.format(dest_names))
+            raise ValueError('Possible destination values are: {}.'.format(dest_names))
 
         destination_idx = await _get_destination(destination)
         final['destination'] = destination_idx
@@ -163,7 +163,7 @@ async def _check_parameters(payload, skip_required=False):
     constants = payload.get('constants', None)
     if constants is not None:
         if not isinstance(constants, dict):
-            raise ValueError('constants should be dictionary.')
+            raise ValueError('constants should be a dictionary.')
         if not constants and _type == EntryPointType.WRITE.name.lower():
             raise ValueError('constants should not be empty.')
         final['constants'] = constants
@@ -398,7 +398,7 @@ async def update(request: web.Request) -> web.Response:
         msg = str(err)
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except KeyError as err:
-        msg = str(err)
+        msg = str(err.args[0])
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
@@ -461,7 +461,7 @@ async def update_request(request: web.Request) -> web.Response:
         svc, bearer_token = await _get_service_record_info_along_with_bearer_token()
         await _call_dispatcher_service_api(svc._protocol, svc._address, svc._port, url, bearer_token, dispatch_payload)
     except KeyError as err:
-        msg = str(err)
+        msg = str(err.args[0])
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except ValueError as err:
         msg = str(err)

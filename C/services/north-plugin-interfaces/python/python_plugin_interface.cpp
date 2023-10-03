@@ -414,8 +414,7 @@ uint32_t plugin_send_fn(PLUGIN_HANDLE handle, const std::vector<Reading *>& read
 		return numReadingsSent;
 	}
 
-	// Create a dict of readings
-	// 1. create empty ReadingSet
+	// 1. create a ReadingSet
 	ReadingSet set(&readings);
 
 	// 2. create a PythonReadingSet object

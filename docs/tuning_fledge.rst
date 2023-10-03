@@ -59,7 +59,7 @@ The south services within Fledge each have a set of advanced configuration optio
 
     - *Fixed Times* polling will issue poll requests at fixed times that are defined by a set of hours, minutes and seconds. These times are defined in the local time zone of the machine that is running the Fledge instance.
 
-    - *On Demand* polling will not perform any regular polling, instead it will wait for a control operation to be sent to the service. That operation is named *polll* and takes no arguments. This allow a poll to be trigger by the control mechanisms from notifications, schedules, north services or API requests.
+    - *On Demand* polling will not perform any regular polling, instead it will wait for a control operation to be sent to the service. That operation is named *poll* and takes no arguments. This allow a poll to be trigger by the control mechanisms from notifications, schedules, north services or API requests.
 
   - *Hours* - This defines the hours when a poll request will be made. The hours are expressed using the 24 hour clock, with poll requests being made only when the current hour matches one of the hours in the coma separated list of hours. If the *Hours* field is left blank then poll will be issued during every hour of the day.
 
@@ -80,6 +80,52 @@ The south services within Fledge each have a set of advanced configuration optio
 .. note::
 
    The *Statistics Collection* setting will not remove any existing statistics, these will remain and remain to be represented in the statistics history. This only impacts new values that are collected. It is recommended that this be set before a service is started for the first time if the desire it to have no statistics values recorded for either assets or the service.
+
+
+  - *Performance Counters* - This option allows for collection of performance counters that can be use to help tune the south service.
+
+Performance Counters
+--------------------
+
+A number of performance counters can be collected in the south service to help characterise the performance of the service. This is intended to provide input into the tuning of the service and the collection of these counters should not be left on during production use of the service.
+
+Performance counters are collected in the service and a report is written once per minute to the storage layer for later retrieval. The values written are
+
+  - The minimum value of the counter observed within the current minute
+
+  - The maximum value of the counter observed within the current minute
+
+  - The average value of the counter observed within the current minute
+
+  - The number of samples of the counter collected within the current minute
+
+In the current release the performance counters can only be retrieved by director access to the configuration and statistics database, they are stored in the *monitors* table. Future releases will include tools for the retrieval and analysis of these performance counters.
+
+When collection is enabled the following counters will be collected for the south service that is enabled.
+
+.. list-table::
+    :widths: 15 30 55
+    :header-rows: 1
+
+    * - Counter
+      - Description
+      - Causes & Remedial Actions
+    * - queueLength
+      - The total number of readings that have been queued within the south service for sending to the storage service.
+      - Large queues in the south service will mean that the service will have a larger than normal footprint but may not be an issue in itself. However if the queue size grows continuously then there will eventually be a memory allocation failure in the south service. Turning on throttling of the ingest rate will reduce the data that is added to the queue and may be enough to resole the problem, however data will be collected at a reduced rate. A faster storage plugin, perhaps using an in-memory storage engine may be another solution. If your instance has many south services it may be worth considering splitting the south services between multiple instances.
+    * - ingestCount
+      - The number of readings ingested in each plugin interaction.
+      - The counter reflects the number of readings that are returned for each call to the south plugin poll entry point or by the south plugin ingest asynchronous call. Typically this number should be moderately low, if very large numbers are returned in a single call it will result in very large queues building up within the south service and the performance of the system will be degraded with large burst of data that possibly overwhelm other layers interspersed with periods of inactivity. Ideally the peaks should be eliminated and the rate kept 'flat' in order to make the best use of the system. Consider altering the configuration of the south plugin such that it returns less data but more frequently.
+    * - readLatency
+      - The longest time a reading has spent in the queue between being returned by the south plugin and sent to the storage layer.
+      - This counter describes how long, in milliseconds, the oldest reading waiting in the internal south service queue before being sent to the storage layer. This should be less than or equal to the define maximum latency, it may be a little over to allow for queue management times, but should not be significantly higher. If it is significantly higher for long periods of time it would indicate that the storage service is unable to handle the load that is being placed upon it. It may be possible that by tuning the storage layer, changing t a higher performance plugin or one that is better suited to your workload, may resolve the problem. Alternatively consider reducing the load by splitting the south services across multiple Fledge instances.
+    * - flow controlled
+      - The number of times the reading rate has been reduced due to excessive queues building up in the south service.
+      - This is closely related to the queuLength counter and has much the same set of actions that should be taken if the service is frequently flow controlled. Reducing the ingest rate, or adding filtering in the pipeline to reduce the amount of data passed onward to the storage service may alleviate the problem. In general if processing can be done that reduces high bandwidth data into lower bandwidth data that can still characterise the high bandwidth content, then this should be done as close as possible to the source of the data to reduce the overall load on the system.
+    * - throttled rate
+      - The rate that data is being ingested at as a result of flow control throttling.
+      - This counter is more for information as to what might make a reasonable ingest rate the system can sustain with the current configuration. It is useful as it gives a good idea of how far away from your desired performance the current configuration of the system is,
+
 
 Fixed Time Polling
 ------------------
@@ -125,6 +171,56 @@ In a similar way to the south services, north services and tasks also have advan
   - *Minimum Log Level* - This configuration option can be used to set the logs that will be seen for this service or task. It defines the level of logging that is send to the syslog and may be set to *error*, *warning*, *info* or *debug*. Logs of the level selected and higher will be sent to the syslog. You may access the contents of these logs by selecting the log icon in the bottom left of this screen.
 
   - *Data block size* - This defines the number of readings that will be sent to the north plugin for each call to the *plugin_send* entry point. This allows the performance of the north data pipeline to be adjusted, with larger blocks sizes increasing the performance, by reducing overhead, but at the cost of requiring more memory in the north service or task to buffer the data as it flows through the pipeline. Setting this value too high may cause issues for certain of the north plugins that have limitations on the number of messages they can handle within a single block.
+
+  - *Performance Counters* - This option allows for collection of performance counters that can be use to help tune the north service.
+
+Performance Counters
+--------------------
+
+A number of performance counters can be collected in the north service to help characterise the performance of the service. This is intended to provide input into the tuning of the service and the collection of these counters should not be left on during production use of the service.
+
+Performance counters are collected in the service and a report is written once per minute to the storage layer for later retrieval. The values written are
+
+  - The minimum value of the counter observed within the current minute
+
+  - The maximum value of the counter observed within the current minute
+
+  - The average value of the counter observed within the current minute
+
+  - The number of samples of the counter collected within the current minute
+
+In the current release the performance counters can only be retrieved by director access to the configuration and statistics database, they are stored in the *monitors* table. Future releases will include tools for the retrieval and analysis of these performance counters.
+
+When collection is enabled the following counters will be collected for the south service that is enabled.
+
+.. list-table::
+    :widths: 15 30 55
+    :header-rows: 1
+
+    * - Counter
+      - Description
+      - Causes & Remedial Actions
+    * - No of waits for data
+      - This counter reports how many times the north service requested data from storage and no data was available.
+      - If this value is consistently low or zero it indicates the other services are providing data faster than the north service is able to send that data. Improving the throughput of the north service would be advisable to prevent the accumulation of unsent data in the storage service.
+    * - Block utilisation %
+      - Data is read by the north service in blocks, the size of this blocks is defined in the advanced configuration of the north service. This counter reflects what percentage of the requested blocks are actually populated with data on each call to the storage service.
+      - A constantly high utilisation is an indication that more data is available than can be sent, increasing the block size may improve this situation and allow for a high throughput.
+    * - Reading sets buffered
+      - This is a counter of the number of blocks that are waiting to be sent in the north service
+      - if this figure is more than a couple of blocks it is an indication that the north plugin is failing to sent complete blocks of data and that partial blocks are failing. Reducing the block size may improve the situation and reduce the amount of storage required in the north service.
+    * - Total readings buffered
+      - This is a count of the total number of readings buffered within the north service.
+      - This should be equivalent to 2 or 3 blocks size worth of readings. If it is high then it is an indication that the north plugin is not able to sustain a high enough data rate to match the ingest rates of the system.
+    * - Readings sent
+      - This gives an indication, for each block, how many readings are sent in the block.
+      - This should typically match the blocks read, if not it is an indication of failures to send data by the north plugin.
+    * - Percentage readings sent
+      - Closely related to the above the s the percentage of each block read that was actually sent.
+      - In a well tuned system this figure should be close to 100%, if it is not then it may be that the north plugin is failing to send data, possibly because of an issue in an upstream system. Alternatively the block size may be too high for the upstream system to handle and reducing the block size will bring this value closer to 100%.
+    * - Readings added to buffer
+      - An absolute count of the number of readings read into each block.
+      - If this value is significantly less than the block size it is an indication that the block size can be lowered. If it is always close to the block size then consider increasing the block size.
 
 Health Monitoring
 =================

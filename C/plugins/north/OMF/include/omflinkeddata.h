@@ -34,9 +34,9 @@
 class OMFLinkedData
 {
 	public:
-		OMFLinkedData(  std::map<std::string, std::string> *containerSent,
-				std::map<std::string, bool> *assetSent,
-				std::map<std::string, bool> *linkSent,
+		OMFLinkedData(  std::unordered_map<std::string, std::string> *containerSent,
+				std::unordered_map<std::string, bool> *assetSent,
+				std::unordered_map<std::string, bool> *linkSent,
 				const OMF_ENDPOINT PIServerEndpoint = ENDPOINT_CR) :
 					m_containerSent(containerSent),
 					m_assetSent(assetSent),
@@ -73,21 +73,24 @@ class OMFLinkedData
 	private:
 		/**
 		 * The container for this asset and data point has been sent in
-		 * this session.
+		 * this session. The key is the asset followed by the datapoint name
+		 * with a '.' delimiter between. The value is the base type used, a
+		 * container will be sent if the base type changes.
 		 */
-		std::map<std::string, std::string>	*m_containerSent;
+		std::unordered_map<std::string, std::string>	*m_containerSent;
 
 		/**
-		 * The data message for this asset and data point has been sent in
-		 * this session.
+		 * The data message for this asset has been sent in
+		 * this session. The key is the asset name. The value is always true.
 		 */
-		std::map<std::string, bool>		*m_assetSent;
+		std::unordered_map<std::string, bool>		*m_assetSent;
 
 		/**
 		 * The link for this asset and data point has been sent in
-		 * this session.
+		 * this session. key is the asset followed by the datapoint name
+                 * with a '.' delimiter between. The value is always true.
 		 */
-		std::map<std::string, bool>		*m_linkSent;
+		std::unordered_map<std::string, bool>		*m_linkSent;
 
 		/**
 		 * The endpoint to which we are sending data

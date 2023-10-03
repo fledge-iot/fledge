@@ -191,7 +191,7 @@ int n_waits = 0;
 		}
 		if (readings && readings->getCount())
 		{
-            Logger::getLogger()->debug("DataLoad::readBlock(): Got %d readings from storage client", readings->getCount());
+			Logger::getLogger()->debug("DataLoad::readBlock(): Got %d readings from storage client", readings->getCount());
 			m_lastFetched = readings->getLastId();
 			bufferReadings(readings);
 			if (m_perfMonitor)

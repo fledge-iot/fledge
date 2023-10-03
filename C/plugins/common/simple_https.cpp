@@ -13,6 +13,7 @@
 #include <thread>
 #include <logger.h>
 #include <unistd.h>
+#include <string_utils.h>
 
 #define VERBOSE_LOG	0
 
@@ -256,6 +257,7 @@ int SimpleHttps::sendRequest(
 		else if (http_code > 401)
 		{
 			std::stringstream error_message;
+			StringReplace(response, "\r\n", "");
 			error_message << "HTTP code |" << to_string(http_code) << "| HTTP error |" << response << "|";
 
 			throw runtime_error(error_message.str());

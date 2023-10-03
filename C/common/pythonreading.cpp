@@ -375,20 +375,18 @@ PyObject *PythonReading::toPython(bool changeKeys, bool useBytesString)
 	// this will be added as the value for key 'readings'
 	PyObject *dataPoints = PyDict_New();
 
-	Logger::getLogger()->info("%s:%d: First dp @ %p", __FUNCTION__, __LINE__, m_values[0]);
-
 	// Get all datapoints
-	for (auto & it : m_values)
+	for (auto it = m_values.begin(); it != m_values.end(); ++it)
 	{
 		// Pass BytesString switch
-		PyObject *value = convertDatapoint(it, useBytesString);
+		PyObject *value = convertDatapoint(*it, useBytesString);
 		// Add Datapoint: key and value
 		if (value)
 		{
 			PyObject *key = useBytesString ?
-					PyBytes_FromString(it->getName().c_str())
+					PyBytes_FromString((*it)->getName().c_str())
 					:
-					PyUnicode_FromString(it->getName().c_str());
+					PyUnicode_FromString((*it)->getName().c_str());
 			PyDict_SetItem(dataPoints, key, value);
 		
 			Py_CLEAR(key);
@@ -397,7 +395,7 @@ PyObject *PythonReading::toPython(bool changeKeys, bool useBytesString)
 		else
 		{
 			Logger::getLogger()->info("Unable to convert datapoint '%s' of reading '%s' tp Python",
-					it->getName().c_str(), m_asset.c_str());
+					(*it)->getName().c_str(), m_asset.c_str());
 		}
 	}
 

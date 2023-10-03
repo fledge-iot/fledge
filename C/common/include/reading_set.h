@@ -50,7 +50,7 @@ class ReadingSet {
 		unsigned long			getReadingId(uint32_t pos);
 		void				append(ReadingSet *);
 		void				append(ReadingSet&);
-		void				append(const std::vector<Reading *> &);
+		void				append(std::vector<Reading *> &);
 		void				removeAll();
 		void				clear();
 		bool				copy(const ReadingSet& src);

@@ -201,7 +201,7 @@ ReadingSet::append(ReadingSet& readings)
  * @param readings	A vector of Reading pointers to append to the ReadingSet
  */
 void
-ReadingSet::append(const vector<Reading *>& readings)
+ReadingSet::append(vector<Reading *>& readings)
 {
 	for (auto it = readings.cbegin(); it != readings.cend(); it++)
 	{
@@ -210,7 +210,7 @@ ReadingSet::append(const vector<Reading *>& readings)
 		m_readings.push_back(*it);
 		m_count++;
 	}
-	// readings.clear();
+	readings.clear();
 }
 
 /**

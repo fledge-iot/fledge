@@ -428,7 +428,9 @@ uint32_t plugin_send_fn(PLUGIN_HANDLE handle, const std::vector<Reading *>& read
 	Logger::getLogger()->debug("C2Py: plugin_send_fn():L%d: filtered readings sent %d",
 				__LINE__,
 				numReadingsSent);
-   
+
+	set.clear(); // to avoid deletion of contained Reading objects; they are subsequently accessed in calling function DataSender::send()
+
 	// Remove python object
 	Py_CLEAR(readingsList);
 	Py_CLEAR(pFunc);

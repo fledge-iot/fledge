@@ -149,6 +149,12 @@ PyObject *PythonReadingSet::toPython(bool changeKeys)
 	for (int i = 0; i < m_readings.size(); i++)
 	{
 		PythonReading *pyReading = (PythonReading *) m_readings[i];
+		if(i==0)
+		{
+			Logger::getLogger()->info("%s:%d: First reading @ %p", __FUNCTION__, __LINE__, pyReading);
+			const std::vector<Datapoint *> dpVec = pyReading->getReadingData();
+			Logger::getLogger()->info("%s:%d: First reading: First dp @ %p", __FUNCTION__, __LINE__, dpVec[0]);
+		}
 		PyList_SetItem(set, i, pyReading->toPython(changeKeys));
 	}
 	return set;

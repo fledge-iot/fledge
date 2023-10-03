@@ -414,11 +414,22 @@ uint32_t plugin_send_fn(PLUGIN_HANDLE handle, const std::vector<Reading *>& read
 		return numReadingsSent;
 	}
 
-	// Create a dict of readings
-	// 1 create a PythonReadingSet object
-	PythonReadingSet *pyReadingSet = (PythonReadingSet *) &readings;
+	if (readings.size())
+	{
+		Reading *firstRdng = readings[0];
+		Logger::getLogger()->info("%s:%d: First reading @ %p", __FUNCTION__, __LINE__, firstRdng);
+		const std::vector<Datapoint *> dpVec = firstRdng->getReadingData();
+		Logger::getLogger()->info("%s:%d: First reading: First dp @ %p", __FUNCTION__, __LINE__, dpVec[0]);
+	}
 
-	// 2 create PyObject
+	// Create a dict of readings
+	// 1. create empty ReadingSet
+	ReadingSet set(&readings);
+
+	// 2. create a PythonReadingSet object
+	PythonReadingSet *pyReadingSet = (PythonReadingSet *) &set;
+
+	// 3. create PyObject
 	PyObject* readingsList = pyReadingSet->toPython(true);
 	    
 	numReadingsSent = call_plugin_send_coroutine(pFunc, handle, readingsList);

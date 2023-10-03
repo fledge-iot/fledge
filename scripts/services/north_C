@@ -10,7 +10,7 @@ if [ ! -d "${FLEDGE_ROOT}" ]; then
 	exit 1
 fi
 
-runvalgrind=n
+runvalgrind=y
 if [ "$VALGRIND_NORTH" != "" ]; then
 	for i in "$@"; do
 		case $i in
@@ -29,9 +29,10 @@ fi
 
 cd "${FLEDGE_ROOT}/services"
 if [ "$runvalgrind" = "y" ]; then
-	file=$HOME/north.${name}.valgrind.out
+	file=/tmp/north.${name}.valgrind.out
 	rm -f $file
-	valgrind  --leak-check=full --trace-children=yes --log-file=$file ./fledge.services.north "$@"
+	valgrind  --leak-check=full --trace-children=yes --show-leak-kinds=all --track-origins=yes --log-file=$file ./fledge.services.north "$@"
 else
 	./fledge.services.north "$@"
 fi
+

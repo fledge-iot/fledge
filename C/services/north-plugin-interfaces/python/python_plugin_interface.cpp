@@ -414,14 +414,6 @@ uint32_t plugin_send_fn(PLUGIN_HANDLE handle, const std::vector<Reading *>& read
 		return numReadingsSent;
 	}
 
-	if (readings.size())
-	{
-		Reading *firstRdng = readings[0];
-		Logger::getLogger()->info("%s:%d: First reading @ %p", __FUNCTION__, __LINE__, firstRdng);
-		const std::vector<Datapoint *> dpVec = firstRdng->getReadingData();
-		Logger::getLogger()->info("%s:%d: First reading: First dp @ %p", __FUNCTION__, __LINE__, dpVec[0]);
-	}
-
 	// Create a dict of readings
 	// 1. create empty ReadingSet
 	ReadingSet set(&readings);

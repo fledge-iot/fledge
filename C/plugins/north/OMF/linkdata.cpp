@@ -106,6 +106,8 @@ string OMFLinkedData::processReading(const Reading& reading, const string&  AFHi
 
 	Logger::getLogger()->debug("Processing %s (%s) using Linked Types", assetName.c_str(), DataPointNamesAsString(reading).c_str());
 
+	assetName = OMF::ApplyPIServerNamingRulesObj(assetName, NULL);
+
 	bool needDelim = false;
 	if (m_assetSent->count(assetName) == 0)
 	{
@@ -136,6 +138,7 @@ string OMFLinkedData::processReading(const Reading& reading, const string&  AFHi
 			// Don't send the OMF Hint to the PI Server
 			continue;
 		}
+		dpName = OMF::ApplyPIServerNamingRulesObj(dpName, NULL);
 		if (!isTypeSupported(dp->getData()))
 		{
 			skippedDatapoints.push_back(dpName);

@@ -676,6 +676,7 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		}
 		else
 		{
+			m_shutdown = true;
 			Logger::getLogger()->info("Dryrun of service, shutting down");
 		}
 

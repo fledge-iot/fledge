@@ -414,18 +414,22 @@ uint32_t plugin_send_fn(PLUGIN_HANDLE handle, const std::vector<Reading *>& read
 		return numReadingsSent;
 	}
 
-	// Create a dict of readings
-	// 1 create a PythonReadingSet object
-	PythonReadingSet *pyReadingSet = (PythonReadingSet *) &readings;
+	// 1. create a ReadingSet
+	ReadingSet set(&readings);
 
-	// 2 create PyObject
+	// 2. create a PythonReadingSet object
+	PythonReadingSet *pyReadingSet = (PythonReadingSet *) &set;
+
+	// 3. create PyObject
 	PyObject* readingsList = pyReadingSet->toPython(true);
 	    
 	numReadingsSent = call_plugin_send_coroutine(pFunc, handle, readingsList);
 	Logger::getLogger()->debug("C2Py: plugin_send_fn():L%d: filtered readings sent %d",
 				__LINE__,
 				numReadingsSent);
-   
+
+	set.clear(); // to avoid deletion of contained Reading objects; they are subsequently accessed in calling function DataSender::send()
+
 	// Remove python object
 	Py_CLEAR(readingsList);
 	Py_CLEAR(pFunc);

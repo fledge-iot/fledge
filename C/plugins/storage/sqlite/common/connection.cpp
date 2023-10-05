@@ -1395,7 +1395,7 @@ std::size_t arr = data.find("inserts");
 			sqlite3_reset(stmt);
 			
 
-			if (sqlite3_exec(dbHandle, "COMMIT TRANSACTION", NULL, NULL, NULL) != SQLITE_OK)
+			if (sqlite_resut == SQLITE_DONE && sqlite3_exec(dbHandle, "COMMIT TRANSACTION", NULL, NULL, NULL) != SQLITE_OK)
 			{
 				if (stmt)
 				{

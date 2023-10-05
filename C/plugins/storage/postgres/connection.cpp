@@ -2989,9 +2989,24 @@ bool Connection::jsonWhereClause(const Value& whereClause,
 				sql.append(whereClause["value"].GetInt());
 			} else if (whereClause["value"].IsString())
 			{
-				sql.append('\'');
-				sql.append(escape(whereClause["value"].GetString()));
-				sql.append('\'');
+				if (whereClause.HasMember("format"))
+				{
+					if (! whereClause["format"].IsString())
+					{
+						raiseError("where clause", "format must be a string");
+						return false;
+					}
+					sql.append(whereClause["format"].GetString());
+					sql.append('(');
+					sql.append(escape(whereClause["value"].GetString()));
+					sql.append(')');
+				}
+				else
+				{
+					sql.append('\'');
+					sql.append(escape(whereClause["value"].GetString()));
+					sql.append('\'');
+				}
 			}
 		}
 	}

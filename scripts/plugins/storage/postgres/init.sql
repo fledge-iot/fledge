@@ -1094,7 +1094,7 @@ INSERT INTO fledge.schedules ( id, schedule_name, process_name, schedule_type,
                 'purge',                                -- process_name
                 3,                                      -- schedule_type (interval)
                 NULL,                                   -- schedule_time
-                '01:00:00',                             -- schedule_interval (evey hour)
+                '00:10:00',                             -- schedule_interval (evey hour)
                 true,                                   -- exclusive
                 true                                    -- enabled
               );

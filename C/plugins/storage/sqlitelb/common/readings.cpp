@@ -1649,7 +1649,7 @@ unsigned int  Connection::purgeReadings(unsigned long age,
 	{
 		char *zErrMsg = NULL;
 		int rc;
-		rc = SQLexec(dbHandle,
+		rc = SQLexec(dbHandle, "readings",
 					 "select max(rowid) from " READINGS_DB_NAME_BASE "."  READINGS_TABLE ";",
 			rowidCallback,
 			&rowidLimit,
@@ -1667,7 +1667,7 @@ unsigned int  Connection::purgeReadings(unsigned long age,
 	{
 		char *zErrMsg = NULL;
 		int rc;
-		rc = SQLexec(dbHandle,
+		rc = SQLexec(dbHandle, "readings",
 					 "select min(rowid) from " READINGS_DB_NAME_BASE "." READINGS_TABLE ";",
 			rowidCallback,
 			&minrowidLimit,
@@ -1697,7 +1697,7 @@ unsigned int  Connection::purgeReadings(unsigned long age,
 		int purge_readings = 0;
 
 		// Exec query and get result in 'purge_readings' via 'selectCallback'
-		rc = SQLexec(dbHandle,
+		rc = SQLexec(dbHandle, "readings",
 					 query,
 					 selectCallback,
 					 &purge_readings,
@@ -1813,7 +1813,7 @@ unsigned int  Connection::purgeReadings(unsigned long age,
 			sqlBuffer.append(" hours');");
 			const char *query = sqlBuffer.coalesce();
 
-			rc = SQLexec(dbHandle,
+			rc = SQLexec(dbHandle, "readings",
 						 query,
 						 rowidCallback,
 						 &rowidLimit,
@@ -1849,7 +1849,7 @@ unsigned int  Connection::purgeReadings(unsigned long age,
 		idBuffer.append(rowidLimit);
 		idBuffer.append(';');
 		const char *idQuery = idBuffer.coalesce();
-		rc = SQLexec(dbHandle,
+		rc = SQLexec(dbHandle, "readings",
 					 idQuery,
 					 rowidCallback,
 					 &lastPurgedId,
@@ -2060,7 +2060,7 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 	int rc;
 	sqlite3_stmt *stmt;
 	sqlite3_stmt *idStmt;
-	rc = SQLexec(dbHandle,
+	rc = SQLexec(dbHandle, "readings",
 				 "select count(rowid) from " READINGS_DB_NAME_BASE "." READINGS_TABLE ";",
 		rowidCallback,
 		&rowcount,
@@ -2073,7 +2073,7 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 		return 0;
 	}
 
-	rc = SQLexec(dbHandle,
+	rc = SQLexec(dbHandle, "readings",
 				 "select max(id) from " READINGS_DB_NAME_BASE "." READINGS_TABLE ";",
 		rowidCallback,
 		&maxId,
@@ -2267,7 +2267,7 @@ unsigned int rowsAffected = 0;
 
 	START_TIME;
 	// Exec DELETE query: no callback, no resultset
-	rc = SQLexec(dbHandle,
+	rc = SQLexec(dbHandle, "readings",
 			query,
 			NULL,
 			NULL,

@@ -27,9 +27,9 @@
 #define READINGS_TABLE            "readings"
 #define READINGS_TABLE_MEM       READINGS_TABLE
 
-#define MAX_RETRIES				80	// Maximum no. of retries when a lock is encountered
-#define RETRY_BACKOFF			100	// Multipler to backoff DB retry on lock
-#define RETRY_BACKOFF_EXEC	   1000	// Multipler to backoff DB retry on lock
+#define MAX_RETRIES		80	// Maximum no. of retries when a lock is encountered
+#define RETRY_BACKOFF		100	// Multipler to backoff DB retry on lock
+#define RETRY_BACKOFF_EXEC   	1000	// Multipler to backoff DB retry on lock
 
 #define LEN_BUFFER_DATE 100
 #define F_TIMEH24_S             "%H:%M:%S"
@@ -131,7 +131,8 @@ class Connection {
 		bool 		m_streamOpenTransaction;
 		int		m_queuing;
 		std::mutex	m_qMutex;
-		int 		SQLexec(sqlite3 *db, const char *sql,
+		std::string	operation(const char *sql);
+		int 		SQLexec(sqlite3 *db, const std::string& table, const char *sql,
 					int (*callback)(void*,int,char**,char**),
 					void *cbArg, char **errmsg);
 		int		SQLstep(sqlite3_stmt *statement);

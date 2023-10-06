@@ -52,6 +52,7 @@ static void statsThread(Ingest *ingest)
  * The key checked/created in the table is "<assetName>"
  * 
  * @param assetName     Asset name for the plugin that is sending readings
+ * @return int		Return -1 on error, 0 if not required or 1 if the entry exists
  */
 int Ingest::createStatsDbEntry(const string& assetName)
 {
@@ -100,7 +101,7 @@ int Ingest::createStatsDbEntry(const string& assetName)
 		m_logger->error("%s:%d : Unable to create new row in statistics table with key='%s'", __FUNCTION__, __LINE__, statistics_key.c_str());
 		return -1;
 	}
-	return 0;
+	return 1;
 }
 
 /**
@@ -177,8 +178,10 @@ void Ingest::updateStats()
 	{
 		if (statsDbEntriesCache.find(it->first) == statsDbEntriesCache.end())
 		{
-			createStatsDbEntry(it->first);
-			statsDbEntriesCache.insert(it->first);
+			if (createStatsDbEntry(it->first) > 0)
+			{
+				statsDbEntriesCache.insert(it->first);
+			}
 		}
 		
 		if (it->second)

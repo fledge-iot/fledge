@@ -113,7 +113,7 @@ bool Connection::getNow(string& Now)
 
 	string nowSqlCMD = "SELECT " SQLITE3_NOW_READING;
 
-	int rc = SQLexec(dbHandle,
+	int rc = SQLexec(dbHandle, "now",
 	                 nowSqlCMD.c_str(),
 	                 dateCallback,
 	                 nowDate,
@@ -245,7 +245,7 @@ bool Connection::applyColumnDateTimeFormat(sqlite3_stmt *pStmt,
 		char formattedData[100] = "";
 
 		// Exec the format SQL
-		int rc = SQLexec(dbHandle,
+		int rc = SQLexec(dbHandle, "date",
 				 formatStmt.c_str(),
 				 dateCallback,
 				 formattedData,
@@ -525,7 +525,7 @@ Connection::Connection()
 		const char *sqlStmt = attachDb.coalesce();
 
 		// Exec the statement
-		rc = SQLexec(dbHandle,
+		rc = SQLexec(dbHandle, "database",
 			     sqlStmt,
 			     NULL,
 			     NULL,
@@ -568,7 +568,7 @@ Connection::Connection()
 			const char *sqlReadingsStmt = attachReadingsDb.coalesce();
 
 			// Exec the statement
-			rc = SQLexec(dbHandle,
+			rc = SQLexec(dbHandle, "database", 
 						 sqlReadingsStmt,
 						 NULL,
 						 NULL,
@@ -1395,7 +1395,7 @@ std::size_t arr = data.find("inserts");
 			sqlite3_reset(stmt);
 			
 
-			if (sqlite3_exec(dbHandle, "COMMIT TRANSACTION", NULL, NULL, NULL) != SQLITE_OK)
+			if (sqlite3_resut == SQLITE_DONE && sqlite3_exec(dbHandle, "COMMIT TRANSACTION", NULL, NULL, NULL) != SQLITE_OK)
 			{
 				if (stmt)
 				{
@@ -1790,7 +1790,7 @@ bool		allowZero = false;
 
 	// Exec the UPDATE statement: no callback, no result set
 	m_writeAccessOngoing.fetch_add(1);
-	rc = SQLexec(dbHandle,
+	rc = SQLexec(dbHandle, table, 
 		     query,
 		     NULL,
 		     NULL,
@@ -1806,7 +1806,7 @@ bool		allowZero = false;
 		sqlite3_free(zErrMsg);
 		if (sqlite3_get_autocommit(dbHandle)==0) // transaction is still open, do rollback
 		{
-			rc=SQLexec(dbHandle,
+			rc=SQLexec(dbHandle, table,
 				"ROLLBACK TRANSACTION;",
 				NULL,
 				NULL,
@@ -3110,7 +3110,7 @@ void Connection::logSQL(const char *tag, const char *stmt)
  * @param	cbArg		Callback 1st argument
  * @param	errmsg		Locaiton to write error message
  */
-int Connection::SQLexec(sqlite3 *db, const char *sql, int (*callback)(void*,int,char**,char**),
+int Connection::SQLexec(sqlite3 *db, const string& table, const char *sql, int (*callback)(void*,int,char**,char**),
   			void *cbArg, char **errmsg)
 {
 int retries = 0, rc;
@@ -3157,7 +3157,7 @@ int retries = 0, rc;
 			{
 				int rc2;
 				char *zErrMsg = NULL;
-				rc2=SQLexec(db,
+				rc2=SQLexec(db, table,
 					"ROLLBACK TRANSACTION;",
 					NULL,
 					NULL,
@@ -3192,16 +3192,16 @@ int retries = 0, rc;
 
 	if (rc == SQLITE_LOCKED)
 	{
-		Logger::getLogger()->error("Database still locked after maximum retries");
+		Logger::getLogger()->error("Database still locked after maximum retries, executing %s operation on %s", operation(sql).c_str(), table.c_str());
 	}
 	if (rc == SQLITE_BUSY)
 	{
-		Logger::getLogger()->error("Database still busy after maximum retries");
+		Logger::getLogger()->error("Database still busy after maximum retries, executing %s operation on %s", operation(sql).c_str(), table.c_str());
 	}
 
 	if (rc != SQLITE_OK)
 	{
-		Logger::getLogger()->error("Database error after maximum retries - dbHandle :%X:", this->getDbHandle());
+		Logger::getLogger()->error("Database error after maximum retries, executing %s operation on %s", operation(sql).c_str(), table.c_str());
 	}
 
 	return rc;
@@ -3334,7 +3334,7 @@ vector<string>  asset_codes;
 
 	// Exec the DELETE statement: no callback, no result set
 	m_writeAccessOngoing.fetch_add(1);
-	rc = SQLexec(dbHandle,
+	rc = SQLexec(dbHandle, table,
 		     query,
 		     NULL,
 		     NULL,
@@ -3382,7 +3382,7 @@ int Connection::create_table_snapshot(const string& table, const string& id)
 	logSQL("CreateTableSnapshot", query.c_str());
 
 	char* zErrMsg = NULL;
-	int rc = SQLexec(dbHandle,
+	int rc = SQLexec(dbHandle, table,
 			 query.c_str(),
 			 NULL,
 			 NULL,
@@ -3420,7 +3420,7 @@ int Connection::load_table_snapshot(const string& table, const string& id)
 	logSQL("LoadTableSnapshot", query.c_str());
 
 	char* zErrMsg = NULL;
-	int rc = SQLexec(dbHandle,
+	int rc = SQLexec(dbHandle, table,
 			 query.c_str(),
 			 NULL,
 			 NULL,
@@ -3439,7 +3439,7 @@ int Connection::load_table_snapshot(const string& table, const string& id)
 		// transaction is still open, do rollback
 		if (sqlite3_get_autocommit(dbHandle) == 0)
 		{
-			rc = SQLexec(dbHandle,
+			rc = SQLexec(dbHandle, table,
 				     "ROLLBACK TRANSACTION;",
 				     NULL,
 				     NULL,
@@ -3469,7 +3469,7 @@ int Connection::delete_table_snapshot(const string& table, const string& id)
 	logSQL("DeleteTableSnapshot", query.c_str());
 
 	char* zErrMsg = NULL;
-	int rc = SQLexec(dbHandle,
+	int rc = SQLexec(dbHandle, table,
 			 query.c_str(),
 			 NULL,
 			 NULL,
@@ -3833,7 +3833,7 @@ bool Connection::vacuum()
 {
 	char* zErrMsg = NULL;
 	// Exec the statement
-	int rc = SQLexec(dbHandle, "VACUUM;", NULL, NULL, &zErrMsg);
+	int rc = SQLexec(dbHandle, "", "VACUUM;", NULL, NULL, &zErrMsg);
 
 	// Check result
 	if (rc != SQLITE_OK)
@@ -3851,3 +3851,20 @@ bool Connection::vacuum()
 	return true;
 }
 #endif
+
+/**
+ * Return the first word in a SQL statement, ie the operation that is beign executed.
+ *
+ * @param sql	The complete SQL statement
+ * @return string	The operation
+ */
+string Connection::operation(const char *sql)
+{
+	const char *p1 = sql;
+	char buf[40], *p2 = buf;
+	while (*p1 && !isspace(*p1) && p2 - buf < 40)
+		*p2++ = *p1++;
+	*p2 = '\0';
+	return string(buf);
+
+}

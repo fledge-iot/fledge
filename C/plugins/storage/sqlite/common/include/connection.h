@@ -153,7 +153,7 @@ class Connection {
 #endif
 
 	private:
-
+		std::string	operation(const char *sql);
 		std::vector<int>
 		       		m_NewDbIdList;            // Newly created databases that should be attached
 
@@ -161,7 +161,7 @@ class Connection {
 		int		m_queuing;
 		std::mutex	m_qMutex;
 		int		SQLPrepare(sqlite3 *dbHandle, const char *sqlCmd, sqlite3_stmt **readingsStmt);
-		int		SQLexec(sqlite3 *db, const char *sql,
+		int		SQLexec(sqlite3 *db, const std::string& table, const char *sql,
 				int (*callback)(void*,int,char**,char**),
 					void *cbArg, char **errmsg);
 

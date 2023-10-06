@@ -82,7 +82,7 @@ The south services within Fledge each have a set of advanced configuration optio
    The *Statistics Collection* setting will not remove any existing statistics, these will remain and remain to be represented in the statistics history. This only impacts new values that are collected. It is recommended that this be set before a service is started for the first time if the desire it to have no statistics values recorded for either assets or the service.
 
 
-  - *Performance Counters* - This option allows for collection of performance counters that can be use to help tune the south service.
+  - *Performance Counters* - This option allows for the collection of performance counters that can be used to help tune the south service.
 
 Performance Counters
 --------------------
@@ -124,7 +124,16 @@ When collection is enabled the following counters will be collected for the sout
       - This is closely related to the queuLength counter and has much the same set of actions that should be taken if the service is frequently flow controlled. Reducing the ingest rate, or adding filtering in the pipeline to reduce the amount of data passed onward to the storage service may alleviate the problem. In general if processing can be done that reduces high bandwidth data into lower bandwidth data that can still characterise the high bandwidth content, then this should be done as close as possible to the source of the data to reduce the overall load on the system.
     * - throttled rate
       - The rate that data is being ingested at as a result of flow control throttling.
-      - This counter is more for information as to what might make a reasonable ingest rate the system can sustain with the current configuration. It is useful as it gives a good idea of how far away from your desired performance the current configuration of the system is,
+      - This counter is more for information as to what might make a reasonable ingest rate the system can sustain with the current configuration. It is useful as it gives a good idea of how far away from your desired performance the current configuration of the system is currently
+    * - storedReadings
+      - The readings successfully sent to the storage layer.
+      - This counter gives an indication of the bandwidth available from the service to the storage engine. This should be at least as high as the ingest rate if data is not to accumulate in buffers within the storage. Altering the maximum latency and maximum buffered readings advanced settings in the south server can impact this throughput.
+    * - resendQueued
+      - The number of readings queued for resend. Note that readings may be queued for resend multiple times if the resend also failed.
+      - This is a good indication of overload conditions within the storage engine. Consistent high values of this counter point to the need to improve the performance of the storage layer.
+    * - removedReadings
+      - A count of the readings that have been removed after too many attempts to save them in the storage layer.
+      - This should normally be zero or close to zero. Any significant values here are a pointer to a critical error with either the south plugin data that is being created or the operation of the storage layer.
 
 
 Fixed Time Polling

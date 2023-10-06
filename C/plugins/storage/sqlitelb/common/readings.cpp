@@ -2146,7 +2146,7 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 			return 0;
 		}
 
-		deletePoint = minId + 10000;
+		deletePoint = minId + m_purgeBlockSize;
 		if (maxId - deletePoint < rows || deletePoint > maxId)
 			deletePoint = maxId - rows;
 
@@ -2193,7 +2193,7 @@ unsigned int  Connection::purgeReadingsByRows(unsigned long rows,
 				unsentPurged += rowsAffected;
 			}
 		}
-		std::this_thread::yield();	// Give other threads a chane to run
+		std::this_thread::yield();	// Give other threads a chance to run
 	} while (rowcount > rows);
 
 	if (rowsAvailableToPurge)

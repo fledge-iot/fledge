@@ -260,6 +260,8 @@ The storage plugin configuration can be found in the *Advanced* section of the *
 
 - **Purge Exclusion**: This is not a performance settings, but allows a number of assets to be exempted from the purge process. This value is a comma separated list of asset names that will be excluded from the purge operation.
 
+- **Vacuum Interval**: The interval between execution of vacuum operations on the database, expressed in hours. A vacuum operation is used to reclaim space occupied in the database by data that has been deleted.
+
 sqlitelb Configuration
 ######################
 
@@ -280,6 +282,10 @@ The storage plugin configuration can be found in the *Advanced* section of the *
 .. note::
 
     Although the pool size denotes the number of parallel operations that can take place, database locking considerations may reduce the number of actual operations in progress at any point in time.
+
+- **Vacuum Interval**: The interval between execution of vacuum operations on the database, expressed in hours. A vacuum operation is used to reclaim space occupied in the database by data that has been deleted.
+
+- **Purge Block Size**: The maximum number of rows that will be deleted within a single transactions when performing a purge operation on the readings data. Large block sizes are potential the most efficient in terms of the time to complete the purge operation, however this will increase database contention as a database lock is required that will cause any ingest operations to be stalled until the purge completes. By setting a lower block size the purge will take longer, nut ingest operations can be interleaved with the purging of blocks.
 
 postgres Configuration
 ######################
@@ -326,3 +332,6 @@ The storage plugin configuration can be found in the *Advanced* section of the *
  - **Persist Data**: Control the persisting of the in-memory database on shutdown. If enabled the in-memory database will be persisted on shutdown of Fledge and reloaded when Fledge is next started. Selecting this option will slow down the shutdown and startup processing for Fledge.
 
  - **Persist File**: This defines the name of the file to which the in-memory database will be persisted.
+
+ - **Purge Block Size**: The maximum number of rows that will be deleted within a single transactions when performing a purge operation on the readings data. Large block sizes are potential the most efficient in terms of the time to complete the purge operation, however this will increase database contention as a database lock is required that will cause any ingest operations to be stalled until the purge completes. By setting a lower block size the purge will take longer, nut ingest operations can be interleaved with the purging of blocks.
+

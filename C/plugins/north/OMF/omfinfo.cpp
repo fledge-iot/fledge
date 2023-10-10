@@ -541,6 +541,14 @@ uint32_t OMFInformation::send(const vector<Reading *>& readings)
 	Logger::getLogger()->debug("plugin_send elapsed time: %6.3f seconds, NumValues: %u", GetElapsedTime(&startTime), ret);
 #endif
 
+	// FIXME Remove this block before checking in
+	Logger *log = Logger::getLogger();
+	log->fatal("ominfo::send returning");
+	log->fatal("m_notBlockingErrors: %d", m_notBlockingErrors.size());
+	log->fatal("m_assetsDataTypes: %d", m_assetsDataTypes.size());
+	log->fatal("m_staticData: %d", m_staticData.size());
+	log->fatal("-------");
+
 	// Return sent data ret code
 	return ret;
 }

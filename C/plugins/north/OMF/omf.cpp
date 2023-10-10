@@ -276,6 +276,24 @@ OMF::OMF(const string& name,
 // Destructor
 OMF::~OMF()
 {
+	// FIXME Remove below
+	Logger *log = Logger::getLogger();
+	log->fatal("m_afhHierarchyAlreadyCreated: %d", m_afhHierarchyAlreadyCreated.size());
+	log->fatal("m_NamesRules: %d", m_NamesRules.size());
+	log->fatal("m_MetadataRulesExist: %d", m_MetadataRulesExist.size());
+	log->fatal("m_MetadataRulesNonExist: %d", m_MetadataRulesNonExist.size());
+	log->fatal("m_MetadataRulesNonExist: %d", m_MetadataRulesNonExist.size());
+	log->fatal("m_MetadataRulesNotEqual: %d", m_MetadataRulesNotEqual.size());
+	log->fatal("m_AssetNamePrefix: %d", m_AssetNamePrefix.size());
+	log->fatal("m_formatTypes: %d", m_formatTypes.size());
+	log->fatal("m_notBlockingErrors: %d", m_notBlockingErrors.size());
+	log->fatal("m_OMFDataTypes: %d", m_OMFDataTypes->size());
+	log->fatal("m_SuperSetDataPoints: %d", m_SuperSetDataPoints.size());
+	log->fatal("m_containerSent: %d", m_containerSent.size());
+	log->fatal("m_assetSent: %d", m_assetSent.size());
+	log->fatal("m_linkSent: %d", m_linkSent.size());
+	log->fatal("m_reportedAssets: %d", m_reportedAssets.size());
+
 }
 
 /**

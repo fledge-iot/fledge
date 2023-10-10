@@ -115,7 +115,7 @@ AssetTracker::~AssetTracker()
 	}
 
 	// FIXME Remove below
-	Logger::getLogger()->fatal("Asset tracker tuples cache has %d elements at showndown", assetTrackerTuplesCache.size());
+	Logger::getLogger()->fatal("Asset tracker tuples cache has %d elements at shutdown", assetTrackerTuplesCache.size());
 	for (auto& item : assetTrackerTuplesCache)
 	{
 		delete item;
@@ -123,7 +123,7 @@ AssetTracker::~AssetTracker()
 	assetTrackerTuplesCache.clear();
 
 	// FIXME Remove below
-	Logger::getLogger()->fatal("Asset tracker storage tuples cache has %d elements at showndown", storageAssetTrackerTuplesCache.size());
+	Logger::getLogger()->fatal("Asset tracker storage tuples cache has %d elements at shutdown", storageAssetTrackerTuplesCache.size());
 	for (auto& store : storageAssetTrackerTuplesCache)
 	{
 		delete store.first;

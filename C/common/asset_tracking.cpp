@@ -94,6 +94,8 @@ AssetTracker::~AssetTracker()
 		unique_lock<mutex> lck(m_mutex);
 		m_cv.notify_all();
 	}
+	// FIXME Remove below
+	Logger::getLogger()->fatal("Asset tracker has pending queue of %d at shutdown", m_pending.size());
 	while (m_pending.size())
 	{
 		// Wait for pending queue to drain
@@ -112,12 +114,16 @@ AssetTracker::~AssetTracker()
 		m_storageClient = NULL;
 	}
 
+	// FIXME Remove below
+	Logger::getLogger()->fatal("Asset tracker tuples cache has %d elements at showndown", assetTrackerTuplesCache.size());
 	for (auto& item : assetTrackerTuplesCache)
 	{
 		delete item;
 	}
 	assetTrackerTuplesCache.clear();
 
+	// FIXME Remove below
+	Logger::getLogger()->fatal("Asset tracker storage tuples cache has %d elements at showndown", storageAssetTrackerTuplesCache.size());
 	for (auto& store : storageAssetTrackerTuplesCache)
 	{
 		delete store.first;
@@ -283,6 +289,8 @@ AssetTrackingTable::AssetTrackingTable()
  */
 AssetTrackingTable::~AssetTrackingTable()
 {
+	// FIXME Remove below
+	Logger::getLogger()->fatal("Asset tracker table has %d tuples at shutdown", m_tuples.size());
 	for (auto t : m_tuples)
 	{
 		delete t.second;

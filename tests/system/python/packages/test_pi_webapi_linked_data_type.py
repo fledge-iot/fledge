@@ -208,8 +208,7 @@ def start_south_north(add_south, start_north_task_omf_web_api, add_filter, remov
                                  service_name=NORTH_INSTANCE_NAME, default_af_location=AF_HIERARCHY_LEVEL)
 
 class Test_linked_data_PIWebAPI:
-    # @pytest.mark.skip(reason="no way of currently testing this")
-    def test_linked_data(self, clean_setup_fledge_packages, reset_fledge, start_south_north, fledge_url, 
+    def test_linked_data(self, clean_setup_fledge_packages, reset_fledge, start_south_north, update_stat_collection, fledge_url, 
                          pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries, pi_port, enable_schedule, disable_schedule, 
                          verify_hierarchy_and_get_datapoints_from_pi_web_api, clear_pi_system_through_pi_web_api, 
                          skip_verify_north_interface, asset_name=ASSET):
@@ -252,7 +251,7 @@ class Test_linked_data_PIWebAPI:
         verify_data_between_fledge_and_piwebapi(fledge_url, pi_host, pi_admin, pi_passwd, pi_db, AF_HIERARCHY_LEVEL, ASSET, SOUTH_PLUGINS_LIST, verify_hierarchy_and_get_datapoints_from_pi_web_api, wait_time)
     
     # @pytest.mark.skip(reason="no way of currently testing this")
-    def test_linked_data_with_filter(self, reset_fledge, start_south_north, fledge_url, pi_host, pi_admin, pi_passwd, add_filter, pi_db, wait_time, 
+    def test_linked_data_with_filter(self, reset_fledge, start_south_north, update_stat_collection, fledge_url, pi_host, pi_admin, pi_passwd, add_filter, pi_db, wait_time, 
                                        retries, pi_port, enable_schedule, disable_schedule, verify_hierarchy_and_get_datapoints_from_pi_web_api, 
                                        clear_pi_system_through_pi_web_api, skip_verify_north_interface, asset_name=ASSET):
                 
@@ -295,7 +294,7 @@ class Test_linked_data_PIWebAPI:
         verify_data_between_fledge_and_piwebapi(fledge_url, pi_host, pi_admin, pi_passwd, pi_db, AF_HIERARCHY_LEVEL, ASSET, ASSET_DICT[ASSET], verify_hierarchy_and_get_datapoints_from_pi_web_api, wait_time)
         
     # @pytest.mark.skip(reason="no way of currently testing this")
-    def test_linked_data_with_onoff_filter(self, reset_fledge, start_south_north, fledge_url, pi_host, pi_admin, pi_passwd, add_filter, pi_db, wait_time, 
+    def test_linked_data_with_onoff_filter(self, reset_fledge, start_south_north, update_stat_collection, fledge_url, pi_host, pi_admin, pi_passwd, add_filter, pi_db, wait_time, 
                                            retries, pi_port, enable_schedule, disable_schedule, verify_hierarchy_and_get_datapoints_from_pi_web_api, 
                                            clear_pi_system_through_pi_web_api, skip_verify_north_interface, asset_name=ASSET):
         

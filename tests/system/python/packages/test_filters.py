@@ -120,7 +120,7 @@ def verify_readings(fledge_url, asset_name):
 
 class TestPython35:
     def test_filter_python35_with_uploaded_script(self, clean_setup_fledge_packages, reset_fledge,
-                                                  add_south_http_with_filter, fledge_url, wait_time):
+                                                  add_south_http_with_filter, update_stat_collection, fledge_url, wait_time):
         # Wait until south service is created
         time.sleep(wait_time * 2)
         verify_south_added(fledge_url, HTTP_SOUTH_SVC_NAME)

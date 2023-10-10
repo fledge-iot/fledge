@@ -167,7 +167,7 @@ def _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_d
 
 class TestOMFNamingScheme:
     def test_omf_with_concise_naming(self, clean_setup_fledge_packages, reset_fledge, start_south,
-                                     start_north_task_omf_web_api,
+                                     start_north_task_omf_web_api, update_stat_collection,
                                      read_data_from_pi_web_api, skip_verify_north_interface, fledge_url,
                                      wait_time, retries, pi_host, pi_port, pi_admin, pi_passwd, pi_db):
         """ Test OMF with concise naming scheme.
@@ -208,7 +208,7 @@ class TestOMFNamingScheme:
             _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries,
                            recorded_datapoint, pi_asset_name)
 
-    def test_omf_with_type_suffix_naming(self, reset_fledge, start_south, start_north_task_omf_web_api,
+    def test_omf_with_type_suffix_naming(self, reset_fledge, start_south, start_north_task_omf_web_api, update_stat_collection,
                                          read_data_from_pi_web_api, skip_verify_north_interface, fledge_url,
                                          wait_time, retries, pi_host, pi_port, pi_admin, pi_passwd, pi_db):
         """ Test OMF with concise naming scheme.
@@ -250,7 +250,7 @@ class TestOMFNamingScheme:
             _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries,
                            recorded_datapoint, pi_asset_name)
 
-    def test_omf_with_attribute_hash_naming(self, reset_fledge, start_south, start_north_task_omf_web_api,
+    def test_omf_with_attribute_hash_naming(self, reset_fledge, start_south, start_north_task_omf_web_api, update_stat_collection,
                                             read_data_from_pi_web_api, skip_verify_north_interface, fledge_url,
                                             wait_time, retries, pi_host, pi_port, pi_admin, pi_passwd, pi_db):
         """ Test OMF with concise naming scheme.
@@ -292,7 +292,7 @@ class TestOMFNamingScheme:
             _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries,
                            recorded_datapoint, pi_asset_name)
 
-    def test_omf_with_backward_compatibility_naming(self, reset_fledge, start_south, start_north_task_omf_web_api,
+    def test_omf_with_backward_compatibility_naming(self, reset_fledge, start_south, start_north_task_omf_web_api, update_stat_collection,
                                                     read_data_from_pi_web_api, skip_verify_north_interface, fledge_url,
                                                     wait_time, retries, pi_host, pi_port, pi_admin, pi_passwd, pi_db):
         """ Test OMF with concise naming scheme.

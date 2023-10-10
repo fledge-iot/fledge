@@ -164,9 +164,9 @@ def start_south_north(add_south, start_north_task_omf_web_api, remove_data_file,
 
 class TestPackagesCoAP_PI_WebAPI:
 
-    def test_omf_task(self, clean_setup_fledge_packages, reset_fledge, start_south_north, read_data_from_pi_web_api,
-                        fledge_url, pi_host, pi_admin, pi_passwd, pi_db, fogbench_host, fogbench_port,
-                        wait_time, retries, skip_verify_north_interface, asset_name=ASSET):
+    def test_omf_task(self, clean_setup_fledge_packages, reset_fledge, start_south_north, update_stat_collection,
+                      read_data_from_pi_web_api, fledge_url, pi_host, pi_admin, pi_passwd, pi_db, fogbench_host, 
+                      fogbench_port, wait_time, retries, skip_verify_north_interface, asset_name=ASSET):
         """ Test that data is inserted in Fledge and sent to PI
             start_south_north: Fixture that add south and north instance
             read_data_from_pi: Fixture to read data from PI
@@ -196,7 +196,7 @@ class TestPackagesCoAP_PI_WebAPI:
             _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries,
                            asset_name)
 
-    def test_omf_task_with_reconfig(self, reset_fledge, start_south_north, read_data_from_pi_web_api,
+    def test_omf_task_with_reconfig(self, reset_fledge, start_south_north, update_stat_collection, read_data_from_pi_web_api,
                                        skip_verify_north_interface, fledge_url, fogbench_host, fogbench_port,
                                        wait_time, retries, pi_host, pi_port, pi_admin, pi_passwd, pi_db,
                                        asset_name=ASSET):

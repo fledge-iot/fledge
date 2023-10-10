@@ -215,6 +215,25 @@ def add_north():
 
     return _add_fledge_north
 
+
+@pytest.fixture
+def update_stat_collection(fledge_url, wait_time):
+    """Update the Stat colectioin of all south service to per asset & service"""
+    
+    # Wait for the south service to be created
+    time.sleep(wait_time)
+    service_response_list = list()
+    response = utils.get_request(fledge_url, "/fledge/south")
+    
+    for service in response["services"]:
+        put_url = "/fledge/category/{}Advanced".format(service["name"])
+        payload = {"statistics": "per asset & service"}
+        res = utils.put_request(fledge_url, quote(put_url), payload)
+        service_response_list.append(res)
+    
+    return service_response_list
+
+
 @pytest.fixture
 def add_service():
     def _add_service(fledge_url, service, service_branch, retries, installation_type = "make", service_name = "svc@123",

@@ -54,11 +54,12 @@ def reset_fledge_local(wait_time):
 
 
 @pytest.fixture
-def setup_local(reset_fledge_local, add_south, add_north, fledge_url, remote_ip):
+def setup_local(reset_fledge_local, add_south, add_north, update_stat_collection, fledge_url, remote_ip, wait_time):
     local_south_config = {"assetName": {"value": remote_south_asset_name}}
     add_south(local_south_plugin, None, fledge_url, config=local_south_config,
               service_name="{}".format(local_south_service_name),
               installation_type='package')
+    update_stat_collection(fledge_url, wait_time)
     # Change name of variables such as service_name, plugin_type
     global north_schedule_id
     local_north_config = {"URL": {"value": "http://{}:6683/sensor-reading".format(remote_ip)}}
@@ -121,7 +122,7 @@ def clean_install_fledge_packages_remote(remote_user, remote_ip, key_path, remot
 
 @pytest.fixture
 def setup_remote(reset_fledge_remote, remote_user, remote_ip, start_north_omf_as_a_service,
-                 pi_host, pi_port, pi_admin, pi_passwd,
+                 pi_host, pi_port, pi_admin, pi_passwd, update_stat_collection,
                  clear_pi_system_through_pi_web_api, pi_db):
     """Fixture that setups remote machine
             reset_fledge_remote: Fixture that kills fledge, reset database and starts fledge again on a remote
@@ -156,6 +157,8 @@ def setup_remote(reset_fledge_remote, remote_user, remote_ip, start_north_omf_as
     retval = json.loads(r)
     assert remote_south_service_name == retval["name"]
 
+    update_stat_collection(fledge_url, wait_time)
+    
     # Configure pi north plugin on remote machine
     global remote_north_schedule_id
     response = start_north_omf_as_a_service(fledge_url, pi_host, pi_port, pi_user=pi_admin, pi_pwd=pi_passwd,

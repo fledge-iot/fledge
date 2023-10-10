@@ -95,8 +95,8 @@ class TestE2eFogPairPi:
 
     @pytest.fixture
     def start_south_north_remote(self, reset_and_start_fledge_remote, use_pip_cache, remote_user,
-                                 key_path, remote_fledge_path, remote_ip, south_branch,
-                                 start_north_pi_server_c, pi_host, pi_port, pi_token,
+                                 key_path, remote_fledge_path, remote_ip, south_branch, update_stat_collection,
+                                 start_north_pi_server_c, pi_host, pi_port, pi_token, wait_time,
                                  clear_pi_system_through_pi_web_api, pi_admin, pi_passwd, pi_db):
         """Fixture that starts south and north plugins on remote machine
                 reset_and_start_fledge_remote: Fixture that kills fledge, reset database and starts fledge again on a remote machine
@@ -152,6 +152,8 @@ class TestE2eFogPairPi:
         retval = json.loads(r)
         assert south_service == retval["name"]
 
+        update_stat_collection(fledge_url, wait_time)
+        
         # Configure pi north plugin on remote machine
         start_north_pi_server_c(fledge_url, pi_host, pi_port, pi_token)
 
@@ -188,8 +190,8 @@ class TestE2eFogPairPi:
 
     @pytest.fixture
     def start_south_north_local(self, reset_and_start_fledge, add_south, enable_schedule, remove_directories,
-                                remove_data_file, south_branch, north_branch, fledge_url, remote_ip,
-                                add_filter, filter_branch):
+                                remove_data_file, south_branch, north_branch, fledge_url, remote_ip, wait_time,
+                                add_filter, filter_branch, update_stat_collection):
         """ This fixture clone a south and north repo and starts both south and north instance
 
             reset_and_start_fledge: Fixture that resets and starts fledge, no explicit invocation, called at start
@@ -247,6 +249,8 @@ class TestE2eFogPairPi:
         enable_schedule(fledge_url, "fogpair_sine")
         enable_schedule(fledge_url, "NorthReadingsToHTTP")
 
+        update_stat_collection(fledge_url, wait_time)
+        
         yield self.start_south_north_local
 
         # Cleanup

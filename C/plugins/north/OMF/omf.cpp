@@ -278,6 +278,7 @@ OMF::~OMF()
 {
 	// FIXME Remove below
 	Logger *log = Logger::getLogger();
+	log->fatal("OMF cache data at shutdown");
 	log->fatal("m_afhHierarchyAlreadyCreated: %d", m_afhHierarchyAlreadyCreated.size());
 	log->fatal("m_NamesRules: %d", m_NamesRules.size());
 	log->fatal("m_MetadataRulesExist: %d", m_MetadataRulesExist.size());
@@ -293,6 +294,7 @@ OMF::~OMF()
 	log->fatal("m_assetSent: %d", m_assetSent.size());
 	log->fatal("m_linkSent: %d", m_linkSent.size());
 	log->fatal("m_reportedAssets: %d", m_reportedAssets.size());
+	log->fatal("-----");
 
 }
 
@@ -1549,25 +1551,6 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 
 #endif
 
-		// FIXME remove this
-		Logger *log = Logger::getLogger();
-		log->fatal("OMF::sendToServer returning");
-		log->fatal("m_afhHierarchyAlreadyCreated: %d", m_afhHierarchyAlreadyCreated.size());
-		log->fatal("m_NamesRules: %d", m_NamesRules.size());
-		log->fatal("m_MetadataRulesExist: %d", m_MetadataRulesExist.size());
-		log->fatal("m_MetadataRulesNonExist: %d", m_MetadataRulesNonExist.size());
-		log->fatal("m_MetadataRulesEqual: %d", m_MetadataRulesEqual.size());
-		log->fatal("m_MetadataRulesNotEqual: %d", m_MetadataRulesNotEqual.size());
-		log->fatal("m_AssetNamePrefix: %d", m_AssetNamePrefix.size());
-		log->fatal("m_notBlockingErrors: %d", m_notBlockingErrors.size());
-		log->fatal("m_OMFDataTypes: %d", m_OMFDataTypes->size());
-		log->fatal("m_SuperSetDataPoints: %d", m_SuperSetDataPoints.size());
-		log->fatal("m_staticData: %d", m_staticData->size());
-		log->fatal("m_containerSent: %d", m_containerSent.size());
-		log->fatal("m_assetSent: %d", m_assetSent.size());
-		log->fatal("m_linkSent: %d", m_linkSent.size());
-		log->fatal("m_reportedAssets: %d", m_reportedAssets.size());
-		log->fatal("----");
 
 		// Return number of sent readings to the caller
 		return readings.size();

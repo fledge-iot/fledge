@@ -60,6 +60,13 @@ DataLoad::~DataLoad()
 	}
 	// Clear out the queue of readings
 	unique_lock<mutex> lck(m_qMutex);	// Should not need to do this
+	// FIXME Remove below
+	Logger::getLogger()->fatal("DataLoad m_queue has %d reading sets at shutdown", m_queue.size());
+	long i = 0;
+	for (auto& set : m_queue)
+		i += set->getCount();
+	Logger::getLogger()->fatal("Total buffered readings at shutdown %ld", i);
+
 	while (! m_queue.empty())
 	{
 		ReadingSet *readings = m_queue.front();

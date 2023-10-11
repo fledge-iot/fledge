@@ -59,6 +59,10 @@
 
 #include "crypto.hpp"
 
+// FIXME Remove below
+#include <stdio.h>
+#include <malloc.h>
+
 
 #define VERBOSE_LOG	0
 #define INSTRUMENT 0
@@ -450,6 +454,11 @@ string plugin_shutdown(PLUGIN_HANDLE handle)
 {
 	// Delete the handle
 	OMFInformation *info = (OMFInformation *) handle;
+
+	// FIXME Remove below
+	FILE *fp = fopen("/tmp/malloc_stats", "w");
+	malloc_info(0, fp);
+	fclose(fp);
 
 	string rval = info->saveData();
 	delete info;

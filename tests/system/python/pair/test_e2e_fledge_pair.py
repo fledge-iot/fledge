@@ -168,7 +168,7 @@ class TestE2eFogPairPi:
         retval = json.loads(r)
         assert south_service == retval["name"]
         
-        update_stat_collection_remote(fledge_url, wait_time)
+        self.update_stat_collection_remote(fledge_url, wait_time)
 
         # Configure pi north plugin on remote machine
         start_north_pi_server_c(fledge_url, pi_host, pi_port, pi_token)

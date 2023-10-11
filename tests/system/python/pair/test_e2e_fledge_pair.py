@@ -18,7 +18,7 @@ import time
 import pytest
 from collections import Counter
 import utils
-
+from urllib.parse import quote
 
 __author__ = "Vaibhav Singhal"
 __copyright__ = "Copyright (c) 2019 Dianomic Systems"
@@ -36,6 +36,22 @@ remote_asset_name = "fogpair_playback"
 
 class TestE2eFogPairPi:
 
+    def update_stat_collection_remote(fledge_url, wait_time):
+        """Update the Stat colectioin of all south service to per asset & service"""
+
+        # Wait for the south service to be created
+        time.sleep(wait_time)
+        service_response_list = list()
+        response = utils.get_request(fledge_url, "/fledge/south")
+
+        for service in response["services"]:
+            put_url = "/fledge/category/{}Advanced".format(service["name"])
+            payload = {"statistics": "per asset & service"}
+            res = utils.put_request(fledge_url, quote(put_url), payload)
+            service_response_list.append(res)
+
+        return service_response_list
+    
     def get_asset_list(self, fledge_url):
         _connection = http.client.HTTPConnection(fledge_url)
         _connection.request("GET", '/fledge/asset')
@@ -95,8 +111,8 @@ class TestE2eFogPairPi:
 
     @pytest.fixture
     def start_south_north_remote(self, reset_and_start_fledge_remote, use_pip_cache, remote_user,
-                                 key_path, remote_fledge_path, remote_ip, south_branch, update_stat_collection,
-                                 start_north_pi_server_c, pi_host, pi_port, pi_token, wait_time,
+                                 key_path, remote_fledge_path, remote_ip, south_branch, wait_time,
+                                 start_north_pi_server_c, pi_host, pi_port, pi_token,
                                  clear_pi_system_through_pi_web_api, pi_admin, pi_passwd, pi_db):
         """Fixture that starts south and north plugins on remote machine
                 reset_and_start_fledge_remote: Fixture that kills fledge, reset database and starts fledge again on a remote machine
@@ -151,9 +167,9 @@ class TestE2eFogPairPi:
         r = r.read().decode()
         retval = json.loads(r)
         assert south_service == retval["name"]
-
-        update_stat_collection(fledge_url, wait_time)
         
+        update_stat_collection_remote(fledge_url, wait_time)
+
         # Configure pi north plugin on remote machine
         start_north_pi_server_c(fledge_url, pi_host, pi_port, pi_token)
 
@@ -190,8 +206,8 @@ class TestE2eFogPairPi:
 
     @pytest.fixture
     def start_south_north_local(self, reset_and_start_fledge, add_south, enable_schedule, remove_directories,
-                                remove_data_file, south_branch, north_branch, fledge_url, remote_ip, wait_time,
-                                add_filter, filter_branch, update_stat_collection):
+                                remove_data_file, south_branch, north_branch, fledge_url, remote_ip,
+                                add_filter, filter_branch):
         """ This fixture clone a south and north repo and starts both south and north instance
 
             reset_and_start_fledge: Fixture that resets and starts fledge, no explicit invocation, called at start
@@ -249,8 +265,6 @@ class TestE2eFogPairPi:
         enable_schedule(fledge_url, "fogpair_sine")
         enable_schedule(fledge_url, "NorthReadingsToHTTP")
 
-        update_stat_collection(fledge_url, wait_time)
-        
         yield self.start_south_north_local
 
         # Cleanup
@@ -285,7 +299,7 @@ class TestE2eFogPairPi:
 
         assert Counter(data_from_pi[CSV_HEADERS][-len(expected_read_values):]) == Counter(expected_read_values)
 
-    def test_end_to_end(self, start_south_north_remote, start_south_north_local,
+    def test_end_to_end(self, start_south_north_remote, start_south_north_local, update_stat_collection,
                         read_data_from_pi, retries, pi_host, pi_admin, pi_passwd, pi_db,
                         fledge_url, remote_ip, wait_time, skip_verify_north_interface):
         """ Test that data is inserted in Fledge (local instance) using playback south plugin,

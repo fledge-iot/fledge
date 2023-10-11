@@ -15,6 +15,7 @@ import subprocess
 import time
 import urllib.parse
 from pathlib import Path
+from urllib.parse import quote
 
 import pytest
 import utils
@@ -44,6 +45,22 @@ ssh_cmd = "ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i"
 AF_HIERARCHY_LEVEL = "pythonnorthservicepair/pythonnorthservicepairlvl2/pythonnorthservicepairlvl3"
 
 
+def update_stat_collection_remote(fledge_url, wait_time):
+    """Update the Stat colectioin of all south service to per asset & service"""
+
+    # Wait for the south service to be created
+    time.sleep(wait_time)
+    service_response_list = list()
+    response = utils.get_request(fledge_url, "/fledge/south")
+
+    for service in response["services"]:
+        put_url = "/fledge/category/{}Advanced".format(service["name"])
+        payload = {"statistics": "per asset & service"}
+        res = utils.put_request(fledge_url, quote(put_url), payload)
+        service_response_list.append(res)
+
+    return service_response_list
+
 @pytest.fixture
 def reset_fledge_local(wait_time):
     try:
@@ -54,12 +71,11 @@ def reset_fledge_local(wait_time):
 
 
 @pytest.fixture
-def setup_local(reset_fledge_local, add_south, add_north, update_stat_collection, wait_time, fledge_url, remote_ip):
+def setup_local(reset_fledge_local, add_south, add_north, fledge_url, remote_ip):
     local_south_config = {"assetName": {"value": local_south_asset_name}}
     add_south(local_south_plugin, None, fledge_url, config=local_south_config,
               service_name="{}".format(local_south_service_name),
               installation_type='package')
-    update_stat_collection(fledge_url, wait_time)
     # Change name of variables such as service_name, plugin_type
     global north_schedule_id
     local_north_config = {"url": {"value": "http://{}:6683/sensor-reading".format(remote_ip)}}
@@ -123,7 +139,7 @@ def clean_install_fledge_packages_remote(remote_user, remote_ip, key_path, remot
 
 @pytest.fixture
 def setup_remote(reset_fledge_remote, remote_user, remote_ip, start_north_omf_as_a_service,
-                 pi_host, pi_port, pi_admin, pi_passwd, update_stat_collection, wait_time,
+                 pi_host, pi_port, pi_admin, pi_passwd, wait_time,
                  clear_pi_system_through_pi_web_api, pi_db):
     """Fixture that setups remote machine
             reset_fledge_remote: Fixture that kills fledge, reset database and starts fledge again on a remote
@@ -157,7 +173,9 @@ def setup_remote(reset_fledge_remote, remote_user, remote_ip, start_north_omf_as
     r = r.read().decode()
     retval = json.loads(r)
     assert remote_south_service_name == retval["name"]
-    update_stat_collection(fledge_url, wait_time)
+    
+    update_stat_collection_remote(fledge_url, wait_time)
+
     # Configure pi north plugin on remote machine
     global remote_north_schedule_id
     response = start_north_omf_as_a_service(fledge_url, pi_host, pi_port, pi_user=pi_admin, pi_pwd=pi_passwd,
@@ -275,7 +293,7 @@ def _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_d
 
 class TestPythonNorthService:
     def test_north_python_service_with_restart(self, clean_setup_fledge_packages, clean_install_fledge_packages_remote,
-                                               setup_local, setup_remote, skip_verify_north_interface, fledge_url,
+                                               setup_local, setup_remote, update_stat_collection, skip_verify_north_interface, fledge_url,
                                                wait_time, retries, remote_ip, read_data_from_pi_web_api, pi_host,
                                                pi_admin, pi_passwd, pi_db):
         """ Test python plugin as a North service before and after restarting fledge.
@@ -340,8 +358,8 @@ class TestPythonNorthService:
             _verify_egress(read_data_from_pi_web_api, pi_host, pi_admin, pi_passwd, pi_db, wait_time, retries,
                            remote_south_asset_name)
 
-    def test_north_python_service_with_enable_disable(self, setup_local, setup_remote, read_data_from_pi_web_api,
-                                                      remote_ip,
+    def test_north_python_service_with_enable_disable(self, setup_local, setup_remote, update_stat_collection, read_data_from_pi_web_api,
+                                                      remote_ip, 
                                                       skip_verify_north_interface, fledge_url, wait_time, retries,
                                                       pi_host,
                                                       pi_admin, pi_passwd, pi_db):

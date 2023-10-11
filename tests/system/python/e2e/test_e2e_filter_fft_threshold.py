@@ -128,7 +128,7 @@ class TestE2eFilterFFTThreshold:
 
         remove_data_file(csv_dest)
 
-    def test_end_to_end(self, start_south_north, disable_schedule, fledge_url, read_data_from_pi, pi_host, pi_admin,
+    def test_end_to_end(self, start_south_north, update_stat_collection, disable_schedule, fledge_url, read_data_from_pi, pi_host, pi_admin,
                         pi_passwd, pi_db, wait_time, retries, skip_verify_north_interface):
         """ Test that data is inserted in Fledge using playback south plugin &
             FFT filter, and sent to PI after passing through threshold filter

@@ -84,6 +84,18 @@ PerformanceMonitor::PerformanceMonitor(const string& service, StorageClient *sto
  */
 PerformanceMonitor::~PerformanceMonitor()
 {
+	if (m_collecting)
+	{
+		setCollecting(false);
+	}
+	// Write thread has now been stopped or
+	// was never running
+	for (const auto& it : m_monitors)
+	{
+		string name = it.first;
+		PerfMon *mon = it.second;
+		delete mon;
+	}
 }
 
 /**
@@ -114,6 +126,7 @@ void PerformanceMonitor::setCollecting(bool state)
 		// Stop the thread to write the monitors to the database
 		m_cv.notify_all();
 		m_thread->join();
+		delete m_thread;
 		m_thread = NULL;
 	}
 }

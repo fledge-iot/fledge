@@ -570,6 +570,7 @@ void Ingest::processQueue()
 						q->erase(q->begin());
 						logDiscardedStat();
 					}
+					m_performance->collect("removedFromQueue", 5);
 					if (q->size() == 0)
 					{
 						delete q;
@@ -581,6 +582,7 @@ void Ingest::processQueue()
 			else
 			{
 
+				m_performance->collect("storedReadings", (long int)(q->size()));
 				if (m_storageFailed)
 				{
 					m_logger->warn("Storage operational after %d failures", m_storesFailed);
@@ -810,12 +812,14 @@ void Ingest::processQueue()
 					m_logger->warn("Failed to write readings to storage layer, queue for resend");
 				m_storageFailed = true;
 				m_storesFailed++;
+				m_performance->collect("resendQueued", (long int)(m_data->size()));
 				m_resendQueues.push_back(m_data);
 				m_data = NULL;
 				m_failCnt = 1;
 			}
 			else
 			{
+				m_performance->collect("storedReadings", (long int)(m_data->size()));
 				if (m_storageFailed)
 				{
 					m_logger->warn("Storage operational after %d failures", m_storesFailed);

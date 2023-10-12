@@ -72,7 +72,7 @@ def start_south_coap(reset_and_start_fledge, add_south, remove_data_file, remove
     remove_directories("/tmp/fledge-south-{}".format(south_plugin))
 
 
-def test_smoke(start_south_coap, update_stat_collection, fledge_url, wait_time, asset_name="smoke"):
+def test_smoke(start_south_coap, fledge_url, wait_time, asset_name="smoke"):
     """ Test that data is inserted in Fledge
         start_south_coap: Fixture that starts Fledge with south coap plugin
         Assertions:

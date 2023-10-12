@@ -36,7 +36,7 @@ remote_asset_name = "fogpair_playback"
 
 class TestE2eFogPairPi:
 
-    def update_stat_collection_remote(fledge_url, wait_time):
+    def update_stat_collection_remote(self, fledge_url, wait_time):
         """Update the Stat colectioin of all south service to per asset & service"""
 
         # Wait for the south service to be created

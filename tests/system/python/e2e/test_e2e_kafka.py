@@ -83,7 +83,7 @@ class TestE2EKafka:
                 "schedule_type": 3,
                 "schedule_day": 0,
                 "schedule_time": 0,
-                "schedule_repeat": 0,
+                "schedule_repeat": 5,
                 "schedule_enabled": "true",
                 "config": {"topic": {"value": topic},
                            "brokers": {"value": "{}:{}".format(host, port)}}

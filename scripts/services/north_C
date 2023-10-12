@@ -34,7 +34,7 @@ if [ "$runvalgrind" = "y" ]; then
 	if [ "$VALGRIND_OPTIONS" != "" ]; then
 		valgrind  $VALGRIND_OPTIONS --log-file=$file ./fledge.services.north "$@"
 	else
-		valgrind  --leak-check=full --trace-children=yes --show-leak-kinds=all --track-origins=yes --log-file=$file ./fledge.services.north "$@"
+		valgrind  --leak-check=full --trace-children=yes --show-leak-kinds=all --track-origins=yes --log-file=$file --xtree-memory=full --xtree-memory-file=${file}.xtree.kcg ./fledge.services.north "$@"
 	fi
 else
 	./fledge.services.north "$@"

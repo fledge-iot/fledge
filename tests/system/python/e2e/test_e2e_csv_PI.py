@@ -104,7 +104,7 @@ def start_south_north(reset_and_start_fledge, add_south, start_north_pi_server_c
         _data_str[_head] = tmp_list
 
     south_plugin = "playback"
-    add_south(south_plugin, south_branch, fledge_url, config=south_config)
+    add_south(south_plugin, south_branch, fledge_url, config=south_config, start_service=False)
     start_north_pi_server_c(fledge_url, pi_host, pi_port, pi_token)
 
     yield start_south_north
@@ -132,7 +132,7 @@ def _verify_egress(read_data_from_pi, pi_host, pi_admin, pi_passwd, pi_db, wait_
 
 class TestE2E_CSV_PI:
     def test_e2e_csv_pi(self, start_south_north, update_stat_collection, read_data_from_pi, fledge_url, pi_host, pi_admin, pi_passwd, pi_db,
-                        wait_time, retries, skip_verify_north_interface, asset_name="end_to_end_csv"):
+                        enable_schedule, wait_time, retries, skip_verify_north_interface, asset_name="end_to_end_csv"):
         """ Test that data is inserted in Fledge and sent to PI
             start_south_north: Fixture that starts Fledge with south and north instance
             read_data_from_pi: Fixture to read data from PI
@@ -143,6 +143,7 @@ class TestE2E_CSV_PI:
                 data received from PI is same as data sent"""
 
         conn = http.client.HTTPConnection(fledge_url)
+        enable_schedule(fledge_url, "play")
         # Time to wait until north schedule runs
         time.sleep(wait_time * math.ceil(15/wait_time) + 15)
 

@@ -106,10 +106,6 @@ class TestE2eFilterFFTThreshold:
         filter_cfg_fft = {"asset": ASSET, "lowPass": "10", "highPass": "30", "enable": "true"}
         add_filter("fft", filter_branch, "FFT Filter", filter_cfg_fft, fledge_url, SVC_NAME)
 
-        # Since playback plugin reads all csv data at once, we cant keep it in enable mode before filter add
-        # enable service when all filters all applied
-        enable_schedule(fledge_url, SVC_NAME)
-
         start_north_pi_server_c(fledge_url, pi_host, pi_port, pi_token, taskname=NORTH_TASK_NAME,
                                 start_task=False)
 
@@ -129,7 +125,7 @@ class TestE2eFilterFFTThreshold:
         remove_data_file(csv_dest)
 
     def test_end_to_end(self, start_south_north, update_stat_collection, disable_schedule, fledge_url, read_data_from_pi, pi_host, pi_admin,
-                        pi_passwd, pi_db, wait_time, retries, skip_verify_north_interface):
+                        enable_schedule, pi_passwd, pi_db, wait_time, retries, skip_verify_north_interface):
         """ Test that data is inserted in Fledge using playback south plugin &
             FFT filter, and sent to PI after passing through threshold filter
             start_south_north: Fixture that starts Fledge with south service, add filter and north instance
@@ -139,6 +135,10 @@ class TestE2eFilterFFTThreshold:
                 on endpoint GET /fledge/asset/<asset_name> with applied data processing filter value
                 data received from PI is same as data sent"""
 
+        # Since playback plugin reads all csv data at once, we cant keep it in enable mode before filter add
+        # enable service when all filters all applied
+        enable_schedule(fledge_url, SVC_NAME)
+        
         # Time to wait until north schedule runs
         time.sleep(wait_time * math.ceil(15/wait_time) + 15)
         conn = http.client.HTTPConnection(fledge_url)

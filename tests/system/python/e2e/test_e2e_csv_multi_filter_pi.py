@@ -125,10 +125,6 @@ class TestE2eCsvMultiFltrPi:
         filter_cfg_meta = {"enable": "true"}
         add_filter("metadata", filter_branch, "fmeta", filter_cfg_meta, fledge_url, SVC_NAME)
 
-        # Since playback plugin reads all csv data at once, we cant keep it in enable mode before filter add
-        # enable service when all filters all applied
-        enable_schedule(fledge_url, SVC_NAME)
-
         start_north_pi_server_c(fledge_url, pi_host, pi_port, pi_token)
 
         yield self.start_south_north
@@ -141,7 +137,7 @@ class TestE2eCsvMultiFltrPi:
         remove_data_file(csv_file_path)
 
     def test_end_to_end(self, start_south_north, update_stat_collection, disable_schedule, fledge_url, read_data_from_pi, pi_host, pi_admin,
-                        pi_passwd, pi_db, wait_time, retries, skip_verify_north_interface):
+                        enable_schedule, pi_passwd, pi_db, wait_time, retries, skip_verify_north_interface):
         """ Test that data is inserted in Fledge using playback south plugin &
             Delta, RMS, Rate, Scale, Asset & Metadata filters, and sent to PI
             start_south_north: Fixture that starts Fledge with south service, add filter and north instance
@@ -151,6 +147,10 @@ class TestE2eCsvMultiFltrPi:
                 on endpoint GET /fledge/asset/<asset_name> with applied data processing filter value
                 data received from PI is same as data sent"""
 
+        # Since playback plugin reads all csv data at once, we cant keep it in enable mode before filter add
+        # enable service when all filters all applied
+        enable_schedule(fledge_url, SVC_NAME)
+        
         # Time to wait until north schedule runs
         time.sleep(wait_time * math.ceil(15/wait_time) + 15)
         conn = http.client.HTTPConnection(fledge_url)

@@ -13,10 +13,12 @@ using namespace std;
 using namespace rapidjson;
 using namespace SimpleWeb;
 
+#define BATCHES_PER_INSTANCE	10
+
 /**
  * Constructor for the OMFInformation class
  */
-OMFInformation::OMFInformation(ConfigCategory *config) : m_sender(NULL), m_omf(NULL), m_connected(false)
+OMFInformation::OMFInformation(ConfigCategory *config) : m_sender(NULL), m_omf(NULL), m_connected(false), m_sendBatch(0)
 {
 
 	m_logger = Logger::getLogger();
@@ -302,6 +304,7 @@ OMFInformation::~OMFInformation()
 void OMFInformation::start(const string& storedData)
 {
 
+
 	m_logger->info("Host: %s", m_hostAndPort.c_str());
 	if ((m_PIServerEndpoint == ENDPOINT_OCS) || (m_PIServerEndpoint == ENDPOINT_ADH))
 	{
@@ -397,6 +400,19 @@ uint32_t OMFInformation::send(const vector<Reading *>& readings)
 	struct timeval startTime;
 	gettimeofday(&startTime, NULL);
 #endif
+	// This following is a patch to cause us to recreate the OMF object
+	// periodically as a wworkaround to memeory issues that have been seen
+	if (++m_sendBatch > BATCHES_PER_INSTANCE)
+	{
+		delete m_omf;
+		m_omf = NULL;
+#if 0
+		delete m_sender;
+		m_sender = 0;
+#endif
+		m_sendBatch = 0;
+		Logger::getLogger()->fatal("Starting new batch");
+	}
 	string version;
 
 	// Check if the endpoint is PI Web API and if the PI Web API server is available

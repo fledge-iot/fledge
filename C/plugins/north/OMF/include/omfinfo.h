@@ -179,5 +179,6 @@ class OMFInformation {
 		bool		m_legacy;
 		string		m_name;
 		bool		m_connected;
+		unsigned int	m_sendBatch;
 };
 #endif

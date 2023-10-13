@@ -208,9 +208,8 @@ async def get_statistics_rate(request: web.Request) -> web.Response:
     for x, y in [(x, y) for x in period_split_list for y in stat_split_list]:
         time_diff = datetime.datetime.utcnow().astimezone() - datetime.timedelta(minutes=int(x))
 
-        # Pass "format" : "" allows timestamp handling in Postgres sorage engine, it does not affect sqlite storage engine
         _payload = PayloadBuilder().SELECT("key").AGGREGATE(["sum", "value"]).WHERE(
-            ['history_ts', '>=', str(time_diff.timestamp()), "format", ""]).AND_WHERE(['key', '=', y]).chain_payload()
+            ['history_ts', '>=', str(time_diff.timestamp())]).AND_WHERE(['key', '=', y]).chain_payload()
         stats_rate_payload = PayloadBuilder(_payload).GROUP_BY("key").payload()
         result = await storage_client.query_tbl_with_payload("statistics_history", stats_rate_payload)
         temp_dict = {y: {x: 0}}

@@ -29,7 +29,7 @@ static void startSenderThread(void *data)
  * Constructor for the data sending class
  */
 DataSender::DataSender(NorthPlugin *plugin, DataLoad *loader, NorthService *service) :
-	m_plugin(plugin), m_loader(loader), m_service(service), m_shutdown(false), m_paused(false)
+	m_plugin(plugin), m_loader(loader), m_service(service), m_shutdown(false), m_paused(false), m_perfMonitor(NULL)
 {
 	m_logger = Logger::getLogger();
 
@@ -123,9 +123,15 @@ void DataSender::sendThread()
 unsigned long DataSender::send(ReadingSet *readings)
 {
 	blockPause();
+	uint32_t to_send = readings->getCount();
 	uint32_t sent = m_plugin->send(readings->getAllReadings());
 	releasePause();
 	unsigned long lastSent = readings->getReadingId(sent);
+	if (m_perfMonitor)
+	{
+		m_perfMonitor->collect("Readings sent", sent);
+		m_perfMonitor->collect("Percentage readings sent", (100 * sent) / to_send);
+	}
 
 	if (sent > 0)
 	{

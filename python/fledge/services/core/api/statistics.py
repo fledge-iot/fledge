@@ -207,11 +207,6 @@ async def get_statistics_rate(request: web.Request) -> web.Response:
     resp = []
     for x, y in [(x, y) for x in period_split_list for y in stat_split_list]:
         time_diff = datetime.datetime.utcnow().astimezone() - datetime.timedelta(minutes=int(x))
-        """FIXME: FOGL-4102 once resolved
-            ERROR: PostgreSQL storage plugin raising error: ERROR:  invalid input syntax for type timestamp with 
-            time zone: "1590066814.037321"
-            "where": {"column": "history_ts", "condition": ">=", "value": "1590066814.037321"} 
-            Therefore, Payload works Only with sqlite engine BUT not with PostgreSQL"""
 
         _payload = PayloadBuilder().SELECT("key").AGGREGATE(["sum", "value"]).WHERE(
             ['history_ts', '>=', str(time_diff.timestamp())]).AND_WHERE(['key', '=', y]).chain_payload()

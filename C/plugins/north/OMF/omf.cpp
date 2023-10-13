@@ -237,7 +237,8 @@ OMF::OMF(const string& name,
 	 m_sender(sender),
 	 m_legacy(false),
 	 m_name(name),
-	 m_baseTypesSent(false)
+	 m_baseTypesSent(false),
+	 m_linkedProperties(true)
 {
 	m_lastError = false;
 	m_changeTypeId = false;
@@ -258,7 +259,9 @@ OMF::OMF(const string& name,
 	 m_OMFDataTypes(&types),
 	 m_producerToken(token),
 	 m_sender(sender),
-	 m_name(name)
+	 m_name(name),
+	 m_baseTypesSent(false),
+	 m_linkedProperties(true)
 {
 	// Get starting type-id sequence or set the default value
 	auto it = (*m_OMFDataTypes).find(FAKE_ASSET_KEY);
@@ -1114,6 +1117,10 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 		}
 	}
 
+	// TODO We do not need the superset stuff if we are using linked data types,
+	// this would save us interating over the dat aan extra time and reduce our
+	// memory footprint
+	//
 	// Create a superset of all the datapoints for each assetName
 	// the superset[assetName] is then passed to routines which handles
 	// creation of OMF data types. This is used for the initial type
@@ -1511,7 +1518,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 		timersub(&t5, &t4, &tm);
 		timeT5 = tm.tv_sec + ((double)tm.tv_usec / 1000000);
 
-		Logger::getLogger()->debug("Timing seconds - thread :%s: - superSet :%6.3f: - Loop :%6.3f: - compress :%6.3f: - send data :%6.3f: - readings |%d| - msg size |%d| - msg size compressed |%d| ",
+		Logger::getLogger()->warn("Timing seconds - thread :%s: - superSet :%6.3f: - Loop :%6.3f: - compress :%6.3f: - send data :%6.3f: - readings |%d| - msg size |%d| - msg size compressed |%d| ",
 								   threadId.str().c_str(),
 								   timeT1,
 								   timeT2,

@@ -676,6 +676,7 @@ void SouthService::start(string& coreAddress, unsigned short corePort)
 		}
 		else
 		{
+			m_shutdown = true;
 			Logger::getLogger()->info("Dryrun of service, shutting down");
 		}
 
@@ -1199,7 +1200,7 @@ void SouthService::addConfigDefaults(DefaultConfigCategory& defaultConfig)
 	/* Add the set of logging levels to the service */
 	vector<string>	statistics = { "per asset", "per service", "per asset & service" };
 	defaultConfig.addItem("statistics", "Collect statistics either for every asset ingested, for the service in total or both",
-			"per asset & service", "per asset & service", statistics);
+			"per service", "per service", statistics);
 	defaultConfig.setItemDisplayName("statistics", "Statistics Collection");
 	defaultConfig.addItem("perfmon", "Track and store performance counters",
 			       "boolean", "false", "false");

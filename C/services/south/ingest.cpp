@@ -52,6 +52,7 @@ static void statsThread(Ingest *ingest)
  * The key checked/created in the table is "<assetName>"
  * 
  * @param assetName     Asset name for the plugin that is sending readings
+ * @return int		Return -1 on error, 0 if not required or 1 if the entry exists
  */
 int Ingest::createStatsDbEntry(const string& assetName)
 {
@@ -100,7 +101,7 @@ int Ingest::createStatsDbEntry(const string& assetName)
 		m_logger->error("%s:%d : Unable to create new row in statistics table with key='%s'", __FUNCTION__, __LINE__, statistics_key.c_str());
 		return -1;
 	}
-	return 0;
+	return 1;
 }
 
 /**
@@ -177,8 +178,10 @@ void Ingest::updateStats()
 	{
 		if (statsDbEntriesCache.find(it->first) == statsDbEntriesCache.end())
 		{
-			createStatsDbEntry(it->first);
-			statsDbEntriesCache.insert(it->first);
+			if (createStatsDbEntry(it->first) > 0)
+			{
+				statsDbEntriesCache.insert(it->first);
+			}
 		}
 		
 		if (it->second)
@@ -567,6 +570,7 @@ void Ingest::processQueue()
 						q->erase(q->begin());
 						logDiscardedStat();
 					}
+					m_performance->collect("removedFromQueue", 5);
 					if (q->size() == 0)
 					{
 						delete q;
@@ -578,6 +582,7 @@ void Ingest::processQueue()
 			else
 			{
 
+				m_performance->collect("storedReadings", (long int)(q->size()));
 				if (m_storageFailed)
 				{
 					m_logger->warn("Storage operational after %d failures", m_storesFailed);
@@ -807,12 +812,14 @@ void Ingest::processQueue()
 					m_logger->warn("Failed to write readings to storage layer, queue for resend");
 				m_storageFailed = true;
 				m_storesFailed++;
+				m_performance->collect("resendQueued", (long int)(m_data->size()));
 				m_resendQueues.push_back(m_data);
 				m_data = NULL;
 				m_failCnt = 1;
 			}
 			else
 			{
+				m_performance->collect("storedReadings", (long int)(m_data->size()));
 				if (m_storageFailed)
 				{
 					m_logger->warn("Storage operational after %d failures", m_storesFailed);

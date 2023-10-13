@@ -29,9 +29,10 @@ fi
 
 cd "${FLEDGE_ROOT}/services"
 if [ "$runvalgrind" = "y" ]; then
-	file=$HOME/north.${name}.valgrind.out
+	file=${HOME}/north.${name}.valgrind.out
 	rm -f $file
-	valgrind  --leak-check=full --trace-children=yes --log-file=$file ./fledge.services.north "$@"
+	valgrind  --leak-check=full --trace-children=yes --show-leak-kinds=all --track-origins=yes --log-file=$file ./fledge.services.north "$@"
 else
 	./fledge.services.north "$@"
 fi
+

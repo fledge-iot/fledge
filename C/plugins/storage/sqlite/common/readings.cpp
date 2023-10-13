@@ -1902,7 +1902,7 @@ vector<string>  assetCodes;
 		) as readings_1
 	)";
 
-	int rc = SQLexec(dbHandle,
+	int rc = SQLexec(dbHandle, "readings",
 				 sql_cmd.c_str(),
 	     rowidCallback,
 	     &rowidLimit,
@@ -1941,7 +1941,7 @@ vector<string>  assetCodes;
 
 	Logger::getLogger()->debug("%s - SELECT MIN - '%s'", __FUNCTION__,  sql_cmd.c_str() );
 
-	rc = SQLexec(dbHandle,
+	rc = SQLexec(dbHandle, "readings",
 				 sql_cmd.c_str(),
 	     rowidCallback,
 	     &minrowidLimit,
@@ -1996,7 +1996,7 @@ vector<string>  assetCodes;
 		int purge_readings = 0;
 
 		// Exec query and get result in 'purge_readings' via 'selectCallback'
-		rc = SQLexec(dbHandle,
+		rc = SQLexec(dbHandle, "readings",
 			     query,
 			     selectCallback,
 			     &purge_readings,
@@ -2088,7 +2088,7 @@ vector<string>  assetCodes;
 			sqlBuffer.append(';');
 			const char *query = sqlBuffer.coalesce();
 
-			rc = SQLexec(dbHandle,
+			rc = SQLexec(dbHandle, "readings",
 			query,
 			rowidCallback,
 			&midRowId,
@@ -2174,7 +2174,7 @@ vector<string>  assetCodes;
 		idBuffer.append(';');
 		const char *idQuery = idBuffer.coalesce();
 
-		rc = SQLexec(dbHandle,
+		rc = SQLexec(dbHandle, "readings",
 		     idQuery,
 	  	     rowidCallback,
 		     &lastPurgedId,
@@ -2421,7 +2421,7 @@ struct timeval startTv, endTv;
 				)";
 		}
 
-		rc = SQLexec(dbHandle,
+		rc = SQLexec(dbHandle, "readings",
 					 sql_cmd.c_str(),
 					 rowidCallback,
 					 &rowcount,
@@ -2463,7 +2463,7 @@ struct timeval startTv, endTv;
 
 		}
 
-		rc = SQLexec(dbHandle,
+		rc = SQLexec(dbHandle, "readings",
 					 sql_cmd.c_str(),
 					 rowidCallback,
 					 &maxId,
@@ -2516,7 +2516,7 @@ struct timeval startTv, endTv;
 				logger->debug("%s - SELECT MIN - sql_cmd '%s' ", __FUNCTION__, sql_cmd.c_str() );
 			}
 
-			rc = SQLexec(dbHandle,
+			rc = SQLexec(dbHandle, "readings",
 						 sql_cmd.c_str(),
 						 rowidCallback,
 						 &minId,

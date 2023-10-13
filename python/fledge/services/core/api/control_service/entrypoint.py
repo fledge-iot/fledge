@@ -112,7 +112,7 @@ async def _check_parameters(payload, skip_required=False):
             raise ValueError('Control entrypoint type cannot be empty.')
         ept_names = [ept.name.lower() for ept in EntryPointType]
         if _type not in ept_names:
-            raise ValueError('Possible types are: {}'.format(ept_names))
+            raise ValueError('Possible types are: {}.'.format(ept_names))
         if _type == EntryPointType.OPERATION.name.lower():
             operation_name = payload.get('operation_name', None)
             if operation_name is not None:
@@ -122,7 +122,7 @@ async def _check_parameters(payload, skip_required=False):
                 if len(operation_name) == 0:
                     raise ValueError('Control entrypoint operation name cannot be empty.')
             else:
-                raise KeyError('operation_name KV pair is missing')
+                raise KeyError('operation_name KV pair is missing.')
             final['operation_name'] = operation_name
         final['type'] = await _get_type(_type)
 
@@ -135,7 +135,7 @@ async def _check_parameters(payload, skip_required=False):
             raise ValueError('Control entrypoint destination cannot be empty.')
         dest_names = [d.name.lower() for d in Destination]
         if destination not in dest_names:
-            raise ValueError('Possible destination values are: {}'.format(dest_names))
+            raise ValueError('Possible destination values are: {}.'.format(dest_names))
 
         destination_idx = await _get_destination(destination)
         final['destination'] = destination_idx
@@ -163,7 +163,7 @@ async def _check_parameters(payload, skip_required=False):
     constants = payload.get('constants', None)
     if constants is not None:
         if not isinstance(constants, dict):
-            raise ValueError('constants should be dictionary.')
+            raise ValueError('constants should be a dictionary.')
         if not constants and _type == EntryPointType.WRITE.name.lower():
             raise ValueError('constants should not be empty.')
         final['constants'] = constants
@@ -266,14 +266,9 @@ async def get_all(request: web.Request) -> web.Response:
     storage = connect.get_storage_async()
     result = await storage.query_tbl("control_api")
     entrypoint = []
-    for r in result["rows"]:
-        """permitted: means user is able to make the API call
-        This is on the basis of anonymous flag if true then permitted true
-        If anonymous flag is false then list of allowed users to determine if the specific user can make the call
-        """
-        # TODO: FOGL-8037 verify the user when anonymous is false and set permitted value based on it
-        entrypoint.append({"name": r['name'], "description": r['description'],
-                           "permitted": True if r['anonymous'] == 't' else False})
+    for row in result["rows"]:
+        permitted = await _get_permitted(request, storage, row)
+        entrypoint.append({"name": row['name'], "description": row['description'], "permitted": permitted})
     return web.json_response({"controls": entrypoint})
 
 
@@ -285,11 +280,12 @@ async def get_by_name(request: web.Request) -> web.Response:
     ep_name = request.match_info.get('name', None)
     try:
         response = await _get_entrypoint(ep_name)
+        response['permitted'] = await _get_permitted(request, None, response)
     except ValueError as err:
         msg = str(err)
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except KeyError as err:
-        msg = str(err)
+        msg = str(err.args[0])
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
@@ -318,7 +314,7 @@ async def delete(request: web.Request) -> web.Response:
         msg = str(err)
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except KeyError as err:
-        msg = str(err)
+        msg = str(err.args[0])
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
@@ -402,7 +398,7 @@ async def update(request: web.Request) -> web.Response:
         msg = str(err)
         raise web.HTTPBadRequest(reason=msg, body=json.dumps({"message": msg}))
     except KeyError as err:
-        msg = str(err)
+        msg = str(err.args[0])
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except Exception as ex:
         msg = str(ex)
@@ -465,7 +461,7 @@ async def update_request(request: web.Request) -> web.Response:
         svc, bearer_token = await _get_service_record_info_along_with_bearer_token()
         await _call_dispatcher_service_api(svc._protocol, svc._address, svc._port, url, bearer_token, dispatch_payload)
     except KeyError as err:
-        msg = str(err)
+        msg = str(err.args[0])
         raise web.HTTPNotFound(reason=msg, body=json.dumps({"message": msg}))
     except ValueError as err:
         msg = str(err)
@@ -479,7 +475,6 @@ async def update_request(request: web.Request) -> web.Response:
 
 
 async def _get_entrypoint(name):
-    # TODO: FOGL-8037  forbidden when permitted is false on the basis of anonymous
     storage = connect.get_storage_async()
     payload = PayloadBuilder().WHERE(["name", '=', name]).payload()
     result = await storage.query_tbl_with_payload("control_api", payload)
@@ -491,6 +486,7 @@ async def _get_entrypoint(name):
     if response['destination'] != "broadcast":
         response[response['destination']] = response['destination_arg']
     del response['destination_arg']
+    response['anonymous'] = True if response['anonymous'] == 't' else False
     param_result = await storage.query_tbl_with_payload("control_api_parameters", payload)
     constants = {}
     variables = {}
@@ -567,3 +563,29 @@ async def _update_params(ep_name: str, old_param: dict, new_param: dict, is_cons
         column_name = {"name": ep_name, "parameter": ic, "value": new_param[ic], "constant": is_constant}
         api_params_insert_payload = PayloadBuilder().INSERT(**column_name).payload()
         await _storage.insert_into_tbl("control_api_parameters", api_params_insert_payload)
+
+
+async def _get_permitted(request: web.Request, _storage: connect, ep: dict):
+    """permitted: means user is able to make the API call
+          This is on the basis of anonymous flag if true then permitted true
+          If anonymous flag is false then list of allowed users to determine if the specific user can make the call
+       Note: In case of authentication optional permitted always true
+    """
+    if _storage is None:
+        _storage = connect.get_storage_async()
+
+    if request.is_auth_optional is True:
+        return True
+    if ep['anonymous'] == 't' or ep['anonymous'] is True:
+        return True
+
+    permitted = False
+    if request.user["role_id"] not in (1, 5):  # Admin, Control
+        payload = PayloadBuilder().WHERE(["name", '=', ep['name']]).payload()
+        acl_result = await _storage.query_tbl_with_payload("control_api_acl", payload)
+        if acl_result['rows']:
+            users = [r['user'] for r in acl_result['rows']]
+            permitted = False if request.user["uname"] not in users else True
+    else:
+        permitted = True
+    return permitted

@@ -25,6 +25,14 @@
 #include <omflinkeddata.h>
 #include <omferror.h>
 
+/**
+ * In order to cut down on the number of string copies made whilst building
+ * the OMF message for a reading we reseeve a number of bytes in a string and
+ * each time we get close to filling the string we reserve mode. The value below
+ * defines the increment we use to grow the string reservation.
+ */
+#define RESERVE_INCREMENT	100
+
 using namespace std;
 
 /**
@@ -63,6 +71,8 @@ string OMFLinkedData::processReading(const Reading& reading, const string&  AFHi
 {
 	string outData;
 	bool changed;
+	int reserved = RESERVE_INCREMENT * 2;
+	outData.reserve(reserved);
 
 
 	string assetName = reading.getAssetName();
@@ -96,8 +106,10 @@ string OMFLinkedData::processReading(const Reading& reading, const string&  AFHi
 
 	Logger::getLogger()->debug("Processing %s (%s) using Linked Types", assetName.c_str(), DataPointNamesAsString(reading).c_str());
 
+	assetName = OMF::ApplyPIServerNamingRulesObj(assetName, NULL);
+
 	bool needDelim = false;
-	if (m_assetSent->find(assetName) == m_assetSent->end())
+	if (m_assetSent->count(assetName) == 0)
 	{
 		// Send the data message to create the asset instance
 		outData.append("{ \"typeid\":\"FledgeAsset\", \"values\":[ { \"AssetId\":\"");
@@ -114,13 +126,20 @@ string OMFLinkedData::processReading(const Reading& reading, const string&  AFHi
 	 */
 	for (vector<Datapoint*>::const_iterator it = data.begin(); it != data.end(); ++it)
 	{
-		string dpName = (*it)->getName();
+		Datapoint *dp = *it;
+		if (reserved - outData.size() < RESERVE_INCREMENT / 2)
+		{
+			reserved += RESERVE_INCREMENT;
+			outData.reserve(reserved);
+		}
+		string dpName = dp->getName();
 		if (dpName.compare(OMF_HINT) == 0)
 		{
 			// Don't send the OMF Hint to the PI Server
 			continue;
 		}
-		if (!isTypeSupported((*it)->getData()))
+		dpName = OMF::ApplyPIServerNamingRulesObj(dpName, NULL);
+		if (!isTypeSupported(dp->getData()))
 		{
 			skippedDatapoints.push_back(dpName);
 			continue;
@@ -157,11 +176,11 @@ string OMFLinkedData::processReading(const Reading& reading, const string&  AFHi
 
 			// Create the link for the asset if not already created
 			string link = assetName + "." + dpName;
-			string baseType = getBaseType(*it, format);
+			string baseType = getBaseType(dp, format);
 			auto container = m_containerSent->find(link);
 			if (container == m_containerSent->end())
 			{
-				sendContainer(link, *it, hints, baseType);
+				sendContainer(link, dp, hints, baseType);
 				m_containerSent->insert(pair<string, string>(link, baseType));
 			}
 			else if (baseType.compare(container->second) != 0)
@@ -177,7 +196,7 @@ string OMFLinkedData::processReading(const Reading& reading, const string&  AFHi
 				}
 				else
 				{
-					sendContainer(link, *it, hints, baseType);
+					sendContainer(link, dp, hints, baseType);
 					(*m_containerSent)[link] = baseType;
 				}
 			}
@@ -208,7 +227,7 @@ string OMFLinkedData::processReading(const Reading& reading, const string&  AFHi
 			// Base type we are using for this data point
 			outData.append("\"" + baseType + "\": ");
 			// Add datapoint Value
-		       	outData.append((*it)->getData().toString());
+		       	outData.append(dp->getData().toString());
 			outData.append(", ");
 			// Append Z to getAssetDateTime(FMT_STANDARD)
 			outData.append("\"Time\": \"" + reading.getAssetDateUserTime(Reading::FMT_STANDARD) + "Z" + "\"");

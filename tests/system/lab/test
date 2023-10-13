@@ -42,6 +42,25 @@ curl -sX POST "$URL/service" -d "$sinusoid_config"
 echo
 
 for LOOP in $(seq ${MAX_RETRIES}); do
+    RES=$(curl -sX GET "$URL/category" | jq '.categories[] | select(.key == "SineAdvanced")')
+    if [[ -n $RES ]]; then
+        RES=$(curl -sX PUT "$URL/category/SineAdvanced" -d '{"statistics": "per asset & service"}')
+        UPDATED_VALUE=$(echo "$RES" | jq -r ".statistics.value")
+        if [[ "$UPDATED_VALUE" == "per asset & service" ]]; then
+            echo "Statistics Collection is updated successfully with value: $UPDATED_VALUE"
+            break
+        fi
+    fi
+done
+if [[ ${LOOP} -eq ${MAX_RETRIES} ]]
+ then
+   display_and_collect_err "TIMEOUT! Advanced category of sinusoid is not created. $URL/category"
+   if [[ ${EXIT_EARLY} -eq 1 ]]; then exit 1; fi
+ else
+   echo "---- sinusoid advanced category created as well as updated ----"
+fi
+
+for LOOP in $(seq ${MAX_RETRIES}); do
     RESULT=`curl -sX GET "$URL/south"`
     # echo ${RESULT}
     COUNT=`echo ${RESULT} | jq '.services[].assets[]|select(.asset == "'${LAB_ASSET_NAME}'").count // empty'`

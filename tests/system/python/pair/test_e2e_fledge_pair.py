@@ -37,7 +37,7 @@ remote_asset_name = "fogpair_playback"
 class TestE2eFogPairPi:
 
     def update_stat_collection_remote(self, fledge_url, wait_time):
-        """Update the Stat colectioin of all south service to per asset & service"""
+        """Update the Statistics Collection of all south service to per asset & service"""
 
         # Wait for the south service to be created
         time.sleep(wait_time)
@@ -259,10 +259,8 @@ class TestE2eFogPairPi:
                                        "defaultAction": "exclude"}, "enable": "true"}
         add_filter("asset", filter_branch, "fasset", filter_cfg_asset, fledge_url, "NorthReadingsToHTTP")
 
-        # Enable all south and north schedules
-        enable_schedule(fledge_url, "fogpair_playbk")
-        enable_schedule(fledge_url, "fogpair_expr")
-        enable_schedule(fledge_url, "fogpair_sine")
+        
+        # Enable north schedule
         enable_schedule(fledge_url, "NorthReadingsToHTTP")
 
         yield self.start_south_north_local
@@ -300,7 +298,7 @@ class TestE2eFogPairPi:
         assert Counter(data_from_pi[CSV_HEADERS][-len(expected_read_values):]) == Counter(expected_read_values)
 
     def test_end_to_end(self, start_south_north_remote, start_south_north_local, update_stat_collection,
-                        read_data_from_pi, retries, pi_host, pi_admin, pi_passwd, pi_db,
+                        read_data_from_pi, retries, pi_host, pi_admin, pi_passwd, pi_db, enable_schedule,
                         fledge_url, remote_ip, wait_time, skip_verify_north_interface):
         """ Test that data is inserted in Fledge (local instance) using playback south plugin,
             sinusoid south plugin and expression south plugin and sent to http north (filter only playback data),
@@ -322,6 +320,11 @@ class TestE2eFogPairPi:
                 on endpoint GET /fledge/asset/<asset_name> with applied data processing filter value
                 data received from PI is same as data sent"""
 
+        # Enable all south schedules
+        enable_schedule(fledge_url, "fogpair_playbk")
+        enable_schedule(fledge_url, "fogpair_expr")
+        enable_schedule(fledge_url, "fogpair_sine")
+        
         # Wait for data to be sent to Fledge instance 2 and then to PI
         time.sleep(wait_time * 3)
 

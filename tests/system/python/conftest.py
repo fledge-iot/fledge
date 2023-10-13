@@ -218,9 +218,9 @@ def add_north():
 
 @pytest.fixture
 def update_stat_collection(fledge_url, wait_time):
-    """Update the Stat colectioin of all south service to per asset & service"""
+    """Update the Statistics Collection of all south service to per asset & service"""
     
-    # Wait for the south service to be created
+    # Wait for the south service and advanced category to be created
     time.sleep(wait_time)
     service_response_list = list()
     response = utils.get_request(fledge_url, "/fledge/south")

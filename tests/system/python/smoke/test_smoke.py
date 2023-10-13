@@ -91,8 +91,8 @@ def test_smoke(start_south_coap, fledge_url, wait_time, asset_name="smoke"):
     assert 0 == ping_response["dataSent"]
 
     actual_stats_map = get_statistics_map(fledge_url)
-    assert 1 == actual_stats_map[asset_name.upper()]
     assert 1 == actual_stats_map['READINGS']
+    assert asset_name.upper() not in actual_stats_map
 
     conn.request("GET", '/fledge/asset')
     r = conn.getresponse()

@@ -15,7 +15,6 @@ import subprocess
 import time
 import urllib.parse
 from pathlib import Path
-from urllib.parse import quote
 
 import pytest
 import utils
@@ -46,7 +45,7 @@ AF_HIERARCHY_LEVEL = "pythonnorthservicepair/pythonnorthservicepairlvl2/pythonno
 
 
 def update_stat_collection_remote(fledge_url, wait_time):
-    """Update the Stat colectioin of all south service to per asset & service"""
+    """Update the Statistics Collection of all south service to per asset & service"""
 
     # Wait for the south service to be created
     time.sleep(wait_time)
@@ -56,7 +55,7 @@ def update_stat_collection_remote(fledge_url, wait_time):
     for service in response["services"]:
         put_url = "/fledge/category/{}Advanced".format(service["name"])
         payload = {"statistics": "per asset & service"}
-        res = utils.put_request(fledge_url, quote(put_url), payload)
+        res = utils.put_request(fledge_url, urllib.parse.quote(put_url), payload)
         service_response_list.append(res)
 
     return service_response_list

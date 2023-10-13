@@ -326,7 +326,7 @@ class TestE2eFogPairPi:
         enable_schedule(fledge_url, "fogpair_sine")
         
         # Wait for data to be sent to Fledge instance 2 and then to PI
-        time.sleep(wait_time * 3)
+        time.sleep(wait_time * 4)
 
         # Fledge Instance 1 (Local) verification
         expected_asset_list = ["Expression", "fogpair_playback", "sinusoid"]

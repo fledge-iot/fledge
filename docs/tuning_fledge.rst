@@ -75,12 +75,15 @@ The south services within Fledge each have a set of advanced configuration optio
     | |stats_options| |
     +-----------------+
 
-    The *per asset & per service* setting will collect one statistic per asset ingested and an overall statistic for the entire service. The *per service* option just collects the overall service ingest statistics and the *per asset* option just collects the statistics for each asset and not for the entire service. The default is to collect statistics on a per service basis, use of the per asset or the per asset and service options should be limited to south service that collect a relatively small number of distinct assets. Collecting large number of statistics, for 1000 or more distinct assets will have a significant performance overhead and may overwhelm less well provisioned Fledge instances.
+    The *per asset & per service* setting will collect one statistic per asset ingested and an overall statistic for the entire service. The *per service* option just collects the overall service ingest statistics and the *per asset* option just collects the statistics for each asset and not for the entire service. The default is to collect statistics on a per asset & service basis, this is not the best setting if large numbers of distinct assets are ingested by a single south service. Use of the per asset or the per asset and service options should be limited to south service that collect a relatively small number of distinct assets. Collecting large number of statistics, for 1000 or more distinct assets will have a significant performance overhead and may overwhelm less well provisioned Fledge instances. When a large number of assets are ingested by a single south service this value should be set to *per service*.
 
-.. note::
+    .. note::
 
-   The *Statistics Collection* setting will not remove any existing statistics, these will remain and remain to be represented in the statistics history. This only impacts new values that are collected. It is recommended that this be set before a service is started for the first time if the desire it to have no statistics values recorded for either assets or the service.
+       The *Statistics Collection* setting will not remove any existing statistics, these will remain and remain to be represented in the statistics history. This only impacts new values that are collected. It is recommended that this be set before a service is started for the first time if the desire it to have no statistics values recorded for either assets or the service.
 
+    .. note::
+
+       If the *per service* option is used then the UI page that displays the south services will not show the asset names and counts for each of the assets that are ingested by that service.
 
   - *Performance Counters* - This option allows for the collection of performance counters that can be used to help tune the south service.
 

@@ -13,6 +13,7 @@
 #include <map>
 #include <reading.h>
 #include <OMFHint.h>
+#include <omfbuffer.h>
 
 /**
  * The OMFLinkedData class.
@@ -45,7 +46,7 @@ class OMFLinkedData
        					m_doubleFormat("float64"),
 					m_integerFormat("int64")
 					{};
-		std::string 	processReading(const Reading& reading,
+		bool		processReading(OMFBuffer& payload, const Reading& reading,
 				const std::string& DefaultAFLocation = std::string(),
 				OMFHints *hints = NULL);
 		bool		flushContainers(HttpSender& sender, const std::string& path, std::vector<std::pair<std::string, std::string> >& header);

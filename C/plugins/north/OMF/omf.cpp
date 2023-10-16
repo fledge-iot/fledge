@@ -142,9 +142,8 @@ const char *AF_HIERARCHY_1LEVEL_LINK = QUOTE(
  * @param hints             OMF hints for the specific reading for changing the behaviour of the operation
  *
  */
-OMFData::OMFData(const Reading& reading, string measurementId, const OMF_ENDPOINT PIServerEndpoint,const string&  AFHierarchyPrefix, OMFHints *hints)
+OMFData::OMFData(OMFBuffer& payload, const Reading& reading, string measurementId, const OMF_ENDPOINT PIServerEndpoint,const string&  AFHierarchyPrefix, OMFHints *hints)
 {
-	string outData;
 	bool changed;
 
 	Logger::getLogger()->debug("%s - measurementId :%s: ", __FUNCTION__, measurementId.c_str());
@@ -168,19 +167,11 @@ OMFData::OMFData(const Reading& reading, string measurementId, const OMF_ENDPOIN
 		}
 	}
 
-	// Convert reading data into the OMF JSON string
-	outData.append("{\"containerid\": \"" + measurementId);
-	outData.append("\", \"values\": [{");
-
-
 	// Get reading data
 	const vector<Datapoint*> data = reading.getReadingData();
-	unsigned long skipDatapoints = 0;
 
-	/**
-	 * This loop creates:
-	 * "dataName": {"type": "dataType"},
-	 */
+	m_hasData = false;
+	// Check if there are any datapoints to send
 	for (vector<Datapoint*>::const_iterator it = data.begin(); it != data.end(); ++it)
 	{
 		string dpName = (*it)->getName();
@@ -189,39 +180,52 @@ OMFData::OMFData(const Reading& reading, string measurementId, const OMF_ENDPOIN
 			// Don't send the OMF Hint to the PI Server
 			continue;
 		}
-		if (!isTypeSupported((*it)->getData()))
+		if (isTypeSupported((*it)->getData()))
 		{
-			skipDatapoints++;;	
-			continue;
-		}
-		else
-		{
-			// Add datapoint Name
-			outData.append("\"" + OMF::ApplyPIServerNamingRulesObj(dpName, nullptr) + "\": " + (*it)->getData().toString());
-			outData.append(", ");
+			m_hasData = true;
+			break;
 		}
 	}
 
-	// Append Z to getAssetDateTime(FMT_STANDARD)
-	outData.append("\"Time\": \"" + reading.getAssetDateUserTime(Reading::FMT_STANDARD) + "Z" + "\"");
-
-	outData.append("}]}");
-
-	// Append all, some or no datapoins
-	if (!skipDatapoints ||
-	    skipDatapoints < data.size())
+	if (m_hasData)
 	{
-		m_value.append(outData);
+		// Convert reading data into the OMF JSON string
+		payload.append("{\"containerid\": \"" + measurementId);
+		payload.append("\", \"values\": [{");
+
+
+
+		/**
+		 * This loop creates:
+		 * "dataName": {"type": "dataType"},
+		 */
+		for (vector<Datapoint*>::const_iterator it = data.begin(); it != data.end(); ++it)
+		{
+			string dpName = (*it)->getName();
+			if (dpName.compare(OMF_HINT) == 0)
+			{
+				// Don't send the OMF Hint to the PI Server
+				continue;
+			}
+			if (!isTypeSupported((*it)->getData()))
+			{
+				continue;
+			}
+			else
+			{
+				// Add datapoint Name
+				payload.append("\"" + OMF::ApplyPIServerNamingRulesObj(dpName, nullptr) + "\": " + (*it)->getData().toString());
+				payload.append(", ");
+			}
+		}
+
+		// Append Z to getAssetDateTime(FMT_STANDARD)
+		payload.append("\"Time\": \"" + reading.getAssetDateUserTime(Reading::FMT_STANDARD) + "Z" + "\"");
+
+		payload.append("}]}");
 	}
 }
 
-/**
- * Return the (reference) JSON data in m_value
- */
-const string& OMFData::OMFdataVal() const
-{
-	return m_value;
-}
 
 /**
  * OMF constructor
@@ -1165,8 +1169,9 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 	linkedData.setFormats(getFormatType(OMF_TYPE_FLOAT), getFormatType(OMF_TYPE_INTEGER));
 
 	bool pendingSeparator = false;
-	ostringstream jsonData;
-	jsonData << "[";
+
+	OMFBuffer payload;
+	payload.append('[');
 	// Fetch Reading* data
 	for (vector<Reading *>::const_iterator elem = readings.begin();
 						    elem != readings.end();
@@ -1277,7 +1282,12 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			setAFHierarchy();
 		}
 
-		string outData;
+		if (pendingSeparator)
+		{
+			payload.append(',');
+			pendingSeparator = false;
+		}
+
 		// Use old style complex types if the user has forced it via configuration,
 		// we are running against an EDS endpoint or Connector Relay or we have types defined for this
 		// asset already
@@ -1393,7 +1403,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 
 			measurementId = generateMeasurementId(m_assetName);
 
-			outData = OMFData(*reading, measurementId, m_PIServerEndpoint, AFHierarchyPrefix, hints ).OMFdataVal();
+			pendingSeparator = !OMFData(payload, *reading, measurementId, m_PIServerEndpoint, AFHierarchyPrefix, hints).hasData();
 		}
 		else
 		{
@@ -1401,7 +1411,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			// in the processReading call
 			auto asset_sent = m_assetSent.find(m_assetName);
 			// Send data for this reading using the new mechanism
-			outData = linkedData.processReading(*reading, AFHierarchyPrefix, hints);
+			pendingSeparator = linkedData.processReading(payload, *reading, AFHierarchyPrefix, hints);
 			if (m_sendFullStructure && asset_sent == m_assetSent.end())
 			{
 				// If the hierarchy has not already been sent then send it
@@ -1418,15 +1428,10 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 				string af = createAFLinks(*reading, hints);
 				if (! af.empty())
 				{
-					outData.append(",");
-					outData.append(af);
+					payload.append(',');
+					payload.append(af);
 				}
 			}
-		}
-		if (!outData.empty())
-		{
-			jsonData << (pendingSeparator ? ", " : "") << outData;
-			pendingSeparator = true;
 		}
 
 		if (hints)
@@ -1442,15 +1447,11 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 	// Remove all assets supersetDataPoints
 	OMF::unsetMapObjectTypes(m_SuperSetDataPoints);
 
-	jsonData << "]";
+	payload.append(']');
 
-	string json = jsonData.str();
-	json_not_compressed = json;
-
-	if (compression)
-	{
-		json = compress_string(json);
-	}
+	// TODO Improve this with coalesceCompressed call and avoid string on the stack
+	// and avoid copy into a string
+	const char *omfData = payload.coalesce();
 
 #if INSTRUMENT
 	gettimeofday(&t3, NULL);
@@ -1480,7 +1481,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 		int res = m_sender.sendRequest("POST",
 					       m_path,
 					       readingData,
-					       json);
+					       compression ? compress_string(omfData) : omfData);
 		if  ( ! (res >= 200 && res <= 299) )
 		{
 			Logger::getLogger()->error("Sending JSON readings , "
@@ -1489,6 +1490,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 						   m_sender.getHostPort().c_str(),
 						   m_path.c_str()
 						   );
+			delete[] omfData;
 			m_lastError = true;
 			return 0;
 		}
@@ -1525,13 +1527,14 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 								   timeT3,
 								   timeT4,
 								   readings.size(),
-								   json_not_compressed.length(),
-								   json.length()
+								   paylaod.size(),
+								   payload.size()
 		);
 
 #endif
 
 
+		delete[] omfData;
 		// Return number of sent readings to the caller
 		return readings.size();
 	}
@@ -1604,6 +1607,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 							  );
 			}
 
+			delete[] omfData;
 			// Reset error indicator
 			m_lastError = false;
 
@@ -1620,6 +1624,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			                           m_sender.getHostPort().c_str(),
 			                           m_path.c_str()
 									   );
+			delete[] omfData;
 		}
 		// Failure
 		m_lastError = true;
@@ -1638,6 +1643,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 		// Failure
 		m_lastError = true;
 		m_connected = false;
+		delete[] omfData;
 		return 0;
 	}
 }
@@ -1680,9 +1686,9 @@ uint32_t OMF::sendToServer(const vector<Reading>& readings,
 	 * - transform a reading to OMF format
 	 * - add OMF data to new vector
 	 */
-	ostringstream jsonData;
 	string measurementId;
-	jsonData << "[";
+	OMFBuffer payload;
+	payload.append('[');
 
 	// Fetch Reading data
 	for (vector<Reading>::const_iterator elem = readings.begin();
@@ -1720,19 +1726,22 @@ uint32_t OMF::sendToServer(const vector<Reading>& readings,
 		}
 
 		// Add into JSON string the OMF transformed Reading data
-		jsonData << OMFData(*elem, measurementId, m_PIServerEndpoint, m_AFHierarchyLevel, hints).OMFdataVal() << (elem < (readings.end() -1 ) ? ", " : "");
+		OMFData(payload, *elem, measurementId, m_PIServerEndpoint, m_AFHierarchyLevel, hints);
+	       	if (elem < (readings.end() -1 ))
+			payload.append(',');
 	}
 
-	jsonData << "]";
+	payload.append(']');
 
 	// Build headers for Readings data
 	vector<pair<string, string>> readingData = OMF::createMessageHeader("Data");
 
+	const char *omfData = payload.coalesce();
 	// Build an HTTPS POST with 'readingData headers and 'allReadings' JSON payload
 	// Then get HTTPS POST ret code and return 0 to client on error
 	try
 	{
-		int res = m_sender.sendRequest("POST", m_path, readingData, jsonData.str());
+		int res = m_sender.sendRequest("POST", m_path, readingData, omfData);
 
 		if  ( ! (res >= 200 && res <= 299) ) {
 			Logger::getLogger()->error("Sending JSON readings data "
@@ -1740,8 +1749,9 @@ uint32_t OMF::sendToServer(const vector<Reading>& readings,
 				res,
 				m_sender.getHostPort().c_str(),
 				m_path.c_str(),
-                                jsonData.str().c_str() );
+                                omfData);
 
+			delete[] omfData;
 			m_lastError = true;
 			return 0;
 		}
@@ -1753,11 +1763,13 @@ uint32_t OMF::sendToServer(const vector<Reading>& readings,
 					   e.what(),
 					   m_sender.getHostPort().c_str(),
 					   m_path.c_str(),
-					   jsonData.str().c_str() );
+					   omfData);
 
 		m_connected = false;
+		delete[] omfData;
 		return false;
 	}
+	delete[] omfData;
 
 	m_lastError = false;
 
@@ -1788,9 +1800,9 @@ uint32_t OMF::sendToServer(const Reading& reading,
 uint32_t OMF::sendToServer(const Reading* reading,
 			   bool skipSentDataTypes)
 {
-	ostringstream jsonData;
 	string measurementId;
-	jsonData << "[";
+	OMFBuffer payload;
+	payload.append('[');
 
 	m_assetName = ApplyPIServerNamingRulesObj(reading->getAssetName(), nullptr);
 
@@ -1812,18 +1824,19 @@ uint32_t OMF::sendToServer(const Reading* reading,
 
 	long typeId = OMF::getAssetTypeId(m_assetName);
 	// Add into JSON string the OMF transformed Reading data
-	jsonData << OMFData(*reading, measurementId, m_PIServerEndpoint, m_AFHierarchyLevel, hints).OMFdataVal();
-	jsonData << "]";
+	OMFData(payload, *reading, measurementId, m_PIServerEndpoint, m_AFHierarchyLevel, hints);
+	payload.append(']');
 
 	// Build headers for Readings data
 	vector<pair<string, string>> readingData = OMF::createMessageHeader("Data");
 
+	const char *omfData = payload.coalesce();
 	// Build an HTTPS POST with 'readingData headers and 'allReadings' JSON payload
 	// Then get HTTPS POST ret code and return 0 to client on error
 	try
 	{
 
-		int res = m_sender.sendRequest("POST", m_path, readingData, jsonData.str());
+		int res = m_sender.sendRequest("POST", m_path, readingData, omfData);
 
 		if  ( ! (res >= 200 && res <= 299) )
 		{
@@ -1832,7 +1845,8 @@ uint32_t OMF::sendToServer(const Reading* reading,
 						   res,
 						   m_sender.getHostPort().c_str(),
 						   m_path.c_str(),
-						   jsonData.str().c_str() );
+						   omfData);
+			delete[] omfData;
 
 			return 0;
 		}
@@ -1847,10 +1861,12 @@ uint32_t OMF::sendToServer(const Reading* reading,
 					   m_sender.getHostPort().c_str(),
 					   m_path.c_str() );
 
+		delete[] omfData;
 		m_connected = false;
 		return false;
 	}
 
+	delete[] omfData;
 	// Return number of sent readings to the caller
 	return 1;
 }

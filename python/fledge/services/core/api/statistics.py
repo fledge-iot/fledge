@@ -159,8 +159,8 @@ async def get_statistics_rate(request: web.Request) -> web.Response:
         (sum(value) / ((60 * period) / stats_collector_interval))
         For example:
             If stats_collector_interval set to 15 seconds then
-            a) For a 1 minute period should take 4 statistics history values, sum those and then divide by 4
-            b) For a 5 minute period should take 20 statistics history values, sum those and then divide by 20
+            a) For a 1 minute period should take 4 statistics history values, sum those and then divide by period
+            b) For a 5 minute period should take 20 statistics history values, sum those and then divide by period
       Args:
           request:
       Returns:
@@ -206,16 +206,20 @@ async def get_statistics_rate(request: web.Request) -> web.Response:
         raise web.HTTPNotFound(reason="No stats collector schedule found")
     resp = []
     for x, y in [(x, y) for x in period_split_list for y in stat_split_list]:
-        time_diff = datetime.datetime.utcnow().astimezone() - datetime.timedelta(minutes=int(x))
-
-        _payload = PayloadBuilder().SELECT("key").AGGREGATE(["sum", "value"]).WHERE(
-            ['history_ts', '>=', str(time_diff.timestamp())]).AND_WHERE(['key', '=', y]).chain_payload()
-        stats_rate_payload = PayloadBuilder(_payload).GROUP_BY("key").payload()
+        # Get value column as per given key along with history_ts column order by
+        _payload = PayloadBuilder().SELECT("value").WHERE(['key', '=', y]).ORDER_BY(["history_ts", "desc"]
+                                                                                    ).chain_payload()
+        # LIMIT set to ((60 * period) / stats_collector_interval))
+        calculated_formula = int((60 * int(x) / int(interval_in_secs)))
+        stats_rate_payload = PayloadBuilder(_payload).LIMIT(calculated_formula).payload()
         result = await storage_client.query_tbl_with_payload("statistics_history", stats_rate_payload)
         temp_dict = {y: {x: 0}}
         if result['rows']:
-            calculated_formula_str = (int(result['rows'][0]['sum_value']) / ((60 * int(x)) / int(interval_in_secs)))
-            temp_dict = {y: {x: calculated_formula_str}}
+            row_sum = 0
+            values = [r['value'] for r in result['rows']]
+            for v in values:
+                row_sum += v
+            temp_dict = {y: {x: row_sum / int(x)}}
         resp.append(temp_dict)
     rate_dict = {}
     for d in resp:

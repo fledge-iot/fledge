@@ -2987,19 +2987,12 @@ bool Connection::jsonWhereClause(const Value& whereClause,
 			if (whereClause["value"].IsInt())
 			{
 				sql.append(whereClause["value"].GetInt());
-			} else if (whereClause["value"].IsString())
+			}
+			else if (whereClause["value"].IsString())
 			{
-				if (whereColumnName.compare("history_ts") == 0) {
-                                        sql.append("to_timestamp(");
-					sql.append(whereClause["value"].GetString());
-					sql.append(')');
-				}
-				else
-				{
-					sql.append('\'');
-					sql.append(escape(whereClause["value"].GetString()));
-					sql.append('\'');
-				}
+				sql.append('\'');
+				sql.append(escape(whereClause["value"].GetString()));
+				sql.append('\'');
 			}
 		}
 	}

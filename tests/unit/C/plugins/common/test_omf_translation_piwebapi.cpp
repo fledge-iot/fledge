@@ -76,10 +76,8 @@ TEST(PIWEBAPI_OMF_transation, TwoTranslationsCompareResult)
 	     elem != readingSet.getAllReadings().end();
 	     ++elem)
 	{
-		if (sep)
-			payload.append(", ");
 		// Add into JSON string the OMF transformed Reading data
-		sep = OMFData(payload, **elem, CONTAINER_ID, PI_SERVER_END_POINT, AF_HIERARCHY_1LEVEL).hasData();
+		sep = OMFData(payload, **elem, CONTAINER_ID, sep, PI_SERVER_END_POINT, AF_HIERARCHY_1LEVEL).hasData();
 	}
 
 	payload.append(']');

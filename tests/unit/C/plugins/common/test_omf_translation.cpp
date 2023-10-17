@@ -254,11 +254,8 @@ TEST(OMF_transation, TwoTranslationsCompareResult)
 		measurementId = to_string(TYPE_ID) + "measurement_luxometer";
 
 		// Add into JSON string the OMF transformed Reading data
-		if (sep)
-		{
-			payload.append(", ");
-		}
-		sep = OMFData(payload, **elem, measurementId).hasData();
+		if (OMFData(payload, **elem, measurementId, sep).hasData())
+			sep = true;
 	}
 
 	payload.append("]");
@@ -289,7 +286,7 @@ TEST(OMF_transation, OneReading)
 	OMFBuffer payload;
 	// Create the OMF Json data
 	payload.append("[");
-	OMFData(payload, lab, measurementId);
+	OMFData(payload, lab, measurementId, false);
 	payload.append("]");
 
 	const char *data = payload.coalesce();
@@ -374,11 +371,8 @@ TEST(OMF_transation, AllReadingsWithUnsupportedTypes)
 	{
 		measurementId = "dummy";
 
-		if (pendingSeparator)
-		{
-			payload.append(", ");
-		}
-		pendingSeparator = OMFData(payload, **elem, measurementId).hasData();
+		if (OMFData(payload, **elem, measurementId, pendingSeparator).hasData())
+			pendingSeparator = true;
 		// Add into JSON string the OMF transformed Reading data
 	}
 
@@ -422,12 +416,8 @@ TEST(OMF_transation, ReadingsWithUnsupportedTypes)
 	{
 		measurementId = "dummy";
 
-		if (pendingSeparator)
-		{
-			payload.append(", ");
-			pendingSeparator = false;
-		}
-		pendingSeparator = OMFData(payload, **elem, measurementId).hasData();
+		if (OMFData(payload, **elem, measurementId, pendingSeparator).hasData())
+			pendingSeparator = true;
 		// Add into JSON string the OMF transformed Reading data
 	}
 

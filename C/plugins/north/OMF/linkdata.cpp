@@ -66,9 +66,10 @@ static std::string DataPointNamesAsString(const Reading& reading)
  * @param reading           Reading for which the OMF message must be generated
  * @param AFHierarchyPrefix Unused at the current stage
  * @param hints             OMF hints for the specific reading for changing the behaviour of the operation
+ * @param delin		    Add a delimiter before outputtign anything
  *
  */
-bool  OMFLinkedData::processReading(OMFBuffer& payload, const Reading& reading, const string&  AFHierarchyPrefix, OMFHints *hints)
+bool  OMFLinkedData::processReading(OMFBuffer& payload, bool delim, const Reading& reading, const string&  AFHierarchyPrefix, OMFHints *hints)
 {
 	bool rval = false;
 	bool changed;
@@ -107,9 +108,11 @@ bool  OMFLinkedData::processReading(OMFBuffer& payload, const Reading& reading, 
 
 	assetName = OMF::ApplyPIServerNamingRulesObj(assetName, NULL);
 
-	bool needDelim = false;
+	bool needDelim = delim;
 	if (m_assetSent->count(assetName) == 0)
 	{
+		if (needDelim)
+			payload.append(',');
 		// Send the data message to create the asset instance
 		payload.append("{ \"typeid\":\"FledgeAsset\", \"values\":[ { \"AssetId\":\"");
 		payload.append(assetName + "\",\"Name\":\"");

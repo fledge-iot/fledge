@@ -142,7 +142,7 @@ const char *AF_HIERARCHY_1LEVEL_LINK = QUOTE(
  * @param hints             OMF hints for the specific reading for changing the behaviour of the operation
  *
  */
-OMFData::OMFData(OMFBuffer& payload, const Reading& reading, string measurementId, const OMF_ENDPOINT PIServerEndpoint,const string&  AFHierarchyPrefix, OMFHints *hints)
+OMFData::OMFData(OMFBuffer& payload, const Reading& reading, string measurementId, bool delim, const OMF_ENDPOINT PIServerEndpoint,const string&  AFHierarchyPrefix, OMFHints *hints)
 {
 	bool changed;
 
@@ -189,6 +189,10 @@ OMFData::OMFData(OMFBuffer& payload, const Reading& reading, string measurementI
 
 	if (m_hasData)
 	{
+		if (delim)
+		{
+			payload.append(", ");
+		}
 		// Convert reading data into the OMF JSON string
 		payload.append("{\"containerid\": \"" + measurementId);
 		payload.append("\", \"values\": [{");
@@ -1282,11 +1286,6 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			setAFHierarchy();
 		}
 
-		if (pendingSeparator)
-		{
-			payload.append(',');
-			pendingSeparator = false;
-		}
 
 		// Use old style complex types if the user has forced it via configuration,
 		// we are running against an EDS endpoint or Connector Relay or we have types defined for this
@@ -1403,7 +1402,10 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 
 			measurementId = generateMeasurementId(m_assetName);
 
-			pendingSeparator = !OMFData(payload, *reading, measurementId, m_PIServerEndpoint, AFHierarchyPrefix, hints).hasData();
+			if (OMFData(payload, *reading, measurementId, pendingSeparator, m_PIServerEndpoint, AFHierarchyPrefix, hints).hasData())
+			{
+				pendingSeparator = true;
+			}
 		}
 		else
 		{
@@ -1411,7 +1413,8 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			// in the processReading call
 			auto asset_sent = m_assetSent.find(m_assetName);
 			// Send data for this reading using the new mechanism
-			pendingSeparator = linkedData.processReading(payload, *reading, AFHierarchyPrefix, hints);
+			if (linkedData.processReading(payload, pendingSeparator, *reading, AFHierarchyPrefix, hints))
+				pendingSeparator = true;
 			if (m_sendFullStructure && asset_sent == m_assetSent.end())
 			{
 				// If the hierarchy has not already been sent then send it
@@ -1726,9 +1729,9 @@ uint32_t OMF::sendToServer(const vector<Reading>& readings,
 		}
 
 		// Add into JSON string the OMF transformed Reading data
-		OMFData(payload, *elem, measurementId, m_PIServerEndpoint, m_AFHierarchyLevel, hints);
-	       	if (elem < (readings.end() -1 ))
-			payload.append(',');
+		if (OMFData(payload, *elem, measurementId, false, m_PIServerEndpoint, m_AFHierarchyLevel, hints).hasData())
+		       	if (elem < (readings.end() -1 ))
+				payload.append(',');
 	}
 
 	payload.append(']');
@@ -1824,7 +1827,7 @@ uint32_t OMF::sendToServer(const Reading* reading,
 
 	long typeId = OMF::getAssetTypeId(m_assetName);
 	// Add into JSON string the OMF transformed Reading data
-	OMFData(payload, *reading, measurementId, m_PIServerEndpoint, m_AFHierarchyLevel, hints);
+	OMFData(payload, *reading, measurementId, false, m_PIServerEndpoint, m_AFHierarchyLevel, hints);
 	payload.append(']');
 
 	// Build headers for Readings data

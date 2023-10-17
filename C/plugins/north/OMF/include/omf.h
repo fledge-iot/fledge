@@ -542,6 +542,7 @@ class OMFData
 		OMFData(OMFBuffer & payload, 
 			const Reading& reading,
 			string measurementId,
+			bool needDelim,
 			const OMF_ENDPOINT PIServerEndpoint = ENDPOINT_CR,
 			const std::string& DefaultAFLocation = std::string(),
 			OMFHints *hints = NULL);

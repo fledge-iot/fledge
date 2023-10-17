@@ -2512,10 +2512,10 @@ bool Connection::jsonAggregates(const Value& payload,
 					jsonConstraint.append("'");
 
 					sql.append(")::float");
-					sql.append(" END)");
+
 				}
 			}
-			sql.append(") AS \"");
+			sql.append(" END) AS \"");
 			if (itr->HasMember("alias"))
 			{
 				sql.append((*itr)["alias"].GetString());
@@ -2989,17 +2989,9 @@ bool Connection::jsonWhereClause(const Value& whereClause,
 				sql.append(whereClause["value"].GetInt());
 			} else if (whereClause["value"].IsString())
 			{
-				if (whereColumnName.compare("history_ts") == 0) {
-                                        sql.append("to_timestamp(");
-					sql.append(whereClause["value"].GetString());
-					sql.append(')');
-				}
-				else
-				{
-					sql.append('\'');
-					sql.append(escape(whereClause["value"].GetString()));
-					sql.append('\'');
-				}
+				sql.append('\'');
+				sql.append(escape(whereClause["value"].GetString()));
+				sql.append('\'');
 			}
 		}
 	}

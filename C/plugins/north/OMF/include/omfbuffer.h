@@ -13,7 +13,7 @@
 #include <string>
 #include <list>
 
-#define BUFFER_CHUNK	4096
+#define BUFFER_CHUNK	8192
 
 /**
  * Buffer class designed to hold OMF payloads that can

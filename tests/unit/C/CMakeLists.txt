@@ -95,6 +95,7 @@ set_target_properties(plugins-common-lib PROPERTIES SOVERSION 1)
 set(LIB_NAME OMF)
 file(GLOB OMF_LIB_SOURCES
         ../../../C/plugins/north/OMF/omf.cpp
+        ../../../C/plugins/north/OMF/omfbuffer.cpp
         ../../../C/plugins/north/OMF/omfhints.cpp
         ../../../C/plugins/north/OMF/OMFError.cpp
 	../../../C/plugins/north/OMF/linkdata.cpp)

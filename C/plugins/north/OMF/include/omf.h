@@ -17,6 +17,7 @@
 #include <http_sender.h>
 #include <zlib.h>
 #include <rapidjson/document.h>
+#include <linkedlookup.h>
 
 #define	OMF_HINT	"OMFHint"
 
@@ -485,25 +486,13 @@ private:
 		bool			m_linkedProperties;
 
 		/**
-		 * The container for this asset and data point has been sent in
-		 * this session.
+		 * The state of the linked assets, the key is
+		 * either an asset name with an underscore appended
+		 * or an asset name, followed by an underscore and a
+		 * data point name
 		 */
-		std::unordered_map<std::string, std::string>
-					m_containerSent;
-
-		/**
-		 * The data message for this asset and data point has been sent in
-		 * this session.
-		 */
-		std::unordered_map<std::string, bool>
-					m_assetSent;
-
-		/**
-		 * The link for this asset and data point has been sent in
-		 * this session.
-		 */
-		std::unordered_map<std::string, bool>
-					m_linkSent;
+		std::unordered_map<std::string, LALookup>
+					m_linkedAssetState;
 
 		/**
 		 * Force the data to be sent using the legacy, complex OMF types

@@ -1161,8 +1161,16 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 	bool legacyType = m_legacy;
 
 	// Create the class that deals with the linked data generation
-	OMFLinkedData linkedData(&m_containerSent, &m_assetSent, &m_linkSent, m_PIServerEndpoint);
+	OMFLinkedData linkedData(&m_linkedAssetState, m_PIServerEndpoint);
 	linkedData.setFormats(getFormatType(OMF_TYPE_FLOAT), getFormatType(OMF_TYPE_INTEGER));
+
+	for (vector<Reading *>::const_iterator elem = readings.begin();
+						    elem != readings.end();
+						    ++elem)
+	{
+		Reading *reading = *elem;
+		linkedData.buildLookup(*reading);
+	}
 
 	bool pendingSeparator = false;
 	ostringstream jsonData;
@@ -1399,10 +1407,10 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 		{
 			// We do this before the send so we know if it was sent for the first time
 			// in the processReading call
-			auto asset_sent = m_assetSent.find(m_assetName);
+			auto lookup = m_linkedAssetState.find(m_assetName + ".");
 			// Send data for this reading using the new mechanism
 			outData = linkedData.processReading(*reading, AFHierarchyPrefix, hints);
-			if (m_sendFullStructure && asset_sent == m_assetSent.end())
+			if (m_sendFullStructure && lookup->second.assetState() == false)
 			{
 				// If the hierarchy has not already been sent then send it
 				if (! AFHierarchySent)

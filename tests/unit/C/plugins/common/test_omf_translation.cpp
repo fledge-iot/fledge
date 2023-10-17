@@ -258,7 +258,7 @@ TEST(OMF_transation, TwoTranslationsCompareResult)
 		{
 			payload.append(", ");
 		}
-		sep = !OMFData(payload, **elem, measurementId).hasData();
+		sep = OMFData(payload, **elem, measurementId).hasData();
 	}
 
 	payload.append("]");
@@ -378,7 +378,7 @@ TEST(OMF_transation, AllReadingsWithUnsupportedTypes)
 		{
 			payload.append(", ");
 		}
-		pendingSeparator = ! OMFData(payload, **elem, measurementId).hasData();
+		pendingSeparator = OMFData(payload, **elem, measurementId).hasData();
 		// Add into JSON string the OMF transformed Reading data
 	}
 
@@ -427,7 +427,7 @@ TEST(OMF_transation, ReadingsWithUnsupportedTypes)
 			payload.append(", ");
 			pendingSeparator = false;
 		}
-		pendingSeparator = ! OMFData(payload, **elem, measurementId).hasData();
+		pendingSeparator = OMFData(payload, **elem, measurementId).hasData();
 		// Add into JSON string the OMF transformed Reading data
 	}
 
@@ -438,6 +438,7 @@ TEST(OMF_transation, ReadingsWithUnsupportedTypes)
 	doc.Parse(data);
 	if (doc.HasParseError())
 	{
+		cout << data << "\n";
 		ASSERT_FALSE(true);
 	}
 	else

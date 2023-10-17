@@ -79,14 +79,14 @@ TEST(PIWEBAPI_OMF_transation, TwoTranslationsCompareResult)
 		if (sep)
 			payload.append(", ");
 		// Add into JSON string the OMF transformed Reading data
-		sep = ! OMFData(payload, **elem, CONTAINER_ID, PI_SERVER_END_POINT, AF_HIERARCHY_1LEVEL).hasData();
+		sep = OMFData(payload, **elem, CONTAINER_ID, PI_SERVER_END_POINT, AF_HIERARCHY_1LEVEL).hasData();
 	}
 
 	payload.append(']');
 
 	const char *buf = payload.coalesce();
 	// Compare translation
-	ASSERT_EQ(buf, pi_web_api_two_translated_readings);
+	ASSERT_STREQ(buf, pi_web_api_two_translated_readings);
 	delete[] buf;
 
 }

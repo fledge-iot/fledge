@@ -225,10 +225,6 @@ class TestAPIEndpointsWithViewUserType:
         ("DELETE", "/fledge/notification/N1/delivery/C1", 403)
     ])
     def test_endpoints(self, fledge_url, method, route_path, http_status_code, storage_plugin):
-        # FIXME: Once below JIRA is resolved
-        if storage_plugin == 'postgres':
-            if route_path == '/fledge/statistics/rate?periods=1&statistics=FOO':
-                pytest.skip('Due to FOGL-7097')
         conn = http.client.HTTPConnection(fledge_url)
         conn.request(method, route_path, headers={"authorization": TOKEN})
         r = conn.getresponse()
@@ -379,10 +375,6 @@ class TestAPIEndpointsWithDataViewUserType:
         ("DELETE", "/fledge/notification/N1/delivery/C1", 403)
     ])
     def test_endpoints(self, fledge_url, method, route_path, http_status_code, storage_plugin):
-        # FIXME: Once below JIRA is resolved
-        if storage_plugin == 'postgres':
-            if route_path == '/fledge/statistics/rate?periods=1&statistics=FOO':
-                pytest.skip('Due to FOGL-7097')
         conn = http.client.HTTPConnection(fledge_url)
         conn.request(method, route_path, headers={"authorization": TOKEN})
         r = conn.getresponse()
@@ -538,10 +530,6 @@ class TestAPIEndpointsWithControlUserType:
         ("DELETE", "/fledge/notification/N1/delivery/C1", 404)
     ])
     def test_endpoints(self, fledge_url, method, route_path, http_status_code, storage_plugin):
-        # FIXME: Once below JIRA is resolved
-        if storage_plugin == 'postgres':
-            if route_path == '/fledge/statistics/rate?periods=1&statistics=FOO':
-                pytest.skip('Due to FOGL-7097')
         conn = http.client.HTTPConnection(fledge_url)
         conn.request(method, route_path, headers={"authorization": TOKEN})
         r = conn.getresponse()

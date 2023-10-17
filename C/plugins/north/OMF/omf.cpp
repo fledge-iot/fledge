@@ -1530,7 +1530,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 								   timeT3,
 								   timeT4,
 								   readings.size(),
-								   paylaod.size(),
+								   payload.size(),
 								   payload.size()
 		);
 

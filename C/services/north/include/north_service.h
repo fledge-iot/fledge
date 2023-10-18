@@ -19,6 +19,7 @@
 #include <mutex>
 #include <condition_variable>
 #include <audit_logger.h>
+#include <perfmonitors.h>
 
 #define SERVICE_NAME  "Fledge North"
 
@@ -81,5 +82,6 @@ class NorthService : public ServiceAuthHandler {
 		bool				m_dryRun;
 		bool				m_requestRestart;
 		AuditLogger			*m_auditLogger;
+		PerformanceMonitor		*m_perfMonitor;
 };
 #endif

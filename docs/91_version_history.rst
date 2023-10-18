@@ -35,229 +35,186 @@ Release Date: 2023-10-17
     - New Features:
 
        - New performance monitors have been added to the north service and the running guide updated to discuss how these can be used.
-       - The default interval for running the purge process has been reduced, the purge process will not run every 5 minutes. This chance only affects new installations, the purge process will run as before on systems that are upgraded.
-       - A change has been made to prevent the schedules used to start services from being renamed as this could cause the services to fail.
-       - The table registration mechanism has been extended to allow services to register for delete operations.
-       - The public API has been updated to include the ability to make control requests via the public API.
        - The support bundle creation process has been updated to include any performance counters available in the system.
        - The ability to monitor performance counters has been added to Fledge. Currently only south services offer performance counters that can be captured by the system. These are designed to provide information useful for tuning the south service.
-       - The audit log entries have been updated to include more information when schedules are updated.
-       - New audit logs have been added to reflect the creation, update and deletion of access control lists.
-       - The reporting of issues related to failure to load plugins has been improved.
-       - A new user role has been added for those users able to update the control features of the platform.
-       - The public API of the system has been updated to allow selection of readings from the storage buffer for given time intervals.
-       - The asset tracker component has been optimised in order to improve the ingress and egress performance of Fledge
+       - The asset tracker component has been optimized in order to improve the ingress and egress performance of Fledge
        - The process used to extract log information from the system logs has been updated to improve performance and reduce the system overhead required to extract log data.
-       - The mechanism used by the south and north services to interact with the audit log has been optimised. This improves the ingress and egress performance of the product at the cost of a small delay before the audit log is updated.
-       - The ingestion of data from asynchronous south service paid no attention to the advanced configuration option \Throttle\. This meant that very fast asynchronous south plugins could build extremely large queues of data within the south service, using system resources and taking a long time to shutdown. This has now been rectified, with asynchronous south services now be subject to flow control if the 'Throttle \ option is set for the service. Unconstrained input is still available if the \Throttle\ option is not checked.
-       - A security vulnerability in one of the PIP packages used by some of the Python components used by the system.
-       - A numeric list data type has been added to the reading ingestion code of the system.
-       - Audit logs have been add to the user API of the public REST interface.
-       - An issue which could occasionally result in the bearer token used for authentication between the various services expiring before the completion of the renewal process has been resolved. This could result in the failure of services to communicate with each other.
-       - Support has been added to allow filters to ingest pass data onwards during a shutdown of the filter. This allows any buffered data to be flushed to the next filter in the pipeline.
-       - When upgrading the version of a plugin any new configuration items are added to the relevant configuration categories. However the operation was not correctly reported as a configuration change in the audit log. This behaviour has now been corrected.
-       - New public API Entry Points have been added to allow for the creation and manipulation of control pipelines.
-       - The public API that is used to retrieve readings data from the storage layer has been updated to allow data for multiple assets to be retrieved in a single call.
-       - A memory leak in one of the storage plugins has been fixed. This caused the storage service to consume large amounts of memory over time which could result in the operating system killing the service.
-       - The format of Python back traces has been improved to use multiple lines within the log. This makes the trace easier to understand and prevents the truncation that can occur.
-       - The setting of log levels fro a service is now also reflected in any Python code loaded by the service.
-       - The plugin developers guide has been updated to include the mechanism for adding audit trail entries from C++ plugins.
-       - Plugins that run within the south and north services and north tasks now have access to the audit logging system.
-       - The documentation regarding handling and updating certificates used for authentication has been updated. 
+       - The mechanism used by the south and north services to interact with the audit log has been optimized. This improves the ingress and egress performance of the product at the cost of a small delay before the audit log is updated.
        - A number of changes have been made to improve the performance of sending data north from the system.
        - The performance of the statistics history task has been improved. It now makes fewer calls to the storage subsystem, improving the overall system performance.
-       - Changes have been made to the purge process in the sqlitelb and sqliteinmemory plugins in order to improve performance.
+       - The performance of the asset tracker system has been improved, resulting in an improvement in the ingress performance of the system.
+       - A number of optimizations have been made to improve the performance of Python filters within a pipeline.
+       - The SQLite In-Memory storage plugin now has an option that allows the data to be persisted when shutting the system down and reloaded on startup.
+       - A number of optimisations to the SQLite in-memory storage plugin and the SQLiteLB storage plugin have been added that increase the rate at which readings can be stored with these plugins.
+       - Changes have been made to the purge process in the sqlitelb and sqlite-in-memory plugins in order to improve performance.
+       - The SQLite storage plugins have been updated to improve the error reporting around database contention issues.
+       - The default interval for running the purge process has been reduced, the purge process will not run every 5 minutes. This change only affects new installations, the purge process will run as before on systems that are upgraded.       
+       - A change has been made to prevent the schedules used to start services from being renamed as this could cause the services to fail.
+       - The audit log entries have been updated to include more information when schedules are updated.
+       - New audit logs have been added to reflect the creation, update and deletion of access control lists.
+       - Audit logs have been added to the user API of the public REST interface.
+       - The plugin developers guide has been updated to include the mechanism for adding audit trail entries from C++ plugins.
+       - Plugins that run within the south and north services and north tasks now have access to the audit logging system.
+       - The public API has been updated to include the ability to make control requests via the public API.
+       - The public API of the system has been updated to allow selection of readings from the storage buffer for given time intervals.
+       - New public API Entry Points have been added to allow for the creation and manipulation of control pipelines.
+       - The public API that is used to retrieve reading data from the storage layer has been updated to allow data for multiple assets to be retrieved in a single call.
+       - The ingestion of data from asynchronous south service paid no attention to the advanced configuration option "Throttle". This meant that very fast asynchronous south plugins could build extremely large queues of data within the south service, using system resources and taking a long time to shutdown. This has now been rectified, with asynchronous south services now subject to flow control if the "Throttle" option is set for the service. Unconstrained input is still available if the "Throttle" option is not checked.
        - The south plugin now supports three different modes of polling. Polling at fixed intervals from the time started, polling at fixed times or polling on demand via the control mechanisms.
+       - Support has been added to allow filters to ingest pass data onwards during a shutdown of the filter. This allows any buffered data to be flushed to the next filter in the pipeline.
+       - A security vulnerability in one of the PIP packages used by some of the Python components used by the system.
+       - The format of Python back traces has been improved to use multiple lines within the log. This makes the trace easier to understand and prevents the truncation that can occur.
+       - The setting of log levels from a service is now also reflected in any Python code loaded by the service.
        - The support bundle has been updated to include a list of the Python packages installed on the machine.
+       - The reporting of issues related to failure to load plugins has been improved.
+       - When upgrading the version of a plugin any new configuration items are added to the relevant configuration categories. However the operation was not correctly reported as a configuration change in the audit log. This behavior has now been corrected.
+       - A memory leak in one of the storage plugins has been fixed. This caused the storage service to consume large amounts of memory over time which could result in the operating system killing the service.
        - The configuration category C++ API has been enhanced in the retrieval and setting of all the attributes of a configuration item.
        - The storage service has been updated to allow other services to subscribe the notifications of inserts into the generic tables.
        - A change has been made to the configuration of the storage plugin such that rather than having to type correct names for storage plugins the user may now select the plugins to use from a drop down list. Note however that the system must still be restarted for the new storage plugin to take effect.
-       - A number of optimisations have been made to improve the performance of Python filters within a pipeline.
+       - The table registration mechanism has been extended to allow services to register for delete operations.
+       - A new user role has been added for those users able to update the control features of the platform.
+       - A numeric list data type has been added to the reading ingestion code of the system.
+       - An issue which could occasionally result in the bearer token used for authentication between the various services expiring before the completion of the renewal process has been resolved. This could result in the failure of services to communicate with each other.
+       - The documentation regarding handling and updating certificates used for authentication has been updated. 
+       - A new tuning parameter has been added to the PostgreSQL storage plugin to allow the maximum number of readings inserted into the database in a single insert to be limited. This is useful when high data rates or large bursts of readings are received as it limits the memory consumption of the plugin and reduces the lock contention on the database.
 
 
     - Bug Fix:
 
-       - An issue that cause cause log messages to not be recorded has been resolved.
-       - A problem with statistics counter overflow that could cause a crash in the statistics collector has been resolved.
-       - An issue that could cause the statistics to be displayed with timestamp in the wrong timezone has been resolved.
-       - An issue with memory usage in Python plugins used in south services has been resolved.
-       - A problem with converting very long integers from JSON has been resolved. This would have manifested itself as a crash when handling datapoints that contain 64 bit integers above a certain value.
-       - A number of issues regarding the usage of memory have been resolved, including some small memory leaks. The overall memory footprint of north services should also be reduced in some circumstances.
-       - The performance of the asset tracker system has been improved, resulting in an improvement in the ingress performance of the system.
-       - The Python south plugin mechanism has been updated to fix an issue with ingestion of nested data point values.
-       - A bug in the statistics rate API that would result in incorrect data being returned has been fixed.
-       - An issue that required the north service to be restarted if the source of data to send was changed in a running services has been resolved. Changing the data source no longer requires a restart of the north service.
-       - A bug that prevents notification rules being executed for readings with asset codes starting with numeric values has been resolved.
-       - A problem with incorrect timestamps in the readings graphs when the timezone of the machine was something other than UTC has been resolved.
-       - An issue with the code update mechanism that could cause multiple updates to occur has been resolved. Only a single update should be executed and then the flag allowing for updates to be applied should be removed. This prevents the update mechanism triggering on each restart of the system.
-       - A problem that prevented the modbusC south plugin from being updated in the same way as other plugins has been resolved.
-       - The command line interface to view the status of the system has been updated to correctly show the statistics history collection task when it is running.
-       - When switch a south plugin from a slow poll rate to a faster one the new poll rate does not take effect until the en dot the current poll cycle. This could be a very long time, this has now been changed such that the south service will take the new poll rate as soon as possible rather than wait for the endow the current poll cycle.
-       - The data sent to notification rules that register for audit information has been updated to include the complete audit record. This allows for notification rules to be written that trigger on particular auditable operations within the system.
-       - An empty statistics entry would erroneously be added for an asset or a service if the advanced parameter to control the statistics was modified from the default before the service was started. This has now been resolved.
-       - The notification service would sometimes shutdown without removing all of the subscriptions it holds with the storage service. This could cause issues for the storage service. Subscriptions are now correctly removed.
-       - An issue that could sometimes cause a running north service to fail if the configuration for that service is updated has been resolved.
-       - An issue that limited the update of additional services to jus the notification service has been resolved. The update mechanism can now update any service that is added to the base system installation.
-       - A problem that prevents an updated service from restarting after an upgrade if HTTPS is used for the interface between services has been resolved.
-       - An issue with the SQLite In Memory and the SQLite LB storage plugins that could result in incorrect data begin stored has been resolved.
-       - An issue that prevented FogLAMP Manage from updating services and plugins on a FogLAMP as been resolved.
+       - An issue that causes log messages to not be recorded has been resolved.
        - An issue in one of the storage plugins that caused spurious warnings to appear in the logs during a backup has been resolved.
        - An issue that caused the retrieval of system logs for services with white space in the name of the service has been resolved.
+       - A problem with statistics counter overflow that could cause a crash in the statistics collector has been resolved.
+       - An issue that could cause the statistics to be displayed with a timestamp in the wrong timezone has been resolved.
+       - A bug in the statistics rate API that would result in incorrect data being returned has been fixed.
+       - An empty statistics entry would erroneously be added for an asset or a service if the advanced parameter to control the statistics was modified from the default before the service was started. This has now been resolved.
+       - The command line interface to view the status of the system has been updated to correctly show the statistics history collection task when it is running.
+       - The Python south plugin mechanism has been updated to fix an issue with ingestion of nested data point values.
+       - An issue with memory usage in Python plugins used in south services has been resolved.
+       - A number of issues regarding the usage of memory have been resolved, including some small memory leaks. The overall memory footprint of north services should also be reduced in some circumstances.
+       - An issue with the SQLite In Memory and the SQLite LB storage plugins that could result in incorrect data being stored has been resolved.
        - An erroneous message was being produced when starting the system using the SQLite in memory storage plugin. This has now been resolved.
        - Support has been improved for switching between different storage plugins that allows for correct schema creation when using different sqlite plugin variants for configuration and readings storage.
        - An update has been done to the default SQLite storage plugin to enable it to handle a large number of distinct asset codes in the readings. Previously the plugin was limited in the number of assets it could support. When the number of asset codes gets large the performance of the plugin will be reduced slightly, however it will continue to ingest data.
+       - An issue that required the north service to be restarted if the source of data to send was changed in a running service has been resolved. Changing the data source no longer requires a restart of the north service.
+       - An issue that could sometimes cause a running north service to fail if the configuration for that service is updated has been resolved.
+       - A problem that prevents an updated service from restarting after an upgrade if HTTPS is used for the interface between services has been resolved.
+       - A problem with incorrect timestamps in the readings graphs when the timezone of the machine was something other than UTC has been resolved.
        - A number of inconsistencies in the timezone returned by API calls have been resolved. All API calls should return timestamps in the UTC timezone unless a timezones explicitly included in the response.
-       - A issue with trying to create a new user that shares the same user name with a previous user that was removed from the system failing has been resolved.
+       - An issue with the code update mechanism that could cause multiple updates to occur has been resolved. Only a single update should be executed and then the flag allowing for updates to be applied should be removed. This prevents the update mechanism triggering on each restart of the system.
+       - A problem that prevented the modbusC south plugin from being updated in the same way as other plugins has been resolved.
+       - When switching a south plugin from a slow poll rate to a faster one the new poll rate does not take effect until the end of the current poll cycle. This could be a very long time, this has now been changed such that the south service will take the new poll rate as soon as possible rather than wait for the end of the current poll cycle.
+       - A bug that prevents notification rules being executed for readings with asset codes starting with numeric values has been resolved.
+       - The data sent to notification rules that register for audit information has been updated to include the complete audit record. This allows for notification rules to be written that trigger on particular auditable operations within the system.
+       - The notification service would sometimes shutdown without removing all of the subscriptions it holds with the storage service. This could cause issues for the storage service. Subscriptions are now correctly removed.
+       - An issue that limited the update of additional services to just the notification service has been resolved. The update mechanism can now update any service that is added to the base system installation.       
+       - An issue with trying to create a new user that shares the same user name with a previous user that was removed from the system failing has been resolved.
+       - A problem with converting very long integers from JSON has been resolved. This would have manifested itself as a crash when handling datapoints that contain 64 bit integers above a certain value.     
+       - An update has been made to prevent the creation of services with empty service names
+       - An issue that could cause health metrics to not be correctly returned when using the Postgres storage engine has been resolved.
 
 
 - **GUI**
 
     - New Features:
 
-       - 
-       - 
-       - New controls have been added to the asset browser to apse the automatic refresh of the data should and to allow shuffling back and forth along the timeline.
+       - New controls have been added to the asset browser to pause the automatic refresh of the data and to allow shuffling back and forth along the timeline.
        - New controls have been added in the menu pane of the GUI to allow nested commands to be collapsed or expanded, resulting in a smaller menu display.
        - The ability to select an area on the graph shown in the asset browser and zoom into the time period defined by that area has been added.
-       - The interface for updating the filters has been improved when multiple filters are being updated at once.
-       - 
-       - The display of image attributes for image type data points has been added to the latest reading display.
        - The reading graph time granularity has been improved in the asset browser.
-       - A new user interface option has been added to the control menu to create control pipelines.
        - The ability to move backwards and forwards in the timeline of the asset browser graph has been added.
-       - The facility pause the automatic update of the asset browser graph has been added.
+       - The facility that pauses the automatic update of the asset browser graph has been added.
        - The ability to graph multiple readings on a single graph has been added to the asset browser graph.
        - A facility to allow a user to define the default time duration shown in the asset browser graph has been added to the user interface settings page.
-       - The user interface has been updated such that if the backend system is not available then the user interface components are made insensitive.
        - The date format has been made more flexible in the asset and readings graph.
+       - A new user interface option has been added to the control menu to create control pipelines.
+       - The user interface has been updated such that if the backend system is not available then the user interface components are made insensitive.
+       - The interface for updating the filters has been improved when multiple filters are being updated at once.
+       - The display of image attributes for image type data points has been added to the latest reading display. 
 
 
     - Bug Fix:
 
-       - 
        - The user interface for configuring plugins has been improved to make it more obvious when mandatory items are missing.
        - An issue that allowed view users to update configuration when logged in using certificate based authentication has been resolved.
-       - The latest reading display issue that resulted in non image data not been shown when one or more image data points are in the reading has been resolved.
+       - The latest reading display issue that resulted in non image data not being shown when one or more image data points are in the reading has been resolved.
        - An issue with the handling of script type items whose name was not also script in the user interface that meant that scripts with different names were incorrectly handled has been resolved.
        - An occasional error that appeared on the Control Script and ACL pages has been resolved.
        - An issue with editing large scripts or JSON items in the configuration has been resolved.
-       - An issuer that caused services with quotes in the name to disappear from the user interface has been resolved.
+       - An issue that caused services with quotes in the name to disappear from the user interface has been resolved.
        - A text wrapping issue in the system log viewer has been resolved.
 
 
-- **Plugins**
+- **Services & Plugins**
 
     - New Features:
 
-       - The SQLite storage plugins have been updated to improve the error reporting around database contention issues.
        - An update has been done to the OMF north plugin to correctly handle the set of reserved characters in PI tag names when using the new linked data method for inserting data in the PI Server.
-       - Some enhancements have been made to the OMF north plugin to improve the performance when there are large numbers of distinct assets to send to the ePI Server.
-       - A new tuning parameter has been added to the PostgreSQL storage plugin to allow the maximum number of readings inserted into the database in a single insert to be limited. This is useful when high data rates or large bursts of readings are received as it limits the memory consumption of the plugin and reduces the lock contention on the database.
-       - When processing data updates from the PI Server at high rates, PI Server Update Manager queue might overflow. This is caused by the PI Server not retrieving data updates until all registrations were complete. To address this, the PI Server South plugin has been updated to interleave registration and retrieval of data updates so that data retrieval begins immediately.
-       - The documentation for the control notification plugin has been updated to include examples for all destinations of control requests.
-       - Some devices were not compatible with the optimised block reading of registers performed by the ModbusC south plugin. The ModbusC plugin has been updated to provide controls that can determine how it reads data from the modus device. This allows single register reads, single object reads and the current optimised block reads. 
-       - Compression functionality has been added to the Kafka north plugin.
-       - The foglap-notify-rest plugin has been enhanced to support separate method URL and payload for clearing a notification
-       - A new exponentially weighted moving average filter has been added that allows smoothing of data.
-       - A new FogLAMP plugin has been developed for an ArmField FM51 Pump Demonstration Unit.
-       - The Kafka north plugin has been updated to allow for username and password authentication to be supplied when connecting to the Kafka server.
-       - The documentation for the asset filter has been improved to include more examples and explanation for the various uses of the plugin and to include all the different operations that can be performed with the filter.
-       - The PI Server south plugin now allows the Asset Framework location to be added as a datapoint. This can then be used in the OMFHint filter to create the location in the destination PI server or otters north destination for the data. If going to another PI server the macro substitution feature that has been added to the OMF Hint filter can be used.
+       - The OMF north plugin has been updated to make an additional test for the server hostname when it is configured. This will give clearer feedback in the error log if a bad hostname is entered or the hostname can not be resolved. This will also confirm that IP addresses entered are in the correct format.
+       - There have been improvements to the OMF north plugin to prevent an issue that could cause the plugging to stop sending data if the type of an individual datapoint changed repeatedly between integer and floating point values. The logging of the plugin has also been improved, with clearing messages and less repetition of error conditions that persist for long periods.
+       - Some enhancements have been made to the OMF north plugin to improve the performance when there are large numbers of distinct assets to send to the PI Server.
+       - The documentation of the OMF North plugin has been updated to conform with the latest look and feel of the configuration user interface. It also contains notes regarding the use of complex types versus the OMF 1.2 linked types.
+       - Support for multiple data centers for OSIsoft Cloud Services (OCS) has been added. OCS is hosted in the US-West and EU-West regions.
+       - When processing data updates from the PI Server at high rates, the PI Server Update Manager queue might overflow. This is caused by the PI Server not retrieving data updates until all registrations were complete. To address this, the PI Server South plugin has been updated to interleave registration and retrieval of data updates so that data retrieval begins immediately.
        - Macro substitution has been added to the OMFHint filter allowing the contents of datapoints and metadata to be incorporated into the values of the OMF Hint, for example in the Asset Framework location can now include data read from the data source in the location.
-       - Support for fetching files using FTPS has been added to the foglamp-south-file plugin.
-       - The documentation for the etherip south plugin has been updated.
-       - The CSV writer filter plugin has been updated to improve the options available for defining the file names to use.
-       - A new plugin has been implemented for SKF Observer data
-       - SFTP has been added as a protocol for pulling files in the foglamp-south-file plugin.
-       - Support for SCP to pull files into the south file plugin has been added.
-       - The north opcuaclient has been updated to support multiple values in a single write.
-       - A new north plugin for sending data to the Amazon Web Services IOT core has been created.
-       - A new south plugin has been added to capture images from RTSP network cameras.
-       - A new north plugin has been added that allows data to be stored in the Azure Blob Service.
-       - The north OPCUA client plugin has been updated to support security mode and security policy.
-       - A new hint plugin for AWS Redshift has been added that allows specific assets t be sent to specific Redshift tables.
-       - The etherip south plugin has been updated to allow multiple tag items to be ingested in a single poll call.
+       - The documentation for the asset filter has been improved to include more examples and explanations for the various uses of the plugin and to include all the different operations that can be performed with the filter.
        - The asset filter has been updated to allow it to split assets into multiple assets, with the different data points in the original asset being assigned to one or more of the new assets created.
        - The asset filter has been enhanced to allow it to flatten a complex asset structure. This allows nested data to be moved to the root level of the asset.
-       - The sigma cleanse filter has been enhanced to persist the calculated sigma value when shutdown. The allow the learnt sigma values to be persisted across restarts of FogLAMP or the individual services.
        - The asset filter has been enhanced to allow it to remove data points from readings.
-       - A new north plugin, foglamp-north-aws-redshift has been created that can send data from FogLAMP into the Amazon web services Redshift database.
-       - A new filter plugin, foglamp-filter-regex has been added that is designed for filtering string type data points and allows string match and replace functionality in the values of the data points using regular expression.
-       - The S2OPCUA South plugin now supports an optional datapoint in its Readings that shows the full path of the OPC UA Variable in the server's namespace.
-       - A new south plugin that can use Python script to read file contents has been added.
-       - The OMF north plugin has been updated to make an additional test for the server hostname wen it is configured. This will give clearer feedback in the error log if a bad hostname is entered or the hostname can not be resolved. This will also confirm that IP addresses entered are in the correct format.
-       - The option to configure and use a username and password for authentication to the MQTT broker has been added to the south MQTT plugin.
-       - A new notification rule, foglamp-rule-match which is specifically aimed at use with audit log data and can be used to match certain internal events within the system.
-       - The average and watchdog rules have been updated to allow selection of data sources other than the readings to be sent to the rules.
-       - A new notification delivery plugin has been added that will send a message to Microsoft Teams users.
-       - There have been improvements to the OMF north plugin to prevent an issue that could cause the plugging to stop sending data if the type of an individual datapoint changed repeatedly between integer and floating point values. The logging of the the plugin has also been improved, with clearing messages and less repetition of error conditions that persist for long periods.
-       - The audit logger has been made available to plugins running within the notification service.
-       - Support for multiple data centers for OSIsoft Cloud Services (OCS) has been added. OCS is hosted in the US-West and EU-West regions.
-       - A new generic REST notification plugin has been added to the notification plugins available.
-       - A problem that prevented filters being used with the notify-north plugin has been fixed.
-       - The spectrogram filter has been updated to support conditional forwarding.
-       - A set of Jiras has been created for the S2OPCUA South plugin to fully incorporate all unique features of the FreeOPCUA South plugin.
-       - ADM LD prediction filter plugin and the autoencoder model inside it have been updated to make use of latest vibration data from more accelerometers and an improved data preprocessing pipeline.
-       - The SQLite In-Memory storage plugin now has an option that allows the data to be persisted when shutting the system down and reloaded on startup.
-       - A number of optimisations to the SQLite in-memory storage plugin and the SQLiteLB storage plugin have been added that increase the rate at which readings can be stored with these plugins.
-       - The documentation of the OMF North plugin has been updated to conform with the latest look and feel of the configuration user interface. It also contains notes regarding the use of complex types verses the OMF 1.2 linked types.
-       - The Simple Rest south plugin documentation has been updated to include the new authentication options. Th plugin configuration has also been updated to make use of the new tab based display, grouping relating configuration options together.
-       - The PI Server South plugin new responds properly if AF Attributes are edited or edited, and if PI Points are deleted. Unfortunately, it is not possible to detect PI Point attribute edits. It is not possible to detect creation of new AF Attributes or PI Points that match the query parameters. If this occurs, you must restart your PI Server South instance.
-       - A new filter plugins has been added that will allow data to be normalised to a particular reading rate within a stream.
-       - A new filter has been added that will allow two assets to be joined with a pipeline.
-       - A new feature has been added that allows pipelines to be defined that may be applied to control operations. This allows the filter pipelines to manipulate the control requests that arrived from various sources within Fledge.
-       - The North service could crash if it retrieved invalid JSON while processing a reconfiguration request. This was addressed by adding an exception handler to prevent the crash.
+       - The documentation for the control notification plugin has been updated to include examples for all destinations of control requests.
        - Windowed averages in the notification service preserve the type of the input data when creating the averages. This does not work well for integer values and has been changed such that integer values are promoted to floating point when using windowed averages for notification rule input.
        - The notification service documentation has been updated to include examples of notifications based on statistics and audit logs.
        - The notification mechanism has been updated to accept raw statistics and statistics rates as an input for notification rules. This allows alerts to be raised for pipeline flows and other internal tasks that generate statistics.
-       - The control dispatcher now has access to the audit logging system.
        - Notifications can now register for audit log entries to be sent to notification rules. This allows notification to be made based on internal state changes of the system.
+       - The north opcuaclient has been updated to support multiple values in a single write.
+       - The north opcuaclient plugin has been updated to support security mode and security policy.
+       - The fledge-north-kafka plugin has been updated to allow for username and password authentication to be supplied when connecting to the Kafka server.
+       - Compression functionality has been added to the fledge-north-kafka.
+       - The average and watchdog rules have been updated to allow selection of data sources other than the readings to be sent to the rules.
+       - The email notification plugin has been updated to allow custom alert messages to be created.
+       - The email notification delivery plugin has been updated to hide the password from view.
+       - Some devices were not compatible with the optimized block reading of registers performed by the ModbusC south plugin. The ModbusC plugin has been updated to provide controls that can determine how it reads data from the modus device. This allows single register reads, single object reads and the current optimized block reads.
+       - The S2OPCUA South plugin now supports an optional datapoint in its Readings that shows the full path of the OPC UA Variable in the server's namespace.
+       - The option to configure and use a username and password for authentication to the MQTT broker has been added to the fledge-south-mqtt plugin.
+       - A set of Jiras has been created for the S2OPCUA South plugin to fully incorporate all unique features of the FreeOPCUA South plugin.
+       - The North service could crash if it retrieved invalid JSON while processing a reconfiguration request. This was addressed by adding an exception handler to prevent the crash.
+       - The control dispatcher now has access to the audit logging system.
+       - The audit logger has been made available to plugins running within the notification service.
 
 
     - Bug Fix:
 
-       - The PI Server South plugin would start and run normally but would crash during shutdown. The crash did not affect configuration data persisted by the plugin. This has been fixed.
-       - The north OPCUA client plugin has been updated to support higher data transfer rates.
-       - An issue with set point control operations occurring before a south plugin is fully ready has been resolved.
-       - This issue was addressed by changes made in [FOGL-7849|https://scaledb.atlassian.net/browse/FOGL-7849].
-       - An issue with reconfiguring a Kafka north plugin has been resolved, this now behaves correctly in all cases.
-       - The Fledge S2OPCUA South plugin has been updated to support large numbers of Monitored Items.
-       - An issue with sending data to Kafka that included image data points has been resolved. There is no support in Kafka for images and the will be removed while allowing the remainder of the data to be sent to Kafka.
-       - A issue with NULL string data being returned from OPCUA servers has been resolved. NULL strings will not be represented in the readings, no data point will be created for the NULL string.
-       - The PI Server South plugin had a memory leak which causes memory usage to grow signficantly and never recover. This has been fixed.
-       - A packaging issue with the fog lamp-filter-inage-resize plugin has been resolved.
-       - A packaging issue with the foglamp-filter-inage-bounding-box plugin has been resolved.
-       - An issue with using multiple Python based plugins in a north conditional forwarding pipeline has been resolved.
-       - Various filters summarise data over time, these have been standardised to use the times of the summary calculation.
-       - A new filter plugin, foglamp-filter-normalise has been added that will time normalise data coming from different sources.
-       - A problem with the asset delivery plugin that would sometimes result in stopping the notification service has been resolved.
-       - The OMF North plugin sent basic data type definitions to AVEVA Data Hub (ADH) that could not be processed resulting in a loss of all time series data. This has been fixed.
-       - An issue that prevented the installation of the person detection plugin on Ubuntu 20 has been resolved.
-       - Recent changes in the OMF North plugin caused the data streaming to the Edge Data Store (EDS) to fail. This has been fixed. The fix has been tested with EDS 2020 (Version 1.0.0.609).
-       - An issue with the S2OPCUA South plugin that allowed a negative value to be entered for the minimum reporting interval has been resolved. The plugin has also be updated to use the new tab format for configuration item grouping.
-       - A problem that prevented the installation of the sigfns plugin has been resolved.
-       - The notification sent audit log entry was created even when the delivery failed. It should only be created on successful delivery, this has been fixed.
-       - The threshold filter interface has been tidied up, removing duplicate information.
-       - The email notification plugin has been updated to allow custom alert messages to be created.
-       - The email notification delivery plugin has been updated to hide the password from view.
-       - An issue with the Modbus-TCP & S7 plugins which caused the polling to fail has been resolved.
-       - An issue with the statistics filter that could cause the median statistics to be incorrect in certain cases has been resolved.
-       - An issue with the reconfiguration of the statistics filter which caused the filter to always output all statistics has been resolved.
-       - PI Server South responds properly if the PI Web API or PI Server is not available at plugin startup: it will wait until the server is reachable and then continue. The plugin also handles PI Servers restarting while processing data updates.
-       - The PI Server South plugin now has a configurable limit on the number of data streams loaded by the plugin. When this limit is reached, the plugin will not load any more streams and will log a warning. Setting the limit to 0 disables this limit check.
-       - A problem with the J1708 & J1939 plugins that cased them to fail if added disabled and then later enabling them has been resolved.
-       - The HTTP North C plugin now supports sending audit log data as well as readings and statistics.
-       - A problem that caused the Azure IoT Core north plugin to fail to send data has been corrected.
-       - The control map configuration item of the Modbus C plugin was incorrectly described, this has now been resolved.
        - A product version check was made incorrectly if the OMF endpoint type was not PI Web API. This has been fixed.
        - The OMF North plugin that is used to send Data a to the AVEVA PI Server has been updated to improve the performance of the plugin.
        - If a query for AF Attributes includes a search string token that does not exist, PI Web API returns an HTTP 400 error. PI Server South now retrieves error messages if this occurs and logs them.
-       - The plugin would become unresponsive if the OPC UA server was unavailable or if the server URL was incorrect. The only way to stop the plugin in this state was to shut down Fledge. This has been fixed.
-       - Documentation of the AF Location OMFHint in the OMF North plugin page has been updated to include an outline of difference in behaviors between Complex Types and the new Linked Types configuration.
+       - The OMF North plugin sent basic data type definitions to AVEVA Data Hub (ADH) that could not be processed resulting in a loss of all time series data. This has been fixed.
+       - Documentation of the AF Location OMFHint in the OMF North plugin page has been updated to include an outline of differences in behaviors between Complex Types and the new Linked Types configuration.
+       - Recent changes in the OMF North plugin caused the data streaming to the Edge Data Store (EDS) to fail. This has been fixed. The fix has been tested with EDS 2020 (Version 1.0.0.609).
+       - The north OPCUA client plugin has been updated to support higher data transfer rates.
+       - The Fledge S2OPCUA South plugin has been updated to support large numbers of Monitored Items.
+       - An issue with the S2OPCUA South plugin that allowed a negative value to be entered for the minimum reporting interval has been resolved. The plugin has also been updated to use the new tab format for configuration item grouping.
+       - An issue with NULL string data being returned from OPCUA servers has been resolved. NULL strings will not be represented in the readings, no data point will be created for the NULL string.
+       - The Fledge S2OPCUA South plugin would become unresponsive if the OPC UA server was unavailable or if the server URL was incorrect. The only way to stop the plugin in this state was to shut down Fledge. This has been fixed.
+       - The notification sent an audit log entry was created even when the delivery failed. It should only be created on successful delivery, this has been fixed.
+       - A problem with the asset delivery plugin that would sometimes result in stopping the notification service has been resolved.
+       - An issue that could cause notification to not trigger correctly when used with conditional forwarding has been resolved.
+       - An issue with using multiple Python based plugins in a north conditional forwarding pipeline has been resolved.
        - Changing the name of an asset in a notification rule could sometimes cause an error to be incorrectly logged. This has now been resolved.
        - An issue related to using averaging with the statistics history input to the notification rules has been fixed.
        - The asset notification delivery plugin was not previously creating entries in the asset tracker. This has now been resolved.
-
+       - An issue with set point control operations occurring before a south plugin is fully ready has been resolved.
+       - An issue with reconfiguring a Kafka north plugin has been resolved, this now behaves correctly in all cases.
+       - An issue with sending data to Kafka that included image data points has been resolved. There is no support in Kafka for images and they will be removed while allowing the remainder of the data to be sent to Kafka.
+       - An issue with the Modbus-TCP & S7 plugins which caused the polling to fail has been resolved.
+       - A problem with the J1708 & J1939 plugins that caused them to fail if added disabled and then later enabling them has been resolved.
+       - A problem that caused the Azure IoT Core north plugin to fail to send data has been corrected.
+       - Various filters summarize data over time, these have been standardized to use the times of the summary calculation.
+       - An issue that prevented the installation of the person detection plugin on Ubuntu 20 has been resolved.
+       - The control map configuration item of the Modbus C plugin was incorrectly described, this has now been resolved.
+       - The threshold filter interface has been tidied up, removing duplicate information.     
+       - The HTTP North C plugin now supports sending audit log data as well as readings and statistics.
+       
 
 v2.1.0
 -------
@@ -306,6 +263,7 @@ Release Date: 2022-12-26
        - The OMF north plugin now supports all ADH regions.
        - The OMF north plugin has been updated to allow support for OMF 1.2 features. This allows for better control of types within OMF resulting in the OMF plugin now dealing more cleanly with assets with different datapoints in different readings. Any assets that are already being sent to an OMF endpoint will continue to use the previous type mechanism. A number of new OMF hints are also supported.
        - The S2OPCUA south plugin has been updated to allow the timestamp for readings to be taken from the OPC UA server itself rather than the time that it was received by Fledge.
+
 
 
     - Bug Fix:
@@ -385,7 +343,7 @@ Release Date: 2022-09-09
        - When the data stream from a south plugin included an OMF Hint of AFLocation, performance of the OMF North plugin would degrade. In addition, process memory would grow over time. These issues have been fixed.
        - The version of the PostgreSQL database used by the Postgres storage plugin has been updated to PostgreSQL 13.
        - An enhancement has been added to the North service to allow the user to specify the block size to use when sending data to the plugin. This helps tune the north services and is described in the tuning guide within the documentation.
-       - The notification server would previously output warning messages when it was starting, these were not an indication of a problem and should have been information messages. This has now been resolved.
+       - The notification service would previously output warning messages when it was starting, these were not an indication of a problem and should have been information messages. This has now been resolved.
        - The backup mechanism has been improved to include some external items in the backup and provide a more secure backup.
        - The purge option that controls if unsent assets can be purged or not has been enhanced to provide options for sent to any destination or sent to all destinations as well as sent to no destinations.
        - It is now possible to add control features to Python south plugins.

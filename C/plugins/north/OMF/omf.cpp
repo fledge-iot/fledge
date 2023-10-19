@@ -244,6 +244,7 @@ OMF::OMF(const string& name,
 	m_changeTypeId = false;
 	m_OMFDataTypes = NULL;
 	m_OMFVersion = "1.0";
+	m_connected = false;
 }
 
 /**
@@ -271,6 +272,7 @@ OMF::OMF(const string& name,
 
 	m_lastError = false;
 	m_changeTypeId = false;
+	m_connected = false;
 }
 
 // Destructor
@@ -1116,7 +1118,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 			m_baseTypesSent = true;
 		}
 	}
-
+#if 0
 	// TODO We do not need the superset stuff if we are using linked data types,
 	// this would save us interating over the dat aan extra time and reduce our
 	// memory footprint
@@ -1126,6 +1128,7 @@ uint32_t OMF::sendToServer(const vector<Reading *>& readings,
 	// creation of OMF data types. This is used for the initial type
 	// handling of complex data types.
 	OMF::setMapObjectTypes(readings, m_SuperSetDataPoints);
+#endif
 
 #if INSTRUMENT
 	gettimeofday(&t1, NULL);

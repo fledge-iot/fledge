@@ -461,6 +461,7 @@ uint32_t OMFInformation::send(const vector<Reading *>& readings)
 		{
 			// Created a new sender after a connection failure
 			m_omf->setSender(*m_sender);
+			m_omf->setConnected(false);
 		}
 	}
 
@@ -536,6 +537,13 @@ uint32_t OMFInformation::send(const vector<Reading *>& readings)
 		Logger::getLogger()->warn("Connection to PI Web API at %s has been lost", m_hostAndPort.c_str());
 	}
 	m_connected = updatedConnected;
+
+	// FIXME
+	delete m_omf;
+	delete m_sender;
+	m_omf = NULL;
+	m_sender = NULL;
+	m_connected = false;
 	
 #if INSTRUMENT
 	Logger::getLogger()->debug("plugin_send elapsed time: %6.3f seconds, NumValues: %u", GetElapsedTime(&startTime), ret);

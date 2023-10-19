@@ -34,7 +34,6 @@ Release Date: 2023-10-17
 
     - New Features:
 
-       - New performance monitors have been added to the north service and the running guide updated to discuss how these can be used.
        - New audit logs have been added to reflect the creation, update and deletion of access control lists.
        - New public API Entry Points have been added to allow for the creation and manipulation of control pipelines.
        - A new user role has been added for those users able to update the control features of the platform.
@@ -44,7 +43,7 @@ Release Date: 2023-10-17
        - A number of optimizations have been made to improve the performance of Python filters within a pipeline.
        - A number of optimisations to the SQLite in-memory storage plugin and the SQLiteLB storage plugin have been added that increase the rate at which readings can be stored with these plugins.
        - The support bundle creation process has been updated to include any performance counters available in the system.
-       - The ability to monitor performance counters has been added to Fledge. Currently only south services offer performance counters that can be captured by the system. These are designed to provide information useful for tuning the south service.
+       - The ability to monitor performance counters has been added to Fledge. The South and north services now offer performance counters that can be captured by the system. These are designed to provide information useful for tuning the respective services.
        - The process used to extract log information from the system logs has been updated to improve performance and reduce the system overhead required to extract log data.
        - A number of changes have been made to improve the performance of sending data north from the system.
        - The performance of the statistics history task has been improved. It now makes fewer calls to the storage subsystem, improving the overall system performance.
@@ -65,7 +64,7 @@ Release Date: 2023-10-17
        - The default interval for running the purge process has been reduced, the purge process will now run every 10 minutes. This change only affects new installations, the purge process will run as before on systems that are upgraded.       
        - The ingestion of data from asynchronous south services paid no attention to the advanced configuration option "Throttle". This meant that very fast asynchronous south plugins could build extremely large queues of data within the south service, using system resources and taking a long time to shutdown. This has now been rectified, with asynchronous south services now subject to flow control if the "Throttle" option is set for the service. Unconstrained input is still available if the "Throttle" option is not checked.
        - The south plugin now supports three different modes of polling. Polling at fixed intervals from the time started, polling at fixed times or polling on demand via the control mechanisms.
-       - Support has been added to allow filters to ingest pass data onwards during a shutdown of the filter. This allows any buffered data to be flushed to the next filter in the pipeline.
+       - Support has been added to allow filters to ingest passed data onwards during a shutdown of the filter. This allows any buffered data to be flushed to the next filter in the pipeline.
        - A numeric list data type has been added to the reading ingestion code of the system.
        - A security vulnerability in one of the PIP packages used by some of the Python components used by the system.
        - The format of Python traceback has been improved to use multiple lines within the log. This makes the trace easier to understand and prevents the truncation that can occur.
@@ -76,6 +75,7 @@ Release Date: 2023-10-17
        - The configuration category C++ API has been enhanced in the retrieval and setting of all the attributes of a configuration item.       
        - The support bundle has been updated to include a list of the Python packages installed on the machine.
        - The documentation regarding handling and updating certificates used for authentication has been updated. 
+       - Added documentation for performance counter in the tunning guide.
 
 
     - Bug Fix:
@@ -106,8 +106,7 @@ Release Date: 2023-10-17
        - The data sent to notification rules that register for audit information has been updated to include the complete audit record. This allows for notification rules to be written that trigger on particular auditable operations within the system.
        - The notification service would sometimes shutdown without removing all of the subscriptions it holds with the storage service. This could cause issues for the storage service. Subscriptions are now correctly removed.
        - The command line interface to view the status of the system has been updated to correctly show the statistics history collection task when it is running.      
-       - A problem with incorrect timestamps in the readings graphs when the timezone of the machine was something other than UTC has been resolved.
-       - A number of inconsistencies in the timezone returned by API calls have been resolved. All API calls should return timestamps in the UTC timezone unless a timezone explicitly included in the response.
+       - The issue of incorrect timestamps in reading graphs due to inconsistent timezones in API calls has been resolved. All API calls now return timestamps in UTC unless explicitly specified in the response.
        - An issue with the code update mechanism that could cause multiple updates to occur has been resolved. Only a single update should be executed and then the flag allowing for updates to be applied should be removed. This prevents the update mechanism triggering on each restart of the system.
        - A problem that prevented the modbusC south plugin from being updated in the same way as other plugins has been resolved.
        - An issue with trying to create a new user that shares the same user name with a previous user that was removed from the system failing has been resolved.

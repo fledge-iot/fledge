@@ -56,7 +56,7 @@ Release Date: 2023-10-17
        - The public API has been updated to include the ability to make control requests.
        - The public API of the system has been updated to allow selection of readings from the storage buffer for given time intervals.      
        - The public API that is used to retrieve reading data from the storage layer has been updated to allow data for multiple assets to be retrieved in a single call.
-       - The SQLite In-Memory storage plugin now has an option that allows the data to be persisted when shutting the system down and reloaded on startup.       
+       - The SQLite in-memory storage plugin now has an option that allows the data to be persisted when shutting the system down and reloaded on startup.
        - The SQLite storage plugins have been updated to improve the error reporting around database contention issues.
        - A change has been made to the configuration of the storage plugin such that rather than having to type correct names for storage plugins the user may now select the plugins to use from a drop down list. Note however that the system must still be restarted for the new storage plugin to take effect.
        - The storage service has been updated to allow other services to subscribe the notifications of inserts into the generic tables.
@@ -66,7 +66,7 @@ Release Date: 2023-10-17
        - The south plugin now supports three different modes of polling. Polling at fixed intervals from the time started, polling at fixed times or polling on demand via the control mechanisms.
        - Support has been added to allow filters to ingest passed data onwards during a shutdown of the filter. This allows any buffered data to be flushed to the next filter in the pipeline.
        - A numeric list data type has been added to the reading ingestion code of the system.
-       - A security vulnerability in one of the PIP packages used by some of the Python components used by the system.
+       - A Python package, used by the system, found to have a security vulnerability. This has been updated.
        - The format of Python traceback has been improved to use multiple lines within the log. This makes the trace easier to understand and prevents the truncation that can occur.
        - The setting of log levels from a service is now also reflected in any Python code loaded by the service.
        - The reporting of issues related to failure to load plugins has been improved.
@@ -101,8 +101,8 @@ Release Date: 2023-10-17
        - A problem that prevents an updated service from restarting after an upgrade if HTTPS is used for the interface between services has been resolved.
        - An issue that limited the update of additional services to just the notification service has been resolved. The update mechanism can now update any service that is added to the base system installation.       
        - The Python south plugin mechanism has been updated to fix an issue with ingestion of nested data point values.       
-       - When switching a south plugin from a slow poll rate to a faster one the new poll rate does not take effect until the end of the current poll cycle. This could be a very long time, this has now been changed so that the south service will take the new poll rate as soon as possible rather than wait for the end of the current poll cycle.
-       - A bug that prevents notification rules from being executed for readings with asset codes starting with numeric values has been resolved.
+       - When switching a south plugin from a slow poll rate to a faster one the new poll rate does not take effect until the end of the current poll cycle. This could be a very long time. This has now been changed so that the south service will take the new poll rate as soon as possible rather than wait for the end of the current poll cycle.
+       - A bug that prevented notification rules from being executed for readings with asset codes starting with numeric values has been resolved.
        - The data sent to notification rules that register for audit information has been updated to include the complete audit record. This allows for notification rules to be written that trigger on particular auditable operations within the system.
        - The notification service would sometimes shutdown without removing all of the subscriptions it holds with the storage service. This could cause issues for the storage service. Subscriptions are now correctly removed.
        - The command line interface to view the status of the system has been updated to correctly show the statistics history collection task when it is running.      
@@ -340,7 +340,7 @@ Release Date: 2022-09-09
        - When the data stream from a south plugin included an OMF Hint of AFLocation, performance of the OMF North plugin would degrade. In addition, process memory would grow over time. These issues have been fixed.
        - The version of the PostgreSQL database used by the Postgres storage plugin has been updated to PostgreSQL 13.
        - An enhancement has been added to the North service to allow the user to specify the block size to use when sending data to the plugin. This helps tune the north services and is described in the tuning guide within the documentation.
-       - The notification service would previously output warning messages when it was starting, these were not an indication of a problem and should have been information messages. This has now been resolved.
+       - The notification service would previously output warning messages when it was starting. These were not an indication of a problem and should have been information messages. This has now been resolved.
        - The backup mechanism has been improved to include some external items in the backup and provide a more secure backup.
        - The purge option that controls if unsent assets can be purged or not has been enhanced to provide options for sent to any destination or sent to all destinations as well as sent to no destinations.
        - It is now possible to add control features to Python south plugins.

@@ -41,7 +41,7 @@ Release Date: 2023-10-17
        - The asset tracker component has been optimized in order to improve the ingress and egress performance of Fledge.
        - The mechanism used by the south and north services to interact with the audit log has been optimized. This improves the ingress and egress performance of the product at the cost of a small delay before the audit log is updated.
        - A number of optimizations have been made to improve the performance of Python filters within a pipeline.
-       - A number of optimisations to the SQLite in-memory storage plugin and the SQLiteLB storage plugin have been added that increase the rate at which readings can be stored with these plugins.
+       - A number of optimizations to the SQLite in-memory storage plugin and the SQLiteLB storage plugin have been added that increase the rate at which readings can be stored with these plugins.
        - The support bundle creation process has been updated to include any performance counters available in the system.
        - The ability to monitor performance counters has been added to Fledge. The South and north services now offer performance counters that can be captured by the system. These are designed to provide information useful for tuning the respective services.
        - The process used to extract log information from the system logs has been updated to improve performance and reduce the system overhead required to extract log data.

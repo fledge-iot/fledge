@@ -43,7 +43,7 @@ Release Date: 2023-10-17
        - A number of optimizations have been made to improve the performance of Python filters within a pipeline.
        - A number of optimizations to the SQLite in-memory storage plugin and the SQLiteLB storage plugin have been added that increase the rate at which readings can be stored with these plugins.
        - The support bundle creation process has been updated to include any performance counters available in the system.
-       - The ability to monitor performance counters has been added to Fledge. The South and north services now offer performance counters that can be captured by the system. These are designed to provide information useful for tuning the respective services.
+       - The ability to monitor performance counters has been added to Fledge. The South and North services now offer performance counters that can be captured by the system. These are designed to provide information useful for tuning the respective services.
        - The process used to extract log information from the system logs has been updated to improve performance and reduce the system overhead required to extract log data.
        - A number of changes have been made to improve the performance of sending data north from the system.
        - The performance of the statistics history task has been improved. It now makes fewer calls to the storage subsystem, improving the overall system performance.
@@ -75,7 +75,7 @@ Release Date: 2023-10-17
        - The configuration category C++ API has been enhanced in the retrieval and setting of all the attributes of a configuration item.       
        - The support bundle has been updated to include a list of the Python packages installed on the machine.
        - The documentation regarding handling and updating certificates used for authentication has been updated. 
-       - Added documentation for performance counter in the tunning guide.
+       - Added documentation for the performance counters in the tuning guide.
 
 
     - Bug Fix:
@@ -103,15 +103,15 @@ Release Date: 2023-10-17
        - The Python south plugin mechanism has been updated to fix an issue with ingestion of nested data point values.       
        - When switching a south plugin from a slow poll rate to a faster one the new poll rate does not take effect until the end of the current poll cycle. This could be a very long time. This has now been changed so that the south service will take the new poll rate as soon as possible rather than wait for the end of the current poll cycle.
        - A bug that prevented notification rules from being executed for readings with asset codes starting with numeric values has been resolved.
-       - The data sent to notification rules that register for audit information has been updated to include the complete audit record. This allows for notification rules to be written that trigger on particular auditable operations within the system.
+       - The data sent to notification rules that register for audit information has been updated to include the complete audit record. This allows for notification rules to be written that trigger on the particular auditable operations within the system.
        - The notification service would sometimes shutdown without removing all of the subscriptions it holds with the storage service. This could cause issues for the storage service. Subscriptions are now correctly removed.
        - The command line interface to view the status of the system has been updated to correctly show the statistics history collection task when it is running.      
        - The issue of incorrect timestamps in reading graphs due to inconsistent timezones in API calls has been resolved. All API calls now return timestamps in UTC unless explicitly specified in the response.
        - An issue with the code update mechanism that could cause multiple updates to occur has been resolved. Only a single update should be executed and then the flag allowing for updates to be applied should be removed. This prevents the update mechanism triggering on each restart of the system.
-       - A problem that prevented the modbusC south plugin from being updated in the same way as other plugins has been resolved.
+       - A problem that prevented the fledge-south-modbus plugin from being updated in the same way as other plugins has been resolved.
        - An issue with trying to create a new user that shares the same user name with a previous user that was removed from the system failing has been resolved.
        - A problem with converting very long integers from JSON has been resolved. This would have manifested itself as a crash when handling datapoints that contain 64 bit integers above a certain value.     
-       - An update has been made to prevent the creation of services with empty service name.
+       - An update has been made to prevent the creation of service with empty service name.
 
 
 - **GUI**
@@ -120,7 +120,7 @@ Release Date: 2023-10-17
 
        - New controls have been added in the menu pane of the GUI to allow nested commands to be collapsed or expanded, resulting in a smaller menu display.
        - A new user interface option has been added to the control menu to create control pipelines.
-       - The user interface has been updated such that if the backend system is not available then the user interface components are made insensitive.
+       - The user interface has been updated such that if the backend system is not available then the user interface components are made non-interactive & blur.
        - The interface for updating the filters has been improved when multiple filters are being updated at once.
        - New controls have been added to the asset browser to pause the automatic refresh of the data and to allow shuffling back and forth along the timeline.
        - The ability to move backwards and forwards in the timeline of the asset browser graph has been added.
@@ -137,7 +137,7 @@ Release Date: 2023-10-17
 
        - The user interface for configuring plugins has been improved to make it more obvious when mandatory items are missing.
        - An issue that allowed view users to update configuration when logged in using certificate based authentication has been resolved.
-       - An issue with the handling of script type items whose name was not also script in the user interface that meant that scripts with different names were incorrectly handled has been resolved.
+       - An issue which prevented the file upload/value update for script type configuration item, unless the name also was script has been resolved.
        - An issue with editing large scripts or JSON items in the configuration has been resolved.
        - An issue that caused services with quotes in the name to disappear from the user interface has been resolved.
        - The latest reading display issue that resulted in non image data not being shown when one or more image data points are in the reading has been resolved.
@@ -153,26 +153,24 @@ Release Date: 2023-10-17
        - The OMF north plugin has been updated to make an additional test for the server hostname when it is configured. This will give clearer feedback in the error log if a bad hostname is entered or the hostname can not be resolved. This will also confirm that IP addresses entered are in the correct format.
        - Some enhancements have been made to the OMF north plugin to improve the performance when there are large numbers of distinct assets to send to the PI Server.
        - There have been improvements to the OMF north plugin to prevent an issue that could cause the plugin to stop sending data if the type of an individual datapoint changed repeatedly between integer and floating point values. The logging of the plugin has also been improved, with clearer messages and less repetition of error conditions that persist for long periods.
-       - Support for multiple data centers for OSIsoft Cloud Services (OCS) has been added in OMF north plugin. OCS is hosted in the US-West and EU-West regions.
+       - Support for multiple data centers for OSIsoft Cloud Services (OCS) has been added in the OMF north plugin. OCS is hosted in the US-West and EU-West regions.
        - When processing data updates from the PI Server at high rates, the PI Server Update Manager queue might overflow. This is caused by the PI Server not retrieving data updates until all registrations were complete. To address this, the PI Server South plugin has been updated to interleave registration and retrieval of data updates so that data retrieval begins immediately.
        - Macro substitution has been added to the OMFHint filter allowing the contents of datapoints and metadata to be incorporated into the values of the OMF Hint, for example in the Asset Framework location can now include data read from the data source in the location.
-       - The asset filter has been updated to allow it to split assets into multiple assets, with the different data points in the original asset being assigned to one or more of the new assets created.
-       - The asset filter has been enhanced to allow it to flatten a complex asset structure. This allows nested data to be moved to the root level of the asset.
-       - The asset filter has been enhanced to allow it to remove data points from readings.
+       - The fledge-filter-asset has been updated to allow it to split assets into multiple assets, with the different data points in the original asset being assigned to one or more of the new assets created.
+       - The fledge-filter-asset has been enhanced to allow it to flatten a complex asset structure. This allows nested data to be moved to the root level of the asset.
+       - The fledge-filter-asset has been enhanced to allow it to remove data points from readings.
        - Windowed averages in the notification service preserve the type of the input data when creating the averages. This does not work well for integer values and has been changed such that integer values are promoted to floating point when using windowed averages for notification rule input.
        - The notification mechanism has been updated to accept raw statistics and statistics rates as an input for notification rules. This allows alerts to be raised for pipeline flows and other internal tasks that generate statistics.
        - Notifications can now register for audit log entries to be sent to notification rules. This allows notification to be made based on internal state changes of the system.
-       - The north opcuaclient has been updated to support multiple values in a single write.
-       - The north opcuaclient plugin has been updated to support OPC UA security mode and security policies.
-       - The HTTP North C plugin now supports sending audit log data as well as readings and statistics.
+       - The fledge-north-opcuaclient has been updated to support multiple values in a single write.
+       - The fledge-north-opcuaclient plugin has been updated to support OPC UA security mode and security policies.
+       - The fledge-north-httpc plugin now supports sending audit log data as well as readings and statistics.
        - The fledge-north-kafka plugin has been updated to allow for username and password authentication to be supplied when connecting to the Kafka server.
        - Compression functionality has been added to the fledge-north-kafka.
        - The average and watchdog rules have been updated to allow selection of data sources other than the readings to be sent to the rules.
-       - The email notification plugin has been updated to allow custom alert messages to be created.
-       - The email notification delivery plugin has been updated to hide the password from view.
-       - Some devices were not compatible with the optimized block reading of registers performed by the ModbusC south plugin. The ModbusC plugin has been updated to provide controls that can determine how it reads data from the modbus device. This allows single register reads, single object reads and the current optimized block reads.
-       - The S2OPCUA South plugin now supports an optional datapoint in its Readings that shows the full path of the OPC UA Variable in the server's namespace.
-       - An issue with the S2OPCUA South plugin that allowed a negative value to be entered for the minimum reporting interval has been resolved. The plugin has also been updated to use the new tab format for configuration item grouping.
+       - The fledge-notify-email notification delivery plugin has been updated to hide the password from view and also allow custom alert messages to be created.
+       - Some devices were not compatible with the optimized block reading of registers performed by the fledge-south-modbus plugin. The plugin has been updated to provide controls that can determine how it reads data from the modbus device. This allows single register reads, single object reads and the current optimized block reads.
+       - The fledge-south-s2opcua now supports an optional datapoint in its Readings that shows the full path of the OPC UA Variable in the server's namespace. It has also to support large numbers of Monitored Items.
        - The option to configure and use a username and password for authentication to the MQTT broker has been added to the fledge-south-mqtt plugin.
        - The North service could crash if it retrieved invalid JSON while processing a reconfiguration request. This was addressed by adding an exception handler to prevent the crash.
        - The audit logger has been made available to plugins running within the notification service.
@@ -188,29 +186,28 @@ Release Date: 2023-10-17
        - The OMF North plugin that is used to send Data to the AVEVA PI Server has been updated to improve the performance of the plugin.
        - The OMF North plugin sent basic data type definitions to AVEVA Data Hub (ADH) that could not be processed resulting in a loss of all time series data. This has been fixed.
        - Recent changes in the OMF North plugin caused the data streaming to the Edge Data Store (EDS) to fail. This has been fixed. The fix has been tested with EDS 2020 (Version 1.0.0.609).
-       - The north OPCUA client plugin has been updated to support higher data transfer rates.
-       - The Fledge S2OPCUA South plugin has been updated to support large numbers of Monitored Items.
-       - An issue with NULL string data being returned from OPCUA servers has been resolved. NULL strings will not be represented in the readings, no data point will be created for the NULL string.
-       - The Fledge S2OPCUA South plugin would become unresponsive if the OPC UA server was unavailable or if the server URL was incorrect. The only way to stop the plugin in this state was to shut down Fledge. This has been fixed.
-       - An issue with set point control operations occurring before a south plugin is fully ready has been resolved.
-       - An issue with reconfiguring a Kafka north plugin has been resolved, this now behaves correctly in all cases.
+       - The fledge-north-opcuaclient plugin has been updated to support higher data transfer rates.
+       - An issue with the fledge-south-s2opcua that allowed a negative value to be entered for the minimum reporting interval has been resolved. The plugin has also been updated to use the new tab format for configuration item grouping.
+       - An issue with NULL string data being returned from OPC UA servers has been resolved. NULL strings will not be represented in the readings, no data point will be created for the NULL string.
+       - The fledge-south-s2opcua plugin would become unresponsive if the OPC UA server was unavailable or if the server URL was incorrect. The only way to stop the plugin in this state was to shut down Fledge. This has been fixed.
+       - An issue with fledge-notify-setpoint plugin to control operations occurring before a south plugin is fully ready has been resolved.
+       - An issue with reconfiguring a fledge-north-kafka plugin has been resolved, this now behaves correctly in all cases.
        - An issue with sending data to Kafka that included image data points has been resolved. There is no support in Kafka for images and they will be removed while allowing the remainder of the data to be sent to Kafka.
-       - An issue with the Modbus-TCP & S7 plugins which caused the polling to fail has been resolved.
-       - A problem with the J1708 & J1939 plugins that caused them to fail if added disabled and then later enabling them has been resolved.
-       - A problem that caused the Azure IoT Core north plugin to fail to send data has been corrected.
+       - An issue with the fledge-south-modbustcp & S7 plugins which caused the polling to fail has been resolved.
+       - A problem with the fledge-south-j1708 & fledge-south-j1939 plugins that caused them to fail if added disabled and then later enabling them has been resolved.
+       - A problem that caused the fledge-north-azure-iot plugin to fail to send data has been corrected.
        - A product version check was made incorrectly if the OMF endpoint type was not PI Web API. This has been fixed.       
        - The notification sent an audit log entry was created even when the delivery failed. It should only be created on successful delivery, this has been fixed.
-       - A problem with the asset delivery plugin that would sometimes result in stopping the notification service has been resolved.
+       - A problem with the fledge-notify-asset delivery plugin that would sometimes result in stopping the notification service and also it was not previously creating entries in the asset tracker have been resolved.
        - An issue that could cause notification to not trigger correctly when used with conditional forwarding has been resolved.
        - An issue with using multiple Python based plugins in a north conditional forwarding pipeline has been resolved.
-       - Changing the name of an asset in a notification rule could sometimes cause an error to be incorrectly logged. This has now been resolved.
+       - Changing the name of an asset in a notification rule plugins could sometimes cause an error to be incorrectly logged. This has now been resolved.
        - An issue related to using averaging with the statistics history input to the notification rules has been fixed.
-       - The asset notification delivery plugin was not previously creating entries in the asset tracker. This has now been resolved.    
        - If a query for AF Attributes includes a search string token that does not exist, PI Web API returns an HTTP 400 error. PI Server South now retrieves error messages if this occurs and logs them.
        - Various filters summarize data over time, these have been standardized to use the times of the summary calculation.
-       - The threshold filter interface has been tidied up, removing duplicate information.     
-       - A problem with installation of the person detection plugin on Ubuntu 20 has been resolved.
-       - The control map configuration item of the Modbus C plugin was incorrectly described, this has now been resolved.
+       - The fledge-filter-threshold interface has been tidied up, removing duplicate information.
+       - A problem with installation of the fledge-south-person-detection plugin on Ubuntu 20 has been resolved.
+       - The control map configuration item of the fledge-south-modbus plugin was incorrectly described, this has now been resolved.
 
 
 v2.1.0
